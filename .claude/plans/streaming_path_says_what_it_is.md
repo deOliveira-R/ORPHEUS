@@ -10,12 +10,15 @@
 >
 > ### Where the tree is — `[M]` reconcile with git, never with this
 >
-> `main` @ **`8ffddfb9`** == `origin/main`. ✅ **P2 AND P3 are both MERGED and
-> PUSHED; no open branch for this campaign** (`refactor/p2-angular-comes-home`
-> and `refactor/p3-names-stop-lying` both deleted). `[M]` P3's exit gate ran
-> BEFORE the merge: **9815 passed / 0 failed**, 13 trees all `rc=0`, and
-> **delta 0 on every one of the four axes** against the P2 gate — two renames,
-> nothing moved anywhere.
+> ✅ **P2, P3 and P4.1a are all MERGED and PUSHED; no open branch for this
+> campaign.** `[M]` P3's exit gate: **9815 passed / 0 failed**, 13 trees all
+> `rc=0`, **delta 0 on all four axes** vs P2. `[M]` P4.1a's exit gate
+> (2026-08-27, full fast set, 13 trees, all `rc=0`): **9823 passed / 0
+> failed**, and the **+8** against P3 is fully accounted for — it is the
+> `test_alpha_defect_normalization` gate that rode in on the same landing
+> (`[M]` collects exactly 8) — with **delta 0 on skipped / deselected /
+> xfailed**, i.e. P4.1a itself moved nothing, as a bit-identical retirement
+> must.
 > ⚠ Reconcile with git, never with this line
 > (`git merge-base --is-ancestor 4a3f2390 main`).
 > ⚠ This repo has **no CI** (`.github/workflows/` absent). "main is always
@@ -31,7 +34,9 @@
 > | `dcd6a9f6` | **P2** | `sn/sweep/pole_angular_closure.py` → `sn/angular/closure.py`, byte-identical |
 > | `75571c4d` | **P3a** | `redistribution_gram` → `redistribution_pairing` (concept: 60 lines, 7 files) |
 > | `4a3f2390` | **P3b** | `GeometryCoefficients` → `StreamingCoefficientCache` (45 sites, 12 files) |
-> | `8ffddfb9` | — | this compaction point (P2+P3 merged to main here) |
+> | `8ffddfb9` | — | the post-P3 compaction point |
+| `af801d76` | — | the α-defect diagnostic measured the normalization, not the defect (+ its 8-case gate) |
+| `ad3ebf22` | **P4.1a** | the chart lives on the mesh, not on a copy beside it |
 >
 > `[M]` P2's exit gate: **9815 passed / 0 failed**, 13 trees all `rc=0`; against
 > P1's baseline **+1** passed — the new `sn/angular/__init__.py` adds one case to
@@ -54,6 +59,15 @@
 > `delta_A` lives — was ruled 2026-08-27: `sn/`, on a CONTRACT argument, not a
 > consumer count):
 > **§4ter**.
+>
+> ▶▶ **P4.1a has LANDED (`ad3ebf22`). The next executable steps are P4.1b and
+> P4.1c**, both fully designed and pre-flighted in §4ter — read the ✅ RULED
+> block under P4.1b before touching anything, because **both its scope and its
+> means were changed by measurement**: the step is a Pattern-2 arm collapse
+> (not a two-field un-weld), it stops one arm short of total (a single-level
+> rule with a PERMUTED index list forbids unifying through `level_indices`),
+> and `face_areas`/`delta_A` become **derived accessors, not populated
+> fields**.
 >
 > ⛔ **Of §4ter's three remaining forks, TWO are now BLOCKED rather than open** —
 > the producer's home and the `ChartConnection` name both resolve as consequences
@@ -482,8 +496,8 @@ one.
 
 ### The step order, and why it is forced
 
-**P4.1a — `coord` retires.** ✅ **EXECUTED 2026-08-27** (branch
-`refactor/p4-1a-coord-retires`; hash on landing). `[M]` duplicate on **3/3**
+**P4.1a — `coord` retires.** ✅ **LANDED `ad3ebf22`** 2026-08-27 (exit gate: 13 trees `rc=0`,
+9823 passed / 0 failed, delta 0 on skipped/deselected/xfailed). `[M]` duplicate on **3/3**
 charts (`op.coord is op.mesh.coord`). Bit-identical. **This is the load-bearing
 prerequisite**: it is what severs `transport`'s reach into the bundle
 (`transport/radial_characteristic_field.py:361-362` reads `mesh.reduced.coord`
