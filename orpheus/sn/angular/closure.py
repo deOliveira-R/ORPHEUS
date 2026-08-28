@@ -517,8 +517,12 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         cache IS the hoist).  ``1.0`` everywhere for the identity closure.
 
         ⚠ The scan-normal form is NOT bitwise equal to
-        :func:`march_psi_half_step` ([M] 59 % bit-equal on real τ, max 204
-        ULP) — the two representations are welded by gate, not by spelling.
+        :func:`march_psi_half_step` — [M] on real fp(4, 6) τ the stable
+        discriminator is absolute: max |Δ| = 1.776e-15 (exact across
+        seeds); bit-equal-fraction and max-ULP are DRAW-dependent
+        (46–51 %, 1e2–1e5 ULP over 200 seeds — τ is bitwise ½ on only 2
+        of that rule's 12 ordinates, and near-zero outputs blow up ULP).
+        The two representations are welded by gate, not by spelling.
         """
         return 1.0 / self.tau_per_ordinate
 
@@ -1371,7 +1375,9 @@ def march_psi_half_step(
     r"""ONE Morel--Montry march step: :math:`\psi^a_{m+1/2} =
     (\bar\psi_m - (1-\tau_m)\,\psi^a_{m-1/2})/\tau_m`.
 
-    **The single production spelling of the M-M update relation** (P4.9a).
+    **The M-M update relation's single OWNER spelling** (P4.9a; the scan
+    fast path consumes the closure's own minted scan-normal FORM — one
+    owner, two representations, welded by gate).
     Every consumer routes here: the batch kernel
     :func:`_psi_half_grid_single_level` delegates its loop body, and the
     per-cell degenerate solve path calls it through
@@ -1384,10 +1390,12 @@ def march_psi_half_step(
     scan-normal form :math:`\tau^{-1}\bar\psi - ((1-\tau)/\tau)\psi^a`
     via the minted constants (:attr:`PoleAngularClosureBase.tau_inv_per_ordinate`
     / :attr:`~PoleAngularClosureBase.march_a_in_coeff_per_ordinate`) — the two
-    forms are NOT bitwise equal ([M] 2026-08-28: bit-equal 59 % on real τ,
-    max 204 ULP; ``scratch/p4_9a_verification_plan.md`` §F2), which is
-    exactly why this form and the constants are welded by gate rather than
-    unified by spelling.
+    forms are NOT bitwise equal ([M] 2026-08-28, real fp(4, 6) τ: the
+    stable discriminator is max |Δ| = 1.776e-15, exact across seeds;
+    bit-equal-fraction and ULP counts are draw-dependent —
+    ``scratch/p4_9a_verification_plan.md`` §F2 + its band correction),
+    which is exactly why this form and the constants are welded by gate
+    rather than unified by spelling.
     """
     return (psi_avg - (1.0 - tau) * psi_half_in) / tau
 

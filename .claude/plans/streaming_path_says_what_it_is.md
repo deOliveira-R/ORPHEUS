@@ -2925,9 +2925,10 @@ with it:**
 
 * **Q1 — the degenerate branch routes through the OWNER's form, via a closure
   march-step method** (Form A, the closure's own operation order; its batch
-  march delegates to the same body). `[M]` the expanded scan form is bit-equal
-  only 59 % on real τ (max 204 ULP) and breaks `keff` bit-equality on 3 of 4
-  configs; and the `is`-identity gate is unbuildable without a closure METHOD
+  march delegates to the same body). `[M]` the expanded scan form differs from the
+  owner's by max |Δ| = 1.776e-15 on real τ (the seed-stable discriminator;
+  %/ULP figures are draw-dependent — memo §F2 band correction) and breaks
+  `keff` bit-equality on 3 of 4 configs; and the `is`-identity gate is unbuildable without a closure METHOD
   call — two independent reasons, one ruling. The fast path keeps the minted
   scan-form constants (bit-identity of every cylindrical solve), welded to the
   march by an `array_equal` field gate (`[M]` the realistic drift,

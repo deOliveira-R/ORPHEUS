@@ -81,6 +81,14 @@ They are algebraically identical and **NOT bitwise equal**. `[M]` on the REAL
 **59.13 %**, max |Δ| `1.776e-15`, max **204 ULP**, median 1 ULP. On uniform
 random τ ∈ [¼,¾]: 49.5 % equal, max **37 559 ULP**.
 
+⛔ **BAND-CORRECTED 2026-08-28 (archivist reproduction, 200 seeds × 2400
+evals, same fixture): the % and ULP figures are DRAW-dependent** — bit-equal
+46.21–51.42 % (59.13 was outside the band), max ULP 113–91 839 (204 was the
+floor).  **Only `max |Δ| = 1.776e-15` reproduces exactly** — near-zero
+outputs blow up relative ULP without bound, so the weld gate asserts the
+ABSOLUTE band (≤ 4e-15), never a nulp band, and any quoted %/ULP figure
+must carry its seed or be read as one draw.
+
 ⭐ And the sub-family that hides it: bit-equality is **100 %** exactly when
 `τ == 0.5` bitwise (then `1/τ = 2.0` and `(1−τ)/τ = 1.0` are exact), and
 54–57 % at `τ = 0.5 ± 1 ULP`. `[M]` on the degenerate ordinates τ is ½ *up to

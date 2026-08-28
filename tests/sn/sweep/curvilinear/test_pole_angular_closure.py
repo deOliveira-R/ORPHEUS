@@ -510,8 +510,12 @@ class TestMintedScanConstants:
     has ONE owner spelling (:func:`march_psi_half_step`) and one minted
     scan-normal form (``tau_inv`` / ``march_a_in_coeff``).  They are
     algebraically identical and NOT bitwise equal — [M] 2026-08-28, real
-    fp(4, 6) τ: bit-equal 59 %, max 204 ULP — so this class WELDS them
-    within a stated ULP band instead of pretending they are one.
+    fp(4, 6) τ: the STABLE discriminator is absolute, max |Δ| = 1.776e-15
+    exact across seeds; bit-equal-fraction and max-ULP are draw-dependent
+    (46–51 %, 1e2–1e5 ULP over 200 seeds) — so this class WELDS them
+    within an ABSOLUTE band instead of pretending they are one (a nulp
+    band on this pair certifies a seed, not the weld: near-zero outputs
+    blow up relative ULP without bound).
 
     In-family value comparisons (``advance_psi_half`` vs the batch kernel)
     are deliberately ABSENT: after the single-sourcing both route through
@@ -561,8 +565,15 @@ class TestMintedScanConstants:
         ), "the discrimination leg lost its subject: (1-τ)/τ == τ⁻¹−1 bitwise"
 
     def test_march_step_and_scan_normal_form_weld_within_band(self) -> None:
-        """[foundation] The two representations agree ≤ 256 ULP, and are
-        NOT bit-equal — the honest weld ([M] max 204 ULP on real τ)."""
+        """[foundation] The two representations agree within an ABSOLUTE
+        band, and are NOT bit-equal — the honest weld.
+
+        [M] the band: max |Δ| = 1.776e-15 on real fp(4, 6) τ, EXACT
+        across 200 seeds (the archivist's reproduction, 2026-08-28);
+        4e-15 gives ~2.2× headroom.  Deliberately NOT a nulp band —
+        max-ULP on this pair ranges 1e2–1e5 with the draw (near-zero
+        outputs), so a nulp assertion would pin a seed, not the weld.
+        """
         closure = self._mm_cylinder()
         tau = closure.tau_per_ordinate
         tau_inv = closure.tau_inv_per_ordinate
@@ -576,7 +587,11 @@ class TestMintedScanConstants:
                 psi_avg[:, n], psi_in[:, n], ordinate=n,
             )
         form_b = tau_inv * psi_avg - a_in * psi_in
-        np.testing.assert_array_almost_equal_nulp(form_a, form_b, nulp=256)
+        max_abs_delta = float(np.max(np.abs(form_a - form_b)))
+        assert max_abs_delta <= 4.0e-15, (
+            f"the two M-M representations drifted past the weld band: "
+            f"max |Δ| = {max_abs_delta:.3e} > 4.0e-15"
+        )
         assert not np.array_equal(form_a, form_b), (
             "the weld's premise failed: the two forms read bit-equal on "
             "this τ — the band assertion is then vacuous, re-derive it"

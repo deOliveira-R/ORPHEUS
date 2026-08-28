@@ -51,8 +51,9 @@ retired the scalar one onto it (2026-08-28).  The geometry cases:
 * **Slab** — neutral curvature populated by the
   :func:`~orpheus.sn.mesh.reduced_operator.slab_streaming`
   factory: ``face_area_inner = face_area_outer = 1.0``,
-  ``delta_A_over_w = 0.0``, ``alpha_in = alpha_out = 0.0``,
-  ``tau_mm = 1.0``.  ``CellVisit.face_area_downstream = 1.0``.
+  ``delta_A_over_w = 0.0`` (the former ``alpha_*`` / ``tau_mm``
+  packing left the packet at #236 Step C — the closure owns that
+  data).  ``CellVisit.face_area_downstream = 1.0``.
   The denominator collapses to ``2|μ|·1 + 0 + Σ_t·V`` = the slab
   form; the upstream numerator collapses to ``|μ|·2·ψ^s_in`` =
   ``2|μ|·ψ^s_in``.
