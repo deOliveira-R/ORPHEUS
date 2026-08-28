@@ -736,7 +736,12 @@ generator is a P4.9 design-time question. **O-3 retains** the cross-head
 mint signature, the (TraceDescriptor, basis-kind, positivity-predicate)
 package, the two-layer closure-function/evaluated-table split, and
 `cell_balance.py`'s reorganisation under the scheme family; the streaming
-plan's P5 still rides O-3. ⚠ The 2026-08-25 paragraph above cites the
+plan's P5 still rides O-3. ⚠ The `[M]` 2026-08-25 measurement above
+cites `scheme.py` line numbers (`:426`/`:689`/`:1375`, "1496 lines") that
+predate two waves of growth — the file is **1798 lines** after P4.3 moved
+`StreamingTerms` in at `:107` (2026-08-28; Protocol now `:646`, Base
+`:910`, `moment_axis` `:1677`). Re-measure at the design round; the
+structural claims stand. ⚠ The 2026-08-25 paragraph above cites the
 closure at `sn/sweep/pole_angular_closure.py`; it moved to
 `sn/angular/closure.py` at that plan's P2 (`dcd6a9f6`), byte-identical.
 

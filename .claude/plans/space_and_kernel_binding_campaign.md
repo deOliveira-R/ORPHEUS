@@ -1978,7 +1978,9 @@ the space to the mesh and the quadrature.
 **Why it belongs to THIS campaign and not to the streaming-path plan.** This
 campaign's root ruling is *"an operator is not an operator without its two
 spaces"*. `[M]` 2026-08-27 this is that ruling one level down: **an axis is not
-an axis without its generator**, and the streaming path's P4 is blocked on it.
+an axis without its generator**, and the streaming path's P4 is blocked on it
+(⚠ precisely: its producer-home REMAINDER and the P3c `ChartConnection` name —
+P4.2, P4.3 and P4.4 all landed 2026-08-28 without needing CS5).
 Precedent for the split: the streaming plan's own §5b puts the three-factor work
 here rather than in §7, on the same grounds — §7 is names, homes and welds; this
 is space-layer architecture.

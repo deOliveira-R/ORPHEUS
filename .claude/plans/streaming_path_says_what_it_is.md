@@ -1,6 +1,6 @@
 # The streaming path's objects say what they are, live where they belong, and carry only what they use
 
-> ## ▶ RESUME STATE — ⏸ COMPACTION POINT, rewritten 2026-08-28 after P4.4 + P4.2
+> ## ▶ RESUME STATE — ⏸ COMPACTION POINT, rewritten 2026-08-28 after P4.3 (P4.4 + P4.2 landed earlier the same day)
 >
 > **This file is the resume surface. Trust it over any summary.**
 > ⛔ A summary is quoting dead text if it says any of: "▶ NEXT = P2" · P2 moves
@@ -9,19 +9,31 @@
 > **"P4.3 before P4.4"** · **"P4.2 before P4.4"** · `AngularMeasure` "dies" at
 > P4.2 · **the α movers are five** · **`transport/spatial/` should move to
 > `sn/spatial/`** · the connection operator or the α cluster is still in
-> `geometry/`. Every one was true once, or was proposed and refuted, below.
+> `geometry/` · **"▶ NEXT = P4.3"** · **`geometry/reduced_operator.py` still
+> exists** · `StreamingTerms` is "purely geometric" or lives in `geometry/` ·
+> P4.9's edit list is five small edits. Every one was true once, or was
+> proposed and refuted, below.
 >
-> ⭐ **Two phases landed this session and one was chartered.** If a summary
-> does not mention **P4.9**, it predates the charter.
+> ⭐ **Three phases landed 2026-08-28 — P4.4, P4.2, P4.3 — and P4.9 was
+> chartered, then SHARPENED (the direction-supplier ruling), then
+> PRE-MEASURED.** If a summary does not mention P4.9, it predates the charter;
+> if it calls P4.9 five small edits, it predates
+> `scratch/p4_9_design_measured.md`.
+>
+> ⚠ **P4.3 shifted line numbers**: `scheme.py` by ~+200 (`StreamingTerms` now
+> at `:107`; `DiscretizationScheme` Protocol `:646`, Base `:910`,
+> `CellVisit.streaming_terms` slot `:413`), `cell_balance.py` by −2,
+> `augmented_mesh.py` by +1 after `:300`. Live sections were refreshed
+> 2026-08-28; DATED records keep the numbers that were true at their date.
 >
 > ### Where the tree is — `[M]` reconcile with git, never with this line
 >
 > `main` == `origin/main`, **no open branch for this campaign**, working tree
-> clean. ✅ Phase B, P1, P2, P3a/b, P4.1a/b/c and **P4.4 + P4.2** are all merged
-> and pushed. Reconcile with
-> `git merge-base --is-ancestor 5940deba main`, never with this sentence.
-> `[M]` 2026-08-28: **all 22 hashes this file cites resolve AND are ancestors of
-> `main`**. ⚠ `refactor/operator-inverse-algebra` exists locally and is **already
+> clean. ✅ Phase B, P1, P2, P3a/b, P4.1a/b/c, P4.4, P4.2 and **P4.3** are all
+> merged and pushed. Reconcile with
+> `git merge-base --is-ancestor da507e3d main`, never with this sentence.
+> `[M]` 2026-08-28 (post-P4.3): **all hashes this file cites resolve AND are
+> ancestors of `main`** (re-verified at this compaction point). ⚠ `refactor/operator-inverse-algebra` exists locally and is **already
 > merged** — a stale local branch, not open work.
 >
 > ⚠ This repo has **no CI** (`.github/workflows/` absent). "main is always
@@ -182,7 +194,21 @@
 > (P3c) is deliberately sequenced **after P4**, so the name describes what
 > remains once `streaming_terms` is out of it.
 >
-> ### ⭐ The rules P4.4 + P4.2 paid for — the three that generalise
+> ### ⭐ The rules P4.4 + P4.2 + P4.3 paid for — the ones that generalise
+>
+> - **P4.3 — a `:mod:` role in a `#` COMMENT is invisible to every instrument
+>   except grep.** Sphinx never renders comments, `dead_references` reads
+>   docstrings, `-W` is silent — so P4.4's clean docstring sweep left
+>   `augmented_mesh`'s Wave-B comment saying the math "lives in geometry",
+>   and only P4.3's concept-grep caught it. ⟹ the spelling-surface list is:
+>   imports, docstrings, `.rst`, strings, **and comments**.
+> - **P4.3 — a HOME is ratified per-field, by ownership ontology, not by any
+>   location argument.** The user refused both offered file options until
+>   every field was classified by what it IS (mesh's / quadrature's / the
+>   weld's); the home then followed from *which contract declares the type*
+>   (`CellVisit.streaming_terms` ⟹ beside `DiscretizationSchemeBase`). The
+>   vanguard/contract lesson, extended from packages to types — and it also
+>   produced the direction-supplier ruling as a by-product.
 >
 > - `plan-authoring` **§6d, INTRA-FILE clause** (P4.4): **a re-home's forbidden
 >   edge can be INVISIBLE TO AN IMPORT GREP, because the split CREATES it.**
@@ -444,7 +470,7 @@ avoid importing one of its own inputs is in the wrong stage.
 > unclosable.
 | `ChartConnection` itself | three stages in one object | pure chart (`face_areas`, `delta_A` — need **no** quadrature); the head-stage angular pairing (extracted at Phase B); and `streaming_terms`' evaluated per-`(cell, ordinate)` view (**O-3's layer**) | Split three ways. The Phase B carve already thinned it toward this; the two dead flags are the residue. |
 | `redistribution_pairing` allocates per access | — | `[M]` `g1 is not g2` → **True**: `delta_A[:, None, None]` re-allocates on every call. Harmless today (one call per mesh) but it is a *cache-shaped* object with no cache. ⚠ **MINE, from `6859ca05`.** | Compute once at the mint (§5). |
-| `#407` — DD's blend inverse in scheme-neutral code | `2.0 = 1/w_DD` at `cell_balance.py:248/:343` | `[M]` `cell_balance_terms` has ONE production consumer (`diamond.py:194`); `linear_discontinuous.py` never imports either helper; and the matvec **declares** the specificity the producer does not (`loss_representation:3091`: *"Curvilinear (DD-only) … with DD's diamond march inlined"*). | The whole module is a DD body in a scheme-neutral name and home. Carve with O-3. |
+| `#407` — DD's blend inverse in scheme-neutral code | `2.0 = 1/w_DD` at `cell_balance.py:246/:341` (post-P4.3 numbering) | `[M]` `cell_balance_terms` has ONE production consumer (`diamond.py:194`); `linear_discontinuous.py` never imports either helper; and the matvec **declares** the specificity the producer does not (`loss_representation:3091`: *"Curvilinear (DD-only) … with DD's diamond march inlined"*). | The whole module is a DD body in a scheme-neutral name and home. Carve with O-3. |
 | `#407`'s second instance | three more `2.0 = 1/w_DD` at `psi_half_angle_seed.py:180-185` | Latent, guarded only by `_require_slab` **in a different package, on the other tensor factor**. | ⭐ Sharper than the first: that march is the **angular** factor of a product `pairing.py` declares orthogonal. |
 
 ---
@@ -621,6 +647,13 @@ SPHERICAL → `4πr²`). ⟹ **the module dissolves.**
 ⭐ The forbidden edge never arises — not routed around, not whitelisted, not
 `TYPE_CHECKING`-ed. `geometry` stops NAMING an SN type because it stops HOLDING
 one.
+
+✅ **ALL SIX ROWS EXECUTED as ruled, 2026-08-27/28** — `face_areas`/`coord`
+retired (P4.1a/b), the α symbols + `AngularMeasure` to
+`sn/angular/redistribution.py` (P4.2 `5940deba`), `StreamingTerms` to
+`transport/spatial/scheme.py:107` (P4.3 `da507e3d`), `delta_A` a derivation
+on the operator (P4.1b), and **the module is deleted**. `[M]` 2026-08-28:
+14 files name the primitive family, zero under `orpheus/geometry/`.
 
 ### The step order, and why it is forced
 
@@ -1470,7 +1503,7 @@ Axis            : label, shape,          weights,            kind
 ```
 
 — it keeps the weights and **drops the nodes**, and the direction cosines ARE
-the nodes. `[M]` the exact loss site is `augmented_mesh.py:1170-1175`, which
+the nodes. `[M]` the exact loss site is `augmented_mesh.py:1171-1176`, which
 builds the angular axis from `quad.N` + `quad.weights` alone and declares
 `kind=BasisKind.NODAL` — **a nodal basis carrying no nodes.**
 
@@ -1502,7 +1535,7 @@ supplies.**
 `@dataclass(frozen=True, eq=False)` over `label, shape, weights, kind`, against
 `DiscreteMeasure`'s `nodes, weights, support, invariance_group, exactness`. It
 **keeps the weights and drops the nodes** — and the direction cosines ARE the
-nodes. Loss site: `augmented_mesh.py:1170-1175`, which builds the angular axis
+nodes. Loss site: `augmented_mesh.py:1171-1176`, which builds the angular axis
 from `quad.N` + `quad.weights` alone while declaring `kind=BasisKind.NODAL`.
 `[M]` `mu_x`/`eta`/`mu_z`/`level_indices` → **0 hits** in BOTH
 `numerics/space.py` and `numerics/axis.py`.
@@ -1511,7 +1544,7 @@ from `quad.N` + `quad.weights` alone while declaring `kind=BasisKind.NODAL`.
 generalises rather than excepting. `[M]` `FrameBase`'s fields are literally
 **`['basis', 'measure']`**, with `analysis` (nodal→modal), `reconstruction`
 (modal→nodal), `discrete_gram`, `basis_space` and `measure_space`. And the one
-shipped MODAL axis confirms it: `scheme.py:1517` sets
+shipped MODAL axis confirms it: `scheme.py:1716` sets
 `weights=self.moment_mass_diagonal(...)` — i.e. **`diag(Gram)` of its
 tensor-Legendre basis.**
 
@@ -1915,7 +1948,7 @@ relation was injected into L2.
 | ingredient | today | under the mechanism |
 |---|---|---|
 | spatial closure | `SNMesh.scheme` (`augmented_mesh.py:268`) | a constructor argument of the operator |
-| angular closure | `SNMesh.pole_angular_closure` (`:421`, built from a class) | a constructor argument of the operator |
+| angular closure | `SNMesh.pole_angular_closure` (`:422`, built from a class) | a constructor argument of the operator |
 | domain / codomain | derived **properties** of `StreamingOperator` | constructor arguments |
 | the operator itself | `[M]` `@dataclass class StreamingOperator` with **exactly ONE field, `sn_mesh`** | `(domain, codomain, spatial_closure, angular_closure)` |
 
@@ -1927,7 +1960,7 @@ Operator`, unapplied to the streaming path.
 
 | factor | its adjoint, today | status |
 |---|---|---|
-| `T_spatial` | `DiamondDifference.streaming_cell_transpose` (`:529`), `residual_kernel_batch_transpose` (`:485`), `reflect_scan_coefficients_transpose` (`:767`) — with `has_transpose_kernel` **DERIVED from the registration**, never declared (`scheme.py:910`, #310 ruling 2) | ✅ ships |
+| `T_spatial` | `DiamondDifference.streaming_cell_transpose` (`:529`), `residual_kernel_batch_transpose` (`:485`), `reflect_scan_coefficients_transpose` (`:767`) — with `has_transpose_kernel` **DERIVED from the registration**, never declared (`scheme.py:1109`, #310 ruling 2) | ✅ ships |
 | `T_ang` | `angular_adjoint` — a polymorphic family (`closure.py:557` base, `:1915` M-M, `:2128` Identity) | ✅ ships |
 | `D` | real diagonal ⟹ self-adjoint | ✅ free |
 
@@ -1978,7 +2011,7 @@ column from an assignment into a factorization.
 
 #### The assembled equation `[M]` (verbatim from the two producers)
 
-`cell_balance_for_streaming` (`transport/spatial/cell_balance.py:123`) and
+`cell_balance_for_streaming` (`transport/spatial/cell_balance.py:121`) and
 `DiamondDifference.affine_scan_coefficients` (`diamond.py:572`) agree on:
 
 ```
@@ -2153,7 +2186,7 @@ P1 carries that guard.
 
 The installer is `SpatialScheme.moment_axis(ndim)` →
 `Axis(…, weights=self.moment_mass_diagonal(ndim))`
-(`transport/spatial/scheme.py:1375-1416`), and LD's override
+(`transport/spatial/scheme.py:1677-1718`), and LD's override
 (`linear_discontinuous.py:623-636`) builds it as
 
 ```python
@@ -2186,7 +2219,7 @@ and its cylindrical sibling, and the gate must name one of them.
 
 ✅ **And the blast radius is much smaller than "a mesh stops constructing".**
 `[M]` `moment_axis` is reached from a **`@cached_property`**
-(`augmented_mesh.py:1227`, the trial space), **not** from `__init__`. So the
+(`augmented_mesh.py:1228`, the trial space), **not** from `__init__`. So the
 refusal does not make an LD curvilinear `SNMesh` unconstructible — it fires
 when a consumer actually reaches for the moment metric, i.e. exactly where the
 wrong value would otherwise be installed. The mesh is not the wrong object;
@@ -2207,8 +2240,8 @@ a partial grep that mixed defs and prose into a "call-site" count.
 `[M]` re-derived by grepping the CALL form (`\.moment_axis\(` /
 `\.moment_mass_diagonal\(`), which is the predicate that matters:
 **13 call sites — 3 production, 10 test.**
-Production: `transport/fields/_bases.py:266`, `transport/spatial/scheme.py:1414`
-(internal, inside `moment_axis`), `sn/mesh/augmented_mesh.py:1227`.
+Production: `transport/fields/_bases.py:266`, `transport/spatial/scheme.py:1716`
+(internal, inside `moment_axis`), `sn/mesh/augmented_mesh.py:1228`.
 Test: 10, concentrated in `tests/sn/mesh/test_angular_bulk_space.py` (8) and
 `tests/numerics/test_spatial_moment_field_space.py` (2).
 
@@ -2853,7 +2886,7 @@ time):
    angular_closure)`. `[M]` today it is a `@dataclass` with **exactly one
    field** (`sn_mesh`) and derives `domain`/`codomain` as properties.
 5. `SNMesh` sheds `scheme` (`augmented_mesh.py:268`) and `pole_angular_closure`
-   (`:421`) — a *mesh* is carrying the *method's* two operators.
+   (`:422`) — a *mesh* is carrying the *method's* two operators.
 
 **Done when** (checkable):
 
@@ -2888,7 +2921,7 @@ reading in the gate's docstring.
 
 **What it buys beyond the deletion.** `[M]` both factors already ship their own
 adjoint — `DiamondDifference.streaming_cell_transpose` (with
-`has_transpose_kernel` **derived from the registration**, `scheme.py:910`) and
+`has_transpose_kernel` **derived from the registration**, `scheme.py:1109`) and
 the polymorphic `angular_adjoint` family (`closure.py:557/:1915/:2128`). So
 after this phase `L.H = T_spatial.H @ T_ang.H @ D` composes adjoints that
 already exist, and §5b's *"the adjoint stops being written and starts being
