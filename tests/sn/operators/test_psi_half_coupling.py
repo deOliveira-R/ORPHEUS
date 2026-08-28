@@ -88,11 +88,9 @@ def _rc_fold(sn, n_moments: int = 1):
     """The fold (Reconstruction) from a carrying mesh — the un-weld
     assembly read, spelled once for this module (through ``_rcr_mod`` so
     the Mode-11 module-global sentinel still sees every construction)."""
-    reduced = sn.reduced
-    assert reduced is not None  # carrying fixture; narrowing only
     return _rcr_mod.RadialCharacteristicReconstruction(
         sn.radial_characteristic_field_space,
-        coord=reduced.coord,
+        coord=sn.coord,
         quadrature=sn.quad,
         n_moments=n_moments,
     )
@@ -1839,7 +1837,7 @@ def _a_ba_scatter(sn) -> RadialCharacteristicEmission:
         angular_bulk_space=sn.angular_bulk_space,
         angular_trace=sn.angular_trace,
         quadrature=sn.quad,
-        coord=reduced.coord,
+        coord=sn.coord,
     )
 
 

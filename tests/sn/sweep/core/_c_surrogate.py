@@ -156,7 +156,7 @@ def mm_constants_for_ordinate(
     """
     del cell_idx  # M-M constants are independent of the radial cell
 
-    if op.coord is CoordSystem.CARTESIAN:
+    if op.mesh.coord is CoordSystem.CARTESIAN:
         # Slab: neutral identity closure (no half-angle dome).
         return 1.0, 0.0, 0.0
 
@@ -166,7 +166,7 @@ def mm_constants_for_ordinate(
     # ``op.alpha_half is None`` guard below it did at the un-weld.
     quad = op.angular.quadrature
 
-    if op.coord is CoordSystem.SPHERICAL:
+    if op.mesh.coord is CoordSystem.SPHERICAL:
         # Production τ, named at the call site (2026-08-12): the L0 wrapper
         # ``angular_differencing.morel_montry_weights`` was retired because
         # its body WAS an ``orpheus.sn`` import, which L0 may not make. It
@@ -178,13 +178,14 @@ def mm_constants_for_ordinate(
         # former ``if op.alpha_half is None: raise`` guard retired with it:
         # every chart carries an angular factor now (Cartesian the neutral
         # one), so the None-ness branch was a coincidence proxy for
-        # "spherical", which ``op.coord`` states directly one line above.
+        # "spherical", which ``op.mesh.coord`` states directly one line
+        # above.
         dome = op.angular.alpha_per_level[0]
         alpha_in = float(dome[direction_idx])
         alpha_out = float(dome[direction_idx + 1])
         return tau, alpha_in, alpha_out
 
-    if op.coord is CoordSystem.CYLINDRICAL:
+    if op.mesh.coord is CoordSystem.CYLINDRICAL:
         if mu_level_idx is None:
             raise ValueError(
                 "cylindrical mm_constants_for_ordinate requires mu_level_idx."
@@ -207,4 +208,4 @@ def mm_constants_for_ordinate(
         alpha_out = float(alpha_lv[direction_idx + 1])
         return tau, alpha_in, alpha_out
 
-    raise ValueError(f"Unknown coord system: {op.coord!r}")
+    raise ValueError(f"Unknown coord system: {op.mesh.coord!r}")

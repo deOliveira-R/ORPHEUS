@@ -163,11 +163,10 @@ class TestO11ReconstructionTranspose:
         sn = _sphere()
         graded = _sphere(power=1.5)
         cot = _composite(graded)
-        assert sn.reduced is not None  # carrying fixture; narrowing only
         with pytest.raises(ValueError, match="space-content"):
             RadialCharacteristicReconstruction(
                 sn.radial_characteristic_field_space,
-                coord=sn.reduced.coord,
+                coord=sn.coord,
                 quadrature=sn.quad,
             ).apply_transpose(cot)
 

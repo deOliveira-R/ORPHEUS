@@ -266,13 +266,12 @@ class StreamingCoefficientCache:
         quad = sn_mesh.quad
         N = quad.N
         nx = sn_mesh.nx
-        reduced = sn_mesh.reduced
-        assert reduced is not None, (
+        assert sn_mesh.reduced is not None, (
             "StreamingCoefficientCache requires a ReducedStreamingOperator "
             "(1-D Cartesian / spherical / cylindrical).  2-D Cartesian "
             "wavefront uses anti-diagonal scheduling, not the chain scan."
         )
-        coord = reduced.coord
+        coord = sn_mesh.coord
 
         # ── Per-ordinate scalars (slab carries neutral M-M constants) ─
         abs_mu = np.abs(np.asarray(quad.mu_x, dtype=np.float64))  # (N,)

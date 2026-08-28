@@ -572,7 +572,7 @@ def build_within_group_system(
         angular_bulk_space=sn_mesh.angular_bulk_space,
         angular_trace=sn_mesh.angular_trace,
         quadrature=sn_mesh.quad,
-        coord=reduced.coord,
+        coord=sn_mesh.coord,
     )
     B_b = RadialCharacteristicBoundaryOperator(
         member_space, sn_mesh.bc["xmax"].law,

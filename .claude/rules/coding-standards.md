@@ -200,6 +200,38 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   > join was kept, re-described in its docstring as testing the *discovery-and-registration
   > path* (which has no other catcher), and explicitly disclaimed as no longer able to
   > catch a spelling divergence.
+- **⭐ And the ENFORCEMENT side of the same move, which the three clauses above do not
+  reach: retiring a duplicate promotes whatever KEPT THE COPIES EQUAL from redundant to
+  load-bearing — and that thing is usually a production guard with no test.** The clauses
+  above all ask what happens to the *gates that compared the copies*. This asks what
+  happens to the *mechanism that made comparing them pointless*. While the duplicate
+  lives, that mechanism is over-determined: if it broke, the two copies would disagree and
+  something might notice. Delete one copy and it becomes the **sole** guarantor of the
+  survivor's correctness — with no change to its own code, so nothing prompts a re-look,
+  and the suite only gets greener. This is the MIRROR clause's silent-promotion shape
+  applied to a `raise` instead of a gate, and it is the more dangerous half, because a
+  guard is not something an audit thinks to ask for coverage of.
+
+  ⟹ **Before retiring a duplicated field, answer two questions in order:** *what makes
+  the copy provably redundant?* — the answer is the mechanism — **and** *does that
+  mechanism have a witness?* Grep the shortest distinctive fragment of its message (the
+  message clause below). If the answer is none, write one **in the same commit**: the
+  retirement created the exposure, so a follow-up issue is the wrong home.
+
+  ⭐ The migration is usually free, because the tests that asserted the retired copy were
+  *tautologies* — a stored literal read straight back — and they are exactly the right
+  place to put the guard's witness. Same test names, same concept, real teeth.
+
+  > `[M]` 2026-08-27, un-weld P4.1a. Retiring `ReducedStreamingOperator.coord` (a copy of
+  > `mesh.coord`): what made it redundant was that each of the three factories *validates*
+  > `mesh.coord` against the literal it then stored, so the identity held **by
+  > construction**, not merely on 3/3 shipped fixtures. `grep "requires .* mesh"` returned
+  > **3 hits, all three the production `raise` lines — zero witnesses tree-wide.** After
+  > the retirement those guards are the only reason `op.mesh.coord` is the operator's
+  > chart. The three `TestProperties` chart tests had been asserting the stored literal;
+  > rewritten as the guards' witnesses (`vv-principles` #11 — one positive leg, two
+  > negative legs each, matching the production message) they cost one edit and closed the
+  > exposure in the commit that opened it.
 - **The retirement audit's blast radius is THREE searches, not one** (4–5 agents converged on
   this independently): (1) **graph callers** (`nexus impact`/`callers`) — necessary but NOT
   sufficient; the call graph misses property-reached leaves (`callers()==0` but live via a

@@ -482,11 +482,75 @@ one.
 
 ### The step order, and why it is forced
 
-**P4.1a — `coord` retires.** `[M]` duplicate on **3/3** charts
-(`op.coord is op.mesh.coord`). Bit-identical. **This is the load-bearing
+**P4.1a — `coord` retires.** ✅ **EXECUTED 2026-08-27** (branch
+`refactor/p4-1a-coord-retires`; hash on landing). `[M]` duplicate on **3/3**
+charts (`op.coord is op.mesh.coord`). Bit-identical. **This is the load-bearing
 prerequisite**: it is what severs `transport`'s reach into the bundle
 (`transport/radial_characteristic_field.py:361-362` reads `mesh.reduced.coord`
 → `mesh.coord`). Without it, P4.4 breaks an L2 consumer.
+
+⭐ **Execution upgraded the 3/3 measurement to a THEOREM, and that is worth
+carrying:** each of the three factories *validates* `mesh.coord` against the
+literal it then stores (`slab_streaming` raises unless
+`mesh.coord is CARTESIAN`, and so on), so `op.coord is op.mesh.coord` held **by
+construction** — no reachable state could have made them disagree. `[M]` all
+three guards confirmed by AST. The fixture measurement was true and weaker than
+the fact.
+
+⭐⭐ **And the finding the step paid for, which is a `coding-standards` MIRROR
+instance nothing prompted: the retirement PROMOTED those three guards from
+redundant to load-bearing, and `[M]` they had ZERO witnesses tree-wide**
+(`grep "requires .* mesh"` → only the 3 production lines). Before P4.1a a broken
+guard was survivable — the stored literal and the mesh said the same thing two
+ways. After it, the guard is the *sole* reason `op.mesh.coord` is the operator's
+chart. Discharged in the same commit: `TestProperties`' three chart tests were
+tautologies (a stored literal read back) and are now the guards' witnesses in
+`vv-principles` #11 form — one positive leg, two negative legs each, matching on
+the production message.
+
+`[M]` **the actual blast radius, by AST + a validated string-form filter** (not
+the 2 sites the plan named): **13 production reads across 7 files** —
+`transport/radial_characteristic_field.py` (1, the only L2 site),
+`sn/loss_representation/__init__.py` (2), `sn/solver.py` (2),
+`sn/coupled_system.py` (1), `sn/sweep/cache.py` (1),
+`sn/mesh/augmented_mesh.py` (4), plus the 4 in-module `self.coord` reads inside
+`streaming_terms()`. **Every consumer had an `SNMesh` in scope**, so not one
+site needed `reduced.mesh.coord`: the reach-through died at all seven files, not
+only at `transport`. Four dead preamble lines (`reduced = sn_mesh.reduced` +
+its narrowing assert) died with the reads they narrowed, at `solver.py` ×2 and
+`transport` ×1. `sn/sweep/cache.py`'s assert **stays** — it is an admission
+contract on `reduced is None`, not narrowing (⚠ and it is a bare `assert`, so
+`-O` strips it — P4.5 owns that predicate, see below).
+
+⚠ **The §8 question this step DOES raise, and its answer.** Re-pointing
+`self.reduced.coord` → `self.coord` is not a pure re-spelling: the old
+expression **raises** when `reduced is None` (d≥2 Cartesian) and the new one
+returns `CARTESIAN`. So the edit could silently turn a latent crash into a
+proceed at every site — §8's "an enabler still has its own blast radius", in the
+direction nothing complains about. `[M]` **all 7 sites are provably unreachable
+with `reduced is None`**, and the proof is from the guards, not from a fixture:
+
+| site | why `reduced` cannot be `None` there |
+|---|---|
+| `augmented_mesh.radial_characteristic_levels` | `if self.is_cartesian: return` fires first |
+| `augmented_mesh.dag_walk` | `raise ValueError` on `reduced is None`, above the read |
+| `augmented_mesh.dag_walk_cell_indices` | same `raise` |
+| `augmented_mesh._representative_ordinate` | private; `[M]` its only 2 callers are the two above |
+| `loss_representation._OneDimScanWalk._run` | a **1-D-only** frame, and every 1-D mesh has a `reduced` (d≥2 Cartesian is `_OctantWalk`) |
+| `…._run_transpose` | same frame |
+| `transport.source_from_angular` | raises above on `vals.ndim != 3` — carrying ⇒ 1-D curvilinear |
+
+⟹ no reachable input distinguishes old from new. ⚠ Note the two bare `assert
+… is not None` lines that were doing this narrowing are **stripped by `-O`**, so
+they were never the reason; the enclosing `raise`/branch is.
+
+⚠ **Test migration, per `coding-standards`.** `test_snmesh_consumes_reduced.py`
+stated its invariant 1 as *"a `ReducedStreamingOperator` **with the matching
+`CoordSystem`**"* — a proxy for "the right factory ran" that P4.1a makes
+tautological (`reduced.mesh is sn.mesh`, so it would restate `sn.coord`). It now
+asserts `sn.reduced.mesh is sn.mesh` — the wiring claim the file's own header
+says it is for, strictly stronger than a chart tag (which agrees for *any* two
+meshes on the same chart) and chart-independent, so P4.1b does not move it.
 
 **P4.1b — the spatial fields take their neutral element.** ⛔ **NOT
 bit-identical — this plan asserted it was, and the check refuted it.**
@@ -543,6 +607,33 @@ the d≥2 arm already breaks. `reduced is None` today conflates **"no chain scan
 both directly. `[M]` **12 of 36** code reads of `.reduced` are `None`-guards
 paying for the conflation. The object should exist **iff there is a radial
 reduction**.
+
+⭐ **Two sites P4.1a surfaced that belong to THIS step — recorded here so they
+earn a phase rather than an issue-and-forget.** Both are the same defect: a
+predicate spelled defensively because the object it interrogates does not say
+what it is.
+
+* `sn/sweep/cache.py:269` — `assert sn_mesh.reduced is not None, "…requires a
+  ReducedStreamingOperator (1-D Cartesian / spherical / cylindrical). 2-D
+  Cartesian wavefront uses anti-diagonal scheduling, not the chain scan."`
+  This is an **admission contract**, not type-narrowing, and it is a bare
+  `assert` — so `[M]` the canonical `-O` runner **strips it** and the cache
+  accepts a 2-D Cartesian mesh silently (`coding-standards`: a bare `assert` in
+  `orpheus/` is not a contract). P4.1a left it untouched deliberately: its
+  subject is exactly the `reduced is None` conflation this step re-poses, so
+  converting it now would mean writing the guard twice. ⟹ **P4.5 owes it a real
+  `raise` keyed on the honest predicate** ("does this mesh have a chain scan?"),
+  not on `reduced is None`.
+* `sn/solver.py:2316-2324` — `_is_curvilinear` reads
+  `getattr(mesh, "coord", None)` then `getattr(coord, "name", str(coord))`
+  *after* an `isinstance(mesh, Mesh1D)` narrowing. `coord` is a required
+  dataclass field on `Mesh1D`, so **both defaults are unreachable**, and the
+  function then compares an upper-cased *string* against `("SPHERICAL",
+  "CYLINDRICAL")` rather than comparing the enum. It is the stringly-typed
+  spelling of `mesh.coord is not CoordSystem.CARTESIAN`, which `SNMesh` already
+  answers as `is_cartesian`. ⚠ Not a P4.1a site (it reads the *mesh*, which is
+  the successor), and not a bug today — but it is a third spelling of this
+  step's own predicate, so it retires with the other two.
 
 **P4.6 — the moment mass consumes the MEASURE, not a chart tag.**
 ✅ RULED 2026-08-27 (user): *"it is very important to correct the flaw"*, in the

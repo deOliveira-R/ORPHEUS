@@ -461,8 +461,8 @@ achieves).
    :func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`
    reading the single partition producer
    :func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`,
-   which :class:`SNMesh` calls against the quadrature and
-   ``self.reduced.coord``.  The split is deliberate: τ is a property of
+   which :class:`SNMesh` calls against the quadrature and its own
+   ``self.coord``.  The split is deliberate: τ is a property of
    the *angular closure scheme*, selectable per mesh, while the curvature
    coefficients are a property of the *geometry*.  Statements elsewhere
    in the corpus describing ``tau_mm`` / ``tau_mm_per_level`` as factory
@@ -1223,7 +1223,7 @@ SN reshape campaign (``.claude/plans/sn_reshape.md``):
   :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` consume the
   primitive (as ``SNMesh.reduced``) through the loss-representation walk:
   :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` reads the
-  connection coefficients off ``self.mesh.reduced.coord`` inside the walk.
+  connection coefficients off ``self.mesh.coord`` inside the walk.
   (Depth B consumed them through the per-geometry
   ``transport_operator_matvec_*`` matvecs; that family and its unified
   successor were deleted in the typed-field (#197) and walk-unification

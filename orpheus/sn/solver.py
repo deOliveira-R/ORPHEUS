@@ -1008,11 +1008,9 @@ def _radial_characteristic_fission_seed(
     from orpheus.sn.operators.radial_characteristic import (
         RadialCharacteristicReconstruction,
     )
-    reduced = sn_mesh.reduced
-    assert reduced is not None  # carrying ⇒ curvilinear; narrowing only
     return RadialCharacteristicReconstruction(
         sn_mesh.radial_characteristic_field_space,
-        coord=reduced.coord,
+        coord=sn_mesh.coord,
         quadrature=sn_mesh.quad,
     ).apply(
         np.asarray(fission_source)[None],
@@ -2915,8 +2913,6 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
     )
 
     space = system.space
-    reduced = sn_mesh.reduced
-    assert reduced is not None  # carrying ⇒ curvilinear; narrowing only
     restrict_bulk = SystemRestrictionOperator(space, system=0)
     stack = CoupledOperator(
         [
@@ -2928,7 +2924,7 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
                 angular_bulk_space=sn_mesh.angular_bulk_space,
                 angular_trace=sn_mesh.angular_trace,
                 quadrature=sn_mesh.quad,
-                coord=reduced.coord,
+                coord=sn_mesh.coord,
             )],
         ],
         domain=restrict_bulk.codomain,

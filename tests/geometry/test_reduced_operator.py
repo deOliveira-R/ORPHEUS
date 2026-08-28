@@ -308,20 +308,41 @@ class TestSNMeshBindsCylindricalFactory:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestProperties:
-    """ReducedStreamingOperator advertises the right metadata."""
+    """ReducedStreamingOperator advertises the right metadata.
+
+    ⭐ **What the three chart tests became, and why (P4.1a, 2026-08-27).**
+    Each used to read ``assert op.coord is CoordSystem.X`` -- a stored
+    literal read straight back, i.e. a tautology waiting for the field to
+    be recognised as a copy.  It was: every factory *validates*
+    ``mesh.coord`` against the literal it then stored, so
+    ``op.coord is op.mesh.coord`` held **by construction**, and the field
+    retired.
+
+    That retirement PROMOTED the three validation guards from redundant to
+    load-bearing -- they are now the sole reason ``op.mesh.coord`` is the
+    operator's chart -- and ``[M]`` 2026-08-27 they had **zero witnesses**
+    anywhere in the tree (`grep "requires .* mesh"` returned only the three
+    production lines).  That is the ``coding-standards`` MIRROR clause: a
+    retirement silently strengthening a claim raises no alarm, because the
+    suite only gets greener.  So each test below is now the guard's
+    witness, in ``vv-principles`` #11 form -- a **positive** leg (the right
+    chart is accepted, and the operator reports it) and a **negative** leg
+    per wrong chart (each other chart is refused, by name).
+    """
 
     @pytest.mark.foundation
     def test_slab_is_posed_on_the_cartesian_chart(self):
-        """The chart tag is the ONE discriminator the operator carries.
-
-        Until 2026-08-26 this test also asserted two flags that were
+        """Until 2026-08-26 this test also asserted two flags that were
         each exactly ``coord is not CARTESIAN`` -- one line below this
         very assertion.  They had no production reader and are retired;
         the fact they pinned is pinned here."""
-        mesh = _slab_mesh()
         quad = Quadrature.gauss_legendre(8)
-        op = slab_streaming(mesh, quad)
-        assert op.coord is CoordSystem.CARTESIAN
+        op = slab_streaming(_slab_mesh(), quad)
+        assert op.mesh.coord is CoordSystem.CARTESIAN
+
+        for wrong in (_spherical_mesh(), _cylindrical_mesh()):
+            with pytest.raises(ValueError, match="requires CARTESIAN mesh"):
+                slab_streaming(wrong, quad)
 
     @pytest.mark.foundation
     def test_slab_carries_the_neutral_angular_element(self):
@@ -351,17 +372,23 @@ class TestProperties:
 
     @pytest.mark.foundation
     def test_sphere_is_posed_on_the_spherical_chart(self):
-        mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(8)
-        op = spherical_streaming(mesh, quad)
-        assert op.coord is CoordSystem.SPHERICAL
+        op = spherical_streaming(_spherical_mesh(), quad)
+        assert op.mesh.coord is CoordSystem.SPHERICAL
+
+        for wrong in (_slab_mesh(), _cylindrical_mesh()):
+            with pytest.raises(ValueError, match="requires SPHERICAL mesh"):
+                spherical_streaming(wrong, quad)
 
     @pytest.mark.foundation
     def test_cylinder_is_posed_on_the_cylindrical_chart(self):
-        mesh = _cylindrical_mesh()
         quad = Quadrature.product(n_mu=2, n_phi=4)
-        op = cylindrical_streaming(mesh, quad)
-        assert op.coord is CoordSystem.CYLINDRICAL
+        op = cylindrical_streaming(_cylindrical_mesh(), quad)
+        assert op.mesh.coord is CoordSystem.CYLINDRICAL
+
+        for wrong in (_slab_mesh(), _spherical_mesh()):
+            with pytest.raises(ValueError, match="requires CYLINDRICAL mesh"):
+                cylindrical_streaming(wrong, quad)
 
 
 # ═══════════════════════════════════════════════════════════════════════

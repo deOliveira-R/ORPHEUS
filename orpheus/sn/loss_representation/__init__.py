@@ -3920,7 +3920,7 @@ class _OneDimScanWalk:
         V = self.mesh.volumes                                      # (nx,) — no group axis
         scheme = self.mesh.scheme
 
-        coord = self.mesh.reduced.coord
+        coord = self.mesh.coord
         is_slab = coord is CoordSystem.CARTESIAN
         is_sphere = coord is CoordSystem.SPHERICAL
 
@@ -4455,7 +4455,7 @@ class _OneDimScanWalk:
             )
 
         V = self.mesh.volumes
-        coord = self.mesh.reduced.coord
+        coord = self.mesh.coord
         is_slab = coord is CoordSystem.CARTESIAN
 
         Q_bar = np.zeros((N, ng, nx, *moment_tail))

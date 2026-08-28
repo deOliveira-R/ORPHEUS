@@ -358,8 +358,7 @@ class RadialCharacteristicField(
         mu = mesh.quad.mu_x
         weights = mesh.quad.weights
         level_indices = mesh.pole_angular_closure.level_indices
-        assert mesh.reduced is not None  # carrying ⇒ curvilinear ⇒ reduced
-        arc_family = mesh.reduced.coord is CoordSystem.CYLINDRICAL
+        arc_family = mesh.coord is CoordSystem.CYLINDRICAL
         seed = cls.source_zeros(mesh.radial_characteristic_field_space)
         for p in seed.interior.space.levels:
             ords = np.asarray(level_indices[p])

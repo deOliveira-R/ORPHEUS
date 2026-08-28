@@ -270,7 +270,7 @@ See also
   :class:`~orpheus.sn.operators.streaming.StreamingOperator` consumes it
   through the loss-representation walk (its
   :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` reads
-  ``self.mesh.reduced.coord`` inside the walk).  (The per-geometry
+  ``self.mesh.coord`` inside the walk).  (The per-geometry
   ``transport_operator_matvec_*`` matvecs and their unified successor,
   which consumed it in the Depth-B era, were deleted in the typed-field
   (#197) / walk-unification (#280 campaigns) refactors.)
@@ -587,14 +587,30 @@ class ReducedStreamingOperator:
 
     Attributes
     ----------
-    coord :
-        Coordinate system tag (CARTESIAN / SPHERICAL / CYLINDRICAL).
     mesh :
         The :class:`~orpheus.geometry.mesh.Mesh1D` this operator was
-        built from.  Held by reference; not copied.
+        built from.  Held by reference; not copied.  **It is also where
+        the chart lives** — see the note below.
 
     Note
     ----
+    A ``coord: CoordSystem`` field was retired here on 2026-08-27 (P4.1a).
+    It was a copy of ``mesh.coord``, and the copy was redundant *by
+    construction* rather than merely in practice: each of the three
+    factories below refuses a mesh whose chart differs from the literal
+    it then stored (``slab_streaming`` raises unless
+    ``mesh.coord is CARTESIAN``, and so on for the other two), so no
+    reachable state could ever have made ``op.coord`` and
+    ``op.mesh.coord`` disagree.
+
+    Retiring it is what lets **L2 stop reaching through this bundle**:
+    ``transport/radial_characteristic_field.py`` read
+    ``mesh.reduced.coord`` for the single fact
+    ``coord is CYLINDRICAL``, which the ``SNMesh`` it already held
+    answers directly.  That was ``transport``'s only read of
+    ``.reduced``; with it gone, this module has no L2 consumer left to
+    break when it dissolves.
+
     Two flags -- ``requires_upstream_angular_state`` and
     ``angular_marching_axis`` -- were retired here on 2026-08-26.  Both
     were exactly ``coord is not CoordSystem.CARTESIAN``, and both had
@@ -605,7 +621,6 @@ class ReducedStreamingOperator:
     ``coord`` that already pinned the same fact.
     """
 
-    coord: CoordSystem
     mesh: Mesh1D
     angular: AngularRedistribution
     """The angular factor — the dome and the starting direction, produced
@@ -738,7 +753,7 @@ class ReducedStreamingOperator:
         # mesh.volumes returns shape (N,) for 1-D meshes.
         volume = float(self.mesh.volumes[cell_idx])
 
-        if self.coord is CoordSystem.CARTESIAN:
+        if self.mesh.coord is CoordSystem.CARTESIAN:
             # Slab — neutral curvature values populate the curvilinear
             # fields so cell_balance_terms_unified can consume the
             # packet without geometry dispatch (Issue #196 Phase G
@@ -763,7 +778,7 @@ class ReducedStreamingOperator:
                 abs_mu=abs(mu_n),
             )
 
-        if self.coord is CoordSystem.SPHERICAL:
+        if self.mesh.coord is CoordSystem.SPHERICAL:
             assert self.face_areas is not None
             assert self.delta_A is not None
             # Sphere: ``direction_idx`` IS the global ordinate index.
@@ -784,7 +799,7 @@ class ReducedStreamingOperator:
                 abs_mu=abs(mu_n),
             )
 
-        if self.coord is CoordSystem.CYLINDRICAL:
+        if self.mesh.coord is CoordSystem.CYLINDRICAL:
             if mu_level_idx is None:
                 raise ValueError(
                     "cylindrical streaming_terms() requires mu_level_idx "
@@ -816,7 +831,7 @@ class ReducedStreamingOperator:
             )
 
         raise ValueError(  # pragma: no cover — exhaustive match above
-            f"Unknown coord system: {self.coord!r}"
+            f"Unknown coord system: {self.mesh.coord!r}"
         )
 
 
@@ -1148,7 +1163,6 @@ def slab_streaming(
             f"slab_streaming requires CARTESIAN mesh, got {mesh.coord!r}"
         )
     return ReducedStreamingOperator(
-        coord=CoordSystem.CARTESIAN,
         mesh=mesh,
         angular=angular_redistribution(angular_measure, CoordSystem.CARTESIAN),
     )
@@ -1215,7 +1229,6 @@ def spherical_streaming(
     # ``angular.mu_start_per_level[0]``, not by this packet.
 
     return ReducedStreamingOperator(
-        coord=CoordSystem.SPHERICAL,
         mesh=mesh,
         face_areas=face_areas,
         delta_A=delta_A,
@@ -1318,7 +1331,6 @@ def cylindrical_streaming(
     # that used to live alongside that producer retired at Q5.6.4 — there
     # is one τ, unclamped, on both arms.)
     return ReducedStreamingOperator(
-        coord=CoordSystem.CYLINDRICAL,
         mesh=mesh,
         face_areas=face_areas,
         delta_A=delta_A,

@@ -11,8 +11,20 @@ warning surface.
 
 Pins three software invariants on the post-refactor :class:`SNMesh`:
 
-1. ``self.reduced`` is a :class:`ReducedStreamingOperator` instance with
-   the matching :class:`CoordSystem` for slab / sphere / cylinder.
+1. ``self.reduced`` is a :class:`ReducedStreamingOperator` instance
+   built from **this mesh** for slab / sphere / cylinder.
+
+   ⛔ Until 2026-08-27 (P4.1a) invariant 1 read "*with the matching*
+   :class:`CoordSystem`", and each test spelled it
+   ``sn.reduced.coord is CoordSystem.X``.  That field was a copy of
+   ``mesh.coord`` and has retired, so the assertion would now be
+   ``sn.reduced.mesh.coord is X`` — which, given ``reduced.mesh is
+   sn.mesh``, restates ``sn.coord`` and pins nothing about the wiring.
+   The claim the file is *for* is that the factory received **the
+   caller's mesh**, so that is what each test now asserts: strictly
+   stronger than the chart tag was (a chart tag agrees for any two
+   meshes on the same chart; object identity does not) and independent
+   of the chart, so it survives P4.1b's field changes.
 2. The remaining transitional ``@property`` accessors (``face_areas``,
    ``delta_A``) emit :class:`DeprecationWarning` and route to the
    matching attribute on ``self.reduced``.
@@ -83,14 +95,14 @@ def _cylinder_mesh() -> SNMesh:
 def test_slab_reduced_is_reduced_streaming_operator() -> None:
     sn = _slab_mesh()
     assert isinstance(sn.reduced, ReducedStreamingOperator)
-    assert sn.reduced.coord is CoordSystem.CARTESIAN
+    assert sn.reduced.mesh is sn.mesh
 
 
 @pytest.mark.foundation
 def test_sphere_reduced_is_reduced_streaming_operator() -> None:
     sn = _sphere_mesh()
     assert isinstance(sn.reduced, ReducedStreamingOperator)
-    assert sn.reduced.coord is CoordSystem.SPHERICAL
+    assert sn.reduced.mesh is sn.mesh
     # The sphere's ANGULAR factor is one level, and its dome is a real
     # dome — not merely "populated".  (Issue #236 Step C retired the
     # geometry-side tau_mm; the 2026-08-26 un-weld moved α and μ_start
@@ -106,7 +118,7 @@ def test_sphere_reduced_is_reduced_streaming_operator() -> None:
 def test_cylinder_reduced_is_reduced_streaming_operator() -> None:
     sn = _cylinder_mesh()
     assert isinstance(sn.reduced, ReducedStreamingOperator)
-    assert sn.reduced.coord is CoordSystem.CYLINDRICAL
+    assert sn.reduced.mesh is sn.mesh
     # The cylinder's ANGULAR factor carries one dome per μ-level.
     # (See the spherical twin for the 2026-08-26 un-weld note.)
     assert sn.reduced.angular.n_levels == len(sn.quad.level_indices)

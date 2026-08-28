@@ -891,7 +891,7 @@ class SNMesh(MaterialMesh):
         if self.is_cartesian:            # "Cartesian never carries", above
             return ()
         assert self.reduced is not None  # curvilinear ⇒ reduced populated
-        starts = march_start_structure_per_level(self.quad, self.reduced.coord)
+        starts = march_start_structure_per_level(self.quad, self.coord)
         return tuple(
             p for p, start in enumerate(starts)
             if start.consumes_independent_seed
@@ -1461,7 +1461,7 @@ class SNMesh(MaterialMesh):
                 "or cylindrical).  2-D Cartesian wavefront sweeps "
                 "use anti-diagonal scheduling, not per-cell visits."
             )
-        coord = self.reduced.coord
+        coord = self.coord
 
         # Direction-keyed branch: resolve a non-degenerate representative
         # ordinate, then delegate to the ordinate-keyed branch (single source
@@ -1536,7 +1536,7 @@ class SNMesh(MaterialMesh):
                 "ReducedStreamingOperator (1-D Cartesian, spherical, "
                 "or cylindrical)."
             )
-        coord = self.reduced.coord
+        coord = self.coord
         if direction_sign not in (+1, -1):
             raise ValueError(
                 f"direction_sign must be +1 or -1; got {direction_sign}"
@@ -1602,7 +1602,7 @@ class SNMesh(MaterialMesh):
         signed iteration.
         """
         assert self.reduced is not None
-        coord = self.reduced.coord
+        coord = self.coord
         eps = self._DEGENERATE_ABS_ETA_THRESHOLD
         if coord is CoordSystem.CYLINDRICAL:
             mu_level = self._require_mu_level(mu_level_idx)
