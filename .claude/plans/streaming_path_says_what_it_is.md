@@ -620,9 +620,62 @@ fields without collapsing the arm leaves a branch that is dead by construction
 "move the residue to `sn/`" a move of **one** body instead of three. It also
 makes P4.7's retirement of `StreamingTerms.delta_A_over_w` a one-place edit.
 
-⛔ **NOT YET RULED — this widens the step's scope and the user rules structural
-decisions.** Surface the measurement before executing; the fallback (populate
-the fields, leave the arm) is strictly worse but landable.
+✅ **RULED 2026-08-27 (user): collapse the arm.**
+
+#### How far the collapse actually goes — measured, and it is not "all the way"
+
+⛔ **A first design read said the three arms collapse to ONE body with NO chart
+dispatch. That was wrong, and the check that caught it is the §2 quantifier
+check.** The reasoning was sound from the *definitions*: `[M]`
+`Quadrature.eta` and `Quadrature.mu_x` are **the same accessor** (both
+`axis_cosines(0)`; `eta`'s own docstring says *"Same data as `mu_x` (column
+0)"*), and `[M]` `level_indices` returns `[arange(N)]` **by construction**
+whenever `level_structure is None`. If both held universally, then
+`level_indices[p or 0][direction_idx]` would reduce to `direction_idx` on
+slab and sphere and one expression would serve all three charts.
+
+`[M]` over the shipped registry — **40 rules constructed** (GL 2–18,
+Gauss–Lobatto 2–18, `level_symmetric` 2–18, `product`/`folded_product` over
+`n_mu ∈ {2,4,6} × n_φ ∈ {4,6,8,16}`), positive control included: **9 are
+single-level, and 1 of those 9 has a PERMUTED level list.**
+`level_symmetric(2)` is `N = 8`, one level, `level_indices[0] =
+[2,3,0,1,6,7,4,5]` — it carries a `LevelStructure`, so the `arange` shortcut
+does not apply to it. ⟹ **`level_indices[0][direction_idx]` is NOT
+interchangeable with `direction_idx`**, and unifying through it would silently
+re-index any slab/sphere posed on that rule (nothing in the factories forbids
+it — they accept "any `AngularMeasure`-shaped object").
+
+⭐ **What the surviving `if` is actually about, and why keeping it is the
+finding rather than the compromise.** `direction_idx` means **the global
+ordinate** for slab/sphere and **the within-level azimuthal index** for
+cylinder. That is one parameter name carrying two contracts — the real defect,
+and it is *not* a chart-dispatched arithmetic. So the honest end state for
+P4.1b is **3 arms → 1 body + a 2-way index resolution**:
+
+```python
+if self.mesh.coord is CoordSystem.CYLINDRICAL:
+    if mu_level_idx is None:
+        raise ValueError(...)                    # the admission stays
+    n = int(quad.level_indices[mu_level_idx][direction_idx])
+else:
+    n = direction_idx                            # already the global ordinate
+radial_cosine = float(quad.mu_x[n])              # == quad.eta[n], one accessor
+return StreamingTerms(...)                       # ONE body, all three charts
+```
+
+⟹ the packet arithmetic is single-sourced (the Pattern-2 win), and what remains
+is a named statement about *what the caller's index means* — which P4.7 owns,
+since it is the same producer-contract question as the `delta_A_over_w`
+retirement.
+
+⚠ **Naming item for P4.7's family.** The unified body needs a chart-neutral
+spelling of `axis_cosines(0)`: `mu_x` is slab-flavoured, `eta` is
+cylinder-flavoured, and `[M]` they are one accessor with two names. `mu_x`'s
+own docstring already concedes it (*"the column index, not the name, is the
+actual semantic"*). Bind a well-named local (`radial_cosine`) for now;
+⛔ do **not** reach for `axis_cosines(0)` directly — it is not on the
+`AngularMeasure` Protocol, so using it would narrow what the factories accept,
+and that Protocol's fate is suspended into CS5.
 
 **P4.2 — the angular factor comes home.** The five α symbols to
 `sn/angular/redistribution.py`; `SNMesh` builds the redistribution and hands both
