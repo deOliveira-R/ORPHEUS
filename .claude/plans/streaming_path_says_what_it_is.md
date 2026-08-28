@@ -48,6 +48,7 @@
 > | `d48f4bf4` | **P4.1a** | the chart lives on the mesh, not on a copy beside it |
 > | `7f08d1d7` | **P4.1b** | the slab is the sphere's zero-curvature case — 3 arms → 1 body |
 > | `7c5a8fb3` | **P4.1c** | the `SNMesh` deprecation shims retire |
+> | `16501ca0` | **P4.4** | the connection coefficients come home — 4 symbols to `sn/mesh/`, tests follow |
 >
 > `[M]` exit gates, full fast set, 13 trees all `rc=0` each time:
 > **P2 9815/0** (+1 vs P1 — the new `sn/angular/__init__.py` adds one case to
@@ -57,7 +58,7 @@
 > **P4.1b+c 9823/0 — delta 0 on every tree AND every axis.** pyright 0 and
 > `sphinx -W` 0 throughout.
 >
-> ### ▶ NEXT — **P4.4, then P4.2, then P4.3.** Read §4ter before anything else.
+> ### ▶ NEXT — **P4.2, then P4.3.** (P4.4 ✅ landed `16501ca0`.) Read §4ter first.
 >
 > ⛔⛔ **The order was corrected TWICE. `P4.2 → P4.4` (written 2026-08-28
 > in this very header) is itself REFUTED — P4.2 cannot precede P4.4 either.**
@@ -90,9 +91,11 @@
 > ⛔ **The earlier correction, which still stands.** The plan's own sequence was 4.2 → 4.3 →
 > 4.4, and `[M]` P4.3-before-P4.4 creates `geometry → transport` (**0** today
 > against **16** the other way) because `StreamingTerms`' only constructor
-> stays behind in `geometry/` at a **runtime** call site
-> (`reduced_operator.py:856`) — a declared `FORBIDDEN_EDGES` violation with a
-> red waiting for it. `[M]` the reverse dependency was then checked too and is
+> stayed behind in `geometry/` at a **runtime** call site
+> (`geometry/reduced_operator.py:856`, pre-P4.4) — a declared `FORBIDDEN_EDGES`
+> violation with a red waiting for it. ✅ **REMEDIED by P4.4 `16501ca0`**: `[M]`
+> that constructor is now `orpheus/sn/mesh/reduced_operator.py:531`, so the
+> ordering constraint is DISCHARGED and P4.3 is unblocked. `[M]` the reverse dependency was then checked too and is
 > clean (`sn → geometry` is legal, `geometry` being INPUT), so the two
 > **reorder rather than fuse**. Full record, both directions, in **P4.3's ⛔
 > block** — including the two scope changes it forces on P4.4 (the module
@@ -213,9 +216,14 @@
 > known-inherited `cyl_2g_3reg_folded_4x8_dd_n40` red (#404, dup of #397,
 > `[M]` bit-identical pre-branch).
 >
-> **The acceptance baseline for the next step is `9823 passed / 0 failed,
+> **The acceptance baseline for the next step is `9824 passed / 0 failed,
 > 22 skipped / 227 deselected / 70 xfailed`** — state the delta against it and
-> account for every unit.
+> account for every unit. ⚠ The `9824` is P4.4's: `9823` **+1**, because the
+> import-linter `rglob`s every module under `orpheus/` and `sn/mesh/reduced_operator.py`
+> is a new one. Predicted before the run and confirmed twice — the layer gate
+> alone went `342 → 343`, and the regenerated
+> `docs/theory/verification/matrix.rst` moved `10142 → 10143`. **P4.2 adds
+> another +1** (`sn/angular/redistribution.py`), so expect `9825` there.
 
 **Status.** ⛔ ~~Proposed 2026-08-26, un-ruled.~~ **IN EXECUTION** — Phase B,
 P1, P2 and P3a/P3b have landed (see the table above); all four §9 forks and
@@ -876,7 +884,20 @@ the precedent that file's own ⛔ banner set for `tau`/`edges` on 2026-08-12:
 **the L0 ladder accepts α as a keyword** (*"the defect was L0 reaching UP for
 it"*). Its delegating local `alpha_dome` retires; nothing re-implements it.
 
-⛔⛔ **ORDERING REFUTED 2026-08-28 — P4.2 RUNS AFTER P4.4.** The reconciliation
+✅ **UNBLOCKED 2026-08-28 — P4.4 landed at `16501ca0`, so P4.2 is now next.**
+`[M]` the three `*_streaming` factories are in `orpheus/sn/mesh/reduced_operator.py`;
+their call to `angular_redistribution` is `sn → geometry` today and becomes
+`sn → sn` the moment α moves. The ordering block below is kept as the record of
+why it could not go first (`plan-authoring` §3), and is now PAST TENSE.
+
+⚠ **What P4.2 still owes, unchanged:** `AngularMeasure` travels WITH α (it is
+`AngularRedistribution`'s field type); the `derivations → sn` hazard bites here
+for the first time and the fix is the **keyword**, never the `WHITELIST` row;
+and the destination `orpheus/sn/angular/redistribution.py` still does not exist.
+⚠ `geometry/__init__.py` re-exports `AngularMeasure` and `alpha_dome` — both
+must be **DELETED**, not re-pointed.
+
+⛔⛔ **ORDERING REFUTED 2026-08-28 (the record) — P4.2 RUNS AFTER P4.4.** The reconciliation
 below is about the `derivations → sn` hazard and it still holds verbatim. What
 it never asked is whether the move is landable *at this point in the order*, and
 `[M]` it is not. The α cluster's callers are **inside its own file**:
@@ -959,6 +980,18 @@ not save it even if `geometry` were covered by it (it is `INPUT_PACKAGES`, so it
 is not). `FORBIDDEN_EDGES["geometry"] = L2_PACKAGES | L3_PACKAGES` and
 `transport` is L2 ⟹ **a declared violation with a red waiting for it.**
 
+✅ **REMEDIED 2026-08-28 by P4.4 (`16501ca0`) — this blocker is DISCHARGED, and
+the paragraph above is now PAST TENSE.** `[M]` `StreamingTerms`' only
+constructor is `orpheus/sn/mesh/reduced_operator.py:531`; it is in `sn/`, and
+`sn → transport` is the established direction (`[M]` 171 edges). The consumers
+re-point cleanly: `transport/spatial/scheme.py:92` (RUNTIME) and
+`cell_balance.py:79` (TYPE_CHECKING) become `transport → transport`;
+`sn/mesh/augmented_mesh.py:32` and `sn/mesh/reduced_operator.py:207` become
+`sn → transport`, legal.
+⚠ **`geometry/__init__.py:30` still re-exports `StreamingTerms`, and it must be
+DELETED, not re-pointed** — `geometry → transport` is forbidden, the identical
+trap P4.4 hit with its own four names.
+
 ⟹ **ORDERING CONSTRAINT: P4.3 cannot precede P4.4.** P4.4 re-homes
 `streaming_terms()` into `sn/`; once the producer is there the import is not
 merely legal but the established direction (`[M]` `sn → transport` = **171**).
@@ -1022,6 +1055,74 @@ borrowed. See the surprise-log row of the same date.
 
 **P4.4 — the residue to `sn/`, and the module is deleted.** Safe only after
 P4.1a. `[M]` 0 intra-geometry consumers, so nothing stays behind.
+
+✅ **LANDED `16501ca0`** 2026-08-28. ⛔ The row's second half is void as
+written: *"the module is deleted"* moved to **P4.3** (the ⛔ block above says
+why — `StreamingTerms` is still defined there and `transport` imports it at
+runtime), and *"nothing stays behind"* is false at this phase — `AngularMeasure`,
+`StreamingTerms` and the five α symbols all stay, by design.
+
+**What moved** (4 symbols → `orpheus/sn/mesh/reduced_operator.py`, ✅ user-ruled
+destination): `ReducedStreamingOperator` + `slab_streaming` /
+`spherical_streaming` / `cylindrical_streaming`. ⭐ **Beside `SNMesh`, which
+`[M]` is their ONLY constructor and holder** (`augmented_mesh.py:333/:340/:357`);
+`sn/mesh/__init__.py`'s own docstring already described this object ("the
+precomputed streaming stencil, the α / geometry-factor / Morel–Montry weights").
+⚠ **The filename is deliberately NOT renamed** — `ReducedStreamingOperator` is
+not a streaming operator, but §9.1's name fork is OPEN, so P3c renames class and
+module together rather than this step minting a name it does not own
+(`plan-authoring` §1).
+
+**§6b call-site set — complete by TWO filters, and the second one found what the
+first could not.**
+
+| surface | method | count |
+|---|---|---|
+| production imports | AST | **3** — `geometry/__init__.py` (re-export **DELETED**), `sn/mesh/augmented_mesh.py`, `sn/operators/radial_characteristic.py` (`TYPE_CHECKING`) |
+| test imports | AST | **13** — 8 direct, 5 via the `orpheus.geometry` façade |
+| `docs/*.rst` refs | regex + positive control | **28** in 5 files, incl. the V&V `:by:` directive at `index.rst:625` |
+| **`.py` docstring xrefs** | **`dead_references`** | **9 in 5 files** ⭐ |
+
+⭐⭐ **The docstring row is the finding.** The import audit was complete and the
+residual check returned 0; the full fast suite was green and `sphinx -W` built
+clean — and **5 targets / 9 sites** still named `orpheus.geometry.reduced_operator.<mover>`
+inside `:class:`/`:func:`/`:attr:` roles in `orpheus/sn/angular/closure.py`,
+`transport/spatial/{scheme,cell_balance}.py` and two test modules. Nothing else
+in the toolchain can see them: the module is **not** `automodule`'d, so Sphinx
+renders none of it and `-W` is silent at every severity (`coding-standards`'
+silent class). `mcp__nexus__dead_references` reported exactly 9; the sweep fixed
+exactly 9; re-run reads **0 dead / 52 checked / 52 rescued**. ⟹ *a symbol has
+more than one spelling SURFACE, and "the import grep is complete" is a claim
+about one of them.*
+
+**Test migration** (`coding-standards`: retiring means the tests follow the SUT).
+`[M]` by AST the file split cleanly — **29 of 36** test functions name only the
+movers, **7** (`TestAlphaDomeClosureContract`) only the residue, and all three
+mesh fixtures belong to the movers. So
+`tests/geometry/test_reduced_operator.py` → `tests/sn/mesh/test_reduced_operator.py`
+for the 29, with the 7 staying (they travel again to `tests/sn/angular/` at
+P4.2). `[M]` **63 collected → 18 + 45 = 63**, conserved — and confirmed
+independently by `docs/theory/verification/matrix.rst`, which the build
+regenerates and which I did not write.
+
+**Two docs claims this move REFUTED, corrected in place (§3):**
+* `structured_geometry.rst` — *"lifts the math into a **geometry-layer**
+  primitive rather than a solver-side one"*. The single-sourcing half is
+  Cardinal Rule 2 and stands; the **layer** half is precisely what P4.4
+  disproved. Kept, banner-dated, with the layer test that replaced it.
+* the same page's file **enumeration** — re-measured at **15** files, and `[M]`
+  `transport/spatial/linear_discontinuous.py` was missing from the published
+  list **already at HEAD** (it named `StreamingTerms` there too). Found only by
+  re-running the page's own predicate rather than reading it — `plan-authoring`
+  §2, a published enumeration owes its own re-run.
+
+**Gates.** layer-import **342 → 343** (+1, predicted before running: the linter
+`rglob`s every module in `orpheus/` and there is one more — the same mechanism
+as P2's `sn/angular/__init__.py`); affected trees 1669 passed / 0 failed; the
+pre-migration sweep/transport/operators run 2342 passed / 0 failed; pyright
+**0**; `sphinx -W` **0**; `dead_references` **0**. Fresh-interpreter import
+smoke passes with `orpheus.geometry` FIRST — the order that breaks under a
+cycle, and the one a naive smoke test gets wrong.
 
 **P4.5 — the hollow Cartesian object dies.** `[M]` d≥2 Cartesian gets
 `reduced = None`; the slab gets an object whose every meaningful field is

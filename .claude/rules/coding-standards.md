@@ -254,7 +254,29 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   retirements ARE gated by `-W`; the silent class is the Python-domain roles, plus **raw path
   strings** in prose/docstrings, which no build ever checks. A path assembled from segments —
   `REPO_ROOT / "docs" / "theory"` — is invisible to a path-grep too; grep the **last
-  segment**.) ⭐ **A MATH symbol has THREE spellings, and a number is a fourth.** The
+  segment**.)
+  ⭐ **And the measurement showing a COMPLETE import audit is still a PARTIAL
+  audit: a symbol has more than one spelling SURFACE.** The clause above is
+  argued from `docs/`; this is the same defect one surface over, in `.py`
+  files, and it survived every check that was run.
+  > `[M]` 2026-08-28, un-weld P4.4 (4 symbols, `geometry/` → `sn/mesh/`). The
+  > import audit was done by **AST** (not grep), the residual check ran in
+  > Python **with a positive control**, and returned **0**. The affected suite
+  > was green, `pyright` 0, `sphinx -W` **clean**. `[M]`
+  > `mcp__nexus__dead_references` then found **5 dead targets / 9 sites** —
+  > `:class:`/`:func:`/`:attr:` cross-references to the old path sitting in
+  > **docstrings** in `orpheus/sn/angular/closure.py`,
+  > `transport/spatial/{scheme,cell_balance}.py` and two test modules. Nothing
+  > else could see them: the module is not `automodule`'d, so `-W` is silent at
+  > every severity. ⭐ The transferable half: the residual filter was
+  > **validated and correct** — it was run over the wrong *surface* (import
+  > statements), not with the wrong *pattern*. A positive control proves your
+  > regex finds what you point it at; it says nothing about whether you pointed
+  > it at the whole corpus. ⟹ **`dead_references` is the only instrument that
+  > reads the docstring surface** — run it before calling any retirement or
+  > re-home done, and again after the fix (this one went 9 → **0 dead / 52
+  > checked**).
+  ⭐ **A MATH symbol has THREE spellings, and a number is a fourth.** The
   concept-grep rule below tells you to widen the vocabulary; this says the
   *same symbol* is already spelled three incompatible ways in one repo, so a
   grep for any one of them returns a confident partial answer: the **ASCII
