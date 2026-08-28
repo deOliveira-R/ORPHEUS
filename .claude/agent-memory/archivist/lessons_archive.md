@@ -7548,3 +7548,265 @@ axes.
 - **Residual grep read by TENSE**: every surviving "2009" in the quadrature package is inside
   a ⛔ tombstone. That is the acceptance criterion, not zero hits.
 
+
+---
+
+## L-071 — P4.9a docs sweep: a RED baseline is a gift, and a declaration is a measurable act (2026-08-28, branch `refactor/unweld-p49a-closure-owns-march`, commit `ca852c44`)
+
+**Task.** Teach five theory pages a landed carve: `DiamondDifference.update` stopped
+applying the Morel–Montry angular march; `cell_balance_terms`/`CellBalanceTerms` retired;
+the L2 visit family (`CellVisit.tau/c_in/c_out`, `UpstreamState.angular_upstream`,
+`CellResult.outgoing_angular_state`) went purely spatial; the closure began minting its
+own scan constants. Brief named 4 files / ~41 sites and 3 `.. implements::` blocks.
+
+### 1. ⭐⭐ The `-E` BASELINE WAS RED, AND THE FOUR WARNINGS *WERE* MY WORKLIST
+
+`[M]` pre-edit `-E -W` = **4 warnings, EXIT≠0**, all `nexus.directive`
+"*the ontology refuses this edge — source is 'unresolved'*", one per dead `:by:` target.
+A retired `:by:` DOES warn — so the `.. implements::` half of a retirement sweep is in the
+**gated** class, unlike every prose role.
+
+Two consequences worth carrying:
+- **The acceptance gate becomes `4 → 0`, not "count unchanged".** Far stronger evidence,
+  and free. A brief saying "verify `-W` clean" was describing an end state, not a baseline;
+  measuring the baseline is what turned a vague instruction into a checkable predicate.
+- **The build's own warning set is a better census than the brief's grep.** The brief named
+  three blocks in `index.rst`; warning #1 was in `operator_algebra.rst`, on the label
+  `streaming-action-cell-balance`, which no grep for the three named labels would find.
+  ⟹ **on any retirement touching declarations, run the `-E` baseline FIRST and read its
+  warnings as the site list.**
+
+`[M]` the edge count is a second, independent check: `directives: wrote N edges` went
+**400 → 412**, and +12 is exactly what I added (+1 slab migration, +2 degenerate, +5
+`pole-mm-recurrence`, +2 `dd-mm-angular-recurrence`, +2 `dd-mm-scan-split`). Arithmetic
+that reconciles is the cheapest proof a declaration pass did what it claims.
+
+### 2. ⭐⭐ THREE FATES FOR A DEAD `:by:`, AND THE DISCRIMINATOR IS THE *SURVIVOR'S* STATE
+
+Not one repair — three, and picking wrong is silent under-coverage (L-059: declaring
+1-of-N switches inference off for the whole equation).
+
+| survivor already declared on this label? | fate | count |
+|---|---|---|
+| **no** | **MIGRATE** the edge to it | `dd-slab-scalar`, 9 → 9 |
+| **yes** | **REMOVE** — the retirement collapsed two implementers into one | `dd-curvilinear-scalar`, 6 → 5 |
+| yes, **but the equation names arithmetic the retirement RELOCATED** | remove + **ADD the new home(s)** | `dd-cylindrical-degenerate`, 3 → 4 |
+
+⟹ **check whether the survivor is already on the label before writing either edit.** One
+grep. The migrate case is the dangerous one — it *looks* like a removal.
+
+### 3. ⭐⭐ ADJUDICATING "does `X` still implement this?" — READ WHAT THE EQUATION STATES, NOT WHAT `X` LOST
+
+The brief asked me to rule on `DiamondDifference.update` for `dd-cylindrical-degenerate`.
+The tempting answer is "the march left, so drop it". Wrong, and the discriminator is
+mechanical: **the equation's body**. `dd-cylindrical-degenerate` states
+`denom = (ΔA/w)c_out + Σ_t V` and `numer = QV/W + (ΔA/w)c_in ψ_{n−1/2}` — a **balance**.
+`update` still forms that quotient. What it stopped evaluating is `ψ_{n+1/2}`, which
+**this equation does not write**; that is `dd-mm-angular-recurrence`, a different label.
+
+⭐ And the mirror move, which is what makes the ruling complete rather than merely
+defensible: **a relocation that moves a PRODUCT out of a callee and into its caller owes
+the caller a declaration.** The equation writes `(ΔA/w)·c_out` and `(ΔA/w)·c_in·ψ` as
+products; post-carve those are formed *only* in the walk (`_OneDimScanWalk._run`), which
+passes them down assembled. Declaring only the balance sites would leave the equation's two
+most geometry-specific factors implemented by nothing.
+
+### 4. ⭐⭐ A "SINGLE PRODUCTION SPELLING" RULING IS A DECLARATION OPPORTUNITY WITH A MEASURABLE PAYOFF
+
+`[M]` before: `dd-mm-angular-recurrence` carried **32 inferred implementers, every one
+matched on the token `angular`** — a membership list of `orpheus/sn/angular/`, containing
+`AngularBoundaryFlux`, `AngularTraceSpace`, `alpha_dome`… none of which march anything.
+`pole-mm-recurrence` carried **1**, `_OneDimScanWalk._ensure_pole_mirror`, via `pole` — a
+method that mirrors pole *faces*.
+
+After declaring: **32 → 0** and **1 → 0**, with 5 `verifies` edges on `pole-mm-recurrence`
+untouched. ⟹ when a carve rules "X has ONE production spelling", the label naming X is
+almost always sitting on a pile of token guesses; the ruling is the moment to retire them.
+
+⚠ And get the SET right (L-059): `pole-mm-recurrence` has **two lines** (seed + step), so
+its five implementers are the step function, the batch kernel that writes the seed AND
+loops the step, the public exposure the 5 `verifies` tests actually call, the mesh-bound
+wrapper, and the per-cell entry. Declaring only `march_psi_half_step` would have refuted
+the tests, which run `compute_psi_half_per_level`.
+
+### 5. ⭐⭐ THE DIRECTIVE RESOLVER TAKES `py:data:` TOO — L-060's PREFIX LIST WAS INCOMPLETE
+
+L-060 recorded the `:by:` resolver as trying *"the literal string, then `py:function:` /
+`py:method:` / `py:class:` and **nothing else**"*. `[M]` REFUTED: a pre-existing
+`:by: …diamond._DD_W` (a module-level `float`, node id `py:data:…`) binds fine and drew
+**no** warning in either build. My pre-flight checker flagged it as unbindable — a false
+positive from the frozen list. ⟹ pre-flight `:by:` against the **build**, or accept that a
+4-prefix check over-reports; the authoritative answer is the warning.
+
+### 6. ⭐⭐ A SINGLE-DRAW BIT-EQUALITY STATISTIC, RELAYED FROM A MEMO INTO **FIVE CODE SITES**
+
+The brief instructed me to quote *"59 % bit-equal / max 204 ULP, `scratch/…§F2`"*.
+`[M]` mine, same fixture (`folded_product(4,6)` cylindrical τ), **200 seeds × 2400 evals**:
+
+| quantity | measured | stable? |
+|---|---|---|
+| bit-equal fraction | **46.21 – 51.42 %** (mean 48.66) | draw-dependent — publish the BAND |
+| `max |A−B|`, 4.8e5 evals | **1.776e-15** | ✅ reproduces the memo exactly |
+| `max` ULP, same 200 seeds | **113 – 91 839** | ⛔ 3 orders of magnitude — NOT a statistic |
+| τ bitwise ½ ⟹ bit-equal | **100 %**, 0 ULP; `2 of 12` ordinates | ✅ structural, draw-free |
+
+So **59 % lies outside the band and 204 sits at the bottom of the ULP range** — and the
+figure had been copied into `closure.py:520`, `closure.py:1387-1388`, and **two test
+docstrings** (`test_pole_angular_closure.py:513,565`). Five sites, one un-reproducible draw.
+
+⭐ The transferable half is the *decomposition*, not the refutation: **an absolute
+difference is a property of the fixture; a bit-equal FRACTION and a ULP gap are properties
+of the draw.** The ULP metric explodes wherever the two terms nearly cancel while `|Δ|`
+stays at the round-off floor — so it is the *worst* of the three to freeze in a docstring,
+and it is the one people reach for because it sounds precise.
+
+⟹ publish `max |Δ|` as the number, the fraction as a band, the structural cause (τ = ½
+exactly ⟹ `1/τ = 2.0` and `(1−τ)/τ = 1.0` are exact) as the explanation — and say so in the
+page when the tree's own docstrings carry the unstable form (I wrote a `.. warning::`
+naming the docstring, since I cannot edit `orpheus/`).
+
+⭐ Also: `[M]` `fp(4,6)` carries **six distinct float64 τ**, not three — three nominal
+values each as a 1-ULP-apart pair, of which only one member of one pair is exactly ½. A
+bit-identity claim validated on "the τ = ½ ordinate" is reading a coin (`vv` #31/#13).
+
+### 7. ⭐ THE HONEST-SCOPE NOTE THE BRIEF'S HEADLINE WOULD HAVE LOST
+
+Brief item 1: *"The march has ONE production spelling."* True **and scoped**: `[M]` the
+scan-normal form (`τ⁻¹ψ̄ − ((1−τ)/τ)ψᵃ`) survives as the closure's minted constants and is
+consumed at 3 sites (forward + two transpose arms). What P4.9a achieves is
+`grep -c "1.0 - tau" orpheus/transport/ == 0` and **one owner**, not one spelling.
+
+The forms **partition the ordinate set** (A on degenerate + batch, B on non-degenerate), so
+no input is ever evaluated both ways — which is what makes "welded by gate, not unified by
+spelling" a design rather than an excuse. `[M]` `march_psi_half_step` has exactly **2
+callers**; that closes the population.
+
+⟹ the production docstring already carried the honest scope. **Read the owner's docstring
+before writing the headline** — the code was more careful than the brief's summary.
+
+### 8. ⭐⭐ NAMING THE *FORCING* IS THE LOAD-BEARING CONTENT OF AN UN-WELD DOC
+
+A reader who takes a Pattern-2 twin for carelessness will re-introduce it. `[M]` by AST over
+`tests/test_layer_imports.py`: `transport` ∈ L2, `sn` ∈ L3,
+`FORBIDDEN_EDGES["transport"] = L3_PACKAGES`, enforced per module by a
+`@pytest.mark.foundation` parametrized gate. **The scheme could not call the closure — it
+could only re-spell the relation.** So the repair is not "delete the copy", it is "move the
+responsibility to the layer that sees both". That sentence is the whole doc.
+
+⟹ for any un-weld: **grep the layer contract and quote the forbidden edge.** It converts
+"someone duplicated this" into "the architecture manufactured this", which is the only
+framing that survives.
+
+### 9. ⭐ A GUARD RE-KEYED FROM A PRESENCE-TEST ONTO A VALUE SIGNAL IS A DOC-WORTHY UPGRADE
+
+LD refused curvilinear visits by `upstream_state.angular_upstream is not None`. Retiring
+that field would have left the guard **silently unreachable** (`vv` #28's temporal twin —
+a defaulted presence-test with nothing to detect). Re-keyed onto `face_area_inner !=
+face_area_outer` **or** a non-neutral assembled contribution. Say *why* that is stronger,
+not just that it changed: a value-keyed guard is reachable by calling the scheme directly,
+so its witness needs no mesh and no earlier guard can preempt it.
+
+### 10. ⭐⭐ THE `.. implements::` BODY PLACEMENT RULE BIT TWICE, IN THE SAME SESSION
+
+L-060's rule (place after the `.. math::` unless the next paragraph is a grammatical
+continuation) is easy to *know* and easy to *violate*, because you write the directive
+while thinking about the equation, not about the sentence. `[M]` I placed both new blocks
+mid-sentence — *"…does need the raw τ: [eq] [DIRECTIVE BODY] and read it from…"* and
+*"…precomputed the split [eq] [DIRECTIVE BODY] consumed at…"* — and had to splice both
+back out. ⟹ **after writing any directive with a body, read the sentence that spans it
+out loud.** A `where …` / `and …` / `consumed at …` / `with …` opener is the tell.
+
+### 11. ⭐⭐ THE PATCHED XREF GATE, WITH AN END-TO-END POSITIVE CONTROL — AND A MEMORY CORRECTION
+
+L-062/L-067's `head_role` bug is **still unlanded**. Working recipe, now with the control:
+copy the gate to `scratch/<name>.py` — **depth 1 from the repo root**, since
+`REPO_ROOT = __file__.parent.parent` (a `/tmp` copy AND a `scratch/_dir/` copy both scan
+**0 files**, silently) — patch
+`head_role = "mod" if "." in target else role`, run as a subprocess.
+
+⭐ **The control that makes the negative believable:** write a throwaway `docs/_ctl.rst`
+with two deliberately dead roles and one live one, run both gates, delete it. `[M]` stock
+**0 dead**, patched **2 dead / 2 sites**, `decidable` 5310 → 5312 (exactly +2). Without
+that, `DEAD TARGETS: 0` is indistinguishable from a broken scan.
+
+⛔ **Memory correction:** L-062 recorded the patch taking `docs/` from 49 dead → 207 on a
+pristine tree (2026-08-18). `[M]` today, corpus-wide over `docs orpheus tests`, 984 files
+/ 16 068 roles: **patched = 0 dead**, same as stock. The corpus was cleaned in the interim.
+Do not quote 207 as a live expectation.
+
+⭐ And the two-instrument agreement (L-067): nexus `dead_references` (by RENDERED target)
+**0 dead / 52 checked** and the patched gate (by IMPORT) **0 dead**. Independently
+vocabularied, same answer — that is the acceptance evidence.
+
+### 12. ⭐⭐ THE RENDER CHECK NEEDS A **PROVENANCE** STEP, OR IT INDICTS THE WHOLE PAGE
+
+My render checker fired on `curvilinear_one_group.html` (32 visible backticks, 8 unrendered
+`:math:` roles, 29 `<cite>`) and `operator_algebra.html` (40 / 2 / 5). **Every one was
+pre-existing.** Proving that is the step L-069 does not name:
+
+⟹ **extract each offender's source pattern and test it against `git show HEAD:<file>`.**
+`[M]` 15 of 16 matched immediately; the 16th (`independent of :math:`\sigma_t``) was a
+false negative from a **line wrap** — the source splits `**independent of\n:math:`…`**`,
+so a single-line pattern misses it. Confirmed by line number instead (HEAD:811 →
+current:815, absent from `git diff`). ⟹ when a source-pattern check says "mine", re-check
+by LINE, not by string.
+
+⭐ The cheaper primary evidence: **slice the rendered HTML to your own new section's id**
+and count there. `[M]` mine: **0 visible backticks, 0 unrendered roles**, 2 tables, 2 code
+blocks, 4 admonitions, and 4 live `href`s for the cross-doc `:ref:` I minted.
+
+### 13. ⭐⭐ `<cite>` IS *NOT* ALWAYS A DEFECT — CHECK THE CORPUS CONVENTION BEFORE "FIXING" IT
+
+L-061 calls `<cite>` the smoking gun of a Markdown port. My section had **6**, all
+`` `[M]` ``. `[M]` corpus-wide the measured-marker is spelled single-backtick **184** times
+vs double-backtick **110** — and `curvilinear_one_group.rst` itself carries **29** single
+(21 pre-existing, 8 mine). So the italic rendering is the page's own convention, and
+"fixing" my 8 would make my text inconsistent with the 21 above it.
+
+⟹ L-061's rule is about *code spans that should be monospace*. **Before treating a
+`<cite>` as a port artifact, count both spellings of that token corpus-wide.** (The 184/110
+split is itself a real corpus inconsistency — report it, don't resolve it inside an
+unrelated sweep.)
+
+### 14. Sites the brief did not name (its census is always a sample — L-059)
+
+- `operator_algebra.rst:760` — a 4th dead `:by:`, found by the **build**, not by grep.
+- `history.rst:967` — a 5th file, live `:meth:` role on the retired `_make_cell_visit`.
+- The B2/B3 "three live consumers" narrative — two of three consumers re-homed; the
+  `.. code-block::` spelling `terms = cell_balance_terms(…)` is now un-runnable.
+- The **L16/Pattern-5 rationale paragraph** (*"each consumer derives the trivial 1/τ…"*) —
+  present-tense-false, and `cache.py`'s own comment records the revision. Classic L-069:
+  the stale REASON outlives the stale NAME, and only the name is greppable.
+- `index.rst`'s "Slab vs curvilinear discrimination" note, which pointed at
+  `upstream_state.angular_upstream is None` as the *current* mechanism.
+
+### 15. CODE-side, reported not fixed (docs-only brief)
+
+1. `march_psi_half_step` / `advance_psi_half` docstrings + 2 test docstrings carry the
+   un-reproducible `59 % / 204 ULP`, and cite the **untracked** `scratch/p4_9a_verification_plan.md`
+   (L-048: describe the probe, never cite an ephemeral path).
+2. `cell_balance.py` module docstring still describes slab as
+   `alpha_in = alpha_out = 0.0, tau_mm = 1.0` — `[M]` those three `StreamingTerms` fields
+   were deleted at #236 Step C; live fields are
+   `{chord_length, mu, face_area_inner, face_area_outer, delta_A_over_w, volume, abs_mu}`.
+3. `index.rst` documents `CellVisit.face_area_downstream: float | None`; live it is
+   `float = 0.0`. Pre-existing, flagged in place.
+
+### Gates
+
+`-E -W` **0/0/0, EXIT=0** (baseline **4**) · xref gate 0 dead, patched gate 0 dead with a
+2-of-2 positive control · nexus `dead_references` 0 dead / 52 checked · vv-status scan **0
+violations**, new label `sn-p49a-march-forms` registered `documented` · declared edges 400
+→ 412 (reconciled) · guesses 32 → 0 and 1 → 0 · render check on the new section clean ·
+`matrix.rst` regenerated (10143 → 10155 tests; picks up the renamed
+`test_cell_visit_c_stamp` → `test_closure_constant_map` and two new modules).
+
+### Quality self-assessment (Directive 3)
+
+Derivation depth **4** · Cross-references **5** · Numerical evidence **5** (the 200-seed
+band + the τ=½ mechanism is strictly better than the single draw I was handed) · Failed
+approaches **5** (the forced twin, with its layer contract) · Code traceability **5** (+12
+declared edges, 33 guesses retired) · Derivation source **3** — the one weak dimension:
+the Form-A/Form-B comparison is a **published recipe**, not a `derivations/` script. It is
+a floating-point property of two spellings, which is arguably the recipe's natural home,
+but a `derivations/` module would let a gate consume the band.

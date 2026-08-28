@@ -173,6 +173,17 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   universal (plan-§2: I first wrote the L=2 range over a sentence covering both). ⭐ Then
   look one level down: the RATIO OF THE TWO ADJOINTS on a single-ℓ unit input is exactly
   `(4π/(2ℓ+1))²`, `[M]` to `≤2.8e-16` — seed-free and strictly more useful. → L-065
+- **⭐⭐ Decompose a float-agreement claim into its THREE quantities — only one is a property
+  of the FIXTURE.** `|Δ|` is stable and is the number to publish; a **bit-equal FRACTION** is a
+  property of the draw (publish the band); a **ULP gap** is worse than draw-dependent and is the
+  one people freeze because it sounds precise. `[M]` same fixture, 200 seeds: `max|Δ|` =
+  `1.776e-15` (reproduces a memo exactly), fraction `46.21–51.42 %` (the memo's `59 %` is
+  OUTSIDE it), max ULP `113 – 91 839` (the memo's `204` is the floor) — because ULP explodes
+  where the two terms nearly cancel while `|Δ|` stays at round-off. Always seek the
+  **draw-free structural cause** instead: `τ` bitwise `½` ⟹ `1/τ=2.0` and `(1−τ)/τ=1.0` are
+  exact ⟹ 100 % agreement, and `[M]` only `2 of 12` ordinates qualify (the rule carries SIX
+  distinct float64 τ, three nominal values each as a 1-ULP pair). ⚠ Such a figure gets COPIED:
+  mine sat in 2 production docstrings + 2 test docstrings. → L-071
 - **⭐⭐ "BIT-EXACT" IS USUALLY A PROPERTY OF THE DRAW — publish a BOUND over ≥200 seeds, with
   the norm written out.** A brief and two gate docstrings said `R∘E = id` is `[M]` bit-exact;
   `[M]` on the gate's OWN fixture `np.array_equal` fails on **844 of 2000** seeds (~1 ULP), and
@@ -319,6 +330,14 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   `dead_references` (by RENDERED target) and the patched gate (by IMPORT) returned the SAME
   single finding; neither alone was persuasive (the stock gate said 0; nexus's set-difference
   with the gate is normally noisy). → L-067, L-052
+- **⭐⭐ The patched gate needs a copy at DEPTH 1 and an END-TO-END positive control — and its
+  old number is stale.** `REPO_ROOT = __file__.parent.parent`, so a `/tmp` copy AND a
+  `scratch/_dir/` copy both scan **0 files, silently**; put it at `scratch/<name>.py`. Then write
+  a throwaway `docs/_ctl.rst` with two dead roles + one live, run both gates, delete it: `[M]`
+  stock **0**, patched **2 dead / 2 sites**, `decidable` +2 — without that, `DEAD TARGETS: 0` is
+  indistinguishable from a broken scan. ⛔ **L-062's "49 → 207 dead in `docs/`" is void**: `[M]`
+  2026-08-28, corpus-wide over `docs orpheus tests` (984 files / 16 068 roles), patched = **0**,
+  same as stock. The corpus was cleaned; do not quote 207 as a live expectation. → L-071, L-062
 - **⭐⭐ A per-site adjudication TABLE is an instrument — audit its SKIP clause, its "retired"
   verdicts, and its `hasattr` evidence.** Applying a 91-site ruling table faithfully still yielded
   FIVE corrections: (a) its *keep-if-absent-from-graph* filter hid ~1400 alive-but-unqualified
@@ -456,6 +475,24 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   fix rewrote the geometry table, the worked examples, the rejection messages AND the predicate
   quoted in the equation's own vv-status comment — leaving the `.. math::` body stating the retired
   claim 8 lines above its own correction. Publish the tell IN the page. → L-056
+- **⭐⭐ A dead `:by:` has THREE fates, and the discriminator is the SURVIVOR's state, not the
+  retirement's.** Survivor NOT yet declared on this label ⟹ **MIGRATE** (removing orphans the
+  equation); already declared ⟹ **REMOVE** (the retirement collapsed two implementers into one);
+  already declared **but the equation names arithmetic the retirement RELOCATED** ⟹ remove **and
+  ADD the new home**. `[M]` one sweep hit all three (9→9, 6→5, 3→4). ⭐ And the adjudication rule
+  when a symbol *lost a capability*: **read what the EQUATION states, not what the symbol lost** —
+  a label stating `denom`/`numer` is a BALANCE, so a method that still forms that quotient stays
+  declared; the relation it stopped evaluating lives on a *different* label. ⭐ Mirror: a
+  relocation that moves a PRODUCT from callee to caller owes the CALLER a declaration, or the
+  equation's most specific factors are implemented by nothing. → L-071, L-059
+- **⭐⭐ A "single production spelling" ruling is a DECLARATION opportunity with a measurable
+  payoff — the label naming the thing is sitting on token guesses.** `[M]` `dd-mm-angular-recurrence`
+  carried **32** inferred implementers, every one matched on the token `angular` (a membership
+  list of `sn/angular/`); `pole-mm-recurrence` carried 1, via `pole`, a method that mirrors pole
+  FACES. Declaring: **32 → 0** and **1 → 0**, `verifies` edges untouched. ⚠ Get the SET right —
+  a two-line equation (seed + step) needs the step fn, the batch kernel that writes the seed AND
+  loops, **the public exposure its `verifies` tests actually call**, the mesh-bound wrapper and
+  the per-cell entry. → L-071
 - **⭐⭐ A `.. implements::`/`.. verifies::` DECLARATION is a doc surface whose failure mode is
   INCOMPLETENESS, and declaring is the only thing that stands the guessing down.** Nexus infers
   code↔equation links from shared name TOKENS; declaring ONE implementer switches inference off
@@ -474,12 +511,17 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   explaining three undeclared equations raised their guess counts 23→24/25/24. ⟹ NEVER publish a
   live guess count (quote the frozen pre-declaration measurement or say "re-run"), and know that an
   undeclared equation gets WORSE every time its page is improved. → L-059
-- **⭐⭐ "All N node IDs resolve" ≠ "all N `:by:` targets bind" — the DIRECTIVE's resolver is
-  NARROWER than the graph.** `_node_id_for_target` tries the literal string, then
-  `py:function:`/`py:method:`/`py:class:` and **nothing else**, so a `TypeVar` (a `py:data:` node)
-  fails a bare dotted name while a graph pre-flight says "exists". Fix: pass the already-prefixed
-  node id (`:by: py:data:pkg.mod.Domain`) and write the reason into the page. Pre-flight through
-  the RESOLVER's prefix list, not by node existence. → L-060
+- **⭐⭐ "All N node IDs resolve" ≠ "all N `:by:` targets bind" — but a FROZEN prefix list is
+  itself a stale claim.** L-060 recorded the resolver as trying the literal string, then
+  `py:function:`/`py:method:`/`py:class:` and *"nothing else"*; `[M]` 2026-08-28 REFUTED — a
+  `:by:` at a module-level `float` (`py:data:` node) binds and draws no warning. A bare dotted
+  name at a `TypeVar` still failed once, so the honest rule is: **a bad `:by:` DOES warn, so the
+  `-W` BUILD is the pre-flight** — a hand-written prefix check over-reports. ⭐⭐ And the dual,
+  which is the bigger prize: **a RED `-E` baseline's `nexus.directive` warnings ARE the retirement
+  site list**, one per dead `:by:`, and they find blocks no label-grep reaches (mine surfaced a
+  4th file the brief never named). Read the baseline before the brief. Acceptance becomes `4 → 0`,
+  and `directives: wrote N edges` reconciles the count (`[M]` 400 → 412 = exactly my +12).
+  → L-071, L-060
 - **⭐⭐ An equation with NO implementer keeps its guesses forever — you cannot declare an
   absence.** `[M]` post-pass on one page: 57 directive / **0** inferred on the 32 declared; **166**
   inferred remaining, every one on the 8 that cannot be declared (60 on `operator-solve` alone).
@@ -583,6 +625,18 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   the backticks — a stray backtick is ugly, a dead `:math:` is a MISSING EQUATION. ⚠ Exclude
   `_modules/` (viewcode listings) AND every `_build` page whose `.rst` is gone (`[M]` 12
   orphans carried 76 more runs — a 60 % inflation). → L-068
+- **⭐⭐ The render check owes a PROVENANCE step, or it indicts the whole page instead of your
+  edit.** A page-wide count fires on pre-existing prose (`[M]` mine: 32 backticks + 8 dead roles
+  + 29 `<cite>`, **all** pre-existing). Cheapest primary evidence: **slice the HTML to your own
+  section's `id=` and count there** (mine: 0 / 0, plus the tables, code-blocks and cross-doc
+  `href`s rendering). To adjudicate the rest, test each offender's source pattern against
+  `git show HEAD:<file>` — and when that says "mine", **re-check by LINE, not by string**: a
+  source line-wrap (`**independent of\n:math:`…`**`) makes a single-line pattern miss.
+- **⭐⭐ `<cite>` is NOT always a port artifact — count both spellings before "fixing" it.**
+  L-061's rule is about code spans that should be MONOSPACE. `[M]` the measured-marker is
+  spelled `` `[M]` `` **184** times corpus-wide vs ``` ``[M]`` ``` **110** — so the italic
+  `<cite>` is the convention, and on the page I edited 21 of the 29 were pre-existing.
+  Normalising my 8 would have made my text the inconsistent one. → L-071, L-061
 - **⭐ Widening someone else's issue: re-run THEIR instrument, not yours.** #379 owned this class
   at `[M]` 32 runs "in the error catalogue"; running its own grep corpus-wide reproduced the 32
   exactly (the control that the instruments agree) and showed it is 26 % of the total. A
@@ -1031,6 +1085,10 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   because an `.. admonition:: Development history — …` sits 1000 lines above the section.
   Eq-label families are BUILT by suffixing (`X`, `X-transpose`, `X-section`), so the prefix
   collision is the normal case here. Use `sum(1 for l in lines if l.strip() == …)`. → L-060
+- **⛔ The directive-body placement rule RE-BIT, twice in one session** — it is easy to know and
+  easy to violate, because you write the directive thinking about the EQUATION, not the sentence.
+  ⟹ **after writing any directive with a body, read the sentence that spans it out loud**; an
+  opener of `where …` / `and …` / `with …` / `consumed at …` is the tell. → L-071
 - **⭐ A directive whose BODY renders needs a placement rule, or 50 of them land mid-sentence.**
   `.. implements::`/`.. verifies::` with a body emit a plain `<div class="docutils container">` —
   visible prose, no marker. Rule: **after the `.. math::` block, unless the next paragraph is a
@@ -1134,6 +1192,19 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   dome is needed iff (1) an angular unknown survives discretisation indexed, (2) in a LOCAL
   ROTATING frame, (3) with its derivative COLLOCATED — MoC fails 2, CP and MC fail 1, and a
   DG/FE-in-angle scheme would fail 3 and need a different object. → L-070
+- **⭐⭐ An UN-WELD doc's load-bearing content is the FORCING, not the twin.** A reader who
+  takes a Pattern-2 twin for carelessness re-introduces it. Grep the layer contract and quote the
+  forbidden edge: `[M]` by AST, `FORBIDDEN_EDGES["transport"] = L3_PACKAGES`
+  (`tests/test_layer_imports.py`, `foundation`-gated per module) means an L2 scheme **could not
+  call** the L3 closure that owns the relation — it could only re-spell it. That converts
+  *"someone duplicated this"* into *"the architecture manufactured this"*, and it is the only
+  framing under which the repair reads as moving a RESPONSIBILITY rather than deleting a copy.
+  ⭐ Pair it with the honest scope (the headline is nearly always over-broad: `[M]` "ONE
+  production spelling" really meant *one OWNER*; the scan-normal form survives at 3 sites, and
+  the two forms **partition** the input set, which is what makes "welded by gate" a design).
+  ⭐ And a guard re-keyed from a retired field's PRESENCE onto a VALUE signal is doc-worthy —
+  say WHY it is stronger (reachable by calling the SUT directly; no earlier guard can preempt
+  it), not merely that it changed. → L-071
 - **Stub → rich narrative: read memo → production docstrings → tests → SymPy, in that order.** The
   docstrings are the VERBATIM prose seed; the memo carries the honest interim scope — preserve it,
   don't over-claim. Never expand a stub without reading the SymPy; on an algebra error
