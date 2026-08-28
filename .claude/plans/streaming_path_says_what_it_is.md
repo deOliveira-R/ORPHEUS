@@ -65,7 +65,14 @@
 > `rglob`ping one new module. Nine other trees +0. pyright 0, `sphinx -W` 0
 > and `dead_references` 0 throughout.
 >
-> ### ▶ NEXT — **P4.3.** (P4.4 ✅ `16501ca0`, P4.2 ✅ `5940deba`.) Read §4ter first.
+> ### ▶ NEXT — **P4.3**, then **P4.9**. (P4.4 ✅ `16501ca0`, P4.2 ✅ `5940deba`.)
+>
+> ⭐ **P4.9 is NEW, chartered 2026-08-28 (user)** — *each axis is closed by its
+> own closure, and the operator composes them*. It closes **#407**, kills the
+> Morel–Montry twin at `diamond.py`, and is the **prerequisite for §5b's ⛔ P0**
+> (P0 must apply each factor separately; P4.9 is what makes them separately
+> applicable). Read §5b's FACTOR INVENTORY + THE MECHANISM before designing it.
+> Read §4ter before P4.3.
 >
 > ⛔⛔ **The order was corrected TWICE. `P4.2 → P4.4` (written 2026-08-28
 > in this very header) is itself REFUTED — P4.2 cannot precede P4.4 either.**
@@ -2612,6 +2619,91 @@ orpheus/geometry/` is empty; `grep -c "AngularMeasure" orpheus/` is 0;
 `.venv/bin/python -c "import orpheus.geometry"` succeeds **in a fresh
 interpreter with nothing else imported first** — ⚠ that qualifier is the whole
 gate, since `[M]` importing `orpheus.sn` first masks the cycle entirely.
+
+### P4.9 — each axis is closed by its own closure, and the operator composes them *(behavioural; closes #407)*
+
+**Goal.** A spatial discretization scheme closes the **spatial** axis and
+nothing else. The angular closure closes the **angular** axis. Neither knows the
+other exists, and the object that owns both — the operator — is the only thing
+that composes them. ⟹ the Morel–Montry relation has exactly ONE spelling in the
+tree, and `transport/spatial/` is method-agnostic in fact and not only in name.
+
+**Proposed means** (✅ user-ruled 2026-08-28; the *shape* is ruled, the edit
+list below is proposed and unverified in detail):
+`StreamingOperator` is constructed from **(domain, codomain, spatial closure,
+angular closure)**. Discretization schemes become **factories returning a
+spatial closure**; the angular scheme returns an **angular closure**; those four
+arguments fully determine a well-posed operator whose adjoint is derived.
+
+⭐⭐ **This is a COMPLETION, not a new design — `[M]` the same unweld already
+shipped on the vectorized path at Phase 2.11 (#197 PR-TYPED-6.5).**
+`cell_balance_for_streaming` is already **closure-blind by interface**: it takes
+`angular_denom_term` / `angular_numer_upstream`, injected from
+`closure.cell_contribution(...)`. Its twin `cell_balance_terms` still names
+`c_in`/`c_out` and has `[M]` **one** production consumer (`diamond.py:194`). The
+per-cell arm is the sole holdout, and it is the arm carrying the duplicate.
+
+**Why the layer permits it, and only here.** `sn/operators/streaming.py` is
+**L3**: `L3 → L2` (`transport/spatial`) is legal, `L3 → L3` (`sn/angular`) is
+the same package, and **L2 never names L3**. The twin dies because the
+*obligation* dies — strictly better than injecting the relation into L2.
+
+**The edit list** (proposed; each row needs its own §6b enumeration at design
+time):
+
+1. `DiamondDifference.update` — delete the `# ── Angular closure (Morel-Montry) ──`
+   block; return spatial-only. Route through `cell_balance_for_streaming`
+   (already imported at `diamond.py:87`) instead of `cell_balance_terms`.
+2. `cell_balance_terms` **retires** onto the blind helper. `[M]` one production
+   consumer ⟹ **#407 closes with it**, and its hard-coded `2.0 = 1/w_DD` goes
+   with the blend weight the spatial closure now supplies.
+3. `transport/spatial/scheme.py`'s protocol sheds its angular members —
+   `CellVisit.{tau, c_in, c_out}`, `UpstreamState.angular_upstream`,
+   `CellResult.outgoing_angular_state`.
+4. `StreamingOperator` gains `(domain, codomain, spatial_closure,
+   angular_closure)`. `[M]` today it is a `@dataclass` with **exactly one
+   field** (`sn_mesh`) and derives `domain`/`codomain` as properties.
+5. `SNMesh` sheds `scheme` (`augmented_mesh.py:268`) and `pole_angular_closure`
+   (`:421`) — a *mesh* is carrying the *method's* two operators.
+
+**Done when** (checkable):
+
+* `[M]` `grep -c "1.0 - tau"` over `orpheus/transport/` returns **0** — the
+  Morel–Montry relation is spelled once, in `sn/angular/closure.py`.
+* `transport/spatial/scheme.py` contains no `tau` / `c_in` / `c_out` /
+  `angular_*` member on any protocol type.
+* `StreamingOperator(...)` cannot be constructed without both closures — the
+  illegal state is unrepresentable, not merely undesirable.
+* `[M]` the `_OneDimScanWalk` degenerate-ordinate branch and the vectorized
+  branch reach the **same** closure object — a `is`-identity assertion, which is
+  the gate the twin never had (`[M]` today the intersection of tests naming
+  `precompute_psi_state` and `outgoing_angular_state` is **empty**).
+* the aniso curvilinear canary is bit-identical; `sphinx -W` 0; pyright 0.
+
+⛔ **§6c — this phase's gate must land with the case it catches.** The
+`is`-identity gate above is the witness: before the unweld it CANNOT pass (there
+are two objects), which is exactly the red that proves it has teeth. Record that
+reading in the gate's docstring.
+
+**Ordering.**
+* **After P4.3** — both touch `transport/spatial/scheme.py`; P4.3 is the smaller
+  diff and its module deletion should not be entangled with a protocol change.
+* **Before §5b's ⛔ P0** — P0 must apply each factor separately to measure the
+  product form, and this phase is what makes them separately applicable. Running
+  P0 first would mean measuring a factorization whose factors are still welded.
+* `[R]` **it probably makes P4.7 a consequence rather than a task**: once the
+  per-cell arm takes the coupling from `closure.cell_contribution(...)`,
+  `StreamingTerms.delta_A_over_w`'s readers reduce to the cache builder, which
+  can read `ΔA` from the connection directly. **Not measured** — verify before
+  reordering P4.7.
+
+**What it buys beyond the deletion.** `[M]` both factors already ship their own
+adjoint — `DiamondDifference.streaming_cell_transpose` (with
+`has_transpose_kernel` **derived from the registration**, `scheme.py:910`) and
+the polymorphic `angular_adjoint` family (`closure.py:557/:1915/:2128`). So
+after this phase `L.H = T_spatial.H @ T_ang.H @ D` composes adjoints that
+already exist, and §5b's *"the adjoint stops being written and starts being
+derived"* is one binding away.
 
 ### P5 — `ChartConnection`'s three stages separate *(rides O-3)*
 **Deferred on a DEPENDENCY, not a punt.** Its third piece is `streaming_terms`'
