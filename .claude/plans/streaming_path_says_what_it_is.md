@@ -581,6 +581,49 @@ branches** —
 `array_equal=True` against the `None` branch (both `(5,1,1)`, `max|·| = 0.0`).
 ⟹ the branch is a value wearing a conditional (Pattern 4).
 
+⭐⭐ **RE-SCOPED 2026-08-27, measured during P4.1a — P4.1b is not a two-field
+un-weld, it is a Pattern-2 arm collapse, and THAT is the prize.** The plan
+framed this step as Pattern 4 (an `Optional` dies). Reading
+`streaming_terms()`'s three arms at HEAD shows the Pattern-2 half nobody had
+written down: **the CARTESIAN arm differs from the SPHERICAL arm only in three
+hardcoded literals**, and those literals are hand-transcriptions of what the
+spherical body computes.
+
+| slot | slab arm | sphere arm | slab value once populated |
+|---|---|---|---|
+| `face_area_inner` | **`1.0`** literal | `face_areas[i]` | `areas[i] = 1.0` ✓ |
+| `face_area_outer` | **`1.0`** literal | `face_areas[i+1]` | `areas[i+1] = 1.0` ✓ |
+| `delta_A_over_w` | **`0.0`** literal | `delta_A[i]/w` | `0.0/w = 0.0` ✓ |
+
+every other slot (`chord_length`, `mu`, `volume`, `abs_mu`) is already spelled
+identically, and both arms read `direction_idx` as the global ordinate.
+
+`[M]` `scratch/_p41b_arm_collapse_probe.py`, 2026-08-27 — populate the slab's
+two spatial fields, force the packet down the SPHERICAL body, and compare the
+whole `StreamingTerms` tuple over the 5×8 (cell × ordinate) grid: **40 of 40
+bit-identical, 0 mismatches**, with a positive control (a perturbed `delta_A`
+IS detected). ⟹ **the CARTESIAN arm is provably redundant.**
+
+⭐ And the file already knows the principle — it states it 25 lines below the
+code that violates it, about the α-dome: *"until 2026-08-12 each spelled the
+recursion out in its own body (sphere and cylinder, identical arithmetic — the
+sphere IS the cylinder's single-level case). That twin path is …"*. The same
+sentence is true one level up: **the slab IS the sphere's zero-curvature case**,
+and sphere IS cylinder's single-level case, so the three-way `if` reduces to one
+chart-dependent step — *resolve the global ordinate and the radial direction
+cosine* (`mu_x[direction_idx]` vs `eta[level_indices[p][direction_idx]]`) — over
+one shared body.
+
+⟹ **Why this belongs to P4.1b rather than to a later step:** populating the
+fields without collapsing the arm leaves a branch that is dead by construction
+(`coding-standards` retire-as-you-go), and the collapse is what makes P4.4's
+"move the residue to `sn/`" a move of **one** body instead of three. It also
+makes P4.7's retirement of `StreamingTerms.delta_A_over_w` a one-place edit.
+
+⛔ **NOT YET RULED — this widens the step's scope and the user rules structural
+decisions.** Surface the measurement before executing; the fallback (populate
+the fields, leave the arm) is strictly worse but landable.
+
 **P4.2 — the angular factor comes home.** The five α symbols to
 `sn/angular/redistribution.py`; `SNMesh` builds the redistribution and hands both
 tensor factors to the closure — which it **already does** on the d≥2 Cartesian
