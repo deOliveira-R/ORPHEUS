@@ -6598,3 +6598,192 @@ the field last, in a 2-line diff whose done-when is a grep predicate.
   not assumed — `[M]` AST over the 12 attribution paths: **0** module-scope or
   parametrize-list field constructions. I had written the hazard as live; the
   measurement refuted my own sentence.
+
+## L63 — P4.9a (the per-cell angular un-weld, PRE-carve): the phase's named canary is a provable non-catcher, and a THIRD spelling of the relation is 204 ULP away
+
+**Context.** ORPHEUS `.claude/plans/streaming_path_says_what_it_is.md` P4.9a —
+`DiamondDifference.update` deletes its inline Morel–Montry twin,
+`cell_balance_terms` retires, the L2 spatial protocol sheds its angular members,
+and the closure hands the cache its march constants. Plan:
+`scratch/p4_9a_verification_plan.md`. Measured at `5c4f56d7`, all probes
+in-process monkeypatch (no production file edited on disk).
+
+### L63a ⛔⛔ The whole carve has ONE production execution route, and it is a CONGRUENCE CLASS nothing frozen samples
+
+`[M]` counting spy on `DiamondDifference.update` over full 2-G heterogeneous
+eigenvalue solves: **0** calls on SLAB `gauss_legendre(4|8)`, **0** on SPHERE
+`gauss_legendre(4|8|9)`, **0** on CYLINDER `folded_product(4,4)` and `(4,8)`;
+**13 760** on `folded_product(4,6)` and **13 536** on `(4,10)` — every one
+through the M-M branch.
+
+The mechanism, `[M]` exhaustively over `n_phi = 4…34` even: the staggered
+azimuthal circle hits `ω = π/2` **iff `n_phi ≡ 2 (mod 4)`**, placing one
+bit-exact `η = 0` ordinate per μ-level (`deg = n_mu`); `n_phi ≡ 0 (mod 4)` ⟹
+`deg = 0`, 16 of 16. Sphere is `deg = 0` at every order **including odd
+`gauss_legendre` where `min|μ| = 0.0` exactly** — that ordinate still carries a
+downstream face, so it is not degenerate.
+
+⟹ **Every frozen artifact in the tree is blind**: the regression snapshots
+(`_generate_snapshots.py` cyl at `n_phi ∈ {4,8}`), `walk_matvec_cyl_2g.npz`
+(via `_make_cyl` = `fp(4,8)`), the affine-carve baseline's `CYL` row
+(`n_phi = 2·_N_ORD = 8`), and — the finding that matters — **the plan's own
+named done-when, the aniso curvilinear canary** (`n_phi ∈ {8,16}`). It will be
+bit-identical unconditionally, because it never executes the changed line.
+
+⭐ The rule: **when a code path is gated by a parameter's CONGRUENCE CLASS,
+the frozen corpus almost certainly samples one class only** — `4, 8, 16, 32`
+looks like a refinement ladder and is a single residue (`vv` #13's ladder trap
+at fixture scale). Before crediting any snapshot as a carve's anchor, **run a
+counting spy and confirm the changed line executes.** `[M]` here the spy cost
+0.6 s per config and refuted a four-artifact done-when.
+
+⭐⭐ And the aggravator that made it survive: the tree ALREADY knew. Authored
+comments at `test_apply_matvec_cylinder_invariants.py:70-76` and
+`test_g_adjoint_reciprocity.py:189-210` state the `n_phi ≡ 2 (mod 4)` rule
+exactly, and ship the right fixture pair (`_make_cyl` blind / `_make_cyl_product`
+activating). The knowledge was authored and the frozen corpus never adopted it —
+`nexus-tools`' "knowledge can be AUTHORED and INERT", at fixture level.
+
+### L63b ⛔⛔ A "delete the twin" carve found a THIRD spelling, in a DIFFERENT arithmetic form
+
+The brief described one owner (`closure.py:1329`) and one twin
+(`diamond.py:229`), both `(ψ̄ − (1−τ)ψᵃ)/τ` — **Form A**. `[M]` a third
+production site exists outside the done-when's `transport/` scope:
+`cache.py:377`'s `mm_a_in_coeff = (1.0-tau)/tau`, consumed at
+`loss_representation:4348` as `τ⁻¹ψ̄ − ((1−τ)/τ)ψᵃ` — **Form B**.
+
+Algebraically identical, **not** bitwise: `[M]` on the real τ of `fp(4,6)`,
+bit-equal **59.13 %** of 2400 evaluations, max **204 ULP**; on random
+τ ∈ [¼,¾], 49.5 % and **37 559 ULP**.
+
+⭐ The sub-family that hides it: bit-equality is **100 %** exactly when
+`τ == 0.5` bitwise (`1/τ = 2.0`, `(1−τ)/τ = 1.0` are exact) and 54–57 % at
+`τ = ½ ± 1 ULP`. `[M]` on the degenerate ordinates τ is ½ *up to 1 ULP* and
+exactly ½ only sometimes — `fp(4,6)` 2 of 4, `fp(4,10)` 0 of 4, `fp(6,6)` 0 of
+6. A bit-identity gate validated on one ordinate of one config is reading a
+coin (`vv` #31 + #13).
+
+⟹ **RULING extracted: when a carve re-routes a relation, ask which ARITHMETIC
+FORM the destination spells, not just which module owns it.** `[M]` routing the
+degenerate branch through Form B costs `Δkeff = 2.776e-17` (1–2 ULP, harmless)
+**and breaks `array_equal` on 3 of 4 configs** — a re-baseline for zero
+architectural gain. Route through the owner's form; bit-identity is then free.
+
+⭐ Second-order consequence worth carrying: **the `is`-identity gate the charter
+asks for is only BUILDABLE if the branch calls a closure METHOD.** If the
+implementation inlines cache constants instead, no closure object is reached
+and the gate cannot be written. Two independent arguments converge on one
+design ruling — say so, because a gate's buildability is a legitimate design
+constraint and reads as one only when stated.
+
+### L63c ⛔ Shedding a protocol field DESTROYS every guard that keys on it — here, the #158 curvilinear refusal
+
+`[M]` `LinearDiscontinuous._require_slab` keys its curvilinear refusal on
+**`upstream_state.angular_upstream is not None`** — the exact field the carve
+removes — and its sole witness (`test_curvilinear_visit_raises`) constructs
+`UpstreamState(angular_upstream=…)` directly, so after the shed it is
+unwritable. `vv` #17's displaced-guard clause and #28's temporal twin at once.
+
+⟹ **A protocol-shedding step owes, in the SAME commit: the re-keyed guard AND
+its re-written witness.** `[M]` the replacement is a VALUE signal already on the
+visit — `streaming_terms.delta_A_over_w` is exactly `0.0` on CARTESIAN (4/4
+cells) and non-zero on SPHERE (`62.9…9.3`) and CYLINDER (`4.29`) — and `vv` #17
+prefers it precisely because a value-keyed guard is reachable by calling the
+scheme directly, needing no mesh.
+
+⟹ **The generalisable audit step:** for every field a carve removes, grep it as
+a GUARD PREDICATE (`is None` / `is not None` / `getattr(…, default)`), not only
+as a read. `plan-authoring` §8 says a field a consumer BRANCHES on is an input;
+the mirror is that REMOVING such a field silently disarms the branch.
+
+### L63d ⭐ "Nothing gates them against each other" ≠ "nothing gates it" — read the claim's quantifier before believing the gap
+
+The memo said nothing gates the two spellings. True, and narrower than it reads.
+`[M]` in-process mutation of the twin (`outgoing_angular_state *= 1.05`) reds
+**13 rows**: 3 unit (`test_diamond.py`) + 10 end-to-end (the `n_phi=6`
+`three_way_standoff`, `psi_half_positivity`, `sweep_inverse_identity`,
+`loss_transpose_solve` rows). So the twin has a real, if narrow, net.
+
+`[M]` mutating `cell_balance_terms.denom` reds **55** over the four
+helper-naming files (`test_diamond` 33 / `test_cache` 19 /
+`test_cell_balance_for_streaming` 3 / `test_ordinate_scan` **0**).
+
+⟹ Two corrections a memo's gate list will not give you, both from ONE mutation:
+* **The load-bearing equivalence family was not on the list.** 25 of the 33 are
+  `TestResidual` rows, which red because `update` (helper A) and `residual`
+  (helper B) disagree — they ARE the cross-helper gate, more than the two rows
+  actually named `…_matches_cell_balance`.
+* **A listed gate reds ZERO.** `test_ordinate_scan.py` uses the helper to BUILD
+  the `(a,b)` it feeds the SUT, so both sides move together (`vv` #22's
+  shared-input blindness). It is a fixture generator, not a reference — the
+  rewire costs no claim, and saying so in its docstring is the deliverable.
+
+⟹ **Run the mutation before writing the rewire prescriptions.** A per-gate
+claim-class verdict guessed from reading is wrong in both directions: it invents
+demotions that are not there and misses the family that carries the claim.
+
+### L63e ⛔ Retiring a helper breaks DECLARED provenance edges, and one equation loses its ONLY catchers
+
+`[M]` `mcp__nexus__provenance_chain`: `cell_balance_terms` declares `implements`
+on four equations; the survivor `cell_balance_for_streaming` already declares
+three — **`dd-slab-scalar` is unique to the retiring one** and is orphaned
+unless migrated. `[M]` `dd-mm-closure-constants` has **zero declared**
+implementers (all inferred by name) and exactly **three** claiming tests — and
+all three are the twin's catchers, so the carve drops the equation from
+`verified` to `implemented` unless a closure-side replacement lands in the same
+commit. `[M]` `DiamondDifference.update` itself declares
+`dd-cylindrical-degenerate`; after the carve it closes only the spatial axis, so
+that claim becomes present-tense false.
+
+⟹ **`provenance_chain` on BOTH sides of a retirement is a mandatory step**, and
+the question is set DIFFERENCE, not presence: *which declared edges does the
+dying symbol carry that the survivor does not?*
+
+### L63f ⭐ The cheapest anchor is usually a PARAMETRIZE ROW on the harness that already has the right regime
+
+The gap was a bit-identity anchor that executes the degenerate branch. Rather
+than a new module, `[M]` `test_affine_carve_baseline.py` already runs
+`sweep_once` with heterogeneous σ_t + fixed-seed random per-ordinate source
+(`vv` §H2 activated) under a `--capture-baseline` snapshot harness — and is
+blind only because `_GEOMS_1D`'s `CYL` row computes `n_phi = 2·_N_ORD = 8`.
+
+`[M]` adding a `CYL_DEG` row at `folded_product(4,6)`: `N=12`, `deg=4`,
+`sweep_once` **2.1 ms**, `DD.update` **32 calls** all M-M. Two snapshots,
+~2 ms, and the carve acquires its anchor.
+
+⚠ **And it must land BEFORE the carve**, on unmodified production, or the
+snapshot inherits the new code and pins nothing
+(`snapshot_migration_when_production_goes_bare` rule 4).
+
+⚠ Do NOT retune `_N_ORD` to reach the class — that silently re-baselines the
+existing row. Add a member; never move a shared literal.
+
+### L63g ⭐ The realistic mutation for a "hand it the constant" move is 1–2 ULP, and exactly one gate sees it
+
+`[M]` the cache derives `mm_a_in_coeff = (1.0-tau)/tau` and `tau_inv = 1.0/tau`
+from `closure.tau_per_ordinate` — moving those two lines into the closure is
+bit-identical **by construction**, so a before/after gate is tautological. The
+defect that will actually happen is the cleaner spelling
+`mm_a_in_coeff = tau_inv - 1.0`, `[M]` **1–2 ULP** away on 4/4 configs.
+
+`[M]` that mutation reds **exactly 2 rows** over 463 tests
+(`TestAffineCarveSweepBaseline::test_sweep_angular_and_scalar_unmoved[SPH|CYL]`)
+— so an external pin EXISTS and MOVES under the old value
+(`coding-standards`' re-baseline licence requirement), and it is the only one.
+⟹ gate with `array_equal`; any tolerance ≥ `1e-15` makes it a non-catcher.
+
+### L63h ⭐ Harness note — a monkeypatch-only mutation battery is crash-safe BY CONSTRUCTION
+
+Every arm here was a pytest plugin installing in-process wrappers, so no
+production file was ever modified on disk and a `SIGTERM` at the harness timeout
+could not leave the tree mutated. This is strictly stronger than
+`process-discipline`'s copy-aside + `diff -q` (there is nothing to restore) and
+it made 6 arms cheap to iterate. `[M]` scoping: `sweep/core` + `transport/spatial`
+= 541 tests / 74 s; the `n_phi=6` slice = 108 / 19 s; the four helper files
+alone = 140 / **0.8 s**.
+
+⚠ Two environment traps hit on the way: **zsh does not word-split unquoted
+`$VAR`**, so `pytest $SLICE` collected **0 tests** and read as a clean run —
+use a driver script with `"$@"`. And a long background pytest writes a
+**block-buffered** log that reads as empty for minutes; run a narrow slice in
+the foreground instead of polling an empty file.

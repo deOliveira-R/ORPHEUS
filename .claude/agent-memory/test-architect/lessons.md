@@ -1545,3 +1545,55 @@ the algebra before choosing a tolerance; four of these needed none. → `L62d`
 ⛔ **A derived space NAME is a future landmine when axis identity is
 per-SUBCLASS** — CS2's axis classes will change every `of_axes` name. Pin axis
 CONTENT and relative identity, never the name literal. → `L62f`
+
+**Config blindness.** ⛔⛔ **When a code path is gated by a parameter's CONGRUENCE
+CLASS, the frozen corpus samples one class only.** `[M]` the whole P4.9a carve
+runs on cylinder `n_phi ≡ 2 (mod 4)` and NOWHERE else (0 `DD.update` calls on
+slab/sphere/`n_phi≡0`, 13 760 at `fp(4,6)`) — so `4, 8, 16, 32` reads as a
+refinement ladder and is a single residue. **Every** frozen artifact was blind,
+including the plan's own named canary. Run a counting spy and confirm the changed
+line EXECUTES before crediting any snapshot as a carve's anchor. → `L63a`
+⭐ And the tree usually already knows: two authored comments stated the rule
+exactly and shipped the activating fixture — authored, and never adopted by the
+frozen corpus. → `L63a`
+
+**Reference & claim layer.** ⛔⛔ **A "delete the twin" carve must ask which
+ARITHMETIC FORM the destination spells, not just which module owns it.** `[M]` a
+third live spelling sat outside the done-when's grep scope, algebraically equal
+and **204 ULP** away (bit-equal 59 % on real τ; 100 % only where `τ == 0.5`
+bitwise, which holds on just 2 of 4 degenerate ordinates at one config). Routing
+through it costs 1–2 ULP in keff and breaks `array_equal` on 3 of 4 configs for
+zero gain. → `L63b`
+⭐ **A gate's BUILDABILITY is a legitimate design constraint** — the charter's
+`is`-identity gate is unwritable unless the branch calls a closure METHOD; say so,
+because it converges with the arithmetic argument on one ruling. → `L63b`
+
+**Gates that cannot red.** ⛔ **Shedding a protocol field disarms every guard that
+KEYS on it.** `[M]` the #158 curvilinear refusal keys on `angular_upstream is not
+None` and its only witness constructs that field directly — both die with the
+shed. Grep every removed field as a GUARD PREDICATE (`is None` / `getattr(…,
+default)`), not only as a read, and land the re-key + its witness in the SAME
+commit. → `L63c`
+
+**Harness discipline.** ⭐ **Run the mutation BEFORE writing rewire
+prescriptions** — a per-gate claim-class verdict guessed from reading is wrong
+both ways. `[M]` 25 of 33 reds were a `TestResidual` family the brief never
+listed (the real cross-helper gate), while a LISTED gate red **0** because it
+feeds the helper's output to the SUT (`vv` #22 shared input). → `L63d`
+⭐ **A monkeypatch-only battery is crash-safe BY CONSTRUCTION** — nothing on disk
+to restore, strictly stronger than copy-aside + `diff -q`. → `L63h`
+⚠ **zsh does not word-split unquoted `$VAR`**: `pytest $SLICE` collected 0 tests
+and read as a clean run. Use a driver script with `"$@"`. → `L63h`
+
+**Snapshots & exactness.** ⭐ **The cheapest anchor is a PARAMETRIZE ROW on the
+harness that already has the right regime.** `[M]` +1 row (`fp(4,6)`) on the
+existing het-σ_t/random-source snapshot gate = **2.1 ms** and 32 M-M calls. Land
+it BEFORE the carve (else the snapshot inherits the new code), and ADD a member —
+never retune a shared literal, which silently re-baselines the sibling row. →
+`L63f`
+⛔ **Retiring a helper breaks DECLARED provenance edges — compute the set
+DIFFERENCE.** `[M]` one of four `implements` edges was unique to the dying symbol,
+and one equation's ONLY three claiming tests were the twin's catchers. → `L63e`
+⭐ For a "hand it the constant" move the realistic defect is the CLEANER algebraic
+spelling, `[M]` 1–2 ULP — gate with `array_equal`; any tolerance ≥ 1e-15 is a
+non-catcher. → `L63g`
