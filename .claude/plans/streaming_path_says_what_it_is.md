@@ -740,6 +740,25 @@ union dies"*; "populate the fields" was the proposed mechanism):
 are **0** `dataclasses.replace(...)` calls naming either field, so removing them
 from the constructor signature has no other consumer.
 
+#### The §8 check on P4.1b's OWN blast radius — the collapse widens a data dependence
+
+The collapse is value-identical (40/40), but it is not dependence-identical, and
+§8 asks what a step CHANGES rather than what it computes. The retired CARTESIAN
+arm returned the literal `delta_A_over_w = 0.0` and **read no quadrature weight
+at all**; the shared body computes `delta_A[i] / self._weight_of(ordinate)`. So
+a slab packet now depends on `quad.weights[n]` where it did not — and `0.0 / w`
+is `0.0` for any finite non-zero `w`, but `NaN` for `w = 0`.
+
+`[M]` 2026-08-27 over the 40-rule shipped registry, positive control included:
+**0 rules carry a zero or non-finite weight**, and the smallest `|w|` anywhere
+is `1.750e-04` (`level_symmetric(18)`). ⟹ safe on everything that ships.
+
+⚠ And the reason this needs no guard and no code comment: a zero weight is
+already pathological for the curvilinear charts, where the numerator is *not*
+zero and `ΔA/0` diverges. The slab is the **more** robust case, not a newly
+fragile one — the collapse extends an existing precondition to a chart where it
+happens to be satisfied trivially. Recording the measurement, not a hazard.
+
 #### The coverage check `coding-standards` demands before this lands — run, and it inverts
 
 Single-sourcing a duplicate obliges the *"hunt for an EXTERNAL hand-written pin
