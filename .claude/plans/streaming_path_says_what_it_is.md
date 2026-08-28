@@ -50,6 +50,8 @@
 > | `8ffddfb9` | — | the post-P3 compaction point |
 | `af801d76` | — | the α-defect diagnostic measured the normalization, not the defect (+ its 8-case gate) |
 | `d48f4bf4` | **P4.1a** | the chart lives on the mesh, not on a copy beside it |
+| `7f08d1d7` | **P4.1b** | the slab is the sphere's zero-curvature case (3 arms → 1 body) |
+| `7c5a8fb3` | **P4.1c** | the `SNMesh` deprecation shims retire |
 >
 > `[M]` P2's exit gate: **9815 passed / 0 failed**, 13 trees all `rc=0`; against
 > P1's baseline **+1** passed — the new `sn/angular/__init__.py` adds one case to
@@ -73,14 +75,19 @@
 > consumer count):
 > **§4ter**.
 >
-> ▶▶ **P4.1a has LANDED (`d48f4bf4`). The next executable steps are P4.1b and
-> P4.1c**, both fully designed and pre-flighted in §4ter — read the ✅ RULED
-> block under P4.1b before touching anything, because **both its scope and its
-> means were changed by measurement**: the step is a Pattern-2 arm collapse
-> (not a two-field un-weld), it stops one arm short of total (a single-level
-> rule with a PERMUTED index list forbids unifying through `level_indices`),
-> and `face_areas`/`delta_A` become **derived accessors, not populated
-> fields**.
+> ▶▶ **P4.1a, P4.1b and P4.1c have all LANDED and are on `main`.** `[M]` their
+> joint exit gate, full fast set, 13 trees all `rc=0`: **9823 passed / 0
+> failed, delta 0 on every tree and on every one of the four axes** against the
+> P4.1a gate. P4.1b is value-identical by construction (40/40 packets) and
+> P4.1c's collected count is net zero — 6 shim cases out, 6 contract cases in.
+>
+> ⛔ **NEXT is P4.2 — and then P4.4 BEFORE P4.3. That order is a CORRECTION,
+> not this plan's original sequence.** `[M]` P4.3 as written creates
+> `geometry → transport` (**0** today, against **16** the other way) because
+> `StreamingTerms`' only constructor stays behind in `geometry/` at a
+> **runtime** call site (`reduced_operator.py:856`) — a declared
+> `FORBIDDEN_EDGES` violation with a red waiting for it. Read P4.3's ⛔ block
+> before sequencing anything.
 >
 > ⛔ **Of §4ter's three remaining forks, TWO are now BLOCKED rather than open** —
 > the producer's home and the `ChartConnection` name both resolve as consequences
