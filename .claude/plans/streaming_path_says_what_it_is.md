@@ -24,11 +24,19 @@
 > if it calls P4.9 five small edits, it predates
 > `scratch/p4_9_design_measured.md`.
 >
-> ⚠ **P4.3 shifted line numbers**: `scheme.py` by ~+200 (`StreamingTerms` now
-> at `:107`; `DiscretizationScheme` Protocol `:646`, Base `:910`,
-> `CellVisit.streaming_terms` slot `:413`), `cell_balance.py` by −2,
-> `augmented_mesh.py` by +1 after `:300`. Live sections were refreshed
-> 2026-08-28; DATED records keep the numbers that were true at their date.
+> ⚠ **P4.3, then P4.9a, shifted line numbers.** Post-P4.9a landmarks,
+> `[M]` fresh 2026-08-28: `scheme.py` — `StreamingTerms` `:108`, `CellVisit`
+> `:304` (slot `:385`), `UpstreamState` `:394`, `CellResult` `:421`,
+> Protocol `:610`, Base `:894`, `affine_scan_coefficients` `:1383`;
+> `diamond.py` — `_cell_balance_n1` `:112`, class `:165`, `update` `:237`,
+> `residual` `:292`; `closure.py` — minted constants `:505`/`:530`,
+> `advance_psi_half` `:549`, **`march_psi_half_step` `:1370`** (the owner),
+> batch kernel `:1403`, M-M class `:1504`, Identity `:2137`; `cache.py` —
+> the mint reads `:384-388`; the walk's degenerate branch `:4277` (march
+> call `:4317`). `augmented_mesh.py:268` (`scheme`) and `:422`
+> (`pole_angular_closure`) are UNCHANGED. Live sections were refreshed
+> 2026-08-28; DATED records (incl. §5b's pre-carve measurements) keep the
+> numbers that were true at their date.
 >
 > ### Where the tree is — `[M]` reconcile with git, never with this line
 >
@@ -106,12 +114,16 @@
 > = rows 4–5, its migration lever RULED a **production posing-head factory**.
 > Full ruling block in the charter section.
 >
-> ⭐ **P4.9 is NEW, chartered 2026-08-28 (user)** — *each axis is closed by its
-> own closure, and the operator composes them*. It closes **#407**, kills the
-> Morel–Montry twin at `diamond.py`, and is the **prerequisite for §5b's ⛔ P0**
-> (P0 must apply each factor separately; P4.9 is what makes them separately
-> applicable). Read §5b's FACTOR INVENTORY + THE MECHANISM before designing it.
-> Read §4ter before P4.3.
+> ⭐ **P4.9 was chartered 2026-08-28 (user)** — *each axis is closed by its
+> own closure, and the operator composes them* — and its **P4.9a half is
+> LANDED** (`7a0f434c`): #407 closed, the Morel–Montry twin at `diamond.py`
+> is DEAD, the visit family is purely spatial, the closure mints its scan
+> constants. **P4.9b** (the 4-arg ctor + `SNMesh` shedding) is the
+> **prerequisite for §5b's ⛔ P0** (P0 must apply each factor separately).
+> Before designing P4.9b: read the charter section's ruled blocks + landing
+> audit, `scratch/p4_9_design_measured.md` rows 4–5 (the ~150-ctor-site +
+> ~60-read migration), and §5b's FACTOR INVENTORY (its structural content
+> feeds P0; its "realized today" line numbers are the PRE-carve tree's).
 >
 > ⛔⛔ **The order was corrected TWICE. `P4.2 → P4.4` (written 2026-08-28
 > in this very header) is itself REFUTED — P4.2 cannot precede P4.4 either.**
@@ -186,7 +198,7 @@
 > | `StreamingTerms` / the connection operator / the α cluster live in `geometry/` | ✅ **All moved.** `ReducedStreamingOperator` + the 3 factories → `sn/mesh/reduced_operator.py` (P4.4 `16501ca0`); the 6 α symbols → `sn/angular/redistribution.py` (P4.2 `5940deba`). `[M]` `geometry/reduced_operator.py` now holds **only `StreamingTerms`** and imports **nothing but `dataclasses`**. ✅ P4.3 `da507e3d` moved the packet to `transport/spatial/scheme.py:107` and DELETED the module. |
 > | the L0 ladder imports `alpha_dome` from production | ✅ **REMEDIED by P4.2.** It ACCEPTS α as a keyword, like `tau`/`edges` since 2026-08-12. `[M]` `w` fed nothing but that call in all three graders, so it left `morel_montry_beta`'s signature and `alpha_defect_beta` lost `quad`/`geometry` too. ⛔ NOT the `WHITELIST` row. |
 > | `transport/spatial/` is SN-only, so it should be `sn/spatial/` | ⛔ **PROPOSED AND WITHDRAWN 2026-08-28.** The import census measured MATURITY, not architecture — SN is the deliberate vanguard. `[R]` every method solving a cell-local balance forms a closure (FD diffusion IS box/DD, FE/DG IS LD's basis, LS-MoC needs it for the source); only MC is exempt. `transport/spatial/` is correctly placed. |
-> | the spatial scheme legitimately closes the angular axis | ⛔ **NO — that is the twin.** `[M]` `DiamondDifference.update` evaluates the Morel–Montry relation inline, duplicating `closure.py:1327-1330`; both are LIVE on a data branch and **nothing gates them**. Forced by the layer (L2 cannot call L3). **P4.9** removes the obligation. |
+> | the spatial scheme legitimately closes the angular axis | ⛔ **NO — that is the twin.** `[M]` `DiamondDifference.update` evaluates the Morel–Montry relation inline, duplicating `closure.py:1327-1330`; both are LIVE on a data branch and **nothing gates them**. Forced by the layer (L2 cannot call L3). **P4.9** removes the obligation. ✅ **REMOVED at P4.9a `8a78be1d`** — the twin is dead, the is-identity gate + M8 anti-twin gate stand where nothing gated them. |
 > | `AngularMeasure` "travels with the factories at P4.4" | ⛔ **REFUTED 2026-08-28.** The measurement (5 in-module use sites) was right; the inference was not. `[M]` `AngularRedistribution` NAMES `AngularMeasure` (`:1082`), so 2 of those 5 sites are in the α cluster. Sending it to `sn/` with the factories while α stays would be `geometry → sn` — forbidden. ⟹ it **stays in `geometry/` across P4.4** (factories read it as `sn → geometry`, legal) and **travels with α at P4.2**. Lands in `sn/` either way, so CS5 is not prejudged. |
 > | `delta_A` moves to `sn/` as a field | ✅ **RULED 2026-08-27 (user): it DISSOLVES into R.** ΔA is R's rank-1 realization, not a second object. P4.1b is its first step — `delta_A` is already a derivation over `mesh.areas`, so what P4.4 moves is a derivation, not an array. |
 > | `SNMesh.face_areas` / `.delta_A` are deprecated read-throughs | ✅ **REMEDIED by P4.1c** — retired. `[M]` 11 readers, 0 in `orpheus/`; every consumer was a test and 4 were the tests verifying the shims. |
@@ -202,7 +214,23 @@
 > (P3c) is deliberately sequenced **after P4**, so the name describes what
 > remains once `streaming_terms` is out of it.
 >
-> ### ⭐ The rules P4.4 + P4.2 + P4.3 paid for — the ones that generalise
+> ### ⭐ The rules P4.4 + P4.2 + P4.3 + P4.9a paid for — the ones that generalise
+>
+> - **P4.9a — an acceptance ARTIFACT must be qualified by ACTIVATION, not
+>   name** (`plan-authoring` §10's new log row): the charter's canary
+>   provably could not execute the carved path (`n_phi ≡ 2 (mod 4)` only;
+>   the whole frozen corpus at 4/8), so its bit-identity was unconditional.
+>   Ask *"if the carve broke, would this artifact move?"* — and the anchor
+>   that qualifies must land PRE-carve on unmodified production.
+> - **P4.9a — a stochastic measurement's configuration includes its DRAW**
+>   (`plan-authoring` §4's draw sharpening): the 59 %/204-ULP two-forms
+>   figure was one seed's reading (46–51 % / 1e2–1e5 ULP across 200); only
+>   `max |Δ| = 1.776e-15` is stable, and the weld gate pins THAT — a nulp
+>   band would have certified a seed.
+> - **P4.9a — the phase-proof shape for any twin-kill: the owner-mutation
+>   red set must be a strict SUPERSET of the pre-carve twin's catcher set**
+>   (13 → 50 here), measured with the same battery before and after —
+>   else the carve was cosmetic.
 >
 > - **P4.3 — a `:mod:` role in a `#` COMMENT is invisible to every instrument
 >   except grep.** Sphinx never renders comments, `dead_references` reads
@@ -1984,6 +2012,10 @@ derived"* — is one binding away, not one implementation away.
 
 #### What the unweld concretely deletes
 
+> ✅ Items 1–3 REMEDIED by P4.9a (`8a78be1d` + `737f8b32`); item 4 is
+> P4.9b's. (2026-08-28; the owner's formula body now lives at
+> `march_psi_half_step`, `closure.py:1370`.)
+
 1. `DiamondDifference.update`'s `# ── Angular closure (Morel-Montry) ──` block —
    DD returns spatial-only, and **the twin of `closure.py:1327-1330` is gone**.
 2. `cell_balance_terms` retires onto `cell_balance_for_streaming` (already
@@ -2055,7 +2087,7 @@ c_out = α_out/τ           c_in = (1−τ)/τ·α_out + α_in
 |---|---|---|---|---|---|
 | **`D`** | the cell-local denominator — **not** "the collision term": all three mechanisms put their DIAGONAL part here | nothing (diagonal in `(n,g,i)`) | `2\|μ\|A_down` + `(ΔA/w)c_out` + `Σ_t V` | `cell_balance_for_streaming`; cached as `inverse_denom` | `D.H = D` — real diagonal, self-adjoint. This is what makes the reversal cheap |
 | **`T_spatial`** | the chain scan: cell `i` ← its upstream neighbour, closed by DD | **chain order** (per ordinate) | off-diagonal `\|μ\|·A_total`; recurrence `ψ_out = a·ψ_in + b`, `a = 2\|μ\|A_total/denom − 1` | `affine_scan_coefficients` → `StreamingCoefficientCache` → `CumprodScan`/`ScanMarch` (`cumprod_a` is the *schedule* transform, deliberately not in the coefficient method) | the **reversed scan** — same coefficients, reversed order. ⭐ `[M]` its index already ships: `StreamingCoefficientCache.chain_idx_inv`, *"inverse permutation"* |
-| **`T_ang`** | the ordinate march: `m` ← `m−1` within a μ-level, closed by M-M | **ordinate index within a level** | off-diagonal `(ΔA/w)·c_in`; recurrence `ψᵃ_{m+½} = (ψ̄_m − (1−τ_m)ψᵃ_{m−½})/τ_m` | `closure.compute_psi_half_per_level` / `precompute_psi_state` (batch), `cell_contribution` (per-cell); `tau_inv`, `mm_a_in_coeff`, `c_in` in the cache. ⛔ **twinned inline in `diamond.py`** — see the layer constraint below | the **reversed march** — today hand-written as `angular_adjoint`, which is what §5b retires |
+| **`T_ang`** | the ordinate march: `m` ← `m−1` within a μ-level, closed by M-M | **ordinate index within a level** | off-diagonal `(ΔA/w)·c_in`; recurrence `ψᵃ_{m+½} = (ψ̄_m − (1−τ_m)ψᵃ_{m−½})/τ_m` | `closure.compute_psi_half_per_level` / `precompute_psi_state` (batch), `cell_contribution` (per-cell); `tau_inv`, `mm_a_in_coeff`, `c_in` in the cache. ⛔ **twinned inline in `diamond.py`** (✅ twin REMEDIED by P4.9a `8a78be1d`) — see the layer constraint below | the **reversed march** — today hand-written as `angular_adjoint`, which is what §5b retires |
 
 #### ⭐ `ΔA/w` is NOT a fourth factor — it is the scalar `D` and `T_ang` SHARE
 
@@ -2103,6 +2135,15 @@ carve, which is corroboration worth having.
    cylinder and cannot discriminate.
 
 ### ⛔ The LAYER constraint on `T_ang` — measured 2026-08-28, and it is not in the section above
+
+> ✅ **REMEDIED by P4.9a `8a78be1d` (2026-08-28), the same day it was
+> measured.** The twin this section diagnoses is DEAD: DD returns
+> spatial-only, the walk applies the owner's march
+> (`closure.march_psi_half_step` via `advance_psi_half`), and the M8
+> anti-twin gate makes the relation unspellable in `orpheus/transport/`.
+> Of the two designs offered at the end, the second (remove the angular
+> obligation from the spatial protocol) was ruled and landed. The section
+> STAYS as the design record; its line numbers are the pre-carve tree's.
 
 `T_ang` cannot simply be declared and consumed, because **its only per-cell
 consumer may not name it.** `[M]` `DiamondDifference.update`

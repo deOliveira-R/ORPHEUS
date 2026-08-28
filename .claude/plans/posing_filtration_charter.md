@@ -730,9 +730,13 @@ constructor-real). The transitional-accessor question resolves with it:
 *what must be extracted from the scheme to live inside L* is the spatial
 closure — and each factor already ships its own adjoint
 (`streaming_cell_transpose`; the polymorphic `angular_adjoint` family), so
-`L.H` composes. Item **(d)**'s diagnosability counter-pressure is NOT
-discharged: whether the operator keeps a provenance accessor to its
-generator is a P4.9 design-time question. **O-3 retains** the cross-head
+`L.H` composes. ✅ *2026-08-28: the un-weld half (P4.9a) is LANDED — the
+M-M relation is single-homed in the closure, the L2 protocol is purely
+spatial, and the closure mints its scan constants; the 4-arg ctor that
+makes both closures constructor-real is P4.9b.* Item **(d)**'s
+diagnosability counter-pressure is NOT discharged: whether the operator
+keeps a provenance accessor to its generator is now a **P4.9b**
+design-time question. **O-3 retains** the cross-head
 mint signature, the (TraceDescriptor, basis-kind, positivity-predicate)
 package, the two-layer closure-function/evaluated-table split, and
 `cell_balance.py`'s reorganisation under the scheme family; the streaming
@@ -1096,7 +1100,10 @@ two axes do not merely contribute one index each, the operator FACTORS.
 **Blast radius, verified:** `CellVisit.tau: float` (`scheme.py:197`) is
 already stamped per cell visit from `tau_per_ordinate[global_ordinate]`
 (`augmented_mesh.py:1644`) — even a WIDENS verdict would have been
-producer-side only.
+producer-side only. *(✅ tense note 2026-08-28: P4.9a retired both the
+field and the stamp — the visit family is purely spatial and τ is read
+from the closure's own accessors; the verdict above is unaffected, it
+was about the producer side, which is now even more so.)*
 
 #### ⭐ The LEAD — the risk relocates to the SEED, and harder than expected
 
