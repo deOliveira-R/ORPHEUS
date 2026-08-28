@@ -618,3 +618,28 @@ identifier and no `1.0 - tau` spelling. It is the done-when, made permanent.
 * The §6 correctness item (curvilinear LD moment metric) — separate, #158.
 * Whether `D @ T_ang @ T_spatial` is the right factorization — that is ⛔ P0
   and this phase only makes it measurable.
+
+---
+
+## 9. POST-CARVE battery record — run 2026-08-28 at the step-6 tip
+
+Plugin: in-process monkeypatch (`mut_p49a.py`, session scratchpad), scoped
+runs, `--continue-on-collection-errors`, `^FAILED`/`^ERROR` counted
+separately (zero ERRORs in every arm).  UNIT = the six carve-adjacent
+files (121 tests); E2E = the four end-to-end suites (68).
+
+| arm | scope | reds | reading |
+|---|---|---:|---|
+| none | unit | **0** | baseline clean |
+| control (cbfs denom ×1.05) | unit | **36** | harness alive (pre-carve control: 37 on a wider scope) |
+| **M1** owner ×1.05 | unit | **14** | ⭐ the phase's proof: includes ALL 3 R8 rows (pre-carve M2's unit set) + both CYL_DEG anchor rows + SPH/CYL snapshots + the closure hand-calc/weld gates — the owner now reaches every angular artifact |
+| **M1** owner ×1.05 | e2e | **36** | ⊇ M2's 10 pre-carve e2e rows (three-way standoffs, ψ½ positivity, inverse identity, transpose reciprocity all present) — superset confirmed |
+| M1b (1−τ) factor | unit | 10 | red |
+| M1c τ→1−τ | unit | 11 | red (the signed law catches; the three τ-interval properties are flip-invariant as L47 predicted) |
+| M4 thread never advances | unit+e2e | 3+8 | red |
+| **M5** degenerate→Form B | unit | **2** | exactly the CYL_DEG `array_equal` snapshot + the weld gate's non-bit-equal PREMISE leg — the premise check IS the Form-B detector; no allclose row reds |
+| M6 `_require_slab` no-op | ld | **1** | exactly the re-keyed witness (both value-signal legs live in it) |
+| M7 coeff := τ⁻¹−1 | unit | **4** | the spelling pin's discrimination leg + the cache field gate + SPH/CYL sweep snapshots. ⚠ CYL_DEG absent: its consumed ordinates' τ sit where the respelling is bit-equal — the 4 catchers stand, but do not cite CYL_DEG as an M7 witness |
+| M8 anti-twin | permanent | — | `tests/transport/spatial/test_no_angular_closure_twin.py` — text-surface `1−τ` spellings + AST-surface owner names, per-pattern positive controls (one control caught its own filter during authoring: the bare `1 - tau` variant has no owner witness and gets a synthetic one) |
+
+Red-set files: session scratchpad `battery_*.redset`.
