@@ -43,7 +43,7 @@ case) plus an inlined slab recurrence inside ``DiamondDifference``.
 Step 2.5 collapses all three into this single helper:
 
 * **Slab** — neutral curvature populated by the
-  :func:`~orpheus.geometry.reduced_operator.slab_streaming`
+  :func:`~orpheus.sn.mesh.reduced_operator.slab_streaming`
   factory: ``face_area_inner = face_area_outer = 1.0``,
   ``delta_A_over_w = 0.0``, ``alpha_in = alpha_out = 0.0``,
   ``tau_mm = 1.0``.  ``CellVisit.face_area_downstream = 1.0``.
@@ -298,7 +298,7 @@ def cell_balance_terms(
     st :
         Streaming-terms packet on the cell-visit.  All curvature
         fields populated (slab carries neutral values per
-        :func:`~orpheus.geometry.reduced_operator.slab_streaming`).
+        :func:`~orpheus.sn.mesh.reduced_operator.slab_streaming`).
     A_downstream :
         Sweep-direction-resolved outgoing face area.  Read from the
         :class:`CellVisit`'s ``face_area_downstream`` field.  ``1.0``

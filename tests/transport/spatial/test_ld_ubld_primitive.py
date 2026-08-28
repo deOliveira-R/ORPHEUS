@@ -42,7 +42,12 @@ import pytest
 import sympy as sp
 
 from orpheus.derivations.discrete.sn import ld_ubld as sym
-from orpheus.geometry import BC, CoordSystem, Mesh1D, slab_streaming
+from orpheus.geometry import (
+    BC,
+    CoordSystem,
+    Mesh1D,
+)
+from orpheus.sn.mesh.reduced_operator import slab_streaming
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
 from orpheus.numerics.moment_layout import AVERAGE_MOMENT

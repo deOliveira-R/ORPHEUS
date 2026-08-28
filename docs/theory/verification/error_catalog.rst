@@ -4889,7 +4889,7 @@ older entries classify against.
    ## τ-clamp mis-citation finding (W1, 2026-06-13) — a correctness-of-design finding, not a bug-class instance
 
    **Date:** 2026-06-13 (W1 of the curvilinear-aniso program; companion to ERR-059).
-   **Module:** ``sn`` / ``geometry`` (``orpheus/geometry/reduced_operator.py`` ``spherical_streaming``).
+   **Module:** ``sn`` / ``geometry`` (``orpheus/sn/mesh/reduced_operator.py`` ``spherical_streaming``; ``orpheus/geometry/reduced_operator.py`` until the 2026-08-28 un-weld).
    **Class:** correctness-of-DESIGN finding (a mis-cited, over-conservative patch that was 100 % spurious on physical fields) — NOT a new wrong-answer instance, so it carries no ``catches("ERR-NNN")`` of its own. It is the W1 leg of the ERR-026-family clean-up.
 
    **Finding.** The spherical Morel--Montry weighted-diamond weight ``τ_n = (μ_n − μ_{n-1/2})/(μ_{n+1/2} − μ_{n-1/2})`` had been wrapped in a ``[½, 1]`` clamp, cited to Lewis & Miller §4.5. Triple-confirmed mis-citation:

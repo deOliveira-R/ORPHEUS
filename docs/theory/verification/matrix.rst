@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10142**
+Total tests collected: **10143**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1634, 16.1%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7142, 70.4%
+   foundation, 7143, 70.4%
    unmarked, 5, 0.0%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10058
+   explicit, 10059
    class-name, 46
    func-name, 0
    case, 33
@@ -280,7 +280,7 @@ Module × level grid
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_paired_deck, 0, 0, 0, 0, 63, 0
-   geometry/test_reduced_operator, 0, 0, 0, 0, 63, 0
+   geometry/test_reduced_operator, 0, 0, 0, 0, 18, 0
    geometry/test_reemission_closure, 0, 0, 0, 0, 188, 0
    geometry/test_self_paired_deck, 0, 0, 0, 0, 23, 0
    geometry/test_specular_response_pins_to_geometry, 0, 15, 0, 0, 0, 0
@@ -301,6 +301,7 @@ Module × level grid
    mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 25, 0
    mesh/test_radial_characteristic_split_leaves, 0, 0, 0, 0, 23, 0
    mesh/test_radial_characteristic_split_spaces, 0, 0, 0, 0, 17, 0
+   mesh/test_reduced_operator, 0, 0, 0, 0, 45, 0
    mesh/test_reflective_axis_pairs, 0, 0, 0, 0, 7, 0
    mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
    mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
@@ -501,7 +502,7 @@ Module × level grid
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 342, 0
+   test_layer_imports, 0, 0, 0, 0, 343, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0

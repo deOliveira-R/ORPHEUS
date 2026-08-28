@@ -222,9 +222,26 @@ A curvilinear S\ :sub:`N` :term:`sweep <sweep>` marches through this data:
 
 Per Cardinal Rule 2 (architecture is critical), the same data **MUST
 NOT** be duplicated across the solvers that need it.
-:class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
-in :mod:`orpheus.geometry.reduced_operator` lifts the math into a
-geometry-layer primitive rather than a solver-side one.
+:class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`
+lifts the math into **one** primitive rather than a per-solver one.
+
+⛔ That sentence read *"in* :mod:`orpheus.geometry.reduced_operator`
+*lifts the math into a* **geometry-layer** *primitive rather than a
+solver-side one"* until 2026-08-28.  The single-sourcing half stands and
+is the Cardinal-Rule-2 point; the **layer** half was refuted by the
+un-weld arc's P4.4.  `[M]` the primitive holds no geometry — its one
+geometric datum, ``face_areas``, was a verbatim copy of
+:attr:`~orpheus.geometry.mesh.Mesh1D.areas`, already single-sourced in
+:func:`~orpheus.geometry.coord.compute_areas_1d`, while ``delta_A`` has
+zero non-S\ :sub:`N` consumers and
+:class:`~orpheus.geometry.reduced_operator.StreamingTerms` carries a
+:math:`\Delta A` divided by a *quadrature weight*.  It was also an
+island in its own package: every genuine geometry primitive had 1-4
+intra-``geometry/`` consumers and this one had **0**.  The layer test it
+failed — *a datum belongs to the layer that can define it without naming
+a method; everything else is posing, and posing belongs to the method
+head that poses it* — moved it to
+:mod:`orpheus.sn.mesh.reduced_operator`.
 
 .. important:: **Which solvers is "the solvers that need it"?**  Until
    2026-08-27 this page — and the module's own docstring — read *"SN,
@@ -451,7 +468,7 @@ achieves).
 .. note:: **Where τ lives.**
 
    :math:`\tau_m` is **not** a
-   :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
+   :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`
    field.  The geometry-layer primitive carries the SPATIAL curvature
    coefficients (``face_areas``, ``delta_A``) and a reference to the
    ANGULAR factor
@@ -762,8 +779,8 @@ API surface
 The geometry-layer primitive is built by three factory functions, one
 per coordinate system:
 
-* :func:`~orpheus.geometry.reduced_operator.slab_streaming(mesh, ang)
-  <orpheus.geometry.reduced_operator.slab_streaming>` — Cartesian 1-D;
+* :func:`~orpheus.sn.mesh.reduced_operator.slab_streaming(mesh, ang)
+  <orpheus.sn.mesh.reduced_operator.slab_streaming>` — Cartesian 1-D;
   no curvature math.  Both its factors are present and **neutral**: the
   ANGULAR one carries a zero dome and the diameter-ray start, and the
   SPATIAL one carries a unit cross-section with **zero area change**
@@ -775,16 +792,16 @@ per coordinate system:
   the mesh now (``face_areas`` is ``mesh.areas`` itself, ``delta_A`` its
   difference), so no factory computes them and the per-coordinate
   ``Optional`` union is dead on **both** factors rather than one.  That
-  is what let :meth:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.streaming_terms`
+  is what let :meth:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.streaming_terms`
   collapse from three chart arms to one shared body: the retired
   CARTESIAN arm was the spherical body with ``1.0`` / ``1.0`` / ``0.0``
   written out by hand.
-* :func:`~orpheus.geometry.reduced_operator.spherical_streaming(mesh, ang)
-  <orpheus.geometry.reduced_operator.spherical_streaming>` — 1-D spherical
+* :func:`~orpheus.sn.mesh.reduced_operator.spherical_streaming(mesh, ang)
+  <orpheus.sn.mesh.reduced_operator.spherical_streaming>` — 1-D spherical
   with the dome recursion :eq:`alpha-dome-recursion` and Morel--Montry
   closure :eq:`morel-montry-closure`.
-* :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming(mesh, ang)
-  <orpheus.geometry.reduced_operator.cylindrical_streaming>` — 1-D
+* :func:`~orpheus.sn.mesh.reduced_operator.cylindrical_streaming(mesh, ang)
+  <orpheus.sn.mesh.reduced_operator.cylindrical_streaming>` — 1-D
   cylindrical with **per-**\ :math:`\mu`\ **-level** :math:`\alpha`,
   :math:`\Delta A/w` and :math:`\mu_{\rm start}` lists (τ is
   closure-owned — see the :ref:`τ-ownership note <tau-ownership-note>`).  Requires the
@@ -797,7 +814,7 @@ per coordinate system:
 
 The per-cell, per-direction inputs needed by a sweep cell update are
 extracted via
-:meth:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.streaming_terms`,
+:meth:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.streaming_terms`,
 which returns a
 :class:`~orpheus.geometry.reduced_operator.StreamingTerms` namedtuple
 whose populated fields are geometry-dependent (slab is minimal;
@@ -873,8 +890,8 @@ unaffected because the two paths computed the same data.
 
    The two legacy setup methods no longer exist (see
    :ref:`snmesh-as-router` below).  ``SNMesh.__init__`` now calls
-   :func:`~orpheus.geometry.reduced_operator.spherical_streaming` /
-   :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`
+   :func:`~orpheus.sn.mesh.reduced_operator.spherical_streaming` /
+   :func:`~orpheus.sn.mesh.reduced_operator.cylindrical_streaming`
    itself, so the surviving hash-equality legs compare a fresh factory
    call against ``sn_mesh.reduced`` — *the value that same factory
    produced*, routed through the mesh constructor.
@@ -1190,15 +1207,27 @@ should be re-argued rather than patched.
 
 The set of files that name the primitive at all is small enough to
 enumerate, and an enumeration — unlike a count — can be checked by
-reading it.  Outside :mod:`orpheus.geometry.reduced_operator` itself,
-it is named only in ``orpheus/geometry/__init__.py``; in
-``orpheus/sn/`` by ``angular/__init__.py``, ``angular/closure.py``,
-``mesh/augmented_mesh.py``, ``operators/radial_characteristic.py``,
-``solver.py`` and ``sweep/cache.py``; in ``orpheus/transport/spatial/``
-by ``__init__.py``, ``cell_balance.py``, ``diamond.py`` and
-``scheme.py``; and in
-``orpheus/derivations/discrete/sn/angular_differencing.py``.  Not one
-of them is under ``orpheus/moc/``, ``orpheus/cp/`` or ``orpheus/mc/``.
+reading it.  `[M]` 2026-08-28, re-run after P4.4 split the primitive
+across two definers: **15** files under ``orpheus/`` name any of
+``ReducedStreamingOperator``, the three ``*_streaming`` factories,
+``StreamingTerms``, ``AngularRedistribution``, ``angular_redistribution``,
+``alpha_dome`` or ``AngularMeasure``.  Two are the definers
+(``geometry/reduced_operator.py``, ``sn/mesh/reduced_operator.py``); the
+rest are ``geometry/__init__.py``; in ``orpheus/sn/``
+``angular/__init__.py``, ``angular/closure.py``, ``mesh/augmented_mesh.py``,
+``operators/radial_characteristic.py``, ``solver.py`` and
+``sweep/cache.py``; in ``orpheus/transport/spatial/`` ``__init__.py``,
+``cell_balance.py``, ``diamond.py``, ``linear_discontinuous.py`` and
+``scheme.py``; and
+``orpheus/derivations/discrete/sn/angular_differencing.py``.  Not one of
+them is under ``orpheus/moc/``, ``orpheus/cp/`` or ``orpheus/mc/`` — the
+load-bearing half, and it is unchanged.
+
+⚠ ``transport/spatial/linear_discontinuous.py`` is **new to this list and
+was missing from it before P4.4**, not added by it: `[M]` it named
+``StreamingTerms`` at the previous commit too.  An enumeration is only
+checkable by re-running its own predicate, which is how the gap was
+found — see `plan-authoring` §2 on a universal owing its denominator.
 
 .. note:: **What WOULD change this answer.**  The three conditions are
    the claim, so the honest way to falsify it is to break one.  A

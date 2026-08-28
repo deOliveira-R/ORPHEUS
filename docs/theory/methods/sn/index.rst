@@ -622,7 +622,7 @@ Cartesian DD recurrence reduces to the per-cell scalar form of
 
 
 .. implements:: dd-slab-scalar
-   :by: orpheus.geometry.reduced_operator.slab_streaming
+   :by: orpheus.sn.mesh.reduced_operator.slab_streaming
 
    **Implemented by** 9 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
@@ -896,7 +896,7 @@ the four pre-existing sweep paths (1-D cumprod / 2-D wavefront /
 spherical / cylindrical) under one operator-free ``transport_sweep``
 entry point that branched
 on a single boolean from the
-:class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
+:class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`
 primitive (Wave B Issue #6 / Wave D Round 1):
 
 .. code-block:: python

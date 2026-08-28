@@ -51,7 +51,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import CoordSystem, Mesh1D
-from orpheus.geometry.reduced_operator import ReducedStreamingOperator
+from orpheus.sn.mesh.reduced_operator import ReducedStreamingOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials

@@ -73,7 +73,7 @@ See also
 
 * :class:`~orpheus.geometry.reduced_operator.StreamingTerms` —
   the per-(cell, direction) packet a strategy receives.
-* :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator` —
+* :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator` —
   builds the streaming terms; its ``streaming_terms()`` method is
   the canonical extraction site.
 """
@@ -139,7 +139,7 @@ class CellVisit:
         site (the strategy itself does not see ``cell_idx``).
     streaming_terms : StreamingTerms
         Pure geometric primitive from
-        :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`.
+        :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`.
         Carries cell volume, face areas (inner / outer — geometric
         labels), connection coefficients (:math:`\alpha`,
         :math:`\Delta A / w`, :math:`\tau_{mm}`), and signed +

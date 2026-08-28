@@ -100,7 +100,7 @@ from __future__ import annotations
 import numpy as np
 
 from orpheus.geometry import CoordSystem
-from orpheus.geometry.reduced_operator import ReducedStreamingOperator
+from orpheus.sn.mesh.reduced_operator import ReducedStreamingOperator
 from orpheus.sn.angular.closure import morel_montry_tau_per_level
 
 

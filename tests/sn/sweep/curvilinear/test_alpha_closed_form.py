@@ -26,7 +26,7 @@ and the Dirichlet kernel closes that sum EXACTLY:
     kappa   = d_omega / (2 sin(d_omega/2)) = 1 + d_omega**2/24 + ...
 
 The rows that carry ``verifies("alpha-cylindrical")`` drive the PRODUCTION
-producer :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`
+producer :func:`~orpheus.sn.mesh.reduced_operator.cylindrical_streaming`
 (``reduced_operator.py``, the ``alpha[m+1] = alpha[m] - w[m]*eta[m]`` loop) —
 they are not a local re-implementation of it.  The ordering is supplied as an
 INPUT via :func:`~tests.sn._test_helpers.product_level_ordering`.
@@ -65,7 +65,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import CoordSystem
-from orpheus.geometry.reduced_operator import cylindrical_streaming
+from orpheus.sn.mesh.reduced_operator import cylindrical_streaming
 from orpheus.numerics.quadrature import Quadrature
 
 from tests.sn._test_helpers import (

@@ -165,7 +165,7 @@ construction:
   site.
 * **The** :math:`\alpha` **-dome.**  The recursion
   :eq:`alpha-recursion` on
-  :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
+  :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`
   consumes the quadrature :math:`(\mu_n, w_n)` and nothing else — which
   is why it moved OFF that class in the 2026-08-26 un-weld and onto
   :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`, the

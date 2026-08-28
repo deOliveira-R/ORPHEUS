@@ -479,7 +479,7 @@ eigenvalues in heterogeneous eigenvalue problems.
 
 **Nothing precomputes this factor.**  Each consumer forms it where it is
 used, from the **spatial** factor
-:attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.delta_A`
+:attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.delta_A`
 (shape ``(nx,)``, on the streaming operator) and the **angular** factor
 :math:`1/w_n` (the measure's own weight, reached through
 :attr:`~orpheus.geometry.reduced_operator.AngularRedistribution.quadrature`).
@@ -801,8 +801,8 @@ produced **solely** by the closure (see :ref:`sn-tau-c-on-cellvisit-live`).
    :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
    consumes its OWN :math:`\tau` for the matvec contribution (P0) instead
    of reading it back from the streaming-geometry factory
-   (:func:`~orpheus.geometry.reduced_operator.spherical_streaming` /
-   :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`).
+   (:func:`~orpheus.sn.mesh.reduced_operator.spherical_streaming` /
+   :func:`~orpheus.sn.mesh.reduced_operator.cylindrical_streaming`).
 
    Step A was BIT-IDENTICAL: the producer was a 0-ULP line-for-line
    replica of the factory arithmetic *as it stood then* (sphere
@@ -920,7 +920,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    :attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.c_out_per_ordinate`
    indexed by the GLOBAL ordinate (``direction_idx`` for slab / sphere,
    ``level_indices[p][m]`` for cylinder — mirroring
-   :meth:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.streaming_terms`).
+   :meth:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.streaming_terms`).
    ``DD.residual`` then reads ``visit.c_in`` / ``visit.c_out``; the
    :math:`(\Delta A/w)`-scaled assembly that follows is byte-unchanged —
    only the SOURCE of :math:`c` moved.
@@ -1145,7 +1145,7 @@ That site reads the closure's per-global-ordinate accessors and stamps:
    )
 
 where ``global_ordinate`` is the global ordinate index resolved the
-same way :meth:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.streaming_terms`
+same way :meth:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.streaming_terms`
 resolves it (``direction_idx`` for slab / sphere,
 ``level_indices[mu_level_idx][m]`` for cylinder).  The spatial scheme
 downstream sees only ``visit.tau`` / ``visit.c_in`` / ``visit.c_out``;
@@ -1382,10 +1382,10 @@ Step C) cannot silently break them:
 
 With these in place, **Step C has now deleted** the geometry-side
 :math:`\tau` producer.  The :math:`\tau` blocks inside
-:func:`~orpheus.geometry.reduced_operator.spherical_streaming`
+:func:`~orpheus.sn.mesh.reduced_operator.spherical_streaming`
 (the ``mu_edge`` weight-sum loop)
 :math:`\,/\,`
-:func:`~orpheus.geometry.reduced_operator.cylindrical_streaming` (the
+:func:`~orpheus.sn.mesh.reduced_operator.cylindrical_streaming` (the
 per-level ``eta_edge`` loop) and the slab synthetic were excised, and
 the now-orphaned ``StreamingTerms.tau_mm``, ``StreamingTerms.alpha_in``
 / ``alpha_out`` (whose sole readers were the c-rebuild sites B1--B3 just
@@ -1472,10 +1472,10 @@ reference.  Migrate-then-delete preserved the floor:
 
 #. **The producers were excised surgically.** The τ blocks *were*
    interleaved with outputs that Step C left alone:
-   :func:`~orpheus.geometry.reduced_operator.spherical_streaming` shared
+   :func:`~orpheus.sn.mesh.reduced_operator.spherical_streaming` shared
    its ``mu_edge`` array with the starting direction ``mu_start`` (the
    Hébert §3.9.4 :math:`\mu_{1/2} = -1.0`), and
-   :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`
+   :func:`~orpheus.sn.mesh.reduced_operator.cylindrical_streaming`
    shared its per-level loop with ``mu_start_per_level``.  A
    whole-function deletion would have been wrong; only the τ statements
    were removed, and Step C left the :math:`\alpha`-dome, the
@@ -2014,7 +2014,7 @@ settling the question that actually turns out to be dangerous.
      carries only the *moment* index, the angular factor only the
      *ordinate* index.  Since 2026-08-26 that is also the tree's own
      structure — the spatial factor on
-     :attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.delta_A`,
+     :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.delta_A`,
      the member-independent angular factor on
      :class:`~orpheus.geometry.reduced_operator.AngularRedistribution`,
      and the fused :math:`\Delta A_i \otimes 1/w_n` cache that used to
@@ -2211,7 +2211,7 @@ not an additional one.
       * - :math:`R_{\rm spatial}`
         - the **moment** index — geometry :math:`\times` basis, no
           :math:`\mu`
-        - :attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.delta_A`
+        - :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.delta_A`
           on the streaming operator (its :math:`(0,0)` corner is all a
           one-moment scheme needs), beside ``face_areas``
       * - :math:`A_{\rm angular}`
@@ -2544,7 +2544,7 @@ so that :math:`R` is owned by **neither side alone**:
    * - DD, one-moment thread
      - :math:`1\times1`
      - :math:`[\Delta A_i]` — ✅ **this is what ships**; it is
-       :attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.delta_A`
+       :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.delta_A`
    * - LD, per-moment thread (Adams--Martin)
      - :math:`2\times2`
      - :eq:`sn-redistribution-gram-eq` — ⛔ **not built** (Issue #158);

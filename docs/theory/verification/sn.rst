@@ -1915,7 +1915,7 @@ machinery:
        now single-sourced in the *angular closure*
        (:func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`),
        not in
-       :func:`~orpheus.geometry.reduced_operator.spherical_streaming`;
+       :func:`~orpheus.sn.mesh.reduced_operator.spherical_streaming`;
        SI sweep + Krylov matvec still inherit one value.
    * - Cylindrical :math:`\tau_m` clamp
      - ⛔ **retired** (Q5.6.4, 2026-08-11)

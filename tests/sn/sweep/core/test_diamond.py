@@ -53,6 +53,8 @@ from orpheus.geometry import (
     BC,
     CoordSystem,
     Mesh1D,
+)
+from orpheus.sn.mesh.reduced_operator import (
     cylindrical_streaming,
     slab_streaming,
     spherical_streaming,

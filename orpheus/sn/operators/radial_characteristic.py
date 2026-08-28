@@ -139,7 +139,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
     from orpheus.geometry import CoordSystem
-    from orpheus.geometry.reduced_operator import ReducedStreamingOperator
+    from orpheus.sn.mesh.reduced_operator import ReducedStreamingOperator
     from orpheus.numerics.quadrature.directional import Quadrature
     from orpheus.numerics.space import FunctionSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace

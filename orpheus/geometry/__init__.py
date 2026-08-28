@@ -29,12 +29,8 @@ from .factories import pwr_pin_2d
 from .mesh import BC, Mesh1D, Mesh2D, RegionMesh
 from .reduced_operator import (
     AngularMeasure,
-    ReducedStreamingOperator,
     StreamingTerms,
     alpha_dome,
-    cylindrical_streaming,
-    slab_streaming,
-    spherical_streaming,
 )
 from .structured_geometry import Region, StructuredGeometry
 from .transformation import (
@@ -52,7 +48,6 @@ __all__ = [
     "Mesh2D",
     "NotAFinitePointGroupError",
     "Permutation",
-    "ReducedStreamingOperator",
     "Region",
     "RegionMesh",
     "RigidMotion",
@@ -63,8 +58,5 @@ __all__ = [
     "compute_areas_1d",
     "compute_volumes_1d",
     "compute_volumes_2d",
-    "cylindrical_streaming",
     "pwr_pin_2d",
-    "slab_streaming",
-    "spherical_streaming",
 ]

@@ -198,7 +198,7 @@ def _require_single_moment_pairing(pairing: np.ndarray, who: str) -> None:
     r"""Refuse a multi-moment spatial pairing — the cell SOLVE does not exist yet.
 
     The pairing's two axes are real and load-bearing (see
-    :attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.redistribution_pairing`):
+    :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.redistribution_pairing`):
     ``n_mom`` is the scheme's spatial-moment count, ``n_thread`` is what the
     angular device propagates.  What does NOT exist yet is the other side of
     the contract: at ``n_mom > 1`` the closure's contribution to the cell
@@ -916,7 +916,7 @@ def assert_carrying_quadrature(quad: Any, coord: CoordSystem) -> None:
         facts that are true on it.  The message deliberately does NOT
         contain the substring ``level structure`` — that fragment
         belongs to the earlier structure-less guard in
-        :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`,
+        :func:`~orpheus.sn.mesh.reduced_operator.cylindrical_streaming`,
         which keeps ownership of slab/sphere cubatures.
     """
     starts = march_start_structure_per_level(quad, coord)
@@ -1412,7 +1412,7 @@ class MorelMontryAngularSweep(
     redistribution.  Bound to an SNMesh at construction: all M-M coefficients
     (α-dome, ΔA/w, τ, c_in, c_out, level partition) are precomputed
     eagerly from the mesh's
-    :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`, and
+    :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`, and
     the mesh-bound methods (:meth:`precompute_psi_state`,
     :meth:`cell_contribution`, :meth:`angular_adjoint`) read that state from
     ``self`` — callers never ship M-M data through arguments (Pattern 4).

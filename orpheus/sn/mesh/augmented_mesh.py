@@ -30,12 +30,8 @@ from orpheus.geometry.boundary import (
 )
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.geometry.reduced_operator import (
-    ReducedStreamingOperator,
     StreamingTerms,
     angular_redistribution,
-    cylindrical_streaming,
-    slab_streaming,
-    spherical_streaming,
 )
 from orpheus.transport.method import resolve_boundary_conditions
 from orpheus.transport.mesh.axis import (
@@ -54,6 +50,12 @@ from orpheus.transport.mesh.material_mesh import (
 )
 from ..boundary.realizer import SNBoundaryRealizer
 from .method_space import SNMethodSpace
+from .reduced_operator import (
+    ReducedStreamingOperator,
+    cylindrical_streaming,
+    slab_streaming,
+    spherical_streaming,
+)
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase, CellVisit
 from orpheus.transport.spatial.diamond import DiamondDifference

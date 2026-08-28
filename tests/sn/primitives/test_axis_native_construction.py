@@ -192,7 +192,7 @@ def test_from_axes_curvilinear_keeps_mesh1d_reduced_path(
     """Axis-native curvilinear still feeds the Mesh1D-bound reduced operators.
 
     The 1-D reduced streaming constructors
-    (:func:`orpheus.geometry.reduced_operator.spherical_streaming` /
+    (:func:`orpheus.sn.mesh.reduced_operator.spherical_streaming` /
     ``cylindrical_streaming``) are the genuine remaining ``Mesh1D``
     consumers — ``from_axes`` synthesizes the adapter for them and the
     result must match the legacy surface.
