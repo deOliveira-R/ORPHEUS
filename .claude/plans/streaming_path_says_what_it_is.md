@@ -722,6 +722,29 @@ actual semantic"*). Bind a well-named local (`radial_cosine`) for now;
 `AngularMeasure` Protocol, so using it would narrow what the factories accept,
 and that Protocol's fate is suspended into CS5.
 
+**P4.1c — the `SNMesh` deprecation shims retire.** ✅ **UNBLOCKED NOW** — it
+depends on nothing in P4 and can land beside P4.1b.
+
+`SNMesh.face_areas` and `SNMesh.delta_A` are `@property` shims that emit
+`DeprecationWarning` and route to `self.reduced`. They date from Wave E Round 2
+(#164) — many merge cycles ago, against `coding-standards`' *"deprecation
+aliases live for **one merge cycle only**"*.
+
+`[M]` 2026-08-27, by AST over `orpheus/` + `tests/`: **11 reads, 0 of them in
+`orpheus/`.** Every consumer is a test, and `[M]` the tests are
+`test_sphere_deprecated_properties_warn` /
+`…_route_to_reduced` / `…_cylinder_…` — i.e. **the only thing keeping the shims
+alive is the suite that verifies the shims.** That is the closed loop
+`coding-standards` describes: a shim with no consumer, wearing coverage.
+
+⟹ delete both properties and the 4 tests that exist only to exercise them
+(API-smoke, per the test-migration rule — there is no behavioural contract to
+rewire, since `reduced.face_areas` is the thing they route to and it is pinned
+directly elsewhere). ⚠ Grep the **warning message strings** as well as the
+symbol — the shortest distinctive fragment is `is deprecated; use SNMesh` — and
+re-read `test_snmesh_consumes_reduced.py`'s header, whose invariant **2** and
+**3** are *about* these accessors and retire with them.
+
 **P4.2 — the angular factor comes home.** The five α symbols to
 `sn/angular/redistribution.py`; `SNMesh` builds the redistribution and hands both
 tensor factors to the closure — which it **already does** on the d≥2 Cartesian
