@@ -15,7 +15,19 @@
 > un-landed"** · the Morel–Montry twin still sits in `diamond.py` ·
 > `cell_balance_terms` exists · `CellVisit` carries `tau`/`c_in`/`c_out` ·
 > the 59 %/204-ULP figure quoted as a point value (it is one draw's
-> reading — the seed-stable discriminator is max |Δ| = 1.776e-15). Every
+> reading — the seed-stable discriminator is max |Δ| = 1.776e-15) ·
+> **"P4.9b is un-landed" or "▶ NEXT = P4.9b"** · `StreamingOperator(sn_mesh)`
+> takes only the mesh · **"SNMesh sheds scheme + pole_angular_closure at
+> P4.9b"** (⛔ REVISED BY RULING — the hub KEEPS both; consumers flow through
+> the operator) · `pole_angular_closure` / `PoleAngularClosureBase` exist
+> (renamed `angular_closure` / `AngularClosureBase`; only the retired-Protocol
+> HISTORY and the `sn-pole-angular-closure-protocol` anchor keep the old
+> spelling) · the walk reads `mesh.scheme` at apply time · the scan cache is
+> solver-built / mesh-memoized (`_geom_cache` is retired; the strategy-layer
+> intern `geometry_cache_for` is the one home; `_coll_cache` +
+> `_pole_mirror_cache` deliberately remain) · the 24.65 % figure quoted
+> without its fixture (the operator count is fixture-dependent, 6–10 vs
+> 38–43/solve; the COUNT gate is the instrument). Every
 > one was true once, or was proposed and refuted, below.
 >
 > ⭐ **Three phases landed 2026-08-28 — P4.4, P4.2, P4.3 — and P4.9 was
@@ -84,6 +96,7 @@
 > | `5940deba` | **P4.2** | the angular factor comes home — 6 symbols to `sn/angular/`, and the L0 ladder takes α as a keyword |
 > | `da507e3d` | **P4.3** | `StreamingTerms` to L2 beside its contract; `geometry/reduced_operator.py` DELETED; docs sweep `590c12d0` |
 > | `7a0f434c` | **P4.9a** | the closure owns its march; DD spatial-only; `cell_balance_terms` dead; the visit family purely spatial; the handing; the degenerate frozen corpus; docs `ca852c44` (12 commits, `cb65c4cc`…) |
+> | *(branch tip)* | **P4.9b** | the operator is POSED with its two closures (`.pose`; no defaults, no guards); the walk consumes the HANDED pair (keystone: post-pose hub swaps INERT); the strategy-layer intern (count-gated); the pole misnomer dead (`angular_closure`/`AngularClosureBase`); docs `9c3eb60a` (14 commits `b253732f`…, incl. archivist) |
 >
 > `[M]` exit gates, full fast set, 13 trees all `rc=0` each time:
 > **P2 9815/0** (+1 vs P1 — the new `sn/angular/__init__.py` adds one case to
@@ -99,7 +112,18 @@
 > `rglob`ping one new module. Nine other trees +0. pyright 0, `sphinx -W` 0
 > and `dead_references` 0 throughout.
 >
-> ### ▶ NEXT — **P4.9b** (rows 4–5: the 4-arg ctor + `SNMesh` sheds both closures; lever = the PRODUCTION posing-head factory; the operator-minted scan table is its ruled direction). (P4.9a ✅ `7a0f434c`, P4.3 ✅ `da507e3d`, P4.4 ✅ `16501ca0`, P4.2 ✅ `5940deba`.)
+> ### ▶ NEXT — **the campaign's next act is a SEQUENCING ruling** (P4.9 is
+> COMPLETE: P4.9a ✅ `7a0f434c`, P4.9b ✅ merged 2026-08-29). ⭐ **§5b's ⛔ P0
+> is now UNBLOCKED** — P4.9's whole ordering purpose ("P0 must apply each
+> factor separately, and this phase is what makes them separately
+> applicable") is discharged: `L` holds `spatial_closure` + `angular_closure`
+> as fields. The unblocked tail to rule among at the next design round:
+> §5b ⛔ P0 (the product-form measurement) · P4.5–P4.7 (field retirements +
+> the StreamingTerms naming fork; P4.7's enumeration must include the walk's
+> packet-field readership, per P4.9a's Q2 note) · P4b (the cache strata
+> carve) · CS5 (gates the P4-mint remainder + P3c) · P6. P5 rides O-3; P7 =
+> #409. Read `scratch/p4_9b_design.md` §§7–10 before designing anything that
+> touches the posing surfaces.
 >
 > ⭐ **Before designing P4.9, read `scratch/p4_9_design_measured.md`** — the
 > §6b pre-measurement (taken 2026-08-28 while P4.3's gate ran) re-sizes the
@@ -351,7 +375,12 @@
 > the −1: `9824 / 0, 22 sk / 227 des / 70 xf`, localized to root+harness
 > (layer gate 344 → 343), all other trees and axes +0** — the first phase of
 > this arc where the count went DOWN, and it went down because the file died.
-> ✅ **P4.9a: `9836 / 0, 22 sk / 227 des / 70 xf` — `[M]` 13 trees `rc=0`,
+> ✅ **P4.9b: `9847 / 0, 22 sk / 227 des / 70 xf` — `[M]` 13 trees `rc=0`
+2026-08-29, ~62 min; delta vs P4.9a exactly +11 = the phase's new gates
+(3 witnesses + 4 keystone rows + 2 read-set rows + 2 cache gates); per-tree:
+sn 3291 (+11), every other tree identical (numerics 2445, transport 566,
+geometry 727, derivations 1637, root 409, …).**
+✅ P4.9a: `9836 / 0, 22 sk / 227 des / 70 xf` — `[M]` 13 trees `rc=0`,
 > 64 min, delta exactly +12 passed and 0 on the other three axes,
 > localized to transport +1 (the anti-twin gate) / sn +11 (2 is-identity +
 > 3 minted-constants + 2 cache-handing gates, 1 snapshot + 1 walk-baseline
@@ -2578,7 +2607,7 @@ and the `sentinel` marker on the next line declares *"one sentinel per capabilit
 node"* — so a `tests/sn/angular/` tree is not a directory, it is an **11th
 taxonomy node** plus its sentinel. That is a real decision and it is not a
 bit-identical move.
-⟹ P2 leaves every test file where it is. Only `tests/sn/sweep/curvilinear/test_pole_angular_closure.py`
+⟹ P2 leaves every test file where it is. Only `tests/sn/sweep/curvilinear/test_angular_closure.py`
 now carries a filename naming a module that moved; ⚠ it is **not** the only
 misplaced one (`test_angular_cell_partition`, `test_march_start_structure`,
 `test_tau_arc_wellposedness`, `test_angular_beta_identity`,
@@ -3019,6 +3048,78 @@ P4.9b inherits: rows 4–5, the posing-head-factory lever, the
 operator-minted scan-table direction, and the is-identity gate's control
 leg (the fast path stays call-free) as a standing constraint.
 
+✅✅ **P4.9b DESIGN ROUND COMPLETE 2026-08-28 (user, two ask rounds) — the
+full record is `scratch/p4_9b_design.md` §§7–8; the rulings, compact:**
+
+* ⛔ **Row 5 is REVISED BY RULING — the mesh sheds NOTHING.** `SNMesh` is
+  recognized as a misnomer: it is the **save-state / data hub**, and it
+  KEEPS `scheme` (stage-2 generator: space induction nodal/modal, and
+  cross-consumer consistency — DSA must read the SAME generator) and the
+  bound `pole_angular_closure` (shared machinery; one instance ever).
+  The 67 consumer reads dissolve by consumers flowing through the
+  OPERATOR, not by the mesh losing fields — no space-side re-pose, no
+  `__eq__` change, no `_bases.py:257` re-key. (The rename-the-misnomer
+  question is filed as its own issue, out of scope.)
+* **The ctor**: `StreamingOperator(sn_mesh, scheme, pole_angular_closure)`
+  — three required fields, **no defaults** ("the scheme is an active
+  choice"), **no guards** (the user's no-guard position was attacked four
+  ways and HELD — pose-path unspellable; the raw ctor is the declared
+  expert seam. ⛔ CORRECTED per verification plan F12 `[M]`: the
+  wrong-FAMILY arm RAISES at first sweep (typed sphere / untyped
+  cylinder), it is NOT silent — only the cross-mesh-smuggling arm is
+  silent. Both documented in the ctor docstring, not guarded: a guard
+  would forbid the seam's own use case, doctored diagnostic probes). `spatial_closure` property = the identity
+  extraction seam until O-3 splits the closure/factory family; the
+  `scheme` field IS §5c item (d)'s provenance accessor — **item (d)
+  discharged**.
+* **The posing surface**: classmethod **`StreamingOperator.pose(sn_mesh)`**
+  — the INTERMEDIATE while the migration runs — reads the hub's two
+  objects and passes them. `build_streaming_collision` routes through it;
+  ⭐ solve entries UNCHANGED (`scheme=` keeps entering the hub at
+  `_as_sn_mesh`; the hub ctor stays the active-choice site and its DD
+  default SURVIVES). `[M]` 136 ctor sites migrate (1 production + 135 in
+  40 test files — recount `scratch/p4_9b_row45_recount.md`).
+* ⭐⭐ **The algebra/performance principle (user, verbatim in the memo):
+  the algebra stays unwelded and expressible as long as possible;
+  performance welds resolve LAZILY, as close to the solution STRATEGY as
+  possible.** ⟹ the operator owns/exposes the ALGEBRA (two closures +
+  their minted per-ordinate constants); the fused scan table is the
+  STRATEGY's artifact, lazily resolved from the operator's objects — the
+  eager `SNSolver.__init__:1434` build retires. ⛔ CORRECTED per
+  verification plan F2 `[M]`: the memo's LIFETIME is a ruled question
+  (Q1) — the operator is built 6–10×/solve, so a per-operator memo costs
+  up to 24.65 % of a slab solve; the perf gate is a COUNT (today 1).
+  (Memory: `feedback_algebra_eager_performance_lazy.md`.)
+* **The end state (recorded, NOT this phase)**: cross-method
+  `(domain, codomain, spatial-discretization[, angular-discretization])`
+  ctor with `sn_mesh` out — rides O-3/CS5. The mesh field + derived
+  spaces are the declared transitional weld.
+* ✅ **THIRD ask round (2026-08-28) — Q1 + Q5 ruled by criterion, picks
+  delegated** (full synthesis: `scratch/p4_9b_design.md` §9): the table's
+  interning mechanism lives IN the `loss_representation` layer (WeakKey on
+  the hub, closure-pair-validated; count-1 gated; the layer is
+  retirement-bound at Campaign 2, so the interim machinery retires with
+  it — the user's survives-the-lazy-strategy criterion). The slot
+  vocabulary is the SYMMETRIC pair **`spatial_closure` +
+  `angular_closure`** on operator AND representation (today
+  `spatial_closure` receives the hub's scheme instance; extraction =
+  identity until O-3); the hub keeps `scheme` (generator, provenance);
+  ⭐ **the pole misnomer dies at step 3**: `pole_angular_closure` →
+  `angular_closure` (91 hits) + `PoleAngularClosureBase` →
+  `AngularClosureBase` (119 hits), member names untouched. Adopted from
+  the verification plan: representation `.pose` classmethod (58 sites),
+  route gate self-drives, selection predicates operator-side, F5's
+  21 space-side reads STAY hub-side, both permanent gates, F10's
+  diagnostic-probe carve-out. ⛔ F12/F2 corrections above stand.
+* **Steps**: (1) ctor + `.pose` + the 136-site migration, bit-identical
+  by construction (same objects flow); (2) the operator feeds the walk —
+  `default_for` + representation take the closure pair, 43+17+5 reads
+  re-plumb, the 2 L2 reach-throughs are HANDED their objects, the
+  strategy's lazy table, `cache.py:273` assert→raise ride-along; (3)
+  docs (~127 prose mentions) + owner-mutation battery + `dead_references`
+  + banners + landing record. Test-architect verification plan BEFORE
+  step 1 (the proactive carve trigger).
+
 **Done when** (checkable):
 
 * `[M]` `grep -c "1.0 - tau"` over `orpheus/transport/` returns **0** — the
@@ -3041,7 +3142,12 @@ leg (the fast path stays call-free) as a standing constraint.
   legs.
 * `StreamingOperator(...)` cannot be constructed without both closures — the
   illegal state is unrepresentable, not merely undesirable.
-  ⏸ **P4.9b's bullet** (the split ruling assigned it there).
+  ✅ **MET at P4.9b** (three required fields, no defaults; the arity witness
+  pins it with `match="missing 2 required positional"`; every un-migrated
+  spelling is a loud collection-time `TypeError`). The companion safety
+  argument is the pose-identity gate (no ctor guards, by ruling — the
+  four-attack record is `scratch/p4_9b_design.md` §8, its M5 enforcement
+  measurement `scratch/p4_9b_verification_plan.md` §9).
 * `[M]` the `_OneDimScanWalk` degenerate-ordinate branch and the vectorized
   branch reach the **same** closure object — a `is`-identity assertion, which is
   the gate the twin never had (`[M]` today the intersection of tests naming
