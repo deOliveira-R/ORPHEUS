@@ -27,7 +27,13 @@
 > intern `geometry_cache_for` is the one home; `_coll_cache` +
 > `_pole_mirror_cache` deliberately remain) · the 24.65 % figure quoted
 > without its fixture (the operator count is fixture-dependent, 6–10 vs
-> 38–43/solve; the COUNT gate is the instrument). Every
+> 38–43/solve; the COUNT gate is the instrument) ·
+> **`L = D·T_ang·T_spatial` stated as a fact, or §5b ⛔ P0 as
+> unblocked-but-unrun** (⛔ P0 ANSWERED 2026-08-29: the product form is
+> REFUTED with a measured witness; the measured algebra is the SUM
+> `L = D − E_sp·S − E_ang·A_ang` — `scratch/p0_product_form_measurement.md`)
+> · the cylinder called "non-carrying" as a live class (slab-only since
+> Q5.6.3 — the admitted fold is always carrying). Every
 > one was true once, or was proposed and refuted, below.
 >
 > ⭐ **Three phases landed 2026-08-28 — P4.4, P4.2, P4.3 — and P4.9 was
@@ -119,17 +125,31 @@
 > and `dead_references` 0 throughout.
 >
 > ### ▶ NEXT — **the campaign's next act is a SEQUENCING ruling** (P4.9 is
-> COMPLETE: P4.9a ✅ `7a0f434c`, P4.9b ✅ merged 2026-08-29). ⭐ **§5b's ⛔ P0
-> is now UNBLOCKED** — P4.9's whole ordering purpose ("P0 must apply each
-> factor separately, and this phase is what makes them separately
-> applicable") is discharged: `L` holds `spatial_closure` + `angular_closure`
-> as fields. The unblocked tail to rule among at the next design round:
-> §5b ⛔ P0 (the product-form measurement) · P4.5–P4.7 (field retirements +
-> the StreamingTerms naming fork; P4.7's enumeration must include the walk's
-> packet-field readership, per P4.9a's Q2 note) · P4b (the cache strata
-> carve) · CS5 (gates the P4-mint remainder + P3c) · P6. P5 rides O-3; P7 =
-> #409. Read `scratch/p4_9b_design.md` §§7–10 before designing anything that
-> touches the posing surfaces.
+> COMPLETE: P4.9a ✅ `7a0f434c`, P4.9b ✅ merged 2026-08-29; **§5b ⛔ P0
+> ✅✅ ANSWERED 2026-08-29** — ruled first at the post-P4.9b sequencing round
+> and run the same day, probe-only). ⭐⭐ **P0's verdict: the 3-factor
+> product form is REFUTED** — a theorem with a measured witness (the
+> residual of `D·T_ang·T_sp` is EXACTLY `+G_ang·D⁻¹·G_sp`, ≤ 3.8e-16), and
+> order-free (`L·T_spatial⁻¹` has 42–54 % of its mass outside the same-cell
+> algebra, so no 3-factor form with that `T_spatial` exists in ANY order).
+> **The measured algebra is a SUM of resolvents**
+> `L = D − E_sp·S − E_ang·A_ang` (`[M]` rel ≤ 3.3e-16, 12 of 12 configs),
+> each accumulator EXACTLY triangular in its OWN traversal order, and on
+> the augmented space `[ψ̄; f; h]` `L` is the SCHUR COMPLEMENT of a sparse
+> `Ã`. Answers in §5b's ✅✅ ANSWERED block; record
+> `scratch/p0_product_form_measurement.md` (read its VERDICT block first).
+> ⟹ **§5b's build is RE-POSED, not dead**: the adjoint still DERIVES
+> (reverse each traversal independently — `[M]` which the shipped
+> `loss_action_transpose` already implements), but the algebra a §5b
+> campaign would declare is the sum-of-resolvents, not a product — a design
+> fork for the user at the Campaign-2/O-3 boundary. The remaining tail to
+> rule among: P4.5–P4.7 (field retirements + the StreamingTerms naming
+> fork; P4.7's enumeration must include the walk's packet-field readership,
+> per P4.9a's Q2 note — and P4.7 may be partly a CONSEQUENCE of P4.9:
+> re-measure `delta_A_over_w`'s readership first) · P4b (the cache strata
+> carve) · CS5 (gates the P4-mint remainder + P3c) · P6 · the re-posed §5b
+> build. P5 rides O-3; P7 = #409. Read `scratch/p4_9b_design.md` §§7–10
+> before designing anything that touches the posing surfaces.
 >
 > ⭐ **Before designing P4.9, read `scratch/p4_9_design_measured.md`** — the
 > §6b pre-measurement (taken 2026-08-28 while P4.3's gate ran) re-sizes the
@@ -1951,6 +1971,23 @@ This is the *"build the machinery; realize the operator algebra ALWAYS"* ruling
 applied to the last welded operation in the streaming path: a welded, un-named
 composition is a failure to realize the algebra.
 
+⛔ **P0 ANSWERED 2026-08-29 — the product form above is REFUTED; the
+section's GOAL survives on a different algebra.** The display
+`L = D @ T_ang @ T_spatial` fails at 62–136 % relative on every curvilinear
+chart, and the failure is a THEOREM with a measured witness: the residual is
+exactly `+G_ang·D⁻¹·G_sp`, the second-order angular×spatial cross term a
+product mints and the assembled SUM does not contain (`[M]` identity verified
+≤ 3.8e-16). What IS true (`[M]` 12 of 12 configs, record
+`scratch/p0_product_form_measurement.md`): `L = D − E_sp·S − E_ang·A_ang` at
+≤ 3.3e-16 — three SUMMANDS; each accumulator EXACTLY triangular in its own
+traversal order but a RESOLVENT of a sparse shift (`S = 2(I+N_sp)⁻¹N_sp`
+bit-exactly — a dense lower triangle), and on the augmented space
+`[ψ̄; f; h]` `L` is the SCHUR COMPLEMENT of a sparse `Ã` (≤ 2.0e-16). The
+payoff SURVIVES re-posed: `Lᵀ` = reverse each traversal independently —
+which is precisely what the shipped `loss_action_transpose` does — so a §5b
+campaign declares the sum-of-resolvents algebra (each term carrying `.H`),
+not a product of triangular factors.
+
 ### ⛔ P0 — VERIFY THE FACTORIZATION BEFORE DESIGNING TO IT
 
 ⚠ **The three-factor claim is `[R]`, not `[M]`.** It was *inferred* from the
@@ -1976,6 +2013,49 @@ unverified factorization is how a campaign inherits a false premise.
 A refutation here is the most valuable outcome, not the least — it would mean
 the adjoint is genuinely irreducible to a composition and the twin must stay,
 which is a thing worth knowing before anyone tries.
+
+✅✅ **ANSWERED 2026-08-29** (`numerics-investigator` probe, 9 scripts
+`scratch/p0_probe_*.py` + `p0_lib.py`; memo
+`scratch/p0_product_form_measurement.md` — read its VERDICT block first; the
+subject was tied back to the `apply_transpose ≡ apply.T` gate's own dense
+harness, and 6 positive controls all bite):
+
+1. **Form/order — REFUTED, all orders.** 9 candidate forms (5 3-factor
+   orders + 4 diagonal-absorbed 2-factor forms) rejected at 42–136 %
+   relative on 10 curvilinear configs; the slab control passes exactly
+   (both cross terms ≡ 0.000000e+00, `E_ang ≡ 0` there). The measured truth
+   is the SUM `L = D − E_sp·S − E_ang·A_ang`, rel 3.4e-17…3.3e-16, `[M]`
+   12 of 12 configs (sphere GL 4–14 / cylinder fp(2..4, 6..10) / slab;
+   N odd at 9 and 15, nx ∈ {4,5,7}; non-uniform widths, heterogeneous Σ_t;
+   ng=1 — the cache is ng-free by construction, `cache.py:183`).
+2. **Arity — 3 SUMMANDS, not 3 (or 4) product factors.** `P_mirror` is NOT
+   a factor: the pole continuation is `[M]` ONE edge of `N_sp` per chain,
+   absorbed by chain CONCATENATION. On the augmented space `[ψ̄; f; h]` the
+   operator is sparse (1.4–5.7 %) and `L` is its SCHUR COMPLEMENT (`[M]`
+   ≤ 2.0e-16, 6 of 6); `Ã` itself block-LU-factors (≤ 9.7e-18), but that
+   factorization's Schur block either omits `L` or IS `L` — circular as a
+   construction of `L`.
+3. **Triangularity — YES, exactly, each in its OWN order** (`[M]`
+   max|strict-upper| ≡ 0.000000e+00, 12 of 12; angular order =
+   (cell, level, WITHIN-position) — not global ordinate index; spatial
+   order = (chain class, chain position), the leg-derived chain matching
+   the cache's `chain_idx` on every non-degenerate ordinate). But the
+   factors are RESOLVENTS of sparse shifts — `S = 2(I+N_sp)⁻¹N_sp`
+   BIT-exactly — i.e. dense lower triangles with sub-diagonal reach =
+   chain length − 1, NOT the nearest-neighbour bands the inventory table
+   reads as (see the ⛔ C-1 correction at the inventory). ⚠ Denominator:
+   GL-sphere + folded-cylinder rules. On a Gauss-Lobatto sphere rule
+   `edge_extrapolated_seed` FIRES (the tree's own census,
+   `closure.py:1805-1830`, #361) and triangularity there is UNMEASURED —
+   **#415** carries the witness item.
+
+⚠ The paragraph above guessed that a refutation would mean *"the adjoint is
+genuinely irreducible … and the twin must stay"* — HALF wrong, in the good
+direction: the product is refuted AND the adjoint still derives, from the
+sum (per-summand traversal reversal, which `loss_action_transpose` already
+implements). Ride-alongs of this record: `test_282`'s "non-carrying control"
+docstrings corrected (its cylinder is a second CARRYING case since
+`384d62e4`), the corpus-wide sweep of the same staleness, and **#415**.
 
 ### The constraint that shapes the design — algebra ≠ realization
 
@@ -2069,6 +2149,13 @@ Operator`, unapplied to the streaming path.
 exist**. §5b's payoff — *"the adjoint stops being written and starts being
 derived"* — is one binding away, not one implementation away.
 
+⛔ **P0 (2026-08-29): the composition rule two lines up is REFUTED as
+written** — the product it transposes does not equal `L`. What survives,
+strengthened: both adjoints DO ship, and the measured derivation is
+per-SUMMAND traversal reversal (`Lᵀ = D − Sᵀ·E_sp − A_angᵀ·E_ang`), which
+the shipped `loss_action_transpose` already implements. See the ✅✅ ANSWERED
+block below.
+
 #### What the unweld concretely deletes
 
 > ✅ Items 1–3 REMEDIED by P4.9a (`8a78be1d` + `737f8b32`); item 4 is
@@ -2141,6 +2228,17 @@ c_out = α_out/τ           c_in = (1−τ)/τ·α_out + α_in
 ⟹ `c_in`, `c_out` are pure `(α, τ)`: **F1's `A_angular(τ, α, w)` exactly.**
 
 #### Which coefficient belongs to which factor
+
+⛔ **CORRECTED by P0 (2026-08-29): the "its coefficients" column names
+DIAGONAL scalings, not off-diagonals.** `[M]` `|μ|·A_total` and `(ΔA/w)·c_in`
+are the diagonal coefficient matrices `E_sp` / `E_ang` that MULTIPLY the
+accumulators; the accumulators' own off-diagonals are the DD alternating ±2
+chain and the M-M `τ⁻¹` / `(1−τ)τ⁻¹` recurrence, and each accumulator is a
+RESOLVENT (a dense lower triangle, sub-diagonal reach = chain length − 1),
+not a nearest-neighbour band. Reading this column as nearest-neighbour
+triangular factors is what made the product form look plausible. The table
+STAYS per §3 — its coefficient-to-mechanism assignment is exactly what P0
+consumed; only that reading is corrected.
 
 | factor | what it is | triangular in | its coefficients | realized today by | its adjoint |
 |---|---|---|---|---|---|
@@ -3238,7 +3336,10 @@ adjoint — `DiamondDifference.streaming_cell_transpose` (with
 the polymorphic `angular_adjoint` family (`closure.py:557/:1915/:2128`). So
 after this phase `L.H = T_spatial.H @ T_ang.H @ D` composes adjoints that
 already exist, and §5b's *"the adjoint stops being written and starts being
-derived"* is one binding away.
+derived"* is one binding away. ⛔ P0 (2026-08-29) refuted the PRODUCT reading
+of this sentence — see §5b's ✅✅ ANSWERED block: the derived adjoint is
+per-summand traversal reversal, not `T_spatial.H @ T_ang.H @ D`; the
+"adjoints already ship" half stands.
 
 ### P5 — `ChartConnection`'s three stages separate *(rides O-3)*
 **Deferred on a DEPENDENCY, not a punt.** Its third piece is `streaming_terms`'
