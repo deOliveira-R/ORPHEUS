@@ -6787,3 +6787,213 @@ alone = 140 / **0.8 s**.
 use a driver script with `"$@"`. And a long background pytest writes a
 **block-buffered** log that reads as empty for minutes; run a narrow slice in
 the foreground instead of polling an empty file.
+
+---
+
+## L64 — P4.9b (the operator is posed with its two closures, PRE-carve): the phase's real §6c witness is a ROUTE gate, and the design's own cost claim was 17–25 % wrong
+
+**Dispatch** 2026-08-28, at `10314dfa`. Design the verification plan for the
+un-weld campaign's P4.9b BEFORE implementation. Ruled design
+(`scratch/p4_9b_design.md` §§7–8): `StreamingOperator(sn_mesh, scheme,
+pole_angular_closure)` — three required fields, no defaults, **no guards**;
+`StreamingOperator.pose(sn_mesh)` reads the hub's two objects; 136 ctor sites
+migrate; the representation receives the closure pair; the fused scan table
+becomes the STRATEGY's lazily resolved artifact. Deliverable
+`scratch/p4_9b_verification_plan.md` (12 findings, 4 §6c witnesses, an 11-arm
+battery with the M1 denominator measured).
+
+### L64a ⭐⭐ When the phase's claim is "consumer X now reads from OWNER A instead of OWNER B", the gate is a ROUTE gate: pose, SWAP the old owner's object, and require the answer UNMOVED
+
+Every §6c witness the brief offered was post-hoc: the ctor-arity witness is
+trivially red, the pose-identity gate is green the moment `.pose` is written,
+the lazy-table and memo-retirement gates are consequences. The phase's actual
+claim is a ROUTE claim (`vv` #26), and the instrument is:
+
+```
+L = StreamingOperator.pose(sn); _ = L.loss_representation
+base = drive(sn, L)                      # (L + C).solve(rhs)
+swap sn.scheme / sn.pole_angular_closure for a MUTANT subclass
+drop the mesh-attr memos
+assert np.array_equal(drive(sn, L), base)          # <- post-carve
+```
+
+`[M]` pre-carve it MOVES on every geometry: SLAB `GL8` scheme swap rel
+**5.000e-02**; CYL `fp(4,6)` closure swap **4.596e-02**; CYL `fp(4,8)`
+**5.313e-02**; SPHERE `GL8` **1.196e-01**; `array_equal` False in all four.
+
+⚠ **Three traps, all measured, each of which makes it silently green for the
+wrong reason:**
+
+1. ⛔ **The insufficient mutation.** Mutating `MorelMontryAngularSweep
+   .cell_contribution` alone reads `array_equal = True` on ALL THREE
+   curvilinear rows — P4.9a's Q1 ruling split the surfaces (`.solve` consumes
+   `advance_psi_half` + the minted scan constants; `cell_contribution` is the
+   MATVEC's arm). One surface = one route certified. (L49c, in a new dress.)
+2. ⛔ **The driver that re-poses.** `tests/sn/_test_helpers.sweep_once` builds
+   `StreamingOperator(sn_mesh)` **internally** at `:814`, i.e. AFTER the swap —
+   so post-carve it would still read the mutant and the gate would stay red for
+   a reason unrelated to the carve. Drive `(L + C).solve` on the operator the
+   test posed.
+3. ⛔ **The cache that masks the swap.** Without dropping `_geom_cache` /
+   `_coll_cache` the frozen table survives and the gate passes *because of the
+   cache*. Post-carve the memo moves — keep the drop and add an ACTIVATION leg
+   (a freshly posed operator over the mutant hub MUST move), else the gate is
+   `X == X`.
+
+⟹ the transferable rule: **a route gate needs the ACTIVATION leg, the whole
+consumed surface, and a driver that does not re-derive the thing under test.**
+
+### L64b ⛔⛔ A design memo's "measured-cheap, time it at execution" is an UNMEASURED cost claim — and this one was 17–25 % of a solve
+
+The memo priced the operator-held table as "numpy assembly, measured-cheap; if
+contested, time it at execution". Timed:
+
+* `[M]` `StreamingOperator` is constructed **6** times per slab eigenvalue solve
+  and **10** on the sphere — **independent of `nx`, `ng` and inner solver**; and
+  `default_for` fires once per operator (`cached_property`), so a per-operator
+  memo is one table build per operator.
+* `[M]` today the count is **exactly 1** per solve on every config (the eager
+  `SNSolver.__init__` build + the mesh-attr memo).
+* `[M]` build cost / solve wall: cartesian `GL16` nx=200 **8.78 ms / 284.8 ms**
+  ⟹ 6 builds = **16.8 %** (8 = 24.65 %); sphere `GL16` nx=200 8.81 / 1471.9;
+  cylinder `fp(8,16)` nx=200 39.10 / 10 246.
+
+⟹ **the gate is a COUNT, never a wall clock** (L24/L25): pin
+`StreamingCoefficientCache.from_mesh_and_quad` calls per solve, and write the
+ruled number into the message. A memo-lifetime regression is then one red away
+instead of a silent 17 %.
+
+### L64c ⛔ A "the reads re-plumb" done-when is DESIGNED-RED when the ruling puts a third of them out of scope — partition by ATTRIBUTE, not by count
+
+The design memo says step 2 re-plumbs "the 43 (ii) + 17 (iii) + 5 (i) reads";
+the ruling says the hub KEEPS the scheme *because* it induces the space and
+supplies cross-consumers (DSA). `[M]` by attribute over `orpheus/`:
+`scheme.spatial_basis_per_axis` **15** and `scheme.is_multi_moment` **6** are
+SPACE/layout facts — 21 of the reads — and re-plumbing them through the operator
+inverts the ruling. Meanwhile the per-cell kernel surface
+(`residual_kernel_batch` 2, `source_emission` 2, `cell_average` 2,
+`cell_kernel_batch` 1, `residual_kernel_batch_transpose` 1) is **9 reads**.
+
+⟹ ship the partition as an **executable read-set gate**: wrap the hub's two
+objects in a recording descriptor after the pose, run one sweep + one matvec,
+and assert the recorded attribute set ⊆ a declared allowlist. That converts
+`plan-authoring` §10's third shape (a tell whose denominator the design is
+forbidden to touch) into a checkable predicate — and it is the ONLY possible
+witness for the two reads that are base **staticmethods** (below).
+
+### L64d ⭐ Resolve a class-level mutation through the MRO — and two of the surfaces are base STATICMETHODS, which makes their re-plumb value-inert BY CONSTRUCTION
+
+`[M]` of the nine surfaces the walk consumes, **four do not live on the concrete
+class**: `source_emission` and `cell_average` are `staticmethod`s on
+`DiscretizationSchemeBase`; `advance_psi_half` is a function and
+`c_out_per_ordinate` a `property` on `PoleAngularClosureBase`. A battery
+patching only `DiamondDifference` / `MorelMontryAngularSweep` binds **5 of 9**
+and reports a confident partial zero (my plugin's own installation assertion is
+what caught it — `vv` #17).
+
+⭐ And the design consequence, which is not about the battery: because those two
+are base staticmethods, `mesh.scheme.source_emission` and
+`op.spatial_closure.source_emission` resolve to the **same function object**.
+Re-plumbing them **cannot change any value at any tolerance on any fixture** —
+Mode 12 at the dispatch — so their only possible witness is the structural
+read-set gate. A value gate credited with covering them is a false coverage
+claim.
+
+### L64e ⭐ The M1 superset denominator, and its geometry PARTITION (the frozen corpus, 27 tests)
+
+`[M]` in-process, MRO-resolved, self-asserting plugin over
+`tests/sn/regression` + `test_affine_carve_baseline.py`:
+
+| arm | mutated ×1.05 | bound | wall | reds |
+|---|---|---:|---:|---:|
+| baseline | — | 0 | 48 s | 0 |
+| `m1_scheme` | `residual_kernel_batch`, `source_emission`, `cell_average` | 3 | 122 s | **20** |
+| `m1_closure` | `advance_psi_half`, `cell_contribution` | 2 | 60 s | **16** |
+
+Partition: **10 both · 10 scheme-only · 6 closure-only · 1 never-red** (union
+26 of 27). Scheme-only = every SLAB + 2-D row; closure-only = every curvilinear
+MATVEC row. This is an independent corroboration of the activation census's
+finding that **the two halves of the step have DISJOINT activating configs**
+(`[M]` per-cell scheme dispatch: slab **80**, curvilinear **0**; closure
+dispatch: slab **0**, curvilinear **3 192 – 14 496**).
+
+⚠ The single survivor (`2d_1g_LS4_dd_15x15`) is my ARM's composition — it is
+2-D wavefront and its surface is `cell_kernel_batch`, which the arm omits — not
+a blind gate. Record the gap; do not bank 26/27 as a coverage number.
+⛔ And compare **per arm**, never the union: a union comparison hides a
+scheme-side regression behind closure-side reds.
+
+### L64f ⭐ Ask the P4.9a activation question again — the answer can INVERT between phases of one campaign
+
+P4.9a's §F1 found every frozen artifact blind (a congruence-class gate). The
+reflex is to carry that forward. `[M]` for P4.9b it is the opposite:
+`StreamingOperator.__init__` fires in **26 of 27** frozen artifacts, so the
+corpus pins step 1 universally and **nothing new needs to be built** — while the
+scan-cache re-pose is activated by only **15 of 27** (the matvec/walk baselines
+and the 2-D rows build zero). Two different denominators inside one phase.
+
+⟹ re-run the census per PHASE and per CLAIM; a previous phase's blindness
+verdict is about a different line.
+
+### L64g ⛔ A design memo's hazard prose is a claim — the "silent, plausible-wrong k" was LOUD on every geometry that matters
+
+The ruling's no-guard position rests on an enumeration of what the expert seam
+does not check. `[M]` attack 3 (`IdentityAngularClosure` on a curvilinear mesh)
+CONSTRUCTS and then **raises at the first sweep**: `TypeError: … requires the
+Morel-Montry closure` on the sphere, `IndexError: tuple index out of range` on
+the cylinder (`fp(4,6)` and `fp(4,8)`), and is bit-identically inert on the slab
+(`0.0000e+00` — `IdentityAngularClosure` IS the Cartesian default). The same
+`isinstance(closure, MorelMontryAngularSweep)` residual that refuses a recording
+PROXY refuses the wrong family.
+
+⟹ the ruling survives; **the sentence must not be transcribed into the ctor
+docstring** — a hazard note saying "silent" about something that raises teaches
+the next reader the opposite and reads as licence to add the forbidden guard.
+And the characterization test that freezes such a ruling asserts
+**constructibility only** (one positive leg, no negative), with the reason in
+its docstring so the missing negative is not read as an oversight (`vv` #11).
+
+### L64h ⛔ A retirement's memo/slot inventory is a claim to COUNT — three memos, and the contract's only witness dies with the slots
+
+`[M]` the design named `_geom_cache`; the tree carries **three** mesh-attr
+memos of the same idiom (`_geom_cache`, `_coll_cache`, `_pole_mirror_cache`),
+and `_coll_cache` is re-stamped by `SNSolver.rebind_cross_sections` — which is
+the ONLY reason a depletion/thermal rebind does not serve a stale σ
+(`_ensure_coll_cache` reads the memo and never validates σ).
+
+⛔ `tests/sn/sweep/core/test_cache.py:295-340` is the **only** witness of the
+two-stratum rebind contract and it asserts on `solver.geom_cache` /
+`solver.coll_cache` — the slots being retired, so it DIES (L61h's flavour).
+Its re-pose owes a THIRD leg that does not exist today ("the post-rebind answer
+reflects the new σ"), i.e. **net-new teeth created by the retirement itself**.
+Same shape, same phase: `[M]` `grep "StreamingCoefficientCache requires" tests/`
+→ **0**, so converting that bare `assert` (inert under `-O`) to a `raise` is
+new coverage, not a migration.
+
+### L64i ⚠ Other measurements worth keeping
+
+* `[M]` `StreamingOperator.__hash__` is **`None`** (plain `@dataclass`), so
+  nothing in the tree can key a dict/set/`lru_cache` on it, and `__eq__` today
+  is *mesh identity* (`SNMesh.__eq__` is `object.__eq__`). An AST sweep of every
+  `Compare` in the 61 touching files finds **no operator `==` anywhere**, and
+  `repr(op)` appears only inside failure MESSAGES. ⟹ widening a dataclass's
+  field list is inert here — but that is a measurement, not a default.
+* `[M]` **a second `DiamondDifference` instance exists in every solve**, born in
+  the `@cache`d, type-keyed `_face_transmission_spectrum` probe
+  (`transport/spatial/scheme.py:566`, reached from `loss_kernel_gauge:375`), and
+  `cell_kernel_batch` dispatches on IT. Any "every consumer reaches ONE object"
+  gate must carve it out by name.
+* `[M]` step 2's §6b set is **79 sites, not ~28**: 22 `default_for` calls (1
+  production) **plus 58 direct `LossRepresentation`-subclass ctors in 11 test
+  files**, every one passing a single positional `mesh`. Derive the class-name
+  set from the `LOSS_REPRESENTATIONS` registry at census time, never by hand.
+* `[M]` the obvious `match=` fragment for a ctor-arity witness is already taken
+  AND ambiguous: `test_streaming_collision_operator.py:262` reads
+  `pytest.raises(TypeError, match="StreamingOperator")` against an `isinstance`
+  refusal, and Python's own arity error contains that same substring. Match the
+  argument NAMES.
+* `[M]` scope costs at `10314dfa` (`-O -p no:randomly -q -m "not slow"`,
+  serial): the 40 ctor-site files **663 p / 56.2 s**; `tests/sn/operators`
+  **1240 p / 74.0 s**; `tests/sn/sweep` **911 p / 282.2 s**; `tests/transport`
+  **566 p / 22.3 s**; `tests/sn/{solve,regression,architecture}`
+  **327 p / 311.9 s**. `dead_references` baseline **0 dead / 52 checked**.

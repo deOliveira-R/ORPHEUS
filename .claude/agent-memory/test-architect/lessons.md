@@ -268,6 +268,39 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   RED (the unmarked row fails on its own subject) — only the `strict` half is
   silent. → `L61g`
 
+- **⭐⭐ When the phase's claim is "consumer X now reads from OWNER A instead of
+  OWNER B", no value/identity gate states it — build a ROUTE gate: pose, SWAP
+  the OLD owner's object for a mutant, require the answer UNMOVED.** `[M]`
+  P4.9b pre-carve it MOVES on every geometry (slab scheme-swap rel **5.000e-02**;
+  cyl fp(4,6)/fp(4,8) and sphere closure-swap **4.60e-02 / 5.31e-02 /
+  1.196e-01**), so the §6c red-first reading is measured, not argued. ⚠ THREE
+  traps, each making it silently green for the wrong reason: (a) mutating ONE of
+  the consumed surfaces certifies one route — `[M]` `cell_contribution` alone
+  reads `array_equal=True` on all 3 curvilinear rows because `.solve` consumes
+  `advance_psi_half` + the minted constants; (b) a DRIVER that re-poses
+  internally (`sweep_once` builds the operator at `:814`, i.e. AFTER the swap)
+  measures nothing; (c) a surviving cache MASKS the swap, so the gate needs an
+  ACTIVATION leg (a freshly posed operator over the mutant hub MUST move).
+  → `L64a`
+- **⛔ Two of the surfaces a walk "reads off the mesh" can be base
+  STATICMETHODS — re-plumbing them is value-inert BY CONSTRUCTION and only a
+  structural read-set gate can witness them.** `[M]` `source_emission` /
+  `cell_average` live on `DiscretizationSchemeBase`, so `mesh.scheme.X` and
+  `op.spatial_closure.X` resolve to the SAME function object. Mode 12 at the
+  dispatch. Resolve every mutation through the MRO too — `[M]` 4 of 9 surfaces
+  are off the concrete class (2 staticmethods, 1 base function, 1 base
+  property), so a concrete-class battery binds **5 of 9** and reports a
+  confident partial zero. → `L64d`
+- **⛔ A design memo's HAZARD PROSE is a claim — run it.** `[M]` the ruled
+  "silent, plausible-wrong k" of a wrong-family closure is LOUD on every
+  geometry that matters (sphere `TypeError` naming the requirement; cylinder
+  `IndexError`; slab bit-identically inert at `0.0000e+00`, being the default).
+  The no-guard RULING survives; its justification sentence must not reach the
+  ctor docstring, or it reads as licence to add the forbidden guard. A
+  characterization test freezing such a ruling asserts CONSTRUCTIBILITY only —
+  one positive leg, no negative — and says why in its docstring (`vv` #11).
+  → `L64g`
+
 ## 2. Harness discipline — the instrument lies before the code does
 
 **RULE: an all-blind mutation verdict is a broken harness until a positive
@@ -507,6 +540,22 @@ codes). → `L34d`, `L35l`
   binds 4 of 4 classes) and prints a `sessionfinish` census so the DECODER is
   visible. → `L61b`
 
+- **⛔⛔ "Measured-cheap; time it at execution" is an UNMEASURED cost claim —
+  price it at PLAN time, and gate it as a COUNT.** `[M]` P4.9b's ruled
+  operator-held table: `StreamingOperator` is built **6** times per slab
+  eigenvalue solve (**10** sphere), independent of `nx`/`ng`/inner solver, while
+  the table is built **exactly 1** time today ⟹ a per-operator memo costs
+  `6 × 8.78 ms` on a `284.8 ms` solve = **16.8 %** (24.65 % at 8). Pin the
+  builder's call count per solve with the ruled number in the message; a wall
+  clock is a flaky proxy for the same question (L24/L25). → `L64b`
+- **⭐ Compare an M1 superset PER ARM, never as a union — and read the
+  never-red row as an arm-composition gap before calling it blind.** `[M]`
+  P4.9b's frozen corpus (27 tests): `m1_scheme` **20** reds, `m1_closure`
+  **16**, overlap 10 / 10 scheme-only / 6 closure-only, union 26. The two arms
+  PARTITION the corpus by geometry, so a union comparison would hide a
+  scheme-side regression behind closure-side reds. The single survivor was 2-D
+  wavefront, whose surface (`cell_kernel_batch`) the arm omitted. → `L64e`
+
 ## 3. Config blindness — the ORPHEUS fixture facts
 
 Generic rule: `AGENT.md` §0.6, `vv` §H2 / anti-#3 / anti-#4. Below is the
@@ -727,6 +776,34 @@ against a concrete row before trusting a green.
   and the run reports "gated". ⟹ for every arm, name the member AND the input;
   an arm with no witness on any member is deleted or declared unfalsifiable in its own
   docstring. → `L60e`
+
+- **⭐ Re-run the P4.9a activation question PER PHASE and PER CLAIM — the answer
+  can INVERT inside one campaign.** P4.9a found every frozen artifact blind (a
+  congruence-class gate) and the reflex is to carry that forward. `[M]` P4.9b is
+  the opposite: `StreamingOperator.__init__` fires in **26 of 27** frozen
+  artifacts (so the corpus pins step 1 universally and nothing new must be
+  BUILT), while the scan-cache re-pose is activated by only **15 of 27**. Two
+  denominators inside one phase; and the two halves of the same step have
+  DISJOINT activating configs (`[M]` per-cell scheme dispatch: slab **80**,
+  curvilinear **0**; closure dispatch: slab **0**, curvilinear
+  **3 192–14 496**), so neither geometry family alone is an acceptance set.
+  → `L64f`
+- **⛔ A "the reads re-plumb" done-when is DESIGNED-RED when the ruling puts a
+  third of them out of scope — partition by ATTRIBUTE and ship the partition as
+  an executable read-set gate.** `[M]` P4.9b: `spatial_basis_per_axis` (15) +
+  `is_multi_moment` (6) are SPACE facts the hub owns by the same ruling that
+  motivates the phase, while the per-cell kernel surface is 9 reads. Wrap the
+  hub's objects in a recording descriptor after the pose, run one sweep + one
+  matvec, assert the recorded attribute set ⊆ a declared allowlist. → `L64c`
+- **⛔ A retirement's MEMO/SLOT inventory is a claim to count, and the contract's
+  only witness usually dies with the slots.** `[M]` P4.9b: the design named ONE
+  mesh-attr memo; the tree carries **three** (`_geom_cache`, `_coll_cache`,
+  `_pole_mirror_cache`), and `_coll_cache` is re-stamped by
+  `rebind_cross_sections` — the only reason a σ rebind is not stale
+  (`_ensure_coll_cache` never validates σ). The rebind contract's sole witness
+  asserts on the retiring solver slots, so its re-pose owes a THIRD leg that
+  does not exist today: **net-new teeth created by the retirement itself**.
+  → `L64h`
 
 ## 4. Reference, claim layer, and the proactive refutation
 

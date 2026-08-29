@@ -7,6 +7,49 @@ metadata:
 
 # Active / in-flight verification campaigns — full detail
 
+## P4.9b — the operator is posed with its two closures (⏹ PLAN DELIVERED 2026-08-28, PRE-carve)
+
+**Deliverable**: `scratch/p4_9b_verification_plan.md` (~1100 lines; 12 findings,
+4 §6c witnesses with the keystone measured red-today, an 11-arm battery whose M1
+denominator is already TAKEN, 7 blocking rulings). At `10314dfa` on `main`,
+post-P4.9a. Design record `scratch/p4_9b_design.md` §§7–8 (all ruled); migration
+surface `scratch/p4_9b_row45_recount.md`.
+
+**Headlines** (full detail → `lessons_archive.md` L64):
+
+- ⭐⭐ **The keystone is a ROUTE gate and it is RED TODAY**: pose the operator,
+  swap the hub's `scheme`/`pole_angular_closure` for a mutant subclass, drive
+  `(L+C).solve` through the ALREADY-POSED operator. `[M]` rel **5.000e-02**
+  (slab/scheme), **4.596e-02 / 5.313e-02 / 1.196e-01** (cyl fp(4,6), fp(4,8),
+  sphere / closure). Three measured traps: `cell_contribution` alone is an
+  INSUFFICIENT mutation (`array_equal=True` on all 3 curvilinear rows);
+  `sweep_once` re-poses internally at `:814` so it is the wrong driver; a
+  surviving cache masks the swap.
+- ⛔⛔ **The design's "measured-cheap" table cost is REFUTED**: `[M]` 6 operators
+  per slab solve × 8.78 ms on a 284.8 ms solve = **16.8 %** (24.65 % at 8),
+  against **exactly 1** build today. The gate is a COUNT, not a wall clock.
+- ⛔ **Step 2's §6b set is 79 sites, not ~28** — 22 `default_for` + **58 direct
+  representation ctors in 11 test files**, all single-positional-arg.
+- ⛔ **THREE mesh-attr memos, not one**, and `test_cache.py:295-340` (the ONLY
+  witness of the two-stratum rebind contract) asserts on the retiring solver
+  slots ⟹ it DIES and its re-pose owes a net-new staleness leg.
+- ⛔ **21 of the 67 reads are SPACE facts the ruling puts hub-side** — ship the
+  partition as an executable read-set gate, not as a count.
+- ⭐ **Activation INVERTS vs P4.9a**: `[M]` 26 of 27 frozen artifacts construct
+  an operator (nothing new must be built), but only 15 of 27 build the scan
+  cache; and the step's two halves have DISJOINT activating geometries.
+- ⛔ **The ruling's own hazard prose is refuted**: the wrong-family closure
+  RAISES (sphere `TypeError`, cylinder `IndexError`), it is not silent. Ruling
+  survives; the sentence must not reach the ctor docstring.
+- **M1 denominator TAKEN** (frozen corpus, 27 tests): `m1_scheme` **20** reds /
+  `m1_closure` **16**; 10 both · 10 scheme-only · 6 closure-only · 1 never-red
+  (an arm-composition gap, not blindness). Compare PER ARM, never the union.
+
+**Blocking rulings** Q1 memo lifetime (the 17 % cost) · Q2 the 58 ctors ·
+Q3 does `sweep_once` take an `operator=` · Q4 is strategy selection
+operator- or hub-side · Q5 the `spatial_closure`/`angular_closure` naming
+asymmetry · Q6 `_pole_mirror_cache` · Q7 the permanent AST gate.
+
 ## CS4b — fields are space elements (⏹ PLAN DELIVERED 2026-08-21, PRE-carve)
 
 **Deliverable**: `scratch/cs4b_verification_plan.md` (987 lines, 16 sections; 30+
