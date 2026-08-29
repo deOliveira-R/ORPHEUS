@@ -7999,3 +7999,101 @@ as a caution) · Code traceability **5** · Derivation source **3** — again th
 dimension: the perf/count evidence is a **published recipe** in the page rather than a
 `derivations/` module a gate could consume. Same finding as L-071; two sessions running,
 which makes it a pattern rather than an instance.
+
+---
+
+## L-073 — a capability flip's staled DEFERRAL CONTRACTS: the census must be run at the CLASS, and the tree's own corrections are the model text
+
+**Task** (2026-08-29, branch `docs/p0-record-and-carrying-prose`): a meaning-triaged prose sweep
+after the Q5.6.3 cylindrical-admission flip (`1689faf4`, 2026-08-08) turned every ADMITTED cylinder
+CARRYING. Prose only, zero behavior change, no commits.
+
+### The measurements that mattered
+
+- **I reproduced the brief's ground truth rather than adopting it.** Built one `SNMesh` per
+  (chart × rule) and read the carrying state directly:
+  `SLAB/GL4 → levels=(), space=None`; `SPHERE/GL4 → levels=(0,), _carrying=[0]`;
+  `CYL/folded_product(2,4) → levels=(0,1), _carrying=[0,1]`; `CYL/product` and `CYL/level_symmetric`
+  **REFUSED** by `assert_carrying_quadrature`; `CYL/lebedev`, `CYL/gauss_legendre` refused one guard
+  earlier by `cylindrical_streaming`'s structure-less check. 8 rows, ~20 s.
+- **⭐⭐ The brief's ground truth was RIGHT and INCOMPLETE, and the tree already said so.**
+  `closure.py:1805-1829` carries a `[M]` 2026-08-26 census: `assert_carrying_quadrature` has
+  **ONE call site**, inside `case CoordSystem.CYLINDRICAL`; **the SPHERICAL arm calls no admission
+  gate**, so a μ = −1-noded (Gauss–Lobatto) sphere rule builds a production `SNMesh` and reaches the
+  non-carrying branch **at 6 of 11 orders, over 75 reachable non-carrying levels**. So
+  *"the slab is the only admitted non-carrying 1-D geometry"* is true **of the shipped `Quadrature`
+  constructors** (there is no `Quadrature.gauss_lobatto` — `[M]` `dir(Quadrature)`) and false as a
+  structural universal. Writing the unqualified universal would have licensed retiring a live branch.
+- **Cheap confirmation the code-side fix is safe:** the three stale `raise`-message parentheticals
+  (`"a seedless mesh (Cartesian, or a non-carrying cylinder, R12a)"`) are **NOT pinned** — `[M]`
+  tests match only the OPENING clause (`"carries no starting-direction ray"` ×2,
+  `"carries no radial-characteristic ray"` ×1); `grep "Cartesian, or a non-carrying" tests/` = **0**.
+
+### The rules this earned
+
+1. **⭐⭐ For a capability FLIP, the population is the CLASS the flip moved, and a co-occurrence
+   window is the only filter that finds it.** A line-based grep for the retired pairing misses every
+   instance the formatter wrapped (vv #21). I censused `non[-_ ]?carrying` (validated against
+   `non-carrying` / `non_carrying` / `noncarrying` / `NON-carrying`) over `tests orpheus docs`
+   minus `_build`: **151 hits / 42 files**; then a **±3-line window** co-occurrence with
+   `cylind|\bcyl\b|_cyl|cyl_|CYL` split it **79 paired / 72 unpaired**. The paired half is the
+   candidate set; the unpaired half is almost all correct general contract (`"``None`` on
+   non-carrying meshes"`) and must NOT be touched.
+2. **⭐⭐ The acceptance predicate is a QUALIFIER window, not a co-occurrence count — and the count
+   goes UP when you succeed.** Post-edit the paired count rose **79 → 80**, because a correction
+   names what it corrects. The gate that actually decides is *paired AND lacking a
+   Q5.6.3/admission/refus/Until/unconstructible/⛔/HISTORY token within ±5 lines*: pre-edit that set
+   was large, post-edit it is **3**, and all three are CODE (the `non_carrying_levels` def, its call
+   site, and the `raise` f-string) — i.e. exactly the out-of-scope class. Publish that predicate,
+   never the raw count.
+3. **⭐⭐ In a flip sweep the tree is FULL of already-correct model text — adopt its spelling
+   verbatim instead of inventing one.** Six sites already carried the right sentence
+   (`augmented_mesh.py:874-880`, `loss_representation:4289`, `loss_representation:4740-4747`,
+   `test_radial_characteristic_carrier.py:180`, `curvilinear_numerics.rst` ×4,
+   `loss_representation.rst:2872`), and the main agent's already-fixed `test_assembly_mode.py`
+   supplied the house phrases (*"since Q5.6.3 the slab is the only admitted non-carrying 1-D
+   geometry"*, *"the constructible witness for this arm is a Gauss-Lobatto SPHERE rule — #415"*).
+   Reusing them makes the sweep internally consistent for free and stops me minting a competing
+   vocabulary.
+4. **⭐⭐ A STALE HEADER over a CORRECTED BODY is the flip's signature defect — and the body is the
+   evidence, so cite it rather than re-deriving.** Repeatedly a docstring headline asserted the dead
+   claim while its own body, 20-30 lines down, already stated the flip: `test_psi_half_coupling.py`
+   `:2928`/`:2983` said *"slab AND cylinder → 1×1"* over a body at `:3000-3012` that **builds a
+   folded cylinder and asserts 2×2**; `loss_representation:4717/4721` said *"cylinder
+   non-carrying"* 20 lines above `:4740` *"every level carrying (Q5.6.3 admission)"*; `:4331`
+   described the #280 2.5b fold in the present tense 29 lines below its own `HISTORY` note saying the
+   fold was retired. ⟹ **read ±30 lines around every candidate before drafting**: half the fixes
+   write themselves from the neighbouring truth.
+5. **⭐ A flip does not only stale "X is live" — it stales "X is UNTESTABLE" and "X is
+   unreachable", and those read as settled facts nobody re-checks.** Two of the sharpest fixes were
+   mirrors, not instances: `test_psi_half_coupling.py:2500` recorded *"a multi-carrying-level
+   indexing bug is UNTESTABLE with current geometry (cylinder is non-carrying) — an inherited blind
+   spot, noted not faked"* — `[M]` the admitted folded cylinder carries on EVERY level, so the
+   fixture is now constructible and the blind spot is a **fixture gap, not a geometry limit**; and
+   `curvilinear_one_group.rst:6723` said the edge-extrapolation inline *"is unreachable through the
+   mesh"*, refuted by the sphere-Lobatto census. A sweep scoped only to "live X" claims misses both.
+6. **⭐⭐ Prove "prose only" with an AST DIFF, not with a reading.** Two checks, ~10 lines each,
+   both run before the build: (a) tokenize both revisions and compare the token stream with STRING
+   *values* dropped — catches any code edit; (b) `ast.dump` after replacing every module/class/function
+   docstring with `"<DOCSTRING>"` — proves **no `raise` message, no `match=`, no other literal**
+   moved. Both returned identical for all 13 `.py` files. That is the only evidence that separates
+   "I meant to touch only prose" from "I touched only prose", and it makes the `raise`-string
+   exclusion auditable instead of promised.
+7. **A pristine `-E` baseline built from `git archive HEAD` carries UNTRACKED-DATA artifacts —
+   read the traceback before counting them.** The baseline read `2 warnings`; both were
+   `Exception occurred in plotting infinite_medium-{1,2}`, `[M]` from `load_isotope("H_001")`
+   failing because the nuclear-data files are untracked and so absent from the archive. The live
+   tree builds **EXIT=0, 0 warnings**. Quoting `2` as the baseline would have made a clean build look
+   like an improvement I did not make. (And `rm -rf` inside a compound Bash command is refused here —
+   use a fresh `mkdir -p <newdir>` instead of clearing an old one.)
+
+**Gates run:** `-E` baseline (HEAD archive) vs `-E` post-edit, both `EXIT=0`, WARNING/ERROR/CRITICAL/
+SyntaxWarning set **2 (artifact) → 0** · `tools/check_docstring_xrefs.py orpheus tests docs` →
+**DEAD TARGETS 0** across 16 101 roles · nexus `dead_references` → **0 dead / 52 checked** (the
+two-instrument agreement, L-067) · `py_compile -W error::SyntaxWarning` on 13 files · production
+imports · 230 tests collected · 35 passed / 4 xfailed on two touched modules.
+
+**Scores:** derivation depth n/a · cross-refs 5 (5 roles added, every one owner-verified by AST) ·
+numerical evidence 5 (8-row carrying matrix measured myself; 151/79/3 census numbers; commit hashes
+verified as ancestors) · failed approaches 5 (three ⛔ tombstones written in place, never deletions) ·
+code traceability 5 · derivation source n/a.

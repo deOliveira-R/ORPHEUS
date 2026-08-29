@@ -43,6 +43,17 @@ I stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
+- **§5b P0 — the carrying-prose sweep after the Q5.6.3 flip** — 2026-08-29, branch
+  `docs/p0-record-and-carrying-prose`, **UNCOMMITTED** (mine; main agent commits). Prose only —
+  proven by AST diff, 13 `.py` files token- and dump-identical modulo docstrings/comments. `[M]`
+  census **151 hits / 42 files**, 146 in scope, **32 hit-lines rewritten across 29 prose sites**;
+  residual paired-and-unqualified = **3**, all CODE. ⭐⭐ The brief's ground truth was right and
+  INCOMPLETE: `assert_carrying_quadrature` has ONE call site (cylinder arm), the SPHERE arm has
+  none, so a Gauss-Lobatto sphere rule is a LIVE non-carrying case — do not publish "the slab is
+  the only non-carrying mesh" as a structural universal (#338/#415). ⚠ **REPORTED, code-only:**
+  3 stale `raise` parentheticals (`radial_characteristic.py:795,:1387`, `boundary.py:957`),
+  measured **unpinned** by any `match=`. → [[lessons-L73]]
+
 - **P4.9b — the operator poses with its two closures** — 2026-08-29, branch
   `refactor/p4-9b-streaming-operator-poses`, COMMITTED `9c3eb60a` (mine), **NOT in main**
   (`[M]` `git merge-base --is-ancestor`); 10 doc files, +823/−52. New section

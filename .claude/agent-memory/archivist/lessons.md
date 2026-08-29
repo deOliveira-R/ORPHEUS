@@ -1476,6 +1476,50 @@ never paraphrase a level definition. → L-010
 - **An error-message string inside `raise` is EXECUTABLE — report it, don't edit it, under a doc-only
   constraint** (tests `pytest.raises` match on those strings). Same for a brief item that is a LATER
   phase's acceptance-gate text: leave it, name the owning phase. → L-041
+  ⭐ **…and CHECK WHICH SUBSTRING is pinned before reporting it as immovable.** `[M]` three stale
+  `raise` parentheticals (*"a seedless mesh (Cartesian, or a non-carrying cylinder, R12a)"*) —
+  tests match only the OPENING clause (`"carries no starting-direction ray"`), and
+  `grep "Cartesian, or a non-carrying" tests/` = **0**. The report then says *"unpinned, safe to
+  correct"* instead of *"pinned, leave it"*, which is a different instruction to the code owner.
+  → L-073
+
+- **⭐⭐ A CAPABILITY FLIP stales DEFERRAL CONTRACTS, and the population is the CLASS the flip moved
+  — census with a ±3-line CO-OCCURRENCE window, never a line grep.** `[M]` `non[-_ ]?carrying` over
+  `tests orpheus docs` minus `_build` = **151 hits / 42 files**; windowed against
+  `cylind|\bcyl\b|_cyl|cyl_|CYL` → **79 paired / 72 unpaired**. The unpaired half is general
+  contract (*"``None`` on non-carrying meshes"*) and must NOT be touched. → L-073
+- **⭐⭐ The acceptance predicate is a QUALIFIER window — the co-occurrence count RISES when you
+  succeed** (79 → 80: a correction names what it corrects). Gate on *paired AND lacking a
+  Q5.6.3/admission/refus/Until/unconstructible/⛔/HISTORY token within ±5 lines*: mine ended at
+  **3**, all three CODE (a def, a call site, a `raise` f-string). Publish the predicate, not the
+  count. → L-073, L-070
+- **⭐⭐ The flip's signature defect is a STALE HEADER over an ALREADY-CORRECTED BODY — read ±30
+  lines and cite the body instead of re-deriving.** A docstring said *"slab AND cylinder → 1×1"*
+  over a body that BUILDS a folded cylinder and asserts 2×2; a comment described a retired fold 29
+  lines below its own `HISTORY` note retiring it. Half the fixes write themselves from the
+  neighbouring truth, and the tree's already-correct sites are the model text — adopt their
+  spelling verbatim rather than minting a rival vocabulary. → L-073
+- **⭐ A flip also stales "X is UNTESTABLE" and "X is unreachable" — the MIRRORS read as settled
+  facts nobody re-checks.** `[M]` *"a multi-carrying-level indexing bug is UNTESTABLE with current
+  geometry"* became a fixture gap (the admitted cylinder carries on every level); *"this inline is
+  unreachable through the mesh"* was refuted by the tree's own sphere census. Scope a sweep to
+  "live X" claims only and you miss both. → L-073
+- **⭐⭐ A GATE is not a denominator — count its CALL SITES, and expect the brief's universal to be
+  scoped.** `assert_carrying_quadrature` has ONE call site, inside `case CYLINDRICAL`; the SPHERICAL
+  arm calls no admission gate, so `[M]` (in-tree census, 2026-08-26) a μ = −1-noded Gauss-Lobatto
+  sphere rule reaches the non-carrying branch at 6 of 11 orders / 75 levels. *"The slab is the only
+  admitted non-carrying 1-D geometry"* is true of the SHIPPED `Quadrature` constructors (no
+  `gauss_lobatto` exists) and false as a structural universal — publishing the unqualified version
+  would have licensed retiring a live branch. → L-073
+- **⭐⭐ Prove "prose only" with an AST DIFF, not a reading** — (a) token stream with STRING values
+  dropped, (b) `ast.dump` after stubbing every docstring to `"<DOCSTRING>"`. Both identical ⟹ no
+  `raise` message, no `match=`, no code moved. ~10 lines each; it is what makes the
+  message-literal exclusion auditable instead of promised. → L-073
+- **A pristine `-E` baseline from `git archive HEAD` carries UNTRACKED-DATA artifacts — read the
+  traceback before counting them.** `[M]` its 2 warnings were `plot_directive` exceptions from
+  `load_isotope` (data files untracked ⟹ absent from the archive); the live tree builds 0. Quoting
+  2 would have credited me with a fix I did not make. ⚠ `rm -rf` inside a compound Bash command is
+  refused here — `mkdir -p <fresh dir>` instead. → L-073, L-051
 
 ---
 
