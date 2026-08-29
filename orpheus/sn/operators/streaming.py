@@ -258,6 +258,25 @@ class StreamingOperator(LinearOperator["FullField"]):
     # dataclass does not treat it as a field).
     block_role = BlockRole.FULL
 
+    @classmethod
+    def pose(cls, sn_mesh: "SNMesh") -> "StreamingOperator":
+        r"""Pose :math:`L` from the hub's own method objects (P4.9b).
+
+        The INTERMEDIATE posing surface while the operator migrates to
+        its explicit-argument constructor: reads the hub's
+        discretization scheme and bound angular closure and passes them
+        — the operator's slots are the hub's own instances, BY
+        CONSTRUCTION (one generator and one bound closure per solve;
+        the ERR-026 two-inductions shape is unspellable on this path,
+        which is why the raw constructor carries no guards).
+
+        The end state (recorded in the campaign plan, rides O-3/CS5) is
+        the cross-method ``(domain, codomain, spatial-discretization[,
+        angular-discretization])`` constructor with no mesh argument;
+        this classmethod is that migration's lever and retires with it.
+        """
+        return cls(sn_mesh)
+
     @property
     def is_adjointable(self) -> bool:
         # Two-factor honest: the KERNEL factor (scheme.has_transpose_kernel

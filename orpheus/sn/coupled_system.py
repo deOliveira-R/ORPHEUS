@@ -438,7 +438,7 @@ def build_streaming_collision(
     (B.2d d3 estate). A σ_t rebind flows through by RE-CALLING this builder
     with the mutated ``mat_xs`` (the field accessor is the live read).
     """
-    return StreamingOperator(sn_mesh) + MultiplicationOperator(
+    return StreamingOperator.pose(sn_mesh) + MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
         space=sn_mesh.full_field_space,
     )
