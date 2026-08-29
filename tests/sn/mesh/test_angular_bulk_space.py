@@ -38,6 +38,7 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.transport.mesh.axis import AxisCoord, AxisMesh, RadialAxisMesh
 from orpheus.numerics.axis import BasisKind, EnergyAxis
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -197,7 +198,7 @@ class TestG14GramEquivalenceLD:
         sn = _slab(scheme=LinearDiscontinuous())
         assert sn.angular_bulk_space.axes is not None
         widened = FunctionSpace.of_axes(
-            *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.ndim, sn.coord)
+            *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.axes)
         )
         assert sn.full_field_space.interior_space == widened
         assert sn.full_field_space.interior_space is sn.angular_trial_space
@@ -207,14 +208,14 @@ class TestG14GramEquivalenceLD:
         base = sn.angular_bulk_space
         assert base.axes is not None
         widened = FunctionSpace.of_axes(
-            *base.axes, sn.scheme.moment_axis(sn.ndim, sn.coord)
+            *base.axes, sn.scheme.moment_axis(sn.axes)
         )
         # The oracle: G_bulk = V·w_n ⊗ moment_mass, densified BY HAND from
         # raw mesh + scheme data (the retired production spelling, now the
         # test-side fuller-view reference).
         w = np.asarray(sn.quad.weights, dtype=float)
         V = np.asarray(sn.volumes, dtype=float)
-        mass = sn.scheme.moment_mass_diagonal(sn.ndim, sn.coord)
+        mass = sn.scheme.moment_mass_diagonal(sn.axes)
         g = (w.reshape(-1, 1, 1) * V.reshape(1, 1, -1))[..., None] * mass
         dense = FunctionSpace(
             name="dense_oracle_ld",
@@ -249,24 +250,34 @@ class TestG14GramEquivalenceLD:
         )
 
 
+def _cart_axes():
+    # A minimal 1-D Cartesian axis tuple (P4.6: the family consumes axes).
+    return (AxisMesh(edges=np.array([0.0, 1.0])),)
+
+
+def _radial_axes(kind: AxisCoord):
+    # A minimal 1-D radial axis tuple of the given kind (P4.6).
+    return (RadialAxisMesh(edges=np.array([0.0, 1.0]), coord=kind),)
+
+
 class TestMomentAxisAdmission:
     """The scheme-side mint's ADMISSION pair (vv #11: both legs)."""
 
     def test_ld_mints_the_modal_mass_axis(self):
         scheme = LinearDiscontinuous()
-        axis = scheme.moment_axis(1, CoordSystem.CARTESIAN)
+        axis = scheme.moment_axis(_cart_axes())
         assert axis.label == "spatial_moment"
         assert axis.shape == (2,)
         assert axis.kind is BasisKind.MODAL
         assert axis.weights is not None
         assert np.array_equal(
             axis.weights,
-            scheme.moment_mass_diagonal(1, CoordSystem.CARTESIAN),
+            scheme.moment_mass_diagonal(_cart_axes()),
         )
 
     def test_slopeless_closure_refuses(self):
         with pytest.raises(NotImplementedError, match="no moment axis"):
-            DiamondDifference().moment_axis(1, CoordSystem.CARTESIAN)
+            DiamondDifference().moment_axis(_cart_axes())
 
     # ── The CHART admission (2026-08-26).  Third arm of the same pair:
     # a multi-moment mass is defined on a Cartesian chart and is NOT
@@ -282,10 +293,10 @@ class TestMomentAxisAdmission:
     # the SUT would have proved nothing about that.
 
     @pytest.mark.parametrize(
-        "coord", [CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL]
+        "kind", [AxisCoord.RADIAL_SPHERICAL, AxisCoord.RADIAL_CYLINDRICAL]
     )
     def test_curvilinear_multi_moment_mass_is_refused_not_slab_defaulted(
-        self, coord: CoordSystem,
+        self, kind: AxisCoord,
     ) -> None:
         """LD on a curved chart REFUSES; before the guard it returned the slab's.
 
@@ -296,15 +307,32 @@ class TestMomentAxisAdmission:
         metric) for the MACHINERY and #158 for the VALUE.
         """
         with pytest.raises(NotImplementedError, match="no moment mass"):
-            LinearDiscontinuous().moment_mass_diagonal(1, coord)
+            LinearDiscontinuous().moment_mass_diagonal(_radial_axes(kind))
         with pytest.raises(NotImplementedError, match="no moment mass"):
-            LinearDiscontinuous().moment_axis(1, coord)
+            LinearDiscontinuous().moment_axis(_radial_axes(kind))
+
+    def test_mixed_axes_refuse_and_name_only_the_curved_kind(self):
+        """P4.6's granularity witness: a mixed (z, r)-style tuple refuses,
+        NAMING only the radial axis kind — the per-axis question the
+        whole-mesh enum structurally could not pose (its projection
+        refuses mixed multi-axis tuples outright, ``coord_system`` at
+        ``transport/mesh/axis.py``).  No mesh ctor builds this today;
+        the bare-axes spelling is the constructible witness (§6c).
+        """
+        axes = (
+            _cart_axes()[0],
+            _radial_axes(AxisCoord.RADIAL_CYLINDRICAL)[0],
+        )
+        with pytest.raises(
+            NotImplementedError, match="mass on a radial_cylindrical axis",
+        ):
+            LinearDiscontinuous().moment_mass_diagonal(axes)
 
     @pytest.mark.parametrize(
-        "coord", [CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL]
+        "kind", [AxisCoord.RADIAL_SPHERICAL, AxisCoord.RADIAL_CYLINDRICAL]
     )
     def test_slopeless_mass_is_admitted_on_a_curved_chart(
-        self, coord: CoordSystem,
+        self, kind: AxisCoord,
     ) -> None:
         """The width control: the guard must not be too WIDE.
 
@@ -314,7 +342,7 @@ class TestMomentAxisAdmission:
         rejects every curvilinear chart.
         """
         assert np.array_equal(
-            DiamondDifference().moment_mass_diagonal(1, coord),
+            DiamondDifference().moment_mass_diagonal(_radial_axes(kind)),
             np.ones(1),
         )
 
@@ -344,7 +372,7 @@ class TestAngularTrialSpace:
         # The base's axes verbatim, then the scheme's own moment axis.
         assert trial.axes[: len(base.axes)] == base.axes
         (tail,) = trial.axes[len(base.axes) :]
-        assert tail == sn.scheme.moment_axis(sn.ndim, sn.coord)
+        assert tail == sn.scheme.moment_axis(sn.axes)
         assert trial.shape == (*base.shape, 2)
 
     def test_ld_trial_space_is_cached_and_single_sourced(self):
@@ -393,6 +421,6 @@ class TestG15ConePredicates:
         sn = _slab(scheme=LinearDiscontinuous())
         assert sn.angular_bulk_space.axes is not None
         widened = FunctionSpace.of_axes(
-            *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.ndim, sn.coord)
+            *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.axes)
         )
         assert widened.has_coordinate_cone is False

@@ -91,13 +91,13 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 
-from orpheus.geometry.coord import CoordSystem
 from orpheus.numerics.moment_layout import cell_moment_count
 from orpheus.numerics.registry import RegistryMixin
 
 if TYPE_CHECKING:  # pragma: no cover
     from ._ubld import D1ClosedForm
     from orpheus.numerics.axis import Axis
+    from orpheus.transport.mesh.axis import Axis1D
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1571,11 +1571,28 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
             "(is_multi_moment is False)."
         )
 
-    def _assert_moment_mass_is_expressible(self, coord: CoordSystem) -> None:
+    def _assert_moment_mass_is_expressible(
+        self, axes: "tuple[Axis1D, ...]",
+    ) -> None:
         r"""Refuse a moment mass this codebase cannot yet SPELL.
 
-        .. admonition:: ``coord`` is TRANSITIONAL — do not inherit it as a
-           decision
+        .. admonition:: ✅ the transitional tag is GONE (P4.6, 2026-08-29) —
+           the family consumes the AXES
+           :class: note
+
+           This family took a whole-mesh ``coord: CoordSystem`` tag until
+           P4.6; the warning below is the design record that priced that
+           trade and is kept as history.  The signatures now take the
+           per-axis :class:`~orpheus.transport.mesh.axis.Axis1D` objects and
+           ask each one ``has_constant_volume_element`` — a polymorphic read
+           of the measure's behaviour at the granularity the Kronecker'd
+           mass is actually built at (a mixed (r, z) mesh is admissible by
+           construction, which the whole-mesh enum structurally cannot
+           name).  The full M+R mint (``scheme.mint(chart)`` — both products
+           of one bilinear form) remains the P4-mint, gated on CS5.
+
+        .. admonition:: ``coord`` was TRANSITIONAL — do not inherit it as a
+           decision (HISTORY — resolved above)
            :class: warning
 
            This method (and the two producers that call it) take the chart as
@@ -1639,10 +1656,12 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         Single-moment schemes are unaffected on every chart: the cell
         average's mass is :math:`V/V = 1` whatever the measure.
         """
-        if self.is_multi_moment and coord is not CoordSystem.CARTESIAN:
+        curved = [ax for ax in axes if not ax.has_constant_volume_element]
+        if self.is_multi_moment and curved:
+            kinds = ", ".join(sorted({ax.coord.value for ax in curved}))
             raise NotImplementedError(
                 f"{type(self).__name__} has no moment mass on a "
-                f"{coord.value} chart: the true M/V there is cell-dependent "
+                f"{kinds} axis: the true M/V there is cell-dependent "
                 "AND non-diagonal (a spherical pole cell wants "
                 "[[1, 0.5], [0.5, 0.4]]), which a per-axis Axis weight "
                 "vector cannot express.  Returning the Cartesian diagonal "
@@ -1651,8 +1670,13 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
                 "solve that gives the value a consumer)."
             )
 
-    def moment_mass_diagonal(self, ndim: int, coord: CoordSystem) -> np.ndarray:
+    def moment_mass_diagonal(self, axes: "tuple[Axis1D, ...]") -> np.ndarray:
         r"""Unit-volume Legendre mass diagonal over the ``2^d`` cell moments.
+
+        ``d = len(axes)`` — the axes carry both the dimension and, per
+        axis, the volume-element behaviour the admission guard asks
+        (``has_constant_volume_element``); a separate ``ndim`` argument
+        would be the lossy-tuple smell.
 
         The per-moment mass weight ``M_ii/V = ∏_a θ^{o_a}`` of the scheme's
         tensor-Legendre cell basis — ``(1,)`` for the slopeless closures
@@ -1666,10 +1690,12 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         mass IS the scheme's (the same diagonal
         :meth:`residual_kernel_batch` normalises by, ÷V).
         """
-        self._assert_moment_mass_is_expressible(coord)
-        return np.ones(cell_moment_count(self.spatial_basis_per_axis, ndim))
+        self._assert_moment_mass_is_expressible(axes)
+        return np.ones(
+            cell_moment_count(self.spatial_basis_per_axis, len(axes))
+        )
 
-    def moment_axis(self, ndim: int, coord: CoordSystem) -> "Axis":
+    def moment_axis(self, axes: "tuple[Axis1D, ...]") -> "Axis":
         r"""The within-cell spatial-moment factor as a typed space AXIS.
 
         The :class:`~orpheus.numerics.axis.Axis` form of this scheme's
@@ -1707,8 +1733,8 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
 
         return Axis(
             SPATIAL_MOMENT_AXIS_LABEL,
-            (cell_moment_count(self.spatial_basis_per_axis, ndim),),
-            weights=self.moment_mass_diagonal(ndim, coord),
+            (cell_moment_count(self.spatial_basis_per_axis, len(axes)),),
+            weights=self.moment_mass_diagonal(axes),
             kind=BasisKind.MODAL,
         )
 

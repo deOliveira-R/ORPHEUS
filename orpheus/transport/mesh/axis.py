@@ -163,6 +163,12 @@ class Axis1D(Protocol):
     * ``edges`` — strictly monotonically increasing cell-face positions,
       shape ``(n+1,)``.
     * ``coord`` — the :class:`AxisCoord` for this axis.
+    * ``has_constant_volume_element`` — whether this axis's volume-element
+      factor is constant WITHIN every cell (Cartesian: yes; radial: no —
+      :math:`r^2\,dr` / :math:`r\,dr` vary across a cell).  The honest
+      per-axis form of "is the unit-width mass shortcut exact here?" —
+      the moment-mass family keys on it instead of re-interpreting a
+      whole-mesh chart tag (P4.6).
     * ``n`` — cell count along the axis (= ``len(edges) - 1``).
     * ``endpoints`` — tuple of endpoint labels that carry BCs. Cartesian
       axes have two (``"min"``, ``"max"``); solid radial axes have one
@@ -199,6 +205,9 @@ class Axis1D(Protocol):
 
     @property
     def coord(self) -> AxisCoord: ...
+
+    @property
+    def has_constant_volume_element(self) -> bool: ...
 
     @property
     def n(self) -> int: ...
@@ -273,6 +282,12 @@ class AxisMesh:
         return AxisCoord.CARTESIAN
 
     @property
+    def has_constant_volume_element(self) -> bool:
+        # The Cartesian dx factor is constant within every cell — the
+        # unit-width mass shortcut's validity condition (P4.6).
+        return True
+
+    @property
     def n(self) -> int:
         return self.edges.size - 1
 
@@ -341,6 +356,12 @@ class RadialAxisMesh:
                 f"RADIAL_CYLINDRICAL; got {self.coord!r}"
             )
         object.__setattr__(self, "edges", edges)
+
+    @property
+    def has_constant_volume_element(self) -> bool:
+        # r²dr (sphere) / r dr (cylinder) vary WITHIN a cell — the
+        # unit-width mass shortcut is invalid here (P4.6).
+        return False
 
     @property
     def n(self) -> int:

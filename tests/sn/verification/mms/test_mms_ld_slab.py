@@ -232,7 +232,9 @@ def test_ld_curvilinear_solve_fails_fast() -> None:
     )
     quad = Quadrature.gauss_legendre(8)
     Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()
-    with pytest.raises(NotImplementedError, match="no moment mass on a spherical"):
+    with pytest.raises(
+        NotImplementedError, match="no moment mass on a radial_spherical",
+    ):
         solve_sn_fixed_source(
             materials, sphere, quad, Q, boundary_condition="vacuum",
             scheme=LinearDiscontinuous(),
