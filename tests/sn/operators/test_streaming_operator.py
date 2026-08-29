@@ -1052,12 +1052,6 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="P4.9b step-1 witness, RED before the ctor gains the two "
-    "required closure fields — StreamingOperator(sn_mesh) constructs "
-    "happily today (it is what all [M] 136 sites spell).",
-)
 def test_ctor_is_unconstructable_without_both_closures():
     """[foundation] The ctor REQUIRES (sn_mesh, spatial_closure, angular_closure).
 
@@ -1072,7 +1066,8 @@ def test_ctor_is_unconstructable_without_both_closures():
     (``streaming.py:576/:583``) — the self-satisfied-raises class.
 
     RED reading committed 2026-08-28: pre-carve both negative legs FAIL
-    (the 1-arg and 2-arg calls construct / raise nothing).
+    (the 1-arg and 2-arg calls construct / raise nothing).  Flipped GREEN
+    the same day by the ctor flip (the two required fields + .pose).
     """
     sn = _slab_mesh()
     with pytest.raises(TypeError, match="missing 2 required positional"):
@@ -1083,11 +1078,6 @@ def test_ctor_is_unconstructable_without_both_closures():
     assert L.sn_mesh is sn
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="P4.9b step-1 witness, RED before .pose exists — the posing "
-    "classmethod and the two operator fields land with the ctor flip.",
-)
 def test_pose_reads_the_hub_objects_by_identity():
     """[foundation] ``.pose(sn_mesh)`` passes the HUB's own two objects.
 

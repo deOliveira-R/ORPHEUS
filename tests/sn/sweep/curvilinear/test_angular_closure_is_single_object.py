@@ -95,6 +95,11 @@ def test_every_per_cell_consumer_reaches_the_mesh_closure(monkeypatch):
     closure method exists on the degenerate solve route).
     """
     sn = _cylinder_mesh(n_phi=6)
+    # Leg 0 (P4.9b) — the POSED operator's slot is the hub's instance:
+    # the loop-closer between the operator's field and the identity every
+    # later leg asserts. Without it the consumers could reach the hub's
+    # object while a posed operator held a different one.
+    assert StreamingOperator.pose(sn).angular_closure is sn.pole_angular_closure
     closure_cls = type(sn.pole_angular_closure)
 
     march_seen: list[object] = []

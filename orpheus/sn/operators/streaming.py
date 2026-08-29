@@ -98,6 +98,8 @@ if TYPE_CHECKING:
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.space import FunctionSpace
     from ..mesh.augmented_mesh import SNMesh
+    from ..angular.closure import PoleAngularClosureBase
+    from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
     from orpheus.numerics.frame import FrameBase
     from orpheus.transport.source_sinks import (
         AngularSourceSink,
@@ -218,9 +220,8 @@ class StreamingOperator(LinearOperator["FullField"]):
     injects — it cancels into :math:`\sigma\cdot\psi` and belongs to
     :math:`C`, not :math:`L` (the continuous :math:`L` is σ-independent, so
     is the discrete leaf; σ-freedom is probe-verified byte-stable).
-    Pattern 4 (illegal states unrepresentable):
-    ``StreamingOperator(sn_mesh)`` takes ONLY the mesh — a σ on :math:`L`
-    would be a parameter the leaf never reads.
+    Pattern 4 (illegal states unrepresentable): the constructor takes NO
+    σ — a σ on :math:`L` would be a parameter the leaf never reads.
 
     Capability set
     --------------
@@ -240,17 +241,51 @@ class StreamingOperator(LinearOperator["FullField"]):
     :math:`L^{\mathsf T}` (see :meth:`apply_transpose`), so the operator
     carries a working ``apply_transpose`` and ``L.H`` is the physical G-adjoint.
 
+    Posing (P4.9b) — the operator holds its two closures
+    ----------------------------------------------------
+
+    :math:`L` is POSED with the two objects that close its two axes: the
+    spatial discretization (one cell-local closure per spatial scheme)
+    and the bound angular closure (the ordinate march).  The production
+    surface is :meth:`pose`, which reads BOTH off the hub
+    (:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` — the save-state /
+    data hub that owns the generator so SN and DSA stay consistent) — on
+    that path the operator's slots ARE the hub's instances, by
+    construction, which is why this constructor carries **no guards**.
+
+    The raw constructor is the declared EXPERT SEAM (doctored diagnostic
+    probes build through it — better than a monkeypatch).  What it does
+    not check, measured 2026-08-28: a wrong-FAMILY closure (e.g. the
+    Cartesian identity closure on curvilinear factors) constructs and
+    then raises at the FIRST sweep (typed on the sphere, untyped
+    ``IndexError`` on the cylinder — the walk's family dispatch refuses
+    it); a closure smuggled from a DIFFERENT hub of equal shape is the
+    one genuinely silent arm (wrong pairing, plausible-wrong answers) —
+    reachable only by deliberately crossing two hubs.
+
     Parameters
     ----------
     sn_mesh : SNMesh
-        The augmented geometry carrying quadrature, BCs (the
-        face-name-keyed ``sn_mesh.bc`` dict), pole closure, and (for
-        curvilinear) the precomputed connection coefficients — no
-        ``boundary`` constructor parameter.  The SOLE parameter: pure
-        :math:`L` reads no :math:`\sigma`.
+        The geometric substrate: quadrature, BCs (the face-name-keyed
+        ``sn_mesh.bc`` dict), and (for curvilinear) the precomputed
+        connection coefficients.  Transitional — the end state (rides
+        O-3/CS5) is the cross-method ``(domain, codomain,
+        spatial-discretization[, angular-discretization])`` constructor
+        with no mesh argument.
+    spatial_closure : DiscretizationSchemeBase
+        The spatial axis's closure.  Today this receives the hub's
+        discretization-scheme INSTANCE — the extraction of a closure
+        from its generator is the identity until O-3 splits the
+        closure/factory family; the slot names the ROLE it consumes.
+    angular_closure : PoleAngularClosureBase
+        The angular axis's closure — the hub's bound instance (the
+        Morel–Montry march on curvilinear charts, the identity closure
+        on Cartesian).  Pure :math:`L` reads no :math:`\sigma`.
     """
 
     sn_mesh: "SNMesh"
+    spatial_closure: "DiscretizationSchemeBase"
+    angular_closure: "PoleAngularClosureBase"
 
     # Streaming is the sole FULL operator — it couples bulk ↔ boundary
     # (reads the inflow trace to seed the sweep, writes the outflow
@@ -275,7 +310,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         angular-discretization])`` constructor with no mesh argument;
         this classmethod is that migration's lever and retires with it.
         """
-        return cls(sn_mesh)
+        return cls(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
 
     @property
     def is_adjointable(self) -> bool:
@@ -293,7 +328,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         # only (L+C) is. (Two-factor derivation: loss_representation.rst
         # §loss-rep-orientation-two-frames.)
         return (
-            type(self.sn_mesh.scheme).has_transpose_kernel
+            type(self.spatial_closure).has_transpose_kernel
             and self.loss_representation.has_transpose_walk
         )
 
