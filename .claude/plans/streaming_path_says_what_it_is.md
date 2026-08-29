@@ -33,7 +33,11 @@
 > REFUTED with a measured witness; the measured algebra is the SUM
 > `L = D − E_sp·S − E_ang·A_ang` — `scratch/p0_product_form_measurement.md`)
 > · the cylinder called "non-carrying" as a live class (slab-only since
-> Q5.6.3 — the admitted fold is always carrying). Every
+> Q5.6.3 — the admitted fold is always carrying) · **P4.5 as un-landed, the
+> slab's `reduced` as "hollow", or `reduced is None` as conflating two
+> facts** (✅ P4.5 landed `260ddc64`; P4.1b made the slab object
+> load-bearing; `[M]` presence ⟺ `is_1d` and the guards now SAY so) ·
+> `_is_curvilinear` exists. Every
 > one was true once, or was proposed and refuted, below.
 >
 > ⭐ **Three phases landed 2026-08-28 — P4.4, P4.2, P4.3 — and P4.9 was
@@ -108,6 +112,7 @@
 > | `5940deba` | **P4.2** | the angular factor comes home — 6 symbols to `sn/angular/`, and the L0 ladder takes α as a keyword |
 > | `da507e3d` | **P4.3** | `StreamingTerms` to L2 beside its contract; `geometry/reduced_operator.py` DELETED; docs sweep `590c12d0` |
 > | `7a0f434c` | **P4.9a** | the closure owns its march; DD spatial-only; `cell_balance_terms` dead; the visit family purely spatial; the handing; the degenerate frozen corpus; docs `ca852c44` (12 commits, `cb65c4cc`…) |
+> | `260ddc64` | **P4.5** | the predicates say what they ask (`is_1d` re-keys; the annotation tells the truth; `_is_curvilinear` dead) — chain-scan reading; the title's premise dissolved at P4.1b |
 > | `a60e5c0f` | **P4.9b** | the operator is POSED with its two closures (`.pose`; no defaults, no guards); the walk consumes the HANDED pair (keystone: post-pose hub swaps INERT); the strategy-layer intern (count-gated); the pole misnomer dead (`angular_closure`/`AngularClosureBase`); docs `9c3eb60a` (16 commits `b253732f`…`a60e5c0f` + tail `5a1591d2`, incl. archivist) |
 >
 > `[M]` exit gates, full fast set, 13 trees all `rc=0` each time:
@@ -122,7 +127,11 @@
 > conserved at TREE granularity, which is an independent check of the
 > 18+45=63 collection count — and `root+harness` **+1**, the import-linter
 > `rglob`ping one new module. Nine other trees +0. pyright 0, `sphinx -W` 0
-> and `dead_references` 0 throughout.
+> and `dead_references` 0 throughout. **P4.5 9847/0 — `[M]` 13 trees
+> rc=0, delta 0 on EVERY axis vs the P4.9b baseline** (22 sk / 227 des /
+> 70 xf; sn 3291, derivations 1637, numerics 2445, geometry 727, root 409
+> all baseline-exact) — the chain-scan reading's "bit-identical by
+> construction" measured true; pyright orpheus/ 0, tests/ −7 net.
 >
 > ### ▶ NEXT — **the campaign's next act is a SEQUENCING ruling** (P4.9 is
 > COMPLETE: P4.9a ✅ `7a0f434c`, P4.9b ✅ merged 2026-08-29; **§5b ⛔ P0
@@ -142,13 +151,17 @@
 > (reverse each traversal independently — `[M]` which the shipped
 > `loss_action_transpose` already implements), but the algebra a §5b
 > campaign would declare is the sum-of-resolvents, not a product — a design
-> fork for the user at the Campaign-2/O-3 boundary. The remaining tail to
-> rule among: P4.5–P4.7 (field retirements + the StreamingTerms naming
-> fork; P4.7's enumeration must include the walk's packet-field readership,
-> per P4.9a's Q2 note — and P4.7 may be partly a CONSEQUENCE of P4.9:
-> re-measure `delta_A_over_w`'s readership first) · P4b (the cache strata
-> carve) · CS5 (gates the P4-mint remainder + P3c) · P6 · the re-posed §5b
-> build. P5 rides O-3; P7 = #409. Read `scratch/p4_9b_design.md` §§7–10
+> fork for the user at the Campaign-2/O-3 boundary. ⭐ **The §7-remainder order was RULED
+> 2026-08-29 (user): P4.5 → P4.6 → P4.7**, and **P4.5 is ✅ LANDED
+> `260ddc64`** under the CHAIN-SCAN reading (the title's premise dissolved
+> at P4.1b — see the section's banner; ground:
+> `scratch/p4_5_ground_remeasure.md`). ▶ NEXT IN THE RULED ORDER: **P4.6**
+> (the moment mass consumes the MEASURE), then P4.7 (open it with the
+> consequence re-measure: `delta_A_over_w`'s readership post-P4.9, per the
+> `[R]` note in the P4.9 ordering block; its enumeration must include the
+> walk's packet-field readership, per P4.9a's Q2 note). Behind them: P4b
+> (the cache strata carve) · CS5 (gates the P4-mint remainder + P3c) · P6 ·
+> the re-posed §5b build. P5 rides O-3; P7 = #409. Read `scratch/p4_9b_design.md` §§7–10
 > before designing anything that touches the posing surfaces.
 >
 > ⭐ **Before designing P4.9, read `scratch/p4_9_design_measured.md`** — the
@@ -1486,14 +1499,41 @@ pre-migration sweep/transport/operators run 2342 passed / 0 failed; pyright
 smoke passes with `orpheus.geometry` FIRST — the order that breaks under a
 cycle, and the one a naive smoke test gets wrong.
 
-**P4.5 — the hollow Cartesian object dies.** `[M]` d≥2 Cartesian gets
+**P4.5 — the hollow Cartesian object dies.**
+
+✅✅ **EXECUTED 2026-08-29 under the CHAIN-SCAN reading @ `260ddc64`**
+(user-ruled at the design round; ground re-measured FIRST —
+`scratch/p4_5_ground_remeasure.md`, whose per-claim verdict table governs
+every number below). ⛔ **This section's TITLE names a premise P4.1b
+dissolved one day after the section's numbers were taken**: the slab object
+is no longer hollow — P4.1b ("the slab is not a special case") made it the
+zero-curvature case of the ONE chain-scan carrier (real widths/volumes,
+neutral angular element), and `[M]` at HEAD `reduced is not None ⟺ is_1d`
+bit-exactly, so the charter sentence ("exists iff there is a chain scan")
+was ALREADY TRUE with zero existence change. The ruled repair is the
+honest-predicate package, bit-identical: the three admission raises
+(`dag_walk`, `dag_walk_cell_indices`, the scan-cache builder) + the
+scan-path dispatch key on `is_1d` (the QUESTION) instead of
+`reduced is None` (the realization); the annotation becomes
+`ReducedStreamingOperator | None` (the d≥2 type-ignore dropped; the
+doubly-false mint comment replaced by the presence contract);
+`_is_curvilinear` retired; 35 test-side Optional narrowings ride along
+(tests/ nets −7 pyright errors, orpheus/ stays 0). The CURVATURE reading
+(the slab loses the object) was REJECTED — it would re-introduce the
+special case P4.1b deleted.
+
+`[M]` d≥2 Cartesian gets
 `reduced = None`; the slab gets an object whose every meaningful field is
 `None`/neutral, minted *"so `sn_mesh.reduced` is always populated"* — a promise
 the d≥2 arm already breaks. `reduced is None` today conflates **"no chain scan"**
 (`ndim ≥ 2`) with **"no curvature"** (`coord is CARTESIAN`), and `SNMesh` answers
 both directly. `[M]` **12 of 36** code reads of `.reduced` are `None`-guards
-paying for the conflation. The object should exist **iff there is a radial
-reduction**.
+paying for the conflation. (⛔ STALE at execution — the 12 reproduces at the
+plan-date tree as 12 of 31 production Loads; the 36 reproduces under no
+predicate the re-measure ran; at HEAD the honest fraction was 11 of 17 —
+memo §6.) The object should exist **iff there is a radial
+reduction**. (⟹ under the chain-scan reading this sentence was ALREADY TRUE
+at HEAD — see the banner above.)
 
 ⭐ **Two sites P4.1a surfaced that belong to THIS step — recorded here so they
 earn a phase rather than an issue-and-forget.** Both are the same defect: a
@@ -1510,7 +1550,9 @@ what it is.
   subject is exactly the `reduced is None` conflation this step re-poses, so
   converting it now would mean writing the guard twice. ⟹ **P4.5 owes it a real
   `raise` keyed on the honest predicate** ("does this mesh have a chain scan?"),
-  not on `reduced is None`.
+  not on `reduced is None`. (✅ DISCHARGED in two steps: the raise landed at
+  P4.9b step 2c with its 2-D witness; the `is_1d` re-key landed at P4.5
+  `260ddc64`.)
 * `sn/solver.py:2316-2324` — `_is_curvilinear` reads
   `getattr(mesh, "coord", None)` then `getattr(coord, "name", str(coord))`
   *after* an `isinstance(mesh, Mesh1D)` narrowing. `coord` is a required
@@ -1520,7 +1562,9 @@ what it is.
   spelling of `mesh.coord is not CoordSystem.CARTESIAN`, which `SNMesh` already
   answers as `is_cartesian`. ⚠ Not a P4.1a site (it reads the *mesh*, which is
   the successor), and not a bug today — but it is a third spelling of this
-  step's own predicate, so it retires with the other two.
+  step's own predicate, so it retires with the other two. (✅ RETIRED at P4.5
+  `260ddc64` — and the re-measure sharpened it: `[M]` ZERO callers since birth
+  2026-05-09, so the retirement was pure deletion.)
 
 **P4.6 — the moment mass consumes the MEASURE, not a chart tag.**
 ✅ RULED 2026-08-27 (user): *"it is very important to correct the flaw"*, in the
