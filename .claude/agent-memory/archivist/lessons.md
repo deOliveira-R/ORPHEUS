@@ -285,6 +285,31 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
 
 ---
 
+- **⭐⭐ Run the BRIEF'S OWN CENSUS before writing to it — the count can be ZERO, and the
+  surplus is where the work is.** A briefed *"~a dozen `StreamingOperator(sn_mesh)` ctor
+  spellings in docs"*: `[M]` whitespace-flattened over every `.rst`, **0** — the corpus never
+  carried the spelling. The same greps found what the brief never named: a **Key Facts**
+  bullet still saying τ is *"delivered … as `CellVisit` data (c_in, c_out, τ), stamped at one
+  production site"*, `[M]` `dataclasses.fields(CellVisit)` = 3 other names — all three fields
+  and the stamping method retired one phase earlier, by **my own previous pass**. → L-072
+- **⭐⭐ A relayed MUTATION COUNT is cheap to reproduce, and the first run's extra reds are
+  usually YOURS.** A relayed *"the minting-`pose` mutation reddens 5 rows, all structural"*
+  came back **9** — four of them my mutant crashing on the Cartesian arm (vv #17 producing
+  #18's flattering symptom in one probe). Repaired **in-class** (mirror the hub's own
+  construction arm so only IDENTITY changes): exactly **5 of 65**, the same set by name,
+  60 value assertions green. Reproduce the red set's IDENTITY, not just its size. → L-072
+- **⭐⭐ A phase hands you two numbers; one is stable and one is fixture-bound — publish both
+  halves and yours wins.** `[M]` the per-build cost reproduced to the digit (8.84 vs 8.78 ms)
+  while the operator COUNT did not (mine **38–43**/solve vs a briefed 6–10 — it scales with
+  the OUTER count), so the consequence is **+68 %**, not 24.65 %. The stable halves are the
+  unit cost and the *scaling law*; the percentage is a fixture reading. Re-measuring made the
+  ruling's own case 2.8× stronger. → L-072, L-057
+- **⭐ Verify the memo's `file:line` ATTRIBUTION, not just its fact.** A design memo put a
+  scheme-type comparison in `SNMesh.__eq__`; `[M]` `SNMesh.__eq__ is object.__eq__` is **True**
+  and two identically-built meshes compare **unequal** — the comparison lives in
+  `is_same_phase_space`, whose docstring also records that the angular closure is deliberately
+  EXCLUDED. My draft note was false and became a much better one. → L-072
+
 ## 2. The build is BLIND to most doc-correctness defects — grep is the gate
 
 **Meta-rule: `-W` proves only "I added no NEW warning". The acceptance evidence for a correctness
@@ -644,6 +669,21 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   a fresh issue with a different regex would just have forked the count. → L-068
 
 ---
+
+- **⭐⭐ KEEP THE PRE-EDIT `-E` BUILD AND DIFF IT — a per-page rendered delta needs no
+  provenance argument.** L-068's slice-to-your-own-section and L-069's rendered-page rule both
+  cost reasoning; a **baseline diff** (visible backticks + unparsed `:role:` spellings, per
+  page, before vs after) is proof by zero. `[M]` it caught ``**``assert``**`` — the exact
+  `**``literal``**` nesting L-069 already records, written again — as **8 backticks** on a page
+  whose absolute count is otherwise irreducible. ⚠ The `<cite>` column MOVES and that is
+  correct: `` `[M]` `` is this corpus's marker and renders `<cite>[M]</cite>`. → L-072, L-069
+- **⭐⭐ Before appending to a list, read its own header for a UNIVERSAL your row would
+  falsify.** `history.rst` opened *"Every entry below is **merged to main** … a new entry lands
+  with its merge hash or not at all"*, and the task was a row for unmerged branch work. Adding
+  it silently is the exact defect the discipline exists to prevent; the fix is to repair the
+  universal to the convention the corpus already runs (the sibling `operator_algebra.rst`
+  table spells it), keeping the strong half — *trust git, never a frozen note* — verbatim.
+  An index can contradict itself. → L-072
 
 ## 3. A `:label:` is a V&V edge — grep the matrix before touching it
 
@@ -1035,6 +1075,16 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
 
 ---
 
+- **⭐⭐ A VOCABULARY retirement has FOUR classes, and tense separates only two.** Beyond
+  *update the live vocabulary* / *keep period history* sit: an **ADDRESS** (a section anchor or
+  eq-label carrying the retired word — KEEP, and say why: a cross-doc `:ref:` miss is silent at
+  every severity) and a **genuine referent** (Hébert's *Carlson coupled-pole* seed, a sphere's
+  polar cap, μ = −1 — the word still denotes the thing). `[M]` on one sweep: **14 updated · 32
+  period-history · 9 address · 3 genuine**, plus 7 lines deliberately ADDED naming the old
+  spelling to record the rename. ⭐ And check the anchor's own section first — a mature page has
+  usually already ruled on it once, for a different word, and **extending that note beats
+  minting a second caveat**. → L-072
+
 ## 5. Page surgery: slice programmatically, assert before writing
 
 - **⛔ A mid-task scope REVOCATION on a file you already edited: revert by RE-EDITING, prove it
@@ -1271,6 +1321,18 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   diff's line numbers; reconcile forward-refs landing in the SAME merge. → L-012
 
 ---
+
+- **⭐ The POSING-CONTRACT section (an operator gains its explicit arguments) has six parts,
+  in this order:** (1) the fields + why there is **no default** (an active choice), with the
+  half of *illegal-states-unrepresentable* you are NOT claiming stated out loud; (2) why the
+  substrate KEEPS what it kept — a partition, not a move, with the read-set allowlist as a
+  table; (3) the guard ruling as an **attack table** (one row per attack, each with its
+  measured outcome, and a `.. warning::` retracting any attack whose stated reason was
+  reasoned rather than run); (4) the **route** gate — a route claim needs a route instrument
+  (vv #26), so publish the swap, its pre-carve deviations, and every way it goes silently
+  green; (5) the performance ruling quoted **verbatim** with a lifetime argument and a
+  reproducible cost table; (6) *What moved, concretely*, mirroring the predecessor phase's
+  closing subsection so the two read as one arc. → L-072
 
 ## 7. V&V vocabulary — you are the curator (Directive 5)
 

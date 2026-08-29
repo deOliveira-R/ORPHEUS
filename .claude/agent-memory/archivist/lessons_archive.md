@@ -7810,3 +7810,192 @@ declared edges, 33 guesses retired) · Derivation source **3** — the one weak 
 the Form-A/Form-B comparison is a **published recipe**, not a `derivations/` script. It is
 a floating-point property of two spellings, which is arguably the recipe's natural home,
 but a `derivations/` module would let a gate consume the band.
+
+---
+
+## L-072 — P4.9b: the operator poses with its two closures (2026-08-28/29)
+
+**Task.** Teach the Sphinx corpus what landed in `b253732f..d14dd545`: a new
+architecture section, a changelog row, and a rename sweep (`pole_angular_closure` →
+`angular_closure`). Docs-only; `orpheus/` and `tests/` off-limits. Commit `9c3eb60a`,
+branch `refactor/p4-9b-streaming-operator-poses`, 10 files, +823/−52.
+
+### 1. ⭐⭐ A rename sweep's population has FOUR classes, and TENSE only separates two
+
+The received rule ("past-tense history stays; present-tense-false is a MUST-FIX") sorts a
+symbol retirement. It does **not** sort a *vocabulary* retirement, because two further
+classes have nothing to do with tense:
+
+| class | what it is | verdict | worked example |
+|---|---|---|---|
+| **vocabulary** | prose naming the live family / attr / kwarg / module / test file | UPDATE | *"produced solely by the pole-angular closure"* → *"angular closure"* |
+| **period history** | a past-tense narrative naming the thing as it was named then | KEEP verbatim | the whole `curvilinear_numerics.rst` Phase-B/D/F chapter |
+| **ADDRESS** | a section anchor / eq-label carrying the retired word | **KEEP, and say why** | `sn-pole-angular-closure-protocol` |
+| **genuine referent** | the word still denotes the thing | KEEP | Hébert's *Carlson coupled-pole* seed; the sphere's polar cap; μ = −1 |
+
+`[M]` on this corpus the split was **14 updated · 32 period-history · 9 address · 3 genuine**
+(plus 7 lines I ADDED that deliberately name the old spelling, to record the rename).
+
+⭐ **The ADDRESS class is the one a sweep gets wrong, in the flattering direction**: renaming
+an anchor *feels* like completing the job, and the break is silent — a cross-document
+`:ref:` that misses renders as plain text at every build severity (L-070's measurement:
+only `:eq:` warns). `[M]` this anchor had **3 cross-document + 3 intra-document** citers.
+
+⭐⭐ **And the page had already made this exact decision once, for a different word.** The
+section's own "Contract evolution" note said: *"The section anchor … is retained (it is
+cross-referenced from … and elsewhere); only the human label 'protocol' is now loose."* So
+the right move was **extend the existing note**, not mint a new one — the second correction
+reads as the same discipline applied twice rather than as two unrelated caveats. ⟹ before
+ruling on an anchor, grep the anchor's own section for a note explaining why it is spelled
+that way; a mature page has usually already been here.
+
+### 2. ⭐⭐ A brief's population claim can be ZERO — and the surplus is where the work is
+
+The brief asked me to sweep *"`StreamingOperator(sn_mesh)` ctor spellings in prose (~a
+dozen in docs)"*. `[M]` a whitespace-flattened scan over every `.rst` (so a wrapped call
+cannot hide) returns **0** — the corpus never carried the constructor spelling at all; the
+only hits after my pass are my own new prose. Nothing was wrong with the brief's *concern*;
+its *census* was a guess.
+
+⭐ The same greps that refuted it found a defect the brief never named: the
+`curvilinear_one_group.rst` **Key Facts** bullet still said τ *"[is] delivered to the
+stateless spatial scheme as `CellVisit` **data** (c_in, c_out, τ), stamped at one
+production site"* — `[M]` `dataclasses.fields(CellVisit)` is
+`('cell_idx', 'streaming_terms', 'face_area_downstream')`; all three fields **and** the
+stamping method were retired at **P4.9a**, the phase whose docs I had written the day
+before. A Key Facts card is the highest-leverage stale surface on a page, and it went stale
+against *my own* previous pass.
+
+⟹ **run the brief's own census before writing to it**, and treat the delta both ways: a
+zero means don't write that section, a surplus means the brief's author could not see it.
+
+### 3. ⭐⭐ Reproducing a relayed mutation count caught MY harness first (vv #17 → #18)
+
+The design record's headline for the no-guard ruling is *"a `pose` that MINTS fresh objects
+reddens 5 rows, every one structural; no value assertion moves."* Reproduced in-process (a
+pytest plugin monkeypatching `StreamingOperator.pose`; no file edited on disk):
+
+* **First run: 9 reds.** Four of them were `AttributeError:
+  'IdentityAngularClosure' object has no attribute 'redistribution_pairing'` — my mutant's
+  Cartesian arm was simply broken, and its extra reds were the harness's, not the
+  invariant's. That is vv #17 (a broken instrument) producing vv #18's symptom (a false
+  *rich* verdict) in one probe.
+* **In-class repair** — mirror `SNMesh._init_core`'s Cartesian arm exactly
+  (`angular_redistribution(quad, coord)` + a zero pairing) so **only identity** changes.
+  Re-run: **5 reds of 65**, exactly the relayed set — the pose-identity gate, the
+  one-instance gate, and all three **closure** rows of the route gate on their activation
+  legs. **60 pass**, including every `array_equal` pin. The slab/scheme row survives.
+
+⟹ a mutation count is cheap to reproduce and you should, because the first run is usually
+yours. And note which half reproduced: the *identity* of the red set, not just its size —
+per `coding-standards`, an equal-sized but disjoint set is the failure mode.
+
+### 4. ⭐⭐ Two relayed `[M]` numbers, one stable and one fixture-bound — publish both halves
+
+The phase's perf argument: *"the operator is built 6–10× per solve, so a per-operator memo
+costs up to 24.65 % of a slab solve (8.78 ms build, GL16/nx=200)."* Re-measured on a 2-group
+fissile fixture I can name:
+
+| quantity | phase's `[M]` | mine | verdict |
+|---|---|---|---|
+| one Stratum-1 build, GL16/nx=200 | 8.78 ms | **8.84 ms** (min of 5) | reproduces |
+| operators per k-eigen solve | 6 (slab) / 10 (sphere) | **42 / 38 / 40 / 43** | fixture-bound — it scales with the OUTER count |
+| consequence | +24.65 % | **+68 %** (42 × 8.84 ms on a 546.6 ms solve) | mine is 2.8× stronger |
+| Stratum-1 builds per solve | 1 | **1** on all four | reproduces |
+
+⟹ the *stable* halves are the per-build cost and the count's **scaling law**; the
+percentage is a fixture reading. Publishing mine with its configuration made the ruling's
+own case better than the number I was handed — which is the usual outcome of §L-057's rule,
+and worth remembering as an incentive rather than a chore.
+
+⭐ A second independent corroboration worth more than the relay: the phase's F7 reported the
+scheme/closure activation asymmetry as counts on its fixture. Counting the two per-cell
+entries myself over full solves gives **656 / 0**, **0 / 5 552**, **0 / 24 928** on
+slab / sphere / cylinder — the **zeros are exact**, which turns "carry both geometries" from
+advice into a theorem about the gate.
+
+### 5. ⭐ The page I was told to append to carried a UNIVERSAL my row would falsify
+
+`history.rst`'s header read *"Every entry below is **merged to main** — … a new entry lands
+with its merge hash or not at all."* The task was to add a row for work on an unmerged
+branch. Three options, and only one is honest: don't add the row (disobeys the task), add it
+silently (falsifies the page's own header — the defect this whole discipline exists to
+prevent), or **repair the universal to the convention the corpus actually runs**. The
+sibling table in `operator_algebra.rst` already spells it: *"Entries marked (in development)
+live on an unmerged feature branch … trust `git` over this table."* Adopting that wording is
+internal consistency, not a weakening — the strong half ("trust git, never a frozen note")
+survives verbatim.
+
+⟹ **before appending to any list, read its own header for a universal your row would
+break** — an index can contradict itself, and the contradiction lands in the reader's lap.
+
+### 6. ⭐⭐ The BASELINE-DIFF render check needs no provenance reasoning
+
+L-069 says the rendered page is the instrument for nested-markup defects, and L-068 says a
+page-wide count indicts pre-existing prose unless you slice to your own section. There is a
+cheaper general form: **keep the pre-edit `-E` build, and diff per-page (visible backticks,
+unparsed `:role:` spellings) before vs after.** A delta of zero is the proof, with no
+provenance argument at all.
+
+`[M]` it earned its keep immediately: I wrote ``**``assert`` became a ``raise``**`` — the
+exact `**``literal``**` nesting L-069 already records — and the diff caught **8 visible
+backticks** on a page whose absolute count is otherwise irreducible. Fixed by taking the
+bold off the literals (`**The Stratum-1 admission contract now raises.**`). Final state:
+**0 regressions on all 10 pages**, and the new section renders 0 backticks / 0 dead roles /
+5 tables / 3 code blocks / 6 subsections with all 4 internal links resolving.
+
+⚠ The `<cite>` column moves and that is **correct**: `` `[M]` `` is this corpus's marker and
+renders `<cite>[M]</cite>` (`[M]` P4.9a's section carries 6, mine 10). Do not "fix" it.
+
+### 7. Verifying the section's own claims — three that changed what I wrote
+
+1. **`SNMesh.__eq__`.** The design memo said the scheme type comparison is in `__eq__`
+   (`augmented_mesh.py:587`). `[M]` `SNMesh.__eq__ is object.__eq__` → **True**, and two
+   identically-built meshes compare **unequal**; the comparison lives in
+   `is_same_phase_space`, whose docstring *also* says the angular closure is deliberately
+   EXCLUDED. My draft note was flatly false and became a much better one.
+2. **The published recipe.** The code block counting operators per solve was extracted back
+   out of the `.rst`, `compile()`d and `exec`d — its own asserts pass. A recipe that does
+   not run is the same defect as a number that does not reproduce (L-070).
+3. **Field roles.** `hasattr(StreamingOperator, 'spatial_closure')` is **False** (dataclass
+   annotation only), and `api/discrete_ordinates.html` carries **zero** `id="orpheus.sn.
+   operators.streaming.*"` anchors — so fields are literals and the class role is the page
+   convention (82 pre-existing `StreamingOperator` mentions agree).
+
+### 8. CODE-side, reported not fixed (docs-only brief)
+
+`[M]` **22** residual pole-vocabulary sites survive the mechanical rename — 16 in
+`orpheus/`, 6 in `tests/`. Several are legitimate history (the retired `PoleAngularClosure`
+**Protocol** as a proper noun); ~11 are **present-tense** descriptions of the LIVE family
+and are the fix list:
+
+* `sn/angular/closure.py:241` (family ABC docstring), `:2138` (`IdentityAngularClosure`),
+  `:2261` **and `:2276` — the latter is a `raise` MESSAGE**, i.e. an API the moment a test
+  pins it (grep the shortest distinctive fragment first).
+* `sn/mesh/augmented_mesh.py:396` (section banner), **`:562`** (the `is_same_phase_space`
+  docstring, quoted in my new section), `:734` / `:797` (both ctor docstrings).
+* `transport/mesh/axis.py:470`, `transport/spatial/diamond.py:222`,
+  `transport/spatial/linear_discontinuous.py:293`.
+* `transport/spatial/scheme.py:1349` names `PoleAngularClosure.angular_adjoint` — a **dead
+  class reference**, not just stale vocabulary.
+
+### Gates
+
+`sphinx -E -W` **EXIT=0, 0 WARNING / 0 ERROR / 0 CRITICAL / 0 SyntaxWarning**, identical to a
+freshly-measured `-E` baseline (also **0** — the old "baseline 4" reading is void, re-measure
+every session) · rendered baseline-diff **0 regressions / 10 pages** · nexus
+`dead_references` **0 dead / 52 checked** · `check_docstring_xrefs` **0 dead / 985 files /
+16 100 roles**, and a `head_role`-patched copy **0** too, proven live by a planted
+2-dead-1-live control page (stock read 0, patched read 2).
+
+### Quality self-assessment (Directive 3)
+
+Derivation depth **4** (an architecture section, not a derivation — the closest thing is the
+four-attack table and the lifetime argument) · Cross-references **5** · Numerical evidence
+**5** (four independent re-measurements, each with its configuration; two of them
+strengthened the phase's own case) · Failed approaches **5** (the four attacks, the refuted
+"silent wrong k", the three silently-green keystone traps, and my own harness bug published
+as a caution) · Code traceability **5** · Derivation source **3** — again the weak
+dimension: the perf/count evidence is a **published recipe** in the page rather than a
+`derivations/` module a gate could consume. Same finding as L-071; two sessions running,
+which makes it a pattern rather than an instance.

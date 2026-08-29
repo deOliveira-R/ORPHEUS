@@ -43,12 +43,23 @@ I stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
-- **P4.9a un-weld — the closure owns its march** — 2026-08-28, branch
-  `refactor/unweld-p49a-closure-owns-march`, COMMITTED `ca852c44` (mine), not merged; 5 doc
-  files. ⭐⭐ The `-E` baseline was **RED (4 `nexus.directive` warnings, one per dead `:by:`)**,
-  so the BUILD was the site list — it found a file the brief never named. ⛔ The briefed
-  `59 % / 204 ULP` does not reproduce (200 seeds: `46.21–51.42 %`, `113–91 839` ULP; only
-  `max|Δ| = 1.776e-15` is stable) and the unstable figure sits in 2 production + 2 test
+- **P4.9b — the operator poses with its two closures** — 2026-08-29, branch
+  `refactor/p4-9b-streaming-operator-poses`, COMMITTED `9c3eb60a` (mine), **NOT in main**
+  (`[M]` `git merge-base --is-ancestor`); 10 doc files, +823/−52. New section
+  `sn-p49b-operator-poses-with-closures` on the SN index + the `history.rst` row + the
+  `pole_angular_closure` → `angular_closure` PROSE sweep (14 updated · 32 period-history ·
+  9 address · 3 genuine-pole KEPT). ⛔ The brief's *"~a dozen `StreamingOperator(sn_mesh)`
+  ctor spellings in docs"* is `[M]` **0** — and the same greps found a Key Facts bullet
+  present-tense-false since P4.9a. ⭐ Four numbers re-measured (build cost reproduces, the
+  operator COUNT does not — mine 38–43/solve ⟹ **+68 %**, not 24.65 %). ⚠ **22 residual
+  pole-vocabulary sites in `orpheus/` + `tests/`, ~11 present-tense, one a `raise` MESSAGE
+  and one a dead `PoleAngularClosure.angular_adjoint` reference — REPORTED, code-only.**
+  → [[lessons-L72]]
+
+- ⏹ **P4.9a MERGED to main** (`ca852c44` docs + `7a0f434c` code, `[M]` reconciled 2026-08-29 —
+  this line read "COMMITTED, not merged" for a day). Durable record = the lesson + the SN
+  history page. ⭐⭐ Its `-E` baseline was RED, so the BUILD was the site list; the briefed
+  `59 % / 204 ULP` does not reproduce and the unstable figure sits in 2 production + 2 test
   docstrings — REPORTED, code-only. → [[lessons-L71]]
 
 - ⏹ **MERGED — reconciled against git 2026-08-28 (these three sat as "in flight"/"UNCOMMITTED"
