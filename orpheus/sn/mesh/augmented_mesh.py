@@ -325,17 +325,21 @@ class SNMesh(MaterialMesh):
         match self.coord:
             case CoordSystem.CARTESIAN:
                 self._setup_cartesian()
-                # Slab also gets a ``ReducedStreamingOperator`` for
-                # completeness so ``sn_mesh.reduced`` is always populated;
-                # the slab variant leaves the SPATIAL chart empty and
-                # carries the NEUTRAL angular element.
+                # Presence contract (P4.5): ``reduced`` is populated iff
+                # the mesh is 1-D (``is_1d``) — the chain scan is a 1-D
+                # construct, and the slab mints the ONE carrier's
+                # zero-curvature case exactly like the curvilinear arms
+                # (P4.1b: "the slab is not a special case" — real
+                # widths/volumes, neutral angular element, zero curvature
+                # couplings).  The d≥2 Cartesian wavefront has no chain
+                # scan and carries ``None``.
                 if self.ndim == 1:
                     assert isinstance(mesh, Mesh1D)
-                    self.reduced: ReducedStreamingOperator = slab_streaming(
-                        mesh, quadrature,
+                    self.reduced: ReducedStreamingOperator | None = (
+                        slab_streaming(mesh, quadrature)
                     )
                 else:
-                    self.reduced = None  # type: ignore[assignment]
+                    self.reduced = None
             case CoordSystem.CYLINDRICAL:
                 assert isinstance(mesh, Mesh1D)
                 self.reduced = cylindrical_streaming(mesh, quadrature)
@@ -1455,7 +1459,10 @@ class SNMesh(MaterialMesh):
                 "dag_walk requires exactly one of `ordinate_idx` or "
                 "`direction_sign`."
             )
-        if self.reduced is None:
+        if not self.is_1d:
+            # The honest predicate (P4.5): the chain scan is a 1-D
+            # construct; ``reduced`` presence is its ctor-guaranteed
+            # realization (populated iff ``is_1d``).
             raise ValueError(
                 "dag_walk is only defined for meshes with a "
                 "ReducedStreamingOperator (1-D Cartesian, spherical, "
@@ -1531,7 +1538,8 @@ class SNMesh(MaterialMesh):
           (:math:`|\eta_n| < 10^{-15}`): ``range(nx)`` regardless of
           ``direction_sign`` — same as :meth:`dag_walk`.
         """
-        if self.reduced is None:
+        if not self.is_1d:
+            # Same honest predicate as :meth:`dag_walk` (P4.5).
             raise ValueError(
                 "dag_walk_cell_indices is only defined for meshes with a "
                 "ReducedStreamingOperator (1-D Cartesian, spherical, "

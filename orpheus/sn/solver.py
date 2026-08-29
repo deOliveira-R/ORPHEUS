@@ -1430,7 +1430,9 @@ class SNSolver:
         # (FullFieldWavefront), which consumes the per-cell ``cell_kernel_batch``
         # directly — never the scan cache.  Build the cache only when the scan
         # path can actually be selected (DD keeps its bit-identical cache).
-        if sn_mesh.reduced is not None and sn_mesh.scheme.is_affine_scannable:
+        # Chain scan ⟺ 1-D (the honest predicate, P4.5); ``reduced``
+        # presence is its ctor-guaranteed realization.
+        if sn_mesh.is_1d and sn_mesh.scheme.is_affine_scannable:
             # Stratum 1 through the strategy layer's INTERN (P4.9b step 2c
             # — one build per mesh × closure pair, however many operators
             # a solve constructs; the retired eager build + the mesh-attr
@@ -2320,17 +2322,6 @@ class SNSolver:
 # ═══════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════
-
-def _is_curvilinear(mesh: Mesh1D | Mesh2D) -> bool:
-    """Return ``True`` iff *mesh* is a 1-D spherical or cylindrical Mesh1D."""
-    if not isinstance(mesh, Mesh1D):
-        return False
-    coord = getattr(mesh, "coord", None)
-    if coord is None:
-        return False
-    name = getattr(coord, "name", str(coord)).upper()
-    return name in ("SPHERICAL", "CYLINDRICAL")
-
 
 def _reflect_outflow_into_inflow(
     boundary_flux, sn_mesh: SNMesh, faces: "Iterable[str] | None" = None,

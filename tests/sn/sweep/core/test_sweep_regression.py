@@ -223,12 +223,14 @@ class TestSNMesh:
         sn_mesh = SNMesh(mesh, quad, placeholder_materials(mat_ids=(0, 1)))
 
         assert sn_mesh.coord is CoordSystem.SPHERICAL
-        assert sn_mesh.reduced.face_areas is not None
-        assert sn_mesh.reduced.angular.alpha_per_level[0] is not None
-        assert len(sn_mesh.reduced.angular.alpha_per_level[0]) == quad.N + 1
+        reduced = sn_mesh.reduced
+        assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
+        assert reduced.face_areas is not None
+        assert reduced.angular.alpha_per_level[0] is not None
+        assert len(reduced.angular.alpha_per_level[0]) == quad.N + 1
         # α_{1/2} = 0 and α_{N+1/2} ≈ 0
-        np.testing.assert_allclose(sn_mesh.reduced.angular.alpha_per_level[0][0], 0.0)
-        np.testing.assert_allclose(sn_mesh.reduced.angular.alpha_per_level[0][-1], 0.0, atol=1e-14)
+        np.testing.assert_allclose(reduced.angular.alpha_per_level[0][0], 0.0)
+        np.testing.assert_allclose(reduced.angular.alpha_per_level[0][-1], 0.0, atol=1e-14)
 
     def test_sweep_1d_2d_consistency(self):
         r"""1D and 2D sweeps on equivalent meshes must produce the same keff.

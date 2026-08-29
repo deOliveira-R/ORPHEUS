@@ -402,8 +402,10 @@ def test_identity_closure_tau_is_neutral_one():
     )
     quad = Quadrature.gauss_legendre(8)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+    reduced = sn_mesh.reduced
+    assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
     closure = IdentityAngularClosure(
-        sn_mesh.reduced.angular, sn_mesh.reduced.redistribution_pairing,
+        reduced.angular, reduced.redistribution_pairing,
     )
 
     (tau,) = closure._tau_per_level

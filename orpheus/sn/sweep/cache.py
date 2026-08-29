@@ -275,11 +275,14 @@ class StreamingCoefficientCache:
         quad = sn_mesh.quad
         N = quad.N
         nx = sn_mesh.nx
-        if sn_mesh.reduced is None:
+        if not sn_mesh.is_1d:
             # A domain/admission contract, not type-narrowing — a bare
             # ``assert`` here is a NO-OP under the canonical ``python -O``
             # runner (coding-standards, the bare-assert clause; converted
-            # at P4.9b step 2c with its first witness).
+            # at P4.9b step 2c with its first witness).  Keyed on the
+            # honest predicate since P4.5: the chain scan is a 1-D
+            # construct, and ``reduced`` presence is its ctor-guaranteed
+            # realization (populated iff ``is_1d``).
             raise TypeError(
                 "StreamingCoefficientCache requires a ReducedStreamingOperator "
                 "(1-D Cartesian / spherical / cylindrical).  2-D Cartesian "

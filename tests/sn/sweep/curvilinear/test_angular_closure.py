@@ -124,10 +124,12 @@ class TestRegistry:
         # through the registry (C5: no unbound construction; the un-weld
         # arc's Phase B replaced the mesh operand with the two factors).
         sn_mesh = make_tiny_spherical_sn_mesh()
+        reduced = sn_mesh.reduced
+        assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         instance = AngularClosureBase.create(
             "morel_montry_angular_sweep",
-            angular=sn_mesh.reduced.angular,
-            pairing=sn_mesh.reduced.redistribution_pairing,
+            angular=reduced.angular,
+            pairing=reduced.redistribution_pairing,
         )
         assert isinstance(instance, MorelMontryAngularSweep)
 
@@ -450,7 +452,9 @@ class TestPairingContract:
     @staticmethod
     def _angular():
         sn = make_tiny_spherical_sn_mesh()
-        return sn.reduced.angular, sn.reduced.redistribution_pairing
+        reduced = sn.reduced
+        assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
+        return reduced.angular, reduced.redistribution_pairing
 
     @pytest.mark.foundation
     def test_the_shipped_gram_is_single_moment_and_admits(self) -> None:
@@ -600,8 +604,10 @@ class TestMintedScanConstants:
     def test_identity_closure_constants_are_neutral(self) -> None:
         """[foundation] Identity: τ⁻¹ ≡ 1, coeff ≡ 0, advance ≡ ψ̄ exactly."""
         sn = make_tiny_spherical_sn_mesh()
+        reduced = sn.reduced
+        assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         closure = IdentityAngularClosure(
-            sn.reduced.angular, sn.reduced.redistribution_pairing,
+            reduced.angular, reduced.redistribution_pairing,
         )
         n = closure.tau_per_ordinate.size
         assert np.array_equal(closure.tau_inv_per_ordinate, np.ones(n))

@@ -569,7 +569,7 @@ def build_within_group_system(
     # delegation, so THIS is the one march-construction site).
     A_AB = RadialCharacteristicSeeding(sn_mesh)
     reduced = sn_mesh.reduced
-    assert reduced is not None  # carrying ⇒ 1-D curvilinear; narrowing only
+    assert reduced is not None  # carrying ⇒ 1-D ⇒ minted by the ctor; narrowing only
     emission = RadialCharacteristicEmission(
         S.isotropic_kernel,
         field_space=member_space,

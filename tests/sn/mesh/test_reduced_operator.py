@@ -222,12 +222,14 @@ class TestSNMeshBindsSphericalFactory:
         mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(N)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        snm_reduced = sn_mesh.reduced
+        assert snm_reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         reduced = spherical_streaming(mesh, quad)
         assert np.array_equal(
             reduced.angular.alpha_per_level[0],
-            sn_mesh.reduced.angular.alpha_per_level[0],
+            snm_reduced.angular.alpha_per_level[0],
         )
-        assert np.array_equal(reduced.delta_A, sn_mesh.reduced.delta_A)
+        assert np.array_equal(reduced.delta_A, snm_reduced.delta_A)
 
 
 class TestSNMeshBindsCylindricalFactory:
@@ -299,13 +301,15 @@ class TestSNMeshBindsCylindricalFactory:
         mesh = _cylindrical_mesh()
         quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        snm_reduced = sn_mesh.reduced
+        assert snm_reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         reduced = cylindrical_streaming(mesh, quad)
         for rdc, snm in zip(
             reduced.angular.alpha_per_level,
-            sn_mesh.reduced.angular.alpha_per_level,
+            snm_reduced.angular.alpha_per_level,
         ):
             assert np.array_equal(rdc, snm)
-        assert np.array_equal(reduced.delta_A, sn_mesh.reduced.delta_A)
+        assert np.array_equal(reduced.delta_A, snm_reduced.delta_A)
 
 
 # ═══════════════════════════════════════════════════════════════════════

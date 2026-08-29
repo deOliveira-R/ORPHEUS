@@ -133,6 +133,7 @@ def _hand_reference_cyl_matvec(
     eps = 1e-15
 
     reduced = sn_mesh.reduced
+    assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
     A = reduced.face_areas
     V = sn_mesh.volumes
     mu_x = quad.mu_x
