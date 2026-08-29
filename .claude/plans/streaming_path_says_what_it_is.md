@@ -123,6 +123,7 @@
 > | `2ec73b80` | **P4.6** | the moment mass consumes the AXES — `has_constant_volume_element` per axis; the chart tag leaves the family; `ndim` → `len(axes)`; mixed-tuple witness |
 > | `260ddc64` | **P4.5** | the predicates say what they ask (`is_1d` re-keys; the annotation tells the truth; `_is_curvilinear` dead) — chain-scan reading; the title's premise dissolved at P4.1b |
 > | `a60e5c0f` | **P4.9b** | the operator is POSED with its two closures (`.pose`; no defaults, no guards); the walk consumes the HANDED pair (keystone: post-pose hub swaps INERT); the strategy-layer intern (count-gated); the pole misnomer dead (`angular_closure`/`AngularClosureBase`); docs `9c3eb60a` (16 commits `b253732f`…`a60e5c0f` + tail `5a1591d2`, incl. archivist) |
+> | `83c1ccc8` | **P4b** | the closure block has ONE home (closure caches five per-ordinate arrays read-only; cache 13→8 fields, builder takes no closure); dead `level_ordinates` retired; both strata refuse writes; the §4bis done-when REFUTED by the opener and re-ruled (3 commits `3ebb45d9`…`83c1ccc8`) |
 >
 > `[M]` exit gates, full fast set, 13 trees all `rc=0` each time:
 > **P2 9815/0** (+1 vs P1 — the new `sn/angular/__init__.py` adds one case to
@@ -152,6 +153,12 @@
 > unchanged; matrix.rst 10167 → 10165 by the same −2); family battery
 > 1240/0; pyright orpheus/ 0, tests/ baseline-exact 1386; sphinx -W 0;
 > dead_references 0/52. ⟹ **the acceptance baseline is now 9846.**
+> **P4b 9847/0 — `[M]` 13 trees rc=0, delta exactly +1 = the new
+> read-only refusal witness, PREDICTED before the run** (22 sk / 227 des /
+> 70 xf unchanged; the two gate re-poses are 1:1 so they move no count);
+> sweep+operators pre-gate 2163/0; pyright orpheus/ 0, touched test files
+> net −2; sphinx -W 0; dead_references 0/52. ⟹ **the acceptance baseline
+> is now 9847.**
 >
 > ### ▶ NEXT — **the campaign's next act is a SEQUENCING ruling** (P4.9 is
 > COMPLETE: P4.9a ✅ `7a0f434c`, P4.9b ✅ merged 2026-08-29; **§5b ⛔ P0
@@ -192,8 +199,13 @@
 > `CollisionCache`'s eager build to lazy; its `_build_count` instruments
 > a cardinal gate — now the P4.9b COUNT gate). P0's shape census
 > corroborates the split ((N,) = T_ang's algebra, (N,nx) = D/T_spatial).
-> Behind P4b: CS5 (gates the P4-mint remainder + P3c) · P6 ·
-> the re-posed §5b build. P5 rides O-3; P7 = #409. Read `scratch/p4_9b_design.md` §§7–10
+> ✅ **P4b is LANDED 2026-08-29** (`3ebb45d9` + `55d5783f` + `83c1ccc8`,
+> ground `scratch/p4b_ground_measure.md` — the opener REFUTED the §4bis
+> done-when and the phase was re-ruled *"Un-hoist to owners"*; full
+> record + residue at §4bis's ✅/⛔ banners). ⟹ **the ruled queue behind
+> P4b is now the head: CS5 (gates the P4-mint remainder + P3c) · P6 ·
+> the re-posed §5b build — order NOT yet ruled; bring the user a
+> sequencing round.** P5 rides O-3; P7 = #409. Read `scratch/p4_9b_design.md` §§7–10
 > before designing anything that touches the posing surfaces.
 >
 > ⭐ **Before designing P4.9, read `scratch/p4_9_design_measured.md`** — the
@@ -677,6 +689,18 @@ closure is built once per **mesh** while `[M]` its S0 half cannot change under
 a re-mesh — that is the F3 weld, and it is why the split is worth doing rather
 than merely tidy.
 
+> ✅ **P4b (2026-08-29) resolved the CACHE-side face of this weld** — the
+> ownership carve, not a lifetime carve: the closure block's twin storage is
+> gone (one home per datum), but the closure itself is STILL minted per mesh.
+> `[M]` (`scratch/p4b_ground_measure.md` §B.3) the closure is not
+> (quad, coord)-pure as an object — it holds `_gram` `(nx,1,1)` and
+> `_dAw_per_level` `(nx, M_p)`, consumed by its own kernels — so no
+> (quad, coord)-lifetime owner exists on this path today, and hoisting one
+> out requires splitting the closure's own two strata. **That carve rides
+> O-3** (where the closure/factory family splits anyway; Campaign 2
+> territory), recorded here so the F3 sentence above cannot be read as an
+> unaddressed defect of the cache.
+
 ⚠ **What NOT to make lazy.** `CollisionCache`'s eagerness is load-bearing —
 `_build_count` instruments a cardinal invariance gate (*exactly once per Σ_t
 epoch*). Do not convert a gate-instrumented eager build into a lazy one; the
@@ -685,6 +709,17 @@ gate measures the build.
 ---
 
 ## 4bis. ⛔ The cache class welds THREE strata — measured, and it refuted both proposed names
+
+> ✅ **REMEDIED by P4b, 2026-08-29 (`3ebb45d9` + `55d5783f` + `83c1ccc8`).**
+> The weld below is HISTORY: the closure block (4 fields) has one home on the
+> closure, `level_ordinates` (production-dead, `[M]` zero readers of any
+> kind) is retired, the cache is the 8-field chain-ordered spatial table, and
+> both strata's arrays refuse writes. The phase's opening re-measure
+> (`scratch/p4b_ground_measure.md` — the 4th consecutive opener to correct
+> its own section) REPRODUCED the S0-seven verdict on all three charts and
+> REFINED it: the S1 quartet is chart-dependent (on the SLAB only `volume`
+> is edge-sensitive; the other three are neutral constants behaving as S3),
+> a denominator the census below never stated.
 
 `[M]` 2026-08-26, during P3b. Three meshes against **one** quadrature (uniform
 `nx=6`, uniform `nx=20`, GRADED `nx=6`), comparing every field of the class §1
@@ -734,6 +769,44 @@ Per §9.3's governing ruling. The whole object rebuilds on any re-mesh including
 mesh-bound; `chain_idx` moves to the traversal layer. ⚠ Do **not** convert
 `CollisionCache`'s eager build to lazy — §4 records that its `_build_count`
 instruments a cardinal gate.
+
+> ⛔ **The done-when above was REFUTED by the phase's own ground measure
+> (2026-08-29, `scratch/p4b_ground_measure.md` §A.0.3/§A.4/§F5) and the
+> phase was re-ruled** (user, P4b design round: *"Un-hoist to owners"* over
+> the literal split):
+> - *"`Quadrature × CoordSystem` **alone**"* cannot be an honest key —
+>   `[M]` 4 of the 7 S0 fields are CLOSURE-minted, the closure class is
+>   user-overridable per mesh, and two shipped gates (the intern's identity
+>   validation; the keystone's activation leg) require a doctored closure
+>   handed at pose to get its own values.
+> - The identity criterion had no owner to live on — `[M]` no
+>   (quad, coord)-lifetime object exists on this path (closure,
+>   `AngularRedistribution`, reduced operator are all per-mesh instances),
+>   and the shareable win is O(N) trivial allocations, unmeasured — cache
+>   machinery against the algebra-eager/performance-lazy rule.
+> - *"`chain_idx` moves to the traversal layer"* died with the same
+>   measure: the chain-ordered tensors are STORED BY that permutation —
+>   table and permutation are one strategy artifact (the P4.9b binding
+>   principle's fused table), and no consumer asks for them apart.
+>
+> ✅ **LANDED 2026-08-29 as the ownership carve** (`3ebb45d9` retire dead
+> `level_ordinates` + sweep-docstring truth; `55d5783f` the shed — closure
+> caches all five per-ordinate arrays read-only, cache 12→8 fields, builder
+> takes no closure, walks read their HANDED closure, `from_geometry` handed
+> the closure, fidelity gate re-posed as the accessor-stability witness;
+> `83c1ccc8` both builders' arrays refuse writes + witness). **Done-when as
+> landed:** grep `geom.c_in|c_out|tau_inv|mm_a_in_coeff` → `[M]` 0 hits
+> tree-wide; the closure's five per-ordinate accessors identity-stable +
+> read-only (witnessed); `level_ordinates` unspellable; `dead_references`
+> 0/52; bit-identical (sweep+operators trees 2163/0 pre-gate; full gate
+> `[M]` **9847/0, 13 trees rc=0, delta exactly the predicted +1** — the
+> 4th consecutive exact pre-run prediction).
+> ⚠ Residue, recorded not deferred: `geometry_cache_for`'s closure-identity
+> validation is now VESTIGIAL cache-side (a doctored closure's rebuild is
+> bit-identical — the walk reads the doctored closure directly), retained
+> as the intern's declared key; it dissolves with the strategy layer at
+> Campaign 2 (Q1's own rationale). The closure's own (quad,coord)×mesh
+> weld → §4's O-3 rider note.
 
 ---
 
