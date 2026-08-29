@@ -104,6 +104,8 @@ See also
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from weakref import WeakKeyDictionary
+
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
@@ -457,6 +459,40 @@ class LossRepresentation(Protocol):
 # ═══════════════════════════════════════════════════════════════════════
 # Common base — the construction guard (illegal pairings unrepresentable)
 # ═══════════════════════════════════════════════════════════════════════
+
+
+#: P4.9b Q1 ruling — the strategy layer OWNS the interned Stratum-1 table.
+#: Keyed weakly on the hub (one entry per mesh), VALIDATED against the
+#: angular-closure identity (a doctored pair handed at pose gets its own
+#: build — the keystone's surviving-cache trap dissolves).  The mechanism
+#: lives in THIS retirement-bound layer deliberately: when Campaign 2
+#: replaces the consumer side with a lazy solution strategy, the interim
+#: interning dies with the layer it serves (the user's
+#: survives-the-lazy-strategy criterion; `scratch/p4_9b_design.md` §9).
+#: The COUNT gate (`tests/sn/sweep/core/test_cache.py`) pins builds-per-
+#: solve == 1 — the F2-measured hazard (6-10 operators/solve × 8.78 ms).
+_GEOM_CACHE_INTERN: "WeakKeyDictionary[SNMesh, tuple[PoleAngularClosureBase, StreamingCoefficientCache]]" = (
+    WeakKeyDictionary()
+)
+
+
+def geometry_cache_for(
+    mesh: "SNMesh", angular_closure: "PoleAngularClosureBase",
+) -> StreamingCoefficientCache:
+    """The lazily-resolved, hub-interned geometry table (Stratum 1).
+
+    σ-free (geometry × quadrature × closure algebra), so its lifetime is
+    the hub's; the closure-identity validation rebuilds for a different
+    handed closure.  Consumers: the walk's ensure path (lazy, first
+    sweep) and the solver's σ-stratum posing (which needs Stratum 1 to
+    build :class:`CollisionCache`).
+    """
+    entry = _GEOM_CACHE_INTERN.get(mesh)
+    if entry is not None and entry[0] is angular_closure:
+        return entry[1]
+    cache = StreamingCoefficientCache.from_mesh_and_quad(mesh, angular_closure)
+    _GEOM_CACHE_INTERN[mesh] = (angular_closure, cache)
+    return cache
 
 
 @dataclass(frozen=True)
@@ -3846,14 +3882,14 @@ class _OneDimScanWalk:
         )
 
     def _ensure_geom_cache(self) -> StreamingCoefficientCache:
-        """Return the geometry cache, building it on first use if absent."""
-        cache = getattr(self.mesh, "_geom_cache", None)
-        if cache is None:
-            cache = StreamingCoefficientCache.from_mesh_and_quad(
-                self.mesh, self.angular_closure,
-            )
-            self.mesh._geom_cache = cache  # type: ignore[attr-defined]
-        return cache
+        """The interned Stratum-1 table for THIS walk's handed closure.
+
+        Lazily resolved on first need through the strategy layer's
+        intern (:func:`geometry_cache_for`) — the retired mesh-attr
+        ``_geom_cache`` memo's successor (P4.9b step 2c; the memo-
+        retirement gate pins its absence).
+        """
+        return geometry_cache_for(self.mesh, self.angular_closure)
 
     def _ensure_pole_mirror(self) -> np.ndarray:
         r"""The r = 0 coupled-pole mirror pairing, derived on first use.

@@ -1431,7 +1431,16 @@ class SNSolver:
         # directly — never the scan cache.  Build the cache only when the scan
         # path can actually be selected (DD keeps its bit-identical cache).
         if sn_mesh.reduced is not None and sn_mesh.scheme.is_affine_scannable:
-            self.geom_cache = StreamingCoefficientCache.from_mesh_and_quad(
+            # Stratum 1 through the strategy layer's INTERN (P4.9b step 2c
+            # — one build per mesh × closure pair, however many operators
+            # a solve constructs; the retired eager build + the mesh-attr
+            # ``_geom_cache`` stash both lived here).  The σ-stratum below
+            # needs it NOW to pose CollisionCache — that eager σ posing
+            # (and its ``_coll_cache`` stash the walk reads) is Campaign
+            # 2's consumer-side territory, deliberately untouched.
+            from orpheus.sn.loss_representation import geometry_cache_for
+
+            self.geom_cache = geometry_cache_for(
                 sn_mesh, sn_mesh.pole_angular_closure,
             )
             # No bridge needed: ``mat_xs.total_cross_section`` is the
@@ -1441,9 +1450,6 @@ class SNSolver:
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d, sn_mesh.scheme,
             )
-            # Stash the caches on the SNMesh so the walk can find them
-            # without threading a solver reference through the sweep entry.
-            sn_mesh._geom_cache = self.geom_cache  # type: ignore[attr-defined]
             sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
     def rebind_cross_sections(self, new_sig_t: np.ndarray) -> None:

@@ -274,11 +274,16 @@ class StreamingCoefficientCache:
         quad = sn_mesh.quad
         N = quad.N
         nx = sn_mesh.nx
-        assert sn_mesh.reduced is not None, (
-            "StreamingCoefficientCache requires a ReducedStreamingOperator "
-            "(1-D Cartesian / spherical / cylindrical).  2-D Cartesian "
-            "wavefront uses anti-diagonal scheduling, not the chain scan."
-        )
+        if sn_mesh.reduced is None:
+            # A domain/admission contract, not type-narrowing — a bare
+            # ``assert`` here is a NO-OP under the canonical ``python -O``
+            # runner (coding-standards, the bare-assert clause; converted
+            # at P4.9b step 2c with its first witness).
+            raise TypeError(
+                "StreamingCoefficientCache requires a ReducedStreamingOperator "
+                "(1-D Cartesian / spherical / cylindrical).  2-D Cartesian "
+                "wavefront uses anti-diagonal scheduling, not the chain scan."
+            )
         coord = sn_mesh.coord
 
         # ── Per-ordinate scalars (slab carries neutral M-M constants) ─

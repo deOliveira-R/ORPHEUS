@@ -338,6 +338,28 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
     assert coll_after is not coll_before, (
         "CollisionCache should be rebuilt on σ_t rebind."
     )
+    # P4.9b step 2c — the re-posed halves of the two-stratum contract:
+    # (1) Stratum 1 now lives in the strategy layer's INTERN; the mesh-attr
+    #     memo is RETIRED (the walk resolves through geometry_cache_for).
+    from orpheus.sn.loss_representation import geometry_cache_for
+
+    assert not hasattr(sn_mesh, "_geom_cache"), (
+        "the mesh-attr _geom_cache memo was retired at P4.9b step 2c — "
+        "the strategy layer's intern is the one home (Q1 ruling)"
+    )
+    assert geometry_cache_for(
+        sn_mesh, sn_mesh.pole_angular_closure,
+    ) is geom_before, "the solver's Stratum 1 IS the interned instance"
+    # (2) STALENESS — the σ stratum the WALK sees is the fresh one: the
+    #     rebind re-stamped the mesh memo, and its values carry the NEW σ
+    #     (pre-carve this was structural; post-carve it is asserted).
+    #     _coll_cache / _pole_mirror_cache deliberately SURVIVE as mesh
+    #     memos — the σ-stratum posing is Campaign 2's consumer-side
+    #     territory (the design memo §9 records the ruling).
+    assert sn_mesh._coll_cache is coll_after
+    assert not np.array_equal(
+        coll_after.inverse_denom, coll_before.inverse_denom,
+    ), "the rebuilt σ stratum must carry the NEW σ_t (the staleness leg)"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -755,3 +777,110 @@ def test_closure_algebra_fields_slab_neutral_element() -> None:
     np.testing.assert_array_equal(geom.mm_a_in_coeff, np.zeros(N))
     np.testing.assert_array_equal(geom.c_in, np.zeros(N))
     np.testing.assert_array_equal(geom.c_out, np.zeros(N))
+
+
+def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
+    """[foundation] The COUNT gate — Stratum 1 is built ONCE per (mesh, closure).
+
+    P4.9b step 2c (verification plan F2/§2.3(c-ii)): [M] the operator is
+    constructed 6-10 times per solve, so a per-operator memo would build
+    the table 6-10× where today's count is 1 — up to 24.65 % of a slab
+    solve (GL16/nx=200).  The ruled home (Q1) is the strategy layer's
+    hub-interned lazy resolve, whose lifetime spans the MESH: the count
+    is 1 across a whole solve AND across a second solve on the same
+    mesh.  A wall-clock assertion is forbidden (flaky proxy); the count
+    is exact and is the only instrument that can see a memo-scoping
+    regression.
+    """
+    import orpheus.sn.loss_representation  # ensure the module is bound
+    from orpheus.sn.solver import solve_sn_fixed_source
+    from orpheus.sn.sweep.cache import StreamingCoefficientCache
+    from tests.sn._test_helpers import placeholder_materials
+
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 1.0, 5),
+        mat_ids=np.zeros(4, dtype=int),
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(4)
+    materials = placeholder_materials(ng=2)
+    sn_mesh = SNMesh(mesh, quad, materials)
+
+    counts = {"builds": 0}
+    real = StreamingCoefficientCache.from_mesh_and_quad.__func__
+
+    def counting(cls, m, closure):
+        counts["builds"] += 1
+        return real(cls, m, closure)
+
+    q_ext = np.ones((quad.N, sn_mesh.ng, 4))
+    try:
+        StreamingCoefficientCache.from_mesh_and_quad = classmethod(counting)
+        # Leg 1 — one FULL solve builds exactly once (the entry builds its
+        # own hub from the raw geometry; [M] 6-10 operators live inside).
+        solve_sn_fixed_source(materials, mesh, quad, q_ext)
+        assert counts["builds"] == 1, (
+            f"Stratum 1 built {counts['builds']}x in one solve — the "
+            "interned lazy resolve must build exactly once (F2: a "
+            "per-operator memo costs up to 24.65 % of a slab solve)"
+        )
+        # Leg 2 — the intern's LIFETIME is the hub's: two independently
+        # posed operators over ONE hub share one build.
+        counts["builds"] = 0
+        from orpheus.sn.operators.streaming import StreamingOperator
+        from orpheus.transport.operators.multiplication_operator import (
+            MultiplicationOperator,
+        )
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sig = np.ones((sn_mesh.ng, *sn_mesh.spatial_shape))
+        rhs = TimedFullField.zeros(
+            interior=AngularFlux,
+            boundary=AngularBoundaryFlux,
+            space=sn_mesh.full_field_space,
+        )
+        rhs.interior.values[...] = 1.0
+        for _ in range(2):
+            L = StreamingOperator.pose(sn_mesh)
+            (L + MultiplicationOperator.from_mesh(sig, sn_mesh)).solve(rhs)
+        assert counts["builds"] == 1, (
+            f"two posed operators over ONE hub built Stratum 1 "
+            f"{counts['builds']}x — the intern's lifetime is the hub's, "
+            "not the operator's"
+        )
+    finally:
+        StreamingCoefficientCache.from_mesh_and_quad = classmethod(real)
+
+
+def test_cache_builder_refuses_a_meshless_chain_under_dash_O() -> None:
+    """[foundation] The admission contract raises — not a stripped assert.
+
+    P4.9b step 2c ride-along: the guard was a bare ``assert`` (a NO-OP
+    under the canonical ``python -O`` runner) with [M] ZERO witnesses
+    tree-wide — this test is NET-NEW coverage, not a migration.  A 2-D
+    Cartesian mesh (``reduced is None``) must be REFUSED with the typed
+    message, in optimized and debug mode alike.
+    """
+    from orpheus.sn.sweep.cache import StreamingCoefficientCache
+
+    from orpheus.geometry import Mesh2D
+    from tests.sn._test_helpers import placeholder_materials
+
+    mesh2d = Mesh2D(
+        edges_x=np.linspace(0.0, 1.0, 4),
+        edges_y=np.linspace(0.0, 1.0, 4),
+        mat_map=np.zeros((3, 3), dtype=int),
+    )
+    sn2d = SNMesh(
+        mesh2d, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=2),
+    )
+    assert sn2d.reduced is None  # the witness's own premise
+    with pytest.raises(TypeError, match="requires a ReducedStreamingOperator"):
+        StreamingCoefficientCache.from_mesh_and_quad(
+            sn2d, sn2d.pole_angular_closure,
+        )

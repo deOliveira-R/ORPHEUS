@@ -1113,3 +1113,38 @@ def test_pose_reads_the_hub_objects_by_identity():
     # as a pair so a swapped .pose names the slot in the failure.
     assert isinstance(L.spatial_closure, DiscretizationSchemeBase)
     assert isinstance(L.angular_closure, PoleAngularClosureBase)
+
+
+def test_the_raw_ctor_is_a_declared_expert_seam():
+    """[foundation] The raw ctor accepts a doctored triple BY DESIGN.
+
+    Ruled 2026-08-28 (P4.9b design round, the four-attack exercise):
+    production consistency is by construction through ``.pose``; a guard
+    here would forbid the seam's own use case — a diagnostic probe that
+    deliberately doctors a closure (e.g. switching redistribution off to
+    measure its effect) builds through an honest ctor rather than a
+    monkeypatch.
+
+    [M] the doctored state is NOT silent where it could mislead: a
+    wrong-family closure raises at the first sweep on every curvilinear
+    geometry (typed on the sphere, ``IndexError`` on the cylinder) and is
+    bit-identically inert on the slab (where the identity closure IS the
+    default).  This test asserts CONSTRUCTIBILITY only — the raise
+    belongs to the walk's family dispatch (a different owner, which O-3
+    may dissolve).  One positive leg, no negative leg, deliberately: the
+    ruling this freezes is "no guard", so there is nothing to assert
+    raising (recorded here so a reviewer does not flag the missing
+    negative leg — vv #11 applies to contract-validation methods, and
+    the contract HERE is that no validation exists).
+    """
+    from orpheus.sn.angular.closure import IdentityAngularClosure
+    from orpheus.sn.angular.redistribution import angular_redistribution
+
+    sn = _slab_mesh()
+    doctored = IdentityAngularClosure(
+        angular_redistribution(sn.quad, sn.coord),
+        np.zeros((sn.nx, 1, 1)),
+    )
+    L = StreamingOperator(sn, sn.scheme, doctored)
+    assert L.angular_closure is doctored
+    assert L.angular_closure is not sn.pole_angular_closure
