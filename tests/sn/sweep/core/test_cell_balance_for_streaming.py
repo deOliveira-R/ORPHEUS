@@ -11,7 +11,7 @@ The helper now accepts ``angular_denom_term`` (shape ``(n_mask,)``)
 and ``angular_numer_upstream`` (shape ``(ng, n_mask)``) — the
 operated-on contributions from the closure strategy
 (``closure.cell_contribution(...)``).  Pre-Phase-2.11 the helper
-accepted ``dA_w``, ``c_in``, ``c_out``, ``psi_angular_upstream``
+accepted ``delta_A_over_w``, ``c_in``, ``c_out``, ``psi_angular_upstream``
 (M-M-specific names), with the closure algebra inlined.  These tests
 construct the angular contributions explicitly to verify the helper's
 own algebra (no closure dependence at the test surface).
@@ -33,7 +33,7 @@ Pinned invariants
 
 3. **Slab degeneracy**: with zero ``angular_denom_term`` and zero
    ``angular_numer_upstream`` the helper reduces to the slab form
-   ``denom = 2|μ|·A_down + σ_t·V`` / ``numer = |μ|·A_total·ψ_in``.
+   ``denom = 2|μ|·face_area_downstream + σ_t·V`` / ``numer = |μ|·face_area_total·ψ_in``.
 
 4. **Linearity in psi_face_in**: the helper is affine in
    ``psi_face_in`` and ``angular_numer_upstream`` (linear
@@ -67,6 +67,10 @@ from tests.sn.sweep.core._c_surrogate import c_from_constants
 _CURVILINEAR_TAU = 0.75
 _CURVILINEAR_ALPHA_IN = 0.1
 _CURVILINEAR_ALPHA_OUT = 0.15
+# ΔA/w for the synthetic fixtures (P4.7 — the packet no longer carries
+# the fusion; the value lives beside the M-M triple it couples with).
+_CURVILINEAR_DAW = 0.3
+_SLAB_DAW = 0.0
 _SLAB_TAU = 1.0
 _SLAB_ALPHA_IN = 0.0
 _SLAB_ALPHA_OUT = 0.0
@@ -91,11 +95,8 @@ def _curvilinear_streaming_terms() -> StreamingTerms:
     / ``alpha_*`` packing on ``StreamingTerms`` was retired).
     """
     return StreamingTerms(
-        chord_length=0.5,
-        mu=0.3,
         face_area_inner=1.2,
         face_area_outer=1.5,
-        delta_A_over_w=0.3,
         volume=0.6,
         abs_mu=0.3,
     )
@@ -104,11 +105,8 @@ def _curvilinear_streaming_terms() -> StreamingTerms:
 def _slab_streaming_terms() -> StreamingTerms:
     """Slab StreamingTerms (Step 2.5 neutral curvature; neutral M-M triple)."""
     return StreamingTerms(
-        chord_length=0.5,
-        mu=0.3,
         face_area_inner=1.0,
         face_area_outer=1.0,
-        delta_A_over_w=0.0,
         volume=0.5,
         abs_mu=0.3,
     )
@@ -123,10 +121,11 @@ def _scalar_to_vectorized_inputs(
     tau: float,
     alpha_in: float,
     alpha_out: float,
+    delta_A_over_w: float,
 ):
     """Convert per-cell scalar StreamingTerms to ``(n_mask=1,)`` inputs.
 
-    Returns ``(abs_mu, A_down, A_total, psi_face_in,
+    Returns ``(abs_mu, face_area_downstream, face_area_total, psi_face_in,
     angular_denom_term, angular_numer_upstream)`` — the closure-aware
     PR-TYPED-6.5 Phase 2.11 helper argument shape.  The angular
     contributions are computed inline from the explicit M-M triple
@@ -136,9 +135,9 @@ def _scalar_to_vectorized_inputs(
     behaviour under equivalent inputs.
     """
     abs_mu = np.array([st.abs_mu], dtype=float)
-    A_down = np.array([A_downstream_scalar], dtype=float)
-    A_total = np.array([st.face_area_inner + st.face_area_outer], dtype=float)
-    dA_w_scalar = st.delta_A_over_w
+    face_area_downstream = np.array([A_downstream_scalar], dtype=float)
+    face_area_total = np.array([st.face_area_inner + st.face_area_outer], dtype=float)
+    dA_w_scalar = delta_A_over_w  # P4.7: supplied beside the M-M triple
     c_out_scalar = alpha_out / tau
     c_in_scalar = (1.0 - tau) / tau * alpha_out + alpha_in
     psi_face_in = psi_spatial[:, None]                          # (ng, 1)
@@ -152,7 +151,7 @@ def _scalar_to_vectorized_inputs(
             dA_w_scalar * c_in_scalar * psi_ang[:, None]
         )                                                        # (ng, 1)
     return (
-        abs_mu, A_down, A_total, psi_face_in,
+        abs_mu, face_area_downstream, face_area_total, psi_face_in,
         angular_denom_term, angular_numer_upstream,
     )
 
@@ -170,9 +169,9 @@ def test_n_mask_1_hand_written_pin_curvilinear():
     scalar twin ``cell_balance_terms`` retired, so the cross-helper
     comparison lost its subject.  The literals below were computed by
     hand in the balance equation's own operation order —
-    ``denom = 2·|μ|·A_down + (ΔA/w)·c_out + Σ_t·V`` (left fold),
-    ``numer = |μ|·A_total·ψˢ + (ΔA/w)·c_in·ψᵃ`` — on the module's
-    synthetic packet (τ=0.75, α=(0.1, 0.15), A_down=1.5), [M] validated
+    ``denom = 2·|μ|·face_area_downstream + (ΔA/w)·c_out + Σ_t·V`` (left fold),
+    ``numer = |μ|·face_area_total·ψˢ + (ΔA/w)·c_in·ψᵃ`` — on the module's
+    synthetic packet (τ=0.75, α=(0.1, 0.15), face_area_downstream=1.5), [M] validated
     bit-equal against the living helper before it died (2026-08-28).
     This is a claim-class PROMOTION: the values stop being cross-checked
     between two implementations and start being anchored to literals.
@@ -182,16 +181,16 @@ def test_n_mask_1_hand_written_pin_curvilinear():
     A_downstream = 1.5
     total_xs = np.array([1.2, 0.8])
     (
-        abs_mu, A_down, A_total, psi_face_in,
+        abs_mu, face_area_downstream, face_area_total, psi_face_in,
         angular_denom_term, angular_numer_upstream,
     ) = _scalar_to_vectorized_inputs(
         st, A_downstream, np.array([0.5, 0.7]), np.array([0.4, 0.6]),
         tau=_CURVILINEAR_TAU, alpha_in=_CURVILINEAR_ALPHA_IN,
-        alpha_out=_CURVILINEAR_ALPHA_OUT,
+        alpha_out=_CURVILINEAR_ALPHA_OUT, delta_A_over_w=_CURVILINEAR_DAW,
     )
 
     denom_v, numer_v = cell_balance_for_streaming(
-        abs_mu=abs_mu, A_downstream=A_down, A_total=A_total,
+        abs_mu=abs_mu, A_downstream=face_area_downstream, face_area_total=face_area_total,
         total_xs=total_xs, volume=st.volume,
         psi_face_in=psi_face_in,
         angular_denom_term=angular_denom_term,
@@ -214,7 +213,7 @@ def test_n_mask_1_hand_written_pin_slab():
 
     P4.9a rewire (was ``test_n_mask_1_matches_scalar_slab``); see the
     curvilinear pin's docstring for the claim-class note.  Slab packet:
-    neutral curvature (dA_w = 0, c = 0, A = 1), so
+    neutral curvature (delta_A_over_w = 0, c = 0, A = 1), so
     ``denom = 2·|μ| + Σ_t·V`` and ``numer = 2|μ|·ψˢ`` — the two
     structural zero-legs on the angular contributions survive as
     independent pins.
@@ -223,19 +222,20 @@ def test_n_mask_1_hand_written_pin_slab():
     A_downstream = 1.0
     total_xs = np.array([1.2, 0.8])
     (
-        abs_mu, A_down, A_total, psi_face_in,
+        abs_mu, face_area_downstream, face_area_total, psi_face_in,
         angular_denom_term, angular_numer_upstream,
     ) = _scalar_to_vectorized_inputs(
         st, A_downstream, np.array([0.5, 0.7]), None,
         tau=_SLAB_TAU, alpha_in=_SLAB_ALPHA_IN, alpha_out=_SLAB_ALPHA_OUT,
+        delta_A_over_w=_SLAB_DAW,
     )
-    # Slab fixture has dA_w = 0 and c_in = c_out = 0 → both angular
+    # Slab fixture has delta_A_over_w = 0 and c_in = c_out = 0 → both angular
     # contributions are zero arrays.
     np.testing.assert_array_equal(angular_denom_term, np.zeros(1))
     np.testing.assert_array_equal(angular_numer_upstream, np.zeros_like(psi_face_in))
 
     denom_v, numer_v = cell_balance_for_streaming(
-        abs_mu=abs_mu, A_downstream=A_down, A_total=A_total,
+        abs_mu=abs_mu, A_downstream=face_area_downstream, face_area_total=face_area_total,
         total_xs=total_xs, volume=st.volume,
         psi_face_in=psi_face_in,
         angular_denom_term=angular_denom_term,
@@ -261,8 +261,8 @@ def test_vectorization_invariance_curvilinear():
     volume = 0.42
 
     abs_mu = rng.uniform(0.1, 1.0, size=n_mask)
-    A_down = rng.uniform(0.5, 2.0, size=n_mask)
-    A_total = rng.uniform(1.5, 3.5, size=n_mask)
+    face_area_downstream = rng.uniform(0.5, 2.0, size=n_mask)
+    face_area_total = rng.uniform(1.5, 3.5, size=n_mask)
     # Synthetic angular contributions (post-Phase-2.11 inputs).
     angular_denom_term = rng.uniform(0.0, 0.5, size=n_mask)
     angular_numer_upstream = rng.normal(size=(ng, n_mask))
@@ -270,7 +270,7 @@ def test_vectorization_invariance_curvilinear():
 
     # Vectorized batch call.
     denom_batch, numer_batch = cell_balance_for_streaming(
-        abs_mu=abs_mu, A_downstream=A_down, A_total=A_total,
+        abs_mu=abs_mu, A_downstream=face_area_downstream, face_area_total=face_area_total,
         total_xs=total_xs, volume=volume,
         psi_face_in=psi_face_in,
         angular_denom_term=angular_denom_term,
@@ -281,8 +281,8 @@ def test_vectorization_invariance_curvilinear():
     for k in range(n_mask):
         denom_k, numer_k = cell_balance_for_streaming(
             abs_mu=abs_mu[k:k + 1],
-            A_downstream=A_down[k:k + 1],
-            A_total=A_total[k:k + 1],
+            A_downstream=face_area_downstream[k:k + 1],
+            face_area_total=face_area_total[k:k + 1],
             total_xs=total_xs, volume=volume,
             psi_face_in=psi_face_in[:, k:k + 1],
             angular_denom_term=angular_denom_term[k:k + 1],
@@ -293,7 +293,7 @@ def test_vectorization_invariance_curvilinear():
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Test 3 — slab degeneracy: helper reduces to (2|μ|A_down + σ_t V) / (|μ|A_total ψ_in)
+# Test 3 — slab degeneracy: helper reduces to (2|μ|face_area_downstream + σ_t V) / (|μ|face_area_total ψ_in)
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -302,8 +302,8 @@ def test_slab_degenerate_form():
     (the IdentityAngularClosure contribution for slab), the helper
     reduces to the pure-slab form."""
     abs_mu = np.array([0.5, 0.3])
-    A_down = np.array([1.0, 1.0])
-    A_total = np.array([2.0, 2.0])
+    face_area_downstream = np.array([1.0, 1.0])
+    face_area_total = np.array([2.0, 2.0])
     total_xs = np.array([1.5, 0.8])
     volume = 0.4
     psi_face_in = np.array([[0.1, 0.2], [0.3, 0.4]])  # (ng=2, n_mask=2)
@@ -311,20 +311,20 @@ def test_slab_degenerate_form():
     angular_numer_upstream = np.zeros((2, 2))
 
     denom, numer = cell_balance_for_streaming(
-        abs_mu=abs_mu, A_downstream=A_down, A_total=A_total,
+        abs_mu=abs_mu, A_downstream=face_area_downstream, face_area_total=face_area_total,
         total_xs=total_xs, volume=volume,
         psi_face_in=psi_face_in,
         angular_denom_term=angular_denom_term,
         angular_numer_upstream=angular_numer_upstream,
     )
 
-    # Slab form: denom = 2|μ|A_down + σ_t V (no redistribution).
+    # Slab form: denom = 2|μ|face_area_downstream + σ_t V (no redistribution).
     expected_denom = (
-        2.0 * abs_mu[None, :] * A_down[None, :]
+        2.0 * abs_mu[None, :] * face_area_downstream[None, :]
         + (total_xs * volume)[:, None]
     )
-    # Slab form: numer = |μ|A_total ψ_in (no angular contribution).
-    expected_numer = abs_mu[None, :] * A_total[None, :] * psi_face_in
+    # Slab form: numer = |μ|face_area_total ψ_in (no angular contribution).
+    expected_numer = abs_mu[None, :] * face_area_total[None, :] * psi_face_in
 
     np.testing.assert_array_equal(denom, expected_denom)
     np.testing.assert_array_equal(numer, expected_numer)
@@ -343,8 +343,8 @@ def test_linearity_in_psi_face_in():
     total_xs = rng.uniform(0.5, 1.5, size=ng)
     volume = 0.3
     abs_mu = rng.uniform(0.1, 1.0, size=n_mask)
-    A_down = rng.uniform(0.5, 2.0, size=n_mask)
-    A_total = rng.uniform(1.5, 3.5, size=n_mask)
+    face_area_downstream = rng.uniform(0.5, 2.0, size=n_mask)
+    face_area_total = rng.uniform(1.5, 3.5, size=n_mask)
     angular_denom_term = rng.uniform(0.0, 0.5, size=n_mask)
     angular_numer_upstream = rng.normal(size=(ng, n_mask))
     psi_a = rng.normal(size=(ng, n_mask))
@@ -353,21 +353,21 @@ def test_linearity_in_psi_face_in():
     alpha, beta = 0.6, -0.4
 
     denom_a, numer_a = cell_balance_for_streaming(
-        abs_mu=abs_mu, A_downstream=A_down, A_total=A_total,
+        abs_mu=abs_mu, A_downstream=face_area_downstream, face_area_total=face_area_total,
         total_xs=total_xs, volume=volume,
         psi_face_in=psi_a,
         angular_denom_term=angular_denom_term,
         angular_numer_upstream=angular_numer_upstream,
     )
     denom_b, numer_b = cell_balance_for_streaming(
-        abs_mu=abs_mu, A_downstream=A_down, A_total=A_total,
+        abs_mu=abs_mu, A_downstream=face_area_downstream, face_area_total=face_area_total,
         total_xs=total_xs, volume=volume,
         psi_face_in=psi_b,
         angular_denom_term=angular_denom_term,
         angular_numer_upstream=angular_numer_upstream,
     )
     denom_c, numer_c = cell_balance_for_streaming(
-        abs_mu=abs_mu, A_downstream=A_down, A_total=A_total,
+        abs_mu=abs_mu, A_downstream=face_area_downstream, face_area_total=face_area_total,
         total_xs=total_xs, volume=volume,
         psi_face_in=alpha * psi_a + beta * psi_b,
         angular_denom_term=angular_denom_term,
@@ -380,9 +380,9 @@ def test_linearity_in_psi_face_in():
     # numer_upstream is affine — linear combo of psi_face_in lifts
     # to linear combo of numer outputs (since the angular contribution
     # is held fixed).
-    spatial_a = abs_mu[None, :] * A_total[None, :] * psi_a
-    spatial_b = abs_mu[None, :] * A_total[None, :] * psi_b
-    spatial_c = abs_mu[None, :] * A_total[None, :] * (alpha * psi_a + beta * psi_b)
+    spatial_a = abs_mu[None, :] * face_area_total[None, :] * psi_a
+    spatial_b = abs_mu[None, :] * face_area_total[None, :] * psi_b
+    spatial_c = abs_mu[None, :] * face_area_total[None, :] * (alpha * psi_a + beta * psi_b)
     np.testing.assert_allclose(
         numer_c, spatial_c + angular_numer_upstream, rtol=1e-14,
     )
@@ -400,8 +400,8 @@ def test_angular_upstream_none_equals_zero_angular_term():
     total_xs = rng.uniform(0.5, 1.5, size=ng)
     volume = 0.3
     abs_mu = rng.uniform(0.1, 1.0, size=n_mask)
-    A_down = rng.uniform(0.5, 2.0, size=n_mask)
-    A_total = rng.uniform(1.5, 3.5, size=n_mask)
+    face_area_downstream = rng.uniform(0.5, 2.0, size=n_mask)
+    face_area_total = rng.uniform(1.5, 3.5, size=n_mask)
     angular_denom_term = rng.uniform(0.0, 0.5, size=n_mask)
     psi_face_in = rng.normal(size=(ng, n_mask))
     zero_ang = np.zeros((ng, n_mask))
@@ -413,7 +413,7 @@ def test_angular_upstream_none_equals_zero_angular_term():
     # invariant under either form.  This test pins the no-effect
     # property of a zero angular contribution.
     denom_zero, numer_zero = cell_balance_for_streaming(
-        abs_mu=abs_mu, A_downstream=A_down, A_total=A_total,
+        abs_mu=abs_mu, A_downstream=face_area_downstream, face_area_total=face_area_total,
         total_xs=total_xs, volume=volume,
         psi_face_in=psi_face_in,
         angular_denom_term=angular_denom_term,
@@ -421,11 +421,11 @@ def test_angular_upstream_none_equals_zero_angular_term():
     )
     # Build the expected outputs directly.
     expected_denom = (
-        2.0 * abs_mu[None, :] * A_down[None, :]
+        2.0 * abs_mu[None, :] * face_area_downstream[None, :]
         + angular_denom_term[None, :]
         + (total_xs * volume)[:, None]
     )
-    expected_numer = abs_mu[None, :] * A_total[None, :] * psi_face_in
+    expected_numer = abs_mu[None, :] * face_area_total[None, :] * psi_face_in
     np.testing.assert_array_equal(denom_zero, expected_denom)
     np.testing.assert_array_equal(numer_zero, expected_numer)
 
@@ -437,21 +437,23 @@ def test_angular_upstream_none_equals_zero_angular_term():
 
 
 @pytest.mark.parametrize(
-    "st_factory, A_down, ang_upstream, triple",
+    "st_factory, face_area_downstream, ang_upstream, triple, daw",
     [
         (
             _curvilinear_streaming_terms, 1.5, np.array([0.4, 0.6]),
             (_CURVILINEAR_TAU, _CURVILINEAR_ALPHA_IN, _CURVILINEAR_ALPHA_OUT),
+            _CURVILINEAR_DAW,
         ),
         (
             _slab_streaming_terms, 1.0, None,
             (_SLAB_TAU, _SLAB_ALPHA_IN, _SLAB_ALPHA_OUT),
+            _SLAB_DAW,
         ),
     ],
     ids=["curvilinear", "slab"],
 )
 def test_diamond_residual_consumes_cell_balance_for_streaming(
-    st_factory, A_down, ang_upstream, triple,
+    st_factory, face_area_downstream, ang_upstream, triple, daw,
 ):
     """Verify :meth:`DiamondDifference.residual` produces the same
     output as direct delegation to :func:`cell_balance_for_streaming`."""
@@ -462,7 +464,7 @@ def test_diamond_residual_consumes_cell_balance_for_streaming(
     st = st_factory()
     c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
-        cell_idx=7, streaming_terms=st, face_area_downstream=A_down,
+        cell_idx=7, streaming_terms=st, face_area_downstream=face_area_downstream,
     )
     total_xs = np.array([1.2, 0.8])
     source = np.array([0.05, 0.07])
@@ -474,10 +476,10 @@ def test_diamond_residual_consumes_cell_balance_for_streaming(
     # P4.9a: the caller assembles the closure contributions.
     residual = dd.residual(
         cell_avg, visit, total_xs, source, upstream,
-        angular_denom_term=st.delta_A_over_w * c_out,
+        angular_denom_term=daw * c_out,
         angular_numer_upstream=(
             None if ang_upstream is None
-            else st.delta_A_over_w * c_in * ang_upstream
+            else daw * c_in * ang_upstream
         ),
     )
 
@@ -486,11 +488,11 @@ def test_diamond_residual_consumes_cell_balance_for_streaming(
         abs_mu, A_d, A_tot, psi_face_in,
         angular_denom_term, angular_numer_upstream,
     ) = _scalar_to_vectorized_inputs(
-        st, A_down, psi_spatial, ang_upstream,
-        tau=tau, alpha_in=alpha_in, alpha_out=alpha_out,
+        st, face_area_downstream, psi_spatial, ang_upstream,
+        tau=tau, alpha_in=alpha_in, alpha_out=alpha_out, delta_A_over_w=daw,
     )
     denom, numer = cell_balance_for_streaming(
-        abs_mu=abs_mu, A_downstream=A_d, A_total=A_tot,
+        abs_mu=abs_mu, A_downstream=A_d, face_area_total=A_tot,
         total_xs=total_xs, volume=st.volume,
         psi_face_in=psi_face_in,
         angular_denom_term=angular_denom_term,
@@ -517,8 +519,8 @@ def test_diamond_residual_round_trip_at_converged_cell_avg():
     total_xs = np.array([1.2, 0.8])
     source = np.array([0.05, 0.07])
     upstream = UpstreamState(spatial_upstream=np.array([0.5, 0.7]))
-    adt = st.delta_A_over_w * c_out
-    anu = st.delta_A_over_w * c_in * np.array([0.4, 0.6])
+    adt = _CURVILINEAR_DAW * c_out
+    anu = _CURVILINEAR_DAW * c_in * np.array([0.4, 0.6])
 
     dd = DiamondDifference()
     result = dd.update(

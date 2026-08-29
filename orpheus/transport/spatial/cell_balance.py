@@ -50,10 +50,12 @@ retired the scalar one onto it (2026-08-28).  The geometry cases:
 
 * **Slab** — neutral curvature populated by the
   :func:`~orpheus.sn.mesh.reduced_operator.slab_streaming`
-  factory: ``face_area_inner = face_area_outer = 1.0``,
-  ``delta_A_over_w = 0.0`` (the former ``alpha_*`` / ``tau_mm``
-  packing left the packet at #236 Step C — the closure owns that
-  data).  ``CellVisit.face_area_downstream = 1.0``.
+  factory: ``face_area_inner = face_area_outer = 1.0``, and the
+  assembled ``angular_*`` kwargs arrive as zeros (the ΔA/w coupling —
+  closure-owned and cache-interned since P4.9a/P4.7 — is identically
+  zero on a slab; the former ``alpha_*`` / ``tau_mm`` packing left
+  the packet at #236 Step C).  ``CellVisit.face_area_downstream =
+  1.0``.
   The denominator collapses to ``2|μ|·1 + 0 + Σ_t·V`` = the slab
   form; the upstream numerator collapses to ``|μ|·2·ψ^s_in`` =
   ``2|μ|·ψ^s_in``.
@@ -62,8 +64,8 @@ retired the scalar one onto it (2026-08-28).  The geometry cases:
   resolved outgoing face area.
 * **Cylindrical pure-azimuthal degenerate** —
   ``CellVisit.face_area_downstream = 0.0`` (geometric truth: no
-  radial face on this ordinate).  The ``2|μ|·A_down`` term
-  vanishes via ``A_down = 0`` (not via the numerical threshold
+  radial face on this ordinate).  The ``2|μ|·face_area_downstream`` term
+  vanishes via ``face_area_downstream = 0`` (not via the numerical threshold
   ``|μ| < 1e-15``).
 
 The solve branch returns ``psi_avg = (source + numer_upstream) /
@@ -86,8 +88,8 @@ def cell_balance_for_streaming(
     A_downstream: "np.ndarray | float",  # (n_mask,)  sweep-resolved outgoing face
     #                                      area; broadcast-scalar 0.0 for the
     #                                      degenerate pure-z / pole cell (no
-    #                                      outgoing face), like A_total
-    A_total: np.ndarray,               # (n_mask,)  A_inner + A_outer  (broadcast scalar OK)
+    #                                      outgoing face), like face_area_total
+    face_area_total: np.ndarray,               # (n_mask,)  A_inner + A_outer  (broadcast scalar OK)
     total_xs: np.ndarray,              # (ng,)      per-group total cross section
     volume: float,                     # scalar     cell volume V_i
     psi_face_in: np.ndarray,           # (ng, n_mask) face flux entering this cell per ordinate
@@ -104,7 +106,7 @@ def cell_balance_for_streaming(
     PR-TYPED-6.5 Phase 2.11 — geometry-blind interface
     ---------------------------------------------------
     Pre-Phase-2.11 the helper accepted M-M-specific arguments
-    ``dA_w``, ``c_in``, ``c_out``, ``psi_angular_upstream``.  Phase 2.11
+    ``delta_A_over_w``, ``c_in``, ``c_out``, ``psi_angular_upstream``.  Phase 2.11
     pushes those names into the
     :class:`~orpheus.sn.angular.closure.AngularClosureBase`
     strategy: the matvec body calls
@@ -175,7 +177,7 @@ def cell_balance_for_streaming(
         sweeps, ``face_area_inner`` for inward sweeps).  Slab carries
         ``1.0`` (neutral); cylindrical-degenerate ordinates carry
         ``0.0`` (no spatial flow).
-    A_total :
+    face_area_total :
         Shape ``(n_mask,)`` (or broadcast scalar).  Sum of the cell's
         inner and outer face areas.  Slab: ``2.0`` (1+1).
     total_xs :
@@ -215,10 +217,10 @@ def cell_balance_for_streaming(
         + collision_denom_term[:, None]
     )
 
-    # Upstream-numerator: ``A_total`` may be a scalar broadcast
+    # Upstream-numerator: ``face_area_total`` may be a scalar broadcast
     # (face area is per-cell, shared across ordinates in a sweep level).
     spatial_upstream_term = (
-        abs_mu[None, :] * A_total * psi_face_in
+        abs_mu[None, :] * face_area_total * psi_face_in
     )                                                    # (ng, n_mask)
     numer_upstream = spatial_upstream_term + angular_numer_upstream
 

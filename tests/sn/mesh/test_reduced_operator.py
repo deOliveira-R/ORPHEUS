@@ -442,8 +442,9 @@ class TestStreamingTermsExtraction:
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=2, direction_idx=3)
         assert isinstance(st, StreamingTerms)
-        assert st.chord_length == float(mesh.widths[2])
-        assert st.mu == float(quad.mu_x[3])
+        # (P4.7: the packet's ``chord_length`` / ``mu`` / ``delta_A_over_w``
+        # retired — zero production readers; the ΔA/w fusion is
+        # closure-owned and cache-interned, its zero pinned at the factor.)
         # Neutral curvature: slab carries the values that make the
         # unified cell-balance algebra collapse to the slab form.
         #
@@ -459,7 +460,7 @@ class TestStreamingTermsExtraction:
         # ``TestSurfaces1D::test_cartesian``).
         assert st.face_area_inner == 1.0
         assert st.face_area_outer == 1.0
-        assert st.delta_A_over_w == 0.0
+        assert float(op.delta_A[2]) == 0.0
 
     @pytest.mark.foundation
     def test_sphere_streaming_terms_match_arrays(self):
@@ -468,14 +469,12 @@ class TestStreamingTermsExtraction:
         op = spherical_streaming(mesh, quad)
         i, n = 1, 5
         st = op.streaming_terms(cell_idx=i, direction_idx=n)
-        assert st.chord_length == float(mesh.widths[i])
         # Geometric labels: inner = closer to r=0 (A[i]),
-        #                   outer = farther (A[i+1]).
+        #                   outer = farther (A[i+1]).  (P4.7: the packet's
+        # chord/mu/ΔA-w retired; abs_mu pins the ordinate resolution.)
         assert st.face_area_inner == float(op.face_areas[i])
         assert st.face_area_outer == float(op.face_areas[i + 1])
-        assert st.delta_A_over_w == float(op.delta_A[i] / quad.weights[n])
-        # Sphere also exposes signed mu (global ordinate index == n).
-        assert st.mu == float(quad.mu_x[n])
+        assert st.abs_mu == float(abs(quad.mu_x[n]))
 
     @pytest.mark.foundation
     def test_cylinder_streaming_terms_match_per_level(self):
@@ -486,22 +485,15 @@ class TestStreamingTermsExtraction:
         st = op.streaming_terms(
             cell_idx=i, direction_idx=m, mu_level_idx=level,
         )
-        assert st.chord_length == float(mesh.widths[i])
         # Geometric labels: inner / outer relative to r=0,
         # independent of sweep direction.
         assert st.face_area_inner == float(op.face_areas[i])
         assert st.face_area_outer == float(op.face_areas[i + 1])
-        # Cylinder mu is signed eta from the GLOBAL ordinate index
-        # (resolved via level_indices) — bug 2 fix anchor.
+        # The GLOBAL-ordinate resolution (bug 2 fix anchor) now rides
+        # ``abs_mu`` — same ``level_indices`` path the retired signed-mu
+        # and ΔA/w packings used (P4.7; the cache's own gates pin the
+        # interned ΔA/w row against the factors at this resolution).
         global_n = int(quad.level_indices[level][m])
-        # ΔA/w is formed from its two factors (the fused ``redist_dAw``
-        # cache retired 2026-08-26).  The claim class is unchanged: this
-        # pins the INDEXING — cell i against GLOBAL ordinate n, not the
-        # within-level m, and not transposed.
-        assert st.delta_A_over_w == float(
-            op.delta_A[i] / quad.weights[global_n]
-        )
-        assert st.mu == float(quad.mu_x[global_n])
         assert st.abs_mu == float(abs(quad.mu_x[global_n]))
 
     @pytest.mark.foundation
@@ -583,25 +575,6 @@ class TestStreamingTermsVolumeAndAbsMu:
             assert st.volume > 0.0
             assert st.abs_mu == float(abs(quad.mu_x[absolute_idx]))
 
-    @pytest.mark.foundation
-    def test_existing_curvilinear_fields_unchanged(self):
-        """Anchor: extending StreamingTerms didn't drift the existing fields.
-
-        Re-checks that ``delta_A_over_w`` still matches the underlying
-        array after the ``volume`` / ``abs_mu`` extension.  Defense
-        against accidental reordering or drift.  (Issue #236 Step C
-        retired the M-M ``alpha_in`` / ``alpha_out`` / ``tau_mm``
-        packing on ``StreamingTerms`` — the angular weight is now
-        closure-owned, stamped on ``CellVisit``.)
-        """
-        mesh = _spherical_mesh()
-        quad = Quadrature.gauss_legendre(8)
-        op = spherical_streaming(mesh, quad)
-        i, n = 1, 5
-        st = op.streaming_terms(cell_idx=i, direction_idx=n)
-        assert st.delta_A_over_w == float(op.delta_A[i] / quad.weights[n])
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # Geometric labels: face_area_inner/outer are direction-independent
 # ═══════════════════════════════════════════════════════════════════════
@@ -634,9 +607,10 @@ class TestStreamingTermsGeometricLabels:
         # Anchor: inner is A[i], outer is A[i+1] regardless of μ.
         assert st_neg.face_area_inner == float(op.face_areas[i])
         assert st_neg.face_area_outer == float(op.face_areas[i + 1])
-        # Signed mu is direction-dependent — the discriminator.
-        assert st_neg.mu < 0
-        assert st_pos.mu > 0
+        # Direction-dependence lives on the quadrature (P4.7 — the
+        # signed packet field retired).
+        assert float(quad.mu_x[n_neg]) < 0
+        assert float(quad.mu_x[n_pos]) > 0
 
     @pytest.mark.foundation
     def test_cylinder_faces_invariant_under_direction(self):
@@ -666,9 +640,9 @@ class TestStreamingTermsGeometricLabels:
         assert st_neg.face_area_outer == st_pos.face_area_outer
         assert st_neg.face_area_inner == float(op.face_areas[i])
         assert st_neg.face_area_outer == float(op.face_areas[i + 1])
-        # Signed eta is direction-dependent.
-        assert st_neg.mu < 0
-        assert st_pos.mu > 0
+        # Signed eta is direction-dependent (off the quadrature, P4.7).
+        assert float(quad.mu_x[level_idx[m_neg]]) < 0
+        assert float(quad.mu_x[level_idx[m_pos]]) > 0
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -712,21 +686,10 @@ class TestCylindricalAbsMuUsesGlobalOrdinate:
                     f"abs_mu={st.abs_mu} != {expected}"
                 )
 
-    @pytest.mark.foundation
-    def test_cylindrical_signed_mu_per_level(self):
-        """Signed ``mu`` (= η) also reads from the GLOBAL ordinate."""
-        mesh = _cylindrical_mesh()
-        quad = Quadrature.product(n_mu=4, n_phi=4)
-        op = cylindrical_streaming(mesh, quad)
-        for level, level_idx in enumerate(quad.level_indices):
-            for m_local in range(len(level_idx)):
-                global_n = int(level_idx[m_local])
-                st = op.streaming_terms(
-                    cell_idx=0,
-                    direction_idx=m_local,
-                    mu_level_idx=level,
-                )
-                assert st.mu == float(quad.mu_x[global_n])
+    # (P4.7: ``test_cylindrical_signed_mu_per_level`` retired with the
+    # packet's signed ``mu`` — the GLOBAL-ordinate resolution claim it
+    # pinned lives on in the ``abs_mu`` sibling above, which walks the
+    # same ``level_indices`` path.)
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -132,7 +132,7 @@ def ordinate_scan(
     * **Closed form finite** (the common SN sweep path).  The Blelloch
       §1.5 form ``cumprod_a · (psi_0 + cumsum(b / cumprod_a))`` is
       returned unchanged — three numpy ops, bit-identical to every
-      prior release.  Diamond-Difference produces ``a[i] = 2|μ|·A_down
+      prior release.  Diamond-Difference produces ``a[i] = 2|μ|·face_area_downstream
       /denom − 1`` with ``|a| < 1`` in well-resolved regimes, so both
       the cumprod and the ``b / cumprod_a`` quotient stay in IEEE-754's
       well-conditioned band.
@@ -144,7 +144,7 @@ def ordinate_scan(
 
       - **Exact reset** (``a[i] = 0`` exactly — e.g. the cylindrical
         pole cell whose inner radial face area vanishes at the
-        ``2|μ|·A_total = ΔA_w·c_out + Σ_t·V`` resonance, Issue #209).
+        ``2|μ|·face_area_total = ΔA_w·c_out + Σ_t·V`` resonance, Issue #209).
         At a reset the recurrence *forgets its history*
         (``psi[i+1] = b[i]``, a chain restart); the Blelloch division
         ``b / cumprod_a`` is ``b/0 = inf`` from the reset onward.

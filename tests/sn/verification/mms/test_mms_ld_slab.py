@@ -258,8 +258,8 @@ def test_ld_scan_closure_refuses_non_neutral_curvature() -> None:
     all — which no earlier guard can preempt.
 
     ⚠ P4.9a re-key, stated so nobody reads more than it checks: the former
-    two-signal predicate (``dA_w`` / ``c_out`` separately) collapsed to the
-    ASSEMBLED product, so a ``dA_w ≠ 0`` with ``c_out ≡ 0`` configuration
+    two-signal predicate (``delta_A_over_w`` / ``c_out`` separately) collapsed to the
+    ASSEMBLED product, so a ``delta_A_over_w ≠ 0`` with ``c_out ≡ 0`` configuration
     (an identity closure hand-mounted on a curvilinear mesh) no longer trips
     THIS guard — it is refused upstream by the walk admission
     (``supports_curvilinear=False``), the primary guard.
@@ -271,9 +271,9 @@ def test_ld_scan_closure_refuses_non_neutral_curvature() -> None:
     ld = LinearDiscontinuous()
     kw = dict(
         abs_mu=np.array([0.5]),
-        A_down=np.array([[1.0]]),
-        A_total=np.array([[2.0]]),
-        V=np.array([[0.25]]),
+        face_area_downstream=np.array([[1.0]]),
+        face_area_total=np.array([[2.0]]),
+        volume=np.array([[0.25]]),
         reaction_xs=np.array([[[1.3]]]),
     )
 

@@ -303,7 +303,7 @@ class TestClosedFormEqualsDenseReduction:
         psi_in = rng.uniform(0.05, 0.6, shape)
         pbar_d, pout_d = _dense_d1_reference(mu, h, sig, Qbar, psi_in)
 
-        cf = d1_closed_form(mu / h, sig, THETA)         # g = |μ|A_down/V = μ/h
+        cf = d1_closed_form(mu / h, sig, THETA)         # g = |μ|face_area_downstream/V = μ/h
         pbar = cf.kernel_rhs(Qbar, psi_in) / cf.eff_denom
         pout = outgoing_face_from_average(pbar, psi_in, cf.w)
         np.testing.assert_allclose(pbar, pbar_d, rtol=1e-12, atol=1e-13)
@@ -444,9 +444,9 @@ class TestProductionViewsAnchoredToPrimitive:
             np.full(2, mu_v), np.full(2, h_v), sig, q_bar, psi_in,
         )
         a, inv, w = LinearDiscontinuous().affine_scan_coefficients(
-            abs_mu=np.array([mu_v]), A_down=np.array([[1.0]]),
-            A_total=np.array([[2.0]]),
-            angular_denom_term=np.array([[0.0]]), V=np.array([[h_v]]),
+            abs_mu=np.array([mu_v]), face_area_downstream=np.array([[1.0]]),
+            face_area_total=np.array([[2.0]]),
+            angular_denom_term=np.array([[0.0]]), volume=np.array([[h_v]]),
             reaction_xs=sig[None, :, None],
         )                                                    # each (1, 2, 1)
         psi_in_b = psi_in[None, :, None]

@@ -128,8 +128,9 @@ class FakeCurvilinearStrategy:
     """Synthetic strategy that asserts a curvilinear-shaped input arrives.
 
     P4.9a contract: purely spatial.  Verifies the shape contract —
-    ``visit.streaming_terms.delta_A_over_w`` populated, the ASSEMBLED
-    angular contributions arriving as ``update`` kwargs
+    the packet's surviving geometry fields populated (P4.7: ΔA/w left
+    the packet; the fusion is closure-owned and cache-interned), the
+    ASSEMBLED angular contributions arriving as ``update`` kwargs
     (``angular_denom_term`` scalar, ``angular_numer_upstream (ng,)``) —
     and returns a ``CellResult`` with the two spatial fields populated.
     """
@@ -161,13 +162,10 @@ class FakeCurvilinearStrategy:
         angular_numer_upstream: "np.ndarray | None" = None,
     ) -> CellResult:
         st = visit.streaming_terms
-        # Curvilinear shape check: the surviving geometry redistribution
-        # factor plus the ASSEMBLED closure contributions (P4.9a — the
-        # scheme sees no closure-named constant and no angular thread).
-        assert st.delta_A_over_w is not None, (
-            "FakeCurvilinearStrategy expects curvilinear streaming terms "
-            "(delta_A_over_w must be populated)."
-        )
+        # Curvilinear shape check: the surviving geometry fields plus the
+        # ASSEMBLED closure contributions (P4.9a — the scheme sees no
+        # closure-named constant and no angular thread; P4.7 — ΔA/w
+        # arrives only inside the assembled kwargs, never on the packet).
         assert st.face_area_inner is not None
         assert st.face_area_outer is not None
         assert st.volume is not None
@@ -419,7 +417,9 @@ class TestSlabVsCurvilinearDiscrimination:
         quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=0, direction_idx=0)
-        assert st.delta_A_over_w == 0.0
+        # P4.7: ΔA/w left the packet — the zero-area-change half of the
+        # neutral contract is pinned at its factor (the op's delta_A).
+        assert float(op.delta_A[0]) == 0.0
         assert st.face_area_inner == 1.0
         assert st.face_area_outer == 1.0
 
@@ -429,7 +429,8 @@ class TestSlabVsCurvilinearDiscrimination:
         quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=0, direction_idx=0)
-        assert st.delta_A_over_w is not None
+        # P4.7: curvature presence pinned at the factor tier.
+        assert float(op.delta_A[0]) > 0.0
         assert st.face_area_inner is not None
         assert st.face_area_outer is not None
 
@@ -461,12 +462,13 @@ class TestCurvilinearStrategyDriven:
         # P4.9a: the caller assembles the closure contributions from the
         # independent surrogate's constants.
         c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
+        dAw = float(op.delta_A[2] / quad.weights[n])  # P4.7: from the factors
         strat = FakeCurvilinearStrategy()
         result = strat.update(
             visit, total_xs, source, upstream,
-            angular_denom_term=st.delta_A_over_w * c_out,
+            angular_denom_term=dAw * c_out,
             angular_numer_upstream=(
-                st.delta_A_over_w * c_in * np.full(ng, 0.3)
+                dAw * c_in * np.full(ng, 0.3)
             ),
         )
 

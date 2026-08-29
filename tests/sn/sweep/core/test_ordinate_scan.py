@@ -52,7 +52,7 @@ from tests.sn.sweep.core._c_surrogate import (
 
 def _affine_coefficients_from_visits(
     visits: list[CellVisit],
-    cs: "list[tuple[float, float]]",
+    cs: "list[tuple[float, float, float]]",
     total_xs: np.ndarray,
     source: np.ndarray,
     angular_state: np.ndarray | None,
@@ -83,30 +83,30 @@ def _affine_coefficients_from_visits(
     b_out = np.empty((nx, ng))
     for idx, visit in enumerate(visits):
         st = visit.streaming_terms
-        c_in, c_out = cs[idx]
+        c_in, c_out, dAw = cs[idx]
         # The builders supply the surrogate's per-cell (c_in, c_out)
         # beside the visits (P4.9a — the visit is purely spatial);
         # assemble the closure's denominator contribution from them.
         denom_m, _numer_m = cell_balance_for_streaming(
             abs_mu=np.array([st.abs_mu]),
             A_downstream=np.array([visit.face_area_downstream]),
-            A_total=np.array(
+            face_area_total=np.array(
                 [st.face_area_inner + st.face_area_outer],
             ),
             total_xs=total_xs[idx],
             volume=st.volume,
             psi_face_in=np.zeros((ng, 1)),
             angular_denom_term=np.array(
-                [st.delta_A_over_w * c_out],
+                [dAw * c_out],
             ),
             angular_numer_upstream=np.zeros((ng, 1)),
         )
         denom = denom_m[:, 0]
-        A_total = st.face_area_inner + st.face_area_outer
-        a_out[idx] = 2.0 * st.abs_mu * A_total / denom - 1.0
+        face_area_total = st.face_area_inner + st.face_area_outer
+        a_out[idx] = 2.0 * st.abs_mu * face_area_total / denom - 1.0
         ang_contrib = (
             0.0 if angular_state is None
-            else st.delta_A_over_w * c_in * angular_state[idx]
+            else dAw * c_in * angular_state[idx]
         )
         b_out[idx] = 2.0 * (source[idx] + ang_contrib) / denom
     return a_out, b_out
@@ -418,7 +418,7 @@ class TestNumericalStability:
 
     The only documented regime limit: ``a → 0`` makes
     ``b / cumprod_a`` grow, eventually overflowing.  Reactor physics
-    rarely hits this — DD's ``a = 2|μ|·A_down/denom − 1`` stays in
+    rarely hits this — DD's ``a = 2|μ|·face_area_downstream/denom − 1`` stays in
     [−1, 1] for typical Σ_t × Δx products.
     """
 
@@ -522,7 +522,7 @@ def _build_slab_visits_and_inputs(
     quad = Quadrature.gauss_legendre(4)
     op = slab_streaming(mesh, quad)
     visits = []
-    cs: list[tuple[float, float]] = []
+    cs: list[tuple[float, float, float]] = []
     for i in range(nx):
         st = op.streaming_terms(cell_idx=i, direction_idx=direction_idx)
         # Issue #236 Phase 2 B3 / Step C: DD.update reads the M-M c_in / c_out
@@ -532,6 +532,9 @@ def _build_slab_visits_and_inputs(
             op, i, direction_idx,
         )
         c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
+        # P4.7: the packet no longer carries ΔA/w — the builders supply
+        # it beside the visits, formed from its two factors (slab: 0.0).
+        dAw = float(op.delta_A[i] / quad.weights[direction_idx])
         visits.append(
             CellVisit(
                 cell_idx=i,
@@ -539,7 +542,7 @@ def _build_slab_visits_and_inputs(
                 face_area_downstream=1.0,
             )
         )
-        cs.append((c_in, c_out))
+        cs.append((c_in, c_out, dAw))
     rng = np.random.default_rng(seed=seed)
     total_xs = rng.uniform(0.5, 1.5, size=(nx, n_groups))
     source = rng.uniform(0.1, 1.0, size=(nx, n_groups))
@@ -556,28 +559,29 @@ def _build_sphere_visits_and_inputs(
     op = spherical_streaming(mesh, quad)
     direction_idx = quad.N - 2 if outward else 1
     visits = []
-    cs: list[tuple[float, float]] = []
+    cs: list[tuple[float, float, float]] = []
     if outward:
         cell_order = range(nx)
     else:
         cell_order = range(nx - 1, -1, -1)
     for i in cell_order:
         st = op.streaming_terms(cell_idx=i, direction_idx=direction_idx)
-        A_down = st.face_area_outer if outward else st.face_area_inner
+        face_area_downstream = st.face_area_outer if outward else st.face_area_inner
         # Issue #236 Phase 2 B3 / Step C: stamp the M-M c_in / c_out / τ
         # DD.update reads, via the independent surrogate.
         tau, alpha_in, alpha_out = mm_constants_for_ordinate(
             op, i, direction_idx,
         )
         c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
+        dAw = float(op.delta_A[i] / quad.weights[direction_idx])  # P4.7
         visits.append(
             CellVisit(
                 cell_idx=i,
                 streaming_terms=st,
-                face_area_downstream=A_down,
+                face_area_downstream=face_area_downstream,
             )
         )
-        cs.append((c_in, c_out))
+        cs.append((c_in, c_out, dAw))
     rng = np.random.default_rng(seed=seed)
     total_xs = rng.uniform(0.5, 1.5, size=(nx, n_groups))
     source = rng.uniform(0.1, 1.0, size=(nx, n_groups))
@@ -596,7 +600,7 @@ def _build_cylinder_visits_and_inputs(
     direction_idx = 0
     mu_level_idx = 0
     visits = []
-    cs: list[tuple[float, float]] = []
+    cs: list[tuple[float, float, float]] = []
     # Check sign of η for this ordinate to decide cell order
     level_indices = quad.level_indices
     global_n = int(level_indices[mu_level_idx][direction_idx])
@@ -612,21 +616,22 @@ def _build_cylinder_visits_and_inputs(
             cell_idx=i, direction_idx=direction_idx,
             mu_level_idx=mu_level_idx,
         )
-        A_down = st.face_area_outer if select_outer else st.face_area_inner
+        face_area_downstream = st.face_area_outer if select_outer else st.face_area_inner
         # Issue #236 Phase 2 B3 / Step C: stamp the M-M c_in / c_out / τ
         # (clamped cylinder τ) DD.update reads, via the independent surrogate.
         tau, alpha_in, alpha_out = mm_constants_for_ordinate(
             op, i, direction_idx, mu_level_idx=mu_level_idx,
         )
         c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
+        dAw = float(op.delta_A[i] / quad.weights[global_n])  # P4.7
         visits.append(
             CellVisit(
                 cell_idx=i,
                 streaming_terms=st,
-                face_area_downstream=A_down,
+                face_area_downstream=face_area_downstream,
             )
         )
-        cs.append((c_in, c_out))
+        cs.append((c_in, c_out, dAw))
     rng = np.random.default_rng(seed=seed)
     total_xs = rng.uniform(0.5, 1.5, size=(nx, n_groups))
     source = rng.uniform(0.1, 1.0, size=(nx, n_groups))
@@ -711,7 +716,7 @@ class TestDualViewContracts:
         psi_chain = psi_in
         for idx, visit in enumerate(visits):
             st_v = visit.streaming_terms
-            c_in, c_out = cs[idx]
+            c_in, c_out, dAw = cs[idx]
             psi_ang = (
                 None if psi_angular is None else psi_angular[idx]
             )
@@ -719,10 +724,10 @@ class TestDualViewContracts:
                 visit=visit, total_xs=total_xs[idx],
                 source=source[idx],
                 upstream_state=UpstreamState(spatial_upstream=psi_chain),
-                angular_denom_term=st_v.delta_A_over_w * c_out,
+                angular_denom_term=dAw * c_out,
                 angular_numer_upstream=(
                     None if psi_ang is None
-                    else st_v.delta_A_over_w * c_in * psi_ang
+                    else dAw * c_in * psi_ang
                 ),
             )
             per_cell_outputs.append(result.outgoing_spatial_flux)

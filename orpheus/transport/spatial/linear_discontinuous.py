@@ -220,7 +220,7 @@ class _LDCellTerms:
     eff_denom: np.ndarray            #: ``(ng,)`` Schur effective denominator S
     eff_source: np.ndarray           #: ``(ng,)`` source folded through the slope row
     eff_numer_upstream: np.ndarray   #: ``(ng,)`` inflow folded through the slope row
-    _mu: np.ndarray                  #: ``|μ|·A_down`` (= ``|μ|`` for slab; slope reconstruction)
+    _mu: np.ndarray                  #: ``|μ|·face_area_downstream`` (= ``|μ|`` for slab; slope reconstruction)
     _d2p: np.ndarray                 #: ``(ng,)`` :math:`D_2' = \Sigma_t\theta h + |\mu|`
     _slope_source: np.ndarray        #: ``(ng,)`` :math:`\theta\hat S` (slope-row RHS source)
     _psi_in: np.ndarray              #: ``(ng,)`` inflow face flux
@@ -363,9 +363,9 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         psi_in = upstream_state.spatial_upstream
 
         # Single-source the LD 2×2 Schur through the shared d=1 closed form
-        # (slab A_down = 1, V = h, so the ÷V streaming-over-volume is g = |μ|/h).
+        # (slab face_area_downstream = 1, V = h, so the ÷V streaming-over-volume is g = |μ|/h).
         # ``schur_xV`` returns the ×V per-cell intermediates (S, eff_source,
-        # eff_numer, θ·ŝ, |μ|A_down, D₂'); the LD 2×2 algebra lives ONCE in
+        # eff_numer, θ·ŝ, |μ|face_area_downstream, D₂'); the LD 2×2 algebra lives ONCE in
         # ``_ubld.d1_closed_form``, proven == the d-generic dense primitive's
         # d=1 reduction.
         cf = d1_closed_form(mu / h, total_xs, theta)
@@ -791,16 +791,16 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         self,
         *,
         abs_mu: np.ndarray,    # (N,)        |μ_n|
-        A_down: np.ndarray,    # (N, nx)     downstream face area (slab: 1)
-        A_total: np.ndarray,   # (N, nx)     A_inner + A_outer (unused; slab=2)
+        face_area_downstream: np.ndarray,    # (N, nx)     downstream face area (slab: 1)
+        face_area_total: np.ndarray,   # (N, nx)     A_inner + A_outer (unused; slab=2)
         angular_denom_term: np.ndarray,  # (N, nx) assembled closure denom term (slab: 0)
-        V: np.ndarray,         # (N, nx)     cell volume per ordinate
+        volume: np.ndarray,    # (N, nx)     cell volume per ordinate
         reaction_xs: np.ndarray,  # (N, ng, nx) Σ_t in the geometry's cell ordering
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""LD's :math:`\Sigma_t`-epoch scan coefficients ``(a, inverse_denom, w)``.
 
         The Schur-reduced slab LD 2×2 (flat :math:`\hat Q = 0`) in the ×V
-        convention (``m = |μ|·A_down``, ``t = Σ_t V``, ``p = m/θ``):
+        convention (``m = |μ|·face_area_downstream``, ``t = Σ_t V``, ``p = m/θ``):
 
         .. math::
 
@@ -824,7 +824,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         identity closure's zero constants over :func:`slab_streaming`'s
         neutral element); curvilinear carries non-zero values.  ⚠ P4.9a
         narrowing, stated so nobody widens it back blindly: the retired
-        ``(dA_w, c_out)`` form also refused ``dA_w ≠ 0`` with ``c_out ≡ 0``
+        ``(delta_A_over_w, c_out)`` form also refused ``delta_A_over_w ≠ 0`` with ``c_out ≡ 0``
         (an identity closure hand-mounted on a curvilinear mesh) — that
         configuration is refused UPSTREAM by the walk admission
         (``supports_curvilinear=False``), which is the primary guard; this
@@ -843,11 +843,11 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         # Single-source the LD 2×2 Schur through the shared d=1 closed form: the
         # ×V scan reads ``(a, inverse_denom, w)`` off the same helper the ÷V
         # kernel and ×V per-cell views use.  The ÷V streaming-over-volume is
-        # g = |μ|·A_down/V; ``scan_xV`` re-applies the ×V cell-volume scaling
+        # g = |μ|·face_area_downstream/V; ``scan_xV`` re-applies the ×V cell-volume scaling
         # (S = V·eff_denom) to recover the transmission ``a = m(1+k)²/S − k``
         # (source-independent) and the blend weight ``w = 1/(1+k)``.  Algebra ONCE.
-        V_full = V[:, None, :]                            # (N, 1, nx)
-        m = abs_mu[:, None, None] * A_down[:, None, :]    # |μ|·A_down  (N, 1, nx)
+        V_full = volume[:, None, :]                       # (N, 1, nx)
+        m = abs_mu[:, None, None] * face_area_downstream[:, None, :]    # |μ|·face_area_downstream  (N, 1, nx)
         g = m / V_full                                    # ÷V streaming (N, 1, nx)
         cf = d1_closed_form(g, reaction_xs, self.theta)
         return cf.scan_xV(V_full)
@@ -855,9 +855,9 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     def moment_scan_closure(
         self,
         *,
-        abs_mu: np.ndarray,    # (ng, nx) or (nx,)   |μ_n|·A_down/V is rebuilt below
-        A_down: np.ndarray,
-        V: np.ndarray,
+        abs_mu: np.ndarray,    # (ng, nx) or (nx,)   |μ_n|·face_area_downstream/V is rebuilt below
+        face_area_downstream: np.ndarray,
+        volume: np.ndarray,
         reaction_xs: np.ndarray,
     ) -> D1ClosedForm:
         r"""The per-cell :class:`~orpheus.transport.spatial._ubld.D1ClosedForm` for the
@@ -877,13 +877,13 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         ``docs/theory/methods/sn/cartesian_multid.rst §ld-ubld-moment-scan``.
 
         Inputs are broadcastable per-ordinate-per-cell-per-group arrays
-        (``abs_mu``/``A_down``/``V`` carry NO group axis; ``reaction_xs`` is ``(ng, …)``);
-        the ÷V streaming ``g = |μ|·A_down/V`` is rebuilt here from the SAME
+        (``abs_mu``/``face_area_downstream``/``volume`` carry NO group axis; ``reaction_xs`` is ``(ng, …)``);
+        the ÷V streaming ``g = |μ|·face_area_downstream/V`` is rebuilt here from the SAME
         geometry the cached coefficients use, so the scan's flat ``b`` and its
         slope correction agree to FP.  Slab/Cartesian only (the curvilinear LD
         moment scan is not yet implemented (#158) — guarded at the cache build by
         :meth:`affine_scan_coefficients`; this method is reached only after that
         guard has passed).
         """
-        g = abs_mu * A_down / V
+        g = abs_mu * face_area_downstream / volume
         return d1_closed_form(g, reaction_xs, self.theta)

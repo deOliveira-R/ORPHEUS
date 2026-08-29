@@ -439,10 +439,11 @@ class ReducedStreamingOperator:
     def _weight_of(self, global_ordinate: int) -> float:
         r"""The measure's weight :math:`w_n` for one GLOBAL ordinate index.
 
-        The other factor of the retired ``redist_dAw`` cache.  Callers form
-        :math:`\Delta A_i / w_n` from :attr:`delta_A` and this, rather than
-        reading a stored product that fused a geometric with a quadrature
-        quantity (Pattern 2 — neither side owned the fusion).
+        One factor of the ΔA/w coupling.  The fusion's OWNER is the
+        angular closure (``_dAw_per_level``, minted at construction —
+        P4.9a); the scan cache interns the strategy-side copy formed
+        from :attr:`delta_A` and this at build (P4.7); the per-packet
+        copy — and before it the ``redist_dAw`` cache — are retired.
         """
         return float(np.asarray(self.angular.quadrature.weights)[global_ordinate])
 
@@ -474,7 +475,6 @@ class ReducedStreamingOperator:
         in the SN module — see
         :class:`orpheus.transport.spatial.scheme.CellVisit`.
         """
-        chord = float(self.mesh.widths[cell_idx])
         # Common per-(cell, direction) volume.
         # mesh.volumes returns shape (N,) for 1-D meshes.
         volume = float(self.mesh.volumes[cell_idx])
@@ -531,14 +531,12 @@ class ReducedStreamingOperator:
         # the angular closure owns τ and the derived c, and stamps them on
         # CellVisit.  This packet carries geometry only.  There is no clamp
         # on any chart — the cylinder [1/2, 1] absorber retired at Q5.6.4.
+        # ΔA/w is NOT packed (P4.7): the fusion's owner is the angular
+        # closure (``_dAw_per_level``, P4.9a); the scan cache interns the
+        # strategy-side copy from ``delta_A`` and ``_weight_of`` at build.
         return StreamingTerms(
-            chord_length=chord,
-            mu=radial_cosine,
             face_area_inner=float(self.face_areas[cell_idx]),
             face_area_outer=float(self.face_areas[cell_idx + 1]),
-            delta_A_over_w=float(
-                self.delta_A[cell_idx] / self._weight_of(ordinate)
-            ),
             volume=volume,
             abs_mu=abs(radial_cosine),
         )
@@ -555,8 +553,11 @@ def slab_streaming(
     """Build the slab :class:`ReducedStreamingOperator`.
 
     Slab geometry has no curvature — the connection coefficients
-    vanish.  The SPATIAL chart is genuinely absent (``face_areas`` and
-    ``delta_A`` stay ``None``), but the ANGULAR factor is present and
+    vanish.  The SPATIAL chart is the NEUTRAL one (``face_areas`` is the
+    unit cross-section ``ones(nx+1)`` and ``delta_A`` its zero
+    difference, both derived through the one generic body — P4.1a/b;
+    ⛔ "stay ``None``" stood here until P4.7 and was false since that
+    collapse), and the ANGULAR factor is present and
     carries the NEUTRAL element: a dome that is identically zero and a
     starting direction on the diameter ray.  That is what lets the
     angular closure's ``c_in = c_out = 0`` fall out of the general body

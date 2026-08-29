@@ -386,9 +386,9 @@ class TestLDKernel:
         psi_out2_bar = psi_out2
         # group 3 (×V coefficients) + the generic base reconstruction staticmethods.
         a, inv, w = strat.affine_scan_coefficients(
-            abs_mu=np.array([mu]), A_down=np.array([[1.0]]),
-            A_total=np.array([[2.0]]),
-            angular_denom_term=np.array([[0.0]]), V=np.array([[h]]),
+            abs_mu=np.array([mu]), face_area_downstream=np.array([[1.0]]),
+            face_area_total=np.array([[2.0]]),
+            angular_denom_term=np.array([[0.0]]), volume=np.array([[h]]),
             reaction_xs=sig[None, :, None],
         )                                                    # each (1, 2, 1)
         psi_in_b = psi_in[None, :, None]                     # (1, 2, 1)

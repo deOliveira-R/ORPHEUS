@@ -1591,7 +1591,7 @@ single-source-of-truth plumbing on
 The curvilinear ``affine_scan_coefficients`` merge — unifying the 1-D-chain
 producer and the Cartesian row-march producer into one surface — is deliberately
 **deferred to #242**: ``affine_scan_coefficients`` is 1-D-chain-shaped (it
-carries curvilinear geometry arguments ``abs_mu``/``A_down``/``A_total``/``dA_w``/``c_out``/``V``
+carries curvilinear geometry arguments ``abs_mu``/``face_area_downstream``/``face_area_total``/``delta_A_over_w``/``c_out``/``volume``
 with no transverse slot), whereas ``cartesian_scan_coefficients`` needs the
 transverse :math:`c_\perp` in the diagonal and the raw scan-axis :math:`g`, so
 they are kept as separate methods for now (a ``d``-generic ``s_transverse``

@@ -116,33 +116,38 @@ class StreamingTerms:
     coordinate (``mu`` / ``abs_mu`` — the quadrature's).  A spatial
     closure is legitimately *parameterized* by direction (DD's
     ``a = 2|mu|A/denom - 1``, LD's ``g = |mu|/h``) without being
-    angular-closure-aware.  ``delta_A_over_w`` is the one genuinely
-    SN-bearing field — a geometric increment over a **quadrature
-    weight**, the spatial ⊗ angular coupling; unlike the once-per-solve
-    cache fusion it is rebuilt per ``(cell, direction)`` inside the
-    sweep loop, so the fusion buys nothing here and neither side owns
-    it (Pattern 2).
+    angular-closure-aware.  (⛔ Until P4.7 the packet also carried
+    ``delta_A_over_w`` — the ΔA/w spatial ⊗ angular coupling — rebuilt
+    per ``(cell, direction)`` inside the sweep loop, a fusion that
+    bought nothing at this tier.  The fusion's OWNER is the angular
+    closure — ``_dAw_per_level``, minted at construction, P4.9a — and
+    the scan cache interns the strategy-side copy formed from its two
+    factors at build; the per-packet copy retired at P4.7.)
 
     All curvature fields are populated for **every** geometry
     (Issue #196 Phase G Step 2.5):
 
     * **Slab**: neutral-curvature values — ``face_area_inner =
-      face_area_outer = 1.0``, ``delta_A_over_w = 0.0``.  The
+      face_area_outer = 1.0`` (and the closure-owned/cache-interned
+      ΔA/w coupling is identically zero there).  The
       Morel–Montry angular weight is NOT carried here (Issue #236
       Step C — it is closure-owned); the neutral slab closure
       (IdentityAngularClosure) supplies τ = 1, α = 0, so the assembled
       angular contributions the caller hands a scheme (P4.9a) are the
       neutral zeros and the M-M contribution never engages.  Plus
-      the always-populated ``chord_length``, ``mu``, ``volume``,
-      ``abs_mu``.
+      the always-populated ``volume`` and ``abs_mu``.
     * **Sphere / cylinder**: physically-populated curvature fields
       from the dome recursion (the M-M angular weight is closure-owned,
       not carried here — Issue #236 Step C).
 
-    Cylindrical ``mu`` / ``abs_mu`` are read from the global ordinate
+    Cylindrical ``abs_mu`` is read from the global ordinate
     ``mu_x[level_indices[mu_level_idx][direction_idx]]`` because
     cylindrical ``direction_idx`` is the within-level azimuthal index
-    :math:`m \\in [0, M)`, not the global ordinate.
+    :math:`m \\in [0, M)`, not the global ordinate.  (The SIGNED
+    ``mu`` and the cell ``chord_length`` retired at P4.7 — `[M]` zero
+    production readers each; the sweep pre-resolves direction into
+    :attr:`CellVisit.face_area_downstream` and the balance enters
+    through :math:`\\Sigma_t V` and :math:`|\\mu| A`.)
 
     Before Step 2.5, slab left the curvature fields as ``None`` and
     cell-update strategies branched on ``alpha_in is None`` to
@@ -196,28 +201,6 @@ class StreamingTerms:
     ``tau_mm`` fields (the angular closure owns that data).
     """
 
-    chord_length: float
-    """Cell radial width (slab/sphere/cylinder all use ``mesh.widths[i]``).
-
-    ⚠ `[M]` 2026-08-28: **no production reader** — the balance enters
-    through :math:`\\Sigma_t V` and :math:`|\\mu| A`, never through the
-    chord directly; only tests read this field.
-    """
-
-    mu: float
-    """Signed primary direction cosine for this ordinate.
-
-    :math:`\\mu` for slab and sphere (axial); :math:`\\eta` for
-    cylindrical 1-D radial sweeps (the radial direction cosine,
-    with the global ordinate index resolved through
-    :attr:`~orpheus.sn.angular.redistribution.AngularMeasure.level_indices`).  Signed.
-
-    ⚠ `[M]` 2026-08-28: **no production reader** — the sweep
-    pre-resolves direction into :attr:`CellVisit.face_area_downstream`
-    and every cell-update strategy reads ``abs_mu``; only tests read
-    the signed field.
-    """
-
     face_area_inner: float
     """:math:`A_{i-1/2}` — area of the **inner** radial face
     (closer to :math:`r=0`).
@@ -233,9 +216,6 @@ class StreamingTerms:
     Geometric label, independent of sweep direction.  See class
     docstring "Geometric, not direction-resolved".
     """
-
-    delta_A_over_w: float
-    """:math:`\\Delta A_i / w_n` — the geometry-redistribution factor."""
 
     # Issue #236 Step C: the Morel–Montry ``alpha_in`` / ``alpha_out`` /
     # ``tau_mm`` are NO LONGER carried on the per-cell geometry packet.  The
@@ -364,7 +344,7 @@ class CellVisit:
         * For the cylindrical pure-azimuthal degenerate case
           (``abs_mu < 1e-15``): ``0.0`` — the cell has no spatial
           face flow, so the ``2|\mu| A_{\rm down}`` term vanishes
-          via ``A_down = 0`` (geometric truth) rather than via the
+          via ``face_area_downstream = 0`` (geometric truth) rather than via the
           numerical threshold ``abs_mu < 1e-15``.
     Notes
     -----
@@ -1384,10 +1364,10 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         self,
         *,
         abs_mu: np.ndarray,
-        A_down: np.ndarray,
-        A_total: np.ndarray,
+        face_area_downstream: np.ndarray,
+        face_area_total: np.ndarray,
         angular_denom_term: np.ndarray,
-        V: np.ndarray,
+        volume: np.ndarray,
         reaction_xs: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         r""":math:`\Sigma_t`-epoch affine-scan coefficients ``(a, inverse_denom, w)``.
@@ -1550,8 +1530,8 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         self,
         *,
         abs_mu: np.ndarray,
-        A_down: np.ndarray,
-        V: np.ndarray,
+        face_area_downstream: np.ndarray,
+        volume: np.ndarray,
         reaction_xs: np.ndarray,
     ) -> "D1ClosedForm":
         r"""Per-cell closed form for the 1-D multi-moment SCAN (#240 D5b-S3).

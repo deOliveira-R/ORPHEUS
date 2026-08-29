@@ -4,10 +4,10 @@ triggers ``ordinate_scan`` NaN.
 Bug class: ``orpheus/sn/sweep/scan.py`` Blelloch-form
 ``cumprod_a * (psi_0 + cumsum(b / cumprod_a))`` produces NaN whenever
 the per-cell attenuation chain ``a`` contains an exact zero.  At the
-cylindrical pole cell ``A_down = 0`` (the inner radial face at r=0
-has zero area); this makes ``a = 2|μ|·A_total / (dA_w·c_out + Σ_t·V)
+cylindrical pole cell ``face_area_downstream = 0`` (the inner radial face at r=0
+has zero area); this makes ``a = 2|μ|·face_area_total / (delta_A_over_w·c_out + Σ_t·V)
 − 1`` vanish at every (μ, dr, Σ_t) triple that satisfies the
-algebraic identity ``2|μ|·A_total = dA_w·c_out + Σ_t·V``.  At the
+algebraic identity ``2|μ|·face_area_total = delta_A_over_w·c_out + Σ_t·V``.  At the
 then-canonical resonance point (μ_x = 1/√20 — an LS8 node of the
 pre-#337 project-convention seed, since retired: no shipped rule
 carries that node today; dr = 0.1, Σ_t = 1.0 of mixture A group 1)

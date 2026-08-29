@@ -33,10 +33,10 @@ What this gate pins
    matching the closed form evaluated at that ``sig_t``:
 
    * **DD** — ``w = ½`` always (central / box scheme, Σ-independent);
-     ``denom = Σ·V + 2|μ|·A_down`` (slab ``A_down = 1``), so
-     ``inverse_denom = 1/denom`` and ``a = 2|μ|·A_total/denom − 1``.
+     ``denom = Σ·V + 2|μ|·face_area_downstream`` (slab ``face_area_downstream = 1``), so
+     ``inverse_denom = 1/denom`` and ``a = 2|μ|·face_area_total/denom − 1``.
    * **LD** — ``w = 1/(1+k)`` with ``k = (|μ|/θ)/(Σ·V + |μ|/θ)`` (``m = |μ|·
-     A_down``, ``p = m/θ``, ``D₂ = Σ·V + p``, ``k = p/D₂``, ``S = (Σ·V + m)
+     face_area_downstream``, ``p = m/θ``, ``D₂ = Σ·V + p``, ``k = p/D₂``, ``S = (Σ·V + m)
      + m·p/D₂``).  The **Péclet limits**: ``w → ½`` as ``Σ → 0`` (the
      pure-advection central limit) and ``w → 1`` as ``Σ → ∞`` (the full
      upwind limit).
@@ -85,7 +85,7 @@ from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 #    fixed so the reaction-rate Σ is the only varying axis) ────────────────
 #
 # One ordinate (|μ| = 0.6), one group, one cell.  Slab neutral element:
-# A_down = 1, A_total = 2, angular_denom_term = 0 (P4.9a: the closure's
+# face_area_downstream = 1, face_area_total = 2, angular_denom_term = 0 (P4.9a: the closure's
 # denominator contribution arrives ASSEMBLED; LD's curvilinear guard
 # demands it be exactly zero).  An arbitrary non-power-of-2 cell volume so
 # any FP mismatch surfaces.
@@ -101,8 +101,8 @@ def _slab_geometry() -> dict[str, np.ndarray]:
     """The fixed wave-speed / geometry inputs (everything but ``sig_t``)."""
     return {
         "abs_mu": np.array([_ABS_MU]),
-        "A_down": np.full((_N, _NX), _A_DOWN),
-        "A_total": np.full((_N, _NX), _A_TOTAL),
+        "face_area_downstream": np.full((_N, _NX), _A_DOWN),
+        "face_area_total": np.full((_N, _NX), _A_TOTAL),
         "angular_denom_term": np.zeros((_N, _NX)),
     }
 
@@ -115,7 +115,7 @@ def _sig_t(value: float) -> np.ndarray:
 def _dd_coeffs(scheme: DiamondDifference, sigma: float):
     geo = _slab_geometry()
     return scheme.affine_scan_coefficients(
-        V=np.full((_N, _NX), _V),
+        volume=np.full((_N, _NX), _V),
         reaction_xs=_sig_t(sigma),
         **geo,
     )
@@ -124,7 +124,7 @@ def _dd_coeffs(scheme: DiamondDifference, sigma: float):
 def _ld_coeffs(scheme: LinearDiscontinuous, sigma: float):
     geo = _slab_geometry()
     return scheme.affine_scan_coefficients(
-        V=np.full((_N, _NX), _V),
+        volume=np.full((_N, _NX), _V),
         reaction_xs=_sig_t(sigma),
         **geo,
     )
@@ -136,7 +136,7 @@ def _ld_coeffs(scheme: LinearDiscontinuous, sigma: float):
 def _dd_closed_form(sigma: float) -> tuple[float, float, float]:
     r"""DD ``(a, inverse_denom, w)`` at reaction-rate ``sigma`` — slab.
 
-    ``denom = Σ·V + 2|μ|·A_down``; ``w = ½``; ``a = 2|μ|·A_total/denom − 1``.
+    ``denom = Σ·V + 2|μ|·face_area_downstream``; ``w = ½``; ``a = 2|μ|·face_area_total/denom − 1``.
     """
     denom = sigma * _V + 2.0 * _ABS_MU * _A_DOWN
     a = 2.0 * _ABS_MU * _A_TOTAL / denom - 1.0
@@ -146,7 +146,7 @@ def _dd_closed_form(sigma: float) -> tuple[float, float, float]:
 def _ld_closed_form(sigma: float, theta: float) -> tuple[float, float, float]:
     r"""LD ``(a, inverse_denom, w)`` at reaction-rate ``sigma`` — slab.
 
-    ``m = |μ|·A_down``; ``p = m/θ``; ``D₂ = Σ·V + p``; ``k = p/D₂``;
+    ``m = |μ|·face_area_downstream``; ``p = m/θ``; ``D₂ = Σ·V + p``; ``k = p/D₂``;
     ``S = (Σ·V + m) + m·p/D₂``; ``w = 1/(1+k)``; ``a = m(1+k)²/S − k``.
     """
     m = _ABS_MU * _A_DOWN
@@ -179,8 +179,8 @@ def test_dd_coefficients_match_closed_form_at_arbitrary_reaction_rate(sigma: flo
 
     The scheme is supplied an ARBITRARY reaction-rate ``sigma`` (a value the
     mesh never owns — a removal-like Σ_r, then a pure-advection Σ → 0) and the
-    returned coefficients match ``denom = Σ·V + 2|μ|·A_down``, ``w = ½``,
-    ``a = 2|μ|·A_total/denom − 1``.  This is the diffusion-readiness positive:
+    returned coefficients match ``denom = Σ·V + 2|μ|·face_area_downstream``, ``w = ½``,
+    ``a = 2|μ|·face_area_total/denom − 1``.  This is the diffusion-readiness positive:
     coefficients are a pure function of the passed reaction-rate.
     """
     a, inv, w = (x.item() for x in _dd_coeffs(DiamondDifference(), sigma))

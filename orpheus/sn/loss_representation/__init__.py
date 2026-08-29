@@ -3332,8 +3332,8 @@ class _OneDimScanWalk:
                     # bilinear UBLD residual, with NO scheme branch (the kernel
                     # returns BOTH the moment residual and the outgoing face,
                     # the apply twin of the scan solve).  ``s_axes`` is the RAW
-                    # down-face streaming ``g = |μ|·A_down/V = |μ|/Δ`` (slab
-                    # A_down=1, V=Δ).  Source-free apply (``Q_cells = 0``).
+                    # down-face streaming ``g = |μ|·face_area_downstream/V = |μ|/Δ`` (slab
+                    # face_area_downstream=1, V=Δ).  Source-free apply (``Q_cells = 0``).
                     # Cartesian has no Morel–Montry angular redistribution
                     # thread (the curvilinear arm below carries it).
                     # NOTE(#240): ``leg.abs_mu / V[i]`` re-derives the raw ``g``
@@ -3387,7 +3387,7 @@ class _OneDimScanWalk:
                 denom, numer_upstream = cell_balance_for_streaming(
                     abs_mu=leg.abs_mu,
                     A_downstream=A_downstream,
-                    A_total=A[i] + A[i + 1],
+                    face_area_total=A[i] + A[i + 1],
                     total_xs=sigma_gx[:, i],
                     volume=V[i],
                     psi_face_in=psi_face_in,
@@ -3464,7 +3464,7 @@ class _OneDimScanWalk:
                 denom, numer_upstream = cell_balance_for_streaming(
                     abs_mu=abs_mu_deg,
                     A_downstream=0.0,
-                    A_total=A[i] + A[i + 1],
+                    face_area_total=A[i] + A[i + 1],
                     total_xs=sigma_gx[:, i],
                     volume=V[i],
                     psi_face_in=zero_face,
@@ -3746,14 +3746,14 @@ class _OneDimScanWalk:
             # mirror of _apply_walk's cell_balance arm): the registered
             # cell-balance VJP carrying the Morel–Montry thread (#310 C1).
             A_downstream = A[i + 1] if leg.direction_sign > 0 else A[i]
-            A_total = A[i] + A[i + 1]
+            face_area_total = A[i] + A[i + 1]
             angular_denom_term, _ = closure.cell_contribution(
                 psi_state_coef, i, leg.mu_level_idx, leg.within,
             )
             denom, _ = cell_balance_for_streaming(
                 abs_mu=leg.abs_mu,
                 A_downstream=A_downstream,
-                A_total=A_total,
+                face_area_total=face_area_total,
                 total_xs=sgx[:, i],
                 volume=V[i],
                 psi_face_in=np.zeros((ng, leg.within.size)),
@@ -3769,7 +3769,7 @@ class _OneDimScanWalk:
                 res_bar=ob,
                 psi_out_bar=f_bar,
                 denom=denom,
-                abs_mu_A_total=leg.abs_mu * A_total,
+                abs_mu_A_total=leg.abs_mu * face_area_total,
                 volume=V[i],
             )
             psi_bar[:, leg.ordinates, i] += psi_bar_cot
@@ -3834,7 +3834,7 @@ class _OneDimScanWalk:
                 denom, _ = cell_balance_for_streaming(
                     abs_mu=abs_mu_deg,
                     A_downstream=0.0,
-                    A_total=A[i] + A[i + 1],
+                    face_area_total=A[i] + A[i + 1],
                     total_xs=sgx[:, i],
                     volume=V[i],
                     psi_face_in=zero_face,
@@ -4199,12 +4199,13 @@ class _OneDimScanWalk:
                     # The per-cell d=1 closed form — the ONE LD algebra handle
                     # (slope fold shared with the matvec/per-cell Schur).
                     abs_mu_c = geom.abs_mu[ords][:, None, None]        # (K, 1, 1)
-                    A_down_c = geom.A_down[ords][:, None, :]           # (K, 1, nx)
-                    V_c = geom.V[ords][:, None, :]                     # (K, 1, nx)
+                    A_down_c = geom.face_area_downstream[ords][:, None, :]           # (K, 1, nx)
+                    V_c = geom.volume[ords][:, None, :]                # (K, 1, nx)
                     # Σ_t chain-ordered (ng, nx) → broadcast (1, ng, nx) over K.
                     sig_t_chain = sig_t_p[:, chain][None, :, :]        # (1, ng, nx)
                     cf = scheme.moment_scan_closure(
-                        abs_mu=abs_mu_c, A_down=A_down_c, V=V_c,
+                        abs_mu=abs_mu_c, face_area_downstream=A_down_c,
+                        volume=V_c,
                         reaction_xs=sig_t_chain,
                     )
                     # Face-chain affine source b = flat emission + slope term.
@@ -4392,9 +4393,17 @@ class _OneDimScanWalk:
                         # bit-identical to the retired visit stamp.
                         c_in_n = geom.c_in[global_n]
                         c_out_n = geom.c_out[global_n]
+                        # ΔA/w from its two factors (P4.7 — the packet no
+                        # longer carries the fusion): same operands and op
+                        # as the retired per-packet copy, bit-identical.
+                        reduced_op = self.mesh.reduced
+                        assert reduced_op is not None  # curvilinear => minted
+                        w_n = float(np.asarray(
+                            self.mesh.quad.weights)[global_n])
                         for visit in visits:
                             i = visit.cell_idx
-                            st_v = visit.streaming_terms
+                            dAw_vi = float(
+                                np.asarray(reduced_op.delta_A)[i]) / w_n
                             # scheme.update expects per-cell (ng,)
                             # arrays — sig_t / source slice on the cell axis.
                             result = scheme.update(
@@ -4405,10 +4414,10 @@ class _OneDimScanWalk:
                                     spatial_upstream=psi_in,
                                 ),
                                 angular_denom_term=(
-                                    st_v.delta_A_over_w * c_out_n
+                                    dAw_vi * c_out_n
                                 ),
                                 angular_numer_upstream=(
-                                    st_v.delta_A_over_w * c_in_n
+                                    dAw_vi * c_in_n
                                     * psi_angle[:, i]
                                 ),
                             )
@@ -4427,7 +4436,7 @@ class _OneDimScanWalk:
                     # psi_angle on (ng, nx); chain reorders the nx axis.
                     psi_a_in_chain = psi_angle[:, chain].copy()      # (ng, nx)
                     ang_contrib = (
-                        geom.dA_w[global_n] * geom.c_in[global_n]
+                        geom.delta_A_over_w[global_n] * geom.c_in[global_n]
                     )[None, :] * psi_a_in_chain                       # (ng, nx)
                     # Cache fields are (N, ng, nx) natively under PR-INDEX-2.
                     # Indexed slice [global_n] yields (ng, nx) — no transpose.
@@ -4657,11 +4666,12 @@ class _OneDimScanWalk:
                     # The SAME d=1 closed form ``_run`` builds (ONE LD
                     # algebra handle; its transpose rides _geom_fold).
                     abs_mu_c = geom.abs_mu[ords][:, None, None]  # (K, 1, 1)
-                    A_down_c = geom.A_down[ords][:, None, :]     # (K, 1, nx)
-                    V_c = geom.V[ords][:, None, :]               # (K, 1, nx)
+                    A_down_c = geom.face_area_downstream[ords][:, None, :]     # (K, 1, nx)
+                    V_c = geom.volume[ords][:, None, :]          # (K, 1, nx)
                     sig_t_chain = sigma[:, chain][None, :, :]    # (1, ng, nx)
                     cf = scheme.moment_scan_closure(
-                        abs_mu=abs_mu_c, A_down=A_down_c, V=V_c,
+                        abs_mu=abs_mu_c, face_area_downstream=A_down_c,
+                        volume=V_c,
                         reaction_xs=sig_t_chain,
                     )
 
@@ -4768,12 +4778,12 @@ class _OneDimScanWalk:
             # ── reverse the ordinate loop (reverse-μ order) ──
             for global_n in reversed(ordinates_in_level):
                 # ── degenerate pure-azimuthal ord (cylinder): slot-local ──
-                # No radial streaming (μ_r=0 ⇒ A_down=0), so each cell is an
+                # No radial streaming (μ_r=0 ⇒ face_area_downstream=0), so each cell is an
                 # INDEPENDENT diagonal solve threaded by the M-M recurrence:
-                #   ψ̄ = inv_denom·(QV + dA_w·c_in·ψ_ang);
+                #   ψ̄ = inv_denom·(QV + delta_A_over_w·c_in·ψ_ang);
                 #   ψ_ang_out = tau_inv·ψ̄ − mm_a_in·ψ_ang.
-                # The caches are VALID here (A_down=0 ⇒ inverse_denom =
-                # 1/(dA_w·c_out + Σ_t·V); probe-confirmed 0-ULP), so there is no
+                # The caches are VALID here (face_area_downstream=0 ⇒ inverse_denom =
+                # 1/(delta_A_over_w·c_out + Σ_t·V); probe-confirmed 0-ULP), so there is no
                 # scan and no recompute — the transpose is the diagonal's adjoint
                 # in cell order (degenerate ords carry no chain, no face, no
                 # pole/BC coupling; the forward's dedicated dag-walk branch).
@@ -4783,24 +4793,24 @@ class _OneDimScanWalk:
                     psi_ang_bar = -geom.mm_a_in_coeff[global_n] * out_ang_bar
                     # angular_flux[global_n] = ψ̄ (cell order, every cell).
                     psi_avg_bar = psi_avg_bar + bulk_cot[global_n]
-                    # ψ̄ = inv_denom·(QV + |μ|·A_total·ψ_in + κ·ψ_ang);  QV = Q·V.
-                    # (|μ|·A_total·ψ_in is the residual spatial coupling the
-                    # forward's dag-walk carries even at A_down=0 — |μ|≈0-weighted,
+                    # ψ̄ = inv_denom·(QV + |μ|·face_area_total·ψ_in + κ·ψ_ang);  QV = Q·V.
+                    # (|μ|·face_area_total·ψ_in is the residual spatial coupling the
+                    # forward's dag-walk carries even at face_area_downstream=0 — |μ|≈0-weighted,
                     # but its boundary cotangent must be threaded for an EXACT
                     # transpose; ψ_in is shared across cells, so its bar sums.)
                     u_bar = coll.inverse_denom[global_n] * psi_avg_bar   # (ng, nx)
                     Q_bar[global_n] += u_bar * V[None, :]
-                    kappa = geom.dA_w[global_n] * geom.c_in[global_n]    # (nx,)
+                    kappa = geom.delta_A_over_w[global_n] * geom.c_in[global_n]    # (nx,)
                     psi_ang_bar = psi_ang_bar + kappa[None, :] * u_bar
                     psi_angle_bar = psi_ang_bar                  # overwrite (cell order)
                     # Boundary: the degenerate ord does NOT overwrite its outflow
                     # slot (no face march), so the forward passes q.boundary[n] →
                     # sol.boundary[n] identically — the transpose mirrors that on
                     # the cotangent.  A μ<0 degenerate ord ALSO reads that slot as
-                    # its spatial upstream (|μ|·A_total, summed over cells).
+                    # its spatial upstream (|μ|·face_area_total, summed over cells).
                     if mu[global_n] < 0:
                         spatial_sens = (
-                            geom.abs_mu[global_n] * geom.A_total[global_n]
+                            geom.abs_mu[global_n] * geom.face_area_total[global_n]
                         )[None, :] * u_bar                       # (ng, nx)
                         bc_outer_bar[global_n] = (
                             bc_outer_cot[global_n] + spatial_sens.sum(axis=1)
@@ -4852,8 +4862,8 @@ class _OneDimScanWalk:
                 s_bar = scheme.source_emission(b_chain_bar, inv_denom_p, w_p)
                 # QV_chain = QV_full[:,chain]; QV_full = Q·V.
                 Q_bar[global_n] += s_bar[:, inv] * V[None, :]
-                # ang_contrib = (dA_w·c_in)·psi_a_in_chain.
-                ang_coeff = geom.dA_w[global_n] * geom.c_in[global_n]  # (nx,)
+                # ang_contrib = (delta_A_over_w·c_in)·psi_a_in_chain.
+                ang_coeff = geom.delta_A_over_w[global_n] * geom.c_in[global_n]  # (nx,)
                 psi_a_in_chain_bar = (
                     psi_a_in_chain_bar + ang_coeff[None, :] * s_bar
                 )

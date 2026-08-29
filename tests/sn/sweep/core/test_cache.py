@@ -104,10 +104,10 @@ def test_geometry_coefficients_built_at_construction() -> None:
     assert geom.chain_idx.shape == (N, nx)
     assert geom.chain_idx_inv.shape == (N, nx)
     assert geom.abs_mu.shape == (N,)
-    assert geom.A_down.shape == (N, nx)
-    assert geom.A_total.shape == (N, nx)
-    assert geom.dA_w.shape == (N, nx)
-    assert geom.V.shape == (N, nx)
+    assert geom.face_area_downstream.shape == (N, nx)
+    assert geom.face_area_total.shape == (N, nx)
+    assert geom.delta_A_over_w.shape == (N, nx)
+    assert geom.volume.shape == (N, nx)
     assert geom.c_in.shape == (N,)
     assert geom.c_out.shape == (N,)
     assert geom.tau_inv.shape == (N,)
@@ -116,7 +116,7 @@ def test_geometry_coefficients_built_at_construction() -> None:
     assert geom.is_degenerate.dtype == bool
     # Frozen dataclass — refuses re-binding any field
     with pytest.raises(FrozenInstanceError):
-        geom.A_down = np.zeros_like(geom.A_down)  # type: ignore[misc]
+        geom.face_area_downstream = np.zeros_like(geom.face_area_downstream)  # type: ignore[misc]
 
 
 @pytest.mark.l0
@@ -124,9 +124,9 @@ def test_collision_cache_built_at_sigma_t_bind() -> None:
     """Test #2 — :class:`CollisionCache` shape consistent with ``geom``; values match the formula.
 
     Hand-evaluate the cache against the canonical formula
-    ``inverse_denom = 1 / (2|μ|·A_down + dA_w·c_out + σ_t·V)``
-    cell-by-cell for one ordinate on a slab fixture (where dA_w=0, A_down=1,
-    A_total=2) — the closed-form ``a = (2|μ|·2 − σ_t·V)/(2|μ|·1 + σ_t·V)``.
+    ``inverse_denom = 1 / (2|μ|·face_area_downstream + delta_A_over_w·c_out + σ_t·V)``
+    cell-by-cell for one ordinate on a slab fixture (where delta_A_over_w=0, face_area_downstream=1,
+    face_area_total=2) — the closed-form ``a = (2|μ|·2 − σ_t·V)/(2|μ|·1 + σ_t·V)``.
 
     Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
@@ -148,7 +148,7 @@ def test_collision_cache_built_at_sigma_t_bind() -> None:
     mu = abs(float(quad.mu_x[0]))
     V = 0.25  # uniform mesh
     sig = 1.0
-    denom_expected = 2.0 * mu * 1.0 + 0.0 + sig * V  # dA_w=0 slab
+    denom_expected = 2.0 * mu * 1.0 + 0.0 + sig * V  # delta_A_over_w=0 slab
     a_expected = 2.0 * mu * 2.0 / denom_expected - 1.0
     # Indexing semantics: [n=0, g=0, i=0] under (N, ng, nx) layout.
     assert np.isclose(coll.inverse_denom[0, 0, 0], 1.0 / denom_expected, rtol=1e-14)
@@ -166,7 +166,7 @@ def test_two_strata_independence_by_ng_axis() -> None:
     sn_mesh = _make_slab(nx=5, N=4)
     geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
     # Stratum 1 — no ng axis on ANY field.
-    for name in ("A_down", "A_total", "dA_w", "V"):
+    for name in ("face_area_downstream", "face_area_total", "delta_A_over_w", "volume"):
         field_arr = getattr(geom, name)
         assert field_arr.ndim == 2, f"{name} should be (N, nx); got shape {field_arr.shape}"
     for name in ("abs_mu", "c_in", "c_out", "tau_inv", "mm_a_in_coeff", "is_degenerate"):
@@ -422,16 +422,16 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
     # array — for the dual-view contract, the cache and the reference
     # MUST be driven by the same input ψ_a_in.
     chain = geom.chain_idx[n]
-    V_chain = geom.V[n]                                       # (nx,)
+    V_chain = geom.volume[n]                                  # (nx,)
     # Q is (ng, nx); chain reorders the nx axis to chain order.
     QV_chain = Q[:, chain] * V_chain[chain] / quad.weights.sum()  # (ng, nx)
     psi_in = np.zeros(ng)
     if geometry == "sphere":
         # Frozen ψ_a_in input — a representative bump so the curvature
-        # term is genuinely exercised (zeros would null dA_w·c_in·ψ_a_in).
+        # term is genuinely exercised (zeros would null delta_A_over_w·c_in·ψ_a_in).
         rng2 = np.random.default_rng(7)
         psi_a_in_chain = 0.1 * rng2.random((ng, nx))          # (ng, nx)
-        ang_contrib = (geom.dA_w[n] * geom.c_in[n])[None, :] * psi_a_in_chain  # (ng, nx)
+        ang_contrib = (geom.delta_A_over_w[n] * geom.c_in[n])[None, :] * psi_a_in_chain  # (ng, nx)
         b = 2.0 * (QV_chain + ang_contrib) * coll.inverse_denom[n]  # (ng, nx)
     else:
         psi_a_in_chain = None
@@ -456,8 +456,13 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
     closure = sn_mesh.angular_closure
     c_in_n = closure.c_in_per_ordinate[n]
     c_out_n = closure.c_out_per_ordinate[n]
+    # ΔA/w from its two factors (P4.7 — the packet no longer carries it).
+    _red = sn_mesh.reduced
+    assert _red is not None  # 1-D mesh => minted by the ctor (narrowing)
+    _w_n = float(np.asarray(sn_mesh.quad.weights)[n])
     for k_chain in range(nx):
         cell_i = int(chain[k_chain])
+        dAw_vc = float(np.asarray(_red.delta_A)[cell_i]) / _w_n
         visit = visits_full[k_chain]
         st_v = visit.streaming_terms
         psi_a_in_cell = (
@@ -468,10 +473,10 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
             total_xs=sig_t[:, cell_i],                         # (ng,) — group axis at axis 0
             source=QV_chain[:, k_chain],                       # (ng,)
             upstream_state=UpstreamState(spatial_upstream=psi_face_in),
-            angular_denom_term=st_v.delta_A_over_w * c_out_n,
+            angular_denom_term=dAw_vc * c_out_n,
             angular_numer_upstream=(
                 None if psi_a_in_cell is None
-                else st_v.delta_A_over_w * c_in_n * psi_a_in_cell
+                else dAw_vc * c_in_n * psi_a_in_cell
             ),
         )
         if result.outgoing_spatial_flux is not None:
@@ -481,7 +486,7 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
 
     # Dual-view contract — only cells with a downstream spatial face
     # are part of the chain's spatial scan.  The last sphere-inward
-    # cell (at r=0) has ``A_down == 0`` and contributes no scan output;
+    # cell (at r=0) has ``face_area_downstream == 0`` and contributes no scan output;
     # ``update`` returns ``None`` there and the cache's formal scan
     # output is undefined.  Compare only the well-defined cells.
     np.testing.assert_allclose(
@@ -530,13 +535,15 @@ def test_cache_populator_matches_cell_balance_for_streaming() -> None:
         for k_chain in (0, 3, 7):
             visit = visits[k_chain]
             cell_i = int(chain[k_chain])
+            red_op = sn_mesh.reduced
+            assert red_op is not None  # 1-D mesh => minted (narrowing)
             # Zero upstream + zero angular-numer probe — ``denom`` is
             # independent of upstream, so this is fine.
             st = visit.streaming_terms
             denom_ref, _numer_ref = cell_balance_for_streaming(
                 abs_mu=np.array([st.abs_mu]),
                 A_downstream=np.array([visit.face_area_downstream]),
-                A_total=np.array(
+                face_area_total=np.array(
                     [st.face_area_inner + st.face_area_outer],
                 ),
                 total_xs=sig_t[:, cell_i],                                 # (ng,)
@@ -544,9 +551,11 @@ def test_cache_populator_matches_cell_balance_for_streaming() -> None:
                 psi_face_in=np.zeros((ng, 1)),
                 # Angular contribution assembled from the closure's own
                 # per-ordinate constant (P4.9a — the visit is purely
-                # spatial; the closure owns the c-map).
+                # spatial; the closure owns the c-map) and ΔA/w from its
+                # two factors (P4.7).
                 angular_denom_term=np.array(
-                    [st.delta_A_over_w
+                    [(float(np.asarray(red_op.delta_A)[cell_i])
+                      / float(np.asarray(sn_mesh.quad.weights)[n]))
                      * sn_mesh.angular_closure.c_out_per_ordinate[n]],
                 ),
                 angular_numer_upstream=np.zeros((ng, 1)),
@@ -559,12 +568,12 @@ def test_cache_populator_matches_cell_balance_for_streaming() -> None:
             # vector across groups."
             denom_cached = 1.0 / coll.inverse_denom[n, :, k_chain]         # (ng,)
             a_cached = coll.a_attenuation[n, :, k_chain]                   # (ng,)
-            # Algebraic a from the reference denom: a = 2|μ|·A_total/denom − 1.
-            A_total = (
+            # Algebraic a from the reference denom: a = 2|μ|·face_area_total/denom − 1.
+            face_area_total = (
                 st.face_area_inner + st.face_area_outer
             )
             a_expected = (
-                2.0 * st.abs_mu * A_total / denom_ref - 1.0
+                2.0 * st.abs_mu * face_area_total / denom_ref - 1.0
             )
             np.testing.assert_allclose(
                 denom_cached, denom_ref, rtol=1e-14,

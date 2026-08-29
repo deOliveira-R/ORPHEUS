@@ -1043,7 +1043,9 @@ generator::
 
     for visit in sn_mesh.dag_walk(ordinate_idx=n):
         upstream = UpstreamState(spatial_upstream=psi_face)
-        dA_w = visit.streaming_terms.delta_A_over_w
+        # ΔA/w from its two factors (P4.7 — the packet no longer
+        # carries the fusion; the closure owns it, the cache interns it)
+        dA_w = float(reduced.delta_A[visit.cell_idx] / quad.weights[n])
         result = scheme.update(
             visit=visit,
             total_xs=total_xs,
@@ -1440,7 +1442,7 @@ M-M angular closure remains active.
    still forms that quotient (through
    :func:`~orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
    at ``n_mask = 1``, where the drop-out happens *geometrically*, via
-   ``A_downstream = A_total = 0.0``, not by a threshold on
+   ``A_downstream = face_area_total = 0.0``, not by a threshold on
    :math:`|\mu|`).  What ``update`` no longer does is evaluate
    :math:`\psi_{n+1/2,i}` — and that relation is **not written in this
    equation**.  It is :eq:`dd-mm-angular-recurrence`, and that is the
@@ -1673,7 +1675,7 @@ geometry the walk traverses:
 
    for visit in self.mesh.dag_walk(ordinate_idx=n, mu_level_idx=p):
        i = visit.cell_idx
-       dA_w = visit.streaming_terms.delta_A_over_w
+       dA_w = geom.delta_A_over_w[n][k]   # the cache-interned ΔA/w row (P4.7)
        result = scheme.update(
            visit=visit,
            total_xs=sig_t[:, i],

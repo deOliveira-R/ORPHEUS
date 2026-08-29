@@ -24,8 +24,8 @@ The math is finite at the same chain.  At ``a[i] = 0`` the recurrence
 ``ψ[i+1] = a[i]·ψ[i] + b[i]`` degenerates to ``ψ[i+1] = b[i]`` — the
 chain *forgets its history*, a fully-defined "fully attenuated" exit
 flux.  The pole cell of a 1-D cylindrical mesh hits this exactly: the
-inner radial face has zero area, so ``A_down = 0`` and the cache's
-``a = 2|μ|·A_total / (dA_w·c_out + Σ_t·V) − 1`` lands bit-exactly on 0
+inner radial face has zero area, so ``face_area_downstream = 0`` and the cache's
+``a = 2|μ|·face_area_total / (delta_A_over_w·c_out + Σ_t·V) − 1`` lands bit-exactly on 0
 at the ``(thick=2, n=20, μ_x=-1/√20, Σ_t=1)`` resonance.
 
 ERR-057 (`#222 <https://github.com/deOliveira-R/ORPHEUS/issues/222>`_) is
@@ -250,7 +250,7 @@ class TestSICylinderResonance:
     History in three states. (1) The pre-#337 fixture FOUND the
     ``a = 0`` resonance at a numerical coincidence: the OLD
     project-convention LS8 seed carried ``μ_x = −1/√20``, which solved
-    the pole-cell identity ``2|μ|·A_total = dA_w·c_out + Σ_t·V``
+    the pole-cell identity ``2|μ|·face_area_total = delta_A_over_w·c_out + Σ_t·V``
     (ERR-054) bit-exactly at ``(thick=2, n=20, Σ_t=1)``.  (2) #337's
     moment-matched seed retired that node (its μ₁² is 1/21) — the old
     ordinate-present tripwire fired exactly as designed.  (3) At the
@@ -258,7 +258,7 @@ class TestSICylinderResonance:
     the resonance is UNREACHABLE at physical cross sections: ``[M]``
     (2026-08-08) the per-ordinate resonant ``Σ_t*`` — from the affine
     ``1/(a+1)`` in ``Σ_t`` — is ≤ 0 for EVERY inward ordinate at
-    every probed ``(n, R)``, i.e. ``2|μ|·A_total ≤ dA_w·c_out`` on
+    every probed ``(n, R)``, i.e. ``2|μ|·face_area_total ≤ delta_A_over_w·c_out`` on
     every clamped folded arc, so ``a < 0`` for all ``Σ_t > 0``.
 
     The unreachability test IS the tripwire: the [½,1] absorber's

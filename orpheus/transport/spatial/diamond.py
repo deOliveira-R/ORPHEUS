@@ -151,7 +151,7 @@ def _cell_balance_n1(
     denom, numer_upstream = cell_balance_for_streaming(
         abs_mu=abs_mu_arr,
         A_downstream=A_down_arr,
-        A_total=A_total_arr,
+        face_area_total=A_total_arr,
         total_xs=total_xs,
         volume=st.volume,
         psi_face_in=psi_face_in_mask,
@@ -587,10 +587,10 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         self,
         *,
         abs_mu: np.ndarray,    # (N,)        |μ_n|
-        A_down: np.ndarray,    # (N, nx)     downstream face area (sweep-resolved)
-        A_total: np.ndarray,   # (N, nx)     A_inner + A_outer
+        face_area_downstream: np.ndarray,    # (N, nx)     downstream face area (sweep-resolved)
+        face_area_total: np.ndarray,   # (N, nx)     A_inner + A_outer
         angular_denom_term: np.ndarray,  # (N, nx) assembled closure denom term
-        V: np.ndarray,         # (N, nx)     cell volume per ordinate
+        volume: np.ndarray,    # (N, nx)     cell volume per ordinate
         reaction_xs: np.ndarray,  # (N, ng, nx) Σ_t in the SAME cell ordering as the geometry arrays
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""DD's :math:`\Sigma_t`-epoch scan coefficients — ``(a_attenuation, inverse_denom, face_blend_weight)``.
@@ -626,8 +626,8 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
            \qquad
            \mathrm{inverse\_denom}[n,g,i] = \frac{1}{\mathrm{denom}[n,g,i]}.
 
-        For slab the curvature fields are neutral (``dA_w = 0``,
-        ``c_out = 0``, ``A_down = 1``, ``A_total = 2``) and the denominator
+        For slab the curvature fields are neutral (``delta_A_over_w = 0``,
+        ``c_out = 0``, ``face_area_downstream = 1``, ``face_area_total = 2``) and the denominator
         collapses to the slab form :math:`2|\mu_n| + \Sigma_t V`.
 
         What this method does NOT compute (by design):
@@ -672,7 +672,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         (Cardinal Rule 2 reconsidered): the Cartesian
         :meth:`_cartesian_streaming_diagonal` is ``S = Σ_t + Σ_a 2 g_a`` (÷Δ raw
         streaming, no volume, no angular coupling), while the curvilinear form
-        here is ``S = Σ_t·V + 2|μ|·A_down + (ΔA/w)·c_out`` (×V collision,
+        here is ``S = Σ_t·V + 2|μ|·face_area_downstream + (ΔA/w)·c_out`` (×V collision,
         face-area streaming, AND the Morel–Montry curvature redistribution that
         couples the spatial diagonal to the angular closure — no Cartesian
         analogue, a different bit-identity pin).  The genuine unification is
@@ -685,7 +685,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         its snapshots for no gain.
         """
         # streaming + curvature (no group axis) — units: dimensionless
-        streaming_face_term = 2.0 * abs_mu[:, None] * A_down              # (N, nx)
+        streaming_face_term = 2.0 * abs_mu[:, None] * face_area_downstream              # (N, nx)
         # P4.9a row 3b: the curvature term arrives ASSEMBLED from the
         # caller ((ΔA/w)·c_out, closure-minted) — same value, same
         # association, no M-M name in this layer.
@@ -693,11 +693,11 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
             streaming_face_term + angular_denom_term
         )                                                                # (N, nx)
         # collision Σ_t·V (group-resolved) — units: cm² (1/cm × cm³)
-        collision_volume_term = reaction_xs * V[:, None, :]              # (N, ng, nx)
+        collision_volume_term = reaction_xs * volume[:, None, :]         # (N, ng, nx)
         denom = geometric_streaming_term[:, None, :] + collision_volume_term  # (N, ng, nx)
         inverse_denom = 1.0 / denom                                       # (N, ng, nx)
-        # transmission multiplier a = 2|μ|·A_total / denom − 1
-        a_numer = 2.0 * abs_mu[:, None] * A_total                        # (N, nx)
+        # transmission multiplier a = 2|μ|·face_area_total / denom − 1
+        a_numer = 2.0 * abs_mu[:, None] * face_area_total                        # (N, nx)
         a_attenuation = a_numer[:, None, :] * inverse_denom - 1.0        # (N, ng, nx)
         # Cell-average blend weight (#158 the coefficient model): DD is the
         # symmetric diamond mean ψ̄ = ½(ψ_in+ψ_out), i.e. w = ½ everywhere.  The

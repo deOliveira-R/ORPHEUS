@@ -82,6 +82,16 @@ from tests.sn.sweep.core._c_surrogate import (
 )
 
 
+def _dAw_of(op, cell_idx, direction_idx, mu_level_idx=None):
+    """ΔA/w from its two factors (P4.7 — the packet no longer carries
+    the fusion), resolving the cylinder's within-level index to the
+    GLOBAL ordinate exactly as the producer does."""
+    quad = op.angular.quadrature
+    n = (direction_idx if mu_level_idx is None
+         else int(quad.level_indices[mu_level_idx][direction_idx]))
+    return float(op.delta_A[cell_idx] / quad.weights[n])
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Mesh fixtures
 # ═══════════════════════════════════════════════════════════════════════
@@ -196,16 +206,17 @@ class TestBitIdenticalSlab:
         # Synthetic ng-shaped inputs.
         total_xs = np.array([1.5, 0.7])
         # ``source`` is per-contract Q · V · weight_norm — for slab
-        # V == chord_length, so we pre-multiply by chord_length and
-        # weight_norm here as the sweep would.
+        # V IS the cell width (unit cross-section; the packet's
+        # ``chord_length`` retired at P4.7), so we pre-multiply by
+        # volume and weight_norm here as the sweep would.
         weight_norm = 1.0 / quad.weights.sum()
         Q = np.array([2.5, 0.4])
-        source = Q * st.chord_length * weight_norm
+        source = Q * st.volume * weight_norm
         psi_in = np.array([0.3, 0.1])
         upstream = UpstreamState(spatial_upstream=psi_in)
 
         # Reference scalar form — mirrors sweep.py:119-123 + 221-222.
-        chord = st.chord_length
+        chord = st.volume  # slab: V == the cell width (unit cross-section)
         abs_mu = st.abs_mu
         ref_denom = 2.0 * abs_mu + chord * total_xs
         ref_a = (2.0 * abs_mu - chord * total_xs) / ref_denom
@@ -263,11 +274,11 @@ class TestBitIdenticalSlab:
         total_xs = np.array([2.0, 0.5, 1.1])
         weight_norm = 1.0 / quad.weights.sum()
         Q = np.array([0.9, 1.7, 0.2])
-        source = Q * st.chord_length * weight_norm
+        source = Q * st.volume * weight_norm
         psi_in = np.array([0.42, 0.31, 0.55])  # synthetic upstream
         upstream = UpstreamState(spatial_upstream=psi_in)
 
-        chord = st.chord_length
+        chord = st.volume  # slab: V == the cell width (unit cross-section)
         abs_mu = st.abs_mu
         ref_denom = 2.0 * abs_mu + chord * total_xs
         ref_a = (2.0 * abs_mu - chord * total_xs) / ref_denom
@@ -312,17 +323,17 @@ class TestBitIdenticalSlab:
 
         # Verify we got a negative-μ ordinate so this test isn't
         # just a re-run of the positive case.
-        assert st.mu is not None and st.mu < 0
-        assert st.abs_mu == abs(st.mu)
+        assert quad.mu_x[direction_idx] < 0  # P4.7: signed mu off the quadrature
+        assert st.abs_mu == abs(quad.mu_x[direction_idx])
 
         total_xs = np.array([1.2, 0.8])
         weight_norm = 1.0 / quad.weights.sum()
         Q = np.array([1.5, 0.6])
-        source = Q * st.chord_length * weight_norm
+        source = Q * st.volume * weight_norm
         psi_in = np.array([0.0, 0.0])  # vacuum BC at outer face
         upstream = UpstreamState(spatial_upstream=psi_in)
 
-        chord = st.chord_length
+        chord = st.volume  # slab: V == the cell width (unit cross-section)
         abs_mu = st.abs_mu
         ref_denom = 2.0 * abs_mu + chord * total_xs
         ref_a = (2.0 * abs_mu - chord * total_xs) / ref_denom
@@ -387,8 +398,6 @@ class TestBitIdenticalCurvilinear:
         cell_idx = 2  # interior
         direction_idx = quad.N - 2  # positive μ, not extremal
         st = op.streaming_terms(cell_idx, direction_idx)
-        # Confirm we have the curvilinear bundle populated.
-        assert st.delta_A_over_w is not None
         assert st.abs_mu >= 1e-15  # non-degenerate
 
         total_xs = np.array([1.3, 0.9])
@@ -410,16 +419,16 @@ class TestBitIdenticalCurvilinear:
         A_inner = st.face_area_inner
         A_outer = st.face_area_outer
         A_downstream = A_outer  # outward sweep
-        dA_w = st.delta_A_over_w
+        delta_A_over_w = _dAw_of(op, cell_idx, direction_idx)
         V = st.volume
         ref_c_in, ref_c_out = c_from_constants(tau, alpha_in, alpha_out)
         ref_denom = (
-            2.0 * abs_mu * A_downstream + dA_w * ref_c_out + total_xs * V
+            2.0 * abs_mu * A_downstream + delta_A_over_w * ref_c_out + total_xs * V
         )
         ref_numer = (
             source
             + abs_mu * (A_inner + A_outer) * psi_spat_in
-            + dA_w * ref_c_in * psi_angle_in
+            + delta_A_over_w * ref_c_in * psi_angle_in
         )
         ref_psi_avg = ref_numer / ref_denom
         ref_psi_spat_out = 2.0 * ref_psi_avg - psi_spat_in
@@ -437,8 +446,8 @@ class TestBitIdenticalCurvilinear:
         # P4.9a: the caller assembles the closure contributions.
         result = strat.update(
             visit, total_xs, source, upstream,
-            angular_denom_term=dA_w * ref_c_out,
-            angular_numer_upstream=dA_w * ref_c_in * psi_angle_in,
+            angular_denom_term=delta_A_over_w * ref_c_out,
+            angular_numer_upstream=delta_A_over_w * ref_c_in * psi_angle_in,
         )
 
         # Bit-identical: np.array_equal, not np.allclose.
@@ -524,8 +533,8 @@ class TestBitIdenticalCurvilinear:
         # (geometric labels): inner == A[i], outer == A[i+1].
         assert st.face_area_inner == float(op.face_areas[cell_idx])
         assert st.face_area_outer == float(op.face_areas[cell_idx + 1])
-        # Signed mu is the direction discriminator.
-        assert st.mu < 0
+        # Signed mu (off the quadrature, P4.7) discriminates direction.
+        assert quad.mu_x[direction_idx] < 0
 
         total_xs = np.array([0.8, 1.4])
         weight_norm = 1.0 / quad.weights.sum()
@@ -540,18 +549,19 @@ class TestBitIdenticalCurvilinear:
             op, cell_idx, direction_idx,
         )
         abs_mu = st.abs_mu
+        dAw = _dAw_of(op, cell_idx, direction_idx)
         # Inward (μ < 0): downstream face is the INNER face.
         A_downstream = st.face_area_inner
         ref_c_in, ref_c_out = c_from_constants(tau, alpha_in, alpha_out)
         ref_denom = (
             2.0 * abs_mu * A_downstream
-            + st.delta_A_over_w * ref_c_out
+            + dAw * ref_c_out
             + total_xs * st.volume
         )
         ref_numer = (
             source
             + abs_mu * (st.face_area_inner + st.face_area_outer) * psi_spat_in
-            + st.delta_A_over_w * ref_c_in * psi_angle_in
+            + dAw * ref_c_in * psi_angle_in
         )
         ref_psi_avg = ref_numer / ref_denom
         ref_psi_spat_out = 2.0 * ref_psi_avg - psi_spat_in
@@ -571,9 +581,9 @@ class TestBitIdenticalCurvilinear:
         # P4.9a: the caller assembles the closure contributions.
         result = strat.update(
             visit, total_xs, source, upstream,
-            angular_denom_term=st.delta_A_over_w * ref_c_out,
+            angular_denom_term=dAw * ref_c_out,
             angular_numer_upstream=(
-                st.delta_A_over_w * ref_c_in * psi_angle_in
+                dAw * ref_c_in * psi_angle_in
             ),
         )
 
@@ -634,10 +644,10 @@ class TestCylindricalDegenerate:
         :class:`~orpheus.transport.spatial.scheme.StreamingTerms`
         constructor with a tiny ``abs_mu`` — gates the branch
         without depending on the choice of quadrature.  The other
-        fields (``face_area_inner`` / ``face_area_outer``,
-        ``delta_A_over_w``, ``volume``) come from a real cylindrical
-        streaming-terms instance so the algebra exercises a non-
-        synthetic geometry.
+        fields (``face_area_inner`` / ``face_area_outer``, ``volume``)
+        come from a real cylindrical streaming-terms instance so the
+        algebra exercises a non-synthetic geometry; ΔA/w is formed from
+        its two factors (P4.7 — the packet no longer carries it).
         """
         mesh = _cylindrical_mesh(nx=4, radius=1.0)
         quad = Quadrature.folded_product(n_mu=4, n_phi=4)
@@ -651,12 +661,10 @@ class TestCylindricalDegenerate:
         )
         # Construct degenerate variant with abs_mu = 1e-16 (well
         # below the 1e-15 threshold).
+        dAw_real = _dAw_of(op, 1, 0, mu_level_idx=0)
         st = StreamingTerms(
-            chord_length=st_real.chord_length,
-            mu=0.0,
             face_area_inner=st_real.face_area_inner,
             face_area_outer=st_real.face_area_outer,
-            delta_A_over_w=st_real.delta_A_over_w,
             volume=st_real.volume,
             abs_mu=1e-16,
         )
@@ -677,8 +685,8 @@ class TestCylindricalDegenerate:
 
         # Reference scalar form — mirrors sweep.py:533-543.
         ref_c_in, ref_c_out = c_from_constants(tau, alpha_in, alpha_out)
-        ref_denom = st.delta_A_over_w * ref_c_out + total_xs * st.volume
-        ref_numer = source + st.delta_A_over_w * ref_c_in * psi_angle_in
+        ref_denom = dAw_real * ref_c_out + total_xs * st.volume
+        ref_numer = source + dAw_real * ref_c_in * psi_angle_in
         ref_psi_avg = ref_numer / ref_denom
         ref_psi_angle_out = (
             (ref_psi_avg - (1.0 - tau) * psi_angle_in) / tau
@@ -698,17 +706,17 @@ class TestCylindricalDegenerate:
         # P4.9a: the caller assembles the closure contributions.
         result = strat.update(
             visit, total_xs, source, upstream,
-            angular_denom_term=st.delta_A_over_w * ref_c_out,
+            angular_denom_term=dAw_real * ref_c_out,
             angular_numer_upstream=(
-                st.delta_A_over_w * ref_c_in * psi_angle_in
+                dAw_real * ref_c_in * psi_angle_in
             ),
         )
 
         # Issue #196 Step 2.5: the unified cell-balance helper retains
-        # the ``|μ|·A_total·ψ^s_in`` term naturally — it vanishes as
+        # the ``|μ|·face_area_total·ψ^s_in`` term naturally — it vanishes as
         # ``|μ| → 0`` rather than via an explicit-drop branch.  For
         # synthetic ``abs_mu = 1e-16``, the residual drift is
-        # ``1e-16 * O(A_total) * O(ψ^s_in) ≈ 1e-17``, well within
+        # ``1e-16 * O(face_area_total) * O(ψ^s_in) ≈ 1e-17``, well within
         # FP-non-associativity per ``vv-principles`` §"Bit-identity vs
         # principled-equivalence".
         np.testing.assert_allclose(
@@ -732,11 +740,11 @@ class TestCylindricalDegenerate:
         is FP-noise level (Issue #196 Step 2.5).
 
         Pre-Step-2.5 the degenerate helper explicitly dropped the
-        ``|μ|·A_total·ψ^s_in`` term so the cell-average flux was
+        ``|μ|·face_area_total·ψ^s_in`` term so the cell-average flux was
         BIT-identical for any ``psi_spatial_in``.  Step 2.5's unified
         helper keeps the term but it vanishes as ``|μ|→0`` — for
         ``abs_mu = 1e-16`` the spatial-upstream sensitivity is bounded
-        by ``1e-16 · A_total · |ψ^s_in|`` ≈ ``1e-14`` for the wildly-
+        by ``1e-16 · face_area_total · |ψ^s_in|`` ≈ ``1e-14`` for the wildly-
         scaled probe.  Principled-equivalence per ``vv-principles``.
         """
         mesh = _cylindrical_mesh(nx=4, radius=1.0)
@@ -745,12 +753,10 @@ class TestCylindricalDegenerate:
         st_real = op.streaming_terms(
             cell_idx=1, direction_idx=0, mu_level_idx=0,
         )
+        dAw_real = _dAw_of(op, 1, 0, mu_level_idx=0)
         st = StreamingTerms(
-            chord_length=st_real.chord_length,
-            mu=0.0,
             face_area_inner=st_real.face_area_inner,
             face_area_outer=st_real.face_area_outer,
-            delta_A_over_w=st_real.delta_A_over_w,
             volume=st_real.volume,
             abs_mu=1e-16,
         )
@@ -769,7 +775,7 @@ class TestCylindricalDegenerate:
         )
 
         # P4.9a: the caller assembles the closure contributions (the
-        # production denom carries dA_w·c_out, which sets the |μ|→0
+        # production denom carries delta_A_over_w·c_out, which sets the |μ|→0
         # spatial-upstream sensitivity floor this test bounds).
         c_in_v, c_out_v = c_from_constants(tau, alpha_in, alpha_out)
         visit = CellVisit(
@@ -778,9 +784,9 @@ class TestCylindricalDegenerate:
             face_area_downstream=0.0,
         )
         ang_kw = {
-            "angular_denom_term": st.delta_A_over_w * c_out_v,
+            "angular_denom_term": dAw_real * c_out_v,
             "angular_numer_upstream": (
-                st.delta_A_over_w * c_in_v * psi_angle_in
+                dAw_real * c_in_v * psi_angle_in
             ),
         }
         strat = DiamondDifference()
@@ -789,7 +795,7 @@ class TestCylindricalDegenerate:
 
         # cell_average_flux insensitive to spatial_upstream to
         # FP-noise level (no radial face flow on this cell; the
-        # |μ|·A_total·ψ^s_in term vanishes as |μ|→0).
+        # |μ|·face_area_total·ψ^s_in term vanishes as |μ|→0).
         np.testing.assert_allclose(
             result_a.cell_average_flux, result_b.cell_average_flux,
             rtol=0, atol=1e-13,
@@ -842,7 +848,7 @@ class TestPositivityFailure:
         weight_norm = 1.0 / quad.weights.sum()
         # Small source — let the upstream-flux contribution dominate.
         Q = np.array([0.01])
-        source = Q * st.chord_length * weight_norm
+        source = Q * st.volume * weight_norm
         # Positive but bounded upstream flux.
         psi_in = np.array([1.0])
         upstream = UpstreamState(spatial_upstream=psi_in)
@@ -861,7 +867,7 @@ class TestPositivityFailure:
         assert np.any(result.outgoing_spatial_flux < 0.0), (
             "Thin-cell DD positivity-failure test did not exhibit "
             "the failure mode.  Increase optical thickness "
-            "(total_xs * chord_length) or decrease source / |mu|."
+            "(total_xs * cell width) or decrease source / |mu|."
         )
 
 
@@ -929,7 +935,7 @@ def _slab_visit_inputs(
     if psi_in is None:
         psi_in = np.linspace(0.05, 0.35, n_groups)
     weight_norm = 1.0 / quad.weights.sum()
-    source = Q * st.chord_length * weight_norm
+    source = Q * st.volume * weight_norm
     upstream = UpstreamState(spatial_upstream=psi_in)
     # Slab visit: face_area_downstream = 1.0 (Issue #196 Step 2.5
     # neutral curvature) so the unified DD body's spatial-closure
@@ -944,7 +950,7 @@ def _slab_visit_inputs(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=1.0,
     )
     ang = {
-        "angular_denom_term": st.delta_A_over_w * c_out,
+        "angular_denom_term": _dAw_of(op, cell_idx, direction_idx) * c_out,
         "angular_numer_upstream": None,
     }
     return visit, total_xs, source, upstream, ang
@@ -982,18 +988,22 @@ def _sphere_visit_inputs(
     weight_norm = 1.0 / quad.weights.sum()
     source = Q * st.volume * weight_norm
     upstream = UpstreamState(spatial_upstream=psi_spat_in)
-    A_down = st.face_area_outer if outward else st.face_area_inner
+    face_area_downstream = st.face_area_outer if outward else st.face_area_inner
     tau, alpha_in, alpha_out = mm_constants_for_ordinate(
         op, cell_idx, direction_idx,
     )
     c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
-        cell_idx=cell_idx, streaming_terms=st, face_area_downstream=A_down,
+        cell_idx=cell_idx, streaming_terms=st, face_area_downstream=face_area_downstream,
+    )
+    dAw = _dAw_of(
+        op, cell_idx, direction_idx,
+        mu_level_idx=locals().get("mu_level_idx"),
     )
     ang = {
-        "angular_denom_term": st.delta_A_over_w * c_out,
+        "angular_denom_term": dAw * c_out,
         "angular_numer_upstream": (
-            st.delta_A_over_w * c_in * psi_angle_in
+            dAw * c_in * psi_angle_in
         ),
     }
     return visit, total_xs, source, upstream, ang
@@ -1034,8 +1044,9 @@ def _cylinder_visit_inputs(
     source = Q * st.volume * weight_norm
     upstream = UpstreamState(spatial_upstream=psi_spat_in)
     # Determine sweep direction from signed μ.
-    A_down = (
-        st.face_area_outer if (st.mu is not None and st.mu >= 0.0)
+    n_global = int(quad.level_indices[mu_level_idx][direction_idx])
+    face_area_downstream = (
+        st.face_area_outer if float(quad.mu_x[n_global]) >= 0.0
         else st.face_area_inner
     )
     tau, alpha_in, alpha_out = mm_constants_for_ordinate(
@@ -1043,12 +1054,16 @@ def _cylinder_visit_inputs(
     )
     c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
-        cell_idx=cell_idx, streaming_terms=st, face_area_downstream=A_down,
+        cell_idx=cell_idx, streaming_terms=st, face_area_downstream=face_area_downstream,
+    )
+    dAw = _dAw_of(
+        op, cell_idx, direction_idx,
+        mu_level_idx=locals().get("mu_level_idx"),
     )
     ang = {
-        "angular_denom_term": st.delta_A_over_w * c_out,
+        "angular_denom_term": dAw * c_out,
         "angular_numer_upstream": (
-            st.delta_A_over_w * c_in * psi_angle_in
+            dAw * c_in * psi_angle_in
         ),
     }
     return visit, total_xs, source, upstream, ang
@@ -1078,11 +1093,8 @@ def _cylinder_degenerate_visit_inputs(
         cell_idx=cell_idx, direction_idx=0, mu_level_idx=0,
     )
     st = StreamingTerms(
-        chord_length=st_real.chord_length,
-        mu=0.0,
         face_area_inner=st_real.face_area_inner,
         face_area_outer=st_real.face_area_outer,
-        delta_A_over_w=st_real.delta_A_over_w,
         volume=st_real.volume,
         abs_mu=1e-16,
     )
@@ -1101,10 +1113,11 @@ def _cylinder_degenerate_visit_inputs(
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=0.0,
     )
+    dAw_real = _dAw_of(op, cell_idx, 0, mu_level_idx=0)
     ang = {
-        "angular_denom_term": st.delta_A_over_w * c_out,
+        "angular_denom_term": dAw_real * c_out,
         "angular_numer_upstream": (
-            st.delta_A_over_w * c_in * psi_angle_in
+            dAw_real * c_in * psi_angle_in
         ),
     }
     return visit, total_xs, source, upstream, ang
@@ -1408,7 +1421,7 @@ class TestResidual:
         psi_in = upstream.spatial_upstream
         ref = (
             2.0 * st.abs_mu * (cell_avg - psi_in)
-            + st.chord_length * total_xs * cell_avg
+            + st.volume * total_xs * cell_avg
             - source
         )
 
@@ -1475,7 +1488,7 @@ class TestResidual:
         ``denom · cell_avg - (source + numer_upstream)`` with the
         reference written as HAND ARITHMETIC (P4.9a rewire — see the
         sphere row above for the claim-class note).  The degenerate
-        arm: ``2|μ|·A_down`` vanishes via
+        arm: ``2|μ|·face_area_downstream`` vanishes via
         ``visit.face_area_downstream = 0.0``, and this row is one of
         the few unit-tier degenerate gates — keep it.
         """
@@ -1544,10 +1557,11 @@ class TestResidual:
             cell_idx=3, streaming_terms=st,
             face_area_downstream=st.face_area_outer,
         )
+        dAw = _dAw_of(op, 3, 1)
         ang_kw = {
-            "angular_denom_term": st.delta_A_over_w * c_out,
+            "angular_denom_term": dAw * c_out,
             "angular_numer_upstream": (
-                st.delta_A_over_w * c_in * psi_angle_in
+                dAw * c_in * psi_angle_in
             ),
         }
 
@@ -1569,11 +1583,11 @@ class TestResidual:
         """Degenerate residual's spatial-upstream sensitivity is FP-noise.
 
         Issue #196 Step 2.5: the unified cell-balance helper retains
-        the ``|μ|·A_total·ψ^s_in`` term naturally (no explicit-drop
+        the ``|μ|·face_area_total·ψ^s_in`` term naturally (no explicit-drop
         branch); for cyl-degenerate ``abs_mu ≈ 1e-16`` it vanishes
         physically as ``|μ|→0``.  Two probes with wildly different
         ``spatial_upstream`` produce the same residual to FP-noise
-        bound ``|μ|·A_total·|ψ^s_in| ≈ 1e-14`` for the test's wild
+        bound ``|μ|·face_area_total·|ψ^s_in| ≈ 1e-14`` for the test's wild
         probe.
         """
         visit, total_xs, source, upstream_a, ang = (

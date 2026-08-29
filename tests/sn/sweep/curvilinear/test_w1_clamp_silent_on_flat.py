@@ -16,8 +16,8 @@ half-angle thread is the IDENTITY regardless of :math:`\tau`.  The
 closure is ``ψ^a_out = (ψ_avg − (1−τ)·ψ^a_in)/τ``; at the flat fixed
 point ``ψ^a_in == ψ_avg`` so ``ψ^a_out == ψ_avg`` for any ``τ ≠ 0``.
 Equivalently, the net angular redistribution coefficient
-``dA_w·(c_out − c_in) = dA_w·(α_out − α_in)`` and the flat-field cell
-coefficient ``denom − dA_w·c_in = 2|μ|A_down + dA_w·(α_out − α_in) +
+``delta_A_over_w·(c_out − c_in) = delta_A_over_w·(α_out − α_in)`` and the flat-field cell
+coefficient ``denom − delta_A_over_w·c_in = 2|μ|face_area_downstream + delta_A_over_w·(α_out − α_in) +
 Σ_t·V`` are both :math:`\tau`-INDEPENDENT (the ``α_out/τ`` and
 ``(1−τ)/τ·α_out`` terms cancel exactly in real arithmetic).
 
@@ -95,10 +95,10 @@ def _clamped_and_raw_tau(quad: Quadrature) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _flat_field_coeff(
-    st, A_down: float, total_xs: float, tau: float,
-    *, alpha_in: float, alpha_out: float,
+    st, face_area_downstream: float, total_xs: float, tau: float,
+    *, alpha_in: float, alpha_out: float, delta_A_over_w: float,
 ) -> float:
-    """``denom − dA_w·c_in`` — the cell coefficient on ψ_avg at the flat
+    """``denom − delta_A_over_w·c_in`` — the cell coefficient on ψ_avg at the flat
     fixed point (where ``ψ^a_in == ψ_avg``).
 
     Issue #236 Step C: the M-M α dome is no longer packed on
@@ -107,22 +107,20 @@ def _flat_field_coeff(
     ``AngularRedistribution.alpha_per_level`` dome.
     """
     abs_mu = st.abs_mu
-    dA_w = st.delta_A_over_w
     V = st.volume
     c_out = alpha_out / tau
     c_in = (1.0 - tau) / tau * alpha_out + alpha_in
-    denom = 2.0 * abs_mu * A_down + dA_w * c_out + total_xs * V
-    return denom - dA_w * c_in
+    denom = 2.0 * abs_mu * face_area_downstream + delta_A_over_w * c_out + total_xs * V
+    return denom - delta_A_over_w * c_in
 
 
 def _redist_net(
-    st, tau: float, *, alpha_in: float, alpha_out: float,
+    tau: float, *, alpha_in: float, alpha_out: float, delta_A_over_w: float,
 ) -> float:
-    """``dA_w·(c_out − c_in)`` — the net flat-field angular redistribution."""
-    dA_w = st.delta_A_over_w
+    """``delta_A_over_w·(c_out − c_in)`` — the net flat-field angular redistribution."""
     c_out = alpha_out / tau
     c_in = (1.0 - tau) / tau * alpha_out + alpha_in
-    return dA_w * (c_out - c_in)
+    return delta_A_over_w * (c_out - c_in)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -138,8 +136,8 @@ def test_flat_field_coefficient_tau_independent():
 
     This is the unit-level proof that "the clamp is silent on flat-in-μ":
     for the 8 ordinates where the clamp actually bites (``tau_raw < 0.5``),
-    the flat-field coefficient ``denom − dA_w·c_in`` and the net
-    redistribution ``dA_w·(c_out − c_in) = dA_w·(α_out − α_in)`` computed
+    the flat-field coefficient ``denom − delta_A_over_w·c_in`` and the net
+    redistribution ``delta_A_over_w·(c_out − c_in) = delta_A_over_w·(α_out − α_in)`` computed
     with the CLAMPED τ equal those computed with the RAW τ to a
     few-ULP FP-non-associativity bound.
 
@@ -175,30 +173,32 @@ def test_flat_field_coefficient_tau_independent():
     for cell_idx in range(nx):
         for n in changed:
             st = op.streaming_terms(cell_idx, int(n))
+            # ΔA/w from its two factors (P4.7 — off the packet).
+            dAw = float(op.delta_A[cell_idx] / quad.weights[int(n)])
             # α dome from the surviving operator array (Step C).
             dome = op.angular.alpha_per_level[0]
             alpha_in = float(dome[int(n)])
             alpha_out = float(dome[int(n) + 1])
             mu_n = float(mu[n])
-            A_down = (
+            face_area_downstream = (
                 float(op.face_areas[cell_idx + 1]) if mu_n > 0
                 else float(op.face_areas[cell_idx])
             )
             cc = _flat_field_coeff(
-                st, A_down, total_xs, float(tau_clamped[n]),
-                alpha_in=alpha_in, alpha_out=alpha_out,
+                st, face_area_downstream, total_xs, float(tau_clamped[n]),
+                alpha_in=alpha_in, alpha_out=alpha_out, delta_A_over_w=dAw,
             )
             cr = _flat_field_coeff(
-                st, A_down, total_xs, float(tau_raw[n]),
-                alpha_in=alpha_in, alpha_out=alpha_out,
+                st, face_area_downstream, total_xs, float(tau_raw[n]),
+                alpha_in=alpha_in, alpha_out=alpha_out, delta_A_over_w=dAw,
             )
             rc = _redist_net(
-                st, float(tau_clamped[n]),
-                alpha_in=alpha_in, alpha_out=alpha_out,
+                float(tau_clamped[n]),
+                alpha_in=alpha_in, alpha_out=alpha_out, delta_A_over_w=dAw,
             )
             rr = _redist_net(
-                st, float(tau_raw[n]),
-                alpha_in=alpha_in, alpha_out=alpha_out,
+                float(tau_raw[n]),
+                alpha_in=alpha_in, alpha_out=alpha_out, delta_A_over_w=dAw,
             )
             worst_coeff = max(worst_coeff, abs(cc - cr))
             worst_redist = max(worst_redist, abs(rc - rr))

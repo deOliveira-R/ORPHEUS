@@ -53,7 +53,7 @@ Closed-form scan (Blelloch §1.5; :func:`~orpheus.sn.sweep.scan.ordinate_scan`):
                    (b[n, g, k] / \mathrm{cumprod\_a}[n, g, k])\bigr).
 
 The :class:`StreamingCoefficientCache` populator hoists the geometry tensors
-(``A_down``, ``A_total``, ``dA_w``, ``V``, ``c_in``, ``c_out``, chain
+(``face_area_downstream``, ``face_area_total``, ``delta_A_over_w``, ``volume``, ``c_in``, ``c_out``, chain
 indices, M-M closure constants ``mm_a_in_coeff`` and ``tau_inv``) ONCE at
 solver construction.  The :class:`CollisionCache` populator combines them
 with :math:`\Sigma_t` to produce ``inverse_denom``, ``a_attenuation``, and
@@ -65,9 +65,9 @@ Slab degeneracy (one cache, all geometries)
 The cache fields are populated for slab with neutral curvature values that
 make the curvilinear formula degenerate to the slab form:
 
-* ``A_total = 2`` (``face_area_inner + face_area_outer = 1 + 1``);
-* ``A_down = 1`` (the neutral downstream face area for slab);
-* ``dA_w = 0`` (no curvature redistribution);
+* ``face_area_total = 2`` (``face_area_inner + face_area_outer = 1 + 1``);
+* ``face_area_downstream = 1`` (the neutral downstream face area for slab);
+* ``delta_A_over_w = 0`` (no curvature redistribution);
 * ``c_in = c_out = 0``, ``tau_inv = 1``, ``mm_a_in_coeff = 0``.
 
 With these values the curvilinear ``denom`` collapses to ``2|μ| + σ_t·V``
@@ -143,8 +143,8 @@ class StreamingCoefficientCache:
       ``c_in``, ``c_out``, ``tau_inv``, ``mm_a_in_coeff``, ``is_degenerate``,
       ``level_ordinates`` — **7 fields**, invalidated by a new quadrature or
       chart ONLY.
-    * **S1 — chart × basis** (`[M]` differ on every re-mesh): ``A_down``,
-      ``A_total``, ``dA_w``, ``V`` — **4 fields**.
+    * **S1 — chart × basis** (`[M]` differ on every re-mesh): ``face_area_downstream``,
+      ``face_area_total``, ``delta_A_over_w``, ``V`` — **4 fields**.
     * **S3 — traversal**: ``chain_idx``, ``chain_idx_inv`` — **2 fields**,
       `[M]` identical between the uniform and GRADED ``nx=6`` meshes, so they
       turn on ordinate sign and cell COUNT, not on edge positions.
@@ -194,17 +194,17 @@ class StreamingCoefficientCache:
     +-----------------+----------------+---------------------------------------+
     | ``abs_mu``      | ``(N,)``       | :math:`|\mu_n|`                       |
     +-----------------+----------------+---------------------------------------+
-    | ``A_down``      | ``(N, nx)``    | Chain-ordered downstream face area    |
+    | ``face_area_downstream``      | ``(N, nx)``    | Chain-ordered downstream face area    |
     |                 |                | (slab: ``1``; sphere/cyl: outer / inner |
     |                 |                | per ordinate sign; cyl-deg: ``0``)    |
     +-----------------+----------------+---------------------------------------+
-    | ``A_total``     | ``(N, nx)``    | Chain-ordered ``A_inner + A_outer``   |
+    | ``face_area_total``     | ``(N, nx)``    | Chain-ordered ``A_inner + A_outer``   |
     |                 |                | (slab: ``2``; curvilinear: physical)  |
     +-----------------+----------------+---------------------------------------+
-    | ``dA_w``        | ``(N, nx)``    | Chain-ordered :math:`\Delta A / w_n`  |
+    | ``delta_A_over_w``        | ``(N, nx)``    | Chain-ordered :math:`\Delta A / w_n`  |
     |                 |                | (slab: ``0``; curvilinear: physical)  |
     +-----------------+----------------+---------------------------------------+
-    | ``V``           | ``(N, nx)``    | Chain-ordered cell volume per ordinate|
+    | ``volume``      | ``(N, nx)``    | Chain-ordered cell volume per ordinate|
     +-----------------+----------------+---------------------------------------+
     | ``c_in``        | ``(N,)``       | M-M closure constant                  |
     |                 |                | :math:`(1-\tau)/\tau\,\alpha_{\rm out}|
@@ -237,10 +237,10 @@ class StreamingCoefficientCache:
     chain_idx: np.ndarray              # (N, nx) int
     chain_idx_inv: np.ndarray          # (N, nx) int — inverse permutation
     abs_mu: np.ndarray                 # (N,)
-    A_down: np.ndarray                 # (N, nx) — chain-ordered
-    A_total: np.ndarray                # (N, nx) — chain-ordered
-    dA_w: np.ndarray                   # (N, nx) — chain-ordered
-    V: np.ndarray                      # (N, nx) — chain-ordered
+    face_area_downstream: np.ndarray                 # (N, nx) — chain-ordered
+    face_area_total: np.ndarray                # (N, nx) — chain-ordered
+    delta_A_over_w: np.ndarray                   # (N, nx) — chain-ordered
+    volume: np.ndarray                 # (N, nx) — chain-ordered
     c_in: np.ndarray                   # (N,)
     c_out: np.ndarray                  # (N,)
     tau_inv: np.ndarray                # (N,)
@@ -289,16 +289,18 @@ class StreamingCoefficientCache:
                 "wavefront uses anti-diagonal scheduling, not the chain scan."
             )
         coord = sn_mesh.coord
+        reduced = sn_mesh.reduced
+        assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
 
         # ── Per-ordinate scalars (slab carries neutral M-M constants) ─
         abs_mu = np.abs(np.asarray(quad.mu_x, dtype=np.float64))  # (N,)
 
         # ── Per-ordinate-per-cell chain-ordered tensors ───────────────
         chain_idx = np.empty((N, nx), dtype=np.int64)
-        A_down = np.empty((N, nx), dtype=np.float64)
-        A_total = np.empty((N, nx), dtype=np.float64)
-        dA_w = np.empty((N, nx), dtype=np.float64)
-        V = np.empty((N, nx), dtype=np.float64)
+        face_area_downstream = np.empty((N, nx), dtype=np.float64)
+        face_area_total = np.empty((N, nx), dtype=np.float64)
+        delta_A_over_w = np.empty((N, nx), dtype=np.float64)
+        volume = np.empty((N, nx), dtype=np.float64)
         is_degenerate = np.zeros(N, dtype=bool)
 
         # ── Level enumeration (sphere = single virtual level) ─────────
@@ -337,20 +339,24 @@ class StreamingCoefficientCache:
             # Unpack streaming-terms fields once per visit; chain-order
             # by construction (the visit iterator yields them in chain
             # order already).
-            A_down[global_n] = np.fromiter(
+            face_area_downstream[global_n] = np.fromiter(
                 (v.face_area_downstream for v in visits),
                 dtype=np.float64, count=nx,
             )
-            A_total[global_n] = np.fromiter(
+            face_area_total[global_n] = np.fromiter(
                 (v.streaming_terms.face_area_inner
                  + v.streaming_terms.face_area_outer for v in visits),
                 dtype=np.float64, count=nx,
             )
-            dA_w[global_n] = np.fromiter(
-                (v.streaming_terms.delta_A_over_w for v in visits),
-                dtype=np.float64, count=nx,
+            # ΔA/w formed from its two factors at the intern tier
+            # (P4.7): chain-ordered ``delta_A[chain] / w_n`` — the same
+            # operands and op the retired per-packet copy used, so the
+            # row is bit-identical to the old visit read.
+            delta_A_over_w[global_n] = (
+                np.asarray(reduced.delta_A, dtype=np.float64)[chain]
+                / float(np.asarray(quad.weights)[global_n])
             )
-            V[global_n] = np.fromiter(
+            volume[global_n] = np.fromiter(
                 (v.streaming_terms.volume for v in visits),
                 dtype=np.float64, count=nx,
             )
@@ -409,10 +415,10 @@ class StreamingCoefficientCache:
             chain_idx=chain_idx,
             chain_idx_inv=chain_idx_inv,
             abs_mu=abs_mu,
-            A_down=A_down,
-            A_total=A_total,
-            dA_w=dA_w,
-            V=V,
+            face_area_downstream=face_area_downstream,
+            face_area_total=face_area_total,
+            delta_A_over_w=delta_A_over_w,
+            volume=volume,
             c_in=c_in,
             c_out=c_out,
             tau_inv=tau_inv,
@@ -549,7 +555,7 @@ class CollisionCache:
 
         # ── (a, 1/denom) delegated to the cell-update scheme ──────────
         # The σ_t-epoch, source-independent recurrence coefficients
-        # a = 2|μ|·A_total/denom − 1, denom = 2|μ|·A_down + dA_w·c_out
+        # a = 2|μ|·face_area_total/denom − 1, denom = 2|μ|·face_area_downstream + delta_A_over_w·c_out
         # + Σ_t·V.  The scheme owns the closure math; the cache keeps the
         # storage and the (order-dependent) cumprod.
         # P4.9a row 3b: the caller ASSEMBLES the closure's denominator
@@ -559,10 +565,10 @@ class CollisionCache:
         a_attenuation, inverse_denom, face_blend_weight = (
             scheme.affine_scan_coefficients(
                 abs_mu=geom.abs_mu,
-                A_down=geom.A_down,
-                A_total=geom.A_total,
-                angular_denom_term=geom.dA_w * geom.c_out[:, None],
-                V=geom.V,
+                face_area_downstream=geom.face_area_downstream,
+                face_area_total=geom.face_area_total,
+                angular_denom_term=geom.delta_A_over_w * geom.c_out[:, None],
+                volume=geom.volume,
                 reaction_xs=sig_t_chain,
             )
         )                                                                # all (N, ng, nx)

@@ -160,11 +160,11 @@ def derive_curvilinear_balance():
     print("3. Curvilinear Balance (ΔA/w factor)")
     print("=" * 60)
 
-    dA_w = dA / w  # geometry factor
+    delta_A_over_w = dA / w  # geometry factor
 
     # The full balance equation (before DD substitution)
     streaming = mu * (A_out * psi_out - A_in * psi_in)
-    redistribution = dA_w * (alpha_out * psi_angle_out - alpha_in * psi_angle_in)
+    redistribution = delta_A_over_w * (alpha_out * psi_angle_out - alpha_in * psi_angle_in)
     collision = Sig_t * V * psi_avg
     source = S * V
 
@@ -195,7 +195,7 @@ def prove_flat_flux_consistency():
     print("=" * 60)
 
     psi0 = sp.Symbol(r"\psi_0", positive=True)
-    dA_w = dA / w
+    delta_A_over_w = dA / w
 
     # For flat flux: all face fluxes = ψ_0
     streaming_flat = mu * (A_out - A_in) * psi0  # = μ · ΔA · ψ_0
@@ -204,7 +204,7 @@ def prove_flat_flux_consistency():
 
     # α recursion: α_out - α_in = -w·μ
     alpha_diff = -w * mu
-    redistribution_flat = dA_w * alpha_diff * psi0
+    redistribution_flat = delta_A_over_w * alpha_diff * psi0
 
     total = sp.simplify(streaming_flat + redistribution_flat)
     print(f"Streaming (flat):       μ · ΔA · ψ₀ = {streaming_flat}")
@@ -240,7 +240,7 @@ def derive_wdd_solve():
     print("5. WDD Substitution → Solved Form")
     print("=" * 60)
 
-    dA_w = dA / w
+    delta_A_over_w = dA / w
 
     # Spatial DD substitution
     streaming_dd = mu * (A_out * (2 * psi_avg - psi_in) - A_in * psi_in)
@@ -251,7 +251,7 @@ def derive_wdd_solve():
     # ψ^a_out = (ψ − (1−τ)·ψ^a_in) / τ
     psi_a_out_wdd = (psi_avg - (1 - tau) * psi_angle_in) / tau
 
-    redist_dd = dA_w * (alpha_out * psi_a_out_wdd - alpha_in * psi_angle_in)
+    redist_dd = delta_A_over_w * (alpha_out * psi_a_out_wdd - alpha_in * psi_angle_in)
     redist_dd = sp.expand(redist_dd)
 
     # Full equation
@@ -266,8 +266,8 @@ def derive_wdd_solve():
     c_out = alpha_out / tau
     c_in = (1 - tau) / tau * alpha_out + alpha_in
 
-    expected_denom = 2 * mu * A_out + dA_w * c_out + Sig_t * V
-    expected_numer = S * V + mu * (A_in + A_out) * psi_in + dA_w * c_in * psi_angle_in
+    expected_denom = 2 * mu * A_out + delta_A_over_w * c_out + Sig_t * V
+    expected_numer = S * V + mu * (A_in + A_out) * psi_in + delta_A_over_w * c_in * psi_angle_in
     expected = expected_numer / expected_denom
 
     diff = sp.simplify(sol - expected)

@@ -740,7 +740,7 @@ collision term and ``2 g_axis = 2|μ_axis|/Δ_axis`` the geometric
 streaming term; the curvilinear form
 (:func:`~orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients`)
 is ``denom = geometric_streaming_term + collision_volume_term`` with
-``geometric_streaming_term = 2|μ|·A_down + (ΔA/w)·c_out``. The
+``geometric_streaming_term = 2|μ|·face_area_downstream + (ΔA/w)·c_out``. The
 collision cross section enters the diagonal **purely additively** —
 :math:`S` is affine in :math:`\sigma_t` with unit slope :math:`V`. That
 is exactly :eq:`streaming-action-pure-l`: the forward matvec

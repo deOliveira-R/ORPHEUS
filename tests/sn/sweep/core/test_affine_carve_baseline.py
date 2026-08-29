@@ -11,7 +11,7 @@ degenerate vacuum/flat-redistribution regime.  A-NEW is sharper on three
 axes that the #206 carve actually touches:
 
 1. **Heterogeneous σ_t** (per-group, per-cell random) — drives the
-   curvilinear redistribution denom term ``dA_w · c_out`` out of
+   curvilinear redistribution denom term ``delta_A_over_w · c_out`` out of
    cancellation.  Uniform σ_t + flat ψ NULL it (vv §H2), so a flat-ψ /
    uniform-σ_t gate would pass GREEN while a real curvilinear closure bug
    hides.  Phase A's whole point is routing BOTH the sweep and the matvec
@@ -315,7 +315,7 @@ class TestAffineCarveMatvecBaseline:
     redistribution regime): the canonical
     :func:`tests.sn._test_helpers.het_operands` builds heterogeneous σ_t
     AND a random bulk + random boundary trace, so every loss-action term
-    — including the curvilinear ``dA_w · c_out`` redistribution path the
+    — including the curvilinear ``delta_A_over_w · c_out`` redistribution path the
     carve routes through ``scheme`` — is ACTIVE.  A flat-ψ gate
     would pass while a redistribution-routing bug hides (vv §H2).
     """

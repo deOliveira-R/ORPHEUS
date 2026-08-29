@@ -423,7 +423,7 @@ def derive_d1_kernel_view_equals() -> dict:
 def derive_d1_scan_view_equals() -> dict:
     r"""V_d1_scan — the production ×V ``affine_scan_coefficients`` form equals d=1.
 
-    Proves: the ×V scan coefficients (``m = |μ|A_down``, ``t = Σ_t V``,
+    Proves: the ×V scan coefficients (``m = |μ|face_area_downstream``, ``t = Σ_t V``,
     ``p = m/θ``, ``D₂ = t+p``, ``k = p/D₂``, ``S = (t+m)+m·p/D₂``,
     ``a = m(1+k)²/S − k``, ``w = 1/(1+k)``) with the generic
     ``source_emission`` / ``cell_average`` reconstruction reproduce the
@@ -441,7 +441,7 @@ def derive_d1_scan_view_equals() -> dict:
     psi_bar = sp.simplify(psi[0])
     psi_out = sp.simplify(psi[0] + psi[1])
 
-    # production ×V scan (affine_scan_coefficients, lines 564-571); slab A_down=1, V=h.
+    # production ×V scan (affine_scan_coefficients, lines 564-571); slab face_area_downstream=1, V=h.
     m = mu
     t = sig_t * h
     p = m / theta

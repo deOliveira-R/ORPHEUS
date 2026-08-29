@@ -42,7 +42,7 @@ The scale-free invariants
 =========================
 
 The d=1 Schur is naturally parameterised by the **÷V streaming-over-volume**
-``g = |μ| A_down / V`` and the local :math:`\Sigma_t`.  Two dimensionless
+``g = |μ| face_area_downstream / V`` and the local :math:`\Sigma_t`.  Two dimensionless
 quantities carry the entire closure and are SCALE-INVARIANT (identical in the
 ×V and ÷V conventions):
 
@@ -390,7 +390,7 @@ class D1ClosedForm:
     r"""The vectorized analytic Schur of the d=1 UBLD ``2×2`` (the fast path).
 
     The single source of the slab-LD ``2×2`` algebra.  Built by
-    :func:`d1_closed_form` from the ÷V streaming-over-volume ``g = |μ|A_down/V``
+    :func:`d1_closed_form` from the ÷V streaming-over-volume ``g = |μ|face_area_downstream/V``
     and the local :math:`\Sigma_t`; carries the SCALE-FREE invariants
     (``g_over_theta``, ``d2``, ``k``, ``w``) plus the ÷V Schur denominator
     ``eff_denom``.  The three production views derive their coefficients from
@@ -408,7 +408,7 @@ class D1ClosedForm:
     the production d=1 path stays on the fast closed-form path (L16).
     """
 
-    g: np.ndarray             #: ``|μ|·A_down/V`` — ÷V streaming-over-volume
+    g: np.ndarray             #: ``|μ|·face_area_downstream/V`` — ÷V streaming-over-volume
     g_over_theta: np.ndarray  #: ``g/θ`` — the slope-row streaming
     d2: np.ndarray            #: ``g/θ + Σ_t`` — ÷V slope denominator (D₂/V)
     k: np.ndarray             #: ``(g/θ)/d2`` — slope-elimination ratio
@@ -426,7 +426,7 @@ class D1ClosedForm:
         return Q_cells + self.g * psi_in + self.g * self.g_over_theta * psi_in / self.d2
 
     def _xV(self, V: np.ndarray | float) -> tuple[np.ndarray, np.ndarray]:
-        r"""The ×V streaming ``m = |μ|A_down = g·V`` and Schur diagonal ``S = V·eff_denom``.
+        r"""The ×V streaming ``m = |μ|face_area_downstream = g·V`` and Schur diagonal ``S = V·eff_denom``.
 
         The shared ÷V→×V scaling both ×V views (:meth:`schur_xV`, :meth:`scan_xV`)
         build on — single-sourced so the convention lives in ONE place (it goes
@@ -438,7 +438,7 @@ class D1ClosedForm:
     def _geom_fold(
         self, V: np.ndarray | float,
     ) -> tuple[np.ndarray, np.ndarray]:
-        r"""The source-independent ×V slope-row geometry ``(|μ|A_down, D₂')``.
+        r"""The source-independent ×V slope-row geometry ``(|μ|face_area_downstream, D₂')``.
 
         The ``s_hat``-independent half of :meth:`_slope_fold`, single-sourced
         so the forward fold AND its reverse-mode pair
@@ -456,14 +456,14 @@ class D1ClosedForm:
         Single-sources the slope-moment elimination both ×V slope consumers ride
         — the per-cell Schur (:meth:`schur_xV`, the matvec/per-cell update) AND
         the moment-aware SCAN (:meth:`scan_slope_face_source` / :meth:`scan_reconstruct`,
-        the 1-D production sweep, #240 D5b-S3 OWED-2).  With ``|μ|A_down = g·V``
+        the 1-D production sweep, #240 D5b-S3 OWED-2).  With ``|μ|face_area_downstream = g·V``
         and the ×V slope denominator :math:`D_2' = \theta V d_2 = \Sigma_t\theta V
         + |\mu|A_{\rm down}` (the extra ``θ`` vs the ÷V ``d2``; both from
         :meth:`_geom_fold`):
 
-        * ``mu_Adown = |μ|A_down`` — the ×V streaming (slope reconstruction),
+        * ``mu_Adown = |μ|face_area_downstream`` — the ×V streaming (slope reconstruction),
         * ``d2p = D₂'`` — the ×V slope denominator,
-        * ``eff_source_shift = s_hat·θ·|μ|A_down/D₂'`` — the amount the slope
+        * ``eff_source_shift = s_hat·θ·|μ|face_area_downstream/D₂'`` — the amount the slope
           source pulls OUT of the average-row effective source
           (``eff_source = s_bar − eff_source_shift``),
         * ``slope_source = θ·s_hat`` — the slope-row RHS source (drives ``ψ̂``).
@@ -484,7 +484,7 @@ class D1ClosedForm:
 
         Reproduces the production
         :class:`~orpheus.transport.spatial.linear_discontinuous._LDCellTerms` fields in
-        the ×V contract (``source`` = ``Q·V`` moments).  With ``|μ|A_down = g·V``
+        the ×V contract (``source`` = ``Q·V`` moments).  With ``|μ|face_area_downstream = g·V``
         the ×V streaming and the ×V slope denominator
 
         .. math::
@@ -495,12 +495,12 @@ class D1ClosedForm:
         ``D₂'`` carries the slope-moment weight, ``d2`` is the ÷V slope denom):
 
         * ``S = V·eff_denom`` — the ×V Schur diagonal,
-        * ``eff_source = s_bar − s_hat·θ·|μ|A_down/D₂'`` — the source folded
+        * ``eff_source = s_bar − s_hat·θ·|μ|face_area_downstream/D₂'`` — the source folded
           through the slope row,
-        * ``eff_numer = |μ|A_down·ψ_in·(D₂' + |μ|A_down)/D₂'`` — the inflow
+        * ``eff_numer = |μ|face_area_downstream·ψ_in·(D₂' + |μ|face_area_downstream)/D₂'`` — the inflow
           folded through the slope row,
         * ``slope_source = θ·s_hat`` — the slope-row RHS source,
-        * ``mu_Adown = |μ|A_down`` — the ×V streaming (for the slope reconstr.),
+        * ``mu_Adown = |μ|face_area_downstream`` — the ×V streaming (for the slope reconstr.),
         * ``D₂'`` — the ×V slope denominator.
 
         The slope-row fold is single-sourced through :meth:`_slope_fold` (shared
@@ -522,7 +522,7 @@ class D1ClosedForm:
 
         Reproduces
         :meth:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.affine_scan_coefficients`:
-        with ``m = |μ|A_down = g·V``, ``S_×V = V·eff_denom``,
+        with ``m = |μ|face_area_downstream = g·V``, ``S_×V = V·eff_denom``,
 
         .. math::
 
@@ -536,7 +536,7 @@ class D1ClosedForm:
         the per-cell reconstruction via :meth:`scan_moment_terms` /
         :meth:`scan_reconstruct` (#240 D5b-S3 OWED-2).
         """
-        m, S = self._xV(V)                          # |μ|·A_down, ×V Schur diagonal
+        m, S = self._xV(V)                          # |μ|·face_area_downstream, ×V Schur diagonal
         inverse_denom = 1.0 / S
         a = m * (1.0 + self.k) ** 2 * inverse_denom - self.k
         return a, inverse_denom, self.w
@@ -610,7 +610,7 @@ class D1ClosedForm:
         fixed closure coefficients; given the cotangents of its outputs
         ``(ψ̄, ψ̂)`` this returns the cotangents of its inputs, riding the
         SAME :meth:`_geom_fold` geometry (Pattern 2 — the transpose may not
-        re-spell ``|μ|A_down`` / ``D₂'``).  Reverse program order: the ψ̂
+        re-spell ``|μ|face_area_downstream`` / ``D₂'``).  Reverse program order: the ψ̂
         row first (its ``ψ̄`` dependence folds into the running ψ̄
         cotangent), then the ψ̄ Schur row
 
@@ -647,7 +647,7 @@ class D1ClosedForm:
 def d1_closed_form(
     g: np.ndarray | float, sig_t: np.ndarray | float, theta: float
 ) -> D1ClosedForm:
-    r"""Build the shared d=1 LD closed form from ``g = |μ|A_down/V`` and ``Σ_t``.
+    r"""Build the shared d=1 LD closed form from ``g = |μ|face_area_downstream/V`` and ``Σ_t``.
 
     The ÷V streaming-over-volume ``g`` and the local :math:`\Sigma_t` fully
     determine the scale-free closure (``k``, ``w``) and the ÷V Schur diagonal

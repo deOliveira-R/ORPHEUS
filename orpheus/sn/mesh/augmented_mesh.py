@@ -592,7 +592,7 @@ class SNMesh(MaterialMesh):
         )
 
     def streaming(self, axis: int) -> np.ndarray:
-        r"""Per-axis RAW down-face streaming ``g = |μ_axis|·A_down/V = |μ_axis|/Δ_axis``, ``(N, n_axis)``.
+        r"""Per-axis RAW down-face streaming ``g = |μ_axis|·face_area_downstream/V = |μ_axis|/Δ_axis``, ``(N, n_axis)``.
 
         The dimension-generic accessor the anti-hyperplane DAG walk reads as
         ``str_axes[axis]`` — the **scheme-agnostic** geometric streaming.  Each
