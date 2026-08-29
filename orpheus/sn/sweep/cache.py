@@ -140,9 +140,8 @@ class StreamingCoefficientCache:
     uniform ``nx=20``, and a GRADED ``nx=6``):
 
     * **S0 — mesh-free** (`[M]` bit-identical on all three): ``abs_mu``,
-      ``c_in``, ``c_out``, ``tau_inv``, ``mm_a_in_coeff``, ``is_degenerate``,
-      ``level_ordinates`` — **7 fields**, invalidated by a new quadrature or
-      chart ONLY.
+      ``c_in``, ``c_out``, ``tau_inv``, ``mm_a_in_coeff``, ``is_degenerate``
+      — **6 fields**, invalidated by a new quadrature or chart ONLY.
     * **S1 — chart × basis** (`[M]` differ on every re-mesh): ``face_area_downstream``,
       ``face_area_total``, ``delta_A_over_w``, ``V`` — **4 fields**.
     * **S3 — traversal**: ``chain_idx``, ``chain_idx_inv`` — **2 fields**,
@@ -220,14 +219,6 @@ class StreamingCoefficientCache:
     | ``is_degenerate``| ``(N,)`` bool | Cylindrical pure-azimuthal ordinate   |
     |                 |                | (rare; routes to slow per-cell path)  |
     +-----------------+----------------+---------------------------------------+
-    | ``level_ordinates``| see notes   | Curvilinear only: per-:math:`\mu`-    |
-    |                 |                | level global-ordinate lists.          |
-    +-----------------+----------------+---------------------------------------+
-
-    The ``level_ordinates`` field is ``None`` for slab geometry and a list of
-    1-D ``int`` arrays for sphere / cylinder.  For sphere it is a single-level
-    list ``[range(N)]``; for cylinder it is one array per :math:`\mu`-level
-    (cylindrical ordinate grouping).
 
     Per ``vv-principles`` Smell #16 (cross-domain-attacker memo): the strata
     are deliberately separated; do NOT pack :math:`\Sigma_t`-dependent fields
@@ -246,14 +237,6 @@ class StreamingCoefficientCache:
     tau_inv: np.ndarray                # (N,)
     mm_a_in_coeff: np.ndarray          # (N,)
     is_degenerate: np.ndarray          # (N,) bool
-    level_ordinates: tuple[np.ndarray, ...] | None = None
-    r"""Curvilinear only: per-:math:`\mu`-level ordinate index lists.
-
-    For sphere: ``(np.arange(N),)`` (single virtual level — every ordinate).
-    For cylinder: one ``np.ndarray`` per :math:`\mu`-level, each carrying the
-    global ordinate indices of its within-level azimuthal ordinates.
-    ``None`` for slab.
-    """
 
     @classmethod
     def from_mesh_and_quad(
@@ -304,18 +287,12 @@ class StreamingCoefficientCache:
         is_degenerate = np.zeros(N, dtype=bool)
 
         # ── Level enumeration (sphere = single virtual level) ─────────
-        level_ordinates: tuple[np.ndarray, ...] | None
         if coord is CoordSystem.CARTESIAN:
-            level_ordinates = None
             level_visits_iter = [(None, n, n) for n in range(N)]
         elif coord is CoordSystem.SPHERICAL:
-            level_ordinates = (np.arange(N, dtype=np.int64),)
             level_visits_iter = [(None, n, n) for n in range(N)]
         elif coord is CoordSystem.CYLINDRICAL:
             level_indices = quad.level_indices  # type: ignore[attr-defined]
-            level_ordinates = tuple(
-                np.asarray(lvl, dtype=np.int64) for lvl in level_indices
-            )
             level_visits_iter = []
             for p_idx, lvl in enumerate(level_indices):
                 for m_local, global_n in enumerate(lvl):
@@ -424,7 +401,6 @@ class StreamingCoefficientCache:
             tau_inv=tau_inv,
             mm_a_in_coeff=mm_a_in_coeff,
             is_degenerate=is_degenerate,
-            level_ordinates=level_ordinates,
         )
 
 

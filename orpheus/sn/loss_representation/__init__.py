@@ -3074,8 +3074,8 @@ class _OneDimScanWalk:
         one body driven by the two-stratum precomputed cache.  Slab,
         sphere, and cylinder share THE SAME scan expression; the
         cache abstracts the geometry difference (slab carries neutral
-        curvature values; the M-M angular thread and Carlson seed run only
-        when ``geom.level_ordinates is not None``).
+        curvature values; the M-M angular thread and Carlson seed run on
+        the curvilinear arms, keyed on the mesh's ``coord``).
 
         Per-ordinate hot path
         ---------------------
@@ -3095,9 +3095,14 @@ class _OneDimScanWalk:
         Cache provenance
         ----------------
 
-        The cache is stashed on ``self.mesh`` by :class:`SNSolver.__init__`.
-        If the sweep is invoked outside the solver (e.g. ad-hoc tests),
-        the cache is built lazily on first call and held on the mesh.
+        The cache is interned in the strategy layer
+        (:func:`geometry_cache_for`'s ``WeakKeyDictionary``) — keyed weakly
+        BY ``self.mesh`` and validated against the handed closure's
+        identity, never stashed ON the mesh (only the σ stratum
+        ``_coll_cache`` and ``_pole_mirror_cache`` remain mesh attributes).
+        :class:`SNSolver.__init__` resolves it eagerly; a sweep invoked
+        outside the solver (e.g. ad-hoc tests) resolves it lazily through
+        the same intern on first call.
 
         Bit-identity contract
         ---------------------
