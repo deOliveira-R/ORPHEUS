@@ -1431,7 +1431,9 @@ class SNSolver:
         # directly — never the scan cache.  Build the cache only when the scan
         # path can actually be selected (DD keeps its bit-identical cache).
         if sn_mesh.reduced is not None and sn_mesh.scheme.is_affine_scannable:
-            self.geom_cache = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+            self.geom_cache = StreamingCoefficientCache.from_mesh_and_quad(
+                sn_mesh, sn_mesh.pole_angular_closure,
+            )
             # No bridge needed: ``mat_xs.total_cross_section`` is the
             # principled ``(ng, nx)`` 1-D layout the cache expects
             # (rank-d (N, ng, *spatial); no phantom ny axis to drop).

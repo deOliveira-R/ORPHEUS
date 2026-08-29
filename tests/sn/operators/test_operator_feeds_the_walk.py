@@ -176,12 +176,6 @@ def _swap(sn: SNMesh, slot: str) -> None:
         sn.pole_angular_closure = _mutant_closure(sn)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="P4.9b step-2 keystone, RED until the walk consumes the "
-    "OPERATOR's objects — pre-carve the representation reads the hub at "
-    "apply time, so the post-pose swap moves the answer (rel ~5e-2).",
-)
 @pytest.mark.parametrize("row, factory, slot", _ROWS)
 def test_hub_mutation_after_posing_is_inert(row, factory, slot):
     """[foundation] A posed operator's answer ignores later hub mutations.
@@ -239,13 +233,6 @@ def _recording_subclass(base_cls, reads: list[str]):
     return _Recorder
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="P4.9b step-2 read-set gate, RED until the walk consumes the "
-    "OPERATOR's objects — pre-carve the hub route carries the per-cell "
-    "kernels (source_emission, residual_kernel_batch, precompute_psi_state, "
-    "level_indices, cell_contribution...).",
-)
 @pytest.mark.parametrize(
     "factory, do_matvec",
     [
@@ -278,6 +265,9 @@ def test_hub_route_reads_only_space_facts(factory, do_matvec):
         sn.pole_angular_closure = rec_cls(
             sn.reduced.angular, sn.reduced.redistribution_pairing,
         )
+        # The recorder's OWN __init__ self-accesses are construction noise,
+        # not hub-route reads — the record starts after the swap completes.
+        closure_reads.clear()
     _drop_memos(sn)
 
     # Instrument canary — the recorder records (activation of the gate).

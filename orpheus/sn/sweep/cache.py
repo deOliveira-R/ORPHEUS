@@ -255,7 +255,11 @@ class StreamingCoefficientCache:
     """
 
     @classmethod
-    def from_mesh_and_quad(cls, sn_mesh: "SNMesh") -> "StreamingCoefficientCache":
+    def from_mesh_and_quad(
+        cls,
+        sn_mesh: "SNMesh",
+        angular_closure: "PoleAngularClosureBase",
+    ) -> "StreamingCoefficientCache":
         r"""Populate Stratum 1 from one :class:`SNMesh` + its quadrature.
 
         Iterates ``sn_mesh.dag_walk(ordinate_idx=...)`` (slow Python path —
@@ -381,7 +385,7 @@ class StreamingCoefficientCache:
         # Bit-identical to the pre-handing derivation: the accessors
         # compute the same expressions on the same cached τ array
         # (test_cache's closure-algebra field gate pins it array_equal).
-        closure = sn_mesh.pole_angular_closure
+        closure = angular_closure
         c_out = closure.c_out_per_ordinate
         c_in = closure.c_in_per_ordinate
         tau_inv = closure.tau_inv_per_ordinate

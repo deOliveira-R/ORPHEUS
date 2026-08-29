@@ -95,10 +95,10 @@ def window_forced():
     real_action = lr.MovingFrontierWindow.loss_action
     hits = {"sweep_interior": 0, "loss_action": 0}
 
-    def forced(mesh):
-        rep = real_default(mesh)
+    def forced(mesh, spatial_closure, angular_closure):
+        rep = real_default(mesh, spatial_closure, angular_closure)
         if isinstance(rep, lr.ScanMarch) and not mesh.is_1d:
-            return lr.MovingFrontierWindow(mesh)
+            return lr.MovingFrontierWindow(mesh, spatial_closure, angular_closure)
         return rep
 
     def spy_interior(self, *args, **kwargs):

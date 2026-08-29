@@ -585,7 +585,7 @@ class _LossRepresentation:
         the multi-moment face-cochain width from the single-source
         :func:`~orpheus.numerics.moment_layout.face_moment_count` (shared with the
         trace producer :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`)."""
-        return face_moment_count(self.mesh.scheme.spatial_basis_per_axis, self.mesh.ndim)
+        return face_moment_count(self.spatial_closure.spatial_basis_per_axis, self.mesh.ndim)
 
     def _moment_frame_signs(
         self, signs_eff: tuple[int, ...],
@@ -602,7 +602,7 @@ class _LossRepresentation:
         :class:`_OneDimScanWalk` 1-D scan/matvec sites (which cannot reach this
         method).
         """
-        return frame_signs_for(self.mesh.scheme, signs_eff)
+        return frame_signs_for(self.spatial_closure, signs_eff)
 
     @property
     def _spatial_moment_tail(self) -> tuple[int, ...]:
@@ -618,7 +618,7 @@ class _LossRepresentation:
         source via :func:`~orpheus.numerics.moment_layout.face_moment_tail` (the same
         "append iff > 1" policy ``spatial_moment_tail`` delegates to), fed the
         per-CELL count ``per_axis^d``."""
-        per_axis = self.mesh.scheme.spatial_basis_per_axis
+        per_axis = self.spatial_closure.spatial_basis_per_axis
         return face_moment_tail(cell_moment_count(per_axis, self.mesh.ndim))
 
     def _inflow_to_moments(
@@ -1010,6 +1010,8 @@ class _OctantWalk:
     """
 
     mesh: "SNMesh"
+    spatial_closure: "DiscretizationSchemeBase"
+    angular_closure: "PoleAngularClosureBase"
 
     def _interior_walk(
         self,
@@ -1164,7 +1166,7 @@ class _OctantWalk:
         # (per_axis == 1) → ``()`` tail, every buffer byte-identical.  The tail
         # is read OFF the probe (its space already carries the SpatialMomentSpace
         # factor — the iterate is the single source of truth for the width).
-        per_axis = sn_mesh.scheme.spatial_basis_per_axis
+        per_axis = self.spatial_closure.spatial_basis_per_axis
         moment_tail = face_moment_tail(cell_moment_count(per_axis, ndim))
         operands = _ApplyOperands(
             probe=probe,
@@ -1279,7 +1281,7 @@ class _OctantWalk:
         ndim = sn_mesh.ndim
         ng = sigma.shape[0]
         spatial = sigma.shape[1:]
-        scheme = sn_mesh.scheme
+        scheme = self.spatial_closure
         if not type(scheme).has_transpose_kernel:
             # The trait DERIVES from the transpose-kernel registrations
             # (#310 ruling 2).  The honest front door is
@@ -1442,7 +1444,7 @@ class CumprodScan(_LossRepresentation):
                 "CumprodScan.sweep: a sweep schedule is multi-D only — "
                 "the 1-D scan is not a wavefront."
             )
-        return _OneDimScanWalk(self.mesh).sweep(Q, sig_t, boundary_flux)
+        return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).sweep(Q, sig_t, boundary_flux)
 
     def sweep_transpose(
         self,
@@ -1459,7 +1461,7 @@ class CumprodScan(_LossRepresentation):
         ``_run``'s ``ordinate_scan`` substrate via
         :func:`~orpheus.sn.sweep.scan.ordinate_scan_transpose`.
         """
-        return _OneDimScanWalk(self.mesh).sweep_transpose(
+        return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).sweep_transpose(
             bulk_cot, sigma, boundary_cot,
         )
 
@@ -1476,7 +1478,7 @@ class CumprodScan(_LossRepresentation):
         Morel–Montry redistribution + Carlson pole seed ride through
         ``pole_angular_closure`` there (NOT re-inlined).
         """
-        return _OneDimScanWalk(self.mesh).loss_action(sigma, psi)
+        return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).loss_action(sigma, psi)
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
@@ -1492,7 +1494,7 @@ class CumprodScan(_LossRepresentation):
         — so the spatial reverse NEVER silently drops the angular adjoint
         (pinned by ``test_g_adjoint_reciprocity`` sphere/cyl, -O-firing).
         """
-        return _OneDimScanWalk(self.mesh).loss_action_transpose(sigma, phi)
+        return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).loss_action_transpose(sigma, phi)
 
     @property
     def has_transpose_walk(self) -> bool:
@@ -1609,6 +1611,8 @@ class MovingFrontierWindow(_DAGWavefront):
         if schedule is None:
             return _sweep_jacobi(
                 Q, sig_t, self.mesh, boundary_flux,
+                spatial_closure=self.spatial_closure,
+                angular_closure=self.angular_closure,
                 moment_frame=moment_frame,
                 interior=self._sweep_interior,
             )
@@ -1618,6 +1622,8 @@ class MovingFrontierWindow(_DAGWavefront):
         # different schedule (the splitting is the schedule; S6.4(b)).
         return _sweep_scheduled(
             Q, sig_t, self.mesh, boundary_flux,
+            spatial_closure=self.spatial_closure,
+            angular_closure=self.angular_closure,
             schedule=schedule,
             reflect=reflect,
             moment_frame=moment_frame,
@@ -1668,7 +1674,7 @@ class MovingFrontierWindow(_DAGWavefront):
                 (oct_idx.size, ng, *spatial, *self._spatial_moment_tail)
             )
             level_op: _CellSolve = _CellSolveAngular(
-                scheme=self.mesh.scheme,
+                scheme=self.spatial_closure,
                 weights_octant=emit.weights[oct_idx],
                 angular_flux_octant=angular_flux_oct,
                 scalar_flux_buf=emit.scalar_flux,
@@ -1677,7 +1683,7 @@ class MovingFrontierWindow(_DAGWavefront):
         elif isinstance(emit, _SweepEmitMoment):
             angular_flux, angular_flux_oct = None, None
             level_op = _CellSolveMoment(
-                scheme=self.mesh.scheme,
+                scheme=self.spatial_closure,
                 weights_octant=emit.weights[oct_idx],
                 moment_buf=emit.moment_buf,
                 Y_octant=emit.Y[oct_idx],
@@ -1721,7 +1727,7 @@ class MovingFrontierWindow(_DAGWavefront):
         the bare-streaming ``Lψ̄`` by calling this walk at σ = 0 (#257 S8b), not
         by subtracting the collision diagonal ``C``.
         """
-        return _OctantWalk(self.mesh).loss_action(
+        return _OctantWalk(self.mesh, self.spatial_closure, self.angular_closure).loss_action(
             sigma, psi, self._loss_action_interior,
         )
 
@@ -1756,7 +1762,7 @@ class MovingFrontierWindow(_DAGWavefront):
         capture = tuple(np.empty_like(face) for face in inflow)
         graph.walk_windowed(
             level_op=_CellResidual(
-                scheme=self.mesh.scheme,
+                scheme=self.spatial_closure,
                 psi_avg_probe_octant=operands.probe[oct_idx],
                 residual_octant=LpC_oct,
                 moment_frame_signs=self._moment_frame_signs(signs_eff),
@@ -1799,7 +1805,7 @@ class MovingFrontierWindow(_DAGWavefront):
         recovers bare ``Lᵀφ`` by calling this walk at σ = 0 (#257 S8b), not by
         subtracting ``σ_t·φ``.
         """
-        return _OctantWalk(self.mesh).loss_action_transpose(
+        return _OctantWalk(self.mesh, self.spatial_closure, self.angular_closure).loss_action_transpose(
             sigma, phi, self._loss_action_transpose_interior,
         )
 
@@ -1840,7 +1846,7 @@ class MovingFrontierWindow(_DAGWavefront):
         physical_signs = tuple(-s for s in signs_addr)
         graph.walk_windowed(
             level_op=_CellResidualTranspose(
-                scheme=self.mesh.scheme,
+                scheme=self.spatial_closure,
                 res_bar_octant=operands.probe[oct_idx],
                 psi_bar_cot_octant=psi_cot_oct,
                 moment_frame_signs=self._moment_frame_signs(physical_signs),
@@ -2008,11 +2014,15 @@ class FullFieldWavefront(_DAGWavefront):
         if schedule is None:
             return _sweep_jacobi(
                 Q, sig_t, self.mesh, boundary_flux,
+                spatial_closure=self.spatial_closure,
+                angular_closure=self.angular_closure,
                 moment_frame=None,
                 interior=self._sweep_interior,
             )
         return _sweep_scheduled(
             Q, sig_t, self.mesh, boundary_flux,
+            spatial_closure=self.spatial_closure,
+            angular_closure=self.angular_closure,
             schedule=schedule,
             reflect=reflect,
             moment_frame=None,
@@ -2058,7 +2068,7 @@ class FullFieldWavefront(_DAGWavefront):
         angular_oct = np.zeros((oct_idx.size, ng, *spatial, *self._spatial_moment_tail))
         graph.walk_full(
             level_op=_CellSolveAngular(
-                scheme=self.mesh.scheme,
+                scheme=self.spatial_closure,
                 weights_octant=emit.weights[oct_idx],
                 angular_flux_octant=angular_oct,
                 scalar_flux_buf=scalar_flux,
@@ -2096,7 +2106,7 @@ class FullFieldWavefront(_DAGWavefront):
         ``σ·ψ̄``.  Sole purpose: verification (production is the
         window / the 1-D scan).
         """
-        return _OctantWalk(self.mesh).loss_action(
+        return _OctantWalk(self.mesh, self.spatial_closure, self.angular_closure).loss_action(
             sigma, psi, self._loss_action_interior,
         )
 
@@ -2129,7 +2139,7 @@ class FullFieldWavefront(_DAGWavefront):
         LpC_oct = np.zeros((oct_idx.size, ng, *spatial, *self._spatial_moment_tail))
         graph.walk_full(
             level_op=_CellResidual(
-                scheme=self.mesh.scheme,
+                scheme=self.spatial_closure,
                 psi_avg_probe_octant=operands.probe[oct_idx],
                 residual_octant=LpC_oct,
                 moment_frame_signs=self._moment_frame_signs(signs_eff),
@@ -2177,7 +2187,7 @@ class FullFieldWavefront(_DAGWavefront):
         recovers bare ``Lᵀφ`` by calling this walk at σ = 0 (#257 S8b), not by
         subtracting ``σ_t·φ``.
         """
-        return _OctantWalk(self.mesh).loss_action_transpose(
+        return _OctantWalk(self.mesh, self.spatial_closure, self.angular_closure).loss_action_transpose(
             sigma, phi, self._loss_action_transpose_interior,
         )
 
@@ -2219,7 +2229,7 @@ class FullFieldWavefront(_DAGWavefront):
         physical_signs = tuple(-s for s in signs_addr)
         graph.walk_full(
             level_op=_CellResidualTranspose(
-                scheme=self.mesh.scheme,
+                scheme=self.spatial_closure,
                 res_bar_octant=operands.probe[oct_idx],
                 psi_bar_cot_octant=psi_cot_oct,
                 moment_frame_signs=self._moment_frame_signs(physical_signs),
@@ -2348,7 +2358,7 @@ class ScanMarch(_LossRepresentation):
                     "ScanMarch.sweep: a sweep schedule is multi-D only — "
                     "the 1-D scan is not a wavefront."
                 )
-            return _OneDimScanWalk(self.mesh).sweep(Q, sig_t, boundary_flux)
+            return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).sweep(Q, sig_t, boundary_flux)
         # multi-D ⇒ the row-march sweep = the schedule × the scan-march
         # interior kernel on the SAME schedule loop the window uses (S6.4(b):
         # the former private ``_sweep_2d_scanmarch`` frame dissolved into the
@@ -2359,11 +2369,15 @@ class ScanMarch(_LossRepresentation):
         if schedule is None:
             return _sweep_jacobi(
                 Q, sig_t, self.mesh, boundary_flux,
+                spatial_closure=self.spatial_closure,
+                angular_closure=self.angular_closure,
                 moment_frame=moment_frame,
                 interior=self._sweep_interior,
             )
         return _sweep_scheduled(
             Q, sig_t, self.mesh, boundary_flux,
+            spatial_closure=self.spatial_closure,
+            angular_closure=self.angular_closure,
             schedule=schedule,
             reflect=reflect,
             moment_frame=moment_frame,
@@ -2442,7 +2456,7 @@ class ScanMarch(_LossRepresentation):
             raise TypeError(f"unknown _SweepEmit mode: {type(emit).__name__}")
 
         # March the y-rows in the octant's y-sweep order, threading ψ_y.
-        scheme = self.mesh.scheme
+        scheme = self.spatial_closure
         psi_y_in = inflow_y                          # (N_oct, ng, nx) — row-0 inflow
         out_y = psi_y_in                             # last-row out_y (ny ≥ 1 → set below)
         y_rows = range(ny) if sy_eff >= 0 else range(ny - 1, -1, -1)
@@ -2508,8 +2522,8 @@ class ScanMarch(_LossRepresentation):
             # d=1 ⇒ scan(x) with no transverse march: the 1-D apply-direction
             # walk (#206 Phase C — the s_y = 0 degeneration of the 2-D
             # scan-march; the matvec walk lives in _OneDimScanWalk.loss_action).
-            return _OneDimScanWalk(self.mesh).loss_action(sigma, psi)
-        return _OctantWalk(self.mesh).loss_action(
+            return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).loss_action(sigma, psi)
+        return _OctantWalk(self.mesh, self.spatial_closure, self.angular_closure).loss_action(
             sigma, psi, self._loss_action_interior,
         )
 
@@ -2539,7 +2553,7 @@ class ScanMarch(_LossRepresentation):
         N_oct = oct_idx.size
 
         x_reverse = sx_eff < 0
-        scheme = self.mesh.scheme
+        scheme = self.spatial_closure
         LpC_oct = np.empty((N_oct, ng, nx, ny))
         cap_x = np.empty((N_oct, ng, ny))            # domain x-outflow, per y-row
         s_x_row = s_x[:, None, :]                    # (N_oct, 1, nx) RAW g_x — row-invariant
@@ -2606,8 +2620,8 @@ class ScanMarch(_LossRepresentation):
         """
         if self.mesh.is_1d:
             # #206 Phase C: the 1-D transpose walk lives in _OneDimScanWalk.
-            return _OneDimScanWalk(self.mesh).loss_action_transpose(sigma, phi)
-        return _OctantWalk(self.mesh).loss_action_transpose(
+            return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).loss_action_transpose(sigma, phi)
+        return _OctantWalk(self.mesh, self.spatial_closure, self.angular_closure).loss_action_transpose(
             sigma, phi, self._loss_action_transpose_interior,
         )
 
@@ -2658,7 +2672,7 @@ class ScanMarch(_LossRepresentation):
         # The scan-transpose primitive takes the PHYSICAL forward orientation
         # (physical sx = −sxm_addr); the mirror label orders the ROW march.
         x_reverse_physical = sxm_addr > 0
-        scheme = self.mesh.scheme
+        scheme = self.spatial_closure
         psi_cot_oct = np.empty((N_oct, ng, nx, ny))
         cap_x_cot = np.empty((N_oct, ng, ny))       # physical x-IN cotangent, per row
         s_x_row = s_x[:, None, :]                   # (N_oct, 1, nx) — row-invariant
@@ -2886,6 +2900,8 @@ class _OneDimScanWalk:
     """
 
     mesh: "SNMesh"
+    spatial_closure: "DiscretizationSchemeBase"
+    angular_closure: "PoleAngularClosureBase"
 
     def _dag_legs(self) -> "tuple[_WalkLeg, ...]":
         r"""Every non-empty leg of the 1-D walk DAG, in DEPENDENCY order.
@@ -2909,7 +2925,7 @@ class _OneDimScanWalk:
         """
         sn_mesh = self.mesh
         mu_x = sn_mesh.quad.mu_x
-        level_indices = sn_mesh.pole_angular_closure.level_indices
+        level_indices = self.angular_closure.level_indices
         legs: list[_WalkLeg] = []
         for direction_sign in (-1, +1):
             for p, level_idx in enumerate(level_indices):
@@ -2984,7 +3000,7 @@ class _OneDimScanWalk:
         sibling of ``_OctantWalk``'s ``pure_z`` branch.
         """
         mu_x = self.mesh.quad.mu_x
-        level_indices = self.mesh.pole_angular_closure.level_indices
+        level_indices = self.angular_closure.level_indices
         global_deg = np.where(np.abs(mu_x) < _MU_DIRECTION_EPS)[0]
         deg_level: list[int] = []
         deg_within: list[int] = []
@@ -3186,9 +3202,9 @@ class _OneDimScanWalk:
                 "not this frame."
             )
 
-        # The mesh ALWAYS binds a closure at construction (Cartesian gets
-        # IdentityAngularClosure) — no ``is None`` fallback (Pattern 4).
-        pole_angular_closure = sn_mesh.pole_angular_closure
+        # The operator hands its bound closure through the representation
+        # (P4.9b — the walk consumes the HANDED pair, never the hub's attrs).
+        pole_angular_closure = self.angular_closure
 
         mu_x = quad.mu_x
         A = sn_mesh.areas
@@ -3200,7 +3216,7 @@ class _OneDimScanWalk:
         # (scalar), so only the cell probe / residual carries the axis.  DD/Step
         # (per_axis == 1) → ``()`` tail, every buffer byte-identical.  The width
         # is read OFF the iterate's space (the single source of truth).
-        per_axis = sn_mesh.scheme.spatial_basis_per_axis
+        per_axis = self.spatial_closure.spatial_basis_per_axis
         moment_tail = face_moment_tail(cell_moment_count(per_axis, sn_mesh.ndim))
         out_g_first = np.zeros((ng, N, nx, *moment_tail))
 
@@ -3252,17 +3268,18 @@ class _OneDimScanWalk:
         # binding (:func:`frame_signs_for`) as the d≥2 sites (``None`` for
         # DD/Step → byte-identical).
 
+        spatial_closure = self.spatial_closure
         dag_legs = self._dag_legs()
 
         def _sweep_direction(
             direction_sign: int,
             psi_face_in_init: np.ndarray,
         ) -> np.ndarray:
-            frame_signs = frame_signs_for(sn_mesh.scheme, (direction_sign,))
+            frame_signs = frame_signs_for(spatial_closure, (direction_sign,))
             # The d=1 scan probe + residual are genuine moment buffers at a
             # multi-moment closure (LD); scalar at DD/Step (frame_signs None →
             # the reframe is a short-circuit no-op regardless).
-            is_moment_valued = sn_mesh.scheme.is_multi_moment
+            is_moment_valued = spatial_closure.is_multi_moment
             outflow_at_end = np.zeros((ng, N))
 
             def open_leg(leg: _WalkLeg) -> np.ndarray:
@@ -3300,7 +3317,7 @@ class _OneDimScanWalk:
                         is_moment_valued=is_moment_valued,
                     )
                     resid, (psi_out_cell,) = (
-                        sn_mesh.scheme.residual_kernel_batch(
+                        spatial_closure.residual_kernel_batch(
                             psi_bar=probe_cell,
                             psi_in=(psi_face_in.T[:, :, None],),
                             s_axes=((leg.abs_mu / V[i])[:, None, None],),
@@ -3537,7 +3554,7 @@ class _OneDimScanWalk:
                 "multi-D Cartesian adjoint of the scan family is the "
                 "row-march reverse (ScanMarch.loss_action_transpose)."
             )
-        if not type(sn_mesh.scheme).has_transpose_kernel:
+        if not type(self.spatial_closure).has_transpose_kernel:
             # The trait DERIVES from the transpose-kernel registrations
             # (#310 ruling 2: the Cartesian batch VJP, plus the curvilinear
             # cell-balance VJP iff the scheme claims curvilinear).  The
@@ -3546,15 +3563,15 @@ class _OneDimScanWalk:
             # direct Euclidean apply_transpose calls that bypass ``.H``.
             raise NotImplementedError(
                 "_OneDimScanWalk.loss_action_transpose: scheme "
-                f"{type(sn_mesh.scheme).__name__} registers no transpose "
+                f"{type(self.spatial_closure).__name__} registers no transpose "
                 "kernel pair (residual_kernel_batch_transpose; plus "
                 "streaming_cell_transpose for a curvilinear scheme) — the "
                 "LD/UBLD Schur-residual adjoint (cell-moment cotangents + "
                 "the reverse moment-frame involution) lands at #310 C2."
             )
 
-        closure = sn_mesh.pole_angular_closure
-        scheme = sn_mesh.scheme
+        closure = self.angular_closure
+        scheme = self.spatial_closure
         # Mirror-ordinate permutation for the coupled-pole seed adjoint
         # (curvilinear only; the mesh-stashed derivation makes the
         # unconditional read a cache hit).
@@ -3580,11 +3597,11 @@ class _OneDimScanWalk:
         # axis on the incoming cotangent and the ψ̄-cotangent buffer; the d=1
         # FACE cochain is scalar (2^{d-1} = 1) for every closure.  DD/Step
         # (per_axis == 1) → ``()`` tail, every buffer byte-identical.
-        per_axis = sn_mesh.scheme.spatial_basis_per_axis
+        per_axis = scheme.spatial_basis_per_axis
         moment_tail = face_moment_tail(cell_moment_count(per_axis, sn_mesh.ndim))
-        is_moment_valued = sn_mesh.scheme.is_multi_moment
+        is_moment_valued = scheme.is_multi_moment
         frame_signs_by_dir = {
-            ds: frame_signs_for(sn_mesh.scheme, (ds,)) for ds in (+1, -1)
+            ds: frame_signs_for(scheme, (ds,)) for ds in (+1, -1)
         }
         if phi.interior.values.shape[3:] != tuple(moment_tail):
             # Pattern-4 backstop: a cotangent whose spatial-moment tail does
@@ -3595,7 +3612,7 @@ class _OneDimScanWalk:
                 "_OneDimScanWalk.loss_action_transpose: cotangent interior "
                 f"shape {phi.interior.values.shape} does not carry the "
                 f"scheme's spatial-moment tail {tuple(moment_tail)} "
-                f"({type(sn_mesh.scheme).__name__})."
+                f"({type(scheme).__name__})."
             )
 
         psi_bar = np.zeros((ng, N, nx, *moment_tail))
@@ -3832,7 +3849,9 @@ class _OneDimScanWalk:
         """Return the geometry cache, building it on first use if absent."""
         cache = getattr(self.mesh, "_geom_cache", None)
         if cache is None:
-            cache = StreamingCoefficientCache.from_mesh_and_quad(self.mesh)
+            cache = StreamingCoefficientCache.from_mesh_and_quad(
+                self.mesh, self.angular_closure,
+            )
             self.mesh._geom_cache = cache  # type: ignore[attr-defined]
         return cache
 
@@ -3901,7 +3920,7 @@ class _OneDimScanWalk:
             # 1-D meshes: sig_t is the principled (ng, nx) layout the cache
             # expects natively (rank-d (N, ng, *spatial); no phantom ny axis).
             sig_t_1d = sig_t  # (ng, nx)
-            cache = CollisionCache.from_geometry(geom, sig_t_1d, self.mesh.scheme)
+            cache = CollisionCache.from_geometry(geom, sig_t_1d, self.spatial_closure)
             self.mesh._coll_cache = cache  # type: ignore[attr-defined]
         return cache
 
@@ -3962,7 +3981,7 @@ class _OneDimScanWalk:
         Q_per_ord = Q                                            # (N, ng, nx)
         sig_t_p = sig_t                                          # (ng, nx)
         V = self.mesh.volumes                                      # (nx,) — no group axis
-        scheme = self.mesh.scheme
+        scheme = self.spatial_closure
 
         coord = self.mesh.coord
         is_slab = coord is CoordSystem.CARTESIAN
@@ -4081,7 +4100,7 @@ class _OneDimScanWalk:
                     # Affine source emission b = QV·inverse_denom/w (#158
                     # coefficient model — DD's 2·QV·inv is the w=½ case).
                     # (K, ng, nx); ordinate_scan wants the cell axis leading.
-                    b_chain = self.mesh.scheme.source_emission(
+                    b_chain = self.spatial_closure.source_emission(
                         QV_full_chain, inv_denom_chain, w_chain,
                     )
                     a_scan = np.transpose(a_atten_chain, (2, 0, 1))   # (nx, K, ng)
@@ -4098,7 +4117,7 @@ class _OneDimScanWalk:
                     psi_face_in_chain = np.empty_like(psi_face_chain_scan)
                     psi_face_in_chain[0] = psi_in_chain
                     psi_face_in_chain[1:] = psi_face_chain_scan[:-1]
-                    psi_avg_scan = self.mesh.scheme.cell_average(
+                    psi_avg_scan = self.spatial_closure.cell_average(
                         psi_face_in_chain, psi_face_chain_scan, w_scan,
                     )
                     # (nx, K, ng) → per-ordinate (ng, nx) via reorder.
@@ -4253,7 +4272,7 @@ class _OneDimScanWalk:
             # (Q5.6.3 leg 5, user ruling on gate_design §6 Q3).
             from ..angular.closure import MorelMontryAngularSweep
 
-            closure = self.mesh.pole_angular_closure
+            closure = self.angular_closure
             if not isinstance(closure, MorelMontryAngularSweep):
                 raise TypeError(
                     "_OneDimScanWalk curvilinear scan requires the "
@@ -4380,7 +4399,7 @@ class _OneDimScanWalk:
                     # (#158 coefficient model — the Morel–Montry angular
                     # redistribution rides the volumetric source; DD's
                     # 2·(QV+ang)·inv is the w=½ case).
-                    b = self.mesh.scheme.source_emission(
+                    b = self.spatial_closure.source_emission(
                         QV_chain + ang_contrib, inv_denom_p, w_p,
                     )  # (ng, nx)
 
@@ -4400,7 +4419,7 @@ class _OneDimScanWalk:
                     psi_face_in_chain = np.empty_like(psi_face_chain)
                     psi_face_in_chain[0] = psi_in
                     psi_face_in_chain[1:] = psi_face_chain[:-1]
-                    psi_avg_chain = self.mesh.scheme.cell_average(
+                    psi_avg_chain = self.spatial_closure.cell_average(
                         psi_face_in_chain, psi_face_chain, w_p.T,
                     )
                     # Principled view: (ng, nx).
@@ -4482,7 +4501,7 @@ class _OneDimScanWalk:
         nx = self.mesh.nx
         ng = bulk_cot.shape[1]
         mu = quad.mu_x
-        scheme = self.mesh.scheme
+        scheme = self.spatial_closure
 
         # ── the R12a starting-direction contract (mirror _run, step 6) ──
         # This is the ray-DECOUPLED ``(L+C)⁻ᵀ`` diagonal-block transpose on
@@ -4670,7 +4689,7 @@ class _OneDimScanWalk:
         from ..angular.closure import MorelMontryAngularSweep
 
         is_sphere = coord is CoordSystem.SPHERICAL
-        closure = self.mesh.pole_angular_closure
+        closure = self.angular_closure
         if not isinstance(closure, MorelMontryAngularSweep):
             raise TypeError(
                 "_OneDimScanWalk._run_transpose curvilinear scan requires the "
@@ -4820,6 +4839,8 @@ def _sweep_scheduled(
     sn_mesh: "SNMesh",
     boundary_flux: "AngularBoundaryFlux",
     *,
+    spatial_closure: "DiscretizationSchemeBase",
+    angular_closure: "PoleAngularClosureBase",
     schedule: "SweepSchedule",
     reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     moment_frame: "FrameBase | None" = None,
@@ -4904,7 +4925,7 @@ def _sweep_scheduled(
     # harmonic-moment tensor (windowed production).  DD/Step (per_axis == 1) →
     # ``()`` tail, every buffer byte-identical (the negative control).
     moment_tail = face_moment_tail(
-        cell_moment_count(sn_mesh.scheme.spatial_basis_per_axis, sn_mesh.ndim)
+        cell_moment_count(spatial_closure.spatial_basis_per_axis, sn_mesh.ndim)
     )
     emit: "_SweepEmitAngular | _SweepEmitMoment"
     if moment_frame is None:
@@ -4930,7 +4951,7 @@ def _sweep_scheduled(
         Q=Q, sig_t=sig_t,
         str_axes=tuple(sn_mesh.streaming(a) for a in range(sn_mesh.ndim)),
     )
-    walk = _OctantWalk(sn_mesh)
+    walk = _OctantWalk(sn_mesh, spatial_closure, angular_closure)
     for group in schedule.groups:
         walk.sweep_group(
             group,
@@ -4963,6 +4984,8 @@ def _sweep_jacobi(
     sn_mesh: "SNMesh",
     boundary_flux: "AngularBoundaryFlux",
     *,
+    spatial_closure: "DiscretizationSchemeBase",
+    angular_closure: "PoleAngularClosureBase",
     moment_frame: "FrameBase | None" = None,
     interior: "Callable",
 ) -> "tuple[np.ndarray, np.ndarray | None]":
@@ -4998,6 +5021,8 @@ def _sweep_jacobi(
     """
     return _sweep_scheduled(
         Q, sig_t, sn_mesh, boundary_flux,
+        spatial_closure=spatial_closure,
+        angular_closure=angular_closure,
         schedule=SweepSchedule.jacobi(sn_mesh.ndim, sn_mesh.quad.octants),
         reflect=None,
         moment_frame=moment_frame,

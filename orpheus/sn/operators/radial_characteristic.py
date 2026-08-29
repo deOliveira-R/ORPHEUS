@@ -796,6 +796,10 @@ class RadialCharacteristicSeeding(
             )
         #: The augmented geometry (ray carrier + the M-M closure + volumes).
         self.sn_mesh = sn_mesh
+        # P4.9b: the operator BINDS the hub's closure at construction (the
+        # pose pattern — one posing-time hub read); apply/apply_transpose
+        # consume the bound field, never the mesh attribute.
+        self._angular_closure = sn_mesh.pole_angular_closure
         #: The ψ½ interior split space (level metadata for the gather loops).
         #: The declared DOMAIN is the member composite space (B.2c) — see
         #: :attr:`domain`.
@@ -874,7 +878,7 @@ class RadialCharacteristicSeeding(
         comp = RadialCharacteristicField.require_member(
             seed, space=rc_space, context="RadialCharacteristicSeeding.apply",
         )
-        closure = mesh.pole_angular_closure
+        closure = self._angular_closure
         space = self._ray_space
         N = mesh.quad.N
         ng = space.ng
@@ -948,7 +952,7 @@ class RadialCharacteristicSeeding(
                 f"got {type(cotangent).__name__}."
             )
         self._check_mesh(cotangent, "apply_transpose")
-        closure = mesh.pole_angular_closure
+        closure = self._angular_closure
         V = mesh.volumes
         level_indices = closure.level_indices
 

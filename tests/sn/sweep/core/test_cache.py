@@ -99,7 +99,7 @@ def test_geometry_coefficients_built_at_construction() -> None:
     frozen dataclass refuses post-construction mutation.
     """
     sn_mesh = _make_slab(nx=10, N=8)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
     N, nx = 8, 10
     assert geom.chain_idx.shape == (N, nx)
     assert geom.chain_idx_inv.shape == (N, nx)
@@ -131,7 +131,7 @@ def test_collision_cache_built_at_sigma_t_bind() -> None:
     Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
     sn_mesh = _make_slab(nx=4, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
     # sig_t is (ng, nx) under PR-INDEX-2.  Two groups × four cells,
     # uniform per group: group 0 has σ_t=1.0, group 1 has σ_t=2.0.
     sig_t = np.array([[1.0] * 4, [2.0] * 4])  # (ng=2, nx=4)
@@ -164,7 +164,7 @@ def test_two_strata_independence_by_ng_axis() -> None:
     Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
     sn_mesh = _make_slab(nx=5, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
     # Stratum 1 — no ng axis on ANY field.
     for name in ("A_down", "A_total", "dA_w", "V"):
         field_arr = getattr(geom, name)
@@ -374,7 +374,7 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
     else:
         sn_mesh = _make_sphere(nx=nx, N=N)
 
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
     rng = np.random.default_rng(42)
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     sig_t = 1.0 + 0.5 * rng.random((ng, nx))                  # (ng, nx)
@@ -492,7 +492,7 @@ def test_cache_populator_matches_cell_balance_for_streaming() -> None:
     retired).
     """
     sn_mesh = _make_sphere(nx=8, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
     ng = 2
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     # Build (nx, ng) first via outer product for readability, then transpose.
@@ -731,7 +731,7 @@ def test_closure_algebra_fields_are_the_closures_minted_values() -> None:
     the closure-vs-surrogate contract in ``test_closure_constant_map.py``.
     """
     sn_mesh = _make_sphere(nx=8, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
     closure = sn_mesh.pole_angular_closure
     tau = closure.tau_per_ordinate
     np.testing.assert_array_equal(geom.tau_inv, 1.0 / tau)
@@ -749,7 +749,7 @@ def test_closure_algebra_fields_slab_neutral_element() -> None:
     has no reading that could fail for a wrong-geometry reason.
     """
     sn_mesh = _make_slab(nx=8, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
     N = sn_mesh.quad.N
     np.testing.assert_array_equal(geom.tau_inv, np.ones(N))
     np.testing.assert_array_equal(geom.mm_a_in_coeff, np.zeros(N))

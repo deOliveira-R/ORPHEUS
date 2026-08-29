@@ -737,7 +737,14 @@ class TestOneDimScanWalkFrame:
 
     def test_frame_resolves_as_frozen_mesh_holder(self):
         """[foundation] The frame resolves from its new home and is a frozen
-        ``mesh``-only dataclass (mirrors ``_OctantWalk``)."""
+        three-field dataclass (mirrors ``_OctantWalk``).
+
+        P4.9b widened the frame from the mesh-only holder to
+        ``(mesh, spatial_closure, angular_closure)`` — the walk worker
+        consumes the pair it is HANDED by the representation (which is
+        handed it by the posed operator), never the hub's attributes.
+        The exact-field-list assertion keeps its anti-creep teeth.
+        """
         import dataclasses
 
         from orpheus.sn.loss_representation import _OneDimScanWalk
@@ -745,10 +752,12 @@ class TestOneDimScanWalkFrame:
         if not dataclasses.is_dataclass(_OneDimScanWalk):
             pytest.fail("_OneDimScanWalk must be a dataclass (mirror _OctantWalk)")
         names = [f.name for f in dataclasses.fields(_OneDimScanWalk)]
-        if names != ["mesh"]:
+        if names != ["mesh", "spatial_closure", "angular_closure"]:
             pytest.fail(
-                f"_OneDimScanWalk fields must be exactly ['mesh'] (a frozen frame "
-                f"holding only the mesh, like _OctantWalk); got {names}"
+                f"_OneDimScanWalk fields must be exactly ['mesh', "
+                f"'spatial_closure', 'angular_closure'] (the frozen frame "
+                f"holding the substrate + the HANDED pair, like "
+                f"_OctantWalk); got {names}"
             )
         if not _OneDimScanWalk.__dataclass_params__.frozen:  # type: ignore[attr-defined]
             pytest.fail("_OneDimScanWalk must be frozen (immutable frame)")
