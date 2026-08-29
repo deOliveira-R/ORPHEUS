@@ -99,7 +99,7 @@ def test_geometry_coefficients_built_at_construction() -> None:
     frozen dataclass refuses post-construction mutation.
     """
     sn_mesh = _make_slab(nx=10, N=8)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
     N, nx = 8, 10
     assert geom.chain_idx.shape == (N, nx)
     assert geom.chain_idx_inv.shape == (N, nx)
@@ -108,11 +108,14 @@ def test_geometry_coefficients_built_at_construction() -> None:
     assert geom.face_area_total.shape == (N, nx)
     assert geom.delta_A_over_w.shape == (N, nx)
     assert geom.volume.shape == (N, nx)
-    assert geom.c_in.shape == (N,)
-    assert geom.c_out.shape == (N,)
-    assert geom.tau_inv.shape == (N,)
-    assert geom.mm_a_in_coeff.shape == (N,)
     assert geom.is_degenerate.shape == (N,)
+    # The angular-closure block is NOT on the cache (P4b) — its one durable
+    # home is the closure's read-only per-ordinate cache.
+    closure = sn_mesh.angular_closure
+    assert closure.c_in_per_ordinate.shape == (N,)
+    assert closure.c_out_per_ordinate.shape == (N,)
+    assert closure.tau_inv_per_ordinate.shape == (N,)
+    assert closure.march_a_in_coeff_per_ordinate.shape == (N,)
     assert geom.is_degenerate.dtype == bool
     # Frozen dataclass — refuses re-binding any field
     with pytest.raises(FrozenInstanceError):
@@ -131,11 +134,13 @@ def test_collision_cache_built_at_sigma_t_bind() -> None:
     Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
     sn_mesh = _make_slab(nx=4, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
     # sig_t is (ng, nx) under PR-INDEX-2.  Two groups × four cells,
     # uniform per group: group 0 has σ_t=1.0, group 1 has σ_t=2.0.
     sig_t = np.array([[1.0] * 4, [2.0] * 4])  # (ng=2, nx=4)
-    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.scheme)
+    coll = CollisionCache.from_geometry(
+        geom, sig_t, sn_mesh.scheme, sn_mesh.angular_closure
+    )
 
     # (N, ng, nx) — N=4 ordinates, ng=2 groups, nx=4 cells.
     assert coll.inverse_denom.shape == (4, 2, 4)
@@ -164,18 +169,30 @@ def test_two_strata_independence_by_ng_axis() -> None:
     Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
     sn_mesh = _make_slab(nx=5, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
     # Stratum 1 — no ng axis on ANY field.
     for name in ("face_area_downstream", "face_area_total", "delta_A_over_w", "volume"):
         field_arr = getattr(geom, name)
         assert field_arr.ndim == 2, f"{name} should be (N, nx); got shape {field_arr.shape}"
-    for name in ("abs_mu", "c_in", "c_out", "tau_inv", "mm_a_in_coeff", "is_degenerate"):
+    for name in ("abs_mu", "is_degenerate"):
         field_arr = getattr(geom, name)
+        assert field_arr.ndim == 1, f"{name} should be (N,); got shape {field_arr.shape}"
+    # The closure block lives on the closure (P4b), same no-ng-axis contract.
+    closure = sn_mesh.angular_closure
+    for name in (
+        "c_in_per_ordinate",
+        "c_out_per_ordinate",
+        "tau_inv_per_ordinate",
+        "march_a_in_coeff_per_ordinate",
+    ):
+        field_arr = getattr(closure, name)
         assert field_arr.ndim == 1, f"{name} should be (N,); got shape {field_arr.shape}"
 
     # Stratum 2 — every tensor has the (N, ng, nx) shape (PR-INDEX-2).
     sig_t = np.ones((3, 5))  # (ng=3, nx=5) under PR-INDEX-2
-    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.scheme)
+    coll = CollisionCache.from_geometry(
+        geom, sig_t, sn_mesh.scheme, sn_mesh.angular_closure
+    )
     for name in ("inverse_denom", "a_attenuation", "cumprod_a"):
         field_arr = getattr(coll, name)
         assert field_arr.shape == (4, 3, 5), f"{name} shape {field_arr.shape} != (4, 3, 5)"
@@ -396,11 +413,13 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
     else:
         sn_mesh = _make_sphere(nx=nx, N=N)
 
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
     rng = np.random.default_rng(42)
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     sig_t = 1.0 + 0.5 * rng.random((ng, nx))                  # (ng, nx)
-    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.scheme)
+    coll = CollisionCache.from_geometry(
+        geom, sig_t, sn_mesh.scheme, sn_mesh.angular_closure
+    )
 
     # Build a representative source in (ng, nx) — principled layout.
     if source_kind == "uniform":
@@ -431,7 +450,8 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
         # term is genuinely exercised (zeros would null delta_A_over_w·c_in·ψ_a_in).
         rng2 = np.random.default_rng(7)
         psi_a_in_chain = 0.1 * rng2.random((ng, nx))          # (ng, nx)
-        ang_contrib = (geom.delta_A_over_w[n] * geom.c_in[n])[None, :] * psi_a_in_chain  # (ng, nx)
+        c_in_fast = sn_mesh.angular_closure.c_in_per_ordinate[n]  # P4b: closure-owned
+        ang_contrib = (geom.delta_A_over_w[n] * c_in_fast)[None, :] * psi_a_in_chain  # (ng, nx)
         b = 2.0 * (QV_chain + ang_contrib) * coll.inverse_denom[n]  # (ng, nx)
     else:
         psi_a_in_chain = None
@@ -519,13 +539,15 @@ def test_cache_populator_matches_cell_balance_for_streaming() -> None:
     retired).
     """
     sn_mesh = _make_sphere(nx=8, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
     ng = 2
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     # Build (nx, ng) first via outer product for readability, then transpose.
     sig_t_xg = np.linspace(0.5, 1.5, 8)[:, None] * np.array([[1.0, 2.0]])  # (8, 2)
     sig_t = sig_t_xg.T                                                     # (ng=2, nx=8)
-    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.scheme)
+    coll = CollisionCache.from_geometry(
+        geom, sig_t, sn_mesh.scheme, sn_mesh.angular_closure
+    )
 
     # Sample two ordinates × two cells (chain positions).
     quad = sn_mesh.quad
@@ -743,49 +765,58 @@ def test_pair_monoid_associativity_still_passes() -> None:
 
 
 @pytest.mark.foundation
-def test_closure_algebra_fields_are_the_closures_minted_values() -> None:
-    """The cache's ``(N,)`` closure-algebra block IS the closure's mint.
+def test_scan_constant_accessors_are_stable_read_only_caches() -> None:
+    """The closure's per-ordinate block: five identity-stable, read-only arrays.
 
-    P4.9a handing gate (``scratch/p4_9a_verification_plan.md`` §5): the
-    closure owns the derivation of the scan-normal march constants; the
-    cache stores them.  ``array_equal`` — NO tolerance: [M] the realistic
-    defect is the algebraically-equal respelling ``tau_inv − 1.0`` inside
-    the closure, which sits 1–2 ULP away, so any tolerance ≥ 1e-15 makes
-    this gate a non-catcher (the M7 mutation arm is its proof).
+    ⛔ RE-POSED at P4b (2026-08-29).  Until P4b this was
+    ``test_closure_algebra_fields_are_the_closures_minted_values`` — a
+    storage-fidelity pin (``geom.tau_inv == closure's mint`` etc.).  The
+    shed made that claim UNSPELLABLE: the cache stores no closure block, so
+    cache-vs-mint drift cannot be written (Pattern 4 — prevention beats the
+    gate).  The two halves of the old claim live on: the SPELLING pin is
+    ``test_angular_closure::TestMintedScanConstants`` (array_equal against
+    the defining expressions + the 1–2-ULP discrimination leg, M7); the
+    independent-VALUE anchor is ``test_closure_constant_map.py``.
 
-    ⚠ What this gate CANNOT see, stated per coding-standards: after the
-    handing the right-hand sides are the closure's own accessors, so this
-    is a *storage-fidelity* pin (cache == mint) and a *spelling* pin (via
-    the closure-side discrimination leg in
-    ``test_angular_closure::TestMintedScanConstants``), NOT an
-    independent-value pin of the constants themselves — that anchor is
-    the closure-vs-surrogate contract in ``test_closure_constant_map.py``.
+    What had NO witness after the shed is the promotion's new contract,
+    which every consumer now leans on: the five accessors return the SAME
+    array per access (the walk binds them per sweep; identity instability
+    would silently decouple its reads), and all five refuse writes (the
+    corruption guard ``_build_per_ordinate_cache`` promises).
     """
     sn_mesh = _make_sphere(nx=8, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
     closure = sn_mesh.angular_closure
-    tau = closure.tau_per_ordinate
-    np.testing.assert_array_equal(geom.tau_inv, 1.0 / tau)
-    np.testing.assert_array_equal(geom.mm_a_in_coeff, (1.0 - tau) / tau)
-    np.testing.assert_array_equal(geom.c_in, closure.c_in_per_ordinate)
-    np.testing.assert_array_equal(geom.c_out, closure.c_out_per_ordinate)
+    accessors = (
+        "c_in_per_ordinate",
+        "c_out_per_ordinate",
+        "tau_per_ordinate",
+        "tau_inv_per_ordinate",
+        "march_a_in_coeff_per_ordinate",
+    )
+    for name in accessors:
+        first = getattr(closure, name)
+        assert getattr(closure, name) is first, f"{name} is not identity-stable"
+        assert first.flags.writeable is False, f"{name} is writable"
+    with pytest.raises(ValueError, match="read-only"):
+        closure.tau_inv_per_ordinate[0] = 99.0
 
 
 @pytest.mark.foundation
-def test_closure_algebra_fields_slab_neutral_element() -> None:
-    """Negative leg: the slab cache carries the exact neutral element.
+def test_closure_block_slab_neutral_element() -> None:
+    """Negative leg: the identity closure mints the exact neutral element.
 
-    ``tau_inv == 1``, ``mm_a_in_coeff == 0``, ``c_in == c_out == 0`` —
-    bit-exact.  Without a structurally-different input the gate above
-    has no reading that could fail for a wrong-geometry reason.
+    ``tau_inv == 1``, ``march_a_in_coeff == 0``, ``c_in == c_out == 0`` —
+    bit-exact, read off the CLOSURE (P4b: the cache no longer stores the
+    block).  Without a structurally-different input the family above has
+    no reading that could fail for a wrong-geometry reason.
     """
     sn_mesh = _make_slab(nx=8, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
+    closure = sn_mesh.angular_closure
     N = sn_mesh.quad.N
-    np.testing.assert_array_equal(geom.tau_inv, np.ones(N))
-    np.testing.assert_array_equal(geom.mm_a_in_coeff, np.zeros(N))
-    np.testing.assert_array_equal(geom.c_in, np.zeros(N))
-    np.testing.assert_array_equal(geom.c_out, np.zeros(N))
+    np.testing.assert_array_equal(closure.tau_inv_per_ordinate, np.ones(N))
+    np.testing.assert_array_equal(closure.march_a_in_coeff_per_ordinate, np.zeros(N))
+    np.testing.assert_array_equal(closure.c_in_per_ordinate, np.zeros(N))
+    np.testing.assert_array_equal(closure.c_out_per_ordinate, np.zeros(N))
 
 
 def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
@@ -819,9 +850,9 @@ def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
     counts = {"builds": 0}
     real = StreamingCoefficientCache.from_mesh_and_quad.__func__
 
-    def counting(cls, m, closure):
+    def counting(cls, m):
         counts["builds"] += 1
-        return real(cls, m, closure)
+        return real(cls, m)
 
     q_ext = np.ones((quad.N, sn_mesh.ng, 4))
     try:
@@ -890,6 +921,4 @@ def test_cache_builder_refuses_a_meshless_chain_under_dash_O() -> None:
     )
     assert sn2d.reduced is None  # the witness's own premise
     with pytest.raises(TypeError, match="requires a ReducedStreamingOperator"):
-        StreamingCoefficientCache.from_mesh_and_quad(
-            sn2d, sn2d.angular_closure,
-        )
+        StreamingCoefficientCache.from_mesh_and_quad(sn2d)

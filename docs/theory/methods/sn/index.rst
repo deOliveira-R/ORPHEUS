@@ -681,8 +681,8 @@ Reproduce it by counting both constructors around a solve:
        lambda s, *a, **k: (n.__setitem__("op", n["op"] + 1),
                            real_init(s, *a, **k))[1])
    StreamingCoefficientCache.from_mesh_and_quad = classmethod(
-       lambda cls, m, c: (n.__setitem__("tab", n["tab"] + 1),
-                          real_tab(cls, m, c))[1])
+       lambda cls, m: (n.__setitem__("tab", n["tab"] + 1),
+                       real_tab(cls, m))[1])
    try:
        solve_sn(mats, mesh, quad)
    finally:
@@ -1671,7 +1671,10 @@ geometry the walk traverses:
 
    scheme = self.spatial_closure     # the walk's own field, handed at posing
    closure = self.angular_closure    # likewise — never sn_mesh.angular_closure
-   c_in_n, c_out_n = geom.c_in[n], geom.c_out[n]   # the closure's minted constants
+   # P4b: the constants' one durable home is the closure's read-only cache
+   # (the geometry table sheds its copies).
+   c_in_n = closure.c_in_per_ordinate[n]
+   c_out_n = closure.c_out_per_ordinate[n]
 
    for visit in self.mesh.dag_walk(ordinate_idx=n, mu_level_idx=p):
        i = visit.cell_idx

@@ -293,7 +293,7 @@ class TestSICylinderResonance:
 
         materials, mesh, quad = self._build()
         probe = SNMesh(mesh, quad, materials)
-        geom = StreamingCoefficientCache.from_mesh_and_quad(probe, probe.angular_closure)
+        geom = StreamingCoefficientCache.from_mesh_and_quad(probe)
         mu = np.asarray(quad.mu_x)
         inward = np.flatnonzero(mu < 0)
 
@@ -301,7 +301,7 @@ class TestSICylinderResonance:
             sig_t = np.ones((probe.ng, probe.nx))
             sig_t[0, :] = sig1
             cache = CollisionCache.from_geometry(
-                geom, sig_t, probe.scheme,
+                geom, sig_t, probe.scheme, probe.angular_closure,
             )
             return float(cache.a_attenuation[ord_i, 0, -1])
 

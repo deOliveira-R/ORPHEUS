@@ -860,10 +860,14 @@ c_in / c_out are angular-closure constants — Step B1 (one site folded)
    :attr:`~orpheus.sn.angular.closure.AngularClosureBase.c_out_per_ordinate`
    /
    :attr:`~orpheus.sn.angular.closure.AngularClosureBase.c_in_per_ordinate`
-   with zero plumbing.  (Since P4.9b the populator is **handed** its
+   with zero plumbing.  (Since P4.9b the populator was **handed** its
    closure — ``from_mesh_and_quad(sn_mesh, angular_closure)`` — so the
-   mesh supplies geometry and the caller supplies the method; see
-   :ref:`sn-p49b-operator-poses-with-closures`.)  The accessor pair is
+   mesh supplied geometry and the caller the method; see
+   :ref:`sn-p49b-operator-poses-with-closures`.  Since P4b, 2026-08-29,
+   the populator takes NO closure at all: the table shed the closure
+   block, so every field derives from ``sn_mesh`` alone —
+   ``from_mesh_and_quad(sn_mesh)`` — and the walk / σ-build read the
+   constants through their handed closure.)  The accessor pair is
    PUBLIC and polymorphic on the base
    :class:`~orpheus.sn.angular.closure.AngularClosureBase`:
    :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
@@ -991,7 +995,9 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
      called by both ``MorelMontryAngularSweep`` and
      ``IdentityAngularClosure``) and the accessors return the read-only
      cache (``setflags(write=False)`` guards the shared :math:`(N,)` view
-     B1's ``StreamingCoefficientCache`` populator holds).  Measured on a
+     consumers hold — until P4b the ``StreamingCoefficientCache``
+     populator; since P4b the walk, which binds the arrays per
+     sweep).  Measured on a
      ``sphere N=32 nx=200`` walk: :math:`\sim 32\,\text{ms} \to \sim
      22\,\text{ms}` per sweep (:math:`\sim 1.46\times`), value-identical.
 
@@ -1416,17 +1422,20 @@ apart deliberately rather than collapsed
 
    **Implemented by** 2 sites — one per constant, both **minted by the
    closure** since 2026-08-28.  ⛔ Until P4.9a the split was *derived by
-   the cache* (``StreamingCoefficientCache.from_geometry``), and that was
-   the same smell as the scheme's inline march, one notch down: the
-   pairing of :math:`1/\tau` with :math:`(1-\tau)/\tau` is not a
+   the cache* (``StreamingCoefficientCache.from_mesh_and_quad``), and
+   that was the same smell as the scheme's inline march, one notch down:
+   the pairing of :math:`1/\tau` with :math:`(1-\tau)/\tau` is not a
    convenience product, it is the :math:`\psi^a_{\rm in}` coefficient of
    the closure's own update written scan-normally — relation knowledge,
-   which the cache had no business spelling.  L16's hoisting half
-   survives: the cache still *stores* both arrays once per solve for the
-   per-iteration scan.  ⚠ ``march_a_in_coeff_per_ordinate`` is spelled
-   ``(1 - tau) / tau``, never the algebraically-equal ``tau_inv - 1.0``
-   — `[M]` the two differ by 1–2 ULP, and the cache field gate pins this
-   spelling with ``array_equal``.
+   which the cache had no business spelling.  L16's hoisting half now
+   lives at the owner (P4b, 2026-08-29): the closure caches both arrays
+   read-only at construction, the geometry table stores no copy, and the
+   walk binds them per sweep.  ⚠ ``march_a_in_coeff_per_ordinate`` is
+   spelled ``(1 - tau) / tau``, never the algebraically-equal
+   ``tau_inv - 1.0`` — `[M]` the two differ by 1–2 ULP, and the
+   closure-side spelling gate
+   (``TestMintedScanConstants::test_minted_constants_pin_their_spelling``)
+   pins it with ``array_equal``.
 
 .. implements:: dd-mm-scan-split
    :by: orpheus.sn.angular.closure.AngularClosureBase.march_a_in_coeff_per_ordinate

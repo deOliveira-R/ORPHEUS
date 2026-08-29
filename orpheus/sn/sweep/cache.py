@@ -52,10 +52,14 @@ Closed-form scan (Blelloch §1.5; :func:`~orpheus.sn.sweep.scan.ordinate_scan`):
              \bigl(\psi^{s}_0[n, g] + \mathrm{cumsum}_{k \le i}
                    (b[n, g, k] / \mathrm{cumprod\_a}[n, g, k])\bigr).
 
-The :class:`StreamingCoefficientCache` populator hoists the geometry tensors
-(``face_area_downstream``, ``face_area_total``, ``delta_A_over_w``, ``volume``, ``c_in``, ``c_out``, chain
-indices, M-M closure constants ``mm_a_in_coeff`` and ``tau_inv``) ONCE at
-solver construction.  The :class:`CollisionCache` populator combines them
+The :class:`StreamingCoefficientCache` populator hoists the chain-ordered
+geometry tensors (``face_area_downstream``, ``face_area_total``,
+``delta_A_over_w``, ``volume``, chain indices, ``abs_mu``,
+``is_degenerate``) ONCE at solver construction.  The angular-closure block
+(``c_in``, ``c_out``, ``tau_inv``, ``(1−τ)/τ``) is NOT stored here — since
+P4b (2026-08-29) its one durable home is the closure's own read-only
+per-ordinate cache, and every consumer reads it through the HANDED closure.
+The :class:`CollisionCache` populator combines both
 with :math:`\Sigma_t` to produce ``inverse_denom``, ``a_attenuation``, and
 ``cumprod_a`` — three numpy ops per ordinate.
 
@@ -68,7 +72,8 @@ make the curvilinear formula degenerate to the slab form:
 * ``face_area_total = 2`` (``face_area_inner + face_area_outer = 1 + 1``);
 * ``face_area_downstream = 1`` (the neutral downstream face area for slab);
 * ``delta_A_over_w = 0`` (no curvature redistribution);
-* ``c_in = c_out = 0``, ``tau_inv = 1``, ``mm_a_in_coeff = 0``.
+* the identity closure's minted block supplies ``c_in = c_out = 0``,
+  ``tau_inv = 1``, ``march_a_in_coeff = 0`` (read from the handed closure).
 
 With these values the curvilinear ``denom`` collapses to ``2|μ| + σ_t·V``
 (the slab form), ``a = 2·2|μ|/denom - 1 = (2|μ| - σ_t·V)/(2|μ| + σ_t·V)``,
@@ -127,32 +132,46 @@ class StreamingCoefficientCache:
     r"""The Σ\ :sub:`t`\ -free half of the DD scan coefficients, built ONCE per
     ``SNMesh`` × ``Quadrature``.
 
-    Carries every per-ordinate-per-cell quantity that enters the DD
-    coefficients :math:`(a, b)` of the per-ordinate spatial scan.  Survives
+    Carries the chain-ordered spatial quantities that enter the DD
+    coefficients :math:`(a, b)` of the per-ordinate spatial scan, plus the
+    two per-ordinate quadrature projections the fused table indexes by
+    (:math:`|\mu_n|` and the degenerate-ordinate mask).  Survives
     :math:`\Sigma_t` rebinds (depletion, thermal feedback), BC changes, every
     outer Picard / power iteration, every inner SI / Krylov iteration.
 
-    ⛔ **The name is deliberately stratum-AGNOSTIC, because the contents are
-    not one stratum.**  This class was ``GeometryCoefficients`` until
-    2026-08-26; that name was measurably false — `[M]` **0 of 13** fields are
-    un-permuted chart data.  Its fields span **three** invalidation classes,
-    measured by building three meshes against one quadrature (uniform ``nx=6``,
-    uniform ``nx=20``, and a GRADED ``nx=6``):
+    ⛔ **The angular-closure block is deliberately NOT here.**  Until P4b
+    (2026-08-29) this class also stored ``c_in`` / ``c_out`` / ``tau_inv`` /
+    ``mm_a_in_coeff`` — `[M]` a halfway hoist (two fields ALIASED the
+    closure's read-only arrays, two were copies serving as the values' only
+    durable home; ``scratch/p4b_ground_measure.md`` §A.4).  P4b gave the
+    block ONE home: the closure caches all five per-ordinate arrays
+    read-only at construction, and the walk / σ-build read them through the
+    HANDED closure (P4.9b: the walk consumes the handed pair).  Do not
+    re-add closure algebra here — that re-opens the twin storage.
 
-    * **S0 — mesh-free** (`[M]` bit-identical on all three): ``abs_mu``,
-      ``c_in``, ``c_out``, ``tau_inv``, ``mm_a_in_coeff``, ``is_degenerate``
-      — **6 fields**, invalidated by a new quadrature or chart ONLY.
-    * **S1 — chart × basis** (`[M]` differ on every re-mesh): ``face_area_downstream``,
-      ``face_area_total``, ``delta_A_over_w``, ``V`` — **4 fields**.
-    * **S3 — traversal**: ``chain_idx``, ``chain_idx_inv`` — **2 fields**,
-      `[M]` identical between the uniform and GRADED ``nx=6`` meshes, so they
-      turn on ordinate sign and cell COUNT, not on edge positions.
+    The remaining fields' invalidation strata, `[M]` re-measured 2026-08-29
+    on all three charts (three meshes against one quadrature — uniform
+    ``nx=6``, uniform ``nx=20``, GRADED ``nx=6``; the 2026-08-26 census
+    carried no chart denominator):
 
-    ⚠ So the whole object rebuilds on any re-mesh, including the 7 fields that
-    provably cannot change — the F3 weld.  A name asserting any one stratum
-    would bless it: ``ChainScanCoefficients`` (the un-weld plan's first
-    proposal) names the **S3** half, 2 of 13, which is *worse* than the
-    ``Geometry`` it replaces.
+    * **S0 — mesh-free** (bit-identical on all three meshes): ``abs_mu``,
+      ``is_degenerate`` — quadrature × chart only.
+    * **S1 — chart × basis** (differ on a graded re-mesh): ``volume`` on
+      every chart; ``face_area_downstream`` / ``face_area_total`` /
+      ``delta_A_over_w`` on the CURVILINEAR charts only (on the slab they
+      are the neutral constants 1 / 2 / 0 broadcast per cell count).
+    * **S3 — traversal**: ``chain_idx``, ``chain_idx_inv`` — identical
+      between the uniform and GRADED ``nx=6`` meshes, so they turn on
+      ordinate sign and cell COUNT, not on edge positions.
+
+    The whole table still rebuilds per (mesh, closure) — honest now: every
+    remaining field is either mesh-bound or a trivial O(N) projection fused
+    into the mesh-bound table, and the strategy-layer intern
+    (``geometry_cache_for``) makes the rebuild once-per-solve.  This class
+    was ``GeometryCoefficients`` until 2026-08-26; that name was measurably
+    false — `[M]` **0 of 13** then-fields were un-permuted chart data, and
+    a name asserting any one stratum (``ChainScanCoefficients``, the
+    un-weld plan's first proposal) was rejected for blessing the weld.
 
     ⛔ **Do not propose ``SweepCoefficientCache`` — the name is TAKEN by a
     REFUTED design.**  It was the un-weld plan's second candidate and was
@@ -205,17 +224,6 @@ class StreamingCoefficientCache:
     +-----------------+----------------+---------------------------------------+
     | ``volume``      | ``(N, nx)``    | Chain-ordered cell volume per ordinate|
     +-----------------+----------------+---------------------------------------+
-    | ``c_in``        | ``(N,)``       | M-M closure constant                  |
-    |                 |                | :math:`(1-\tau)/\tau\,\alpha_{\rm out}|
-    |                 |                | + \alpha_{\rm in}` (slab: ``0``)      |
-    +-----------------+----------------+---------------------------------------+
-    | ``c_out``       | ``(N,)``       | :math:`\alpha_{\rm out}/\tau`         |
-    |                 |                | (slab: ``0``)                         |
-    +-----------------+----------------+---------------------------------------+
-    | ``tau_inv``     | ``(N,)``       | :math:`1/\tau_n` (slab: ``1``)        |
-    +-----------------+----------------+---------------------------------------+
-    | ``mm_a_in_coeff``| ``(N,)``      | :math:`(1-\tau_n)/\tau_n` (slab: ``0``)|
-    +-----------------+----------------+---------------------------------------+
     | ``is_degenerate``| ``(N,)`` bool | Cylindrical pure-azimuthal ordinate   |
     |                 |                | (rare; routes to slow per-cell path)  |
     +-----------------+----------------+---------------------------------------+
@@ -232,19 +240,19 @@ class StreamingCoefficientCache:
     face_area_total: np.ndarray                # (N, nx) — chain-ordered
     delta_A_over_w: np.ndarray                   # (N, nx) — chain-ordered
     volume: np.ndarray                 # (N, nx) — chain-ordered
-    c_in: np.ndarray                   # (N,)
-    c_out: np.ndarray                  # (N,)
-    tau_inv: np.ndarray                # (N,)
-    mm_a_in_coeff: np.ndarray          # (N,)
     is_degenerate: np.ndarray          # (N,) bool
 
     @classmethod
     def from_mesh_and_quad(
         cls,
         sn_mesh: "SNMesh",
-        angular_closure: "AngularClosureBase",
     ) -> "StreamingCoefficientCache":
         r"""Populate Stratum 1 from one :class:`SNMesh` + its quadrature.
+
+        Takes NO closure (P4b, 2026-08-29): with the angular-closure block
+        shed, every field is derived from the mesh and its quadrature
+        alone.  The (mesh, closure) intern key lives one layer up, in
+        :func:`~orpheus.sn.loss_representation.geometry_cache_for`.
 
         Iterates ``sn_mesh.dag_walk(ordinate_idx=...)`` (slow Python path —
         but ONLY ONCE per solver lifetime; cost amortised across every
@@ -343,45 +351,16 @@ class StreamingCoefficientCache:
             if visits[0].face_area_downstream == 0.0 and abs_mu[global_n] < 1e-15:
                 is_degenerate[global_n] = True
 
-        # ── M-M angular weight τ + closure constants (Issue #236) ──
-        # τ, ``c_out = α_{m+1/2}/τ``, ``c_in = (1−τ)/τ·α_{m+1/2} +
-        # α_{m−1/2}``, AND the scan-normal march constants ``1/τ`` /
-        # ``(1−τ)/τ`` are ANGULAR-closure properties — the pole-angular
-        # closure is their canonical owner.  Read the ``(N,)``
-        # global-ordinate views directly instead of rebuilding any formula
-        # here (Cardinal Rule 2; Pattern 7 — normalise at the definition
-        # site).  The closure dispatches by TYPE: MorelMontry
-        # (sphere/cylinder) returns its precomputed values; the Cartesian
-        # IdentityAngularClosure returns the neutral ones (α=0, τ=1 ⇒ c=0,
-        # tau_inv=1, a_in_coeff=0) — so this populator stays geometry-blind
-        # by data.
-        #
-        # ⛔ REVISED at P4.9a (2026-08-28, user-ruled), overturning the
-        # 2026-08-26 ruling that stood here — "the closure exposes only the
-        # PRIMITIVE τ (Pattern 5); the cache derives 1/τ and (1−τ)/τ as a
-        # legit L16 perf hoist".  The revision: ``(1−τ)/τ`` is not a
-        # convenience product, it is the ψ_in coefficient of the closure's
-        # OWN update in scan-normal form — the PAIRING is relation
-        # knowledge, and the cache deriving it was the cache spelling a
-        # fragment of the Morel-Montry relation (the same smell, one notch
-        # down, as the DiamondDifference twin P4.9a removed).  The closure
-        # now MINTS both scan constants (tau_inv_per_ordinate /
-        # march_a_in_coeff_per_ordinate, closure.py); L16's hoisting half
-        # SURVIVES here — this cache is still where the values are stored
-        # once per solve for the per-iteration scan.  Consumed at the
-        # ``loss_representation`` scan fast path
-        # ``geom.tau_inv·ψ_avg − geom.mm_a_in_coeff·ψ_in`` — the closure's
-        # own scan-normal representation, welded to its march by gate
-        # (test_angular_closure::TestMintedScanConstants; the M7
-        # mutation arm prices the realistic 1-2 ULP respelling).
-        # Bit-identical to the pre-handing derivation: the accessors
-        # compute the same expressions on the same cached τ array
-        # (test_cache's closure-algebra field gate pins it array_equal).
-        closure = angular_closure
-        c_out = closure.c_out_per_ordinate
-        c_in = closure.c_in_per_ordinate
-        tau_inv = closure.tau_inv_per_ordinate
-        mm_a_in_coeff = closure.march_a_in_coeff_per_ordinate
+        # ── The angular-closure block is NOT copied here (P4b) ────────
+        # c_in / c_out / 1/τ / (1−τ)/τ are the closure's minted per-ordinate
+        # constants (P4.9a: the derivation is relation knowledge and lives
+        # with the relation's owner).  Until P4b (2026-08-29) this builder
+        # also STORED them — a halfway hoist (two aliases + two copies that
+        # were the values' only durable home).  P4b promoted the two scan
+        # constants into the closure's read-only build cache and retired
+        # the four fields: the walk reads them through its own handed
+        # closure, and ``CollisionCache.from_geometry`` is handed the
+        # closure explicitly.  One home per datum (Cardinal Rule 2).
 
         # ── Inverse chain index for scatter-back ──────────────────────
         chain_idx_inv = np.empty_like(chain_idx)
@@ -396,10 +375,6 @@ class StreamingCoefficientCache:
             face_area_total=face_area_total,
             delta_A_over_w=delta_A_over_w,
             volume=volume,
-            c_in=c_in,
-            c_out=c_out,
-            tau_inv=tau_inv,
-            mm_a_in_coeff=mm_a_in_coeff,
             is_degenerate=is_degenerate,
         )
 
@@ -476,6 +451,7 @@ class CollisionCache:
         geom: StreamingCoefficientCache,
         sig_t: np.ndarray,
         scheme: "DiscretizationSchemeBase",
+        angular_closure: "AngularClosureBase",
     ) -> "CollisionCache":
         r"""Populate Stratum 2 from Stratum 1 + per-cell :math:`\Sigma_t`.
 
@@ -509,6 +485,13 @@ class CollisionCache:
             :class:`~orpheus.transport.spatial.diamond.DiamondDifference`).  Must
             be ``is_affine_scannable``; supplies the closed-form recurrence
             coefficients via :meth:`affine_scan_coefficients`.
+        angular_closure : AngularClosureBase
+            The bound angular closure — supplies its minted
+            ``c_out_per_ordinate`` for the denominator's angular
+            contribution.  Handed explicitly (P4b): since the
+            :class:`StreamingCoefficientCache` sheds the closure block, the
+            σ-build reads the closure's own read-only cache, matching the
+            P4.9b handed-pair idiom.
 
         Notes
         -----
@@ -537,13 +520,15 @@ class CollisionCache:
         # P4.9a row 3b: the caller ASSEMBLES the closure's denominator
         # contribution ((ΔA/w)·c_out — same expression DD used to build
         # in-scheme, bit-identical) so the scheme family sees no
-        # closure-named constant.
+        # closure-named constant.  c_out is read from the HANDED closure's
+        # read-only cache (P4b — the geometry table sheds the closure block).
         a_attenuation, inverse_denom, face_blend_weight = (
             scheme.affine_scan_coefficients(
                 abs_mu=geom.abs_mu,
                 face_area_downstream=geom.face_area_downstream,
                 face_area_total=geom.face_area_total,
-                angular_denom_term=geom.delta_A_over_w * geom.c_out[:, None],
+                angular_denom_term=geom.delta_A_over_w
+                * angular_closure.c_out_per_ordinate[:, None],
                 volume=geom.volume,
                 reaction_xs=sig_t_chain,
             )

@@ -329,6 +329,12 @@ class AngularClosureBase(RegistryMixin, ABC):
     # per-level→global gather is a pure permutation, computed ONCE in each
     # concrete ``__init__`` (via ``_build_per_ordinate_cache``).
     _tau_per_ordinate_cache: np.ndarray
+    # Cached ``(N,)`` scan constants ``1/τ`` and ``(1−τ)/τ`` (P4b, 2026-08-29):
+    # the closure MINTS both (P4.9a) and, since P4b, is also their ONE durable
+    # home — the former ``StreamingCoefficientCache`` copies are retired, and
+    # the walk / σ-build read these caches through the handed closure.
+    _tau_inv_per_ordinate_cache: np.ndarray
+    _march_a_in_coeff_per_ordinate_cache: np.ndarray
 
     beta_first_order_consistent: ClassVar[bool] = False
     r"""Whether this angular redistribution closure satisfies the
@@ -422,14 +428,16 @@ class AngularClosureBase(RegistryMixin, ABC):
         return out
 
     def _build_per_ordinate_cache(self) -> None:
-        """Gather the three per-level constants (c_in / c_out / τ) to ``(N,)``
-        ONCE at construction.
+        """Gather the per-level constants to ``(N,)`` and mint the scan
+        constants, ONCE at construction — five read-only arrays.
 
-        The per-level→global gather is a pure permutation of immutable data,
-        so caching it makes the public accessors O(1).  The cached arrays are
-        marked READ-ONLY (``setflags(write=False)``) so a consumer holding a
-        reference to the shared ``(N,)`` view (e.g. the ``StreamingCoefficientCache``
-        populator) cannot corrupt the cache.
+        The per-level→global gather (c_in / c_out / τ) is a pure permutation
+        of immutable data, and the two scan constants (``1/τ``,
+        ``(1−τ)/τ``) are pure elementwise maps of the gathered τ, so caching
+        them makes the public accessors O(1).  All five arrays are marked
+        READ-ONLY (``setflags(write=False)``) so a consumer holding a
+        reference to a shared ``(N,)`` view (the walk binds them per sweep;
+        the σ-build is handed the closure) cannot corrupt the cache.
 
         Precondition: called as the LAST ``__init__`` step, after the
         per-level constants (``_c_*_per_level`` / ``_tau_per_level``) and
@@ -438,12 +446,21 @@ class AngularClosureBase(RegistryMixin, ABC):
         c_in_cache = self._gather_per_ordinate(self._c_in_per_level)
         c_out_cache = self._gather_per_ordinate(self._c_out_per_level)
         tau_cache = self._gather_per_ordinate(self._tau_per_level)
+        tau_inv_cache = 1.0 / tau_cache
+        # ⛔ Spelled ``(1 − τ)/τ``, never the algebraically-equal
+        # ``tau_inv − 1.0`` — [M] the two differ by 1-2 ULP and the minted-
+        # value gate pins this spelling with ``array_equal``.
+        march_a_in_cache = (1.0 - tau_cache) / tau_cache
         c_in_cache.setflags(write=False)
         c_out_cache.setflags(write=False)
         tau_cache.setflags(write=False)
+        tau_inv_cache.setflags(write=False)
+        march_a_in_cache.setflags(write=False)
         self._c_in_per_ordinate_cache = c_in_cache
         self._c_out_per_ordinate_cache = c_out_cache
         self._tau_per_ordinate_cache = tau_cache
+        self._tau_inv_per_ordinate_cache = tau_inv_cache
+        self._march_a_in_coeff_per_ordinate_cache = march_a_in_cache
 
     #: Set by every concrete ``__init__`` (the family's two-tensor-factor
     #: contract); declared here so the base's :attr:`angular` accessor is
@@ -513,10 +530,12 @@ class AngularClosureBase(RegistryMixin, ABC):
         (:func:`march_psi_half_step`) rearranged for the hot scan loop, with
         the division hoisted out of the per-cell iteration (L16).  The
         closure MINTS both scan constants (P4.9a: the derivation is relation
-        knowledge and lives with the relation's owner); the
-        :class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache` stores
-        them.  Derived per access from the cached τ — consumers hoist (the
-        cache IS the hoist).  ``1.0`` everywhere for the identity closure.
+        knowledge and lives with the relation's owner) and, since P4b
+        (2026-08-29), is also their ONE durable home — the former
+        :class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache` copies
+        are retired; the walk and the σ-build read the closure's read-only
+        cache, built once at construction.  ``1.0`` everywhere for the
+        identity closure.
 
         ⚠ The scan-normal form is NOT bitwise equal to
         :func:`march_psi_half_step` — [M] on real fp(4, 6) τ the stable
@@ -526,7 +545,7 @@ class AngularClosureBase(RegistryMixin, ABC):
         of that rule's 12 ordinates, and near-zero outputs blow up ULP).
         The two representations are welded by gate, not by spelling.
         """
-        return 1.0 / self.tau_per_ordinate
+        return self._tau_inv_per_ordinate_cache
 
     @property
     def march_a_in_coeff_per_ordinate(self) -> np.ndarray:
@@ -542,11 +561,12 @@ class AngularClosureBase(RegistryMixin, ABC):
         :math:`\bar\psi`).
 
         ⛔ Spelled ``(1 - τ)/τ``, never the algebraically-equal
-        ``tau_inv - 1.0`` — [M] the two differ by 1-2 ULP and the cache
-        field gate pins this spelling with ``array_equal``.
+        ``tau_inv - 1.0`` — [M] the two differ by 1-2 ULP and the minted-
+        value gate pins this spelling with ``array_equal``.  Cached
+        read-only at construction (P4b); see
+        :attr:`tau_inv_per_ordinate` for the one-durable-home rationale.
         """
-        tau = self.tau_per_ordinate
-        return (1.0 - tau) / tau
+        return self._march_a_in_coeff_per_ordinate_cache
 
     def advance_psi_half(
         self,

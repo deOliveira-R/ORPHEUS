@@ -1451,6 +1451,7 @@ class SNSolver:
             sig_t_1d = self.mat_xs.total_cross_section  # (ng, nx)
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d, sn_mesh.scheme,
+                sn_mesh.angular_closure,
             )
             sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
@@ -1494,6 +1495,7 @@ class SNSolver:
             sig_t_1d = self.mat_xs.total_cross_section
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d, self.sn_mesh.scheme,
+                self.sn_mesh.angular_closure,
             )
             self.sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 

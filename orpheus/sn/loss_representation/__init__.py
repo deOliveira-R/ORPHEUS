@@ -481,16 +481,19 @@ def geometry_cache_for(
 ) -> StreamingCoefficientCache:
     """The lazily-resolved, hub-interned geometry table (Stratum 1).
 
-    σ-free (geometry × quadrature × closure algebra), so its lifetime is
-    the hub's; the closure-identity validation rebuilds for a different
-    handed closure.  Consumers: the walk's ensure path (lazy, first
+    σ-free (geometry × quadrature — since P4b the table carries no
+    closure algebra at all), so its lifetime is the hub's; the
+    closure-identity validation rebuilds for a different handed closure
+    (post-P4b the rebuilt table is bit-identical — the validation is
+    retained as the intern's declared key, and it dissolves with this
+    layer at Campaign 2).  Consumers: the walk's ensure path (lazy, first
     sweep) and the solver's σ-stratum posing (which needs Stratum 1 to
     build :class:`CollisionCache`).
     """
     entry = _GEOM_CACHE_INTERN.get(mesh)
     if entry is not None and entry[0] is angular_closure:
         return entry[1]
-    cache = StreamingCoefficientCache.from_mesh_and_quad(mesh, angular_closure)
+    cache = StreamingCoefficientCache.from_mesh_and_quad(mesh)
     _GEOM_CACHE_INTERN[mesh] = (angular_closure, cache)
     return cache
 
@@ -3961,7 +3964,9 @@ class _OneDimScanWalk:
             # 1-D meshes: sig_t is the principled (ng, nx) layout the cache
             # expects natively (rank-d (N, ng, *spatial); no phantom ny axis).
             sig_t_1d = sig_t  # (ng, nx)
-            cache = CollisionCache.from_geometry(geom, sig_t_1d, self.spatial_closure)
+            cache = CollisionCache.from_geometry(
+                geom, sig_t_1d, self.spatial_closure, self.angular_closure
+            )
             self.mesh._coll_cache = cache  # type: ignore[attr-defined]
         return cache
 
@@ -4023,6 +4028,14 @@ class _OneDimScanWalk:
         sig_t_p = sig_t                                          # (ng, nx)
         V = self.mesh.volumes                                      # (nx,) — no group axis
         scheme = self.spatial_closure
+        # The angular-closure block, read from the walk's own handed
+        # closure (P4b: the geometry table sheds the closure copies —
+        # one durable home, the closure's read-only per-ordinate cache).
+        angular = self.angular_closure
+        c_in_per_ordinate = angular.c_in_per_ordinate            # (N,)
+        c_out_per_ordinate = angular.c_out_per_ordinate          # (N,)
+        tau_inv_per_ordinate = angular.tau_inv_per_ordinate      # (N,)
+        march_a_in_per_ordinate = angular.march_a_in_coeff_per_ordinate  # (N,)
 
         coord = self.mesh.coord
         is_slab = coord is CoordSystem.CARTESIAN
@@ -4396,8 +4409,8 @@ class _OneDimScanWalk:
                         # closure's own per-ordinate arrays (stored
                         # unchanged by the cache), so the values are
                         # bit-identical to the retired visit stamp.
-                        c_in_n = geom.c_in[global_n]
-                        c_out_n = geom.c_out[global_n]
+                        c_in_n = c_in_per_ordinate[global_n]
+                        c_out_n = c_out_per_ordinate[global_n]
                         # ΔA/w from its two factors (P4.7 — the packet no
                         # longer carries the fusion): same operands and op
                         # as the retired per-packet copy, bit-identical.
@@ -4441,7 +4454,7 @@ class _OneDimScanWalk:
                     # psi_angle on (ng, nx); chain reorders the nx axis.
                     psi_a_in_chain = psi_angle[:, chain].copy()      # (ng, nx)
                     ang_contrib = (
-                        geom.delta_A_over_w[global_n] * geom.c_in[global_n]
+                        geom.delta_A_over_w[global_n] * c_in_per_ordinate[global_n]
                     )[None, :] * psi_a_in_chain                       # (ng, nx)
                     # Cache fields are (N, ng, nx) natively under PR-INDEX-2.
                     # Indexed slice [global_n] yields (ng, nx) — no transpose.
@@ -4483,8 +4496,8 @@ class _OneDimScanWalk:
                     # through ``psi_angle`` (the level's first ordinate reads
                     # the route-(a) marched ψ½ seed placed on the thread).
                     psi_angle_out_chain_p = (
-                        geom.tau_inv[global_n] * psi_avg_chain_p
-                        - geom.mm_a_in_coeff[global_n] * psi_a_in_chain
+                        tau_inv_per_ordinate[global_n] * psi_avg_chain_p
+                        - march_a_in_per_ordinate[global_n] * psi_a_in_chain
                     )                                                 # (ng, nx)
                     psi_angle[:, chain] = psi_angle_out_chain_p
 
@@ -4555,6 +4568,14 @@ class _OneDimScanWalk:
         ng = bulk_cot.shape[1]
         mu = quad.mu_x
         scheme = self.spatial_closure
+        # The angular-closure block, read from the walk's own handed
+        # closure (P4b: the geometry table sheds the closure copies —
+        # one durable home, the closure's read-only per-ordinate cache).
+        angular = self.angular_closure
+        c_in_per_ordinate = angular.c_in_per_ordinate            # (N,)
+        c_out_per_ordinate = angular.c_out_per_ordinate          # (N,)
+        tau_inv_per_ordinate = angular.tau_inv_per_ordinate      # (N,)
+        march_a_in_per_ordinate = angular.march_a_in_coeff_per_ordinate  # (N,)
 
         # ── the R12a starting-direction contract (mirror _run, step 6) ──
         # This is the ray-DECOUPLED ``(L+C)⁻ᵀ`` diagonal-block transpose on
@@ -4794,8 +4815,8 @@ class _OneDimScanWalk:
                 # pole/BC coupling; the forward's dedicated dag-walk branch).
                 if not is_sphere and geom.is_degenerate[global_n]:
                     out_ang_bar = psi_angle_bar                  # (ng, nx) cell order
-                    psi_avg_bar = geom.tau_inv[global_n] * out_ang_bar
-                    psi_ang_bar = -geom.mm_a_in_coeff[global_n] * out_ang_bar
+                    psi_avg_bar = tau_inv_per_ordinate[global_n] * out_ang_bar
+                    psi_ang_bar = -march_a_in_per_ordinate[global_n] * out_ang_bar
                     # angular_flux[global_n] = ψ̄ (cell order, every cell).
                     psi_avg_bar = psi_avg_bar + bulk_cot[global_n]
                     # ψ̄ = inv_denom·(QV + |μ|·face_area_total·ψ_in + κ·ψ_ang);  QV = Q·V.
@@ -4805,7 +4826,7 @@ class _OneDimScanWalk:
                     # transpose; ψ_in is shared across cells, so its bar sums.)
                     u_bar = coll.inverse_denom[global_n] * psi_avg_bar   # (ng, nx)
                     Q_bar[global_n] += u_bar * V[None, :]
-                    kappa = geom.delta_A_over_w[global_n] * geom.c_in[global_n]    # (nx,)
+                    kappa = geom.delta_A_over_w[global_n] * c_in_per_ordinate[global_n]    # (nx,)
                     psi_ang_bar = psi_ang_bar + kappa[None, :] * u_bar
                     psi_angle_bar = psi_ang_bar                  # overwrite (cell order)
                     # Boundary: the degenerate ord does NOT overwrite its outflow
@@ -4837,8 +4858,8 @@ class _OneDimScanWalk:
                 # reverse: psi_angle[:,chain] = psi_angle_out_chain_p.
                 out_bar_chain = psi_angle_bar[:, chain]          # (ng, nx)
                 # M-M thread: out = tau_inv·psi_avg_p − mm_a_in·psi_a_in.
-                mm_bar = geom.mm_a_in_coeff[global_n] * out_bar_chain
-                psi_avg_chain_p_bar = geom.tau_inv[global_n] * out_bar_chain
+                mm_bar = march_a_in_per_ordinate[global_n] * out_bar_chain
+                psi_avg_chain_p_bar = tau_inv_per_ordinate[global_n] * out_bar_chain
                 psi_a_in_chain_bar = -mm_bar
                 # angular_flux[global_n] = psi_avg_chain_p[:, inv].
                 psi_avg_chain_p_bar = (
@@ -4868,7 +4889,7 @@ class _OneDimScanWalk:
                 # QV_chain = QV_full[:,chain]; QV_full = Q·V.
                 Q_bar[global_n] += s_bar[:, inv] * V[None, :]
                 # ang_contrib = (delta_A_over_w·c_in)·psi_a_in_chain.
-                ang_coeff = geom.delta_A_over_w[global_n] * geom.c_in[global_n]  # (nx,)
+                ang_coeff = geom.delta_A_over_w[global_n] * c_in_per_ordinate[global_n]  # (nx,)
                 psi_a_in_chain_bar = (
                     psi_a_in_chain_bar + ang_coeff[None, :] * s_bar
                 )

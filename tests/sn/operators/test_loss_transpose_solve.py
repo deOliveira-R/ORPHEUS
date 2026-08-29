@@ -396,12 +396,10 @@ def test_g3_full_field_solve_reciprocity(geom):
 
 def _m0_mm_a_in(sn) -> float:
     """The seed-ordinate M-M coefficient on level 0 (live iff a product seed-fold)."""
-    from orpheus.sn.loss_representation import _OneDimScanWalk
-    w = _OneDimScanWalk(sn, sn.scheme, sn.angular_closure)
-    geom = w._ensure_geom_cache()
     m0_local = sn.angular_closure._edge_seed_stencil(0)[0]
     m0 = int(np.asarray(sn.quad.level_indices[0])[m0_local])
-    return float(geom.mm_a_in_coeff[m0])
+    # P4b: the constant's one durable home is the closure's read-only cache.
+    return float(sn.angular_closure.march_a_in_coeff_per_ordinate[m0])
 
 
 @pytest.mark.foundation
