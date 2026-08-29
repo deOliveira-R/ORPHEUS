@@ -202,11 +202,26 @@
 > ✅ **P4b is LANDED 2026-08-29** (`3ebb45d9` + `55d5783f` + `83c1ccc8`,
 > ground `scratch/p4b_ground_measure.md` — the opener REFUTED the §4bis
 > done-when and the phase was re-ruled *"Un-hoist to owners"*; full
-> record + residue at §4bis's ✅/⛔ banners). ⟹ **the ruled queue behind
-> P4b is now the head: CS5 (gates the P4-mint remainder + P3c) · P6 ·
-> the re-posed §5b build — order NOT yet ruled; bring the user a
-> sequencing round.** P5 rides O-3; P7 = #409. Read `scratch/p4_9b_design.md` §§7–10
-> before designing anything that touches the posing surfaces.
+> record + residue at §4bis's ✅/⛔ banners). ✅ **RULED 2026-08-29
+> (user, post-P4b sequencing round): ▶ NEXT = CS5, with a context
+> COMPACTION before execution.** CS5's HOME is
+> `.claude/plans/space_and_kernel_binding_campaign.md` **§5.5** ("an
+> axis can name the generator that made it") — resume THERE; this plan
+> holds the tail CS5 gates (the P4-mint remainder + P3c's
+> `ChartConnection` re-name). CS5's opener owes the campaign-pattern
+> shelf-life re-measure (5 of 5 openers have corrected their own
+> section): §5.5's `[M]` 2026-08-27 findings — the both-sides
+> `generator↔space` census, the Axis loss site, the `mu_x`/`level_indices`
+> 0-hit claims — predate P4.2/P4.3/P4.4/P4.9a/P4.9b/P4.5–P4.7/P4b, all
+> of which moved SN mesh/space surfaces. `[M]` anchor drift at
+> `01088fb5`: the angular-axis loss site is now
+> `augmented_mesh.py:1175-1179` (§5.5 cites `:1170-1175`; same code);
+> `Basis` ABC `numerics/basis/base.py:117` holds; `Axis`
+> `numerics/axis.py:103`; `FrameBase` `numerics/frame.py:131`.
+> Behind CS5: P6 (terminal sweep by §9.3's ruling) · the re-posed §5b
+> build (Campaign-2/O-3 boundary fork). P5 rides O-3; P7 = #409. Read
+> `scratch/p4_9b_design.md` §§7–10 before designing anything that
+> touches the posing surfaces.
 >
 > ⭐ **Before designing P4.9, read `scratch/p4_9_design_measured.md`** — the
 > §6b pre-measurement (taken 2026-08-28 while P4.3's gate ran) re-sizes the
