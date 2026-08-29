@@ -29,18 +29,22 @@ Stencil-assembly campaign 2b (the L16 gate spec):
   form instead — the documented #242 dual-form seam, NOT a twin (the
   two are the same equation in different volume conventions, pinned
   against each other by the existing sweep suites and by G2 here).
-* **#282 characterization** (curvilinear assembly is OUT of 2b —
-  blocked on exactly this): the spherical within-group operator,
-  probed from the PRODUCTION matvec (well-defined on sphere; only the
-  sweep's inversion lags), carries a walk-order BACK EDGE — the
-  Morel–Montry half-angle seed row reads later-ordinate columns. The
-  gate asserts the defect POSITIVELY (never xfail — L16: when the
-  closed starting-direction solve of Hébert 3.432–3.435 lands, this
-  test goes RED and MUST be rewritten as a triangular G2 gate for the
-  sphere). The cylinder control shows exact triangularity (non-carrying
-  per R12a — no seed row lands above the diagonal; NOT α-dome "telescoping
-  the seed away", corrected in #280 Phase 2.5b — the #282 table's 0.0-bit
-  row).
+* **#282 route (a)** (curvilinear assembly is OUT of 2b — blocked on
+  exactly this): the spherical within-group operator, probed from the
+  PRODUCTION matvec, HAD a walk-order back edge — the Morel–Montry
+  half-angle seed row read later-ordinate columns — and this gate
+  asserted that defect positively until route (a) (2.5d d3) made the
+  ψ½ seed block first-class STATE; it then flipped RED as designed
+  (L16) and was rewritten as today's augmented-triangularity
+  certificate. ⛔ The cylinder row was documented as "the non-carrying
+  (R12a) control" — TRUE at birth (2026-07-04, a ``product(4,8)``
+  rule) and FALSE since ``384d62e4`` (6.3 leg 2b) swapped the fixture
+  to the always-carrying fold; `[M]` 2026-08-29 (§5b P0) it binds the
+  field space with all 4 levels carrying, i.e. it is a SECOND carrying
+  case. The empty-seed arm's constructible witness is a Gauss-Lobatto
+  SPHERE rule — #415. (The α-dome "telescoping the seed away"
+  misreading stays corrected per #280 Phase 2.5b; it was never why the
+  cylinder is triangular.)
 
 The degenerate all-zero octant branch (pure-z ordinates over a lower-D
 mesh — the ``Q/Σ_t`` diagonal) has no fixture here: no shipped
@@ -536,9 +540,15 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNMesh, g: int) -> np.ndarray:
     DOF order (rows == cols): per carrying level, the seed leg
     ``[corner_in(−1), cells⁻ (nx−1..0), cells⁺ (0..nx−1), corner_out(+1)]``
     (the seed's own march order), then the ``N·nx`` ordinate-bulk DOFs.
-    On a NON-carrying mesh (cylinder — R12a) the seed block is empty and
-    this reduces to the plain ordinate-bulk probe (the pre-fix
-    ``_probe_bulk_matrix_one_group``).
+    On a NON-carrying mesh the seed block is empty and this reduces to
+    the plain ordinate-bulk probe (the pre-fix
+    ``_probe_bulk_matrix_one_group``). ⚠ That arm currently has NO
+    witness in this gate — `[M]` 2026-08-29 (§5b P0): both parametrized
+    charts are CARRYING (the cylinder stopped being non-carrying when
+    ``384d62e4`` swapped its fixture to the fold), and since Q5.6.3
+    every admitted cylinder rule is carrying. The
+    constructible witness for this arm is a Gauss-Lobatto SPHERE rule —
+    #415.
     """
     A = _loss(sn_mesh)
     N = sn_mesh.quad.n_ordinates
@@ -662,12 +672,17 @@ def test_282_augmented_walk_order_is_triangular(coord):
       ``[seed⁻ march, seed⁺ march, ordinates↑μ]`` order — a genuine
       forward-substitution certificate (the 2.5b LAPACK-≡-sweep leg
       builds on it).
-    * **cylinder** — the CONTROL: non-carrying (R12a), so the augmented
-      matrix is just the ordinate-bulk matrix, exactly triangular as
-      before (no seed row lands above the diagonal — NOT α-dome
-      "telescoping the seed away", a level-symmetric-only misreading
-      corrected in #280 Phase 2.5b; the #282 0.0-bit row); route (a)
-      does NOT touch it.
+    * **cylinder** — a SECOND carrying case, taking the SAME augmented
+      path as the sphere: `[M]` 2026-08-29 (§5b P0) this fixture binds
+      ``radial_characteristic_field_space`` with ``_carrying_levels ==
+      [0, 1, 2, 3]``. ⛔ It was documented as "the non-carrying (R12a)
+      control" — true for the ``product(4,8)`` rule it was born with,
+      false since ``384d62e4`` (6.3 leg 2b) swapped the fixture to the
+      fold. What this row adds over the sphere is the chart ×
+      quadrature family (folded rule, degenerate pure-azimuthal
+      ordinates), not the empty-seed branch — that branch's witness is
+      a Gauss-Lobatto sphere rule, #415. (The α-dome "telescoping the
+      seed away" misreading stays corrected per #280 Phase 2.5b.)
     """
     mesh1d = Mesh1D(
         edges=np.array([0.0, 0.3, 0.8, 1.0]),

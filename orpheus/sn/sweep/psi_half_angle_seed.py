@@ -62,12 +62,13 @@ starting-direction flux is now first-class STATE (the
 ``RadialCharacteristicField`` System-B composite of the coupled state,
 present per level under the R12a predicate), the SOLVE marches it directly from the TRUE
 q½ source through this function, and the APPLY reads the given carrier
-block.  On the non-carrying cylinder levels (R12a: NODE_ALIGNED
+block.  On a non-carrying level (R12a: NODE_ALIGNED
 full-circle product rules start ON an edge node, level-symmetric and
 full STAGGERED rules start η-degenerate — the τ_raw = 0 / τ_raw = 1
-trichotomy is the gated consequence, Q5.4/T26; a σ_y-FOLDED cylinder
-has NO such levels — every arc carries, Q5.6) the closure inlines the
-2-point angular-edge extrapolation — see
+trichotomy is the gated consequence, Q5.4/T26) the closure inlines the
+2-point angular-edge extrapolation.  Since Q5.6.3 a CYLINDER has no such
+level: admission refuses every non-carrying rule, and the σ_y-FOLDED
+family it admits carries on every arc (Q5.6).  See
 :meth:`~orpheus.sn.angular.closure.MorelMontryAngularSweep.edge_extrapolated_seed`.
 
 References

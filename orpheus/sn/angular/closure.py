@@ -46,8 +46,10 @@ Since Issue #282 route (a) the
 seed :math:`\phi_{1/2,i}` is first-class STATE marched directly from the
 source (carrying levels — the GL sphere and, since Q5.6, every level
 of a σ_y-folded cylinder), or the inlined 2-point angular-edge
-extrapolation on non-carrying cylinder levels (NODE_ALIGNED /
-level-symmetric full-circle rules); the retired
+extrapolation on a non-carrying level (NODE_ALIGNED / level-symmetric
+full-circle rules — REFUSED at cylindrical admission since Q5.6.3, so
+that branch's reachable witness is a mu = -1-noded sphere rule, the
+spherical arm having no admission gate); the retired
 pre-route-(a) :math:`\phi_{1/2,i} = 0` back edge survives only as the
 :math:`\psi`-independent coefficient state (a ``None`` seed).
 
@@ -1506,10 +1508,14 @@ class MorelMontryAngularSweep(
 ):  # noqa: E501  (#282 route (a) notes:)
     # #282 route (a): the M-M recurrence's half-angle seed ``ψ_{1/2,i,g}`` is
     # no longer a swappable strategy.  Seed dispatch (R12a): on a CARRYING
-    # level (sphere) the seed is the composite's ψ½ STATE, read from the
-    # ``radial_characteristic`` block; on the non-carrying cylinder levels the
-    # 2-point angular-edge extrapolation of the input field is inlined
-    # (:meth:`edge_extrapolated_seed`).  The trichotomy and the retired
+    # level (the GL sphere, and since Q5.6.3 EVERY admitted cylinder level —
+    # the folded rule carries on all of them) the seed is the composite's ψ½
+    # STATE, read from the ``radial_characteristic`` block; on a non-carrying
+    # level the 2-point angular-edge extrapolation of the input field is
+    # inlined (:meth:`edge_extrapolated_seed`).  A non-carrying CYLINDER level
+    # is refused at admission since Q5.6.3, so that arm's reachable witness is
+    # a mu = -1-noded sphere rule — see the reachability note in
+    # ``_edge_seed_stencil``.  The trichotomy and the retired
     # ``PsiHalfAngleSeed`` zoo: curvilinear_one_group.rst §sn-direct-seed-r12a.
     r"""Canonical per-cell Morel--Montry weighted-DD angular recurrence.
 
@@ -1758,9 +1764,10 @@ class MorelMontryAngularSweep(
 
         The recurrence seed :math:`\psi_{1/2,i}` is the field's value at the
         level's starting-direction edge :math:`\mu_{\rm start}`; on a level
-        that carries NO independent ψ½ state (R12a: raw τ₀ ∈ {0, 1} — every
-        production cylinder level) the operator-consistent seed is the input
-        field extrapolated linearly in :math:`\mu` through the level's two
+        that carries NO independent ψ½ state (R12a: raw τ₀ ∈ {0, 1} — since
+        Q5.6.3 never an ADMITTED cylinder level; the reachable case is a
+        :math:`\mu = -1`-noded sphere rule) the operator-consistent seed is
+        the input field extrapolated linearly in :math:`\mu` through the level's two
         most-inward distinct-μ ordinates:
 
         .. math::
@@ -1771,10 +1778,11 @@ class MorelMontryAngularSweep(
 
         Exact on angle-flat and linear-in-μ fields, O(Δμ²)-consistent, linear
         in the input.  Bit-identical to the retired ``AngularEdgeExtrapolation``
-        default on every NON-CARRYING cylinder (NODE_ALIGNED full-circle
+        default on every non-carrying cylinder RULE (NODE_ALIGNED full-circle
         product rules hit its t = 0 degenerate; level-symmetric rules
-        have a dead seed weight; a σ_y-folded cylinder never reaches
-        this — its carrying levels march first-class ψ½ state, Q5.6);
+        have a dead seed weight) — a class the Q5.6.3 admission now REFUSES,
+        so no constructible cylinder reaches this: the folded rule the
+        cylinder admits marches first-class ψ½ state on every level (Q5.6);
         degenerate
         single-direction levels fall back to constant extrapolation (t = 0).
         The R12a trichotomy: curvilinear_one_group.rst §sn-direct-seed-r12a.

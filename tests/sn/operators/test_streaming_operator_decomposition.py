@@ -182,7 +182,9 @@ class TestResolutionADecomposition:
         )
         # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed on
         # a carrying mesh (SPH) rides the walk's EXPLICIT flux leg in EVERY
-        # apply below; None on non-carrying (CART/CYL).  The System-A
+        # apply below; None on non-carrying meshes — since Q5.6.3 the
+        # Cartesian charts only (the ADMITTED cylinder's folded rule
+        # carries on every level).  The System-A
         # decomposition identity (L+C ≡ L + C on bulk ⊕ trace) holds for ANY
         # seed since both σ-paths consume the SAME leg (the seed's bulk feed
         # is σ-independent); the ray's own σ term is A_BB's, System B.
@@ -284,7 +286,9 @@ class TestSubtractiveDefinition:
         )
         # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed on
         # a carrying mesh (SPH) rides the walk's EXPLICIT flux leg in EVERY
-        # apply below; None on non-carrying (CART/CYL).  The System-A
+        # apply below; None on non-carrying meshes — since Q5.6.3 the
+        # Cartesian charts only (the ADMITTED cylinder's folded rule
+        # carries on every level).  The System-A
         # decomposition identity (L+C ≡ L + C on bulk ⊕ trace) holds for ANY
         # seed since both σ-paths consume the SAME leg (the seed's bulk feed
         # is σ-independent); the ray's own σ term is A_BB's, System B.
@@ -363,7 +367,9 @@ class TestPureLIsLossActionAtZeroSigma:
         )
         # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed on
         # a carrying mesh (SPH) rides the walk's EXPLICIT flux leg in EVERY
-        # apply below; None on non-carrying (CART/CYL).  The System-A
+        # apply below; None on non-carrying meshes — since Q5.6.3 the
+        # Cartesian charts only (the ADMITTED cylinder's folded rule
+        # carries on every level).  The System-A
         # decomposition identity (L+C ≡ L + C on bulk ⊕ trace) holds for ANY
         # seed since both σ-paths consume the SAME leg (the seed's bulk feed
         # is σ-independent); the ray's own σ term is A_BB's, System B.

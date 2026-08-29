@@ -959,7 +959,9 @@ class TestStreamingCollisionSolveBridgeRegression:
         # ``radial_characteristic_source`` leg (B.2d — the q½ fold of the
         # per-ordinate source, the SAME ``from_angular_source`` factory the
         # production q_ext assembly uses).  Without it the pole march is
-        # seeded wrong and ψ ≠ q/Σ_t; None on non-carrying (slab/cyl).
+        # seeded wrong and ψ ≠ q/Σ_t; None on a non-carrying mesh — since
+        # Q5.6.3 the Cartesian charts only (the ADMITTED cylinder's folded
+        # rule carries on every level).
         q_iso = 0.225
         q_per_ord = np.full((N, ng, *sn_mesh.spatial_shape), q_iso / sum_w)
         # SOURCE-role rhs (step 6 — the grid substitution's member algebra

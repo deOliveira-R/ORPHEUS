@@ -6720,9 +6720,17 @@ places, both correct on their own:
   non-carrying cylinder levels (where the R12a trichotomy makes it
   bit-identical to the retired default: :math:`t = 0` exact on product
   rules, dead seed weight on level-symmetric rules).  Since Q5.6.3 no
-  ``SNMesh``-admitted cylinder has a non-carrying level, so this inline
-  is unreachable through the mesh — its non-carrying branches are
-  Q5.6.5 retirement-audit material.
+  ``SNMesh``-admitted **cylinder** has a non-carrying level, so this inline
+  is unreachable *on that chart*.  It is **not** dead code: the spherical
+  arm calls no admission gate, so a :math:`\mu = -1`-noded (Gauss–Lobatto)
+  sphere rule builds a production ``SNMesh`` and reaches it — `[M]`
+  2026-08-26, at 6 of 11 orders, over 75 reachable non-carrying levels
+  (the census is recorded in ``_edge_seed_stencil``'s reachability note;
+  the sphere-side interaction is `Issue #338
+  <https://github.com/deOliveira-R/ORPHEUS/issues/338>`_ and the missing
+  empty-seed gate witness `Issue #415
+  <https://github.com/deOliveira-R/ORPHEUS/issues/415>`_).  Retirement is
+  therefore **off the table** — this is the only seed path such a rule has.
 
 .. _sn-direct-seed-numerical-evidence:
 
@@ -6910,14 +6918,18 @@ solver Krylov drivers by sizing ``n_dof = initial_guess.to_flat().size``.
 Distinct from #200 (the identity preconditioner); this is a pure
 sizing bug.
 
-**The product-cylinder solve consumes the iterate through the
-edge-extrapolation stencil — preserve that data flow bit-exactly.**  On a
-non-carrying level the seed is still the 2-point extrapolation of the
-*iterate* (:math:`t = 0` on product rules: the stencil reads the first
-ordinate's iterate column).  That is a *formal* lag, harmless at the fixed
-point, and the retirement of the strategy zoo had to keep the
-non-carrying data flow **byte-identical** to the pre-2.5d path — a
-diverging cylinder solve would trip the §16.D cylinder-unmoved baseline.
+**The product-cylinder solve consumed the iterate through the
+edge-extrapolation stencil — that data flow had to stay bit-exact.**
+(Historical since Q5.6.3, ``1689faf4``: the product cylinder is no longer
+constructible.  The constraint is recorded because the *pattern* recurs
+wherever a non-carrying level survives — today only on the sphere side,
+under a :math:`\mu = -1`-noded rule.)  On a non-carrying level the seed is
+the 2-point extrapolation of the *iterate* (:math:`t = 0` on product
+rules: the stencil reads the first ordinate's iterate column).  That is a
+*formal* lag, harmless at the fixed point, and the retirement of the
+strategy zoo had to keep the non-carrying data flow **byte-identical** to
+the pre-2.5d path — a diverging cylinder solve would have tripped the
+§16.D cylinder-unmoved baseline.
 
 **G-reciprocity catches a seed-row error (Mode 12 — CLOSED, ERR-067).**
 Under the *retired* **ghost** :math:`G_{\rm sd} = 0` the seed block

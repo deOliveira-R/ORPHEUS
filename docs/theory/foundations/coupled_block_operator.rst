@@ -470,10 +470,15 @@ iterate :math:`\psi \leftarrow M^{-1}(q + N\psi)` (SI) or GMRES on
 .. vv-status: coupled-mn-splitting documented
 
 **Presence is structural (R12a).** System B exists **only** on a
-seed-carrying mesh (the 1-D sphere): the mesh's ray spaces are ``None``
+seed-carrying mesh — the 1-D sphere and, since the Q5.6.3 admission flip,
+*every admitted cylinder*, whose folded rule carries on every
+:math:`\mu`-level: the mesh's ray spaces are ``None``
 :math:`\iff` non-carrying, and the ``RadialCharacteristic*`` block
 constructors *refuse* seedless meshes. So a seed-carrying mesh builds the
-2×2; a seedless mesh (slab / cylinder / Cartesian) builds the 1×1
+2×2; a seedless mesh — a Cartesian chart, or a curvilinear rule with no
+carrying level (a class cylindrical admission refuses since Q5.6.3; a
+:math:`\mu = -1`-noded sphere rule reaches it, the sphere arm having no
+admission gate) — builds the 1×1
 :math:`[[A_{AA}]]` and the splitting degrades to the bare :math:`(L+C,\
 (S, B_a))` the seedless driver paths consume zero-touch. "Applying a
 System-B block on a non-carrying mesh" is not a runtime branch — it is an

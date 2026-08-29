@@ -735,7 +735,9 @@ class TestT4bPreT4RegressionSnapshot:
         # pre-route-(a) internally-computed seed.  The bulk re-associates
         # ~1 ULP vs the fused spelling (inside the principled band); the
         # boundary residual is probe-reconstructed, seed-independent —
-        # byte-identical.  No seed term on non-carrying meshes (slab/cyl).
+        # byte-identical.  No seed term on non-carrying meshes — since
+        # Q5.6.3 the Cartesian charts only (the ADMITTED cylinder's
+        # folded rule carries on every level).
         sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
         out = L.apply(state)
         if sd is not None:
@@ -972,7 +974,9 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         # pre-route-(a) internally-computed seed.  The bulk re-associates
         # ~1 ULP vs the fused spelling (inside the principled band); the
         # boundary residual is probe-reconstructed, seed-independent —
-        # byte-identical.  No seed term on non-carrying meshes (slab/cyl).
+        # byte-identical.  No seed term on non-carrying meshes — since
+        # Q5.6.3 the Cartesian charts only (the ADMITTED cylinder's
+        # folded rule carries on every level).
         sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
         out = L.apply(state)
         if sd is not None:

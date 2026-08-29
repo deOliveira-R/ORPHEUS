@@ -962,8 +962,12 @@ class TestA_BB_RadialBVP:
     completes the forward via the shared kernel).
     The convergence-ORDER claim lives in the sibling L1 module
     ``test_ray_operator.py`` (don't conflate foundation + verifies, L9). Every
-    value row is ≥2G; the sphere-GL S4 carrier is the ONLY seed-carrying member
-    (cylinder/slab are the non-carrying CONTROL — the constructor rejects them).
+    value row is ≥2G; the sphere-GL S4 carrier is this class's seed-carrying
+    member, and the slab is the non-carrying CONTROL (the constructor rejects
+    it).  ⛔ "cylinder/slab are the non-carrying CONTROL" read here until
+    2026-08-29 and is present-tense FALSE since the Q5.6.3 admission flip: a
+    cylindrical ``SNMesh`` admits only CARRYING (folded) rules, so the slab is
+    the only admitted non-carrying 1-D geometry.
 
     Runtime: gates raise via :func:`pytest.fail` / ``np.testing.assert_*`` (fire
     under ``python -O``), never a bare ``assert`` (vv Mode 8).
@@ -1624,15 +1628,17 @@ class TestA_BA_SchurFold:
     Post-LIFT (campaign step 4c, commit 1) this class pins the FOLD FACTOR + the
     non-carrying control: the fold contract (``P_ℓ(±1) = (±1)^ℓ`` on a manufactured
     anisotropic input), the fold-transpose Euclidean contract, the fold-factor
-    surface value + its Euclidean transpose, and the cyl/slab non-carrying control.
+    surface value + its Euclidean transpose, and the slab non-carrying control.
     The FULL coupling operator ``RadialCharacteristicEmission`` (``Fold ∘ K_iso ∘
     integrate``), the S/F→pure-bulk lift, and the driver routing are pinned in
     :class:`TestCoupledLift` (the step-2 "S/F EMIT the ray" gates are retired
     there — S/F are now pure bulk).
 
-    Carrying member = **sphere-GL S4 ONLY** (the only geometry that carries a ψ½
-    level, R12a; 1 level → 2 fold calls/arm). cylinder/slab are the non-carrying
-    CONTROL. Every value row is ≥2G (1G is degenerate, vv anti-#3). Runtime: gates
+    Carrying member here = **sphere-GL S4** (R12a; 1 level → 2 fold calls/arm)
+    — the only carrying member THIS class exercises, not the only one that
+    exists: since Q5.6.3 the admitted folded cylinder carries on every level
+    too.  The slab is the non-carrying CONTROL (the only admitted non-carrying
+    1-D geometry). Every value row is ≥2G (1G is degenerate, vv anti-#3). Runtime: gates
     raise via ``pytest.fail`` / ``np.testing.assert_*`` (fire under ``python -O``),
     never a bare ``assert`` (vv Mode 8).
     """
@@ -2496,8 +2502,13 @@ class TestCoupledLift:
 # in-sweep reverse adds on cells(p,-1). A_sb=0 (block-triangular) and A_bs≈7.5
 # (this coupling's magnitude) are already pinned by TestRegressionFloor — not
 # re-tested here. The sphere carries ONE level (R12a), so the per-level loop is
-# length 1: a multi-carrying-level indexing bug is UNTESTABLE with current
-# geometry (cylinder is non-carrying) — an inherited blind spot, noted not faked.
+# length 1: a multi-carrying-level indexing bug is untested BY THIS MODULE.
+# ⛔ The reason recorded here until 2026-08-29 — "UNTESTABLE with current
+# geometry (cylinder is non-carrying)" — is present-tense FALSE since the
+# Q5.6.3 admission flip: the ADMITTED cylinder is folded, hence CARRYING on
+# every level (`[M]` 2026-08-29, ``folded_product(2, 4)`` →
+# ``_carrying_levels == [0, 1]``), so a multi-carrying-level fixture is now
+# CONSTRUCTIBLE.  What remains is a fixture gap, not a geometry limit.
 
 
 def _bulk_composite(sn, bulk_values: NDArray) -> FullField:
@@ -2556,8 +2567,10 @@ class TestA_AB_SeedInjection:
     completeness ``A_BB`` reached at step 4b (its forward is the radial march,
     single-sourced with the walk via ``radial_characteristic_forward_residual``).
 
-    Sphere-GL S4 is the ONLY carrying member (cylinder/slab are the non-carrying
-    CONTROL — the constructor rejects them). Every value row is ≥2G. Gates raise
+    Sphere-GL S4 is this class's carrying member; the slab is the non-carrying
+    CONTROL (the constructor rejects it — since Q5.6.3 the only admitted
+    non-carrying 1-D geometry, the ADMITTED cylinder being folded, hence
+    carrying on every level). Every value row is ≥2G. Gates raise
     via :func:`pytest.fail` / ``np.testing.assert_*`` (fire under ``python -O``),
     never a bare ``assert`` (vv Mode 8).
 
@@ -2924,8 +2937,10 @@ class TestCoupledBuilder:
     presence collapse for the grid arm).
 
     Gates G-c2.1–2.6 per the delta memo. Sphere-GL S4 is the carrying member
-    (REFLECTIVE where ``B_b`` must be non-null — memo F1); slab + cylinder
-    are the non-carrying CONTROL (1×1). ≥2G everywhere. Gates raise via
+    (REFLECTIVE where ``B_b`` must be non-null — memo F1) and, since Q5.6.3,
+    the admitted folded cylinder is a SECOND carrying case (2×2 — asserted in
+    :meth:`TestCoupledBuilder.test_p2_presence_structural`); the slab is the non-carrying CONTROL
+    (1×1). ≥2G everywhere. Gates raise via
     :func:`pytest.fail` / ``np.testing.assert_*`` (fire under ``python -O``).
     """
 
@@ -2980,7 +2995,9 @@ class TestCoupledBuilder:
     # ── G-c2.2 — P2 presence-STRUCTURAL (positive shapes + refusals) ──────
 
     def test_p2_presence_structural(self):
-        r"""Carrying sphere → 2×2; non-carrying slab AND cylinder → 1×1 over
+        r"""Carrying sphere AND carrying folded cylinder → 2×2 (Q5.6.3: the
+        admitted cylinder is folded, hence carrying on every level); the
+        non-carrying slab → 1×1 over
         ``(full_field_space,)`` alone. The bypass-proof (the memo's forced-
         presence negative, realized at the guards that enforce it): EVERY
         System-B block constructor refuses a seedless mesh with its own

@@ -50,8 +50,13 @@ are NOT uniform — the two off-diagonals differ, a trap worth spelling out:
   straight-characteristic march minus the ray-corner boundary gain.
 
 Presence is STRUCTURAL (P2, subsuming the step-6 guard retirement for the
-grid arm): a seed-carrying mesh (the sphere, R12a) builds the 2×2; a
-non-carrying mesh (slab / cylinder) builds the 1×1 ``[[A_AA]]`` — System B's
+grid arm): a seed-carrying mesh builds the 2×2 — the GL sphere and, since
+the Q5.6.3 admission flip, EVERY admitted cylinder, whose folded rule
+carries on every μ-level (R12a); a non-carrying mesh builds the 1×1
+``[[A_AA]]`` — the Cartesian charts and any curvilinear rule with no
+carrying level (cylinder admission refuses that class since Q5.6.3; a
+μ = −1-noded sphere rule reaches it, the sphere arm having no admission
+gate) — System B's
 blocks are never constructed there (their constructors refuse seedless
 meshes), so "applying a System-B block on a non-carrying mesh" is not a
 runtime branch, it is an object that does not exist.

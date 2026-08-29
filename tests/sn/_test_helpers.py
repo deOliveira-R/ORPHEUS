@@ -585,7 +585,9 @@ def legacy_proxy_matvec(
     # reference tests, fill the ψ½ block with the closure's edge
     # extrapolation of ``psi_view`` (the cells legs; corners = the same
     # edge value so a constant field telescopes to σ_t·ψ).  Non-carrying
-    # meshes (slab/cyl) → None, byte-identical to the pre-2.5d helper.
+    # meshes → None, byte-identical to the pre-2.5d helper.  Since Q5.6.3
+    # the Cartesian charts are the only admitted non-carrying ones: the
+    # ADMITTED cylinder's folded rule carries on every level.
     radial_characteristic = radial_characteristic_edge_seed(psi_view, sn_mesh)
     composite = TimedFullField(
         interior=AngularFlux(values=psi_view, space=sn_mesh.angular_bulk_space),

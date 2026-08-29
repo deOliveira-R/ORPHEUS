@@ -239,8 +239,11 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
     ----------
     field_space : FullFieldSpace or None
         System B's member composite (interior ⊕ boundary corner) — the
-        endomorphic domain/codomain. ``None`` (a seedless pose — Cartesian /
-        non-carrying cylinder, R12a) is REFUSED: no System B, no A_BB.
+        endomorphic domain/codomain. ``None`` (a seedless pose, R12a — a
+        Cartesian chart, or a curvilinear rule with no carrying level;
+        cylinder admission refuses that class since Q5.6.3, and a
+        μ = −1-noded sphere rule reaches it) is REFUSED: no System B, no
+        A_BB.
     total_cross_section : CrossSectionField
         The total cross-section :math:`\sigma_t` as a typed
         :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
@@ -772,8 +775,10 @@ class RadialCharacteristicSeeding(
         The augmented geometry — seed-carrying (1-D curvilinear, R12a). Supplies
         the ray carrier (the domain), the M-M closure ``angular_closure``
         (the single-sourced kernel), the cell volumes ``volumes``, and the
-        quadrature ``quad``. A seedless mesh (Cartesian, or a non-carrying
-        cylinder) has NO ray→bulk coupling: constructing over one is rejected. Unlike ``A_BB``,
+        quadrature ``quad``. A seedless mesh (a Cartesian chart, or a
+        curvilinear rule with no carrying level — a class cylinder admission
+        refuses since Q5.6.3) has NO ray→bulk coupling:
+        constructing over one is rejected. Unlike ``A_BB``,
         ``A_AB`` needs NO :math:`\sigma_t` — with the bulk zeroed the
         collision/streaming terms drop out and only the σ-independent angular
         numerator survives.
@@ -789,8 +794,9 @@ class RadialCharacteristicSeeding(
             raise ValueError(
                 "RadialCharacteristicSeeding: the mesh carries no "
                 "starting-direction ray (the split ψ½ spaces are None) "
-                "— a seedless mesh (Cartesian, or a non-carrying cylinder, "
-                "R12a) has no System B, hence no ray→bulk seed coupling to "
+                "— a seedless mesh (a Cartesian chart, or a curvilinear rule "
+                "with no carrying level, R12a) has no System B, hence no "
+                "ray→bulk seed coupling to "
                 "inject. A_AB exists only on a seed-carrying mesh — the GL "
                 "sphere, the σ_y-folded cylinder (Q5.6)."
             )
@@ -1381,8 +1387,9 @@ class RadialCharacteristicEmission(LinearOperator):
             raise ValueError(
                 "RadialCharacteristicEmission: the pose carries no "
                 "radial-characteristic ray (the split ψ½ spaces are None) "
-                "— a seedless mesh (Cartesian, or a non-carrying cylinder, "
-                "R12a) has no System B, hence no bulk→ray emission "
+                "— a seedless mesh (a Cartesian chart, or a curvilinear rule "
+                "with no carrying level, R12a) has no System B, hence no "
+                "bulk→ray emission "
                 "coupling. A_BA exists only on a seed-carrying mesh — the "
                 "GL sphere, the σ_y-folded cylinder (Q5.6)."
             )

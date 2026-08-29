@@ -4328,12 +4328,15 @@ class _OneDimScanWalk:
                 ordinates_in_level = level_ordinates_list[p_idx]
                 ords_arr = np.asarray(ordinates_in_level)
                 # ── the ZERO thread (step 6 — the walk IS the (A,A) block) ──
-                # Non-carrying level: ψ½ ≡ ψ̄_{m0} (product, t=0) is
-                # resolved by the #280 2.5b diagonal fold when m0 is
-                # swept (below) — no pre-loop seed, no iterate read;
-                # ``psi_angle`` is the M-M thread buffer and m0 (swept
-                # first) writes its own average into it before any
-                # downstream ordinate reads it.  A CARRYING level: the
+                # ⛔ Until Q5.6.3 a NON-carrying level (ψ½ ≡ ψ̄_{m0} —
+                # product, t = 0) was resolved by the #280 2.5b diagonal
+                # fold when m0 was swept: no pre-loop seed, no iterate
+                # read, ``psi_angle`` the M-M thread buffer that m0
+                # (swept first) filled with its own average before any
+                # downstream ordinate read it.  The admission flip made
+                # that level unconstructible and the fold was retired
+                # with it (the HISTORY note above), so EVERY level
+                # reaching this loop is CARRYING: the
                 # zero thread IS the ray-decoupled (L+C) closure — no fold
                 # entry exists for carrying levels, so the recurrence
                 # starts at exactly ψ½ = 0 (the LC diagonal-block
@@ -4714,14 +4717,19 @@ class _OneDimScanWalk:
                 in_bar[ords] = in_cot[ords] + psi_in_bar
             return Q_bar, m_boundary
 
-        # ── CURVILINEAR reverse-scan (sphere carrying + cylinder non-carrying) ──
-        # The transpose of ``_run``'s unified curvilinear body (#280 2.5b cyl
-        # arm): the per-level Morel–Montry thread reversed; the SPHERE's carrying
-        # Carlson ψ½ march transposed into a starting-direction cotangent; the
-        # CYLINDER's non-carrying m0 seed — folded into the cell diagonal
-        # (#280 2.5b-cyl-fwd) — transposed as the seed-ordinate's own-average
-        # routing (no carrier, ``m_seed = None``); and the pure-azimuthal
-        # DEGENERATE ordinates as slot-local diagonal transposes.
+        # ── CURVILINEAR reverse-scan (sphere AND cylinder both carrying) ──
+        # The transpose of ``_run``'s unified curvilinear body: the per-level
+        # Morel–Montry thread reversed; the CARRYING Carlson ψ½ march
+        # transposed into a starting-direction cotangent (the sphere's single
+        # level, and since Q5.6.3 every level of the admitted folded
+        # cylinder); and the pure-azimuthal DEGENERATE ordinates as slot-local
+        # diagonal transposes.
+        # ⛔ Until Q5.6.3 the cylinder arm also carried a NON-carrying m0 seed
+        # folded into the cell diagonal (#280 2.5b-cyl-fwd) and transposed as
+        # the seed-ordinate's own-average routing (no carrier, ``m_seed =
+        # None``).  The admission flip made that configuration
+        # unconstructible and the fold was retired with it — see the
+        # level-structure comment below and ``_run``'s HISTORY note.
         from ..angular.closure import MorelMontryAngularSweep
 
         is_sphere = coord is CoordSystem.SPHERICAL

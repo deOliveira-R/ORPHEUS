@@ -53,9 +53,12 @@ from .scan import ordinate_scan
 # RETIRED the whole strategy zoo: the starting-direction flux is
 # first-class composite STATE (R12a presence predicate), the solve
 # marches it directly via ``carlson_inward_sweep_from_source`` on the
-# TRUE q½ source, the apply reads the given carrier block, and the
-# non-carrying cylinder levels inline the edge extrapolation on the
-# closure (``MorelMontryAngularSweep.edge_extrapolated_seed``).
+# TRUE q½ source, the apply reads the given carrier block, and a
+# non-carrying level inlines the edge extrapolation on the closure
+# (``MorelMontryAngularSweep.edge_extrapolated_seed``).  Since Q5.6.3
+# no ADMITTED cylinder has such a level — its folded rule carries on
+# every one — so that inline's reachable witness is a mu = -1-noded
+# sphere rule (the spherical arm has no admission gate).
 
 __all__ = [
     "carlson_inward_sweep_from_source",

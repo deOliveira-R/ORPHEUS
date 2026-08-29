@@ -172,8 +172,10 @@ def _build_composite(
         operator) and constant-preserving (so ``(L+C)·const = σ_t·const``
         still holds).  The reciprocity gate overrides with a RANDOM block
         (exercising the seed rows under the FULL-space Euclidean dot).
-        Non-carrying meshes (slab/cyl) ignore this — the block is
-        structurally ``None``.
+        Non-carrying meshes ignore this — the block is structurally
+        ``None``.  Since Q5.6.3 the Cartesian charts are the only
+        admitted non-carrying ones (the ADMITTED cylinder's folded rule
+        carries on every level).
     """
     if boundary_values is None:
         boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
