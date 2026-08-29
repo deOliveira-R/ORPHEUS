@@ -219,7 +219,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     is the SPATIAL axis: DD-in-ANGLE's first-order :math:`\beta`-failure (the
     curvilinear flux dip, Bailey–Morel–Chang 2010) is a DISTINCT, angular result
     — do NOT read it as a spatial-DD deficiency.  The angular condition lives on
-    the pole-angular closure; the PAIR validity is
+    the angular closure; the PAIR validity is
     :func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`."""
 
     supports_curvilinear: ClassVar[bool] = True

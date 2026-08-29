@@ -108,7 +108,7 @@ truth for "which faces exist":
 * **Mesh1D curvilinear** (sphere / cylinder) — ONE face ``xmax`` (the
   outer radius :math:`r=R`). The geometric pole :math:`r=0` is a
   *regularity/symmetry condition* handled by the angular sweep's
-  pole closure (``MorelMontryAngularSweep`` / Carlson seed), **not** a
+  angular closure (``MorelMontryAngularSweep`` / Carlson seed), **not** a
   boundary face — there is no surface there and no inflow to impose.
   This is why the curvilinear layout has no inner face (it is NOT a
   ``left/right`` pair): a solid sphere has exactly one boundary.

@@ -183,7 +183,7 @@ def test_sentinel_sphere_streaming_equilibrium() -> None:
 
     Canary for the ``sweep_curvilinear`` capability node — a flip here
     localizes (via cap("sweep_curvilinear") + the DAG) to the
-    pole-angular-closure / Carlson-seed / WDD-curvilinear cluster.
+    angular-closure / Carlson-seed / WDD-curvilinear cluster.
     Same assertion as
     :func:`test_homogeneous_streaming_equilibrium_sphere` at
     ``n_cells=20, n_ord=8, inner_solver="source_iteration"``.

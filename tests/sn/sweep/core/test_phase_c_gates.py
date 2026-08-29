@@ -369,7 +369,7 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     ≡ 0 per ordinate. With Σ_t = 0 the matvec output must be
     bit-zero; with Σ_t ≠ 0 it must equal Σ_t·ψ to rtol=1e-12.
 
-    Parametrised over the three pole-angular-closure strategies. The
+    Parametrised over the three angular-closure strategies. The
     MMS canonical form is expected to FAIL this test pre-spatial-
     closure-alignment (Phase B observation, documented in the Phase B
     closeout memo). Phase C's sweep-frame matvec WITH WDD spatial

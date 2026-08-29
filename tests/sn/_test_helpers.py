@@ -414,7 +414,7 @@ def curvilinear_two_region_mesh(
 def make_tiny_spherical_sn_mesh(n_cells: int = 2, sn_order: int = 2) -> "SNMesh":
     """Minimal bound-closure host: an ``n_cells``-cell reflective sphere.
 
-    The cheapest SNMesh satisfying the pole-angular-closure family's
+    The cheapest SNMesh satisfying the angular-closure family's
     ``cls(sn_mesh)`` construction contract (C5, 2026-07-03, retired the
     unbound ``MorelMontryAngularSweep()`` legacy mode) — for foundation
     tests of strategy construction, registry ``create``, repr, and seed

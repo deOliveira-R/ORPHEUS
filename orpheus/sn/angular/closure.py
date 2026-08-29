@@ -238,7 +238,7 @@ def _require_single_moment_pairing(pairing: np.ndarray, who: str) -> None:
 
 
 class AngularClosureBase(RegistryMixin, ABC):
-    r"""Concrete abstract base for self-registering pole-angular-closure strategies.
+    r"""Concrete abstract base for self-registering angular-closure strategies.
 
     Subclasses inherit this ABC and pass ``key="..."`` in the class
     statement to self-register; the registry is consulted via
@@ -2135,7 +2135,7 @@ class MorelMontryAngularSweep(
 
 
 class IdentityAngularClosure(AngularClosureBase, key="identity_angular_closure"):
-    r"""No-op pole-angular closure for Cartesian (slab + 2-D rectilinear).
+    r"""No-op angular closure for Cartesian (slab + 2-D rectilinear).
 
     The Cartesian SN balance equation has no angular-redistribution term —
     Hébert §3.9.4's :math:`(\Delta A/w)` factor vanishes on flat geometry
@@ -2258,7 +2258,7 @@ class IdentityAngularClosure(AngularClosureBase, key="identity_angular_closure")
 
 
 def default_angular_closure_class(coord: CoordSystem) -> "type[AngularClosureBase]":
-    """Return the default pole-angular-closure CLASS for a coordinate system.
+    """Return the default angular-closure CLASS for a coordinate system.
 
     PR-TYPED-6.5 Phase 2.9.  The factory dispatch (instantiation with
     ``sn_mesh``) is the caller's job — typically ``SNMesh.__init__``
@@ -2273,7 +2273,7 @@ def default_angular_closure_class(coord: CoordSystem) -> "type[AngularClosureBas
     if coord in (CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL):
         return MorelMontryAngularSweep
     raise ValueError(
-        f"No default pole-angular-closure for coordinate system {coord!r}"
+        f"No default angular closure for coordinate system {coord!r}"
     )
 
 

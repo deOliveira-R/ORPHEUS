@@ -290,7 +290,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     is PINNED, no longer xfail, by ``test_ld_thick_diffusive_limit`` — see the
     module note).  A flat-source LD (:math:`\hat Q = 0`) would be ``O(h²)`` but
     NOT diffusion-limit-consistent.  The angular first-order condition is
-    separate (the pole-angular closure's ``beta_first_order_consistent``); the
+    separate (the angular closure's ``beta_first_order_consistent``); the
     PAIR validity is
     :func:`~orpheus.sn.sweep.pairing.pair_diffusion_limit_consistent`."""
 

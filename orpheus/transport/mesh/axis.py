@@ -467,7 +467,7 @@ def coord_system(axes: tuple[Axis1D, ...]):
 
     Multi-axis tuples must be all-Cartesian — a curvilinear axis only
     has meaning as the sole axis of a 1-D solid mesh (the reduced
-    streaming operators and the pole angular closure are 1-D
+    streaming operators and the angular closure are 1-D
     constructions); mixing it into a product mesh is unrepresentable.
 
     Raises

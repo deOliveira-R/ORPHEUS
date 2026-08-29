@@ -578,3 +578,25 @@ predicates operator-side (they consume the handed pair); Q6 =
 read-set); F5's partition = step 2's done-when (21 space-side reads STAY
 hub-side); F9 = zero predicted-red; F10's second DiamondDifference
 (the type-keyed diagnostic probe) carved out of identity gates BY NAME.
+
+## 10. ⛔ Two corrections from the archivist's independent re-measurement
+## (2026-08-29, its docs pass — §4's verify move, working again)
+
+1. **`SNMesh.__eq__` does NOT compare the scheme type — §2's table row is
+   WRONG on attribution.** `[M]` (archivist + verification plan F8):
+   `SNMesh.__eq__` is `object.__eq__` (identity); the
+   `type(self.scheme) is type(other.scheme)` conjunct I quoted at ":587"
+   belongs to **`is_same_phase_space`**. Zero design consequence (the
+   ruled design left the mesh untouched and no step keyed on `__eq__`),
+   but the claim was published in this memo's §2 and the D3 option text —
+   both now read with this banner.
+2. **The F2 operator count is FIXTURE-DEPENDENT and my relays kept one
+   fixture's number.** Architect at `10314dfa`: 6–10 operators/solve;
+   archivist on its own fixtures: **38–43**/solve (the count scales with
+   outer iterations — "independent of nx/ng/inner solver" was the
+   architect's measured scope, not a universal). Consequence restated
+   honestly: a per-operator memo costs 16.8–24.65 % on the architect's
+   fixtures and **up to +68 %** on the archivist's. The RULED design
+   made the number moot for cost (`[M]` builds == 1 on all four configs,
+   both measurers) — the COUNT gate, not the percentage, is the
+   instrument.

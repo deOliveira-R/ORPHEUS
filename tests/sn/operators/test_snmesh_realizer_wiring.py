@@ -398,7 +398,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
 def test_1d_cylindrical_one_boundary_outer_reflective():
     """A solid cylinder has ONE boundary — the outer radius (``xmax``).
     Any ``bc_left`` declaration at the pole r=0 is moot: the centreline
-    is a geometry-forced symmetry handled by the angular pole closure,
+    is a geometry-forced symmetry handled by the angular closure,
     not an externally-imposed BC. So the ``bc`` dict has no pole
     entry, and only the outer reflective BC is realized. The
     :class:`ReflectiveBoundary` branch produces a

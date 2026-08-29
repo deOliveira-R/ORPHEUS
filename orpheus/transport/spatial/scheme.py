@@ -1346,7 +1346,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
 
         SPATIAL relation ONLY (#310 ruling 1): the Morel–Montry
         angular-numerator cotangent stays with the walk and
-        ``PoleAngularClosure.angular_adjoint`` — a kernel folding the angular
+        ``AngularClosureBase.angular_adjoint`` — a kernel folding the angular
         thread would re-fuse the spatial/angular closure separation the
         codebase deliberately keeps.
 

@@ -559,7 +559,7 @@ class SNMesh(MaterialMesh):
         strong tier; callers wanting cross-problem comparisons must
         construct shared constituents.
 
-        The pole angular closure is deliberately EXCLUDED: it is a
+        The angular closure is deliberately EXCLUDED: it is a
         solve-time sweep strategy (how ψ is computed near the pole), not a
         phase-space constituent — it changes neither the field layout nor
         the quadrature the pairings contract, so fields from two closures
@@ -731,7 +731,7 @@ class SNMesh(MaterialMesh):
         scheme : DiscretizationSchemeBase or None
             Cell-update strategy. Defaults to :class:`DiamondDifference`.
         angular_closure : type[AngularClosureBase] or None
-            Override the default pole-angular closure CLASS
+            Override the default angular closure CLASS
             (curvilinear → :class:`MorelMontryAngularSweep`,
             Cartesian → :class:`IdentityAngularClosure`).  A class, not
             an instance: closures bind to their mesh at construction
@@ -794,7 +794,7 @@ class SNMesh(MaterialMesh):
         scheme : DiscretizationSchemeBase or None
             Cell-update strategy.  Defaults to :class:`DiamondDifference`.
         angular_closure : type[AngularClosureBase] or None
-            Override the default pole-angular closure CLASS
+            Override the default angular closure CLASS
             (curvilinear → :class:`MorelMontryAngularSweep`,
             Cartesian → :class:`IdentityAngularClosure`).  A class, not
             an instance: closures bind to their mesh at construction
