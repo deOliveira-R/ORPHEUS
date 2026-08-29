@@ -37,7 +37,9 @@
 > slab's `reduced` as "hollow", or `reduced is None` as conflating two
 > facts** (✅ P4.5 landed `260ddc64`; P4.1b made the slab object
 > load-bearing; `[M]` presence ⟺ `is_1d` and the guards now SAY so) ·
-> `_is_curvilinear` exists. Every
+> `_is_curvilinear` exists · **the moment-mass family takes `(ndim, coord)`**
+> or its guard re-interprets a chart tag (✅ P4.6 `2ec73b80`: it consumes
+> `tuple[Axis1D, ...]` and asks `has_constant_volume_element`). Every
 > one was true once, or was proposed and refuted, below.
 >
 > ⭐ **Three phases landed 2026-08-28 — P4.4, P4.2, P4.3 — and P4.9 was
@@ -112,6 +114,7 @@
 > | `5940deba` | **P4.2** | the angular factor comes home — 6 symbols to `sn/angular/`, and the L0 ladder takes α as a keyword |
 > | `da507e3d` | **P4.3** | `StreamingTerms` to L2 beside its contract; `geometry/reduced_operator.py` DELETED; docs sweep `590c12d0` |
 > | `7a0f434c` | **P4.9a** | the closure owns its march; DD spatial-only; `cell_balance_terms` dead; the visit family purely spatial; the handing; the degenerate frozen corpus; docs `ca852c44` (12 commits, `cb65c4cc`…) |
+> | `2ec73b80` | **P4.6** | the moment mass consumes the AXES — `has_constant_volume_element` per axis; the chart tag leaves the family; `ndim` → `len(axes)`; mixed-tuple witness |
 > | `260ddc64` | **P4.5** | the predicates say what they ask (`is_1d` re-keys; the annotation tells the truth; `_is_curvilinear` dead) — chain-scan reading; the title's premise dissolved at P4.1b |
 > | `a60e5c0f` | **P4.9b** | the operator is POSED with its two closures (`.pose`; no defaults, no guards); the walk consumes the HANDED pair (keystone: post-pose hub swaps INERT); the strategy-layer intern (count-gated); the pole misnomer dead (`angular_closure`/`AngularClosureBase`); docs `9c3eb60a` (16 commits `b253732f`…`a60e5c0f` + tail `5a1591d2`, incl. archivist) |
 >
@@ -132,6 +135,11 @@
 > 70 xf; sn 3291, derivations 1637, numerics 2445, geometry 727, root 409
 > all baseline-exact) — the chain-scan reading's "bit-identical by
 > construction" measured true; pyright orpheus/ 0, tests/ −7 net.
+> **P4.6 9848/0 — `[M]` 13 trees rc=0, delta exactly +1 = the new
+> mixed-axes witness, PREDICTED before the run** (22 sk / 227 des / 70 xf
+> unchanged; matrix.rst regenerated 10166 → 10167 by the same +1);
+> pyright orpheus/ 0, tests/ at baseline; sphinx -W 0; dead_references
+> 0/52. ⟹ the acceptance baseline for the next step is **9848**.
 >
 > ### ▶ NEXT — **the campaign's next act is a SEQUENCING ruling** (P4.9 is
 > COMPLETE: P4.9a ✅ `7a0f434c`, P4.9b ✅ merged 2026-08-29; **§5b ⛔ P0
@@ -155,11 +163,13 @@
 > 2026-08-29 (user): P4.5 → P4.6 → P4.7**, and **P4.5 is ✅ LANDED
 > `260ddc64`** under the CHAIN-SCAN reading (the title's premise dissolved
 > at P4.1b — see the section's banner; ground:
-> `scratch/p4_5_ground_remeasure.md`). ▶ NEXT IN THE RULED ORDER: **P4.6**
-> (the moment mass consumes the MEASURE), then P4.7 (open it with the
-> consequence re-measure: `delta_A_over_w`'s readership post-P4.9, per the
-> `[R]` note in the P4.9 ordering block; its enumeration must include the
-> walk's packet-field readership, per P4.9a's Q2 note). Behind them: P4b
+> `scratch/p4_5_ground_remeasure.md`), and **P4.6 is ✅ LANDED `2ec73b80`**
+> (the family consumes the AXES via `has_constant_volume_element`; ground
+> `scratch/p4_6_ground_measure.md`). ▶ NEXT IN THE RULED ORDER: **P4.7**
+> (open it with the consequence re-measure: `delta_A_over_w`'s readership
+> post-P4.9, per the `[R]` note in the P4.9 ordering block; its enumeration
+> must include the walk's packet-field readership, per P4.9a's Q2 note).
+> Behind it: P4b
 > (the cache strata carve) · CS5 (gates the P4-mint remainder + P3c) · P6 ·
 > the re-posed §5b build. P5 rides O-3; P7 = #409. Read `scratch/p4_9b_design.md` §§7–10
 > before designing anything that touches the posing surfaces.
@@ -1569,6 +1579,23 @@ what it is.
 **P4.6 — the moment mass consumes the MEASURE, not a chart tag.**
 ✅ RULED 2026-08-27 (user): *"it is very important to correct the flaw"*, in the
 move, after compaction.
+
+✅✅ **EXECUTED 2026-08-29 @ `2ec73b80`** (operand RULED at the design round:
+**per-axis**; ground `scratch/p4_6_ground_measure.md` — every claim below
+CONFIRMED at HEAD, the tag surface exactly 4 definitions with 2 plumbing-free
+production callers). Realization: the family consumes `tuple[Axis1D, ...]`
+and asks each axis the NEW protocol capability
+`has_constant_volume_element` (AxisMesh True / RadialAxisMesh False) — the
+measure's behaviour read polymorphically at the granularity the Kronecker'd
+mass is built at; `ndim` died into `len(axes)`; whole-mesh `CoordSystem`
+left the signatures and both files' runtime imports; the guard names the
+offending AXIS kinds and a mixed (z, r) tuple is admissible + witnessed
+(the case the whole-mesh enum structurally could not pose). ⚠ Exactly as
+ruled, the REFUSAL stays — the curvilinear multi-moment VALUE still needs
+#409 + #158; what changed is who is asked. The transitional-tag admonition
+carries its resolution note; the full M+R mint remains CS5's P4-mint.
+P4-item-1's tag scope is thereby DISCHARGED for this family (`[M]` the
+explorer's census: no other member anywhere).
 
 `[M]` shipped `M` does **not consume the measure at all**. `LinearDiscontinuous.
 moment_mass_diagonal` builds it from `mass_1d(np.ones(()), self.theta)` — the
