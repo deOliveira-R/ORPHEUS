@@ -147,7 +147,7 @@ class TestDagOwnership:
         """[L0 structural] The _DAGWavefront family OWNS the accessor: the
         property resolves to the per-shape graphs on a real mesh."""
         sn = _build_mesh("cart2d")
-        graphs = rep_cls(sn).sweep_graphs
+        graphs = rep_cls.pose(sn).sweep_graphs
         if set(graphs.keys()) != {
             OctantLabel((+1, +1)), OctantLabel((+1, -1)),
             OctantLabel((-1, +1)), OctantLabel((-1, -1)),
@@ -168,8 +168,8 @@ class TestPerShapeCache:
         """[L0] Two meshes of the SAME spatial shape share the SAME cached
         family (the mesh-time precompute contract carries over: repeated
         access does not rebuild)."""
-        rep_a = MovingFrontierWindow(_build_mesh("cart2d"))
-        rep_b = MovingFrontierWindow(_build_mesh("cart2d"))
+        rep_a = MovingFrontierWindow.pose(_build_mesh("cart2d"))
+        rep_b = MovingFrontierWindow.pose(_build_mesh("cart2d"))
         if rep_a.sweep_graphs is not rep_b.sweep_graphs:
             pytest.fail(
                 "same-shape meshes did not share the cached DAG family — "
@@ -313,7 +313,7 @@ class TestForShapeTypeContract:
         sn = SNMesh(
             _build_2d_mesh(4, 4), Quadrature.lebedev(5), placeholder_materials(),
         )
-        graphs = MovingFrontierWindow(sn).sweep_graphs
+        graphs = MovingFrontierWindow.pose(sn).sweep_graphs
         np.testing.assert_array_equal(
             len(graphs), 4, err_msg="lebedev mesh: 4 in-plane octants",
         )

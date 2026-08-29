@@ -384,7 +384,7 @@ def run_sweeps(
     face views from there).
     """
     Q_combined = combine_source(inputs)
-    window = MovingFrontierWindow(inputs.sn_mesh)
+    window = MovingFrontierWindow.pose(inputs.sn_mesh)
     angular_flux = scalar_flux = None
     for _ in range(n_sweeps):
         _reflect_outflow_into_inflow(inputs.boundary_flux, inputs.sn_mesh)

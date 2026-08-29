@@ -174,7 +174,7 @@ class TestDispatchSelectsStrategy:
         sn_mesh = _slab_sn_mesh()
         if sn_mesh.reduced is None:
             pytest.fail("slab fixture unexpectedly has reduced is None")
-        strategy = default_for(sn_mesh)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"slab → {type(strategy).__name__}, expected CumprodScan"
@@ -186,7 +186,7 @@ class TestDispatchSelectsStrategy:
         sn_mesh = _spherical_sn_mesh()
         if sn_mesh.reduced is None:
             pytest.fail("spherical fixture unexpectedly has reduced is None")
-        strategy = default_for(sn_mesh)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"sphere → {type(strategy).__name__}, expected CumprodScan"
@@ -198,7 +198,7 @@ class TestDispatchSelectsStrategy:
         sn_mesh = _cylindrical_sn_mesh()
         if sn_mesh.reduced is None:
             pytest.fail("cylindrical fixture unexpectedly has reduced is None")
-        strategy = default_for(sn_mesh)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"cylinder → {type(strategy).__name__}, expected CumprodScan"
@@ -217,7 +217,7 @@ class TestDispatchSelectsStrategy:
         sn_mesh = _2d_sn_mesh()
         if sn_mesh.reduced is not None:
             pytest.fail("2-D fixture unexpectedly has reduced is not None")
-        strategy = default_for(sn_mesh)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
         if not isinstance(strategy, ScanMarch):
             pytest.fail(
                 f"2-D Cartesian → {type(strategy).__name__}, "
@@ -267,7 +267,7 @@ class TestHonestCurvilinearSchemeSelection:
         — not the generic 'no strategy' fall-through, not a mid-sweep raise."""
         sn_mesh = self._curvilinear_mesh(coord, scheme=LinearDiscontinuous())
         with pytest.raises(IncompatibleRepresentation) as exc:
-            default_for(sn_mesh)
+            default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
         reason = str(exc.value).lower()
         if "curvilinear" not in reason or "no sweep strategy supports" in reason:
             pytest.fail(
@@ -283,7 +283,7 @@ class TestHonestCurvilinearSchemeSelection:
         """Frontend-queryable contract: ``CumprodScan.supports(curvilinear-LD)``
         is False with a gray-out reason, instead of True-then-raise-mid-sweep."""
         sn_mesh = self._curvilinear_mesh(coord, scheme=LinearDiscontinuous())
-        compat = CumprodScan.supports(sn_mesh)
+        compat = CumprodScan.supports(sn_mesh, sn_mesh.scheme)
         if compat.ok:
             pytest.fail(
                 f"CumprodScan.supports({coord.name}-LD).ok is True — the "
@@ -300,7 +300,7 @@ class TestHonestCurvilinearSchemeSelection:
         """Negative control: curvilinear-DD (the default) is UNAFFECTED — DD has
         a curvilinear closure (``supports_curvilinear=True``)."""
         sn_mesh = self._curvilinear_mesh(coord)  # default DiamondDifference
-        strategy = default_for(sn_mesh)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"{coord.name}-DD → {type(strategy).__name__}, expected CumprodScan"
@@ -321,7 +321,7 @@ class TestHonestCurvilinearSchemeSelection:
         sn_mesh = SNMesh(
             mesh, quad, placeholder_materials(), scheme=LinearDiscontinuous(),
         )
-        strategy = default_for(sn_mesh)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"slab-LD → {type(strategy).__name__}, expected CumprodScan"
@@ -377,7 +377,8 @@ class TestD3SupportsMatrix:
     @pytest.mark.foundation
     def test_scan_march_refuses_d3(self):
         """G-c1: the narrowed predicate refuses a 3-axis Cartesian mesh."""
-        if ScanMarch.supports(self._fake(3)).ok:
+        fake = self._fake(3)
+        if ScanMarch.supports(fake, fake.scheme).ok:
             pytest.fail(
                 "ScanMarch.supports admitted a d=3 Cartesian mesh — its "
                 "kernels unpack d=2; this would misroute production at d=3"
@@ -392,7 +393,7 @@ class TestD3SupportsMatrix:
             (self._fake(1), "slab"),
             (self._fake(1, cartesian=False), "1-D curvilinear"),
         ):
-            if not ScanMarch.supports(fake).ok:
+            if not ScanMarch.supports(fake, fake.scheme).ok:
                 pytest.fail(f"ScanMarch.supports refused {name}")
 
     @pytest.mark.foundation
@@ -424,7 +425,7 @@ class TestD3SupportsMatrix:
             Quadrature.level_symmetric(sn_order=4),
             {0: mix},
         )
-        selected = default_for(mesh)
+        selected = default_for(mesh, mesh.scheme, mesh.pole_angular_closure)
         if type(selected) is not FullFieldWavefront:
             pytest.fail(
                 f"d=3 Cartesian default_for → "
@@ -439,7 +440,7 @@ class TestD3SupportsMatrix:
         fake = self._fake(3, cartesian=False)
         from orpheus.sn.loss_representation import LOSS_REPRESENTATIONS
         admitted = [
-            cls for cls in LOSS_REPRESENTATIONS if cls.supports(fake).ok
+            cls for cls in LOSS_REPRESENTATIONS if cls.supports(fake, fake.scheme).ok
         ]
         if admitted:
             pytest.fail(
@@ -467,14 +468,14 @@ class TestD3SupportsMatrix:
         scheme reports ``transverse_coupling_is_facewise=False`` (LD-shaped),
         while still admitting the DD-shaped (facewise) 2-D mesh."""
         ld_like = self._fake(2, facewise=False)
-        if ScanMarch.supports(ld_like).ok:
+        if ScanMarch.supports(ld_like, ld_like.scheme).ok:
             pytest.fail(
                 "ScanMarch.supports admitted a 2-D mesh whose scheme is NOT "
                 "transverse-coupling-facewise (LD-shaped) — its row-march "
                 "runs inline DD, silently dropping the bilinear slope"
             )
         dd_like = self._fake(2, facewise=True)
-        if not ScanMarch.supports(dd_like).ok:
+        if not ScanMarch.supports(dd_like, dd_like.scheme).ok:
             pytest.fail(
                 "ScanMarch.supports refused a 2-D facewise (DD-shaped) "
                 "scheme — the narrowing lost the production default"
@@ -487,7 +488,7 @@ class TestD3SupportsMatrix:
         inline DD, silently dropping LD's slope.  This is the CONFIRMED-LIVE
         misroute (``default_for(2-D LD) == ScanMarch`` pre-D5-0)."""
         sn = _2d_ld_sn_mesh()
-        if ScanMarch.supports(sn).ok:
+        if ScanMarch.supports(sn, sn.scheme).ok:
             pytest.fail(
                 "ScanMarch.supports admitted a 2-D LD mesh — its row-march "
                 "kernel runs inline DD (loss_representation interior), "
@@ -503,7 +504,7 @@ class TestD3SupportsMatrix:
         wavefront now RUNS the bilinear UBLD; what is forbidden remains the
         silent ScanMarch inline-DD path.)"""
         sn = _2d_ld_sn_mesh()
-        selected = default_for(sn)
+        selected = default_for(sn, sn.scheme, sn.pole_angular_closure)
         if isinstance(selected, ScanMarch):
             pytest.fail(
                 "2-D LD routed to ScanMarch (inline DD) — the misroute"
@@ -655,7 +656,7 @@ class TestSweepEntryDelegatesToStrategy:
         sn_mesh = mesh_factory()
         import orpheus.sn.loss_representation as loss_representation
 
-        selected = type(default_for(sn_mesh)).__name__
+        selected = type(default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)).__name__
         calls = {"sweep": 0}
         N, ng = sn_mesh.quad.N, sn_mesh.ng
         spatial = sn_mesh.spatial_shape
@@ -666,7 +667,9 @@ class TestSweepEntryDelegatesToStrategy:
                 return (np.zeros((N, ng, *spatial)), np.zeros((ng, *spatial)))
 
         monkeypatch.setattr(
-            loss_representation, "default_for", lambda mesh: _SpyStrategy(),
+            loss_representation,
+            "default_for",
+            lambda mesh, spatial_closure, angular_closure: _SpyStrategy(),
         )
 
         # Σ_t is (ng, *spatial) at any rank — (ng, nx) for 1-D,

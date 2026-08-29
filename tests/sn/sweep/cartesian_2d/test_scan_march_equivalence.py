@@ -112,8 +112,8 @@ def test_scanmarch_sweep_equals_oracle(nx, ny, lvl, ng, bc):
     sig_t, Q, bf_sm = _random_inputs(rng, sn_mesh, ng, nx, ny)
     bf_or = AngularBoundaryFlux(values=bf_sm.values.copy(), space=sn_mesh.angular_trace)
 
-    ang_sm, scal_sm = ScanMarch(sn_mesh).sweep(Q, sig_t, bf_sm)
-    ang_or, scal_or = FullFieldWavefront(sn_mesh).sweep(Q, sig_t, bf_or)
+    ang_sm, scal_sm = ScanMarch.pose(sn_mesh).sweep(Q, sig_t, bf_sm)
+    ang_or, scal_or = FullFieldWavefront.pose(sn_mesh).sweep(Q, sig_t, bf_or)
 
     np.testing.assert_allclose(ang_sm, ang_or, rtol=_RTOL, atol=_ATOL,
                                err_msg="angular flux")
@@ -143,10 +143,10 @@ def test_scanmarch_moment_equals_window(nx, ny, lvl, ng, bc):
     bf_win = AngularBoundaryFlux(values=bf_sm.values.copy(), space=sn_mesh.angular_trace)
     frame = sn_mesh.quad.angular_frame(Lm)
 
-    mom_sm, second_sm = ScanMarch(sn_mesh).sweep(
+    mom_sm, second_sm = ScanMarch.pose(sn_mesh).sweep(
         Q, sig_t, bf_sm, moment_frame=frame,
     )
-    mom_win, _ = MovingFrontierWindow(sn_mesh).sweep(
+    mom_win, _ = MovingFrontierWindow.pose(sn_mesh).sweep(
         Q, sig_t, bf_win, moment_frame=frame,
     )
 
@@ -195,8 +195,8 @@ def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
         fv = state.boundary.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
 
-    out_sm = ScanMarch(sn_mesh).loss_action(sig_t, state)
-    out_or = FullFieldWavefront(sn_mesh).loss_action(sig_t, state)
+    out_sm = ScanMarch.pose(sn_mesh).loss_action(sig_t, state)
+    out_or = FullFieldWavefront.pose(sn_mesh).loss_action(sig_t, state)
 
     np.testing.assert_allclose(
         out_sm.interior.values, out_or.interior.values, rtol=_RTOL, atol=_ATOL,

@@ -458,7 +458,9 @@ class StreamingOperator(LinearOperator["FullField"]):
         """
         from ..loss_representation import default_for
 
-        return default_for(self.sn_mesh)
+        return default_for(
+            self.sn_mesh, self.spatial_closure, self.angular_closure,
+        )
 
     # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
 

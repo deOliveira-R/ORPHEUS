@@ -118,7 +118,7 @@ class _OracleLC:
     """
 
     def __init__(self, sn, sig_t: np.ndarray) -> None:
-        self._rep = FullFieldWavefront(sn)
+        self._rep = FullFieldWavefront.pose(sn)
         self._sig = sig_t
 
     def apply(self, psi):

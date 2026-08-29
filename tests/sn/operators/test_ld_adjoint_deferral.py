@@ -289,28 +289,28 @@ class TestMultiDOrientationHonesty:
     def test_rep_trait_declarations(self) -> None:
         sn1, _ = _slab(scheme=DiamondDifference())
         require(
-            CumprodScan(sn1).has_transpose_walk is True,
+            CumprodScan.pose(sn1).has_transpose_walk is True,
             "CumprodScan (1-D only) must declare has_transpose_walk=True — "
             "the shared 1-D loop walk reverses (2.5a).",
         )
         require(
-            ScanMarch(sn1).has_transpose_walk is True,
+            ScanMarch.pose(sn1).has_transpose_walk is True,
             "ScanMarch on a 1-D mesh must declare has_transpose_walk=True "
             "— its 1-D branch delegates to the same reverse loop walk.",
         )
         sn2 = cart2d_2g_nonsquare()
         require(
-            ScanMarch(sn2).has_transpose_walk is True,
+            ScanMarch.pose(sn2).has_transpose_walk is True,
             "ScanMarch on a 2-D mesh must declare has_transpose_walk=True "
             "— the row-march reverse landed (#310 C4-b).",
         )
         require(
-            MovingFrontierWindow(sn2).has_transpose_walk is True,
+            MovingFrontierWindow.pose(sn2).has_transpose_walk is True,
             "MovingFrontierWindow must declare has_transpose_walk=True on "
             "a DD 2-D mesh — the windowed reverse landed (#310 C4-a).",
         )
         require(
-            FullFieldWavefront(sn2).has_transpose_walk is True,
+            FullFieldWavefront.pose(sn2).has_transpose_walk is True,
             "FullFieldWavefront must declare has_transpose_walk=True on a "
             "DD 2-D mesh — the family trait is scheme-aware (#310 C4-c), "
             "and the oracle reverse landed at C3.",
@@ -326,7 +326,7 @@ class TestMultiDOrientationHonesty:
         moment-tailed through the C5 gates)."""
         sn = _ld2d_mesh()
         require(
-            FullFieldWavefront(sn).has_transpose_walk is True,
+            FullFieldWavefront.pose(sn).has_transpose_walk is True,
             "FullFieldWavefront on an LD 2-D mesh must declare "
             "has_transpose_walk=True — the family trait is unconditional "
             "since #310 C5.",
@@ -417,12 +417,12 @@ class TestMultiDOrientationHonesty:
         ``test_ld_2d_wavefront_trait_stays_false``)."""
         sn = cart2d_2g_nonsquare()
         require(
-            FullFieldWavefront(sn).has_transpose_walk is True,
+            FullFieldWavefront.pose(sn).has_transpose_walk is True,
             "FullFieldWavefront on DD cart2d must declare "
             "has_transpose_walk=True — the family flipped at #310 C4-c.",
         )
         sig_t, phi = het_operands(sn)[:2]
-        out = FullFieldWavefront(sn).loss_action_transpose(sig_t, phi)
+        out = FullFieldWavefront.pose(sn).loss_action_transpose(sig_t, phi)
         require(
             bool(np.any(np.asarray(out.interior.values))),
             "the C3 oracle reverse returned an all-zero bulk cotangent on "

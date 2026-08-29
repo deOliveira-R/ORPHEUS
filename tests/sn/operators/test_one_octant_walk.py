@@ -146,7 +146,7 @@ def test_both_matvec_variants_share_the_walk(monkeypatch):
 
     for rep_cls in (MovingFrontierWindow, ScanMarch):
         hits.clear()
-        _ = rep_cls(sn).loss_action(sig_t, psi)
+        _ = rep_cls.pose(sn).loss_action(sig_t, psi)
         if not hits:
             pytest.fail(
                 f"{rep_cls.__name__}.loss_action did NOT route through "

@@ -151,8 +151,8 @@ def test_cumprod_1d_equals_full_field_spine(bc):
     bf_cumprod = _seeded_inflow(sn_mesh, rng)
     bf_spine = AngularBoundaryFlux(values=bf_cumprod.values.copy(), space=sn_mesh.angular_trace)
 
-    ang_c, scal_c = CumprodScan(sn_mesh).sweep(Q_arr, sig_t, bf_cumprod)
-    ang_s, scal_s = FullFieldWavefront(sn_mesh).sweep(Q_arr, sig_t, bf_spine)
+    ang_c, scal_c = CumprodScan.pose(sn_mesh).sweep(Q_arr, sig_t, bf_cumprod)
+    ang_s, scal_s = FullFieldWavefront.pose(sn_mesh).sweep(Q_arr, sig_t, bf_spine)
 
     np.testing.assert_array_almost_equal_nulp(ang_s, ang_c, nulp=_NULP_BOUND)
     np.testing.assert_array_almost_equal_nulp(scal_s, scal_c, nulp=_NULP_BOUND)
@@ -234,8 +234,8 @@ def test_cumprod_faster_than_full_field_spine_d1():
     Q = AngularSourceSink.from_isotropic(iso, sn_mesh)
     Q_arr = Q.values
 
-    cumprod = CumprodScan(sn_mesh)
-    spine = FullFieldWavefront(sn_mesh)
+    cumprod = CumprodScan.pose(sn_mesh)
+    spine = FullFieldWavefront.pose(sn_mesh)
 
     def _time(strategy, repeats=5):
         bf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)

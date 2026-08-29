@@ -158,9 +158,9 @@ def test_ld_2d_two_paths_ffw_equals_mfw():
     Q = rng.uniform(0.0, 2.0, size=(N, ng, nx, ny))
 
     # Each leg builds its OWN rep instance — VERIFY each ran its intended rep.
-    mfw = MovingFrontierWindow(sn)
-    ffw = FullFieldWavefront(sn)
-    if not isinstance(default_for(sn), MovingFrontierWindow):
+    mfw = MovingFrontierWindow.pose(sn)
+    ffw = FullFieldWavefront.pose(sn)
+    if not isinstance(default_for(sn, sn.scheme, sn.pole_angular_closure), MovingFrontierWindow):
         pytest.fail("expected the 2-D LD default rep to be MovingFrontierWindow")
 
     bf_win = AngularBoundaryFlux.zeros(sn.angular_trace)              # VACUUM (zero domain inflow)
@@ -458,9 +458,9 @@ def test_ld_2d_stress_two_paths_ffw_equals_mfw():
         for g in range(ng)
     ])                                               # (ng, nx, ny)
 
-    mfw = MovingFrontierWindow(sn)
-    ffw = FullFieldWavefront(sn)
-    if not isinstance(default_for(sn), MovingFrontierWindow):
+    mfw = MovingFrontierWindow.pose(sn)
+    ffw = FullFieldWavefront.pose(sn)
+    if not isinstance(default_for(sn, sn.scheme, sn.pole_angular_closure), MovingFrontierWindow):
         pytest.fail("expected the 2-D LD default rep to be MovingFrontierWindow")
 
     # Non-vanishing prescribed inflow → a seeded AngularBoundaryFlux on both legs.
@@ -1347,7 +1347,7 @@ def test_ld_2d_boundary_slope_threaded_through_inflow_to_moments():
     mesh = case.build_mesh(8)
     materials = case.build_materials(mesh)
     sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
-    rep = default_for(sn)
+    rep = default_for(sn, sn.scheme, sn.pole_angular_closure)
 
     # A moment-resolved boundary inflow: per face, (N_oct, ng, n_t, 2) with
     # slot 0 = the trace scalar (centre), slot 1 = the projected transverse slope.
@@ -1429,7 +1429,7 @@ def test_ld_2d_boundary_scalar_inflow_no_op_negative_control():
     mesh = case.build_mesh(8)
     materials = case.build_materials(mesh)
     sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
-    rep = default_for(sn)
+    rep = default_for(sn, sn.scheme, sn.pole_angular_closure)
 
     bufs = _face_transverse_buffers(case, mesh)
     centre, _ = bufs["xmin"]
@@ -1538,7 +1538,7 @@ def test_ld_2d_boundary_trace_rejects_wrong_transverse_width():
     mesh = case.build_mesh(8)
     materials = case.build_materials(mesh)
     sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
-    rep = default_for(sn)
+    rep = default_for(sn, sn.scheme, sn.pole_angular_closure)
 
     bufs = _face_transverse_buffers(case, mesh)
     centre, _ = bufs["xmin"]

@@ -299,7 +299,7 @@ def test_reverse_matvec_routes_through_the_shared_frame(monkeypatch):
     rng = np.random.default_rng(20260724)
     sn = _cart2d_probe_mesh()
     sig = _het_sigma(sn, rng)
-    rep = FullFieldWavefront(sn)
+    rep = FullFieldWavefront.pose(sn)
     phi = _random_composite(sn, rng)
 
     # (1) the REVERSE matvec: all three sentinels fire.
@@ -440,7 +440,7 @@ def test_dense_mt_2d_column_probe_pins_the_object(rep_cls):
     """
     rng = np.random.default_rng(20260726)
     sn = _cart2d_probe_mesh()
-    _assert_dense_mt_pins_object(sn, rep_cls(sn), _het_sigma(sn, rng), "DD d=2")
+    _assert_dense_mt_pins_object(sn, rep_cls.pose(sn), _het_sigma(sn, rng), "DD d=2")
 
 
 @pytest.mark.parametrize(
@@ -461,7 +461,7 @@ def test_pairing_identity_full_composite(rep_cls):
         ("reflective 5x7", cart2d_2g_nonsquare()),
     ):
         sig = _het_sigma(sn, rng)
-        rel = _pairing_defect(sn, rep_cls(sn), sig, rng)
+        rel = _pairing_defect(sn, rep_cls.pose(sn), sig, rng)
         if rel > 1e-12:
             pytest.fail(
                 f"[{name}] {rep_cls.__name__} Euclidean pairing identity "
@@ -488,8 +488,8 @@ def test_d1_cross_realization_bit_identical():
         ("LD slab het non-uniform", _make_ld_slab(ng=2)),
     ):
         x = _random_composite(sn, rng)
-        z_scan = CumprodScan(sn).loss_action_transpose(sig, x)
-        z_dag = FullFieldWavefront(sn).loss_action_transpose(sig, x)
+        z_scan = CumprodScan.pose(sn).loss_action_transpose(sig, x)
+        z_dag = FullFieldWavefront.pose(sn).loss_action_transpose(sig, x)
         np.testing.assert_array_equal(
             np.asarray(z_dag.interior.values),
             np.asarray(z_scan.interior.values),
@@ -527,7 +527,7 @@ def test_assembled_mt_2d_per_ordinate_block():
     sigma = np.asarray(
         sn.material_xs_field().total_cross_section_field.values, float,
     )
-    rep = FullFieldWavefront(sn)
+    rep = FullFieldWavefront.pose(sn)
     rng = np.random.default_rng(20260729)
     n_cells = int(np.prod(sn.spatial_shape))
     for n in range(sn.quad.n_ordinates):
@@ -577,8 +577,8 @@ def test_reverse_window_equals_full():
     ):
         sig = _het_sigma(sn, rng)
         phi = _random_composite(sn, rng)
-        full = FullFieldWavefront(sn).loss_action_transpose(sig, phi)
-        window = MovingFrontierWindow(sn).loss_action_transpose(sig, phi)
+        full = FullFieldWavefront.pose(sn).loss_action_transpose(sig, phi)
+        window = MovingFrontierWindow.pose(sn).loss_action_transpose(sig, phi)
         np.testing.assert_array_equal(
             np.asarray(window.interior.values),
             np.asarray(full.interior.values),
@@ -611,7 +611,7 @@ def test_window_seed_drop_mutation_reds(monkeypatch):
     sig = _het_sigma(sn, rng)
     phi = _random_composite(sn, rng)
     reference = np.asarray(
-        FullFieldWavefront(sn).loss_action_transpose(sig, phi).interior.values
+        FullFieldWavefront.pose(sn).loss_action_transpose(sig, phi).interior.values
     )
 
     orig = lr.MovingFrontierWindow._loss_action_transpose_interior
@@ -627,7 +627,7 @@ def test_window_seed_drop_mutation_reds(monkeypatch):
         seedless_interior,
     )
     mutated = np.asarray(
-        MovingFrontierWindow(sn).loss_action_transpose(sig, phi).interior.values
+        MovingFrontierWindow.pose(sn).loss_action_transpose(sig, phi).interior.values
     )
     rel = float(
         np.max(np.abs(mutated - reference))
@@ -662,8 +662,8 @@ def test_scanmarch_reverse_matches_oracle():
     ):
         sig = _het_sigma(sn, rng)
         phi = _random_composite(sn, rng)
-        oracle = FullFieldWavefront(sn).loss_action_transpose(sig, phi)
-        march = ScanMarch(sn).loss_action_transpose(sig, phi)
+        oracle = FullFieldWavefront.pose(sn).loss_action_transpose(sig, phi)
+        march = ScanMarch.pose(sn).loss_action_transpose(sig, phi)
         scale = float(np.max(np.abs(np.asarray(oracle.interior.values))))
         np.testing.assert_allclose(
             np.asarray(march.interior.values),
@@ -700,7 +700,7 @@ def test_scanmarch_transverse_chain_mutation_reds(monkeypatch):
     monkeypatch.setattr(
         DiamondDifference, "residual_kernel_batch_transpose", chainless_vjp,
     )
-    rel = _pairing_defect(sn, ScanMarch(sn), sig, rng)
+    rel = _pairing_defect(sn, ScanMarch.pose(sn), sig, rng)
     if rel < 1e-3:
         pytest.fail(
             f"zeroed transverse cotangent chain moved the pairing defect "
@@ -727,7 +727,7 @@ def test_scanmarch_scan_seed_mutation_reds(monkeypatch):
         return beta_bar, direct_only
 
     monkeypatch.setattr(lr, "_x_scan_faces_transpose", seedless_t)
-    rel = _pairing_defect(sn, ScanMarch(sn), sig, rng)
+    rel = _pairing_defect(sn, ScanMarch.pose(sn), sig, rng)
     if rel < 1e-3:
         pytest.fail(
             f"dropped scan-chain seed term moved the pairing defect only "
@@ -760,7 +760,7 @@ def test_d3_dense_mt_and_pairing_on_the_spine():
         Quadrature.level_symmetric(2),
         {0: get_mixture("A", "2g")},
     )
-    rep = FullFieldWavefront(sn)
+    rep = FullFieldWavefront.pose(sn)
     if rep.has_transpose_walk is not True:
         pytest.fail(
             "the d=3 DD spine must carry the flipped family trait "
@@ -833,7 +833,7 @@ def test_ld_2d_scanmarch_is_construction_refused():
     if ScanMarch ever admits LD-2D, this reds and the gates here gain a
     row."""
     with pytest.raises(IncompatibleRepresentation):
-        ScanMarch(_ld2d_probe_mesh())
+        ScanMarch.pose(_ld2d_probe_mesh())
 
 
 @pytest.mark.parametrize("rep_cls", _LD2D_WAVEFRONT_REPS, ids=_LD2D_IDS)
@@ -845,7 +845,7 @@ def test_ld_2d_dense_mt_column_probe_pins_the_object(rep_cls):
     dropped/mis-signed slope row cannot hide behind an all-flat input."""
     rng = np.random.default_rng(20260812)
     sn = _ld2d_probe_mesh()
-    _assert_dense_mt_pins_object(sn, rep_cls(sn), _het_sigma(sn, rng), "LD-2D")
+    _assert_dense_mt_pins_object(sn, rep_cls.pose(sn), _het_sigma(sn, rng), "LD-2D")
 
 
 @pytest.mark.parametrize("rep_cls", _LD2D_WAVEFRONT_REPS, ids=_LD2D_IDS)
@@ -860,7 +860,7 @@ def test_ld_2d_pairing_identity_full_composite(rep_cls):
         ("reflective 3x2", _ld2d_reflective_mesh()),
     ):
         sig = _het_sigma(sn, rng)
-        rel = _pairing_defect(sn, rep_cls(sn), sig, rng)
+        rel = _pairing_defect(sn, rep_cls.pose(sn), sig, rng)
         if rel > 1e-12:
             pytest.fail(
                 f"[LD-2D {name}] {rep_cls.__name__} Euclidean pairing "
@@ -881,8 +881,8 @@ def test_ld_2d_reverse_window_equals_full():
     ):
         sig = _het_sigma(sn, rng)
         phi = _random_composite(sn, rng)
-        full = FullFieldWavefront(sn).loss_action_transpose(sig, phi)
-        window = MovingFrontierWindow(sn).loss_action_transpose(sig, phi)
+        full = FullFieldWavefront.pose(sn).loss_action_transpose(sig, phi)
+        window = MovingFrontierWindow.pose(sn).loss_action_transpose(sig, phi)
         np.testing.assert_array_equal(
             np.asarray(window.interior.values),
             np.asarray(full.interior.values),
@@ -915,7 +915,7 @@ def test_ld_2d_assembled_mt_per_ordinate_block():
     sigma = np.asarray(
         sn.material_xs_field().total_cross_section_field.values, float,
     )
-    rep = FullFieldWavefront(sn)
+    rep = FullFieldWavefront.pose(sn)
     rng = np.random.default_rng(20260815)
     n_cells = int(np.prod(sn.spatial_shape))
     cm = sn.scheme.spatial_basis_per_axis ** sn.ndim
@@ -955,7 +955,7 @@ def test_ld_2d_moment_drop_mutation_asymmetry(monkeypatch):
     rng = np.random.default_rng(20260816)
     sn = _ld2d_probe_mesh()
     sig = _het_sigma(sn, rng)
-    rep = FullFieldWavefront(sn)
+    rep = FullFieldWavefront.pose(sn)
     faces = tuple(sn.angular_trace.face_names)
 
     def defect(x, w):
@@ -1028,7 +1028,7 @@ def test_ld_2d_cross_moment_frame_sign_octant_asymmetry(monkeypatch):
     rng = np.random.default_rng(20260817)
     sn = _ld2d_probe_mesh()
     sig = _het_sigma(sn, rng)
-    rep = FullFieldWavefront(sn)
+    rep = FullFieldWavefront.pose(sn)
     M_fwd = _probe_dense(sn, sig, rep.loss_action)      # clean reference
 
     orig_mfs = lr._LossRepresentation._moment_frame_signs
@@ -1086,7 +1086,7 @@ def test_addressing_mutation_reds(monkeypatch):
     sig = _het_sigma(sn, rng)
 
     monkeypatch.setattr(lr, "_reverse_octant_traversal", lambda sweeps: sweeps)
-    rel = _pairing_defect(sn, FullFieldWavefront(sn), sig, rng)
+    rel = _pairing_defect(sn, FullFieldWavefront.pose(sn), sig, rng)
     if rel < 1e-3:
         pytest.fail(
             f"un-mirrored reverse traversal moved the pairing defect only "
@@ -1133,7 +1133,7 @@ def test_reverse_interior_is_axis_equivariant(monkeypatch):
         conjugated_interior,
     )
     sig_het = 0.4 + rng.random((2, 3, 3))       # transpose-ASYMMETRIC
-    rel = _pairing_defect(sn, FullFieldWavefront(sn), sig_het, rng)
+    rel = _pairing_defect(sn, FullFieldWavefront.pose(sn), sig_het, rng)
     if rel > 1e-12:
         pytest.fail(
             f"total axis conjugation moved the reverse by {rel:.3e} on het "
@@ -1163,7 +1163,7 @@ def test_axis_swap_partial_mutation_reds(monkeypatch):
         FullFieldWavefront, "_loss_action_transpose_interior",
         crossed_faces_interior,
     )
-    rel = _pairing_defect(sn, FullFieldWavefront(sn), sig, rng)
+    rel = _pairing_defect(sn, FullFieldWavefront.pose(sn), sig, rng)
     if rel < 1e-3:
         pytest.fail(
             f"crossed out-face cotangent tuple moved the pairing defect "
@@ -1182,7 +1182,7 @@ def test_wavefront_solve_transpose_still_raises():
     ONLY, and must not silently un-defer the solve arm."""
     sn = _cart2d_probe_mesh()
     with pytest.raises(NotImplementedError, match="reverse-scan"):
-        FullFieldWavefront(sn).sweep_transpose(
+        FullFieldWavefront.pose(sn).sweep_transpose(
             np.zeros((sn.quad.N, 2, *sn.spatial_shape)),
             np.full((2, *sn.spatial_shape), 0.5),
             _random_composite(sn, np.random.default_rng(1)).boundary,
@@ -1210,4 +1210,4 @@ def test_tail_mismatch_refuses_loudly():
     )
     bad = FullField(interior=bad_interior, boundary=phi.boundary)
     with pytest.raises(ValueError, match="spatial-moment tail"):
-        FullFieldWavefront(sn).loss_action_transpose(_het_sigma(sn, rng), bad)
+        FullFieldWavefront.pose(sn).loss_action_transpose(_het_sigma(sn, rng), bad)

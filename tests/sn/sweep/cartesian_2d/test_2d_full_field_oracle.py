@@ -94,8 +94,8 @@ def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     _seed_random_inflow(rng, bf_win)
     bf_full = AngularBoundaryFlux(values=bf_win.values.copy(), space=sn_mesh.angular_trace)
 
-    ang_w, scal_w = MovingFrontierWindow(sn_mesh).sweep(Q, sig_t, bf_win)
-    ang_f, scal_f = FullFieldWavefront(sn_mesh).sweep(Q, sig_t, bf_full)
+    ang_w, scal_w = MovingFrontierWindow.pose(sn_mesh).sweep(Q, sig_t, bf_win)
+    ang_f, scal_f = FullFieldWavefront.pose(sn_mesh).sweep(Q, sig_t, bf_full)
 
     np.testing.assert_array_equal(ang_w, ang_f, err_msg="angular flux")
     np.testing.assert_array_equal(scal_w, scal_f, err_msg="scalar flux")
@@ -131,8 +131,8 @@ def test_matvec_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     state.interior.values[...] = rng.uniform(-1.0, 1.0, size=state.interior.values.shape)
     _seed_random_inflow(rng, state.boundary)
 
-    out_win = MovingFrontierWindow(sn_mesh).loss_action(sig_t, state)
-    out_full = FullFieldWavefront(sn_mesh).loss_action(sig_t, state)
+    out_win = MovingFrontierWindow.pose(sn_mesh).loss_action(sig_t, state)
+    out_full = FullFieldWavefront.pose(sn_mesh).loss_action(sig_t, state)
 
     np.testing.assert_array_equal(
         out_win.interior.values, out_full.interior.values, err_msg="bulk residual",

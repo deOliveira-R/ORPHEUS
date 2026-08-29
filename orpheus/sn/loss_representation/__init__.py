@@ -187,6 +187,7 @@ if TYPE_CHECKING:
     )
     from orpheus.transport.timed_full_field import TimedFullField
 
+    from ..angular.closure import PoleAngularClosureBase
     from ..mesh.augmented_mesh import SNMesh
     from ..operators.streaming import StreamingOperator
     from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
@@ -222,7 +223,9 @@ class IncompatibleRepresentation(ValueError):
     """
 
 
-def _curvilinear_capability(mesh: "SNMesh") -> Compatibility:
+def _curvilinear_capability(
+    mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+) -> Compatibility:
     r"""The (scheme × geometry) curvilinear-capability gate — single source.
 
     A curvilinear (sphere/cylinder) mesh needs a scheme whose cell closure
@@ -237,11 +240,11 @@ def _curvilinear_capability(mesh: "SNMesh") -> Compatibility:
     license a curvilinear sweep the scheme has no closure for (#236 ST2; the
     dishonest-selection fix).
     """
-    if mesh.is_cartesian or mesh.scheme.supports_curvilinear:
+    if mesh.is_cartesian or spatial_closure.supports_curvilinear:
         return Compatibility(True, "")
     return Compatibility(
         False,
-        f"{type(mesh.scheme).__name__} has no curvilinear cell closure "
+        f"{type(spatial_closure).__name__} has no curvilinear cell closure "
         "(slab/Cartesian only); the curvilinear (sphere/cylinder) closure for "
         "this scheme is not yet implemented (Issue #158 curvilinear arm / #6)",
     )
@@ -440,8 +443,14 @@ class LossRepresentation(Protocol):
         ...
 
     @classmethod
-    def supports(cls, mesh: "SNMesh") -> Compatibility:
-        """Whether this strategy can sweep ``mesh`` (the selection layer)."""
+    def supports(
+        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+    ) -> Compatibility:
+        """Whether this strategy can sweep ``mesh`` with ``spatial_closure``.
+
+        Selection consumes the HANDED closure (P4.9b Q4), never
+        ``mesh.scheme``.
+        """
         ...
 
 
@@ -452,18 +461,41 @@ class LossRepresentation(Protocol):
 
 @dataclass(frozen=True)
 class _LossRepresentation:
-    """Base for every concrete strategy: holds the mesh + the guard.
+    """Base for every concrete strategy: the mesh + the two closures + the guard.
 
-    A frozen dataclass carrying the one piece of state every strategy needs
-    (the :class:`SNMesh` it was selected for) and the construction guard
-    that makes an incompatible pairing unrepresentable.
+    A frozen dataclass carrying the state every strategy needs — the
+    :class:`SNMesh` (the geometric substrate) and, since P4.9b step 2, the
+    TWO CLOSURES the posed operator holds: the walk consumes the closure
+    pair it is HANDED, never the hub's attributes (the keystone route gate
+    ``tests/sn/operators/test_operator_feeds_the_walk.py`` pins it; the
+    read-set gate bounds the residual hub route to the two space facts).
     """
 
     mesh: "SNMesh"
+    spatial_closure: "DiscretizationSchemeBase"
+    angular_closure: "PoleAngularClosureBase"
 
     @classmethod
-    def supports(cls, mesh: "SNMesh") -> Compatibility:
-        """The selection predicate — every concrete strategy implements it."""
+    def pose(cls, mesh: "SNMesh") -> "_LossRepresentation":
+        """Pose from the hub's own objects — the test-side intermediate.
+
+        Production hands the pair explicitly (the posed operator's
+        fields, ``streaming.py`` ``loss_representation``); tests posing a
+        bare representation read the hub here, mirroring
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.pose`.
+        """
+        return cls(mesh, mesh.scheme, mesh.pole_angular_closure)
+
+    @classmethod
+    def supports(
+        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+    ) -> Compatibility:
+        """The selection predicate — every concrete strategy implements it.
+
+        Selection consumes the HANDED spatial closure (P4.9b Q4 ruling:
+        strategy-selection predicates are operator-side), never
+        ``mesh.scheme``.
+        """
         raise NotImplementedError(
             f"{cls.__name__} must implement supports()"
         )
@@ -705,7 +737,7 @@ class _LossRepresentation:
         return False
 
     def __post_init__(self) -> None:
-        compat = type(self).supports(self.mesh)
+        compat = type(self).supports(self.mesh, self.spatial_closure)
         if not compat.ok:
             raise IncompatibleRepresentation(
                 f"{type(self).__name__} cannot sweep this mesh "
@@ -1367,17 +1399,19 @@ class CumprodScan(_LossRepresentation):
     """
 
     @classmethod
-    def supports(cls, mesh: "SNMesh") -> Compatibility:
+    def supports(
+        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+    ) -> Compatibility:
         if not mesh.is_1d:
             return Compatibility(False, "requires a 1-D mesh")
         # #236 ST2: a curvilinear mesh needs a curvilinear-capable scheme —
         # ``is_affine_scannable`` (a geometry-blind 1-D trait) is NOT sufficient
         # (LD is affine-scannable in slab but has no curvilinear closure).
-        geometry = _curvilinear_capability(mesh)
+        geometry = _curvilinear_capability(mesh, spatial_closure)
         if not geometry.ok:
             return geometry
         return Compatibility(
-            mesh.scheme.is_affine_scannable,
+            spatial_closure.is_affine_scannable,
             "requires an affine-scannable cell-update scheme on a 1-D mesh",
         )
 
@@ -1501,7 +1535,9 @@ class _DAGWavefront(_LossRepresentation):
     """
 
     @classmethod
-    def supports(cls, mesh: "SNMesh") -> Compatibility:
+    def supports(
+        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+    ) -> Compatibility:
         return Compatibility(
             mesh.is_cartesian and mesh.ndim == 2,
             "requires Cartesian geometry, d = 2",
@@ -1845,7 +1881,9 @@ class FullFieldWavefront(_DAGWavefront):
     """
 
     @classmethod
-    def supports(cls, mesh: "SNMesh") -> Compatibility:
+    def supports(
+        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+    ) -> Compatibility:
         # Override the _DAGWavefront family's d=2-only predicate: the spine is
         # the genuine d-generic oracle (it walks the per-octant DAG for any
         # Cartesian d via the d-generic ``graph.residual``).
@@ -2246,7 +2284,9 @@ class ScanMarch(_LossRepresentation):
     """
 
     @classmethod
-    def supports(cls, mesh: "SNMesh") -> Compatibility:
+    def supports(
+        cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
+    ) -> Compatibility:
         # The 1-D arm reads ``is_affine_scannable`` (single-axis prefix
         # scannability — LD's 1-D scan IS valid here).  The d≥2 arm reads the
         # DISTINCT ``transverse_coupling_is_facewise`` (cross-axis
@@ -2261,18 +2301,18 @@ class ScanMarch(_LossRepresentation):
             # #236 ST2: the same curvilinear-capability gate as CumprodScan —
             # a slab-only scheme on a curvilinear mesh is rejected here, not
             # raised mid-sweep.
-            geometry = _curvilinear_capability(mesh)
+            geometry = _curvilinear_capability(mesh, spatial_closure)
             if not geometry.ok:
                 return geometry
             return Compatibility(
-                mesh.scheme.is_affine_scannable,
+                spatial_closure.is_affine_scannable,
                 "requires an affine-scannable cell-update scheme on a "
                 "1-D mesh (any geometry)",
             )
         return Compatibility(
             mesh.is_cartesian
             and mesh.ndim == 2
-            and mesh.scheme.transverse_coupling_is_facewise,
+            and spatial_closure.transverse_coupling_is_facewise,
             "2-D scan-march requires a scheme whose transverse coupling is "
             "facewise (separable into independent per-axis 1-D scans) — the "
             "slopeless cell-average closures (Diamond Difference, Step); "
@@ -2683,7 +2723,11 @@ LOSS_REPRESENTATIONS: tuple[type[_LossRepresentation], ...] = (
 )
 
 
-def default_for(mesh: "SNMesh") -> LossRepresentation:
+def default_for(
+    mesh: "SNMesh",
+    spatial_closure: "DiscretizationSchemeBase",
+    angular_closure: "PoleAngularClosureBase",
+) -> LossRepresentation:
     """Select the default sweep strategy for ``mesh``.
 
     Returns the first strategy in :data:`LOSS_REPRESENTATIONS` whose
@@ -2716,12 +2760,12 @@ def default_for(mesh: "SNMesh") -> LossRepresentation:
     # as a dimensionality problem, not a scheme-geometry one.  Do NOT drop this
     # as a "DRY cleanup"; the specific reason is pinned by
     # ``test_unified_sweep_dispatch.py::TestHonestCurvilinearSchemeSelection``.
-    geometry = _curvilinear_capability(mesh)
+    geometry = _curvilinear_capability(mesh, spatial_closure)
     if not geometry.ok:
         raise IncompatibleRepresentation(geometry.reason)
     for cls in LOSS_REPRESENTATIONS:
-        if cls.supports(mesh).ok:
-            return cls(mesh)
+        if cls.supports(mesh, spatial_closure).ok:
+            return cls(mesh, spatial_closure, angular_closure)
     raise IncompatibleRepresentation(
         f"no sweep strategy supports this mesh "
         f"(ndim={mesh.ndim}, coord={mesh.coord.value!r}, "
