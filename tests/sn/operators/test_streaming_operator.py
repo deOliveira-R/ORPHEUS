@@ -1045,3 +1045,81 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         np.testing.assert_array_equal(
             boundary, snapshots["cyl_2g_apply_boundary"],
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# P4.9b §6c witnesses — the operator is POSED with its two closures.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="P4.9b step-1 witness, RED before the ctor gains the two "
+    "required closure fields — StreamingOperator(sn_mesh) constructs "
+    "happily today (it is what all [M] 136 sites spell).",
+)
+def test_ctor_is_unconstructable_without_both_closures():
+    """[foundation] The ctor REQUIRES (sn_mesh, spatial_closure, angular_closure).
+
+    P4.9b done-when bullet 3: the illegal state (an operator with no
+    closures) is unrepresentable — every un-migrated ctor site fails
+    LOUD at collection, never silently.
+
+    ⛔ ``match=`` pins the ARITY message ("missing N required positional
+    argument"), never the bare class name: ``pytest.raises(TypeError,
+    match="StreamingOperator")`` is satisfied by
+    ``StreamingCollisionOperator.__init__``'s isinstance refusals
+    (``streaming.py:576/:583``) — the self-satisfied-raises class.
+
+    RED reading committed 2026-08-28: pre-carve both negative legs FAIL
+    (the 1-arg and 2-arg calls construct / raise nothing).
+    """
+    sn = _slab_mesh()
+    with pytest.raises(TypeError, match="missing 2 required positional"):
+        StreamingOperator(sn)
+    with pytest.raises(TypeError, match="missing 1 required positional"):
+        StreamingOperator(sn, sn.scheme)
+    L = StreamingOperator(sn, sn.scheme, sn.pole_angular_closure)
+    assert L.sn_mesh is sn
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="P4.9b step-1 witness, RED before .pose exists — the posing "
+    "classmethod and the two operator fields land with the ctor flip.",
+)
+def test_pose_reads_the_hub_objects_by_identity():
+    """[foundation] ``.pose(sn_mesh)`` passes the HUB's own two objects.
+
+    The raw ctor carries NO guards (ruled 2026-08-28 — the no-guard
+    position survived a four-attack exercise; the raw ctor is the
+    declared expert seam). That makes THIS gate the whole production
+    safety argument: consistency on the pose path is by construction,
+    and this pins it.
+
+    The realistic mutation this catches: a ``.pose`` that MINTS fresh
+    objects instead of reading the hub — it type-checks, it solves
+    correctly, and it silently breaks the one-instance invariant the
+    DSA-consistency ruling rests on. Legs 1+2 redden; nothing else in
+    the tree does.
+    """
+    from orpheus.sn.angular.closure import PoleAngularClosureBase
+    from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
+
+    sn = _slab_mesh()
+    L = StreamingOperator.pose(sn)
+    # Legs 1+2 — IDENTITY: the operator's slots ARE the hub's objects.
+    assert L.spatial_closure is sn.scheme
+    assert L.angular_closure is sn.pole_angular_closure
+    # Leg 3 — NON-VACUITY: a second hub's objects are DIFFERENT, and a
+    # pose over it lands on ITS objects (an `is`-gate against a
+    # singleton would pass vacuously; this leg forbids that).
+    sn2 = _slab_mesh()
+    assert sn2.pole_angular_closure is not sn.pole_angular_closure
+    L2 = StreamingOperator.pose(sn2)
+    assert L2.angular_closure is sn2.pole_angular_closure
+    assert L2.angular_closure is not L.angular_closure
+    # Leg 4 — NO-SWAP: the two slots carry their own families, asserted
+    # as a pair so a swapped .pose names the slot in the failure.
+    assert isinstance(L.spatial_closure, DiscretizationSchemeBase)
+    assert isinstance(L.angular_closure, PoleAngularClosureBase)
