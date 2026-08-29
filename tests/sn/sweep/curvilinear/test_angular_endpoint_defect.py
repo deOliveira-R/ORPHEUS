@@ -227,7 +227,7 @@ def _march(sn: SNMesh) -> _Marched:
             "state, so there is no SECOND endpoint and D is undefined rather "
             "than zero — the fixture is not exercising the two-ended march"
         )
-    closure = sn.pole_angular_closure
+    closure = sn.angular_closure
     # The defect is a property of a MARCHING closure. The Cartesian identity
     # closure has no angular march and therefore no endpoints at all, so the
     # method lives on M-M alone (never a base-class stub) and consumers narrow.

@@ -1441,7 +1441,7 @@ class SNSolver:
             from orpheus.sn.loss_representation import geometry_cache_for
 
             self.geom_cache = geometry_cache_for(
-                sn_mesh, sn_mesh.pole_angular_closure,
+                sn_mesh, sn_mesh.angular_closure,
             )
             # No bridge needed: ``mat_xs.total_cross_section`` is the
             # principled ``(ng, nx)`` 1-D layout the cache expects

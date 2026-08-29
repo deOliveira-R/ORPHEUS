@@ -23,7 +23,7 @@ collapse (derivation:
    nothing else.  The march ``ψ^a_out = (ψ_avg − (1−τ)·ψ^a_in)/τ`` lives
    with its owner (:func:`orpheus.sn.angular.closure.march_psi_half_step`,
    applied by the SN walk through
-   :meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`);
+   :meth:`~orpheus.sn.angular.closure.AngularClosureBase.advance_psi_half`);
    DD consumes the closure's contributions to the BALANCE as assembled
    data (``(ΔA/w)·c_out`` into the denominator, ``(ΔA/w)·c_in·ψ^a`` into
    the upstream numerator) and returns

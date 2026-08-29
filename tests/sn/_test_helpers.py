@@ -524,7 +524,7 @@ def het_operands(sn: "SNMesh"):
 
 def legacy_proxy_matvec(
     psi_view: "np.ndarray", sn_mesh: "SNMesh", sigma_t: "np.ndarray",
-    *, bc_outer=None, pole_angular_closure=None,
+    *, bc_outer=None, angular_closure=None,
 ) -> "np.ndarray":
     """Call :func:`_transport_operator_matvec_unified` with the
     cell-centre-proxy boundary fill semantics (pre-B1'' convention).
@@ -568,11 +568,11 @@ def legacy_proxy_matvec(
     # (the fused `(L+C)ψ`), and `(L + C).apply` = `L.apply + C.apply`
     # = `((L+C)ψ - sigma_t * psi) + sigma_t * psi` = (L+C)
     # bit-exact for the legacy semantic.  The ``bc_outer`` /
-    # ``pole_angular_closure`` override parameters are not used by
+    # ``angular_closure`` override parameters are not used by
     # any production caller of this helper today (all call sites pass
-    # `bc_outer=None, pole_angular_closure=None`) — kept in the
+    # `bc_outer=None, angular_closure=None`) — kept in the
     # function signature for legacy back-compat but ignored.
-    del bc_outer, pole_angular_closure  # explicitly mark unused
+    del bc_outer, angular_closure  # explicitly mark unused
     boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
     boundary.face_view("xmax")[:] = psi_view[:, :, -1]
     if "xmin" in boundary.layout.faces:
@@ -620,7 +620,7 @@ def radial_characteristic_edge_seed(psi_view, sn_mesh):
         RadialCharacteristicField,
     )
 
-    closure = sn_mesh.pole_angular_closure
+    closure = sn_mesh.angular_closure
     psi_g_first = psi_view[..., 0].swapaxes(0, 1) if psi_view.ndim == 4 else psi_view.swapaxes(0, 1)
     seed = RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)
     for p in sn_mesh.radial_characteristic_levels:
@@ -741,7 +741,7 @@ def redistribution_via_live_path(
     loop.
 
     Single source of truth (Cardinal Rule 2): the foundation closure test
-    (``tests/sn/sweep/curvilinear/test_pole_angular_closure.py``) imports this
+    (``tests/sn/sweep/curvilinear/test_angular_closure.py``) imports this
     helper for the α/ΔA/w/τ/V redistribution fold under hand-built coefficient
     arrays.  (The L0 cylinder hand-reference in
     ``test_unified_matvec_cylinder.py`` was migrated off this helper in #282

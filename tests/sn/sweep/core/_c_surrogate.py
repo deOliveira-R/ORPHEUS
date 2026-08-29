@@ -3,7 +3,7 @@ r"""Shared test surrogate for the Morel--Montry weighted-diamond constants.
 Issue #236 Phase 2 B2 (Fix 3 — dedup) — ``DiamondDifference.residual``
 reads the angular-closure constants off ``CellVisit.c_in`` / ``c_out``
 and the angular weight off ``CellVisit.tau``, all sourced in PRODUCTION
-from ``SNMesh.pole_angular_closure`` (via ``SNMesh._make_cell_visit`` and
+from ``SNMesh.angular_closure`` (via ``SNMesh._make_cell_visit`` and
 the closure's ``c_{in,out}_per_ordinate`` / ``tau_per_ordinate``
 accessors).
 

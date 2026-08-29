@@ -397,9 +397,9 @@ def test_g3_full_field_solve_reciprocity(geom):
 def _m0_mm_a_in(sn) -> float:
     """The seed-ordinate M-M coefficient on level 0 (live iff a product seed-fold)."""
     from orpheus.sn.loss_representation import _OneDimScanWalk
-    w = _OneDimScanWalk(sn, sn.scheme, sn.pole_angular_closure)
+    w = _OneDimScanWalk(sn, sn.scheme, sn.angular_closure)
     geom = w._ensure_geom_cache()
-    m0_local = sn.pole_angular_closure._edge_seed_stencil(0)[0]
+    m0_local = sn.angular_closure._edge_seed_stencil(0)[0]
     m0 = int(np.asarray(sn.quad.level_indices[0])[m0_local])
     return float(geom.mm_a_in_coeff[m0])
 
@@ -421,7 +421,7 @@ def test_g5_mandatory_config_activates_cyl_terms():
     unconditional activation instead."""
     from orpheus.sn.loss_representation import _OneDimScanWalk
     sn_p = _cyl_degenerate()
-    n_deg_p = _OneDimScanWalk(sn_p, sn_p.scheme, sn_p.pole_angular_closure)._degenerate_positions()[0].size
+    n_deg_p = _OneDimScanWalk(sn_p, sn_p.scheme, sn_p.angular_closure)._degenerate_positions()[0].size
     if not (n_deg_p > 0 and _m0_mm_a_in(sn_p) != 0.0):
         pytest.fail(
             f"cyl_degenerate must activate BOTH terms: degenerate "
@@ -429,7 +429,7 @@ def test_g5_mandatory_config_activates_cyl_terms():
             f"(need >0 and ≠0)"
         )
     sn_l = _cyl_regular()
-    n_deg_l = _OneDimScanWalk(sn_l, sn_l.scheme, sn_l.pole_angular_closure)._degenerate_positions()[0].size
+    n_deg_l = _OneDimScanWalk(sn_l, sn_l.scheme, sn_l.angular_closure)._degenerate_positions()[0].size
     if not (n_deg_l == 0 and _m0_mm_a_in(sn_l) != 0.0):
         pytest.fail(
             f"cyl_regular control must NULL the degenerate term with a "

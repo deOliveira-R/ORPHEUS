@@ -99,8 +99,8 @@ def test_every_per_cell_consumer_reaches_the_mesh_closure(monkeypatch):
     # the loop-closer between the operator's field and the identity every
     # later leg asserts. Without it the consumers could reach the hub's
     # object while a posed operator held a different one.
-    assert StreamingOperator.pose(sn).angular_closure is sn.pole_angular_closure
-    closure_cls = type(sn.pole_angular_closure)
+    assert StreamingOperator.pose(sn).angular_closure is sn.angular_closure
+    closure_cls = type(sn.angular_closure)
 
     march_seen: list[object] = []
     contrib_seen: list[object] = []
@@ -134,24 +134,24 @@ def test_every_per_cell_consumer_reaches_the_mesh_closure(monkeypatch):
         "(pre-P4.9a it marches through DiamondDifference's inline twin)"
     )
     # Leg 2 — IDENTITY: every march call was on the mesh's own closure.
-    assert all(obj is sn.pole_angular_closure for obj in march_seen)
+    assert all(obj is sn.angular_closure for obj in march_seen)
 
     # Leg 3 — the OTHER per-cell consumer: the matvec's degenerate arm
     # reaches the SAME instance through cell_contribution.
     contrib_seen.clear()
     _run_one_matvec(sn)
     assert len(contrib_seen) > 0
-    assert all(obj is sn.pole_angular_closure for obj in contrib_seen)
+    assert all(obj is sn.angular_closure for obj in contrib_seen)
 
     # Leg 4 — NON-VACUITY: a second mesh's closure is a DIFFERENT object and
     # its calls land on ITS instance — the recorder discriminates identities.
     sn2 = _cylinder_mesh(n_phi=6)
-    assert sn2.pole_angular_closure is not sn.pole_angular_closure
+    assert sn2.angular_closure is not sn.angular_closure
     march_before = len(march_seen)
     _run_one_sweep(sn2)
     new_calls = march_seen[march_before:]
     assert len(new_calls) > 0
-    assert all(obj is sn2.pole_angular_closure for obj in new_calls)
+    assert all(obj is sn2.angular_closure for obj in new_calls)
 
     # Control — the NON-degenerate fast path stays call-free (fp(4, 8) has
     # zero degenerate ordinates and consumes MINTED constants, not methods).

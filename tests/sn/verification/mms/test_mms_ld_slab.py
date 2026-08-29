@@ -60,16 +60,16 @@ def test_ld_slab_mesh_routes_to_cumprod_scan() -> None:
     ld_mesh = SNMesh(mesh, case.quadrature, case.materials,
                      scheme=LinearDiscontinuous())
     dd_mesh = SNMesh(mesh, case.quadrature, case.materials)
-    if not isinstance(default_for(ld_mesh, ld_mesh.scheme, ld_mesh.pole_angular_closure), CumprodScan):
+    if not isinstance(default_for(ld_mesh, ld_mesh.scheme, ld_mesh.angular_closure), CumprodScan):
         pytest.fail(
             "LD slab mesh routed to "
-            f"{type(default_for(ld_mesh, ld_mesh.scheme, ld_mesh.pole_angular_closure)).__name__}, expected CumprodScan "
+            f"{type(default_for(ld_mesh, ld_mesh.scheme, ld_mesh.angular_closure)).__name__}, expected CumprodScan "
             "(LD is affine-scannable since Increment B)"
         )
-    if not isinstance(default_for(dd_mesh, dd_mesh.scheme, dd_mesh.pole_angular_closure), CumprodScan):
+    if not isinstance(default_for(dd_mesh, dd_mesh.scheme, dd_mesh.angular_closure), CumprodScan):
         pytest.fail(
             "DD slab mesh no longer routes to CumprodScan "
-            f"({type(default_for(dd_mesh, dd_mesh.scheme, dd_mesh.pole_angular_closure)).__name__}) — selection regression"
+            f"({type(default_for(dd_mesh, dd_mesh.scheme, dd_mesh.angular_closure)).__name__}) — selection regression"
         )
 
 

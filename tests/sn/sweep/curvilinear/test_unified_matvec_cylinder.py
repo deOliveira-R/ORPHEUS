@@ -164,7 +164,7 @@ def _hand_reference_cyl_matvec(
     # redistribution closure — so sharing the edge-extrapolation seed
     # convention with the proxy is consistent (independence lives in the
     # per-ordinate walk, not in the seed the two sides agree to consume).
-    closure = sn_mesh.pole_angular_closure
+    closure = sn_mesh.angular_closure
     psi_state = closure.precompute_psi_state(psi_view)
     redist_full = np.zeros((ng, N, nx))
     for p, level_idx in enumerate(level_indices):

@@ -435,7 +435,7 @@ class CellResult:
         :math:`\psi_{i+1/2} = 2\overline{\psi}_i - \psi_{i-1/2}`.
     P4.9a: the former ``outgoing_angular_state`` field left — a spatial
     scheme closes no angular axis; the walk applies the closure's march
-    (:meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`)
+    (:meth:`~orpheus.sn.angular.closure.AngularClosureBase.advance_psi_half`)
     to the returned :attr:`cell_average_flux` itself.
 
     Frozen + slotted: instances are immutable and lightweight.

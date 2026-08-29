@@ -770,7 +770,7 @@ class RadialCharacteristicSeeding(
     ----------
     sn_mesh : SNMesh
         The augmented geometry — seed-carrying (1-D curvilinear, R12a). Supplies
-        the ray carrier (the domain), the M-M closure ``pole_angular_closure``
+        the ray carrier (the domain), the M-M closure ``angular_closure``
         (the single-sourced kernel), the cell volumes ``volumes``, and the
         quadrature ``quad``. A seedless mesh (Cartesian, or a non-carrying
         cylinder) has NO ray→bulk coupling: constructing over one is rejected. Unlike ``A_BB``,
@@ -799,7 +799,7 @@ class RadialCharacteristicSeeding(
         # P4.9b: the operator BINDS the hub's closure at construction (the
         # pose pattern — one posing-time hub read); apply/apply_transpose
         # consume the bound field, never the mesh attribute.
-        self._angular_closure = sn_mesh.pole_angular_closure
+        self._angular_closure = sn_mesh.angular_closure
         #: The ψ½ interior split space (level metadata for the gather loops).
         #: The declared DOMAIN is the member composite space (B.2c) — see
         #: :attr:`domain`.
@@ -975,7 +975,7 @@ class RadialCharacteristicSeeding(
     def _check_mesh(self, field: "FullField", method: str) -> None:
         r"""Enforce the space-content invariant (Pattern 4; CS4b S3).
 
-        The input composite, this operator's ``pole_angular_closure``, and
+        The input composite, this operator's ``angular_closure``, and
         the ``volumes`` must all agree with ONE
         :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`'s content, so the
         seed legs, the M-M coefficients, and the ``/V`` scaling cannot

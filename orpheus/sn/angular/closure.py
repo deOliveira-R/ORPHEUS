@@ -65,21 +65,21 @@ The full theory lives in the book (nothing derived here):
   :meth:`MorelMontryAngularSweep.edge_extrapolated_seed`) and which
   levels carry a ψ½ block.
 
-The single strategy contract — :class:`PoleAngularClosureBase`
+The single strategy contract — :class:`AngularClosureBase`
 ==============================================================
 
 The angular-closure family is a self-registering ABC,
-:class:`PoleAngularClosureBase`, layered on
+:class:`AngularClosureBase`, layered on
 :class:`~orpheus.numerics.registry.RegistryMixin`.  Each strategy
 inherits it (passing ``key="..."``), carries a class-level
 ``is_linear: bool`` trait, and implements the matvec/sweep contract
-(:meth:`~PoleAngularClosureBase.precompute_psi_state` /
-:meth:`~PoleAngularClosureBase.cell_contribution` /
-:meth:`~PoleAngularClosureBase.angular_adjoint`, abstract on the ABC)
+(:meth:`~AngularClosureBase.precompute_psi_state` /
+:meth:`~AngularClosureBase.cell_contribution` /
+:meth:`~AngularClosureBase.angular_adjoint`, abstract on the ABC)
 plus the closure-constant accessors
-(:attr:`~PoleAngularClosureBase.c_in_per_ordinate` /
-:attr:`~PoleAngularClosureBase.c_out_per_ordinate` /
-:attr:`~PoleAngularClosureBase.tau_per_ordinate`).  The pole singularity
+(:attr:`~AngularClosureBase.c_in_per_ordinate` /
+:attr:`~AngularClosureBase.c_out_per_ordinate` /
+:attr:`~AngularClosureBase.tau_per_ordinate`).  The pole singularity
 is **intrinsic geometry** (a coordinate-system singularity), not an
 external boundary, so the closure stays a separate concern from the
 boundary trace.  One strategy covers both curvilinear geometries via an
@@ -183,7 +183,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# PoleAngularClosureBase — concrete ABC with self-registration
+# AngularClosureBase — concrete ABC with self-registration
 # ═══════════════════════════════════════════════════════════════════════
 #
 # This ABC is the SOLE angular-closure contract (Cardinal Rule 2 — one
@@ -212,7 +212,7 @@ def _require_single_moment_pairing(pairing: np.ndarray, who: str) -> None:
     but a multi-moment pairing is a plain array, so a HAND-BUILT one does, and
     that is a real witness rather than a mutation of the code under test.
     The gate is
-    ``tests/sn/sweep/curvilinear/test_pole_angular_closure.py``; it pins
+    ``tests/sn/sweep/curvilinear/test_angular_closure.py``; it pins
     both shapes the literature actually proposes — a square ``(nx, 2, 2)``
     (Adams--Martin, closing per spatial moment) and a rank-1 ``(nx, 2, 1)``
     (ONETRAN, closing on the cell average only).  So this is a fail-loud
@@ -237,12 +237,12 @@ def _require_single_moment_pairing(pairing: np.ndarray, who: str) -> None:
         )
 
 
-class PoleAngularClosureBase(RegistryMixin, ABC):
+class AngularClosureBase(RegistryMixin, ABC):
     r"""Concrete abstract base for self-registering pole-angular-closure strategies.
 
     Subclasses inherit this ABC and pass ``key="..."`` in the class
     statement to self-register; the registry is consulted via
-    :meth:`PoleAngularClosureBase.create("morel_montry_angular_sweep")`
+    :meth:`AngularClosureBase.create("morel_montry_angular_sweep")`
     (or any other registered key).
 
     Subclasses MUST declare:
@@ -265,7 +265,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     -----
     Adding a new strategy is a one-line registration::
 
-        class MyClosure(PoleAngularClosureBase, key="my_closure"):
+        class MyClosure(AngularClosureBase, key="my_closure"):
             is_linear: ClassVar[bool] = True
 
             def precompute_psi_state(self, psi_view, *,
@@ -279,11 +279,11 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
             def angular_adjoint(self, numer_bar):
                 ...
 
-    No registry insert; ``PoleAngularClosureBase.create("my_closure")``
+    No registry insert; ``AngularClosureBase.create("my_closure")``
     is immediately callable.
     """
 
-    registry: ClassVar[dict[str, type["PoleAngularClosureBase"]]] = {}
+    registry: ClassVar[dict[str, type["AngularClosureBase"]]] = {}
 
     is_linear: ClassVar[bool]
 
@@ -346,7 +346,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
 
     @classmethod
     def _registry_base(cls) -> type:
-        return PoleAngularClosureBase
+        return AngularClosureBase
 
     @abstractmethod
     def __init__(
@@ -576,7 +576,7 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     # ── Matvec strategy contract (the ABC's three abstract methods) ──
     #
     # The unified SN matvec (``loss_representation.py``) reads
-    # ``sn_mesh.pole_angular_closure`` typed against THIS ABC and drives the
+    # ``sn_mesh.angular_closure`` typed against THIS ABC and drives the
     # angular path through these three methods; declaring them abstract makes
     # the ABC the COMPLETE strategy contract.  Return types are deliberately
     # loose (``object`` for the per-level half-grid state) so the two
@@ -1381,15 +1381,15 @@ def march_psi_half_step(
     Every consumer routes here: the batch kernel
     :func:`_psi_half_grid_single_level` delegates its loop body, and the
     per-cell degenerate solve path calls it through
-    :meth:`PoleAngularClosureBase.advance_psi_half`.  BMC 2010 Eqs.
+    :meth:`AngularClosureBase.advance_psi_half`.  BMC 2010 Eqs.
     (42)/(43); at :math:`\tau \equiv \tfrac12` this is Hébert's plain
     angular diamond.
 
     Operation order is LOAD-BEARING (bit-identity): the subtract-then-divide
     form.  The scan fast path consumes the algebraically-identical
     scan-normal form :math:`\tau^{-1}\bar\psi - ((1-\tau)/\tau)\psi^a`
-    via the minted constants (:attr:`PoleAngularClosureBase.tau_inv_per_ordinate`
-    / :attr:`~PoleAngularClosureBase.march_a_in_coeff_per_ordinate`) — the two
+    via the minted constants (:attr:`AngularClosureBase.tau_inv_per_ordinate`
+    / :attr:`~AngularClosureBase.march_a_in_coeff_per_ordinate`) — the two
     forms are NOT bitwise equal ([M] 2026-08-28, real fp(4, 6) τ: the
     stable discriminator is max |Δ| = 1.776e-15, exact across seeds;
     bit-equal-fraction and ULP counts are draw-dependent —
@@ -1502,7 +1502,7 @@ def compute_psi_half_per_level(
 
 
 class MorelMontryAngularSweep(
-    PoleAngularClosureBase, key="morel_montry_angular_sweep",
+    AngularClosureBase, key="morel_montry_angular_sweep",
 ):  # noqa: E501  (#282 route (a) notes:)
     # #282 route (a): the M-M recurrence's half-angle seed ``ψ_{1/2,i,g}`` is
     # no longer a swappable strategy.  Seed dispatch (R12a): on a CARRYING
@@ -2129,12 +2129,12 @@ class MorelMontryAngularSweep(
 #
 # Cartesian slab carries no angular redistribution term (no curvature → no
 # Hébert §3.9.4 closure).  The Identity strategy makes the slab algebra a
-# typed default (replacing a former ``pole_angular_closure is None`` matvec
+# typed default (replacing a former ``angular_closure is None`` matvec
 # branch — a Pattern 4 leak): the strategy exists, has the same surface, and
 # contributes zero to both the cell-balance denominator and upstream numerator.
 
 
-class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closure"):
+class IdentityAngularClosure(AngularClosureBase, key="identity_angular_closure"):
     r"""No-op pole-angular closure for Cartesian (slab + 2-D rectilinear).
 
     The Cartesian SN balance equation has no angular-redistribution term —
@@ -2147,7 +2147,7 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
     numerator, so the matvec body consumes the SAME
     ``cell_balance_for_streaming`` algebra for Cartesian as for sphere +
     cylinder — geometry-blind by data (Cardinal Rule 2), replacing a former
-    ``pole_angular_closure is None`` matvec branch (a Pattern 4 leak).
+    ``angular_closure is None`` matvec branch (a Pattern 4 leak).
 
     Parameters
     ----------
@@ -2257,7 +2257,7 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def default_angular_closure_class(coord: CoordSystem) -> "type[PoleAngularClosureBase]":
+def default_angular_closure_class(coord: CoordSystem) -> "type[AngularClosureBase]":
     """Return the default pole-angular-closure CLASS for a coordinate system.
 
     PR-TYPED-6.5 Phase 2.9.  The factory dispatch (instantiation with
@@ -2281,7 +2281,7 @@ def default_angular_closure_class(coord: CoordSystem) -> "type[PoleAngularClosur
 __all__ = [
     "IdentityAngularClosure",
     "MorelMontryAngularSweep",
-    "PoleAngularClosureBase",
+    "AngularClosureBase",
     "angular_cell_edges_per_level",
     "assert_carrying_quadrature",
     "compute_psi_half_per_level",

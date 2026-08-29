@@ -189,7 +189,7 @@ if TYPE_CHECKING:
     )
     from orpheus.transport.timed_full_field import TimedFullField
 
-    from ..angular.closure import PoleAngularClosureBase
+    from ..angular.closure import AngularClosureBase
     from ..mesh.augmented_mesh import SNMesh
     from ..operators.streaming import StreamingOperator
     from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
@@ -471,13 +471,13 @@ class LossRepresentation(Protocol):
 #: survives-the-lazy-strategy criterion; `scratch/p4_9b_design.md` §9).
 #: The COUNT gate (`tests/sn/sweep/core/test_cache.py`) pins builds-per-
 #: solve == 1 — the F2-measured hazard (6-10 operators/solve × 8.78 ms).
-_GEOM_CACHE_INTERN: "WeakKeyDictionary[SNMesh, tuple[PoleAngularClosureBase, StreamingCoefficientCache]]" = (
+_GEOM_CACHE_INTERN: "WeakKeyDictionary[SNMesh, tuple[AngularClosureBase, StreamingCoefficientCache]]" = (
     WeakKeyDictionary()
 )
 
 
 def geometry_cache_for(
-    mesh: "SNMesh", angular_closure: "PoleAngularClosureBase",
+    mesh: "SNMesh", angular_closure: "AngularClosureBase",
 ) -> StreamingCoefficientCache:
     """The lazily-resolved, hub-interned geometry table (Stratum 1).
 
@@ -509,7 +509,7 @@ class _LossRepresentation:
 
     mesh: "SNMesh"
     spatial_closure: "DiscretizationSchemeBase"
-    angular_closure: "PoleAngularClosureBase"
+    angular_closure: "AngularClosureBase"
 
     @classmethod
     def pose(cls, mesh: "SNMesh") -> "_LossRepresentation":
@@ -520,7 +520,7 @@ class _LossRepresentation:
         bare representation read the hub here, mirroring
         :meth:`~orpheus.sn.operators.streaming.StreamingOperator.pose`.
         """
-        return cls(mesh, mesh.scheme, mesh.pole_angular_closure)
+        return cls(mesh, mesh.scheme, mesh.angular_closure)
 
     @classmethod
     def supports(
@@ -1047,7 +1047,7 @@ class _OctantWalk:
 
     mesh: "SNMesh"
     spatial_closure: "DiscretizationSchemeBase"
-    angular_closure: "PoleAngularClosureBase"
+    angular_closure: "AngularClosureBase"
 
     def _interior_walk(
         self,
@@ -1512,7 +1512,7 @@ class CumprodScan(_LossRepresentation):
         The matvec walk LIVES in :meth:`._OneDimScanWalk.loss_action` (the
         apply-direction twin of the sweep — L21 "matvec ≡ sweep"); the angular
         Morel–Montry redistribution + Carlson pole seed ride through
-        ``pole_angular_closure`` there (NOT re-inlined).
+        ``angular_closure`` there (NOT re-inlined).
         """
         return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).loss_action(sigma, psi)
 
@@ -2776,7 +2776,7 @@ LOSS_REPRESENTATIONS: tuple[type[_LossRepresentation], ...] = (
 def default_for(
     mesh: "SNMesh",
     spatial_closure: "DiscretizationSchemeBase",
-    angular_closure: "PoleAngularClosureBase",
+    angular_closure: "AngularClosureBase",
 ) -> LossRepresentation:
     """Select the default sweep strategy for ``mesh``.
 
@@ -2878,7 +2878,7 @@ class _WalkLeg:
     adjoint (reverse-mode is reverse program order).  ``within`` (positions
     inside the level) and ``ordinates`` (global indices) are the SAME
     selection in the two indexing vocabularies the kernels consume
-    (``pole_angular_closure.cell_contribution`` is level-positional; the
+    (``angular_closure.cell_contribution`` is level-positional; the
     flux buffers are global-ordinate-indexed).
     """
 
@@ -2937,7 +2937,7 @@ class _OneDimScanWalk:
 
     mesh: "SNMesh"
     spatial_closure: "DiscretizationSchemeBase"
-    angular_closure: "PoleAngularClosureBase"
+    angular_closure: "AngularClosureBase"
 
     def _dag_legs(self) -> "tuple[_WalkLeg, ...]":
         r"""Every non-empty leg of the 1-D walk DAG, in DEPENDENCY order.
@@ -3202,7 +3202,7 @@ class _OneDimScanWalk:
         self-consistency defect, INFLOW = identity; NO BC reflection — the
         sibling ``−B`` carries it). The Morel–Montry angular redistribution +
         the Carlson coupled-pole seed (curvilinear) ride through
-        ``pole_angular_closure`` (ERR-058 / #195 — NEVER re-inlined). ``sigma``
+        ``angular_closure`` (ERR-058 / #195 — NEVER re-inlined). ``sigma``
         is the ``(ng, nx)`` group diagonal cross-section, passed directly — the
         frame needs no operator handle (it may be ``σ_t`` OR the removal ``σ_r``
         — the caller single-sources it; the frame never assumes ``σ_t``).  Since #240 Phase 2 Step B the protocol
@@ -3240,7 +3240,7 @@ class _OneDimScanWalk:
 
         # The operator hands its bound closure through the representation
         # (P4.9b — the walk consumes the HANDED pair, never the hub's attrs).
-        pole_angular_closure = self.angular_closure
+        angular_closure = self.angular_closure
 
         mu_x = quad.mu_x
         A = sn_mesh.areas
@@ -3288,7 +3288,7 @@ class _OneDimScanWalk:
             )
 
             seed_field = RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)
-        psi_state = pole_angular_closure.precompute_psi_state(
+        psi_state = angular_closure.precompute_psi_state(
             psi_view,
             radial_characteristic=(
                 seed_field.interior if seed_field is not None else None
@@ -3379,7 +3379,7 @@ class _OneDimScanWalk:
                 # diamond march ``out = 2ψ̄ − in`` inlined here is a
                 # single-occupant geometry, NOT a polymorphism gap.
                 angular_denom_term, angular_numer_upstream = (
-                    pole_angular_closure.cell_contribution(
+                    angular_closure.cell_contribution(
                         psi_state, i, leg.mu_level_idx, leg.within,
                     )
                 )
@@ -3453,7 +3453,7 @@ class _OneDimScanWalk:
                 angular_denom_term = np.empty(n_deg)
                 angular_numer_upstream = np.empty((ng, n_deg))
                 for col_idx in range(n_deg):
-                    denom_one, numer_one = pole_angular_closure.cell_contribution(
+                    denom_one, numer_one = angular_closure.cell_contribution(
                         psi_state, i, deg_level[col_idx],
                         np.array([deg_within[col_idx]]),
                     )
@@ -4876,7 +4876,7 @@ def _sweep_scheduled(
     boundary_flux: "AngularBoundaryFlux",
     *,
     spatial_closure: "DiscretizationSchemeBase",
-    angular_closure: "PoleAngularClosureBase",
+    angular_closure: "AngularClosureBase",
     schedule: "SweepSchedule",
     reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     moment_frame: "FrameBase | None" = None,
@@ -5021,7 +5021,7 @@ def _sweep_jacobi(
     boundary_flux: "AngularBoundaryFlux",
     *,
     spatial_closure: "DiscretizationSchemeBase",
-    angular_closure: "PoleAngularClosureBase",
+    angular_closure: "AngularClosureBase",
     moment_frame: "FrameBase | None" = None,
     interior: "Callable",
 ) -> "tuple[np.ndarray, np.ndarray | None]":

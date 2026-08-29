@@ -1074,7 +1074,7 @@ def test_ctor_is_unconstructable_without_both_closures():
         StreamingOperator(sn)
     with pytest.raises(TypeError, match="missing 1 required positional"):
         StreamingOperator(sn, sn.scheme)
-    L = StreamingOperator(sn, sn.scheme, sn.pole_angular_closure)
+    L = StreamingOperator(sn, sn.scheme, sn.angular_closure)
     assert L.sn_mesh is sn
 
 
@@ -1093,26 +1093,26 @@ def test_pose_reads_the_hub_objects_by_identity():
     DSA-consistency ruling rests on. Legs 1+2 redden; nothing else in
     the tree does.
     """
-    from orpheus.sn.angular.closure import PoleAngularClosureBase
+    from orpheus.sn.angular.closure import AngularClosureBase
     from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
     sn = _slab_mesh()
     L = StreamingOperator.pose(sn)
     # Legs 1+2 — IDENTITY: the operator's slots ARE the hub's objects.
     assert L.spatial_closure is sn.scheme
-    assert L.angular_closure is sn.pole_angular_closure
+    assert L.angular_closure is sn.angular_closure
     # Leg 3 — NON-VACUITY: a second hub's objects are DIFFERENT, and a
     # pose over it lands on ITS objects (an `is`-gate against a
     # singleton would pass vacuously; this leg forbids that).
     sn2 = _slab_mesh()
-    assert sn2.pole_angular_closure is not sn.pole_angular_closure
+    assert sn2.angular_closure is not sn.angular_closure
     L2 = StreamingOperator.pose(sn2)
-    assert L2.angular_closure is sn2.pole_angular_closure
+    assert L2.angular_closure is sn2.angular_closure
     assert L2.angular_closure is not L.angular_closure
     # Leg 4 — NO-SWAP: the two slots carry their own families, asserted
     # as a pair so a swapped .pose names the slot in the failure.
     assert isinstance(L.spatial_closure, DiscretizationSchemeBase)
-    assert isinstance(L.angular_closure, PoleAngularClosureBase)
+    assert isinstance(L.angular_closure, AngularClosureBase)
 
 
 def test_the_raw_ctor_is_a_declared_expert_seam():
@@ -1147,4 +1147,4 @@ def test_the_raw_ctor_is_a_declared_expert_seam():
     )
     L = StreamingOperator(sn, sn.scheme, doctored)
     assert L.angular_closure is doctored
-    assert L.angular_closure is not sn.pole_angular_closure
+    assert L.angular_closure is not sn.angular_closure

@@ -112,6 +112,7 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
+    from ..angular.closure import AngularClosureBase
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
@@ -258,7 +259,7 @@ class StreamingCoefficientCache:
     def from_mesh_and_quad(
         cls,
         sn_mesh: "SNMesh",
-        angular_closure: "PoleAngularClosureBase",
+        angular_closure: "AngularClosureBase",
     ) -> "StreamingCoefficientCache":
         r"""Populate Stratum 1 from one :class:`SNMesh` + its quadrature.
 
@@ -385,7 +386,7 @@ class StreamingCoefficientCache:
         # ``loss_representation`` scan fast path
         # ``geom.tau_inv·ψ_avg − geom.mm_a_in_coeff·ψ_in`` — the closure's
         # own scan-normal representation, welded to its march by gate
-        # (test_pole_angular_closure::TestMintedScanConstants; the M7
+        # (test_angular_closure::TestMintedScanConstants; the M7
         # mutation arm prices the realistic 1-2 ULP respelling).
         # Bit-identical to the pre-handing derivation: the accessors
         # compute the same expressions on the same cached τ array

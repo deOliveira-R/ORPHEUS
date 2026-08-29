@@ -362,7 +362,7 @@ def test_the_production_value_path_keeps_psi_half_POSITIVE(n_phi: int):
         )
 
     min_psi_half = _min_psi_half(
-        sn.pole_angular_closure, psi, radial_characteristic
+        sn.angular_closure, psi, radial_characteristic
     )
     if min_psi_half <= 0.0:
         pytest.fail(
@@ -429,7 +429,7 @@ def test_a_zero_seed_drives_psi_half_NEGATIVE_by_the_amplification(n_phi):
     """
     sn = _heterogeneous_2g_cylinder(n_phi)
     psi, _radial_characteristic = _converged_flux(sn)
-    closure = sn.pole_angular_closure
+    closure = sn.angular_closure
 
     min_psi_half = _min_psi_half(closure, psi, None)
     max_psi = float(np.abs(psi).max())

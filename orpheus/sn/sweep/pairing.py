@@ -4,7 +4,7 @@ Issue #236 realizes the SN discretization as a tensor product of two
 independently-selectable axes — a SPATIAL closure
 (:class:`~orpheus.transport.spatial.scheme.DiscretizationScheme`) and an ANGULAR
 redistribution closure
-(:class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`).
+(:class:`~orpheus.sn.angular.closure.AngularClosureBase`).
 Some properties of the discretization are properties of the *pair*, not of
 either axis alone.  This module is the home for those pairing-validity
 predicates: each reads only the class-level traits the two axes declare, so a
@@ -24,7 +24,7 @@ separate papers, the strongest evidence they live on independent axes:
   full Linear-Discontinuous ``True``; Step ``False``).
 * ANGULAR (Bailey–Morel–Chang 2010, *Nucl. Sci. Eng.* **165**): the
   redistribution closure's first-order functional :math:`\beta` (BMC Eq. (41))
-  must vanish.  Carried by ``PoleAngularClosureBase.beta_first_order_consistent``
+  must vanish.  Carried by ``AngularClosureBase.beta_first_order_consistent``
   (Morel–Montry ``True`` by BMC Eq. (42); the Cartesian identity closure
   vacuously ``True``).
 
@@ -47,12 +47,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from orpheus.transport.spatial.scheme import DiscretizationScheme
 
-    from ..angular.closure import PoleAngularClosureBase
+    from ..angular.closure import AngularClosureBase
 
 
 def pair_diffusion_limit_consistent(
     scheme: "DiscretizationScheme",
-    closure: "PoleAngularClosureBase",
+    closure: "AngularClosureBase",
 ) -> bool:
     r"""Whether the (spatial scheme, angular closure) PAIR recovers the thick-diffusion limit.
 
@@ -75,7 +75,7 @@ def pair_diffusion_limit_consistent(
     an instance may be passed.  This is the validity predicate for a
     ``(scheme × closure)`` pair; it is currently exercised by its tests
     (``tests/sn/sweep/core/test_pairing_diffusion_limit.py``) — production wiring of
-    the check (against the instances ``mesh.scheme`` / ``mesh.pole_angular_closure``
+    the check (against the instances ``mesh.scheme`` / ``mesh.angular_closure``
     at mesh construction) is pending, so it has no production call site today.
 
     Parameters

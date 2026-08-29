@@ -30,7 +30,7 @@ What remains here is the walk itself:
 History: this package was ``orpheus.sn.spatial`` until the R9 estate
 rename (task #54, 2026-07-13) — the old name described the pre-#272
 contents (the spatial trial-space layer), not this residual.  The
-angular closure family lived here as ``pole_angular_closure`` until
+angular closure family lived here as ``angular_closure`` until
 2026-08-26; its path carried two falsehoods (**"pole"** named the
 special case for a family that closes the whole angular axis, and
 ``IdentityAngularClosure`` never sees a pole; **"sweep"** is traversal).

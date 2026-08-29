@@ -98,7 +98,7 @@ if TYPE_CHECKING:
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.space import FunctionSpace
     from ..mesh.augmented_mesh import SNMesh
-    from ..angular.closure import PoleAngularClosureBase
+    from ..angular.closure import AngularClosureBase
     from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
     from orpheus.numerics.frame import FrameBase
     from orpheus.transport.source_sinks import (
@@ -277,7 +277,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         discretization-scheme INSTANCE — the extraction of a closure
         from its generator is the identity until O-3 splits the
         closure/factory family; the slot names the ROLE it consumes.
-    angular_closure : PoleAngularClosureBase
+    angular_closure : AngularClosureBase
         The angular axis's closure — the hub's bound instance (the
         Morel–Montry march on curvilinear charts, the identity closure
         on Cartesian).  Pure :math:`L` reads no :math:`\sigma`.
@@ -285,7 +285,7 @@ class StreamingOperator(LinearOperator["FullField"]):
 
     sn_mesh: "SNMesh"
     spatial_closure: "DiscretizationSchemeBase"
-    angular_closure: "PoleAngularClosureBase"
+    angular_closure: "AngularClosureBase"
 
     # Streaming is the sole FULL operator — it couples bulk ↔ boundary
     # (reads the inflow trace to seed the sweep, writes the outflow
@@ -310,7 +310,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         angular-discretization])`` constructor with no mesh argument;
         this classmethod is that migration's lever and retires with it.
         """
-        return cls(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
+        return cls(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
 
     @property
     def is_adjointable(self) -> bool:

@@ -76,7 +76,7 @@ def effective_starting_cosine(solution, quad) -> np.ndarray:
     weights = np.asarray(quad.weights, dtype=float)
     mu_radial = np.asarray(quad.mu_x, dtype=float)
     interior = solution.radial_characteristic.interior
-    level = sorted(solution.mesh.pole_angular_closure._carrying_levels)[0]
+    level = sorted(solution.mesh.angular_closure._carrying_levels)[0]
     idx = (np.arange(psi.shape[0]) if quad.level_structure is None
            else np.asarray(quad.level_indices[level]))
     sin_theta = (1.0 if quad.level_structure is None

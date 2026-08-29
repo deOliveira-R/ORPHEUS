@@ -169,7 +169,7 @@ def test_reverse_traversal_is_the_exact_reverse():
         ("sphere", _make_sphere(ng=1)[0]),
         ("cyl-product", _product_cylinder()),
     ):
-        legs = _OneDimScanWalk(sn, sn.scheme, sn.pole_angular_closure)._dag_legs()
+        legs = _OneDimScanWalk(sn, sn.scheme, sn.angular_closure)._dag_legs()
         rev = _reverse_traversal(legs)
         if len(rev) != len(legs):
             pytest.fail(f"[{name}] reversal changed the leg count")
@@ -206,7 +206,7 @@ def test_dag_legs_dependency_order_inward_before_outward():
         ("sphere", _make_sphere(ng=1)[0]),
         ("cyl-product", _product_cylinder()),
     ):
-        legs = _OneDimScanWalk(sn, sn.scheme, sn.pole_angular_closure)._dag_legs()
+        legs = _OneDimScanWalk(sn, sn.scheme, sn.angular_closure)._dag_legs()
         signs = [leg.direction_sign for leg in legs]
         n_in = signs.count(-1)
         if signs != [-1] * n_in + [+1] * (len(signs) - n_in):
@@ -240,7 +240,7 @@ def test_legs_and_degenerates_partition_the_quadrature():
     from orpheus.sn.loss_representation import _OneDimScanWalk
 
     sn = _product_cylinder()
-    walk = _OneDimScanWalk(sn, sn.scheme, sn.pole_angular_closure)
+    walk = _OneDimScanWalk(sn, sn.scheme, sn.angular_closure)
     leg_ordinates: list[int] = []
     for leg in walk._dag_legs():
         leg_ordinates.extend(int(n) for n in leg.ordinates)

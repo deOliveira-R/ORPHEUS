@@ -2532,7 +2532,7 @@ def _install_closure_spy(monkeypatch, sn, method_name: str) -> list[dict]:
     trip ``__slots__``); the test uses ONE closure, so no cross-instance leak.
     Proves ``apply`` / ``apply_transpose`` EXECUTE the production kernel — a
     divergent inlined copy would leave the list empty (Cardinal Rule 2)."""
-    cls = type(sn.pole_angular_closure)
+    cls = type(sn.angular_closure)
     real = getattr(cls, method_name)
 
     def spy(self, *args, **kwargs):
@@ -2697,7 +2697,7 @@ class TestA_AB_SeedInjection:
         has teeth AND that a shared-method bug DOES surface on the adjoint
         cross-check (the L13 escape hatch the bit-identity gates lack)."""
         sn = _sphere()
-        cls = type(sn.pole_angular_closure)
+        cls = type(sn.angular_closure)
         real = cls.cell_contribution
 
         def flip(self, *args, **kwargs):
@@ -3915,7 +3915,7 @@ class TestPrescribedCornerDatum:
             pytest.fail("carrying rhs builder did not return the coupled pair")
         seed = rhs.systems[1]
         mu = sn.quad.mu_x
-        level_indices = sn.pole_angular_closure.level_indices
+        level_indices = sn.angular_closure.level_indices
         levels = tuple(seed.boundary.space.levels)
         if not levels:
             pytest.fail("sphere rhs has no carrying levels — the pin is vacuous")

@@ -99,7 +99,7 @@ def test_geometry_coefficients_built_at_construction() -> None:
     frozen dataclass refuses post-construction mutation.
     """
     sn_mesh = _make_slab(nx=10, N=8)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
     N, nx = 8, 10
     assert geom.chain_idx.shape == (N, nx)
     assert geom.chain_idx_inv.shape == (N, nx)
@@ -131,7 +131,7 @@ def test_collision_cache_built_at_sigma_t_bind() -> None:
     Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
     sn_mesh = _make_slab(nx=4, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
     # sig_t is (ng, nx) under PR-INDEX-2.  Two groups × four cells,
     # uniform per group: group 0 has σ_t=1.0, group 1 has σ_t=2.0.
     sig_t = np.array([[1.0] * 4, [2.0] * 4])  # (ng=2, nx=4)
@@ -164,7 +164,7 @@ def test_two_strata_independence_by_ng_axis() -> None:
     Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
     sn_mesh = _make_slab(nx=5, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
     # Stratum 1 — no ng axis on ANY field.
     for name in ("A_down", "A_total", "dA_w", "V"):
         field_arr = getattr(geom, name)
@@ -348,7 +348,7 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
         "the strategy layer's intern is the one home (Q1 ruling)"
     )
     assert geometry_cache_for(
-        sn_mesh, sn_mesh.pole_angular_closure,
+        sn_mesh, sn_mesh.angular_closure,
     ) is geom_before, "the solver's Stratum 1 IS the interned instance"
     # (2) STALENESS — the σ stratum the WALK sees is the fresh one: the
     #     rebind re-stamped the mesh memo, and its values carry the NEW σ
@@ -396,7 +396,7 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
     else:
         sn_mesh = _make_sphere(nx=nx, N=N)
 
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
     rng = np.random.default_rng(42)
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     sig_t = 1.0 + 0.5 * rng.random((ng, nx))                  # (ng, nx)
@@ -453,7 +453,7 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
     visits_full = list(sn_mesh.dag_walk(ordinate_idx=n))
     # P4.9a: the caller assembles the closure contributions from the
     # closure's own per-ordinate constants (the walk's production idiom).
-    closure = sn_mesh.pole_angular_closure
+    closure = sn_mesh.angular_closure
     c_in_n = closure.c_in_per_ordinate[n]
     c_out_n = closure.c_out_per_ordinate[n]
     for k_chain in range(nx):
@@ -514,7 +514,7 @@ def test_cache_populator_matches_cell_balance_for_streaming() -> None:
     retired).
     """
     sn_mesh = _make_sphere(nx=8, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
     ng = 2
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     # Build (nx, ng) first via outer product for readability, then transpose.
@@ -547,7 +547,7 @@ def test_cache_populator_matches_cell_balance_for_streaming() -> None:
                 # spatial; the closure owns the c-map).
                 angular_denom_term=np.array(
                     [st.delta_A_over_w
-                     * sn_mesh.pole_angular_closure.c_out_per_ordinate[n]],
+                     * sn_mesh.angular_closure.c_out_per_ordinate[n]],
                 ),
                 angular_numer_upstream=np.zeros((ng, 1)),
             )
@@ -748,13 +748,13 @@ def test_closure_algebra_fields_are_the_closures_minted_values() -> None:
     handing the right-hand sides are the closure's own accessors, so this
     is a *storage-fidelity* pin (cache == mint) and a *spelling* pin (via
     the closure-side discrimination leg in
-    ``test_pole_angular_closure::TestMintedScanConstants``), NOT an
+    ``test_angular_closure::TestMintedScanConstants``), NOT an
     independent-value pin of the constants themselves — that anchor is
     the closure-vs-surrogate contract in ``test_closure_constant_map.py``.
     """
     sn_mesh = _make_sphere(nx=8, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
-    closure = sn_mesh.pole_angular_closure
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
+    closure = sn_mesh.angular_closure
     tau = closure.tau_per_ordinate
     np.testing.assert_array_equal(geom.tau_inv, 1.0 / tau)
     np.testing.assert_array_equal(geom.mm_a_in_coeff, (1.0 - tau) / tau)
@@ -771,7 +771,7 @@ def test_closure_algebra_fields_slab_neutral_element() -> None:
     has no reading that could fail for a wrong-geometry reason.
     """
     sn_mesh = _make_slab(nx=8, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.pole_angular_closure)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh, sn_mesh.angular_closure)
     N = sn_mesh.quad.N
     np.testing.assert_array_equal(geom.tau_inv, np.ones(N))
     np.testing.assert_array_equal(geom.mm_a_in_coeff, np.zeros(N))
@@ -882,5 +882,5 @@ def test_cache_builder_refuses_a_meshless_chain_under_dash_O() -> None:
     assert sn2d.reduced is None  # the witness's own premise
     with pytest.raises(TypeError, match="requires a ReducedStreamingOperator"):
         StreamingCoefficientCache.from_mesh_and_quad(
-            sn2d, sn2d.pole_angular_closure,
+            sn2d, sn2d.angular_closure,
         )

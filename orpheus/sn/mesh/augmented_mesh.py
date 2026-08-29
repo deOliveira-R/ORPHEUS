@@ -60,7 +60,7 @@ from orpheus.transport.spatial.diamond import DiamondDifference
 from ..angular.closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
-    PoleAngularClosureBase,
+    AngularClosureBase,
     assert_carrying_quadrature,
     default_angular_closure_class,
     march_start_structure_per_level,
@@ -209,7 +209,7 @@ class SNMesh(MaterialMesh):
         quadrature: Quadrature,
         materials: "Materials | Mapping[int, Mixture]",
         scheme: DiscretizationSchemeBase | None = None,
-        pole_angular_closure: "type[PoleAngularClosureBase] | None" = None,
+        angular_closure: "type[AngularClosureBase] | None" = None,
     ) -> None:
         # The legacy inbound surface: convert the Mesh1D / Mesh2D declaration
         # to the canonical axis tuple ONCE at the boundary, extract the one
@@ -226,7 +226,7 @@ class SNMesh(MaterialMesh):
             quadrature=quadrature,
             materials=materials,
             scheme=scheme,
-            pole_angular_closure=pole_angular_closure,
+            angular_closure=angular_closure,
         )
 
     def _init_core(
@@ -238,7 +238,7 @@ class SNMesh(MaterialMesh):
         quadrature: Quadrature,
         materials: "Materials | Mapping[int, Mixture]",
         scheme: DiscretizationSchemeBase | None,
-        pole_angular_closure: "type[PoleAngularClosureBase] | None",
+        angular_closure: "type[AngularClosureBase] | None",
     ) -> None:
         # The ONE construction body both surfaces funnel into (C5.1).
         #
@@ -280,13 +280,13 @@ class SNMesh(MaterialMesh):
         #
         # Instantiation is DEFERRED until after the coord dispatch below
         # populates ``self.reduced`` / ``self._volumes`` / ``self.axis_widths``
-        # (the data the strategies bind to) — see the ``self.pole_angular_closure
+        # (the data the strategies bind to) — see the ``self.angular_closure
         # = …`` line after the BC resolution.  The override is a CLASS, not an
         # instance: a closure binds to its mesh at construction (``cls(self)``),
         # and this mesh does not exist yet when the caller assembles the
         # constructor arguments (Pattern 4 — an unbound / foreign-bound closure
         # is now unspellable).
-        self._user_supplied_closure = pole_angular_closure
+        self._user_supplied_closure = angular_closure
 
         # (``self.axes`` / ``self.axis_widths`` / ``self.mat_map`` /
         # ``self._volumes`` / ``self._areas`` / ``self.nx`` /
@@ -419,7 +419,7 @@ class SNMesh(MaterialMesh):
             # were never mesh facts.
             angular = angular_redistribution(self.quad, self.coord)
             pairing = np.zeros((int(np.prod(self.spatial_shape)), 1, 1))
-        self.pole_angular_closure: PoleAngularClosureBase = closure_cls(
+        self.angular_closure: AngularClosureBase = closure_cls(
             angular, pairing,
         )
         # Drop the temporary attribute now that the closure is bound.
@@ -692,7 +692,7 @@ class SNMesh(MaterialMesh):
         *,
         mat_map: np.ndarray | None = None,
         scheme: DiscretizationSchemeBase | None = None,
-        pole_angular_closure: "type[PoleAngularClosureBase] | None" = None,
+        angular_closure: "type[AngularClosureBase] | None" = None,
     ) -> "SNMesh":
         r"""Build an :class:`SNMesh` from an axis tuple — the axis-native surface.
 
@@ -730,7 +730,7 @@ class SNMesh(MaterialMesh):
             to all-zeros (single material with id 0).
         scheme : DiscretizationSchemeBase or None
             Cell-update strategy. Defaults to :class:`DiamondDifference`.
-        pole_angular_closure : type[PoleAngularClosureBase] or None
+        angular_closure : type[AngularClosureBase] or None
             Override the default pole-angular closure CLASS
             (curvilinear → :class:`MorelMontryAngularSweep`,
             Cartesian → :class:`IdentityAngularClosure`).  A class, not
@@ -756,7 +756,7 @@ class SNMesh(MaterialMesh):
             quadrature=quadrature,
             materials=materials,
             scheme=scheme,
-            pole_angular_closure=pole_angular_closure,
+            angular_closure=angular_closure,
         )
         return obj
 
@@ -767,7 +767,7 @@ class SNMesh(MaterialMesh):
         quadrature: "Quadrature",
         *,
         scheme: DiscretizationSchemeBase | None = None,
-        pole_angular_closure: "type[PoleAngularClosureBase] | None" = None,
+        angular_closure: "type[AngularClosureBase] | None" = None,
     ) -> "SNMesh":
         r"""Promote a :class:`MaterialMesh` to a solvable SN phase space.
 
@@ -793,7 +793,7 @@ class SNMesh(MaterialMesh):
             Angular quadrature for the SN method.
         scheme : DiscretizationSchemeBase or None
             Cell-update strategy.  Defaults to :class:`DiamondDifference`.
-        pole_angular_closure : type[PoleAngularClosureBase] or None
+        angular_closure : type[AngularClosureBase] or None
             Override the default pole-angular closure CLASS
             (curvilinear → :class:`MorelMontryAngularSweep`,
             Cartesian → :class:`IdentityAngularClosure`).  A class, not
@@ -828,7 +828,7 @@ class SNMesh(MaterialMesh):
             quadrature=quadrature,
             materials=material_mesh.materials,
             scheme=scheme,
-            pole_angular_closure=pole_angular_closure,
+            angular_closure=angular_closure,
         )
         return obj
 

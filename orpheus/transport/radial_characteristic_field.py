@@ -330,7 +330,7 @@ class RadialCharacteristicField(
         mesh : SNMesh
             The phase-space carrier (its
             ``radial_characteristic_field_space`` is the R12a presence
-            predicate; its ``pole_angular_closure.level_indices`` give each
+            predicate; its ``angular_closure.level_indices`` give each
             level's ordinate bundle for the per-level moment integration).
         boundary_trace : trace source-sink, optional
             The SAME composite rhs's boundary member (an
@@ -357,7 +357,7 @@ class RadialCharacteristicField(
             )
         mu = mesh.quad.mu_x
         weights = mesh.quad.weights
-        level_indices = mesh.pole_angular_closure.level_indices
+        level_indices = mesh.angular_closure.level_indices
         arc_family = mesh.coord is CoordSystem.CYLINDRICAL
         seed = cls.source_zeros(mesh.radial_characteristic_field_space)
         for p in seed.interior.space.levels:

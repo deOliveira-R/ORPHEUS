@@ -378,13 +378,13 @@ class TestPureLIsLossActionAtZeroSigma:
         # (same explicit legs — the SAME call under streaming_action).
         from orpheus.sn.loss_representation import default_for
         if seed_leg is None:
-            l_action_zero = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure).loss_action(sigma_zero, state)
+            l_action_zero = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure).loss_action(sigma_zero, state)
         else:
             from orpheus.sn.operators.radial_characteristic import (
                 RadialCharacteristicSeeding,
             )
 
-            l_action_zero = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure).loss_action(
+            l_action_zero = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure).loss_action(
                 sigma_zero, state,
             ) + RadialCharacteristicSeeding(sn_mesh).apply(seed_leg)
 

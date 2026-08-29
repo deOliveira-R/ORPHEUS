@@ -24,7 +24,7 @@ from orpheus.sn.sweep.pairing import pair_diffusion_limit_consistent
 from orpheus.sn.angular.closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
-    PoleAngularClosureBase,
+    AngularClosureBase,
 )
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
@@ -49,7 +49,7 @@ def test_angular_closure_beta_booleans() -> None:
 def test_base_defaults_are_conservative_opt_in() -> None:
     """A scheme/closure that declares nothing is NOT assumed consistent (opt-in default)."""
     assert DiscretizationSchemeBase.diffusion_limit_consistent is False
-    assert PoleAngularClosureBase.beta_first_order_consistent is False
+    assert AngularClosureBase.beta_first_order_consistent is False
 
 
 @pytest.mark.foundation

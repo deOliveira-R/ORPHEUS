@@ -293,7 +293,7 @@ class TestSICylinderResonance:
 
         materials, mesh, quad = self._build()
         probe = SNMesh(mesh, quad, materials)
-        geom = StreamingCoefficientCache.from_mesh_and_quad(probe, probe.pole_angular_closure)
+        geom = StreamingCoefficientCache.from_mesh_and_quad(probe, probe.angular_closure)
         mu = np.asarray(quad.mu_x)
         inward = np.flatnonzero(mu < 0)
 

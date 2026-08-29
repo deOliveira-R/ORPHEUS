@@ -109,7 +109,7 @@ def _make_spherical_sn_mesh(
         coord=CoordSystem.SPHERICAL,
         bc_right=bc_outer or BC("reflective"),
     )
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials(), pole_angular_closure=pole_closure)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     return sn_mesh, sig_t
 
@@ -137,7 +137,7 @@ def _make_cylindrical_sn_mesh(
         coord=CoordSystem.CYLINDRICAL,
         bc_right=bc_outer or BC("reflective"),
     )
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials(), pole_angular_closure=pole_closure)
+    sn_mesh = SNMesh(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     return sn_mesh, sig_t
 

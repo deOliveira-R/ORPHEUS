@@ -174,7 +174,7 @@ class TestDispatchSelectsStrategy:
         sn_mesh = _slab_sn_mesh()
         if sn_mesh.reduced is None:
             pytest.fail("slab fixture unexpectedly has reduced is None")
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"slab → {type(strategy).__name__}, expected CumprodScan"
@@ -186,7 +186,7 @@ class TestDispatchSelectsStrategy:
         sn_mesh = _spherical_sn_mesh()
         if sn_mesh.reduced is None:
             pytest.fail("spherical fixture unexpectedly has reduced is None")
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"sphere → {type(strategy).__name__}, expected CumprodScan"
@@ -198,7 +198,7 @@ class TestDispatchSelectsStrategy:
         sn_mesh = _cylindrical_sn_mesh()
         if sn_mesh.reduced is None:
             pytest.fail("cylindrical fixture unexpectedly has reduced is None")
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"cylinder → {type(strategy).__name__}, expected CumprodScan"
@@ -217,7 +217,7 @@ class TestDispatchSelectsStrategy:
         sn_mesh = _2d_sn_mesh()
         if sn_mesh.reduced is not None:
             pytest.fail("2-D fixture unexpectedly has reduced is not None")
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
         if not isinstance(strategy, ScanMarch):
             pytest.fail(
                 f"2-D Cartesian → {type(strategy).__name__}, "
@@ -267,7 +267,7 @@ class TestHonestCurvilinearSchemeSelection:
         — not the generic 'no strategy' fall-through, not a mid-sweep raise."""
         sn_mesh = self._curvilinear_mesh(coord, scheme=LinearDiscontinuous())
         with pytest.raises(IncompatibleRepresentation) as exc:
-            default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
+            default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
         reason = str(exc.value).lower()
         if "curvilinear" not in reason or "no sweep strategy supports" in reason:
             pytest.fail(
@@ -300,7 +300,7 @@ class TestHonestCurvilinearSchemeSelection:
         """Negative control: curvilinear-DD (the default) is UNAFFECTED — DD has
         a curvilinear closure (``supports_curvilinear=True``)."""
         sn_mesh = self._curvilinear_mesh(coord)  # default DiamondDifference
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"{coord.name}-DD → {type(strategy).__name__}, expected CumprodScan"
@@ -321,7 +321,7 @@ class TestHonestCurvilinearSchemeSelection:
         sn_mesh = SNMesh(
             mesh, quad, placeholder_materials(), scheme=LinearDiscontinuous(),
         )
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)
+        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"slab-LD → {type(strategy).__name__}, expected CumprodScan"
@@ -425,7 +425,7 @@ class TestD3SupportsMatrix:
             Quadrature.level_symmetric(sn_order=4),
             {0: mix},
         )
-        selected = default_for(mesh, mesh.scheme, mesh.pole_angular_closure)
+        selected = default_for(mesh, mesh.scheme, mesh.angular_closure)
         if type(selected) is not FullFieldWavefront:
             pytest.fail(
                 f"d=3 Cartesian default_for → "
@@ -504,7 +504,7 @@ class TestD3SupportsMatrix:
         wavefront now RUNS the bilinear UBLD; what is forbidden remains the
         silent ScanMarch inline-DD path.)"""
         sn = _2d_ld_sn_mesh()
-        selected = default_for(sn, sn.scheme, sn.pole_angular_closure)
+        selected = default_for(sn, sn.scheme, sn.angular_closure)
         if isinstance(selected, ScanMarch):
             pytest.fail(
                 "2-D LD routed to ScanMarch (inline DD) — the misroute"
@@ -656,7 +656,7 @@ class TestSweepEntryDelegatesToStrategy:
         sn_mesh = mesh_factory()
         import orpheus.sn.loss_representation as loss_representation
 
-        selected = type(default_for(sn_mesh, sn_mesh.scheme, sn_mesh.pole_angular_closure)).__name__
+        selected = type(default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)).__name__
         calls = {"sweep": 0}
         N, ng = sn_mesh.quad.N, sn_mesh.ng
         spatial = sn_mesh.spatial_shape

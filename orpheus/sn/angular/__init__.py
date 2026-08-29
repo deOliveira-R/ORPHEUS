@@ -48,13 +48,13 @@ call into ``sn -> sn`` and made this landing trivial.
 from .closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
-    PoleAngularClosureBase,
+    AngularClosureBase,
     default_angular_closure_class,
 )
 
 __all__ = [
     "IdentityAngularClosure",
     "MorelMontryAngularSweep",
-    "PoleAngularClosureBase",
+    "AngularClosureBase",
     "default_angular_closure_class",
 ]

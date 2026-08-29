@@ -6,7 +6,7 @@ Spec: ``scratch/p4_9b_verification_plan.md`` §2.1/§2.2; design:
 
 ⛔ RED BEFORE P4.9b step 2, by construction — and that is this gate's whole
 point.  Pre-carve the representation reads ``self.mesh.scheme`` /
-``self.mesh.pole_angular_closure`` at APPLY time (43 class-(ii) reads,
+``self.mesh.angular_closure`` at APPLY time (43 class-(ii) reads,
 ``scratch/p4_9b_row45_recount.md``), so an operator posed BEFORE the swap
 still marches with the mutant.  [M] 2026-08-28 at 10314dfa, rel deviation
 5.000e-02 (slab / scheme), 4.596e-02 (cyl fp(4,6) / closure), 5.313e-02
@@ -173,7 +173,7 @@ def _swap(sn: SNMesh, slot: str) -> None:
     if slot == "scheme":
         sn.scheme = _MutantDD()
     else:
-        sn.pole_angular_closure = _mutant_closure(sn)
+        sn.angular_closure = _mutant_closure(sn)
 
 
 @pytest.mark.parametrize("row, factory, slot", _ROWS)
@@ -246,7 +246,7 @@ def test_hub_route_reads_only_space_facts(factory, do_matvec):
     The instrument: after posing (the operator captures the REAL
     objects), the hub's slots are re-bound to recording SUBCLASSES
     (delegating, behavior-identical, F6-safe).  Reads arriving via
-    ``mesh.scheme.X`` / ``mesh.pole_angular_closure.X`` hit the
+    ``mesh.scheme.X`` / ``mesh.angular_closure.X`` hit the
     recorders; reads via the operator's own fields hit the real objects
     and are invisible — exactly the partition the gate asserts.
 
@@ -261,8 +261,8 @@ def test_hub_route_reads_only_space_facts(factory, do_matvec):
     closure_reads: list[str] = []
     sn.scheme = _recording_subclass(type(sn.scheme), scheme_reads)()
     if sn.reduced is not None:
-        rec_cls = _recording_subclass(type(sn.pole_angular_closure), closure_reads)
-        sn.pole_angular_closure = rec_cls(
+        rec_cls = _recording_subclass(type(sn.angular_closure), closure_reads)
+        sn.angular_closure = rec_cls(
             sn.reduced.angular, sn.reduced.redistribution_pairing,
         )
         # The recorder's OWN __init__ self-accesses are construction noise,

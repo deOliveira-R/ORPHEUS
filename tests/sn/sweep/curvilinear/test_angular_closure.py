@@ -1,4 +1,4 @@
-"""Foundation tests for the PoleAngularClosureBase ABC + concrete strategies.
+"""Foundation tests for the AngularClosureBase ABC + concrete strategies.
 
 These tests pin the **software contract** of the angular-closure
 strategy family.  They are foundation-tagged because the claims are
@@ -22,7 +22,7 @@ shims.  This file's coverage now focuses on the two surviving strategies.
 
 Issue #248 (2026-06-18) retired the orphaned ``@runtime_checkable
 PoleAngularClosure`` **Protocol** (Issue #236 Phase 2 B2 retyped every
-production consumer onto the ``PoleAngularClosureBase`` **ABC** and made
+production consumer onto the ``AngularClosureBase`` **ABC** and made
 the strategy methods abstract on it — the Protocol was left orphaned and
 divergent).  Conformance is now ABC inheritance, and the hand-calc
 redistribution algebra (formerly pinned through the dead legacy
@@ -47,7 +47,7 @@ import pytest
 from orpheus.sn.angular.closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
-    PoleAngularClosureBase,
+    AngularClosureBase,
 )
 from tests.sn._test_helpers import (
     make_tiny_spherical_sn_mesh,
@@ -75,7 +75,7 @@ def _mm_from(sn_mesh) -> MorelMontryAngularSweep:
     )
 
 class TestProtocolConformance:
-    """The :class:`PoleAngularClosureBase` ABC contract is honoured by the
+    """The :class:`AngularClosureBase` ABC contract is honoured by the
     surviving strategies.  Issue #248 retired the orphaned
     ``@runtime_checkable PoleAngularClosure`` Protocol; conformance is now
     ABC inheritance (the production matvec/sweep type against the ABC, and
@@ -83,9 +83,9 @@ class TestProtocolConformance:
     ``angular_adjoint`` are abstract on it — Issue #236 Phase 2 B2)."""
 
     def test_morel_montry_satisfies_protocol(self) -> None:
-        """``MorelMontryAngularSweep`` is a ``PoleAngularClosureBase`` subtype."""
+        """``MorelMontryAngularSweep`` is a ``AngularClosureBase`` subtype."""
         closure = _mm_from(make_tiny_spherical_sn_mesh())
-        assert isinstance(closure, PoleAngularClosureBase)
+        assert isinstance(closure, AngularClosureBase)
 
     def test_is_linear_class_attr_advertised(self) -> None:
         """``MorelMontryAngularSweep`` advertises ``is_linear = True``."""
@@ -108,13 +108,13 @@ class TestRegistry:
 
     Mirrors the BoundaryFaceFlux / DiscretizationScheme registry contracts —
     each strategy self-registers at import time and is name-keyed
-    addressable via ``PoleAngularClosureBase.create(...)``.
+    addressable via ``AngularClosureBase.create(...)``.
     """
 
     def test_morel_montry_registered(self) -> None:
-        assert "morel_montry_angular_sweep" in PoleAngularClosureBase.registry
+        assert "morel_montry_angular_sweep" in AngularClosureBase.registry
         assert (
-            PoleAngularClosureBase.registry["morel_montry_angular_sweep"]
+            AngularClosureBase.registry["morel_montry_angular_sweep"]
             is MorelMontryAngularSweep
         )
 
@@ -124,7 +124,7 @@ class TestRegistry:
         # through the registry (C5: no unbound construction; the un-weld
         # arc's Phase B replaced the mesh operand with the two factors).
         sn_mesh = make_tiny_spherical_sn_mesh()
-        instance = PoleAngularClosureBase.create(
+        instance = AngularClosureBase.create(
             "morel_montry_angular_sweep",
             angular=sn_mesh.reduced.angular,
             pairing=sn_mesh.reduced.redistribution_pairing,
@@ -133,9 +133,9 @@ class TestRegistry:
 
     def test_create_unknown_key_raises(self) -> None:
         with pytest.raises(
-            KeyError, match="unknown PoleAngularClosureBase key",
+            KeyError, match="unknown AngularClosureBase key",
         ):
-            PoleAngularClosureBase.create("unknown_strategy")
+            AngularClosureBase.create("unknown_strategy")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -539,7 +539,7 @@ class TestMintedScanConstants:
         )
         quad = Quadrature.folded_product(n_mu=4, n_phi=6)
         sn = SNMesh(mesh, quad, placeholder_materials(ng=2))
-        closure = sn.pole_angular_closure
+        closure = sn.angular_closure
         assert isinstance(closure, MorelMontryAngularSweep)
         return closure
 
