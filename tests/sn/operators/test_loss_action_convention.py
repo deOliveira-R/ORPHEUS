@@ -116,7 +116,7 @@ def test_loss_action_is_full_loss_LpC_flat_reflective(case):
     sn = _CASES[case]()
     # Uniform σ_t so the flat-reflective fundamental is exact (L·ψ_flat = 0).
     sig_t = np.full((sn.ng, *sn.spatial_shape), 0.7)
-    L = StreamingOperator(sn)        # pure σ-free streaming (#257 S8b)
+    L = StreamingOperator.pose(sn)        # pure σ-free streaming (#257 S8b)
     rep = L.loss_representation
 
     psi = _zeros_state(sn)
@@ -163,7 +163,7 @@ def test_pure_L_plus_C_recovers_loss_action_het(case):
     sn = _CASES[case]()
     rng = np.random.default_rng([sum(map(ord, case)), 2026])
     sig_t = rng.uniform(0.3, 3.0, size=(sn.ng, *sn.spatial_shape))   # heterogeneous
-    L = StreamingOperator(sn)               # pure σ-free streaming (#257 S8b)
+    L = StreamingOperator.pose(sn)               # pure σ-free streaming (#257 S8b)
     C = MultiplicationOperator.from_mesh(sig_t, sn)        # INDEPENDENT collision operator
     rep = L.loss_representation
 

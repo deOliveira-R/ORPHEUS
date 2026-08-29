@@ -118,7 +118,7 @@ def _operators():
     """``(sn, L+C fused, S, A_loss = (L+C) − S)`` on the het slab."""
     sn = _het_scattering_slab()
     mat_xs = sn.material_xs_field()
-    lc = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
+    lc = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section, sn,
     )
     S = ScatteringOperator(
@@ -243,7 +243,7 @@ def test_c_plus_l_trap_constructs_then_fails_loudly():
     sn, lc, S, a_loss = _operators()
     mat_xs = sn.material_xs_field()
     C = MultiplicationOperator.from_mesh(mat_xs.total_cross_section, sn)
-    L = StreamingOperator(sn)
+    L = StreamingOperator.pose(sn)
     cl = C + L
     assert type(cl) is OperatorSum          # no fusion on this spelling
     assert cl.is_invertible is True         # leading C invertible — constructs

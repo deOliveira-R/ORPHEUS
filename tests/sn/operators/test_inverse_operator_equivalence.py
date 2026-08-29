@@ -44,7 +44,7 @@ def _build(case_builder):
     """Return ``(sn, A=L+C StreamingCollisionOperator, b=rhs source)`` for a removal case."""
     sn = case_builder(ng=2, bc="vacuum")
     _, sig_r = _removal_sigmas(sn, seed=2026)
-    A = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_r, sn)
+    A = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_r, sn)
     assert isinstance(A, StreamingCollisionOperator)  # L + C dispatches to the resolvent
     b = _random_state(sn, seed=11)
     return sn, A, b

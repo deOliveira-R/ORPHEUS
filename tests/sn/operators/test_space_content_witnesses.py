@@ -248,5 +248,5 @@ class TestF5ResidualPoseGuard:
         psi = _composite(sn)
         with pytest.raises(TypeError, match="POSED system"):
             evaluate_residual(
-                StreamingOperator(sn), psi, psi,  # type: ignore[arg-type]
+                StreamingOperator.pose(sn), psi, psi,  # type: ignore[arg-type]
             )

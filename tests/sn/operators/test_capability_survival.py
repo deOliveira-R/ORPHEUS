@@ -217,7 +217,7 @@ class TestLossMinusBoundaryCompositeCapabilities:
     def _loss_minus_boundary(self):
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         C = MultiplicationOperator.from_mesh(sigma_t, sn)
         B = SNBoundaryOperator(sn)
         return L, C, B, L + C - B
@@ -298,7 +298,7 @@ class TestPredicateFaithfulness:
         sigma_t = np.ones(spatial)
         sigma_singular = sigma_t.copy()
         sigma_singular[0, 0] = 0.0  # a TRUE zero → C is singular (min|f| = 0)
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         C = MultiplicationOperator.from_mesh(sigma_t, sn)
         C_singular = MultiplicationOperator.from_mesh(sigma_singular, sn)
         B = SNBoundaryOperator(sn)
@@ -344,7 +344,7 @@ class TestPredicateFaithfulness:
         C_singular = MultiplicationOperator.from_mesh(sigma_singular, sn)
         assert C_singular.is_adjointable is True
         assert C_singular.is_invertible is False
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         assert L.is_adjointable is True and L.is_invertible is False
         C_ok = MultiplicationOperator.from_mesh(np.ones(spatial), sn)
         assert (L + C_ok).is_invertible is True
@@ -377,7 +377,7 @@ class TestPredicateFaithfulness:
         """
         sn = _slab_mesh(ng=2)
         spatial = (sn.ng, *sn.spatial_shape)
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         C = MultiplicationOperator.from_mesh(np.ones(spatial), sn)
         sigma_singular = np.ones(spatial)
         sigma_singular[0, 0] = 0.0
@@ -437,7 +437,7 @@ class TestPredicateFaithfulness:
         ``(L+C)`` remains sole owner of is the DIRECT sweep.
         """
         sn = _slab_mesh(ng=2)
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         C = MultiplicationOperator.from_mesh(np.ones((sn.ng, *sn.spatial_shape)), sn)
         lc = L + C
         assert isinstance(lc, StreamingCollisionOperator)

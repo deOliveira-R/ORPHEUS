@@ -253,7 +253,7 @@ def test_L_apply_timed_full_field_returns_composite(name, builder) -> None:
     state = _random_state(sn, seed=10)
     rng = np.random.default_rng(11)
     sigma_t = 0.4 + 0.4 * rng.random((sn.ng, *sn.spatial_shape))
-    L = StreamingOperator(sn)
+    L = StreamingOperator.pose(sn)
 
     Lpsi = L.apply(state)
     assert isinstance(Lpsi, FullField)  # #257 S8a: timeless codomain (base arrow)
@@ -290,7 +290,7 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
     sn = builder()
     state = _random_state(sn, seed=24)
     sigma_t = np.full((sn.ng, *sn.spatial_shape), 0.7)
-    L = StreamingOperator(sn)
+    L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sigma_t * 0.5, sn)
     S = ScatteringOperator.from_solver_data(
         mat_xs=sn.material_xs_field(),
@@ -328,7 +328,7 @@ def test_full_algebra_linearity(name, builder) -> None:
     state1 = _random_state(sn, seed=27)
     state2 = _random_state(sn, seed=28)
     sigma_t = np.full((sn.ng, *sn.spatial_shape), 0.7)
-    L = StreamingOperator(sn)
+    L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sigma_t * 0.5, sn)
     S = ScatteringOperator.from_solver_data(
         mat_xs=sn.material_xs_field(),

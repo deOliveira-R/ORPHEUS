@@ -77,7 +77,7 @@ def test_apply_and_solve_share_one_representation_instance(monkeypatch):
 
     sn = cart2d_2g_nonsquare()
     sig_t, psi = het_operands(sn)[:2]
-    L = StreamingOperator(sn)
+    L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
     A = L + C
 
@@ -146,7 +146,7 @@ def test_scheduled_solve_runs_the_operators_instance(monkeypatch):
 
     sn = cart2d_2g_nonsquare()
     sig_t, psi = het_operands(sn)[:2]
-    L = StreamingOperator(sn)
+    L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
     A = L + C
     M = A - SNBoundaryOperator(sn).split(SweepSchedule.gauss_seidel(sn.ndim, sn.quad.octants, reflective_faces(sn))).lower

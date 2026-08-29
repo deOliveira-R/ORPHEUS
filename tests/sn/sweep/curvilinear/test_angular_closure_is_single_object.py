@@ -74,7 +74,7 @@ def _run_one_sweep(sn_mesh: SNMesh) -> None:
 
 def _run_one_matvec(sn_mesh: SNMesh) -> None:
     sig_t, psi, seed = het_operands(sn_mesh)
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     if seed is None:
         (L + C).apply(psi)

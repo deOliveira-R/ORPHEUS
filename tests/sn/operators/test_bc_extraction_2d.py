@@ -173,7 +173,7 @@ class TestVacuum2DBitIdentity:
         """
         sn_mesh = _vacuum_2d(nx=4, ny=4)
         sig_t = _sigt_2g(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
 
         rng = np.random.default_rng(20260603 + seed)
         state = TimedFullField.zeros(
@@ -311,7 +311,7 @@ class TestStreamingEquilibrium2D:
 
         state = self._build_flat_state(sn_mesh, phi, W)
 
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         B = SNBoundaryOperator(sn_mesh)
 
@@ -357,7 +357,7 @@ class TestStreamingEquilibrium2D:
         phi = Q_scalar / np.array([0.5, 1.0])
 
         state = self._build_flat_state(sn_mesh, phi, W)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         B = SNBoundaryOperator(sn_mesh)
 
@@ -527,7 +527,7 @@ class TestBoundaryResidual2DResponds:
         """
         sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
         sig_t = _sigt_2g(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         trace = sn_mesh.angular_trace
 
         base = self._perturbable_state(sn_mesh, seed=7)
@@ -575,7 +575,7 @@ class TestBoundaryResidual2DResponds:
         """
         sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
         sig_t = _sigt_2g(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         trace = sn_mesh.angular_trace
 
         base = self._perturbable_state(sn_mesh, seed=7)

@@ -81,7 +81,7 @@ def test_apply_and_apply_transpose_hit_one_loop_walk(monkeypatch):
         sn, _sig_t = build(ng=2)
         rng = np.random.default_rng(20260704)
         psi = _random_composite(sn, rng)
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
 
         # (1) the FORWARD matvec routes through the shared loop frame:
         hits.clear()

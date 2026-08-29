@@ -207,7 +207,7 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
         ]
     )
 
-    L = StreamingOperator(mesh)
+    L = StreamingOperator.pose(mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, mesh)
     A = L + C
 
@@ -303,7 +303,7 @@ def test_2d_matvec_linearity_random_state() -> None:
         ]
     )
 
-    L = StreamingOperator(mesh)
+    L = StreamingOperator.pose(mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, mesh)
     A = L + C
 

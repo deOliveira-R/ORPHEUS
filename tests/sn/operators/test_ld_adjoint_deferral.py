@@ -88,7 +88,7 @@ def _slab(scheme=None, ng: int = 2):
 
 
 def _lc(sn, sig_t):
-    return StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+    return StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
 
 
 def _ld2d_mesh() -> SNMesh:
@@ -154,7 +154,7 @@ class TestPredicateHonesty:
     def test_ld_streaming_is_adjointable(self) -> None:
         sn, _ = _slab(scheme=LinearDiscontinuous())
         require(
-            StreamingOperator(sn).is_adjointable,
+            StreamingOperator.pose(sn).is_adjointable,
             "L on a 1-D LD mesh must advertise the adjoint axis — the "
             "batch VJP is registered and CumprodScan reverses (#310 C2).",
         )
@@ -162,7 +162,7 @@ class TestPredicateHonesty:
     def test_dd_streaming_stays_adjointable(self) -> None:
         sn, _ = _slab(scheme=DiamondDifference())
         require(
-            StreamingOperator(sn).is_adjointable,
+            StreamingOperator.pose(sn).is_adjointable,
             "L on a DD mesh must still advertise the adjoint axis — the "
             "honest predicate must not over-refuse (anti-pattern #11).",
         )
@@ -199,7 +199,7 @@ class TestEagerRefusal:
         r"""The former ``MissingAdjoint`` refusal row, FLIPPED (#310 C2)."""
         sn, sig_t = _slab(scheme=LinearDiscontinuous())
         require(
-            StreamingOperator(sn).H is not None,
+            StreamingOperator.pose(sn).H is not None,
             "L.H on 1-D LD must construct — the deferral is lifted.",
         )
         require(
@@ -251,7 +251,7 @@ class TestWalkEntryGuard:
         r"""The σ-free ``streaming_action_transpose`` funnels through the
         same walk — the positive sibling of the former refusal row."""
         sn, _ = _slab(scheme=LinearDiscontinuous())
-        out = StreamingOperator(sn).apply_transpose(_ld_composite(sn))
+        out = StreamingOperator.pose(sn).apply_transpose(_ld_composite(sn))
         require(
             bool(np.all(np.isfinite(out.interior.values))),
             "LD Lᵀφ produced non-finite bulk values.",
@@ -332,12 +332,12 @@ class TestMultiDOrientationHonesty:
             "since #310 C5.",
         )
         require(
-            StreamingOperator(sn).is_adjointable,
+            StreamingOperator.pose(sn).is_adjointable,
             "L on an LD 2-D mesh must advertise the adjoint axis — both "
             "predicate factors pass since #310 C5.",
         )
         require(
-            StreamingOperator(sn).H is not None,
+            StreamingOperator.pose(sn).H is not None,
             "LD-2D L.H must construct — the last deferral is lifted.",
         )
         rng = np.random.default_rng(20260818)
@@ -364,7 +364,7 @@ class TestMultiDOrientationHonesty:
         batch VJP; orientation: the C4 reverse walks)."""
         sn = cart2d_2g_nonsquare()
         require(
-            StreamingOperator(sn).is_adjointable,
+            StreamingOperator.pose(sn).is_adjointable,
             "L on a 2-D Cartesian DD mesh must advertise the adjoint axis "
             "— both factors pass since #310 C4 (a False here is the "
             "select-narrow lie in the other direction).",
@@ -376,7 +376,7 @@ class TestMultiDOrientationHonesty:
         sn = cart2d_2g_nonsquare()
         sig_t, _psi = het_operands(sn)[:2]
         require(
-            StreamingOperator(sn).H is not None,
+            StreamingOperator.pose(sn).H is not None,
             "cart2d DD L.H must construct since #310 C4.",
         )
         require(
@@ -434,7 +434,7 @@ class TestMultiDOrientationHonesty:
         1-D DD keeps the full adjoint surface."""
         sn, sig_t = _slab(scheme=DiamondDifference())
         require(
-            StreamingOperator(sn).is_adjointable,
+            StreamingOperator.pose(sn).is_adjointable,
             "1-D DD L must stay adjointable under the two-factor predicate.",
         )
         require(

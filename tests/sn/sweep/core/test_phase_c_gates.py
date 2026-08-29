@@ -268,7 +268,7 @@ def test_apply_linearity_under_sweep_frame(geom):
         sn_mesh, sig_t = _make_spherical_sn_mesh()
     else:
         sn_mesh, sig_t = _make_cylindrical_sn_mesh()
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
     psi1 = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
@@ -393,7 +393,7 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     else:
         sn_mesh, sig_t = _make_cylindrical_sn_mesh(pole_closure=pole_closure_cls)
     sig_t = np.full_like(sig_t, sigma_t_value)
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = L + C
     psi_state = _flat_psi_composite(sn_mesh, ng=sn_mesh.ng)
@@ -462,7 +462,7 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
              for g in range(2)],
             axis=0,
         )
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
     n_trace = int(sn_mesh.angular_trace.layout.total_size)
@@ -527,7 +527,7 @@ def test_apply_face_fluxes_match_sweep_recurrence_spherical():
     ``(L + C).apply``.
     """
     sn_mesh, sig_t = _make_spherical_sn_mesh(nx=6, R=1.0, quad_name="gl4")
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
 
@@ -587,7 +587,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     quad = Quadrature.gauss_legendre(4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = L + C
 
@@ -630,7 +630,7 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     and boundary.
     """
     sn_mesh, sig_t = _make_spherical_sn_mesh(nx=8, R=1.0, quad_name="gl4")
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = L + C
     # #282 route (a): pass the seed leaf UNIFORMLY (the R12a predicate
@@ -769,7 +769,7 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
         nx=6, R=1.0, quad_name="gl4",
         bc_outer=BC(bc_kind),
     )
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
     rng = np.random.default_rng(seed=137)

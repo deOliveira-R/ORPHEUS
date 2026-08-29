@@ -85,7 +85,7 @@ def _reified(bc: str = "reflective", *, seed: int = 7):
     """
     sn = _cart2d(nx=4, ny=5, ng=2, bc=bc)
     _, sig_r = _removal_sigmas(sn, seed=seed)
-    LC = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_r, sn)
+    LC = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_r, sn)
     B = SNBoundaryOperator(sn)
     schedule = SweepSchedule.gauss_seidel(
         sn.ndim, sn.quad.octants, reflective_faces(sn))

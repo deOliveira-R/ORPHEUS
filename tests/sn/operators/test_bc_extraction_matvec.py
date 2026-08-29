@@ -247,7 +247,7 @@ def _LpC_apply(sn_mesh: SNMesh, state: TimedFullField, sigma_t: np.ndarray) -> "
     (:func:`_LC_matvec`'s seed arm — presence structural); no seed on
     non-carrying meshes.
     """
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     seed_leg = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
     from tests.sn._test_helpers import _LC_matvec

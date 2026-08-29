@@ -339,7 +339,7 @@ class TestAffineCarveMatvecBaseline:
         # so the walk sees bit-identical inputs; the F4 six-signature
         # catcher).
         sig_t, psi, seed = het_operands(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         if seed is None:
             out = (L + C).apply(psi)

@@ -118,7 +118,7 @@ def _loss(sn_mesh: SNMesh):
     """The production within-group resolvent ``L + C`` (the solver's own
     spelling — StreamingOperator + M[σ_t] on the composite space)."""
     mat_xs = sn_mesh.material_xs_field()
-    return StreamingOperator(sn_mesh) + MultiplicationOperator(
+    return StreamingOperator.pose(sn_mesh) + MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
         space=sn_mesh.full_field_space,
     )

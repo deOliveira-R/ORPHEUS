@@ -196,7 +196,7 @@ class TestResolutionADecomposition:
         )
 
         # Pure-L + C via TimedFullField arithmetic (#257 S8b): L reads no σ.
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
         sum_state = _l_apply(L, state, seed_leg, sn_mesh) + C.apply(state)
 
@@ -292,7 +292,7 @@ class TestSubtractiveDefinition:
         sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
 
         # Pure-L apply (σ-free, #257 S8b): L takes only the mesh.
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         l_state = _l_apply(L, state, seed_leg, sn_mesh)
 
         m_full_state = _LC_matvec(
@@ -371,7 +371,7 @@ class TestPureLIsLossActionAtZeroSigma:
         sigma_zero = np.zeros((ng, *sn_mesh.spatial_shape))
 
         # Pure-L apply (σ-free, #257 S8b): L takes only the mesh.
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         l_state = _l_apply(L, state, seed_leg, sn_mesh)
 
         # The single-sourced σ-free walk: loss_action at σ = 0 directly

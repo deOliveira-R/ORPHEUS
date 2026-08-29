@@ -92,7 +92,7 @@ def _draw_with_seed(sn, rng):
 def _build(mesh_builder, seed: int):
     sn, _ = mesh_builder(ng=2)
     sig_t = _per_group_sigma(sn)
-    lc = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+    lc = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
     rng = np.random.default_rng(seed)
     # The random ψ½ legs freeze the seed-fed matvec rows too (#282 route
     # (a) → B.2d explicit legs); the object-level anchor pins them

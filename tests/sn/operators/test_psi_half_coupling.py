@@ -195,7 +195,7 @@ def _loss(sn, slope: float = 0.4):
     """
     sig_t = np.stack(
         [np.full(sn.spatial_shape, 1.0 + slope * g) for g in range(sn.ng)], 0)
-    return StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+    return StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
 
 
 def _template(sn):

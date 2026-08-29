@@ -105,7 +105,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
 
     # ── Production (L+C).apply on ψ_ref ──
     sigma_t = np.full((ng, nx), case.sigma_t)
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     if seed_leg is None:
         lc_psi = (L + C).apply(psi_ref).interior.values     # (N, ng, nx)

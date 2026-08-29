@@ -328,7 +328,7 @@ def test_d3_real_mesh_window_passthrough_and_gs_admissible() -> None:
     )
 
     sig_t = np.full((sn.ng, *sn.spatial_shape), 1.3)
-    LC = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+    LC = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
     sentinel_S = object()
     resolvent, gains = _select_si_splitting(
         LC, sentinel_S, SNBoundaryOperator(sn), sn, "gauss_seidel",

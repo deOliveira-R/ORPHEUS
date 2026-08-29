@@ -121,7 +121,7 @@ def _build_sphere(nx: int, ng: int, sigma: float):
     sn = SNMesh(mesh, Quadrature.gauss_legendre(4), {0: _mixture(sigma, 0.4 * sigma, ng)})
     sig_t = np.stack(
         [np.full(sn.spatial_shape, sigma * (1.0 + 0.3 * g)) for g in range(ng)], axis=0)
-    return sn, StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+    return sn, StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
 
 
 def _joint_M(sn, LC):

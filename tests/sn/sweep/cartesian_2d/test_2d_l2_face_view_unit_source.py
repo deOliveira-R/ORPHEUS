@@ -138,7 +138,7 @@ def test_unit_at_face_produces_nonzero_matvec(face: str) -> None:
 
     mesh = _pure_streamer_2d_mesh()
     sigma_t = np.ones((1, *mesh.spatial_shape))
-    L = StreamingOperator(mesh)
+    L = StreamingOperator.pose(mesh)
     state = _zero_state_with_unit_face(mesh, face)
 
     out = L.apply(state)
@@ -163,7 +163,7 @@ def test_four_faces_produce_distinct_outputs() -> None:
 
     mesh = _pure_streamer_2d_mesh()
     sigma_t = np.ones((1, *mesh.spatial_shape))
-    L = StreamingOperator(mesh)
+    L = StreamingOperator.pose(mesh)
 
     outputs = {}
     for face in ("xmin", "xmax", "ymin", "ymax"):

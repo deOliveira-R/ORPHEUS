@@ -410,7 +410,7 @@ def _random_composite(
 
 def _loss_operator(sn: SNMesh, sig_t: np.ndarray):
     r"""The within-group loss ``A = L + C - B`` (the boundary sibling ``-B`` live)."""
-    L = StreamingOperator(sn)
+    L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
     B = SNBoundaryOperator(sn)
     return L + C - B
@@ -781,7 +781,7 @@ def _full_loss_case(
     # (``test_psi_half_coupling::TestCoupledBuilder``); a FullField-summable
     # fused spelling is unrepresentable since the eviction.
     A = (
-        StreamingOperator(sn)
+        StreamingOperator.pose(sn)
         + MultiplicationOperator.from_mesh(sig_t, sn)
     ) - S - SNBoundaryOperator(sn)
     return sn, A, S
@@ -818,7 +818,7 @@ def _full_loss_case_cart2d():
         sn.material_xs_field().total_cross_section_field.values, dtype=float
     )
     A = (
-        StreamingOperator(sn)
+        StreamingOperator.pose(sn)
         + MultiplicationOperator.from_mesh(sig_t, sn)
     ) - S - SNBoundaryOperator(sn)
     return sn, A, S

@@ -507,7 +507,7 @@ def _leaf_set(sn_mesh: SNMesh) -> "dict[str, LinearOperator]":
     """
     mat_xs = sn_mesh.material_xs_field()
     return {
-        "L": StreamingOperator(sn_mesh),
+        "L": StreamingOperator.pose(sn_mesh),
         "C": MultiplicationOperator(
             coefficient=mat_xs.total_cross_section_field,
             space=sn_mesh.full_field_space,

@@ -270,7 +270,7 @@ def test_invertible_apply_is_M_of_C_sigma_bit_identical(case):
     """
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)))
-    L = StreamingOperator(sn)
+    L = StreamingOperator.pose(sn)
     C_r = MultiplicationOperator.from_mesh(sig_r, sn)
     op = StreamingCollisionOperator(L, C_r)
     psi = _random_state(sn, seed=sum(map(ord, case)))
@@ -279,7 +279,7 @@ def test_invertible_apply_is_M_of_C_sigma_bit_identical(case):
     # M(σ_r)ψ — independent leaf whose OWN σ_t IS σ_r. Post-#240-Step-B
     # signature: loss_action takes the σ array directly (here σ_r), not the
     # operator. The reference's σ IS σ_r, so it is unambiguously M(σ_r)ψ.
-    L_ref = StreamingOperator(sn)
+    L_ref = StreamingOperator.pose(sn)
     M_sigma_r = L_ref.loss_representation.loss_action(sig_r, psi).interior.values
 
     np.testing.assert_array_equal(
@@ -311,7 +311,7 @@ def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case
     """
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 1)
-    L = StreamingOperator(sn)
+    L = StreamingOperator.pose(sn)
     op = StreamingCollisionOperator(L, MultiplicationOperator.from_mesh(sig_r, sn))
     if not op.is_adjointable:  # carve P4 rewire — the S† twin's precondition
         pytest.fail(f"[{case}] StreamingCollisionOperator.is_adjointable is False.")
@@ -319,7 +319,7 @@ def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case
 
     composite_t = op.apply_transpose(phi).interior.values
     # Post-#240-Step-B signature: loss_action_transpose takes the σ array (σ_r).
-    L_ref = StreamingOperator(sn)
+    L_ref = StreamingOperator.pose(sn)
     M_t_sigma_r = L_ref.loss_representation.loss_action_transpose(
         sig_r, phi,
     ).interior.values
@@ -379,7 +379,7 @@ def test_removal_form_matvec_sweep_roundtrip(case):
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 2)
     op = StreamingCollisionOperator(
-        StreamingOperator(sn), MultiplicationOperator.from_mesh(sig_r, sn),
+        StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(sig_r, sn),
     )
 
     # Direction 1: apply ∘ solve = identity on a volumetric source.
@@ -439,7 +439,7 @@ def test_removal_form_apply_value_equals_M_of_sigma_r(case):
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 4)
     op = StreamingCollisionOperator(
-        StreamingOperator(sn), MultiplicationOperator.from_mesh(sig_r, sn),
+        StreamingOperator.pose(sn), MultiplicationOperator.from_mesh(sig_r, sn),
     )
     psi = _random_state(sn, seed=sum(map(ord, case)) + 4)
 
@@ -447,7 +447,7 @@ def test_removal_form_apply_value_equals_M_of_sigma_r(case):
     # Independent M(σ_r): a leaf whose OWN σ_t IS σ_r — unambiguously M(σ_r)ψ.
     # Post-#240-Step-B signature loss_action(sigma, psi) — pass σ_r directly.
     # Value-ground (not the teeth): holds under leak AND override.
-    L_ref = StreamingOperator(sn)
+    L_ref = StreamingOperator.pose(sn)
     M_sigma_r = L_ref.loss_representation.loss_action(sig_r, psi).interior.values
 
     np.testing.assert_allclose(
@@ -606,7 +606,7 @@ def test_production_sigma_apply_value_preserved(case):
     # Production: σ_C == σ_t (the same array on both leaves).
     rng = np.random.default_rng([sum(map(ord, case)), 1])
     sig_t = rng.uniform(0.5, 3.0, size=(sn.ng, *sn.spatial_shape))
-    L = StreamingOperator(sn)
+    L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)        # σ_C == σ_t (production)
     op = StreamingCollisionOperator(L, C)
     state = _random_state(sn, seed=sum(map(ord, case)))
@@ -652,7 +652,7 @@ def test_removal_form_nonpositive_sigma_r_rejected():
     sig_t = np.full((sn.ng, *sn.spatial_shape), 1.0)
     sig_r = sig_t.copy()
     sig_r.flat[0] = -0.1   # one cell over-scatters → σ_r < 0
-    L = StreamingOperator(sn)
+    L = StreamingOperator.pose(sn)
     C_bad = MultiplicationOperator.from_mesh(sig_r, sn)
     with pytest.raises(ValueError, match="strictly positive"):
         StreamingCollisionOperator(L, C_bad)

@@ -134,7 +134,7 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
     sn_mesh = builder(nx=5)
     ng = 1
     sigma_t = np.full((ng, sn_mesh.nx), 0.4)
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
     template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
@@ -222,7 +222,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     ng = 1
     sigma_t_val = 0.4
     sigma_t = np.full((ng, sn_mesh.nx), sigma_t_val)
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
     # Build flat-ψ TimedFullField: bulk = 1 everywhere AND boundary
@@ -327,7 +327,7 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
     sn_mesh = builder(nx=10)
     ng = 1
     sigma_t = np.full((ng, sn_mesh.nx), 0.4)
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
     template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)

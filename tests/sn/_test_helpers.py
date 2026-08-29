@@ -593,7 +593,7 @@ def legacy_proxy_matvec(
         _history=(),
         history_depth=2,
     )
-    L_op = StreamingOperator(sn_mesh)
+    L_op = StreamingOperator.pose(sn_mesh)
     C_op = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     result = _LC_matvec(
         composite, sigma_t, sn_mesh=sn_mesh, LC=(L_op + C_op),
@@ -666,7 +666,7 @@ def _LC_matvec(
     if sn_mesh is None and (LC is None or radial_characteristic_flux is not None):
         raise TypeError("_LC_matvec: pass sn_mesh= (or a pre-built LC=)")
     if LC is None:
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
         LC = L + C
     if radial_characteristic_flux is None:
@@ -811,7 +811,7 @@ def sweep_once(source, sig_t, sn_mesh, boundary_flux):
     from orpheus.transport.source_sinks import AngularBoundarySourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
-    LC = StreamingOperator(sn_mesh) + MultiplicationOperator.from_mesh(
+    LC = StreamingOperator.pose(sn_mesh) + MultiplicationOperator.from_mesh(
         sig_t, sn_mesh,
     )
     rhs = TimedFullField(

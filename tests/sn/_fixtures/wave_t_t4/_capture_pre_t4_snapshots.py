@@ -231,7 +231,7 @@ def _make_sigma_t(sn_mesh: SNMesh) -> np.ndarray:
 def _build_L_C(sn_mesh: SNMesh) -> tuple[StreamingOperator, MultiplicationOperator]:
     """Build the leaf L (StreamingOperator) and C (MultiplicationOperator)."""
     sigma_t = _make_sigma_t(sn_mesh)
-    L = StreamingOperator(sn_mesh)          # pure σ-free streaming (#257 S8b)
+    L = StreamingOperator.pose(sn_mesh)          # pure σ-free streaming (#257 S8b)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     return L, C
 

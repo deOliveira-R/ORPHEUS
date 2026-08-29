@@ -201,7 +201,7 @@ class TestCapabilities:
     def test_predicates_adjointable_not_invertible(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         assert L.is_adjointable and not L.is_invertible
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
@@ -210,7 +210,7 @@ class TestCapabilities:
         # all — the sweep-invertible solve lives on the fused (L+C) sum.
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         assert not L.is_invertible
         assert not hasattr(L, "solve")
 
@@ -220,14 +220,14 @@ class TestCapabilities:
         # matvec Lᵀ (the foundation of the G-adjoint ``L.H``).
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         assert L.is_adjointable
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_satisfies_linear_operator_protocol(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         assert isinstance(L, LinearOperator)
 
 
@@ -250,7 +250,7 @@ class TestConstructor:
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_construct_with_sn_mesh_only(self, name, builder):
         sn_mesh = builder()
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         assert L.sn_mesh is sn_mesh
         # σ-free: the leaf carries no sigma_t surface (#257 S8b).  The pure-L
         # apply reads no σ — it routes to the representation's σ-free
@@ -298,7 +298,7 @@ class TestLinearity:
     def test_apply_zero_returns_zero(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh, ng=2)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         out = L.apply(state)
         np.testing.assert_allclose(out.interior.values, 0.0, atol=1e-14)
@@ -308,7 +308,7 @@ class TestLinearity:
     def test_apply_is_linear(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh, ng=2)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         state1 = _random_composite(sn_mesh, seed=51)
         state2 = _random_composite(sn_mesh, seed=52)
         # Linearity, stated directly (campaign 1 CS3 — flux lives in V):
@@ -358,7 +358,7 @@ class TestSumCapabilities:
     def test_sum_exposes_apply(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         A = L + C
         assert callable(getattr(A, "apply", None))
@@ -371,7 +371,7 @@ class TestSumCapabilities:
         from orpheus.sn.operators.streaming import StreamingCollisionOperator
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         A = L + C
         assert isinstance(A, StreamingCollisionOperator)
@@ -407,7 +407,7 @@ class TestCompositeInvariants:
 
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         state = _random_composite(sn_mesh)
 
         out = L.apply(state)
@@ -431,7 +431,7 @@ class TestCompositeInvariants:
         """
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         state = _random_composite(sn_mesh, seed=182)
 
         out_composite = L.apply(state)
@@ -453,7 +453,7 @@ class TestCompositeInvariants:
         """ψ = 0 ⇒ L·ψ = 0 in both bulk AND boundary (linearity guard)."""
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         out = L.apply(state)
         np.testing.assert_array_equal(out.interior.values, 0.0)
@@ -474,7 +474,7 @@ class TestCompositeInvariants:
 
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         for depth in (0, 1, 2, 4):
             state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=depth)
             out = L.apply(state)
@@ -514,7 +514,7 @@ class TestCompositeInvariants:
         quad = Quadrature.level_symmetric(sn_order=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials(ng=2))
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
 
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         out = L.apply(state)
@@ -532,7 +532,7 @@ class TestCompositeInvariants:
         """CS4b S3 (F2): a twin-carrier composite applies legally; one whose
         carrier's volumes differ refuses (space-content invariant)."""
         sn_mesh_a = _slab_mesh()
-        L = StreamingOperator(sn_mesh_a)
+        L = StreamingOperator.pose(sn_mesh_a)
         twin = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=_slab_mesh().full_field_space,
         )
@@ -570,7 +570,7 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
 
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         A = L + C
         state = _random_composite(sn_mesh, seed=191)
@@ -718,7 +718,7 @@ class TestT4bPreT4RegressionSnapshot:
         from dataclasses import replace
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         rng = np.random.default_rng(seed)
         state = replace(
@@ -845,7 +845,7 @@ class TestT4bPreT4RegressionSnapshot:
         sn_mesh = _cart2d_mesh(ng=ng, bc_kind=bc_kind)
         # Pure-L streaming (#257 S8b) — σ-free; the fixture σ_t is no longer
         # needed to build L.
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         state = _make_state(sn_mesh, seed=seed)
         out = L.apply(state)
         assert_regression(
@@ -955,7 +955,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         from dataclasses import replace
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
-        L = StreamingOperator(sn_mesh)
+        L = StreamingOperator.pose(sn_mesh)
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
         rng = np.random.default_rng(seed)
         state = replace(

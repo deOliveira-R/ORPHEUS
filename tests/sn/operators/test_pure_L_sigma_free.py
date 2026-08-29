@@ -128,7 +128,7 @@ def test_c1_pure_L_apply_is_sigma_free(geometry: str) -> None:
     sn_mesh = _build_sn_mesh(geometry)
     state = _random_state(sn_mesh, seed=101)
 
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     # Two very different collision diagonals (the σ that USED to live on L).
     sigma_a = _het_sigma(sn_mesh, base=1.0)
     sigma_b = _het_sigma(sn_mesh, base=7.0)
@@ -160,7 +160,7 @@ def test_c1_pure_L_has_no_sigma_surface(geometry: str) -> None:
     even HAVE a σ on its surface.  ``StreamingOperator`` takes only the mesh.
     """
     sn_mesh = _build_sn_mesh(geometry)
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     if hasattr(L, "sigma_t"):
         pytest.fail(
             f"[{geometry}] StreamingOperator still exposes a sigma_t surface — "
@@ -191,7 +191,7 @@ def test_c1_teeth_sigma_leaking_stub_reddens(
     sigma_a = _het_sigma(sn_mesh, base=1.0)
     sigma_b = _het_sigma(sn_mesh, base=7.0)
 
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     rep_cls = type(L.loss_representation)
 
     # The leaking stub: instead of loss_action(0, ψ), read a σ off a mutable

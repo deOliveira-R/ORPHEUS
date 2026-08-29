@@ -143,7 +143,7 @@ class TestDispatch:
         """``L + C`` returns :class:`StreamingCollisionOperator` via dispatch."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         C = MultiplicationOperator.from_mesh(sigma_t, sn)
 
         composite = L + C
@@ -159,7 +159,7 @@ class TestDispatch:
         # positive reduction (e.g. 1.0 - 0.3 = 0.7 for c_(g->g) = 0.3).
         sigma_r = 0.7 * np.ones((sn.ng, *sn.spatial_shape))
 
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         C_r = MultiplicationOperator.from_mesh(sigma_r, sn)
         invertible = StreamingCollisionOperator(L, C_r)
         assert invertible.streaming is L
@@ -171,7 +171,7 @@ class TestDispatch:
         from orpheus.numerics.operator import ZeroOperator
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         Z = ZeroOperator()
 
         composite = L + Z
@@ -187,7 +187,7 @@ class TestCapabilitiesAndInvariants:
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         invertible = StreamingCollisionOperator(
-            StreamingOperator(sn),
+            StreamingOperator.pose(sn),
             MultiplicationOperator.from_mesh(sigma_t, sn),
         )
         assert invertible.is_invertible
@@ -208,7 +208,7 @@ class TestCapabilitiesAndInvariants:
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         # Explicitly construct via the parent class to bypass dispatch.
         plain = OperatorSum(
-            StreamingOperator(sn),
+            StreamingOperator.pose(sn),
             MultiplicationOperator.from_mesh(sigma_t, sn),
         )
         assert callable(getattr(plain, "apply", None))
@@ -221,14 +221,14 @@ class TestCapabilitiesAndInvariants:
         sn2 = _slab_mesh()
         sigma_t2 = np.ones((sn2.ng, *sn2.spatial_shape))
         StreamingCollisionOperator(
-            StreamingOperator(sn1),
+            StreamingOperator.pose(sn1),
             MultiplicationOperator.from_mesh(sigma_t2, sn2),  # twin — legal
         )
         sn3 = _stretched_mesh()
         sigma_t3 = np.ones((sn3.ng, *sn3.spatial_shape))
         with pytest.raises(ValueError, match="space-content"):
             StreamingCollisionOperator(
-                StreamingOperator(sn1),
+                StreamingOperator.pose(sn1),
                 MultiplicationOperator.from_mesh(sigma_t3, sn3),
             )
 
@@ -238,7 +238,7 @@ class TestCapabilitiesAndInvariants:
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         sigma_bad = sigma_t.copy()
         sigma_bad.flat[0] = -0.5  # one bad cell
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         C_bad = MultiplicationOperator.from_mesh(sigma_bad, sn)
         with pytest.raises(ValueError, match="strictly positive"):
             StreamingCollisionOperator(L, C_bad)
@@ -249,7 +249,7 @@ class TestCapabilitiesAndInvariants:
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         sigma_bad = sigma_t.copy()
         sigma_bad.flat[0] = 0.0
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         C_bad = MultiplicationOperator.from_mesh(sigma_bad, sn)
         with pytest.raises(ValueError, match="strictly positive"):
             StreamingCollisionOperator(L, C_bad)
@@ -257,7 +257,7 @@ class TestCapabilitiesAndInvariants:
     def test_wrong_operand_types_rejected(self) -> None:
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         C = MultiplicationOperator.from_mesh(sigma_t, sn)
         with pytest.raises(TypeError, match="StreamingOperator"):
             StreamingCollisionOperator(C, C)  # type: ignore[arg-type]
@@ -285,7 +285,7 @@ class TestApply:
         """
         sn = _slab_mesh(nx=4, n_ord=4, ng=2)
         sigma_t = np.full((sn.ng, *sn.spatial_shape), 0.8)
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         C = MultiplicationOperator.from_mesh(sigma_t, sn)
         invertible = L + C
 
@@ -315,7 +315,7 @@ class TestSolve:
         """``StreamingCollisionOperator.solve`` returns a :class:`TimedFullField` on slab."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
             sigma_t, sn,
         )
 
@@ -331,7 +331,7 @@ class TestSolve:
         """``rhs.history_depth`` propagates to the returned composite."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
             sigma_t, sn,
         )
 
@@ -343,7 +343,7 @@ class TestSolve:
         """The composite-flux contract is mandatory — bare ndarray rejected."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
             sigma_t, sn,
         )
         with pytest.raises(TypeError):
@@ -363,7 +363,7 @@ class TestSolve:
         """
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        L = StreamingOperator(sn)
+        L = StreamingOperator.pose(sn)
         psi_bare = np.zeros(10)
         # #257 S8a — the matvec input contract widened from TimedFullField to
         # the timeless FullField (the leaf is a base arrow ``FullField ->
@@ -374,7 +374,7 @@ class TestSolve:
     def test_solve_rejects_mismatched_content(self) -> None:
         sn1 = _slab_mesh()
         sigma_t1 = np.ones((sn1.ng, *sn1.spatial_shape))
-        invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
+        invertible = StreamingOperator.pose(sn1) + MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
         )
         rhs = TimedFullField.zeros(
@@ -407,7 +407,7 @@ class TestSolve:
         """
         sn = _slab_mesh(nx=8, n_ord=4, ng=1)
         sigma_t = np.full((sn.ng, *sn.spatial_shape), 1.5)
-        invertible = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
             sigma_t, sn,
         )
 
@@ -443,7 +443,7 @@ class TestSolve:
         (the q½ source read + the flux carrier filled in place)."""
         sn = _sphere_mesh(nx=8, n_ord=4, ng=1)
         sigma_t = np.full((sn.ng, *sn.spatial_shape), 1.0)
-        invertible = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
             sigma_t, sn,
         )
 
@@ -505,7 +505,7 @@ class TestSolve:
         """
         sn = _slab_mesh(nx=4, n_ord=4, ng=1)
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
             sigma_t, sn,
         )
 
@@ -583,7 +583,7 @@ class TestSolveTimedFullField:
         """
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
             sigma_t, sn,
         )
 
@@ -636,7 +636,7 @@ class TestSolveTimedFullField:
         """``rhs.history_depth`` propagates through the composite branch."""
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        invertible = StreamingOperator(sn) + MultiplicationOperator.from_mesh(
+        invertible = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
             sigma_t, sn,
         )
 
@@ -648,7 +648,7 @@ class TestSolveTimedFullField:
     def test_rejects_mismatched_content_on_rhs(self) -> None:
         sn1 = _slab_mesh()
         sigma_t1 = np.ones((sn1.ng, *sn1.spatial_shape))
-        invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
+        invertible = StreamingOperator.pose(sn1) + MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
         )
         rhs = TimedFullField.zeros(
@@ -664,7 +664,7 @@ class TestSolveTimedFullField:
         have certified it — vv #17's per-arm discipline)."""
         sn1 = _slab_mesh()
         sigma_t1 = np.ones((sn1.ng, *sn1.spatial_shape))
-        invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
+        invertible = StreamingOperator.pose(sn1) + MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
         )
         b = TimedFullField.zeros(
@@ -861,7 +861,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         ng = solver.ng
 
         sigma_t = solver.mat_xs.total_cross_section
-        L_leaf = StreamingOperator(sn_mesh)
+        L_leaf = StreamingOperator.pose(sn_mesh)
         C_t = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
         LC = L_leaf + C_t
 
@@ -950,7 +950,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         sum_w = float(quad.weights.sum())
 
         sigma_t = solver.mat_xs.total_cross_section
-        L_leaf = StreamingOperator(sn_mesh)
+        L_leaf = StreamingOperator.pose(sn_mesh)
         C_t = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
         LC = L_leaf + C_t
 

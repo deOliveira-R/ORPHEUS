@@ -142,7 +142,7 @@ def test_c5a_matvec_leaves_emit_timeless_full_field(coord: str) -> None:
     solver, _case = _solver_for(coord, "2eg")
     sn_mesh = solver.sn_mesh
 
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(solver.mat_xs.total_cross_section_field, sn_mesh)
     S = solver.scattering_op
     F = solver.fission_op
@@ -173,7 +173,7 @@ def test_c5a_apply_transpose_emits_timeless_full_field(coord: str) -> None:
     solver, _case = _solver_for(coord, "2eg")
     sn_mesh = solver.sn_mesh
 
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(solver.mat_xs.total_cross_section_field, sn_mesh)
     B = SNBoundaryOperator(sn_mesh)
 
@@ -192,7 +192,7 @@ def test_c5a_independent_of_input_history_depth() -> None:
     """The timeless codomain holds for EVERY input ``history_depth`` (0..4)."""
     solver, _case = _solver_for("slab", "2eg")
     sn_mesh = solver.sn_mesh
-    L = StreamingOperator(sn_mesh)
+    L = StreamingOperator.pose(sn_mesh)
     for depth in (0, 1, 2, 4):
         state = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
