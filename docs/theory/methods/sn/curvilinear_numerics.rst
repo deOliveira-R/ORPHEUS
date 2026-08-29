@@ -9,7 +9,7 @@ history behind the curvilinear machinery of
 Phases A, D, and F, the ERR-058 closeout (#195), and the #196
 eigenvalue-equivalence verification: what was tried, why each attempt
 fell short, and the diagnoses that narrowed a wrong-fixed-point family
-to two closure seeds.  Phases B (the pole angular closure) and C (the
+to two closure seeds.  Phases B (the angular closure) and C (the
 sweep-frame matvec) live with the production machinery in
 :doc:`curvilinear_one_group`, and the terminal resolution — route (a)
 (#282), which retired the whole ``PsiHalfAngleSeed`` strategy family
@@ -22,6 +22,24 @@ every gate stayed green while the fixed point was wrong (the blindness
 analysis inside the ERR-058 closeout).  Present-tense design claims in
 the preserved sections are historical; each section carries its
 supersession banner.
+
+.. note:: **Reading the period vocabulary and the period file paths.**
+
+   Because the chapter preserves its sections verbatim, it names things
+   as they were named at the time, and two of those names have since
+   moved.  The angular-closure family was called the *pole* angular
+   closure until 2026-08-28 (P4.9b): the family base is
+   :class:`~orpheus.sn.angular.closure.AngularClosureBase` today, the
+   hub attribute is ``angular_closure``, and the reason for the change
+   is that a cylinder has no pole in the sense a sphere does — what
+   matters is that one closure is *spatial* and one is *angular*
+   (:ref:`sn-p49b-operator-poses-with-closures`).  Its module moved too:
+   the file this chapter cites as ``orpheus/sn/sweep/pole_angular_closure.py``
+   is :mod:`orpheus.sn.angular.closure`, and line numbers quoted against
+   the old path are frozen at the commit that diagnosed them.  Genuine
+   poles keep the word throughout — the sphere's polar cap, the
+   :math:`\mu = -1` starting direction, and the Carlson *coupled-pole*
+   seed are named correctly wherever they appear.
 
 .. admonition:: Key Facts
    :class: tip

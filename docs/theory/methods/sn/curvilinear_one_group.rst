@@ -84,12 +84,16 @@ re-derived.
      :math:`\tau \in [\tfrac14, \tfrac34]`
      (:eq:`morel-montry-folded-arc`).
    * :math:`\tau` is an **angular-scheme property the closure owns**
-     (#236 Phase 2): produced solely by the pole-angular closure and
-     delivered to the stateless spatial scheme as
+     (#236 Phase 2): produced solely by the angular closure, and the
+     stateless spatial scheme never sees it.  ⛔ Until P4.9a
+     (2026-08-28) it travelled to the scheme as
      :class:`~orpheus.transport.spatial.scheme.CellVisit` **data**
-     (:math:`c_{\rm in}`, :math:`c_{\rm out}`, :math:`\tau`),
-     stamped at one production site — never as a closure dependency
-     (the spatial :math:`\otimes` angular separation).
+     (:math:`c_{\rm in}`, :math:`c_{\rm out}`, :math:`\tau`) stamped at
+     one production site; those three fields and the stamping method are
+     **retired** — what the scheme receives now is two already-multiplied
+     contributions, ``angular_denom_term`` and ``angular_numer_upstream``
+     (:ref:`sn-p49a-closure-owns-the-march`).  Either way, never a closure
+     dependency — the spatial :math:`\otimes` angular separation.
    * That separation is a **theorem**, not a convention: the
      redistribution operator is the tensor product
      :eq:`sn-redistribution-tensor-product-eq`, so :math:`\tau`
@@ -405,7 +409,8 @@ past the top edge, into nothing — a leak, not a small error.
    locatable).  Recursion and contract stay separate functions deliberately:
    a derivation that wants to *study* a non-closing measure may call the
    recursion without being refused by it.  Sibling guard, same shape:
-   ``pole_angular_closure._assert_tau_within_unit_interval``.
+   ``_assert_tau_within_unit_interval`` in
+   :mod:`orpheus.sn.angular.closure`.
 
    ⭐ **The argument completed on 2026-08-26.**  ``bea6a367`` gave the
    recursion one body; the guard still ran from whichever streaming
@@ -851,12 +856,15 @@ c_in / c_out are angular-closure constants — Step B1 (one site folded)
    Step B1 (this dispatch) folds the ONE free seam — the
    :class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache` populator
    (:meth:`~orpheus.sn.sweep.cache.StreamingCoefficientCache.from_mesh_and_quad`),
-   which already holds ``sn_mesh`` and so reads
+   which held ``sn_mesh`` and so read
    :attr:`~orpheus.sn.angular.closure.AngularClosureBase.c_out_per_ordinate`
    /
    :attr:`~orpheus.sn.angular.closure.AngularClosureBase.c_in_per_ordinate`
-   with zero plumbing.  The accessor pair is PUBLIC and polymorphic on the
-   base
+   with zero plumbing.  (Since P4.9b the populator is **handed** its
+   closure — ``from_mesh_and_quad(sn_mesh, angular_closure)`` — so the
+   mesh supplies geometry and the caller supplies the method; see
+   :ref:`sn-p49b-operator-poses-with-closures`.)  The accessor pair is
+   PUBLIC and polymorphic on the base
    :class:`~orpheus.sn.angular.closure.AngularClosureBase`:
    :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
    returns its precomputed per-level :math:`c` gathered to the
@@ -941,6 +949,16 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    ``update`` / ``residual`` abstract so ``mesh.scheme`` consumers see the
    full contract) — making the ABC the COMPLETE strategy contract instead
    of declaring only ``__call__``.
+
+   ⛔ **Both halves of that sentence have since moved, and the
+   B2-era spellings are kept only as history.**  The attribute is
+   ``angular_closure`` (P4.9b dropped "pole" from the family), and the
+   matvec no longer reads it off the mesh **at all**: the walk consumes
+   the closure pair the operator was **posed** with, so the hub route
+   carries only two space facts.  See
+   :ref:`sn-p49b-operator-poses-with-closures`.  What survives verbatim
+   is the *typing* claim this step actually made — the ABC is the
+   complete strategy contract, whoever hands the instance over.
 
    Step B2 is BIT-IDENTICAL: ``visit.c_in`` / ``visit.c_out``
    (closure-sourced) equal the former inline values 0-ULP — the closure
@@ -1058,7 +1076,7 @@ in scope when the weighted-diamond closure was wired in, so it baked
 the angular weight in alongside the genuinely geometric
 :math:`\alpha`-dome and face areas.  The architectural correction
 (Issue #236 Phase 2) is to give the weight back to its owner: the
-**pole-angular closure**
+**angular closure**
 (:class:`~orpheus.sn.angular.closure.AngularClosureBase`),
 which already binds the quadrature and already computes :math:`\tau`
 from it in :func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`.
@@ -1910,8 +1928,14 @@ product* narrative on the theory page.  The campaign had three phases:
   :eq:`mm-weights`, the redistribution dome
   :eq:`alpha-recursion`) are two distinct, independently-selectable
   axes — a genuine tensor product, with separate injection points on
-  :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (``cell_update=`` for the spatial
-  scheme, ``pole_angular_closure=`` for the angular scheme).
+  :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (``scheme=`` for the
+  spatial closure, ``angular_closure=`` for the angular one; the two
+  keywords were ``cell_update=`` and ``pole_angular_closure=`` when this
+  phase landed).  Since P4.9b the *operator* is posed with both, and the
+  hub's two slots are what
+  :meth:`~orpheus.sn.operators.streaming.StreamingOperator.pose` reads —
+  the product is now spelled in the operator's own signature
+  (:ref:`sn-p49b-operator-poses-with-closures`).
 * **Phase 2 — :math:`\tau`-ownership carve.**  The angular weight
   :math:`\tau` was moved off the geometry operator and onto the angular
   closure, so the angular axis literally *owns* its own discretisation
@@ -3528,8 +3552,8 @@ scan-normal spelling (:ref:`sn-p49a-two-forms`).
 
 .. _sn-pole-angular-closure-protocol:
 
-The pole angular closure
-========================
+The angular closure
+===================
 
 .. note:: **Contract evolution (Issue #236 Phase 2 B2 → Issue #248).**
    This subsection originally introduced the angular-closure contract
@@ -3556,6 +3580,28 @@ The pole angular closure
    is retained (it is cross-referenced from
    :doc:`/theory/foundations/boundary_conditions` and elsewhere); only the human
    label "protocol" is now loose — the contract is an ABC.
+
+   ⭐ **Second name correction (P4.9b, 2026-08-28).** The word "pole" has
+   now gone from the family too. A cylinder has no pole in the sense a
+   sphere does; what the two closures actually are is one **spatial** and
+   one **angular**, so the base is
+   :class:`~orpheus.sn.angular.closure.AngularClosureBase`, the hub
+   attribute is ``angular_closure``, and the operator and the
+   representation carry one symmetric, greppable pair of slot names
+   (:ref:`sn-p49b-operator-poses-with-closures`). Member names
+   (:class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`,
+   ``IdentityAngularClosure``) are untouched — only the family-defining
+   spellings moved — and genuine poles keep the word: the sphere's polar
+   cap, the :math:`\mu = -1` starting direction, and Hébert's Carlson
+   *coupled-pole* seed are all named correctly. The anchor stays, for the
+   same reason as before: an anchor is an address, not a claim, and
+   `[M]` it carries three **cross-document** references
+   (:doc:`/theory/foundations/boundary_conditions`, :doc:`history`,
+   :doc:`/theory/verification/sn`) plus three intra-document ones — and a
+   cross-document ``:ref:`` that misses its target renders as plain text
+   with no warning at any build severity, so a rename there is a silent
+   break rather than a caught one. Both spellings therefore appear below;
+   the old one only in past-tense history.
 
 Phase B addresses **Defect 3** of Issue #168 — the angular-redistribution
 truncation gap on angularly-varying :math:`\psi`.  The pre-Phase-B
@@ -4086,7 +4132,8 @@ Half-angle grid exposure
 
    Pattern 2 (Single source of truth).  The :eq:`pole-mm-recurrence`
    recurrence body lives once, in the module-level kernel
-   ``pole_angular_closure._psi_half_grid_single_level``.  Both the
+   ``_psi_half_grid_single_level`` of
+   :mod:`orpheus.sn.angular.closure`.  Both the
    public ``compute_psi_half_per_level`` AND the live production path
    route through it: the matvec/sweep call
    :meth:`~orpheus.sn.angular.closure.AngularClosureBase.precompute_psi_state`,
@@ -5254,7 +5301,7 @@ Phase B's ``pole-mm-recurrence`` label (:eq:`pole-mm-recurrence`)
 xpass, the canonical Morel--Montry angular recurrence is exercised
 by the apply matvec and pinned by an L1 test chain. Through Phase C
 the label remains tested only via the Phase B foundation suite
-(:file:`tests/sn/sweep/curvilinear/test_pole_angular_closure.py`); the L1
+(:file:`tests/sn/sweep/curvilinear/test_angular_closure.py`); the L1
 upgrade is Phase D's responsibility.
 
 Empirical Gate 1.1 finding: spherical-vs-cylindrical structural asymmetry
@@ -5442,7 +5489,7 @@ Verification gate summary
    * - 2.2
      - Phase B 28 foundation tests
      - PASS
-     - ``test_pole_angular_closure.py``
+     - ``test_angular_closure.py``
    * - 2.3
      - Phase B 5 L1 flat-flux-identity tests
      - PASS
@@ -5514,7 +5561,9 @@ CLOSED while keeping the **magnitude** scope open per
    derivation, including the diagnostic finding that **the seed
    lives in the M-M angular recurrence, not in the WDD spatial
    pole-face IC**.
-2. **Default flip.** :attr:`SNMesh.pole_angular_closure` default
+2. **Default flip.** The hub's angular-closure default (the constructor
+   argument ``pole_angular_closure=`` at the time, ``angular_closure=``
+   since P4.9b)
    ``LegacyTauSymmetricInterpolation``
    → :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`;
    :class:`~orpheus.sn.solver.SNSolver` curvilinear default

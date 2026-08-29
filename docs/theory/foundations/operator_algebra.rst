@@ -5883,7 +5883,15 @@ for merge status.
        (:math:`\max|\Delta| = 1.776\times10^{-15}`), and on
        :math:`100\,\%` exactly where :math:`\tau` is bitwise
        :math:`\tfrac12`.  See
-       :ref:`sn-p49a-closure-owns-the-march`.
+       :ref:`sn-p49a-closure-owns-the-march`.  ⭐ Its sequel **P4.9b**
+       (2026-08-28) finishes the arc one level up: the streaming operator
+       is **posed** with both closures — three required fields, no
+       defaults and no guards, with a ``pose`` classmethod reading the
+       hub — so the walk consumes what it was handed instead of reaching
+       back into the mesh, and the fused scan table becomes the solution
+       strategy's lazily-resolved artifact rather than the operator's or
+       the mesh's.  See :ref:`sn-p49b-operator-poses-with-closures` and
+       the S\ :sub:`N` :doc:`/theory/methods/sn/history` entry.
      - #407
      - branch ``refactor/unweld-p49a-closure-owns-march``
    * - 2026-07-12

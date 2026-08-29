@@ -1444,6 +1444,12 @@ older entries classify against.
      foundation tests pinning Protocol contract, α-recursion identity
      (Hébert Eqs. 3.423-3.424), 2-ordinate hand-calcs, and the
      BFF↔MMS Defect-3 disagreement on angularly-varying ψ.
+     (This module is alive under a new address: it is
+     ``tests/sn/sweep/curvilinear/test_angular_closure.py`` today — the
+     taxonomy reorg moved it, and P4.9b dropped "pole" from the
+     angular-closure vocabulary, 2026-08-28.  The other paths in this
+     inventory name modules that were retired outright and are recorded
+     here as history.)
    - ``tests/sn/l1_analytical/test_pole_closure_flat_flux_identity.py`` (NEW) —
      5 L1 tests pinning flat-flux invariants (Legacy↔BFF bit-for-bit
      on flat ψ; MMS preserves angular-integrated invariant by

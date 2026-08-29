@@ -1759,25 +1759,36 @@ Selection: one predicate, three consumers
 
 Applicability is a **declared, queryable capability** — "make illegal
 states unrepresentable" applied to method selection. Each representation
-answers one classmethod:
+answers one classmethod, over the mesh **and the spatial closure it was
+handed**:
 
 .. code-block:: python
 
    class CumprodScan(_LossRepresentation):
        @classmethod
-       def supports(cls, mesh):
+       def supports(cls, mesh, spatial_closure):
+           if not mesh.is_1d:
+               return Compatibility(False, "requires a 1-D mesh")
+           # geometry × closure capability first, so a curvilinear-incapable
+           # scheme is refused with its OWN reason rather than "not 1-D".
+           geometry = _curvilinear_capability(mesh, spatial_closure)
+           if not geometry.ok:
+               return geometry
            return Compatibility(
-               mesh.is_1d and mesh.scheme.is_affine_scannable,
+               spatial_closure.is_affine_scannable,
                "requires a 1-D mesh with an affine-scannable cell-update scheme",
            )
 
    class ScanMarch(_LossRepresentation):
        @classmethod
-       def supports(cls, mesh):
+       def supports(cls, mesh, spatial_closure):
            # 1-D arm: SINGLE-axis prefix-scannability (LD's 1-D scan IS valid).
            if mesh.is_1d:
+               geometry = _curvilinear_capability(mesh, spatial_closure)
+               if not geometry.ok:
+                   return geometry
                return Compatibility(
-                   mesh.scheme.is_affine_scannable,
+                   spatial_closure.is_affine_scannable,
                    "requires an affine-scannable cell-update scheme on a "
                    "1-D mesh (any geometry)",
                )
@@ -1786,7 +1797,7 @@ answers one classmethod:
            return Compatibility(
                mesh.is_cartesian
                and mesh.ndim == 2
-               and mesh.scheme.transverse_coupling_is_facewise,
+               and spatial_closure.transverse_coupling_is_facewise,
                "2-D scan-march requires a scheme whose transverse coupling is "
                "facewise (separable into independent per-axis 1-D scans) — the "
                "slopeless cell-average closures (Diamond Difference, Step); "
@@ -1797,7 +1808,7 @@ answers one classmethod:
 
    class _DAGWavefront(_LossRepresentation):       # MovingFrontierWindow's base
        @classmethod
-       def supports(cls, mesh):
+       def supports(cls, mesh, spatial_closure):
            return Compatibility(
                mesh.is_cartesian and mesh.ndim == 2,
                "requires Cartesian geometry, d = 2",
@@ -1805,8 +1816,30 @@ answers one classmethod:
 
    class FullFieldWavefront(_DAGWavefront):
        @classmethod
-       def supports(cls, mesh):
+       def supports(cls, mesh, spatial_closure):
            return Compatibility(mesh.is_cartesian, "requires Cartesian geometry")
+
+.. note:: **The closure is an ARGUMENT, not a mesh read (P4.9b,
+   2026-08-28).**
+
+   ``supports`` used to read ``mesh.scheme``.  It now takes the closure
+   the posed operator was constructed with, because *selection is a
+   method-flavoured question* and the ruling that keeps the generator on
+   the hub (:ref:`sn-p49b-operator-poses-with-closures`) puts only
+   space-and-layout facts on the hub route.  The two spellings agree on
+   every production path — the operator's closure IS the hub's object,
+   by construction, since
+   :meth:`~orpheus.sn.operators.streaming.StreamingOperator.pose` reads
+   it there — so this is a *routing* change, not a behavioural one.  Its
+   value is that a deliberately doctored pair now selects the strategy
+   that matches what will actually be swept, instead of the strategy the
+   mesh would have picked.
+
+   The same argument moves the representation's own construction: the
+   base carries ``(mesh, spatial_closure, angular_closure)``,
+   :func:`~orpheus.sn.loss_representation.default_for` takes all three,
+   and a ``pose(mesh)`` classmethod mirrors the operator's for the
+   test-side construction that used to pass a bare mesh.
 
 The compatibility signal is the *genuine* criterion — the coordinate
 system (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.is_cartesian`, i.e.
@@ -1830,8 +1863,8 @@ reactor physics.
 **One predicate, three consumers (single source of truth):**
 
 #. **Frontend** —
-   ``[R for R in LOSS_REPRESENTATIONS if R.supports(mesh).ok]`` lists
-   the applicable methods. A cylinder (non-Cartesian) → only
+   ``[R for R in LOSS_REPRESENTATIONS if R.supports(mesh, closure).ok]``
+   lists the applicable methods. A cylinder (non-Cartesian) → only
    ``CumprodScan`` and ``ScanMarch``; the dropdown shows exactly those.
 
 #. **Factory default** —
@@ -1916,11 +1949,14 @@ reactor physics.
    predicate, no caller touched.
 
 #. **Construction guard** — ``_LossRepresentation.__post_init__``
-   re-runs ``supports(mesh)`` and raises
+   re-runs ``supports(self.mesh, self.spatial_closure)`` and raises
    :class:`~orpheus.sn.loss_representation.IncompatibleRepresentation`
    on a false verdict, so even a bypassed UI cannot build an illegal
    pairing. Combined with the frozen-dataclass immutability, the
-   ``(representation, mesh)`` pairing is *correct by construction*.
+   ``(representation, mesh, closure)`` triple is *correct by
+   construction* — and since P4.9b the closure it validates is the one
+   the strategy will actually sweep with, not whichever one the mesh
+   happens to carry.
 
 That ``supports`` predicate **is** the ``is_1d`` / ``curvature``
 dispatch that the pre-carve code scattered across ``transport_sweep``
@@ -2306,7 +2342,9 @@ One instance (S6.5)
 The operator holds **one** representation instance —
 :attr:`StreamingOperator.loss_representation
 <orpheus.sn.operators.streaming.StreamingOperator.loss_representation>` (a
-``cached_property`` = ``default_for(mesh)``) — consumed by:
+``cached_property`` = ``default_for(sn_mesh, spatial_closure,
+angular_closure)``, the operator's own three fields since P4.9b) —
+consumed by:
 
 * :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` (the matvec
   :math:`(L+C)\psi`);

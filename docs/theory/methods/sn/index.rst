@@ -243,6 +243,564 @@ mesh) is shared with :ref:`theory-collision-probability` and
                     v
    solve_sn() --> Solution
 
+.. _sn-p49b-operator-poses-with-closures:
+
+P4.9b — the hub is a save state, and the operator is posed on it
+-----------------------------------------------------------------
+
+:ref:`sn-p49a-closure-owns-the-march` gave the angular march back to its
+owner and left the SN *walk* applying it.  That is one level short of the
+destination: the walk was still reaching into
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` at apply time for both
+method objects, so an operator you had already built could still change
+its mind about *how* it discretises if somebody rebound a mesh attribute
+underneath it.  P4.9b (2026-08-28) closes that: the streaming operator
+is **posed** with the two closures it will use, and from then on it
+computes from its own fields.
+
+The subsection is the sequel to P4.9a and states the four things a
+reader needs in order not to undo it: what the operator now takes, why
+the mesh nevertheless *keeps* the generator, why the constructor carries
+no consistency guards, and where the performance weld went.
+
+The three fields, and the absence of a default
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:class:`~orpheus.sn.operators.streaming.StreamingOperator` is a
+dataclass with three **required** fields and no defaults:
+
+.. code-block:: python
+
+   @dataclass
+   class StreamingOperator(LinearOperator["FullField"]):
+       sn_mesh: "SNMesh"                                # the geometric substrate
+       spatial_closure: "DiscretizationSchemeBase"      # required, no default
+       angular_closure: "AngularClosureBase"            # required, no default
+
+The absence of a default is the design's first claim, and it is a claim
+about *authorship*, not about ergonomics — **the discretization is an
+active choice**, so an operator that guessed one would be answering a
+question nobody asked.  ``StreamingOperator(sn_mesh)`` is a
+``TypeError`` (`[M]` *"missing 2 required positional arguments:
+'spatial_closure' and 'angular_closure'"*), which is the loud,
+collection-time failure that the illegal-states-unrepresentable pattern
+buys here: there is no such thing as an under-specified streaming
+operator, so no code path has to check for one.
+
+⚠ Note which half of that pattern is being claimed.  "Make illegal
+states unrepresentable" is two-sided — *every admitted value is legal*
+**and** *every legal value is admitted* — and only the first half is
+asserted above.  The second half is what the next subsection is about:
+the constructor admits pairs the hub would never produce, deliberately.
+
+The production surface is the classmethod
+:meth:`~orpheus.sn.operators.streaming.StreamingOperator.pose`, whose
+whole body is one line:
+
+.. code-block:: python
+
+   @classmethod
+   def pose(cls, sn_mesh):
+       return cls(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
+
+``pose`` is the migration lever, not the destination.  Every transport
+method's streaming operator needs a domain, a codomain, a way to
+discretise space and (for the curvilinear ones) a way to discretise
+angle; **none of them needs an**
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`.  The recorded end state
+is therefore the cross-method constructor ``(domain, codomain,
+spatial-discretization[, angular-discretization])`` with the mesh
+argument gone, and ``pose`` retires with the migration that reaches it.
+Until then the mesh field is a **declared transitional weld**: the
+representation and the walk still read geometry, boundary conditions and
+connection coefficients off it, and the operator's ``domain`` /
+``codomain`` are still derived from
+``sn_mesh.full_field_space``.
+
+.. note:: **Why the mesh field was kept rather than replaced by the
+   literal four-argument shape now.**
+
+   Passing ``(domain, codomain)`` *alongside* a mesh would make a
+   mismatch between them **spellable** — a Pattern-4 inversion, since the
+   spaces are today derived from that very mesh.  One object that
+   answers both questions cannot disagree with itself.  The four-argument
+   shape becomes reachable when the representation stops needing the
+   mesh, which is a different campaign's work.
+
+Why the hub keeps the generator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The obvious next move — *the operator has the scheme now, so take it off
+the mesh* — is **wrong**, and the reason is worth stating plainly
+because the charter originally said to do it.
+
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` is a **misnomer**.  It is
+not only a mesh: it is the solve's **save state and data hub**, the
+object you would dump to disk to reproduce a run.  It keeps the
+discretization scheme *not because it needs one to be a mesh*, but
+because a scheme is **shared machinery**, and two independent consumers
+must be given the same one:
+
+#. **Cross-consumer consistency.**  Diffusion-synthetic acceleration
+   must discretise space the way the S\ :sub:`N` sweep does, or the
+   correction it computes does not correspond to the error it is
+   correcting.  With one generator on the hub, DSA and the transport
+   solve read the *same* object; with the generator distributed to each
+   operator, keeping them equal becomes a runtime obligation somebody
+   has to remember.
+#. **Space induction.**  The scheme co-determines the mesh's **spaces**:
+   whether the spatial representation is nodal or modal, and hence the
+   shape of the spatial axis itself.  A multi-moment scheme such as
+   Linear-Discontinuous gives the angular trial space a moment tail;
+   ``full_field_space`` — the operator's own domain and codomain — is
+   built through that.  The generator is consumed at mesh construction
+   *by the space*, which is upstream of any operator posed on it.
+
+So the ruling is a **partition**, not a move.  Method-flavoured
+quantities — per-cell kernels, the march, the minted scan constants,
+the strategy-selection predicates — arrive through the operator.
+Space-and-layout facts stay on the hub, because a layout is a property
+of the space the hub induces, not of an operator posed on it.  The
+partition is not prose: it is an executable allowlist.
+
+.. list-table:: The hub route after P4.9b — the read-set gate's allowlist
+   :header-rows: 1
+   :widths: 34 18 48
+
+   * - what the walk reads off the hub's ``scheme``
+     - allowed?
+     - why
+   * - ``spatial_basis_per_axis``
+     - ✅ yes
+     - the per-axis basis count — a **layout** fact; it is what the
+       trace's face-moment layout and the field shapes are built from
+   * - ``is_multi_moment``
+     - ✅ yes
+     - the same fact as a predicate — does the spatial axis carry a
+       moment tail
+   * - ``residual_kernel_batch`` / ``source_emission`` /
+       ``cell_average`` / ``cell_kernel_batch`` / the transposes
+     - ⛔ no
+     - per-cell **kernels** — method-flavoured, must arrive on
+       ``op.spatial_closure``
+   * - ``is_affine_scannable`` / ``transverse_coupling_is_facewise`` /
+       ``supports_curvilinear``
+     - ⛔ no
+     - **strategy selection** consumes the handed closure (see
+       ``supports`` in :doc:`loss_representation`)
+   * - anything at all on the hub's bound ``angular_closure``
+     - ⛔ no
+     - the allowlist for the angular half is **empty**
+
+``test_hub_route_reads_only_space_facts``
+(``tests/sn/operators/test_operator_feeds_the_walk.py``) enforces exactly
+that table.  Its instrument is worth knowing, because it is reusable: it
+poses the operator (which captures the *real* objects), then rebinds the
+hub's two slots to **delegating recording subclasses**.  A read that
+arrives through ``mesh.scheme.X`` hits the recorder and is logged; a read
+that arrives through the operator's own field hits the real object and
+is invisible.  The assertion is then a set difference against the
+allowlist.  Two details keep it honest: the recorders are *subclasses*
+rather than proxies (the walk type-discriminates on the closure family —
+see below), and the gate first asserts that the recorder records at all,
+so a silently-inert instrument cannot read as a clean pass.
+
+Why the constructor carries no guards
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The constructor does **not** check that its closures came from the hub it
+was handed.  That was ruled deliberately, after the position was attacked
+four ways; the attacks are recorded here because "add a guard" is the
+first thing a reader will want to do.
+
+.. list-table:: The four attacks on the no-guard position
+   :header-rows: 1
+   :widths: 6 30 64
+
+   * - #
+     - the attack
+     - outcome
+   * - 1
+     - the ``pose`` path
+     - **Unbeatable.**  ``pose`` reads the hub's own two objects, so on
+       the production path a disagreement is not *checked*, it is
+       **unspellable**.  Every production construction goes through it.
+   * - 2
+     - raw constructor, foreign *spatial* scheme (an LD operator over a
+       DD-built hub)
+     - **Spellable but loud.**  The operator's ``domain`` derives from
+       the hub's spaces, so it carries no moment tail while the LD
+       kernels index one — a shape error at the first apply.
+   * - 3
+     - raw constructor, wrong-**family** angular closure (the Cartesian
+       identity closure on curvilinear factors)
+     - **Constructs, then raises at the first sweep.**  `[M]`
+       2026-08-28: typed on the sphere (*"… requires the Morel–Montry
+       closure"*), untyped ``IndexError`` on the cylinder, and
+       bit-identically inert on the slab — where the identity closure
+       IS the default.  The walk's own family dispatch refuses it.
+   * - 4
+     - cross-hub smuggling — mesh A's closure into mesh B's operator at
+       equal ordinate count
+     - **The one genuinely silent arm.**  Wrong pairing, plausible-
+       looking answers.  It requires two hubs and a deliberate crossing,
+       and guarding it would require the closure to remember its mesh —
+       re-welding exactly what the closure's un-binding achieved.
+
+.. warning:: **A refuted sentence, kept so it is not re-derived.**
+
+   The design round justified arm 3 as *"silent, plausible-wrong* ``k``\
+   *"*.  That was **reasoned, not run**, and it is false: measurement
+   (row 3 above) shows the doctored state raises at the first sweep on
+   every curvilinear geometry.  The no-guard ruling survives on its other
+   grounds — arm 1's unspellability and the seam's legitimate use — but
+   the refuted sentence must not be transcribed into the constructor
+   docstring, and the constructor's own docstring records the measured
+   behaviour instead.
+
+What the raw constructor *is*, then, is a **declared expert seam**.  A
+diagnostic probe that wants to switch angular redistribution off and
+measure the difference should build such an operator honestly rather
+than monkeypatching production; the constructor is how.
+``test_the_raw_ctor_is_a_declared_expert_seam``
+(``tests/sn/operators/test_streaming_operator.py``) freezes that as a
+one-positive-leg test with **no** negative leg, and says so in its own
+docstring — the contract being frozen is *that no validation exists*, so
+there is nothing to assert raising.
+
+⭐ The consequence for review: with no constructor guard, the pose-identity
+gate ``test_pose_reads_the_hub_objects_by_identity`` **is** the production
+safety argument, not a nicety beside it.  Its legs are ``is``-identity on
+both slots, plus a non-vacuity leg (a second hub's objects differ, and a
+pose over it lands on *that* hub's objects) — because an identity
+assertion against an accidental singleton would pass for the wrong
+reason.  The mutation it exists to catch is a ``pose`` that **mints**
+fresh objects instead of reading the hub: that version type-checks,
+solves correctly, and silently breaks the one-instance invariant the
+DSA-consistency ruling rests on.
+
+`[M]` 2026-08-28, this session — ``pose`` monkeypatched in process to
+mint its own objects, mirroring the hub's construction arm for arm so
+that only *identity* changes and never the arithmetic (an **in-class**
+mutation; the first attempt crashed on the Cartesian arm and reported
+four extra reds that were the harness's, not the invariant's — ``vv``
+anti-patterns #17 and #18 in one probe).  Over the 65 tests in the three
+modules that name the invariant, the mutation reddens exactly **5**
+rows, and *every one of them is a structural leg*:
+
+* ``test_pose_reads_the_hub_objects_by_identity`` — the pose-identity
+  gate;
+* ``test_every_per_cell_consumer_reaches_the_mesh_closure`` — the
+  one-instance gate;
+* all three **closure** rows of the route gate below, on their
+  activation legs.
+
+The other **60 tests pass** — every value assertion, every regression
+snapshot in those modules, every ``array_equal`` pin.  A broken invariant
+that no number can see is the definition of a claim that needs a
+structural gate, and this measurement is what makes "no constructor
+guard" a defensible position rather than an omission.
+
+The keystone: a hub mutation after posing must be inert
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The phase's actual claim is a **route** claim — *the walk's
+method-flavoured needs come from the operator, not from the mesh* — and a
+route claim cannot be gated by asserting an output value (``vv``
+anti-pattern #26: a function that does the work and throws it away is
+indistinguishable, in its return value, from one that skipped it).  It
+needs an instrument that observes the route.
+
+The instrument is a **swap**: pose the operator, then rebind the hub's
+slots to deliberately mutant objects, then drive the solve through the
+**already-posed** operator.  Before the carve the walk re-read the hub at
+apply time, so the answer moved; after it, the operator holds the
+pre-swap objects and the answer must be bit-identical.
+
+.. list-table:: `[M]` 2026-08-28 at ``10314dfa`` (pre-carve) — the gate's own red reading
+   :header-rows: 1
+   :widths: 30 26 22 22
+
+   * - configuration
+     - hub slot swapped
+     - surfaces mutated (× 1.05)
+     - relative deviation
+   * - slab, ``gauss_legendre(8)``
+     - ``mesh.scheme``
+     - ``source_emission`` + ``residual_kernel_batch``
+     - 5.000e-02
+   * - cylinder, ``folded_product(4, 6)``
+     - the bound angular closure
+     - ``advance_psi_half`` + ``c_out_per_ordinate``
+     - 4.596e-02
+   * - cylinder, ``folded_product(4, 8)``
+     - the bound angular closure
+     - same
+     - 5.313e-02
+   * - sphere, ``gauss_legendre(8)``
+     - the bound angular closure
+     - same
+     - 1.196e-01
+
+Post-carve every row reads ``np.array_equal``.  The four rows are **not
+redundant**, and the reason is a structural asymmetry worth knowing
+before designing any gate on this path: the two halves of the carve have
+**disjoint activating configurations**.  Counting the two per-cell
+entries over whole ``solve_sn`` k-eigenvalue runs (`[M]` 2026-08-28,
+this session; 2-group fissile, 8 cells, reflective / vacuum):
+
+.. list-table:: Per-cell dispatch counts over one k-eigenvalue solve
+   :header-rows: 1
+   :widths: 34 33 33
+
+   * - configuration
+     - ``DiamondDifference`` ``residual_kernel_batch`` (the **scheme**)
+     - ``MorelMontryAngularSweep`` ``cell_contribution`` (the **closure**)
+   * - slab, ``gauss_legendre(8)``
+     - 656
+     - **0**
+   * - sphere, ``gauss_legendre(8)``
+     - **0**
+     - 5 552
+   * - cylinder, ``folded_product(4, 6)``
+     - **0**
+     - 24 928
+
+The zeros are exact, not small.  A curvilinear fixture therefore cannot
+witness the scheme re-plumb and a slab fixture cannot witness the closure
+re-plumb — so every step-2 gate must carry both, and a "representative"
+single-geometry row would be a gate that structurally cannot fail for
+half of what it claims.
+
+⚠ Three ways this gate goes silently green for the wrong reason, all
+measured while it was being built, all worth carrying forward to the next
+route gate anyone writes:
+
+* **Mutating** ``cell_contribution`` **alone is insufficient, not
+  blind.**  The ``.solve`` route consumes ``advance_psi_half`` plus the
+  closure's minted scan constants, while ``cell_contribution`` is the
+  *matvec's* per-cell arm — a legacy of P4.9a's split of the two forms
+  (:ref:`sn-p49a-two-forms`).  A gate that mutates one surface certifies
+  one route and reads ``array_equal = True`` on all three curvilinear
+  rows.
+* **The obvious driver re-poses.**  The shared helper ``sweep_once``
+  constructs its own operator internally, so it re-poses *after* the
+  swap — post-carve it would still read the mutant and the gate would
+  stay red for a reason unrelated to the carve.  The gate builds and
+  drives ``(L + C).solve`` itself.
+* **The memos mask the swap.**  Without dropping the mesh-attribute
+  memos, the cached table survives the swap and the gate passes *because
+  of the cache*.  Hence the gate's activation leg, which proves the
+  mutant object is consulted at all on the pre-swap route — otherwise
+  the assertion is ``X == X``.
+
+⭐ And one that is a property of the **subject**, not of the harness: the
+mutants must be **subclasses**.  The walk still type-discriminates on the
+angular closure family, so a transparent recording proxy or a duck-typed
+stand-in is *refused* with a typed error rather than silently accepted.
+That refusal is a live argument for dissolving the ``isinstance``, but it
+is not this phase's item; until then, "wrap it in a proxy" is not an
+available instrument anywhere on this path.
+
+Algebra eager, performance lazy
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The last ruling is the one with the widest reach beyond S\ :sub:`N`, and
+it is quoted rather than paraphrased because it is a standing principle:
+
+   *Correctness concerns separated from performance concerns.  So if a
+   particular solution method goes through a scan in a certain way or
+   welds terms for performance reasons, then this should be done as
+   close to the solution strategy as possible.  The algebra should be
+   unwelded and highly expressible for as long as possible, and
+   performance optimizations should be lazily resolved.*
+
+Applied here, it draws a line straight through the curvilinear scan.
+The **operator** owns and exposes the *algebra*: the two closures and the
+per-ordinate constants they mint (P4.9a's Form-B pair,
+:eq:`sn-p49a-march-forms`).  The **fused, scan-normal table** — the
+rearranged coefficients welded with the :math:`(\Delta A/w)\,c_{\rm in}`
+spatial-⊗-angular product — is not algebra; it is a *performance weld*,
+and it belongs to whoever is doing the solving.  So it is the strategy's
+artifact, resolved **lazily**, on first need, from the operator's
+objects.
+
+Where the memo lives is then not a taste question but a **lifetime**
+question, and the wrong answer is expensive.  A ``cached_property`` on
+the operator looks like the tidy home and is not, because the operator's
+lifetime is far shorter than a solve.
+
+.. list-table:: `[M]` 2026-08-28, this session — how many operators one solve builds
+   :header-rows: 1
+   :widths: 42 28 30
+
+   * - configuration (2-group fissile, ``solve_sn`` k-eigenvalue)
+     - ``StreamingOperator`` built
+     - Stratum-1 table built
+   * - slab, ``gauss_legendre(8)``, 8 cells
+     - 42
+     - **1**
+   * - sphere, ``gauss_legendre(8)``, 8 cells
+     - 38
+     - **1**
+   * - cylinder, ``folded_product(4, 6)``, 8 cells
+     - 40
+     - **1**
+   * - slab, ``gauss_legendre(16)``, 200 cells
+     - 43
+     - **1**
+
+Reproduce it by counting both constructors around a solve:
+
+.. code-block:: python
+
+   import numpy as np
+   from scipy.sparse import csr_matrix
+   from orpheus.data.macro_xs.mixture import Mixture
+   from orpheus.geometry import BC, Mesh1D
+   from orpheus.numerics.quadrature import Quadrature
+   from orpheus.sn.operators.streaming import StreamingOperator
+   from orpheus.sn.solver import solve_sn
+   from orpheus.sn.sweep.cache import StreamingCoefficientCache
+
+   S = csr_matrix(np.array([[0.30, 0.10], [0.0, 0.40]]))
+   mats = {0: Mixture(SigT=np.array([0.60, 0.80]), SigC=np.array([0.10, 0.20]),
+                      SigL=np.zeros(2), SigF=np.array([0.05, 0.10]),
+                      SigP=np.array([0.12, 0.25]), SigS=[S],
+                      Sig2=csr_matrix(np.zeros((2, 2))), chi=np.array([1.0, 0.0]))}
+   nx = 200
+   mesh = Mesh1D(edges=np.linspace(0.0, 10.0, nx + 1),
+                 mat_ids=np.zeros(nx, dtype=int),
+                 bc_left=BC("reflective"), bc_right=BC("vacuum"))
+   quad = Quadrature.gauss_legendre(16)
+
+   n = {"op": 0, "tab": 0}
+   real_init = StreamingOperator.__init__
+   real_tab = StreamingCoefficientCache.from_mesh_and_quad.__func__
+   StreamingOperator.__init__ = (
+       lambda s, *a, **k: (n.__setitem__("op", n["op"] + 1),
+                           real_init(s, *a, **k))[1])
+   StreamingCoefficientCache.from_mesh_and_quad = classmethod(
+       lambda cls, m, c: (n.__setitem__("tab", n["tab"] + 1),
+                          real_tab(cls, m, c))[1])
+   try:
+       solve_sn(mats, mesh, quad)
+   finally:
+       StreamingOperator.__init__ = real_init
+       StreamingCoefficientCache.from_mesh_and_quad = classmethod(real_tab)
+
+   assert n["op"] > 10           # dozens of operators per solve
+   assert n["tab"] == 1          # ONE table — the interned lazy resolve
+
+`[M]` on the last row of the table above, one Stratum-1 build costs
+**8.84 ms** (minimum of five) against a **546.6 ms** whole solve.  A
+per-operator memo would therefore add the other 42 builds — **371 ms**,
+a **+68 %** wall-clock increase — to a solve whose answer would not
+change by one bit.  (The phase's own pre-carve reading, on a different
+fixture that converged in fewer outer iterations, was 6–10 operators per
+solve and up to 24.65 %; the *operator count scales with the outer
+iteration count*, which is why the stable claim is the ratio's sign and
+the build cost, not the percentage.)
+
+The ruled home is therefore **the strategy layer**, and specifically
+:func:`~orpheus.sn.loss_representation.geometry_cache_for`: a
+module-level ``WeakKeyDictionary`` keyed on the hub, **validated against
+the handed angular closure's identity** so that a doctored pair gets its
+own build rather than silently inheriting a table built for a different
+closure.  Three properties follow, and each was a criterion:
+
+#. **The operator stays pure algebra** — nothing is parked on it, so its
+   equality and its lifetime stay simple.
+#. **The hub stops accumulating computation** — the ``_geom_cache``
+   mesh-attribute memo is retired, so a save state is not also a cache.
+   (Two sibling memos, ``_coll_cache`` and ``_pole_mirror_cache``,
+   deliberately remain: the :math:`\sigma` stratum's re-posing is the
+   consumer-side campaign's territory, and moving one of three memos for
+   symmetry alone would be churn.)
+#. **The mechanism dies with the layer it serves.**  The strategy layer
+   is retirement-bound: when the lazy solution strategy it exists to
+   serve is built, the interning goes with it, rather than being stranded
+   on an operator or a hub that outlive it.  That was the explicit
+   selection criterion — *pick the thing that would be best at surviving
+   the change to a lazy solution strategy*.
+
+The gate is a **count**, never a wall clock:
+``test_geometry_cache_builds_exactly_once_per_mesh``
+(``tests/sn/sweep/core/test_cache.py``) pins one build across a whole
+solve **and** across two independently posed operators over one hub.  A
+timing assertion would be a flaky proxy for the same question; the count
+is exact, and it is the only instrument that can see a memo-scoping
+regression — which is otherwise a silent tens-of-percent, not a wrong
+answer.
+
+What moved, concretely
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* **The operator's contract.**  Three required fields; ``pose`` as the
+  intermediate posing surface;
+  :func:`~orpheus.sn.coupled_system.build_streaming_collision` — the one
+  production :math:`L + C` spelling — routes through it.  `[M]` 135 test
+  construction sites migrated to ``pose``.  ⭐ The solve entries are
+  **unchanged**: ``scheme=`` keeps flowing into the hub, because the hub
+  ctor is the active-choice site and its
+  :class:`~orpheus.transport.spatial.diamond.DiamondDifference` default
+  survives there.  The operator is what never defaults.
+* **The representation takes the pair.**
+  :func:`~orpheus.sn.loss_representation.default_for` and every
+  strategy's base now carry ``mesh`` plus the two closures, and the
+  selection predicate is ``supports(mesh, spatial_closure)`` — selection
+  consumes the **handed** closure, never ``mesh.scheme``.  The
+  representations gained their own ``pose`` classmethod for the test-side
+  construction that used to pass a bare mesh.
+* **The walk consumes what it was handed.**  The per-cell dispatch reads
+  ``self.spatial_closure`` / ``self.angular_closure``; the two remaining
+  reach-throughs are handed their objects at posing time.
+* **The table is interned in the strategy layer** (above), the eager
+  build in the solver's constructor is gone, and the solver's Stratum-1
+  slot *is* the interned instance.
+* **The Stratum-1 admission contract now raises.**  The table builder
+  refused a chain-less (2-D Cartesian) mesh with a bare ``assert`` — a
+  no-op under the canonical ``python -O`` runner, and `[M]` with **zero**
+  witnesses tree-wide.  It is now a typed ``TypeError`` with a test that
+  fires in optimized and debug mode alike: net-new coverage, not a
+  migration.
+* **The pole misnomer died.**  A cylinder has no pole in the sense a
+  sphere does; what matters is that one closure is **spatial** and one is
+  **angular**.  The hub attribute ``pole_angular_closure`` became
+  ``angular_closure`` and the family base ``PoleAngularClosureBase``
+  became
+  :class:`~orpheus.sn.angular.closure.AngularClosureBase`, giving the
+  operator and the representation one symmetric, greppable pair of slot
+  names.  Member names
+  (:class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`,
+  ``IdentityAngularClosure``) are unchanged — only the family-defining
+  spellings moved.  Genuine poles keep the word: the sphere's polar cap,
+  the :math:`\mu = -1` starting direction, and Hébert's Carlson
+  *coupled-pole* seed are all named correctly.
+
+.. note:: **What did *not* change, and is easy to misread.**
+
+   The hub still carries ``scheme`` and a bound ``angular_closure``: the
+   campaign charter's original row (*"the mesh sheds both"*) was
+   **revised by ruling**, not deferred, so a future reader who finds
+   that row in an archived plan should read this section instead.
+
+   The mesh's pairing predicate is likewise unchanged.  `[M]`
+   ``SNMesh.__eq__`` is ``object.__eq__`` — identity, not value — so
+   nothing about equality moved; what compares constituents is
+   :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.is_same_phase_space`,
+   and it compares the scheme **by type** while deliberately EXCLUDING
+   the angular closure (a solve-time sweep strategy changes neither the
+   field layout nor the quadrature two solutions contract over, so
+   fields from two closures stay contractible).  Do not "strengthen"
+   that predicate by adding the closure to it.
+
+   The remaining misnomer is the *name*
+   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` itself, which is
+   tracked as its own rename issue; the object's role as save state and
+   data hub is settled.
+
+
 Quadrature Dispatch
 -------------------
 
@@ -997,7 +1555,7 @@ outflow reconstruction — is derived in :doc:`slab_one_group`; the 2-D
 Cartesian wavefront, its octant dependency graph, and the
 multi-dimensional LD (UBLD) system in :doc:`cartesian_multid`; the 2-D
 LD stress MMS in :doc:`/theory/verification/sn`; the curvilinear machinery — the
-sequential ordinate sweep, the pole angular closure (#168 Phase B),
+sequential ordinate sweep, the angular closure (#168 Phase B),
 the sweep-frame apply matvec (Phase C), and the direct :math:`\psi_{1/2}`
 starting-direction solve (#282 route (a)) — in
 :doc:`curvilinear_one_group` (the group axis rides that machinery as
@@ -1072,8 +1630,12 @@ to the Cartesian path.
    Strategy selection today is
    :func:`~orpheus.sn.loss_representation.default_for`, which picks the
    first :data:`~orpheus.sn.loss_representation.LOSS_REPRESENTATIONS`
-   entry whose ``supports`` admits the mesh, keyed on ``is_1d`` **and**
-   ``is_cartesian`` — neither alone is a sufficient discriminator.
+   entry whose ``supports`` admits the mesh **and the handed spatial
+   closure**, keyed on ``is_1d`` **and** ``is_cartesian`` — neither
+   alone is a sufficient discriminator.  Since P4.9b the predicate's
+   signature is ``supports(mesh, spatial_closure)``: selection consumes
+   the closure the operator was posed with, never ``mesh.scheme``
+   (:ref:`sn-p49b-operator-poses-with-closures`).
 
 Why this mattered:
 
@@ -1097,17 +1659,22 @@ Cell update strategy parameter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The curvilinear sweep dispatches per-cell to
-:meth:`~orpheus.transport.spatial.scheme.DiscretizationScheme.update`:
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationScheme.update`.
+Both closures come from the walk's **own fields** — the pair it was
+handed when the operator was posed — never from the mesh
+(:ref:`sn-p49b-operator-poses-with-closures`); the mesh supplies the
+geometry the walk traverses:
 
 .. code-block:: python
 
-   closure = sn_mesh.pole_angular_closure
-   c_in_n, c_out_n = closure.c_in_per_ordinate[n], closure.c_out_per_ordinate[n]
+   scheme = self.spatial_closure     # the walk's own field, handed at posing
+   closure = self.angular_closure    # likewise — never sn_mesh.angular_closure
+   c_in_n, c_out_n = geom.c_in[n], geom.c_out[n]   # the closure's minted constants
 
-   for visit in sn_mesh.dag_walk(ordinate_idx=n, mu_level_idx=p):
+   for visit in self.mesh.dag_walk(ordinate_idx=n, mu_level_idx=p):
        i = visit.cell_idx
        dA_w = visit.streaming_terms.delta_A_over_w
-       result = sn_mesh.scheme.update(
+       result = scheme.update(
            visit=visit,
            total_xs=sig_t[:, i],
            source=QV[:, i],
@@ -1122,8 +1689,14 @@ The curvilinear sweep dispatches per-cell to
            result.cell_average_flux, psi_angle[:, i], ordinate=n,
        )
 
-The cell-update strategy lives on the ``scheme`` attribute that
-:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` realizes in its
+The cell-update strategy is chosen at
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` construction — the hub
+is the **active-choice site**, and it keeps the generator so that every
+consumer of one save state (the S\ :sub:`N` sweep and DSA alike) is
+handed the same object.  It reaches the walk through the posed operator,
+which is why the block above reads ``self.spatial_closure`` rather than
+``sn_mesh.scheme``.  The hub realizes the strategy on its ``scheme``
+attribute in its
 constructor (introduced in this round as a constructor argument with
 default
 :class:`~orpheus.transport.spatial.diamond.DiamondDifference`).  The

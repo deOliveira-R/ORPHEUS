@@ -1332,7 +1332,7 @@ is **mis-cited and 100 % spurious on physical fields**:
    fixup is *never needed* on physical fields, the principled W1 fix is
    to **drop the clamp** (a config-time, static change) and use the
    linear unclamped :math:`\tau^{\rm raw}`.  The weight :math:`\tau` is
-   single-sourced in the pole-angular closure
+   single-sourced in the angular closure
    (:func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`,
    since Issue #236 Step C — see :ref:`sn-tau-c-on-cellvisit-live`) and
    inherited by every consumer (the SI sweep and the Krylov matvec

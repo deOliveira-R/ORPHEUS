@@ -15,12 +15,16 @@ This is a reverse-chronological (latest first) changelog of the major
 intermediate replans are deliberately omitted — see the GitHub issues
 and the per-phase plan files for that granularity. Each entry names the
 architectural change, its issue, and the commit/merge where the work
-lives.  Every entry below is **merged to main** — merge-status is a git
-question, never a frozen note (the 2026-07-24 repair: 22 entries still
-said *"in development"* for campaigns that had merged weeks earlier;
+lives.  **Merge-status is a git question, never a frozen note** — the
+2026-07-24 repair found 22 entries still saying *"in development"* for
+campaigns that had merged weeks earlier, and
 ``.claude/rules/process-discipline.md`` "trust git for merge-status" is
-the standing rule this page now follows — a new entry lands with its
-merge hash or not at all).
+the standing rule this page follows.  In practice that means an entry
+lands **with its merge hash**, and the only exception is an entry whose
+"Where" column names an *unmerged branch explicitly*: those live on a
+feature branch and have no merge-to-``main`` hash yet, exactly as the
+sibling table in :doc:`/theory/foundations/operator_algebra` records
+them.  Trust ``git``, not this column.
 
 .. list-table::
    :header-rows: 1
@@ -30,6 +34,76 @@ merge hash or not at all).
      - Architectural milestone
      - Issue
      - Where
+   * - in dev
+       (2026-08-28)
+     - **The streaming operator is POSED with its two closures; the mesh
+       is recognised as the save state that supplies them** (un-weld arc,
+       phase P4.9b).  :ref:`sn-p49a-closure-owns-the-march` gave the
+       angular march back to its owner and left the *walk* applying it;
+       the walk was still reaching into the mesh at apply time for both
+       method objects, so an already-built operator could change how it
+       discretises if a mesh attribute was rebound underneath it.
+       **(1) The contract.**
+       :class:`~orpheus.sn.operators.streaming.StreamingOperator` becomes
+       ``(sn_mesh, spatial_closure, angular_closure)`` — three REQUIRED
+       fields, **no defaults** (the discretization is an active choice)
+       and **no guards**; ``StreamingOperator(sn_mesh)`` is a loud
+       collection-time ``TypeError``.
+       :meth:`~orpheus.sn.operators.streaming.StreamingOperator.pose`
+       reads the hub's own two objects, so on the production path a
+       disagreement is *unspellable* rather than checked, and the raw
+       constructor is the declared **expert seam** for doctored
+       diagnostic probes.  `[M]` 135 test construction sites migrated;
+       the solve entries are unchanged (``scheme=`` keeps entering the
+       hub, which stays the active-choice site).
+       **(2) The hub keeps the generator** — the charter's original
+       "``SNMesh`` sheds both" row is **revised by ruling**:
+       :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` is the solve's
+       save state / data hub, and a scheme is *shared machinery* (DSA and
+       the S\ :sub:`N` sweep must read ONE generator) that also **induces
+       the space** nodal-or-modal at mesh construction.  The 67 consumer
+       reads dissolve by consumers flowing through the OPERATOR, not by
+       the mesh losing fields; the surviving hub route is bounded to two
+       space facts (``spatial_basis_per_axis``, ``is_multi_moment``) by
+       an executable allowlist.
+       **(3) The keystone.**  The phase's claim is a ROUTE claim, so it
+       is gated by a route instrument: pose the operator, swap the hub's
+       objects for mutants, drive the already-posed operator — `[M]`
+       pre-carve the answer moved by 4.6–12 % on four
+       geometry × quadrature rows; post-carve every row is
+       ``array_equal``.  The two halves have **disjoint activating
+       configurations** (`[M]` per-cell scheme dispatch 656 / 0 / 0 and
+       per-cell closure dispatch 0 / 5 552 / 24 928 on
+       slab / sphere / cylinder), so each gate carries both.
+       **(4) Algebra eager, performance lazy** — the ruled principle: the
+       operator owns and exposes the *algebra* (two closures plus their
+       minted per-ordinate constants), while the fused scan-normal table
+       is a *performance weld* belonging to the solution strategy and
+       resolved LAZILY through a hub-keyed, closure-validated intern in
+       the retirement-bound
+       :mod:`orpheus.sn.loss_representation` layer.  The eager build in
+       the solver constructor and the ``_geom_cache`` mesh-attribute memo
+       retire; a COUNT gate pins one build per hub per solve, because
+       `[M]` the operator is constructed dozens of times per solve and a
+       per-operator memo would add **+68 %** wall clock
+       (42 × 8.84 ms on a 546.6 ms slab solve, GL16 / nx = 200) without
+       changing one bit of the answer.
+       **(5) The pole misnomer died** — ``pole_angular_closure`` →
+       ``angular_closure`` and ``PoleAngularClosureBase`` →
+       :class:`~orpheus.sn.angular.closure.AngularClosureBase`, one
+       symmetric greppable pair of slot names on operator and
+       representation alike; member names untouched, and genuine poles
+       (the sphere's polar cap, :math:`\mu = -1`, Hébert's Carlson
+       coupled-pole seed) keep the word.  Ride-along: the Stratum-1
+       builder's bare ``assert`` — a no-op under the canonical
+       ``python -O`` runner, with `[M]` zero witnesses tree-wide —
+       became a typed ``raise`` with its first test.  See
+       :ref:`sn-p49b-operator-poses-with-closures`.
+     - un-weld arc;
+       spun off #412 / #413 / #414
+     - ``b253732f`` … ``d14dd545`` (the ten code commits) + the docs pass
+       — branch ``refactor/p4-9b-streaming-operator-poses``, **not yet
+       merged**
    * - 2026-08-24
      - **A field is an element of a SPACE — the mesh binding retires from
        the field layer, construction goes space-primary, and the space's

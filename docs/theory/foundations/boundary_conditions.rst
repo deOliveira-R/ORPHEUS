@@ -7519,7 +7519,7 @@ bytes. The whole-mesh coordinate system is likewise derived from the
 per-axis coordinates by a new pure primitive
 :func:`~orpheus.transport.mesh.axis.coord_system` (a multi-axis mesh must be
 all-Cartesian); the constructor's reduced-operator dispatch and the
-pole-closure default now read the **axis-derived** :attr:`SNMesh.coord <orpheus.sn.mesh.augmented_mesh.SNMesh.coord>`,
+angular-closure default now read the **axis-derived** :attr:`SNMesh.coord <orpheus.sn.mesh.augmented_mesh.SNMesh.coord>`,
 not ``mesh.coord``.
 
 After C5.1, the ``mesh`` attribute of
