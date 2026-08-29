@@ -367,6 +367,16 @@ class StreamingCoefficientCache:
         cols = np.arange(nx, dtype=np.int64)[None, :]
         np.put_along_axis(chain_idx_inv, chain_idx, cols, axis=1)
 
+        # ── Refuse writes (P4b hardening) ─────────────────────────────
+        # The table is interned and shared by every consumer of one
+        # (mesh, closure); an in-place write would corrupt them all
+        # silently.  [M] scratch/p4b_ground_measure.md §A.4: before P4b
+        # only the two closure ALIASES inherited read-only flags.
+        for arr in (
+            chain_idx, chain_idx_inv, abs_mu, face_area_downstream,
+            face_area_total, delta_A_over_w, volume, is_degenerate,
+        ):
+            arr.setflags(write=False)
         return cls(
             chain_idx=chain_idx,
             chain_idx_inv=chain_idx_inv,
@@ -537,6 +547,10 @@ class CollisionCache:
         # ── cumprod along the cell axis (axis 2 in principled layout) ─
         cumprod_a = np.cumprod(a_attenuation, axis=2)                    # (N, ng, nx)
 
+        # ── Refuse writes (P4b hardening; same rationale as Stratum 1:
+        # the cache is shared via the solver slot + the mesh attr) ─────
+        for arr in (inverse_denom, a_attenuation, cumprod_a, face_blend_weight):
+            arr.setflags(write=False)
         return cls(
             inverse_denom=inverse_denom,
             a_attenuation=a_attenuation,

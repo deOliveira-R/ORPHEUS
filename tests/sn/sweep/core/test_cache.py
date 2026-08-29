@@ -819,6 +819,44 @@ def test_closure_block_slab_neutral_element() -> None:
     np.testing.assert_array_equal(closure.c_out_per_ordinate, np.zeros(N))
 
 
+@pytest.mark.foundation
+def test_interned_cache_arrays_refuse_writes() -> None:
+    """P4b hardening witness: both strata's arrays are read-only.
+
+    The geometry table is interned and shared by every consumer of one
+    (mesh, closure), and CollisionCache is shared via the solver slot and
+    the mesh attr — an in-place write would corrupt every reader silently
+    (the frozen dataclass guards REBINDING only, not element writes).
+    [M] scratch/p4b_ground_measure.md §A.4: before P4b only the two
+    closure aliases inherited read-only flags; every other array was
+    writable.  One leg per stratum, sampling every dtype class.
+    """
+    sn_mesh = _make_sphere(nx=8, N=4)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    for name in (
+        "chain_idx", "chain_idx_inv", "abs_mu", "face_area_downstream",
+        "face_area_total", "delta_A_over_w", "volume", "is_degenerate",
+    ):
+        arr = getattr(geom, name)
+        assert arr.flags.writeable is False, f"geom.{name} is writable"
+    with pytest.raises(ValueError, match="read-only"):
+        geom.volume[0, 0] = 99.0
+    with pytest.raises(ValueError, match="read-only"):
+        geom.chain_idx[0, 0] = 7
+
+    sig_t = np.ones((2, 8))
+    coll = CollisionCache.from_geometry(
+        geom, sig_t, sn_mesh.scheme, sn_mesh.angular_closure
+    )
+    for name in (
+        "inverse_denom", "a_attenuation", "cumprod_a", "face_blend_weight",
+    ):
+        arr = getattr(coll, name)
+        assert arr.flags.writeable is False, f"coll.{name} is writable"
+    with pytest.raises(ValueError, match="read-only"):
+        coll.a_attenuation[0, 0, 0] = 99.0
+
+
 def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
     """[foundation] The COUNT gate — Stratum 1 is built ONCE per (mesh, closure).
 
