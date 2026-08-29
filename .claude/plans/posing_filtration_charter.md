@@ -733,10 +733,25 @@ closure — and each factor already ships its own adjoint
 `L.H` composes. ✅ *2026-08-28: the un-weld half (P4.9a) is LANDED — the
 M-M relation is single-homed in the closure, the L2 protocol is purely
 spatial, and the closure mints its scan constants; the 4-arg ctor that
-makes both closures constructor-real is P4.9b.* Item **(d)**'s
+makes both closures constructor-real is P4.9b.*
+✅✅ *2026-08-29: **P4.9b is LANDED and MERGED** — the ctor is the
+transitional `(sn_mesh, spatial_closure, angular_closure)` (three
+required fields, no defaults, NO guards — the no-guard ruling survived a
+four-attack exercise; `.pose(sn_mesh)` is the intermediate posing
+surface; the literal cross-method 4-tuple stays the recorded end state
+riding O-3/CS5). ⭐ Supersession item (c) sharpened by ruling: the hub
+(SNMesh — the save-state/data hub) KEEPS the generator (DSA consistency
++ nodal/modal space induction); the operator holds the two CLOSURES.*
+Item **(d)**'s
 diagnosability counter-pressure is NOT discharged: whether the operator
 keeps a provenance accessor to its generator is now a **P4.9b**
-design-time question. **O-3 retains** the cross-head
+design-time question. ✅ **DISCHARGED at P4.9b (user's own words in the
+Q2 ruling — "leaves just an accessor for provenance", realized with
+ZERO aliases): the hub retains the generator and the operator reaches it
+through its transitional `sn_mesh` field; today `spatial_closure` IS the
+generator instance (extraction = identity until O-3 splits the
+closure/factory family), so every input the operator computes from is a
+readable field. No new accessor was minted; O-3 revisits at the split.** **O-3 retains** the cross-head
 mint signature, the (TraceDescriptor, basis-kind, positivity-predicate)
 package, the two-layer closure-function/evaluated-table split, and
 `cell_balance.py`'s reorganisation under the scheme family; the streaming

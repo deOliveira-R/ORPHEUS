@@ -36,19 +36,25 @@
 > if it calls P4.9 five small edits, it predates
 > `scratch/p4_9_design_measured.md`.
 >
-> ⚠ **P4.3, then P4.9a, shifted line numbers.** Post-P4.9a landmarks,
-> `[M]` fresh 2026-08-28: `scheme.py` — `StreamingTerms` `:108`, `CellVisit`
-> `:304` (slot `:385`), `UpstreamState` `:394`, `CellResult` `:421`,
-> Protocol `:610`, Base `:894`, `affine_scan_coefficients` `:1383`;
-> `diamond.py` — `_cell_balance_n1` `:112`, class `:165`, `update` `:237`,
-> `residual` `:292`; `closure.py` — minted constants `:505`/`:530`,
-> `advance_psi_half` `:549`, **`march_psi_half_step` `:1370`** (the owner),
-> batch kernel `:1403`, M-M class `:1504`, Identity `:2137`; `cache.py` —
-> the mint reads `:384-388`; the walk's degenerate branch `:4277` (march
-> call `:4317`). `augmented_mesh.py:268` (`scheme`) and `:422`
-> (`pole_angular_closure`) are UNCHANGED. Live sections were refreshed
-> 2026-08-28; DATED records (incl. §5b's pre-carve measurements) keep the
-> numbers that were true at their date.
+> ⚠ **P4.9b shifted line numbers again.** Post-P4.9b landmarks, `[M]` fresh
+> 2026-08-29: `streaming.py` — `StreamingOperator` `:174`, the three fields
+> `:286`, **`.pose` `:297`**, the representation handing `:461`;
+> `closure.py` — **`AngularClosureBase` `:240`** (the renamed base), minted
+> constants `:505`/`:530`, `advance_psi_half` `:549`,
+> **`march_psi_half_step` `:1370`** (the owner),
+> `default_angular_closure_class` `:2260`; `loss_representation/__init__.py`
+> — **`geometry_cache_for` `:479`** (the strategy-layer intern), the
+> representation's closure fields `:511`, `_OctantWalk` `:1014`,
+> `default_for` `:2776`, `_OneDimScanWalk` `:2909`, `_ensure_geom_cache`
+> `:3884`; `cache.py` — `from_mesh_and_quad(sn_mesh, angular_closure)`
+> `:259`, the admission `raise` `:283`, the handed-closure read `:394`;
+> `coupled_system.py` — `build_streaming_collision` `:423`;
+> `transport/spatial/scheme.py` — `StreamingTerms` `:108` / `CellVisit`
+> `:304` UNSHIFTED; `augmented_mesh.py` — `scheme` stored `:268`,
+> **`angular_closure`** bound `:422` (the attr's new name; both DELIBERATELY
+> retained — the hub ruling). Live sections were refreshed 2026-08-29; DATED
+> records (incl. §5b's pre-carve measurements and P4.9a's own landmark
+> paragraph if quoted anywhere) keep the numbers true at their date.
 >
 > ### Where the tree is — `[M]` reconcile with git, never with this line
 >
@@ -96,7 +102,7 @@
 > | `5940deba` | **P4.2** | the angular factor comes home — 6 symbols to `sn/angular/`, and the L0 ladder takes α as a keyword |
 > | `da507e3d` | **P4.3** | `StreamingTerms` to L2 beside its contract; `geometry/reduced_operator.py` DELETED; docs sweep `590c12d0` |
 > | `7a0f434c` | **P4.9a** | the closure owns its march; DD spatial-only; `cell_balance_terms` dead; the visit family purely spatial; the handing; the degenerate frozen corpus; docs `ca852c44` (12 commits, `cb65c4cc`…) |
-> | *(branch tip)* | **P4.9b** | the operator is POSED with its two closures (`.pose`; no defaults, no guards); the walk consumes the HANDED pair (keystone: post-pose hub swaps INERT); the strategy-layer intern (count-gated); the pole misnomer dead (`angular_closure`/`AngularClosureBase`); docs `9c3eb60a` (14 commits `b253732f`…, incl. archivist) |
+> | `a60e5c0f` | **P4.9b** | the operator is POSED with its two closures (`.pose`; no defaults, no guards); the walk consumes the HANDED pair (keystone: post-pose hub swaps INERT); the strategy-layer intern (count-gated); the pole misnomer dead (`angular_closure`/`AngularClosureBase`); docs `9c3eb60a` (16 commits `b253732f`…`a60e5c0f` + tail `5a1591d2`, incl. archivist) |
 >
 > `[M]` exit gates, full fast set, 13 trees all `rc=0` each time:
 > **P2 9815/0** (+1 vs P1 — the new `sn/angular/__init__.py` adds one case to
@@ -238,7 +244,31 @@
 > (P3c) is deliberately sequenced **after P4**, so the name describes what
 > remains once `streaming_terms` is out of it.
 >
-> ### ⭐ The rules P4.4 + P4.2 + P4.3 + P4.9a paid for — the ones that generalise
+> ### ⭐ The rules P4.4 + P4.2 + P4.3 + P4.9a + P4.9b paid for — the ones that generalise
+>
+> - **P4.9b — a hazard CLAIM about runtime behaviour is run, not reasoned**
+>   (F12): my "the wrong-family closure is silent, plausible-wrong k" was
+>   refuted by EXECUTING the doctored state — it raises on every geometry
+>   where it could matter. §6d's inject-and-run, generalised from import
+>   cycles to any claimed failure mode; the false sentence was one commit
+>   from living in a ctor docstring as licence for the guard the ruling
+>   forbids.
+> - **P4.9b — a no-guard ruling needs its enforcement MEASURED**: mutate
+>   the by-construction path (M5: `.pose` mints instead of reads) and
+>   record that ONLY structural legs redden while every value gate stays
+>   green — that measurement, not the argument, is what the ruling rests
+>   on going forward (`p4_9b_verification_plan.md` §9).
+> - **P4.9b — a perf consequence is a COUNT, never a percentage**: the
+>   operator-count behind F2's 24.65 % proved fixture-dependent (6–10 vs
+>   38–43/solve between two honest measurers); the shipped instrument
+>   pins builds==1 exactly. §4's configuration clause at instrument-choice
+>   scale.
+> - **P4.9b — a §6b census over literal names must declare that predicate**
+>   (the surprise-log row): registry-variable calls, the changed class's
+>   own internal call, and monkeypatch surrogates are member spellings no
+>   name-keyed AST census can see; the red loop is their enumerator and
+>   must be budgeted as such.
+
 >
 > - **P4.9a — an acceptance ARTIFACT must be qualified by ACTIVATION, not
 >   name** (`plan-authoring` §10's new log row): the charter's canary
@@ -3119,6 +3149,21 @@ full record is `scratch/p4_9b_design.md` §§7–8; the rulings, compact:**
   docs (~127 prose mentions) + owner-mutation battery + `dead_references`
   + banners + landing record. Test-architect verification plan BEFORE
   step 1 (the proactive carve trigger).
+  ✅ **EXECUTED 2026-08-28/29 with three recorded refinements** (the full
+  trail is the commit sequence `b253732f`…`5a1591d2` + the memos): step 1
+  staged as witness-red → pose-FORWARDER → mechanical migration →
+  atomic flip, so every commit stayed green and the §6b unit collapsed
+  to a point; step 2's §6b census gained three member SPELLINGS a
+  name-keyed AST census cannot see (calls through a VARIABLE
+  `rep_cls(sn)`, the base class's own internal `supports` call, a
+  monkeypatch surrogate lambda — all caught by red loop; surprise-log
+  row below); the L2 `_bases.py:257` read SURVIVES by the hub ruling
+  (F9 voided the recount's red predictions), and
+  `radial_characteristic_field.source_from_angular` stays as the one
+  posing-time residual (#414). One deviation from the architect's
+  numbers, recorded in the memo §10: the F2 operator count is
+  fixture-dependent (6–10 vs 38–43/solve) — the COUNT gate, not a
+  percentage, is the instrument.
 
 **Done when** (checkable):
 
