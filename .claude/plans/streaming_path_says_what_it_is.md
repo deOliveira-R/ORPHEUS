@@ -39,7 +39,12 @@
 > load-bearing; `[M]` presence ⟺ `is_1d` and the guards now SAY so) ·
 > `_is_curvilinear` exists · **the moment-mass family takes `(ndim, coord)`**
 > or its guard re-interprets a chart tag (✅ P4.6 `2ec73b80`: it consumes
-> `tuple[Axis1D, ...]` and asks `has_constant_volume_element`). Every
+> `tuple[Axis1D, ...]` and asks `has_constant_volume_element`) ·
+> **`StreamingTerms` carries `delta_A_over_w`/`chord_length`/`mu`**, the
+> cache spells `dA_w`/`A_down`/`A_total`/`V`, or "P4.7 became a
+> consequence" (✅ P4.7 `3456dd37`: the packet is 4 fields; the family
+> speaks the long names; the `[R]` was refuted — two deliberate readers).
+> Every
 > one was true once, or was proposed and refuted, below.
 >
 > ⭐ **Three phases landed 2026-08-28 — P4.4, P4.2, P4.3 — and P4.9 was
@@ -114,6 +119,7 @@
 > | `5940deba` | **P4.2** | the angular factor comes home — 6 symbols to `sn/angular/`, and the L0 ladder takes α as a keyword |
 > | `da507e3d` | **P4.3** | `StreamingTerms` to L2 beside its contract; `geometry/reduced_operator.py` DELETED; docs sweep `590c12d0` |
 > | `7a0f434c` | **P4.9a** | the closure owns its march; DD spatial-only; `cell_balance_terms` dead; the visit family purely spatial; the handing; the degenerate frozen corpus; docs `ca852c44` (12 commits, `cb65c4cc`…) |
+> | `3456dd37` | **P4.7** | the packet sheds ΔA/w+chord+mu (fusion: closure owns / cache interns / packet dead); the scan family renamed concept-complete; 4th+5th false docstrings fixed |
 > | `2ec73b80` | **P4.6** | the moment mass consumes the AXES — `has_constant_volume_element` per axis; the chart tag leaves the family; `ndim` → `len(axes)`; mixed-tuple witness |
 > | `260ddc64` | **P4.5** | the predicates say what they ask (`is_1d` re-keys; the annotation tells the truth; `_is_curvilinear` dead) — chain-scan reading; the title's premise dissolved at P4.1b |
 > | `a60e5c0f` | **P4.9b** | the operator is POSED with its two closures (`.pose`; no defaults, no guards); the walk consumes the HANDED pair (keystone: post-pose hub swaps INERT); the strategy-layer intern (count-gated); the pole misnomer dead (`angular_closure`/`AngularClosureBase`); docs `9c3eb60a` (16 commits `b253732f`…`a60e5c0f` + tail `5a1591d2`, incl. archivist) |
@@ -140,6 +146,12 @@
 > unchanged; matrix.rst regenerated 10166 → 10167 by the same +1);
 > pyright orpheus/ 0, tests/ at baseline; sphinx -W 0; dead_references
 > 0/52. ⟹ the acceptance baseline for the next step is **9848**.
+> **P4.7 9846/0 — `[M]` 13 trees rc=0, delta exactly −2 = the two
+> retired-field smoke tests (their resolution claims live on in the
+> `abs_mu` siblings), PREDICTED before the run** (22 sk / 227 des / 70 xf
+> unchanged; matrix.rst 10167 → 10165 by the same −2); family battery
+> 1240/0; pyright orpheus/ 0, tests/ baseline-exact 1386; sphinx -W 0;
+> dead_references 0/52. ⟹ **the acceptance baseline is now 9846.**
 >
 > ### ▶ NEXT — **the campaign's next act is a SEQUENCING ruling** (P4.9 is
 > COMPLETE: P4.9a ✅ `7a0f434c`, P4.9b ✅ merged 2026-08-29; **§5b ⛔ P0
@@ -163,13 +175,13 @@
 > 2026-08-29 (user): P4.5 → P4.6 → P4.7**, and **P4.5 is ✅ LANDED
 > `260ddc64`** under the CHAIN-SCAN reading (the title's premise dissolved
 > at P4.1b — see the section's banner; ground:
-> `scratch/p4_5_ground_remeasure.md`), and **P4.6 is ✅ LANDED `2ec73b80`**
-> (the family consumes the AXES via `has_constant_volume_element`; ground
-> `scratch/p4_6_ground_measure.md`). ▶ NEXT IN THE RULED ORDER: **P4.7**
-> (open it with the consequence re-measure: `delta_A_over_w`'s readership
-> post-P4.9, per the `[R]` note in the P4.9 ordering block; its enumeration
-> must include the walk's packet-field readership, per P4.9a's Q2 note).
-> Behind it: P4b
+> `scratch/p4_5_ground_remeasure.md`), **P4.6 is ✅ LANDED `2ec73b80`**
+> (ground `scratch/p4_6_ground_measure.md`), and **P4.7 is ✅ LANDED
+> `3456dd37`** (ground `scratch/p4_7_ground_measure.md` — its opening
+> re-measure REFUTED the `[R]` consequence note; the packet is four honest
+> fields; the scan family speaks one name per concept). ⟹ **the ruled
+> §7-remainder order is COMPLETE.** The campaign's next act is AGAIN a
+> SEQUENCING ruling, over: P4b
 > (the cache strata carve) · CS5 (gates the P4-mint remainder + P3c) · P6 ·
 > the re-posed §5b build. P5 rides O-3; P7 = #409. Read `scratch/p4_9b_design.md` §§7–10
 > before designing anything that touches the posing surfaces.
@@ -1632,10 +1644,41 @@ itself. ⚠ Do NOT read this ruling as "compute the curvilinear multi-moment mas
 **P4.7 — naming, the fusion, and ⭐ the gap both of them point at.**
 ✅ RULED 2026-08-27 (user).
 
+✅✅ **EXECUTED 2026-08-29 @ `3456dd37`** (ground
+`scratch/p4_7_ground_measure.md`, taken FIRST — and it REFUTED the P4.9
+ordering block's `[R]` "P4.7 became a consequence": `delta_A_over_w` had
+TWO production readers, the cache builder AND the walk's degenerate
+cylinder arm, the second by P4.9a Q2's own bit-identity ruling). What
+landed: (1) the packet sheds `delta_A_over_w`/`chord_length`/`mu` — the
+first was one of **THREE** stored spellings of the ΔA/w fusion (the
+2026-08-27 ruling's 2-row table predates P4.9a/b minting the closure's
+`_dAw_per_level`): the CLOSURE owns the fusion (algebra), the CACHE
+interns the strategy-side copy formed from its two factors at build,
+the packet's per-(cell,direction) rebuild is DEAD; both production
+readers re-sourced bit-identically from the factors; ~90 test readers
+migrated (⛔ the section's "23 test readers" undercounted — `[M]` `mu`
+had 12, not 8; and the ΔA/w reader population was ~57 lines the section
+never counted). (2) The rename family landed CONCEPT-complete per the
+2026-08-26 lesson — cache fields AND the scan-family kw-only params AND
+the two string-spelled consumers together (310 word-bounded + surgical
+`V`; `numerics.vector.V` excluded): `delta_A_over_w` /
+`face_area_downstream` (the predicted Pattern-2 unification — CellVisit
+already owned the name) / `face_area_total` / `volume`. (3) The 4th and
+a newly-found 5th present-tense-false docstring rewritten
+(`_weight_of`'s "neither side owned the fusion"; `slab_streaming`'s
+"stay ``None``", false since P4.1a/b); the theory pages' walk-idiom
+examples updated; the error catalog keeps its historical spellings.
+Section (c) stays a RECORD — P4.8 routes the axis-measure gap to CS5.
+
 **(a) The fusion.** *"A fusion is accepted to be cached as a performance
 optimization at the place that will assemble a hot path … we're not writing
 algebra to conform to performance optimization and welding things."* `[M]` the
-two fusion sites are NOT alike:
+two fusion sites are NOT alike: (⛔ CORRECTED at execution — by then the
+tree held **three** spellings, P4.9a/b having minted the closure's own
+`_dAw_per_level`; the honest 3-row statement is closure = OWNER (algebra),
+cache = strategy INTERN (this row's KEEP-renamed), packet = the dead
+rebuild (this row's RETIRE). The two rows below are the 2026-08-27
+population.)
 * `StreamingCoefficientCache.dA_w` — an `(N, nx)` array built **once** at solver
   init. That IS pre-operating at the hot-path assembly point. **KEEP**, renamed.
 ⛔ **P4.7 also retires the two PRODUCTION-DEAD fields** `[M]` 2026-08-28:
@@ -1645,7 +1688,9 @@ two fusion sites are NOT alike:
 `sn/mesh/reduced_operator.py:534-535` and read by nobody in `orpheus/`. They are
 a P1 remainder — P1's charter was *"nothing is held that nothing reads"* and it
 did not reach them. Full measurement + the two-filter method: P4.3's section.
-⚠ 23 test readers migrate.
+⚠ 23 test readers migrate. (⛔ `[M]` at execution: 27 for chord/mu —
+`mu` had 12, not 8 — plus ~57 ΔA/w reader lines never counted here; all
+migrated at `3456dd37`.)
 
 * `StreamingTerms.delta_A_over_w` — built **per (cell, direction)** inside the
   loop, so it buys no performance; its inputs are recomputed as often.
@@ -3399,7 +3444,9 @@ reading in the gate's docstring.
   per-cell arm takes the coupling from `closure.cell_contribution(...)`,
   `StreamingTerms.delta_A_over_w`'s readers reduce to the cache builder, which
   can read `ΔA` from the connection directly. **Not measured** — verify before
-  reordering P4.7.
+  reordering P4.7. (⛔ ADJUDICATED 2026-08-29, `scratch/p4_7_ground_measure.md`:
+  REFUTED — two production readers, the second the degenerate cylinder arm
+  kept deliberately by P4.9a Q2. P4.7 executed as a task, `3456dd37`.)
 
 **What it buys beyond the deletion.** `[M]` both factors already ship their own
 adjoint — `DiamondDifference.streaming_cell_transpose` (with
