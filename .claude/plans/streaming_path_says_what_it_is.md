@@ -53,18 +53,18 @@
 > if it calls P4.9 five small edits, it predates
 > `scratch/p4_9_design_measured.md`.
 >
-> ⚠ **P4.9b shifted line numbers again.** Post-P4.9b landmarks, `[M]` fresh
-> 2026-08-29: `streaming.py` — `StreamingOperator` `:174`, the three fields
-> `:286`, **`.pose` `:297`**, the representation handing `:461`;
-> `closure.py` — **`AngularClosureBase` `:240`** (the renamed base), minted
-> constants `:505`/`:530`, `advance_psi_half` `:549`,
-> **`march_psi_half_step` `:1370`** (the owner),
-> `default_angular_closure_class` `:2260`; `loss_representation/__init__.py`
-> — **`geometry_cache_for` `:479`** (the strategy-layer intern), the
-> representation's closure fields `:511`, `_OctantWalk` `:1014`,
-> `default_for` `:2776`, `_OneDimScanWalk` `:2909`, `_ensure_geom_cache`
-> `:3884`; `cache.py` — `from_mesh_and_quad(sn_mesh, angular_closure)`
-> `:259`, the admission `raise` `:283`, the handed-closure read `:394`;
+> ⚠ **Line numbers re-measured at `fe0f43ba` (post-P4.7, 2026-08-29).**
+> `streaming.py` — `StreamingOperator` `:174`, **`.pose` `:297`**
+> (unshifted); `closure.py` — **`AngularClosureBase` `:242`**,
+> **`march_psi_half_step` `:1372`** (the owner; +2 vs the P4.9b reading);
+> `loss_representation/__init__.py` — **`geometry_cache_for` `:479`**
+> (the strategy-layer intern), `_OctantWalk` `:1014`, `default_for`
+> `:2776`, `_OneDimScanWalk` `:2909` (all unshifted); `cache.py` —
+> `StreamingCoefficientCache` `:126`, **the fields RENAMED at P4.7**
+> (`face_area_downstream`/`face_area_total`/`delta_A_over_w`/`volume`,
+> `:240-243` — any note spelling `dA_w`/`A_down`/`A_total`/`V` predates
+> P4.7), `from_mesh_and_quad(sn_mesh, angular_closure)` `:259`, the
+> `is_1d`-keyed admission `raise` `:286` (re-keyed at P4.5);
 > `coupled_system.py` — `build_streaming_collision` `:423`;
 > `transport/spatial/scheme.py` — `StreamingTerms` `:108` / `CellVisit`
 > `:304` UNSHIFTED; `augmented_mesh.py` — `scheme` stored `:268`,
@@ -180,9 +180,19 @@
 > `3456dd37`** (ground `scratch/p4_7_ground_measure.md` — its opening
 > re-measure REFUTED the `[R]` consequence note; the packet is four honest
 > fields; the scan family speaks one name per concept). ⟹ **the ruled
-> §7-remainder order is COMPLETE.** The campaign's next act is AGAIN a
-> SEQUENCING ruling, over: P4b
-> (the cache strata carve) · CS5 (gates the P4-mint remainder + P3c) · P6 ·
+> §7-remainder order is COMPLETE.** ✅ **RULED 2026-08-29 (user, the
+> post-§7-remainder sequencing round): ▶ NEXT = P4b (the cache strata
+> carve), with a context COMPACTION before execution.** P4b's opener
+> owes the same shelf-life re-measure every §7-remainder phase paid:
+> §4bis's strata census (`[M]` 2026-08-26: 7 fields bit-identical across
+> 3 meshes / 4 mesh-bound / 2 traversal-only) predates P4.9b's intern,
+> P4.5's `is_1d` re-key AND P4.7's renames + the ΔA/w
+> formed-from-factors build — re-derive the per-field strata on the
+> RENAMED cache before designing, and keep §4bis's ⚠ (do NOT convert
+> `CollisionCache`'s eager build to lazy; its `_build_count` instruments
+> a cardinal gate — now the P4.9b COUNT gate). P0's shape census
+> corroborates the split ((N,) = T_ang's algebra, (N,nx) = D/T_spatial).
+> Behind P4b: CS5 (gates the P4-mint remainder + P3c) · P6 ·
 > the re-posed §5b build. P5 rides O-3; P7 = #409. Read `scratch/p4_9b_design.md` §§7–10
 > before designing anything that touches the posing surfaces.
 >
@@ -300,6 +310,22 @@
 > remains once `streaming_terms` is out of it.
 >
 > ### ⭐ The rules P4.4 + P4.2 + P4.3 + P4.9a + P4.9b paid for — the ones that generalise
+>
+> **+2 from the P0 → P4.5 → P4.6 → P4.7 stretch (2026-08-29):**
+> - **A phase OPENS with the shelf-life re-measure of its own section, as a
+>   dispatched ground memo — and three of three openers were paid.** P4.5's
+>   re-measure found the section's title premise dissolved by P4.1b and its
+>   "12 of 36" stale (the fork the design round then ruled); P4.6's found the
+>   operand home the section never named (`Axis1D.coord`) and the hub already
+>   binding `axes`; P4.7's REFUTED the plan's own `[R]` consequence note and
+>   re-counted the migrations (23 → 27 + ~57 uncounted). Cost of each memo:
+>   one explorer dispatch during the previous phase's gate; value: zero
+>   designs built to stale numbers.
+> - **A full-gate reading is only evidence when its DELTA was predicted
+>   before the run** (the §10 discipline applied to the suite count): P4.5
+>   predicted 0-on-every-axis, P4.6 predicted +1, P4.7 predicted −2 — each
+>   confirmed exactly, so each gate certifies the change rather than merely
+>   ending green. An unexplained delta of even ±1 is a finding, not noise.
 >
 > - **P4.9b — a hazard CLAIM about runtime behaviour is run, not reasoned**
 >   (F12): my "the wrong-family closure is silent, plausible-wrong k" was
