@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10155**
+Total tests collected: **10166**
 
 V&V level distribution
 ----------------------
@@ -22,8 +22,8 @@ V&V level distribution
    L1, 1634, 16.1%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7154, 70.4%
-   unmarked, 6, 0.1%
+   foundation, 7163, 70.5%
+   unmarked, 8, 0.1%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10070
+   explicit, 10079
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 6
+   unmarked, 8
 
 Module × level grid
 -------------------
@@ -72,7 +72,7 @@ Module × level grid
    cartesian_2d/test_l2_boundary_face_view, 0, 0, 0, 0, 11, 0
    cartesian_2d/test_scan_march_equivalence, 0, 0, 0, 0, 11, 0
    core/test_affine_carve_baseline, 0, 0, 0, 0, 8, 0
-   core/test_cache, 28, 0, 0, 0, 2, 0
+   core/test_cache, 28, 0, 0, 0, 2, 2
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
    core/test_cell_kernel_batch, 11, 0, 0, 0, 3, 0
    core/test_closure_constant_map, 0, 0, 0, 0, 3, 0
@@ -114,6 +114,7 @@ Module × level grid
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
    curvilinear/test_alpha_defect_normalization, 0, 0, 0, 0, 8, 0
    curvilinear/test_angular_beta_identity, 0, 0, 0, 0, 14, 0
+   curvilinear/test_angular_closure, 0, 0, 0, 0, 21, 0
    curvilinear/test_angular_closure_is_single_object, 0, 0, 0, 0, 2, 0
    curvilinear/test_angular_endpoint_defect, 0, 0, 0, 0, 6, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
@@ -121,7 +122,6 @@ Module × level grid
    curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
    curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 17, 0
    curvilinear/test_cyl_sweep_regression, 3, 0, 4, 0, 0, 0
-   curvilinear/test_pole_angular_closure, 0, 0, 0, 0, 21, 0
    curvilinear/test_psi_half_angle_seed, 4, 6, 0, 0, 5, 0
    curvilinear/test_psi_half_positivity, 0, 0, 0, 0, 19, 0
    curvilinear/test_si_cyl_20cell_nan_regression, 0, 0, 0, 0, 4, 0
@@ -418,6 +418,7 @@ Module × level grid
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 22, 0
+   operators/test_operator_feeds_the_walk, 0, 0, 0, 0, 6, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
    operators/test_psi_half_coupling, 0, 2, 0, 0, 83, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
@@ -436,7 +437,7 @@ Module × level grid
    operators/test_specular_deck_chain, 0, 80, 0, 0, 0, 0
    operators/test_streaming_cell_transpose_relocation, 0, 0, 0, 0, 11, 0
    operators/test_streaming_collision_operator, 1, 10, 0, 0, 21, 0
-   operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
+   operators/test_streaming_operator, 0, 0, 0, 0, 57, 0
    operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
    operators/test_sweep_inverse_identity, 0, 0, 0, 0, 9, 0
    operators/test_typed_residual_evaluation, 1, 0, 0, 0, 12, 0
@@ -1483,7 +1484,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**6 tests** have no V&V level marker.
+**8 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1496,5 +1497,6 @@ taxonomy.
    :widths: 60, 10
 
    ``tests/sn/operators/test_sn_boundary_realizer.py``, 5
+   ``tests/sn/sweep/core/test_cache.py``, 2
    ``tests/sn/angular/test_redistribution.py``, 1
 

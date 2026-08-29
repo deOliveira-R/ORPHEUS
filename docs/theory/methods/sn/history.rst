@@ -920,7 +920,7 @@ merge hash or not at all).
        output mode split into types (pyright burn-down C5)** — the
        ``MorelMontryAngularSweep(sn_mesh=None)`` test-compatibility mode
        (and the ``| None`` widenings it forced on the whole
-       :class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`
+       :class:`~orpheus.sn.angular.closure.AngularClosureBase`
        state contract, plus four runtime "unbound" guards) is deleted:
        ``sn_mesh`` is REQUIRED, the family's ``cls(sn_mesh)`` construction
        contract is total, and the pure-algebra recurrence surface moved
@@ -928,7 +928,7 @@ merge hash or not at all).
        (:func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
        — hand-built-coefficient verification needs no instance).  The
        ``SNMesh`` closure override became a **class** parameter
-       (``pole_angular_closure: type[PoleAngularClosureBase]``) — an
+       (``pole_angular_closure: type[AngularClosureBase]``) — an
        instance could only ever be unbound or foreign-bound, since the
        mesh it must bind to does not exist yet (Pattern 4).  The matvec's
        dead ``is None`` closure fallback and four stale ``type: ignore``
@@ -958,7 +958,7 @@ merge hash or not at all).
        linear-discontinuous selection honest. **Phase 2** moves the
        Morel–Montry weight :math:`\tau` off the geometry-owned
        ``StreamingTerms`` onto the angular closure that owns it
-       (:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_per_ordinate`);
+       (:attr:`~orpheus.sn.angular.closure.AngularClosureBase.tau_per_ordinate`);
        :math:`\tau` and the derived redistribution constants
        :math:`c_{\rm in}` / :math:`c_{\rm out}` travel to the stateless
        diamond scheme as ``CellVisit``
@@ -980,7 +980,7 @@ merge hash or not at all).
        retire the orphaned ``PoleAngularClosure`` Protocol and its dead
        ``__call__`` bundle, hoisting the three strategy methods to the
        sole
-       :class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`
+       :class:`~orpheus.sn.angular.closure.AngularClosureBase`
        ABC (the L2 single-source contract; see
        :ref:`sn-pole-angular-closure-protocol`).
      - #236 / #248 / #249

@@ -1267,7 +1267,7 @@ older entries classify against.
       get
       :class:`~orpheus.sn.angular.closure.IdentityAngularClosure`)
       under the
-      :class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`
+      :class:`~orpheus.sn.angular.closure.AngularClosureBase`
       ABC that replaced the ``PoleAngularClosure`` Protocol; ``SNMesh``
       lives at :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`; and
       ``SNStreamingOperator`` was re-layered rather than renamed, its

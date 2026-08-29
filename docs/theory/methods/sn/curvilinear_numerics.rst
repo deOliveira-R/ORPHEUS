@@ -797,7 +797,7 @@ The
 ``CarlsonSweepContext``
 dataclass bundles the four inputs the Carlson sweep needs that
 are NOT in the
-:class:`~orpheus.sn.angular.closure.PoleAngularClosureBase`
+:class:`~orpheus.sn.angular.closure.AngularClosureBase`
 strategy's ordinary per-cell call signature (``sigma_t``, ``dr``,
 ``mu_quad``, ``weights``, ``bc_outer_value``), keeping the
 call-signature expansion to a single new optional keyword — a minimal

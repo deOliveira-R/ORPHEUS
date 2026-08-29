@@ -261,7 +261,7 @@ shape choice.
        (sphere / cylinder; zero for slab / 2-D
        Cartesian)
      - The per-cell M-M contribution from
-       :meth:`PoleAngularClosureBase.cell_contribution`,
+       :meth:`AngularClosureBase.cell_contribution`,
        added to the cell balance during the walk
      - **MA-Q1 fallback**: the Carlson
        starting-direction march (Hébert 2009
@@ -707,7 +707,7 @@ For sphere / cylinder geometries the curvilinear M-M (Morel–Montry)
 half-grid angular redistribution is woven into the cell balance during
 the fused walk (it returns zero for slab / 2-D Cartesian). The per-cell
 M-M coefficients come from
-:meth:`PoleAngularClosureBase.cell_contribution` (Pattern 6 — single source
+:meth:`AngularClosureBase.cell_contribution` (Pattern 6 — single source
 of truth for the M-M coefficients). #238 retired the bespoke
 ``AngularRedistributionOperator`` leaf that re-walked the matvec only to
 isolate this term; the redistribution is the same in-sweep computation,
@@ -785,7 +785,7 @@ form with no notion of one axis's recurrence running *inside* another's.
 
 **Per-cell algebra**. The walk visits every :math:`(p,\,i)` pair
 (μ-level × spatial cell) and calls
-:meth:`PoleAngularClosureBase.cell_contribution`. The cell-balance algebra
+:meth:`AngularClosureBase.cell_contribution`. The cell-balance algebra
 at :func:`orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
 decomposes additively into three terms:
 
@@ -830,7 +830,7 @@ The angular-redistribution contribution to the cell balance is
 with :math:`{\rm angular\_denom\_term} = (\Delta A / w)\,c_{\rm out}`
 and :math:`{\rm angular\_numer\_upstream} = (\Delta A / w)\,c_{\rm in}\,
 \psi_{m-1/2,\,i,\,g}` per the M-M closure (see
-:class:`orpheus.sn.angular.closure.PoleAngularClosureBase`
+:class:`orpheus.sn.angular.closure.AngularClosureBase`
 for the closure data). It is an interior-cell operation that does not
 traverse the spatial boundary; only the spatial sweep writes face
 residuals.
@@ -1131,7 +1131,7 @@ Cross-references
     the operator INTO the representation; #238 removed the dual-emission
     ``(M_spatial, M_angular_redist)`` arm (no production consumer). The
     public surface is :meth:`StreamingOperator.apply`.
-  - :class:`orpheus.sn.angular.closure.PoleAngularClosureBase`
+  - :class:`orpheus.sn.angular.closure.AngularClosureBase`
     — the M-M closure data and per-cell algebra primitive.
   - :func:`orpheus.transport.spatial.cell_balance.cell_balance_for_streaming`
     — the three-term cell-balance primitive.

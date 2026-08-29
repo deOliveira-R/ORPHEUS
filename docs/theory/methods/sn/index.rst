@@ -217,7 +217,7 @@ mesh) is shared with :ref:`theory-collision-probability` and
 
    The Morel--Montry angular weight :math:`\tau` is **not** a factory
    output: it is owned by the angular closure
-   (:attr:`~orpheus.sn.angular.closure.PoleAngularClosureBase.tau_per_ordinate`),
+   (:attr:`~orpheus.sn.angular.closure.AngularClosureBase.tau_per_ordinate`),
    since the geometry-side producer was retired in Issue #236 Phase 2
    Step C (see :ref:`sn-tau-c-on-cellvisit-live`).  The geometry
    factories carry **geometry only** — face areas, the
@@ -609,7 +609,7 @@ per-ordinate arrays, hands them to
 :meth:`~orpheus.transport.spatial.diamond.DiamondDifference.update` as
 the two assembled contributions above, and then advances the half-angle
 thread itself through
-:meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`.
+:meth:`~orpheus.sn.angular.closure.AngularClosureBase.advance_psi_half`.
 This is the one production path that visits degenerate cells one at a
 time (:ref:`sn-p49a-closure-owns-the-march`).
 

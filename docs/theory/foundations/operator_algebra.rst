@@ -5861,7 +5861,7 @@ for merge status.
        spelling
        (:func:`~orpheus.sn.angular.closure.march_psi_half_step`, with the
        batch kernel delegating to it and
-       :meth:`~orpheus.sn.angular.closure.PoleAngularClosureBase.advance_psi_half`
+       :meth:`~orpheus.sn.angular.closure.AngularClosureBase.advance_psi_half`
        as the per-cell entry), and the SN walk applies it.  The scheme
        now receives the angular axis's effect on the balance as two
        **assembled** contributions, ``angular_denom_term`` and
