@@ -658,6 +658,13 @@ def _weight_scale_decoy(quad):
     closes) while every ΔA/w moves. ⚠ It MOVES axis identity (the
     weights are the axis's bytes) — acceptable at the ctor tier, where
     no space sits between the mint and the read.
+
+    ⚠ [M] ORDER-DEPENDENT admissibility (archivist re-measure
+    2026-08-29): the M-M τ escapes [0, 1] under a uniform weight scale
+    at gauss_legendre(4)/(6)/(8) (τ = 1.195/1.047/1.059) — the decoy is
+    ADMITTED only at the N = 2 tier this row's fixture uses. The gate
+    below asserts that premise as its own row; if the tiny fixture ever
+    grows, this decoy must be re-posed, not the assertion relaxed.
     """
     import dataclasses as _dc
 
@@ -709,6 +716,9 @@ class TestP4RemTheClosureMintReadsThroughTheAxis:
         sn = make_tiny_spherical_sn_mesh()
         reduced = sn.reduced
         assert reduced is not None
+        # the decoy's admissibility premise (see _weight_scale_decoy's
+        # order-dependence note) — asserted, not assumed:
+        assert sn.quad.N == 2, "the weight decoy is only dome+tau-admissible at N=2"
         decoy = _weight_scale_decoy(sn.quad)
         true_c = MorelMontryAngularSweep(
             reduced.angular, reduced.redistribution_pairing, sn.quad.axis()

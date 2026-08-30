@@ -732,11 +732,15 @@ class TestGuards:
 def _scale_decoy(quad):
     """The measured keystone decoy: nodes x 0.9, weights preserved.
 
-    [M] verification plan §5.2 — the ONLY decoy admissible at BOTH tiers
-    (the α-dome guard REFUSES rolled/negated/reversed nodes on every
-    curvilinear chart; scaling preserves Σ w·µ = 0 so the dome closes).
-    Weight-preserving ⟹ the decoy axis is IDENTITY-EQUAL to the true one
-    (the space cannot see it) while every |cosine| moves.
+    [M] the ONLY decoy admissible at BOTH tiers — but the refusals are
+    TWO contracts, not one (archivist re-measure 2026-08-29, correcting
+    this docstring's first wording): the α-dome guard (Σ w·µ = 0,
+    `redistribution.py`) refuses only the ROLL (it breaks the pairing to
+    ±0.3); negated/reversed nodes PASS the dome (±5.6e-17) and die one
+    tier later at the closure's P3 τ ∈ [0,1] guard (`closure.py`).
+    Scaling preserves both. Weight-preserving ⟹ the decoy axis is
+    IDENTITY-EQUAL to the true one (the space cannot see it) while every
+    nonzero |cosine| moves.
     """
     import dataclasses as _dc
 
