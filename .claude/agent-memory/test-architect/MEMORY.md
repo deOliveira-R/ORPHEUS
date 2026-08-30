@@ -10,7 +10,7 @@ here — it is merged archaeology.
 
 ## 1. Lessons — a HOT digest over a COLD archive (READ the digest at START)
 
-- **[Lessons — hot digest](lessons.md)** — ~1580 lines. One imperative rule per
+- **[Lessons — hot digest](lessons.md)** — ~1700 lines. One imperative rule per
   entry, grouped by behavioral family (gates that cannot red · harness discipline ·
   config blindness · reference & claim layer · tolerance · carve archetypes ·
   snapshots & exactness · pure-math primitives). **Read this file whole, every
@@ -19,7 +19,7 @@ here — it is merged archaeology.
   closes** — `L3`'s "no SN MMS exercises `q.boundary ≠ 0`" was true when written,
   the §4.6 fix landed, and the stale entry then generated a whole phase brief for
   work already done (`L40a`).
-- **[Lessons — cold archive](lessons_archive.md)** — ~6700 lines, sections L1–L63,
+- **[Lessons — cold archive](lessons_archive.md)** — ~7600 lines, sections L1–L67,
   append-ordered. The war stories, measured numbers, `file:line` detail and
   per-fixture tables. **Open ONE section at a time, only when the digest's pointer
   says the detail matters.** Never read it whole — that is ~48K tokens.
@@ -32,6 +32,7 @@ here — it is merged archaeology.
 **Detail → [active campaigns](active_campaigns.md).** One line each here; open that
 file for headlines, open findings and measured numbers. Reconcile against git first.
 
+- **CS4c binding ladder — every operator receives its two spaces** — ⏹ PLAN DELIVERED (`scratch/cs4c_verification_plan.md`; 10 contradictions, 8 gate specs, 5 measured batteries, 7 open rulings). ⛔⛔ `[M]` the ruled §6 adjoint leg is a TAUTOLOGY (`(RKM)†=M†K†R†` — ≤ 2.24e-16 under BOTH wrong embeddings); ⛔⛔ `[M]` XD-1's obvious non-tight control is bit-clean at ≤ 5.9e-16 while `‖MR−I‖=1.000`; ⛔⛔ `[M]` `raise∘lower` reads **2.871** on a legal tangential mesh and 4.4e-16 on all four ledger fixtures. ⭐⭐ Splitting the metric mutation per Riesz leg: **9/20 → 20/20**. Denominators corrected: XD-2 is **14** not 12; the ledger sees **4 of 8** Optional-carrying classes. Detail → **`lessons_archive.md` L67**.
 - **#358 forward half — graph-grounded test workflow + the demand on Nexus** — ⏹ MEMO DELIVERED (scratchpad, no code). ⭐⭐ graph test nodes ≡ pytest collected defs EXACTLY (`[M]` 9861/9861); ⛔⛔ static selection still UNSAFE (94.8 % miss on `OperatorSum`); ⛔ naive cone = 31–36 % of suite. Detail + 8 demands → **`lessons_archive.md` L55**.
 - **P4-remainder step 2 the producer binds the angular axis — the CS5 decoy is REFUSED by production's own α-dome guard** — ⏹ PLAN DELIVERED (`scratch/p4rem_step2_verification.md`; V1 sets, 10 open findings, 5 rulings). ⛔⛔ `[M]` the banked §6b set of **8** closure ctors is **10** — a SUBCLASS ctor (P4.9b's own keystone mutant factory, kills that gate at COLLECTION) + a `create(**kwargs)` registry call. ⛔⛔ `[M]` the rolled-node decoy is refused by `angular_redistribution` on every curvilinear chart; `nodes × 0.9` is the only one clearing both tiers, and `gauss_legendre(2)` — the tree's tiny spherical fixture — moves 0/2. ⭐⭐ three-way `is`-identity survives ⟹ route rows are the ONLY discriminators; the silent mode is the wrong LABEL. ⛔ a SECOND mint site on the d ≥ 2 branch (no producer there). Detail → **`lessons_archive.md` L66**.
 - **CS5 an axis can name the generator that made it — the re-point is a VALUE TAUTOLOGY, so the keystone must be a ROUTE gate** — ⏹ PLAN DELIVERED (`scratch/cs5_verification_plan.md`; 9 gates, a 3-arm measured battery, 7 risks, 5 rulings). ⛔⛔ `[M]` the landed surface had **0 genuine catchers** over 184 tests (the one red is a cross-process harness artefact). ⭐⭐ `[M]` the generator **is** `sn_mesh.quad` ⟹ every value gate is `X == X`; the catcher is a weight-preserving node-rolled DECOY (space name identical, `mu_x` different). ⭐⭐ `[M]` including the generator in `_identity_key` makes `__eq__`/`hash` **RAISE** — the exclusion is structurally mandatory, not taste. ⛔⛔ `[M]` a measure-minted axis is rank-1 (`spatial(12,)` vs `spatial(3, 4)`) — d=1 hides it; the `Mesh1D` branch that dodges it re-creates the P4.9a blindness. ⚠ The tree moved TWICE mid-dispatch (steps 1, then 2+3 landed). Detail → **`lessons_archive.md` L65**.

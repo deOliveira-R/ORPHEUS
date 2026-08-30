@@ -914,6 +914,55 @@ any other review work.
     > (`isotropic_scattering.py:96-98`). One assembly had listed the census as
     > its own strongest self-attack and deferred it as "a plan, not a fact" —
     > run, it was the refutation.
+
+    ⭐ **The FOURTH way, and the one a census will MIS-REPORT rather than miss:
+    (d) NO arm — the instance is never applied at all, because a FUSED PARENT
+    overrides the sum's body.** (a)–(c) all assume an arm runs and the key names
+    the wrong one. Here the answer to *"which arm?"* is *"none, ever"*, and the
+    key selects a body production never executes. The mechanism is invisible to
+    both instruments: statically the operand is a legitimate member of an
+    `OperatorSum`, so `apply` looks reachable; dynamically the parent's override
+    never calls `b.apply`, it reads `b`'s **data**. ⟹ two consequences a census
+    must state separately, because they point opposite ways:
+    * **for the DESIGN** — there is no action body to select at construction, so
+      the collapse buys nothing at that binding; the honest question becomes
+      whether the operand is an operator at all or a data field wearing one;
+    * ⛔ **for the RETIREMENT** — *zero applies is NOT zero consumers.* The
+      object is load-bearing through an attribute read, so a "dead, retire it"
+      verdict inferred from the traffic is exactly backwards. This is #17's
+      red-set-by-IDENTITY clause with the polarity flipped: there, pins that
+      only NAME a symbol prove no consumer exists; here, no `apply` traffic
+      coexists with a live consumer one frame up.
+
+    ⭐⭐ **And the measurement discipline the same census forces: count BODIES
+    EXECUTED, not ARMS DISPATCHED.** An arm may itself be a *re-dispatcher* — it
+    reads a sub-carrier off the composite and re-enters the same dispatcher — so
+    one call is two counted arm entries and construction-time selection
+    *relocates* the branch one frame in rather than removing it. The tell in a
+    census is two arms with **exactly equal counts on every scenario**; the tell
+    in the source is a `self.apply(...)` inside a registered arm.
+
+    > `[M]` 2026-08-30, ORPHEUS CS4c step 0 (HEAD `2f44ed4e`; 11 production
+    > entries; 23-verb denominator; every arm fired by an activation control;
+    > all 11 headline numbers bit-identical instrumented vs not).
+    > **(d):** `MultiplicationOperator` at `sn/coupled_system.py:446` is minted
+    > **22 / 22 / 24 / 25 / 20** times per k-solve (once per outer) on
+    > slab-SI / slab-Krylov / sphere / cylinder / 2-D — and **every instance is
+    > silent, in all 9 SN scenarios, under BOTH inner solvers.**
+    > `StreamingCollisionOperator` subclasses `OperatorSum` holding it as `b`,
+    > and **overrides** `apply` (`sn/operators/streaming.py:723`) to call
+    > `loss_action(self.sigma, psi)` with
+    > `sigma = self.diagonal.coefficient.values` (`:712-719`);
+    > `apply_transpose` is overridden the same way (`:744`). I had predicted the
+    > silence was source-iteration owning the sweep and that Krylov would
+    > re-enter `OperatorSum.apply` — **refuted**: the override is on the
+    > composite, not on the solve strategy.
+    > **Re-dispatch:** `ScatteringOperator`'s `FullField` arm runs
+    > `self.apply(cast(...), psi.interior)` (`scattering.py:1189`), so every
+    > composite apply scores twice — `FullField ×N` **and**
+    > `AngularFlux|HarmonicMomentFlux ×N`, equal counts on all 6 scenarios.
+    > Reading "4 arms" as four alternatives over-counts the bodies and
+    > under-counts the branching.
 30. **NEVER credit an "X is not data of this operation" claim from the
     ARITHMETIC — check the CODOMAIN constructor.** Purity / locality /
     diagonality tell you X is not needed to COMPUTE the action; they say

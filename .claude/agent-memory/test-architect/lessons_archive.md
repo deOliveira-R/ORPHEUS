@@ -7384,3 +7384,198 @@ gate AND makes G7's §6c red-before reading permanently untakeable. Under
 available is the SIMULATION — substituting a decoy quadrature for the courier
 on a true-dome AR, which is the exact pre-carve analogue of "true AR + decoy
 axis"; the §5.2 catalogue is that record.
+
+---
+
+## L67 — CS4c binding ladder (pre-carve verification plan, 2026-08-30, HEAD `2f44ed4e`)
+
+Plan: `scratch/cs4c_verification_plan.md`. Design record:
+`.claude/plans/cs4c_binding_design.md` (§12 = its own second-pass review).
+Every number below re-measured this session with `.venv/bin/python`
+(`ast` censuses, in-process runtime probes, in-process monkeypatch batteries).
+Nexus WAS available (used for `dead_references` + `query`).
+
+### L67a — the reverse-composite adjoint law is a THEOREM, so it cannot gate the embedding
+
+The record's ruled §6 route-(b) leg: *"compare `bind(K).H` against an
+independently-ASSEMBLED adjoint built from daggered factors."* `[M]` on the
+shipped frame algebra `bind(K) = R∘K∘M` (orthonormal Legendre, `G_V = w`,
+`G_M = 1`, `L ∈ {1,2,3}`, `gauss_legendre(L+2)`):
+
+| analysis-face embedding | Galerkin defect `‖M†−R‖/‖R‖` | `bind(K).H` vs `M†K†R†` |
+|---|---|---|
+| `w`-weighted (CORRECT) | 0.0 / 5.3e-17 / 0.0 | ≤ 2.24e-16 |
+| **constant** (the wrong-embedding control) | 2.00e-1 / 4.37e-1 / 6.88e-1 | **≤ 1.02e-16** |
+| **unweighted** | 8.00e-1 / 1.875 / 3.221 | **≤ 2.00e-16** |
+
+`A† = G_V⁻¹(RKM)ᵀG_V = (G_V⁻¹MᵀG_M)(G_M⁻¹KᵀG_M)(G_M⁻¹RᵀG_V) = M†K†R†` for ANY
+three maps and ANY nondegenerate metrics — the wrong embedding is applied to
+BOTH sides and cancels identically. `vv` #24(d) in pure form. The
+discriminator is the **Galerkin defect on the FACES**, which needs no random
+operand at all.
+
+### L67b — ⭐⭐ the MAXIMALLY non-tight control was the BLIND one
+
+Seed-swept, 200 draws, **diagonal (zonal / Funk–Hecke) operands** — the shape a
+`ScatteringKernel` binding actually produces:
+
+| rule | `‖MR − I‖` | multiplicativity rel. (min / med / max) |
+|---|---|---|
+| `gauss_legendre(L+1)` TIGHT | ≤ 1.1e-15 | 0.0 / 2.0e-16 / **1.74e-15** |
+| `equispaced_equal(L+1)` NON-TIGHT | 2.5e-1…5.9e-1 | **1.20e-2** / 1.4e-1 / 4.61e-1 |
+| `equispaced_equal(2L+2)` | — | **6.35e-3** / 7.1e-2 / 1.83e-1 |
+| ⛔ **`gauss_legendre(L)` too-few-nodes** | **1.000e+00** | 0.0 / 2.0e-16 / **5.9e-16** |
+
+The rule that is *maximally* non-tight by the property's own norm gives a
+**bit-clean** defect at every `L` and every one of 200 draws. Ranking controls
+by "how badly does it violate the property" picks the blind one. The fix is
+one battery arm — a **positive-control-of-the-control**: the rejected control
+must be shown NOT to red, alongside the chosen one reddening.
+
+Good news for the design: diagonal operands DO discriminate ⟹ no kernel
+product API is needed; the gate builds `K₁K₂` from the ℓ-stacks. ⚠ convention
+trap: `moments[l]` is `[g_from, g_to]`, so `bind(K₁)·bind(K₂)` is
+`moments₂[ℓ] @ moments₁[ℓ]`.
+
+`[M]` ℓ=0 blindness reconfirmed: tight 8.99e-17, non-tight **0.000e+00**.
+
+### L67c — a pseudo-inverse round trip is `P_range(G)`, and the WHOLE corpus dodges it
+
+`riesz_raise ∘ riesz_lower` on the SN composite `FullFieldSpace`. `[M]` all
+four ledger fixtures (slab / sphere / cylinder / cart2d) read ≤ 4.44e-16 —
+and every one carries **0 tangential (`|Ω·n| = 0`) trace slots**; `_cart2d`'s
+own docstring says `level_symmetric` was chosen to *"avoid the `mu_y == 0`"*
+case. `[M]` the same 2-D mesh under `Quadrature.product(4,4)`: **32/64
+tangential**, trace round-trip **2.871e+00** (`product(4,8)`: 32/128,
+**2.666e+00**). So `raise∘lower == id` is (a) blind on the whole corpus and
+(b) a FALSE RED at 2.87 on a legal production quadrature. `plan-authoring`
+§2's "the denominator held FIXED across every row", at corpus scale.
+
+### L67d — ⭐⭐ splitting a PAIRED metric mutation per LEG went 9/20 → 20/20
+
+Today's ledger M-10 drops both metric sandwiches at once. `[M]` in-process, 4
+geometries × 5 leaves, clean ≤ 3.0e-15, floor 1e-3:
+
+| mutation | rows RED / 20 | min RED |
+|---|---|---|
+| M-10 both (today) | **9** — C 0/4, B 0/4, S+F silent on cart2d | 5.56e-2 |
+| **drop `riesz_lower` only** | **20** | 1.28e-1 |
+| **drop `riesz_raise` only** | **20** | 4.45e-1 |
+
+`C` and `B` commute with `G`, so `G⁻¹AᵀG = Aᵀ` and dropping BOTH is invisible
+(the ledger's own `_METRIC_CONSTRAINED = ("L","S","F")`). Dropping ONE leaves
+`G⁻¹Aᵀ` — not a similarity — so commutation buys nothing. **Un-welding a
+composite into named legs is a COVERAGE opportunity, not just a re-spelling.**
+
+⛔ And the false-red it creates: the config-blindness control
+(`G = c·1 ⟹ G⁻¹AᵀG = Aᵀ`) MUST keep the PAIRED mutation. `[M]` on
+`_flat_metric_slab` (`c = 0.57735026919`): paired ≤ 7.09e-16 (blind ✓),
+either single leg **4.226e-01 = |1−c| exactly**, on every leaf. Correct
+arithmetic, wrong gate.
+
+### L67e — `V.dual()` carries the PRIMAL's metric ⟹ a generic Riesz leg gives `G²`
+
+`[M]` `DualSpace.of(V)` threads `metric=primal.metric` deliberately
+(`space.py:1144-1157`; the P7 comment records that dropping it made a
+dense-metric dual read the Euclidean pairing, 4.5 vs 23.3). On
+`w = [0.5, 2, 4]`, `x = [1,1,1]`: `raise_V(lower_V(x)) = [1,1,1]` ✓ but
+`lower_{V*}(lower_V(x)) = [0.25, 4.0, 16.0] = G²x`. ⟹ the Riesz legs are a
+**two-verb pair on the PRIMAL** (which is what `metric.py:84`'s reserved
+formula already spells — both reads are `A.domain.` / `A.codomain.`), and the
+natural double-Riesz involution gate is a false red.
+
+### L67f — an AST call census is the wrong FILTER for a physics constant
+
+XD-2's ruled denominator was "~12 production multiplicity-2 literals".
+`[M]` AST over `orpheus/`: `Constant(2|2.0)` in `BinOp(Mult)` or
+`AugAssign(Mult)` whose enclosing function mentions `n2n|sig2|Sig2|sig_2n|_2n`
+→ **15 rows = 14 genuine + 1 FP**. Two genuine sites were missing from every
+prior list (`material_xs_field.py:809` `apply_n2n`, `:862`
+`apply_n2n_transpose`), and **two of the fourteen evade a `2.0 *` regex**:
+`moc/core.py:316` is the INTEGER `2 *`, and `mc/solver.py:447` is
+`w *= 2.0` (an `AugAssign` with no `2.0 *` prefix and no n2n token on the
+line). The one FP is `mc/solver.py:411` `2.0 * np.pi` — a function-SCOPE token
+match. ⟹ a physics-constant census needs (a) AST, (b) both the `BinOp` and
+`AugAssign` shapes, (c) a NAMED exclusion set, (d) a positive control on a
+synthetic source string.
+
+### L67g — the acceptance instrument was a 4-of-8 SAMPLE, and its reader is shape-blind
+
+`[M]` AST census of `domain`/`codomain` property return annotations: **8
+classes carry an Optional-shaped annotation** in two spellings
+(`Optional['FunctionSpace']` and `'FunctionSpace | None'`). The ledger's
+`_LEAVES = (L,C,S,F,B)` sees **4**; `IsotropicScattering`, `IsotropicN2N`,
+`RadialCharacteristicBoundaryOperator` and `SNMaskedBoundaryOperator` flip
+un-gated — and the first two are exactly the pair the campaign rebinds.
+
+And the reader itself: `[M]` `_domain_annotation` returns
+`("<not found>","<not found>")` — hence the strict xfail **PASSES** —
+identically for a mandatory dataclass field, an Optional one, a
+`field(default=None)` one, a kw-only one, and **a deleted attribute**. Five
+shapes, one output. Its `if prop is None: continue` is a VALUE check
+masquerading as a presence check (a `= None` default puts `None` in
+`vars(cls)`). ⚠ It bites only if the flip converts properties to FIELDS —
+`[M]` all 11 operator classes expose properties today, so the shipped reader
+works at HEAD and the extension's necessity is conditional on the base's
+ruled shape.
+
+### L67h — `condense`'s asymmetric morphism pair, and its activation precondition
+
+`[M]` on the shipped `tests/data/test_mixture_condense.py` 4g→2g fixture
+(`_PHI = [1,4,2,0.5]`), against `dyad(FissionKernel.from_mixture(condensed))`:
+
+| morphism pair | max-rel |
+|---|---|
+| (χ marginalize, νΣf average) — RULED | **2.876e-17** ✓ |
+| (χ average, νΣf average) | **6.421e-01** |
+| (χ marginalize, νΣf marginalize) | **1.685e+00** |
+| (χ average, νΣf marginalize) | **7.087e-02** |
+
+All three controls O(1)-red. ⚠ **Activation precondition, assertable:** every
+coarse group must hold ≥ 2 fine groups *and* φ must vary within one — with one
+fine group per coarse, `average ≡ marginalize` and two of three controls go
+silent. Path correction: the ruled pair is at
+`orpheus/data/macro_xs/mixture.py:437-450`, NOT `orpheus/transport/mixture.py`
+(which does not exist); and `condense` has a SECOND branch
+(`adjoint_spectrum=`) obeying a different law — the gate must say which it pins.
+
+### L67i — a class deletion has MORE collection-killers than the audit names
+
+`[M]` AST census of CODE-level `_AdjointOperator` references: **5 files** (4
+test + the producer). TWO of them die at COLLECTION, not at run time:
+`test_monomorphic_leaves.py:608` (module-scope attribute read) **and**
+`test_operator_capability_predicates.py:280` (inside the module-level
+`_CONTRACT_ROWS` list consumed by `@parametrize`). The design record named
+one. `vv` #17's third pipeline failure: pytest reports `FAILED = 0`, `rc=2`.
+
+And the retirement retires **four** surfaces, not one: `apply`, `inverse()`
+(the #280 swap law), `is_invertible`, and `apply_transpose`'s
+`NotImplementedError` — `[M]` the last has **0 witnesses tree-wide** (grep of
+its message fragment over `tests/` = 0).
+
+### L67j — `plan-authoring` §6d run on a permitted edge: legal ≠ free
+
+`[M]` `FORBIDDEN_EDGES['cp'|'moc'|'mc'] = L3_PACKAGES − {self}` and
+`transport` is L2 ⟹ the XD-2 re-point's three new edges are **PERMITTED**. But
+`[M]` all three are **0 today**, and the marginal import cost is **254 ms**
+(cumulative `orpheus.transport`, entirely its eager `__init__`; the module
+itself is 0.8 ms). MC currently imports only `data` + `geometry` — the leanest
+package in the tree. A "mechanical ~8-line re-point" that adds a package
+dependency to three solver families is larger than its line count
+(`lessons` L57).
+
+### L67k — measured battery scopes (all cheap)
+
+| scope | rows | wall |
+|---|---|---|
+| the 4 `_AdjointOperator` files + the ledger | 208 P + 14 xf | **0.71 s** |
+| `tests/transport/` + axis-generator + the 3 S suites | 712 P + 1 sk | **23.6 s** |
+| `tests/homogeneous/` + `tests/diffusion/` + mixture-condense | 204 P | **3.1 s** |
+
+`[M]` `--runxfail` over the ledger: all **14** strict-xfail rows red for their
+own documented reason (the `vv` Mode-8 FOURTH-class audit passes). ⚠ but the
+`_R2_XFAIL` REASON STRING is present-tense-false for S: `[M]` an anonymous
+`ScatteringOperator.H` now RAISES `MissingAdjoint` (the S4 amendment,
+`operator.py:1320-1330`) rather than degrading; only `C` still degrades, via
+`is_metric_free_adjoint = True`. The test BODY is honest (it reports the
+`MissingAdjoint` as evidence text, never as the verdict); the marker is not.

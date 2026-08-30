@@ -4661,3 +4661,113 @@ the factories' values, and actually CALLED that way at
 `augmented_mesh.py:417` on the d≥2 path where no `reduced` exists. The
 chart-dependence is a *selection* (one enum choosing which cosine array to
 march), not spatial data; the `1/r` lives in `ΔA`, the spatial Gram, not in α.
+
+## L-076 — a runtime traffic census must count BODIES EXECUTED, not arms dispatched; and "zero applies" is not "no consumer"
+
+**Context.** CS4c step 0 (ORPHEUS campaign-2 opening), 2026-08-30, HEAD
+`2f44ed4e`. The chartered deliverable was a per-BINDING-SITE runtime feeding
+census over the 13-site / 15-construction operator roster (SN / diffusion /
+homogeneous), re-running and sharpening the 2026-08-20 CS4a round-2 census that
+produced `vv-principles` #29. Instruments: `scratch/cs4c_step0_spy.py` +
+`cs4c_step0_drive.py` (+ two focused probes), read-only, in-process only.
+
+**Method that worked, and is reusable verbatim.**
+1. Patch the `functools.singledispatch` **registry** of a `singledispatchmethod`
+   — `cls.__dict__["_apply_impl"].dispatcher.register(typ, wrapper)` — one
+   wrapper per registered arm INCLUDING the `object` fallback. `register` clears
+   the dispatch cache, so it takes effect immediately.
+2. `[M]` `cls.__dict__["apply"] is cls.__dict__["_apply_impl"]` → **True** when
+   the class does `apply = _apply_impl` in an `else:` branch of
+   `if TYPE_CHECKING:`. So A13's "patch EVERY rebinding site" is discharged **by
+   identity**, not by two patches — but you must *check* the identity, not assume
+   it.
+3. Attribute traffic to the BINDING SITE by wrapping `cls.__init__` and walking
+   `traceback.extract_stack()`; report `external_frame -> innermost_frame`, where
+   external = innermost frame NOT in the operator's own module. Keep every
+   instance alive in a list so `id()` cannot be recycled.
+4. Capture the operand's **and the return's** `.space` at every call — that turns
+   "which carrier" into "which domain and which codomain", which is the question
+   a space-binding design actually asks.
+
+**Controls — four tiers, and the third is the one that earns the zeros.**
+* *instrument*: counter `0 → 5` on five direct calls.
+* *installation*: after wrapping, every registry entry must carry the marker;
+  raise at install time otherwise (12 arms, 0 unwrapped).
+* ⭐ *per-ARM ACTIVATION*: fire **every** registered arm and every plain-method
+  verb directly, so a `NOT-RUN(prod)` verdict is a fact about production rather
+  than about a dead wrapper. Without this, 8 of 23 verbs would have read zero
+  with no way to tell blindness from absence.
+* *non-perturbation*: all 11 headline numbers bit-identical with and without the
+  spy (`--control` flag on the same driver, same fixtures).
+
+**The finding that is NOT in #29 (a) (b) (c) — the fourth way, (d) NO arm.**
+`MultiplicationOperator` at `sn/coupled_system.py:446` (SN's C binding) is minted
+**22 / 22 / 24 / 25 / 20** times per k-solve — once per outer, because
+`build_within_group_system` is re-called per outer — and **every instance is
+silent in all 9 SN scenarios, under BOTH `source_iteration` and `krylov`.**
+Mechanism: `StreamingCollisionOperator` (`sn/operators/streaming.py:504`)
+subclasses `OperatorSum` holding C as `b`, and **overrides** `apply` (`:723`) to
+call `self.loss_representation.loss_action(self.sigma, psi)` where
+`sigma = self.diagonal.coefficient.values` (`:712-719`); `apply_transpose` is
+overridden identically (`:744`). So the parent reads C's **data** and never its
+**body**.
+Two consequences that point OPPOSITE ways, and a census owes both:
+* *design*: there is no action body to select at construction — a
+  bound-space-keyed collapse buys nothing at that binding, and the real question
+  becomes whether the operand is an operator or a `CrossSectionField` in an
+  operator's clothing.
+* ⛔ *retirement*: **zero applies ≠ zero consumers.** The object is load-bearing
+  through an attribute read one frame up. Inferring "dead" from the traffic is
+  exactly backwards — the polarity-flipped twin of A13 (there, pins that only
+  NAME a symbol prove no consumer; here, no apply traffic coexists with a live
+  one).
+
+**The second novel mechanic — an ARM can be a RE-DISPATCHER.**
+`ScatteringOperator`'s `FullField` arm runs
+`self.apply(cast("AngularFlux | HarmonicMomentFlux", psi.interior))`
+(`scattering.py:1189`), so every composite apply produces TWO counted arm
+entries with **exactly equal counts on every scenario**
+(`FullField ×N` and `AngularFlux|HarmonicMomentFlux ×N`, 6/6 scenarios).
+⟹ "4 arms" over-counts the bodies and under-counts the branching: selecting the
+`FullField` body at construction *relocates* the runtime branch one frame in
+rather than removing it. Tells: equal counts across every row (census side); a
+`self.apply(...)` inside a registered arm (source side).
+
+**Two predictions of my own, refuted by the run** (log them — the reason is what
+stops the next attacker re-deriving them):
+* *"the windowed `HarmonicMomentFlux` carrier is routed by
+  `inner_schedule='gauss_seidel'`"* — **refuted** by a 12-row probe
+  (6 configs × 2 schedules, every row's counter > 0): the discriminator is
+  **spatial dimensionality**. 8/12 rows `AngularFlux` (slab/sphere/cylinder,
+  P0 and P1, both schedules), 4/12 `HarmonicMomentFlux` (2-D Cartesian LS4, both
+  schedules). The schedule changes only the iteration count.
+  ⟹ the 2026-08-20 census's SN-S row (`TimedFullField ×225 AND AngularFlux ×225`)
+  is **1-D-only**; its denominator was a held-fixed axis nobody wrote.
+* *"SN C is silent only under source iteration; Krylov re-enters
+  `OperatorSum.apply`"* — **refuted**: 22 instances / 22 silent under Krylov too.
+  The override lives on the composite, not on the solve strategy.
+
+**The scope caveat, made TIGHT instead of ritual.** "A run measures its workload
+only" is usually an unfalsifiable disclaimer. Here it was bounded by an AST
+census of every `Name` node in the 7 roster classes over `orpheus/**/*.py`:
+**exactly 6 files** reference them (`diffusion/solver.py`,
+`homogeneous/solver.py`, `sn/coupled_system.py`, `sn/solver.py`,
+`transport/operators/scattering.py`, `sn/operators/streaming.py` — the last
+holding no construction), and **`cp/`, `moc/`, `mc/` reference 0 each**, at both
+the operator tier and the underlying array verb (`apply_p0_in_scatter` has
+consumers in 3 files, all under `transport/`). So the residual risk is not
+"another solver family" but "another configuration of a driven family".
+⟹ **pair every runtime census with a static reference census** — the static one
+supplies the denominator the runtime one cannot.
+
+**Free by-catch (the census's own docstring).** `scattering.py:735-737`, on the
+`isotropic_kernel` property whose body IS the space-anonymous mint, claims *"The
+same energy operation is shared by every transport model (CP / MoC / diffusion /
+homogeneous / MC)"*. `[M]` 2 of the 5 named models consume it. The neighbouring
+clauses in the same docstring are both accurate and measured-true, and that is
+the aggravator — accuracy on either side of a false clause removes the reader's
+signal (vv #21's self-contradicting-file shape, at clause granularity).
+
+**Landed:** `vv-principles` #29 gains the (d) NO-arm sharpening + the
+BODIES-not-ARMS discipline, with this measurement as its worked example.
+Deliverable: `scratch/cs4c_feeding_census.md`.

@@ -7,6 +7,56 @@ metadata:
 
 # Active / in-flight verification campaigns — full detail
 
+## CS4c binding ladder — every operator receives its two spaces (⏹ PLAN DELIVERED 2026-08-30)
+
+**Deliverable**: `scratch/cs4c_verification_plan.md` — the mandatory pre-carve
+`test-architect` dispatch for Campaign 2's opening act. Design record
+`.claude/plans/cs4c_binding_design.md` (its §12 is its own second-pass review;
+F6 ruled option (i)). Ground memos `scratch/cs4c_opener_structural_ground.md`
++ `scratch/cs4c_opener_count_census.md`. HEAD `2f44ed4e`, tree clean, baseline
+9950/0/19sk/227des/70xf. **NO source edited.** Route: Bash + `.venv/bin/python`
+AST/runtime probes; nexus available and used for `dead_references` (0 dead /
+52 checked) + `query`.
+
+**Structure**: §1 = ten findings that contradict or extend the record; §2–§9 =
+the per-deliverable specs (A–H); §10 = the claim-layer/pillar matrix; §11 =
+five measured batteries; §12 = seven open rulings; §13 = the §0.5/§0.6 audit.
+
+**The three findings that would have shipped a gate that cannot red**
+(detail + every number → `lessons_archive.md` **L67**):
+- ⛔⛔ **§6's ruled adjoint leg is a TAUTOLOGY** — `bind(K).H` vs the
+  "independently assembled" adjoint reads ≤ 2.24e-16 under the correct AND
+  both wrong embeddings (`(RKM)† = M†K†R†` is a theorem). The discriminator is
+  the **Galerkin defect on the faces** (0.0 → 3.221). → L67a
+- ⛔⛔ **XD-1's obvious non-tight control is PROVABLY BLIND** —
+  `gauss_legendre(L)` has `‖MR−I‖ = 1.000` and a bit-clean multiplicativity
+  defect (≤ 5.9e-16, 200 draws × 3 orders); the `equispaced_equal` rule reds at
+  ≥ 1.2e-2. Diagonal (zonal) operands DO discriminate ⟹ F7's lean holds. → L67b
+- ⛔⛔ **`raise∘lower ≠ id`** — all four ledger fixtures carry 0 tangential
+  slots; a legal `product(4,4)` 2-D mesh gives 32/64 and a trace defect of
+  **2.871**. The law is `P_range(G)`. → L67c
+
+**The two understated denominators**: XD-2 is **14** literals, not 12 (two
+sites missing from every list; two evade a `2.0 *` regex) → L67f; and the R1
+acceptance instrument covers **4 of the 8** classes carrying an Optional space
+annotation → L67g.
+
+**The best news**: splitting the paired metric mutation per Riesz leg takes the
+ledger from **9/20 to 20/20** rows red — the retirement is a coverage UPGRADE,
+not merely a re-spelling. ⛔ but the flat-metric blindness control must keep
+the PAIRED mutation (single leg = `|1−c| = 4.226e-01`, a false red). → L67d
+
+**Open rulings (§12)**: R1 the tautological adjoint leg's fate; R2 where the
+#280 swap law lives once `.H` is a composite; R3 whether a singular-metric
+fixture ships; R4 ✅ answered (the layer edge is legal, `[M]` 254 ms cold-import
+cost); R5 the two newly-found multiplicity sites' fate; R6 fields-vs-properties
+on the base (decides whether §3 is needed at all); R7 the kernel `from_mixture`
+gates' scope.
+
+**Battery scopes, measured**: 0.71 s (F1, 222 rows) / 23.6 s (step 3, 713) /
+3.1 s (step 4-5, 204). `--runxfail` audit: all 14 strict xfails red for their
+documented reason.
+
 ## P4-remainder step 2 — the producer binds the angular axis (⏹ PLAN DELIVERED 2026-08-29)
 
 **Deliverable**: `scratch/p4rem_step2_verification.md` — the CONTRACT-CHANGE

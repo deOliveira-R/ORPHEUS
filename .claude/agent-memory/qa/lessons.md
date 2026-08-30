@@ -114,6 +114,29 @@ and a zero-reader field naming a REAL contract is usually RESPELLED, not dead �
 ask "how does production answer this question today?" before wiring it.
 → L-075
 
+**A14. A runtime traffic census counts BODIES EXECUTED, not arms dispatched —
+and "0 applies" is A13 with the polarity FLIPPED: not dead, load-bearing as
+DATA.** [skill: landed as (d) + the re-dispatcher clause on vv#29]
+Two ORPHEUS mechanics. (i) A **fused parent** can override `OperatorSum.apply`
+and read its operand's *field* instead of calling its *body*: `[M]` SN's C at
+`coupled_system.py:446` is minted 20–25× per k-solve (once per outer) and is
+**silent every time, under BOTH inner solvers** — `StreamingCollisionOperator`
+overrides `apply` to use `self.diagonal.coefficient.values`. Retiring it from
+the traffic verdict would be exactly backwards. (ii) A registered **arm can
+re-dispatch** (`self.apply(psi.interior)`), so one call scores twice — tell:
+two arms with EQUAL counts on every row; construction-time selection then
+relocates the branch, it does not remove it.
+⭐ Mechanics: patch the singledispatch **registry** (`dispatcher.register(typ,
+w)`, cache auto-clears); `apply is _apply_impl` is usually ONE object — check
+the identity, don't assume it; attribute per SITE by wrapping `__init__` +
+`extract_stack`; keep instances alive so `id()` can't recycle. Controls are a
+LADDER: instrument → installation-marker → ⭐ **per-ARM activation** (fire every
+arm, else 8 of 23 zeros are unreadable) → headline bit-identity.
+⭐⭐ Bound the workload with a STATIC reference census — `[M]` 6 files reference
+the 7 roster classes, `cp`/`moc`/`mc` = 0 — so "measures its workload only"
+stops being a ritual disclaimer and names the real residual (another *config*
+of a driven family, not another family). → L-076
+
 ---
 
 ## B. Where a gate is structurally blind (ORPHEUS shapes)

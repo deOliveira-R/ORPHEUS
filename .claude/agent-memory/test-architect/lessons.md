@@ -1819,3 +1819,88 @@ cannot be a later step** — scheduling it after leaves an ungated interval and
 makes its §6c red-before reading permanently untakeable. Fuse them; the
 pre-carve evidence that survives is the SIMULATION (substitute a decoy for the
 soon-to-die twin field). → `L66k`
+
+---
+
+## CS4c binding ladder — pre-carve (2026-08-30) → `L67`
+
+**Gates that cannot red.** ⛔⛔ **A reverse-composite law (`(RKM)† = M†K†R†`) is
+a THEOREM of the metric adjoint — it cannot gate the FACES it is built from.**
+`[M]` `bind(K).H` vs the "independently assembled" adjoint reads ≤ 2.24e-16
+under the CORRECT, the *constant*, and the *unweighted* embedding alike, while
+the Galerkin defect on the same faces moves 0.0 → 3.221. The wrong structure is
+applied to both sides and cancels. ⟹ **when a gate compares a composite against
+a re-assembly of its own factors, write the algebra out before running it**;
+if the identity holds for arbitrary factors it is `vv` #24(d), whatever it is
+named. → `L67a`
+
+⭐⭐ **RANK YOUR NEGATIVE CONTROLS BY MEASURED BITE, NEVER BY HOW BADLY THEY
+VIOLATE THE PROPERTY.** `[M]` for frame multiplicativity on zonal kernels the
+*maximally* non-tight rule (`gauss_legendre(L)`, `‖MR−I‖ = 1.000`) is
+**bit-clean** at ≤ 5.9e-16 over 200 draws × 3 orders, while a merely-bad rule
+(`equispaced_equal`, `‖MR−I‖ ≈ 0.25`) reds at ≥ 1.2e-2. The extremal reading of
+the property is not the extremal reading of the DEFECT. ⟹ ship a
+**positive-control-of-the-control** arm: the rejected control must be shown NOT
+to red beside the chosen one reddening. → `L67b`
+
+⭐⭐ **UN-WELDING A COMPOSITE INTO NAMED LEGS IS A COVERAGE OPPORTUNITY — mutate
+per LEG and re-measure the constrained set.** `[M]` splitting the SN adjoint's
+paired metric sandwich into its two Riesz legs took the mutation from **9/20 to
+20/20** rows red, closing the ledger's own documented Mode-10 gap (`C` and `B`
+commute with `G`, so dropping BOTH is invisible; dropping ONE is not a
+similarity). ⛔ And the dual: a **config-blindness control MUST keep the PAIRED
+mutation** — `[M]` either single leg reads `|1−c| = 4.226e-01` on the flat
+slab, honest arithmetic and a false red. A stale `_METRIC_CONSTRAINED` list
+after such a split is silent coverage loss. → `L67d`
+
+⛔ **A class deletion's collection-killers are MORE than the audit names.**
+`[M]` two, not one: a module-scope attribute read AND a construction inside a
+module-level `parametrize` argument list. And a retirement retires every
+surface the class owns — `[M]` four here, one of which (`apply_transpose`'s
+refusal) has **0 witnesses tree-wide**. → `L67i`
+
+**Config blindness.** ⛔⛔ **A pseudo-inverse round trip is `P_range(G)`, not
+`id` — and a corpus can dodge the null space entirely.** `[M]` all four SN
+ledger fixtures carry **0 tangential (`|Ω·n|=0`) trace slots** (one docstring
+says the quadrature was chosen to avoid it), so `raise∘lower` reads 4.4e-16;
+on a legal `product(4,4)` 2-D mesh, 32/64 slots are tangential and the trace
+round trip reads **2.871**. A naive `== id` gate is blind on the whole corpus
+AND a false red in production. → `L67c`
+
+⭐ **A dual space that carries the PRIMAL's metric makes a generic Riesz leg
+compute `G²`.** `[M]` `DualSpace.of(V)` threads `metric=primal.metric`
+deliberately; `lower_{V*}∘lower_V` reads `[0.25,4,16]` for `w=[0.5,2,4]`. ⟹ the
+legs are a two-verb pair on the PRIMAL, and the natural double-Riesz involution
+gate is a false red. Read the dual's construction before pinning any
+`dual()`-symmetric law. → `L67e`
+
+**Reference & claim layer.** ⚠ **The acceptance instrument is a SAMPLE — count
+the population it does not see.** `[M]` the strict-xfail ledger's 5 leaves cover
+**4 of the 8** classes carrying an Optional space annotation (in TWO spellings,
+so a one-spelling filter also lies); the 4 it misses include the pair the
+campaign rebinds. And the ledger's own annotation READER returns
+`"<not found>"` — hence PASSES — for a mandatory field, an Optional field, and
+a **deleted attribute** alike: five shapes, one output. Deleting a marker
+constant does not mean the property holds tree-wide. → `L67g`
+
+**Tolerance & activation.** ⚠ **An asymmetric-morphism law needs its activation
+precondition ASSERTED.** `[M]` the fission-condensation pair (χ marginalized /
+νΣf averaged) discriminates at 6.4e-1 / 1.7e0 / 7.1e-2 against its three wrong
+pairings — but only while **every coarse group holds ≥ 2 fine groups**; at one
+fine per coarse `average ≡ marginalize` and two of three controls go silent.
+Assert the precondition (the `_assert_metric_is_constant` pattern), or the gate
+decays the first time someone simplifies the fixture. → `L67h`
+
+**Counts & filters.** ⛔ **A physics-constant census needs AST, BOTH the
+`BinOp(Mult)` and `AugAssign(Mult)` shapes, a named exclusion set, and a
+positive control.** `[M]` the ruled "~12 multiplicity-2 literals" is **14**;
+two sites were missing from every prior list, and **two of the fourteen evade a
+`2.0 *` regex** — one INTEGER `2 *`, one `w *= 2.0`. The single false positive
+is a `2.0 * np.pi` in a function that merely MENTIONS the channel. → `L67f`
+
+**Cost / sequencing.** ⚠ **`plan-authoring` §6d on a PERMITTED edge: legal ≠
+free.** `[M]` the re-point's three new `L3 → transport` edges are allowed by the
+declared layer contract — and all three are **0 today**, at a marginal
+**254 ms** cold-import cost carried entirely by the target package's eager
+`__init__`. Run the §6d check even when you expect it to pass, and price the
+edge, not the diff. → `L67j`

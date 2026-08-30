@@ -51,7 +51,11 @@ measured (with source); *hypothesis* = unverified means-sketch.
    4-tuple `(domain, codomain, spatial_closure, angular_closure)` riding O-3).
 5. **Dispatch surface**: exactly 3 `singledispatchmethod` sites —
    S (4 arms, no ndarray), C (FullField/ndarray), F (FullField/ScalarFlux/
-   ndarray). The ndarray k-path is alive and protocol-wide
+   ndarray). ⚠ Step-0 census correction (2026-08-30): S's `FullField` arm is
+   a RE-DISPATCHER (`scattering.py:1189` re-enters the dispatcher on
+   `psi.interior`), so "4 arms" over-counts bodies and under-counts
+   branching — construction-time selection relocates that branch one frame
+   in; the assembly-owned tier-3 lift is what removes it. The ndarray k-path is alive and protocol-wide
    (`numerics/eigenvalue.py:420` → ndarray-typed realizers in SN/diffusion/
    cp/moc). The 8 `MaterialXSField.apply_*` arms (:743-1023) are consumed
    ONLY by the S family (14 sites) — O-6's move rides the S rebind.
@@ -82,6 +86,12 @@ require kernel and frame for example)."*
 - **XD-7**: `_agreed_space`'s stated expiry — per-leg bindings make agreement
   the wrong law; resolution must become BY LEG. Per-leg = each leg knows its
   own two spaces.
+- ⭐ **A SHIPPED witness (step-0 census, [M] 2026-08-30)**: on 2-D
+  Cartesian, S at `sn/solver.py:1406` receives a composite whose interior is
+  the MOMENT space while its bound `space` names the ANGULAR-interior
+  composite — `domain ≠ codomain` live in production, the single `space`
+  field naming only the codomain (`scratch/cs4c_feeding_census.md` §3).
+  ERR-076 is the historical version of exactly this.
 - **L's ruled end state is already the corrected shape**: the O-3 4-tuple
   `(domain, codomain, spatial_closure, angular_closure)`. The user's
   correction makes S/C/F converge to the SAME discipline — one shape across
@@ -187,7 +197,9 @@ extraction placed once):
 property of the BINDING, not of the class — recorded per row in the
 binding-arity table. The within-group members bind the composite (that is
 the space the sum lives on); the k-outer F binds the bulk space (its operand
-is a flux distribution, never a trace); law objects bind trace spaces
+is a flux distribution, never a trace — ⛔ ASPIRATIONAL: [M] step-0 census
+2026-08-30, the tree binds `sn_mesh.full_field_space` at `sn/solver.py:1412`
+while feeding bare `(ng,*spatial)`; step 4 makes the bulk binding true); law objects bind trace spaces
 exactly (Γ₊ → Γ₋), with the boundary realization applying the crystallized
 concept later (R18). At construction, the declared domain selects the ONE
 action body — construction-time selection is exactly what the R-A census
@@ -226,6 +238,17 @@ isotropic part at construction of its operator."*
 bindings/truncations of the one datum; the 8 `MaterialXSField.apply_*` arms
 (S-family-only consumers, 14 sites) become the kernel's array verbs (O-6,
 R13's ratified dissolution advancing as a by-product).
+
+⭐ **Step-0 census addenda ([M] 2026-08-30, `scratch/cs4c_feeding_census.md`):**
+(a) the satellite mint rate is 1-per-APPLY, not 1-per-solve (up to 911 LMS
+instances in one Krylov k-solve) — §4's collapse converts it to
+1-per-construction, a measurable cost win with its baseline now recorded;
+(b) forward and adjoint S take structurally DIFFERENT internal routes
+(`N2NMomentOperator.apply` has zero forward traffic; the forward path builds
+the (n,2n) source through `add_n2n_source`) — a twin-path fact the O-6 arm
+absorption must price; (c) the iso pair is a measured ASYMMETRIC arrow
+(`ScalarFlux → bare ndarray`, 4816 applies, chart-dependent bare-ndarray leg
+on sphere/cylinder).
 
 **Open residue [P]:** the operator-CLASS fate. The kernel collapse is ruled;
 whether `IsotropicScattering`/`IsotropicN2N` survive as named ℓ=0 binding
@@ -276,10 +299,29 @@ adjoint kernel is a DIFFERENT type, not a re-parametrization. Two routes:
 - **(b) operator-side [P, lean]**: realize S/F as composites with
   space-supplied faces (the F4 addendum's mandate), land the Riesz legs
   (accepted suggestion 4), and then `.H` is the reversed composite of the
-  factors' adjoints — a THEOREM of the factors. The gate compares `bind(K).H`
+  factors' adjoints — a THEOREM of the factors. ~~The gate compares `bind(K).H`
   against an independently-ASSEMBLED adjoint (built from daggered factors,
-  never through `.H`), plus legs (i)–(iii). Kernel daggers are minted at the
+  never through `.H`)~~, plus legs (i)–(iii). Kernel daggers are minted at the
   pencil, with their consumer, if Campaign 2 demands the datum.
+
+  ⛔ **REFUTED 2026-08-30 (test-architect pre-carve round,
+  `scratch/cs4c_verification_plan.md` §1.1): the struck comparison is a
+  TAUTOLOGY and cannot red under ANY embedding.** [M]
+  `(RKM)† = M†K†R†` is an algebraic identity for any three maps and any
+  nondegenerate metrics — a wrong embedding enters BOTH sides and cancels
+  (measured ≤ 2.24e-16 under correct, constant, AND unweighted embeddings).
+  The RULING's substance stands untouched (no kernel dagger; adjointness is
+  operator-side, by theorem — the theorem-ness is exactly what the probe
+  confirmed). The ERR-039 CATCHER is leg (i), the Galerkin defect on the
+  FACES (`‖M† − R‖/‖R‖`: [M] 0.0 correct vs 2.0e-1…3.2 wrong). The identity
+  is kept as a documented structural theorem in the gate module's docstring,
+  not as an assertion (vv#19: a reading that cannot change is not evidence).
+
+  ⛔ **And leg (ii)'s negative control must be chosen by MEASURED redness,
+  not by non-tightness magnitude** (plan §1.2): [M] `gauss_legendre(L)` is
+  maximally non-tight (`‖MR−I‖ = 1.0`) yet bit-clean on multiplicativity for
+  zonal operands (≤ 5.9e-16, 200 seeds × L∈{1,2,3}); `equispaced_equal` reds
+  at ≥ 1.2e-2 and is the control that ships.
 
 ✅ **[R] RULED (user, 2026-08-30): route (b) — and the kernel-dagger
 question is RESOLVED: no kernel dagger, in this ladder or later, absent a
@@ -332,6 +374,25 @@ confirmed with one refinement:
    (`.H` consumers unchanged); #375 expected to dissolve; Λ's factor
    collection rides step 3's frame work. The RESTRICTION verb stays parked
    for the boundary thread unless step 4's composite genuinely needs it.
+
+   ⚠ **Three pre-carve measurements bound this step (plan §1.5/§1.6/§2,
+   2026-08-30):** (a) the honest round-trip law is
+   `riesz_raise ∘ riesz_lower = P_range(G)` — identity on the bulk,
+   the tangential-zeroing projector on the trace ([M] a legal
+   `product(4,4)` 2-D mesh has 32/64 tangential slots, trace defect 2.87;
+   all four ledger fixtures carry 0 tangential slots and are blind) — a
+   `== id` gate is both blind on the corpus and a false red in production;
+   a singular-metric fixture SHIPS with the legs (R3 resolved: yes).
+   (b) the two verbs live on the PRIMAL space only — `DualSpace.of(V)`
+   deliberately carries the primal's metric, so a generic
+   `apply_metric`-as-lower on a DualSpace yields G² ([M] `[0.25,4,16]` for
+   `w=[.5,2,4]`); never write the double-Riesz involution gate.
+   (c) ⭐ the retirement is a measured COVERAGE UPGRADE — splitting the
+   paired metric mutation into single legs takes the ledger 9/20 → 20/20
+   rows red — with the dual obligation that the flat-metric BLINDNESS
+   control keeps the PAIRED mutation ([M] a single leg reads `|1−c|`
+   exactly on the flat slab: honest arithmetic, false red); a stale
+   `_METRIC_CONSTRAINED` after the split is silent coverage loss.
 5. **#359 hygiene now**: comment posted re-pointing the site map (canonical
    body + deliberate gated ULP-twin; premise dissolved; residue =
    close-verify). No code.
@@ -344,7 +405,7 @@ confirmed with one refinement:
 
 | step | content | ledger rows | notes |
 |---|---|---|---|
-| 0 | the feeding census (vv#29) over the intact 13-site roster | — | positive control mandatory; HOMO row expected to move (post-K2 re-spelling) |
+| 0 | ✅ DONE 2026-08-30 — the feeding census (vv#29), `scratch/cs4c_feeding_census.md` (11 entries × 13 sites × 23 verbs; per-arm activation controls; 11/11 headline numbers non-perturbed) | — | HOMO traffic did NOT move (only the space's provenance did); SN C is minted per-outer and NEVER applied (fused override reads its data — vv#29 mode (d)); #205 ScalarFlux arm corroborated at 0 traffic with an AST-closed reference set |
 | 1 | `BoundOperator(domain, codomain)` base (§1) + the Riesz legs + `_AdjointOperator` retirement (§7.4) | — | base admits L later; per-END admission |
 | 2 | C exact-ctor mandatory space; `from_mesh` = tier-2 classmethod | R1-C, R2-C | 7 truly-anonymous sites + pin re-keys; #276 arm adjudicated at step 5 |
 | 3 | S rebind: kernel + frame-handed-in faces (§2), quadrature field dispenses via generator channel, O-6 arm absorption, iso/LMS/N2N as truncations (§4), XD-1 gate (§6), Λ collection | R1-S, R2-S | extend the pinned `generator_as` AST gate; re-key the `domain is None` pin |
@@ -374,7 +435,7 @@ spelling decision (F7).
 | F-A | the three-tier construction discipline (§3) | ✅ [R] 2026-08-30 — endorsed; the ctor is the surviving core, classmethods deliberately evolvable |
 | F-B | frame at ctor vs classmethod tier (§2 synthesis) | ✅ [R] 2026-08-30 — confirmed (classmethod + provenance field) |
 | F-C | adjoint-leg route (§6) | ✅ [R] 2026-08-30 — operator-side (b); NO kernel dagger (resolution recorded in §6) |
-| F-D | per-binding space table (within-group composite / k-outer bulk / …) | awaits step-0 census BY DESIGN; drafted in §3 |
+| F-D | per-binding space table (within-group composite / k-outer bulk / …) | census LANDED 2026-08-30 — observed table at `scratch/cs4c_feeding_census.md` §3 ([M]: bound space is a faithful domain in HOMO only, 1 of 4 families; DIFF needs {composite, scalar-bulk} per binding; SN C's space is a label on data). Ruling at step design. |
 | F-E | iso-pair operator-CLASS fate (§4 residue) | ✅ [R] 2026-08-30 — decided at step 3/4 *"with the advantage of hindsight … a sharper understanding of the ontology"* |
 | F-F | CS2-residue placement | standing lean (late, step 6) — presented, unobjected |
 | F-G | frame interning site (§2) | ✅ [R] 2026-08-30 — the hub |
@@ -444,6 +505,13 @@ obligations on the steps they name; none reopens a ruled fork except F6
   mutation instruments to mutate the riesz legs / dual wrapper instead
   (coding-standards: retirement = test+marker migration), applied to the
   campaign's own acceptance instrument FIRST.
+  ⚠ Pre-carve round extensions (plan §1.7/§1.8, 2026-08-30): [M] there are
+  TWO collection-killers, not one — `test_operator_capability_predicates.py`
+  constructs the wrapper inside a module-level parametrize list (`:280`);
+  and the retirement retires FOUR surfaces, not one: `apply`, `inverse()`
+  (the #280 swap law), `is_invertible`, and `apply_transpose`'s refusal —
+  [M] the last has ZERO witnesses tree-wide, so its successor spelling owes
+  one in the same commit.
 - **(c) ~40 docstring references** to `_AdjointOperator` across `orpheus/`
   (`:class:` Python-domain refs — silent at every Sphinx severity) —
   `dead_references` sweep owed at the step, magnitude now stated.
@@ -488,7 +556,11 @@ reader (also read dataclass `__annotations__` through the MRO; treat
 `<not found>` as FAIL), in the same commit as the SUT change, so the
 instrument keeps discriminating. (§10's question — "what does the
 instrument print on success?" — answered: PASS, but also PASS on two
-failure shapes.)
+failure shapes.) Pre-carve round: [M] independently confirmed and worse —
+the reader also passes on `field(default=None)`, kw-only fields, and a
+deleted attribute (plan §3.1). R6 RESOLVED from §1's own ruling: the base
+is a dataclass ABC carrying domain+codomain as FIELDS, so the reader
+extension (plan §3.2 G-B1 + meta-test G-B2) is MANDATORY.
 
 ### F5 — step 3's test-side denominator, now measured
 
@@ -521,6 +593,24 @@ SN/diffusion rebind alone. Fork:
 mechanical re-point of every multiplicity literal to
 `N2NKernel.multiplicity`; the gate's done-when is 0 production literals
 outside `kernels.py`, at the full ~12-site denominator.
+
+⚠ Pre-carve round corrections to this finding (plan §1.3/§1.4/§6.3):
+- [M] the denominator is **14**, not ~12 — `material_xs_field.py:809/:862`
+  were missing from every prior list; and two members evade a `2.0 *`
+  filter (`moc/core.py:316` is an INTEGER `2 *`; `mc/solver.py:447` is
+  `w *= 2.0`, an AugAssign) — the count gate's predicate is validated
+  against all four spellings (plan §6.1).
+- [M] the XD-9 pair's path: `orpheus/data/macro_xs/mixture.py:437-450`
+  (the charter's `transport/mixture.py` path never existed at HEAD), and
+  `condense` has a second (bilinear) branch obeying a different law.
+- [M] §6d run on the re-point: cp/moc/mc → transport is layer-LEGAL
+  (L3 → L2) but all three edges are 0 today and cost ~254 ms cold import
+  each (eager `transport/__init__`); MC's spelling hoists to a module
+  constant (single source — a literal with an exclusion would be the
+  thirteenth home again) unless the user objects.
+- R5 RESOLVED: the two new sites sit inside the arms O-6 absorbs at step
+  3 — they die by absorption; the other 12 re-point; the count gate lands
+  at END of step 3 and is green from landing day.
 Also: XD-2's SUBJECT (the N2N truncations) lands at step 3; the record
 placed the gate at step 4 — ⟹ **the count gate moves to step 3** so gate
 and witness land together (§6c).
@@ -553,3 +643,46 @@ second consumer appears. Named here as a test-architect design input.
 - §7.4's "(`.H` consumers unchanged)" — TRUE for the public spelling
   ([M] 149 production / 381 test `.H` mentions, no signature change);
   FALSE for the four private-importing test files — covered by F1(b).
+
+### §12-bis — the pre-carve verification round (2026-08-30): plan, census, and ruling status
+
+Both mandated pre-carve artifacts landed 2026-08-30 (both at HEAD
+`2f44ed4e`, numbers re-measured there — cite the artifacts, never copy):
+**`scratch/cs4c_verification_plan.md`** (test-architect; 17 gate rows,
+5 batteries all ≤ 24 s, cumulative prediction ≈ 10 000/0/19sk/227des/56xf
+at the coda) and **`scratch/cs4c_feeding_census.md`** (step 0; folded into
+§§0–4, 8–9 above).
+
+Further pre-carve facts the step designs consume (plan § refs):
+- **Ledger coverage gap (plan §1.10):** the R1 instrument covers [M]
+  4 of 8 classes carrying an Optional space annotation, in two spellings —
+  `IsotropicScattering`, `IsotropicN2N`,
+  `RadialCharacteristicBoundaryOperator`, `SNMaskedBoundaryOperator` flip
+  UN-GATED; steps 3/6 either extend the ledger rows or record the gap in
+  the flip commit.
+- **`_R2_XFAIL`'s stated mechanism is present-tense-false for S** (plan
+  §1.9): an anonymous `ScatteringOperator.H` now RAISES `MissingAdjoint`;
+  only C degrades (via `is_metric_free_adjoint=True`) — the marker's
+  evidence text rides the flip.
+- **§6b members no AST call census can see** (plan §8.4): 3
+  variable-mediated constructions (`test_isotropic_scattering.py`
+  :124/:183/:220) + 2 monkeypatch surrogates (`test_homogeneous.py`
+  :166/:174) + the set-literal registry pins (`test_kernels.py:660-671`).
+- **The tier-2 equivalence-gate roster is larger than three** (plan §4):
+  `StreamingOperator.pose` + the three kernel `from_mixture`s also owe
+  G-C1 rows. R7 RESOLVED: yes — §3's ruled "every classmethod" discipline
+  admits no datum-tier exemption.
+- **dead_references baseline: [M] 0 dead / 52 checked** — every step's
+  exit re-runs it against this zero.
+
+**Ruling status:** R3 ✅ (singular-metric fixture ships — §7.4 rider),
+R4 ✅ (legal; MC hoists to a module constant), R5 ✅ (absorption),
+R6 ✅ (fields ⟹ reader extension), R7 ✅ (from_mixture owes gates).
+**Open for the user:** **R1** — this record resolves it per §6's ⛔ banner
+(drop the tautological leg; Galerkin-on-faces is the catcher; the identity
+stays as documented theorem) — confirm or amend; **R2** — where the #280
+swap law lives once `.H` is a composite: PROPOSED — `.H` returns the
+composed product whose `inverse()` is the reversed factor inverses, making
+the swap law a THEOREM of the product, pinned by re-pointing the existing
+coherence gates; decided at step 1's design with the user steering
+(surgical posture).
