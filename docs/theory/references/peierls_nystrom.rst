@@ -942,8 +942,10 @@ them breaks the public contract.
    * - :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution`
      - The canonical solution dataclass returned by both
        :func:`solve_peierls_1g` and :func:`solve_peierls_mg`.
-       Carries ``geometry_kind`` ("``slab``" / "``cylinder-1d``" /
-       "``sphere-1d``") so a single dataclass shape is reusable
+       Carries ``geometry_kind`` ("``slab-polar``" / "``cylinder-1d``" /
+       "``sphere-1d``" — the values of ``CurvilinearGeometry.kind``,
+       passed through verbatim by the solver) so a single dataclass
+       shape is reusable
        across geometries; the ``n_quad_angular`` field replaces the
        former shape-specific ``n_quad_y`` / ``n_quad_theta``.
        Provides ``phi(r, g)`` for arbitrary-radius interpolation

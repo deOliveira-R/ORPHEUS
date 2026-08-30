@@ -2543,7 +2543,8 @@ the multi-annulus walker and computes :math:`\tau_{\rm surf} =
 
    :class:`~orpheus.derivations.continuous.peierls_nystrom.geometry.PeierlsSolution`
    — canonical result container; same dataclass shape for
-   ``geometry_kind="sphere-1d"`` / ``"cylinder-1d"`` / ``"slab"``.
+   ``geometry_kind="sphere-1d"`` / ``"cylinder-1d"`` / ``"slab-polar"``
+   (the ``CurvilinearGeometry.kind`` value, passed through verbatim).
 
    :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
    — 1-group vacuum- or white-BC eigenvalue driver. Pass
