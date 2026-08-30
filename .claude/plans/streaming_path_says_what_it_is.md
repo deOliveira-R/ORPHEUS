@@ -287,6 +287,28 @@
 > own ⚠. **The acceptance baseline is 9917** (13 trees rc=0). Behind
 > P6: the re-posed §5b build fork · the O-3 split (deferred
 > `ChartConnection` re-name + R→transport/) · CS5-MODAL · P7 = #409.
+> ✅ **P6 DISSOLVED 2026-08-30 (user ruling at the design round: "Dissolve
+> + micro-fix") — its opener census REFUTED the premise** (8 of 8 openers
+> have now corrected their own section; `scratch/p6_ground_measure.md`):
+> the chart already speaks ONE vocabulary in production (25
+> `coord: CoordSystem` annotations, 7 `match coord:`, 0 `geometry_kind`
+> hits outside `derivations/`), and `geometry_kind` names a PROBLEM-kind
+> axis (`'infinite'` = its plurality value, 22 of 47 Sood rows) — see the
+> P6 section's ⛔ banner. Landed: the `Mesh1D.from_geometry` arity
+> structure-read (`f6dc11f6`) + 2 doc truth-fixes (`b1e8cf21`); FILED
+> #418 (umbrella vocabulary map) / #419 (`.kind` polymorphism carve) /
+> #420 (off-Literal ctor sites) / #421 (unreachable billiard arms).
+> ✅ **RULED 2026-08-30 (user, same round): ▶ NEXT = P7 — the space
+> metric admits a NON-DIAGONAL `G`** (this plan's §P7; Campaign 1's
+> terminal phase; absorbs CS5-MODAL item 2 — the same #409 debt).
+> **P7's opener owes the shelf-life re-measure (8 of 8 so far):** the
+> charter's `[M]` table (`space.py:542/:538/:570/:592/:214`) dates
+> 2026-08-26 and predates CS4b-R + CS5 + P4b + the P4-remainder; and the
+> charter's own ⚠ stands — **check CS4c's state FIRST** (if it landed
+> legs, P7 CONSUMES them and shrinks to the curvilinear installer).
+> Queue behind P7: the re-posed §5b build fork · the O-3 split (deferred
+> `ChartConnection` re-name + R→transport/) · CS5-MODAL item 3 (the
+> polynomial `Basis`) · then the Campaign-1 close-out.
 >
 > ✅ **P4-REMAINDER LANDED 2026-08-29** (`ac485104` `_weight_of`
 > retirement · `ad04e236` the binding + courier death + K1/K2/K3/G5
@@ -3692,6 +3714,46 @@ defer-and-forget (the ruling at §9.3 applies to every "later" item in this
 plan, and P5 is the one whose blocker is genuinely external).
 
 ### P6 — the chart speaks ONE vocabulary *(mechanical; bit-identical)*
+
+> ⛔ **PREMISE REFUTED — PHASE DISSOLVED 2026-08-30 (user ruling at the design
+> round: "Dissolve + micro-fix"; opener census `scratch/p6_ground_measure.md`,
+> the 8th consecutive opener to correct its own section).** Every clause of the
+> means below was refuted at HEAD `fd83a1c4`:
+>
+> - `[M]` `geometry_kind` (116 occurrences / 106 lines — the charter's 105 was
+>   a LINE count) is **100 % derivations-tree** vocabulary, 0 hits in
+>   production, and names a **PROBLEM-kind axis**, not the chart: the
+>   plurality value of its largest producer is `'infinite'` (22 of 47 Sood
+>   rows; 0-D, no chart image, `to_geometry()` raises on it by design), plus
+>   `slab_asymmetric` (BC structure) and `sphere_mr`/`hollow_sphere`/`annulus`
+>   (region structure). Two disjoint families share the name (Sood/billiard vs
+>   Peierls `slab-polar`/`cylinder-1d`/`sphere-1d`).
+> - `[M]` `coord` at HEAD is 266 (not 228) and is ≥3 populations — incl.
+>   `AxisCoord` (`transport/mesh/axis.py:51`), whose docstring states its
+>   DELIBERATE distinction from `CoordSystem` (per-axis, so mixed-chart (r,z)
+>   meshes exist): not a twin, must not be collapsed.
+> - The case-spellings clause "`[M]` 8 / 3 / several" reproduces under NO
+>   case-spelling predicate (CamelCase / snake-caps / hyphen all 0; prose 23)
+>   — the predicate was never written (§2's FILTER lesson; surprise-log row
+>   added 2026-08-30).
+> - **The GOAL below is already true in production**: `CoordSystem` is the
+>   sole chart vocabulary — 25 `coord: CoordSystem` annotations, 7
+>   `match coord:` dispatch sites — and exactly ONE raw-tag branch existed.
+>
+> **What landed instead** (branch `refactor/p6-chart-vocabulary`): the one
+> production Pattern-2 remnant fixed — `Mesh1D.from_geometry` re-derived the
+> BC-tuple arity from the string tag; it now reads the structure the
+> `__post_init__` guard guarantees (`f6dc11f6`) — plus two falsified doc
+> value-set claims corrected (`peierls_nystrom.rst`/`peierls.rst` claimed
+> plain `"slab"`; `[M]` all 3 ctor sites tree-wide pass
+> `CurvilinearGeometry.kind` values; `b1e8cf21`). The derivations vocabulary
+> work is **FILED, not forgotten** (fork 3's "not defer and forget" honored by
+> record): **#418** (umbrella — the eleven-vocabulary map + per-family typing
+> plan), **#419** (`CurvilinearGeometry.kind` ~66-site polymorphism carve),
+> **#420** (5 off-Literal `GeometryType` ctor sites), **#421** (billiard's
+> ctor-unreachable dispatch arms). Per the sharpening-order law these are
+> later targeted campaigns, not Campaign-1 work.
+
 **Goal.** One concept, one spelling. A grep for the chart returns the whole set
 rather than a confident partial answer.
 **Why it is a phase and not an issue.** §9.3: scheduled, not deferred. It is
@@ -3830,6 +3892,13 @@ never dropped — the alternative's REASON is what stops it being re-litigated).
    > ⭐ The user's ruling, and it governs #4 too: *"we'll do option 1 to not
    > dilute the diff, but the rest of the work should be scheduled to the end
    > of this plan, **not defer and forget**."*
+   ⛔ **The synonym premise REFUTED 2026-08-30** — it did not survive P6's own
+   opener census: `geometry_kind` is a derivations-tree PROBLEM-kind axis
+   (`'infinite'` is its plurality value) with 0 production hits, and
+   production already speaks only `CoordSystem`. P6 DISSOLVED at the design
+   round (user: "Dissolve + micro-fix"); the scheduled work is FILED —
+   #418/#419/#420/#421 — honoring "not defer and forget" by record rather
+   than by sweep. See the P6 section's ⛔ banner.
 4. ✅ **Mint the pairing (+ spatial closure) at P4; the moment measure is
    P7, a terminal phase of THIS plan.** Not `.moment_measure` at P4 — that
    member requires choosing `G`, and §6 measured that no gate available here
