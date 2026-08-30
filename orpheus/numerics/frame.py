@@ -570,7 +570,7 @@ class _FrameAnalysis(AnalysisOperator):
     (:meth:`Basis.analyze` / :meth:`Basis.analyze_transpose`) tabulated at the nodes
     (``frame.test_table``). Carries the swapped spaces and a working
     ``apply_transpose`` (``is_adjointable=True``), so the metric-aware
-    ``_AdjointOperator`` gives ``.H`` (the W-weighted Hilbert adjoint)
+    ``AdjointOperator`` gives ``.H`` (the W-weighted Hilbert adjoint)
     for free. For a :class:`GalerkinFrame` the test basis is the trial basis, so this is
     the :math:`Y^* W` projection bit-identical to the single-discipline frame.
     """
@@ -605,7 +605,7 @@ class _FrameReconstruction(ReconstructionOperator):
     transpose :meth:`Basis.reconstruct_transpose` — reconstruction is purely trial-side,
     identical across disciplines. Carries the swapped spaces and a working
     ``apply_transpose`` (``is_adjointable=True``), so the metric-aware
-    ``_AdjointOperator`` gives ``R.H`` for free — symmetric with the
+    ``AdjointOperator`` gives ``R.H`` for free — symmetric with the
     analysis face.
     """
 

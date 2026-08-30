@@ -227,7 +227,7 @@ def test_H_equals_parseval_metric_times_S0(lebedev_L_pair):
     r"""``M.H`` computed generically equals :math:`S_0(G^{-1} c)` — the PHYSICAL adjoint.
 
     The frame analysis face's ``.H`` property routes through the
-    generic :class:`~orpheus.numerics.operator._AdjointOperator`
+    generic :class:`~orpheus.numerics.operator.AdjointOperator`
     wrapper, which composes :math:`(1/w_V) \cdot \Pi^\top(w_W \cdot c)`
     using the frame's ``measure_space`` quadrature weights as
     :math:`w_V` and — since F-0 (``frame_square_recarve.md``) — the
@@ -349,7 +349,7 @@ def test_moment_projection_codomain_is_spherical_harmonic_space():
 
     # Caching: repeated access returns the SAME object (not just an
     # equal one).  Pins the @cached_property contract — the Krylov
-    # inner loop's `_AdjointOperator.apply` reads codomain + domain
+    # inner loop's `AdjointOperator.apply` reads codomain + domain
     # per matvec; allocating fresh spaces per access would be
     # wasted work.
     assert M.codomain is M.codomain

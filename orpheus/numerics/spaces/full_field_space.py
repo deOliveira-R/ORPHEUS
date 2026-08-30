@@ -25,7 +25,7 @@ sum:
   :mod:`orpheus.numerics.spaces.angular_trace_space`).
 
 Both carry :math:`w_n`; they differ in the spatial factor (volume vs.
-oriented surface). :class:`~orpheus.numerics.operator._AdjointOperator`
+oriented surface). :class:`~orpheus.numerics.operator.AdjointOperator`
 realises ``A.H`` as
 :math:`G^{-1}\!\odot\,A^{\mathsf T}\!\big(G\odot y\big)` by calling
 :meth:`apply_metric` on the codomain (here) before the transpose and
@@ -61,7 +61,7 @@ field is a frozen dataclass exposing ``.interior`` and ``.boundary`` leaf
 fields, each itself a frozen dataclass with a ``.values`` ndarray. The
 metric methods rebuild the composite with :func:`dataclasses.replace` —
 no concrete type import is needed. This mirrors the duck-typed contract
-:class:`~orpheus.numerics.operator._AdjointOperator` already relies on
+:class:`~orpheus.numerics.operator.AdjointOperator` already relies on
 when it calls ``space.apply_metric(y)`` on a composite field.
 
 Identity

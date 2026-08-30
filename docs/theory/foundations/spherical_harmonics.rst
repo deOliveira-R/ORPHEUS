@@ -454,7 +454,7 @@ lives in exactly ONE place in the codebase.
 
 * :math:`\Pi^* = S_0 \circ G^{-1}` — the **Hilbert adjoint under the
   frame's Parseval metric**, exposed by ``frame.analysis.H`` and
-  computed generically by the metric-aware ``_AdjointOperator``
+  computed generically by the metric-aware ``AdjointOperator``
   wrapper. The :math:`G^{-1}` factor is the inverse of the frame's
   **discrete** trial Gram
   (:attr:`FrameBase.discrete_gram
@@ -561,10 +561,10 @@ property of *this* basis-measure pairing, not of frames in general
    :by: orpheus.numerics.frame._FrameAnalysis
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
-   :by: orpheus.numerics.operator._AdjointOperator
+   :by: orpheus.numerics.operator.AdjointOperator
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
-   :by: orpheus.numerics.operator._AdjointOperator.apply
+   :by: orpheus.numerics.operator.AdjointOperator.apply
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
    :by: orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace

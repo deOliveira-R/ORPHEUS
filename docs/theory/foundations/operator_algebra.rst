@@ -340,7 +340,7 @@ Key Facts
   within-group :class:`~orpheus.numerics.operator.OperatorSum` guard
   VALIDATES the composition, and — because every loss leaf carries the
   composite metric — the adjoint is applied **once at the op level**
-  (the ``_AdjointOperator`` wrapper reads :math:`G` off the composite
+  (the ``AdjointOperator`` wrapper reads :math:`G` off the composite
   domain) and is never metric-blind. Any non-adjointable operand still
   makes its composite non-adjointable, so the recursive
   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
@@ -507,7 +507,7 @@ The three primitive actions on a flux vector :math:`\psi`:
    Euclidean transpose. The **metric Hilbert adjoint** reached through
    ``op.H`` is the different object :math:`A^{\dagger} = G^{-1}A^{\mathsf
    T}G` (:ref:`g-adjoint`), and ``apply_transpose`` is the raw ingredient
-   the ``_AdjointOperator`` wrapper conjugates — never the adjoint itself.
+   the ``AdjointOperator`` wrapper conjugates — never the adjoint itself.
 
 The dual relationship in :eq:`operator-solve` is **algorithmic**, not
 matrix-theoretic: ``solve(L, b)`` returns whatever vector the
@@ -1614,7 +1614,7 @@ The base-hosting rule
 
 - :attr:`~orpheus.numerics.operator.LinearOperator.H` **is base-hosted**:
   the Hilbert adjoint has one generic realization — the
-  ``_AdjointOperator`` wrapper that applies the metric once and delegates
+  ``AdjointOperator`` wrapper that applies the metric once and delegates
   to ``apply_transpose`` — valid for *any* adjointable operator, so
   ``.H`` is defined once on the base with an eager
   :class:`~orpheus.numerics.operator.MissingAdjoint` gate.
@@ -1794,7 +1794,7 @@ construction**:
    def adjoint(self):
        if not adjointable(self):
            raise MissingAdjoint(...)   # eager — was lazy at .apply
-       return _AdjointOperator(self)
+       return AdjointOperator(self)
 
 A wrapper that could only fail at its first ``.apply`` is precisely the
 broken-stub anti-pattern this module refuses; the
@@ -4483,7 +4483,7 @@ silently electing one leg.
       4941 bindings measured across the suite with **zero** failures:
       a green that meant nothing.
    2. ``[M]`` because
-      :meth:`_AdjointOperator.apply <orpheus.numerics.operator._AdjointOperator.apply>`
+      :meth:`AdjointOperator.apply <orpheus.numerics.operator.AdjointOperator.apply>`
       reads the spaces to decide whether to apply the metrics,
       :math:`(K_\omega \otimes I)^{*}` silently degraded to the
       **Euclidean transpose** — not a weaker adjoint, a different
@@ -5473,11 +5473,11 @@ streaming leaf** — :math:`L` carries its ``domain`` / ``codomain``
 :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` with
 the per-block ``inner_product_weights``, and the ``.H`` adjoint reads
 them via the unchanged
-:class:`~orpheus.numerics.operator._AdjointOperator` wrapper. It is
+:class:`~orpheus.numerics.operator.AdjointOperator` wrapper. It is
 **NOT a posing-layer concern**: posing *arranges* leaves; the leaves
 already *know* their metric through their composite space. The
 :math:`G`-weighting is applied **once at the op level** — the
-:class:`~orpheus.numerics.operator._AdjointOperator` wrapper reads
+:class:`~orpheus.numerics.operator.AdjointOperator` wrapper reads
 :math:`G` off the composite ``domain`` / ``codomain`` of the *summed*
 operator and conjugates the whole sum
 :math:`G^{-1}(\cdot)^{\mathsf T} G`, never re-applying it per leaf

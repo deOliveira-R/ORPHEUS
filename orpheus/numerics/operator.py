@@ -171,6 +171,9 @@ __all__ = [
     "InverseWrapMixin",
     "OperatorSum",
     "OperatorProduct",
+    "AdjointOperator",
+    "RieszLowerOperator",
+    "RieszRaiseOperator",
     "ScaledOperator",
     "IdentityOperator",
     "PointwiseOperator",
@@ -637,7 +640,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
     #: it). The annotation HERE is a **plain instance attribute** (NOT
     #: ``ClassVar``) precisely because the composers
     #: (:class:`OperatorSum` / :class:`ScaledOperator` /
-    #: :class:`_AdjointOperator`) and the
+    #: :class:`AdjointOperator`) and the
     #: :func:`~orpheus.geometry.boundary.stamp_boundary_role` stamp assign
     #: ``self.block_role`` per-instance (the role is DERIVED from operands,
     #: not fixed by the class). A ``ClassVar`` would (correctly) reject
@@ -652,7 +655,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
     #: :attr:`block_role` (which refines the bulk↔boundary structure *within*
     #: System A). ``None`` for every operator outside the ψ½ two-system
     #: decomposition. Derived through composition exactly as :attr:`block_role`
-    #: is — the passthrough (:class:`_AdjointOperator`, :class:`ScaledOperator`)
+    #: is — the passthrough (:class:`AdjointOperator`, :class:`ScaledOperator`)
     #: and the :func:`_join_system_roles` union (:class:`OperatorSum`).
     system_role: Optional[SystemRole] = None
 
@@ -977,7 +980,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
                 f"on every constituent). The Hilbert adjoint of this "
                 f"operator does not exist as posed."
             )
-        return _AdjointOperator(self)
+        return AdjointOperator(self)
 
     @property
     def H(self) -> "LinearOperator[Codomain, Domain]":
@@ -1003,7 +1006,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
            \qquad\text{(``domain.riesz_raise ∘ A.dual() ∘
            codomain.riesz_lower``)}
 
-        realized by :class:`_AdjointOperator` — the dual is the middle
+        realized by :class:`AdjointOperator` — the dual is the middle
         factor, and the metrics live entirely in the Riesz legs
         (:class:`RieszLowerOperator` / :class:`RieszRaiseOperator`).
 
@@ -1333,7 +1336,7 @@ class RieszLowerOperator(LinearOperator[Domain, Domain], Generic[Domain]):
     construction (the leg is born bound).
 
     Constructed by :attr:`~orpheus.numerics.space.FunctionSpace.riesz_lower`
-    and by :class:`_AdjointOperator` (whose codomain-side factor this is).
+    and by :class:`AdjointOperator` (whose codomain-side factor this is).
 
     ⛔ **PRIMAL spaces only.** A :class:`~orpheus.numerics.space.DualSpace`
     deliberately carries its PRIMAL's metric (L²-Riesz threading, P7 S2),
@@ -1408,7 +1411,7 @@ class RieszRaiseOperator(LinearOperator[Domain, Domain], Generic[Domain]):
 
     Same primal-only refusal, same symmetric-transpose identity, and the
     same construction sites as :class:`RieszLowerOperator` (its exact
-    mirror — the domain-side factor of :class:`_AdjointOperator`).
+    mirror — the domain-side factor of :class:`AdjointOperator`).
     """
 
     def __init__(self, space: "FunctionSpace") -> None:
@@ -1455,7 +1458,7 @@ class _DualOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain])
     consumer — the §1 non-endomorphism made physical).
 
     Same explicit ``Generic[Domain, Codomain]`` pinning as
-    :class:`_AdjointOperator` (the PEP-696 parameter-order note there).
+    :class:`AdjointOperator` (the PEP-696 parameter-order note there).
 
     Laws, as structure:
 
@@ -1511,8 +1514,14 @@ class _DualOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain])
         return self.inner.adjoint().dual()  # type: ignore[return-value]
 
 
-class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
-    r"""Hilbert-adjoint wrapper around a :class:`LinearOperator`.
+class AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
+    r"""The Hilbert-adjoint ARROW :math:`A^{*} : W \to V` — first-class.
+
+    Public since CS4c step 1 (the dagger-arrow promotion, R2 ruling —
+    until then the private ``_AdjointOperator``): the realization of the
+    dagger functor, constructed by :meth:`LinearOperator.adjoint` /
+    ``A.H`` (the canonical door — direct construction is legal for an
+    :func:`adjointable`-narrowed inner and repeats the same eager gates).
 
     Presents the SWAPPED carriers: an inner ``A : Domain → Codomain``
     becomes ``A^* : Codomain → Domain``. The explicit
@@ -1701,12 +1710,12 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
         adjointable). The metric adjoint-solve
         :math:`A^{-1\,*} b = G_V^{+}\,\mathrm{apply\_transpose}(G_W\,b)` then
         falls out of :meth:`apply` (which already routes
-        ``inner.apply_transpose``) FOR FREE — no ``_AdjointOperator.solve`` /
+        ``inner.apply_transpose``) FOR FREE — no ``AdjointOperator.solve`` /
         no metric code enters the sweep.
         """
         if not invertible(self.inner):
             raise NotInvertible(
-                f"_AdjointOperator.inverse(): the inner "
+                f"AdjointOperator.inverse(): the inner "
                 f"{type(self.inner).__name__} is not invertible, so the "
                 f"adjoint-inverse swap law (A.H).inverse() = (A.inverse()).H "
                 f"does not apply (is_invertible is False)."
@@ -1718,7 +1727,7 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
             # NotInvertible (NOT MissingAdjoint from the ``.H`` below): the
             # adjoint-INVERSE is what is absent here.
             raise NotInvertible(
-                f"_AdjointOperator.inverse(): the inner's inverse "
+                f"AdjointOperator.inverse(): the inner's inverse "
                 f"{type(inner_inverse).__name__} is not adjointable, so "
                 f"(A.inverse()).H does not exist — the swap law needs an "
                 f"adjointable inverse (e.g. an SN SweepOperator, #280 2.5c). "
@@ -2325,7 +2334,7 @@ class PointwiseOperator(LinearOperator[Domain, Domain]):
       multiplier commutes with every diagonal metric (pointwise
       multiplications commute), so the metric sandwich cancels
       identically and :meth:`adjoint` returns ``self`` — algebra-closed,
-      no :class:`_AdjointOperator` wrapper, no spaces needed. This is
+      no :class:`AdjointOperator` wrapper, no spaces needed. This is
       what makes the family's exemption from the unbound-``.H`` refusal
       exact rather than permissive. (Real coefficients throughout —
       the complexification thread revisits at Campaign 2's resolvent.)
@@ -3654,7 +3663,7 @@ class TensorProductOperator(LinearOperator):
         where ``K_ω`` is. Before G6.3 step 8.0 this returned the base's
         ``None``, which meant the binding was real at the inner factor and
         INVISIBLE at the object a realizer hands out — and, because
-        :class:`_AdjointOperator` reads the spaces to apply the metrics, it
+        :class:`AdjointOperator` reads the spaces to apply the metrics, it
         also meant ``(K_ω ⊗ I).H`` silently degraded to the Euclidean
         transpose (`[M]` 87 % relative error against the weighted adjoint on
         the Lambertian, exact only for the specular mirror, whose metric

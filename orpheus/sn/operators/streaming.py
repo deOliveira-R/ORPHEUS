@@ -339,7 +339,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         :math:`L` is the sole FULL operator — it couples bulk :math:`\leftrightarrow`
         boundary (seeds the sweep from the inflow trace, emits the outflow
         trace). Advertising :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`
-        is what lets :class:`~orpheus.numerics.operator._AdjointOperator`
+        is what lets :class:`~orpheus.numerics.operator.AdjointOperator`
         read the **block-diagonal G-adjoint metric** (bulk :math:`V\,w_n`
         :math:`\oplus` trace :math:`|\Omega\cdot\hat n|\,w_n`) for ``L.H`` —
         without it the adjoint silently reduces to the metric-blind Euclidean
@@ -423,7 +423,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         This returns the **plain Euclidean transpose** :math:`L^{\mathsf T}`.
         The metric conjugation :math:`G^{-1}\!\cdot^{\mathsf T}\!\cdot G` of the
         physical **G-adjoint** ``L.H`` is applied AROUND this by
-        :class:`~orpheus.numerics.operator._AdjointOperator`, which reads the
+        :class:`~orpheus.numerics.operator.AdjointOperator`, which reads the
         ``domain`` / ``codomain`` ``inner_product_weights`` (bulk volume on the
         cell block, the ``|Ω·n|·w`` partial-current metric on the trace block).
 
@@ -754,7 +754,7 @@ class StreamingCollisionOperator(
         never a silent wrong answer.
         The plain Euclidean transpose; the metric conjugation of the physical
         G-adjoint ``.H`` is applied AROUND this by
-        :class:`~orpheus.numerics.operator._AdjointOperator` (pinned by
+        :class:`~orpheus.numerics.operator.AdjointOperator` (pinned by
         ``test_g_adjoint_reciprocity``).
 
         On a carrying mesh this is the ray-decoupled ``(A,A)`` block

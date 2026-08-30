@@ -14,10 +14,10 @@ an OBJECT IDENTITY (not a computed numerical equivalence).  The landed wiring
   NEW ``SweepOperator.apply_transpose(b) = inner.solve_transpose(b)`` (the 2.5b
   reverse-scan ``(A⁻¹)ᵀ = (Aᵀ)⁻¹``, the plain EUCLIDEAN transpose-solve) and
   ``SweepOperator.is_adjointable`` flips ``True`` over the ``StreamingCollisionOperator`` arm.
-* ``A.H`` → :class:`~orpheus.numerics.operator._AdjointOperator`; NEW
-  ``_AdjointOperator.inverse() = inner.inverse().H`` (the swap law) and
-  ``_AdjointOperator.is_invertible = invertible(inner) and adjointable(inner.inverse())``.
-* ``_AdjointOperator.apply`` (UNCHANGED) already does ``G⁺·inner.apply_transpose(G·y)``,
+* ``A.H`` → :class:`~orpheus.numerics.operator.AdjointOperator`; NEW
+  ``AdjointOperator.inverse() = inner.inverse().H`` (the swap law) and
+  ``AdjointOperator.is_invertible = invertible(inner) and adjointable(inner.inverse())``.
+* ``AdjointOperator.apply`` (UNCHANGED) already does ``G⁺·inner.apply_transpose(G·y)``,
   so the metric adjoint-solve ``A.H.inverse().apply(b) = G⁺·A.solve_transpose(G·b)``
   falls out FOR FREE — no new metric code enters the sweep.
 
@@ -40,8 +40,8 @@ The gates (spec ``a3_solve_transpose_verification.md`` §13 / Deliverable 3 §5)
   touched (counter ``== 0``) when ``A.H.inverse().apply(b)`` runs — the gold
   standard in-process wrap counter (a green gate that routed around the new line
   would leave the counter at 0 and red).
-* **mutations** M-ADJ-swap (drop the ``.H`` in ``_AdjointOperator.inverse``) reds
-  G1 + G2; M-ADJ-metric (skip the ``G⁺``/``G`` wrap in ``_AdjointOperator.apply``)
+* **mutations** M-ADJ-swap (drop the ``.H`` in ``AdjointOperator.inverse``) reds
+  G1 + G2; M-ADJ-metric (skip the ``G⁺``/``G`` wrap in ``AdjointOperator.apply``)
   reds G1.
 * **predicate flips** — ``SweepOperator.is_adjointable`` True (over
   ``StreamingCollisionOperator``); the sibling wrap-delegates ``InverseOperator`` /
@@ -89,7 +89,7 @@ from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.operator import (
     InverseOperator,
     LinearOperator,
-    _AdjointOperator,
+    AdjointOperator,
     invertible,
 )
 from orpheus.sn.operators.boundary import SNBoundaryOperator
@@ -177,7 +177,7 @@ def _adjoint_inverse(
 
     ``.inverse()`` lives on :class:`~orpheus.numerics.operator.SupportsInverse`,
     not on the base ``LinearOperator`` that ``.H`` returns — so the runtime
-    predicate ``invertible(A.H)`` (reading the NEW ``_AdjointOperator.is_invertible``,
+    predicate ``invertible(A.H)`` (reading the NEW ``AdjointOperator.is_invertible``,
     2.5c) IS the static permission to call it (``TypeGuard``, positive branch),
     and doubles as a live pin that ``A.H`` advertises invertibility.
     """
@@ -315,12 +315,12 @@ def test_gate4_reverse_scan_executes_forward_solve_untouched(geom, monkeypatch):
         )
 
 
-# ── M-ADJ-swap — drop the ``.H`` in ``_AdjointOperator.inverse`` ───────
+# ── M-ADJ-swap — drop the ``.H`` in ``AdjointOperator.inverse`` ───────
 
 
 @pytest.mark.parametrize("geom", list(_MESHES))
 def test_mutation_adj_swap_reds_gates_1_and_2(geom, monkeypatch):
-    r"""M-ADJ-swap: ``_AdjointOperator.inverse`` → ``self.inner.inverse()`` (no
+    r"""M-ADJ-swap: ``AdjointOperator.inverse`` → ``self.inner.inverse()`` (no
     ``.H``) reds BOTH G1 and G2.
 
     Dropping the swap law's ``.H`` routes ``A.H.inverse()`` to the FORWARD
@@ -337,7 +337,7 @@ def test_mutation_adj_swap_reds_gates_1_and_2(geom, monkeypatch):
     ref = A.inverse().H.apply(b)  # the true adjoint-inverse (G2 RHS, swap-invariant)
 
     monkeypatch.setattr(
-        _AdjointOperator, "inverse", lambda self: self.inner.inverse()
+        AdjointOperator, "inverse", lambda self: self.inner.inverse()
     )
     x = _adjoint_inverse(A).apply(b)
 
@@ -351,12 +351,12 @@ def test_mutation_adj_swap_reds_gates_1_and_2(geom, monkeypatch):
         )
 
 
-# ── M-ADJ-metric — skip the metric wrap in ``_AdjointOperator.apply`` ──
+# ── M-ADJ-metric — skip the metric wrap in ``AdjointOperator.apply`` ──
 
 
 @pytest.mark.parametrize("geom", list(_MESHES))
 def test_mutation_adj_metric_reds_gate1(geom, monkeypatch):
-    r"""M-ADJ-metric: ``_AdjointOperator.apply`` → ``inner.apply_transpose(y)``
+    r"""M-ADJ-metric: ``AdjointOperator.apply`` → ``inner.apply_transpose(y)``
     (skip the ``G⁺``/``G`` wrap) reds G1 on ALL geometries.
 
     SPEC DEVIATION (flagged): the spec predicted this stays GREEN on the slab
@@ -366,7 +366,7 @@ def test_mutation_adj_metric_reds_gate1(geom, monkeypatch):
     ~0.19, cyl ~0.13).  The ``.H``≠Euclidean claim holds everywhere (the metric
     wrap is load-bearing on every geometry — stronger coverage than the intended
     discriminator).  The verification's ``⟨·,·⟩_G`` uses the production metric
-    directly (NOT ``_AdjointOperator.apply``), so the monkeypatch reds ``x``
+    directly (NOT ``AdjointOperator.apply``), so the monkeypatch reds ``x``
     alone → asymmetry → caught.
     """
     sn = _MESHES[geom]()
@@ -374,14 +374,14 @@ def test_mutation_adj_metric_reds_gate1(geom, monkeypatch):
     b = _rand_bulk(sn, 5)
     psi = _rand_full(sn, 4)
     monkeypatch.setattr(
-        _AdjointOperator, "apply", lambda self, y: self.inner.apply_transpose(y)
+        AdjointOperator, "apply", lambda self, y: self.inner.apply_transpose(y)
     )
     x = _adjoint_inverse(A).apply(b)
     rel = _reciprocity_rel(A, psi, x, b, sn.full_field_space)
     if not rel > _CAUGHT:
         pytest.fail(
             f"[{geom}] M-ADJ-metric NOT caught (G1 rel={rel:.2e} ≤ "
-            f"{_CAUGHT:.0e}) — the G⁺/G metric wrap in _AdjointOperator.apply is "
+            f"{_CAUGHT:.0e}) — the G⁺/G metric wrap in AdjointOperator.apply is "
             f"not load-bearing here; A* would equal the Euclidean Aᵀ."
         )
 
@@ -674,7 +674,7 @@ def test_a2a_grid_swap_law_inverse_arm():
     A.inverse().H`` on the FULL within-group loss grid — the R5/R11 swap
     law through the materialize/LU route (``grid.inverse()`` is the
     ``MatrixInverseOperator`` EXTRACT; its ``trans=1`` backsolve is the
-    adjointable arm ``_AdjointOperator.is_invertible``'s second clause
+    adjointable arm ``AdjointOperator.is_invertible``'s second clause
     demands). E2 positive control FIRST: the adjoint-inverse SOLVES the
     adjoint equation against the structurally-independent dense-``Aᵀ`` LU
     (a bare bit-identity of two broken constructions would be a false

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10266**
+Total tests collected: **10317**
 
 V&V level distribution
 ----------------------
@@ -19,11 +19,11 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1297, 12.6%
-   L1, 1635, 15.9%
+   L1, 1635, 15.8%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7262, 70.7%
-   unmarked, 8, 0.1%
+   foundation, 7302, 70.8%
+   unmarked, 19, 0.2%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10179
+   explicit, 10219
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 8
+   unmarked, 19
 
 Module × level grid
 -------------------
@@ -62,7 +62,7 @@ Module × level grid
    analytical/test_si_convergence_rate, 0, 7, 0, 0, 2, 0
    angular/test_redistribution, 0, 0, 0, 0, 19, 1
    architecture/test_composition_cost, 0, 0, 0, 0, 9, 0
-   architecture/test_monomorphic_leaves, 0, 0, 0, 0, 99, 0
+   architecture/test_monomorphic_leaves, 0, 0, 0, 0, 139, 0
    architecture/test_stage_separation, 0, 0, 0, 0, 15, 0
    cartesian_2d/test_2d_full_field_oracle, 0, 0, 0, 0, 8, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
@@ -370,6 +370,7 @@ Module × level grid
    numerics/test_quadrature_directional, 0, 0, 0, 0, 39, 0
    numerics/test_registry, 0, 0, 0, 0, 74, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
+   numerics/test_riesz_legs, 0, 0, 0, 0, 0, 11
    numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
    numerics/test_rules_1d, 0, 10, 0, 0, 21, 0
    numerics/test_rules_circle, 0, 93, 0, 0, 57, 0
@@ -1489,7 +1490,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**8 tests** have no V&V level marker.
+**19 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1501,6 +1502,7 @@ taxonomy.
    :header: File, Unmarked tests
    :widths: 60, 10
 
+   ``tests/numerics/test_riesz_legs.py``, 11
    ``tests/sn/operators/test_sn_boundary_realizer.py``, 5
    ``tests/sn/sweep/core/test_cache.py``, 2
    ``tests/sn/angular/test_redistribution.py``, 1

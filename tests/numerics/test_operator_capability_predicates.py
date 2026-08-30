@@ -22,7 +22,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.operator import (
-    _AdjointOperator,
+    AdjointOperator,
     DiagonalOperator,
     IdentityOperator,
     LinearOperator,
@@ -59,7 +59,7 @@ class _ApplyOnly(LinearOperator):
 
 
 class _BoundDiagonalLeaf(LinearOperator):
-    """A BOUND non-pointwise leaf for the _AdjointOperator rows: diagonal
+    """A BOUND non-pointwise leaf for the AdjointOperator rows: diagonal
     action with declared spaces, adjointable, invertible via the generic
     InverseOperator (whose adjoint axis is #280-deferred — the branch the
     wrapper rows exist to pin). Since the S4-amendment a pointwise member
@@ -169,7 +169,7 @@ def test_scaled_and_adjoint_predicates_faithful():
     since the S4-amendment's pointwise family: a POINTWISE member's ``.H``
     is itself (metric-free self-adjointness — the wrapper is never built,
     so the #280-deferred wrapper branches dissolve for the family), while
-    the generic ``_AdjointOperator`` wrapper — pinned here by direct
+    the generic ``AdjointOperator`` wrapper — pinned here by direct
     construction — keeps its CONDITIONAL swap law (#280 2.5c): False for
     this inner because ``DiagonalOperator``'s inverse
     (``InverseOperator``) is non-adjointable (#280-deferred), so
@@ -177,7 +177,7 @@ def test_scaled_and_adjoint_predicates_faithful():
     re-expression, closing #375) the wrapper IS adjointable — its
     transpose is the leg theorem ``(A*)ᵀ = ♭_W ∘ A ∘ ♯_V`` — and the
     dagger involution ``A.H.H is A`` is an OBJECT IDENTITY."""
-    from orpheus.numerics.operator import _AdjointOperator
+    from orpheus.numerics.operator import AdjointOperator
 
     sc = ScaledOperator(2.0, DiagonalOperator(_C))
     assert sc.is_invertible is True and sc.is_adjointable is True
@@ -187,7 +187,7 @@ def test_scaled_and_adjoint_predicates_faithful():
     assert d.H.is_invertible is True and d.H.is_adjointable is True
 
     leaf = _BoundDiagonalLeaf(_C)
-    adj = _AdjointOperator(leaf)  # the generic wrapper
+    adj = AdjointOperator(leaf)  # the generic wrapper
     assert adj.is_invertible is False and adj.is_adjointable is True
     assert adj.adjoint() is leaf  # the dagger involution, object identity
 
@@ -284,7 +284,7 @@ _CONTRACT_ROWS = [
     # PointwiseOperator (its .H is itself, no wrapper), and the wrapper's
     # constructor now REFUSES an unbound inner — the wrapper's own
     # predicate derivation is what this row pins.
-    ("AdjointWrapper", _AdjointOperator(_BoundDiagonalLeaf(_C)), False, True, VALUE_RAISE),
+    ("AdjointWrapper", AdjointOperator(_BoundDiagonalLeaf(_C)), False, True, VALUE_RAISE),
     # The wrap-delegate inverse family (SweepOperator = SN side, pinned
     # in tests/sn/operators/test_capability_survival.py); the adjoint
     # column is per-sibling — see _mixin_family:

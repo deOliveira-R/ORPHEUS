@@ -823,15 +823,15 @@ them.  Trust ``git``, not this column.
        delegating to the inner's
        :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`
        (the 2.5b reverse-scan), and
-       :meth:`_AdjointOperator.inverse() <orpheus.numerics.operator._AdjointOperator.inverse>`
+       :meth:`AdjointOperator.inverse() <orpheus.numerics.operator.AdjointOperator.inverse>`
        returns ``inner.inverse().H`` — making the **swap law**
        :math:`(A^{*})^{-1}=(A^{-1})^{*}`
        (``A.H.inverse() ≡ A.inverse().H``,
        :eq:`loss-rep-adjoint-inverse-swap`) an **object identity** of
        the algebra, not a numerical coincidence. The metric
        adjoint-solve then falls out of the existing
-       :meth:`_AdjointOperator.apply <orpheus.numerics.operator._AdjointOperator.apply>`
-       **for free** — no ``_AdjointOperator.solve``, no metric code in
+       :meth:`AdjointOperator.apply <orpheus.numerics.operator.AdjointOperator.apply>`
+       **for free** — no ``AdjointOperator.solve``, no metric code in
        the sweep (the A3 "Deliverable 3" dissolved). Companion: the
        vestigial ``initial_guess`` seed-threading retired — direct exact
        inverses accept-and-drop it, the genuine warm start lives at the

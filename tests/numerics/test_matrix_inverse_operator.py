@@ -535,7 +535,7 @@ def test_matrix_inverts_what_green_refuses():
 # ``apply_transpose = lu_solve(lu, b, trans=1)`` is the arm the
 # operator-algebra swap law rides (#280 R5/R11): ``grid.H.inverse()``
 # exists only because ``grid.inverse()`` is adjointable
-# (``_AdjointOperator.is_invertible`` clause 2). Mode-12 mandate: every
+# (``AdjointOperator.is_invertible`` clause 2). Mode-12 mandate: every
 # value row runs on an ASYMMETRIC matrix — a symmetric fixture is blind
 # to a forgotten ``trans`` flag (``A⁻¹b ≡ A⁻ᵀb`` there).
 

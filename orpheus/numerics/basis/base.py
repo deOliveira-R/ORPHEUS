@@ -172,7 +172,7 @@ class Basis(ABC):
 
         The matrix transpose of :meth:`analyze` (NOT its Hilbert adjoint): the
         naked synthesis weighted by the quadrature weight on each node. The
-        metric-aware ``_AdjointOperator`` machinery combines this with the
+        metric-aware ``AdjointOperator`` machinery combines this with the
         frame's metrics — the measure weights on the domain, the F-0 PARSEVAL
         metric :math:`G^{-1}` (the inverse discrete Gram) on the codomain — to
         form the physical Hilbert adjoint :math:`M^* = S_0 \circ G^{-1}`, so
@@ -203,7 +203,7 @@ class Basis(ABC):
         harmonics :math:`d_\ell = 2\ell+1`). **Measure-free**, symmetric with
         :meth:`reconstruct` — the quadrature weights are NOT baked in (unlike
         :meth:`analyze_transpose`, whose forward :meth:`analyze` carries them). The
-        metric-aware ``_AdjointOperator`` combines this with the codomain/domain
+        metric-aware ``AdjointOperator`` combines this with the codomain/domain
         Gram to form the W-weighted Hilbert adjoint :math:`R^*`, so the
         :class:`FrameBase`'s reconstruction face gets ``.H`` for free — symmetric with
         the analysis face.

@@ -30,7 +30,7 @@ later Phase-B sub-steps):
   ``(Aᵀ)_ji = (A_ij)ᵀ``; Hilbert reciprocity
   ``⟨A x, y⟩_G = ⟨x, A.H y⟩_G`` closes under the composite NONUNIFORM
   member metrics (control < 1e-12) and the M-ADJ-metric tooth (skip the
-  ``G⁺/G`` conjugation in ``_AdjointOperator.apply``) REDs O(1) — the
+  ``G⁺/G`` conjugation in ``AdjointOperator.apply``) REDs O(1) — the
   ERR-067 / Mode-12 reopening a Euclidean block adjoint would cause;
   non-adjointable block ⟹ eager ``MissingAdjoint``.
 * **M5** — ``CoupledOperator.system_role is SystemRole.COUPLED``.
@@ -75,7 +75,7 @@ from orpheus.numerics.operator import (
     MissingAssembly,
     NotInvertible,
     SystemRole,
-    _AdjointOperator,
+    AdjointOperator,
 )
 from orpheus.numerics.space import FunctionSpace
 
@@ -844,7 +844,7 @@ class TestBlockAdjoint:
         # The CONTROL leg (L18 both-legs discipline; the tooth below is the
         # mutated leg): ⟨A x, y⟩_G = ⟨x, A.H y⟩_G under the NONUNIFORM
         # member metrics — the metric conjugation is realized by the generic
-        # _AdjointOperator over CoupledSpace.apply_metric/-inverse_metric.
+        # AdjointOperator over CoupledSpace.apply_metric/-inverse_metric.
         op = _operator()
         cs = _coupled_space()
         x, y = _x(51), _x(52)
@@ -856,14 +856,14 @@ class TestBlockAdjoint:
 
     def test_euclidean_block_adjoint_tooth_reds(self, monkeypatch) -> None:
         # The M-ADJ-metric tooth: skip the G⁺/G conjugation in
-        # _AdjointOperator.apply (the Euclidean block adjoint) — the exact
+        # AdjointOperator.apply (the Euclidean block adjoint) — the exact
         # ERR-067 / Mode-12 reopening. Must red O(1) under the nonuniform
         # composite metric.
         op = _operator()
         cs = _coupled_space()
         x, y = _x(53), _x(54)
         monkeypatch.setattr(
-            _AdjointOperator, "apply",
+            AdjointOperator, "apply",
             lambda self, z: self.inner.apply_transpose(z),
         )
         lhs = cs.inner_product(op.apply(x), y)

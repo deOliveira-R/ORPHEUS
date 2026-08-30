@@ -2651,7 +2651,7 @@ algebra* rather than a numerical coincidence of two implementations:
 .. vv-status: loss-rep-adjoint-inverse-swap documented
 
 .. implements:: loss-rep-adjoint-inverse-swap
-   :by: orpheus.numerics.operator._AdjointOperator.inverse
+   :by: orpheus.numerics.operator.AdjointOperator.inverse
 
    The right-hand side spelled literally — the method's terminal
    statement is ``return inner_inverse.H``. This is what makes the swap
@@ -2666,7 +2666,7 @@ algebra* rather than a numerical coincidence of two implementations:
    approximately.
 
 It holds by construction because
-:meth:`_AdjointOperator.inverse() <orpheus.numerics.operator._AdjointOperator.inverse>`
+:meth:`AdjointOperator.inverse() <orpheus.numerics.operator.AdjointOperator.inverse>`
 returns ``self.inner.inverse().H`` — the wrapper *is* ``A.H``, so its
 inverse routes to ``A.inverse().H``. The **metric** adjoint-solve then
 falls out **for free**:
@@ -2687,9 +2687,9 @@ falls out **for free**:
 one and the same :math:`G` — the direct-sum bulk ⊕ trace ⊕ seed metric,
 pseudo-inverted on the singular partial-current trace), because the
 existing
-:meth:`_AdjointOperator.apply <orpheus.numerics.operator._AdjointOperator.apply>`
+:meth:`AdjointOperator.apply <orpheus.numerics.operator.AdjointOperator.apply>`
 already conjugates ``inner.apply_transpose`` with the domain/codomain
-metrics. So there is **no** ``_AdjointOperator.solve`` and **no** metric
+metrics. So there is **no** ``AdjointOperator.solve`` and **no** metric
 code in the sweep — the original A3 plan's "Deliverable 3" (a separate
 metric transpose-solve) *dissolved*. The honest two-factor predicates
 guard it (ruling R11):
@@ -2699,7 +2699,7 @@ guard it (ruling R11):
   (the schedule-folded arm has no ``solve_transpose`` → stays
   non-adjointable; LD / multi-D Cartesian defer via
   ``inner.is_adjointable``);
-* :attr:`_AdjointOperator.is_invertible <orpheus.numerics.operator._AdjointOperator.is_invertible>`
+* :attr:`AdjointOperator.is_invertible <orpheus.numerics.operator.AdjointOperator.is_invertible>`
   ``= invertible(inner) and adjointable(inner.inverse())`` — a name
   earns its invariant: ``.inverse()`` cannot promise more than
   ``inner.inverse().H`` can deliver.
@@ -2715,7 +2715,7 @@ is the keystone catcher against a bug copied into both
 ``apply_transpose`` and ``sweep_transpose``.
 
 .. implements:: loss-rep-metric-adjoint-solve
-   :by: orpheus.numerics.operator._AdjointOperator.apply
+   :by: orpheus.numerics.operator.AdjointOperator.apply
 
    The conjugation, verbatim: apply the codomain metric, call the inner
    operator's ``apply_transpose``, apply the domain's inverse metric —
@@ -2724,7 +2724,7 @@ is the keystone catcher against a bug copied into both
    the one wrapper serves a flat ndarray metric and the composite bulk
    :math:`\oplus` trace :math:`\oplus` seed metric alike, pseudo-inverting
    on the singular partial-current trace. This is why the equation's
-   left-hand side needs no ``_AdjointOperator.solve``: the adjoint-solve
+   left-hand side needs no ``AdjointOperator.solve``: the adjoint-solve
    is the adjoint-**apply** of the inverse operator.
 
 .. implements:: loss-rep-metric-adjoint-solve

@@ -577,7 +577,7 @@ class FunctionSpace(Generic[Carrier]):
           dangerous half.
 
         Either way :math:`\langle Ax, y\rangle = \langle x, A^\dagger
-        y\rangle` is false by construction, since ``_AdjointOperator``
+        y\rangle` is false by construction, since ``AdjointOperator``
         builds :math:`A^\dagger = G_V^{-1}A^{\mathsf T}G_W` from
         :meth:`apply_metric` while the pairing that judges it came from
         here — the ERR-067 family, one layer down. The fix is
@@ -635,7 +635,7 @@ class FunctionSpace(Generic[Carrier]):
         :class:`~orpheus.numerics.metric.HilbertMetric` — a diagonal
         weight broadcast against the leading axes of a bare-array ``x``,
         or a dense matrix on its flattened leading block. This is the
-        building block :class:`~orpheus.numerics.operator._AdjointOperator`
+        building block :class:`~orpheus.numerics.operator.AdjointOperator`
         applies to the codomain before the transpose. Composite spaces
         (bulk :math:`\oplus` trace) OVERRIDE this to apply a per-block metric
         to a structured field (the Wave-O direct-sum adjoint).

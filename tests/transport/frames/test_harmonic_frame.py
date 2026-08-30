@@ -262,7 +262,7 @@ class TestFluxAnalysisFace:
     def test_transpose_round_trips_the_carriers_and_accepts_values(self) -> None:
         """``apply_transpose`` is the representation transpose: codomain
         carrier → domain carrier, bit-identical to the numerics face; the
-        raw-``ndarray`` seam (what ``_AdjointOperator`` drives) returns raw
+        raw-``ndarray`` seam (what ``AdjointOperator`` drives) returns raw
         values."""
         m = _slab_mesh()
         frame = _frame(m)
@@ -285,7 +285,7 @@ class TestFluxAnalysisFace:
     def test_s6_precursor_the_faces_H_is_the_physical_adjoint(self) -> None:
         r"""``face.H = R/W`` THROUGH the transport face — the S6-precursor pin.
 
-        The minted face's ``.H`` routes the generic ``_AdjointOperator``
+        The minted face's ``.H`` routes the generic ``AdjointOperator``
         sandwich through the BOUND product spaces: the F-0 Parseval SH factor
         on the moment side, the per-axis (quadrature ⊗ cell) measures on the
         angular side. The cell metrics cancel interior (the composite law)

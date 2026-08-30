@@ -23,7 +23,7 @@ PARSEVAL metric — the inverse of the frame's discrete Gram,
 moments are COVARIANT (:math:`\varphi = Gc`) and only :math:`G^{-1}` makes
 analysis an isometry onto its image (`[M]` ``scratch/probe_f1_parseval.py``,
 2026-08-24: continuum-side Parseval ratio 118.7 vs 1.000). The generic
-``_AdjointOperator`` machinery then computes ``frame.analysis.H`` as the
+``AdjointOperator`` machinery then computes ``frame.analysis.H`` as the
 physical :math:`S_0 \circ G^{-1} = R/W` with no bespoke code.
 
 ERR-039 in one sentence: the addition-theorem reconstruction

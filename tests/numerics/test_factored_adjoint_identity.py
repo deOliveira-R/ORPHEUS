@@ -45,7 +45,7 @@ a consequence of factoring rather than a hand-rolled addition.
 computed through :class:`~orpheus.numerics.space.FunctionSpace`'s **production**
 :meth:`~orpheus.numerics.space.FunctionSpace.apply_metric` /
 :meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric` — the same
-two calls :class:`~orpheus.numerics.operator._AdjointOperator` makes. The dense
+two calls :class:`~orpheus.numerics.operator.AdjointOperator` makes. The dense
 ``C`` / ``B`` are the *inputs*, the metric machinery is what is under test.
 
 Every fixture uses :math:`|\Gamma_+| \neq |\Gamma_-|` deliberately. The shipped
@@ -119,7 +119,7 @@ def _hilbert_adjoint(
 
     Deliberately routed via ``codomain.apply_metric`` and
     ``domain.apply_inverse_metric`` rather than ``np.diag`` algebra: those are
-    the two production calls ``_AdjointOperator.apply`` makes, so this gate
+    the two production calls ``AdjointOperator.apply`` makes, so this gate
     fails if the metric machinery regresses — which is the point of putting it
     here rather than leaving it in a probe.
     """

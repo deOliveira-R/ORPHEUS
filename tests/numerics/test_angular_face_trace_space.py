@@ -284,7 +284,7 @@ def test_the_metric_is_not_euclidean(quad_name):
 def test_the_metric_round_trip_is_the_identity_on_a_half(quad_name, role):
     r"""``G⁺(G x) == x`` where ``G > 0`` — the adjoint's building block.
 
-    :class:`_AdjointOperator` computes ``A† = G_V⁻¹AᵀG_W``, so this round-trip
+    :class:`AdjointOperator` computes ``A† = G_V⁻¹AᵀG_W``, so this round-trip
     is the law that makes ``A†† == A``. Asserted at 2 nulp, not
     ``array_equal``: ``(g·x)/g`` is a genuine floating-point round trip and is
     NOT bit-identical. The tolerance is derived from the round-trip depth (one

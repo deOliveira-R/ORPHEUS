@@ -38,7 +38,7 @@ inner ``(L+C)``'s :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOpera
 the 2.5b reverse-scan), and ``is_adjointable`` flips ``True`` on the
 ``StreamingCollisionOperator`` arm. This is what makes the swap law
 ``A.H.inverse() ≡ A.inverse().H`` (via
-:meth:`~orpheus.numerics.operator._AdjointOperator.inverse`) an identity of
+:meth:`~orpheus.numerics.operator.AdjointOperator.inverse`) an identity of
 the algebra. The schedule-folded
 :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
 arm keeps the base ``is_adjointable = False`` (its reverse-scan is the #280
@@ -164,14 +164,14 @@ class SweepOperator(
         :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`
         (the 2.5b reverse-scan of the forward WDD sweep-scan). Wiring this is
         what makes the swap law ``A.H.inverse() ≡ A.inverse().H`` (via
-        :meth:`~orpheus.numerics.operator._AdjointOperator.inverse`) an
+        :meth:`~orpheus.numerics.operator.AdjointOperator.inverse`) an
         object identity of the algebra, and the metric adjoint-solve
         ``A.inverse().H.apply(b) = G⁺·apply_transpose(G·b)`` fall out of
-        :meth:`~orpheus.numerics.operator._AdjointOperator.apply` for free.
+        :meth:`~orpheus.numerics.operator.AdjointOperator.apply` for free.
 
         This is the plain EUCLIDEAN transpose; the metric conjugation of the
         physical G-adjoint ``.H`` is applied AROUND it by
-        :class:`~orpheus.numerics.operator._AdjointOperator`.
+        :class:`~orpheus.numerics.operator.AdjointOperator`.
 
         The ``isinstance`` narrowing is the direct-call backstop (the eager
         ``.H`` gate already refuses via :attr:`is_adjointable`): a

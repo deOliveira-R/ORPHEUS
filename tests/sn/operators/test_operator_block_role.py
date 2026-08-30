@@ -281,7 +281,7 @@ class TestBoundaryLeaves:
 
 
 class TestComposerRoleDerivation:
-    """``OperatorSum`` / ``ScaledOperator`` / ``_AdjointOperator`` DERIVE the
+    """``OperatorSum`` / ``ScaledOperator`` / ``AdjointOperator`` DERIVE the
     block role from their operands — no hand-stamp (4.5 twin-path retirement).
 
     The role of a SUM is the union of the blocks its summands touch

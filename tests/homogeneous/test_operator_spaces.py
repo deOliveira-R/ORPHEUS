@@ -556,7 +556,7 @@ def test_adjoint_equals_transpose_on_the_minted_space() -> None:
 
     ``op.H.apply(x) == op.apply_transpose(x)`` for all four energy
     leaves on the minted space. Falsifier honesty (CS4a-R QA-F3): the
-    only REACHABLE falsifier is ``_AdjointOperator.apply`` ceasing to
+    only REACHABLE falsifier is ``AdjointOperator.apply`` ceasing to
     delegate to ``apply_transpose`` (which also reds D4b) — the metric
     factors are provably ``is``-identity on the counting space, so `[M]`
     even a dense AFFINE ``apply_transpose`` passes this equality (a

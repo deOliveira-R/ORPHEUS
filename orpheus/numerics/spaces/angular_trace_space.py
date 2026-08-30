@@ -50,7 +50,7 @@ This is the physically-correct boundary inner product under which the
 ``BoundaryOperator`` Hilbert adjoints (``B.H``) — reflective and white —
 are correct (Wave O / O.2b, #208). The metric is group-independent (a
 weight in angle, not energy). It is read ONLY by the adjoint path
-(:class:`~orpheus.numerics.operator._AdjointOperator` and
+(:class:`~orpheus.numerics.operator.AdjointOperator` and
 :meth:`FunctionSpace.inner_product`); the forward sweep/matvec never reads
 it, so installing it leaves every forward result bit-identical. (Before
 O.2b this slot was Euclidean ``None``, matching the legacy

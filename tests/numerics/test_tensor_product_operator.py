@@ -206,7 +206,7 @@ class TestTensorProductSpaces:
 
     Before step 8.0 the product derived nothing, so a binding real at the
     inner factor was invisible at the composite — and since
-    ``_AdjointOperator`` reads the spaces to apply the metrics, ``.H`` also
+    ``AdjointOperator`` reads the spaces to apply the metrics, ``.H`` also
     degraded silently to the Euclidean transpose.
     """
 
@@ -290,7 +290,7 @@ class TestTensorProductSpaces:
         assert inv.codomain is _V
 
     def test_the_adjoint_SWAPS_the_binding(self):
-        r""":math:`(A \otimes I)^{*} : W \to V`, via the ``_AdjointOperator``."""
+        r""":math:`(A \otimes I)^{*} : W \to V`, via the ``AdjointOperator``."""
         adj = (_bound_swap(_V, _W) & IdentityOperator()).adjoint()
         assert adj.domain is _W
         assert adj.codomain is _V

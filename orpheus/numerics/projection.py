@@ -104,7 +104,7 @@ class AnalysisOperator(LinearOperator[Domain, Codomain], ABC):
     The ABC carries no implementation — the concrete realisation is the
     :attr:`~orpheus.numerics.frame.FrameBase.analysis` face of a frame, which
     provides :meth:`apply` (and :meth:`apply_transpose`, so its Hilbert adjoint
-    ``.H`` falls out of the metric-aware ``_AdjointOperator``). The discipline
+    ``.H`` falls out of the metric-aware ``AdjointOperator``). The discipline
     (Galerkin vs Petrov-Galerkin) is the frame's TYPE, not a property of this role.
 
     Adjointable by default (a working ``apply_transpose`` is part of the

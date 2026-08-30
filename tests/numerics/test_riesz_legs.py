@@ -1,6 +1,6 @@
 r"""The Riesz legs — the Hilbert adjoint's factors as first-class arrows.
 
-CS4c step 1 (R2 ruling, 2026-08-30) re-expressed ``_AdjointOperator`` as the
+CS4c step 1 (R2 ruling, 2026-08-30) re-expressed ``AdjointOperator`` as the
 named composition
 
 .. math::
@@ -60,7 +60,7 @@ from orpheus.numerics.operator import (
     MissingAdjoint,
     RieszLowerOperator,
     RieszRaiseOperator,
-    _AdjointOperator,
+    AdjointOperator,
 )
 from orpheus.numerics.space import DualSpace, FunctionSpace
 
@@ -288,7 +288,7 @@ def test_adjoint_transpose_is_the_leg_theorem():
     x = np.array([0.2, 1.1, -0.4])
     hand = A.codomain.apply_metric(A.apply(A.domain.apply_inverse_metric(x)))
     H = A.H
-    assert isinstance(H, _AdjointOperator)  # type-narrowing only (-O strips)
+    assert isinstance(H, AdjointOperator)  # type-narrowing only (-O strips)
     np.testing.assert_array_equal(H.apply_transpose(x), hand)
     # negative leg: swapping ♭/♯ roles moves the value O(1) on these
     # non-flat metrics — the composition order is load-bearing.

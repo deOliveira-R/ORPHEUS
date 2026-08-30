@@ -378,7 +378,7 @@ closed by conformance, not per-site edits).
 = (A_{ij})^{\mathsf T}` — and carries a :class:`CoupledSpace` whose metric
 methods dispatch member-wise. The metric adjoint :math:`A.H = G^{+}
 A^{\mathsf T} G` is then realised ONCE by the existing
-:class:`~orpheus.numerics.operator._AdjointOperator` wrapper. No adjoint
+:class:`~orpheus.numerics.operator.AdjointOperator` wrapper. No adjoint
 code lives in the block machinery — which is exactly what keeps the block
 adjoint Mode-12-closed: a hand-rolled "Euclidean block ``.H``" that skips
 the metric conjugation is the ERR-067 reopening (``vv-principles``

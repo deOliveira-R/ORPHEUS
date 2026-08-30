@@ -239,7 +239,7 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
 
         The arm the operator-algebra swap law rides (#280 R5/R11):
         ``grid.H.inverse()`` routes through
-        ``_AdjointOperator.inverse() = inner.inverse().H``, whose ``.H``
+        ``AdjointOperator.inverse() = inner.inverse().H``, whose ``.H``
         exists only because THIS inverse is adjointable — the metric
         conjugation then wraps this Euclidean transpose backsolve. A typed
         operand is minted from the CODOMAIN's zero exemplar (the transpose

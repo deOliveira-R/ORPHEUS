@@ -921,7 +921,7 @@ class TestRealizePeriodic:
 class TestTheRealizedLawIsMETRICCorrect:
     r"""⭐ G6.3 step 8.0's consequence, gated at the tier the physics lives in.
 
-    :class:`~orpheus.numerics.operator._AdjointOperator` reads the operator's
+    :class:`~orpheus.numerics.operator.AdjointOperator` reads the operator's
     spaces to apply the metrics, so an UNBOUND operator's ``.H`` is not a
     weaker Hilbert adjoint — it is the **Euclidean transpose**, silently, with
     no error and no warning. Until step 8.0 the realizer's own output was
@@ -982,7 +982,7 @@ class TestTheRealizedLawIsMETRICCorrect:
         :math:`R^{*} = G_{\Gamma_+}^{-1} R^{\mathsf T} G_{\Gamma_-}`, the
         identity is algebra for *any* :math:`R` — the two metrics cancel
         through it. It discriminates because an operator with no spaces never
-        gets that far: :class:`_AdjointOperator` applies no metric at all and
+        gets that far: :class:`AdjointOperator` applies no metric at all and
         :math:`R^{*}` collapses to the bare :math:`R^{\mathsf T}`, which does
         NOT satisfy the weighted law. So the row is a probe for the binding
         surviving to the realizer's output, worded as the physics it buys.
@@ -1015,7 +1015,7 @@ class TestTheRealizedLawIsMETRICCorrect:
         Two assertions at two honest tiers. The metric AGREEMENT is
         bit-exact (`[M]` max abs diff 0.0 — ``|Ω·n̂|`` is the modulus of a
         sign flip and ``w_n`` is one array). The operator-level coincidence
-        is exact only analytically: ``_AdjointOperator`` computes
+        is exact only analytically: ``AdjointOperator`` computes
         :math:`G_+^{-1}(R^{\mathsf T}(G_- y))` literally, and equal metrics
         cancel through the algebra while their float shadow
         :math:`(w\,y)/w` rounds — `[M]` 1 ULP (1.11e-16) on this fixture.

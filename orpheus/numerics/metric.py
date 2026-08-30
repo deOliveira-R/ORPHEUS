@@ -70,7 +70,7 @@ both load-bearing:
   diagonal path through a densified matmul would move pinned numbers
   tree-wide. The bit-exact witness is
   ``tests/numerics/test_dense_metric.py``'s pairing-spelling gate.
-* **Single source.** ``_AdjointOperator`` builds the Hilbert adjoint from
+* **Single source.** ``AdjointOperator`` builds the Hilbert adjoint from
   ``apply_metric``/``apply_inverse_metric`` while the pairing that judges
   it comes from ``inner_product``; deriving the pairing FROM ``apply``
   makes the two agree by construction (the ERR-067 family — two metric
@@ -83,7 +83,7 @@ The recorded CS4c debt (``docs/theory/foundations/frame.rst``, the
 recorded-debt admonition) intends the Riesz legs
 ``A* = A.domain.riesz_raise ∘ A.dual() ∘ A.codomain.riesz_lower``. This
 family's two faces are exactly what those legs will wrap: the metric
-arithmetic lives here once, so retiring ``_AdjointOperator`` into the leg
+arithmetic lives here once, so retiring ``AdjointOperator`` into the leg
 composition later needs no third spelling of it.
 """
 

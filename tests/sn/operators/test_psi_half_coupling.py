@@ -2892,7 +2892,7 @@ class TestSystemRoleLattice:
         a_ab = RadialCharacteristicSeeding(_sphere())
         assert (a_ab + a_ab).system_role is SystemRole.COUPLED   # OperatorSum join
         assert (2.0 * a_ab).system_role is SystemRole.COUPLED    # ScaledOperator passthrough
-        assert a_ab.H.system_role is SystemRole.COUPLED          # _AdjointOperator passthrough
+        assert a_ab.H.system_role is SystemRole.COUPLED          # AdjointOperator passthrough
 
 
 # ── B.2c helpers: the co-producing builder (G-c2.x) ─────────────────────────
@@ -3197,7 +3197,7 @@ class TestCoupledBuilder:
     def test_forward_block_adjoint_reciprocity(self, monkeypatch):
         r"""``⟨grid·ψ, x⟩_G = ⟨ψ, grid.H·x⟩_G`` on the REAL sphere 2×2 —
         the block Hilbert adjoint's FIRST real-curvilinear-member run (it is
-        FREE via the B.2a `_AdjointOperator` + the member-wise CoupledSpace
+        FREE via the B.2a `AdjointOperator` + the member-wise CoupledSpace
         metrics; a hand-rolled Euclidean block-.H is the ERR-067 reopening).
         Tooth M-ADJ-metric: stripping the metric conjugation (identity
         apply_metric / apply_inverse_metric) reds the defect O(1) — the

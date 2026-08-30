@@ -50,7 +50,7 @@ bit-identical to the raw face on values — the typed seam adds carriers and
 binding, never a number. ``apply`` ADMITS exactly its carrier on its bound
 domain (content equality — the space-content invariant); ``apply_transpose``
 also accepts raw ``ndarray`` values, the seam the metric-aware
-``_AdjointOperator`` drives, so a face's ``.H`` is the PHYSICAL Hilbert
+``AdjointOperator`` drives, so a face's ``.H`` is the PHYSICAL Hilbert
 adjoint on the F-0 Parseval metrics — ``M* = R/W`` and ``R* = W·M`` (see
 :attr:`FrameBase.basis_space
 <orpheus.numerics.frame.FrameBase.basis_space>`).
@@ -156,7 +156,7 @@ class HarmonicAnalysisOperator(
     output rides the bound codomain. ``apply_transpose`` maps the codomain
     carrier back to the domain carrier (the representation transpose), and
     also accepts raw ``ndarray`` values — the seam the metric-aware
-    ``_AdjointOperator`` drives, so ``face.H`` is the physical Hilbert
+    ``AdjointOperator`` drives, so ``face.H`` is the physical Hilbert
     adjoint on the F-0 Parseval metrics (:math:`M^* = R/W`).
     """
 
@@ -203,7 +203,7 @@ class HarmonicAnalysisOperator(
         self, moment: MomentFieldT | NDArray,
     ) -> AngularFieldT | NDArray:
         r"""The representation transpose :math:`M^\top` — carrier → carrier,
-        or raw values → raw values (the ``_AdjointOperator`` seam)."""
+        or raw values → raw values (the ``AdjointOperator`` seam)."""
         if isinstance(moment, self.codomain_carrier):
             _admit(self, moment, self.codomain_carrier, self._codomain, "moment codomain")
             values = self.frame.analysis.apply_transpose(moment.values)
@@ -276,7 +276,7 @@ class HarmonicReconstructionOperator(
         self, field: AngularFieldT | NDArray,
     ) -> MomentFieldT | NDArray:
         r"""The representation transpose :math:`R^\top` — carrier → carrier,
-        or raw values → raw values (the ``_AdjointOperator`` seam)."""
+        or raw values → raw values (the ``AdjointOperator`` seam)."""
         if isinstance(field, self.codomain_carrier):
             _admit(self, field, self.codomain_carrier, self._codomain, "angular codomain")
             values = self.frame.reconstruction.apply_transpose(field.values)

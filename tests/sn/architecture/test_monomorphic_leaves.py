@@ -91,7 +91,7 @@ evidence the gate was live the whole way.
 below, in **both halves**:
 
 * :func:`test_reciprocity_metric_is_load_bearing` — drop the metric inside
-  ``_AdjointOperator.apply`` and the residual jumps to **O(1)** on the
+  ``AdjointOperator.apply`` and the residual jumps to **O(1)** on the
   non-uniform curvilinear legs (MEASURED sphere ``L`` 1.40 / ``S`` 1.01 /
   ``F`` 1.46; cylinder 1.11 / 0.947 / 5.83e-2), against a clean ≤ 4.5e-14.
 * :func:`test_a_globally_constant_metric_makes_reciprocity_blind` — the same
@@ -266,7 +266,7 @@ _R2_XFAIL = pytest.mark.xfail(
     reason=(
         "R1/R2 — an ANONYMOUS leaf (no space) constructs happily, and the "
         "`.H` it then builds silently degrades to a bare Euclidean transpose: "
-        "`_AdjointOperator.apply` (numerics/operator.py:1221-1227) applies the "
+        "`AdjointOperator.apply` (numerics/operator.py:1221-1227) applies the "
         "metric only when the inner space is non-None. MEASURED bit-identical "
         "to `apply_transpose`. Flipped by campaign P1 (construction without a "
         "space RAISES, so `.H` can never see a None space). WHEN THIS "
@@ -590,7 +590,7 @@ def _reciprocity_residual(
 
 
 def _drop_the_metric(self, y):
-    """**M-10** — ``_AdjointOperator.apply`` with the metric removed.
+    """**M-10** — ``AdjointOperator.apply`` with the metric removed.
 
     The honest body is
     :math:`(A^{*}y)_V = G_V^{+}\\odot \\mathrm{apply\\_transpose}(G_W \\odot y)`
@@ -628,7 +628,7 @@ def _double_the_adjoint(self, y):
     return _TRUE_ADJOINT_APPLY(self, y) * 2.0
 
 
-_TRUE_ADJOINT_APPLY = _operator_module._AdjointOperator.apply
+_TRUE_ADJOINT_APPLY = _operator_module.AdjointOperator.apply
 
 
 def _assert_metric_is_constant(sn_mesh: SNMesh) -> float:
@@ -911,7 +911,7 @@ def test_hilbert_adjoint_reciprocity(leaf, geometry):
 def test_reciprocity_metric_is_load_bearing(geometry, monkeypatch):
     r"""**M-10**, first half — drop the metric and G1.4 REDs by O(1).
 
-    Mutates ``_AdjointOperator.apply`` to return ``inner.apply_transpose(y)``
+    Mutates ``AdjointOperator.apply`` to return ``inner.apply_transpose(y)``
     bare, IN PROCESS via ``monkeypatch`` — never by editing a file, because
     this working tree carries uncommitted-by-policy state that a
     ``git checkout`` would destroy.
@@ -959,7 +959,7 @@ def test_reciprocity_metric_is_load_bearing(geometry, monkeypatch):
         )
 
     monkeypatch.setattr(
-        _operator_module._AdjointOperator, "apply", _drop_the_metric,
+        _operator_module.AdjointOperator, "apply", _drop_the_metric,
     )
     mutated = {
         name: _reciprocity_residual(leaves[name], sn_mesh, x, y)[0]
@@ -970,7 +970,7 @@ def test_reciprocity_metric_is_load_bearing(geometry, monkeypatch):
         pytest.fail(
             f"M-10 is SILENT on {geometry} for {silent} (floor "
             f"{_MUTATION_FLOOR:.0e}) — dropping the metric from "
-            f"`_AdjointOperator.apply` does not move reciprocity, so this "
+            f"`AdjointOperator.apply` does not move reciprocity, so this "
             f"config cannot distinguish the G-adjoint from the Euclidean "
             f"transpose. Check the metric still varies along BOTH the spatial "
             f"and the angular axis (a level_symmetric rule has constant "
@@ -1081,7 +1081,7 @@ def test_a_globally_constant_metric_makes_reciprocity_blind(monkeypatch):
     y = _random_composite(sn_mesh, seed=_SEED_Y)
 
     monkeypatch.setattr(
-        _operator_module._AdjointOperator, "apply", _drop_the_metric,
+        _operator_module.AdjointOperator, "apply", _drop_the_metric,
     )
     for name in _LEAVES:
         residual, _ = _reciprocity_residual(leaves[name], sn_mesh, x, y)
@@ -1120,7 +1120,7 @@ def test_reciprocity_row_is_non_vacuous(leaf, monkeypatch):
     y = _random_composite(sn_mesh, seed=_SEED_Y)
 
     monkeypatch.setattr(
-        _operator_module._AdjointOperator, "apply", _double_the_adjoint,
+        _operator_module.AdjointOperator, "apply", _double_the_adjoint,
     )
     residual, _ = _reciprocity_residual(op, sn_mesh, x, y)
     if residual < _MUTATION_FLOOR:
@@ -1151,7 +1151,7 @@ def test_leaf_without_a_space_refuses_construction(leaf):
     RED today for all three of ``C``, ``S``, ``F``: each has an optional
     space parameter defaulting to ``None`` (MEASURED signatures) and each
     constructs happily without one. The consequence is R2 and it is silent:
-    ``_AdjointOperator.apply`` (``numerics/operator.py:1221-1227``) applies
+    ``AdjointOperator.apply`` (``numerics/operator.py:1221-1227``) applies
     the metric only ``if inner_codomain is not None``, so an anonymous leaf's
     ``.H`` is a **bare Euclidean transpose** wearing the Hilbert adjoint's
     name. MEASURED on the homogeneous ``F``: ``F.H.apply(φ)`` is

@@ -504,7 +504,7 @@ class TestReciprocityAgainstTheMirrorFace:
     *self-consistent* with the pairing; the first row here never touches ``.H``
     at all — its reference is a second production chain built from the OTHER
     face's data — so it is the one adjoint gate in the tree that is independent
-    of the ``_AdjointOperator`` machinery. The second row then closes the loop
+    of the ``AdjointOperator`` machinery. The second row then closes the loop
     by measuring ``.H`` against it pointwise.
     """
 

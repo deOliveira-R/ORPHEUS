@@ -1822,7 +1822,7 @@ pairing would move pinned numbers tree-wide, so it is deliberately
 unspellable here.
 
 **One source of truth for the adjoint.**
-``_AdjointOperator`` builds :math:`A^{\dagger} = G^{-1}A^{\mathsf T}G`
+``AdjointOperator`` builds :math:`A^{\dagger} = G^{-1}A^{\mathsf T}G`
 from ``apply_metric``/``apply_inverse_metric`` while the pairing that
 *judges* it comes from ``inner_product``. Deriving the pairing from
 ``apply`` makes those two agree by construction — the ERR-067 family
@@ -3561,7 +3561,7 @@ taken.
    * - The Riesz legs (``riesz_lower`` / ``riesz_raise``)
      - **CS4c.** P7's metric family is what those legs will wrap —
        the metric arithmetic has one home, so retiring
-       ``_AdjointOperator`` into
+       ``AdjointOperator`` into
        :math:`A^{*} = A.\mathrm{domain.riesz\_raise}\circ A.\mathrm{dual}()
        \circ A.\mathrm{codomain.riesz\_lower}` needs no third spelling
        of it. `[M]` neither method is defined anywhere in the tree

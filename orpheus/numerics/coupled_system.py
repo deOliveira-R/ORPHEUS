@@ -80,7 +80,7 @@ The Hilbert adjoint comes FREE (Mode-12 closure by construction)
 apply_transpose` — the transposed grid ``(Aᵀ)_{ji} = (A_{ij})ᵀ`` — and
 carries :class:`CoupledSpace` domain/codomain whose metric methods dispatch
 member-wise. The metric adjoint ``A.H = G⁺ Aᵀ G`` is then realized ONCE by
-the existing :class:`~orpheus.numerics.operator._AdjointOperator` wrapper
+the existing :class:`~orpheus.numerics.operator.AdjointOperator` wrapper
 (which calls ``codomain.apply_metric`` before the transpose and
 ``domain.apply_inverse_metric`` after). No adjoint code lives here — which is
 precisely what keeps the block adjoint Mode-12-closed: a hand-rolled
@@ -429,7 +429,7 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
     :meth:`apply_inverse_metric` / :meth:`inner_product`) dispatches to the
     member space on the member field — no new metric arithmetic. That is what
     keeps the block Hilbert adjoint Mode-12-closed for free: the generic
-    :class:`~orpheus.numerics.operator._AdjointOperator` conjugates through
+    :class:`~orpheus.numerics.operator.AdjointOperator` conjugates through
     THESE methods, so the composite metric ``G = diag(G_1, …, G_N)`` is
     applied per member by the spaces that own each ``G_i``.
 
@@ -687,7 +687,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
     recursively from the blocks (the
     :class:`~orpheus.numerics.operator.OperatorSum` closure-law discipline);
     ``A.H`` is realized by the generic
-    :class:`~orpheus.numerics.operator._AdjointOperator` over THIS class's
+    :class:`~orpheus.numerics.operator.AdjointOperator` over THIS class's
     Euclidean :meth:`apply_transpose` (the transposed grid) and the
     :class:`CoupledSpace` member-wise metrics — see the module docstring's
     Mode-12 note. :attr:`is_invertible` is structure-keyed (step 5), two
@@ -858,7 +858,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
 
         ``x_j = Σ_i (A_ij)ᵀ y_i`` — the representation transpose only; the
         metric conjugation that makes the Hilbert adjoint lives on
-        :class:`~orpheus.numerics.operator._AdjointOperator` +
+        :class:`~orpheus.numerics.operator.AdjointOperator` +
         :class:`CoupledSpace` (see the module docstring). Reachable per the
         :attr:`is_adjointable` advertisement (all present blocks adjointable).
         """

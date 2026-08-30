@@ -320,7 +320,7 @@ class SphericalHarmonicBasis(Basis):
         r"""Representation transpose :math:`(M^\top c)_n = w_n \sum_{\ell m} Y_\ell^m(\hat\Omega_n)\, c_\ell^m`.
 
         The matrix transpose of :meth:`analyze` (:math:`= w_n \cdot S_0`) — NOT the
-        Hilbert adjoint. The metric-aware ``_AdjointOperator`` combines it with the
+        Hilbert adjoint. The metric-aware ``AdjointOperator`` combines it with the
         frame's metrics (measure :math:`w_n` on the domain; the F-0 Parseval
         :math:`G^{-1}` on the codomain) to give the physical
         :math:`M^* = S_0 \circ G^{-1} = R/W`, so the Frame's analysis face gets
@@ -346,7 +346,7 @@ class SphericalHarmonicBasis(Basis):
         naked analysis :math:`S_0^\top`) — NOT the Hilbert adjoint, and **measure-free**:
         no :math:`w_n` is baked in (symmetric with :meth:`reconstruct`, asymmetric
         with :meth:`analyze_transpose`, whose forward bakes the weights in). The
-        metric-aware ``_AdjointOperator`` combines it with the codomain (measure
+        metric-aware ``AdjointOperator`` combines it with the codomain (measure
         :math:`w_n`) and domain (the F-0 Parseval :math:`G^{-1}`, entering the
         sandwich through its pseudo-inverse :math:`G`) metrics to give the
         physical Hilbert adjoint :math:`(R^* v)_\ell^m = d_\ell G_\ell \sum_n w_n

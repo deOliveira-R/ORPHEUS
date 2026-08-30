@@ -3212,7 +3212,7 @@ older entries classify against.
    - :math:`\Pi^\top = w_n \cdot S_0` (representation transpose) —
      ``MomentProjection.apply_transpose`` post-P1.4
    - :math:`\Pi^* = g_C \cdot S_0` (Hilbert adjoint) — ``MomentProjection.H``
-     composed by the generic ``_AdjointOperator`` machinery using the
+     composed by the generic ``AdjointOperator`` machinery using the
      codomain's SH-Gram metric
      — ⛔ **superseded 2026-08-23; see the F-0 chapter below.** The
      composition machinery was right and the metric it read was the
@@ -5830,9 +5830,9 @@ older entries classify against.
    **Where:** ``orpheus/numerics/operator.py::TensorProductOperator`` (no
    ``domain``/``codomain``, inheriting the base's ``None``) and
    ``SumOfTensorProductsOperator`` (the same). The consumer that turns the absence
-   into a numerical difference is ``_AdjointOperator.apply``.
+   into a numerical difference is ``AdjointOperator.apply``.
 
-   **The bug.** ``_AdjointOperator.apply`` BRANCHES on the spaces:
+   **The bug.** ``AdjointOperator.apply`` BRANCHES on the spaces:
 
 
    .. code-block:: python

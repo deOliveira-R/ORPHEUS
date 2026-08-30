@@ -89,7 +89,7 @@ R5, ``op.H`` silently reduced to the plain **Euclidean** transpose
 metric-bearing ``domain`` / ``codomain``; the wrapper had no metric to
 read, so :math:`G` defaulted to the identity. R5 supplies the metric by
 giving the FULL streaming leaf a direct-sum function space, and the
-already-existing :class:`~orpheus.numerics.operator._AdjointOperator`
+already-existing :class:`~orpheus.numerics.operator.AdjointOperator`
 wrapper turns that into the correct G-adjoint **with no change to the
 wrapper**.
 
@@ -115,7 +115,7 @@ wrapper**.
      ``L`` / ``B`` (so the within-group
      :class:`~orpheus.numerics.operator.OperatorSum` guard *validates*
      the loss composition); the metric applies **once at the op level**
-     because the :class:`~orpheus.numerics.operator._AdjointOperator`
+     because the :class:`~orpheus.numerics.operator.AdjointOperator`
      wrapper reads it off the *composite* ``domain`` / ``codomain`` of
      the summed operator, never per-leaf. Because every loss leaf now
      carries the composite metric, no composite adjoint is metric-blind,
@@ -370,10 +370,10 @@ The mesh exposes it as the cached property
 :meth:`SNMesh.full_field_space <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>`.
 
 **The wrapper is unchanged.** The whole apparatus plugs into the
-**pre-existing** :class:`~orpheus.numerics.operator._AdjointOperator`,
+**pre-existing** :class:`~orpheus.numerics.operator.AdjointOperator`,
 which realizes ``A.H`` as
 
-.. (vv-status rationale) The _AdjointOperator realization
+.. (vv-status rationale) The AdjointOperator realization
    (A†φ) = G_V⁺ ⊙ Aᵀ(G_W ⊙ φ). Structural identity of the wrapper code;
    pinned end-to-end by the foundation-tagged reciprocity oracle
    (op.H vs the explicit block-diagonal G-fold).
@@ -391,7 +391,7 @@ which realizes ``A.H`` as
    \Bigr) ,
 
 calling ``codomain.apply_metric`` *before* the transpose and
-``domain.apply_inverse_metric`` *after* (operator.py, ``_AdjointOperator.apply``).
+``domain.apply_inverse_metric`` *after* (operator.py, ``AdjointOperator.apply``).
 The wrapper is metric-*representation*-agnostic: the SAME code path
 serves the flat-ndarray spherical-harmonic :math:`(L+1, 2L+1)`
 leading-axis metric AND the composite ``bulk ⊕ trace`` metric on a
@@ -423,7 +423,7 @@ applied in the adjoint, and that the metric-blind adjoint is made
 by any leaf's domain**. Two mechanisms.
 
 **(1) The metric applies ONCE at the op level — never per leaf.** The
-:class:`~orpheus.numerics.operator._AdjointOperator` wrapper realizes
+:class:`~orpheus.numerics.operator.AdjointOperator` wrapper realizes
 ``op.H`` as :math:`G_V^{+}\odot(\cdot)^{\mathsf T}\!\bigl(G_W\odot(\cdot)\bigr)`,
 reading :math:`G` off the **wrapped operator's** ``domain`` /
 ``codomain``. When the wrapped operator is the *sum* :math:`(L+C-B)`,
@@ -453,7 +453,7 @@ agree on the same composite). The adjoint therefore applies the metric
 distributing the **same** :math:`G^{-1}(\cdot)^{\mathsf T} G`
 conjugation across every leaf in the sum. Although each leaf now
 *advertises* the composite domain, the
-:class:`~orpheus.numerics.operator._AdjointOperator` applies :math:`G`
+:class:`~orpheus.numerics.operator.AdjointOperator` applies :math:`G`
 at the **sum** level, never re-applying it per summand — the metric
 weighting belongs to the *space*, applied once where the composite
 enters and leaves, so a leaf carrying the composite domain is **not** a
@@ -469,7 +469,7 @@ adjoint taken over a sum that does **not** contain ``L`` and therefore,
 under the *pre*-W-D design, carried no metric :math:`G`. That concern is
 now **moot**: since P4.5 W-D every loss leaf — ``L``, ``C``, ``S``,
 ``F``, ``B`` — carries the SAME composite ``full_field_space``, whose
-metric the :class:`~orpheus.numerics.operator._AdjointOperator` reads off
+metric the :class:`~orpheus.numerics.operator.AdjointOperator` reads off
 the composite domain. Every composite adjoint that constructs is
 therefore metric-correct, whichever leaves it contains. The **surviving**
 guard is general and lives on the adjoint axis: any operator with a

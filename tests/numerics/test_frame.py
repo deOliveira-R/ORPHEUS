@@ -61,7 +61,7 @@ def test_frame_faces_two_axis_contract(sh_frame):
     r"""The carve keystone (#226, P4 keystone v2) for the numerics frame faces.
 
     Both faces carry a working ``apply_transpose`` — so ``.H`` falls out of
-    the metric-aware ``_AdjointOperator`` — hence ``is_adjointable`` is True
+    the metric-aware ``AdjointOperator`` — hence ``is_adjointable`` is True
     (and the eager ``.H`` returns the wrapper); neither face is invertible,
     STRUCTURALLY (a projection face declares no ``inverse()`` — misuse is a
     static error, Design C). The reconstruction face's ``is_adjointable`` is
@@ -95,7 +95,7 @@ def test_analysis_hilbert_adjoint_falls_out_of_the_frame_spaces(sh_frame):
     r"""``frame.analysis.H`` is the PHYSICAL Hilbert adjoint :math:`M^* = S_0 \circ G^{-1}`.
 
     No bespoke adjoint code — the frame's swapped ``(measure_space, basis_space)``
-    metrics feed the generic ``_AdjointOperator``, and the F-0 Parseval dressing
+    metrics feed the generic ``AdjointOperator``, and the F-0 Parseval dressing
     (the codomain metric is the INVERSE discrete Gram — see
     :attr:`FrameBase.basis_space`) makes the sandwich the physical adjoint. Pinned
     against an INDEPENDENT reference: the direct :math:`S_0(G^{-1}c)` einsum with

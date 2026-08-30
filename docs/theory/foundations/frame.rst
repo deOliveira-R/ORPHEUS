@@ -822,7 +822,7 @@ proving *choice*.
      A.\mathrm{dual}() \circ A.\mathrm{codomain.riesz\_lower}` is a
      definition that a full matrix satisfies as easily as a diagonal;
      and
-   - **retiring** ``_AdjointOperator`` into that leg composition.
+   - **retiring** ``AdjointOperator`` into that leg composition.
 
    Both are still CS4c's, and neither method exists in the tree today.
    What P7 changed is that they now have exactly one metric arithmetic
