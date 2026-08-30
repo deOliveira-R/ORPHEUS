@@ -100,6 +100,15 @@ require kernel and frame for example)."*
   when the composite is one; with `DualSpace` shipped, `riesz_lower: V → V*`
   is non-endo by nature.
 
+✅ **[R] RULED (user, 2026-08-30, the step-1+2 checkpoint): kw-only
+mandatory `domain=`/`codomain=` fields on the base** — the datum stays
+positional-first; the swap-transposition family (ERR-002/ERR-076 habitat)
+is unspellable-silently at every exact-ctor site; channels evolve their
+field lists independently of the base. And the analysis-verb declaration
+lives on the FRAME-CONSUMING channels only, never the base — the user's
+articulation: *"StreamingOperator is also a BoundOperator, just bound to
+other data"* — the base carries only what every binding shares.
+
 **Consequence for the base [P]:** `BoundOperator` is a dataclass ABC carrying
 `domain` + `codomain` (both mandatory) + the shared behavior: per-END
 admission (the energy-conformity guard runs against the domain's AND the
