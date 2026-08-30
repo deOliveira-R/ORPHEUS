@@ -2117,6 +2117,10 @@ that point, and the MODAL half (item 3) can follow.
   §4ter courier) dissolve at the streaming plan's P4-remainder where the
   producer binds to (space, R) — re-pointing them without that binding would
   be the same reach spelled longer;
+  ✅ **WELD DISCHARGED 2026-08-29** (P4-remainder `ad04e236`): the producer
+  binds the angular AXIS, the courier field is retired (gate 4.2 pins the
+  field set structurally), G5+G7 landed with their first consumers
+  (K1/K2/K3 route gates; full gate 9917/0, +21 predicted exactly);
 * the accessor is absent from `_identity_key` — two axes built from distinct
   but content-equal measures still compare equal, with a gate saying so;
   ✅ **MET** (G1a/b/c + G2; and [M] the exclusion is structurally MANDATORY —

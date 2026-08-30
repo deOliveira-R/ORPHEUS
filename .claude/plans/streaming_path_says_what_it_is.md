@@ -168,6 +168,13 @@
 > in-process mutation battery, every gate reddened by its named mutation
 > (A→6, B→4, C→24, D→4, E→1, F→1), positive control 79/79 then 87/87;
 > pyright orpheus/ 0 tree-wide; sphinx -E 0; dead_references 0/52.
+> **P4-remainder 9917/0 — `[M]` 13 trees rc=0, delta exactly the
+> predicted +21** (numerics +6, sn +15; 22 sk / 227 des / 70 xf
+> unchanged) ⟹ **the acceptance baseline is now 9917.** M1 invariance
+> battery: per-arm red SETS reproduce the P4.9b partition name-for-name
+> (scheme 21 = 10+10+the Q5-added 2-D row — the never-red wavefront
+> survivor now reds; closure 16 exact) — the walk consumes the SAME
+> closure instances. pyright orpheus/ 0.
 >
 > ### ▶ NEXT — **the campaign's next act is a SEQUENCING ruling** (P4.9 is
 > COMPLETE: P4.9a ✅ `7a0f434c`, P4.9b ✅ merged 2026-08-29; **§5b ⛔ P0
@@ -264,6 +271,20 @@
 > fork measurements (fork 2's "STILL OPEN: where the PRODUCER goes",
 > the `streaming_terms` read set, the R/M audience split) date
 > 2026-08-27/28 and predate P4.5–P4.7 + P4b + CS5.
+> ✅ **P4-REMAINDER LANDED 2026-08-29** (`ac485104` `_weight_of`
+> retirement · `ad04e236` the binding + courier death + K1/K2/K3/G5
+> gates · `1fb70c15` the admission-probe hardening): the producer binds
+> the generator-stamped ANGULAR AXIS; `streaming_terms` and both closure
+> mints recover the quadrature THROUGH it (`generator_as`, the typed
+> by-name refusal); **`AngularRedistribution` is pure α data — the
+> §4ter courier weld is DISSOLVED** (gate 4.2 pins the field set).
+> [M] the §6b set measured 11 test sites (the banked 10 + a
+> runtime-built recording subclass — one more surrogate spelling for
+> the inventory). ⟹ **the remaining queue: P6 (terminal sweep) · the
+> re-posed §5b build (Campaign-2/O-3 fork) · the O-3 three-way split
+> (carrying the DEFERRED `ChartConnection` re-name + fork 2's
+> unexecuted R→transport/ ruling) · CS5's MODAL half (§5.5 items 2+3,
+> blocks nothing).** P5 rides O-3; P7 = #409.
 > ✅ **OPENER RUN + DESIGN ROUND RULED 2026-08-29 (user, all four forks
 > as recommended)** — ground `scratch/p4rem_ground_measure.md` (7 of 7
 > openers have now corrected their section; headline drifts: the
@@ -2062,6 +2083,10 @@ three are independently refuted:
   `.quadrature` first, and **none touches `alpha_per_level`, `mu_start_per_level`,
   `coord` or `n_levels`** — geometry never reads the dome at all. That is the
   weld: the class needs the MEASURE and is handed the REDISTRIBUTION.
+  ✅ **DISSOLVED 2026-08-29 (P4-remainder, `ad04e236`)** — the class is
+  handed the generator-stamped ANGULAR AXIS and narrows to the measure
+  through it; the courier field is gone (AngularRedistribution = pure α
+  data), so the weld's sentence can no longer be spelled.
 * **(d) a `WHITELIST` entry** — ⛔ DEAD TWICE. A whitelist silences the linter; it
   cannot silence `test_entry_point_imports_in_a_fresh_interpreter`, which
   cold-imports `orpheus.geometry` in a subprocess. And `[M]` the whitelist has no
