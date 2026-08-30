@@ -620,12 +620,16 @@ def test_parseval_frame_square_closes(make_frame):
     degree-exact to ~1e-15.
 
     ⛔ The slab param is deliberately ABSENT, and D3
-    (``test_the_scalar_frame_square_collapse_is_a_sphere_family_property``)
+    (``test_diagonal_gram_suffices_for_the_collapse_and_dense_does_not_decide_it``)
     states why as a claim rather than a silent removal: `[M]` 2026-08-30,
-    under the CORRECT dense Parseval metric the collapse still fails
-    (rel 2.65 on this file's seed) because the slab's live ℓ=2 Gram
-    diagonal ``[0.4, 0.8, 0.8]`` is not a per-ℓ scalar — no :math:`G_\ell`
-    exists, so the collapse is unspellable there at ANY metric.
+    under the CORRECT dense Parseval metric the slab's collapse still
+    fails (rel 2.65 on this file's seed) — its live ℓ=2 Gram diagonal
+    ``[0.4, 0.8, 0.8]`` is not a per-ℓ scalar, so no :math:`G_\ell`
+    exists there at ANY metric. ⚠ The honest quantifier (archivist,
+    200-seed census): DIAGONAL is SUFFICIENT for the collapse — this
+    gate's population — while DENSE does not decide it either way
+    (``folded_product(4,6)`` L=3 is DENSE and satisfies it; the sphere
+    rule ``product(4,4)`` L=2 breaks it).
     """
     frame = make_frame()
     W = float(frame.measure.weights.sum())
@@ -867,7 +871,7 @@ def test_no_diagonal_metric_can_satisfy_parseval_on_a_dense_frame():
 
 
 @pytest.mark.foundation
-def test_the_scalar_frame_square_collapse_is_a_sphere_family_property():
+def test_diagonal_gram_suffices_for_the_collapse_and_dense_does_not_decide_it():
     r"""D3 — why the frame-square gate keeps NO slab param.
 
     The positive replacement for a silent param removal: `[M]` 2026-08-30
@@ -876,7 +880,18 @@ def test_the_scalar_frame_square_collapse_is_a_sphere_family_property():
     because the slab's live ℓ=2 Gram diagonal is ``[0.4, 0.8, 0.8]``,
     not a single per-ℓ scalar, so no :math:`G_\ell` exists and the
     collapse :math:`d_\ell G_\ell = W` is unspellable there at ANY
-    metric. The metric is right; the collapse is sphere-family-specific.
+    metric.
+
+    ⛔ REFRAMED 2026-08-30 (archivist refutation of this gate's first
+    name, "…is a sphere-family property"): `[M]` ``product(4,4)`` L=2 IS
+    a sphere rule and BREAKS the collapse (rel 3.1e-3–0.333 over 200
+    seeds), while ``folded_product(4,6)`` L=3 measures DENSE and
+    SATISFIES it to 2.8e-15 — its only live off-diagonal block is
+    rank-1 (det −8.7e-17), so :math:`Y(G^{+} − \mathrm{diag}(d)/W) = 0`
+    holds anyway. The decidable statement is the current name:
+    a DIAGONAL verdict is SUFFICIENT for the collapse; a DENSE verdict
+    does not decide it either way. The slab is a DENSE member where it
+    fails, which is all this gate pins.
     """
     frame = Quadrature.gauss_legendre(8).angular_frame(2)
     rng = np.random.default_rng(1234)
@@ -946,13 +961,16 @@ def test_the_dressing_lands_parseval_on_the_production_anisotropic_frame():
     ScatteringOperator configuration (``scattering.py`` builds
     ``quadrature.angular_frame(scattering_order)``) and its Gram measures
     DENSE. `[M]` 2026-08-30 (design pre-flight): dressing it moves
-    ``frame.analysis.H`` by ``max|Δ| = 8.246`` — **rel 0.8995** — the
-    recorded F-0 limitation repaired (the undressed ``.H`` was the
-    stored-metric sandwich, NOT the physical Hilbert adjoint), and
-    NOTHING else in the 4371-test pre-flight scope observed it
-    (plan-authoring §8, measured). This gate is where the change is
-    visible: Parseval holds post-dressing (`[M]` 1.000000000000 this
-    seed) and the pre-repair continuum metric reads 65.66.
+    ``frame.analysis.H`` by ``max|Δ| = 8.246`` — **rel 0.8995** on that
+    probe's draw; ⚠ draw-banded 0.879–0.986 over 200 seeds, with the
+    draw-free operator-level Frobenius relative at **0.980–0.985**
+    across three DENSE frames (archivist census) — the recorded F-0
+    limitation repaired (the undressed ``.H`` was the stored-metric
+    sandwich, NOT the physical Hilbert adjoint), and NOTHING else in
+    the 4371-test pre-flight scope observed it (plan-authoring §8,
+    measured). This gate is where the change is visible: Parseval holds
+    post-dressing (`[M]` 1.000000000000 this seed) and the pre-repair
+    continuum metric reads 65.66.
     """
     frame = Quadrature.product(4, 4).angular_frame(2)
     assert frame.discrete_gram_structure is GramStructure.DENSE

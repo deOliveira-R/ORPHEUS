@@ -157,12 +157,14 @@ class TestDenseMetricLaws:
 
     def test_dense_metric_of_a_diagonal_matrix_reduces_to_the_hadamard_pairing(self):
         """A7 — the same reduction on the PAIRING face, at rtol=1e-12 and
-        deliberately NOT ``array_equal``: [M] design-time sweep,
-        ``sum((w·x)·y)`` vs ``y@(diag(w)@x)`` differ on 1360 of 2000 draws
-        at n=15, worst 1792 ULP (rel 2.0e-13) — the two reduction trees
-        are different, so a nulp pin taken from one green draw would be
-        seed-fragile. This is also why the space's pairing is spelled
-        ``sum(metric.apply(x) * y)`` and never densified (arm M13)."""
+        deliberately NOT ``array_equal``: [M] the two reduction trees
+        differ on 60–70 % of draws at n=15 (the design scan's draw read
+        1360 of 2000), worst per-seed deviation banded 46–16384 ULP /
+        rel 9.2e-15–2.1e-12 over 40 seeds (archivist census) — a nulp
+        pin taken from one green draw would be seed-fragile. This is
+        also why the space's pairing is spelled
+        ``sum(metric.apply(x) * y)`` and never densified (arm M13; the
+        bit-exact witness is TestPairingSpelling below)."""
         rng = np.random.default_rng(11)
         for n in (3, 15, 225):
             w = rng.standard_normal(n) ** 2 + 0.1

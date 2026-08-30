@@ -42,10 +42,12 @@ The inverse face is Moore–Penrose, everywhere, by doctrine
 the metric's range, zero on its kernel. This is not a numerical convenience
 — on the flagship consumer it is the only thing that exists: `[M]` the slab
 ``gauss_legendre(8).angular_frame(2)`` Gram is :math:`15\times 15` with 5
-live diagonal slots and **rank 4** (a live-block eigenvalue at
-``6.82e-17``), so ``np.linalg.inv`` raises where :func:`np.linalg.pinv`
-returns the exact object Parseval needs: :math:`G G^{+} G = G` (`[M]` to
-``9.99e-16``) makes :math:`\|M\psi\|^2_{G^{+}} = c^{\mathsf T} G G^{+} G c
+live diagonal slots and **rank 4** (one noise-level mode at ``~1e-16`` —
+its last digit is solver-dependent: ``eigvalsh`` reads ``8.2e-17``, SVD
+``6.0e-17``), so ``np.linalg.inv`` raises where :func:`np.linalg.pinv`
+returns the exact object Parseval needs: :math:`G G^{+} G = G` (`[M]`
+max-abs residual ``1.6e-15``, relative ``7.8e-16`` — Frobenius-relative
+the same) makes :math:`\|M\psi\|^2_{G^{+}} = c^{\mathsf T} G G^{+} G c
 = \|S_0 c\|^2_W` a **theorem for any** :math:`G`, singular or not. The
 diagonal realization has carried the same doctrine since the trace-metric
 work (zero-weight tangential ordinates map to zero); the dense realization
@@ -61,10 +63,13 @@ both load-bearing:
 * **Bit-identity.** The legacy diagonal spelling ``np.sum(w * x * y)``
   evaluates left-to-right as ``(w*x)*y``, and ``apply(x)`` IS ``w_b * x``,
   so the reduction tree is preserved exactly. The matmul spelling
-  ``y @ (diag(w) @ x)`` is NOT equivalent: `[M]` it differs on 1360 of 2000
-  draws at ``n = 15``, worst 1792 ULP (rel ``2.0e-13``) — routing the
-  shipped diagonal path through a densified matmul would move pinned
-  numbers tree-wide.
+  ``y @ (diag(w) @ x)`` is NOT equivalent: `[M]` it differs on 60–70 %
+  of draws at ``n = 15`` (the design scan's draw read 1360 of 2000),
+  worst per-seed deviation banded 46–16384 ULP / rel ``9.2e-15`` to
+  ``2.1e-12`` over 40 seeds (archivist census) — routing the shipped
+  diagonal path through a densified matmul would move pinned numbers
+  tree-wide. The bit-exact witness is
+  ``tests/numerics/test_dense_metric.py``'s pairing-spelling gate.
 * **Single source.** ``_AdjointOperator`` builds the Hilbert adjoint from
   ``apply_metric``/``apply_inverse_metric`` while the pairing that judges
   it comes from ``inner_product``; deriving the pairing FROM ``apply``
@@ -105,11 +110,14 @@ __all__ = [
 #: an implicit default is a silent dependency on a numpy version, and the
 #: mutation battery's over-truncation arm is only meaningful against a
 #: pinned value. `[M]` 2026-08-30 on the flagship slab Gram (singular values
-#: ``2.71 / 1.42 / 4.92e-1 / 4.74e-2`` live, ``6.82e-17`` noise): the
-#: Parseval ratio reads ``1.000000000`` for every ``rcond`` in
-#: ``[1e-15, 1e-2]`` and breaks only at ``>= 5e-2``, where the genuine
-#: ``4.74e-2`` mode is truncated (``0.991414787``). ``1e-12`` sits 10 orders
-#: below the cliff and 5 above the noise floor.
+#: ``2.71 / 1.42 / 4.92e-1 / 4.74e-2`` live, one ``~1e-16`` noise mode):
+#: the Parseval ratio reads ``1.000000000`` for every ``rcond`` in
+#: ``[1e-15, 1e-2]``. The cliff's ANALYTIC edge is
+#: ``σ_min^live/σ_max = 4.745e-2 / 2.708 = 1.7524e-2`` — the genuine
+#: smallest live mode is truncated for any ``rcond`` above it (`[M]`
+#: archivist re-scan: already broken at ``3e-2``; the design plan's
+#: coarser scan first reported the break at ``5e-2``). ``1e-12`` sits 10
+#: orders below the analytic edge and ~4 above the noise floor.
 _DENSE_METRIC_RCOND: float = 1e-12
 
 #: Symmetry admission threshold for :class:`DenseMetric`, relative to the
