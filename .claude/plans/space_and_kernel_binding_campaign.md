@@ -1,5 +1,20 @@
 # Operators born bound — the space substrate, the cone, and kernel→operator realization
 
+> ## ⏹ CAMPAIGN 1 COMPLETE — CLOSED OUT 2026-08-30 (user ruling)
+>
+> Every chartered item is landed, discharged, or issue-tracked: the CS
+> phases through CS5-NODAL landed (per-phase records in this file and
+> the topic file `project_space_kernel_operator_campaign.md`); §5.5
+> item 2 was ABSORBED AND DISCHARGED by the streaming plan's P7
+> (#409 CLOSED — the banner at §5.5 carries the record); §5.5 item 3
+> is **#423** (the polynomial `Basis` — blocks nothing). The streaming
+> plan (`streaming_path_says_what_it_is.md`) carries its own ⏹ banner
+> with the full residue map. **Campaign 2** (the LossRepresentation
+> overturn → `GeneralizedEigenPencil` + resolvent/complexification +
+> partitioning) is now unblocked and chartered NEXT — its charter
+> consumes the re-posed §5b build fork and the O-3 split. Everything
+> below is the frozen campaign record.
+
 **Campaign 1 of the two-campaign return to the operator-machinery thread.** Chartered
 2026-08-19 from the user's rulings (§0) on the grounded
 `orpheus-operator-machinery-report-v2.md` (its Part VI carries the tree reconciliation at

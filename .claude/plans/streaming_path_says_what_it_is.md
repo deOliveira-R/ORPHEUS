@@ -1,8 +1,44 @@
 # The streaming path's objects say what they are, live where they belong, and carry only what they use
 
+> ## ⏹ CAMPAIGN COMPLETE — CLOSED OUT 2026-08-30 (user ruling)
+>
+> **Every phase of this plan is landed or dissolved.** Phase B, P1, P2,
+> P3a/b, P4.1a/b/c, P4.2–P4.7, P4.9a/b, P4b, CS5-NODAL, the
+> P4-remainder, **P6 (DISSOLVED — its opener census refuted the
+> charter; the ⛔ banner in its section is the record; #418–#421 hold
+> the filed residue)** and **P7 (LANDED — Parseval a theorem on every
+> frame; #409 CLOSED; final baseline 9950 / 0 / 19 sk / 227 des /
+> 70 xf, 13 trees rc=0)**. P5's content rides the O-3 split. §5b's P0
+> was answered probe-only (the product form REFUTED; the measured
+> algebra is the SUM — `scratch/p0_product_form_measurement.md`).
+>
+> **What leaves this plan alive as a REFERENCE and dead as a TASK
+> LIST:** the per-phase rulings, refutation banners and `[M]` records
+> below are the campaign's archaeology (plan-authoring §3 — refuted
+> text stays beside its refutation); nothing below is a work item.
+> The residue lives where the tree tracks it:
+> - **Campaign 2's charter consumes**: the re-posed §5b build fork
+>   (user fork pending) · the O-3 three-way split (the deferred
+>   `ChartConnection` re-name + fork 2's unexecuted R→transport/
+>   ruling + the #407 carve + P5's directional-extension content) ·
+>   `_coll_cache`/`_pole_mirror_cache`. Charter of record:
+>   `.claude/plans/posing_filtration_charter.md` (R1–R23).
+> - **Issues**: #158 (the curvilinear M/V VALUE) · #407 (rides O-3) ·
+>   #409 CLOSED · #418–#421 (the P6 census residue) · #422 (docs
+>   markup) · #423 (CS5-MODAL item 3, the polynomial `Basis`).
+> - **The durable record**: the campaign topic file
+>   (`project_space_kernel_operator_campaign.md`) + the Sphinx
+>   dev-histories (spaces/frame/SN pages, per-phase entries).
+>
+> The COMPACTION headers below this banner are FROZEN history — their
+> "▶ NEXT" pointers, baselines and line numbers are dated snapshots,
+> each superseded by the entries above it, terminally by this banner.
+
 > ## ▶ RESUME STATE — ⏸ COMPACTION POINT, rewritten 2026-08-28 after P4.3 (P4.4 + P4.2 landed earlier the same day)
 >
 > **This file is the resume surface. Trust it over any summary.**
+> ⛔ SUPERSEDED by the ⏹ banner above (2026-08-30): this header and
+> everything below are the frozen mid-campaign record.
 > ⛔ A summary is quoting dead text if it says any of: "▶ NEXT = P2" · P2 moves
 > α · P4 has a four-way fork about where the α type lives ·
 > `face_areas`/`delta_A` are fields · `streaming_terms` has three chart arms ·
