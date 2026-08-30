@@ -72,7 +72,7 @@ named accessors are derived views with no separate storage.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -100,6 +100,7 @@ from orpheus.numerics.symmetry import (
 
 if TYPE_CHECKING:
     from orpheus.geometry.transformation import Permutation, RigidMotion
+    from orpheus.numerics.axis import Axis
     from orpheus.numerics.frame import GalerkinFrame
 
 from .rules_1d import gauss_legendre_on_mu
@@ -233,6 +234,28 @@ class Quadrature:
         for slab quadratures (1-D scalar nodes), ``3`` for sphere
         cubatures."""
         return self.measure.dim
+
+    def axis(self, label: str) -> "Axis":
+        r"""Mint the angular space-factor axis, with THIS rule as its
+        generator.
+
+        Delegates the structural mint to
+        :meth:`DiscreteMeasure.axis <orpheus.numerics.measure.DiscreteMeasure.axis>`
+        (one home for the shape/weights logic) and upgrades the
+        provenance to the quadrature via ``dataclasses.replace`` — which
+        re-runs the axis's construction canonicalization, so the upgrade
+        cannot bypass an invariant.
+
+        The quadrature — not the bare measure — is the angular axis's
+        generator because the measure alone does not answer everything
+        the axis forgot: ``level_indices`` lives on the
+        :class:`LevelStructure` side-channel, carried here. A consumer
+        recovering the angular geometry through the space
+        (``axis.generator.mu_x`` / ``.eta`` / ``.mu_z`` /
+        ``.level_indices``) gets the whole generator, not a projection
+        of it ([M] 2026-08-29, CS5 ground memo §L).
+        """
+        return replace(self.measure.axis(label), generator=self)
 
     def axis_cosines(self, axis_index: int) -> np.ndarray:
         r"""Direction cosines along axis :math:`i` (dim-agnostic).

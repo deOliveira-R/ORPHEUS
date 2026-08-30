@@ -418,15 +418,29 @@ class MaterialMesh:
             sorted(int(i) for i in np.unique(self.mat_map))
         )
         energy = EnergyAxis.from_materials(reachable.values())
-        return FunctionSpace.of_axes(
-            energy,
-            SpaceFactorAxis(
+        if len(self.spatial_shape) == 1:
+            # The carrier's volume measure generates the spatial axis
+            # (CS5, user ruling: "the mesh is able to generate a Discrete
+            # Measure of space"). ``self.volume_measure`` is the ONE
+            # documented data path — nodes = cell centres, weights = THIS
+            # carrier's ``volumes`` (delegated to the legacy mesh when
+            # present, bit-identically) — so the minted axis has exactly
+            # the structural content of the literal it replaced, plus its
+            # generator.
+            spatial = self.volume_measure.axis("spatial")
+        else:
+            # Rank-d axes have no rank-d measure->axis mint: the measure
+            # is FLAT (nodes ``(N, d)``, weights ``(N,)``) while the axis
+            # is rank-d — the CS2 rank-d seam, gated as a CONTRACT (G6b):
+            # this arm's axis stays generator-less until CS2 mints the
+            # rank-d pairing, and inverting that row must be deliberate.
+            spatial = SpaceFactorAxis(
                 "spatial",
                 self.spatial_shape,
                 weights=self.volumes,
                 kind=BasisKind.NODAL,
-            ),
-        )
+            )
+        return FunctionSpace.of_axes(energy, spatial)
 
     def integrate_per_group(self, density: np.ndarray) -> np.ndarray:
         r"""Volume-integrate a per-group cell density into a per-group rate.

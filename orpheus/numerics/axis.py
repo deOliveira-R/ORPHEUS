@@ -21,6 +21,20 @@ The four slots, precisely
 * ``kind`` — :class:`BasisKind`. ``NODAL`` factors carry a coordinate
   cone (per-component positivity is meaningful); ``MODAL`` factors do not
   (a spectral coefficient may be negative for a positive function).
+* ``generator`` — **provenance, never identity** (CS5): the object that
+  minted this axis — a :class:`~orpheus.numerics.measure.DiscreteMeasure`
+  or :class:`~orpheus.numerics.quadrature.directional.Quadrature` for
+  NODAL factors, a :class:`~orpheus.numerics.basis.base.Basis` for MODAL
+  ones — or ``None`` where no generator object exists (the counting
+  axis). An axis is a **forgetful map** from its generator (it keeps the
+  weights and drops the nodes); the accessor lets a consumer recover the
+  un-forgotten data (direction cosines, level structure) THROUGH the
+  space instead of being handed the generator separately. Deliberately
+  EXCLUDED from :meth:`_identity_key`: two axes with identical
+  structural content are the same axis whatever instance produced them,
+  so content-equal but distinct-instance generators (the #403 hazard)
+  never reach axis equality — and never perturb the ``of_axes``
+  space-name digest, whose injectivity rides the same key.
 * identity — **structural, per subclass** (see below).
 
 Canonical storage — one spelling per measure (ruled 2026-08-20)
@@ -79,6 +93,9 @@ if TYPE_CHECKING:
 
     from orpheus.data.energy_grid import EnergyGrid
     from orpheus.data.macro_xs.mixture import Mixture
+    from orpheus.numerics.basis.base import Basis
+    from orpheus.numerics.measure import DiscreteMeasure
+    from orpheus.numerics.quadrature.directional import Quadrature
 
 __all__ = ["Axis", "BasisKind", "EnergyAxis"]
 
@@ -122,6 +139,19 @@ class Axis:
     kind : BasisKind
         Keyword-only, no default — the basis character is physics and
         must be spelled at every mint.
+    generator : DiscreteMeasure | Basis | Quadrature | None, default None
+        Keyword-only provenance: the object that minted this axis (see
+        the module docstring's slot table). NOT part of the identity —
+        equality, hash and the ``of_axes`` name digest ignore it. Prefer
+        minting through the generator (``measure.axis(label)`` /
+        ``quad.axis(label)``) over passing this by hand: a
+        generator-minted axis cannot forget its provenance, and its
+        ``kind`` is implied by the generator's type (a measure mints
+        NODAL — its components are point values with a coordinate cone).
+        ⚠ A LIVE REFERENCE, not a snapshot: ``Quadrature`` is a mutable
+        dataclass, so ``axis.generator.weights`` can be moved under the
+        axis while the axis's own ``weights`` copy (read-only, hashed)
+        cannot — the axis's copy is the authoritative factor measure.
 
     Notes
     -----
@@ -137,6 +167,9 @@ class Axis:
     shape: tuple[int, ...]
     weights: NDArray | None = field(default=None, repr=False)
     kind: BasisKind = field(kw_only=True)
+    generator: DiscreteMeasure | Basis | Quadrature | None = field(
+        default=None, kw_only=True, repr=False
+    )
 
     def __post_init__(self) -> None:
         shape = tuple(int(n) for n in self.shape)
@@ -170,7 +203,13 @@ class Axis:
                 object.__setattr__(self, "weights", w)
 
     def _identity_key(self) -> tuple[Any, ...]:
-        """The structural content equality/hash read (subclasses extend)."""
+        """The structural content equality/hash read (subclasses extend).
+
+        ``generator`` is deliberately ABSENT: provenance is not identity
+        (module docstring, slot table). Any future field added here also
+        enters :meth:`_structural_bytes` and therefore every derived
+        space NAME — the blast radius of an inclusion is space identity.
+        """
         w = self.weights
         return (
             self.label,

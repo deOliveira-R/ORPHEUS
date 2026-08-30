@@ -80,6 +80,11 @@ from typing import TYPE_CHECKING, Callable, Literal, Protocol, runtime_checkable
 import numpy as np
 
 if TYPE_CHECKING:
+    # ``axis`` is lower-level (imports nothing from this module); the
+    # forward-ref keeps the annotation cost-free — the runtime import
+    # lives inside the ``axis()`` mint, mirroring ``space``'s lazy style.
+    from orpheus.numerics.axis import Axis
+
     # Forward-ref only: ``symmetry`` imports FROM this module, so a runtime
     # import would cycle. The field stores a ``SubgroupOfO3`` object (passed
     # by the angular quadrature factories, which already import it).
@@ -326,6 +331,38 @@ class DiscreteMeasure:
             name=f"L2[{self.support}]",
             shape=(self.n_points,),
             inner_product_weights=self.weights,
+        )
+
+    def axis(self, label: str) -> "Axis":
+        r"""Mint the space-factor :class:`~orpheus.numerics.axis.Axis` this
+        measure generates — the axis-composed sibling of :attr:`space`.
+
+        An axis is a **forgetful map** from its generator: it keeps the
+        weights (the factor measure) and drops the nodes. Minting through
+        the generator makes the forgetting recoverable — the returned
+        axis carries ``generator=self`` (provenance, excluded from axis
+        identity), so a consumer can read the un-forgotten data through
+        the space instead of being handed the measure separately (CS5).
+
+        ``kind`` is NOT a parameter: a discrete measure's samples are
+        point values with a coordinate cone, so the generator's type
+        implies :attr:`~orpheus.numerics.axis.BasisKind.NODAL` — the
+        "nodal basis carrying no nodes" mis-declaration is unspellable
+        on this path. (A MODAL axis is minted by its
+        :class:`~orpheus.numerics.basis.Basis`, not by a measure.)
+
+        Lazy import for style symmetry with :attr:`space`; the runtime
+        edge ``measure → axis`` is new and acyclic (``axis`` imports
+        nothing from this module — [M] 2026-08-29, CS5 ground memo §F).
+        """
+        from orpheus.numerics.axis import Axis, BasisKind
+
+        return Axis(
+            label,
+            (self.n_points,),
+            weights=self.weights,
+            kind=BasisKind.NODAL,
+            generator=self,
         )
 
     @property

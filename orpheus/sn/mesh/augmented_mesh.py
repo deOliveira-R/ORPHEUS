@@ -1166,18 +1166,19 @@ class SNMesh(MaterialMesh):
         consumer of one carrier reads the SAME instance; equal carriers
         mint ``==`` spaces through the derived name.
         """
-        from orpheus.numerics.axis import Axis as SpaceFactorAxis
-        from orpheus.numerics.axis import BasisKind
         from orpheus.numerics.space import FunctionSpace
 
         scalar = self.bulk_space
         assert scalar.axes is not None  # of_axes-built by construction
-        angular = SpaceFactorAxis(
-            "angular",
-            (self.quad.N,),
-            weights=np.asarray(self.quad.weights, dtype=float),
-            kind=BasisKind.NODAL,
-        )
+        # The generator mints its own axis (CS5): identical structural
+        # content to the literal ``Axis("angular", (quad.N,), weights=
+        # quad.weights, kind=NODAL)`` this replaced — the space name and
+        # identity are unchanged — plus provenance: the axis carries the
+        # quadrature, so a consumer holding the SPACE can recover the
+        # forgotten angular geometry (``mu_x``/``eta``/``mu_z``/
+        # ``level_indices``) without being handed the quadrature
+        # separately.
+        angular = self.quad.axis("angular")
         return FunctionSpace.of_axes(angular, *scalar.axes)
 
     @cached_property

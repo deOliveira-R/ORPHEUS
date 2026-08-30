@@ -145,6 +145,9 @@ def _pose_space(mix: Mixture) -> FunctionSpace:
     """
     return FunctionSpace.of_axes(
         EnergyAxis.from_materials([mix]),
+        # The one-cell counting axis is honestly generator-less (CS5):
+        # the infinite-medium pose has no mesh, so no spatial measure
+        # object exists to name — ``generator=None`` IS the record.
         Axis("spatial", (1,), kind=BasisKind.NODAL),
     )
 

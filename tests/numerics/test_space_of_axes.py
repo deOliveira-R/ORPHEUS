@@ -110,6 +110,42 @@ def test_of_axes_name_is_INJECTIVE_on_structural_content() -> None:
     )
 
 
+def test_of_axes_name_is_BLIND_to_the_generator() -> None:
+    """B12 (CS5) — provenance never perturbs the identity bridge.
+
+    Space identity is ``(name, shape)`` until the S3 flip, so the derived
+    name is load-bearing. ``_structural_bytes`` iterates ``_identity_key``,
+    which excludes ``Axis.generator``; this gate is the observable
+    statement of that, at the tier where an inclusion would do damage.
+    Mutation: append ``self.generator`` to ``_identity_key`` → the digest
+    moves ([M] ``angular(4,)#a1259d874905e50e`` → ``#a56a82a93fac074b``),
+    and ``==``/``hash`` RAISE outright (the generator objects are
+    un-comparable / unhashable — the exclusion is structurally mandatory,
+    see ``test_axis_generator.py`` G1c).
+
+    ⚠ Do NOT count B3 as this gate's catcher: its subprocess leg runs an
+    unmutated interpreter, so it reds for ANY in-process digest change —
+    a cross-process differential, not a provenance gate.
+    """
+    from orpheus.numerics.quadrature.directional import Quadrature
+
+    q = Quadrature.gauss_legendre(4)
+    minted = q.axis("angular")
+    literal = Axis(
+        "angular", (q.N,), weights=np.asarray(q.weights, float),
+        kind=BasisKind.NODAL,
+    )
+    s_m = FunctionSpace.of_axes(minted)
+    s_l = FunctionSpace.of_axes(literal)
+    _require(s_m.name == s_l.name, f"digest moved: {s_m.name!r} != {s_l.name!r}")
+    _require(s_m == s_l and hash(s_m) == hash(s_l), "space identity moved")
+    _require(
+        FunctionSpace.of_axes(minted, _point()).name
+        == FunctionSpace.of_axes(literal, _point()).name,
+        "the shipped composite's name moved",
+    )
+
+
 def test_of_axes_name_is_deterministic_across_processes() -> None:
     """B3 — the derived name does not depend on ``PYTHONHASHSEED``.
 
@@ -450,6 +486,83 @@ def test_bulk_space_on_a_MESHED_carrier_is_the_honest_scalar_bulk() -> None:
         diffusion_mesh.bulk_space != diffusion_mesh.full_field_space,
         "the scalar bulk and the composite carrier collapsed — D7's "
         "chain-ordering claim would be vacuous",
+    )
+
+
+def test_the_spatial_axis_is_minted_through_the_carriers_own_measure() -> None:
+    """G6a (CS5) — the mesh generates the spatial measure; the measure
+    mints the axis; the axis is TODAY'S axis (same identity, same digest)
+    plus its generator.
+
+    Independent literal anchor (verification plan Q4): the volumes and
+    centres asserted below are HAND-DERIVED from the edge list — not read
+    back from the mesh — so the mesh→measure→axis chain has a pin that
+    is structurally independent of every array it threads.
+    """
+    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.geometry import Mesh1D
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+
+    mix = get_mixture("A", "2g")
+    # Cartesian slab, edges 0|1|3|6 ⟹ BY HAND: widths (=volumes) 1,2,3;
+    # centres 0.5, 2.0, 4.5. Non-uniform, so canonicalization keeps them.
+    carrier = MaterialMesh(
+        Mesh1D(edges=np.array([0.0, 1.0, 3.0, 6.0]), mat_ids=np.array([0, 0, 0])),
+        {0: mix},
+    )
+    space = carrier.bulk_space
+    sp_ax = space.axis("spatial")
+    g = sp_ax.generator
+    _require(g is not None, "the rank-1 spatial axis must carry its measure")
+    assert g is not None
+    npt = np.testing
+    npt.assert_array_equal(g.weights, np.array([1.0, 2.0, 3.0]),
+                           err_msg="volumes, hand-derived")
+    npt.assert_array_equal(g.nodes, np.array([0.5, 2.0, 4.5]),
+                           err_msg="centres, hand-derived")
+    literal = Axis(
+        "spatial", carrier.spatial_shape, weights=carrier.volumes,
+        kind=BasisKind.NODAL,
+    )
+    _require(sp_ax == literal, "minted spatial axis != today's literal")
+    _require(
+        FunctionSpace.of_axes(literal).name == FunctionSpace.of_axes(sp_ax).name,
+        "the spatial digest moved",
+    )
+    # G8-spatial — the section law on the rank-1 arm (the law's domain):
+    _require(g.axis(sp_ax.label) == sp_ax, "spatial mint: not a section")
+
+
+def test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT() -> None:
+    """G6b (CS5) — the CS2 rank-d seam, pinned as a CONTRACT.
+
+    A ``DiscreteMeasure`` is a flat atom list, so ``measure.axis`` mints
+    rank 1; a rank-d spatial axis (shape ``(nx, ny, nz)``) has no rank-d
+    measure→axis pairing yet. [M] minting it flat would change every
+    d≥2 space name (``spatial(12,)#3712…`` vs ``spatial(3, 4)#1dcb…`` —
+    verification plan R1), so the rank-d arm deliberately stays
+    generator-less. ⛔ The day CS2 mints the rank-d pairing, THIS row
+    must be inverted DELIBERATELY — it is the seam's witness, not a
+    permanent truth.
+    """
+    from orpheus.numerics.quadrature.directional import Quadrature
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.transport.mesh.axis import AxisMesh
+    from tests.sn._test_helpers import placeholder_materials
+
+    axes = tuple(
+        AxisMesh(edges=np.linspace(0.0, ext, n + 1))
+        for ext, n in zip((1.0, 2.0, 3.0), (2, 3, 2))
+    )
+    sn = SNMesh.from_axes(
+        axes, Quadrature.level_symmetric(sn_order=4), placeholder_materials(ng=2)
+    )
+    sp_ax = sn.bulk_space.axis("spatial")
+    _require(sp_ax.shape == (2, 3, 2), f"fixture rank moved: {sp_ax.shape}")
+    _require(
+        sp_ax.generator is None,
+        "the rank-d arm must stay generator-less until CS2 mints the "
+        "rank-d measure→axis pairing (inverting this is a deliberate act)",
     )
 
 
