@@ -230,3 +230,40 @@ class TestAlphaDomeClosureContract:
         # …and the production admission point must refuse that same dome.
         with pytest.raises(ValueError, match="does not close"):
             _assert_alpha_dome_closes(alpha, coord=CoordSystem.SPHERICAL)
+
+
+class TestG9TheProtocolDeclaresWhatItsConsumersRead:
+    """G9a (CS5) — the ``AngularMeasure`` contract stopped under-declaring.
+
+    [M] before 2026-08-29 the Protocol declared exactly 6 members while
+    the cylinder factory admission-probed a 7th —
+    ``getattr(angular_measure, "level_structure", None)`` at
+    ``sn/mesh/reduced_operator.py:708`` — a string-form attribute read no
+    symbol grep can see, silently inert the day the attribute is renamed.
+    The declaration is the repair; the tolerant ``getattr`` at the probe
+    deliberately survives this phase (structural conformers may predate
+    the declaration) and hardens when the courier field dissolves at the
+    streaming plan's P4-remainder.
+
+    Mutation: remove the ``level_structure`` declaration → the first
+    assertion reds; nothing else in the tree observes the contract.
+    """
+
+    def test_level_structure_is_a_declared_member(self):
+        from orpheus.sn.angular.redistribution import AngularMeasure
+
+        declared = AngularMeasure.__protocol_attrs__
+        assert "level_structure" in declared, (
+            f"the cylinder factory admission-probes `level_structure`; "
+            f"the contract declares only {sorted(declared)}"
+        )
+
+    def test_the_implementer_satisfies_the_widened_contract(self):
+        q_level = Quadrature.level_symmetric(4)
+        q_slab = Quadrature.gauss_legendre(4)
+        assert q_level.level_structure is not None, (
+            "a cylindrical-compatible rule carries the side-channel"
+        )
+        assert q_slab.level_structure is None, (
+            "a slab rule's honest reading is None, not an absent attribute"
+        )

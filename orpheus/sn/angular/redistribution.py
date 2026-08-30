@@ -205,11 +205,14 @@ See also
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import numpy as np
 
 from orpheus.geometry.coord import CoordSystem
+
+if TYPE_CHECKING:
+    from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 
 
 
@@ -273,6 +276,19 @@ class AngularMeasure(Protocol):
         """Per-:math:`\\mu`-level ordinate-index partition: ``[arange(N)]`` for
         a slab quadrature (single level), one index array per level for
         cylindrical-compatible cubatures."""
+        ...
+
+    @property
+    def level_structure(self) -> "LevelStructure | None":
+        """The per-level side-channel (``None`` for slab / 2-D rules).
+
+        Declared here since CS5 (2026-08-29): the cylinder factory was
+        already reading it past the contract via
+        ``getattr(angular_measure, "level_structure", None)`` — the
+        Protocol under-declared what its consumer needs. The tolerant
+        ``getattr`` at the probe survives (structural conformers may
+        predate this declaration); the CONTRACT now tells the truth.
+        """
         ...
 
 
