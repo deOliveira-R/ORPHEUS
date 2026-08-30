@@ -44,7 +44,9 @@ measured (with source); *hypothesis* = unverified means-sketch.
    `DualSpace` with axes+metric threaded (P7 S2); `HilbertMetric` family
    (P7) whose docstring reserves the Riesz-leg composition; `ScatteringKernel`
    + `FissionKernel` minted with **0 production consumers** — this ladder is
-   their first; L's binding ruled + P4.9b landed (transitional
+   their first (⚠ second-pass correction 2026-08-30: the family is THREE —
+   `N2NKernel` also ships, `kernels.py:222-246`, already carrying
+   `multiplicity: ClassVar[int] = 2` as the datum home XD-2 names); L's binding ruled + P4.9b landed (transitional
    `(sn_mesh, spatial_closure, angular_closure)` ctor; end state = the
    4-tuple `(domain, codomain, spatial_closure, angular_closure)` riding O-3).
 5. **Dispatch surface**: exactly 3 `singledispatchmethod` sites —
@@ -355,6 +357,14 @@ Standing: surgical posture; test-architect BEFORE step 1's first edit; L17
 crosswalk first; per-step batteries; predicted-then-measured deltas vs
 9950/0 (13 trees rc=0); branch + ff-merge.
 
+⚠ **Second-pass review 2026-08-30 (§12) amends this table**: steps 1+2 fuse
+to ONE merge unit (F2); step 2's §6b population is the direct-ctor re-key
+set, not the 7 anonymous sites (F3); the R1 reader must be extended in the
+same commit as the first field-tier flip (F4); step 3's test-side set is
+[M] 99 calls / 18 files (F5); XD-2's count gate moves to step 3 and carries
+a user fork on its denominator (F6); XD-1's multiplicativity operand needs a
+spelling decision (F7).
+
 ---
 
 ## 9. Open forks
@@ -403,3 +413,138 @@ don't trust this file's tense — §7 discipline);
 Findings tighten THIS document in place ([M]-marked, dated). THEN:
 test-architect dispatch (the pre-carve MUST trigger) + step 0, per §8's
 standing block — both on the user's go after the review is presented.
+
+## 12. Second-pass review findings (2026-08-30, fresh context per §11) — all [M] at `14201b48`
+
+Method: §11's attack list, run against the tree with fresh context. Every
+claim below was measured this session (commands: AST censuses via
+`.venv/bin/python`, greps stated inline). Findings are edits-in-place
+obligations on the steps they name; none reopens a ruled fork except F6
+(one small user fork).
+
+### F1 — step 1's `_AdjointOperator` retirement is underpriced, and its §6b set includes the ACCEPTANCE INSTRUMENT itself
+
+- **(a) `A.dual()` does not exist on operators.** [M] `grep -rn "def dual"`
+  → only `FunctionSpace.dual` (`space.py:804`) + `CoupledField.dual_zeros`.
+  The §7.4 formula (verbatim reserved at `metric.py:84` ✓) therefore mints
+  THREE new objects: an operator-level dual wrapper (apply =
+  `inner.apply_transpose`, spaces = the duals) + the two riesz-leg
+  operators. The retirement is a re-expression, not a re-plumbing.
+- **(b) Four test files import/monkeypatch the private class directly**
+  ([M] grep `_AdjointOperator` over `tests/`):
+  `test_operator_capability_predicates.py` (:25/:177/:186/:280 — direct
+  construction of the wrapper), `test_coupled_operator.py` (:78/:866 —
+  monkeypatches `.apply`), `test_inverse_adjoint_coherence.py`
+  (:92/:340/:377 — the M-ADJ mutation legs), and ⭐
+  **`test_monomorphic_leaves.py` — THE LEDGER — at :608 module-scope
+  `_TRUE_ADJOINT_APPLY = _operator_module._AdjointOperator.apply` + three
+  monkeypatch sites (:939/:987/:1030, the M-10 family)**. Deleting the
+  class kills the ledger file at COLLECTION (vv#17's third pipeline
+  failure — reads as 0 failed). ⟹ the retirement commit migrates the
+  mutation instruments to mutate the riesz legs / dual wrapper instead
+  (coding-standards: retirement = test+marker migration), applied to the
+  campaign's own acceptance instrument FIRST.
+- **(c) ~40 docstring references** to `_AdjointOperator` across `orpheus/`
+  (`:class:` Python-domain refs — silent at every Sphinx severity) —
+  `dead_references` sweep owed at the step, magnitude now stated.
+- Day-1 witnesses exist ✓: the adjoint-coherence + factored-adjoint-identity
+  gates exercise the new composition on landing.
+- Nuance recorded: the unbound-`.H` refusal ALREADY ships
+  (`operator.py:1313`, S4-amendment ruling 2026-08-22, with the pointwise
+  self-adjoint exemption at `multiplication_operator.py:264-265`) — the
+  retirement changes the MECHANISM of `.H`, not its admission.
+
+### F2 — steps 1+2 are one MERGE UNIT (§6c)
+
+The base ABC's per-END admission has no concrete subclass until step 2 —
+no shipped input it can reject on landing day. Fuse: land base + Riesz
+legs + C rebind on one branch (commits may stay separate inside it); the
+R1-C/R2-C flips are the base's first witnesses.
+
+### F3 — step 2's "7 sites" is the WRONG-PREDICATE count (§2 filter)
+
+The 7 counts space-ANONYMOUS direct ctors. The step as ruled (§1: base
+carries `domain`+`codomain` as mandatory fields; endomorphism sugar
+classmethod-only) re-keys EVERY direct ctor call: [M] **26 direct C sites**
+(3 production + 23 test, census 1's own numbers re-bucketed), while the
+127 `from_mesh` spellings survive ONLY IF tier-2 keeps a one-space
+`space=` parameter — a design decision the record did not state. ⟹ stated
+now: **tier-2 classmethods keep the endomorphism one-space spelling** (the
+sugar §1 licenses); the §6b population per step is the DIRECT-ctor re-key
+set + attribute-read set (`.space` reads: [M] 161 Load-context sites in
+`orpheus/`, mixed operator/field receivers — the per-step census
+discriminates receivers at design time).
+
+### F4 — §10: the R1 acceptance reader CANNOT SEE the success shape
+
+[M] `_domain_annotation` (`test_monomorphic_leaves.py:680-705`) walks the
+MRO for a PROPERTY (`vars(klass).get(prop_name)` → `fget.__annotations__`).
+A mandatory dataclass FIELD never appears in `vars(klass)` → the reader
+returns `("<not found>", "<not found>")`, which contains neither "None"
+nor "Optional" → **the strict xfail xpasses VACUOUSLY** — identically for
+a correct flip, for a field still annotated `FunctionSpace | None`, and
+for `domain` being deleted outright. ⟹ the first flip commit EXTENDS the
+reader (also read dataclass `__annotations__` through the MRO; treat
+`<not found>` as FAIL), in the same commit as the SUT change, so the
+instrument keeps discriminating. (§10's question — "what does the
+instrument print on success?" — answered: PASS, but also PASS on two
+failure shapes.)
+
+### F5 — step 3's test-side denominator, now measured
+
+[M] AST census over `tests/` (call nodes, direct + `from_*`):
+**99 construction calls in 18 files** — ScatteringOperator 7 direct +
+8 `from_solver_data`, LegendreMomentScattering 19, IsotropicScattering 23,
+IsotropicN2N 18, N2NMomentOperator 4, FissionOperator 2 + 18
+`from_solver_data`. Step 3 (≈71 S-family calls) and step 4 (≈20 F calls)
+now carry their populations. ⚠ census 1's variable-call/registry-loop
+check (the 2026-08-29 §6b spelling inventory) was run for C ONLY — step
+3's opener census owes the same check for the S family.
+
+### F6 — XD-2's count gate is §10-third-shape DESIGNED-RED at its stated denominator ⟶ one small user fork
+
+[M] the multiplicity-2 literals at HEAD: `material_xs_field.py`
+:1020/:1036/:1067, `isotropic_scattering.py:448`, `cp/solver.py`
+:568/:629/:697/:784, `moc/core.py` :184/:316/:366 (+1 MC site per the
+charter's own census) — **7–8 of ~12 live in cp/moc/mc**, solver families
+in this ladder's untouched set. As chartered ("no production literal
+outside the channel datum") the gate cannot reach green from the
+SN/diffusion rebind alone. Fork:
+- **(i) [lean]** the step includes the mechanical ~8-line re-point of
+  cp/moc/mc literals to `N2NKernel.multiplicity` — datum CONSUMPTION
+  (recycling the vocabulary, not improving those methods on their own
+  terms — consistent with the sharpening-order law);
+- **(ii)** the gate's denominator shrinks to SN+diffusion with the
+  cp/moc/mc residue recorded in the gate's own docstring.
+Also: XD-2's SUBJECT (the N2N truncations) lands at step 3; the record
+placed the gate at step 4 — ⟹ **the count gate moves to step 3** so gate
+and witness land together (§6c).
+
+### F7 — XD-1's multiplicativity operand has NO SPELLING
+
+[M] `kernels.py` API: `p0` + `truncated` only — no product/compose/
+`__matmul__`. The gate's `bind(K₁K₂)` operand needs a decision:
+a kernel composition verb (Funk–Hecke: composition of zonal kernels =
+the ℓ-stacks' elementwise product — domain-true) vs gate-side array
+construction from the moment stacks. Lean (defer-until-2): the GATE
+builds the product kernel from the stacks; mint the verb only when a
+second consumer appears. Named here as a test-architect design input.
+
+### F8 — small corrections and step-note additions
+
+- The kernel family is **three** (§0.4 corrected in place): `N2NKernel`
+  ships with `multiplicity: ClassVar[int] = 2` (`kernels.py:224`) — the
+  n2n datum is ALREADY collapsed; §4's O7 heal consumes it rather than
+  minting it.
+- Step 5's notes gain the [M] monkeypatch pair
+  `tests/homogeneous/test_homogeneous.py:166/:174` (patches
+  `MultiplicationOperator.apply` — an arm-deletion §6b member, census 1's
+  own warning).
+- Step 6's notes gain: (a) the `_R6_XFAIL` marker text cites
+  `boundary.py:343` verbatim — re-point at the flip; (b) the L/B
+  annotation flips owe a constructor-site census (who passes
+  `space=None` to `StreamingOperator` + the three boundary classes)
+  before any annotation turns non-Optional.
+- §7.4's "(`.H` consumers unchanged)" — TRUE for the public spelling
+  ([M] 149 production / 381 test `.H` mentions, no signature change);
+  FALSE for the four private-importing test files — covered by F1(b).
