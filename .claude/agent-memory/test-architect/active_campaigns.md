@@ -7,6 +7,56 @@ metadata:
 
 # Active / in-flight verification campaigns — full detail
 
+## CS5 — an axis can name the generator that made it (⏹ PLAN DELIVERED 2026-08-29)
+
+**Deliverable**: `scratch/cs5_verification_plan.md` (~920 lines; 9 gates G1–G9 +
+P, per-gate homes/fixtures/exact assertions, a 3-arm measured mutation battery,
+7 design risks, 5 open rulings, 5 refuted candidates). Phase §5.5 of
+`.claude/plans/space_and_kernel_binding_campaign.md`; opener
+`scratch/cs5_ground_measure.md`.
+
+⚠ **The tree moved TWICE during the dispatch** — step 1 landed while §1–§9 were
+being written, steps 2+3 landed while §0 was being written. The plan carries
+both reconciliations in place (§0, §0.1) per `plan-authoring` §3; the
+"NOT STARTED" rows are kept beside their dated repeal.
+
+**Headlines** (full detail → `lessons_archive.md` L65):
+
+- ⛔⛔ **The whole landed surface was UNGATED**: `[M]` a 3-arm in-process
+  mutation battery over the 184-test anchor set found **0 genuine catchers** —
+  `generator ∈ _identity_key` → 1 red that is a HARNESS ARTEFACT (the
+  cross-process digest gate's subprocess leg is unmutated); mint `MODAL` → 0;
+  drop the provenance upgrade → 0.
+- ⭐⭐ **The identity-exclusion mutation is LOUDER than "the name changes"**:
+  `[M]` `Axis.__eq__` **RAISES ValueError** and `hash(Axis)` **RAISES
+  TypeError: unhashable type: 'Quadrature'` — `DiscreteMeasure` is
+  `frozen=True, eq=True` over ndarrays and `Quadrature` is `frozen=False,
+  eq=True` (⟹ `__hash__ = None`). The exclusion is STRUCTURALLY MANDATORY,
+  not a taste ruling.
+- ⭐⭐ **The re-point is a VALUE TAUTOLOGY** — `[M]` the generator **is**
+  `sn_mesh.quad`, so every value gate over step 2 is `X == X` through a
+  wrapper. The keystone must be a ROUTE gate: a **weight-preserving
+  node-rolled decoy quadrature**, `[M]` space name and `==` IDENTICAL,
+  `generator.mu_x` DIFFERENT ⟹ visible only through the generator.
+- ⛔⛔ **R1 (caught pre-landing)**: `DiscreteMeasure.axis` mints `(n_points,)`
+  by construction; `[M]` d=2 gives `spatial(12,)#3712…` vs the shipped
+  `spatial(3, 4)#1dcb…`. Handled in-tree by an `isinstance(mesh, Mesh1D)`
+  branch — which creates a **P4.9a-shaped blindness** (the generator path runs
+  on 1-D carriers ONLY), so G6/G8-spatial were re-scoped to parametrize over
+  the BRANCH with the d≥2 row asserting the honest `generator is None`.
+- ⭐ **The §6c witness is stronger than the brief assumed**: `[M]` three SHIPPED
+  production sites stay generator-less (homogeneous counting point, every
+  `EnergyAxis`, the MODAL moment axis) — the refusal needs no manufactured input.
+- ⭐ **The intrinsic law worth gating is the SECTION law**
+  `a.generator.axis(a.label) == a` — `[M]` holds 4/4 angular rules, and it is
+  exactly what fails at d≥2, so it is R1's standing gate.
+
+**Open rulings**: Q1 refusal home (Axis vs consumer) · Q3 four names vs the full
+reach-past set (`+N`, `+weights`) · Q4 the missing independent literal-volume
+anchor · Q5 is the `Mesh1D` branch the CS2 seam (contract) or a shim (xfail)?
+
+---
+
 ## P4.9b — the operator is posed with its two closures (⏹ PLAN DELIVERED 2026-08-28, PRE-carve)
 
 **Deliverable**: `scratch/p4_9b_verification_plan.md` (~1100 lines; 12 findings,

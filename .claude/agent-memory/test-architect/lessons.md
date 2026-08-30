@@ -1674,3 +1674,72 @@ and one equation's ONLY three claiming tests were the twin's catchers. → `L63e
 ⭐ For a "hand it the constant" move the realistic defect is the CLEANER algebraic
 spelling, `[M]` 1–2 ULP — gate with `array_equal`; any tolerance ≥ 1e-15 is a
 non-catcher. → `L63g`
+
+## CS5 additions (2026-08-29) — grouped by the families above
+
+**Gates that cannot red.** ⛔⛔ **When the step-1 code is ALREADY in the tree, run
+the battery against the EXISTING suite FIRST** — the question is not "will my new
+gates redden" but "what does the tree already catch". `[M]` 3 arms over a
+184-test anchor set: **0 genuine catchers**, and the ONE red was a cross-process
+determinism gate whose subprocess leg is unmutated (a universal digest tripwire,
+not a provenance catcher). Banking it would have inflated coverage by one and
+hidden that the true count is zero. → `L65a`
+⭐⭐ **When a re-point makes `new_path is old_path`, EVERY value gate is a
+tautology** — green before, after, and under a PARTIAL re-point. The keystone must
+be a ROUTE gate: install a **decoy that is invisible to identity and visible only
+through the accessor** (`[M]` weight-preserving, `np.roll`ed nodes: space name and
+`==` IDENTICAL, `mu_x` DIFFERENT), then require the answer to MOVE, with an
+anti-dud control and a leg asserting the decoy did NOT move the space name.
+⚠ `[M]` `-nodes[::-1]` on Gauss–Legendre is the IDENTITY — print the decoy's
+discriminating array before trusting the gate. → `L65c`
+⭐ **Look for the §6c witness that SHIPS before manufacturing one.** `[M]` three
+production sites stay generator-less at landing (homogeneous counting point, every
+`EnergyAxis`, the MODAL moment axis), so the refusal guards a live state. Found by
+reading the field off real objects, not off the design — and record the witness's
+SHELF LIFE (one retires when the MODAL half lands). → `L65f`
+
+**Config blindness.** ⛔⛔ **A mint that consumes a FLAT collection is rank-1 by
+construction, and d=1 hides it.** `[M]` `DiscreteMeasure.axis` → `(n_points,)`;
+against the shipped spatial axis, d=1 is IDENTICAL and d=2 is
+`spatial(12,)#3712…` vs `spatial(3, 4)#1dcb…` — a moved space NAME, i.e. moved
+space identity for every operator keyed on it. The congruence is **RANK**, and
+every axis-suite fixture is 1-D. ⟹ ask what the CONSUMER's rank is before writing
+the gate. → `L65d`
+⭐ **A branch added to dodge that (`isinstance(mesh, Mesh1D)`) creates the
+P4.9a blindness** — the new path runs on one carrier kind only. Parametrize the
+gate over the **BRANCH**, and make the other arm assert the OPPOSITE claim
+(`generator is None`, digest unmoved). Two arms, two claims; one-arm gates let the
+sibling drift. → `L65d`
+
+**Reference & claim layer.** ⭐⭐ **Before excluding a field from an identity key on
+DOCTRINAL grounds, check whether the exclusion is also MANDATORY** — that is the
+stronger, more durable gate. `[M]` including a `Quadrature`/`DiscreteMeasure` makes
+`__eq__` **RAISE ValueError** and `hash` **RAISE TypeError** (ndarray `eq=True`
+dataclass; `frozen=False, eq=True` ⟹ `__hash__ = None`), not merely disagree. Pin
+the REASON with `pytest.raises` legs on the generator TYPES. → `L65b`
+⭐ **The intrinsic law of a provenance accessor is the SECTION law**
+`a.generator.axis(a.label) == a` — `[M]` holds 4/4 angular rules and is exactly
+what fails at d≥2, so it is the rank blocker's standing gate. State it over
+*generator-ful* axes only, or the shipped generator-less sites read as violations.
+→ `L65e`
+⚠ **Name which half of a comparison is real.** `[M]` both the angular and spatial
+"mint vs literal" gates read the SAME array object on both sides
+(`q.weights is q.measure.weights`; `volume_measure.weights is carrier.volumes`),
+so they pin THREADING (label, shape spelling, `kind`, wiring) and never the
+values. The honest digest gate rebuilds the **pre-change literal space IN THE
+TEST**. `[M]` the chain has no independent literal anchor at any rank — the
+non-uniform `V` vector lives in a COMMENT. → `L65g`
+
+**Harness discipline.** ⚠ **After adding a field to a type, grep the tests for
+REFLECTION walkers** (`vars(`, `asdict`, `fields(`) — `[M]` exactly one here, and
+it happened to drop the new field only because it descends into
+`ndarray`/`tuple`/`list`/`Axis` and nothing else. A walker over arbitrary objects
+would have swept the generator's arrays into a no-densification count and reddened
+for an unrelated reason. → `L65h`
+⭐ `[M]` `dataclasses.replace` round-trips a frozen canonicalizing dataclass
+**bit-identically** (bytes, read-only flag, `eq`/`hash`, kw-only subclass fields,
+idempotent canonicalization) — so a `replace`-based field upgrade is Pattern 4∩2
+safe and needs no hand-written constructor. → `L65h`
+⚠ **A `@property` mints a FRESH object per access** — `axis.generator is
+mesh.volume_measure` is a latent false red. Assert type + content. Same trap
+`EnergyAxis`'s docstring already records for `Mixture.energy_grid`. → `L65g`

@@ -159,6 +159,15 @@
 > sweep+operators pre-gate 2163/0; pyright orpheus/ 0, touched test files
 > net −2; sphinx -W 0; dead_references 0/52. ⟹ **the acceptance baseline
 > is now 9847.**
+> **CS5 9888/0 at `b0bfc06c` — `[M]` 13 trees rc=0, delta exactly +41 =
+> the new gate suite, PREDICTED before the run** (22 sk / 227 des / 70 xf
+> unchanged), **then +8 measured on the post-fix re-run** (the roster's
+> fifth factory `folded_product`, an archivist census finding: numerics
+> 2484 → 2492, sn/angular unchanged) ⟹ **the acceptance baseline is now
+> 9896** (= 9888 + 8, both legs measured at `f8c69117`). Teeth: 6-arm
+> in-process mutation battery, every gate reddened by its named mutation
+> (A→6, B→4, C→24, D→4, E→1, F→1), positive control 79/79 then 87/87;
+> pyright orpheus/ 0 tree-wide; sphinx -E 0; dead_references 0/52.
 >
 > ### ▶ NEXT — **the campaign's next act is a SEQUENCING ruling** (P4.9 is
 > COMPLETE: P4.9a ✅ `7a0f434c`, P4.9b ✅ merged 2026-08-29; **§5b ⛔ P0
@@ -222,6 +231,29 @@
 > build (Campaign-2/O-3 boundary fork). P5 rides O-3; P7 = #409. Read
 > `scratch/p4_9b_design.md` §§7–10 before designing anything that
 > touches the posing surfaces.
+> ✅ **CS5's NODAL HALF IS LANDED 2026-08-29** (`4e7b8977` machinery +
+> mint sites + gates; `b0bfc06c` the Protocol declares `level_structure`;
+> `cb3cd15b` the archivist-census gate repairs; `f8c69117` the doctrine
+> into `spaces.rst` §spaces-axis-generator + `discrete_measures.rst`) —
+> full record + refutation banners at the §5.5 home; ground
+> `scratch/cs5_ground_measure.md` (the 6th consecutive opener to correct
+> its own section: [M] a DiscreteMeasure-typed accessor answers 3 of the
+> done-when's 4 names — the angular generator is the QUADRATURE, measure
+> ⊕ level fibration); triage `scratch/cs5_reach_past_triage.md`;
+> verification plan `scratch/cs5_verification_plan.md`.
+> ⟹ **P4's remainder is UNBLOCKED — the next act is a SEQUENCING ruling
+> (user):** the P4-remainder phase (the producer binds to `(space, R)`
+> reading the angular axis's generator; the §4ter WELD — the
+> `AngularRedistribution.quadrature` courier, [M] read set
+> `reduced_operator.py:448,517,528` + `closure.py:1659,2214` + 2 test
+> sites — dissolves WITH the binding, and the `ChartConnection` name
+> resolves as a consequence; §6c: gates **G5 (refusal) + G7 (route
+> keystone)** land WITH that phase — specs ready at the verification
+> plan §3.5/§3.7, the decoy mechanism pre-validated by mutation F)
+> **versus P6 versus the re-posed §5b build.** ⚠ CS5's MODAL half
+> (§5.5 items 2+3: the #409 non-diagonal metric + the polynomial
+> `Basis`) stays open at the §5.5 home and does not block the
+> P4-remainder.
 >
 > ⭐ **Before designing P4.9, read `scratch/p4_9_design_measured.md`** — the
 > §6b pre-measurement (taken 2026-08-28 while P4.3's gate ran) re-sizes the

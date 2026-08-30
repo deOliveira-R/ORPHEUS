@@ -6997,3 +6997,207 @@ new coverage, not a migration.
   **1240 p / 74.0 s**; `tests/sn/sweep` **911 p / 282.2 s**; `tests/transport`
   **566 p / 22.3 s**; `tests/sn/{solve,regression,architecture}`
   **327 p / 311.9 s**. `dead_references` baseline **0 dead / 52 checked**.
+
+---
+
+## L65 — CS5 "an axis can name the generator that made it" (plan delivered 2026-08-29)
+
+Deliverable `scratch/cs5_verification_plan.md`. Opener
+`scratch/cs5_ground_measure.md`. Campaign §5.5 of
+`.claude/plans/space_and_kernel_binding_campaign.md`. All `[M]` below measured
+in-process on 2026-08-29; the mutation battery ran as **pytest plugins
+monkeypatching at `pytest_configure`** — no file was edited, so
+`process-discipline`'s crash-safety clause is satisfied by construction
+(nothing to restore, and the working tree carried uncommitted production
+edits throughout, making `git checkout` forbidden anyway).
+
+### L65a ⛔⛔ The landed surface had ZERO genuine catchers — and the ONE red was a harness artefact
+
+Anchor set: `tests/numerics/{test_axis, test_space_of_axes, test_measure,
+test_quadrature_directional, test_axis_marginal}.py` +
+`tests/sn/mesh/test_angular_bulk_space.py` = **184 passed / 1.31 s**.
+
+| mutation | reds |
+|---|---:|
+| `generator` **inside** `Axis._identity_key` | **1** — `test_of_axes_name_is_deterministic_across_processes`, whose SUBPROCESS leg runs an unmutated interpreter ⟹ it reds for ANY in-process digest change. A cross-process differential, **not** a provenance catcher (`vv-principles` #17). |
+| `DiscreteMeasure.axis` mints `BasisKind.MODAL` | **0** |
+| `Quadrature.axis` drops the `replace(..., generator=self)` upgrade | **0** |
+
+⟹ **the transferable move**: when a phase's step-1 code is already in the tree,
+run the battery against the EXISTING suite FIRST. The number that matters is
+not "will my new gates redden" but "what does the tree already catch" — and
+here the honest answer made three gates mandatory rather than confirmatory.
+⚠ And read the single red's IDENTITY, not its count: a cross-process
+determinism gate is a *universal* digest tripwire and will red for every
+in-process mutation, so banking it as a catcher inflates coverage by one and
+hides that the real count is zero.
+
+### L65b ⭐⭐ An identity-key inclusion whose operand is un-hashable RAISES — it does not merely disagree
+
+The plan's predicted mutation outcome was *"the derived space name changes"*.
+`[M]` it does that **plus two louder things**:
+
+```
+CORRECT   a1 == a2 -> True    hash equal -> True   names equal -> True
+MUTATED   a1 == a2 -> ValueError "truth value of an array ... is ambiguous"
+          hash(a1) -> TypeError "unhashable type: 'Quadrature'"
+          of_axes(a1).name  angular(4,)#a1259d874905e50e -> #a56a82a93fac074b
+```
+
+Root cause, both measured: `DiscreteMeasure` is `@dataclass(frozen=True,
+eq=True)` over ndarrays (`m1 == m2` raises `ValueError`; `hash(m1)` raises
+`TypeError`), and `Quadrature` is `@dataclass(frozen=False, eq=True)`, which
+makes Python set `__hash__ = None`.
+
+⟹ **the design ruling ("provenance is not identity") was justified on taste
+and is true for a structural reason nobody had written down.** The gate should
+pin the REASON — two `pytest.raises` legs on the generator types themselves —
+so a future "tidy the field into the key" is refuted by a gate instead of
+discovered by a traceback. Generalisation: *before excluding a field from an
+identity key on doctrinal grounds, check whether the exclusion is also
+MANDATORY; if it is, that is the stronger and more durable gate.*
+
+### L65c ⭐⭐ When a re-point makes `new_path is old_path`, every value gate is a tautology — build a DECOY
+
+Step 2 re-points `sn_mesh.quad.mu_x` → `space.axis("angular").generator.mu_x`,
+and `[M]` `generator is sn_mesh.quad`. So the "re-pointed read agrees with the
+quadrature" assertion is green before the re-point, after it, and under a
+PARTIAL re-point. Only a **route** gate discriminates (`vv-principles` #26).
+
+The instrument, `[M]` constructible: a **weight-preserving decoy**
+— same `weights`, `np.roll(nodes, 1)`:
+
+| property | reading |
+|---|---|
+| weights true vs decoy | **identical** |
+| `of_axes(...).name`, `spaces ==` | **EQUAL** (invisible to identity) |
+| `mu_x` `[-0.861,-0.340,0.340,0.861]` vs `[0.861,-0.861,-0.340,0.340]` | **DIFFERENT** |
+
+Feed a consumer a space carrying the decoy: read-through ⟹ the answer MOVES;
+reach-past ⟹ UNMOVED, and unmoved is the failure. Plus the anti-dud control
+(true generator reproduces the baseline) and the instrument's own precondition
+(the decoy must NOT move the space name, else the gate measures identity).
+
+⚠ **Refuted decoy**: `-nodes[::-1]` on Gauss–Legendre is the **identity** (the
+rule is symmetric), so the keystone read green vacuously. Always print the
+decoy's discriminating array before trusting the gate.
+
+⟹ this is P4.9b's keystone shape run in REVERSE — there, *swap the hub's object
+and require the answer UNMOVED*; here, *swap the space's generator and require
+the answer to MOVE*. Same family: the claim is about the READ PATH, so the
+instrument must perturb the path, not the values.
+
+### L65d ⛔⛔ A measure-generated axis is RANK-1 by construction — and d=1 hides it
+
+`DiscreteMeasure.axis` must mint `shape=(self.n_points,)`; a measure is a flat
+atom list. `[M]` against the shipped spatial axis:
+
+```
+d=1  minted (5,)   shipped (5,)    ==  True      (identical, digest unmoved)
+d=2  minted (12,)  shipped (3, 4)  ==  False
+     spatial(12,)#37129e801028f040   vs   spatial(3, 4)#1dcbbbc62beddd24
+```
+
+Space identity is `(name, shape)` until the S3 flip, so a d≥2 re-mint moves
+`bulk_space`, `angular_bulk_space`, `full_field_space` and every operator keyed
+on them. `[M]` d≥2 is reachable and exercised — **8 test files** call
+`SNMesh.from_axes` / `MaterialMesh.from_axes`.
+
+⚠ **The congruence here is RANK** (`vv-principles` #13): every axis-suite
+fixture is 1-D, so the natural gate certifies a change that is wrong for d≥2.
+⟹ **for any mint that consumes a flat collection, ask what the CONSUMER's rank
+is before writing the gate.**
+
+The tree took a third option: `isinstance(mesh, Mesh1D)` branches the mint,
+1-D through the measure and rank-d keeping the literal (`generator=None`,
+"the CS2 rank-d seam"). That is fine and creates a **P4.9a-shaped blindness** —
+the generator path executes on 1-D carriers ONLY — so the gate must parametrize
+over the **BRANCH**, with the d≥2 row asserting the OPPOSITE claim (`generator
+is None`, digest unmoved). Two arms, two claims; a one-arm gate lets the other
+drift unobserved.
+
+### L65e ⭐ The intrinsic law of a provenance accessor is the SECTION law
+
+An axis is a *forgetful map* of its generator (keeps weights, drops nodes). The
+forgetting is recoverable iff the mint is a **section**:
+
+> for every generator-ful axis `a`:  `a.generator.axis(a.label) == a`
+
+`[M]` holds 4 of 4 shipped angular rules and at d=1 spatially; `[M]` it is
+**exactly what fails at d≥2** — so writing it converts L65d from "someone might
+notice" into "a red the step cannot land past". ⚠ State the law over
+*generator-ful* axes only, or the three shipped generator-less sites read as
+violations.
+
+### L65f ⭐ §6c witnesses: look for the state that SHIPS before manufacturing one
+
+The brief's §6c answer was *"a hand-built generator-less axis"*. `[M]` three
+production sites are generator-less at landing and stay so: the homogeneous
+counting point (`homogeneous/solver.py:148`), **every** `EnergyAxis` (all three
+constructors mint none), and the MODAL `spatial_moment` axis
+(`transport/spatial/scheme.py:1714`). ⟹ the refusal guards a live state, not a
+hypothetical — a strictly stronger §6c answer, found by *reading the generator
+off real objects* rather than by reading the design.
+⚠ And record the witness's SHELF LIFE: when item 3 gives the MODAL axis a
+`Basis` generator, one of the three retires.
+
+### L65g ⚠ Two comparisons in this plan are wrapper tautologies — say which half is real
+
+* **Angular (G3)**: `q.weights` **is** `q.measure.weights`, which is what
+  `DiscreteMeasure.axis` reads. The gate pins THREADING (label, shape
+  *spelling*, `kind`, that `weights=` is wired to weights, that `replace`
+  preserves the canonicalized bytes) — never the weight VALUES.
+* **Spatial (G6)**: `[M]` `mesh.volume_measure.weights` **is** `carrier.volumes`
+  — the same array object.
+* `[M]` the only independent literal-volume pin in the axis suites is
+  `test_space_of_axes.py:393` (`[2.0]`, n=1). The non-uniform vector
+  `[0.2, 0.3, 0.4, 0.7, 1.4]` appears at `test_angular_bulk_space.py:53` **as a
+  comment**, while `:94` asserts against `sn.volumes` ⟹ the mesh→measure→axis
+  chain has **no independent anchor at any rank**. One literal row closes it.
+
+⟹ the honest G6 is the one that rebuilds the **pre-CS5 literal space in the
+TEST** and compares digests. `[M]` `energy(2,)*spatial(5,)#f6838f4e6474b7c4` on
+both sides post-landing — a real gate, where `carrier.name == carrier.name`
+would have been nothing.
+⚠ And `Mesh1D.volume_measure` is a plain `@property` ⟹ a FRESH `DiscreteMeasure`
+per access, so `axis.generator is mesh.volume_measure` is a latent false red.
+Assert type + content. (Same fresh-object-per-access trap `EnergyAxis`'s
+docstring records for `Mixture.energy_grid`.)
+
+### L65h ⚠ Other measurements worth keeping
+
+* `[M]` `dataclasses.replace` round-trips an `Axis` **bit-identically** —
+  weight bytes equal, read-only flag preserved, `eq`+`hash` preserved, the
+  all-ones→`None` canonicalization idempotent, and `EnergyAxis`'s kw-only
+  `edges` survives. So a `replace`-based provenance upgrade is safe on every
+  subclass (Pattern 4∩2: the invariant re-fires rather than being restated).
+* `[M]` `test_space_of_axes.py`'s `_reachable_arrays` walker (`:43-55`) descends
+  only into `ndarray`/`tuple`/`list`/`Axis`, so a `Quadrature`-valued field is
+  DROPPED and the no-densification gate is unaffected. **A near miss**: had it
+  descended into arbitrary objects, the quadrature's `nodes`/`weights` would be
+  swept into the reachable set and the gate would red for an unrelated reason.
+  ⟹ after adding a field to a type, grep the tests for reflection walkers
+  (`vars(`, `asdict`, `fields(`) — `[M]` exactly **one** in this suite.
+* `[M]` `AngularMeasure` (`sn/angular/redistribution.py:220`) declares **6**
+  members; `level_structure` is absent while `sn/mesh/reduced_operator.py:708`
+  probes it as `getattr(x, "level_structure", None)` — a **string-form** read no
+  symbol grep sees, and `vv-principles` #28's temporal twin (a defaulted
+  `getattr` in a guard condition goes silently inert on rename). `[M]` the
+  Protocol widening is §6b-clean: `grep -rln "AngularMeasure|angular_measure"
+  tests/` → **0 files**, so there are no duck-typed surrogates to break.
+* `[M]` the solve-time / mint-time split by enclosing function (AST): mint-time
+  = `AngularClosure.__init__` 7, `angular_redistribution` 5,
+  `SweepConstants.from_mesh_and_quad` 4, `angular_bulk_space` 2,
+  `streaming_terms` 2 (all STAY per the P4.9b hub ruling); solve-time = **18 of
+  19** reads in `sn/loss_representation/__init__.py` (`_run` 5,
+  `_run_transpose` 4, `loss_action_transpose` 3, `_apply_walk` 2,
+  `_sweep_scheduled` 2, `loss_action` 1, `_dag_legs` 1). One keystone row per
+  re-pointed entry (`vv-principles` #17's per-call-site clause) — a decoy that
+  moves `_run` says nothing about `_run_transpose`.
+* `[M]` `eta` has **no solve-time consumer at all** — its only reads tree-wide
+  are `augmented_mesh.py:1620` and `:1751`, both mint-time on `self.quad`. Its
+  gate rows are CONTRACT rows, not catchers of a re-pointed read.
+* `[M]` health at delivery: `pyright` **0/0/0** over the 8 touched modules;
+  fresh-interpreter import of 6 packages rc=0 (§6d clean — the new
+  `measure → axis` runtime edge closes no cycle); anchor set **215 passed /
+  2.06 s** with steps 1–3 all landed.

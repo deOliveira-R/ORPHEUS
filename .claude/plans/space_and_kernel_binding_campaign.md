@@ -1971,6 +1971,28 @@ crosswalk written to `.claude/plans/` before code.
 
 ## 5.5 Phase CS5 — an axis can name the generator that made it
 
+> ✅ **NODAL HALF LANDED 2026-08-29** — `4e7b8977` (machinery + the three
+> mint sites + gates G1–G4/G6/G8) + `b0bfc06c` (the `AngularMeasure`
+> Protocol declares `level_structure`). Ground: `scratch/cs5_ground_measure.md`
+> (the 6th consecutive opener to correct its own section — see the ⛔ banners
+> below); verification plan `scratch/cs5_verification_plan.md`; reach-past
+> role triage `scratch/cs5_reach_past_triage.md`. Ruled at the design round
+> (user): **domain objects as generators, no new measure types; the
+> generator mints the axis; the mesh generates the spatial measure;
+> role-triaged done-when.** Gate: **[M] 13 trees rc=0, 9888/0/22sk/227des/
+> 70xf at `b0bfc06c` (delta exactly the predicted +41), then +8 on the
+> post-fix re-run (`f8c69117`, the roster's fifth factory) ⟹ the campaign
+> acceptance baseline is 9896.** Teeth: [M] 6-arm in-process mutation battery,
+> every gate reddened by its named mutation (A→6, B→4, C→24, D→4, E→1, F→1);
+> positive control 79/79, then 87/87. Doctrine in the corpus:
+> `docs/theory/foundations/spaces.rst` §spaces-axis-generator (+761, two
+> labelled equations) + `discrete_measures.rst` §discrete-measures-quadrature-axis
+> (`f8c69117`; sphinx -E 0, dead_references 0/52). **G5 (refusal) + G7 (route keystone) deliberately
+> ride the streaming plan's P4-remainder** — no solve-time consumer reads a
+> generator until the producer binds to (space, R) there; specs at
+> verification plan §3.5/§3.7. Still open in this section: item 2 (#409
+> metric) and item 3 (polynomial `Basis`) — the MODAL half.
+
 **Goal.** A space factor can answer *what produced me* — so that a consumer
 needing the generator's data reads it from the space instead of reaching past
 the space to the mesh and the quadrature.
@@ -2033,7 +2055,16 @@ have already misled once.
 ### The three machinery items, in dependency order
 
 1. **The inverse map (small).** An accessor on `Axis` to its generator —
-   `DiscreteMeasure` for NODAL, `Basis` for MODAL. `[M]` **no import cycle**:
+   `DiscreteMeasure` for NODAL, `Basis` for MODAL.
+   ⛔ **REFUTED 2026-08-29 on the NODAL type (opener, ground memo §L):** a
+   `DiscreteMeasure`-typed accessor answers only **3 of the done-when's 4
+   names** — `level_indices` lives on the `LevelStructure` side-channel
+   (`directional.py:592-601`), not in the measure. The angular generator is
+   the **`Quadrature`** (measure ⊕ level fibration); the landed slot is
+   `DiscreteMeasure | Basis | Quadrature | None`, and `Quadrature.axis`
+   upgrades the measure-mint's provenance to itself. The gate
+   `test_the_bare_measure_cannot_answer_the_fourth_name` pins the
+   refutation so it cannot be silently "simplified" back. `[M]` **no import cycle**:
    `numerics/axis.py → measure` is **0** and `measure → axis` is **0**, so this
    is a new edge with no reverse (§6d clean). ⚠ **Exclude it from
    `_identity_key`** — two axes with identical `label/shape/weights/kind` are the
@@ -2057,7 +2088,17 @@ have already misled once.
 ### Sequencing — the NODAL half lands first and unblocks the streaming path
 
 Items 1+2 on the **NODAL** side need nothing from item 3: the angular and both
-spatial axes have a `DiscreteMeasure` behind them today. `[M]` **3 of 4 shipped
+spatial axes have a `DiscreteMeasure` behind them today.
+⛔ **REFUTED 2026-08-29 (opener):** only **1 of 3** non-energy NODAL sites had
+a measure INSTANCE behind it (the angular one, inside `Quadrature`); the two
+spatial axes built from raw `self.volumes` with no measure object on the
+path. The "needs nothing from item 3" half SURVIVES; the "returns an existing
+measure" half did not — the spatial generator had to be **wired** (the
+carrier's own `volume_measure`, which the tree already shipped: the user's
+ruling "the mesh is able to generate a Discrete Measure of space" named
+machinery that existed) and the rank-d arm stays generator-less BY CONTRACT
+(gate G6b; a flat mint would change every d≥2 space name — verification plan
+R1). `[M]` **3 of 4 shipped
 axis sites are NODAL** (`homogeneous/solver.py:148`, `augmented_mesh.py:1170`,
 `material_mesh.py:423`), the fourth (`scheme.py:1514`) being the MODAL moment
 axis. ⟹ **land NODAL first**; the streaming plan's P4 remainder is unblocked at
@@ -2066,17 +2107,44 @@ that point, and the MODAL half (item 3) can follow.
 **Done when** (checkable):
 * a NODAL axis answers `mu_x`/`eta`/`mu_z`/`level_indices` **through the space**
   — `grep -n "quad\." <the streaming producer>` no longer reaches past it;
+  ✅ **CONTRACT HALF MET 2026-08-29** (gate G4: all four names — plus `N`,
+  `weights`, `level_structure`, the full surface — answer through
+  `space.axis("angular").generator`, 4-rule exhaustive roster). ⛔ **The grep
+  clause was re-posed by the role triage** (`scratch/cs5_reach_past_triage.md`):
+  [M] 65 reads = MINT 27 + HUB 11 + HANDED-HUB 21 + WELD 4 + LOSS-SITE 2;
+  mint-time generator consumption and hub-side reads are LEGITIMATE (P4.9b's
+  hub ruling), the LOSS-SITE 2 dissolved into the mint, and the WELD 4 (the
+  §4ter courier) dissolve at the streaming plan's P4-remainder where the
+  producer binds to (space, R) — re-pointing them without that binding would
+  be the same reach spelled longer;
 * the accessor is absent from `_identity_key` — two axes built from distinct
   but content-equal measures still compare equal, with a gate saying so;
+  ✅ **MET** (G1a/b/c + G2; and [M] the exclusion is structurally MANDATORY —
+  an inclusion makes `Axis.__eq__`/`hash` RAISE, since `Quadrature` is
+  unhashable and `DiscreteMeasure` un-`==`-able — verification plan §1.1);
 * ⚠ §6c: the gate lands with a case it CATCHES — an axis whose generator is
   absent must be refusable, and today every axis would have one, so the witness
   is the MODAL moment axis (item 3 not yet done) or a deliberately generator-less
   construction. Decide the witness before writing the gate.
+  ✅ **DECIDED 2026-08-29**: the refusal gate (G5) and the route keystone (G7)
+  ride the **P4-remainder** — the first solve-time consumer IS the case they
+  catch, and it does not exist until the producer binds. [M] `generator=None`
+  is a SHIPPED state at three production sites (the counting point, every
+  `EnergyAxis`, the MODAL moment axis), so G5's witnesses are standing;
+  specs at verification plan §3.5/§3.7, decoy mechanism validated by
+  mutation F (rolled-nodes decoy → G6a red).
 
 ### What this phase ALSO settles, and must not be pre-empted
 
 ⏸ **`AngularMeasure`'s fate** (streaming plan P4 item 3) is **suspended into this
-phase**. That plan argued CONSUMERS (*"the 3 factories read 0 of its 6
+phase**. ✅ **RULED 2026-08-29 (design round): domain objects as generators,
+no new measure types.** `DiscreteMeasure` does NOT branch into
+Spatial/Angular/Energy subtypes — the branching already exists in the domain
+layer (`Quadrature` IS the angular measure-plus-fibration; the measure's
+derived `phase` property reads the category from structure) and the Protocol
+stays the L3 structural adapter, now declaring `level_structure`
+(`b0bfc06c`). The Protocol itself dissolves with the courier field at the
+streaming plan's P4-remainder, not before. That plan argued CONSUMERS (*"the 3 factories read 0 of its 6
 members"*); the live question is TYPE DESIGN — should `DiscreteMeasure` branch
 into `SpatialMeasure` / `AngularMeasure` / `EnergyMeasure` so an axis can hold a
 typed generator? A consumer count cannot refute a type design. `AngularMeasure`
