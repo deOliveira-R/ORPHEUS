@@ -436,17 +436,6 @@ class ReducedStreamingOperator:
         # so the general body returns the same array the branch built.
         return np.asarray(self.delta_A, dtype=float)[:, None, None]
 
-    def _weight_of(self, global_ordinate: int) -> float:
-        r"""The measure's weight :math:`w_n` for one GLOBAL ordinate index.
-
-        One factor of the ΔA/w coupling.  The fusion's OWNER is the
-        angular closure (``_dAw_per_level``, minted at construction —
-        P4.9a); the scan cache interns the strategy-side copy formed
-        from :attr:`delta_A` and this at build (P4.7); the per-packet
-        copy — and before it the ``redist_dAw`` cache — are retired.
-        """
-        return float(np.asarray(self.angular.quadrature.weights)[global_ordinate])
-
     def streaming_terms(
         self,
         cell_idx: int,
@@ -533,7 +522,10 @@ class ReducedStreamingOperator:
         # on any chart — the cylinder [1/2, 1] absorber retired at Q5.6.4.
         # ΔA/w is NOT packed (P4.7): the fusion's owner is the angular
         # closure (``_dAw_per_level``, P4.9a); the scan cache interns the
-        # strategy-side copy from ``delta_A`` and ``_weight_of`` at build.
+        # strategy-side copy from ``delta_A`` and the measure's weights at
+        # build — both ΔA/w formers read the weights directly, so no
+        # per-ordinate weight accessor lives here (``_weight_of`` existed
+        # until 2026-08-29 and was retired with zero callers).
         return StreamingTerms(
             face_area_inner=float(self.face_areas[cell_idx]),
             face_area_outer=float(self.face_areas[cell_idx + 1]),
