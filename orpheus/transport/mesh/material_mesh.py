@@ -368,6 +368,37 @@ class MaterialMesh:
         """Cell volumes, shape ``spatial_shape`` (rank ``ndim``)."""
         return self._volumes
 
+    @cached_property
+    def cells_by_material(self) -> dict[int, tuple[np.ndarray, ...]]:
+        r"""Per-material cell-index arrays — the mesh's material LAYOUT.
+
+        For each declared material id, the ``np.where`` index tuple such
+        that ``mat_map[indices] == mid`` everywhere — one index array PER
+        MESH AXIS (``(ix,)`` on 1-D, ``(ix, iy)`` on 2-D).  A pure
+        function of :attr:`mat_map`, so it lives HERE (the mesh owns its
+        machinery), cached once, and is SHARED by every per-material
+        field built over this mesh
+        (:class:`~orpheus.transport.material_field.MaterialField` — the
+        CS4c kernel fields — and, transitionally, the
+        :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
+        facade's read-through) — no consumer recomputes the ``where``
+        partition.
+
+        A material declared but UNUSED on the map yields empty index
+        arrays — harmless to every accumulation verb (empty fancy
+        index, empty einsum).
+
+        Returns
+        -------
+        dict[int, tuple[np.ndarray, ...]]
+            ``{mid: indices}`` for every id in :attr:`materials`; tuple
+            arity is the mesh ndim.
+        """
+        return {
+            mid: np.where(self.mat_map == mid)
+            for mid in self.materials
+        }
+
     # CS1.5 re-point: ``bulk_space`` moves to ``Medium`` (the carrier concept
     # that genuinely owns it); the property rides that carve unchanged.
     @cached_property

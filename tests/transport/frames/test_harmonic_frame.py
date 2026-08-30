@@ -426,3 +426,81 @@ class TestP7DenseMetricRidesTheMint:
         assert moment.inner_product(x, y) == pytest.approx(
             sh.inner_product(xv, yv) * cell.inner_product(xc, yc), rel=1e-12
         )
+
+
+# ── CS4c §14.4 — the HUB: interning + the blessed for_space chain ──────
+
+
+class TestHubInterning:
+    """One frame per ``(rule, L)`` as an OBJECT IDENTITY, at both tiers
+    (the quadrature's per-L intern of the GalerkinFrame; the transport
+    upgrade intern riding the upstream frame's instance dict) — so every
+    consumer reaching a frame through the generator channel shares one
+    cached table."""
+
+    def test_angular_frame_interns_per_L(self) -> None:
+        m = _slab_mesh()
+        g1, g2 = m.quad.angular_frame(_L), m.quad.angular_frame(_L)
+        assert g1 is g2
+        assert m.quad.angular_frame(_L + 1) is not g1
+
+    def test_from_galerkin_interns_the_upgrade(self) -> None:
+        m = _slab_mesh()
+        h1 = HarmonicFrame.from_galerkin(m.quad.angular_frame(_L))
+        h2 = HarmonicFrame.from_galerkin(m.quad.angular_frame(_L))
+        assert h1 is h2
+        assert h1.table is h2.table
+
+    def test_distinct_rule_instances_do_not_share(self) -> None:
+        """No false sharing: content-equal but DISTINCT quadrature
+        instances mint distinct frames (the #403 hazard direction — the
+        intern keys the generator instance, never axis content, because
+        axis identity deliberately drops the nodes)."""
+        q1 = Quadrature.gauss_legendre(n_ordinates=4)
+        q2 = Quadrature.gauss_legendre(n_ordinates=4)
+        assert q1.angular_frame(_L) is not q2.angular_frame(_L)
+
+    def test_for_space_is_the_blessed_chain(self) -> None:
+        """``for_space(space, L)`` ≡ reach the axis's generator, mint,
+        upgrade — and lands on the SAME interned object a direct
+        ``from_galerkin(quad.angular_frame(L))`` returns."""
+        m = _slab_mesh()
+        via_space = HarmonicFrame.for_space(m.angular_bulk_space, _L)
+        via_quad = HarmonicFrame.from_galerkin(m.quad.angular_frame(_L))
+        assert via_space is via_quad
+
+    def test_for_space_refuses_a_shape_only_space(self) -> None:
+        from orpheus.numerics.space import FunctionSpace
+
+        with pytest.raises(TypeError, match="axis-built"):
+            HarmonicFrame.for_space(FunctionSpace("bare", (4, 2)), _L)
+
+    def test_for_space_refuses_a_generator_less_axis(self) -> None:
+        """The CS5 refusal names both parties (the axis and the asker):
+        a space whose angular axis was hand-built carries no generator
+        channel — for_space must not invent one."""
+        from orpheus.numerics.axis import Axis
+        from orpheus.numerics.space import FunctionSpace
+
+        bare = FunctionSpace.of_axes(
+            Axis(label="angular", shape=(4,), kind="nodal"),
+            Axis(label="energy", shape=(2,), kind="nodal"),
+        )
+        with pytest.raises(ValueError, match="HarmonicFrame.for_space"):
+            HarmonicFrame.for_space(bare, _L)
+
+
+class TestMomentSpaceOnIsTheSingleSource:
+    """``moment_space_on`` is public (CS4c §14.4): the faces' bound ends
+    are exactly its reading, so a field minted OUTSIDE from it can never
+    drift from what the faces derive."""
+
+    def test_faces_bind_exactly_its_reading(self) -> None:
+        m = _slab_mesh()
+        frame = _frame(m)
+        space = m.angular_bulk_space
+        moment = frame.moment_space_on(space)
+        assert frame.flux_analysis_on(space).codomain is moment or (
+            frame.flux_analysis_on(space).codomain == moment
+        )
+        assert frame.source_reconstruction_on(space).domain == moment

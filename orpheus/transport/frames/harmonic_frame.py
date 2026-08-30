@@ -73,7 +73,7 @@ metric-blind.)
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 from numpy.typing import NDArray
 
@@ -295,6 +295,11 @@ class HarmonicReconstructionOperator(
         )
 
 
+#: Instance-dict key under which :meth:`HarmonicFrame.from_galerkin`
+#: interns the upgrade on the upstream :class:`GalerkinFrame`.
+_UPGRADE_SLOT = "_harmonic_frame_upgrade"
+
+
 @dataclass(frozen=True, init=False)
 class HarmonicFrame(GalerkinFrame):
     r"""The angular spherical-harmonic :class:`GalerkinFrame` — the shared
@@ -339,19 +344,81 @@ class HarmonicFrame(GalerkinFrame):
         a frame over any other trial basis (e.g. an indicator basis) is
         rejected at the upgrade boundary, not later when a mint first reads
         the SH-only ``L``.
+
+        INTERNED per upstream frame object (CS4c §14.4): upgrading the same
+        :class:`GalerkinFrame` twice returns the SAME :class:`HarmonicFrame`
+        — combined with :meth:`Quadrature.angular_frame
+        <orpheus.numerics.quadrature.directional.Quadrature.angular_frame>`'s
+        per-``(rule, L)`` interning, "one frame per (axis content, L)" is an
+        object identity, and the cached projection table is shared by every
+        consumer rather than re-evaluated per operator.
         """
+        # The intern rides the upstream frame's own instance dict — the
+        # cached_property idiom one level out (a frozen dataclass has no
+        # __slots__ here, and writing __dict__ directly bypasses the
+        # frozen __setattr__ exactly as cached_property does).  Lifetime
+        # is thereby correct for free: the upgrade dies with its
+        # quadrature-interned upstream, and no global registry exists to
+        # leak or to key (a GalerkinFrame hashes its ndarray fields, so
+        # it cannot key a dict).
+        inst_dict = cast("dict[str, Any]", frame.__dict__)
+        cached = inst_dict.get(_UPGRADE_SLOT)
+        if cached is not None:
+            return cached
         basis = frame.basis
         if not isinstance(basis, SphericalHarmonicBasis):
             raise TypeError(
                 f"HarmonicFrame.from_galerkin requires a spherical-harmonic "
                 f"trial basis; got {type(basis).__name__}."
             )
-        return cls(basis, frame.measure)
+        upgraded = cls(basis, frame.measure)
+        inst_dict[_UPGRADE_SLOT] = upgraded
+        return upgraded
 
-    # ── the moment-codomain derivation (mint-internal) ────────────────
+    @classmethod
+    def for_space(
+        cls, angular_space: "FunctionSpace", L: int,
+    ) -> "HarmonicFrame":
+        r"""THE blessed frame chain (CS4c §14.4) — the one spelling every
+        consumer uses to reach the shared angular frame from a space.
 
-    def _moment_space_on(self, angular_space: "FunctionSpace") -> "FunctionSpace":
-        r"""The moment codomain derived from an angular domain (+ this frame's ``L``).
+        ``angular_space → leading (angular) axis →``
+        :meth:`Axis.generator_as <orpheus.numerics.axis.Axis.generator_as>`
+        ``(Quadrature) →``
+        :meth:`Quadrature.angular_frame
+        <orpheus.numerics.quadrature.directional.Quadrature.angular_frame>`
+        ``(L) →`` :meth:`from_galerkin` — every hop single-sourced, both
+        cache tiers interned, so S, F, and the windowing method minting
+        from the same posed space share ONE frame object and ONE metric
+        (the quadrature's weights; no copy exists to drift).
+
+        Parameters
+        ----------
+        angular_space : FunctionSpace
+            An axis-built per-ordinate space whose LEADING axis is the
+            angular factor (the module's ``axes[0]`` convention, same as
+            :meth:`moment_space_on`).
+        L : int
+            The spherical-harmonic truncation order of the wanted frame.
+        """
+        from orpheus.numerics.quadrature.directional import Quadrature
+
+        axes = angular_space.axes
+        if axes is None:
+            raise TypeError(
+                "HarmonicFrame.for_space: the angular field space must be "
+                "axis-built (an S2 per-ordinate space); a shape-only space "
+                "carries no generator channel to reach the quadrature."
+            )
+        quadrature = axes[0].generator_as(
+            Quadrature, consumer="HarmonicFrame.for_space",
+        )
+        return cls.from_galerkin(quadrature.angular_frame(L))
+
+    # ── the moment-codomain derivation (the PUBLIC single source) ─────
+
+    def moment_space_on(self, angular_space: "FunctionSpace") -> "FunctionSpace":
+        r"""The moment codomain derived from an angular domain (+ this frame's ``L``) — the SINGLE SOURCE of the moment-space derivation (CS4c §14.4: public, so field mints consume it instead of re-deriving; drift between a face's codomain and a minted moment field's space is unspellable).
 
         ``basis_space * of_axes(<cell axes>)`` — the SH factor is the frame's
         OWN F-0-dressed :attr:`~orpheus.numerics.frame.FrameBase.basis_space`
@@ -407,7 +474,7 @@ class HarmonicFrame(GalerkinFrame):
         return HarmonicAnalysisOperator(
             frame=self,
             domain=angular_space,
-            codomain=self._moment_space_on(angular_space),
+            codomain=self.moment_space_on(angular_space),
             domain_carrier=AngularFlux,
             codomain_carrier=HarmonicMomentFlux,
         )
@@ -426,7 +493,7 @@ class HarmonicFrame(GalerkinFrame):
         """
         return HarmonicReconstructionOperator(
             frame=self,
-            domain=self._moment_space_on(angular_space),
+            domain=self.moment_space_on(angular_space),
             codomain=angular_space,
             domain_carrier=HarmonicMomentSourceSink,
             codomain_carrier=AngularSourceSink,

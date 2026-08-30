@@ -654,12 +654,9 @@ class MaterialXSField:
             ``{mid: indices}`` for every material id in
             :attr:`materials`; the tuple arity is the mesh ndim.
         """
-        if self._cells_by_mat is None:
-            self._cells_by_mat = {
-                mid: np.where(self.mesh.mat_map == mid)
-                for mid in self.materials
-            }
-        return self._cells_by_mat
+        # CS4c 3a: the partition moved to its native place — the mesh owns
+        # its layout machinery; this facade read-through rides until F-1.
+        return self.mesh.cells_by_material
 
     def sig_s_legendre(self, material_id: int) -> list[np.ndarray]:
         r"""Per-material list of dense Legendre scattering matrices.

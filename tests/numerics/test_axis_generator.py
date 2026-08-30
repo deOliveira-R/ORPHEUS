@@ -388,6 +388,13 @@ class TestG5GeneratorAsIsTheOneRefusalHome:
         declared = {
             ("orpheus/sn/mesh/reduced_operator.py", "streaming_terms"),
             ("orpheus/sn/angular/closure.py", "__init__"),  # MM + Identity
+            # CS4c §14.4 — the blessed frame chain's one production hop:
+            # space → angular axis → generator_as(Quadrature) → interned
+            # angular_frame(L).  Every frame consumer (S, F, windowing)
+            # reaches the quadrature THROUGH this classmethod, so the
+            # refusal fires only where a space genuinely lost its
+            # generator (a hand-built axis fed to a frame mint).
+            ("orpheus/transport/frames/harmonic_frame.py", "for_space"),
         }
         found = set()
         for f in pathlib.Path("orpheus").rglob("*.py"):

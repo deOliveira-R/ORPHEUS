@@ -76,6 +76,8 @@ from dataclasses import dataclass, replace
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+import dataclasses
+
 import numpy as np
 
 from orpheus.numerics.basis.spherical_harmonic_basis import (
@@ -200,6 +202,16 @@ class Quadrature:
     #: folded rule — the σ-odd harmonics are not in the quotient's
     #: function space and their raw moments are garbage, not zero (Q5.6).
     folded_by: "SubgroupOfO3 | None" = None
+
+    #: Per-L interning cache for :meth:`angular_frame` (CS4c §14.4 — the
+    #: HUB): one :class:`~orpheus.numerics.frame.GalerkinFrame` per
+    #: ``(this rule, L)``, so every consumer reaching the frame through
+    #: the generator channel (S, F, the windowing method) shares ONE
+    #: object and its cached table.  ``compare=False``: a cache is
+    #: provenance, never identity.  Lazy — ``None`` until first mint.
+    _angular_frames: "dict[int, GalerkinFrame] | None" = dataclasses.field(
+        default=None, init=False, repr=False, compare=False,
+    )
 
     # ────────────────────────────────────────────────────────────
     # Canonical scalar / array accessors
@@ -567,6 +579,11 @@ class Quadrature:
         """
         from orpheus.numerics.frame import GalerkinFrame
 
+        if self._angular_frames is None:
+            self._angular_frames = {}
+        cached = self._angular_frames.get(L)
+        if cached is not None:
+            return cached
         s2_measure = DiscreteMeasure(
             nodes=np.column_stack(
                 [self.axis_cosines(0), self.axis_cosines(1), self.axis_cosines(2)]
@@ -574,7 +591,9 @@ class Quadrature:
             weights=self.weights,
             support=SPACE_SPHERE,
         )
-        return GalerkinFrame(self._harmonic_basis(L), s2_measure)
+        frame = GalerkinFrame(self._harmonic_basis(L), s2_measure)
+        self._angular_frames[L] = frame
+        return frame
 
     # ────────────────────────────────────────────────────────────
     # Octants (cached partition by sign-of-direction)
