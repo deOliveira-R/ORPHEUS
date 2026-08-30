@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10165**
+Total tests collected: **10215**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1297, 12.8%
-   L1, 1634, 16.1%
+   L0, 1297, 12.7%
+   L1, 1634, 16.0%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7162, 70.5%
+   foundation, 7212, 70.6%
    unmarked, 8, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10078
+   explicit, 10128
    class-name, 46
    func-name, 0
    case, 33
@@ -60,7 +60,7 @@ Module × level grid
    analytical/test_phase_c_crosscheck, 0, 8, 0, 0, 0, 0
    analytical/test_prescribed_inflow_consistency, 0, 0, 0, 0, 2, 0
    analytical/test_si_convergence_rate, 0, 7, 0, 0, 2, 0
-   angular/test_redistribution, 0, 0, 0, 0, 17, 1
+   angular/test_redistribution, 0, 0, 0, 0, 19, 1
    architecture/test_composition_cost, 0, 0, 0, 0, 9, 0
    architecture/test_monomorphic_leaves, 0, 0, 0, 0, 99, 0
    architecture/test_stage_separation, 0, 0, 0, 0, 15, 0
@@ -72,7 +72,7 @@ Module × level grid
    cartesian_2d/test_l2_boundary_face_view, 0, 0, 0, 0, 11, 0
    cartesian_2d/test_scan_march_equivalence, 0, 0, 0, 0, 11, 0
    core/test_affine_carve_baseline, 0, 0, 0, 0, 8, 0
-   core/test_cache, 28, 0, 0, 0, 2, 2
+   core/test_cache, 28, 0, 0, 0, 3, 2
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
    core/test_cell_kernel_batch, 11, 0, 0, 0, 3, 0
    core/test_closure_constant_map, 0, 0, 0, 0, 3, 0
@@ -330,6 +330,7 @@ Module × level grid
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
    numerics/test_axis, 0, 0, 0, 0, 15, 0
+   numerics/test_axis_generator, 0, 0, 0, 0, 44, 0
    numerics/test_axis_marginal, 0, 0, 0, 0, 23, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 65, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
@@ -376,7 +377,7 @@ Module × level grid
    numerics/test_si_diagnostic_trajectory, 0, 0, 0, 0, 5, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
-   numerics/test_space_of_axes, 0, 0, 0, 0, 20, 0
+   numerics/test_space_of_axes, 0, 0, 0, 0, 23, 0
    numerics/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    numerics/test_spatial_moment_space, 0, 0, 0, 0, 22, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
@@ -888,7 +889,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **565** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **567** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1395,6 +1396,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sood-eq32-phi-ratio``
 - ``sood-eq76-kinf-mg``
 - ``sotp-scattering-form``
+- ``spaces-axis-forgetful-map``
+- ``spaces-axis-generator-section``
 - ``spaces-axis-product``
 - ``spaces-collapse-adjoint-is-pullback``
 - ``spaces-collapse-rank-one-gram``

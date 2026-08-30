@@ -935,6 +935,25 @@ Three readings, and each is a design decision made visible:
   survived the re-key; only its *carrier* moved from provenance to
   content.
 
+.. note::
+
+   **CS5 (2026-08-29) put a distinct object INSIDE the twin row's
+   spaces, and the row did not move — by design.** Since campaign-1
+   phase CS5 the angular axis of
+   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
+   carries its own :class:`~orpheus.numerics.quadrature.directional.Quadrature`
+   as an :attr:`~orpheus.numerics.axis.Axis.generator`, and two twin
+   carriers hold **different rule instances** (`[M]` ``a.quad is not
+   b.quad``). Had provenance been admitted to the axis identity key,
+   the top row would have flipped from ``True`` to — literally — a
+   ``ValueError``, since the generator objects are un-``==``-able. The
+   exclusion is what keeps the row true, and it is the F2 doctrine
+   above enforced one layer down: *compare space CONTENT, never
+   provenance*. `[M]` re-measured after CS5 on the same fixture, the
+   twin row still reads ``True`` on both space columns with equal
+   hashes, and the moved-edge row still reads ``False``. See
+   :ref:`spaces-generator-identity-exclusion`.
+
 ⚠ Note the third column: the **trace** spaces compare equal even for
 the moved-edge pair, because on a 1-D slab the face areas, the layout
 and the quadrature are all unchanged — the boundary really is the same

@@ -68,12 +68,15 @@ not what collision, scattering, and fission *are*.
    * - :doc:`/theory/foundations/spaces`
      - The **space layer** those fields live in: a function space as the
        ordered product of its **axes** (index shape, factor measure,
-       basis kind, generator identity), the **counting-measure theorem**
-       that makes the energy metric the identity, and the **collapse
-       doctrine** — the two one-line tests that decide which axes
-       survive a degeneracy (the homogeneous quotient point persists;
-       the angular axis of a scalar space does not), with both refuted
-       earlier doctrines kept beside the questions that refuted them.
+       basis kind, and the **generator** that minted it — provenance
+       deliberately excluded from the axis's structural identity), the
+       **forgetful-map doctrine** that makes an axis able to hand back
+       the nodes it dropped, the **counting-measure theorem** that makes
+       the energy metric the identity, and the **collapse doctrine** —
+       the two one-line tests that decide which axes survive a
+       degeneracy (the homogeneous quotient point persists; the angular
+       axis of a scalar space does not), with both refuted earlier
+       doctrines kept beside the questions that refuted them.
    * - :doc:`/theory/foundations/wavefront_cochain`
      - The **interior face-flux cochain** :math:`C^1_{\rm int}` — the
        sweep-internal cochain that carries flux across cell faces during a

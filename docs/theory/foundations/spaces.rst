@@ -22,10 +22,10 @@ Function Spaces: Axes, Measure, and the Collapse Doctrine
 
       module: numerics
       concept: function_spaces
-      role: "the space layer — a function space as the ordered product of its AXES (index shape, factor measure, basis kind, generator identity), the counting-measure theorem on the energy axis, and the collapse doctrine that decides which axes survive a degeneracy and why"
+      role: "the space layer — a function space as the ordered product of its AXES (index shape, factor measure, basis kind, the generator that minted it, and the structural identity that deliberately excludes that generator), the counting-measure theorem on the energy axis, and the collapse doctrine that decides which axes survive a degeneracy and why"
       depends_on: [field_algebra, frame]
       related: [discrete_measures, operator_algebra, operator_adjoint]
-      status: "seeded at campaign-1 CS1 (the Energy axis); the Spatial / Quadrature / Harmonic axes are CS2"
+      status: "seeded at campaign-1 CS1 (the Energy axis); the generator slot landed at CS5 (2026-08-29); the Spatial / Quadrature / Harmonic axis SUBCLASSES are CS2"
 
 
 This page develops the **space layer**: what a discrete function space
@@ -36,15 +36,31 @@ degeneracy collapses one of its factors. It is the companion to
 types :math:`V` itself.
 
 The organizing claim is one sentence: **a function space is the ordered
-product of its axes, and an axis carries exactly four things — an index
-shape, a factor measure, a basis kind, and the identity of the generator
-that produced it.** Everything else on this page follows from taking
-that seriously: why the energy metric is the identity as a *theorem*
-rather than a default, why the homogeneous solver's spatial factor
-survives its own collapse while the angular factor of a scalar space
-does not, and why "two copies of :math:`\mathbb{R}^n` with different
-inner products are the same space" is a claim this corpus has
-**overturned**.
+product of its axes, and an axis carries exactly five things — an index
+shape, a factor measure, a basis kind, the generator object that minted
+it, and a structural identity that deliberately EXCLUDES that
+generator.** Everything else on this page follows from taking that
+seriously: why the energy metric is the identity as a *theorem* rather
+than a default, why the homogeneous solver's spatial factor survives its
+own collapse while the angular factor of a scalar space does not, why an
+axis can hand a consumer back the direction cosines it forgot, and why
+"two copies of :math:`\mathbb{R}^n` with different inner products are
+the same space" is a claim this corpus has **overturned**.
+
+.. warning::
+
+   **"Generator" means two different things one paragraph apart, and
+   the page used to run them together.** Until 2026-08-29 the sentence
+   above read *"…and the identity of the generator that produced it"*,
+   which conflated (a) the axis's structural identity being **typed per
+   subclass** — an :class:`~orpheus.numerics.axis.EnergyAxis` is not a
+   generic :class:`~orpheus.numerics.axis.Axis`, so identity records
+   *what KIND of generator* produced the factor — with (b) the axis
+   recording *WHICH generator INSTANCE* produced it. Only (a) existed
+   before campaign-1 phase CS5. (b) now exists as the
+   :attr:`~orpheus.numerics.axis.Axis.generator` slot, and its governing
+   ruling is the exact opposite of what the old wording implied:
+   **provenance is never identity** (:ref:`spaces-axis-generator`).
 
 .. note::
 
@@ -54,7 +70,13 @@ inner products are the same space" is a claim this corpus has
    - A **space-factor axis** (:class:`~orpheus.numerics.axis.Axis`,
      :class:`~orpheus.numerics.axis.EnergyAxis`) — *this page's*
      subject. One tensor factor of a function space; it carries a
-     measure and a basis kind, and it knows nothing about geometry.
+     measure and a basis kind, and its own structural slots know nothing
+     about geometry. ⚠ Since CS5 it also records the object that minted
+     it, and *that* object may well be geometric — the spatial factor's
+     generator is the carrier's volume measure, whose nodes are cell
+     centres. Geometry is therefore reachable *through* the axis without
+     being *part of* it (:ref:`spaces-axis-generator`); the identity key
+     is unmoved, which is the whole point of the exclusion.
    - A **geometric axis** (``Axis1D`` / ``AxisMesh`` /
      ``RadialAxisMesh`` in :mod:`orpheus.transport.mesh.axis`) — one
      coordinate DIRECTION of a structured mesh, carrying edges, face
@@ -97,11 +119,34 @@ inner products are the same space" is a claim this corpus has
      (:eq:`spaces-axis-product`;
      :meth:`FunctionSpace.of_axes
      <orpheus.numerics.space.FunctionSpace.of_axes>`).
-   - **An axis is (index shape, factor measure, basis kind, generator
-     identity).** ``weights=None`` **is** the counting measure —
-     deliberately and always; an axis has no "unbound" state, so the
-     legacy two-state ambiguity of ``inner_product_weights`` cannot
-     arise on this type.
+   - **An axis is (index shape, factor measure, basis kind, generator)
+     plus a structural identity over the first three.**
+     ``weights=None`` **is** the counting measure — deliberately and
+     always; an axis has no "unbound" state, so the legacy two-state
+     ambiguity of ``inner_product_weights`` cannot arise on this type.
+   - **An axis is a FORGETFUL MAP from its generator, and the mint is
+     its section.** The axis keeps the weights and drops the nodes; since
+     CS5 the mint routes THROUGH the generator
+     (:meth:`measure.axis(label) <orpheus.numerics.measure.DiscreteMeasure.axis>`
+     / :meth:`quad.axis(label) <orpheus.numerics.quadrature.directional.Quadrature.axis>`),
+     which records itself in
+     :attr:`~orpheus.numerics.axis.Axis.generator`, so the forgetting is
+     **recoverable**: ``a.generator.axis(a.label) == a``
+     (:eq:`spaces-axis-generator-section`). A consumer holding the SPACE
+     recovers ``mu_x`` / ``eta`` / ``mu_z`` / ``level_indices`` without
+     being handed the quadrature separately
+     (:ref:`spaces-axis-generator`).
+   - ⛔ **The generator is provenance, and its exclusion from identity is
+     STRUCTURALLY MANDATORY, not taste.** A
+     :class:`~orpheus.numerics.quadrature.directional.Quadrature` is
+     unhashable and a
+     :class:`~orpheus.numerics.measure.DiscreteMeasure` is
+     un-``==``-able, so an identity key containing either makes
+     ``Axis.__eq__`` and ``hash(Axis)`` **RAISE** — measured, not
+     conjectured (:ref:`spaces-generator-identity-exclusion`). Because
+     the ``of_axes`` name digest rides the same key, an inclusion would
+     also split the space identity of every carrier that builds its own
+     rule instance.
    - **The two one-line discriminators of the collapse doctrine.**
      *(i)* **Can the admissible fields be integrated over the collapsed
      domain?** — symmetry-forced constancy on infinite-measure orbits
@@ -164,16 +209,17 @@ inner products are the same space" is a claim this corpus has
 
 .. _spaces-the-axis:
 
-The axis: four slots, and what each one decides
+The axis: five slots, and what each one decides
 ===============================================
 
 An **axis** is one tensor factor of a function space — the value object
-recording *(index shape, factor measure, basis kind, generator
-identity)*. It is the unit the composition machinery reasons about:
-partitions, collapses, frames and (later) :math:`\oplus`-lifts act **per
-axis**, never on an anonymous position of a monolithic shape tuple.
+recording *(index shape, factor measure, basis kind, generator)*, plus a
+structural identity derived from the first three. It is the unit the
+composition machinery reasons about: partitions, collapses, frames and
+(later) :math:`\oplus`-lifts act **per axis**, never on an anonymous
+position of a monolithic shape tuple.
 
-.. list-table:: The four slots
+.. list-table:: The five slots
    :header-rows: 1
    :widths: 16 30 54
 
@@ -196,11 +242,21 @@ axis**, never on an anonymous position of a monolithic shape tuple.
      - ``NODAL`` ⟹ the factor carries a **coordinate cone**;
        ``MODAL`` ⟹ it does not. Keyword-only with **no default** — the
        basis character is physics and must be spelled at every mint.
+   * - ``generator``
+     - ``DiscreteMeasure | Basis | Quadrature | None``, keyword-only,
+       default ``None``
+     - **Provenance, never identity** (CS5). The object that minted this
+       factor, kept so the axis's forgetting is recoverable: an axis
+       drops its generator's NODES, and this slot is how a consumer
+       holding only the space gets them back. ``None`` is an honest
+       reading wherever no generator object exists.
+       :ref:`spaces-axis-generator` develops it.
    * - identity
      - structural, **per subclass**
      - :math:`(\text{type}, \text{label}, \text{shape}, \text{kind},
        \text{weights bytes})` plus each subclass's own data. Two axes
-       differing only in measure are DIFFERENT axes.
+       differing only in measure are DIFFERENT axes; two axes differing
+       only in ``generator`` are the SAME axis.
 
 Composition, and the metric that comes with it
 ----------------------------------------------
@@ -417,6 +473,569 @@ same values answered on an all-nodal space, the positive-and-negative
 pair ``vv-principles`` anti-pattern #11 requires). The arm becomes
 production-reachable when CS2 mints the harmonic axis.
 
+
+.. _spaces-axis-generator:
+
+The generator slot: an axis is a forgetful map, and the mint is its section
+---------------------------------------------------------------------------
+
+An axis keeps the weights of the object that produced it and nothing
+else about it. That is exactly the right amount of structure for a
+*measure* — the pairing consumes weights, not nodes
+(:eq:`spaces-axis-product`) — and it is one datum short for every
+consumer that needs the geometry back. The discrete-ordinates axis is
+the sharp case: its factor measure is the quadrature weights
+:math:`w_n`, and a sweep needs the direction cosines
+:math:`\hat\Omega_n` that the weights were attached to. Before campaign-1
+phase CS5 the only way to supply them was to hand the consumer the
+:class:`~orpheus.numerics.quadrature.directional.Quadrature`
+*alongside* the space — which is the reach-past this campaign exists to
+retire, because a consumer taking two arguments that must agree is a
+consistency obligation the type system is not carrying.
+
+This section is the doctrine's home: the forgetful-map framing, the
+section law, the refuted alternative, the identity exclusion, the
+``None`` inventory (:ref:`spaces-generator-none-inventory`), the seams
+and the gates (:ref:`spaces-generator-gates`). The two mint accessors'
+own API narrative lives one page over, at
+:ref:`discrete-measures-quadrature-axis`.
+
+**The forgetful map.** Write a generator :math:`g` for the discrete
+measure it presents,
+
+.. math::
+   :label: spaces-axis-forgetful-map
+
+   \mu_g \;=\; \sum_{i=1}^{n} w_i\,\delta_{x_i},
+   \qquad
+   \mathcal{F}_\ell(g) \;=\;
+   \bigl(\,\ell,\ (n,),\ w,\ \texttt{NODAL}\,\bigr) ,
+
+.. (vv-status rationale) Structural/representational identity: it STATES
+   what ``DiscreteMeasure.axis`` constructs from a measure's atoms — the
+   label, the rank-1 index shape ``(n_points,)``, the weight vector, and
+   the NODAL kind implied by the generator's TYPE. Not a solver claim —
+   no flux, no eigenvalue, no discretization error. The verifiable
+   content is the CS5 foundation battery
+   (``tests/numerics/test_axis_generator.py`` G3, the mint-fidelity
+   roster over four of the five shipped ``Quadrature`` factories,
+   comparing the minted axis's label/shape/kind/weight BYTES against the
+   literal construction it replaced).
+.. vv-status: spaces-axis-forgetful-map documented
+
+where :math:`\ell` is the factor's label. :math:`\mathcal{F}_\ell` keeps
+:math:`w` and drops the nodes :math:`x` — hence *forgetful*, and hence
+the ``NODAL`` kind is not a parameter of the mint but a **consequence of
+the generator's type**: a discrete measure's components are point values
+with a coordinate cone (:ref:`spaces-nodal-modal`), so the
+mis-declaration "a nodal basis carrying no nodes" is unspellable on this
+path. It was spellable on the literal path, and CS5 retired that path at
+**two** of the tree's three nodal mint sites — the angular factor of
+:attr:`SNMesh.angular_bulk_space
+<orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space>` and the
+rank-1 spatial factor of :attr:`MaterialMesh.bulk_space
+<orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`. The
+third, the homogeneous pose's counting point, keeps its literal because
+it has no generator to mint through; what changed there is that the
+``None`` became a documented reading rather than an unexamined default
+(:ref:`spaces-generator-none-inventory`).
+
+**Recoverable forgetting.** The repair is not to stop forgetting — the
+axis genuinely should not carry a node array it never pairs against, and
+:eq:`spaces-axis-product` is the reason. The repair is to make the
+forgetting *recoverable*: the mint
+
+.. math::
+
+   m_\ell(g) \;=\; \mathcal{F}_\ell(g)\ \text{ with }\
+   \texttt{generator} = g
+
+records its own input, and the projection ``a.generator`` (written :math:`p`)
+reads it back. The two compose to identities in both directions:
+
+.. math::
+   :label: spaces-axis-generator-section
+
+   p\bigl(m_\ell(g)\bigr) \;=\; g \quad\text{for every generator } g,
+   \qquad
+   m_{\ell(a)}\bigl(p(a)\bigr) \;=\; a \quad\text{for every minted axis } a .
+
+.. (vv-status rationale) Structural identity (the SECTION law): it
+   STATES that the generator-minted axis is a two-sided inverse pair
+   with the generator projection — the mint records its own input
+   (``a.generator is g``, an identity check) and re-minting from the
+   recorded generator reproduces the axis (``a.generator.axis(a.label)
+   == a``, a structural-equality check). Not a solver claim — no flux,
+   no eigenvalue, no discretization error. The verifiable content is the
+   CS5 foundation battery: ``tests/numerics/test_axis_generator.py``
+   G8 (``TestG8TheMintIsASectionOfTheForgetfulMap``, the angular roster
+   plus the NODAL-measure leg) and the spatial leg beside G6a in
+   ``tests/numerics/test_space_of_axes.py``.
+.. vv-status: spaces-axis-generator-section documented
+
+The right-hand law is the operational one and it is gated by name:
+``a.generator.axis(a.label) == a``. Read it as *the mint is a section of
+the forgetful map* — every generator-ful axis can be regenerated from
+what it remembers, so nothing the axis dropped is unreachable from the
+axis.
+
+.. warning::
+
+   **The law's domain is MINTED axes, and a hand-passed generator can
+   lie.** ``generator`` is an ordinary keyword field with no
+   cross-check against the rest of the axis — nothing refuses
+   ``Axis("angular", (2,), weights=[1.0, 3.0], kind=NODAL,
+   generator=Quadrature.gauss_legendre(4))``, an axis of shape
+   :math:`(2,)` claiming to have come from a 4-ordinate rule. `[M]` it
+   constructs, and :eq:`spaces-axis-generator-section` reads ``False``
+   on it while reading ``True`` on the accessor-minted sibling. That
+   asymmetry is the whole reason both the class docstring and this page
+   say **prefer minting through the generator**: a generator-minted axis
+   cannot forget its provenance and cannot misstate it, whereas a
+   hand-passed one is an unchecked assertion. The section law is the
+   predicate that detects the lie — which is why it is gated rather than
+   assumed.
+
+.. _spaces-generator-why-quadrature:
+
+Why the QUADRATURE and not the bare measure (an opener's refutation)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The design as chartered proposed typing the accessor
+:class:`~orpheus.numerics.measure.DiscreteMeasure` — the measure is the
+mathematical object, the quadrature is an SN-side convenience wrapper
+over it, and the layering argument says reach for the lower one. The
+phase's opening ground measurement **refuted** it, and the refutation is
+worth carrying because the layering argument is otherwise correct.
+
+The done-when named four things a consumer must be able to recover
+through the space: ``mu_x``, ``eta``, ``mu_z``, ``level_indices``. A
+bare measure can supply **three of the four** — as columns of its node
+array rather than under those names — and cannot supply the fourth at
+all. The reason is a field list:
+
+.. list-table:: What each candidate generator can answer
+   :header-rows: 1
+   :widths: 22 30 48
+
+   * - Name
+     - On a ``DiscreteMeasure``?
+     - Where it actually lives
+   * - ``mu_x`` / ``mu_z``
+     - the DATA is there
+     - columns of ``measure.nodes`` (shape :math:`(N, d)`), read by
+       :meth:`Quadrature.axis_cosines
+       <orpheus.numerics.quadrature.directional.Quadrature.axis_cosines>`.
+       `[M]` ``q.mu_x`` is bit-equal to ``measure.nodes[:, 0]`` and
+       ``q.mu_z`` to ``measure.nodes[:, 2]``.
+   * - ``eta``
+     - the DATA is there
+     - the same column 0 under its cylindrical-frame name
+       (:math:`\eta = \hat\Omega\cdot\hat r`) — an alias, not a second
+       array. `[M]` ``q.eta`` is bit-equal to ``q.mu_x``.
+   * - ``level_indices``
+     - ⛔ **no**
+     - the :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`
+       side-channel, carried by the
+       ``Quadrature``. `[M]` a ``DiscreteMeasure`` has exactly five
+       fields — ``nodes``, ``weights``, ``support``,
+       ``invariance_group``, ``exactness`` — and
+       ``hasattr(measure, "level_indices")`` is ``False``.
+
+So the level fibration is not a *name* the measure lacks, it is
+**structure the measure does not contain**: the polar-level partition of
+the ordinate set is a datum the curvilinear :math:`\alpha`-recursion
+needs and the atom list cannot express. Typing the accessor at the
+measure would therefore have shipped an accessor that answers the easy
+three-quarters of its own contract, with the one name that motivated the
+design still requiring the reach-past.
+
+The ruling is consequently: **the angular axis's generator is the
+Quadrature**, and
+:meth:`Quadrature.axis <orpheus.numerics.quadrature.directional.Quadrature.axis>`
+delegates the *structural* mint down to
+:meth:`DiscreteMeasure.axis <orpheus.numerics.measure.DiscreteMeasure.axis>`
+— one home for the shape/weights/kind logic, no twin — and upgrades only
+the provenance, through ``dataclasses.replace``. The upgrade re-runs the
+axis's ``__post_init__``, so it cannot bypass a construction invariant:
+the all-ones collapse, the :math:`-0.0` normalization and the read-only
+flag all survive the replace, which is asserted rather than assumed.
+
+.. note::
+
+   **The generalisation, and it is the reusable half.** The refuted
+   proposal is an instance of a pattern worth naming: *choosing a
+   provenance type by LAYER rather than by CONTRACT*. The layer argument
+   ("the measure is lower, so record the measure") is a statement about
+   the dependency graph; the contract argument ("record the object that
+   answers everything the axis forgot") is a statement about what the
+   consumer needs. When the lower object is a **projection** of the
+   higher one — and a measure is exactly the quadrature minus its
+   side-channels — the layer argument silently narrows the contract.
+   The decidable check is the one run here: enumerate the names the
+   consumer must recover and ask which candidate answers **all** of
+   them.
+
+.. _spaces-generator-identity-exclusion:
+
+Provenance is never identity — and here the exclusion is mandatory
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``generator`` is absent from :meth:`Axis._identity_key
+<orpheus.numerics.axis.Axis>`, so equality, hash and the ``of_axes``
+name digest all ignore it. The *doctrinal* reason is one sentence — two
+axes with identical structural content are the same axis whatever
+instance produced them, exactly as two identical measures are the same
+measure — but the doctrinal reason is not the load-bearing one. **The
+exclusion is structurally mandatory**: an identity key containing a
+generator does not merely change the answer, it makes the operation
+raise.
+
+.. list-table:: Why an inclusion is not an option (`[M]` 2026-08-29, this tree)
+   :header-rows: 1
+   :widths: 34 30 36
+
+   * - Reading
+     - Result
+     - Mechanism
+   * - ``hash(Quadrature.gauss_legendre(4))``
+     - ``TypeError: unhashable type: 'Quadrature'``
+     - a ``dataclass`` with ``eq=True`` and ``frozen=False`` gets
+       ``__hash__ = None``. `[M]`
+       ``Quadrature.__dataclass_params__.frozen`` is ``False``.
+   * - ``q1.measure == q2.measure``
+     - ``ValueError: The truth value of an array with more than one
+       element is ambiguous``
+     - ``DiscreteMeasure`` is ``frozen=True, eq=True`` over ndarray
+       fields, so the generated ``__eq__`` compares arrays and the
+       tuple comparison collapses them to a ``bool``.
+   * - the simulated inclusion — a subclass appending
+       ``self.generator`` to ``_identity_key`` — then ``a1 == a2``
+     - **RAISES** ``ValueError`` (same message)
+     - the key is compared as a tuple, so the generator's own
+       un-comparability propagates straight to ``Axis.__eq__``.
+   * - the same subclass, then ``hash(a1)``
+     - **RAISES** ``TypeError`` (same message)
+     - ``Axis.__hash__`` hashes the key tuple, so the generator's
+       unhashability propagates straight through.
+
+Reproduce it by subclassing rather than by editing the shipped key —
+the simulation is four lines and needs no mutation of production code:
+
+.. code-block:: python
+
+   from orpheus.numerics.axis import Axis, BasisKind
+   from orpheus.numerics.quadrature.directional import Quadrature
+
+   class _WithGeneratorInKey(Axis):
+       def _identity_key(self):
+           return (*super()._identity_key(), self.generator)
+
+   q1, q2 = Quadrature.gauss_legendre(4), Quadrature.gauss_legendre(4)
+   a1 = _WithGeneratorInKey("angular", (q1.N,), weights=q1.weights,
+                            kind=BasisKind.NODAL, generator=q1)
+   a2 = _WithGeneratorInKey("angular", (q2.N,), weights=q2.weights,
+                            kind=BasisKind.NODAL, generator=q2)
+   a1 == a2      # ValueError: truth value of an array ... is ambiguous
+   hash(a1)      # TypeError: unhashable type: 'Quadrature'
+
+Three consequences follow, and each is separately load-bearing:
+
+#. **Issue #403's content-equal-measure hazard never reaches axis
+   identity.** Two carriers built from equal inputs hold *distinct*
+   rule instances; because the generator is out of the key, their axes
+   are equal and their spaces are equal. `[M]` on two twin 1-D
+   :math:`S_N` carriers built from equal edge arrays with
+   ``gauss_legendre(4)``: ``a.quad is not b.quad`` is ``True`` while
+   ``a.angular_bulk_space == b.angular_bulk_space`` and the hashes
+   agree; a third carrier differing only in a cell edge is
+   ``False``. That is the same row the field algebra's fiber table
+   reports (:doc:`/theory/foundations/field_algebra`), and it is
+   unmoved by CS5 **because** of the exclusion.
+#. **The derived space NAME cannot drift.** ``_structural_bytes``
+   iterates ``_identity_key``, so any field admitted to the key enters
+   every derived space name (:ref:`spaces-identity-bridge`). Space
+   identity is ``(name, shape)`` until the S3 flip, so an inclusion
+   would not just perturb a digest — it would split one space into as
+   many spaces as there are rule instances in the process.
+#. **The three CS5 consumer re-points are bit-identical by
+   construction.** `[M]`
+   :attr:`SNMesh.angular_bulk_space
+   <orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space>`'s
+   generator-minted angular axis compares equal to the literal
+   ``Axis("angular", (quad.N,), weights=quad.weights, kind=NODAL)`` it
+   replaced, and mints the same digest — so no snapshot, no cached
+   space, and no equality-keyed consumer could observe the change.
+
+.. _spaces-generator-not-a-reverse-accessor:
+
+What this is NOT: the refused axis-to-measure accessor still stands
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+CS4b phase S6.0b considered and **refused** giving
+:class:`~orpheus.numerics.axis.Axis` a public accessor that *produces* a
+:class:`~orpheus.numerics.measure.DiscreteMeasure`
+(:ref:`spaces-collapse-pair-refuted`). That refusal is not overturned,
+and the distinction is the whole design:
+
+- the refused thing points **axis → measure** and would have had to
+  **manufacture** its output. A pre-CS5 axis had dropped the nodes, so
+  the only node set it could synthesise is the index set — which is
+  precisely what the collapse-pair mint builds *locally*
+  (``nodes = arange(n)``, ``support = f"index({label})"``,
+  :ref:`spaces-collapse-pair-frame`). Exposing that as an accessor
+  would have published a *synthetic* measure under a name readers
+  would take for the generating one.
+- CS5 points **generator → axis** and manufactures nothing. It records
+  the real object at the one moment it is in scope — the mint — so the
+  recovered data is the generator's own, not a reconstruction.
+
+The consequence for the collapse pair is: nothing changed. The rank-one
+indicator frame is deliberately built over the **index set**, not over
+the generator's physical nodes, because a marginal over an axis is a sum
+over its indices; that site still builds its own measure and does not
+consult ``axis.generator``. Both facts are worth stating together,
+because "the axis can now reach a measure" invites exactly the wrong
+inference at that call site.
+
+.. _spaces-generator-none-inventory:
+
+The honest-``None`` inventory
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``generator=None`` is a reading, not a gap. Measured on a shipped 1-D
+slab carrier (edges ``0|1|3|6``, ``gauss_legendre(4)``, 2 groups):
+
+.. list-table:: `[M]` 2026-08-29 — every axis of every shipped space on that carrier
+   :header-rows: 1
+   :widths: 26 18 18 38
+
+   * - Space
+     - Axis
+     - ``generator``
+     - Why
+   * - :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`
+     - ``energy``
+     - ``None``
+     - an :class:`~orpheus.numerics.axis.EnergyAxis` is the counting
+       measure as a **theorem**
+       (:ref:`spaces-counting-measure-theorem`), so there is no measure
+       object to name; the group structure it does carry is its own
+       ``from_grid`` data.
+   * - :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`
+     - ``spatial``
+     - ``DiscreteMeasure``
+     - the carrier's own
+       :attr:`volume_measure
+       <orpheus.transport.mesh.material_mesh.MaterialMesh.volume_measure>`
+       — its one documented data path. `[M]` nodes are the cell centres
+       ``[0.5, 2.0, 4.5]`` and weights the volumes ``[1.0, 2.0, 3.0]``,
+       both hand-derivable from the edge list.
+   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space`
+     - ``angular``
+     - ``Quadrature``
+     - the rule itself, so ``mu_x`` / ``eta`` / ``mu_z`` /
+       ``level_indices`` answer through the space.
+   * - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space`
+     - all three
+     - as above
+     - byte-identical to ``angular_bulk_space`` for a slopeless
+       closure, so it inherits the same axes.
+   * - the homogeneous pose
+     - ``spatial``
+     - ``None``
+     - the infinite-medium pose has **no mesh**, so no spatial measure
+       object exists. The one-point counting axis IS the normalized
+       per-unit-volume convention (:ref:`spaces-quotient-family`);
+       ``None`` is the record, not an omission.
+
+The reading to carry: a ``None`` generator says *no generator object
+exists for this factor*, never *nobody bothered*. Two of the five rows
+above read ``None``, and each for a stated structural reason rather
+than for lack of attention — which is what makes the reading
+falsifiable: if a factor that HAS a generator object ever reads
+``None``, that is a defect, and this table is where to check.
+
+.. warning::
+
+   **The generator is a LIVE REFERENCE, not a snapshot — the axis's own
+   weights copy is the authority.** `[M]`
+   ``Quadrature.__dataclass_params__.frozen`` is ``False``, so a
+   quadrature is mutable and ``axis.generator``'s arrays can in
+   principle be moved after the axis was minted. The axis's own
+   ``weights`` cannot: ``__post_init__`` stores ``w + 0.0`` with
+   ``setflags(write=False)``, so `[M]` ``axis.weights.flags.writeable``
+   is ``False`` and ``axis.weights is quad.weights`` is ``False`` — a
+   fresh, read-only, defensively-copied array. Consequently **the
+   factor measure of record is** ``axis.weights``, and a consumer that
+   reads ``axis.generator.weights`` instead is reading a mutable alias
+   of what the axis's identity was computed from. Read the generator
+   for what the axis FORGOT (nodes, cosines, level structure); read the
+   axis for what it KEPT.
+
+.. _spaces-generator-seams:
+
+The seams: rank-:math:`d`, MODAL, and the solve-time consumer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Three arms of the design are deliberately not built, each for a stated
+reason rather than for lack of time.
+
+**Rank-d spatial axes are generator-less BY CONTRACT (CS2).**
+A :class:`~orpheus.numerics.measure.DiscreteMeasure` is a **flat atom
+list** — nodes :math:`(N, d)`, weights :math:`(N,)` — so
+:meth:`DiscreteMeasure.axis
+<orpheus.numerics.measure.DiscreteMeasure.axis>` mints at rank 1, by
+construction. A rank-:math:`d` spatial axis has shape
+:math:`(n_x, n_y, n_z)`, and there is no rank-:math:`d` measure-to-axis
+pairing yet. Minting flat anyway is not merely inelegant, it is
+observable: `[M]` on a :math:`2\times3\times2` Cartesian carrier the
+axis-built name is ``spatial(2, 3, 2)#4833f3fd3f12352b`` while the flat
+mint gives ``spatial(12,)#c9919057f3e8687d`` — a different space, for
+every :math:`d \ge 2` carrier in the tree. So
+:attr:`MaterialMesh.bulk_space
+<orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`
+branches on rank: the rank-1 arm mints through ``volume_measure``, the
+rank-:math:`d` arm stays literal and generator-less. ⛔ The day CS2
+mints the rank-:math:`d` pairing, that row must be inverted
+**deliberately** — it is a seam's witness, not a permanent truth, and
+its gate says so in its own name
+(``test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT``).
+
+**No MODAL axis has a generator yet, and no ``Basis`` can mint one.**
+The :attr:`~orpheus.numerics.axis.Axis.generator` annotation admits a
+:class:`~orpheus.numerics.basis.base.Basis` — that is the chartered
+MODAL arm — but `[M]` ``hasattr(Basis, "axis")`` is ``False`` and no
+subclass defines it, so the arm is **declared and unbuilt**. Two
+consequences worth stating: the section law
+:eq:`spaces-axis-generator-section` currently ranges over
+measure-generated and quadrature-generated axes only, and a
+hand-constructed ``generator=<some Basis>`` axis would fail it with an
+``AttributeError`` rather than a ``False``. The arm becomes real when
+CS2 mints the harmonic axis — the same phase that gives the ``False``
+arm of ``has_coordinate_cone`` its first production witness
+(:ref:`spaces-nodal-modal`).
+
+**No solve-time consumer reads a generator yet, and that is why two
+gates were withheld.** CS5 lands the machinery and the three nodal mint
+sites; it does **not** re-point the streaming producer that today takes
+a space and a quadrature as separate arguments. Two specified gates —
+a refusal when a consumer is handed a generator-less axis, and the
+route keystone proving the consumer reads *through* the space —
+therefore did not land with it, because a gate that ships before the
+case it catches exists is green and unfalsifiable by construction
+(``plan-authoring`` §6c). They land with the re-point.
+
+.. _spaces-generator-protocol:
+
+The sibling repair: a contract that declares what its consumer reads
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The same ``level_structure`` side-channel that decided the generator's
+type exposed an under-declared contract one package over. The
+``AngularMeasure`` :class:`~typing.Protocol` in
+:mod:`orpheus.sn.angular.redistribution` — the structural contract the
+:math:`\alpha`-dome recursion consumes — declared six members while the
+cylindrical streaming factory admission-probed a seventh, spelled
+``getattr(angular_measure, "level_structure", None)``.
+
+That spelling is doubly invisible. It is a **string-form attribute
+read**, so no symbol grep over the Protocol's members can see it; and it
+is a **defaulted** ``getattr`` inside a guard's condition, so the day
+the attribute is renamed the guard does not raise — it silently takes
+the ``None`` branch and the admission check evaporates
+(``vv-principles`` #28, the temporal twin). The repair is to declare the
+member: the contract now states ``level_structure: LevelStructure |
+None``, and ``None`` is the honest reading for a slab or 2-D rule rather
+than an absent attribute. `[M]` ``Quadrature.level_symmetric(4)``
+carries a
+:class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`;
+``Quadrature.gauss_legendre(4)``
+reads ``None`` while still answering ``level_indices`` with a single
+degenerate level.
+
+The tolerant ``getattr`` at the probe deliberately survives this phase —
+a structural conformer may predate the declaration — and hardens to a
+direct read when the courier field dissolves at the same re-point that
+unblocks the two withheld gates above.
+
+.. _spaces-generator-gates:
+
+Verification — the gates, by name
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Cite these rather than copying their numbers; each re-measures itself.
+`[M]` before they landed, a mutation battery over the 184-test anchor
+set around the touched sites found **zero** genuine catchers for any
+property on this page — the machinery was landing unwitnessed, which is
+why the gate module is part of the same change.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 30 46
+
+   * - Claim
+     - Gate
+     - What a mutation does to it
+   * - provenance is not identity
+     - ``tests/numerics/test_axis_generator.py``
+       ``::TestG1GeneratorIsProvenanceNotIdentity``
+     - putting ``generator`` in ``_identity_key`` makes ``==`` and
+       ``hash`` RAISE — the sub-case ``G1c`` pins the two properties
+       (unhashable / un-``==``-able) the exclusion rests on, so a
+       future "tidy the field into the key" is refuted by a red rather
+       than discovered by a traceback.
+   * - the digest is blind to provenance
+     - ``tests/numerics/test_space_of_axes.py``
+       ``::test_of_axes_name_is_BLIND_to_the_generator``
+     - the same inclusion moves the derived space name; the gate is
+       stated at the tier where the damage would occur
+       (:ref:`spaces-identity-bridge`).
+   * - the mint reproduces the literal
+     - ``tests/numerics/test_axis_generator.py``
+       ``::TestG3MintFidelity``
+     - minting ``MODAL``, or dropping the ``replace`` upgrade so the
+       generator stays the bare measure, both red. Honest scope: the
+       two sides are not independent on the weight VALUES (both read
+       ``measure.weights``); what this pins is the THREADING and the
+       surviving canonicalization.
+   * - the four names answer through the space
+     - ``tests/numerics/test_axis_generator.py``
+       ``::TestG4TheFourNamesAnswerThroughTheSpace``
+     - parametrized over four ``Quadrature`` classmethod factories —
+       ``gauss_legendre``, ``level_symmetric``, ``product``,
+       ``lebedev`` — probed whole rather than laddered
+       (``vv-principles`` #31's finite-roster corollary). ⚠ `[M]` the
+       shipped family has **five** members: ``folded_product`` — the
+       :math:`\sigma_y`-folded cylindrical carrying rule the curvilinear
+       MMS case builders default to — is absent from the roster while
+       the roster describes itself as exhaustive. It is the member with
+       the richest ``level_indices`` structure, so the omission is on
+       the axis the roster exists to gate; the gap is reported, not
+       repaired here. Carries the refutation leg: a bare measure must
+       NOT answer ``level_indices``, and if one starts to, this design
+       must be re-ruled.
+   * - the mint is a section
+     - ``tests/numerics/test_axis_generator.py``
+       ``::TestG8TheMintIsASectionOfTheForgetfulMap``
+     - minting at a shape other than ``(generator.n_points,)``, or
+       hand-passing a generator that did not produce the axis, reds it.
+   * - the spatial chain, anchored independently
+     - ``tests/numerics/test_space_of_axes.py``
+       ``::test_the_spatial_axis_is_minted_through_the_carriers_own_measure``
+     - its volumes and cell centres are HAND-DERIVED from the edge
+       list, not read back from the mesh — the one structurally
+       independent pin in the mesh → measure → axis chain.
+   * - the rank-:math:`d` seam
+     - ``tests/numerics/test_space_of_axes.py``
+       ``::test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT``
+     - the contract row; inverting it is a deliberate CS2 act.
+   * - the widened Protocol
+     - ``tests/sn/angular/test_redistribution.py``
+       ``::TestG9TheProtocolDeclaresWhatItsConsumersRead``
+     - removing the ``level_structure`` declaration reds the first
+       assertion. `[M]` nothing else in the tree observes the
+       contract, so this row is its only witness.
 
 .. _spaces-counting-measure-theorem:
 
@@ -1641,7 +2260,33 @@ ruling that governs the frame: *accessors are provenance*. An accessor
 would make the generator reachable from the axis forever, so the axis
 would carry a permanent dependence on frame machinery it does not
 need. The mint builds the measure with a **local** helper instead; the
-axis stays four slots and nothing more.
+axis stayed four slots and nothing more.
+
+.. note::
+
+   **Read with CS5 (2026-08-29), which added a fifth slot and did NOT
+   overturn this.** The paragraph above is preserved as written; only
+   its closing tense moved, because
+   :attr:`~orpheus.numerics.axis.Axis.generator` now exists. The two are
+   compatible, and the reason is the arrow's direction. What S6.0b
+   refused points **axis → measure** and would have had to *manufacture*
+   its output — a pre-CS5 axis had dropped the nodes, so the only node
+   set it could synthesise is the index set, which is exactly what the
+   local helper builds (``nodes = arange(n)``,
+   ``support = f"index({label})"``, :ref:`spaces-collapse-pair-frame`).
+   Publishing that as an accessor would have handed readers a
+   **synthetic** measure under a name they would take for the generating
+   one. CS5 points **generator → axis** and manufactures nothing: it
+   records the real object at the one moment it is in scope, the mint.
+
+   The collapse pair is unchanged by it, deliberately. Its rank-one
+   indicator frame is built over the axis's **index set** — a marginal
+   over an axis is a sum over its indices — not over the generator's
+   physical nodes, and that site still builds its own measure rather
+   than consulting ``axis.generator``. Both halves are worth stating
+   together, because "the axis can now reach a measure" invites exactly
+   the wrong inference here. Full treatment:
+   :ref:`spaces-generator-not-a-reverse-accessor`.
 
 **Caching the pair on the** ``Axis`` **— refused for the same reason,
 and it would have been wrong anyway.** The pair is not a function of
@@ -1957,6 +2602,30 @@ taken.
        only; block/composite structure still rides
        :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
        and the coupled-block machinery.
+   * - The rank-:math:`d` measure-to-axis pairing
+     - **CS2.** A :class:`~orpheus.numerics.measure.DiscreteMeasure` is
+       a flat atom list, so :meth:`DiscreteMeasure.axis
+       <orpheus.numerics.measure.DiscreteMeasure.axis>` mints at rank 1;
+       the rank-:math:`d` arm of :attr:`MaterialMesh.bulk_space
+       <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`
+       therefore stays literal and **generator-less by contract**,
+       gated as such. Inverting that row is a deliberate CS2 act
+       (:ref:`spaces-generator-seams`).
+   * - A ``Basis`` that mints its own MODAL axis
+     - **CS2.** :attr:`~orpheus.numerics.axis.Axis.generator`'s
+       annotation admits a
+       :class:`~orpheus.numerics.basis.base.Basis`, but `[M]`
+       ``hasattr(Basis, "axis")`` is ``False`` and no subclass defines
+       it — the MODAL arm is declared and unbuilt. Both shipped mints
+       are ``NODAL`` by construction, so no MINT can produce a modal
+       generator-ful axis (:ref:`spaces-generator-seams`).
+   * - A solve-time consumer that READS a generator
+     - **The streaming campaign's P4-remainder.** CS5 landed the slot
+       and the two generator-minted nodal sites; no production consumer reads
+       ``axis.generator`` yet, so the two gates that would witness one
+       (a generator-less refusal, and the route keystone) were withheld
+       rather than shipped green and unfalsifiable
+       (:ref:`spaces-generator-seams`).
    * - The identity flip (compare the axes tuple, not the name)
      - **S3.** Until then the derived name is the bridge
        (:ref:`spaces-identity-bridge`), and ``axes`` is declared
@@ -2002,6 +2671,48 @@ status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-08-29
+     - **An axis can name the generator that made it** (campaign 1,
+       phase CS5). The axis gains a fifth slot,
+       :attr:`~orpheus.numerics.axis.Axis.generator` — **provenance,
+       never identity** — and the mint routes THROUGH the generator:
+       :meth:`DiscreteMeasure.axis
+       <orpheus.numerics.measure.DiscreteMeasure.axis>` (the
+       axis-composed sibling of :attr:`~orpheus.numerics.measure.DiscreteMeasure.space`,
+       ``NODAL`` by construction) and :meth:`Quadrature.axis
+       <orpheus.numerics.quadrature.directional.Quadrature.axis>`
+       (delegating the structural mint down and upgrading only the
+       provenance). An axis is a **forgetful map** from its generator —
+       it keeps the weights and drops the nodes — and the mint is that
+       map's **section**, so the forgetting is recoverable
+       (:eq:`spaces-axis-generator-section`): a consumer holding only
+       the SPACE recovers ``mu_x`` / ``eta`` / ``mu_z`` /
+       ``level_indices``. The generator is EXCLUDED from
+       ``_identity_key`` — structurally mandatory, not taste, since an
+       inclusion makes ``Axis.__eq__`` and ``hash(Axis)`` RAISE
+       (:ref:`spaces-generator-identity-exclusion`). **Two** of the
+       tree's three nodal mint sites consume it, bit-identically:
+       :attr:`SNMesh.angular_bulk_space
+       <orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space>`
+       collapses to ``self.quad.axis("angular")``, and the rank-1 arm of
+       :attr:`MaterialMesh.bulk_space
+       <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`
+       mints through the carrier's own ``volume_measure``; the third,
+       the homogeneous pose's counting point, keeps its literal and is
+       documented as honestly generator-less. The rank-:math:`d` spatial
+       arm likewise stays literal, by contract. The chartered ``DiscreteMeasure``-typed accessor
+       was **refuted** by the phase's opening ground measurement — a
+       bare measure answers three of the done-when's four names
+       (:ref:`spaces-generator-why-quadrature`). Sibling repair: the
+       ``AngularMeasure`` Protocol in
+       :mod:`orpheus.sn.angular.redistribution` now declares the
+       ``level_structure`` member its cylinder-factory consumer was
+       already reading past the contract
+       (:ref:`spaces-generator-protocol`).
+     - —
+     - ``4e7b8977`` (the slot, the two mints, the three consumers, the
+       gates) + ``b0bfc06c`` (the Protocol declaration) — *(in
+       development;* ``git`` *is the merge-status authority)*
    * - 2026-08-24
      - **The space becomes the construction key, and it mints the
        collapse pair** (campaign 1, phase CS4b, steps S5–S7).

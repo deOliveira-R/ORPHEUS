@@ -59,6 +59,20 @@ Key Facts
   for sanity checks and documentation only. (Distinct from the
   derived ``μ.space``, the induced discrete-:math:`L^2`
   :class:`~orpheus.numerics.space.FunctionSpace`.)
+- A measure **generates space factors, not only whole spaces**:
+  :meth:`μ.axis(label) <orpheus.numerics.measure.DiscreteMeasure.axis>`
+  is the axis-composed sibling of ``μ.space``, minting one
+  :class:`~orpheus.numerics.axis.Axis` that keeps the weights, drops
+  the nodes, and records ``μ`` itself as its generator so the
+  forgetting is recoverable.
+  :meth:`Quadrature.axis <orpheus.numerics.quadrature.directional.Quadrature.axis>`
+  is the angular sibling and records the RULE, because
+  ``level_indices`` lives on the
+  :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`
+  side-channel and not among the measure's five fields. The doctrine, the identity
+  exclusion and the seams live on
+  :ref:`the space layer's page <spaces-axis-generator>`; ``kind`` is
+  never a parameter of either mint — the generator's TYPE implies it.
 
 
 Definitions
@@ -1657,6 +1671,57 @@ that the
 :func:`~orpheus.numerics.quadrature.registry.select_quadrature`
 registry (Issue 5; see "Quadrature selection algorithm" above)
 consumes for automated rule selection.
+
+.. _discrete-measures-quadrature-axis:
+
+``quad.axis(label)`` — the rule as a space factor
+--------------------------------------------------
+
+Beside the ordinate accessors sits one mint, added at campaign-1 phase
+CS5 (2026-08-29):
+:meth:`Quadrature.axis(label)
+<orpheus.numerics.quadrature.directional.Quadrature.axis>` returns the
+angular :class:`~orpheus.numerics.axis.Axis` — the space factor whose
+measure is this rule's weights — carrying **this rule** as its
+:attr:`~orpheus.numerics.axis.Axis.generator`.
+
+Three properties of the accessor are decisions rather than details, and
+each one is load-bearing:
+
+#. **It delegates the structural mint and upgrades only the
+   provenance.** The shape/weights/``kind`` logic lives once, in
+   :meth:`DiscreteMeasure.axis
+   <orpheus.numerics.measure.DiscreteMeasure.axis>`; ``Quadrature.axis``
+   calls it and then re-points the generator with
+   ``dataclasses.replace``. There is no second copy of the mint to drift
+   — the Pattern-2 single-source rule applied to a two-tier accessor.
+   Because ``replace`` re-runs the axis's ``__post_init__``, the upgrade
+   cannot bypass a construction invariant: the all-ones collapse, the
+   :math:`-0.0` normalization and the read-only weights flag all survive
+   it, and that survival is asserted rather than assumed.
+#. **The generator is the rule, not the wrapped measure** — and that
+   is the opposite of what the layering instinct suggests. The measure is the lower object, but it is also the
+   quadrature *minus its side-channels*: ``level_indices`` is carried by
+   :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`,
+   which is not one of the measure's five fields. A measure-typed
+   generator would answer three of the four names a curvilinear consumer
+   needs. The refutation is developed at
+   :ref:`spaces-generator-why-quadrature`.
+#. ``kind`` **is not a parameter.** A quadrature's components are point
+   values on the sphere, so the generator's type implies ``NODAL`` and
+   the mis-declaration "a nodal basis carrying no nodes" is unspellable
+   on this path.
+
+The consumer-facing consequence is that a caller holding an
+axis-composed space no longer needs the rule handed to it separately:
+``space.axis("angular").generator`` answers ``mu_x`` / ``eta`` /
+``mu_z`` / ``level_indices`` and the rest of the ordinate surface. ⚠ The
+generator is a **live reference** — a
+:class:`~orpheus.numerics.quadrature.directional.Quadrature` is a
+mutable dataclass — whereas the axis's own ``weights`` are a read-only
+defensive copy. Read the generator for what the axis forgot; read the
+axis for the factor measure of record
+(:ref:`spaces-axis-generator`).
 
 The bit-identical contract
 --------------------------
