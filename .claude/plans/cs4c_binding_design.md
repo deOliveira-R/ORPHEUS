@@ -1,6 +1,6 @@
 # CS4c design record — every operator receives its two spaces and its minted data
 
-**STATUS: LIVING — design round SUBSTANTIVELY CLOSED 2026-08-30 (same-day, HEAD `fc60ea64`): every fork ruled except the two deferred BY RULING to execution hindsight (F-D awaits the step-0 census; F-E decided at step 3/4). Next acts on the user's go: test-architect dispatch, then step 0.**
+**STATUS: LIVING — design round CLOSED 2026-08-30; second-pass review (§12) folded in; F6 ruled option (i). EXECUTION OPENED 2026-08-30: test-architect + step-0 feeding census dispatched in parallel on the user's go. Remaining deferred forks: F-D (awaits step-0), F-E (step 3/4).**
 This is the design-round record for the CS-ladder remainder (Campaign 2's
 opening act; plan of record `.claude/plans/cs_ladder_remainder.md`; charter
 `.claude/plans/space_and_kernel_binding_campaign.md` §CS4c/§CS2). It is a
@@ -516,6 +516,11 @@ SN/diffusion rebind alone. Fork:
   terms — consistent with the sharpening-order law);
 - **(ii)** the gate's denominator shrinks to SN+diffusion with the
   cp/moc/mc residue recorded in the gate's own docstring.
+
+✅ **[R] RULED (user, 2026-08-30): option (i)** — the step includes the
+mechanical re-point of every multiplicity literal to
+`N2NKernel.multiplicity`; the gate's done-when is 0 production literals
+outside `kernels.py`, at the full ~12-site denominator.
 Also: XD-2's SUBJECT (the N2N truncations) lands at step 3; the record
 placed the gate at step 4 — ⟹ **the count gate moves to step 3** so gate
 and witness land together (§6c).
