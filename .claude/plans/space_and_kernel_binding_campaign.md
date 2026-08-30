@@ -2078,6 +2078,19 @@ have already misled once.
    projection of `Basis.mass_matrix` exactly when `gram_structure is DENSE`."*
    Same gap the streaming plan's **P4.6** hit from the moment-mass side (the true
    curvilinear `M/V` is `[[1, 0.5], [0.5, 0.4]]` at a spherical pole cell).
+   ✅ **ABSORBED BY P7 AND DISCHARGED 2026-08-30** (user ruling at the P7
+   design round; streaming plan §P7). The capability landed at the level this
+   item's own analysis demanded — with one deliberate re-location the ruling
+   fixed: the dense Gram does NOT widen `Axis.weights` (a measure is diagonal
+   by nature; a Gram is a FORM), it lives on the SPACE as a
+   `HilbertMetric`/`DenseMetric` object, induced by the GENERATOR (the frame's
+   `basis_space` DENSE arm installs `pinv(discrete_gram)`), with
+   `gram_structure is DENSE` as exactly the admission predicate this item
+   named. `[M]` the slab Parseval gate un-skipped (dense reading
+   1.000000000000 where the best diagonal candidate reads 1.806); the
+   moment-mass refusal now names #158 alone. Item 3 stays open below —
+   deliberately untouched (the moment axis still has `generator=None`, and
+   nothing reaches a matrix through `generator.mass_matrix`).
 3. **A polynomial `Basis` (modelling gap).** `[M]` the five shipped bases are
    indicator, weighted-indicator, overlap and two spherical-harmonic — there is
    **no Legendre/polynomial subclass**. The scheme's cell basis is

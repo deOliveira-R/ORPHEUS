@@ -350,6 +350,47 @@
 > `Axis`. Curvilinear stays REFUSED this phase (no consumer can
 > adjudicate the value — #158); its refusal re-derives to name #158
 > alone, per the charter's done-when.
+> ✅ **P7 LANDED 2026-08-30** (S1 `6a0e0473` the HilbertMetric family,
+> bit-identical reroute · S2 `bae73fa7` three-arm exclusivity + the
+> propagation repairs (dual/tensor/gram-strip — the last a measured
+> rel-1.625 value bug) · S3 `f1f30cea` the DENSE arm DRESSES, one
+> commit with its witnesses · S4 `af9f95f1`+`32a7fef4` the refusal
+> names #158 alone + F1/A10 · `e29b054f` the per-call resolution fix ·
+> docs `2ef04dbb` · `f21dbf52` the archivist's three refutations).
+> **Closes #409.** Headlines: Parseval is a THEOREM for any Gram
+> (`GG⁺G=G`); the wrong-metric discriminator reads dense
+> 1.000000000000 / diagonal 1.806 / continuum 25.53 on one ψ; `[M]`
+> 11 DENSE constructions dress under the plan census's (family × L ≤ 3
+> + overlap) grid — an independent archivist grid reads 10-of-30 +
+> overlap: same finding, different denominator predicate; the
+> production `.H` repair is draw-banded 0.879–0.986 (operator-level
+> 0.980–0.985). Battery 13/13 executed arms catching (M13's blindness
+> closed by the A10 bit-exact witness; M5/M6 stabilizer-blind by
+> declaration; M12 a measured mirror). ⭐ The exit gate caught ONE
+> unpredicted red outside the pre-flight's four trees — the
+> cached-metric resolution defeating the sanctioned in-place mutation
+> idiom (`test_gsd_metric_drop`'s own propagation probe screamed);
+> fixed to per-call with the red in the docstring. ⭐ The dressing flip
+> also exposed all three `FunctionSpace` subclasses overriding
+> `__post_init__` WITHOUT chaining — a family silently outside every
+> base construction guard; all three now chain. **The exit gate:
+> 9950 / 0 / 19 sk / 227 des / 70 xf, 13 trees rc=0 — reconciled to
+> the unit** (9917 + 28 numerics + 1 slab un-skip + 1 C4 + 2 E1 + 1
+> the corpus-coupled harness gate re-parametrizing over the docs pass's
+> new equation label; the prediction had missed the registry coupling).
+> ⟹ **the acceptance baseline is 9950.** Done-when reconciliation:
+> `⟨x,y⟩=yᵀGx` gated in VALUE (orientation is stabilizer-unfalsifiable,
+> declared); the un-skip = 2 of 3 gates + D3's positive claim (the
+> collapse needs a DIAGONAL verdict — ⛔ the first "sphere-family"
+> framing was REFUTED by the archivist: a sphere rule breaks it, a
+> DENSE rule satisfies it); "must not move one existing number" was
+> FALSE as a universal — the 3-way scope shipped (Euclidean/diagonal/
+> axes bit-identical; DENSE deliberately moved, gated at D5);
+> `inv(discrete_gram)` re-spelled `pinv` (`[M]` the flagship Gram is
+> rank 4 of 15 — `inv` does not exist). **Campaign 1's own plan now
+> has NO un-landed phase**: P5 rides O-3, P6 dissolved, P7 landed.
+> The queue: the re-posed §5b build fork · the O-3 split · CS5-MODAL
+> item 3 · the Campaign-1 close-out.
 >
 > ✅ **P4-REMAINDER LANDED 2026-08-29** (`ac485104` `_weight_of`
 > retirement · `ad04e236` the binding + courier death + K1/K2/K3/G5
@@ -3810,9 +3851,15 @@ live spelling; `dead_references` 0; `sphinx -W` clean; full fast set
 bit-identical.
 
 ### P7 — the space metric admits a NON-DIAGONAL `G` *(behavioural; the terminal phase)*
-**Goal.** A function space can carry a metric that is not a Hadamard weight, so
-a cell-dependent non-diagonal `M/V` is *expressible* — and §6's honest refusal
-can become an honest value.
+
+> ✅ **LANDED 2026-08-30 — the full record (commits, gate 9950, the done-when
+> reconciliation incl. two ⛔ corrections, the battery verdict, the two
+> found-by-the-flip defects) lives in the ▶ NEXT block's P7 entry; the
+> doctrine lives in `docs/theory/foundations/spaces.rst`
+> §`spaces-metric-object`. Closes #409.** This section's `[M]` table below
+> was re-verified by the opener (`scratch/p7_ground_measure.md` — the first
+> charter of the campaign to survive its own opener) and describes the
+> PRE-P7 tree; it stays as the record of what the phase dissolved.
 
 ⭐ **This is NOT "choose `G` for curvilinear LD", and the difference is what
 makes it schedulable.** Choosing `G` needs #158's cell solve to have a
