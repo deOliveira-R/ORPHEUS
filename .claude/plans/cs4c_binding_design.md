@@ -259,6 +259,8 @@ absorption must price; (c) the iso pair is a measured ASYMMETRIC arrow
 (`ScalarFlux → bare ndarray`, 4816 applies, chart-dependent bare-ndarray leg
 on sphere/cylinder).
 
+⚠ **AMENDED 2026-08-30 (step-3 design round, §14.1):** the n2n half of this section's O7 heal is re-homed — N2N is its OWN first-class operator, NOT a field of S; the kernel collapse stands.
+
 **Open residue [P]:** the operator-CLASS fate. The kernel collapse is ruled;
 whether `IsotropicScattering`/`IsotropicN2N` survive as named ℓ=0 binding
 recipes (diffusion's spelling) or dissolve into truncated
@@ -417,7 +419,7 @@ confirmed with one refinement:
 | 0 | ✅ DONE 2026-08-30 — the feeding census (vv#29), `scratch/cs4c_feeding_census.md` (11 entries × 13 sites × 23 verbs; per-arm activation controls; 11/11 headline numbers non-perturbed) | — | HOMO traffic did NOT move (only the space's provenance did); SN C is minted per-outer and NEVER applied (fused override reads its data — vv#29 mode (d)); #205 ScalarFlux arm corroborated at 0 traffic with an AST-closed reference set |
 | 1 | ✅ EXECUTED on `refactor/cs4c-binding-base` (2026-08-30, `68a9c9f3` + `733d96f3`) — Riesz legs + `dual()` + the AdjointOperator re-expression/promotion (§7.4 as amended by R2); #375 closed; per-leg ledger battery (9/20→20/20) | — | the retirement became a RE-EXPRESSION (R2 ruling — see §12-bis); [M] tests/numerics 2538 + tests/sn/operators 1249 green; sphinx -W clean; dead_references 0/52 |
 | 2 | ✅ EXECUTED on the branch (2026-08-30) — `BoundOperator` base (kw-only write-once ends, mechanic E: post-class property injection over dataclass fields — [M] the InitVar route is pyright-hostile, the bare-field route re-abstracts under `abc.update_abstractmethods`); C rebound; `from_mesh` = tier-2 sugar + bottoming-out refusal; G-C1 gates | R1-C, R2-C ✅ flipped (14→12 xfails) | [M] tests/sn 3352 + transport/diffusion/homogeneous 730 green; 26 direct + 7 anonymous sites re-keyed; ⚠ residue for a later checkpoint: C.H-as-object-identity elegance fork (kept the uniform leg route for battery coverage); the M.H==M pin re-keyed to nulp=4 (the metric roundtrip now EXECUTES) |
-| 3 | S rebind: kernel + frame-handed-in faces (§2), quadrature field dispenses via generator channel, O-6 arm absorption, iso/LMS/N2N as truncations (§4), XD-1 gate (§6), Λ collection | R1-S, R2-S | extend the pinned `generator_as` AST gate; re-key the `domain is None` pin |
+| 3 | S rebind: kernel + frame-handed-in faces (§2), quadrature field dispenses via generator channel, O-6 arm absorption, iso/LMS/N2N as truncations (§4), XD-1 gate (§6), Λ collection — ⚠ AMENDED by §14 (2026-08-30): **N2N extracted as its own operator** (`(L+C) − S − N2N`); MaterialField[K] base + channel subclasses; hub = `HarmonicFrame.for_space`; execution shape §14.7 | R1-S, R2-S | extend the pinned `generator_as` AST gate; re-key the `domain is None` pin |
 | 4 | F rebind: `FissionKernel` first consumer; composite realization with space faces (F4 addendum; collapse pair ships); XD-9 condensation gate; XD-2 (n,2n) count gate | — | |
 | 5 | arm deletion + #205/#276 re-litigation with census evidence; solver-side adapters (§5) | — | construction-time body selection becomes legal here |
 | 6 | CS2 residue: S3 bridge-retirement + densifier-native (§7.2/.3); L/B minimal annotation flips; R6 carrier guard at `boundary.py:714` | R1-L, R1-B, R6 | minimal by design — O-3's 4-tuple and R18's B reshape NOT pre-empted; ⚠ three boundary classes carry Optional |
@@ -453,7 +455,7 @@ spelling decision (F7).
 | F-B | frame at ctor vs classmethod tier (§2 synthesis) | ✅ [R] 2026-08-30 — confirmed (classmethod + provenance field) |
 | F-C | adjoint-leg route (§6) | ✅ [R] 2026-08-30 — operator-side (b); NO kernel dagger (resolution recorded in §6) |
 | F-D | per-binding space table (within-group composite / k-outer bulk / …) | census LANDED 2026-08-30 — observed table at `scratch/cs4c_feeding_census.md` §3 ([M]: bound space is a faithful domain in HOMO only, 1 of 4 families; DIFF needs {composite, scalar-bulk} per binding; SN C's space is a label on data). Ruling at step design. |
-| F-E | iso-pair operator-CLASS fate (§4 residue) | ✅ [R] 2026-08-30 — decided at step 3/4 *"with the advantage of hindsight … a sharper understanding of the ontology"* |
+| F-E | iso-pair operator-CLASS fate (§4 residue) | ✅ [R] RESOLVED 2026-08-30 (step-3 design round, §14.2): both survive by construction as the energy-space bindings the composite operators lift |
 | F-F | CS2-residue placement | standing lean (late, step 6) — presented, unobjected |
 | F-G | frame interning site (§2) | ✅ [R] 2026-08-30 — the hub |
 
@@ -834,3 +836,153 @@ measured vs 10006/0/19/227/68; main agent writes, user steers
 re-dispatch for step 3 — extend by SendMessage if needed); never
 `git add -A`; commit messages via heredoc `-F`; no source edits under
 running gates; sphinx `-W` + `dead_references` at every step exit.
+
+---
+
+## 14. Step-3 design round (2026-08-30) — the S rebind's rulings
+
+Held per §13's opening protocol. The user reshaped the presented design at
+four points; all evidence re-measured at `c69c2856` before the rulings.
+
+### 14.1 ✅ [R] N2N is its OWN first-class bound operator — extracted from S in step 3
+
+**The user's argument (the ruling's substance):** (n,2n) is scattering-like
+(it carries its own anisotropy in principle) AND production-like (it carries
+multiplicity) — so its bundling is CONTEXT-dependent (with S for anisotropy
+studies, with F for production accounting), and a context-dependent bundling
+must not be decided at the operator level. A bundled operator may be minted
+later if attractive enough to justify it.
+
+**Structural echo [M]:** `N2NMomentOperator`'s own docstring already insists
+the channel is "a *multiplication* channel, NOT scattering … its own named
+operator, summed with Λ" — the tree half-believed it (summed in moment
+space, hidden inside S). **The within-group algebra becomes literal:
+`(L + C) − S − N2N`**, and bundling is a solver-side `OperatorSum` grouping.
+
+**Production blast radius [M] (small):** the solver's legacy helpers already
+call `add_iso_source`/`add_n2n_source` SEPARATELY
+(`sn/solver.py:2284/:2321/:2535`); `coupled_system.py:575` shares
+`S.isotropic_kernel` (re-points to the solver-assembled K_iso); the solve
+paths get n2n only via `_assemble_per_ordinate_source`'s K_iso fold; the
+adjoint via `full_scatter_kernel = conjugate(Λ + N2N)`.
+
+**The shared primitive this creates (defer-until-2 satisfied on day 1):**
+S's P0 per-ordinate path and N2N's composite binding are BOTH "an isotropic
+energy endomorphism lifted to the angular composite" —
+`(1/W)·E ∘ K ∘ ∫dΩ`, mathematically the frame's ℓ=0 conjugation. ONE lift
+primitive, two consumers (S internally for P0; the solver for N2N); its
+`apply` keeps the reaction-rate fast path (algebra eager, performance lazy)
+with a gate pinning fast ≡ conjugated. Exact class-vs-frame-mint spelling
+decided at execution.
+
+**Priced consequences (accepted in the ruling):** (a) every within-group
+composition site gains the explicit `− N2N` term (solver, coupled system,
+adjoint — certification suite re-pins); (b) the summation order changes
+(`(isoS+isoN2N)/W + aniso` → separately-applied arrays summed), so
+bit-identity may break at ULP level on `Sig2 ≠ 0` fixtures — re-baseline
+per the principled-equivalence criteria, measured at execution.
+
+⟹ **§4 is AMENDED in place:** S's exact ctor retains ONLY the scattering
+kernel field + faces; no `n2n` field. `residual_part` loses its n2n
+zeroing (the foldable/residual split becomes a pure scattering-kernel
+split). XD-2 unchanged (denominator 14, gate end of step 3) — the
+multiplicity's operator-side owner is now the N2N family.
+
+### 14.2 ✅ [R] F-E RESOLVED BY STRUCTURE (§9 row closed)
+
+Under 14.1, `IsotropicScattering`/`IsotropicN2N` survive **by
+construction** as the energy-space bindings that the composite operators
+lift and diffusion/homogeneous consume directly (zero angular content —
+no frame, no faces, scalar ends). The "dissolve into truncated
+ScatteringOperator bindings" option is dead: the collapse is at the
+KERNEL (one datum); the named recipes are the scalar bindings of it.
+
+### 14.3 ✅ [R] The material-field shape: generic base + channel subclasses
+
+`MaterialField[K]` (frozen, generic) owns the pairing — per-material
+kernel map + the cell-to-material layout — and the ONE gathered per-cell
+`(ng,ng)`-apply einsum primitive. `ScatteringMaterialField` /
+`N2NMaterialField` subclass it with domain-named verbs (the 8 O-6 arms +
+`add_n2n_to_group_rate`, einsums ported VERBATIM for per-arm
+bit-identity). The `cells_by_material` where-cache moves to
+`MaterialMesh` (mesh owns machinery), shared by every field — no
+per-field recomputation. Step 4 adds `FissionMaterialField`.
+⚠ Recorded for the record: the charter's O-6 phrasing ("arms → the bound
+operators") and §4's ("the kernel's array verbs") named different homes;
+this ruling settles it kernel-field-side.
+
+### 14.4 ✅ [R] The frame outputs the SPACE; creation is standardized through the CS5 channel
+
+- `_moment_space_on` → **public `moment_space_on(angular_space)`** — the
+  single source of the moment-space derivation; fields are minted OUTSIDE
+  from it (a Frame induces spaces + operators per the stage-2 generator
+  discipline; a field is data and mints where values exist). The F-2
+  mesh-keyed twin (`_space_for_mesh_and_L`, deferred into O-3) is checked
+  in-step: pure re-point ⟹ take it now; scheme-read load-bearing ⟹ stays
+  with O-3, reason recorded.
+- **The blessed frame chain, one spelling for every consumer** (S tier-2,
+  F, windowing, gates): `domain space → interior → angular axis →
+  axis.generator_as(Quadrature, consumer=…) → hub → frame`. The
+  same-metric guarantee is structural (the Quadrature is the single
+  source; no copy exists to drift).
+- **Hub mechanics [M]:** `frame.table` is a per-instance `cached_property`
+  (`numerics/frame.py:166`), so "one frame per (axis content, L)" must
+  hand out the SAME object. numerics cannot mint transport's
+  `HarmonicFrame` (layer contract) ⟹ the interning home is
+  transport-side: one classmethod (working name
+  `HarmonicFrame.for_space(angular_space, L)`) running the chain,
+  interned keyed `(quadrature, L)`. `Quadrature.angular_frame(L)` stays
+  the pure numerics mint.
+
+### 14.5 R13 scope split — step 3 advances O-6 ONLY
+
+Recovered reasoning (posing-filtration charter §5, ratified 2026-08-25):
+`MaterialXSField` is `MaterialMesh`'s XS **facade** (`from_mesh` adds no
+data); dissolution map: content → `Materials`; expansion → field-minting
+path; typed mints → `CrossSectionField`s (STAY); coarsening →
+Materials/Mixture morphisms; **the 8 `apply_*` arms (~400 lines) → CS4c
+(O-6, "may phase with or before F-1")**. Full F-1 blast radius [M] 18
+production + 32 test files. **Evaluated 2026-08-30: direction confirmed;
+step 3 takes the arms + dense caches; the facade's other four halves stay
+with F-1.** `mat_xs` leaves the CTOR now but remains the legal tier-2
+argument (`from_solver_data(mat_xs=…)`) until F-1 — the posing arc's R1
+shape exactly.
+
+### 14.6 The step-3 opener census (obligations §13/§12 F5 — RUN, positive control passed)
+
+Script `scratchpad/s_family_census.py` (session-local; predicate
+limitation stated: B1 is file-local single-assignment dataflow):
+- **A3 internal S→S constructions: 9** — Λ ×4, N2NMoment ×1, iso pair ×1
+  (`scattering.py:755`), and SELF at `foldable_part:1051` /
+  `residual_part:1092` (the 2026-08-29 "own internal call" member class);
+- **A1 registry family:** confirmed = the `factory` parametrize family in
+  `test_isotropic_scattering.py` (3 sites) only;
+- **A4 monkeypatch: 1** — `test_sn_adjoint_certification.py:255` patches
+  `ScatteringOperator.apply_transpose` (signature unchanged — survives);
+- **B1 attribute pins:** `S.sig_s` ×25 / `S.sig2` ×10 / `S.Y` ×2, all in
+  `test_scattering_operator.py` (re-key to kernel-field reads);
+- **Production external reads on solver-held S: exactly 3** —
+  `flux_analysis` (`sn/solver.py:898`), `scattering_order` (`:919`),
+  `isotropic_kernel` (`coupled_system.py:575`); string-form reads: 0.
+
+### 14.7 The execution shape (sub-steps; one merge unit)
+
+- **3a machinery (additive):** `MaterialMesh.cells_by_material`;
+  `transport/material_field.py` (base + 2 subclasses, verbatim einsums +
+  per-arm bit-identity gates); public `moment_space_on`;
+  `HarmonicFrame.for_space` hub; the iso-lift primitive.
+- **3b rebind (the core):** S ctor flip (mechanic E; retained = scattering
+  field + 2 faces + ends; `scattering_order` derived from the field;
+  composites cached at construction — the 911/solve satellite fix;
+  provenance frame via `flux_analysis.frame`, zero extra state;
+  `total_weight` named scalar) + Λ/N2NMoment/iso-pair rebinds (mandatory
+  ends, per-END admission) + the N2N extraction (solver compositions,
+  K_iso re-point, adjoint) + all call sites + ledger flips R1[S]/R2[S]
+  (+ `_R2_XFAIL` constant deletion in the flip commit) + §8.3 pin re-keys.
+- **3c retirements:** O-6 arms + dense caches + the `sig_s`/`sig2`/
+  `sig_s0`/`cells_by_mat` transients (**#306 closes**) +
+  `_interior_space` refusal dissolves; `dead_references` sweep.
+- **3d gates:** XD-1 (G-D1/2/3 per plan §5), XD-2 (14 re-points + count
+  gate), G-C1 equivalence rows, battery B-3.
+- Exit: 13-tree driver vs **10006/0/19/227/68**, sphinx `-W`,
+  `dead_references` 0/52, predicted-then-measured delta.
