@@ -8434,3 +8434,230 @@ a label that negates it.
   structured_geometry 3, curvilinear_one_group 9) are pre-existing **#379**.
 - Auto-matrix: `[M]` 10215 → **10236 = +21**, exactly the predicted delta;
   `unmarked` unchanged at 8.
+
+---
+
+## L-076 — P7 non-diagonal metric: a gate's NAME is a universal, and the source regex cannot see a bold run that WRAPS (2026-08-30, branch `feature/p7-nondiagonal-metric`, commits `6a0e0473` + `bae73fa7` + `f1f30cea` + `af9f95f1`)
+
+**Task.** Document P7 of the streaming campaign — the `HilbertMetric` family
+(`DiagonalMetric` / `DenseMetric` / `FactoredMetric`), the space's third metric
+source and three-arm exclusivity guard, the frame's DENSE dressing, and the
+re-posed curvilinear refusal. Brief named 4 work items over 3 files; honest
+scope came out **8 files** (the two extras found by my own census: a
+`normalization.rst` warning, a `spherical_harmonics.rst` warning + table row, an
+`sn/history.rst` past-tense slip, and two forward pointers in
+`foundations/index.rst` + `api/numerics.rst`).
+
+Baseline and result: `-E` **0 W / 0 E / 0 C**, EXIT=0, both sides. Generated
+artefacts moved exactly as predicted (`matrix.rst` documented labels 567 → 568;
+`no-implementation` declarations 17 → 18; total tests 10236 → 10266 from the
+code side). `dead_references` 0/52. `check_docstring_xrefs` 0 dead / 988 files.
+Corpus `:ref:`/`:eq:`/`:doc:` resolution 0 dangling.
+
+### 1. ⭐⭐ A GATE'S NAME IS A UNIVERSAL — measure it against the whole shipped family, and the measurement can produce a THEOREM
+
+The tree's D3 gate is named
+`test_the_scalar_frame_square_collapse_is_a_sphere_family_property`, and its
+docstring says the slab's failure is because *"the slab's live ℓ=2 Gram diagonal
+`[0.4, 0.8, 0.8]` is not a per-ℓ scalar"*. Both halves are true of the slab. The
+NAME is false as a universal, and the *mechanism* is not the per-ℓ-scalar
+reading either.
+
+`[M]` closure residual `rel ‖M*y − Ry/W‖`, 200 seeds each, at HEAD:
+
+| frame | verdict | per-ℓ live-diag spread | rel band |
+|---|---|---|---|
+| the six DIAGONAL sphere frames | `DIAGONAL` | ≤ 3.4e-15 | ≤ 9.5e-16 |
+| `gauss_legendre(8)` L=2 | `DENSE` | 6.0e-1 | 0.300 – 10.18 |
+| `product(4,4)` L=2 | `DENSE` | 1.75 | 3.1e-3 – 0.333 |
+| `level_symmetric(4)` L=3 | `DENSE` | 3.3e-1 | 3.4e-2 – 0.155 |
+| `folded_product(4,6)` L=3 | `DENSE` | 8.3e-1 | **3.2e-16 – 2.8e-15** |
+
+- `product(4,4)` is a **sphere** rule that BREAKS the collapse ⟹ the name's
+  "sphere family" is not the discriminator.
+- `folded_product(4,6)` L=3 is `DENSE` with a NON-constant per-ℓ live diagonal
+  and **closes anyway** ⟹ the per-ℓ-scalar reading is not the mechanism.
+
+⭐ Chasing that one row produced the decidable form. `M* = R/W` ⟺
+`Y(G⁺ − diag(d)/W) = 0`: the metric and the reconstruction weights need agree
+only **modulo `ker Y`**. `[M]` on `folded_product(4,6)` L=3 the only live
+off-diagonal couples two ℓ=3 slots whose 2×2 block `[[0.6732, 0.8691],
+[0.8691, 1.1220]]` has **det −8.7e-17, rank 1** — the two harmonics are
+linearly *dependent* on that folded node set — so `‖Y·D‖_∞ = 4.4e-16` with
+`‖D‖_∞ = 0.557`; on the slab `‖Y·D‖_∞ = 6.30`. Published as a theorem plus the
+five-row table, replacing a correlation.
+
+⟹ **when a doc must state why a gate's population is what it is, run the gate's
+predicate over the whole shipped family before repeating the gate's own name.**
+The honest published statement became *"`DIAGONAL` is SUFFICIENT; `DENSE` does
+not decide it"*, which is strictly stronger than either the gate name or the
+plan's version, and it is what stops a future session "fixing" the gate by
+adding the DENSE params.
+
+### 2. ⭐⭐ A SOURCE regex cannot see a nested-markup defect in a bold run that WRAPS — but a MULTI-LINE regex DIFFED AGAINST `HEAD` can, and it needs no build
+
+L-074 said *"the HTML slice IS the nested-markup gate; a source regex CANNOT
+replace it"*. Half right, and the half that is wrong cost me a build.
+
+`[M]` my pre-splice check ran `re.finditer(r"\*\*(.+?)\*\*", line)` **per line**
+and reported **0**. The rendered HTML slice then showed **4 visible backticks**
+— from `**``DIAGONAL`` is sufficient for the scalar closure; ``DENSE`` does\nnot
+decide it.**`, a bold run spanning two source lines. (Probed, not reasoned:
+`publish_doctree("A **bold with ``lit`` inside** end.")` → `A bold with ``lit``
+inside end.` — RST does not nest, and it is silent at every severity.)
+
+⭐ The instrument that works **before** a build, and isolates MY hits from the
+corpus's pre-existing ones:
+
+```python
+rx = re.compile(r"\*\*(?!\s)((?:[^*]|\*(?!\*))+?)(?<!\s)\*\*", re.S)   # re.S is the point
+hits = lambda txt: {" ".join(m.group(1).split())[:90]
+                    for m in rx.finditer(txt) if "``" in m.group(1)}
+new = hits(Path(f).read_text()) - hits(git_show(f"HEAD:{f}"))
+```
+
+`[M]` over the 8 edited files: **1 new** (mine, fixed) against **28 + 18
+pre-existing** in `error_catalog.rst` and `sn/history.rst`. Without the
+set-difference the signal is buried; with it, the answer is one line. Keep the
+HTML slice as the confirming gate (`rfind`-anchored, per L-074) — but run the
+source diff first, because it costs no build.
+
+⚠ Corpus finding to report: this defect class is endemic —
+**46 pre-existing instances** across two pages. It renders wrong, silently, at
+every severity. Out of scope for a phase docs pass; worth an issue.
+
+### 3. ⭐⭐ An OPERATOR-movement claim has a DRAW-FREE form — build the matrix column by column, don't probe it with a vector
+
+The phase's D5 gate docstring publishes `max|Δ M.H| = 8.246 — rel 0.8995` for
+the production `product(4,4)` L=2 frame. `[M]` reproduced: that is **one draw's
+reading** — over 200 seeds the same relative movement bands **0.879–0.986**, and
+on the slab it bands **0.53–4.55**.
+
+⭐ The draw-free instrument costs `K` applies: feed the unit coefficient vectors
+`e_k` through both adjoints and assemble the two matrices. `[M]`
+
+| frame | operator `max\|Δ\|` | rel (max-norm) | rel (Frobenius) |
+|---|---|---|---|
+| `product(4,4)` L=2 | 12.49 | 0.994 | **0.985** |
+| `gauss_legendre(8)` L=2 | 12.39 | 0.986 | **0.980** |
+| `level_symmetric(4)` L=3 | 12.49 | 0.994 | **0.980** |
+
+Published `98 %` in Frobenius relative, with the reading that makes the number
+mean something: *the two operators are not a small correction apart, they are
+essentially unrelated* — which is the correct framing for a repair whose "before"
+state the tree's own docstring calls *"the stored-metric sandwich, NOT the
+physical Hilbert adjoint"*. This is L-071's three-flavours lesson moved from a
+FLOAT-agreement claim to an OPERATOR-movement claim: the flavour to publish is
+the one computed on the operator, not on a probe.
+
+### 4. ⭐ Publish the ANALYTIC threshold, not a scan point — a coarse scan mints a wrong constant
+
+`_DENSE_METRIC_RCOND`'s docstring says the Parseval ratio *"breaks only at
+`>= 5e-2`"*. `[M]` it is already broken at `3e-2` (`0.991414787`). The cliff is
+not a scan result at all: `np.linalg.pinv`'s `rcond` is relative to `σ_max`, so
+truncation begins at `σ_min^live/σ_max = 4.745e-2 / 2.708 = **1.7524e-2**`.
+Published the analytic threshold and the "ten orders below the cliff, five above
+the noise floor" placement, and softened my own scan claim from *"for every
+`rcond` in [1e-15, 1e-2]"* to *"at every scanned `rcond` … as it must, since no
+truncation can occur below the cliff"*.
+
+Same class, same file: the module docstring's *"`G G⁺ G = G` to 9.99e-16"* — `[M]`
+three reasonable norms of that residual are `1.554e-15` (max-abs), `7.77e-16`
+(rel to `max|G| = 2`) and `7.75e-16` (Frobenius ratio). **Write the norm.**
+And *"a live-block eigenvalue at 6.82e-17"* is a noise-floor digit that does not
+reproduce (`eigvalsh` gives `8.21e-17`, SVD `6.02e-17`); published the structural
+form instead — *5 live slots, rank 4, smallest live eigenvalue at the round-off
+floor, fifteen orders below the smallest genuine mode `4.745e-2`*.
+
+### 5. ⭐ `hasattr(Cls, field)` is FALSE for a dataclass field with no class default — `dataclasses.fields` is the cheap oracle
+
+My role-import probe over the 5 edited pages reported **3 dead `:attr:`
+targets** — all three `ReducedStreamingOperator.angular_axis`. `[M]`
+`hasattr(R, 'angular_axis')` is `False` while
+`[f.name for f in dataclasses.fields(R)]` lists it: it is an instance attribute
+with no class-level default. All three roles are LIVE.
+
+This is L-053(c) (*construct the object, never probe the class*) with a cheaper
+form for the dataclass case. ⟹ any import probe that walks `getattr` chains over
+project symbols must fall back to `dataclasses.fields` before reporting a dead
+`:attr:`, or it manufactures false positives on exactly the newest code.
+
+### 6. ⭐ A section RENAME is cheap when you count citers FIRST — and the section's own note is what makes a stale pointer diagnosable
+
+`frame-parseval-dense-refusal` encoded the REFUTED mechanism ("refusal") in its
+anchor name. `[M]` citers: **1** cross-doc (`normalization.rst`, which I was
+editing anyway) and **0** in `.claude/` / `scratch/`. So the L-063 caution
+(*renaming risks a silent cross-doc break*) does not bind, and the rename to
+`frame-parseval-dense-arm` shipped with its one citer in the same edit.
+
+⭐ The move that costs nothing and pays later: a `.. note::` at the renamed
+anchor recording the old name, why it moved, and *"a stale pointer to the old
+name renders as plain text at every build severity; if you meet one, it predates
+P7."* That converts an undiagnosable dead link into a self-explaining one.
+
+### 7. ⭐ A changelog's chronological ORDER is per-page — read the dates before placing
+
+`spaces.rst`'s Development history is a `list-table`, **reverse**-chronological
+(latest first). `frame.rst`'s is prose blocks, **forward** chronological (oldest
+first). I placed the P7 block in `frame.rst` immediately after the F-0 entry it
+tombstones — natural, and wrong. Caught by a two-line check
+(`re.finditer(r'^\*\*(\d{4}-\d{2}-\d{2})', t, re.M)` then `== sorted(...)`) and
+moved to the end before the References section. ⟹ run that check as part of any
+changelog insertion; it is free and it is the only thing that sees the mistake.
+
+### 8. The event-class shape that worked: a REFUSAL BECOMES A CAPABILITY
+
+Not a close-out, not a retirement — a *refusal repaired*. The shape:
+
+1. **Keep the diagnosis, past-tense the verdict.** The slab Gram table, the
+   impossibility argument and the "no diagonal candidate" claim are UNCHANGED
+   and are the reason the repair was possible. Only *what the frame did with
+   them* moved.
+2. **Publish the refusal era verbatim under a ⛔**, with the sentence that says
+   why it was correct at the time (*"a diagonal metric is not merely unavailable,
+   it is provably insufficient, and nothing in the space layer could express the
+   alternative"*).
+3. **Split the debt.** "Recorded debt (CS4c)" had two halves; P7 discharged one.
+   The note now says which half landed, which two remain (the legs, and
+   retiring `_AdjointOperator` into them), and — the load-bearing bit — *what P7
+   changed for them*: they now have exactly one metric arithmetic to wrap.
+4. **Say what did NOT ride along**, with its own measured section (§1 above).
+   That is the sentence that stops the next reader over-reading the repair.
+5. **New ERR chapter, not a new number** — the landed gates carry
+   `catches("ERR-039")` (`test_no_diagonal_metric_can_satisfy_parseval_on_a_dense_frame`
+   and `test_the_dressing_lands_parseval_on_the_production_anisotropic_frame`),
+   so a new id would orphan them (L-065's rule, applied again).
+
+### 9. ⚠ Reported upward (code-side, not editable here)
+
+- D5's docstring `max|Δ| = 8.246 / rel 0.8995` is one draw (band 0.879–0.986;
+  draw-free `rel_F = 0.985`).
+- `test_the_scalar_frame_square_collapse_is_a_sphere_family_property` — the NAME
+  over-generalises (§1); the assertion (`rel > 0.5`) is fine.
+- `_DENSE_METRIC_RCOND` docstring's `>= 5e-2` cliff (true value `1.75e-2`);
+  the module docstring's `9.99e-16` (norm unstated) and `6.82e-17` (noise digit);
+  the matmul-ULP figures (`1360 of 2000`, `1792 ULP`) are one draw.
+- "11 of 41 shipped frames" (plan/commit message) — my enumeration gives
+  **10 of 30** angular constructions + the non-angular overlap frame.
+- 46 pre-existing nested-markup defects in `error_catalog.rst` (28) and
+  `sn/history.rst` (18).
+- `orpheus/numerics/metric.py` is NOT `automodule`'d (nor is `space`/`frame`/
+  `operator`), so its `:class:` refs render plain text by page convention —
+  DEFERRED, not a defect. `[M]` it carries **0** `.. math:: :label:` blocks, so
+  it is a SAFE automodule candidate whenever `numerics` is surfaced as a package.
+
+### Quality self-assessment (Directive 3)
+
+| dimension | score | note |
+|---|---:|---|
+| Derivation depth | 5 | the `Y(G⁺ − diag(d)/W) = 0` decidable form + the Penrose-identity Parseval chain, both derived rather than asserted |
+| Cross-references | 5 | 0 dangling corpus-wide; the renamed anchor's one citer moved with it; 4 new forward pointers |
+| Numerical evidence | 5 | every published number re-measured this session; three point-values replaced with measured BANDS; one table (the frame-square split) is new measurement |
+| Failed approaches | 5 | the refusal era preserved verbatim with the reason it was correct; the pre-P7 propagation values published as counterfactuals |
+| Code traceability | 4 | roles resolve but `numerics.metric` is not automodule'd, so they render plain text (page convention, deferred) |
+| Derivation source | 3 | no `derivations/` script exists for the metric family; the source of record is the module + the gates. Not a gap I can close, and the L0 pins are hand-derived binary-fraction literals, which is the right instrument here |
+
+Weakest: **derivation source** — structurally, not by neglect: a metric
+realization is numerics machinery, not a physics derivation, and its correctness
+evidence is exact-arithmetic literals plus the wrong-metric discriminator, both
+of which the tree already ships.

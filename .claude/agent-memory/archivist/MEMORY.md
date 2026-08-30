@@ -51,6 +51,19 @@ stage + gate.
   α-dome refuses only the ROLL; negate/reverse die at the closure's P3 τ-guard).
   → [[lessons-L75]]
 
+- **P7 — the metric becomes an OBJECT; a refusal becomes a capability** — 2026-08-30, branch
+  `feature/p7-nondiagonal-metric`, **UNCOMMITTED** (mine; main agent commits). 8 doc files
+  (brief named 4 items over 3; my census found 5 more) + the regenerated `matrix.rst`.
+  `-E -W` **0/0/0 both sides**, EXIT=0; generated artefacts moved exactly as predicted
+  (documented labels 567 → **568**, no-implementation 17 → **18**, tests 10236 → 10266 from the
+  code side); `dead_references` 0/52; xref gate 0 dead/988 files; corpus ref/eq/doc 0 dangling.
+  New H1 `spaces-metric-object` (9 subsections, 1 new eq-label `spaces-pseudo-inverse-parseval`
+  + `no-implementation :kind: identity`); `frame-parseval-dense-refusal` **renamed** →
+  `frame-parseval-dense-arm`; ERR-039 gains **chapter 3**. ⭐⭐ Chasing one outlier row turned a
+  gate's NAME ("a sphere-family property", `[M]` false twice) into a theorem —
+  `M* = R/W ⟺ Y(G⁺ − diag(d)/W) = 0`. ⭐⭐ Three published point-values were one-draw readings
+  and were replaced by measured bands / draw-free operator figures. → [[lessons-L76]]
+
 - **ERR-026 history block: 29 roles → 13, 15 dead → 0** — branch
   `docs/err026-history-is-not-a-crossref`, 2026-08-18. ⛔ still open, re-confirmed unlanded
   2026-08-24: the `head_role` one-liner (blindness is ROLE-scoped, not `.rst`-scoped) and

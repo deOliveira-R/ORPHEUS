@@ -370,6 +370,34 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   `is_same_phase_space`, whose docstring also records that the angular closure is deliberately
   EXCLUDED. My draft note was false and became a much better one. → L-072
 
+- **⭐⭐ A GATE'S NAME IS A UNIVERSAL — run its predicate over the whole shipped family
+  before repeating it, because the measurement can hand you a THEOREM.** A gate named
+  `..._is_a_sphere_family_property` was `[M]` false twice over: `product(4,4)` IS a sphere
+  rule and BREAKS the property, and `folded_product(4,6)` L=3 is DENSE with a non-constant
+  per-ℓ diagonal and SATISFIES it (`rel ≤ 2.8e-15` over 200 seeds). Chasing the outlier gave
+  the decidable form — `M* = R/W ⟺ Y(G⁺ − diag(d)/W) = 0`, agreement only *modulo* `ker Y`;
+  its coupled 2×2 block is `det −8.7e-17`, **rank 1** (linearly dependent harmonics), so
+  `‖Y·D‖ = 4.4e-16` at `‖D‖ = 0.557` vs `6.30` on the slab. Publish *"DIAGONAL is SUFFICIENT;
+  DENSE does not decide it"* — strictly stronger than the gate's own name, and it stops the
+  next reader "fixing" the gate by adding the DENSE params. → L-076
+- **⭐⭐ An OPERATOR-movement claim has a DRAW-FREE form: build the matrix column by column
+  (`e_k` through both arms), never probe it with one random vector.** `[M]` a gate docstring's
+  `max|Δ M.H| = 8.246, rel 0.8995` is ONE DRAW — the same relative movement bands
+  **0.879–0.986** over 200 seeds (0.53–4.55 on another frame), while the operator-level
+  Frobenius relative is a stable **0.980–0.985** on all three frames. L-071's three-flavours
+  rule, moved from a float-agreement claim to an operator-movement claim. → L-076
+- **⭐ Publish the ANALYTIC threshold, not a scan point — and WRITE THE NORM.** A pinned-`rcond`
+  docstring said the cliff is *"at ≥ 5e-2"*; `[M]` it breaks at `3e-2` and the true edge is
+  `σ_min^live/σ_max = 1.75e-2` (pinv's rcond is relative to `σ_max` — no scan needed). Same
+  file: *"`G G⁺ G = G` to 9.99e-16"* is three different numbers under three reasonable norms
+  (`1.554e-15` max-abs / `7.77e-16` rel-to-`max|G|` / `7.75e-16` Frobenius), and a quoted
+  noise-floor eigenvalue (`6.82e-17`) does not reproduce at all — publish the STRUCTURE
+  (*5 live slots, rank 4, smallest live mode `4.745e-2`*). → L-076
+- **⭐ `hasattr(Cls, field)` is FALSE for a dataclass field with no class default — fall back to
+  `dataclasses.fields` before reporting a dead `:attr:`.** `[M]` my own role-import probe
+  minted 3 false dead targets this way, all on the newest code. L-053(c) (*construct the
+  object*) with a cheaper oracle. → L-076
+
 ## 2. The build is BLIND to most doc-correctness defects — grep is the gate
 
 **Meta-rule: `-W` proves only "I added no NEW warning". The acceptance evidence for a correctness
@@ -744,6 +772,15 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   universal to the convention the corpus already runs (the sibling `operator_algebra.rst`
   table spells it), keeping the strong half — *trust git, never a frozen note* — verbatim.
   An index can contradict itself. → L-072
+
+- **⭐⭐ A SOURCE regex CAN gate nested markup — if it is `re.S` AND set-differenced against
+  `git show HEAD:<file>`.** L-074 said only the HTML slice works; the half that is wrong is
+  fixable. `[M]` my per-LINE `\*\*(.+?)\*\*` check read **0** while the rendered slice showed
+  **4** visible backticks, from a bold run spanning two source lines. The instrument:
+  `rx = re.compile(r"\*\*(?!\s)((?:[^*]|\*(?!\*))+?)(?<!\s)\*\*", re.S)`, keep hits containing
+  ` `` `, and subtract the same set computed on `HEAD` — `[M]` **1 new** (mine) against
+  **46 pre-existing** across two pages, in one command, with no build. Keep the `rfind`-anchored
+  HTML slice as the confirming gate; run the source diff FIRST because it is free. → L-076, L-074
 
 ## 3. A `:label:` is a V&V edge — grep the matrix before touching it
 
@@ -1159,6 +1196,13 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   usually already ruled on it once, for a different word, and **extending that note beats
   minting a second caveat**. → L-072
 
+- **⭐ A section RENAME is cheap when you count citers FIRST — and the renamed section's own
+  `.. note::` is what makes a stale pointer diagnosable.** An anchor whose NAME encoded the
+  refuted mechanism (`...-dense-refusal`) had `[M]` **1** cross-doc citer and **0** in
+  `.claude/`/`scratch/`, so L-063's silent-cross-doc-break caution did not bind; renamed with
+  its citer in the same edit, and the note records the old name + *"a stale pointer renders as
+  plain text at every severity; if you meet one, it predates P7."* → L-076
+
 ## 5. Page surgery: slice programmatically, assert before writing
 
 - **⛔ A mid-task scope REVOCATION on a file you already edited: revert by RE-EDITING, prove it
@@ -1258,6 +1302,21 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   file for the OLD heading text after a retitle. → L-011, L-025, L-034
 
 ---
+
+- **⭐⭐ A REFUSAL BECOMING A CAPABILITY is its own arc — five moves, and move 4 is the one
+  that stops the over-read.** (1) KEEP the diagnosis, past-tense only the verdict — the
+  impossibility table is *why the repair was possible*, and it is unchanged. (2) Publish the
+  refusal era verbatim under a ⛔ **with the sentence saying why it was correct at the time**.
+  (3) SPLIT the recorded debt: which half landed, which remain, and *what the landing changed
+  for them* (here: the legs now have exactly one metric arithmetic to wrap). (4) Say what did
+  NOT ride along, with its own measured section — a correct metric does not buy every identity
+  that mentions a metric. (5) NEW ERR **chapter**, not a new number: the landed gates already
+  carry `catches("ERR-039")`, so a new id would orphan them (L-065). → L-076
+- **⭐ A changelog's chronological ORDER is per-page — check the dates before placing, in two
+  lines.** `spaces.rst`'s history `list-table` is REVERSE-chronological; `frame.rst`'s prose
+  blocks are FORWARD. I placed a new block right after the entry it tombstones (natural, wrong)
+  and caught it with `re.finditer(r'^\*\*(\d{4}-\d{2}-\d{2})', t, re.M)` then
+  `== sorted(...)`. Free, and the only thing that sees the mistake. → L-076
 
 ## 6. Match the doc SHAPE to the event class
 
