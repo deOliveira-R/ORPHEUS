@@ -309,6 +309,47 @@
 > Queue behind P7: the re-posed §5b build fork · the O-3 split (deferred
 > `ChartConnection` re-name + R→transport/) · CS5-MODAL item 3 (the
 > polynomial `Basis`) · then the Campaign-1 close-out.
+> ✅ **P7 OPENER RUN + DESIGN ROUND RULED 2026-08-30 (user, both forks as
+> recommended).** Ground: `scratch/p7_ground_measure.md` — the FIRST
+> charter of the campaign to survive its own opener (9 of 9 ran it; 8
+> had corrected their section). Census headlines: CS4c has landed NO
+> legs (`riesz_lower`/`riesz_raise` = 0 identifier hits) ⟹ **P7 MINTS**
+> and owes CS4c shape-compatibility (the `.H` sandwich at
+> `operator.py:1372/:1375` — already metric-representation-agnostic —
+> must later be expressible as leg composition without a third spelling);
+> consumer (b) was REBUILT by P4.6 in P7's favor (the family refuses
+> in-place at `scheme.py:1637-1648`, keyed on
+> `has_constant_volume_element`, naming #409+#158 — the charter's
+> `6859ca05` row is remedied-stale); the curvilinear M/V is dense AND
+> cell-dependent — **non-separable across (spatial × moment)**, so no
+> per-axis object covers both consumers; the un-skip done-when is a
+> RE-POSE of 4 gates, not a mark deletion (`test_frame.py:530` asserts
+> `1/diag(G)` elementwise — false for a matrix; `:635` pins the refusal
+> and is designed-red at success — the §6c witness flip); the `:214`
+> one-metric-source guard must extend to 3 sources; ⛔⛔ #409:
+> reciprocity CANNOT adjudicate a metric (`A† ≡ G⁻¹AᵀG` is an identity
+> for EVERY invertible G — mismatch control 8.22); the moment axis has
+> `generator=None`, so nothing may reach the matrix via
+> `generator.mass_matrix` (item-3 boundary). NEXT-block hygiene: the
+> token "CS4b-R" three entries up is UNATTESTED (0 hits anywhere;
+> only CS4a-R exists) — read it as void.
+> **RULING 1 — the means: a TYPED METRIC family owned by the space.**
+> The metric becomes a first-class object with the shipped forms as
+> realizations (diagonal array / per-axis factors / dense G); the three
+> verbs delegate to it; type-vs-property met ([M] 3 non-isomorphic live
+> realizations + real morphisms). `InverseMetricOperator` becomes a
+> thin adapter over it or absorbs.
+> **RULING 2 — the home: the GENERATOR induces, the SPACE holds.** The
+> frame (stage-2 generator, basis ⊗ measure) dresses the space at
+> `basis_space`'s DENSE arm with `inv(discrete_gram)` under the
+> `gram_structure is DENSE` admission predicate; the AXIS keeps carrying
+> only its MEASURE (weights stay 1-D — a measure is diagonal by nature,
+> a Gram is a form); identity stays metric-blind per the shipped
+> dressing doctrine (`frame.py` "(name, shape) identity is
+> metric-blind"); §5.5 item 2 honored by structure, not by widening
+> `Axis`. Curvilinear stays REFUSED this phase (no consumer can
+> adjudicate the value — #158); its refusal re-derives to name #158
+> alone, per the charter's done-when.
 >
 > ✅ **P4-REMAINDER LANDED 2026-08-29** (`ac485104` `_weight_of`
 > retirement · `ad04e236` the binding + courier death + K1/K2/K3/G5
