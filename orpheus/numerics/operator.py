@@ -3179,9 +3179,12 @@ class AxisSectionOperator(_AxisMarginalBase):
     ``np.array_equal`` on the GL4 fixture, G6.6), and the iso column of
     the harmonic frame's physical adjoint WHEN the frame's discrete
     Gram is DIAGONAL (`[M]` slab L=1: ``face.H(e₀φ) == E(φ)`` to
-    5.6e-17; a DENSE Gram — slab or sphere at L=2 — breaks it by the
-    continuum-metric factor, the recorded F-0/CS4c debt: the
-    discriminator is Gram diagonality, not geometry). The metric-free
+    5.6e-17; a DENSE Gram — slab or sphere at L=2 — breaks it: pre-P7
+    by the undressed continuum-metric factor (the then-recorded
+    F-0/CS4c debt), and still post-P7 under the honest dense dressing,
+    because :math:`G^{+}` couples the modes and admits no per-ℓ scalar
+    collapse. The discriminator is Gram diagonality, not geometry —
+    unchanged). The metric-free
     form ``reconstruction(e₀φ)/W == E(φ)`` is bit-exact regardless
     (``scratch/probe_s6_q5_dissolution.py`` carries the DENSE arm).
 
@@ -3598,9 +3601,11 @@ class InverseMetricOperator(LinearOperator):
     **not** cancel; if you want the round trip, assert it on a field you
     know is off the null space.
 
-    Self-adjoint: the metric is a positive-semi-definite diagonal weight,
-    so :math:`(G^{+})^{\mathsf T} = G^{+}` and ``apply_transpose`` is
-    ``apply``.
+    Self-adjoint: the metric is a symmetric positive-semi-definite form —
+    a diagonal weight, or since P7 a dense
+    :class:`~orpheus.numerics.metric.DenseMetric` (symmetry guarded at its
+    construction) — so :math:`(G^{+})^{\mathsf T} = G^{+}` and
+    ``apply_transpose`` is ``apply`` for every realization.
 
     Parameters
     ----------

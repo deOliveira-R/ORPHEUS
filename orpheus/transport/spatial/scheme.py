@@ -1627,11 +1627,17 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         ``[1, 0.3333]``, bit-identical to a slab).  Refusing is the honest
         answer until the machinery exists.
 
-        Blocked on two independent things, deliberately named because they
-        need opposite repairs: the **machinery** (a non-Hadamard space
-        metric — ORPHEUS #409) and the **value** (which :math:`G` is right
-        is pinned by physical functionals, and needs #158's cell solve to
-        have a consumer).
+        ⭐ Until P7 (2026-08-30) this was blocked on TWO independent
+        things, deliberately named because they need opposite repairs:
+        the **machinery** (a non-Hadamard space metric — ORPHEUS #409)
+        and the **value**. P7 landed the machinery — the
+        :class:`~orpheus.numerics.metric.DenseMetric` family makes a
+        non-Hadamard metric expressible on a space, and the frame's
+        DENSE arm already installs one — so the refusal now stands on
+        ONE blocker: the **value**. Which :math:`G` is right is pinned
+        by physical functionals and needs #158's cell solve to have a
+        consumer; *expressible* is not *known*, and nothing here may
+        install a guess.
 
         Single-moment schemes are unaffected on every chart: the cell
         average's mass is :math:`V/V = 1` whatever the measure.
@@ -1645,9 +1651,11 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
                 "AND non-diagonal (a spherical pole cell wants "
                 "[[1, 0.5], [0.5, 0.4]]), which a per-axis Axis weight "
                 "vector cannot express.  Returning the Cartesian diagonal "
-                "would install the SLAB's mass on a curved chart.  See "
-                "ORPHEUS #409 (the non-Hadamard metric) and #158 (the cell "
-                "solve that gives the value a consumer)."
+                "would install the SLAB's mass on a curved chart.  The "
+                "non-Hadamard metric machinery exists (P7: a space can "
+                "carry a dense metric object); what remains is the VALUE "
+                "— see ORPHEUS #158 (the cell solve that gives the value "
+                "a consumer)."
             )
 
     def moment_mass_diagonal(self, axes: "tuple[Axis1D, ...]") -> np.ndarray:

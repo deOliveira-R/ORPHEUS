@@ -303,13 +303,39 @@ class TestMomentAxisAdmission:
         The true ``M/V`` there is cell-dependent AND non-diagonal (a
         spherical pole cell wants ``[[1, 0.5], [0.5, 0.4]]``), which a
         per-axis ``Axis`` weight vector cannot express -- so no honest
-        value exists to return.  Blocked on ORPHEUS #409 (the non-Hadamard
-        metric) for the MACHINERY and #158 for the VALUE.
+        value exists to return.  The MACHINERY half of the old two-blocker
+        wording (#409, the non-Hadamard metric) was discharged by P7 (the
+        dense-metric family); the refusal stands on the VALUE alone --
+        #158's cell solve is what gives a chosen ``G`` a consumer.
         """
         with pytest.raises(NotImplementedError, match="no moment mass"):
             LinearDiscontinuous().moment_mass_diagonal(_radial_axes(kind))
         with pytest.raises(NotImplementedError, match="no moment mass"):
             LinearDiscontinuous().moment_axis(_radial_axes(kind))
+
+    @pytest.mark.parametrize(
+        "kind", [AxisCoord.RADIAL_SPHERICAL, AxisCoord.RADIAL_CYLINDRICAL]
+    )
+    def test_the_moment_mass_refusal_names_only_the_value_blocker(
+        self, kind: AxisCoord,
+    ) -> None:
+        """E1 (P7 S4): the refusal stands on ONE blocker after the
+        dense-metric family landed.
+
+        The message still refuses (the pinned ``no moment mass`` fragment
+        survives), still names #158 (the value's missing consumer), and
+        no longer names #409 — the machinery half was discharged by P7.
+        The absence assert is the half a ``match=`` cannot pin: it stops
+        the two-blocker wording drifting back while reading as a mere
+        rewording.
+        """
+        with pytest.raises(NotImplementedError, match="no moment mass") as exc:
+            LinearDiscontinuous().moment_mass_diagonal(_radial_axes(kind))
+        message = str(exc.value)
+        assert "158" in message, "the VALUE blocker (#158) must stay named"
+        assert "409" not in message, (
+            "the discharged MACHINERY blocker (#409) must not be re-cited"
+        )
 
     def test_mixed_axes_refuse_and_name_only_the_curved_kind(self):
         """P4.6's granularity witness: a mixed (z, r)-style tuple refuses,
