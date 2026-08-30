@@ -271,6 +271,23 @@
 > fork measurements (fork 2's "STILL OPEN: where the PRODUCER goes",
 > the `streaming_terms` read set, the R/M audience split) date
 > 2026-08-27/28 and predate P4.5–P4.7 + P4b + CS5.
+> ✅ **RULED 2026-08-30 (user, post-P4-remainder sequencing round):
+> ▶ NEXT = P6 (the chart speaks ONE vocabulary), with a context
+> COMPACTION before execution.** P6's charter is THIS plan's §"P6 — the
+> chart speaks ONE vocabulary" (~line 3677): collapse `geometry_kind` →
+> `coord`, mechanical, bit-identical, its own diff by §9.3's ruling.
+> **P6's opener owes the campaign-pattern shelf-life re-measure (7 of 7
+> openers have corrected their own section):** the charter's `[M]`
+> counts (`geometry_kind` 105 / `coord` 228 / case-spellings 8-3) date
+> ~2026-08-26 and predate P4.2→P4-remainder — every phase since moved
+> chart-adjacent files, and the P4-remainder ADDED vocabulary
+> (`angular_axis`, `generator_as`, the defaulted label) while killing
+> `AngularRedistribution.quadrature` + `_weight_of`. Re-census before
+> sweeping; the three-search audit + case-spellings per the charter's
+> own ⚠. **The acceptance baseline is 9917** (13 trees rc=0). Behind
+> P6: the re-posed §5b build fork · the O-3 split (deferred
+> `ChartConnection` re-name + R→transport/) · CS5-MODAL · P7 = #409.
+>
 > ✅ **P4-REMAINDER LANDED 2026-08-29** (`ac485104` `_weight_of`
 > retirement · `ad04e236` the binding + courier death + K1/K2/K3/G5
 > gates · `1fb70c15` the admission-probe hardening): the producer binds
