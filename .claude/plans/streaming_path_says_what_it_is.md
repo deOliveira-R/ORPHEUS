@@ -23,6 +23,10 @@
 >   ruling + the #407 carve + P5's directional-extension content) ·
 >   `_coll_cache`/`_pole_mirror_cache`. Charter of record:
 >   `.claude/plans/posing_filtration_charter.md` (R1–R23).
+>   ✅ RULED 2026-08-30: **Campaign 2 OPENS with the CS-ladder
+>   remainder** (CS4c pulled forward + CS2 residue) — plan of record
+>   `.claude/plans/cs_ladder_remainder.md`; the §5b fork and O-3 stay
+>   pending at the LATER pencil boundary.
 > - **Issues**: #158 (the curvilinear M/V VALUE) · #407 (rides O-3) ·
 >   #409 CLOSED · #418–#421 (the P6 census residue) · #422 (docs
 >   markup) · #423 (CS5-MODAL item 3, the polynomial `Basis`).

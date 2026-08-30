@@ -14,6 +14,17 @@
 > partitioning) is now unblocked and chartered NEXT — its charter
 > consumes the re-posed §5b build fork and the O-3 split. Everything
 > below is the frozen campaign record.
+>
+> ✅ **RULED 2026-08-30 (user, at the close-out): Campaign 2 OPENS with
+> the CS-LADDER REMAINDER — CS4c pulled forward per its own §CS4c
+> clause, CS2 shrunk to its residue, CS1.5′ toward the homogeneous
+> coda — "to tighten the consumed operators before reshaping the
+> consumers." Plan of record for that work:
+> `.claude/plans/cs_ladder_remainder.md` — a fresh session REGROUNDS
+> THERE (it carries the ruling, the [M] readiness facts, the staleness
+> warnings on this file's 2026-08-20/21 counts, and the opening
+> protocol); this file's §CS2/§CS4c sections remain the authoritative
+> charter TEXT it points into.**
 
 **Campaign 1 of the two-campaign return to the operator-machinery thread.** Chartered
 2026-08-19 from the user's rulings (§0) on the grounded
@@ -429,6 +440,23 @@ they conflict):**
    what keep it alive until then.
 2. **Axes are measure-ACCESSIBLE, never measure-WELDED (user refinement,
    2026-08-20, superseding this input's first spelling "measure-complete").**
+
+   > ⚠ **SUPERSEDED-IN-MECHANISM by CS5 (landed 2026-08-29) — read this
+   > input's LETTER as history, its INTENT as satisfied.** CS5's ruling
+   > ("the generator mints it; provenance, never identity") landed
+   > `Axis.generator` — the axis DOES hold a generator reference, contra
+   > clause (a)'s "the axis never holds the grid" — but EXCLUDED from
+   > identity and the `of_axes` digest (`[M]` inclusion RAISES: the gate is
+   > CS5's G-battery), which is exactly the no-welding intent clauses
+   > (a)+(b) protected. Clause (c)'s "accessor that re-mints on demand" is
+   > realized as `Axis.generator_as(kind, *, consumer=…)` — the typed narrow
+   > with a by-name refusal — production-proven since the P4-remainder (the
+   > closure mints + `streaming_terms`). ⟹ the consequence this input
+   > predicted is ALREADY TRUE: the scattering binding can collapse to
+   > (kernel, space), the separate `quadrature=` argument dispensable
+   > through the space's angular axis. Do not re-build (b)'s identity-content
+   > machinery for the angular/spatial axes without re-deriving the need
+   > against CS5's landed shape.
    Storing the measure OBJECT (or the Quadrature) on the axis would weld
    space to measure and abandon the forgetful-map concept. The ruled shape —
    the generalization of what `EnergyAxis` already does — is a three-part
@@ -1836,6 +1864,16 @@ operator-side declared members — the #226 F2 pattern — and survive by
 design.
 
 ### CS4c — the dispatch collapse (goal chartered; after CS2 per the ruled order)
+
+> ✅ **PULL-FORWARD RULED 2026-08-30 (user)** — this section's own clause
+> ("may pull earlier … if frame-independence holds") was exercised: CS4c
+> opens Campaign 2, with CS2 shrunk to its residue (the S3 identity flip,
+> the densifier retirement, the L/B + R6 rows). The `[M]` readiness facts
+> (CS5's `generator_as` landed the (kernel, space) collapse channel; P7
+> discharged the matrix-metric debt bullet and pre-built the leg faces) and
+> the ⚠ staleness warnings on THIS section's counts live in the plan of
+> record, `.claude/plans/cs_ladder_remainder.md`. The opener VERIFIES the
+> frame-independence condition before designing.
 
 **Goal.** Apply-time overloading retires: the per-instance
 feeding-normalization census first (the R-A `[M]` 6-of-12 fact; the method is
