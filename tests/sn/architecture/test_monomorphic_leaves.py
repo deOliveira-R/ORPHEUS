@@ -265,12 +265,13 @@ _R2_XFAIL = pytest.mark.xfail(
     strict=True,
     reason=(
         "R1/R2 — an ANONYMOUS leaf (no space) constructs happily, and the "
-        "`.H` it then builds silently degrades to a bare Euclidean transpose: "
-        "`AdjointOperator.apply` (numerics/operator.py:1221-1227) applies the "
-        "metric only when the inner space is non-None. MEASURED bit-identical "
-        "to `apply_transpose`. Flipped by campaign P1 (construction without a "
-        "space RAISES, so `.H` can never see a None space). WHEN THIS "
-        "XPASSES: P1 has landed — delete this marker."
+        "`.H` it then builds degrades to a bare Euclidean transpose (since "
+        "CS4c step 1: a None end contributes an IdentityOperator Riesz leg "
+        "— same arithmetic, leg-shaped; only S now RAISES MissingAdjoint "
+        "instead, its exemption being absent). Flipped per leaf by the "
+        "mandatory-ends rebind (C landed 2026-08-30; construction without "
+        "a space RAISES at the signature). WHEN THIS XPASSES: the leaf's "
+        "flip has landed — delete its row's marker."
     ),
 )
 
@@ -481,9 +482,12 @@ _CURVILINEAR = ("sphere", "cylinder")
 #: tree — see the module docstring.
 _LEAVES = ("L", "C", "S", "F", "B")
 
-#: The leaves whose constructor admits an ANONYMOUS build (an optional space
-#: parameter defaulting to ``None``). ``L`` and ``B`` derive their space from
-#: the ``SNMesh`` they are handed and cannot be anonymous — pinned by
+#: The R2 population: the leaves whose constructor HISTORICALLY admitted
+#: an anonymous build (an optional space defaulting to ``None``) — each
+#: flip converts its row from strict-xfail to a permanent refusal floor
+#: (``C``/``F`` flipped; ``S`` pending step 3). ``L`` and ``B`` derive
+#: their space from the ``SNMesh`` they are handed and were never
+#: anonymous-capable — pinned by
 #: :func:`test_mesh_derived_leaves_carry_no_anonymous_construction_surface`.
 _ANONYMOUS_CAPABLE = ("C", "S", "F")
 
@@ -516,7 +520,7 @@ def _leaf_set(sn_mesh: SNMesh) -> "dict[str, LinearOperator]":
         "L": StreamingOperator.pose(sn_mesh),
         "C": MultiplicationOperator(
             coefficient=mat_xs.total_cross_section_field,
-            space=sn_mesh.full_field_space,
+            domain=sn_mesh.full_field_space, codomain=sn_mesh.full_field_space,
         ),
         "S": ScatteringOperator.from_solver_data(
             mat_xs=mat_xs, quadrature=sn_mesh.quad, scattering_order=1,
@@ -723,15 +727,27 @@ def _domain_annotation(
         fget = getattr(prop, "fget", prop)
         annotation = getattr(fget, "__annotations__", {}).get("return")
         return klass.__name__, str(annotation)
-    return "<not found>", "<not found>"
+    # F4 hardening (CS4c review §12): an absent declaration must FAIL the
+    # row, never pass it — "<not found>" contains neither "None" nor
+    # "Optional", so returning it silently would make the gate vacuous
+    # for a deleted property (and would have been for a bare dataclass
+    # field, had the BoundOperator base not realized its ends as injected
+    # properties whose fget carries the annotation).
+    pytest.fail(
+        f"{leaf_cls.__name__}.{prop_name}: no property found anywhere in "
+        f"the MRO — the leaf no longer DECLARES this end at all, which is "
+        f"worse than declaring it Optional (R1 gates the declaration)."
+    )
 
 
 #: Per-ROW marks (the ``_G13_ROWS`` shape): a function-level ``@_R1_XFAIL``
-#: cannot flip partially — CS4a K2b deleted the ``F`` row's marker (the
-#: flip landed; F's space is mandatory) while ``L``/``C``/``S``/``B``
-#: stay red until their own campaign phases (C/S at CS4c, L/B at CS2).
+#: cannot flip partially — CS4a K2b deleted the ``F`` row's marker, and
+#: CS4c step 2 (2026-08-30) deleted ``C``'s (the BoundOperator base:
+#: mandatory kw-only ends, write-once, non-Optional by construction);
+#: ``L``/``S``/``B`` stay red until their own phases (S at CS4c step 3,
+#: L/B at CS2).
 _R1_ROWS = [
-    pytest.param(leaf, marks=[] if leaf == "F" else [_R1_XFAIL], id=leaf)
+    pytest.param(leaf, marks=[] if leaf in ("C", "F") else [_R1_XFAIL], id=leaf)
     for leaf in _LEAVES
 ]
 
@@ -1136,10 +1152,11 @@ def test_reciprocity_row_is_non_vacuous(leaf, monkeypatch):
 # ═════════════════════════════════════════════════════════════════════════
 
 #: Per-ROW marks, same rationale as ``_R1_ROWS``: K2b flipped the ``F``
-#: row (marker deleted with the landed flip); ``C`` waits for CS4c's
-#: mandatory flip, ``S`` for the S→kernel shell.
+#: row; CS4c step 2 flipped ``C`` (a space-less mint is now a signature
+#: TypeError — the builder below returns on it); ``S`` waits for the
+#: S→kernel shell (step 3).
 _R2_ROWS = [
-    pytest.param(leaf, marks=[] if leaf == "F" else [_R2_XFAIL], id=leaf)
+    pytest.param(leaf, marks=[] if leaf in ("C", "F") else [_R2_XFAIL], id=leaf)
     for leaf in _ANONYMOUS_CAPABLE
 ]
 
@@ -1178,14 +1195,15 @@ def test_leaf_without_a_space_refuses_construction(leaf):
     mixture = get_mixture("A", "2g")
     mat_xs = MaterialMesh.from_materials({0: mixture}).material_xs_field()
     builders = {
-        "C": lambda: MultiplicationOperator(
-            coefficient=mat_xs.total_cross_section_field,
+        "C": lambda: MultiplicationOperator(  # type: ignore[call-arg]
+            coefficient=mat_xs.total_cross_section_field,  # deliberate:
+            # the space-less mint IS the probe (must raise since CS4c)
         ),
         "S": lambda: ScatteringOperator.from_solver_data(
             mat_xs=mat_xs, quadrature=Quadrature.gauss_legendre(n_ordinates=4),
             scattering_order=0,
         ),
-        "F": lambda: FissionOperator.from_solver_data(mat_xs=mat_xs),
+        "F": lambda: FissionOperator.from_solver_data(mat_xs=mat_xs),  # type: ignore[call-arg]
     }
     try:
         op = builders[leaf]()

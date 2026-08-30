@@ -192,7 +192,7 @@ def _assemble_loss_operator(
     ``bulk_space``; the carrier now supplies cross sections only.)
     """
     collision = MultiplicationOperator(
-        coefficient=mat_xs.total_cross_section_field, space=space,
+        coefficient=mat_xs.total_cross_section_field, domain=space, codomain=space,
     )
     k_iso = IsotropicScattering(mat_xs, space=space) + IsotropicN2N(
         mat_xs, space=space

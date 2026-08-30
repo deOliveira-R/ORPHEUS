@@ -163,7 +163,8 @@ def multiplication_operator():
     """A bare S3b ``MultiplicationOperator`` foil (local/diagonal, no kernel)."""
     sn = cartesian_2d_mesh(nx=5, ny=3, ng=2)
     nu_sf = asymmetric_nu_sigma_f(ng=2, spatial_shape=sn.spatial_shape)
-    return MultiplicationOperator(coefficient=cross_section_field(nu_sf, sn))
+    cf = cross_section_field(nu_sf, sn)
+    return MultiplicationOperator(coefficient=cf, domain=cf.space, codomain=cf.space)
 
 
 # ═══════════════════════════════════════════════════════════════════════

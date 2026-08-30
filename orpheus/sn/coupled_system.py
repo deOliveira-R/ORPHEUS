@@ -445,7 +445,8 @@ def build_streaming_collision(
     """
     return StreamingOperator.pose(sn_mesh) + MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
-        space=sn_mesh.full_field_space,
+        domain=sn_mesh.full_field_space,
+        codomain=sn_mesh.full_field_space,
     )
 
 

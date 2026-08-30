@@ -151,9 +151,12 @@ def _positive_sigma(sn_mesh: SNMesh, ng: int = 2, seed: int = 11) -> np.ndarray:
 
 
 def _multiplier(sn_mesh: SNMesh, sigma: np.ndarray) -> MultiplicationOperator:
-    """``M[σ]`` from a raw ndarray (wrapped into a CrossSectionField)."""
+    """``M[σ]`` from a raw ndarray (wrapped into a CrossSectionField),
+    bound as production binds it (the mesh's composite, both ends)."""
+    space = sn_mesh.full_field_space
     return MultiplicationOperator(
         coefficient=CrossSectionField(values=sigma, space=sn_mesh.bulk_space),
+        domain=space, codomain=space,
     )
 
 
@@ -324,9 +327,17 @@ class TestMultiplierAlgebraLaws:
     def test_self_adjoint_M_H_equals_M(self):
         r""":math:`M[f]^* = M[f]` — a real coefficient is self-adjoint.
 
-        ``apply_transpose == apply``, and the metric-blind Euclidean
-        ``.H`` (domain ``None``) reduces to the representation transpose,
-        which equals ``apply``.
+        ``apply_transpose == apply`` BIT-EXACTLY (the representation
+        transpose applies no metric). ``.H`` equals the forward action to
+        ULP, not to the bit: since CS4c step 2 the ends are mandatory, so
+        the adjoint's Riesz legs genuinely EXECUTE the composite metric
+        roundtrip :math:`G^{+}(f\odot(G\,x))` — analytically the
+        identity (a diagonal coefficient commutes with a diagonal
+        metric), numerically a multiply–divide round trip (`[M]` at the
+        flip: max 4.5e-16 relative, 46 % of entries off by 1 ULP). The
+        pre-flip bit-identity was a property of the ANONYMOUS mint
+        skipping the metrics entirely — a claim about a spelling that no
+        longer exists, not about the law.
         """
         sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
         M = _multiplier(sn, _positive_sigma(sn, ng=2, seed=161))
@@ -336,8 +347,11 @@ class TestMultiplierAlgebraLaws:
         np.testing.assert_array_equal(
             M.apply_transpose(psi).interior.values, forward,
         )
-        # .H action (metric-blind, Euclidean) equals the forward action.
-        np.testing.assert_array_equal(M.H.apply(psi).interior.values, forward)
+        # .H action == forward through the executed metric roundtrip: the
+        # commuting law, at the roundtrip's honest ULP cost.
+        np.testing.assert_array_almost_equal_nulp(
+            M.H.apply(psi).interior.values, forward, nulp=4,
+        )
 
     def test_spectrum_invertible_iff_min_abs_positive(self):
         r""":math:`\mathrm{spec}(M[f]) = \mathrm{ess\,range}(f)`.
@@ -459,14 +473,20 @@ class TestStreamingEquilibriumValuesLeg:
 class TestSpaceMetadataAndGuardJoin:
     """``space`` → ``domain``/``codomain`` → the multiplier joins the guard."""
 
-    def test_space_anonymous_by_default(self):
-        """No ``space`` → ``domain``/``codomain`` are ``None`` (the mesh-free
-        default — the guard SKIPS a ``None``-spaced operand, the pre-W-D
-        behaviour preserved for non-composite multipliers)."""
+    def test_space_anonymous_construction_refuses(self):
+        """No ends → NO OPERATOR (CS4c step 2): the pre-CS4c mesh-free
+        default (``domain``/``codomain`` = ``None``, guard skipping) is
+        retired — the ends are mandatory kw-only, so the anonymous mint
+        is a ``TypeError`` at the signature. Local twin of the ledger's
+        R2-C row."""
         sn = _slab_mesh()
-        M = _multiplier(sn, _positive_sigma(sn))
-        _require(M.domain is None, "default domain must be None (space-anonymous)")
-        _require(M.codomain is None, "default codomain must be None")
+        sigma = _positive_sigma(sn)
+        with pytest.raises(TypeError, match="domain|codomain"):
+            MultiplicationOperator(  # type: ignore[call-arg]
+                coefficient=CrossSectionField(
+                    values=sigma, space=sn.bulk_space,
+                ),
+            )
 
     def test_space_threads_to_domain_and_codomain(self):
         """A supplied ``space`` is reported as BOTH ``domain`` AND ``codomain``
@@ -476,7 +496,7 @@ class TestSpaceMetadataAndGuardJoin:
         space = sn.full_field_space
         M = MultiplicationOperator(
             coefficient=CrossSectionField(values=_positive_sigma(sn), space=sn.bulk_space),
-            space=space,
+            domain=space, codomain=space,
         )
         _require(M.domain is space, "domain must be the supplied space")
         _require(M.codomain is space, "codomain must equal domain (endomorphic)")
@@ -489,8 +509,8 @@ class TestSpaceMetadataAndGuardJoin:
         sn = _slab_mesh()
         M = MultiplicationOperator.from_mesh(_positive_sigma(sn), sn)
         _require(
-            M.space is sn.full_field_space,
-            "from_mesh must default space to mesh.full_field_space",
+            M.domain is sn.full_field_space,
+            "from_mesh must default both ends to mesh.full_field_space",
         )
 
     def test_from_mesh_chain_short_circuits_on_full_field_space(self):
@@ -515,12 +535,12 @@ class TestSpaceMetadataAndGuardJoin:
 
         M = MultiplicationOperator.from_mesh(sigma, sn)
         _require(
-            M.space is sn.full_field_space,
+            M.domain is sn.full_field_space,
             "the chain must resolve the composite by identity, first arm",
         )
         _require(
-            M.space is not sn.bulk_space,
-            "the operator's space must never be the scalar bulk",
+            M.domain is not sn.bulk_space,
+            "the operator's ends must never be the scalar bulk",
         )
         _require(
             M.coefficient.space is sn.bulk_space,
@@ -535,11 +555,11 @@ class TestSpaceMetadataAndGuardJoin:
         space = sn.full_field_space
         a = MultiplicationOperator(
             coefficient=CrossSectionField(values=_positive_sigma(sn, seed=1), space=sn.bulk_space),
-            space=space,
+            domain=space, codomain=space,
         )
         b = MultiplicationOperator(
             coefficient=CrossSectionField(values=_positive_sigma(sn, seed=2), space=sn.bulk_space),
-            space=space,
+            domain=space, codomain=space,
         )
         _require(
             isinstance(a + b, OperatorSum),
@@ -556,11 +576,11 @@ class TestSpaceMetadataAndGuardJoin:
         sn_b = _slab_mesh(nx=6)  # distinct spatial shape → distinct full_field_space
         a = MultiplicationOperator(
             coefficient=CrossSectionField(values=_positive_sigma(sn_a), space=sn_a.bulk_space),
-            space=sn_a.full_field_space,
+            domain=sn_a.full_field_space, codomain=sn_a.full_field_space,
         )
         b = MultiplicationOperator(
             coefficient=CrossSectionField(values=_positive_sigma(sn_b), space=sn_b.bulk_space),
-            space=sn_b.full_field_space,
+            domain=sn_b.full_field_space, codomain=sn_b.full_field_space,
         )
         with pytest.raises(IncompatibleOperatorComposition):
             _ = a + b
@@ -698,3 +718,60 @@ class TestInverseOperatorFace:
         sigma[0, 0] = 0.0
         with pytest.raises(NotInvertible, match="zero"):
             _multiplier(mesh, sigma).inverse()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# G-C1 — the tier-2 classmethod is provably the ctor (vv#28 closure)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestTierTwoEquivalence:
+    """Every extract-and-mint classmethod owes ``classmethod-built ≡
+    ctor-built`` on the same inputs (the CS4c three-tier discipline §3),
+    so the exact-ctor fixtures upstream provably represent production —
+    vv#28's simple-ctor-vs-composite-factory blindness, closed for C."""
+
+    def test_from_mesh_equals_the_exact_ctor(self):
+        """``from_mesh(σ, sn_mesh)`` ≡ ``MultiplicationOperator(cf,
+        domain=ffs, codomain=ffs)`` — same ends BY IDENTITY (the sugar
+        resolves ``mesh.full_field_space``, spelled here independently),
+        same coefficient array, bit-identical action on the same probe."""
+        sn = _slab_mesh()
+        sigma = _positive_sigma(sn)
+        via_classmethod = MultiplicationOperator.from_mesh(sigma, sn)
+        via_ctor = MultiplicationOperator(
+            coefficient=CrossSectionField(values=sigma, space=sn.bulk_space),
+            domain=sn.full_field_space,
+            codomain=sn.full_field_space,
+        )
+        _require(
+            via_classmethod.domain is via_ctor.domain
+            and via_classmethod.codomain is via_ctor.codomain,
+            "the sugar must resolve the SAME space object the ctor was "
+            "handed (mesh.full_field_space is cached — identity, not "
+            "mere equality)",
+        )
+        np.testing.assert_array_equal(
+            via_classmethod.coefficient.values, via_ctor.coefficient.values,
+        )
+        psi = _random_state(sn, ng=2, seed=211)
+        np.testing.assert_array_equal(
+            np.asarray(via_classmethod.apply(psi).interior.values),
+            np.asarray(via_ctor.apply(psi).interior.values),
+        )
+
+    def test_from_mesh_refuses_a_spaceless_mesh(self):
+        """The sugar's resolution chain bottoming out is a REFUSAL, not an
+        unbound operator (the tier-2 face of R2): a mesh carrying neither
+        ``full_field_space`` nor ``bulk_space`` cannot supply the ends."""
+
+        class _Meshless:
+            pass
+
+        sn = _slab_mesh()
+        cf = CrossSectionField(
+            values=_positive_sigma(sn), space=sn.bulk_space,
+        )  # typed coefficient: the WRAP arm needs no mesh, so the
+        # resolution chain is what this probe actually reaches.
+        with pytest.raises(TypeError, match="neither"):
+            MultiplicationOperator.from_mesh(cf, _Meshless())

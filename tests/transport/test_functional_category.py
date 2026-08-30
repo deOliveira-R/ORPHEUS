@@ -82,7 +82,8 @@ def _make_functional_and_operators():
     # Two concrete LinearOperators to foil against.
     chi = np.ones((2, *sn.spatial_shape))
     rank_one = outer(chi, InnerProductFunctional(nu_sf, axis=0))
-    mult = MultiplicationOperator(coefficient=cross_section_field(nu_sf, sn))
+    cf = cross_section_field(nu_sf, sn)
+    mult = MultiplicationOperator(coefficient=cf, domain=cf.space, codomain=cf.space)
     return func, rank_one, mult, sn
 
 

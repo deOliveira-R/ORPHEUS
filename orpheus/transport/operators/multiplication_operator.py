@@ -105,6 +105,7 @@ from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
 
+from orpheus.transport.operators.bound_operator import BoundOperator
 from orpheus.transport.operators._energy_conformity import (
     assert_energy_extent_conforms,
 )
@@ -130,7 +131,7 @@ __all__ = ["MultiplicationOperator"]
 
 
 @dataclass(eq=False)
-class MultiplicationOperator(LinearOperator["FullField"]):
+class MultiplicationOperator(BoundOperator["FullField"]):
     r"""The promotion :math:`M[f]` of a coefficient field to a diagonal operator.
 
     Stores ONLY the coefficient; the mesh is read off the carrier at
@@ -165,17 +166,15 @@ class MultiplicationOperator(LinearOperator["FullField"]):
 
     coefficient: "CrossSectionField"
 
-    #: The composite :class:`~orpheus.numerics.space.FunctionSpace` this
-    #: multiplier acts on (optional). When supplied, :attr:`domain` /
-    #: :attr:`codomain` report it, so the operator joins the
-    #: :class:`~orpheus.numerics.operator.OperatorSum` / ``OperatorProduct``
-    #: composition guard (W-D) — e.g. the SN ``full_field_space`` makes the
-    #: ``L + C`` build VALIDATE on every within-group solve. When ``None``
-    #: (the default) the operator is space-anonymous: the guard skips it and
-    #: the carrier still supplies the mesh at apply time (the mesh-free
-    #: contract). #261: folded up from the retired ``CollisionOperator``,
-    #: which reached this space through ``sn_mesh.full_field_space``.
-    space: "FunctionSpace | None" = field(default=None)
+    # The two spaces are the INHERITED kw-only mandatory ends
+    # (:class:`~orpheus.transport.operators.bound_operator.BoundOperator`,
+    # CS4c step 2): the multiplier is space-endomorphic — flux block →
+    # source block, same shape — so every binding passes the SAME space
+    # to both, and the tier-2 :meth:`from_mesh` sugar spells exactly
+    # that. The pre-CS4c optional ``space`` field (the space-anonymous
+    # mint the R2 ledger row gated) is retired: with the ends mandatory,
+    # the OperatorSum/OperatorProduct composition guard validates every
+    # build, and ``.H``'s Riesz legs can never see a ``None``.
 
     #: The N-D broadcast engine (#257 S3a) the multiply delegates to,
     #: built ONCE in :meth:`__post_init__` over the immutable
@@ -216,8 +215,8 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # ``coefficient.ng``, which is a MESH read-through (fields/_bases)
         # that CS4b retires: the guard compares the space against the
         # DATA, never against a second metadata source (CS4a-R EE-3).
-        assert_energy_extent_conforms(
-            self.space, self.coefficient.values.shape[0],
+        self._assert_energy_extent_both_ends(
+            self.coefficient.values.shape[0],
             operator="MultiplicationOperator",
         )
 
@@ -260,9 +259,11 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         metric-free (the module docstring's self-adjointness law: pointwise
         multiplication commutes with every diagonal metric). A BOUND class
         can carry the metric-free predicate: bound-ness says where it acts,
-        metric-freeness says its adjoint needs no sandwich — so the
-        S4-amendment's unbound-``.H`` refusal correctly exempts a
-        space-less ``M`` (its Euclidean ``.H`` IS the Hilbert adjoint)."""
+        metric-freeness says its adjoint needs no sandwich. (Until CS4c
+        step 2 this also exempted the then-legal SPACE-LESS ``M`` from the
+        S4-amendment's unbound-``.H`` refusal; with the ends mandatory
+        that exemption arm is unreachable from this class — the Riesz
+        legs always execute, and commute.)"""
         return True
 
     # ── The assembly mode (stencil-assembly 2b) ────────────────────────
@@ -272,15 +273,16 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         r"""``True`` iff the composite flat layout is known — a block-bearing
         :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
         was threaded at construction. A multiplier without one honestly
-        refuses: a bare/space-less multiplier has no layout at all, and a
-        plain bulk space (e.g. the carrier's axis-built ``bulk_space``,
-        CS1) carries no bulk ⊕ trace composite flat layout — there is no
-        global DOF numbering to emit into."""
+        refuses: a plain bulk space (e.g. the carrier's axis-built
+        ``bulk_space``, CS1, or the homogeneous posed space) carries no
+        bulk ⊕ trace composite flat layout — there is no global DOF
+        numbering to emit into. (The pre-CS4c space-LESS case is now
+        unspellable — the ends are mandatory.)"""
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
         return (
-            isinstance(self.space, FullFieldSpace)
-            and self.space.interior_space is not None
+            isinstance(self.domain, FullFieldSpace)
+            and self.domain.interior_space is not None
         )
 
     def assemble(self) -> "SparseAssembledOperator":
@@ -302,7 +304,7 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
         from scipy import sparse
 
-        space = self.space
+        space = self.domain
         if not isinstance(space, FullFieldSpace) or space.interior_space is None:
             raise MissingAssembly(
                 f"MultiplicationOperator.assemble requires a block-bearing "
@@ -373,29 +375,21 @@ class MultiplicationOperator(LinearOperator["FullField"]):
             space = getattr(mesh, "full_field_space", None)
         if space is None:
             space = getattr(mesh, "bulk_space", None)
-        return cls(coefficient=coefficient, space=space)
+        if space is None:
+            raise TypeError(
+                "MultiplicationOperator.from_mesh: the mesh carries neither "
+                "full_field_space nor bulk_space and no space= was passed — "
+                "a binding needs its ends (CS4c: the ctor's domain/codomain "
+                "are mandatory; this classmethod is the endomorphism sugar "
+                "that supplies both from ONE space)."
+            )
+        return cls(coefficient=coefficient, domain=space, codomain=space)
 
-    # ── Operator-algebra space metadata (W-D / #261) ─────────────────────
-    @property
-    def domain(self) -> "FunctionSpace | None":
-        r"""The composite space the multiplier acts on, or ``None``.
-
-        Returns the optional :attr:`space`: when set (e.g. the SN
-        ``full_field_space`` threaded at construction), the ``L + C``
-        :class:`~orpheus.numerics.operator.OperatorSum` composition guard
-        VALIDATES the build (equal domains AND codomains) on every
-        within-group solve, instead of silently skipping a ``None``-spaced
-        operand; when ``None``, the operator stays space-anonymous (the
-        mesh-free default — the carrier supplies the mesh at apply time).
-        The multiplier is space-endomorphic — flux block → source block,
-        same shape — so ``codomain == domain``.
-        """
-        return self.space
-
-    @property
-    def codomain(self) -> "FunctionSpace | None":
-        # Endomorphic on the composite space (see :meth:`domain`).
-        return self.space
+    # ── Operator-algebra space metadata ──────────────────────────────────
+    # ``domain`` / ``codomain`` are the inherited BoundOperator fields —
+    # write-once, non-Optional, validated by the composition guard on
+    # every ``L + C`` build (W-D / #261 history: these were properties
+    # over an optional ``space`` field until CS4c step 2).
 
     # ── The §5.7 promotion: f ↦ M[f], dispatched on the input carrier ────
     #

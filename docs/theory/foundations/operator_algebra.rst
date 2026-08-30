@@ -2222,8 +2222,11 @@ the action follows from the embedding. The collision leaf is now a
 carrying :math:`\sigma_t` as its coefficient — :math:`C = M[\sigma_t]` is
 literally true, with no SN-specific subtype at all. #261 retired the
 former ``CollisionOperator`` thin subclass: once the transport base gained
-the optional :attr:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.space`
-(for the W-D composition guard) and the bare-array
+an optional ``space`` binding (for the W-D composition guard — a field
+CS4c step 2 superseded with the mandatory kw-only write-once
+``domain``/``codomain`` ends of
+:class:`~orpheus.transport.operators.bound_operator.BoundOperator`) and
+the bare-array
 :meth:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.from_mesh`
 constructor, the subclass added nothing the base lacked. The ``L + C``
 dispatch that assembles the bundled

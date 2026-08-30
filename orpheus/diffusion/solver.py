@@ -234,7 +234,7 @@ class DiffusionSolver:
         space = mesh.full_field_space
         self.leakage = LeakageOperator(mesh)
         collision = MultiplicationOperator(
-            self.mat_xs.total_cross_section_field, space=space,
+            self.mat_xs.total_cross_section_field, domain=space, codomain=space,
         )
         # The full K_iso pair (loss-side (n,2n) — module docstring);
         # IsotropicN2N contributes exactly zero on a Σ₂-free mixture.

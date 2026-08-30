@@ -120,7 +120,7 @@ def test_every_homogeneous_operator_reports_the_same_space(
     K = inverse @ production
     operators = {
         "C": MultiplicationOperator(
-            coefficient=mat_xs.total_cross_section_field, space=space,
+            coefficient=mat_xs.total_cross_section_field, domain=space, codomain=space,
         ),
         "IsoS": IsotropicScattering(mat_xs, space=space),
         "IsoN2N": IsotropicN2N(mat_xs, space=space),
@@ -191,9 +191,15 @@ def test_H_is_bit_identical_to_the_pre_CS1_euclidean_transpose() -> None:
     never certify the metric plumbing; D4b's control is the loaded leg.
     """
     mat_xs = _mat_xs("2g")
-    loss_threaded = _assemble_loss_operator(mat_xs, _pose_space(_mix("2g")))
+    posed = _pose_space(_mix("2g"))
+    loss_threaded = _assemble_loss_operator(mat_xs, posed)
+    # The Euclidean reference: since CS4c step 2 a space-BARE multiplier
+    # is unspellable (mandatory ends), so the raw-transpose side is the
+    # SAME threaded build read through apply_transpose — bit-identical to
+    # the retired bare spelling (apply_transpose never touched a metric).
     loss_bare = MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
+        domain=posed, codomain=posed,
     ) - (IsotropicScattering(mat_xs) + IsotropicN2N(mat_xs))
     x = np.array([[1.0], [2.0]])
     got = np.asarray(loss_threaded.H.apply(x))
@@ -287,7 +293,7 @@ def test_assemble_refusal_names_the_real_reason() -> None:
     collision = MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section_field, mat_xs.mesh,
     )
-    _require(collision.space is not None, "precondition lost: C is space-less")
+    _require(collision.domain is not None, "precondition lost: C is unbound")
     with pytest.raises(MissingAssembly, match="composite flat layout") as exc:
         collision.assemble()
     _require(
@@ -580,7 +586,7 @@ def test_adjoint_equals_transpose_on_the_minted_space() -> None:
     space = _pose_space(mix)
     operators = {
         "C": MultiplicationOperator(
-            coefficient=mat_xs.total_cross_section_field, space=space,
+            coefficient=mat_xs.total_cross_section_field, domain=space, codomain=space,
         ),
         "IsoS": IsotropicScattering(mat_xs, space=space),
         "IsoN2N": IsotropicN2N(mat_xs, space=space),

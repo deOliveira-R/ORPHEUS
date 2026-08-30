@@ -170,7 +170,7 @@ def _loss(mesh, mat_xs):
     """Assemble A = L + C − S − B; B reads the mesh's own realized laws."""
     ffs = mesh.full_field_space
     L = LeakageOperator(mesh)
-    C = MultiplicationOperator(mat_xs.total_cross_section_field, space=ffs)
+    C = MultiplicationOperator(mat_xs.total_cross_section_field, domain=ffs, codomain=ffs)
     S = IsotropicScattering(mat_xs, space=ffs)
     B = DiffusionBoundaryOperator(mesh)
     return L + C - S - B
@@ -325,7 +325,7 @@ class TestStencilGate:
         mesh, mat_xs, template, albedos = _config_setup("zero_flux/zero_flux")
         ffs = mesh.full_field_space
         wrong_C = MultiplicationOperator(
-            mat_xs.absorption_cross_section_field, space=ffs,
+            mat_xs.absorption_cross_section_field, domain=ffs, codomain=ffs,
         )
         A = (
             LeakageOperator(mesh) + wrong_C
@@ -369,7 +369,7 @@ class TestFamilyLaws:
         cancellation theorem: removal is DERIVED, never an input."""
         ffs = mesh.full_field_space
         CS = (
-            MultiplicationOperator(mat_xs.total_cross_section_field, space=ffs)
+            MultiplicationOperator(mat_xs.total_cross_section_field, domain=ffs, codomain=ffs)
             - IsotropicScattering(mat_xs, space=ffs)
         )
         M = FlattenedOperator(CS, template).as_matrix()
@@ -631,7 +631,10 @@ class TestScalarCompositeSubstrate:
 @pytest.mark.foundation
 class TestSharedOperatorScalarArms:
     def test_multiplication_scalar_apply_and_solve(self, mesh, mat_xs, flux):
-        C = MultiplicationOperator(mat_xs.total_cross_section_field)
+        space = mesh.full_field_space
+        C = MultiplicationOperator(
+            mat_xs.total_cross_section_field, domain=space, codomain=space,
+        )
         out = C.apply(flux)
         assert isinstance(out.interior, ScalarSourceSink)
         assert isinstance(out.boundary, ScalarBoundarySourceSink)
@@ -730,7 +733,7 @@ class TestAssemblyMode:
             "L": LeakageOperator(mesh),
             "B": DiffusionBoundaryOperator(mesh),
             "C": MultiplicationOperator(
-                mat_xs.total_cross_section_field, space=ffs,
+                mat_xs.total_cross_section_field, domain=ffs, codomain=ffs,
             ),
             "S": IsotropicScattering(mat_xs, space=ffs),
             "N2N": IsotropicN2N(mat_xs, space=ffs),
@@ -856,12 +859,19 @@ class TestAssemblyMode:
         assert apply_delta > 1e-2, "apply blind to the closure flip"
 
     def test_space_anonymous_leaves_refuse(self, mat_xs):
-        """A space-anonymous multiplier / iso operator has no flat
-        layout to emit into — honest refusal, not a guessed numbering."""
+        """A layout-less operator has no flat layout to emit into —
+        honest refusal, not a guessed numbering.
+
+        Since CS4c step 2 a space-ANONYMOUS multiplier is unspellable
+        (mandatory ends), so C's row asserts the surviving case: a
+        multiplier bound to a plain BULK space (no bulk ⊕ trace
+        composite) still refuses. The iso pair stays anonymous-capable
+        until its own flip (step 3)."""
         from orpheus.numerics.operator import MissingAssembly
 
+        coef = mat_xs.total_cross_section_field
         for op in (
-            MultiplicationOperator(mat_xs.total_cross_section_field),
+            MultiplicationOperator(coef, domain=coef.space, codomain=coef.space),
             IsotropicScattering(mat_xs),
             IsotropicN2N(mat_xs),
         ):

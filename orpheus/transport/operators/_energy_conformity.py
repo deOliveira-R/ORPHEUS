@@ -12,8 +12,10 @@ constructions (18.8 %); **inert on 830** — 578 axes-less (the SN /
 diffusion composite spaces carry ``axes=None``, so there is nothing to
 key on) and 252 space-less — the two ``isotropic_kernel`` constructions
 (``scattering.py``), which pass no ``space`` by signature. C's
-annotation keeps the Optional default until CS4c, but every shipped C
-binding passes a space, so C contributes 0 of the 252 (CS4a-R CEN-3). The axis-keyed strengthening for composites arrives
+Optional retired at CS4c step 2 (2026-08-30: mandatory kw-only ends on
+the BoundOperator base, per-END admission through
+``_assert_energy_extent_both_ends``); C already contributed 0 of the
+252 (CS4a-R CEN-3 — every shipped binding passed a space). The axis-keyed strengthening for composites arrives
 with CS2, when the composite spaces gain axes. Keying on the space's
 *shape* instead was measured UNRUNNABLE: ``space.shape[0]`` is not
 ``ng`` on any composite (flat ``(64,)``; interior ordinate-first), and a

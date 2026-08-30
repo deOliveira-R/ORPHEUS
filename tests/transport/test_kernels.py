@@ -617,7 +617,7 @@ def test_apply_arm_survival_matrix(operator_key, carrier_key):
     dm, mat_xs, ffs = _diffusion_binding()
     operators = {
         "C": MultiplicationOperator(
-            coefficient=mat_xs.total_cross_section_field, space=ffs,
+            coefficient=mat_xs.total_cross_section_field, domain=ffs, codomain=ffs,
         ),
         "IsoS": IsotropicScattering(mat_xs, space=ffs),
         "IsoN2N": IsotropicN2N(mat_xs, space=ffs),
@@ -757,7 +757,7 @@ def test_energy_conformity_guard_three_rows():
     wrong_space = carrier_4g.bulk_space
     per_site = {
         "MultiplicationOperator": lambda: MultiplicationOperator(
-            coefficient=mat_2g.total_cross_section_field, space=wrong_space,
+            coefficient=mat_2g.total_cross_section_field, domain=wrong_space, codomain=wrong_space,
         ),
         "IsotropicScattering": lambda: IsotropicScattering(
             mat_2g, space=wrong_space,
