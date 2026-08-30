@@ -264,6 +264,31 @@
 > fork measurements (fork 2's "STILL OPEN: where the PRODUCER goes",
 > the `streaming_terms` read set, the R/M audience split) date
 > 2026-08-27/28 and predate P4.5–P4.7 + P4b + CS5.
+> ✅ **OPENER RUN + DESIGN ROUND RULED 2026-08-29 (user, all four forks
+> as recommended)** — ground `scratch/p4rem_ground_measure.md` (7 of 7
+> openers have now corrected their section; headline drifts: the
+> producer's external surface is 8 sites in 4 files, `_weight_of` is
+> DEAD, `streaming_terms` post-P4.7 is no longer the fusion site, fork
+> 2's R→transport/ was ruled-not-executed, and G7's "generator is None
+> today" premise FLIPPED — CS5 landed it, so only ROUTE gates
+> discriminate). **THE RULED DESIGN:** (1) the producer binds the
+> generator-stamped ANGULAR AXIS — `ReducedStreamingOperator.angular_axis`,
+> factories mint `quadrature.axis("angular")` internally, signatures
+> unchanged (40 test factory calls untouched); `streaming_terms` reads
+> `axis.generator`. (2) The closure family ctor takes the axis third:
+> `cls(angular, pairing, angular_axis)` — §6b set banked at ground §G.4
+> (1 production variable-call + 2 prose + 8 test ctors);
+> `AngularRedistribution` sheds `quadrature` → pure α data; the §4ter
+> courier WELD dissolves whole. (3) R + delta_A ride the O-3 three-way
+> split — NOT this phase. (4) The `ChartConnection` re-name DEFERS to
+> the split (the standing "rename LAST, after streaming_terms leaves"
+> order; corpus census banked: the name is free, no rejection record).
+> Mechanism defaults adopted: G5's refusal is ONE home on `Axis`
+> (consumer passes its own name); G7 keystone rows at the intern tier
+> (`cache.py:314` chain) + the closure-mint tier. Steps: 1 `_weight_of`
+> retirement → 2 the binding + courier death (+G5) → 3 G7 route gates
+> → 4 docs/plans. Prediction: bit-identical everywhere (the bound
+> generator IS the same quad object); delta = new gates only.
 >
 > ⭐ **Before designing P4.9, read `scratch/p4_9_design_measured.md`** — the
 > §6b pre-measurement (taken 2026-08-28 while P4.3's gate ran) re-sizes the
