@@ -77,12 +77,14 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Any, Generic, Optional, TYPE_CHECKING, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
 
 from .axis import Axis, BasisKind
+from .metric import DiagonalMetric, HilbertMetric, _broadcast_leading
 
 if TYPE_CHECKING:
     from orpheus.numerics.frame import _AxisCollapsePair
@@ -135,7 +137,19 @@ class FunctionSpace(Generic[Carrier]):
         most commonly a 1-D array along one axis (e.g. quadrature
         weights along the ordinate axis of an angular-flux space).
         ``None`` selects the Euclidean inner product
-        :math:`\sum_i x_i \, y_i`.
+        :math:`\sum_i x_i \, y_i` — unless a ``metric`` object is
+        installed (below), which this slot then does NOT describe: a
+        dense-metric space reads ``inner_product_weights is None``
+        while carrying a real, non-Euclidean metric.
+    metric : HilbertMetric | None, keyword-only, default None
+        The metric **object** (campaign 1, P7) — a
+        :class:`~orpheus.numerics.metric.HilbertMetric` realization for
+        forms no diagonal array can spell (a
+        :class:`~orpheus.numerics.metric.DenseMetric` Gram inverse being
+        the founding occupant). Resolution order:
+        ``metric`` > ``inner_product_weights`` > Euclidean; axis-built
+        spaces route through their axes instead. Validated at
+        construction via :meth:`HilbertMetric.validate_for`.
     axes : tuple[Axis, ...] | None, default None
         The generator record of an axis-composed space (campaign 1,
         CS1): the ordered tensor factors this space is the product of.
@@ -204,8 +218,25 @@ class FunctionSpace(Generic[Carrier]):
     axes: Optional[tuple[Axis, ...]] = field(
         default=None, repr=False, compare=False,
     )
+    # The metric OBJECT (campaign 1, P7): the third metric source — a
+    # first-class HilbertMetric realization (today: DenseMetric, the
+    # non-Hadamard case no array-or-axes source can spell). Resolution
+    # order in _resolved_metric: metric object > dense weights > None.
+    # ``compare=False`` is structurally MANDATORY, not taste: [M] a
+    # compared metric field makes the dataclass-generated ``__eq__`` of
+    # subclasses return an ndarray and ``hash()`` raise — the same
+    # mechanism recorded for the weights above, re-measured for P7.
+    # ``kw_only`` so subclass positional fields keep their order.
+    metric: Optional[HilbertMetric] = field(
+        default=None, repr=False, compare=False, kw_only=True,
+    )
 
     def __post_init__(self) -> None:
+        if self.metric is not None:
+            # The object knows its own admission (a DenseMetric must span
+            # the flattened leading block; a DiagonalMetric is as
+            # permissive as the legacy array slot).
+            self.metric.validate_for(self.shape)
         if self.axes is None:
             return
         # Two guards on the axis-built state (illegal states
@@ -536,10 +567,15 @@ class FunctionSpace(Generic[Carrier]):
             # weighted pairing, so the leading-vs-trailing divergence
             # recorded below is unspellable on this path).
             return float(np.sum(self._apply_axes_weights(x, inverse=False) * y))
-        if self.inner_product_weights is None:
+        m = self._resolved_metric
+        if m is None:
             return float(np.sum(x * y))
-        w = self._broadcast_metric(self.inner_product_weights, np.ndim(x))
-        return float(np.sum(w * x * y))
+        # Σ (G⊙x)·y through the realization — for the resolved diagonal
+        # case this is np.sum((w_b*x)*y), the SAME reduction tree as the
+        # legacy np.sum(w*x*y) (left-to-right), so the reroute is
+        # bit-identical; the matmul spelling y@(diag(w)@x) is NOT ([M] up
+        # to 1792 ULP at n=15) and is deliberately unspellable here.
+        return m.pairing(x, y)
 
     def norm(self, x: Carrier) -> float:
         r"""Return the induced :math:`L^2` norm
@@ -560,18 +596,21 @@ class FunctionSpace(Generic[Carrier]):
         axes of a ``target_ndim`` tensor (the metric-broadcast convention
         shared by the ``(L+1, 2L+1)`` spherical-harmonic metric and the
         leading-axis volume / partial-current metrics); no-op when ``w``
-        already spans every axis."""
-        w = np.asarray(w)
-        if w.ndim >= target_ndim:
-            return w
-        return w.reshape(w.shape + (1,) * (target_ndim - w.ndim))
+        already spans every axis. The arithmetic lives in
+        :func:`orpheus.numerics.metric._broadcast_leading` (one home —
+        the :class:`~orpheus.numerics.metric.DiagonalMetric` realization
+        is the other door); this method survives as the space-side
+        spelling the trace-space subclasses and their prose cite."""
+        return _broadcast_leading(w, target_ndim)
 
     def apply_metric(self, x: Carrier) -> Carrier:
         r"""Apply the Hilbert metric :math:`G\odot x` (identity if Euclidean).
 
         Carrier-generic surface; the base realization
-        (:meth:`_diagonal_apply_metric`) broadcasts the diagonal weight
-        against the leading axes of a bare-array ``x``. This is the
+        (:meth:`_diagonal_apply_metric`) delegates to the space's resolved
+        :class:`~orpheus.numerics.metric.HilbertMetric` — a diagonal
+        weight broadcast against the leading axes of a bare-array ``x``,
+        or a dense matrix on its flattened leading block. This is the
         building block :class:`~orpheus.numerics.operator._AdjointOperator`
         applies to the codomain before the transpose. Composite spaces
         (bulk :math:`\oplus` trace) OVERRIDE this to apply a per-block metric
@@ -583,16 +622,18 @@ class FunctionSpace(Generic[Carrier]):
         r"""The bare-array realization of :meth:`apply_metric`."""
         if self.axes is not None:
             return self._apply_axes_weights(x, inverse=False)
-        w = self.inner_product_weights
-        if w is None:
+        m = self._resolved_metric
+        if m is None:
             return x
-        return self._broadcast_metric(w, np.ndim(x)) * x
+        return m.apply(x)
 
     def apply_inverse_metric(self, x: Carrier) -> Carrier:
         r"""Apply the Moore–Penrose pseudo-inverse metric :math:`G^{+}\odot x`.
 
         Carrier-generic surface (see :meth:`apply_metric`); the base
-        realization is :meth:`_diagonal_apply_inverse_metric`:
+        realization is :meth:`_diagonal_apply_inverse_metric`, delegating
+        to the resolved :class:`~orpheus.numerics.metric.HilbertMetric`.
+        For the diagonal realization this is
         ``(1/G)⊙x`` where ``G ≠ 0``, and ``0`` on the metric's null space
         (``G = 0`` — e.g. the tangential partial-current trace slots where
         ``|Ω·n| = 0``). The pseudo-inverse is exact for the Hilbert adjoint:
@@ -608,12 +649,30 @@ class FunctionSpace(Generic[Carrier]):
         r"""The bare-array realization of :meth:`apply_inverse_metric`."""
         if self.axes is not None:
             return self._apply_axes_weights(x, inverse=True)
-        w = self.inner_product_weights
-        if w is None:
+        m = self._resolved_metric
+        if m is None:
             return x
-        wb = self._broadcast_metric(w, np.ndim(x))
-        nonzero = wb != 0.0
-        return np.where(nonzero, x / np.where(nonzero, wb, 1.0), 0.0)
+        return m.apply_inverse(x)
+
+    @cached_property
+    def _resolved_metric(self) -> Optional[HilbertMetric]:
+        r"""The metric SOURCE resolved to its realization, once per space.
+
+        Resolution order: the ``metric`` object wins; a legacy
+        ``inner_product_weights`` array resolves to a
+        :class:`~orpheus.numerics.metric.DiagonalMetric` (whose arithmetic
+        is operation-for-operation the arms that used to live inline in
+        the three ``_diagonal_*`` realizations — the reroute is
+        bit-identical by construction); ``None`` means Euclidean and the
+        verbs short-circuit without an object. Axis-built spaces never
+        reach this — their metric source IS the axes, and the per-axis
+        path handles it (``_apply_axes_weights``).
+        """
+        if self.metric is not None:
+            return self.metric
+        if self.inner_product_weights is not None:
+            return DiagonalMetric(self.inner_product_weights)
+        return None
 
     def _apply_axes_weights(self, x: Any, *, inverse: bool) -> Any:
         r"""The per-axis metric realization (axis-built spaces only).
