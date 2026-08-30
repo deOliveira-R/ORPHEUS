@@ -122,7 +122,7 @@ def _moment_field(op, nx, ny, seed):
 
 class TestLambdaTranspose:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
-        lam = LegendreMomentScattering(mat_xs=solver_p1_het.scattering_op.mat_xs, L=1)
+        lam = LegendreMomentScattering.from_material_xs(mat_xs=solver_p1_het.scattering_op.mat_xs, L=1)
         require(lam.is_adjointable,
                 "Λ must advertise the adjoint axis (campaign #276).")
         require(not lam.is_invertible,
@@ -132,7 +132,7 @@ class TestLambdaTranspose:
         r"""``⟨Λ m, c⟩ = ⟨m, Λᵀ c⟩`` (full moment-tensor contraction, per L27)."""
         op = solver_p1_het.scattering_op
         nx, ny = op.mat_xs.spatial_shape
-        lam = LegendreMomentScattering(mat_xs=op.mat_xs, L=1, skip_l0=False)
+        lam = LegendreMomentScattering.from_material_xs(mat_xs=op.mat_xs, L=1, skip_l0=False)
         m = _moment_field(op, nx, ny, 1); c = _moment_field(op, nx, ny, 2)
         lhs = float((lam.apply(m) * c).sum())            # ⟨Λ m, c⟩
         rhs = float((m * lam.apply_transpose(c)).sum())  # ⟨m, Λᵀ c⟩
@@ -153,7 +153,7 @@ class TestLambdaTranspose:
         """
         op = solver_p1_het.scattering_op
         nx, ny = op.mat_xs.spatial_shape
-        lam = LegendreMomentScattering(mat_xs=op.mat_xs, L=1, skip_l0=False)
+        lam = LegendreMomentScattering.from_material_xs(mat_xs=op.mat_xs, L=1, skip_l0=False)
         c = _moment_field(op, nx, ny, 3)
         got = lam.apply_transpose(c)
 
@@ -177,7 +177,7 @@ class TestLambdaTranspose:
         r"""Discriminator: with asymmetric Σ_s, Λᵀ ≠ Λ (the transpose has teeth)."""
         op = solver_p1_het.scattering_op
         nx, ny = op.mat_xs.spatial_shape
-        lam = LegendreMomentScattering(mat_xs=op.mat_xs, L=1, skip_l0=False)
+        lam = LegendreMomentScattering.from_material_xs(mat_xs=op.mat_xs, L=1, skip_l0=False)
         m = _moment_field(op, nx, ny, 4)
         require(
             not np.allclose(lam.apply(m), lam.apply_transpose(m)),
@@ -230,7 +230,7 @@ class TestKernelTranspose:
 
 class TestN2NMomentOperator:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
-        n2n = N2NMomentOperator(mat_xs=solver_p1_het.scattering_op.mat_xs, L=1)
+        n2n = N2NMomentOperator.from_material_xs(mat_xs=solver_p1_het.scattering_op.mat_xs, L=1)
         require(n2n.is_adjointable, "N2N must advertise the adjoint axis.")
         require(not n2n.is_invertible, "N2N must NOT be invertible.")
 
@@ -238,7 +238,7 @@ class TestN2NMomentOperator:
         r"""(n,2n) is isotropic — it touches ONLY the ℓ=0 block (ℓ≥1 stay zero)."""
         op = solver_p1_het.scattering_op
         nx, ny = op.mat_xs.spatial_shape
-        n2n = N2NMomentOperator(mat_xs=op.mat_xs, L=1)
+        n2n = N2NMomentOperator.from_material_xs(mat_xs=op.mat_xs, L=1)
         m = _moment_field(op, nx, ny, 6)
         out = n2n.apply(m)
         np.testing.assert_array_equal(
@@ -249,7 +249,7 @@ class TestN2NMomentOperator:
     def test_moment_space_transpose_identity(self, solver_p1_het):
         op = solver_p1_het.scattering_op
         nx, ny = op.mat_xs.spatial_shape
-        n2n = N2NMomentOperator(mat_xs=op.mat_xs, L=1)
+        n2n = N2NMomentOperator.from_material_xs(mat_xs=op.mat_xs, L=1)
         m = _moment_field(op, nx, ny, 7); c = _moment_field(op, nx, ny, 8)
         lhs = float((n2n.apply(m) * c).sum())
         rhs = float((m * n2n.apply_transpose(c)).sum())
@@ -435,20 +435,30 @@ class TestFullScatterKernelLDTrailingAxis:
         cells-index fix is what the green above actually rests on.  Mutation
         in-process (monkeypatch); NEVER ``git checkout`` (uncommitted-state
         hazard, process-discipline rule).
-        """
-        from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
-        def _old_leg(self, moments, L, skip_l0):
+        CS4c 3b-A re-point: the moment verbs moved from the
+        ``MaterialXSField`` facade arms to the kernel fields
+        (``ScatteringMaterialField.moment_source`` /
+        ``N2NMaterialField.moment_emission``) — THIS sentinel is what
+        caught the re-route (a mutation of the retired arms reddened
+        nothing), so the surrogates now patch the field verbs.
+        """
+        from orpheus.transport.material_field import (
+            N2NMaterialField,
+            ScatteringMaterialField,
+        )
+
+        def _old_leg(self, moments, *, skip_l0):
             out = np.zeros_like(moments)
             l_start = 1 if skip_l0 else 0
             for mid, idx in self.cells_by_material.items():
-                sig = self.sig_s_legendre(mid)
+                kern = self.per_material[mid]
                 cells = (Ellipsis, *idx)  # PRE-FIX (buggy under LD)
-                for l in range(l_start, L + 1):
+                for l in range(l_start, self.order + 1):
                     n_m = 2 * l + 1
                     mv = moments[l, :n_m][cells]
                     out[l, :n_m][cells] = (
-                        np.einsum("mfc...,fg->mgc...", mv, sig[l])
+                        np.einsum("mfc...,fg->mgc...", mv, kern.moments[l])
                         + out[l, :n_m][cells]
                     )
             return out
@@ -456,11 +466,11 @@ class TestFullScatterKernelLDTrailingAxis:
         def _old_n2n(self, moments):
             out = np.zeros_like(moments)
             for mid, idx in self.cells_by_material.items():
-                sig2 = self.n2n_matrix(mid)
+                kern = self.per_material[mid]
                 cells = (Ellipsis, *idx)  # PRE-FIX (buggy under LD)
                 mv = moments[0, :1][cells]
                 out[0, :1][cells] = (
-                    2.0 * np.einsum("mfc...,fg->mgc...", mv, sig2)
+                    2.0 * np.einsum("mfc...,fg->mgc...", mv, kern.matrix)
                     + out[0, :1][cells]
                 )
             return out
@@ -478,9 +488,9 @@ class TestFullScatterKernelLDTrailingAxis:
         )
 
         monkeypatch.setattr(
-            MaterialXSField, "apply_legendre_scattering_moments", _old_leg,
+            ScatteringMaterialField, "moment_source", _old_leg,
         )
-        monkeypatch.setattr(MaterialXSField, "apply_n2n_moments", _old_n2n)
+        monkeypatch.setattr(N2NMaterialField, "moment_emission", _old_n2n)
 
         reddened = False
         try:

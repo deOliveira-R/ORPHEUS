@@ -58,6 +58,7 @@ import numpy as np
 
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.spaces import SphericalHarmonicSpace
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.frames import (
     HarmonicAnalysisOperator,
@@ -85,6 +86,11 @@ from orpheus.transport.source_sinks import (
     HarmonicMomentSourceSink,
 )
 from orpheus.transport.full_field import FullField
+from orpheus.transport.material_field import (
+    N2NMaterialField,
+    ScatteringMaterialField,
+)
+from orpheus.transport.operators.bound_operator import BoundOperator
 from orpheus.transport.timed_full_field import TimedFullField
 # Runtime (not TYPE_CHECKING-only) — the windowed moment-iterate ``apply``
 # arm registers on this type via ``@apply.register``, which needs the
@@ -102,8 +108,8 @@ if TYPE_CHECKING:
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
 
 
-@dataclass(frozen=True)
-class LegendreMomentScattering(LinearOperator):
+@dataclass(eq=False)
+class LegendreMomentScattering(BoundOperator):
     r"""Per-ℓ block-diagonal scattering :math:`\Lambda` on harmonic-moment space.
 
     The diagonal spectrum of the sum-of-tensor-products form
@@ -125,13 +131,27 @@ class LegendreMomentScattering(LinearOperator):
         \;=\; \sum_{g'} \Sigma_{s,\ell}^{m(\vec r)}(g' \to g)\,
               \phi_\ell^m(\vec r)\bigg|_{g'},
 
-    with :math:`m(\vec r)` the material id at cell :math:`\vec r`
-    (per-material structure folded into the cell axis via ``cells_by_mat``).
+    with :math:`m(\vec r)` the material id at cell :math:`\vec r` (the
+    per-material structure IS the bound datum — see below).
+
+    **The CS4c rebind (design record §14):** the operator holds the
+    representation-free datum — a
+    :class:`~orpheus.transport.material_field.ScatteringMaterialField`
+    already :meth:`truncated
+    <orpheus.transport.material_field.ScatteringMaterialField.truncated>`
+    to the binding's order — plus its two mandatory ends (the
+    :class:`~orpheus.transport.operators.bound_operator.BoundOperator`
+    base; :math:`\Lambda` is endomorphic on the SH coefficient space of
+    its order). ``L`` is DERIVED from the field (the truncation IS the
+    order — single source); the per-material dispatch lives on the
+    field's :meth:`~orpheus.transport.material_field.ScatteringMaterialField.moment_source`
+    verb, whose shape guard refuses a moments tensor at any other order.
 
     ``skip_l0`` (default ``True``) skips the :math:`\ell = 0` block, which
     the project's P0 in-scatter handles on a separate reaction-rate fast
-    path (:meth:`ScatteringOperator.add_iso_source`). Set ``False`` for the
-    full :math:`R\Lambda M\psi` composition on the LinearOperator surface.
+    path. Set ``False`` for the full :math:`R\Lambda M\psi` composition on
+    the LinearOperator surface — an ℓ-range selector inside the ONE datum,
+    not a path switch.
 
     Capability set: ``{apply, apply_transpose}``; no efficient ``solve``
     (rank-deficient on the :math:`\ell = 0` block by design).
@@ -143,20 +163,47 @@ class LegendreMomentScattering(LinearOperator):
 
     Parameters
     ----------
-    mat_xs : MaterialXSField
-        Macroscopic XS field carrying the per-material Legendre scattering
-        matrices and the cell-to-material map. The per-material dispatch
-        lives inside :meth:`MaterialXSField.apply_legendre_scattering_moments`.
-    L : int
-        Maximum Legendre order :math:`L` retained.
+    scattering : ScatteringMaterialField
+        The per-material Legendre transfer stacks over the mesh layout,
+        truncated to this binding's order.
     skip_l0 : bool, default ``True``
         Skip the :math:`\ell = 0` block (handled by P0 in-scatter). Set
-        ``False`` for the full :math:`R\Lambda M\psi` composition.
+        ``False`` for the full :math:`R \Lambda M \psi` composition.
+    domain, codomain : FunctionSpace
+        The two mandatory ends (kw-only, write-once — the base) — the SH
+        coefficient space of the field's order, both, for the shipped
+        endomorphic binding.
     """
 
-    mat_xs: "MaterialXSField"
-    L: int
+    scattering: "ScatteringMaterialField"
     skip_l0: bool = True
+
+    @classmethod
+    def from_material_xs(
+        cls,
+        mat_xs: "MaterialXSField",
+        L: int,
+        *,
+        skip_l0: bool = True,
+    ) -> "LegendreMomentScattering":
+        r"""Tier-2 extract-and-mint: pull the scattering channel of a
+        :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
+        facade, truncate to ``L``, and bind the endomorphic SH ends
+        (``SphericalHarmonicSpace.from_L(L)`` supplying both — the
+        endomorphism sugar lives HERE, never on the exact ctor)."""
+        sh_space = SphericalHarmonicSpace.from_L(L)
+        return cls(
+            ScatteringMaterialField.from_material_xs(mat_xs).truncated(L),
+            skip_l0=skip_l0,
+            domain=sh_space,
+            codomain=sh_space,
+        )
+
+    @property
+    def L(self) -> int:
+        r"""The Legendre truncation :math:`L` — DERIVED from the bound
+        field (the truncation is the order; single source)."""
+        return self.scattering.order
 
     @property
     def is_adjointable(self) -> bool:
@@ -197,7 +244,7 @@ class LegendreMomentScattering(LinearOperator):
             (the scattered moment SOURCE) with matching ``L`` / ``mesh`` /
             spatial-moment width.  Bare ndarray → ndarray (the endomorphic
             moment-space view the :math:`R\circ\Lambda\circ M`
-            :attr:`~ScatteringOperator.kernel` ``OperatorProduct`` composes on).
+            kernel ``OperatorProduct`` composes on).
 
         Returns
         -------
@@ -209,14 +256,14 @@ class LegendreMomentScattering(LinearOperator):
 
         Notes
         -----
-        Both arms route through the single per-material kernel
-        :meth:`MaterialXSField.apply_legendre_scattering_moments`; they differ
-        only in the carrier wrap.
+        Both arms route through the field's single per-material verb
+        :meth:`~orpheus.transport.material_field.ScatteringMaterialField.moment_source`;
+        they differ only in the carrier wrap.
         """
         from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
         if isinstance(moments, HarmonicMomentFlux):
-            out_values = self.mat_xs.apply_legendre_scattering_moments(
-                moments.values, L=self.L, skip_l0=self.skip_l0,
+            out_values = self.scattering.moment_source(
+                moments.values, skip_l0=self.skip_l0,
             )
             # flux moment → source moment: the explicit role change
             # (CS4b S4 — same space, new class; role is class identity).
@@ -224,9 +271,7 @@ class LegendreMomentScattering(LinearOperator):
                 values=out_values, space=moments.space, L=moments.L,
                 spatial_moments=moments.spatial_moments,
             )
-        return self.mat_xs.apply_legendre_scattering_moments(
-            moments, L=self.L, skip_l0=self.skip_l0,
-        )
+        return self.scattering.moment_source(moments, skip_l0=self.skip_l0)
 
     def apply_transpose(
         self, moments: "np.ndarray | HarmonicMomentSourceSink",
@@ -237,8 +282,8 @@ class LegendreMomentScattering(LinearOperator):
         source moment back into the flux-moment space it scattered from (source →
         flux), transposing the per-ℓ group-transfer
         :math:`\Sigma_{s,\ell}(g'\to g) \mapsto (g\to g')`.  Routes through the
-        transpose twin
-        :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.apply_legendre_scattering_moments_transpose`.
+        field's transpose verb
+        :meth:`~orpheus.transport.material_field.ScatteringMaterialField.moment_source_transpose`.
 
         This is the Euclidean transpose, **not** the metric Hilbert adjoint
         :math:`\Lambda^{\dagger} = G^{-1}\Lambda^{T}G` (the
@@ -256,92 +301,82 @@ class LegendreMomentScattering(LinearOperator):
         from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 
         if isinstance(moments, HarmonicMomentSourceSink):
-            out_values = self.mat_xs.apply_legendre_scattering_moments_transpose(
-                moments.values, L=self.L, skip_l0=self.skip_l0,
+            out_values = self.scattering.moment_source_transpose(
+                moments.values, skip_l0=self.skip_l0,
             )
             return HarmonicMomentFlux(
                 values=out_values, space=moments.space, L=moments.L,
                 spatial_moments=moments.spatial_moments,
             )
-        return self.mat_xs.apply_legendre_scattering_moments_transpose(
-            moments, L=self.L, skip_l0=self.skip_l0,
+        return self.scattering.moment_source_transpose(
+            moments, skip_l0=self.skip_l0,
         )
 
-    @property
-    def domain(self) -> "FunctionSpace":
-        r"""The spherical-harmonic coefficient space — :math:`\Lambda` is endomorphic.
 
-        :math:`\Lambda` acts block-diagonally per :math:`\ell` ON moment space, so
-        domain and codomain are BOTH the SH coefficient space
-        :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace` of order :attr:`L`
-        (``== frame.basis_space``). Carrying real spaces lets
-        :class:`~orpheus.numerics.operator.OperatorProduct` admit the ``R∘Λ∘M``
-        composition natively (the composability guard validates it).
-        """
-        from orpheus.numerics.spaces import SphericalHarmonicSpace
-
-        return SphericalHarmonicSpace.from_L(self.L)
-
-    @property
-    def codomain(self) -> "FunctionSpace":
-        r"""Endomorphic on the SH coefficient space — codomain ``==`` :attr:`domain`."""
-        return self.domain
-
-
-@dataclass(frozen=True)
-class N2NMomentOperator(LinearOperator):
-    r"""The (n,2n) isotropic :math:`\ell=0` moment operator :math:`2\,\Sigma_{2n}`.
+@dataclass(eq=False)
+class N2NMomentOperator(BoundOperator):
+    r"""The (n,2n) isotropic :math:`\ell=0` moment operator :math:`\nu_{2n}\,\Sigma_{2n}`.
 
     The (n,2n) reaction is a DISTINCT isotropic (:math:`\ell=0`) group transfer —
     a *multiplication* channel (each event emits two neutrons), NOT scattering —
-    so it is its own named operator, summed with :math:`\Lambda` in moment space
-    (an :class:`~orpheus.numerics.operator.OperatorSum`) and frame-conjugated
-    with it into the one full in-scatter source :math:`R\circ(\Lambda + N_{2n})
-    \circ M` (:attr:`ScatteringOperator.full_scatter_kernel`). Keeping the
+    so it is its own named operator, summed with :math:`\Lambda` in moment
+    space (an :class:`~orpheus.numerics.operator.OperatorSum`) where a full
+    in-scatter conjugation wants both. Keeping the
     multiplication reaction a visible distinct operator, rather than hidden in
     the scattering matmul, is the physics-faithful choice — see
     ``docs/theory/methods/sn/adjoint.rst §sn-scattering-adjoint-source``.
 
-    Endomorphic on the spherical-harmonic coefficient space of order :attr:`L`
-    (it reads/writes ONLY the :math:`\ell=0` block, so it composes in an
-    ``OperatorSum`` with :math:`\Lambda` on the same space); per-material dispatch
-    lives in :meth:`MaterialXSField.apply_n2n_moments`.
+    **The CS4c rebind (design record §14):** the bound datum is a
+    :class:`~orpheus.transport.material_field.N2NMaterialField` — the raw
+    per-material reaction matrices over the mesh layout, with the
+    multiplicity :math:`\nu_{2n}` entering from its one home
+    (:attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`) inside the
+    field's verbs, never as a literal here. The two mandatory ends are the
+    SH coefficient space it composes on (it reads/writes ONLY the
+    :math:`\ell=0` block, so it joins an ``OperatorSum`` with
+    :math:`\Lambda` on the same space).
+
+    Parameters
+    ----------
+    n2n : N2NMaterialField
+        The per-material :math:`(n,2n)` reaction matrices over the layout.
+    domain, codomain : FunctionSpace
+        The two mandatory ends (kw-only, write-once — the base): the SH
+        coefficient space of the composing order, both.
     """
 
-    mat_xs: "MaterialXSField"
-    L: int
+    n2n: "N2NMaterialField"
+
+    @classmethod
+    def from_material_xs(
+        cls, mat_xs: "MaterialXSField", L: int,
+    ) -> "N2NMomentOperator":
+        r"""Tier-2 extract-and-mint: pull the :math:`(n,2n)` channel of a
+        facade and bind the endomorphic SH ends at order ``L``."""
+        sh_space = SphericalHarmonicSpace.from_L(L)
+        return cls(
+            N2NMaterialField.from_material_xs(mat_xs),
+            domain=sh_space,
+            codomain=sh_space,
+        )
 
     @property
     def is_adjointable(self) -> bool:
-        # 2Σ_{2n}^T (apply_transpose) is the ℓ=0 group-transpose; caps ⊇
+        # ν·Σ_{2n}^T (apply_transpose) is the ℓ=0 group-transpose; caps ⊇
         # apply_transpose. is_invertible inherits base False.
         return True
 
     def apply(self, moments: np.ndarray) -> np.ndarray:
-        r""":math:`2\,\Sigma_{2n}` applied to the :math:`\ell=0` moment (ℓ≥1 zero).
+        r""":math:`\nu_{2n}\,\Sigma_{2n}` applied to the :math:`\ell=0` moment (ℓ≥1 zero).
 
-        Bare ndarray (the endomorphic moment-space view the ``frame.conjugate``
-        ``OperatorProduct`` chain composes on — both for the forward
-        :attr:`~ScatteringOperator.full_scatter_kernel` and its
-        :meth:`apply_transpose`).
+        Bare ndarray (the endomorphic moment-space view a ``frame.conjugate``
+        ``OperatorProduct`` chain composes on).
         """
-        return self.mat_xs.apply_n2n_moments(moments)
+        return self.n2n.moment_emission(moments)
 
     def apply_transpose(self, moments: np.ndarray) -> np.ndarray:
-        r"""The :math:`\ell=0` group-transpose :math:`(2\,\Sigma_{2n})^{T}` (bare ndarray)."""
-        return self.mat_xs.apply_n2n_moments_transpose(moments)
-
-    @property
-    def domain(self) -> "FunctionSpace":
-        r"""The SH coefficient space of order :attr:`L` — :math:`N_{2n}` is endomorphic."""
-        from orpheus.numerics.spaces import SphericalHarmonicSpace
-
-        return SphericalHarmonicSpace.from_L(self.L)
-
-    @property
-    def codomain(self) -> "FunctionSpace":
-        r"""Endomorphic — codomain ``==`` :attr:`domain`."""
-        return self.domain
+        r"""The :math:`\ell=0` group-transpose :math:`(\nu_{2n}\,\Sigma_{2n})^{T}` (bare ndarray)."""
+        return self.n2n.moment_emission_transpose(moments)
 
 
 @dataclass
@@ -481,6 +516,39 @@ class ScatteringOperator(LinearOperator):
                 self.scattering_order,
             )
         return self._Y_cached
+
+    @cached_property
+    def _scattering_field(self) -> ScatteringMaterialField:
+        r"""TRANSIENT (CS4c 3b-A): the scattering channel's kernel field,
+        truncated to this binding's order — the datum the step-3 ctor flip
+        promotes to a retained field. Snapshot semantics are unchanged:
+        the facade's dense caches already froze the scattering data on
+        first read (the shipped σ-rebind contract touches σ_t only)."""
+        return ScatteringMaterialField.from_material_xs(
+            self.mat_xs,
+        ).truncated(self.scattering_order)
+
+    @cached_property
+    def _n2n_field(self) -> N2NMaterialField:
+        r"""TRANSIENT (CS4c 3b-A): the (n,2n) channel's kernel field —
+        leaves this class entirely with the §14.1 N2N extraction."""
+        return N2NMaterialField.from_material_xs(self.mat_xs)
+
+    @property
+    def _sh_space(self) -> "FunctionSpace":
+        r"""The SH coefficient space of this binding's order — the
+        endomorphic ends of the internally-minted moment factors."""
+        return SphericalHarmonicSpace.from_L(self.scattering_order)
+
+    def _moment_scattering(self, *, skip_l0: bool) -> LegendreMomentScattering:
+        r"""Mint the moment-space :math:`\Lambda` factor on this binding's
+        datum + SH ends — the ONE internal spelling (four consumers:
+        the §5.6 kernel, the full conjugation, the aniso moment route,
+        and the windowed arm)."""
+        sh = self._sh_space
+        return LegendreMomentScattering(
+            self._scattering_field, skip_l0=skip_l0, domain=sh, codomain=sh,
+        )
 
     @cached_property
     def frame(self) -> HarmonicFrame:
@@ -634,9 +702,7 @@ class ScatteringOperator(LinearOperator):
             ``(N, ng, nx, ny)`` per-ordinate :math:`\ell\ge 1` in-scatter
             source, **pre** :math:`1/W`.
         """
-        scatter = LegendreMomentScattering(
-            mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
-        )
+        scatter = self._moment_scattering(skip_l0=True)
         # R∘Λ as ONE typed operator (M already applied — the moments ARE M·ψ).
         return self.frame.reconstruct_after(scatter).apply(moment_values)
 
@@ -692,9 +758,7 @@ class ScatteringOperator(LinearOperator):
         # faces. Λ now carries real spaces (== frame.basis_space), so the
         # OperatorProduct composability guard validates R∘Λ∘M natively — NO cast.
         return self.frame.conjugate(
-            LegendreMomentScattering(
-                mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
-            )
+            self._moment_scattering(skip_l0=True)
         )
 
     @property
@@ -716,11 +780,10 @@ class ScatteringOperator(LinearOperator):
         0-ULP crosscheck oracle): this is the FULL ℓ≥0 + (n,2n) source. Built
         fresh per access (read-through to :attr:`mat_xs`).
         """
+        sh = self._sh_space
         return self.frame.conjugate(
-            LegendreMomentScattering(
-                mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=False,
-            )
-            + N2NMomentOperator(mat_xs=self.mat_xs, L=self.scattering_order)
+            self._moment_scattering(skip_l0=False)
+            + N2NMomentOperator(self._n2n_field, domain=sh, codomain=sh)
         )
 
     @cached_property
@@ -1286,9 +1349,9 @@ class ScatteringOperator(LinearOperator):
             # per-ordinate AngularSourceSink (riding its bound angular
             # codomain), then the producer-side 1/W. Numerically equals the
             # kernel's ndarray reconstruct_after(Λ) reference.
-            scattered = LegendreMomentScattering(
-                mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
-            ).apply(phi_moments)
+            scattered = self._moment_scattering(skip_l0=True).apply(
+                phi_moments,
+            )
             aniso = self._source_reconstruction.apply(
                 scattered,
             ) / float(self.weights.sum())

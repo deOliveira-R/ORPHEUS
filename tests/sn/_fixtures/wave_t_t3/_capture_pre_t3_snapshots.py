@@ -221,7 +221,7 @@ def _capture_legendre_moments(
     moments = HarmonicMomentFlux.from_mesh_and_L(
         moments_values, solver.sn_mesh, L,
     )
-    Lam = LegendreMomentScattering(
+    Lam = LegendreMomentScattering.from_material_xs(
         mat_xs=solver.mat_xs, L=L, skip_l0=False,
     )
     scattered = Lam.apply(moments)

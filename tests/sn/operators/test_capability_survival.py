@@ -322,8 +322,8 @@ class TestPredicateFaithfulness:
             IsotropicScattering(mat, space=survey_space),
             IsotropicN2N(mat, space=survey_space),
             FissionOperator(mat_xs=mat, space=survey_space),
-            LegendreMomentScattering(mat_xs=mat, L=1, skip_l0=True),
-            N2NMomentOperator(mat_xs=mat, L=1),
+            LegendreMomentScattering.from_material_xs(mat_xs=mat, L=1, skip_l0=True),
+            N2NMomentOperator.from_material_xs(mat_xs=mat, L=1),
             ScatteringOperator(
                 mat_xs=mat,
                 quadrature=Quadrature.gauss_legendre(n_ordinates=4),

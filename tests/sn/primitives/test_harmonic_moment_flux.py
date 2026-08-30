@@ -546,7 +546,7 @@ class TestRLambdaMRoundTrip:
         )
         moments = HarmonicMomentFlux.from_mesh_and_L(moments_values, sn_mesh, L)
 
-        Lam = LegendreMomentScattering(
+        Lam = LegendreMomentScattering.from_material_xs(
             mat_xs=op.mat_xs, L=L, skip_l0=True,
         )
         out = Lam.apply(moments)
@@ -585,7 +585,7 @@ class TestRLambdaMRoundTrip:
         moments_values = np.zeros(
             (L + 1, 2 * L + 1, mix.ng, nx, ny),
         )
-        Lam = LegendreMomentScattering(
+        Lam = LegendreMomentScattering.from_material_xs(
             mat_xs=op.mat_xs, L=L, skip_l0=True,
         )
         out = Lam.apply(moments_values)

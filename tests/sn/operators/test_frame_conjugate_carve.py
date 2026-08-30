@@ -146,7 +146,7 @@ class TestLegendreMomentScatteringHasRealSpaces:
     def test_lambda_domain_is_codomain_is_basis_space(self, solver_p1_het):
         op = solver_p1_het.scattering_op
         frame = op.frame
-        lam = LegendreMomentScattering(
+        lam = LegendreMomentScattering.from_material_xs(
             mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         # Λ is endomorphic on coefficient (basis) space.
@@ -173,7 +173,7 @@ class TestLegendreMomentScatteringHasRealSpaces:
         ``(R∘Λ∘M)ᵀ`` falls out for free).
         """
         op = solver_p1_het.scattering_op
-        lam = LegendreMomentScattering(
+        lam = LegendreMomentScattering.from_material_xs(
             mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         require(
@@ -207,7 +207,7 @@ class TestLegendreMomentScatteringHasRealSpaces:
         """
         op = solver_p1_het.scattering_op
         frame = op.frame
-        lam = LegendreMomentScattering(
+        lam = LegendreMomentScattering.from_material_xs(
             mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         inner = OperatorProduct(lam, frame.analysis)
@@ -255,7 +255,7 @@ class TestFrameConjugateEqualsRLambdaM:
         op = solver_p1_het.scattering_op
         frame = op.frame
         conjugate = _require_conjugate(frame)
-        lam = LegendreMomentScattering(
+        lam = LegendreMomentScattering.from_material_xs(
             mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
@@ -299,7 +299,7 @@ class TestFrameReconstructAfterEqualsRLambda:
         op = solver_p1_het.scattering_op
         frame = op.frame
         reconstruct_after = _require_reconstruct_after(frame)
-        lam = LegendreMomentScattering(
+        lam = LegendreMomentScattering.from_material_xs(
             mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
@@ -331,7 +331,7 @@ class TestFrameReconstructAfterEqualsRLambda:
         frame = op.frame
         conjugate = _require_conjugate(frame)
         reconstruct_after = _require_reconstruct_after(frame)
-        lam = LegendreMomentScattering(
+        lam = LegendreMomentScattering.from_material_xs(
             mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
@@ -370,7 +370,7 @@ class TestProductionApplyEqualsComposedOperator:
         op = solver_p1_het.scattering_op
         frame = op.frame
         conjugate = _require_conjugate(frame)
-        lam = LegendreMomentScattering(
+        lam = LegendreMomentScattering.from_material_xs(
             mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)

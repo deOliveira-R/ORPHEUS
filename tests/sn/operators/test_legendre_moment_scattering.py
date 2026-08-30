@@ -57,7 +57,7 @@ def _make_simple_lambda(
         nx=nx,
         ny=ny,
     )
-    Lam = LegendreMomentScattering(
+    Lam = LegendreMomentScattering.from_material_xs(
         mat_xs=mat_xs,
         L=L,
         skip_l0=skip_l0,
@@ -186,7 +186,7 @@ class TestEnergyContractionDirection:
             nx=1,
             ny=1,
         )
-        Lam = LegendreMomentScattering(
+        Lam = LegendreMomentScattering.from_material_xs(
             mat_xs=mat_xs,
             L=L,
             skip_l0=True,
@@ -211,7 +211,7 @@ class TestEnergyContractionDirection:
             nx=1,
             ny=1,
         )
-        Lam = LegendreMomentScattering(
+        Lam = LegendreMomentScattering.from_material_xs(
             mat_xs=mat_xs,
             L=1,
             skip_l0=True,
@@ -256,7 +256,7 @@ class TestBitIdenticalToLegacyInlinedMath:
             sig_s=sig_s, cells_by_mat=cells_by_mat,
             ng=ng, nx=nx, ny=ny,
         )
-        Lam = LegendreMomentScattering(
+        Lam = LegendreMomentScattering.from_material_xs(
             mat_xs=mat_xs, L=L, skip_l0=True,
         )
         moments = rng.standard_normal((L + 1, 2 * L + 1, ng, nx, ny))
