@@ -132,6 +132,20 @@ dissolution, P7. Numbers that MUST be re-censused before designing to them
 The campaign pattern's record: **9 of 10 phase openers have corrected their
 own charter section.** Assume this one will too.
 
+✅ **RE-CENSUSED 2026-08-30 (the 10th correction, session 1; ground memos
+`scratch/cs4c_opener_structural_ground.md` + `scratch/cs4c_opener_count_census.md`):**
+C-migration HOLDS drifted (150/133/45 test-tree; production 3/3 space-bound;
+only **7** sites mint truly space-anonymous objects — the 126 `from_mesh`
+spellings resolve a space at construction); the 909-site sugar sweep is
+**DISSOLVED** (S5 landed `2690a434`, 2026-08-24); the 21 field-receiver reads
+are **DISSOLVED** (S4 landed; 0/0/0); the R-A roster is **INTACT** (0
+added/removed; 2 HOMO sites re-spelled post-K2 — the census re-run must
+expect its HOMO row to move); #359 is substantially dissolved (comment
+posted); R6's substance holds at `boundary.py:714` (line rotted). The
+frame-independence condition **HOLDS via PROVENANCE** (the `generator_as`
+channel; the charter's "space's angular measure" wording corrected in the
+ground memo §B.4).
+
 ## 4. What the OPENING SESSION does, in order
 
 1. **Reground**: this file top-to-bottom; then the two charter sections
@@ -155,6 +169,16 @@ own charter section.** Assume this one will too.
 4. **test-architect BEFORE the carve** (the MUST proactive trigger — this is
    an operator-algebra carve crossing subsystem boundaries), then main-agent
    surgical implementation per `delegation.md` (NOT `method-implementer`).
+
+> ✅ **STATUS 2026-08-30 (session 1):** steps 1–2 EXECUTED (reground + the
+> two-explorer ground re-measure); step 3's design round SUBSTANTIVELY CLOSED
+> the same day — **the design record is `.claude/plans/cs4c_binding_design.md`**
+> (rulings: two-space `BoundOperator(domain, codomain)` base; frame handed in,
+> faces minted, HUB interns; the three-tier construction discipline; kernels
+> collapse to one datum; NO kernel dagger — operator-side adjoint by theorem;
+> solution path deferred to its own consumers campaign; all six opener
+> suggestions accepted incl. Riesz legs in-ladder and witness-1's re-rule).
+> Step 4 (test-architect) + step 0 of the ladder await the user's go.
 
 ## 5. Standing constraints carried across the context boundary
 

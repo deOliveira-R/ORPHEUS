@@ -588,7 +588,15 @@ best-designed part of the layer — memo A praise table — churn only with caus
   witnesses for the flip, both `[C]` at HEAD: two meshes differing only
   in a BC declaration mint `==` composite spaces; two schemes with
   different `moment_mass_diagonal` mint `==` composite spaces (the bulk
-  block is hand-named `"sn_bulk"`). And `is_same_phase_space` demands
+  block is hand-named `"sn_bulk"`). ⚠ **RE-MEASURED + RE-RULED 2026-08-30
+  (opener + design round):** witness 2 is REMEDIED by construction (`[M]` the
+  mass rides the moment axis `weights` into the of_axes digest — probed
+  unequal; the hand-named bulk is gone from production, names are
+  `full_field#<digest>`); witness 1 still mints `==` spaces AND is re-ruled
+  **correct-by-doctrine** — F2's DOF-set+Gram criterion (spaces are
+  law-blind; BC-keyed state lives on the mesh), so it flips from red witness
+  to a positive law-blindness gate (`cs4c_binding_design.md` §7.1; ground
+  `scratch/cs4c_opener_structural_ground.md` §D.3). And `is_same_phase_space` demands
   `materials is` — problem-identity conflated with space-identity (the
   measure-vs-measurable-function frame's red witness) — re-scope it when
   the axis-built composite lands.
@@ -1909,6 +1917,15 @@ restricted bulk measure dV→dA × |Ω·n̂|w — already how `angular_trace` is
 built; composite block projections and Γ± half-splits are the true
 subselections; restriction† = extension-by-zero; the R∘G rewiring stays on
 the boundary thread #367).
+
+> ⚠ **SUPERSEDED-IN-SIGNATURE 2026-08-30 (opening design round, user; record
+> `.claude/plans/cs4c_binding_design.md` §1):** `BoundOperator(datum, space)`
+> was a GUIDE, not the signature. One space assumes an ENDOMORPHISM — EE-8's
+> own recorded limit — and dies with the Riesz legs. The base is
+> `BoundOperator(domain, codomain)` (both mandatory; per-END admission), each
+> channel declaring its own datum fields of its own arity; endomorphism sugar
+> (`codomain` defaulting to `domain`) lives on classmethods only. Convergent
+> with O-3's ruled L end state `(domain, codomain, closures)`.
 
 **The original unified sketch (predates the split; the subsections govern):**
 
