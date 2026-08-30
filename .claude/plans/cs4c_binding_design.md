@@ -732,3 +732,105 @@ the retirement target was the INLINE metric recipe in its apply, never the
 arrow object; the chartered outcome (adjoint = algebra, legs
 single-sourced and individually mutable, DualSpace consumed) lands whole,
 plus the dagger-law identities a deletion could never have carried.
+
+## 13. ⏸ COMPACTION POINT #1 (2026-08-30, written pre-compaction with full context; every anchor re-verified at HEAD `f167f3e5`)
+
+### Phase → commit table
+
+| act | commit(s) | state |
+|---|---|---|
+| design round + reviews (§§1–12) | `14201b48` → `2f44ed4e` | closed; F6 ruled (i); R1/R2 ruled |
+| step 1: legs + dual + AdjointOperator re-expression | `68a9c9f3` | ✅ merged |
+| step 1b: the public promotion (141 occ / 43 files) | `733d96f3` | ✅ merged |
+| step 2: BoundOperator base + C rebind | `9fc8bf04` (the ff-merge tip) | ✅ merged |
+| merge gate + reconciliation | `f167f3e5` (docs) | ✅ 13 trees rc=0 |
+
+### The measured baseline every later step diffs against
+
+**[M] 10006 / 0 / 19 sk / 227 des / 68 xf** at `9fc8bf04`, 13 trees rc=0
+(driver `scratch/_cs4c12_gate_driver.sh`, ~65 min wall; log
+`scratch/_cs4c12_fast_gate.log`). Tree costs: sn ~15 min, derivations
+~38 min, everything else < 6 min. The 68 xf = 70 − R1-C − R2-C.
+
+### Durable lessons of the execution phase (beyond §12's)
+
+1. **Mechanic E** — a dataclass field CANNOT realize an abstract property:
+   `dataclass()` deletes the no-default sentinel and re-runs
+   `abc.update_abstractmethods`, re-abstracting it ([M] prototyped); the
+   InitVar route is pyright-hostile (poisons every downstream read). The
+   working spelling: fields for `__init__` generation + POST-CLASS
+   write-once property injection + a second `update_abstractmethods`
+   (`bound_operator.py` — reuse it verbatim for any later leaf family).
+2. **Whole-file `str.replace(old, new, 1)` is NOT call-site surgery** —
+   with the same `space=<expr>` text at neighboring calls, count-1
+   replaces land on the FIRST occurrence, not the intended one ([M] 5 of
+   16 landed wrong; caught by the red loop). Use position-anchored AST
+   spans, edited in reverse source order.
+3. **A prototype that "passed" may never have run** — the runner's
+   relative path broke after `cd` and the pyright half of the output read
+   as the whole result (the L61 family). Assert the prototype PRINTED its
+   positive control before believing it.
+4. **Never `git stash` under a running gate** — one stash/pop mid-suite
+   risks false reds; baseline checks use `git show HEAD:file > tmp`.
+5. `dead_references` caught the retirement's ONE doc casualty
+   (`:attr:` → the retired field) that `-W` structurally cannot; run it
+   before and after every step (baseline 0 dead / 52 checked).
+6. The predicted-then-measured +1 was the layer gate's per-module
+   parametrization gaining `bound_operator.py` — count corpus-coupled
+   parametrizations (per-module, per-registry gates) in every step's
+   predicted delta.
+
+### ▶ RESUMES AT — step 3: S speaks kernel and frame
+
+**Goal (outcome, not mechanism):** the scattering binding is expressible
+from representation-free data — a `ScatteringKernel` truncated to the
+operator's order, faces minted from the HUB-interned frame, two mandatory
+ends — with no `quadrature` field, no `mat_xs`-reading twin paths, and
+the (n,2n) multiplicity owned once.
+
+**Opening protocol (surgical posture): a DESIGN ROUND with the user
+before any edit.** Its inputs, all verified at `f167f3e5`:
+
+- **Ruled design (this record):** §2 (hub interns the frame; the
+  classmethod tier mints the faces; `compare=False` provenance field
+  rides), §4 (+ its census addenda — the satellite mint rate, the
+  forward/adjoint twin routes, the iso asymmetric arrow), §6 as amended
+  (Galerkin-on-faces is the ERR-039 catcher; the reverse-composite
+  comparison is a THEOREM, never a gate; leg-(ii) control =
+  `equispaced_equal`, chosen by measured bite), §12 F5/F6(i)/F7,
+  §12-bis (analysis-verb on S/F only; ledger covers 4 of 8
+  Optional-space classes — iso pair flips un-gated unless extended).
+- **The verification plan:** `scratch/cs4c_verification_plan.md` §5
+  (XD-1 legs), §6 (XD-2 at the 14-site denominator, option (i) ruled;
+  MC hoists to a module constant), §8.4 (the S/F §6b population WITH its
+  predicate limitation), §11.4 (battery B-3, ~24 s).
+- **[M] anchors (re-verified this compaction):** the frame mint
+  `ScatteringOperator.frame` `scattering.py:486+` (reads the mandatory
+  `quadrature` field — the mint step 3 re-routes through
+  `axis.generator_as(Quadrature, consumer=…)`); the space-anonymous iso
+  mint `scattering.py:755` (`isotropic_kernel` at `:727`); the
+  space-less refusal `_interior_space` `:515+` (dissolves at the flip);
+  kernels at `kernels.py:101` (Scattering), `:200` (N2N,
+  `multiplicity` ClassVar), `:259` (Fission); the two pins that MUST be
+  re-keyed in-step: `tests/transport/test_kernels.py:698` (`domain is
+  None` on the iso pair) and `tests/numerics/test_axis_generator.py:379`
+  (the AST call-site set gains the frame-mint member).
+- **Census obligations before designing (§12 F5):** the S-family
+  variable-call/registry-loop check (census 1 ran it for C ONLY); the
+  `.space`/attribute-read sweep for S receivers; [M] the known test
+  population is 99 S/F calls in 18 files (~71 S-side).
+- **Fork F-E is DECIDED IN THIS STEP (or step 4), by ruling:** iso-pair
+  operator-CLASS fate — named ℓ=0 binding recipes vs truncated
+  `ScatteringOperator` bindings — now with the census's evidence (the
+  iso pair is the hottest operator, 4816 applies, an asymmetric arrow).
+- **Parked forks:** C.H-as-object-identity (§8 row 2 note); F-F (CS2
+  residue stays step 6).
+
+**Standing constraints (unchanged):** Host → `.venv/bin/python`;
+canonical runner `-O -m pytest -p no:randomly -m "not slow" -q` SERIAL;
+branch + ff-merge + the 13-tree driver before merging; predicted-then-
+measured vs 10006/0/19/227/68; main agent writes, user steers
+(AskUserQuestion checkpoints); test-architect plan EXISTS (do not
+re-dispatch for step 3 — extend by SendMessage if needed); never
+`git add -A`; commit messages via heredoc `-F`; no source edits under
+running gates; sphinx `-W` + `dead_references` at every step exit.

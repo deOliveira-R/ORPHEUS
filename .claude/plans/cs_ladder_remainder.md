@@ -212,3 +212,11 @@ ground memo §B.4).
   refused; E1 pins that #409 is not re-cited) · #423 (polynomial Basis —
   blocks nothing) · #359 (M-M spellings — re-derive first) · #407 (rides
   O-3, not this ladder).
+
+---
+
+**⏸ STATUS 2026-08-30 (post-compaction-prep):** CS4c steps 1+2 MERGED to
+main @ `9fc8bf04` (13-tree gate [M] 10006/0/19sk/227des/68xf; R1-C/R2-C
+flipped). The LIVE execution surface is now
+`.claude/plans/cs4c_binding_design.md` — its §13 COMPACTION POINT #1
+carries the step-3 resume block; re-anchor there, never from a summary.
