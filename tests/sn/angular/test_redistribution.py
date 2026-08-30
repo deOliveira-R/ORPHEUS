@@ -232,6 +232,7 @@ class TestAlphaDomeClosureContract:
             _assert_alpha_dome_closes(alpha, coord=CoordSystem.SPHERICAL)
 
 
+@pytest.mark.foundation
 class TestG9TheProtocolDeclaresWhatItsConsumersRead:
     """G9a (CS5) — the ``AngularMeasure`` contract stopped under-declaring.
 

@@ -1,13 +1,15 @@
 r"""Space-factor axes — the generators of axis-composed function spaces.
 
 An **axis** is one tensor factor of a function space: the value object
-recording *(index shape, factor measure, basis kind, generator identity)*.
+recording *(index shape, factor measure, basis kind)* as its structural
+identity, plus — since CS5 — *generator provenance* (which object minted
+it), deliberately outside that identity.
 Spaces are ordered products of axes (``FunctionSpace.of_axes``); the axis is
 the unit the composition machinery reasons about — partitions, collapses,
 frames, and (later) ⊕-lifts act **per axis**, never on an anonymous
 position of a monolithic shape tuple.
 
-The four slots, precisely
+The five slots, precisely
 =========================
 
 * ``shape`` — the index set of this factor, rank ≥ 1. Rank > 1 is

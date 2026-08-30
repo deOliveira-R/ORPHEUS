@@ -43,15 +43,22 @@ def _point() -> Axis:
 
 
 # The shipped angular family — EXHAUSTIVE by construction, not a ladder
-# (vv-principles #31's finite-roster corollary): these are the four
-# ``Quadrature`` classmethod factories. Only level_symmetric/product carry
-# a LevelStructure; on the other two ``level_indices`` is ``[arange(N)]``
-# — which is the point: the accessor answers the fourth name on every
-# rule, degenerately where the rule has one level.
+# (vv-principles #31's finite-roster corollary): these are the FIVE
+# ``Quadrature`` classmethod factories — [M] 2026-08-29 (archivist census)
+# ``[n for n, v in vars(Quadrature).items() if isinstance(v, classmethod)]``
+# = gauss_legendre, lebedev, level_symmetric, product, folded_product; the
+# roster's first cut omitted folded_product, the sigma_y-folded CARRYING
+# rule the curvilinear MMS builders default to — i.e. the member with the
+# richest ``level_indices``, on exactly the axis this roster gates. Only
+# the cylindrical-compatible rules carry a LevelStructure; on the others
+# ``level_indices`` is ``[arange(N)]`` — which is the point: the accessor
+# answers the fourth name on every rule, degenerately where the rule has
+# one level.
 _RULES = [
     ("gauss_legendre(4)", lambda: Quadrature.gauss_legendre(4)),
     ("level_symmetric(4)", lambda: Quadrature.level_symmetric(4)),
     ("product(4,8)", lambda: Quadrature.product(4, 8)),
+    ("folded_product(4,8)", lambda: Quadrature.folded_product(4, 8)),
     ("lebedev(5)", lambda: Quadrature.lebedev(5)),
 ]
 
