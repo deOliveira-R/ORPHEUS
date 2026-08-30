@@ -254,6 +254,16 @@
 > (§5.5 items 2+3: the #409 non-diagonal metric + the polynomial
 > `Basis`) stays open at the §5.5 home and does not block the
 > P4-remainder.
+> ✅ **RULED 2026-08-29 (user, post-CS5 sequencing round): ▶ NEXT =
+> the P4-remainder** — the producer binds to `(space, R)`; the courier
+> dissolves with the binding; the `ChartConnection` name resolves as a
+> consequence (§9.1's residue re-ruling + the §1 prose-corpus grep
+> before adopting ANY candidate name); G5+G7 land with the first
+> solve-time consumer. Its opener owes the campaign-pattern shelf-life
+> re-measure (6 of 6 openers have corrected their own section): §4ter's
+> fork measurements (fork 2's "STILL OPEN: where the PRODUCER goes",
+> the `streaming_terms` read set, the R/M audience split) date
+> 2026-08-27/28 and predate P4.5–P4.7 + P4b + CS5.
 >
 > ⭐ **Before designing P4.9, read `scratch/p4_9_design_measured.md`** — the
 > §6b pre-measurement (taken 2026-08-28 while P4.3's gate ran) re-sizes the
