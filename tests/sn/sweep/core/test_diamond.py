@@ -85,8 +85,16 @@ from tests.sn.sweep.core._c_surrogate import (
 def _dAw_of(op, cell_idx, direction_idx, mu_level_idx=None):
     """ΔA/w from its two factors (P4.7 — the packet no longer carries
     the fusion), resolving the cylinder's within-level index to the
-    GLOBAL ordinate exactly as the producer does."""
-    quad = op.angular.quadrature
+    GLOBAL ordinate exactly as the producer does.
+
+    The quadrature comes through the operator's BOUND axis (the
+    P4-remainder binding; the ``AngularRedistribution.quadrature``
+    courier is retired). ⚠ Honest scope: this oracle therefore follows
+    the SUT's own mint — it does NOT catch an axis minted from the wrong
+    quadrature (identical epistemics to the courier era). That mode is
+    owned by the two-mints-agree gate and K1's control leg.
+    """
+    quad = op.angular_axis.generator_as(Quadrature, consumer="_dAw_of oracle")
     n = (direction_idx if mu_level_idx is None
          else int(quad.level_indices[mu_level_idx][direction_idx]))
     return float(op.delta_A[cell_idx] / quad.weights[n])

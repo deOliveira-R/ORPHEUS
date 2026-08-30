@@ -1148,6 +1148,7 @@ def test_the_raw_ctor_is_a_declared_expert_seam():
     doctored = IdentityAngularClosure(
         angular_redistribution(sn.quad, sn.coord),
         np.zeros((sn.nx, 1, 1)),
+        sn.quad.axis(),
     )
     L = StreamingOperator(sn, sn.scheme, doctored)
     assert L.angular_closure is doctored

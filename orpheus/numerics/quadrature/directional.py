@@ -235,9 +235,15 @@ class Quadrature:
         cubatures."""
         return self.measure.dim
 
-    def axis(self, label: str) -> "Axis":
+    def axis(self, label: str = "angular") -> "Axis":
         r"""Mint the angular space-factor axis, with THIS rule as its
         generator.
+
+        The label DEFAULTS: a directional quadrature is the angular
+        generator, so its axis's role is intrinsic — defaulting the
+        spelling makes a label-twin across mint sites unspellable (the
+        P4-remainder's second-mint hazard). Pass a label only for a
+        deliberately re-labelled factor.
 
         Delegates the structural mint to
         :meth:`DiscreteMeasure.axis <orpheus.numerics.measure.DiscreteMeasure.axis>`

@@ -406,6 +406,7 @@ def test_identity_closure_tau_is_neutral_one():
     assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
     closure = IdentityAngularClosure(
         reduced.angular, reduced.redistribution_pairing,
+        reduced.angular_axis,
     )
 
     (tau,) = closure._tau_per_level

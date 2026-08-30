@@ -63,15 +63,18 @@ pytestmark = pytest.mark.foundation
 
 
 def _mm_from(sn_mesh) -> MorelMontryAngularSweep:
-    """Build the closure from a mesh's two TENSOR FACTORS.
+    """Build the closure from a mesh's factors.
 
-    The family's contract is ``cls(angular, pairing)`` (the un-weld arc's
-    Phase B) — the mesh is no longer an operand.  These protocol/repr rows
-    only need *a* constructed closure, so they spell the two-factor call
-    once here rather than at each site.
+    The family's contract is ``cls(angular, pairing, angular_axis)`` (the
+    un-weld arc's Phase B two tensor factors + the P4-remainder's
+    generator-stamped space factor) — the mesh is no longer an operand.
+    These protocol/repr rows only need *a* constructed closure, so they
+    spell the call once here rather than at each site.
     """
     return MorelMontryAngularSweep(
-        sn_mesh.reduced.angular, sn_mesh.reduced.redistribution_pairing,
+        sn_mesh.reduced.angular,
+        sn_mesh.reduced.redistribution_pairing,
+        sn_mesh.reduced.angular_axis,
     )
 
 class TestProtocolConformance:
@@ -120,9 +123,11 @@ class TestRegistry:
 
     def test_create_morel_montry_returns_instance(self) -> None:
         # ``create`` forwards kwargs to the concrete ``__init__`` — the
-        # family's ``cls(angular, pairing)`` two-tensor-factor contract rides
+        # family's ``cls(angular, pairing, angular_axis)`` contract rides
         # through the registry (C5: no unbound construction; the un-weld
-        # arc's Phase B replaced the mesh operand with the two factors).
+        # arc's Phase B replaced the mesh operand with the two tensor
+        # factors, and the P4-remainder added the space factor the mints
+        # read through — the kwarg NAME is part of the registry surface).
         sn_mesh = make_tiny_spherical_sn_mesh()
         reduced = sn_mesh.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -130,6 +135,7 @@ class TestRegistry:
             "morel_montry_angular_sweep",
             angular=reduced.angular,
             pairing=reduced.redistribution_pairing,
+            angular_axis=reduced.angular_axis,
         )
         assert isinstance(instance, MorelMontryAngularSweep)
 
@@ -454,17 +460,17 @@ class TestPairingContract:
         sn = make_tiny_spherical_sn_mesh()
         reduced = sn.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
-        return reduced.angular, reduced.redistribution_pairing
+        return reduced.angular, reduced.redistribution_pairing, reduced.angular_axis
 
     @pytest.mark.foundation
     def test_the_shipped_gram_is_single_moment_and_admits(self) -> None:
         """The positive leg — without it the refusals below prove nothing."""
-        angular, pairing = self._angular()
+        angular, pairing, angular_axis = self._angular()
         if pairing.shape[1:] != (1, 1):
             pytest.fail(
                 f"the shipped pairing should be single-moment; got {pairing.shape}"
             )
-        closure = MorelMontryAngularSweep(angular, pairing)
+        closure = MorelMontryAngularSweep(angular, pairing, angular_axis)
         if closure is None:  # pragma: no cover — construction must succeed
             pytest.fail("the single-moment pairing must be admitted")
 
@@ -476,25 +482,25 @@ class TestPairingContract:
     def test_multi_moment_gram_refuses_naming_the_missing_solve(
         self, n_mom: int, n_thread: int, family: str,
     ) -> None:
-        angular, pairing = self._angular()
+        angular, pairing, angular_axis = self._angular()
         nx = pairing.shape[0]
         with pytest.raises(NotImplementedError, match="158"):
-            MorelMontryAngularSweep(angular, np.zeros((nx, n_mom, n_thread)))
+            MorelMontryAngularSweep(angular, np.zeros((nx, n_mom, n_thread)), angular_axis)
 
     @pytest.mark.foundation
     def test_a_gram_without_the_moment_axes_refuses(self) -> None:
         """The pre-Phase-B spelling (a bare ``(nx,)`` ΔA) is not a pairing."""
-        angular, pairing = self._angular()
+        angular, pairing, angular_axis = self._angular()
         with pytest.raises(ValueError, match="n_mom"):
-            MorelMontryAngularSweep(angular, np.zeros(pairing.shape[0]))
+            MorelMontryAngularSweep(angular, np.zeros(pairing.shape[0]), angular_axis)
 
     @pytest.mark.foundation
-    def test_the_identity_member_takes_the_same_two_operands(self) -> None:
+    def test_the_identity_member_takes_the_same_operands(self) -> None:
         """The dispatch site constructs whichever class was selected without
         knowing which, so the contract must be uniform — and Cartesian's
-        factors are both the NEUTRAL element."""
-        angular, pairing = self._angular()
-        closure = IdentityAngularClosure(angular, pairing)
+        tensor factors are both the NEUTRAL element."""
+        angular, pairing, angular_axis = self._angular()
+        closure = IdentityAngularClosure(angular, pairing, angular_axis)
         if repr(closure) != "IdentityAngularClosure()":
             pytest.fail(
                 "the identity member's repr must not carry a mesh — it no "
@@ -608,6 +614,7 @@ class TestMintedScanConstants:
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         closure = IdentityAngularClosure(
             reduced.angular, reduced.redistribution_pairing,
+            reduced.angular_axis,
         )
         n = closure.tau_per_ordinate.size
         assert np.array_equal(closure.tau_inv_per_ordinate, np.ones(n))
@@ -618,3 +625,143 @@ class TestMintedScanConstants:
         psi_in = np.array([9.9, 9.9, 9.9])
         out = closure.advance_psi_half(psi_avg, psi_in, ordinate=n - 1)
         assert np.array_equal(out, psi_avg)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# P4-remainder (2026-08-29): the closure MINT reads through the axis
+# ═══════════════════════════════════════════════════════════════════════
+
+def _scale_decoy(quad):
+    """nodes x 0.9, weights preserved — the two-tier-admissible decoy.
+
+    [M] verification plan §5.2: the α-dome guard REFUSES rolled /
+    negated / reversed nodes on curvilinear charts (Σ w·µ must vanish);
+    scaling preserves it, so the mint ADMITS the decoy while τ and µ_x
+    move. Weight-preserving ⟹ axis identity (and every space name) is
+    untouched.
+    """
+    import dataclasses as _dc
+
+    from orpheus.numerics.quadrature.directional import Quadrature
+
+    dm = quad.measure
+    return Quadrature(
+        measure=_dc.replace(dm, nodes=(np.asarray(dm.nodes) * 0.9).copy()),
+        level_structure=quad.level_structure,
+        folded_by=quad.folded_by,
+    )
+
+
+def _weight_scale_decoy(quad):
+    """weights x 0.9 — the dAw-read's decoy (Q4 ruling: a row, not a
+    disclaimer). Scaling ALL weights preserves Σ w·µ = 0 (the dome still
+    closes) while every ΔA/w moves. ⚠ It MOVES axis identity (the
+    weights are the axis's bytes) — acceptable at the ctor tier, where
+    no space sits between the mint and the read.
+    """
+    import dataclasses as _dc
+
+    from orpheus.numerics.quadrature.directional import Quadrature
+
+    dm = quad.measure
+    return Quadrature(
+        measure=_dc.replace(dm, weights=(np.asarray(dm.weights) * 0.9).copy()),
+        level_structure=quad.level_structure,
+        folded_by=quad.folded_by,
+    )
+
+
+class TestP4RemTheClosureMintReadsThroughTheAxis:
+    """K3 + the closure-side G5 rows: the mint recovers the quadrature
+    THROUGH the ctor's ``angular_axis`` (its generator), so a decoy axis
+    moves the minted constants while the TRUE AngularRedistribution sits
+    untouched beside it — the route, not a value tautology."""
+
+    @pytest.mark.foundation
+    def test_K3_a_node_decoy_axis_moves_tau_and_mu(self):
+        """[M] measured admitted: the scale decoy passes the dome guard;
+        τ MOVES and µ_x MOVES while the handed AR stays the true one.
+        ⚠ ``_dAw_per_level`` deliberately NOT asserted here — the decoy
+        preserves weights, so the dAw read has its own row below."""
+        sn = make_tiny_spherical_sn_mesh()
+        reduced = sn.reduced
+        assert reduced is not None
+        decoy = _scale_decoy(sn.quad)
+        true_c = MorelMontryAngularSweep(
+            reduced.angular, reduced.redistribution_pairing, sn.quad.axis()
+        )
+        decoy_c = MorelMontryAngularSweep(
+            reduced.angular, reduced.redistribution_pairing, decoy.axis()
+        )
+        # the decoy is invisible to axis identity (weights preserved)
+        assert sn.quad.axis() == decoy.axis()
+        (tau_t,), (tau_d,) = true_c._tau_per_level, decoy_c._tau_per_level
+        if np.allclose(tau_t, tau_d):
+            pytest.fail("τ did not move — the mint did not read the axis")
+        if np.allclose(true_c._mu_x, decoy_c._mu_x):
+            pytest.fail("µ_x did not move — the mint did not read the axis")
+
+    @pytest.mark.foundation
+    def test_K3_a_weight_decoy_axis_moves_dAw(self):
+        """The ``quad.weights`` mint read's own row (Q4: gate it, do not
+        disclaim it). [M] weights x 0.9 keeps the dome closed and moves
+        every ΔA/w entry by 1/0.9."""
+        sn = make_tiny_spherical_sn_mesh()
+        reduced = sn.reduced
+        assert reduced is not None
+        decoy = _weight_scale_decoy(sn.quad)
+        true_c = MorelMontryAngularSweep(
+            reduced.angular, reduced.redistribution_pairing, sn.quad.axis()
+        )
+        decoy_c = MorelMontryAngularSweep(
+            reduced.angular, reduced.redistribution_pairing, decoy.axis()
+        )
+        (d_t,), (d_d,) = true_c._dAw_per_level, decoy_c._dAw_per_level
+        if np.allclose(d_t, d_d):
+            pytest.fail("ΔA/w did not move — the weights read bypassed the axis")
+
+    @pytest.mark.foundation
+    def test_K3_the_identity_member_follows_a_different_N_axis(self):
+        """[M] Identity's only mint read is the ordinate COUNT, and a
+        same-N decoy mints bit-identical neutral constants — a
+        structural non-catcher (verification plan §5.4). The
+        discriminator is a DIFFERENT-N axis: _N follows the axis."""
+        sn = make_tiny_spherical_sn_mesh()
+        reduced = sn.reduced
+        assert reduced is not None
+        from orpheus.numerics.quadrature.directional import Quadrature
+
+        other = Quadrature.gauss_legendre(8)
+        closure = IdentityAngularClosure(
+            reduced.angular, reduced.redistribution_pairing, other.axis()
+        )
+        assert closure.tau_per_ordinate.size == other.N
+        assert closure.tau_per_ordinate.size != sn.quad.N
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize(
+        "cls,name",
+        [
+            (MorelMontryAngularSweep, "MorelMontryAngularSweep"),
+            (IdentityAngularClosure, "IdentityAngularClosure"),
+        ],
+    )
+    def test_G5_a_generator_less_axis_refuses_naming_the_closure(self, cls, name):
+        """G5.2 (closure rows) — two-fragment refusal: the axis label AND
+        the consumer's own class name; fires at CONSTRUCTION (the mint),
+        i.e. at ``SNMesh.__init__`` time on the production path."""
+        from orpheus.numerics.axis import Axis, BasisKind
+
+        sn = make_tiny_spherical_sn_mesh()
+        reduced = sn.reduced
+        assert reduced is not None
+        bare = Axis(
+            "angular", (sn.quad.N,),
+            weights=np.asarray(sn.quad.weights, float), kind=BasisKind.NODAL,
+        )
+        with pytest.raises(ValueError, match="angular"):
+            cls(reduced.angular, reduced.redistribution_pairing, bare)
+        with pytest.raises(ValueError, match=name):
+            cls(reduced.angular, reduced.redistribution_pairing, bare)
+        with pytest.raises(ValueError, match="minted through"):
+            cls(reduced.angular, reduced.redistribution_pairing, bare)

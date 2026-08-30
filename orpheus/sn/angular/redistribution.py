@@ -212,6 +212,7 @@ import numpy as np
 from orpheus.geometry.coord import CoordSystem
 
 if TYPE_CHECKING:
+    from orpheus.numerics.axis import Axis
     from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 
 
@@ -288,6 +289,18 @@ class AngularMeasure(Protocol):
         Protocol under-declared what its consumer needs. The tolerant
         ``getattr`` at the probe survives (structural conformers may
         predate this declaration); the CONTRACT now tells the truth.
+        """
+        ...
+
+    def axis(self, label: str = "angular") -> "Axis":
+        """Mint the generator-stamped angular space-factor axis.
+
+        Declared since the P4-remainder (2026-08-29), the same repair
+        shape as ``level_structure`` above: the three streaming factories
+        MINT the axis from the measure they are handed, so the mint is
+        part of what this contract's consumers need — a Protocol that
+        omitted it would under-declare again. The concrete implementer is
+        :meth:`Quadrature.axis <orpheus.numerics.quadrature.directional.Quadrature.axis>`.
         """
         ...
 
@@ -496,16 +509,11 @@ class AngularRedistribution:
         half-angle thread's seed flux lives at.  Sphere: ``-1.0`` (the
         Hébert §3.9.4 diameter ray).  Cylinder:
         :math:`-\sin\theta_p = -\sqrt{1-\xi_p^2}`.
-    quadrature :
-        The measure this was built from.  Held so a consumer that needs
-        the weights, the level partition or the cosines does not have to
-        be handed the quadrature separately alongside its redistribution.
     """
 
     coord: CoordSystem
     alpha_per_level: tuple[np.ndarray, ...]
     mu_start_per_level: tuple[float, ...]
-    quadrature: AngularMeasure = field(repr=False)
 
     @property
     def n_levels(self) -> int:
@@ -540,7 +548,6 @@ def angular_redistribution(
             coord=coord,
             alpha_per_level=(np.zeros(n + 1),),
             mu_start_per_level=(-1.0,),
-            quadrature=quadrature,
         )
 
     mu_x = np.asarray(quadrature.mu_x)
@@ -555,7 +562,6 @@ def angular_redistribution(
             coord=coord,
             alpha_per_level=(alpha,),
             mu_start_per_level=(-1.0,),
-            quadrature=quadrature,
         )
 
     if coord is CoordSystem.CYLINDRICAL:
@@ -574,7 +580,6 @@ def angular_redistribution(
             coord=coord,
             alpha_per_level=tuple(alphas),
             mu_start_per_level=tuple(starts),
-            quadrature=quadrature,
         )
 
     raise ValueError(  # pragma: no cover — exhaustive match above

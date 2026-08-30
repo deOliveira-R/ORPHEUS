@@ -209,9 +209,8 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
         g = (
             FunctionSpace.of_axes(q.axis("angular"), _point())
             .axis("angular")
-            .generator
+            .generator_as(Quadrature, consumer="G4 gate")
         )
-        assert g is not None
         got, want = g.level_indices, q.level_indices
         _require(len(got) == len(want), f"{name}: level count")
         for k, (a, b) in enumerate(zip(got, want)):
@@ -231,9 +230,8 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
         g = (
             FunctionSpace.of_axes(q.axis("angular"), _point())
             .axis("angular")
-            .generator
+            .generator_as(Quadrature, consumer="G4 gate")
         )
-        assert g is not None
         _require(g.N == q.N, f"{name}: N")
         npt.assert_array_equal(g.weights, q.weights, err_msg=f"{name}: weights")
         _require(
@@ -300,3 +298,127 @@ class TestG8TheMintIsASectionOfTheForgetfulMap:
         a = m.axis("spatial")
         _require(a.generator is m, "the mint must record its generator")
         _require(m.axis(a.label) == a, "measure mint: not a section")
+
+
+class TestG5GeneratorAsIsTheOneRefusalHome:
+    """P4-remainder G5 — the typed narrow with the by-name refusal.
+
+    The accessor is load-bearing, not decorative: the bare union cannot
+    answer the consumers' reads (a DiscreteMeasure has no ``mu_x`` /
+    ``level_indices``), so every re-pointed read narrows here — one home,
+    and the consumer's own name rides into the message. Per-consumer
+    refusal rows live beside their consumers
+    (``tests/sn/mesh/test_reduced_operator.py``,
+    ``tests/sn/sweep/curvilinear/test_angular_closure.py``).
+    """
+
+    def test_the_narrow_returns_the_generator_itself(self):
+        """G5.1's Axis-tier half — positive first (vv #11)."""
+        q = Quadrature.gauss_legendre(4)
+        a = q.axis()
+        assert a.generator_as(Quadrature, consumer="test") is q
+
+    def test_a_generator_less_axis_refuses_with_both_names(self):
+        q = Quadrature.gauss_legendre(4)
+        bare = Axis(
+            "angular", (q.N,), weights=np.asarray(q.weights, float),
+            kind=BasisKind.NODAL,
+        )
+        with pytest.raises(ValueError, match="angular"):
+            bare.generator_as(Quadrature, consumer="somebody")
+        with pytest.raises(ValueError, match="somebody"):
+            bare.generator_as(Quadrature, consumer="somebody")
+        with pytest.raises(ValueError, match="minted through"):
+            bare.generator_as(Quadrature, consumer="somebody")
+
+    def test_a_wrong_KIND_generator_refuses_too(self):
+        """A measure-minted axis narrowed to Quadrature refuses — the
+        narrow is a type claim, not a None check (parse, don't validate).
+        The message names what it got."""
+        from orpheus.numerics.measure import DiscreteMeasure
+
+        m = DiscreteMeasure(
+            nodes=np.array([0.5, 1.5]), weights=np.array([0.4, 0.6]),
+            support="spatial_R1",
+        )
+        a = m.axis("spatial")
+        with pytest.raises(ValueError, match="DiscreteMeasure"):
+            a.generator_as(Quadrature, consumer="test")
+
+    def test_fragment_disjointness_with_the_space_refusal(self):
+        """G5.4 (L43c) — the neighbouring refusal on the same consumer
+        path spells 'axis lookup:'; this message must not, so a pin on
+        either can never match the other's raise."""
+        q = Quadrature.gauss_legendre(4)
+        bare = Axis(
+            "angular", (q.N,), weights=np.asarray(q.weights, float),
+            kind=BasisKind.NODAL,
+        )
+        try:
+            bare.generator_as(Quadrature, consumer="x")
+        except ValueError as e:
+            assert "axis lookup:" not in str(e)
+        else:  # pragma: no cover
+            pytest.fail("must refuse")
+
+    def test_G5_6a_the_shipped_generator_less_axes_ARE_generator_less(self):
+        """The inventory row: the honest-None sites answer None and the
+        accessor WOULD bite them — proof the guard has teeth wherever it
+        is wired. (Shelf life: the MODAL moment axis retires from this
+        list when §5.5 item 3 lands; the counting point and every
+        EnergyAxis remain.)"""
+        from orpheus.numerics.axis import EnergyAxis
+
+        counting = Axis("spatial", (1,), kind=BasisKind.NODAL)
+        energy = EnergyAxis.synthetic(3)
+        for ax in (counting, energy):
+            assert ax.generator is None
+            with pytest.raises(ValueError, match="minted through"):
+                ax.generator_as(Quadrature, consumer="inventory")
+
+    def test_G5_6b_the_call_site_set_is_the_declared_consumer_set(self):
+        """The 'not on their path' row (AST, the tree's own idiom): the
+        accessor's production call sites are exactly the declared
+        consumers — it reds the moment someone wires the refusal onto a
+        path a shipped generator-less axis travels (the homogeneous
+        pose, the energy family, the MODAL moment axis)."""
+        import ast
+        import pathlib
+
+        declared = {
+            ("orpheus/sn/mesh/reduced_operator.py", "streaming_terms"),
+            ("orpheus/sn/angular/closure.py", "__init__"),  # MM + Identity
+        }
+        found = set()
+        for f in pathlib.Path("orpheus").rglob("*.py"):
+            tree = ast.parse(f.read_text())
+            encl: dict[int, str] = {}
+
+            def walk(node, name):
+                if isinstance(
+                    node, (ast.FunctionDef, ast.AsyncFunctionDef)
+                ):
+                    name = node.name
+                    for line in range(
+                        node.lineno, (node.end_lineno or node.lineno) + 1
+                    ):
+                        encl.setdefault(line, name)
+                for ch in ast.iter_child_nodes(node):
+                    walk(ch, name)
+
+            walk(tree, "<module>")
+            for n in ast.walk(tree):
+                if (
+                    isinstance(n, ast.Attribute)
+                    and n.attr == "generator_as"
+                ):
+                    found.add(
+                        (str(f), encl.get(n.lineno, "<module>"))
+                    )
+        assert found == declared, (
+            f"generator_as call-site set drifted:\n"
+            f"  extra: {sorted(found - declared)}\n"
+            f"  missing: {sorted(declared - found)}\n"
+            f"a new consumer is fine — declare it here; a consumer on a "
+            f"generator-less production path is not."
+        )

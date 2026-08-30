@@ -404,7 +404,8 @@ class SNMesh(MaterialMesh):
         # The mesh's job here is to hand over two values it already holds —
         # not to be captured.  The user-supplied closure CLASS, or the
         # default-by-coord-system, is constructed through the family's
-        # ``cls(angular, pairing)`` contract; every mesh carries a BOUND closure.
+        # ``cls(angular, pairing, angular_axis)`` contract; every mesh
+        # carries a BOUND closure.
         closure_cls = (
             self._user_supplied_closure
             if self._user_supplied_closure is not None
@@ -413,6 +414,7 @@ class SNMesh(MaterialMesh):
         if self.reduced is not None:
             angular = self.reduced.angular
             pairing = self.reduced.redistribution_pairing
+            angular_axis = self.reduced.angular_axis
         else:
             # Multi-D Cartesian: there is NO reduced streaming operator
             # (the chain scan is a 1-D construct; d ≥ 2 rides the
@@ -420,11 +422,14 @@ class SNMesh(MaterialMesh):
             # both tensor factors are the NEUTRAL element and neither
             # needs it.  That they are buildable from ``(quad, coord)``
             # alone is the un-weld's own point: the closure's operands
-            # were never mesh facts.
+            # were never mesh facts.  The axis mint is the same one the
+            # 1-D factories run (``quad.axis()``, label defaulted at the
+            # generator so the two arms cannot spell it differently).
             angular = angular_redistribution(self.quad, self.coord)
             pairing = np.zeros((int(np.prod(self.spatial_shape)), 1, 1))
+            angular_axis = self.quad.axis()
         self.angular_closure: AngularClosureBase = closure_cls(
-            angular, pairing,
+            angular, pairing, angular_axis,
         )
         # Drop the temporary attribute now that the closure is bound.
         del self._user_supplied_closure
@@ -1178,7 +1183,7 @@ class SNMesh(MaterialMesh):
         # forgotten angular geometry (``mu_x``/``eta``/``mu_z``/
         # ``level_indices``) without being handed the quadrature
         # separately.
-        angular = self.quad.axis("angular")
+        angular = self.quad.axis()
         return FunctionSpace.of_axes(angular, *scalar.axes)
 
     @cached_property

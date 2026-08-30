@@ -85,7 +85,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, unique
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -100,6 +100,9 @@ if TYPE_CHECKING:
     from orpheus.numerics.quadrature.directional import Quadrature
 
 __all__ = ["Axis", "BasisKind", "EnergyAxis"]
+
+#: The generator kinds :meth:`Axis.generator_as` can narrow to.
+_G = TypeVar("_G")
 
 
 @unique
@@ -203,6 +206,39 @@ class Axis:
                 w = w + 0.0
                 w.setflags(write=False)
                 object.__setattr__(self, "weights", w)
+
+    def generator_as(self, kind: type[_G], *, consumer: str) -> _G:
+        r"""The generator, NARROWED to the type ``consumer`` needs — or a
+        refusal naming both parties.
+
+        The one home of the generator-less refusal (P4-remainder G5): a
+        consumer that must recover forgotten data (direction cosines, the
+        level fibration) calls this instead of touching
+        :attr:`generator` bare, because the bare union cannot answer the
+        reads (a :class:`~orpheus.numerics.measure.DiscreteMeasure` has
+        no ``mu_x``) and a bare ``None`` dereference names neither the
+        axis nor the asker. ``consumer`` is the caller's own name; the
+        message pins BOTH, so a refusal is diagnosable from the text
+        alone.
+
+        Raises
+        ------
+        ValueError
+            If the axis carries no generator of ``kind`` — i.e. it was
+            not minted through one (``measure.axis(...)`` /
+            ``quad.axis()``).
+        """
+        g = self.generator
+        if not isinstance(g, kind):
+            got = type(g).__name__ if g is not None else "None"
+            raise ValueError(
+                f"axis '{self.label}': {consumer} needs the generating "
+                f"{kind.__name__}, but this axis was not minted through "
+                f"one (generator={got}). Mint the axis via its generator "
+                f"(e.g. quad.axis()) so consumers can recover what the "
+                f"axis forgot."
+            )
+        return g
 
     def _identity_key(self) -> tuple[Any, ...]:
         """The structural content equality/hash read (subclasses extend).

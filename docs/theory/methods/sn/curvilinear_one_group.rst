@@ -486,8 +486,13 @@ eigenvalues in heterogeneous eigenvalue problems.
 used, from the **spatial** factor
 :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.delta_A`
 (shape ``(nx,)``, on the streaming operator) and the **angular** factor
-:math:`1/w_n` (the measure's own weight, reached through
-:attr:`~orpheus.sn.angular.redistribution.AngularRedistribution.quadrature`).
+:math:`1/w_n` (the measure's own weight, recovered through the operator's
+bound angular axis —
+:attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.angular_axis`,
+whose :attr:`~orpheus.numerics.axis.Axis.generator` is the quadrature.
+The ``AngularRedistribution.quadrature`` courier that used to carry it
+retired at the P4-remainder, 2026-08-29 — the angular factor is pure
+α data now).
 
 .. note:: ⭐ **The fused product was retired on 2026-08-26, and the reason
    is instructive.**  Until then the geometry object cached

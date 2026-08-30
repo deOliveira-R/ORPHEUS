@@ -104,6 +104,7 @@ from orpheus.sn.mesh.reduced_operator import (
     slab_streaming,
     spherical_streaming,
 )
+from orpheus.sn.angular.redistribution import angular_redistribution
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -722,3 +723,307 @@ class TestGuards:
         quad = Quadrature.gauss_legendre(8)  # no level_indices
         with pytest.raises(ValueError, match="level structure"):
             cylindrical_streaming(mesh, quad)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# P4-remainder (2026-08-29): the producer binds the angular AXIS
+# ═══════════════════════════════════════════════════════════════════════
+
+def _scale_decoy(quad):
+    """The measured keystone decoy: nodes x 0.9, weights preserved.
+
+    [M] verification plan §5.2 — the ONLY decoy admissible at BOTH tiers
+    (the α-dome guard REFUSES rolled/negated/reversed nodes on every
+    curvilinear chart; scaling preserves Σ w·µ = 0 so the dome closes).
+    Weight-preserving ⟹ the decoy axis is IDENTITY-EQUAL to the true one
+    (the space cannot see it) while every |cosine| moves.
+    """
+    import dataclasses as _dc
+
+    dm = quad.measure
+    decoy_m = _dc.replace(dm, nodes=(np.asarray(dm.nodes) * 0.9).copy())
+    return Quadrature(
+        measure=decoy_m,
+        level_structure=quad.level_structure,
+        folded_by=quad.folded_by,
+    )
+
+
+def _level_roll_decoy(quad):
+    """K2's isolator: SAME measure, level list rolled by one.
+
+    Moves only what the ``level_indices`` read resolves — ``mu_x`` is
+    untouched — so it separates the ``:517`` read from the ``:528`` read
+    (vv #17's per-arm discipline; the scale decoy moves both together).
+    """
+    import dataclasses as _dc
+
+    ls = quad.level_structure
+    assert ls is not None
+    rolled = _dc.replace(
+        ls,
+        level_indices=tuple(
+            ls.level_indices[(k - 1) % len(ls.level_indices)]
+            for k in range(len(ls.level_indices))
+        ),
+    )
+    return Quadrature(
+        measure=quad.measure, level_structure=rolled, folded_by=quad.folded_by
+    )
+
+
+class TestP4RemTheProducerBindsTheAxis:
+    """The binding's own gates: the two mints agree, the courier is dead,
+    the generator-less axis refuses by name, and — the KEYSTONE — the
+    packet reads go THROUGH the axis (route gates; every value comparison
+    over the re-point is X == X because the bound generator IS the
+    courier's old payload, three-way ``is``-identical)."""
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize(
+        "coord,quad_factory",
+        [
+            (CoordSystem.CARTESIAN, lambda: Quadrature.gauss_legendre(4)),
+            (CoordSystem.SPHERICAL, lambda: Quadrature.gauss_legendre(4)),
+            (CoordSystem.CYLINDRICAL, lambda: Quadrature.folded_product(4, 6)),
+        ],
+    )
+    def test_the_two_mints_agree_on_the_1d_arm(self, coord, quad_factory):
+        """Gate 4.3 (1-D arm) — the factory's axis IS the space's axis.
+
+        ``==`` deliberately, never ``is`` (the mint is fresh per call);
+        plus the generator identity and the field-not-property row. This
+        is the ONLY gate that reds on a wrong LABEL at either mint site
+        (the label defaults at the generator so a twin spelling is
+        unspellable, and this row is its witness).
+        """
+        from tests.sn._test_helpers import placeholder_materials
+
+        quad = quad_factory()
+        mesh = Mesh1D(
+            edges=np.linspace(0.0, 1.0, 5),
+            mat_ids=np.zeros(4, dtype=int),
+            coord=coord,
+        )
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
+
+        sn = SNMesh(mesh, quad, placeholder_materials())
+        r = sn.reduced
+        assert r is not None
+        assert r.angular_axis == sn.angular_bulk_space.axis("angular")
+        assert r.angular_axis.generator is sn.quad
+        assert r.angular_axis is r.angular_axis  # field, not per-access mint
+
+    @pytest.mark.foundation
+    def test_the_two_mints_agree_on_the_d2_cartesian_arm(self):
+        """Gate 4.3 (d ≥ 2 arm) — the RSO-less branch's own mint agrees.
+
+        [M] the branch M1's corpus cannot redden (verification plan §2.1):
+        ``reduced is None`` there, so the hub mints the closure's axis
+        itself — the second mint site, one label typo away from the
+        first until the generator-side default killed the spelling. The
+        arm's premise (``reduced is None``) is asserted as its own row.
+        """
+        from tests.sn._test_helpers import placeholder_materials
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
+        from orpheus.transport.mesh.axis import AxisMesh
+
+        axes = tuple(
+            AxisMesh(edges=np.linspace(0.0, ext, n + 1))
+            for ext, n in zip((1.0, 2.0), (2, 3))
+        )
+        sn = SNMesh.from_axes(
+            axes, Quadrature.level_symmetric(sn_order=4),
+            placeholder_materials(ng=2),
+        )
+        assert sn.reduced is None  # the arm's own premise
+        # The closures consume the axis at construction and do not store
+        # it (a stored-but-unread field is dead weight, not provenance),
+        # so the arm's mint is witnessed by: the two mint EXPRESSIONS
+        # agreeing (the label-twin witness — both spell ``quad.axis()``
+        # with the label defaulted at the generator), and the narrow's
+        # observable consequence (the closure's ordinate count followed
+        # the axis's generator).
+        assert sn.quad.axis() == sn.angular_bulk_space.axis("angular")
+        assert sn.quad.axis().generator is sn.quad
+        from orpheus.sn.angular.closure import IdentityAngularClosure
+
+        closure = sn.angular_closure
+        assert isinstance(closure, IdentityAngularClosure)
+        assert closure.tau_per_ordinate.size == sn.quad.N
+
+    @pytest.mark.foundation
+    def test_the_courier_is_dead_by_field_set(self):
+        """Gate 4.2 — a STRUCTURAL row, not a value row.
+
+        ``dataclasses.fields`` (never ``hasattr`` — a defaulted field or
+        a ``getattr`` fallback would still answer), and EQUALITY of the
+        set so a re-addition reds too. This is the row that keeps a
+        partial re-point unspellable: with no courier on the angular
+        factor, a consumer that still wants the quadrature has exactly
+        one place to get it — through the axis.
+        """
+        import dataclasses
+
+        from orpheus.sn.angular.redistribution import AngularRedistribution
+
+        assert tuple(
+            f.name for f in dataclasses.fields(AngularRedistribution)
+        ) == ("coord", "alpha_per_level", "mu_start_per_level")
+
+    @pytest.mark.foundation
+    def test_a_generator_less_axis_refuses_naming_streaming_terms(self):
+        """G5.2 (producer row) — the refusal names BOTH parties.
+
+        Two-fragment match: the axis label AND the consumer's name — a
+        generic message keeps a wrong reason true (L31). Fragment
+        disjointness (G5.4): the neighbouring space refusal spells
+        'axis lookup:', which this message deliberately does not.
+        """
+        from orpheus.numerics.axis import Axis, BasisKind
+
+        quad = Quadrature.gauss_legendre(4)
+        bare = Axis(
+            "angular", (quad.N,),
+            weights=np.asarray(quad.weights, float), kind=BasisKind.NODAL,
+        )
+        op = ReducedStreamingOperator(
+            mesh=_slab_mesh(),
+            angular=angular_redistribution(quad, CoordSystem.CARTESIAN),
+            angular_axis=bare,
+        )
+        with pytest.raises(ValueError, match="angular"):
+            op.streaming_terms(0, 0)
+        with pytest.raises(ValueError, match="streaming_terms"):
+            op.streaming_terms(0, 0)
+        with pytest.raises(ValueError, match="minted through"):
+            op.streaming_terms(0, 0)
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize(
+        "coord,quad_factory,moved_min",
+        [
+            (CoordSystem.CARTESIAN, lambda: Quadrature.gauss_legendre(4), 4),
+            (CoordSystem.SPHERICAL, lambda: Quadrature.gauss_legendre(4), 4),
+            (CoordSystem.CYLINDRICAL, lambda: Quadrature.folded_product(4, 6), 8),
+        ],
+    )
+    def test_K1_the_packet_reads_THROUGH_the_axis(
+        self, coord, quad_factory, moved_min
+    ):
+        """KEYSTONE K1 — the route gate, because every value gate is X == X.
+
+        [M] the bound generator IS the courier's old payload (three-way
+        ``is``-identity), so only a decoy that the space cannot see can
+        prove the route. Four legs (verification plan §5.3): the anti-dud
+        control, the route (a decoy generator MOVES |µ|), the decoy's
+        invisibility to space identity (vv #19 — the instrument's own
+        precondition), and the AR-was-not-reached documentation leg.
+        Red-before record: pre-carve, the §5.2 simulation (decoy on a
+        true-dome AR) is the honest analogue — [M] slab 4/4, sphere 4/4,
+        cylinder 8/12 packets moved; this row pins those same counts.
+        """
+        quad = quad_factory()
+        mesh = Mesh1D(
+            edges=np.linspace(0.0, 1.0, 5),
+            mat_ids=np.zeros(4, dtype=int),
+            coord=coord,
+        )
+        ar_true = angular_redistribution(quad, coord)
+        decoy = _scale_decoy(quad)
+
+        op_true = ReducedStreamingOperator(
+            mesh=mesh, angular=ar_true, angular_axis=quad.axis()
+        )
+        op_decoy = ReducedStreamingOperator(
+            mesh=mesh, angular=ar_true, angular_axis=decoy.axis()
+        )
+        # leg 3: the decoy is INVISIBLE to space identity
+        assert quad.axis() == decoy.axis()
+        assert hash(quad.axis()) == hash(decoy.axis())
+        # leg 4: the AR was NOT reached (nothing on it to reach — the
+        # discriminating power comes from the axis alone)
+        assert op_decoy.angular is ar_true
+
+        def _packets(op):
+            out = []
+            if coord is CoordSystem.CYLINDRICAL:
+                ls = quad.level_structure
+                assert ls is not None
+                for p_idx, level in enumerate(ls.level_indices):
+                    for d_idx in range(len(level)):
+                        out.append(
+                            op.streaming_terms(1, d_idx, mu_level_idx=p_idx).abs_mu
+                        )
+            else:
+                for d_idx in range(quad.N):
+                    out.append(op.streaming_terms(1, d_idx).abs_mu)
+            return np.asarray(out)
+
+        base = _packets(op_true)
+        # leg 1: the anti-dud control — the true axis reproduces the
+        # factory-built operator's packets exactly
+        factory = {
+            CoordSystem.CARTESIAN: slab_streaming,
+            CoordSystem.SPHERICAL: spherical_streaming,
+            CoordSystem.CYLINDRICAL: cylindrical_streaming,
+        }[coord]
+        np.testing.assert_array_equal(base, _packets(factory(mesh, quad)))
+        # leg 2: the ROUTE — the decoy moves the answer
+        moved = int(np.sum(~np.isclose(_packets(op_decoy), base)))
+        if moved < moved_min:
+            pytest.fail(
+                f"{coord.name}: only {moved} packets moved under the decoy "
+                f"(expected >= {moved_min}) — the producer did not read "
+                f"through the axis"
+            )
+
+    @pytest.mark.foundation
+    def test_K2_the_cylinder_index_read_is_a_separate_route(self):
+        """KEYSTONE K2 — the level-roll decoy isolates the ``level_indices``
+        read from the ``mu_x`` read (same measure, rolled level list —
+        ``mu_x`` untouched). The scale decoy moves both reads together,
+        so without this row a partial re-point is indistinguishable from
+        a complete one.
+
+        [M] 2026-08-29, this gate's own fixture: **4 of 12** packets move
+        on fp(4,6) — the level |µ| sequence is a PALINDROME ([A,B,B,A]),
+        so roll-1 fixes half the levels, and each level's degenerate
+        0-|µ| member never moves (the L43e palindrome family, partially
+        biting the roll as it fully bites the reversal). 4 > 0 with
+        ``mu_x`` untouched is exactly the isolation this row needs.
+        """
+        quad = Quadrature.folded_product(4, 6)
+        mesh = Mesh1D(
+            edges=np.linspace(0.0, 1.0, 5),
+            mat_ids=np.zeros(4, dtype=int),
+            coord=CoordSystem.CYLINDRICAL,
+        )
+        ar_true = angular_redistribution(quad, CoordSystem.CYLINDRICAL)
+        decoy = _level_roll_decoy(quad)
+        assert quad.axis() == decoy.axis()  # same measure ⟹ invisible
+
+        op_true = ReducedStreamingOperator(
+            mesh=mesh, angular=ar_true, angular_axis=quad.axis()
+        )
+        op_decoy = ReducedStreamingOperator(
+            mesh=mesh, angular=ar_true, angular_axis=decoy.axis()
+        )
+        ls = quad.level_structure
+        assert ls is not None
+
+        def _packets(op):
+            return np.asarray([
+                op.streaming_terms(1, d_idx, mu_level_idx=p_idx).abs_mu
+                for p_idx, level in enumerate(ls.level_indices)
+                for d_idx in range(len(level))
+            ])
+
+        moved = int(np.sum(~np.isclose(_packets(op_decoy), _packets(op_true))))
+        if moved < 4:
+            pytest.fail(
+                f"only {moved} packets moved under the level-roll decoy "
+                f"(expected >= 4, the measured floor on this palindromic "
+                f"rule) — the level_indices read did not go through the "
+                f"axis"
+            )

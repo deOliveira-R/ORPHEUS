@@ -158,7 +158,10 @@ class _MutantMM(MorelMontryAngularSweep):
 
 def _mutant_closure(sn: SNMesh) -> _MutantMM:
     assert sn.reduced is not None
-    return _MutantMM(sn.reduced.angular, sn.reduced.redistribution_pairing)
+    return _MutantMM(
+        sn.reduced.angular, sn.reduced.redistribution_pairing,
+        sn.reduced.angular_axis,
+    )
 
 
 _ROWS = [
@@ -264,6 +267,7 @@ def test_hub_route_reads_only_space_facts(factory, do_matvec):
         rec_cls = _recording_subclass(type(sn.angular_closure), closure_reads)
         sn.angular_closure = rec_cls(
             sn.reduced.angular, sn.reduced.redistribution_pairing,
+            sn.reduced.angular_axis,
         )
         # The recorder's OWN __init__ self-accesses are construction noise,
         # not hub-route reads — the record starts after the swap completes.

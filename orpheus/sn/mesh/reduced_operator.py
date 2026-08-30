@@ -204,14 +204,20 @@ from functools import cached_property
 
 import numpy as np
 
+from typing import TYPE_CHECKING
+
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import Mesh1D
+from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.transport.spatial.scheme import StreamingTerms
 from orpheus.sn.angular.redistribution import (
     AngularMeasure,
     AngularRedistribution,
     angular_redistribution,
 )
+
+if TYPE_CHECKING:
+    from orpheus.numerics.axis import Axis
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -309,6 +315,17 @@ class ReducedStreamingOperator:
     closure.  Non-optional on every chart: Cartesian carries the NEUTRAL
     element (zero dome, diameter-ray start), which is what let the
     per-coordinate ``Optional`` union die."""
+    angular_axis: Axis
+    """The generator-stamped angular space FACTOR (CS5) — the producer's
+    binding to the space (P4-remainder, 2026-08-29). The factories mint it
+    from the quadrature they are handed (``quadrature.axis()``), so it
+    carries the quadrature as :attr:`~orpheus.numerics.axis.Axis.generator`
+    and :meth:`streaming_terms` recovers the direction cosines and the
+    level fibration THROUGH it (``generator_as`` — the typed narrow with
+    the by-name refusal) instead of through a courier field on the
+    angular factor. The retired courier
+    (``AngularRedistribution.quadrature``, dead 2026-08-29) was the §4ter
+    weld: "the class needs the MEASURE and is handed the REDISTRIBUTION"."""
 
     # ── The spatial chart — DERIVED, not stored (P4.1b, 2026-08-27) ──
     #
@@ -366,11 +383,13 @@ class ReducedStreamingOperator:
     # the starting direction, with ONE producer.
 
     # ``_quadrature`` -- a SECOND reference to the same measure the angular
-    # factor already holds (``_quadrature is angular.quadrature`` was True) --
-    # was retired 2026-08-26.  ``streaming_terms`` reads
-    # ``self.angular.quadrature``, which is NON-optional, so the ``| None``
-    # union and its narrowing ``assert`` went with it (Pattern 4: the twin
-    # existed only because the angular factor had no owner).
+    # factor then held (``_quadrature is angular.quadrature`` was True) --
+    # was retired 2026-08-26, and the courier it read through
+    # (``AngularRedistribution.quadrature``) followed it on 2026-08-29:
+    # ``streaming_terms`` now recovers the quadrature THROUGH the bound
+    # ``angular_axis`` (its generator, typed narrow).  Pattern 4 both
+    # times: a twin reference exists only while the concept has no owner,
+    # and the owner is the space factor.
 
     # ── Per-direction extraction ───────────────────────────────────
 
@@ -497,13 +516,19 @@ class ReducedStreamingOperator:
         # ``[2,3,0,1,6,7,4,5]``.  Routing a slab or sphere through it would
         # silently re-index, and nothing in the factories forbids posing one
         # on that rule.
+        # The binding read (P4-remainder): the angular geometry comes
+        # THROUGH the space factor — one typed narrow per packet, both
+        # reads off the recovered generator.
+        quad = self.angular_axis.generator_as(
+            Quadrature, consumer="streaming_terms"
+        )
         if self.mesh.coord is CoordSystem.CYLINDRICAL:
             if mu_level_idx is None:
                 raise ValueError(
                     "cylindrical streaming_terms() requires mu_level_idx "
                     "(which μ-level the direction_idx belongs to)."
                 )
-            level_indices = self.angular.quadrature.level_indices
+            level_indices = quad.level_indices
             ordinate = int(level_indices[mu_level_idx][direction_idx])
         else:
             ordinate = direction_idx
@@ -514,7 +539,7 @@ class ReducedStreamingOperator:
         # "the column index, not the name, is the actual semantic".  Neither
         # spelling is chart-neutral, which is a naming item for the
         # ``face_area_*`` family pass; the local name carries the meaning.
-        radial_cosine = float(self.angular.quadrature.mu_x[ordinate])
+        radial_cosine = float(quad.mu_x[ordinate])
 
         # The Morel–Montry α / τ are NOT packed here (Issue #236 Step C):
         # the angular closure owns τ and the derived c, and stamps them on
@@ -577,6 +602,7 @@ def slab_streaming(
     return ReducedStreamingOperator(
         mesh=mesh,
         angular=angular_redistribution(angular_measure, CoordSystem.CARTESIAN),
+        angular_axis=angular_measure.axis(),
     )
 
 
@@ -641,6 +667,7 @@ def spherical_streaming(
     return ReducedStreamingOperator(
         mesh=mesh,
         angular=angular_redistribution(angular_measure, CoordSystem.SPHERICAL),
+        angular_axis=angular_measure.axis(),
     )
 
 
@@ -739,6 +766,7 @@ def cylindrical_streaming(
     return ReducedStreamingOperator(
         mesh=mesh,
         angular=angular_redistribution(angular_measure, CoordSystem.CYLINDRICAL),
+        angular_axis=angular_measure.axis(),
     )
 
 

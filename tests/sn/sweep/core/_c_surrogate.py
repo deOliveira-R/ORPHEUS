@@ -160,11 +160,13 @@ def mm_constants_for_ordinate(
         # Slab: neutral identity closure (no half-angle dome).
         return 1.0, 0.0, 0.0
 
-    # The measure comes from the ANGULAR factor, which is non-optional on
-    # every chart -- so the former ``if quad is None: raise`` guard retired
-    # with the ``_quadrature`` twin on 2026-08-26, exactly as the
-    # ``op.alpha_half is None`` guard below it did at the un-weld.
-    quad = op.angular.quadrature
+    # The measure comes through the operator's BOUND axis (P4-remainder;
+    # the ``AngularRedistribution.quadrature`` courier is retired). Honest
+    # scope: this follows the SUT's own mint -- the wrong-mint mode is
+    # owned by the two-mints-agree gate and K1's control leg, not here.
+    from orpheus.numerics.quadrature.directional import Quadrature
+
+    quad = op.angular_axis.generator_as(Quadrature, consumer="_c_surrogate oracle")
 
     if op.mesh.coord is CoordSystem.SPHERICAL:
         # Production τ, named at the call site (2026-08-12): the L0 wrapper

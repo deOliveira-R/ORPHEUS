@@ -175,10 +175,12 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import numpy as np
 
 from orpheus.geometry import CoordSystem
+from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.sn.angular.redistribution import AngularRedistribution
 from orpheus.numerics.registry import RegistryMixin
 
 if TYPE_CHECKING:  # pragma: no cover
+    from orpheus.numerics.axis import Axis
     from orpheus.transport.fields._bases import RadialCharacteristicInteriorField
 
     from ..mesh.augmented_mesh import SNMesh
@@ -255,13 +257,16 @@ class AngularClosureBase(RegistryMixin, ABC):
       :meth:`angular_adjoint` — the matvec/sweep strategy contract (the
       forward angular path, its per-cell cell-balance contribution, and
       its reverse-mode adjoint).
-    * ``__init__`` constructible as ``cls(angular, pairing)`` — the family
-      construction contract (abstract below): every closure binds to
-      its :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` at
-      construction (PR-TYPED-6.5 Phase 2.3), and the SNMesh
-      default-closure dispatch instantiates through this signature
-      (``default_angular_closure_class(coord)(angular, pairing)``). Concretes may
-      widen (an optional mesh, extra keyword strategy slots).
+    * ``__init__`` constructible as ``cls(angular, pairing, angular_axis)``
+      — the family construction contract (abstract below): every closure
+      binds its two tensor factors plus the generator-stamped angular
+      space factor at construction (the P4-remainder binding — the mints
+      recover the quadrature THROUGH the axis, ``generator_as``, instead
+      of through the retired ``AngularRedistribution.quadrature``
+      courier), and the SNMesh default-closure dispatch instantiates
+      through this signature
+      (``default_angular_closure_class(coord)(angular, pairing, angular_axis)``).
+      Concretes may widen (an optional mesh, extra keyword strategy slots).
 
     Notes
     -----
@@ -295,7 +300,7 @@ class AngularClosureBase(RegistryMixin, ABC):
     # ``c_in_per_ordinate`` / ``c_out_per_ordinate`` accessors below typecheck
     # against the shared contract; the concrete value is bound in each
     # subclass (M-M from its α-dome / τ, Identity to neutral zeros).  Every
-    # closure binds its two tensor factors at construction (``cls(angular, pairing)``
+    # closure binds its factors at construction (``cls(angular, pairing, angular_axis)``
     # family contract), so the state is always populated — the former
     # ``| None`` widenings served only the retired M-M unbound legacy mode.
     level_indices: "tuple[np.ndarray, ...]"
@@ -361,19 +366,24 @@ class AngularClosureBase(RegistryMixin, ABC):
         self,
         angular: "AngularRedistribution",
         pairing: np.ndarray,
+        angular_axis: "Axis",
     ) -> None:
         r"""Family construction contract — a closure binds its two TENSOR FACTORS.
 
         The curvilinear redistribution operator factors as
         :math:`\mathcal{R} = R_{\rm spatial} \otimes A_{\rm angular}
         (\tau, \alpha, w)`, and a member of this family IS the angular
-        factor.  So it takes exactly the two things that product is made
-        of, and nothing else:
+        factor.  So it takes the two things that product is made of,
+        plus the space factor the mints read through:
 
         * ``angular`` — the member-INDEPENDENT angular data (the
-          :math:`\alpha`-dome, the starting direction, the measure), shared
-          by every member;
-        * ``pairing`` — the SPATIAL factor, ``(nx, n_mom, n_thread)``.
+          :math:`\alpha`-dome and the starting direction), shared by
+          every member;
+        * ``pairing`` — the SPATIAL factor, ``(nx, n_mom, n_thread)``;
+        * ``angular_axis`` — the generator-stamped angular space factor
+          (CS5): the mint recovers the quadrature THROUGH it
+          (``generator_as``), the P4-remainder binding that retired the
+          ``AngularRedistribution.quadrature`` courier.
 
         What each member adds on top is its own :math:`\tau` and the
         derived :math:`c_{\rm in}` / :math:`c_{\rm out}` — which is
@@ -381,11 +391,12 @@ class AngularClosureBase(RegistryMixin, ABC):
         second member (plain diamond, an angular-LD device) has to be
         able to choose differently.
 
-        Every concrete strategy is constructible as ``cls(angular, pairing)``;
-        the SNMesh default-closure dispatch
-        (``default_angular_closure_class(coord)(angular, pairing)``)
+        Every concrete strategy is constructible as
+        ``cls(angular, pairing, angular_axis)``; the SNMesh
+        default-closure dispatch
+        (``default_angular_closure_class(coord)(angular, pairing, angular_axis)``)
         instantiates through this signature.  Concretes may WIDEN it with
-        extra keyword slots — the two-positional call must stay valid.
+        extra keyword slots — the three-positional call must stay valid.
         Abstract: declares the signature only; concrete ``__init__``
         bodies do not chain here.
 
@@ -472,9 +483,11 @@ class AngularClosureBase(RegistryMixin, ABC):
         """The angular factor these coefficients were derived from.
 
         Provenance, and the diagnostic affordance R19 asks of a bound
-        object: given a closure, recover the dome, the starting direction
-        and the measure that produced its τ / c_in / c_out — without
-        having to find the mesh that built it.
+        object: given a closure, recover the dome and the starting
+        direction its τ / c_in / c_out were built from — without having
+        to find the mesh that built it.  (The MEASURE is no longer here:
+        the ``quadrature`` courier retired at the P4-remainder; the mint
+        reads it through the ctor's ``angular_axis`` generator.)
         """
         return self._angular
 
@@ -1640,12 +1653,15 @@ class MorelMontryAngularSweep(
         self,
         angular: "AngularRedistribution",
         pairing: np.ndarray,
+        angular_axis: "Axis",
     ) -> None:
-        # The two TENSOR FACTORS, and nothing else (the un-weld arc's
-        # Phase B): the angular factor carries the dome, the starting
-        # direction and the measure; ``pairing`` is the spatial factor,
-        # ``(nx, n_mom, n_thread)``.  All M-M coefficients are precomputed
-        # here and the strategy methods read them from ``self``.
+        # The two TENSOR FACTORS plus the space factor the mint reads
+        # through (the P4-remainder binding): the angular factor carries
+        # the dome and the starting direction; ``pairing`` is the spatial
+        # factor, ``(nx, n_mom, n_thread)``; ``angular_axis`` carries the
+        # QUADRATURE as its generator (CS5), recovered by the typed
+        # narrow below.  All M-M coefficients are precomputed here and
+        # the strategy methods read them from ``self``.
         _require_single_moment_pairing(pairing, type(self).__name__)
         self._gram = np.asarray(pairing, dtype=float)
         self._angular = angular
@@ -1656,7 +1672,9 @@ class MorelMontryAngularSweep(
         # stored-but-unread field is dead weight, not provenance.)
 
         coord = angular.coord
-        quad = angular.quadrature
+        quad = angular_axis.generator_as(
+            Quadrature, consumer="MorelMontryAngularSweep"
+        )
         N = int(np.asarray(quad.mu_x).size)
         # The single-moment contraction: today's per-cell spatial factor
         # is the one entry of a (1, 1) pairing — ΔA_i.
@@ -2205,13 +2223,21 @@ class IdentityAngularClosure(AngularClosureBase, key="identity_angular_closure")
         self,
         angular: "AngularRedistribution",
         pairing: np.ndarray,
+        angular_axis: "Axis",
     ) -> None:
-        # The same two tensor factors every member takes.  Cartesian's are
-        # both NEUTRAL — a zero dome and a zero pairing — so this member needs
-        # nothing from either beyond the ordinate count.
+        # The same factors every member takes.  Cartesian's tensor factors
+        # are both NEUTRAL — a zero dome and a zero pairing — so this
+        # member needs nothing beyond the ordinate count, recovered
+        # through the space factor like every other mint read.
         _require_single_moment_pairing(pairing, type(self).__name__)
         self._angular = angular   # provenance; read through ``angular``
-        self._N: int = int(np.asarray(angular.quadrature.mu_x).size)
+        self._N: int = int(
+            np.asarray(
+                angular_axis.generator_as(
+                    Quadrature, consumer="IdentityAngularClosure"
+                ).mu_x
+            ).size
+        )
         # Trivial single-level partition: every ordinate in one level.
         self.level_indices = (np.arange(self._N),)
         # Neutral M-M closure constants per level — Cartesian carries no
