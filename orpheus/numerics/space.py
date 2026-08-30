@@ -77,7 +77,6 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from functools import cached_property
 from typing import Any, Generic, Optional, TYPE_CHECKING, TypeVar
 
 import numpy as np
@@ -677,9 +676,9 @@ class FunctionSpace(Generic[Carrier]):
             return x
         return m.apply_inverse(x)
 
-    @cached_property
+    @property
     def _resolved_metric(self) -> Optional[HilbertMetric]:
-        r"""The metric SOURCE resolved to its realization, once per space.
+        r"""The metric SOURCE resolved to its realization, PER CALL.
 
         Resolution order: the ``metric`` object wins; a legacy
         ``inner_product_weights`` array resolves to a
@@ -690,6 +689,18 @@ class FunctionSpace(Generic[Carrier]):
         verbs short-circuit without an object. Axis-built spaces never
         reach this — their metric source IS the axes, and the per-axis
         path handles it (``_apply_axes_weights``).
+
+        ⛔ Deliberately NOT a ``cached_property``, and the reason is a
+        measured red: the mutation-battery idiom mutates a frozen
+        space's weight FIELD in place (``object.__setattr__``), and the
+        adjoint-certification propagation probes assert the mutation
+        reaches the metric surface at the next read. `[M]` 2026-08-30
+        (P7 exit gate): a cached resolution served the stale
+        ``DiagonalMetric`` and
+        ``test_gsd_metric_drop_is_k_blind_but_vector_red``'s own
+        ``after == before`` probe reddened — the pre-P7 semantics read
+        the field per call, and every such battery relies on it. The
+        wrapper is a tiny frozen object; the numpy work dominates.
         """
         if self.metric is not None:
             return self.metric
