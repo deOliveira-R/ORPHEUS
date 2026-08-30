@@ -680,9 +680,38 @@ R4 ✅ (legal; MC hoists to a module constant), R5 ✅ (absorption),
 R6 ✅ (fields ⟹ reader extension), R7 ✅ (from_mixture owes gates).
 **R1 ✅ [R] CONFIRMED (user, 2026-08-30: "Corrections proven by math are
 always welcome")** — the tautological leg is dropped; Galerkin-on-faces is
-the catcher; the identity stays as documented theorem. **Open: R2** — where the #280
-swap law lives once `.H` is a composite: PROPOSED — `.H` returns the
-composed product whose `inverse()` is the reversed factor inverses, making
-the swap law a THEOREM of the product, pinned by re-pointing the existing
-coherence gates; decided at step 1's design with the user steering
-(surgical posture).
+the catcher; the identity stays as documented theorem.
+
+**R2 ✅ [R] RULED (user, 2026-08-30): the NAMED-COMPOSITE direction — the
+AdjointOperator survives as a FIRST-CLASS operator realizing the dagger
+arrow.** ~~My own earlier proposal — `.H` returns the composed product,
+the swap law a theorem of reversed factor inverses~~ ⛔ REFUTED at design
+time: [M] `OperatorProduct.inverse()` is a wrap-delegate
+(`InverseOperator`), demoting the #280 swap law from object identity; and
+role passthrough dies (`test_psi_half_coupling:2895` pins
+`a_ab.H.system_role`). The ruled design, with the user's own articulation:
+*"during the construction of the AdjointOperator we literally construct an
+operator with domain and codomain swapped — the domain of A becomes the
+codomain of A†, and the codomain of A the domain of A† — and this exchange
+is realized in code."* Maximum-leverage consequences, all step 1:
+- apply routes through three first-class legs built at construction
+  (`codomain.riesz_lower`, `A.dual()`, `domain.riesz_raise`) —
+  bit-identical (G-A1);
+- `A.H.H is A` becomes an OBJECT IDENTITY (adjoint() on the adjoint
+  returns `inner`);
+- `apply_transpose` becomes a THEOREM of the legs
+  (`(A*)ᵀ = ♭_W ∘ A ∘ ♯_V`, metrics symmetric by admission) — closing
+  **#375** (both defects: the dead-end AND the 0-witness raising stub);
+- the swap law stays #280's object identity; `dual(dual(A)) = A` object
+  identity too;
+- the legs are public space verbs (`V.riesz_lower : V → V*`,
+  `V.riesz_raise : V* → V`, PRIMAL-only — `DualSpace` REFUSES them, making
+  the G² trap unspellable);
+- the class is PROMOTED to public `AdjointOperator` in its own mechanical
+  follow-up commit (3-search audit + dead_references before/after).
+
+⚠ §7.4's "retire `_AdjointOperator`" is hereby SUPERSEDED-IN-MECHANISM:
+the retirement target was the INLINE metric recipe in its apply, never the
+arrow object; the chartered outcome (adjoint = algebra, legs
+single-sourced and individually mutable, DualSpace consumed) lands whole,
+plus the dagger-law identities a deletion could never have carried.
