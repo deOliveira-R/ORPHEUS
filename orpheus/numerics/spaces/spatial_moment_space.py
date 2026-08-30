@@ -198,6 +198,9 @@ class SpatialMomentSpace(FunctionSpace):
     ndim: int = 0
 
     def __post_init__(self) -> None:
+        # The base guards first (one-metric-source exclusivity + metric
+        # admission — P7); then the class's own shape law.
+        super().__post_init__()
         if self.per_axis < 1:
             raise ValueError(
                 f"SpatialMomentSpace: per_axis={self.per_axis} must be >= 1 "

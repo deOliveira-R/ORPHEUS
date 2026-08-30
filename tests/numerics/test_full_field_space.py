@@ -84,3 +84,35 @@ def test_composite_own_inner_product_weights_stays_none():
     # The composite carries no own diagonal metric — the metric lives per block.
     space = FullFieldSpace.from_blocks(_bulk(), _trace())
     assert space.inner_product_weights is None
+
+
+@pytest.mark.foundation
+def test_a_composite_block_carrying_a_dense_metric_delegates_it():
+    r"""C5 (P7) — verify-don't-assume on the composite delegation: a
+    DENSE-metric interior block must flow through the direct-sum pairing.
+
+    Hand-derived exact-binary literals (the dense-metric battery's G):
+    interior ⟨x,y⟩_G = 93/4 = 23.25, trace ⟨x,y⟩_w = 2 + 1/2 = 2.5,
+    sum compared with ``==``. The three composite verbs share one
+    delegation line each (``<block>_space.<verb>(x.<block>.values)``),
+    so the pairing face witnesses the delegation for all three.
+    """
+    from types import SimpleNamespace
+
+    from orpheus.numerics.metric import DenseMetric
+
+    g = np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]])
+    interior = FunctionSpace("bulk3", (3,), metric=DenseMetric(g))
+    trace = FunctionSpace(
+        "tr2", (2,), inner_product_weights=np.array([2.0, 0.5])
+    )
+    space = FullFieldSpace.from_blocks(interior, trace)
+    x = SimpleNamespace(
+        interior=SimpleNamespace(values=np.array([1.0, 2.0, 3.0])),
+        boundary=SimpleNamespace(values=np.array([1.0, 2.0])),
+    )
+    y = SimpleNamespace(
+        interior=SimpleNamespace(values=np.array([0.5, -1.0, 2.0])),
+        boundary=SimpleNamespace(values=np.array([1.0, 0.5])),
+    )
+    assert space.inner_product(x, y) == 23.25 + 2.5

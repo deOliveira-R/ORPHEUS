@@ -893,6 +893,9 @@ class AngularFaceTraceSpace(FunctionSpace):
         satisfies all three by construction; the guards exist for the
         hand-built case the class docstring already discourages.
         """
+        # The base guards first (one-metric-source exclusivity + metric
+        # admission — P7).
+        super().__post_init__()
         idx = np.asarray(self.ordinate_indices)
         if idx.ndim != 1 or idx.size != int(self.shape[0]):
             raise ValueError(

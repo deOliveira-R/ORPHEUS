@@ -389,3 +389,40 @@ class TestShareability:
         r = frame.source_reconstruction_on(m.angular_bulk_space)
         assert a.frame is r.frame is frame
         assert a.frame.table is r.frame.table
+
+
+class TestP7DenseMetricRidesTheMint:
+    def test_the_harmonic_frame_moment_space_carries_the_dense_parseval_metric(self):
+        r"""C4 (P7, battery arm M8) — the mint's docstring promises *"the
+        Parseval metric rides into the product"*, and until the
+        factored-product arm landed that promise silently broke on a
+        DENSE-measured frame: the SH factor's matrix metric was dropped
+        and the product reverted to Euclidean on that block ([M] the
+        pre-repair probe read 33.0 where G ⊗ w gives 109.0). On the
+        production-shaped mint (slab GL(4) mesh, L=2 — measured DENSE)
+        the moment codomain now carries a metric object whose pairing
+        FACTORIZES on separable probes: (SH ⟨·,·⟩_{G⁺}) × (cell
+        measure), each factor read independently of the product.
+        """
+        from orpheus.numerics.basis import GramStructure
+        from orpheus.numerics.space import FunctionSpace
+
+        m = _slab_mesh()  # GL(4) quadrature
+        frame = HarmonicFrame.from_galerkin(m.quad.angular_frame(2))
+        assert frame.discrete_gram_structure is GramStructure.DENSE
+        moment = frame.flux_analysis_on(m.angular_bulk_space).codomain
+        assert moment.metric is not None, "the dense factor was dropped"
+        sh = frame.basis_space
+        cell_axes = m.angular_bulk_space.axes
+        assert cell_axes is not None
+        cell = FunctionSpace.of_axes(*cell_axes[1:])
+        rng = np.random.default_rng(5)
+        xv = rng.standard_normal(sh.shape)
+        yv = rng.standard_normal(sh.shape)
+        xc = rng.standard_normal(cell.shape)
+        yc = rng.standard_normal(cell.shape)
+        x = np.multiply.outer(xv, xc)
+        y = np.multiply.outer(yv, yc)
+        assert moment.inner_product(x, y) == pytest.approx(
+            sh.inner_product(xv, yv) * cell.inner_product(xc, yc), rel=1e-12
+        )

@@ -146,6 +146,10 @@ class SphericalHarmonicSpace(FunctionSpace):
     L: int = 0
 
     def __post_init__(self) -> None:
+        # The base guards first (one-metric-source exclusivity + metric
+        # admission — P7): an override that skips them silently opts the
+        # whole subclass out of the construction contract.
+        super().__post_init__()
         expected = (self.L + 1, 2 * self.L + 1)
         if self.shape != expected:
             raise ValueError(

@@ -103,6 +103,7 @@ from orpheus.numerics.axis import BasisKind, EnergyAxis
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.metric import DenseMetric
 from orpheus.numerics.operator import (
     AxisRetractionOperator,
     AxisSectionOperator,
@@ -256,14 +257,26 @@ class FrameBase(ABC):
         ``scratch/probe_f1_parseval.py`` — note the probe reads the frame's
         NOW-DRESSED space, so its "stored" row prints 1.000 post-repair).
 
-        ⛔ For a frame whose discrete Gram is NOT diagonal
+        For a frame whose discrete Gram is NOT diagonal
         (:attr:`discrete_gram_structure` DENSE — e.g. the slab GL measure,
-        where NO diagonal metric satisfies Parseval), the space is returned
-        UNDRESSED (the basis's continuum metric): **Parseval is unavailable**,
-        and ``.H`` on the faces is the stored-metric sandwich, NOT the
-        physical Hilbert adjoint. The honest home for a matrix-valued metric
-        is the CS4c Riesz-leg machinery
-        (``.claude/plans/frame_square_recarve.md``, recorded debts).
+        where NO diagonal metric satisfies Parseval), the metric is the
+        matrix pseudo-inverse :math:`G^{+}` installed as a
+        :class:`~orpheus.numerics.metric.DenseMetric` (campaign 1, P7):
+        Parseval is then a THEOREM for any Gram, singular or not
+        (:math:`\|Mc\|^2_{G^{+}} = c^{\mathsf T} G G^{+} G c =
+        \|S_0 c\|^2_W`), and the faces' ``.H`` is the physical Hilbert
+        adjoint on every frame, not only the diagonal ones. `[M]`
+        2026-08-30, the wrong-metric discriminator on the slab GL8/L=2
+        frame: the dense dressing reads the Parseval ratio
+        1.000000000000 where the best diagonal candidate ``1/diag(G)``
+        reads 1.806 and the undressed continuum metric reads 25.53 — a
+        diagonal metric there is not merely unavailable but provably
+        insufficient. (Until P7 the DENSE arm returned the space
+        UNDRESSED — *"Parseval is unavailable"* was the recorded F-0
+        limitation, with the matrix-metric home deferred to the CS4c
+        Riesz-leg machinery; P7 landed the metric object CS4c's legs will
+        wrap, and the refusal era's record lives in this file's history
+        and the error catalog's ERR-039 entry.)
 
         Equality is untouched either way: ``(name, shape)`` identity is
         metric-blind, so ``basis_space == basis.space`` still holds and no
@@ -271,7 +284,19 @@ class FrameBase(ABC):
         """
         space = self.basis.space
         if self.discrete_gram_structure is not GramStructure.DIAGONAL:
-            return space
+            # DENSE verdict (P7): the Parseval metric exists — it is just
+            # not diagonal. Install the matrix pseudo-inverse of the
+            # measured Gram (DenseMetric.inverse_of keeps the exact
+            # symmetrized Gram as the inverse face) and STRIP the basis's
+            # continuum weights — the dressing REPLACES the metric on
+            # this arm exactly as the diagonal arm overwrites it, and a
+            # space carrying both sources is the illegal state the
+            # exclusivity guard refuses.
+            return replace(
+                space,
+                inner_product_weights=None,
+                metric=DenseMetric.inverse_of(self.discrete_gram),
+            )
         diag = np.diagonal(self.discrete_gram).reshape(space.shape)
         live = diag > 0.0
         inverse = np.where(live, 1.0 / np.where(live, diag, 1.0), 0.0)

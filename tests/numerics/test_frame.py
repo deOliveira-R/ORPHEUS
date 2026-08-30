@@ -33,8 +33,11 @@ from orpheus.numerics.basis import (
     SphericalHarmonicBasis,
     WeightedIndicatorBasis,
 )
+from dataclasses import replace
+
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.metric import _DENSE_METRIC_RCOND, DenseMetric
 from orpheus.numerics.operator import NotInvertible
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
 from orpheus.numerics.spaces import SphericalHarmonicSpace
@@ -498,7 +501,24 @@ def test_project_refuses_dense_gram_trial():
 # the slab GL live Gram has off-diagonals at 0.93 of the Cauchy–Schwarz
 # scale, so NO diagonal Parseval metric exists there (the DENSE arm below).
 
-_SPHERE_FRAME_CASES = [
+def _overlap_frame() -> GalerkinFrame:
+    """The PoU overlap frame — measured-DENSE with an INVERTIBLE Gram
+    ([M] ``[[1.25, .25], [.25, 1.25]]``, cond 1.50): the non-angular
+    member of the DENSE population."""
+    ob = OverlapBasis(
+        edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
+        overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
+    )
+    measure = DiscreteMeasure(
+        nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support="spatial_R1",
+    )
+    return GalerkinFrame(ob, measure)
+
+
+#: The six sphere families whose discrete Gram measures DIAGONAL — the
+#: population of the DIAGONAL-arm dressing gate and of the scalar
+#: frame-square collapse (a sphere-family property; see D3).
+_DIAGONAL_FRAME_CASES = [
     pytest.param(lambda: Quadrature.level_symmetric(4).angular_frame(1), id="LS4-L1"),
     pytest.param(lambda: Quadrature.level_symmetric(4).angular_frame(2), id="LS4-L2"),
     pytest.param(lambda: Quadrature.level_symmetric(8).angular_frame(2), id="LS8-L2"),
@@ -510,23 +530,36 @@ _SPHERE_FRAME_CASES = [
         lambda: GalerkinFrame(SphericalHarmonicBasis(L=2), lebedev_sphere(13)),
         id="lebedev13-L2",
     ),
+]
+
+#: Every Parseval-capable frame — the diagonal six PLUS the slab, whose
+#: dressing is the matrix pseudo-inverse (P7). Until P7 the slab param
+#: carried a skip mark (*"NON-DIAGONAL discrete Gram … no diagonal
+#: Parseval metric exists; the matrix-metric home is the CS4c Riesz-leg
+#: machinery"* — [M] 2026-08-23): the isometry now RUNS there through
+#: the DenseMetric dressing, and the mark retired with the refusal.
+_PARSEVAL_FRAME_CASES = _DIAGONAL_FRAME_CASES + [
     pytest.param(
-        lambda: Quadrature.gauss_legendre(8).angular_frame(2),
-        marks=pytest.mark.skip(
-            reason="slab GL: NON-DIAGONAL discrete Gram (live off-diagonals "
-            "at 0.93 of the Cauchy-Schwarz scale — no diagonal Parseval "
-            "metric exists; [M] 2026-08-23). The matrix-metric home is "
-            "the CS4c Riesz-leg machinery (frame_square_recarve.md, recorded "
-            "debts); the DENSE refusal itself is pinned by "
-            "test_slab_frame_refuses_the_parseval_dressing_visibly.",
-        ),
-        id="slab-GL8-L2",
+        lambda: Quadrature.gauss_legendre(8).angular_frame(2), id="slab-GL8-L2",
     ),
+]
+
+#: The measured-DENSE population (D1) — four MECHANISMS, never one
+#: family (vv-principles #13): a slab measure, a coarse product at L=2,
+#: a coarse level-symmetric at L=3, and a non-angular partition-of-unity
+#: basis.
+_DENSE_FRAME_CASES = [
+    pytest.param(
+        lambda: Quadrature.gauss_legendre(8).angular_frame(2), id="slab-GL8-L2",
+    ),
+    pytest.param(lambda: Quadrature.product(4, 4).angular_frame(2), id="product4x4-L2"),
+    pytest.param(lambda: Quadrature.level_symmetric(4).angular_frame(3), id="LS4-L3"),
+    pytest.param(_overlap_frame, id="overlap-R1"),
 ]
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize("make_frame", _SPHERE_FRAME_CASES)
+@pytest.mark.parametrize("make_frame", _DIAGONAL_FRAME_CASES)
 def test_parseval_dressing_installed_on_diagonal_frames(make_frame):
     r"""The verdict is DIAGONAL and ``basis_space`` carries the inverse discrete Gram.
 
@@ -534,6 +567,8 @@ def test_parseval_dressing_installed_on_diagonal_frames(make_frame):
     dead ones (layout padding; the folded frame's σ-odd columns) — the dead-slot
     zeros are what make the Moore–Penrose inverse-metric path exact. The
     Galerkin override keeps the analysis codomain the SAME dressed object.
+    The DENSE population's sibling is
+    ``test_dense_frames_are_dressed_with_the_pseudo_inverse_gram`` (D1).
     """
     frame = make_frame()
     assert frame.discrete_gram_structure is GramStructure.DIAGONAL
@@ -548,7 +583,7 @@ def test_parseval_dressing_installed_on_diagonal_frames(make_frame):
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
-@pytest.mark.parametrize("make_frame", _SPHERE_FRAME_CASES)
+@pytest.mark.parametrize("make_frame", _PARSEVAL_FRAME_CASES)
 def test_parseval_analysis_is_an_isometry_onto_its_image(make_frame):
     r"""``‖Mψ‖_{basis_space} = ‖ψ‖_W`` for band-limited ψ — Parseval, rtol 1e-12.
 
@@ -572,7 +607,7 @@ def test_parseval_analysis_is_an_isometry_onto_its_image(make_frame):
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
 @pytest.mark.verifies("hilbert-adjoint-equals-metric-times-S0")
-@pytest.mark.parametrize("make_frame", _SPHERE_FRAME_CASES)
+@pytest.mark.parametrize("make_frame", _DIAGONAL_FRAME_CASES)
 def test_parseval_frame_square_closes(make_frame):
     r"""``M.H = R/W`` and ``R.H = W·M`` — the frame square closes with ONE scalar.
 
@@ -583,6 +618,14 @@ def test_parseval_frame_square_closes(make_frame):
     — which IS the shipped scattering kernel's :math:`1/W` prefactor.
     `[M]` closure 5.6e-17 on the probe; every shipped sphere family measures
     degree-exact to ~1e-15.
+
+    ⛔ The slab param is deliberately ABSENT, and D3
+    (``test_the_scalar_frame_square_collapse_is_a_sphere_family_property``)
+    states why as a claim rather than a silent removal: `[M]` 2026-08-30,
+    under the CORRECT dense Parseval metric the collapse still fails
+    (rel 2.65 on this file's seed) because the slab's live ℓ=2 Gram
+    diagonal ``[0.4, 0.8, 0.8]`` is not a per-ℓ scalar — no :math:`G_\ell`
+    exists, so the collapse is unspellable there at ANY metric.
     """
     frame = make_frame()
     W = float(frame.measure.weights.sum())
@@ -632,27 +675,41 @@ def test_parseval_reds_under_the_pre_repair_continuum_metric():
 
 
 @pytest.mark.foundation
-def test_slab_frame_refuses_the_parseval_dressing_visibly():
-    r"""The slab GL frame measures DENSE and keeps the continuum metric — LOUDLY.
+def test_slab_frame_is_dressed_with_the_matrix_parseval_metric():
+    r"""The slab GL frame measures DENSE and carries the MATRIX Parseval metric.
 
-    `[M]` 2026-08-23 (discovery record ``scratch/probe_f1_parseval_slab.py``):
-    total weight 2 (not 4π), live slots [1, 1, 3] per degree, live
-    off-diagonals at 0.93 of the Cauchy–Schwarz scale :math:`\sqrt{G_{jj}G_{kk}}`
-    — NO diagonal candidate satisfies Parseval, so the dressing is REFUSED (the
-    verdict is the record) and ``.H`` stays the stored-metric sandwich (NOT the
-    physical adjoint). The honest matrix-metric home is the CS4c Riesz-leg
-    machinery (``frame_square_recarve.md``, recorded debts). Also the
-    declared/measured separation: the SH basis DECLARES DIAGONAL
-    (continuum-orthogonal); the measured verdict on THIS measure is DENSE —
-    two different questions, two properties.
+    The declared/measured separation stays (two questions, two
+    properties): the SH basis DECLARES DIAGONAL (continuum-orthogonal);
+    the measured verdict on THIS measure is DENSE (`[M]` 2026-08-23,
+    discovery record ``scratch/probe_f1_parseval_slab.py``: total weight
+    2 not 4π, live slots [1, 1, 3] per degree, live off-diagonals at
+    0.93 of the Cauchy–Schwarz scale — NO diagonal candidate satisfies
+    Parseval). Until P7 (2026-08-30) that verdict REFUSED the dressing —
+    this gate then pinned the refusal (``basis_space`` array-equal to the
+    undressed continuum metric), with the matrix home recorded as the
+    CS4c Riesz-leg debt. P7 installed it: the space carries a
+    :class:`~orpheus.numerics.metric.DenseMetric` whose matrix is the
+    Moore–Penrose pseudo-inverse of the (symmetrized) measured Gram, the
+    legacy weights slot reads ``None`` (it describes the DIAGONAL source
+    only — a dense-metric space is NOT Euclidean), and the isometry gate
+    runs on this frame (the retired skip). This flip IS the phase's §6c
+    witness: the pre-P7 body was designed-red the moment the dressing
+    landed.
     """
     frame = Quadrature.gauss_legendre(8).angular_frame(2)
     assert frame.basis.gram_structure is GramStructure.DIAGONAL       # declared
     assert frame.discrete_gram_structure is GramStructure.DENSE       # measured
-    np.testing.assert_array_equal(
-        frame.basis_space.inner_product_weights,
-        SphericalHarmonicSpace.from_L(2).inner_product_weights,
+    metric = frame.basis_space.metric
+    assert isinstance(metric, DenseMetric)
+    g = frame.discrete_gram
+    np.testing.assert_allclose(
+        metric.matrix,
+        np.linalg.pinv(
+            (g + g.T) / 2.0, hermitian=True, rcond=_DENSE_METRIC_RCOND
+        ),
+        rtol=1e-12, atol=1e-15,
     )
+    assert frame.basis_space.inner_product_weights is None
 
 
 @pytest.mark.foundation
@@ -688,20 +745,16 @@ def test_overlap_frame_measures_dense_while_declaring_partition_of_unity():
     :class:`OverlapBasis` DECLARES PARTITION_OF_UNITY (the cross-Gram row-sum
     probe is valid for ``project`` — :math:`R\mathbf 1 = \mathbf 1`), while its
     TRIAL Gram MEASURES DENSE (a straddling row makes two columns share
-    support). So the Parseval dressing is refused (``basis_space`` stays
-    Euclidean) while ``project`` keeps working through the row-sum probe.
+    support). Since P7 the DENSE verdict means the Parseval dressing is
+    INSTALLED (a matrix metric on ``basis_space``) while ``project``
+    keeps working through the row-sum probe — which never inherits the
+    dressing (the stripped ``gram``, pinned by the C3 gate below).
     """
-    ob = OverlapBasis(
-        edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
-        overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
-    )
-    measure = DiscreteMeasure(
-        nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support="spatial_R1",
-    )
-    frame = GalerkinFrame(ob, measure)
-    assert ob.gram_structure is GramStructure.PARTITION_OF_UNITY   # declared
+    frame = _overlap_frame()
+    assert frame.basis.gram_structure is GramStructure.PARTITION_OF_UNITY  # declared
     assert frame.discrete_gram_structure is GramStructure.DENSE    # measured
-    assert frame.basis_space.inner_product_weights is None
+    assert isinstance(frame.basis_space.metric, DenseMetric)       # dressed (P7)
+    assert frame.basis_space.inner_product_weights is None         # ≠ Euclidean
     np.testing.assert_allclose(
         frame.project(np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
     )
@@ -747,3 +800,169 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
     np.testing.assert_array_equal(
         frame.project(np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
     )
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("make_frame", _DENSE_FRAME_CASES)
+def test_dense_frames_are_dressed_with_the_pseudo_inverse_gram(make_frame):
+    r"""D1 — the DENSE arm's counterpart of the diagonal dressing gate.
+
+    Four mechanisms, one law: verdict DENSE ⟹ ``basis_space`` carries a
+    :class:`DenseMetric` whose matrix is the Moore–Penrose pseudo-inverse
+    of the measured (symmetrized) Gram at the module's pinned ``rcond``,
+    and the Galerkin identity ``test_space is basis_space`` survives the
+    dressing.
+    """
+    frame = make_frame()
+    assert frame.discrete_gram_structure is GramStructure.DENSE
+    metric = frame.basis_space.metric
+    assert isinstance(metric, DenseMetric)
+    g = frame.discrete_gram
+    expected = np.linalg.pinv(
+        (g + g.T) / 2.0, hermitian=True, rcond=_DENSE_METRIC_RCOND
+    )
+    np.testing.assert_allclose(metric.matrix, expected, rtol=1e-12, atol=1e-15)
+    assert frame.test_space is frame.basis_space
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-039")
+def test_no_diagonal_metric_can_satisfy_parseval_on_a_dense_frame():
+    r"""D2 — THE WRONG-METRIC DISCRIMINATOR (vv-principles #19's loaded reading).
+
+    Three readings of the SAME band-limited ψ on the slab GL8/L=2 frame
+    (`[M]` 2026-08-30, THIS seed — the floors are draw-dependent, the
+    dense ≈1 is a theorem): undressed continuum **25.53**, the best
+    diagonal candidate ``1/diag(G)`` **1.806**, the dense pseudo-inverse
+    **0.999999999999999**. The middle reading is the phase's whole
+    justification: on this frame a diagonal metric is not merely
+    unavailable, it is PROVABLY insufficient. And this family is the only
+    correctness evidence the metric has — reciprocity holds to 1e-16 for
+    EVERY invertible G (#409) and can never adjudicate one. ⚠ Slab-only
+    by measurement: `[M]` the same diagonal candidate reads 1.066 on
+    product(4,4) and 0.996 on LS4-L3 — the separation is frame-dependent,
+    so only the slab's is gated.
+    """
+    frame = Quadrature.gauss_legendre(8).angular_frame(2)
+    rng = np.random.default_rng(1234)
+    c = rng.standard_normal(frame.basis.space.shape)
+    psi = frame.basis.synthesize(c, frame.table)
+    norm_w = frame.measure_space.inner_product(psi, psi)
+    phi = frame.analysis.apply(psi)
+
+    dense = frame.basis_space.inner_product(phi, phi) / norm_w
+    diag = np.diagonal(frame.discrete_gram).reshape(frame.basis.space.shape)
+    live = diag > 0.0
+    diagonal_candidate = replace(
+        frame.basis.space,
+        inner_product_weights=np.where(
+            live, 1.0 / np.where(live, diag, 1.0), 0.0
+        ),
+    )
+    diagonal = diagonal_candidate.inner_product(phi, phi) / norm_w
+    continuum = frame.basis.space.inner_product(phi, phi) / norm_w
+    assert dense == pytest.approx(1.0, rel=1e-12)
+    assert diagonal > 1.5, f"diagonal candidate read {diagonal:.4f}"
+    assert continuum > 10.0, f"continuum metric read {continuum:.4f}"
+
+
+@pytest.mark.foundation
+def test_the_scalar_frame_square_collapse_is_a_sphere_family_property():
+    r"""D3 — why the frame-square gate keeps NO slab param.
+
+    The positive replacement for a silent param removal: `[M]` 2026-08-30
+    under the CORRECT dense Parseval metric, the isometry holds (≈1,
+    rtol 1e-12) while ``M.H`` vs ``R/W`` reads rel **2.65** (this seed) —
+    because the slab's live ℓ=2 Gram diagonal is ``[0.4, 0.8, 0.8]``,
+    not a single per-ℓ scalar, so no :math:`G_\ell` exists and the
+    collapse :math:`d_\ell G_\ell = W` is unspellable there at ANY
+    metric. The metric is right; the collapse is sphere-family-specific.
+    """
+    frame = Quadrature.gauss_legendre(8).angular_frame(2)
+    rng = np.random.default_rng(1234)
+    c = rng.standard_normal(frame.basis.space.shape)
+    psi = frame.basis.synthesize(c, frame.table)
+    phi = frame.analysis.apply(psi)
+    assert frame.basis_space.inner_product(phi, phi) == pytest.approx(
+        frame.measure_space.inner_product(psi, psi), rel=1e-12
+    )
+    live_l2 = np.diagonal(frame.discrete_gram).reshape(frame.basis.space.shape)[2]
+    np.testing.assert_allclose(live_l2[live_l2 > 0.0], [0.4, 0.8, 0.8], rtol=1e-12)
+    w_total = float(frame.measure.weights.sum())
+    y = rng.standard_normal(frame.basis_space.shape)
+    lhs = frame.analysis.H.apply(y)
+    rhs = frame.reconstruction.apply(y) / w_total
+    rel = float(np.max(np.abs(lhs - rhs)) / np.max(np.abs(rhs)))
+    assert rel > 0.5, (
+        f"the sphere collapse unexpectedly held on the slab (rel {rel:.3g})"
+    )
+
+
+@pytest.mark.foundation
+def test_the_dense_dressing_reds_under_the_diagonal_and_the_pre_repair_metrics():
+    r"""D4 — the DENSE arm's loadedness witness, modelled on the diagonal
+    arm's (pre-seed the cached space with a wrong metric; the isometry
+    must FAIL). Two wrong metrics, two floors, both `[M]` on this seed:
+    the pre-repair continuum reads 25.53 (floor 10) and the best diagonal
+    candidate reads 1.806 (floor 1.5). The dressed reading passes at
+    1e-12 (D2) — the family is loaded, not blind.
+    """
+    for label, floor in (("continuum", 10.0), ("diagonal", 1.5)):
+        frame = Quadrature.gauss_legendre(8).angular_frame(2)
+        if label == "continuum":
+            wrong = SphericalHarmonicSpace.from_L(2)
+        else:
+            diag = np.diagonal(frame.discrete_gram).reshape(
+                frame.basis.space.shape
+            )
+            live = diag > 0.0
+            wrong = replace(
+                frame.basis.space,
+                inner_product_weights=np.where(
+                    live, 1.0 / np.where(live, diag, 1.0), 0.0
+                ),
+            )
+        vars(frame)["basis_space"] = wrong
+        vars(frame)["test_space"] = wrong
+        rng = np.random.default_rng(1234)
+        c = rng.standard_normal(wrong.shape)
+        psi = frame.basis.synthesize(c, frame.table)
+        phi = frame.analysis.apply(psi)
+        ratio = frame.basis_space.inner_product(phi, phi) / (
+            frame.measure_space.inner_product(psi, psi)
+        )
+        assert ratio > floor, (
+            f"{label} metric read Parseval {ratio:.3g} — the gate would be "
+            f"blind to it"
+        )
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-039")
+def test_the_dressing_lands_parseval_on_the_production_anisotropic_frame():
+    r"""D5 — the tier-of-observability gate for the production adjoint move.
+
+    ``product(4,4).angular_frame(2)`` is a production-reachable
+    ScatteringOperator configuration (``scattering.py`` builds
+    ``quadrature.angular_frame(scattering_order)``) and its Gram measures
+    DENSE. `[M]` 2026-08-30 (design pre-flight): dressing it moves
+    ``frame.analysis.H`` by ``max|Δ| = 8.246`` — **rel 0.8995** — the
+    recorded F-0 limitation repaired (the undressed ``.H`` was the
+    stored-metric sandwich, NOT the physical Hilbert adjoint), and
+    NOTHING else in the 4371-test pre-flight scope observed it
+    (plan-authoring §8, measured). This gate is where the change is
+    visible: Parseval holds post-dressing (`[M]` 1.000000000000 this
+    seed) and the pre-repair continuum metric reads 65.66.
+    """
+    frame = Quadrature.product(4, 4).angular_frame(2)
+    assert frame.discrete_gram_structure is GramStructure.DENSE
+    rng = np.random.default_rng(1234)
+    c = rng.standard_normal(frame.basis.space.shape)
+    psi = frame.basis.synthesize(c, frame.table)
+    phi = frame.analysis.apply(psi)
+    norm_w = frame.measure_space.inner_product(psi, psi)
+    assert frame.basis_space.inner_product(phi, phi) / norm_w == pytest.approx(
+        1.0, rel=1e-12
+    )
+    pre_repair = frame.basis.space.inner_product(phi, phi) / norm_w
+    assert pre_repair > 10.0, f"pre-repair metric read {pre_repair:.4f}"
