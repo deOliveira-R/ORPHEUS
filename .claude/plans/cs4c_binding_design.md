@@ -427,6 +427,14 @@ Standing: surgical posture; test-architect BEFORE step 1's first edit; L17
 crosswalk first; per-step batteries; predicted-then-measured deltas vs
 9950/0 (13 trees rc=0); branch + ff-merge.
 
+⭐ **STEPS 1+2 MERGED 2026-08-30 @ `9fc8bf04` (ff-only).** Merge gate:
+[M] 13 trees rc=0, **10006 / 0 / 19 sk / 227 des / 68 xf** (driver
+`scratch/_cs4c12_gate_driver.sh`, log `scratch/_cs4c12_fast_gate.log`,
+64:42 wall). Predicted 10005/68 — the +1 reconciled exactly: the layer
+gate's per-module parametrization gained `bound_operator.py`'s row (the
+P7 corpus-coupled-count mechanism, this time caught by the discipline).
+Baseline for step 3 is therefore **10006/0/19/227/68**.
+
 ⚠ **Second-pass review 2026-08-30 (§12) amends this table**: steps 1+2 fuse
 to ONE merge unit (F2); step 2's §6b population is the direct-ctor re-key
 set, not the 7 anonymous sites (F3); the R1 reader must be extended in the
