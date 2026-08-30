@@ -252,3 +252,30 @@ class TestDenseMetricPropagation:
             dual.inner_product(_X, _Y) == v.inner_product(_X, _Y) == 23.25,
             "the dual's pairing must equal the primal's",
         )
+
+
+class TestPairingSpelling:
+    def test_the_pairing_keeps_the_legacy_reduction_tree_bit_exactly(self):
+        """A10 (battery arm M13's catcher — [M] the battery found every
+        tolerance gate BLIND to a densified pairing, deviation ~2e-13).
+
+        The diagonal pairing is bit-identical to the legacy
+        ``np.sum(w * x * y)`` spelling — the guarantee that made the P7
+        reroute invisible to every pinned number in the tree, promoted
+        from a docstring claim to an ``==`` witness. [M] seed 1, n=15:
+        the densified ``y @ (diag(w) @ x)`` spelling differs on this
+        draw (−3.382498612232062 vs −3.3824986122320624), so this gate
+        reds under the forbidden spelling while every rtol gate stays
+        green.
+        """
+        rng = np.random.default_rng(1)
+        n = 15
+        w = rng.standard_normal(n) ** 2 + 0.1
+        x = rng.standard_normal(n)
+        y = rng.standard_normal(n)
+        space = FunctionSpace("w15", (n,), inner_product_weights=w)
+        legacy = float(np.sum(w * x * y))
+        _require(
+            space.inner_product(x, y) == legacy,
+            "the pairing left the legacy reduction tree",
+        )

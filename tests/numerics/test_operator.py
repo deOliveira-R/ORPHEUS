@@ -832,3 +832,54 @@ def test_product_solve_reroute_inherits_the_precarve_baseline():
     np.testing.assert_allclose(
         green_prod.solve(q), baseline["sum_green"], rtol=1e-8, atol=0.0,
     )
+
+
+def test_the_adjoint_sandwich_takes_a_dense_metric_unmodified():
+    """F1 (P7): the wrapper's own claim — 'the adjoint wrapper is
+    metric-representation-agnostic' — witnessed on DENSE-metric spaces.
+
+    ``A.H`` between two dense-metric spaces equals the hand-computed
+    sandwich ``G_V⁺ Aᵀ G_W`` with no branch on the representation, and
+    the weighted adjoint identity ``<Au, v>_W = <u, A.H v>_V`` closes.
+
+    ⛔ A LOADEDNESS gate only (vv-principles #19 + #409's ⛔⛔):
+    ``A† ≡ G⁻¹AᵀG`` is an identity for EVERY invertible G ([M] 1.4e-16
+    under three unrelated metrics), so this gate can never adjudicate
+    WHICH metric is right — the correctness evidence lives in the
+    Parseval discriminator (test_frame.py D2) and the hand-derived
+    literals (test_dense_metric.py A1/A5). The negative leg here is the
+    MISMATCHED-metric control: the same identity evaluated under a
+    different codomain metric must FAIL — the only reading separating
+    loaded from blind.
+    """
+    from orpheus.numerics.metric import DenseMetric
+
+    rng = np.random.default_rng(20260830)
+    n_dom, n_cod = 3, 4
+    M = rng.standard_normal((n_cod, n_dom))
+    g_v = np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]])
+    a_w = rng.standard_normal((n_cod, n_cod))
+    g_w = a_w.T @ a_w + np.eye(n_cod)
+    domain = FunctionSpace(name="Vd", shape=(n_dom,), metric=DenseMetric(g_v))
+    codomain = FunctionSpace(name="Wd", shape=(n_cod,), metric=DenseMetric(g_w))
+    A = _SpacedMatrixOperator(M, domain, codomain)
+    u = rng.standard_normal(n_dom)
+    v = rng.standard_normal(n_cod)
+
+    hand = np.linalg.pinv(g_v, hermitian=True) @ (M.T @ (g_w @ v))
+    np.testing.assert_allclose(A.H.apply(v), hand, rtol=1e-12, atol=1e-14)
+    lhs = codomain.inner_product(A.apply(u), v)
+    rhs = domain.inner_product(u, A.H.apply(v))
+    assert np.isclose(lhs, rhs, rtol=1e-12)
+
+    # The mismatched-metric control: judge the pairing under a DIFFERENT
+    # codomain metric and the identity must break.
+    a2 = rng.standard_normal((n_cod, n_cod))
+    wrong_codomain = FunctionSpace(
+        name="W2", shape=(n_cod,), metric=DenseMetric(a2.T @ a2 + 3.0 * np.eye(n_cod)),
+    )
+    lhs_wrong = wrong_codomain.inner_product(A.apply(u), v)
+    assert not np.isclose(lhs_wrong, rhs, rtol=1e-3), (
+        "the mismatched-metric control read the identity as holding — "
+        "the gate would be blind"
+    )
