@@ -420,7 +420,10 @@ lives in exactly ONE place in the codebase.
           Gram — :math:`(2\ell+1)/4\pi` on a degree-exact sphere rule
         - :attr:`FrameBase.basis_space
           <orpheus.numerics.frame.FrameBase.basis_space>` — the frame
-          dresses the basis's space with it (F-0).
+          dresses the basis's space with it (F-0; on a rule whose
+          discrete Gram measures ``DENSE`` the dressing is the matrix
+          pseudo-inverse :math:`G^{+}` instead — P7,
+          :ref:`frame-parseval-dense-arm`).
         - :math:`\Pi^* = S_0 \circ G^{-1} = R/W`
           (:eq:`hilbert-adjoint-equals-metric-times-S0`) — **shipped**,
           and the physical adjoint for the carried moments.
@@ -631,14 +634,20 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    :eq:`sh-space-metric` is the **continuum** Gram, and after F-0 it is
    *not* the metric a frame's coefficient codomain carries. The frame
    REPLACES it: :attr:`FrameBase.basis_space
-   <orpheus.numerics.frame.FrameBase.basis_space>` returns
-   ``replace(basis.space, inner_product_weights=G⁻¹)`` with
-   :math:`G^{-1}` the inverse of the **discrete** Gram measured on that
-   frame's own measure. On a degree-exact sphere cubature the two are
-   reciprocal (:math:`G = g_C`, so :math:`G^{-1} = g_C^{-1}`) and the
-   distinction is invisible in the *values*; on the slab
-   Gauss–Legendre measure the discrete Gram is not even diagonal, so no
-   diagonal metric reproduces :math:`g_C^{-1}`'s role at all. Use
+   <orpheus.numerics.frame.FrameBase.basis_space>` dresses the space
+   with the inverse of the **discrete** Gram measured on that frame's
+   own measure — a diagonal ``inner_product_weights`` array when that
+   Gram measures ``DIAGONAL``, and since campaign 1 P7 (2026-08-30) the
+   matrix pseudo-inverse :math:`G^{+}` as a
+   :class:`~orpheus.numerics.metric.DenseMetric` when it does not. On a
+   degree-exact sphere cubature the two are reciprocal
+   (:math:`G = g_C`, so :math:`G^{-1} = g_C^{-1}`) and the distinction
+   is invisible in the *values*; on the slab Gauss–Legendre measure the
+   discrete Gram is not even diagonal, so **no diagonal metric
+   reproduces** :math:`g_C^{-1}`\ **'s role at all** — which is why
+   that frame needs the matrix realization rather than a better choice
+   of diagonal (`[M]` the best diagonal candidate reads a Parseval
+   ratio of :math:`1.806`; see :ref:`frame-parseval-dense-arm`). Use
    :eq:`sh-space-metric` when you mean the convention (``project`` /
    :attr:`FrameBase.gram <orpheus.numerics.frame.FrameBase.gram>`, the
    cross-Gram :math:`MR`); use

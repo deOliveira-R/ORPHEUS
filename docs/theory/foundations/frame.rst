@@ -177,16 +177,33 @@ Key Facts
   space with it. Consequences: (i) the metric is a property of the
   **pairing**, never a basis constant — the same SH basis on a slab
   Gauss–Legendre measure has :math:`W = 2`, not :math:`4\pi`;
-  (ii) with it, each face's ``.H`` is the physical Hilbert adjoint, and
-  for the SH frame the square closes on the single scalar
-  :math:`W`: :math:`M^* = R/W`, :math:`R^* = W\,M`
-  (:eq:`frame-square-closure-sh`); (iii) when the measured Gram is NOT
-  diagonal the dressing is **refused** and Parseval is unavailable —
-  a face's ``.H`` there is the stored-metric sandwich, not the physical
-  adjoint. ⛔ Until 2026-08-23 the frame exposed the basis's
-  **continuum** Gram :math:`g_C` instead — the wrong side, off by
-  :math:`(4\pi/(2\ell+1))^2` per :math:`\ell`; see
-  :ref:`frame-parseval-what-was-wrong`.
+  (ii) with it, each face's ``.H`` is the physical Hilbert adjoint, on
+  **every** frame; (iii) when the measured Gram is NOT diagonal the
+  metric is the matrix pseudo-inverse :math:`G^{+}`, installed as a
+  :class:`~orpheus.numerics.metric.DenseMetric` since campaign 1 P7
+  (2026-08-30), and Parseval is then a *theorem* for any Gram, singular
+  or not (:ref:`frame-parseval-dense-arm`). ⛔ Until 2026-08-23 the
+  frame exposed the basis's **continuum** Gram :math:`g_C` instead — the
+  wrong side, off by :math:`(4\pi/(2\ell+1))^2` per :math:`\ell`; and
+  until P7 a ``DENSE`` verdict *refused* the dressing altogether, so a
+  face's ``.H`` there was the stored-metric sandwich rather than the
+  physical adjoint. See :ref:`frame-parseval-what-was-wrong`.
+
+- ⚠ **The frame square's scalar closure is a SEPARATE property from
+  the metric, and only the DIAGONAL verdict implies it.** For the SH
+  frame on a degree-exact sphere cubature the square closes on the
+  single scalar :math:`W` — :math:`M^* = R/W`, :math:`R^* = W\,M`
+  (:eq:`frame-square-closure-sh`) — because each live :math:`\ell`
+  block of :math:`G` is one constant. A ``DENSE`` frame carries the
+  right metric and need not satisfy that collapse: `[M]` of the four
+  ``DENSE`` **angular** frames measured — slab GL(8) :math:`L{=}2`,
+  ``product(4,4)`` :math:`L{=}2`, ``level_symmetric(4)`` :math:`L{=}3`
+  and ``folded_product(4,6)`` :math:`L{=}3` — three break it and one
+  does not, so ``DIAGONAL`` is *sufficient* and ``DENSE`` is
+  *undecided*. Never
+  quote the closure as a frame law
+  (:ref:`spaces-metric-frame-square` on
+  :doc:`/theory/foundations/spaces`).
 
 - **The measure never carries the discipline.** The
   :class:`~orpheus.numerics.measure.DiscreteMeasure` carries the axis
@@ -522,10 +539,15 @@ inner product :math:`\langle\cdot,\cdot\rangle_\star` with
    substitution, defining the codomain metric rather than asserting a
    solver result. Shipped by FrameBase.basis_space (the dressing) and
    gated directly by ``test_parseval_analysis_is_an_isometry_onto_its_image``
-   over 6 sphere families plus
-   ``test_indicator_frame_parseval_metric_is_the_inverse_region_mass``,
-   with the loaded-not-blind negative leg
-   ``test_parseval_reds_under_the_pre_repair_continuum_metric``
+   over the seven Parseval-capable frames (the six DIAGONAL sphere
+   families plus, since P7, the DENSE slab) plus
+   ``test_indicator_frame_parseval_metric_is_the_inverse_region_mass``
+   and the DENSE arm's own four-mechanism dressing gate
+   ``test_dense_frames_are_dressed_with_the_pseudo_inverse_gram``, with
+   two loaded-not-blind negative legs — the diagonal arm's
+   ``test_parseval_reds_under_the_pre_repair_continuum_metric`` and the
+   dense arm's
+   ``test_the_dense_dressing_reds_under_the_diagonal_and_the_pre_repair_metrics``
    (``tests/numerics/test_frame.py``).
 .. vv-status: frame-parseval-isometry documented
 
@@ -602,9 +624,11 @@ inherited.
 **(3) There is no guarantee the metric is diagonal.** :math:`G` is
 symmetric positive semi-definite by construction (a Gram), but nothing
 makes it diagonal unless the basis is orthogonal *on that measure*.
-When it is not, the Parseval metric is a genuine **matrix**, which the
-shipped ``inner_product_weights`` (an elementwise diagonal) cannot
-express — see the refusal arm below.
+When it is not, the Parseval metric is a genuine **matrix** — which the
+legacy ``inner_product_weights`` (an elementwise diagonal) cannot
+express, and which since campaign 1 P7 the space carries as a
+:class:`~orpheus.numerics.metric.DenseMetric` object instead. See the
+dense arm below.
 
 .. _frame-declared-vs-measured-gram:
 
@@ -668,24 +692,63 @@ layout padding, a folded rule's :math:`\sigma`-odd columns, an empty
 indicator region) are exempt from the off-diagonal test but any
 coupling *into* a dead slot is ``DENSE``.
 
-.. _frame-parseval-dense-refusal:
+.. _frame-parseval-dense-arm:
 
-When no diagonal metric exists — the refusal arm, and the slab witness
------------------------------------------------------------------------
+When no diagonal metric exists — the dense arm, and the slab witness
+---------------------------------------------------------------------
+
+.. note::
+
+   This section carried the anchor ``frame-parseval-dense-refusal``
+   and the title *"the refusal arm"* until campaign 1 P7 (2026-08-30).
+   The subject did not move — it is still *what the frame does when no
+   diagonal metric exists* — but the answer did, from a refusal to a
+   matrix dressing, so the anchor was renamed with its one cross-page
+   citer. A stale pointer to the old name renders as plain text at
+   every build severity; if you meet one, it predates P7.
 
 If the measured verdict is ``DENSE``,
 :attr:`FrameBase.basis_space
-<orpheus.numerics.frame.FrameBase.basis_space>` returns the basis's own
-space **undressed**. That is a deliberate refusal, and it is loud in the
-only way a value can be: the verdict property is the record, and the
-Parseval gate skips such a frame with a named reason rather than
-silently passing.
+<orpheus.numerics.frame.FrameBase.basis_space>` dresses the basis's
+space with the **matrix** Parseval metric — the Moore–Penrose
+pseudo-inverse :math:`G^{+}` of the measured (symmetrized) Gram,
+installed as a :class:`~orpheus.numerics.metric.DenseMetric` at the
+metric module's pinned cutoff, with the exact symmetrized Gram kept as
+the inverse face — and **strips** the basis's continuum weights, since
+the dressing replaces the metric on this arm exactly as the diagonal
+arm overwrites it. Parseval is then a theorem for **any** Gram,
+singular or not (:eq:`spaces-pseudo-inverse-parseval` on
+:doc:`/theory/foundations/spaces`), and each face's ``.H`` is the
+physical Hilbert adjoint on every frame rather than only the diagonal
+ones.
 
-What the refusal costs, stated plainly: on a ``DENSE`` frame
-**Parseval is unavailable**, and each face's ``.H`` is the
-stored-metric sandwich — a perfectly well-defined operator, and **not**
-the physical Hilbert adjoint. Do not compose a ``DENSE`` frame's
-``.H`` at the end of a chain and read the result as an adjoint.
+⛔ **Until P7 this arm was a REFUSAL, and the record is worth keeping
+because the refusal was correct at the time.** ``basis_space`` returned
+the basis's own space **undressed**; the verdict property was the loud
+record; the Parseval gate skipped such a frame with a named reason
+rather than silently passing; and the cost, stated plainly then, was
+that on a ``DENSE`` frame *Parseval is unavailable* and each face's
+``.H`` was the stored-metric sandwich — a perfectly well-defined
+operator, and **not** the physical Hilbert adjoint. The honest matrix
+home was recorded as a debt against the CS4c Riesz-leg machinery, and
+the reason it was a refusal rather than a bug is the same reason it was
+repairable: a diagonal metric is not merely *unavailable* on a dense
+frame, it is **provably insufficient**, and nothing in the space layer
+could express the alternative. P7 built the alternative. What survives
+unchanged from the refusal era is the *diagnosis* below — the slab
+table, and the impossibility argument it supports.
+
+⚠ **What still does not follow from a correct metric.** The
+spherical-harmonic frame square's collapse onto one scalar
+(:eq:`frame-square-closure-sh`) is a *different* property, and dressing
+a ``DENSE`` frame does not buy it: `[M]` on the slab, under the correct
+:math:`G^{+}`, the Parseval isometry reads :math:`1.000000000000` while
+:math:`M^{*}` vs :math:`R/W` is :math:`O(1)` apart, because the live
+:math:`\ell = 2` Gram diagonal :math:`[0.4,\,0.8,\,0.8]` is not a
+per-:math:`\ell` scalar and no :math:`G_\ell` exists to collapse. The
+full three-way split — and the shipped ``DENSE`` frame that *does*
+close, for a reason worth knowing — is
+:ref:`spaces-metric-frame-square`.
 
 The witness is the slab. `[M]` 2026-08-23,
 ``Quadrature.gauss_legendre(8).angular_frame(2)``:
@@ -722,25 +785,51 @@ The witness is the slab. `[M]` 2026-08-23,
        verdict threshold; relative to the largest diagonal it is
        :math:`0.5774`
    * - Verdict
-     - ``DENSE`` ⟹ dressing refused, continuum metric retained
+     - ``DENSE`` ⟹ the metric is the matrix :math:`G^{+}` (a
+       :class:`~orpheus.numerics.metric.DenseMetric`); the basis's
+       continuum weights are stripped. *(Until P7: dressing refused,
+       continuum metric retained.)*
 
 A diagonal metric can only rescale each coefficient slot; it cannot
 undo a coupling between two slots. With off-diagonals at :math:`0.93`
 of the Cauchy–Schwarz scale, **no diagonal candidate satisfies
 Parseval on this frame** — this is a structural impossibility, not a
-tolerance to be tightened.
+tolerance to be tightened. And "impossible" is measured rather than
+argued: `[M]` 2026-08-30, on one band-limited :math:`\psi`
+(``default_rng(1234)``) the Parseval ratio reads :math:`25.53` under the
+undressed continuum metric, :math:`1.806` under the best diagonal
+candidate :math:`1/\operatorname{diag}(G)`, and
+:math:`0.999999999999999` under the matrix :math:`G^{+}`. The middle
+reading is the load-bearing one — it is the *only* evidence class that
+can adjudicate a metric at all, since the Hilbert-adjoint identity
+:math:`A^{\dagger} \equiv G^{-1}A^{\mathsf T}G` holds for every
+invertible :math:`G` and therefore proves loadedness without ever
+proving *choice*.
 
 .. note::
 
-   **Recorded debt (CS4c).** The honest home for a matrix-valued
-   metric is the Riesz-leg machinery of the frame-square re-carve —
-   the legs :math:`\mathrm{riesz\_raise}` / :math:`\mathrm{riesz\_lower}`
-   become space-minted *operators* rather than elementwise diagonals,
-   at which point :math:`A^{*} = A.\mathrm{domain.riesz\_raise} \circ
-   A.\mathrm{dual}() \circ A.\mathrm{codomain.riesz\_lower}` is a
-   definition that a full matrix satisfies as easily as a diagonal.
-   Tracked in ``.claude/plans/frame_square_recarve.md`` (recorded
-   debts); until it lands, ``DENSE`` frames keep the refusal.
+   **Recorded debt (CS4c) — the matrix-metric half is DISCHARGED; the
+   legs are not.** The note below stood from 2026-08-23 until campaign 1
+   P7 (2026-08-30), which landed the matrix metric it was waiting for
+   (:ref:`spaces-metric-object`). Two halves of the debt remain open and
+   are the compatibility target P7 deliberately built toward:
+
+   - the **legs themselves** —
+     :math:`\mathrm{riesz\_raise}` / :math:`\mathrm{riesz\_lower}`
+     becoming space-minted *operators* rather than elementwise
+     diagonals, at which point
+     :math:`A^{*} = A.\mathrm{domain.riesz\_raise} \circ
+     A.\mathrm{dual}() \circ A.\mathrm{codomain.riesz\_lower}` is a
+     definition that a full matrix satisfies as easily as a diagonal;
+     and
+   - **retiring** ``_AdjointOperator`` into that leg composition.
+
+   Both are still CS4c's, and neither method exists in the tree today.
+   What P7 changed is that they now have exactly one metric arithmetic
+   to wrap: the :class:`~orpheus.numerics.metric.HilbertMetric` family's
+   two faces are what the two legs will be, so the retirement needs no
+   third spelling of the metric. Tracked in
+   ``.claude/plans/frame_square_recarve.md`` (recorded debts).
 
 .. _frame-square-closure-section:
 
@@ -870,8 +959,15 @@ the five residuals off ``frame.discrete_gram``,
 ``frame.analysis.H``, ``frame.reconstruction.H`` and
 :math:`W = \texttt{frame.measure.weights.sum()}`. Columns 3, 5 and 6
 are max-absolute residuals; the Parseval column is the *ratio*
-:math:`\|\varphi\|^2_{G^{-1}} / \|\psi\|^2_W`, whose exact value is
-:math:`1`; column 7 is over the live :math:`\ell` only.
+:math:`\|\varphi\|^2_\star / \|\psi\|^2_W` under whichever metric the
+frame installs (:math:`G^{-1}` on a ``DIAGONAL`` frame, the matrix
+:math:`G^{+}` on a ``DENSE`` one), whose exact value is :math:`1`;
+column 7 is over the live :math:`\ell` only. Columns 5 and 6 need two
+further draws — :math:`y` on the coefficient space and :math:`v` on the
+node set — which the rows below do not record, because on a
+``DIAGONAL`` frame both residuals sit at round-off and the draw is
+immaterial. On a ``DENSE`` frame it is **not** immaterial, which is why
+the slab row leaves those two cells unfilled and says so.
 
 .. list-table:: The theorem, Parseval, and the closure, per shipped angular frame
    :header-rows: 1
@@ -928,11 +1024,35 @@ are max-absolute residuals; the Parseval column is the *ratio*
      - 3.3e-16
    * - GL(8) slab, :math:`L=2`
      - ``DENSE``
-     - *(refused — see the table above)*
-     - —
-     - —
-     - —
-     - —
+     - 4.4e-16
+     - 1.000000000
+     - *(O(1) — no collapse)*
+     - *(O(1) — no collapse)*
+     - *(no* :math:`G_\ell` *exists)*
+
+.. note::
+
+   **The slab row, added at P7 (2026-08-30), and why two of its cells
+   are not numbers.** Until P7 the whole row read *"refused"*: the
+   ``DENSE`` verdict withheld the dressing, so columns 4–7 had nothing
+   to measure. With the matrix :math:`G^{+}` installed, columns 3 and 4
+   are ordinary readings — the theorem
+   :eq:`frame-analysis-is-the-gram` never depended on the metric, and
+   Parseval now holds there as it does everywhere
+   (:eq:`spaces-pseudo-inverse-parseval`).
+
+   Columns 5 and 6 are deliberately *not* filled with a number. They
+   measure the SH scalar collapse, which the slab does not satisfy at
+   any metric — `[M]` the relative residual
+   :math:`\|M^{*}y - Ry/W\|_\infty / \|Ry/W\|_\infty` ranges over
+   :math:`0.30`–:math:`10.2` across 200 random :math:`y`, so any single
+   figure printed here would be one draw's reading rather than a
+   property of the frame. The *structural* statement is column 7's: the
+   live :math:`\ell = 2` diagonal is :math:`[0.4,\,0.8,\,0.8]`, three
+   different numbers, so there is no :math:`G_\ell` for
+   :math:`d_\ell G_\ell = W` to be about. See
+   :ref:`spaces-metric-frame-square` for the full three-way split,
+   including the shipped ``DENSE`` frame whose closure *does* hold.
 
 Every shipped sphere family is degree-exact at these :math:`L`,
 including the level-symmetric rules: :math:`\max_\ell |d_\ell G_\ell/W
@@ -1017,17 +1137,29 @@ one is a lesson worth carrying:
    land.
 
 **What catches it now.** ``tests/numerics/test_frame.py`` grew a
-``test_parseval_*`` family: the dressing pin (the installed metric is
-:math:`1/G_{kk}` on live slots and exactly :math:`0` on dead ones), the
-isometry over six sphere families, the closure
-:math:`M^*=R/W` / :math:`R^*=W\,M`, the indicator :math:`1/m_R` pin,
-the ``DENSE`` refusal, the declared-vs-measured witness — and, the
+``test_parseval_*`` family: the diagonal dressing pin (the installed
+metric is :math:`1/G_{kk}` on live slots and exactly :math:`0` on dead
+ones), the isometry over the six ``DIAGONAL`` sphere families, the
+closure :math:`M^*=R/W` / :math:`R^*=W\,M`, the indicator
+:math:`1/m_R` pin, the declared-vs-measured witness — and, the
 load-bearing one, a **loaded-not-blind negative leg** that re-installs
 the pre-F-0 continuum metric in-process and asserts the ratio is
 :math:`\gg 1`. Without that leg the isometry gate's green would be
 compatible with a gate that is merely *blind* to the metric
 (``vv-principles`` #19: only the wrong-structure reading discriminates
 loaded from blind).
+
+Campaign 1 P7 (2026-08-30) extended the same discipline to the
+``DENSE`` arm, which until then was pinned only by its *refusal*: the
+four-mechanism dressing gate (a slab measure, a coarse product, a
+coarse level-symmetric, and a non-angular partition-of-unity basis),
+the isometry gate's new slab row, a second loaded-not-blind leg for
+the dense dressing, and — the one that carries the phase's whole
+argument — the **wrong-metric discriminator**, which reads the same
+:math:`\psi` under three metrics and shows the best *diagonal*
+candidate at :math:`1.806` where the matrix :math:`G^{+}` reads
+:math:`1.000000000000`. See
+:ref:`frame-parseval-dense-arm`.
 
 
 The Petrov-Galerkin frame
@@ -3406,8 +3538,9 @@ why a single basis :math:`\{e_k\}` produces both :math:`M` and
    :math:`R` differ by a **diagonal-in-:math:`\ell` scaling**, and
    *which* diagonal depends on the coefficient-space metric
    (:ref:`frame-parseval-metric`). Under the frame's shipped
-   **Parseval** metric :math:`G^{-1}` the diagonal collapses to a
-   single scalar, the total weight :math:`W = \sum_n w_n`:
+   **Parseval** metric :math:`G^{-1}`, **on a frame whose measured Gram
+   is** ``DIAGONAL``, that diagonal collapses to a single scalar, the
+   total weight :math:`W = \sum_n w_n`:
 
    .. math::
       :label: galerkin-strict-adjoint-vs-reconstruction
@@ -3421,6 +3554,18 @@ why a single basis :math:`\{e_k\}` produces both :math:`M` and
       &\;=\; \sum_\ell (2\ell+1)\,\sum_m Y_\ell^m(\hat\Omega_n)\,
              c_\ell^m
         \quad\text{(with factor — addition-theorem)}.
+
+   ⚠ The scalar collapse is a property of the *pairing*, not of the
+   metric being correct. Since campaign 1 P7 a ``DENSE`` frame also
+   carries the right Parseval metric — the matrix :math:`G^{+}` — and
+   the collapse still need not hold there, because it additionally
+   requires each live :math:`\ell` block of :math:`G` to be **one
+   number**. `[M]` on the slab GL(8) frame at :math:`L=2` that block is
+   :math:`[0.4,\,0.8,\,0.8]`, so no :math:`G_\ell` exists and
+   :math:`M^{*} \ne R/W` at any metric whatsoever. See
+   :ref:`spaces-metric-frame-square` on
+   :doc:`/theory/foundations/spaces` for the decidable form of the
+   condition.
 
    .. (vv-status rationale) Representational identity: distinguishes the
       Hilbert adjoint M* from the reconstruction face R (with 2ℓ+1) — the
@@ -4735,11 +4880,14 @@ MEASURED diagonality verdict, distinct from the basis's DECLARED
 :attr:`~orpheus.numerics.frame.FrameBase.basis_space` that dresses the
 space with :math:`G^{-1}` on a diagonal frame and refuses on a dense
 one. Nothing about the design was wrong; **what was stored** was. Full
-account, with the derivation, the slab refusal witness, the
-family-wide residual table, and the three reasons no gate could see
-it: :ref:`frame-parseval-metric`. Recorded debt: a matrix-valued
-metric needs the CS4c Riesz-leg machinery
-(``.claude/plans/frame_square_recarve.md``).
+account, with the derivation, the slab witness, the family-wide
+residual table, and the three reasons no gate could see it:
+:ref:`frame-parseval-metric`. Recorded debt at the time: a
+matrix-valued metric needs the CS4c Riesz-leg machinery
+(``.claude/plans/frame_square_recarve.md``). ⭐ That half of the debt
+was discharged by campaign 1 P7 — see the 2026-08-30 entry below; the
+dense **refusal** described here is therefore history, and only the
+*diagnosis* it rested on still stands.
 
 **2026-08-23 — step F-1, the mint: the faces ARE the bound operators.**
 With the metric right, the remaining asymmetry was ownership. A frame
@@ -4765,6 +4913,44 @@ Full account, including why the pair is not lifted out of the harmonic
 frame: :ref:`spaces-collapse-pair` on
 :doc:`/theory/foundations/spaces`.
 
+
+**2026-08-30 — campaign 1 phase P7, the metric becomes an object, and
+the dense arm is DRESSED.** F-0 put the metric on the right side; P7
+made it a first-class thing. A space's metric stops being an array that
+is *multiplied* into the element and becomes a typed
+:class:`~orpheus.numerics.metric.HilbertMetric` that is *applied*, of
+which the Hadamard weight is the diagonal special case
+(:ref:`spaces-metric-object` on
+:doc:`/theory/foundations/spaces` is the doctrine's home). The frame is
+its founding consumer: ``basis_space``'s ``DENSE`` arm now installs
+``DenseMetric.inverse_of(discrete_gram)`` — the Moore–Penrose
+pseudo-inverse at a pinned cutoff, with the exact symmetrized Gram kept
+as the inverse face — and strips the basis's continuum weights, so
+**Parseval becomes a theorem on every frame** rather than a property of
+the diagonal ones (:eq:`spaces-pseudo-inverse-parseval`). ``pinv``
+rather than ``inv`` is forced, not stylistic: `[M]` the flagship slab
+Gram is :math:`15\times15` with 5 live slots and **rank 4**, so no
+inverse exists, while :math:`G G^{+} G = G` holds to
+:math:`1.6\times10^{-15}` and is exactly what the theorem needs. Two
+consequences the phase had to own rather than announce. (i) The change
+is *behavioural*: `[M]` 10 of the 30 shipped angular frame
+constructions (nine quadrature families :math:`\times` :math:`L \le 3`,
+plus Lebedev-13) measure ``DENSE`` and are newly dressed, as is the
+non-angular overlap frame; the scattering operator builds one of them
+in production; and `[M]` the analysis adjoint moves by
+:math:`98\,\%` in Frobenius relative on all three ``DENSE`` angular
+frames measured — the recorded F-0 limitation repaired. The phase's
+design pre-flight injected the dressing on unmodified production over
+four test trees (4371 tests) and reddened **two** gates, neither of
+which observes the adjoint, so the change landed with the gate that
+does. (ii) :attr:`FrameBase.gram
+<orpheus.numerics.frame.FrameBase.gram>` had to learn to **strip** the
+dressing: the row-sum probe is CROSS-Gram machinery and must never
+inherit the trial-side Parseval metric, `[M]` on pain of a
+:math:`162\,\%` projection error on the overlap frame. The correctness
+evidence is the wrong-metric discriminator, not reciprocity — the
+Hilbert-adjoint identity holds for every invertible :math:`G` and can
+never adjudicate one (:ref:`frame-parseval-dense-arm`).
 
 References
 ==========

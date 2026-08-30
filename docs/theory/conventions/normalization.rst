@@ -181,11 +181,17 @@ in the adjoint row and in the :math:`\Pi R` row — the two are
    2026-08-23 on the slab ``gauss_legendre(8)`` measure at
    :math:`L = 2` the discrete Gram is **not diagonal at all** (largest
    live off-diagonal :math:`0.93` of :math:`\sqrt{G_{jj}G_{kk}}`), so
-   no :math:`(2\ell+1)/W` diagonal is its inverse and the frame
-   refuses the Parseval dressing there. Hébert's :math:`W = 2` row
-   remains the right reading of the *prefactor*; it is not a claim
-   about the slab frame's metric. See
-   :ref:`frame-parseval-dense-refusal`.
+   **no** :math:`(2\ell+1)/W` **diagonal is its inverse** — and that is
+   a structural impossibility, not an accident of the rule: `[M]`
+   2026-08-30 the best diagonal candidate reads a Parseval ratio of
+   :math:`1.806` where the matrix pseudo-inverse reads
+   :math:`0.999999999999999`. The frame there carries a **matrix**
+   Parseval metric (a
+   :class:`~orpheus.numerics.metric.DenseMetric`, campaign 1 P7,
+   2026-08-30; until then it refused the dressing altogether). Hébert's
+   :math:`W = 2` row remains the right reading of the *prefactor*; it
+   is not a claim about the slab frame's metric. See
+   :ref:`frame-parseval-dense-arm`.
 
 **The catchers.** In
 ``tests/numerics/test_spherical_harmonic_space.py``:
@@ -198,10 +204,13 @@ that the :math:`(2\ell+1)` lives in :math:`R`;
 ``test_pi_R_is_4pi_identity_on_band_limited`` pins
 :math:`\Pi R = 4\pi I` (ERR-051). In ``tests/numerics/test_frame.py``
 the ``test_parseval_*`` family pins the metric itself — the isometry
-:math:`\|\Pi\psi\|_{G^{-1}} = \|\psi\|_W`, the closure
-:math:`\Pi^* = R/W` and :math:`R^* = W\,\Pi` over six sphere families,
-the slab ``DENSE`` refusal, and a loaded-not-blind negative leg that
-re-installs the pre-F-0 continuum metric. The addition theorem itself
+:math:`\|\Pi\psi\|_\star = \|\psi\|_W` over the six ``DIAGONAL``
+sphere families **and** the ``DENSE`` slab, the closure
+:math:`\Pi^* = R/W` and :math:`R^* = W\,\Pi` over the six (a
+``DIAGONAL``-only law — see :ref:`spaces-metric-frame-square`), the
+slab's matrix dressing and the wrong-metric discriminator that
+justifies it, and a loaded-not-blind negative leg per arm that
+re-installs a metric known to be wrong. The addition theorem itself
 is verified at :math:`\ell \le 3` in
 ``tests/sn/operators/test_solver_components.py``.
 

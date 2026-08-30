@@ -213,9 +213,13 @@ them.  Trust ``git``, not this column.
        :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram_structure`
        verdict (deliberately distinct from the basis's DECLARED one), and
        a :attr:`~orpheus.numerics.frame.FrameBase.basis_space` that
-       dresses with :math:`G^{-1}` on a diagonal frame and **refuses** on
-       a dense one — slab Gauss–Legendre is the standing witness that no
-       diagonal candidate can satisfy Parseval there.  Nothing about the
+       dressed with :math:`G^{-1}` on a diagonal frame and **refused** on
+       a dense one — slab Gauss–Legendre being the standing witness that
+       no diagonal candidate can satisfy Parseval there.  (That refusal
+       is itself history: campaign 1 phase P7 made a space able to carry
+       a matrix metric and the dense arm now dresses too — see
+       :ref:`frame-parseval-dense-arm`.  The *diagnosis* the refusal
+       rested on is unchanged.)  Nothing about the
        design was wrong; *what was stored* was.  ⭐ **Three shields
        explain why no gate could see it, and the third is the one to
        read.**  The defining adjoint identity held at the round-off floor

@@ -124,6 +124,18 @@ the same space" is a claim this corpus has **overturned**.
      ``weights=None`` **is** the counting measure — deliberately and
      always; an axis has no "unbound" state, so the legacy two-state
      ambiguity of ``inner_product_weights`` cannot arise on this type.
+   - **The metric is an OBJECT, and a space has exactly ONE source for
+     it.** Since campaign 1 P7 a space may carry a typed
+     :class:`~orpheus.numerics.metric.HilbertMetric` — the Hadamard
+     weight is its diagonal special case — so a form with off-diagonal
+     structure is expressible at last; resolution is
+     ``metric`` > ``inner_product_weights`` > Euclidean, with axis-built
+     spaces routing through their axes instead, and a construction guard
+     refuses any two sources at once. ⚠ Consequently
+     ``inner_product_weights is None`` **no longer implies Euclidean** —
+     read a space's pairing through
+     :meth:`~orpheus.numerics.space.FunctionSpace.inner_product`, never
+     through the slot (:ref:`spaces-metric-object`).
    - **An axis is a FORGETFUL MAP from its generator, and the mint is
      its section.** The axis keeps the weights and drops the nodes; since
      CS5 the mint routes THROUGH the generator
@@ -306,14 +318,20 @@ reach.
    **The legacy twin is still live, and CS2 retires it.** ``V * W`` (the
    ``*`` dunder →
    :class:`~orpheus.numerics.space.TensorProductSpace`) is the PRE-axis
-   composition mechanism: it DENSIFIES the metric into an outer-product
-   ``inner_product_weights`` and derives its name by joining the
-   factors' names. CS1 keeps it — it threads the ``axes`` record when
-   both sides carry one, and bridges axis-borne measures into its dense
-   weights on mixed products, so no value is ever lost — and CS2
-   collapses the live mints onto axis concatenation and retires the
-   densifier. Until then the rule is: **new axis-aware code composes
-   with** ``of_axes``; ``*`` **is the legacy surface.**
+   composition mechanism: on all-diagonal factors it DENSIFIES the
+   metric into an outer-product ``inner_product_weights`` and derives
+   its name by joining the factors' names. CS1 keeps it — it threads the
+   ``axes`` record when both sides carry one, and bridges axis-borne
+   measures into its dense weights on mixed products, so no value is
+   ever lost — and CS2 collapses the live mints onto axis concatenation
+   and retires the densifier. Until then the rule is: **new axis-aware
+   code composes with** ``of_axes``; ``*`` **is the legacy surface.**
+   ⚠ Since campaign 1 P7 the densifier is only ONE of its two arms: a
+   factor carrying a metric OBJECT has no Hadamard form, so the product
+   builds a lazy :class:`~orpheus.numerics.metric.FactoredMetric`
+   instead — see :ref:`spaces-metric-propagation`, where dropping that
+   factor is measured as a value bug rather than a representation
+   choice.
 
 Canonical storage: one measure, one spelling, one identity
 -----------------------------------------------------------
@@ -1520,6 +1538,625 @@ against a stated contract rather than invented:
    :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>`)
    does not route through an axis. Do not read this section as a
    description of a code path.
+
+
+.. _spaces-metric-object:
+
+The metric is an OBJECT: three sources, one resolution
+======================================================
+
+Everything above treats a space's metric as a **measure** — a weight per
+index, stored per axis, applied by broadcasting. That is the right object
+for a *measure*, and it is not the general object. A discrete Hilbert
+space's metric is a symmetric positive-semi-definite **bilinear form**
+
+.. math::
+
+   \langle x, y\rangle_G \;=\; y^{\mathsf T} G\, x ,
+   \qquad G = G^{\mathsf T},\quad G \succeq 0 ,
+
+and nothing in that definition makes :math:`G` diagonal. Until campaign 1
+phase **P7** (2026-08-30) the tree could spell exactly two realizations,
+both of them a thing that is *multiplied* into the element — a broadcast
+weight array (the Hadamard product :math:`G\odot x`) and the per-axis
+factor measures of an axis-built space — so a form with off-diagonal
+structure was **unspellable at every level**, not merely unimplemented.
+P7 makes the metric a thing that is **applied**: a typed
+:class:`~orpheus.numerics.metric.HilbertMetric` family owned by the
+space, of which the Hadamard weight is the diagonal special case it
+always was.
+
+.. admonition:: Why this is a foundations concern and not a frame detail
+   :class: tip
+
+   Two independent consumers demanded the same missing primitive, which
+   is what promoted it from a loose end to a layer:
+
+   - the **slab spherical-harmonic frame**, whose measured discrete Gram
+     carries live off-diagonals at :math:`0.93` of the Cauchy–Schwarz
+     scale, so no diagonal metric satisfies Parseval on it
+     (:ref:`frame-parseval-dense-arm`); and
+   - the **curvilinear multi-moment cell mass** :math:`M/V`, whose true
+     value at a spherical pole cell is
+     ``[[1, 0.5], [0.5, 0.4]]``
+     — dense *and* cell-dependent.
+
+   Only the first is closed by P7, and the reason is measured rather
+   than asserted: see :ref:`spaces-metric-not-on-the-axis` below.
+
+.. _spaces-metric-three-sources:
+
+Three sources, and the order that resolves them
+-----------------------------------------------
+
+A :class:`~orpheus.numerics.space.FunctionSpace` now has three places a
+metric can come from, and **exactly one of them may be occupied**:
+
+.. list-table:: The metric sources, in resolution order
+   :header-rows: 1
+   :widths: 20 34 46
+
+   * - Source
+     - Realization
+     - When it is the right one
+   * - ``axes``
+     - the per-axis path
+       (``FunctionSpace._apply_axes_weights``) — each factor's weight
+       vector broadcast into its own index block
+     - An axis-built space (:eq:`spaces-axis-product`). The axes **are**
+       the metric source; the space never consults the other two.
+   * - ``metric``
+     - the object itself —
+       :class:`~orpheus.numerics.metric.DiagonalMetric`,
+       :class:`~orpheus.numerics.metric.DenseMetric`, or a
+       :class:`~orpheus.numerics.metric.FactoredMetric` product of them
+     - A form no weight array can spell. Today's founding occupant is
+       the frame's matrix Parseval metric.
+   * - ``inner_product_weights``
+     - resolved to a
+       :class:`~orpheus.numerics.metric.DiagonalMetric`, whose
+       arithmetic is operation-for-operation the arms that used to live
+       inline
+     - The legacy dense weight array — every pre-P7 metric, and still
+       the ordinary case.
+   * - *(none)*
+     - the verbs short-circuit without constructing an object
+     - Euclidean, :math:`\sum_i x_i y_i`.
+
+Resolution happens once per space, in
+``FunctionSpace._resolved_metric``, and the three metric verbs —
+:meth:`~orpheus.numerics.space.FunctionSpace.apply_metric`,
+:meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric` and
+:meth:`~orpheus.numerics.space.FunctionSpace.inner_product` — delegate
+to whatever it returns. Composite spaces
+(:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`,
+:class:`~orpheus.numerics.coupled_system.CoupledSpace`) override the
+three verbs to dispatch **per block** and therefore inherit the family
+for free: a dense-metric interior block flows through a composite with
+no composite-level change.
+
+**Exclusivity is a construction guard with three pairwise arms**
+(``axes``/``weights``, ``axes``/``metric``, ``weights``/``metric``), and
+the restructuring is not cosmetic. Before P7 the check sat *behind* an
+``if self.axes is None: return`` early exit, so the
+``(weights, metric)`` arm was **structurally unreachable** — a guard arm
+with no possible witness (``vv-principles`` #17's granularity trap, in
+its purest form: the guard would have been mutated as a unit and
+certified by whichever arm the suite happened to reach). Each arm now
+carries its own gate in ``tests/numerics/test_space_of_axes.py``.
+
+.. warning::
+
+   **The flip found a whole subclass family standing outside the
+   construction contract.** All three
+   :class:`~orpheus.numerics.space.FunctionSpace` subclasses that
+   define their own ``__post_init__`` —
+   :class:`~orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace`,
+   :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+   and
+   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`
+   — **overrode without chaining**, so *every* base construction guard
+   (not only the new one) had been silently opted out of since each
+   subclass was written. All three now call ``super().__post_init__()``
+   first. It surfaced only because the first dressing attempt left the
+   spherical-harmonic basis's continuum weights in the field *beside*
+   the new metric object and nothing refused it — the two-source illegal
+   state was representable exactly where the guard was supposed to live.
+   This is the standing argument for making a guard's own arms
+   individually falsifiable: the arm that has no witness is the arm that
+   is not running.
+
+.. important::
+
+   **⚠ An empty weights slot no longer means "Euclidean".**
+   ``inner_product_weights is None`` describes the *diagonal source*
+   only; a dense-metric space reads ``None`` there while carrying a
+   real, non-Euclidean metric.
+   Read the space's behaviour through
+   :meth:`~orpheus.numerics.space.FunctionSpace.inner_product`, never
+   through the slot. `[M]` the production exposure is small and worth
+   stating so the hazard is not over-read: of the 198 lines across
+   52 files in ``orpheus/`` + ``tests/`` that name the slot, 20 are
+   ``is None`` / ``is not None`` branches and only **three** are
+   production — all three inside ``space.py`` itself (two arms of the
+   exclusivity guard, and the resolution in ``_resolved_metric``).
+
+.. _spaces-metric-moore-penrose:
+
+The Moore–Penrose doctrine, extended from a reciprocal to a matrix
+-------------------------------------------------------------------
+
+:meth:`HilbertMetric.apply_inverse
+<orpheus.numerics.metric.HilbertMetric.apply_inverse>` is the
+**pseudo**-inverse :math:`G^{+}` — the reciprocal on the metric's range,
+zero on its kernel — for every realization. On the diagonal arm this is
+the doctrine the tree has carried since the trace-metric work (a
+tangential ordinate with :math:`|\Omega\cdot n| = 0` has weight zero and
+must map to zero, not to infinity). The dense arm extends it unchanged,
+and there it is **not a convenience: it is the only thing that exists.**
+
+`[M]` 2026-08-30 on ``Quadrature.gauss_legendre(8).angular_frame(2)`` —
+the flagship consumer — the discrete Gram is :math:`15\times15` with
+**5 live diagonal slots and rank 4**: its singular values are
+:math:`2.708,\ 1.419,\ 4.925\times10^{-1},\ 4.745\times10^{-2}` and then
+the round-off floor (:math:`\sim10^{-17}`, fifteen orders below the
+smallest genuine mode). :func:`numpy.linalg.inv` raises there;
+:func:`numpy.linalg.pinv` returns the object Parseval needs.
+
+Two construction choices in
+:class:`~orpheus.numerics.metric.DenseMetric` are worth their reasons:
+
+#. **The cutoff is PINNED, not left to the library default.** An
+   implicit default is a silent dependency on a NumPy version, and a
+   mutation arm that over-truncates is only meaningful against a fixed
+   value. The shipped ``rcond`` is :math:`10^{-12}`, and the cliff it
+   must sit below is computable rather than guessed: NumPy's ``rcond``
+   is relative to the largest singular value, so truncation begins at
+   :math:`\sigma_{\min}^{\rm live}/\sigma_{\max} = 4.745\times10^{-2} /
+   2.708 = 1.75\times10^{-2}`. `[M]` scanned on the flagship Gram, the
+   Parseval ratio reads ``1.000000000`` at every scanned ``rcond`` in
+   :math:`[10^{-15},\,10^{-2}]` — as it must, since no truncation can
+   occur below the cliff — and drops to ``0.991414787`` from
+   :math:`3\times10^{-2}` upward, where the genuine
+   :math:`4.745\times10^{-2}` mode is discarded. :math:`10^{-12}` sits
+   ten orders below the cliff and five above the noise floor.
+#. **The pseudo-inversion declares hermiticity.** `[M]` the same call
+   *without* ``hermitian=True`` returns a matrix whose asymmetry is
+   :math:`\max|M - M^{\mathsf T}| = 4.74\times10^{-14}`, against
+   :math:`1.1\times10^{-16}` with it — three orders, and enough to trip
+   the type's own symmetry admission on a re-wrap.
+
+The type refuses two illegal states outright rather than repairing them:
+an **asymmetric** matrix (an asymmetric form is not an inner product —
+producers symmetrize, the type does not), and an explicitly supplied
+inverse face that fails the **Penrose identity** (an inconsistent
+:math:`(G, G^{+})` pair is not a representation choice). Both thresholds
+are module constants, so a gate on the type quotes the type's own
+number (``vv-principles`` #16).
+
+.. _spaces-metric-parseval-theorem:
+
+Parseval is a THEOREM for any Gram, singular or not
+----------------------------------------------------
+
+The pseudo-inverse is not a graceful degradation of the invertible
+story; it is what makes the story *general*. For a band-limited field
+:math:`\psi = S_0 c` the analysis face returns the **covariant** moments
+:math:`\varphi = M\psi = Gc` identically
+(:eq:`frame-analysis-is-the-gram`, pure algebra). Measuring those
+moments under :math:`G^{+}` and using the first Penrose identity
+:math:`G G^{+} G = G`:
+
+.. math::
+   :label: spaces-pseudo-inverse-parseval
+
+   \|M\psi\|^2_{G^{+}}
+   \;=\; (Gc)^{\mathsf T} G^{+} (Gc)
+   \;=\; c^{\mathsf T}\bigl(G G^{+} G\bigr) c
+   \;=\; c^{\mathsf T} G\, c
+   \;=\; \|S_0 c\|^2_W .
+
+.. (vv-status rationale) A representational identity: it derives the
+   Parseval isometry (:eq:`frame-parseval-isometry`, whose SSOT is
+   :ref:`frame-parseval-metric` on the frame page) for a SINGULAR Gram
+   by substituting the first Penrose identity. No flux, no eigenvalue,
+   no discretization error — the metric-object layer's statement of a
+   claim the frame page owns in the frame register. The verifiable
+   content is the DenseMetric law battery
+   (``tests/numerics/test_dense_metric.py``, hand-derived literals in
+   exact binary fractions plus the range-projector leg) and, on the
+   frame side, the four-mechanism dressing gate, the isometry gate's
+   slab row, and the wrong-metric discriminator
+   (``tests/numerics/test_frame.py``).
+.. vv-status: spaces-pseudo-inverse-parseval documented
+
+.. no-implementation:: spaces-pseudo-inverse-parseval
+   :kind: identity
+
+   **Nothing implements this.** Both sides are computed — the left by
+   :meth:`FunctionSpace.inner_product
+   <orpheus.numerics.space.FunctionSpace.inner_product>` on the frame's
+   dressed coefficient space, the right by the same verb on the measure
+   space — and no line in production forms the comparison. That is the
+   point: the equality is what lets the dressing be a one-line
+   ``replace`` rather than a bespoke correction. It is *measured* by the
+   Parseval isometry gate.
+
+The identity holds because :math:`G G^{+} G = G` is one of the four
+Penrose conditions, true by definition of the pseudo-inverse — no
+hypothesis about rank, conditioning or invertibility enters. `[M]` on
+the flagship slab Gram the residual is
+:math:`\max|G G^{+} G - G| = 1.55\times10^{-15}` absolute, which is
+:math:`7.8\times10^{-16}` relative to :math:`\max|G| = 2` (and
+:math:`7.7\times10^{-16}` in the Frobenius ratio — the norm is worth
+writing down, because three reasonable norms of the same residual differ
+by an order).
+
+.. _spaces-metric-one-spelling:
+
+The pairing has ONE spelling, and that is a bit-identity contract
+------------------------------------------------------------------
+
+:meth:`HilbertMetric.pairing
+<orpheus.numerics.metric.HilbertMetric.pairing>` is
+``float(np.sum(self.apply(x) * y))`` — :math:`\sum (Gx)\odot y` — for
+**every** realization, inherited rather than overridden. Two reasons,
+both load-bearing:
+
+**Bit-identity with the legacy path.** The pre-P7 diagonal spelling was
+``np.sum(w * x * y)``, which Python evaluates left-to-right as
+``(w*x)*y``; ``DiagonalMetric.apply(x)`` *is* ``w_b * x``, so routing
+the shipped diagonal path through the family preserves the reduction
+tree exactly. The obvious alternative — densify and matmul,
+:math:`y^{\mathsf T}(\operatorname{diag}(w)\,x)` — is **not** the same
+program. `[M]` 40 seeds :math:`\times` 500 draws at :math:`n = 15`, the
+two spellings disagree bitwise on **60.4 %–69.8 %** of draws, with the
+worst gap ranging over **46–16 384 ULP** (relative
+:math:`9.2\times10^{-15}`–:math:`2.1\times10^{-12}`) across seeds.
+Note which half of that is publishable: the *fraction* is a stable
+property of the arithmetic (two different reduction trees disagree on
+about two draws in three), while the *ULP gap* is unbounded wherever the
+sum nearly cancels and must never be frozen into a docstring or a gate
+band. What the measurement licenses is the structural claim: a matmul
+pairing would move pinned numbers tree-wide, so it is deliberately
+unspellable here.
+
+**One source of truth for the adjoint.**
+``_AdjointOperator`` builds :math:`A^{\dagger} = G^{-1}A^{\mathsf T}G`
+from ``apply_metric``/``apply_inverse_metric`` while the pairing that
+*judges* it comes from ``inner_product``. Deriving the pairing from
+``apply`` makes those two agree by construction — the ERR-067 family
+(two spellings of one metric diverging silently) becomes unspellable
+rather than merely untested.
+
+.. _spaces-metric-propagation:
+
+Composition: a dropped metric is a VALUE bug wearing a representation costume
+-------------------------------------------------------------------------------
+
+A new representation is invisible to every consumer that propagates the
+old one by copying an array. Three such sites exist, and all three were
+measured *silently wrong* on a dense-metric space before P7 taught them
+— each failing in the flattering direction (reverting to Euclidean, or
+to a plausible-looking value, with no error and no warning):
+
+.. list-table:: The three propagation sites
+   :header-rows: 1
+   :widths: 26 37 37
+
+   * - Site
+     - Pre-P7 behaviour on a dense-metric operand
+     - What it does now
+   * - :meth:`DualSpace.of
+       <orpheus.numerics.space.DualSpace.of>`
+     - copied ``inner_product_weights`` only, so the dual of a
+       dense-metric space read the **plain Euclidean** pairing.
+       `[M]` on the ``test_dense_metric`` fixture the dual read
+       :math:`4.5` where the primal reads :math:`23.25`
+     - threads the metric object (L²-Riesz: the dual carries the SAME
+       metric), so both read :math:`23.25`
+   * - :meth:`TensorProductSpace.from_factors
+       <orpheus.numerics.space.TensorProductSpace.from_factors>`
+       (the legacy ``*``)
+     - densified the factor measures into one outer-product weight
+       array — which has no slot for a matrix factor, so the dense
+       factor was **dropped** and its block went Euclidean
+     - grows a dense-factor arm: a lazy
+       :class:`~orpheus.numerics.metric.FactoredMetric`, one positioned
+       entry per factor, Kronecker never materialized
+   * - :attr:`FrameBase.gram
+       <orpheus.numerics.frame.FrameBase.gram>`
+     - ``replace(test_space, inner_product_weights=diagonal)`` on a
+       dressed test space handed the **row-sum probe** a space whose
+       ``apply_inverse_metric`` ignores that slot and applies its own
+       matrix
+     - **strips** the metric object while installing the probe
+       diagonal — the cross-Gram machinery must never inherit the
+       trial-side Parseval dressing
+
+The third is the sharpest, because it is not a missing feature but a
+live projection error on a production path
+(:meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+is what homogenisation and condensation call). `[M]` on the overlap
+frame — Gram
+``[[1.25, 0.25], [0.25, 1.25]]``,
+condition number :math:`1.50` — the pre-P7 spelling computes
+:math:`G\,(Mf)` instead of :math:`\operatorname{diag}^{+}(Mf)` and
+returns ``[7.0, 11.0]`` where the true projection is
+:math:`[8/3,\,16/3]`: **162.5 %** wrong on the first component,
+**106.3 %** on the second. Post-P7 that spelling is not merely wrong,
+it is **unrepresentable** — the exclusivity guard refuses the
+two-source space at construction, `[M]` with
+``ValueError: space 'L2[coarse_cells_R1]' carries BOTH dense
+inner_product_weights and a metric object``. The illegal state that
+produced a 162 % value error is now a state that cannot be built.
+
+.. note::
+
+   **The tensor product's laziness is the same discipline the axis path
+   already follows.** :class:`~orpheus.numerics.metric.FactoredMetric`
+   stores ``(block_shape, factor)`` pairs and applies them in sequence,
+   each to its own index block; the Kronecker product
+   :math:`G_1\otimes G_2\otimes\cdots` is never formed. The pairing is
+   nonetheless exact against a densified reference: `[M]` a
+   :math:`(3,)` dense-metric factor times a :math:`(2,)` weighted
+   factor reads ``141.5``, bit-equal to
+   :math:`y^{\mathsf T}\bigl(G\otimes\operatorname{diag}(w)\bigr)x`
+   built with :func:`numpy.kron`, where dropping the dense factor would
+   have read ``45.0``. On separable probes the pairing factorizes
+   exactly, which is what makes a hand-derived pin possible:
+   :math:`23.25 \times 2.5 = 58.125` in exact binary fractions.
+
+.. warning::
+
+   **This does NOT mean an axis-built product can carry a matrix.**
+   :eq:`spaces-axis-product` says the metric of an ``of_axes`` product
+   is :math:`\bigotimes_a G_a` with
+   :math:`G_a = \operatorname{diag}(w_a)` or :math:`I`, and that
+   remains exactly true — see :ref:`spaces-metric-not-on-the-axis`. The
+   :class:`~orpheus.numerics.metric.FactoredMetric` arm belongs to the
+   **legacy** ``*`` composition, which takes whole *spaces* as factors
+   and therefore can meet one that carries a metric object. The two
+   paths were not unified by P7 and CS2 still retires the second.
+
+.. _spaces-metric-dressing-evidence:
+
+The dense dressing, and the only evidence that can adjudicate a metric
+------------------------------------------------------------------------
+
+The founding consumer installs it:
+:attr:`FrameBase.basis_space
+<orpheus.numerics.frame.FrameBase.basis_space>` on a ``DENSE`` verdict
+now returns the basis's space dressed with
+``DenseMetric.inverse_of(discrete_gram)`` — the pseudo-inverse at the
+pinned cutoff, with the exact symmetrized Gram kept as the inverse face
+(:math:`(G^{+})^{+} = G` for a symmetric PSD form, so this is exact and
+strictly better conditioned than a second pseudo-inversion) — and
+**strips** the basis's continuum weights, because the dressing
+*replaces* the metric on that arm exactly as the diagonal arm
+overwrites it. Full account, including the slab Gram's own table:
+:ref:`frame-parseval-dense-arm`.
+
+⛔ **Reciprocity cannot adjudicate a metric, and it never will.** The
+Hilbert-adjoint identity :math:`A^{\dagger} \equiv G^{-1}A^{\mathsf T}G`
+holds to :math:`1.4\times10^{-16}` for **every** invertible :math:`G` —
+Euclidean, random, :math:`(V\!\cdot\! w)^3` — because ``.H`` is *built
+from* the stored metric and a sandwich always reproduces the pairing it
+was assembled from (ERR-039's first shield, at this layer). A
+reciprocity gate therefore proves *loadedness* and carries **zero**
+information about *which* metric is installed. The instrument that can
+fail is one that compares the metric against a quantity defined without
+it — Parseval, i.e. the field's own norm — plus hand-derived literals
+with no solver, frame or quadrature in the chain.
+
+.. list-table:: The wrong-metric discriminator — `[M]` 2026-08-30, one band-limited :math:`\psi` on ``gauss_legendre(8).angular_frame(2)``
+   :header-rows: 1
+   :widths: 40 24 36
+
+   * - Metric on the coefficient space
+     - Parseval ratio
+     - Verdict
+   * - the basis's **continuum** Gram (pre-F-0, undressed)
+     - :math:`25.53`
+     - the ERR-039 defect
+   * - the best **diagonal** candidate, :math:`1/\operatorname{diag}(G)`
+     - :math:`1.806`
+     - a diagonal metric is *provably insufficient* here, not merely
+       unavailable
+   * - the **matrix** pseudo-inverse :math:`G^{+}` (shipped)
+     - :math:`0.999999999999999`
+     - the theorem, :eq:`spaces-pseudo-inverse-parseval`
+
+The middle row is the whole justification for the phase, and it is the
+row a diagonal-only design could never have produced. ⚠ Its **floor is
+frame-dependent** and only the slab's is gated: `[M]` on the same
+construction the diagonal candidate reads :math:`1.066` on
+``product(4,4)`` at :math:`L=2` and :math:`0.996` on
+``level_symmetric(4)`` at :math:`L=3` — close enough to 1 that a gate
+pinned there would be pinning noise.
+
+**The dressing moves a production adjoint, and nothing observed it.**
+This is not plumbing. The scattering operator builds
+``quadrature.angular_frame(scattering_order)`` in production, so
+dressing a ``DENSE`` frame changes the spaces every ``.H`` through the
+adjoint sandwich reads. `[M]` comparing the dressed and undressed
+analysis adjoints **as operators** (column by column on the coefficient
+basis, so the number carries no random draw):
+
+.. list-table:: Movement of ``frame.analysis.H`` under the dressing
+   :header-rows: 1
+   :widths: 34 22 22 22
+
+   * - Frame
+     - :math:`\max|\Delta|`
+     - relative (max-norm)
+     - relative (Frobenius)
+   * - ``product(4,4)``, :math:`L=2`
+     - :math:`12.49`
+     - :math:`0.994`
+     - :math:`0.985`
+   * - ``gauss_legendre(8)``, :math:`L=2`
+     - :math:`12.39`
+     - :math:`0.986`
+     - :math:`0.980`
+   * - ``level_symmetric(4)``, :math:`L=3`
+     - :math:`12.49`
+     - :math:`0.994`
+     - :math:`0.980`
+
+The two operators are not a small correction apart; they are
+essentially unrelated, which is the correct reading of a repair whose
+"before" state the tree's own docstring called *"the stored-metric
+sandwich, NOT the physical Hilbert adjoint"*. ⚠ Do not freeze a
+single-vector figure for this: a random-probe relative movement on
+``product(4,4)`` is `[M]` **0.879–0.986** over 200 seeds, so a quoted
+point value inside that band is one draw's reading, not a property of
+the frame.
+
+.. _spaces-metric-frame-square:
+
+What does NOT ride along: the frame square's scalar closure
+-------------------------------------------------------------
+
+Installing the right metric does **not** make every identity that
+mentions a metric come true, and the distinction is worth a subsection
+because it is exactly where a reader will over-read the repair.
+
+The spherical-harmonic frame square closes on one scalar,
+:math:`M^{*} = R/W` and :math:`R^{*} = W M`
+(:eq:`frame-square-closure-sh`), and that identity needs the per-degree
+Gram :math:`G_\ell` to be **a single number for each** :math:`\ell`.
+Writing :math:`d` for the addition-theorem factors
+(:math:`d_\ell = 2\ell+1`) and :math:`Y` for the synthesis table, the
+closure is the operator statement
+
+.. math::
+
+   Y\Bigl(G^{+} - \tfrac{1}{W}\operatorname{diag}(d)\Bigr) \;=\; 0 ,
+
+i.e. the metric and the reconstruction weights need agree only **modulo
+the kernel of** :math:`Y`. That makes the relation decidable and it
+splits the shipped frames three ways rather than two:
+
+.. list-table:: `[M]` 2026-08-30 — the closure residual is not implied by the metric being right
+   :header-rows: 1
+   :widths: 30 14 22 34
+
+   * - Frame
+     - Verdict
+     - rel :math:`\|M^{*}y - Ry/W\|`
+     - Why
+   * - the six ``DIAGONAL`` sphere frames — LS\ :sub:`4` at
+       :math:`L{=}1` and :math:`L{=}2`, and LS\ :sub:`8`, product
+       :math:`8\times8`, folded :math:`8\times8` and Lebedev-13 at
+       :math:`L{=}2`
+     - ``DIAGONAL``
+     - :math:`\le 1\times10^{-15}`
+     - each live :math:`\ell` block is one constant; per-degree
+       diagonal spread :math:`\le 4\times10^{-15}`
+   * - ``gauss_legendre(8)``, :math:`L=2`
+     - ``DENSE``
+     - :math:`0.30`–:math:`10.2` (200 seeds)
+     - the live :math:`\ell{=}2` diagonal is
+       :math:`[0.4,\,0.8,\,0.8]` — no :math:`G_\ell` exists, at **any**
+       metric
+   * - ``product(4,4)`` :math:`L{=}2`; ``level_symmetric(4)``
+       :math:`L{=}3`
+     - ``DENSE``
+     - :math:`3\times10^{-3}`–:math:`0.33`
+     - same cause, milder: only the top degree's block is non-constant
+   * - ``folded_product(4,6)``, :math:`L=3`
+     - ``DENSE``
+     - :math:`\le 3\times10^{-15}` (200 seeds)
+     - its coupling is a pure **rank deficiency**, so the disagreement
+       lives entirely in :math:`\ker Y`
+
+The last row is the one that makes the statement a theorem rather than a
+correlation, and it was found by measuring rather than by reasoning.
+That frame's only live off-diagonal couples two :math:`\ell = 3` slots
+whose :math:`2\times2` block is
+``[[0.6732, 0.8691], [0.8691, 1.1220]]``
+— `[M]` determinant :math:`-8.7\times10^{-17}`, **rank 1**: the two
+harmonics are linearly *dependent* on that folded node set. So
+:math:`G^{+}` and :math:`\operatorname{diag}(d)/W` differ by an
+:math:`O(1)` amount that :math:`Y` annihilates: `[M]`
+:math:`\|Y D\|_\infty = 4.4\times10^{-16}` with
+:math:`\|D\|_\infty = 0.557`, against
+:math:`\|Y D\|_\infty = 6.30` on the slab.
+
+⟹ **the** ``DIAGONAL`` **verdict is sufficient for the scalar
+closure, and** ``DENSE`` **does not decide it.** That is why the
+frame-square gate keeps only the
+diagonal parameters — not because a dense frame always breaks the
+closure (one shipped frame does not), but because the verdict does not
+*imply* it, and a gate must not assert what its population cannot
+guarantee. The discriminator is Gram structure, never geometry: a
+*sphere* rule (``product(4,4)``) is among the frames that break it.
+
+.. _spaces-metric-not-on-the-axis:
+
+Where the metric may NOT live, and what stays refused
+-------------------------------------------------------
+
+Three rulings bound the phase. Each is a decision with a reason, not a
+scheduling accident.
+
+**1. The axis keeps a MEASURE; it does not grow a form.**
+:attr:`Axis.weights <orpheus.numerics.axis.Axis.weights>` stays a 1-D
+weight vector, and :eq:`spaces-axis-product` stays literally true. The
+distinction is not notation: *a measure is diagonal by nature* — it
+assigns a number to each atom of an index set — whereas a Gram is a
+**bilinear form** on the space the atoms span, and the two coincide only
+when the basis is orthogonal on that measure. The generator induces, the
+space holds: a frame that measures its own Gram dresses the *space* it
+mints, and no axis is asked to carry a matrix it has no way to produce.
+
+**2. Identity stays metric-blind.** Space identity is
+:math:`(\text{name}, \text{shape})`, so a dressed and an undressed space
+of the same name compare equal and hash equal, and the frame's
+``basis_space == basis.space`` invariant survives the dressing
+untouched. The ``metric`` field is declared ``compare=False`` for the
+same **structurally mandatory** reason the weights slot is: an ndarray
+inside a dataclass-generated ``__eq__`` makes the comparison return an
+array and ``hash()`` raise. (The chartered doctrine that *metric
+differences imply space differences* is unaffected — it flows through
+the axis-derived name, :ref:`spaces-identity-bridge`, and an axis-built
+space cannot carry a metric object at all.)
+
+**3. Expressible is not known — the curvilinear moment mass stays
+refused.** The multi-moment cell mass on a curved chart was blocked on
+**two** independent things, deliberately named because they need
+opposite repairs: the *machinery* (a non-Hadamard space metric,
+`GitHub #409 <https://github.com/deOliveira-R/ORPHEUS/issues/409>`_) and
+the *value* (which :math:`G` is right is pinned by physical functionals
+and needs the cell-solve consumer of
+`#158 <https://github.com/deOliveira-R/ORPHEUS/issues/158>`_). P7 lands
+the machinery only. The refusal in
+``DiscretizationSchemeBase._assert_moment_mass_is_expressible`` therefore
+re-derives to name **#158 alone**, and nothing installs a guess: a
+metric that can now be *spelled* is not a metric anyone has *chosen*.
+
+.. note::
+
+   **Why the axis ruling and the curvilinear refusal are the same
+   measurement read twice.** The two consumers need different strengths,
+   and that asymmetry is the strongest argument for an
+   operator-valued metric over a "matrix weights slot on ``Axis``":
+
+   - the slab frame needs **one cell-independent** dense
+     :math:`K\times K` coefficient Gram — a per-axis matrix could carry
+     that;
+   - the curvilinear mass is
+     :math:`G_{(i,k),(i,j)} = V_i\,M_{kj}(r_i)` — dense in the moment
+     index **and** varying along the spatial index, i.e.
+     **non-separable** across (spatial :math:`\times` moment). No
+     per-axis object of any shape, vector or matrix, can carry it.
+
+   A design that closed the first consumer by widening ``Axis`` would
+   have closed exactly one of the two and made the second harder, by
+   putting the metric on the factor that cannot express it. The
+   space-held object closes the first and leaves the second's *machinery*
+   available for whatever chooses its value.
 
 
 .. _spaces-collapse-doctrine:
@@ -2815,8 +3452,8 @@ it.
 
 .. _spaces-fences:
 
-What is NOT built (the CS2 and CS4 seams)
-=========================================
+What is NOT built (the standing seams)
+======================================
 
 Stated explicitly so no reader mistakes a chartered design for shipped
 machinery, and so the next phase does not re-derive a decision already
@@ -2911,6 +3548,30 @@ taken.
      - **CS4.** Every operator's ``space`` is still
        ``FunctionSpace | None``; a ``None`` operand makes the
        composition guard skip rather than validate.
+   * - A CHOSEN curvilinear moment mass
+     - **Not scheduled here — and the reason is a split, not a delay.**
+       P7 landed the *machinery* for a non-Hadamard metric; which
+       :math:`G` a curved chart's multi-moment cell wants is a
+       **value** question, pinned by physical functionals and needing
+       the cell-solve consumer of `#158
+       <https://github.com/deOliveira-R/ORPHEUS/issues/158>`_. The
+       scheme family still refuses, now naming that one blocker.
+       Expressible is not known
+       (:ref:`spaces-metric-not-on-the-axis`).
+   * - The Riesz legs (``riesz_lower`` / ``riesz_raise``)
+     - **CS4c.** P7's metric family is what those legs will wrap —
+       the metric arithmetic has one home, so retiring
+       ``_AdjointOperator`` into
+       :math:`A^{*} = A.\mathrm{domain.riesz\_raise}\circ A.\mathrm{dual}()
+       \circ A.\mathrm{codomain.riesz\_lower}` needs no third spelling
+       of it. `[M]` neither method is defined anywhere in the tree
+       today (``hasattr`` is ``False`` on
+       :class:`~orpheus.numerics.space.FunctionSpace`,
+       :class:`~orpheus.numerics.space.DualSpace`,
+       :class:`~orpheus.numerics.space.TensorProductSpace` and
+       :class:`~orpheus.numerics.operator.LinearOperator`); the only
+       occurrence of either name is the metric module's own docstring,
+       naming the compatibility target.
 
 
 .. _spaces-development-history:
@@ -2936,6 +3597,53 @@ status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-08-30
+     - **The metric becomes an OBJECT — a space can carry a
+       non-diagonal** :math:`G` (campaign 1, phase P7). The metric stops
+       being a thing that is *multiplied* into the element (a broadcast
+       weight array, or the per-axis factor measures) and becomes a
+       thing that is **applied**: a typed
+       :class:`~orpheus.numerics.metric.HilbertMetric` family —
+       :class:`~orpheus.numerics.metric.DiagonalMetric` (the Hadamard
+       realization, bit-identical to the arithmetic it replaces),
+       :class:`~orpheus.numerics.metric.DenseMetric` (a symmetric matrix
+       on the flattened leading block, Moore–Penrose inverse face,
+       refusing an asymmetric matrix or a Penrose-inconsistent pair) and
+       :class:`~orpheus.numerics.metric.FactoredMetric` (a lazy
+       per-block tensor product; the Kronecker product is never
+       materialized). The space gains a third metric SOURCE and a
+       three-arm exclusivity guard — of whose arms the
+       ``(weights, metric)`` one had been structurally unreachable — and
+       the three propagation sites that used to copy a weight array are
+       taught: :meth:`DualSpace.of
+       <orpheus.numerics.space.DualSpace.of>` threads the object,
+       ``TensorProductSpace.from_factors`` grows a dense-factor arm, and
+       :attr:`FrameBase.gram <orpheus.numerics.frame.FrameBase.gram>`
+       **strips** it while installing the row-sum probe (`[M]` the
+       pre-P7 spelling returned ``[7.0, 11.0]`` for a projection whose
+       true value is :math:`[8/3,\,16/3]` — a silent value error, and
+       now an unconstructible state). The founding consumer is the
+       frame: a ``DENSE`` verdict is no longer a refusal but the matrix
+       pseudo-inverse dressing, so **Parseval is a theorem on every
+       frame** (:eq:`spaces-pseudo-inverse-parseval`), the recorded F-0
+       limitation is repaired, and `[M]` a production analysis adjoint
+       moves by :math:`98\,\%` in Frobenius relative — a correctness
+       repair, not plumbing. What did NOT change:
+       :attr:`Axis.weights <orpheus.numerics.axis.Axis.weights>` stays a
+       1-D measure (a measure is diagonal by nature; a Gram is a form),
+       identity stays metric-blind, and the curvilinear moment mass
+       stays refused on its VALUE alone
+       (:ref:`spaces-metric-not-on-the-axis`). Found by the flip: all
+       three :class:`~orpheus.numerics.space.FunctionSpace` subclasses
+       that override ``__post_init__`` did so **without chaining**, and
+       had been outside every base construction guard since they were
+       written.
+     - `#409 <https://github.com/deOliveira-R/ORPHEUS/issues/409>`_
+     - ``6a0e0473`` (the family), ``bae73fa7`` (exclusivity + the
+       factored product), ``f1f30cea`` (the dense dressing),
+       ``af9f95f1`` (the curvilinear refusal names one blocker) —
+       *(in development,* branch ``feature/p7-nondiagonal-metric``\ *;*
+       ``git`` *is the merge-status authority)*
    * - 2026-08-29
      - **A producer binds the space factor, and reads the angular
        geometry through it** (the streaming campaign's P4-remainder) —

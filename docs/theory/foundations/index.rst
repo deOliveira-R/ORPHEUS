@@ -72,7 +72,10 @@ not what collision, scattering, and fission *are*.
        deliberately excluded from the axis's structural identity), the
        **forgetful-map doctrine** that makes an axis able to hand back
        the nodes it dropped, the **counting-measure theorem** that makes
-       the energy metric the identity, and the **collapse doctrine** —
+       the energy metric the identity, the **metric-as-object doctrine**
+       (three sources with one resolution, the Moore–Penrose face on a
+       matrix, and why an axis keeps a *measure* while a space may hold
+       a *form*), and the **collapse doctrine** —
        the two one-line tests that decide which axes survive a
        degeneracy (the homogeneous quotient point persists; the angular
        axis of a scalar space does not), with both refuted earlier

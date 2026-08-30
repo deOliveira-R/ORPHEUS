@@ -549,7 +549,14 @@ no-:math:`4\pi/(2\ell+1)`-prefactor convention are documented at
 :ref:`spherical-harmonics`. The
 :meth:`partition_by` primitive on
 :class:`~orpheus.numerics.measure.DiscreteMeasure` is documented at
-:ref:`discrete-measure-partition`. The theory pages contain the full
+:ref:`discrete-measure-partition`. The
+:class:`~orpheus.numerics.metric.HilbertMetric` family
+(:class:`~orpheus.numerics.metric.DiagonalMetric` /
+:class:`~orpheus.numerics.metric.DenseMetric` /
+:class:`~orpheus.numerics.metric.FactoredMetric`) — a space's inner
+product as an object that is *applied* rather than an array that is
+multiplied — is documented at :ref:`spaces-metric-object`. The theory
+pages contain the full
 mathematical narrative; per-symbol API docstrings live in the
 modules themselves and are accessible via the standard
 ``orpheus.numerics`` import path.

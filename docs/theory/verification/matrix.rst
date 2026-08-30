@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10236**
+Total tests collected: **10266**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1297, 12.7%
-   L1, 1634, 16.0%
+   L0, 1297, 12.6%
+   L1, 1635, 15.9%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7233, 70.7%
+   foundation, 7262, 70.7%
    unmarked, 8, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10149
+   explicit, 10179
    class-name, 46
    func-name, 0
    case, 33
@@ -269,7 +269,7 @@ Module × level grid
    fields/test_harmonic_moment_flux, 0, 0, 0, 0, 13, 0
    fields/test_meshless_construction, 0, 0, 0, 0, 8, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
-   frames/test_harmonic_frame, 0, 0, 0, 0, 20, 0
+   frames/test_harmonic_frame, 0, 0, 0, 0, 21, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 50, 0, 0, 5, 0
@@ -296,7 +296,7 @@ Module × level grid
    mc/test_gaps, 7, 9, 0, 0, 0, 0
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
-   mesh/test_angular_bulk_space, 0, 0, 0, 0, 22, 0
+   mesh/test_angular_bulk_space, 0, 0, 0, 0, 24, 0
    mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
    mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 13, 0
    mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 25, 0
@@ -334,6 +334,7 @@ Module × level grid
    numerics/test_axis_marginal, 0, 0, 0, 0, 23, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 65, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
+   numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 4, 0
@@ -345,8 +346,8 @@ Module × level grid
    numerics/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
    numerics/test_field, 0, 0, 0, 0, 31, 0
    numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0
-   numerics/test_frame, 0, 14, 0, 0, 29, 0
-   numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
+   numerics/test_frame, 0, 15, 0, 0, 35, 0
+   numerics/test_full_field_space, 0, 0, 0, 0, 7, 0
    numerics/test_generating_measure, 0, 78, 0, 0, 178, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
@@ -360,7 +361,7 @@ Module × level grid
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 11, 0
-   numerics/test_operator, 0, 0, 0, 0, 58, 0
+   numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 26, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
@@ -377,7 +378,7 @@ Module × level grid
    numerics/test_si_diagnostic_trajectory, 0, 0, 0, 0, 5, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
-   numerics/test_space_of_axes, 0, 0, 0, 0, 23, 0
+   numerics/test_space_of_axes, 0, 0, 0, 0, 26, 0
    numerics/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    numerics/test_spatial_moment_space, 0, 0, 0, 0, 22, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
@@ -506,7 +507,7 @@ Module × level grid
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 343, 0
+   test_layer_imports, 0, 0, 0, 0, 344, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -666,7 +667,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``singular-eigenfunction-eq42``, 10
    ``sn-direct-seed-r12a-predicate``, 10
    ``dd-recurrence``, 9
-   ``hilbert-adjoint-equals-metric-times-S0``, 9
    ``p-transpose-flux-balance``, 9
    ``pole-mm-recurrence``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
@@ -675,6 +675,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``cp-inner-integral-antiderivative``, 8
    ``diffusion-coefficient``, 8
    ``energy-condensation-scattering-collapse``, 8
+   ``hilbert-adjoint-equals-metric-times-S0``, 8
    ``sn-adjoint-eigenproblem``, 8
    ``bare-slab-buckling``, 7
    ``bare-slab-critical-equation``, 7
@@ -889,7 +890,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **567** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **568** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1403,6 +1404,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``spaces-collapse-rank-one-gram``
 - ``spaces-collapse-retraction``
 - ``spaces-collapse-section``
+- ``spaces-pseudo-inverse-parseval``
 - ``spatial-moment-append-policy``
 - ``spatial-moment-kronecker-order``
 - ``spatial-moment-space-size``

@@ -3380,20 +3380,77 @@ older entries classify against.
    ``replace(basis.space, inner_product_weights=1/diag(G))`` when the
    verdict is DIAGONAL — exactly ``0.0`` on structurally dead slots
    (layout padding, a folded rule's σ-odd columns, an empty indicator
-   region) — and the **undressed** space when it is DENSE. The basis
-   keeps :math:`g_C`: it is the continuum Gram and the cross-Gram
-   vocabulary of ``project``/``gram``, a genuinely different object.
+   region) — and, *as F-0 shipped it*, the **undressed** space when the
+   verdict is DENSE. (⭐ That last clause is history: campaign 1 P7
+   dresses the DENSE arm too — see the chapter below.) The basis keeps
+   :math:`g_C`: it is the continuum Gram and the cross-Gram vocabulary
+   of ``project``/``gram``, a genuinely different object.
 
-   **The refusal arm is part of the fix, not a gap.** On the slab
+   **The refusal arm was part of the fix, not a gap** — and it has
+   since been repaired rather than merely tolerated. On the slab
    Gauss–Legendre measure the discrete Gram is not diagonal at all
    (`[M]` total weight 2 rather than :math:`4\pi`; live slots
    :math:`[1,1,3]` per degree; three genuine off-diagonal couplings,
    the largest at :math:`0.93` of :math:`\sqrt{G_{jj}G_{kk}}`), so **no
    diagonal metric satisfies Parseval there** — a structural
-   impossibility, not a tolerance. The frame refuses the dressing,
-   records the verdict, and the Parseval gate skips such a frame with a
-   named reason. A matrix-valued metric needs the CS4c Riesz-leg
-   machinery; the debt is recorded in the campaign plan.
+   impossibility, not a tolerance. That diagnosis stands unchanged. What
+   F-0 did with it was refuse: the frame withheld the dressing, recorded
+   the verdict, and the Parseval gate **skipped** such a frame with a
+   named reason, the matrix home being deferred to the CS4c Riesz-leg
+   machinery as a recorded debt. ⛔ Both of those sentences are now
+   history — the skip mark is gone and the dressing is installed; see
+   the P7 chapter below.
+
+   **Chapter 3 — campaign 1 phase P7 (2026-08-30): the DENSE arm is
+   dressed, and the refusal era closes.** The reason F-0 refused was
+   never that the metric was unknown; it was that the space layer could
+   not *express* it. ``FunctionSpace``'s metric was Hadamard by
+   construction — a broadcast weight array, or the per-axis measures of
+   an axis-built space — so a form with off-diagonal structure had no
+   slot at any level. P7 made the metric a typed object that is
+   **applied** rather than multiplied
+   (:ref:`spaces-metric-object`), and the frame's ``DENSE`` arm now
+   installs ``DenseMetric.inverse_of(discrete_gram)``: the Moore–Penrose
+   pseudo-inverse of the symmetrized measured Gram at a pinned cutoff,
+   with the exact Gram kept as the inverse face. The pseudo-inverse is
+   forced rather than chosen — `[M]` the slab Gram is
+   :math:`15\times15` with 5 live slots and **rank 4**, so
+   ``np.linalg.inv`` raises — and it is exactly right, because
+   :math:`G G^{+} G = G` makes Parseval a theorem for any Gram, singular
+   or not.
+
+   **What the new evidence is, and why the old evidence could not have
+   produced it.** ERR-039's shield 1 (*consistency is not correctness*)
+   applies with full force to the *choice* of metric: the Hilbert-adjoint
+   identity :math:`A^{\dagger} \equiv G^{-1}A^{\mathsf T}G` holds to
+   :math:`1.4\times10^{-16}` for **every** invertible :math:`G`, so no
+   reciprocity gate can ever adjudicate one. The instrument that can is
+   the **wrong-metric discriminator**, which reads one band-limited
+   :math:`\psi` on the slab frame under three metrics — `[M]`
+   2026-08-30: :math:`25.53` undressed (the original ERR-039 defect),
+   :math:`1.806` under the best *diagonal* candidate
+   :math:`1/\operatorname{diag}(G)`, and :math:`0.999999999999999`
+   under the matrix :math:`G^{+}`. The middle reading is the one that
+   could not be taken before: it upgrades *"no diagonal metric is
+   available"* to *"no diagonal metric is sufficient"*, measured.
+
+   ⚠ **Two boundaries on the repair, both worth stating so the chapter
+   is not over-read.** (i) It is *behavioural*, not plumbing: `[M]` 10
+   of the 30 shipped angular frame constructions (nine quadrature
+   families :math:`\times` :math:`L \le 3`, plus Lebedev-13) measure
+   ``DENSE`` and are newly dressed — as is the non-angular overlap
+   frame — one of them on the production scattering path, and `[M]` the
+   analysis adjoint moves by :math:`98\,\%` in Frobenius relative on
+   all three ``DENSE`` angular frames measured. The phase's design
+   pre-flight injected the dressing on unmodified production over four
+   test trees (4371 tests) and reddened **two** gates, *neither of
+   which observes the adjoint* — which is why the phase landed the gate
+   that does rather than an announcement. (ii) The
+   spherical-harmonic frame square's scalar collapse does **not** ride
+   along: it needs each live :math:`\ell` block of :math:`G` to be one
+   number, which is a strictly stronger property than the metric being
+   right, so the closure gate keeps only the ``DIAGONAL`` frames and a
+   positive gate states why (:ref:`spaces-metric-frame-square`).
 
    **Lesson:** **A "the adjoint is X" claim is meaningless until the
    metric on BOTH spaces is named, and a self-consistency identity can
