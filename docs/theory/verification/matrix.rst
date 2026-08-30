@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10215**
+Total tests collected: **10236**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1634, 16.0%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7212, 70.6%
+   foundation, 7233, 70.7%
    unmarked, 8, 0.1%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10128
+   explicit, 10149
    class-name, 46
    func-name, 0
    case, 33
@@ -114,7 +114,7 @@ Module × level grid
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
    curvilinear/test_alpha_defect_normalization, 0, 0, 0, 0, 8, 0
    curvilinear/test_angular_beta_identity, 0, 0, 0, 0, 14, 0
-   curvilinear/test_angular_closure, 0, 0, 0, 0, 21, 0
+   curvilinear/test_angular_closure, 0, 0, 0, 0, 26, 0
    curvilinear/test_angular_closure_is_single_object, 0, 0, 0, 0, 2, 0
    curvilinear/test_angular_endpoint_defect, 0, 0, 0, 0, 6, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
@@ -302,7 +302,7 @@ Module × level grid
    mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 25, 0
    mesh/test_radial_characteristic_split_leaves, 0, 0, 0, 0, 23, 0
    mesh/test_radial_characteristic_split_spaces, 0, 0, 0, 0, 17, 0
-   mesh/test_reduced_operator, 0, 0, 0, 0, 43, 0
+   mesh/test_reduced_operator, 0, 0, 0, 0, 53, 0
    mesh/test_reflective_axis_pairs, 0, 0, 0, 0, 7, 0
    mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
    mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
@@ -330,7 +330,7 @@ Module × level grid
    numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
    numerics/test_axis, 0, 0, 0, 0, 15, 0
-   numerics/test_axis_generator, 0, 0, 0, 0, 44, 0
+   numerics/test_axis_generator, 0, 0, 0, 0, 50, 0
    numerics/test_axis_marginal, 0, 0, 0, 0, 23, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 65, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0

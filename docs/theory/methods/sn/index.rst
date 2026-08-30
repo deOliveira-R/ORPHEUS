@@ -1016,10 +1016,15 @@ than a raw
 The :class:`CellVisit` composes:
 
 * ``cell_idx: int`` — the cell being visited.
-* ``streaming_terms: StreamingTerms`` — the **purely geometric**
-  primitive (``face_area_inner`` / ``face_area_outer`` are
-  geometric labels — inner = closer to :math:`r=0`, outer =
-  farther — independent of sweep direction).
+* ``streaming_terms: StreamingTerms`` — the cell's **evaluation-point**
+  primitive: the mesh's metric data (``face_area_inner`` /
+  ``face_area_outer`` / ``volume``) together with the ordinate's
+  ``abs_mu``.  The two face-area names are *geometric* labels — inner =
+  closer to :math:`r=0`, outer = farther — independent of sweep
+  direction.  ⛔ This bullet called the packet **purely geometric**
+  until 2026-08-28; ``abs_mu`` is the quadrature's, not the mesh's, and
+  a spatial closure is legitimately *parameterized* by direction without
+  being angular-closure-aware.
 * ``face_area_downstream: float | None`` — **sweep-direction-
   resolved**.  For an outward sphere or cylinder sweep
   (:math:`\mu \ge 0`) it equals ``streaming_terms.face_area_outer``;
@@ -1044,7 +1049,9 @@ generator::
     for visit in sn_mesh.dag_walk(ordinate_idx=n):
         upstream = UpstreamState(spatial_upstream=psi_face)
         # ΔA/w from its two factors (P4.7 — the packet no longer
-        # carries the fusion; the closure owns it, the cache interns it)
+        # carries the fusion; the closure owns it, the cache interns it).
+        # quad here is sn_mesh.quad — a HUB read; see the note below on
+        # why the walk's quadrature reads deliberately stay hub-handed.
         dA_w = float(reduced.delta_A[visit.cell_idx] / quad.weights[n])
         result = scheme.update(
             visit=visit,
@@ -1059,6 +1066,34 @@ generator::
             ordinate=n,
         )
         ...
+
+.. note:: **Why the walk still reads the quadrature off the hub, on
+   purpose.**
+
+   The P4-remainder (2026-08-29) made the streaming *producer* reach the
+   angular geometry **through its bound space factor** — the quadrature
+   is the generator of
+   :attr:`ReducedStreamingOperator.angular_axis
+   <orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.angular_axis>`,
+   recovered by a typed narrow, and the courier field it used to read
+   through is gone (:ref:`spaces-generator-route-gate`).  It did **not**
+   re-point the walk.  `[M]` there are 19 ``.quad`` reads across
+   :mod:`orpheus.sn.loss_representation` (15 in the module body, 2 in
+   ``assembly.py``, 2 in ``sweep_schedule.py``), every one of them
+   handed the hub, and they stay.
+
+   The reason is a role distinction, not a backlog.  A *producer* that
+   is handed a space and then reaches past it for the same data is
+   carrying a redundant reference — the defect the re-point removed.
+   The walk is not in that position: it is handed an
+   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` and nothing else, so
+   spelling its reads as a lookup on the hub's own angular bulk space
+   followed by a generator narrow would reach the same object by a
+   longer path and record a discipline the layer does not yet have —
+   theatre, not architecture.  The reads un-weld when the *strategy*
+   layer starts
+   receiving spaces rather than a carrier, which is Campaign 2's work
+   and a different change to this one.
 
 The cell-update strategy receives only **resolved** data — no
 sign-of-:math:`\mu` branching inside the strategy.  This pattern
@@ -1091,9 +1126,15 @@ Slab vs curvilinear discrimination
    ``alpha_out`` / ``tau_mm`` fields from
    :class:`~orpheus.transport.spatial.scheme.StreamingTerms` entirely
    (leaving no closure field on the packet — though "purely geometric"
-   it is not, a reading refuted 2026-08-28: it keeps ``mu``/``abs_mu``
-   and :math:`\Delta A/w`; :math:`\tau` is closure-owned — see
-   :ref:`sn-tau-c-on-cellvisit-live`).  ⛔ A second reading died on
+   it is not, a reading refuted 2026-08-28: it keeps ``abs_mu``, which
+   is the ordinate's and not the mesh's; :math:`\tau` is closure-owned —
+   see :ref:`sn-tau-c-on-cellvisit-live`.  ⛔ That refutation named
+   ``mu`` and :math:`\Delta A/w` alongside ``abs_mu`` until 2026-08-29,
+   when P4.7 shed all three of ``mu``, ``chord_length`` and
+   ``delta_A_over_w`` — the conclusion is unchanged and now rests on a
+   single field, which is the strongest form of it: **one**
+   direction-bearing datum is enough to make the packet not
+   geometry-only).  ⛔ A second reading died on
    2026-08-28 as well: this note read *"slab is now distinguished at the
    sweep level by* ``upstream_state.angular_upstream is None``\ *"* until
    P4.9a retired that field.  **A spatial scheme no longer distinguishes

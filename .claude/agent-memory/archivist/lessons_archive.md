@@ -8270,3 +8270,167 @@ a `find` gave a 204-char fragment that trivially "passed").
 - Not a defect: `discrete_measures.rst:646`'s pre-existing *"the four shipped
   quadrature families … span the seven named entries"* SURVIVES `folded_product`
   — `[M]` its `invariance_group` is `None`, so it adds no lattice entry.
+
+---
+
+## L-075 — P4-remainder: DISCHARGING a seam you wrote yourself, and the day-old prose that was already false (2026-08-29, branch `feature/p4rem-producer-binds-axis`, commits `ac485104` + `ad04e236` + `1fb70c15`)
+
+**Task.** Land the P4-remainder in the corpus: the producer binds `angular_axis`,
+`AngularRedistribution.quadrature` (the courier) dies, `_weight_of` retires, the
+cylinder admission probe reads the declared contract. Sweep
+`curvilinear_one_group.rst`, discharge CS5's seam/fence rows in `spaces.rst`, add
+the K1/K2/K3 + G5 gate rows, record the decoy catalogue.
+
+### 1. ⭐⭐ MY OWN CS5 PAGE SHIPPED A CLAIM THAT WAS ALREADY FALSE WHEN IT LANDED
+
+The CS5 docs pass (L-074) REPORTED three code-side gaps upward. The coordinator
+FIXED all three in `cb3cd15b` — and `[M]` `git log -1 --format=%ci` puts
+`cb3cd15b` and my docs commit `f8c69117` at the **same second** (19:41:19). So the
+page shipped saying *"the gap is reported, not repaired here"* about a gap that
+was repaired in the same batch.
+
+`[M]` the live roster: `vars(Quadrature)` + `isinstance(v, classmethod)` = 5, and
+`tests/numerics/test_axis_generator.py::_RULES` now carries all five including
+`folded_product(4,8)`. TWO sites on `spaces.rst` were present-tense-false (the G4
+gate row's ⚠ block, and a `(vv-status rationale)` comment saying "four of the
+five").
+
+⟹ **A REPORTED gap is a claim with the shortest shelf life in the corpus, because
+the report is what triggers its repair.** When a docs pass reports N code-side
+gaps upward, the NEXT pass must re-measure all N before quoting any of them —
+and the tell is free: a reported gap and its repair commit will share a
+batch/timestamp. Prefer publishing the gap **as history with its repair**
+("shipped with four; the fifth landed the same day at `<hash>`, which is the
+finite-roster corollary demonstrating itself") over publishing it as an open gap,
+because the history version cannot rot.
+
+### 2. ⭐⭐ THE DISCHARGE OF A SEAM IS AN EDIT TO **FOUR** SURFACES, AND THE SECTION'S OWN COUNTING SENTENCE IS THE ONE NOBODY EDITS
+
+`spaces.rst` stated the seam in four places, each needing a different edit:
+1. the `spaces-generator-seams` bullet (past-tense the withholding, keep the WHY);
+2. the section's opening sentence *"**Three** arms of the design are deliberately
+   not built"* — a universal that silently became **two**;
+3. the `spaces-fences` row (its own KEEP/past-tense treatment);
+4. the `spaces-generator-protocol` closing paragraph (a *different* promise —
+   "hardens to a direct read when the courier dissolves").
+
+⟹ after a seam discharge, grep the section for its own **cardinal number** and for
+every forward-looking verb (*"lands with"*, *"hardens when"*, *"becomes real
+when"*), not only for the seam's noun. #2 is the one a symbol grep cannot find.
+
+### 3. ⭐⭐ A ROUTE RE-POINT NEEDS ITS OWN DOCTRINE SECTION — a value gate here is `X == X`
+
+The binding's evidence class is unlike anything else on the page and deserved a
+labelled anchor (`spaces-generator-route-gate`) rather than a paragraph:
+`op.angular_axis.generator is quad` for the very `quad` the factory was handed —
+i.e. the *same object* the retired courier held — so every before/after value
+comparison is literally `X == X`, green under a correct re-point AND under one
+that silently kept the old path. That is `vv-principles` #19 relocated from a
+*metric* to a *data route*, and it is worth naming because the next re-point of
+this shape (Campaign 2's strategy layer) will need the same instrument.
+
+### 4. ⭐⭐ THE DECOY CATALOGUE: A TEST DOCSTRING'S ONE-LINE ATTRIBUTION WAS WRONG, AND THE REFUTATION IS THE PUBLISHABLE CONTENT
+
+The helper's docstring says *"the α-dome guard REFUSES rolled/negated/reversed
+nodes on every curvilinear chart"*. `[M]` mine, both tiers, sphere `gauss_legendre(4)`
++ cylinder `folded_product(4,6)`:
+
+| decoy | axis-blind | α-dome tier | closure-mint tier |
+|---|---|---|---|
+| nodes ×0.9 | yes | admitted | **admitted** |
+| nodes rolled 1 | yes | **REFUSED** (`Σ w·µ` → −0.366 / +0.239) | n/a |
+| nodes negated | yes | admitted | **REFUSED** (P3, τ ∉ [0,1]) |
+| nodes reversed | yes | admitted | **REFUSED** (P3) |
+| weights ×0.9 | **no** | admitted | order-dependent: admitted N=2, refused N=4/6/8 (τ=1.195/1.047/1.059) |
+
+The dome refuses **only the roll** — its contract is the antisymmetry
+`Σ w_n µ_n = 0`, which a scale, a sign flip and a reversal all preserve (`[M]`
+±5.6e-17 in every case). Negation and reversal die one tier later, at the
+Morel–Montry **P3** membership guard. ⟹ **a decoy catalogue is a statement about
+TWO contracts**; citing only the first sends the next session to the wrong file.
+And the Cartesian chart admits everything (its dome is the neutral zero), so
+"on every curvilinear chart" was doing real work in the original sentence and
+still could not save it.
+
+Also worth publishing rather than the bare number: the cylinder's **8 of 12**
+keystone floor is an identity of the rule — `[M]` 4 of 12 ordinates have
+`mu_x == 0.0` exactly (the ω = π/2 member of each of 4 levels) and `0.9 × 0 = 0`;
+and K2's **4 of 12** is the *palindrome* `[0.440, 0.814, 0.814, 0.440]` fixing half
+the levels under a roll of one. A floor with a mechanism cannot drift silently.
+
+### 5. ⭐⭐ THE BRIEFED PAGE SWEEP FOUND ITS REAL DEFECT ONE PHASE UPSTREAM — P4.5–P4b HAD NO DOCS PASS
+
+The brief said "sweep for courier prose". `[M]` the courier appears in `docs/` at
+**exactly one site** (the one the coordinator had already re-pointed), the two-arg
+closure ctor at **zero**, and `angular.quadrature` at **zero**. The surplus is
+where the work was, and it was P4.7-era:
+
+- `curvilinear_one_group.rst:485` *"**Nothing precomputes this factor.** Each
+  consumer forms it where it is used"* — `[M]` **two of the three** formers
+  precompute (the closure's `_dAw_per_level` at construction, P4.9a; the scan
+  cache's chain-ordered row at build, P4.7); only the degenerate cylinder arm of
+  the walk still forms it at use. The surviving claim is *"no store that owns
+  NEITHER factor holds the product"* — which is the factorization argument the
+  section is actually making. Sibling spelling on `curvilinear_multigroup.rst:179`.
+- `index.rst` *"it keeps ``mu``/``abs_mu`` and ΔA/w"* — `[M]`
+  `dataclasses.fields(StreamingTerms)` = `('face_area_inner','face_area_outer',
+  'volume','abs_mu')`; P4.7 shed `mu`, `chord_length`, `delta_A_over_w`. The
+  CONCLUSION (the packet is not geometry-only) survives on ONE field, which is its
+  strongest form.
+- `index.rst:1019` still called the packet *"the **purely geometric** primitive"*
+  while a note 75 lines below refuted exactly that — the vv #21 self-contradicting
+  file, created by a correction pass that fixed the note and not the bullet.
+- `structured_geometry.rst` — *"populated fields are geometry-dependent (slab is
+  minimal)"* and *"the ``alpha_in is None`` test discriminates slab from
+  curvilinear"*, both about fields that no longer exist; plus the
+  `tau-ownership-note` saying `morel_montry_tau_per_level` is called *"by
+  `SNMesh` against the quadrature and its own `self.coord`"* — `[M]` its ONE
+  production caller is `MorelMontryAngularSweep.__init__`.
+
+⟹ **a phase that lands with no docs pass leaves its staleness for the NEXT
+phase's sweep to find, and the next sweep's brief will not name it.** Budget for
+it: my briefed scope was 3 pages, the honest scope was 5.
+
+### 6. ⭐ A DISCHARGED `*(in development)*` HATCH IS A SECOND, INDEPENDENT DISCHARGE
+
+`[M]` CS5's `4e7b8977` + `b0bfc06c` are ancestors of **main**, so the dev-history
+row's *(in development)* cell was false — and a LINE-based grep for
+`"in development"` finds **nothing**, because the phrase wraps (`*(in\ndevelopment)*`).
+Only a multi-line regex over the corpus finds it (vv #21's windowed search, at the
+page-preamble scale). ⟹ on every dispatch that adds a dev-history row, run the
+multi-line hatch census FIRST and reconcile every hit against
+`git merge-base --is-ancestor <hash> main`.
+
+### 7. ⚠ SELF-CHECK THAT SAVED A FALSE FINDING
+
+I probed `op.angular_axis.weights.flags.writeable` and printed it under the label
+`"read-only:"` — the value `False` read as *"not read-only"* and I nearly filed
+`spaces.rst`'s LIVE-REFERENCE warning as stale. The label was inverted, not the
+value (`[M]` re-probed: `writeable=False` on all three mint paths, so the warning
+is correct). `vv` #4's VERIFY sharpening, on my own instrument: **diagnose whose
+failure it is before publishing a refutation** — and do not print a boolean under
+a label that negates it.
+
+### 8. Verification recipe used (reusable)
+
+- `-E` baseline **and** every verification build; grep `WARNING:|ERROR:|CRITICAL:|SyntaxWarning`.
+  `[M]` 0 → 0, EXIT=0, three builds.
+- `tools/check_docstring_xrefs.py` is role-blind (L-067); ran a **patched copy at
+  `scratch/_p4rem_xref_gate.py`** (depth 1, `head_role = "mod" if "." in target else role`)
+  with an end-to-end positive control — `[M]` stock **0** vs patched **2** on a
+  throwaway `docs/_ctl.rst`, and **0 dead / 13512 decidable / 986 files** tree-wide
+  with the control removed. The control is what makes the zero mean anything.
+- `mcp__nexus__dead_references` → **0 dead / 52 checked / 52 rescued**.
+- `tests._harness.audit._scan_theory_equations(Path("docs/theory"))` → **0
+  violations / 567 documented** (signature takes `theory_dir`; the no-arg call
+  `TypeError`s).
+- Programmatic `list-table` column check (widths vs per-row item count) over every
+  edited file — 56 tables, all OK, BEFORE the first build.
+- Underline-length check in CODE POINTS + marker-ladder first-appearance scan
+  (`spaces.rst` is `=`/`-`/`~`, **no** `^` — do not introduce one).
+- HTML slice for nested markup: `[M]` my edits added **0** visible backticks
+  (8 introduced in a `::` code block were removed for style); the residual
+  **14** bold-runs-with-nested-markup on the swept pages (spaces 2,
+  structured_geometry 3, curvilinear_one_group 9) are pre-existing **#379**.
+- Auto-matrix: `[M]` 10215 → **10236 = +21**, exactly the predicted delta;
+  `unmarked` unchanged at 8.

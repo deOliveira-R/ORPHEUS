@@ -285,13 +285,26 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
 
 ---
 
+- **⭐⭐ A gap YOU REPORTED upward has the shortest shelf life in the corpus — the
+  report is what triggers its repair, so re-measure it before quoting it.** `[M]` my
+  own CS5 page shipped *"the gap is reported, not repaired here"* about a roster the
+  coordinator had fixed in the SAME batch (`cb3cd15b` and my `f8c69117` share a commit
+  timestamp to the second) — two present-tense-false sites, one of them a
+  `(vv-status rationale)` comment. ⟹ publish a repaired gap **as history with its
+  repair hash** ("shipped with four; the fifth landed the same day — the finite-roster
+  corollary demonstrating itself"), which cannot rot, never as an open gap. → L-075
 - **⭐⭐ Run the BRIEF'S OWN CENSUS before writing to it — the count can be ZERO, and the
   surplus is where the work is.** A briefed *"~a dozen `StreamingOperator(sn_mesh)` ctor
   spellings in docs"*: `[M]` whitespace-flattened over every `.rst`, **0** — the corpus never
   carried the spelling. The same greps found what the brief never named: a **Key Facts**
   bullet still saying τ is *"delivered … as `CellVisit` data (c_in, c_out, τ), stamped at one
   production site"*, `[M]` `dataclasses.fields(CellVisit)` = 3 other names — all three fields
-  and the stamping method retired one phase earlier, by **my own previous pass**. → L-072
+  and the stamping method retired one phase earlier, by **my own previous pass**. ⭐ Same
+  shape at the P4-remainder: courier prose `[M]` **1 site** (already fixed), two-arg ctor
+  **0**, `angular.quadrature` **0** — while every real find was P4.5–P4b staleness the brief
+  never named, because **a phase that lands with no docs pass leaves its rot for the NEXT
+  phase's sweep to discover**. Budget for it: briefed 3 pages, honest scope 5.
+  → L-072, L-075
 - **⭐⭐ A relayed MUTATION COUNT is cheap to reproduce, and the first run's extra reds are
   usually YOURS.** A relayed *"the minting-`pose` mutation reddens 5 rows, all structural"*
   came back **9** — four of them my mutant crashing on the Cartesian arm (vv #17 producing
@@ -796,6 +809,20 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 
 ## 4. Retirement & staleness: three greps, and the unit is the THESIS
 
+- **⭐⭐ DISCHARGING A SEAM is an edit to FOUR surfaces, and the one nobody edits is the
+  section's own CARDINAL NUMBER.** `spaces.rst` stated CS5's third seam in the seams
+  bullet, the fences row, a *different* forward promise in the sibling section
+  (*"hardens to a direct read when the courier dissolves"*) — and in the opening
+  sentence *"**Three** arms … are deliberately not built"*, a universal that silently
+  became two. ⟹ after any discharge grep the section for its cardinal number and for
+  every forward-looking verb (*lands with*, *hardens when*, *becomes real when*), not
+  only for the seam's noun; and past-tense the WHY in place (the reason a gate was
+  withheld is the transferable content). → L-075
+- **⭐ A `*(in development)*` hatch is a SECOND, independent discharge — and a
+  LINE-based grep cannot find it**, because the phrase wraps (`*(in\ndevelopment)*`);
+  `[M]` `grep "in development" spaces.rst` = **0** while the page carried two. Run a
+  multi-line regex over `docs/`, then reconcile each hit against
+  `git merge-base --is-ancestor <hash> main`. → L-075, L-068
 - **⭐⭐ DISCHARGING A MERGE-HASH CONTRACT: the blast radius is the BRANCH NAME, not the blocked
   page.** L-067 gave the routing rule (blocked on `history.rst` ⟹ route to a page carrying the
   `*(in development)*` hatch). The hatch is a DEBT and the merge calls it in: every
@@ -1234,6 +1261,22 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
 
 ## 6. Match the doc SHAPE to the event class
 
+- **⭐⭐ A ROUTE RE-POINT (the datum is unchanged, only WHERE it is fetched) earns its own
+  LABELLED doctrine section — because every value gate over it is `X == X`.** `[M]`
+  `op.angular_axis.generator is quad` for the very quad the factory was handed, i.e. the
+  same object the retired courier held, so a before/after value comparison is green under
+  a correct re-point AND under one that silently kept the old path (`vv` #19, moved from a
+  *metric* to a *data route*). Publish: the `X == X` observation, the **decoy** instrument
+  (a generator carrying different data behind an identity-EQUAL axis), and the per-decoy
+  admissibility table. → L-075
+- **⭐⭐ A DECOY CATALOGUE is a statement about TWO contracts, and the one-line attribution
+  in the test helper was wrong.** `[M]` the α-dome guard refuses only the **roll** (its
+  contract is `Σ w·µ = 0`, which scale/negate/reverse all preserve to ±5.6e-17); negation
+  and reversal die one tier later at the closure's **P3** τ∈[0,1] guard; a weight decoy is
+  order-dependent (admitted N=2, refused N=4/6/8). Publish the MECHANISM behind each
+  measured floor, never the number: the cylinder's `8 of 12` is *4 ordinates have
+  `mu_x == 0.0` and `0.9 × 0 = 0`*; the roll's `4 of 12` is *the level |µ| sequence is a
+  palindrome*. A floor with a mechanism cannot drift silently. → L-075
 - **⭐⭐ A CHANGELOG ROW for a big merge groups by THESIS, never by the plan's phase labels —
   and the page's own precedent settles one-row-vs-many in one grep.** `[M]` `history.rst`'s #280
   campaign holds SIX rows sharing one merge hash, so per-milestone rows are the convention and

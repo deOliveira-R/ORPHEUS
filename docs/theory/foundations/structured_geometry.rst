@@ -470,16 +470,28 @@ achieves).
    :math:`\tau_m` is **not** a
    :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`
    field.  The geometry-layer primitive carries the SPATIAL curvature
-   coefficients (``face_areas``, ``delta_A``) and a reference to the
+   coefficients (``face_areas``, ``delta_A``), a reference to the
    ANGULAR factor
    (:class:`~orpheus.sn.angular.redistribution.AngularRedistribution`,
    which owns the :math:`\alpha`-dome and :math:`\mu_{\rm start}` as of
-   the 2026-08-26 un-weld); the M-M closure weight is produced by
+   the 2026-08-26 un-weld) and — since the P4-remainder, 2026-08-29 —
+   the generator-stamped angular SPACE factor
+   :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.angular_axis`,
+   which is how it reaches the quadrature at all.  Three fields, three
+   different objects: the spatial chart, the :math:`\alpha` data, and
+   the space.  The M-M closure weight is produced by
    :func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`
    reading the single partition producer
-   :func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`,
-   which :class:`SNMesh` calls against the quadrature and its own
-   ``self.coord``.  The split is deliberate: τ is a property of
+   :func:`~orpheus.sn.angular.closure.angular_cell_edges_per_level`.
+   ⛔ This note said that producer was called *"by* :class:`SNMesh`
+   *against the quadrature and its own* ``self.coord``\ *"* until
+   2026-08-29.  `[M]` its one production caller is
+   :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`'s
+   constructor, against ``angular.coord`` and the quadrature it recovers
+   from its ``angular_axis`` operand — which is the same ruling stated
+   correctly (τ is the closure's, not the hub's), and is why the closure
+   needed the space factor handed to it in the first place.
+   The split is deliberate: τ is a property of
    the *angular closure scheme*, selectable per mesh, while the curvature
    coefficients are a property of the *geometry*.  Statements elsewhere
    in the corpus describing ``tau_mm`` / ``tau_mm_per_level`` as factory
@@ -816,22 +828,46 @@ The per-cell, per-direction inputs needed by a sweep cell update are
 extracted via
 :meth:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.streaming_terms`,
 which returns a
-:class:`~orpheus.transport.spatial.scheme.StreamingTerms` dataclass
-whose populated fields are geometry-dependent (slab is minimal;
-sphere/cylinder carry the full curvature-coefficient bundle).
+:class:`~orpheus.transport.spatial.scheme.StreamingTerms` dataclass —
+`[M]` today exactly four fields, ``face_area_inner``,
+``face_area_outer``, ``volume`` and ``abs_mu``, **populated on every
+chart**.
 
-The two trailing fields ``volume`` and ``abs_mu`` carry the per-cell
-volume :math:`V_i` and the absolute primary direction cosine
-:math:`|\mu|` (sphere) / :math:`|\eta|` (cylinder, radial) /
-:math:`|\mu_x|` (slab).  They are populated by all three factories so
-a downstream sweep cell update — see :doc:`/theory/methods/sn/index`,
-"Cell update strategies (the strategy contract)" — receives a
-self-contained per-cell, per-direction packet and need not reach back
-into ``SNMesh`` or the ``Quadrature``.  The ``alpha_in is
-None`` test discriminates slab from curvilinear inside cell-update
-strategies; the cylindrical pure-azimuthal degenerate case
-(``abs_mu < 1e-15``) is the single runtime branch a strategy must
-handle for cylindrical sweeps.
+``volume`` is the per-cell volume :math:`V_i`; ``abs_mu`` is the
+absolute primary direction cosine :math:`|\mu|` (sphere) /
+:math:`|\eta|` (cylinder, radial) / :math:`|\mu_x|` (slab).  All four
+are populated by all three factories, so a downstream sweep cell update
+— see :doc:`/theory/methods/sn/index`, "Cell update strategies (the
+strategy contract)" — receives a self-contained per-cell,
+per-direction packet and need not reach back into ``SNMesh``.
+
+.. warning:: ⛔ **Two claims in this paragraph were retired, and the
+   second is the one that matters.**
+
+   It read *"whose populated fields are geometry-dependent (slab is
+   minimal; sphere/cylinder carry the full curvature-coefficient
+   bundle)"* and *"the* ``alpha_in is None`` *test discriminates slab
+   from curvilinear inside cell-update strategies"*.  Both were true of
+   a packet that has since lost every field they named.  Issue #196
+   Phase G Step 2.5 gave the slab *neutral* curvature rather than
+   ``None``\ s; Issue #236 Step C deleted the Morel–Montry
+   ``alpha_in`` / ``alpha_out`` / ``tau_mm`` fields outright (τ is
+   closure-owned — see the :ref:`τ-ownership note <tau-ownership-note>`
+   above); and P4.7 (2026-08-29) shed the last three, ``mu``,
+   ``chord_length`` and ``delta_A_over_w``.  **A spatial scheme no
+   longer discriminates slab from curvilinear at all**, because the
+   curvature data reaches it already reduced to numbers whose slab
+   values are the neutral element of the arithmetic they enter.
+
+   ⚠ Note also what the surviving fields are *not*.  ``abs_mu`` is the
+   **ordinate's**, not the geometry's, so the packet is not "purely
+   geometric" — a reading refuted 2026-08-28.  It is the evaluation
+   point of a spatial closure for a *directional* method, which is why
+   it lives beside the scheme contract in
+   :mod:`orpheus.transport.spatial.scheme` rather than in
+   :mod:`orpheus.geometry`.  The degenerate cylindrical cell is
+   signalled by the geometric ``visit.face_area_downstream == 0.0``,
+   never by a numerical threshold on :math:`|\mu|`.
 
 Geometric labels, not flow-direction labels
 -------------------------------------------

@@ -518,9 +518,9 @@ measure it presents,
    no flux, no eigenvalue, no discretization error. The verifiable
    content is the CS5 foundation battery
    (``tests/numerics/test_axis_generator.py`` G3, the mint-fidelity
-   roster over four of the five shipped ``Quadrature`` factories,
-   comparing the minted axis's label/shape/kind/weight BYTES against the
-   literal construction it replaced).
+   roster over all five shipped ``Quadrature`` factories, comparing the
+   minted axis's label/shape/kind/weight BYTES against the literal
+   construction it replaced).
 .. vv-status: spaces-axis-forgetful-map documented
 
 where :math:`\ell` is the factor's label. :math:`\mathcal{F}_\ell` keeps
@@ -878,8 +878,12 @@ falsifiable: if a factor that HAS a generator object ever reads
 The seams: rank-:math:`d`, MODAL, and the solve-time consumer
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Three arms of the design are deliberately not built, each for a stated
-reason rather than for lack of time.
+Three arms of the design were named here when CS5 landed, each deliberately
+not built for a stated reason rather than for lack of time. **Two remain**:
+the third — a solve-time consumer that reads a generator — was discharged
+on 2026-08-29 by the streaming campaign's P4-remainder, and its entry below
+is kept in place, past-tensed, because the *reason a gate was withheld* is
+the transferable content.
 
 **Rank-d spatial axes are generator-less BY CONTRACT (CS2).**
 A :class:`~orpheus.numerics.measure.DiscreteMeasure` is a **flat atom
@@ -916,15 +920,157 @@ CS2 mints the harmonic axis — the same phase that gives the ``False``
 arm of ``has_coordinate_cone`` its first production witness
 (:ref:`spaces-nodal-modal`).
 
-**No solve-time consumer reads a generator yet, and that is why two
-gates were withheld.** CS5 lands the machinery and the three nodal mint
-sites; it does **not** re-point the streaming producer that today takes
-a space and a quadrature as separate arguments. Two specified gates —
-a refusal when a consumer is handed a generator-less axis, and the
-route keystone proving the consumer reads *through* the space —
-therefore did not land with it, because a gate that ships before the
-case it catches exists is green and unfalsifiable by construction
-(``plan-authoring`` §6c). They land with the re-point.
+**No solve-time consumer read a generator, and that is why two gates
+were withheld** — ✅ **discharged 2026-08-29.** CS5 landed the machinery
+and the nodal mint sites; it did **not** re-point the streaming producer,
+which then took a space and a quadrature as separate arguments. Two
+specified gates — a refusal when a consumer is handed a generator-less
+axis, and the route keystone proving the consumer reads *through* the
+space — therefore did not land with it, because a gate that ships before
+the case it catches exists is green and unfalsifiable by construction
+(``plan-authoring`` §6c).
+
+The streaming campaign's **P4-remainder** landed the re-point and both
+gates with it, in the same change (``ad04e236``):
+:class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator` gained
+an :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.angular_axis`
+field, the angular-closure family's construction contract widened to
+``cls(angular, pairing, angular_axis)``, and every re-pointed read narrows
+through one accessor,
+:meth:`Axis.generator_as <orpheus.numerics.axis.Axis.generator_as>`. The
+reason that accessor is load-bearing rather than decorative is the same
+observation that chose the generator's type in the first place
+(:ref:`spaces-generator-why-quadrature`): the bare union cannot answer the
+consumers' reads, because a
+:class:`~orpheus.numerics.measure.DiscreteMeasure` has no ``mu_x`` and no
+``level_indices``. So the narrow is a **type claim**, not a ``None``
+check — parse, don't validate — and the refusal it raises names both the
+axis and the asking consumer. What makes proving that re-point *hard* —
+and what the withheld keystone had to be — is
+:ref:`spaces-generator-route-gate`.
+
+.. _spaces-generator-route-gate:
+
+Proving a re-point when every value gate is ``X == X``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A re-point that changes *where a consumer gets a datum* while leaving the
+datum itself alone is the case in which ordinary value gates carry **zero
+information**. Before the P4-remainder the streaming producer read the
+quadrature off a courier field on the angular factor; after it, it reads
+the generator off the bound axis — and those are the **same object**:
+`[M]` on a shipped 1-D operator ``op.angular_axis.generator is quad``
+for the very ``quad`` its factory was handed, which is the object the
+retired courier held. So every before/after comparison of a
+produced value is literally ``X == X``: green under a correct re-point,
+and green under a re-point that silently kept reading the old path. This
+is ``vv-principles`` #19 at the level of a data *route* rather than a
+metric — the reading you naturally take is the one that cannot
+discriminate.
+
+The instrument that *can* discriminate is a **decoy generator**: an axis
+whose generator carries different angular data while the axis itself is
+identity-equal to the true one. Identity-equality is what makes it a
+route probe — the axis's own record is its weights
+(:ref:`spaces-generator-none-inventory`), so a decoy that preserves
+weights is **invisible to the space**, and any movement in the produced
+value can only have come from a read that went *through* the axis to the
+generator. `[M]` on the keystone's own fixtures ``quad.axis() ==
+decoy.axis()`` and ``hash`` agree, so the decoy cannot be caught by
+identity.
+
+⚠ **The decoy catalogue is not free — production's own admission guards
+refuse most of it, and the refusals come from two different tiers.** This
+is the finding worth carrying, because the obvious decoys (roll the
+nodes, negate them, reverse them) all fail, and they fail for reasons that
+are easy to misattribute. Measured on the keystone's own curvilinear
+configurations — sphere ``gauss_legendre(4)``, cylinder
+``folded_product(4, 6)``; the α-dome tier admits everything on the
+Cartesian chart, whose dome is the neutral zero:
+
+.. list-table:: `[M]` 2026-08-29 — which decoys production admits, and where the others die
+   :header-rows: 1
+   :widths: 22 16 31 31
+
+   * - Decoy
+     - Axis-blind?
+     - α-dome tier
+       (:func:`~orpheus.sn.angular.redistribution.angular_redistribution`)
+     - Closure-mint tier
+       (:func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`)
+   * - nodes :math:`\times\,0.9`
+     - yes
+     - **admitted** — scaling preserves the antisymmetry
+       :math:`\sum_n w_n \mu_n = 0` (`[M]` :math:`\pm 5.6\!\times\!10^{-17}`
+       before and after), so the dome still closes at
+       :math:`\alpha_{M+1/2} = 0`
+     - **admitted**
+   * - nodes rolled by 1
+     - yes
+     - **refused** — *"the alpha dome does not close"*. `[M]` the roll
+       breaks the antisymmetry outright, :math:`\sum_n w_n \mu_n =
+       -0.366` (sphere) / :math:`+0.239` (cylinder), and the guard
+       reports exactly that residue as :math:`\alpha_{M+1/2}`
+     - refused (never reached)
+   * - nodes negated
+     - yes
+     - admitted — a sign flip preserves the antisymmetry
+     - **refused** — P3, :math:`\tau \notin [0,1]`
+   * - nodes reversed
+     - yes
+     - admitted — the shipped weight vectors are symmetric, so a
+       reversal preserves the antisymmetry too
+     - **refused** — P3 / the partition producer
+   * - weights :math:`\times\,0.9`
+     - **no**
+     - admitted
+     - **refused at this order** (:math:`\tau = 1.195`); admitted only
+       at :math:`N = 2` — see the note below
+
+⭐ **The attribution matters.** It is tempting to write "the α-dome guard
+refuses rolled, negated and reversed nodes"; `[M]` the dome refuses only
+the **roll**. Negation and reversal sail through the dome — its admission
+contract is an antisymmetry, and both operations preserve it — and die one
+tier later at the Morel–Montry closure's **P3** membership guard
+(:math:`\tau_m` must lie in its own angular cell). A decoy catalogue is
+therefore a statement about *two* contracts, and citing only the first
+would send the next session looking for the refusal in the wrong file.
+
+That leaves the **node-scale decoy as the only member admitted at both
+tiers on a curvilinear chart**, which is why it is the keystone's decoy
+rather than a stylistic choice. Its discriminating power is measurable and
+structural: `[M]` on a 4-cell mesh it moves **4 of 4** packets on the slab,
+**4 of 4** on the sphere and **8 of 12** on the cylinder. The cylinder's
+shortfall is not a weakness of the probe but an identity of the rule — the
+four packets that do not move are the :math:`\eta = 0` azimuthal member of
+each of its four :math:`\mu`-levels, and :math:`0.9 \times 0 = 0`. A floor
+with a reason is worth more than a floor with a number: this one cannot
+drift without the rule changing.
+
+.. note:: **Two decoys, because one decoy moves two reads together.**
+   The scale decoy moves ``mu_x`` and ``level_indices`` *at once*, so on
+   its own it cannot tell a complete re-point from one that re-pointed the
+   cosine read and left the index read on the old path
+   (``vv-principles`` #17's per-arm discipline). The isolator is a
+   **level-roll** decoy — same measure, level list rolled by one, so
+   ``mu_x`` is untouched — and `[M]` it moves **4 of 12** packets on
+   ``folded_product(4, 6)``. The floor is 4 rather than 8 because the
+   per-level radial cosines are a **palindrome**
+   (:math:`0.440,\,0.814,\,0.814,\,0.440`), so a roll of one fixes half
+   the levels; the :math:`\eta = 0` members never move either way. On the
+   closure side the third probe is a **weight** decoy — the only read
+   whose datum is :math:`w_n` rather than a cosine — and it is deliberately
+   *not* axis-blind: it proves the :math:`\Delta A/w` mint goes through
+   the axis, at the cost of being visible to space identity, so it is a
+   separate row rather than a leg of the first. `[M]` on the sphere,
+   weights :math:`\times\,0.9` is **admitted** at the closure gate's
+   ``gauss_legendre(2)`` fixture and **refused** at
+   ``gauss_legendre(4)``, ``(6)`` and ``(8)`` — with
+   :math:`\tau = 1.195`, :math:`1.047`, :math:`1.059` respectively —
+   because shrinking every weight shrinks the cumulative partition and
+   pushes the outermost :math:`\tau` past 1. A decoy's admissibility is
+   therefore a property of the *order* as well as of the operation, and
+   a decoy catalogue quoted without its fixture is not re-runnable.
 
 .. _spaces-generator-protocol:
 
@@ -954,10 +1100,31 @@ carries a
 reads ``None`` while still answering ``level_indices`` with a single
 degenerate level.
 
-The tolerant ``getattr`` at the probe deliberately survives this phase —
-a structural conformer may predate the declaration — and hardens to a
-direct read when the courier field dissolves at the same re-point that
-unblocks the two withheld gates above.
+The tolerant ``getattr`` at the probe deliberately survived CS5 — a
+structural conformer could predate the declaration — with the hardening
+scheduled for the re-point that unblocks the two withheld gates above.
+✅ **Both landed on 2026-08-29** (``1fb70c15``): the probe now reads
+``angular_measure.level_structure`` directly, and the change is `[M]`
+**unobservable** — no shipped or test carrier is in the absent-attribute
+state the defaulted ``getattr`` distinguished, so the refusal's own
+witness (a slab quadrature rejected by *"level structure"*) is unchanged
+either way. That is the honest shape of this repair: the value of a
+direct read is not a behaviour delta, it is that the guard can no longer
+evaporate silently the day the member is renamed.
+
+The same re-point widened the contract once more, for the same reason
+and by the same test. The three streaming factories **mint the axis** from
+the measure they are handed, so ``axis()`` is now something a consumer of
+this contract calls — and a Protocol that omitted it would be
+under-declaring exactly as before. The contract therefore declares
+``axis(label="angular") -> Axis`` as well, with
+:meth:`Quadrature.axis <orpheus.numerics.quadrature.directional.Quadrature.axis>`
+as its concrete implementer. ⭐ The label **defaults at the generator**,
+which is a single-source move rather than an ergonomic one: a directional
+quadrature *is* the angular generator, so its axis's role is intrinsic,
+the literal ``"angular"`` disappears from all three mint sites, and a
+label-twin across mint sites becomes **unspellable** rather than merely
+unlikely.
 
 .. _spaces-generator-gates:
 
@@ -1002,19 +1169,24 @@ why the gate module is part of the same change.
    * - the four names answer through the space
      - ``tests/numerics/test_axis_generator.py``
        ``::TestG4TheFourNamesAnswerThroughTheSpace``
-     - parametrized over four ``Quadrature`` classmethod factories —
-       ``gauss_legendre``, ``level_symmetric``, ``product``,
-       ``lebedev`` — probed whole rather than laddered
-       (``vv-principles`` #31's finite-roster corollary). ⚠ `[M]` the
-       shipped family has **five** members: ``folded_product`` — the
-       :math:`\sigma_y`-folded cylindrical carrying rule the curvilinear
-       MMS case builders default to — is absent from the roster while
-       the roster describes itself as exhaustive. It is the member with
-       the richest ``level_indices`` structure, so the omission is on
-       the axis the roster exists to gate; the gap is reported, not
-       repaired here. Carries the refutation leg: a bare measure must
-       NOT answer ``level_indices``, and if one starts to, this design
-       must be re-ruled.
+     - parametrized over **all five** ``Quadrature`` classmethod
+       factories — ``gauss_legendre``, ``level_symmetric``, ``product``,
+       ``folded_product``, ``lebedev`` — probed whole rather than
+       laddered (``vv-principles`` #31's finite-roster corollary).
+       ⭐ The roster shipped with **four** and the fifth was added the
+       same day (``cb3cd15b``), which is the corollary demonstrating
+       itself: the absent member was ``folded_product``, the
+       :math:`\sigma_y`-folded cylindrical *carrying* rule the
+       curvilinear MMS case builders default to and the one with the
+       richest ``level_indices`` structure — i.e. the omission sat on
+       exactly the axis the roster exists to gate, while the roster's
+       own prose called itself exhaustive. A finite shipped family is
+       enumerable (``vars(cls)`` + ``isinstance(v, classmethod)``); a
+       roster that names its members by hand must be checked against
+       that enumeration, not against its own adjective. Carries the
+       refutation leg: a bare measure must NOT answer
+       ``level_indices``, and if one starts to, this design must be
+       re-ruled.
    * - the mint is a section
      - ``tests/numerics/test_axis_generator.py``
        ``::TestG8TheMintIsASectionOfTheForgetfulMap``
@@ -1036,6 +1208,90 @@ why the gate module is part of the same change.
      - removing the ``level_structure`` declaration reds the first
        assertion. `[M]` nothing else in the tree observes the
        contract, so this row is its only witness.
+
+The **P4-remainder** added the two gates CS5 withheld, plus the rows that
+make them discriminate. They are listed separately because their evidence
+class is different: CS5's rows are *value* gates on a mint, these are
+*route* gates on a read (:ref:`spaces-generator-route-gate`), so a green
+reading of one says nothing about the other.
+
+.. list-table:: The re-point's own gates (P4-remainder, ``ad04e236``)
+   :header-rows: 1
+   :widths: 24 30 46
+
+   * - Claim
+     - Gate
+     - What a mutation does to it
+   * - the narrow is the ONE refusal home
+     - ``tests/numerics/test_axis_generator.py``
+       ``::TestG5GeneratorAsIsTheOneRefusalHome``
+     - the Axis-tier rows: positive first (the narrow returns the
+       generator itself), then generator-less and **wrong-kind**
+       refusals — a measure-minted axis narrowed to ``Quadrature``
+       refuses, which is what makes it a type claim rather than a
+       ``None`` check. Two further rows are structural: the refusal's
+       message fragments are **disjoint** from the neighbouring
+       space-lookup refusal (so a pin on either can never match the
+       other's raise), and an **AST** row asserts the accessor's
+       production call sites are exactly the declared consumers — it
+       reds the moment the refusal is wired onto a path a shipped
+       generator-less axis travels (the homogeneous pose, the energy
+       family).
+   * - the refusal names both parties
+     - ``tests/sn/mesh/test_reduced_operator.py``
+       ``::…::test_a_generator_less_axis_refuses_naming_streaming_terms``;
+       ``tests/sn/sweep/curvilinear/test_angular_closure.py``
+       ``::…::test_G5_a_generator_less_axis_refuses_naming_the_closure``
+     - three-fragment match per consumer — the axis label, the
+       consumer's own name, and the ``"minted through"`` remedy. A
+       generic message keeps a *wrong* reason true, so each fragment is
+       pinned separately rather than as one regex.
+   * - the courier is dead, structurally
+     - ``tests/sn/mesh/test_reduced_operator.py``
+       ``::…::test_the_courier_is_dead_by_field_set``
+     - ``dataclasses.fields`` equality — never ``hasattr``, which a
+       defaulted field or a ``getattr`` fallback would still answer —
+       so a **re-addition** reds too. This is the row that keeps a
+       partial re-point unspellable: with no courier on the angular
+       factor, a consumer that still wants the quadrature has exactly
+       one place to get it.
+   * - the two mints agree
+     - ``tests/sn/mesh/test_reduced_operator.py``
+       ``::…::test_the_two_mints_agree_on_the_1d_arm`` /
+       ``…_on_the_d2_cartesian_arm``
+     - the only gate that reds on a wrong **label** at either mint site,
+       and therefore the witness for the defaulted label: the
+       :math:`d \ge 2` Cartesian arm has no reduced operator, so the hub
+       mints the closure's axis itself — a second mint site that was one
+       typo away from a label twin until the default killed the
+       spelling. ``==``, never ``is`` (the mint is fresh per call).
+   * - **KEYSTONE** — the packet reads through the axis
+     - ``tests/sn/mesh/test_reduced_operator.py``
+       ``::…::test_K1_the_packet_reads_THROUGH_the_axis`` (per chart)
+     - four legs, because a route gate's own precondition must be
+       gated too: an anti-dud **control** (the axis-built operator
+       reproduces the factory-built one exactly), the **route** (the
+       node-scale decoy moves :math:`|\eta|`), the decoy's
+       **invisibility** to space identity (``==`` and ``hash`` agree —
+       ``vv-principles`` #19), and the documentation leg that the
+       angular factor was *not* reached. `[M]` 4 / 4 slab, 4 / 4
+       sphere, 8 / 12 cylinder packets moved.
+   * - the index read is a SEPARATE route
+     - ``tests/sn/mesh/test_reduced_operator.py``
+       ``::…::test_K2_the_cylinder_index_read_is_a_separate_route``
+     - the level-roll decoy leaves ``mu_x`` untouched, so it isolates
+       the ``level_indices`` read from the cosine read — without it a
+       half-re-pointed producer is indistinguishable from a complete
+       one (``vv-principles`` #17's per-arm discipline). `[M]` 4 / 12.
+   * - the closure mint reads through the axis
+     - ``tests/sn/sweep/curvilinear/test_angular_closure.py``
+       ``::TestP4RemTheClosureMintReadsThroughTheAxis``
+     - three decoys for three reads: nodes (:math:`\tau` and
+       :math:`\mu_x` move), weights (:math:`\Delta A/w` moves — its own
+       row, because the node decoy preserves weights by construction),
+       and a **different-**\ :math:`N` axis for the identity member,
+       whose only mint read is the ordinate count and for which a
+       same-\ :math:`N` decoy is a structural non-catcher.
 
 .. _spaces-counting-measure-theorem:
 
@@ -2619,13 +2875,22 @@ taken.
        it — the MODAL arm is declared and unbuilt. Both shipped mints
        are ``NODAL`` by construction, so no MINT can produce a modal
        generator-ful axis (:ref:`spaces-generator-seams`).
-   * - A solve-time consumer that READS a generator
-     - **The streaming campaign's P4-remainder.** CS5 landed the slot
-       and the two generator-minted nodal sites; no production consumer reads
-       ``axis.generator`` yet, so the two gates that would witness one
-       (a generator-less refusal, and the route keystone) were withheld
-       rather than shipped green and unfalsifiable
-       (:ref:`spaces-generator-seams`).
+   * - ✅ A solve-time consumer that READS a generator — **BUILT
+       2026-08-29**
+     - **Discharged by the streaming campaign's P4-remainder**
+       (``ad04e236``), and kept here past-tensed rather than deleted so
+       the *reason* survives. CS5 landed the slot and the two
+       generator-minted nodal sites; no production consumer read
+       ``axis.generator``, so the two gates that would witness one (a
+       generator-less refusal, and the route keystone) were withheld
+       rather than shipped green and unfalsifiable. The re-point landed
+       them with it: the streaming producer binds an
+       :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.angular_axis`
+       and recovers the direction cosines and the level fibration through
+       its generator, and the angular-closure family's construction
+       contract takes the axis as a third operand
+       (:ref:`spaces-generator-seams`,
+       :ref:`spaces-generator-route-gate`).
    * - The identity flip (compare the axes tuple, not the name)
      - **S3.** Until then the derived name is the bridge
        (:ref:`spaces-identity-bridge`), and ``axes`` is declared
@@ -2672,6 +2937,49 @@ status.
      - Issue
      - Where
    * - 2026-08-29
+     - **A producer binds the space factor, and reads the angular
+       geometry through it** (the streaming campaign's P4-remainder) —
+       the first solve-time consumer of
+       :attr:`~orpheus.numerics.axis.Axis.generator`, which discharges
+       CS5's third seam one day after it was declared.
+       :class:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator`
+       gains an
+       :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.angular_axis`
+       field, minted by each of the three streaming factories from the
+       measure they were already handed, and
+       :meth:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.streaming_terms`
+       recovers the radial cosine and the level fibration **through** it.
+       The recovery goes via one accessor,
+       :meth:`Axis.generator_as <orpheus.numerics.axis.Axis.generator_as>`
+       — a typed narrow whose refusal names both the axis and the asking
+       consumer, and which is load-bearing rather than defensive because
+       the declared union's other arm cannot answer either read. The
+       angular-closure family's construction contract widens to
+       ``cls(angular, pairing, angular_axis)``, so both concrete members
+       mint through the same narrow. In the other direction the
+       **courier dies** — the field whose docstring said it was *"held
+       so a consumer that needs the weights, the level partition or the
+       cosines does not have to be handed the quadrature separately"*,
+       which is a weld's own confession:
+       :class:`~orpheus.sn.angular.redistribution.AngularRedistribution`
+       sheds its ``quadrature`` field and is pure :math:`\alpha` data —
+       ``coord``, ``alpha_per_level``, ``mu_start_per_level`` — pinned
+       structurally by field-set equality so a re-addition reds. Two
+       supporting single-source moves: ``Quadrature.axis``'s label
+       **defaults**, making a label twin across mint sites unspellable,
+       and the cylinder admission probe's defaulted ``getattr`` on
+       ``level_structure`` hardens to a direct read now that the contract
+       declares the member. Every value comparison over this re-point is
+       ``X == X``, so the acceptance evidence is a **route** gate with a
+       decoy generator, not a value gate
+       (:ref:`spaces-generator-route-gate`).
+     - —
+     - ``ac485104`` (the dead ``_weight_of`` retires), ``ad04e236`` (the
+       binding, the courier's death, and the gates), ``1fb70c15`` (the
+       admission probe reads the declared contract) — *(in development,*
+       branch ``feature/p4rem-producer-binds-axis``\ *;* ``git`` *is the
+       merge-status authority)*
+   * - 2026-08-29
      - **An axis can name the generator that made it** (campaign 1,
        phase CS5). The axis gains a fifth slot,
        :attr:`~orpheus.numerics.axis.Axis.generator` — **provenance,
@@ -2694,7 +3002,7 @@ status.
        tree's three nodal mint sites consume it, bit-identically:
        :attr:`SNMesh.angular_bulk_space
        <orpheus.sn.mesh.augmented_mesh.SNMesh.angular_bulk_space>`
-       collapses to ``self.quad.axis("angular")``, and the rank-1 arm of
+       collapses to ``self.quad.axis(...)``, and the rank-1 arm of
        :attr:`MaterialMesh.bulk_space
        <orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space>`
        mints through the carrier's own ``volume_measure``; the third,
@@ -2710,9 +3018,11 @@ status.
        already reading past the contract
        (:ref:`spaces-generator-protocol`).
      - —
-     - ``4e7b8977`` (the slot, the two mints, the three consumers, the
-       gates) + ``b0bfc06c`` (the Protocol declaration) — *(in
-       development;* ``git`` *is the merge-status authority)*
+     - merged @ ``cb3cd15b`` — ``4e7b8977`` (the slot, the two mints,
+       the three consumers, the gates), ``b0bfc06c`` (the Protocol
+       declaration), ``cb3cd15b`` (the gate-quality repairs the docs
+       pass's own census found: the roster's fifth factory, the
+       unmarked gate class, the module head still saying "four slots")
    * - 2026-08-24
      - **The space becomes the construction key, and it mints the
        collapse pair** (campaign 1, phase CS4b, steps S5–S7).

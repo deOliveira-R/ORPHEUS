@@ -1438,3 +1438,31 @@ Corollary that pays for itself: **when a campaign ships its own gate suite, RUN 
 (5 marker sites × parametrize), bit-matching the campaign's own 2026-08-13
 checkpoint — simultaneously verifying the campaign plan's honesty and the
 report's staleness in one measurement.
+
+---
+
+## L-037 -- The AST route has its own viewport: a node-TYPE predicate clips like a `| head`, and a same-named field/method pair splits a census into two populations
+
+Two mechanisms from the P4-remainder ground re-measure (2026-08-29), both in
+censuses that were "done by AST" and therefore read as exempt from the filter
+family:
+
+- **`ast.Assign` excludes `ast.AnnAssign`.** Walking for `FORBIDDEN_EDGES = ...`
+  returned EMPTY on a module where the table is spelled
+  `FORBIDDEN_EDGES: dict[...] = {...}` — an annotated assignment, a different
+  node type. The zero read exactly like "no such table". Caught in one step only
+  because the table was KNOWN present (a grep had located it first) — i.e. the
+  positive control was accidental, not designed. Same family for walks that
+  match `FunctionDef` and miss `AsyncFunctionDef`, or `Name` and miss the
+  `Attribute` spelling. **When an AST walk over a known-populated file returns
+  zero, suspect the node-type predicate before the file** — and when the answer
+  matters, skip the walk and `exec`/import the module to read the object itself.
+- **A method on class A and a FIELD on class B can share a name, and an
+  attribute-census then returns one merged population.** `RSO.streaming_terms`
+  (a method) and `CellVisit.streaming_terms` (a dataclass field holding that
+  method's RESULT) co-exist by design — the packet's producer and its carrier.
+  A bare `.streaming_terms` census mixes callers with packet consumers; the
+  RECEIVER text (collected per hit) is what separates them, and `\.name(` vs
+  `\.name\b` cross-checks the split. L-009 said fields are grep-problems;
+  this adds: when the same spelling is a method THERE and a field HERE, every
+  member census needs the receiver column or it answers a different question.

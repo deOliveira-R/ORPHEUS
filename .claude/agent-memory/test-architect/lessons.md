@@ -1691,7 +1691,11 @@ through the accessor** (`[M]` weight-preserving, `np.roll`ed nodes: space name a
 `==` IDENTICAL, `mu_x` DIFFERENT), then require the answer to MOVE, with an
 anti-dud control and a leg asserting the decoy did NOT move the space name.
 ⚠ `[M]` `-nodes[::-1]` on Gauss–Legendre is the IDENTITY — print the decoy's
-discriminating array before trusting the gate. → `L65c`
+discriminating array before trusting the gate. ⛔ **SHARPENED at the
+P4-remainder: the rolled-node recipe is REFUSED by production's own α-dome
+admission guard on every curvilinear chart — a decoy must clear the guards of
+the arm the gate lives on, not merely discriminate. `nodes × 0.9` is the one
+that clears both tiers.** → `L65c`, `L66b`
 ⭐ **Look for the §6c witness that SHIPS before manufacturing one.** `[M]` three
 production sites stay generator-less at landing (homogeneous counting point, every
 `EnergyAxis`, the MODAL moment axis), so the refusal guards a live state. Found by
@@ -1743,3 +1747,75 @@ safe and needs no hand-written constructor. → `L65h`
 ⚠ **A `@property` mints a FRESH object per access** — `axis.generator is
 mesh.volume_measure` is a latent false red. Assert type + content. Same trap
 `EnergyAxis`'s docstring already records for `Mixture.energy_grid`. → `L65g`
+
+## P4-remainder additions (2026-08-29) — grouped by the families above
+
+**Gates that cannot red.** ⛔⛔ **A decoy must survive the PRODUCTION ADMISSION
+GUARDS of the arm the gate lives on** — one level past CS5's "print the decoy's
+array". `[M]` the CS5-prescribed weight-preserving `np.roll` decoy is REFUSED by
+`angular_redistribution`'s α-dome guard on every curvilinear chart (the dome
+closes iff `Σ w_m µ_m = 0`; a roll breaks the (µ,w) pairing) and refused again
+at the M-M mint (τ ∉ [0,1] / ω-arc). The one decoy admissible at BOTH tiers is
+`nodes × 0.9`: axis `==` preserved, `|µ|` moved 4/4 GL4 · 8/8 GL8 · 8/12
+fp(4,6), mint ADMITTED with τ + µ_x MOVED. ⛔ `nodes[::-1]` and `-nodes` move
+**0/N on every GL rule** (`abs_mu` takes the modulus, GL nodes antisymmetric),
+and `gauss_legendre(2)` moves **0/2** under the roll — which is exactly what
+`make_tiny_spherical_sn_mesh()` uses. → `L66b`
+⭐ **The COURIER'S REMOVAL, not a gate, is what makes a partial re-point
+unspellable** — delete the twin field and "did every read move?" becomes
+structural. Promote the `dataclasses.fields` name-set row (set EQUALITY, so a
+re-addition also reds) from nicety to keystone-support. → `L66a`
+⛔ **A member whose only read is a COUNT is a structural non-catcher for any
+same-N decoy** — `[M]` `IdentityAngularClosure` reads `mu_x.size` and nothing
+else, so it mints bit-identical constants under every same-N decoy; its
+discriminator is a DIFFERENT-N axis. → `L66b`
+⛔ **The silent mode is the WRONG LABEL**: an object-held axis makes
+`axis("ordinate")` value-identical and reds nothing until a consumer looks it
+up by name. Gate it with `op.axis == hub.space.axis(label)` — `==`, never `is`
+(`Quadrature.axis` is a METHOD minting fresh: `[M]` `is` False, `==` True).
+→ `L66e`
+
+**Harness discipline.** ⛔⛔ **A class-NAME §6b census misses a SUBCLASS that
+inherits `__init__` and a `Base.create(**kwargs)` registry call** — `[M]` the
+banked 8 closure-ctor sites are **10**, and #9 is the previous phase's own
+KEYSTONE mutant factory (`_MutantMM`), whose omission kills that gate at
+COLLECTION rather than weakening it. Recovery: transitive base resolution over
+every `ClassDef` + `super().__init__` + registry `create`; and a `create`
+call makes the new parameter's NAME an API surface. → `L66c`
+⭐ **Re-running a prior phase's superset battery pins a DIFFERENT claim here:**
+it is the INVARIANCE witness (the red SET must be EQUAL per arm), because a
+same-sized-but-disjoint set means the re-source landed on a different instance
+— the one failure mode no value gate can see. Carry the recorded arm gap
+forward rather than banking 26/27. → `L66c`, `L66j`
+
+**Config blindness.** ⛔⛔ **A second MINT SITE hides on the branch where the
+producer does not exist** — `[M]` the d ≥ 2 Cartesian arm builds the closure's
+operands with `reduced is None`, so it must mint its own axis: a Pattern-2 twin
+one label typo apart, on the exact branch the inherited battery's corpus cannot
+redden. Parametrize the coherence gate over the BRANCH; the arms assert
+different things. → `L66d`
+
+**Reference & claim layer.** ⚠ **The obvious oracle migration DEMOTES the
+comparisons it touches** — re-pointing a reference helper to the accessor
+production just adopted makes a wrong mint move both sides. `[M]` free to avoid
+here (`quad` already in scope at all 10 call sites); the migration changes no
+value today, so the entire gain is surviving as a wrong-mint catcher. → `L66f`
+⭐ **A provenance UNION cannot answer the consumer's reads, so the refusal must
+NARROW** — `[M]` `Axis.generator: DiscreteMeasure | Basis | Quadrature | None`
+and `DiscreteMeasure` has none of `mu_x`/`level_indices`/`eta`/`mu_z`/`N`. That
+makes the G5-style refusal load-bearing (it is the narrowing) and forecloses
+the `# type: ignore` reflex; the pyright ratchet gates BOTH directions.
+→ `L66g`
+
+**Snapshots & exactness / cost.** ⭐ **Price field-vs-property at PLAN time; the
+existing COUNT gate is blind to it.** `[M]` `Quadrature.axis()` mint 9.61 µs ×
+**320** `streaming_terms` calls per solve = **2.49 %** of a 0.123 s solve, and a
+fresh-minting property makes `op.axis is op.axis` FALSE (latent false red).
+`CollisionCache._build_count` counts a different cache. Owed row: the
+field-identity leg. → `L66h`
+
+**Sequencing.** ⛔ **A route gate whose SUBJECT is created by the step it gates
+cannot be a later step** — scheduling it after leaves an ungated interval and
+makes its §6c red-before reading permanently untakeable. Fuse them; the
+pre-carve evidence that survives is the SIMULATION (substitute a decoy for the
+soon-to-die twin field). → `L66k`

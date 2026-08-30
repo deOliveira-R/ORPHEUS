@@ -7,6 +7,42 @@ metadata:
 
 # Active / in-flight verification campaigns — full detail
 
+## P4-remainder step 2 — the producer binds the angular axis (⏹ PLAN DELIVERED 2026-08-29)
+
+**Deliverable**: `scratch/p4rem_step2_verification.md` — the CONTRACT-CHANGE
+half only (AR sheds `quadrature`; closure ctor takes the axis third;
+`_weight_of` retires). G5/G7 inherited from `scratch/cs5_verification_plan.md`
+§3.5/§3.7 and NOT redesigned; this plan supplies the measured decoy catalogue
+G7 needs and the landing rows G5 needs. Branch
+`feature/p4rem-producer-binds-axis`, HEAD `1a1aa60f`, tree clean; ground memo
+`scratch/p4rem_ground_measure.md` re-verified (only a docs commit past its
+`7d1129cc`).
+
+**The V1 sets, measured.** (a) AR field removal: **3** production ctors (all
+inside `angular_redistribution`), **0** test ctors, **0** string-forms, **0**
+reflection walkers, **7** `.quadrature` reads on an AR receiver (5 production +
+2 test ORACLES), **1** doc `:attr:` that dies silently. (b) closure ctor: the
+banked **8** test sites are `[M]` **10** — the extras are a SUBCLASS ctor
+(`_MutantMM`, `tests/sn/operators/test_operator_feeds_the_walk.py:161`, i.e.
+P4.9b's own keystone mutant factory) and a `AngularClosureBase.create(**kwargs)`
+registry call (`test_angular_closure.py:129`); production prose is **6**, not 2.
+(c) `_weight_of`: `[M]` **0** references in `tests/` and `docs/`; **2** in
+`orpheus/` (the `def` + a body comment at `:536`), BOTH present-tense-false.
+
+**The V3 verdict.** ⛔⛔ Three-way `is`-identity survives the change
+(`axis.generator is angular.quadrature is sn.quad`) ⟹ every value gate is
+`X == X` and **the route rows are the ONLY discriminators**; existing anchors
+witness the LOUD modes (dropped `generator=`, wrong N) and the un-moved-object
+claim, nothing else. The silent mode nobody had named is the **wrong LABEL**.
+
+**Open findings the ruled design missed** (plan §7, 10 items): the CS5 decoy is
+REFUSED by the α-dome guard; a **second mint site** on the d ≥ 2 branch where
+no producer exists; the generator UNION cannot answer the reads (pyright); the
+obvious oracle migration demotes ~10 committed comparisons; G7 cannot be a
+separate step. Five open rulings at §8.
+
+Detail + all measured numbers → `lessons_archive.md` **L66**.
+
 ## CS5 — an axis can name the generator that made it (⏹ PLAN DELIVERED 2026-08-29)
 
 **Deliverable**: `scratch/cs5_verification_plan.md` (~920 lines; 9 gates G1–G9 +

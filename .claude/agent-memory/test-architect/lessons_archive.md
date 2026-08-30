@@ -7201,3 +7201,186 @@ docstring records for `Mixture.energy_grid`.)
   fresh-interpreter import of 6 packages rc=0 (§6d clean — the new
   `measure → axis` runtime edge closes no cycle); anchor set **215 passed /
   2.06 s** with steps 1–3 all landed.
+
+---
+
+## L66 — P4-remainder step 2 (the producer binds the angular axis; contract-change half, PRE-carve, plan delivered 2026-08-29)
+
+**Deliverable** `scratch/p4rem_step2_verification.md`. Branch
+`feature/p4rem-producer-binds-axis`, HEAD `1a1aa60f` (one docs-only commit past
+the ground memo's `7d1129cc` ⟹ every `file:line` in
+`scratch/p4rem_ground_measure.md` re-verified). Ruled design: (1) RSO gains
+`angular_axis: Axis`, factories mint `quadrature.axis("angular")` internally;
+(2) closure family ctor takes the axis third, `AngularRedistribution` sheds
+`quadrature`; (3) `_weight_of` retires; (4) G5/G7 land per the CS5 specs.
+
+### L66a — the re-point is a THREE-WAY `is`-identity, so the keystone is a route gate
+
+`[M]` runtime probe, real `SNMesh`:
+`sn.angular_bulk_space.axis("angular").generator is sn.quad` **True**;
+`sn.reduced.angular.quadrature is sn.quad` **True**; hence the axis's generator
+`is` the courier's quadrature. The ruled design mints the axis inside the
+factory from the SAME `quadrature` parameter that feeds
+`angular_redistribution`, so the identity SURVIVES the change ⟹ every value
+gate is `X == X`, green before, after, and under a PARTIAL re-point. Same shape
+as CS5's `L65c`, one tier down.
+
+⭐ The sharpening CS5 did not have: **the courier's REMOVAL is what makes the
+partial re-point unspellable.** Once `AngularRedistribution.quadrature` is
+deleted there is no second route to reach past to, so "did every read move?"
+stops being a test question and becomes structural — which promotes the
+`dataclasses.fields` name-set row from nicety to load-bearing.
+
+### L66b — ⛔⛔ the CS5-recommended decoy is REFUSED by a production admission guard
+
+CS5 §3.7 prescribes a weight-preserving `np.roll`ed-node decoy. `[M]` it is
+weight-preserving and space-identity-invisible as advertised — and
+`angular_redistribution` REFUSES it on every curvilinear chart, because the
+α-dome closes only if `Σ_m w_m µ_m = 0` and a roll breaks the (µ, w) pairing
+(`gauss_legendre(4)` roll → `ValueError: the alpha dome does not close:
+alpha[M+1/2] = 0.3654883720235732`). At the closure-mint tier it is refused
+again (τ ∉ [0,1] on the sphere; ω-arc non-monotone on the cylinder).
+
+⟹ **a decoy must survive the PRODUCTION admission guards of the arm the gate
+lives on**, which is one level past CS5's "print the decoy's discriminating
+array before trusting the gate". Measured catalogue, all at HEAD:
+
+| decoy | axis `==` | \|µ\| moved | M-M mint | verdict |
+|---|---|---|---|---|
+| `nodes × 0.9` | True | 4/4 GL4, 8/8 GL8, 8/12 fp(4,6) | **ADMITTED**, τ + µ_x MOVED, dAw same | ⭐ the only decoy admissible at BOTH tiers |
+| `level_indices` roll-1 | True | µ_x array unchanged; 8/12 packets | n/a | ⭐ isolates the cylinder index read from the cosine read |
+| `np.roll(nodes,1)` | True | 2/4 GL4, 10/12 fp(4,6) | REFUSED | packet tier only; slab-admissible (2/4, no dome check) |
+| `nodes[::-1]`, `-nodes` | True | **0/N on every GL rule** | REFUSED | ⛔ provable non-catchers — `abs_mu` takes the modulus and GL nodes are antisymmetric |
+| `level_indices` **reversal** | True | **0/12** fp(4,6) | n/a | ⛔ the `L43e` palindrome, live |
+| different N | False | n/a | ADMITTED | the ONLY discriminator for `IdentityAngularClosure` |
+
+⚠⚠ **`gauss_legendre(2)` moves 0 of 2 under the roll decoy — and
+`make_tiny_spherical_sn_mesh()` is N = 2.** The tree's own default tiny
+spherical fixture is the blind one.
+
+⛔ **`IdentityAngularClosure` is a structural non-catcher for any same-N
+decoy**: `[M]` its only courier read is the ordinate COUNT
+(`angular.quadrature.mu_x.size`), so a same-N decoy mints bit-identical neutral
+constants. Its discriminator is a different-N axis.
+
+### L66c — ⛔⛔ the §6b set was 8; a subclass-aware census finds 10, and #9 is the campaign's own keystone
+
+The banked set (ground §G.4) is a class-NAME census. Two members it is
+structurally blind to (the P4.9b lesson, one campaign later):
+
+* **`_MutantMM(sn.reduced.angular, sn.reduced.redistribution_pairing)`**,
+  `tests/sn/operators/test_operator_feeds_the_walk.py:161` — a SUBCLASS
+  inheriting `__init__`. It is **the P4.9b keystone's mutant factory**, so
+  missing it does not weaken a gate, it removes that gate from the run at
+  COLLECTION.
+* **`AngularClosureBase.create("morel_montry_angular_sweep", angular=…,
+  pairing=…)`**, `tests/sn/sweep/curvilinear/test_angular_closure.py:129` — a
+  keyword-forwarding registry call, which also makes the third parameter's
+  NAME an API surface.
+
+`[M]` also corrected: production prose sites are **6**, not 2 (`closure.py:258,
+:263, :298, :384, :386` + `augmented_mesh.py:407`). Recovery method:
+transitive base resolution over every `ClassDef` + `super().__init__` +
+registry `create`. `[M]` calls inside a `parametrize` ARGUMENT LIST: **0**
+tree-wide for this blast radius, so `L47d`'s collection-kill does not apply.
+
+### L66d — ⛔⛔ a SECOND mint site nobody named: the d ≥ 2 branch has no producer to mint from
+
+`augmented_mesh.py:409-427` has two arms. The `reduced is None` (d ≥ 2
+Cartesian) arm builds its closure operands from `angular_redistribution(
+self.quad, self.coord)` with **no `ReducedStreamingOperator` in existence**
+(`[M]` `sn2d.reduced is None`, already asserted at `test_cache.py:961`) — so
+the third ctor argument needs its OWN mint there. A Pattern-2 twin one label
+typo apart, on the exact branch M1's 27-row corpus **cannot redden** (its only
+2-D row is the structural survivor `m1_scheme` omits). ⟹ the coherence gate
+must be parametrized over the BRANCH (CS5 `L65d`), and the two arms assert
+different things.
+
+### L66e — the silent failure mode is the WRONG LABEL, and no existing anchor sees it
+
+Because the RSO holds the axis OBJECT, `quadrature.axis("ordinate")` produces
+bit-identical values and reds nothing anywhere — until O-3 hands the axis off a
+space. `[M]` `sn.quad.axis("angular") == sn.angular_bulk_space.axis("angular")`
+is **True** (hashes equal) while `is` is **False** (`Quadrature.axis` is a
+METHOD minting fresh) ⟹ the coherence gate must be `==`, never `is`.
+
+Blind-anchor audit, per candidate: the escalatable `DriftWarning` stored-value
+gates witness only the LOUD modes (dropped `generator=` ⟹ `AttributeError` per
+packet; wrong-N ⟹ shape error); `test_tau_producer_equivalence` is blind (both
+sides read one quadrature through the closure); `CollisionCache._build_count`
+is blind (different cache); `test_snmesh_consumes_reduced` is blind (its reads
+come off the untouched AR). ⟹ **the route rows are the only discriminators for
+the re-point itself** — say exactly that.
+
+### L66f — the obvious oracle migration DEMOTES ~10 committed comparisons
+
+`_dAw_of` (`test_diamond.py:85`, 10 call sites) and
+`_c_surrogate.mm_constants_for_ordinate` are reference oracles that read
+`op.angular.quadrature`. Re-pointing them to `op.angular_axis.generator` makes
+the oracle read through the very accessor production now uses, so a wrong-axis
+mint moves both sides together (`coding-standards` rewire-demotion; `vv` #22's
+shared-input axis). `[M]` free to avoid: `quad` is already in scope at every
+call site — pass it explicitly. The migration changes NO value today
+(`op.angular.quadrature is quad`); the entire gain is that only the explicit
+form survives as a wrong-mint catcher.
+
+### L66g — the generator UNION cannot answer the reads, so the refusal must NARROW
+
+`[M]` `Axis.generator: DiscreteMeasure | Basis | Quadrature | None`, and
+`DiscreteMeasure` has **none** of `mu_x`, `eta`, `mu_z`, `level_indices`,
+`axis_cosines`, `N` (only `weights`, `nodes`). ⟹ a bare
+`axis.generator.mu_x` is a pyright error at EVERY re-pointed read, and the G5
+refusal accessor should return a narrowed `Quadrature` — which makes G5
+load-bearing rather than decorative and forecloses the `# type: ignore` reflex
+(`coding-elegance` #19). ⚠ `tests/test_pyright_ratchet.py` gates BOTH
+directions (an INCREASE and a DECREASE both red), so any legitimate movement is
+re-baselined in the same commit.
+
+### L66h — price the field-vs-property choice at plan time; the COUNT gate is blind to it
+
+`[M]` `Quadrature.axis("angular")` mint = **9.61 µs** (N=16);
+`ReducedStreamingOperator.streaming_terms` calls per solve = **320**
+(`solve_sn_fixed_source`, cyl `folded_product(4,8)`, nx=20, ng=2; 320 = nx × N
+exactly ⟹ the intern is built once); solve wall **0.123 s** ⟹ a
+fresh-minting `@property` would cost **2.49 %** of the solve AND make
+`op.angular_axis is op.angular_axis` **False** (a latent false red for any
+identity gate). `CollisionCache._build_count == 1` counts a DIFFERENT cache and
+cannot see it. ⟹ owed row: the field-identity leg, the idiom already in the
+tree at `test_snmesh_consumes_reduced.py:182` for `delta_A`.
+
+### L66i — `_weight_of` retirement: 0 test surface, TWO prose falsehoods
+
+`[M]` `tests/` **0** (symbol + string-form), `docs/` **0**, `orpheus/` **2** —
+the `def` at `reduced_operator.py:439` and a **body comment at `:536`** that
+repeats the docstring's false claim verbatim (the ground memo caught only the
+docstring). Both assert the scan cache calls it; `[M]` the cache reads
+`quad.weights` directly (`cache.py:341-344`). No promoted guard, so **no
+net-new gate is owed** — predicted delta exactly 0.
+
+⭐ And the doc blast radius is ONE line Sphinx cannot see:
+`docs/theory/methods/sn/curvilinear_one_group.rst:490` cites
+`:attr:`…AngularRedistribution.quadrature``, and `orpheus.sn.angular` is not
+`automodule`'d ⟹ `-W` is silent at every severity. `[M]`
+`mcp__nexus__dead_references` baseline **0 dead / 52 checked** — it is the only
+instrument.
+
+### L66j — measured scope costs (serial, `-O`, `-m "not slow"`, `-p no:randomly`)
+
+`tests/sn/mesh` 166 / **2.2 s** · `tests/sn/primitives` 336 / **3.2 s** ·
+the numerics axis trio 82 / **1.9 s** · `tests/transport/spatial` 80 /
+**21.9 s** · `tests/sn/sweep/core` 474 / **60.4 s** · `tests/sn/operators`
+1255 / **71.2 s** · `tests/sn/sweep/curvilinear` 308 / **209.9 s** ⟹ union
+**2701 / ≈ 371 s**. Baseline reconciliation: `[M]` `pytest tests/ -m "not slow"
+--collect-only` = **9988 / 10215, 227 deselected**, and 9896 + 22 + 70 = 9988,
+so the campaign's headline baseline IS a `-m "not slow"` run.
+
+### L66k — ⛔ G7 cannot be a separate step
+
+The ruled order schedules the route gates as step 3, after the binding (step
+2). K1–K3 are UNWRITABLE before step 2 (their subject is the third ctor
+parameter step 2 creates), so a step-3 landing leaves an interval with no route
+gate AND makes G7's §6c red-before reading permanently untakeable. Under
+`plan-authoring` §6b/§6c they are one step. The pre-carve evidence that IS
+available is the SIMULATION — substituting a decoy quadrature for the courier
+on a true-dome AR, which is the exact pre-carve analogue of "true AR + decoy
+axis"; the §5.2 catalogue is that record.

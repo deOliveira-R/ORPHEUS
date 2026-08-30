@@ -176,8 +176,13 @@ construction:
   angular half of the redistribution operator's tensor factorization.
   Per level the dome is ``(M_p + 1,)`` (sphere: one level, ``(N+1,)``);
   the geometric factor is ``delta_A``, and the product
-  :math:`\Delta A_i / w_n` is formed by each consumer rather than
-  cached.
+  :math:`\Delta A_i / w_n` is built by each consumer from those two
+  factors rather than held in a store that owns neither. ⛔ This last
+  clause read *"formed by each consumer rather than cached"* until
+  2026-08-29; two of the three formers do cache their own copy (the
+  angular closure at construction, the scan cache at build), which
+  changes nothing about the stratification argument but is not the same
+  sentence — see :ref:`sn-geometry-factor`.
 * **The Morel--Montry closure.**  :math:`\tau` is an angular-scheme
   property — a function of :math:`(\mu, w)` only, per the Issue #236
   Step C ruling — owned by

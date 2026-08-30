@@ -482,17 +482,32 @@ angular anisotropy that *worsens* with mesh refinement near :math:`r = 0`
 a flux spike at the origin in fixed-source problems and as divergent
 eigenvalues in heterogeneous eigenvalue problems.
 
-**Nothing precomputes this factor.**  Each consumer forms it where it is
-used, from the **spatial** factor
+**No shared store holds this factor — each consumer builds its own, from
+the two factors.**  The **spatial** one is
 :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.delta_A`
-(shape ``(nx,)``, on the streaming operator) and the **angular** factor
-:math:`1/w_n` (the measure's own weight, recovered through the operator's
+(shape ``(nx,)``, on the streaming operator); the **angular** one is
+:math:`1/w_n`, the measure's own weight, recovered through the operator's
 bound angular axis —
 :attr:`~orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.angular_axis`,
 whose :attr:`~orpheus.numerics.axis.Axis.generator` is the quadrature.
-The ``AngularRedistribution.quadrature`` courier that used to carry it
+(The ``AngularRedistribution.quadrature`` courier that used to carry it
 retired at the P4-remainder, 2026-08-29 — the angular factor is pure
-α data now).
+α data now.)
+
+⛔ This paragraph opened *"Nothing precomputes this factor.  Each consumer
+forms it where it is used"* until 2026-08-29.  The first sentence became
+false at P4.9a and the second at P4.7, and the two halves are worth
+separating because only one of them was ever the point.  There are three
+formers today and **two of them precompute**: the angular closure mints
+``_dAw_per_level`` once at construction (P4.9a), the sweep's scan cache
+interns a chain-ordered row at build (P4.7), and only the degenerate
+cylindrical arm of the walk still forms it per ``(cell, ordinate)`` at
+use.  What survives — and what the factorization argument below actually
+claims — is that no *shared* array holds the product: the split is **by
+factor**, each consumer owns its own fusion at its own lifetime, and
+nobody reads a stored :math:`\Delta A \otimes 1/w` off an object that
+owns neither factor.  "Not cached" was never the claim; "not cached
+*somewhere neither consumer owns*" was.
 
 .. note:: ⭐ **The fused product was retired on 2026-08-26, and the reason
    is instructive.**  Until then the geometry object cached
@@ -806,8 +821,11 @@ produced **solely** by the closure (see :ref:`sn-tau-c-on-cellvisit-live`).
    ANGULAR-scheme property, not a geometry one.  Issue #236 Phase 2
    (Step A) relocates :math:`\tau` PRODUCTION onto the angular closure:
    :func:`~orpheus.sn.angular.closure.morel_montry_tau_per_level`
-   produces :math:`\tau` from the quadrature the closure already binds,
-   and
+   produces :math:`\tau` from the quadrature the closure is handed —
+   since the P4-remainder (2026-08-29) that is the generator of the
+   :attr:`~orpheus.numerics.axis.Axis` its constructor takes as a third
+   operand, recovered by a typed narrow rather than read off a courier
+   field on the angular factor — and
    :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
    consumes its OWN :math:`\tau` for the matvec contribution (P0) instead
    of reading it back from the streaming-geometry factory
