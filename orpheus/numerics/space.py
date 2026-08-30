@@ -97,6 +97,8 @@ if TYPE_CHECKING:
         AxisRetractionOperator,
         AxisSectionOperator,
         LinearOperator,
+        RieszLowerOperator,
+        RieszRaiseOperator,
     )
 
 __all__ = [
@@ -800,6 +802,42 @@ class FunctionSpace(Generic[Carrier]):
             other.factors if isinstance(other, TensorProductSpace) else (other,)
         )
         return TensorProductSpace.from_factors(self_factors + other_factors)
+
+    @property
+    def riesz_lower(self) -> "RieszLowerOperator":
+        r"""The Riesz LOWERING leg :math:`\flat : V \to V^*` — ``G x``.
+
+        The inner product's isomorphism onto the dual, as a first-class
+        arrow (CS4c R2): delegates to :meth:`apply_metric`, so the metric
+        arithmetic stays single-sourced; what the leg adds is the
+        bookkeeping (``domain = V``, ``codomain = V.dual()``) and an
+        individually-testable, individually-MUTABLE seam — the
+        codomain-side factor of the Hilbert adjoint
+        ``A* = domain.riesz_raise ∘ A.dual() ∘ codomain.riesz_lower``.
+
+        PRIMAL spaces only — the leg's constructor refuses a
+        :class:`DualSpace` (which deliberately carries its primal's
+        metric, so a dual-side ♭ would be the G² trap; see the leg class).
+        """
+        from orpheus.numerics.operator import RieszLowerOperator
+
+        return RieszLowerOperator(self)
+
+    @property
+    def riesz_raise(self) -> "RieszRaiseOperator":
+        r"""The Riesz RAISING leg :math:`\sharp : V^* \to V` — ``G⁺ f``.
+
+        The mirror of :attr:`riesz_lower` (Moore–Penrose by the metric
+        family's doctrine): delegates to :meth:`apply_inverse_metric`;
+        ``domain = V.dual()``, ``codomain = V``. The domain-side factor
+        of the Hilbert adjoint. The round trip
+        ``riesz_raise ∘ riesz_lower`` is :math:`P_{\mathrm{range}(G)}` —
+        the identity iff the metric is strictly positive (a singular
+        trace block projects its tangential slots to zero).
+        """
+        from orpheus.numerics.operator import RieszRaiseOperator
+
+        return RieszRaiseOperator(self)
 
     def dual(self) -> "FunctionSpace":
         r"""Return the dual space :math:`V^*`.

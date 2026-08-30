@@ -987,6 +987,45 @@ class LinearOperator(Protocol[Domain, Codomain]):
         :meth:`adjoint`)."""
         return self.adjoint()
 
+    def dual(self) -> "LinearOperator[Codomain, Domain]":
+        r"""Return the dual arrow :math:`A^{\mathsf T} : W^* \to V^*`.
+
+        The METRIC-FREE half of the Hilbert adjoint: the representation
+        transpose, carried between the dual spaces. For ``A : V → W`` the
+        dual maps ``W* → V*`` — the same array arithmetic as
+        :meth:`apply_transpose`, with the arrow bookkeeping made explicit
+        (:meth:`~orpheus.numerics.space.FunctionSpace.dual` on each end).
+        The Hilbert adjoint is then the theorem-shaped composition
+
+        .. math::
+
+           A^{*} \;=\; \sharp_V \circ A^{\mathsf T} \circ \flat_W
+           \qquad\text{(``domain.riesz_raise ∘ A.dual() ∘
+           codomain.riesz_lower``)}
+
+        realized by :class:`_AdjointOperator` — the dual is the middle
+        factor, and the metrics live entirely in the Riesz legs
+        (:class:`RieszLowerOperator` / :class:`RieszRaiseOperator`).
+
+        Involution: ``A.dual().dual() is A`` (object identity — the
+        wrapper's own :meth:`_DualOperator.dual` returns the inner).
+
+        Raises
+        ------
+        MissingAdjoint
+            Eagerly, when this operator is not :attr:`is_adjointable`
+            (no working ``apply_transpose``) — same broken-stub-refusing
+            style as :meth:`adjoint`.
+        """
+        if not adjointable(self):
+            raise MissingAdjoint(
+                f"{type(self).__name__} is not adjointable — .dual() "
+                f"requires is_adjointable=True (a working apply_transpose); "
+                f"the dual arrow IS the transpose, carried between the "
+                f"dual spaces."
+            )
+        return _DualOperator(self)
+
     # ------------------------------------------------------------------
     # Materialization — the functor OUT of the operator category
     # ------------------------------------------------------------------
@@ -1280,8 +1319,200 @@ def assemblable(
 # ---------------------------------------------------------------------------
 
 
+class RieszLowerOperator(LinearOperator[Domain, Domain], Generic[Domain]):
+    r"""The Riesz LOWERING leg :math:`\flat : V \to V^*` — apply the metric.
+
+    ``♭ x = G x``: the isomorphism a Hilbert space's inner product induces
+    between the space and its dual (the Riesz representation theorem,
+    realized). Delegates to
+    :meth:`~orpheus.numerics.space.FunctionSpace.apply_metric`, so the
+    metric ARITHMETIC stays single-sourced in the space's resolved
+    :class:`~orpheus.numerics.metric.HilbertMetric` (or its per-axis
+    path) — this class contributes only the ARROW: ``domain`` is the
+    primal ``V``, ``codomain`` is ``V.dual()``, both non-Optional by
+    construction (the leg is born bound).
+
+    Constructed by :attr:`~orpheus.numerics.space.FunctionSpace.riesz_lower`
+    and by :class:`_AdjointOperator` (whose codomain-side factor this is).
+
+    ⛔ **PRIMAL spaces only.** A :class:`~orpheus.numerics.space.DualSpace`
+    deliberately carries its PRIMAL's metric (L²-Riesz threading, P7 S2),
+    so a lowering leg built on ``V*`` would apply ``G`` where the honest
+    dual-side map applies ``G⁻¹`` — the measured ``G²`` trap
+    (`[M]` 2026-08-30: ``lower_{V*}(lower_V(x)) = [0.25, 4, 16]`` for
+    ``w = [0.5, 2, 4]``, where the double-Riesz involution must return
+    ``x``). The constructor REFUSES a dual space, making the wrong
+    composition unspellable; dual-side adjoints route through the
+    dagger–dual commutation ``(A.dual()).H = (A.H).dual()`` instead
+    (:meth:`_DualOperator.adjoint`).
+
+    ``apply_transpose`` is ``apply``: every shipped metric realization is
+    symmetric (a diagonal weight; a :class:`DenseMetric` admitted only
+    through its symmetry guard), so ``♭ᵀ = ♭`` under the reflexive
+    identification ``V** = V``.
+    """
+
+    def __init__(self, space: "FunctionSpace") -> None:
+        from orpheus.numerics.space import DualSpace
+
+        if isinstance(space, DualSpace):
+            raise TypeError(
+                f"RieszLowerOperator on a DualSpace ({space.name!r}) — the "
+                f"Riesz legs live on the PRIMAL space only. A DualSpace "
+                f"carries its primal's metric (L²-Riesz), so ♭ on V* would "
+                f"apply G where the dual-side map needs G⁻¹ (the G² trap). "
+                f"Compose the primal's riesz_lower/riesz_raise, or use the "
+                f"dagger–dual commutation (A.dual()).H = (A.H).dual()."
+            )
+        self.space: Final = space
+
+    @property
+    def domain(self) -> "FunctionSpace":
+        return self.space
+
+    @property
+    def codomain(self) -> "FunctionSpace":
+        return self.space.dual()
+
+    def apply(self, x: Domain) -> Domain:
+        return self.space.apply_metric(x)
+
+    def apply_transpose(self, x: Domain) -> Domain:
+        # ♭ᵀ = ♭ (symmetric metric, V** = V) — see the class docstring.
+        return self.space.apply_metric(x)
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True
+
+
+class RieszRaiseOperator(LinearOperator[Domain, Domain], Generic[Domain]):
+    r"""The Riesz RAISING leg :math:`\sharp : V^* \to V` — apply the
+    pseudo-inverse metric.
+
+    ``♯ f = G⁺ f``: the inverse Riesz map, Moore–Penrose everywhere by
+    the metric family's doctrine (the reciprocal on the metric's range,
+    zero on its kernel — the tangential ``|Ω·n| = 0`` trace slots).
+    Delegates to
+    :meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric`;
+    this class contributes only the arrow: ``domain`` is ``V.dual()``,
+    ``codomain`` the primal ``V``.
+
+    The round trip is the honest law of the pseudo-inverse, NOT the
+    identity: ``♯ ∘ ♭ = P_range(G)`` — the identity exactly when the
+    metric is strictly positive, the tangential-zeroing projector on a
+    singular trace block (`[M]` 2026-08-30: a legal 2-D
+    ``Quadrature.product(4,4)`` mesh has 32/64 tangential trace slots and
+    round-trip trace defect ``2.87``; every strictly-positive fixture
+    reads ``≤ 4.4e-16``).
+
+    Same primal-only refusal, same symmetric-transpose identity, and the
+    same construction sites as :class:`RieszLowerOperator` (its exact
+    mirror — the domain-side factor of :class:`_AdjointOperator`).
+    """
+
+    def __init__(self, space: "FunctionSpace") -> None:
+        from orpheus.numerics.space import DualSpace
+
+        if isinstance(space, DualSpace):
+            raise TypeError(
+                f"RieszRaiseOperator on a DualSpace ({space.name!r}) — the "
+                f"Riesz legs live on the PRIMAL space only (see "
+                f"RieszLowerOperator: the G² trap). Compose the primal's "
+                f"legs, or use (A.dual()).H = (A.H).dual()."
+            )
+        self.space: Final = space
+
+    @property
+    def domain(self) -> "FunctionSpace":
+        return self.space.dual()
+
+    @property
+    def codomain(self) -> "FunctionSpace":
+        return self.space
+
+    def apply(self, x: Domain) -> Domain:
+        return self.space.apply_inverse_metric(x)
+
+    def apply_transpose(self, x: Domain) -> Domain:
+        # ♯ᵀ = ♯ (symmetric pseudo-inverse of a symmetric metric).
+        return self.space.apply_inverse_metric(x)
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True
+
+
+class _DualOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
+    r"""The dual arrow :math:`A^{\mathsf T} : W^* \to V^*` — the
+    representation transpose with honest dual-space bookkeeping.
+
+    The metric-free middle factor of the Hilbert adjoint (see
+    :meth:`LinearOperator.dual`). ``apply`` IS ``inner.apply_transpose``;
+    what this wrapper adds is the ARROW: domain/codomain are the DUALS of
+    the inner's codomain/domain, so a composition chain can track bras vs
+    kets through :class:`~orpheus.numerics.space.DualSpace` (its minted
+    consumer — the §1 non-endomorphism made physical).
+
+    Same explicit ``Generic[Domain, Codomain]`` pinning as
+    :class:`_AdjointOperator` (the PEP-696 parameter-order note there).
+
+    Laws, as structure:
+
+    * involution — ``A.dual().dual() is A`` (:meth:`dual` returns the
+      inner: object identity);
+    * transpose of the dual is the inner's action —
+      :meth:`apply_transpose` delegates to ``inner.apply``;
+    * dagger–dual commutation — ``(A.dual()).H = (A.H).dual()``
+      (:meth:`adjoint` routes there), which is what makes a dual-side
+      Hilbert adjoint expressible WITHOUT Riesz legs on dual spaces
+      (those are refused — the G² trap).
+    """
+
+    def __init__(self, inner: "SupportsAdjoint[Domain, Codomain]") -> None:
+        self.inner: Final = inner
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        c = getattr(self.inner, "codomain", None)
+        return c.dual() if c is not None else None
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        d = getattr(self.inner, "domain", None)
+        return d.dual() if d is not None else None
+
+    def apply(self, y: Codomain) -> Domain:
+        return self.inner.apply_transpose(y)
+
+    def apply_transpose(self, x: Domain) -> Codomain:
+        # (Aᵀ)ᵀ = A — the inner's forward action, no metric anywhere.
+        return self.inner.apply(x)
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True
+
+    def dual(self) -> "LinearOperator[Domain, Codomain]":
+        # Involution as OBJECT IDENTITY: (Aᵀ)ᵀ = A.
+        return self.inner  # type: ignore[return-value]
+
+    def adjoint(self) -> "LinearOperator[Domain, Codomain]":
+        r"""The dagger–dual commutation: ``(A.dual()).H = (A.H).dual()``.
+
+        A dual arrow's Hilbert adjoint under the honest dual metrics
+        (``G⁻¹`` on each dual space) is `[M]`-checkably the dual of the
+        primal adjoint: :math:`(A^{\mathsf T})^{*} = G_W A G_V^{+} =
+        ((A^{*})^{\mathsf T})`. Routing through the primal side keeps the
+        Riesz legs primal-only (their constructors refuse dual spaces)
+        rather than teaching :class:`~orpheus.numerics.space.DualSpace` a
+        second metric.
+        """
+        return self.inner.adjoint().dual()  # type: ignore[return-value]
+
+
 class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
-    """Hilbert-adjoint wrapper around a :class:`LinearOperator`.
+    r"""Hilbert-adjoint wrapper around a :class:`LinearOperator`.
 
     Presents the SWAPPED carriers: an inner ``A : Domain → Codomain``
     becomes ``A^* : Codomain → Domain``. The explicit
@@ -1300,13 +1531,37 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
     Construction is gated EAGERLY by :meth:`LinearOperator.adjoint`:
     only an :func:`adjointable`-narrowed operator
     reaches this constructor, so ``inner`` is statically a
-    :class:`SupportsAdjoint` and :meth:`apply`'s delegation to
-    ``inner.apply_transpose`` is typed — there is no lazy capability
-    gate left to fail at call time. The reverse direction
-    (apply_transpose on the adjoint = apply on the inner) is not
-    needed by any current consumer in 9.6 and is deferred —
-    :meth:`apply_transpose` raises :class:`NotImplementedError`
-    until a consumer demands it.
+    :class:`SupportsAdjoint` — there is no lazy capability gate left to
+    fail at call time.
+
+    **The arrow is a composition of three first-class factors, built at
+    construction** (CS4c R2 ruling, 2026-08-30): the domain/codomain
+    exchange is realized in code — for ``A : V → W``,
+
+    .. math::
+
+       A^{*} \;=\; \underbrace{\sharp_V}_{V^* \to V}
+       \circ \underbrace{A^{\mathsf T}}_{W^* \to V^*}
+       \circ \underbrace{\flat_W}_{W \to W^*}
+
+    i.e. ``inner.domain.riesz_raise ∘ inner.dual() ∘
+    inner.codomain.riesz_lower`` (the formula reserved at
+    ``metric.py``'s CS4c-compatibility note). The metric arithmetic
+    lives in the legs (single-sourced through the space's
+    :class:`~orpheus.numerics.metric.HilbertMetric`); this class holds
+    the composition plus what only the named arrow can carry: the
+    eager refusals, the #280 swap law (:meth:`inverse` — an object
+    identity), the role passthrough, and the dagger laws as structure:
+
+    * involution — ``A.H.H is A`` (:meth:`adjoint` returns the inner);
+    * transpose of the adjoint — a THEOREM of the legs,
+      :math:`(A^{*})^{\mathsf T} = \flat_W \circ A \circ \sharp_V`
+      (metrics symmetric by admission), which closed #375's dead-end:
+      ``A.H`` is adjointable, and ``A.H.H`` is reachable — and IS ``A``.
+
+    An UNBOUND end (a ``None`` space on a metric-free-exempt inner)
+    contributes an :class:`IdentityOperator` leg — the Euclidean metric
+    as the neutral element, bit-identical to the pre-CS4c skip branch.
     """
 
     def __init__(self, inner: "SupportsAdjoint[Domain, Codomain]") -> None:
@@ -1340,6 +1595,25 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
         # The G-adjoint also preserves which SYSTEMS are touched: A_AB.H
         # (bulk→ray) is still COUPLED, A_BB.H still System B.
         self.system_role = getattr(inner, "system_role", None)
+        # The three factors, built HERE — the domain/codomain exchange
+        # realized at construction (R2 ruling): the codomain-side ♭ and
+        # the domain-side ♯ are the swapped ends' Riesz legs; the dual
+        # arrow is the metric-free middle. A None end (metric-free
+        # exemption above) gets the Euclidean neutral element — the same
+        # arithmetic the pre-leg skip branch performed, bit-identically.
+        inner_domain = getattr(inner, "domain", None)
+        inner_codomain = getattr(inner, "codomain", None)
+        self._lower: "LinearOperator" = (
+            RieszLowerOperator(inner_codomain)
+            if inner_codomain is not None
+            else IdentityOperator()
+        )
+        self._dual: "_DualOperator[Domain, Codomain]" = _DualOperator(inner)
+        self._raise: "LinearOperator" = (
+            RieszRaiseOperator(inner_domain)
+            if inner_domain is not None
+            else IdentityOperator()
+        )
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -1351,36 +1625,56 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
         return getattr(self.inner, "domain", None)
 
     def apply(self, y: Codomain) -> Domain:
-        # No capability gate here: the eager MissingAdjoint raise in
-        # LinearOperator.adjoint() is the ONLY entrance (no direct
-        # constructions exist — verified), so ``inner`` always
-        # carries a working apply_transpose by the time apply runs.
-        # Hilbert-adjoint action:
-        #   (A^* y)_V = G_V⁺ ⊙ apply_transpose(G_W ⊙ y)
-        # On the adjoint wrapper, ``codomain`` is the inner operator's
-        # domain (V) and ``domain`` its codomain (W). The metric application
-        # is delegated to the function space's :meth:`~FunctionSpace.apply_metric`
-        # / :meth:`~FunctionSpace.apply_inverse_metric` so that
-        # the SAME wrapper serves BOTH a flat-ndarray metric (e.g. the
-        # spherical-harmonic ``(L+1, 2L+1)`` leading-axis metric) AND a
-        # composite bulk ⊕ trace metric on a structured ``FullField`` (the
-        # direct-sum space applies a per-block metric, with a pseudo-inverse on
-        # the singular partial-current trace). The space owns the metric; the
-        # adjoint wrapper is metric-representation-agnostic.
-        inner_codomain = getattr(self.inner, "codomain", None)
-        inner_domain = getattr(self.inner, "domain", None)
-        z = inner_codomain.apply_metric(y) if inner_codomain is not None else y
-        result = self.inner.apply_transpose(z)
-        if inner_domain is not None:
-            result = inner_domain.apply_inverse_metric(result)
-        return result
+        # The Hilbert-adjoint action, as the leg composition built at
+        # construction:
+        #   (A^* y)_V = ♯_V(Aᵀ(♭_W y)) = G_V⁺ ⊙ apply_transpose(G_W ⊙ y)
+        # Same call order, same delegation targets as the pre-leg inline
+        # spelling (each leg delegates to the space's apply_metric /
+        # apply_inverse_metric, so the SAME composition serves a
+        # flat-ndarray metric AND a composite bulk ⊕ trace metric with
+        # its pseudo-inverse on the singular partial-current trace) —
+        # bit-identical by construction, gated by G-A1. The legs are the
+        # individually-mutable seams the ledger's per-leg battery reads.
+        return self._raise.apply(self._dual.apply(self._lower.apply(y)))
 
     def apply_transpose(self, x: Domain) -> Codomain:
-        raise NotImplementedError(
-            "apply_transpose on an _AdjointOperator wrapper is not "
-            "supported in 9.6; if a consumer needs it, take the adjoint "
-            "of the original inner operator's transpose directly."
-        )
+        r"""The representation transpose of the adjoint — a THEOREM of
+        the legs (#375's four-line composition, landed).
+
+        :math:`(A^{*})^{\mathsf T} = (G_V^{+} A^{\mathsf T}
+        G_W)^{\mathsf T} = G_W\, A\, G_V^{+} = \flat_W \circ A \circ
+        \sharp_V` — the metrics transpose to themselves because every
+        shipped realization is symmetric (diagonal weights; a
+        :class:`~orpheus.numerics.metric.DenseMetric` is admitted only
+        through its symmetry guard). Until CS4c this raised a stub with
+        zero witnesses; the capability replaces it, and
+        :attr:`is_adjointable` advertises it honestly.
+        """
+        return self._lower.apply(self.inner.apply(self._raise.apply(x)))
+
+    @property
+    def is_adjointable(self) -> bool:
+        # True by the theorem above: apply_transpose needs only the legs
+        # (always built) and the inner's forward action (always present).
+        return True
+
+    def adjoint(self) -> "LinearOperator[Domain, Codomain]":
+        r"""The dagger involution as an OBJECT IDENTITY: ``A.H.H is A``.
+
+        :math:`(A^{*})^{*} = A` — no double wrapper, no arithmetic: the
+        inner IS the answer. (`[M]` pre-CS4c, ``A.H.H`` was unreachable —
+        #375's headline: ``is_adjointable`` read ``False`` and the
+        transpose raised.)
+        """
+        return self.inner  # type: ignore[return-value]
+
+    def dual(self) -> "LinearOperator[Domain, Codomain]":
+        r"""``(A.H).dual() = (A.dual()).H`` — the dagger–dual commutation,
+        routed as the adjoint of the dual (see
+        :meth:`_DualOperator.adjoint`, the other direction of the same
+        square). Spelled here to keep the two spellings one object family
+        rather than a generic :class:`_DualOperator` over an adjoint."""
+        return _DualOperator(self)  # type: ignore[return-value]
 
     @property
     def is_invertible(self) -> bool:

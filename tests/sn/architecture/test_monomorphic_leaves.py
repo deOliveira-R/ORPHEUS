@@ -487,10 +487,16 @@ _LEAVES = ("L", "C", "S", "F", "B")
 #: :func:`test_mesh_derived_leaves_carry_no_anonymous_construction_surface`.
 _ANONYMOUS_CAPABLE = ("C", "S", "F")
 
-#: MEASURED (M-10, sphere + cylinder): the leaves whose reciprocity the
-#: metric actually constrains. ``C`` (diagonal) and ``B`` (a metric-preserving
-#: specular permutation) commute with the metric ALGEBRAICALLY, so no config
-#: makes them see it — see the module docstring's refutation #2.
+#: MEASURED (M-10, sphere + cylinder): the leaves the PAIRED metric
+#: mutation constrains. ``C`` (diagonal) and ``B`` (a metric-preserving
+#: specular permutation) commute with the metric ALGEBRAICALLY — dropping
+#: BOTH legs is a similarity that cancels for them — see the module
+#: docstring's refutation #2. ⚠ Since CS4c step 1 (the Riesz-leg split)
+#: this is a claim about the PAIRING only, not about the metric: dropping
+#: ONE leg is not a similarity, and `[M]` it reddens ALL FIVE leaves on
+#: every geometry (min 1.28e-1) — the per-leg battery
+#: (:func:`test_each_riesz_leg_is_individually_load_bearing`) closes the
+#: Mode-10 gap this constant used to document as unclosable.
 _METRIC_CONSTRAINED = ("L", "S", "F")
 
 
@@ -593,6 +599,23 @@ def _drop_the_metric(self, y):
     whenever its space is ``None`` (R2).
     """
     return self.inner.apply_transpose(y)
+
+
+def _drop_riesz_lower(self, x):
+    """**M-10a** — the codomain-side Riesz leg ♭ stubbed to the identity.
+
+    Since CS4c step 1 the adjoint's metric arithmetic lives in TWO
+    individually-mutable legs; this drops only ``G_W`` (the composite then
+    computes ``G_V⁺ ⊙ Aᵀ y`` — NOT a similarity, so even the
+    metric-commuting leaves red). Patched on the CLASS, so every leg the
+    fresh ``.H`` builds is caught."""
+    return x
+
+
+def _drop_riesz_raise(self, x):
+    """**M-10b** — the domain-side Riesz leg ♯ stubbed to the identity
+    (the composite computes ``Aᵀ(G_W ⊙ y)``). Mirror of M-10a."""
+    return x
 
 
 def _double_the_adjoint(self, y):
@@ -955,6 +978,74 @@ def test_reciprocity_metric_is_load_bearing(geometry, monkeypatch):
         )
 
 
+_RIESZ_LEGS = {
+    "lower": ("RieszLowerOperator", _drop_riesz_lower),
+    "raise": ("RieszRaiseOperator", _drop_riesz_raise),
+}
+
+
+@pytest.mark.parametrize("leg", list(_RIESZ_LEGS), ids=list(_RIESZ_LEGS))
+@pytest.mark.parametrize("geometry", list(_GEOMETRIES), ids=list(_GEOMETRIES))
+@pytest.mark.parametrize("leaf", _LEAVES)
+def test_each_riesz_leg_is_individually_load_bearing(
+    leaf, geometry, leg, monkeypatch,
+):
+    r"""**M-10a/b** — dropping EITHER single Riesz leg REDs every G1.4 row.
+
+    The CS4c step-1 upgrade, measured: the paired mutation (M-10) is
+    invisible to ``C`` and ``B`` because :math:`G^{-1}A^{\mathsf T}G =
+    A^{\mathsf T}` when ``A`` commutes with ``G`` — a SIMILARITY. Dropping
+    one leg leaves :math:`G_V^{+}A^{\mathsf T}` or :math:`A^{\mathsf T}G_W`,
+    not a similarity, so commutation buys nothing: `[M]` (pre-carve round
+    §2.2, 2026-08-30) every leaf × geometry ≥ 1.28e-1 under either leg,
+    against a clean baseline ≤ 3.0e-15 — **20 of 20 rows red where the
+    paired mutation reds 9**, closing the Mode-10 gap
+    ``_METRIC_CONSTRAINED`` used to document as unclosable.
+
+    The control leg is inside the test (same ERR-067-closure rationale as
+    the paired battery): the unmutated residual must be under contract
+    first. The mutation is patched on the LEG CLASS — every ``.H``
+    construction mints fresh legs, so the class patch reaches them all
+    (and :func:`tests.numerics.test_riesz_legs.
+    test_the_adjoint_composite_routes_through_the_legs` pins that the
+    composite actually ROUTES through the patched seam — without that,
+    this battery could be mutating dead code).
+
+    ⚠ Do NOT point this mutation at the flat-metric blindness control:
+    `[M]` a single-leg drop on a constant metric is a global scaling by
+    ``c``, which reciprocity SEES — ``4.226e-01 = |1 − c|`` exactly — an
+    honest reading that would be a false red there
+    (:func:`test_a_globally_constant_metric_makes_reciprocity_blind`
+    keeps the paired mutation for exactly this reason).
+    """
+    from orpheus.numerics import operator as _op_module
+
+    sn_mesh = _GEOMETRIES[geometry]()
+    op = _leaf_set(sn_mesh)[leaf]
+    x = _random_composite(sn_mesh, seed=_SEED_X)
+    y = _random_composite(sn_mesh, seed=_SEED_Y)
+
+    clean, _ = _reciprocity_residual(op, sn_mesh, x, y)
+    if clean > _RECIPROCITY_RTOL:
+        pytest.fail(
+            f"CONTROL LEG BROKEN: unmutated reciprocity for {leaf} on "
+            f"{geometry} is {clean:.3e} — a mutation cannot be credited "
+            f"against a broken baseline (the ERR-067 closure trap)."
+        )
+
+    cls_name, stub = _RIESZ_LEGS[leg]
+    monkeypatch.setattr(getattr(_op_module, cls_name), "apply", stub)
+    residual, _ = _reciprocity_residual(op, sn_mesh, x, y)
+    if residual < _MUTATION_FLOOR:
+        pytest.fail(
+            f"M-10{'a' if leg == 'lower' else 'b'} is SILENT for {leaf} on "
+            f"{geometry}: dropping the {leg} leg moved reciprocity only "
+            f"{residual:.3e} (floor {_MUTATION_FLOOR:.0e}) — a single-leg "
+            f"drop is not a similarity, so EVERY leaf must red; a silent "
+            f"row means the adjoint is not routing through the legs."
+        )
+
+
 def test_a_globally_constant_metric_makes_reciprocity_blind(monkeypatch):
     r"""**M-10**, second half — the CONFIG-BLINDNESS proof.
 
@@ -976,6 +1067,12 @@ def test_a_globally_constant_metric_makes_reciprocity_blind(monkeypatch):
     BOTH axes, which is why :func:`_flat_metric_slab` pins ``h = 1/√3``
     against a 2-point Gauss-Legendre rule and
     :func:`_assert_metric_is_constant` guards the property.
+
+    ⚠ **This leg keeps the PAIRED mutation** (CS4c step 1): a single-leg
+    drop on the constant metric reads ``4.226e-01 = |1 − c|`` EXACTLY —
+    honest arithmetic (a one-sided drop is a global scaling by ``c``,
+    which reciprocity sees), and a false red for the blindness claim,
+    which is about the SIMILARITY structure only.
     """
     sn_mesh = _flat_metric_slab()
     constant = _assert_metric_is_constant(sn_mesh)
@@ -1002,18 +1099,14 @@ def test_a_globally_constant_metric_makes_reciprocity_blind(monkeypatch):
 def test_reciprocity_row_is_non_vacuous(leaf, monkeypatch):
     r"""Every G1.4 row can RED — including the metric-invariant ones.
 
-    M-10 constrains only ``{L, S, F}``; ``C`` and ``B`` commute with the
-    metric by algebra (module docstring, refutation #2). Left there, two of
-    the twenty G1.4 rows would be *exercised-but-unconstrained*
-    (``vv-principles`` Mode 10) with nothing said about it — a gate that runs
-    and can never fail.
-
-    So this ships a second, metric-agnostic mutation: scale the adjoint by
-    two. It reddens EVERY leaf at exactly 0.5 relative (MEASURED), which
-    proves each row still pins ``apply_transpose``'s structure — the ``C``
-    and ``B`` rows are honest gates on the transpose, they simply cannot see
-    the metric, and now that is a measured statement rather than an
-    assumption.
+    Historically this closed the Mode-10 gap the paired M-10 left on
+    ``C``/``B``; since CS4c step 1 the per-leg battery
+    (:func:`test_each_riesz_leg_is_individually_load_bearing`) constrains
+    every leaf's METRIC handling directly, so this row's surviving claim
+    is narrower and still real: it pins ``apply_transpose``'s STRUCTURE
+    (a doubled adjoint reds every leaf at exactly 0.5 relative,
+    MEASURED) — a distinct axis from the metric, which the leg battery
+    cannot see (its stubs preserve the transpose).
 
     ``B``'s metric weighting itself is pinned elsewhere: the L11
     wrong-metric control in

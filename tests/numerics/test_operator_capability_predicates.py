@@ -173,7 +173,10 @@ def test_scaled_and_adjoint_predicates_faithful():
     construction — keeps its CONDITIONAL swap law (#280 2.5c): False for
     this inner because ``DiagonalOperator``'s inverse
     (``InverseOperator``) is non-adjointable (#280-deferred), so
-    ``(A⁻¹).H`` does not exist; the ``A.H.H`` direction stays deferred."""
+    ``(A⁻¹).H`` does not exist. Since CS4c step 1 (the Riesz-leg
+    re-expression, closing #375) the wrapper IS adjointable — its
+    transpose is the leg theorem ``(A*)ᵀ = ♭_W ∘ A ∘ ♯_V`` — and the
+    dagger involution ``A.H.H is A`` is an OBJECT IDENTITY."""
     from orpheus.numerics.operator import _AdjointOperator
 
     sc = ScaledOperator(2.0, DiagonalOperator(_C))
@@ -183,8 +186,10 @@ def test_scaled_and_adjoint_predicates_faithful():
     assert d.H is d  # the pointwise family law: no wrapper, full predicates
     assert d.H.is_invertible is True and d.H.is_adjointable is True
 
-    adj = _AdjointOperator(_BoundDiagonalLeaf(_C))  # the generic wrapper
-    assert adj.is_invertible is False and adj.is_adjointable is False
+    leaf = _BoundDiagonalLeaf(_C)
+    adj = _AdjointOperator(leaf)  # the generic wrapper
+    assert adj.is_invertible is False and adj.is_adjointable is True
+    assert adj.adjoint() is leaf  # the dagger involution, object identity
 
 
 def test_inverse_objects_are_faithful():
@@ -271,13 +276,15 @@ _CONTRACT_ROWS = [
     # (#280 2.5c), but THIS instance is not invertible — DiagonalOperator's
     # inverse (InverseOperator) is #280-deferred on the adjoint axis, so
     # is_invertible=False and inverse() RAISES NotInvertible (VALUE_RAISE, not
-    # STRUCTURAL_ABSENT — the method now exists). A.H.H still raises
-    # MissingAdjoint EAGERLY (adjoint-of-adjoint deferred). The inner is
+    # STRUCTURAL_ABSENT — the method now exists). Since CS4c step 1
+    # (the Riesz-leg re-expression, #375 closed) the wrapper IS
+    # adjointable: apply_transpose is the leg theorem ♭_W ∘ A ∘ ♯_V and
+    # A.H.H returns the inner by object identity. The inner is
     # the BOUND leaf since the S4-amendment: Diagonal is a
     # PointwiseOperator (its .H is itself, no wrapper), and the wrapper's
     # constructor now REFUSES an unbound inner — the wrapper's own
     # predicate derivation is what this row pins.
-    ("AdjointWrapper", _AdjointOperator(_BoundDiagonalLeaf(_C)), False, False, VALUE_RAISE),
+    ("AdjointWrapper", _AdjointOperator(_BoundDiagonalLeaf(_C)), False, True, VALUE_RAISE),
     # The wrap-delegate inverse family (SweepOperator = SN side, pinned
     # in tests/sn/operators/test_capability_survival.py); the adjoint
     # column is per-sibling — see _mixin_family:
