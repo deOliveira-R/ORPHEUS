@@ -585,11 +585,15 @@ class Mesh1D:
         volumes = np.concatenate(volumes_list)
 
         # Map geometry BCs onto the mesh's bc_left / bc_right fields.
-        if geometry.geometry == "SLB":
+        # The BC tuple's arity is the authority here — construction
+        # guards it to _GEOMETRY_TO_N_ENDPOINTS, so the tuple itself
+        # says which layout it carries: two endpoints (slab: left,
+        # right) or one (curvilinear: outer only; centreline implicit).
+        if len(geometry.bcs) == 2:
             bc_left, bc_right = geometry.bcs
-        else:  # CYL / SPH — single outer BC; centreline implicit
+        else:
             bc_left = None
-            bc_right = geometry.bcs[0]
+            (bc_right,) = geometry.bcs
 
         return cls(
             edges=edges,
