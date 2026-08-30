@@ -733,9 +733,10 @@ class ScatteringOperator(LinearOperator):
         :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
         ``+``
         :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
-        sum. The same energy operation is shared by every transport model
-        (CP / MoC / diffusion / homogeneous / MC); the model-shared K_iso
-        narrative is in ``docs/theory/methods/sn/adjoint.rst
+        sum. The energy operation is DESIGNED for every transport model's
+        use; ``[M]`` 2026-08-30 its consumers are diffusion + homogeneous —
+        CP / MoC / MC still spell the doubling inline (their K_iso recycling
+        is a later campaign). The model-shared K_iso narrative is in ``docs/theory/methods/sn/adjoint.rst
         §sn-scattering-adjoint-source`` and
         ``docs/theory/foundations/infinite_medium.rst``.
 
