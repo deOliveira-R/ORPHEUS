@@ -8097,3 +8097,176 @@ imports · 230 tests collected · 35 passed / 4 xfailed on two touched modules.
 numerical evidence 5 (8-row carrying matrix measured myself; 151/79/3 census numbers; commit hashes
 verified as ancestors) · failed approaches 5 (three ⛔ tombstones written in place, never deletions) ·
 code traceability 5 · derivation source n/a.
+
+---
+
+## L-074 — CS5 axis-generator doctrine: a page's own ASPIRATIONAL phrase becomes a LIE when the code ships the thing (2026-08-29, branch `feature/cs5-axis-generator`, commits `4e7b8977` + `b0bfc06c`)
+
+**Task.** Archive campaign-1 phase CS5 — `Axis.generator` (provenance, never
+identity), the `measure.axis(label)` / `quad.axis(label)` mints, the identity
+exclusion, the rank-d seam, the `AngularMeasure` Protocol widening.
+
+### 1. ⭐⭐ The page had ALREADY promised the feature — under a phrase that now means the OPPOSITE
+
+`spaces.rst` opened with *"an axis carries exactly four things — an index
+shape, a factor measure, a basis kind, **and the identity of the generator that
+produced it**"*, and its four-slot table's fourth row was `identity —
+structural, per subclass`. Pre-CS5 the phrase meant *"identity records what
+KIND of generator produced this factor"* (an `EnergyAxis` is not an `Axis`).
+Post-CS5 there is a real `generator` FIELD whose governing ruling is
+**provenance is never identity** — the exact inverse of what the phrase now
+reads as. The machine header's `role:` string and `foundations/index.rst`'s
+summary carried the same words.
+
+⟹ **When a landing change gives a real name to a phrase the page was already
+using loosely, the phrase is now a MIS-STATEMENT, not a head start.** The fix is
+not to delete it — it is to write the disambiguation as a `.. warning::` naming
+both readings and saying which one CS5 installed. `-W` is silent; only reading
+the intro against the new field finds it.
+
+⚠ The tell is grep-able and cheap: `grep -rn "<the new field name>" docs/` BEFORE
+writing, and read every hit as a claim about the NEW thing even when it predates it.
+
+### 2. ⭐⭐ A REFUSAL in the page's "what was tried" section was half-falsified — and the reconciliation is the best content on the page
+
+`spaces.rst` §"What was tried, and what refuted it" carried *"An `Axis` →
+measure accessor — refused … the axis stays four slots and nothing more."*
+CS5 adds a fifth slot AND makes the generator reachable from the axis — which
+is literally what the refusal was avoiding.
+
+`[M]` from the live tree, the two are compatible and the ARROW is why:
+- the refused thing points **axis → measure** and would have had to
+  **manufacture** its output (a pre-CS5 axis dropped the nodes, so the only node
+  set it could synthesise is the index set — `[M]` `frame.py:~712`
+  `nodes=np.arange(n)`, `support=f"index({label})"`);
+- CS5 points **generator → axis** and manufactures nothing.
+- `[M]` the collapse pair STILL builds its own index-space measure and never
+  reads `axis.generator` — so nothing changed there, deliberately.
+
+⟹ **preserve the refusal verbatim, move only its TENSE, and add a dated
+`.. note::` whose content is the arrow-direction argument.** The refutation +
+its reconciliation is worth more than either alone; and "the axis can now reach
+a measure" invites exactly the wrong inference at the collapse-pair call site,
+so BOTH halves must be stated together.
+
+### 3. ⭐⭐ The gate's OWN roster said "EXHAUSTIVE … these are the four `Quadrature` classmethod factories" — `[M]` there are FIVE
+
+`_RULES` in `tests/numerics/test_axis_generator.py` invokes vv-principles #31's
+finite-roster corollary *by name* and lists `gauss_legendre / level_symmetric /
+product / lebedev`. `[M]`
+`[n for n,v in vars(Quadrature).items() if isinstance(v, classmethod)]` = **5** —
+**`folded_product` is missing**, and it is the σ_y-folded cylindrical CARRYING
+rule the curvilinear MMS case builders default to
+(`derivations/continuous/mms/sn.py:2022`), i.e. the member with the richest
+`level_indices` — the axis the roster exists to gate. `[M]` it works through the
+mint (N=16, 4 levels, section law `True`).
+
+⟹ **an "exhaustive over the shipped family" claim is a universal owing its
+denominator — enumerate the family with `vars(cls)` / `isinstance(v,
+classmethod)`, never from the roster's own list.** A roster that CITES the
+exhaustiveness rule reads as having applied it (the plan-authoring
+rule-vocabulary echo, in a test file). Reported, not repaired — I do not edit
+`tests/`; and my own prose was corrected from "four shipped factories" to
+"four of the five", with the gap named in the gate table.
+
+### 4. ⭐ The simulated-inclusion probe: prove a design ruling WITHOUT mutating production
+
+The commit claims the identity exclusion is *"structurally mandatory, not
+taste"*. Reproducing it needs no edit to `axis.py` — a four-line **subclass**
+appending `self.generator` to `_identity_key` shows it end-to-end:
+
+```python
+class _WithGeneratorInKey(Axis):
+    def _identity_key(self): return (*super()._identity_key(), self.generator)
+```
+`[M]` `a1 == a2` → `ValueError: truth value of an array … ambiguous`;
+`hash(a1)` → `TypeError: unhashable type: 'Quadrature'`. Root causes measured
+separately: `Quadrature.__dataclass_params__.frozen is False` + `eq=True` ⟹
+`__hash__ = None`; `DiscreteMeasure` is `frozen=True, eq=True` over ndarrays.
+
+⟹ **when a doc must justify a NEGATIVE design ruling ("this field may never
+enter the key"), simulate the rejected design in a subclass and publish the
+traceback.** Safer than mutation (no production file is touched, so
+`process-discipline`'s crash-unsafe-revert hazard cannot bite), and strictly
+better evidence than restating the docstring.
+
+### 5. ⭐⭐ A landed change can SILENTLY PRESERVE a published measured table — and that survival is publishable
+
+`field_algebra.rst` carries a `[M]` 2026-08-24 fiber table whose top row reads
+*"twin carrier → `angular_bulk_space ==` **True**"*. Post-CS5 each twin holds a
+DISTINCT `Quadrature` instance, now recorded in the axis. `[M]` re-measured on
+the same fixture: `a.quad is not b.quad` **True**, `a.angular_bulk_space ==
+b.angular_bulk_space` **True**, hashes equal, moved-edge row still **False**.
+Had provenance entered the key the row would not have flipped to `False` — it
+would have RAISED.
+
+⟹ **after any change that puts a new object inside a published table's subject,
+re-measure the table and, if it survives BY DESIGN, say so with a dated note.**
+A future reader who notices the new instance-carrying field will otherwise
+assume the table went stale. The note also lands the page's own F2 doctrine
+("compare space CONTENT, never provenance") one layer down, which is why it
+belongs there rather than only on the spaces page.
+
+### 6. ⭐ Two universals I published and had to correct, both by counting
+
+(a) *"CS5 retired the literal path at the three shipped nodal mint sites"* —
+`[M]` from the diff, **two** sites retired the literal
+(`SNMesh.angular_bulk_space`, `MaterialMesh.bulk_space` rank-1 arm); the third
+(homogeneous `_pose_space`) KEPT its literal and gained an honest-`None`
+comment, and the rank-d arm keeps its literal by contract.
+(b) *"every generator-ful axis in the tree today is nodal"* — a census claim I
+could not run cheaply over every scheme; replaced with the **closure argument**
+(`[M]` `hasattr(Basis, "axis")` is `False` and no subclass defines it; both
+shipped mints are NODAL by construction ⟹ no MINT can produce a modal
+generator-ful axis). Closure argument stays true as the tree grows; the census
+would not (L-064).
+
+### 7. The render check caught exactly one nested-markup failure, and my regex guard did NOT
+
+`**The law's domain is MINTED axes, and a hand-passed ``generator=`` can lie.**`
+— a literal in the MIDDLE of a bold run. My pre-write guard was
+`assert "**``" not in text` (L-069's shape: literal at the START of the bold
+run) and it passed. Only the built-HTML slice found it (4 visible backticks).
+A regex for "literal inside a bold run" is **unusable** on this corpus — it
+matches the closing `**` of one run to the opening `**` of the next and reported
+119 false positives on one page.
+
+⟹ **the HTML slice IS the gate; do not try to replace it with a source regex.**
+Slice each new region between two distinctive phrases, strip tags, unescape,
+and require `visible backticks == 0` and `surviving :role:` spellings `== 0`.
+⚠ Anchor the slice with `rfind` for the START (the TOC repeats section titles —
+a `find` gave a 204-char fragment that trivially "passed").
+
+### 8. Gate inventory that worked, in order
+
+1. `-E` baseline BEFORE any edit: `EXIT=0`, **0** WARNING/ERROR/CRITICAL/SyntaxWarning.
+2. Own probes for every number published (5 probe scripts, deleted after).
+3. `-E` verification build after each edit batch; acceptance = the severity SET
+   unchanged (0 → 0).
+4. HTML slice render check over **all 10** edited regions.
+5. Import probe over **19** new fully-qualified roles → 0 dead.
+6. `tools/check_docstring_xrefs.py docs orpheus tests --quiet` → `DEAD TARGETS: 0`
+   (986 files / 16 180 roles / 13 485 decidable).
+7. nexus `dead_references` → `0 dead / 52 checked`.
+8. Anchor/link census: every new `.. _label:` has **exactly 1** anchor and **≥1**
+   inbound link (three started at 0 links — decorative anchors — and were given
+   real citers rather than left as leads).
+9. V&V matrix: sentinel count **565 → 567** (exactly my two labels), orphan count
+   unchanged at **2**, both new labels in *Documented-only*.
+
+### 9. Reported upward, code-only (I do not edit `tests/` or `orpheus/`)
+
+- **The `_RULES` roster gap** (§3 above) — `folded_product` missing from a
+  self-declared-exhaustive roster.
+- **Two new gates land UNMARKED.** `[M]` the matrix's `unmarked` count went
+  **8 → 10**; `tests/sn/angular/test_redistribution.py` tags per-test with
+  `@pytest.mark.foundation` and its module docstring says so, but
+  `TestG9TheProtocolDeclaresWhatItsConsumersRead`'s two methods carry no marker.
+  The module docstring is therefore present-tense-false about its own contents.
+- **`orpheus/numerics/axis.py`'s module docstring heading reads "The four
+  slots, precisely" above FIVE bullets**, and its opening line still says
+  *"(index shape, factor measure, basis kind, generator identity)"* — the same
+  ambiguity §1 repaired in the corpus.
+- Not a defect: `discrete_measures.rst:646`'s pre-existing *"the four shipped
+  quadrature families … span the seven named entries"* SURVIVES `folded_product`
+  — `[M]` its `invariance_group` is `None`, so it adds no lattice entry.

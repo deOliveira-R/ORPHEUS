@@ -43,6 +43,19 @@ I stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
+- **CS5 — the axis-generator doctrine enters the corpus** — 2026-08-29, branch
+  `feature/cs5-axis-generator`, **UNCOMMITTED** (mine; main agent commits). Docs only:
+  `spaces.rst` (+761, the doctrine section `spaces-axis-generator` + 8 sub-anchors + 2
+  eq-labels), `discrete_measures.rst` (+65), `field_algebra.rst` (+19), `index.rst`,
+  regenerated `matrix.rst`. Build `-E` EXIT=0, severity set 0 → 0; xref gate 0 dead;
+  nexus `dead_references` 0/52. ⭐⭐ The page had ALREADY promised the feature under a
+  phrase that CS5 INVERTS ("generator identity"), and its own "what was tried" refusal
+  was half-falsified — the ARROW direction reconciles them. ⚠ **REPORTED, code-only:**
+  the CS5 gate's self-declared-EXHAUSTIVE `_RULES` roster is `[M]` **4 of 5** shipped
+  `Quadrature` factories (`folded_product` missing — the carrying cylindrical rule);
+  2 new Protocol gates land UNMARKED (matrix `unmarked` 8 → 10); `axis.py`'s docstring
+  heading says "four slots" over five bullets. → [[lessons-L74]]
+
 - **§5b P0 — the carrying-prose sweep after the Q5.6.3 flip** — 2026-08-29, branch
   `docs/p0-record-and-carrying-prose`, **UNCOMMITTED** (mine; main agent commits). Prose only —
   proven by AST diff, 13 `.py` files token- and dump-identical modulo docstrings/comments. `[M]`

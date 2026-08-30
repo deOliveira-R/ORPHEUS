@@ -304,6 +304,53 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   the OUTER count), so the consequence is **+68 %**, not 24.65 %. The stable halves are the
   unit cost and the *scaling law*; the percentage is a fixture reading. Re-measuring made the
   ruling's own case 2.8× stronger. → L-072, L-057
+- **⭐⭐ When a landing change gives a REAL NAME to a phrase the page already used
+  loosely, the phrase becomes a MIS-STATEMENT — not a head start.** `spaces.rst`
+  had promised *"an axis carries … the identity of the generator that produced
+  it"*, meaning *identity is typed per subclass*; CS5 shipped a `generator` FIELD
+  whose ruling is **provenance is NEVER identity** — the exact inverse of how the
+  sentence now reads, and it was echoed in the machine header and the foundations
+  index. `-W` is silent. Grep the NEW field's name across `docs/` BEFORE writing
+  and read every hit as a claim about the new thing even when it predates it; fix
+  by a `.. warning::` naming BOTH readings, never by deletion. → L-074
+- **⭐⭐ A REFUSAL in "what was tried" can be half-falsified, and the ARROW is the
+  reconciliation.** *"An `Axis` → measure accessor — refused … the axis stays four
+  slots"* vs CS5's fifth slot: `[M]` the refused arrow (axis → measure) would have
+  had to MANUFACTURE its output (the axis had dropped the nodes; the only synthesis
+  is the index set, which is what `frame.py`'s collapse mint builds locally); CS5's
+  arrow (generator → axis) manufactures nothing. `[M]` the collapse pair still
+  builds its own index-space measure and never reads `axis.generator`. Preserve the
+  refusal VERBATIM, move only its tense, add the dated arrow argument — and state
+  the unchanged call site too, because "the axis can now reach a measure" invites
+  the wrong inference there. → L-074
+- **⭐⭐ An "EXHAUSTIVE over the shipped family" roster is a universal owing its
+  denominator — enumerate the family, never trust the roster's own list.** `[M]` a
+  gate citing vv #31's finite-roster corollary BY NAME listed "the four `Quadrature`
+  classmethod factories"; `vars(cls)` + `isinstance(v, classmethod)` says **five** —
+  `folded_product`, the σ_y-folded cylindrical CARRYING rule the curvilinear MMS
+  builders default to, i.e. the member richest in the very datum the roster gates.
+  Citing the rule reads as having applied it. → L-074
+- **⭐⭐ To justify a NEGATIVE design ruling, SIMULATE the rejected design in a
+  SUBCLASS and publish the traceback — never mutate production.** Four lines
+  appending the excluded field to `_identity_key` proved "the exclusion is
+  structurally mandatory": `[M]` `==` → `ValueError (ambiguous truth value)`,
+  `hash` → `TypeError (unhashable)`. No production file touched ⟹ the crash-unsafe
+  revert hazard cannot bite, and it beats restating the docstring. → L-074
+- **⭐⭐ A landed change that SILENTLY PRESERVES a published measured table is
+  itself publishable.** CS5 put a distinct `Quadrature` instance inside the subject
+  of `field_algebra`'s twin-carrier fiber row; `[M]` re-measured, the row still
+  reads `True` (and would have RAISED, not flipped, under an inclusion). Re-measure
+  such a table and add a dated note saying it survived BY DESIGN — otherwise the
+  next reader who spots the new field assumes staleness. → L-074
+- **⚠ The HTML slice IS the nested-markup gate; a source regex CANNOT replace it,
+  and anchor the slice with `rfind`.** L-069's guard (`"**``" not in text`) sees a
+  literal at the START of a bold run and MISSES one in the middle
+  (``**… ``generator=`` …**`` shipped 4 visible backticks). A "literal inside bold"
+  regex is unusable here — it joins one run's closing `**` to the next run's
+  opening and reported **119** false positives on one page. And the TOC repeats
+  section titles, so a `find`-anchored slice silently checked a 204-char fragment
+  and "passed". → L-074
+
 - **⭐ Verify the memo's `file:line` ATTRIBUTION, not just its fact.** A design memo put a
   scheme-type comparison in `SNMesh.__eq__`; `[M]` `SNMesh.__eq__ is object.__eq__` is **True**
   and two identically-built meshes compare **unequal** — the comparison lives in
