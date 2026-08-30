@@ -705,3 +705,45 @@ def test_overlap_frame_measures_dense_while_declaring_partition_of_unity():
     np.testing.assert_allclose(
         frame.project(np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
     )
+
+
+@pytest.mark.foundation
+def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
+    r"""C3 (P7 S2, battery arm M14): ``gram``/``project`` are CROSS-Gram
+    machinery and must never inherit the test space's Parseval dressing.
+
+    The pre-P7 spelling ``replace(self.test_space,
+    inner_product_weights=diagonal)`` carried a dense-dressed test
+    space's metric OBJECT into the probe — [M] 2026-08-30 (pre-flight,
+    ``scratch/p7/preflight.log``): ``frame.project([2,4,6])`` read
+    ``[7.0, 11.0]`` against the true ``[8/3, 16/3]`` (rel 1.625), a
+    silent VALUE error, with no guard involved. The repaired spelling
+    strips the object while installing the row-sum diagonal.
+
+    The dressed state is simulated by pre-seeding the ``basis_space``
+    cache (the same idiom as the pre-repair-metric red gate) — so this
+    witness has teeth NOW, before the S3 installer dresses anything.
+    """
+    from dataclasses import replace as _replace
+
+    from orpheus.numerics.metric import DenseMetric
+
+    ob = OverlapBasis(
+        edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
+        overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
+    )
+    measure = DiscreteMeasure(
+        nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support="spatial_R1",
+    )
+    frame = GalerkinFrame(ob, measure)
+    dressed = _replace(
+        frame.basis.space,
+        metric=DenseMetric.inverse_of(frame.discrete_gram),
+    )
+    vars(frame)["basis_space"] = dressed  # the cached_property pre-seed idiom
+    assert frame.test_space is dressed  # the Galerkin identity holds on the seed
+    probe = frame.gram
+    assert probe.metric is None, "the probe must not carry the dressing"
+    np.testing.assert_array_equal(
+        frame.project(np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
+    )

@@ -84,7 +84,13 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .axis import Axis, BasisKind
-from .metric import DiagonalMetric, HilbertMetric, _broadcast_leading
+from .metric import (
+    DenseMetric,
+    DiagonalMetric,
+    FactoredMetric,
+    HilbertMetric,
+    _broadcast_leading,
+)
 
 if TYPE_CHECKING:
     from orpheus.numerics.frame import _AxisCollapsePair
@@ -237,17 +243,34 @@ class FunctionSpace(Generic[Carrier]):
             # the flattened leading block; a DiagonalMetric is as
             # permissive as the legacy array slot).
             self.metric.validate_for(self.shape)
-        if self.axes is None:
-            return
-        # Two guards on the axis-built state (illegal states
-        # unrepresentable; both are construction bugs, not user input):
-        # one metric source, and a shape that IS the axes' concatenation.
-        if self.inner_product_weights is not None:
+        # ONE metric source, enforced pairwise over all three (P7 S2 —
+        # illegal states unrepresentable; these are construction bugs,
+        # not user input). ⚠ Until P7 the check lived under the
+        # axes-early-return below, so the (dense, metric) arm was
+        # structurally unreachable; each arm now has its own witness
+        # (battery arms M10a/b/c).
+        if self.axes is not None and self.inner_product_weights is not None:
             raise ValueError(
                 f"space {self.name!r} carries BOTH per-axis measures and "
                 f"dense inner_product_weights — one metric source only "
                 f"(the axes own the measure on an axis-built space)"
             )
+        if self.axes is not None and self.metric is not None:
+            raise ValueError(
+                f"space {self.name!r} carries BOTH per-axis measures and "
+                f"a metric object — one metric source only "
+                f"(the axes own the measure on an axis-built space)"
+            )
+        if self.inner_product_weights is not None and self.metric is not None:
+            raise ValueError(
+                f"space {self.name!r} carries BOTH dense "
+                f"inner_product_weights and a metric object — one metric "
+                f"source only (install the object OR the array, never both)"
+            )
+        if self.axes is None:
+            return
+        # The remaining axis-built guard: a shape that IS the axes'
+        # concatenation.
         concat: tuple[int, ...] = ()
         for ax in self.axes:
             concat = concat + ax.shape
@@ -829,6 +852,58 @@ def _tensor_product_inner_weights(
     return result
 
 
+def _tensor_product_factored_metric(
+    factors: tuple["FunctionSpace", ...],
+) -> FactoredMetric:
+    r"""Assemble a tensor product's metric when a factor carries a metric
+    OBJECT — the lazy per-block counterpart of
+    :func:`_tensor_product_inner_weights` (P7 S2).
+
+    One positioned entry per factor: a factor's metric object rides
+    verbatim (a nested :class:`~orpheus.numerics.metric.FactoredMetric`
+    flattens — a product of products is one product); a diagonal-source
+    factor (dense slot, or axis-borne through the same densifier bridge
+    the legacy arm uses) becomes a
+    :class:`~orpheus.numerics.metric.DiagonalMetric` on its block; a
+    Euclidean factor contributes ``None`` (no pass over its block).
+    """
+    entries: list[
+        tuple[tuple[int, ...], DiagonalMetric | DenseMetric | None]
+    ] = []
+    for f in factors:
+        m = f.metric
+        if m is not None:
+            if isinstance(m, FactoredMetric):
+                entries.extend(m.entries)
+            elif isinstance(m, (DiagonalMetric, DenseMetric)):
+                entries.append((f.shape, m))
+            else:
+                # Type-narrowing refusal: the positioned application is
+                # defined on the leaf realizations; anything else would
+                # die one call later with a worse message.
+                raise TypeError(
+                    f"a tensor product can position only diagonal/dense "
+                    f"factor metrics, got {type(m).__name__}"
+                )
+        else:
+            w = (
+                f._dense_axes_weights()
+                if f.axes is not None
+                else f.inner_product_weights
+            )
+            entries.append(
+                (
+                    f.shape,
+                    DiagonalMetric(
+                        np.ascontiguousarray(np.broadcast_to(w, f.shape))
+                    )
+                    if w is not None
+                    else None,
+                )
+            )
+    return FactoredMetric(tuple(entries))
+
+
 @dataclass(frozen=True)
 class TensorProductSpace(FunctionSpace):
     r"""A function space that decomposes as
@@ -966,8 +1041,21 @@ class TensorProductSpace(FunctionSpace):
         # rides the legacy dense slot (with axis-borne factor measures
         # bridged in by ``_tensor_product_inner_weights``).
         factor_axes = [f.axes for f in factors]
-        if all(fa is not None for fa in factor_axes):
-            axes: Optional[tuple[Axis, ...]] = tuple(
+        metric: Optional[HilbertMetric] = None
+        if any(f.metric is not None for f in factors):
+            # Dense-factor arm (P7 S2): a metric OBJECT has no Hadamard
+            # form, so it cannot ride the densified weights array — and
+            # dropping it would silently revert the product to Euclidean
+            # on that factor, a VALUE bug ([M] 33.0 where G ⊗ w gives
+            # 109.0, on the harmonic-frame mint path). The product
+            # carries a lazy FactoredMetric: one positioned entry per
+            # factor, axis-borne and dense-array factor measures bridged
+            # through the same densifier the legacy arm uses.
+            axes: Optional[tuple[Axis, ...]] = None
+            weights = None
+            metric = _tensor_product_factored_metric(factors)
+        elif all(fa is not None for fa in factor_axes):
+            axes = tuple(
                 ax for fa in factor_axes if fa is not None for ax in fa
             )
             weights = None
@@ -979,6 +1067,7 @@ class TensorProductSpace(FunctionSpace):
             shape=shape,
             inner_product_weights=weights,
             axes=axes,
+            metric=metric,
             factors=factors,
         )
 
@@ -1047,8 +1136,12 @@ class DualSpace(FunctionSpace):
             inner_product_weights=primal.inner_product_weights,
             # The dual carries the SAME metric as the primal (L²-Riesz),
             # so an axis-built primal's dual threads the axes record —
-            # dropping it would silently strip the measure (CS1).
+            # dropping it would silently strip the measure (CS1) — and a
+            # metric OBJECT threads too (P7 S2): [M] before this line the
+            # dual of a dense-metric space read the plain Euclidean
+            # pairing (4.5 where the primal reads 23.3).
             axes=primal.axes,
+            metric=primal.metric,
             primal=primal,
         )
 

@@ -95,6 +95,7 @@ __all__ = [
     "HilbertMetric",
     "DiagonalMetric",
     "DenseMetric",
+    "FactoredMetric",
 ]
 
 
@@ -206,6 +207,34 @@ class DiagonalMetric(HilbertMetric):
         # first application exactly as they always did. Nothing to refuse
         # at construction beyond what numpy will say more precisely later.
         return None
+
+    def apply_block(
+        self,
+        x: NDArray,
+        *,
+        start: int,
+        block_shape: tuple[int, ...],
+        inverse: bool,
+    ) -> NDArray:
+        r"""Apply to ONE interior index block of ``x`` (``start`` leading
+        ranks precede it) — the positioned form
+        :class:`FactoredMetric` composes. Operation-for-operation the
+        per-axis arithmetic of ``FunctionSpace._apply_axes_weights``
+        (explicit reshape: leading 1s, the block shape, trailing 1s), so
+        a factored diagonal block and an axis-borne measure are the same
+        arithmetic by construction."""
+        out = np.asarray(x)
+        rank = len(block_shape)
+        w = np.ascontiguousarray(
+            np.broadcast_to(np.asarray(self.weights), block_shape)
+        )
+        wb = w.reshape(
+            (1,) * start + block_shape + (1,) * (out.ndim - start - rank)
+        )
+        if inverse:
+            nonzero = wb != 0.0
+            return np.where(nonzero, out / np.where(nonzero, wb, 1.0), 0.0)
+        return out * wb
 
 
 @dataclass(frozen=True)
@@ -323,4 +352,92 @@ class DenseMetric(HilbertMetric):
                 f"DenseMetric of dimension {self.dim} cannot serve a space "
                 f"of shape {shape} ({size} slots) — the matrix must span "
                 f"the element's flattened leading block."
+            )
+
+    def apply_block(
+        self,
+        x: NDArray,
+        *,
+        start: int,
+        block_shape: tuple[int, ...],
+        inverse: bool,
+    ) -> NDArray:
+        r"""Apply to ONE interior index block of ``x`` — the positioned
+        form :class:`FactoredMetric` composes: the element is reshaped to
+        ``(lead, K, trail)`` around the block's row-major flattening and
+        the matrix acts on the middle axis."""
+        m = self.inverse_matrix if inverse else self.matrix
+        assert m is not None  # established by __post_init__; narrowing only
+        out = np.asarray(x)
+        lead_shape = out.shape[:start]
+        lead = int(np.prod(lead_shape)) if lead_shape else 1
+        x3 = out.reshape(lead, self.dim, -1)
+        return np.einsum("kl,alb->akb", m, x3).reshape(out.shape)
+
+
+@dataclass(frozen=True)
+class FactoredMetric(HilbertMetric):
+    r"""A lazy tensor product of per-block metrics — :math:`G = G_1 \otimes G_2 \otimes \cdots`.
+
+    Each entry is ``(block_shape, factor)``, the factor one of the
+    POSITIONED leaf realizations (:class:`DiagonalMetric` /
+    :class:`DenseMetric`) or ``None`` for a Euclidean block; the blocks'
+    concatenation must equal the space shape (:meth:`validate_for`).
+    Factors apply in sequence, each to its own index block — the
+    Kronecker product is **never materialized**, the same discipline the
+    per-axis path already follows ("never materializes the outer
+    product"), so the pairing is exact and the cost is one pass per
+    non-Euclidean factor.
+
+    The occupant this realization exists for: a tensor product with a
+    dense-metric factor — e.g. the harmonic frame's moment space, the
+    Parseval-dressed spherical-harmonic coefficient block ⊗ the spatial
+    cell measure — where the legacy densified weights array cannot carry
+    the off-diagonal block and dropping it would silently revert the
+    product to Euclidean on that factor (`[M]` 2026-08-30, the
+    pre-repair behaviour: the probe pairing read 33.0 where
+    :math:`G \otimes w` gives 109.0 — a value bug wearing a
+    representation costume).
+    """
+
+    entries: tuple[
+        tuple[tuple[int, ...], "DiagonalMetric | DenseMetric | None"], ...
+    ]
+
+    def __post_init__(self) -> None:
+        for block_shape, factor in self.entries:
+            if isinstance(factor, DenseMetric):
+                size = int(np.prod(block_shape)) if block_shape else 1
+                if size != factor.dim:
+                    raise ValueError(
+                        f"FactoredMetric entry: a DenseMetric of dimension "
+                        f"{factor.dim} cannot serve a factor block of shape "
+                        f"{block_shape} ({size} slots)."
+                    )
+
+    def _walk(self, x: NDArray, *, inverse: bool) -> NDArray:
+        out = np.asarray(x)
+        start = 0
+        for block_shape, factor in self.entries:
+            if factor is not None:
+                out = factor.apply_block(
+                    out, start=start, block_shape=block_shape, inverse=inverse
+                )
+            start += len(block_shape)
+        return out
+
+    def apply(self, x: NDArray) -> NDArray:
+        return self._walk(x, inverse=False)
+
+    def apply_inverse(self, x: NDArray) -> NDArray:
+        return self._walk(x, inverse=True)
+
+    def validate_for(self, shape: tuple[int, ...]) -> None:
+        concat: tuple[int, ...] = ()
+        for block_shape, _ in self.entries:
+            concat = concat + block_shape
+        if concat != shape:
+            raise ValueError(
+                f"FactoredMetric blocks {concat} do not concatenate to the "
+                f"space shape {shape}."
             )

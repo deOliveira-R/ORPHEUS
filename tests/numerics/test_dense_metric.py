@@ -211,3 +211,44 @@ class TestDenseMetricLaws:
         _require((bare == dressed) is True, "metric moved space equality")
         _require(hash(bare) == hash(dressed), "metric moved the space hash")
         _require({bare: 1}[dressed] == 1, "metric broke dict-key interchange")
+
+
+class TestDenseMetricPropagation:
+    """Group C (partial — C1/C2): the sites that used to DROP a dense
+    metric silently. C3 (the frame's gram probe) lives beside the frame
+    gates; C4/C5 land with the S3 dressing."""
+
+    def test_tensor_product_with_a_dense_metric_factor_does_not_go_silently_euclidean(self):
+        """C1 — the product carries G ⊗ diag(w), lazily positioned.
+
+        Hand-derived on separable probes: with x = xv ⊗ xw, y = yv ⊗ yw,
+        ⟨x,y⟩_{G⊗w} = ⟨xv,yv⟩_G · ⟨xw,yw⟩_w = 23.25 · (2·1·1 + 0.5·2·0.5)
+        = 23.25 · 2.5 = 58.125 — exact binary fractions, compared with
+        ``==``. [M] the pre-repair behaviour dropped the dense factor
+        entirely (Euclidean on that block); battery arm M8 is the revert.
+        """
+        v = FunctionSpace("V", (3,), metric=DenseMetric(_G_LITERAL))
+        w = FunctionSpace(
+            "W", (2,), inner_product_weights=np.array([2.0, 0.5])
+        )
+        product = v * w
+        x = np.multiply.outer(_X, np.array([1.0, 2.0]))
+        y = np.multiply.outer(_Y, np.array([1.0, 0.5]))
+        got = product.inner_product(x, y)
+        _require(
+            got == 58.125,
+            f"tensor-product pairing {got!r} != the hand-derived 58.125 "
+            f"(the dense factor was dropped or mis-positioned)",
+        )
+
+    def test_the_dual_of_a_dense_metric_space_carries_the_same_pairing(self):
+        """C2 — L²-Riesz: the dual carries the SAME metric as the primal.
+        [M] the pre-repair ``DualSpace.of`` read the plain Euclidean
+        pairing on a dense-metric primal (4.5 where the primal reads
+        23.3-class values); battery arm M7 is the revert."""
+        v = FunctionSpace("V", (3,), metric=DenseMetric(_G_LITERAL))
+        dual = v.dual()
+        _require(
+            dual.inner_product(_X, _Y) == v.inner_product(_X, _Y) == 23.25,
+            "the dual's pairing must equal the primal's",
+        )

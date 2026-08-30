@@ -424,7 +424,17 @@ class FrameBase(ABC):
             )
         ones = np.ones(self.basis_space.shape)
         diagonal = self.analysis.apply(self.reconstruction.apply(ones))
-        return replace(self.test_space, inner_product_weights=diagonal)
+        # The probe is a CROSS-Gram object: its row-sum diagonal IS the
+        # projection normalisation, and it must never inherit the test
+        # space's own PARSEVAL dressing — a dense-dressed test_space
+        # would otherwise hand this replace() two metric sources, and
+        # the pre-P7 spelling silently applied the dense matrix inside
+        # project() instead of the probe reciprocal ([M] 2026-08-30:
+        # rel 1.625 on the overlap frame's [8/3, 16/3]). Strip the
+        # object, install the diagonal.
+        return replace(
+            self.test_space, inner_product_weights=diagonal, metric=None
+        )
 
     def project(self, field: NDArray, /) -> NDArray:
         r"""Extract coefficients: :math:`G^{-1} M f` — the homogenise / condense verb.

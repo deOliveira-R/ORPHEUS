@@ -606,6 +606,71 @@ def test_axis_built_construction_guards() -> None:
         FunctionSpace.of_axes()
 
 
+class TestThreeSourceExclusivity:
+    """P7 S2 (battery of record ``scratch/p7_verification_plan.md`` §2
+    group B): a space takes exactly ONE metric source — per-axis
+    measures XOR dense weights XOR a metric object — with each pairwise
+    arm its own witness (vv-principles #17's granularity trap: the
+    ``(dense, metric)`` arm was structurally UNREACHABLE before the P7
+    guard restructure, hidden behind the axes early-return).
+    """
+
+    def test_a_space_takes_exactly_one_metric_source(self) -> None:
+        """B1 — the three positive legs: each source ALONE constructs,
+        and its metric ACTS (the matching realization, read through the
+        public verb rather than a private attribute)."""
+        from orpheus.numerics.metric import DenseMetric
+
+        x = np.array([1.0, 2.0])
+        ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), kind=BasisKind.NODAL)
+        by_axes = FunctionSpace.of_axes(ax)
+        _require(
+            bool(np.array_equal(by_axes.apply_metric(x), [2.0, 8.0])),
+            "the axes source must act per axis",
+        )
+        by_weights = FunctionSpace(
+            "w", (2,), inner_product_weights=np.array([2.0, 4.0])
+        )
+        _require(
+            bool(np.array_equal(by_weights.apply_metric(x), [2.0, 8.0])),
+            "the dense-weights source must act as the Hadamard metric",
+        )
+        by_object = FunctionSpace(
+            "m", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 4.0]]))
+        )
+        _require(
+            bool(np.array_equal(by_object.apply_metric(x), [3.0, 8.5])),
+            "the metric object must act as the dense form",
+        )
+
+    def test_axes_and_a_metric_object_are_refused(self) -> None:
+        """B2 — the (axes, metric) arm (battery arm M10b)."""
+        from orpheus.numerics.metric import DenseMetric
+
+        ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), kind=BasisKind.NODAL)
+        with pytest.raises(ValueError, match="one metric source"):
+            FunctionSpace(
+                "bad",
+                (2,),
+                axes=(ax,),
+                metric=DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]])),
+            )
+
+    def test_dense_weights_and_a_metric_object_are_refused(self) -> None:
+        """B3 — the (dense, metric) arm: the one the pre-P7 structure
+        could not reach (``if self.axes is None: return`` short-circuited
+        before any check). Battery arm M10c is its teeth."""
+        from orpheus.numerics.metric import DenseMetric
+
+        with pytest.raises(ValueError, match="one metric source"):
+            FunctionSpace(
+                "bad",
+                (2,),
+                inner_product_weights=np.array([1.0, 2.0]),
+                metric=DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]])),
+            )
+
+
 class TestAxisAccessor:
     """S-1 (un-weld arc): ``FunctionSpace.axis(label)`` — the public
     by-label factor accessor, sharing the collapse pair's resolver so the
