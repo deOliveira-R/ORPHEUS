@@ -678,9 +678,9 @@ Further pre-carve facts the step designs consume (plan § refs):
 **Ruling status:** R3 ✅ (singular-metric fixture ships — §7.4 rider),
 R4 ✅ (legal; MC hoists to a module constant), R5 ✅ (absorption),
 R6 ✅ (fields ⟹ reader extension), R7 ✅ (from_mixture owes gates).
-**Open for the user:** **R1** — this record resolves it per §6's ⛔ banner
-(drop the tautological leg; Galerkin-on-faces is the catcher; the identity
-stays as documented theorem) — confirm or amend; **R2** — where the #280
+**R1 ✅ [R] CONFIRMED (user, 2026-08-30: "Corrections proven by math are
+always welcome")** — the tautological leg is dropped; Galerkin-on-faces is
+the catcher; the identity stays as documented theorem. **Open: R2** — where the #280
 swap law lives once `.H` is a composite: PROPOSED — `.H` returns the
 composed product whose `inverse()` is the reversed factor inverses, making
 the swap law a THEOREM of the product, pinned by re-pointing the existing
