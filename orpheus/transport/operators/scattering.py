@@ -328,11 +328,11 @@ class LegendreMomentScattering(BoundOperator):
 
 @dataclass(eq=False)
 class N2NMomentOperator(BoundOperator):
-    r"""The (n,2n) isotropic :math:`\ell=0` moment operator :math:`\nu_{2n}\,\Sigma_{2n}`.
+    r"""The (n,2n) :math:`\ell=0` moment operator :math:`\nu_{2n}\,\Sigma_{2n}`.
 
-    The (n,2n) reaction is a DISTINCT isotropic (:math:`\ell=0`) group transfer —
-    a *multiplication* channel (each event emits two neutrons), NOT scattering —
-    so it is its own named operator, summed with :math:`\Lambda` in moment
+    The (n,2n) reaction is a DISTINCT group transfer — a *multiplication*
+    channel (each event emits two neutrons), NOT scattering — so it is its own
+    named operator, summed with :math:`\Lambda` in moment
     space (an :class:`~orpheus.numerics.operator.OperatorSum`) where a full
     in-scatter conjugation wants both. Keeping the
     multiplication reaction a visible distinct operator, rather than hidden in
@@ -348,6 +348,15 @@ class N2NMomentOperator(BoundOperator):
     SH coefficient space it composes on (it reads/writes ONLY the
     :math:`\ell=0` block, so it joins an ``OperatorSum`` with
     :math:`\Lambda` on the same space).
+
+    ⚠ **The single-ℓ shape is a MODEL, not the reaction.**
+    Unlike :class:`LegendreMomentScattering`, which carries an :math:`\ell`
+    stack, this operator has one block because the data layer truncates the
+    evaluated :math:`(n,2n)` angular data at :math:`P_0` — the shipped GENDF
+    files store NL = 7 Legendre moments for MT=16, the same order as elastic
+    ([M] 2026-08-31; ``docs/theory/methods/sn/adjoint.rst``
+    §sn-n2n-p0-truncation, issue #426). Restoring them makes this operator's
+    shape converge on :math:`\Lambda`'s.
 
     Parameters
     ----------

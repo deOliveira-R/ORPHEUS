@@ -384,6 +384,20 @@ class IsotropicN2N(BoundOperator):
     :meth:`~orpheus.transport.material_field.N2NMaterialField.add_emission`
     (Pattern 2).
 
+    **On the name.** Here the prefix IS a contrast, and it records a
+    TRUNCATION rather than a property — the opposite of
+    :class:`IsotropicFission`, whose isotropy is by construction. The
+    :math:`(n,2n)` reaction carries real anisotropy: [M] 2026-08-31, the
+    GENDF files ORPHEUS ships store NL = 7 Legendre moments for MT=16 (the
+    same order as elastic), and the reader keeps :math:`\ell = 0` alone, so
+    this class's scalar-flux domain is a consequence of the data layer's
+    :math:`P_0` truncation, not of the physics. See
+    ``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-p0-truncation and issue
+    #426; the anisotropic sibling this name implies does not exist yet, and
+    when it does it wants
+    :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`'s
+    shape.
+
     Parameters
     ----------
     n2n : N2NMaterialField

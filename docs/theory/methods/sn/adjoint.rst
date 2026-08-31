@@ -117,6 +117,16 @@ sweep — is a consequence of that one choice.
      K^{\mathsf T}\sum_n\chi_n` (:eq:`sn-n2n-adjoint-source`) — note
      the :math:`w_m`, which an equal-weight fixture is structurally
      blind to.
+   * ⚠ **"Isotropic" here is a MODEL, not the reaction.**  The
+     :math:`(n,2n)` lift and its transpose are single-:math:`\ell`
+     because ORPHEUS truncates the evaluated angular data at
+     :math:`P_0` **at ingest** — the shipped GENDF files store seven
+     Legendre moments for MT=16, the same order as elastic, and on
+     Be-9 the discarded :math:`\ell\ge1` part is a median 45 % of the
+     :math:`P_1` emission source.  Nothing on this page is evidence
+     about the reaction's angular distribution
+     (:ref:`the truncation warning <sn-n2n-p0-truncation>`,
+     `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_).
 
 The continuous adjoint problem and importance
 =============================================
@@ -698,6 +708,15 @@ it generalises past this channel:
    level**, because an operator that hard-codes one grouping makes the
    other unspellable.
 
+The ruling's *"in principle"* was a hedge when it was written and is a
+**measurement** now: the evaluated data ORPHEUS itself ships carries
+seven Legendre moments for this channel, and the data layer keeps one
+of them (:ref:`the truncation warning below <sn-n2n-p0-truncation>`,
+`#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_).  The
+ruling is *strengthened* by that — the anisotropy axis it declined to
+foreclose is real, not hypothetical — and the quote stays verbatim
+because it is the record of what was argued on 2026-08-30.
+
 So the within-group algebra spells the channel out,
 
 .. math::
@@ -728,11 +747,72 @@ solvers now disagree about the grouping *in the composition*, where a
 disagreement is legible, instead of agreeing inside an operator that had
 chosen for both.
 
-**The forward action, and why it has no moment tensor.**
-:math:`(n,2n)` emission is isotropic: the kernel is a single
-:math:`\ell = 0` transfer matrix :math:`K = \nu_{2n}\,\Sigma_{2n}^{\mathsf T}`
-per cell.  So the composite action is the **isotropic lift** of an
-energy operator,
+.. _sn-n2n-p0-truncation:
+
+.. warning::
+
+   **ORPHEUS models** :math:`(n,2n)` **emission as isotropic.  The
+   reaction is not.**  This is a truncation of the evaluated data at
+   :math:`P_0`, taken at ingest and unrecoverable downstream: the GENDF
+   reader parses the whole Legendre stack of the MF=6/MT=16 section and
+   then keeps ``sig2_data[(0, 0)]`` alone
+   (``orpheus/data/micro_xs/gendf.py``), so ``Isotope.sig2`` and
+   :attr:`~orpheus.data.macro_xs.mixture.Mixture.Sig2` are ONE matrix
+   where :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigS` is a list
+   over :math:`\ell`.  Every operator and every equation in this
+   subsection inherits that truncation; none of them is evidence about
+   the reaction's angular distribution.
+
+   **What is discarded is not small.**  Measured over the 13
+   NJOY-GROUPR GENDF files ORPHEUS ships
+   (``orpheus/data/micro_xs/*.GXS``, 421 groups, T = 293.6 K, read with
+   the project's own parser): MF=6/MT=16 stores **NL = 7** Legendre
+   moments — the same order as elastic scattering, which stores 7 in
+   13 of 13 files — on **10 of the 11** files that carry the section
+   (NL = 1 for Na-23 alone; the section is absent for B-10 and H-1).
+   ``NL`` tracks the *evaluation*, not a processing request: one file —
+   and a GENDF file is the output of a single GROUPR run — carries three
+   different values, ``NA023.GXS`` giving MT=2 → 7, MT=51 → 7 and
+   MT=16 → 1, which no global Legendre-order request can produce.  On Be-9 all 8195 transfer entries are non-zero at **every**
+   :math:`\ell = 1 \ldots 6`, with :math:`\lVert P_1 \rVert_\infty /
+   \lVert P_0 \rVert_\infty = 0.690` and a mean emission cosine
+   :math:`\bar\mu = \sigma_1/\sigma_0 = +0.278` summed over the 50
+   incident groups where the channel is open.  Be-9 carries **no**
+   inelastic MF=6 section at all, so ``elastic + 2·(n,2n)`` is its
+   complete fast emission source and the share is exact rather than a
+   subset: :math:`(n,2n)` supplies a **median 62 %** of the
+   :math:`P_0` emission source and a **median 45 %** of the
+   :math:`P_1` source — and it is the second that ORPHEUS drops.
+
+   **It is not fission-like either, and that is the reason** :math:`F`
+   **and** :math:`N_{2n}` **must not be collapsed.**  There is no
+   :math:`\chi`-like emission spectrum to factor out: fission's
+   MF=6/MT=18 carries a distinguished incident-energy-INDEPENDENT
+   ``ig = 0`` record — which is exactly what makes the rank-1 dyad
+   :math:`\chi \otimes \nu\Sigma_f` faithful — while MT=16 carries none,
+   and Be-9's :math:`\ell = 0` matrix has numerical rank **50** (every
+   live incident group) with a best rank-1 relative error of **58 %**.
+   The two operators' present code similarity is a coincidence of THIS
+   truncation, not of the physics.
+
+   *Instrument control.*  Elastic :math:`\sigma_1/\sigma_0` at low
+   energy reproduces the analytic s-wave :math:`\bar\mu = 2/(3A) =
+   0.074615` (Be-9, ``AWR = 8.93478``) to six significant figures,
+   which validates the extraction and pins the GENDF convention —
+   stored moments carry no :math:`(2\ell+1)` factor, so
+   :math:`\sigma_1/\sigma_0` IS the mean lab cosine.  ⚠ No transport
+   solve has been run: the 62 % / 45 % figures are cross-section
+   shares, **not** a measured error in any flux or eigenvalue.  Full
+   measurement set, the data-layer taxonomy, and the restoration path:
+   `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.
+
+**The forward action, and why it has no moment tensor.**  ORPHEUS
+**models** :math:`(n,2n)` emission as isotropic — see
+:ref:`the truncation warning above <sn-n2n-p0-truncation>` — so the
+kernel it carries is a single :math:`\ell = 0` transfer matrix
+:math:`K = \nu_{2n}\,\Sigma_{2n}^{\mathsf T}` per cell.  Under that
+model the composite action is the **isotropic lift** of an energy
+operator,
 
 .. math::
    :label: sn-n2n-isotropic-lift

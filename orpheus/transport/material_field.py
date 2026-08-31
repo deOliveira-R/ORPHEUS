@@ -342,8 +342,12 @@ class N2NMaterialField(MaterialField[N2NKernel]):
         r"""Apply the :math:`\ell=0` moment operator
         :math:`\nu_{2n}\,\Sigma_{2n}` (the former ``apply_n2n_moments``
         arm): only the ``[0, 0]`` block is read and written; every
-        :math:`\ell\ge 1` block stays zero — :math:`(n,2n)` emission is
-        isotropic."""
+        :math:`\ell\ge 1` block stays zero — because the field carries
+        ONE matrix, ORPHEUS having truncated the evaluated
+        :math:`(n,2n)` angular data at :math:`P_0` at ingest.  ⚠ That
+        is a modelling choice, NOT a property of the reaction
+        (``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-p0-truncation,
+        issue #426)."""
         return self._moment_l0(moments, spec="mfc...,fg->mgc...")
 
     def moment_emission_transpose(self, moments: np.ndarray) -> np.ndarray:

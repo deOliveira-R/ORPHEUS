@@ -1,8 +1,11 @@
 r"""The :math:`(n,2n)` source operator on the angular composite — first-class.
 
 **Why its own operator (CS4c §14.1, ruled 2026-08-30).** The
-:math:`(n,2n)` channel is scattering-like (a group transfer, in principle
-with its own anisotropy) AND production-like (it carries the multiplicity
+:math:`(n,2n)` channel is scattering-like (a group transfer which
+DOES carry its own anisotropy — the ruling said "in principle"; [M]
+2026-08-31 the evaluated GENDF data ORPHEUS ships stores NL = 7
+Legendre moments for MT=16, the same order as elastic, and ORPHEUS
+keeps one — issue #426) AND production-like (it carries the multiplicity
 :math:`\nu_{2n}`): its bundling is CONTEXT-dependent — with :math:`S` when
 scattering anisotropy is the interesting axis, with :math:`F` when
 production accounting is — and a context-dependent bundling must not be
@@ -18,8 +21,13 @@ grouping. (Before the extraction the term hid inside
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator`'s iso
 accumulator — the operator-level commitment this module retires.)
 
-**What it is, algebraically.** :math:`(n,2n)` emission is isotropic (the
-kernel is a single :math:`\ell=0` transfer matrix), so the composite
+**What it is, algebraically.** ORPHEUS MODELS :math:`(n,2n)` emission as
+isotropic — the kernel it carries is a single :math:`\ell=0` transfer
+matrix, because the data layer truncates the evaluated angular data at
+:math:`P_0` (⚠ a modelling choice, NOT a property of the reaction; the
+measured size of what is discarded, its instrument control and the
+restoration path are at ``docs/theory/methods/sn/adjoint.rst``
+§sn-n2n-p0-truncation and issue #426). Under that model the composite
 action is the isotropic lift of the energy operator: with
 :math:`K = \nu_{2n}\,\Sigma_{2n}^{T}` per cell and :math:`W` the angular
 measure's total weight,
@@ -50,8 +58,15 @@ order. Contrast ``fission.py``, whose retired spelling divided by
 ULP, gated at tolerance. See
 ``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-adjoint-source.)
 
-Future anisotropy is the KERNEL's growth (an ℓ-stack on
-:class:`~orpheus.transport.kernels.N2NKernel`), never an S entanglement.
+Restoring the anisotropy is the KERNEL's growth (an ℓ-stack on
+:class:`~orpheus.transport.kernels.N2NKernel`, mirroring the shape
+``Mixture.SigS`` already has), never an S entanglement. The moments are
+already in the files and already parsed — the drop is a single subscript
+(``sig2_data[(0, 0)]``) in ``orpheus/data/micro_xs/gendf.py`` — but
+restoring them is a DATA-LAYER change first (``Isotope.sig2`` and
+``Mixture.Sig2`` become per-:math:`\ell`, the way ``Mixture.SigS``
+already is), with an operator-layer consequence. No new physics: see
+issue #426 for the measured size and the ordering of the work.
 
 Carrier arms mirror :class:`ScatteringOperator`'s until step 5's arm
 deletion: composite ``FullField`` (bulk-only; zero trace), per-ordinate

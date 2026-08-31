@@ -290,7 +290,11 @@ class TestIndependentReference:
         mom = _moments(seed=9)
         out = nf.moment_emission(mom)
         if not np.array_equal(out[1:], np.zeros_like(out[1:])):
-            pytest.fail("(n,2n) is isotropic — every ℓ≥1 block must be zero")
+            pytest.fail(
+                "the (n,2n) field carries ONE matrix (ORPHEUS's P0 model of the "
+                "channel — NOT a property of the reaction, see #426), so every "
+                "ℓ≥1 block must be zero"
+            )
         if not np.array_equal(out[0, 1:], np.zeros_like(out[0, 1:])):
             pytest.fail("(n,2n) writes only the (ℓ=0, m=0) slot")
         ref = np.zeros_like(mom[0, 0])

@@ -13,7 +13,10 @@ lives once (its normalisation chain:
 * :class:`~orpheus.transport.operators.scattering.ScatteringOperator`'s
   P0 half (combined with its :math:`\ell\ge 1` anisotropic part);
 * :class:`~orpheus.transport.operators.n2n.N2NOperator`'s whole action
-  (the §14.1 extraction — :math:`(n,2n)` emission is isotropic).
+  (the §14.1 extraction — ORPHEUS MODELS :math:`(n,2n)` emission as
+  isotropic, a :math:`P_0` truncation of the evaluated data rather than
+  a property of the reaction; ``docs/theory/methods/sn/adjoint.rst``
+  §sn-n2n-p0-truncation, issue #426).
 
 Shared as a free function (the CS4c §14.1 landing): the two consumers
 are different OPERATORS of one composite algebra, and the combine is the

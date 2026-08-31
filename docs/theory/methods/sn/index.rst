@@ -28,7 +28,7 @@ Discrete Ordinates Method (S\ :sub:`N`)
         C: collision / removal (Σ_t)
         S: scattering in-scatter gain (Σ_s0ᵀ φ + anisotropic moments)
         B: boundary law as a first-class SIBLING operator (reflective / vacuum / white trace), every geometry
-        N2n: (n,2n) emission — first-class since CS4c step 3, no longer a passenger inside S
+        N2n: (n,2n) emission — first-class since CS4c step 3, no longer a passenger inside S; its ℓ=0-only kernel is a MODEL (the evaluated GENDF data stores 7 Legendre moments for MT=16; the reader keeps one — #426), never a property of the reaction
         F: fission production (χ ⊗ νΣ_f, rank-1 dyad); TWO bindings of one datum since CS4c step 4 — IsotropicFission (energy, the k-outer's) and FissionOperator (angular, the eigen-M posing's)
       composites:
         A: "L + C - S - N2n - B — the within-group loss operator; the Krylov driver applies it. Most pages of this chapter still spell the pedagogical A = L+C-S-B (Σ_2n ≡ 0 on their fixtures); the shipped member list is eq sn-within-group-with-n2n"

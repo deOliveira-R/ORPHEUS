@@ -495,6 +495,30 @@ The data layout per source group is:
               for i_lgn = 1 to N_lgn:
                   sigma_s(IG → i_to, Legendre=i_lgn, sig0=i_sig0)
 
+.. warning::
+
+   **The** :math:`(n,2n)` **channel keeps only** ``i_lgn = 0``.
+   ``_extract_mf6`` returns the whole Legendre stack as
+   ``sig_dict[(legendre, sig0_idx)]`` for every section it reads, and
+   the scattering assembly keeps all of it — but the MT=16 branch
+   stores ``sig2_data[(0, 0)]`` alone, so ``Isotope.sig2`` and
+   :attr:`~orpheus.data.macro_xs.mixture.Mixture.Sig2` are ONE matrix
+   where :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigS` is a list
+   over :math:`\ell`.  The anisotropy is parsed and then dropped, and
+   it is unrecoverable downstream of this module.
+
+   This is a **modelling truncation, not a property of the reaction**:
+   measured over the 13 shipped GENDF files, MF=6/MT=16 stores
+   **NL = 7** Legendre moments — the same order as elastic — on 10 of
+   the 11 files that carry the section, and on Be-9 every one of the
+   8195 transfer entries is non-zero at every :math:`\ell = 1\ldots6`.
+   Any downstream page that calls :math:`(n,2n)` emission "isotropic"
+   is describing this truncation.  Full measurement set and the
+   restoration path:
+   `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_; the
+   consequences for the S\ :sub:`N` operator algebra are at
+   :ref:`the (n,2n) P0-truncation warning <sn-n2n-p0-truncation>`.
+
 
 Scattering Matrix Assembly
 ===========================

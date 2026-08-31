@@ -224,7 +224,8 @@ class TestKernelTranspose:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# N2N — the (n,2n) isotropic ℓ=0 moment operator (distinct, in-frame).
+# N2N — the (n,2n) ℓ=0 moment operator (distinct, in-frame).  The single ℓ is
+# ORPHEUS's P0 truncation of the evaluated data, not the reaction (#426).
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -235,7 +236,13 @@ class TestN2NMomentOperator:
         require(not n2n.is_invertible, "N2N must NOT be invertible.")
 
     def test_acts_only_on_ell0(self, solver_p1_het):
-        r"""(n,2n) is isotropic — it touches ONLY the ℓ=0 block (ℓ≥1 stay zero)."""
+        r"""ORPHEUS's (n,2n) kernel is ℓ=0-only — it touches ONLY that block.
+
+        ⚠ The single-ℓ shape is the data layer's P0 TRUNCATION of the evaluated
+        angular data (the GENDF files ship NL=7 for MT=16), not a property of
+        the reaction — #426.  The assertion below is the correct contract for
+        the operator ORPHEUS ships and stays until the moments are restored.
+        """
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
         n2n = N2NMomentOperator.from_material_xs(mat_xs=solver_p1_het.mat_xs, L=1)
@@ -243,7 +250,10 @@ class TestN2NMomentOperator:
         out = n2n.apply(m)
         np.testing.assert_array_equal(
             out[1:], np.zeros_like(out[1:]),
-            err_msg="N2N wrote a non-zero ℓ≥1 block — it must be isotropic (ℓ=0 only).",
+            err_msg=(
+                "N2N wrote a non-zero ℓ≥1 block — the shipped kernel is ℓ=0 only "
+                "(ORPHEUS's P0 model of the channel; #426)."
+            ),
         )
 
     def test_moment_space_transpose_identity(self, solver_p1_het):

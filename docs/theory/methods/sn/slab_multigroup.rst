@@ -411,7 +411,27 @@ consumed, two are produced).
 
 The :math:`(n,2n)` cross section is stored as a group-to-group transfer
 matrix ``Mixture.Sig2`` with the same ``[g_from, g_to]`` convention as
-the scattering matrix.  The source contribution is:
+the scattering matrix — but, unlike ``Mixture.SigS``, as **one** matrix
+rather than a list over Legendre order.  That is a modelling
+truncation, and it is worth naming before any of the algebra below is
+read:
+
+.. important::
+
+   **The emission is treated as isotropic; the reaction is not.**  The
+   evaluated data ORPHEUS ships carries seven Legendre moments for the
+   :math:`(n,2n)` channel — the same order as elastic scattering — and
+   the GENDF reader keeps the :math:`\ell = 0` one.  Everything on this
+   page, and everything in
+   :ref:`the (n,2n) adjoint section <sn-n2n-adjoint>`, therefore
+   describes a :math:`P_0` **model** of the channel, never a property of
+   the reaction.  The
+   measured size of the truncation, its instrument control and the
+   restoration path are at
+   :ref:`the (n,2n) P0-truncation warning <sn-n2n-p0-truncation>` and
+   `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.
+
+The source contribution is:
 
 .. math::
    :label: n2n-source
@@ -501,9 +521,10 @@ it is two lines at two composition sites.
 The forward action of :math:`N_{2n}` on the angular composite, its
 transpose, and the fixture blindness that transpose hides are derived
 at :ref:`sn-n2n-adjoint`.  Note also what the extraction did **not**
-touch: the emission is isotropic, so the operator keeps the
-reaction-rate fast path (no moment tensor) exactly as the fused version
-did, and the producer-side :math:`1/W` combine it shares with
+touch: the emission is *modelled* isotropic (the :math:`P_0` truncation
+above), so the operator keeps the reaction-rate fast path (no moment
+tensor) exactly as the fused version did, and the producer-side
+:math:`1/W` combine it shares with
 :math:`S`'s :math:`P_0` half is single-sourced in one free function —
 the algebra is stated as the frame's :math:`\ell = 0` conjugation and
 gated against it, while the evaluation stays cheap.
