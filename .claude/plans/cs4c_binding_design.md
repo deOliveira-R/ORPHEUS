@@ -784,6 +784,11 @@ plus the dagger-law identities a deletion could never have carried.
 
 ### ▶ RESUMES AT — step 3: S speaks kernel and frame
 
+> ✅ **SUPERSEDED 2026-08-30 — step 3 MERGED @ `600c5c80`.** This block
+> executed in full (§14 holds the design round's rulings, §14.8 the
+> close-out). The LIVE resume surface is **§15 COMPACTION POINT #2**
+> below (the step-4 block). Read this §13 block only as history.
+
 **Goal (outcome, not mechanism):** the scattering binding is expressible
 from representation-free data — a `ScatteringKernel` truncated to the
 operator's order, faces minted from the HUB-interned frame, two mandatory
@@ -1043,3 +1048,113 @@ design round; its census obligations: the ~20 F test calls (F5), the
 XD-9 condensation gate (plan §7) with its activation precondition, the
 FissionKernel first-consumer wiring, and F-E's N2N-side residue is
 CLOSED (the extraction resolved it).**
+
+
+---
+
+## 15. ⏸ COMPACTION POINT #2 (2026-08-30, written pre-compaction with full context; every anchor re-verified at merged HEAD `5b9681e9`)
+
+### Phase → commit table (step 3, all ✅ MERGED to main, ff-only)
+
+| act | commit | state |
+|---|---|---|
+| step-3 design round (§14 rulings: N2N first-class; MaterialField[K]; frame→space + hub) | `b2ad262a` | closed |
+| 3a machinery (kernel fields, hub interning, `for_space`, `moment_space_on`) | `c0e904ea` | ✅ |
+| 3b-A (Λ + N2NMoment rebind) | `8f376135` | ✅ |
+| 3b (S ctor flip + N2N extraction + solver composition + ~30 test files + ledger flips) | `b435431c` | ✅ |
+| 3c (9 facade arms retire; XD-2 re-points + census green; dead_references 9→0) | `81e9e7e1` | ✅ |
+| 3d (battery B-3; B3.5 refuted through the shipped faces) | `92dcc30f` | ✅ |
+| corpus pass (archivist 14 pages) + code-side prose | `600c5c80` (the merge tip) | ✅ |
+| close-out (§14.8) | `5b9681e9` | ✅ |
+
+### The measured baseline every later step diffs against
+
+[M] **10079 / 0 / 19 sk / 66 xf**, 13 trees rc=0
+(driver `scratch/_cs4c3_gate_driver.sh`, log `scratch/_cs4c3_fast_gate.log`,
+~66 min; sn 14:13, derivations 36:01, all else < 6 min). Per-tree deltas
+were PRE-REGISTERED before readout (`scratch/cs4c_step3_predicted_deltas.md`)
+and reconciled with zero unexplained ±1. sphinx `-W` 0; `dead_references`
+[M] 0/52; `npx pyright orpheus/` 0; verification matrix 571 documented
+labels (the +3 exactly as predicted).
+
+### Durable lessons — §13's six + §14.8's six stand; nothing new since.
+
+### ▶ RESUMES AT — step 4: F speaks kernel and faces
+
+**Goal (outcome, not mechanism):** the fission binding is expressible
+from representation-free data — the `FissionKernel` factor pair
+(χ, νΣf) gains its FIRST production consumer; the composite realization
+carries space-supplied faces (the F4-addendum composite); the k-outer F
+binds the BULK space honestly (§3's ⛔ ASPIRATIONAL row becomes true);
+the χ↔νΣf-coupled condensation is gated (XD-9).
+
+**Opening protocol (surgical posture): a DESIGN ROUND with the user
+before any edit.** Its inputs, all verified at `5b9681e9`:
+
+- **Ruled design (this record):** §3 (the three-tier discipline; the
+  per-family row: *"the k-outer F binds the bulk space — ⛔ ASPIRATIONAL:
+  [M] the tree binds `sn_mesh.full_field_space` while feeding bare
+  `(ng,*spatial)`; step 4 makes the bulk binding true"* — the solver
+  mint is now at `sn/solver.py:1424`), §4 (kernel collapse; F-E is
+  CLOSED by the §14.1 extraction — no iso-pair residue remains), §6
+  (NO kernel dagger — F's adjoint is the operator-level factor swap by
+  theorem; `FissionKernel(chi=νΣf, nu_sig_f=χ)` is REFUSED by its own
+  simplex guard, re-verified by the archivist), §14 (the N2N extraction
+  is the fresh PRECEDENT for an isotropic emission operator: the shared
+  combine `_per_ordinate.assemble_per_ordinate_isotropic`, the
+  carrier-arm shape, the tier-2 space-derivation idiom — read
+  `orpheus/transport/operators/n2n.py` FIRST as the model, per §1's
+  precedent rule: check each adjective against the file).
+- **The verification plan** (`scratch/cs4c_verification_plan.md`): §7
+  (XD-9 condensation gate G-F1 — the law + THREE measured negative
+  controls: average-vs-marginalize 6.42e-1 / 1.69e0 / 7.09e-2, and the
+  ACTIVATION PRECONDITION asserted per B4.5 — a 1-fine-per-coarse
+  target must red the precondition, §10's designed-green hazard); §4
+  G-C1 (F's `from_solver_data` + `FissionKernel.from_mixture` owe
+  rows — the kernel row EXISTS since step 3,
+  `tests/transport/test_tier2_equivalence_s_family.py`); §11.5 battery
+  B-4 (6 arms, measured bands).
+- **[M] anchors (re-verified this compaction):** `fission.py:149`
+  (class; fields `mat_xs` + `space: FunctionSpace` — ⚠ ALREADY
+  mandatory since CS4a K2, so step 4's flip is the BASE swap to
+  `BoundOperator` kw-only ends via mechanic E, not an Optional flip;
+  the ledger F rows flipped long ago), `:259` `from_solver_data`,
+  `:281` `kernel` (a `TensorProductOperator` dyad); `kernels.py:259`
+  `FissionKernel` (`:315` `from_mixture`, `:324` `dyad`; consumer-status
+  paragraph says "the first production consumer is CS4c's rebind" —
+  step 4 makes that true and MUST update that paragraph);
+  `mixture.py:313` `condense` (χ↔νΣf coupling; the BILINEAR second
+  branch at ~`:363-386` obeys a different law — XD-9's corrected path,
+  plan §1.4).
+- **Census obligations before designing (§12 F5 + the 2026-08-29 §6b
+  inventory):** the F-family variable-call/registry-loop check (the
+  step-3 opener script `s_family_census.py` covered the FIVE S classes
+  only — extend it to `FissionOperator`/`FissionKernel`); the
+  `.space`/attribute-read sweep for F receivers; [M] the known test
+  population is 2 direct + 18 `from_solver_data` F calls (plan §8.4);
+  production: 4 `from_solver_data` sites.
+- **Known step-4 obligations from the plan:** XD-9's gate lands WITH
+  its activation precondition asserted; G-F2 (the dyad factor-order
+  pin); battery B-4; the `fission.py` docstring's K2/R2 narrative
+  updates to the BoundOperator story; the per-END admission migrates to
+  the base helper (F currently calls `assert_energy_extent_conforms`
+  directly at `fission.py:205`).
+- **Parked forks (unchanged):** C.H-as-object-identity (§8 row 2 note);
+  F-F (CS2 residue stays step 6). **#306 items 1/3/5 remain open**
+  (item 2's bless-vs-retire now spans THREE zero-boundary emitters:
+  F, S, N2N — a step-4-adjacent adjudication candidate for the design
+  round). **#424** (RST nested-markup corpus sweep) is independent.
+
+**Standing constraints (unchanged from §13 except the baseline):**
+Host → `.venv/bin/python`; canonical runner
+`-O -m pytest -p no:randomly -m "not slow" -q` SERIAL; branch +
+ff-merge + the 13-tree driver before merging; predicted-then-measured
+vs **10079/0/19/66** with per-tree PRE-REGISTRATION (the §14.8
+discipline that closed step 3's readout in minutes); main agent writes,
+user steers (AskUserQuestion checkpoints); test-architect plan EXISTS
+(do not re-dispatch — extend by SendMessage); never `git add -A`; never
+`git stash` — including `git stash -- <path>` (§14.8 lesson 6; use
+`git show HEAD:file`); commit messages via heredoc `-F`; no source
+edits under running gates; sphinx `-W` + `dead_references` at every
+step exit; an archivist corpus pass whenever a step moves an
+equation-level claim (§14.8 lesson 1).
