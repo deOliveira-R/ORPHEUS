@@ -396,8 +396,8 @@ The 421-group cross-section library provides both P0 and P1 matrices.
 
 .. _n2n-reactions:
 
-(n,2n): secondary emission on the scattering slot
--------------------------------------------------
+(n,2n): secondary emission, and the operator it grew into
+----------------------------------------------------------
 
 The :math:`(n,2n)` reaction is a threshold reaction in which a neutron
 is absorbed by a nucleus, which then emits **two** neutrons.  The net
@@ -411,23 +411,46 @@ the scattering matrix.  The source contribution is:
 .. math::
    :label: n2n-source
 
-   Q_{(n,2n)}(g) = 2 \sum_{g'} \Sigma_{2,g'\to g}\, \phi_{g'}
+   Q_{(n,2n)}(g) = \nu_{2n} \sum_{g'} \Sigma_{2,g'\to g}\, \phi_{g'} ,
+   \qquad \nu_{2n} = 2
 
-The factor of 2 accounts for the two neutrons produced per reaction.
-The implementation in :meth:`SNSolver._add_n2n_source` performs:
+The multiplicity :math:`\nu_{2n} = 2` accounts for the two neutrons
+produced per reaction.  It has exactly **one home** in the tree —
+:attr:`N2NKernel.multiplicity
+<orpheus.transport.kernels.N2NKernel.multiplicity>`, a ``ClassVar`` on
+the channel's kernel datum — and every production site that needs it
+reads it there.  That was not always so: until 2026-08-30 the number
+was an inline ``2.0`` (or, in one place, an integer ``2``) at
+**fourteen** production sites across S\ :sub:`N`, CP, MoC and Monte
+Carlo, and a census gate
+(``tests/transport/test_n2n_multiplicity_census.py``) now asserts that
+no production literal survives outside the kernel module.  The gate's
+AST predicate is validated against all four historical spellings the
+sweep had to catch — ``2.0 *``, a bare integer ``2 *``, an augmented
+``w *= 2.0``, and the module-constant form MC hoisted to — because a
+predicate that only recognises the spelling you happened to look at is
+a census of your own filter, not of the tree.
 
-.. code-block:: python
+This source is added to the isotropic source before the transport
+sweep, on the same footing as the P\ :sub:`0` scattering source.  The
+:math:`(n,2n)` contribution also enters the :math:`\keff` production
+term in :meth:`SNSolver.compute_keff`, where row sums of ``Sig2``
+(total :math:`(n,2n)` removal rate) are used.
 
-   Q[ix, iy, :] += 2.0 * (phi[ix, iy, :] @ self.sig2[mid])
+**Where the arithmetic lives, and why that is not where the grouping
+is decided.**  The per-material dispatch — the loop over materials, the
+gathered ``einsum``, the multiplicity — is the array verb
+``N2NMaterialField.add_emission`` (with its transpose sibling and the
+:math:`\ell = 0` moment pair), one of the channel-named verbs on the
+kernel-field pairing described at :ref:`scattering-binding-cs4c`.  The
+solver-facing delegator :meth:`SNSolver._add_n2n_source` routes to it.
+What that verb does *not* decide is which operator the channel belongs
+to — and that question turns out to be the interesting one.
 
-This is added to the isotropic source before the transport sweep, on the
-same footing as the P\ :sub:`0` scattering source.  The :math:`(n,2n)`
-contribution also enters the :math:`\keff` production term in
-:meth:`SNSolver.compute_keff`, where row sums of ``Sig2`` (total
-:math:`(n,2n)` removal rate) are used.
-
-ORPHEUS folds :math:`(n,2n)` into the **scattering** side of the
-algebra — rather than giving it its own operator — because:
+**Why it was folded into scattering, and why it is not any more.**  The
+original ruling (Wave D, recorded on this page until 2026-08-30) folded
+:math:`(n,2n)` into the **scattering** side of the algebra rather than
+giving it its own operator, for three stated reasons:
 
 1. The bookkeeping is identical to in-scatter (vectorise-by-material,
    add-into-:math:`Q`).
@@ -438,6 +461,47 @@ algebra — rather than giving it its own operator — because:
    snapshots bit-identical.
 3. Architecturally, both are *secondary-emission scalar-flux-driven*
    sources --- they belong to the same algebra slot.
+
+All three remain true as statements.  What CS4c step 3 (design record
+§14.1, 2026-08-30) established is that **none of them is an argument
+about the right place to decide a grouping.**  Reason 1 is about
+implementation shape, reason 2 about a migration constraint that has
+since been discharged, and reason 3 — the only structural one — is
+half a classification:
+
+   :math:`(n,2n)` is **scattering-like** (a group-to-group transfer,
+   in principle carrying its own anisotropy) **and production-like**
+   (it carries a multiplicity).  Which one it should be bundled with
+   therefore depends on the question: with :math:`S` when scattering
+   anisotropy is the axis of interest, with :math:`F` when production
+   accounting is.  A bundling that is context-dependent **must not be
+   decided at the operator level**, because an operator that hard-codes
+   one grouping makes the other unspellable.
+
+So the channel became the first-class
+:class:`~orpheus.transport.operators.n2n.N2NOperator`, the within-group
+algebra spells it explicitly, :math:`A = L + C - S - N_{2n} - B`
+(:eq:`sn-within-group-with-n2n`), and any bundling is a solver-side
+:class:`~orpheus.numerics.operator.OperatorSum` grouping.  The two
+shipped solvers now make **different** choices, legibly: the
+S\ :sub:`N` within-group builder keeps the two terms apart, while the
+1-D diffusion solver sums
+:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+with
+:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+into the single :math:`S` its :math:`A = L + C - S - B` expects.  Under
+the old design that disagreement was unrepresentable; under the new one
+it is two lines at two composition sites.
+
+The forward action of :math:`N_{2n}` on the angular composite, its
+transpose, and the fixture blindness that transpose hides are derived
+at :ref:`sn-n2n-adjoint`.  Note also what the extraction did **not**
+touch: the emission is isotropic, so the operator keeps the
+reaction-rate fast path (no moment tensor) exactly as the fused version
+did, and the producer-side :math:`1/W` combine it shares with
+:math:`S`'s :math:`P_0` half is single-sourced in one free function —
+the algebra is stated as the frame's :math:`\ell = 0` conjugation and
+gated against it, while the evaluation stays cheap.
 
 The normalization chain
 -----------------------

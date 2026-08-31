@@ -4071,14 +4071,24 @@ The ownership conclusion is then forced:
      - no — merely tolerated
 
 Because the spherical harmonics are the eigenbasis of *scattering* and
-nothing else in the transport operator, the frame is owned by the
-scattering operator. In ORPHEUS this ownership is a concrete fact:
-:class:`~orpheus.transport.operators.scattering.ScatteringOperator` holds the frame as
-a cached property and binds its order to the scattering order,
-``quadrature.angular_frame(self.scattering_order)`` (the canonical
-constructor + the :math:`L`-binding). The frame *object* lives in the
-method-agnostic :class:`~orpheus.numerics.frame.GalerkinFrame`
-hierarchy; the *constructor ownership* sits on scattering.
+nothing else in the transport operator, the frame is **scattering's**
+frame.  ⚠ Read "owns" in that sentence mathematically — *which basis
+diagonalises which operator* — because the **constructional** reading
+was true until 2026-08-30 and is not any more.  It read, verbatim:
+*"*
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator`
+*holds the frame as a cached property and binds its order to the
+scattering order,* ``quadrature.angular_frame(self.scattering_order)``
+*(the canonical constructor + the L-binding) … the constructor
+ownership sits on scattering."*  At CS4c step 3 the frame became a
+shared object **constructed outside and handed in**, interned on the
+hub (:ref:`frame-eigenbasis-relocation-tripwire` records which
+predicted trigger fired and which did not).  What did not change: the
+frame *object* lives in the method-agnostic
+:class:`~orpheus.numerics.frame.GalerkinFrame` hierarchy, and the
+reason the harmonic frame is the one scattering uses is still the
+Funk–Hecke diagonalisation above — a mathematical fact no refactor can
+relocate.
 
 Literature corroboration — no falsifier across six transport families
 ---------------------------------------------------------------------
@@ -4162,7 +4172,9 @@ reduction axes:
    * - **Angular scattering**
      - :math:`SO(3)` rotational (zonal kernel)
      - **yes** — spherical harmonics, *orthogonal* (Funk–Hecke + Schur)
-     - **Galerkin**, owned by the scattering operator
+     - **Galerkin**; scattering's eigenbasis (ownership here is
+       mathematical — the frame object is constructed and interned
+       outside the operator since CS4c step 3)
    * - **Energy condensation**
      - none (general :math:`G\times G` group-transfer matrix)
      - no — no Funk–Hecke, no clean spectrum
@@ -4208,11 +4220,56 @@ fixed :math:`L^2` metric — it is irreducibly a distinct test space.
 The relocation tripwire — when scattering stops owning the constructor
 ----------------------------------------------------------------------
 
-"Scattering owns the frame" is true **today** because scattering is
+.. admonition:: ✅ The tripwire FIRED on 2026-08-30 — and not on any
+                trigger this section named
+   :class: important
+
+   This subsection was written as a **prediction**, and it is preserved
+   below in its original tense because the prediction's structure was
+   right and its enumeration was not — which is the more useful thing
+   to record.
+
+   *What it got right.*  Constructor ownership did relocate, it did
+   relocate onto the discipline-neutral
+   :meth:`Quadrature.angular_frame(L)
+   <orpheus.numerics.quadrature.Quadrature.angular_frame>` factory, the
+   factory did already exist and did already anticipate it, and the
+   eigenbasis ruling did survive untouched.
+
+   *What it got wrong.*  Both enumerated triggers were about an
+   :math:`L` **foreign to** ``scattering_order`` — a detector of
+   higher anisotropic order, a P\ :sub:`N` flux expansion — and neither
+   has landed.  The trigger that actually fired is a **third** one the
+   section did not consider: *sharing at the SAME* :math:`L`.  Fission
+   and the angular-windowing method both want the frame that
+   :math:`S` was minting, at :math:`S`'s own order, over :math:`S`'s
+   own measure — and a frame minted *inside* :math:`S` is unreachable
+   to them except by passing :math:`S` around.  So the relocation was
+   forced by **who may reach the object**, not by whose :math:`L`
+   parametrises it.
+
+   *Where it went.*  Not merely to the factory: to a hub with two
+   interning tiers —
+   :meth:`HarmonicFrame.for_space
+   <orpheus.transport.frames.harmonic_frame.HarmonicFrame.for_space>`
+   over ``Quadrature.angular_frame(L)`` — so that "one frame per (axis
+   content, :math:`L`)" is an object identity and every consumer
+   receives the same cached projection table.  The operator retains the
+   *products* (its two minted faces) and forgets the factory, keeping
+   only a provenance accessor.  Details:
+   :ref:`scattering-binding-cs4c`.
+
+   ⭐ The transferable half: a relocation tripwire predicted from
+   *parametrisation* (whose :math:`L`?) missed a trigger that came from
+   *reachability* (who may construct it?).  When writing the next such
+   tripwire, enumerate both axes.
+
+"Scattering owns the frame" was true **until 2026-08-30** because
+scattering is
 the *only* consumer of the spherical-harmonic frame whose truncation
 order :math:`L` is physically meaningful. The constructor ownership
 :meth:`ScatteringOperator.frame
-<orpheus.transport.operators.scattering.ScatteringOperator.frame>` binds the frame
+<orpheus.transport.operators.scattering.ScatteringOperator.frame>` bound the frame
 order to ``self.scattering_order``. This binding **relocates** to the
 discipline-neutral factory
 :meth:`Quadrature.angular_frame(L)
@@ -4228,7 +4285,8 @@ discipline-neutral factory
   :math:`L_{\rm flux} > L_{\rm scatter}` — needing
   :math:`\max(L_{\rm flux}, L_{\rm scatter})`, not ``scattering_order``.
 
-No such consumer exists today: the only output functional ORPHEUS
+No such consumer exists **even now**: the only output functional
+ORPHEUS
 computes is the :math:`\ell = 0` scalar flux (via the
 :class:`~orpheus.sn.solver.SNSolver`'s angular integration), which does
 **not** use the frame. The factory
@@ -4236,10 +4294,14 @@ computes is the :math:`\ell = 0` scalar flux (via the
 exists and already anticipates this relocation — its naming tripwire
 names the permanent *angular axis*, not the contingent
 spherical-harmonic basis, so a second consumer is a signature change
-(``angular_frame(basis=...)``), not a rename. Until that second
-consumer lands, the canonical constructor home is the scattering
-operator, because scattering is the operator whose eigenbasis the
-frame *is*.
+(``angular_frame(basis=...)``), not a rename. ⚠ The sentence that
+stood here — *"until that second consumer lands, the canonical
+constructor home is the scattering operator"* — is what the banner
+above corrects: the constructor home moved without either enumerated
+consumer arriving, because the pressure came from *reachability*
+rather than from a foreign :math:`L`.  The clause it justified itself
+with is untouched: scattering is still the operator whose eigenbasis
+the frame *is*.
 
 A second, structurally distinct trigger is **cross-method use of**
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` (`#261`). The
@@ -4251,7 +4313,7 @@ to exist at all, and CP / MoC carry none (CP integrates angle away into
 collision probabilities; MoC uses a track quadrature, not an
 :math:`S^2` ordinate set). So the moment scattering is consumed by a
 measure-free method, the frame cannot live *as a field on* the shared
-operator. Two resolutions are open (deferred to `#261`; user,
+operator. Two resolutions were open (deferred to `#261`; user,
 2026-06-25): **(a) relocate** the frame to where the angular measure
 lives (the
 :meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame` factory —
@@ -4263,6 +4325,32 @@ triggers above make the *order* foreign, this one makes the *measure*
 absent. The eigenbasis ruling still holds — scattering owns the frame
 *wherever an angular measure exists to build it* — it merely stops being
 expressible as a field on a single method-agnostic operator.
+
+✅ **Resolution (a) landed on 2026-08-30, ahead of its own trigger.**
+CS4c step 3 relocated the frame to the measure's side and removed it
+as a field on the operator: the frame is reached through
+:meth:`HarmonicFrame.for_space
+<orpheus.transport.frames.harmonic_frame.HarmonicFrame.for_space>` over
+``Quadrature.angular_frame(L)``, minted at the tier-2 classmethod,
+and the operator retains only the two **faces** it minted from it plus
+a provenance accessor.  Note the ordering, because it is the reusable
+lesson: the resolution was chosen for a reason (sharing between
+:math:`S`, :math:`F` and the windowing method) that has nothing to do
+with the measure-free-method pressure this paragraph describes.
+
+⚠ **It does not, by itself, make the operator constructible without a
+measure** — the two minted faces are mandatory fields, so an
+:math:`S^2`-less method still cannot build *this* binding.  What the
+step did buy for `#261` is the separation the cross-method question
+actually needs: the **representation-free datum** (the per-material
+:class:`~orpheus.transport.kernels.ScatteringKernel` map paired with a
+material layout) is now a first-class object of its own, held by the
+binding rather than derived inside it.  A CP or MoC binding of the
+same physics shares that datum and mints whatever
+representation-bound arrows *its* angular treatment admits — which is
+what option (b) was reaching for, without the subclass.  The open half
+of `#261` is therefore what those arrows are, not where the frame
+lives.
 
 
 Cross-method consumer table

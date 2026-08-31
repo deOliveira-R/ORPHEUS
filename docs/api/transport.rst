@@ -67,7 +67,16 @@ are accessible via the standard import path.
   the scattering source :math:`S`, exposing the
   :math:`R\circ\Lambda\circ M` spectral kernel (the spherical-harmonic
   eigenbasis of the zonal scattering kernel, Funk–Hecke) plus the local
-  :math:`P_0` / :math:`(n,2n)` components.
+  :math:`P_0` component.  Since CS4c step 3 its exact constructor
+  retains a per-material kernel FIELD, the two minted frame faces, and
+  its two mandatory ends — no cross-section facade and no quadrature
+  (:ref:`scattering-binding-cs4c`).
+* :class:`~orpheus.transport.operators.n2n.N2NOperator` — the
+  :math:`(n,2n)` source :math:`N_{2n}` on the angular composite: the
+  isotropic lift of its own energy binding, extracted from :math:`S`
+  at CS4c step 3 because the channel's bundling (scattering-like vs
+  production-like) is context-dependent and must not be decided at the
+  operator level (:ref:`sn-n2n-adjoint`).
 * :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
   — the §5.7 collision operator :math:`C = M[\sigma_t]`, diagonal
   (pointwise) in every axis (:eq:`multiplication-operator-action`).

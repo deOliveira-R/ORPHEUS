@@ -101,7 +101,7 @@ into it, which is what dissolved this module's tracked construction twin):
   threading the B.2d leaf kwargs, DELETED at 5d — R-5.1/R-5.4) dissolved
   at 5b; the walk's joint legs remain a supported channel for the
   operator-free wrapper entries until the step-6 kwarg retirement.
-* ``N = M − A = [[S + B_a, ∅], [+Emission, B_b]]`` — ONE
+* ``N = M − A = [[S + N2N + B_a, ∅], [+Emission, B_b]]`` — ONE
   :class:`~orpheus.numerics.coupled_system.CoupledOperator` gain grid. The
   (A,B) slot is STRUCTURALLY zero (Seeding lives in M), and the signs are
   all POSITIVE here (gains on the rhs: ``rhs = q + N·ψ``) — the loss grid's
@@ -109,7 +109,7 @@ into it, which is what dissolved this module's tracked construction twin):
   contradiction.
 
 On a seedless mesh the record degrades structurally: ``M`` is the plain
-``(L+C)`` and ``N`` the ``(S, B_a)`` tuple — the seedless driver paths
+``(L+C)`` and ``N`` the ``(S, N2N, B_a)`` triple (§14.1) — the seedless driver paths
 (multi-D G-S split, 2-D windowing) consume those bare pieces ZERO-TOUCH
 (the B.2d DP-seedless ruling: the coupled carrier appears exactly where
 System B exists).
@@ -246,8 +246,10 @@ def build_coupled_system(
         The mesh-materialized macroscopic cross sections (the solver's
         ``sn_mesh.material_xs_field()``): σ_t feeds ``C`` AND ``A_BB`` (one
         typed field object — the mesh-identity invariant holds by
-        construction), the scattering table feeds ``S``, whose isotropic
-        kernel the emission block shares (single-sourced ``K_iso``).
+        construction), the scattering table feeds ``S``; the emission
+        block consumes the solver-composed ``K_iso =
+        S.isotropic_energy + N2N.energy`` (§14.1 — single-sourced per
+        channel LEAF).
     scattering_order : int
         Legendre truncation for ``S`` (0 = P0 — the
         :class:`~orpheus.sn.solver.SNSolver` default).
@@ -369,8 +371,8 @@ class WithinGroupSystem:
         ``N`` — the lagged couplings, evaluated EXPLICITLY from the previous
         iterate, that the driver applies each step: ONE
         :class:`~orpheus.numerics.coupled_system.CoupledOperator` gain grid
-        ``[[S+B_a, ∅], [Emission, B_b]]`` on a carrying mesh; the
-        ``(S, B_a)`` tuple seedless (``B_a`` LAST — the boundary-gain
+        ``[[S+N2N+B_a, ∅], [Emission, B_b]]`` on a carrying mesh; the
+        ``(S, N2N, B_a)`` triple seedless (§14.1; ``B_a`` LAST — the boundary-gain
         convention the G-S schedule arm parses).
     """
 
@@ -500,7 +502,7 @@ def build_within_group_system(
     The sign table: the LOSS grid carries ``A_AA = L+C−S−B_a``,
     ``+Seeding``, ``−Emission``, ``A_BB−B_b`` (the loss-sign convention,
     B.2c); the GAIN grid ``N = M − A`` carries everything POSITIVE
-    (``[[S+B_a, ∅], [Emission, B_b]]`` — gains on the rhs). Both grids'
+    (``[[S+N2N+B_a, ∅], [Emission, B_b]]`` — gains on the rhs). Both grids'
     (A,A) entries are stamped ``SystemRole.A`` explicitly (the C-fwd
     ruling: the model-generic members' honest ``None`` would poison the
     join).
@@ -557,7 +559,7 @@ def build_within_group_system(
     member_space = sn_mesh.radial_characteristic_field_space
     if member_space is None:
         # The non-carrying degenerate: System B does not exist — the loss
-        # is the 1-system grid and the splitting the bare (L+C, (S, B_a))
+        # is the 1-system grid and the splitting the bare (L+C, (S, N2N, B_a))
         # the seedless driver paths consume zero-touch (DP-seedless).
         space = CoupledSpace.from_systems(
             (full_field_space,),

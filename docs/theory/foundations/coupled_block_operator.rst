@@ -34,7 +34,7 @@ ray) to a first-class **System B** alongside the angular-flux **System
 A**. It is the block-level generalisation of the operator algebra
 developed in :doc:`/theory/foundations/operator_algebra`: where that
 page types the operators of a single within-group system (the loss
-composite :math:`A = L + C - S - B`), this page types the four blocks
+composite :math:`A = L + C - S - N_{2n} - B`), this page types the four blocks
 :math:`A_{AA}`, :math:`A_{AB}`, :math:`A_{BA}`, :math:`A_{BB}` of the
 coupled 2×2 operator — whose diagonal :math:`A_{AA}` block IS that loss
 composite, and whose off-diagonal blocks are the named seed and emission
@@ -136,9 +136,9 @@ alone has no explicit object — it is the driver-level composite).
      - What it is
      - Invariants
    * - :math:`A_{AA}`
-     - the driver composite :math:`L + C - S - B_a`
+     - the driver composite :math:`L + C - S - N_{2n} - B_a`
      - System A's self-block: streaming + collision − bulk scattering
-       gain − trace boundary gain
+       gain − bulk :math:`(n,2n)` emission gain − trace boundary gain
      - carries :class:`BlockRole` ``FULL`` by the join lattice;
        ``solve`` = the WDD sweep
    * - :math:`A_{AB}`
@@ -166,7 +166,7 @@ B's self-block in the *loss* grid is :math:`A_{BB} - B_b`, the march minus
 the ray-corner boundary gain :math:`B_b`
 (:class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`)
 — **exactly parallel to System A**, whose self-block is
-:math:`A_{AA} = L + C - S - B_a`. Both systems factor as
+:math:`A_{AA} = L + C - S - N_{2n} - B_a`. Both systems factor as
 ``(transport operator) − (bulk/reaction gains) − (boundary gain)``, and
 both boundary gains :math:`B_a`, :math:`B_b` are lagged (they live in
 :math:`N`, below), each reflecting through its **own** trace so the
@@ -253,8 +253,7 @@ isotropic emission kernel :math:`K`, and the reconstruction of that
 :math:`\ell = 0` moment at the closed rays. The kernel is a **dependency
 injection**: :math:`A_{BA}` is generic over any ``ndarray → ndarray``
 emitter carrying ``apply``/``apply_transpose``. The production
-instantiation passes the scattering
-the solver-composed :math:`K_{\rm iso} =
+instantiation passes the solver-composed :math:`K_{\rm iso} =
 \Sigma_{s0} + \nu_{2n}\Sigma_{2n}` — assembled at the ONE within-group
 construction site as
 :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_energy`
@@ -263,6 +262,26 @@ construction site as
 the emission is single-sourced per LEAF (one shared kernel object per
 channel, never a twin re-implementation of
 :math:`\Sigma_{s0}^{\mathsf T}\phi`).
+
+.. note::
+
+   **The composition site moved, and the reason is the sharper record
+   than the move.**  Until 2026-08-30 this read *"passes the scattering
+   operator's* ``isotropic_kernel`` *— the same shared object the bulk
+   scattering gain uses"*: :math:`S` owned an accessor that summed its
+   own :math:`P_0` energy binding with the :math:`(n,2n)` one and
+   handed the sum out.  That accessor was the **operator-level
+   bundling** the CS4c §14.1 ruling forbids — a scattering operator
+   deciding, on every consumer's behalf, that :math:`(n,2n)` groups
+   with scattering.  It retired with the extraction, and the sum is now
+   written where the grouping is a legitimate local choice: the
+   builder, at the one construction site, composes
+   ``S.isotropic_energy + N2N.energy`` and hands the resulting
+   :class:`~orpheus.numerics.operator.OperatorSum` to the emission.
+   Single-sourcing is preserved per LEAF — the two energy bindings are
+   the same objects the bulk gains hold — and what is gained is that a
+   consumer wanting :math:`\Sigma_{s0}` *without* the multiplicity can
+   now spell it.
 
 .. vv-status: coupled-ba-emission documented
 
@@ -298,11 +317,12 @@ augmentation welded into a model-generic gain. The **lift** (the Wave-O
 #208 pattern that separated :math:`B` from :math:`S`) reversed that: it
 made :math:`S`/:math:`F` **pure bulk** and posed the coupling as a
 first-class operator the driver lags as a separate gain. The
-within-group scattering gain rides :math:`(S,\ A_{BA},\ B_a)`, and
+within-group gain rides :math:`(S,\ N_{2n},\ A_{BA},\ B_a)`, and
 :math:`A_{BA}`'s transpose is exactly the ``w · K_isoᵀ(Reconstructionᵀ
 χ_seed)`` bulk pullback the S-adjoint used to carry inline — moved HERE,
 single-sourced, so ``S.apply_transpose`` is pure bulk and
-:math:`(L+C-S-A_{BA}-B).H` reconstructs the monolithic adjoint. Because
+:math:`(L+C-S-N_{2n}-A_{BA}-B).H` reconstructs the monolithic adjoint.
+Because
 the forward keeps :math:`K_{\rm iso}` while the adjoint rides the fold
 transpose, the reciprocity gate is a genuine cross-check of two
 structurally-different representations of one operator, not a tautology.
@@ -435,7 +455,7 @@ off-diagonals differ in sign — a trap worth spelling out:
 
    A \;=\;
    \begin{bmatrix}
-     L + C - S - B_a & +\,\text{Seeding} \\[2pt]
+     L + C - S - N_{2n} - B_a & +\,\text{Seeding} \\[2pt]
      -\,\text{Emission} & A_{BB} - B_b
    \end{bmatrix}
 
@@ -458,7 +478,8 @@ raw — they consume its splitting :math:`A = M - N`,
    M = \begin{bmatrix} L+C & +\,\text{Seeding} \\ \mathbf 0 & A_{BB}
        \end{bmatrix},
    \qquad
-   N = \begin{bmatrix} S + B_a & \mathbf 0 \\ +\,\text{Emission} & B_b
+   N = \begin{bmatrix} S + N_{2n} + B_a & \mathbf 0 \\
+       +\,\text{Emission} & B_b
        \end{bmatrix},
 
 with :math:`M` the **sweepable part** inverted every step and :math:`N`
@@ -484,7 +505,7 @@ carrying level (a class cylindrical admission refuses since Q5.6.3; a
 :math:`\mu = -1`-noded sphere rule reaches it, the sphere arm having no
 admission gate) — builds the 1×1
 :math:`[[A_{AA}]]` and the splitting degrades to the bare :math:`(L+C,\
-(S, B_a))` the seedless driver paths consume zero-touch. "Applying a
+(S, N_{2n}, B_a))` the seedless driver paths consume zero-touch. "Applying a
 System-B block on a non-carrying mesh" is not a runtime branch — it is an
 object that **does not exist**. Since the B.2d eviction ``FullField`` is a
 pure 2-block composite (:math:`\psi_A` cannot carry ray state at all), the
@@ -708,7 +729,12 @@ diffusion-synthetic-acceleration step poses the SN transport system and a
 low-order diffusion correction as a **coupled system** — an N-system
 :class:`CoupledOperator` whose diagonal blocks are the transport loss and
 the diffusion loss operator :math:`A_{\rm diff} = L + C - S - B` (which
-already exists, :mod:`orpheus.diffusion.operators`, #290 P4) and whose
+already exists, :mod:`orpheus.diffusion.operators`, #290 P4 — note that
+diffusion's :math:`S` is itself the ``OperatorSum``
+``IsotropicScattering + IsotropicN2N``, i.e. the SAME two energy leaves
+the S\ :sub:`N` grid keeps apart, bundled at the *composition* site
+where a bundling is a legitimate local choice; see the note at
+:eq:`coupled-ba-emission`) and whose
 off-diagonals are the restriction :math:`R` (transport residual → coarse)
 and prolongation :math:`P` (coarse correction → fine) operators. Those
 :math:`R`/:math:`P` operators **do not exist yet** — they are the future

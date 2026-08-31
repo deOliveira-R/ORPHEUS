@@ -220,8 +220,10 @@ master condition that decides between :class:`TensorProductOperator`,
        :ref:`tensor-network-decomposition` for the per-substep rationale.
    * - :class:`~orpheus.numerics.operator.OperatorSum`
      - many (the load-bearing composer)
-     - The within-group loss ``A_AA = (L+C) - S - B_a``
-       (:func:`~orpheus.sn.coupled_system.build_within_group_system`);
+     - The within-group loss ``A_AA = (L+C) - S - N2N - B_a``
+       (:func:`~orpheus.sn.coupled_system.build_within_group_system`
+       — the ``- N2N`` term is explicit since the CS4c step-3
+       extraction, :eq:`sn-within-group-with-n2n`);
        :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
        (a subclass, pinning the ``L + C`` legs);
        the diffusion loss ``leakage + collision - scattering - boundary``
@@ -230,7 +232,13 @@ master condition that decides between :class:`TensorProductOperator`,
      - Every ``+``/``-`` in the operator algebra lands here (the
        :class:`LinearOperator` dunder defaults), so the honest
        :math:`A = L + C - S - B` composition IS a left-nested
-       ``OperatorSum``.  The T.4 streaming per-direction split
+       ``OperatorSum``.  It is also where the *context-dependent*
+       groupings live: diffusion's ``S`` IS
+       ``IsotropicScattering + IsotropicN2N``, and the S\ :sub:`N`
+       builder's ``K_iso`` IS ``S.isotropic_energy + N2N.energy`` —
+       two different bundlings of one pair of leaves, each written at
+       its own composition site rather than fixed inside an operator.
+       The T.4 streaming per-direction split
        (``M_spatial`` as an :class:`OperatorSum` of two per-direction
        summands) was retired in #238 — it had no production consumer;
        the fused matvec

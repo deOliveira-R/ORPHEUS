@@ -292,7 +292,7 @@ class TestFullScatterKernel:
         forward = op.apply(psi).values
         np.testing.assert_allclose(
             candidate, forward, rtol=1e-12, atol=0.0,
-            err_msg="frame.conjugate(Λ_{ℓ≥0}+N2N)/W does NOT reproduce the forward "
+            err_msg="frame.conjugate(Λ_{ℓ≥0})/W does NOT reproduce the forward "
             "scattering source — the iso-modernization is not equivalent to the "
             "legacy fast-path.",
         )

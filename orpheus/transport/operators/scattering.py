@@ -1,21 +1,28 @@
 r"""Multigroup scattering source operator :math:`S` as a :class:`LinearOperator`.
 
 This module owns the **scattering gain** :math:`S` of the honest
-within-group operator algebra :math:`A = L + C - S - B` (streaming
-:math:`L`, collision :math:`C`, scattering gain :math:`S`, boundary
-:math:`B`; the eigenvalue problem is :math:`K = A^{-1}F`). The operator
+within-group operator algebra :math:`A = L + C - S - N_{2n} - B` (streaming
+:math:`L`, collision :math:`C`, scattering gain :math:`S`, the
+first-class :math:`(n,2n)` gain :math:`N_{2n}` —
+:mod:`orpheus.transport.operators.n2n`, extracted at CS4c §14.1 —
+boundary :math:`B`; the eigenvalue problem is :math:`K = A^{-1}F`). The operator
 letters are pinned in ``docs/theory/conventions/notation.rst
 §notation-symbol-table``; the multigroup posing in
 ``docs/theory/methods/sn/slab_multigroup.rst
 §sn-scattering-fission-operators``.
 
-:math:`S` aggregates **all secondary-emission channels that depend on
-the in-cell flux**:
+:math:`S` is the SCATTERING channel alone:
 
 * **P0 isotropic in-scatter** :math:`\Sigma_s^0(g'\to g)\,\phi_{g'}`;
 * **Pℓ Galerkin reconstruction** on real spherical harmonics
-  :math:`Y_\ell^m` (:math:`\ell\ge 1`) from the angular-flux moments;
-* **(n,2n) doubling** :math:`2\,\Sigma_{2n}(g'\to g)\,\phi_{g'}`.
+  :math:`Y_\ell^m` (:math:`\ell\ge 1`) from the angular-flux moments.
+
+(The **(n,2n) doubling** :math:`\nu_{2n}\Sigma_{2n}(g'\to g)\phi_{g'}`
+lived here until CS4c step 3 — §14.1 extracted it as the first-class
+:class:`~orpheus.transport.operators.n2n.N2NOperator`, because its
+bundling — with :math:`S` for anisotropy studies, with :math:`F` for
+production accounting — is context-dependent and must not be an
+operator-level decision.)
 
 The theory lives in the book — one concept, one home:
 
@@ -675,10 +682,10 @@ class ScatteringOperator(BoundOperator["FullField"]):
 
     @cached_property
     def full_scatter_kernel(self) -> OperatorProduct:
-        r"""The FULL in-scatter source kernel :math:`R\circ(\Lambda_{\ell\ge 0} + N_{2n})\circ M`.
+        r"""The FULL in-scatter source kernel :math:`R\circ\Lambda_{\ell\ge 0}\circ M`.
 
-        The COMPLETE P0 + anisotropic + (n,2n) in-scatter as ONE frame-conjugated
-        operator: the isotropic ℓ=0 scattering, the anisotropic ℓ≥1
+        The COMPLETE P0 + anisotropic in-scatter as ONE frame-conjugated
+        operator: the isotropic ℓ=0 scattering and the anisotropic ℓ≥1
         redistribution (one :class:`LegendreMomentScattering`,
         ``skip_l0=False``) conjugated by the frame. The per-ordinate
         source is ``(1/W)·full_scatter_kernel.apply(ψ)``; its transpose
@@ -1046,9 +1053,9 @@ class ScatteringOperator(BoundOperator["FullField"]):
           implicit-zero (scattering is volumetric, ``block_role = BULK``).
         * :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
           → :class:`~orpheus.transport.source_sinks.ScalarSourceSink` —
-          :math:`P_0` + :math:`(n,2n)` only, in **iso scalar magnitude** (no
-          :math:`P_\ell`; no :math:`1/W` — scalar consumers do not project to
-          per-ordinate).
+          :math:`P_0` only, in **iso scalar magnitude** (no
+          :math:`P_\ell`; no :math:`1/W`; the :math:`(n,2n)` term is
+          N2NOperator's since §14.1).
         * :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
           → :class:`~orpheus.transport.source_sinks.AngularSourceSink` —
           full :math:`P_\ell` Galerkin in **per-ordinate magnitude** (the
@@ -1102,12 +1109,13 @@ class ScatteringOperator(BoundOperator["FullField"]):
 
     @_apply_impl.register
     def _(self, phi: ScalarFlux) -> "ScalarSourceSink":
-        r"""Typed ScalarFlux variant — iso scalar magnitude output (P0 + n2n only).
+        r"""Typed ScalarFlux variant — iso scalar magnitude output (P0 only).
 
-        :math:`Q_g = \Sigma_{s,0}(g'\to g)\,\phi_{g'} + 2\,\Sigma_{2n}(g'\to g)
-        \,\phi_{g'}`. No :math:`P_\ell` (scalar flux lacks angular info); no
-        :math:`1/W` (scalar consumers — diffusion / CP / kinetics — do not
-        project to per-ordinate).
+        :math:`Q_g = \Sigma_{s,0}(g'\to g)\,\phi_{g'}`. No :math:`P_\ell`
+        (scalar flux lacks angular info); no :math:`1/W` (scalar
+        consumers — diffusion / CP / kinetics — do not project to
+        per-ordinate); no :math:`(n,2n)` (§14.1 — the channel is
+        N2NOperator's, whose ENERGY binding serves scalar consumers).
 
         **Deliberately retained — a named-future-consumer surface, NOT dead
         weight.** This arm has no current production caller (the within-group
@@ -1131,13 +1139,13 @@ class ScatteringOperator(BoundOperator["FullField"]):
     def _(self, psi: AngularFlux) -> "AngularSourceSink":
         r"""Typed :class:`AngularFlux` variant — per-ordinate magnitude output.
 
-        Reduce ``psi`` angular → scalar, build the iso :math:`P_0 + (n,2n)`
+        Reduce ``psi`` angular → scalar, build the iso :math:`P_0`
         source and the per-ordinate :math:`P_\ell\ge 1` Galerkin contribution
         (:meth:`build_aniso_source`), then combine via the producer-side
         :math:`1/W` in :meth:`_assemble_per_ordinate_source`.
         """
         # φ = ∫ψ dΩ (scalar), aniso = (1/W) RΛM ψ (per-ordinate), then the
-        # shared producer-side assembly. The iso (P0 + n2n) keeps the cheap
+        # shared producer-side assembly. The iso P0 keeps the cheap
         # reaction-rate fast path (NO moment tensor) — a load-bearing PERF
         # optimisation on the SI-sweep hot path; routing it through the frame
         # regresses LD/P0 badly. The frame form lives on as
@@ -1161,7 +1169,7 @@ class ScatteringOperator(BoundOperator["FullField"]):
         to it for :math:`\phi = M\psi`: the :math:`\ell=0` moment IS the scalar
         flux (:math:`Y_0^0 = 1`, so :meth:`HarmonicMomentFlux.scalar_flux`
         equals :meth:`AngularFlux.integrate_angular`), feeding the identical
-        P0 + (n,2n) fast path; the :math:`\ell\ge 1` aniso takes the explicit
+        P0 fast path; the :math:`\ell\ge 1` aniso takes the explicit
         typed grid path (:math:`\Lambda` then the frame's :math:`R`), equal to
         the full-angular path's :math:`R\Lambda` after its :math:`M`. Both arms
         end at the shared :meth:`_assemble_per_ordinate_source` (per-ordinate
@@ -1239,7 +1247,9 @@ class ScatteringOperator(BoundOperator["FullField"]):
         NOT the hot path — rides the validated harmonic-frame
         :attr:`full_scatter_kernel`, whose transpose falls out of
         :meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose` in
-        ONE expression (iso :math:`\ell=0` + aniso :math:`\ell\ge1` + (n,2n)).
+        ONE expression (iso :math:`\ell=0` + aniso :math:`\ell\ge1`;
+        the :math:`(n,2n)` transpose is N2NOperator's own lift reversal
+        since §14.1).
 
         This is the **Euclidean** transpose (L12) — NOT the metric Hilbert
         adjoint ``.H`` (which would carry the angular Gram). The

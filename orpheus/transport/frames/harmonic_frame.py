@@ -485,10 +485,9 @@ class HarmonicFrame(GalerkinFrame):
         r"""Mint the SOURCE reconstruction face :math:`R \otimes I` landing in
         ``angular_space`` (``HarmonicMomentSourceSink → AngularSourceSink``).
 
-        Consumer: the windowed in-scatter arm
-        (:meth:`ScatteringOperator.apply_moments
-        <orpheus.transport.operators.scattering.ScatteringOperator>`'s
-        explicit typed grid path). The flux-reconstruction sibling
+        Consumer: the windowed moment-iterate arm of
+        :class:`~orpheus.transport.operators.scattering.ScatteringOperator`'s
+        ``apply`` dispatch (the explicit typed grid path). The flux-reconstruction sibling
         (``HarmonicMomentFlux → AngularFlux``) is mint-ready, unminted.
         """
         return HarmonicReconstructionOperator(

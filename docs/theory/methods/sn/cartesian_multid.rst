@@ -2754,11 +2754,14 @@ analysis face ``frame.analysis`` from
    (0 ULP).
 .. vv-status: angular-windowing-moment-projection documented
 
-the scattering source factors **through the moment boundary**:
+the within-group emission factors **through the moment boundary**:
 
-* the **isotropic** :math:`\ell = 0` (P0) and the **(n,2n)** doubling
-  terms (:ref:`pn-scattering`) need only the scalar flux
-  :math:`\phi_0 \equiv \phi_0^0`;
+* the **isotropic** :math:`\ell = 0` (P0) in-scatter and the
+  **(n,2n)** emission (:ref:`pn-scattering`, :ref:`n2n-reactions`)
+  need only the scalar flux :math:`\phi_0 \equiv \phi_0^0` — the
+  latter from its own operator since CS4c step 3, which changes
+  nothing about this factoring: an isotropic emission reads the
+  :math:`\ell = 0` moment whichever operator owns it;
 * the **anisotropic** :math:`P_{\ell\ge 1}` term needs the higher
   moments :math:`\phi_\ell^m` up to the scattering order :math:`L`.
 
@@ -2847,12 +2850,18 @@ arm skips it.
    :meth:`~orpheus.transport.operators.scattering.ScatteringOperator._aniso_source_from_moment_values`
    (``frame.reconstruct_after(Λ)``). The Frame campaign's P4 phase
    re-expressed the windowed arm's :math:`R\,\Lambda` as the **explicit
-   typed** carrier path
-   ``frame.reconstruct(Λ.apply(φ)) / W`` — :math:`\Lambda` materialises a
+   typed** carrier path — today
+   ``self.source_reconstruction.apply(Λ.apply(φ)) / self.total_weight``
+   (it read ``frame.reconstruct(…)`` until the F-1 carve moved the
+   binding from frame VERBS onto the minted FACES, and
+   ``float(self.weights.sum())`` until the CS4c rebind retired the
+   stored weight vector in favour of the faces' own frame measure —
+   :ref:`scattering-binding-cs4c`).  :math:`\Lambda` materialises a
    typed :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
    (the role-changing edge of the carrier grid,
-   :ref:`scattering-carrier-grid`), which the frame's :math:`R` face then
-   reconstructs to an :class:`AngularSourceSink`. It threads the *same*
+   :ref:`scattering-carrier-grid`), which the retained :math:`R` face then
+   reconstructs to an :class:`AngularSourceSink` on its own bound
+   codomain. It threads the *same*
    :math:`\Lambda` kernel and the *same* frame :math:`R` face as the fused
    path, so the two agree numerically; the ndarray
    ``reconstruct_after(Λ)`` primitive is **retained as the 0-ULP

@@ -24,7 +24,8 @@ three layers, and **all three are now landed**:
 * The **daggered posing and the adjoint flux** :math:`\psi^*`
   solving :math:`A_{\rm loss}^{\dagger}\,\psi^* =
   \tfrac1k\,F^{\dagger}\,\psi^*` (with
-  :math:`A_{\rm loss} = L+C-S-B`) landed at **#276 A4/A5**
+  :math:`A_{\rm loss} = L+C-S-N_{2n}-B`,
+  :eq:`sn-within-group-with-n2n`) landed at **#276 A4/A5**
   (:ref:`sn-adjoint-daggered-posing`): the whole eigenproblem is posed
   by DAGGER-ing the forward operator triple through
   :func:`~orpheus.numerics.iteration.KEigenvalue`, and the importance
@@ -50,9 +51,11 @@ sweep — is a consequence of that one choice.
 
    * **The route (the spine).**  The adjoint is the exact **discrete
      transpose** of the forward operator triple —
-     ``KEigenvalue((L+C).H, (S+B).H, F.H)`` (the daggered resolvent,
+     ``KEigenvalue((L+C).H, (S+N2N+B).H, F.H)`` (the daggered resolvent,
      gain, and fission; the loss :math:`A_{\rm loss}^{\dagger} =
-     (L{+}C).\mathtt{H} - (S{+}B).\mathtt{H}` is formed inside) fed to
+     (L{+}C).\mathtt{H} - (S{+}N_{2n}{+}B).\mathtt{H}` is formed inside,
+     the gain being the FOLD of the builder's ``explicit_gains`` rather
+     than a hand-written member list) fed to
      the UNCHANGED
      :func:`~orpheus.numerics.eigenvalue.power_iteration`.  There is
      **no** discretise-then-adjoint step, so duality holds EXACTLY at
@@ -93,8 +96,8 @@ sweep — is a consequence of that one choice.
      alias for :math:`\varphi^*`.
    * **The scattering adjoint** :math:`S^{\mathsf T}` is assembled from
      **leaf transposes** of the frame conjugation,
-     :math:`(R \circ (\Lambda + N_{2n}) \circ M)^{\mathsf T}
-     = M^{\mathsf T} \circ (\Lambda + N_{2n})^{\mathsf T} \circ
+     :math:`(R \circ \Lambda_{\ell\ge0} \circ M)^{\mathsf T}
+     = M^{\mathsf T} \circ \Lambda^{\mathsf T} \circ
      R^{\mathsf T}` — no per-geometry derivation (#276 P3, closes
      #118), reciprocity-pinned against the structurally *independent*
      forward fast-path.  The forward-adjoint **asymmetry is
@@ -102,6 +105,18 @@ sweep — is a consequence of that one choice.
      SI-sweep performance; the adjoint — not the hot path — rides the
      validated frame form, which is what makes the reciprocity gate a
      genuine cross-check rather than a tautology.
+   * **The** :math:`(n,2n)` **channel is a SEPARATE operator with its
+     own transpose** since CS4c step 3 (:ref:`sn-n2n-adjoint`).  It was
+     a passenger of :math:`S` until 2026-08-30 — inside the
+     :math:`\Lambda + N_{2n}` sum of the frame conjugation on the
+     adjoint side — and left because its bundling (with :math:`S` for
+     anisotropy, with :math:`F` for production accounting) is
+     **context-dependent and must not be decided at the operator
+     level**.  Its transpose is the isotropic lift run backwards,
+     :math:`(N_{2n}^{\mathsf T}\chi)_m = \tfrac{w_m}{W}\,
+     K^{\mathsf T}\sum_n\chi_n` (:eq:`sn-n2n-adjoint-source`) — note
+     the :math:`w_m`, which an equal-weight fixture is structurally
+     blind to.
 
 The continuous adjoint problem and importance
 =============================================
@@ -322,7 +337,7 @@ Why ORPHEUS transposes the discrete operator
 ORPHEUS takes route (2): it poses the adjoint eigenproblem by
 **DAGGER-ing the forward operator triple**, feeding
 :func:`~orpheus.numerics.iteration.KEigenvalue` the daggered triple
-``((L+C).H, (S+B).H, F.H)`` — the daggered RESOLVENT, gain, and
+``((L+C).H, (S+N2N+B).H, F.H)`` — the daggered RESOLVENT, gain, and
 fission; the loss dagger is formed inside the posing — and running
 the **unchanged**
 :func:`~orpheus.numerics.eigenvalue.power_iteration`
@@ -511,11 +526,11 @@ The modernised in-scatter source is ONE frame-conjugated operator
    :label: sn-scattering-adjoint-kernel
 
    \mathrm{full\_scatter\_kernel}
-   \;=\; R \circ (\Lambda_{\ell\ge 0} + N_{2n}) \circ M ,
+   \;=\; R \circ \Lambda_{\ell\ge 0} \circ M ,
 
 .. (vv-status rationale) Representational identity: the frame-conjugation
-   definition of the full P0+ℓ≥1+(n,2n) in-scatter kernel (analysis M,
-   moment-space transfer Λ+N₂ₙ, reconstruction R).  Its verifiable content —
+   definition of the full ℓ≥0 in-scatter kernel (analysis M, moment-space
+   Legendre transfer Λ, reconstruction R).  Its verifiable content —
    the frame form reproduces the independent scalar fast-path forward source —
    is the ``@pytest.mark.foundation`` gate
    ``tests/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel::test_reproduces_forward_scattering_source``
@@ -524,21 +539,19 @@ The modernised in-scatter source is ONE frame-conjugated operator
 .. vv-status: sn-scattering-adjoint-kernel documented
 
 where :math:`M` / :math:`R` are the angular frame's analysis /
-reconstruction faces, :math:`\Lambda_{\ell\ge 0}` is the per-:math:`\ell`
-moment-space group transfer
+reconstruction faces and :math:`\Lambda_{\ell\ge 0}` is the
+per-:math:`\ell` moment-space group transfer
 (:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`),
-and :math:`N_{2n}` is the distinct :math:`(n,2n)` multiplication channel
-(:class:`~orpheus.transport.operators.scattering.N2NMomentOperator`) —
-summed with :math:`\Lambda` in moment space and conjugated by the frame
-*together* (one analysis, one reconstruction) for the WHOLE
-P0 + :math:`\ell\ge1` + :math:`(n,2n)` source.  Its transpose is therefore
-the product transpose
+carrying **both** the :math:`\ell = 0` in-scatter and the
+:math:`\ell\ge1` redistribution so one analysis and one reconstruction
+serve the whole scattering source.  Its transpose is therefore the
+product transpose
 
 .. math::
    :label: sn-scattering-adjoint-kernel-transpose
 
    \mathrm{full\_scatter\_kernel}^{T}
-   \;=\; M^{T} \circ (\Lambda + N_{2n})^{T} \circ R^{T},
+   \;=\; M^{T} \circ \Lambda^{T} \circ R^{T},
 
 .. (vv-status rationale) Structural / representational identity: the product
    transpose assembled from the leaf transposes (no per-geometry derivation).
@@ -552,10 +565,39 @@ the product transpose
 which :meth:`OperatorProduct.apply_transpose
 <orpheus.numerics.operator.OperatorProduct.apply_transpose>` assembles from
 the leaf transposes — the frame's :math:`M^{T}` / :math:`R^{T}` faces (landed
-in the Frame/Basis carve), the per-:math:`\ell` group transpose
-:math:`\Lambda^{T}`, and :math:`N_{2n}^{T}` — with **no per-geometry
+in the Frame/Basis carve) and the per-:math:`\ell` group transpose
+:math:`\Lambda^{T}` — with **no per-geometry
 derivation to verify** (the trap the streaming adjoint above could not
-avoid).  The :term:`per-ordinate <ordinate>` adjoint scattering source is then
+avoid).  :math:`\Lambda^{T}` is the ONLY group-asymmetric factor, which
+is why the whole product transpose is one expression.
+
+.. note::
+
+   **What these two equations said until 2026-08-30, and why it
+   changed.**  Both were written with a third factor:
+   :math:`\mathrm{full\_scatter\_kernel} = R\circ(\Lambda_{\ell\ge 0} +
+   N_{2n})\circ M`, the :math:`(n,2n)` multiplication channel summed
+   with :math:`\Lambda` **inside** the conjugation so that one analysis
+   and one reconstruction covered P0 + :math:`\ell\ge1` +
+   :math:`(n,2n)` together.  That was a faithful description of the
+   tree, and it was structurally a **bundling decision taken at the
+   operator level**.  CS4c step 3 (design record §14.1) reversed it:
+   :math:`(n,2n)` is now the first-class
+   :class:`~orpheus.transport.operators.n2n.N2NOperator` and carries
+   its own transpose (:ref:`sn-n2n-adjoint`), so
+   :math:`\mathrm{full\_scatter\_kernel}` is scattering *only*.  The
+   moment-space channel object survives — the
+   :math:`\ell = 0` transfer
+   :class:`~orpheus.transport.operators.scattering.N2NMomentOperator`
+   is still built and still tested; what it no longer does is ride
+   inside :math:`S`'s composite.  Its remaining production-facing role
+   is as the *algebra of record* for the fast path: the gate
+   ``tests/sn/operators/test_n2n_operator.py::TestLiftIsTheConjugation::test_apply_equals_l0_conjugation``
+   pins ``N2N.apply(ψ)`` against
+   ``(1/W)·frame.conjugate(N2NMomentOperator).apply(ψ)``, i.e. against
+   the very conjugation these equations used to spell.
+
+The :term:`per-ordinate <ordinate>` adjoint scattering source is then
 
 .. math::
    :label: sn-scattering-adjoint-source
@@ -610,7 +652,8 @@ S.\mathrm{apply}` holds to :math:`\sim 10^{-12}`.
    operator computes is the transpose.
 
 This is the discrete scattering adjoint the SN adjoint chain builds on: the
-adjoint flux :math:`\psi^{*}` solving :math:`(L+C-S)^{T}\psi^{*} = q^{*}`,
+adjoint flux :math:`\psi^{*}` solving :math:`(L+C-S-N_{2n})^{T}\psi^{*} =
+q^{*}`,
 adjoint-weighted homogenisation, perturbation theory, and detector
 sensitivity all need :math:`S^{T}`.  Its companion forward step (campaign
 **#276 P2**, commit ``dcea43a``) routes the SN forward *isotropic* source
@@ -618,11 +661,177 @@ through the same model-shared
 :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
 (:math:`\Sigma_{s0}`) and
 :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
-(:math:`2\Sigma_{2n}`) operators (0-ULP bit-identical), so the
+(:math:`\nu_{2n}\Sigma_{2n}`) operators (0-ULP bit-identical), so the
 :math:`K_\mathrm{iso}` energy operator — which also assembles the
 infinite-medium loss matrix (:ref:`direct-eigensolve-assembly`) — is one
 cross-model source.  These model-shared operators live in
-:mod:`orpheus.transport.operators`.
+:mod:`orpheus.transport.operators`.  Since CS4c step 3 the two are
+composed **by the solver**, at the one within-group construction site
+(:func:`~orpheus.sn.coupled_system.build_within_group_system`), as
+:attr:`S.isotropic_energy
+<orpheus.transport.operators.scattering.ScatteringOperator.isotropic_energy>`
+``+`` :attr:`N2N.energy
+<orpheus.transport.operators.n2n.N2NOperator.energy>` rather than being
+read off a bundling accessor on :math:`S` — the subsection below is why.
+
+.. _sn-n2n-adjoint:
+
+The (n,2n) adjoint — the lift is its own reversal
+-------------------------------------------------
+
+**Why the channel is no longer inside** :math:`S`.  Until 2026-08-30 the
+:math:`(n,2n)` emission was an unnamed passenger of the scattering
+operator: it rode :math:`S`'s isotropic accumulator on the forward fast
+path and the :math:`\Lambda + N_{2n}` sum inside
+:eq:`sn-scattering-adjoint-kernel` on the adjoint path.  The ruling that
+extracted it (CS4c design record §14.1) is a statement about *where a
+bundling decision may be taken*, and it is worth stating in full because
+it generalises past this channel:
+
+   :math:`(n,2n)` is **scattering-like** — a group-to-group transfer
+   which in principle carries its own anisotropy — **and
+   production-like** — it carries a multiplicity :math:`\nu_{2n}`.
+   Which of the two it should be grouped with therefore depends on the
+   question being asked: with :math:`S` when scattering anisotropy is
+   the axis of interest, with :math:`F` when production accounting is.
+   A **context-dependent bundling must not be decided at the operator
+   level**, because an operator that hard-codes one grouping makes the
+   other unspellable.
+
+So the within-group algebra spells the channel out,
+
+.. math::
+   :label: sn-within-group-with-n2n
+
+   A \;=\; L + C - S - N_{2n} - B ,
+
+.. (vv-status rationale) Structural identity: the within-group loss
+   composite's member list after the CS4c §14.1 extraction — a
+   composition-site fact, not a solver claim.  Its verifiable content is
+   that the shipped builder composes exactly these members and that the
+   composed pair reproduces the pre-extraction fused source: the
+   ``@pytest.mark.foundation`` gates
+   ``tests/sn/operators/test_n2n_operator.py`` (the lift, its transpose,
+   the carrier arms) and
+   ``tests/sn/operators/test_scattering_operator.py::TestAnisoMomentSourcePath``
+   (``S.apply + N2N.apply`` against the frozen pre-extraction snapshots).
+.. vv-status: sn-within-group-with-n2n documented
+
+and any bundling is a solver-side
+:class:`~orpheus.numerics.operator.OperatorSum` grouping — which is
+exactly what the 1-D diffusion solver does, summing
+:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+with
+:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+into the one :math:`S` its :math:`A = L + C - S - B` needs.  The two
+solvers now disagree about the grouping *in the composition*, where a
+disagreement is legible, instead of agreeing inside an operator that had
+chosen for both.
+
+**The forward action, and why it has no moment tensor.**
+:math:`(n,2n)` emission is isotropic: the kernel is a single
+:math:`\ell = 0` transfer matrix :math:`K = \nu_{2n}\,\Sigma_{2n}^{\mathsf T}`
+per cell.  So the composite action is the **isotropic lift** of an
+energy operator,
+
+.. math::
+   :label: sn-n2n-isotropic-lift
+
+   \bigl(N_{2n}\,\psi\bigr)_{n,g}
+   \;=\; \frac{1}{W}\,\sum_{g'} K_{g'\to g}\,
+         \underbrace{\sum_{m} w_m\,\psi_{m,g'}}_{\textstyle \phi_{g'}} ,
+   \qquad W \;=\; \sum_m w_m ,
+
+.. (vv-status rationale) Definitional identity: the (n,2n) composite
+   action as the isotropic lift of its energy binding (the ℓ=0 frame
+   conjugation realized on the reaction-rate fast path).  Its verifiable
+   content is the identity with the conjugation it realizes,
+   ``N2N.apply(ψ) == (1/W)·frame.conjugate(N2NMomentOperator).apply(ψ)``,
+   pinned by the ``@pytest.mark.foundation`` gate
+   ``tests/sn/operators/test_n2n_operator.py::TestLiftIsTheConjugation::test_apply_equals_l0_conjugation``.
+.. vv-status: sn-n2n-isotropic-lift documented
+
+which is *literally* the frame's :math:`\ell = 0` conjugation
+:math:`\tfrac{1}{W}\,R\,K\,M` — measured on the shipped faces, the
+analysis face's :math:`\ell = 0` row **is** the weight vector
+:math:`w_n` (the no-prefactor :math:`Y_0^0 = 1` convention,
+:doc:`/theory/foundations/spherical_harmonics`) and the reconstruction
+face's :math:`\ell = 0` column **is** the all-ones broadcast.  The
+operator evaluates it on the reaction-rate fast path instead (one
+``einsum`` over groups, no :math:`(L+1)\times(2L+1)` moment tensor
+allocated), which is the *algebra eager, performance lazy* ruling:
+the algebra is stated and gated as the conjugation, the evaluation
+takes the cheap route, and the gate above is what keeps the two from
+drifting.
+
+**The transpose falls out of the lift by differentiation** — no new
+derivation, and no per-geometry work.  From :eq:`sn-n2n-isotropic-lift`,
+
+.. math::
+   :label: sn-n2n-adjoint-source
+
+   \bigl(N_{2n}^{T}\chi\bigr)_{m,g'}
+   \;=\; \sum_{n,g}
+         \frac{\partial \bigl(N_{2n}\psi\bigr)_{n,g}}{\partial \psi_{m,g'}}\,
+         \chi_{n,g}
+   \;=\; \frac{w_m}{W}\,\sum_{g} K_{g'\to g}\,\sum_{n}\chi_{n,g}
+   \;=\; \frac{w_m}{W}\,\bigl(K^{\mathsf T}\textstyle\sum_n \chi_n\bigr)_{g'} ,
+
+.. (vv-status rationale) Definitional identity: the Euclidean transpose
+   of the isotropic lift, obtained by differentiating
+   :eq:`sn-n2n-isotropic-lift` (the forward's constant embedding
+   transposes to a sum over ordinates; the forward's w-weighted
+   integration transposes to the w-weighted embedding).  Its verifiable
+   content is the per-group Euclidean reciprocity ⟨N₂ₙψ,χ⟩ = ⟨ψ,N₂ₙᵀχ⟩
+   and its group-flip mutation leg, both ``@pytest.mark.foundation`` in
+   ``tests/sn/operators/test_n2n_operator.py::TestLiftIsTheConjugation``.
+.. vv-status: sn-n2n-adjoint-source documented
+
+i.e. the lift run backwards: the forward **broadcasts** one scalar
+emission onto every ordinate and the transpose **sums** the per-ordinate
+cotangent back; the forward **integrates** :math:`\psi` against
+:math:`w`, the transpose **embeds** with :math:`w`.  Read against the
+frame, this is :math:`\tfrac{1}{W}M^{T}K^{T}R^{T}` — :math:`R^{T}` the
+plain ordinate sum, :math:`M^{T}` the :math:`w`-weighted embedding — the
+same product-transpose shape :eq:`sn-scattering-adjoint-kernel-transpose`
+has, one :math:`\ell`-block wide.  The reciprocity is a real
+cross-check rather than a tautology for the same reason :math:`S`'s is:
+the forward is evaluated on the fast path and the transpose on the
+:math:`w`-embedding, two different float programs.
+
+.. warning::
+
+   The transpose's :math:`w_m` factor is the trap this channel offers,
+   and it has a fixture that cannot see it.  The forward's per-ordinate
+   output is a **constant in** :math:`n` (:math:`q_n = q^{\rm iso}/W`
+   for every ordinate), which invites writing the transpose as the
+   *uniform average* :math:`\tfrac{1}{N}\,K^{\mathsf T}\sum_n\chi_n`
+   instead of the :math:`w`-embedding :math:`\tfrac{w_m}{W}\,
+   K^{\mathsf T}\sum_n\chi_n`.  On an **equal-weight rule** the two are
+   algebraically identical — :math:`w_m \equiv c` gives :math:`W = Nc`
+   and hence :math:`w_m/W = 1/N` — so an equal-weight fixture is
+   *structurally* blind to the substitution (``vv-principles`` Mode 12
+   at the fixture), while every non-uniform rule separates them.  The
+   shipped gate accordingly builds on ``Quadrature.gauss_legendre(4)``,
+   whose weights are :math:`(0.3479, 0.6521, 0.6521, 0.3479)`, and
+   carries a group-flip mutation leg
+   (``test_transpose_reds_on_group_flip``) so that the
+   :math:`\Sigma_{2n}` transpose convention — ERR-002's habitat — is
+   pinned as well.
+
+**What survives, and what it is for.**  The moment-space channel object
+:class:`~orpheus.transport.operators.scattering.N2NMomentOperator` was
+NOT retired with the extraction, and the distinction matters for a
+future reader who greps it and finds no production caller: it is the
+**algebra of record** for the fast path.  Its ``apply`` is
+:math:`\nu_{2n}\Sigma_{2n}` on the :math:`\ell = 0` moment and its
+``apply_transpose`` the group transpose of that, so
+``frame.conjugate(N2NMomentOperator)`` reconstructs
+:eq:`sn-n2n-isotropic-lift` as a literal
+:class:`~orpheus.numerics.operator.OperatorProduct` — which is precisely
+the reference the lift is gated against.  Retiring it would retire the
+oracle, not dead weight (the ``coding-standards`` *fuller-view oracle*
+exception).
 
 .. _sn-adjoint-daggered-posing:
 
@@ -645,18 +854,25 @@ The shared build ``_adjoint_posing_parts`` takes the forward
 within-group system off the single construction site
 :func:`~orpheus.sn.coupled_system.build_within_group_system` and returns
 its daggerable parts — the invertible resolvent :math:`(L+C)`, the
-summed coupling gain :math:`(S+B)`, and the fission operator :math:`F`.
-The CALLER daggers each with ``.H`` and poses
+summed coupling gain :math:`(S + N_{2n} + B)`, and the fission operator
+:math:`F`.  It does not enumerate those gain members: it folds the
+builder's own ``explicit_gains`` tuple with ``+``, so a member added to
+the within-group algebra (as :math:`N_{2n}` was, CS4c §14.1) reaches the
+adjoint posing without an edit here — the summation is over whatever the
+one construction site composed.  The CALLER daggers each with ``.H`` and
+poses
 
 .. math::
    :label: sn-adjoint-eigenproblem
 
    A_{\rm loss}^{\dagger}\,\psi^* \;=\; \frac1k\,F^{\dagger}\,\psi^*
    \qquad\Longleftrightarrow\qquad
-   \mathtt{KEigenvalue}\bigl((L{+}C).\mathtt{H},\;(S{+}B).\mathtt{H},\;
+   \mathtt{KEigenvalue}\bigl((L{+}C).\mathtt{H},\;
+   (S{+}N_{2n}{+}B).\mathtt{H},\;
    F.\mathtt{H}\bigr),
 
-with :math:`A_{\rm loss}^{\dagger} = (L+C).\mathtt{H} - (S+B).\mathtt{H}`
+with :math:`A_{\rm loss}^{\dagger} = (L+C).\mathtt{H} -
+(S+N_{2n}+B).\mathtt{H}`
 fed to the **unchanged** :func:`~orpheus.numerics.eigenvalue.power_iteration`
 (the adjoint row of the eigenvalue-posing table,
 :mod:`orpheus.numerics.eigenvalue`).  The within-group loss splits and
@@ -669,6 +885,9 @@ each term daggers independently:
   is the reversed walk with no new solver code.
 * :math:`S.\mathtt{H}` is the frame-conjugated scattering transpose
   (:ref:`sn-scattering-adjoint`) wrapped in the angular metric.
+* :math:`N_{2n}.\mathtt{H}` is the metric-wrapped
+  :math:`w`-embedding of :eq:`sn-n2n-adjoint-source` — the lift run
+  backwards (:ref:`sn-n2n-adjoint`).
 * :math:`B.\mathtt{H}` is the boundary-law transpose; the reflective
   and vacuum traces transpose structurally — an adjoint vacuum is the
   transpose of the forward vacuum, never a user-facing BC flip.
@@ -1050,6 +1269,16 @@ Development history
 * **#276 A6** — this chapter: the route decision, the three-transposes
   taxonomy, the daggered-posing mechanics, the carrier ruling, and the
   verification narrative, closing #276.
+* **CS4c step 3** (2026-08-30, branch ``refactor/cs4c-s-rebind``) — the
+  :math:`(n,2n)` **channel becomes a first-class operator with its own
+  transpose** (:ref:`sn-n2n-adjoint`).  Two consequences reach this
+  chapter: :math:`\mathrm{full\_scatter\_kernel}` loses its
+  :math:`N_{2n}` summand and is scattering-only
+  (:eq:`sn-scattering-adjoint-kernel`), and the daggered gain the
+  posing folds is :math:`(S + N_{2n} + B)` — read off the builder's
+  ``explicit_gains``, so the A4 bullet's ``(S+B)`` above is the
+  spelling of its own day, not a member list this chapter maintains by
+  hand.
 
 References
 ==========

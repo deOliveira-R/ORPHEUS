@@ -2886,8 +2886,10 @@ exposes the anisotropic Legendre redistribution :math:`R \circ \Lambda
 \circ M` (an :class:`~orpheus.numerics.operator.OperatorProduct` whose
 middle factor is the moment-space
 :eq:`scattering-as-tensor-product-sum`); the isotropic :math:`P_0`
-in-scatter and the :math:`(n,2n)` doubling are the local / separate
-components of the full scattering ``apply``. Fission is the **rank-1
+in-scatter is the local component of the full scattering ``apply``.
+(The :math:`(n,2n)` doubling stood beside it in this list until
+2026-08-30; it is now a separate first-class operator entirely —
+:ref:`scattering-binding-cs4c`.) Fission is the **rank-1
 (single-mode) degenerate** of scattering's multi-mode spectral sum — the
 polyadic/block-term view of :ref:`emission-kernels-btd` makes the
 relationship precise. The matvec arms of both operators are UNCHANGED in
@@ -2910,9 +2912,8 @@ conjugation
 scattering **2-cell** of the carrier-grid double category
 (:ref:`carrier-grid-double-category`) — a *spectral* statement: the
 horizontal adjoint pair :math:`(M, R)` is the unitary diagonalising the
-vertical :math:`\Lambda`. This is also why the frame is **owned by**
-the scattering operator (its constructor binds the frame order to
-``scattering_order``): the spherical harmonics are *scattering's*
+vertical :math:`\Lambda`. This is also why the harmonic frame is
+**scattering's** frame: the spherical harmonics are *scattering's*
 eigenbasis, and the streaming operator — the :math:`\ell=1` direction
 irrep — is the one transport operator the basis does **not**
 diagonalise (it couples :math:`\ell\!\leftrightarrow\!\ell\pm1`, the Pℓ
@@ -2921,7 +2922,11 @@ corroboration, and the unifying principle *"an operator owns its frame
 iff the frame is its eigenbasis"* (which also explains why energy
 condensation and spatial homogenisation are Petrov-Galerkin, not
 Galerkin) are in :ref:`frame-eigenbasis-ownership`
-(:doc:`/theory/foundations/frame`).
+(:doc:`/theory/foundations/frame`).  **Ownership in that sentence is
+mathematical, not constructional** — which basis diagonalises which
+operator — and the two came apart at CS4c step 3, where the frame
+stopped being minted inside :math:`S`'s constructor and became a shared
+object handed in (:ref:`scattering-binding-cs4c`).
 
 .. vv-status: integral-kernel-category documented
 
@@ -3097,10 +3102,12 @@ face ``frame.analysis`` (:math:`M`),
 :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering` (:math:`\Lambda`),
 and the frame's reconstruction face ``frame.reconstruction``
 (:math:`R`). It is the strictly-anisotropic :math:`\ell \ge 1` part of the
-full scattering ``apply``: the isotropic :math:`P_0` in-scatter, the
-:math:`(n,2n)` doubling, and the per-ordinate :math:`1/W` normalisation
+full scattering ``apply``: the isotropic :math:`P_0` in-scatter and the
+per-ordinate :math:`1/W` normalisation
 are the **local / separate** components that live *outside* the kernel
-(a strict sub-component, pinned). The kernel reproduces the existing
+(a strict sub-component, pinned).  The :math:`(n,2n)` doubling stood in
+that list too until 2026-08-30, when it left the operator altogether
+(:ref:`scattering-binding-cs4c`). The kernel reproduces the existing
 anisotropic moment path :math:`R(\Lambda(M\psi))` byte-for-byte (0 ULP);
 its physics L1 backing is the existing anisotropic MMS gate
 ``tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py``,
@@ -3126,6 +3133,254 @@ not a new reference.
    #260. The :math:`1/W` per-ordinate normalisation lives *outside* the
    kernel (the kernel is the redistribution, not the :term:`quadrature`
    weighting).
+
+.. _scattering-binding-cs4c:
+
+The CS4c binding — what S retains, and what it is handed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Everything above is about what :math:`S` *is*.  This subsection is
+about what :math:`S` **holds** — the CS4c step-3 rebind (design record
+``.claude/plans/cs4c_binding_design.md`` §§2, 4, 14), which changed the
+constructor from *"a cross-section facade plus a quadrature plus an
+optional space"* to *"representation-free data plus two minted arrows
+plus two mandatory ends"*.  The arithmetic did not move; what moved is
+which object is allowed to know what.
+
+**The exact constructor retains exactly what the instance uses.**
+
+.. list-table:: What ``ScatteringOperator(...)`` takes, and why
+   :header-rows: 1
+   :widths: 22 34 44
+
+   * - Field
+     - What it is
+     - Why the operator retains it
+   * - ``scattering``
+       (positional, first)
+     - a ``ScatteringMaterialField`` — the frozen per-material
+       :class:`~orpheus.transport.kernels.ScatteringKernel` map paired
+       with the mesh's own material layout — **already truncated** to
+       this binding's Legendre order
+     - the representation-free datum: what each material does, and
+       where each material sits.  The truncation **is** the order:
+       :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.scattering_order`
+       is a derived read (``self.scattering.order``), so there is no
+       second place an order could be stored and disagree.
+   * - ``flux_analysis``
+       (kw-only)
+     - the minted :math:`M\otimes I` face,
+       ``AngularFlux → HarmonicMomentFlux``
+     - the windowed bulk projection and the adjoint gates apply it
+       directly; it also carries the frame (hence the measure, hence
+       :math:`W`) without the operator storing either.
+   * - ``source_reconstruction``
+       (kw-only)
+     - the minted :math:`R\otimes I` face,
+       ``HarmonicMomentSourceSink → AngularSourceSink``
+     - the windowed in-scatter arm's typed :math:`R`: it synthesises
+       the per-ordinate source on its own bound codomain.
+   * - ``domain``, ``codomain``
+       (kw-only, **mandatory**, write-once)
+     - the composite full-field space, both, for the shipped
+       endomorphic binding
+     - the
+       :class:`~orpheus.transport.operators.bound_operator.BoundOperator`
+       base's contract: a bound operator is an arrow and an arrow has
+       two ends.  Naming both at every exact-ctor site is what makes
+       the domain/codomain **swap** — the ERR-002 / ERR-076
+       transposition family, which type-checks and yields a well-formed
+       *reversed* arrow — unspellable-silently.
+
+What is **gone** from that list is the point: no ``mat_xs`` facade, no
+``quadrature``, no ``Optional`` space.  The facade was a whole
+cross-section library where a scattering operator needs one channel;
+the quadrature was a *second* source of the angular measure, sitting
+beside the frame's own; and an optional space made "which space is this
+operator on?" answerable with ``None``, which is how the energy-extent
+guard came to be inert on the majority path elsewhere in this algebra.
+
+**The frame is constructed outside and handed in.**  The tier-2
+classmethod
+:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.from_solver_data`
+takes ``(mat_xs, scattering_order, space)``, extracts the scattering
+channel, reaches the frame, mints the two faces, and **forgets the
+frame**.  The blessed chain is one spelling, used by every consumer:
+
+.. code-block:: text
+
+   composite space → .interior_space → axes[0]
+                   → axis.generator_as(Quadrature)      (the CS5 channel)
+                   → Quadrature.angular_frame(L)        (interned per (rule, L))
+                   → HarmonicFrame.from_galerkin(...)   (interned on the upstream frame)
+
+wrapped as
+:meth:`HarmonicFrame.for_space
+<orpheus.transport.frames.harmonic_frame.HarmonicFrame.for_space>`.
+Both hops intern, so "one frame per (axis content, :math:`L`)" is an
+**object identity**, not a convention: :math:`S`, :math:`F`, and the
+angular-windowing method minting from the same posed space receive the
+same frame object and therefore the same cached projection table.  The
+same-metric guarantee is likewise structural rather than checked — the
+:class:`~orpheus.numerics.quadrature.Quadrature` is the single source of
+the weights, and no copy exists that could drift from it.  This is why
+the frame could not stay a constructor-owned cached property: a frame
+minted *inside* :math:`S` is unreachable by :math:`F` and by the
+windowing method, so sharing would have to be re-established by passing
+:math:`S` around, which is exactly the coupling the shared factory
+exists to remove.
+
+**Why the faces sit on the constructor and the frame at tier 2** —
+two independent reasons, and the second is the sharper one:
+
+1. *The operator only needs the products.*  A frame is a factory; the
+   operator's instance state is what the factory made.  Retaining the
+   factory as well would be the stage-2 generator anti-pattern (keeping
+   the generator beside the generated), and the accessor
+   :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.frame`
+   costs no state at all — it reads ``flux_analysis.frame``, i.e. the
+   provenance already riding on a retained product.  It is documented
+   as provenance, kept for prototyping, and retirement-tracked.
+2. *A frame-welded constructor forbids the negative controls its own
+   correctness gate needs.*  The tightness gate below reds by
+   constructing faces with a **deliberately wrong embedding**.  If the
+   constructor took a frame and minted the faces itself, spelling that
+   control would require doctoring a frame — a much larger and less
+   honest fixture than handing in a hand-built pair of faces carrying
+   the right spaces and the wrong measure.  The exact ctor is the
+   cheap-fixture surface *because* it takes the products.
+
+The tier-2/exact-ctor split then owes one gate, and gets it: every
+extract-and-mint classmethod is pinned against the exact constructor on
+the same inputs (``tests/transport/test_tier2_equivalence_s_family.py``),
+so the hand-built fixtures the rest of the suite uses provably stand for
+what production builds — the standing hazard being that a *convenience*
+factory populates a field the *composite* factory forgets, and the
+test-side fixture then exercises a guard production never reaches.
+
+**The fused composites are now built once per operator, not once per
+apply.**  :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel`
+and
+:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`
+are ``cached_property``: the bound field is immutable, so the cache
+cannot go stale.  The step-0 execution census measured the pre-rebind
+rate at up to **911** satellite :math:`\Lambda` instances minted inside
+a single Krylov :math:`k`-solve (once per ``apply``); after the rebind
+it is one per construction.  The measurement is worth keeping because
+the *reason* is architectural rather than a missing ``lru_cache``:
+before the rebind the operator held a facade and re-derived the moment
+operator from it on every call, because there was no immutable datum it
+could have cached against.
+
+**The datum's shape (the O-6 landing).**  ``ScatteringMaterialField``
+and its ``N2NMaterialField`` sibling specialise one generic base,
+``MaterialField[K]``, which owns the pairing (per-material kernel map ×
+mesh layout), the single per-material dispatch loop, and the ONE
+gathered ``(ng, ng)`` contraction primitive — with the trailing ``...``
+subscript that lets a linear-discontinuous :math:`2^d` spatial-moment
+axis ride through as a broadcast spectator.  The subclasses add the
+*domain* vocabulary (``add_p0_source``, ``moment_source``,
+``add_emission``), and the cell-index partition itself belongs to
+:class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` — mesh owns
+machinery, so every field over one mesh shares one ``np.where``.  This
+is where the eight ``apply_*`` arms of the old cross-section facade
+went: not onto the operators (which would have re-scattered them) and
+not onto the kernels (which know no layout), but onto the *pairing* of
+kernel and layout, which is the only object that has both.
+
+The tightness gate — what makes the faces the RIGHT faces
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Handing faces in raises a question a self-minting constructor could
+pretend not to have: *what stops a caller binding a pair of faces that
+are not adjoint to each other?*  The failure this guards against is
+catalogued — **ERR-039**, a claimed :math:`\Pi^{*} = R` that was in
+fact the addition-theorem reconstruction, i.e. an adjoint claim that
+held under one embedding and not under the one that shipped.  The gate
+(``tests/transport/frames/test_binding_tightness.py``) runs three legs,
+and the third is a recorded blindness rather than a claim:
+
+.. list-table:: The three legs, and what each can see
+   :header-rows: 1
+   :widths: 14 42 44
+
+   * - Leg
+     - Property
+     - Measured (:math:`L = 1, 2, 3`)
+   * - (i) Galerkin
+     - the shipped analysis face's Hilbert adjoint **is** the
+       reconstruction over the measure's total weight,
+       :math:`M^{\dagger} = R/W`, swept as matrices under the frame's
+       OWN space metrics — no hand-derived Gram
+     - shipped embedding :math:`\le 1.1\times10^{-15}`; a face re-minted
+       with a **constant** embedding :math:`\Sigma w/N` reads
+       :math:`3.3\times10^{-1}`, an **unweighted** one :math:`8.7` —
+       the G6.3 87 %-class margin.  This leg is the ERR-039 catcher.
+   * - (ii) multiplicativity
+     - :math:`\mathrm{bind}(K_1 K_2) = \mathrm{bind}(K_1)\,
+       \mathrm{bind}(K_2)` on Funk–Hecke eigenstacks — true iff the
+       frame is **tight** on the spanned harmonics
+     - tight rule :math:`\le 10^{-13}`; the equispaced-equal-weight
+       control :math:`\ge 10^{-3}`.  Composition of zonal kernels is
+       the elementwise product of their :math:`\ell`-stacks, so the
+       product operand is built gate-side from the stacks — no kernel
+       product API is minted for one consumer.
+   * - (iii) :math:`\ell = 0`
+     - **blindness, asserted**: at :math:`L = 0` both a tight and a
+       non-tight rule read clean on both legs
+     - so an :math:`\ell = 0` gate discriminates nothing; the
+       :math:`\ell \ge 1` rows are the coverage, and writing the
+       blindness as an assertion is what stops it silently ceasing to
+       be true
+
+.. note::
+
+   **Two negative controls were chosen by measurement, and one earlier
+   choice was refuted by it.**  The pre-carve plan warned that
+   ``gauss_legendre(L)`` is maximally non-tight
+   (:math:`\lVert MR - I\rVert = 1`) yet **blind** on zonal
+   multiplicativity — measured :math:`\le 5.9\times10^{-16}` over 200
+   draws.  Re-measured *through the shipped faces* (F-0 Parseval
+   metrics, producer-side :math:`1/W`) it is **not** blind in that
+   spelling (relative :math:`3.0` / :math:`4.3` at :math:`L = 2, 3`),
+   so the recorded hazard was a property of the probe's raw-table
+   binding rather than of the gate's construction.  The equispaced rule
+   remains the shipped control, on its own measured bite.  The
+   disagreement is recorded rather than quietly resolved, because the
+   two numbers are answers to two different questions.
+
+.. warning::
+
+   **There is no kernel dagger, and there will not be one absent a
+   consumer that can state its hypotheses.**  The obvious spelling for
+   an adjoint leg — compare ``bind(K).H`` against an independently
+   assembled ``M†K†R†`` — was **refuted at design time**:
+   :math:`(RKM)^{\dagger} = M^{\dagger}K^{\dagger}R^{\dagger}` is an
+   algebraic identity of the metric adjoint for *any* three maps and
+   *any* nondegenerate metrics, so a wrong embedding enters both sides
+   and cancels.  Measured :math:`\le 2.24\times10^{-16}` under the
+   correct, the constant, AND the unweighted embedding — a reading that
+   cannot change, which is not evidence.  The identity is kept as a
+   documented **theorem** in the gate module, never as an assertion.
+
+   The deeper reason is worth stating, because it decides where an
+   adjoint may live at all: an adjoint is defined by
+   :math:`\langle A\psi,\varphi\rangle_{G_W} = \langle\psi,
+   A^{\dagger}\varphi\rangle_{G_V}`, which reads **both** metrics — so
+   it is a property of the *bound operator*, not of the kernel data.  A
+   metric-free involution on the data does exist (swap the transfer
+   matrix's indices), and it is genuinely well-defined as data; what it
+   is not is an adjoint.  ``bind(swap(K)) = bind(K)†`` is a
+   *conditional* theorem of the binding whose hypotheses only the
+   binding can check (counting measure on energy, a tight frame on
+   angle, nondegenerate metrics).  Putting a ``.dagger`` on the kernel
+   would place an adjointness claim where its hypotheses are
+   unknowable.  The type system already says so on the sibling channel:
+   :class:`~orpheus.transport.kernels.FissionKernel` **refuses**
+   ``FissionKernel(chi=νΣf, nu_sig_f=χ)`` by its own :math:`\chi`
+   simplex guard — the adjoint image of a fission datum is not a
+   forward fission datum, because the simplex invariant is directional
+   physics.
 
 .. _emission-kernels-btd:
 
@@ -3328,7 +3583,7 @@ moment) and the role (flux ↔ source). The four leaves and three edges:
    * - :math:`R` (bottom edge)
      - :class:`HarmonicReconstructionOperator
        <orpheus.transport.frames.harmonic_frame.HarmonicReconstructionOperator>`
-       (minted: the windowed arm's source reconstruction)
+       (minted: ``S.source_reconstruction``)
      - **Role-preserving, axis-changing.** Reconstructs moment →
        per-ordinate, flux→flux *and* source→source (the reconstruction
        face; the addition-theorem :math:`R`, not the Hilbert adjoint
@@ -3365,9 +3620,13 @@ the source leg used by the windowed in-scatter migration below.
    :by: orpheus.transport.operators.scattering.ScatteringOperator.build_aniso_source
 
    **Implemented by** literally ``self.kernel.apply(angular_flux.values)
-   / sum_w`` with ``sum_w = float(self.weights.sum())`` — i.e.
+   / self.total_weight`` — i.e.
    :math:`\tfrac{1}{W}(R\circ\Lambda\circ M)`, the equation with its
    producer-side normalisation applied at the ``apply`` boundary.
+   :math:`W` is read off the retained faces' frame measure
+   (``flux_analysis.frame.measure``), not off a stored weight vector:
+   the measure IS the binding's metric, so there is one place it can
+   come from (:ref:`scattering-binding-cs4c`).
 
 .. implements:: scattering-aniso-composite
    :by: orpheus.transport.operators.scattering.ScatteringOperator.kernel
@@ -3383,8 +3642,12 @@ the source leg used by the windowed in-scatter migration below.
    **Implemented by** the second, deliberately-kept realization: the
    :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
    arm spells the composite explicitly on the typed carriers —
-   ``LegendreMomentScattering(...).apply(phi_moments)`` and then
-   ``self.frame.reconstruct(scattered) / float(self.weights.sum())``.
+   ``self._moment_scattering(skip_l0=True).apply(phi_moments)`` and then
+   ``self.source_reconstruction.apply(scattered) / self.total_weight``.
+   Both factors are the operator's own retained objects since the CS4c
+   rebind: :math:`\Lambda` is minted on the bound kernel field, and
+   :math:`R` is the **retained face**, applied on its own bound
+   codomain rather than through a frame verb.
 
    Both arms are production **by design** — the windowed moment path and the
    fused-kernel path — and their 0-ULP agreement is the interchange-law
@@ -3994,6 +4257,20 @@ Two cells are deliberately empty, and both absences are designed.
   isotropic part), and it was **endorsed at creation** as the right home
   for the iso/aniso combine. It is documented here as a recognised,
   deliberate exception so a future reader does not "tidy it away".
+
+  Since CS4c step 3 the production ``iso + aniso`` combine has ONE
+  home — the free function ``assemble_per_ordinate_isotropic`` in
+  :mod:`!orpheus.transport.operators._per_ordinate`, which performs
+  ``(iso / W) + aniso`` through this injection and is where the
+  producer-side :math:`1/W` convention lives.  Both
+  isotropically-lifted producers route through it: :math:`S`'s
+  :math:`P_0` half (combined with its :math:`\ell\ge1`
+  part) and the whole action of the extracted
+  :class:`~orpheus.transport.operators.n2n.N2NOperator`.  It was hoisted
+  out of :math:`S` at the moment the second consumer appeared — the
+  defer-until-two rule taken at its word — and its docstring records
+  that a *third* lifted channel is the trigger to promote it from a
+  shared function to a generic lift operator, not before.
 
   ⚠ **This dunder is the PULLBACK, not the section — and this bullet
   said otherwise until 2026-08-24.** It read *"it is single-sourced

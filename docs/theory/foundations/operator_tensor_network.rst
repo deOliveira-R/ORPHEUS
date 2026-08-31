@@ -222,7 +222,10 @@ shape choice.
        moments, applying per-ℓ transfer, reconstructing per-ordinate
      - **MA-Q1 fallback**: the per-material per-ℓ
        einsum
-       :meth:`MaterialXSField.apply_legendre_scattering_moments`
+       :meth:`ScatteringMaterialField.moment_source
+       <orpheus.transport.material_field.ScatteringMaterialField.moment_source>`
+       (``MaterialXSField.apply_legendre_scattering_moments``
+       until the CS4c step-3 O-6 move)
        couples the group axis (matrix multiply on
        :math:`\Sigma_{s,\ell}[g'\to g]`) with the
        spatial axis (via
@@ -1050,8 +1053,11 @@ with :math:`A_\ell` the angular Pℓ-projection factor,
 targeted this SOTP form for the scattering kernel.
 
 The design fork (T.3 spec Q6) surfaced that the per-material per-ℓ
-einsum in
-:meth:`MaterialXSField.apply_legendre_scattering_moments`
+einsum — then ``MaterialXSField.apply_legendre_scattering_moments``,
+since the CS4c step-3 O-6 move
+:meth:`ScatteringMaterialField.moment_source
+<orpheus.transport.material_field.ScatteringMaterialField.moment_source>`
+—
 **couples the group axis with the spatial axis** — the per-cell
 material id ``cells_by_material[mid]`` selects the per-material
 scattering matrix :math:`\Sigma_{s,\ell}^{m(\vec r)}`. There is no

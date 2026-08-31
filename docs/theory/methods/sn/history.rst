@@ -35,6 +35,148 @@ them.  Trust ``git``, not this column.
      - Issue
      - Where
    * - in dev
+       (2026-08-30)
+     - **The scattering binding speaks kernel and frame, and the**
+       :math:`(n,2n)` **channel becomes a first-class operator**
+       (campaign 2, phase CS4c, step 3).  Four changes, and the second
+       is the one with the longest reach.
+       **(1) S retains representation-free data plus minted arrows.**
+       :class:`~orpheus.transport.operators.scattering.ScatteringOperator`'s
+       exact constructor now takes a ``ScatteringMaterialField``
+       (per-material Legendre stacks × the mesh's material layout)
+       already **truncated to the binding's order** — so
+       ``scattering_order`` is a DERIVED read and there is no second
+       place an order could disagree — plus the two typed faces
+       :math:`M\otimes I` / :math:`R\otimes I` and the two mandatory
+       write-once ends.  Gone: the ``MaterialXSField`` facade, the
+       ``quadrature`` field (a second source of the angular measure
+       beside the frame's own), and the ``Optional`` space.  The
+       fused composites are ``cached_property`` on an immutable datum,
+       which takes the satellite :math:`\Lambda` mint from `[M]` up to
+       **911 per Krylov k-solve** (once per ``apply``) to once per
+       construction.
+       **(2) The** :math:`(n,2n)` **channel leaves** :math:`S`.  It was
+       a passenger — inside :math:`S`'s isotropic accumulator forward,
+       inside the :math:`\Lambda + N_{2n}` conjugation adjoint — and it
+       left because the ruling is about *where a bundling may be
+       decided*: the channel is scattering-like (a group transfer) AND
+       production-like (it carries a multiplicity), so its grouping is
+       **context-dependent and must not be fixed at the operator
+       level**.  The within-group algebra now spells
+       :math:`A = L + C - S - N_{2n} - B`
+       (:eq:`sn-within-group-with-n2n`), :math:`K_{\rm iso}` is composed
+       at the ONE construction site as ``S.isotropic_energy +
+       N2N.energy``, and the two shipped solvers legibly DISAGREE about
+       the grouping — S\ :sub:`N` keeps the terms apart, 1-D diffusion
+       sums them into its own :math:`S`.  The new operator's action is
+       the isotropic lift :math:`\tfrac{1}{W}EK\!\int\!d\Omega`, gated
+       against the :math:`\ell = 0` frame conjugation it realizes
+       (*algebra eager, performance lazy*), and its transpose is the
+       lift reversed, :math:`\tfrac{w_n}{W}K^{\mathsf T}\sum_m\chi_m` —
+       whose :math:`w_n` an equal-weight fixture is structurally blind
+       to.  Full account: :ref:`sn-n2n-adjoint` and the rewritten
+       :ref:`n2n-reactions`.
+       **(3) The frame is handed in, and interned on the hub.**
+       ``HarmonicFrame.for_space(angular_space, L)`` is the one blessed
+       chain (space → angular axis → ``generator_as(Quadrature)`` →
+       ``angular_frame(L)`` → ``from_galerkin``), interned at BOTH
+       hops, so "one frame per (axis content, :math:`L`)" is an object
+       identity and :math:`S`, :math:`F` and the windowing method share
+       one frame and one cached table.  The tier-2 classmethod mints
+       the faces and forgets the frame; the ``frame`` accessor is
+       PROVENANCE riding on a retained face (zero extra state).  The
+       eigenbasis principle is untouched — what came apart is
+       *mathematical* ownership (which basis diagonalises scattering)
+       from *constructional* ownership (who mints the object), and the
+       second had to move for the frame to be shareable at all.
+       **(4) The facade's arms retire (O-6).**  The eight
+       ``MaterialXSField.apply_*`` arms plus ``add_n2n_to_group_rate``
+       move onto the kernel-field pairing (``MaterialField[K]`` +
+       channel subclasses, einsums ported verbatim with per-arm
+       bit-identity gates); ``cells_by_material`` re-homes to
+       ``MaterialMesh`` (mesh owns machinery); and the multiplicity
+       :math:`\nu_{2n}` gains ONE home,
+       :attr:`N2NKernel.multiplicity
+       <orpheus.transport.kernels.N2NKernel.multiplicity>`, with a
+       census gate asserting no production literal survives outside the
+       kernel module at the full 14-site denominator (cp ×4, moc ×3
+       including an integer spelling, mc ×1 hoisted to a module
+       constant).  ⭐ The binding's correctness gate is the ERR-039
+       catcher re-specified onto the FACES — :math:`M^{\dagger} = R/W`
+       under the shipped embedding, `[M]` :math:`\le 1.1\times10^{-15}`
+       against :math:`3.3\times10^{-1}` (constant embedding) and
+       :math:`8.7` (unweighted) — after the *original* spelling was
+       refuted at design time: ``bind(K).H == M†K†R†`` is an algebraic
+       identity that cancels a wrong embedding on both sides, measured
+       :math:`\le 2.24\times10^{-16}` under every embedding tried, and
+       is kept as a documented theorem rather than an assertion.  There
+       is deliberately **no kernel dagger**: an adjoint reads both
+       metrics, so it is operator-level by theorem.
+       Design record: ``.claude/plans/cs4c_binding_design.md`` §§2, 4,
+       6, 14.
+     - campaign 2
+       (CS4c step 3)
+     - ``c0e904ea`` (the kernel fields, the frame hub, the space verb),
+       ``8f376135`` / ``b435431c`` (the rebind and the :math:`(n,2n)`
+       extraction), ``81e9e7e1`` (the arms retire; the multiplicity's
+       one home), ``92dcc30f`` (battery B-3) — branch
+       ``refactor/cs4c-s-rebind``, **not yet merged**
+   * - 2026-08-30
+     - **Every bound transport operator carries its two mandatory ends,
+       and the dagger becomes a first-class arrow** (campaign 2, phase
+       CS4c, steps 1–2 — the base step 3 stands on).
+       **(1) The arrow has two ends.**
+       ``BoundOperator`` is the dataclass ABC every transport binding
+       now derives from: kw-only **mandatory, write-once**
+       ``domain``/``codomain`` fields plus the per-END energy-conformity
+       admission (one check collapses the two for an endomorphism; a
+       47g→2g condensation binding would run both legs).  The datum
+       stays positional-first, so the domain/codomain **swap** — the
+       ERR-002 / ERR-076 family, which type-checks and yields a
+       well-formed *reversed* arrow — is unspellable-silently at every
+       exact-ctor site.  Endomorphism sugar (one ``space=`` supplying
+       both) lives on the tier-2 classmethods only.
+       **(2) The dagger is a composition of three first-class legs.**
+       The private ``_AdjointOperator`` was promoted to public
+       :class:`~orpheus.numerics.operator.AdjointOperator` and
+       re-expressed as
+       :math:`A^{*} = \sharp_V \circ A^{\mathsf T} \circ \flat_W` over
+       the new public space verbs
+       :attr:`~orpheus.numerics.space.FunctionSpace.riesz_lower`
+       (:math:`V \to V^{*}`) and
+       :attr:`~orpheus.numerics.space.FunctionSpace.riesz_raise`
+       (:math:`V^{*} \to V`), both PRIMAL-only so the
+       double-metric trap is unspellable.  The dagger laws become
+       structure rather than arithmetic: ``A.H.H is A`` is an OBJECT
+       identity, the #280 swap law stays object identity, and
+       ``apply_transpose`` becomes a THEOREM of the legs
+       (:math:`(A^{*})^{\mathsf T} = \flat_W \circ A \circ \sharp_V`,
+       metrics symmetric by admission) — which closed **#375**.
+       ⚠ Note the honest round-trip law:
+       ``riesz_raise ∘ riesz_lower`` is :math:`P_{\mathrm{range}(G)}`,
+       the identity on the bulk and the **tangential-zeroing
+       projector** on a trace block, so an ``== id`` gate would be both
+       blind on the ledger's own fixtures (`[M]` pre-carve: all four
+       carry zero tangential slots, while a legal 2-D ``product(4,4)``
+       mesh has 32 of 64 and a trace defect of 2.87) and a false red in
+       production; a singular-metric fixture ships with the legs.
+       Splitting the paired metric mutation into
+       single legs took the ledger battery from **9 of 20** to **20 of
+       20** rows red — the mechanism being that the paired drop is a
+       SIMILARITY, invisible wherever the leaf commutes with the metric,
+       while a single-leg drop is not.  The battery re-measures itself:
+       ``test_monomorphic_leaves.py``
+       ``::test_each_riesz_leg_is_individually_load_bearing``.
+       **(3) C is rebound** on the new base (its ``from_mesh`` demoted
+       to tier-2 sugar with a bottoming-out refusal), flipping the
+       first two ledger rows.
+     - campaign 2
+       (CS4c steps 1–2)
+     - ``68a9c9f3`` (legs + dual + the adjoint re-expression),
+       ``733d96f3`` (the public promotion, 141 occurrences / 43 files),
+       ``9fc8bf04`` (the base + C rebind) — merged; gate `[M]`
+       **10006 / 0** on 13 trees
+   * - in dev
        (2026-08-28)
      - **The streaming operator is POSED with its two closures; the mesh
        is recognised as the save state that supplies them** (un-weld arc,
@@ -1397,7 +1539,12 @@ them.  Trust ``git``, not this column.
        :math:`R\circ(\Lambda_{\ell\ge0}+N_{2n})\circ M` whose transpose
        :math:`M^{T}\circ(\Lambda+N_{2n})^{T}\circ R^{T}` falls out of
        :meth:`OperatorProduct.apply_transpose
-       <orpheus.numerics.operator.OperatorProduct.apply_transpose>` for free;
+       <orpheus.numerics.operator.OperatorProduct.apply_transpose>` for free
+       (⚠ the :math:`N_{2n}` summand **left this composite** at CS4c
+       step 3, 2026-08-30 — the conjugation is scattering-only today
+       and the :math:`(n,2n)` transpose belongs to its own operator;
+       see the CS4c entry at the top of this table and
+       :ref:`sn-n2n-adjoint`);
        the operator advertises ``CAP_APPLY_TRANSPOSE`` and the
        "no ``apply_transpose``" confession is retired.  Because the forward
        keeps the scalar fast-path, the frame-form :math:`S^{T}` is

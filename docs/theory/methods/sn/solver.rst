@@ -11,13 +11,24 @@ converged flux, the frame projections (homogenisation, condensation)
 that hand a coarse problem back to the same solver.
 
 At construction time :class:`~orpheus.sn.solver.SNSolver` caches exactly
-**two** operators — the two that are cross-section read-through, and
+**three** operators — the ones that are cross-section read-through, and
 therefore survive a rebind untouched:
 
 * :attr:`SNSolver.scattering_op` —
   :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
-  carrying the P0 + (n,2n) + Pℓ Galerkin reconstruction (Wave D
+  carrying the P0 in-scatter + the Pℓ Galerkin reconstruction (Wave D
   Issue 13).
+* :attr:`!SNSolver.n2n_op` —
+  :class:`~orpheus.transport.operators.n2n.N2NOperator`, the
+  :math:`(n,2n)` emission.  It was a **passenger inside**
+  ``scattering_op`` until CS4c step 3 (2026-08-30), when the channel
+  became first-class because its bundling — scattering-like or
+  production-like — is context-dependent and must not be decided at
+  the operator level (:ref:`n2n-reactions`, :ref:`sn-n2n-adjoint`).
+  Both within-group builds are threaded the pair, and every
+  ``(n,2n)`` verb on the solver (the group-rate accumulations, the
+  legacy ``_add_n2n_source`` delegator) routes through its energy
+  binding's field.
 * :attr:`SNSolver.fission_op` —
   :class:`~orpheus.transport.operators.fission.FissionOperator`
   carrying the rank-1-in-energy fission emission (Wave D Issue 13).

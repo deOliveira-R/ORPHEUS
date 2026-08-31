@@ -822,14 +822,20 @@ Source / RHS vocabulary
 -----------------------
 
 The five-operator algebra — :math:`A\,\psi = q` for a fixed source, with
-the loss composite :math:`A = L + C - S - B` — has a
+the loss composite :math:`A = L + C - S - N_{2n} - B` — has a
 typed RHS.  The "source" :math:`q` is a deliberate split into
 direction-independent (``ScalarSourceSink``) and per-ordinate
 (``AngularSourceSink``) contributions — the within-group sweep (the
 resolvent ``solve``) consumes both, and the
-internal P₀ + (n,2n) accumulation in
+internal P₀ accumulation in
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` emits the first
-while the P\ :sub:`ℓ≥1` accumulation emits the second.
+while the P\ :sub:`ℓ≥1` accumulation emits the second.  The
+:math:`(n,2n)` emission is likewise scalar-driven, and since CS4c
+step 3 it is emitted by its own
+:class:`~orpheus.transport.operators.n2n.N2NOperator` rather than
+accumulated inside :math:`S` (:ref:`n2n-reactions`); both isotropic
+producers reach the per-ordinate carrier through the ONE shared
+``(iso / W) + aniso`` combine.
 
 .. list-table:: Source / RHS field types
    :header-rows: 1

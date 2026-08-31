@@ -1237,8 +1237,9 @@ class TestAnisoMomentSourcePath:
     * the windowed moment-iterate ``apply`` arm — whose iterate bulk IS
       ``φ`` (the 2-D Cartesian angular-windowing SI iterate), so ``M`` is
       already done; the P4 carve made it the EXPLICIT typed grid path
-      ``Λ : HarmonicMomentFlux → HarmonicMomentSourceSink`` then
-      ``frame.reconstruct : HarmonicMomentSourceSink → AngularSourceSink``
+      ``Λ : HarmonicMomentFlux → HarmonicMomentSourceSink`` then the
+      minted ``source_reconstruction`` face (``HarmonicMomentSourceSink →
+      AngularSourceSink``; the frame-level ``reconstruct`` verb retired at F-1)
       (the role-changing edge materialised as a typed carrier).
 
     The ndarray ``R∘Λ`` reference
@@ -1250,7 +1251,7 @@ class TestAnisoMomentSourcePath:
     reference captured BEFORE the kernel ever existed).  This class adds
     the load-bearing Phase-5a guard: the moment ``apply`` arm reproduces
     the full-angular arm bit-for-bit, plus a sentinel that the windowed arm
-    actually executes the typed ``frame.reconstruct``.
+    actually executes the typed minted reconstruction face.
     """
 
     @pytest.fixture

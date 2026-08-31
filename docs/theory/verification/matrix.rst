@@ -896,7 +896,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **568** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **571** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1380,6 +1380,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-mg-eigenvalue-posing-eq``
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``
+- ``sn-n2n-adjoint-source``
+- ``sn-n2n-isotropic-lift``
 - ``sn-one-measure-down``
 - ``sn-p49a-march-forms``
 - ``sn-pole-cell-shell-average``
@@ -1394,6 +1396,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-streaming-reciprocity``
 - ``sn-tau-mm-raw``
 - ``sn-within-group-system``
+- ``sn-within-group-with-n2n``
 - ``solve-does-not-distribute``
 - ``sood-eq18-1g-balance``
 - ``sood-eq19-kinf-1g``

@@ -66,7 +66,7 @@ G1.3         **RED on ``B`` only** (**R6**)    ``L``/``C``/``S``/``F`` raise a
                                               ``SNBoundaryOperator`` raises
                                               ``AttributeError: 'CoupledField'
                                               object has no attribute
-                                              'interior'`` (``boundary.py:343``)
+                                              'interior'`` (``boundary.py:714``)
 G1.4         **GREEN**                         residual ≤ 4.5e-14 across every
                                               leaf × geometry (rtol 1e-12 ⟹ 22×
                                               headroom)
@@ -268,7 +268,7 @@ _R6_XFAIL = pytest.mark.xfail(
         "typed TypeError naming themselves and the carrier they wanted, while "
         "SNBoundaryOperator leaks a raw `AttributeError: 'X' object has no "
         "attribute 'interior'` from the unguarded read at "
-        "sn/operators/boundary.py:343. Flipped by campaign P1/P2 (the leaf "
+        "sn/operators/boundary.py:714 (inside `_apply_faces` — the :343 the marker used to cite is the `_face_laws` docstring; re-pointed per plan §8.2). Flipped by campaign P1/P2 (the leaf "
         "declares its arrow and refuses uniformly). WHEN THIS XPASSES: the "
         "guard has been unified — delete this marker."
     ),
@@ -854,7 +854,7 @@ def test_wrong_carrier_refusal_is_typed_and_names_the_operator(
             f"{type(op).__name__} refused a {carrier} carrier with a raw "
             f"{type(exc).__name__}: {str(exc)[:120]!r}. The refusal must be a "
             f"typed TypeError naming the operator and the expected carrier "
-            f"(R6 — boundary.py:343 reads `psi.interior` unguarded)."
+            f"(R6 — boundary.py:714 reads `psi.interior` unguarded)."
         )
     else:
         pytest.fail(

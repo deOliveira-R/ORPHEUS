@@ -284,15 +284,20 @@ Group coupling: S and F, unchanged
 All :math:`g' \to g` mixing lives in the two operators
 :doc:`slab_multigroup` derived, and neither has a curvilinear term:
 
-* **Scattering** is the conjugation :math:`S = R \circ (\Lambda +
-  N_{2n}) \circ M` — project to moments, transfer on the group axis,
-  reconstruct.  The group-asymmetric factor is *exactly one*:
+* **Scattering** is the conjugation :math:`S = R \circ \Lambda \circ M`
+  — project to moments, transfer on the group axis, reconstruct.  The
+  group-asymmetric factor is *exactly one*:
   :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`,
-  the per-:math:`\ell` cross-section matmul on the energy axis (with
-  the distinct :math:`\ell = 0` secondary-emission transfer
-  :math:`2\Sigma_{2n}` on the same slot,
-  :ref:`n2n-reactions`).  The projection and reconstruction faces are
-  quadrature objects — group-blind.
+  the per-:math:`\ell` cross-section matmul on the energy axis.  The
+  projection and reconstruction faces are quadrature objects —
+  group-blind.
+* **The** :math:`(n,2n)` **secondary emission** is a *separate*
+  within-group gain :math:`N_{2n}` on the same energy slot, likewise
+  with no curvilinear term (:ref:`n2n-reactions`; its lift and
+  transpose at :ref:`sn-n2n-adjoint`).  It rode inside :math:`S`'s
+  conjugation as an :math:`\ell = 0` summand,
+  :math:`S = R\circ(\Lambda + N_{2n})\circ M`, until the CS4c step-3
+  extraction on 2026-08-30.
 * **Fission** is the rank-1-in-energy dyad :math:`F = \chi \otimes
   \nu\Sigma_f` — a contraction over groups followed by a broadcast
   across the emission spectrum — and it never enters the swept

@@ -241,7 +241,8 @@ triangular factor; they differ only in which is the unknown.
    detail of the composite because the algebra builds :math:`(L+C)`
    **from** it — ``L + C`` dispatches one-directionally on the streaming
    operator — and because :math:`L` is the operand every other
-   within-group composite (:math:`L + C - S`, :math:`L + C - S - B`) is
+   within-group composite (:math:`L + C - S`,
+   :math:`L + C - S - N_{2n} - B`) is
    assembled from. Declaring only the composite would leave the
    equation's own left-hand factor unlinked.
 
