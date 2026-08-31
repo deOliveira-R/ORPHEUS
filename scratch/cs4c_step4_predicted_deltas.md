@@ -33,3 +33,20 @@ Baseline (§15): **10079 passed / 0 failed / 19 skipped / 66 xfailed**, 13 trees
 - tests/sn/solve/test_sn_adjoint_certification.py patches FissionOperator.apply_transpose
   (3 sites) — the adjoint solve's F routing changed homes; EXPECT these to need
   re-keying to the live surface (check in the sn tree run).
+
+## Battery B-4 — RUN 2026-08-31, in-process plugin arms (crash-safe by construction: subprocess-only mutation, no disk writes)
+
+Scope: test_kernels.py + test_isotropic_fission.py + test_fission_adjoint.py + test_fission_kernel_crosscheck.py (91 rows).
+
+| arm | mutation | measured verdict |
+|---|---|---|
+| B4.1 positive control | `FissionKernel.dyad` → zeros | **2 reds** — G1.7 (dyad-direction theorem) + G-F1 law row. ⚠ NOT "broad" as the plan predicted: `dyad()` is the oracle VIEW; the production route consumes the gathered FACTORS directly (kernel.chi/nu_sig_f), by design (`kernels.py` dyad docstring). The harness-alive role is served; the broad control is B4.6. |
+| B4.2/3/4 wrong-morphism | in-gate CTRL rows | [M] separations restated in the gate (6.421e-1 / 1.685e0 / 7.087e-2); red-capable at the landing commit with no production change (§6c). |
+| B4.5 degenerate target | in-gate | 2 precondition-red rows (1-fine-per-coarse + flat-φ) green as refusal tests. |
+| B4.6 factor swap | `gather_chi` ↔ `gather_nu_sig_f` | **11 reds** across the four modules (G-F2, hand-rolled forward + dual-dyad transpose, the flip control, adjoint rows) — the broad catcher, multiple independent routes. |
+
+## Test-count arithmetic additions (4d)
+| change | tree | delta |
+|---|---|---|
+| G-F1 (law + 3 CTRL params + 2 B4.5 rows) | transport | +6 |
+| G-F2 | transport | +1 |

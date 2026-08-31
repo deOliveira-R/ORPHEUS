@@ -855,3 +855,190 @@ def test_fission_space_is_mandatory():
         FissionOperator.from_solver_data(mat_xs=mat_xs)  # type: ignore[call-arg]
     with pytest.raises(TypeError):
         FissionOperator(mat_xs=mat_xs)  # type: ignore[call-arg]
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# G-F1 — the χ↔νΣf-coupled condensation law (XD-9; CS4c step 4, plan §7)
+# ═════════════════════════════════════════════════════════════════════════
+
+# The shipped 4g→2g fixture of tests/data/test_mixture_condense.py,
+# restated here as hand literals (vv L11: the morphisms below are built
+# in THIS test body from the partition and φ — never frame.project,
+# never a second condense call).
+_XD9_PHI = np.array([1.0, 4.0, 2.0, 0.5])
+_XD9_EG_FINE = np.array([1.0e7, 1.0e5, 1.0e2, 1.0e0, 1.0e-2])
+_XD9_EG_COARSE = np.array([1.0e7, 1.0e2, 1.0e-2])
+_XD9_PARTITION = ((0, 1), (2, 3))  # fine indices per coarse group
+
+
+def _xd9_fine_mixture():
+    from tests.data.test_mixture_condense import _balanced_fissile_4g
+
+    return _balanced_fissile_4g()
+
+
+def _hand_marginalize(vec, partition):
+    """Mass-preserving sink morphism: χ_G = Σ_{g∈G} χ_g (no φ)."""
+    return np.array([sum(vec[g] for g in group) for group in partition])
+
+
+def _hand_average(vec, phi, partition):
+    """Rate-preserving source morphism: ⟨νΣf⟩_G = Σ φ_g νΣf_g / Σ φ_g."""
+    return np.array([
+        sum(phi[g] * vec[g] for g in group) / sum(phi[g] for g in group)
+        for group in partition
+    ])
+
+
+def _assert_condensation_activates(partition, phi):
+    """G-F1's ACTIVATION PRECONDITION, asserted (the
+    ``_assert_metric_is_constant`` pattern — §10's designed-green
+    hazard): every coarse group holds ≥ 2 fine groups AND φ varies
+    within at least one of them. On a 1-fine-per-coarse target
+    ``average ≡ marginalize/width`` degenerates and CTRL-A/CTRL-C go
+    silent — an identity condensation must be REFUSED as a fixture, so
+    the gate cannot silently stop being discriminating."""
+    if any(len(group) < 2 for group in partition):
+        raise ValueError(
+            "G-F1 activation precondition: every coarse group must hold "
+            ">= 2 fine groups (a 1-fine-per-coarse target makes the "
+            "average/marginalize discrimination vacuous)"
+        )
+    phi = np.asarray(phi, dtype=float)
+    if all(
+        np.allclose(phi[list(group)], phi[group[0]]) for group in partition
+    ):
+        raise ValueError(
+            "G-F1 activation precondition: the spectrum is flat within "
+            "every coarse group — the average degenerates to the "
+            "marginalize direction and the controls go silent"
+        )
+
+
+class TestFissionCondensationGF1:
+    r"""**G-F1** — ``dyad(condense(K)) == outer(marginalize(χ), average(νΣf))``.
+
+    The χ↔νΣf-coupled condensation (XD-9): the conjugation is ASYMMETRIC
+    by design — the sink (χ, ``g_to``) axis MARGINALIZES (mass-preserving)
+    and the source (νΣf, ``g_from``) axis AVERAGES (rate-preserving,
+    φ-weighted). ⚠ BRANCH DECLARATION: this pins the FORWARD branch
+    (``adjoint_spectrum is None``); the bilinear branch folds the adjoint
+    carrier into the sink and obeys a DIFFERENT law (plan §1.4).
+
+    The three negative controls are the measured wrong-morphism pairs
+    ([M] 2026-08-30, plan §7.1: CTRL-A 6.421e-1 / CTRL-B 1.685e0 /
+    CTRL-C 7.087e-2) — hand-built and red-capable at the landing commit
+    with no production change (§6c: the witness ships WITH the gate).
+    """
+
+    def _condensed_dyad(self):
+        from orpheus.data.energy_grid import EnergyGrid
+
+        fine = _xd9_fine_mixture()
+        coarse = fine.condense(EnergyGrid(_XD9_EG_COARSE), _XD9_PHI)
+        return FissionKernel.from_mixture(coarse).dyad()
+
+    def test_law_ruled_morphism_pair(self):
+        _assert_condensation_activates(_XD9_PARTITION, _XD9_PHI)
+        fine = _xd9_fine_mixture()
+        expected = np.outer(
+            _hand_marginalize(np.asarray(fine.chi), _XD9_PARTITION),
+            _hand_average(np.asarray(fine.SigP), _XD9_PHI, _XD9_PARTITION),
+        )
+        np.testing.assert_allclose(
+            self._condensed_dyad(), expected, rtol=1e-14, atol=0.0,
+            err_msg="the condensed fission dyad violates the ruled "
+            "(χ marginalize, νΣf average) morphism pair — the XD-9 "
+            "χ↔νΣf coupling drifted",
+        )
+
+    @pytest.mark.parametrize("ctrl,chi_morph,nu_morph,measured", [
+        ("A", "average", "average", 6.421e-1),
+        ("B", "marginalize", "marginalize", 1.685e0),
+        ("C", "average", "marginalize", 7.087e-2),
+    ])
+    def test_wrong_morphism_controls(self, ctrl, chi_morph, nu_morph, measured):
+        """CTRL-A/B/C: each wrong pair is O(1e-1..1e0) away — the gate's
+        rtol=1e-14 law row reds by >10 orders under any of them."""
+        _assert_condensation_activates(_XD9_PARTITION, _XD9_PHI)
+        fine = _xd9_fine_mixture()
+
+        def morph(vec, which):
+            return (
+                _hand_marginalize(vec, _XD9_PARTITION)
+                if which == "marginalize"
+                else _hand_average(vec, _XD9_PHI, _XD9_PARTITION)
+            )
+
+        wrong = np.outer(
+            morph(np.asarray(fine.chi), chi_morph),
+            morph(np.asarray(fine.SigP), nu_morph),
+        )
+        dyad = self._condensed_dyad()
+        rel = float(np.max(np.abs(dyad - wrong)) / np.max(np.abs(dyad)))
+        if not rel > 1e-2:
+            pytest.fail(
+                f"CTRL-{ctrl} ({chi_morph} χ, {nu_morph} νΣf) sits at "
+                f"rel {rel:.3e} from the production dyad — the control "
+                f"lost its measured O({measured:.2e}) separation and the "
+                f"law row can no longer discriminate this morphism swap"
+            )
+
+    def test_b45_degenerate_target_reds_the_precondition(self):
+        """B4.5 — a 1-fine-per-coarse target must red the ACTIVATION
+        PRECONDITION (proving it is asserted, not assumed): the identity
+        condensation is exactly the fixture on which every control above
+        would go silent (§10's designed-green hazard)."""
+        with pytest.raises(ValueError, match="activation precondition"):
+            _assert_condensation_activates(((0,), (1,), (2,), (3,)), _XD9_PHI)
+
+    def test_b45_flat_spectrum_reds_the_precondition(self):
+        with pytest.raises(ValueError, match="activation precondition"):
+            _assert_condensation_activates(
+                _XD9_PARTITION, np.ones_like(_XD9_PHI),
+            )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# G-F2 — the operator dyad IS the kernel datum (the collapse, documented)
+# ═════════════════════════════════════════════════════════════════════════
+
+
+def test_g_f2_operator_dyad_is_the_kernel_datum_per_material():
+    r"""**G-F2, post-collapse form.** The energy binding's cached dyad
+    factors equal ``FissionKernel.from_mixture(m)`` per material, cell by
+    cell.
+
+    ⚠ NEAR-TAUTOLOGICAL BY DESIGN, and said so (`coding-standards`
+    single-sourcing clause): since CS4c step 4 the operator's factors ARE
+    the gathered kernel datum (a pure index gather), so no input can make
+    the two sides disagree in VALUE — the row's live content is the
+    GATHER PLACEMENT (each material's pair lands in ITS cells; a
+    material-id mixup or a factor-order swap reds). The external pins
+    that keep the datum itself anchored are the hand-written χ/SigP
+    literals in this file's fixtures and the hand-rolled per-cell
+    references in ``test_isotropic_fission.py`` (which red on a factor
+    swap through an INDEPENDENT route — the B4.6 catcher).
+    """
+    from orpheus.transport.operators.isotropic_scattering import (
+        IsotropicFission,
+    )
+
+    mat_xs, mixtures = _two_material_carrier()
+    op = IsotropicFission.from_material_xs(
+        mat_xs, space=mat_xs.mesh.bulk_space,
+    )
+    rank_one = op.kernel.ops[0]
+    chi_gathered = np.asarray(rank_one.reconstruction)
+    nu_gathered = np.asarray(rank_one.functional.weight)
+    for mid, idx in mat_xs.mesh.cells_by_material.items():
+        k = FissionKernel.from_mixture(mixtures[mid])
+        cells = (slice(None), *idx)
+        np.testing.assert_array_equal(
+            chi_gathered[cells],
+            np.broadcast_to(k.chi[:, None], chi_gathered[cells].shape),
+        )
+        np.testing.assert_array_equal(
+            nu_gathered[cells],
+            np.broadcast_to(k.nu_sig_f[:, None], nu_gathered[cells].shape),
+        )

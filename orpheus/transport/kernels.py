@@ -280,13 +280,18 @@ class FissionKernel:
     a non-producing one the null spectrum. ``dataclasses.replace``
     re-runs it (G1.8: replace re-validates).
 
-    **Consumer status (Q2, restated per CS4a-R CEN-1).** This kernel has
-    NO production consumer at CS4a — the shipped fission path
-    (:class:`~orpheus.transport.operators.fission.FissionOperator`) still
-    reads χ/νΣf through its ``MaterialXSField``; the first production
-    consumer is CS4c's rebind of :math:`F` onto this datum. Until then
-    the kernel is gated (``tests/transport/test_kernels.py``) but
-    deliberately unwired.
+    **Consumer status (Q2; updated at CS4c step 4 — the rebind this
+    paragraph awaited LANDED).** The production fission path consumes
+    this datum: every material's pair enters a
+    :class:`~orpheus.transport.material_field.FissionMaterialField`
+    (validated per material by THIS constructor), whose gathered factors
+    feed the energy binding
+    :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+    (the k-outer / homogeneous / diffusion realization) and, through it,
+    the angular composite
+    :class:`~orpheus.transport.operators.fission.FissionOperator` (the
+    frame's :math:`\ell=0` conjugation). The χ↔νΣf-coupled condensation
+    is gated (G-F1, ``tests/transport/test_kernels.py``).
     """
 
     chi: np.ndarray
