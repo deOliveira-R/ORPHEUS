@@ -73,8 +73,17 @@ def _fields_equal(a, b):
         return False
     for mid in a.per_material:
         ka, kb = a.per_material[mid], b.per_material[mid]
-        arrs_a = getattr(ka, "moments", None) or (ka.matrix,)
-        arrs_b = getattr(kb, "moments", None) or (kb.matrix,)
+        def _arrs(k):
+            # per-channel datum arrays: Legendre stack (S), reaction
+            # matrix (N2N), or the factor pair (Fission).
+            if hasattr(k, "moments"):
+                return tuple(k.moments)
+            if hasattr(k, "matrix"):
+                return (k.matrix,)
+            return (k.chi, k.nu_sig_f)
+
+        arrs_a = _arrs(ka)
+        arrs_b = _arrs(kb)
         if len(arrs_a) != len(arrs_b):
             return False
         for x, y in zip(arrs_a, arrs_b):
@@ -214,3 +223,38 @@ class TestSFamilyTierTwoEquivalence:
                 np.testing.assert_equal(len(a), len(b))
             else:
                 np.testing.assert_array_equal(a, b)
+
+
+def test_fission_operator_from_solver_data_equals_the_exact_ctor():
+    """G-C1 row for the ANGULAR fission binding (CS4c step 4): tier-2 ≡
+    the exact ctor on the same inputs — energy binding, hub-interned L=0
+    frame (an IDENTITY, the interning theorem), and both ends."""
+    from orpheus.numerics.space import FunctionSpace
+    from orpheus.transport.frames.harmonic_frame import HarmonicFrame
+    from orpheus.transport.material_field import FissionMaterialField
+    from orpheus.transport.operators.fission import FissionOperator
+    from orpheus.transport.operators.isotropic_scattering import (
+        IsotropicFission,
+    )
+
+    mat_xs = _mat_xs()
+    sn = _sn(mat_xs)
+    space = sn.full_field_space
+    rich = FissionOperator.from_solver_data(mat_xs=mat_xs, space=space)
+    interior = space.interior_space
+    assert interior is not None and interior.axes is not None
+    scalar = FunctionSpace.of_axes(*interior.axes[1:])
+    exact = FissionOperator(
+        IsotropicFission(
+            FissionMaterialField.from_material_xs(mat_xs),
+            domain=scalar, codomain=scalar,
+        ),
+        frame=HarmonicFrame.for_space(interior, 0),
+        domain=space, codomain=space,
+    )
+    if not (rich.domain is exact.domain and rich.codomain is exact.codomain):
+        pytest.fail("F ends drifted")
+    if rich.frame is not exact.frame:
+        pytest.fail("F frame drifted from the interned hub route")
+    if not _fields_equal(rich.energy.fission, exact.energy.fission):
+        pytest.fail("F energy binding drifted from the ctor route")

@@ -50,3 +50,23 @@ Scope: test_kernels.py + test_isotropic_fission.py + test_fission_adjoint.py + t
 |---|---|---|
 | G-F1 (law + 3 CTRL params + 2 B4.5 rows) | transport | +6 |
 | G-F2 | transport | +1 |
+
+## FINAL per-tree predictions (pre-registered 2026-08-31, before the exit gate; [M] baselines from scratch/_cs4c3_fast_gate.log, module deltas measured by --collect-only at HEAD vs 4c613ce7)
+
+| tree | baseline | predicted | delta source |
+|---|---|---|---|
+| numerics | 2538 | 2538 | test_iteration re-keys are body-swaps, count-neutral |
+| transport | 630 / 1sk | **645 / 1sk** | +7 material_field ([M] 28→35) +7 kernels ([M] 53→60: G-F1 ×4 + B4.5 ×2 + G-F2) +1 tier-2 G-C1 angular-F row (added post-registration, pre-gate — [M] 7→8 in test_tier2_equivalence_s_family.py) |
+| geometry | 727 / 4sk / 1xf | unchanged | — |
+| data | 227 | unchanged | — |
+| homogeneous | 50 | unchanged | re-keys count-neutral |
+| diffusion | 113 | unchanged | re-key count-neutral |
+| cp | 141 | unchanged | — |
+| moc | 121 | unchanged | — |
+| mc | 39 / 2xf | unchanged | — |
+| cross_method | 81 | unchanged | — |
+| sn | 3361 / 1sk / 47xf | **3373** | +12 test_isotropic_fission (NEW); n2n [M] 10→10; every other re-key body-swap |
+| derivations | 1637 / 13sk / 11xf | unchanged | — |
+| root+harness | 414 / 5xf | 414 **± label delta** | the P7 lesson: the documented-label registry gate gains a param per new equation label — RESOLVE from the archivist's return BEFORE the readout, not after |
+
+**Total: 10106 / 0 / 19sk / 66xf (+ label-gate delta), 13 trees rc=0.**
