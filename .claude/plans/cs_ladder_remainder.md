@@ -220,9 +220,10 @@ MERGED @ `600c5c80`; **step 4 MERGED @ `b25f9006`** (13-tree gate [M]
 **10106/0/19sk/66xf**, reconciled exact against pre-registration; the F
 rebind — FissionMaterialField + IsotropicFission + the frame-ℓ=0
 FissionOperator, every consumer honest, N2N harmonized, G-F1/G-F2 +
-battery B-4, the archivist's 19-page corpus pass). The LIVE execution
-surface is `.claude/plans/cs4c_binding_design.md` — **§16.8** is the
-step-4 close-out with the new baseline and the PARKED factory ruling;
-§15/§13 are superseded history. Next: the step-5 design round (arm
-deletion + construction-time body selection), which also owes the
-#306-item-2 adjudication and the factory-redirect ruling.
+battery B-4, the archivist's 19-page corpus pass). The LIVE resume
+surface is `.claude/plans/cs4c_binding_design.md` — its **§17
+COMPACTION POINT #3** carries the step-5 resume block (goal, the three
+owed design-round rulings, the feeding-census staleness warning, the
+[M] anchors, standing constraints); §16.8 is the step-4 close-out;
+§15/§13 are superseded history. Re-anchor at §17, never from a
+summary.
