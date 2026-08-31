@@ -215,10 +215,14 @@ ground memo §B.4).
 
 ---
 
-**⏸ STATUS 2026-08-30 (compaction point #2):** CS4c steps 1+2 MERGED @
-`9fc8bf04`; **step 3 MERGED @ `600c5c80`** (13-tree gate [M]
-10079/0/19sk/66xf; the S rebind + the §14.1 N2N extraction + O-6 +
-XD-1/XD-2; R1-S/R2-S flipped). The LIVE execution surface is
-`.claude/plans/cs4c_binding_design.md` — its **§15 COMPACTION POINT #2**
-carries the step-4 resume block (§13 is superseded history); re-anchor
-there, never from a summary.
+**⏸ STATUS 2026-08-31:** CS4c steps 1+2 MERGED @ `9fc8bf04`; step 3
+MERGED @ `600c5c80`; **step 4 MERGED @ `b25f9006`** (13-tree gate [M]
+**10106/0/19sk/66xf**, reconciled exact against pre-registration; the F
+rebind — FissionMaterialField + IsotropicFission + the frame-ℓ=0
+FissionOperator, every consumer honest, N2N harmonized, G-F1/G-F2 +
+battery B-4, the archivist's 19-page corpus pass). The LIVE execution
+surface is `.claude/plans/cs4c_binding_design.md` — **§16.8** is the
+step-4 close-out with the new baseline and the PARKED factory ruling;
+§15/§13 are superseded history. Next: the step-5 design round (arm
+deletion + construction-time body selection), which also owes the
+#306-item-2 adjudication and the factory-redirect ruling.
