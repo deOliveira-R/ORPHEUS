@@ -254,10 +254,14 @@ isotropic emission kernel :math:`K`, and the reconstruction of that
 injection**: :math:`A_{BA}` is generic over any ``ndarray → ndarray``
 emitter carrying ``apply``/``apply_transpose``. The production
 instantiation passes the scattering
-:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_kernel`
-(:math:`K_{\rm iso} = \Sigma_{s0} + 2\Sigma_{2n}`) — the **same shared
-object** the bulk scattering gain uses, so the emission is single-sourced
-(one shared kernel call, never a twin re-implementation of
+the solver-composed :math:`K_{\rm iso} =
+\Sigma_{s0} + \nu_{2n}\Sigma_{2n}` — assembled at the ONE within-group
+construction site as
+:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_energy`
+``+`` :attr:`~orpheus.transport.operators.n2n.N2NOperator.energy` (CS4c
+§14.1: the two cached energy bindings the bulk gains also consume), so
+the emission is single-sourced per LEAF (one shared kernel object per
+channel, never a twin re-implementation of
 :math:`\Sigma_{s0}^{\mathsf T}\phi`).
 
 .. vv-status: coupled-ba-emission documented

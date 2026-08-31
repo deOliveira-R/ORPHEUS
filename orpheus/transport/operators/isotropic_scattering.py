@@ -174,7 +174,7 @@ def _assemble_iso_energy_operator(
     **Group-impulse extraction — one source with the production
     kernel.** The per-cell energy blocks are read THROUGH the
     operator's own bare-ndarray ``apply`` (the einsum kernels
-    ``apply_p0_in_scatter`` / ``apply_n2n``): impulse ``g'`` is the
+    ``add_p0_source`` / ``add_emission``): impulse ``g'`` is the
     field ``e_{g'} ⊗ 1_cells``, whose image column IS every cell's
     block column ``M_cell[:, g']`` exactly (unit inputs make the
     kernel's products coefficient reads — no summation error). ng
@@ -348,7 +348,7 @@ class IsotropicScattering(BoundOperator):
         Returns ``{mid: M}`` with ``M @ φ_cell == apply(φ)_cell``, i.e.
         ``M = sig_s0.T`` (``sig_s0`` is stored ``[g_from, g_to]``), read
         DIRECTLY off the stored cross sections — structurally independent
-        of the :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.apply_p0_in_scatter`
+        of the :meth:`~orpheus.transport.material_field.ScatteringMaterialField.add_p0_source`
         einsum that realizes :meth:`apply`.  That independence is this
         method's job: the verification gates use it as the
         transpose-convention oracle for ``apply``/``apply_transpose``
@@ -376,7 +376,7 @@ class IsotropicN2N(BoundOperator):
     NOT scattering — kept its own operator (physics-faithful; it also feeds the keff
     *production* numerator) and summed with :class:`IsotropicScattering` for the
     isotropic in-scatter source. Routes through
-    :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.apply_n2n`
+    :meth:`~orpheus.transport.material_field.N2NMaterialField.add_emission`
     (Pattern 2).
 
     Parameters

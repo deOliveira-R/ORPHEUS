@@ -193,12 +193,10 @@ class _EmissionKernel(Protocol):
     A **structural** contract (no nominal base): the bare
     :class:`~orpheus.numerics.operator.LinearOperator` Protocol does NOT surface
     ``apply_transpose`` — that is a runtime capability of *adjointable* operators
-    only (#276 P3; the same reason
-    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_kernel`
-    is annotated as the concrete ``OperatorSum``, not ``LinearOperator``, so the
-    checker sees the transpose). ``A_BA`` needs BOTH directions, so it types its
-    kernel by the capability it consumes. Satisfied by the scattering
-    ``isotropic_kernel`` (``K_iso`` = an ``OperatorSum``) and the fission
+    only (#276 P3). ``A_BA`` needs BOTH directions, so it types its
+    kernel by the capability it consumes. Satisfied by the solver-composed
+    ``K_iso`` (``S.isotropic_energy + N2N.energy`` — an ``OperatorSum``
+    of the two cached energy bindings, CS4c §14.1) and the fission
     ``kernel`` (the rank-1 ``χ ⊗ νΣf`` dyad).
     """
 
@@ -1293,9 +1291,12 @@ class RadialCharacteristicEmission(LinearOperator):
     **Generic over the emission kernel.** What distinguishes a bulk→ray
     emission coupling is only its emission kernel :math:`K` — an ``ndarray →
     ndarray`` operator (``(ng, nx) → (ng, nx)``) with ``apply`` /
-    ``apply_transpose``.  The SCATTERING coupling passes
-    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_kernel`
-    (``K_iso`` — the production consumer, a within-group lagged gain); the
+    ``apply_transpose``.  The SCATTERING coupling passes the
+    solver-composed ``K_iso`` —
+    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_energy`
+    ``+`` :attr:`~orpheus.transport.operators.n2n.N2NOperator.energy`
+    (assembled at the one within-group construction site, CS4c §14.1;
+    the production consumer, a within-group lagged gain); the
     fission dyad
     :attr:`~orpheus.transport.operators.fission.FissionOperator.kernel`
     (``χ ⊗ νΣf``) is a smoke-verified SECOND kernel that exercises the same
@@ -1345,11 +1346,11 @@ class RadialCharacteristicEmission(LinearOperator):
     emission_kernel : LinearOperator
         The operator's isotropic :math:`\ell = 0` emission kernel :math:`K`,
         an ``ndarray → ndarray`` map ``(ng, nx) → (ng, nx)`` with
-        ``apply``/``apply_transpose``. In production pass
-        ``scattering_op.isotropic_kernel`` (``K_iso``) — the SAME shared object
-        the bulk scattering gain uses, so the emission is single-sourced
-        (computed once in ``S``'s bulk arm and once here — one shared kernel
-        call, not a twin). ``fission_op.kernel`` is accepted (the machinery is
+        ``apply``/``apply_transpose``. In production pass the
+        solver-composed ``K_iso`` (``S.isotropic_energy + N2N.energy``,
+        CS4c §14.1) — sharing the two cached energy-binding LEAVES the
+        bulk gains consume, so the emission is single-sourced per channel
+        (one shared kernel object each, not a twin). ``fission_op.kernel`` is accepted (the machinery is
         kernel-generic) but fission's production ray seed rides the outer
         ``q_ext`` seam as a direct ``Fold``, NOT through this operator (see
         the class docstring — routing it here would double-apply

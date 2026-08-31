@@ -276,7 +276,7 @@ class TestBitIdenticalExtractionP0:
 
         np.testing.assert_array_equal(
             got, ref,
-            err_msg="isotropic_kernel.apply (#276 P2 production iso path) must "
+            err_msg="the solver-composed K_iso (#276 P2 → §14.1) must "
             "equal the legacy add_iso_source + add_n2n_source accumulation (0-ULP).",
         )
 

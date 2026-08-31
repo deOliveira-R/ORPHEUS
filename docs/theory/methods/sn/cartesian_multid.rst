@@ -1898,13 +1898,16 @@ the three scattering producers in
    * - Producer
      - Subscript (pre-S3 :math:`\to` S3)
      - What it scatters
-   * - :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.apply_p0_in_scatter`
+   * - :meth:`~orpheus.transport.material_field.ScatteringMaterialField.add_p0_source`
+       (né ``MaterialXSField.apply_p0_in_scatter`` until CS4c step 3's O-6 move)
      - ``"fg,fc->gc"`` :math:`\to` ``"fg,fc...->gc..."``
      - the P0 in-scatter :math:`\Sigma_{s,0}^{\mathsf T}\phi`
-   * - :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.apply_n2n`
+   * - :meth:`~orpheus.transport.material_field.N2NMaterialField.add_emission`
+       (né ``apply_n2n``)
      - ``"fg,fc->gc"`` :math:`\to` ``"fg,fc...->gc..."``
-     - the :math:`(n,2n)` source :math:`2\Sigma_{2n}^{\mathsf T}\phi`
-   * - :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.apply_legendre_scattering_moments`
+     - the :math:`(n,2n)` source :math:`\nu_{2n}\Sigma_{2n}^{\mathsf T}\phi`
+   * - :meth:`~orpheus.transport.material_field.ScatteringMaterialField.moment_source`
+       (né ``apply_legendre_scattering_moments``)
      - ``"mfc,fg->mgc"`` :math:`\to` ``"mfc...,fg->mgc..."``
      - the per-:math:`\ell` block-diagonal :math:`\Lambda\phi`
 
@@ -1934,7 +1937,7 @@ no consumer special-cases the axis.  Two properties follow by construction:
 
 .. warning::
 
-   The crosswalk and the original brief ASSUMED ``apply_p0_in_scatter``
+   The crosswalk and the original brief ASSUMED the P0 arm
    already broadcast over a trailing axis.  It did NOT: the bare ``"fg,fc->gc"``
    hard-codes the cell axis as a single index ``c``, so a rank-3
    ``phi (ng, n_cells, 2^d)`` RAISES (``operand has more dimensions than

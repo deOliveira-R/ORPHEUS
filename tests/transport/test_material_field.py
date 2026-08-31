@@ -12,11 +12,10 @@ Three tiers, deliberately separated:
   as a hand-authored literal ``2.0`` here — the external written-down pin
   that keeps ``N2NKernel.multiplicity`` anchored after XD-2 removes every
   production literal (`coding-standards`, single-sourcing clause).
-* **Transitional facade battery** (``TestVerbsMatchFacadeArms``) — each
-  verb bit-identical to the ``MaterialXSField.apply_*`` arm it replaces,
-  on the SAME extraction fixture.  ⚠ This class RETIRES WITH THE ARMS in
-  step 3c (its reference side is the code being retired); the permanent
-  coverage is the independent-reference tier above, which survives.
+* The transitional facade battery (each verb bit-identical to the
+  ``MaterialXSField.apply_*`` arm it replaced) RETIRED WITH THE ARMS at
+  step 3c, as scheduled at its birth; the permanent coverage is the
+  independent-reference tier.
 """
 from __future__ import annotations
 
@@ -333,78 +332,7 @@ class TestIndependentReference:
         rhs = float(np.sum(a * sf.moment_source_transpose(b, skip_l0=False)))
         np.testing.assert_allclose(lhs, rhs, rtol=1e-12)
 
-
-# ═══════════════════════════════════════════════════════════════════════
-# Transitional facade battery — RETIRES WITH THE ARMS (step 3c)
-# ═══════════════════════════════════════════════════════════════════════
-
-
-class TestVerbsMatchFacadeArms:
-    """Bit-identity of every verb against the ``MaterialXSField`` arm it
-    replaces. ⚠ TRANSITIONAL: the reference side is the code step 3c
-    retires — this class leaves with it; permanent coverage is
-    :class:`TestIndependentReference`."""
-
-    @pytest.mark.parametrize("sm", [0, 4], ids=["scalar", "LD-2^d=4"])
-    def test_p0_pair(self, sm):
-        sf, _, mat_xs = _fields()
-        phi = _phi(sm)
-        Q_new, Q_old = np.zeros_like(phi), np.zeros_like(phi)
-        sf.add_p0_source(Q_new, phi)
-        mat_xs.apply_p0_in_scatter(Q_old, phi)
-        np.testing.assert_array_equal(Q_new, Q_old)
-        Q_new[:], Q_old[:] = 0.0, 0.0
-        sf.add_p0_source_transpose(Q_new, phi)
-        mat_xs.apply_p0_in_scatter_transpose(Q_old, phi)
-        np.testing.assert_array_equal(Q_new, Q_old)
-
-    @pytest.mark.parametrize("sm", [0, 4], ids=["scalar", "LD-2^d=4"])
-    def test_n2n_pair(self, sm):
-        _, nf, mat_xs = _fields()
-        phi = _phi(sm)
-        Q_new, Q_old = np.zeros_like(phi), np.zeros_like(phi)
-        nf.add_emission(Q_new, phi)
-        mat_xs.apply_n2n(Q_old, phi)
-        np.testing.assert_array_equal(Q_new, Q_old)
-        Q_new[:], Q_old[:] = 0.0, 0.0
-        nf.add_emission_transpose(Q_new, phi)
-        mat_xs.apply_n2n_transpose(Q_old, phi)
-        np.testing.assert_array_equal(Q_new, Q_old)
-
-    @pytest.mark.parametrize("sm", [0, 4], ids=["scalar", "LD-2^d=4"])
-    @pytest.mark.parametrize("skip_l0", [True, False], ids=["l>=1", "l>=0"])
-    def test_moment_pair(self, sm, skip_l0):
-        sf, _, mat_xs = _fields()
-        mom = _moments(sm)
-        np.testing.assert_array_equal(
-            sf.moment_source(mom, skip_l0=skip_l0),
-            mat_xs.apply_legendre_scattering_moments(
-                mom, L=_L, skip_l0=skip_l0,
-            ),
-        )
-        np.testing.assert_array_equal(
-            sf.moment_source_transpose(mom, skip_l0=skip_l0),
-            mat_xs.apply_legendre_scattering_moments_transpose(
-                mom, L=_L, skip_l0=skip_l0,
-            ),
-        )
-
-    def test_n2n_moment_pair(self):
-        _, nf, mat_xs = _fields()
-        mom = _moments(seed=17)
-        np.testing.assert_array_equal(
-            nf.moment_emission(mom), mat_xs.apply_n2n_moments(mom),
-        )
-        np.testing.assert_array_equal(
-            nf.moment_emission_transpose(mom),
-            mat_xs.apply_n2n_moments_transpose(mom),
-        )
-
-    def test_group_rate_pair(self):
-        _, nf, mat_xs = _fields()
-        phi = _phi()
-        vol = np.linspace(0.5, 2.0, _NX).reshape(_NX, 1)
-        r_new, r_old = np.zeros(_NG), np.zeros(_NG)
-        nf.add_to_group_rate(r_new, phi, vol)
-        mat_xs.add_n2n_to_group_rate(r_old, phi, vol)
-        np.testing.assert_array_equal(r_new, r_old)
+# (The transitional facade battery — every verb bit-identical to the
+# MaterialXSField arm it replaced — RETIRED WITH THE ARMS at step 3c,
+# as its own docstring scheduled. Permanent coverage: the hand-rolled
+# independent references above.)

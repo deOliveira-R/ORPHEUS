@@ -27,6 +27,14 @@ from typing import Protocol, runtime_checkable
 
 import numpy as np
 
+from orpheus.transport.kernels import N2NKernel
+
+#: The (n,2n) emission multiplicity, read once from its ONE home
+#: (XD-2, CS4c step 3): a float so the walker's weight arithmetic
+#: keeps its dtype path exactly (the ruled MC hoist — a bare literal
+#: here would be the thirteenth home again).
+_N2N_MULTIPLICITY = float(N2NKernel.multiplicity)
+
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 
@@ -444,7 +452,7 @@ def _random_walk(
                 # Analog (n,2n): one reaction sampled per Σ_2n, weight
                 # doubled to represent two emitted neutrons. Exit group
                 # sampled from the Sig2[ig, :] row (convention [from,to]).
-                w *= 2.0
+                w *= _N2N_MULTIPLICITY
                 cum_2 = np.cumsum(sig_2n_row)
                 ig = np.searchsorted(cum_2, rng.random() * sig_2n_sum)
                 ig = min(ig, xs.ng - 1)

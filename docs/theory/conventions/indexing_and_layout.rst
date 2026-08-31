@@ -1756,9 +1756,12 @@ the operator-free ``transport_sweep`` entry at step 6, R-6.1.)
 ScatteringOperator typed action
 -------------------------------
 
-:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.add_iso_source` and
-:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.add_n2n_source` gain
-return-new semantics under typed input:
+:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.add_iso_source`
+gains return-new semantics under typed input (its former (n,2n) sibling
+``add_n2n_source`` retired with the CS4c §14.1 extraction — the channel's
+verbs live on
+:class:`~orpheus.transport.material_field.N2NMaterialField`, raw-array
+in-place):
 
 * Raw ``np.ndarray`` in → mutates in place, returns ``None`` (legacy
   contract preserved).

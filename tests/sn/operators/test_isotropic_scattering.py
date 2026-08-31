@@ -71,25 +71,29 @@ def _phi(nx=6, spatial_moments=0, seed=1):
 
 class TestApplyEqualsFastPath:
     @pytest.mark.parametrize("sm", [0, 4], ids=["scalar", "LD-2^d=4"])
-    def test_p0_apply_is_apply_p0_in_scatter(self, sm):
+    def test_p0_apply_is_the_field_verb(self, sm):
+        """The routing pin (CS4c step 3c: the facade arm retired; the ONE
+        dispatch home is the kernel field's verb)."""
         mat = _mat_xs()
         phi = _phi(spatial_moments=sm)
+        op = IsotropicScattering.from_material_xs(mat, space=mat.mesh.bulk_space)
         ref = np.zeros_like(phi)
-        mat.apply_p0_in_scatter(ref, phi)
+        op.scattering.add_p0_source(ref, phi)
         np.testing.assert_array_equal(
-            IsotropicScattering.from_material_xs(mat, space=mat.mesh.bulk_space).apply(phi), ref,
-            err_msg="IsotropicScattering.apply must route through apply_p0_in_scatter (0-ULP).",
+            op.apply(phi), ref,
+            err_msg="IsotropicScattering.apply must route through the field's add_p0_source (0-ULP).",
         )
 
     @pytest.mark.parametrize("sm", [0, 4], ids=["scalar", "LD-2^d=4"])
-    def test_n2n_apply_is_apply_n2n(self, sm):
+    def test_n2n_apply_is_the_field_verb(self, sm):
         mat = _mat_xs()
         phi = _phi(spatial_moments=sm)
+        op = IsotropicN2N.from_material_xs(mat, space=mat.mesh.bulk_space)
         ref = np.zeros_like(phi)
-        mat.apply_n2n(ref, phi)
+        op.n2n.add_emission(ref, phi)
         np.testing.assert_array_equal(
-            IsotropicN2N.from_material_xs(mat, space=mat.mesh.bulk_space).apply(phi), ref,
-            err_msg="IsotropicN2N.apply must route through apply_n2n (0-ULP).",
+            op.apply(phi), ref,
+            err_msg="IsotropicN2N.apply must route through the field's add_emission (0-ULP).",
         )
 
     def test_sum_equals_inplace_iso_then_n2n(self):
@@ -97,10 +101,12 @@ class TestApplyEqualsFastPath:
         accumulation (``0 + A`` is exact, so the OperatorSum reorders nothing)."""
         mat = _mat_xs()
         phi = _phi()
-        combined = IsotropicScattering.from_material_xs(mat, space=mat.mesh.bulk_space).apply(phi) + IsotropicN2N.from_material_xs(mat, space=mat.mesh.bulk_space).apply(phi)
+        iso_op = IsotropicScattering.from_material_xs(mat, space=mat.mesh.bulk_space)
+        n2n_op = IsotropicN2N.from_material_xs(mat, space=mat.mesh.bulk_space)
+        combined = iso_op.apply(phi) + n2n_op.apply(phi)
         inplace = np.zeros_like(phi)
-        mat.apply_p0_in_scatter(inplace, phi)
-        mat.apply_n2n(inplace, phi)
+        iso_op.scattering.add_p0_source(inplace, phi)
+        n2n_op.n2n.add_emission(inplace, phi)
         np.testing.assert_array_equal(
             combined, inplace,
             err_msg="The OperatorSum order (P0 + n2n) must match the in-place accumulation.",

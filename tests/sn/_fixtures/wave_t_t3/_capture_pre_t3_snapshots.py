@@ -2,7 +2,7 @@
 
 Captures the numerical output of `ScatteringOperator.apply` (each
 dispatch arm), `ScatteringOperator.build_aniso_source`, and
-`MaterialXSField.apply_legendre_scattering_moments` on deterministic
+`ScatteringMaterialField.moment_source` (né the facade arm) on deterministic
 fixtures, BEFORE the T.3 lift rewires `build_aniso_source` to use the
 `SumOfTensorProductsOperator` kernel.  The captured arrays are loaded
 back by the L1-1..L1-4 and L6-1..L6-2 tests in
@@ -210,7 +210,9 @@ def main() -> None:
 def _capture_legendre_moments(
     solver: SNSolver, psi: AngularFlux, L: int,
 ) -> np.ndarray:
-    """Apply MaterialXSField.apply_legendre_scattering_moments at order L."""
+    """Apply the per-ℓ moment verb at order L (CS4c 3c: the arm moved to
+    ScatteringMaterialField.moment_source — same einsum leaf; the FROZEN
+    snapshot is the anchor, this script only documents provenance)."""
     from orpheus.transport.fields.harmonic_moment_flux import (
         HarmonicMomentFlux,
     )

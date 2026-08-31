@@ -287,7 +287,7 @@ gives the **multi-group neutron balance** for group :math:`g`:
    :by: orpheus.moc.core.MOCSolver.solve_fixed_source
 
 .. implements:: mg-balance
-   :by: orpheus.transport.mesh.material_xs_field.MaterialXSField.apply_p0_in_scatter
+   :by: orpheus.transport.material_field.ScatteringMaterialField.add_p0_source
 
 .. implements:: mg-balance
    :by: orpheus.transport.operators.fission.FissionOperator.apply

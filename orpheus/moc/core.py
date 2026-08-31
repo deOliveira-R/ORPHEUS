@@ -16,6 +16,8 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from orpheus.transport.kernels import N2NKernel
+
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.numerics.convergence import (
     IterationBudget,
@@ -181,7 +183,7 @@ class MOCSolver:
             Q = np.empty((nr, ng))
             for i in range(nr):
                 scatter = self.sig_s0[i].T @ phi[i, :]
-                n2n = 2.0 * self.sig2[i].T @ phi[i, :]
+                n2n = N2NKernel.multiplicity * self.sig2[i].T @ phi[i, :]
                 Q[i, :] = (fission_source[i, :] + scatter + n2n) / (4.0 * np.pi)
 
             # Q / sig_t (asymptotic angular flux per region)
@@ -313,7 +315,8 @@ class MOCSolver:
         for i in range(nr):
             sig2_out = np.array(self.sig2[i].sum(axis=1)).ravel()
             total_prod += (
-                (self.sig_p[i, :] + 2 * sig2_out) @ phi[i, :] * geom.region_areas[i]
+                (self.sig_p[i, :] + N2NKernel.multiplicity * sig2_out)
+                @ phi[i, :] * geom.region_areas[i]
             )
         if total_prod > 0:
             phi *= 1.0 / total_prod
@@ -363,7 +366,9 @@ class MOCSolver:
             phi_i = flux_distribution[i, :]
             sig2_out = np.array(self.sig2[i].sum(axis=1)).ravel()
             p_rate += self.sig_p[i, :] @ phi_i * A_i
-            removal_rate += (self.sig_a[i, :] - 2.0 * sig2_out) @ phi_i * A_i
+            removal_rate += (
+                self.sig_a[i, :] - N2NKernel.multiplicity * sig2_out
+            ) @ phi_i * A_i
         return p_rate / removal_rate if removal_rate > 0 else 1.0
 
     def measure_stopping_criteria(

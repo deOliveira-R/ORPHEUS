@@ -36,11 +36,13 @@ dict plus the spatial distribution carried by the :class:`SNMesh`'s
   ``cells_by_material``) — for operations that genuinely exploit
   per-material structure (group-coupling matmul on small ``(ng, ng)``
   matrices, anisotropic moment scattering).
-* **Named typed verbs** (``apply_p0_in_scatter``, ``apply_n2n``,
+* **The named typed verbs** (``apply_p0_in_scatter``, ``apply_n2n``,
   ``apply_legendre_scattering_moments``, ``add_n2n_to_group_rate``)
-  — the lifted-up forms of the formerly-leaked per-material dispatch
-  loops.  Each verb captures one piece of math and reads as the
-  domain (``coding-elegance`` Pattern 1 + Pattern 3).
+  lived here from PR-TYPED-1 until CS4c step 3 (2026-08-30, O-6/R13):
+  they are now the KERNEL FIELDS' array verbs
+  (:mod:`orpheus.transport.material_field` — the per-material dispatch
+  loop written once over the representation-free channel data, einsums
+  verbatim, the (n,2n) multiplicity read from its one home).
 
 Composability framing (the user's three operations):
 
@@ -65,14 +67,12 @@ Capability matrix (which sites collapsed):
 ==========  ============================================  =================================
 Old site    Old pattern                                   New call
 ==========  ============================================  =================================
-scattering  ``for mid in cells_by_mat: ... add ...``      :meth:`apply_p0_in_scatter`
-scattering  ``for mid in cells_by_mat: ... 2 · sig2 ...`` :meth:`apply_n2n`
-scattering  ``for mid in cells_by_mat: sig_s[mid][l] @ M``:meth:`apply_legendre_scattering_moments`
+scattering  ``for mid in cells_by_mat: ... add ...``      the field verbs (CS4c: ``ScatteringMaterialField.add_p0_source`` etc.)
 scattering  ``for mid in sig_s.items(): np.diag(...)``    :meth:`foldable_sig_s` (helper)
 scattering  ``for mid in sig_s.items(): off-diag``        :meth:`residual_sig_s` (helper)
 scattering  ``for mid in sig_s.items(): np.allclose(...)``:meth:`is_p0_diagonal_with_zero_n2n`
 scattering  ``for mid in sig_s.items(): diag(...)``       :meth:`foldable_sigma`
-solver      ``for mid in _cells_by_mat: sig2 ...``        :meth:`add_n2n_to_group_rate`
+solver      ``for mid in _cells_by_mat: sig2 ...``        ``N2NMaterialField.add_to_group_rate`` (CS4c)
 ==========  ============================================  =================================
 
 Units (the discipline that physics code make units explicit, per
@@ -645,7 +645,8 @@ class MaterialXSField:
         This is the single index map the formerly-leaked per-material
         dispatch loops keyed on.  Most consumers should NOT use this
         directly — call one of the typed verbs
-        (:meth:`apply_p0_in_scatter`, :meth:`apply_n2n`, etc.) that
+        (the kernel fields' ``add_p0_source`` / ``add_emission``
+        family since CS4c step 3) that
         encapsulates the loop.
 
         Returns
@@ -696,7 +697,7 @@ class MaterialXSField:
 
         Called lazily by :meth:`sig_s_legendre` / :meth:`n2n_matrix`
         on first access.  Caches the dense ``(ng, ng)`` matrices so
-        ``apply_p0_in_scatter`` / ``apply_n2n`` / ``apply_legendre_scattering_moments``
+        the foldable family (and, until CS4c step 3, the apply_* arms)
         avoid repeated sparse-to-dense conversion in the hot path.
         """
         sig_s_dense: dict[int, list[np.ndarray]] = {}
@@ -707,7 +708,7 @@ class MaterialXSField:
             # consumer of sig_s_legendre / n2n_matrix receives the cache
             # object itself, so a caller mutation used to reach the loss
             # matrix ([M] 2026-08-21: +999 through sig_s_legendre moved
-            # apply_p0_in_scatter). Freeze at the producer; the two
+            # the retired apply arms). Freeze at the producer; the two
             # consumers needing mutable results already copy first.
             dense.setflags(write=False)
             return dense
@@ -736,333 +737,13 @@ class MaterialXSField:
         """
         return self.mesh.spatial_shape
 
-    # ── Typed verbs — the lifted per-material dispatch loops ─────────
-
-    def apply_p0_in_scatter(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        r"""Add P0 in-scatter source :math:`\Sigma_{s,0}^T\,\phi` to ``Q``.
-
-        For each cell ``(ix, iy)`` of material ``mid``,
-        :math:`Q[:, ix, iy] \mathrel{+}= \Sigma_{s,0}^{mid,T} \phi[:, ix, iy]`.
-        In numpy speak: ``Q[:, ix, iy] += sig_s0[mid].T @ phi[:, ix, iy]``,
-        named via :func:`numpy.einsum` to expose the
-        source-spectrum-to-sink-spectrum contraction.
-
-        Encapsulates the per-material loop that previously lived at
-        ``scattering.py:405`` (``ScatteringOperator.add_iso_source``).
-
-        Spatial-moment-axis-agnostic (#240 D5b-S3 — the
-        :math:`\Sigma_s \otimes I_{\rm spatial}` lift): the cell-axis subscript
-        carries a trailing ``...`` so a SPATIAL-MOMENT axis (LD's ``2^d`` per
-        cell, the diffusion-limit-consistent slope source :math:`\Sigma_s\hat\phi`)
-        rides through as a SPECTATOR broadcast — :math:`\Sigma_s` carries NO
-        spatial-moment index, so it is applied to EVERY spatial moment of
-        :math:`\phi` independently.  At the single-moment closures (DD/Step,
-        ``phi`` rank ``(ng, nx, ny)``) the trailing axis is ABSENT and the
-        ``...`` matches nothing → BYTE-IDENTICAL to the pre-S3 ``fc->gc``
-        (verified rank-2-exact).
-
-        Parameters
-        ----------
-        Q : np.ndarray
-            Isotropic source, shape ``(ng, nx, ny)`` (or ``(ng, nx, ny, 2^d)``
-            at an LD multi-moment closure).  Modified in place.
-        phi : np.ndarray
-            Scalar flux, same shape as ``Q`` (its spatial-moment axis, if any,
-            is the spectator).
-        """
-        for mid, idx in self.cells_by_material.items():
-            sig_s0 = self.sig_s_legendre(mid)[0]  # (ng, ng)
-            cells = (slice(None), *idx)
-            Q[cells] += np.einsum(
-                "fg,fc...->gc...", sig_s0, phi[cells],
-            )
-
-    def apply_n2n(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        r"""Add (n,2n) source :math:`2\,\Sigma_{2n}^T\,\phi` to ``Q``.
-
-        For each cell ``(ix, iy)`` of material ``mid``,
-        :math:`Q[:, ix, iy] \mathrel{+}= 2 \cdot \Sigma_{2n}^{mid,T} \phi[:, ix, iy]`.
-
-        Encapsulates the per-material loop that previously lived at
-        ``scattering.py:426`` (``ScatteringOperator.add_n2n_source``).
-
-        Spatial-moment-axis-agnostic (#240 D5b-S3, the same
-        :math:`\Sigma \otimes I_{\rm spatial}` spectator-broadcast as
-        :meth:`apply_p0_in_scatter`): the cell-axis subscript carries a trailing
-        ``...`` so an LD spatial-moment axis rides through; byte-identical at the
-        single-moment closures (trailing axis absent).
-
-        Parameters
-        ----------
-        Q : np.ndarray
-            Isotropic source, shape ``(ng, nx, ny)`` (or ``(ng, nx, ny, 2^d)``
-            at an LD multi-moment closure).  Modified in place.
-        phi : np.ndarray
-            Scalar flux, same shape as ``Q``.
-        """
-        for mid, idx in self.cells_by_material.items():
-            sig2 = self.n2n_matrix(mid)
-            cells = (slice(None), *idx)
-            Q[cells] += 2.0 * np.einsum(
-                "fg,fc...->gc...", sig2, phi[cells],
-            )
-
-    def apply_p0_in_scatter_transpose(self, Q: np.ndarray, chi: np.ndarray) -> None:
-        r"""Add the transpose P0 in-scatter source :math:`\Sigma_{s,0}\,\chi` to ``Q``.
-
-        The bare Euclidean transpose of :meth:`apply_p0_in_scatter`: the forward
-        contracts the SOURCE group of :math:`\Sigma_{s,0}(g'\to g)`
-        (``einsum("fg,fc...->gc...")``, output the SINK group :math:`g`); the
-        transpose contracts the SINK group instead (``einsum("fg,gc...->fc...")``),
-        i.e. :math:`(\Sigma_{s,0}^{T}\chi)_{g'} = \sum_g \Sigma_{s,0}(g'\to g)\,
-        \chi_g`. The scalar-flux twin of
-        :meth:`apply_legendre_scattering_moments_transpose` (no harmonic
-        :math:`m`-axis); the group-asymmetric factor of the adjoint isotropic
-        scattering source :math:`S^{T}` (campaign #276 — the model-independent
-        :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
-        energy operator's ``apply_transpose`` routes through this single
-        per-material dispatch site, Pattern 2). The metric-correct Hilbert adjoint
-        is the :attr:`~orpheus.numerics.operator.LinearOperator.H` wrapper's job.
-
-        Spatial-moment-axis-agnostic (#240 D5b-S3): the trailing ``...`` rides an
-        LD ``2^d`` spectator axis through; byte-identical at the single-moment
-        closures (trailing axis absent).
-
-        Parameters
-        ----------
-        Q : np.ndarray
-            Source carrier, shape ``(ng, *spatial)`` (or ``(ng, *spatial, 2^d)``
-            at an LD multi-moment closure).  Modified in place.
-        chi : np.ndarray
-            Scalar field (the adjoint flux moment), same shape as ``Q``.
-        """
-        for mid, idx in self.cells_by_material.items():
-            sig_s0 = self.sig_s_legendre(mid)[0]  # (ng, ng) [g_from, g_to]
-            cells = (slice(None), *idx)
-            Q[cells] += np.einsum(
-                "fg,gc...->fc...", sig_s0, chi[cells],
-            )
-
-    def apply_n2n_transpose(self, Q: np.ndarray, chi: np.ndarray) -> None:
-        r"""Add the transpose (n,2n) source :math:`2\,\Sigma_{2n}\,\chi` to ``Q``.
-
-        The bare Euclidean transpose of :meth:`apply_n2n` (``"fg,fc...->gc..."``
-        ⇒ ``"fg,gc...->fc..."``; the forward bakes a ``.T`` so the transpose
-        applies :math:`\Sigma_{2n}` un-transposed). The scalar-flux twin of
-        :meth:`apply_n2n_moments_transpose`; the (n,2n) channel of the adjoint
-        isotropic scattering source (campaign #276). Spatial-moment-axis-agnostic
-        (the trailing ``...`` rides an LD ``2^d`` spectator axis through).
-        """
-        for mid, idx in self.cells_by_material.items():
-            sig2 = self.n2n_matrix(mid)
-            cells = (slice(None), *idx)
-            Q[cells] += 2.0 * np.einsum(
-                "fg,gc...->fc...", sig2, chi[cells],
-            )
-
-    def apply_legendre_scattering_moments(
-        self,
-        moments: np.ndarray,
-        L: int,
-        skip_l0: bool,
-    ) -> np.ndarray:
-        r"""Apply per-ℓ block-diagonal scattering :math:`\Lambda` to a
-        moment field.
-
-        Implements
-
-        .. math::
-
-            (\Lambda \phi)_\ell^m(\vec r)\bigg|_g
-            = \sum_{g'} \Sigma_{s,\ell}^{m(\vec r)}(g' \to g)\,
-                       \phi_\ell^m(\vec r)\bigg|_{g'},
-
-        with the per-material structure folded into the cell axis
-        via :attr:`cells_by_material`.  Encapsulates the per-material
-        loop that previously lived at ``scattering.py:234``
-        (``LegendreMomentScattering.apply``).
-
-        Parameters
-        ----------
-        moments : np.ndarray
-            Moment field of shape ``(L+1, 2L+1, ng, nx, ny)`` (or
-            ``(L+1, 2L+1, ng, nx, ny, 2^d)`` at an LD multi-moment closure).  The
-            :math:`m` axis is the addition-theorem-shifted index where
-            slot ``l + m`` holds :math:`(\ell, m)`.
-        L : int
-            Maximum Legendre order retained.
-        skip_l0 : bool
-            When ``True``, leave the :math:`\ell = 0` block as zero —
-            the P0 in-scatter goes through :meth:`apply_p0_in_scatter`
-            on the reaction-rate fast path.  Set ``False`` when the
-            full :math:`R \Lambda M \psi` composition is needed.
-
-        Returns
-        -------
-        np.ndarray
-            Same shape as ``moments``.
-
-        Notes
-        -----
-        Spatial-moment-axis-agnostic (#240 D5b-S3, the
-        :math:`\Sigma_s \otimes I_{\rm spatial}` lift): the cell-axis subscript
-        carries a trailing ``...`` so an LD spatial-moment axis rides through as
-        a spectator broadcast; byte-identical at the single-moment closures
-        (trailing axis absent).
-        """
-        out = np.zeros_like(moments)
-        l_start = 1 if skip_l0 else 0
-        for mid, idx in self.cells_by_material.items():
-            sig_s_mid = self.sig_s_legendre(mid)
-            cells = (slice(None), slice(None), *idx)
-            for l in range(l_start, L + 1):
-                n_m = 2 * l + 1
-                # Trailing-contiguous indexing pattern (see notes in
-                # the original LegendreMomentScattering.apply): keeps
-                # numpy from rearranging axes when fancy-indexing.
-                moments_view = moments[l, :n_m][cells]
-                out_block = np.einsum(
-                    "mfc...,fg->mgc...", moments_view, sig_s_mid[l],
-                )
-                out[l, :n_m][cells] = (
-                    out_block + out[l, :n_m][cells]
-                )
-        return out
-
-    def apply_legendre_scattering_moments_transpose(
-        self,
-        moments: np.ndarray,
-        L: int,
-        skip_l0: bool,
-    ) -> np.ndarray:
-        r"""Apply :math:`\Lambda^{T}` — the per-ℓ group-axis transpose of
-        :meth:`apply_legendre_scattering_moments`.
-
-        The forward contracts the SOURCE group of :math:`\Sigma_{s,\ell}(g'\to g)`
-        (``einsum("mfc...,fg->mgc...")``, output the SINK group :math:`g`); the
-        transpose contracts the SINK group instead (``einsum("mfc...,gf->mgc...")``),
-        i.e. :math:`(\Lambda^{T}c)_\ell^m\big|_{g'} = \sum_g \Sigma_{s,\ell}(g'\to
-        g)\,c_\ell^m\big|_{g}`. This is the bare Euclidean transpose of the per-ℓ
-        block-diagonal group-transfer matmul — the ONLY group-asymmetric factor of
-        the frame-conjugated scattering kernel :math:`R\circ\Lambda\circ M` (the
-        angular :math:`M`/:math:`R` faces transpose via their own
-        ``apply_transpose``; campaign #276 A2). The metric-correct Hilbert adjoint
-        is the :attr:`~orpheus.numerics.operator.LinearOperator.H` wrapper's job.
-
-        Spatial-moment-axis-agnostic (the trailing ``...`` rides an LD ``2^d``
-        spectator axis through; #240 D5b-S3), identical in shape contract to the
-        forward verb.
-
-        Parameters
-        ----------
-        moments : np.ndarray
-            Moment field, shape ``(L+1, 2L+1, ng, *spatial)`` (the in-scatter
-            SOURCE moments, on whose group axis :math:`\Lambda^{T}` acts).
-        L : int
-            Maximum Legendre order retained.
-        skip_l0 : bool
-            When ``True``, leave the :math:`\ell = 0` block as zero (the ℓ≥1
-            anisotropic transpose); ``False`` includes the :math:`\ell = 0` block.
-
-        Returns
-        -------
-        np.ndarray
-            Same shape as ``moments``.
-        """
-        out = np.zeros_like(moments)
-        l_start = 1 if skip_l0 else 0
-        for mid, idx in self.cells_by_material.items():
-            sig_s_mid = self.sig_s_legendre(mid)
-            cells = (slice(None), slice(None), *idx)
-            for l in range(l_start, L + 1):
-                n_m = 2 * l + 1
-                moments_view = moments[l, :n_m][cells]
-                out_block = np.einsum(
-                    "mfc...,gf->mgc...", moments_view, sig_s_mid[l],
-                )
-                out[l, :n_m][cells] = (
-                    out_block + out[l, :n_m][cells]
-                )
-        return out
-
-    def apply_n2n_moments(self, moments: np.ndarray) -> np.ndarray:
-        r"""Apply the (n,2n) isotropic ℓ=0 moment operator :math:`2\,\Sigma_{2n}`.
-
-        The (n,2n) reaction is isotropic — it scatters ONLY the :math:`\ell=0`
-        flux moment (the scalar flux) with twice the multiplicity transfer
-        :math:`2\,\Sigma_{2n}(g'\to g)`. This is the **moment-space twin** of
-        :meth:`apply_n2n` (which acts on the bare scalar flux): the in-frame form
-        that lets (n,2n) join the scattering kernel as a DISTINCT :math:`\ell=0`
-        operator summed with :math:`\Lambda` before one :math:`R\circ(\cdot)\circ M`
-        (campaign #276 A2 — physics-faithful: multiplication kept separate from
-        scattering). All :math:`\ell\ge 1` blocks are left zero.
-
-        Parameters
-        ----------
-        moments : np.ndarray
-            Moment field ``(L+1, 2L+1, ng, *spatial)``; only the ``[0, 0]``
-            (:math:`\ell=0`, :math:`m=0`) block is read/written.
-
-        Returns
-        -------
-        np.ndarray
-            Same shape as ``moments`` — ``ℓ≥1`` zero, ``ℓ=0`` = ``2·Σ_2nᵀ·(ℓ=0 moment)``.
-        """
-        out = np.zeros_like(moments)
-        for mid, idx in self.cells_by_material.items():
-            sig2 = self.n2n_matrix(mid)
-            cells = (slice(None), slice(None), *idx)
-            mv = moments[0, :1][cells]  # (1, ng, *spatial) — the ℓ=0 moment
-            out[0, :1][cells] = (
-                2.0 * np.einsum("mfc...,fg->mgc...", mv, sig2) + out[0, :1][cells]
-            )
-        return out
-
-    def apply_n2n_moments_transpose(self, moments: np.ndarray) -> np.ndarray:
-        r"""Apply :math:`(2\,\Sigma_{2n})^{T}` — the ℓ=0 group-transpose twin of
-        :meth:`apply_n2n_moments` (``"mfc,fg→mgc"`` ⇒ ``"mfc,gf→mgc"``; the forward
-        bakes a ``.T`` so the transpose applies :math:`\Sigma_{2n}` un-transposed).
-        Campaign #276 A2 — the bare Euclidean transpose of the (n,2n) channel.
-        """
-        out = np.zeros_like(moments)
-        for mid, idx in self.cells_by_material.items():
-            sig2 = self.n2n_matrix(mid)
-            cells = (slice(None), slice(None), *idx)
-            mv = moments[0, :1][cells]
-            out[0, :1][cells] = (
-                2.0 * np.einsum("mfc...,gf->mgc...", mv, sig2) + out[0, :1][cells]
-            )
-        return out
-
-    def add_n2n_to_group_rate(
-        self,
-        rate: np.ndarray,
-        flux_distribution: np.ndarray,
-        volume: np.ndarray,
-    ) -> None:
-        r"""Add the (n,2n) contribution to a per-group production rate.
-
-        For each material, accumulates
-        :math:`2 \int_V \Sigma_{2n}^{m,g'\to g} \phi_{g'}(\vec r)\,dV`
-        into ``rate``.  Encapsulates the per-material loop that
-        previously lived at ``solver.py:429``
-        (``SNSolver.compute_group_production_rate``).
-
-        Parameters
-        ----------
-        rate : np.ndarray
-            Per-group production rate ``(ng,)``.  Modified in place.
-        flux_distribution : np.ndarray
-            Scalar flux ``(ng, nx, ny)``.
-        volume : np.ndarray
-            Per-cell volume ``(nx, ny)``.
-        """
-        for mid, idx in self.cells_by_material.items():
-            sig2 = self.n2n_matrix(mid)
-            cells = (slice(None), *idx)
-            phi_cells_g = flux_distribution[cells].T  # (n_cells, ng)
-            n2n_cell_g = 2.0 * (phi_cells_g @ sig2)
-            rate += np.einsum("c,cg->g", volume[idx], n2n_cell_g)
+    # ── The typed apply_* verbs LIVED here until CS4c step 3c ─────────
+    # (O-6/R13): the eight per-material dispatch arms + add_n2n_to_group_rate
+    # moved to the kernel fields (orpheus/transport/material_field.py — the
+    # per-material loop written once, einsums verbatim, the (n,2n)
+    # multiplicity read from N2NKernel.multiplicity). The dense per-material
+    # accessors below survive for the foldable family's DSA consumer until
+    # F-1 dissolves the facade.
 
     # ── Foldable / residual split (Phase G four-operator algebra) ────
     #

@@ -37,6 +37,8 @@ from collections.abc import Sequence
 from typing import Callable
 
 import numpy as np
+
+from orpheus.transport.kernels import N2NKernel
 from scipy.special import expn
 
 from orpheus.data.macro_xs.mixture import Mixture
@@ -565,7 +567,9 @@ class CPSolver:
         for k in range(N):
             mid = self.mat_ids[k]
             Q[k, :] += self._scat_mats[mid].T @ flux_distribution[k, :]
-            Q[k, :] += 2.0 * (self._n2n_mats[mid].T @ flux_distribution[k, :])
+            Q[k, :] += N2NKernel.multiplicity * (
+                self._n2n_mats[mid].T @ flux_distribution[k, :]
+            )
 
         # Apply CP matrices: φ_g = P_inf_g^T · (V · Q_g) / (Σ_t · V)
         phi = np.empty((N, ng))
@@ -626,7 +630,7 @@ class CPSolver:
                     n2n_row = np.asarray(
                         self._n2n_mats[mid].T[g, :].todense()
                     ).ravel()
-                    Q_g[k] += 2.0 * (n2n_row @ phi[k, :])
+                    Q_g[k] += N2NKernel.multiplicity * (n2n_row @ phi[k, :])
 
                 # Apply CP matrix for group g
                 source_g = self.volumes * Q_g
@@ -694,7 +698,9 @@ class CPSolver:
         for k in range(N):
             mid = self.mat_ids[k]
             Q[k, :] += self._scat_mats[mid].T @ flux_distribution[k, :]
-            Q[k, :] += 2.0 * (self._n2n_mats[mid].T @ flux_distribution[k, :])
+            Q[k, :] += N2NKernel.multiplicity * (
+                self._n2n_mats[mid].T @ flux_distribution[k, :]
+            )
 
         # Transported source: P^T · (V · Q) for each group
         transported = np.empty((N, ng))
@@ -781,7 +787,7 @@ class CPSolver:
                 (self._n2n_mats[mid].T @ flux_distribution[k, :])
                 * self.volumes[k]
             )
-        net_removal = total - scatter - 2.0 * n2n
+        net_removal = total - scatter - N2NKernel.multiplicity * n2n
 
         return float(production / net_removal)
 

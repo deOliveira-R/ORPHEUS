@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10320**
+Total tests collected: **10391**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1297, 12.6%
-   L1, 1635, 15.8%
+   L0, 1297, 12.5%
+   L1, 1635, 15.7%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7305, 70.8%
+   foundation, 7376, 71.0%
    unmarked, 19, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10222
+   explicit, 10293
    class-name, 46
    func-name, 0
    case, 33
@@ -269,7 +269,8 @@ Module × level grid
    fields/test_harmonic_moment_flux, 0, 0, 0, 0, 13, 0
    fields/test_meshless_construction, 0, 0, 0, 0, 8, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
-   frames/test_harmonic_frame, 0, 0, 0, 0, 21, 0
+   frames/test_binding_tightness, 0, 0, 0, 0, 17, 0
+   frames/test_harmonic_frame, 0, 0, 0, 0, 28, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 50, 0, 0, 5, 0
@@ -417,6 +418,7 @@ Module × level grid
    operators/test_loss_kernel_gauge, 0, 0, 0, 0, 51, 0
    operators/test_loss_nullspace_reflective_box, 0, 0, 0, 0, 12, 0
    operators/test_loss_transpose_solve, 0, 0, 0, 0, 16, 0
+   operators/test_n2n_operator, 0, 0, 0, 0, 10, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
@@ -431,7 +433,7 @@ Module × level grid
    operators/test_removal_form_matvec_sweep, 0, 0, 0, 0, 21, 0
    operators/test_scattering_adjoint, 0, 0, 0, 0, 18, 0
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
-   operators/test_scattering_operator, 1, 0, 0, 0, 69, 0
+   operators/test_scattering_operator, 1, 0, 0, 0, 66, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 55, 0
    operators/test_sn_boundary_realizer, 10, 45, 0, 0, 0, 5
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
@@ -508,7 +510,7 @@ Module × level grid
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 345, 0
+   test_layer_imports, 0, 0, 0, 0, 348, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -520,12 +522,15 @@ Module × level grid
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
    transport/test_kernels, 0, 0, 0, 0, 53, 0
+   transport/test_material_field, 0, 0, 0, 0, 28, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_material_mesh_admission, 0, 0, 0, 0, 6, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 25, 0
+   transport/test_n2n_multiplicity_census, 0, 0, 0, 0, 2, 0
    transport/test_radial_characteristic_field, 0, 0, 0, 0, 21, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
+   transport/test_tier2_equivalence_s_family, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
 
 Equation coverage

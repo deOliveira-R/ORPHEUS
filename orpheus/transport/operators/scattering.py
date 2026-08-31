@@ -854,7 +854,7 @@ class ScatteringOperator(BoundOperator["FullField"]):
         Notes
         -----
         The per-material dispatch lives inside
-        :meth:`MaterialXSField.apply_p0_in_scatter`.
+        :meth:`~orpheus.transport.material_field.ScatteringMaterialField.add_p0_source`.
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
         from orpheus.transport.source_sinks import ScalarSourceSink
