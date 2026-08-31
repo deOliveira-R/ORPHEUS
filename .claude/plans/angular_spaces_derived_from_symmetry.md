@@ -665,6 +665,7 @@ Every item here is true under every design choice in Phases 1–7.
 | **0.4** | ⚡ **Correct `Quadrature.spherical_harmonics`'s docstring** — *"the other slots are filled with zeros"* is exactly the broken property. `[M]` this claim appears at **1 site tree-wide**. | `directional.py:538` | — |
 | **0.5** | ⚡ **Correct the theory page's slab-frame passage** — a DIFFERENT claim from 0.4. It describes the slab frame as merely *"not even diagonal"* and cites P7's *"best diagonal candidate reads 1.806"*, inheriting the framing that omits RANK DEFICIENCY. Fix alongside 0.3. | `docs/theory/foundations/spherical_harmonics.rst:640-652` | — |
 | **0.6** | ⚡ **A real `raise` in `_evaluate_real_sh`** refusing non-unit direction vectors, so the fabricated azimuth is unspellable at the source. ⚠ **sequencing**: this reddens the CURRENT slab pairing, so it lands WITH Phase 3.4 or immediately behind it. That is a `plan-authoring` §6b obligation, not a reason to weaken it. | `spherical_harmonic_basis.py` | — |
+| **0.7** | ⚡ **Promote the reproducer to a strict-xfail gate.** `scratch/_pl_slab_defect_repro.py` LEG A becomes a committed `@pytest.mark.xfail(strict=True)` test, so the defect is VISIBLE in the suite and the marker self-retires the moment 3.4/4.1 land (an XPASS fails). ⛔ the marker form, **not** `pytest.xfail()` — the imperative call can never XPASS (`vv-principles` Mode 8, ninth class). ⚠ structure the body so **exactly one statement can fail and it is the documented one**. | `tests/sn/` | — |
 
 **Done when:** `grep` finds no production site writing a `support` tag its own
 nodes do not satisfy; and the §II.5 probe, run under the FULL suite, reports
@@ -1001,14 +1002,135 @@ residue measured (4.8); curvilinear verification against a known solution;
 
 ---
 
-# Part XII — ▶ Resume surface
+# Part XII — ⏏ THE EXIT GATE — what returns us to Campaign 2
+
+This plan is a SIDE-QUEST. It was opened mid-flight from
+`.claude/plans/cs4c_binding_design.md` §18.6 step 1 (#426's missing (n,2n)
+measurement), and the point of an exit gate is that **the whole plan is not the
+prerequisite.** Most of it is genuinely separate work.
+
+## XII.1 The coupling, stated precisely
+
+#426 proposes that `(n,2n)` stop discarding its `ℓ ≥ 1` Legendre moments.
+`[M]` `n2n.py:200` hardcodes `L = 0` — **that is the only reason the channel is
+not already affected** by the Part I defect. Restoring the moments routes them
+straight into the broken path. So the block is real, and it is narrow: it is a
+block on the **P_L path being correct on a 1-D chart**, nothing more.
+
+## XII.2 ⏏ The MINIMUM chain to return — the critical path
+
+| # | why it is on the path |
+|---|---|
+| **Phase 0** (all 7) | ⚡ unconditional; 0.1/0.2 remove the fabrication the defect rides on |
+| **Phase 1.1** — *the `SO(2)/S²` entry only* | 3.4's probe needs that one catalog row. §III.2 already derives it; the other entries serve Phases 5–6 and are **NOT on the path** |
+| **Phase 2.1–2.4** | `Basis.domain`, G0, the typed `Chart`, and the slab rule's declared quotient group — the objects 3.4 reads |
+| **Phase 3.1** — *scoped to the `SO(2)` entry* | the catalog home + the probe |
+| **Phase 3.4** | ⭐ **the fix itself** — the trivial isotypic component |
+| **Phase 4.1** | the retrofit, under the CORRECTED gate (Part VI) |
+| **Phase 4.9** | re-key the 12 collateral sites, incl. the green test that pins the defect |
+
+**Explicitly NOT on the path** (may land in any later session): Phase 1.2–1.8
+except 1.1's one entry, Phase 3.2/3.3, Phase 4.2–4.8, and the whole of Phases
+5, 6, 7. `[M]` §VIII.4 is what licenses this: today the defect has **one**
+consumer, and CP/MoC/MC/diffusion/kinetics/fuel/TH carry **0 angular-moment
+lines**, so nothing else is waiting on the layer.
+
+## XII.3 ⏏ The exit predicate — all six, measured, before returning
+
+1. `scratch/_pl_slab_defect_repro.py` LEG A reads **`+4.000000000000`** at
+   `L = 0, 1, 2, 3`.
+2. Phase 0.7's strict-xfail gate **XPASSes and its marker is deleted** — the
+   self-retiring proof that the defect is closed.
+3. `[M]` the isotropic-flux `ℓ ≥ 1` moment census reads `0` to machine precision
+   on every shipped `(rule, L)` **except** the two coarse-rule rows, which carry
+   a written verdict routed to Phase 4.4.
+4. `[M]` 3-D rules bit-identical at every `L` (`max|ΔY| = 0.0`) — no 2-D/3-D
+   result moves.
+5. The **full 13-tree gate green**, with per-tree deltas PREDICTED before the
+   run (`reference_test_execution_env`). ⚠ The baseline is UNMEASURED at this
+   HEAD: step 4's `10106 / 0 / 19 sk / 66 xf` is the last full gate, `10116`
+   predicted-not-run at CS4c §18.7.
+6. `sphinx -W` clean and `dead_references` 0 dead — the four corrected prose
+   surfaces (0.3/0.4/0.5 and `metric.py`) land with the code.
+
+## XII.4 ⏏ On return
+
+Resume `.claude/plans/cs4c_binding_design.md` **§18.6 step 1** — #426's missing
+measurement, the Be-reflected fixture solved with and without the `ℓ ≥ 1`
+(n,2n) source. It is now runnable at `ℓ = 1` **and** `ℓ = 2`, which it was not
+when this side-quest opened.
+⭐ And it gains a control it could not have had: `[M]` the same fixture at
+`L ≤ 1` is bit-identical across the repair, so any `Δk` the (n,2n) moments
+produce is attributable to them and not to the P_L machinery.
+
+---
+
+# Part XIII — Execution tracker
+
+Update this table **in the same commit** as the work. `plan-authoring` §3: a
+row that becomes false by being FIXED is edited here, not annotated elsewhere.
+Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` refuted/dropped.
+
+| # | item | on exit path? | status |
+|---|---|:---:|---|
+| 0.1 | stop fabricating `support`; delete the phantom read | ⏏ yes | ☐ |
+| 0.2 | `axis_cosines(i ≥ dim)` raises | ⏏ yes | ☐ |
+| 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ☐ |
+| 0.4 | `directional.py:538` docstring | ⏏ yes | ☐ |
+| 0.5 | `spherical_harmonics.rst:640-652` | ⏏ yes | ☐ |
+| 0.6 | `_evaluate_real_sh` raises on non-unit directions | ⏏ yes | ☐ |
+| 0.7 | strict-xfail reproducer gate | ⏏ yes | ☐ |
+| 1.1 | catalog derivations — **`SO(2)/S²` entry is on the path** | ⏏ partial | ☐ |
+| 1.2 | Gelfand-pair reading of Funk–Hecke | no | ☐ |
+| 1.3 | connection-term verify-or-kill | no | ☐ |
+| 1.4 | record the four gates | no | ☐ |
+| 1.5 | record the placement ruling | no | ☐ |
+| 1.6 | `ℛ* = ℛ` as adjoint-vs-dual | no | ☐ |
+| 1.7 | the support algebra, written | no | ☐ |
+| 1.8 | vocabulary reconciliation | no | ☐ |
+| 2.1 | `Basis.domain` | ⏏ yes | ☐ |
+| 2.2 | G0 at frame construction | ⏏ yes | ☐ |
+| 2.3 | the typed `Chart`; pushforward derives support | ⏏ yes | ☐ |
+| 2.4 | slab declares its quotient group; SO2 axis collision; **full-suite phantom census** | ⏏ yes | ☐ |
+| 3.1 | `numerics/symmetry/` catalog (⏏ scoped to `SO(2)`) | ⏏ partial | ☐ |
+| 3.2 | `ReynoldsProjection` | no | ☐ |
+| 3.3 | `OrbitAxis` + retraction/section minting | no | ☐ |
+| 3.4 | ⭐ **trivial isotypic sub-basis — THE FIX** | ⏏ yes | ☐ |
+| 3.4-R | ⚠ **the encoding ruling** (layout-preserving vs true `LegendreBasis`) | ⏏ yes | ☐ **UNRULED** |
+| 4.1 | retrofit the slab axis (CORRECTED gate) | ⏏ yes | ☐ |
+| 4.2 | normalization audit | no | ☐ |
+| 4.3 | commuting-square test | no | ☐ |
+| 4.4 | quadrature symmetry annotation + the coarse-rule class | no | ☐ |
+| 4.5 | G2 check | no | ☐ |
+| 4.6 | `H_max` | no | ☐ |
+| 4.7 | G3 check | no | ☐ |
+| 4.8 | ray-effect residue | no | ☐ |
+| 4.9 | re-key the 12 collateral sites | ⏏ yes | ☐ |
+| 5.1–5.4 | curvilinear S_N | no | ☐ |
+| 6.1–6.4 | spatial quotients | no | ☐ |
+| 7.1–7.4 | isotypic decomposition | no | ☐ |
+| ⏏ | **the six exit predicates (XII.3)** | — | ☐ |
+
+**Open rulings blocking execution:** 3.4-R only. Everything else on the exit
+path is decided.
+
+---
+
+# Part XIV — ▶ Resume surface
+
+**Read in this order on pick-up:** Part XIII (the tracker — what is done),
+Part XII (the exit gate — what returns us to Campaign 2 and what is NOT on that
+path), then the phase you are executing. Part IX first if you are about to
+re-propose something; four premises are already refuted there, three of them
+mine.
 
 **⚡ Phase 0 is unblocked and lands first**, independent of every ruling above.
+**The only open ruling on the exit path is 3.4-R** (the encoding).
 
 **This plan blocks** `.claude/plans/cs4c_binding_design.md` §18.6 step 1
-(#426's missing (n,2n) measurement), PAUSED. The coupling is §VIII.4: #426
-proposes making `(n,2n)` carry `ℓ ≥ 1` moments, and `n2n.py:200` currently
-hardcodes `L = 0` — the only reason that channel is not already affected.
+(#426's missing (n,2n) measurement), PAUSED. The coupling is §VIII.4 and the
+narrow form is Part XII.1: `n2n.py:200` hardcodes `L = 0`, which is the only
+reason that channel is not already affected.
 
 **Artifacts** (⚠ all in UNTRACKED `scratch/`; load-bearing content carried in
 this file):
