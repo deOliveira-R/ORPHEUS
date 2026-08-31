@@ -1467,3 +1467,197 @@ every step exit; an archivist corpus pass whenever a step moves an
 equation-level claim; in-process mutation batteries run as
 subprocess-scoped pytest plugins (the 4d pattern — crash-safe by
 construction).
+
+---
+
+## 18. ⏸ COMPACTION POINT #4 (2026-08-31, written pre-compaction with full context; every anchor re-verified at merged HEAD `01ed1d79`)
+
+**Steps 1–4 remain ✅ MERGED (tables at §15 and §16.8, cited not copied).
+Step 5 OPENED this session and did NOT execute: its design round ran, its
+first ruling was REFUTED BY DATA, and the session was redirected by the
+user into the data investigation that produced the refutation.** Nothing
+in §17's ▶ block was invalidated except its ruling 1, which is now
+ANSWERED — see §18.3.
+
+### 18.1 What landed (all on `main`, pushed)
+
+| commit | what |
+|---|---|
+| `ea06fbbd` | `BE009.GXS` joins `micro_xs/` via LFS (133-byte pointer / 22 558 446 B) |
+| `6906f2a2` | the (n,2n) isotropy claim corrected across 11 files — docs, production docstrings, test rationales |
+| `0a13b0ea`, `131dc08f`, `01ed1d79` | agent memory (archivist L-078, literature-researcher + the new ENDF/GENDF format reference) |
+| `7433507d` | **the (n,2n) yield double-count fixed at ingest — `Closes #427`** |
+
+### 18.2 The step-5 OPENER ran; its two products are on disk
+
+⚠ **Do not re-run either. Read them.**
+
+* **The per-arm traffic census** (§17's mandated opener obligation, discharged):
+  `scratch/cs4c_step5_feeding_census.md`, `[M]` at HEAD `c6dc40c3`, all four
+  controls passing, denominator **34 surfaces** (18 dispatch arms + 16 plain
+  verbs), 34/34 hand-activated, 13/13 headline numbers bit-identical
+  instrumented vs control. **FIRED 20 / NOT-RUN 14.** Two ⭐⭐ refutations of
+  the step-0 census that a step-5 arm deletion MUST honour:
+  - ⛔ **`IsotropicScattering.apply_transpose` and `IsotropicN2N.apply_transpose`
+    are NOT dead.** Step 0 called them dead-with-no-consumer; the consumer is
+    the ray-system adjoint (`radial_characteristic.py:1536`), invisible to
+    step 0 because its workload carried only *slab* adjoints. One added
+    scenario takes them **0 → 985 calls each**. Deleting on the old evidence
+    would have removed a live path.
+  - ⛔ **All five `FissionOperator` forward arms are at ZERO**; step 4 took it
+    off the forward path entirely (the k-outer now feeds `IsotropicFission`,
+    139 calls, bare `ndarray`, bound to `mesh.bulk_space`). Step 0's *"deleting
+    the ndarray arm breaks every SN eigenvalue solve"* is **void** — that arm
+    no longer exists.
+  - `S.apply[ScalarFlux]` still measures **0** (#205's keep-ruling
+    corroborated); SN's `C` is **140 instances, 140 silent**.
+* **The owed edits the census could not apply** (its brief forbade touching
+  tracked files): `scratch/cs4c_step5_OWED_skill_and_memory.md` — two proposed
+  `vv-principles` #29 sharpenings, a third report-hygiene candidate, and the
+  `qa` memory delta. **NOT APPLIED. Adjudicate them before they rot.**
+
+### 18.3 ⛔ RULING 1 IS ANSWERED — the F ≡ N2N collapse is REFUTED, by data
+
+The design round put three options to the user. The user declined to rule and
+directed a **data stress test** first (*"we need to figure out from ENDF and
+GENDF specifications if there is anisotropy data for N2N or if it is genuinely
+isotropic at the data level… stress-test the N2N design based on data"*), and
+added `BE009.GXS` to make the test sharp. The test settled it.
+
+**The structural finding that raised the question** (`[M]` by AST at
+`c6dc40c3`, still true): `FissionOperator` and `N2NOperator` share 14 members,
+**8 identical modulo the class/energy names**; `apply_transpose` and
+`total_weight` are **identical in code** (docstrings differ); all four dispatch
+arms are identical — the entire difference across the dispatch surface is **two
+string literals**. `IsotropicScattering` vs `IsotropicN2N`: 5 of 9 shared
+members identical, the other 4 differing by exactly one expression each, every
+one a **verb name on the datum** (`add_p0_source`/`add_emission`,
+`…_transpose`, `kernel.p0`/`emission_matrix()`, `.truncated(0)`).
+
+**The data refutes the collapse.** Full memo: `scratch/n2n_data_stress_test.md`;
+format half: `scratch/n2n_data_format_spec.md`; issue: **#426**.
+
+| | scattering | **(n,2n)** | fission |
+|---|---|---|---|
+| Legendre orders stored (GENDF NL) | 7 | **7** | **1** |
+| transfer form | full `g'→g` | **full `g'→g`** | **separable χ(g)·νΣf(g')** |
+| rank-1 separable | no | **no** (rank 50, 58 % err) | **yes**, by construction |
+| σ₀ self-shielding (NZ) | 6–10 | 1 | 1 |
+
+⟹ **`FissionOperator ≡ N2NOperator` is a coincidence of today's ISOTROPIC
+MODEL, not a fact about the physics.** Collapsing them would freeze a
+truncation into the type system — anti-pattern #18's inversion (a type that
+cannot express correct physics), worst exactly on the material the test was
+run against. ⛔ **Do not collapse F with N2N.**
+
+✅ **The redirect's OTHER half is CORROBORATED**, and for a deeper reason than
+the factory probe's rank argument: `IsotropicScattering` + `IsotropicN2N`
+folding into one energy operator (channel in the field's type) matches the
+data — both are anisotropic, non-separable, matrix-valued channels; fission is
+the outlier. ⟹ **the honest long-run structure is N2N alongside SCATTERING**,
+with `Isotropic…` in the N2N names recording a TRUNCATION rather than a
+property. If the anisotropy is restored (#426), N2N wants exactly scattering's
+machinery — which `N2NMomentOperator` already half-anticipates.
+
+⭐ And the `_per_ordinate.py` docstring's own **defer-until-2 trigger has
+FIRED**: it enumerates two consumers and says *"when a third isotropic lifted
+channel appears, this is the seed of the generic lift operator"* — `[M]` step 4
+made fission the third (`fission.py:414`, `:436`). The lift functor is live as
+a design candidate; the *collapse of the composite classes* is not.
+
+### 18.4 The open issues this investigation derived
+
+* **#426 — the P0 truncation** (OPEN). GENDF stores NL=7 for MT=16; `gendf.py`
+  keeps `sig2_data[(0, 0)]`. Be-9: all 8195 transfer entries non-zero at every
+  ℓ=1…6, μ̄ = +0.278 **over its own 50 open groups**, and (n,2n) supplies a
+  median **62 % of the P0** and **45 % of the P1** emission source there
+  (Be-9 has no inelastic MF=6 section, so `elastic + 2·(n,2n)` is its COMPLETE
+  fast emission source). Body corrected in place 2026-08-31 — see §18.5.
+  ⚠ **The missing experiment, and it should precede any carve:** no transport
+  solve was run, so those are **cross-section shares, not an error in any `k`
+  or flux**. A Be-reflected fixture solved with and without the ℓ≥1 source is
+  what decides whether #426 is a carve or a documented approximation.
+  `BE009` is now in the store, so the fixture is buildable.
+  ⚠ **The generalisation limit** (`scratch/n2n_data_format_spec.md`): NJOY
+  builds LAB moments with `P_ℓ` at the lab cosine against a CM distribution, so
+  ℓ≥1 is non-zero even for an isotropic CM emission. **8 of 9 (n,2n)-bearing
+  nuclides are LCT=2**; **⁹Be alone is LCT=1**, the one clean case. This does
+  not change the truncation verdict (lab moments are real and the transport
+  equation is solved in the lab frame) but it bounds *"the evaluations carry
+  anisotropy data"* to Be-9.
+* **#427 — the yield double-count** (✅ CLOSED @ `7433507d`). GENDF MF=6 holds
+  `σ·y·f`; MT=16's yield is 2; every consumer assumed the reaction matrix and
+  applied the ×2 itself, so removal was doubled and emission quadrupled. Fixed
+  by renormalising the transfer rows onto MF=3 — **never a literal `/ 2`**, so
+  `N2NKernel.multiplicity` keeps its single home in a package `orpheus.data`
+  sits below. ⚠ **The HDF5 store is GITIGNORED and `load_isotope` reads it**, so
+  the fix reaches a checkout only when `convert_gxs_to_hdf5.py` is re-run
+  there; a stale store serves the old convention with no signal. Regenerated
+  locally (13 files, all reading `1.000000000` against MF=3).
+* **#428 — `cross_section_data.rst`'s "Reactions Not Included"** (OPEN). Says
+  ORPHEUS does not extract (n,2n); `[M]` `gendf.py` does, and
+  `sn/solver.py:1713` carries `- emission_n2n.sum()` in the k balance. The page
+  contradicts itself at `:172` and `:1001`. Small doc edit **gated behind a
+  four-solver check** — ERR-023 says MC ignores `Sig2`, so the corrected text
+  must be per-solver.
+
+### 18.5 ⛔ A number I published and had to retract — read before quoting §18.4
+
+I reported (n,2n) as *"~3× more forward-peaked than elastic"*, citing
+μ̄ = **+0.278** against **+0.094**. **The two were summed over DIFFERENT
+WINDOWS** — `+0.094` is elastic over all 421 live groups (dominated by the
+low-energy s-wave region, per-group `0.0746`); `+0.278` is (n,2n) over its 50.
+`[M]` over the SAME 50 groups elastic reads **+0.4264**, i.e. `1.53×` the
+(n,2n) value: **the comparison inverts.** Caught by the archivist reproducing
+the figure before publishing it, so the wrong contrast never reached the
+corpus; #426's body and the memo carry the correction in place.
+
+⭐ The transferable half, and why it is not merely §2's quantifier clause
+again: **I had run a rigorous positive control** — elastic σ₁/σ₀ reproduces the
+analytic s-wave `2/(3A) = 0.074615` to six significant figures — and that
+control validated the **INSTRUMENT**, saying nothing about whether two readings
+from it are **COMMENSURABLE**. A control on the instrument lends unearned
+authority to a ratio formed from its outputs. ⟹ when a claim is a RATIO of two
+measurements, the check that matters is *do these share a population?*, and it
+is a different check from validating the instrument. The same caution now
+applies to the `‖P1‖∞/‖P0‖∞` figures (0.690 vs 0.075): honest per channel,
+**not usable as a cross-channel ratio**.
+
+### 18.6 ▶ RESUMES AT — user's ruling, 2026-08-31
+
+*"merge it and let's fix the issues that this investigation derived before
+doing any additional design work"*, then *"we will take care of those after
+compaction"*. ⟹ **#426 and #428 come BEFORE step 5 resumes.** Recommended
+order, with the reason:
+
+1. **#426's missing measurement first** — the Be-reflected with/without-ℓ≥1
+   solve. It is a MEASUREMENT, not design work, and it is what chooses #426's
+   scope (carve vs documented approximation). Everything else about #426 is
+   unanswerable until it exists.
+2. **#428's four-solver check** — independent of 1, smaller, dispatchable.
+3. **Then step 5**, whose ▶ block at **§17 remains the resume surface** with
+   ruling 1 struck (§18.3) and the census obligation discharged (§18.2).
+   Rulings 2 (#306 item 2) and 3 (#205's ScalarFlux keep) are still OWED and
+   now have fresh census evidence to be adjudicated against.
+
+### 18.7 Standing constraints (unchanged except the baseline)
+
+Host → `.venv/bin/python`; canonical runner
+`-O -m pytest -p no:randomly -m "not slow" -q` SERIAL; branch + ff-merge + the
+13-tree driver before merging; per-tree PRE-REGISTRATION with
+predicted-then-measured; main agent writes, user steers (AskUserQuestion
+checkpoints); test-architect plan EXISTS (extend, don't re-dispatch); never
+`git add -A`; never `git stash`; commit messages via `git commit -F -` with a
+**quoted** heredoc; no source edits under running gates; sphinx `-W` +
+`dead_references` at every step exit; archivist corpus pass whenever a step
+moves an equation-level claim; mutation batteries as subprocess-scoped pytest
+plugins.
+
+⚠ **The 13-tree baseline is UNMEASURED at this HEAD.** The last full gate is
+step 4's **10106 / 0 / 19 sk / 66 xf, 13 trees rc=0** (§16.8). This session
+added **10** rows (`tests/data/test_n2n_yield_convention.py`) and reworded
+prose only elsewhere, so the prediction is **10116** — *predicted, not run*.
+Targeted evidence only: `tests/data` + both recipe consumers **279 passed /
+0 failed**; the two archivist-touched test files **53 passed**; `sphinx -W`
+clean; `dead_references` 0 dead / 52 checked. **Run the full gate before the
+next merge that claims a baseline.**

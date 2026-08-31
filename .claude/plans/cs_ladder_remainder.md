@@ -221,9 +221,17 @@ MERGED @ `600c5c80`; **step 4 MERGED @ `b25f9006`** (13-tree gate [M]
 rebind — FissionMaterialField + IsotropicFission + the frame-ℓ=0
 FissionOperator, every consumer honest, N2N harmonized, G-F1/G-F2 +
 battery B-4, the archivist's 19-page corpus pass). The LIVE resume
-surface is `.claude/plans/cs4c_binding_design.md` — its **§17
-COMPACTION POINT #3** carries the step-5 resume block (goal, the three
-owed design-round rulings, the feeding-census staleness warning, the
-[M] anchors, standing constraints); §16.8 is the step-4 close-out;
-§15/§13 are superseded history. Re-anchor at §17, never from a
-summary.
+surface is `.claude/plans/cs4c_binding_design.md` — its **§18
+COMPACTION POINT #4** is the LIVE one. §17 still holds the step-5 ▶
+block (goal, standing constraints, the §6b members of any arm
+deletion) and remains the resume surface FOR STEP 5 — but read §18
+first: it discharges §17's census obligation, strikes §17's ruling 1
+(the F ≡ N2N collapse is REFUTED by data), and records the user's
+2026-08-31 ruling that **#426 and #428 are fixed BEFORE step 5
+resumes**. §16.8 is the step-4 close-out; §15/§13 are superseded
+history. Re-anchor at §18 → §17, never from a summary.
+
+⚠ **The 13-tree baseline is UNMEASURED at HEAD `01ed1d79`.** Step 4's
+**10106/0/19sk/66xf** is the last full gate; the 2026-08-31 session
+added 10 rows and predicts **10116**, unrun. Run the gate before any
+merge that claims a baseline.
