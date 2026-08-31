@@ -314,8 +314,12 @@ algebra, given scalar-composite arms at #290 P4 — *not* re-implemented:
   (the single source of :math:`\Sigma_{s0}^{\mathsf T}\phi` across every
   solver — never a diffusion-local reimplementation);
 - :math:`F` — the shared rank-1 dyad
-  :class:`~orpheus.transport.operators.fission.FissionOperator`,
-  :math:`\chi \otimes \nu\Sigma_f`.
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+  :math:`\chi \otimes \nu\Sigma_f` (the fission **energy** binding; the
+  angular binding
+  :class:`~orpheus.transport.operators.fission.FissionOperator` is
+  S\ :sub:`N`'s and refuses a scalar carrier — CS4c step 4,
+  :ref:`sn-fission-binding-adjoint`).
 
 The removal cross section is therefore a **theorem, not an input**: the
 in-group cancellation :math:`\mathbf 1^{\mathsf T}(C - S) = \Sigma_a`

@@ -28,9 +28,10 @@ Discrete Ordinates Method (S\ :sub:`N`)
         C: collision / removal (Σ_t)
         S: scattering in-scatter gain (Σ_s0ᵀ φ + anisotropic moments)
         B: boundary law as a first-class SIBLING operator (reflective / vacuum / white trace), every geometry
-        F: fission production (χ ⊗ νΣ_f, rank-1 dyad)
+        N2n: (n,2n) emission — first-class since CS4c step 3, no longer a passenger inside S
+        F: fission production (χ ⊗ νΣ_f, rank-1 dyad); TWO bindings of one datum since CS4c step 4 — IsotropicFission (energy, the k-outer's) and FissionOperator (angular, the eigen-M posing's)
       composites:
-        A: "L + C - S - B — the within-group loss operator; the Krylov driver applies it"
+        A: "L + C - S - N2n - B — the within-group loss operator; the Krylov driver applies it. Most pages of this chapter still spell the pedagogical A = L+C-S-B (Σ_2n ≡ 0 on their fixtures); the shipped member list is eq sn-within-group-with-n2n"
         (L+C): "lower-triangular under the upwind cell ordering; (L+C)⁻¹ IS the transport sweep"
       key_types: [AngularFlux, SNMesh, HarmonicMomentFlux, SweepDependencyGraph]
       entry_points:                    # qualnames; Nexus links via implements edges
@@ -84,6 +85,27 @@ first-class **sibling** operator, *not* folded into :math:`L` — and the rank-1
 fission dyad :math:`F`.  They compose the within-group loss operator
 :math:`A = L + C - S - B`, so the eigenvalue problem is
 :math:`A\,\psi = \tfrac{1}{k}\,F\,\psi` (fixed source: :math:`A\,\psi = q`).
+
+.. note::
+
+   **Five operators, six terms — the** :math:`(n,2n)` **caveat for this
+   whole chapter.**  Since CS4c step 3 (2026-08-30) the
+   :math:`(n,2n)` emission is a **sixth** first-class operator
+   :math:`N_{2n}` rather than an unnamed passenger inside :math:`S`, so
+   the composite the S\ :sub:`N` builder actually composes is
+   :math:`A = L + C - S - N_{2n} - B`
+   (:eq:`sn-within-group-with-n2n`).  The five-operator spelling above
+   is kept throughout this chapter because :math:`\Sigma_{2n} \equiv 0`
+   on every fixture the chapter derives against, and the extra term
+   would obscure the pedagogy; it is a **deliberate simplification, not
+   the shipped member list**.  Where the distinction bites — the
+   adjoint chain, the DSA posing, any multiplying medium with an
+   :math:`(n,2n)` channel — the pages say so explicitly
+   (:ref:`sn-n2n-adjoint`).  The 1-D diffusion solver's :math:`A`
+   genuinely *is* :math:`L + C - S - B`, because it sums the two
+   isotropic energy leaves into one :math:`S` at its own composition
+   site.
+
 The sub-composite :math:`(L+C)` is lower-triangular under the upwind cell
 ordering, which is exactly why :math:`(L+C)^{-1}` **is** the transport :term:`sweep`
 (:doc:`/theory/methods/sn/loss_representation`).  :class:`SNSolver` satisfies
@@ -1961,10 +1983,13 @@ Solver-coordination traps
   ``power_iteration`` feeds a **bare** :class:`numpy.ndarray` flux to
   :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`, so the
   bare-``np.ndarray`` dispatch arm of
-  :meth:`FissionOperator.apply
-  <orpheus.transport.operators.fission.FissionOperator>` is the *live
-  production arm* (the sentinel wraps that registered leaf in-process and
-  asserts the counter advances).  The estimator's
+  :meth:`IsotropicFission.apply
+  <orpheus.transport.operators.isotropic_scattering.IsotropicFission.apply>`
+  — the fission **energy** binding the k-outer has held since CS4c step 4
+  — is the *live production arm* (the sentinel wraps that leaf in-process
+  and asserts the counter advances).  The *angular* binding
+  ``FissionOperator`` refuses a bare scalar carrier outright, which is
+  the same contract stated as a type instead of as a sentinel.  The estimator's
   :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
   evaluations read the same bare array.  Routing the outer iterate
   through a typed carrier would dark the arm (redding the sentinel) and

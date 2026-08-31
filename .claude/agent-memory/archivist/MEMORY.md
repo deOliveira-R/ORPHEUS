@@ -51,6 +51,25 @@ stage + gate.
   α-dome refuses only the ROLL; negate/reverse die at the closure's P3 τ-guard).
   → [[lessons-L75]]
 
+- **CS4c step 4 — the fission channel becomes TWO bindings of one datum** — 2026-08-31, branch
+  `refactor/cs4c-step4-fission-binding` (HEAD `fadad026`), **UNCOMMITTED** (mine; main agent
+  commits). 19 authored `.rst` + the regenerated `matrix.rst`. `-E -W` **0/0/0 both sides**,
+  EXIT=0; directive edges 412 → **415** (predicted exactly); documented-sentinel labels
+  571 → **574** (3 NEW eq-labels: `sn-gain-channels-one-shape`,
+  `sn-gain-transposes-one-shape`, `energy-condensation-fission-dyad`); xref gate 0 dead
+  (patched, live positive control); `dead_references` 0/52; harness audit 16 passed/5 xfailed.
+  NEW H2 `sn-fission-binding-adjoint` in `adjoint.rst`. ⭐⭐ **A published CODE BLOCK in
+  `infinite_medium.rst` was FALSE** (`FissionOperator.from_solver_data` vs the live
+  `IsotropicFission.from_material_xs`). ⭐⭐ The corpus's **"same Python classes" thesis** was
+  refuted at 3 sites + a machine header; the AST construction-site census (`FissionOperator`
+  **1 site, sn only** vs `IsotropicFission` **4, all three packages**) is the repair's evidence.
+  ⭐⭐ Two sibling harmonizations described alike differ in KIND: N2N **bit-identical 1000/1000**,
+  F **≤5 ULP, 0/200 bit-equal** — a theorem of ℓ=0, not fixture luck.
+  ⚠ **REPORTED, code-only:** `n2n.py`'s module docstring understates its own result
+  ("a pure IEEE-754 order change") — measured, there is none. ⚠ **DEFERRED:** 37 SN-chapter
+  sites still spell the pre-N₂ₙ algebra (step-3 residue) — DECLARED at the chapter root
+  rather than swept; a scoped follow-up. → [[lessons-L77]]
+
 - **P7 — the metric becomes an OBJECT; a refusal becomes a capability** — 2026-08-30, branch
   `feature/p7-nondiagonal-metric`, **UNCOMMITTED** (mine; main agent commits). 8 doc files
   (brief named 4 items over 3; my census found 5 more) + the regenerated `matrix.rst`.

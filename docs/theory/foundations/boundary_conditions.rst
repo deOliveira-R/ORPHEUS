@@ -3882,6 +3882,9 @@ Thirteen sites (operator outputs + ``q_ext`` sources) flipped from
    * - :mod:`orpheus.transport.operators.scattering`
      - :meth:`ScatteringOperator.apply <orpheus.transport.operators.scattering.ScatteringOperator>`
      - boundary zero
+   * - :mod:`orpheus.transport.operators.n2n`
+     - :meth:`N2NOperator.apply <orpheus.transport.operators.n2n.N2NOperator>`
+     - boundary zero
    * - :mod:`orpheus.transport.operators.fission`
      - :meth:`FissionOperator.apply <orpheus.transport.operators.fission.FissionOperator>`
      - boundary zero

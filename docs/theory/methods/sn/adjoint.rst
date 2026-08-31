@@ -796,8 +796,58 @@ plain ordinate sum, :math:`M^{T}` the :math:`w`-weighted embedding — the
 same product-transpose shape :eq:`sn-scattering-adjoint-kernel-transpose`
 has, one :math:`\ell`-block wide.  The reciprocity is a real
 cross-check rather than a tautology for the same reason :math:`S`'s is:
-the forward is evaluated on the fast path and the transpose on the
-:math:`w`-embedding, two different float programs.
+the forward is evaluated on the reaction-rate fast path and the
+transpose on the frame form, two different float programs.
+
+.. note::
+
+   **How the transpose is SPELLED changed at CS4c step 4 (2026-08-30);
+   what it computes did not.**  Until the step-4 harmonization the
+   operator retained a bare ``weights`` array and evaluated
+   :eq:`sn-n2n-adjoint-source` as hand-written arithmetic — a
+   :math:`w`-broadcast followed by a division by :math:`W`.  It now
+   retains the :math:`L = 0` **frame** instead and spells the transpose
+   as factor reversal of the cached conjugated product
+   :attr:`~orpheus.transport.operators.n2n.N2NOperator.full_n2n_kernel`
+   ``= frame.conjugate(N2NMomentOperator)``, followed by the
+   producer-side :math:`/W` — exactly the shape :math:`S` and
+   :math:`F` use (:ref:`sn-fission-binding-adjoint`).  So the equation
+   above is now the **product chain's** identity rather than this
+   module's transcription, and the last hand-rolled :math:`w`
+   arithmetic on any adjoint path is gone.
+   ``N2NOperator.weights`` no longer exists;
+   :attr:`~orpheus.transport.operators.n2n.N2NOperator.total_weight`
+   derives :math:`W` from the retained frame's measure, as :math:`S`
+   does.
+
+   **The re-spelling costs nothing, and that is a theorem of**
+   :math:`\ell = 0` **rather than a lucky fixture** — measured, and
+   worth writing down because the neighbouring :math:`F`
+   harmonization is *not* free (:ref:`sn-fission-binding-adjoint`).  At
+   one moment the two outer factors degenerate: :math:`R_0^{\mathsf T}`
+   is the plain ordinate sum (the reconstruction face's
+   :math:`\ell = 0` column is the all-ones broadcast) and
+   :math:`M_0^{\mathsf T}` is a per-ordinate multiply by :math:`w_n`
+   (the analysis face's :math:`\ell = 0` row **is** the weight vector),
+   so the product chain performs the *same* float operations, in the
+   *same* order, as the retired broadcast did — there is no summation
+   over :math:`\ell` to re-associate.  ``[M]`` 2026-08-31, 1000 draws
+   (200 seeds :math:`\times` ``gauss_legendre`` :math:`n = 2, 4, 6, 8,
+   16`) on the shipped 2-group slab fixture: ``np.array_equal``
+   **1000 / 1000**, :math:`\max|\Delta| = 0`.  A bit-exact reading on
+   one draw would have been a property of the draw
+   (``vv-principles`` #31); the sweep, and the structural reason above,
+   make it a property of the binding.
+
+   Note what this does to the cross-check's *strength*: the two float
+   programs are now the reaction-rate fast path and the frame-form
+   product, which are structurally further apart than the fast path and
+   a hand-written :math:`w`-embedding were.  The retirement therefore
+   **promoted** the reciprocity gate rather than demoting it
+   (``coding-standards``, the silent-promotion mirror) — its blindness
+   analysis in the warning below is unchanged, because the
+   :math:`w`-embedding it warns about is still what the product
+   *computes*.
 
 .. warning::
 
@@ -832,6 +882,175 @@ future reader who greps it and finds no production caller: it is the
 the reference the lift is gated against.  Retiring it would retire the
 oracle, not dead weight (the ``coding-standards`` *fuller-view oracle*
 exception).
+
+.. _sn-fission-binding-adjoint:
+
+The fission adjoint — :math:`F` is the third member of one shape
+-----------------------------------------------------------------
+
+CS4c step 4 (design record §16.2, landed 2026-08-30) finished what the
+:math:`(n,2n)` extraction started.  Before it, each of the three gain
+channels reached its transpose a different way: :math:`S` by product
+reversal of a frame conjugation, :math:`N_{2n}` by a hand-written
+:math:`w`-broadcast, :math:`F` by a hand-written
+``np.multiply.outer(w, ·)/W``.  After it, **all three are the same
+sentence**, and the sentence is worth stating once because it is what
+makes the adjoint chain free of channel-specific arithmetic.
+
+Write :math:`R_\ell` / :math:`M_\ell` for the frame's reconstruction /
+analysis faces truncated at order :math:`\ell`, and :math:`W = \sum_n
+w_n`.  The three gains are
+
+.. math::
+   :label: sn-gain-channels-one-shape
+
+   S \;=\; \tfrac{1}{W}\,R\,\Lambda_{\ell \le L}\,M ,
+   \qquad
+   N_{2n} \;=\; \tfrac{1}{W}\,R_0\,
+                \bigl(\nu_{2n}\Sigma_{2n}^{\mathsf T}\bigr)\,M_0 ,
+   \qquad
+   F \;=\; \tfrac{1}{W}\,R_0\,
+           \bigl(|\chi\rangle\langle\nu\Sigma_f|\bigr)\,M_0 ,
+
+.. (vv-status rationale) Structural identity: the three gain channels
+   written on the ONE frame-conjugation shape the CS4c step-4 rebind
+   installed — a composition-site fact about how the bindings are built,
+   not a solver claim.  Its verifiable content is that each realized
+   operator reproduces its own conjugated product: the
+   ``@pytest.mark.foundation`` gates
+   ``tests/sn/operators/test_n2n_operator.py::TestLiftIsTheConjugation::test_apply_equals_l0_conjugation``
+   (N₂ₙ), ``tests/sn/operators/test_scattering_adjoint.py::TestFullScatterKernel``
+   (S), and for F the two-binding split gated by
+   ``tests/sn/operators/test_isotropic_fission.py`` (the energy binding's
+   forward/transpose against hand-rolled dyads, with a swapped-factor
+   control) plus ``tests/sn/operators/test_fission_adjoint.py::TestCompositeTransposeArm``
+   (the angular binding's composite arm against an independent spelling,
+   with a weight-swap discriminator).
+.. vv-status: sn-gain-channels-one-shape documented
+
+differing **only** in the middle factor and in how far the faces are
+truncated: a dense per-:math:`\ell` Legendre stack over
+:math:`(L{+}1)^2` moments for :math:`S`, a dense one-group-to-group
+matrix on one moment for :math:`N_{2n}`, a **rank-1 dyad** on one moment
+for :math:`F`.  Fission is thus the :math:`\ell = 0`, rank-1 degenerate
+of the scattering binding — the reading
+:ref:`operator_algebra <emission-kernels-btd>` had carried as a lens,
+now a shared-code fact.  Critically the frame is *hub-interned*
+(:meth:`HarmonicFrame.for_space
+<orpheus.transport.frames.harmonic_frame.HarmonicFrame.for_space>`), so
+an :math:`S`, an :math:`N_{2n}` and an :math:`F` posed on one space
+reach the **same frame object** and therefore agree on the angular
+metric by construction rather than by convention — which is the
+precondition every reciprocity statement on this page quietly needs.
+
+The consequence for the adjoint is immediate.  Each transpose is the
+reversal of its own product,
+
+.. math::
+   :label: sn-gain-transposes-one-shape
+
+   X^{\mathsf T}\psi^{*}
+   \;=\;
+   \tfrac{1}{W}\,M_\ell^{\mathsf T}\,K^{\mathsf T}\,
+   R_\ell^{\mathsf T}\,\psi^{*} ,
+   \qquad X \in \{S,\;N_{2n},\;F\},
+
+.. (vv-status rationale) Structural identity: the Euclidean transpose of
+   each gain as the OperatorProduct reversal of its own conjugation —
+   the shared shape, not a per-channel derivation.  Its verifiable
+   content is the per-group Euclidean reciprocity ⟨Xψ,χ⟩ = ⟨ψ,Xᵀχ⟩ on
+   each channel, the ``@pytest.mark.foundation`` rows named in
+   :eq:`sn-scattering-adjoint-source` (S), ``TestLiftIsTheConjugation``
+   (N₂ₙ) and
+   ``tests/sn/operators/test_fission_adjoint.py::TestForwardAdjointReciprocity``
+   + ``::TestCompositeTransposeArm`` (F, scalar and composite arms).
+.. vv-status: sn-gain-transposes-one-shape documented
+
+assembled by :meth:`OperatorProduct.apply_transpose
+<orpheus.numerics.operator.OperatorProduct.apply_transpose>` from the
+leaf transposes.  For :math:`F` the middle transpose
+:math:`K^{\mathsf T} = |\nu\Sigma_f\rangle\langle\chi|` is the
+:math:`\chi \leftrightarrow \nu\Sigma_f` **role swap** — a theorem of
+the rank-1 ``outer`` primitive (:meth:`RankOneOperator.apply_transpose
+<orpheus.numerics.operator.RankOneOperator.apply_transpose>`), never
+re-derived — so *no line of fission code computes an adjoint*.  The
+metric Hilbert adjoint ``F.H`` then composes
+:math:`\sharp_V \circ F^{\mathsf T} \circ \flat_W` out of the bound
+spaces' own Riesz legs; nothing fission-specific appears on that path
+either.
+
+.. important::
+
+   **The dyad and the lift live on different objects, and a reader of
+   the daggered-posing bullets needs the distinction.**  Since step 4
+   the fission channel is *two bindings of one datum*
+   (:ref:`fission-as-dyad`): the **energy** binding
+   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+   whose ``apply_transpose`` is exactly the bare dual dyad
+   :math:`F^{\mathsf T}\psi^{*} = \nu\Sigma_f\,(\chi\cdot\psi^{*})` on
+   the scalar flux, and the **angular** binding
+   :class:`~orpheus.transport.operators.fission.FissionOperator`, whose
+   transpose is :eq:`sn-gain-transposes-one-shape` — the dual dyad
+   *wrapped* in the ordinate sum :math:`R_0^{\mathsf T}` and the
+   :math:`w`-weighted embedding :math:`M_0^{\mathsf T}`.  Writing the
+   bare dyad as "the fission transpose" without saying which binding is
+   meant drops those two factors.  The daggered eigen-pencil below poses
+   on the composite, so it is the angular one.
+
+.. note::
+
+   **Why the** :math:`F` **re-spelling moved values and the**
+   :math:`N_{2n}` **one did not.**  Both harmonizations replaced hand
+   arithmetic with the same product reversal, and it is tempting to
+   describe them together — but they are different in kind, and the
+   difference is the position of the :math:`1/W`.  The retired
+   :math:`N_{2n}` spelling was ``(w * Kᵀ(Σχ)) / W``, which is
+   *operation-for-operation* what the reversed chain does at
+   :math:`\ell = 0`; measured, it is bit-identical (previous
+   subsection).  The retired :math:`F` spelling divided **first** —
+   ``outer(w, Kᵀ(Σχ / W))`` — so the chain now applies
+   :math:`K^{\mathsf T}` before the division instead of after, a
+   genuine IEEE-754 re-association.
+
+   ``[M]`` 2026-08-31, 600 draws (200 seeds :math:`\times` three angular
+   rules) on the shipped fissile 4-group heterogeneous 2-D fixture
+   (asymmetric :math:`\chi = [0.6, 0.35, 0.05, 0]`, asymmetric
+   :math:`\nu\Sigma_f`, fuel/moderator split):
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 30 14 20 20 16
+
+      * - angular rule
+        - :math:`N`
+        - ``array_equal``
+        - :math:`\max|\Delta|`
+        - max ULP
+      * - ``lebedev(17)``
+        - 110
+        - 0 / 200
+        - :math:`8.33\times10^{-17}`
+        - 5
+      * - ``lebedev(11)``
+        - 50
+        - 0 / 200
+        - :math:`8.33\times10^{-17}`
+        - 4
+      * - ``level_symmetric(4)``
+        - 24
+        - 0 / 200
+        - :math:`8.33\times10^{-17}`
+        - 5
+
+   So the change is **principled-equivalent, not bit-identical**, and it
+   meets all three ``vv-principles`` criteria: the new intermediate is a
+   named object (the conjugated product, not an anonymous broadcast);
+   the value is anchored by the reciprocity gate against the
+   independently-evaluated forward fast path; and the drift is a
+   single-reduction re-association at :math:`\le 5` ULP.  ⚠ Do **not**
+   pin the :math:`F` row at ``array_equal`` on the strength of the
+   :math:`N_{2n}` result — the two channels are exactly the case
+   ``vv-principles`` #31 warns about, and here the sweep separates them.
 
 .. _sn-adjoint-daggered-posing:
 
@@ -891,10 +1110,18 @@ each term daggers independently:
 * :math:`B.\mathtt{H}` is the boundary-law transpose; the reflective
   and vacuum traces transpose structurally — an adjoint vacuum is the
   transpose of the forward vacuum, never a user-facing BC flip.
-* :math:`F.\mathtt{H}` is the metric-wrapped fission transpose whose
-  Euclidean core is the :math:`\chi\leftrightarrow\nu\Sigma_f` role swap
-  :math:`F^{\mathsf T}\psi^* = \nu\Sigma_f\,(\chi\cdot\psi^*)`
-  (:class:`~orpheus.transport.operators.fission.FissionOperator`).
+* :math:`F.\mathtt{H}` is the metric-wrapped fission transpose.  Its
+  Euclidean core is :eq:`sn-gain-transposes-one-shape` at
+  :math:`\ell = 0` — the ordinate sum :math:`R_0^{\mathsf T}`, then the
+  :math:`\chi\leftrightarrow\nu\Sigma_f` **role swap**
+  :math:`K^{\mathsf T}\phi^* = \nu\Sigma_f\,(\chi\cdot\phi^*)`, then the
+  :math:`w`-weighted embedding :math:`M_0^{\mathsf T}` and the
+  producer-side :math:`1/W`
+  (:class:`~orpheus.transport.operators.fission.FissionOperator`; the
+  bare role swap alone, without the two angular factors, is the
+  **energy** binding's transpose —
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+  see :ref:`sn-fission-binding-adjoint`).
 
 Because :math:`k^{\dagger} = k` is exact, the entry returns
 ``keff`` equal to the forward eigenvalue to iteration tolerance, and

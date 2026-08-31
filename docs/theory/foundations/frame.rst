@@ -2732,8 +2732,81 @@ the simplex. The rate-preserving choice is the **pure birth-group sum**
    probability is the sum of the fine masses landing in G (Hébert
    Eq. 3.112, Stamm'ler VI(6a)). The simplex/null law it must satisfy is
    the data-layer ``Mixture`` invariant; this label is the collapse
-   formula, not a separate solver claim.
+   formula, not a separate solver claim. Since CS4c step 4 the COUPLING
+   with the νΣf channel is additionally gated end-to-end by G-F1
+   (``tests/transport/test_kernels.py::TestFissionCondensationGF1``) —
+   see the admonition below.
 .. vv-status: energy-condensation-chi-collapse documented
+
+.. important::
+
+   **The** :math:`\chi` **and** :math:`\nu\Sigma_f` **channels condense
+   through DIFFERENT morphisms, and the pairing is now gated as one
+   law.**  Fission is the only channel whose two factors leave through
+   opposite doors of this section: the **sink** factor :math:`\chi`
+   takes the mass-preserving birth-group sum just derived
+   (:eq:`energy-condensation-chi-collapse`), while the **source** factor
+   :math:`\nu\Sigma_f` is an ordinary vector channel and takes the
+   rate-preserving :math:`\varphi`-weighted average
+   (:eq:`energy-condensation-vector-collapse`).  Read separately each is
+   uncontroversial; read together they say the condensed fission dyad
+   must satisfy
+
+   .. math::
+      :label: energy-condensation-fission-dyad
+
+      \operatorname{dyad}\bigl(\mathcal{C}(K)\bigr)
+      \;=\;
+      \bigl|\,\textstyle\sum_{g\in G}\chi_g\,\bigr\rangle
+      \bigl\langle\,
+        \bigl(\textstyle\sum_{g\in G}\varphi_g\,\nu\Sigma_{f,g}\bigr)
+        \big/ \bigl(\textstyle\sum_{g\in G}\varphi_g\bigr)
+      \,\bigr| ,
+
+   .. (vv-status rationale) Structural identity: the χ↔νΣf-coupled
+      condensation of the fission kernel — the composition of two
+      morphisms this section already derives separately, stated as one
+      law because the PAIRING is what a wrong-morphism swap breaks and
+      neither factor's own gate can see. Not a solver claim (no
+      eigenvalue, no flux). Its verifiable content is the L1 gate
+      ``tests/transport/test_kernels.py::TestFissionCondensationGF1::test_law_ruled_morphism_pair``
+      (rtol 1e-14) with THREE measured wrong-morphism negative controls
+      and an ASSERTED activation precondition; see the prose below.
+   .. vv-status: energy-condensation-fission-dyad documented
+
+   with :math:`\mathcal{C}` the condensation and
+   :math:`K = (\chi, \nu\Sigma_f)` the per-material
+   :class:`~orpheus.transport.kernels.FissionKernel`.  The asymmetry is
+   **by design and is the finding**: swapping either factor onto the
+   other's morphism produces a coarse dyad that still looks physical
+   (positive, right shape, :math:`\chi` still on a simplex under the
+   sum) and is wrong.  ``[M]`` 2026-08-30, on the shipped
+   4-group :math:`\to` 2-group fixture, the three wrong pairs sit
+   :math:`6.4\times10^{-1}` (average/average),
+   :math:`1.7\times10^{0}` (marginalize/marginalize) and
+   :math:`7.1\times10^{-2}` (average/marginalize) in relative max-norm
+   from the correct dyad, against a law row asserted at
+   ``rtol = 1e-14`` — so any of the three reds the gate by more than ten
+   orders of magnitude.
+
+   Two design properties of that gate are worth carrying into any future
+   condensation work on this page.  First, the morphisms in the gate are
+   **hand-built in the test body** from the partition and :math:`\varphi`
+   — never a second ``frame.project`` call — so the reference is
+   structurally independent of the machinery under test rather than a
+   procedural rearrangement of it (``vv-principles`` L11).  Second, the
+   gate **asserts its own activation precondition**: a target with one
+   fine group per coarse group makes ``average ≡ marginalize`` and every
+   control go silent (``vv-principles`` Mode 12 at the fixture), so an
+   identity condensation is *refused as a fixture* with its own red row
+   rather than silently accepted.  A future fixture edit that flattens
+   :math:`\varphi` or coarsens one-to-one therefore fails loudly instead
+   of quietly de-fanging the law.
+
+   ⚠ **Branch scope.**  This pins the FORWARD branch
+   (``adjoint_spectrum is None``).  The bilinear branch folds the
+   adjoint carrier into the sink factor and obeys a *different* law; it
+   is not covered here.
 
 — the probability mass of the fine birth groups landing in coarse group
 :math:`G`, summed (Hébert :cite:`Hebert2009` Eq. 3.112; Stamm'ler VI(6a)).

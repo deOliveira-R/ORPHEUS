@@ -1176,8 +1176,10 @@ group :math:`g`:
 .. (vv-status rationale) Governing / definitional equation: the fission source
    term (χ_g times the production rate) — the standard transport definition that
    makes the emission-spectrum law key on production (νΣf), not fissionability.
-   Realised by FissionOperator and exercised in the multi-group eigenvalue
-   chain; the production keying is gated by the S10a foundation suite. A
+   Realised by the fission energy binding IsotropicFission (and, on a posed
+   angular composite, by FissionOperator's ℓ=0 conjugation of it) and
+   exercised in the multi-group eigenvalue chain; the production keying is
+   gated by the S10a foundation suite. A
    governing definition, not a separate solver claim.
 
 :math:`\chi` is never used on its own; it is always multiplied by the

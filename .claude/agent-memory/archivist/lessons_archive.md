@@ -8661,3 +8661,143 @@ Weakest: **derivation source** — structurally, not by neglect: a metric
 realization is numerics machinery, not a physics derivation, and its correctness
 evidence is exact-arithmetic literals plus the wrong-metric discriminator, both
 of which the tree already ships.
+
+---
+
+## L-077 — CS4c step 4 (fission rebind): a class SPLIT rots the "same class everywhere" thesis, and two sibling harmonizations can differ in KIND (2026-08-31, branch `refactor/cs4c-step4-fission-binding`, HEAD `fadad026`)
+
+**Task.** Corpus pass for the CS4c step-4 fission rebind: one datum
+(`FissionKernel`) became TWO bindings — `IsotropicFission` (energy, the scalar
+dyad) and `FissionOperator` (angular, the frame's ℓ=0 conjugation) — plus an
+N2N harmonization onto the same shape.
+
+### (a) ⭐⭐ A class SPLIT is the staleness class a symbol grep cannot rank
+
+`grep FissionOperator docs/` returned **50 hits / 19 files** — and the symbol
+still exists, so every hit "resolves". The defect is that ~15 of them meant
+*the scalar dyad*, which moved to a NEW class. No xref gate, no `-W`, no
+`dead_references` can see this: the target is alive and the sentence is wrong.
+
+⟹ **After a split, the instrument is an AST census of PRODUCTION CONSTRUCTION
+SITES, per package** — not a doc grep. `[M]` mine, `ast.Call` over `orpheus/`:
+
+| class | sites | packages |
+|---|---:|---|
+| `FissionOperator` | **1** | `sn` only |
+| `IsotropicFission` | **4** | diffusion, homogeneous, sn, transport |
+| `MultiplicationOperator` | 3 | diffusion, homogeneous, sn |
+
+That table decided every one of the ~15 adjudications in one command, and it
+is the evidence the corrected prose now carries.
+
+### (b) ⭐⭐ The split refuted a THESIS, in three places, and the fix STRENGTHENS it
+
+`path_integral.rst` ×2 + `foundations/index.rst` ×1 asserted *"`MultiplicationOperator`
+and `FissionOperator` are the **same Python classes** instantiated by SN,
+diffusion and the infinite-medium solver"* — the corpus's load-bearing
+shared-code claim, in the ROOT page and the PART index. Post-split: false for F,
+true for `MultiplicationOperator`. ⭐ The repair is not a downgrade — fission had
+been the one channel with a single class serving a scalar AND an angular
+consumer, so it read as the *cleanest* example of sharing while hiding the
+*shape* of the sharing; after the split all three reaction channels share the
+same two-binding shape. **Write the correction as the thesis getting sharper,
+with the census as its evidence**, and add the machine-header key the census
+implies (`angular_bindings:` beside `all_three_consumers:`).
+
+### (c) ⭐⭐ A published CODE BLOCK is the highest-severity staleness in the corpus
+
+`infinite_medium.rst` showed a 4-line "constructed in four lines" example whose
+first constructor call was `FissionOperator.from_solver_data(...)`; live code
+is `IsotropicFission.from_material_xs(...)`. A code block promises
+reproducibility, so it fails Cardinal Rule 1 harder than prose does — and
+nothing gates it. ⟹ **after any constructor/signature change, grep
+`.. code-block:: python` bodies for the changed symbol specifically**, ahead of
+the prose sweep.
+
+### (d) ⭐⭐ A `.. implements::` whose transcription QUOTES the body rots when the body MOVES — and its three fates are visible in one read
+
+`fission-as-dyad` carried two declarations transcribing
+`outer(self.chi, self.production_rate)` and
+`ReactionRateFunctional(self.mat_xs.fission_production_field)`. `[M]`
+`hasattr` sweep: **`FissionOperator.chi`, `.sig_p`, `.mat_xs` are all GONE**;
+the live body is `self.fission.gather_chi(...)` on the NEW class. The right
+answer was neither pure MIGRATE nor pure REMOVE but **BOTH-with-roles**: declare
+the new arithmetic home AND keep the old names declared *as delegations*, saying
+so — because the Protocol gate and a production consumer still reach the dyad
+through the old names, and dropping them would under-declare the equation.
+⭐ Net `directives: wrote N edges` 412 → **415**, predicted exactly (+2 on
+`fission-as-dyad`, +1 on `multigroup`); a mismatch would have meant a `:by:`
+silently failed to bind.
+
+### (e) ⭐⭐ TWO sibling harmonizations described alike can differ in KIND — measure both, and the difference is a THEOREM
+
+Both N2N and F replaced hand arithmetic with the *same* product reversal, and
+both production docstrings say *"a pure IEEE-754 order change,
+principled-equivalent, gated at tolerance."* I drafted one shared note saying
+that. `[M]` on real fixtures it is **false for N2N and true for F**:
+
+| channel | draws | `array_equal` | `max\|Δ\|` | max ULP |
+|---|---|---|---|---|
+| N2N | 200 seeds × GL n = 2/4/6/8/16 | **1000 / 1000** | **0** | 0 |
+| F | 200 seeds × lebedev 17/11 + LS4 | **0 / 200** each | 8.33e-17 | 4–5 |
+
+And the CAUSE is structural, not fixture luck: at ℓ = 0 the outer factors
+degenerate (`R₀ᵀ` = plain ordinate sum, `M₀ᵀ` = per-ordinate ×wₙ), so the chain
+does the same ops in the same ORDER as the retired broadcast — N2N's retired
+spelling divided by W at the end, F's divided *before* `Kᵀ`. ⟹ **when two
+changes are described by one sentence, run both**; and pair a bit-exact reading
+with its structural reason (vv #31: one draw is a property of the draw, a sweep
++ a mechanism is a property of the binding). The measured pair went into the
+page as a `.. list-table::` with a ⚠ *do not pin F at `array_equal` on the
+strength of N2N's result*.
+
+### (f) ⭐ A page can contradict ITSELF 80 lines apart, and the older half is the one a reader trusts
+
+`slab_multigroup.rst` states `A = L + C − S − N₂ₙ − B` at §480 (the step-3
+extraction narrative) and `A = L + C − S − B` **twice** at §558 (the operator
+section, two display equations). Both authored, one stale. ⟹ after any algebra
+change, grep the changed algebra's OLD spelling **within each page that carries
+the new one** — a page that learned the correction in one section is the most
+likely place for the uncorrected twin.
+
+### (g) ⭐⭐ When a residue census is 37 sites and a SIMPLIFICATION, DECLARE it — do not sweep it, and do not stay silent
+
+`[M]` **37** SN-chapter sites still spell `A = L+C−S−B` (step-3 residue). Three
+options, and the middle one is right: (1) sweep all 37 — a numerics
+adjudication riding inside a fission docs pass, and it costs pedagogy where
+Σ₂ₙ ≡ 0 by fixture; (2) silence — leaves 37 present-tense-false sites; (3)
+**declare the simplification at the chapter root** (machine header
+`composites.A` + a `.. note::` naming it *"a deliberate simplification, not the
+shipped member list"*, pointing at the canonical eq-label), fix only the sites
+genuinely describing the SHIPPED composite, and report the census with its
+denominator. (3) makes every remaining site honest by construction and leaves
+the sweep as a scoped follow-up.
+
+### (h) ⭐ A gate's DESIGN properties are publishable theory, not test trivia
+
+G-F1 (the χ↔νΣf-coupled condensation) had two properties worth lifting into
+`frame.rst`: its morphisms are **hand-built in the test body** (structurally
+independent, vv L11) and it **asserts its own activation precondition** (a
+1-fine-per-coarse target makes `average ≡ marginalize` and every control go
+silent — Mode 12 at the fixture — so an identity condensation is REFUSED with
+its own red row). Publishing those two paragraphs is what stops a future
+fixture edit from silently de-fanging the law, and no test docstring is read by
+the person editing the fixture.
+
+### (i) Mechanics confirmed / re-measured
+
+- **Baseline re-measured, not quoted:** `-E -W` EXIT=0, **0** W/E/C/SyntaxWarning
+  at HEAD `fadad026`. Post-pass identical.
+- **The patched xref gate needs its positive control every time.** A throwaway
+  `docs/_ctl_*.rst` with 2 dead roles + 1 live: stock **0**, patched **2 dead**.
+  Control removed → **0/0**. Without it, `DEAD TARGETS: 0` is indistinguishable
+  from a broken scan. (L-071 mechanics; the copy must sit at `scratch/<name>.py`,
+  depth 1.)
+- **A documented-sentinel label adds NO test.** `tests/_harness/audit.py` computes
+  `testable_labels = theory_labels − documented_labels`, so my +3 labels moved
+  the matrix's sentinel count 571 → **574** and the collected total not at all
+  (its +27 was entirely code-side, in 4 test modules). Predict the sentinel
+  count, not the test count, for a documented-only labels pass.
+- **A `.. note::` needs a blank line before the paragraph that follows it** —
+  the one warning I introduced (`Explicit markup ends without a blank line`),
+  caught by the `-W` build in one cycle.

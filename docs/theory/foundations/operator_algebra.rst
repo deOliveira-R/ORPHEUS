@@ -3034,9 +3034,9 @@ read right-to-left as the dyad action :math:`F\,\phi = \chi \cdot
 \langle\nu\Sigma_f,\phi\rangle`: the row co-vector
 :math:`\langle\nu\Sigma_f|` contracts the flux over groups to the scalar
 emission **density** (the S5 :eq:`production-rate-functional`, exposed as
-:attr:`FissionOperator.production_rate <orpheus.transport.operators.fission.FissionOperator.production_rate>`),
+:attr:`IsotropicFission.production_rate <orpheus.transport.operators.isotropic_scattering.IsotropicFission.production_rate>`),
 and the column :math:`\chi` broadcasts it back across the emission groups.
-The realization is literally that dyad — ``outer(self.chi,
+The realization is literally that dyad — ``outer(chi,
 self.production_rate) & IdentityOperator()`` — and the matvec **routes
 through** the row's ``evaluate`` (``coding-elegance`` Pattern 5: build the
 *right primitive*; here the right primitive *is* the contraction, not a
@@ -3046,24 +3046,71 @@ two, the "fused vs. unfolded" distinction the earlier S5 design carried
 records the resulting upgrade from the dissolved procedural twin to the
 closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)` oracle.
 
-.. implements:: fission-as-dyad
-   :by: orpheus.transport.operators.fission.FissionOperator.kernel
+.. note::
 
-   **Implemented by** the equation transcribed: ``return
-   outer(self.chi, self.production_rate) & IdentityOperator()``. Both
+   **Where the dyad lives, since CS4c step 4 (2026-08-30).**  The
+   arithmetic home of this equation moved from the angular operator to
+   the **energy binding**
+   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+   which is one half of the step's ruling that the fission channel is
+   **two bindings of one datum**: a representation-free
+   :class:`~orpheus.transport.kernels.FissionKernel` pair
+   :math:`(\chi, \nu\Sigma_f)` per material, bound once on the *scalar*
+   space (this dyad) and once on the *angular composite*
+   (:class:`~orpheus.transport.operators.fission.FissionOperator`, the
+   frame's :math:`\ell = 0` conjugation of the same dyad —
+   :ref:`sn-fission-binding-adjoint`).
+   :attr:`FissionOperator.kernel
+   <orpheus.transport.operators.fission.FissionOperator.kernel>` and
+   :attr:`FissionOperator.production_rate
+   <orpheus.transport.operators.fission.FissionOperator.production_rate>`
+   survive as *delegations* to that one home, so both spellings still
+   read the identical object — which is why both are declared below.
+   Two consequences for a reader of the transcriptions:
+
+   * the column :math:`|\chi\rangle` is no longer "an array on the
+     operator" — it is ``self.fission.gather_chi(bulk.shape[1:])``, a
+     **gather** of the validated per-material kernels over the binding's
+     own bulk shape (SPACE FIRST: the ends size the data);
+   * the row is built from the gathered
+     :math:`\nu\Sigma_f` rather than read off a facade field, because
+     the operator no longer retains a ``MaterialXSField`` at all —
+     ``FissionOperator.chi`` / ``.sig_p`` / ``.mat_xs`` are **retired**.
+
+.. implements:: fission-as-dyad
+   :by: orpheus.transport.operators.isotropic_scattering.IsotropicFission.kernel
+
+   **Implemented by** the equation transcribed, in its one arithmetic
+   home: ``chi = self.fission.gather_chi(tuple(bulk.shape[1:]))`` then
+   ``return outer(chi, self.production_rate) & IdentityOperator()``. Both
    ``apply`` arms route the matvec **through** this kernel, and
    :meth:`RankOneOperator.apply <orpheus.numerics.operator.RankOneOperator.apply>`
    is ``recon * functional.evaluate(x)`` — so there is one contraction, not
    a fused realization sitting beside a named one.
 
 .. implements:: fission-as-dyad
-   :by: orpheus.transport.operators.fission.FissionOperator.production_rate
+   :by: orpheus.transport.operators.isotropic_scattering.IsotropicFission.production_rate
 
    **Implemented by** the dyad's row co-vector
-   :math:`\langle\nu\Sigma_f|`, exposed as the operator's own member:
-   ``return ReactionRateFunctional(self.mat_xs.fission_production_field)``.
-   The column :math:`|\chi\rangle` needs no implementer — it is an array on
-   the operator, not a computation.
+   :math:`\langle\nu\Sigma_f|`, exposed as the binding's own member:
+   ``ReactionRateFunctional(CrossSectionField(values=nu_sig_f, space=bulk))``
+   over the gathered ``nu_sig_f``.
+
+.. implements:: fission-as-dyad
+   :by: orpheus.transport.operators.fission.FissionOperator.kernel
+
+   **Implemented by** the angular binding's *delegation* — ``return
+   self.energy.kernel``. It is declared because the §5.6 integral-kernel
+   Protocol and
+   :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
+   reach the dyad through this name; the arithmetic is the energy
+   binding's above, so the two can never disagree.
+
+.. implements:: fission-as-dyad
+   :by: orpheus.transport.operators.fission.FissionOperator.production_rate
+
+   **Implemented by** the same delegation on the row factor — ``return
+   self.energy.production_rate``.
 
 .. note::
 
@@ -3434,6 +3481,42 @@ the transport algebra's emission/loss structure reads as one ladder —
 diagonal (collision) :math:`\to` rank-1 CP atom (fission) :math:`\to`
 orthogonal-CP spectral sum (anisotropic scattering) :math:`\to` block-term
 decomposition (full scattering).
+
+.. note::
+
+   **Since CS4c step 4 the "degenerate" reading is no longer only a
+   lens — the two kernels are bound through literally the same
+   faces.**  When this subsection was written, "fission is scattering's
+   rank-1 degenerate" organised two operators that shared *vocabulary*
+   and no code.  The step-4 rebind made the sentence structural: on the
+   angular composite the two bindings are
+
+   .. math::
+
+      S \;=\; \tfrac{1}{W}\,R\,\Lambda_{\ell\le L}\,M ,
+      \qquad
+      F \;=\; \tfrac{1}{W}\,R_0\,
+              \bigl(|\chi\rangle\langle\nu\Sigma_f|\bigr)\,M_0 ,
+
+   — the **same** analysis/reconstruction faces, minted from the **same
+   hub-interned** :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`
+   (so an :math:`S` and an :math:`F` posed on one space share one
+   metric by construction, not by convention), with fission taking one
+   moment instead of :math:`(L{+}1)^2` and a rank-1 energy factor
+   instead of a dense transfer stack.  :math:`N_{2n}` is the third
+   member of the same shape, differing from :math:`F` only in that its
+   :math:`\ell = 0` energy factor is a full transfer matrix
+   :math:`\nu_{2n}\Sigma_{2n}^{\mathsf T}` rather than a dyad.  The
+   consequence that matters is the adjoint: all three transposes are
+   **one factor reversal** of the conjugated product, with no
+   channel-specific :math:`w`-arithmetic anywhere
+   (:ref:`sn-fission-binding-adjoint`).
+
+   The guardrails below are unaffected — they forbid *fitting* the
+   factors and *minting an umbrella type*, and neither is what the
+   shared faces do.  What changed is that the "two realisations, named
+   honestly" the last guardrail appeals to are now demonstrably one
+   realisation used at two ranks.
 
 .. warning::
 
@@ -4451,8 +4534,14 @@ router-over-shared-primitives shape falls out of the sharing.
    **Source map.** Category Protocol:
    :class:`orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
    (L2). Named kernels:
-   :attr:`orpheus.transport.operators.fission.FissionOperator.kernel` +
-   :attr:`orpheus.transport.operators.fission.FissionOperator.production_rate`;
+   :attr:`orpheus.transport.operators.isotropic_scattering.IsotropicFission.kernel`
+   +
+   :attr:`orpheus.transport.operators.isotropic_scattering.IsotropicFission.production_rate`
+   (the arithmetic home since CS4c step 4; the angular binding's
+   :attr:`FissionOperator.kernel
+   <orpheus.transport.operators.fission.FissionOperator.kernel>` /
+   :attr:`~orpheus.transport.operators.fission.FissionOperator.production_rate`
+   delegate to it, and are what the Protocol gate reaches);
    :attr:`orpheus.transport.operators.scattering.ScatteringOperator.kernel`.
    Category-refinement gate:
    ``tests/transport/test_integral_kernel_category.py``. Fission

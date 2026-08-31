@@ -38,10 +38,17 @@ cached frame form :attr:`~N2NOperator.full_n2n_kernel`
 (``frame.conjugate(N2NMomentOperator)`` reversed by
 :meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose`, then
 the producer :math:`/W`) — the identity above is the product chain's,
-not this module's arithmetic. (The pre-harmonization hand spelling
-divided by :math:`W` after the :math:`w`-broadcast where the product
-divides outside the chain — a pure IEEE-754 order change,
-principled-equivalent, gated at tolerance.)
+not this module's arithmetic. (The re-spelling is BIT-IDENTICAL to the
+retired hand :math:`w`-broadcast — [M] 2026-08-31, ``np.array_equal``
+1000/1000 over 200 seeds × ``gauss_legendre`` n=2/4/6/8/16 on the 2g
+slab fixture, :math:`\max|\Delta| = 0` — and that is a THEOREM of
+:math:`\ell=0`, not fixture luck: :math:`R_0^{\mathsf T}` is the plain
+ordinate sum and :math:`M_0^{\mathsf T}` a per-ordinate :math:`\times
+w_n`, so the product chain performs the same float ops in the same
+order. Contrast ``fission.py``, whose retired spelling divided by
+:math:`W` on the OTHER side of :math:`K^{\mathsf T}` — genuinely a few
+ULP, gated at tolerance. See
+``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-adjoint-source.)
 
 Future anisotropy is the KERNEL's growth (an ℓ-stack on
 :class:`~orpheus.transport.kernels.N2NKernel`), never an S entanglement.

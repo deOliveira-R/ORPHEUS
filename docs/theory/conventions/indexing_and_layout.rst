@@ -1079,9 +1079,14 @@ scale through the same algebra.
        metric lives
    * - :math:`F`
      - :class:`~orpheus.transport.operators.fission.FissionOperator`
+       (angular binding) /
+       :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+       (energy binding)
      - Fission :math:`\chi_g \sum_{g'} \nu\Sigma_{f,g'}\,\phi_{g'}`;
-       rank-1 in energy, rank-0 in angle (internal
-       ``to_scalar`` + broadcast-back)
+       rank-1 in energy, rank-0 in angle.  The energy binding IS that
+       dyad on the scalar flux; the angular binding wraps it in
+       ``integrate_angular`` + the shared per-ordinate isotropic
+       combine (CS4c step 4)
 
 Two derived combinations carry their own names:
 
@@ -1223,8 +1228,13 @@ lives in scattered docstrings.
    * - :class:`ScatteringOperator`.\ ``apply`` in/out
      - ``(N, ng, nx, ny)``
      - :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply`
-   * - :class:`FissionOperator`.\ ``apply`` in/out
+   * - :class:`IsotropicFission`.\ ``apply`` in/out
+       (the fission ENERGY binding)
      - ``(ng, nx, ny)``
+     - :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission.apply`
+   * - :class:`FissionOperator`.\ ``apply`` in/out
+       (the fission ANGULAR binding; a scalar carrier is REFUSED)
+     - ``(N, ng, nx, ny)``
      - :meth:`~orpheus.transport.operators.fission.FissionOperator.apply`
    * - :class:`StreamingOperator`.\ ``apply`` in/out (Resolution A)
      - ``(N, ng, nx, ny)``

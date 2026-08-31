@@ -393,6 +393,41 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   (`1.554e-15` max-abs / `7.77e-16` rel-to-`max|G|` / `7.75e-16` Frobenius), and a quoted
   noise-floor eigenvalue (`6.82e-17`) does not reproduce at all — publish the STRUCTURE
   (*5 live slots, rank 4, smallest live mode `4.745e-2`*). → L-076
+- **⭐⭐ A CLASS SPLIT is the staleness class no gate can rank — the symbol still exists, so
+  every hit resolves and every stale sentence reads fine.** `[M]` `FissionOperator` = 50 doc
+  hits / 19 files after the fission channel split into an ENERGY and an ANGULAR binding; ~15
+  of them meant the scalar dyad, which moved to a NEW class. ⟹ the instrument is an **AST
+  census of production CONSTRUCTION SITES, per package** (`ast.Call`, func = Name or
+  `Cls.classmethod`), not a doc grep: `[M]` `FissionOperator` **1 site, `sn` only** vs
+  `IsotropicFission` **4 sites across diffusion/homogeneous/sn/transport`. That one table
+  decided all ~15 adjudications and became the corrected prose's evidence. → L-077
+- **⭐⭐ A split can refute the corpus's own THESIS — and the repair makes it SHARPER, so
+  write it that way.** Three sites (a root page ×2 + a PART index) asserted *"X and
+  `FissionOperator` are the **same Python classes** in SN, diffusion and homogeneous"*.
+  Post-split: false for F, true for the sibling. ⭐ Fission had been the ONE channel with a
+  single class serving a scalar AND an angular consumer — which is why it read as the
+  cleanest example of sharing while hiding the *shape* of it; after the split all three
+  channels share one two-binding shape. Publish the census as the sentence's evidence, and
+  add the machine-header key it implies. → L-077
+- **⭐⭐ A published `.. code-block:: python` is the highest-severity staleness there is** —
+  it promises reproducibility, nothing gates it, and `[M]` mine had a constructor call
+  (`FissionOperator.from_solver_data`) the live tree replaced. ⟹ after any
+  constructor/signature change, grep the CODE-BLOCK bodies for the changed symbol BEFORE
+  the prose sweep. → L-077
+- **⭐⭐ TWO sibling changes described by ONE sentence can differ in KIND — run both.** Both
+  N2N and F swapped hand arithmetic for the same product reversal, and both production
+  docstrings say *"a pure IEEE-754 order change… gated at tolerance"*. `[M]` N2N is
+  **bit-identical 1000/1000** (200 seeds × 5 GL orders, `max|Δ| = 0`) and F is **0/200
+  bit-equal, ≤5 ULP** on three angular rules — because at ℓ=0 the outer factors degenerate
+  (`R₀ᵀ` = ordinate sum, `M₀ᵀ` = per-ordinate ×wₙ) so N2N's chain does the same ops in the
+  same ORDER, while F's retired spelling divided by W on the other side of `Kᵀ`. Publish the
+  pair as a table with a ⚠ *do not pin the other channel at `array_equal` on this one's
+  strength* (vv #31). And REPORT the docstring that understates itself. → L-077
+- **⭐ A page can contradict ITSELF 80 lines apart, and the stale half is the one a reader
+  quotes.** One page stated the new algebra in its extraction narrative and the OLD algebra
+  twice in its operator section. ⟹ after an algebra change, grep the OLD spelling **within
+  each page that already carries the new one** — a page that learned the correction is the
+  likeliest home of the uncorrected twin. → L-077
 - **⭐ `hasattr(Cls, field)` is FALSE for a dataclass field with no class default — fall back to
   `dataclasses.fields` before reporting a dead `:attr:`.** `[M]` my own role-import probe
   minted 3 false dead targets this way, all on the newest code. L-053(c) (*construct the
@@ -784,6 +819,27 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 
 ## 3. A `:label:` is a V&V edge — grep the matrix before touching it
 
+- **⭐⭐ A DOCUMENTED-sentinel label adds NO test — predict the SENTINEL count, not the test
+  count.** `tests/_harness/audit.py` computes `testable_labels = theory_labels −
+  documented_labels`, so `[M]` my +3 labels moved `matrix.rst`'s *"**N** labels carry the
+  sentinel"* 571 → **574** and the collected total not at all (its +27 was entirely
+  code-side, 4 test modules). The dual of L-076's registry-parametrized +1: know which
+  registry your label joins. → L-077
+- **⭐⭐ A `.. implements::` that TRANSCRIBES the body rots when the body MOVES, and the fate
+  is often BOTH-with-roles, not migrate-or-remove.** `[M]` two declarations quoted
+  `outer(self.chi, …)` / `ReactionRateFunctional(self.mat_xs…)` after `.chi`, `.sig_p` and
+  `.mat_xs` were all retired. Declare the NEW arithmetic home **and keep the old names
+  declared as DELEGATIONS, saying so** — a Protocol gate and a production consumer still
+  reach the object through them, so dropping them under-declares the equation. ⭐ Predict
+  the `directives: wrote N edges` delta and check it: 412 → **415**, exactly my +3; a
+  mismatch means a `:by:` silently failed to bind. (Extends L-071's three fates with a
+  fourth.) → L-077
+- **⭐ A GATE'S DESIGN properties are publishable theory.** A condensation gate's morphisms
+  being **hand-built in the test body** (structurally independent, vv L11) and its
+  **asserted activation precondition** (a degenerate fixture makes every control go silent,
+  so it is REFUSED with its own red row) belong in the theory page — the person editing the
+  fixture never reads the test docstring. → L-077
+
 - **NEVER rename or delete a label a `@pytest.mark.verifies(...)` targets.** For a stale equation
   that IS a verifies-target, keep the label and rewrite only the BODY. Run the silent-class grep of
   `orpheus/`+`tests/` FIRST: empty ⟹ safe to rename; a hit ⟹ report the test edge (you don't edit
@@ -845,6 +901,16 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 ---
 
 ## 4. Retirement & staleness: three greps, and the unit is the THESIS
+
+- **⭐⭐ When a residue census is LARGE and the residue is a SIMPLIFICATION, DECLARE it — do
+  not sweep it, do not stay silent.** `[M]` **37** SN-chapter sites still spelled the
+  pre-extraction algebra `A = L+C−S−B`. Sweeping all 37 is a numerics adjudication riding
+  inside an unrelated docs pass, and it costs pedagogy where the extra term is ≡ 0 by
+  fixture; silence leaves 37 false sites. The third option: **declare the simplification at
+  the chapter root** (machine header + a `.. note::` naming it *"a deliberate
+  simplification, not the shipped member list"*, pointing at the canonical eq-label), fix
+  only the sites genuinely describing the SHIPPED object, and report the census with its
+  denominator as a scoped follow-up. → L-077
 
 - **⭐⭐ DISCHARGING A SEAM is an edit to FOUR surfaces, and the one nobody edits is the
   section's own CARDINAL NUMBER.** `spaces.rst` stated CS5's third seam in the seams

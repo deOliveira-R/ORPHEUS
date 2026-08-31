@@ -21,7 +21,9 @@ new axis:
    group) → *pose* the multigroup balance;
 2. **the operators** — scattering becomes a group-coupling kernel,
    fission a rank-1-in-energy emitter; the within-group operator
-   :math:`A = L + C - S - B` keeps its shape, and its
+   :math:`A = L + C - S - B` keeps its shape (the shipped composite
+   carries a sixth term :math:`-N_{2n}`, zero on this chapter's
+   fixtures — :eq:`sn-within-group-with-n2n`), and its
    streaming-collision part :math:`L+C` stays group-diagonal —
    invertible per group by the same one-pass sweep;
 3. **the eigenvalue posing** — criticality as the generalized
@@ -92,7 +94,7 @@ transport equation becomes a coupled system with scattering transfer
 .. implements:: multigroup
    :by: orpheus.sn.coupled_system.WithinGroupSystem
 
-   **Implemented by** 11 sites. Every symbol that executes this
+   **Implemented by** 12 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
@@ -109,6 +111,9 @@ transport equation becomes a coupled system with scattering transfer
 
 .. implements:: multigroup
    :by: orpheus.transport.operators.fission.FissionOperator
+
+.. implements:: multigroup
+   :by: orpheus.transport.operators.isotropic_scattering.IsotropicFission
 
 .. implements:: multigroup
    :by: orpheus.transport.operators.isotropic_scattering.IsotropicN2N
@@ -510,7 +515,9 @@ The normalization chain in the code ensures consistent scaling:
 
 1. **Fission source** (:meth:`SNSolver.compute_fission_source`):
    :math:`Q_f = \chi \cdot (\nSigf{} \cdot \phi) / k` --- raw,
-   un-normalised.
+   un-normalised.  Since CS4c step 4 this is a thin delegator to the
+   fission **energy** binding's ``apply`` (the dyad bound at the mesh's
+   scalar bulk space); the :math:`1/k` stays here.
 
 2. **Scattering source** (:meth:`SNSolver._add_scattering_source`):
    :math:`Q_s = \text{SigS}^T \cdot \phi` --- also un-normalised.
@@ -548,23 +555,30 @@ Wave A Issue 1 of the SN reshape campaign installed the
 :class:`~orpheus.numerics.operator.LinearOperator` Protocol --- a
 predicate-typed matrix-free operator algebra (see :ref:`operator-algebra`).
 In that algebra the multigroup problem of this chapter is posed on the
-honest within-group operator :math:`A = L + C - S - B`
-(:doc:`/theory/foundations/operator_algebra`):
+honest within-group operator :math:`A = L + C - S - N_{2n} - B`
+(:eq:`sn-within-group-with-n2n`,
+:doc:`/theory/foundations/operator_algebra`):
 
 .. math::
 
-    (L + C - S - B)\,\psi = q
+    (L + C - S - N_{2n} - B)\,\psi = q
     \qquad\text{(fixed source)}
 
 .. math::
 
-    (L + C - S - B)\,\psi = \tfrac{1}{k}\,F\,\psi
+    (L + C - S - N_{2n} - B)\,\psi = \tfrac{1}{k}\,F\,\psi
     \qquad\text{(eigenvalue)}
 
 where :math:`L + C` is the group-diagonal streaming-collision
 composite the sweep inverts (:ref:`sn-streaming-operator`), :math:`S`
-is the scattering gain of this chapter, :math:`B` the
-boundary-reflection gain, and :math:`F` the fission source operator.
+is the scattering gain of this chapter, :math:`N_{2n}` the first-class
+:math:`(n,2n)` source extracted from it at CS4c step 3 (the subsection
+above), :math:`B` the boundary-reflection gain, and :math:`F` the
+fission source operator.  (Both displays read :math:`A = L + C - S - B`
+until 2026-08-30, when the extraction gave :math:`(n,2n)` its own term;
+the 1-D diffusion solver's :math:`A` still reads that way, because it
+sums the two isotropic energy leaves into one :math:`S` at its own
+composition site — the disagreement is deliberate and legible.)
 Wave D Issue 13 lifted :math:`S` and :math:`F` out of
 :class:`~orpheus.sn.solver.SNSolver` and into
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
@@ -598,11 +612,24 @@ adjointable — ``is_adjointable = True`` — since each gained a working
   per-cell rate. This rank-1 structure forbids a useful inverse on
   the energy axis (the rate has lost direction information). The
   :math:`1/k` eigenvalue division stays at the **solver** level ---
-  :meth:`~orpheus.transport.operators.fission.FissionOperator.apply` returns
-  :math:`F\,\phi`; the EigenvalueSolver Protocol's
-  ``compute_fission_source`` divides by :math:`k`. This separation
-  preserves linearity of the operator (Wave A Protocol contract: an
-  operator's ``apply`` is independent of solver state).
+  the operator returns :math:`F\,\phi` and the EigenvalueSolver
+  Protocol's ``compute_fission_source`` divides by :math:`k`. This
+  separation preserves linearity of the operator (Wave A Protocol
+  contract: an operator's ``apply`` is independent of solver state).
+
+  ⚠ Since CS4c step 4 (2026-08-30) the equation just written is the
+  **energy** binding's contract, not the angular one's:
+  :meth:`IsotropicFission.apply
+  <orpheus.transport.operators.isotropic_scattering.IsotropicFission.apply>`
+  is what maps a scalar flux :math:`(n_g, *\text{spatial})` to
+  :math:`F\phi`, and it is what
+  :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source` delegates
+  to.  :meth:`FissionOperator.apply
+  <orpheus.transport.operators.fission.FissionOperator.apply>` is the
+  *angular* lift of the same dyad and **refuses** a scalar carrier with
+  a message pointing at the energy binding
+  (:ref:`sn-fission-binding-adjoint`).  Both bindings are non-invertible
+  and adjointable, so the "``apply``-only" reading above holds for each.
 
 Pℓ Galerkin projection on :math:`Y_\ell^m`
 -------------------------------------------

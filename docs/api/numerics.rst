@@ -168,7 +168,9 @@ consumers landed May 2026):
   the functional, not a parallel reduction). Built by the free function
   :func:`~orpheus.numerics.operator.outer`\ ``(reconstruction,
   functional)``; native to the multigroup fission emission
-  :math:`F = |\chi\rangle\langle\nu\Sigma_f|` (:attr:`FissionOperator.kernel`).
+  :math:`F = |\chi\rangle\langle\nu\Sigma_f|` (:attr:`IsotropicFission.kernel`,
+  the fission energy binding's one arithmetic home since CS4c step 4;
+  ``FissionOperator.kernel`` delegates to it).
   A genuine :math:`M\times K` rank-1 operator is legal (no same-shape
   constraint between column and row).
 * :func:`~orpheus.numerics.operator.outer` — the universal rank-1
@@ -205,9 +207,9 @@ master condition that decides between :class:`TensorProductOperator`,
      - 6
      - 5 BC realizers (vacuum / specular / white / albedo / periodic
        via Wave T T.1 ``& IdentityOperator()`` wrap); fission kernel
-       (Wave T T.2,
-       :attr:`FissionOperator.kernel = outer(χ,
-       ReactionRateFunctional(νΣ_f)) & IdentityOperator()`)
+       (Wave T T.2, ``IsotropicFission.kernel = outer(χ,
+       ReactionRateFunctional(νΣ_f)) & IdentityOperator()`` — the
+       energy binding since CS4c step 4)
      - Six clean-TP production instances. The MA-Q1 master condition
        is satisfied: each consumer factors as disjoint per-axis
        operations.
@@ -231,7 +233,7 @@ master condition that decides between :class:`TensorProductOperator`,
        kernel ``IsotropicScattering + IsotropicN2N``
      - Every ``+``/``-`` in the operator algebra lands here (the
        :class:`LinearOperator` dunder defaults), so the honest
-       :math:`A = L + C - S - B` composition IS a left-nested
+       :math:`A = L + C - S - N_{2n} - B` composition IS a left-nested
        ``OperatorSum``.  It is also where the *context-dependent*
        groupings live: diffusion's ``S`` IS
        ``IsotropicScattering + IsotropicN2N``, and the S\ :sub:`N`
@@ -248,7 +250,7 @@ master condition that decides between :class:`TensorProductOperator`,
    * - :class:`~orpheus.numerics.operator.RankOneOperator`
      - 1
      - Wave T T.2 fission kernel
-       (:attr:`FissionOperator.kernel` first factor of the
+       (:attr:`IsotropicFission.kernel` first factor of the
        :class:`TensorProductOperator`); built via
        :func:`~orpheus.numerics.operator.outer`
      - The dyad :math:`|\chi\rangle\langle\nu\Sigma_f|`: encodes the

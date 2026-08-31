@@ -206,7 +206,9 @@ shape choice.
        (single rank-1 dyad)
      - ``outer(χ, ReactionRateFunctional(νΣ_f)) &
        IdentityOperator()``
-       (:attr:`FissionOperator.kernel`)
+       (``IsotropicFission.kernel`` — the fission energy
+       binding since CS4c step 4;
+       ``FissionOperator.kernel`` delegates)
      - Per Grand Report v3 §15 line 2008
        :math:`F = |\chi\rangle\langle\nu\Sigma_f|`. The
        group-axis contraction-then-broadcast is
@@ -1118,8 +1120,12 @@ Cross-references
     :class:`orpheus.numerics.operator.ZeroOperator`.
   - :class:`orpheus.sn.boundary.realizer.SNBoundaryRealizer` —
     the BC realizer dispatching the T.1 lifts.
-  - :class:`orpheus.transport.operators.fission.FissionOperator` and its
-    :attr:`~orpheus.transport.operators.fission.FissionOperator.kernel` property.
+  - :class:`orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+    and its
+    :attr:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission.kernel`
+    property (the dyad's arithmetic home since CS4c step 4);
+    :class:`orpheus.transport.operators.fission.FissionOperator`, whose
+    same-named property delegates to it.
   - :class:`orpheus.transport.operators.scattering.ScatteringOperator` and its
     :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel`
     property.

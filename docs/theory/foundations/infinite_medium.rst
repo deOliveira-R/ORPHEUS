@@ -290,7 +290,7 @@ gives the **multi-group neutron balance** for group :math:`g`:
    :by: orpheus.transport.material_field.ScatteringMaterialField.add_p0_source
 
 .. implements:: mg-balance
-   :by: orpheus.transport.operators.fission.FissionOperator.apply
+   :by: orpheus.transport.operators.isotropic_scattering.IsotropicFission.apply
 
 .. implements:: mg-balance
    :by: orpheus.transport.operators.isotropic_scattering.IsotropicScattering.apply
@@ -345,7 +345,8 @@ scattering transfer matrix (:math:`P_0` component) and
 :math:`\boldsymbol{\Sigma}_2` is the :math:`(n,2n)` transfer matrix. The
 production matrix :math:`\mathbf{F}` is the **rank-1 dyad**
 :math:`\boldsymbol{\chi} \otimes \nu\boldsymbol{\Sigma}_\mathrm{f}`
-embodied by :class:`~orpheus.transport.operators.fission.FissionOperator`
+embodied by
+:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
 — a group contraction onto the production rate followed by a broadcast
 across the emission spectrum :math:`\boldsymbol{\chi}`.
 
@@ -390,8 +391,9 @@ across the emission spectrum :math:`\boldsymbol{\chi}`.
    (:math:`\Sigma_{s0}^T`) and
    :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
    (:math:`2\Sigma_2^T`); the production dyad :math:`\mathbf{F}` is the
-   :class:`~orpheus.transport.operators.fission.FissionOperator` rank-1
-   form (materialised densely as :math:`\chi \otimes \nu\Sigma_f`).  See
+   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+   rank-1 form (materialised densely as
+   :math:`\chi \otimes \nu\Sigma_f`).  See
    :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`.
 
 The eigenvalue :math:`k = \kinf` is the largest eigenvalue of the
@@ -547,13 +549,16 @@ matrices are:
 
 
 .. implements:: two-group-F
-   :by: orpheus.transport.operators.fission.FissionOperator
+   :by: orpheus.transport.operators.isotropic_scattering.IsotropicFission
 
    **Implemented by** 3 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
-   others.
+   others. (The transport-side site was ``FissionOperator`` until CS4c
+   step 4 rebound the channel — the infinite-medium problem carries no
+   angular axis, so the *energy* binding is the one that executes this
+   dyad; :ref:`fission-as-dyad`.)
 
 .. implements:: two-group-F
    :by: orpheus.derivations.common.eigenvalue._infinite_medium_matrices
@@ -1285,8 +1290,8 @@ constructed, and its dominant eigenpair taken, in four lines:
 
    space = _pose_space(mix)                        # Energy ⊗ point, minted from the mixture
    loss = _assemble_loss_operator(mat_xs, space)   # A = C − K_iso, un-materialized
-   production = FissionOperator.from_solver_data(  # F = χ ⊗ νΣ_f
-       mat_xs=mat_xs, space=space,
+   production = IsotropicFission.from_material_xs(  # F = χ ⊗ νΣ_f
+       mat_xs, space=space,
    )
    K = MatrixInverseOperator(loss) @ production
    k_inf, phi = dominant_eigenpair(K.as_matrix())
@@ -1299,6 +1304,26 @@ and ``as_matrix`` **derive** the ``(ng, 1)`` basis shape from the
 threaded domain; the pre-CS1 idiom passed ``basis_shape=(ng, 1)``
 explicitly at both sites because the meshless operators carried no
 space to derive it from.)
+
+.. note::
+
+   **Which fission binding the production factor is (CS4c step 4,
+   2026-08-30).**  The line above named
+   :class:`~orpheus.transport.operators.fission.FissionOperator` until
+   step 4 rebound the channel as **two bindings of one datum**
+   (:ref:`fission-as-dyad`): the *energy* binding
+   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+   — the rank-1 dyad on the scalar flux, and the one this solver, the
+   S\ :sub:`N` k-outer and the 1-D diffusion solver all consume — and
+   the *angular* binding ``FissionOperator``, the frame's
+   :math:`\ell = 0` conjugation of the same dyad on a posed angular
+   composite, which only S\ :sub:`N`'s eigen-:math:`M` posing needs.
+   The infinite-medium problem has no angular axis, so the energy
+   binding is not merely sufficient here — it is the honest one, and
+   the angular binding now **refuses** a scalar carrier at construction
+   rather than silently accepting it.  The arithmetic is unchanged: the
+   dyad, its ``outer`` reduction order, and therefore :math:`k_\infty`
+   are the same object under both names.
 
 :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
 materializes and LU-factors the loss operator **once** at construction; the

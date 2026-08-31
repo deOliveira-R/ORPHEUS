@@ -58,11 +58,22 @@ are accessible via the standard import path.
   — the §5.6 Kernel Protocol (a refinement of
   :class:`~orpheus.numerics.operator.LinearOperator` adding a ``kernel``
   member). See :ref:`integral-kernel-category`.
-* :class:`~orpheus.transport.operators.fission.FissionOperator` — the
-  multigroup fission source :math:`F`, realized as the rank-1 dyad
+* :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+  — the multigroup fission source :math:`F` in its **energy** binding,
+  realized as the rank-1 dyad
   :math:`|\chi\rangle\langle\nu\Sigma_f| = \texttt{outer}(\chi,\,
   \mathrm{ReactionRateFunctional}(\nu\Sigma_f))` whose matvec routes
-  through the production-rate functional (:ref:`fission-as-dyad`).
+  through the production-rate functional (:ref:`fission-as-dyad`).  This
+  is the class the S\ :sub:`N` k-outer, the 1-D diffusion solver and the
+  infinite-medium solver all consume.
+* :class:`~orpheus.transport.operators.fission.FissionOperator` — the
+  same datum's **angular** binding: the harmonic frame's
+  :math:`\ell = 0` conjugation of that dyad on a posed angular
+  composite, retaining the energy binding as its middle factor exactly
+  as ``N2NOperator`` retains ``IsotropicN2N``.  Since CS4c step 4 its
+  Euclidean transpose is factor reversal of the cached conjugated
+  product, with no fission-side :math:`w`-arithmetic
+  (:ref:`sn-fission-binding-adjoint`).
 * :class:`~orpheus.transport.operators.scattering.ScatteringOperator` —
   the scattering source :math:`S`, exposing the
   :math:`R\circ\Lambda\circ M` spectral kernel (the spherical-harmonic

@@ -91,9 +91,11 @@ then takes the dominant eigenpair directly:
   what production consumes).
   Streaming :math:`L \equiv 0` in an infinite medium and is dropped.
 * **Production dyad** :math:`\mathbf{F} = \chi \otimes \nu\Sigma_f`,
-  the rank-1 form of
-  :class:`~orpheus.transport.operators.fission.FissionOperator`, likewise
-  materialised densely via its own
+  the rank-1 form of the fission energy binding
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+  (CS4c step 4 — the same class diffusion and the S\ :sub:`N` k-outer
+  consume; the angular binding ``FissionOperator`` has no role in an
+  infinite medium), likewise materialised densely via its own
   :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`.
 * **Eigenpair** :math:`k_\infty = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})`
   and the dominant right eigenvector, computed by one

@@ -35,8 +35,9 @@ The Transport Path Integral: One Object, Five Methods
         A3: "angular representation   — ordinates / harmonics / continuous / Case ν-spectrum"
       axes_note: "the three axes are INDEPENDENT; their product is PARTIALLY POPULATED (MC has no A2 value; diffusion and Case have no A1 value)"
       shared_operators:
-        all_three_consumers: [MultiplicationOperator, FissionOperator]     # orpheus.transport.operators — same classes in SN, diffusion, homogeneous
+        all_three_consumers: [MultiplicationOperator, IsotropicFission]    # orpheus.transport.operators — [M] 2026-08-31 the only two classes instantiated in sn AND diffusion AND homogeneous
         iso_specializations: [IsotropicScattering, IsotropicN2N]           # diffusion + homogeneous
+        angular_bindings: [ScatteringOperator, N2NOperator, FissionOperator]  # SN only — the frame's ℓ-conjugations of the energy bindings above
         shared_kernel: [ScatteringOperator]                                # SN routes the same package's anisotropic kernel
       eigenvalue_posing: "k and α are properties of the OPERATOR, posed before any discretization; every method inherits the posing"
       gates_resolved: "#298 + #299 fixed in-branch; Phase-I literature survey ingested (Larsen–Morel 2010, Adams–Larsen 2002)"
@@ -60,10 +61,11 @@ histories.** The operator algebra is powerful precisely because the
 *reaction* operators are shared objects across methods — a shared-code
 fact, not an analogy: the collision operator
 :class:`~orpheus.transport.operators.MultiplicationOperator` and the
-:class:`~orpheus.transport.operators.FissionOperator` are the *same Python
-classes* instantiated by S\ :sub:`N`, diffusion and the infinite-medium
-solver, and all three draw their scattering from the same
-:mod:`orpheus.transport.operators` package —
+fission energy binding
+:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+are the *same Python classes* instantiated by S\ :sub:`N`, diffusion and
+the infinite-medium solver, and all three draw their scattering from the
+same :mod:`orpheus.transport.operators` package —
 :class:`~orpheus.transport.operators.IsotropicScattering` and
 :class:`~orpheus.transport.operators.IsotropicN2N` for the isotropic
 consumers (diffusion, infinite-medium), the same package's anisotropic
@@ -357,20 +359,48 @@ reaction operators live in one package, :mod:`orpheus.transport.operators`,
 and the methods consume them as follows:
 
 - :class:`~orpheus.transport.operators.MultiplicationOperator` — the
-  collision diagonal :math:`C = M[\Sigma_t]` — and
-  :class:`~orpheus.transport.operators.FissionOperator` are the **same
-  classes** instantiated by all three deterministic consumers
-  (S\ :sub:`N` in ``orpheus/sn``, diffusion in
+  collision diagonal :math:`C = M[\Sigma_t]` — and the fission energy
+  binding
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+  are the **same classes** instantiated by all three deterministic
+  consumers (S\ :sub:`N` in ``orpheus/sn``, diffusion in
   ``orpheus/diffusion/solver.py``, the infinite-medium solver in
-  ``orpheus/homogeneous/solver.py``).
-- Scattering is a **shared kernel with representation-matched faces**:
-  the isotropic consumers (diffusion, infinite-medium) instantiate
-  :class:`~orpheus.transport.operators.IsotropicScattering` and
-  :class:`~orpheus.transport.operators.IsotropicN2N`;
-  S\ :sub:`N`, which resolves angle, routes the *same package's*
-  anisotropic :class:`~orpheus.transport.operators.ScatteringOperator`
-  kernel. One package owns the scattering mathematics; each method takes
-  the face matched to its angular representation.
+  ``orpheus/homogeneous/solver.py``).  ``[M]`` 2026-08-31, by AST over
+  ``orpheus/``: those are the **only two** operator classes with a
+  construction site in all three packages.
+- Scattering **and fission** are **shared kernels with
+  representation-matched faces** — the same pattern, stated once: the
+  isotropic consumers (diffusion, infinite-medium) instantiate the
+  *energy* bindings
+  :class:`~orpheus.transport.operators.IsotropicScattering`,
+  :class:`~orpheus.transport.operators.IsotropicN2N` and
+  ``IsotropicFission``; S\ :sub:`N`, which resolves angle, routes the
+  *same package's* angular bindings — the anisotropic
+  :class:`~orpheus.transport.operators.ScatteringOperator` kernel,
+  :class:`~orpheus.transport.operators.n2n.N2NOperator`, and
+  :class:`~orpheus.transport.operators.fission.FissionOperator` — each
+  of which is the harmonic frame's :math:`\ell`-conjugation of the
+  corresponding energy binding and *retains it as its middle factor*
+  (:ref:`sn-fission-binding-adjoint`).  One package owns the reaction
+  mathematics; each method takes the face matched to its angular
+  representation, and the two faces of a channel cannot drift because
+  one is built from the other.
+
+  .. note::
+
+     **This bullet said "**\ ``FissionOperator``\ **" until CS4c step 4
+     (2026-08-30), and the correction sharpens the thesis rather than
+     weakening it.**  Fission was the one reaction channel with a single
+     class serving both a scalar and an angular consumer, which is why
+     it read as the cleanest example of sharing — and why the *shape* of
+     the sharing was invisible.  Step 4 split it into the two bindings
+     of one datum that scattering and :math:`(n,2n)` already had, so the
+     shared-code claim is now the same claim for all three channels
+     instead of one claim for fission and another for scattering.
+     ``[M]`` at HEAD: ``FissionOperator`` has **one** production
+     construction site and it is in ``orpheus/sn``; ``IsotropicFission``
+     has four, spanning ``diffusion``, ``homogeneous``, ``sn`` and
+     ``transport``.
 
 The payoff is the single-source-of-truth payoff everywhere in this
 codebase: the collision physics is implemented once, verified once

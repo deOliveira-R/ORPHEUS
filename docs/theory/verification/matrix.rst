@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10391**
+Total tests collected: **10418**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1297, 12.5%
+   L0, 1297, 12.4%
    L1, 1635, 15.7%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7376, 71.0%
+   foundation, 7403, 71.1%
    unmarked, 19, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10293
+   explicit, 10320
    class-name, 46
    func-name, 0
    case, 33
@@ -409,6 +409,7 @@ Module × level grid
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
    operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
+   operators/test_isotropic_fission, 0, 0, 0, 0, 12, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
    operators/test_lambertian_chain, 21, 16, 0, 0, 0, 0
    operators/test_lambertian_factored, 39, 0, 0, 0, 0, 0
@@ -521,8 +522,8 @@ Module × level grid
    transport/test_functional_category, 0, 0, 0, 0, 11, 0
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
-   transport/test_kernels, 0, 0, 0, 0, 53, 0
-   transport/test_material_field, 0, 0, 0, 0, 28, 0
+   transport/test_kernels, 0, 0, 0, 0, 60, 0
+   transport/test_material_field, 0, 0, 0, 0, 35, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_material_mesh_admission, 0, 0, 0, 0, 6, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
@@ -530,7 +531,7 @@ Module × level grid
    transport/test_n2n_multiplicity_census, 0, 0, 0, 0, 2, 0
    transport/test_radial_characteristic_field, 0, 0, 0, 0, 21, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
-   transport/test_tier2_equivalence_s_family, 0, 0, 0, 0, 7, 0
+   transport/test_tier2_equivalence_s_family, 0, 0, 0, 0, 8, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
 
 Equation coverage
@@ -896,7 +897,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **571** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **574** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1038,6 +1039,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``energy-condensation-coarse-flux``
 - ``energy-condensation-counting-measure``
 - ``energy-condensation-fine-rate``
+- ``energy-condensation-fission-dyad``
 - ``energy-condensation-lethargy-overlap``
 - ``energy-condensation-matrix-collapse``
 - ``energy-condensation-nested-subset``
@@ -1355,6 +1357,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-err-058-edge-extrapolation``
 - ``sn-err-058-proxy-source``
 - ``sn-fixed-source-direct-sum``
+- ``sn-gain-channels-one-shape``
+- ``sn-gain-transposes-one-shape``
 - ``sn-halfangle-march-amplification``
 - ``sn-homogenization-balance``
 - ``sn-homogenization-chi-collapse``

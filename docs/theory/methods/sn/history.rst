@@ -36,6 +36,77 @@ them.  Trust ``git``, not this column.
      - Where
    * - in dev
        (2026-08-30)
+     - **The fission channel becomes TWO bindings of one datum, and the
+       three gain operators collapse onto one shape** (campaign 2, phase
+       CS4c, step 4).
+       **(1) One datum, two bindings.**  The representation-free
+       :class:`~orpheus.transport.kernels.FissionKernel` pair
+       :math:`(\chi, \nu\Sigma_f)` gains its first production consumer,
+       :class:`~orpheus.transport.material_field.FissionMaterialField`
+       (validated per-material kernels — the :math:`\chi` simplex holds
+       by construction — × the mesh layout, with cellwise gather verbs).
+       It is bound twice: the **energy** binding
+       :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+       the rank-1 dyad on the scalar flux and now the ONE arithmetic
+       home of :math:`\chi(\nu\Sigma_f\cdot\phi)`; and the **angular**
+       binding
+       :class:`~orpheus.transport.operators.fission.FissionOperator`,
+       the frame's :math:`\ell = 0` conjugation of that dyad, which
+       *retains* the energy binding as its middle factor exactly as
+       ``N2NOperator`` retains ``IsotropicN2N``.  Every consumer now
+       binds honestly: the k-outer, the 1-D diffusion solver and the
+       homogeneous :math:`K = A^{-1}F` take the energy binding on their
+       scalar space (the SN k-outer's ``fission_op`` moved from the
+       composite ``full_field_space`` to the mesh's *bulk* space), while
+       the eigen-:math:`M` posing keeps the composite.  A scalar carrier
+       handed to the angular binding is now REFUSED with a message
+       naming its sibling.
+       **(2) Fission is the** :math:`\ell = 0` **rank-1 degenerate of
+       the scattering binding — as code, not as a reading.**
+       :math:`S = R\,\Lambda_{\ell\le L}\,M/W` and
+       :math:`F = R_0(|\chi\rangle\langle\nu\Sigma_f|)M_0/W` are built
+       from the same faces of the same hub-interned
+       :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`,
+       so an :math:`S` and an :math:`F` posed on one space share one
+       metric by construction (:eq:`sn-gain-channels-one-shape`).  The
+       consequence is the adjoint: :math:`F`'s Euclidean transpose is
+       **factor reversal** of the cached
+       ``frame.conjugate(FissionMomentOperator)`` product, so the
+       hand-rolled ``np.multiply.outer(w, ·)/W`` died and *no line of
+       fission code computes an adjoint*; ``F.H`` composes the bound
+       spaces' own Riesz legs around it.
+       **(3)** :math:`N_{2n}` **harmonized onto the same shape.**  Its
+       bare ``weights`` field died in favour of the retained :math:`L=0`
+       frame, and its transpose became the same reversal.  Measured, the
+       two re-spellings differ in kind and the difference is a theorem
+       of :math:`\ell = 0`: :math:`N_{2n}` is **bit-identical**
+       (1000 draws, 5 quadrature orders) because the retired spelling
+       was operation-for-operation the reversed chain, while :math:`F`
+       is **principled-equivalent at** :math:`\le 5` **ULP** (600 draws,
+       3 angular rules) because its retired spelling divided by
+       :math:`W` on the other side of :math:`K^{\mathsf T}`
+       (:ref:`sn-fission-binding-adjoint`).
+       **(4) The** :math:`\chi\leftrightarrow\nu\Sigma_f` **condensation
+       coupling gets a gate.**  G-F1 pins
+       ``dyad(condense(K)) == outer(marginalize(χ), average(νΣf))`` —
+       the sink factor mass-preserving, the source factor
+       :math:`\varphi`-weighted — with three measured wrong-morphism
+       controls and an *asserted* activation precondition that refuses a
+       degenerate fixture (:eq:`energy-condensation-fission-dyad`).
+       Retired with the rebind: ``MaterialXSField.foldable_sig_s``
+       (0 consumers) and :math:`F`'s ``chi`` / ``sig_p`` read-through
+       properties; the composites are now cached at construction, so a
+       depletion update re-binds rather than reading through.
+       Design record: ``.claude/plans/cs4c_binding_design.md`` §16.
+     - campaign 2
+       (CS4c step 4)
+     - ``f4caf04a`` (the material field + the energy binding),
+       ``75500cd9`` (the rebind; every consumer binds honestly),
+       ``9061637b`` (:math:`N_{2n}` harmonized), ``fadad026``
+       (the G-F1 condensation gate) — branch
+       ``refactor/cs4c-step4-fission-binding``, **not yet merged**
+   * - in dev
+       (2026-08-30)
      - **The scattering binding speaks kernel and frame, and the**
        :math:`(n,2n)` **channel becomes a first-class operator**
        (campaign 2, phase CS4c, step 3).  Four changes, and the second

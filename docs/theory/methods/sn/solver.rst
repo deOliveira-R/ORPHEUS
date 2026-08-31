@@ -30,8 +30,19 @@ therefore survive a rebind untouched:
   legacy ``_add_n2n_source`` delegator) routes through its energy
   binding's field.
 * :attr:`SNSolver.fission_op` —
-  :class:`~orpheus.transport.operators.fission.FissionOperator`
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
   carrying the rank-1-in-energy fission emission (Wave D Issue 13).
+  It held the ANGULAR binding
+  :class:`~orpheus.transport.operators.fission.FissionOperator` on the
+  composite ``full_field_space`` until CS4c step 4 (2026-08-30), when
+  the fission channel became two bindings of one datum and every
+  consumer was re-pointed at the one it actually feeds: the k-outer
+  hands this operator bare :math:`(n_g, *\text{spatial})` scalar arrays,
+  so it binds the mesh's **bulk** space and
+  :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source` is a thin
+  delegator to its ``apply``.  The angular binding is still minted —
+  once, at the eigen-:math:`M` posing site, where a composite operator
+  is what the pencil needs (:ref:`sn-fission-binding-adjoint`).
 
 The loss composite :math:`L+C` is deliberately **not** cached on the
 solver.  Its one spelling is

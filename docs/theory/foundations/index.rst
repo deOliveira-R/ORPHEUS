@@ -9,16 +9,20 @@ method's chapter carries only *its realization* plus a link back.
 
 This part exists because the shared content is genuinely shared **in code,
 not by analogy**: :class:`~orpheus.transport.operators.MultiplicationOperator`
-and :class:`~orpheus.transport.operators.FissionOperator` are the *same
-Python classes* instantiated by S\ :sub:`N`, diffusion and the
+and the fission energy binding
+:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+are the *same Python classes* instantiated by S\ :sub:`N`, diffusion and the
 infinite-medium solver, and all three draw their scattering from the same
 :mod:`orpheus.transport.operators` package
 (:class:`~orpheus.transport.operators.IsotropicScattering` /
 :class:`~orpheus.transport.operators.IsotropicN2N` for the isotropic
 consumers, the same package's
 :class:`~orpheus.transport.operators.ScatteringOperator` kernel for
-S\ :sub:`N`). What varies between methods is how streaming is represented —
-not what collision, scattering, and fission *are*.
+S\ :sub:`N`). Each reaction channel carries **two bindings of one datum** —
+an energy binding on the scalar flux and, where a method resolves angle, the
+harmonic frame's conjugation of that same binding — so the two faces of a
+channel cannot drift. What varies between methods is how streaming is
+represented — not what collision, scattering, and fission *are*.
 
 .. list-table::
    :header-rows: 1

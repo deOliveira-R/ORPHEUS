@@ -416,7 +416,31 @@ carry the **same** composite ``full_field_space`` (threaded through
 ``from_solver_data`` / ``sn_mesh.full_field_space``), so the
 within-group :class:`~orpheus.numerics.operator.OperatorSum` guard
 *validates* the loss composition (``domain = None`` survives only on
-the bare / test constructor). The architecturally interesting fact is
+the bare / test constructor).
+
+.. note::
+
+   **Precision on the** :math:`F` **row since CS4c step 4
+   (2026-08-30).**  The sentence above is about the operators the
+   *composite* posings compose, and it remains exactly true of them:
+   :class:`~orpheus.transport.operators.fission.FissionOperator` is
+   still minted from ``sn_mesh.full_field_space`` at the eigen-:math:`M`
+   posing site, so the daggered pencil's ends validate natively — and
+   :math:`N_{2n}`
+   (:class:`~orpheus.transport.operators.n2n.N2NOperator`) joined the
+   list at step 3 on the same space.  What changed is that the
+   **k-outer** no longer holds that operator: it feeds bare
+   :math:`(n_g, *\text{spatial})` scalar arrays, so ``SNSolver`` binds
+   the fission **energy** binding
+   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+   on the mesh's *scalar bulk* space instead.  That is the binding-arity
+   table made honest rather than a weakening: an operator's ends now
+   name the space its consumer actually feeds it, and reading "every
+   fission operator in the tree carries ``full_field_space``" off this
+   paragraph would be wrong for that one.  See
+   :ref:`sn-fission-binding-adjoint`.
+
+The architecturally interesting fact is
 that this domain plumbing does **not** change where the metric is
 applied in the adjoint, and that the metric-blind adjoint is made
 **unrepresentable by the recursive** ``is_adjointable`` **predicate, not
