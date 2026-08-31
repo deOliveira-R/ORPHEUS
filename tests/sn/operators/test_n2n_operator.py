@@ -165,12 +165,21 @@ class TestCarrierArms:
 
 
 class TestAdmission:
-    def test_bad_weights_refused(self):
+    def test_mismatched_frame_refused(self):
+        """CS4c step-4 harmonization: the retained state is the L=0 FRAME
+        (was a bare ``weights`` array — this row re-keyed with it); a
+        frame minted from a DIFFERENT quadrature than the posed axis is
+        refused at construction (the F guard, mirrored)."""
         solver, sn = _solver()
         from dataclasses import replace
 
-        with pytest.raises(ValueError, match="per-ordinate weights"):
-            replace(solver.n2n_op, weights=np.ones((2, 2)))
+        from orpheus.numerics.quadrature import Quadrature
+        from orpheus.transport.frames.harmonic_frame import HarmonicFrame
+
+        other = Quadrature.gauss_legendre(n_ordinates=2)
+        wrong_frame = HarmonicFrame.from_galerkin(other.angular_frame(0))
+        with pytest.raises(TypeError, match="mint the frame"):
+            replace(solver.n2n_op, frame=wrong_frame)
 
     def test_from_solver_data_refuses_a_bare_space(self):
         solver, _ = _solver()

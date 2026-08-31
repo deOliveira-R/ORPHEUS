@@ -166,17 +166,27 @@ class TestSFamilyTierTwoEquivalence:
         interior = space.interior_space
         assert interior is not None and interior.axes is not None
         scalar = FunctionSpace.of_axes(*interior.axes[1:])
+        # CS4c step-4 harmonization: the retained state is the L=0 frame
+        # (hub-interned — the exact ctor reaches the SAME object, so the
+        # equivalence is an identity, stronger than the old array_equal
+        # on a weights copy).
+        from orpheus.transport.frames.harmonic_frame import HarmonicFrame
+
         exact = N2NOperator(
             IsotropicN2N(
                 N2NMaterialField.from_material_xs(mat_xs),
                 domain=scalar, codomain=scalar,
             ),
-            np.asarray(sn.quad.weights),
+            frame=HarmonicFrame.for_space(interior, 0),
             domain=space, codomain=space,
         )
         if not (rich.domain is exact.domain and rich.codomain is exact.codomain):
             pytest.fail("N2N ends drifted")
-        np.testing.assert_array_equal(rich.weights, exact.weights)
+        if rich.frame is not exact.frame:
+            pytest.fail("N2N frame drifted from the interned hub route")
+        np.testing.assert_array_equal(
+            np.asarray(rich.frame.measure.weights), np.asarray(sn.quad.weights),
+        )
         if not (
             rich.energy.domain == exact.energy.domain
             and _fields_equal(rich.energy.n2n, exact.energy.n2n)

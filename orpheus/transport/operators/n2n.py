@@ -33,8 +33,15 @@ fast path (no moment tensor; the producer-side :math:`/W` combine is the
 shared :func:`~orpheus.transport.operators._per_ordinate.assemble_per_ordinate_isotropic`).
 Its Euclidean transpose is the lift's reversal,
 :math:`N_{2n}^{T}\chi\big|_{n} = \tfrac{w_n}{W}\, K^{T} \sum_m \chi_m` —
-the same :math:`w`-weighted embedding the harmonic frame's analysis face
-carries at :math:`\ell=0`.
+SPELLED, since the CS4c step-4 harmonization, as factor reversal of the
+cached frame form :attr:`~N2NOperator.full_n2n_kernel`
+(``frame.conjugate(N2NMomentOperator)`` reversed by
+:meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose`, then
+the producer :math:`/W`) — the identity above is the product chain's,
+not this module's arithmetic. (The pre-harmonization hand spelling
+divided by :math:`W` after the :math:`w`-broadcast where the product
+divides outside the chain — a pure IEEE-754 order change,
+principled-equivalent, gated at tolerance.)
 
 Future anisotropy is the KERNEL's growth (an ℓ-stack on
 :class:`~orpheus.transport.kernels.N2NKernel`), never an S entanglement.
@@ -52,8 +59,8 @@ scalar carriers loudly.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from functools import singledispatchmethod
+from dataclasses import dataclass, field
+from functools import cached_property, singledispatchmethod
 from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
@@ -75,6 +82,8 @@ from orpheus.transport.source_sinks import (
 )
 
 if TYPE_CHECKING:
+    from orpheus.numerics.operator import OperatorProduct
+    from orpheus.transport.frames.harmonic_frame import HarmonicFrame
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.transport.operators.isotropic_scattering import IsotropicN2N
 
@@ -94,10 +103,13 @@ class N2NOperator(BoundOperator["FullField"]):
         of the same kernel datum — the ONE arithmetic home (its
         :class:`~orpheus.transport.material_field.N2NMaterialField` verbs
         carry the per-material dispatch and the multiplicity).
-    weights : np.ndarray
-        The per-ordinate angular weights ``(N,)`` of the binding measure
-        — the transpose's :math:`w`-embedding; :attr:`total_weight`
-        (:math:`W`) derives from it (single source).
+    frame : HarmonicFrame
+        The :math:`L=0` hub-interned frame of the posed angular space —
+        OPERATIVE state (the CS4c step-4 harmonization; was a bare
+        ``weights`` array): the transpose product
+        (:attr:`full_n2n_kernel`) and the binding measure
+        (:attr:`total_weight`) read it, and it is the SAME frame object
+        every sibling binding on this space reaches.
     domain, codomain : FunctionSpace
         The two mandatory ends (kw-only, write-once): the composite
         full-field space, both — the SAME instance the within-group
@@ -106,26 +118,27 @@ class N2NOperator(BoundOperator["FullField"]):
     """
 
     energy: "IsotropicN2N"
-    weights: np.ndarray
+    frame: "HarmonicFrame" = field(kw_only=True)
 
     # (n,2n) emission is volumetric — bulk only, no face-trace action.
     # Class-level constant (unannotated: not a dataclass field).
     block_role = BlockRole.BULK
 
     def __post_init__(self) -> None:
-        w = np.asarray(self.weights, dtype=float) + 0.0
-        if w.ndim != 1 or w.size == 0:
-            raise ValueError(
-                f"N2NOperator requires per-ordinate weights (N,); got "
-                f"shape {w.shape}"
-            )
-        w.setflags(write=False)
-        # dataclass(eq=False) is not frozen; plain re-assignment is the
-        # canonicalizing write (the ends stay write-once via the base).
-        self.weights = w
         self._assert_energy_extent_both_ends(
             self.energy.n2n.ng, operator="N2NOperator",
         )
+        # Frame/space agreement (the F guard, mirrored): the frame's
+        # measure must be the posed angular axis's.
+        interior = self._interior_space()
+        n_ordinates = int(interior.shape[0])
+        n_frame = int(np.asarray(self.frame.measure.weights).shape[0])
+        if n_frame != n_ordinates:
+            raise TypeError(
+                f"N2NOperator: the frame carries {n_frame} ordinates but "
+                f"the bound interior has {n_ordinates} — mint the frame "
+                f"from the SAME posed space (tier 2 does)."
+            )
 
     @classmethod
     def from_solver_data(
@@ -133,10 +146,12 @@ class N2NOperator(BoundOperator["FullField"]):
     ) -> "N2NOperator":
         r"""Tier-2 extract-and-mint: the energy binding from the facade's
         :math:`(n,2n)` channel (on the composite's scalar interior), the
-        weights from the angular axis's generator (the CS5 channel), the
-        endomorphic composite ends from one ``space=``."""
-        from orpheus.numerics.quadrature.directional import Quadrature
+        :math:`L=0` frame through the blessed chain (the CS5 generator
+        channel inside :meth:`HarmonicFrame.for_space
+        <orpheus.transport.frames.harmonic_frame.HarmonicFrame.for_space>`),
+        the endomorphic composite ends from one ``space=``."""
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+        from orpheus.transport.frames.harmonic_frame import HarmonicFrame
         from orpheus.transport.material_field import N2NMaterialField
         from orpheus.transport.operators.isotropic_scattering import (
             IsotropicN2N,
@@ -160,16 +175,15 @@ class N2NOperator(BoundOperator["FullField"]):
             domain=scalar_space,
             codomain=scalar_space,
         )
-        weights = interior.axes[0].generator_as(
-            Quadrature, consumer="N2NOperator.from_solver_data",
-        ).weights
-        return cls(energy, weights, domain=space, codomain=space)
+        frame = HarmonicFrame.for_space(interior, 0)
+        return cls(energy, frame=frame, domain=space, codomain=space)
 
     @property
     def total_weight(self) -> float:
         r""":math:`W = \sum_n w_n` — the binding measure's total angular
-        weight (derived; the :math:`/W` of the lift)."""
-        return float(self.weights.sum())
+        weight (read off the retained frame's measure; the :math:`/W`
+        of the lift)."""
+        return float(np.asarray(self.frame.measure.weights).sum())
 
     @property
     def is_adjointable(self) -> bool:
@@ -269,6 +283,30 @@ class N2NOperator(BoundOperator["FullField"]):
     else:
         apply = _apply_impl
 
+    @cached_property
+    def full_n2n_kernel(self) -> "OperatorProduct":
+        r"""The frame form :math:`R_0\,(\nu_{2n}\Sigma_{2n}^{T})\,M_0` —
+        the whole lift as ONE conjugated product (the S
+        :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`
+        / F :attr:`~orpheus.transport.operators.fission.FissionOperator.full_fission_kernel`
+        sibling). The middle factor is the production
+        :class:`~orpheus.transport.operators.scattering.N2NMomentOperator`
+        on the SAME field datum the energy binding holds — one datum, one
+        multiplicity home. Its
+        :meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose`
+        is what makes :meth:`apply_transpose` factor reversal instead of
+        arithmetic; the forward keeps the reaction-rate fast path (the S
+        ruling). Cached at first access (the kernel field is immutable)."""
+        from orpheus.numerics.spaces.spherical_harmonic_space import (
+            SphericalHarmonicSpace,
+        )
+        from orpheus.transport.operators.scattering import N2NMomentOperator
+
+        sh = SphericalHarmonicSpace.from_L(0)
+        return self.frame.conjugate(
+            N2NMomentOperator(self.energy.n2n, domain=sh, codomain=sh),
+        )
+
     @overload
     def apply_transpose(self, chi: "FullField", /) -> "FullField": ...
     @overload
@@ -290,9 +328,7 @@ class N2NOperator(BoundOperator["FullField"]):
                 boundary=AngularBoundarySourceSink.zeros(chi.boundary.space),
             )
         chi_values = np.asarray(getattr(chi, "values", chi))
-        summed = chi_values.sum(axis=0)                     # (ng, *spatial)
-        core = self.energy.apply_transpose(summed)          # K^T Σχ
-        w = self.weights.reshape(
-            (self.weights.size,) + (1,) * core.ndim,
+        return (
+            np.asarray(self.full_n2n_kernel.apply_transpose(chi_values))
+            / self.total_weight
         )
-        return (w * core[np.newaxis]) / self.total_weight
