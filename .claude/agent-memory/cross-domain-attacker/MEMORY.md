@@ -7,11 +7,14 @@ AGENT.md kernel. Fire from those — never re-derive or re-copy them into memory
 
 ## 1. Lessons — read `lessons.md` FIRST, every dispatch
 
-- [lessons.md](lessons.md) — 21 detection lessons. Spine: an attack's value is a concrete
+- [lessons.md](lessons.md) — 22 detection lessons. Spine: an attack's value is a concrete
   reformulation with a FAIL-ABLE first test, OR a crisp refutation carrying its structural
   reason. A named-but-payoff-free frame is rejected output. ⭐ L-021: on a cross-method
   "who consumes X" brief, find the GENERAL-CASE derivation first — one equation decides
-  every row — and a refutation must carry the QUESTION it was refuted for.
+  every row — and a refutation must carry the QUESTION it was refuted for. ⭐ L-022: a
+  FACTORY proposal is settled by THREE counts taken first — branches collapsed, fiber
+  members, who actually consumes it; a satellite property beats a factory (construction
+  vs convention), and shipped machinery with ZERO callers reframes the whole brief.
 
 ## 2. Active / in-flight state
 
@@ -41,6 +44,7 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [reaction naming](reaction_term_naming_species_split.md) — no family word: 1 multiplier + 3 kernels is a theorem; `Law` = closures only.
 - [iso-source conjugation](iso_source_frame_conjugation_unification.md) — every iso source is `frame.conjugate(K)`; rank-1 iso = `angular_frame(0)`.
 - [fission rank-1](fission_rank1_normal_form_dead_functional.md) — F=|χ⟩⟨νΣf| IS the normal form ⇒ "unfold F" is structurally empty.
+- [iso-family FACTORY refuted](iso_family_factory_refutation.md) — ⭐⭐ a dispatcher-factory dies 3 ways (no section / no discrimination exists / rank splits the trio 2+1); the real object is the LIFT FUNCTOR, inverse direction.
 - [#261 op relocation](issue_261_cross_method_operator_relocation.md) — guard invariant is object-id ⊋ geometry ⊋ shape-eq; mint nothing new.
 
 ### Curvilinear / phase-space boundary

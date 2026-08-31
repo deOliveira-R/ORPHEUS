@@ -1061,3 +1061,76 @@ banner for whether it was refuted for THIS question; (4) close with the layer
 table + the two opposed tests. Pairs with L-017 (an optimality theorem on the
 target space bounds every design) — same family: **look for the theorem that
 makes the survey unnecessary.**
+
+---
+
+## L-022 -- A FACTORY/dispatcher proposal is refuted or confirmed by THREE counts taken before any frame: the branches it would collapse, the members of its fiber, and who actually consumes the thing it claims to serve
+
+Recurring shape: a design asks for "an object that returns the appropriate X
+depending on the problem". It reads as consolidation, so the reflex is to argue
+about scope. Three counts settle it faster than any argument, and each is one
+grep. Take all three BEFORE reaching for a frame ([[iso-family-factory-refutation]]).
+
+- **(a) Count the runtime BRANCHES the factory would collapse.** A dispatcher's
+  only honest job is to move a repeated conditional to one site (the
+  `discriminations` "a repeated conditional is a missing type" move). `[M]` if the
+  count is **zero** — every construction site knows statically which member it
+  wants, because the CONSUMER's identity decides — then the factory **manufactures
+  the discrimination and then names itself the fix**, converting a
+  statically-known fact into a runtime dispatch. That runs
+  illegal-states-unrepresentable backwards. Worked: 4 construction sites of the
+  SN/diffusion iso pair, 0 branches.
+- **(b) Model it as a SECTION of a fibration and count the FIBER.** `Op → Space`
+  with the factory as `s : Space → Op` is the literal shape of every "problem →
+  object" proposal. A section needs a canonical choice per fiber. Enumerate the
+  fiber by grep. `[M]` four legitimate members of ONE channel over ONE space
+  (composite binding, energy satellite, and the two within-group split siblings)
+  ⟹ no section ⟹ the key must gain a second coordinate, and that coordinate is
+  almost always a **ROLE** — i.e. the consumer/posing concept, which is usually
+  deferred to another campaign. **The factory's missing key is the finding**, not
+  its size.
+- **(c) Grep who CONSUMES the thing the justification names.** A justification
+  ("subsystem Z needs both flavours") is a claim about the tree. `[M]` DSA
+  consumes **zero** channel operators — it reads `diag(K_ℓ)` as a per-cell scalar
+  COEFFICIENT. A diagonal is not a member of the transfer-kernel family, so no
+  factory over that family can produce it. ⟹ the justification is refuted AND it
+  converts into a smaller true deliverable (a kernel verb `within_group()`
+  returning the per-ℓ diagonals — the multigrid Galerkin restriction
+  `e_gᵀ K e_g`), which is L-013's shape.
+
+⭐ **The strongest counter-evidence to any co-sourcing factory: an existing
+SATELLITE property.** A factory co-sources two objects **by CONVENTION** (same
+inputs, two calls, agreement by discipline). A `cached_property` returning a
+binding of the parent's OWN datum co-sources them **by CONSTRUCTION** (one datum
+instance, one object graph — agreement is a theorem). When a proposal asks for a
+factory "so the pair stays consistent", grep for a satellite first; if one exists,
+the request is already satisfied by the stronger mechanism and saying so is the
+whole answer.
+
+⭐⭐ **And the datum that reframes the request when you find it: shipped
+machinery with ZERO production callers.** Worked: `S.foldable_part()` /
+`residual_part()` already implement operator-tier "two flavours of one channel",
+gated at `rtol=1e-14`, with `[M]` **zero** call sites in `orpheus/` (every
+invocation is in `tests/`). The proposal's premise was implemented twice over.
+⟹ when the capability exists and is unconsumed, the productive question is NOT
+"how do we produce it" but "why does nothing call it" — which relocates the whole
+brief to the consumer side. TELL: a name grep whose `orpheus/` hits are all
+definitions and docstring cross-references.
+
+**Two riders, both cheap:**
+- **The steelman usually survives at a smaller scale — say what it is.** Here the
+  real duplication was the tier-2 EXTRACTION chain (two guards with two messages,
+  two scalar-sub-space derivations, two tier names), whose native fix is two verbs
+  on the space type, not a factory. Currying tells you which: `bind(·, space)` is
+  the only partial application with a REUSED operand.
+- **A grep for a stale-owner docstring pays while you are there.** Measuring (c)
+  found `material_xs_field.py:760,780` still naming an owner that stopped
+  consuming those accessors two commits earlier — a present-tense-false doc bug
+  found for free by asking *who consumes this*.
+
+How to apply: at any "should we add a Factory / Manager / Builder / dispatcher"
+dispatch, run (a), (b), (c) first and report the three counts. Zero branches +
+non-singleton fiber ⟹ refuted as a dispatcher; then look for the INVERSE object
+(a functor GENERATING the sibling, not a dispatcher CHOOSING it) — a shared
+primitive whose own docstring states a defer-until-2 trigger is where to look,
+because the trigger has usually already fired.

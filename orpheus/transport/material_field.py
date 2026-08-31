@@ -29,8 +29,8 @@ Design notes
   pairing, the admission, and the contraction primitive; what an
   interaction *means* (P0 in-scatter, Legendre moment redistribution,
   multiplicity-weighted emission) is the subclass's vocabulary —
-  :class:`ScatteringMaterialField` and :class:`N2NMaterialField` here,
-  ``FissionMaterialField`` with step 4.
+  :class:`ScatteringMaterialField`, :class:`N2NMaterialField`, and
+  :class:`FissionMaterialField` (step 4).
 * **Accumulation semantics.** The scalar-carrier verbs ADD into a caller
   accumulator in place (``Q[cells] += …``), exactly like the arms they
   replace — materials partition the cells, so per-material accumulation
@@ -49,12 +49,17 @@ from typing import TYPE_CHECKING, Generic, Iterator, Mapping, TypeVar
 
 import numpy as np
 
-from orpheus.transport.kernels import N2NKernel, ScatteringKernel
+from orpheus.transport.kernels import (
+    FissionKernel,
+    N2NKernel,
+    ScatteringKernel,
+)
 
 if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 __all__ = [
+    "FissionMaterialField",
     "MaterialField",
     "N2NMaterialField",
     "ScatteringMaterialField",
@@ -373,3 +378,78 @@ class N2NMaterialField(MaterialField[N2NKernel]):
             phi_cells_g = flux_distribution[cells].T  # (n_cells, ng)
             n2n_cell_g = mult * (phi_cells_g @ kernel.matrix)
             rate += np.einsum("c,cg->g", volume[idx], n2n_cell_g)
+
+
+@dataclass(frozen=True)
+class FissionMaterialField(MaterialField[FissionKernel]):
+    r"""The fission channel's field: validated factor pairs over the layout.
+
+    :class:`~orpheus.transport.kernels.FissionKernel`'s first production
+    consumer (CS4c step 4): each material's :math:`(\chi, \nu\Sigma_f)`
+    pair enters HERE through the kernel's own constructor, so the
+    χ simplex/null law runs per material by construction (Pattern 4 —
+    a field holding an invalid spectrum is not a value that exists).
+
+    Unlike its scattering/(n,2n) siblings this field carries **gather
+    verbs, not accumulation verbs**: fission's arithmetic home is the
+    rank-1 dyad :math:`|\chi\rangle\langle\nu\Sigma_f|` realized once on
+    the CELLWISE factors (the
+    :class:`~orpheus.numerics.operator.RankOneOperator` route the bound
+    operators cache at construction), so what the binding needs from the
+    datum is the densified factor — bit-identical to the facade's
+    per-cell views, being the same pure index gather of the same
+    per-material vectors. A per-material contraction verb here would be
+    a SECOND spelling of the dyad arithmetic (Pattern 2).
+    """
+
+    @classmethod
+    def from_material_xs(
+        cls, mat_xs: "MaterialXSField",
+    ) -> "FissionMaterialField":
+        """Extract the fission channel of a :class:`MaterialXSField`
+        facade — fresh validated kernels, the mesh's own layout object."""
+        return cls(
+            per_material={
+                mid: FissionKernel.from_mixture(mat_xs.materials[mid])
+                for mid in mat_xs.materials
+            },
+            cells_by_material=mat_xs.mesh.cells_by_material,
+        )
+
+    def gather_chi(self, spatial_shape: tuple[int, ...]) -> np.ndarray:
+        r"""The cellwise emission spectrum :math:`\chi(\vec r, g)` —
+        shape ``(ng, *spatial_shape)``, write-protected.
+
+        Each material's ``(ng,)`` spectrum broadcast into its cells (a
+        pure index gather — no arithmetic, so the values are
+        bit-identical to any other densification of the same
+        per-material vectors)."""
+        return self._gather_vector(lambda k: k.chi, spatial_shape)
+
+    def gather_nu_sig_f(self, spatial_shape: tuple[int, ...]) -> np.ndarray:
+        r"""The cellwise production cross section
+        :math:`\nu\Sigma_f(\vec r, g)` — shape ``(ng, *spatial_shape)``,
+        write-protected (see :meth:`gather_chi`)."""
+        return self._gather_vector(lambda k: k.nu_sig_f, spatial_shape)
+
+    def _gather_vector(
+        self, vector_of, spatial_shape: tuple[int, ...],
+    ) -> np.ndarray:
+        """Densify a per-material ``(ng,)`` vector over the layout.
+
+        The shape is HANDED IN (by the binding, from its own space's
+        bulk shape) — the base-class rule that a field never touches a
+        mesh. Refuses a layout index that falls outside the shape, so a
+        wrong-space gather fails loudly instead of silently truncating.
+        """
+        out = np.zeros((self.ng, *spatial_shape), dtype=float)
+        for kernel, idx in self._laid_out():
+            if len(idx) != len(spatial_shape):
+                raise ValueError(
+                    f"FissionMaterialField gather: the layout indexes "
+                    f"{len(idx)} spatial axes but the requested shape "
+                    f"{spatial_shape} has {len(spatial_shape)}"
+                )
+            out[(slice(None), *idx)] = vector_of(kernel)[:, None]
+        out.setflags(write=False)
+        return out

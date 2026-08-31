@@ -71,6 +71,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -80,6 +81,7 @@ from orpheus.numerics.operator import (
     LinearOperator,
 )
 from orpheus.transport.material_field import (
+    FissionMaterialField,
     N2NMaterialField,
     ScatteringMaterialField,
 )
@@ -92,11 +94,13 @@ from orpheus.transport.full_field import FullField
 
 if TYPE_CHECKING:
     from orpheus.numerics.assembled_operator import SparseAssembledOperator
+    from orpheus.numerics.operator import TensorProductOperator
     from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
+    from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
 
 
-__all__ = ["IsotropicScattering", "IsotropicN2N"]
+__all__ = ["IsotropicScattering", "IsotropicN2N", "IsotropicFission"]
 
 
 def _values_of(phi: "np.ndarray | object") -> np.ndarray:
@@ -118,8 +122,9 @@ def _scalar_composite_source(op: "LinearOperator", psi: FullField) -> FullField:
     :class:`~orpheus.transport.source_sinks.scalar_boundary_source_sink.ScalarBoundarySourceSink`
     boundary (an energy-transfer operator has no face-trace action —
     the in-scatter term is a CELL quantity). Shared by
-    :class:`IsotropicScattering` and :class:`IsotropicN2N` (Pattern 2:
-    one arm body, two kernels through ``op.apply``).
+    :class:`IsotropicScattering`, :class:`IsotropicN2N`, and
+    :class:`IsotropicFission` (Pattern 2: one arm body, three kernels
+    through ``op.apply``).
     """
     from orpheus.transport.fields._bases import ScalarField
     from orpheus.transport.source_sinks import (
@@ -479,3 +484,206 @@ class IsotropicN2N(BoundOperator):
             mid: kernel.emission_matrix()
             for mid, kernel in self.n2n.per_material.items()
         }
+
+@dataclass(eq=False)
+class IsotropicFission(BoundOperator):
+    r"""The fission energy operator :math:`F = |\chi\rangle\langle\nu\Sigma_f|` on the scalar flux.
+
+    Per cell, :math:`(F\phi)_g = \chi_g \sum_{g'}\nu\Sigma_{f,g'}\,
+    \phi_{g'}` — the rank-1 dyad: contraction against the production
+    co-vector, emission along the spectrum. The ENERGY binding of the
+    fission channel — what the k-eigenvalue outer iteration, the
+    homogeneous :math:`K = A^{-1}F` composition, and the diffusion
+    scalar composite consume. The ANGULAR binding of the same datum
+    (the frame's :math:`\ell=0` conjugation of this dyad) is
+    :class:`~orpheus.transport.operators.fission.FissionOperator`,
+    which retains an instance of THIS class as its energy factor —
+    exactly the :class:`IsotropicN2N` /
+    :class:`~orpheus.transport.operators.n2n.N2NOperator` relation.
+
+    **On the name.** Fission emission is isotropic BY CONSTRUCTION
+    (:math:`\chi` carries no angular dependence — there is no
+    anisotropic sibling), so the prefix carries family signal, not a
+    contrast: it names this class's role in the greppable
+    ``Isotropic*`` energy-binding family alongside
+    :class:`IsotropicScattering` and :class:`IsotropicN2N` (CS4c
+    step-4 design round §16.3).
+
+    **Arithmetic home & caching.** Unlike its two loss-side siblings
+    (which route per-material accumulation verbs), fission's arithmetic
+    is the :class:`~orpheus.numerics.operator.RankOneOperator` dyad on
+    CELLWISE factors, cached once via :attr:`kernel` (the CS4c step-3
+    satellite ruling: composites are minted once per binding, not per
+    apply — the read-through/depletion semantics of the pre-step-4
+    ``FissionOperator.kernel`` are deliberately dropped; a depletion
+    update re-binds the operator, as :math:`C` already does for
+    :math:`\sigma_t`). The factors come from the retained
+    :class:`~orpheus.transport.material_field.FissionMaterialField`
+    (validated per-material :class:`~orpheus.transport.kernels.FissionKernel`
+    pairs — the χ simplex/null law holds by construction), gathered
+    over the binding's own bulk shape: SPACE FIRST, the ends size the
+    data.
+
+    **No assembly mode** — deliberate omission, not an oversight: the
+    two loss-side siblings assemble because the within-group stencil
+    folds them into :math:`A`; fission is the eigenvalue OUTER source
+    (within-group fission is zero) and no stencil consumer exists.
+    Landing :meth:`assemble` here would be a gate-less capability
+    (``coding-standards`` defer-until-consumer).
+
+    Parameters
+    ----------
+    fission : FissionMaterialField
+        The fission channel's kernel field — validated
+        :math:`(\chi, \nu\Sigma_f)` pairs over the mesh layout.
+    domain, codomain : FunctionSpace
+        The two mandatory ends (kw-only, write-once): the scalar-flux
+        space — plain ``(ng, *spatial)`` (SN k-outer, homogeneous) or
+        the scalar-bulk composite ``FullFieldSpace`` (diffusion; the
+        gather reads the interior). An ANGULAR composite is refused at
+        construction — that consumer wants the angular binding,
+        :class:`~orpheus.transport.operators.fission.FissionOperator`.
+    """
+
+    fission: "FissionMaterialField"
+    # Fission emission is volumetric — bulk only, no face-trace action.
+    # Class-level constant (unannotated: not a dataclass field).
+    block_role = BlockRole.BULK
+
+    def __post_init__(self) -> None:
+        # CS4a K2 → CS4c per-END form (one shared guard, per end).
+        self._assert_energy_extent_both_ends(
+            self.fission.ng, operator="IsotropicFission",
+        )
+        # The scalar-bulk admission: the gather below sizes the factors
+        # from the bulk shape, so a bulk whose LEADING axis is not the
+        # group axis (an angular composite) must refuse here, loudly.
+        bulk = self._bulk_scalar_space()
+        if int(bulk.shape[0]) != int(self.fission.ng):
+            raise TypeError(
+                f"IsotropicFission requires a scalar (ng, *spatial) bulk "
+                f"(leading axis = the group axis, ng="
+                f"{self.fission.ng}); got bulk shape {tuple(bulk.shape)}. "
+                f"An angular composite wants the ANGULAR binding — "
+                f"FissionOperator."
+            )
+
+    def _bulk_scalar_space(self) -> "FunctionSpace":
+        """The scalar (ng, *spatial) space the gathered factors ride —
+        the composite's interior, or the plain scalar domain itself."""
+        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+
+        domain = self.domain
+        if isinstance(domain, FullFieldSpace):
+            interior = domain.interior_space
+            if interior is None:
+                raise TypeError(
+                    "IsotropicFission: the bound composite domain carries "
+                    "no interior space to size the gathered factors."
+                )
+            return interior
+        return domain
+
+    @classmethod
+    def from_material_xs(
+        cls, mat_xs: "MaterialXSField", *, space: "FunctionSpace",
+    ) -> "IsotropicFission":
+        r"""Tier-2 extract-and-mint: the facade's fission channel as
+        validated per-material kernels, endomorphic on one ``space=``."""
+        return cls(
+            FissionMaterialField.from_material_xs(mat_xs),
+            domain=space,
+            codomain=space,
+        )
+
+    @property
+    def data_ng(self) -> int:
+        """The bound data's group count (family symmetry with the
+        loss-side siblings' assembly read)."""
+        return self.fission.ng
+
+    @property
+    def is_adjointable(self) -> bool:
+        # apply_transpose realises the dual dyad |νΣf⟩⟨χ| (the factor
+        # swap, a theorem of the rank-1 structure); is_invertible
+        # inherits base False — a rank-1 production operator is singular.
+        return True
+
+    @cached_property
+    def production_rate(self) -> "ReactionRateFunctional":
+        r"""The production-rate co-vector :math:`\langle\nu\Sigma_f,\cdot\rangle`
+        — fission's rank-1 ROW-FACTOR, as a typed inspectable
+        :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+        (``coding-elegance`` Pattern 3: the per-cell fission source
+        density is the most physically central diagnostic in
+        criticality). The SAME type over :math:`\Sigma_a` is the
+        absorption rate; ``k = production/absorption`` is their ratio.
+        Cached once (see the class docstring's caching paragraph)."""
+        from orpheus.transport.fields.cross_section_field import (
+            CrossSectionField,
+        )
+        from orpheus.transport.reaction_rate_functional import (
+            ReactionRateFunctional,
+        )
+
+        bulk = self._bulk_scalar_space()
+        nu_sig_f = self.fission.gather_nu_sig_f(tuple(bulk.shape[1:]))
+        return ReactionRateFunctional(
+            CrossSectionField(values=nu_sig_f, space=bulk),
+        )
+
+    @cached_property
+    def kernel(self) -> "TensorProductOperator":
+        r"""The rank-1 TP kernel — the §5.6 integral structure and the ONE
+        arithmetic home of every arm.
+
+        ``outer(χ, production_rate) & IdentityOperator()``: the rank-1
+        dyad on the gathered cellwise factors tensored with the
+        spatial-axis broadcast, exactly the pre-step-4
+        ``FissionOperator.kernel`` composition (the
+        :meth:`~orpheus.numerics.operator.RankOneOperator.apply`
+        reduction order is unchanged — bit-identity is gated). Its
+        transpose IS the dual dyad :math:`|\nu\Sigma_f\rangle\langle\chi|`
+        by the factor-swap theorem — no fission-specific transpose
+        arithmetic exists anywhere."""
+        from orpheus.numerics.operator import IdentityOperator, outer
+
+        bulk = self._bulk_scalar_space()
+        chi = self.fission.gather_chi(tuple(bulk.shape[1:]))
+        return outer(chi, self.production_rate) & IdentityOperator()
+
+    def apply(self, phi: "np.ndarray | FullField | object") -> "np.ndarray | FullField":
+        r""":math:`\chi\,(\nu\Sigma_f\cdot\phi)` — the per-cell fission source (no :math:`1/k`).
+
+        Bare ndarray / flux-carrier in → bare ndarray out (the
+        model-portable contract). A scalar :class:`FullField` composite
+        in → the closed scalar source composite out (the shared
+        :func:`_scalar_composite_source`; the kernel is the SAME dyad
+        either way). The :math:`1/k` division stays at the eigenvalue
+        layer — this is a *linear* operator.
+        """
+        if isinstance(phi, FullField):
+            return _scalar_composite_source(self, phi)
+        return self.kernel.apply(_values_of(phi))
+
+    def apply_transpose(self, chi: "np.ndarray | object") -> np.ndarray:
+        r"""The dual dyad :math:`F^{T}\psi^* = \nu\Sigma_f\,(\chi\cdot\psi^*)`
+        — the χ↔νΣf factor swap, routed through :attr:`kernel`'s
+        :class:`~orpheus.numerics.operator.TensorProductOperator`
+        transpose (single source; no fission-side arithmetic). This is
+        the bare Euclidean :math:`F^{T}`; the metric Hilbert adjoint is
+        the ``.H`` wrapper's job, composed from the spaces' own Riesz
+        legs (CS4c step-4 §16.2 — nothing hand-rolled here).
+
+        Bare-ndarray surface only, mirroring the family: the composite
+        transpose belongs to the ANGULAR binding
+        (:meth:`FissionOperator.apply_transpose`).
+        """
+        if isinstance(chi, FullField):
+            raise TypeError(
+                "IsotropicFission.apply_transpose: composite FullField "
+                "transpose is not wired here — the composite adjoint "
+                "belongs to the angular binding (FissionOperator); pass "
+                "the bulk values."
+            )
+        return self.kernel.apply_transpose(_values_of(chi))

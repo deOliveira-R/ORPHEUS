@@ -68,8 +68,7 @@ Capability matrix (which sites collapsed):
 Old site    Old pattern                                   New call
 ==========  ============================================  =================================
 scattering  ``for mid in cells_by_mat: ... add ...``      the field verbs (CS4c: ``ScatteringMaterialField.add_p0_source`` etc.)
-scattering  ``for mid in sig_s.items(): np.diag(...)``    :meth:`foldable_sig_s` (helper)
-scattering  ``for mid in sig_s.items(): off-diag``        :meth:`residual_sig_s` (helper)
+scattering  ``for mid in sig_s.items(): off-diag``        :meth:`residual_sig_s` (DSA's read)
 scattering  ``for mid in sig_s.items(): np.allclose(...)``:meth:`is_p0_diagonal_with_zero_n2n`
 scattering  ``for mid in sig_s.items(): diag(...)``       :meth:`foldable_sigma`
 solver      ``for mid in _cells_by_mat: sig2 ...``        ``N2NMaterialField.add_to_group_rate`` (CS4c)
@@ -747,29 +746,12 @@ class MaterialXSField:
 
     # ── Foldable / residual split (Phase G four-operator algebra) ────
     #
-    # The scattering operator's foldable_part / residual_part /
-    # is_foldable_into_sigma_r / foldable_sigma methods all required
-    # per-material loops over the source-of-truth sig_s dict.  They
-    # become typed accessors here, encapsulating the dispatch.
-
-    def foldable_sig_s(self) -> dict[int, list[np.ndarray]]:
-        r"""Per-material P0 diagonal-only Legendre lists.
-
-        For each material ``mid``, returns ``[np.diag(np.diag(sig_s[mid][0]))]``
-        — the within-group self-scatter cross-section in matrix form.
-        Consumed by :meth:`ScatteringOperator.foldable_part` to build
-        a sibling operator carrying only diagonal P0.
-
-        Returns
-        -------
-        dict[int, list[np.ndarray]]
-            ``{mid: [diag_only]}`` with one-element lists (P0 only).
-        """
-        out: dict[int, list[np.ndarray]] = {}
-        for mid in self.materials:
-            p0 = self.sig_s_legendre(mid)[0]
-            out[mid] = [np.diag(np.diag(p0))]
-        return out
+    # These accessors encapsulate the per-material foldable/residual
+    # split of the P0 scattering data. Their one live consumer is the
+    # DSA coefficient assembly (``orpheus/sn/acceleration/dsa.py``) —
+    # ``ScatteringOperator``'s sibling constructors read the bound
+    # kernel field directly since CS4c step 3 (the F-1 facade
+    # dissolution re-homes these onto the Materials tier).
 
     def residual_sig_s(self) -> dict[int, list[np.ndarray]]:
         r"""Per-material residual Legendre scattering lists.
@@ -777,8 +759,11 @@ class MaterialXSField:
         For each material ``mid``, returns
         ``[off_diagonal_P0, Σ_{s,1}, ..., Σ_{s,L}]`` — the cross-group
         P0 (off-diagonal) plus every :math:`\ell \ge 1` block verbatim.
-        Consumed by :meth:`ScatteringOperator.residual_part` to build
-        a sibling operator carrying the non-foldable channels.
+        Consumed by the DSA coefficient assembly
+        (``orpheus/sn/acceleration/dsa.py``) for the residual
+        transport correction. (``ScatteringOperator.residual_part``
+        read this until CS4c step 3; it now derives its sibling
+        kernels from the bound field directly.)
 
         Returns
         -------

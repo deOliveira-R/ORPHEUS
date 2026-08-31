@@ -336,3 +336,135 @@ class TestIndependentReference:
 # MaterialXSField arm it replaced — RETIRED WITH THE ARMS at step 3c,
 # as its own docstring scheduled. Permanent coverage: the hand-rolled
 # independent references above.)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# FissionMaterialField (CS4c step 4a) — validated pairs + gather verbs
+# ═══════════════════════════════════════════════════════════════════════
+
+# Two DISTINCT producing materials (asymmetric χ AND νΣf so a factor swap
+# or a material-id mixup is detectable), one non-producing (the null-χ
+# branch of the simplex law rides through the field path).
+_CHI = {0: np.array([0.9, 0.1]), 1: np.array([0.7, 0.3]),
+        2: np.array([0.0, 0.0])}
+_NU_SIG_F = {0: np.array([0.013, 0.26]), 1: np.array([0.002, 0.11]),
+             2: np.array([0.0, 0.0])}
+
+
+def _fission_field(nx=_NX):
+    from orpheus.transport.kernels import FissionKernel
+    from orpheus.transport.material_field import FissionMaterialField
+
+    third = nx // 3
+    ix, iy = np.arange(nx), np.zeros(nx, dtype=int)
+    return FissionMaterialField(
+        per_material={
+            mid: FissionKernel(chi=_CHI[mid], nu_sig_f=_NU_SIG_F[mid])
+            for mid in _CHI
+        },
+        cells_by_material={
+            0: (ix[:third], iy[:third]),
+            1: (ix[third:2 * third], iy[third:2 * third]),
+            2: (ix[2 * third:], iy[2 * third:]),
+        },
+    )
+
+
+class TestFissionAdmission:
+    def test_a_correct_field_constructs(self):
+        ff = _fission_field()
+        if ff.ng != _NG:
+            pytest.fail("correct fission field must construct with ng=2")
+
+    def test_simplex_law_runs_per_material_through_the_field_path(self):
+        """A producing material with a non-simplex χ cannot enter the
+        field — the law fires in :class:`FissionKernel`'s ctor, which is
+        the ONLY door (Pattern 4: the field holds validated kernels, so
+        an invalid spectrum is not a value a field can carry)."""
+        from orpheus.transport.kernels import FissionKernel
+        from orpheus.transport.material_field import FissionMaterialField
+
+        with pytest.raises(ValueError):
+            FissionMaterialField(
+                per_material={
+                    0: FissionKernel(
+                        chi=np.array([0.5, 0.1]),         # not a simplex
+                        nu_sig_f=np.array([0.1, 0.2]),    # producing
+                    ),
+                },
+                cells_by_material={0: (np.arange(_NX), np.zeros(_NX, int))},
+            )
+
+    def test_gather_arity_mismatch_refuses(self):
+        with pytest.raises(ValueError, match="spatial axes"):
+            _fission_field().gather_chi((_NX,))
+
+    def test_gather_out_of_bounds_fails_loudly(self):
+        """A shape smaller than the layout's reach raises (numpy's
+        IndexError) — a wrong-space gather can never silently truncate."""
+        with pytest.raises(IndexError):
+            _fission_field().gather_chi((2, 1))
+
+    def test_gathered_factors_are_write_protected(self):
+        chi = _fission_field().gather_chi((_NX, 1))
+        with pytest.raises(ValueError):
+            chi[0, 0, 0] = 5.0
+
+
+class TestFissionIndependentReference:
+    """Gathers against a hand-rolled per-cell loop (`vv` L11: plain
+    indexing, no shared dispatch code)."""
+
+    def test_gather_chi_and_nu_sig_f(self):
+        ff = _fission_field()
+        chi = ff.gather_chi((_NX, 1))
+        nu = ff.gather_nu_sig_f((_NX, 1))
+        third = _NX // 3
+        for ix in range(_NX):
+            mid = 0 if ix < third else (1 if ix < 2 * third else 2)
+            np.testing.assert_array_equal(chi[:, ix, 0], _CHI[mid])
+            np.testing.assert_array_equal(nu[:, ix, 0], _NU_SIG_F[mid])
+
+    def test_gather_is_bit_identical_to_the_facade_views(self):
+        """The gather ≡ the facade's dense per-cell views (both are pure
+        index gathers of the same per-material vectors — this row pins
+        that no arithmetic crept into either route). Lives until F-1
+        retires the facade views; then the hand-rolled row above is the
+        surviving reference."""
+        from scipy.sparse import csr_matrix
+
+        from orpheus.data.macro_xs.mixture import Mixture
+        from orpheus.geometry import Mesh2D
+        from orpheus.transport.material_field import FissionMaterialField
+        from orpheus.transport.mesh.material_mesh import MaterialMesh
+        from orpheus.transport.mesh.material_xs_field import MaterialXSField
+
+        z = np.zeros(_NG)
+        materials = {
+            mid: Mixture(
+                SigC=z.copy(), SigL=z.copy(),
+                SigF=_NU_SIG_F[mid] / 2.4, SigP=_NU_SIG_F[mid].copy(),
+                SigT=np.ones(_NG),
+                SigS=[csr_matrix(np.zeros((_NG, _NG)))],
+                Sig2=csr_matrix(np.zeros((_NG, _NG))),
+                chi=_CHI[mid].copy(),
+            )
+            for mid in _CHI
+        }
+        third = _NX // 3
+        mat_map = np.zeros((_NX, 1), dtype=int)
+        mat_map[third:2 * third, :] = 1
+        mat_map[2 * third:, :] = 2
+        mesh = Mesh2D(
+            edges_x=np.arange(_NX + 1, dtype=float),
+            edges_y=np.arange(2, dtype=float),
+            mat_map=mat_map,
+        )
+        mat_xs = MaterialXSField.from_mesh(MaterialMesh(mesh, materials))
+        ff = FissionMaterialField.from_material_xs(mat_xs)
+        np.testing.assert_array_equal(
+            ff.gather_chi((_NX, 1)), mat_xs.emission_spectrum,
+        )
+        np.testing.assert_array_equal(
+            ff.gather_nu_sig_f((_NX, 1)), mat_xs.fission_production,
+        )
