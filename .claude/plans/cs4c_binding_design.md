@@ -1357,3 +1357,113 @@ machinery, deliberately not ruled inside step 4.
 **Residue:** #425 (37 four-term algebra sites, declared at the chapter
 root); #306 items 1/3/5 + item 2 deferred to step 5 (dated note on the
 issue); the parked forks C.H-as-object-identity and F-F unchanged.
+
+---
+
+## 17. ⏸ COMPACTION POINT #3 (2026-08-31, written pre-compaction with full context; every anchor re-verified at merged HEAD `b91246e8`)
+
+**Steps 1–4 are ✅ MERGED; the phase→commit tables live in §15 (steps
+1–3) and §16.8 (step 4) — cited, not copied (§9). The measured baseline
+every later step diffs against:** [M] **10106 / 0 / 19 sk / 66 xf, 13
+trees rc=0** (§16.8; driver `scratch/_cs4c4_gate_driver.sh`, log
+`scratch/_cs4c4_fast_gate.log`, ~61 min; per-tree pre-registration
+reconciled with zero unexplained rows).
+
+**Durable lessons — §13's six + §14.8's six + §16.8's five stand;
+nothing new since §16.8.**
+
+### ▶ RESUMES AT — step 5: each binding's action is selected by its construction
+
+**Goal (outcome, not mechanism).** Per-call carrier dispatch stops
+being the bindings' shape: an operator constructed with its ends acts
+through the ONE body those ends select, dead arms die, and the
+bare-ndarray hatches close via explicit **solver-side adapters at the
+seams** (§5's ruling — operators end whole; typing the k-outer iterate
+and every consumer reshape is the deferred consumers campaign, NOT this
+step). The #205/#276 keep-rulings are re-litigated with FRESH census
+evidence, not inherited.
+
+**Opening protocol (surgical posture): a DESIGN ROUND with the user
+before any edit.** The round OWES three rulings §16.8 parked:
+
+1. **The factory redirect** (`scratch/cs4c_step4_factory_probe.md` +
+   the cross-domain-attacker memory `iso_family_factory_refutation.md`):
+   factory-as-dispatcher REFUTED (the key must be Space × ROLE — the §5
+   posing concept; zero runtime branches exist to collapse; rank splits
+   the trio 2+1). The redirect on the table: (a) collapse
+   IsotropicScattering + IsotropicN2N into ONE energy operator whose
+   channel lives in its field's type, fission held out by rank; (b) the
+   lift functor energy→angular as the named object. Both are SELECTION
+   machinery — exactly step 5's subject.
+2. **#306 item 2** — bless-vs-retire of the implicit-zero boundary
+   emissions on the THREE composite arms (F, S, N2N; dated deferral
+   note on the issue): the arms' fate IS this step's subject.
+3. **#205's ScalarFlux keep-ruling** — S's arm docstring
+   (`scattering.py:1120`, "Deliberately retained — a named-future-
+   consumer surface") records the keep call; re-adjudicate against the
+   fresh census.
+
+**⚠ THE OPENER OBLIGATION (the §2 shelf-life rule, already bitten
+once):** the step-0 feeding census (`scratch/cs4c_feeding_census.md`)
+is a **2026-08-30 PRE-step-3 capture** and its step-5 "consequences"
+section is now partially FALSE — its item 2 (*"FissionOperator.apply
+[ndarray] is the SN k-outer's only F arm; deleting it breaks every SN
+eigenvalue solve"*) died at step 4 ([M] `FissionOperator` carries NO
+ndarray or ScalarFlux arm; the k-outer feeds `IsotropicFission`), its
+F-D space-table F rows are superseded, and every `file:line` in it is
+stale. **Re-run the per-arm traffic capture at the opener** (the
+census's own §0 records the method) before designing the arm list; do
+the same for battery B-5's sibling-realizer anchors
+(`diffusion/solver.py:289`, `cp/solver.py:544`, `moc/core.py:108` —
+census-time lines, unverified at HEAD). Still-credible census facts to
+RE-CHECK rather than trust: the MultiplicationOperator[ndarray]
+audience (2 calls, homogeneous-only) and the iso pair's CHART-DEPENDENT
+bare leg (sphere/cylinder feed both carriers from one instance — any
+arm decision needs the chart in its denominator).
+
+**[M] anchors (re-verified this compaction):** the four "until step 5"
+markers — `scattering.py:420` (S's dispatch note), `fission.py:378` +
+`n2n.py:56/:202` (the mirrored carrier-arm banners); the k-outer seam
+`numerics/eigenvalue.py:374` (`power_iteration`) →
+`sn/solver.py:1527` (`compute_fission_source`); the verification plan's
+**B-5** (§11.6: adapter-identity positive control; adapter drops the
+conversion; a stale `_registry_type_names` set) with its ⚠ that the
+battery scope must include `tests/sn/solve/` — measure the cost first.
+
+**§6b members of ANY arm deletion (named now so no sweep misses
+them):** the G2.8 arm-survival matrix + the registry-keyset gate
+(`test_kernels.py` — B5.3's own catchers, they re-key WITH the arms);
+the C6 static pins + dispatch parity
+(`test_operators_apply_typed.py`); declared-consumer/census sets in
+tests (§16.8 lesson 4 — a census gate is a consumer of every site it
+enumerates); duck-typed stubs and `getattr`-string reads per the
+2026-08-24/29 §6b inventory.
+
+**Precedents (§1's check-each-adjective rule applies):** the step-4
+`FissionOperator`/`N2NOperator` shapes are the models for
+construction-selected bodies (ends → faces → one action); read the
+FILES, not this record's description of them.
+
+**Ledger:** §8.1 schedules NO flip rows for step 5 (steps 1+2/3/6
+only); the 66 xf carries through unless an arm deletion touches a
+documented row — reconcile any xf delta, never absorb it.
+
+**Parked forks (unchanged):** C.H-as-object-identity (§8 row 2 note);
+F-F (CS2 residue, step 6). **Open issues:** #306 items 1/3/5 (+ item 2
+= this round's ruling 2); #425 (the 37 four-term algebra doc sites,
+declared at the chapter root); #424 (RST nested-markup sweep,
+independent).
+
+**Standing constraints (unchanged from §15 except the baseline):**
+Host → `.venv/bin/python`; canonical runner
+`-O -m pytest -p no:randomly -m "not slow" -q` SERIAL; branch +
+ff-merge + the 13-tree driver before merging; predicted-then-measured
+vs **10106/0/19/66** with per-tree PRE-REGISTRATION; main agent writes,
+user steers (AskUserQuestion checkpoints); test-architect plan EXISTS
+(extend, don't re-dispatch); never `git add -A`; never `git stash` —
+including `git stash -- <path>`; commit messages via heredoc `-F`; no
+source edits under running gates; sphinx `-W` + `dead_references` at
+every step exit; an archivist corpus pass whenever a step moves an
+equation-level claim; in-process mutation batteries run as
+subprocess-scoped pytest plugins (the 4d pattern — crash-safe by
+construction).
