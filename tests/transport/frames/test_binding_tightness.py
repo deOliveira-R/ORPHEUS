@@ -25,9 +25,15 @@ identity of the metric adjoint, measured ≤ 2.24e-16 under correct AND
 wrong embeddings alike; it cannot red and is recorded as a structural
 THEOREM only (vv #19).
 ⚠ Leg (ii)'s negative control is the equispaced-equal-weight rule by
-MEASURED bite — NOT ``gauss_legendre(L)``, which is maximally non-tight
-(``‖MR−I‖ = 1``) yet provably blind on zonal multiplicativity
-(≤ 5.9e-16 over 200 draws; plan §1.2).
+MEASURED bite. The pre-carve plan (§1.2) additionally warned that
+``gauss_legendre(L)`` is blind on zonal multiplicativity (≤ 5.9e-16
+over 200 draws) — [M] 2026-08-30, re-measured THROUGH THE SHIPPED FACES
+(F-0 Parseval metrics + the producer-side /W): it is NOT blind in this
+spelling (rel. 3.0/4.3 at L = 2/3), so that hazard was a property of
+the probe's raw-table binding, not of this gate's construction. The
+equispaced control stays as the shipped control for its measured band;
+no negative-control-of-the-control row is asserted (its premise does
+not hold here — the disagreement is recorded per §4's verify rule).
 
 **Leg (iii)** records the ℓ=0 blindness as an ASSERTED row: at L = 0
 both rules read clean on both legs, so an ℓ=0 gate discriminates
@@ -239,3 +245,4 @@ class TestLegIIIRecordedL0Blindness:
         right = _bind(frame, k1) @ _bind(frame, k2)
         rel = np.linalg.norm(left - right) / max(np.linalg.norm(left), 1e-300)
         np.testing.assert_array_less(rel, 1e-13)
+
