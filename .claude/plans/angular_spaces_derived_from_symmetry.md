@@ -288,6 +288,217 @@ live entirely in the `Quadrature` façade. This is the single most encouraging
 fact in the plan: the space layer is right, and the fabrication is a thin,
 locatable crust on top of it.
 
+
+## II.7 ⭐⭐ The tree ALREADY SHIPS this ontology — derived, tested, and production-unreachable
+
+`[M]` 2026-08-31, at execution. Before deriving the `S²/SO(2)` catalog entry,
+I looked for it. It exists, in `orpheus/numerics/quadrature/registry.py`:
+
+```python
+class AngularSymmetry:
+    continuous_isotropy: SubgroupOfO3          # G⁰, the spent continuous part
+
+    @property
+    def support(self):                          # ← "derived, not declared"
+        if spent == SubgroupOfO3.SO2:
+            # S²/SO(2) — the polar marginal. The orbits of the axial
+            # rotation are the constant-μ circles, so the quotient is
+            # parameterised by μ alone.
+            return SPACE_INTERVAL_M11
+        if spent == SubgroupOfO3.Trivial:
+            return SPACE_SPHERE
+
+    @property
+    def reference(self):                        # ← also derived
+        return LEGENDRE if spent == SO2 else UNIFORM_ON_SPHERE
+
+    def admits_domain(self, measure):           # ← Stage 0
+        return measure.support == self.support
+```
+
+`[M]` the shipped table, printed:
+
+| geometry | `G⁰` | derived `support` | derived `reference` |
+|---|---|---|---|
+| slab | `SO2` | `[-1,1]` | legendre |
+| sphere | `SO2` | `[-1,1]` | legendre |
+| cylinder | `Trivial` | `S^2` | uniform-on-sphere |
+| cartesian2d | `Trivial` | `S^2` | uniform-on-sphere |
+
+⟹ **Three consequences, and each shortens a phase.**
+
+1. **Phase 1.1's `SO(2)/S²` entry is largely AUTHORED ALREADY** — the quotient,
+   its chart (`μ` alone), its orbit description (constant-μ circles) and its
+   exactness reference (Legendre) are written, with a docstring that already
+   insists they are *derived, not declared*. 1.1 becomes *reconcile and extend*,
+   not *derive*. ⚠ It is NOT complete: no `det P`, no named singular stratum,
+   no action on the axis index set — those are still owed.
+2. **Phase 2.2's G0 predicate EXISTS** as `admits_domain`. 2.2 is a WIRING
+   problem, not a design problem.
+3. ⛔ **And it is unreachable from production.** `[M]` `select_quadrature`
+   (the only caller of `admits_domain` / `admits_symmetry`) has **21 callers,
+   every one a test** — `grep -rn "select_quadrature" orpheus/` returns 12 hits
+   and **all 12 are docstrings, the definition, or `__all__`**. The registry's
+   own prose calls it *"opt-in convenience"*. So this is the
+   `[[project-test-dependence-nexus-config]]` lesson verbatim: **authored
+   knowledge may be INERT — look for it before deriving it.**
+
+## II.8 ⭐ The rule tells the TRUTH; only the frame forges — and it falsifies TWO tags
+
+`[M]` printed across 12 shipped rules:
+
+| rule | `measure.support` | `angular_frame(2).measure_space` |
+|---|---|---|
+| `gauss_legendre(2,8)` | **`[-1,1]`** | `L2[S^2]` ⛔ |
+| `level_symmetric(4,8,12)` | `S^2` | `L2[S^2]` ✅ |
+| `lebedev(11,17)` | `S^2` | `L2[S^2]` ✅ |
+| `product(4,4),(4,6),(8,8)` | `S^2` | `L2[S^2]` ✅ |
+| `folded_product(2,4),(4,8)` | **`S^2/sigma_y`** | `L2[S^2]` ⛔ |
+
+⭐ **The measure layer was never wrong.** `gauss_legendre(8).measure.support`
+already reads `'[-1,1]'` — agreeing with `AngularSymmetry['slab'].support`
+independently. §II.6 said the space layer is right; this says the *tag* layer
+is right too. The forgery is **one expression**, in `angular_frame`.
+
+⭐ **NEW leak, absent from §II.4's inventory: the frame destroys the FOLD's
+quotient tag too.** `folded_product` declares `support='S^2/sigma_y'` — the
+measure layer already speaks quotients — and `angular_frame` overwrites it with
+`S^2`. So L1 falsifies **two** truths: the slab's `[-1,1]` AND the fold's
+`S^2/sigma_y`. ⚠ This one is *behaviour-relevant*, not merely cosmetic, and `[M]` the
+mechanism is now named exactly. Fixing it moves `frame.measure_space` from
+`L2[S^2]` to `L2[S^2/sigma_y]`; `[M]` `measure_space` has **10 occurrences in
+`orpheus/`, of which 3 are real production reads** — the property itself
+(`frame.py:328`) and two OPERATOR FACES: `_FrameAnalysis.domain`
+(`frame.py:582`) and `_FrameReconstruction.codomain` (`frame.py:627`). So the
+tag is a **typed arrow's domain**, and `OperatorSum` refuses unequal domains
+while `_AdjointOperator` branches on them — `plan-authoring` §8's worked example
+verbatim (*"a field a consumer BRANCHES on is an input, not metadata"*).
+⟹ **0.1c is a live behaviour change on any composition mixing a folded-rule
+angular frame with an `S^2`-tagged operand. Measure it with the suite before
+landing; it is NOT part of the bit-identical half, and it owes a gate at the
+tier the change is observable.**
+
+`[M]` **10 of 12 rows: the forged nodes are BIT-IDENTICAL to the rule's own**
+(`np.array_equal`, exact shapes). The two exceptions are the 1-D rules, where
+the rule's nodes are scalars `(N,)` and the forgery is `(N,3)`.
+
+## II.9 ⛔ Why 0.1 cannot fully land without 3.4 — the lift does not exist
+
+`[R]`, and it is the reason the coupling is essential rather than incidental.
+`angular_frame` is trying to map `[-1,1] → S²`. **There is no such map**: a
+point of `[-1,1]` is an ORBIT of the `SO(2)` action, not a point of `S²`, and
+choosing a representative is exactly the "fabricate an azimuth" move
+(§II.2). The arrow that exists runs the other way — the quotient `S² → [-1,1]`
+— which is why the repair must change the **basis** (Phase 3.4's trivial
+isotypic component) and cannot be done by fixing a tag.
+
+⟹ **Phase 0.1 therefore SPLITS**, and the plan did not say so (it flagged this
+obligation on 0.6 only):
+* **0.1a — landable now, bit-identical.** A rule whose measure already lives on
+  `S²` hands the frame **its own measure**; the `column_stack` + literal
+  `support=SPACE_SPHERE` is deleted for those rows. `[M]` 10 of 12 shipped rules,
+  byte-identical nodes; and it removes the phantom read the census attributes to
+  `directional.py:589`.
+* **0.1b — rides Phase 3.4.** The 1-D rows, where there is nothing honest to
+  build until the basis changes. Until then the construction stays, but named,
+  documented, and tagged ERR-080 with its retirement trigger — the
+  `coding-standards` transitional-violation idiom, not an anonymous literal.
+* **0.1c — the fold's tag**, gated on the §8 blast-radius measurement above.
+
+
+
+## II.10 ⛔⛔ The ontology has a slot for the `G⁰` quotient and NONE for a `Γ` quotient — and the forgery is what HIDES that
+
+`[M]` 2026-08-31, verified by me after an `explorer` survey raised it.
+`AngularSymmetry.support` derives from `continuous_isotropy` **alone**. A rule
+may ALSO have been quotiented by a *discrete* subgroup, and there is nowhere to
+say so:
+
+```
+folded_product(4,8).measure.support = 'S^2/sigma_y'
+  admits_domain(slab)        = False   (requires '[-1,1]')
+  admits_domain(sphere)      = False   (requires '[-1,1]')
+  admits_domain(cylinder)    = False   (requires 'S^2')      ← the shipped pairing
+  admits_domain(cartesian2d) = False   (requires 'S^2')
+```
+
+⚠ **`folded_product` IS the shipped cylinder configuration.** `[M]` two
+production error messages *instruct the user to build it*
+(`sn/angular/closure.py:1052`, `:1228`); two MMS defaults use it
+(`derivations/continuous/mms/sn.py:2104`, `:3873`); **51 test files** pair it
+with `CoordSystem.CYLINDRICAL`. `[M]` over 20 (constructor × geometry) pairs,
+**5 are production builds that stage 0 rejects.**
+
+⟹ **Phase 2.2 cannot be "just wiring" after all** (this REFINES §II.7's
+conclusion, which was measured before I had this): `admits_domain` is a correct
+predicate over an **incomplete domain vocabulary**. Wiring it as-is would refuse
+the cylinder. The ontology owes a second slot — the discrete quotient the rule
+took — and `SubgroupOfO3` already exists to name it.
+
+⭐⭐ **And here is the part that makes this a Phase-0 argument, not just a
+Phase-2 one: the forgery is what CONCEALS the gap.** By overwriting
+`S^2/sigma_y` with `S^2`, `angular_frame` makes the folded rule *look* like it
+lives on the sphere — so nothing downstream ever presented `admits_domain` with
+a quotient tag, and the missing slot could not be discovered. **0.1c does not
+merely stop a lie; it surfaces the ontological gap the lie was hiding.** That is
+the strongest available argument for landing 0.1c early rather than bundling it,
+and it is why the user's ruling (*measure it, then land it in Phase 0*) is the
+right call.
+
+## II.11 ⛔ Collateral defect lead — `orbit_certificate` refuses 1-D by SHAPE, and says something false when it does
+
+`[M]` verified: `SubgroupOfO3.Mirror("x").is_invariant(gauss_legendre(8).measure)`
+is **`True`**, while `orbit_certificate(measure, Mirror("x"))` returns **`None`**
+— refused by a shape test at `numerics/symmetry.py:1573-1574`, *before*
+invariance is ever asked. Both refusal messages (`measure.py:1010`,
+`symmetry.py:1612`) read *"not σ_x-invariant (or σ_x is continuous)"* —
+**both halves are false for this input**, and the docstring names 2 of the 3
+arms, omitting the operative one. `vv-principles` #17's multi-arm granularity
+trap, in a production guard. **Not on the exit path** — file it, do not fix it
+here.
+
+## II.12 The nearest geometry-carrying frame, and the join that does not exist
+
+`[M]` the production chain (`explorer`, grep — the graph could not answer this:
+`callers(angular_frame)` returned `total: 0` with 25 unresolved spellings):
+
+```
+solve_sn:2531 → _as_sn_mesh:137 → SNMesh:171 → augmented_mesh.py:1186
+  → full_field_space:1249 → solver.py:1413 ScatteringOperator.from_solver_data
+  → scattering.py:811 HarmonicFrame.for_space → harmonic_frame.py:413,416
+  → directional.py:592   ← the forge
+```
+
+⭐ `solve_sn` does not CHOOSE a quadrature — it is handed one (required
+positional, no default), which is why `select_quadrature` is unreachable: **it
+was never on the path.** The nearest frame carrying a geometry is
+`SNMesh.__init__`'s `match self.coord` (`augmented_mesh.py:325`), which already
+runs a (quadrature, coord) admission gate 31 lines later
+(`assert_carrying_quadrature`, `:356`). The tag is dropped at `:1186`.
+⚠ Two obstacles, both `[M]`: the tag is a `CoordSystem` (3 members) while
+`GEOMETRY_ANGULAR_SYMMETRY` is keyed by 4 strings — **the `(coord, ndim) → key`
+join exists nowhere in the tree**; and that precedent gate has exactly **one**
+call site, inside `case CYLINDRICAL` (the `plan-authoring` §2 gate-as-denominator
+trap, already logged for this very symbol).
+
+## II.13 Phase 1.1 is RECONCILE — the surfaces that already state the ontology
+
+`[M]` beyond §II.7's `registry.py`: `numerics/quadrature/rules_1d.py:1,:10-14,:127-129`
+(module docstring naming `AngularSymmetry.continuous_isotropy` as the home and
+stating `S²/SO(2) = [-1,1]`); a **live production guard** at
+`numerics/generating_measure.py:398-402`; `numerics/symmetry.py:212,:805`; and
+four authored sections in `docs/theory/foundations/discrete_measures.rst`
+(`:739, :1114, :1236, :1308`), including a worked stage-0/1 table at
+`:1205-1213`; plus 5 test modules.
+⭐ And `MirrorEvenSphericalHarmonicBasis` (`spherical_harmonic_basis.py:401-426`)
+**already states this campaign's diagnosis and DERIVES its parity mask by probe
+rather than hand-listing it** — a genuine precedent for 3.4's mechanism. ⚠ But
+its KEY cannot be borrowed: `folded_by` is a group object recording a *discrete*
+fold, structurally unavailable for a *continuous* quotient. **The tree holds two
+quotient records — a group object (wired, discrete) and a string tag (inert,
+continuous) — and the slab is the unwired half.**
+
+
 ---
 
 # Part III — The theoretical spine
@@ -662,8 +873,40 @@ Every item here is true under every design choice in Phases 1–7.
 
 | # | item | site | Q# |
 |---|---|---|---|
-| **0.1** | ⚡ **Stop fabricating the support, and delete the phantom read in the same expression.** `angular_frame` must not write `support=SPACE_SPHERE` over nodes with `‖Ω‖ ≠ 1`. §II.5 proves L1 and L4 are ONE fix. | `directional.py:587-593` | — |
-| **0.2** | ⚡ **`axis_cosines(i)` raises for `i ≥ dim`**, so a phantom component is unspellable. Lands with 0.1 (0.1 is its only production consumer on the 1-D path). ⛔ a `raise`, **not** an `assert` — the canonical runner is `python -O`. | `directional.py` | — |
+| **0.1** | ⚡ **Stop fabricating the support, and delete the phantom read in the same expression.** `angular_frame` must not write `support=SPACE_SPHERE` over nodes with `‖Ω‖ ≠ 1`. §II.5 proves L1 and L4 are ONE fix. ⛔ **SPLIT at execution 2026-08-31 — see §II.9**: `0.1a` (3-D rules hand the frame their OWN measure; `[M]` bit-identical on 10 of 12 shipped rows) lands now; `0.1b` (the 1-D rows) **rides Phase 3.4**, because the lift `[-1,1] → S²` *does not exist as a map*; `0.1c` (the fold's `S^2/sigma_y` tag, §II.8's new leak) is gated on a `plan-authoring` §8 blast-radius measurement of `FunctionSpace` equality. | `directional.py:587-593` | — |
+| **0.2** | ⚡ **A phantom component becomes unspellable.** *Proposed means as of 2026-08-31, SHARPENED at execution — see ⚠ below:* `axis_cosines(i)` raises for `i ≥ dim`. ⛔ a `raise`, **not** an `assert` — the canonical runner is `python -O`. ⚠ **BLOCKED on the full-suite census** (moved here from 2.4). | `directional.py` | — |
+
+> ⚠ **0.2's means is not yet safe as written — `axis_cosines` is TWO
+> functions sharing one name, and only one of them is lying.** `[M]`
+> 2026-08-31, by reading all five production consumer clusters: the frame
+> (`directional.py:589`) and `spherical_harmonics` (`:543-545`) ask *"what is
+> the direction cosine along axis i?"* — a question with **no answer** for
+> `i ≥ dim`, so their zeros are fabricated data. But
+> `transport/mesh/axis.py:441` (`face_outflow_ordinates`),
+> `sn/mesh/augmented_mesh.py:1837` (per-axis streaming) and
+> `geometry/boundary/_specular.py:162` (the cosine measure `w·|μ_a|`) all key
+> on the **MESH's** axis index and ask *"how much does this ordinate flow
+> along axis i?"* — for which **zero is the correct answer**, and the
+> accessor's own docstring says so (*"no quadrature data on this axis"* means
+> *"no ordinate is outflowing on it"*).
+>
+> ⟹ a blanket `raise` would refuse three call sites that are asking a
+> legitimate question. The elegant repair is Pattern 3 + Pattern 4: **split
+> the accessor by its two meanings** — a strict `axis_cosines` whose domain is
+> `i < dim`, and an honestly-named projection verb whose zero IS its answer —
+> so the fabricated read is unspellable while the flow question keeps its
+> home. ⭐ Note this is the SAME defect as L1 one level down: one set of zeros
+> carrying two meanings (§II.2), here inside the accessor rather than across
+> the quadrature↔basis boundary.
+>
+> ⚠ **The denominator is still open.** The three consumers above are keyed on
+> the mesh axis, and whether any of them ever actually requests `i ≥ dim` at
+> runtime is a question static reading cannot answer. The full-suite recording
+> census (`scratch/_phantom_census_plugin.py`, non-invasive — records and
+> returns the normal zeros) is running to settle it; **0.2 does not land until
+> its table does.** `[M]` positive control: the instrument fires at exactly
+> `directional.py:589`, `axis=[1,2] dim=[1] via=angular_frame`, with the 50
+> tests of `test_frame.py` still passing.
 | **0.3** | ⚡ **Correct `metric.py`'s "noise mode".** §VIII.1 — it is a null direction, not roundoff; the sentence is present-tense-FALSE and `metric.py` is read by every frame consumer. Re-derive the `_DENSE_METRIC_RCOND` cliff against the repaired frame. | `metric.py:105-119` | — |
 | **0.4** | ⚡ **Correct `Quadrature.spherical_harmonics`'s docstring** — *"the other slots are filled with zeros"* is exactly the broken property. `[M]` this claim appears at **1 site tree-wide**. | `directional.py:538` | — |
 | **0.5** | ⚡ **Correct the theory page's slab-frame passage** — a DIFFERENT claim from 0.4. It describes the slab frame as merely *"not even diagonal"* and cites P7's *"best diagonal candidate reads 1.806"*, inheriting the framing that omits RANK DEFICIENCY. Fix alongside 0.3. | `docs/theory/foundations/spherical_harmonics.rst:640-652` | — |
@@ -681,7 +924,7 @@ remembered result.
 
 | # | item | target | done when | Q# |
 |---|---|---|---|---|
-| 1.1 | **Catalog derivations.** Run §III.1 for `SO(2)/S²`, `ℤ₂` antipodal, `C_n`/`D_n` about an axis, the `O_h` sublattice for octant symmetry, `SO(3)` (diagonal, 1-D spherical), `SO(2)×ℝ_z` (1-D cylindrical). Record generators, syzygies, `P`-matrix, chart, pushforward measure. **Include §II.3's finding**: `det P` is not only the orbit radius but *the redundant harmonic*, in closed form. | `docs/theory/foundations/symmetry.rst` (new) | each entry has an explicit `det P` and a **named** singular stratum | Q0.1 |
+| 1.1 | ⛔ **RESCOPED 2026-08-31 — §II.7: the `SO(2)/S²` entry is largely AUTHORED ALREADY** in `registry.py` (`AngularSymmetry.support` → `SPACE_INTERVAL_M11` with the orbit description; `.reference` → `LEGENDRE`), so this is *reconcile and extend* (add `det P`, the named singular stratum, the action on the axis index set), NOT *derive*. **Catalog derivations.** Run §III.1 for `SO(2)/S²`, `ℤ₂` antipodal, `C_n`/`D_n` about an axis, the `O_h` sublattice for octant symmetry, `SO(3)` (diagonal, 1-D spherical), `SO(2)×ℝ_z` (1-D cylindrical). Record generators, syzygies, `P`-matrix, chart, pushforward measure. **Include §II.3's finding**: `det P` is not only the orbit radius but *the redundant harmonic*, in closed form. | `docs/theory/foundations/symmetry.rst` (new) | each entry has an explicit `det P` and a **named** singular stratum | Q0.1 |
 | 1.2 | **The Gelfand-pair reading of Funk–Hecke.** `RΛM` with diagonal `Λ` is the spherical transform on a double-coset space. Supersedes any framing of harmonic projection as an optimization. | `frame.rst` / `scattering.py` | Funk–Hecke cited as a consequence of Schur, not as a special-function identity | Q0.2 |
 | 1.3 | **Verify or kill the connection-term identification** (§III.2): is curvilinear `(1/r)∂_μ[(1−μ²)ψ]` the connection of the `SO(3)` phase-space quotient, with `(1−μ²) = det P`? Derive the reduction; do not argue from coincidence. ⭐ §II.3 supplies a **third**, *proved* appearance of the same polynomial — new evidence the source plan did not have. | `derivations/` script + `symmetry.rst` | a derivation, or an explicit *"coincidental in 1-D spherical"* ruling — **no third outcome ships** | Q0.3 |
 | 1.4 | **Record the four gates** (Part IV) as a posing-table precondition block, with `C₆`/`LQ_N` as the worked negative and **the Part I defect as G2's worked positive**. | `operator_algebra.rst` | G0/G1/G2/G3 stated as distinct conditions on distinct objects | Q0.4 |
@@ -699,9 +942,9 @@ prerequisite for every gate in Part IV.
 | # | item | goal, separately from means | done when | Q# |
 |---|---|---|---|---|
 | 2.1 | **`Basis.domain`** (closes L2). *Proposed means, unverified:* a `domain: Space` property beside the existing `space`, giving the basis the same two-level structure the measure already has (`support` + `space`). | `SphericalHarmonicBasis.domain == SPACE_SPHERE`; every shipped `Basis` subclass answers | — |
-| 2.2 | **G0 at frame construction** (closes L3). | `GalerkinFrame(SphericalHarmonicBasis(L=2), slab_measure)` **RAISES**, with a test witnessing it on the exact pairing that ships today | — |
+| 2.2 | **G0 at frame construction** (closes L3). ⭐ **§II.7: the PREDICATE already exists** as `AngularSymmetry.admits_domain` (`measure.support == self.support`) — `[M]` reachable only from `select_quadrature`, whose 21 callers are **all tests**; and `[M]` `solve_sn` is HANDED a quadrature (required positional, no default), so the selector was never on the path. ⛔ **REFINED by §II.10 — NOT "just wiring".** The predicate is correct over an **incomplete domain vocabulary**: `support` derives from `continuous_isotropy` alone, so `folded_product`'s `S^2/sigma_y` matches **no** geometry and stage 0 would **refuse the shipped cylinder**. 2.2 owes the ontology a second slot (the *discrete* quotient the rule took — `SubgroupOfO3` already names it) **and** the `(CoordSystem, ndim) → key` join, which `[M]` exists nowhere. Do not hand-roll a second predicate; do extend this one's vocabulary. | `GalerkinFrame(SphericalHarmonicBasis(L=2), slab_measure)` **RAISES**, with a test witnessing it on the exact pairing that ships today | — |
 | 2.3 | ⭐ **The typed `Chart`** (closes L6, L7). *Proposed means:* a map carrying `domain → codomain`; `pushforward` derives `support` from the chart rather than taking `new_space`; `product()` composes its two 1-D factors through the Archimedes chart instead of `column_stack` + a literal. | `grep` finds no `SPACE_SPHERE` literal at a measure constructor; `product(4,8).measure.support` is **derived**; the factor structure is recoverable from the built rule | — |
-| 2.4 | **The slab rule declares its quotient group** (closes L5). Includes settling Part IV's obstacle 1 — the `SO2` axis-convention collision — and obstacle 2, the `invariance_group` vs `folded_by` conflation. ⚠ **Run the §II.5 phantom probe under the FULL suite here** and publish the census with its denominator. | `SubgroupOfO3.SO2.is_invariant(gauss_legendre(8).measure)` returns the derived answer, and the plan records whether that answer is `True` **with the derivation**, not the prediction | — |
+| 2.4 | **The slab rule declares its quotient group** (closes L5). Includes settling Part IV's obstacle 1 — the `SO2` axis-convention collision — and obstacle 2, the `invariance_group` vs `folded_by` conflation. ⛔ **MOVED to Phase 0 on 2026-08-31** — the full-suite phantom census was scheduled here, but **0.2 depends on it** (it is 0.2's denominator, not 2.4's). Scheduling a step's own precondition three phases downstream is the `plan-authoring` §6b defect with a *census* in place of a call site. Run and published at Phase 0. | `SubgroupOfO3.SO2.is_invariant(gauss_legendre(8).measure)` returns the derived answer, and the plan records whether that answer is `True` **with the derivation**, not the prediction | — |
 
 ## Phase 3 — The symmetry core
 
@@ -728,6 +971,44 @@ ruled here rather than assumed:**
 docstring MUST say the layout is an ENCODING and name (b) as the successor**, or
 the encoding will later read as the ontology. The `≅` in Q1.4's one line is
 doing this work silently.
+
+### ⭐ 3.4-R — the evidence, measured 2026-08-31 (was previously unmeasured)
+
+**The blast radius of (b) is 15 sites, and only ONE is production.** `[M]`
+by grep for explicit `(ℓ,m)` slot indexing into an SH/frame table, triaged by
+meaning (the raw 22+19 hits include `values[:, 0, 0]` on FLUX arrays — a
+different object — and the whole of `thermal_hydraulics`/`kinetics`, which index
+unrelated `*_table` arrays):
+
+| site | what it does | 1-D? |
+|---|---|---|
+| ⚠ `sn/acceleration/dsa.py:586` | `angular_frame(1).table[:, 1, 1]` — reads μ off the **ℓ=1 Cartesian slot** | **YES — DSA runs on slabs** |
+| `basis/spherical_harmonic_basis.py:533-539` | the producer itself | — |
+| `tests/numerics/test_spherical_harmonic_basis.py:52,60-63` | pins the ℓ=0/1 layout | 5 |
+| `tests/sn/operators/test_solver_components.py:541,550,559-562` | orthogonality + layout pins | 6 |
+| `tests/sn/acceleration/test_dsa_rate.py:747-748` | pins `table[:,0,0]`, `table[:,1,1]` | 2 |
+| `tests/numerics/test_quadrature_directional.py:390` | `Y[:, 0, 0]` constant | 1 |
+
+⚠ **This is a DIFFERENT inventory from §4.9's "12 sites"** — that one is *"consumes
+the slab-GL-L2 frame as a fixture"*, this one is *"indexes the table by explicit
+slot"*. Both are real; neither subsumes the other.
+
+⭐ **The decisive argument is the project's own type-minting criterion**
+(`coding-standards`, "Type vs property"): mint a type **iff** (a) there are ≥2
+**non-isomorphic** realizations AND (b) a **non-identity morphism** is applied.
+Here (a) holds — `{Y_ℓ^m}` on `S²` has `(L+1)²` members, `{P_ℓ}` on `[-1,1]` has
+`L+1`; they are not isomorphic — and (b) holds: the quotient/Reynolds projection
+and its section. **So (b) is what the rule selects**, and (a) is the criterion's
+own named failure mode: *the same object wearing a label*.
+
+⚠ And the technical point that reframes (a): **(a) does not remove the rank
+deficiency, it only corrects the VALUES.** Structurally-zeroed columns still
+contribute zero rows to the Gram, so `G` stays singular and `G⁺` keeps
+discarding modes — the difference is that the discarded directions become honest
+zeros instead of fabricated constants. `[R]` (a) is nonetheless *well-posed* by
+§III.5: `ker(synthesis)` is then spanned by the dead slots and the per-ℓ
+multiplier maps dead slots to dead slots, so the kernel is invariant. **Both
+options give the right answer; only (b) makes the wrong one unspellable.**
 
 ## ⏸ COMPACTION POINT 1 — after Phase 3
 
@@ -1020,6 +1301,29 @@ not already affected** by the Part I defect. Restoring the moments routes them
 straight into the broken path. So the block is real, and it is narrow: it is a
 block on the **P_L path being correct on a 1-D chart**, nothing more.
 
+## ⚠ XII.1b The exit path is not a SEQUENCE — three items are one landing
+
+`[M]`/`[R]` 2026-08-31, found at execution. The tracker lists 0.1, 2.2 and 3.4
+as separate rows and the critical path reads them in order. **They cannot land
+in order**, for one reason stated three ways:
+
+* **0.1b** — `angular_frame` cannot stop forging `support=S^2` on a 1-D rule,
+  because the honest alternative (the rule's own `[-1,1]` measure) is not
+  consumable by `SphericalHarmonicBasis`. §II.9: *the lift does not exist*.
+* **2.2** — G0 (`admits_domain`) refuses exactly the pairing production ships
+  today, so arming it before the pairing changes reddens every slab solve.
+  That is `plan-authoring` §6c's mirror: not *a gate with no witness*, but
+  **a gate whose only witness is production**.
+* **0.6** — `_evaluate_real_sh` raising on non-unit directions is the same
+  refusal one layer down (the plan already flagged this one).
+
+⟹ **0.1b + 0.6 + 2.2 + 3.4 are ONE commit**, and the §6b rule applies with a
+*basis change* in place of a signature change. Everything else in Phase 0 and
+Phase 2 is genuinely independent and lands first. Sequencing the four
+separately would leave the tree red between them — or, worse, tempt a session
+to weaken the gate so the interval stays green, which is how a real refusal
+becomes a warning.
+
 ## XII.2 ⏏ The MINIMUM chain to return — the critical path
 
 | # | why it is on the path |
@@ -1076,13 +1380,17 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 
 | # | item | on exit path? | status |
 |---|---|:---:|---|
-| 0.1 | stop fabricating `support`; delete the phantom read | ⏏ yes | ☐ |
-| 0.2 | `axis_cosines(i ≥ dim)` raises | ⏏ yes | ☐ |
-| 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ☐ |
-| 0.4 | `directional.py:538` docstring | ⏏ yes | ☐ |
-| 0.5 | `spherical_harmonics.rst:640-652` | ⏏ yes | ☐ |
-| 0.6 | `_evaluate_real_sh` raises on non-unit directions | ⏏ yes | ☐ |
-| 0.7 | strict-xfail reproducer gate | ⏏ yes | ☐ |
+| 0.1a | 3-D rules hand the frame their OWN measure (`[M]` bit-identical, 10/12) | ⏏ yes | ☐ |
+| 0.1b | the 1-D rows — ⛔ **rides 3.4**, the lift does not exist (§II.9) | ⏏ yes | ☐ (with 3.4) |
+| 0.1c | the fold's `S^2/sigma_y` tag — gated on the §8 blast radius | ⏏ yes | ☐ |
+| 0.2 | phantom component unspellable — ⚠ means SHARPENED, blocked on the census | ⏏ yes | ☐ |
+| 0.2-census | full-suite phantom census (moved here from 2.4) | ⏏ yes | ▶ running |
+| 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ✅ written (97-line re-derivation; value unchanged) |
+| 0.4 | `directional.py:538` docstring | ⏏ yes | ✅ written |
+| 0.7b | ⭐ NEW — gate the SECOND symptom (the `DenseMetric` RAISE) | ⏏ yes | ✅ written |
+| 0.5 | `spherical_harmonics.rst` rank-deficiency correction | ⏏ yes | ✅ written |
+| 0.6 | `_evaluate_real_sh` raises on non-unit directions | ⏏ yes | ☐ (with 3.4) |
+| 0.7 | strict-xfail reproducer gate + **ERR-080** minted | ⏏ yes | ✅ written |
 | 1.1 | catalog derivations — **`SO(2)/S²` entry is on the path** | ⏏ partial | ☐ |
 | 1.2 | Gelfand-pair reading of Funk–Hecke | no | ☐ |
 | 1.3 | connection-term verify-or-kill | no | ☐ |
@@ -1099,7 +1407,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 3.2 | `ReynoldsProjection` | no | ☐ |
 | 3.3 | `OrbitAxis` + retraction/section minting | no | ☐ |
 | 3.4 | ⭐ **trivial isotypic sub-basis — THE FIX** | ⏏ yes | ☐ |
-| 3.4-R | ⚠ **the encoding ruling** (layout-preserving vs true `LegendreBasis`) | ⏏ yes | ☐ **UNRULED** |
+| 3.4-R | ⚠ the encoding ruling | ⏏ yes | ✅ **RULED 2026-08-31 (user): (b) true `LegendreBasis`** — see below |
 | 4.1 | retrofit the slab axis (CORRECTED gate) | ⏏ yes | ☐ |
 | 4.2 | normalization audit | no | ☐ |
 | 4.3 | commuting-square test | no | ☐ |
@@ -1114,8 +1422,14 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 7.1–7.4 | isotypic decomposition | no | ☐ |
 | ⏏ | **the six exit predicates (XII.3)** | — | ☐ |
 
-**Open rulings blocking execution:** 3.4-R only. Everything else on the exit
-path is decided.
+**Open rulings blocking execution:** ⭐ **NONE.** 3.4-R was ruled by the user on
+2026-08-31 — **option (b), the true `LegendreBasis` on `[-1,1]`**, on the
+measured evidence in Part VI (15 slot-indexing sites, only ONE of them
+production; and the project's own type-minting criterion selects it, since
+`{Y_ℓ^m}` and `{P_ℓ}` are non-isomorphic and a non-identity morphism — the
+quotient projection — applies). The 0.1c fold tag was ruled the same day:
+**measure the blast radius, then land it in Phase 0** (§II.10 gives the reason
+this is right: the forgery is what CONCEALS the missing discrete-quotient slot).
 
 ---
 

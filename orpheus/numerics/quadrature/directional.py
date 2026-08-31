@@ -533,11 +533,43 @@ class Quadrature:
         r"""Real spherical harmonics :math:`Y_l^m` evaluated at the
         ordinates, shape :math:`(N, L+1, 2L+1)`.
 
-        For slab GL1D quadratures only the :math:`m = 0` harmonics
-        :math:`Y_l^0(\mu_x)` carry non-zero values; the other slots
-        are filled with zeros (1-D angular variation is purely
-        polar). For sphere cubatures all :math:`(l, m)` pairs are
-        evaluated.
+        ⛔ **This docstring stated the invariant that would make the code
+        correct, and the code has never implemented it (ERR-080, #429).**
+        Until 2026-08 it read: *"for slab GL1D quadratures only the*
+        :math:`m = 0` *harmonics* :math:`Y_l^0(\mu_x)` *carry non-zero
+        values; the other slots are filled with zeros (1-D angular
+        variation is purely polar)."* That is what SHOULD happen and is
+        the contract every consumer was entitled to assume. What actually
+        happens: a 1-D rule supplies :math:`\mu_y = \mu_z = 0` meaning
+        *"there is no azimuthal information"*, and
+        :func:`~orpheus.numerics.basis.spherical_harmonic_basis._evaluate_real_sh`
+        reads it as *"the azimuth is 0"* — :math:`\arctan2(0,0) = 0` — so
+        for :math:`\ell \ge 2` **every** :math:`m > 0` slot is a non-zero
+        CONSTANT across the ordinates (:math:`1/\sqrt3` at
+        :math:`\ell = 2`), not a zero.
+
+        :math:`\ell \le 1` is clean only by accident: that branch is
+        hard-coded in Cartesian form and never computes an azimuth.
+
+        Consequences, both reachable from ``solve_sn`` on any 1-D chart:
+        a WRONG ANSWER at :math:`L \ge 2` (`[M]` an infinite medium reads
+        :math:`-3.7647` against an analytic :math:`+4.0`), and at higher
+        (order, :math:`L`) a hard ``ValueError`` from
+        :class:`~orpheus.numerics.metric.DenseMetric` — `[M]`
+        ``gauss_legendre(16)`` with ``scattering_order=4`` raises, and the
+        message blames the metric rather than the fabrication three hops
+        upstream.
+
+        For sphere cubatures all :math:`(l, m)` pairs are evaluated and
+        this defect does not arise (`[M]` 3-D rules are unaffected at
+        every :math:`L`).
+
+        Gated by
+        ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``;
+        repaired by Phase 3.4 of
+        ``.claude/plans/angular_spaces_derived_from_symmetry.md``, after
+        which the original sentence above becomes TRUE and this warning
+        retires with it.
         """
         return self._harmonic_basis(L).evaluate_from_components(
             self.axis_cosines(0),

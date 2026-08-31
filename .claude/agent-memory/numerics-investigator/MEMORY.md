@@ -49,6 +49,10 @@ mesh / flat flux / homogeneous case / two-probe agreement proves nothing.
     "Gram" is the mass matrix under a DIFFERENT measure (name the measure and the
     home follows); ⛔ never justify a transport metric as "makes streaming
     skew-adjoint" (a face-eliminated march is triangular, `√2`, slab too)
+  - L27 a "NOISE mode" reading is a HYPOTHESIS — kill it with the CLOSED FORM and
+    the RAW TABLE (`‖Av‖`, not `‖Gv‖`); a THRESHOLD has two edges and its justifying
+    instrument is monotone in one of them; census the shipped grid, the flagship's
+    spectral GAP is not the constant's
   - L25 an ARITY question is a THEOREM question (**what COMMUTES?** — a scalar convex
     combination commutes with every linear map ⟹ the widened form is OVERDETERMINED);
     a SIGNATURE is not an invariance proof; the asymptotic expansion is structurally

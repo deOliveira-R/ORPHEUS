@@ -654,6 +654,59 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    :eq:`hilbert-adjoint-equals-metric-times-S0` when you mean what
    ``.H`` computes.
 
+.. warning::
+
+   ⛔ **The paragraph above is true and its diagnosis is INCOMPLETE, and
+   the missing half is the load-bearing one (ERR-080, 2026-08-31).** On
+   the slab Gauss–Legendre measure the discrete Gram is not merely
+   *non-diagonal* — at :math:`L = 2` it is **rank-deficient**: 5 live
+   slots, rank 4. So :math:`G^{+}` is not "the matrix realization that a
+   non-diagonal Gram needs"; it is a pseudo-inverse **silently
+   discarding a null direction**, which is a structural degeneracy
+   wearing a conditioning costume.
+
+   The null direction has a closed form. The offending harmonic is
+   :math:`Y_2^{+2} \propto (1-\mu^2)`, which is exactly
+   :math:`\det P = 4(1-\mu^2)`, the squared orbit radius of the
+   :math:`SO(2)` action on :math:`S^2`; the predicted null vector
+   :math:`[-0.447214,\,0,\,+0.447214,\,0,\,+0.774597]` over the live
+   slots :math:`\{(0,0),(1,0),(2,0),(2,1),(2,2)\}` is the SVD-measured
+   one: ``[M]`` alignment :math:`\bigl|1 - |\cos\theta|\bigr| =`
+   2.75e-14 (the *component-wise* difference reads 1.5e-07 and measures
+   only the six digits the prediction was written to — quote the
+   alignment, not the difference). **It is a theorem about the quotient,
+   not roundoff.**
+
+   The cause is upstream of the metric entirely: a 1-D rule carries no
+   azimuthal information, but ``Quadrature.angular_frame`` builds its
+   measure by ``column_stack``\ ing three axis-cosine arrays — two of
+   which are the zero FALLBACK, not data — and then declares the result
+   ``support=SPACE_SPHERE`` over nodes with
+   :math:`\lVert\Omega\rVert \ne 1`. ``_evaluate_real_sh`` duly reads
+   :math:`\arctan2(0, 0) = 0` and every :math:`m > 0` harmonic becomes a
+   non-zero constant across the ordinate set. The frame is therefore
+   **ill-posed on that pairing**, and no choice of metric — diagonal,
+   dense, or otherwise — repairs a basis that is linearly dependent on
+   its own nodes.
+
+   ⚠ Consequently, campaign 1 P7's reading of the same measurement — one
+   ``~1e-16`` *"noise mode"*, recorded in
+   :mod:`orpheus.numerics.metric` and used to pin ``_DENSE_METRIC_RCOND``
+   — was a correct measurement with an inverted interpretation. The
+   numbers in the paragraph above (including the :math:`1.806` diagonal
+   candidate) all stand; what does not stand is the inference that a
+   dense metric is the whole answer.
+
+   The repair is not a special case: a 1-D angular quadrature is a
+   quadrature on the orbit space :math:`S^2/SO(2)`, and the surviving
+   harmonics are that quotient's **trivial isotypic component**
+   :math:`\{Y_\ell^0\} \cong \{P_\ell\}`. Tracked by **#429**;
+   planned in
+   ``.claude/plans/angular_spaces_derived_from_symmetry.md``. Until it
+   lands, :math:`P_{\ge 2}` scattering on any 1-D chart returns a wrong
+   answer — gated by
+   ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``.
+
 These identities are pinned by
 ``tests/numerics/test_spherical_harmonic_space.py`` and
 ``tests/numerics/test_frame.py`` (the

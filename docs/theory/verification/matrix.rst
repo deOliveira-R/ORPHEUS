@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10428**
+Total tests collected: **10433**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1298, 12.4%
-   L1, 1635, 15.7%
+   L1, 1640, 15.7%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7412, 71.1%
+   foundation, 7412, 71.0%
    unmarked, 19, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10330
+   explicit, 10335
    class-name, 46
    func-name, 0
    case, 33
@@ -489,6 +489,7 @@ Module × level grid
    solve/test_gauss_seidel_reification, 0, 0, 0, 0, 8, 0
    solve/test_krylov_curvilinear_precond_safety, 0, 10, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
+   solve/test_pl_order_does_not_move_the_infinite_medium_flux, 0, 5, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
    solve/test_si_convergence_diagnostics, 0, 4, 0, 0, 0, 0
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0

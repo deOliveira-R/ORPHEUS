@@ -109,15 +109,97 @@ __all__ = [
 #: derive its own inverse face). Pinned rather than left to numpy's default:
 #: an implicit default is a silent dependency on a numpy version, and the
 #: mutation battery's over-truncation arm is only meaningful against a
-#: pinned value. `[M]` 2026-08-30 on the flagship slab Gram (singular values
-#: ``2.71 / 1.42 / 4.92e-1 / 4.74e-2`` live, one ``~1e-16`` noise mode):
-#: the Parseval ratio reads ``1.000000000`` for every ``rcond`` in
-#: ``[1e-15, 1e-2]``. The cliff's ANALYTIC edge is
-#: ``σ_min^live/σ_max = 4.745e-2 / 2.708 = 1.7524e-2`` — the genuine
-#: smallest live mode is truncated for any ``rcond`` above it (`[M]`
-#: archivist re-scan: already broken at ``3e-2``; the design plan's
-#: coarser scan first reported the break at ``5e-2``). ``1e-12`` sits 10
-#: orders below the analytic edge and ~4 above the noise floor.
+#: pinned value.
+#:
+#: **What it is FOR: structural RANK DETERMINATION, not noise suppression.**
+#: ⛔ REFUTED 2026-08-31 — this block called ``σ₅`` a "``~1e-16`` noise
+#: mode" and placed ``1e-12`` "~4 orders above the noise floor". Every
+#: number it quoted reproduces; the READING does not, and "noise floor"
+#: names something that does not exist. An angular frame on a 1-D chart has
+#: a Gram that is **rank-deficient by construction** (ERR-080, #429):
+#: :meth:`Quadrature.angular_frame` column-stacks three
+#: ``axis_cosines`` of which two are the documented ZERO FALLBACK on a slab,
+#: tags the measure ``support=S^2``, and ``_evaluate_real_sh`` then reads
+#: ``arctan2(0, 0) = 0`` — a fabricated azimuth, under which every ``m > 0``
+#: harmonic is a LIVE column instead of being absent. The redundancy is
+#: closed-form: ``Y_2^{+2} = (√3/2)(1−μ²)`` and ``1−μ² = (2/3)(Y_00−Y_20)``
+#: give ``Y_00 − Y_20 − √3·Y_22 ≡ 0``. `[M]` 2026-08-31 on
+#: ``gauss_legendre(8).angular_frame(2)``: the predicted null vector
+#: ``v = (1, 0, −1, 0, −√3)/√5`` over the live slots
+#: ``(0,0),(1,0),(2,0),(2,1),(2,2)`` IS the SVD-measured one
+#: (``|1 − |cos θ|| = 2.2e-16``) and it annihilates the **table**
+#: (``‖A v‖∞ = 1.4e-16``), not merely the Gram — so ``σ₅`` is the
+#: floating-point residue of an EXACT zero, not a small-but-real mode.
+#: ``rcond`` separates a genuine range from a structural kernel.
+#:
+#: The admissible window has TWO measured edges. Configuration for every
+#: number below: the shipped ``15×15``
+#: :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram` of
+#: ``gauss_legendre(8).angular_frame(2)``, numpy 2.4.4, `[M]` 2026-08-31,
+#: probes ``scratch/probe_rcond_0{3,4,10,11,14}_*.py`` (memo
+#: ``scratch/rcond_rederivation.md``).
+#:
+#: * **Upper — over-truncation**, at ``1.752390e-02``, which is
+#:   ``|λ₄|/|λ₁| = 4.744684e-02 / 2.707550`` to 7 s.f. Construction cannot
+#:   see it (``G⁺ G G⁺ = G⁺`` holds for a TRUNCATED pinv too, so
+#:   :data:`_DENSE_METRIC_PENROSE_RTOL` is blind); the sole catcher is
+#:   ``test_parseval_analysis_is_an_isometry_onto_its_image``
+#:   (``rtol=1e-12``). `[M]` 200-seed census astride the edge: at
+#:   ``1.75e-2`` **0/200** seeds fail (``|r−1| ≤ 2.4e-15``); at ``1.76e-2``
+#:   **200/200** do (``|r−1|`` spanning ``2.8e-07 … 4.1e-01``). The
+#:   LOCATION is a spectrum property and may be quoted; the failure
+#:   MAGNITUDE is draw-dependent and must not be. The old "5e-2, then 3e-2"
+#:   history was scan resolution: the transition is a STEP across ``2e-6``
+#:   in ``rcond``, not a cliff with a slope.
+#: * **Lower — a construction REFUSAL**, at ``8.696754e-17``, equal to 7
+#:   s.f. to the largest relative round-off residue as ``eigh`` reports it
+#:   (the decomposition ``pinv(hermitian=True)`` actually cuts on). Below it
+#:   :meth:`DenseMetric.__post_init__` raises — ``max|G⁺ G G⁺ − G⁺| =
+#:   7.9e+16`` at ``rcond = 1e-18``. So **no ADMISSIBLE rcond can admit the
+#:   kernel**: ``‖G⁺‖₂ = 21.076 = 1/4.744684e-02`` is bit-constant across
+#:   the whole window, and the corrupt band is unreachable, not merely
+#:   distant.
+#:
+#: ``1e-12`` sits ``10.24`` decades below the upper edge and ``4.06`` above
+#: the lower. ⚠ The lower margin must stay wide **because the number it is
+#: measured from is round-off with no stable value**: `[M]` the same
+#: matrix's largest residue reads ``8.70e-17`` (``eigh``), ``9.71e-18``
+#: (``eigvalsh`` and ``svd(hermitian=True)``) and ``2.27e-17`` (general
+#: ``svd``) — 9.0× spread over four numpy routines, so it moves with the
+#: LAPACK driver, the BLAS and the machine.
+#:
+#: ⚠ **The 15-decade gap is a property of the GL8 / L=2 frame, not of this
+#: constant — the pin is NOT comfortable everywhere.** `[M]` census at this
+#: rcond (``scratch/probe_rcond_16_census.py``; ``REFUSED`` =
+#: ``basis_space`` raises, ``BREACH`` = builds but ``|Parseval − 1| >
+#: 1e-12``, seed 1234). Over **105 slab rows** (``gauss_legendre`` orders
+#: ``2,3,4,5,6,7,8,9,11,12,16,17,24,32,33`` × ``L ∈ {0,1,2,3,4,5,7}``):
+#: **20 REFUSED, 11 BREACH — 31 affected (30 %), minimum affected L = 3**,
+#: including the DEFAULT order: accessing ``basis_space`` on
+#: ``gauss_legendre(16).angular_frame(4)`` raises. Over **196 3-D rows**
+#: (``level_symmetric(2..16)``, ``product`` incl. ``3×6``/``5×7``/``9×13``,
+#: ``folded_product``, ``lebedev(5..29)``, same ``L`` grid): **0 affected**,
+#: worst headroom 6.5 decades. The mechanism is not
+#: the kernel rising to meet the pin — on a 1-D chart the fabricated
+#: azimuth mints ``~L²/2`` phantom columns against a fixed node count, the
+#: odd-``m`` ones carry a non-polynomial ``√(1−μ²)``, and the LIVE spectrum
+#: descends continuously THROUGH ``1e-12`` (``GL24``/``L=7``: smallest kept
+#: mode ``3.73e-12``, 0.57 decades above the pin; ``GL17``/``L=7``: largest
+#: dropped mode ``3.44e-13``, 0.46 below). There, no cutoff is right.
+#:
+#: When ERR-080 lands, the kernel disappears and this constant reverts to
+#: what it was mis-described as — a pure conditioning guard. `[R]`+`[M]`:
+#: with the azimuth no longer fabricated a slab carries only its ``m = 0``
+#: columns, the Legendre polynomials, which Gauss–Legendre integrates
+#: exactly to degree ``2N−1``; so the Gram becomes DIAGONAL, exactly
+#: ``2/(2ℓ+1)``, with ``cond = 2L+1`` (`[M]`
+#: ``scratch/probe_rcond_17_post_repair.py``: max off-diagonal ``≤1.3e-15``,
+#: ``σ_min/σ_max = 1/(2L+1)`` on ``GL{5,8,9,16,24,32}`` ×
+#: ``L ∈ {2,3,4,5,7}``). The frame then takes its DIAGONAL arm, no
+#: :class:`DenseMetric` is built on a slab at all, and all 31 affected rows
+#: retire. The falsifiable check on the day it lands:
+#: ``gauss_legendre(8).angular_frame(2).discrete_gram_structure is
+#: GramStructure.DIAGONAL``.
 _DENSE_METRIC_RCOND: float = 1e-12
 
 #: Symmetry admission threshold for :class:`DenseMetric`, relative to the

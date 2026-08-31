@@ -6058,3 +6058,182 @@ older entries classify against.
      the fix: the conversion's INVERSE is the load-bearing half, because that is
      what a diagnostic hands back to the user — a fix that only repairs the
      comparison leaves the advice wrong.
+
+.. error-entry:: ERR-080
+   :title: A 1-D quadrature supplies mu_y = mu_z = 0 meaning "there is no azimuthal information" and the real-spherical-harmonic basis reads it as "the azimuth is 0", so every m > 0 harmonic degenerates to a non-zero constant — and P_L scattering at L >= 2 returns a wrong answer, with the wrong sign, from a public unguarded entry point
+
+
+   - **Where**: ``orpheus/numerics/basis/spherical_harmonic_basis.py``
+     (``_evaluate_real_sh``, the :math:`\ell \ge 2` spherical branch:
+     ``cos_phi = mu_y / sin_theta``, ``sin_phi = mu_z / sin_theta``,
+     ``phi = arctan2(sin_phi, cos_phi)``), reached from
+     ``orpheus/numerics/quadrature/directional.py`` (``angular_frame``, which
+     ``column_stack``\ s ``axis_cosines(0..2)`` and declares the result
+     ``support=SPACE_SPHERE``). Public surface:
+     ``solve_sn(..., scattering_order>=2)`` and
+     ``solve_sn_fixed_source(..., scattering_order>=2)`` on any 1-D chart.
+   - **Class**: **convention drift at a type boundary — two meanings, one set
+     of zeros.** ``Quadrature`` writes ``mu_y = mu_z = 0`` as *"this rule has no
+     azimuthal content"*; ``_evaluate_real_sh`` reads it as *"this direction's
+     azimuth is 0"*. The second reading makes :math:`\cos(m\varphi) = 1` at
+     every ordinate, so :math:`Y_\ell^{m>0}` becomes a constant across the node
+     set rather than being absent. The retained harmonics are then linearly
+     DEPENDENT on the slab nodes, the discrete Gram is rank-deficient, and the
+     per-mode scattering multiplier
+     ``reconstruct . multiply . analyze`` is no longer a function of the flux
+     (well-posedness needs :math:`\ker(\text{synthesis})` invariant under the
+     multiplier — a property of the (basis, measure, operator) TRIPLE, which
+     nothing in the tree states).
+   - ``[M]`` **the redundant direction has a closed form, and it is not
+     roundoff.** The degenerate harmonic is
+     :math:`Y_2^{+2} \propto (1-\mu^2)`, which is exactly
+     :math:`\det P = 4(1-\mu^2)`, the squared orbit radius of the
+     :math:`SO(2)` action on :math:`S^2`. The predicted null direction
+     :math:`[-0.447214,\,0,\,+0.447214,\,0,\,+0.774597]` over the live slots
+     :math:`\{(0,0),(1,0),(2,0),(2,1),(2,2)\}` IS the SVD-measured one:
+     ``[M]`` 2026-08-31 on ``gauss_legendre(8).angular_frame(2)``, alignment
+     :math:`\bigl|1-|\cos\theta|\bigr| =` **2.75e-14**, over a Gram whose
+     singular values read ``2.7075 / 1.4192 / 4.9245e-01 / 4.7447e-02 /
+     1.8968e-17`` — 5 live slots, ``matrix_rank`` **4**. ⚠ The component-wise
+     agreement is only 1.5e-07 and measures the six digits the prediction was
+     transcribed to, not the physics; the alignment is the
+     transcription-independent statistic and is the one to quote. So the rank
+     deficiency is a theorem about the quotient :math:`S^2/SO(2)`, not a
+     numerical curiosity.
+   - ⛔ **A SECOND public symptom, found 2026-08-31 while re-deriving
+     ``_DENSE_METRIC_RCOND``: at higher (order, :math:`L`) it is not a wrong
+     answer, it is a CRASH — and the message blames the wrong layer.** The
+     fabricated columns make the discrete Gram inconsistent enough that
+     :class:`~orpheus.numerics.metric.DenseMetric`'s Penrose guard refuses it,
+     so the public entry point raises. ``[M]`` verified end-to-end:
+     ``solve_sn_fixed_source(gauss_legendre(16), scattering_order=4)`` →
+     ``ValueError: DenseMetric was handed an inconsistent inverse face:
+     max|G G+ G - G| = 7.117e-04``. ``[M]`` census over **105 slab rows**
+     (``gauss_legendre`` orders 2–33 × :math:`L \in \{0..5,7\}`): **20 RAISE,
+     11 breach the Parseval gate — 31 affected (30 %), minimum affected
+     `L = 3`**, and one of the raising rows is the DEFAULT order. Over **196
+     3-D rows** (``level_symmetric`` 2–16, ``product`` incl. odd factors,
+     ``folded_product``, ``lebedev`` 5–29): **0 affected**, worst headroom 6.5
+     decades. ⭐ The mechanism is not the kernel rising to meet the pin — the
+     fabricated azimuth mints :math:`\sim L^2/2` phantom columns against a
+     fixed node count, the odd-:math:`m` ones carry a non-polynomial
+     :math:`\sqrt{1-\mu^2}`, and the LIVE spectrum descends continuously
+     THROUGH ``1e-12``. There is no cutoff that is right, which is the tell
+     that the cutoff was never the problem. ⚠ Diagnostic hazard: the exception
+     names ``DenseMetric``, **three hops downstream** of the fabrication, so
+     the obvious repair (retune the ``rcond``) is the one that cannot work.
+   - **Why invisible**: ``[M]`` the corpus uses ``scattering_order`` 0 (74
+     sites), 1 (46 sites) and 3 (2 sites), and **both** :math:`L = 3` sites are
+     ``Quadrature.lebedev(17)`` on a 2-D mesh — a 3-D rule, where no azimuth is
+     fabricated. :math:`P_{\ge 2}` on a 1-D chart had **zero** witnesses tree-wide.
+     Three further maskings compounded it:
+
+     * :math:`\ell = 1` is CLEAN, because ``_evaluate_real_sh`` hard-codes
+       :math:`\ell = 1` in Cartesian form
+       (:math:`Y_1 \propto (\mu_z, \mu_x, \mu_y)`) and never enters the
+       spherical branch. So the defect reads as an ":math:`L \ge 2` problem"
+       rather than as a basis/measure mismatch present at every order.
+     * The ``on_axis`` guard *anticipated the case and aimed at the wrong one*:
+       it fires when :math:`\sin\theta \approx 0` (a direction ALONG the polar
+       axis). The slab's situation is the opposite — the TRANSVERSE part is
+       zero while :math:`\sin\theta` is large. ``[M]`` over 10 shipped rules the
+       guard fires on **2 nodes of 1 rule** (the Lebedev poles) while the case it
+       misses is **100 % of the ordinates on every slab rule**. It is written
+       with ``np.where``, not ``if``, so no coverage tool can report the branch
+       unexercised.
+     * ``Quadrature.spherical_harmonics``'s own docstring states the invariant
+       that would make the code correct — *"only the*
+       :math:`m = 0` *harmonics carry non-zero values; the other slots are
+       filled with zeros"* — so a reader checking the contract finds it
+       AFFIRMED in prose while the code implements the opposite.
+
+   - **A green test PINNED it.** ``tests/numerics/test_frame.py:906`` asserts the
+     live :math:`\ell = 2` Gram diagonal is ``[0.4, 0.8, 0.8]`` at
+     ``rtol=1e-12`` — and the two ``0.8``\ s ARE the fabricated slots. ``[M]``
+     12 sites repo-wide consume the slab-GL-:math:`L{=}2` frame as a fixture
+     (7 tests, 4 docs, 1 production comment). Migration, not deletion, is owed
+     to all 12.
+   - ⛔ **The mechanism had been MEASURED one day earlier and mis-read as
+     noise.** Campaign 1's P7 (2026-08-30) recorded the slab Gram's singular
+     values in ``orpheus/numerics/metric.py`` as *"2.71 / 1.42 / 4.92e-1 /
+     4.74e-2 live, one ~1e-16 noise mode"* and pinned ``_DENSE_METRIC_RCOND``
+     to discard the small one. The measurement was right and the
+     interpretation was inverted: the discarded direction is not roundoff, it
+     is the exact null vector above. The same campaign installed the dense
+     pseudo-inverse Parseval metric *because* the Gram is not diagonal —
+     i.e. the tree already knew the frame was degenerate and treated the
+     symptom as a conditioning nuisance.
+   - **Found by**: building #426's missing (n,2n) Legendre-moment measurement
+     (CS4c Campaign 2), which needed :math:`\ell \ge 1` scattering on a slab
+     and produced an obviously-impossible flux. Reproduced end-to-end on a
+     1-group infinite medium: ``[M]`` :math:`\phi = +4.000000000000` at
+     :math:`L = 0, 1`; :math:`-3.764705882353` at :math:`L = 2` (194 % error,
+     wrong sign); :math:`+0.454164575725` at :math:`L = 3` (89 % low). On real
+     data — 421-group pure-Be slab (BE009, :math:`N = 0.1236`), 20 cm, vacuum,
+     fission-spectrum source, S8 — ``sum(phi)`` reads ``2.149e3`` / ``1.978e3``
+     / ``2.267e4`` at :math:`L = 0/1/2`: the :math:`L = 2` answer is 10.6x the
+     :math:`L = 0` one.
+   - **Scope** ``[M]``, over every shipped ``(constructor, order)`` row, via the
+     :math:`\ell \ge 1` moment of an isotropic flux (which must be 0):
+     ``gauss_legendre(2,4,6,8,16)`` spurious at :math:`\ell \ge 2` at exactly
+     :math:`1/\sqrt3`; ``folded_product(2,4),(4,8)`` spurious at
+     :math:`\ell \ge 1` from the KNOWN :math:`\sigma_y` fold (a different cause,
+     listed so the denominator is honest); ``level_symmetric(4,8,12)``,
+     ``lebedev(11,17)`` and ``product(4,4),(8,8),(4,6)`` all clean
+     (:math:`\le` 1.2e-16). 7 of 15 rows non-zero, 5 of them this defect.
+     ⚠ The FABRICATION is universal — it happens on every slab solve including
+     :math:`L = 0` — while the SYMPTOM is not; it is harmless at
+     :math:`L \le 1` for the two independent reasons above.
+   - **Fix** — *proposed, NOT yet landed (tracked by #429; the gate below ships
+     first)*: not a special case. A 1-D angular quadrature is a quadrature on
+     the orbit space :math:`S^2/SO(2)`, and the harmonics that survive the
+     quotient are its **trivial isotypic component**
+     :math:`\{Y_\ell^0\} \cong \{P_\ell\}` — derived by probing the group
+     action, not hand-listed. The three structural repairs it decomposes into:
+     ``angular_frame`` must stop writing ``support=SPACE_SPHERE`` over nodes
+     with :math:`\lVert\Omega\rVert \ne 1`; ``Basis`` must be able to declare
+     its ``domain`` so the pairing is checkable where the two objects meet; and
+     ``_evaluate_real_sh`` must REFUSE a non-unit direction vector rather than
+     inventing an azimuth for it. Plan:
+     ``.claude/plans/angular_spaces_derived_from_symmetry.md``.
+     ``[M]`` the repair also closes the crash by removing the need for a dense
+     metric on a slab at all: with no fabricated azimuth a 1-D rule carries
+     only its :math:`m = 0` columns — the Legendre polynomials, which
+     Gauss–Legendre integrates exactly to degree :math:`2N-1` — so the Gram
+     becomes DIAGONAL, exactly :math:`2/(2\ell+1)`, with
+     :math:`\mathrm{cond} = 2L+1`. The falsifiable check on the day it lands:
+     ``gauss_legendre(8).angular_frame(2).discrete_gram_structure is
+     GramStructure.DIAGONAL``.
+     ``[M]`` an in-process candidate patch is bit-identical at :math:`L \le 1`
+     (:math:`\Delta = +0.000\mathrm{e}{+}00`), returns
+     :math:`+4.000000000000` at :math:`L \ge 2`, and is *exactly inert* on 3-D
+     rules (:math:`\max|\Delta Y| = 0.0`).
+   - **Gate**:
+     ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``
+     — ``xfail(strict=True)`` at :math:`L = 2` and :math:`L = 3`, with
+     :math:`L = 0, 1` as GREEN positive controls proving the fixture reaches the
+     analytic answer. The strict marker self-retires: an ``XPASS`` is a failure,
+     so the repair cannot land while the gate still claims the defect.
+   - **Family**: **ERR-004 / ERR-025** (quadrature normalisation read through
+     the total weight only — the same blindness of a :math:`\Sigma w` gate to
+     node PLACEMENT); **ERR-051** (``assert_galerkin_idempotency`` asserting the
+     wrong invariant under an SH convention — the neighbouring convention seam);
+     **ERR-072** (a sampled generator set certifying a continuous group — the
+     same "the tag describes the CONTINUUM object, not the discrete one" defect,
+     one layer over).
+   - **Lesson**: **a zero that means "absent" and a zero that means "the value
+     is zero" are different values, and a float array cannot tell them apart —
+     so the distinction has to live in a TYPE, not in a convention.** The
+     producer here was right, the consumer was right, and the contract between
+     them was never written down anywhere that could be checked: the basis has
+     no ``domain`` to state that it needs points on :math:`S^2`, the measure's
+     ``support`` tag was FORGED to match, and the binder validated neither. The
+     greppable tell is a constructor that writes a membership claim
+     (``support=``, ``space=``, ``units=``) as a **literal** while its
+     neighbours derive theirs — here ``support=SPACE_SPHERE`` sits between
+     ``invariance_group`` (*"COMPUTED from the factors ... never a declared
+     literal"*) and ``exactness`` (*"DERIVED from the two factors' own
+     claims"*). ⭐ And the corollary the ``metric.py`` reading makes vivid: a
+     rank-deficiency discovered while TUNING A TOLERANCE is a structural fact
+     wearing a numerical costume — before pinning an ``rcond`` that discards a
+     mode, identify the mode.
