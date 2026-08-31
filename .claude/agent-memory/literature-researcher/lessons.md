@@ -478,3 +478,65 @@ diagnostic. Several recent sessions ran with Zotero DOWN.
 Zotero, note "Zotero down this session — no annotations checked" in
 output, and use the local folder + Tier-2 databases. See
 [[reference-zotero-flakiness]].
+
+## L-015 — A SPEC question is not a literature hunt: the primary standards are one `curl` away, and `grep` cannot read what you extract from them
+
+Two failure halves, both measured 2026-08-31 while establishing the ENDF-6 / GENDF
+(n,2n) format rules.
+
+**(a) Don't Tier-2 a standard.** `scratch/literature/` is a *transport-theory* library —
+78 PDFs, **zero** nuclear-data-format documents, and a wide-vocabulary grep
+(`ENDF|NJOY|GROUPR|GENDF|Kalbach|LAW=|ACER`) returned only 6 incidental mentions inside
+physics papers. But the **ENDF-6 Formats Manual** (CSEWG ENDF-102 / BNL-203218-2018-INRE,
+418 pp) and the **NJOY2016 manual** (LA-UR-17-20093, 816 pp) are freely published,
+**born-digital with a real text layer**, and download in seconds from fixed URLs. Getting
+them IS getting the primary source. A whole class of question — *"what does the FORMAT
+permit?"* — is answered by two `curl`s, not by a database search. URLs, page offsets and
+the settled rulings: [[endf6-gendf-njoy-n2n-formats]].
+
+**(b) ⛔ `grep` here is ugrep with `-I`, and it SILENTLY SKIPS a pypdf-extracted `.txt` as
+binary — 0 hits, no error, identical to a clean file.** I lost a cycle believing the
+extraction had failed. This is the L-family filter defect in a new dress (a broken filter
+and an empty corpus print the same thing), and it is worse than the `\bword\b` case
+because nothing about the pattern looks wrong. ⟹ **extract with page markers and search in
+PYTHON**, never the shell:
+`parts = re.split(r'@@@PDFPAGE (\d+)@@@', txt); pages = {int(parts[i]): parts[i+1] for i in range(1,len(parts),2)}`.
+
+⚠ **Rider, and it upgrades L-010 rather than repeating it: `pypdf` breaks FRACTIONS across
+lines.** `(2ℓ+1)/4π` extracted as `2ℓ + 1 / 4π`. On a normalization question that is the
+*entire* answer — `/2` and `/4π` differ by the `2π` azimuthal integral. So the
+rendered-page check is mandatory **even for born-digital PDFs where L-010's OCR hazard does
+not apply**: the new mechanism is *layout loss*, not character error. Both load-bearing
+equations were verified visually and both held.
+
+## L-016 — When the manual under-determines the behaviour, MEASURE THE DATA — a census of real files outranks an unprinted table
+
+`[M]` 2026-08-31. The question was *"does GENDF's `NL` reflect what the evaluation
+contains, or only what the user requested?"* The NJOY manual gets you close and then
+**stops**: it says `lord` is a ceiling, names `subroutine init` as choosing a per-reaction
+default, and **does not print `init`'s table**. Honest answers available from the manual
+alone: "≤ lord+1, mechanism unstated".
+
+What settled it was **fetching the nine actual ENDF/B-VIII.0 evaluations behind the user's
+nine data files and parsing how each represents the reaction** (~40 lines of Python). The
+answer fell straight out and was *stronger* than the manual could have been, because the
+corpus contained its own controls: one nuclide's file is a **two-line declaration of
+isotropy** and gets `NL=1` under the *same* processing run that gives every other nuclide
+`NL=7`. A counterexample inside the user's own corpus is unimpeachable evidence.
+
+**How to apply.** When a brief asks "is my measurement a property of the format, the
+evaluation, or the processing?", that is **three questions with three different sources**:
+the spec (what is permitted), the evaluated file (what this nuclide does), and the
+processor's manual + the processed file (what was done to it). Get all three; they are
+usually all obtainable, and the disagreements between them are the finding. Corollary
+worth its own line: **reproduce the user's headline number from the raw upstream data.**
+Computing µ̄ independently off the ENDF tape (+0.25…+0.27) and off the GENDF bytes
+(+0.2783) turned "your measurement is consistent with the spec" into "your measurement is
+confirmed at three independent levels" — and it cost one script. Companion to L-011
+(reproduce the paper's TABLE), one tier down: reproduce the user's MEASUREMENT.
+
+⚠ And the caveat that made the deliverable useful rather than merely affirming: the same
+census showed **8 of the 9 nuclides are `LCT=2` (centre-of-mass)**, where the processor's
+CM→LAB transform manufactures ℓ≥1 moments *from an isotropic distribution* — so the
+confirmation transfers to exactly ONE of the user's nuclides. **A confirmation owes its
+denominator just as much as a negative does** (L-012's clause, applied to a positive).
