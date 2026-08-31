@@ -248,8 +248,12 @@ def test_p0_and_emission_are_what_the_iso_pair_consumes():
     itself re-points at the kernel.
     """
     mat_xs, mixtures = _two_material_carrier()
-    iso_scatter = IsotropicScattering(mat_xs).dense_per_material()
-    iso_n2n = IsotropicN2N(mat_xs).dense_per_material()
+    iso_scatter = IsotropicScattering.from_material_xs(
+        mat_xs, space=mat_xs.mesh.bulk_space,
+    ).dense_per_material()
+    iso_n2n = IsotropicN2N.from_material_xs(
+        mat_xs, space=mat_xs.mesh.bulk_space,
+    ).dense_per_material()
 
     for mid, mixture in mixtures.items():
         np.testing.assert_array_equal(
@@ -619,8 +623,8 @@ def test_apply_arm_survival_matrix(operator_key, carrier_key):
         "C": MultiplicationOperator(
             coefficient=mat_xs.total_cross_section_field, domain=ffs, codomain=ffs,
         ),
-        "IsoS": IsotropicScattering(mat_xs, space=ffs),
-        "IsoN2N": IsotropicN2N(mat_xs, space=ffs),
+        "IsoS": IsotropicScattering.from_material_xs(mat_xs, space=ffs),
+        "IsoN2N": IsotropicN2N.from_material_xs(mat_xs, space=ffs),
         "F": FissionOperator.from_solver_data(mat_xs=mat_xs, space=ffs),
     }
     rng = np.random.default_rng(2026)
@@ -671,34 +675,47 @@ def test_apply_dispatch_registries_are_verbatim():
     }
 
 
-def test_isotropic_kernel_still_constructs_space_anonymously():
-    r"""**G2.9** — the C8 fence's live witness: ``scattering.py``'s iso pair
-    stays constructible with NO space.
-
-    ``ScatteringOperator.isotropic_kernel`` builds its ``IsoS + IsoN2N``
-    sum space-anonymously (the only production construction of a CS4a
-    operator with no space at all). F is mandatory; the iso pair is NOT
-    (F2/R-C — C and the iso pair flip at CS4c with their migration
-    batch). If the iso constructors' space ever becomes mandatory, this
-    site breaks — and this gate says so before production does.
+def test_isotropic_energy_inherits_the_parent_binding_space():
+    r"""**G2.9, INVERTED (CS4c step 3)** — the C8 fence's witness flipped
+    to the POSITIVE gate its own docstring promised: the iso
+    constructors' space became mandatory, the fence broke before
+    production did (as designed), and the surviving claim is
+    inheritance — ``S.isotropic_energy`` (the P0 energy binding the
+    per-ordinate fast path lifts; ``isotropic_kernel``'s successor
+    after the §14.1 (n,2n) extraction) is bound to the SCALAR sub-space
+    of the parent's own composite interior, never space-anonymous.
     """
     from orpheus.numerics.quadrature import Quadrature
+    from orpheus.numerics.space import FunctionSpace
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.transport.operators.scattering import ScatteringOperator
 
-    mat_xs = MaterialMesh.from_materials(
-        {0: get_mixture("A", "2g")}
-    ).material_xs_field()
-    scattering = ScatteringOperator.from_solver_data(
-        mat_xs=mat_xs,
-        quadrature=Quadrature.gauss_legendre(n_ordinates=4),
-        scattering_order=0,
+    carrier = MaterialMesh.from_materials({0: get_mixture("A", "2g")})
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 1.0, 5),
+        mat_ids=np.zeros(4, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"),
+        bc_right=BC("vacuum"),
     )
-    iso_sum = scattering.isotropic_kernel
-    left, right = iso_sum._a, iso_sum._b
-    assert left.domain is None and right.domain is None, (
-        "the iso pair gained a space on the space-anonymous "
-        "isotropic_kernel path — scattering.py:713's construction "
-        "contract moved"
+    sn_mesh = SNMesh(
+        mesh, Quadrature.gauss_legendre(n_ordinates=4), carrier.materials,
+    )
+    space = sn_mesh.full_field_space
+    scattering = ScatteringOperator.from_solver_data(
+        mat_xs=carrier.material_xs_field(),
+        scattering_order=0,
+        space=space,
+    )
+    energy = scattering.isotropic_energy
+    interior = space.interior_space
+    assert interior is not None and interior.axes is not None
+    expected = FunctionSpace.of_axes(*interior.axes[1:])
+    assert energy.domain == expected and energy.codomain == expected, (
+        "S.isotropic_energy must be bound to the scalar sub-space of "
+        "the parent's OWN interior — the binding drifted from the "
+        "parent's pose"
     )
 
 
@@ -718,12 +735,17 @@ def test_energy_conformity_guard_three_rows():
        per-site — three sites had no witness);
     3. axes-LESS — a WRONG-ng bind on ``SNMesh(2g).full_field_space``
        MUST CONSTRUCT: the declared inertness. The guard's reach is the
-       contract (``[M]`` live on 192 of 1022 constructions — 4 of 13
-       production bindings; inert on the 7 axes-less composites and the
-       2 space-less ``isotropic_kernel`` constructions; the axis-keyed
-       strengthening for composites arrives with CS2's axes). Without
-       this row the guard ships certified by a fixture family that
-       reddens on demand while 7 of 13 real bindings never touch it.
+       contract. ``[M]`` re-derived at CS4c step 3 (the rebind changed
+       the wiring): SEVEN production classes now run the admission at
+       construction — C, S, IsoS, IsoN2N (the per-END base helper),
+       N2NOperator, F, and Λ/N2N-moment inherit the base without an
+       energy end to check — where the pre-step census read 4 of 13.
+       The guard stays INERT on axes-less composites (this row's
+       subject): ``SNMesh.full_field_space`` carries no EnergyAxis until
+       CS2's axes, so a wrong-ng bind constructs, and the row keeps that
+       fact asserted rather than assumed. Without this row the guard
+       ships certified by a fixture family that reddens on demand while
+       the axes-less real bindings never touch it.
     """
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.numerics.quadrature import Quadrature
@@ -759,10 +781,10 @@ def test_energy_conformity_guard_three_rows():
         "MultiplicationOperator": lambda: MultiplicationOperator(
             coefficient=mat_2g.total_cross_section_field, domain=wrong_space, codomain=wrong_space,
         ),
-        "IsotropicScattering": lambda: IsotropicScattering(
+        "IsotropicScattering": lambda: IsotropicScattering.from_material_xs(
             mat_2g, space=wrong_space,
         ),
-        "IsotropicN2N": lambda: IsotropicN2N(mat_2g, space=wrong_space),
+        "IsotropicN2N": lambda: IsotropicN2N.from_material_xs(mat_2g, space=wrong_space),
     }
     for op_name, construct in per_site.items():
         with pytest.raises(ValueError, match="energy extent") as site_info:

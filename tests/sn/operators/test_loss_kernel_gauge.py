@@ -535,9 +535,9 @@ def _solve(system, mesh, template, source, schedule):
     # Named, not splatted: the selector takes exactly (L+C, S, B, mesh,
     # schedule), so a splat would silently mis-bind if the splitting ever grew
     # a third gain — and hides from the type checker which is which.
-    scattering, boundary = system.explicit_gains
+    scattering, n2n, boundary = system.explicit_gains
     base, gains = _select_si_splitting(
-        system.implicit_operator, scattering, boundary, mesh, schedule,
+        system.implicit_operator, scattering, n2n, boundary, mesh, schedule,
     )
     iteration = SourceIteration(base.inverse(), *gains,
                                 max_iter=400_000, tol=1e-13)

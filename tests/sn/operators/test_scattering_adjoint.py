@@ -112,7 +112,7 @@ def _ld_flux(solver: SNSolver, seed: int = 123) -> AngularFlux:
 
 
 def _moment_field(op, nx, ny, seed):
-    return np.random.default_rng(seed).uniform(0.05, 1.0, size=(2, 3, op.ng, nx, ny))
+    return np.random.default_rng(seed).uniform(0.05, 1.0, size=(2, 3, op.scattering.ng, nx, ny))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -122,7 +122,7 @@ def _moment_field(op, nx, ny, seed):
 
 class TestLambdaTranspose:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
-        lam = LegendreMomentScattering.from_material_xs(mat_xs=solver_p1_het.scattering_op.mat_xs, L=1)
+        lam = LegendreMomentScattering.from_material_xs(mat_xs=solver_p1_het.mat_xs, L=1)
         require(lam.is_adjointable,
                 "Λ must advertise the adjoint axis (campaign #276).")
         require(not lam.is_invertible,
@@ -131,8 +131,8 @@ class TestLambdaTranspose:
     def test_moment_space_transpose_identity(self, solver_p1_het):
         r"""``⟨Λ m, c⟩ = ⟨m, Λᵀ c⟩`` (full moment-tensor contraction, per L27)."""
         op = solver_p1_het.scattering_op
-        nx, ny = op.mat_xs.spatial_shape
-        lam = LegendreMomentScattering.from_material_xs(mat_xs=op.mat_xs, L=1, skip_l0=False)
+        nx, ny = solver_p1_het.mat_xs.spatial_shape
+        lam = LegendreMomentScattering.from_material_xs(mat_xs=solver_p1_het.mat_xs, L=1, skip_l0=False)
         m = _moment_field(op, nx, ny, 1); c = _moment_field(op, nx, ny, 2)
         lhs = float((lam.apply(m) * c).sum())            # ⟨Λ m, c⟩
         rhs = float((m * lam.apply_transpose(c)).sum())  # ⟨m, Λᵀ c⟩
@@ -152,14 +152,14 @@ class TestLambdaTranspose:
         axis in the production transpose verb disagrees with it.
         """
         op = solver_p1_het.scattering_op
-        nx, ny = op.mat_xs.spatial_shape
-        lam = LegendreMomentScattering.from_material_xs(mat_xs=op.mat_xs, L=1, skip_l0=False)
+        nx, ny = solver_p1_het.mat_xs.spatial_shape
+        lam = LegendreMomentScattering.from_material_xs(mat_xs=solver_p1_het.mat_xs, L=1, skip_l0=False)
         c = _moment_field(op, nx, ny, 3)
         got = lam.apply_transpose(c)
 
         ref = np.zeros_like(c)
-        for mid, idx in op.mat_xs.cells_by_material.items():
-            sig = op.mat_xs.sig_s_legendre(mid)  # list over ℓ of (ng, ng) [g_from, g_to]
+        for mid, idx in solver_p1_het.mat_xs.cells_by_material.items():
+            sig = solver_p1_het.mat_xs.sig_s_legendre(mid)  # list over ℓ of (ng, ng) [g_from, g_to]
             for l in range(2):
                 n_m = 2 * l + 1
                 # Forward applies sigᵀ ⇒ transpose applies sig (un-transposed).
@@ -176,8 +176,8 @@ class TestLambdaTranspose:
     def test_group_flip_is_nontrivial(self, solver_p1_het):
         r"""Discriminator: with asymmetric Σ_s, Λᵀ ≠ Λ (the transpose has teeth)."""
         op = solver_p1_het.scattering_op
-        nx, ny = op.mat_xs.spatial_shape
-        lam = LegendreMomentScattering.from_material_xs(mat_xs=op.mat_xs, L=1, skip_l0=False)
+        nx, ny = solver_p1_het.mat_xs.spatial_shape
+        lam = LegendreMomentScattering.from_material_xs(mat_xs=solver_p1_het.mat_xs, L=1, skip_l0=False)
         m = _moment_field(op, nx, ny, 4)
         require(
             not np.allclose(lam.apply(m), lam.apply_transpose(m)),
@@ -208,12 +208,12 @@ class TestKernelTranspose:
         Full per-ordinate/per-group contraction (NOT weight-summed — L27).
         """
         op = solver_p1_het.scattering_op
-        nx, ny = op.mat_xs.spatial_shape
-        N = op.weights.shape[0]
+        nx, ny = solver_p1_het.mat_xs.spatial_shape
+        N = solver_p1_het.sn_mesh.quad.N
         kernel = op.kernel
         rng = np.random.default_rng(5)
-        psi = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny))
-        c = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny))
+        psi = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))
+        c = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))
         lhs = float((kernel.apply(psi) * c).sum())
         rhs = float((psi * kernel.apply_transpose(c)).sum())
         np.testing.assert_allclose(
@@ -230,15 +230,15 @@ class TestKernelTranspose:
 
 class TestN2NMomentOperator:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
-        n2n = N2NMomentOperator.from_material_xs(mat_xs=solver_p1_het.scattering_op.mat_xs, L=1)
+        n2n = N2NMomentOperator.from_material_xs(mat_xs=solver_p1_het.mat_xs, L=1)
         require(n2n.is_adjointable, "N2N must advertise the adjoint axis.")
         require(not n2n.is_invertible, "N2N must NOT be invertible.")
 
     def test_acts_only_on_ell0(self, solver_p1_het):
         r"""(n,2n) is isotropic — it touches ONLY the ℓ=0 block (ℓ≥1 stay zero)."""
         op = solver_p1_het.scattering_op
-        nx, ny = op.mat_xs.spatial_shape
-        n2n = N2NMomentOperator.from_material_xs(mat_xs=op.mat_xs, L=1)
+        nx, ny = solver_p1_het.mat_xs.spatial_shape
+        n2n = N2NMomentOperator.from_material_xs(mat_xs=solver_p1_het.mat_xs, L=1)
         m = _moment_field(op, nx, ny, 6)
         out = n2n.apply(m)
         np.testing.assert_array_equal(
@@ -248,8 +248,8 @@ class TestN2NMomentOperator:
 
     def test_moment_space_transpose_identity(self, solver_p1_het):
         op = solver_p1_het.scattering_op
-        nx, ny = op.mat_xs.spatial_shape
-        n2n = N2NMomentOperator.from_material_xs(mat_xs=op.mat_xs, L=1)
+        nx, ny = solver_p1_het.mat_xs.spatial_shape
+        n2n = N2NMomentOperator.from_material_xs(mat_xs=solver_p1_het.mat_xs, L=1)
         m = _moment_field(op, nx, ny, 7); c = _moment_field(op, nx, ny, 8)
         lhs = float((n2n.apply(m) * c).sum())
         rhs = float((m * n2n.apply_transpose(c)).sum())
@@ -260,31 +260,34 @@ class TestN2NMomentOperator:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Full scatter kernel = frame.conjugate(Λ_{ℓ≥0} + N2N) — the A2a readiness gate:
-# the modernized R∘(Λ+N2N)∘M reproduces the CURRENT forward S (P0+aniso+n2n).
+# Full scatter kernel = frame.conjugate(Λ_{ℓ≥0}) — the A2a readiness gate:
+# the frame form reproduces the CURRENT forward S (P0+aniso; the (n,2n)
+# term is N2NOperator's own lift since the §14.1 extraction).
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestFullScatterKernel:
     def _full_kernel(self, op):
-        # The production property: frame.conjugate(Λ_{ℓ≥0} + N2N) — R∘(Λ+N2N)∘M.
+        # The production property: frame.conjugate(Λ_{ℓ≥0}) — R∘Λ∘M (§14.1: n2n extracted).
         # The forward apply does NOT use this (it keeps the fast-path for perf,
         # campaign #276 A2a finding); it is the validated frame form for the
         # adjoint transpose (A2b) + the Option-2 forward-unification reference.
         return op.full_scatter_kernel
 
     def test_reproduces_forward_scattering_source(self, solver_p1_het):
-        r"""``(1/W)·frame.conjugate(Λ_{ℓ≥0}+N2N).apply(ψ) == S.apply(ψ)`` (principled-equiv).
+        r"""``(1/W)·frame.conjugate(Λ_{ℓ≥0}).apply(ψ) == S.apply(ψ)`` (principled-equiv).
 
-        The load-bearing A2a equivalence: the modernized iso+aniso+n2n frame path
-        reproduces the legacy fast-path forward (P0 via add_iso, aniso via kernel,
-        n2n via add_n2n) — principled-equiv (Y₀⁰=1; same math, reduction-order
-        differs ⟹ ~1e-14, NOT 0-ULP).
+        The load-bearing A2a equivalence: the frame path reproduces the
+        fast-path forward (P0 via add_iso, aniso via kernel) —
+        principled-equiv (Y₀⁰=1; same math, reduction-order differs ⟹
+        ~1e-14, NOT 0-ULP). The (n,2n) term left S with the §14.1
+        extraction; its lift ≡ conjugation gate lives in
+        ``test_n2n_operator.py``.
         """
         op = solver_p1_het.scattering_op
-        nx, ny = op.mat_xs.spatial_shape
-        W = float(op.weights.sum())
-        psi = AngularFlux(values=np.random.default_rng(10).uniform(0.05, 1.0, size=(op.weights.shape[0], op.ng, nx, ny)), space=solver_p1_het.sn_mesh.angular_bulk_space)
+        nx, ny = solver_p1_het.mat_xs.spatial_shape
+        W = op.total_weight
+        psi = AngularFlux(values=np.random.default_rng(10).uniform(0.05, 1.0, size=(solver_p1_het.sn_mesh.quad.N, solver_p1_het.ng, nx, ny)), space=solver_p1_het.sn_mesh.angular_bulk_space)
         candidate = self._full_kernel(op).apply(psi.values) / W
         forward = op.apply(psi).values
         np.testing.assert_allclose(
@@ -296,18 +299,18 @@ class TestFullScatterKernel:
 
     @pytest.mark.parametrize("trailing", [(), (4,)], ids=["scalar", "LD-2^d=4"])
     def test_full_kernel_euclidean_reciprocity(self, solver_p1_het, trailing):
-        r"""``⟨S ψ, c⟩ = ⟨ψ, Sᵀ c⟩`` for the full P0+aniso+n2n kernel (the A2b transpose).
+        r"""``⟨S ψ, c⟩ = ⟨ψ, Sᵀ c⟩`` for the full P0+aniso kernel (the A2b transpose; §14.1: n2n is N2NOperator's).
 
         Scalar AND LD (trailing :math:`2^d` spectator, #240 D5b-S3): the transpose
         must thread the spatial-moment axis the same way the forward does (#276 P2).
         """
         op = solver_p1_het.scattering_op
-        nx, ny = op.mat_xs.spatial_shape
-        N = op.weights.shape[0]
+        nx, ny = solver_p1_het.mat_xs.spatial_shape
+        N = solver_p1_het.sn_mesh.quad.N
         fk = self._full_kernel(op)
         rng = np.random.default_rng(11)
-        psi = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny, *trailing))
-        c = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny, *trailing))
+        psi = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny, *trailing))
+        c = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny, *trailing))
         lhs = float((fk.apply(psi) * c).sum())
         rhs = float((psi * fk.apply_transpose(c)).sum())
         np.testing.assert_allclose(
@@ -332,10 +335,10 @@ class TestFullScatterKernel:
         ``S.apply_transpose(χ) == (1/W)·full_scatter_kernel.apply_transpose(χ)``.
         """
         op = solver_p1_het.scattering_op
-        nx, ny = op.mat_xs.spatial_shape
-        N = op.weights.shape[0]
-        W = float(op.weights.sum())
-        chi = np.random.default_rng(13).uniform(0.05, 1.0, size=(N, op.ng, nx, ny))
+        nx, ny = solver_p1_het.mat_xs.spatial_shape
+        N = solver_p1_het.sn_mesh.quad.N
+        W = op.total_weight
+        chi = np.random.default_rng(13).uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))
         np.testing.assert_allclose(
             op.apply_transpose(chi), self._full_kernel(op).apply_transpose(chi) / W,
             rtol=1e-12, atol=0.0,
@@ -357,11 +360,11 @@ class TestFullScatterKernel:
         n2n / missing ``1/W`` in Sᵀ breaks it O(1).  ``-O``-safe.
         """
         op = solver_p1_het.scattering_op
-        nx, ny = op.mat_xs.spatial_shape
-        N = op.weights.shape[0]
+        nx, ny = solver_p1_het.mat_xs.spatial_shape
+        N = solver_p1_het.sn_mesh.quad.N
         rng = np.random.default_rng(12)
-        psi = AngularFlux(values=rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny)), space=solver_p1_het.sn_mesh.angular_bulk_space)
-        chi = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny))
+        psi = AngularFlux(values=rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny)), space=solver_p1_het.sn_mesh.angular_bulk_space)
+        chi = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))
         lhs = float((op.apply(psi).values * chi).sum())            # ⟨S ψ, χ⟩
         rhs = float((psi.values * op.apply_transpose(chi)).sum())  # ⟨ψ, Sᵀ χ⟩
         np.testing.assert_allclose(
@@ -405,7 +408,7 @@ class TestFullScatterKernelLDTrailingAxis:
         solver = _ld_solver_het(order)
         op = solver.scattering_op
         psi = _ld_flux(solver)
-        W = float(op.weights.sum())
+        W = op.total_weight
 
         fast = op.apply(psi).values
         frame = np.asarray(op.full_scatter_kernel.apply(psi.values)) / W
@@ -478,7 +481,7 @@ class TestFullScatterKernelLDTrailingAxis:
         solver = _ld_solver_het(order=0)  # rectangular nx=4, ny=3
         op = solver.scattering_op
         psi = _ld_flux(solver)
-        W = float(op.weights.sum())
+        W = op.total_weight
 
         # Sanity: the FIXED code is clean before the mutation.
         np.testing.assert_allclose(

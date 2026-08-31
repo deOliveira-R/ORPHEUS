@@ -318,7 +318,7 @@ def scattering_gain(record: "WithinGroupSystem") -> "ScatteringOperator":
     r"""``record.explicit_gains[0]``, narrowed to the scattering operator.
 
     **Also a defect marker.**  ``explicit_gains: tuple[LinearOperator, ...]``
-    erases every role: the ``(S, B_a)`` convention with ``B_a`` LAST is a
+    erases every role: the ``(S, N2N, B_a)`` convention with ``B_a`` LAST is a
     *positional* claim the type system cannot state, which is why the driver
     re-asserts it at runtime (``sn/solver.py:856`` raises a ``TypeError`` if
     gain 0 is not a ``ScatteringOperator``).  A tuple of roles is the thing
@@ -330,7 +330,7 @@ def scattering_gain(record: "WithinGroupSystem") -> "ScatteringOperator":
     if not isinstance(gain, ScatteringOperator):
         pytest.fail(
             f"the seedless record's FIRST gain must be the ScatteringOperator "
-            f"(the builder's positional (S, B_a) convention); got "
+            f"(the builder's positional (S, N2N, B_a) convention); got "
             f"{type(gain).__name__} — the gain order changed and every "
             f"positional consumer of explicit_gains is now wrong."
         )

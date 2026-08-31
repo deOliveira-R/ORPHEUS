@@ -195,8 +195,8 @@ def test_S_apply_timed_full_field_zero_boundary(name, builder) -> None:
     state = _random_state(sn, seed=3)
     S = ScatteringOperator.from_solver_data(
         mat_xs=sn.material_xs_field(),
-        quadrature=sn.quad,
         scattering_order=0,
+        space=sn.full_field_space,
     )
 
     Spsi = S.apply(state)
@@ -294,8 +294,8 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
     C = MultiplicationOperator.from_mesh(sigma_t * 0.5, sn)
     S = ScatteringOperator.from_solver_data(
         mat_xs=sn.material_xs_field(),
-        quadrature=sn.quad,
         scattering_order=0,
+        space=sn.full_field_space,
     )
     F = FissionOperator.from_solver_data(
         mat_xs=sn.material_xs_field(), space=sn.full_field_space,
@@ -332,8 +332,8 @@ def test_full_algebra_linearity(name, builder) -> None:
     C = MultiplicationOperator.from_mesh(sigma_t * 0.5, sn)
     S = ScatteringOperator.from_solver_data(
         mat_xs=sn.material_xs_field(),
-        quadrature=sn.quad,
         scattering_order=0,
+        space=sn.full_field_space,
     )
     F = FissionOperator.from_solver_data(
         mat_xs=sn.material_xs_field(), space=sn.full_field_space,
@@ -444,7 +444,8 @@ def test_c6_apply_dispatch_parity() -> None:
         mat_xs=sn.material_xs_field(), space=sn.full_field_space,
     )
     S = ScatteringOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(), quadrature=sn.quad, scattering_order=0,
+        mat_xs=sn.material_xs_field(), scattering_order=0,
+        space=sn.full_field_space,
     )
     # Carriers built directly (independent of the under-typed integrate_angular).
     psi = cast(AngularFlux, state.interior)

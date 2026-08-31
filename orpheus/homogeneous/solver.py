@@ -194,7 +194,9 @@ def _assemble_loss_operator(
     collision = MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field, domain=space, codomain=space,
     )
-    k_iso = IsotropicScattering(mat_xs, space=space) + IsotropicN2N(
+    k_iso = IsotropicScattering.from_material_xs(
+        mat_xs, space=space,
+    ) + IsotropicN2N.from_material_xs(
         mat_xs, space=space
     )
     return collision - k_iso

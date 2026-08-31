@@ -122,8 +122,8 @@ def test_every_homogeneous_operator_reports_the_same_space(
         "C": MultiplicationOperator(
             coefficient=mat_xs.total_cross_section_field, domain=space, codomain=space,
         ),
-        "IsoS": IsotropicScattering(mat_xs, space=space),
-        "IsoN2N": IsotropicN2N(mat_xs, space=space),
+        "IsoS": IsotropicScattering.from_material_xs(mat_xs, space=space),
+        "IsoN2N": IsotropicN2N.from_material_xs(mat_xs, space=space),
         "F": production,
         "loss": loss,
         "M_inv": inverse,
@@ -200,7 +200,10 @@ def test_H_is_bit_identical_to_the_pre_CS1_euclidean_transpose() -> None:
     loss_bare = MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
         domain=posed, codomain=posed,
-    ) - (IsotropicScattering(mat_xs) + IsotropicN2N(mat_xs))
+    ) - (
+        IsotropicScattering.from_material_xs(mat_xs, space=posed)
+        + IsotropicN2N.from_material_xs(mat_xs, space=posed)
+    )
     x = np.array([[1.0], [2.0]])
     got = np.asarray(loss_threaded.H.apply(x))
     old = np.asarray(loss_bare.apply_transpose(x))
@@ -240,7 +243,7 @@ def test_H_MOVES_under_a_per_group_weighted_axis() -> None:
     collision = MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section_field, mat_xs.mesh, space=weighted_space,
     )
-    k_iso = IsotropicScattering(mat_xs, space=weighted_space) + IsotropicN2N(
+    k_iso = IsotropicScattering.from_material_xs(mat_xs, space=weighted_space) + IsotropicN2N.from_material_xs(
         mat_xs, space=weighted_space,
     )
     loss_weighted = collision - k_iso
@@ -588,8 +591,8 @@ def test_adjoint_equals_transpose_on_the_minted_space() -> None:
         "C": MultiplicationOperator(
             coefficient=mat_xs.total_cross_section_field, domain=space, codomain=space,
         ),
-        "IsoS": IsotropicScattering(mat_xs, space=space),
-        "IsoN2N": IsotropicN2N(mat_xs, space=space),
+        "IsoS": IsotropicScattering.from_material_xs(mat_xs, space=space),
+        "IsoN2N": IsotropicN2N.from_material_xs(mat_xs, space=space),
         "F": FissionOperator.from_solver_data(mat_xs=mat_xs, space=space),
     }
     x = np.array([[1.25], [-0.75]])

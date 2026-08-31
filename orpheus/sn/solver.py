@@ -76,6 +76,7 @@ from orpheus.numerics.moment_layout import (
     is_moment_valued_by_flat_rank,
 )
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.transport.operators.n2n import N2NOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.mesh.axis import Axis1D
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -1054,6 +1055,7 @@ def _coupled_source_state(
 
 def _select_si_splitting(
     LC: "StreamingCollisionOperator", S: "ScatteringOperator",
+    n2n: "N2NOperator",
     B: "LinearOperator[FullField, FullField]",
     sn_mesh: "SNMesh", inner_schedule: str,
 ) -> "tuple[StreamingCollisionOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...]]":
@@ -1066,10 +1068,11 @@ def _select_si_splitting(
     selector (its M/N splitting is fixed by
     :func:`~orpheus.sn.coupled_system.build_within_group_system`).
 
-    * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, (S, B_a))``: the boundary
-      lagged as an external gain (inter-sweep Jacobi — every geometry).
+    * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, (S, N₂ₙ, B_a))``: the
+      boundary lagged as an external gain (inter-sweep Jacobi — every
+      geometry; ``N₂ₙ`` a lagged gain like ``S`` since §14.1).
     * ``"gauss_seidel"`` on a multi-D Cartesian mesh →
-      ``((L+C) - B_lower, (S, B_upper))``: the splitting
+      ``((L+C) - B_lower, (S, N₂ₙ, B_upper))``: the splitting
       ``(L+C−B) = M − B_upper`` (#226 §17 W2).  ``B`` splits under the
       octant-group schedule (:meth:`SNBoundaryOperator.split`); the
       strictly-lower half folds into the REIFIED forward
@@ -1124,8 +1127,8 @@ def _select_si_splitting(
         parts = B.split(SweepSchedule.gauss_seidel(
             sn_mesh.ndim, sn_mesh.quad.octants, reflective_faces(sn_mesh),
         ))
-        return LC - parts.lower, (S, parts.upper)
-    return LC, (S, B)
+        return LC - parts.lower, (S, n2n, parts.upper)
+    return LC, (S, n2n, B)
 
 
 def _within_group_si(
@@ -1205,16 +1208,20 @@ def _within_group_si(
             max_iter=max_iter, tol=tol, budget_name="max_inner",
         )
         return si, system.implicit_operator, system.explicit_gains, False
-    # Seedless: the record's explicit_gains are the (S, B_a) pair — loud on drift.
-    S, B = system.explicit_gains
-    if not isinstance(S, ScatteringOperator):
+    # Seedless: the record's explicit_gains are the (S, N2N, B_a) triple
+    # (§14.1; B_a LAST) — loud on drift.
+    S, n2n, B = system.explicit_gains
+    if not isinstance(S, ScatteringOperator) or not isinstance(
+        n2n, N2NOperator,
+    ):
         raise TypeError(
-            f"_within_group_si: the seedless record's first gain must be "
-            f"the ScatteringOperator (the builder's (S, B_a) convention); "
-            f"got {type(S).__name__}."
+            f"_within_group_si: the seedless record's gains must lead "
+            f"(ScatteringOperator, N2NOperator) — the builder's "
+            f"(S, N2N, B_a) convention; got "
+            f"({type(S).__name__}, {type(n2n).__name__})."
         )
     base_implicit, gains = _select_si_splitting(
-        system.implicit_operator, S, B, sn_mesh, inner_schedule,
+        system.implicit_operator, S, n2n, B, sn_mesh, inner_schedule,
     )
     step, windowed = _maybe_window(base_implicit.inverse(), S, sn_mesh)
     if corrector is not None and windowed:
@@ -1405,8 +1412,13 @@ class SNSolver:
         # ``build_streaming_collision(sn_mesh, mat_xs)`` directly.
         self.scattering_op = ScatteringOperator.from_solver_data(
             mat_xs=self.mat_xs,
-            quadrature=sn_mesh.quad,
             scattering_order=self.scattering_order,
+            space=sn_mesh.full_field_space,
+        )
+        # §14.1 — the (n,2n) channel is its own first-class operator; the
+        # within-group algebra spells (L+C) − S − N₂ₙ − B explicitly.
+        self.n2n_op = N2NOperator.from_solver_data(
+            mat_xs=self.mat_xs,
             space=sn_mesh.full_field_space,
         )
         self.fission_op = FissionOperator.from_solver_data(
@@ -1576,8 +1588,8 @@ class SNSolver:
 
         # (n,2n) contribution — Issue #197 PR-TYPED-1: the per-material
         # dispatch loop lives ONLY inside
-        # :meth:`MaterialXSField.add_n2n_to_group_rate`.
-        self.mat_xs.add_n2n_to_group_rate(
+        # :meth:`N2NMaterialField.add_to_group_rate` (§14.1).
+        self.n2n_op.energy.n2n.add_to_group_rate(
             rate, flux_distribution, self.volume,
         )
 
@@ -1614,7 +1626,7 @@ class SNSolver:
         over :math:`\nu\Sigma_f` — ``∫_V ⟨νΣf, φ⟩ dV`` — the single source of the
         ``Σx·φ`` contraction and its volume integral. The :math:`(n,2n)` channel
         is an **explicit additive term** (a second neutron-multiplying reaction,
-        NOT a ``⟨Σx,φ⟩`` rate); it reuses the single ``add_n2n_to_group_rate``
+        NOT a ``⟨Σx,φ⟩`` rate); it reuses the single ``N2NMaterialField.add_to_group_rate``
         machinery and is exactly zero on a no-(n,2n) mixture.
 
         This is the canonical scale anchor for the SN eigenmode:
@@ -1631,7 +1643,7 @@ class SNSolver:
             self.mat_xs.fission_production_field
         ).evaluate(flux_distribution)
         n2n_rate = np.zeros(self.ng)
-        self.mat_xs.add_n2n_to_group_rate(n2n_rate, flux_distribution, self.volume)
+        self.n2n_op.energy.n2n.add_to_group_rate(n2n_rate, flux_distribution, self.volume)
         return float(fission + n2n_rate.sum())
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
@@ -1685,7 +1697,7 @@ class SNSolver:
             self.mat_xs.absorption_cross_section_field
         ).evaluate(flux_distribution)
         emission_n2n = np.zeros(self.ng)
-        self.mat_xs.add_n2n_to_group_rate(
+        self.n2n_op.energy.n2n.add_to_group_rate(
             emission_n2n, flux_distribution, self.volume,
         )
         leakage = self._boundary_leakage_rate(production)
@@ -1995,6 +2007,7 @@ class SNSolver:
         # in via :func:`_maybe_window` inside the SI builder. ──────────
         system = build_within_group_system(
             self.sn_mesh, self.mat_xs, scattering_op=self.scattering_op,
+            n2n_op=self.n2n_op,
         )
         si, _base, _gains, windowed = _within_group_si(
             system, self.sn_mesh,
@@ -2185,6 +2198,7 @@ class SNSolver:
         # seam). ──────────────────────────────────────────────────────
         system = build_within_group_system(
             self.sn_mesh, self.mat_xs, scattering_op=self.scattering_op,
+            n2n_op=self.n2n_op,
         )
         coupled = isinstance(system.implicit_operator, CoupledOperator)
 
@@ -2313,12 +2327,14 @@ class SNSolver:
         return result.values
 
     def _add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add (n,2n) source to Q in-place (delegates to ScatteringOperator).
+        """Add (n,2n) source to Q in-place (delegates to the first-class
+        N2NOperator's energy binding — §14.1; the field verb carries the
+        per-material dispatch and the multiplicity).
 
         Issue #196 PR-INDEX-5: both arguments are principled
         ``(ng, nx, ny)``.
         """
-        self.scattering_op.add_n2n_source(Q, phi)
+        self.n2n_op.energy.n2n.add_emission(Q, phi)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -2567,6 +2583,7 @@ def solve_sn(
     # and it was already being built and thrown away one attribute deep.
     final_system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        n2n_op=solver.n2n_op,
     )
     final_implicit = final_system.implicit_operator
     converged_ray = (
@@ -3892,6 +3909,7 @@ def _solve_fixed_source_si(
     # reconstruction below. ────────────────────────────────────────────
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        n2n_op=solver.n2n_op,
     )
     si, base_implicit, gains, windowed = _within_group_si(
         system, sn_mesh,
@@ -4148,6 +4166,7 @@ def _solve_fixed_source_krylov(
     # axis + the trace + the ψ½ state all track automatically).
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        n2n_op=solver.n2n_op,
     )
     coupled = isinstance(system.implicit_operator, CoupledOperator)
     if coupled:

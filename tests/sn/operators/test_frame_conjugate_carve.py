@@ -147,7 +147,7 @@ class TestLegendreMomentScatteringHasRealSpaces:
         op = solver_p1_het.scattering_op
         frame = op.frame
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         # Λ is endomorphic on coefficient (basis) space.
         require(
@@ -174,7 +174,7 @@ class TestLegendreMomentScatteringHasRealSpaces:
         """
         op = solver_p1_het.scattering_op
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         require(
             lam.is_adjointable and not lam.is_invertible,
@@ -208,7 +208,7 @@ class TestLegendreMomentScatteringHasRealSpaces:
         op = solver_p1_het.scattering_op
         frame = op.frame
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         inner = OperatorProduct(lam, frame.analysis)
         require(
@@ -256,7 +256,7 @@ class TestFrameConjugateEqualsRLambdaM:
         frame = op.frame
         conjugate = _require_conjugate(frame)
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
 
@@ -300,7 +300,7 @@ class TestFrameReconstructAfterEqualsRLambda:
         frame = op.frame
         reconstruct_after = _require_reconstruct_after(frame)
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         moments = frame.analysis.apply(psi.values)  # φ = M·ψ (the windowed bulk)
@@ -332,7 +332,7 @@ class TestFrameReconstructAfterEqualsRLambda:
         conjugate = _require_conjugate(frame)
         reconstruct_after = _require_reconstruct_after(frame)
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         moments = frame.analysis.apply(psi.values)  # φ = M·ψ (the windowed bulk)
@@ -371,7 +371,7 @@ class TestProductionApplyEqualsComposedOperator:
         frame = op.frame
         conjugate = _require_conjugate(frame)
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         np.testing.assert_array_equal(
@@ -382,35 +382,37 @@ class TestProductionApplyEqualsComposedOperator:
         )
 
     def test_full_apply_unchanged_by_carve_vs_legacy_chain(self, solver_p1_het):
-        """The full ``S.apply(ψ)`` (per-ordinate, iso+aniso+n2n, /W) equals a
-        reference built from the composed kernel + the iso/n2n fast path.
+        """The full ``S.apply(ψ)`` (per-ordinate, iso+aniso, /W) equals a
+        reference built from the composed kernel + the P0 fast path.
 
         The carve must NOT move the converged per-ordinate source. Builds the
-        reference from the NEW composed kernel for the aniso piece, the legacy
-        iso/n2n for the local piece, and the producer-side /W — so a dropped
-        1/W (probe d-ii) or a kernel factor error reddens the FULL apply, not
-        just the kernel sub-component.
+        reference from the NEW composed kernel for the aniso piece, the P0
+        in-place add for the local piece, and the producer-side /W — so a
+        dropped 1/W (probe d-ii) or a kernel factor error reddens the FULL
+        apply, not just the kernel sub-component. (The (n,2n) term left
+        ``S`` with the §14.1 extraction — its lift is N2NOperator's own
+        gate; ``S.apply`` is P0 + aniso.)
         """
         op = solver_p1_het.scattering_op
+        sn_mesh = solver_p1_het.sn_mesh
         psi = _aniso_psi(solver_p1_het)
         full = op.apply(psi).values
 
-        # Reference: aniso = (1/W)·kernel(ψ); iso/n2n via the scalar fast path.
-        sum_w = float(op.weights.sum())
+        # Reference: aniso = (1/W)·kernel(ψ); P0 via the scalar fast path.
+        sum_w = op.total_weight
         aniso = np.asarray(op.kernel.apply(psi.values)) / sum_w
         phi = psi.integrate_angular()
-        ng = op.ng
-        nx, ny = op.spatial_shape
-        N = op.n_ordinates
+        ng = solver_p1_het.ng
+        nx, ny = sn_mesh.spatial_shape
+        N = sn_mesh.quad.N
         iso = np.zeros((ng, nx, ny))
         op.add_iso_source(iso, phi)
-        op.add_n2n_source(iso, phi)
         expected = np.broadcast_to(
             (iso / sum_w)[None, :, :, :], (N, ng, nx, ny),
         ) + aniso
         np.testing.assert_allclose(
             full, expected, rtol=1e-13, atol=1e-14,
-            err_msg="P2: full S.apply must equal (iso+n2n)/W broadcast + "
+            err_msg="P2: full S.apply must equal iso/W broadcast + "
             "kernel(ψ)/W. A dropped 1/W or a kernel factor error reddens here.",
         )
 

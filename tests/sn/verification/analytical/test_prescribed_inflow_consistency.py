@@ -194,7 +194,7 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     system = build_within_group_system(
         sn, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    LC, (S, B) = system.implicit_operator, system.explicit_gains  # seedless record shape
+    LC, (S, N2N, B) = system.implicit_operator, system.explicit_gains  # seedless record shape (§14.1)
     n_dof = quad.N * sn.ng * int(np.prod(sn.spatial_shape)) + int(sn.angular_trace.layout.total_size)
 
     face = "xmin"
@@ -211,7 +211,7 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
 
     # SI-Jacobi: forward (L+C), gains (S, B); the driver applies the
     # INVERSE operator (#226 step 3).
-    rJ, gJ = _select_si_splitting(LC, S, B, sn, "jacobi")
+    rJ, gJ = _select_si_splitting(LC, S, N2N, B, sn, "jacobi")
     psi_j, _ = SourceIteration(rJ.inverse(), *gJ, max_iter=500, tol=1e-13).solve(
         q_ext, initial_guess=_flux_zero(sn),
     )
@@ -235,7 +235,7 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     )
 
     if run_gs:
-        rG, gG = _select_si_splitting(LC, S, B, sn, "gauss_seidel")
+        rG, gG = _select_si_splitting(LC, S, N2N, B, sn, "gauss_seidel")
         # PRECONDITION 3 — the G-S path is the reified B-folding M, not a
         # silent Jacobi fall-back (guards the _select_si_splitting dispatch).
         _require(

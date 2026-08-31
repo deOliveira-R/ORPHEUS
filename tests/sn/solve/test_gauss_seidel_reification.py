@@ -209,27 +209,32 @@ def test_off_domain_outflow_rhs_is_not_completed_yet():
 
 def test_factory_returns_reified_pair():
     r"""``_select_si_splitting(gauss_seidel)`` returns the splitting pair
-    ``(M, (S, B_upper))`` — congruent with the Jacobi arm ``(LC, (S, B))``."""
+    ``(M, (S, N2N, B_upper))`` — congruent with the Jacobi arm
+    ``(LC, (S, N2N, B))`` (§14.1: the n2n gain rides both arms
+    unchanged, B LAST)."""
     sn, LC, B, _sched, _parts, _M = _reified()
     sentinel_S = object()
+    sentinel_n2n = object()
     resolvent, gains = _select_si_splitting(
-        LC, sentinel_S, B, sn, "gauss_seidel",
+        LC, sentinel_S, sentinel_n2n, B, sn, "gauss_seidel",
     )
     if not isinstance(resolvent, ScheduledInvertibleOperator):
         pytest.fail(f"G-S arm returned {type(resolvent).__name__}")
-    np.testing.assert_equal(len(gains), 2)
+    np.testing.assert_equal(len(gains), 3)
     if gains[0] is not sentinel_S:
         pytest.fail("gains[0] must be the scattering gain, passed through")
+    if gains[1] is not sentinel_n2n:
+        pytest.fail("gains[1] must be the n2n gain, passed through")
     from orpheus.sn.operators.boundary import SNMaskedBoundaryOperator
 
-    if not isinstance(gains[1], SNMaskedBoundaryOperator):
-        pytest.fail(f"gains[1] must be B_upper; got {type(gains[1]).__name__}")
-    # Jacobi arm unchanged: (LC, (S, B)).
+    if not isinstance(gains[2], SNMaskedBoundaryOperator):
+        pytest.fail(f"gains[2] must be B_upper; got {type(gains[2]).__name__}")
+    # Jacobi arm unchanged: (LC, (S, N2N, B)).
     resolvent_j, gains_j = _select_si_splitting(
-        LC, sentinel_S, B, sn, "jacobi",
+        LC, sentinel_S, sentinel_n2n, B, sn, "jacobi",
     )
-    if resolvent_j is not LC or gains_j != (sentinel_S, B):
-        pytest.fail("the Jacobi arm must stay (LC, (S, B))")
+    if resolvent_j is not LC or gains_j != (sentinel_S, sentinel_n2n, B):
+        pytest.fail("the Jacobi arm must stay (LC, (S, N2N, B))")
 
 
 # ─────────────────────────────────────────────────────────────────────────

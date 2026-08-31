@@ -182,8 +182,8 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     # the record's splitting A = M − N: on a carrying mesh N is ONE
     # CoupledOperator gain grid ``[[S+B_a, ∅],[Emission, B_b]]`` (the block-
     # native successor of the step-4c "own gain slot" — the Emission is a
-    # grid BLOCK now, not a tuple entry); seedless, the (S, B_a) pair.
-    expected_n = 1 if carrying else 2
+    # grid BLOCK now, not a tuple entry); seedless, the (S, N2N, B_a) triple (§14.1).
+    expected_n = 1 if carrying else 3  # seedless (S, N2N, B_a) — §14.1
     assert len(gains_eig) == expected_n
     assert len(gains_fs) == expected_n
 

@@ -729,7 +729,8 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         def apply(self, phi):
             Q = np.zeros_like(phi)
             S.add_iso_source(Q, phi)
-            S.add_n2n_source(Q, phi)
+            # §14.1: the (n,2n) verb lives on the solver-held N2N binding.
+            solver.n2n_op.energy.n2n.add_emission(Q, phi)
             return Q
 
     class F_scalar_adapter(LinearOperator):
@@ -795,7 +796,7 @@ def _sn_composite_triple():
 
     #276 A4 activation fixture: ``build_within_group_system`` supplies the
     production splitting — ``LC`` (the invertible resolvent whose ``solve``
-    is the sweep), the gains ``(S, B_a)`` summed into KEigenvalue's single
+    is the sweep), the gains ``(S, N2N, B_a)`` summed into KEigenvalue's single
     coupling slot, and the production ``FissionOperator`` — all acting on
     typed :class:`FullField` composites (no scalar adapter shims; contrast
     the legacy-shim gate above, kept as the pre-A4 record).
@@ -827,7 +828,14 @@ def _sn_composite_triple():
     system = build_within_group_system(
         sn, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    S_total = system.explicit_gains[0] + system.explicit_gains[1]
+    from functools import reduce
+    from operator import add
+
+    # ALL lagged gains summed into KEigenvalue's single coupling slot —
+    # (S, N2N, B_a) since §14.1; a positional pair-sum here silently
+    # dropped B_a when the tuple grew (caught by the A4 smoke's own
+    # eig(A†)=eig(A) gate).
+    S_total = reduce(add, system.explicit_gains)
     guess = FullField(
         interior=AngularFlux(values=np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space),
         boundary=AngularBoundaryFlux.zeros(sn.angular_trace),

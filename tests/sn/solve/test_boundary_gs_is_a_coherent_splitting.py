@@ -119,7 +119,7 @@ def test_both_schedules_are_splittings_of_the_SAME_A(
     """
     sn_mesh, system, template = build(cells, bcs, mixture)
     dense_a = assemble(loss_matvec(system), template)
-    scattering, boundary = system.explicit_gains
+    scattering, n2n, boundary = system.explicit_gains
 
     probe = np.random.default_rng(0).standard_normal(template.to_flat().size)
     activation = float(np.linalg.norm(scattering.apply(

@@ -197,9 +197,9 @@ class TestO12WindowingAnalysis:
             cells_by_mat={0: (np.arange(4), np.zeros(4, dtype=int))},
             ng=2, nx=4,
         )
-        S = ScatteringOperator(
-            mat_xs=mat, quadrature=sn.quad, scattering_order=1,
-            space=sn.full_field_space,  # S4-amendment: .frame demands the pose
+        S = ScatteringOperator.from_solver_data(
+            mat_xs=mat, scattering_order=1,
+            space=sn.full_field_space,  # the ends carry the pose
         )
         op = BulkAnalysisOperator(S.flux_analysis, sn.full_field_space)
         stretched = _slab(width=2.0)

@@ -326,15 +326,15 @@ def select_splitting(system, sn_mesh, schedule: str):
             f"{type(implicit).__name__} — a seed-carrying mesh never reaches "
             f"_select_si_splitting at all"
         )
-    scattering, boundary = system.explicit_gains
+    scattering, n2n, boundary = system.explicit_gains
     if not isinstance(scattering, ScatteringOperator):
         raise TypeError(
             f"the seedless record's first gain must be the ScatteringOperator "
-            f"(the builder's (S, B_a) convention); got "
+            f"(the builder's (S, N2N, B_a) convention); got "
             f"{type(scattering).__name__}"
         )
     return _select_si_splitting(
-        implicit, scattering, boundary, sn_mesh, schedule)
+        implicit, scattering, n2n, boundary, sn_mesh, schedule)
 
 
 def drive_recorded(system, sn_mesh, template, source, schedule: str,

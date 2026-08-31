@@ -364,7 +364,7 @@ def test_the_sigma_r_fold_is_a_splitting_only_with_its_anisotropic_remainder():
     sn_mesh = isotropic_slab(c=0.9)
     record = record_for(sn_mesh, scattering_order=0)
     scattering = scattering_gain(record)
-    boundary = record.explicit_gains[1]
+    boundary = record.explicit_gains[-1]  # B_a LAST (§14.1: gains are (S, N2N, B_a))
     sigma_s0 = sigma_s0_times_identity(sn_mesh, scattering)
     folded_implicit = seedless_implicit(record) - sigma_s0
     honest_gains = (scattering, boundary, -sigma_s0)

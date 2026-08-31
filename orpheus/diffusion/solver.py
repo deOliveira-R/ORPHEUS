@@ -239,8 +239,8 @@ class DiffusionSolver:
         # The full K_iso pair (loss-side (n,2n) — module docstring);
         # IsotropicN2N contributes exactly zero on a Σ₂-free mixture.
         scattering = (
-            IsotropicScattering(self.mat_xs, space=space)
-            + IsotropicN2N(self.mat_xs, space=space)
+            IsotropicScattering.from_material_xs(self.mat_xs, space=space)
+            + IsotropicN2N.from_material_xs(self.mat_xs, space=space)
         )
         self.boundary = DiffusionBoundaryOperator(mesh)
         self.loss = self.leakage + collision - scattering - self.boundary

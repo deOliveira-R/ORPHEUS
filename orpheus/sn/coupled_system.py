@@ -191,6 +191,7 @@ from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
+from orpheus.transport.operators.n2n import N2NOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
@@ -455,6 +456,7 @@ def build_within_group_system(
     mat_xs: "MaterialXSField",
     *,
     scattering_op: "ScatteringOperator | None" = None,
+    n2n_op: "N2NOperator | None" = None,
     scattering_order: int = 0,
 ) -> "WithinGroupSystem":
     r"""Build the within-group system — loss grid + splitting — from ONE
@@ -486,8 +488,8 @@ def build_within_group_system(
       ``B_a`` (RULING P1 — multi-D Cartesian is seedless by construction,
       so the schedule path always receives the plain operator).
     * System B's blocks (carrying meshes only — R12a): ``Seeding``
-      (A,B), ``Emission`` (B,A — sharing ``S.isotropic_kernel``, the
-      single-sourced K_iso), ``A_BB`` (the radial straight-characteristic
+      (A,B), ``Emission`` (B,A — consuming the K_iso composed at this
+      site: ``S.isotropic_energy + N2N.energy``, the §14.1 grouping), ``A_BB`` (the radial straight-characteristic
       march), ``B_b`` (the ray corner). Their constructors refuse seedless
       meshes, so presence is structural (P2).
 
@@ -516,6 +518,10 @@ def build_within_group_system(
         The already-constructed scattering operator (the solver's cached
         instance). ``None`` constructs fresh from ``mat_xs`` at
         ``scattering_order``.
+    n2n_op : N2NOperator, optional
+        The already-constructed :math:`(n,2n)` source operator (§14.1 —
+        first-class since CS4c step 3; the within-group algebra spells
+        ``− S − N₂ₙ`` explicitly). ``None`` constructs fresh.
     scattering_order : int
         Legendre truncation for a fresh ``S`` (0 = P0 — the solver
         default). Ignored when ``scattering_op`` is injected.
@@ -526,15 +532,21 @@ def build_within_group_system(
         if scattering_op is not None
         else ScatteringOperator.from_solver_data(
             mat_xs=mat_xs,
-            quadrature=sn_mesh.quad,
             scattering_order=scattering_order,
             space=full_field_space,
+        )
+    )
+    N2N = (
+        n2n_op
+        if n2n_op is not None
+        else N2NOperator.from_solver_data(
+            mat_xs=mat_xs, space=full_field_space,
         )
     )
     # L = pure σ-free streaming; C = M[σ_t] — the ONE LC spelling.
     LC = build_streaming_collision(sn_mesh, mat_xs)
     B_a = SNBoundaryOperator(sn_mesh)
-    A_AA = LC - S - B_a
+    A_AA = LC - S - N2N - B_a
     # C-fwd explicit stamp: System membership is the composition context's
     # fact — the model-generic members' honest None would poison the join.
     A_AA.system_role = SystemRole.A
@@ -560,7 +572,7 @@ def build_within_group_system(
             loss=CoupledOperator([[A_AA]], domain=space, codomain=space),
             space=space,
             implicit_operator=LC,
-            explicit_gains=(S, B_a),
+            explicit_gains=(S, N2N, B_a),
         )
 
     # System B's pieces, constructed ONCE and shared between the loss
@@ -571,8 +583,11 @@ def build_within_group_system(
     A_AB = RadialCharacteristicSeeding(sn_mesh)
     reduced = sn_mesh.reduced
     assert reduced is not None  # carrying ⇒ 1-D ⇒ minted by the ctor; narrowing only
+    # K_iso composed HERE (the §14.1 grouping): the P0 energy binding of
+    # S's own datum + the (n,2n) energy binding — the solver-side sum
+    # that replaced ``S.isotropic_kernel``.
     emission = RadialCharacteristicEmission(
-        S.isotropic_kernel,
+        S.isotropic_energy + N2N.energy,
         field_space=member_space,
         full_field_space=full_field_space,
         angular_bulk_space=sn_mesh.angular_bulk_space,
@@ -616,7 +631,7 @@ def build_within_group_system(
     )
     # The GAIN grid N = M − A: all POSITIVE (rhs gains); the (A,B) slot is
     # STRUCTURALLY zero — Seeding lives in M (the (A,B) block below).
-    N_AA = S + B_a
+    N_AA = S + N2N + B_a
     N_AA.system_role = SystemRole.A  # C-fwd stamp, as on A_AA
     N = CoupledOperator(
         [[N_AA, None], [emission, B_b]], domain=space, codomain=space,

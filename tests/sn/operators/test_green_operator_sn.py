@@ -121,8 +121,8 @@ def _operators():
     lc = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section, sn,
     )
-    S = ScatteringOperator(
-        mat_xs=mat_xs, quadrature=sn.quad, scattering_order=0,
+    S = ScatteringOperator.from_solver_data(
+        mat_xs=mat_xs, scattering_order=0, space=sn.full_field_space,
     )
     return sn, lc, S, lc - S
 

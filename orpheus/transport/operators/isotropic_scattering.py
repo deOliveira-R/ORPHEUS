@@ -33,10 +33,11 @@ Both are the **scalar (:math:`\ell=0`) realization** of the moment-space operato
 :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering` (at
 :math:`\ell=0`) and
 :class:`~orpheus.transport.operators.scattering.N2NMomentOperator`: they route
-through the SAME per-material :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
-verbs (``apply_p0_in_scatter`` / ``apply_n2n`` + the ``…_transpose`` twins), so the
-cross-section DATA and the per-material dispatch live ONCE (``coding-elegance``
-Pattern 2). The harmonic-moment
+through the SAME per-material kernel-field verbs
+(:meth:`~orpheus.transport.material_field.ScatteringMaterialField.add_p0_source` /
+:meth:`~orpheus.transport.material_field.N2NMaterialField.add_emission` + the
+``…_transpose`` twins — CS4c step 3, the O-6 landing), so the cross-section
+DATA and the per-material dispatch live ONCE (``coding-elegance`` Pattern 2). The harmonic-moment
 :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`
 is the permanent verification oracle for this scalar form.
 
@@ -78,14 +79,16 @@ from orpheus.numerics.operator import (
     BlockRole,
     LinearOperator,
 )
+from orpheus.transport.material_field import (
+    N2NMaterialField,
+    ScatteringMaterialField,
+)
+from orpheus.transport.operators.bound_operator import BoundOperator
 # Runtime import for the composite-arm isinstance parse (mirrors
 # fission.py / multiplication_operator.py): ``FullField`` is a leaf in
 # the transport dependency graph (it imports no operators), so this
 # module-level import is cycle-free.
 from orpheus.transport.full_field import FullField
-from orpheus.transport.operators._energy_conformity import (
-    assert_energy_extent_conforms,
-)
 
 if TYPE_CHECKING:
     from orpheus.numerics.assembled_operator import SparseAssembledOperator
@@ -146,18 +149,18 @@ def _iso_is_assemblable(op: "IsotropicScattering | IsotropicN2N") -> bool:
     bulk is the SCALAR family's ``(ng, *cells)`` energy-first tensor —
     the same contract the bare-ndarray kernel arm assumes (a
     block-bearing :class:`FullFieldSpace` whose bulk leading axis is
-    the group axis). A space-anonymous instance (the SN / homogeneous
-    bare-array consumers) honestly refuses: no DOF numbering to emit
-    into.
+    the group axis). A scalar-space binding (the diffusion / SN
+    internal consumers — ends mandatory since CS4c step 3) honestly
+    refuses: no composite flat layout to emit into.
     """
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
-    space = op.space
+    space = op.domain
     return (
         isinstance(space, FullFieldSpace)
         and space.interior_space is not None
         and len(space.interior_space.shape) >= 1
-        and int(space.interior_space.shape[0]) == int(op.mat_xs.ng)
+        and int(space.interior_space.shape[0]) == int(op.data_ng)
     )
 
 
@@ -191,7 +194,7 @@ def _assemble_iso_energy_operator(
     from orpheus.numerics.operator import MissingAssembly
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
-    space = op.space
+    space = op.domain
     if not _iso_is_assemblable(op):
         raise MissingAssembly(
             f"{type(op).__name__}.assemble requires a block-bearing "
@@ -228,8 +231,8 @@ def _assemble_iso_energy_operator(
     return SparseAssembledOperator(matrix, domain=space, codomain=space)
 
 
-@dataclass(frozen=True)
-class IsotropicScattering(LinearOperator):
+@dataclass(eq=False)
+class IsotropicScattering(BoundOperator):
     r"""The P0 isotropic in-scatter energy operator :math:`\Sigma_{s,0}` on the scalar flux.
 
     Per cell of material :math:`m`, :math:`(\Sigma_{s,0}^{T}\phi)_g =
@@ -241,32 +244,49 @@ class IsotropicScattering(LinearOperator):
 
     Parameters
     ----------
-    mat_xs : MaterialXSField
-        The macroscopic XS field — the single source of the per-material
-        :math:`\Sigma_{s,0}` matrices and the cell-to-material map.
-    space : FunctionSpace, optional
-        Optional scalar-flux :class:`~orpheus.numerics.space.FunctionSpace` — two
-        guards read it (CS4a-R MA-3): the
-        :class:`~orpheus.numerics.operator.OperatorSum` composition guard at
-        sum time, and (since CS4a K2) the construction-time ng-conformity
-        refusal (:mod:`~orpheus.transport.operators._energy_conformity`) where
-        the space carries an ``EnergyAxis``. ``None`` (the default) leaves the
-        operator space-anonymous (both guards skip it — the model-portable
-        bare-ndarray contract, until CS4c's mandatory flip).
+    scattering : ScatteringMaterialField
+        The scattering channel's kernel field — the per-material Legendre
+        stacks over the mesh layout (only the ``p0`` head is consumed;
+        the tier-2 mint truncates to order 0 so the instance retains
+        exactly what it reads).
+    domain, codomain : FunctionSpace
+        The two mandatory ends (kw-only, write-once —
+        :class:`~orpheus.transport.operators.bound_operator.BoundOperator`,
+        CS4c step 3): the scalar-flux space, both — the endomorphism
+        sugar lives on :meth:`from_material_xs`. The OperatorSum
+        composition guard and the per-END ng-conformity admission both
+        read them; the pre-CS4c ``space=None`` anonymity is retired.
     """
 
-    mat_xs: "MaterialXSField"
-    space: "FunctionSpace | None" = None
+    scattering: "ScatteringMaterialField"
     # A BULK energy operator (the scalar flux is the bulk block); no boundary action.
     # Class-level constant (unannotated so the dataclass does not treat it as a field).
     block_role = BlockRole.BULK
 
     def __post_init__(self) -> None:
-        # CS4a K2: refuse a space whose EnergyAxis contradicts the data's
-        # ng (reach + declared inertness: _energy_conformity docstring).
-        assert_energy_extent_conforms(
-            self.space, self.mat_xs.ng, operator="IsotropicScattering",
+        # CS4a K2 → CS4c per-END form: refuse ends whose EnergyAxis
+        # contradicts the data's ng (reach + declared inertness:
+        # _energy_conformity docstring).
+        self._assert_energy_extent_both_ends(
+            self.scattering.ng, operator="IsotropicScattering",
         )
+
+    @classmethod
+    def from_material_xs(
+        cls, mat_xs: "MaterialXSField", *, space: "FunctionSpace",
+    ) -> "IsotropicScattering":
+        r"""Tier-2 extract-and-mint: the P0 truncation of the facade's
+        scattering channel, endomorphic on one ``space=``."""
+        return cls(
+            ScatteringMaterialField.from_material_xs(mat_xs).truncated(0),
+            domain=space,
+            codomain=space,
+        )
+
+    @property
+    def data_ng(self) -> int:
+        """The bound data's group count (the assembly helpers' read)."""
+        return self.scattering.ng
 
     @property
     def is_adjointable(self) -> bool:
@@ -287,7 +307,7 @@ class IsotropicScattering(LinearOperator):
             return _scalar_composite_source(self, phi)
         arr = _values_of(phi)
         out = np.zeros_like(arr)
-        self.mat_xs.apply_p0_in_scatter(out, arr)
+        self.scattering.add_p0_source(out, arr)
         return out
 
     def apply_transpose(self, chi: "np.ndarray | object") -> np.ndarray:
@@ -306,7 +326,7 @@ class IsotropicScattering(LinearOperator):
             )
         arr = _values_of(chi)
         out = np.zeros_like(arr)
-        self.mat_xs.apply_p0_in_scatter_transpose(out, arr)
+        self.scattering.add_p0_source_transpose(out, arr)
         return out
 
     # ── The assembly mode (stencil-assembly 2b) ────────────────────────
@@ -342,21 +362,13 @@ class IsotropicScattering(LinearOperator):
         method — they never did).  Each entry is a fresh copy.
         """
         return {
-            mid: np.ascontiguousarray(self.mat_xs.sig_s_legendre(mid)[0].T)
-            for mid in self.mat_xs.materials
+            mid: np.ascontiguousarray(kernel.p0.T)
+            for mid, kernel in self.scattering.per_material.items()
         }
 
-    @property
-    def domain(self) -> "FunctionSpace | None":
-        return self.space
 
-    @property
-    def codomain(self) -> "FunctionSpace | None":
-        return self.space
-
-
-@dataclass(frozen=True)
-class IsotropicN2N(LinearOperator):
+@dataclass(eq=False)
+class IsotropicN2N(BoundOperator):
     r"""The (n,2n) isotropic energy operator :math:`2\,\Sigma_{2n}` on the scalar flux.
 
     Per cell, :math:`(2\Sigma_{2n}^{T}\phi)_g = 2\sum_{g'}\Sigma_{2n}^m(g'\to g)\,
@@ -369,21 +381,40 @@ class IsotropicN2N(LinearOperator):
 
     Parameters
     ----------
-    mat_xs : MaterialXSField
-        The macroscopic XS field (the per-material :math:`\Sigma_{2n}` matrices).
-    space : FunctionSpace, optional
-        See :class:`IsotropicScattering`.
+    n2n : N2NMaterialField
+        The :math:`(n,2n)` channel's kernel field (per-material reaction
+        matrices over the mesh layout; the multiplicity enters from
+        :attr:`~orpheus.transport.kernels.N2NKernel.multiplicity` inside
+        the field's verbs).
+    domain, codomain : FunctionSpace
+        The two mandatory ends — see :class:`IsotropicScattering`.
     """
 
-    mat_xs: "MaterialXSField"
-    space: "FunctionSpace | None" = None
+    n2n: "N2NMaterialField"
     block_role = BlockRole.BULK
 
     def __post_init__(self) -> None:
-        # CS4a K2: same refusal as IsotropicScattering (one shared guard).
-        assert_energy_extent_conforms(
-            self.space, self.mat_xs.ng, operator="IsotropicN2N",
+        # CS4a K2 → CS4c per-END form (one shared guard, per end).
+        self._assert_energy_extent_both_ends(
+            self.n2n.ng, operator="IsotropicN2N",
         )
+
+    @classmethod
+    def from_material_xs(
+        cls, mat_xs: "MaterialXSField", *, space: "FunctionSpace",
+    ) -> "IsotropicN2N":
+        r"""Tier-2 extract-and-mint: the facade's :math:`(n,2n)` channel,
+        endomorphic on one ``space=``."""
+        return cls(
+            N2NMaterialField.from_material_xs(mat_xs),
+            domain=space,
+            codomain=space,
+        )
+
+    @property
+    def data_ng(self) -> int:
+        """The bound data's group count (the assembly helpers' read)."""
+        return self.n2n.ng
 
     @property
     def is_adjointable(self) -> bool:
@@ -403,7 +434,7 @@ class IsotropicN2N(LinearOperator):
             return _scalar_composite_source(self, phi)
         arr = _values_of(phi)
         out = np.zeros_like(arr)
-        self.mat_xs.apply_n2n(out, arr)
+        self.n2n.add_emission(out, arr)
         return out
 
     def apply_transpose(self, chi: "np.ndarray | object") -> np.ndarray:
@@ -421,7 +452,7 @@ class IsotropicN2N(LinearOperator):
             )
         arr = _values_of(chi)
         out = np.zeros_like(arr)
-        self.mat_xs.apply_n2n_transpose(out, arr)
+        self.n2n.add_emission_transpose(out, arr)
         return out
 
     # ── The assembly mode (stencil-assembly 2b) ────────────────────────
@@ -445,14 +476,6 @@ class IsotropicN2N(LinearOperator):
         rationale (production materialization goes through ``as_matrix``).
         """
         return {
-            mid: np.ascontiguousarray(2.0 * self.mat_xs.n2n_matrix(mid).T)
-            for mid in self.mat_xs.materials
+            mid: kernel.emission_matrix()
+            for mid, kernel in self.n2n.per_material.items()
         }
-
-    @property
-    def domain(self) -> "FunctionSpace | None":
-        return self.space
-
-    @property
-    def codomain(self) -> "FunctionSpace | None":
-        return self.space

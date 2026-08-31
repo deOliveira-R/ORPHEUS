@@ -171,7 +171,7 @@ def _loss(mesh, mat_xs):
     ffs = mesh.full_field_space
     L = LeakageOperator(mesh)
     C = MultiplicationOperator(mat_xs.total_cross_section_field, domain=ffs, codomain=ffs)
-    S = IsotropicScattering(mat_xs, space=ffs)
+    S = IsotropicScattering.from_material_xs(mat_xs, space=ffs)
     B = DiffusionBoundaryOperator(mesh)
     return L + C - S - B
 
@@ -329,7 +329,7 @@ class TestStencilGate:
         )
         A = (
             LeakageOperator(mesh) + wrong_C
-            - IsotropicScattering(mat_xs, space=ffs)
+            - IsotropicScattering.from_material_xs(mat_xs, space=ffs)
             - DiffusionBoundaryOperator(mesh)
         )
         produced = FlattenedOperator(A, template).as_matrix()
@@ -338,10 +338,17 @@ class TestStencilGate:
 
     def test_mutation_scatter_transpose_reds(self, monkeypatch):
         """Swapping the P0 in-scatter kernel for its transpose is
-        observable on the ASYMMETRIC fixture Σ_s — red."""
+        observable on the ASYMMETRIC fixture Σ_s — red.
+
+        CS4c step-3 re-point: the verb moved from the MaterialXSField
+        facade to the kernel field (this sentinel caught the re-route —
+        a mutation of the retired arm reddened nothing).
+        """
+        from orpheus.transport.material_field import ScatteringMaterialField
+
         monkeypatch.setattr(
-            MaterialXSField, "apply_p0_in_scatter",
-            MaterialXSField.apply_p0_in_scatter_transpose,
+            ScatteringMaterialField, "add_p0_source",
+            ScatteringMaterialField.add_p0_source_transpose,
         )
         assert self._stencil_delta() > 1e-3
 
@@ -370,7 +377,7 @@ class TestFamilyLaws:
         ffs = mesh.full_field_space
         CS = (
             MultiplicationOperator(mat_xs.total_cross_section_field, domain=ffs, codomain=ffs)
-            - IsotropicScattering(mat_xs, space=ffs)
+            - IsotropicScattering.from_material_xs(mat_xs, space=ffs)
         )
         M = FlattenedOperator(CS, template).as_matrix()
         bulk = M[:_N_BULK, :_N_BULK]
@@ -670,7 +677,14 @@ class TestSharedOperatorScalarArms:
         assert isinstance(composite.boundary, ScalarBoundarySourceSink)
 
     def test_k_iso_composite_arm_matches_bare_kernel(self, mesh, mat_xs, flux):
-        for op in (IsotropicScattering(mat_xs), IsotropicN2N(mat_xs)):
+        for op in (
+            IsotropicScattering.from_material_xs(
+                mat_xs, space=mat_xs.mesh.bulk_space,
+            ),
+            IsotropicN2N.from_material_xs(
+                mat_xs, space=mat_xs.mesh.bulk_space,
+            ),
+        ):
             composite = op.apply(flux)
             bare = op.apply(flux.interior.values)
             assert isinstance(composite.interior, ScalarSourceSink)
@@ -680,7 +694,9 @@ class TestSharedOperatorScalarArms:
     def test_k_iso_composite_refuses_angular_bulk_and_transpose(
         self, mesh, mat_xs, flux,
     ):
-        S = IsotropicScattering(mat_xs)
+        S = IsotropicScattering.from_material_xs(
+            mat_xs, space=mat_xs.mesh.bulk_space,
+        )
         with pytest.raises(TypeError, match="#281"):
             S.apply_transpose(flux)
 
@@ -735,8 +751,8 @@ class TestAssemblyMode:
             "C": MultiplicationOperator(
                 mat_xs.total_cross_section_field, domain=ffs, codomain=ffs,
             ),
-            "S": IsotropicScattering(mat_xs, space=ffs),
-            "N2N": IsotropicN2N(mat_xs, space=ffs),
+            "S": IsotropicScattering.from_material_xs(mat_xs, space=ffs),
+            "N2N": IsotropicN2N.from_material_xs(mat_xs, space=ffs),
         }
         for name, leaf in leaves.items():
             np.testing.assert_allclose(
@@ -872,8 +888,12 @@ class TestAssemblyMode:
         coef = mat_xs.total_cross_section_field
         for op in (
             MultiplicationOperator(coef, domain=coef.space, codomain=coef.space),
-            IsotropicScattering(mat_xs),
-            IsotropicN2N(mat_xs),
+            IsotropicScattering.from_material_xs(
+                mat_xs, space=mat_xs.mesh.bulk_space,
+            ),
+            IsotropicN2N.from_material_xs(
+                mat_xs, space=mat_xs.mesh.bulk_space,
+            ),
         ):
             assert not op.is_assemblable
             with pytest.raises(MissingAssembly):

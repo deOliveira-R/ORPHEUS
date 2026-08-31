@@ -86,9 +86,13 @@ from orpheus.transport.source_sinks import (
     HarmonicMomentSourceSink,
 )
 from orpheus.transport.full_field import FullField
+from orpheus.transport.kernels import ScatteringKernel
 from orpheus.transport.material_field import (
     N2NMaterialField,
     ScatteringMaterialField,
+)
+from orpheus.transport.operators._per_ordinate import (
+    assemble_per_ordinate_isotropic,
 )
 from orpheus.transport.operators.bound_operator import BoundOperator
 from orpheus.transport.timed_full_field import TimedFullField
@@ -102,7 +106,9 @@ from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
-    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.transport.operators.isotropic_scattering import (
+        IsotropicScattering,
+    )
 
 
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
@@ -379,39 +385,62 @@ class N2NMomentOperator(BoundOperator):
         return self.n2n.moment_emission_transpose(moments)
 
 
-@dataclass
-class ScatteringOperator(LinearOperator):
-    r"""Scattering source operator :math:`S` (P0 + Pℓ + (n,2n)).
+@dataclass(eq=False)
+class ScatteringOperator(BoundOperator["FullField"]):
+    r"""Scattering source operator :math:`S` (P0 + Pℓ).
 
-    Holds the precomputed per-material Legendre scattering matrices
-    :math:`\Sigma_{s,\ell}`, the (n,2n) matrices :math:`\Sigma_{2n}`,
-    the precomputed real spherical harmonics :math:`Y_\ell^m` evaluated
-    at every quadrature direction, and a per-material cell-index map
-    for vectorised assembly. Use :meth:`from_solver_data` to build
-    instances from a :class:`MaterialXSField` + quadrature.
+    **The CS4c step-3 binding (design record §14):** the exact ctor
+    retains the representation-free datum and the minted products, and
+    nothing richer —
 
-    Attributes
-    ----------
-    mat_xs : MaterialXSField
-        Macroscopic XS field — the single source of truth for both
-        per-material scattering / (n,2n) data AND the cell-to-material
-        topology.  Every per-material loop routes through a typed verb
-        (``mat_xs.apply_p0_in_scatter``, ``apply_n2n``, …) which
-        encapsulates the dispatch.
-    quadrature : Quadrature
-        The angular quadrature.  Carries ``N``, ``weights``, and
-        :meth:`spherical_harmonics`.
-    scattering_order : int
-        Maximum Legendre order :math:`L` retained. ``0`` means P0 only.
+    * :attr:`scattering` — the
+      :class:`~orpheus.transport.material_field.ScatteringMaterialField`
+      (per-material Legendre stacks over the mesh layout), already
+      truncated to this binding's order (the truncation IS
+      :attr:`scattering_order` — single source);
+    * :attr:`flux_analysis` / :attr:`source_reconstruction` — the two
+      typed faces minted from the HUB-interned
+      :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`
+      (tier 2 mints them and forgets the frame; the :attr:`frame`
+      accessor is PROVENANCE, riding on the faces);
+    * the two mandatory ends (kw-only, write-once —
+      :class:`~orpheus.transport.operators.bound_operator.BoundOperator`):
+      the composite full-field space, both — the SAME instance
+      ``L``/``C``/``B`` carry, so the within-group
+      ``(L + C) − S − N₂ₙ − B`` OperatorSum guard validates the ``− S``
+      arm natively. (⚠ the 2-D windowed operand carries a MOMENT
+      interior — the shipped non-endomorphism the step-0 census
+      measured; the carrier dispatch serves it until step 5's arm
+      deletion.)
+
+    **The (n,2n) channel is NOT here** (§14.1, ruled 2026-08-30): it is
+    the first-class
+    :class:`~orpheus.transport.operators.n2n.N2NOperator`, and the
+    within-group algebra spells ``− S − N₂ₙ`` explicitly. Use
+    :meth:`from_solver_data` to build instances from a
+    :class:`MaterialXSField` + the posed composite space (the quadrature
+    is reached through the space's angular axis — the CS5 generator
+    channel; no ``quadrature`` field survives).
 
     Capability surface: ``{apply, apply_transpose}`` — no efficient
     ``solve``; the adjoint :math:`S^{T}` is free via the harmonic-frame
     :attr:`full_scatter_kernel` (see :meth:`apply_transpose`).
     """
 
-    mat_xs: "MaterialXSField"
-    quadrature: "Quadrature"
-    scattering_order: int
+    scattering: "ScatteringMaterialField"
+    #: The minted FLUX analysis face :math:`M \otimes I` on the posed
+    #: interior (``AngularFlux → HarmonicMomentFlux``) — bound at tier 2,
+    #: retained. Consumers: the windowed bulk projection and the S6
+    #: adjoint gates.
+    flux_analysis: "HarmonicAnalysisOperator[AngularFlux, HarmonicMomentFlux]" = field(
+        kw_only=True,
+    )
+    #: The minted SOURCE reconstruction face :math:`R \otimes I` landing
+    #: on the posed interior (``HarmonicMomentSourceSink →
+    #: AngularSourceSink``) — the windowed in-scatter arm's typed R.
+    source_reconstruction: "HarmonicReconstructionOperator[HarmonicMomentSourceSink, AngularSourceSink]" = field(
+        kw_only=True,
+    )
 
     # Scattering is a BULK operator — the moment-folding `Σ_s · ⟨P_ℓ, ψ⟩`
     # reads and writes the bulk flux only (A_bb), no boundary action.
@@ -419,120 +448,55 @@ class ScatteringOperator(LinearOperator):
     # as a field).
     block_role = BlockRole.BULK
 
-    # Lazy cache for the precomputed spherical harmonics — only
-    # populated when ``scattering_order > 0`` (avoids paying the
-    # cost on P0-only problems).
-    _Y_cached: np.ndarray | None = field(
-        default=None, init=False, repr=False,
-    )
-
-    #: The space this operator acts on (renamed from ``full_field_space`` in
-    #: campaign 1 CS1 — the slot names the ROLE; typed ``FunctionSpace |
-    #: None``, the operator family's uniform slot type, so the whole family
-    #: greps as one pattern. What actually flows today is the SN composite:
-    #: threaded from the solver's ``sn_mesh.full_field_space`` via
-    #: :meth:`from_solver_data`; ``None`` for the bare/test constructor
-    #: (then ``domain``/``codomain`` report ``None`` and the composition guard
-    #: skips — backward-compatible). When present it is the SAME instance
-    #: ``L``/``C``/``B`` carry, so the within-group ``(L+C) - S``
-    #: :class:`~orpheus.numerics.operator.OperatorSum` guard validates the
-    #: ``- S`` arm natively (the load-bearing guard is instance AGREEMENT,
-    #: not the annotation's family). ``S`` depends on this numerics
-    #: ``FunctionSpace``, NOT on an SN mesh (``S`` scatters in every method).
-    space: "FunctionSpace | None" = field(
-        default=None, repr=False, compare=False,
-    )
-
-    # ── Operator-algebra space metadata (P4.5 W-D) ───────────────────
-    @property
-    def domain(self) -> "FunctionSpace | None":
-        r"""The composite full-field space, or ``None`` if unthreaded.
-
-        Although :math:`S` is a BULK operator, it composes into the within-group
-        loss ``(L+C) - S`` as a composite-field operator, so it advertises the
-        SAME :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`
-        instance ``L``/``C``/``B`` carry (threaded via :meth:`from_solver_data`),
-        which lets the residual
-        :class:`~orpheus.numerics.operator.OperatorSum` guard VALIDATE the
-        ``- S`` arm instead of silently skipping it. The ``None``-spaced default
-        keeps bare/test construction backward-compatible. :math:`S` reads and
-        writes the bulk block only, so domain == codomain on the composite.
-        """
-        return self.space
-
-    @property
-    def codomain(self) -> "FunctionSpace | None":
-        # Endomorphic on the composite full-field space (see :meth:`domain`).
-        return self.space
+    def __post_init__(self) -> None:
+        # Per-END energy admission (CS4c §1; NEW wiring — S carried no
+        # energy-conformity guard before this flip: the reach census in
+        # tests/transport/test_kernels.py G2.10 row 3 re-derives).
+        self._assert_energy_extent_both_ends(
+            self.scattering.ng, operator="ScatteringOperator",
+        )
+        # Face-binding agreement: both minted faces must be bound to THIS
+        # binding's interior — a face bound elsewhere would make the
+        # windowed arm and the per-ordinate combine silently inconsistent.
+        # (The XD-1 wrong-EMBEDDING controls stay spellable: a doctored
+        # face carries the RIGHT spaces with the WRONG measure.)
+        interior = self._interior_space
+        if self.flux_analysis.domain != interior:
+            raise TypeError(
+                "ScatteringOperator: the flux-analysis face is bound to "
+                "a different angular space than this binding's interior "
+                "— mint the faces from the SAME posed space (tier 2 does)."
+            )
 
     @property
     def is_adjointable(self) -> bool:
-        # S = R∘(Λ+N2N)∘M exposes its Euclidean transpose S^T via
+        # S = R∘Λ∘M exposes its Euclidean transpose S^T via
         # :attr:`full_scatter_kernel` (the OperatorProduct adjoint chain);
         # is_invertible inherits base False —
         # a scattering source operator is not invertible.
         return True
 
-    # ── Convenience read-throughs (the legacy n_ordinates / nx / ny
-    # / ng / weights / Y / cells_by_mat / sig_s / sig2 / sig_s0
-    # attributes the test suite + internal call sites consumed).
-    # Issue #197 PR-TYPED-1: these become read-throughs onto
-    # mat_xs + quadrature so consumers don't break.  Marked TRANSIENT
-    # in source comments where appropriate; full retirement deferred
-    # to a follow-up PR once consumers all read mat_xs.* directly.
+    @property
+    def scattering_order(self) -> int:
+        r"""Maximum Legendre order :math:`L` retained — DERIVED from the
+        bound field (the truncation IS the order; single source). ``0``
+        means P0 only."""
+        return self.scattering.order
+
+    # (The legacy n_ordinates / weights / Y / ng / spatial_shape /
+    # sig_s / sig2 / sig_s0 / cells_by_mat read-throughs retired with
+    # the CS4c step-3 rebind — closing #306. The data lives on
+    # :attr:`scattering`; the harmonics table on the faces' shared
+    # frame; the (n,2n) channel on N2NOperator.)
 
     @property
-    def n_ordinates(self) -> int:
-        """Number of angular ordinates :math:`N`."""
-        return self.quadrature.N
-
-    @property
-    def spatial_shape(self) -> tuple[int, ...]:
-        """Per-axis cell counts — read-through from :attr:`mat_xs`.
-
-        C5.2 (#225): replaces the retired ``nx``/``ny`` pair (rank-
-        generic; honest at any spatial dimension).
-        """
-        return self.mat_xs.spatial_shape
-
-    @property
-    def ng(self) -> int:
-        """Energy group count."""
-        return self.mat_xs.ng
-
-    @property
-    def weights(self) -> np.ndarray:
-        """Quadrature weights ``(N,)``."""
-        return self.quadrature.weights
-
-    @property
-    def Y(self) -> np.ndarray | None:
-        r"""Real spherical harmonics :math:`Y_\ell^m(\Omega_n)`,
-        shape ``(N, L+1, 2L+1)``, or ``None`` when ``L == 0``."""
-        if self.scattering_order == 0:
-            return None
-        if self._Y_cached is None:
-            self._Y_cached = self.quadrature.spherical_harmonics(
-                self.scattering_order,
-            )
-        return self._Y_cached
-
-    @cached_property
-    def _scattering_field(self) -> ScatteringMaterialField:
-        r"""TRANSIENT (CS4c 3b-A): the scattering channel's kernel field,
-        truncated to this binding's order — the datum the step-3 ctor flip
-        promotes to a retained field. Snapshot semantics are unchanged:
-        the facade's dense caches already froze the scattering data on
-        first read (the shipped σ-rebind contract touches σ_t only)."""
-        return ScatteringMaterialField.from_material_xs(
-            self.mat_xs,
-        ).truncated(self.scattering_order)
-
-    @cached_property
-    def _n2n_field(self) -> N2NMaterialField:
-        r"""TRANSIENT (CS4c 3b-A): the (n,2n) channel's kernel field —
-        leaves this class entirely with the §14.1 N2N extraction."""
-        return N2NMaterialField.from_material_xs(self.mat_xs)
+    def total_weight(self) -> float:
+        r""":math:`W = \int_{S^2} d\Omega` — the binding measure's total
+        angular weight (the producer-side :math:`/W`). Read off the
+        retained faces' frame MEASURE: the measure is the binding's
+        metric (operative data — unlike the :attr:`frame` accessor,
+        which is provenance)."""
+        return float(self.flux_analysis.frame.measure.weights.sum())
 
     @property
     def _sh_space(self) -> "FunctionSpace":
@@ -542,127 +506,75 @@ class ScatteringOperator(LinearOperator):
 
     def _moment_scattering(self, *, skip_l0: bool) -> LegendreMomentScattering:
         r"""Mint the moment-space :math:`\Lambda` factor on this binding's
-        datum + SH ends — the ONE internal spelling (four consumers:
-        the §5.6 kernel, the full conjugation, the aniso moment route,
-        and the windowed arm)."""
+        datum + SH ends — the ONE internal spelling (three consumers:
+        the §5.6 kernel, the full conjugation, and the aniso moment
+        route; the windowed arm consumes the cached :attr:`kernel`
+        factors)."""
         sh = self._sh_space
         return LegendreMomentScattering(
-            self._scattering_field, skip_l0=skip_l0, domain=sh, codomain=sh,
+            self.scattering, skip_l0=skip_l0, domain=sh, codomain=sh,
         )
 
-    @cached_property
+    @property
     def frame(self) -> HarmonicFrame:
-        r"""The angular discrete frame — :class:`SphericalHarmonicBasis`
-        (order :math:`L=` :attr:`scattering_order`) bound to the quadrature's
-        :math:`S^2` measure.
-
-        The single source of the analysis (:math:`M`) and reconstruction
-        (:math:`R`) faces that realise the anisotropic Legendre redistribution
-        :math:`R\circ\Lambda\circ M` (:attr:`kernel`); the §5.6
-        :attr:`kernel`, the angular-windowing in-sweep moment accumulation,
-        AND the minted typed faces (:attr:`flux_analysis`,
-        ``_source_reconstruction``) all read THIS frame, so the projection
-        table is shared term-for-term.
-
-        A :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` —
-        the SHARED ``(basis, measure)`` operator factory (F-1,
-        ``frame_square_recarve.md``): identity is the table's identity, and
-        the frame is legal on a space-less operator again (the space refusal
-        lives on the MINT seam, ``_interior_space``, where the binding input
-        is actually needed). ``frame.table`` is the
-        :math:`Y_\ell^m(\hat\Omega_n)` tabulation (equal to :attr:`Y`). The
-        HarmonicFrame-IS-A-GalerkinFrame relation and the shared-table
-        rationale: ``docs/theory/foundations/operator_algebra.rst
-        §integral-kernel-category``.
+        r"""PROVENANCE accessor (design record §2 — retirement-tracked):
+        the HUB-interned frame the retained faces were minted from,
+        riding on :attr:`flux_analysis` (zero extra state). Production
+        reads the FACES and the kernel-field datum, never this; it stays
+        for provenance and prototyping until proven removable.
         """
-        return HarmonicFrame.from_galerkin(
-            self.quadrature.angular_frame(self.scattering_order),
-        )
+        return self.flux_analysis.frame
 
     @property
     def _interior_space(self) -> "FunctionSpace":
-        r"""The posed composite's interior — the mints' binding input.
-
-        The A1 space-refusal, relocated to the mint seam (F-1): a minted face
-        is a BOUND operator, and its binding input is the angular field space
-        of the posed problem — the iterate-width ``interior_space``
-        (LD-widened when the scheme widens). A space-less operator has no
-        angular domain to bind, so the typed faces (and the windowed arm that
-        consumes them) refuse loudly here; the frame itself and the fused
-        :attr:`kernel` no longer need the pose.
+        r"""The posed composite's interior — the angular field space of
+        the binding (the mints' input at tier 2; the per-ordinate target
+        of the windowed arm). Mandatory since the CS4c flip: the ends
+        always carry it, and a non-composite binding refuses loudly.
         """
+        domain = self.domain
         if (
-            not isinstance(self.space, FullFieldSpace)
-            or self.space.interior_space is None
+            not isinstance(domain, FullFieldSpace)
+            or domain.interior_space is None
         ):
             raise TypeError(
-                "ScatteringOperator mints its typed frame faces from the"
-                " posed composite space (space=) — this operator was built"
-                " space-less, so there is no angular domain to bind the"
-                " faces to."
+                "ScatteringOperator binds the composite full-field space"
+                " — this instance's domain carries no interior to size"
+                " the angular arms."
             )
-        return self.space.interior_space
+        return domain.interior_space
 
     @cached_property
-    def flux_analysis(self) -> HarmonicAnalysisOperator[AngularFlux, HarmonicMomentFlux]:
-        r"""The minted FLUX analysis face :math:`M \otimes I` on the posed interior.
+    def isotropic_energy(self) -> "IsotropicScattering":
+        r"""The P0 ENERGY binding of this operator's own datum — the
+        scalar-space :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+        the per-ordinate fast path lifts (and the solver's K_iso
+        assembly consumes: ``K_iso = S.isotropic_energy + N2N.energy``,
+        composed at the ONE within-group construction site since the
+        §14.1 extraction retired ``S.isotropic_kernel``).
 
-        ``AngularFlux → HarmonicMomentFlux``, bound to
-        :attr:`_interior_space` and sharing :attr:`frame`'s cached table (the
-        single-source guarantee: its outputs equal what ``S.apply`` projects
-        term-for-term). Consumers: the windowed bulk projection
-        (:class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator`) and
-        the S6 adjoint gates (its ``.H`` is the physical :math:`M^* = R/W`
-        on the F-0 Parseval metrics).
+        Bound to the composite interior's scalar sub-space; shares the
+        p0 arrays with :attr:`scattering` (truncation shares storage).
+        Cached at construction-time semantics (the kernel field is
+        immutable — snapshot identical to the retired facade caches).
         """
-        return self.frame.flux_analysis_on(self._interior_space)
+        from orpheus.transport.operators.isotropic_scattering import (
+            IsotropicScattering,
+        )
 
-    @cached_property
-    def _source_reconstruction(
-        self,
-    ) -> HarmonicReconstructionOperator[HarmonicMomentSourceSink, AngularSourceSink]:
-        r"""The minted SOURCE reconstruction face :math:`R \otimes I` landing
-        on the posed interior (``HarmonicMomentSourceSink →
-        AngularSourceSink``) — the windowed in-scatter arm's typed R.
-        """
-        return self.frame.source_reconstruction_on(self._interior_space)
-
-    @property
-    def sig_s(self) -> dict[int, list[np.ndarray]]:
-        """TRANSIENT — per-material dense Legendre scattering dict.
-
-        Read-through onto :meth:`MaterialXSField.sig_s_legendre`, pending
-        retirement — tracked in issue #306 (its original ``_build_rhs_*``
-        consumers in :mod:`orpheus.sn.solver` are gone; kept until remaining
-        callers read ``mat_xs.*`` directly).
-        """
-        return {
-            mid: self.mat_xs.sig_s_legendre(mid)
-            for mid in self.mat_xs.materials
-        }
-
-    @property
-    def sig2(self) -> dict[int, np.ndarray]:
-        """TRANSIENT — per-material dense (n,2n) dict.  See :attr:`sig_s`."""
-        return {
-            mid: self.mat_xs.n2n_matrix(mid)
-            for mid in self.mat_xs.materials
-        }
-
-    @property
-    def sig_s0(self) -> dict[int, np.ndarray]:
-        """TRANSIENT — per-material P0 scattering matrix dict.
-        See :attr:`sig_s`."""
-        return {
-            mid: self.mat_xs.sig_s_legendre(mid)[0]
-            for mid in self.mat_xs.materials
-        }
-
-    @property
-    def cells_by_mat(self) -> dict[int, tuple[np.ndarray, ...]]:
-        """TRANSIENT — per-material cell-index dict (one index array per
-        mesh axis).  See :attr:`sig_s`."""
-        return self.mat_xs.cells_by_material
+        interior = self._interior_space
+        if interior.axes is None:
+            raise TypeError(
+                "ScatteringOperator.isotropic_energy: the composite "
+                "interior must be axis-built to name the scalar "
+                "sub-space."
+            )
+        scalar_space = FunctionSpace.of_axes(*interior.axes[1:])
+        return IsotropicScattering(
+            self.scattering.truncated(0),
+            domain=scalar_space,
+            codomain=scalar_space,
+        )
 
     # ── Anisotropic in-scatter: the moment→source map R·Λ_{ℓ≥1} ────────
 
@@ -706,7 +618,7 @@ class ScatteringOperator(LinearOperator):
         # R∘Λ as ONE typed operator (M already applied — the moments ARE M·ψ).
         return self.frame.reconstruct_after(scatter).apply(moment_values)
 
-    @property
+    @cached_property
     def kernel(self) -> LinearOperator:
         r"""The §5.6 integral kernel :math:`R \circ \Lambda_{\ell\ge 1} \circ M`.
 
@@ -730,9 +642,9 @@ class ScatteringOperator(LinearOperator):
         With it, :class:`ScatteringOperator` satisfies the
         :class:`~orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
         Protocol — the theory (why scattering IS a nonlocal integral kernel,
-        why P0 + (n,2n) are the local components) is in
+        why P0 is the local component) is in
         ``docs/theory/foundations/operator_algebra.rst §integral-kernel-category``.
-        Built fresh per access (read-through to :attr:`mat_xs` / :attr:`Y`).
+        CACHED at first access (the kernel field is immutable).
 
         Raises
         ------
@@ -761,61 +673,38 @@ class ScatteringOperator(LinearOperator):
             self._moment_scattering(skip_l0=True)
         )
 
-    @property
+    @cached_property
     def full_scatter_kernel(self) -> OperatorProduct:
         r"""The FULL in-scatter source kernel :math:`R\circ(\Lambda_{\ell\ge 0} + N_{2n})\circ M`.
 
         The COMPLETE P0 + anisotropic + (n,2n) in-scatter as ONE frame-conjugated
         operator: the isotropic ℓ=0 scattering, the anisotropic ℓ≥1
-        redistribution (both :class:`LegendreMomentScattering`, ``skip_l0=False``),
-        and the (n,2n) multiplication (the DISTINCT :class:`N2NMomentOperator`) are
-        summed in moment space and conjugated by the frame TOGETHER. The
-        per-ordinate source is ``(1/W)·full_scatter_kernel.apply(ψ)``; its
-        transpose ``(1/W)·full_scatter_kernel.apply_transpose(ψ*)`` is the adjoint
-        :math:`S^{T}` (:meth:`apply_transpose`). Riding the same frame conjugation
-        for iso and aniso is what lets the whole transpose fall out for free —
+        redistribution (one :class:`LegendreMomentScattering`,
+        ``skip_l0=False``) conjugated by the frame. The per-ordinate
+        source is ``(1/W)·full_scatter_kernel.apply(ψ)``; its transpose
+        ``(1/W)·full_scatter_kernel.apply_transpose(ψ*)`` is the adjoint
+        :math:`S^{T}` (:meth:`apply_transpose`). Riding the same frame
+        conjugation for iso and aniso is what lets the whole transpose
+        fall out for free —
         ``docs/theory/methods/sn/adjoint.rst §sn-scattering-adjoint-source``.
+        (The :math:`(n,2n)` term left this composite with the §14.1
+        extraction — :class:`~orpheus.transport.operators.n2n.N2NOperator`
+        carries its own lift and transpose.)
 
         Distinct from :attr:`kernel` (the §5.6 ℓ≥1 ANISOTROPIC subcomponent + the
-        0-ULP crosscheck oracle): this is the FULL ℓ≥0 + (n,2n) source. Built
-        fresh per access (read-through to :attr:`mat_xs`).
+        0-ULP crosscheck oracle): this is the FULL ℓ≥0 scattering source.
+        CACHED at first access (CS4c §14.7 — the satellite mint drops
+        from once-per-apply to once-per-construction; the kernel field is
+        immutable, so the cache cannot go stale).
         """
-        sh = self._sh_space
         return self.frame.conjugate(
             self._moment_scattering(skip_l0=False)
-            + N2NMomentOperator(self._n2n_field, domain=sh, codomain=sh)
         )
 
-    @cached_property
-    def isotropic_kernel(self) -> "OperatorSum":
-        r"""The model-shared isotropic in-scatter energy operator
-        :math:`\Sigma_{s,0} + 2\,\Sigma_{2n}` on the scalar flux.
-
-        The :math:`\ell=0` energy source — P0 in-scatter plus the :math:`(n,2n)`
-        doubling — as the cross-model
-        :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
-        ``+``
-        :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
-        sum. The energy operation is DESIGNED for every transport model's
-        use; ``[M]`` 2026-08-30 its consumers are diffusion + homogeneous —
-        CP / MoC / MC still spell the doubling inline (their K_iso recycling
-        is a later campaign). The model-shared K_iso narrative is in ``docs/theory/methods/sn/adjoint.rst
-        §sn-scattering-adjoint-source`` and
-        ``docs/theory/foundations/infinite_medium.rst``.
-
-        Annotated as the concrete :class:`~orpheus.numerics.operator.OperatorSum`
-        (not the bare ``LinearOperator`` erasure) so the sum surface's
-        ``apply_transpose`` (both leaves implement it) stays visible to the
-        checker — the starting-direction seed arm's transpose consumes it.
-        Space-anonymous (``space=None``: no composition-guard space at this
-        producer-side use). Cached, but reads the XS *through* :attr:`mat_xs`
-        at ``apply`` time, so depletion / feedback updates show up immediately.
-        """
-        from orpheus.transport.operators.isotropic_scattering import (
-            IsotropicN2N,
-            IsotropicScattering,
-        )
-        return IsotropicScattering(self.mat_xs) + IsotropicN2N(self.mat_xs)
+    # (``isotropic_kernel`` — the IsoS + IsoN2N sum — retired with the
+    # §14.1 extraction: the K_iso composition is the SOLVER's grouping
+    # now, assembled at the one within-group construction site from
+    # ``S.isotropic_energy + N2N.energy``.)
 
     def _assemble_per_ordinate_source(
         self,
@@ -851,50 +740,67 @@ class ScatteringOperator(LinearOperator):
             operand's own space on the full-angular arm, the posed
             composite's interior on the windowed moment arm).
         """
-        # Route the isotropic (P0 + (n,2n)) energy source through the
-        # model-shared K_iso operators (isotropic_kernel = Σ_s0 + 2Σ_2n);
-        # the iso rides the driving flux's own space (width travels in it).
+        # The isotropic P0 energy source through this binding's own
+        # scalar-space energy operator (the (n,2n) term left with §14.1);
+        # the iso rides the driving flux's own space (width travels in
+        # it), and the producer-side /W combine is the ONE shared home
+        # (:func:`~orpheus.transport.operators._per_ordinate.assemble_per_ordinate_isotropic`
+        # — N2NOperator rides the same primitive).
         iso: ScalarSourceSink = ScalarSourceSink(
-            values=self.isotropic_kernel.apply(phi), space=phi.space,
+            values=cast(np.ndarray, self.isotropic_energy.apply(phi)),
+            space=phi.space,
         )
-        aniso = (
-            aniso_or_none
-            if aniso_or_none is not None
-            else AngularSourceSink.zeros(angular_space)
+        return assemble_per_ordinate_isotropic(
+            iso, aniso_or_none, angular_space, self.total_weight,
         )
-        sum_w = float(self.quadrature.weights.sum())
-        # The containment dunder's cross-class arm returns the LARGER
-        # (angular) class — the #288 principled LSP exception the static
-        # union cannot carry.
-        return cast("AngularSourceSink", (iso / sum_w) + aniso)
 
     @classmethod
     def from_solver_data(
         cls,
         *,
         mat_xs: "MaterialXSField",
-        quadrature: "Quadrature",
         scattering_order: int,
-        space: "FunctionSpace | None" = None,
+        space: "FunctionSpace",
     ) -> "ScatteringOperator":
-        """Construct from a :class:`MaterialXSField` + quadrature.
+        r"""Tier-2 extract-and-mint (CS4c §14): extract the scattering
+        channel of the facade, truncate to the binding's order, mint the
+        two faces from the HUB-interned frame, and bind the endomorphic
+        composite ends from one ``space=``.
 
-        ``space`` (P4.5 W-D) is the composite
-        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space` the solver
-        threads so ``S``'s ``domain``/``codomain`` match ``L``/``C``/``B``
-        and the within-group ``(L+C) - S`` composition guard validates the
-        ``- S`` arm. ``None`` (the default) leaves ``S`` space-less — the
-        guard skips it, preserving the legacy contract for direct callers.
-
-        The :class:`MaterialXSField` carries everything per-material plus the
-        spatial topology; the :class:`Quadrature` carries ``N`` / ``weights`` /
-        harmonics.
+        ``space`` is the composite
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`
+        the solver threads — MANDATORY since the flip (the ends are
+        write-once fields; the OperatorSum guard validates every build).
+        The quadrature is reached through the space's angular axis (the
+        CS5 generator channel inside
+        :meth:`HarmonicFrame.for_space
+        <orpheus.transport.frames.harmonic_frame.HarmonicFrame.for_space>`)
+        — no ``quadrature=`` parameter survives, so a frame/space metric
+        mismatch is unspellable.
         """
+        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+
+        interior = (
+            space.interior_space
+            if isinstance(space, FullFieldSpace)
+            else None
+        )
+        if interior is None:
+            raise TypeError(
+                "ScatteringOperator.from_solver_data requires the posed "
+                "composite FullFieldSpace (its interior is the angular "
+                "space the faces bind); got "
+                f"{type(space).__name__}."
+            )
+        frame = HarmonicFrame.for_space(interior, scattering_order)
         return cls(
-            mat_xs=mat_xs,
-            quadrature=quadrature,
-            scattering_order=scattering_order,
-            space=space,
+            ScatteringMaterialField.from_material_xs(mat_xs).truncated(
+                scattering_order,
+            ),
+            flux_analysis=frame.flux_analysis_on(interior),
+            source_reconstruction=frame.source_reconstruction_on(interior),
+            domain=space,
+            codomain=space,
         )
 
     # ── In-place helpers (preserve bit-identity vs SNSolver pre-Wave-D) ─
@@ -955,64 +861,12 @@ class ScatteringOperator(LinearOperator):
         phi_values = phi.values if isinstance(phi, ScalarFlux) else phi
         if isinstance(Q, ScalarSourceSink):
             Q_values = Q.values.copy()
-            self.mat_xs.apply_p0_in_scatter(Q_values, phi_values)
+            self.scattering.add_p0_source(Q_values, phi_values)
             # Preserve Q's spatial-moment width (#240 D5b-S3 — the φ̂ accumulator
             # carries the trailing 2^d axis; re-wrapping without it would lose
             # the typed factor and raise on the shape).
             return ScalarSourceSink(values=Q_values, space=Q.space)
-        self.mat_xs.apply_p0_in_scatter(Q, phi_values)
-        return None
-
-    @overload
-    def add_n2n_source(
-        self, Q: "ScalarSourceSink", phi: "np.ndarray | ScalarFlux",
-    ) -> "ScalarSourceSink": ...
-
-    @overload
-    def add_n2n_source(
-        self, Q: np.ndarray, phi: "np.ndarray | ScalarFlux",
-    ) -> None: ...
-
-    def add_n2n_source(
-        self,
-        Q: "np.ndarray | ScalarSourceSink",
-        phi: "np.ndarray | ScalarFlux",
-    ) -> "ScalarSourceSink | None":
-        r"""Add (n,2n) source to :math:`Q`.
-
-        Vectorised by material: per cell ``c`` of material ``mid``,
-        ``Q[:, ic, jc] += 2 · sig2[mid].T @ phi[:, ic, jc]``.
-
-        Same typed-action overload as :meth:`add_iso_source` — raw-in mutates
-        in place and returns ``None``; typed-in returns a fresh
-        :class:`ScalarSourceSink`.
-
-        Parameters
-        ----------
-        Q : np.ndarray or ScalarSourceSink
-            Isotropic source carrier.
-        phi : np.ndarray or ScalarFlux
-            Scalar flux.
-
-        Returns
-        -------
-        np.ndarray or ScalarSourceSink or None
-            Raw-in returns ``None`` (legacy in-place); typed-in returns
-            a fresh :class:`ScalarSourceSink`.
-
-        Notes
-        -----
-        The per-material dispatch lives inside :meth:`MaterialXSField.apply_n2n`.
-        """
-        from orpheus.transport.fields.scalar_flux import ScalarFlux
-        from orpheus.transport.source_sinks import ScalarSourceSink
-        phi_values = phi.values if isinstance(phi, ScalarFlux) else phi
-        if isinstance(Q, ScalarSourceSink):
-            Q_values = Q.values.copy()
-            self.mat_xs.apply_n2n(Q_values, phi_values)
-            # Preserve Q's spatial-moment width (#240 D5b-S3, as add_iso_source).
-            return ScalarSourceSink(values=Q_values, space=Q.space)
-        self.mat_xs.apply_n2n(Q, phi_values)
+        self.scattering.add_p0_source(Q, phi_values)
         return None
 
     def build_aniso_source(
@@ -1052,8 +906,7 @@ class ScatteringOperator(LinearOperator):
             return None
         # S_aniso = (1/W)·kernel: the §5.6 :attr:`kernel` is the R∘Λ∘M
         # redistribution; the producer-side /W lives OUTSIDE it (applied here).
-        sum_w = float(self.weights.sum())
-        out_values = self.kernel.apply(angular_flux.values) / sum_w
+        out_values = self.kernel.apply(angular_flux.values) / self.total_weight
         # RΛM is spatial-moment-axis-agnostic (#240 D5b-S3): the source
         # rides the iterate's own space (CS4b S4 — same space, new role),
         # so the moment factor travels with it.
@@ -1080,118 +933,99 @@ class ScatteringOperator(LinearOperator):
     # isotropic box cannot see this error. Full failure table:
     # docs/theory/methods/sn/slab_one_group.rst §si-sigma-r-fold-mismatch.
 
+    def _sibling(
+        self, field_: "ScatteringMaterialField",
+    ) -> "ScatteringOperator":
+        r"""A sibling binding of ``field_`` on the SAME ends — faces
+        re-minted from the HUB at the sibling field's own order (the
+        interned frame chain, so an order-0 sibling gets order-0 faces).
+        """
+        interior = self._interior_space
+        frame = HarmonicFrame.for_space(interior, field_.order)
+        return ScatteringOperator(
+            field_,
+            flux_analysis=frame.flux_analysis_on(interior),
+            source_reconstruction=frame.source_reconstruction_on(interior),
+            domain=self.domain,
+            codomain=self.codomain,
+        )
+
     def foldable_part(self) -> "ScatteringOperator":
         r"""Return the P0 within-group self-scatter sibling of :math:`S`.
 
-        Carries only the diagonal of ``sig_s[mid][0]`` per material —
-        the within-group self-scatter cross-section
+        Carries only the diagonal of each material's :math:`\Sigma_{s,0}`
+        — the within-group self-scatter cross-section
         :math:`\Sigma_{s,0}^{g\to g}` per energy group. All other
-        scattering channels (cross-group P0, all :math:`P_\ell \ge 1`,
-        and (n,2n)) live in :meth:`residual_part`.
+        scattering channels (cross-group P0, every :math:`P_\ell \ge 1`)
+        live in :meth:`residual_part`. (The :math:`(n,2n)` channel is not
+        this operator's since the §14.1 extraction — the split is a pure
+        scattering-kernel split now.)
 
         Returns
         -------
         ScatteringOperator
-            A sibling with ``scattering_order = 0``, diagonal-only
-            ``sig_s[mid][0]``, zero ``sig2``, and a derived
-            :class:`MaterialXSField` carrying the foldable overrides.
-
-        Notes
-        -----
-        The per-material loop that builds the ``sig_s_foldable`` /
-        ``sig2_foldable`` dicts lives inside
-        :meth:`MaterialXSField.foldable_sig_s`.
+            An order-0 sibling whose per-material kernel is the diagonal
+            P0 head, on the same bound ends.
         """
-        sig_s_foldable = self.mat_xs.foldable_sig_s()
-        sig2_foldable = {
-            mid: np.zeros_like(self.mat_xs.n2n_matrix(mid))
-            for mid in self.mat_xs.materials
-        }
-        derived_mat_xs = self.mat_xs.with_overridden_sig_s_and_n2n(
-            sig_s_dense=sig_s_foldable,
-            n2n_dense=sig2_foldable,
+        fold = ScatteringMaterialField(
+            per_material={
+                mid: ScatteringKernel(
+                    moments=(np.diag(np.diag(k.p0)),),
+                )
+                for mid, k in self.scattering.per_material.items()
+            },
+            cells_by_material=self.scattering.cells_by_material,
         )
-        return ScatteringOperator(
-            mat_xs=derived_mat_xs,
-            quadrature=self.quadrature,
-            scattering_order=0,
-            space=self.space,
-        )
+        return self._sibling(fold)
 
     def residual_part(self) -> "ScatteringOperator":
         r"""Return the non-foldable sibling of :math:`S`.
 
         Carries everything :meth:`foldable_part` does not: the
-        off-diagonal of ``sig_s[mid][0]`` (cross-group P0), every
-        :math:`P_\ell \ge 1` block verbatim, and ``sig2[mid]``
-        verbatim.
-
-        Returns
-        -------
-        ScatteringOperator
-            A sibling with ``scattering_order ==
-            self.scattering_order``, zero-diagonal P0 matrix, and
-            unchanged :math:`P_\ell \ge 1` + (n,2n) data.
+        off-diagonal of each material's :math:`\Sigma_{s,0}` (cross-group
+        P0) and every :math:`P_\ell \ge 1` block verbatim.
 
         Notes
         -----
         Algebraic contract:
-        ``S.apply(\psi) \approx S.foldable_part().apply(\psi) +
-        S.residual_part().apply(\psi)`` at ``rtol=1e-14``.
-
-        The per-material loop that builds the ``sig_s_residual`` dict lives
-        inside :meth:`MaterialXSField.residual_sig_s`.
+        ``S.apply(ψ) ≈ S.foldable_part().apply(ψ) +
+        S.residual_part().apply(ψ)`` at ``rtol=1e-14``.
         """
-        sig_s_residual = self.mat_xs.residual_sig_s()
-        # (n,2n) carried verbatim — pull from mat_xs.
-        sig2_residual = {
-            mid: self.mat_xs.n2n_matrix(mid)
-            for mid in self.mat_xs.materials
-        }
-        derived_mat_xs = self.mat_xs.with_overridden_sig_s_and_n2n(
-            sig_s_dense=sig_s_residual,
-            n2n_dense=sig2_residual,
+        residual = ScatteringMaterialField(
+            per_material={
+                mid: ScatteringKernel(
+                    moments=(
+                        k.p0 - np.diag(np.diag(k.p0)),
+                        *k.moments[1:],
+                    ),
+                )
+                for mid, k in self.scattering.per_material.items()
+            },
+            cells_by_material=self.scattering.cells_by_material,
         )
-        return ScatteringOperator(
-            mat_xs=derived_mat_xs,
-            quadrature=self.quadrature,
-            scattering_order=self.scattering_order,
-            space=self.space,
-        )
+        return self._sibling(residual)
 
     def is_foldable_into_sigma_r(self) -> bool:
-        r"""Return ``True`` iff this operator is structurally the
-        :meth:`foldable_part` of some parent :math:`S`.
-
-        Returns
-        -------
-        bool
-            ``True`` iff ``scattering_order == 0`` AND every material's
-            P0 is diagonal AND every material's (n,2n) is zero.
-
-        Notes
-        -----
-        The per-material allclose checks live inside
-        :meth:`MaterialXSField.is_p0_diagonal_with_zero_n2n`.
+        r"""``True`` iff this operator is structurally the
+        :meth:`foldable_part` of some parent :math:`S` — order 0 with
+        every material's P0 diagonal. (The pre-§14.1 zero-(n,2n) clause
+        dissolved with the extraction: S carries no (n,2n) channel.)
         """
         if self.scattering_order != 0:
             return False
-        return self.mat_xs.is_p0_diagonal_with_zero_n2n()
+        return all(
+            np.allclose(k.p0, np.diag(np.diag(k.p0)))
+            for k in self.scattering.per_material.values()
+        )
 
     def foldable_sigma(self) -> dict[int, np.ndarray]:
-        r"""Return the per-material foldable cross-section :math:`(\sigma_{s,0}^{g\to g})_g`.
-
-        Returns
-        -------
-        dict[int, np.ndarray]
-            ``{mid: (ng,) array}`` keyed by material id. Each array
-            is a fresh copy.
-
-        Notes
-        -----
-        Delegates to :meth:`MaterialXSField.foldable_sigma`.
-        """
-        return self.mat_xs.foldable_sigma()
+        r"""The per-material foldable cross-section
+        :math:`(\sigma_{s,0}^{g\to g})_g` — ``{mid: (ng,)}``, fresh
+        copies, read off the bound kernel field."""
+        return {
+            mid: np.array(np.diag(k.p0))
+            for mid, k in self.scattering.per_material.items()
+        }
 
     # ── LinearOperator surface ─────────────────────────────────────────
 
@@ -1225,9 +1059,10 @@ class ScatteringOperator(LinearOperator):
           :math:`M\psi`, so :math:`M` is skipped), bit-identical to the
           :class:`AngularFlux` arm for :math:`\phi = M\psi`.
 
-        The internal helpers :meth:`add_iso_source`, :meth:`add_n2n_source`,
-        and :meth:`build_aniso_source` remain available for callers that need
-        the iso / aniso pieces separately.
+        The internal helpers :meth:`add_iso_source` and
+        :meth:`build_aniso_source` remain available for callers that need
+        the iso / aniso pieces separately (the (n,2n) verbs live on
+        :class:`~orpheus.transport.operators.n2n.N2NOperator` since §14.1).
         """
         raise TypeError(
             f"ScatteringOperator.apply: unsupported input type "
@@ -1286,10 +1121,10 @@ class ScatteringOperator(LinearOperator):
         orphan.
         """
         # CS4b S4 — the accumulator rides the operand's space (role-blind
-        # shared mint; role is class identity).
+        # shared mint; role is class identity). P0 only since §14.1 — the
+        # (n,2n) term is N2NOperator's.
         iso: ScalarSourceSink = ScalarSourceSink.zeros(phi.space)
         iso = self.add_iso_source(iso, phi)
-        iso = self.add_n2n_source(iso, phi)
         return iso
 
     @_apply_impl.register
@@ -1352,9 +1187,9 @@ class ScatteringOperator(LinearOperator):
             scattered = self._moment_scattering(skip_l0=True).apply(
                 phi_moments,
             )
-            aniso = self._source_reconstruction.apply(
+            aniso = self.source_reconstruction.apply(
                 scattered,
-            ) / float(self.weights.sum())
+            ) / self.total_weight
         # ℓ=0 moment IS the scalar flux (Y_0^0 = 1) — the typed accessor
         # carries that convention (== integrate_angular bit-exactly).
         assert angular_target.axes is not None  # type-narrowing (axis-built)
@@ -1399,7 +1234,7 @@ class ScatteringOperator(LinearOperator):
 
         :math:`S^{T}` is the group-and-angle transpose the adjoint transport
         equation :math:`(L+C-S)^{T}\psi^{*}=q^{*}` needs. The production FORWARD
-        keeps the scalar fast-path (:attr:`isotropic_kernel` +
+        keeps the scalar fast-path (:attr:`isotropic_energy` +
         :meth:`build_aniso_source`) for SI-sweep performance, so the adjoint —
         NOT the hot path — rides the validated harmonic-frame
         :attr:`full_scatter_kernel`, whose transpose falls out of
@@ -1440,6 +1275,7 @@ class ScatteringOperator(LinearOperator):
                 boundary=AngularBoundarySourceSink.zeros(chi.boundary.space),
             )
         chi_values = np.asarray(getattr(chi, "values", chi))
-        return self.full_scatter_kernel.apply_transpose(chi_values) / float(
-            self.weights.sum()
+        return (
+            self.full_scatter_kernel.apply_transpose(chi_values)
+            / self.total_weight
         )

@@ -205,7 +205,14 @@ def test_as_matrix_energy_leaves_vs_storage_oracle():
 
     mat_xs, sig_s0, sig_2, sig_t = _asymmetric_2g_mat_xs()
     ng = 2
-    for op in (IsotropicScattering(mat_xs), IsotropicN2N(mat_xs)):
+    for op in (
+        IsotropicScattering.from_material_xs(
+            mat_xs, space=mat_xs.mesh.bulk_space,
+        ),
+        IsotropicN2N.from_material_xs(
+            mat_xs, space=mat_xs.mesh.bulk_space,
+        ),
+    ):
         got = op.as_matrix(basis_shape=(ng, 1))
         ref = op.dense_per_material()[0]  # the single meshless material
         np.testing.assert_allclose(
@@ -215,7 +222,14 @@ def test_as_matrix_energy_leaves_vs_storage_oracle():
     # The OperatorSum path — C − K_iso materialises as the fused storage oracle.
     loss = MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section_field, mat_xs.mesh,
-    ) - (IsotropicScattering(mat_xs) + IsotropicN2N(mat_xs))
+    ) - (
+        IsotropicScattering.from_material_xs(
+            mat_xs, space=mat_xs.mesh.bulk_space,
+        )
+        + IsotropicN2N.from_material_xs(
+            mat_xs, space=mat_xs.mesh.bulk_space,
+        )
+    )
     ref_sum = np.diag(sig_t) - (sig_s0 + 2.0 * sig_2).T
     np.testing.assert_allclose(
         loss.as_matrix(basis_shape=(ng, 1)), ref_sum, atol=1e-12,
@@ -274,7 +288,14 @@ def test_as_matrix_equals_retired_as_dense_loop():
     ng = mix.ng
     loss = MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section_field, mat_xs.mesh,
-    ) - (IsotropicScattering(mat_xs) + IsotropicN2N(mat_xs))
+    ) - (
+        IsotropicScattering.from_material_xs(
+            mat_xs, space=mat_xs.mesh.bulk_space,
+        )
+        + IsotropicN2N.from_material_xs(
+            mat_xs, space=mat_xs.mesh.bulk_space,
+        )
+    )
     # local oracle = the retired _as_dense loop, verbatim
     cols = []
     for i in range(ng):

@@ -318,17 +318,20 @@ class TestPredicateFaithfulness:
         # survives until CS4c's mandatory flip — the survey just no
         # longer exercises the unbound state on adjointable rows).
         survey_space = FunctionSpace("capability_survey", (2, 4, 1))
+        # S's tier-2 mint needs a real posed composite since CS4c step 3
+        # (the faces bind the interior); the survey reads predicates
+        # only, so a small slab composite serves the row.
+        composite = _slab_mesh(ng=2).full_field_space
         return [
-            IsotropicScattering(mat, space=survey_space),
-            IsotropicN2N(mat, space=survey_space),
+            IsotropicScattering.from_material_xs(mat, space=survey_space),
+            IsotropicN2N.from_material_xs(mat, space=survey_space),
             FissionOperator(mat_xs=mat, space=survey_space),
             LegendreMomentScattering.from_material_xs(mat_xs=mat, L=1, skip_l0=True),
             N2NMomentOperator.from_material_xs(mat_xs=mat, L=1),
-            ScatteringOperator(
+            ScatteringOperator.from_solver_data(
                 mat_xs=mat,
-                quadrature=Quadrature.gauss_legendre(n_ordinates=4),
                 scattering_order=0,
-                space=survey_space,
+                space=composite,
             ),
         ]
 

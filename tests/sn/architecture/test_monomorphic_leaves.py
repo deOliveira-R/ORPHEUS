@@ -261,20 +261,6 @@ _R1_XFAIL = pytest.mark.xfail(
     ),
 )
 
-_R2_XFAIL = pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "R1/R2 — an ANONYMOUS leaf (no space) constructs happily, and the "
-        "`.H` it then builds degrades to a bare Euclidean transpose (since "
-        "CS4c step 1: a None end contributes an IdentityOperator Riesz leg "
-        "— same arithmetic, leg-shaped; only S now RAISES MissingAdjoint "
-        "instead, its exemption being absent). Flipped per leaf by the "
-        "mandatory-ends rebind (C landed 2026-08-30; construction without "
-        "a space RAISES at the signature). WHEN THIS XPASSES: the leaf's "
-        "flip has landed — delete its row's marker."
-    ),
-)
-
 _R6_XFAIL = pytest.mark.xfail(
     strict=True,
     reason=(
@@ -523,7 +509,7 @@ def _leaf_set(sn_mesh: SNMesh) -> "dict[str, LinearOperator]":
             domain=sn_mesh.full_field_space, codomain=sn_mesh.full_field_space,
         ),
         "S": ScatteringOperator.from_solver_data(
-            mat_xs=mat_xs, quadrature=sn_mesh.quad, scattering_order=1,
+            mat_xs=mat_xs, scattering_order=1,
             space=sn_mesh.full_field_space,
         ),
         "F": FissionOperator.from_solver_data(
@@ -744,10 +730,10 @@ def _domain_annotation(
 #: cannot flip partially — CS4a K2b deleted the ``F`` row's marker, and
 #: CS4c step 2 (2026-08-30) deleted ``C``'s (the BoundOperator base:
 #: mandatory kw-only ends, write-once, non-Optional by construction);
-#: ``L``/``S``/``B`` stay red until their own phases (S at CS4c step 3,
-#: L/B at CS2).
+#: step 3 (2026-08-30) deleted ``S``'s (the kernel-shell rebind — same
+#: base); ``L``/``B`` stay red until CS2.
 _R1_ROWS = [
-    pytest.param(leaf, marks=[] if leaf in ("C", "F") else [_R1_XFAIL], id=leaf)
+    pytest.param(leaf, marks=[] if leaf in ("C", "F", "S") else [_R1_XFAIL], id=leaf)
     for leaf in _LEAVES
 ]
 
@@ -1152,11 +1138,12 @@ def test_reciprocity_row_is_non_vacuous(leaf, monkeypatch):
 # ═════════════════════════════════════════════════════════════════════════
 
 #: Per-ROW marks, same rationale as ``_R1_ROWS``: K2b flipped the ``F``
-#: row; CS4c step 2 flipped ``C`` (a space-less mint is now a signature
-#: TypeError — the builder below returns on it); ``S`` waits for the
-#: S→kernel shell (step 3).
+#: row; CS4c step 2 flipped ``C``; step 3 flipped ``S`` (the kernel-shell
+#: rebind) — every anonymous-capable leaf now refuses at the signature,
+#: so the ``_R2_XFAIL`` constant reached 0 carriers and was DELETED
+#: (§8.1: a strict-xfail marker dies in the commit that lands its flip).
 _R2_ROWS = [
-    pytest.param(leaf, marks=[] if leaf in ("C", "F") else [_R2_XFAIL], id=leaf)
+    pytest.param(leaf, id=leaf)
     for leaf in _ANONYMOUS_CAPABLE
 ]
 
@@ -1199,9 +1186,10 @@ def test_leaf_without_a_space_refuses_construction(leaf):
             coefficient=mat_xs.total_cross_section_field,  # deliberate:
             # the space-less mint IS the probe (must raise since CS4c)
         ),
-        "S": lambda: ScatteringOperator.from_solver_data(
-            mat_xs=mat_xs, quadrature=Quadrature.gauss_legendre(n_ordinates=4),
+        "S": lambda: ScatteringOperator.from_solver_data(  # type: ignore[call-arg]
+            mat_xs=mat_xs,
             scattering_order=0,
+            # deliberate: no space= — the space-less mint IS the probe
         ),
         "F": lambda: FissionOperator.from_solver_data(mat_xs=mat_xs),  # type: ignore[call-arg]
     }

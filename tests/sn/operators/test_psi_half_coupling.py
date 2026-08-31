@@ -1497,13 +1497,20 @@ def _fissile_sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4
                   {0: _fissile_mixture(sigma, c * sigma, ng)})
 
 
-def _s_emission(S, psi: FullField) -> NDArray:
+def _k_iso(solver):
+    """The solver-composed K_iso (§14.1): ``S.isotropic_energy + N2N.energy``
+    — the SAME two cached leaf objects the production emission block
+    consumes (build_within_group_system composes them at the one site)."""
+    return solver.scattering_op.isotropic_energy + solver.n2n_op.energy
+
+
+def _s_emission(solver, psi: FullField) -> NDArray:
     """The ℓ=0 iso cell-emission ``q₀ = K_iso·φ₀`` that the S seed arm folds — the
-    A_BA *input* (``(ng, nx)``). Computed via the operator's own isotropic kernel
-    (the emission is the bulk-scattering job, verified elsewhere; A_BA's job is the
+    A_BA *input* (``(ng, nx)``). Computed via the solver-composed K_iso
+    (the emission is the bulk job, verified elsewhere; A_BA's job is the
     FOLD of this emission, so it is the correct oracle input)."""
     phi0 = psi.interior.integrate_angular().values          # (ng, nx)
-    return np.asarray(S.isotropic_kernel.apply(phi0))
+    return np.asarray(_k_iso(solver).apply(phi0))
 
 
 def _f_emission(F, psi: FullField) -> NDArray:
@@ -1795,9 +1802,10 @@ class TestA_BA_SchurFold:
         ray q½ source, matching the closed-form ½·emission loop
         (``_ba_oldloop_reference``)."""
         sn = _sphere()
-        S = SNSolver(sn).scattering_op
+        solver = SNSolver(sn)
+        S = solver.scattering_op
         psi = _random_composite(sn, np.random.default_rng(60))
-        emission = _s_emission(S, psi)
+        emission = _s_emission(solver, psi)
         got = _apply_A_BA(emission, sn)
         np.testing.assert_array_equal(
             got, _ba_oldloop_reference(emission, sn),
@@ -1837,7 +1845,7 @@ def _a_ba_scatter(sn) -> RadialCharacteristicEmission:
     reduced = sn.reduced
     assert reduced is not None  # carrying fixture; narrowing only
     return RadialCharacteristicEmission(
-        SNSolver(sn).scattering_op.isotropic_kernel,
+        _k_iso(SNSolver(sn)),
         field_space=sn.radial_characteristic_field_space,
         full_field_space=sn.full_field_space,
         angular_bulk_space=sn.angular_bulk_space,
@@ -1847,7 +1855,7 @@ def _a_ba_scatter(sn) -> RadialCharacteristicEmission:
     )
 
 
-def _pullback_reconstruction(sn, S, chi_seed_values: NDArray) -> NDArray:
+def _pullback_reconstruction(sn, solver, chi_seed_values: NDArray) -> NDArray:
     r"""The seed pullback ``w·K_isoᵀ(Reconstructionᵀ χ_seed)`` rebuilt from its
     NAMED factors — the structural decomposition
     ``A_BAᵀ = (∫dμ)ᵀ ∘ K_isoᵀ ∘ Foldᵀ`` the S-adjoint carried inline before the
@@ -1858,7 +1866,7 @@ def _pullback_reconstruction(sn, S, chi_seed_values: NDArray) -> NDArray:
     fold = _rc_fold(sn)
     chi_ray = _ray_composite(sn, chi_seed_values)
     m_bar = fold.apply_transpose(chi_ray)                       # Foldᵀ: (1, ng, nx)
-    phi0_bar = np.asarray(S.isotropic_kernel.apply_transpose(m_bar[0]))  # K_isoᵀ: (ng, nx)
+    phi0_bar = np.asarray(_k_iso(solver).apply_transpose(m_bar[0]))  # K_isoᵀ: (ng, nx)
     w = np.asarray(sn.quad.weights, dtype=float)               # (∫dμ)ᵀ = ×w_n
     return w.reshape((w.size, 1, 1)) * phi0_bar[None]          # (N, ng, nx)
 
@@ -1911,7 +1919,8 @@ class TestCoupledLift:
         direct sum ``S_bulk ⊕ A_BA``). Positive (A_BA emits) + pure-bulk
         (S/F ray present-zero); ≥2G, nonzero seed + bulk."""
         sn = _sphere()
-        S = SNSolver(sn).scattering_op
+        solver = SNSolver(sn)
+        S = solver.scattering_op
         psi = _random_composite(sn, np.random.default_rng(100))
         s_out = S.apply(psi)
         # Since B.2d "S emits a ray" is UNSPELLABLE (the 2-block codomain has
@@ -1974,7 +1983,8 @@ class TestCoupledLift:
 
         Tooth: :meth:`test_L1_adj_pullback_catcher_has_teeth`."""
         sn = _sphere()
-        S = SNSolver(sn).scattering_op
+        solver = SNSolver(sn)
+        S = solver.scattering_op
         A_BA = _a_ba_scatter(sn)
         rng = np.random.default_rng(110)
         chi_seed = rng.standard_normal(sn.radial_characteristic_field_space.shape[0])
@@ -1990,7 +2000,7 @@ class TestCoupledLift:
                         f"not the 2-block System-A cotangent.")
         adj_bulk = adj_out.interior.values
         np.testing.assert_array_equal(
-            adj_bulk, _pullback_reconstruction(sn, S, chi_seed),
+            adj_bulk, _pullback_reconstruction(sn, solver, chi_seed),
             err_msg="A_BA.apply_transpose.interior ≠ w·K_isoᵀ(Reconstructionᵀ χ_seed) — "
                     "the lifted seed pullback is wrong.")
         if not np.max(np.abs(adj_bulk)) > 1e-6:
@@ -2060,10 +2070,11 @@ class TestCoupledLift:
 
         Tooth (½ → 0.6 fold coefficient): :meth:`test_L2_fold_value_has_teeth`."""
         sn = _sphere()
-        S = SNSolver(sn).scattering_op
+        solver = SNSolver(sn)
+        S = solver.scattering_op
         A_BA = _a_ba_scatter(sn)
         psi = _random_composite(sn, np.random.default_rng(120))
-        emission = _s_emission(S, psi)
+        emission = _s_emission(solver, psi)
         n_levels = len(sn.radial_characteristic_levels)   # == 1 (sphere-GL S4)
         fold_calls = _install_fold_spy(monkeypatch)
         recon_calls = _wrap_extracted_A_BA(monkeypatch)
@@ -2092,10 +2103,11 @@ class TestCoupledLift:
         moves ``A_BA.apply`` off the documented loop (which uses the numerics fold,
         unpatched) — the ``array_equal`` reds. Proves the fold VALUE is pinned."""
         sn = _sphere()
-        S = SNSolver(sn).scattering_op
+        solver = SNSolver(sn)
+        S = solver.scattering_op
         A_BA = _a_ba_scatter(sn)
         psi = _random_composite(sn, np.random.default_rng(121))
-        emission = _s_emission(S, psi)
+        emission = _s_emission(solver, psi)
         monkeypatch.setattr(_rcr_mod, "fold_moments_to_radial_characteristic", _fold_half_to(0.6))
         ray = A_BA.apply(psi).to_flat()
         oracle = _ba_oldloop_reference(emission, sn)   # numerics fold, unpatched (0.5)
@@ -2117,10 +2129,11 @@ class TestCoupledLift:
         Tooth (a ray permutation preserving the level sum):
         :meth:`test_L3_ray_placement_pins_the_object`."""
         sn = _sphere()
-        S = SNSolver(sn).scattering_op
+        solver = SNSolver(sn)
+        S = solver.scattering_op
         A_BA = _a_ba_scatter(sn)
         psi = _random_composite(sn, np.random.default_rng(130))
-        emission = _s_emission(S, psi)
+        emission = _s_emission(solver, psi)
         s_out, a_out = S.apply(psi), A_BA.apply(psi)
         # Disjoint direct sum — BOTH sides structural since B.2b/B.2d: S's "no
         # ray" (2-block codomain) and A_BA's "no bulk" (composite codomain)
@@ -2143,10 +2156,11 @@ class TestCoupledLift:
         (a radial roll — preserving the per-level SUM) reds the ``array_equal`` ray
         placement while a sum proxy would stay green. Proves L3 pins the OBJECT."""
         sn = _sphere()
-        S = SNSolver(sn).scattering_op
+        solver = SNSolver(sn)
+        S = solver.scattering_op
         A_BA = _a_ba_scatter(sn)
         psi = _random_composite(sn, np.random.default_rng(131))
-        emission = _s_emission(S, psi)
+        emission = _s_emission(solver, psi)
         real_fold = _rcs_mod.fold_moments_to_radial_characteristic
 
         def _fold_rolled(moments, sign):
@@ -2420,18 +2434,25 @@ class TestCoupledLift:
         print(f"  [L4-F] eigenvalue solve: seam_n={seam['n']} "
               f"seam_fold_delta={seam['fold_delta']} global_fold={fold['n']}")
         # Structural pair (HAZARD 5): the within-group gain grid carries the
-        # SCATTER A_BA (over S.isotropic_kernel), NOT a fission fold — F is
-        # the outer q_ext.
+        # SCATTER A_BA (over the solver-composed K_iso, §14.1), NOT a
+        # fission fold — F is the outer q_ext. The identity pin is per
+        # LEAF: the composed sum is minted fresh per build, but its two
+        # leaves are the solver-cached energy bindings.
         snf_solver = SNSolver(snf)
         snf_system = build_within_group_system(
-            snf, snf_solver.mat_xs, scattering_op=snf_solver.scattering_op)
+            snf, snf_solver.mat_xs, scattering_op=snf_solver.scattering_op,
+            n2n_op=snf_solver.n2n_op)
         S = snf_solver.scattering_op
         emission_block = snf_system.explicit_gains[0].blocks[1][0]
+        kernel = getattr(emission_block, "emission_kernel", None)
         if not (isinstance(emission_block, RadialCharacteristicEmission)
-                and emission_block.emission_kernel is S.isotropic_kernel):
+                and getattr(kernel, "_a", None) is S.isotropic_energy
+                and getattr(kernel, "_b", None) is snf_solver.n2n_op.energy):
             pytest.fail("the gain grid's (B,A) block is not EXACTLY the scatter "
-                        "A_BA (over S.isotropic_kernel) — the F fold must be the "
-                        "OUTER q_ext seam, never a within-group gain (HAZARD 5).")
+                        "A_BA over the solver-composed K_iso "
+                        "(S.isotropic_energy + N2N.energy, leaf identity) — the "
+                        "F fold must be the OUTER q_ext seam, never a "
+                        "within-group gain (HAZARD 5).")
 
     def test_L4F_sentinel_has_teeth(self, monkeypatch):
         r"""TOOTH for L4-F: reverting the migration — pointing
@@ -2920,7 +2941,7 @@ def _m_minus_n_reference(sn, mat_xs, coupled):
     B.2d successor of the retired fused-shim reference (memo F1's REFLECTIVE
     requirement carries over: vacuum masks a dropped ``B_b``)."""
     solver_S = ScatteringOperator.from_solver_data(
-        mat_xs=mat_xs, quadrature=sn.quad, scattering_order=0,
+        mat_xs=mat_xs, scattering_order=0,
         space=sn.full_field_space)
     system = build_within_group_system(sn, mat_xs, scattering_op=solver_S)
     y_m = system.implicit_operator.apply(coupled)
@@ -3341,9 +3362,9 @@ class TestWithinGroupSystem:
             pytest.fail("seedless resolvent is coupled — DP-seedless violated")
         if not isinstance(s_system.implicit_operator, StreamingCollisionOperator):
             pytest.fail(f"seedless resolvent is {type(s_system.implicit_operator).__name__}")
-        if len(s_system.explicit_gains) != 2:
-            pytest.fail(f"seedless gains are {s_system.explicit_gains!r} — expected (S, B_a)")
-        S_g, B_g = s_system.explicit_gains
+        if len(s_system.explicit_gains) != 3:
+            pytest.fail(f"seedless gains are {s_system.explicit_gains!r} — expected (S, N2N, B_a)")
+        S_g, _n2n_g, B_g = s_system.explicit_gains
         if S_g is not slab_solver.scattering_op:
             pytest.fail("the injected scattering operator did not ride the "
                         "record by IDENTITY (the cache seam broke)")
