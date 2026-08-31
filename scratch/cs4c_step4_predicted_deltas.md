@@ -70,3 +70,18 @@ Scope: test_kernels.py + test_isotropic_fission.py + test_fission_adjoint.py + t
 | root+harness | 414 / 5xf | 414 **± label delta** | the P7 lesson: the documented-label registry gate gains a param per new equation label — RESOLVE from the archivist's return BEFORE the readout, not after |
 
 **Total: 10106 / 0 / 19sk / 66xf (+ label-gate delta), 13 trees rc=0.**
+
+## RECONCILIATION (readout 2026-08-31, log scratch/_cs4c4_fast_gate.log, ~61 min)
+
+[M] **10105 passed / 1 failed / 19 sk / 66 xf** on the first run — the 1 red is
+the 10106th predicted row: `test_G5_6b_the_call_site_set_is_the_declared_consumer_set`
+(numerics), the declared-consumer census catching that 4c DISSOLVED n2n's direct
+`generator_as` call site (the frame route subsumed it) while the declaration
+still carried it — the gate working as designed on a registry tier the §6b
+sweep missed (the 2026-08-29 registry-family member class, this time a
+DECLARED-set twin of a call site rather than a caller). Fix: the entry retired
+with a dated note; numerics re-run [M] **2538/0 rc=0**.
+
+⟹ **Final: 10106 / 0 / 19 sk / 66 xf, 13 trees rc=0 — every per-tree count
+exactly as pre-registered** (transport 645, sn 3373, root 414 — the archivist's
++3 labels produced the predicted zero test delta). Zero unexplained deltas.

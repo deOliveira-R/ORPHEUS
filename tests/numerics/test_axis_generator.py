@@ -395,10 +395,12 @@ class TestG5GeneratorAsIsTheOneRefusalHome:
             # refusal fires only where a space genuinely lost its
             # generator (a hand-built axis fed to a frame mint).
             ("orpheus/transport/frames/harmonic_frame.py", "for_space"),
-            # §14.1 — N2NOperator's tier-2 mint recovers the per-ordinate
-            # WEIGHTS (the lift's transpose embedding) through the same
-            # channel; the exact ctor takes the weights as data.
-            ("orpheus/transport/operators/n2n.py", "from_solver_data"),
+            # (An n2n.py from_solver_data entry lived here §14.1–§16.4:
+            # the tier-2 mint recovered bare WEIGHTS through this channel
+            # until CS4c step 4's harmonization retired the weights field
+            # — the frame now arrives through for_space above, so the
+            # site DISSOLVED and this gate caught the stale declaration
+            # at the step-4 exit gate, exactly as designed.)
         }
         found = set()
         for f in pathlib.Path("orpheus").rglob("*.py"):
