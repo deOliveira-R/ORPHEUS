@@ -2,6 +2,9 @@
 
 **Status:** OPEN. Diagnosis COMPLETE and converged from four independent
 sources. No production line changed yet.
+**Tracking issue: #429** (OPEN — the work item, not a record). It is a
+POINTER to this file; this file is the artifact. **#426 is BLOCKED by it**
+(comment recorded on #426, 2026-08-31).
 **Opened:** 2026-08-31. **Supersedes** the first draft of this file
 (`angular_basis_and_measure_compatibility.md`, landed `2fbae24a`, renamed here);
 that draft's content is absorbed in full — nothing was dropped, and its refuted
