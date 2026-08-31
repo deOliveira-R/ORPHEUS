@@ -83,6 +83,20 @@ stage + gate.
   `M* = R/W ⟺ Y(G⁺ − diag(d)/W) = 0`. ⭐⭐ Three published point-values were one-draw readings
   and were replaced by measured bands / draw-free operator figures. → [[lessons-L76]]
 
+- **(n,2n) isotropy: a physics claim vs a model claim** — 2026-08-31, branch
+  `docs/n2n-isotropy-claim`, commit **`6906f2a2`** (mine; not merged/pushed). 11 files
+  (4 `.rst` + 5 production docstrings + 2 test-prose). `-E -W` EXIT=0 / 0 warnings both
+  sides; xref gate 0 dead (stock AND head-role-patched, live positive control);
+  `dead_references` 0/52; `matrix.rst` untouched (predicted: no new eq-label); 53 tests
+  pass. New anchor `sn-n2n-p0-truncation`. ⭐⭐ The sort is (a) PHYSICS vs (b) MODEL —
+  opposite treatments, and one docstring carried both across a dash. ⭐⭐ Two files
+  contradicted THEMSELVES and the **hedge was the true half**. ⭐⭐ A relayed CONTRAST
+  (`μ̄ +0.278 vs +0.094 elastic, "~3×"`) summed two DIFFERENT energy windows — over the
+  same 50 groups elastic is **+0.4264** and the claim inverts; every other number
+  reproduced exactly. ⚠ **REPORTED, not fixed:** `cross_section_data.rst:582-700` says
+  (n,2n) is not extracted and the balance is 1-in-1-out — `[M]` false at 3 `file:line`s,
+  a DIFFERENT claim class, deliberately not swept. → [[lessons-L78]]
+
 - **ERR-026 history block: 29 roles → 13, 15 dead → 0** — branch
   `docs/err026-history-is-not-a-crossref`, 2026-08-18. ⛔ still open, re-confirmed unlanded
   2026-08-24: the `head_role` one-liner (blindness is ROLE-scoped, not `.rst`-scoped) and

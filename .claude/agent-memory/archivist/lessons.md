@@ -428,6 +428,25 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   twice in its operator section. ⟹ after an algebra change, grep the OLD spelling **within
   each page that already carries the new one** — a page that learned the correction is the
   likeliest home of the uncorrected twin. → L-077
+- **⭐⭐ Sort every site into (a) a claim about the PHYSICS vs (b) a claim about the
+  MODEL/CODE — the SAME fragment is false about the reaction and true about the
+  operator.** *"(n,2n) emission is isotropic"* ⟹ FALSE, correct it; *"only the `[0,0]`
+  block is written"* ⟹ TRUE of what ships, KEEP the assertion and say it is a
+  TRUNCATION. Both errors are easy: weakening a true code claim because its neighbour
+  was false, and leaving a false physics claim because its neighbour is right. `[M]` one
+  docstring carried both **in one sentence** across a dash. → L-078
+- **⭐⭐ When a page CONTRADICTS ITSELF, the HEDGE is usually the true half — promote it
+  to the measurement, demote the flat assertion.** `[M]` two files said *"in principle
+  carries its own anisotropy"* and then, 20 lines later, *"emission IS isotropic"*. Where
+  the hedge sits in a QUOTED RULING, keep the quote verbatim and add a dated paragraph
+  saying the ruling is **strengthened** — the axis it declined to foreclose is real.
+  → L-078
+- **⭐⭐ A relayed CONTRAST needs both sides' denominators — one can be a different
+  population.** `[M]` a memo's *"μ̄ = +0.278 vs +0.094 elastic, ~3×"* summed the two over
+  DIFFERENT energy windows; over the same 50 groups elastic is **+0.4264** and the "3×"
+  inverts. Every other number reproduced exactly. ⟹ publish your figure with its window,
+  and replace the contrast with a STRUCTURAL one (*"MT=16 stores NL=7, the same order as
+  elastic, which stores 7 in 13 of 13 files"*). → L-078
 - **⭐ `hasattr(Cls, field)` is FALSE for a dataclass field with no class default — fall back to
   `dataclasses.fields` before reporting a dead `:attr:`.** `[M]` my own role-import probe
   minted 3 false dead targets this way, all on the newest code. L-053(c) (*construct the
@@ -571,6 +590,28 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   AFTER the last edit, and prefer the **file list** (stable) to the count for the load-bearing
   universal. ⚠ Same pass: "every consumer lives in `sn/`, `transport/`, `derivations/`" silently
   omitted the module's OWN package. → L-070
+- **⭐⭐ For an un-`automodule`'d module the build sees NOTHING — substitute a
+  DIFFERENTIAL docutils parse, HEAD vs working tree, counting roles that SURVIVE AS
+  TEXT.** `[M]` all 5 code files I edited: `automodule = 0`, `html_pages = 0`. ⚠ Two
+  harness traps: walking `dir(module)` reports 89 "problems" that are `dict.__doc__` on
+  `__annotations__`/`__dataclass_fields__`; and a *system-message* count is BLIND to the
+  silent class — `text~:math:` emits **no message** and degrades to literal text, while
+  `**bold**:math:` (which looks illegal) parses FINE. Only `:math:` is testable this way
+  (bare docutils does not know the Sphinx domain roles). Verdict: `HEAD = 1, now = 1`.
+  → L-078
+- **⭐⭐ A residual filter's POSITIVE CONTROL is the pre-edit STRINGS, verbatim — and the
+  one that fails is the point.** `[M]` 3 of my 4 controls matched; the 4th
+  (*"it must be isotropic"*) did not, because my copula class was `(is|are|being|it's)`
+  and the word was **`be`**. Widened to `(is|are|be|being|been|remains?|stays?|it's)`.
+  Without the control that site would have read clean. ⭐ And window on the **PREDICATE**
+  as well as the subject: the one site the brief missed said *"**the emission** is
+  isotropic"* — a section-context back-reference no subject grep can see. → L-078
+- **⭐ Strip the IDENTIFIERS before judging a prose claim.** `IsotropicN2N`,
+  `isotropic_scattering`, `K_iso`, `assemble_per_ordinate_isotropic` are NAMES, not
+  claims; masking them took a windowed sweep from **388** unreadable hits to **98**
+  adjudicable ones. Then run a second filter in vocabulary that never spells the subject
+  (`doubling`, `two neutrons`, `multiplicity`) and a third that never spells the
+  predicate (`no angular dependence`, `single Legendre`, `P0-only`). → L-078
 - **⭐ Two defects YOUR OWN new prose introduces, both `-W`-caught, both mechanical:** (a) an
   italic run interrupted by a role — `*"… (*:math:`X`*) …"*` — gives *"Inline interpreted text …
   start-string without end-string"*; escape the seam: `(*\ :math:`X`\ *)`. (b) **NEVER hand-align a
@@ -1402,6 +1443,21 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   measured floor, never the number: the cylinder's `8 of 12` is *4 ordinates have
   `mu_x == 0.0` and `0.9 × 0 = 0`*; the roll's `4 of 12` is *the level |µ| sequence is a
   palindrome*. A floor with a mechanism cannot drift silently. → L-075
+- **⭐⭐ For a MODELLING-TRUNCATION correction the shape is ONE anchored
+  `.. warning::` carrying the whole measurement set, and everything else POINTS.**
+  Homes, one clause each: the **physics** home (the reaction's own section) gets a short
+  `.. important::` before any algebra; the **data-layer** home gets the truncation
+  recorded where the drop happens (at the displayed record structure, not in a "future
+  work" list); **Key Facts** and the **machine header** get one clause each, because
+  those are what a reader quotes. ⚠ The anchor sits above an admonition ⟹ every citer
+  needs EXPLICIT text (`` :ref:`the truncation warning <label>` ``), and you verify the
+  `href`s in the built HTML, not the warning count. A class whose NAME encodes the
+  truncation gets an **"On the name"** paragraph — check the sibling class first, the
+  precedent usually already exists. → L-078
+- **⭐ A correction sweep must not acquire a SECOND SUBJECT.** Chasing one false claim I
+  found a different one on the same channel (a section saying (n,2n) is not extracted and
+  the balance is 1-in-1-out; `[M]` false at 3 `file:line`s). Fix the claim you were sent
+  for; REPORT the neighbour with its proofs. → L-078
 - **⭐⭐ A CHANGELOG ROW for a big merge groups by THESIS, never by the plan's phase labels —
   and the page's own precedent settles one-row-vs-many in one grep.** `[M]` `history.rst`'s #280
   campaign holds SIX rows sharing one merge hash, so per-milestone rows are the convention and

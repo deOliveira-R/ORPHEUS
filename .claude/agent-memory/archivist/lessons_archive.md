@@ -8801,3 +8801,176 @@ the person editing the fixture.
 - **A `.. note::` needs a blank line before the paragraph that follows it** —
   the one warning I introduced (`Explicit markup ends without a blank line`),
   caught by the `-W` build in one cycle.
+
+---
+
+## L-078 — a PHYSICS claim vs a MODEL claim: the two-kind sort, and the sites the
+##          brief could not name
+
+**Task** (2026-08-31, branch `docs/n2n-isotropy-claim`, commit `6906f2a2`).
+Eight corpus/docstring/test sites asserted *"(n,2n) emission **is**
+isotropic"* as a fact about the reaction. The evaluated GENDF data ORPHEUS
+itself ships refutes it. Correct everywhere without weakening any test.
+
+### The governing move: sort each site into (a) PHYSICS or (b) MODEL
+
+The brief supplied the rule and it is the transferable content. A correction
+pass over "X is isotropic" is NOT a search-and-replace, because the same
+sentence fragment is FALSE about the reaction and TRUE about the operator:
+
+- **(a) a claim about the REACTION** — *"(n,2n) emission is isotropic"*,
+  *"the (n,2n) reaction is a DISTINCT isotropic group transfer"* ⟹ FALSE,
+  correct it.
+- **(b) a claim about the MODEL/CODE** — *"only the `[0,0]` block is read and
+  written"*, *"the composite action IS the isotropic lift"*, *"N2N wrote a
+  non-zero ℓ≥1 block"* ⟹ TRUE of what ships. **Keep the assertion**; make
+  explicit that it describes a TRUNCATION.
+
+⭐ The failure mode is symmetric and both halves are easy: weakening a true
+code claim because its neighbouring physics claim was false, and leaving a
+false physics claim standing because its neighbouring code claim is right.
+`material_field.py:345` had **both in one sentence** — *"every ℓ≥1 block
+stays zero — (n,2n) emission is isotropic"*: keep the clause before the dash,
+replace the clause after it.
+
+### ⭐⭐ TWO FILES CONTRADICTED THEMSELVES, and the hedge was the true half
+
+`n2n.py:4` and `adjoint.rst:691` both quote the CS4c ruling — *"(n,2n) is
+scattering-like — a group transfer **which in principle carries its own
+anisotropy**"* — and then assert flatly, twenty lines later, that the
+emission IS isotropic. The **hedge was right and the flat assertion was
+wrong**, i.e. the page's own more-cautious sentence was its correct one.
+
+⟹ The repair shape: **promote the hedge to the measurement, demote the flat
+assertion to a stated modelling choice** — and where the hedge sits inside a
+QUOTED RULING, keep the quote **verbatim** (it is the record of what was
+argued on a date) and put the promotion in a dated paragraph beside it,
+saying the ruling is *strengthened*: the anisotropy axis it declined to
+foreclose is real, not hypothetical. (`plan-authoring` §3 in the corpus.)
+
+### The sweep: three independently-vocabularied filters, all with controls
+
+A line-based `grep "n,2n.*isotropic"` misses every wrapped instance. What
+worked, in order:
+
+1. **Windowed** (subject within ±2 lines of the predicate) with an
+   **identifier-stripping** pass — `IsotropicN2N`, `isotropic_scattering`,
+   `assemble_per_ordinate_isotropic`, `K_iso` are NAMES, not claims. Without
+   the strip: 388 hits. With it: **98**, all readable.
+2. **Independent vocabulary** that never spells the subject — `doubling`,
+   `two neutrons`, `multiplication channel`, `multiplicity`,
+   `\Sigma_2\b`. Found `infinite_medium.rst` and the
+   `isotropic_scattering.py` module docstring the first filter reached
+   differently. Both filters converged.
+3. **A third, isotropy-word-FREE predicate** — `no angular dependence`,
+   `angularly flat`, `single Legendre`, `P0-only`, `no moment tensor`.
+   15 hits, **all** fixture names (`solver_2g_p0_n2n`) or my own new text.
+
+⭐ **The residual filter's POSITIVE CONTROL caught a real hole in itself.**
+I fed it the four verbatim pre-edit strings; three matched and the fourth
+(*"it must be isotropic (ℓ=0 only)"*) did **not** — my copula alternation was
+`(is|are|being|it's)` and the word before `isotropic` was `be`. Widened to
+`(is|are|be|being|been|remains?|stays?|it's)`. Without the control the sweep
+would have reported that site clean.
+
+### ⭐⭐ The brief's starting set was 7 sites; the honest set was 8 — and the
+### miss was in the SAME section as a named site
+
+`slab_multigroup.rst:504` read *"Note also what the extraction did **not**
+touch: **the emission is isotropic**, so the operator keeps the reaction-rate
+fast path"* — 70 lines below `n2n-reactions`, which the brief did not name at
+all. It is invisible to a subject-first grep because the subject
+(*"the emission"*) is a pronoun-like back-reference to the section's topic.
+⟹ **a windowed sweep must window on the PREDICATE too**, not only the
+subject, when the subject can be carried by section context.
+
+### ⭐⭐ Reproduce the numbers, and one CONTRAST did not survive
+
+Every headline reproduced exactly with my own probe (NL table over all 13
+files; `‖P1‖∞/‖P0‖∞ = 0.6897`; `μ̄ = +0.2783`; shares `61.747 % / 44.870 %`;
+rank 50, rank-1 error `0.5818`; control `2/(3A) = 0.074615`, 0.00 %) —
+**except one**. The source memo and the issue both wrote *"μ̄ = +0.278
+against **+0.094** for elastic on the same nuclide"*, glossed as *"~3× that
+of elastic"*. `[M]` those two numbers are summed over **different energy
+windows**: `+0.094` is elastic over all 421 live rows (dominated by the
+low-energy s-wave region, per-group `0.0746`), while `+0.278` is (n,2n) over
+its **50** open rows. Over the SAME 50 groups elastic is **`+0.4264`** — i.e.
+elastic is MORE forward-peaked there, and the "3×" claim inverts.
+⟹ **I published the (n,2n) figure alone with its window stated and made the
+elastic contrast STRUCTURAL instead** (*MT=16 stores NL = 7, the same order
+as elastic, which stores 7 in 13 of 13 files*) — a denominator-clean
+comparison. `plan-authoring` §2's quantifier clause, met in a relayed
+contrast rather than in a count.
+
+### ⭐ The un-`automodule`'d majority: the build cannot see 5 of the 11 files
+
+`[M]` `orpheus.transport.operators.*` and `orpheus.transport.material_field`
+have **automodule = 0, html_pages = 0** — the docstrings I edited are never
+rendered, so `-W` is silent about them at every severity, and `-n` would be
+too. Per AGENT.md I did NOT add an `automodule` for the leaves I touched.
+The substitute gates that DO see them:
+
+- the **patched** `check_docstring_xrefs.py` (head-role fix), which resolves
+  by IMPORT — with an end-to-end positive control on a throwaway
+  `docs/_ctl_n2n.rst`: **stock 0, patched 2**, then 0 across 999 files with
+  the control removed;
+- nexus `dead_references` (by rendered target): 0 dead / 52 checked;
+- a **differential docutils parse, HEAD vs working tree**, counting roles
+  that survive as literal text (the silent non-rendering class):
+  `HEAD = 1, now = 1` — no regression, the 1 pre-existing.
+
+⚠ **That docutils harness needed two goes.** v1 walked `dir(module)` and
+reported **89 "problems"** that were all `dict.__doc__` on `__annotations__` /
+`__dataclass_fields__`. v2, scoped to the five edited docstrings, reported
+**0** — and its positive control ALSO reported 0, i.e. it was blind. Rendering
+the control directly showed why: `**bold**:math:\`x\`` **parses fine** in
+docutils (my "fix" was unnecessary, though harmless and more consistent with
+the file's own `ℓ` spelling), while the genuinely-bad `text~:math:\`x\``
+produces **no message at all** — it silently degrades to literal text plus a
+`<title_reference>`. ⟹ for the silent class the instrument is *"count role
+spellings surviving in the rendered output"*, never *"count system
+messages"*; and only `:math:` is testable that way, because bare docutils
+does not know the Sphinx `:class:`/`:attr:`/`:meth:`/`:func:` domain roles.
+
+### The doc SHAPE for this event class
+
+- ONE home for the whole measurement set — a `.. warning::` with its own
+  anchor, in the section where the over-claim would be re-minted. Everything
+  else **points** (the brief's own constraint 5, and it keeps the numbers
+  single-sourced).
+- The anchor sits above an admonition, so **every reference uses explicit
+  text** (`` :ref:`the truncation warning <label>` ``) — a bare `:ref:` there
+  is the `ref.ref` "*title or caption not found*" class. Verified all five
+  resolved as real `href`s in the built HTML, not by the warning count.
+- The **physics home** of the reaction (`n2n-reactions` in
+  `slab_multigroup.rst`) gets a short `.. important::` before any algebra;
+  the **data-layer home** (`cross_section_data.rst`, at the MF=6 record
+  structure where the Legendre loop is displayed) gets the truncation
+  recorded where the drop happens; **Key Facts** and the **machine header**
+  each get one clause, because those are what a reader quotes.
+- A class whose NAME encodes the truncation (`IsotropicN2N`) gets an
+  **"On the name"** paragraph — and the file already had the precedent, on
+  `IsotropicFission`, where the same prefix carries family signal instead of
+  a contrast. Follow the sibling's shape rather than inventing one.
+
+### The eq-label was CORRECT — only its premise was wrong
+
+`sn-n2n-isotropic-lift` states what the code computes, so its **body was not
+touched**. I read all four citers (`:768`, `:782`, `:880`, and the generated
+`matrix.rst:1388`): the transpose derivation differentiates the lift and is
+unaffected; the vv-status rationale describes the model. No companion note
+was needed on any of them, and `matrix.rst` is generated — predicted and
+confirmed **unchanged**, because the pass adds no eq-label.
+
+### ⛔ REPORTED, not fixed — a DIFFERENT false claim about the same channel
+
+`docs/theory/foundations/cross_section_data.rst:582-700`, "Reactions Not
+Included: (n,2n), (n,3n), (n,4n)", is present-tense-false **for (n,2n)**:
+`[M]` `gendf.py` calls `_extract_mf6(16, …)` and populates `sig2`;
+`solver.py:1713` puts `emission_n2n` in the k denominator; the shipped
+algebra is `A = L + C − S − N₂ₙ − B`. Its "ORPHEUS's current balance equation
+assumes a 1-in-1-out scattering model" and its deferred implementation sketch
+were true of MT=17/37 only. ⟹ **out of brief scope (a different claim class,
+spanning CP/MoC/MC), so REPORTED rather than swept.** The rule that decided
+it: *fix the claim you were sent for; report the neighbouring one with its
+`file:line` proofs, do not let a correctness sweep acquire a second subject.*
