@@ -54,7 +54,7 @@ from orpheus.numerics.convergence import (
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.face_layout import face_normal
 from orpheus.sn.operators.loss_kernel_gauge import warn_if_gauge_freedom
-from orpheus.transport.operators.fission import FissionOperator
+from orpheus.transport.operators.isotropic_scattering import IsotropicFission
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
     WithinGroupSystem,
@@ -1421,9 +1421,15 @@ class SNSolver:
             mat_xs=self.mat_xs,
             space=sn_mesh.full_field_space,
         )
-        self.fission_op = FissionOperator.from_solver_data(
-            mat_xs=self.mat_xs,
-            space=sn_mesh.full_field_space,
+        # The fission ENERGY binding on the scalar bulk space (CS4c
+        # step 4 — the binding-arity table's F row made true): the
+        # k-outer feeds bare (ng, *spatial) scalar arrays, and the
+        # binding now says so. The ANGULAR composite binding
+        # (FissionOperator, the frame's ℓ=0 conjugation) is minted
+        # where it is consumed — the eigen-M posing below.
+        self.fission_op = IsotropicFission.from_material_xs(
+            self.mat_xs,
+            space=self.mat_xs.mesh.bulk_space,
         )
 
         # ── Sweep cache (Issue #196 Phase G Step 2.5c) ───────────────
@@ -1523,17 +1529,20 @@ class SNSolver:
     ) -> np.ndarray:
         """Fission source: χ · (νΣ_f · φ) / k.
 
-        Thin delegator to :meth:`FissionOperator.apply` (Wave D Issue 13).
+        Thin delegator to the fission ENERGY binding's ``apply``
+        (:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+        — CS4c step 4: the scalar dyad bound at the mesh's bulk space).
         The :math:`1/k` division stays at this level — the fission
-        operator is a *linear* operator (Wave A Issue 1 Protocol);
-        :meth:`FissionOperator.apply` returns :math:`F\\,\\phi` and the
-        eigenvalue scaling lives here.
+        operator is a *linear* operator; the binding returns
+        :math:`F\\,\\phi` and the eigenvalue scaling lives here.
 
         Issue #196 PR-INDEX-5: ``flux_distribution`` is principled
         ``(ng, nx, ny)``.  No bridges — the PR-INDEX-4 transpose pair
         is GONE.
         """
-        return self.fission_op.apply(flux_distribution) / keff
+        # The bare-ndarray leg returns bare (the union carries the
+        # composite arm's type; asarray is the zero-cost narrowing).
+        return np.asarray(self.fission_op.apply(flux_distribution)) / keff
 
     def solve_fixed_source(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,

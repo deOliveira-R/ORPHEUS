@@ -133,7 +133,7 @@ class TestFissionApplyCorrectness:
 
         out = op.apply(phi)  # bare-ndarray arm → (ng, nx, ny)
         expected = hand_derived_fission_emission(
-            op.mat_xs.emission_spectrum, op.mat_xs.fission_production, phi,
+            solver_4g.mat_xs.emission_spectrum, solver_4g.mat_xs.fission_production, phi,
         )
         np.testing.assert_allclose(
             out, expected, rtol=1e-13, atol=0.0,
@@ -159,8 +159,8 @@ class TestFissionApplyCorrectness:
         ng = solver_4g.ng
         nx, ny = solver_4g.sn_mesh.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
-        chi = op.mat_xs.emission_spectrum
-        nu_sf = op.mat_xs.fission_production
+        chi = solver_4g.mat_xs.emission_spectrum
+        nu_sf = solver_4g.mat_xs.fission_production
 
         straight = hand_derived_fission_emission(chi, nu_sf, phi)
         # ROLE swap: broadcast by νΣf, contract χ·φ. χ ≠ νΣf per group →
@@ -205,7 +205,7 @@ class TestProductionRateReproducesApply:
         pr = require_production_rate_property(op)  # NEW S6 member; skip if PRE-IMPL
         density = np.asarray(pr.evaluate(phi))  # (1, nx, ny) keepdims
         # χ broadcast reproduces RankOneOperator's `left * inner`.
-        chi = op.mat_xs.emission_spectrum  # (ng, nx, ny)
+        chi = solver_4g.mat_xs.emission_spectrum  # (ng, nx, ny)
         composed = chi * density  # (ng, nx, ny)
 
         fused = op.apply(phi)  # the unchanged matvec arm → (ng, nx, ny)
@@ -233,7 +233,7 @@ class TestProductionRateReproducesApply:
 
         pr = require_production_rate_property(op)
         density = np.asarray(pr.evaluate(phi)).reshape(nx, ny)
-        expected = (op.mat_xs.fission_production * phi).sum(axis=0)
+        expected = (solver_4g.mat_xs.fission_production * phi).sum(axis=0)
         np.testing.assert_array_equal(
             density, expected,
             err_msg="production_rate.evaluate must contract νΣf against φ "
@@ -306,87 +306,69 @@ class TestFissionApplyRoutesThroughFunctional:
 
 
 class TestFissionNdarrayArmIsKEigenvalueLive:
-    r"""The bare-``np.ndarray`` fission ``apply`` arm is on the K-loop call graph.
+    r"""The fission ENERGY binding's bare-array ``apply`` is on the K-loop call graph.
 
-    W-E resolution (``d30d4a6``): the K-eigenvalue outer loop
+    The K-eigenvalue outer loop
     :func:`orpheus.numerics.eigenvalue.power_iteration` feeds a bare
     :class:`numpy.ndarray` flux to
     :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`, which calls
-    ``self.fission_op.apply(flux_distribution) / keff`` (``sn/solver.py``).
-    So the bare-ndarray dispatch arm (``fission.py`` —
-    ``@_apply_impl.register def _(self, phi_arr: np.ndarray)``) is the LIVE
-    arm at the outer-iteration boundary, NOT dead weight.
+    ``self.fission_op.apply(flux_distribution) / keff`` — and since CS4c
+    step 4 ``fission_op`` IS the energy binding
+    (:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+    the scalar dyad on the mesh's bulk space). Its bare-array leg is the
+    LIVE arm at the outer-iteration boundary, NOT dead weight.
 
-    This sentinel is the W-F safety net: it proves — by a real keff solve
-    with an in-process counter on the *registered ndarray implementation
-    function itself* — that the arm is genuinely executed, so the W-F
-    dead-arm retirement keeps it (and a future regression that routes the
-    K-loop around it reddens here).
+    ⛔ HISTORY (the sentinel's own catch, 2026-08-30): the pre-step-4
+    form wrapped ``FissionOperator``'s ``np.ndarray`` dispatch-registry
+    arm (W-E ``d30d4a6``) and went RED the moment the k-outer was
+    re-pointed onto the energy binding — exactly the re-route class it
+    exists to catch. It was re-keyed onto the new live arm in the same
+    commit; the angular ``FissionOperator`` no longer carries a bare
+    ndarray arm at all (scalar consumers are refused toward this
+    binding).
 
-    vv Mode-11 (the strictly-stronger proof): a green keff value alone does
-    NOT prove the ndarray arm ran — a refactor could route fission through a
-    typed carrier and still converge. The sentinel WRAPS the production
-    reader (the ndarray arm) in-process and asserts the counter advanced —
-    the routed-around path cannot fake the wrap (``vv-principles`` Mode-11
-    "pytest-plugin sentinel that WRAPS the internal call").
+    vv Mode-11 (the strictly-stronger proof): a green keff value alone
+    does NOT prove the arm ran — a refactor could route fission through
+    a typed carrier and still converge. The sentinel WRAPS the
+    production reader in-process and asserts the counter advanced.
 
     vv Mode-8: the gate uses ``require`` (a ``pytest.fail`` call) — fires
     under ``python -O``; NEVER a bare ``assert``.
-
-    Why wrap the *registry* function and not ``F.apply``: wrapping the outer
-    :func:`functools.singledispatchmethod` callable DEFEATS type-based
-    dispatch (the wrapper's ``__class__`` is seen, the input falls to the
-    base ``TypeError`` arm) — the exact Mode-11 hazard in miniature. The
-    counter must wrap the ``np.ndarray``-registered leaf, reached via the
-    descriptor's ``dispatcher.registry``.
     """
 
     @pytest.mark.sentinel
-    def test_keff_solve_executes_fission_ndarray_arm(self, solver_4g):
+    def test_keff_solve_executes_fission_ndarray_arm(self, solver_4g, monkeypatch):
+        # CS4c step 4: the K-loop's fission arm is the ENERGY binding's
+        # bare-ndarray leg (IsotropicFission.apply) — this sentinel
+        # CAUGHT the re-route exactly as designed (its pre-step-4 form
+        # wrapped FissionOperator's ndarray registry arm, which the
+        # k-outer no longer touches), and was re-pointed onto the new
+        # live arm in the same commit. A plain method needs no registry
+        # surgery: monkeypatch wraps it, and a re-route around it (a
+        # typed-carrier k-loop, a second fission home) reddens here.
         from orpheus.numerics.eigenvalue import power_iteration
-        from orpheus.transport.operators.fission import FissionOperator
-
-        # Reach the np.ndarray-registered implementation leaf (NOT the
-        # dispatcher) and wrap it with a counter. The descriptor lives on the
-        # class __dict__; `.dispatcher` is the underlying functools
-        # singledispatch carrying the read-only `.registry` mappingproxy.
-        descriptor = FissionOperator.__dict__["_apply_impl"]
-        registry = descriptor.dispatcher.registry
-        require(
-            np.ndarray in registry,
-            "FissionOperator._apply_impl has NO np.ndarray-registered arm — "
-            "either the arm was already retired (the K-loop will TypeError) "
-            "or the dispatch handle moved; W-F must keep this arm.",
+        from orpheus.transport.operators.isotropic_scattering import (
+            IsotropicFission,
         )
-        ndarray_impl = registry[np.ndarray]
 
         calls = {"n": 0}
+        real_apply = IsotropicFission.apply
 
-        def counting_ndarray_arm(self, phi_arr):
+        def counting_apply(self, phi):
             calls["n"] += 1
-            return ndarray_impl(self, phi_arr)
+            return real_apply(self, phi)
 
-        # The registry is a read-only mappingproxy — the ONLY supported
-        # mutation is `singledispatchmethod.register`. Re-register the
-        # counting wrapper for np.ndarray, run the solve, then restore the
-        # original leaf in `finally` (manual revert because the registry is
-        # class-global and there is no monkeypatch hook for it; NEVER leave
-        # the live dispatch table mutated — Mode-11 probe hygiene).
-        descriptor.register(np.ndarray, counting_ndarray_arm)
-        try:
-            _o = power_iteration(solver_4g, max_iter=60)
-            keff, history = _o.keff, _o.keff_history
-        finally:
-            descriptor.register(np.ndarray, ndarray_impl)
+        monkeypatch.setattr(IsotropicFission, "apply", counting_apply)
+        _o = power_iteration(solver_4g, max_iter=60)
+        keff, history = _o.keff, _o.keff_history
 
         require(
             calls["n"] > 0,
-            "The K-eigenvalue loop did NOT execute the fission bare-ndarray "
-            "apply arm — power_iteration converged WITHOUT routing fission "
-            "through `F.apply(np.ndarray)`. Either the live arm was deleted "
-            "(W-F over-retirement) or the K-loop now feeds a typed carrier. "
-            "The ndarray arm is the load-bearing outer-iteration boundary "
-            "(W-E `d30d4a6`); W-F must not retire it (Mode-11).",
+            "The K-eigenvalue loop did NOT execute the fission energy "
+            "binding's apply — power_iteration converged WITHOUT routing "
+            "fission through IsotropicFission. Either the k-outer grew a "
+            "second fission home (a twin path) or the loop now feeds a "
+            "carrier this sentinel does not watch (Mode-11).",
         )
         # Corroborating sanity: the solve actually ran (so the counter result
         # is meaningful, not a zero-iteration vacuum).

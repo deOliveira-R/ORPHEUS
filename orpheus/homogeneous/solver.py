@@ -46,8 +46,8 @@ from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
-from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
+    IsotropicFission,
     IsotropicN2N,
     IsotropicScattering,
 )
@@ -248,7 +248,7 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # explicitly IS the strategy choice) — composed with the fission
     # production dyad F = χ ⊗ νΣ_f.
     loss = _assemble_loss_operator(mat_xs, space)
-    production = FissionOperator.from_solver_data(mat_xs=mat_xs, space=space)
+    production = IsotropicFission.from_material_xs(mat_xs, space=space)
     K = MatrixInverseOperator(loss) @ production
 
     # k∞ and the flux spectrum φ are the EXACT dominant eigenpair of the

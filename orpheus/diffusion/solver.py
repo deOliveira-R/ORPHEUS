@@ -140,7 +140,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -158,8 +158,8 @@ from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.mesh.material_mesh import MaterialMesh
-from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
+    IsotropicFission,
     IsotropicN2N,
     IsotropicScattering,
 )
@@ -244,8 +244,11 @@ class DiffusionSolver:
         )
         self.boundary = DiffusionBoundaryOperator(mesh)
         self.loss = self.leakage + collision - scattering - self.boundary
-        self.fission = FissionOperator.from_solver_data(
-            mat_xs=self.mat_xs, space=space,
+        # The fission ENERGY binding (CS4c step 4): diffusion consumes
+        # the scalar dyad on its scalar-bulk composite — the angular
+        # composite binding (FissionOperator) is the SN eigen-posing's.
+        self.fission = IsotropicFission.from_material_xs(
+            self.mat_xs, space=space,
         )
 
         #: The zero composite freezing the flat layout.
@@ -292,7 +295,8 @@ class DiffusionSolver:
         r"""Fission RHS :math:`F\psi / k` — the shared rank-1 dyad's
         scalar-composite arm (zero trace rows by construction)."""
         psi = self.unflatten(flux_distribution)
-        return np.asarray(self.fission.apply(psi).to_flat()) / keff
+        fission = cast("FullField", self.fission.apply(psi))
+        return np.asarray(fission.to_flat()) / keff
 
     @property
     def inner_records(self) -> "Sequence[IterationRecord]":

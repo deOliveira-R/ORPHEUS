@@ -166,17 +166,19 @@ def test_F_typed_lift_equivalent_to_scalar(name, builder) -> None:
 
     # Composite path: F(state) — TimedFullField
     Fpsi_typed = F.apply(state)
-    # Scalar path: F(integrate_angular(state.interior)) — ScalarFlux, then broadcast.
-    # ``state.interior`` is statically the broad ``BulkField`` (``_random_state``
-    # builds it as the concrete ``AngularFlux``), and ``integrate_angular`` is
-    # itself under-typed (returns ``object``); the casts name both runtime
-    # truths so the typed ``F.apply`` overload resolves.
+    # Scalar path (CS4c step 4): the ENERGY binding's dyad on the
+    # angular reduction, then the producer-side /W broadcast — exactly
+    # the composite arm's own factorisation, re-spelled from its parts.
+    # ``state.interior`` is statically the broad ``BulkField``
+    # (``_random_state`` builds it as the concrete ``AngularFlux``), and
+    # ``integrate_angular`` is under-typed; the casts name the runtime
+    # truths.
     phi = cast(
         ScalarFlux, cast(AngularFlux, state.interior).integrate_angular(),
     )
-    F_phi = F.apply(phi)
+    F_phi = np.asarray(F.energy.apply(phi.values))
     expected_values = np.broadcast_to(
-        F_phi.values[None], Fpsi_typed.interior.values.shape,
+        (F_phi / F.total_weight)[None], Fpsi_typed.interior.values.shape,
     )
     np.testing.assert_allclose(
         Fpsi_typed.interior.values, expected_values, rtol=1e-14,
@@ -400,8 +402,10 @@ def _c6_static_typing_pins(
     reads it.
     """
     assert_type(F.apply(state), FullField)
-    assert_type(F.apply(phi), ScalarSourceSink)
-    assert_type(F.apply(arr), np.ndarray)
+    assert_type(F.apply(psi), AngularSourceSink)
+    assert_type(F.apply(moments), AngularSourceSink)
+    # (The ScalarFlux / bare-ndarray pins moved to the ENERGY binding at
+    # CS4c step 4 — the angular F refuses both toward IsotropicFission.)
     assert_type(S.apply(state), FullField)
     assert_type(S.apply(phi), ScalarSourceSink)
     assert_type(S.apply(psi), AngularSourceSink)
@@ -453,8 +457,8 @@ def test_c6_apply_dispatch_parity() -> None:
 
     cases = [
         ("F(TimedFullField)", F.apply(state), FullField),
-        ("F(ScalarFlux)", F.apply(phi), ScalarSourceSink),
-        ("F(ndarray)", F.apply(phi.values), np.ndarray),
+        ("F(AngularFlux)", F.apply(psi), AngularSourceSink),
+        ("F.energy(ndarray)", F.energy.apply(phi.values), np.ndarray),
         ("S(TimedFullField)", S.apply(state), FullField),
         ("S(ScalarFlux)", S.apply(phi), ScalarSourceSink),
         ("S(AngularFlux)", S.apply(psi), AngularSourceSink),
@@ -465,6 +469,18 @@ def test_c6_apply_dispatch_parity() -> None:
                 f"{label}: dispatch returned {type(out).__name__}, "
                 f"expected {expected.__name__}"
             )
+    # CS4c step 4: the angular F REFUSES scalar carriers and bare
+    # arrays — both belong to the energy binding (typed redirects).
+    for label, call in [
+        ("F(ScalarFlux)", lambda: F.apply(phi)),
+        ("F(ndarray)", lambda: F.apply(phi.values)),
+    ]:
+        try:
+            call()
+        except TypeError:
+            continue
+        pytest.fail(f"{label}: expected the typed refusal toward the "
+                    f"energy binding")
 
 
 # ───────────────────────────────────────────────────────────────────────

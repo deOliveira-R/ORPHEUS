@@ -31,7 +31,9 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.mesh.material_mesh import MaterialMesh
-from orpheus.transport.operators.fission import FissionOperator
+from orpheus.transport.operators.isotropic_scattering import (
+    IsotropicFission,
+)
 from orpheus.transport.operators.isotropic_scattering import (
     IsotropicN2N,
     IsotropicScattering,
@@ -115,7 +117,7 @@ def test_every_homogeneous_operator_reports_the_same_space(
     )
 
     loss = _assemble_loss_operator(mat_xs, space)
-    production = FissionOperator.from_solver_data(mat_xs=mat_xs, space=space)
+    production = IsotropicFission.from_material_xs(mat_xs, space=space)
     inverse = MatrixInverseOperator(loss)
     K = inverse @ production
     operators = {
@@ -161,7 +163,7 @@ def test_matrix_inverse_of_2g_loss_composed_with_4g_fission_is_REFUSED() -> None
     construction naming the composition law."""
     loss_2g = _assemble_loss_operator(_mat_xs("2g"), _pose_space(_mix("2g")))
     mat_4g = _mat_xs("4g")
-    f_4g = FissionOperator.from_solver_data(
+    f_4g = IsotropicFission.from_material_xs(
         mat_xs=mat_4g, space=mat_4g.mesh.bulk_space,
     )
     with pytest.raises(
@@ -593,7 +595,7 @@ def test_adjoint_equals_transpose_on_the_minted_space() -> None:
         ),
         "IsoS": IsotropicScattering.from_material_xs(mat_xs, space=space),
         "IsoN2N": IsotropicN2N.from_material_xs(mat_xs, space=space),
-        "F": FissionOperator.from_solver_data(mat_xs=mat_xs, space=space),
+        "F": IsotropicFission.from_material_xs(mat_xs, space=space),
     }
     x = np.array([[1.25], [-0.75]])
     for name, op in operators.items():

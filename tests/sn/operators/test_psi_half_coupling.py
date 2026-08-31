@@ -1520,7 +1520,9 @@ def _f_emission(F, psi: FullField) -> NDArray:
     the migrated F seed :func:`~orpheus.sn.solver._radial_characteristic_fission_seed`
     only needs the FOLD of this emission (``A_BA_fission = Fold ∘ F.kernel``,
     factored)."""
-    return np.asarray(F.apply(psi.interior.integrate_angular()).values)
+    # CS4c step 4: F here is the ENERGY binding (solver-held fission_op);
+    # its iso-family apply unwraps the carrier and returns the bare array.
+    return np.asarray(F.apply(psi.interior.integrate_angular()))
 
 
 def _ba_oldloop_reference(emission: NDArray, sn) -> NDArray:
@@ -1935,9 +1937,13 @@ class TestCoupledLift:
                     "model-generic scatter bulk (it must touch ONLY the bulk).")
         # F pure bulk (fissile sphere; the F-fwd ray arm is dead — the fission
         # emission rides from_angular_source / commit 2, not F.apply).
+        # CS4c step 4: the composite arm lives on the ANGULAR binding
+        # (FissionOperator, minted as the eigen-M posing mints it).
         snf = _fissile_sphere()
-        f_out = SNSolver(snf).fission_op.apply(
-            _random_composite(snf, np.random.default_rng(101)))
+        f_solver = SNSolver(snf)
+        f_out = FissionOperator.from_solver_data(
+            mat_xs=f_solver.mat_xs, space=snf.full_field_space,
+        ).apply(_random_composite(snf, np.random.default_rng(101)))
         if type(f_out) is not FullField:
             pytest.fail(f"F.apply emitted {type(f_out).__name__}, not the "
                         f"2-block FullField.")

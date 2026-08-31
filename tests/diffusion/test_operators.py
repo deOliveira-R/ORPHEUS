@@ -65,6 +65,7 @@ from orpheus.transport.full_field import FullField
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
+    IsotropicFission,
     IsotropicN2N,
     IsotropicScattering,
 )
@@ -666,13 +667,16 @@ class TestSharedOperatorScalarArms:
     def test_fission_scalar_composite_arm_matches_scalar_flux_arm(
         self, mesh, mat_xs, flux,
     ):
-        F = FissionOperator.from_solver_data(
-            mat_xs=mat_xs, space=mesh.full_field_space,
+        # CS4c step 4: diffusion consumes the fission ENERGY binding
+        # (IsotropicFission) — the composite arm is the shared iso-family
+        # scalar-composite route; the bare arm is the same dyad.
+        F = IsotropicFission.from_material_xs(
+            mat_xs, space=mesh.full_field_space,
         )
         composite = F.apply(flux)
-        direct = F.apply(flux.interior)
+        direct = np.asarray(F.apply(flux.interior.values))
         assert isinstance(composite.interior, ScalarSourceSink)
-        np.testing.assert_array_equal(composite.interior.values, direct.values)
+        np.testing.assert_array_equal(composite.interior.values, direct)
         np.testing.assert_array_equal(composite.boundary.values, 0.0)
         assert isinstance(composite.boundary, ScalarBoundarySourceSink)
 

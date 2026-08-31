@@ -55,6 +55,16 @@ def solver_2g():
     return SNSolver(sn_mesh)
 
 
+def _composite_F(solver):
+    """The ANGULAR composite binding (CS4c step 4): the solver holds the
+    ENERGY binding (``fission_op``, what the k-outer feeds); the
+    composite arms live on the frame-conjugated ``FissionOperator``,
+    minted here exactly as the eigen-M posing mints it."""
+    return FissionOperator.from_solver_data(
+        mat_xs=solver.mat_xs, space=solver.sn_mesh.full_field_space,
+    )
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Protocol contract
 # ──────────────────────────────────────────────────────────────────────
@@ -288,7 +298,7 @@ class TestCompositeInvariants:
         bulk_values = np.random.rand(*state.interior.values.shape) + 0.1
         state = replace(state, interior=replace(state.interior, values=bulk_values))
 
-        out = solver_2g.fission_op.apply(state)
+        out = _composite_F(solver_2g).apply(state)
 
         # #257 S8a — the matvec leaf is a base arrow ``FullField -> FullField``,
         # so the output is the TIMELESS FullField (history-free).
@@ -307,7 +317,7 @@ class TestCompositeInvariants:
         bulk_values = np.random.rand(*state.interior.values.shape) + 0.1
         state = replace(state, interior=replace(state.interior, values=bulk_values))
 
-        out = solver_2g.fission_op.apply(state)
+        out = _composite_F(solver_2g).apply(state)
 
         # Implicit-zero boundary: every flat-buffer entry is exactly 0.
         # Option β3 / Wave O Issue #208 — the bulk-only nature is encoded in the
@@ -318,7 +328,7 @@ class TestCompositeInvariants:
     def test_zero_bulk_zero_output(self, solver_2g):
         """ψ = 0 ⇒ F·ψ = 0 (linearity guard at composite layer)."""
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=solver_2g.sn_mesh.full_field_space)
-        out = solver_2g.fission_op.apply(state)
+        out = _composite_F(solver_2g).apply(state)
         np.testing.assert_array_equal(out.interior.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
 
@@ -333,7 +343,7 @@ class TestCompositeInvariants:
         sn_mesh = solver_2g.sn_mesh
         for depth in (0, 1, 2, 4):
             state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=depth)
-            out = solver_2g.fission_op.apply(state)
+            out = _composite_F(solver_2g).apply(state)
             assert isinstance(out, FullField)
             assert not isinstance(out, TimedFullField)
 
@@ -382,15 +392,23 @@ class TestRankOneTensorProductKernel:
 
         Post-refactor the rank-1 op is the dyad ``outer(χ, ReactionRateFunctional(νΣf))``:
         its ``reconstruction`` column is the emission spectrum χ (bound by
-        REFERENCE — ``mat_xs`` shares the same numpy buffer across calls, so
-        ``is`` holds), and its ``functional`` row co-vector is the
+        VALUE from the validated kernel field since CS4c step 4 — see the
+        in-body note), and its ``functional`` row co-vector is the
         production-rate ``ReactionRateFunctional`` (the §5.6 contraction,
         ``axis=0`` over groups, ``weight == νΣ_f``).
         """
         kernel = solver_2g.fission_op.kernel
         rank_one = kernel.ops[0]
-        # ``reconstruction`` binds the χ buffer by reference (not a copy).
-        assert rank_one.reconstruction is solver_2g.mat_xs.emission_spectrum
+        # CS4c step 4 (the G-F2 collapse): the χ column comes from the
+        # VALIDATED FissionMaterialField gather — same values as the
+        # facade view (a pure index gather of the same per-material
+        # vectors, transitional cross-check until F-1 retires the
+        # facade), a DIFFERENT buffer (the read-through/depletion
+        # semantics were deliberately dropped with the step-3 satellite
+        # ruling; a depletion update re-binds the operator).
+        np.testing.assert_array_equal(
+            rank_one.reconstruction, solver_2g.mat_xs.emission_spectrum,
+        )
         # The row co-vector is the production-rate reaction-rate functional.
         assert isinstance(rank_one.functional, ReactionRateFunctional)
         assert rank_one.functional.axis == 0

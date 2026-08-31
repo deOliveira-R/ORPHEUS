@@ -34,6 +34,16 @@ per group) in a fuel region, with a non-fissile moderator (mixture ``B``) second
 region → heterogeneous νΣf field (vv: a flat field nulls redistribution-style
 discrimination).
 
+Since CS4c step 4 the fission channel is TWO bindings of one datum: the
+scalar rows below gate the ENERGY binding (``IsotropicFission`` — the
+solver-held ``fission_op`` the k-outer feeds), and the composite rows
+gate the ANGULAR binding (``FissionOperator``, the frame's ℓ=0
+conjugation, minted here exactly as the eigen-M posing mints it — its
+transpose is the reversed ``full_fission_kernel`` product, so these rows
+now pin factor REVERSAL rather than an inline w-spelling; the
+independent references are unchanged and the divide-order difference is
+ULP-tier, inside every tolerance).
+
 vv Mode-8: every gate uses ``np.testing.*`` / :func:`require` (function calls,
 fire under ``python -O``) — NEVER a bare ``assert``.
 """
@@ -87,6 +97,19 @@ def _solver(groups):
     return SNSolver(SNMesh(mesh, quad, {2: fuel, 0: mod}))
 
 
+def _angular_F(solver):
+    """The ANGULAR composite binding, minted as the eigen-M posing mints it."""
+    from orpheus.transport.operators.fission import FissionOperator
+
+    return FissionOperator.from_solver_data(
+        mat_xs=solver.mat_xs, space=solver.sn_mesh.full_field_space,
+    )
+
+
+def _shape(solver):
+    return solver.ng, *solver.sn_mesh.spatial_shape
+
+
 def _asymmetric_field(ng, nx, ny, seed):
     """A field distinct per group AND per cell (no symmetry to hide a swap)."""
     rng = np.random.default_rng(seed)
@@ -109,15 +132,15 @@ class TestAdjointFissionCorrectness:
         with ``arg1=νΣf, arg2=χ`` IS ``(F†ψ*)_g``). A wrong axis, a dropped
         broadcast, or a χ/νΣf role error disagrees with it.
         """
-        op = _solver(groups).fission_op
-        ng = op.chi.shape[0]
-        nx, ny = op.chi.shape[1:]
+        solver = _solver(groups)
+        op = solver.fission_op  # the ENERGY binding (CS4c step 4)
+        ng, nx, ny = _shape(solver)
         psi_star = _asymmetric_field(ng, nx, ny, seed)
 
         out = op.apply_transpose(psi_star)  # bare-ndarray arm → (ng, nx, ny)
         expected = hand_derived_fission_emission(
-            op.mat_xs.fission_production,  # νΣf as the reconstruction column
-            op.mat_xs.emission_spectrum,  # χ as the contracted row
+            solver.mat_xs.fission_production,  # νΣf as the reconstruction column
+            solver.mat_xs.emission_spectrum,  # χ as the contracted row
             psi_star,
         )
         np.testing.assert_allclose(
@@ -141,9 +164,9 @@ class TestForwardAdjointReciprocity:
         through the bare-ndarray arms here. A F† that is not the genuine
         transpose of F breaks this identity.
         """
-        op = _solver(groups).fission_op
-        ng = op.chi.shape[0]
-        nx, ny = op.chi.shape[1:]
+        solver = _solver(groups)
+        op = solver.fission_op  # the ENERGY binding (CS4c step 4)
+        ng, nx, ny = _shape(solver)
         phi = _asymmetric_field(ng, nx, ny, 11)
         psi_star = _asymmetric_field(ng, nx, ny, 12)
 
@@ -173,12 +196,12 @@ class TestRoleSwapDiscriminator:
         equality, the fixture lost its asymmetry and the gate is blind to the
         swap.
         """
-        op = _solver(groups).fission_op
-        ng = op.chi.shape[0]
-        nx, ny = op.chi.shape[1:]
+        solver = _solver(groups)
+        op = solver.fission_op  # the ENERGY binding (CS4c step 4)
+        ng, nx, ny = _shape(solver)
         psi_star = _asymmetric_field(ng, nx, ny, 13)
-        chi = op.mat_xs.emission_spectrum
-        nu_sf = op.mat_xs.fission_production
+        chi = solver.mat_xs.emission_spectrum
+        nu_sf = solver.mat_xs.fission_production
 
         correct = hand_derived_fission_emission(nu_sf, chi, psi_star)   # F† = |νΣf⟩⟨χ|
         role_swapped = hand_derived_fission_emission(chi, nu_sf, psi_star)  # the forward F
@@ -201,8 +224,8 @@ class TestAdjointFissionCapabilityAndRouting:
         op = _solver("4g").fission_op
         require(
             op.is_adjointable,
-            "FissionOperator must advertise the adjoint axis (F† via the "
-            "rank-1 dyad swap).",
+            "the fission energy binding must advertise the adjoint axis "
+            "(F† via the rank-1 dyad swap).",
         )
 
     def test_apply_transpose_routes_through_kernel_transpose(self, monkeypatch):
@@ -223,9 +246,9 @@ class TestAdjointFissionCapabilityAndRouting:
 
         monkeypatch.setattr(TensorProductOperator, "apply_transpose", counting)
 
-        op = _solver("4g").fission_op
-        ng = op.chi.shape[0]
-        nx, ny = op.chi.shape[1:]
+        solver = _solver("4g")
+        op = solver.fission_op
+        ng, nx, ny = _shape(solver)
         op.apply_transpose(_asymmetric_field(ng, nx, ny, 14))
 
         require(
@@ -273,8 +296,8 @@ class TestCompositeTransposeArm:
         cannot attribute.  The require conservatively keeps the shape
         discriminant live (the Mode-7-style blindness this pins).
         """
-        op = _solver(groups).fission_op
         solver = _solver(groups)
+        op = _angular_F(solver)
         psi = _composite(solver, 31)
         chi = _composite(solver, 32)
         bulk = np.asarray(chi.interior.values)
@@ -306,7 +329,7 @@ class TestCompositeTransposeArm:
         pure-bulk pullback (the transpose of emitting nothing into the trace).
         """
         solver = _solver(groups)
-        op = solver.fission_op
+        op = _angular_F(solver)
         chi = _composite(solver, 33)
         w = np.asarray(solver.sn_mesh.quad.weights, dtype=float)
 
@@ -315,8 +338,8 @@ class TestCompositeTransposeArm:
         expected_bulk = np.multiply.outer(
             w,
             hand_derived_fission_emission(
-                op.mat_xs.fission_production,
-                op.mat_xs.emission_spectrum,
+                solver.mat_xs.fission_production,
+                solver.mat_xs.emission_spectrum,
                 iso_star,
             ),
         )
@@ -342,7 +365,7 @@ class TestCompositeTransposeArm:
         than monkeypatched).
         """
         solver = _solver("4g")
-        op = solver.fission_op
+        op = _angular_F(solver)
         psi = _composite(solver, 34)
         chi = _composite(solver, 35)
         w = np.asarray(solver.sn_mesh.quad.weights, dtype=float)

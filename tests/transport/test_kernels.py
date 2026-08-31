@@ -39,6 +39,9 @@ from orpheus.transport.kernels import FissionKernel, N2NKernel, ScatteringKernel
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
+    IsotropicFission,
+)
+from orpheus.transport.operators.isotropic_scattering import (
     IsotropicN2N,
     IsotropicScattering,
 )
@@ -431,10 +434,11 @@ def test_fission_dyad_direction_and_transpose_theorem():
     the swap, which is why the fixture asserts its own non-parallelism).
 
     Scope (verification plan §2(h).4): this is a THEOREM about the dyad,
-    gated at the kernel tier with no operator in the room. The
-    production fission transpose (``FissionOperator``'s fresh
-    ``TensorProductOperator``) is UNCHANGED at CS4a — it rebinds at
-    CS4c.
+    gated at the kernel tier with no operator in the room. Since CS4c
+    step 4 the production realization consumes this datum: the energy
+    binding's cached ``kernel`` (``IsotropicFission``) is the one dyad
+    home, and its ``TensorProductOperator`` transpose IS this factor
+    swap — gated operator-side in ``test_isotropic_fission.py``.
     """
     mixture = _asymmetric_fissile_2g()
     chi = np.asarray(mixture.chi, dtype=float)
@@ -586,7 +590,7 @@ _ARM_MATRIX = {
     ("IsoN2N", "ScalarFlux"): "ndarray",  # F10
     ("F", "FullField"): "FullField",
     ("F", "ndarray"): "ndarray",
-    ("F", "ScalarFlux"): "ScalarSourceSink",
+    ("F", "ScalarFlux"): "ndarray",  # F10 (iso-family unwrap, CS4c step 4)
 }
 
 
@@ -602,8 +606,15 @@ def test_apply_arm_survival_matrix(operator_key, carrier_key):
     refusal (``C × ScalarFlux → TypeError``) — so the gate is never
     merely "does it not crash", and it survives reformatting and any
     later ``singledispatchmethod`` → explicit-dispatch rewrite, which a
-    source grep would not. The DENOMINATOR (CS4a-R QA-F12): 4 of the 5
-    dispatchers × 3 carriers, on the 2g/6-cell diffusion binding —
+    source grep would not. The DENOMINATOR (CS4a-R QA-F12, re-keyed at
+    CS4c step 4): 4 dispatchers × 3 carriers, on the 2g/6-cell
+    diffusion binding — the F entry is the ENERGY binding
+    (``IsotropicFission``, what diffusion actually consumes since the
+    step-4 split; its ScalarFlux cell joins the iso family's F10
+    fall-through, and the retired typed ``ScalarSourceSink`` cell's
+    coverage moved to ``test_isotropic_fission.py``). The ANGULAR
+    ``FissionOperator``'s arms are gated in ``test_fission_operator.py``
+    —
     ``ScatteringOperator``'s 5 arms have no behavioural cell here (they
     are covered by the registry-keyset gate only, which catches an ADDED
     arm where this matrix catches a MOVED one: the two gates are
@@ -625,7 +636,7 @@ def test_apply_arm_survival_matrix(operator_key, carrier_key):
         ),
         "IsoS": IsotropicScattering.from_material_xs(mat_xs, space=ffs),
         "IsoN2N": IsotropicN2N.from_material_xs(mat_xs, space=ffs),
-        "F": FissionOperator.from_solver_data(mat_xs=mat_xs, space=ffs),
+        "F": IsotropicFission.from_material_xs(mat_xs, space=ffs),
     }
     rng = np.random.default_rng(2026)
     interior_values = rng.random((2, 6)) + 0.5
@@ -665,10 +676,13 @@ def test_apply_dispatch_registries_are_verbatim():
         "FullField", "ndarray", "object",
     }
     assert _registry_type_names(FissionOperator) == {
-        "FullField", "ScalarFlux", "ndarray", "object",
-    }
+        "AngularFlux", "FullField", "HarmonicMomentFlux", "ScalarFlux",
+        "object",
+    }  # CS4c step 4: the angular binding mirrors N2NOperator's arms
+    #    (ScalarFlux is the typed refusal toward the energy binding).
     assert _registry_type_names(IsotropicScattering) == set()
     assert _registry_type_names(IsotropicN2N) == set()
+    assert _registry_type_names(IsotropicFission) == set()
     assert _registry_type_names(ScatteringOperator) == {
         "AngularFlux", "FullField", "HarmonicMomentFlux", "ScalarFlux",
         "object",
@@ -734,7 +748,9 @@ def test_energy_conformity_guard_three_rows():
        (QA-F1: the guard BODY is single-sourced but the WIRING is
        per-site — three sites had no witness);
     3. axes-LESS — a WRONG-ng bind on ``SNMesh(2g).full_field_space``
-       MUST CONSTRUCT: the declared inertness. The guard's reach is the
+       MUST REFUSE since CS4c step 4 (⛔ this clause read "MUST
+       CONSTRUCT: the declared inertness" until step 4 — the row's body
+       records how the reach widened). The guard's reach is the
        contract. ``[M]`` re-derived at CS4c step 3 (the rebind changed
        the wiring): SEVEN production classes now run the admission at
        construction — C, S, IsoS, IsoN2N (the per-END base helper),
@@ -755,16 +771,17 @@ def test_energy_conformity_guard_three_rows():
     carrier_4g = MaterialMesh.from_materials({0: get_mixture("A", "4g")})
     mat_2g = carrier_2g.material_xs_field()
 
-    # Row 1 — axis-built positive.
-    bound = FissionOperator.from_solver_data(
-        mat_xs=mat_2g, space=carrier_2g.bulk_space,
+    # Row 1 — axis-built positive (the fission ENERGY binding — the
+    # k-outer / homogeneous / diffusion production site since step 4).
+    bound = IsotropicFission.from_material_xs(
+        mat_2g, space=carrier_2g.bulk_space,
     )
     assert bound.domain == carrier_2g.bulk_space
 
     # Row 2 — axis-built negative, typed, disjoint fragment.
     with pytest.raises(ValueError, match="energy extent") as excinfo:
-        FissionOperator.from_solver_data(
-            mat_xs=mat_2g, space=carrier_4g.bulk_space,
+        IsotropicFission.from_material_xs(
+            mat_2g, space=carrier_4g.bulk_space,
         )
     message = str(excinfo.value)
     assert "4" in message and "2" in message  # both integers named
@@ -794,7 +811,15 @@ def test_energy_conformity_guard_three_rows():
             f"its constructing operator"
         )
 
-    # Row 3 — axes-less: the WRONG-ng bind constructs (declared inert).
+    # Row 3 — axes-less composite: the WRONG-ng bind REFUSES since
+    # CS4c step 4. ⛔ REACH WIDENED (this row asserted "constructs —
+    # declared inert" until step 4): the composite itself still carries
+    # no EnergyAxis, but FissionOperator.from_solver_data now DERIVES
+    # its energy binding's scalar ends from the interior's axes — and
+    # the interior (the angular trial space) IS axis-built with an
+    # EnergyAxis, so the per-END guard reaches a bind the axes-less
+    # composite alone could never let it see. The inertness this row
+    # used to record is CLOSED, not merely relocated.
     mesh = Mesh1D(
         edges=np.linspace(0.0, 2.0, 5), mat_ids=np.zeros(4, dtype=int),
         coord=CoordSystem.CARTESIAN, bc_right=BC("vacuum"),
@@ -804,10 +829,10 @@ def test_energy_conformity_guard_three_rows():
         {0: get_mixture("A", "2g")},
     )
     composite = sn_2g.full_field_space
-    assert composite.axes is None  # the row's own precondition
+    assert composite.axes is None  # still true — the reach is the interior's
     mat_4g = carrier_4g.material_xs_field()
-    inert = FissionOperator.from_solver_data(mat_xs=mat_4g, space=composite)
-    assert inert.domain is composite  # constructed — the guard did NOT fire
+    with pytest.raises(ValueError, match="energy extent"):
+        FissionOperator.from_solver_data(mat_xs=mat_4g, space=composite)
 
 
 def test_fission_space_is_mandatory():

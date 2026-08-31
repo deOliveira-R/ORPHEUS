@@ -279,7 +279,9 @@ def test_kinf_matches_direct_eigenvalue_engine_of_the_assembled_pair():
     """
     from orpheus.homogeneous.solver import _assemble_loss_operator, _pose_space
     from orpheus.transport.mesh.material_mesh import MaterialMesh
-    from orpheus.transport.operators.fission import FissionOperator
+    from orpheus.transport.operators.isotropic_scattering import (
+        IsotropicFission,
+    )
 
     case = get("homo_2eg_n2n")
     mix = next(iter(case.materials.values()))
@@ -288,7 +290,7 @@ def test_kinf_matches_direct_eigenvalue_engine_of_the_assembled_pair():
     # threads every arm and every as_matrix derives its shape from it.
     space = _pose_space(mix)
     A = _assemble_loss_operator(mat_xs, space).as_matrix()
-    F = FissionOperator.from_solver_data(mat_xs=mat_xs, space=space).as_matrix()
+    F = IsotropicFission.from_material_xs(mat_xs, space=space).as_matrix()
     k_engine = _eig.direct_eigenvalue(A, F)[0]
 
     result = solve_homogeneous_infinite(mix)
@@ -352,7 +354,9 @@ def test_K_operator_as_matrix_is_the_resolvent():
     from orpheus.homogeneous.solver import _assemble_loss_operator, _pose_space
     from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
     from orpheus.transport.mesh.material_mesh import MaterialMesh
-    from orpheus.transport.operators.fission import FissionOperator
+    from orpheus.transport.operators.isotropic_scattering import (
+        IsotropicFission,
+    )
 
     case = get("homo_2eg_n2n")
     mix = next(iter(case.materials.values()))
@@ -363,7 +367,7 @@ def test_K_operator_as_matrix_is_the_resolvent():
     # explicit basis_shape anywhere; the shapes derive from the domain).
     space = _pose_space(mix)
     loss = _assemble_loss_operator(mat_xs, space)
-    production = FissionOperator.from_solver_data(mat_xs=mat_xs, space=space)
+    production = IsotropicFission.from_material_xs(mat_xs, space=space)
     K = MatrixInverseOperator(loss) @ production
 
     A = loss.as_matrix()

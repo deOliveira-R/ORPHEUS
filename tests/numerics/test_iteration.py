@@ -836,11 +836,22 @@ def _sn_composite_triple():
     # dropped B_a when the tuple grew (caught by the A4 smoke's own
     # eig(A†)=eig(A) gate).
     S_total = reduce(add, system.explicit_gains)
+    # CS4c step 4: the composite triple's F is the ANGULAR binding — the
+    # frame-conjugated FissionOperator on the SAME composite space the
+    # loss members ride (the pencil peer; its .H composes the Riesz legs
+    # around the reversed full_fission_kernel product). The solver-held
+    # fission_op is the scalar ENERGY binding the bare-array k-outer
+    # feeds — a different, deliberate binding of the same datum.
+    from orpheus.transport.operators.fission import FissionOperator
+
+    F_composite = FissionOperator.from_solver_data(
+        mat_xs=solver.mat_xs, space=sn.full_field_space,
+    )
     guess = FullField(
         interior=AngularFlux(values=np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space),
         boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
     )
-    return float(ref.keff), system.implicit_operator, S_total, solver.fission_op, guess, mix
+    return float(ref.keff), system.implicit_operator, S_total, F_composite, guess, mix
 
 
 @pytest.mark.l1

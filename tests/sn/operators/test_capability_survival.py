@@ -50,6 +50,7 @@ from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
+    IsotropicFission,
     IsotropicN2N,
     IsotropicScattering,
 )
@@ -325,7 +326,11 @@ class TestPredicateFaithfulness:
         return [
             IsotropicScattering.from_material_xs(mat, space=survey_space),
             IsotropicN2N.from_material_xs(mat, space=survey_space),
-            FissionOperator(mat_xs=mat, space=survey_space),
+            # CS4c step 4: the fission ENERGY binding rides the survey
+            # space; the ANGULAR binding (frame-conjugated) needs the
+            # posed composite, like S.
+            IsotropicFission.from_material_xs(mat, space=survey_space),
+            FissionOperator.from_solver_data(mat_xs=mat, space=composite),
             LegendreMomentScattering.from_material_xs(mat_xs=mat, L=1, skip_l0=True),
             N2NMomentOperator.from_material_xs(mat_xs=mat, L=1),
             ScatteringOperator.from_solver_data(
