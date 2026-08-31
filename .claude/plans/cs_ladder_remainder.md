@@ -215,8 +215,10 @@ ground memo §B.4).
 
 ---
 
-**⏸ STATUS 2026-08-30 (post-compaction-prep):** CS4c steps 1+2 MERGED to
-main @ `9fc8bf04` (13-tree gate [M] 10006/0/19sk/227des/68xf; R1-C/R2-C
-flipped). The LIVE execution surface is now
-`.claude/plans/cs4c_binding_design.md` — its §13 COMPACTION POINT #1
-carries the step-3 resume block; re-anchor there, never from a summary.
+**⏸ STATUS 2026-08-30 (compaction point #2):** CS4c steps 1+2 MERGED @
+`9fc8bf04`; **step 3 MERGED @ `600c5c80`** (13-tree gate [M]
+10079/0/19sk/66xf; the S rebind + the §14.1 N2N extraction + O-6 +
+XD-1/XD-2; R1-S/R2-S flipped). The LIVE execution surface is
+`.claude/plans/cs4c_binding_design.md` — its **§15 COMPACTION POINT #2**
+carries the step-4 resume block (§13 is superseded history); re-anchor
+there, never from a summary.
