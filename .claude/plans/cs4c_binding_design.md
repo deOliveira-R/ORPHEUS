@@ -1081,6 +1081,10 @@ labels (the +3 exactly as predicted).
 
 ### ▶ RESUMES AT — step 4: F speaks kernel and faces
 
+> ✅ **EXECUTED 2026-08-31 — this block was the resume surface step 4 ran on;
+> §16 holds the design round and §16.8 the close-out + the NEW baseline
+> (10106/0/19/66). Superseded in place per §3.**
+
 **Goal (outcome, not mechanism):** the fission binding is expressible
 from representation-free data — the `FissionKernel` factor pair
 (χ, νΣf) gains its FIRST production consumer; the composite realization
@@ -1280,3 +1284,76 @@ the file (step 3's corpus sweep missed it; dies in this step's rewrite).
   sphinx `-W` + `dead_references`; archivist corpus pass (this step moves
   equation-level claims: the fission adjoint/binding story on the theory
   pages).
+
+### 16.8 Step-4 close-out (2026-08-31) — ✅ ALL SUB-STEPS LANDED, gate reconciled exact
+
+| act | commit |
+|---|---|
+| step-4 design round (§16.1–§16.7) | `8e26b8f2` (branch open) |
+| 4a machinery (FissionMaterialField + IsotropicFission; on-sight foldable-prose fixes + `foldable_sig_s` retired) | `f4caf04a` |
+| 4b the rebind (F = the frame's ℓ=0 conjugation; 4 consumers honest; ~17 test files re-keyed) | `75500cd9` |
+| 4c N2N harmonization (weights → frame; product transpose) | `9061637b` |
+| 4d gates (G-F1 + controls + asserted precondition; G-F2; battery B-4; G-C1 angular-F row) | `fadad026` + `1b083b06` |
+| corpus pass (archivist, 19 pages; labels 571→574 documented; n2n docstring upgraded to its measured claim) + #425 filed | `4e46dbb9` |
+| exit-gate census catch fixed | `b68e0f56` |
+
+**The measured baseline every later step diffs against:** [M]
+**10106 / 0 / 19 sk / 66 xf, 13 trees rc=0** (driver
+`scratch/_cs4c4_gate_driver.sh`, log `scratch/_cs4c4_fast_gate.log`,
+~61 min; sn 15:29, derivations 37:53). Per-tree deltas PRE-REGISTERED
+(`scratch/cs4c_step4_predicted_deltas.md`) and reconciled with ZERO
+unexplained rows — the single first-run red WAS the 10106th predicted
+row: the declared-consumer census catching 4c's dissolved
+`generator_as` site (a registry-tier §6b member the sweep missed; the
+gate caught it at the exit, cost one 6-min tree re-run). sphinx `-W` 0;
+`dead_references` 0/52; `npx pyright orpheus/` 0; verification matrix
+574 documented labels ([M] +3 exactly as the archivist declared, zero
+test delta — a documented label removes itself from the orphan gate).
+
+**Durable lessons (step 4):**
+
+1. **A Mode-11 sentinel's red on a re-route is the sentinel WORKING** —
+   the crosscheck registry-wrap reddened the moment the k-outer left
+   `FissionOperator`, and was re-keyed onto the new live arm in the
+   same commit with the catch recorded in its docstring. Design
+   sentinels so the re-route reddens them; then re-key, never delete.
+2. **A TRUE claim can still be a defect: the under-claim.** n2n.py's
+   "principled-equivalent, gated at tolerance" was honest and
+   UNDERSTATED its own result — [M] the N₂ₙ harmonization is
+   bit-identical (1000/1000 draws, a THEOREM of ℓ=0), where F's is
+   genuinely 4–5 ULP. Two docstrings that read alike for different-kind
+   changes invite a gate relaxation on the stronger one. The archivist
+   measured both; the docstrings now differ.
+3. **A rebind can WIDEN a guard's reach as a side effect** — the
+   wrong-ng bind on an axes-less SN composite was "declared inert"
+   (no EnergyAxis to check) until from_solver_data began deriving the
+   scalar ends from the interior's axes; the inertness row FLIPPED from
+   constructs-to-refuses (test_kernels row 3, banner in place). After a
+   re-wire, re-derive what every adjacent guard now reaches — the
+   mirror of the silent-demotion clause, in the favorable direction,
+   and it still costs a test re-key.
+4. **The §6b registry tier includes DECLARED-CONSUMER sets in tests** —
+   4c dissolved a call site and the census gate's declaration survived
+   it (caught at the exit gate). A census/registry test that ENUMERATES
+   call sites is a consumer of every one of them.
+5. **The B1 receiver-name predicate missed `op.chi`-style generic
+   locals** (the fission-flavored receiver filter; ~20 sites in two
+   adjoint/crosscheck modules) — caught by the red loop, loud, zero
+   silent damage. A retired attribute's test consumers spell the
+   receiver as `op`/`self`, not by the domain name.
+
+**Parked for the user's ruling (design round, next checkpoint):** the
+factory probe's verdict (`scratch/cs4c_step4_factory_probe.md` +
+cross-domain-attacker memory `iso_family_factory_refutation.md`):
+factory-as-dispatcher REFUTED on three structural grounds (no section
+over Space alone — the key must be Space × Role, and Role is the §5
+posing concept; zero runtime branches exist to collapse; rank splits
+the trio 2+1). The honest redirect: (a) collapse
+IsotropicScattering+IsotropicN2N into ONE energy operator whose channel
+lives in its field's type (fission held out by rank), (b) the lift
+functor energy→angular as the named object. Both are SELECTION/step-5+
+machinery, deliberately not ruled inside step 4.
+
+**Residue:** #425 (37 four-term algebra sites, declared at the chapter
+root); #306 items 1/3/5 + item 2 deferred to step 5 (dated note on the
+issue); the parked forks C.H-as-object-identity and F-F unchanged.
