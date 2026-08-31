@@ -419,7 +419,7 @@ confirmed with one refinement:
 | 0 | ✅ DONE 2026-08-30 — the feeding census (vv#29), `scratch/cs4c_feeding_census.md` (11 entries × 13 sites × 23 verbs; per-arm activation controls; 11/11 headline numbers non-perturbed) | — | HOMO traffic did NOT move (only the space's provenance did); SN C is minted per-outer and NEVER applied (fused override reads its data — vv#29 mode (d)); #205 ScalarFlux arm corroborated at 0 traffic with an AST-closed reference set |
 | 1 | ✅ EXECUTED on `refactor/cs4c-binding-base` (2026-08-30, `68a9c9f3` + `733d96f3`) — Riesz legs + `dual()` + the AdjointOperator re-expression/promotion (§7.4 as amended by R2); #375 closed; per-leg ledger battery (9/20→20/20) | — | the retirement became a RE-EXPRESSION (R2 ruling — see §12-bis); [M] tests/numerics 2538 + tests/sn/operators 1249 green; sphinx -W clean; dead_references 0/52 |
 | 2 | ✅ EXECUTED on the branch (2026-08-30) — `BoundOperator` base (kw-only write-once ends, mechanic E: post-class property injection over dataclass fields — [M] the InitVar route is pyright-hostile, the bare-field route re-abstracts under `abc.update_abstractmethods`); C rebound; `from_mesh` = tier-2 sugar + bottoming-out refusal; G-C1 gates | R1-C, R2-C ✅ flipped (14→12 xfails) | [M] tests/sn 3352 + transport/diffusion/homogeneous 730 green; 26 direct + 7 anonymous sites re-keyed; ⚠ residue for a later checkpoint: C.H-as-object-identity elegance fork (kept the uniform leg route for battery coverage); the M.H==M pin re-keyed to nulp=4 (the metric roundtrip now EXECUTES) |
-| 3 | S rebind: kernel + frame-handed-in faces (§2), quadrature field dispenses via generator channel, O-6 arm absorption, iso/LMS/N2N as truncations (§4), XD-1 gate (§6), Λ collection — ⚠ AMENDED by §14 (2026-08-30): **N2N extracted as its own operator** (`(L+C) − S − N2N`); MaterialField[K] base + channel subclasses; hub = `HarmonicFrame.for_space`; execution shape §14.7 | R1-S, R2-S | extend the pinned `generator_as` AST gate; re-key the `domain is None` pin |
+| 3 | ✅ MERGED 2026-08-30 @ `600c5c80` (ff-only; 3a `c0e904ea`, 3b-A `8f376135`, 3b `b435431c`, 3c `81e9e7e1`, 3d `92dcc30f`, docs `600c5c80`) — S rebind + the §14.1 N2N extraction + O-6 + XD-1/XD-2 + the corpus pass; ledger R1[S]/R2[S] flipped, `_R2_XFAIL` deleted; both pins re-keyed; #306 item 4 closed-in-place (issue stays open for items 1/3/5) | R1-S, R2-S ✅ | gate [M] **10079/0/19sk/66xf, 13 trees rc=0** (`scratch/_cs4c3_fast_gate.log`; per-tree reconciliation in `scratch/cs4c_step3_predicted_deltas.md` — every delta named: transport +61, sn +9, root +3 corpus-coupled, ten trees 0) |
 | 4 | F rebind: `FissionKernel` first consumer; composite realization with space faces (F4 addendum; collapse pair ships); XD-9 condensation gate; XD-2 (n,2n) count gate | — | |
 | 5 | arm deletion + #205/#276 re-litigation with census evidence; solver-side adapters (§5) | — | construction-time body selection becomes legal here |
 | 6 | CS2 residue: S3 bridge-retirement + densifier-native (§7.2/.3); L/B minimal annotation flips; R6 carrier guard at `boundary.py:714` | R1-L, R1-B, R6 | minimal by design — O-3's 4-tuple and R18's B reshape NOT pre-empted; ⚠ three boundary classes carry Optional |
@@ -986,3 +986,60 @@ limitation stated: B1 is file-local single-assignment dataflow):
   gate), G-C1 equivalence rows, battery B-3.
 - Exit: 13-tree driver vs **10006/0/19/227/68**, sphinx `-W`,
   `dead_references` 0/52, predicted-then-measured delta.
+
+
+### §14.8 — step-3 CLOSE-OUT (2026-08-30, merged @ `600c5c80`)
+
+**The measured baseline every later step diffs against:**
+[M] **10079 / 0 / 19 sk / 66 xf**, 13 trees rc=0
+(driver `scratch/_cs4c3_gate_driver.sh`, log `scratch/_cs4c3_fast_gate.log`,
+~66 min wall; sn 14:13, derivations 36:01). Per-tree reconciliation
+PRE-REGISTERED before readout (`scratch/cs4c_step3_predicted_deltas.md`)
+and closed with zero unexplained ±1: transport +61 (material_field 28
+net of the retired transitional battery, tightness 17, tier-2 G-C1 7,
+census 2, hub gates 7), sn +9 (ledger flips +2, test_n2n_operator +10,
+in-place rewrites −3), root +3 (the layer gate's per-module rows for
+material_field/n2n/_per_ordinate — the P7 corpus-coupled mechanism,
+caught by pre-registration this time), all other trees 0. xf 68 → 66
+(the two ledger flips). sphinx -W clean; dead_references [M] 0 / 52;
+`npx pyright orpheus/` 0; verification matrix +3 documented labels
+(568 → 571, exactly the archivist's prediction).
+
+**Durable lessons of the step (beyond §13's):**
+1. ⭐ **A labelled equation is an API and survives every symbol sweep**
+   (coding-standards' clause, fired again): `sn-scattering-adjoint-kernel`
+   / `-transpose` still STATED the (n,2n) summand after the in-commit
+   `dead_references` sweep came back clean — no symbol appears in a
+   `.. math::` body. The archivist's corpus pass is the instrument that
+   catches it; budget one per step that moves an equation-level claim.
+2. **B3.5's premise refuted through the shipped faces** ([M] recorded in
+   `test_binding_tightness.py`'s docstring): gauss_legendre(L) is NOT
+   blind on zonal multiplicativity in the shipped-face spelling (rel
+   3.0/4.3 at L=2/3) — the plan §1.2 blindness (≤5.9e-16) was the raw-
+   table probe's property. §4's verify rule worked: the disagreement is
+   recorded, not resolved by picking a side.
+3. **The Mode-11 sentinels caught every re-route** (three of them: the
+   LD cells-index mutation, the diffusion stencil transpose swap, the
+   homogeneous K_iso identity) by reddening when their patched surface
+   went dead — the §8.4 monkeypatch-surrogate member class, working as
+   the enumeration instrument the 2026-08-24 §6b row said it is.
+4. **A bundled issue must be read before its title's fragment is acted
+   on**: #306 was closed on its `sig_s/sig2` title fragment and
+   reopened within minutes — items 1/3/5 live on. The docstring's
+   "#306 tracks this" was a pointer to a 5-item estate issue.
+5. **The seedless gains unpack was load-bearing in 9 test files** —
+   `S, B = system.explicit_gains` and `explicit_gains[1]` both broke
+   LOUD (the gauge test's own comment predicted it: "a splat would
+   silently mis-bind if the splitting ever grew a third gain"); the one
+   SILENT candidate (`[1]` as "the boundary") was caught by reading,
+   not by a red.
+6. **My own `git stash -- <path>` reflex stashed an uncommitted edit**
+   under no gate at all (recovered by `pop` immediately) — the L37
+   family extends to pathspec'd stash used as a "temporary revert";
+   `git show HEAD:file` was already the rule and the reflex bypassed it.
+
+**Steps 4–6 + coda remain per §8; step 4 (F rebind) opens with its own
+design round; its census obligations: the ~20 F test calls (F5), the
+XD-9 condensation gate (plan §7) with its activation precondition, the
+FissionKernel first-consumer wiring, and F-E's N2N-side residue is
+CLOSED (the extraction resolved it).**
