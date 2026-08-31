@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10418**
+Total tests collected: **10428**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1297, 12.4%
+   L0, 1298, 12.4%
    L1, 1635, 15.7%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7403, 71.1%
+   foundation, 7412, 71.1%
    unmarked, 19, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10320
+   explicit, 10330
    class-name, 46
    func-name, 0
    case, 33
@@ -144,6 +144,7 @@ Module × level grid
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
    data/test_mixture_transport_xs, 0, 1, 0, 0, 4, 0
    data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
+   data/test_n2n_yield_convention, 1, 0, 0, 0, 9, 0
    derivations/test_adjoint_spectrum_reference, 0, 0, 0, 0, 6, 0
    derivations/test_atkinson_product_nystrom, 0, 6, 0, 0, 5, 0
    derivations/test_capability_matrices, 0, 0, 0, 0, 10, 0
@@ -821,6 +822,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``energy-condensation-balance-preservation``, 1
    ``energy-condensation-chi-simplex-preservation``, 1
    ``energy-condensation-fractional-collapse``, 1
+   ``gendf-mf6-yield``, 1
    ``harmonic-discrete-orthogonality``, 1
    ``ld-cartesian-2d-bilinear-coeffs``, 1
    ``ld-cartesian-2d-projection-coeff``, 1

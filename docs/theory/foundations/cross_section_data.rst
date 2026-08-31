@@ -520,6 +520,93 @@ The data layout per source group is:
    :ref:`the (n,2n) P0-truncation warning <sn-n2n-p0-truncation>`.
 
 
+.. _mf6-yield-convention:
+
+The MF=6 Yield Convention
+-------------------------
+
+A MF=6 record does **not** hold a transfer cross section.  It holds
+
+.. math::
+   :label: gendf-mf6-yield
+
+   \sigma(E)\; y(E)\; f(E \to E') ,
+
+the reaction cross section times the reaction's **yield** — the number of
+secondary neutrons per event — times the normalised transfer probability
+(:math:`\sum_{E'} f = 1`).  MF=3 holds the un-multiplied :math:`\sigma`.
+For every yield-1 channel (elastic, inelastic, thermal) the two agree and
+the distinction is invisible; for :math:`(n,2n)`, where :math:`y \equiv 2`,
+the MF=6 row sum is :math:`2\Sigma_{2n}` while MF=3 is :math:`\Sigma_{2n}`.
+
+`[M]` over all 11 shipped GENDF files that carry a MT=16 section, the
+aggregate ratio :math:`\mathrm{rowsum}(\mathrm{MF}{=}6)/\sigma(\mathrm{MF}{=}3)`
+is **2** to within :math:`2.2\times10^{-5}` (worst case O-16, whose channel
+opens in only two groups; U-235 reads 2.000000000).  Per group the worst
+departure is :math:`2.8\times10^{-2}`, in a threshold group where
+:math:`\sigma \sim 10^{-4}` and the tape's six-digit fields round hardest —
+which is why the aggregate, not the per-group value, is what the ingest
+guard tests.
+
+**ORPHEUS divides the yield out at ingest**, in
+``_strip_transfer_yield``, so that ``Isotope.sig2`` is the REACTION matrix.
+That is the convention every consumer downstream requires, and they are
+split across two roles that must not both carry the factor:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - consumer
+     - what it needs
+   * - :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigT`,
+       :attr:`~orpheus.data.macro_xs.mixture.Mixture.absorption_xs`
+     - :math:`\Sigma_{2n}` — **one** neutron is removed per event, so the
+       row sum is added ONCE
+   * - :meth:`~orpheus.transport.kernels.N2NKernel.emission_matrix`
+     - :math:`2\,\Sigma_{2n}^{\mathsf T}` — **two** are emitted; the factor
+       is applied here, from
+       :attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`
+
+so the net production is :math:`+\Sigma_{2n}`, one neutron per reaction.
+
+.. note::
+
+   The division is spelled as a **renormalisation onto MF=3**, never as a
+   literal ``/ 2``.  The multiplicity is a physics constant with exactly one
+   home in this tree — ``N2NKernel.multiplicity`` — which sits a layer above
+   ``orpheus.data`` and must be neither imported nor duplicated here.
+   Scaling the rows onto the tabulated cross section removes whatever yield
+   the record carries without this module ever naming its value, and it
+   makes the channel's reaction rate exactly consistent with the MF=3
+   tabulation that every other channel's cross section is read from.
+
+.. warning::
+
+   **Until** `#427 <https://github.com/deOliveira-R/ORPHEUS/issues/427>`_
+   **this division was missing**, so the consumer set above was handed
+   :math:`2\Sigma_{2n}`: removal was counted twice and the emission was
+   :math:`4\Sigma_{2n}`, doubling the net :math:`(n,2n)` multiplication.
+   Two things hid it.  Every synthetic library mixture has
+   ``Sig2 = 0`` (`#269 <https://github.com/deOliveira-R/ORPHEUS/issues/269>`_),
+   so the channel was inert on the data every tight gate uses; and
+   :meth:`~orpheus.data.macro_xs.mixture.Mixture.assert_balanced` cannot
+   see it, because ``compute_macro_xs`` *derives* ``SigT`` from the very
+   identity that guard then checks — a real regression guard against a
+   derivation typo, and structurally blind to a wrong input convention.
+   The gates are ``tests/data/test_n2n_yield_convention.py``, whose
+   end-to-end legs read :math:`4\times` under the pre-#427 ingest.
+
+   ⚠ **Regenerate the HDF5 store after any change to this module.**
+   ``load_isotope`` reads ``.h5``, not ``.GXS``, and the ``.h5`` files are
+   **gitignored** (``.gitignore``: ``*.h5``) — a locally generated,
+   never-committed artefact.  So a fix here reaches a given checkout only
+   when ``orpheus/data/micro_xs/convert_gxs_to_hdf5.py`` is re-run there,
+   and a checkout whose store predates the fix keeps serving the old
+   convention with no signal that it is stale.  A fresh clone is safe
+   (it must build the store anyway); an existing one is not.
+
+
 Scattering Matrix Assembly
 ===========================
 

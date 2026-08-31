@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import cast
 
 import numpy as np
-from scipy.sparse import coo_matrix, csr_matrix
+from scipy.sparse import coo_matrix, csr_matrix, diags
 
 from .isotope import NG, Isotope
 
@@ -190,6 +190,72 @@ def _extract_mf6(
     return ifrom, ito, sig_arrays
 
 
+def _strip_transfer_yield(
+    transfer: csr_matrix, reaction_xs: np.ndarray | None, *, mt: int
+) -> csr_matrix:
+    r"""Renormalise a MF=6 transfer matrix onto its MF=3 reaction XS.
+
+    GENDF's MF=6 records hold :math:`\sigma(E)\,y(E)\,f(E\to E')` — the
+    transfer matrix carries the reaction's **yield** — while MF=3 holds the
+    un-multiplied group cross section :math:`\sigma`. For a yield-1 channel
+    (elastic, inelastic) the two agree and this is the identity; for
+    :math:`(n,2n)` the MF=6 row sum is :math:`2\sigma` and the multiplicity
+    must come off before the matrix reaches a consumer that applies it
+    itself.
+
+    Scaling each row onto ``reaction_xs`` divides the yield out **without
+    naming its value**, which is the point: the multiplicity is a physics
+    constant owned once, by
+    :attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`, in a package
+    this one may not import. It also makes the channel's reaction rate
+    exactly consistent with the MF=3 tabulation every other channel's cross
+    section is read from, rather than merely consistent to the file's
+    six-digit rounding.
+
+    Raises
+    ------
+    ValueError
+        If ``reaction_xs`` is absent while a transfer matrix exists (a
+        MF=6 section with no MF=3 partner is a malformed tape — `[M]` all
+        11 shipped files carrying MT=16 have both), if the reaction XS
+        vanishes where the transfer matrix does not, or if the aggregate
+        yield is not a positive integer. The last is the admission
+        contract: a yield of 1.5 means this reader has misunderstood the
+        tape's convention, and silently renormalising would bury that.
+        A real ``raise`` rather than an ``assert`` — the canonical runner
+        is ``python -O``, which strips ``assert`` at compile time.
+    """
+    rows = np.asarray(transfer.sum(axis=1)).ravel()
+    live = rows > 0.0
+    if not live.any():
+        return transfer
+    if reaction_xs is None:
+        raise ValueError(
+            f"GENDF MT={mt}: a MF=6 transfer matrix is present but its "
+            f"MF=3 cross section is absent, so the record's yield cannot "
+            f"be divided out."
+        )
+    sigma = np.asarray(reaction_xs)[0]
+    if np.any(sigma[live] <= 0.0):
+        bad = int(np.flatnonzero(live & (sigma <= 0.0))[0])
+        raise ValueError(
+            f"GENDF MT={mt}: the MF=6 transfer matrix is non-zero in group "
+            f"{bad} where the MF=3 cross section is {sigma[bad]:g}."
+        )
+    aggregate = float(rows[live].sum() / sigma[live].sum())
+    nearest = round(aggregate)
+    if nearest < 1 or abs(aggregate - nearest) > 1.0e-3:
+        raise ValueError(
+            f"GENDF MT={mt}: rowsum(MF=6)/sigma(MF=3) aggregates to "
+            f"{aggregate:.6f}, which is not a positive integer yield. "
+            f"This reader assumes MF=6 carries sigma*y*f; a non-integral "
+            f"ratio means that assumption does not hold for this tape."
+        )
+    scale = np.ones(NG)
+    scale[live] = sigma[live] / rows[live]
+    return cast(csr_matrix, diags(scale) @ transfer)
+
+
 # ---------------------------------------------------------------------------
 # High-level: GXS → Isotope
 # ---------------------------------------------------------------------------
@@ -277,6 +343,29 @@ def _build_isotope(
     nubar = nubar_raw[0] if nubar_raw is not None else np.zeros(NG)
 
     # --- (n,2n) matrix: MF=6, MT=16 ---
+    # GENDF's MF=6 stores sigma(E)*y(E)*f(E->E'), i.e. the transfer matrix
+    # carries the reaction's YIELD; MF=3 stores the un-multiplied reaction
+    # cross section. For MT=16 that yield is 2, and `[M]` on all 11 shipped
+    # files carrying the section the ratio rowsum(MF=6)/sigma(MF=3) is
+    # 2.000000 (worst per-group departure 2.8e-2, in a threshold group where
+    # sigma is ~1e-4 and the file's 6-digit fields round hardest).
+    #
+    # Every consumer downstream reads `sig2` as the REACTION matrix with no
+    # multiplicity folded in — `SigT`/`absorption_xs` add its row sum ONCE
+    # (one neutron absorbed per event) and `N2NKernel.emission_matrix`
+    # applies the factor itself (two neutrons emitted). So the yield is
+    # divided out HERE, at the definition site, rather than at each of them.
+    #
+    # The division is spelled as a RENORMALISATION ONTO MF=3, not as a
+    # literal `/ 2`: the multiplicity is a physics constant with exactly one
+    # home in this tree (`N2NKernel.multiplicity`), which the data layer must
+    # not import (it sits a layer up) and must not duplicate. Normalising to
+    # the tabulated cross section removes whatever yield the file carries
+    # without this module ever naming its value — and it makes the (n,2n)
+    # reaction rate exactly consistent with the MF=3 tabulation that every
+    # other channel's XS is read from. (Issue #427; the pre-fix tree fed
+    # `2*Sigma_16` to a consumer set expecting `Sigma_16`, so removal was
+    # doubled and the emission quadrupled.)
     n2n = _extract_mf6(16, i_temp, m)
     sig2: csr_matrix
     if n2n is not None:
@@ -289,6 +378,7 @@ def _build_isotope(
                 (sig2_data[(0, 0)], (ifrom2 - 1, ito2 - 1)), shape=(NG, NG)
             ).tocsr(),
         )
+        sig2 = _strip_transfer_yield(sig2, _extract_mf3(16, i_temp, m), mt=16)
     else:
         sig2 = csr_matrix((NG, NG))
 
