@@ -1,6 +1,6 @@
 # CS4c design record — every operator receives its two spaces and its minted data
 
-**STATUS: LIVING — design round CLOSED 2026-08-30; second-pass review (§12) folded in; F6 ruled option (i). EXECUTION OPENED 2026-08-30: test-architect + step-0 feeding census dispatched in parallel on the user's go. Remaining deferred forks: F-D (awaits step-0), F-E (step 3/4).**
+**STATUS: LIVING — original round CLOSED 2026-08-30 (§1–§12); step-3 round §14; step-4 round §16 (2026-08-30, EXECUTING). Live resume surface: §15 COMPACTION POINT #2. No deferred forks remain open except the §16.3 factory probe (ruled separately).**
 This is the design-round record for the CS-ladder remainder (Campaign 2's
 opening act; plan of record `.claude/plans/cs_ladder_remainder.md`; charter
 `.claude/plans/space_and_kernel_binding_campaign.md` §CS4c/§CS2). It is a
@@ -1158,3 +1158,125 @@ user steers (AskUserQuestion checkpoints); test-architect plan EXISTS
 edits under running gates; sphinx `-W` + `dead_references` at every
 step exit; an archivist corpus pass whenever a step moves an
 equation-level claim (§14.8 lesson 1).
+
+---
+
+## 16. Step-4 design round — rulings (2026-08-30, user + main agent; all [R] unless marked)
+
+### 16.1 [R] Machinery-first: F is designed for the pencil/resolvent/adjoint triple, never for today's consumers
+
+**Goal (domain terms).** The fission binding must simultaneously satisfy,
+with NO hand-rolling: (a) the `GeneralizedEigenPencil` — (A, F) as two
+peers of one Bound-operator discipline on one space; (b) resolvent
+shifts — the α-eigenvalue moves F to the loss side, so F must be able to
+enter an `OperatorSum` with `(L+C−S−N₂ₙ−B)` under the ends guard; (c) the
+adjoint falling out of the machinery by theorem. **Today's consumer
+architecture is transitory** (the k-outer's bare-array power iteration will
+be redesigned later): consumers get ADAPTERS or minimal changes; they get
+no design authority over F. (User, verbatim in substance: "The
+FissionOperator must be thought of as part of the Bound operator machinery
+first… design it thinking with forward thinking.")
+
+### 16.2 [R] The three-piece family, with Riesz maximal use
+
+Fission is the **ℓ=0, rank-1-in-energy degenerate of the scattering
+binding**: S = R·Λ·M/W over ℓ ≤ L; F = R₀·(χ⊗νΣf)·M₀/W. Same faces, same
+interned hub, same metric.
+
+1. **`FissionMaterialField`** (`MaterialField[FissionKernel]`): per-material
+   VALIDATED kernels × layout (χ-simplex per material by construction —
+   Pattern 4) + gathered cellwise (χ, νΣf). `FissionKernel`'s first
+   production consumer (kernels.py:259's consumer-status paragraph updates).
+2. **`IsotropicFission`** (energy binding, iso-family shape beside
+   `IsotropicScattering`/`IsotropicN2N`): retains the material field; the
+   rank-1 dyad `kernel` (TensorProductOperator) + `production_rate` (the
+   ReactionRateFunctional diagnostic) cached at construction (the S
+   satellite-fix ruling — read-through/depletion semantics deliberately
+   dropped; docstrings update). The ONE arithmetic home of χ(νΣf·φ).
+   Honest scalar ends.
+3. **`FissionOperator`** (composite binding): retains `energy:
+   IsotropicFission` + the two ℓ=0 faces (`flux_analysis`,
+   `source_reconstruction` from the blessed interned chain) + mandatory
+   composite ends (mechanic E; per-END admission via the base helper —
+   the direct `assert_energy_extent_conforms` call at fission.py:205
+   migrates). Forward = the S-idiom ℓ=0 route (analysis → scalar accessor
+   [bit-exact = integrate_angular] → dyad → the shared
+   `assemble_per_ordinate_isotropic` combine). **Euclidean transpose =
+   factor reversal of the cached face product** — fission.py's inline
+   `np.multiply.outer(w,·)/W` transpose arithmetic dies.
+
+**Riesz maximal use (the user's directive, resolved):** the family
+hand-rolls NOTHING on the adjoint path. `.H` composes
+`♯_V ∘ Fᵀ ∘ ♭_W` from the spaces' own first-class legs (CS4c R2,
+`operator.py:1556` — the transport operators become the legs' first
+production consumers through the daggered posing); M† = R/W stays XD-1's
+gated theorem, never spelled arithmetic; `production_rate` stays a typed
+Functional (a DualSpace-typed co-vector is defer-until-2).
+
+**Consumer re-points (minimal, no design authority):** SN k-outer
+(`solver.py:1424` instance + `:1536` apply), homogeneous (`:251`),
+diffusion (`:247`) → `IsotropicFission` with honest scalar ends;
+`RadialCharacteristicEmission` (`solver.py:2939`) consumes the energy
+binding's dyad; the eigen-M posing (`:2901`) keeps `FissionOperator`
+(composite). [M] step-0 census: the k-outer instance's ONLY carrier ever
+is the bare `(ng,*spatial)` ndarray (118 calls), so the re-point changes
+no production arithmetic.
+
+### 16.3 [R] Naming now; the factory rethink runs in parallel
+
+`IsotropicFission` picked (family greppability; the docstring states the
+redundancy honestly — fission has no anisotropic sibling; the prefix names
+the FAMILY role). **AND the user chartered an adversarial rethink** of the
+whole iso-trio toward "a Factory object that returns the appropriate
+operators depending on the problem (domain, codomain, anisotropy order…)"
+— justifications offered as tentative: SN+DSA needs iso+aniso flavours of
+one channel; per-level sensors. Explicitly requested: "skepticism and
+adversarial consideration to create tension to cause the right
+architecture to emerge." A cross-domain-attacker probe is running (memo →
+`scratch/cs4c_step4_factory_probe.md`); its finding is RULED SEPARATELY —
+it governs future SELECTION machinery, not this step's exact ctors (§3's
+ruling: the classmethod tier is deliberately evolvable; the exact ctor is
+the commitment).
+
+### 16.4 [R] N2N harmonized in step 4
+
+The moment F's faces shape lands, `N2NOperator`'s bare-`weights` +
+hand-spelled transpose formula is a twin spelling of the iso lift
+(Cardinal Rule 2). In-step: faces replace the `weights` field
+(`total_weight` derives from `flux_analysis.frame.measure.weights.sum()`
+as S does), transpose by reversal, the 10-row gate re-keys.
+
+### 16.5 [R] #306 item 2 deferred to step 5
+
+The zero-boundary emission is a property of the composite ARMS; step 5
+owns the arms. Dated note goes on the issue.
+
+### 16.6 [M] Opener census (f_family_census.py, positive control PASS)
+
+Population matches plan §8.4 exactly: 4 production `from_solver_data`
+(sn :1424/:2901, homogeneous :251, diffusion :247), 18 test
+`from_solver_data`, 2 direct-ctor tests + 1 direct FissionKernel ctor,
+5 `from_mixture` test sites. **Zero registry/variable-call members, zero
+patch surrogates** (predicate limitation: file-local single-assignment
+dataflow, as step 3). B1 attribute pins: `.chi` ×3 / `.nu_sig_f` ×5 (all
+test_kernels.py — kernel fields, survive), `.kernel` ×6 (1 production =
+:2939). String-form: `hasattr(·,'kernel')` in the integral-kernel
+category tests (protocol probes — survive). ⚠ Staleness found:
+fission.py's head algebra still spells `(L+C−S−B)` — zero N₂ₙ mentions in
+the file (step 3's corpus sweep missed it; dies in this step's rewrite).
+
+### 16.7 Execution shape (one merge unit, sub-steps in order)
+
+- **4a machinery (additive):** `FissionMaterialField` + `IsotropicFission`
+  + transitional bit-identity gates (old-F-scalar-arms ≡ new, per arm).
+- **4b the rebind:** `FissionOperator` → composite binding (ends, faces,
+  cached product, reversal transpose); consumer re-points; docstring
+  estate (head algebra, K2/R2 narrative, kernels.py consumer paragraph).
+- **4c N2N harmonization** (§16.4).
+- **4d gates:** XD-9/G-F1 (+3 measured controls + asserted activation
+  precondition per B4.5), G-F2 collapse row, G-C1 rows, battery B-4;
+  ledger check (F rows long since flipped — no marker action expected).
+- Exit: 13-tree gate vs **10079/0/19/66** with per-tree PRE-REGISTRATION;
+  sphinx `-W` + `dead_references`; archivist corpus pass (this step moves
+  equation-level claims: the fission adjoint/binding story on the theory
+  pages).
