@@ -78,6 +78,43 @@ fourth is remedial rather than prophylactic:
 3. Isotypic decomposition — required by higher harmonics (Riesz contour) and
    reactor noise regardless; symmetry is where it comes from.
 
+**D0.7 — ⭐ The manifold is a TYPE. `Manifold` is minted.** (User ruling,
+2026-08-31, after the naming discussion below.) Today `Space = str` with
+`measure.py:114` calling the tags *"recommendations, not constraints"* (L8) —
+so nothing can express containment, quotient, membership, or composition, and
+the "check" degenerates to string equality.
+
+*Against the project's own minting criterion* (`coding-standards`, Type vs
+property — mint **iff** ≥2 non-isomorphic realizations AND a non-identity
+morphism is applied):
+* **(a)** `S²`, `S¹`, `[-1,1]`, `[0,1]`, `[0,∞)`, `ℝ`, `S²/σ_y`, `spatial_Rᵈ`,
+  `energy`, `index(axis)` — non-isomorphic, and `[M]` all shipped.
+* **(b)** quotient (`measure.quotient`, shipped), product (`product()`'s
+  Archimedes composition, shipped), pushforward (`measure.pushforward`,
+  shipped). §III.9's support algebra IS the morphism list.
+
+Both hold ⟹ earned, not speculative.
+
+⚠ **The prior ruling this must not contradict, read rather than paraphrased**
+(`plan-authoring` §1's PRECEDENT clause): `sn_reshape.md` Issue 2 —
+*"Don't try to enforce `Space` types via Python generics — not expressive
+enough without runtime overhead"*, quoted verbatim at `measure.py:106-109`.
+`[R]` **it does not cover this.** It rejects `Generic[Tag]` **phantom type
+parameters** — which `coding-standards` also rejects, since they are erased at
+runtime and do not specialize dunders. A first-class **value** with real methods
+(`quotient`, `__mul__`, `contains`, `dim`) is a different proposal, and the one
+the morphisms above require.
+
+⭐ **The NAME, checked against the prose corpus** (§1's clause: a free name can
+be free *because it was rejected*). `[M]` `Manifold` — **2** hits in
+`.claude/`, neither a rejection; **22** in `docs/theory/` as ordinary
+mathematics; and it is already the corpus's own word for exactly this concept
+(`measure.py:120` — *"The circle names the MANIFOLD, not a chart of it"*).
+⛔ `Domain` was considered and REFUSED: `[M]` **137** prose hits, and it is
+already the operator-algebra's TYPE vocabulary
+(`LinearOperator[Codomain, Domain]`) — minting it for manifolds is a genuine
+collision, unlike the *attribute* `domain`, which is not (see §III.10).
+
 ---
 
 # Part I — The defect that forces this
@@ -908,6 +945,85 @@ exist as a map because the fibre is a circle. So there is nothing legitimate for
 is not a direction but the streaming coefficient `Ω·n̂ₓ = μ` — which **is** the
 node.
 
+
+## III.10 ⭐⭐ Three levels, and the code names two — why `FunctionSpace` is not the domain
+
+The user's question, 2026-08-31: *"What was wrong with `FunctionSpace` as a
+domain? Is that not the right domain?"* Answering it is what earned D0.7.
+
+A basis function is a map. What it EATS is a point:
+
+```
+Y_ℓ^m : S² → ℝ          the argument is a POINT of S²,
+                        not a vector of degrees of freedom
+```
+
+`[M]` `FunctionSpace` is documented as *"a finite-dimensional vector space of
+**discrete fields**"*, carrying a `shape` — the tensor shape of the DOFs. So
+`L²(S²)` is the space the basis functions are **elements of**, never the space
+they are **maps from**. `FunctionSpace` answers *"what do these live in"*; the
+domain question is *"what do these eat"*. Different arrows.
+
+There are **three** levels, and the tree currently names two:
+
+| level | the object | `Basis` has | `DiscreteMeasure` has |
+|---|---|---|---|
+| the manifold `M` | `S²`, `[-1,1]`, `S²/σ_y`, `ℝᵈ`, energy, index | ⛔ **nothing** | `support` (a bare `str`) |
+| fields on `M`, discretized | `L²(M)` at `N` nodes | — | `.space` (`FunctionSpace`) |
+| coefficients | `ℝ^K` | `.space` (`FunctionSpace`) | — |
+
+⭐ **And the `FunctionSpace`-level check already passes** — which is why the
+defect survived. `[M]` the frame's arrow `analysis : measure.space →
+basis.space` type-checks on the slab: shapes `(8,3) → (8,)` are fine. **The
+check that fails is one level down, on the manifold, where no object exists.**
+
+⚠ **The measure's own tag is mis-NAMED the same way.** `[M]`
+`gauss_legendre(8).measure.support == '[-1,1]'` while `supp(μ)` is 8 points — so
+`support` already names the **ambient manifold**, not the support. That is what
+the `SPACE_CIRCLE` rename lesson (`measure.py:120-128`) says it learned; the
+name simply did not follow.
+
+### ⛔ The `support` rename of 2026-08-31, REFUTED the same day
+
+§II.15 R5 ruled `Basis.support` on a measured name collision (58 `domain`
+definers, 13 `getattr(x,"domain",None)` readers). **Both halves were wrong.**
+
+* `[M]` **the collision is unreachable.** All 13 readers read off OPERATORS
+  (`self.inner`, `self.a`, `self.b`, `self.op`, `block`), and `[M]` **0 `Basis`
+  subclasses are operators**. ⚠ This is `plan-authoring` §8's brand-new
+  sharpening — *a name's EXISTENCE is not its RELEVANCE* — applied by me to the
+  agent's hazard and **not** to its naming evidence, one commit later.
+* And `support` is **mathematically false for a basis**: `supp(f)` means *where
+  `f` is non-zero*. For `IndicatorBasis` that is exactly ONE cell per function,
+  so `IndicatorBasis.support = "spatial_R1"` states something untrue. For the SH
+  basis it is accidentally near-right (almost all of `S²`), which is what let it
+  past.
+
+⟹ **RESTORED: `Basis.domain`.** Category-theoretically it is not even a
+collision — `dom` is the source of a morphism in both cases, in **Man** for a
+basis function and in **Vect** for an operator. Same functor, different
+categories. The two objects legitimately keep different words for the same
+manifold: *support of a measure* and *domain of a function* are both standard.
+
+### ⭐ The manifold is currently smuggled through a NAME STRING
+
+`[M]` two sites encode `M` inside a `FunctionSpace.name`:
+
+| site | name built as | |
+|---|---|---|
+| `measure.py:331` | `f"L2[{self.support}]"` | derived — but from a `str` |
+| `basis/indicator_basis.py:284` | `f"L2[coarse_cells_R{self.ndim}]"` | ⛔ **hard-coded, and already FALSE** |
+
+⭐⭐ The second is **§II.15 R1's defect, live in the shipped tree**:
+`EnergyGrid.as_basis()` (`energy_grid.py:220`) builds
+`IndicatorBasis(edges_per_axis=(arange(n_groups+1) - 0.5,))` — an **index**
+partition — and that basis then calls its own coefficient space
+`L2[coarse_cells_R1]`, naming a **spatial** manifold it has nothing to do with.
+So R1 was not a hypothetical about a property I was about to add; the same lie
+already ships one level over, in a name string. `FunctionSpace` carrying a
+`Manifold` makes both names derived and the lie unspellable.
+
+
 ---
 
 # Part IV — The well-posedness gates
@@ -1031,6 +1147,98 @@ the `IsometryGroup` docstring; it is a real limitation, not an oversight.
 
 ---
 
+
+# Part V.5 — ⭐ The minting inventory (reviewed 2026-08-31)
+
+What the math needs as an OBJECT, what it needs only as a FIELD, and what is
+still an open architectural question. Written at the user's request after D0.7.
+
+## A. Types to mint
+
+| # | type | why it is EARNED (≥2 realizations + a non-identity morphism) | phase |
+|---|---|---|---|
+| 1 | ⭐ **`Manifold`** | D0.7 — **RULED**. 10 shipped realizations; quotient / product / pushforward all shipped as morphisms | 2.0a |
+| 2 | **`Chart`** — a typed arrow `M → N` | §III.9. Makes `support(φ_*μ) = codomain(φ)` derived, kills the `SPACE_SPHERE` literal in `product()` (L7), and ⭐ **makes the phantom lift unspellable**: there IS no chart `[-1,1] → S²`, because a point of `[-1,1]` is an ORBIT | 2.3 |
+| 3 | **`ReynoldsProjection`** `ℛ = π* ∘ 𝔄` | already planned; `ℛ² = ℛ` is its own law | 3.2 |
+| 4 | **`OrbitAxis`** + retraction/section | already planned; re-uses `AxisRetractionOperator` | 3.3 |
+| 5 | **`LegendreBasis`** on `[-1,1]` | 3.4-R **RULED (b)** — non-isomorphic to `{Y_ℓ^m}` (`L+1` vs `(L+1)²`), and the quotient projection is the non-identity morphism | 3.4 |
+| 6 | **`IsotypicDecomposition`** | already planned; the trivial block IS 3.4 generalised | 7.1 |
+
+⚠ **`Manifold` has one requirement the plan must not lose: a QUOTIENT knows its
+SINGULAR STRATUM.** §III.7 and Phase 5.1 want `OrbitAxis` to carry the
+`μ = ±1` stratum *"by derivation from `H`"*, not by hand. That is a property of
+`M/H` — the image of `H`'s fixed-point set — so `Manifold.quotient(H)` must
+return a manifold that knows it. ⭐ And `[M]` the detector already exists,
+pointed at the wrong question: `_evaluate_real_sh`'s `on_axis` guard fires on
+exactly those 2 nodes of 1 rule (§II.1).
+
+## B. Fields, not types — the type exists and the SLOT does not
+
+| # | field | today | phase |
+|---|---|---|---|
+| 7 | `Basis.domain: Manifold` | absent (L2) | 2.1 |
+| 8 | `Basis.invariance_group: SubgroupOfO3` | absent | 2.1b |
+| 9 | `measure.quotient_group: SubgroupOfO3 \| None` | `[M]` **absent** — `folded_by` is the discrete case on the wrong object, and Part IV records *"the slab's quotient group is recorded nowhere"* | 2.0d |
+| 10 | `FunctionSpace.manifold` | smuggled through a NAME STRING at 2 sites, one of them `[M]` already FALSE (§III.10) | 2.0c |
+| 11 | ⭐ **`AngularSymmetry` needs its Γ slot** | `[M]` `support` derives from `continuous_isotropy` ALONE, so `folded_product`'s `S^2/sigma_y` matches **no** geometry and stage 0 would refuse the shipped cylinder (§II.10) | **2.2 — NEW, was unowned** |
+
+⭐ Note 7+8+9 together are exactly Part IV's G0 predicate
+(`measure.quotient_group ⊆ basis.invariance_group`), which the plan has stated
+since it was written and for which **neither side exists in the tree**. The
+predicate was never wrong; it had no operands.
+
+## C. ⚠ THE OPEN ARCHITECTURAL QUESTION — the descent isomorphism
+
+`Funcs(M)^H ≅ Funcs(M/H)`: the `H`-invariant functions upstairs ARE the
+functions downstairs. After 3.4-R the tree will carry **both realizations of
+that one space**, and Cardinal Rule 2 says two spellings of one concept is a
+flag until the relation is explicit:
+
+| realization | example | domain | span |
+|---|---|---|---|
+| **upstairs** — invariant SUBSPACE | `MirrorEvenSphericalHarmonicBasis ⊂ SH(S²)` | `S²` (unchanged) | restricted, σ-odd columns zeroed |
+| **downstairs** — the quotient's OWN basis | `LegendreBasis` on `[-1,1]` (3.4-R) | `S²/SO(2)` | full |
+
+`[R]` **why they differ is practical, not mathematical**: `S²/SO(2)`'s function
+space has a classical named basis (Legendre); `S²/σ_y`'s does not, so the
+invariant-subspace realization is the only spellable one there. The `≅` is what
+Q1.4's one-line *"`{Y_ℓ0} ≅ {P_ℓ}`"* has been carrying silently all along.
+
+**Three options, unruled:**
+* **(i)** mint a `Descent` / `InvariantRestriction` witnessing the iso, so both
+  realizations are one object's two faces. Phase 7 needs the general form
+  anyway — the trivial isotypic block IS this, and higher irreps generalise it.
+* **(ii)** keep both, unrelated, with the discriminator RECORDED (*"downstairs
+  when the quotient has a classical basis; upstairs otherwise"*) — cheapest,
+  and honest only if written where both classes can see it.
+* **(iii)** force one realization everywhere — ⛔ `[R]` refused on sight: (a) is
+  option 3.4-R(a), already ruled out; (b) requires inventing a basis for
+  `S²/σ_y` that has no classical form.
+
+⟹ **(i) is the elegant answer and it is Phase 7's object arriving early.** Not
+on the exit path (Part XII), so it can be ruled without blocking the return to
+Campaign 2 — but it should be ruled BEFORE 3.4 lands, or `LegendreBasis` and
+`MirrorEven` will be siblings with no stated relation and the next session will
+read them as a twin.
+
+## D. Checked and NOT needed
+
+`SubgroupOfO3` (exists; carries BOTH continuous `SO2` and discrete `Mirror`
+members — 2.0d needs no new group type) · `GeneratingMeasure`/`ReferenceMeasure`
+(exists) · the well-posedness triple (a PREDICATE — gates G0–G3 — not a type) ·
+⛔ `Space` as a phantom generic (refused by `sn_reshape.md` Issue 2 **and** by
+`coding-standards`' phantom-parameter corollary; D0.7 proposes a value type
+instead, which is a different thing).
+
+## E. Placement
+
+`Manifold` is the most primitive object in the stack — `measure`, `basis` and
+`space` all depend on it and it depends on none of them. ⟹ its own module with
+no intra-`numerics` imports. ⚠ `plan-authoring` §6d: check the import edge BOTH
+ways and read `tests/test_layer_imports.py`'s `FORBIDDEN_EDGES` before placing.
+
+
+
 # Part VI — The action plan
 
 Phases are ordered by dependency, not by size (D0.5). The `Q#` column maps each
@@ -1111,7 +1319,12 @@ prerequisite for every gate in Part IV.
 
 | # | item | goal, separately from means | done when | Q# |
 |---|---|---|---|---|
-| 2.1 | **`Basis.support`** (closes L2). ⛔ **RENAMED from `domain` 2026-08-31 (§II.15 R5)**: `[M]` `domain` has **58** definers and **13** `getattr(x,"domain",None)` readers in the operator machinery, all expecting a `FunctionSpace` — a `str` there fails SILENTLY in the default's direction. `support` (15 definers) is what `DiscreteMeasure` already calls the same concept with the same type. *Means:* a `support: Space` property beside the existing `space`, giving the basis the same two-level structure the measure has. ⚠ **`IndicatorBasis` takes it as a CONSTRUCTOR FIELD, not a derivation** (§II.15 R1: `[M]` the tree mints it against **three** manifolds — spatial, energy, axis-index — over 5 sites, so any derived value hard-codes one of three). | `SphericalHarmonicBasis.domain == SPACE_SPHERE`; every shipped `Basis` subclass answers | — |
+| **2.0a** | ⭐ **MINT `Manifold`** (D0.7). The thing functions are defined on and measures live on: `S²`, `S¹`, `[-1,1]`, `[0,1]`, `[0,∞)`, `ℝ`, `spatial_Rᵈ`, `energy`, `index(axis)`, and quotients/products of those. Verbs: `quotient(H)`, `__mul__`, `contains(points)`, `dim`. ⛔ a VALUE type with methods — **not** a `Generic[Tag]` phantom parameter (`sn_reshape.md` Issue 2 stands; D0.7 explains why it does not bar this). | `Space = str` is retired; `[M]` today 29 `Space` refs, 39 `support=` construction sites, 45 `.support` reads — that is the migration's size, not a veto (D0.5) | — |
+| **2.0b** | ⭐ **`contains` is the membership PREDICATE the string never had.** `SPACE_SPHERE.contains(nodes)` is `‖Ω‖ = 1`. This is what makes the ERR-080 fabrication refusable **at the measure constructor**, three hops before the symptom. | `DiscreteMeasure.__post_init__` refuses nodes its declared manifold does not contain; the Part I forged measure is unconstructable | — |
+| **2.0c** | ⭐ **`FunctionSpace` carries its `Manifold`; the two `L2[...]` NAME STRINGS become derived** (§III.10). | `grep` finds no `f"L2[...]"` literal; `[M]` `indicator_basis.py:284`'s live false name (`L2[coarse_cells_R1]` on an ENERGY basis) is gone by construction | — |
+| **2.0d** | ⭐ **`measure.quotient_group`** — the field Part IV's own predicate needs and that `[M]` **exists nowhere**: `folded_by` records the DISCRETE fold on the `Quadrature` façade, and *"the slab's quotient group is recorded nowhere"* (Part IV obstacle 2). Derived by `quotient()`, `None` for an unquotiented measure. | `gauss_legendre(8).measure.quotient_group is SubgroupOfO3.SO2`, derived by construction, not declared | — |
+| 2.1 | **`Basis.domain: Manifold`** (closes L2). ⛔ the 2026-08-31 `support` rename is REFUTED — §III.10: the collision is unreachable (`[M]` 0 `Basis` subclasses are operators) and `support` is mathematically false for a basis (`supp(f)` = where `f` is non-zero; for an indicator that is ONE cell). *Means:* a `domain` property beside the existing `space`, giving the basis the same two-level structure the measure has. ⚠ **`IndicatorBasis` takes it as a CONSTRUCTOR FIELD** (§II.15 R1: `[M]` the tree mints it against **three** manifolds over 5 sites, so any derived value hard-codes one of three — and `[M]` that lie already ships in its space NAME). | every shipped `Basis` answers; `SphericalHarmonicBasis.domain is SPACE_SPHERE`; the energy indicator no longer claims a spatial manifold | — |
+| **2.1b** | ⭐ **`Basis.invariance_group`** — the OTHER side of Part IV's G0 predicate (`measure.quotient_group ⊆ basis.invariance_group`), which today has **neither** side. Derivable for every shipped basis: full SH → `Trivial`; `MirrorEven` → `Mirror(axis)`; the trivial isotypic sub-basis → `SO2`. | the four-row lattice table in Part IV runs as a test and reproduces its verdicts | — |
 | 2.2 | **G0 at frame construction** (closes L3). ⭐ **§II.7: the PREDICATE already exists** as `AngularSymmetry.admits_domain` (`measure.support == self.support`) — `[M]` reachable only from `select_quadrature`, whose 21 callers are **all tests**; and `[M]` `solve_sn` is HANDED a quadrature (required positional, no default), so the selector was never on the path. ⛔ **REFINED by §II.10 — NOT "just wiring".** The predicate is correct over an **incomplete domain vocabulary**: `support` derives from `continuous_isotropy` alone, so `folded_product`'s `S^2/sigma_y` matches **no** geometry and stage 0 would **refuse the shipped cylinder**. 2.2 owes the ontology a second slot (the *discrete* quotient the rule took — `SubgroupOfO3` already names it) **and** the `(CoordSystem, ndim) → key` join, which `[M]` exists nowhere. Do not hand-roll a second predicate; do extend this one's vocabulary. | `GalerkinFrame(SphericalHarmonicBasis(L=2), slab_measure)` **RAISES**, with a test witnessing it on the exact pairing that ships today | — |
 | 2.3 | ⭐ **The typed `Chart`** (closes L6, L7). *Proposed means:* a map carrying `domain → codomain`; `pushforward` derives `support` from the chart rather than taking `new_space`; `product()` composes its two 1-D factors through the Archimedes chart instead of `column_stack` + a literal. | `grep` finds no `SPACE_SPHERE` literal at a measure constructor; `product(4,8).measure.support` is **derived**; the factor structure is recoverable from the built rule | — |
 | 2.4 | **The slab rule declares its quotient group** (closes L5). Includes settling Part IV's obstacle 1 — the `SO2` axis-convention collision — and obstacle 2, the `invariance_group` vs `folded_by` conflation. ⛔ **MOVED to Phase 0 on 2026-08-31** — the full-suite phantom census was scheduled here, but **0.2 depends on it** (it is 0.2's denominator, not 2.4's). Scheduling a step's own precondition three phases downstream is the `plan-authoring` §6b defect with a *census* in place of a call site. Run and published at Phase 0. | `SubgroupOfO3.SO2.is_invariant(gauss_legendre(8).measure)` returns the derived answer, and the plan records whether that answer is `True` **with the derivation**, not the prediction | — |
@@ -1569,9 +1782,14 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 1.6 | `ℛ* = ℛ` as adjoint-vs-dual | no | ☐ |
 | 1.7 | the support algebra, written | no | ☐ |
 | 1.8 | vocabulary reconciliation | no | ☐ |
-| 2.1 | `Basis.**support**` (⛔ renamed from `domain`) — ⏏ **pulled forward**; `IndicatorBasis` takes a ctor field | ⏏ yes | ☐ verification plan landed |
+| 2.0a | ⭐ **MINT `Manifold`** (D0.7, user-ruled) — retires `Space = str` | ⏏ yes | ☐ |
+| 2.0b | `Manifold.contains` — the membership predicate; refuses the forged measure at construction | ⏏ yes | ☐ |
+| 2.0c | `FunctionSpace` carries its `Manifold`; the two `L2[...]` name strings become derived | ⏏ yes | ☐ |
+| 2.0d | `measure.quotient_group` — `[M]` the slab's is recorded NOWHERE today | ⏏ yes | ☐ |
+| 2.1 | `Basis.domain: Manifold` (⛔ `support` rename REFUTED — §III.10) — `IndicatorBasis` takes a ctor field | ⏏ yes | ☐ |
+| 2.1b | `Basis.invariance_group` — G0's other side; today NEITHER side exists | ⏏ yes | ☐ |
 | 2.1-W | ⭐ **PRE-CARVE**: the fold-basis witness (2g het cylinder, `folded_product(4,8)`, `scattering_order=1`) — `[M]` 0 → 18.5 % catcher | ⏏ yes | ☐ **MUST precede 0.1c** |
-| 2.2 | G0 at frame construction | ⏏ yes | ☐ |
+| 2.2 | G0 at frame construction — ⚠ ALSO owns the `AngularSymmetry` Γ-slot (§II.10, inventory #11): `support` derives from `continuous_isotropy` alone, so stage 0 refuses the shipped cylinder | ⏏ yes | ☐ |
 | 2.3 | the typed `Chart`; pushforward derives support | ⏏ yes | ☐ |
 | 2.4 | slab declares its quotient group; SO2 axis collision; **full-suite phantom census** | ⏏ yes | ☐ |
 | 3.1 | `numerics/symmetry/` catalog (⏏ scoped to `SO(2)`) | ⏏ partial | ☐ |
@@ -1579,6 +1797,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 3.3 | `OrbitAxis` + retraction/section minting | no | ☐ |
 | 3.4 | ⭐ **trivial isotypic sub-basis — THE FIX** | ⏏ yes | ☐ |
 | 3.4-R | ⚠ the encoding ruling | ⏏ yes | ✅ **RULED 2026-08-31 (user): (b) true `LegendreBasis`** — see below |
+| 3.4-R2 | ⚠ **the DESCENT ruling** — `Funcs(M)^H ≅ Funcs(M/H)`: after 3.4-R the tree carries BOTH realizations (`MirrorEven` upstairs, `LegendreBasis` downstairs). Part V.5§C: mint `Descent`, or record the discriminator? **Not on the exit path**, but must be ruled BEFORE 3.4 lands or the two read as a twin | no | ☐ **UNRULED** |
 | 4.1 | retrofit the slab axis (CORRECTED gate) | ⏏ yes | ☐ |
 | 4.2 | normalization audit | no | ☐ |
 | 4.3 | commuting-square test | no | ☐ |
@@ -1593,7 +1812,9 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 7.1–7.4 | isotypic decomposition | no | ☐ |
 | ⏏ | **the six exit predicates (XII.3)** | — | ☐ |
 
-**Open rulings blocking execution:** ⭐ **NONE.** 3.4-R was ruled by the user on
+**Open rulings blocking the EXIT PATH:** ⭐ **NONE.** (One ruling is open OFF the exit path: **3.4-R2**, the descent isomorphism — Part V.5 §C. It must be ruled before 3.4 lands, but it does not block the return to Campaign 2.)
+
+**Ruled:** 3.4-R was ruled by the user on
 2026-08-31 — **option (b), the true `LegendreBasis` on `[-1,1]`**, on the
 measured evidence in Part VI (15 slot-indexing sites, only ONE of them
 production; and the project's own type-minting criterion selects it, since
