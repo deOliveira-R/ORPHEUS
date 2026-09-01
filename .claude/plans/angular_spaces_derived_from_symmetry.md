@@ -1571,6 +1571,158 @@ constraints"* (L8) with its bill arriving: the type permits any string, so the
 tree contains manifolds that are typos of each other and tags that name nothing.
 
 
+## §V.5d ⛔ 2.0c/2.0d's phase opener — the step is BLOCKED, and 2.0d dissolves into 2.0c
+
+The 9th consecutive phase opener to correct its own section. `[M]` all by AST
+or by runtime probe, 2026-08-31 evening, at `a9bfebab`; probes in
+`scratch/p20c_*.py` (untracked).
+
+### (a) ⛔⛔ 2.0c is BLOCKED — the shipped fold has no catalogue entry
+
+`[M]` `_ORBIT_CATALOGUE` (`manifold.py:633`) has **exactly ONE** entry,
+`(Sphere, "SO2")`, plus the `Trivial` group handled by derivation. The shipped
+cylindrical fold's support is `'S^2/sigma_y'`
+(`[M]` `folded_product(4,8).measure.support`), and
+
+```
+SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+  -> NotImplementedError: no catalogue entry for S^2/sigma_y
+```
+
+⟹ **`DiscreteMeasure.support: str → Manifold` cannot land until `S²/σ_y` is
+derived and registered.** That is tracker **1.1**, which the tracker orders
+*after* Phase 2 and marks "⏏ partial". The dependency is real, forced, and was
+unrecorded. **1.1's σ_y entry precedes 2.0c.**
+
+### (b) ⛔ And 1.1's σ_y entry is itself blocked on a REPRESENTATION ruling
+
+`[M]` the two shipped quotients use **incompatible node representations**:
+
+| quotient | shipped `measure.nodes` | what it is |
+|---|---|---|
+| `S²/SO(2)` — `gauss_legendre(8)` | shape `(8,)`, 1-D | the **invariant coordinate** `p₁ = z = μ`; realization `[-1,1]` |
+| `S²/σ_y` — `folded_product(4,8)` | shape `(16,3)`, unit norm, `μ_y ∈ [+0.1945, +0.8688]` | a **SECTION** — one representative per mirror pair, in the ambient sphere |
+
+Procesi–Schwarz returns the orbit space in *invariant* coordinates; `[R]` for
+σ_y those are `(x, z, y²)` and the sphere ideal cuts them to a closed 2-disk.
+The tree ships the *section* (the closed upper hemisphere in ℝ³). `Quotient`
+has one `realization` field and `Quotient.contains` delegates to it
+(`manifold.py:509`), while `_ambient(Quotient) = _ambient(realization)` — so
+the choice decides whether the shipped 16×3 folded nodes are ADMITTED or
+REFUSED. A disk realization demands 2 columns; the nodes have 3.
+
+⟹ this is tracker **3.3**'s retraction/section question (`OrbitAxis`), arriving
+early because 2.0c needs it. ⚠ It is **not** visible from the SO(2) entry: there
+the invariant chart and the section *coincide* in dimension, which is exactly
+why one worked entry did not expose the fork.
+
+### (c) ⭐⭐ 2.0d DISSOLVES — the field it proposes is a second home for a fact `Manifold` already carries
+
+2.0d asks for `DiscreteMeasure.quotient_group`. `[M]` `Quotient.by` **IS** that
+group (`SPHERE.quotient(SubgroupOfO3.SO2).by is SubgroupOfO3.SO2`). Once
+`support: Manifold`, the field is a one-line derived property with **zero new
+state**:
+
+```python
+@property
+def quotient_group(self):
+    return self.support.by if isinstance(self.support, Quotient) else None
+```
+
+⭐ And the derived form is *strictly better than a stored field*, because
+`quotient_group` is a property of the **support**, not of the nodes — so it must
+travel exactly where `support` travels. `[M]` the four verbs disagree on what
+they forward: `consolidate` preserves `support` (`:882`), `restrict` preserves
+it (`:1070`), `pushforward` REPLACES it (`:805`), `quotient` derives a new one
+(`:1022`). A stored field needs that table maintained by hand in four places and
+kept in agreement with `support`'s; the derived property cannot disagree with
+`support` because it *is* `support`. Pattern 2, caught before it was minted.
+
+⟹ **2.0d is not a separate landing.** It is one property + its witness, riding
+2.0c. The tracker row is re-scoped, not dropped.
+
+### (d) ⛔ 2.0d's done-when was unreachable as written
+
+Stated: *"`gauss_legendre(8).measure.quotient_group is SubgroupOfO3.SO2`,
+derived by construction, not declared"*. `[M]` `gauss_legendre(8).measure`
+carries `support='[-1,1]'` and is built **directly**, never through
+`.quotient()` — so "derived by construction" gives `None`, at 2.0d and at 2.0c
+alike. The `SO2` answer is a **declaration**, and the plan already owns it as
+tracker **2.4** (*"the slab rule declares its quotient group"*). The done-when
+silently conflated the two steps.
+
+⟹ corrected, and now split by what would falsify each:
+* **2.0c (derived):** `folded_product(4,8).measure.quotient_group is
+  SubgroupOfO3.Mirror('y')` — `[M]` reachable, since `folded_product` ends in
+  `full.quotient(SubgroupOfO3.Mirror("y"))` (`directional.py:845`).
+* **2.4 (declared):** `gauss_legendre(8).measure.quotient_group is
+  SubgroupOfO3.SO2`, and `[M]` at 2.0c it is `None`.
+
+### (e) ⭐ The `L2[coarse_cells_Rd]` false name is an ILLEGAL STATE THAT IS REPRESENTABLE
+
+§III.10 records the name as *false*. `[M]` it is worse than false — measured
+with both legs:
+
+| | |
+|---|---|
+| a 2-group **ENERGY** indicator space (`EnergyGrid.as_basis().space`) | `name='L2[coarse_cells_R1]'`, `shape=(2,)` |
+| a 2-cell **SPATIAL 1-D** indicator space | `name='L2[coarse_cells_R1]'`, `shape=(2,)` |
+| ⛔ `energy == spatial` | **`True`**, and `hash` equal |
+| ✅ NEGATIVE CONTROL `energy == FunctionSpace("L2[S^2]", (2,))` | `False` — the predicate does discriminate when names differ |
+
+`FunctionSpace.__eq__`/`__hash__` are `(name, shape)` (`space.py:124`'s class
+docstring: *"``name`` is the **identity** of the space"*), and `[M]` **26** sites
+in `orpheus/` compare a space attribute with `==`/`!=`. So every composability
+guard in the tree admits an energy↔spatial confusion on these two spaces.
+
+⚠ **Honest scope, per `plan-authoring` §8's own sharpening (a branch's EXISTENCE
+is not its RELEVANCE):** what is measured is that the TYPE cannot distinguish
+them. Whether any production path puts these two on either side of one of the 26
+guards is **NOT measured**, and no wrong answer is claimed. The deliverable is a
+WITNESS, not a warning.
+
+⟹ this clause needs **2.1**'s constructor field to be fixed *by construction*
+(§II.15 R1: 18 `IndicatorBasis` sites over three families; any derived value
+hard-codes one of three). ⛔ **2.0c's done-when cannot own it** — `plan-authoring`
+§6b, with a *false name* in place of a call site. The clause moves to **2.1**.
+
+### (f) Four smaller corrections from the same census
+
+1. ⛔ §V.5c(e)'s *"two spellings of one quotient, **both shipped**"* — `[M]` all
+   five odd literals (`'img'`, `'probe'`, `'[-1,1]^slab'`, `'S^2/<sigma_y>'`,
+   `'S^2/sigma_y'`) are in **`tests/`**; `orpheus/` has **zero**. Production has
+   ONE fold spelling, and `Quotient.name` reproduces it **bit-identically**
+   (`[M]` `'S^2/sigma_y' == f"{SPHERE.name}/{Mirror('y').name}"`). The
+   identity-collapse hazard is a test-fixture matter, not a shipped one.
+2. ⭐ **Name identity is preserved for every production support tag.** `[M]`
+   `Manifold.name` reproduces `[-1,1]`, `S^2`, `S^2/sigma_y`, `spatial_R{d}`,
+   `index({label})`, `R`, `[0,1]`, `energy` verbatim — so the retype does not
+   move `FunctionSpace` identity anywhere it matters. **Two exceptions**, both
+   real name changes: `indicator_basis.py:284`'s `L2[coarse_cells_R{d}]` (which
+   is the defect, per (e)) and `loss_kernel_gauge.py:1169`'s
+   `sn_trace_orbit{o}_g{g}`, which under `IndexSet` becomes
+   `index(orbit{o}_g{g})` — a space-identity change on the SN trace-gauge path,
+   owed a gate.
+3. ⭐ **The `φ_*(M)` pushforward fallback has exactly ONE consumer, and it is a
+   test.** `[M]` by AST, 8 `pushforward` call sites: 7 pass `new_space`
+   explicitly (including the sole production one, `measure.py:1020` inside
+   `quotient`); the 1 that omits it is `tests/numerics/test_measure.py:331`,
+   whose only job is to assert the fallback. ⟹ making `new_space` REQUIRED is a
+   one-site change, and it is the principled one: a pushforward cannot know its
+   codomain without the chart, so the fabricated tag `φ_*(M)` names nothing —
+   §V.5c(e)'s own defect, in the production verb. `Chart` (2.3) then supplies it
+   structurally.
+4. ⛔ `[M]` a `grep` for these five literals returned **zero** while the AST
+   census found all five — the L61(c)/`nexus-tools` ugrep hazard, live again.
+   Every count in this section is AST or runtime, each with a positive control.
+
+### The re-ordered exit path
+
+⟹ **1.1(σ_y) → 2.0c (retype + the derived `quotient_group`) → 2.1 → 2.1b →
+2.2**, with 2.4 owning the slab's *declared* group. 2.0d is folded into 2.0c;
+2.0c's `indicator_basis` clause moves to 2.1.
+
+
 # Part VI — The action plan
 
 Phases are ordered by dependency, not by size (D0.5). The `Q#` column maps each
@@ -2118,7 +2270,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 0.5 | `spherical_harmonics.rst` rank-deficiency correction | ⏏ yes | ✅ `ae4dbc1f` |
 | 0.6 | `_evaluate_real_sh` raises on non-unit directions | ⏏ yes | ☐ (rides 3.4 — XII.1b) |
 | 0.7 | strict-xfail reproducer gate + **ERR-080** minted | ⏏ yes | ✅ `ae4dbc1f` |
-| 1.1 | catalog derivations — **`SO(2)/S²` entry is on the path** | ⏏ partial | ☐ |
+| 1.1 | catalog derivations — **`SO(2)/S²` entry is on the path**; ⭐ **and so is `S²/σ_y`, which now PRECEDES 2.0c** (§V.5d(a): `[M]` the catalogue has ONE entry and `SPHERE.quotient(Mirror('y'))` raises, so the retype cannot land without it) | ⏏ **yes** | ▶ **NEXT** — blocked on the §V.5d(b) representation ruling (section vs invariant chart) |
 | 1.2 | Gelfand-pair reading of Funk–Hecke | no | ☐ |
 | 1.3 | connection-term verify-or-kill | no | ☐ |
 | 1.4 | record the four gates | no | ☐ |
@@ -2128,9 +2280,9 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 1.8 | vocabulary reconciliation | no | ☐ |
 | 2.0a | ⭐ **MINT `Manifold`** (D0.7, user-ruled) — retires `Space = str` | ⏏ yes | ✅ `de29bcc6` — 9 variants, 40 tests, pyright 0. ⚠ the TYPE only; `support` is still `str` (that is 2.0c/2.1) |
 | 2.0b | `Manifold.contains` — the membership predicate; refuses the forged measure at construction | ⏏ yes | ◐ **HALF** — the predicate ships and is gated both legs (`[M]` refuses the `gauss_legendre(8)` forgery, norms `[0.1834, 0.9603]`; admits the normalised control) @ `de29bcc6`. The **refusal AT CONSTRUCTION** is unbuilt — that is the wiring, and it rides 0.1. ⛔ no `catches("ERR-080")` marker until then: refusing a forged ARRAY is not the production path refusing it |
-| 2.0c | `FunctionSpace` carries its `Manifold`; the two `L2[...]` name strings become derived | ⏏ yes | ☐ |
-| 2.0d | `measure.quotient_group` — `[M]` the slab's is recorded NOWHERE today | ⏏ yes | ☐ |
-| 2.1 | `Basis.domain: Manifold` (⛔ `support` rename REFUTED — §III.10) — `IndicatorBasis` takes a ctor field | ⏏ yes | ☐ |
+| 2.0c | `DiscreteMeasure.support: str → Manifold`; the `L2[...]` name derives; `quotient_group` becomes a derived property | ⏏ yes | ☐ ⛔ **BLOCKED on 1.1's σ_y entry** (§V.5d(a)). Re-scoped at the opener: **absorbs 2.0d** (§V.5d(c)); its `indicator_basis` clause **moves to 2.1** (§V.5d(e), §6b). `[M]` the retype preserves every production space name bit-identically bar two (§V.5d(f2)) |
+| 2.0d | `measure.quotient_group` | ⏏ yes | ⛔ **DISSOLVED into 2.0c** (§V.5d(c)) — `[M]` `Quotient.by` IS the group, so a stored field is a second home for it, and `support`'s four forwarding rules would have to be hand-kept in agreement. Its done-when was also unreachable as written (§V.5d(d)): the `SO2` answer is **2.4**'s declaration, not a derivation |
+| 2.1 | `Basis.domain: Manifold` (⛔ `support` rename REFUTED — §III.10) — `IndicatorBasis` takes a ctor field. ⭐ **Now also owns 2.0c's `indicator_basis` clause** (§V.5d(e)): `[M]` the false `L2[coarse_cells_R1]` name makes a 2-group ENERGY space and a 2-cell SPATIAL space `==`-EQUAL and hash-equal, with a passing negative control — an illegal state that IS representable, across 26 space-comparing sites | ⏏ yes | ☐ |
 | 2.1b | `Basis.invariance_group` — G0's other side; today NEITHER side exists | ⏏ yes | ☐ |
 | 2.1-W | ⭐ **PRE-CARVE**: the fold-basis witness | ⏏ yes | ✅ `TestFoldedCylinderP1BindsTheQuotientBasis` — 3 rows, L1, `verifies("pn-scatter", "discrete-measure-quotient")`. Keystone is k_inf-invariance on a HOMOGENEOUS folded cylinder, not the 2g-het solve the row proposed (§II.16). `[M]` rebind reds all 3 at nine orders of separation. **0.1c is unblocked** |
 | 2.2 | G0 at frame construction — ⚠ ALSO owns the `AngularSymmetry` Γ-slot (§II.10, inventory #11): `support` derives from `continuous_isotropy` alone, so stage 0 refuses the shipped cylinder | ⏏ yes | ☐ |
@@ -2238,15 +2390,34 @@ from it was dropped.
 
 ## ▶ RESUMES AT — stated as OUTCOMES (`plan-authoring` §1)
 
-**A function space knows the manifold its functions are defined on, and a
-measure knows the group it was quotiented by.** Trackers **2.0c** and **2.0d**.
-Today both facts are smuggled: the manifold through a NAME STRING at 2 sites
-(one of them `[M]` already FALSE — §III.10), and the quotient group **nowhere at
-all**. They are the two operands the G0 predicate has always named and never
-had.
+⛔ **SUPERSEDED 2026-08-31 (late) by the 2.0c/2.0d phase opener — §V.5d.** The
+pointer below was right about the OUTCOME and wrong about the next step; both
+halves are kept per §3.
 
-*Then* **2.1** (`Basis.domain: Manifold`) and **2.1b**
-(`Basis.invariance_group`), which complete G0's other side.
+*(Original text: "**A function space knows the manifold its functions are
+defined on, and a measure knows the group it was quotiented by.** Trackers
+**2.0c** and **2.0d**. Today both facts are smuggled: the manifold through a NAME
+STRING at 2 sites (one of them `[M]` already FALSE — §III.10), and the quotient
+group **nowhere at all**. They are the two operands the G0 predicate has always
+named and never had. *Then* **2.1** and **2.1b**, which complete G0's other
+side.")*
+
+▶ **The shipped cylindrical fold is expressible as a typed quotient.** Tracker
+**1.1**, σ_y entry. `[M]` `_ORBIT_CATALOGUE` (`manifold.py:633`) holds **one**
+entry, `(Sphere, "SO2")`, and `SPHERE.quotient(SubgroupOfO3.Mirror("y"))` raises
+`NotImplementedError` — while `folded_product(4,8).measure.support` **is**
+`'S^2/sigma_y'`. So `support: str → Manifold` cannot land until that orbit space
+is derived and registered: 1.1 PRECEDES 2.0c, which the tracker did not record.
+
+⚠ **And 1.1's σ_y entry is itself blocked on a ruling** (§V.5d(b)): the two
+shipped quotients use incompatible node representations — `S²/SO(2)` ships the
+**invariant coordinate** (1-D `μ`), `S²/σ_y` ships a **SECTION** (16×3 unit
+vectors on the closed upper hemisphere) — and `Quotient` has ONE `realization`
+field that `contains` and `_ambient` both read. The SO(2) entry cannot expose the
+fork, because there the chart and the section coincide in dimension.
+
+*Then* **2.0c** (the retype, now absorbing 2.0d), then **2.1** (now also owning
+the `L2[coarse_cells_Rd]` illegal-state repair, §V.5d(e)) and **2.1b**.
 
 ### The migration this opens, measured — read §V.5c before decomposing it
 
@@ -2350,6 +2521,11 @@ Read these before quoting any earlier section:
 | 2.1-W: *"reds 0 of 1913"* | ⛔ **pytest never RAN** — rc=4, 0 collected, zero on BOTH scanners. §II.16(c) |
 | 2.0a-R: *"all 8 derivation fields"* | ⛔ **6 of 8** — chart + pushforward wait on `Chart` (2.3). The ruling block |
 | §V.5c: *"`quotient` does no lookup and no check"* | ⛔ **HALF false** — the MEASURE is gated; the TAG is not. §V.5c(c) |
+| 2.0d: *"`gauss_legendre(8).measure.quotient_group is SO2`, derived"* | ⛔ **UNREACHABLE as written** — that measure never goes through `.quotient()`; the `SO2` answer is **2.4**'s declaration. §V.5d(d) |
+| 2.0d as a separate landing | ⛔ **DISSOLVED into 2.0c** — `Quotient.by` already IS the group. §V.5d(c) |
+| 2.0c as the next step | ⛔ **BLOCKED** — no `S²/σ_y` catalogue entry; 1.1 precedes it. §V.5d(a) |
+| §V.5c(e): *"two spellings of one quotient, both shipped"* | ⛔ **all five odd literals are in `tests/`**; `orpheus/` has zero, and `Quotient.name` reproduces the production tag bit-identically. §V.5d(f1) |
+| 2.0c's `indicator_basis` done-when clause | ⛔ **MOVED to 2.1** (§6b) — it needs 2.1's ctor field to be fixed *by construction*. §V.5d(e) |
 | 2.1: *"three manifolds over 5 sites"* | ⛔ **18 sites** (4 `orpheus/`, 14 `tests/`); the *three* was right. The 2.1 row |
 
 ## Measured baselines and costs
