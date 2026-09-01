@@ -2053,8 +2053,8 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 1.6 | `ℛ* = ℛ` as adjoint-vs-dual | no | ☐ |
 | 1.7 | the support algebra, written | no | ☐ |
 | 1.8 | vocabulary reconciliation | no | ☐ |
-| 2.0a | ⭐ **MINT `Manifold`** (D0.7, user-ruled) — retires `Space = str` | ⏏ yes | ☐ |
-| 2.0b | `Manifold.contains` — the membership predicate; refuses the forged measure at construction | ⏏ yes | ☐ |
+| 2.0a | ⭐ **MINT `Manifold`** (D0.7, user-ruled) — retires `Space = str` | ⏏ yes | ✅ `de29bcc6` — 9 variants, 40 tests, pyright 0. ⚠ the TYPE only; `support` is still `str` (that is 2.0c/2.1) |
+| 2.0b | `Manifold.contains` — the membership predicate; refuses the forged measure at construction | ⏏ yes | ◐ **HALF** — the predicate ships and is gated both legs (`[M]` refuses the `gauss_legendre(8)` forgery, norms `[0.1834, 0.9603]`; admits the normalised control) @ `de29bcc6`. The **refusal AT CONSTRUCTION** is unbuilt — that is the wiring, and it rides 0.1. ⛔ no `catches("ERR-080")` marker until then: refusing a forged ARRAY is not the production path refusing it |
 | 2.0c | `FunctionSpace` carries its `Manifold`; the two `L2[...]` name strings become derived | ⏏ yes | ☐ |
 | 2.0d | `measure.quotient_group` — `[M]` the slab's is recorded NOWHERE today | ⏏ yes | ☐ |
 | 2.1 | `Basis.domain: Manifold` (⛔ `support` rename REFUTED — §III.10) — `IndicatorBasis` takes a ctor field | ⏏ yes | ☐ |
@@ -2085,6 +2085,36 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | ⏏ | **the six exit predicates (XII.3)** | — | ☐ |
 
 **Open rulings blocking the EXIT PATH:** ⭐ **NONE.** (One ruling is open OFF the exit path: **3.4-R2**, the descent isomorphism — Part V.5 §C. It must be ruled before 3.4 lands, but it does not block the return to Campaign 2.)
+
+**Ruled — 2.0a-R, the `Manifold` SHAPE (user, 2026-08-31).** A **closed sum
+type, split by TOTALITY**: `dim` / `name` / `contains` / `__mul__` are total, so
+they live on an abstract base; the derivation fields are partial, so they live on
+`Quotient` alone. Decided against a polymorphic hierarchy on measured evidence,
+not taste — `[M]` **all 8** of D0.1's derivation fields belong to `Quotient`, so a
+hierarchy must put them on the base returning `None` for every non-quotient, which
+is the exact tax `SubgroupOfO3.mirror_axis` already pays and `directional.py:522`
+already branches on. Both shipped precedents were read rather than recalled
+(`plan-authoring` §1): `BoundaryTraceLaw` is 7 registered sibling classes;
+`SubgroupOfO3` is ONE class over a `_tag` sum, dispatching with `[M]` **10
+`isinstance` calls in 13 methods, 0 `match`** — so the ruled shape is that
+precedent's own data model with the dispatch it would get today, keeping the two
+halves of `M/H` structurally parallel.
+
+⛔ **And a §6d finding that inverted mid-check.** The placement note says
+*"its own module with no intra-`numerics` imports"*. I questioned it, ran an AST
+import census, and got *"`symmetry` imports only `geometry.transformation`, so
+`symmetry → measure` = 0, no cycle"* — **wrong, and in the reassuring
+direction.** My filter tested `node.module.startswith("orpheus")`, and an
+`ImportFrom` with `level > 0` carries an UNQUALIFIED `.module`, so every
+**relative** import was silently dropped — including
+`symmetry.py:98`'s `from .measure import DiscreteMeasure`, a module-scope
+RUNTIME edge. `[M]` re-run with relative resolution and a positive control:
+`symmetry → measure` is real, and `measure`'s own `symmetry` import is
+`TYPE_CHECKING` at `:91` plus a **function-scope** one at `:1005` — deferred for
+exactly this reason. So `measure → manifold → symmetry → measure` is a genuine
+cycle and the placement note was right, for a reason it never wrote down.
+`Manifold` therefore references `SubgroupOfO3` under `TYPE_CHECKING` only;
+verified by importing the trio in both orders and in a fresh interpreter.
 
 **Ruled:** 3.4-R was ruled by the user on
 2026-08-31 — **option (b), the true `LegendreBasis` on `[-1,1]`**, on the
