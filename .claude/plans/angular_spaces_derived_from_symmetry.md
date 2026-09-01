@@ -378,6 +378,15 @@ angular frame with an `S^2`-tagged operand. Measure it with the suite before
 landing; it is NOT part of the bit-identical half, and it owes a gate at the
 tier the change is observable.**
 
+⛔ **REFUTED 2026-08-31 (§II.15 R2/R3) — measured, and the traffic is ZERO.**
+`[M]` **0 of 145 089** two-sided composability checks put an `L2[S^2…]` space on
+either compared side; a positive control STRONGER than 0.1c reddens exactly one
+test, on an *unfolded* rule; 0.1c itself reds nothing. The static chain above is
+real code and **carries no traffic**. The paragraph stays because its *shape* is
+the transferable lesson: §8's grep-the-branch check is a WIRING check and cannot
+tell load-bearing from inert, and the error direction — over-caution — reads as
+rigor.
+
 `[M]` **10 of 12 rows: the forged nodes are BIT-IDENTICAL to the rule's own**
 (`np.array_equal`, exact shapes). The two exceptions are the 1-D rules, where
 the rule's nodes are scalars `(N,)` and the forgery is `(N,3)`.
@@ -549,6 +558,115 @@ the accessor as `getattr(quadrature, "mu_y", np.zeros_like(mu_x))` — the
 `coding-standards` string-form idiom that **fails in the DEFAULT's direction**.
 If `mu_y`/`mu_z` are ever retired, that call does not raise; it silently returns
 the default and every branch keyed on it flips.
+
+
+
+## II.15 ⛔⛔ FIVE of my execution-time claims, REFUTED by the verification plan (2026-08-31)
+
+`test-architect`, 106 tool calls, monkeypatch-only batteries. Kept in place per
+`plan-authoring` §3 — the refutations are worth more than the claims were.
+
+### ⛔ R1 — *"all 6 `Basis` subclasses can DERIVE their domain from their own fields"* is FALSE for 3 of 6
+
+`[M]` over every shipped `(basis, measure)` pairing production constructs, **4 of
+10 agree** under my proposed derivations; one mismatch is the intended ERR-080
+one; **five are not**, all in the indicator family:
+
+| mint site | my proposed value | the REAL `measure.support` |
+|---|---|---|
+| `energy_grid.py:220` `as_basis()` | `spatial_R1` | **`energy`** |
+| `energy_grid.py:270` `overlap_to()` | `spatial_R1` | **`energy`** |
+| `mixture.py:424` | `spatial_R1` | **`energy`** |
+| `frame.py:754` `_collapse_pair('angular')` | `spatial_R1` | **`index(angular)`** |
+| `frame.py:754` `_collapse_pair('energy')` | `spatial_R1` | **`index(energy)`** |
+
+⭐ The reason is real and not a slip: `edges_per_axis` is an **index partition
+with no manifold identity**, and the tree legitimately mints `IndicatorBasis`
+against **three** manifolds. `f"spatial_R{ndim}"` hard-codes one of three — the
+exact defect this campaign exists to remove, committed by me while removing it.
+⟹ **`IndicatorBasis` needs a CONSTRUCTOR-SUPPLIED tag** (5 mint sites), which is
+the honest form: the indicator genuinely does not know its manifold until told,
+and forcing the mint site to say so IS "no hard-coding at the meeting place".
+⚠ This also kills the candidate LAW `basis.<tag> == measure.support` as a
+universal — it would false-red on five correct pairings. **It survives only as
+the ANGULAR-path predicate, which is all `angular_frame` needs.**
+
+### ⛔ R5 — the property must be called `support`, NOT `domain`
+
+`[M]` `domain` is already a loaded protocol name: **58** definers in `orpheus/`
+and **13** `getattr(x, "domain", None)` readers (`operator.py:1168,:1485`,
+`flat_operator.py:114`, `coupled_system.py:767`, …) — **all expecting a
+`FunctionSpace`**. Part A would hand them a `str`, and the `getattr`-with-default
+idiom **fails silently in the default's direction** (`coding-standards`).
+`[M]` `support` has 15 definers and `DiscreteMeasure.support` is *the same
+concept with the same type*. ⟹ **RULED: `Basis.support`.** Matching spellings
+across the two objects is also what makes the composability check read as a
+comparison of like with like.
+
+### ⛔ R2/R3 — 0.1c is NOT "the behaviour-bearing half", and my §8 hazard is empirically vacuous
+
+`[M]` a positive control **strictly stronger** than 0.1c (corrupt `support` on
+*every* rule) reddens **exactly one** test over 2634 measured rows — and that
+one is on `lebedev(17)`, an **unfolded** rule. Simulating 0.1c itself: **0 reds**
+across all three scopes (2052 / 351 / 231).
+`[M]` and the mechanism I named does not exist: over `OperatorProduct.__init__`
++ `_agreed_space`, **0 of 145 089** two-sided composability checks put an
+`L2[S^2…]` space on either compared side. `frame.conjugate` checks
+`basis_space`, never `measure_space`; the SN faces are
+`HarmonicFrame.flux_analysis_on(angular_space)`, carrying the **caller's** space.
+
+⚠⚠ **The lesson for me, and it is a §8 sharpening**: I traced a real static
+chain — `measure_space` → `_FrameAnalysis.domain` → `OperatorSum` refuses
+unequal domains — and published it as a measured hazard. Every link is real
+code. **The traffic on it is zero.** §8's own prescribed check (*grep the field
+against `is None` / equality and read what each hit decides*) is a **wiring**
+check by construction, and cannot distinguish load-bearing from inert. And the
+error direction is the flattering one: an over-warning reads as rigor, so
+nothing prompts a re-check.
+
+### ⛔ R4 — my proposed bit-identity gate CANNOT be the keystone
+
+`[M]` inverting the new predicate outright (*"always take the bridge"*) is
+**bit-identical on end-to-end `keff`** across slab/sphere/cylinder and reds
+**0 of 120** (Tier 0) and **0 of 1913** (Tier 1). So a value gate is blind to
+the routing decision the change IS. `plan-authoring` §10, third shape: the gate
+I would have written cannot detect its own campaign's success OR failure.
+⟹ **the keystone is a ROUTE gate, not a value gate**: `frame.measure is
+q.measure` — `[M]` **red today on all 8 rows** (`False`), green after on the 6
+routed rows. Identity, not equality: equality is what the bridge already
+satisfies.
+
+### ⛔⛔ R4b — the ENTIRE fold-basis machinery has zero solve-path witnesses
+
+`[M]` **179 folded `angular_frame` calls across 72 tests — 100 % at `L = 0`**,
+and `[M]` at `L = 0` the `MirrorEven` table is **bit-identical** to the plain SH
+table (`max|Δ| = 0.000e+00`; it diverges at `8.688e-01` from `L = 1`). So every
+one of those 179 calls witnesses nothing about the fold. `[M]` **deleting
+`MirrorEvenSphericalHarmonicBasis` outright reds 0 of 1913.**
+⟹ **PRE-CARVE OBLIGATION**: one parametrize row — 2-group heterogeneous
+cylinder, `folded_product(4,8)`, `scattering_order=1` — `[M]` takes the fold
+basis from **0** witnesses to an **18.5 %** catcher
+(`0.7475027…` → `0.6095089…`). It must land **before** any carve touches the
+fold path, or the carve is unfalsifiable there. `vv-principles` #17 / §6c.
+
+### ⛔ And my §3 "two independent producers" check is a TAUTOLOGY
+
+`Quadrature.quotient` sets `folded_by=group`; `_harmonic_basis` reads
+`folded_by.mirror_axis`; `DiscreteMeasure.quotient` reads `group.name`. **Both
+sides derive from ONE `SubgroupOfO3` instance**, so "the two agree" is `X == X`
+— worse than a shared-token check, because it looks like corroboration. The
+falsifiable content is the ROUND TRIP: `AXIS_NAMES[Mirror(a).mirror_axis] == a`
+(`AXIS_NAMES` is at `numerics/face_layout.py:100`). Swap two entries and it reds.
+
+### ✅ What SURVIVED
+
+`[M]` Part A breaks nothing in-tree: 7 transitive subclasses (6 production +
+`_DenseTrial(IndicatorBasis)`, which inherits), **0** duck-typed classes, **0**
+`SimpleNamespace`/`Mock` surrogates, 0 aliased-base subclasses, 9 Basis/Frame
+monkeypatches (all patching methods on real subclasses) — confirmed by an exact
+`ABCMeta` simulation (720 + 231 passed, `still-abstract: []`). So **abstract is
+safe**, and the §6b surrogate classes that bit twice this month are absent here.
+⚠ The census is structurally blind to out-of-tree subclasses (§6.4 of the memo).
 
 
 ---
@@ -993,7 +1111,7 @@ prerequisite for every gate in Part IV.
 
 | # | item | goal, separately from means | done when | Q# |
 |---|---|---|---|---|
-| 2.1 | **`Basis.domain`** (closes L2). *Proposed means, unverified:* a `domain: Space` property beside the existing `space`, giving the basis the same two-level structure the measure already has (`support` + `space`). | `SphericalHarmonicBasis.domain == SPACE_SPHERE`; every shipped `Basis` subclass answers | — |
+| 2.1 | **`Basis.support`** (closes L2). ⛔ **RENAMED from `domain` 2026-08-31 (§II.15 R5)**: `[M]` `domain` has **58** definers and **13** `getattr(x,"domain",None)` readers in the operator machinery, all expecting a `FunctionSpace` — a `str` there fails SILENTLY in the default's direction. `support` (15 definers) is what `DiscreteMeasure` already calls the same concept with the same type. *Means:* a `support: Space` property beside the existing `space`, giving the basis the same two-level structure the measure has. ⚠ **`IndicatorBasis` takes it as a CONSTRUCTOR FIELD, not a derivation** (§II.15 R1: `[M]` the tree mints it against **three** manifolds — spatial, energy, axis-index — over 5 sites, so any derived value hard-codes one of three). | `SphericalHarmonicBasis.domain == SPACE_SPHERE`; every shipped `Basis` subclass answers | — |
 | 2.2 | **G0 at frame construction** (closes L3). ⭐ **§II.7: the PREDICATE already exists** as `AngularSymmetry.admits_domain` (`measure.support == self.support`) — `[M]` reachable only from `select_quadrature`, whose 21 callers are **all tests**; and `[M]` `solve_sn` is HANDED a quadrature (required positional, no default), so the selector was never on the path. ⛔ **REFINED by §II.10 — NOT "just wiring".** The predicate is correct over an **incomplete domain vocabulary**: `support` derives from `continuous_isotropy` alone, so `folded_product`'s `S^2/sigma_y` matches **no** geometry and stage 0 would **refuse the shipped cylinder**. 2.2 owes the ontology a second slot (the *discrete* quotient the rule took — `SubgroupOfO3` already names it) **and** the `(CoordSystem, ndim) → key` join, which `[M]` exists nowhere. Do not hand-roll a second predicate; do extend this one's vocabulary. | `GalerkinFrame(SphericalHarmonicBasis(L=2), slab_measure)` **RAISES**, with a test witnessing it on the exact pairing that ships today | — |
 | 2.3 | ⭐ **The typed `Chart`** (closes L6, L7). *Proposed means:* a map carrying `domain → codomain`; `pushforward` derives `support` from the chart rather than taking `new_space`; `product()` composes its two 1-D factors through the Archimedes chart instead of `column_stack` + a literal. | `grep` finds no `SPACE_SPHERE` literal at a measure constructor; `product(4,8).measure.support` is **derived**; the factor structure is recoverable from the built rule | — |
 | 2.4 | **The slab rule declares its quotient group** (closes L5). Includes settling Part IV's obstacle 1 — the `SO2` axis-convention collision — and obstacle 2, the `invariance_group` vs `folded_by` conflation. ⛔ **MOVED to Phase 0 on 2026-08-31** — the full-suite phantom census was scheduled here, but **0.2 depends on it** (it is 0.2's denominator, not 2.4's). Scheduling a step's own precondition three phases downstream is the `plan-authoring` §6b defect with a *census* in place of a call site. Run and published at Phase 0. | `SubgroupOfO3.SO2.is_invariant(gauss_legendre(8).measure)` returns the derived answer, and the plan records whether that answer is `True` **with the derivation**, not the prediction | — |
@@ -1432,9 +1550,9 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 
 | # | item | on exit path? | status |
 |---|---|:---:|---|
-| 0.1a | 3-D rules hand the frame their OWN measure (`[M]` bit-identical, 10/12) | ⏏ yes | ☐ |
+| 0.1a | 3-D rules hand the frame their OWN measure — ⚠ keystone is a **ROUTE** gate (`frame.measure is q.measure`), not bit-identity (§II.15 R4) | ⏏ yes | ☐ |
 | 0.1b | the 1-D rows — ⛔ **rides 3.4**, the lift does not exist (§II.9) | ⏏ yes | ☐ (with 3.4) |
-| 0.1c | the fold's `S^2/sigma_y` tag — gated on the §8 blast radius | ⏏ yes | ☐ |
+| 0.1c | the fold's `S^2/sigma_y` tag — ⛔ §8 hazard REFUTED (0 reds; 0/145 089 checks); blocked instead on **2.1-W**, since the fold path has no witness | ⏏ yes | ☐ |
 | 0.2 | phantom component unspellable — ⛔ means REFUTED by the census; **runs AFTER 0.1**, then it is the accessor SPLIT (direction vs flow) | ⏏ yes | ☐ |
 | 0.2-census | full-suite phantom census (moved here from 2.4) | ⏏ yes | ✅ **DISCHARGED** — §II.14, 13 trees rc=0, 11 sites / 1604 reads |
 | 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ✅ `ae4dbc1f` |
@@ -1451,7 +1569,8 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 1.6 | `ℛ* = ℛ` as adjoint-vs-dual | no | ☐ |
 | 1.7 | the support algebra, written | no | ☐ |
 | 1.8 | vocabulary reconciliation | no | ☐ |
-| 2.1 | `Basis.domain` — ⏏ **pulled forward**: it is what makes 0.1's predicate honest (§II.14) | ⏏ yes | ▶ verification plan dispatched |
+| 2.1 | `Basis.**support**` (⛔ renamed from `domain`) — ⏏ **pulled forward**; `IndicatorBasis` takes a ctor field | ⏏ yes | ☐ verification plan landed |
+| 2.1-W | ⭐ **PRE-CARVE**: the fold-basis witness (2g het cylinder, `folded_product(4,8)`, `scattering_order=1`) — `[M]` 0 → 18.5 % catcher | ⏏ yes | ☐ **MUST precede 0.1c** |
 | 2.2 | G0 at frame construction | ⏏ yes | ☐ |
 | 2.3 | the typed `Chart`; pushforward derives support | ⏏ yes | ☐ |
 | 2.4 | slab declares its quotient group; SO2 axis collision; **full-suite phantom census** | ⏏ yes | ☐ |
