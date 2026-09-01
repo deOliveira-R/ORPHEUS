@@ -341,7 +341,7 @@ property it signals.
 
 | # | leak | evidence `[M]` | missing property |
 |---|---|---|---|
-| **L1** | `angular_frame` **fabricates** `support=SPACE_SPHERE` onto interval nodes | `directional.py:587-593`; rule support `[-1,1]` → frame support `S^2`; `‖node‖` 0.1834..0.9603 | `Basis` cannot declare its **domain**, so the binder forges a matching support |
+| **L1** | `angular_frame` **fabricates** `support=SPACE_SPHERE` onto interval nodes | `directional.py:624` (⛔ **was `:587-593`; re-measured 2026-09-01** — `angular_frame` now begins at `:580` and the fabrication sits at `:624`); rule support `[-1,1]` → frame support `S^2`; `‖node‖` 0.1834..0.9603 | `Basis` cannot declare its **domain**, so the binder forges a matching support |
 | **L2** | `Basis` has **no `domain`** | `basis/base.py` declares `evaluate / synthesize / analyze / analyze_transpose / reconstruct / reconstruct_transpose / gram_structure / mass_matrix / space` — no domain. Its own docstring: *"the nodal/domain space comes from the measure"* | the intrinsic property itself |
 | **L3** | no composability check where the two meet | `GalerkinFrame(basis, measure)` validates neither support nor domain | the check has no home even if L2 existed |
 | **L4** | a 1-D rule exposes a 3-D direction tuple with fabricated zeros | see §II.5 — **ONE** production consumer, and it is L1 | the **chart map is not an object** (L6) |
@@ -1840,7 +1840,7 @@ Every item here is true under every design choice in Phases 1–7.
 
 | # | item | site | Q# |
 |---|---|---|---|
-| **0.1** | ⚡ **Stop fabricating the support, and delete the phantom read in the same expression.** `angular_frame` must not write `support=SPACE_SPHERE` over nodes with `‖Ω‖ ≠ 1`. §II.5 proves L1 and L4 are ONE fix. ⛔ **SPLIT at execution 2026-08-31 — see §II.9**: `0.1a` (3-D rules hand the frame their OWN measure; `[M]` bit-identical on 10 of 12 shipped rows) lands now; `0.1b` (the 1-D rows) **rides Phase 3.4**, because the lift `[-1,1] → S²` *does not exist as a map*; `0.1c` (the fold's `S^2/sigma_y` tag, §II.8's new leak) is gated on a `plan-authoring` §8 blast-radius measurement of `FunctionSpace` equality. | `directional.py:587-593` | — |
+| **0.1** | ⚡ **Stop fabricating the support, and delete the phantom read in the same expression.** `angular_frame` (`[M]` 2026-09-01: the site is `directional.py:624`, not the `:587-593` this row cited) must not write `support=SPACE_SPHERE` over nodes with `‖Ω‖ ≠ 1`. §II.5 proves L1 and L4 are ONE fix. ⛔ **SPLIT at execution 2026-08-31 — see §II.9**: `0.1a` (3-D rules hand the frame their OWN measure; `[M]` bit-identical on 10 of 12 shipped rows) lands now; `0.1b` (the 1-D rows) **rides Phase 3.4**, because the lift `[-1,1] → S²` *does not exist as a map*; `0.1c` (the fold's `S^2/sigma_y` tag, §II.8's new leak) is gated on a `plan-authoring` §8 blast-radius measurement of `FunctionSpace` equality. | `directional.py:587-593` | — |
 | **0.2** | ⚡ **A phantom component becomes unspellable.** *Proposed means as of 2026-08-31, SHARPENED at execution — see ⚠ below:* `axis_cosines(i)` raises for `i ≥ dim`. ⛔ a `raise`, **not** an `assert` — the canonical runner is `python -O`. ✅ **census DISCHARGED (§II.14) — and it REFUTED this means**: `[M]` a blanket raise breaks **3 legitimate production consumers** asking the FLOW question. ⟹ runs AFTER 0.1 (which deletes the one fabrication site, 92 % of all reads); 0.2 is then the accessor SPLIT. Done-when re-runnable: re-run the census, `directional.py:589` must be GONE. | `directional.py` | — |
 
 > ⚠ **0.2's means is not yet safe as written — `axis_cosines` is TWO
@@ -2496,108 +2496,94 @@ this is right: the forgery is what CONCEALS the missing discrete-quotient slot).
 
 ---
 
-# Part XIV — ⏸ COMPACTION POINT 1 (2026-08-31, evening) + ▶ Resume surface
+# Part XIV — ⏸ COMPACTION POINT 2 (2026-09-01) + ▶ Resume surface
 
 **Read in this order on pick-up:** this Part → Part XIII (the tracker) → Part XII
-(the exit gate) → the phase you are executing. **Part IX, §II.15 and §II.16
-first if you are about to re-propose anything** — twelve premises are refuted
-there, most of them mine, several the same day they were written.
+(the exit gate, esp. **XII.1b**) → the phase you are executing. **Part IX,
+§II.15, §II.16 and §V.5d first if you are about to re-propose anything** —
+sixteen premises are refuted across them, most of them mine, several the same
+day they were written and one *by my own fix*.
 
-⚠ This supersedes COMPACTION POINT 0. Its content is folded in below; nothing
+⚠ This supersedes COMPACTION POINT 1. Its content is folded in below; nothing
 from it was dropped.
 
 ---
 
 ## ▶ RESUMES AT — stated as OUTCOMES (`plan-authoring` §1)
 
-⛔ **SUPERSEDED 2026-08-31 (late) by the 2.0c/2.0d phase opener — §V.5d.** The
-pointer below was right about the OUTCOME and wrong about the next step; both
-halves are kept per §3.
+**Nothing on the exit path is blocked.** The σ_y orbit space landed, which was
+the last item gating anything.
 
-*(Original text: "**A function space knows the manifold its functions are
-defined on, and a measure knows the group it was quotiented by.** Trackers
-**2.0c** and **2.0d**. Today both facts are smuggled: the manifold through a NAME
-STRING at 2 sites (one of them `[M]` already FALSE — §III.10), and the quotient
-group **nowhere at all**. They are the two operands the G0 predicate has always
-named and never had. *Then* **2.1** and **2.1b**, which complete G0's other
-side.")*
+▶ **No quadrature asserts a support its own nodes contradict.** Trackers
+**0.1a** (3-D rules hand the frame their OWN measure) and **0.1c** (the fold's
+tag). `[M]` the fabrication is at `directional.py:624` — `support=SPACE_SPHERE`
+written over nodes that are not on `S²`. This is the defect ERR-080 rides on,
+and Phase 0 is unconditional under every ruling below.
 
-▶ **The shipped cylindrical fold is expressible as a typed quotient.** Tracker
-**1.1**, σ_y entry. `[M]` `_ORBIT_CATALOGUE` (`manifold.py:633`) holds **one**
-entry, `(Sphere, "SO2")`, and `SPHERE.quotient(SubgroupOfO3.Mirror("y"))` raises
-`NotImplementedError` — while `folded_product(4,8).measure.support` **is**
-`'S^2/sigma_y'`. So `support: str → Manifold` cannot land until that orbit space
-is derived and registered: 1.1 PRECEDES 2.0c, which the tracker did not record.
+*Then* the objects the fix reads, then the fix.
 
-⚠ **And 1.1's σ_y entry is itself blocked on a ruling** (§V.5d(b)): the two
-shipped quotients use incompatible node representations — `S²/SO(2)` ships the
-**invariant coordinate** (1-D `μ`), `S²/σ_y` ships a **SECTION** (16×3 unit
-vectors on the closed upper hemisphere) — and `Quotient` has ONE `realization`
-field that `contains` and `_ambient` both read. ⛔ The first draft of this
-pointer said the SO(2) entry could not expose the fork "because there the chart
-and the section coincide in dimension" — **refuted 2026-09-01**: `[M]` they
-coincide in BOTH, necessarily, since `Quotient.__post_init__` gates it. The real
-reasons are that a positive-dimensional group has no canonical section, and that
-the tree's SO(2) data is already chart coordinates.
+### ⏏ The ORDER, and why it is this order
 
-*Then* **2.0c** (the retype, now absorbing 2.0d), then **2.1** (now also owning
-the `L2[coarse_cells_Rd]` illegal-state repair, §V.5d(e)) and **2.1b**.
+Part XII.2 says WHICH items are on the critical path; this says in what
+sequence, which is not the tracker's numbering. Per-item status lives in
+Part XIII — do not copy it here (`plan-authoring` §9).
 
-### The migration this opens, measured — read §V.5c before decomposing it
+| # | items | why here |
+|---|---|---|
+| 1 | **0.1a**, **0.1c** | Phase 0 is unconditional. ⭐ **0.1c is substantially de-risked**: its stated gate was *"a §8 blast-radius measurement of `FunctionSpace` equality"*, and §V.5d measured the general machinery — `[M]` `name` IS space identity and `Manifold.name` reproduces every production support tag bit-identically, `'S^2/sigma_y'` included, with exactly two exceptions (§V.5d(f2)). What remains is the same measurement on the specific carve |
+| 2 | **0.2** | the accessor SPLIT. Depends on 0.1, which deletes 92 % of the reads. ⛔ its ORIGINAL means (a blanket `raise`) is REFUTED by its own census — 3 legitimate production consumers ask the FLOW question, for which zero is the right answer |
+| 3 | **2.1** | ⭐ smaller than 2.0c and the only remaining item that repairs something ALREADY WRONG: `[M]` a 2-group ENERGY space and a 2-cell SPATIAL space are `==`-equal AND hash-equal, across 26 space-comparing sites (§V.5d(e)) |
+| 4 | **2.0c** | the retype, now unblocked. Absorbs 2.0d. `[M]` 54 literals + 5 f-strings, 94 % of the literals in `tests/` |
+| 5 | **2.1b**, **2.3**, **2.4** | G0's other side; the typed `Chart`; the slab's declared quotient group |
+| 6 | **3.1** scoped to `SO(2)` | the catalogue home + the probe |
+| 7 | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | **ONE COMMIT — see XII.1b.** THE FIX |
+| 8 | **4.1**, **4.9**, then the six exit predicates (XII.3) | |
 
-`[M]` `support = str → Manifold` does **not** touch 87 sites. Split by the AST
-node of the value passed:
+⚠ **2.1 and 2.0c are independent** — both need only `Manifold`, which ships.
+The order above prefers 2.1 because it is smaller and fixes a live defect;
+swapping them costs nothing.
 
-| the value passed | `orpheus/` | `tests/` | what the retype costs |
-|---|---:|---:|---|
-| `SPACE_*` constant | 13 | 3 | **nothing** — the constant is retyped once |
-| attribute / other Name (forwarded) | 9 | 4 | **nothing** — it forwards |
-| raw string literal | 3 | **51** | one edit each; 94 % of it in `tests/` |
-| **f-string** — a tag BUILT by interpolation | **4** | 0 | ⭐ **the real work** |
+### ⛔ Why step 7 is the campaign's highest-risk landing
 
-⟹ the production tree is nearly free; the bulk is 51 test literals; and the
-**4 f-strings are the architecture**, because each is a parametric family the
-string type hid (`[{a},{b}]`, `spatial_R{d}`, `index({label})`, and
-`sn_trace_orbit{orbit}_g{group}` — the last a SECOND spelling of the
-index-set family, which the 2.0a row's member list never named).
+`plan-authoring` §6c's MIRROR: not a gate with no witness, but **a gate whose
+only witness is PRODUCTION.** 2.2's G0 refuses exactly the pairing the tree
+ships today, so arming it before 3.4 changes that pairing reddens every slab
+solve. The temptation the interval creates is to weaken the gate so the tree
+stays green — which is how a real refusal decays into a warning. Land the four
+together or not at all.
 
-`[M]` and **18** `.support` reads do string manipulation, **all 18 in
-`orpheus/`, 0 in `tests/`** — of which three ARE the verbs (`measure.py:588`
-`__mul__`, `:1022` `quotient`, `:802` the pushforward codomain) and one is the
-`L2[...]` name at `:331` that 2.0c retires.
+### ⭐ What this session's ruling changed about a LATER step
 
-### ⛔ Two landmines for the pick-up session's own greps
+**2.3 (the typed `Chart`) gained weight.** It was *"completes the engine seed
+6 → 8"*; after the two-slot ruling it is also the natural home for the SECTION
+MAP — and `[M]` the honest `φ = 0` half-meridian is exactly what ERR-080's
+level-1 half needs, since the tree currently fabricates it by zero-padding to
+`(μ, 0, 0)`, which is off `S²`.
 
-1. **`invariance_group` returns 55 hits and the plan's claim still holds.**
-   `[M]` by AST exactly ONE class defines it — `DiscreteMeasure` — and it means
-   *the group this measure IS invariant under*, **not** the group it was
-   quotiented BY. `[M]` `hasattr(SphericalHarmonicBasis(L=1), "invariance_group")`
-   is `False`; 0 of 6 `Basis` subclasses define it. So both sides of G0
-   (`measure.quotient_group ⊆ basis.invariance_group`) are genuinely absent, and
-   a bare grep says otherwise. §3's ambiguous-name hazard, live.
-2. **`measure.py:411`'s `self.support == "cells"` has NO producer.** Denominator
-   enumerated in §V.5c(d): 58 literal `support=`/`new_space=` sites (13 distinct
-   values), 6 `SPACE_*` constants, 36 non-literal producers — `"cells"` in none.
-   The only `"cells"` in the tree is `radial_characteristic_space.py`'s
-   `part="cells"`, a walk-part label. Three surfaces advertise the dead arm (the
-   branch, the docstring at `:387`, the `raise` at `:416`). **2.0a acceptance
-   item**: the mint must make it unspellable and the prose must stop naming it.
+### ⛔ Three landmines for the pick-up session's own greps
 
-### §1 existence-checks on every symbol this pointer names — run 2026-08-31 at `fba4205a`
+1. **`invariance_group` returns 55 grep hits and the plan's claim still holds.**
+   `[M]` by AST exactly ONE class defines it — `DiscreteMeasure` — meaning *the
+   group this measure IS invariant under*, **not** the group it was quotiented
+   BY. `[M]` **0 of 5** `Basis` subclasses define it. Both sides of G0 are
+   genuinely absent. §3's ambiguous-name hazard, live.
+2. **`Basis.domain` returns 45 definers and they are ALL OPERATORS.** `[M]`
+   2026-09-01: 0 of 5 `Basis` subclasses define `domain`; §III.10 already ruled
+   the collision unreachable, and this is why a bare grep says otherwise.
+3. **`measure.py:411`'s `self.support == "cells"` has NO producer.** Denominator
+   in §V.5c(d). Three surfaces advertise the dead arm. **2.0c acceptance item.**
 
-`[M]` in `orpheus/`: `class Chart` **0** · `FunctionSpace.manifold` **0** ·
-`measure.quotient_group` **0** · `Basis.domain` **0 of 6** subclasses ·
-`class LegendreBasis` **0** · `class Descent` **0** · `class ReynoldsProjection`
-**0** · `class OrbitAxis` **0**. ⟹ nothing the pointer promises already exists.
+### §1 existence-checks — re-run 2026-09-01 at `d0074907`
 
-⭐ **And the DELIVERABLE-level check, which a symbol grep cannot answer** (§1's
-clause): `AngularSymmetry.support` (`quadrature/registry.py:869`) **already
-performs the orbit-space lookup 2.0a's `Manifold.quotient` mints** — same rows,
-same refusal shape, in the string vocabulary. It is a Pattern-2 twin, not a
-duplicate deliverable: tracker **2.2** absorbs it, and a committed row already
-pins the two in agreement.
-
----
+`[M]` in `orpheus/`, by AST with a positive control (`Quotient → 1`):
+`class Chart` **0** · `class LegendreBasis` **0** · `class Descent` **0** ·
+`class ReynoldsProjection` **0** · `class OrbitAxis` **0** ·
+`DiscreteMeasure.quotient_group` **0** · `Basis.domain` **0 of 5** ·
+`Basis.invariance_group` **0 of 5**. ⟹ nothing the pointer promises exists.
+Landed and callable: `class Ball` `manifold.py:459` · `class FundamentalDomain`
+`:491` · `angular_frame` `directional.py:580` (fabrication at **`:624`**) ·
+`axis_cosines` `directional.py:278` · `_evaluate_real_sh`
+`spherical_harmonic_basis.py:505` · `admits_domain` `registry.py:928`.
 
 ## Landing ledger
 
@@ -2654,18 +2640,29 @@ Read these before quoting any earlier section:
 | §V.5c(e): *"two spellings of one quotient, both shipped"* | ⛔ **all five odd literals are in `tests/`**; `orpheus/` has zero, and `Quotient.name` reproduces the production tag bit-identically. §V.5d(f1) |
 | 2.0c's `indicator_basis` done-when clause | ⛔ **MOVED to 2.1** (§6b) — it needs 2.1's ctor field to be fixed *by construction*. §V.5d(e) |
 | 2.1: *"three manifolds over 5 sites"* | ⛔ **18 sites** (4 `orpheus/`, 14 `tests/`); the *three* was right. The 2.1 row |
+| §V.5d(b): *"the SO(2) entry cannot expose the fork because chart and section coincide in dimension"* | ⛔ **REFUTED BY MY OWN FIX** — `[M]` they coincide in BOTH, necessarily, since `Quotient.__post_init__` gates it. §V.5d(b) |
+| 2.0a-R: *"`AngularSymmetry.support` is an un-briefed Pattern-2 twin"* | ⛔ **NOT a twin** — it computes `S²/G⁰`, the CONTINUOUS isotropy; a mirror is in the discrete residual Γ, a row it cannot answer. **2.2 still owes the second slot.** The 2.0a-R block |
+| *"`Basis.domain` 0 of 6 subclasses"* | ⛔ **0 of 5** — `[M]` `Basis` has 3 direct / 5 recursive subclasses. The claim held; the denominator did not |
+| 0.1/L1's site `directional.py:587-593` | ⛔ **DRIFTED** — `[M]` 2026-09-01 the fabrication is at **`:624`**; `angular_frame` begins at `:580` |
 
 ## Measured baselines and costs
 
-* **numerics tree, as a GATE** (`-O -m "not slow"` serial, `de29bcc6`):
-  `[M]` **2578 passed / 0 failed**, 337 s. Reconciles exactly: census `2538` + 40.
+* **numerics tree, as a GATE** (`-O -m "not slow"` serial, `d0074907`):
+  `[M]` **2594 passed / 0 failed**, 322 s, rc=0. Reconciles to zero unexplained
+  units: census `2538` + 40 (2.0a) + 4 (`fba4205a`'s trivial-quotient and
+  twin-agreement rows) + 12 (1.1's σ_y: +2 `_ALL` members, +10 gates).
+  *(The `de29bcc6` reading was **2578**, 337 s — the `+4` landed after it, which
+  is why the naive delta looked like +16.)*
 * **Verification matrix**: 10433 → **10481**. Every unit attributed — +40 (2.0a
   foundation) +3 (2.1-W, L1) +1 (`test_layer_imports.py` builds its parametrize
   list by `rglob`, so a new module adds a row — and it PASSES, so the §6d edge
   I checked by hand is now enforced automatically) +4 (the trivial-quotient and
   twin-agreement rows).
 * **Sphinx `-E -W --keep-going`**: **0 warnings / 0 errors**, ~2 min.
-  **`dead_references`**: **0 dead / 52 checked**. Theory labels 905 → 907.
+  **`dead_references`**: **0 dead / 52 checked** (re-run at `d0074907`). Theory
+  labels 905 → 907 → **908**; documented 576 → **577**; directive edges
+  **415 → 415**. Both xref gates 0 dead / 1004 files, validated by an INJECTED
+  positive control (stock 0, patched 2). `pyright` **0** on the touched files.
 * **Phantom census** (a recording plugin, rc ignored — NOT a gate): 13 trees,
   65 min, numerics 2538 · transport 645 · sn 3375 · geometry 727 · mc 39 ·
   derivations 1637 · rootfiles 414.
@@ -2674,8 +2671,13 @@ Read these before quoting any earlier section:
 
 ## Durable lessons — promoted OUT of this file
 
-`plan-authoring` gained five rows across the campaign; they are the record, not
-this plan: the transcription-precision row; the §8 sharpening (*a branch's
+`plan-authoring` gained **six** rows across the campaign; they are the record,
+not this plan. ⭐ The newest (2026-09-01) is the sharpest and it is MINE: **a
+plan's EXPLANATORY claim can be made VACUOUS by its own campaign's fix, and it
+still reads TRUE** — §10's third widening (metrics → acceptance artifacts →
+explanatory prose), with the grep-able tell *"a sentence of the form 'X was
+hidden because P', where the step also makes P universal"*. The other five: the
+transcription-precision row; the §8 sharpening (*a branch's
 EXISTENCE is not its RELEVANCE*); the §2 VIEWPORT re-commit; **the LIST-of-counts
 row** (a row pricing work with several counts implies a shared denominator that
 was never stated); and **the §6d relative-import row** (the AST import census
@@ -2685,6 +2687,12 @@ was never stated); and **the §6d relative-import row** (the AST import census
 
 ⚠ **All in UNTRACKED `scratch/` — a `git clean` destroys them.** Load-bearing
 content is carried in this file; the reproducers are not.
+⭐ **`sigma_y_orbit_derivation.md` (758 lines) + `probe_sigma_y_orbit.py`** —
+the Procesi–Schwarz derivation with verbatim SymPy, the Molien completeness and
+`dim(𝔪/𝔪²)` minimality checks, and the chart-vs-section analysis the ruling was
+made on. `[M]` the probe is re-runnable: **57 checks, rc=0**, 9 of 9 mutations
+red. Its load-bearing content is carried into `manifolds.rst`, which is tracked;
+the memo is not. · `p20c_*.py` (the 2.0c opener's censuses).
 `_pl_slab_defect_repro.py` · `_pl_slab_fix_probe.py` · `_phantom_axis_probe.py`
 · `_phantom_census_plugin.py` + `_driver.sh` + `.json` (**re-runnable — it is
 0.2's done-when**) · `_fold_L_spy{,2}.py` · `_manifold_selfcheck.py`
