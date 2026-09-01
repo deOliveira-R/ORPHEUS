@@ -749,9 +749,11 @@ satisfies.
 
 ### ⛔⛔ R4b — the ENTIRE fold-basis machinery has zero solve-path witnesses
 
-`[M]` **179 folded `angular_frame` calls across 72 tests — 100 % at `L = 0`**,
-and `[M]` at `L = 0` the `MirrorEven` table is **bit-identical** to the plain SH
-table (`max|Δ| = 0.000e+00`; it diverges at `8.688e-01` from `L = 1`). So every
+`[M]` **179 folded `angular_frame` calls across 72 tests**, reported as *"100 %
+at `L = 0`"* — ⛔ **that half is REFUTED**: my own spy reads **31 calls at
+`L = 1`** on a subset (Part XIV). What survives, and is the claim that matters,
+is that `[M]` at `L = 0` the `MirrorEven` table is **bit-identical** to the plain
+SH table (`max|Δ| = 0.000e+00`; it diverges at `8.688e-01` from `L = 1`). So every
 one of those 179 calls witnesses nothing about the fold. `[M]` **deleting
 `MirrorEvenSphericalHarmonicBasis` outright reds 0 of 1913.**
 ⟹ **PRE-CARVE OBLIGATION**: one parametrize row — 2-group heterogeneous
@@ -1986,13 +1988,34 @@ mine, and two were refuted the same day they were written.
    do not satisfy.** Tracker 2.0a–d. `Manifold.contains` refuses the Part I
    forged measure **at construction**, three hops before the symptom.
 
-⚠ **A verification of my own is IN FLIGHT and unfinished** — a runtime spy
-(`scratch/_fold_L_spy.py`) re-checking claim 1 on the 3 test files where
-`folded_product` and a non-zero `scattering_order` co-occur *in the same file*.
-That static co-occurrence is a **weaker predicate** than the agent's runtime
-count and is **not** a refutation of it (`plan-authoring` §4's VERIFY clause).
-If the spy reports any folded call at `L ≥ 1`, a partial witness already exists
-and 2.1-W's design should read it first. **Re-run it; do not assume its result.**
+⛔ **RESOLVED 2026-08-31 — the "100 % at `L = 0`" half is FALSE, and 2.1-W
+survives anyway, on a better-stated reason.** `[M]` runtime spy
+(`scratch/_fold_L_spy{,2}.py`, scoped to 4 paths): folded `angular_frame` calls
+read **173 at `L = 0` and 31 at `L = 1`** — so folded rules ARE exercised above
+`L = 0`, on a strict SUBSET of the agent's population.
+
+`[M]` all 31 come from **one file**, `tests/sn/architecture/test_monomorphic_leaves.py`,
+every one a `cylinder` parametrization: `test_hilbert_adjoint_reciprocity`,
+`test_each_riesz_leg_is_individually_load_bearing`,
+`test_leaf_declares_both_function_spaces`,
+`test_wrong_carrier_refusal_is_typed_and_names_the_operator`,
+`test_reciprocity_metric_is_load_bearing`.
+
+⭐ **And that reconciles the two measurements rather than choosing between
+them.** `[R]` those assertions are structurally **blind to WHICH basis is
+bound**: reciprocity `⟨Ax,y⟩ = ⟨x,A*y⟩` holds for any *consistent* `(M, R)`
+pair, because both sides read the **same table** — the `vv-principles`
+two-sides-from-one-source tautology shape. So the agent measured **witness-hood**
+(*does anything RED*) and I measured **exercise** (*does anything CALL*), and
+both are right. **Executed ≠ asserted.**
+
+⟹ **2.1-W stands, and its premise is now sharper**: the fold basis is not
+un-exercised, it is **un-asserted** — 31 calls at `L = 1` whose gates cannot see
+the difference. `[M]` the mutation result is the load-bearing one and is
+unaffected: deleting `MirrorEvenSphericalHarmonicBasis` reds **0 of 1913**.
+⚠ Design note for 2.1-W: those 5 test families are the natural home for the new
+row **only if** the assertion is changed to something basis-sensitive; adding a
+`cylinder` param to a *reciprocity* test would inherit its blindness.
 
 ### §1 existence-check on every symbol this pointer names — all run 2026-08-31 at `60c370ae`
 
