@@ -499,6 +499,58 @@ quotient records — a group object (wired, discrete) and a string tag (inert,
 continuous) — and the slab is the unwired half.**
 
 
+
+## II.14 ✅ The full-suite phantom census — DISCHARGED 2026-08-31
+
+§II.5's ⚠ denominator warning is now closed. Instrument:
+`scratch/_phantom_census_plugin.py`, a **non-invasive recorder** (it records
+the `axis_index >= dim` reads and returns the normal zeros, so it cannot
+redden anything — a census that could fail would be measuring the plugin).
+Positive-control validated before use: it fires at exactly
+`directional.py:589`, `axis=[1,2] dim=[1] via=angular_frame`, with the 50
+tests of `test_frame.py` still passing.
+
+Run: all 13 trees, `-O -m "not slow" -p no:randomly`, serial, **rc=0
+throughout** (numerics 2538 · transport 645 · sn 3375 · geometry 727 ·
+diffusion · data · homogeneous · cross_method · moc · mc 39 · cp ·
+derivations 1637 · rootfiles 414), 65 min wall-clock.
+
+**`[M]` 11 phantom call sites, 1604 reads. 5 in `orpheus/`, 6 in `tests/`.**
+
+| site | reads | the question it asks | verdict |
+|---|---|---|---|
+| `numerics/quadrature/directional.py:589` (`angular_frame`) | **1478** | *"what is the direction cosine along axis i?"* | ⛔ **FABRICATION** — no answer exists for `i ≥ dim` |
+| `numerics/quadrature/directional.py:330` (`mu_z`) | 31 | reached from `spaces/angular_trace_space.py:220` (`_quadrature_axis` → `Ω·n̂_f`) — *"how much flows along i?"* | ✅ **zero is correct** |
+| `numerics/quadrature/directional.py:320` (`mu_y`) | 29 | — | `[M]` **0 production outer-frames**; only tests reach it |
+| `geometry/boundary/_specular.py:162` | 5 | the cosine measure `w·\|μ_a\|` on a face | ✅ **zero is correct** |
+| `transport/mesh/axis.py:441` | 4 | `face_outflow_ordinates` | ✅ **zero is correct** |
+
+⟹ **§II.5's "ONE production consumer" is CONFIRMED — but only for the
+FABRICATION class, and only after triaging by MEANING.** The raw site count is
+5, and a reader who stopped at the count would either believe the claim was
+5× understated or, worse, act on it: `[M]` **0.2's blanket-`raise` means would
+have broken three legitimate consumers**, all three asking the flow question the
+accessor's own docstring documents. §II.5's number was right and its predicate
+was doing all the work.
+
+⭐ **And the sequencing this settles: 0.1 comes FIRST and shrinks 0.2 to a
+clarification.** 0.1a deletes the `column_stack` — so the fabrication read
+disappears with it, taking **92 %** of all phantom reads. What remains is three
+consumers asking a legitimate question through an accessor named for a different
+one. 0.2 is then a pure naming/typing split with no defect behind it, and its
+done-when is re-runnable: **re-run this census after 0.1 and the
+`directional.py:589` row must be GONE.**
+
+⚠ Note `tests/_harness/references.py:57` (48 reads) — a harness-level phantom
+read, part of §4.9's migration set, not covered by §4.9's current inventory.
+
+⚠ And a hazard for 0.2's eventual split: `angular_trace_space.py:220` reaches
+the accessor as `getattr(quadrature, "mu_y", np.zeros_like(mu_x))` — the
+`coding-standards` string-form idiom that **fails in the DEFAULT's direction**.
+If `mu_y`/`mu_z` are ever retired, that call does not raise; it silently returns
+the default and every branch keyed on it flips.
+
+
 ---
 
 # Part III — The theoretical spine
@@ -1384,7 +1436,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 0.1b | the 1-D rows — ⛔ **rides 3.4**, the lift does not exist (§II.9) | ⏏ yes | ☐ (with 3.4) |
 | 0.1c | the fold's `S^2/sigma_y` tag — gated on the §8 blast radius | ⏏ yes | ☐ |
 | 0.2 | phantom component unspellable — ⚠ means SHARPENED, blocked on the census | ⏏ yes | ☐ |
-| 0.2-census | full-suite phantom census (moved here from 2.4) | ⏏ yes | ▶ running |
+| 0.2-census | full-suite phantom census (moved here from 2.4) | ⏏ yes | ✅ **DISCHARGED** — §II.14, 13 trees rc=0, 11 sites / 1604 reads |
 | 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ✅ written (97-line re-derivation; value unchanged) |
 | 0.4 | `directional.py:538` docstring | ⏏ yes | ✅ written |
 | 0.7b | ⭐ NEW — gate the SECOND symptom (the `DenseMetric` RAISE) | ⏏ yes | ✅ written |
