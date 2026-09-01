@@ -2870,12 +2870,14 @@ compaction. It has been rewritten three times (2026-08-31, and twice on
 
 **Read in this order on pick-up:** this Part → Part XIII (the tracker) → Part XII
 (the exit gate, esp. **XII.1b**) → the phase you are executing. **Part IX,
-§II.15, §II.16 and §V.5d first if you are about to re-propose anything** —
-sixteen premises are refuted across them, most of them mine, several the same
-day they were written and one *by my own fix*.
+§II.15, §II.16, §V.5d and the 0.2 execution section first if you are about to
+re-propose anything** — the supersession table below is the count that is kept
+current (`[M]` 25 rows, 24 of them ⛔), and most of those are mine, several
+written the same day they were refuted, one refuted *by my own fix*, and one a
+denominator I "corrected" in the WRONG direction.
 
-⚠ This supersedes COMPACTION POINTS 1 and 2. Their content is folded in below;
-nothing from either was dropped.
+⚠ This supersedes the two earlier versions of this RECORD. Their content is
+folded in below; nothing from either was dropped.
 
 ---
 
