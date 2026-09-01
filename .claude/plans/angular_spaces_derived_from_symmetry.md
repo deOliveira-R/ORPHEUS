@@ -31,13 +31,45 @@ premises are kept in Part VII per `plan-authoring` §3.
 # Part 0 — The decisions, stated first
 
 **D0.1 — Build the catalog and the descent machinery. Refuse the general
-orbit-space engine.** Computing an orbit space from scratch is mechanical
-(invariant ring → syzygy ideal → Procesi–Schwarz PSD condition), but the groups
-that occur in transport number about a dozen. A Gröbner engine is abstraction
-without a consumer, and its failure mode is debugging elimination orderings
-instead of transport. Each catalog entry is **derived once by the procedure**
-(§III.1), then recorded with its derivation in the docstring and a symbolic
-regression test.
+orbit-space ENGINE — but BUILD ITS EMBRYO.** Computing an orbit space from
+scratch is mechanical (invariant ring → syzygy ideal → Procesi–Schwarz PSD
+condition), but the groups that occur in transport number about a dozen. A
+Gröbner engine is abstraction without a consumer, and its failure mode is
+debugging elimination orderings instead of transport. Each catalog entry is
+**derived once by the procedure** (§III.1), then recorded with its derivation in
+the docstring and a symbolic regression test.
+
+⭐ **SHARPENED 2026-08-31 (user).** *"Even if we do not build the entire engine
+for operations on symmetry and quotient, the right solution is probably still to
+build an embryo of the machinery, such that concepts are not stringly typed and
+maybe some operations can still happen."* This corrects how D0.1 had been read —
+including by me, twice this session. **What is refused is the DERIVATION engine,
+not the machinery.** Those are different objects, and conflating them is what
+left `Space = str` standing.
+
+⭐⭐ **And the reason the embryo is nearly free: the catalog and the engine have
+the SAME INTERFACE.** `M.quotient(H)` is one call either way; the engine would
+*compute* the entry, the embryo *looks it up* and **refuses, by name, when there
+is none**. So building it now forecloses nothing — a future engine is a second
+backend behind an unchanged signature — and it converts the engine's absence
+from an invisible gap into an explicit `raise`. That is the *build primitives,
+not products* rule applied to a thing we have deliberately chosen not to finish.
+
+**What the embryo contains** (all of it operations that need no Gröbner basis):
+
+| capability | how, without the engine |
+|---|---|
+| `M.quotient(H)` | catalog lookup; `raise` naming `M` and `H` when absent |
+| `M.contains(points)` | a membership predicate per member (`‖Ω‖ = 1` for `S²`) — `[M]` this alone refuses the ERR-080 forged measure AT CONSTRUCTION |
+| `M × N` | the product manifold; already spelled by `measure.__mul__`'s support rule |
+| `chart : M → N` | a typed arrow (§III.9); makes pushforward's codomain derived |
+| the singular stratum | `H`'s fixed-point set, carried by the quotient it produces |
+| the group lattice | ✅ **already ships** — `SubgroupOfO3.is_subgroup_of`, and Part IV's G0 verdict table runs on it today |
+
+⟹ the honest statement of what is NOT built: **no orbit space is ever COMPUTED**
+from a group and a manifold. Everything above is bookkeeping over derivations a
+human did once, plus predicates. `plan-authoring` §2: the refusal has a
+denominator — `[M]` ~12 entries, enumerated in §III.1/1.1.
 
 **D0.2 — Symmetry reduction is a SECOND BINDING of the same kernel.** `Λ` is
 representation-free; `.on(V)` supplies `(M, R)` from `V`'s frame; a quotient
@@ -801,6 +833,38 @@ gate on a different operator**; share the implementation.
 `P` is an orthogonal projection, `{Pfᵢ}` is tight for `PV` with the same bound.
 With `P = ℛ`: the `B/A` ratio is **inherited, not recomputed**.
 
+## III.4b Descent of the four kernel kinds — only `L` is nontrivial
+
+⛔ **RESTORED 2026-08-31.** `[M]` this table is in the source plan
+(`symmetry_quotient_plan.md` §I.4) and was **dropped in the merge** — found by a
+whitespace-insensitive probe over both files (3 of 3 distinctive phrases absent
+here, present there). It is the only such drop; 11 other probes survived. ⚠ The
+lesson is the instrument: a **line-based grep cannot see a phrase that wraps**,
+and my first pass reported a *second* false drop for exactly that reason
+(*"the same\ngate on a different operator"*, which is present at §III.4).
+Flatten whitespace before any merge-fidelity claim.
+
+| term | kernel type | descends **iff** | note |
+|---|---|---|---|
+| `S` | integral, `σ_s(Ω̂·Ω̂′)` | **always** — bi-invariant under all of `SO(3)` | descent *is* Funk–Hecke; `Λ` diagonal in `P_ℓ` |
+| `F` | rank-1, isotropic emission | the material field is `H`-invariant | `\|χ/4π⟩⟨νΣ_f\|`; trivially bi-invariant in angle |
+| `C` | multiplier `Σ_t(r)` | `Σ_t ∘ g = Σ_t ∀ g ∈ H` | pure material-symmetry condition |
+| `L` | differential | mesh and geometry `H`-equivariant | ⭐ **acquires a CONNECTION TERM** |
+
+Reducing a differential operator along a **non-free** action produces a term
+supported on the quotient's stratification — which is why `L` is the only hard
+row, and why Phase 1.3 (verify-or-kill the connection identification) exists.
+
+⭐⭐ **And the row this campaign was born in is `S`.** The table says scattering
+descends *always*, and that its descent **is** Funk–Hecke with `Λ` diagonal in
+`P_ℓ`. That is exactly the machinery Part I finds broken — so ERR-080 is not a
+counterexample to the row, it is a **discretization** failure of a statement that
+is true in the continuum: the theorem descends, and the *discrete* realization
+does not, because the retained harmonics are not `H`-stable on the slab node set.
+`[R]` this is the sharpest available statement of what G2 checks and why G0/G1
+cannot catch it — the continuum row is unconditional, so any gate reading the
+continuum will pass.
+
 ## III.5 ⭐ The well-posedness condition for a per-mode operator
 
 From `scratch/n2n_pl_frames_attack.md`, and it is the sharpest statement in the
@@ -1163,6 +1227,7 @@ still an open architectural question. Written at the user's request after D0.7.
 | 4 | **`OrbitAxis`** + retraction/section | already planned; re-uses `AxisRetractionOperator` | 3.3 |
 | 5 | **`LegendreBasis`** on `[-1,1]` | 3.4-R **RULED (b)** — non-isomorphic to `{Y_ℓ^m}` (`L+1` vs `(L+1)²`), and the quotient projection is the non-identity morphism | 3.4 |
 | 6 | **`IsotypicDecomposition`** | already planned; the trivial block IS 3.4 generalised | 7.1 |
+| 7 | ⭐ **`Descent`** — the witness of `Funcs(M)^H ≅ Funcs(M/H)` | **3.4-R2 RULED (i)**, §C below. Two realizations of one space ship after 3.4-R; without this they are a Cardinal-Rule-2 twin. `[R]` it is Phase 7's object arriving early — the trivial isotypic block IS a descent, and higher irreps generalise it | 3.4b |
 
 ⚠ **`Manifold` has one requirement the plan must not lose: a QUOTIENT knows its
 SINGULAR STRATUM.** §III.7 and Phase 5.1 want `OrbitAxis` to carry the
@@ -1215,11 +1280,27 @@ Q1.4's one-line *"`{Y_ℓ0} ≅ {P_ℓ}`"* has been carrying silently all along.
   option 3.4-R(a), already ruled out; (b) requires inventing a basis for
   `S²/σ_y` that has no classical form.
 
-⟹ **(i) is the elegant answer and it is Phase 7's object arriving early.** Not
-on the exit path (Part XII), so it can be ruled without blocking the return to
-Campaign 2 — but it should be ruled BEFORE 3.4 lands, or `LegendreBasis` and
-`MirrorEven` will be siblings with no stated relation and the next session will
-read them as a twin.
+⟹ ✅ **RULED 2026-08-31 (i) — mint `Descent`.** It is Phase 7's object arriving
+early: the trivial isotypic block IS a descent, so building it here is not a
+detour but the first instance of machinery Phase 7 needs regardless. Both
+realizations then become one object's two faces rather than siblings with no
+stated relation.
+
+**What `Descent` must carry** (`[R]`, to be checked against §III.8 when 3.4b is
+designed):
+* the pair `(M, H)` and the resulting quotient `M/H`;
+* the two realizations — the **invariant subspace** upstairs and the
+  **quotient's own basis** downstairs — and which one a given consumer gets;
+* the isomorphism itself, checkable: analysing upstairs then descending equals
+  descending then analysing, to machine precision;
+* ⚠ the **discriminator**, written where both classes can see it: *downstairs
+  when the quotient has a classical named basis (`S²/SO(2) → {P_ℓ}`), upstairs
+  otherwise (`S²/σ_y` has no classical family)*. That sentence is the whole
+  reason two realizations exist and it must not live only in this plan.
+
+⚠ Scheduling: **not on the exit path** (Part XII), so it does not block the
+return to Campaign 2 — but it must land **with or before 3.4**, since 3.4 is
+what creates the second realization.
 
 ## D. Checked and NOT needed
 
@@ -1242,7 +1323,7 @@ ways and read `tests/test_layer_imports.py`'s `FORBIDDEN_EDGES` before placing.
 # Part VI — The action plan
 
 Phases are ordered by dependency, not by size (D0.5). The `Q#` column maps each
-item to the source plan's numbering so the two stay reconcilable.
+item to the source plan's numbering so the two stay reconcilable. `[M]` the source plan is now IN-REPO at `.claude/plans/symmetry_quotient_plan.md` (399 lines) — read it for the Procesi–Schwarz derivation, the `Retract`-pair framing, and the confidence ledger this plan condenses.
 
 ## ⚡ Phase 0 — IMMEDIATE. Land regardless of any ruling below.
 
@@ -1319,7 +1400,7 @@ prerequisite for every gate in Part IV.
 
 | # | item | goal, separately from means | done when | Q# |
 |---|---|---|---|---|
-| **2.0a** | ⭐ **MINT `Manifold`** (D0.7). The thing functions are defined on and measures live on: `S²`, `S¹`, `[-1,1]`, `[0,1]`, `[0,∞)`, `ℝ`, `spatial_Rᵈ`, `energy`, `index(axis)`, and quotients/products of those. Verbs: `quotient(H)`, `__mul__`, `contains(points)`, `dim`. ⛔ a VALUE type with methods — **not** a `Generic[Tag]` phantom parameter (`sn_reshape.md` Issue 2 stands; D0.7 explains why it does not bar this). | `Space = str` is retired; `[M]` today 29 `Space` refs, 39 `support=` construction sites, 45 `.support` reads — that is the migration's size, not a veto (D0.5) | — |
+| **2.0a** | ⭐ **MINT `Manifold`** (D0.7). The thing functions are defined on and measures live on: `S²`, `S¹`, `[-1,1]`, `[0,1]`, `[0,∞)`, `ℝ`, `spatial_Rᵈ`, `energy`, `index(axis)`, and quotients/products of those. Verbs: `quotient(H)` (⭐ **catalog lookup, and a `raise` NAMING `M` and `H` when there is no entry** — D0.1's embryo: same interface an engine would have, so nothing is foreclosed and the engine's absence becomes explicit), `__mul__`, `contains(points)`, `dim`, and the **singular stratum** a quotient inherits from `H`'s fixed-point set. ⛔ a VALUE type with methods — **not** a `Generic[Tag]` phantom parameter (`sn_reshape.md` Issue 2 stands; D0.7 explains why it does not bar this). | `Space = str` is retired; `[M]` today 29 `Space` refs, 39 `support=` construction sites, 45 `.support` reads — that is the migration's size, not a veto (D0.5) | — |
 | **2.0b** | ⭐ **`contains` is the membership PREDICATE the string never had.** `SPACE_SPHERE.contains(nodes)` is `‖Ω‖ = 1`. This is what makes the ERR-080 fabrication refusable **at the measure constructor**, three hops before the symptom. | `DiscreteMeasure.__post_init__` refuses nodes its declared manifold does not contain; the Part I forged measure is unconstructable | — |
 | **2.0c** | ⭐ **`FunctionSpace` carries its `Manifold`; the two `L2[...]` NAME STRINGS become derived** (§III.10). | `grep` finds no `f"L2[...]"` literal; `[M]` `indicator_basis.py:284`'s live false name (`L2[coarse_cells_R1]` on an ENERGY basis) is gone by construction | — |
 | **2.0d** | ⭐ **`measure.quotient_group`** — the field Part IV's own predicate needs and that `[M]` **exists nowhere**: `folded_by` records the DISCRETE fold on the `Quadrature` façade, and *"the slab's quotient group is recorded nowhere"* (Part IV obstacle 2). Derived by `quotient()`, `None` for an unquotiented measure. | `gauss_legendre(8).measure.quotient_group is SubgroupOfO3.SO2`, derived by construction, not declared | — |
@@ -1341,6 +1422,8 @@ sub-basis are all *derived from a catalog entry*.
 | 3.2 | `ReynoldsProjection` as a first-class operator with fixed domain/codomain, built via `.on(V)` like every other bound arrow, factored `π* ∘ 𝔄`. | 3.1 | `ℛ² = ℛ` and `𝔄π* = id` to machine precision | Q1.2 |
 | 3.3 | `OrbitAxis` minting: `Quotient(axis, H) → (OrbitAxis, retraction/section)`. **Re-uses `AxisRetractionOperator` + `FunctionSpace.section`** (§III.3) — no new relational type. Stratification descriptor populated from `H`'s fixed-point set. | 3.1, 1.8 | the existing retraction/section tests pass with the new instance; no new relational type added | Q1.3 |
 | **3.4** | ⭐ **`H`-stable sub-basis: the TRIVIAL ISOTYPIC COMPONENT.** `SphericalHarmonicBasis` → `{Y_ℓ0} ≅ {P_ℓ}` under `SO(2)`, mask **DERIVED by probe** (§III.8), generalising `MirrorEvenSphericalHarmonicBasis` so that it becomes an instance rather than a sibling. **THIS IS THE FIX for Part I.** | 3.1 | §VII's done-when 1 and 2 both hold | Q1.4 |
+
+| **3.4b** | ⭐ **`Descent`** — witness `Funcs(M)^H ≅ Funcs(M/H)` (3.4-R2, RULED (i)). Lands **with or before 3.4**, which is what creates the second realization. Carries the discriminator (*downstairs when the quotient has a classical basis; upstairs otherwise*) where both classes can see it. | 3.1, 3.4 | analyse-then-descend ≡ descend-then-analyse to machine precision, on BOTH shipped pairs (`S²/SO(2)`, `S²/σ_y`) | — |
 
 ⚠ **Phase 3.4 leaves ONE encoding question deliberately open, and it should be
 ruled here rather than assumed:**
@@ -1797,7 +1880,8 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 3.3 | `OrbitAxis` + retraction/section minting | no | ☐ |
 | 3.4 | ⭐ **trivial isotypic sub-basis — THE FIX** | ⏏ yes | ☐ |
 | 3.4-R | ⚠ the encoding ruling | ⏏ yes | ✅ **RULED 2026-08-31 (user): (b) true `LegendreBasis`** — see below |
-| 3.4-R2 | ⚠ **the DESCENT ruling** — `Funcs(M)^H ≅ Funcs(M/H)`: after 3.4-R the tree carries BOTH realizations (`MirrorEven` upstairs, `LegendreBasis` downstairs). Part V.5§C: mint `Descent`, or record the discriminator? **Not on the exit path**, but must be ruled BEFORE 3.4 lands or the two read as a twin | no | ☐ **UNRULED** |
+| 3.4-R2 | ⚠ the DESCENT ruling | no | ✅ **RULED 2026-08-31 (user-endorsed): (i) mint `Descent`** — Part V.5 §C |
+| 3.4b | ⭐ **`Descent`** — the iso witness; lands WITH or BEFORE 3.4 | no | ☐ |
 | 4.1 | retrofit the slab axis (CORRECTED gate) | ⏏ yes | ☐ |
 | 4.2 | normalization audit | no | ☐ |
 | 4.3 | commuting-square test | no | ☐ |
