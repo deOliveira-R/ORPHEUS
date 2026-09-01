@@ -1408,6 +1408,96 @@ and the coincidence is what made the row look internally consistent.
 predicate and its own tree, or the row is one census wearing three hats.
 
 
+## §V.5c ⭐ 2.0a's REAL ground measure — the algebra is already there, spelled as string concatenation
+
+§V.5b corrected the *size*. This is the *shape*, and it is what the mint should
+be argued from — because a count of `support=` sites measures the migration's
+bulk, while the sites below measure whether the type is EARNED.
+
+`[M]` all by AST, 2026-08-31, over `orpheus/` + `tests/`.
+
+### (a) A `SPACE_*` constant retypes for free; a raw string does not
+
+`support=` kwargs, split by the ast node of the VALUE:
+
+| the value passed | `orpheus/` | `tests/` | total |
+|---|---:|---:|---:|
+| raw string literal | 3 | **51** | 54 |
+| `SPACE_*` constant | 13 | 3 | 16 |
+| attribute (`m.support`, forwarded) | 5 | 3 | 8 |
+| other `Name` (forwarded) | 4 | 1 | 5 |
+| **f-string** — a tag BUILT by interpolation | **4** | 0 | 4 |
+
+⟹ **`Space = str → Manifold` leaves the 16 constant sites and the 13 forwarding
+sites untouched**; the work is 54 literals (94 % of them in `tests/`) and the 4
+f-strings. The production tree is nearly free. This is the number the step
+decomposition needs and §V.5b's `87` is not.
+
+### (b) The member list in the 2.0a row is INCOMPLETE — the families are parametric
+
+The row enumerates `S²`, `S¹`, `[-1,1]`, `[0,1]`, `[0,∞)`, `ℝ`, `spatial_Rᵈ`,
+`energy`, `index(axis)`. `[M]` the four f-string producers show the shipped
+members are **parametric families**, and one family is missing from the row:
+
+| site | builds | family |
+|---|---|---|
+| `generating_measure.py:420` | `f"[{a},{b}]"` | the interval `[a,b]` — `SPACE_INTERVAL_M11`/`_01` are two MEMBERS of it, not two manifolds |
+| `material_mesh.py:542` | `f"spatial_R{self.ndim}"` | `ℝᵈ`, indexed by `d` |
+| `frame.py:759` | `f"index({axis_label})"` | a finite index set, by label |
+| `loss_kernel_gauge.py:1169` | `f"sn_trace_orbit{orbit}_g{group}"` | ⭐ **the same index-set family, second spelling** — `nodes = indices.astype(float)`, a subset of trace DOFs per (reflection orbit, group). Not in the row's list |
+
+⟹ two shipped sites mint the SAME kind of object under incompatible naming
+schemes — Pattern 2, in the string vocabulary. And `Manifold` cannot be an enum
+or a fixed set of singletons: it must be a value type with **parametric
+constructors**, which is what D0.7 ruled and this measures.
+
+### (c) ⭐⭐ Three of the plan's proposed VERBS already exist, as string ops
+
+`[M]` **18** `.support` reads do string manipulation — **all 18 in `orpheus/`,
+0 in `tests/`.** Three of them are the morphisms 2.0a proposes to mint:
+
+| site | today | the verb it IS |
+|---|---|---|
+| `measure.py:588` | `new_space = f"{self.support} × {other.support}"` | `Manifold.__mul__` |
+| `measure.py:1022` | `new_space = f"{self.support}/{group.name}"` | `Manifold.quotient(H)` — ⚠ and note it performs **no lookup and no check**: any group name divides any support |
+| `measure.py:802` | `f"φ_*({self.support})"` | the pushforward's codomain |
+| `measure.py:331` | `name = f"L2[{self.support}]"` | §III.10 / 2.0c's derived name |
+
+⟹ **the mint is not adding an algebra; it is giving a name to one that already
+runs.** `coding-elegance` Pattern 1: the string interpolation IS the operation.
+That is the strongest available form of the D0.7 criterion's clause (b) — the
+morphisms are not merely *applicable*, they are *shipped*.
+
+### (d) ⛔ A production branch arm with no producer — found by the same census
+
+`measure.py:411`: `if self.support.startswith("spatial") or self.support == "cells":`
+
+`[M]` **`"cells"` is produced by NO static producer.** Denominator, enumerated:
+58 literal `support=`/`new_space=` sites (13 distinct values), the 6 `SPACE_*`
+constants, and 36 non-literal producers — of which 4 are the f-strings in (b)
+and 32 forward an existing support. `"cells"` appears in none. The only
+`"cells"` elsewhere in the tree is `radial_characteristic_space.py`'s
+`part="cells"`, a **walk-part label, not a measure support**.
+
+So the arm is unreachable, and **three surfaces advertise it**: the branch, the
+docstring at `:387` (*"(`"spatial_…"` / `"cells"`)"*), and the `raise` message
+at `:416`. ⚠ `vv-principles` #17's granularity trap is why nothing caught it —
+mutating the `phase` guard as a unit reddens on the `spatial` arm, which has
+producers, and certifies both.
+
+⟹ **acceptance item for 2.0a**: the mint must make this arm unspellable (a
+manifold's phase is a property of the object, not an OR of two string prefixes,
+one fictional), and the docstring and message must stop naming `"cells"`.
+
+### (e) Two spellings of one quotient, both shipped
+
+`[M]` the literal inventory contains **`'S^2/<sigma_y>'` and `'S^2/sigma_y'`** —
+the same quotient, two tags, unequal under `==`. Also shipped: `'img'`,
+`'probe'`, `'[-1,1]^slab'`. This is `measure.py:114`'s *"recommendations, not
+constraints"* (L8) with its bill arriving: the type permits any string, so the
+tree contains manifolds that are typos of each other and tags that name nothing.
+
+
 # Part VI — The action plan
 
 Phases are ordered by dependency, not by size (D0.5). The `Q#` column maps each
