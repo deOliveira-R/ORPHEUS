@@ -204,21 +204,26 @@ TANGENTIAL_EPS: float = 4.0 * np.finfo(np.float64).eps
 
 
 def _quadrature_axis(quadrature: "Quadrature", axis: int) -> np.ndarray:
-    """Return ``mu_x`` for axis=0, ``mu_y`` for axis=1, ``mu_z`` for axis=2.
+    r"""The ordinates' orbit-mean direction cosine along ``axis``.
 
-    Falls back to a zero array when the requested axis is not present on
-    the quadrature object — this lets a 1-D :class:`Quadrature` (which
-    has ``mu_x`` populated and ``mu_y == 0``) feed the same predicate
-    logic without special-casing.
+    Used to build :math:`\Omega\cdot\hat n_f`, i.e. to decide inflow from
+    outflow at a face — a **flux** question, so on an axis a 1-D rule has
+    suppressed the answer is genuinely zero (nothing flows along it) rather
+    than missing. That is exactly
+    :meth:`~orpheus.numerics.quadrature.directional.Quadrature.mean_axis_cosine`,
+    and delegating to it is the whole body.
+
+    ⭐ **This function used to be a three-arm conditional over ``mu_x`` /
+    ``mu_y`` / ``mu_z``, two arms of them written as
+    ``getattr(quadrature, "mu_y", np.zeros_like(mu_x))``** — the
+    ``coding-standards`` defaulted-``getattr`` idiom, which fails silently in
+    the DEFAULT's direction: had ``mu_y`` ever been retired, every branch keyed
+    on this value would have flipped with nothing raising. The ladder existed
+    only because the accessor it called could not say whether its zero was an
+    answer or an absence. Phase 0.2 gave that distinction a name, and the
+    ladder collapsed with it — the conditional was a missing verb.
     """
-    mu_x = np.asarray(quadrature.mu_x)
-    if axis == 0:
-        return mu_x
-    if axis == 1:
-        return np.asarray(getattr(quadrature, "mu_y", np.zeros_like(mu_x)))
-    if axis == 2:
-        return np.asarray(getattr(quadrature, "mu_z", np.zeros_like(mu_x)))
-    raise ValueError(f"axis must be 0, 1, or 2; got {axis}")
+    return np.asarray(quadrature.mean_axis_cosine(axis))
 
 
 def build_omega_dot_n(

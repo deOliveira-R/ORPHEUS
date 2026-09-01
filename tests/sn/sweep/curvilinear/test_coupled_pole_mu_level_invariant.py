@@ -71,6 +71,8 @@ human reader only.
 from __future__ import annotations
 
 import numpy as np
+
+from orpheus.numerics.symmetry import _embedded_nodes
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
@@ -156,9 +158,12 @@ def test_x_reflection_is_intra_level_signflip_partner(quad_factory):
     mirror = _seed_mirror(quad)
 
     # (2)+(3): the full node maps to itself with column 0 (μ_x) negated.
-    mu = np.column_stack(
-        [quad.axis_cosines(0), quad.axis_cosines(1), quad.axis_cosines(2)]
-    )
+    # The canonical R^3 embedding (phase 0.2): this hand-rolled it through
+    # ``axis_cosines``, which now refuses a suppressed axis. Mirrors are
+    # linear and so commute with the orbit mean, which is what the embedding
+    # of a 1-D ordinate is — so negating column 0 below is still exactly the
+    # x-reflection acting on the orbit.
+    mu = np.asarray(_embedded_nodes(quad.measure), dtype=float)
     expected = mu.copy()
     expected[:, 0] *= -1.0  # -0.0 for axis-tangent μ_x=0 ordinates → still ==0
     np.testing.assert_allclose(

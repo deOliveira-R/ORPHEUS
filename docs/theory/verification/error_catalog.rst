@@ -6068,8 +6068,20 @@ older entries classify against.
      ``cos_phi = mu_y / sin_theta``, ``sin_phi = mu_z / sin_theta``,
      ``phi = arctan2(sin_phi, cos_phi)``), reached from
      ``orpheus/numerics/quadrature/directional.py``
-     (``Quadrature._harmonic_frame_measure``, which ``column_stack``\ s
-     ``axis_cosines(0..2)`` and declares the result ``support=SPACE_SPHERE``).
+     (``Quadrature._harmonic_frame_measure``, whose 1-D arm pads the polar
+     nodes with two zero columns and declares the result
+     ``support=SPACE_SPHERE``).
+     ⚠ **Re-spelled 2026-09-01** (phase 0.2): that padding used to be
+     ``column_stack``\ ing ``axis_cosines(0..2)``, i.e. it obtained its zeros
+     from an accessor named *"direction cosine along axis i"*, which is what
+     let the invention read as a lookup. The zeros are now written at the site
+     that commits them, and ``axis_cosines`` REFUSES a suppressed axis — so
+     the fiction can no longer be spelled anywhere else in the tree. The flux
+     question those zeros were ALSO answering moved to
+     ``Quadrature.mean_axis_cosine``, where the zero is the orbit mean
+     :math:`\langle\Omega_i\rangle` and is therefore derived rather than
+     defaulted.
+
      ⚠ **Narrowed 2026-09-01** (phase 0.1a of
      ``.claude/plans/angular_spaces_derived_from_symmetry.md``): that
      ``column_stack`` used to run for **every** rule, inside ``angular_frame``

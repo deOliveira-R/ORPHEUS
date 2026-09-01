@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from orpheus.numerics.symmetry import _embedded_nodes
+
 #: Axis letter → direction-cosine column. Deliberately a local literal
 #: rather than an import of the production convention home
 #: (``face_layout.AXIS_NAMES``): the reference must stay readable as
@@ -53,9 +55,20 @@ def mirror_partner_indices(quad, axis: int | str) -> np.ndarray:
     partner table's pre-certification body.
     """
     idx = _AXIS_INDEX[axis] if isinstance(axis, str) else int(axis)
-    nodes = np.column_stack(
-        [np.asarray(quad.axis_cosines(a), dtype=float) for a in range(3)]
-    )
+    # The canonical R^3 embedding, from its one home. This used to be
+    # ``column_stack([quad.axis_cosines(a) for a in range(3)])``, which worked
+    # only because the accessor silently padded a suppressed axis; phase 0.2
+    # made that a refusal and surfaced the duplicate. A mirror is LINEAR, so it
+    # commutes with the orbit mean — matching embedded barycentres is therefore
+    # equivalent to matching orbits, and the 1-D case stays correct.
+    #
+    # ⚠ Independence note (``vv-principles`` #22): production's
+    # ``ordinate_permutation`` certifies through ``RigidMotion.preserves``,
+    # which embeds with this SAME function. So this reference no longer
+    # cross-checks the EMBEDDING convention — it cross-checks the PERMUTATION,
+    # which is its subject. A change to the embedding moves both sides
+    # together and is invisible here by construction.
+    nodes = np.asarray(_embedded_nodes(quad.measure), dtype=float)
     mirrored = nodes.copy()
     mirrored[:, idx] *= -1.0
     distances = np.linalg.norm(mirrored[:, None, :] - nodes[None, :, :], axis=-1)

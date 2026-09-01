@@ -161,8 +161,21 @@ class _TableQuad:
         self._base = base
         self._table = np.asarray(table)
 
+    @property
+    def measure(self):
+        # The surrogate mutates the PERMUTATION only; its nodes are the real
+        # rule's, so the measure passes straight through. Needed because the
+        # reference embeds via ``_embedded_nodes(quad.measure)`` — a duck-typed
+        # stand-in owes every member of the contract it stands in for, not
+        # only the ones the last reader happened to call (``plan-authoring``
+        # §6b: a surrogate is a call site no symbol grep can return).
+        return self._base.measure
+
     def axis_cosines(self, axis_index: int) -> np.ndarray:
         return self._base.axis_cosines(axis_index)
+
+    def mean_axis_cosine(self, axis_index: int) -> np.ndarray:
+        return self._base.mean_axis_cosine(axis_index)
 
     def ordinate_permutation(self, motion) -> Permutation:  # noqa: ARG002
         return Permutation(self._table)
@@ -891,7 +904,10 @@ def _non_involutive_but_otherwise_valid(
     if true_pi is None:  # pragma: no cover — fixtures are mirror-closed
         raise AssertionError(f"{quadrature!r} has no {axis}-mirror pairing")
     perm = true_pi.indices
-    mu = quadrature.axis_cosines(AXIS_NAMES.index(axis))
+    # ``mean_axis_cosine``: the w|mu| cosine measure is a FLUX question, so a
+    # suppressed axis contributes zero rather than having no answer. Mirrors
+    # the production spelling in ``geometry/boundary/_specular.py``.
+    mu = quadrature.mean_axis_cosine(AXIS_NAMES.index(axis))
     measure = quadrature.weights * np.abs(mu)
     # Group same-sign ordinates by measure; the first class with ≥2 members
     # supplies the swap. Rounded because the class is a float coincidence of

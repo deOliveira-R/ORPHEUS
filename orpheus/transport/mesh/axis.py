@@ -438,7 +438,11 @@ def face_outflow_ordinates(
     neither inflow nor outflow at the boundary and are skipped by
     every consumer (the sweep, the matvec, and the pack convention).
     """
-    mu_axis = quad.axis_cosines(label.axis_index)
+    # ``mean_axis_cosine``, not ``axis_cosines`` (phase 0.2): "is this ordinate
+    # outflowing at this face?" is a FLUX question, so on an axis the rule has
+    # suppressed, zero is the answer — and the tolerance below then correctly
+    # classifies every such ordinate as neither inflow nor outflow.
+    mu_axis = quad.mean_axis_cosine(label.axis_index)
     sign = +1.0 if label.endpoint in _OUTWARD_ENDPOINTS else -1.0
     return np.where(sign * mu_axis > _OUTFLOW_COSINE_TOL)[0]
 

@@ -152,14 +152,21 @@ _MEASURE_RTOL: float = 1e-12
 
 
 def _axis_cosines(quadrature: "Quadrature", axis: str) -> "np.ndarray":
-    r"""The ordinates' direction cosines along ``axis``.
+    r"""The ordinates' orbit-mean direction cosines along ``axis``.
 
     ``AXIS_NAMES.index`` rather than a local ``{"x": 0, ...}`` literal: the
     name→column correspondence has ONE home
     (:data:`~orpheus.numerics.face_layout.AXIS_NAMES`), and a second spelling
     of it is a twin waiting to disagree.
+
+    ⭐ ``mean_axis_cosine``, not ``axis_cosines`` (phase 0.2): this feeds the
+    cosine measure :math:`w\lvert\mu_a\rvert` on a face, which is a **flux**
+    question — so on an axis a 1-D rule has suppressed, zero is the answer
+    (nothing flows along it), not a missing one. `[M]` the full-suite census
+    records this site reading a suppressed axis 5 times, so the distinction is
+    live here rather than theoretical.
     """
-    return quadrature.axis_cosines(AXIS_NAMES.index(axis))
+    return quadrature.mean_axis_cosine(AXIS_NAMES.index(axis))
 
 
 def assert_specular_pairing_measure_preserving(

@@ -735,6 +735,229 @@ one. 0.2 is then a pure naming/typing split with no defect behind it, and its
 done-when is re-runnable: **re-run this census after 0.1 and the
 `directional.py:589` row must be GONE.**
 
+⛔⛔ **REFUTED 2026-09-01 at 0.2's opener, and it is MY row — 0.1a removes
+`0 %` of the phantom reads, not 92 %.** A phantom read is `axis_cosines(i)`
+with `i >= dim`, which **can only happen when `dim == 1`**: a 3-D rule's
+indices run 0..2 against `dim = 3` and never qualify. 0.1a routes exactly the
+**3-D** rules — the ones that were never phantom-reading — so it cannot have
+removed any. `[M]` measured with the census's own recorder design at
+`2c1a06b1`: `lebedev(11)` / `product(4,8)` / `folded_product(4,8)` read **0**
+phantom components, before and after; `gauss_legendre(8)` still reads **6**
+(axes 1 and 2 × `L ∈ {0,1,2}`), merely relocated `:589 → :682`.
+⟹ the 92 % belongs to **0.1b**, which rides **3.4** — ORDER step 7, not step 1.
+⭐ The mechanism of the mistake is worth more than the number: I wrote "0.1
+deletes the column_stack" and then split 0.1 into 0.1a/0.1c (**now**) and 0.1b
+(**at 3.4**) *in a later section*, without returning to re-attribute the 92 %.
+A quantity attributed to a step **survives that step being split**, and it
+attaches to whichever half the reader is looking at. ⟹ when a step splits,
+re-read every number credited to its old name.
+
+⭐⭐ **And the sharpest thing 0.2's opener found — the forged node is the orbit
+BARYCENTRE, exactly.** `[M]` 2026-09-01, against an explicit
+periodic-trapezoid quadrature of the `SO(2)` orbit of each
+`gauss_legendre(8)` ordinate: the mean of the circle of unit vectors at polar
+cosine :math:`\mu` is :math:`(\mu, 0, 0)` to **1.1e-16** in the constant
+column and **1.7e-17** in the two averaged ones.
+
+⛔ **This row first quoted "0.000e+00 on all three columns", and that figure
+measured the wrong pair.** The probe had compared the FORGERY to
+:math:`(\mu,0,0)`, which is exact by construction — those columns are literal
+zeros — so it carried no information. The informative comparison is the ORBIT
+MEAN against the forgery, whose precision is the reference quadrature's own.
+Same shape as the 2026-08-31 transcription-precision row: the number that read
+as the strongest evidence was the one wholly determined by how the probe was
+written. ⭐ And the correction turned up a second thing worth carrying:
+**refining the orbit rule makes it WORSE.** An equispaced rule IS the periodic
+trapezoid, which is exact for trigonometric polynomials, so `n = 8` already
+integrates :math:`\cos\varphi` / :math:`\sin\varphi` to machine precision;
+`[M]` `|col0 − μ|` reads `1.1e-16` at n=8, `9.5e-15` at n=1024 and `1.1e-12`
+at n=200 000 — pure summation round-off in the constant column. The gate's
+first draft used 200 000 points and failed its own `1e-12` tolerance against
+its own reference, not against the code.
+
+⟹ **ERR-080's numbers were never wrong; its TYPE is.** The zeros are not
+garbage and not a fallback — they are the correct value of
+:math:`\langle \Omega_i \rangle` over the orbit. The defect is that a **mean**
+was handed to a basis that needs a **point**, and that is precisely why
+:math:`\lVert(\mu,0,0)\rVert = |\mu| \ne 1`: the barycentre of a circle of
+unit vectors is its centre, which lies strictly inside the ball. It is the one
+point of the convex hull guaranteed *not* to be on the orbit (except at
+:math:`\mu = \pm 1`, where the orbit degenerates to a point).
+
+⭐ This is the same verdict the σ_y derivation reached by a different route —
+*"ERR-080 is a botched SECTION"* — now with its mechanism named: a section must
+choose a **representative on the orbit**, and the barycentre is the canonical
+way to fail that. It also settles 0.2's design question, because it says what
+the flow accessor actually returns: **the orbit mean**, whose zero is DERIVED
+rather than defaulted, and which coincides with the plain cosine whenever the
+orbit is a single point.
+
+### ✅ 0.2 — EXECUTED 2026-09-01. What the split actually found
+
+**The shape that shipped.** `axis_cosines(i)` is now the COORDINATE question
+and refuses a suppressed axis with a real `raise` (⛔ not an `assert` — the
+canonical runner is `-O`). `mean_axis_cosine(i)` is the ORBIT MEAN, delegating
+to `axis_cosines` in-domain so there is one source for the coordinate, and
+returning the derived zero on a suppressed axis. The three census-confirmed
+flow consumers moved to it; `mu_y`/`mu_z` became views over it (the census says
+both are read for the flux question); `mu_x` and `eta`/`xi` stay strict —
+`[M]` `xi` is never read on a 1-D rule (all 24 `.xi`/`.eta` reads are
+cylindrical), and `augmented_mesh.py:1837` provably cannot phantom-read
+(a mesh's axis count never exceeds the quadrature's `dim`) **and wants the
+POINT anyway**, because the sweep marches individual ordinates, not orbits.
+
+⭐ **THREE meanings shared those zeros, not two.** The plan's triage found the
+coordinate/flux split. Execution found a third the old accessor also swallowed:
+`i >= 3` is not a suppressed axis, it is **no axis at all**, and the old code
+returned zeros for that too — so a genuine indexing bug was indistinguishable
+from a legitimate 1-D read. `mean_axis_cosine` therefore bounds at the AMBIENT
+dimension (`_DIRECTION_AMBIENT_DIM`) and its two refusals say which is which.
+`[M]` gated by `test_q9_4`; the mutation that drops the bound reds it.
+
+⭐ **`spherical_harmonics` single-sourced onto the frame.** It carried the
+SECOND copy of the 1-D fabrication, so making `axis_cosines` strict forced the
+question. `[M]` it has **0 production consumers** (9 test call sites) and `[M]`
+was already bit-identical to `angular_frame(L).table` (36 of 36) — the SAME
+math procedurally rearranged, which is `coding-standards`' *retire*
+discriminator, not its *keep* one. It is now `return self.angular_frame(L).table`.
+⚠ That DEMOTES `test_q8_6` from a two-path bit-identity gate to a tautology,
+which the retirement rule says to handle rather than revert: the gate is kept,
+re-scoped in its own docstring to pin the **single-sourcing** (an `is`
+identity, which reds if a second evaluation path returns), and `[M]` the value
+coverage survives externally in `test_q5_1`/`test_q5_2`, whose literals were
+authored independently of both spellings. `[M]` mutation `m5` (re-introduce the
+twin) reds 10 rows.
+
+⭐ **A §6b member no census could return, found by the red loop.**
+`test_q4_5` built `np.column_stack([q.axis_cosines(a) for a in range(3)])` to
+apply a `RigidMotion` — i.e. it hand-rolled the canonical R³ **embedding**, a
+Pattern-2 duplicate of `_embedded_nodes`, and it only worked because the
+accessor silently padded. It is neither a coordinate consumer nor a flux one;
+it is an *embedding* consumer, a category the triage did not have. Now calls
+`_embedded_nodes(q.measure)`. ⟹ the transferable half: **a strictness change
+surfaces duplicates of whatever the laxness was standing in for**, and those
+are invisible to a census of the lax call itself.
+
+⛔ **And `_embedded_nodes`' own docstring was made false by this step** — it
+said the embedding is *"written down in `Quadrature.axis_cosines` and used by
+`spherical_harmonics` internally"*, and 0.2 falsified **both halves** in one
+commit. Corrected in place with the date and the surviving site.
+
+⛔⛔ **The §6b set was short by four, and the red loop cost 29 tests across two
+trees — the miss is instructive because the census had ALREADY FOUND them.**
+I enumerated `orpheus/` consumers by AST, triaged each by meaning, and treated
+`tests/` as "the red loop will catch it". It did. But §II.14's own census table
+carries the line *"⚠ Note `tests/_harness/references.py:57` (48 reads) — a
+harness-level phantom read"*, which I read in this same session and did not
+connect to 0.2's blast radius. `[M]` geometry 21 red + sn 8 red, every one
+reaching `axis_cosines` through that ONE harness helper.
+
+The four, and three of them are the same shape:
+
+| site | what it was | what it wanted |
+|---|---|---|
+| `tests/_harness/references.py:57` | `column_stack([axis_cosines(a) for a in range(3)])` | the R³ **embedding** (drives all 29) |
+| `tests/sn/sweep/curvilinear/test_coupled_pole_mu_level_invariant.py:160` | the same three-call `column_stack` | the R³ **embedding** |
+| `tests/numerics/test_quadrature_directional.py` (`q4_5`) | the same again | the R³ **embedding** |
+| `tests/geometry/test_bc_universal_invariants.py:894` | `axis_cosines(AXIS_NAMES.index(axis))` | the **flux** verb (mirrors `_specular.py:162`) |
+
+⟹ **the triage had two categories and the tree has three.** Coordinate, flux —
+and **embedding**, which is neither: it wants the orbit's image as a POINT of
+:math:`\mathbb{R}^3` in order to apply a `RigidMotion`. That category was
+invisible to a census of the accessor, because all three sites spell it as a
+`column_stack` of three accessor calls rather than as any symbol. It is
+`plan-authoring` §6b's *"members spelled without the symbol"* with a new
+member: **a hand-rolled composition of the changed call**.
+⭐ And the repair is principled rather than mechanical: a mirror is LINEAR, so
+it commutes with the orbit mean — matching embedded barycentres is equivalent
+to matching orbits, which is why the 1-D arm stays correct through
+`_embedded_nodes`.
+
+⚠ **A fifth member, and the one a grep genuinely cannot return: a duck-typed
+SURROGATE.** `_MutantQuadrature` (`test_bc_universal_invariants.py:158`)
+stands in for a `Quadrature` while returning a deliberately-broken
+`ordinate_permutation`. It delegated `axis_cosines` and nothing else, so
+re-pointing the reference at `_embedded_nodes(quad.measure)` broke it on a
+member it had never been asked for. It now passes through `measure` and
+`mean_axis_cosine` too. Exactly the 2026-08-24 surprise-log row, third
+instance.
+
+⟹ **the transferable half, and it is cheap:** when a step makes a lax accessor
+STRICT, the §6b set is not the accessor's call sites — it is the call sites
+**plus every hand-rolled composition of them**, and those are found by asking
+*"what was the laxness standing in for?"* (here: an embedding) and grepping for
+THAT. ⛔ **And I first wrote "one grep would have found all four" — `[M]` it
+finds THREE.** Re-run against `HEAD`, `column_stack` within four lines of
+`axis_cosines` returns 6 hits covering the production site and the three
+EMBEDDING duplicates, and misses `bc_universal_invariants:894` entirely,
+because that one spells it `axis_cosines(AXIS_NAMES.index(axis))`. The fourth
+needs a different question — *"which test mirrors the production line I just
+re-pointed?"* — since it is the independent reference for `_specular.py:162`.
+⟹ **two greps, not one**: one for the composition the laxness stood in for,
+one for the twins of every production site the step touches. Cost as it
+actually played out: one red loop (29 tests, both trees, all loud).
+
+⚠ **A scanner failure, logged because it is `vv-principles` #17 verbatim.**
+The mutation table's first run reported `m3_mean_diverges` as
+**0 passed / 0 failed / 0 calls** — the "zero on both scanners" signature. The
+arm was fine: re-run, it reds **11** rows (`test_q9_3` ×8 plus three siblings).
+The broken instrument was my summary parser (`grep -oE '[0-9]+ passed' | head -1`
+on a captured string); anchoring on the summary LINE fixed it. ⟹ the discipline
+that caught it is the one #17 prescribes — a per-arm CALL COUNTER, so
+"no reds" and "never ran" cannot be confused.
+
+### ✅ 0.2-R — RULED by the user, 2026-09-01
+
+**(a) The flow verb is `mean_axis_cosine`.** Chosen over `axis_flow`
+(operational — names the USE, and is only honest on the 1-D side, since for a
+3-D rule it returns a plain cosine and not a flow) and over `axis_projection`
+(the plan's own placeholder — accurate for both, and silent on the mechanism,
+which is the ambiguity that let ERR-080 hide). The ruled name is the only one
+that states WHY the 1-D answer is zero: it is
+:math:`\langle \Omega_i \rangle` over the orbit, so **the zero is DERIVED,
+not defaulted**, and the SAME definition covers a 3-D rule, where the orbit is
+a single point and the mean is the cosine itself. One definition, no branch at
+the concept level.
+
+**(b) 0.2 lands NOW, decoupled from 3.4** — the 1-D arm of
+`_harmonic_frame_measure` spells its own zeros inline rather than obtaining
+them from an accessor named *"direction cosine along axis i"*. Rejected:
+folding 0.2 into the step-7 fused landing, which would make an already
+highest-risk commit (six items, its only witness PRODUCTION) larger.
+
+⟹ **What this does NOT change:** 0.2 still runs now, and the census's triage
+still stands. What changes is its FRAMING — it is not *"a pure naming/typing
+split with no defect behind it"*, because the fabrication consumer is still
+live and stays live until 3.4.
+
+⭐⭐ **And that turns out to be the design, not an obstacle.** If the direction
+accessor is to RAISE for `i >= dim`, the 1-D arm of `_harmonic_frame_measure`
+cannot keep calling it — so the arm must **spell its own zeros inline**:
+
+```python
+nodes=np.column_stack([self.measure.nodes, np.zeros(N), np.zeros(N)])
+```
+
+which is strictly better *on its own terms*, independently of 0.2: the zeros
+ARE the fiction, and laundering them through an accessor named
+*"direction cosine along axis i"* is precisely what made the fiction invisible
+for as long as it was. Spelling them locally makes the invention visible at the
+one site that commits it, and **decouples 0.2 from 3.4** — 0.2 no longer has to
+wait for the fiction to be repaired, only for it to stop hiding.
+
+⭐ **Collateral, found while enumerating the accessor's callers:
+`Quadrature.spherical_harmonics` has ZERO production consumers.** `[M]` by AST
+**0** call sites in `orpheus/`, **9** in `tests/` (Nexus `callers` returns an
+empty list *with* an `unresolved: 9` warning — the AST census is what settles
+it, and the warning is why the empty list was not banked). It is a Pattern-2
+twin of `frame.table` — `[M]` 36 of 36 bit-identical — differing only in the
+input assembly, i.e. the SAME math procedurally rearranged, which is the
+`coding-standards` fuller-view-oracle rule's own **retire** discriminator
+rather than its keep one. It also carries the second copy of the 1-D
+fabrication (`:575-577`). ⟹ **retirement candidate, scheduled against 3.4**
+(its docstring already names 3.4 as its repair); not taken here, because
+retiring a method with 9 test consumers is its own carve and 0.2 is not it.
+
 ⚠ Note `tests/_harness/references.py:57` (48 reads) — a harness-level phantom
 read, part of §4.9's migration set, not covered by §4.9's current inventory.
 
@@ -2454,7 +2677,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 0.1a | 3-D rules hand the frame their OWN measure — ⚠ keystone is a **ROUTE** gate (`frame.measure is q.measure`), not bit-identity (§II.15 R4) | ⏏ yes | ✅ `2c1a06b1` — `Quadrature._harmonic_frame_measure`; `[M]` route gate **0 of 12 → 10 of 12**, nodes/weights bit-identical on all 10, and the forgery's **other two** losses reversed (§II.8's correction). Gates Q8.1–Q8.5, per-arm mutation battery 5/5 caught with a call counter |
 | 0.1b | the 1-D rows — ⛔ **rides 3.4**, the lift does not exist (§II.9) | ⏏ yes | ☐ (with 3.4) — ⭐ the fiction is now NAMED and self-retiring: `test_q8_4` goes RED the day 3.4 removes the branch |
 | 0.1c | the fold's `S^2/sigma_y` tag — ⛔ §8 hazard REFUTED (0 reds; 0/145 089 checks); was blocked on **2.1-W** | ⏏ yes | ✅ `2c1a06b1` (with 0.1a) — `[M]` `folded_product` frames move `L2[S^2]` → `L2[S^2/sigma_y]`; gated by `test_q8_3` with an unfolded discriminating control |
-| 0.2 | phantom component unspellable — ⛔ means REFUTED by the census; **runs AFTER 0.1**, then it is the accessor SPLIT (direction vs flow) | ⏏ yes | ☐ |
+| 0.2 | phantom component unspellable — ⛔ means REFUTED by the census; ⛔ *"runs AFTER 0.1"* also refuted (0.1a removes **0 %** of the phantom reads — only 1-D rules can phantom-read) | ⏏ yes | ✅ **LANDED** — `axis_cosines` strict (the coordinate) + `mean_axis_cosine` (the orbit mean, zero DERIVED). ⭐ Found a **third** meaning in those zeros (`i >= 3` is no axis at all, not a suppressed one), single-sourced `spherical_harmonics` onto the frame (0 production consumers), and collapsed `_quadrature_axis`'s 3-arm ladder + its defaulted-`getattr` hazard. Gates Q9.1–Q9.5 + a re-scoped Q8.6; 5-arm mutation battery, every arm a distinct red set |
 | 0.2-census | full-suite phantom census (moved here from 2.4) | ⏏ yes | ✅ **DISCHARGED** — §II.14, 13 trees rc=0, 11 sites / 1604 reads |
 | 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ✅ `ae4dbc1f` |
 | 0.4 | `directional.py` `spherical_harmonics` docstring | ⏏ yes | ✅ `ae4dbc1f` |

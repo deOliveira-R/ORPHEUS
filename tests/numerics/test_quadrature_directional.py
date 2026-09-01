@@ -32,6 +32,7 @@ import pytest
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import LevelStructure, Quadrature
+from orpheus.numerics.symmetry import _embedded_nodes
 
 pytestmark = [pytest.mark.foundation]
 
@@ -107,12 +108,22 @@ def test_q1_2_n_equals_n_ordinates() -> None:
 
 
 def test_q2_1_axis_cosines_1d_scalar_measure() -> None:
-    """For a 1-D scalar measure (GL1D), axis 0 returns nodes;
-    higher axes return zeros."""
+    """For a 1-D scalar measure (GL1D), axis 0 returns nodes; the suppressed
+    axes have no coordinate and the ORBIT MEAN is what answers there.
+
+    ⛔ This test asserted ``axis_cosines(1) == zeros`` until phase 0.2
+    (2026-09-01). That contract is retired, not relaxed: the zeros were the
+    fabrication ERR-080 rides on, and the question they were answering has
+    moved to :meth:`Quadrature.mean_axis_cosine`. Rewired rather than deleted
+    — the 1-D shape contract is still worth pinning, it just needs the verb
+    that means it (``coding-standards``: retirement includes test migration).
+    """
     q = Quadrature.gauss_legendre(8)
     np.testing.assert_array_equal(q.axis_cosines(0), q.measure.nodes)
-    np.testing.assert_array_equal(q.axis_cosines(1), np.zeros(q.N))
-    np.testing.assert_array_equal(q.axis_cosines(2), np.zeros(q.N))
+    for i in (1, 2):
+        with pytest.raises(ValueError, match="has no answer"):
+            q.axis_cosines(i)
+        np.testing.assert_array_equal(q.mean_axis_cosine(i), np.zeros(q.N))
 
 
 def test_q2_2_axis_cosines_multidim_measure() -> None:
@@ -120,8 +131,13 @@ def test_q2_2_axis_cosines_multidim_measure() -> None:
     q = Quadrature.lebedev(17)
     for i in range(3):
         np.testing.assert_array_equal(q.axis_cosines(i), q.measure.nodes[:, i])
-    # Beyond intrinsic dim → zeros.
-    np.testing.assert_array_equal(q.axis_cosines(3), np.zeros(q.N))
+    # ⛔ Beyond the intrinsic dim this returned zeros until phase 0.2. A sphere
+    # cubature suppresses nothing, so index 3 is not a suppressed axis — it is
+    # no axis at all, and BOTH verbs refuse it (for different stated reasons).
+    with pytest.raises(ValueError, match="has no answer"):
+        q.axis_cosines(3)
+    with pytest.raises(ValueError, match="no axis 3 to average over"):
+        q.mean_axis_cosine(3)
 
 
 # ─── Q3: Legacy mu_x/mu_y/mu_z views ────────────────────────────────────
@@ -263,7 +279,14 @@ def test_q4_5_every_derived_mirror_permutation_really_is_its_reflection(
     here instead of silently vacating the loop.
     """
     q = build()
-    nodes3 = np.column_stack([q.axis_cosines(a) for a in range(3)])
+    # The canonical R^3 embedding, from its one home. This line used to
+    # hand-roll it as ``column_stack([q.axis_cosines(a) for a in range(3)])``
+    # — a Pattern-2 duplicate of ``_embedded_nodes``, and one that only worked
+    # because ``axis_cosines`` silently padded a suppressed axis with zeros.
+    # Phase 0.2 made that padding a refusal, which is what surfaced the
+    # duplicate: applying a RigidMotion needs POINTS of R^3, and minting them
+    # is the embedding's job, not an accessor's.
+    nodes3 = _embedded_nodes(q.measure)
     available = []
     for axis in (0, 1, 2):
         pi = q.ordinate_permutation(_mirror(axis))
@@ -591,30 +614,164 @@ def test_q8_5_routing_moved_no_numbers(make) -> None:
     [r[1] for r in _ROUTED_RULES + _LIFTED_RULES],
     ids=[r[0] for r in _ROUTED_RULES + _LIFTED_RULES],
 )
-def test_q8_6_frame_table_still_equals_spherical_harmonics_bit_for_bit(make) -> None:
-    """``angular_frame(L).table`` == ``spherical_harmonics(L)``, bit for bit.
+def test_q8_6_spherical_harmonics_IS_the_frame_table_one_object(make) -> None:
+    """``spherical_harmonics(L)`` and ``angular_frame(L).table`` are ONE object.
 
-    ⚠ This gate exists BECAUSE of 0.1a, and it is the interesting kind of
-    debt: the claim is old, the guarantee behind it is new and weaker.
-    ``angular_frame``'s docstring has always asserted this equality, and until
-    2026-09-01 it was true **by construction** — both spellings shared one
-    literal ``column_stack(axis_cosines(0..2))`` expression, so no input could
-    separate them. Routing the measure makes the two sides *independently
-    assembled*: the frame reads ``measure.nodes``, ``spherical_harmonics``
-    still column-stacks the cosines. They agree because those arrays are equal,
-    which is a fact about the rules rather than a fact about the code.
+    ⛔ **This gate was DEMOTED by phase 0.2, deliberately, and is kept for a
+    narrower claim — read this before "restoring" the old assertion.** It was
+    written at 0.1a as a bit-identity comparison of two *independently
+    assembled* tables (`[M]` 36 of 36 agreeing over 12 rules × L ∈ {0,1,2}).
+    0.2 then single-sourced ``spherical_harmonics`` onto the frame, so that
+    comparison became ``x == x``: **no input can make the two sides differ**,
+    and a gate wearing an authoritative name for a comparison that cannot fail
+    is worse than no gate (``coding-standards``).
 
-    A claim that silently drops from by-construction to by-coincidence is
-    exactly the demotion ``coding-standards`` warns about, and `[M]` nothing in
-    the tree pinned this one — 0 tests compared the two. So it gets a gate.
+    The demotion is CORRECT — prevention beats detection, and the twin that
+    could drift is gone — so what moves is the gate's CLAIM, not the fix. What
+    it now pins is the **single-sourcing itself**: an ``is`` identity, which
+    reddens the moment anyone re-introduces a second evaluation path. That is
+    a real regression to guard, and it is the one this gate can still see.
 
-    ⭐ NOT a tautology: both sides call the same ``SphericalHarmonicBasis``
-    object, and that is fine — the independence lives in the **input
-    assembly**, which is the criterion in
-    ``feedback_verify_shared_primitive_pure_math``. Mutating either assembly
-    path separates them; `[M]` 36 of 36 (12 rules × L ∈ {0,1,2}) agree today,
-    against a positive control comparing mismatched degrees that reads False.
+    ⭐ The value coverage did not move to nothing: ``test_q5_1`` (shape) and
+    ``test_q5_2`` (Y_0^0 constancy) pin the table against literals authored
+    independently of both spellings, so the carve cost no coverage.
     """
     q = make()
     for L in (0, 1, 2):
-        np.testing.assert_array_equal(q.angular_frame(L).table, q.spherical_harmonics(L))
+        assert q.spherical_harmonics(L) is q.angular_frame(L).table
+
+
+# ─── Q9: the accessor SPLIT — coordinate vs orbit mean ──────────────────
+#
+# Phase 0.2. ``axis_cosines`` answered two different questions with one
+# signature, and the zeros it returned for a suppressed axis carried both
+# meanings at once: "there is no such coordinate" AND "nothing flows there".
+# `[M]` the full-suite census found 1 consumer meaning the first and 3 meaning
+# the second, so a blanket refusal would have broken three correct call sites.
+
+
+def _orbit_mean_by_quadrature(mu: float, n_phi: int = 8) -> np.ndarray:
+    """<Omega> over the SO(2) orbit of a polar-cosine-mu ordinate, computed
+    from an explicit azimuthal quadrature.
+
+    Structurally independent of the accessor under test: this integrates the
+    orbit, where ``mean_axis_cosine`` returns a stored column or a zero. That
+    independence is the whole point — it makes "the zero is the orbit mean" a
+    falsifiable claim rather than a restatement of the implementation.
+
+    ⭐ ``n_phi = 8``, and MORE POINTS WOULD BE WORSE. The equispaced rule is
+    the periodic trapezoid, which is exact for trigonometric polynomials, so
+    it integrates cos and sin to machine precision at any ``n >= 2`` —
+    refining buys no accuracy and costs summation round-off in the constant
+    column. `[M]` 2026-09-01, |col0 - mu|: **1.1e-16** at n=8, 9.5e-15 at
+    n=1024, **1.1e-12** at n=200 000. The first draft of this gate used
+    200 000 and failed its own 1e-12 tolerance — against its own reference's
+    round-off, not against the accessor (``vv-testing``: do not loosen a
+    tolerance to fit an inexact method; reach for the rule that IS exact).
+    """
+    phi = np.linspace(0.0, 2.0 * np.pi, n_phi + 1)[:-1]
+    s = np.sqrt(1.0 - mu**2)
+    orbit = np.column_stack(
+        [np.full_like(phi, mu), s * np.cos(phi), s * np.sin(phi)]
+    )
+    return orbit.mean(axis=0)
+
+
+def test_q9_1_axis_cosines_refuses_a_suppressed_axis() -> None:
+    """⭐ The COORDINATE question. An ordinate of a 1-D rule is an ORBIT of the
+    suppressed rotations, not a point of the sphere, so it has no cosine along
+    a suppressed axis — there is no representative to return, and inventing one
+    is ERR-080.
+
+    Positive AND negative legs (``vv-principles`` #11): the in-domain axis must
+    answer, the suppressed ones must refuse. A refusal-only test would show the
+    method raises without showing it still works.
+    """
+    q = Quadrature.gauss_legendre(8)
+    np.testing.assert_array_equal(q.axis_cosines(0), q.measure.nodes)  # positive
+    for i in (1, 2):
+        with pytest.raises(ValueError, match="has no answer"):
+            q.axis_cosines(i)
+    # a 3-D rule suppresses nothing, so all three answer and only i>=3 refuses
+    leb = Quadrature.lebedev(17)
+    for i in (0, 1, 2):
+        np.testing.assert_array_equal(leb.axis_cosines(i), leb.measure.nodes[:, i])
+    with pytest.raises(ValueError, match="has no answer"):
+        leb.axis_cosines(3)
+
+
+def test_q9_2_mean_axis_cosine_IS_the_orbit_mean_not_a_default() -> None:
+    """⭐⭐ KEYSTONE of 0.2. The zero is DERIVED, and this proves it by
+    integrating the orbit rather than by asserting ``== 0``.
+
+    A gate that checked ``mean_axis_cosine(1) == zeros`` would pass equally
+    well against a hard-coded fallback — it cannot tell an answer from a
+    default, which is exactly the ambiguity 0.2 exists to remove. So the
+    reference here is an explicit 200 000-point quadrature of the SO(2) orbit,
+    built without touching the accessor.
+
+    `[M]` 2026-09-01 the agreement is at the reference's own round-off —
+    **1.1e-16** in the constant column, **1.7e-17** in the two averaged ones —
+    i.e. the residual measures this test's arithmetic, not a discrepancy. And
+    the same identity is what names ERR-080's defect exactly: the tree
+    computed this mean correctly and handed it to a basis that needs a POINT.
+    """
+    q = Quadrature.gauss_legendre(8)
+    got = np.column_stack([q.mean_axis_cosine(i) for i in range(3)])
+    want = np.array([_orbit_mean_by_quadrature(float(m)) for m in q.measure.nodes])
+    np.testing.assert_allclose(got, want, atol=1e-15, rtol=0.0)
+    # ...and the barycentre is OFF the sphere, which is why it cannot be a
+    # section: the mean of a circle of unit vectors is its centre.
+    norms = np.linalg.norm(want, axis=1)
+    np.testing.assert_allclose(norms, np.abs(q.measure.nodes), atol=1e-15, rtol=0.0)
+    assert np.all(norms < 1.0 - 1e-9)
+
+
+@pytest.mark.parametrize(
+    "make", [r[1] for r in _ROUTED_RULES], ids=[r[0] for r in _ROUTED_RULES]
+)
+def test_q9_3_the_two_verbs_agree_wherever_the_orbit_is_a_point(make) -> None:
+    """One formula read at two levels: where an ordinate IS a point, its orbit
+    mean is its own cosine, so the two verbs must agree exactly. If they ever
+    diverge in-domain, ``mean_axis_cosine`` has stopped being the mean and
+    become a second source of the coordinate.
+    """
+    q = make()
+    for i in range(q.dim):
+        np.testing.assert_array_equal(q.mean_axis_cosine(i), q.axis_cosines(i))
+
+
+def test_q9_4_an_axis_outside_R3_is_a_DIFFERENT_refusal() -> None:
+    """⚠ Three meanings shared one set of zeros before 0.2, not two. Beyond
+    "the coordinate exists" and "the rule suppressed this axis", there is
+    "R^3 has no such axis at all" — and the old accessor returned zeros for
+    that too, so a genuine indexing bug read as a legitimate suppressed axis.
+
+    ``mean_axis_cosine`` bounds at the AMBIENT dimension and says which
+    refusal it is, so the two cannot be confused at a call site.
+    """
+    q = Quadrature.gauss_legendre(8)
+    np.testing.assert_array_equal(q.mean_axis_cosine(2), np.zeros(q.N))  # suppressed
+    with pytest.raises(ValueError, match="no axis 3 to average over"):
+        q.mean_axis_cosine(3)
+    with pytest.raises(ValueError, match="non-negative|no axis"):
+        q.mean_axis_cosine(-1)
+
+
+def test_q9_5_the_flow_consumers_still_read_zero_on_a_suppressed_axis() -> None:
+    """The three census-confirmed flow consumers keep their answer. `[M]` the
+    census attributes 31 reads to ``mu_z`` (Omega.n_f), 5 to the specular
+    cosine measure and 4 to ``face_outflow_ordinates`` — all asking "how much
+    flows along axis i?", for which zero is correct on a suppressed axis.
+
+    Pinned through the legacy names because that is how those consumers spell
+    it; the point is that re-pointing them at ``mean_axis_cosine`` did not move
+    their values.
+    """
+    q = Quadrature.gauss_legendre(8)
+    np.testing.assert_array_equal(q.mu_x, q.measure.nodes)
+    np.testing.assert_array_equal(q.mu_y, np.zeros(q.N))
+    np.testing.assert_array_equal(q.mu_z, np.zeros(q.N))
+    leb = Quadrature.lebedev(17)
+    for name, i in (("mu_x", 0), ("mu_y", 1), ("mu_z", 2)):
+        np.testing.assert_array_equal(getattr(leb, name), leb.measure.nodes[:, i])

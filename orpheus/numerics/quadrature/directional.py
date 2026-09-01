@@ -62,8 +62,17 @@ The :class:`Quadrature` class keeps ``mu_x`` / ``mu_y`` / ``mu_z`` /
 convention; for cylindrical SN they are mis-leading (LS column 0 is
 the *radial* cosine :math:`\eta`, NOT a Cartesian X-projection).
 They survive only because the legacy consumer call sites (~150 reads
-across orpheus/+tests/) use these names. Migration to
-:meth:`axis_cosines` is a follow-up. The Pattern 7 violation that
+across orpheus/+tests/) use these names.
+
+⛔ This paragraph used to close *"Migration to :meth:`axis_cosines` is a
+follow-up"*, and phase 0.2 (2026-09-01) made that the wrong target for two of
+the three. ``mu_x`` is axis 0 and is never suppressed, so it is a view over
+:meth:`Quadrature.axis_cosines`. ``mu_y`` / ``mu_z`` are read for the FLUX
+question — `[M]` the full-suite census attributes 31 reads of ``mu_z`` to
+:math:`\Omega\cdot\hat n_f` alone — so they are views over
+:meth:`Quadrature.mean_axis_cosine`, and migrating them to ``axis_cosines``
+would make every 1-D consumer raise. The migration target depends on which
+question the call site is asking; that is the whole content of 0.2. The Pattern 7 violation that
 made them dangerous (denormalised dataclass *fields* in four
 parallel adapter classes) is closed by construction here: there is
 exactly ONE producer of the ordinate data, the ``measure``; the
@@ -115,6 +124,16 @@ from .rules_sphere import LevelStructure, lebedev_sphere, level_symmetric_sn
 # threshold in ``orpheus.sn.sweep`` and ``orpheus.transport.spatial.diamond``
 # (``_DEGENERATE_ABS_MU_THRESHOLD``); keep in lockstep.
 _OCTANT_SIGN_EPS = 1e-15
+
+#: Ambient dimension of the direction space. Directions live on
+#: :math:`S^2 \subset \mathbb{R}^3`, so an axis index is meaningful for
+#: ``0 <= i < 3`` and meaningless outside it — whatever a particular RULE
+#: suppresses. This is the bound :meth:`Quadrature.mean_axis_cosine` checks,
+#: and it is a different question from the rule's own ``dim``: ``dim <= i < 3``
+#: names a real axis this rule has quotiented away (mean zero, a genuine
+#: answer), while ``i >= 3`` names no axis at all. Matches the embedding in
+#: :func:`~orpheus.numerics.symmetry._embedded_nodes`.
+_DIRECTION_AMBIENT_DIM = 3
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -288,16 +307,78 @@ class Quadrature:
 
         This is the **canonical** per-axis accessor for new
         dim-agnostic code. The legacy :attr:`mu_x` / :attr:`mu_y` /
-        :attr:`mu_z` properties are back-compat views over this
-        function.
+        :attr:`mu_z` properties are views over
+        :meth:`mean_axis_cosine`, not over this method — see there.
         """
         nodes = self.measure.nodes
-        n_points = self.measure.n_points
-        if nodes.ndim == 1:
-            return nodes if axis_index == 0 else np.zeros(n_points)
-        if axis_index >= nodes.shape[1]:
-            return np.zeros(n_points)
-        return nodes[:, axis_index]
+        dim = 1 if nodes.ndim == 1 else nodes.shape[1]
+        if not 0 <= axis_index < dim:
+            raise ValueError(
+                f"axis_cosines({axis_index}) has no answer: this rule's "
+                f"directions live in {dim} component(s). An ordinate of a "
+                f"{dim}-D rule is an ORBIT of the suppressed rotations, not a "
+                f"point of the sphere, so it has no cosine along a suppressed "
+                f"axis — there is no representative to return. If you want "
+                f"the ORBIT MEAN (which is 0 on a suppressed axis, and is the "
+                f"right answer for a flux or an outflow partition), call "
+                f"mean_axis_cosine({axis_index}) instead."
+            )
+        return nodes if nodes.ndim == 1 else nodes[:, axis_index]
+
+    def mean_axis_cosine(self, axis_index: int) -> np.ndarray:
+        r"""The orbit-mean direction cosine :math:`\langle \Omega_i \rangle`.
+
+        The companion to :meth:`axis_cosines`, and the one whose zero is an
+        **answer** rather than a fallback. The two are one formula read at two
+        levels: an ordinate of a rule that has suppressed some rotations is an
+        **orbit**, and this returns the mean of :math:`\Omega_i` over it.
+
+        * When the orbit is a **single point** (``axis_index < dim`` — every
+          axis of a sphere cubature), the mean is that point's own cosine, so
+          this agrees with :meth:`axis_cosines` exactly.
+        * When the orbit is a **circle** (a 1-D polar rule's suppressed
+          azimuthal axes), the mean of :math:`\cos\varphi` and
+          :math:`\sin\varphi` over :math:`[0, 2\pi)` is :math:`0` — so the
+          zero is *derived*, not defaulted.
+
+        ⭐ `[M]` 2026-09-01, against an explicit periodic-trapezoid
+        quadrature of the :math:`SO(2)` orbit of each ``gauss_legendre(8)``
+        ordinate: the orbit barycentre is :math:`(\mu, 0, 0)` to **1.1e-16**
+        in the constant component and **1.7e-17** in the two averaged ones —
+        i.e. to the reference's own round-off. ⚠ Do not quote a tighter
+        figure: comparing the *forgery* to :math:`(\mu,0,0)` is exact by
+        construction (those columns are literal zeros) and measures nothing.
+        The claim that carries information is that the **orbit mean** lands
+        there, and its precision is the reference quadrature's. That number is worth carrying, because it says exactly
+        what ERR-080 is: the tree was not computing garbage, it was computing
+        this mean **correctly** and handing it to a basis that needs a POINT.
+        And :math:`\lVert(\mu,0,0)\rVert = |\mu| \neq 1` is not a coincidence
+        either — the barycentre of a circle of unit vectors is its centre,
+        which lies strictly inside the ball, i.e. it is the one point of the
+        convex hull guaranteed *not* to be on the orbit (except at
+        :math:`\mu = \pm 1`, where the circle degenerates to a point).
+
+        **Use this for a flux question, never for a coordinate one.** Asking
+        *"how much flows across a face normal to axis i?"* is asking for
+        :math:`\langle \Omega_i \rangle`, and nothing flows along an axis the
+        rule has no extent in. Asking *"where on the sphere is ordinate n?"*
+        is a coordinate question and belongs to :meth:`axis_cosines`, which
+        refuses rather than inventing a representative.
+        """
+        nodes = self.measure.nodes
+        dim = 1 if nodes.ndim == 1 else nodes.shape[1]
+        if not 0 <= axis_index < _DIRECTION_AMBIENT_DIM:
+            raise ValueError(
+                f"mean_axis_cosine({axis_index}): directions live on "
+                f"S^2 in R^{_DIRECTION_AMBIENT_DIM}, so there is no axis "
+                f"{axis_index} to average over. Note this is NOT the same "
+                f"refusal as a suppressed axis: an index in "
+                f"[{dim}, {_DIRECTION_AMBIENT_DIM}) names a real axis this "
+                f"rule has quotiented away, and its orbit mean is 0."
+            )
+        if axis_index >= dim:
+            return np.zeros(self.measure.n_points)
+        return self.axis_cosines(axis_index)
 
     # ────────────────────────────────────────────────────────────
     # Legacy mu_x / mu_y / mu_z (back-compat @property views)
@@ -316,8 +397,14 @@ class Quadrature:
 
     @property
     def mu_y(self) -> np.ndarray:
-        r"""Axis-1 direction cosines. Legacy SN slab convention name."""
-        return self.axis_cosines(1)
+        r"""Axis-1 orbit-mean direction cosine. Legacy SN slab convention name.
+
+        A view over :meth:`mean_axis_cosine`, **not** over
+        :meth:`axis_cosines` — `[M]` the full-suite census records this
+        accessor being read on 1-D rules, where the coordinate does not exist
+        and the flux answer (zero) is what every consumer wants.
+        """
+        return self.mean_axis_cosine(1)
 
     @property
     def mu_z(self) -> np.ndarray:
@@ -326,8 +413,13 @@ class Quadrature:
         For cylindrical SN this is the axial cosine :math:`\mu` —
         the Cartesian-Z label aligns with the cylindrical convention
         here (axial ≡ z), so the name is not misleading.
+
+        A view over :meth:`mean_axis_cosine`, **not** over
+        :meth:`axis_cosines`: `[M]` the census attributes 31 reads of this
+        property to ``spaces/angular_trace_space.py`` building
+        :math:`\Omega\cdot\hat n_f`, which is a flux question.
         """
-        return self.axis_cosines(2)
+        return self.mean_axis_cosine(2)
 
     # ────────────────────────────────────────────────────────────
     # Cylindrical-SN frame aliases (ORPHEUS's own axis naming)
@@ -570,12 +662,19 @@ class Quadrature:
         ``.claude/plans/angular_spaces_derived_from_symmetry.md``, after
         which the original sentence above becomes TRUE and this warning
         retires with it.
+
+        ⭐ **Single-sourced onto the frame, 2026-09-01 (phase 0.2).** This used
+        to column-stack the three axis cosines itself — a second copy of the
+        1-D fabrication, and a Pattern-2 twin of ``angular_frame(L).table``
+        that agreed with it `[M]` **36 of 36** over 12 rules ×
+        :math:`L \in \{0,1,2\}` while being able to drift at any time. It now
+        *is* that table. Two facts made this the right call rather than a
+        risky one: `[M]` the two were already bit-identical, and `[M]` this
+        method has **zero production consumers** (0 call sites in ``orpheus/``,
+        9 in ``tests/``), so the frame — which every production consumer does
+        read — was already the single source in practice.
         """
-        return self._harmonic_basis(L).evaluate_from_components(
-            self.axis_cosines(0),
-            self.axis_cosines(1),
-            self.axis_cosines(2),
-        )
+        return self.angular_frame(L).table
 
     def angular_frame(self, L: int) -> "GalerkinFrame":
         r"""The degree-:math:`L` spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame` on this quadrature.
@@ -677,10 +776,17 @@ class Quadrature:
         """
         if self.dim == 3:
             return self.measure
+        # ⚠ The zeros are INVENTED HERE, deliberately in view. They used to
+        # arrive from ``axis_cosines(1)``/``(2)`` — an accessor named "direction
+        # cosine along axis i" — which is what let the invention read as a
+        # lookup for as long as it did. Spelling them at the one site that
+        # commits the fiction is the whole of phase 0.2's decoupling: it lets
+        # ``axis_cosines`` refuse a suppressed axis without breaking this arm.
+        # These zeros are NOT the orbit mean's answer being reused — they are a
+        # chosen REPRESENTATIVE (a botched one; the barycentre is off S²).
+        padding = np.zeros(self.measure.n_points)
         return DiscreteMeasure(
-            nodes=np.column_stack(
-                [self.axis_cosines(0), self.axis_cosines(1), self.axis_cosines(2)]
-            ),
+            nodes=np.column_stack([self.measure.nodes, padding, padding]),
             weights=self.weights,
             support=SPACE_SPHERE,
         )

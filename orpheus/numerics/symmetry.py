@@ -800,10 +800,18 @@ def _contains(outer, inner) -> bool:
 def _embedded_nodes(measure: DiscreteMeasure) -> np.ndarray:
     r"""The measure's nodes as points of :math:`\mathbb{R}^3`.
 
-    The tree's canonical embedding, written down in
+    The tree's canonical embedding: a polar marginal :math:`\mu` becomes
+    :math:`(\mu, 0, 0)`, a planar rule :math:`(x, y)` becomes
+    :math:`(x, y, 0)`.
+
+    ⛔ This paragraph used to add *"written down in
     :meth:`Quadrature.axis_cosines` and used by ``spherical_harmonics``
-    internally: a polar marginal :math:`\mu` becomes :math:`(\mu, 0, 0)`, a
-    planar rule :math:`(x, y)` becomes :math:`(x, y, 0)`. It is the *data*
+    internally"*. Both halves went false at phase 0.2 (2026-09-01):
+    ``axis_cosines`` now REFUSES a suppressed axis rather than embedding into
+    it, and ``spherical_harmonics`` delegates to the angular frame. The one
+    place that still performs this padding on purpose is
+    ``Quadrature._harmonic_frame_measure``'s 1-D arm, which is ERR-080's
+    fiction and says so. It is the *data*
     that is lifted, not the group — :class:`SubgroupOfO3`'s named entries
     (:math:`O_h`, :math:`I_h`) genuinely are three-dimensional, and there is
     nothing to restrict them to.
