@@ -2620,6 +2620,9 @@ pins the two in agreement.
 | — | numerics green as a gate; the delta reconciles exactly | `eeccc51d` |
 | **2.1-W** | ⭐ **the fold basis is falsifiable at the EIGENVALUE tier** — 3 L1 rows | `daa783c5` |
 | **2.0a docs** | the point-set layer's corpus page + three corrections to the mint | `fba4205a` |
+| §V.5d | the 2.0c/2.0d opener — the step is BLOCKED, 2.0d dissolves, the order changes | `991097fb` |
+| **1.1 σ_y** | ⭐ **`S²/σ_y` derived + `Quotient`'s TWO coordinate systems** (user-ruled) — `Ball`, `FundamentalDomain`, the construction invariant, `singular_stratum` retyped | `b55bba56` |
+| **1.1 docs** | the corpus pass — and it REFUTED my dimension-coincidence claim, plus 3 code defects | `bf9296a1` |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
 ⛔ No commit COUNT is recorded here — it is the field guaranteed to rot. Run
