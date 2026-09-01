@@ -2451,9 +2451,9 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 
 | # | item | on exit path? | status |
 |---|---|:---:|---|
-| 0.1a | 3-D rules hand the frame their OWN measure — ⚠ keystone is a **ROUTE** gate (`frame.measure is q.measure`), not bit-identity (§II.15 R4) | ⏏ yes | ✅ **LANDED** — `Quadrature._harmonic_frame_measure`; `[M]` route gate **0 of 12 → 10 of 12**, nodes/weights bit-identical on all 10, and the forgery's **other two** losses reversed (§II.8's correction). Gates Q8.1–Q8.5, per-arm mutation battery 5/5 caught with a call counter |
+| 0.1a | 3-D rules hand the frame their OWN measure — ⚠ keystone is a **ROUTE** gate (`frame.measure is q.measure`), not bit-identity (§II.15 R4) | ⏏ yes | ✅ `2c1a06b1` — `Quadrature._harmonic_frame_measure`; `[M]` route gate **0 of 12 → 10 of 12**, nodes/weights bit-identical on all 10, and the forgery's **other two** losses reversed (§II.8's correction). Gates Q8.1–Q8.5, per-arm mutation battery 5/5 caught with a call counter |
 | 0.1b | the 1-D rows — ⛔ **rides 3.4**, the lift does not exist (§II.9) | ⏏ yes | ☐ (with 3.4) — ⭐ the fiction is now NAMED and self-retiring: `test_q8_4` goes RED the day 3.4 removes the branch |
-| 0.1c | the fold's `S^2/sigma_y` tag — ⛔ §8 hazard REFUTED (0 reds; 0/145 089 checks); was blocked on **2.1-W** | ⏏ yes | ✅ **LANDED with 0.1a** — `[M]` `folded_product` frames move `L2[S^2]` → `L2[S^2/sigma_y]`; gated by `test_q8_3` with an unfolded discriminating control |
+| 0.1c | the fold's `S^2/sigma_y` tag — ⛔ §8 hazard REFUTED (0 reds; 0/145 089 checks); was blocked on **2.1-W** | ⏏ yes | ✅ `2c1a06b1` (with 0.1a) — `[M]` `folded_product` frames move `L2[S^2]` → `L2[S^2/sigma_y]`; gated by `test_q8_3` with an unfolded discriminating control |
 | 0.2 | phantom component unspellable — ⛔ means REFUTED by the census; **runs AFTER 0.1**, then it is the accessor SPLIT (direction vs flow) | ⏏ yes | ☐ |
 | 0.2-census | full-suite phantom census (moved here from 2.4) | ⏏ yes | ✅ **DISCHARGED** — §II.14, 13 trees rc=0, 11 sites / 1604 reads |
 | 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ✅ `ae4dbc1f` |
@@ -2697,7 +2697,7 @@ Landed and callable: `class Ball` `manifold.py:459` · `class FundamentalDomain`
 | **1.1 σ_y** | ⭐ **`S²/σ_y` derived + `Quotient`'s TWO coordinate systems** (user-ruled) — `Ball`, `FundamentalDomain`, the construction invariant, `singular_stratum` retyped | `b55bba56` |
 | **1.1 docs** | the corpus pass — and it REFUTED my dimension-coincidence claim, plus 3 code defects | `bf9296a1` |
 | XIV | compaction point 2 — the exit path unblocked, and its ORDER | `4a5ac108` |
-| **0.1a + 0.1c** | ⭐ **the frame stops forging its own domain** — `_harmonic_frame_measure` routes the rule's measure; the 1-D fiction is named + self-retiring. `[M]` route gate 0→10 of 12; §II.8's *three* losses reversed; 5-arm mutation battery, every arm's red count reconciling to zero unexplained units | *(this commit)* |
+| **0.1a + 0.1c** | ⭐ **the frame stops forging its own domain** — `_harmonic_frame_measure` routes the rule's measure; the 1-D fiction is named + self-retiring. `[M]` route gate 0→10 of 12; §II.8's *three* losses reversed; 5-arm mutation battery, every arm's red count reconciling to zero unexplained units | `2c1a06b1` |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
 ⛔ No commit COUNT is recorded here — it is the field guaranteed to rot. Run
