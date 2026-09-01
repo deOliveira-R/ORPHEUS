@@ -47,13 +47,55 @@ including by me, twice this session. **What is refused is the DERIVATION engine,
 not the machinery.** Those are different objects, and conflating them is what
 left `Space = str` standing.
 
-⭐⭐ **And the reason the embryo is nearly free: the catalog and the engine have
-the SAME INTERFACE.** `M.quotient(H)` is one call either way; the engine would
-*compute* the entry, the embryo *looks it up* and **refuses, by name, when there
-is none**. So building it now forecloses nothing — a future engine is a second
-backend behind an unchanged signature — and it converts the engine's absence
-from an invisible gap into an explicit `raise`. That is the *build primitives,
-not products* rule applied to a thing we have deliberately chosen not to finish.
+⭐⭐ **SHARPENED AGAIN, same day (user) — and the first version of this clause
+was too weak.** The engine is **not ruled out**; it is ruled **not yet**:
+
+> *"We're not outright ruling out building the engine. We're ruling that we will
+> not prematurely build the engine. The embryo should be such that if the day
+> ever arises that we decide building the engine is the right step, it should be
+> a development of the embryo, instead of having to do the entire engine from
+> scratch for a code base that was not ready to receive it."*
+
+⛔ My first version said *"the catalog and the engine have the same INTERFACE …
+a second backend behind an unchanged signature."* **That is not enough, and it
+is the twin-path risk wearing a compliment.** A shared signature guarantees only
+that the *call site* survives; the engine would still be an independent
+implementation with its own representation of polynomials, ideals and PSD
+conditions, plus a translation layer to whatever the catalog happened to store.
+That is a from-scratch build with a seam, which is exactly what the ruling
+forbids.
+
+⟹ **The binding requirement is on the DATA MODEL, not the signature: a catalog
+entry must BE the derivation procedure's OUTPUT, not a human summary of its
+answer.** §III.1's procedure emits, per entry: the invariant generators
+`p₁…p_k`; the syzygy ideal `I`; the matrix `P_ij = ⟨∇pᵢ, ∇pⱼ⟩` and `det P`; the
+chart; the pushforward measure; and the stratum where `det P` vanishes. **Those
+are the entry's FIELDS.** Then the engine is *"compute these fields instead of
+reading them from a literal"* — a development, with no new vocabulary and no
+seam.
+
+⭐ **And the acceptance suite for that engine already exists, written years
+before it.** D0.1 already requires every entry to ship *"a symbolic regression
+test reproducing its own derivation"*. If the fields are the derivation's
+outputs, those ~12 tests **are the engine's specification and its acceptance
+gate** — the engine ships when it reproduces them by computation. `vv-principles`
+#17: a spec written before the implementation cannot be shaped to flatter it.
+
+⚠ Two further obligations that follow, both cheap and both easy to lose:
+* **Provenance per entry** (`derived_by: "hand" | "engine"`), so a *mixed* state
+  is expressible and visible. An incremental engine rollout is exactly a mixed
+  state, and without the field it is unrepresentable — the migration would have
+  to be all-or-nothing.
+* **The refusal must name the missing WORK, not just the gap.**
+  `M.quotient(C₆)` raises with *"no entry for `S²/C₆`; derive it per §III.1
+  (invariants → syzygy → `P` ⪰ 0) and register it, or implement the engine"* —
+  which turns the engine's absence into a work item a fresh session can pick up,
+  rather than a wall.
+
+⟹ **the falsifiable form of this ruling, for a future session to check:** *given
+a catalog entry, could an engine populate its fields without introducing a
+single new type?* If the answer is no, the embryo has drifted from being a seed
+and the ruling has been violated — regardless of how clean the interface looks.
 
 **What the embryo contains** (all of it operations that need no Gröbner basis):
 
@@ -1400,7 +1442,7 @@ prerequisite for every gate in Part IV.
 
 | # | item | goal, separately from means | done when | Q# |
 |---|---|---|---|---|
-| **2.0a** | ⭐ **MINT `Manifold`** (D0.7). The thing functions are defined on and measures live on: `S²`, `S¹`, `[-1,1]`, `[0,1]`, `[0,∞)`, `ℝ`, `spatial_Rᵈ`, `energy`, `index(axis)`, and quotients/products of those. Verbs: `quotient(H)` (⭐ **catalog lookup, and a `raise` NAMING `M` and `H` when there is no entry** — D0.1's embryo: same interface an engine would have, so nothing is foreclosed and the engine's absence becomes explicit), `__mul__`, `contains(points)`, `dim`, and the **singular stratum** a quotient inherits from `H`'s fixed-point set. ⛔ a VALUE type with methods — **not** a `Generic[Tag]` phantom parameter (`sn_reshape.md` Issue 2 stands; D0.7 explains why it does not bar this). | `Space = str` is retired; `[M]` today 29 `Space` refs, 39 `support=` construction sites, 45 `.support` reads — that is the migration's size, not a veto (D0.5) | — |
+| **2.0a** | ⭐ **MINT `Manifold`** (D0.7). The thing functions are defined on and measures live on: `S²`, `S¹`, `[-1,1]`, `[0,1]`, `[0,∞)`, `ℝ`, `spatial_Rᵈ`, `energy`, `index(axis)`, and quotients/products of those. Verbs: `quotient(H)` (⭐ **catalog lookup, and a `raise` naming the missing WORK** — *"no entry for `S²/C₆`; derive it per §III.1 and register it, or implement the engine"* — so the engine's absence is a pick-up-able work item, not a wall; D0.1), `__mul__`, `contains(points)`, `dim`, and the **singular stratum** a quotient inherits from `H`'s fixed-point set. ⛔ a VALUE type with methods — **not** a `Generic[Tag]` phantom parameter (`sn_reshape.md` Issue 2 stands; D0.7 explains why it does not bar this). | `Space = str` is retired; `[M]` today 29 `Space` refs, 39 `support=` construction sites, 45 `.support` reads — that is the migration's size, not a veto (D0.5) | — |
 | **2.0b** | ⭐ **`contains` is the membership PREDICATE the string never had.** `SPACE_SPHERE.contains(nodes)` is `‖Ω‖ = 1`. This is what makes the ERR-080 fabrication refusable **at the measure constructor**, three hops before the symptom. | `DiscreteMeasure.__post_init__` refuses nodes its declared manifold does not contain; the Part I forged measure is unconstructable | — |
 | **2.0c** | ⭐ **`FunctionSpace` carries its `Manifold`; the two `L2[...]` NAME STRINGS become derived** (§III.10). | `grep` finds no `f"L2[...]"` literal; `[M]` `indicator_basis.py:284`'s live false name (`L2[coarse_cells_R1]` on an ENERGY basis) is gone by construction | — |
 | **2.0d** | ⭐ **`measure.quotient_group`** — the field Part IV's own predicate needs and that `[M]` **exists nowhere**: `folded_by` records the DISCRETE fold on the `Quadrature` façade, and *"the slab's quotient group is recorded nowhere"* (Part IV obstacle 2). Derived by `quotient()`, `None` for an unquotiented measure. | `gauss_legendre(8).measure.quotient_group is SubgroupOfO3.SO2`, derived by construction, not declared | — |
@@ -1418,7 +1460,7 @@ sub-basis are all *derived from a catalog entry*.
 
 | # | item | depends on | done when | Q# |
 |---|---|---|---|---|
-| 3.1 | `numerics/symmetry/` catalog: `IsometryGroup` entries from 1.1, each carrying its action on the axis index set, Haar (or counting) measure, fixed-point strata, and a symbolic test reproducing its own derivation. ⚠ `[M]` `numerics/symmetry.py` is a **module** today — this is a re-home; `plan-authoring` §6d (check the import edge BOTH ways, and look for the import-linter's declared contract first). | 1.1 | every entry's chart and measure reproduced by its own regression test | Q1.1 |
+| 3.1 | `numerics/symmetry/` catalog: `IsometryGroup` entries from 1.1. ⭐ **D0.1's SEED requirement is binding here**: an entry's FIELDS are §III.1's OUTPUTS — invariant generators `p₁…p_k`, syzygy ideal `I`, `P_ij = ⟨∇pᵢ,∇pⱼ⟩` and `det P`, chart, pushforward measure, and the stratum where `det P` vanishes — **not** a human summary of the answer, so a future engine populates them without minting a single new type. Plus the action on the axis index set, Haar (or counting) measure, a `derived_by: "hand" | "engine"` provenance field, and a symbolic test reproducing its own derivation (⭐ those ~12 tests ARE the engine's acceptance suite, written before it). ⚠ `[M]` `numerics/symmetry.py` is a **module** today — this is a re-home; `plan-authoring` §6d (check the import edge BOTH ways, and look for the import-linter's declared contract first). | 1.1 | every entry's chart and measure reproduced by its own regression test | Q1.1 |
 | 3.2 | `ReynoldsProjection` as a first-class operator with fixed domain/codomain, built via `.on(V)` like every other bound arrow, factored `π* ∘ 𝔄`. | 3.1 | `ℛ² = ℛ` and `𝔄π* = id` to machine precision | Q1.2 |
 | 3.3 | `OrbitAxis` minting: `Quotient(axis, H) → (OrbitAxis, retraction/section)`. **Re-uses `AxisRetractionOperator` + `FunctionSpace.section`** (§III.3) — no new relational type. Stratification descriptor populated from `H`'s fixed-point set. | 3.1, 1.8 | the existing retraction/section tests pass with the new instance; no new relational type added | Q1.3 |
 | **3.4** | ⭐ **`H`-stable sub-basis: the TRIVIAL ISOTYPIC COMPONENT.** `SphericalHarmonicBasis` → `{Y_ℓ0} ≅ {P_ℓ}` under `SO(2)`, mask **DERIVED by probe** (§III.8), generalising `MirrorEvenSphericalHarmonicBasis` so that it becomes an instance rather than a sibling. **THIS IS THE FIX for Part I.** | 3.1 | §VII's done-when 1 and 2 both hold | Q1.4 |
@@ -1544,7 +1586,7 @@ and **as written it forbids the correction it should be demanding**
 
 | item | reason |
 |---|---|
-| General Gröbner / Procesi–Schwarz orbit-space engine | ~12 catalog entries ever; engine failure modes worse than the cost saved |
+| ⛔ **CORRECTED 2026-08-31 — this row was never a refusal.** General Gröbner / Procesi–Schwarz orbit-space engine | **DEFERRED, not refused** (D0.1): ~12 catalog entries ever, so it is not yet worth its failure modes — but the embryo is built as its **seed**, and the day it is worth building it must be a *development* of that seed. The falsifiable check is in D0.1. Listing it here as "refused" is the tense error `plan-authoring` §3 exists to prevent. |
 | `reduce(A, H)` post-assembly projection | stage inversion; pays full assembly cost; defeats the purpose |
 | Non-compact groups as first-class | no Haar average; lattices enter as finite cyclic on the discrete index set |
 | A new relational type for quotients | `[M]` `AxisRetractionOperator` + `FunctionSpace.section` already exist |
@@ -1570,6 +1612,16 @@ Checkable predicates, in order of strength:
 5. `[M]` `C₆` + `LQ_N` REDs at realization, naming the missing subgroup relation.
 6. The full 13-tree gate is green, with the per-tree deltas predicted before it
    is run (`reference_test_execution_env`).
+7. ⭐ **The SEED check (D0.1), and it is the one that outlives this campaign**:
+   pick any catalog entry and ask — *could an engine populate its fields without
+   minting a single new type?* If no, the embryo has drifted from being a seed
+   and D0.1 is violated, **however clean the interface looks**. `[R]` the cheap
+   form: the entry's fields are §III.1's outputs (`p₁…p_k`, `I`, `P`, `det P`,
+   chart, pushforward, stratum) and its `derived_by` field admits `"engine"`
+   as a value nothing has to be rewritten to produce.
+8. ⭐ **`Space = str` is retired** — `grep` finds no `support=` taking a bare
+   string literal, and `Manifold.contains` refuses the Part I forged measure at
+   construction rather than three hops downstream.
 
 ---
 
