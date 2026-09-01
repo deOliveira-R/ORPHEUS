@@ -926,7 +926,7 @@ Every item here is true under every design choice in Phases 1–7.
 | # | item | site | Q# |
 |---|---|---|---|
 | **0.1** | ⚡ **Stop fabricating the support, and delete the phantom read in the same expression.** `angular_frame` must not write `support=SPACE_SPHERE` over nodes with `‖Ω‖ ≠ 1`. §II.5 proves L1 and L4 are ONE fix. ⛔ **SPLIT at execution 2026-08-31 — see §II.9**: `0.1a` (3-D rules hand the frame their OWN measure; `[M]` bit-identical on 10 of 12 shipped rows) lands now; `0.1b` (the 1-D rows) **rides Phase 3.4**, because the lift `[-1,1] → S²` *does not exist as a map*; `0.1c` (the fold's `S^2/sigma_y` tag, §II.8's new leak) is gated on a `plan-authoring` §8 blast-radius measurement of `FunctionSpace` equality. | `directional.py:587-593` | — |
-| **0.2** | ⚡ **A phantom component becomes unspellable.** *Proposed means as of 2026-08-31, SHARPENED at execution — see ⚠ below:* `axis_cosines(i)` raises for `i ≥ dim`. ⛔ a `raise`, **not** an `assert` — the canonical runner is `python -O`. ⚠ **BLOCKED on the full-suite census** (moved here from 2.4). | `directional.py` | — |
+| **0.2** | ⚡ **A phantom component becomes unspellable.** *Proposed means as of 2026-08-31, SHARPENED at execution — see ⚠ below:* `axis_cosines(i)` raises for `i ≥ dim`. ⛔ a `raise`, **not** an `assert` — the canonical runner is `python -O`. ✅ **census DISCHARGED (§II.14) — and it REFUTED this means**: `[M]` a blanket raise breaks **3 legitimate production consumers** asking the FLOW question. ⟹ runs AFTER 0.1 (which deletes the one fabrication site, 92 % of all reads); 0.2 is then the accessor SPLIT. Done-when re-runnable: re-run the census, `directional.py:589` must be GONE. | `directional.py` | — |
 
 > ⚠ **0.2's means is not yet safe as written — `axis_cosines` is TWO
 > functions sharing one name, and only one of them is lying.** `[M]`
@@ -1435,14 +1435,14 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 0.1a | 3-D rules hand the frame their OWN measure (`[M]` bit-identical, 10/12) | ⏏ yes | ☐ |
 | 0.1b | the 1-D rows — ⛔ **rides 3.4**, the lift does not exist (§II.9) | ⏏ yes | ☐ (with 3.4) |
 | 0.1c | the fold's `S^2/sigma_y` tag — gated on the §8 blast radius | ⏏ yes | ☐ |
-| 0.2 | phantom component unspellable — ⚠ means SHARPENED, blocked on the census | ⏏ yes | ☐ |
+| 0.2 | phantom component unspellable — ⛔ means REFUTED by the census; **runs AFTER 0.1**, then it is the accessor SPLIT (direction vs flow) | ⏏ yes | ☐ |
 | 0.2-census | full-suite phantom census (moved here from 2.4) | ⏏ yes | ✅ **DISCHARGED** — §II.14, 13 trees rc=0, 11 sites / 1604 reads |
-| 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ✅ written (97-line re-derivation; value unchanged) |
-| 0.4 | `directional.py:538` docstring | ⏏ yes | ✅ written |
-| 0.7b | ⭐ NEW — gate the SECOND symptom (the `DenseMetric` RAISE) | ⏏ yes | ✅ written |
-| 0.5 | `spherical_harmonics.rst` rank-deficiency correction | ⏏ yes | ✅ written |
-| 0.6 | `_evaluate_real_sh` raises on non-unit directions | ⏏ yes | ☐ (with 3.4) |
-| 0.7 | strict-xfail reproducer gate + **ERR-080** minted | ⏏ yes | ✅ written |
+| 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ✅ `ae4dbc1f` |
+| 0.4 | `directional.py` `spherical_harmonics` docstring | ⏏ yes | ✅ `ae4dbc1f` |
+| 0.7b | ⭐ NEW — gate the SECOND symptom (the `DenseMetric` RAISE) | ⏏ yes | ✅ `ae4dbc1f` |
+| 0.5 | `spherical_harmonics.rst` rank-deficiency correction | ⏏ yes | ✅ `ae4dbc1f` |
+| 0.6 | `_evaluate_real_sh` raises on non-unit directions | ⏏ yes | ☐ (rides 3.4 — XII.1b) |
+| 0.7 | strict-xfail reproducer gate + **ERR-080** minted | ⏏ yes | ✅ `ae4dbc1f` |
 | 1.1 | catalog derivations — **`SO(2)/S²` entry is on the path** | ⏏ partial | ☐ |
 | 1.2 | Gelfand-pair reading of Funk–Hecke | no | ☐ |
 | 1.3 | connection-term verify-or-kill | no | ☐ |
@@ -1451,7 +1451,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 1.6 | `ℛ* = ℛ` as adjoint-vs-dual | no | ☐ |
 | 1.7 | the support algebra, written | no | ☐ |
 | 1.8 | vocabulary reconciliation | no | ☐ |
-| 2.1 | `Basis.domain` | ⏏ yes | ☐ |
+| 2.1 | `Basis.domain` — ⏏ **pulled forward**: it is what makes 0.1's predicate honest (§II.14) | ⏏ yes | ▶ verification plan dispatched |
 | 2.2 | G0 at frame construction | ⏏ yes | ☐ |
 | 2.3 | the typed `Chart`; pushforward derives support | ⏏ yes | ☐ |
 | 2.4 | slab declares its quotient group; SO2 axis collision; **full-suite phantom census** | ⏏ yes | ☐ |
