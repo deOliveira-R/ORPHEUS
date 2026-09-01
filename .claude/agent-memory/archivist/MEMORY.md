@@ -97,6 +97,23 @@ stage + gate.
   (n,2n) is not extracted and the balance is 1-in-1-out — `[M]` false at 3 `file:line`s,
   a DIFFERENT claim class, deliberately not swept. → [[lessons-L78]]
 
+- **The manifold becomes an OBJECT — a new foundations page for a level nobody owned** —
+  2026-08-31, branch `fix/angular-phantom-support` (#429 tracker 2.0a), **UNCOMMITTED** (mine;
+  main agent commits). NEW `docs/theory/foundations/manifolds.rst` (~1600 lines, 2 eq-labels
+  both `documented`) + 5 edited `.rst` + the regenerated `matrix.rst`. `-E -W` **0/0/0 both
+  sides**, EXIT=0, warning-SET diff `{}`; `dead_references` 0/52; patched xref gate 0 dead /
+  1004 files (live positive control); theory scan 905→907 / 574→**576** documented / 0
+  violations (predicted exactly); 40 foundation gates pass under `-O`. ⭐⭐ Placement RULED a
+  NEW page: a section titled *"a function space is not a domain"* inside the function-space
+  page re-commits the conflation it exists to end. ⭐⭐ **1 of 5 inherited `[M]`s was FALSE**,
+  and it was the one already in Key Facts (`(8,3)→(8,)` is `nodes.shape`, not the arrow) — the
+  correct reading (`measure.space.name == 'L2[S^2]'`, the forged tag propagating into the
+  derived name) is the better exhibit. ⭐⭐ Found un-briefed: `AngularSymmetry.support` **already
+  performs this orbit-space lookup** in the string vocabulary — the two agree on their one
+  overlapping row, disagree on `Trivial` (a real gap), and are a Pattern-2 twin.
+  ⚠ **REPORTED, code-only:** `manifold.py:19`'s `:ref:`ERR-080 <vv-error-ERR-080>`` is DEAD —
+  `ErrorEntryDirective` emits no target node. → [[lessons-L79]]
+
 - **ERR-026 history block: 29 roles → 13, 15 dead → 0** — branch
   `docs/err026-history-is-not-a-crossref`, 2026-08-18. ⛔ still open, re-confirmed unlanded
   2026-08-24: the `head_role` one-liner (blindness is ROLE-scoped, not `.rst`-scoped) and

@@ -24,7 +24,7 @@ Function Spaces: Axes, Measure, and the Collapse Doctrine
       concept: function_spaces
       role: "the space layer — a function space as the ordered product of its AXES (index shape, factor measure, basis kind, the generator that minted it, and the structural identity that deliberately excludes that generator), the counting-measure theorem on the energy axis, and the collapse doctrine that decides which axes survive a degeneracy and why"
       depends_on: [field_algebra, frame]
-      related: [discrete_measures, operator_algebra, operator_adjoint]
+      related: [manifolds, discrete_measures, operator_algebra, operator_adjoint]
       status: "seeded at campaign-1 CS1 (the Energy axis); the generator slot landed at CS5 (2026-08-29); the Spatial / Quadrature / Harmonic axis SUBCLASSES are CS2"
 
 
@@ -119,6 +119,16 @@ the same space" is a claim this corpus has **overturned**.
      (:eq:`spaces-axis-product`;
      :meth:`FunctionSpace.of_axes
      <orpheus.numerics.space.FunctionSpace.of_axes>`).
+   - ⚠ **…and a space is NOT a domain.** There are three levels — the
+     manifold :math:`M`, the fields on it :math:`L^2(M)`, and the
+     coefficients :math:`\mathbb{R}^K` — and a
+     :class:`~orpheus.numerics.space.FunctionSpace` is the **second**.
+     A basis function eats a *point* of :math:`M`, so this page's
+     object can never be a basis's domain, and the frame's level-2
+     arrow type-checking says nothing about the level-1 pairing (which
+     is how :ref:`ERR-080 <manifold-err-080>` survived). Level 1 was a
+     bare ``str`` until 2026-08-31 and now has its own type and its own
+     page: :doc:`/theory/foundations/manifolds`.
    - **An axis is (index shape, factor measure, basis kind, generator)
      plus a structural identity over the first three.**
      ``weights=None`` **is** the counting measure — deliberately and
@@ -3528,6 +3538,18 @@ taken.
        contract takes the axis as a third operand
        (:ref:`spaces-generator-seams`,
        :ref:`spaces-generator-route-gate`).
+   * - ``FunctionSpace.manifold`` — the level-1 slot
+     - **#429 tracker 2.0c.** A space records the index shape of its
+       DOFs and not the point set those DOFs discretise, so the
+       manifold is currently smuggled through a NAME STRING: `[M]`
+       ``measure.py:331`` derives ``f"L2[{self.support}]"`` from a
+       ``str``, and ``basis/indicator_basis.py:284`` hard-codes
+       ``f"L2[coarse_cells_R{self.ndim}]"`` — which is already **false**
+       for the energy-grid basis, an index partition calling itself
+       spatial. The :class:`~orpheus.numerics.manifold.Manifold` type
+       that would make both names derived was minted 2026-08-31 and has
+       no consumer yet; the level-1 view of this seam, and the rest of
+       that migration, is at :ref:`manifold-seams`.
    * - The identity flip (compare the axes tuple, not the name)
      - **S3.** Until then the derived name is the bridge
        (:ref:`spaces-identity-bridge`), and ``axes`` is declared

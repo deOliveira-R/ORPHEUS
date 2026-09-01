@@ -1532,7 +1532,7 @@ constructors**, which is what D0.7 ruled and this measures.
 | site | today | the verb it IS |
 |---|---|---|
 | `measure.py:588` | `new_space = f"{self.support} × {other.support}"` | `Manifold.__mul__` |
-| `measure.py:1022` | `new_space = f"{self.support}/{group.name}"` | `Manifold.quotient(H)` — ⚠ and note it performs **no lookup and no check**: any group name divides any support |
+| `measure.py:1022` | `new_space = f"{self.support}/{group.name}"` | `Manifold.quotient(H)` — ⛔ **my "no lookup and no check" is HALF FALSE, corrected 2026-08-31.** The MEASURE *is* gated: `orbit_certificate` raises unless the nodes are `group`-invariant. What is ungated is the **TAG** — no catalogue lookup, so `[M]` `DiscreteMeasure(support="S^2")` accepts a node of norm `√2`. ⭐ The sharper statement is the campaign's own thesis: the measure's NODES are checked, its MANIFOLD CLAIM is not — level 2 gated, level 1 forged |
 | `measure.py:802` | `f"φ_*({self.support})"` | the pushforward's codomain |
 | `measure.py:331` | `name = f"L2[{self.support}]"` | §III.10 / 2.0c's derived name |
 
@@ -1655,7 +1655,7 @@ prerequisite for every gate in Part IV.
 | **2.0b** | ⭐ **`contains` is the membership PREDICATE the string never had.** `SPACE_SPHERE.contains(nodes)` is `‖Ω‖ = 1`. This is what makes the ERR-080 fabrication refusable **at the measure constructor**, three hops before the symptom. | `DiscreteMeasure.__post_init__` refuses nodes its declared manifold does not contain; the Part I forged measure is unconstructable | — |
 | **2.0c** | ⭐ **`FunctionSpace` carries its `Manifold`; the two `L2[...]` NAME STRINGS become derived** (§III.10). | `grep` finds no `f"L2[...]"` literal; `[M]` `indicator_basis.py:284`'s live false name (`L2[coarse_cells_R1]` on an ENERGY basis) is gone by construction | — |
 | **2.0d** | ⭐ **`measure.quotient_group`** — the field Part IV's own predicate needs and that `[M]` **exists nowhere**: `folded_by` records the DISCRETE fold on the `Quadrature` façade, and *"the slab's quotient group is recorded nowhere"* (Part IV obstacle 2). Derived by `quotient()`, `None` for an unquotiented measure. | `gauss_legendre(8).measure.quotient_group is SubgroupOfO3.SO2`, derived by construction, not declared | — |
-| 2.1 | **`Basis.domain: Manifold`** (closes L2). ⛔ the 2026-08-31 `support` rename is REFUTED — §III.10: the collision is unreachable (`[M]` 0 `Basis` subclasses are operators) and `support` is mathematically false for a basis (`supp(f)` = where `f` is non-zero; for an indicator that is ONE cell). *Means:* a `domain` property beside the existing `space`, giving the basis the same two-level structure the measure has. ⚠ **`IndicatorBasis` takes it as a CONSTRUCTOR FIELD** (§II.15 R1: `[M]` the tree mints it against **three** manifolds over 5 sites, so any derived value hard-codes one of three — and `[M]` that lie already ships in its space NAME). | every shipped `Basis` answers; `SphericalHarmonicBasis.domain is SPACE_SPHERE`; the energy indicator no longer claims a spatial manifold | — |
+| 2.1 | **`Basis.domain: Manifold`** (closes L2). ⛔ the 2026-08-31 `support` rename is REFUTED — §III.10: the collision is unreachable (`[M]` 0 `Basis` subclasses are operators) and `support` is mathematically false for a basis (`supp(f)` = where `f` is non-zero; for an indicator that is ONE cell). *Means:* a `domain` property beside the existing `space`, giving the basis the same two-level structure the measure has. ⚠ **`IndicatorBasis` takes it as a CONSTRUCTOR FIELD** (§II.15 R1: `[M]` ⛔ *"over 5 sites"* CORRECTED 2026-08-31 — by AST there are **18** `IndicatorBasis(...)` sites (**4** in `orpheus/`, 14 in `tests/`) over **three** manifold families; the *three* was right, the *five* was not. Any derived value hard-codes one of three — and `[M]` that lie already ships in its space NAME). | every shipped `Basis` answers; `SphericalHarmonicBasis.domain is SPACE_SPHERE`; the energy indicator no longer claims a spatial manifold | — |
 | **2.1b** | ⭐ **`Basis.invariance_group`** — the OTHER side of Part IV's G0 predicate (`measure.quotient_group ⊆ basis.invariance_group`), which today has **neither** side. Derivable for every shipped basis: full SH → `Trivial`; `MirrorEven` → `Mirror(axis)`; the trivial isotypic sub-basis → `SO2`. | the four-row lattice table in Part IV runs as a test and reproduces its verdicts | — |
 | 2.2 | **G0 at frame construction** (closes L3). ⭐ **§II.7: the PREDICATE already exists** as `AngularSymmetry.admits_domain` (`measure.support == self.support`) — `[M]` reachable only from `select_quadrature`, whose 21 callers are **all tests**; and `[M]` `solve_sn` is HANDED a quadrature (required positional, no default), so the selector was never on the path. ⛔ **REFINED by §II.10 — NOT "just wiring".** The predicate is correct over an **incomplete domain vocabulary**: `support` derives from `continuous_isotropy` alone, so `folded_product`'s `S^2/sigma_y` matches **no** geometry and stage 0 would **refuse the shipped cylinder**. 2.2 owes the ontology a second slot (the *discrete* quotient the rule took — `SubgroupOfO3` already names it) **and** the `(CoordSystem, ndim) → key` join, which `[M]` exists nowhere. Do not hand-roll a second predicate; do extend this one's vocabulary. | `GalerkinFrame(SphericalHarmonicBasis(L=2), slab_measure)` **RAISES**, with a test witnessing it on the exact pairing that ships today | — |
 | 2.3 | ⭐ **The typed `Chart`** (closes L6, L7). *Proposed means:* a map carrying `domain → codomain`; `pushforward` derives `support` from the chart rather than taking `new_space`; `product()` composes its two 1-D factors through the Archimedes chart instead of `column_stack` + a literal. | `grep` finds no `SPACE_SPHERE` literal at a measure constructor; `product(4,8).measure.support` is **derived**; the factor structure is recoverable from the built rule | — |
@@ -2163,7 +2163,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 type, split by TOTALITY**: `dim` / `name` / `contains` / `__mul__` are total, so
 they live on an abstract base; the derivation fields are partial, so they live on
 `Quotient` alone. Decided against a polymorphic hierarchy on measured evidence,
-not taste — `[M]` **all 8** of D0.1's derivation fields belong to `Quotient`, so a
+not taste — `[M]` D0.1's derivation fields belong to `Quotient` alone, so a
 hierarchy must put them on the base returning `None` for every non-quotient, which
 is the exact tax `SubgroupOfO3.mirror_axis` already pays and `directional.py:522`
 already branches on. Both shipped precedents were read rather than recalled
@@ -2172,6 +2172,30 @@ already branches on. Both shipped precedents were read rather than recalled
 `isinstance` calls in 13 methods, 0 `match`** — so the ruled shape is that
 precedent's own data model with the dispatch it would get today, keeping the two
 halves of `M/H` structurally parallel.
+
+⛔ **Corrected 2026-08-31 (docs pass): the shipped seed is `6 of 8`, not the 8
+this ruling first claimed.** `[M]` `dataclasses.fields(Quotient)` carries
+`generators`, `syzygy`, `gram`, `det_gram`, `singular_stratum`, `derived_by`.
+D0.1's list also names the **chart** and the **pushforward measure**; the chart
+ships only as its CODOMAIN (`realization`) and the pushforward not at all.
+⟹ this does **not** violate D0.1's falsifiable test (*could an engine populate
+the fields without introducing a new type?*) — but only because `Chart` is
+already a SCHEDULED mint (V.5 A #2, tracker **2.3**). The seed is complete *up
+to* `Chart`, and 2.3 completes it; writing the count as 8 read as *done*.
+
+⭐ **An un-briefed Pattern-2 twin, found by the docs pass:
+`AngularSymmetry.support` (`quadrature/registry.py:869`) is ALREADY an
+orbit-space catalogue** — in the string vocabulary, with the same lookup
+(`SO2 → "[-1,1]"`, `Trivial → "S^2"`) and the same *"extend it when a geometry
+first spends it"* refusal. Strong evidence the mint is a **re-typing** rather
+than an invention, and it is the twin tracker **2.2** must absorb. `[M]`
+comparing the two exposed a real gap in mine: `S²/{e}` is legal and trivially
+derivable and my catalogue RAISED. Fixed by deriving it — `M/{e} ≅ M` is a
+theorem, not a table row, and the same procedure on the trivial group gives
+`P = I`, `det P = 1` vanishing nowhere, hence no stratum, hence a free action
+(right vacuously, the only element being the identity). It doubles as a
+positive control on the machinery, and a committed row now pins the two
+implementations in agreement with a ⚠ *do not re-baseline* note.
 
 ⛔ **And a §6d finding that inverted mid-check.** The placement note says
 *"its own module with no intra-`numerics` imports"*. I questioned it, ran an AST

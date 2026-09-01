@@ -8974,3 +8974,145 @@ were true of MT=17/37 only. ⟹ **out of brief scope (a different claim class,
 spanning CP/MoC/MC), so REPORTED rather than swept.** The rule that decided
 it: *fix the claim you were sent for; report the neighbouring one with its
 `file:line` proofs, do not let a correctness sweep acquire a second subject.*
+
+---
+
+## L-079 — a NEW foundations page for a LEVEL nobody owned (`manifolds.rst`, #429 tracker 2.0a)
+
+**Task.** Document the `Manifold` mint (`b8c05d16`, branch `fix/angular-phantom-support`):
+the point set a measure lives on, level 1 of a three-level stack whose levels 2 and 3
+`spaces.rst` owns. Placement was mine to decide.
+
+**Shipped.** New `docs/theory/foundations/manifolds.rst` (≈1600 lines, 2 new eq-labels both
+`documented`-sentineled, 29 anchors) + 5 edited pages (`index`, `spaces`, `discrete_measures`,
+`spherical_harmonics`, `error_catalog`) + the regenerated `matrix.rst`. `-E -W` **0/0/0 both
+sides**, EXIT=0, warning-SET diff `{}` both ways; `dead_references` 0/52; patched xref gate
+**0 dead / 1004 files** with a live positive control; theory scan 905→907 labels /
+574→**576** documented / 0 violations (predicted exactly); 40 foundation gates pass under `-O`.
+
+### The placement ruling, and its test
+
+Three candidates: a section in `spaces.rst`, a section in `discrete_measures.rst`, a new page.
+**Ruled: a new page**, on three grounds, of which only the first is decisive:
+
+1. ⭐⭐ **The level-1 doctrine cannot be homed inside a level-2 page without re-committing the
+   exact conflation it exists to end.** A section titled *"a function space is not a domain"*,
+   sitting inside the function-space page, is structurally self-undermining.
+2. **Three consumers, no owner.** `discrete_measures` owns `support`-as-a-tag, `spaces` owns
+   the `L2[...]` name, `spherical_harmonics`/`error_catalog` own the forgery. None is
+   subordinate to another; a shared page is the SSOT, not a twin.
+3. Size: `spaces.rst` is 3871 lines already.
+
+⚠ **The twin risk is real and had to be actively managed.** `discrete_measures.rst` already
+owns the *support-propagation table*; `spherical_harmonics.rst` + `frame.rst` already own
+*Funk–Hecke + Schur* and the `RΛM` factorization. My first draft of "Consequence 4" restated
+Funk–Hecke and was **rewritten** to own only the register nobody had — the **Gelfand-pair /
+double-coset** framing (`[M]` `grep "Gelfand|double coset|zonal spherical"` over `docs/theory`
+= **0** pre-edit) — opening with *"Edited there, consumed here"* and pointing at both homes.
+That is L-064's "name the REGISTER your page owns" applied at page-mint time.
+
+### ⭐⭐ Five inherited numbers; ONE was false, and it was the one in Key Facts
+
+Every `[M]` in the brief/plan was re-run. Results:
+
+| inherited | mine | verdict |
+|---|---|---|
+| forgery norms `[0.1834, 0.9603]`, 0 of 8 on `S^2` | identical | ✅ |
+| `18 .support` string-manipulating reads, all in `orpheus/` | identical (and I added the denominator: **62** reads, 31/31) | ✅ strengthened |
+| `87 support=` sites | identical (29 orpheus / 58 tests) | ✅ + predicate |
+| `S²/SO(2)`: `P = diag(1,4p₂)`, `det P = 4p₂`, stratum `±1` | `sp.simplify(mine − shipped) == 0` both | ✅ |
+| **"the frame's level-2 arrow type-checks — shapes `(8,3) → (8,)`"** | ⛔ **FALSE** — that is `measure.nodes.shape`. The ARROW is `L2[S^2] (8,) → spherical_harmonic_space (3,5)` | ⛔ **refuted** |
+
+⭐ The refuted one had been copied into **Key Facts**, i.e. the sentence a reader quotes. And
+the correction produced something better than the fix: `measure.space.name` is `[M]` **`L2[S^2]`**
+— the forged level-1 tag propagating *upward verbatim* into the derived level-2 name. *"A derived
+name is only as true as what it derives from"* is now a published paragraph that the wrong number
+would have hidden. ⟹ **when a relayed shape/number is wrong, ask what the RIGHT reading shows;
+it is often the better exhibit.**
+
+⚠ Two more inherited claims did not survive as stated and were replaced by my own census:
+`"IndicatorBasis is minted against three manifolds over five sites"` → `[M]` **18 ctor sites, 4
+in `orpheus/`**, over three families (index set / `ℝᵈ` at two ranks / energy) — *three* was right,
+*five* was not; and `"measure.quotient performs no lookup and no check"` → **half false**: it
+*does* gate the MEASURE via `orbit_certificate`; what is ungated is the **TAG**. (Lessons §1's
+physics-vs-model sort, on a code claim: two different objects, one gated, one asserted.)
+
+### ⭐⭐ My own reproduction FAILED first, and the failure was mine
+
+Re-deriving step 4, `sp.Matrix(...).subs(x**2 + y**2, p2)` **silently fails** on `4x² + 4y²`
+(no literal `x²+y²` node), so I got `det P = 4x²+4y²`, an empty stratum, and an apparent
+disagreement with the shipped entry. `factor` before substituting fixes it. Cost ~2 minutes,
+because I diagnosed whose failure it was before reporting. ⭐ **I published the trap** as a `⚠`
+note in the derivation — a reproduction hazard the next re-deriver will hit, and its presence
+is what makes the surrounding table's agreement claim credible.
+
+### ⭐⭐ The finding NOBODY briefed: the tree already performs this lookup
+
+`AngularSymmetry.support` (predating the mint) already computes `S²/G⁰` from the spent group by
+catalogue lookup **in the string vocabulary**, raising `NotImplementedError` with the same shape
+of message. Measured, three rows: `SO2` → both answer and **agree** (`'[-1,1]'`); `Trivial` →
+registry `'S^2'`, catalogue **raises** (a real gap — `S²/{e}` is legal and trivially derivable);
+`Oh` → both raise. That one table is (i) the cheapest evidence the mint is a *re-typing* not a
+rival, (ii) a measured seam, (iii) a Pattern-2 twin the migration must collapse. Found by
+reading `discrete_measures.rst`'s own `orbit_certificate` section, not by any brief.
+
+### The engine-seed ruling needed a COUNT, and the count is not 8
+
+D0.1's falsifiable form is *"could an engine populate these fields without a new type?"*.
+`[M]` `dataclasses.fields(Quotient)` — the procedure emits 8 outputs and **6 are slots**; the
+**chart** (only its codomain ships, as `realization`) and the **pushforward measure** are not.
+Published as `6 of 8` with a per-output table. ⟹ **a ruling whose compliance is claimed but not
+counted is not checkable** — and stating the fraction cost one `dataclasses.fields` call.
+
+### ⛔ The nested-markup class only the HTML slice sees — and a source scan that DOES work
+
+`-W` was clean while **two** literals sat inside bold runs (`**Why … ``domain`` … .**`). My
+first source regex (L-074's known false-positive generator) reported **88** candidates, 86 of
+them junk; the HTML slice (`rfind`-anchored, tags stripped, unescaped) found the true **2**.
+⭐ **Then a source scan that agrees exactly**: strip `code-block` bodies first, match
+`\*\*(non-greedy, no blank line)\*\*`, and bound the run at ≤200 chars — **2 hits, 0 false
+positives**, same set as the HTML. Folded into the re-runnable self-check, so the expensive
+build is no longer the only instrument for this class. ⚠ The `**` and backtick runs surviving
+in RENDERED text from `x**2` inside a literal and from code-blocks are the false positives the
+strip/bound kills.
+
+### ⚠ My own role-resolution check was a FILTER defect, caught by counting
+
+First version matched `:role:`~a.b.C`` only and reported **34** roles clean — the page has
+**56**, because 22 use the `` :role:`display <a.b.C>` `` form. Caught by counting all
+`:(class|func|meth|attr|mod|exc|data):`` openers and comparing. Fixed, plus a **positive
+control** (two synthetic dead roles must both be reported) so a clean run cannot be confused
+with a broken scan. ⟹ *count the population your filter is supposed to cover, then compare* —
+a validated pattern over the wrong predicate is still the wrong answer.
+
+### Placement/wiring mechanics that worked
+
+- Toctree: `manifolds` inserted **before** `discrete_measures` (a measure needs a manifold to
+  live on) + a `what it settles` row. ⚠ My first row said *"the point-set layer underneath both
+  of those"* — a dangling reference, since the row above it is `cross_section_data`. Name the
+  pages.
+- `spaces.rst`: one Key Facts bullet (*"…and a space is NOT a domain"*), one seam-table row
+  (`FunctionSpace.manifold`, the level-2 register), `related: [manifolds, …]` in the machine
+  header. No Development-history row — the mint is not a space-layer milestone.
+- `discrete_measures.rst`: the `support`-is-a-`str` Key Fact is **STILL TRUE** (`Space = str`
+  lives at `measure.py:111`, zero `Manifold` consumers) ⟹ **not past-tensed**; given a
+  `⚠ Still true of what ships, and no longer the only option` forward pointer instead.
+- `error_catalog.rst` ERR-080: a pure ADDITION to the Fix bullet naming the type that supplies
+  the first two of its three structural repairs, with `⛔ no production consumer yet`. Nothing
+  weakened; the entry's id, title and catchers untouched.
+
+### ⛔ Deliberately NOT done, and why
+
+**No `automodule` for `orpheus.numerics.manifold`.** `[M]` 6 of 48 `automodule` directives are
+`orpheus.numerics.*`, and `measure`/`space` — the module's two siblings in the same three-level
+stack — are not among them. Surfacing level 1 alone makes `Manifold` a live link while
+`FunctionSpace` beside it in the same sentence stays plain text: inconsistent half-surfacing.
+Recorded as a seam row with the consequence spelled out (this page's Python-domain roles render
+as plain text, so a stale one is invisible at every severity and needs the import-grep gate).
+
+### ⚠ REPORTED, code-only (not fixed — docs pass)
+
+`orpheus/numerics/manifold.py:19` carries `:ref:`ERR-080 <vv-error-ERR-080>``. `[M]`
+`ErrorEntryDirective.run()` emits a `container` + `rubric` and **no `nodes.target`**, so no such
+label exists; the string appears nowhere else in `docs/` or `orpheus/`. Harmless today (the
+module is unrendered) and a guaranteed `undefined label` the day it is `automodule`'d.

@@ -59,6 +59,16 @@ Key Facts
   for sanity checks and documentation only. (Distinct from the
   derived ``μ.space``, the induced discrete-:math:`L^2`
   :class:`~orpheus.numerics.space.FunctionSpace`.)
+  ⚠ **Still true of what ships, and no longer the only option.** The
+  prior ruling it cites rejects a *phantom type parameter*, not a
+  first-class value; a :class:`~orpheus.numerics.manifold.Manifold`
+  type — with ``contains``, ``__mul__`` and a catalogued
+  ``quotient`` — was minted 2026-08-31 and is documented at
+  :doc:`/theory/foundations/manifolds`. `[M]` this slot has **not**
+  been retyped: it is still a ``str``, and the three support rules in
+  the propagation table below are still string interpolation. What
+  the new type buys, and what it does not yet, is
+  :ref:`stated there <manifold-seams>`.
 - A measure **generates space factors, not only whole spaces**:
   :meth:`μ.axis(label) <orpheus.numerics.measure.DiscreteMeasure.axis>`
   is the axis-composed sibling of ``μ.space``, minting one

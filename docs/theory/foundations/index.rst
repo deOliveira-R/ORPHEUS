@@ -112,6 +112,18 @@ represented — not what collision, scattering, and fission *are*.
        reflective / vacuum / white, and the extraction criterion.
    * - :doc:`/theory/foundations/cross_section_data`
      - The cross-section pipeline: mixtures, multigroup data, condensation.
+   * - :doc:`/theory/foundations/manifolds`
+     - The **point-set layer** beneath
+       :doc:`/theory/foundations/discrete_measures` and
+       :doc:`/theory/foundations/spaces`: the manifold
+       :math:`M` a measure is supported *on* and a basis function is
+       defined *over*, its algebra (product, orbit space, membership),
+       the invariant-theoretic **Procesi–Schwarz** derivation that
+       produces an orbit space from a symmetry group, and the
+       three-level separation (manifold / fields on it / coefficients)
+       that keeps a ``FunctionSpace`` from being mistaken for a domain.
+       ⛔ The type is minted and gated; the migration off
+       ``Space = str`` has **not** landed.
    * - :doc:`/theory/foundations/discrete_measures`
      - Quadrature and measure: axes, weights, and integration.
    * - :doc:`/theory/foundations/spherical_harmonics`
@@ -139,6 +151,7 @@ represented — not what collision, scattering, and fission *are*.
    frame
    boundary_conditions
    cross_section_data
+   manifolds
    discrete_measures
    spherical_harmonics
    structured_geometry

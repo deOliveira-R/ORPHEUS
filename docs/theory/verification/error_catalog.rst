@@ -6194,7 +6194,16 @@ older entries classify against.
      with :math:`\lVert\Omega\rVert \ne 1`; ``Basis`` must be able to declare
      its ``domain`` so the pairing is checkable where the two objects meet; and
      ``_evaluate_real_sh`` must REFUSE a non-unit direction vector rather than
-     inventing an azimuth for it. Plan:
+     inventing an azimuth for it. ⭐ The first two both need an object for the
+     point set, which the tree did not have: the
+     :class:`~orpheus.numerics.manifold.Manifold` type minted 2026-08-31
+     supplies the membership predicate that refuses the forgery at
+     construction (``[M]`` ``Sphere().contains`` on this very measure) and
+     the three-level argument for why a ``FunctionSpace`` cannot BE the
+     ``domain`` — :doc:`/theory/foundations/manifolds`,
+     :ref:`manifold-err-080` and :ref:`manifold-three-levels`. ⛔ That type
+     has **no production consumer yet** — it is a capability, and this
+     defect is unrepaired until the three items above land. Plan:
      ``.claude/plans/angular_spaces_derived_from_symmetry.md``.
      ``[M]`` the repair also closes the crash by removing the need for a dense
      metric on a slab at all: with no fabricated azimuth a 1-D rule carries

@@ -447,6 +447,27 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   inverts. Every other number reproduced exactly. ⟹ publish your figure with its window,
   and replace the contrast with a STRUCTURAL one (*"MT=16 stores NL=7, the same order as
   elastic, which stores 7 in 13 of 13 files"*). → L-078
+- **⭐⭐ Re-run EVERY inherited number; the one that is false is the one already copied into
+  KEY FACTS.** 4 of 5 briefed `[M]`s reproduced exactly (forgery norms; `18` string-manipulating
+  `.support` reads; `87` `support=` kwargs; the whole `S²/SO(2)` derivation, `simplify(mine −
+  shipped) == 0`). The fifth — *"the frame's level-2 arrow type-checks, shapes `(8,3) → (8,)`"* —
+  was `measure.nodes.shape`, not the arrow (`[M]` `L2[S^2] (8,) → spherical_harmonic_space
+  (3,5)`). ⭐ **The right reading was the better exhibit**: `measure.space.name` is `[M]`
+  `L2[S^2]`, the forged level-1 tag propagating verbatim into the DERIVED level-2 name — a
+  publishable paragraph the wrong number hid. ⟹ when a relayed shape is wrong, ask what the
+  correct one SHOWS. → L-079
+- **⭐ A brief's code claim splits into a GATED half and an ASSERTED half — publish both.**
+  *"`measure.quotient` performs no lookup and no check"* is half false: it DOES gate the measure
+  (`orbit_certificate` refuses a non-invariant one); what is ungated is the **tag**
+  (`f"{support}/{group.name}"` mints `'not_a_manifold_at_all/sigma_y'` without complaint). Two
+  objects, one gated, one asserted. Same session: *"minted against three manifolds over five
+  sites"* → `[M]` **18** ctor sites, **4** in `orpheus/`, three families — *three* right, *five*
+  not. → L-079
+- **⭐⭐ Your own reproduction can fail for YOUR reason — diagnose before reporting, then PUBLISH
+  the trap.** `sp.Matrix(...).subs(x**2+y**2, p2)` silently fails on `4x²+4y²` (no literal node),
+  giving a bogus `det P` and an apparent disagreement with the shipped entry; `factor` first.
+  Publishing it as a `⚠` reproduction note is what makes the neighbouring agreement table
+  credible. → L-079
 - **⭐ `hasattr(Cls, field)` is FALSE for a dataclass field with no class default — fall back to
   `dataclasses.fields` before reporting a dead `:attr:`.** `[M]` my own role-import probe
   minted 3 false dead targets this way, all on the newest code. L-053(c) (*construct the
@@ -612,6 +633,18 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   adjudicable ones. Then run a second filter in vocabulary that never spells the subject
   (`doubling`, `two neutrons`, `multiplicity`) and a third that never spells the
   predicate (`no angular dependence`, `single Legendre`, `P0-only`). → L-078
+- **⭐⭐ The literal-inside-BOLD class is invisible to `-W`, and there IS a source scan that
+  matches the HTML slice exactly.** L-074 said a source regex is unusable — true of the naive
+  one (`[M]` **88** candidates, 86 junk). Two constraints fix it: **strip `code-block` bodies
+  first** (kills `x**2` / `mu**2`), and **bound the run at ≤200 chars** with a non-greedy
+  `\*\*(no blank line)\*\*`. `[M]` **2 hits, 0 false positives, same set the HTML slice
+  found**. Both real: `**Why … ``domain`` … .**`. Keep the HTML slice as the oracle; use the
+  source scan every edit. → L-079, L-074
+- **⭐⭐ COUNT the population your role-filter must cover before trusting its zero.** My check
+  matched `:role:`~a.b.C`` only and reported **34** roles clean; the page has **56** — 22 use
+  `` :role:`display <a.b.C>` ``. Compare against a count of all `:(class|func|meth|attr|mod|
+  exc|data):`` openers, and give the checker a **positive control** (two synthetic dead roles
+  must both be reported) so a clean run cannot be a broken scan. → L-079
 - **⭐ Two defects YOUR OWN new prose introduces, both `-W`-caught, both mechanical:** (a) an
   italic run interrupted by a role — `*"… (*:math:`X`*) …"*` — gives *"Inline interpreted text …
   start-string without end-string"*; escape the seam: `(*\ :math:`X`\ *)`. (b) **NEVER hand-align a
@@ -1427,6 +1460,34 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
 
 ## 6. Match the doc SHAPE to the event class
 
+- **⭐⭐ A NEW LAYER nobody owned gets its OWN PAGE, and the decisive argument is
+  self-undermining-if-homed-elsewhere.** Documenting level 1 of a three-level stack: a section
+  titled *"a function space is not a domain"* **inside the function-space page** re-commits the
+  conflation it exists to end. Two supporting grounds: three consumer pages, none subordinate
+  (SSOT, not twin); and the host page was already 3871 lines. ⭐ **Manage the twin risk
+  actively** — my first draft restated `Funk–Hecke`, which two pages own; rewritten to own only
+  the register that was `[M]` **0 hits** corpus-wide (Gelfand pair / double coset), opening
+  *"Edited there, consumed here"*. Wiring: toctree slot by DEPENDENCE (a measure needs a
+  manifold ⟹ before `discrete_measures`), one Key Facts bullet + one seam row + a `related:`
+  machine-header key on the sibling, a forward pointer (never a past-tensing) on the page whose
+  claim is **still true of what ships**, and a pure ADDITION to the ERR entry. ⚠ Name the pages
+  in an index row — my *"underneath both of those"* dangled onto the wrong neighbour. → L-079
+- **⭐⭐ For a MINT WITH ZERO CONSUMERS, the ⛔ *this is a capability, not a fix* clause belongs
+  in Key Facts, the seam table's FIRST row, AND every page you touch.** `Manifold` ships and
+  ERR-080 stays open; a reader who meets the refusal predicate without that clause concludes
+  the defect is repaired. State it three times, each with `[M]` (zero importers; `Space = str`
+  still at `measure.py:111`; the `xfail(strict=True)` gate still red). → L-079
+- **⭐⭐ Publish an engine/ruling's COMPLIANCE as a FRACTION, and audit the seed against the
+  spec.** D0.1's falsifiable form is *"could an engine populate these fields without a new
+  type?"*; `[M]` `dataclasses.fields` says the procedure emits 8 outputs and **6 are slots**
+  (the chart ships only as its codomain; the pushforward measure not at all). *A ruling whose
+  compliance is claimed but not counted is not checkable* — one call. → L-079
+- **⭐⭐ Look for the lookup the tree ALREADY performs — it is the cheapest evidence a mint is a
+  RE-TYPING, and it hands you a seam.** `AngularSymmetry.support` predates the `Manifold` mint
+  and already catalogues `S²/G⁰` in the string vocabulary with the same refusal shape. `[M]`
+  three rows: `SO2` both answer and **agree**; `Trivial` registry answers / catalogue **raises**
+  (a real gap); `Oh` both raise. One table = re-typing evidence + a measured gap + the Pattern-2
+  twin the migration must collapse. Found by reading the sibling page, not the brief. → L-079
 - **⭐⭐ A ROUTE RE-POINT (the datum is unchanged, only WHERE it is fetched) earns its own
   LABELLED doctrine section — because every value gate over it is `X == X`.** `[M]`
   `op.angular_axis.generator is quad` for the very quad the factory was handed, i.e. the

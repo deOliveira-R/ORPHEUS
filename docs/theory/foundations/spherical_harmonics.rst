@@ -668,7 +668,10 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    The null direction has a closed form. The offending harmonic is
    :math:`Y_2^{+2} \propto (1-\mu^2)`, which is exactly
    :math:`\det P = 4(1-\mu^2)`, the squared orbit radius of the
-   :math:`SO(2)` action on :math:`S^2`; the predicted null vector
+   :math:`SO(2)` action on :math:`S^2` (that :math:`\det P` is derived
+   from the Procesi–Schwarz condition at :eq:`manifold-s2-mod-so2`, and
+   what its three appearances do and do not share is
+   :ref:`manifold-one-polynomial`); the predicted null vector
    :math:`[-0.447214,\,0,\,+0.447214,\,0,\,+0.774597]` over the live
    slots :math:`\{(0,0),(1,0),(2,0),(2,1),(2,2)\}` is the SVD-measured
    one: ``[M]`` alignment :math:`\bigl|1 - |\cos\theta|\bigr| =`
