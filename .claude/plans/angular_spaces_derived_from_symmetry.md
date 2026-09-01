@@ -2224,102 +2224,112 @@ this is right: the forgery is what CONCEALS the missing discrete-quotient slot).
 
 ---
 
-# Part XIV — ⏸ COMPACTION POINT 0 (2026-08-31) + ▶ Resume surface
+# Part XIV — ⏸ COMPACTION POINT 1 (2026-08-31, evening) + ▶ Resume surface
 
 **Read in this order on pick-up:** this Part → Part XIII (the tracker) → Part XII
-(the exit gate: what returns us to Campaign 2, and what is NOT on that path) →
-the phase you are executing. **Part IX and §II.15 first if you are about to
-re-propose anything** — nine premises are already refuted there, six of them
-mine, and two were refuted the same day they were written.
+(the exit gate) → the phase you are executing. **Part IX, §II.15 and §II.16
+first if you are about to re-propose anything** — twelve premises are refuted
+there, most of them mine, several the same day they were written.
+
+⚠ This supersedes COMPACTION POINT 0. Its content is folded in below; nothing
+from it was dropped.
 
 ---
 
 ## ▶ RESUMES AT — stated as OUTCOMES (`plan-authoring` §1)
 
-1. ✅ **DONE — the fold basis is falsifiable.**
-   `TestFoldedCylinderP1BindsTheQuotientBasis`, 3 L1 rows, mutation-verified at
-   nine orders of separation. ⚠ **Read §II.16 before quoting anything below**:
-   the original text is kept per §3, and THREE of its claims were refuted at
-   execution — there were four witnesses (object-tier, none through
-   `solve_sn`), the 18.5 % figure does not reproduce (57 % on its own stated
-   fixture), and *"reds 0 of 1913"* was not a collection-ERROR artifact but a
-   run in which **pytest never started** (rc=4, 0 collected, zero on BOTH
-   scanners).
+**A function space knows the manifold its functions are defined on, and a
+measure knows the group it was quotiented by.** Trackers **2.0c** and **2.0d**.
+Today both facts are smuggled: the manifold through a NAME STRING at 2 sites
+(one of them `[M]` already FALSE — §III.10), and the quotient group **nowhere at
+all**. They are the two operands the G0 predicate has always named and never
+had.
 
-   *(Original text, superseded — §3.)* `[M]` today deleting
-   `MirrorEvenSphericalHarmonicBasis` outright reds **0 of 1913** tests: 179
-   folded `angular_frame` calls across 72 tests, **100 % at `L = 0`**, and at
-   `L = 0` its table is bit-identical to the plain SH table (`max|Δ| = 0.0`,
-   diverging to `8.688e-01` at `L = 1`). *Proposed means:* one parametrize row —
-   2-group heterogeneous cylinder, `folded_product(4,8)`, `scattering_order=1`;
-   `[M]` an agent measured it as an **18.5 %** catcher
-   (`0.7475027…` → `0.6095089…`). **Tracker 2.1-W. Must land before anything
-   touches the fold path**, or that carve is unfalsifiable.
-2. **A manifold is an OBJECT, so a measure cannot claim a support its own nodes
-   do not satisfy.** Tracker 2.0a–d. `Manifold.contains` refuses the Part I
-   forged measure **at construction**, three hops before the symptom.
+*Then* **2.1** (`Basis.domain: Manifold`) and **2.1b**
+(`Basis.invariance_group`), which complete G0's other side.
 
-⛔ **RESOLVED 2026-08-31 — the "100 % at `L = 0`" half is FALSE, and 2.1-W
-survives anyway, on a better-stated reason.** `[M]` runtime spy
-(`scratch/_fold_L_spy{,2}.py`, scoped to 4 paths): folded `angular_frame` calls
-read **173 at `L = 0` and 31 at `L = 1`** — so folded rules ARE exercised above
-`L = 0`, on a strict SUBSET of the agent's population.
+### The migration this opens, measured — read §V.5c before decomposing it
 
-`[M]` all 31 come from **one file**, `tests/sn/architecture/test_monomorphic_leaves.py`,
-every one a `cylinder` parametrization: `test_hilbert_adjoint_reciprocity`,
-`test_each_riesz_leg_is_individually_load_bearing`,
-`test_leaf_declares_both_function_spaces`,
-`test_wrong_carrier_refusal_is_typed_and_names_the_operator`,
-`test_reciprocity_metric_is_load_bearing`.
+`[M]` `support = str → Manifold` does **not** touch 87 sites. Split by the AST
+node of the value passed:
 
-⭐ **And that reconciles the two measurements rather than choosing between
-them.** `[R]` those assertions are structurally **blind to WHICH basis is
-bound**: reciprocity `⟨Ax,y⟩ = ⟨x,A*y⟩` holds for any *consistent* `(M, R)`
-pair, because both sides read the **same table** — the `vv-principles`
-two-sides-from-one-source tautology shape. So the agent measured **witness-hood**
-(*does anything RED*) and I measured **exercise** (*does anything CALL*), and
-both are right. **Executed ≠ asserted.**
+| the value passed | `orpheus/` | `tests/` | what the retype costs |
+|---|---:|---:|---|
+| `SPACE_*` constant | 13 | 3 | **nothing** — the constant is retyped once |
+| attribute / other Name (forwarded) | 9 | 4 | **nothing** — it forwards |
+| raw string literal | 3 | **51** | one edit each; 94 % of it in `tests/` |
+| **f-string** — a tag BUILT by interpolation | **4** | 0 | ⭐ **the real work** |
 
-⟹ **2.1-W stands, and its premise is now sharper**: the fold basis is not
-un-exercised, it is **un-asserted** — 31 calls at `L = 1` whose gates cannot see
-the difference. `[M]` the mutation result is the load-bearing one and is
-unaffected: deleting `MirrorEvenSphericalHarmonicBasis` reds **0 of 1913**.
-⚠ Design note for 2.1-W: those 5 test families are the natural home for the new
-row **only if** the assertion is changed to something basis-sensitive; adding a
-`cylinder` param to a *reciprocity* test would inherit its blindness.
+⟹ the production tree is nearly free; the bulk is 51 test literals; and the
+**4 f-strings are the architecture**, because each is a parametric family the
+string type hid (`[{a},{b}]`, `spatial_R{d}`, `index({label})`, and
+`sn_trace_orbit{orbit}_g{group}` — the last a SECOND spelling of the
+index-set family, which the 2.0a row's member list never named).
 
-### §1 existence-check on every symbol this pointer names — all run 2026-08-31 at `60c370ae`
+`[M]` and **18** `.support` reads do string manipulation, **all 18 in
+`orpheus/`, 0 in `tests/`** — of which three ARE the verbs (`measure.py:588`
+`__mul__`, `:1022` `quotient`, `:802` the pushforward codomain) and one is the
+`L2[...]` name at `:331` that 2.0c retires.
 
-`[M]` in `orpheus/`: `class Manifold` **0** · `class Descent` **0** ·
-`class Chart` **0** · `class LegendreBasis` **0** · `ReynoldsProjection` **0** ·
-`OrbitAxis` **0** · `quotient_group` **0**. And by AST: **6** `Basis`
-subclasses, **none** defines `domain` or `support` (the 48 `def domain` in the
-tree are all operators). ⟹ nothing this pointer promises already exists; no
-deliverable has been silently landed.
+### ⛔ Two landmines for the pick-up session's own greps
+
+1. **`invariance_group` returns 55 hits and the plan's claim still holds.**
+   `[M]` by AST exactly ONE class defines it — `DiscreteMeasure` — and it means
+   *the group this measure IS invariant under*, **not** the group it was
+   quotiented BY. `[M]` `hasattr(SphericalHarmonicBasis(L=1), "invariance_group")`
+   is `False`; 0 of 6 `Basis` subclasses define it. So both sides of G0
+   (`measure.quotient_group ⊆ basis.invariance_group`) are genuinely absent, and
+   a bare grep says otherwise. §3's ambiguous-name hazard, live.
+2. **`measure.py:411`'s `self.support == "cells"` has NO producer.** Denominator
+   enumerated in §V.5c(d): 58 literal `support=`/`new_space=` sites (13 distinct
+   values), 6 `SPACE_*` constants, 36 non-literal producers — `"cells"` in none.
+   The only `"cells"` in the tree is `radial_characteristic_space.py`'s
+   `part="cells"`, a walk-part label. Three surfaces advertise the dead arm (the
+   branch, the docstring at `:387`, the `raise` at `:416`). **2.0a acceptance
+   item**: the mint must make it unspellable and the prose must stop naming it.
+
+### §1 existence-checks on every symbol this pointer names — run 2026-08-31 at `fba4205a`
+
+`[M]` in `orpheus/`: `class Chart` **0** · `FunctionSpace.manifold` **0** ·
+`measure.quotient_group` **0** · `Basis.domain` **0 of 6** subclasses ·
+`class LegendreBasis` **0** · `class Descent` **0** · `class ReynoldsProjection`
+**0** · `class OrbitAxis` **0**. ⟹ nothing the pointer promises already exists.
+
+⭐ **And the DELIVERABLE-level check, which a symbol grep cannot answer** (§1's
+clause): `AngularSymmetry.support` (`quadrature/registry.py:869`) **already
+performs the orbit-space lookup 2.0a's `Manifold.quotient` mints** — same rows,
+same refusal shape, in the string vocabulary. It is a Pattern-2 twin, not a
+duplicate deliverable: tracker **2.2** absorbs it, and a committed row already
+pins the two in agreement.
 
 ---
 
-## Landing ledger — Phase 0's prose-and-gate half
+## Landing ledger
 
 | item | what | commit |
 |---|---|---|
-| 0.7 / 0.7b | the strict-xfail gate (3 rows, one per symptom) + **ERR-080** minted | `ae4dbc1f` |
-| 0.3 | `metric.py`'s rcond comment, re-derived (97 lines; value unchanged) | `ae4dbc1f` |
+| 0.7 / 0.7b | the strict-xfail gate (3 rows) + **ERR-080** minted | `ae4dbc1f` |
+| 0.3 | `metric.py`'s rcond comment, re-derived | `ae4dbc1f` |
 | 0.4 / 0.5 | the two prose surfaces that argued against suspecting the defect | `ae4dbc1f` |
 | 0.2-census | the full-suite phantom census, **discharged** | `ee60010e` + `ccda0e61` |
 | — | five execution-time claims of mine, refuted and kept in place | `324137ec` |
-| D0.7 / 2.0 / V.5 | `Manifold` minted; `Basis.domain` restored; the minting inventory | `a0783c2a` |
-| D0.1 / 3.4b / III.4b | the embryo; `Descent` ruled; the dropped four-kernel table restored | `43dd7ee5` |
+| D0.7 / 2.0 / V.5 | `Manifold` ruled; `Basis.domain` restored; the minting inventory | `a0783c2a` |
+| D0.1 / 3.4b / III.4b | the embryo; `Descent` ruled; the four-kernel table restored | `43dd7ee5` |
 | D0.1 | the engine is **deferred, not refused** — the embryo is its SEED | `60c370ae` |
-| XIV | this compaction point + resume surface | `ac30598e` |
+| XIV | compaction point 0 | `ac30598e` |
 | — | the fold basis's "100 % at `L = 0`" refuted and reconciled | `52880c7a` |
+| §V.5b | **2.0a's sizing REFUTED** at its own opener — three counts, three questions | `cfd98cc8` |
+| §V.5c | 2.0a's real ground measure — the algebra ships already, as string concatenation | `212dfa0b` |
+| **2.0a** | ⭐ **`Manifold` MINTED** — 9 variants, the S²/SO(2) catalogue entry, 40 tests | `b8c05d16` |
+| — | `plan-authoring`: the AST import census drops relative imports | `fc71a84e` |
+| — | numerics green as a gate; the delta reconciles exactly | `eeccc51d` |
+| **2.1-W** | ⭐ **the fold basis is falsifiable at the EIGENVALUE tier** — 3 L1 rows | `daa783c5` |
+| **2.0a docs** | the point-set layer's corpus page + three corrections to the mint | `fba4205a` |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
-⛔ This table carried *"7 commits ahead of `main`"* until 2026-08-31; two more
-had already landed. A commit COUNT is the field guaranteed to rot — the count
-is deleted rather than corrected. Run `git rev-list --count main..HEAD` for the
-number and `git merge-base --is-ancestor <hash> HEAD` for merge status; never
-read either off this table.
+⛔ No commit COUNT is recorded here — it is the field guaranteed to rot. Run
+`git rev-list --count main..HEAD`, and `git merge-base --is-ancestor <hash> HEAD`
+for merge status.
 
 ## ⛔ Corrections that SUPERSEDE older text in this file
 
@@ -2334,33 +2344,39 @@ Read these before quoting any earlier section:
 | `Basis.support` (ruled 2026-08-31 am) | ⛔ **REFUTED same day** — collision unreachable, and `support` is false for a basis. §III.10 |
 | *"the engine is refused"* | ⛔ **DEFERRED, not refused** — and the embryo must be its seed. D0.1 |
 | *"same INTERFACE, second backend"* | ⛔ **too weak** — the requirement is on the DATA MODEL. D0.1 |
-| 2.0a: *"29 `Space` refs, 39 `support=`, 45 `.support`"* | ⛔ **REFUTED at the phase opener** — by AST 87 / 62 / 8, and **53 % of the surface is `tests/`**, a tree the counts never ranged over. §V.5b |
+| 2.0a: *"29 `Space` refs, 39 `support=`, 45 `.support`"* | ⛔ **REFUTED at the opener** — by AST 87 / 62 / 8, and 53 % of the surface is `tests/`. §V.5b |
+| 2.1-W: *"zero committed witnesses"* | ⛔ **FALSE — there were four**, all OBJECT-tier, none through `solve_sn`. §II.16(a) |
+| 2.1-W: the *18.5 %* catcher figure | ⛔ **does not reproduce** — 57 % on its own stated fixture. §II.16(b) |
+| 2.1-W: *"reds 0 of 1913"* | ⛔ **pytest never RAN** — rc=4, 0 collected, zero on BOTH scanners. §II.16(c) |
+| 2.0a-R: *"all 8 derivation fields"* | ⛔ **6 of 8** — chart + pushforward wait on `Chart` (2.3). The ruling block |
+| §V.5c: *"`quotient` does no lookup and no check"* | ⛔ **HALF false** — the MEASURE is gated; the TAG is not. §V.5c(c) |
+| 2.1: *"three manifolds over 5 sites"* | ⛔ **18 sites** (4 `orpheus/`, 14 `tests/`); the *three* was right. The 2.1 row |
 
 ## Measured baselines and costs
 
-* **Phantom census**: 13 trees, `-O -m "not slow"` serial, **rc=0 throughout**,
-  **65 min**. numerics 2538 · transport 645 · sn 3375 · geometry 727 · mc 39 ·
-  derivations 1637 · rootfiles 414.
-* **Sphinx `-W`**: clean, ~2 min. **`dead_references`**: 0 dead / 52 checked.
-* **Error index**: 80 entries / 265 catchers / **0 uncaught**.
-* **Verification matrix**: 10428 → **10433** collected (+5, all L1).
 * **numerics tree, as a GATE** (`-O -m "not slow"` serial, `de29bcc6`):
-  `[M]` **2578 passed / 0 failed**, 337 s. Reconciles exactly against the census's
-  `2538` — `2538 + 40` (2.0a's new tests) `= 2578`, no unexplained term. ⭐ This
-  is the predicted-then-measured discipline that caught P7's `+1`: the delta is
-  stated before the run and every unit of it is attributed after.
-* ⚠ **The 13-tree GATE baseline is still UNMEASURED at this HEAD.** The census
-  is not a gate (a recording plugin, rc ignored), and the run above is ONE tree
-  of the thirteen. Exit predicate 5 stands.
+  `[M]` **2578 passed / 0 failed**, 337 s. Reconciles exactly: census `2538` + 40.
+* **Verification matrix**: 10433 → **10481**. Every unit attributed — +40 (2.0a
+  foundation) +3 (2.1-W, L1) +1 (`test_layer_imports.py` builds its parametrize
+  list by `rglob`, so a new module adds a row — and it PASSES, so the §6d edge
+  I checked by hand is now enforced automatically) +4 (the trivial-quotient and
+  twin-agreement rows).
+* **Sphinx `-E -W --keep-going`**: **0 warnings / 0 errors**, ~2 min.
+  **`dead_references`**: **0 dead / 52 checked**. Theory labels 905 → 907.
+* **Phantom census** (a recording plugin, rc ignored — NOT a gate): 13 trees,
+  65 min, numerics 2538 · transport 645 · sn 3375 · geometry 727 · mc 39 ·
+  derivations 1637 · rootfiles 414.
+* ⚠ **The 13-tree GATE baseline is still UNMEASURED at this HEAD.** Exit
+  predicate 5 stands. Last full gate: CS4c step 4's `10106 / 0 / 19 sk / 66 xf`.
 
 ## Durable lessons — promoted OUT of this file
 
-`plan-authoring` gained three rows this session; they are the record, not this
-plan: the **transcription-precision** row (a hand-typed prediction bounds its own
-agreement statistic), the **§8 sharpening** (*a branch's EXISTENCE is not its
-RELEVANCE* — price it with a control stronger than your change), and the
-§2 VIEWPORT re-commit (`| head -3` turned a population into a sample, by me,
-minutes after reading the clause that forbids it).
+`plan-authoring` gained five rows across the campaign; they are the record, not
+this plan: the transcription-precision row; the §8 sharpening (*a branch's
+EXISTENCE is not its RELEVANCE*); the §2 VIEWPORT re-commit; **the LIST-of-counts
+row** (a row pricing work with several counts implies a shared denominator that
+was never stated); and **the §6d relative-import row** (the AST import census
+§6d prescribes drops `from .x import y`, and fails toward *"no cycle, proceed"*).
 
 ## Artifacts
 
@@ -2368,20 +2384,22 @@ minutes after reading the clause that forbids it).
 content is carried in this file; the reproducers are not.
 `_pl_slab_defect_repro.py` · `_pl_slab_fix_probe.py` · `_phantom_axis_probe.py`
 · `_phantom_census_plugin.py` + `_driver.sh` + `.json` (**re-runnable — it is
-0.2's done-when**) · `_fold_L_spy.py` · `rcond_rederivation.md` +
-`probe_rcond_01…17_*.py` · `angular_symmetry_wiring_survey.md` ·
-`basis_domain_verification_plan.md` (972 lines) · `n2n_pl_*.md` (4).
+0.2's done-when**) · `_fold_L_spy{,2}.py` · `_manifold_selfcheck.py`
+(**re-runnable RST self-check: underlines, ladder, table widths, label
+uniqueness, xref resolution with a positive control**) · `rcond_rederivation.md`
++ `probe_rcond_01…17_*.py` · `angular_symmetry_wiring_survey.md` ·
+`basis_domain_verification_plan.md` · `n2n_pl_*.md` (4).
 
 ## Standing constraints
 
 Host → `.venv/bin/python`; canonical `-O -m pytest -p no:randomly -m "not slow" -q`
-SERIAL; branch + ff-merge, never squash; **never `git add -A`** (365 untracked
-scratch files sit one flag away from the history); never `git stash`; never
+SERIAL; branch + ff-merge, never squash; **never `git add -A`** (untracked
+`scratch/` sits one flag away from the history); never `git stash`; never
 `git checkout`/`restore` a tracked path; commit via `git commit -F -` with a
-**quoted** heredoc; no source edits under a running gate; long gates =
-detached `Popen(start_new_session=True)` + per-tree driver + `Monitor`;
-`sphinx -W` + `dead_references` at every phase exit; a bare `assert` in
-`orpheus/` is inert under `-O` — use a real `raise`.
+**quoted** heredoc; no source edits under a running gate, and no production edit
+while a sub-agent holds the tree (L38); long gates = detached + a LOG, never a
+2-minute foreground `pytest`; `sphinx -W` + `dead_references` at every phase
+exit; a bare `assert` in `orpheus/` is inert under `-O` — use a real `raise`.
 
 **This plan blocks** `.claude/plans/cs4c_binding_design.md` §18.6 step 1 (#426's
 missing (n,2n) measurement), PAUSED. Tracking issue **#429**. The source plan is
