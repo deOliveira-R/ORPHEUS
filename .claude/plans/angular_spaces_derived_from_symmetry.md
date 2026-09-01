@@ -1364,6 +1364,50 @@ ways and read `tests/test_layer_imports.py`'s `FORBIDDEN_EDGES` before placing.
 
 
 
+## §V.5b ⛔ 2.0a's migration sizing, re-censused at the phase opener (2026-08-31)
+
+The 2.0a row priced the `Space = str` retirement as *"29 `Space` refs, 39
+`support=` construction sites, 45 `.support` reads"*. **No predicate and no
+tree was written beside any of them**, and re-derived they do not reproduce.
+
+`[M]` by **AST** over `orpheus/` + `tests/` (a membership question is parsed,
+never grepped — `plan-authoring` 2026-08-27; positive control: the known
+`directional.py` forge site is found; 0 files unparseable):
+
+| predicate (the AST node, exactly) | `orpheus/` | `tests/` | total |
+|---|---:|---:|---:|
+| `ast.keyword` with `arg == "support"` | 29 | **58** | **87** |
+| `ast.Attribute` with `attr == "support"` | 31 | **31** | **62** |
+| `ast.Name` with `id == "Space"` | 7 | 1 | **8** |
+| `ast.Name` with `id.startswith("SPACE_")` | 25 | 14 | **39** |
+
+⟹ **the real surface is 196 name-level touches, of which 104 — 53 % — are in
+`tests/`.** The original row is not merely low; its three numbers answer three
+*different* questions, and only one of them (`support=` at 29) reproduces at
+all, and only on `orpheus/`.
+
+⚠ **What actually changes.** Size is not a veto (D0.5), so this is not a
+blocker — but the SHAPE moved, and the shape is what a step decomposition is
+built from (`plan-authoring` §6b: the unit of work is the call-site set, not
+the tidiness of the description). The dominant cost of 2.0a is **58 test
+construction sites**, not the production tree. A decomposition that plans
+`orpheus/` first and leaves `tests/` as "follow-up" would leave the tree
+un-compiling between steps.
+
+⭐ **The transferable tell, and it is new: a plan row that lists SEVERAL counts
+in one breath implies a shared denominator that was never stated.** §2's
+quantifier clause guards a *single* number's missing denominator; a *list*
+(`29 … 39 … 45`) reads as one census reported three ways, so the reader
+supplies the shared scope by assumption. Here there was none — and one of the
+three (`39`) is *exactly* the answer to a neighbouring predicate the row does
+not name (`SPACE_*` names, 25 + 14). `[R]` that is consistent with a label and
+a measurement paired by proximity rather than by derivation; I cannot prove it,
+and the coincidence is what made the row look internally consistent.
+
+⟹ when a row prices work with more than one count, each count carries its own
+predicate and its own tree, or the row is one census wearing three hats.
+
+
 # Part VI — The action plan
 
 Phases are ordered by dependency, not by size (D0.5). The `Q#` column maps each
@@ -1444,7 +1488,7 @@ prerequisite for every gate in Part IV.
 
 | # | item | goal, separately from means | done when | Q# |
 |---|---|---|---|---|
-| **2.0a** | ⭐ **MINT `Manifold`** (D0.7). The thing functions are defined on and measures live on: `S²`, `S¹`, `[-1,1]`, `[0,1]`, `[0,∞)`, `ℝ`, `spatial_Rᵈ`, `energy`, `index(axis)`, and quotients/products of those. Verbs: `quotient(H)` (⭐ **catalog lookup, and a `raise` naming the missing WORK** — *"no entry for `S²/C₆`; derive it per §III.1 and register it, or implement the engine"* — so the engine's absence is a pick-up-able work item, not a wall; D0.1), `__mul__`, `contains(points)`, `dim`, and the **singular stratum** a quotient inherits from `H`'s fixed-point set. ⛔ a VALUE type with methods — **not** a `Generic[Tag]` phantom parameter (`sn_reshape.md` Issue 2 stands; D0.7 explains why it does not bar this). | `Space = str` is retired; `[M]` today 29 `Space` refs, 39 `support=` construction sites, 45 `.support` reads — that is the migration's size, not a veto (D0.5) | — |
+| **2.0a** | ⭐ **MINT `Manifold`** (D0.7). The thing functions are defined on and measures live on: `S²`, `S¹`, `[-1,1]`, `[0,1]`, `[0,∞)`, `ℝ`, `spatial_Rᵈ`, `energy`, `index(axis)`, and quotients/products of those. Verbs: `quotient(H)` (⭐ **catalog lookup, and a `raise` naming the missing WORK** — *"no entry for `S²/C₆`; derive it per §III.1 and register it, or implement the engine"* — so the engine's absence is a pick-up-able work item, not a wall; D0.1), `__mul__`, `contains(points)`, `dim`, and the **singular stratum** a quotient inherits from `H`'s fixed-point set. ⛔ a VALUE type with methods — **not** a `Generic[Tag]` phantom parameter (`sn_reshape.md` Issue 2 stands; D0.7 explains why it does not bar this). | `Space = str` is retired. ⛔ **The three counts below are REFUTED as written — see §V.5b.** *(Original text, kept per `plan-authoring` §3: "`[M]` today 29 `Space` refs, 39 `support=` construction sites, 45 `.support` reads — that is the migration's size, not a veto (D0.5)".)* `[M]` re-censused by AST 2026-08-31: **87** `support=` kwargs / **62** `.support` reads / **8** `Space` names / **39** `SPACE_*` names, and **104 of the 196 are in `tests/`** — the tree the original counts never ranged over. Size is still not a veto (D0.5); the SHAPE is what moved | — |
 | **2.0b** | ⭐ **`contains` is the membership PREDICATE the string never had.** `SPACE_SPHERE.contains(nodes)` is `‖Ω‖ = 1`. This is what makes the ERR-080 fabrication refusable **at the measure constructor**, three hops before the symptom. | `DiscreteMeasure.__post_init__` refuses nodes its declared manifold does not contain; the Part I forged measure is unconstructable | — |
 | **2.0c** | ⭐ **`FunctionSpace` carries its `Manifold`; the two `L2[...]` NAME STRINGS become derived** (§III.10). | `grep` finds no `f"L2[...]"` literal; `[M]` `indicator_basis.py:284`'s live false name (`L2[coarse_cells_R1]` on an ENERGY basis) is gone by construction | — |
 | **2.0d** | ⭐ **`measure.quotient_group`** — the field Part IV's own predicate needs and that `[M]` **exists nowhere**: `folded_by` records the DISCRETE fold on the `Quadrature` façade, and *"the slab's quotient group is recorded nowhere"* (Part IV obstacle 2). Derived by `quotient()`, `None` for an unquotiented measure. | `gauss_legendre(8).measure.quotient_group is SubgroupOfO3.SO2`, derived by construction, not declared | — |
@@ -2040,9 +2084,15 @@ deliverable has been silently landed.
 | D0.7 / 2.0 / V.5 | `Manifold` minted; `Basis.domain` restored; the minting inventory | `a0783c2a` |
 | D0.1 / 3.4b / III.4b | the embryo; `Descent` ruled; the dropped four-kernel table restored | `43dd7ee5` |
 | D0.1 | the engine is **deferred, not refused** — the embryo is its SEED | `60c370ae` |
+| XIV | this compaction point + resume surface | `ac30598e` |
+| — | the fold basis's "100 % at `L = 0`" refuted and reconciled | `52880c7a` |
 
-**Branch** `fix/angular-phantom-support`, 7 commits ahead of `main`, pushed.
-⚠ **Nothing is merged.** Trust `git merge-base --is-ancestor`, never this table.
+**Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
+⛔ This table carried *"7 commits ahead of `main`"* until 2026-08-31; two more
+had already landed. A commit COUNT is the field guaranteed to rot — the count
+is deleted rather than corrected. Run `git rev-list --count main..HEAD` for the
+number and `git merge-base --is-ancestor <hash> HEAD` for merge status; never
+read either off this table.
 
 ## ⛔ Corrections that SUPERSEDE older text in this file
 
@@ -2057,6 +2107,7 @@ Read these before quoting any earlier section:
 | `Basis.support` (ruled 2026-08-31 am) | ⛔ **REFUTED same day** — collision unreachable, and `support` is false for a basis. §III.10 |
 | *"the engine is refused"* | ⛔ **DEFERRED, not refused** — and the embryo must be its seed. D0.1 |
 | *"same INTERFACE, second backend"* | ⛔ **too weak** — the requirement is on the DATA MODEL. D0.1 |
+| 2.0a: *"29 `Space` refs, 39 `support=`, 45 `.support`"* | ⛔ **REFUTED at the phase opener** — by AST 87 / 62 / 8, and **53 % of the surface is `tests/`**, a tree the counts never ranged over. §V.5b |
 
 ## Measured baselines and costs
 
