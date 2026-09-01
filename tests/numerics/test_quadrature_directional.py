@@ -437,6 +437,184 @@ def test_q7_4_level_passthroughs_match_underlying_structure() -> None:
     """When level_structure is present, the passthroughs return
     its fields verbatim."""
     q = Quadrature.level_symmetric(4)
-    assert q.n_levels == q.level_structure.n_levels
+    structure = q.level_structure
+    assert structure is not None
+    assert q.n_levels == structure.n_levels
     assert len(q.level_indices) == q.n_levels
-    np.testing.assert_array_equal(q.level_mu, q.level_structure.level_mu)
+    np.testing.assert_array_equal(q.level_mu, structure.level_mu)
+
+
+# ─── Q8: the angular frame's measure is ROUTED, not rebuilt ─────────────
+#
+# Phase 0.1a/0.1c of `.claude/plans/angular_spaces_derived_from_symmetry.md`.
+#
+# ⚠ The keystone here is Q8.1, a ROUTE gate asserting OBJECT IDENTITY —
+# deliberately NOT a value gate.  `[M]` 2026-08-31 (test-architect, 106 tool
+# calls): inverting the routing predicate outright is bit-identical on
+# end-to-end keff across slab/sphere/cylinder and reds 0 of 120 and 0 of 1913.
+# A value gate is structurally blind to the routing decision this change IS
+# (`plan-authoring` §10, third shape — the gate cannot detect its own
+# campaign's success OR failure).  Identity, not equality: equality is what
+# the REBUILT measure already satisfied, which is exactly why it hid the leak
+# for as long as it did.
+
+_ROUTED_RULES = [
+    ("level_symmetric(4)", lambda: Quadrature.level_symmetric(4)),
+    ("level_symmetric(8)", lambda: Quadrature.level_symmetric(8)),
+    ("lebedev(11)", lambda: Quadrature.lebedev(11)),
+    ("lebedev(17)", lambda: Quadrature.lebedev(17)),
+    ("product(4,4)", lambda: Quadrature.product(n_mu=4, n_phi=4)),
+    ("product(4,6)", lambda: Quadrature.product(n_mu=4, n_phi=6)),
+    ("folded_product(2,4)", lambda: Quadrature.folded_product(n_mu=2, n_phi=4)),
+    ("folded_product(4,8)", lambda: Quadrature.folded_product(n_mu=4, n_phi=8)),
+]
+
+_LIFTED_RULES = [
+    ("gauss_legendre(2)", lambda: Quadrature.gauss_legendre(2)),
+    ("gauss_legendre(8)", lambda: Quadrature.gauss_legendre(8)),
+]
+
+
+@pytest.mark.parametrize(
+    "make", [r[1] for r in _ROUTED_RULES], ids=[r[0] for r in _ROUTED_RULES]
+)
+def test_q8_1_sphere_rules_hand_the_frame_their_OWN_measure(make) -> None:
+    """⭐ KEYSTONE. A rule whose nodes already are three-component directions
+    hands ``angular_frame`` its own measure — by IDENTITY, not by rebuilding
+    an equal one.
+
+    `[M]` 2026-09-01, before this landed: ``frame.measure is q.measure`` was
+    ``False`` on 12 of 12 shipped rules; after, ``True`` on the 10 that route.
+    """
+    q = make()
+    for L in (0, 1, 2):
+        assert q.angular_frame(L).measure is q.measure
+
+
+@pytest.mark.parametrize(
+    "make", [r[1] for r in _ROUTED_RULES], ids=[r[0] for r in _ROUTED_RULES]
+)
+def test_q8_2_routing_carries_all_three_truths_the_rebuild_destroyed(make) -> None:
+    """The rebuilt measure carried only nodes/weights/a literal support, so it
+    silently dropped three things the rule knows. Identity restores all three
+    at once — this pins each SEPARATELY, so a future partial copy cannot pass.
+
+    `[M]` 2026-09-01 before the carve: support was falsified on 4 of 12 rules
+    (2 slab + 2 fold), ``invariance_group`` on 10 of 12, ``exactness`` on 10 of 12.
+
+    ⚠ **Not every clause bites on every row, and the count is stated rather
+    than silently claimed** (``vv-principles`` #20). The two folded rules carry
+    ``invariance_group = None`` and ``exactness = None`` on their OWN measure —
+    deliberately, since a σ_y-quotient of an ``O_h``-invariant measure is not
+    ``O_h``-invariant (pinned at ``test_measure.py:353`` and ``:949``) — so for
+    those two rows those clauses read ``None is None`` and cannot fail. `[M]`
+    the mutation arithmetic shows it exactly: stripping the group reds **6** of
+    these 8 rows, forging the support reds the complementary **2**, and the
+    full pre-carve rebuild reds all **8**.
+    """
+    q = make()
+    m = q.angular_frame(2).measure
+    assert m.support == q.measure.support
+    assert m.invariance_group is q.measure.invariance_group
+    assert m.exactness is q.measure.exactness
+
+
+def test_q8_3_the_fold_keeps_its_quotient_tag_all_the_way_to_the_frame() -> None:
+    """0.1c. ``folded_product`` declares the quotient :math:`S^2/\\sigma_y` —
+    the measure layer has spoken quotients all along — and the rebuild
+    overwrote it with :math:`S^2`, so the frame asserted a domain twice the
+    size of the one its nodes cover.
+
+    This is the one row of the carve that is NOT bit-identical in its tag:
+    ``frame.measure_space`` moves ``L2[S^2]`` → ``L2[S^2/sigma_y]``.
+    """
+    q = Quadrature.folded_product(n_mu=4, n_phi=8)
+    assert q.measure.support == "S^2/sigma_y"
+    assert q.angular_frame(2).measure.support == "S^2/sigma_y"
+    assert q.angular_frame(2).measure_space.name == "L2[S^2/sigma_y]"
+    # …and an UNfolded sibling of the same family still says S^2, so the
+    # assertion above is discriminating rather than a tautology on the tag.
+    assert Quadrature.product(n_mu=4, n_phi=8).angular_frame(2).measure_space.name == "L2[S^2]"
+
+
+@pytest.mark.parametrize(
+    "make", [r[1] for r in _LIFTED_RULES], ids=[r[0] for r in _LIFTED_RULES]
+)
+def test_q8_4_the_1d_lift_is_still_a_FICTION_and_says_so(make) -> None:
+    """⚠ SELF-RETIRING. A 1-D rule does NOT route, because the map it would
+    need does not exist: a point of :math:`[-1,1]` is an ORBIT of the
+    :math:`SO(2)` action, not a point of :math:`S^2`. The arrow that exists
+    runs the other way (the quotient :math:`S^2 \\to [-1,1]`).
+
+    So ``angular_frame`` still pads :math:`\\mu` to :math:`(\\mu, 0, 0)` and
+    calls the result :math:`S^2` — ERR-080's construction, kept deliberately
+    and named at
+    :meth:`Quadrature._harmonic_frame_measure`.
+
+    ⏏ **This test is the retirement trigger.** When Phase 3.4 gives the 1-D
+    chart its trivial isotypic sub-basis, the branch disappears and this gate
+    goes RED — which is what forces it to be rewritten rather than silently
+    outlived.
+    """
+    q = make()
+    frame_measure = q.angular_frame(2).measure
+    assert frame_measure is not q.measure
+    assert q.measure.support == "[-1,1]"
+    assert frame_measure.support == "S^2"          # the fiction, stated
+    assert q.measure.nodes.ndim == 1
+    assert frame_measure.nodes.shape == (q.N, 3)
+    # the fabricated azimuth: every node is padded onto the phi = 0 meridian
+    np.testing.assert_array_equal(frame_measure.nodes[:, 1], np.zeros(q.N))
+    np.testing.assert_array_equal(frame_measure.nodes[:, 2], np.zeros(q.N))
+
+
+@pytest.mark.parametrize(
+    "make", [r[1] for r in _ROUTED_RULES], ids=[r[0] for r in _ROUTED_RULES]
+)
+def test_q8_5_routing_moved_no_numbers(make) -> None:
+    """A REGRESSION FLOOR, explicitly NOT the keystone (see the section header):
+    it cannot see the routing decision, only that the decision moved no values.
+
+    The nodes the rebuild produced were ``np.array_equal`` to the rule's own on
+    every routed rule (`[M]` 10 of 12, exact shapes), so identity costs nothing
+    numerically — that is what makes 0.1a landable ahead of 3.4.
+    """
+    q = make()
+    m = q.angular_frame(2).measure
+    rebuilt = np.column_stack([q.axis_cosines(0), q.axis_cosines(1), q.axis_cosines(2)])
+    np.testing.assert_array_equal(m.nodes, rebuilt)
+    np.testing.assert_array_equal(m.weights, q.weights)
+
+
+@pytest.mark.parametrize(
+    "make",
+    [r[1] for r in _ROUTED_RULES + _LIFTED_RULES],
+    ids=[r[0] for r in _ROUTED_RULES + _LIFTED_RULES],
+)
+def test_q8_6_frame_table_still_equals_spherical_harmonics_bit_for_bit(make) -> None:
+    """``angular_frame(L).table`` == ``spherical_harmonics(L)``, bit for bit.
+
+    ⚠ This gate exists BECAUSE of 0.1a, and it is the interesting kind of
+    debt: the claim is old, the guarantee behind it is new and weaker.
+    ``angular_frame``'s docstring has always asserted this equality, and until
+    2026-09-01 it was true **by construction** — both spellings shared one
+    literal ``column_stack(axis_cosines(0..2))`` expression, so no input could
+    separate them. Routing the measure makes the two sides *independently
+    assembled*: the frame reads ``measure.nodes``, ``spherical_harmonics``
+    still column-stacks the cosines. They agree because those arrays are equal,
+    which is a fact about the rules rather than a fact about the code.
+
+    A claim that silently drops from by-construction to by-coincidence is
+    exactly the demotion ``coding-standards`` warns about, and `[M]` nothing in
+    the tree pinned this one — 0 tests compared the two. So it gets a gate.
+
+    ⭐ NOT a tautology: both sides call the same ``SphericalHarmonicBasis``
+    object, and that is fine — the independence lives in the **input
+    assembly**, which is the criterion in
+    ``feedback_verify_shared_primitive_pure_math``. Mutating either assembly
+    path separates them; `[M]` 36 of 36 (12 rules × L ∈ {0,1,2}) agree today,
+    against a positive control comparing mismatched degrees that reads False.
+    """
+    q = make()
+    for L in (0, 1, 2):
+        np.testing.assert_array_equal(q.angular_frame(L).table, q.spherical_harmonics(L))

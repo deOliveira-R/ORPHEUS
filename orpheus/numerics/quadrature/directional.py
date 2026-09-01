@@ -581,18 +581,27 @@ class Quadrature:
         r"""The degree-:math:`L` spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame` on this quadrature.
 
         Binds :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` (degree
-        :math:`L`) to this quadrature's :math:`S^2` measure: the ``(N, 3)``
-        direction cosines (a slab's polar :math:`\mu` embeds as
-        :math:`(\mu, 0, 0)` — the SAME column-stacked embedding
-        :meth:`spherical_harmonics` uses internally) carrying the quadrature
-        weights as the analysis metric. The frame is a pure-Galerkin frame
-        (test IS trial — the SH basis is its own test basis); its
-        :attr:`~orpheus.numerics.frame.FrameBase.analysis` face is the
-        :math:`Y^* W` moment projection :math:`M` and its
+        :math:`L`) to the measure :meth:`_harmonic_frame_measure` supplies —
+        **this quadrature's own measure** whenever its nodes already are
+        three-component directions, and only otherwise a construction (read
+        that method: the 1-D case is ERR-080's fiction, kept deliberately and
+        named). The weights are the analysis metric either way. The frame is a
+        pure-Galerkin frame (test IS trial — the SH basis is its own test
+        basis); its :attr:`~orpheus.numerics.frame.FrameBase.analysis` face is
+        the :math:`Y^* W` moment projection :math:`M` and its
         :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face the
-        addition-theorem synthesis :math:`R`; ``frame.table`` equals
-        :meth:`spherical_harmonics` ``(L)`` bit-identically (both route
-        through :meth:`SphericalHarmonicBasis.evaluate` on these cosines).
+        addition-theorem synthesis :math:`R`.
+
+        ``frame.table`` equals :meth:`spherical_harmonics` ``(L)``
+        bit-identically — `[M]` 2026-09-01, **36 of 36** over 12 shipped rules
+        × :math:`L \in \{0,1,2\}`. ⚠ Read the *reason* rather than inheriting
+        it: until 0.1a both spellings shared one literal ``column_stack`` of
+        the three axis cosines, so they agreed **by construction** and no input
+        could separate them. They are now assembled independently — this frame
+        reads ``measure.nodes``, :meth:`spherical_harmonics` still
+        column-stacks — so the equality is a fact about the shipped rules, not
+        about the code, and it is gated rather than assumed
+        (``tests/numerics/test_quadrature_directional.py``, Q8.6).
 
         The single source of the angular frame consumed by
         :class:`~orpheus.transport.operators.scattering.ScatteringOperator` — its §5.6 kernel
@@ -616,16 +625,65 @@ class Quadrature:
         cached = self._angular_frames.get(L)
         if cached is not None:
             return cached
-        s2_measure = DiscreteMeasure(
+        frame = GalerkinFrame(self._harmonic_basis(L), self._harmonic_frame_measure())
+        self._angular_frames[L] = frame
+        return frame
+
+    def _harmonic_frame_measure(self) -> DiscreteMeasure:
+        r"""The measure :meth:`angular_frame` integrates the harmonics against.
+
+        A spherical harmonic eats a **point of** :math:`S^2 \subset \mathbb{R}^3`,
+        so a rule whose nodes already are three-component directions needs no
+        construction at all: it hands the frame **its own measure**, and the
+        frame's domain is then the rule's, by identity rather than by
+        reconstruction. `[M]` 2026-09-01, 10 of the 12 shipped rules take this
+        route, and on every one of them the previously-constructed nodes were
+        ``np.array_equal`` to the rule's own.
+
+        Routing the measure rather than rebuilding it is what stops three
+        truths being destroyed between the rule and the frame. The rebuilt
+        measure carried only ``nodes``/``weights``/a literal ``support``, so it
+        silently dropped:
+
+        * the **support tag** — `[M]` ``folded_product`` declares
+          :math:`S^2/\sigma_y` and was overwritten with :math:`S^2`, i.e. the
+          frame asserted a domain twice the size of the one its nodes cover;
+        * the **invariance group** — `[M]` carried by 10 of 12 rules and by 0 of
+          12 frames, which is why
+          :attr:`DiscreteMeasure.phase <orpheus.numerics.measure.DiscreteMeasure.phase>`
+          keys on it and *the angular frame's own measure could not say it was
+          angular* (it raised ``NotImplementedError``);
+        * the **exactness claim** — same 10-of-12 / 0-of-12 split, so
+          ``degree_of_exactness`` and ``generating_measure`` both read ``None``
+          on a frame built from a rule that knows both.
+
+        ⚠ **The 1-D arm below is ERR-080's construction, kept deliberately and
+        named** (the ``coding-standards`` transitional-violation idiom — a
+        literal with a retirement trigger, not an anonymous one). It is a
+        *fiction*: there is **no map** :math:`[-1,1] \to S^2` to apply here,
+        because a point of :math:`[-1,1]` is an **orbit** of the
+        :math:`SO(2)` action, not a point of the sphere. The arrow that exists
+        runs the other way — the quotient :math:`S^2 \to [-1,1]`. Padding
+        :math:`\mu` to :math:`(\mu, 0, 0)` picks a representative, and
+        ``_evaluate_real_sh`` then reads the fabricated ``arctan2(0, 0) = 0``
+        as a real azimuth: that is why ``solve_sn(scattering_order >= 2)``
+        returns a wrong answer on every 1-D chart.
+
+        **Retirement trigger:** Phase 3.4 of
+        ``.claude/plans/angular_spaces_derived_from_symmetry.md`` gives the 1-D
+        chart its trivial isotypic sub-basis (a true ``LegendreBasis`` on
+        :math:`[-1,1]`), after which this branch takes the same route as every
+        other rule and the ``if`` disappears with it.
+        """
+        if self.dim == 3:
+            return self.measure
+        return DiscreteMeasure(
             nodes=np.column_stack(
                 [self.axis_cosines(0), self.axis_cosines(1), self.axis_cosines(2)]
             ),
             weights=self.weights,
             support=SPACE_SPHERE,
         )
-        frame = GalerkinFrame(self._harmonic_basis(L), s2_measure)
-        self._angular_frames[L] = frame
-        return frame
 
     # ────────────────────────────────────────────────────────────
     # Octants (cached partition by sign-of-direction)

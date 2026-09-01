@@ -6067,9 +6067,19 @@ older entries classify against.
      (``_evaluate_real_sh``, the :math:`\ell \ge 2` spherical branch:
      ``cos_phi = mu_y / sin_theta``, ``sin_phi = mu_z / sin_theta``,
      ``phi = arctan2(sin_phi, cos_phi)``), reached from
-     ``orpheus/numerics/quadrature/directional.py`` (``angular_frame``, which
-     ``column_stack``\ s ``axis_cosines(0..2)`` and declares the result
-     ``support=SPACE_SPHERE``). Public surface:
+     ``orpheus/numerics/quadrature/directional.py``
+     (``Quadrature._harmonic_frame_measure``, which ``column_stack``\ s
+     ``axis_cosines(0..2)`` and declares the result ``support=SPACE_SPHERE``).
+     ⚠ **Narrowed 2026-09-01** (phase 0.1a of
+     ``.claude/plans/angular_spaces_derived_from_symmetry.md``): that
+     ``column_stack`` used to run for **every** rule, inside ``angular_frame``
+     itself. It now runs **only on the 1-D arm** — a rule whose nodes already
+     are three-component directions hands the frame its own measure, `[M]` 10
+     of the 12 shipped rules — so the forgery is scoped to exactly the rules
+     this entry is about, named, and carries its retirement trigger. It is
+     pinned as a fiction by
+     ``tests/numerics/test_quadrature_directional.py::test_q8_4_the_1d_lift_is_still_a_FICTION_and_says_so``,
+     which goes RED when phase 3.4 removes the branch. Public surface:
      ``solve_sn(..., scattering_order>=2)`` and
      ``solve_sn_fixed_source(..., scattering_order>=2)`` on any 1-D chart.
    - **Class**: **convention drift at a type boundary — two meanings, one set

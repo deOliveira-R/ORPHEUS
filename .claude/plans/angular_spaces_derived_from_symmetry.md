@@ -502,6 +502,80 @@ rigor.
 (`np.array_equal`, exact shapes). The two exceptions are the 1-D rules, where
 the rule's nodes are scalars `(N,)` and the forgery is `(N,3)`.
 
+⛔ **INCOMPLETE — corrected at 0.1a's execution, 2026-09-01. The forgery
+destroys THREE truths, not one.** This section and §II.4's leak inventory both
+enumerate only the **support tag**, because that is the field the campaign is
+*about*. `[M]` by `dataclasses.fields(DiscreteMeasure)` — the type carries five
+fields, and the rebuild passed three:
+
+| field | rules carrying it | frames carrying it (pre-0.1a) | what it gates |
+|---|---|---|---|
+| `support` | 12 of 12 | 12 of 12, **4 FALSIFIED** — 2 slab (`[-1,1]`) + 2 fold (`S^2/sigma_y`), i.e. two distinct tags over four rules | `measure_space`, i.e. an operator face's `domain` |
+| `invariance_group` | **10** of 12 | **0** of 12 | `DiscreteMeasure.phase` (`measure.py:409`) |
+| `exactness` | **10** of 12 | **0** of 12 | `degree_of_exactness`, `generating_measure` |
+
+⭐⭐ **The consequence nobody had looked at: `frame.measure.phase` RAISED
+`NotImplementedError` on ALL 12 rules — the ANGULAR frame's own measure could
+not say it was angular.** `phase` keys on `invariance_group` first and falls
+through to `support.startswith("spatial"|"energy")`, and `'S^2'` matches
+neither. `[M]` `lebedev(17).measure.phase == 'angular'` while
+`lebedev(17).angular_frame(2).measure.phase` raised
+*"phase is undetermined for support 'S^2'"*.
+
+⚠ And the gate that should have caught it names the claim in its **docstring**
+and asserts something weaker in its **body**:
+`test_phase_is_a_closed_category_consistent_with_angular_frame`
+(`tests/numerics/test_measure_phase.py:96`) says *"the angular quadrature's
+frame and its measure both say angular"* and then asserts
+`frame.measure.support == SPACE_SPHERE` — the support TAG, not the phase.
+`[R]` the phase assertion would have raised, so the weaker one is what
+survived. 0.1a makes the docstring's own claim assertable, and the strengthened
+row lands with it (`coding-elegance` anti-pattern #20 — a docstring naming a
+claim the body does not make).
+
+⟹ **the transferable half** (`plan-authoring` §2's quantifier clause, applied
+to a STRUCTURAL enumeration rather than a numeric one): *"the rebuild loses X"*
+is a completeness claim over the **source type's field list**, and its
+denominator is `dataclasses.fields(T)` — not the concept you are chasing. I
+enumerated against the concept and got 1 of 3. One line answers it.
+
+⭐ **`.phase` has ZERO production consumers** (`[M]` by AST over `orpheus/` +
+`tests/`: 6 reads, all in `test_measure_phase.py`; positive control
+`.weights` → 106 in `orpheus/`). So this is a **correctness** repair to an
+authored property, not a live behaviour change — §8's own 2026-08-31
+sharpening, and this time I priced it before writing the warning.
+
+⭐ **A claim 0.1a DEMOTES, found by self-review and closed in the same commit.**
+`angular_frame`'s docstring asserts *"``frame.table`` equals
+``spherical_harmonics(L)`` bit-identically (both route through
+``SphericalHarmonicBasis.evaluate`` **on these cosines**)"*. The parenthetical
+was the *mechanism*: both spellings literally shared one
+`column_stack(axis_cosines(0..2))` expression, so agreement was true **by
+construction**. After 0.1a the frame routes `self.measure.nodes` while
+`spherical_harmonics` still column-stacks, so the claim now holds **because two
+arrays happen to be equal** — strictly weaker, and `coding-standards`' silent
+claim-class demotion with *no gate at all*, only prose.
+`[M]` re-measured across 12 rules × L ∈ {0,1,2}: **36 of 36 bit-identical**,
+with a positive control that reads `False`. `[M]` and **nothing pinned it** —
+0 tests compare the two. ⟹ the docstring's reason is corrected and the claim
+gains the gate it always deserved (`test_q8_6`). It is not a tautology:
+both sides call the same basis object, and independence lives in the **input
+assembly** (measure nodes vs column-stacked cosines) — the
+[[feedback-verify-shared-primitive-pure-math]] criterion.
+
+⚠ **Collateral, and it belongs to 2.0c — not to 0.1a.** After 0.1a the phase
+answers for 8 of 12 rules and still raises for 4: the two 1-D rules (whose
+frame measure is ERR-080's fiction, correct to keep raising until 3.4) **and
+the two FOLDED rules**, whose own measure carries `invariance_group=None`.
+That last one is *deliberate and gated* — `test_measure.py:353` and `:949` pin
+it, and rightly: a σ_y-quotient of an `O_h`-invariant measure is not
+`O_h`-invariant, so inheriting the parent's group would be a false claim.
+The real gap is that `phase`'s fallback is a **string-prefix** test
+(`support.startswith("spatial"|"energy")`), which `'S^2/sigma_y'` cannot match
+— stringly-typed dispatch, exactly what **2.0c** retires by making `support` a
+`Manifold`. ⟹ **2.0c acceptance item: `folded_product(4,8).measure.phase ==
+"angular"`, derived from the manifold rather than from a prefix.**
+
 ## II.9 ⛔ Why 0.1 cannot fully land without 3.4 — the lift does not exist
 
 `[R]`, and it is the reason the coupling is essential rather than incidental.
@@ -746,6 +820,19 @@ I would have written cannot detect its own campaign's success OR failure.
 q.measure` — `[M]` **red today on all 8 rows** (`False`), green after on the 6
 routed rows. Identity, not equality: equality is what the bridge already
 satisfies.
+
+✅ **REMEDIED 2026-09-01 by 0.1a** (`plan-authoring` §3's third case — this row
+did not become *wrong*, it became *past tense*, which is the class nothing
+prompts you to edit). "Red today" is no longer today. Measured over the **12
+shipped rules** rather than R4's own 8-row fixture set: the gate read `False`
+on **12 of 12** before and reads `True` on the **10** that route.
+
+⭐⭐ And R4's ruling was **re-derived independently on the gates it produced**,
+which is stronger than inheriting it: under the exact pre-carve behaviour
+(`m1_always_rebuild`), the value gate `test_q8_5` passes **8 of 8** while the
+route gate `test_q8_1` reds **8 of 8**. The blindness R4 predicted is therefore
+a measurement on this campaign's own committed gates, not a claim carried
+forward from a probe nobody can re-run.
 
 ### ⛔⛔ R4b — the ENTIRE fold-basis machinery has zero solve-path witnesses
 
@@ -2364,9 +2451,9 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 
 | # | item | on exit path? | status |
 |---|---|:---:|---|
-| 0.1a | 3-D rules hand the frame their OWN measure — ⚠ keystone is a **ROUTE** gate (`frame.measure is q.measure`), not bit-identity (§II.15 R4) | ⏏ yes | ☐ |
-| 0.1b | the 1-D rows — ⛔ **rides 3.4**, the lift does not exist (§II.9) | ⏏ yes | ☐ (with 3.4) |
-| 0.1c | the fold's `S^2/sigma_y` tag — ⛔ §8 hazard REFUTED (0 reds; 0/145 089 checks); was blocked on **2.1-W** | ⏏ yes | ☐ ✅ **UNBLOCKED** — 2.1-W landed, so a carve on the fold path is now falsifiable at the eigenvalue tier |
+| 0.1a | 3-D rules hand the frame their OWN measure — ⚠ keystone is a **ROUTE** gate (`frame.measure is q.measure`), not bit-identity (§II.15 R4) | ⏏ yes | ✅ **LANDED** — `Quadrature._harmonic_frame_measure`; `[M]` route gate **0 of 12 → 10 of 12**, nodes/weights bit-identical on all 10, and the forgery's **other two** losses reversed (§II.8's correction). Gates Q8.1–Q8.5, per-arm mutation battery 5/5 caught with a call counter |
+| 0.1b | the 1-D rows — ⛔ **rides 3.4**, the lift does not exist (§II.9) | ⏏ yes | ☐ (with 3.4) — ⭐ the fiction is now NAMED and self-retiring: `test_q8_4` goes RED the day 3.4 removes the branch |
+| 0.1c | the fold's `S^2/sigma_y` tag — ⛔ §8 hazard REFUTED (0 reds; 0/145 089 checks); was blocked on **2.1-W** | ⏏ yes | ✅ **LANDED with 0.1a** — `[M]` `folded_product` frames move `L2[S^2]` → `L2[S^2/sigma_y]`; gated by `test_q8_3` with an unfolded discriminating control |
 | 0.2 | phantom component unspellable — ⛔ means REFUTED by the census; **runs AFTER 0.1**, then it is the accessor SPLIT (direction vs flow) | ⏏ yes | ☐ |
 | 0.2-census | full-suite phantom census (moved here from 2.4) | ⏏ yes | ✅ **DISCHARGED** — §II.14, 13 trees rc=0, 11 sites / 1604 reads |
 | 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ✅ `ae4dbc1f` |
@@ -2531,7 +2618,7 @@ Part XIII — do not copy it here (`plan-authoring` §9).
 | # | items | why here |
 |---|---|---|
 | 1 | **0.1a**, **0.1c** | Phase 0 is unconditional. ⭐ **0.1c is substantially de-risked**: its stated gate was *"a §8 blast-radius measurement of `FunctionSpace` equality"*, and §V.5d measured the general machinery — `[M]` `name` IS space identity and `Manifold.name` reproduces every production support tag bit-identically, `'S^2/sigma_y'` included, with exactly two exceptions (§V.5d(f2)). What remains is the same measurement on the specific carve |
-| 2 | **0.2** | the accessor SPLIT. Depends on 0.1, which deletes 92 % of the reads. ⛔ its ORIGINAL means (a blanket `raise`) is REFUTED by its own census — 3 legitimate production consumers ask the FLOW question, for which zero is the right answer |
+| 2 | **0.2** | the accessor SPLIT. Depends on 0.1, which deletes 92 % of the reads. ⛔ its ORIGINAL means (a blanket `raise`) is REFUTED by its own census — 3 legitimate production consumers ask the FLOW question, for which zero is the right answer. ⭐ **0.1a has now landed, so the "92 %" is no longer an inherited estimate — it is directly measurable, and measuring it IS 0.2's opener**: re-run `scratch/_phantom_census_plugin.py` (re-runnable by construction; it is 0.2's own done-when) and compare against the discharged census (11 sites / 1604 reads, §II.14). Do not carry the 92 % forward — it was predicted before the carve, and a predicted-then-measured pair with only the prediction written is `plan-authoring` §2 |
 | 3 | **2.1** | ⭐ smaller than 2.0c and the only remaining item that repairs something ALREADY WRONG: `[M]` a 2-group ENERGY space and a 2-cell SPATIAL space are `==`-equal AND hash-equal, across 26 space-comparing sites (§V.5d(e)) |
 | 4 | **2.0c** | the retype, now unblocked. Absorbs 2.0d. `[M]` 54 literals + 5 f-strings, 94 % of the literals in `tests/` |
 | 5 | **2.1b**, **2.3**, **2.4** | G0's other side; the typed `Chart`; the slab's declared quotient group |
@@ -2609,6 +2696,8 @@ Landed and callable: `class Ball` `manifold.py:459` · `class FundamentalDomain`
 | §V.5d | the 2.0c/2.0d opener — the step is BLOCKED, 2.0d dissolves, the order changes | `991097fb` |
 | **1.1 σ_y** | ⭐ **`S²/σ_y` derived + `Quotient`'s TWO coordinate systems** (user-ruled) — `Ball`, `FundamentalDomain`, the construction invariant, `singular_stratum` retyped | `b55bba56` |
 | **1.1 docs** | the corpus pass — and it REFUTED my dimension-coincidence claim, plus 3 code defects | `bf9296a1` |
+| XIV | compaction point 2 — the exit path unblocked, and its ORDER | `4a5ac108` |
+| **0.1a + 0.1c** | ⭐ **the frame stops forging its own domain** — `_harmonic_frame_measure` routes the rule's measure; the 1-D fiction is named + self-retiring. `[M]` route gate 0→10 of 12; §II.8's *three* losses reversed; 5-arm mutation battery, every arm's red count reconciling to zero unexplained units | *(this commit)* |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
 ⛔ No commit COUNT is recorded here — it is the field guaranteed to rot. Run
@@ -2644,6 +2733,8 @@ Read these before quoting any earlier section:
 | 2.0a-R: *"`AngularSymmetry.support` is an un-briefed Pattern-2 twin"* | ⛔ **NOT a twin** — it computes `S²/G⁰`, the CONTINUOUS isotropy; a mirror is in the discrete residual Γ, a row it cannot answer. **2.2 still owes the second slot.** The 2.0a-R block |
 | *"`Basis.domain` 0 of 6 subclasses"* | ⛔ **0 of 5** — `[M]` `Basis` has 3 direct / 5 recursive subclasses. The claim held; the denominator did not |
 | 0.1/L1's site `directional.py:587-593` | ⛔ **DRIFTED** — `[M]` 2026-09-01 the fabrication is at **`:624`**; `angular_frame` begins at `:580` |
+| §II.4 + §II.8: the forgery destroys the **support tag** | ⛔ **INCOMPLETE — it destroys THREE fields.** `[M]` `invariance_group` (10 of 12 rules → 0 of 12 frames) and `exactness` (same split) were dropped too, so `frame.measure.phase` RAISED on all 12. §II.8's correction block |
+| §II.15 R4 (*a value gate cannot be the keystone*) | ✅ **RE-DERIVED INDEPENDENTLY at 0.1a**, on my own gates rather than inherited: under the exact pre-carve mutation the value gate `test_q8_5` passes **8 of 8** while the route gate `test_q8_1` reds **8 of 8** |
 
 ## Measured baselines and costs
 

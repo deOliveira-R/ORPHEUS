@@ -94,8 +94,23 @@ def test_untagged_generic_rule_phase_raises(make):
 @pytest.mark.foundation
 def test_phase_is_a_closed_category_consistent_with_angular_frame():
     """``phase`` agrees with the ``angular_frame`` axis name — the angular
-    quadrature's frame and its measure both say "angular"."""
+    quadrature's frame and its measure both say "angular".
+
+    ⭐ The last assertion is the one this docstring always claimed and could
+    not make. Until 2026-09-01 ``angular_frame`` REBUILT its measure from bare
+    nodes + weights + a literal support, dropping the ``invariance_group``
+    that ``phase`` derives from — so ``frame.measure.phase`` raised
+    ``NotImplementedError`` on all 12 shipped rules, including this one, whose
+    own measure answers ``"angular"`` correctly one line above. The assertable
+    substitute was the support TAG, which is what the body settled for.
+
+    Phase 0.1a of ``.claude/plans/angular_spaces_derived_from_symmetry.md``
+    routes the rule's own measure into the frame, so the claim is now true and
+    checkable. Both assertions are kept: the tag one is the weaker statement
+    and remains a genuine pin on the routing.
+    """
     q = Quadrature.lebedev(order=17)
     assert q.measure.phase == "angular"
     # the frame built on it is the angular frame on the same (angular) measure
     assert q.angular_frame(2).measure.support == SPACE_SPHERE
+    assert q.angular_frame(2).measure.phase == "angular"

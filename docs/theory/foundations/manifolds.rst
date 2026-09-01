@@ -337,6 +337,32 @@ declares the result ``support=SPACE_SPHERE``. The rows are then
 :math:`\lVert\Omega\rVert = |\mu| \neq 1`: points of :math:`[-1,1]`,
 not of :math:`S^2`.
 
+.. note::
+
+   **Scoped, 2026-09-01.** The paragraph above is now a statement about the
+   **1-D arm alone**, and that is the whole of the change: the
+   ``column_stack`` used to run for *every* rule, so a Lebedev or
+   level-symmetric frame also rebuilt a measure it had been handed. Today a
+   rule whose nodes already are three-component directions hands the frame
+   **its own measure**, and the construction survives only where there is
+   genuinely nothing honest to build — `[M]` 10 of the 12 shipped rules route,
+   2 do not. It lives in :meth:`Quadrature._harmonic_frame_measure
+   <orpheus.numerics.quadrature.directional.Quadrature._harmonic_frame_measure>`
+   with its retirement trigger written beside it.
+
+   ⭐ The repair also reversed two losses this page did not record, because
+   they are not what the forgery is *about*: the rebuilt measure carried three
+   of :class:`~orpheus.numerics.measure.DiscreteMeasure`'s five fields, so it
+   dropped ``invariance_group`` and ``exactness`` as well as falsifying
+   ``support``. `[M]` 10 of 12 rules carry a group, **0 of 12 frames did** —
+   and since :attr:`DiscreteMeasure.phase
+   <orpheus.numerics.measure.DiscreteMeasure.phase>` keys on that group, *the
+   angular frame's own measure could not say it was angular*: it raised
+   ``NotImplementedError`` on all twelve. ⟹ the transferable form, worth more
+   than the instance: **"the rebuild loses X" is a completeness claim over the
+   source type's FIELD LIST**, and its denominator is
+   ``dataclasses.fields(T)`` — not the concept you happen to be chasing.
+
 `[M]` reproduced 2026-08-31 on
 ``Quadrature.gauss_legendre(8).angular_frame(2)``, reading the
 production measure's own nodes:
