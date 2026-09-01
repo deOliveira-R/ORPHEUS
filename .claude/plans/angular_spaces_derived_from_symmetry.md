@@ -1716,6 +1716,92 @@ hard-codes one of three). ⛔ **2.0c's done-when cannot own it** — `plan-autho
    census found all five — the L61(c)/`nexus-tools` ugrep hazard, live again.
    Every count in this section is AST or runtime, each with a positive control.
 
+### ⭐ RULED 2026-08-31 (user) — `Quotient` carries TWO coordinate systems
+
+§V.5d(b) put the fork to the user; the ruling is **two slots**, and the
+reasoning is worth more than the choice.
+
+`realization` **keeps** its documented meaning — the chart codomain, in the
+INVARIANTS' language, the same language as `generators`, `gram` and `det_gram`,
+so it stays consistent with its six neighbours. A new
+`fundamental_domain: Manifold | None` carries the **section's image**, in the
+BASE's coordinates — which is what `DiscreteMeasure.quotient` actually emits,
+since it keeps `nodes[representative]`, a selection applying no chart.
+`Quotient.contains` accepts either and dispatches on ambient width; `_ambient`
+still reports the realization's, because a `Product` factor needs one canonical
+width.
+
+**⛔ The three alternatives, all measured, all refused** (`process-discipline`:
+a refuted candidate is first-class output, with its structural reason):
+
+| candidate | why it fails |
+|---|---|
+| `realization = SPHERE` | refuses the ERR-080 forgery but **ADMITS the mirrored orbit twins**; `[M]` `Quotient.contains` becomes bit-for-bit `SPHERE.contains` — a predicate that cannot distinguish `M/H` from `M`. Also topologically false: `D² ≇ S²` (`χ = 1` vs `2`) |
+| the disk ALONE (chart only) | ⛔ **Mode-12 BLIND to ERR-080** — the chart `(x,y,z) ↦ (x,z)` drops exactly the coordinate the forgery corrupts, so `(μ,0)` is a legal disk point. `[M]` `max \|(μ,0)\|² = 0.9221566084920586` over the 8 forged rows, all inside |
+| `Product(COSINE_INTERVAL, COSINE_INTERVAL)` | the bounding **square**, not the disk. `[M]` witness `(0.9, 0.9)` is in the square, not the disk, and is **no direction at all** (`η²+μ² = 1.62 > 1` forces `ξ² < 0`) |
+
+**⭐⭐ And the finding the fork produced, which is larger than the fork:
+ERR-080 is a botched SECTION of `S²/SO(2)`.** `[M]` the tree's 3-D embedding of
+a 1-D rule is `(μ, 0, 0)` — norms `0.960, 0.797, 0.526, 0.183`,
+`SPHERE.contains → False` — while an honest `φ = 0` half-meridian
+`μ ↦ (√(1−μ²), 0, μ)` is on the sphere to `0.0`. The realization is a **chart**;
+a consumer needed a **section**; the tree fabricated one by zero-padding. With
+the second slot that padding has nowhere to live.
+⚠ **Level-1 only.** It makes the nodes points of the manifold. The level-2 half
+is untouched and is still the trivial isotypic sub-basis (tracker 3.4).
+
+**The structural asymmetry**, which is why one worked entry could not expose
+this: for a **positive-dimensional** group the chart is a genuine reduction
+(`3 → 1` floats) and no section is canonical; for a **finite reflection** the
+chart is no reduction (`3 → 2`, the third recoverable) and the section IS
+canonical — a *strict* fundamental domain. Both choices are locally correct;
+the TYPE was what had to serve both.
+
+### ✅ What landed with the ruling
+
+* **`Ball(d)`** — the closed unit ball, `name = "D^d"`. Minted because `S²/σ_y`
+  IS the closed 2-disk in invariant coordinates and nothing could say so.
+* **`FundamentalDomain(base, normals, label)`** — `base ∩ ⋂{⟨p,n⟩ ≥ 0}`.
+  ⭐ An antipodal PAIR spells an equality, so ONE tuple expresses both the σ_y
+  hemisphere (`dim 2`) and an `SO(2)` half-meridian (`dim 1`), and
+  `dim = base.dim − (antipodal pairs)` is what the new `Quotient.__post_init__`
+  gates against the realization's `dim` — a real check, since the two derive
+  their dimension by different routes.
+* ⛔ **The half-spaces are CLOSED, not strict**, and the reason is measured, not
+  stylistic: `[M]` the cylindrical march seeds every level at `ξ = 0` exactly —
+  ON the stratum — so `> 0` would refuse a direction production marches from.
+  `coding-elegance` #18's half (ii), which is a claim about the PRODUCERS and is
+  the half that gets skipped.
+* **`_sphere_mod_mirror`** — one derivation, three catalogue keys
+  (`sigma_x/y/z`); it reads the axis off the group. Syzygy empty **by theorem**
+  (Chevalley–Shephard–Todd: a reflection group's invariant ring is polynomial),
+  `P = diag(1,1,4p₃)`, `det P = 4p₃`, realization `Ball(2)`.
+* ⛔ **`singular_stratum` RETYPED** `tuple[float, ...] → Any | None` — a SymPy
+  locus in the realization's coordinates, `None` ⟺ free. `S²/σ_y`'s stratum is
+  the disk's boundary **circle**; the first entry's SHAPE had become the field's
+  type. It stays STORED (not derived) for a reason that survives review:
+  recovering it needs the BASE's ideal (`4p₂ → 4(1−μ²)` only after
+  `p₁²+p₂ = 1`), which a `Quotient` does not carry — the type cannot recompute
+  it, which is exactly when storing is right. Contrast 2.0d's `quotient_group`,
+  which the type CAN recompute and therefore must not store.
+
+**`[M]` the acceptance measurement, on production data**, all four legs:
+
+| input | verdict |
+|---|---|
+| `folded_product(4,8).measure.nodes` `(16,3)` | **ADMITTED** (section) |
+| the mirrored orbit twins (`μ_y → −μ_y`) | **REFUSED** |
+| the ERR-080 forgery `(8,3)`, not unit-norm | **REFUSED** |
+| the charted form `(16,2)` | **ADMITTED** (chart) |
+
+Mutation battery, per arm, restored byte-identical against a copy-aside:
+whole-predicate control **3 reds** (both arms) · section dispatch disabled **2**
+· half-spaces dropped **1** · strict-`>` **1** · `Ball` opened **1** ·
+construction invariant off **1** — each the gate that names it. ⚠ The first
+control attempt reddened only 1 and was **not** a control: it mutated one arm of
+the new two-language dispatch (`vv-principles` #17's granularity trap, live).
+
+
 ### The re-ordered exit path
 
 ⟹ **1.1(σ_y) → 2.0c (retype + the derived `quotient_group`) → 2.1 → 2.1b →
@@ -2270,7 +2356,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 0.5 | `spherical_harmonics.rst` rank-deficiency correction | ⏏ yes | ✅ `ae4dbc1f` |
 | 0.6 | `_evaluate_real_sh` raises on non-unit directions | ⏏ yes | ☐ (rides 3.4 — XII.1b) |
 | 0.7 | strict-xfail reproducer gate + **ERR-080** minted | ⏏ yes | ✅ `ae4dbc1f` |
-| 1.1 | catalog derivations — **`SO(2)/S²` entry is on the path**; ⭐ **and so is `S²/σ_y`, which now PRECEDES 2.0c** (§V.5d(a): `[M]` the catalogue has ONE entry and `SPHERE.quotient(Mirror('y'))` raises, so the retype cannot land without it) | ⏏ **yes** | ▶ **NEXT** — blocked on the §V.5d(b) representation ruling (section vs invariant chart) |
+| 1.1 | catalog derivations — the `S²/σ_y` entry (the shipped fold), which §V.5d(a) showed PRECEDES 2.0c | ⏏ **yes** | ✅ **σ_y LANDED** — `_sphere_mod_mirror` (one derivation, 3 mirror keys), `Ball`, `FundamentalDomain`, `Quotient`'s two slots + construction invariant, `singular_stratum` retyped. `[M]` 4-leg acceptance on production nodes; 6-arm mutation battery, each arm its own gate; pyright 0. ⭐ The user's two-slot ruling is in §V.5d. **Remaining under 1.1:** the other catalogue entries (not on the exit path) |
 | 1.2 | Gelfand-pair reading of Funk–Hecke | no | ☐ |
 | 1.3 | connection-term verify-or-kill | no | ☐ |
 | 1.4 | record the four gates | no | ☐ |

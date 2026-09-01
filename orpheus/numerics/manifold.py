@@ -454,6 +454,108 @@ class Product(Manifold):
 
 
 @dataclass(frozen=True)
+class Ball(Manifold):
+    r"""The closed unit ball :math:`D^d = \{p \in \mathbb{R}^d : \|p\| \le 1\}`.
+
+    Minted 2026-08-31 because the derivation demanded it: ``S^2/sigma_y``
+    IS the closed 2-disk in invariant coordinates, and no shipped member
+    could say so.  ``Product(COSINE_INTERVAL, COSINE_INTERVAL)`` is the
+    bounding SQUARE, and the discriminator is measured — ``(0.9, 0.9)``
+    is in the square and not in the disk, and it corresponds to NO
+    direction, since ``eta^2 + mu^2 = 1.62 > 1`` forces ``xi^2 < 0``.
+    """
+
+    d: int
+
+    @property
+    def dim(self) -> int:
+        return self.d
+
+    @property
+    def name(self) -> str:
+        return f"D^{self.d}"
+
+    def contains(self, points: ArrayLike) -> bool:
+        arr = self._as_points(points, self.d)
+        return bool(
+            np.all(np.isfinite(arr))
+            and np.all(
+                np.sum(arr * arr, axis=1) <= 1.0 + _MEMBERSHIP_ATOL
+            )
+        )
+
+
+@dataclass(frozen=True)
+class FundamentalDomain(Manifold):
+    r"""A strict fundamental domain of :math:`H` acting on ``base`` — the
+    IMAGE of a section of :math:`M \to M/H`, in the BASE's coordinates.
+
+    Cut from ``base`` by closed half-spaces
+    :math:`\langle p, n_i \rangle \ge 0`.  One normal cuts a half-space;
+    an antipodal PAIR :math:`\{n, -n\}` cuts the hyperplane
+    :math:`\langle p, n \rangle = 0`, so equalities need no second slot —
+    which is why one tuple expresses both the :math:`\sigma_y` hemisphere
+    and the :math:`SO(2)` half-meridian.
+
+    ⭐ **This is the OTHER half of a quotient, and the tree has always
+    needed it.**  :meth:`~orpheus.numerics.measure.DiscreteMeasure.quotient`
+    computes orbit representatives and then keeps ``nodes[representative]``
+    — a SELECTION, applying no chart — so every measure it emits carries
+    the base's ambient columns.  A chart codomain
+    (:attr:`Quotient.realization`) cannot validate those points; only a
+    fundamental domain can.
+
+    ⛔ **The inequalities must be CLOSED.**  ``[M]`` the cylindrical march
+    seeds a level at :math:`\xi = 0` exactly — on the stratum — so a strict
+    :math:`\langle p, n \rangle > 0` would refuse a direction production
+    marches from (`coding-elegance` anti-pattern #18's half (ii): every
+    legal value must be admitted, which is a claim about the PRODUCERS).
+    """
+
+    base: Manifold
+    #: Outward normals of the closed half-spaces, in the base's ambient
+    #: coordinates.  An antipodal pair spells an equality.
+    normals: tuple[tuple[float, ...], ...]
+    #: Short label for :attr:`name` (e.g. ``"xi>=0"``), since a normal
+    #: tuple makes an unreadable one.
+    label: str
+
+    @property
+    def dim(self) -> int:
+        """``base.dim`` less one per antipodal pair (each is an equality).
+
+        An inequality carves a region WITH BOUNDARY and does not drop
+        dimension; an equality does.  This is what lets the σ_y
+        hemisphere read 2 and the SO(2) half-meridian read 1 from one
+        rule — and :class:`Quotient` gates it against the chart.
+        """
+        seen = {tuple(n) for n in self.normals}
+        pairs = sum(
+            1
+            for n in seen
+            if tuple(-c for c in n) in seen and n < tuple(-c for c in n)
+        )
+        return self.base.dim - pairs
+
+    @property
+    def name(self) -> str:
+        return f"{self.base.name}|{self.label}"
+
+    def contains(self, points: ArrayLike) -> bool:
+        arr = self._as_points(points, _ambient(self.base))
+        if not self.base.contains(arr):
+            return False
+        # Closed half-spaces — see the class docstring's ⛔ note on why
+        # this may not be strict.
+        return bool(
+            all(
+                np.all(arr @ np.asarray(n, dtype=float) >= -_MEMBERSHIP_ATOL)
+                for n in self.normals
+            )
+        )
+
+
+@dataclass(frozen=True)
 class Quotient(Manifold):
     r"""The orbit space :math:`M/H`, and the derivation that produced it.
 
@@ -475,7 +577,26 @@ class Quotient(Manifold):
     by: "SubgroupOfO3"
     #: The orbit space realized as an honest manifold — what a chart of
     #: ``M/H`` maps ONTO.  For ``S^2/SO(2)`` this is ``Interval(-1, 1)``.
+    #: Its coordinates are the INVARIANTS', the same language as
+    #: :attr:`generators`, :attr:`gram` and :attr:`det_gram`.
     realization: Manifold
+    #: The section's IMAGE, in the BASE's coordinates — the other of the
+    #: quotient's two honest coordinate systems (user ruling,
+    #: 2026-08-31).  ``None`` when no canonical section exists, which for
+    #: a positive-dimensional group is the normal case: any half-meridian
+    #: sections ``S^2 -> S^2/SO(2)`` and none is distinguished.
+    #:
+    #: ⭐ Why a SECOND slot rather than a wider ``realization``: the two
+    #: answer different questions and the tree needs both.  ``[M]`` the
+    #: chart is Mode-12 BLIND to the ERR-080 forgery — ``(x,y,z) -> (x,z)``
+    #: drops exactly the coordinate the forgery corrupts, so the forged
+    #: row ``(mu, 0)`` is a legal point of the disk — while the section
+    #: refuses it.  And ``[M]`` ERR-080 IS a botched section of
+    #: ``S^2/SO(2)``: a consumer needed one, the realization is a chart,
+    #: and the tree fabricated one by zero-padding to ``(mu, 0, 0)``,
+    #: which is off ``S^2``.  With this slot that padding has nowhere to
+    #: live.
+    fundamental_domain: Manifold | None = None
     #: Minimal generators of the invariant ring, as SymPy expressions in
     #: the ambient coordinates.  ``()`` is a legal value only for the
     #: trivial group.
@@ -496,6 +617,32 @@ class Quotient(Manifold):
     #: without this field the migration would have to be all-or-nothing.
     derived_by: str = "hand"
 
+    def __post_init__(self) -> None:
+        r"""The two coordinate systems must describe the SAME orbit space.
+
+        A chart codomain and a fundamental domain are two honest views of
+        one object, so their dimensions must agree — and that is a real
+        check, not a tautology: the fundamental domain derives its ``dim``
+        from the base less one per antipodal normal pair, while the
+        realization states its own.  ``[M]`` the sigma_y hemisphere reads
+        2 against the disk's 2, and an ``SO(2)`` half-meridian would read
+        1 against ``[-1,1]``'s 1 — so a mis-specified entry (a hemisphere
+        offered for a 1-D orbit space, an equality normal forgotten) is
+        refused where it is written, not where it is read.
+        """
+        if self.fundamental_domain is None:
+            return
+        if self.fundamental_domain.dim != self.realization.dim:
+            raise ValueError(
+                f"{self.name}: the fundamental domain "
+                f"{self.fundamental_domain.name!r} has dim "
+                f"{self.fundamental_domain.dim} but the realization "
+                f"{self.realization.name!r} has dim "
+                f"{self.realization.dim} — the two must describe the same "
+                f"orbit space. Check the normals: an antipodal PAIR spells "
+                f"an equality and drops a dimension; a lone normal does not."
+            )
+
     @property
     def dim(self) -> int:
         return self.realization.dim
@@ -505,19 +652,50 @@ class Quotient(Manifold):
         return f"{self.base.name}/{self.by.name}"
 
     def contains(self, points: ArrayLike) -> bool:
-        """Membership is decided in the REALIZATION's coordinates."""
-        return self.realization.contains(points)
+        r"""Membership, in EITHER of the quotient's two coordinate systems.
+
+        A point of :math:`M/H` may be given as chart coordinates (the
+        :attr:`realization`'s language) or as a representative in the base
+        (the :attr:`fundamental_domain`'s).  Both are honest and the type
+        knows both, so it accepts both and dispatches on the ambient
+        width — the one place the distinction is a genuine local split
+        rather than a repeated tag test.
+
+        ⚠ :func:`_ambient` still reports the REALIZATION's width: that is
+        the canonical coordinate for composition (a :class:`Product`
+        factor must have one width).  This method is deliberately the
+        wider of the two.
+        """
+        arr = np.atleast_1d(np.asarray(points, dtype=float))
+        chart = _ambient(self.realization)
+        if self.fundamental_domain is not None:
+            section = _ambient(self.fundamental_domain)
+            width = arr.shape[1] if arr.ndim == 2 else 1
+            if width == section and section != chart:
+                return self.fundamental_domain.contains(arr)
+        return self.realization.contains(arr)
 
     @property
     def is_free(self) -> bool:
         """``True`` iff the action has no fixed points, i.e. no stratum."""
-        return self.singular_stratum == ()
+        return self.singular_stratum is None
 
-    #: Points of the realization where ``det P`` vanishes — the singular
-    #: stratum, DERIVED rather than declared (nothing declares what it
-    #: can derive).  Recorded as the explicit locus for a catalogued
-    #: entry; an engine solves ``det P = 0`` to populate it.
-    singular_stratum: tuple[float, ...] = ()
+    #: The singular stratum as a LOCUS: a SymPy expression in the
+    #: realization's coordinates whose vanishing set is the stratum, or
+    #: ``None`` for a free action.
+    #:
+    #: ⛔ This was ``tuple[float, ...]`` until 2026-08-31 and could not
+    #: hold the second catalogued entry: ``S^2/sigma_y``'s stratum is the
+    #: disk's boundary CIRCLE, not a finite point set.  The first entry's
+    #: shape had become the field's type — a stratum is a locus, and two
+    #: poles are a locus that happens to be finite.
+    #:
+    #: It is derivation OUTPUT, not a stored copy of :attr:`det_gram`:
+    #: recovering it needs the BASE's own ideal (``det P = 4 p_2`` becomes
+    #: ``4(1 - mu^2)`` only after substituting ``p_1^2 + p_2 = 1``), and a
+    #: :class:`Quotient` does not carry that ideal.  So the type cannot
+    #: recompute it, which is exactly when storing is right.
+    singular_stratum: Any | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -590,7 +768,114 @@ def _sphere_mod_so2(base: Manifold, group: "SubgroupOfO3") -> Quotient:
         gram=gram,
         det_gram=sp.simplify(gram.det()),
         derived_by="hand",
-        singular_stratum=(-1.0, 1.0),
+        # No CANONICAL section: any half-meridian sections S^2 -> S^2/SO(2)
+        # and none is distinguished, which is the normal case for a
+        # positive-dimensional group.  ⛔ ERR-080 is the tree having needed
+        # one anyway and fabricated it by zero-padding to (mu, 0, 0), which
+        # is off S^2.  Declaring one (the phi=0 half-meridian
+        # mu -> (sqrt(1-mu^2), 0, mu)) is a CHOICE and belongs to the step
+        # that makes the slab declare its quotient, not to this derivation.
+        fundamental_domain=None,
+        # det P = 4 p_2 = 4(1 - mu^2) after the sphere ideal p_1^2 + p_2 = 1;
+        # it vanishes at the poles mu = +-1.  A locus, in the realization's
+        # coordinate — the two poles are a stratum that happens to be finite.
+        singular_stratum=sp.simplify(1 - sp.Symbol("u0", real=True) ** 2),
+    )
+
+
+def _sphere_mod_mirror(base: Manifold, group: "SubgroupOfO3") -> Quotient:
+    r"""``S^2 / <sigma_a> = D^2``, derived per the standard procedure.
+
+    The shipped CYLINDRICAL FOLD.  ``[M]``
+    :meth:`~orpheus.numerics.quadrature.directional.Quadrature.folded_product`
+    ends in ``full.quotient(SubgroupOfO3.Mirror("y"))``, so this entry is
+    what makes the fold's support expressible as a typed quotient at all.
+
+    Write :math:`a` for the mirrored axis and :math:`b, c` for the other
+    two.  The invariant ring :math:`\mathbb{R}[x,y,z]^{\langle \sigma_a
+    \rangle}` is minimally generated by :math:`p_1 = x_b`, :math:`p_2 =
+    x_c`, :math:`p_3 = x_a^2`.  ⭐ The syzygy ideal is **empty**, and
+    predictably so rather than by luck: :math:`\sigma_a` is a REFLECTION,
+    so Chevalley–Shephard–Todd forces the invariant ring to be a
+    polynomial ring — the three generators are algebraically independent
+    by a theorem, not by inspection.  Hence
+
+    .. math:: P = \mathrm{diag}(1,\, 1,\, 4 p_3),
+              \qquad \det P = 4 p_3,
+
+    so :math:`\mathbb{R}^3/\langle\sigma_a\rangle = \{p_3 \ge 0\}`.
+    Adjoining the sphere's ideal :math:`p_1^2 + p_2^2 + p_3 = 1` and
+    eliminating :math:`p_3 = 1 - p_1^2 - p_2^2` leaves the CLOSED UNIT
+    DISK :math:`\{p_1^2 + p_2^2 \le 1\} = D^2`.
+
+    ⚠ The dimension does NOT drop — :math:`\dim = 2 - 0 = 2`, because
+    :math:`H` is finite.  That single fact is what makes this entry
+    structurally unlike ``S^2/SO(2)`` (where :math:`2 - 1 = 1`) and is
+    why it, and not the first entry, forced the chart-vs-section ruling:
+    with no reduction, the chart buys nothing and the section is
+    canonical.
+
+    :math:`\det P = 4 x_a^2` vanishes exactly on the mirror's own
+    fixed-point set, the great circle :math:`x_a = 0` — which in the
+    realization's coordinates is the disk's BOUNDARY, and is a circle,
+    not a finite point set.
+
+    Full derivation with SymPy output, the Molien completeness check and
+    the ``dim(m/m^2)`` minimality check:
+    ``scratch/sigma_y_orbit_derivation.md`` (untracked; the load-bearing
+    content is reproduced in ``docs/theory/foundations/manifolds.rst``).
+    """
+    import sympy as sp
+
+    axis = group.mirror_axis
+    if axis is None:
+        # An admission contract, so a real raise: `-O` strips `assert`,
+        # and this is the one precondition the derivation cannot check
+        # from its own arguments.  Reachable only by registering this
+        # builder under a non-Mirror key.
+        raise ValueError(
+            f"the reflection orbit-space derivation needs a mirror axis, "
+            f"and {group.name!r} has none. Register "
+            f"_sphere_mod_mirror only against Mirror entries."
+        )
+    coords = sp.symbols("x y z", real=True)
+    x_a = coords[axis]
+    kept = [c for i, c in enumerate(coords) if i != axis]
+    u = sp.symbols("u0:3", real=True)
+
+    invariants = (kept[0], kept[1], x_a**2)
+    grad = [[sp.diff(q, v) for v in coords] for q in invariants]
+    gram_xyz = sp.Matrix(
+        [[sum(gi * gj for gi, gj in zip(a, b)) for b in grad] for a in grad]
+    )
+    # Re-express in the invariants: <grad p_3, grad p_3> = 4 x_a^2 = 4 p_3.
+    gram = gram_xyz.subs({x_a**2: u[2]}).applyfunc(sp.simplify)
+
+    return Quotient(
+        base=base,
+        by=group,
+        # The CHART codomain, in invariant coordinates (p_1, p_2).
+        realization=Ball(2),
+        # The SECTION's image, in the base's ambient coordinates — what
+        # DiscreteMeasure.quotient actually emits.  Closed, not strict:
+        # [M] the cylindrical march seeds a level at x_a = 0 exactly.
+        fundamental_domain=FundamentalDomain(
+            base=base,
+            normals=(tuple(1.0 if i == axis else 0.0 for i in range(3)),),
+            label=f"{'xyz'[axis]}>=0",
+        ),
+        generators=(
+            u[0] - invariants[0],
+            u[1] - invariants[1],
+            u[2] - invariants[2],
+        ),
+        syzygy=(),
+        gram=gram,
+        det_gram=sp.simplify(gram.det()),
+        derived_by="hand",
+        # det P = 4 p_3 = 4(1 - u0^2 - u1^2) after the sphere ideal: the
+        # disk's boundary circle.
+        singular_stratum=sp.simplify(1 - u[0] ** 2 - u[1] ** 2),
     )
 
 
@@ -622,7 +907,12 @@ def _mod_trivial(base: Manifold, group: "SubgroupOfO3") -> Quotient:
         gram=sp.eye(n),
         det_gram=sp.Integer(1),
         derived_by="hand",
-        singular_stratum=(),
+        # M/{e} = M, so the identity map is a section and its image is all
+        # of M — a fundamental domain cut by NO half-spaces.
+        fundamental_domain=FundamentalDomain(base, (), "all"),
+        # det P = 1 vanishes nowhere: no stratum, a free action (vacuously,
+        # the only element being the identity).
+        singular_stratum=None,
     )
 
 
@@ -632,6 +922,11 @@ def _mod_trivial(base: Manifold, group: "SubgroupOfO3") -> Quotient:
 #: compute them instead of reading them is deferred, not refused.
 _ORBIT_CATALOGUE: dict[tuple[type, str], Any] = {
     (Sphere, "SO2"): _sphere_mod_so2,
+    # All three mirrors share ONE derivation — it reads the axis off the
+    # group — so they are three keys, not three procedures.
+    (Sphere, "sigma_x"): _sphere_mod_mirror,
+    (Sphere, "sigma_y"): _sphere_mod_mirror,
+    (Sphere, "sigma_z"): _sphere_mod_mirror,
 }
 
 
@@ -649,8 +944,10 @@ def _ambient(m: Manifold) -> int:
             return 2
         case Interval() | IndexSet() | EnergyGroups():
             return 1
-        case RealSpace(d=d):
+        case RealSpace(d=d) | Ball(d=d):
             return d
+        case FundamentalDomain(base=base):
+            return _ambient(base)
         case Product(left=left, right=right):
             return _ambient(left) + _ambient(right)
         case Quotient(realization=realization):
