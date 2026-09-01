@@ -1961,34 +1961,121 @@ this is right: the forgery is what CONCEALS the missing discrete-quotient slot).
 
 ---
 
-# Part XIV — ▶ Resume surface
+# Part XIV — ⏸ COMPACTION POINT 0 (2026-08-31) + ▶ Resume surface
 
-**Read in this order on pick-up:** Part XIII (the tracker — what is done),
-Part XII (the exit gate — what returns us to Campaign 2 and what is NOT on that
-path), then the phase you are executing. Part IX first if you are about to
-re-propose something; four premises are already refuted there, three of them
-mine.
+**Read in this order on pick-up:** this Part → Part XIII (the tracker) → Part XII
+(the exit gate: what returns us to Campaign 2, and what is NOT on that path) →
+the phase you are executing. **Part IX and §II.15 first if you are about to
+re-propose anything** — nine premises are already refuted there, six of them
+mine, and two were refuted the same day they were written.
 
-**⚡ Phase 0 is unblocked and lands first**, independent of every ruling above.
-**The only open ruling on the exit path is 3.4-R** (the encoding).
+---
 
-**This plan blocks** `.claude/plans/cs4c_binding_design.md` §18.6 step 1
-(#426's missing (n,2n) measurement), PAUSED. The coupling is §VIII.4 and the
-narrow form is Part XII.1: `n2n.py:200` hardcodes `L = 0`, which is the only
-reason that channel is not already affected.
+## ▶ RESUMES AT — stated as OUTCOMES (`plan-authoring` §1)
 
-**Artifacts** (⚠ all in UNTRACKED `scratch/`; load-bearing content carried in
-this file):
-`_pl_slab_defect_repro.py` (the reproducer, two self-checking legs),
-`_pl_slab_fix_probe.py` (in-process candidate fix; `[M]` L≤1 bit-identical,
-L≥2 → `+4.000000000000`, inert on 3-D),
-`_phantom_axis_probe.py` (the §II.5 census),
-`n2n_pl_diagnosis_main.md`, `n2n_pl_consistency_literature.md`,
-`n2n_pl_frames_attack.md`, `n2n_pl_blast_radius.md`.
+1. **The fold basis becomes falsifiable.** `[M]` today deleting
+   `MirrorEvenSphericalHarmonicBasis` outright reds **0 of 1913** tests: 179
+   folded `angular_frame` calls across 72 tests, **100 % at `L = 0`**, and at
+   `L = 0` its table is bit-identical to the plain SH table (`max|Δ| = 0.0`,
+   diverging to `8.688e-01` at `L = 1`). *Proposed means:* one parametrize row —
+   2-group heterogeneous cylinder, `folded_product(4,8)`, `scattering_order=1`;
+   `[M]` an agent measured it as an **18.5 %** catcher
+   (`0.7475027…` → `0.6095089…`). **Tracker 2.1-W. Must land before anything
+   touches the fold path**, or that carve is unfalsifiable.
+2. **A manifold is an OBJECT, so a measure cannot claim a support its own nodes
+   do not satisfy.** Tracker 2.0a–d. `Manifold.contains` refuses the Part I
+   forged measure **at construction**, three hops before the symptom.
 
-**Standing constraints:** Host → `.venv/bin/python`; canonical runner
-`-O -m pytest -p no:randomly -m "not slow" -q` SERIAL; branch + ff-merge; never
-`git add -A`; never `git stash`; commit messages via `git commit -F -` with a
-**quoted** heredoc; no source edits under running gates; `sphinx -W` +
-`dead_references` at every phase exit; mutation batteries as subprocess-scoped
-pytest plugins.
+⚠ **A verification of my own is IN FLIGHT and unfinished** — a runtime spy
+(`scratch/_fold_L_spy.py`) re-checking claim 1 on the 3 test files where
+`folded_product` and a non-zero `scattering_order` co-occur *in the same file*.
+That static co-occurrence is a **weaker predicate** than the agent's runtime
+count and is **not** a refutation of it (`plan-authoring` §4's VERIFY clause).
+If the spy reports any folded call at `L ≥ 1`, a partial witness already exists
+and 2.1-W's design should read it first. **Re-run it; do not assume its result.**
+
+### §1 existence-check on every symbol this pointer names — all run 2026-08-31 at `60c370ae`
+
+`[M]` in `orpheus/`: `class Manifold` **0** · `class Descent` **0** ·
+`class Chart` **0** · `class LegendreBasis` **0** · `ReynoldsProjection` **0** ·
+`OrbitAxis` **0** · `quotient_group` **0**. And by AST: **6** `Basis`
+subclasses, **none** defines `domain` or `support` (the 48 `def domain` in the
+tree are all operators). ⟹ nothing this pointer promises already exists; no
+deliverable has been silently landed.
+
+---
+
+## Landing ledger — Phase 0's prose-and-gate half
+
+| item | what | commit |
+|---|---|---|
+| 0.7 / 0.7b | the strict-xfail gate (3 rows, one per symptom) + **ERR-080** minted | `ae4dbc1f` |
+| 0.3 | `metric.py`'s rcond comment, re-derived (97 lines; value unchanged) | `ae4dbc1f` |
+| 0.4 / 0.5 | the two prose surfaces that argued against suspecting the defect | `ae4dbc1f` |
+| 0.2-census | the full-suite phantom census, **discharged** | `ee60010e` + `ccda0e61` |
+| — | five execution-time claims of mine, refuted and kept in place | `324137ec` |
+| D0.7 / 2.0 / V.5 | `Manifold` minted; `Basis.domain` restored; the minting inventory | `a0783c2a` |
+| D0.1 / 3.4b / III.4b | the embryo; `Descent` ruled; the dropped four-kernel table restored | `43dd7ee5` |
+| D0.1 | the engine is **deferred, not refused** — the embryo is its SEED | `60c370ae` |
+
+**Branch** `fix/angular-phantom-support`, 7 commits ahead of `main`, pushed.
+⚠ **Nothing is merged.** Trust `git merge-base --is-ancestor`, never this table.
+
+## ⛔ Corrections that SUPERSEDE older text in this file
+
+Read these before quoting any earlier section:
+
+| what was said | status |
+|---|---|
+| 0.2: *"`axis_cosines(i ≥ dim)` raises"* | ⛔ **REFUTED by the census** — breaks 3 legitimate flow-question consumers. §II.14 |
+| 0.1: a single landable item | ⛔ **SPLIT** into 0.1a/b/c; the lift `[-1,1] → S²` does not exist as a map. §II.9 |
+| 2.2: *"just wiring"* | ⛔ **REFINED** — the predicate is correct over an INCOMPLETE vocabulary; it would refuse the shipped cylinder. §II.10 |
+| §II.8's 0.1c hazard | ⛔ **REFUTED** — `[M]` 0 of 145 089 composability checks carry such a space. §II.15 R2/R3 |
+| `Basis.support` (ruled 2026-08-31 am) | ⛔ **REFUTED same day** — collision unreachable, and `support` is false for a basis. §III.10 |
+| *"the engine is refused"* | ⛔ **DEFERRED, not refused** — and the embryo must be its seed. D0.1 |
+| *"same INTERFACE, second backend"* | ⛔ **too weak** — the requirement is on the DATA MODEL. D0.1 |
+
+## Measured baselines and costs
+
+* **Phantom census**: 13 trees, `-O -m "not slow"` serial, **rc=0 throughout**,
+  **65 min**. numerics 2538 · transport 645 · sn 3375 · geometry 727 · mc 39 ·
+  derivations 1637 · rootfiles 414.
+* **Sphinx `-W`**: clean, ~2 min. **`dead_references`**: 0 dead / 52 checked.
+* **Error index**: 80 entries / 265 catchers / **0 uncaught**.
+* **Verification matrix**: 10428 → **10433** collected (+5, all L1).
+* ⚠ **The 13-tree GATE baseline is still UNMEASURED at this HEAD.** The census
+  is not a gate (a recording plugin, rc ignored). Exit predicate 5 stands.
+
+## Durable lessons — promoted OUT of this file
+
+`plan-authoring` gained three rows this session; they are the record, not this
+plan: the **transcription-precision** row (a hand-typed prediction bounds its own
+agreement statistic), the **§8 sharpening** (*a branch's EXISTENCE is not its
+RELEVANCE* — price it with a control stronger than your change), and the
+§2 VIEWPORT re-commit (`| head -3` turned a population into a sample, by me,
+minutes after reading the clause that forbids it).
+
+## Artifacts
+
+⚠ **All in UNTRACKED `scratch/` — a `git clean` destroys them.** Load-bearing
+content is carried in this file; the reproducers are not.
+`_pl_slab_defect_repro.py` · `_pl_slab_fix_probe.py` · `_phantom_axis_probe.py`
+· `_phantom_census_plugin.py` + `_driver.sh` + `.json` (**re-runnable — it is
+0.2's done-when**) · `_fold_L_spy.py` · `rcond_rederivation.md` +
+`probe_rcond_01…17_*.py` · `angular_symmetry_wiring_survey.md` ·
+`basis_domain_verification_plan.md` (972 lines) · `n2n_pl_*.md` (4).
+
+## Standing constraints
+
+Host → `.venv/bin/python`; canonical `-O -m pytest -p no:randomly -m "not slow" -q`
+SERIAL; branch + ff-merge, never squash; **never `git add -A`** (365 untracked
+scratch files sit one flag away from the history); never `git stash`; never
+`git checkout`/`restore` a tracked path; commit via `git commit -F -` with a
+**quoted** heredoc; no source edits under a running gate; long gates =
+detached `Popen(start_new_session=True)` + per-tree driver + `Monitor`;
+`sphinx -W` + `dead_references` at every phase exit; a bare `assert` in
+`orpheus/` is inert under `-O` — use a real `raise`.
+
+**This plan blocks** `.claude/plans/cs4c_binding_design.md` §18.6 step 1 (#426's
+missing (n,2n) measurement), PAUSED. Tracking issue **#429**. The source plan is
+in-repo at `.claude/plans/symmetry_quotient_plan.md`.
