@@ -2237,8 +2237,14 @@ Read these before quoting any earlier section:
 * **Sphinx `-W`**: clean, ~2 min. **`dead_references`**: 0 dead / 52 checked.
 * **Error index**: 80 entries / 265 catchers / **0 uncaught**.
 * **Verification matrix**: 10428 → **10433** collected (+5, all L1).
+* **numerics tree, as a GATE** (`-O -m "not slow"` serial, `de29bcc6`):
+  `[M]` **2578 passed / 0 failed**, 337 s. Reconciles exactly against the census's
+  `2538` — `2538 + 40` (2.0a's new tests) `= 2578`, no unexplained term. ⭐ This
+  is the predicted-then-measured discipline that caught P7's `+1`: the delta is
+  stated before the run and every unit of it is attributed after.
 * ⚠ **The 13-tree GATE baseline is still UNMEASURED at this HEAD.** The census
-  is not a gate (a recording plugin, rc ignored). Exit predicate 5 stands.
+  is not a gate (a recording plugin, rc ignored), and the run above is ONE tree
+  of the thirteen. Exit predicate 5 stands.
 
 ## Durable lessons — promoted OUT of this file
 
