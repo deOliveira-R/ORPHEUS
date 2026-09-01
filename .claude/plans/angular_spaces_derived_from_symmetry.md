@@ -792,7 +792,7 @@ the flow accessor actually returns: **the orbit mean**, whose zero is DERIVED
 rather than defaulted, and which coincides with the plain cosine whenever the
 orbit is a single point.
 
-### ✅ 0.2 — EXECUTED 2026-09-01. What the split actually found
+### ✅ 0.2 — EXECUTED 2026-09-01, landed `ce46181c`. What the split actually found
 
 **The shape that shipped.** `axis_cosines(i)` is now the COORDINATE question
 and refuses a suppressed axis with a real `raise` (⛔ not an `assert` — the
@@ -2677,7 +2677,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 0.1a | 3-D rules hand the frame their OWN measure — ⚠ keystone is a **ROUTE** gate (`frame.measure is q.measure`), not bit-identity (§II.15 R4) | ⏏ yes | ✅ `2c1a06b1` — `Quadrature._harmonic_frame_measure`; `[M]` route gate **0 of 12 → 10 of 12**, nodes/weights bit-identical on all 10, and the forgery's **other two** losses reversed (§II.8's correction). Gates Q8.1–Q8.5, per-arm mutation battery 5/5 caught with a call counter |
 | 0.1b | the 1-D rows — ⛔ **rides 3.4**, the lift does not exist (§II.9) | ⏏ yes | ☐ (with 3.4) — ⭐ the fiction is now NAMED and self-retiring: `test_q8_4` goes RED the day 3.4 removes the branch |
 | 0.1c | the fold's `S^2/sigma_y` tag — ⛔ §8 hazard REFUTED (0 reds; 0/145 089 checks); was blocked on **2.1-W** | ⏏ yes | ✅ `2c1a06b1` (with 0.1a) — `[M]` `folded_product` frames move `L2[S^2]` → `L2[S^2/sigma_y]`; gated by `test_q8_3` with an unfolded discriminating control |
-| 0.2 | phantom component unspellable — ⛔ means REFUTED by the census; ⛔ *"runs AFTER 0.1"* also refuted (0.1a removes **0 %** of the phantom reads — only 1-D rules can phantom-read) | ⏏ yes | ✅ **LANDED** — `axis_cosines` strict (the coordinate) + `mean_axis_cosine` (the orbit mean, zero DERIVED). ⭐ Found a **third** meaning in those zeros (`i >= 3` is no axis at all, not a suppressed one), single-sourced `spherical_harmonics` onto the frame (0 production consumers), and collapsed `_quadrature_axis`'s 3-arm ladder + its defaulted-`getattr` hazard. Gates Q9.1–Q9.5 + a re-scoped Q8.6; 5-arm mutation battery, every arm a distinct red set |
+| 0.2 | phantom component unspellable — ⛔ means REFUTED by the census; ⛔ *"runs AFTER 0.1"* also refuted (0.1a removes **0 %** of the phantom reads — only 1-D rules can phantom-read) | ⏏ yes | ✅ `ce46181c` — `axis_cosines` strict (the coordinate) + `mean_axis_cosine` (the orbit mean, zero DERIVED). ⭐ Found a **third** meaning in those zeros (`i >= 3` is no axis at all, not a suppressed one), single-sourced `spherical_harmonics` onto the frame (0 production consumers), and collapsed `_quadrature_axis`'s 3-arm ladder + its defaulted-`getattr` hazard. Gates Q9.1–Q9.5 + a re-scoped Q8.6; 5-arm mutation battery, every arm a distinct red set |
 | 0.2-census | full-suite phantom census (moved here from 2.4) | ⏏ yes | ✅ **DISCHARGED** — §II.14, 13 trees rc=0, 11 sites / 1604 reads |
 | 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ✅ `ae4dbc1f` |
 | 0.4 | `directional.py` `spherical_harmonics` docstring | ⏏ yes | ✅ `ae4dbc1f` |
@@ -2920,6 +2920,7 @@ Landed and callable: `class Ball` `manifold.py:459` · `class FundamentalDomain`
 | **1.1 σ_y** | ⭐ **`S²/σ_y` derived + `Quotient`'s TWO coordinate systems** (user-ruled) — `Ball`, `FundamentalDomain`, the construction invariant, `singular_stratum` retyped | `b55bba56` |
 | **1.1 docs** | the corpus pass — and it REFUTED my dimension-coincidence claim, plus 3 code defects | `bf9296a1` |
 | XIV | compaction point 2 — the exit path unblocked, and its ORDER | `4a5ac108` |
+| **0.2** | ⭐ **the accessor SPLIT** — `axis_cosines` (coordinate, strict) vs `mean_axis_cosine` (the orbit mean, zero DERIVED). Found a THIRD meaning in the zeros, single-sourced `spherical_harmonics` onto the frame, collapsed `_quadrature_axis`'s ladder + its defaulted-`getattr`. `[M]` red loop 29 tests / 2 trees — the §6b set missed the EMBEDDING category | `ce46181c` |
 | **0.1a + 0.1c** | ⭐ **the frame stops forging its own domain** — `_harmonic_frame_measure` routes the rule's measure; the 1-D fiction is named + self-retiring. `[M]` route gate 0→10 of 12; §II.8's *three* losses reversed; 5-arm mutation battery, every arm's red count reconciling to zero unexplained units | `2c1a06b1` |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
