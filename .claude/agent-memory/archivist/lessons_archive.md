@@ -9116,3 +9116,138 @@ as plain text, so a stale one is invisible at every severity and needs the impor
 `ErrorEntryDirective.run()` emits a `container` + `rubric` and **no `nodes.target`**, so no such
 label exists; the string appears nowhere else in `docs/` or `orpheus/`. Harmless today (the
 module is unrendered) and a guaranteed `undefined label` the day it is `automodule`'d.
+
+---
+
+## L-080 — the two-slot ruling: a gap I published was repaired by its own commit, and a "discriminator" that a construction law forbids from discriminating
+
+**Task (2026-08-31/09-01).** Update `docs/theory/foundations/manifolds.rst` for a data-model
+change landing in `orpheus/numerics/manifold.py`: `Quotient` gains a second coordinate slot
+(`fundamental_domain`), `singular_stratum` is retyped `tuple[float,...] → Any | None`, and
+`Ball` / `FundamentalDomain` are minted. Branch `fix/angular-phantom-support`; the code side
+committed **mid-session** as `b55bba56` (I had been reading it uncommitted — check `git log`
+before writing a history row).
+
+**Delivered.** +1152 / −85 on the page; 8 new section labels + 1 new eq-label
+(`manifold-s2-mod-mirror`, `documented`). `-E -W --keep-going` EXIT=0, **0/0/0 both sides**,
+warning-SET diff `{}`. Theory scan 907 → **908** labels / 576 → **577** documented / 0
+violations — exactly predicted. `matrix.rst` sentinel 576 → **577**; directive edges **415 →
+415** (predicted: no `.. implements::` added). Stock + head-role-patched xref gates **0 dead**
+with a live positive control (stock 0 / patched 2 on an injected control page); nexus
+`dead_references` **0 / 52**.
+
+### ⭐⭐ A gap I REPORTED had a shelf life of ZERO — its own commit closed it
+
+The page's twin-lookup table shipped a row reading *"``Trivial`` → `NotImplementedError` — ⛔
+the catalogue lacks the identity quotient"*. `[M]` `git show fba4205a -- orpheus/...` : the
+**same commit that published that table added `_mod_trivial`**, and its own message says so
+("Comparing the two showed my catalogue RAISED on S^2/{e} … Fixed by DERIVING it"). The
+mechanism is not carelessness: *comparing two implementations is simultaneously what exposes a
+gap and what motivates fixing it*, so within one session the table and the tree diverge and the
+table is written first.
+
+⟹ **Re-run every gap-claim's own check against the FINAL working tree, after the session's last
+code edit — not when the table was drafted.** And publish the outcome as history with its repair
+hash, which cannot rot: *"the row read X; the same commit closed it by deriving …; the row is
+corrected here as history rather than deleted, because a gap reported into the corpus has the
+shortest shelf life of anything on a page."* (Strictly stronger than L-075, which said the shelf
+life is *short*.)
+
+### ⭐⭐ The briefed discriminator was un-reproducible — and the real finding is that a CONSTRUCTION LAW forbids it from discriminating
+
+Brief: *"the first catalogued entry could not expose the fork, because for `SO(2)` the chart and
+the section coincide in dimension."* `[M]` they coincide in **both** entries — `Interval(-1,1)`
+1 vs an `SO(2)` half-meridian `FundamentalDomain(SPHERE,(e_y,−e_y,e_x),…)` 1; `Ball(2)` 2 vs the
+σ_y hemisphere 2 — and the new `Quotient.__post_init__` **gates that agreement**. A quantity a
+construction law forces to agree cannot tell two cases apart (vv #19's shape at the design tier).
+
+The two reproducible reasons, published instead: (1) **no section of `S² → S²/SO(2)` is
+canonical** (every half-meridian is one), so there was nothing to put in a second slot; (2) `[M]`
+the tree's SO(2) data is **already chart coordinates** — `gauss_legendre(8).measure.nodes` is
+`(8,)` — while `folded_product(4,8).measure.nodes` is `(16,3)`, the base's ambient columns.
+
+⟹ when a brief offers *"they coincide, therefore no fork"*, ask **what would have to be true for
+them NOT to coincide** — if the answer is "a gate would raise", the coincidence is a law and the
+sentence is inverted.
+
+### ⭐⭐ Two lookups of "the same" fact were NOT a Pattern-2 twin — they take different ARGUMENTS
+
+The page framed `AngularSymmetry.support` and `Manifold.quotient` as a twin to collapse, and I
+was about to publish "the catalogue now answers a row the registry has not been extended to".
+`[M]` reading the registry: `support` is defined as `S²/G⁰`, the **continuous isotropy** a
+dimensional reduction spends, and `GEOMETRY_ANGULAR_SYMMETRY["cylinder"]` is
+`continuous_isotropy=Trivial, discrete_residual=Dnh(2)` — a mirror lives in the **discrete
+residual Γ**, so `support` *structurally cannot* answer `S²/σ_y`. The honest statement is that
+the registry's lookup is the **special case H = G⁰**, so the collapse is
+`support = base.quotient(G⁰).realization.name`, not a merge of two tables.
+
+⟹ **before calling two implementations of "the same" lookup a twin, check they take the same
+argument.** Same return type + same shape of refusal is not sameness.
+
+⭐ Chasing that distinction found a **latent break nobody had measured**: stage 0 is a string
+comparison (`admits_domain` is `measure.support == self.support`), and `[M]`
+`GEOMETRY_ANGULAR_SYMMETRY["cylinder"].admits_domain(folded_product(4,8).measure)` is **False**
+(`'S^2'` vs `'S^2/sigma_y'`). Latent only because `[M]` `folded_product` is not in
+`quadrature_registry` (4 specs ship). Published as a seam with its trigger condition.
+
+### ⭐ The HTML slice caught FOUR nested-markup defects — and its `rfind` anchor silently died
+
+`-W` clean while the page carried 3 × ``**``literal``**`` and 1 × a `:math:` role inside
+`*emphasis*` — the last one **leaked the role name as literal text** (`:math:`M/H`` rendered
+verbatim). L-074's anchor trap bit again and worse: `rfind('<section id="manifolds">')` matched
+**nothing** in this theme (it emits `id="manifolds"` on another element), so the slice was
+**length 1** and reported "0 backticks — clean". ⟹ **assert the slice contains known page prose
+before believing its verdict** (`assert "Procesi" in text and "<a new heading>" in text`), and
+anchor on `role="main"` … `<footer|class="related"|sphinxsidebar`. Fixes: split the bold around
+the literal (``**Why …** ``x`` **…**``), and move a role out of emphasis.
+
+### ⭐ Two counts I had published myself were wrong when written, and no gate can see either
+
+*"Nine variants"* — `[M]` `git show b8c05d16:… | grep -c '^class .*(Manifold)'` = **8** at the
+mint (and the page's own table listed 8 rows, so the prose disagreed with its own table); ten
+now. *"30 test functions, 40 collected rows"* — `[M]` **32 / 44** at that commit, **42 / 56**
+now. Both are universals about a roster. ⟹ **publish a roster count with the command that
+produces it**, and prefer a second instrument: the generated `matrix.rst`'s
+`numerics/test_manifold` row independently confirmed 56.
+
+⚠ And a section title is a count too: mine read *"The four realizations that were tried"* over a
+**five**-candidate table, in the same edit.
+
+### The measured refusal matrix, as published (the page's load-bearing evidence)
+
+`[M]` 6 candidates × 5 inputs, cell by cell; "REFUSE (shape)" is a raised `ValueError`, not
+`False`. `SPHERE` ADMITS the orbit twins (so `Quotient.contains` becomes bit-for-bit
+`SPHERE.contains` — no input separates `M/H` from `M`); `RealSpace(2)` / the square / `Ball(2)`
+all ADMIT the **charted** forgery (`[M]` `max|(μ,0)|² = 0.9221566084920586 < 1` — Mode 12, the
+chart drops exactly the corrupted coordinate); the hemisphere alone admits the nodes and refuses
+both. ⚠ **The shipped two-slot row does not dominate every cell** — it still admits the charted
+forgery, correctly, and saying so is what stops the next reader reading the design as a fix for
+the chart's blindness.
+
+### Numbers reproduced independently before publishing (all agreed)
+
+Molien `M(t) = 1/((1−t)²(1−t²)) = 1+2t+4t²+6t³+9t⁴+12t⁵`, difference to the free algebra `0`;
+minimality `dim(𝔪/𝔪²)` = 2/1/0/0/0 (the `k ≥ 2` predicate — `k ≥ 1` reports "0 new generators"
+in every degree, a self-consistent wrong answer); syzygy `I = (0)` by lex elimination, Jacobian
+det `−2y`, rank 3; `c∘c⁻¹ = id`, `∂y/∂p_i = −p_i/√(1−p₁²−p₂²)`, `∫_{D²} dp₁dp₂/|y| = 2π`, `dc`
+annihilates `e_y` on the stratum; the march seeds `(−√(1−μ_p²),0,μ_p)` on `S²` to **0.0** and on
+the stratum (`1−η²−μ² = 0.0`) exactly, while the 16 nodes are strictly interior
+(`1−η²−μ² ∈ [0.0378, 0.7549]`); α closes at both level ends; node azimuths `ω/π ∈ {0.125, 0.375,
+0.625, 0.875}` ⟹ edges `{0, ¼, ½, ¾, 1}`.
+
+⚠ One sign I had to widen: the Jacobian determinant is `±2x_a` (ordering-dependent); `−2y` only
+for the shipped `a = y` ordering. **The rank is what carries the argument** — say so.
+
+### ⚠ REPORTED, code-only (not fixed — docs pass)
+
+1. `orpheus/numerics/manifold.py` `__all__` omits **`Ball`** and **`FundamentalDomain`** — `[M]`
+   `[c for c in Manifold.__subclasses__() if c.__name__ not in __all__]` = both, while
+   `tests/numerics/test_manifold.py:40` imports them by name. Two public variants outside the
+   declared public surface.
+2. `AngularRedistribution.mu_start_per_level` holds a **radial** cosine `η = −sinθ_p`, not a
+   polar `μ`; and its docstring spells the level's polar cosine `ξ_p`, while `ξ` elsewhere is
+   `μ_y`, the azimuthal cosine the fold quotients. Values unambiguous, symbols not.
+3. `test_the_half_space_is_CLOSED_because_production_marches_from_it` hard-codes the seeds to 12
+   dp; `[M]` those literals sit **4.79e-13** off `S²` against `_MEMBERSHIP_ATOL = 1e-12`, while
+   the production values are exact (`0.0`). Green, and on half the tolerance budget for no
+   reason.

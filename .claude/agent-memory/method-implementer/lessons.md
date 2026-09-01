@@ -367,3 +367,58 @@ in the plan and name the fixture that does NOT annihilate it -- do not ship the
 fork under a gate that cannot rank it. Cheap (one `subs`), and it runs before
 any test is written. (LD curvilinear shape probe V4/V6 + cylinder C3;
 vv-principles Mode 12 / #24(d).)
+
+---
+
+## L-016 -- A quotient has TWO realizations; decide which one a predicate speaks BEFORE cataloguing an entry
+
+An orbit space `M/H` is realizable two ways, and they are different objects
+that a single `realization`-style field cannot serve at once:
+
+* **the invariant CHART's codomain** -- the image `p(M)` of the orbit map,
+  living in the invariant coordinates. Canonical (derived from the invariants),
+  and the thing the Procesi-Schwarz procedure actually emits.
+* **a fundamental DOMAIN** -- a subset of `M` meeting each orbit once, living
+  in the base's AMBIENT coordinates. This is what a "folded" quadrature ships.
+
+Which one the tree ships is not a style choice; it is forced by the group:
+
+| | positive-dimensional `H` (e.g. `SO(2)`) | finite `H` (e.g. a mirror) |
+|---|---|---|
+| `dim(M/H)` | **drops** | **unchanged** |
+| chart as data | a real reduction (3 floats -> 1) | no reduction (3 -> 2, third recoverable) |
+| canonical section? | **no** (any half-meridian; the choice is arbitrary) | **yes** for a REFLECTION (the mirror fixes the half-space, and being fixed pointwise makes the CLOSED half strict) |
+| what ships | the chart | the section |
+
+⭐ **Three traps, all measured on `S^2/<sigma_y>` (2026-08-31, memo
+`scratch/sigma_y_orbit_derivation.md`, probe `scratch/probe_sigma_y_orbit.py`):**
+
+1. **A chart is Mode-12 BLIND to any defect in the coordinate it drops.** The
+   `(x,y,z) -> (x,z)` chart admits the ERR-080 forgery `(mu,0,0)` after
+   projection -- `mu^2 + 0 <= 1` is a *legal* disk point, the orbit of
+   `(mu, +-sqrt(1-mu^2), 0)`. Not a tolerance question: the projection's kernel
+   *is* the error class. ⟹ at design time, intersect the chart's kernel with
+   the threat model before adopting chart coordinates for a membership check.
+2. **The FIRST catalogued entry's accidental shape becomes the field's TYPE,
+   and the second entry is where you find out.** `singular_stratum:
+   tuple[float, ...]` fits `S^2/SO(2)`'s two poles and cannot hold `sigma_y`'s
+   stratum, which is a CIRCLE. The general spelling is already present and
+   un-twinned: the stratum is the vanishing locus of `det_gram` = the
+   realization's topological boundary, in both entries.
+3. **The PRODUCER may already have decided, silently.** `DiscreteMeasure.
+   quotient` does `nodes[representative]` -- a selection of parent nodes, no
+   chart -- so *every* measure the tree derives that way is a section in the
+   base's ambient, by construction. Read the producer before ruling on the
+   type; it is cheaper than the argument.
+
+⚠ And the counting rider that cost a wrong first answer: a *minimality* count
+needs its predicate written down. Counting decomposables with `k >= 1` (which
+includes the generators themselves) reported "0 new generators in EVERY degree"
+-- i.e. that the empty set generates the invariant ring -- as a clean,
+internally consistent table. `k >= 2` is the predicate. Same shape as
+`plan-authoring` §2's FILTER clause, on an algebra count.
+
+How to apply: before adding any orbit-space catalogue entry, state which
+realization the membership predicate speaks and check it against the nodes the
+tree's own producer emits. If the two disagree, that is a data-model ruling for
+the user, not a choice to make inside the entry.

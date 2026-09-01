@@ -472,6 +472,36 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   `dataclasses.fields` before reporting a dead `:attr:`.** `[M]` my own role-import probe
   minted 3 false dead targets this way, all on the newest code. L-053(c) (*construct the
   object*) with a cheaper oracle. → L-076
+- **⭐⭐ A gap YOU report can have a shelf life of ZERO — its OWN commit can close it.** `[M]`
+  my twin-lookup table shipped *"`Trivial` → `NotImplementedError` — ⛔ the catalogue lacks the
+  identity quotient"*, and the same commit that published the table added the fix (its own
+  message says so). The mechanism is structural, not sloppy: **comparing two implementations is
+  simultaneously what exposes a gap and what motivates repairing it**, so within one session the
+  table is written before the tree it describes. ⟹ re-run every gap-claim's check against the
+  FINAL tree, after the session's last code edit, and publish the outcome as history-with-its-
+  repair-hash. (Strictly stronger than L-075's *"shortest shelf life"*.) → L-080
+- **⭐⭐ When a brief offers *"they coincide, therefore no fork"*, ask what would have to be true
+  for them NOT to coincide — if the answer is "a gate would raise", the coincidence is a LAW and
+  the sentence is inverted.** `[M]` a briefed *"for `SO(2)` the chart and the section coincide in
+  dimension"* holds in BOTH entries (1/1 and 2/2) **because the new `__post_init__` gates it** —
+  a quantity a construction law forces to agree cannot discriminate anything (vv #19 at the
+  design tier). The two reproducible reasons were different in kind: no canonical section exists
+  for a positive-dimensional group, and the tree's `SO(2)` data is already chart coordinates
+  (`(8,)` vs the fold's `(16,3)`). → L-080
+- **⭐⭐ Before calling two implementations of "the same" lookup a Pattern-2 twin, check they take
+  the same ARGUMENT.** `[M]` `AngularSymmetry.support` computes `S²/G⁰` — the *continuous*
+  isotropy — so a mirror (a member of the *discrete* residual Γ) is a row it **structurally
+  cannot** answer, not one it has not been extended to. Publishing "the catalogue overtook its
+  twin" would have aimed the repair at the wrong half; the true statement is that the registry is
+  the special case `H = G⁰`, so the collapse is `support = base.quotient(G⁰).realization.name`.
+  ⭐ Chasing the distinction found a latent break: stage 0 is a STRING compare, and `[M]`
+  `cylinder.admits_domain(folded_product(4,8).measure)` is **False**. → L-080
+- **⭐ A section TITLE is a count too, and a roster count needs the command that produces it.**
+  One edit shipped *"The four realizations…"* over a five-row table; the same page carried two of
+  my own earlier universals that were wrong when written (*"Nine variants"* — `[M]` 8 at the
+  mint, and the page's own table listed 8; *"30 test functions, 40 collected rows"* — `[M]` 32 /
+  44). Prefer a second instrument: the generated `matrix.rst` row confirmed the test count
+  independently. → L-080
 
 ## 2. The build is BLIND to most doc-correctness defects — grep is the gate
 
@@ -640,6 +670,16 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   `\*\*(no blank line)\*\*`. `[M]` **2 hits, 0 false positives, same set the HTML slice
   found**. Both real: `**Why … ``domain`` … .**`. Keep the HTML slice as the oracle; use the
   source scan every edit. → L-079, L-074
+- **⛔ …and ASSERT THE SLICE CONTAINS KNOWN PAGE PROSE, or a dead anchor reports "clean".** `[M]`
+  `rfind('<section id="manifolds">')` matched **nothing** in the current theme (it emits
+  `id="manifolds"` on a different element), the slice came out **length 1**, and the gate
+  printed *0 backticks*. Anchor on `role="main"` … `<footer|class="related"|sphinxsidebar`, then
+  `assert "<known phrase>" in text and "<a heading you just added>" in text`. With that fixed it
+  found **four** defects `-W` could not: 3 × ``**``literal``**`` and one `:math:` inside
+  `*emphasis*`, the last **leaking the role name as literal text**. Fixes: split the bold around
+  the literal (``**Why …** ``x`` **…**``), and move the role out of the emphasis. Also scan the
+  rendered text for leaked `:(math|ref|eq|class|meth|…):`` openers — a second, cheaper tell for
+  the same class. → L-080, L-074
 - **⭐⭐ COUNT the population your role-filter must cover before trusting its zero.** My check
   matched `:role:`~a.b.C`` only and reported **34** roles clean; the page has **56** — 22 use
   `` :role:`display <a.b.C>` ``. Compare against a count of all `:(class|func|meth|attr|mod|

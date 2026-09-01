@@ -573,13 +573,15 @@ class TestTheSigmaYFoldIsExpressibleAndDiscriminating:
         strictly positive (the even-``n_phi`` staggering makes the fold
         free on them), so the seed is the only witness available.
         """
-        seeds = np.array([
-            [-0.508374126854, 0.0, -0.861136311594],
-            [-0.940432288899, 0.0, -0.339981043585],
-            [-0.940432288899, 0.0, +0.339981043585],
-            [-0.508374126854, 0.0, +0.861136311594],
-        ])
-        np.testing.assert_allclose(np.linalg.norm(seeds, axis=1), 1.0, atol=1e-12)
+        # BUILT, not transcribed.  [M] hand-typed to 12 dp these sit
+        # 4.79e-13 off S^2 — 48 % of _MEMBERSHIP_ATOL's budget for no
+        # reason, where production's are exact (0.0).  The seed is the
+        # level's start point at xi = 0, so (-sqrt(1-mu^2), 0, mu) on the
+        # rule's own level cosines reproduces it to machine precision
+        # without coupling a numerics test to `orpheus.sn`.
+        mu = np.polynomial.legendre.leggauss(4)[0]
+        seeds = np.column_stack([-np.sqrt(1.0 - mu**2), np.zeros(4), mu])
+        np.testing.assert_allclose(np.linalg.norm(seeds, axis=1), 1.0, atol=0.0)
         assert fold.contains(seeds)          # closed: ON the boundary, admitted
 
     def test_all_three_mirrors_share_ONE_derivation(self):

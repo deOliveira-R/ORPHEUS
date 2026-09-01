@@ -39,80 +39,12 @@ stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
-- **P4-remainder — the producer binds the axis; the courier dies** — 2026-08-29, branch
-  `feature/p4rem-producer-binds-axis`, **UNCOMMITTED** (mine; main agent commits). 5 doc
-  files + `matrix.rst` (10215 → **10236 = +21**, exactly predicted); CS5's third seam
-  DISCHARGED on `spaces.rst` + the new `spaces-generator-route-gate` doctrine section.
-  `-E` 0 → 0; xref gate 0 dead (live positive control); `dead_references` 0/52; sentinel 0.
-  ⭐⭐ **My own CS5 page shipped a claim already false when it landed** (my 3 reported gaps
-  were fixed in `cb3cd15b`, same commit-second as my `f8c69117`). ⭐⭐ The briefed courier
-  sweep was `[M]` **1 site**; every real find was un-swept **P4.5–P4b** staleness.
-  ⚠ **REPORTED, code-only:** the keystone helper's decoy-refusal attribution is wrong (the
-  α-dome refuses only the ROLL; negate/reverse die at the closure's P3 τ-guard).
-  → [[lessons-L75]]
-
-- **CS4c step 4 — the fission channel becomes TWO bindings of one datum** — 2026-08-31, branch
-  `refactor/cs4c-step4-fission-binding` (HEAD `fadad026`), **UNCOMMITTED** (mine; main agent
-  commits). 19 authored `.rst` + the regenerated `matrix.rst`. `-E -W` **0/0/0 both sides**,
-  EXIT=0; directive edges 412 → **415** (predicted exactly); documented-sentinel labels
-  571 → **574** (3 NEW eq-labels: `sn-gain-channels-one-shape`,
-  `sn-gain-transposes-one-shape`, `energy-condensation-fission-dyad`); xref gate 0 dead
-  (patched, live positive control); `dead_references` 0/52; harness audit 16 passed/5 xfailed.
-  NEW H2 `sn-fission-binding-adjoint` in `adjoint.rst`. ⭐⭐ **A published CODE BLOCK in
-  `infinite_medium.rst` was FALSE** (`FissionOperator.from_solver_data` vs the live
-  `IsotropicFission.from_material_xs`). ⭐⭐ The corpus's **"same Python classes" thesis** was
-  refuted at 3 sites + a machine header; the AST construction-site census (`FissionOperator`
-  **1 site, sn only** vs `IsotropicFission` **4, all three packages**) is the repair's evidence.
-  ⭐⭐ Two sibling harmonizations described alike differ in KIND: N2N **bit-identical 1000/1000**,
-  F **≤5 ULP, 0/200 bit-equal** — a theorem of ℓ=0, not fixture luck.
-  ⚠ **REPORTED, code-only:** `n2n.py`'s module docstring understates its own result
-  ("a pure IEEE-754 order change") — measured, there is none. ⚠ **DEFERRED:** 37 SN-chapter
-  sites still spell the pre-N₂ₙ algebra (step-3 residue) — DECLARED at the chapter root
-  rather than swept; a scoped follow-up. → [[lessons-L77]]
-
-- **P7 — the metric becomes an OBJECT; a refusal becomes a capability** — 2026-08-30, branch
-  `feature/p7-nondiagonal-metric`, **UNCOMMITTED** (mine; main agent commits). 8 doc files
-  (brief named 4 items over 3; my census found 5 more) + the regenerated `matrix.rst`.
-  `-E -W` **0/0/0 both sides**, EXIT=0; generated artefacts moved exactly as predicted
-  (documented labels 567 → **568**, no-implementation 17 → **18**, tests 10236 → 10266 from the
-  code side); `dead_references` 0/52; xref gate 0 dead/988 files; corpus ref/eq/doc 0 dangling.
-  New H1 `spaces-metric-object` (9 subsections, 1 new eq-label `spaces-pseudo-inverse-parseval`
-  + `no-implementation :kind: identity`); `frame-parseval-dense-refusal` **renamed** →
-  `frame-parseval-dense-arm`; ERR-039 gains **chapter 3**. ⭐⭐ Chasing one outlier row turned a
-  gate's NAME ("a sphere-family property", `[M]` false twice) into a theorem —
-  `M* = R/W ⟺ Y(G⁺ − diag(d)/W) = 0`. ⭐⭐ Three published point-values were one-draw readings
-  and were replaced by measured bands / draw-free operator figures. → [[lessons-L76]]
-
-- **(n,2n) isotropy: a physics claim vs a model claim** — 2026-08-31, branch
-  `docs/n2n-isotropy-claim`, commit **`6906f2a2`** (mine; not merged/pushed). 11 files
-  (4 `.rst` + 5 production docstrings + 2 test-prose). `-E -W` EXIT=0 / 0 warnings both
-  sides; xref gate 0 dead (stock AND head-role-patched, live positive control);
-  `dead_references` 0/52; `matrix.rst` untouched (predicted: no new eq-label); 53 tests
-  pass. New anchor `sn-n2n-p0-truncation`. ⭐⭐ The sort is (a) PHYSICS vs (b) MODEL —
-  opposite treatments, and one docstring carried both across a dash. ⭐⭐ Two files
-  contradicted THEMSELVES and the **hedge was the true half**. ⭐⭐ A relayed CONTRAST
-  (`μ̄ +0.278 vs +0.094 elastic, "~3×"`) summed two DIFFERENT energy windows — over the
-  same 50 groups elastic is **+0.4264** and the claim inverts; every other number
-  reproduced exactly. ⚠ **REPORTED, not fixed:** `cross_section_data.rst:582-700` says
-  (n,2n) is not extracted and the balance is 1-in-1-out — `[M]` false at 3 `file:line`s,
-  a DIFFERENT claim class, deliberately not swept. → [[lessons-L78]]
-
-- **The manifold becomes an OBJECT — a new foundations page for a level nobody owned** —
-  2026-08-31, branch `fix/angular-phantom-support` (#429 tracker 2.0a), **UNCOMMITTED** (mine;
-  main agent commits). NEW `docs/theory/foundations/manifolds.rst` (~1600 lines, 2 eq-labels
-  both `documented`) + 5 edited `.rst` + the regenerated `matrix.rst`. `-E -W` **0/0/0 both
-  sides**, EXIT=0, warning-SET diff `{}`; `dead_references` 0/52; patched xref gate 0 dead /
-  1004 files (live positive control); theory scan 905→907 / 574→**576** documented / 0
-  violations (predicted exactly); 40 foundation gates pass under `-O`. ⭐⭐ Placement RULED a
-  NEW page: a section titled *"a function space is not a domain"* inside the function-space
-  page re-commits the conflation it exists to end. ⭐⭐ **1 of 5 inherited `[M]`s was FALSE**,
-  and it was the one already in Key Facts (`(8,3)→(8,)` is `nodes.shape`, not the arrow) — the
-  correct reading (`measure.space.name == 'L2[S^2]'`, the forged tag propagating into the
-  derived name) is the better exhibit. ⭐⭐ Found un-briefed: `AngularSymmetry.support` **already
-  performs this orbit-space lookup** in the string vocabulary — the two agree on their one
-  overlapping row, disagree on `Trivial` (a real gap), and are a Pattern-2 twin.
-  ⚠ **REPORTED, code-only:** `manifold.py:19`'s `:ref:`ERR-080 <vv-error-ERR-080>`` is DEAD —
-  `ErrorEntryDirective` emits no target node. → [[lessons-L79]]
+- **A quotient carries TWO coordinate systems — the chart and the section** — 2026-08-31/09-01,
+  branch `fix/angular-phantom-support` (#429). Docs **UNCOMMITTED** (mine; main agent commits):
+  `manifolds.rst` +1152/−85 + the regenerated `matrix.rst`; code side landed `b55bba56`
+  **mid-session**. All gates green and every generated artefact moved exactly as predicted.
+  ⚠ **REPORTED, code-only** (3 items: `__all__`, a symbol collision, a hand-typed fixture) —
+  detail, the four findings and the numbers are in the lesson. → [[lessons-L80]]
 
 - **ERR-026 history block: 29 roles → 13, 15 dead → 0** — branch
   `docs/err026-history-is-not-a-crossref`, 2026-08-18. ⛔ still open, re-confirmed unlanded
@@ -120,8 +52,15 @@ stage + gate.
   **40 of 100** stale raw file paths in the catalogue. → [[lessons-L62]]
 
 **⏹ MERGED — collapse to one line each; the durable record is the lesson + the tree.**
-⚠ This list has frozen "in flight" on landed work FIVE times; reconcile with `git` first.
+⚠ This list has frozen "in flight" on landed work **SIX** times; reconcile with `git` first —
+`git merge-base --is-ancestor <hash> HEAD`, and `git branch --list <branch>` (a vanished branch
+means merged). The 2026-09-01 pass found FOUR stale at once.
 
+- 2026-08-31: **manifolds page** the point-set layer gets a page (`fba4205a`) [[lessons-L79]] ·
+  **CS4c step 4** the fission channel becomes two bindings (`4e46dbb9`) [[lessons-L77]] ·
+  **(n,2n)** physics-vs-model isotropy (`6906f2a2`) [[lessons-L78]].
+- 2026-08-30/29: **P7** the metric becomes an OBJECT (`2ef04dbb`) [[lessons-L76]] ·
+  **P4-remainder** the producer binds the axis (`cd176f69`) [[lessons-L75]].
 - 2026-08-29: **CS5** axis-generator doctrine (`4e7b8977`/`b0bfc06c`/`cb3cd15b` + docs
   `f8c69117`; all 3 reported code gaps repaired at `cb3cd15b`) [[lessons-L74]] ·
   **§5b P0** carrying-prose sweep (`8d093334`) [[lessons-L73]] · **P4.9b** operator poses

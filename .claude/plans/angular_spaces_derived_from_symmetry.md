@@ -1612,9 +1612,26 @@ the choice decides whether the shipped 16×3 folded nodes are ADMITTED or
 REFUSED. A disk realization demands 2 columns; the nodes have 3.
 
 ⟹ this is tracker **3.3**'s retraction/section question (`OrbitAxis`), arriving
-early because 2.0c needs it. ⚠ It is **not** visible from the SO(2) entry: there
-the invariant chart and the section *coincide* in dimension, which is exactly
-why one worked entry did not expose the fork.
+early because 2.0c needs it.
+
+⛔ **REFUTED 2026-09-01 by the docs pass, and the refutation is sharper than the
+claim.** *(Original: "⚠ It is not visible from the SO(2) entry: there the
+invariant chart and the section coincide in dimension, which is exactly why one
+worked entry did not expose the fork.")* `[M]` the dimensions coincide in
+**BOTH** entries — `[-1,1]` 1 against an `SO(2)` half-meridian 1, `D²` 2 against
+the σ_y hemisphere 2 — so dimension cannot discriminate, and **it cannot, by my
+own construction**: `Quotient.__post_init__` now GATES that agreement, so it is
+true of every entry that can be built.
+⭐ The mechanism worth carrying: the sentence was written *before* the gate
+existed, was diagnostic then, and my own step made it vacuous — a claim
+invalidated by its campaign's success, which is `plan-authoring` §10's shape
+moved from a metric onto a sentence. Nothing prompts the re-check, because the
+sentence still reads true.
+⟹ the two reasons that DO reproduce: (i) no canonical section exists for a
+positive-dimensional group, so `SO(2)` has nothing to put in the second slot;
+(ii) the tree's `SO(2)` data is **already chart coordinates** (`(8,)`) while the
+fold's is a section (`(16,3)`), so only the fold's data can contradict a
+chart-only reading.
 
 ### (c) ⭐⭐ 2.0d DISSOLVES — the field it proposes is a second home for a fact `Manifold` already carries
 
@@ -1750,8 +1767,10 @@ the second slot that padding has nowhere to live.
 ⚠ **Level-1 only.** It makes the nodes points of the manifold. The level-2 half
 is untouched and is still the trivial isotypic sub-basis (tracker 3.4).
 
-**The structural asymmetry**, which is why one worked entry could not expose
-this: for a **positive-dimensional** group the chart is a genuine reduction
+**The structural asymmetry** — ⛔ and note it is NOT a dimension mismatch
+(refuted above, §V.5d(b)): what the first entry lacked is a *section to put in
+the second slot* and *data that could contradict a chart-only reading*. For a
+**positive-dimensional** group the chart is a genuine reduction
 (`3 → 1` floats) and no section is canonical; for a **finite reflection** the
 chart is no reduction (`3 → 2`, the third recoverable) and the section IS
 canonical — a *strict* fundamental domain. Both choices are locally correct;
@@ -2421,6 +2440,21 @@ the fields without introducing a new type?*) — but only because `Chart` is
 already a SCHEDULED mint (V.5 A #2, tracker **2.3**). The seed is complete *up
 to* `Chart`, and 2.3 completes it; writing the count as 8 read as *done*.
 
+⛔ **REFUTED 2026-09-01 — it is NOT a twin, and the correction matters for
+2.2.** `[M]` `AngularSymmetry.support` computes :math:`S^2/G^0`, the
+**CONTINUOUS isotropy**, while a mirror lives in the *discrete residual* `Γ` —
+so `σ_y` is a row that property **structurally cannot answer**, not a row it
+answers in another vocabulary. The two do not compute the same function, so
+`Manifold.quotient` does not absorb it; **2.2 must give the ontology its second
+slot**, which §II.10 already says and this now explains. ⭐ The corroborating
+break, re-measured independently: `[M]`
+`GEOMETRY_ANGULAR_SYMMETRY["cylinder"].admits_domain(folded_product(4,8).measure)`
+is **`False`** (`'S^2'` vs `'S^2/sigma_y'`) — stage 0 refusing the shipped
+cylinder, inert today only because `folded_product` is not a registered spec.
+⚠ What SURVIVES of the original claim below: the `Trivial` row really is the
+same answer re-derived, and the mint really is a re-typing for the continuous
+half. *(Original text kept per §3:)*
+
 ⭐ **An un-briefed Pattern-2 twin, found by the docs pass:
 `AngularSymmetry.support` (`quadrature/registry.py:869`) is ALREADY an
 orbit-space catalogue** — in the string vocabulary, with the same lookup
@@ -2499,8 +2533,12 @@ is derived and registered: 1.1 PRECEDES 2.0c, which the tracker did not record.
 shipped quotients use incompatible node representations — `S²/SO(2)` ships the
 **invariant coordinate** (1-D `μ`), `S²/σ_y` ships a **SECTION** (16×3 unit
 vectors on the closed upper hemisphere) — and `Quotient` has ONE `realization`
-field that `contains` and `_ambient` both read. The SO(2) entry cannot expose the
-fork, because there the chart and the section coincide in dimension.
+field that `contains` and `_ambient` both read. ⛔ The first draft of this
+pointer said the SO(2) entry could not expose the fork "because there the chart
+and the section coincide in dimension" — **refuted 2026-09-01**: `[M]` they
+coincide in BOTH, necessarily, since `Quotient.__post_init__` gates it. The real
+reasons are that a positive-dimensional group has no canonical section, and that
+the tree's SO(2) data is already chart coordinates.
 
 *Then* **2.0c** (the retype, now absorbing 2.0d), then **2.1** (now also owning
 the `L2[coarse_cells_Rd]` illegal-state repair, §V.5d(e)) and **2.1b**.

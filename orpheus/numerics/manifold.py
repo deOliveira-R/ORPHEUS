@@ -71,6 +71,8 @@ if TYPE_CHECKING:  # runtime import would close the cycle documented above
 
 __all__ = [
     "Manifold",
+    "Ball",
+    "FundamentalDomain",
     "Sphere",
     "Circle",
     "Interval",

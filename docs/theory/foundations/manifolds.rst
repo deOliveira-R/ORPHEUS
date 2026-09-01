@@ -23,10 +23,10 @@ Manifolds: the Point Set, the Orbit Space, and What a Basis Eats
 
       module: numerics
       concept: manifolds
-      role: "the point-set layer — the manifold M a measure is supported on and a basis function is defined over, its algebra (product, orbit space, membership), the invariant-theoretic derivation that produces an orbit space, and the three-level separation (manifold / fields on it / coefficients) that keeps a FunctionSpace from being mistaken for a domain"
+      role: "the point-set layer — the manifold M a measure is supported on and a basis function is defined over, its algebra (product, orbit space, membership), the invariant-theoretic derivation that produces an orbit space, the TWO coordinate systems an orbit space honestly has (the invariant chart's codomain and a section's image), and the three-level separation (manifold / fields on it / coefficients) that keeps a FunctionSpace from being mistaken for a domain"
       depends_on: []
       related: [discrete_measures, spaces, frame, spherical_harmonics]
-      status: "the type is MINTED and gated (tracker 2.0a, 2026-08-31); it has ZERO production consumers — the migration off `Space = str` is 2.0b/2.0c/2.1 and has not landed"
+      status: "the type is MINTED and gated (tracker 2.0a, 2026-08-31); two catalogued derivations ship (S^2/SO(2) and S^2/<sigma_a> for the three mirrors, plus the derived identity quotient), and a Quotient carries BOTH coordinate systems after the 2026-08-31 two-slot ruling. It still has ZERO production consumers — the migration off `Space = str` is 2.0b/2.0c/2.1 and has not landed"
 
 
 This page develops the **point-set layer** — the thing a measure is
@@ -152,7 +152,29 @@ polynomial three times over.
      (:eq:`manifold-procesi-schwarz`). For :math:`S^2/SO(2)` this gives
      :math:`P = \operatorname{diag}(1, 4p_2)`,
      :math:`\det P = 4p_2 = 4(1-\mu^2)` and the orbit space
-     :math:`[-1,1]` (:eq:`manifold-s2-mod-so2`).
+     :math:`[-1,1]` (:eq:`manifold-s2-mod-so2`); for the shipped
+     cylindrical fold :math:`S^2/\langle\sigma_a\rangle` it gives
+     :math:`P = \operatorname{diag}(1,1,4p_3)` and the **closed unit
+     disk** :math:`D^2` (:eq:`manifold-s2-mod-mirror`).
+   - ⭐ **An orbit space has TWO honest coordinate systems, and a
+     Quotient carries both** (user ruling, 2026-08-31). ``realization``
+     is the **invariant chart's codomain** — the same language as
+     ``generators`` / ``gram`` / ``det_gram``; ``fundamental_domain`` is
+     a **section's image**, in the BASE's coordinates, which is what
+     :meth:`DiscreteMeasure.quotient
+     <orpheus.numerics.measure.DiscreteMeasure.quotient>` actually
+     emits. They answer different questions and neither subsumes the
+     other: `[M]` the chart is **Mode-12 blind** to the ERR-080 forgery
+     while the section refuses it (:ref:`manifold-two-coordinate-systems`).
+   - ⭐ **ERR-080's level-1 half is a botched SECTION of**
+     :math:`S^2/SO(2)`. The realization is a chart; a consumer needed a
+     section; the tree fabricated one by zero-padding to
+     :math:`(\mu,0,0)`, which is off :math:`S^2` — `[M]` norms
+     :math:`0.183\ldots0.960`, while an honest :math:`\varphi = 0`
+     half-meridian is on the sphere to :math:`0.0`. ⚠ That names the
+     **level-1** half only; the level-2 repair is still the trivial
+     isotypic sub-basis :math:`\{Y_\ell^0\}\cong\{P_\ell\}`
+     (:ref:`manifold-err-080-is-a-section`).
    - ⚠ **An orbit space is an ORBIFOLD, not a quotient manifold.**
      Where the action is not free, the image of the fixed-point set is
      a **singular stratum**. For :math:`S^2/SO(2)` that locus is
@@ -160,7 +182,11 @@ polynomial three times over.
      :math:`\det P` vanishes, and exactly where the curvilinear
      S\ :sub:`N` :math:`\alpha`-dome closes. A design that assumes a
      quotient is a smooth submersion is wrong there and only there
-     (:ref:`manifold-singular-stratum`).
+     (:ref:`manifold-singular-stratum`). For the :math:`\sigma_a` fold
+     the stratum is the disk's **boundary circle** — a locus, not a
+     point set, which is why ``singular_stratum`` is a symbolic locus
+     and not a ``tuple[float, ...]``
+     (:ref:`manifold-stratum-is-a-locus`).
    - **One polynomial, three appearances, three epistemic statuses.**
      :math:`(1-\mu^2)` is the squared :math:`SO(2)`-orbit radius
      (**derived**, this page); the redundant harmonic
@@ -175,7 +201,7 @@ polynomial three times over.
      requirement is on the DATA MODEL — a catalogue entry must *be* the
      derivation procedure's output, so an engine ships by *computing*
      these fields instead of reading them, introducing no new type. The
-     falsifiable check, and `[M]` **6 of 8** of the procedure's outputs
+     falsifiable check, and `[M]` **7 of 9** of the procedure's outputs
      are slots today (:ref:`manifold-engine-seed`).
    - ⚠ **This module imports nothing from** :mod:`orpheus.numerics` **at
      runtime, and that is load-bearing.** `[M]` ``symmetry.py:98``
@@ -593,11 +619,28 @@ with six fields instead of one, is the design the closed sum refuses.
 The members
 -----------
 
-Nine variants, in three families plus two recursive constructors. Two
+`[M]` **ten** variants — ``Manifold.__subclasses__()`` restricted to
+this module, which is also what the exhaustiveness gate compares
+against. They fall in three families (curved, flat, discrete) plus
+**four** constructors that take another manifold as an argument:
+``Product``, ``Ball``, ``FundamentalDomain`` and ``Quotient``. Two
 dimensions travel with each member and are easy to conflate: the
 **topological** dimension ``dim`` (what the manifold *is*) and the
 **ambient** coordinate count (how many columns ``contains`` consumes).
 They differ for every curved member.
+
+⛔ **Correction (2026-08-31).** The first version of this paragraph read
+*"nine variants … plus two recursive constructors"*. Both halves were
+wrong when written: the mint shipped **eight** concrete variants
+(``git show b8c05d16:orpheus/numerics/manifold.py | grep -c '^class .*(Manifold)'``
+:math:`\to` 8) and the table below listed eight rows, so the prose and
+its own table disagreed. The two-slot ruling then added
+:class:`~orpheus.numerics.manifold.Ball` and
+:class:`~orpheus.numerics.manifold.FundamentalDomain`, taking the count
+to ten. The count is now stated with the command that produces it,
+because a member roster is a universal and the shipped
+``test_every_variant_is_reachable_from_this_modules_list`` is the only
+thing that keeps it honest.
 
 .. list-table:: The shipped members
    :header-rows: 1
@@ -643,11 +686,24 @@ They differ for every curved member.
      - sum
      - ``L × R``
      - each factor admits its own coordinate block
+   * - ``Ball(d)``
+     - :math:`d`
+     - :math:`d`
+     - ``D^d``
+     - finite, and :math:`\lVert p\rVert^2 \le 1 + \varepsilon`
+   * - ``FundamentalDomain(M, n⃗, ℓ)``
+     - :math:`\dim M -` #antipodal pairs
+     - :math:`M`'s
+     - ``M|ℓ``
+     - :math:`M` admits it, **and**
+       :math:`\langle p, n_i\rangle \ge -\varepsilon` for every normal
    * - ``Quotient(M, H, …)``
      - :math:`\dim` of the realization
      - realization's
      - ``M/H``
-     - decided in the **realization's** coordinates
+     - **either** coordinate system — the chart's, or the
+       fundamental domain's, dispatched on the ambient width
+       (:ref:`manifold-two-coordinate-systems`)
 
 `[M]` the names reproduce the retired ``SPACE_*`` string tags
 **verbatim** — ``S^2``, ``S^1``, ``[-1,1]``, ``[0,1]``, ``[0,inf)``,
@@ -678,6 +734,36 @@ from their nodes alone, which is precisely why the tag had to supply
 the physical identity in the first place; the measure's derived
 ``phase`` depends on it.
 
+⭐ **The last two members were minted by a DERIVATION, not by a survey**
+— which is the healthiest reason for a variant to exist, and worth
+recording as such. Neither ``Ball`` nor ``FundamentalDomain`` was on
+anyone's list of manifolds the tree might want. They arrived because
+the second catalogue entry produced objects the shipped member set
+could not name:
+
+- ``Ball`` — :math:`S^2/\langle\sigma_a\rangle` **is** the closed
+  2-disk in invariant coordinates (:ref:`manifold-s2-sigma-y` derives
+  it), and the nearest shipped 2-D member,
+  ``Product(COSINE_INTERVAL, COSINE_INTERVAL)``, is the bounding
+  **square**. The discriminator is measured, not stylistic: `[M]`
+  :math:`(0.9, 0.9)` is in the square and **not** in the disk, and it
+  is the image of no direction at all, since
+  :math:`\eta^2 + \mu^2 = 1.62 > 1` forces :math:`\xi^2 = -0.62 < 0`.
+  Adopting the square because it already ships would have admitted
+  :math:`(\eta,\mu)` pairs that no :math:`\Omega` maps to
+  (:ref:`manifold-realization-refuted`).
+- ``FundamentalDomain`` — the section's image, the *other* of a
+  quotient's two coordinate systems, and the one every measure the
+  tree emits through ``.quotient(...)`` actually speaks
+  (:ref:`manifold-two-coordinate-systems`). One rule covers both a
+  half-space and a hyperplane: an **antipodal pair** of normals
+  :math:`\{n, -n\}` spells the equality :math:`\langle p, n\rangle = 0`,
+  so `[M]` ``FundamentalDomain(SPHERE, (e_y,), …).dim == 2`` (the
+  :math:`\sigma_y` hemisphere) while
+  ``FundamentalDomain(SPHERE, (e_y, -e_y, e_x), …).dim == 1``
+  (an :math:`SO(2)` half-meridian) — from the same field, with no
+  second slot and no flag.
+
 .. note::
 
    **The membership tolerance is a construction tolerance, not a
@@ -700,8 +786,20 @@ The orbit space, derived
 An orbit space :math:`M/H` is not declared and not guessed. It is
 **computed**, by a standard construction from real invariant theory,
 once per (manifold, group) pair. This section states the procedure,
-runs it in full on the one pair the tree ships, and draws the three
-consequences that pay for it downstream.
+runs it in full on the **first** pair the tree catalogued, and draws
+the four consequences that pay for it downstream. The **second** pair —
+the shipped cylindrical fold :math:`S^2/\langle\sigma_y\rangle` — is
+run in the section after it, because its answer forced a change to the
+data model and so belongs after the consequences rather than beside
+them (:ref:`manifold-second-entry`).
+
+`[M]` the catalogue holds **four** keys today —
+``Sphere/SO2``, ``Sphere/sigma_x``, ``Sphere/sigma_y``,
+``Sphere/sigma_z`` — served by **two** procedures, because all three
+mirrors share one derivation that reads the axis off the group. The
+identity quotient :math:`M/\{e\} = M` is a fifth answer and is *not* a
+table row: it is derived on the spot, for every manifold, because it is
+a theorem (:ref:`manifold-twin-lookup`).
 
 .. _manifold-derivation-procedure:
 
@@ -783,10 +881,10 @@ restricts the answer to :math:`X/G`.
 The worked entry: :math:`S^2 / SO(2)`
 --------------------------------------
 
-This is the one entry the tree catalogues, and it is the entry every
-1-dimensional angular discretisation is secretly using. Every line
-below was **re-derived and re-run** in this session, independently of
-the catalogue, and then compared against it.
+This is the **first** entry the tree catalogued, and it is the entry
+every 1-dimensional angular discretisation is secretly using. Every
+line below was **re-derived and re-run** in this session, independently
+of the catalogue, and then compared against it.
 
 **Step 1 — the invariants.** :math:`SO(2)` here is the group of
 rotations about :math:`\hat z`, acting on :math:`\mathbb{R}^3` by
@@ -894,7 +992,14 @@ is *computed*, not asserted — and the zero set is exactly
    * - ``entry.syzygy``
      - ``()`` — empty, as derived
    * - ``entry.singular_stratum`` / ``entry.is_free``
-     - ``(-1.0, 1.0)`` / ``False``
+     - ``1 - u0**2`` / ``False``. The stratum is a **locus**, and
+       solving it gives :math:`\{-1, +1\}` — the poles
+       (:ref:`manifold-stratum-is-a-locus`)
+   * - ``entry.fundamental_domain``
+     - ``None`` — and that is an answer, not a gap: **no** section of
+       :math:`S^2 \to S^2/SO(2)` is canonical, since every half-meridian
+       is one and none is distinguished
+       (:ref:`manifold-two-coordinate-systems`)
    * - ``entry.name`` / ``entry.derived_by``
      - ``'S^2/SO2'`` / ``'hand'``
 
@@ -960,6 +1065,12 @@ directions:
 - the spherical-harmonic evaluator's ``on_axis`` guard fires when
   :math:`\sin\theta \approx 0`, i.e. on directions *along* the polar
   axis — the same locus, detected numerically and named nothing.
+
+⭐ The second catalogued entry has an exact cylindrical analogue of the
+first bullet, measured on production data: the fold's stratum is the
+disk's boundary circle, the shipped quadrature nodes sit strictly
+inside it, and the march seeds sit exactly **on** it, where the
+:math:`\alpha`-dome closes (:ref:`manifold-orbifold-discretised`).
 
 .. _manifold-one-polynomial:
 
@@ -1034,6 +1145,15 @@ honest statement is the one in the table: three occurrences of one
 polynomial, one of them derived here, one of them measured, one of them
 open.
 
+⭐ The second catalogued entry produces the **cylindrical twin** of that
+open row — :math:`1 - \eta^2 - \mu^2` is simultaneously the fold's
+:math:`\det P` on :math:`S^2` and the locus on which the cylindrical
+:math:`\alpha`-dome closes and the march seeds sit, measured exactly
+(:ref:`manifold-orbifold-discretised`). It is the same *kind* of
+statement as the third row here — an identity of loci with an unproved
+mechanism — so closing one does not close the other, and neither may be
+cited for the other.
+
 .. _manifold-gelfand:
 
 Consequence 4 — the quotient is a Gelfand pair, so :math:`\Lambda` is forced
@@ -1082,6 +1202,726 @@ diagonal. The falsifiable form of that prediction is recorded with
 ERR-080, not here.
 
 
+.. _manifold-second-entry:
+
+The second entry, and the two coordinate systems it forced
+==========================================================
+
+The first catalogued entry answered the question *what is*
+:math:`M/H` with a single object, and
+:class:`~orpheus.numerics.manifold.Quotient` stored it in a single
+field, ``realization``, which both
+:meth:`contains <orpheus.numerics.manifold.Quotient.contains>` and the
+ambient-width helper read. The second entry — the **shipped cylindrical
+fold** :math:`S^2/\langle\sigma_y\rangle`, which
+:meth:`Quadrature.folded_product
+<orpheus.numerics.quadrature.directional.Quadrature.folded_product>`
+performs on every curvilinear rule — cannot be stored that way, and the
+reason is not a detail of the entry. It is that an orbit space has
+**two** honest coordinate systems, and the tree produces data in both.
+
+⚠ **Why the first entry could not expose the fork — and it is not the
+dimensions.** The chart codomain and a section have the *same* ``dim``
+in **both** entries, so dimension cannot discriminate them: `[M]`
+``Interval(-1,1).dim`` is :math:`1` and an :math:`SO(2)` half-meridian
+written as ``FundamentalDomain(SPHERE, (e_y, -e_y, e_x), …).dim`` is
+also :math:`1`; ``Ball(2).dim`` is :math:`2` and the
+:math:`\sigma_y` hemisphere ``FundamentalDomain(SPHERE, (e_y,), …).dim``
+is also :math:`2`. Indeed the agreement is now a **construction law**,
+gated in
+:meth:`Quotient.__post_init__ <orpheus.numerics.manifold.Quotient>` —
+a quantity that must always agree cannot tell two cases apart. Two
+measured facts hid the fork instead:
+
+1. **No section of** :math:`S^2 \to S^2/SO(2)` **is canonical.** Every
+   half-meridian is one and none is distinguished, so there was nothing
+   to put in a second slot even had one existed. That is the normal
+   situation for a positive-dimensional group.
+2. **The tree's** :math:`SO(2)` **data is already in chart
+   coordinates.** `[M]` ``gauss_legendre(8).measure.nodes`` has shape
+   :math:`(8,)` and holds the invariant :math:`\mu` itself, so the
+   realization and the data speak the same language and nobody had to
+   choose. `[M]` ``folded_product(4,8).measure.nodes`` has shape
+   :math:`(16,3)` — the base's ambient columns — so for the second
+   entry the same slot cannot even *see* the tree's own nodes.
+
+.. _manifold-s2-sigma-y:
+
+The derivation — :math:`S^2/\langle\sigma_a\rangle` is the closed disk
+-----------------------------------------------------------------------
+
+The procedure of :ref:`manifold-derivation-procedure`, run in full.
+Write :math:`a` for the mirrored axis and :math:`b, c` for the other
+two; the shipped fold is :math:`a = y`. Every line below was re-derived
+in this session, independently of the catalogue entry, and then
+compared against it.
+
+**Step 0 — the group.**
+:math:`\sigma_a : x_a \mapsto -x_a`, with
+:math:`H = \langle\sigma_a\rangle = \{e, \sigma_a\}` of order 2. `[M]`
+:math:`\det\sigma_y = -1` and :math:`\sigma_y^2 = I`. That
+determinant is not decoration: :math:`\sigma_a` is an **improper**
+element, and specifically a *reflection* — it fixes a hyperplane
+pointwise — which predicts steps 1 and 3 before either is run.
+
+**Step 1 — the invariants.** A polynomial is :math:`\sigma_a`-invariant
+iff it is **even in** :math:`x_a`, so
+
+.. math::
+
+   p_1 = x_b, \qquad p_2 = x_c, \qquad p_3 = x_a^2 .
+
+`[M]` verified symbolically, with two non-invariant controls: for
+:math:`x` and :math:`z` and :math:`y^2` the difference
+:math:`p(\sigma_y x) - p(x)` is :math:`0`, while for the controls
+:math:`y` and :math:`xy` it is :math:`-2y` and :math:`-2xy`. A check
+that passes on everything is not a check.
+
+*Completeness*, by Molien's series — not by eyeballing. Molien's
+formula gives the Hilbert series of :math:`\mathbb{R}[x]^H` from the
+group alone, and `[M]`
+
+.. math::
+
+   M(t) \;=\; \tfrac12 \sum_{g \in H} \frac{1}{\det(I - t g)}
+         \;=\; \frac{1}{(1-t)^2 (1-t^2)}
+         \;=\; 1 + 2t + 4t^2 + 6t^3 + 9t^4 + 12t^5 + O(t^6),
+
+which is *exactly* the Hilbert series of a free polynomial algebra on
+generators of degrees :math:`1, 1, 2`. `[M]` the difference of the two
+series simplifies to :math:`0`. That single equality carries two facts
+at once: **completeness** — the subalgebra
+:math:`\mathbb{R}[x_b, x_c, x_a^2]` has the same graded dimension as
+the whole invariant ring in every degree, so it *is* the whole ring —
+and **freeness**, i.e. an empty syzygy ideal, which step 3 then
+re-derives independently.
+
+*Minimality*, by counting :math:`\dim(\mathfrak{m}/\mathfrak{m}^2)`
+degree by degree, where :math:`\mathfrak{m}` is the ideal of
+positive-degree invariants: `[M]` degree 1 contributes **2** new
+generators, degree 2 contributes **1**, and degrees 3–5 contribute
+**0** — so the minimal generating set has exactly three members.
+
+.. warning::
+
+   **A trap in that count, recorded because it produced a
+   self-consistent wrong answer.** A "decomposable" is a product of
+   **two or more** positive-degree invariants. Counting products of
+   :math:`k \ge 1` factors instead includes the generators themselves,
+   and then every degree reports *"0 new generators needed"* — i.e. the
+   empty set generates the invariant ring. The output is internally
+   consistent and completely wrong. The predicate is :math:`k \ge 2`.
+
+**Step 3 — the syzygy ideal is empty, and predictably so.** `[M]` the
+elimination
+:math:`\langle u_1 - x_b,\, u_2 - x_c,\, u_3 - x_a^2\rangle \cap
+\mathbb{R}[u]` returns a Gröbner basis with **no** :math:`u`-only
+generator, so :math:`I = (0)`; the Jacobian
+:math:`\partial(p_1,p_2,p_3)/\partial(x,y,z)` has determinant
+:math:`\pm 2 x_a` — `[M]` exactly :math:`-2y` for the shipped
+:math:`a = y` ordering, the sign being an artefact of which two
+coordinates are kept first — and generic rank **3**, equal to the
+number of invariants. It is the **rank** that carries the argument.
+
+⭐ **But the theorem is better than the computation here.** A
+reflection generates a *reflection group*, so by
+**Chevalley–Shephard–Todd** its invariant ring is a polynomial ring —
+hence free, hence :math:`I = (0)`. The elimination is the mechanical
+route; the answer was never in doubt. This is a real structural
+contrast with :math:`S^2/SO(2)`, whose syzygy ideal is *also* empty but
+for the unrelated reason that its two invariants happen to be
+algebraically independent: :math:`SO(2)` is not a reflection group and
+no such theorem applies to it.
+
+**Step 4 — Procesi–Schwarz.** The three gradients
+:math:`\nabla p_1 = e_b`, :math:`\nabla p_2 = e_c`,
+:math:`\nabla p_3 = 2 x_a e_a` are mutually orthogonal, so :math:`P` is
+diagonal and :math:`P \succeq 0` collapses to a single inequality:
+
+.. math::
+   :label: manifold-s2-mod-mirror
+
+   P \;=\; \operatorname{diag}\bigl(1,\, 1,\, 4 p_3\bigr),
+   \qquad
+   \det P \;=\; 4 p_3 ,
+   \qquad\text{so}\qquad
+   \mathbb{R}^3 / \langle\sigma_a\rangle \;=\; \{\, p_3 \ge 0 \,\}.
+
+.. (vv-status rationale) manifold-s2-mod-mirror is the second INSTANCE
+   of :eq:`manifold-procesi-schwarz`, for the S^2/<sigma_a> catalogue
+   entry, and is classified exactly as its sibling
+   :eq:`manifold-s2-mod-so2` is, for the same structural reason. Its
+   content IS checked, and tightly: the P-matrix and its determinant are
+   recomputed symbolically and compared with sp.simplify, the syzygy is
+   asserted empty, and the stratum is SOLVED for (and shown to be a
+   one-parameter family, i.e. a curve) rather than compared to a
+   literal, by tests/numerics/test_manifold.py::
+   TestTheSigmaYFoldIsExpressibleAndDiscriminating::{
+   test_the_derivation_reproduces_procesi_schwarz,
+   test_the_stratum_is_a_CIRCLE_not_a_point_set}. Those gates carry
+   @pytest.mark.foundation and deliberately NO verifies(...): they
+   assert an intrinsic law of a data type, with no flux, eigenvalue or
+   convergence claim behind them, and vv-principles' foundation tier
+   carries no verifies marker by rule. A verifies edge here would mint a
+   coverage claim of a class the gates do not make.
+.. vv-status: manifold-s2-mod-mirror documented
+
+**Step 5 — restrict to the sphere.** Adjoining the sphere's ideal
+:math:`p_1^2 + p_2^2 + p_3 = 1` makes :math:`p_3` *eliminable*, and
+what remains is two-dimensional:
+
+.. math::
+
+   \det P \big|_{S^2} \;=\; 4\,\bigl(1 - p_1^2 - p_2^2\bigr),
+   \qquad
+   S^2/\langle\sigma_a\rangle \;\cong\;
+   \bigl\{\, (p_1, p_2) : p_1^2 + p_2^2 \le 1 \,\bigr\} \;=\; D^2 .
+
+`[M]` **the re-derivation agrees with the shipped entry exactly.** The
+construction, so it regenerates from this page: form the three
+gradients of :math:`(x, z, y^2)` symbolically, build
+:math:`P_{ij} = \langle\nabla p_i, \nabla p_j\rangle`, substitute
+:math:`y^2 \to p_3` to re-express it in the invariants, then compare
+against ``SPHERE.quotient(SubgroupOfO3.Mirror("y"))`` with the entry's
+own generator symbol mapped onto :math:`p_3`. ``sympy.simplify`` of the
+difference is the zero :math:`3\times3` matrix, and of the
+determinants, :math:`0`.
+
+⚠ The substitution step has a trap the sibling entry records
+(:ref:`manifold-s2-so2`), and it does **not** bite here: ``subs``
+matches syntactic nodes, so ``subs(x**2 + y**2, p2)`` silently fails on
+:math:`4x^2+4y^2` — whereas ``4*y**2`` literally contains the node
+``y**2``, so ``subs(y**2, p3)`` succeeds. A derivation that "happens to
+work" is still worth asserting: check that no free :math:`x, y, z`
+remains in :math:`P` after the substitution.
+
+⭐ **Step 5 supplies the equality that the syzygy ideal did not**, and
+that is worth stating before an engine is written. In *both* catalogued
+entries ``syzygy`` is honestly ``()``, and in both the real equality
+arrives at step 5 — :math:`p_1^2 + p_2 = 1` for :math:`SO(2)`,
+:math:`p_1^2 + p_2^2 + p_3 = 1` here. An engine that emits only
+:math:`I` has emitted only half the equalities.
+
+In transport coordinates the invariants are the direction cosines
+themselves: :math:`p_1 = \mu_x = \eta` (the radial cosine),
+:math:`p_2 = \mu_z = \mu` (the axial cosine), and the eliminated
+:math:`p_3 = \mu_y^2 = \xi^2`. So the orbit space of the shipped
+cylindrical fold is
+
+.. math::
+
+   S^2/\langle\sigma_y\rangle
+   \;=\; \{\, (\eta, \mu) : \eta^2 + \mu^2 \le 1 \,\},
+   \qquad \xi^2 = 1 - \eta^2 - \mu^2 \ \text{recovered from it}.
+
+⚠ **The dimension does NOT drop**, and that one line is the source of
+everything in the rest of this section. :math:`H` is **finite**, so
+:math:`\dim H = 0` and :math:`\dim(S^2/H) = 2 - 0 = 2`; generic orbits
+are two points, not curves. Contrast :math:`S^2/SO(2)`, where
+:math:`2 - 1 = 1`. With no dimensional reduction the invariant chart
+buys nothing as a *data* representation — :math:`3 \to 2` floats with
+the third recoverable — while for :math:`SO(2)` it buys a genuine
+:math:`3 \to 1` reduction (:ref:`manifold-chart-section-asymmetry`).
+
+.. _manifold-stratum-is-a-locus:
+
+The stratum is a LOCUS, and that retyped a field
+-------------------------------------------------
+
+:math:`\det P = 4 x_a^2` vanishes exactly on the mirror's own
+fixed-point set — the great circle :math:`S^2 \cap \{x_a = 0\}`, which
+in the realization's coordinates is the disk's **boundary**:
+
+.. math::
+
+   \operatorname{Fix}(\sigma_a) \cap S^2
+   \;=\; \{\, \xi = 0 \,\}
+   \;\longleftrightarrow\;
+   \{\, \eta^2 + \mu^2 = 1 \,\} \;=\; \partial D^2 .
+
+Every point of it is fixed by :math:`\sigma_a`, so its stabilizer is
+all of :math:`H`, the orbit collapses from two points to one, and the
+quotient is an **orbifold with boundary** — the same conclusion as
+:ref:`manifold-singular-stratum` reaches for :math:`SO(2)`, by the same
+route. In transport terms the stratum is :math:`\xi = \mu_y = 0`: the
+purely **meridional** directions.
+
+⛔ **And this is what retyped a field.** ``singular_stratum`` was
+``tuple[float, ...]`` and the first entry stored ``(-1.0, 1.0)``. A
+**circle is not a tuple of floats**. The first catalogued entry's
+*shape* had silently become the field's *type*: a stratum is a locus,
+and two poles are merely a locus that happens to be finite. The field
+is now a SymPy expression in the realization's coordinates whose
+vanishing set is the stratum, with ``None`` for a free action — so
+`[M]` :math:`SO(2)` stores ``1 - u0**2`` (solving to
+:math:`\{-1,+1\}`, unchanged in content) and :math:`\sigma_a` stores
+``1 - u0**2 - u1**2``, whose solution set is a one-parameter family.
+:attr:`is_free <orpheus.numerics.manifold.Quotient.is_free>` reads
+``is None`` rather than ``== ()``.
+
+⭐ **Why the stratum is STORED at all, when** ``det_gram`` **already
+determines it.** This looks like a Pattern-2 twin and is not, and the
+distinction is worth the paragraph because it is the criterion for
+every future field: *a value that its owner cannot recompute from its
+own state is derivation output, and storing it is right.* Recovering
+the locus needs the **base's** defining ideal —
+:math:`\det P = 4p_2` becomes :math:`4(1-\mu^2)` only after
+substituting :math:`p_1^2 + p_2 = 1`, and :math:`\det P = 4p_3` becomes
+:math:`4(1 - p_1^2 - p_2^2)` only after
+:math:`p_1^2 + p_2^2 + p_3 = 1` — and a
+:class:`~orpheus.numerics.manifold.Quotient` does not carry that ideal.
+Step 5 of the procedure is exactly where that ideal enters, which is
+why the stratum is a *fifth-step* output and not a property of
+:math:`\det P` alone.
+
+.. _manifold-two-coordinate-systems:
+
+Two honest coordinate systems: a chart codomain AND a section's image
+----------------------------------------------------------------------
+
+The ruled shape (user, 2026-08-31) is **two slots**, and the two answer
+different questions. State them that way when populating a new entry,
+because the failure mode is putting the right object in the wrong slot:
+
+.. list-table:: The two slots, and the question each answers
+   :header-rows: 1
+   :widths: 22 39 39
+
+   * -
+     - ``realization``
+     - ``fundamental_domain``
+   * - The question
+     - *"What does the invariant chart of* :math:`M/H` *map ONTO?"*
+     - *"Which points of* :math:`M` *are the chosen orbit
+       representatives?"*
+   * - Whose coordinates
+     - the **invariants'** — the same language as ``generators``,
+       ``gram`` and ``det_gram``
+     - the **base's** ambient coordinates
+   * - :math:`S^2/SO(2)`
+     - ``Interval(-1, 1)`` — the polar cosine :math:`\mu`
+     - ``None``: no section is canonical
+   * - :math:`S^2/\langle\sigma_a\rangle`
+     - ``Ball(2)`` — the disk :math:`(\eta, \mu)`
+     - ``FundamentalDomain(SPHERE, ((0.0, 1.0, 0.0),), 'y>=0')`` — the
+       closed hemisphere, named ``S^2|y>=0``
+   * - Who produces data in it
+     - a rule *born* in the chart, e.g.
+       ``gauss_legendre(8).measure.nodes``, shape :math:`(8,)`
+     - :meth:`DiscreteMeasure.quotient
+       <orpheus.numerics.measure.DiscreteMeasure.quotient>`, **always** —
+       e.g. ``folded_product(4,8).measure.nodes``, shape :math:`(16,3)`
+   * - Can it see the ERR-080 forgery?
+     - ⛔ **no** — Mode-12 blind, measured below
+     - ✅ yes — the forged rows are not on :math:`S^2`
+
+⭐ **The producer had already chosen, and it chose the section.** `[M]`
+:meth:`DiscreteMeasure.quotient
+<orpheus.numerics.measure.DiscreteMeasure.quotient>` computes orbit
+representatives and then pushes forward along
+``lambda nodes: nodes[representative]`` — a **selection** of parent
+nodes, applying no chart. So *every* measure the tree emits through
+``.quotient(...)`` carries the base's ambient columns, by construction;
+``folded_product``'s :math:`(16,3)` is not a stylistic choice but the
+only thing that method can produce. Under a chart-only reading,
+``Quotient.contains`` could validate **none** of them.
+
+**What each half of the type does.**
+
+- ``Quotient.contains`` accepts **either** language and dispatches on
+  the ambient width. This is the one place in the type where the
+  distinction is a genuine local split rather than a repeated tag test,
+  and it is the reason the fork is resolved in one method instead of at
+  every call site.
+- ``_ambient`` still reports the **realization's** width. That is
+  deliberate and is not a compromise: a
+  :class:`~orpheus.numerics.manifold.Product` factor must have one
+  canonical width, or a product's coordinate split would be ambiguous.
+  ``contains`` is deliberately the wider of the two.
+- ``Quotient.__post_init__`` gates the pair: the two views describe one
+  object, so their ``dim`` must agree. `[M]` this is a real check and
+  not a tautology — the fundamental domain *derives* its ``dim`` from
+  the base less one per antipodal normal pair, while the realization
+  *states* its own, so a hemisphere offered against a 1-D realization
+  is refused where it is written:
+
+.. code-block:: text
+
+   S^2/sigma_y: the fundamental domain 'S^2|y>=0' has dim 2 but the
+   realization '[-1,1]' has dim 1 — the two must describe the same
+   orbit space. Check the normals: an antipodal PAIR spells an
+   equality and drops a dimension; a lone normal does not.
+
+.. warning::
+
+   ⛔ **The half-spaces must be CLOSED, and the witness is production
+   data.** `[M]` the cylindrical march seeds each polar level at
+   :math:`\xi = 0` **exactly** — the seed of level :math:`p` is
+   :math:`(-\sqrt{1-\mu_p^2},\, 0,\, \mu_p)`, on :math:`S^2` to
+   :math:`0.0` and on the stratum to :math:`0.0` — so a strict
+   :math:`\langle p, n\rangle > 0` would refuse a direction the
+   production sweep actually marches from. This is
+   ``coding-elegance`` anti-pattern #18's half (ii) — *every legal
+   value must be admitted*, which is a claim about the **producers**
+   and is the half that gets skipped. Gated by
+   ``test_the_half_space_is_CLOSED_because_production_marches_from_it``.
+
+   ⚠ The shipped folded *rule* cannot witness this: `[M]` its 16 nodes
+   have :math:`\mu_y \in [0.1945,\, 0.8688]`, strictly positive,
+   because the even-:math:`n_\varphi` staggering makes the fold **free**
+   on the nodes. The closure's edge data is the only witness available,
+   which is why the gate is built on the seeds rather than on the
+   quadrature.
+
+.. _manifold-realization-refuted:
+
+Five single-slot candidates, measured and refused
+--------------------------------------------------
+
+Before the two-slot ruling, five single-object candidates were put to
+the shipped data. **All five fail**, and they fail in two disjoint
+ways, which is itself the argument for two slots: the two that admit
+the tree's nodes are blind to the chart, and the three that admit chart
+points are blind to the nodes. The matrix below is **measured**, cell
+by cell — and
+"REFUSE (shape)" is a raised :exc:`ValueError` from the ambient-width
+check, not a ``False`` return, which is a behavioural difference a
+caller must handle (:ref:`manifold-gotcha-shape-vs-verdict`).
+
+The five inputs: the shipped folded nodes :math:`(16,3)`; the **orbit
+twins**, the same nodes with :math:`\mu_y \to -\mu_y`, i.e. the wrong
+representative; the **ERR-080 forgery** :math:`(\mu, 0, 0)`,
+:math:`(8,3)`, not unit-norm; and the chart images of the first and
+third, :math:`(16,2)` and :math:`(8,2)`.
+
+.. list-table:: Every candidate against every input, measured 2026-08-31
+   :header-rows: 1
+   :widths: 26 15 15 15 15 14
+
+   * - Candidate
+     - shipped
+     - twins
+     - forgery
+     - shipped charted
+     - forgery charted
+   * - ``SPHERE``
+     - ADMIT
+     - ⛔ **ADMIT**
+     - refuse
+     - REFUSE (shape)
+     - REFUSE (shape)
+   * - ``RealSpace(2)``
+     - REFUSE (shape)
+     - REFUSE (shape)
+     - REFUSE (shape)
+     - ADMIT
+     - ⛔ **ADMIT**
+   * - ``COSINE_INTERVAL × COSINE_INTERVAL``
+     - REFUSE (shape)
+     - REFUSE (shape)
+     - REFUSE (shape)
+     - ADMIT
+     - ⛔ **ADMIT**
+   * - ``Ball(2)`` alone
+     - REFUSE (shape)
+     - REFUSE (shape)
+     - REFUSE (shape)
+     - ADMIT
+     - ⛔ **ADMIT**
+   * - the hemisphere alone
+     - ADMIT
+     - refuse
+     - refuse
+     - REFUSE (shape)
+     - REFUSE (shape)
+   * - ⭐ **SHIPPED: both slots**
+     - ADMIT
+     - refuse
+     - refuse
+     - ADMIT
+     - ⚠ ADMIT
+
+Reading the rows:
+
+**The sphere itself.** ``realization = SPHERE`` is the convenient
+placeholder, and the one to refuse hardest. It does *not* regress
+ERR-080 (the forgery is still
+refused, since :math:`\lVert(\mu,0,0)\rVert = |\mu| \ne 1`). What it
+loses is **the fold itself**: the orbit twins are admitted, and more
+sharply, `[M]` under this choice ``Quotient.contains`` becomes the
+*same function* as ``SPHERE.contains`` — **no input exists that the
+quotient refuses and its base admits**. A predicate that cannot
+distinguish :math:`M/H` from :math:`M` is ``vv-principles`` #17's *arm
+with no witness*, decidable at design time with no mutation needed.
+⛔ And it is topologically false, not merely weak: :math:`D^2 \ncong
+S^2` — the disk is contractible with boundary :math:`S^1` and
+:math:`\chi = 1`, the sphere has no boundary and :math:`\chi = 2`. That
+``dim`` happens to agree (both 2) carries no information here either,
+precisely because :math:`H` is finite.
+
+**The two shipped 2-D members**, ``RealSpace(2)`` and the square. Both
+buy nothing the disk does not, and both are strictly weaker:
+``RealSpace(2)`` drops the disk inequality entirely, and
+``COSINE_INTERVAL × COSINE_INTERVAL`` is the bounding **square**, whose
+discriminating witness is measured — `[M]` :math:`(0.9, 0.9)` is in the
+square and not in the disk, and corresponds to **no direction at all**,
+since :math:`\eta^2 + \mu^2 = 1.62 > 1` forces :math:`\xi^2 = -0.62`.
+Reusing a shipped member because it ships is how a type acquires a
+predicate that admits impossible points.
+
+**The disk alone.** ``Ball(2)`` is what the *documented* meaning of
+``realization`` requires, and the sharpest refusal of the five, because
+it fails on the
+very defect the type was minted for. ⛔ `[M]` **the chart is Mode-12
+blind to ERR-080.** The chart :math:`(x,y,z) \mapsto (x,z)` discards
+:math:`\mu_y`, and :math:`\mu_y` is precisely what the forgery
+falsifies, so the forged row :math:`(\mu, 0)` is a **perfectly legal**
+point of the disk — it is the orbit of the real direction pair
+:math:`(\mu, \pm\sqrt{1-\mu^2}, 0)`. Measured:
+:math:`\max |(\mu,0)|^2` over the eight forged rows is
+:math:`0.9221566084920586 < 1`, so *every* forged row lands inside the
+closed disk. The mechanism is exact, not statistical
+(``vv-principles`` Mode 12 — the measured functional's stabiliser
+contains the error class): no tolerance, refinement or fixture choice
+can expose it.
+
+**The hemisphere alone** — the only single object that admits the
+shipped nodes and refuses both wrong inputs. Its cost is that it
+**redefines** the field rather than adding to it: ``realization`` would
+stop meaning *chart codomain*, the type would then answer in the base's
+language for :math:`\sigma_a` and in the chart's for :math:`SO(2)` —
+the exact vocabulary drift the mint exists to end
+(:ref:`manifold-string-drift`) — and the derivation fields
+(``generators``, ``gram``, ``det_gram``) would be speaking a coordinate
+system the ``realization`` beside them no longer names.
+
+⚠ **And read the shipped row honestly: it does not dominate every
+cell.** The two-slot design still admits the *charted* forgery, and
+that is correct rather than a residual defect — in chart coordinates
+:math:`(\mu, 0)` genuinely **is** a point of the orbit space, and no
+predicate over the chart can know it was built by zero-padding. What
+the second slot buys is that the data the tree actually produces
+arrives in *section* coordinates, where the predicate that can see the
+forgery is the one that runs.
+
+.. _manifold-err-080-is-a-section:
+
+ERR-080's level-1 half is a botched section of :math:`S^2/SO(2)`
+------------------------------------------------------------------
+
+The chart-versus-section question is not new with :math:`\sigma_y`. It
+arises for :math:`SO(2)` too — the moment any consumer of a
+1-dimensional rule needs a 3-D direction — and the tree has been
+answering it, silently and wrongly, for as long as :ref:`ERR-080
+<manifold-err-080>` has existed.
+
+The realization :math:`[-1,1]` is the **chart's** codomain,
+unambiguously: a section of :math:`S^2 \to S^2/SO(2)` is a half-meridian
+*inside* :math:`S^2 \subset \mathbb{R}^3`, ambient 3, and
+``Interval(-1, 1)`` is ambient 1. So when
+:meth:`Quadrature.angular_frame
+<orpheus.numerics.quadrature.directional.Quadrature.angular_frame>`
+needs three columns it is not asking for the chart at all — it is
+asking for a **section**, which the tree never had. It fabricated one
+by zero-padding:
+
+.. list-table:: The fabricated section against an honest one
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Construction
+     - `[M]` 2026-08-31, on ``gauss_legendre(8)``
+   * - what the tree builds — ``column_stack`` of the three
+       axis-cosine arrays, two of them a zero *fallback*
+     - rows :math:`(\mu, 0, 0)`; norms
+       :math:`0.1834 \ldots 0.9603`; ``Sphere().contains`` → ``False``
+   * - an honest :math:`\varphi = 0` half-meridian,
+       :math:`\mu \mapsto (\sqrt{1-\mu^2},\, 0,\, \mu)`
+     - on :math:`S^2` to :math:`0.0`; ``Sphere().contains`` → ``True``
+
+⟹ **ERR-080's first link is not "a wrong tag". It is a section
+fabricated where none was declared** — the realization is a chart, a
+consumer needed a section, and zero-padding is what a codebase does
+when the object it needs has no slot. With ``fundamental_domain`` in
+the type, that padding has nowhere to live: an entry either declares a
+section or declares that it has none, and :math:`S^2/SO(2)` honestly
+declares ``None``.
+
+.. warning::
+
+   ⚠ **This names the level-1 half only. Do not read it as the
+   repair.** Making the section land on :math:`S^2` makes the nodes
+   *points of the manifold*; it does **not** fix the level-2 half. On
+   any :math:`\varphi = 0` section every :math:`Y_\ell^{m \ne 0}` is
+   evaluated at a *chosen* azimuth that carries no information, and the
+   corpus's recorded repair for that is unchanged: the **trivial
+   isotypic sub-basis** :math:`\{Y_\ell^0\} \cong \{P_\ell\}`
+   (:ref:`manifold-gelfand`, and the falsifiable form with ERR-080 in
+   the :doc:`error catalogue </theory/verification/error_catalog>`).
+   Both halves are needed; this section establishes only the first, and
+   **ERR-080 remains open** (:ref:`manifold-seams`).
+
+   ⚠ Declaring a section for :math:`SO(2)` would also be a **choice**,
+   not a derivation — the :math:`\varphi = 0` half-meridian is one of a
+   continuum — so it belongs to the step that makes a slab declare its
+   quotient, not to the derivation. The shipped entry therefore carries
+   ``fundamental_domain=None`` on purpose.
+
+.. _manifold-chart-section-asymmetry:
+
+Why the two entries diverge: a structural asymmetry, not a style choice
+-------------------------------------------------------------------------
+
+This is the transferable half of the whole section, and it is what a
+future entry's author needs before populating either slot. The two
+shipped entries make **opposite** choices, and both are locally
+correct; what could not serve both was the *type*.
+
+.. list-table:: The asymmetry, term by term
+   :header-rows: 1
+   :widths: 26 37 37
+
+   * -
+     - :math:`S^2/SO(2)`
+     - :math:`S^2/\langle\sigma_a\rangle`
+   * - the group
+     - compact **connected**, :math:`\dim = 1`
+     - **finite**, :math:`\dim = 0`, and a *reflection*
+   * - :math:`\dim(S^2/H)`
+     - :math:`2 - 1 = 1` — **drops**
+     - :math:`2 - 0 = 2` — **does not drop**
+   * - the invariant chart's codomain
+     - :math:`[-1,1] \subset \mathbb{R}^1`
+     - the closed disk :math:`D^2 \subset \mathbb{R}^2`
+   * - the chart *as data*
+     - :math:`3 \to 1` floats: a genuine **reduction**
+     - :math:`3 \to 2` floats, the third recoverable: **no reduction**
+   * - a canonical section?
+     - ⛔ **no** — every half-meridian is one; :math:`\varphi = 0` is an
+       arbitrary pick
+     - ✅ **yes** — the mirror determines the closed half-space, and
+       being a *reflection* makes it **strict**
+   * - what the tree ships as ``measure.nodes``
+     - the **chart**, :math:`(8,)`
+     - the **section**, :math:`(16,3)`
+   * - `[M]` ``measure.support``
+     - ``'[-1,1]'`` — the *realization's* name
+     - ``'S^2/sigma_y'`` — the *quotient's* name
+
+⟹ **For a positive-dimensional group the chart is strictly cheaper and
+no section is canonical, so the chart wins and the tree ships it. For a
+finite reflection the chart is no cheaper and the section IS canonical,
+so the section wins and the tree ships that.** Neither branch was
+wrong; the single-slot type was.
+
+.. warning::
+
+   ⛔ **"Canonical because it is a reflection" does not generalise to a
+   rotation — leave** ``fundamental_domain=None`` **for** :math:`C_n`.
+   The closed half-space is a *strict* fundamental domain (it meets
+   every orbit exactly once) only because :math:`\sigma_a`'s
+   fixed-point set lies **in** it: a free orbit
+   :math:`\{(x,y,z), (x,-y,z)\}` with :math:`y > 0` meets
+   :math:`\{y \ge 0\}` once, and a stratum orbit :math:`\{(x,0,z)\}` is
+   a single point that also lies in it. For a rotation :math:`C_n` the
+   closed sector's two meridian edges are identified **with each
+   other** by the group, so the closed sector maps 2-to-1 on its
+   boundary and is *not* homeomorphic to the orbit space. A
+   fundamental-domain slot filled for a :math:`C_n` entry would be
+   stating something false, and the type cannot catch it — the ``dim``
+   gate would pass.
+
+.. note::
+
+   **The hemisphere IS a legitimate realization set-theoretically, and
+   is NOT a diffeomorphic one — both halves matter.** `[M]` the chart
+   :math:`c : H^+ \to D^2`, :math:`(x,y,z) \mapsto (x,z)`, with inverse
+   :math:`(p_1,p_2) \mapsto (p_1, \sqrt{1-p_1^2-p_2^2}, p_2)`, is a
+   continuous bijection from a **compact** set onto a **Hausdorff**
+   one, hence a homeomorphism (no separate inverse-continuity argument
+   needed). It is *not* a diffeomorphism: :math:`\partial y/\partial
+   p_i = -p_i/\sqrt{1-p_1^2-p_2^2}` blows up on the stratum, and from
+   the forward side :math:`\mathrm{d}c` annihilates :math:`e_y` there —
+   rank 1 on the boundary circle, 2 in the interior. That is a
+   **Whitney fold**, and it shows up in the measure as an integrable
+   singularity in :math:`1/\lvert y \rvert` — that is, in
+   :math:`1/\lvert\xi\rvert`, the coordinate the fold quotients:
+   `[M]` :math:`\int_{D^2} \mathrm{d}p_1\, \mathrm{d}p_2 /
+   \lvert y\rvert = 2\pi`, the area of a hemisphere — finite.
+
+   ⚠ **The fold does not bite** ``contains``. Membership is a level-1,
+   set-theoretic question and the homeomorphism settles it; the fold
+   bites at **levels 2 and 3** — what a basis function eats, and what a
+   derivative operator differentiates. So it must not be cited as an
+   argument against a disk realization *for membership purposes*. The
+   arguments against the disk alone are the ones in
+   :ref:`manifold-realization-refuted`, and they are entirely
+   different.
+
+.. _manifold-orbifold-discretised:
+
+The orbifold is already realized in the shipped cylindrical sweep
+------------------------------------------------------------------
+
+:ref:`manifold-singular-stratum` records that two shipped objects live
+on the :math:`SO(2)` stratum from opposite directions. The
+:math:`\sigma_y` entry has an exact cylindrical analogue, and it is
+measured:
+
+.. list-table:: The fold's stratum against the shipped cylindrical data
+   :header-rows: 1
+   :widths: 46 54
+
+   * - Object
+     - `[M]` 2026-08-31, ``folded_product(4, 8)`` on a cylinder
+   * - the 16 quadrature nodes
+     - :math:`1 - \eta^2 - \mu^2 \in [0.0378,\, 0.7549]` — **strictly
+       interior**; the fold is free on them
+   * - the four march seeds — the starting angular edge per level,
+       ``AngularRedistribution.mu_start_per_level``
+     - the seed direction is
+       :math:`(-\sqrt{1-\mu_p^2},\, 0,\, \mu_p)`, on :math:`S^2` to
+       :math:`0.0` and with
+       :math:`1 - \eta^2 - \mu^2 = 0.0` **exactly**, on all four —
+       i.e. **on the stratum**
+   * - the azimuthal cell edges of each level
+     - the nodes sit at :math:`\omega/\pi \in \{0.125, 0.375, 0.625,
+       0.875\}`, the staggered midpoints of four cells partitioning
+       :math:`(0,\pi)`, so the edges are
+       :math:`\omega/\pi \in \{0, \tfrac14, \tfrac12, \tfrac34, 1\}`
+       and the two **outer** edges are :math:`\omega = 0, \pi`, where
+       :math:`\xi = \sin\theta \sin\omega = 0`
+   * - the :math:`\alpha`-dome per level
+     - five edge values per level, closing at both ends. Levels 0 and 3
+       read :math:`[0,\, 0.2566,\, 0.3629,\, 0.2566,\, 0]`; levels 1
+       and 2 read
+       :math:`[0,\, 0.8900,\, 1.2587,\, 0.8900,\, 1.1\times10^{-16}]`
+
+⟹ **That is what an orbifold looks like when you discretise it:** the
+*interior* of the fundamental domain carries the nodes, and its
+*boundary* — the stratum — carries the closure's degenerate data, the
+:math:`\alpha`-dome's zeros and the march seed.
+
+⚠ Two naming traps in that table, both `[M]` and both worth knowing
+before quoting it. ``mu_start_per_level`` holds a **radial** cosine
+:math:`\eta = -\sin\theta_p`, not a polar :math:`\mu` — the name is the
+half-angle thread's, not this page's; and the field's own docstring
+spells the level's polar cosine :math:`\xi_p`, while :math:`\xi`
+everywhere on this page is :math:`\mu_y`, the *azimuthal* cosine that
+the fold quotients. The values are unambiguous — `[M]`
+``mu_start_per_level`` equals :math:`-\sqrt{1-\mu_p^2}` on the level
+cosines exactly — but the symbols are not.
+
+⚠ **This is an identity of LOCI, established by arithmetic — the
+mechanism is unproved.** Whether the cylindrical redistribution term
+*is* the :math:`\sigma_y` quotient's connection is the exact
+cylindrical twin of the open spherical question recorded in the third
+row of :ref:`manifold-one-polynomial`, and it is not closed here. It
+has the same two admissible outcomes: a derivation, or an explicit
+ruling that the coincidence is geometric bookkeeping. Cite this
+subsection for the measured coincidence, never for the mechanism.
+
+
 .. _manifold-engine-seed:
 
 The catalogue is the engine's SEED, not its rival
@@ -1124,10 +1964,20 @@ what the ruling forbids.
 ⟹ **A catalogue entry must BE the derivation procedure's output, not a
 human summary of its answer.** The procedure emits, per entry: the
 invariant generators; the syzygy ideal; the matrix :math:`P` and
-:math:`\det P`; the chart; the pushforward measure; the stratum where
-:math:`\det P` vanishes. **Those are the entry's fields.** An engine
-then ships by *computing* them instead of reading them — a development,
-with no new vocabulary and no seam.
+:math:`\det P`; the chart; a section, when one is canonical; the
+pushforward measure; the stratum where :math:`\det P` vanishes.
+**Those are the entry's fields.** An engine then ships by *computing*
+them instead of reading them — a development, with no new vocabulary
+and no seam.
+
+⭐ **The list above grew by one, and the growth is the ruling working
+rather than the ruling slipping.** The section was not on the
+procedure's output list until the second entry produced one
+(:ref:`manifold-two-coordinate-systems`); it was added to the
+*procedure*, and a slot was added to match, which is exactly the
+direction the check below permits. What it forbids is the reverse — a
+field the procedure does not emit, or an output the procedure emits
+that the entry has to summarise in prose.
 
 The ruling comes with its own falsifiable check, and it is the question
 to ask of any future edit here:
@@ -1159,13 +2009,23 @@ ruling has been violated — however clean the interface looks.
      - its zero locus is the orbit-space boundary
    * - the singular stratum
      - ``singular_stratum``
-     - *derived* from ``det_gram``, and gated as such
+     - a **locus** in the realization's coordinates — derivation
+       output that a ``Quotient`` cannot recompute, because recovering
+       it needs the base's own ideal
+       (:ref:`manifold-stratum-is-a-locus`)
    * - provenance
      - ``derived_by``
      - ``"hand"`` / ``"engine"``
+   * - a section of :math:`M \to M/H`, when canonical
+     - ``fundamental_domain``
+     - its **image**, in the base's coordinates; ``None`` is an
+       answer, not a gap
+       (:ref:`manifold-two-coordinate-systems`)
    * - the chart :math:`M/H \to N`
      - ⛔ **not a slot**
-     - only its **codomain** ships, as ``realization``
+     - only its **codomain** ships, as ``realization`` — the mirror of
+       the row above, where only the *image* ships. Neither **map**
+       does
    * - the pushforward measure :math:`\pi_*\mu`
      - ⛔ **not a slot**
      - the measure descends today via
@@ -1173,13 +2033,17 @@ ruling has been violated — however clean the interface looks.
        <orpheus.numerics.measure.DiscreteMeasure.quotient>`, which
        knows nothing about this catalogue
 
-`[M]` **6 of 8** — by ``dataclasses.fields``, ``Quotient`` declares
-``base``, ``by``, ``realization``, ``generators``, ``syzygy``,
-``gram``, ``det_gram``, ``derived_by``, ``singular_stratum``. So the
-seed is real for six of the procedure's outputs and **incomplete for
-two**, and those two are named as seams rather than left to be
-discovered (:ref:`manifold-seams`). Stating the fraction is the point:
-a ruling whose compliance is claimed but not counted is not checkable.
+`[M]` **7 of 9** — by ``dataclasses.fields``, ``Quotient`` declares ten
+fields: ``base``, ``by``, ``realization``, ``fundamental_domain``,
+``generators``, ``syzygy``, ``gram``, ``det_gram``, ``derived_by``,
+``singular_stratum``, of which the first two are the entry's *inputs*.
+So the seed is real for seven of the procedure's nine outputs and
+**incomplete for two**, and those two are named as seams rather than
+left to be discovered (:ref:`manifold-seams`). Stating the fraction is
+the point: a ruling whose compliance is claimed but not counted is not
+checkable. (`[M]` it read **6 of 8** until the two-slot ruling on
+2026-08-31; both the numerator and the denominator moved, which is why
+the two numbers are given together and not as a percentage.)
 
 ⭐ **Why the provenance field exists at all.** ``derived_by`` is read by
 nothing today, and a reviewer could reasonably call it speculative. It
@@ -1205,7 +2069,8 @@ raises, verbatim:
    P_ij = <grad p_i, grad p_j> with P >= 0; intersect with the ideal
    of S^2) and register it in orpheus/numerics/manifold.py's
    _ORBIT_CATALOGUE, or implement the derivation engine. Catalogued
-   today (manifold CLASS / group): ['Sphere/SO2'].
+   today (manifold CLASS / group): ['Sphere/SO2', 'Sphere/sigma_x',
+   'Sphere/sigma_y', 'Sphere/sigma_z'].
 
 Four things are in that message and all four are load-bearing: which
 pair was asked for, the **procedure** to answer it, **where** to put
@@ -1232,7 +2097,7 @@ reproduces them by computation instead of by lookup. A specification
 written before the implementation cannot be shaped to flatter it
 (``vv-principles`` #17).
 
-Concretely, for the one shipped entry, the assertions are on the
+Concretely, for the two shipped entries, the assertions are on the
 **symbolic value** rather than on a string or a float:
 
 .. code-block:: python
@@ -1248,7 +2113,30 @@ Concretely, for the one shipped entry, the assertions are on the
    det_on_sphere = sp.simplify(s2_mod_so2.det_gram.subs(p2, 1 - mu**2))
    roots = sorted(sp.solve(sp.Eq(det_on_sphere, 0), mu))
    assert [float(r) for r in roots] == [-1.0, 1.0]
-   assert s2_mod_so2.singular_stratum == (-1.0, 1.0)
+   assert sp.simplify(s2_mod_so2.singular_stratum - (1 - u0**2)) == 0
+
+   # tests/numerics/test_manifold.py
+   #   ::TestTheSigmaYFoldIsExpressibleAndDiscriminating
+   assert sp.simplify(fold.det_gram - 4 * u2) == 0
+   assert sp.simplify(fold.gram - sp.diag(1, 1, 4 * u2)) == sp.zeros(3, 3)
+   assert fold.realization == Ball(2)
+   assert fold.dim == 2                     # H is FINITE: no drop
+
+   # ...and the stratum is shown to be a CURVE, not a point set:
+   assert sp.simplify(fold.singular_stratum - (1 - u0**2 - u1**2)) == 0
+   sols = sp.solve(sp.Eq(fold.singular_stratum, 0), u1)
+   assert len(sols) == 2 and all(u0 in s.free_symbols for s in sols)
+
+⭐ **The last two lines are the shape of the assertion that a retyped
+field needed.** Solving the locus and checking that the solutions
+*retain a free symbol* is what distinguishes a curve from a point set,
+and it is a claim no comparison against a literal could make. The
+:math:`SO(2)` gate's own stratum assertion was likewise rewritten to
+solve rather than compare — `[M]` it read
+``s2_mod_so2.singular_stratum == (-1.0, 1.0)`` until 2026-08-31 — and
+it survived the retyping **without weakening**, because it had already
+been written to solve :math:`\det P = 0` rather than to trust the
+stored value.
 
 .. _manifold-twin-lookup:
 
@@ -1263,11 +2151,11 @@ by catalogue lookup, in the string vocabulary, and already raises
 :exc:`NotImplementedError` on an uncatalogued quotient with the same
 shape of message. Two independent orbit-space lookups now exist:
 
-.. list-table:: Two lookups of :math:`S^2/H`, measured 2026-08-31
+.. list-table:: Two lookups of :math:`S^2/H`, re-measured 2026-08-31 after the two-slot ruling
    :header-rows: 1
-   :widths: 20 40 40
+   :widths: 18 34 48
 
-   * - Spent :math:`H`
+   * - :math:`H`
      - ``AngularSymmetry(...).support``
      - ``SPHERE.quotient(H).realization.name``
    * - ``SO2``
@@ -1275,23 +2163,87 @@ shape of message. Two independent orbit-space lookups now exist:
      - ``'[-1,1]'`` — **they agree**
    * - ``Trivial``
      - ``'S^2'``
-     - ``NotImplementedError`` — ⛔ the catalogue lacks the identity
-       quotient
+     - ``'S^2'`` — **they agree**
+   * - ``sigma_y``
+     - :exc:`NotImplementedError`
+     - ``'D^2'`` — ⭐ the catalogue answers a row the registry
+       **structurally cannot**; see below
    * - ``Oh``
-     - ``NotImplementedError``
-     - ``NotImplementedError``
+     - :exc:`NotImplementedError`
+     - :exc:`NotImplementedError`
 
-Three readings, all useful. **(i)** On the one overlapping row the
-typed catalogue reproduces the registry's derived answer exactly, which
-is the cheapest available evidence that the type is a *re-typing* of an
-existing fact and not a rival one. **(ii)** The ``Trivial`` row is a
-real gap: :math:`S^2/\{e\} = S^2` is legal, trivially derivable
-(:math:`p_i = x_i`, :math:`P = I`, :math:`\det P = 1`, no stratum) and
-absent. **(iii)** Two lookups of one fact is a Pattern-2 twin by
-construction, and the migration is what collapses it — the registry's
-``support`` should *be* the catalogue's answer rather than a parallel
-``if``/``if``/``raise``. That collapse is tracker 2.0b, and it is
+Four readings, all useful.
+
+**(i)** On the two overlapping rows the typed catalogue reproduces the
+registry's derived answer exactly, which is the cheapest available
+evidence that the type is a *re-typing* of an existing fact and not a
+rival one. A committed row pins them together
+(``test_the_trivial_answer_agrees_with_the_shipped_string_twin``) with
+a *do not re-baseline* note: if it ever reddens, one of the two is
+wrong about a quotient, and which one is a mathematical question, not
+a test-maintenance one.
+
+**(ii)** ⛔ **The** ``Trivial`` **row read** :exc:`NotImplementedError`
+**in the first version of this page, and it was already false when the
+page landed.** Comparing the two lookups is what exposed the gap —
+:math:`S^2/\{e\} = S^2` is legal and trivially derivable — and the same
+commit that published the table (``fba4205a``) closed it, by
+**deriving** the answer rather than tabulating it: the trivial group's
+invariant ring is the whole polynomial ring, so :math:`p_i = x_i`,
+:math:`P = I`, :math:`\det P = 1`, which vanishes nowhere, hence no
+stratum, hence a free action — right vacuously, the only element being
+the identity. That doubles as a **positive control on the machinery**:
+the procedure reproduces a known answer. The row is corrected here as
+history rather than deleted, because a gap reported into the corpus has
+the shortest shelf life of anything on a page — the report is what
+triggers the repair.
+
+**(iii)** ⭐ **The** ``sigma_y`` **row is not a gap in the registry, and
+reading it as one would send its repair in the wrong direction.** The
+two lookups quotient by **different halves of the symmetry**.
+:attr:`AngularSymmetry.support
+<orpheus.numerics.quadrature.registry.AngularSymmetry.support>` is
+defined as :math:`S^2/G^0` — the *continuous isotropy* a dimensional
+reduction spends — while a mirror is a member of the *discrete
+residual* :math:`\Gamma`, the finite half a quadrature must realize as
+an ordinate permutation. `[M]` the shipped geometry table says so
+directly: ``GEOMETRY_ANGULAR_SYMMETRY["cylinder"]`` is
+``continuous_isotropy=Trivial, discrete_residual=Dnh(2)`` — nothing
+continuous is spent on a cylinder, so its declared angular domain is
+the whole sphere. :meth:`Manifold.quotient
+<orpheus.numerics.manifold.Manifold.quotient>` has no such restriction:
+it quotients by any subgroup, which is why it can answer
+:math:`S^2/\langle\sigma_y\rangle` at all.
+
+**(iv)** Two lookups of one fact is a Pattern-2 twin by construction,
+and the migration is what collapses it — but reading (iii) sharpens
+what the collapse *is*. The registry's ``support`` is not a rival
+catalogue; it is the **special case** :math:`H = G^0`, and the collapse
+is therefore ``support = base.quotient(G⁰).realization.name`` rather
+than a merge of two tables. That collapse is tracker 2.0b, and it is
 listed as a seam rather than performed here.
+
+.. warning::
+
+   ⛔ **A live consequence of (iii), measured, and latent rather than
+   broken today.** The registry's stage-0 admission gate is a **string
+   comparison**: ``admits_domain`` is
+   ``measure.support == self.support``. `[M]` the cylinder declares
+   ``'S^2'`` while the shipped cylindrical rule carries
+   ``folded_product(4,8).measure.support == 'S^2/sigma_y'``, so
+   ``GEOMETRY_ANGULAR_SYMMETRY["cylinder"].admits_domain(...)`` is
+   **False** — stage 0 would reject the tree's own fold.
+
+   It bites nothing today for one reason only: `[M]` ``folded_product``
+   is **not in** ``quadrature_registry`` (four specs ship —
+   ``GaussLegendre1D``, ``LebedevSphere``, ``LevelSymmetricSN``,
+   ``ProductQuadrature``), so the selector never presents it to stage 0.
+   The day it is registered, this is the first thing that fires, and
+   the fix is not to loosen the comparison: it is that a rule folded by
+   a member of :math:`\Gamma` lives on :math:`S^2/\Gamma'` while the
+   geometry declares :math:`S^2/G^0`, and those are two different
+   quotients that the string vocabulary cannot tell apart. Recorded as
+   a seam (:ref:`manifold-seams`).
 
 
 .. _manifold-gotchas:
@@ -1368,10 +2320,26 @@ The module keeps the ambient count in a deliberately **exhaustive**
 fails loudly rather than silently mis-splitting a product's
 coordinates; a foundation gate walks every shipped variant through it.
 
-A :class:`~orpheus.numerics.manifold.Quotient`'s ambient count is its
-**realization's**, because membership in an orbit space is decided in
-the coordinates the chart lands in — :math:`\mu`, not
-:math:`(x, y, z)`.
+⭐ **A** :class:`~orpheus.numerics.manifold.Quotient` **is where the two
+counts come apart hardest, and the type answers them differently on
+purpose.** Its ambient count — what ``_ambient`` reports, and therefore
+what a :class:`~orpheus.numerics.manifold.Product` uses to split a
+point's coordinates — is the **realization's**, because a product
+factor must have one canonical width or the split is ambiguous. Its
+``contains``, by contrast, accepts **either** coordinate system and
+dispatches on the width it is handed
+(:ref:`manifold-two-coordinate-systems`). So for the shipped fold `[M]`
+``_ambient`` is :math:`2` (the disk) while ``contains`` also accepts
+the :math:`(16,3)` section points the tree's own measures carry.
+
+⚠ That asymmetry is deliberate and it is the one place on this page
+where a single object answers two questions with two different numbers.
+Read it as: *the canonical coordinate for composition is the chart's;
+the predicate is as wide as the honest languages the object has.* An
+earlier version of this paragraph stated only the first half — *"the
+ambient count is the realization's, because membership is decided in
+the coordinates the chart lands in"* — which was true of the
+single-slot type and became false for ``contains`` on 2026-08-31.
 
 .. _manifold-gotcha-shape-vs-verdict:
 
@@ -1451,31 +2419,57 @@ description of a capability rather than of a repair.
        (``basis/indicator_basis.py:284``) hard-codes it and `[M]` is
        already **false** for the energy-grid basis
        (:ref:`manifold-string-algebra`).
-   * - The ``chart`` and the pushforward measure as entry fields
-     - **Phase 1.1 / 3.1.** `[M]` 6 of the derivation procedure's 8
+   * - The two MAPS — the ``chart`` and the section — and the
+       pushforward measure, as entry fields
+     - **Phase 1.1 / 3.1.** `[M]` 7 of the derivation procedure's 9
        outputs are slots on
-       :class:`~orpheus.numerics.manifold.Quotient` today; the chart
-       ships only as its **codomain** (``realization``), and the
-       pushforward measure not at all — a measure descends via
-       :meth:`DiscreteMeasure.quotient
+       :class:`~orpheus.numerics.manifold.Quotient` today. What ships
+       of each map is only its *end*: the chart's **codomain**
+       (``realization``) and the section's **image**
+       (``fundamental_domain``); neither map itself is a slot, so
+       nothing can currently *apply* one — which is why
+       ``Quotient.contains`` must accept both languages rather than
+       normalising to one (:ref:`manifold-two-coordinate-systems`).
+       The pushforward measure is not a slot either: a measure
+       descends via :meth:`DiscreteMeasure.quotient
        <orpheus.numerics.measure.DiscreteMeasure.quotient>`, which
        knows nothing about the catalogue
        (:ref:`manifold-engine-data-model`).
-   * - The other ~11 catalogue entries
-     - **Phase 1.1.** One entry ships: ``(Sphere, "SO2")``. The
-       expected set covers :math:`\mathbb{Z}_2` antipodal,
+   * - The remaining catalogue entries
+     - **Phase 1.1.** `[M]` **four keys** ship — ``(Sphere, "SO2")``
+       and ``(Sphere, "sigma_x"/"sigma_y"/"sigma_z")`` — served by
+       **two** procedures, since all three mirrors share one
+       derivation that reads the axis off the group. The identity
+       quotient is a fifth answer, derived rather than tabulated. The
+       expected remainder covers :math:`\mathbb{Z}_2` antipodal,
        :math:`C_n` / :math:`D_n` about an axis, the :math:`O_h`
        sublattice for octant symmetry, :math:`SO(3)`, and
-       :math:`SO(2)\times\mathbb{R}_z` for the 1-D cylinder. The
-       identity quotient :math:`S^2/\{e\}` is a measured gap
-       (:ref:`manifold-twin-lookup`).
+       :math:`SO(2)\times\mathbb{R}_z` for the 1-D cylinder.
+       ⚠ Whoever adds a :math:`C_n` entry must leave
+       ``fundamental_domain=None``: a closed sector is **not** a
+       strict fundamental domain, and the ``dim`` gate cannot catch a
+       wrong one (:ref:`manifold-chart-section-asymmetry`).
    * - Collapsing the twin lookup
      - **2.0b.** :attr:`AngularSymmetry.support
        <orpheus.numerics.quadrature.registry.AngularSymmetry.support>`
-       performs its own two-row orbit-space lookup in the string
-       vocabulary; the two agree today `[M]` on the one overlapping
-       row, and one of them should become a consumer of the other
-       (:ref:`manifold-twin-lookup`).
+       performs its own orbit-space lookup in the string vocabulary;
+       `[M]` the two agree on both overlapping rows, and the registry's
+       is the **special case** :math:`H = G^0`, so the collapse is
+       ``support = base.quotient(G⁰).realization.name`` rather than a
+       merge of two tables (:ref:`manifold-twin-lookup`).
+   * - The ``support`` tag's own vocabulary split
+     - **2.0b, and independent of any one entry.** `[M]`
+       ``gauss_legendre(8).measure.support`` is ``'[-1,1]'`` — the
+       *realization's* name — while
+       ``folded_product(4,8).measure.support`` is ``'S^2/sigma_y'`` —
+       the *quotient's* name. One slot, two registers, and the
+       registry's stage-0 gate compares it by string equality:
+       `[M]` ``GEOMETRY_ANGULAR_SYMMETRY["cylinder"].admits_domain``
+       on the shipped fold is **False**. Latent only because
+       ``folded_product`` is not a registered spec
+       (:ref:`manifold-twin-lookup`). A migration that retypes the slot
+       and leaves the two registers disagreeing has fixed the type and
+       not the drift.
    * - The derivation ENGINE
      - **Deferred, not refused** — the ruling, the falsifiable
        compliance check and the acceptance suite that is already
@@ -1511,9 +2505,21 @@ description of a capability rather than of a repair.
 Verification
 ============
 
-The gates live in ``tests/numerics/test_manifold.py``: `[M]` **30 test
-functions, 40 collected rows**, all passing under the canonical
-``python -O -m pytest`` invocation.
+The gates live in ``tests/numerics/test_manifold.py``: `[M]` **42 test
+functions, 56 collected rows**, run under the canonical
+``python -O -m pytest`` invocation. Two functions are parametrized —
+one over the 13-member shipped-variant list, one over three bases — and
+the two counts are given separately because they move for different
+reasons: adding a *variant* moves the second and not the first.
+
+⚠ The row count here is the one the generated V&V matrix reports for
+this module, which is a second, independent reading of the same tree
+(``docs/theory/verification/matrix.rst``, ``numerics/test_manifold``
+row). `[M]` it read **44** before the two-slot ruling and **56** after.
+An earlier version of this paragraph said *"30 test functions, 40
+collected rows"*; both numbers were wrong when written — the module had
+32 functions and 44 rows — which is why the count is now stated with
+the instrument that produces it.
 
 **Every one carries** ``@pytest.mark.foundation`` **and none carries**
 ``verifies(...)``, and that is the correct tier rather than an
@@ -1526,7 +2532,7 @@ derivation), not an L0–L3 claim about a solver, a flux or an
 eigenvalue. Tagging them ``verifies`` would mint a coverage edge that
 an audit would then trust.
 
-Four groups, and what each is for:
+Six groups, and what each is for:
 
 .. list-table::
    :header-rows: 1
@@ -1546,22 +2552,48 @@ Four groups, and what each is for:
        interpolation; multiplying a non-manifold is refused;
        membership splits the coordinate blocks.
    * - Membership, **both legs**
-     - `[M]` **8 of the 9** membership tests assert a positive
-       verdict beside their negative one (``vv-principles`` #11 — a
-       contract predicate tested only against a broken instance
-       validates the *raising*, not the *claim*); the ninth is
+     - `[M]` **8 of the 9** tests in the ``TestMembership`` class
+       assert a positive verdict beside their negative one
+       (``vv-principles`` #11 — a contract predicate tested only
+       against a broken instance validates the *raising*, not the
+       *claim*); the ninth is
        ``test_a_wrong_ambient_dimension_is_a_typed_refusal``, which
        asserts a **raise** rather than a verdict and so has no positive
        leg to carry (:ref:`manifold-gotcha-shape-vs-verdict`). The
        load-bearing row is the ERR-080 forgery:
        the negative leg refuses :math:`(\mu,0,0)`, the positive leg
        admits the same nodes normalised, and a third assertion places
-       them on :math:`[-1,1]` where they belong.
+       them on :math:`[-1,1]` where they belong. (The count is scoped
+       to that class on purpose — the fold's own membership gates,
+       below, carry their legs differently.)
    * - The recorded derivation
      - The symbolic regression tests of
-       :ref:`manifold-engine-seed` — the :math:`P` matrix, the
-       determinant, and the stratum **solved for** rather than
-       compared to a literal.
+       :ref:`manifold-engine-seed` — for **both** entries, the
+       :math:`P` matrix, the determinant, the empty syzygy, and the
+       stratum **solved for** rather than compared to a literal.
+   * - ⭐ The :math:`\sigma_y` fold, on production data
+     - The load-bearing gate of the two-slot ruling carries **three**
+       legs on the shipped
+       ``Quadrature.folded_product(4, 8).measure.nodes``: the section
+       ADMITS them, and REFUSES both wrong inputs — the orbit twins
+       (which ``realization = SPHERE`` would have admitted) and the
+       ERR-080 forgery. A single-leg gate could not tell those two
+       candidate designs apart, since ``SPHERE`` also refuses the
+       forgery. A companion row asserts the chart is **Mode-12 blind**
+       to the same forgery while the section is not — i.e. the
+       blindness is pinned as a *property*, not merely avoided; and
+       ``test_the_half_space_is_CLOSED_because_production_marches_from_it``
+       pins the non-strict inequality against the march seed, the only
+       witness available since the shipped rule never populates the
+       stratum.
+   * - The two coordinate systems agree
+     - ``__post_init__``'s dimension law, with both legs
+       (``vv-principles`` #11): a hemisphere offered against a 1-D
+       realization is **refused at construction**, and every shipped
+       entry **satisfies** it. A third row pins the rule that makes one
+       field express both a half-space and a hyperplane —
+       :math:`\dim = 2` for a lone normal, :math:`\dim = 1` once its
+       antipode joins it.
 
 ⭐ Two exhaustiveness gates are worth naming separately, because they
 are what make "closed sum" a checkable claim rather than a description.
@@ -1595,25 +2627,61 @@ for merge status.**
      - Issue
      - Where
    * - 2026-08-31
+     - **An orbit space gets its second coordinate system, and the
+       catalogue its second derivation.** Deriving the shipped
+       cylindrical fold :math:`S^2/\langle\sigma_y\rangle` produced an
+       object the single-slot type could not hold: because :math:`H` is
+       **finite** the dimension does not drop, so the invariant chart
+       buys no reduction and a *section* is canonical — while every
+       measure the tree emits through ``.quotient(...)`` already speaks
+       the section's coordinates. Ruled: **two slots**. ``realization``
+       keeps its documented meaning (the chart's codomain, in the
+       invariants' language) and ``fundamental_domain`` carries the
+       section's image, in the base's; ``contains`` accepts both and
+       dispatches on ambient width, ``_ambient`` still reports the
+       chart's, and ``__post_init__`` gates their dimensions
+       (:ref:`manifold-two-coordinate-systems`). Two variants were
+       minted *by the derivation*, ``Ball`` and ``FundamentalDomain``,
+       and ``singular_stratum`` was retyped from ``tuple[float, ...]``
+       to a symbolic **locus** — the :math:`\sigma_y` stratum is a
+       circle, and the first entry's shape had become the field's type
+       (:ref:`manifold-stratum-is-a-locus`). Four candidate single-slot
+       realizations were measured and refused, including the disk
+       alone, which is **Mode-12 blind** to ERR-080
+       (:ref:`manifold-realization-refuted`). ⭐ The finding that pays
+       for the rest: **ERR-080's level-1 half is a botched section of**
+       :math:`S^2/SO(2)` — a chart where a section was needed, faked by
+       zero-padding off the sphere
+       (:ref:`manifold-err-080-is-a-section`). Three mirror keys ship,
+       one procedure.
+     - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_
+     - *(in development)* ``fix/angular-phantom-support``
+       (``b55bba56``); tracker 1.1 for the entry, user ruling of
+       2026-08-31 for the two slots
+   * - 2026-08-31
      - **The manifold becomes an OBJECT.** Level 1 of the three-level
        stack stops being ``Space = str`` — an opaque tag whose own
        comment called the entries *"recommendations, not
        constraints"* — and becomes a closed sum with an algebra:
        ``dim`` / ``name`` / ``contains`` / ``__mul__`` total on the
        base, and the invariant-theoretic derivation fields on
-       :class:`~orpheus.numerics.manifold.Quotient` alone. Nine
-       variants, two of them consolidating families the string
+       :class:`~orpheus.numerics.manifold.Quotient` alone. `[M]`
+       **eight** variants at this commit (ten after the ruling above),
+       two of them consolidating families the string
        vocabulary had spelled several ways
        (:ref:`manifold-members`). The three morphisms the mint names
        were already running as string interpolation at
        ``measure.py:588`` / ``:1022`` / ``:802``
-       (:ref:`manifold-string-algebra`). One catalogue entry ships,
-       ``S^2/SO(2) = [-1,1]``, derived by the Procesi–Schwarz
+       (:ref:`manifold-string-algebra`). The first catalogue entry
+       ships, ``S^2/SO(2) = [-1,1]``, derived by the Procesi–Schwarz
        procedure and carrying its own symbolic regression tests
        (:ref:`manifold-s2-so2`) — which, because the entry's fields
        *are* the procedure's outputs, are the deferred derivation
        engine's acceptance suite, written before it
-       (:ref:`manifold-engine-seed`). ⛔ **Type only: zero production
+       (:ref:`manifold-engine-seed`). The identity quotient
+       :math:`M/\{e\} = M` is **derived, not tabulated**, and doubles as
+       a positive control on the machinery
+       (:ref:`manifold-twin-lookup`). ⛔ **Type only: zero production
        consumers, and ERR-080 remains open**
        (:ref:`manifold-seams`).
      - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_

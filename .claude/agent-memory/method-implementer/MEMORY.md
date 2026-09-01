@@ -7,13 +7,14 @@ files — do NOT inline it here.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 13 behavioral lessons. The spine: a
+- [lessons.md](lessons.md) — 16 behavioral lessons. The spine: a
   prototype is not done at "value is right" but at "value right AND
   pyright clean by construction AND no orphan left AND a mutation
   reddens the gate." Pyright-principled-over-suppression (L1/L2),
   retirement blast radius = graph+grep+constructors (L3/L4), the
   convention-crosswalk-before-carve discipline (L6), Mode-10 structural
-  teeth (L7), affinity-verify-first (L11).
+  teeth (L7), affinity-verify-first (L11), derive-a-gate's-blindness-
+  before-writing-it (L15), quotient chart-vs-section (L16).
 
 ## 2. Active / in-flight state
 
@@ -34,6 +35,11 @@ the SN theory page's **"Development history"** section
 
 ## 3. Durable reference (reusable design)
 
+- [sigma_y_orbit_shape.md](sigma_y_orbit_shape.md) — the derived SHAPE of
+  `S²/⟨σ_y⟩`, the shipped cylindrical fold: closed 2-disk, empty syzygy
+  ideal, `det P = 4p₃`, a CIRCLE-valued singular stratum, and the measured
+  realization option matrix (chart vs section). Read before adding the
+  `sigma_y` entry to `_ORBIT_CATALOGUE`.
 - [ld_curvilinear_shape.md](ld_curvilinear_shape.md) — the derived SHAPE of
   the curvilinear LD angular-closure member: the one-measure-down Gram (a
   MATRIX where DD ships a scalar), componentwise τ elimination, the two
