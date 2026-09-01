@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10433**
+Total tests collected: **10477**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1298, 12.4%
-   L1, 1640, 15.7%
+   L1, 1643, 15.7%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7412, 71.0%
+   foundation, 7453, 71.1%
    unmarked, 19, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10335
+   explicit, 10379
    class-name, 46
    func-name, 0
    case, 33
@@ -258,7 +258,7 @@ Module × level grid
    diffusion/test_solver, 0, 0, 3, 0, 15, 0
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
-   eigenvalue/test_keff_curvilinear, 0, 19, 13, 0, 0, 0
+   eigenvalue/test_keff_curvilinear, 0, 22, 13, 0, 0, 0
    eigenvalue/test_keff_estimator_gate, 0, 0, 0, 0, 11, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    fields/test_angular_boundary_flux, 0, 0, 0, 0, 36, 0
@@ -359,6 +359,7 @@ Module × level grid
    numerics/test_iteration, 0, 3, 0, 0, 28, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 136, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
+   numerics/test_manifold, 0, 0, 0, 0, 40, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -513,7 +514,7 @@ Module × level grid
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 348, 0
+   test_layer_imports, 0, 0, 0, 0, 349, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -612,6 +613,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
    ``loss-rep-resolution-a``, 25
+   ``pn-scatter``, 25
    ``dc-slab``, 24
    ``peierls-specular-bc-defn``, 24
    ``second-diff-cyl``, 24
@@ -624,7 +626,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``effective-spacing``, 22
    ``peierls-cyl-3d-mode-formula``, 22
    ``pitch-recovery``, 22
-   ``pn-scatter``, 22
    ``ray-circle``, 22
    ``region-areas-pin-cell``, 22
    ``singular-eigenfunction-eq46``, 21
@@ -751,6 +752,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``cp-escape-from-p-cell``, 3
    ``dd-mm-closure-constants``, 3
    ``delta-psi``, 3
+   ``discrete-measure-quotient``, 3
    ``hetero-tolerance``, 3
    ``isotropic-source``, 3
    ``ld-ubld-slope-angular-reduction``, 3

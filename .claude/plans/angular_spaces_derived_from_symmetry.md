@@ -1364,6 +1364,79 @@ ways and read `tests/test_layer_imports.py`'s `FORBIDDEN_EDGES` before placing.
 
 
 
+## §II.16 ⛔ 2.1-W's own premises, corrected at execution (2026-08-31)
+
+The witness LANDED, and three of the claims that motivated it did not survive
+being run. All three were mine or inherited; the *obligation* was right and its
+*evidence* was wrong in three separate ways.
+
+### ⛔ (a) "the fold basis has ZERO committed witnesses" — FALSE, there were four
+
+`[M]` under the defining rebind (`_harmonic_basis` → `SphericalHarmonicBasis`),
+**four pre-existing tests red**:
+`test_quadrature_fold.py::TestFoldedHarmonics::{test_flat_moments_are_the_isotropic_moment_alone,
+test_the_folded_frame_analysis_is_isotropic_on_a_flat_flux}` and
+`tests/numerics/test_frame.py::{test_parseval_frame_square_closes,
+test_parseval_dressing_installed_on_diagonal_frames}[folded8x8-L2]`.
+
+⟹ **2.1-W stands on a narrower and better-stated premise.** All four are
+**OBJECT-tier** gates — on the basis and on its frame — and `[M]` **none is
+reached through `solve_sn`**. What had no witness was the **eigenvalue tier**:
+nothing connected the sub-basis to an answer a user reads. That is the gap the
+new gate closes, and it is a smaller claim than "zero witnesses".
+
+### ⛔ (b) The `0.7475027… → 0.6095089…` (18.5 %) catcher figure does not reproduce
+
+`[M]` on the fixture the row itself names, the measurement is
+`0.9726641733732218 → 0.4159228684117852` — **57 %**, not 18.5 %. The original
+configuration is unknown and was never written down (`plan-authoring` §4: a
+relayed number travels with its configuration or it does not travel). **Neither
+pair of numbers was published into the corpus**; the gate carries its own.
+
+### ⛔⛔ (c) "deleting the class reds 0 of 1913" is not a collection-ERROR artifact — **pytest never ran at all**
+
+I suspected `vv` Mode-8's third pipeline class (a mutation that raises kills
+COLLECTION, and a scanner counting `^FAILED` reads 0). `[M]` it is one notch
+worse. `directional.py:83` imports the class at module scope and
+`tests/sn/primitives/conftest.py:7` reaches it transitively
+(`conftest → tests.sn._test_helpers:30 → orpheus.transport:77 → …fields:49 →
+cross_section_field.py:68 → orpheus.numerics:37 → …quadrature:71 →
+.directional:83`). Reproduced with a `sitecustomize` meta-path hook: **rc=4,
+0 collected, 0 `^FAILED` AND 0 `^ERROR`** — *both* scanners read zero, and
+`--continue-on-collection-errors` does not help, because there is nothing to
+continue from.
+
+⟹ the honest re-measure, with its scope and filter written down. Population:
+**80 test files** that can reach a folded rule — 74 by direct
+`folded_product`/`.quotient` construction, **plus 6 indirect-only**, because
+production's own MMS case builders (`derivations/continuous/mms/sn.py:2104`,
+`:3873`) *default* to `folded_product`; one of the 6 is outside `tests/sn` and
+`tests/numerics` entirely. Filter
+`-O -m "not slow" -q --continue-on-collection-errors`:
+
+| run | result |
+|---|---|
+| control | **1827 passed**, 35 deselected, 46 xfailed, 0 failed, 0 error, rc=0, 354 s |
+| rebind | **7 failed**, 1820 passed, 0 error, rc=1, 358 s |
+
+### ⭐ And three findings worth carrying past this step
+
+* **A folded-vs-unfolded equivalence gate is UNWRITABLE on a cylinder.**
+  `[M]` `Quadrature.product(4,8)` raises *"A cylindrical SNMesh admits only a
+  quadrature whose every mu-level is CARRYING"* (the Q5.6.3 flip) — the
+  unfolded parent cannot be posed on the chart its child serves.
+* ⛔ **A CACHE can mask this mutation into a plausible bit-identical green.**
+  `Quadrature._angular_frames[L]`: a rule built *after* the mutation reads
+  `0.4159…`; the same rule warmed by an unmutated solve first reads `0.9727…`,
+  `array_equal` to honest. ⟹ build after, or install at `pytest_configure`.
+* ⭐ **A green mutation arm can be a GEOMETRY THEOREM, not a blind gate.**
+  Over-masking slot `[1,0]` bit (`max|ΔY| = 8.611e-01`) and moved nothing:
+  that slot carries `μ_z` (`corr = +1.000`), and a 1-D cylinder is symmetric
+  under `μ_z → −μ_z`, so the basis function is annihilated by the chart at any
+  refinement. A third hypothesis beside *insufficient mutation* and *blind
+  gate* — and the only one of the three that is a fact about the geometry
+  rather than about the test.
+
 ## §V.5b ⛔ 2.0a's migration sizing, re-censused at the phase opener (2026-08-31)
 
 The 2.0a row priced the `Space = str` retirement as *"29 `Space` refs, 39
@@ -2036,7 +2109,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 |---|---|:---:|---|
 | 0.1a | 3-D rules hand the frame their OWN measure — ⚠ keystone is a **ROUTE** gate (`frame.measure is q.measure`), not bit-identity (§II.15 R4) | ⏏ yes | ☐ |
 | 0.1b | the 1-D rows — ⛔ **rides 3.4**, the lift does not exist (§II.9) | ⏏ yes | ☐ (with 3.4) |
-| 0.1c | the fold's `S^2/sigma_y` tag — ⛔ §8 hazard REFUTED (0 reds; 0/145 089 checks); blocked instead on **2.1-W**, since the fold path has no witness | ⏏ yes | ☐ |
+| 0.1c | the fold's `S^2/sigma_y` tag — ⛔ §8 hazard REFUTED (0 reds; 0/145 089 checks); was blocked on **2.1-W** | ⏏ yes | ☐ ✅ **UNBLOCKED** — 2.1-W landed, so a carve on the fold path is now falsifiable at the eigenvalue tier |
 | 0.2 | phantom component unspellable — ⛔ means REFUTED by the census; **runs AFTER 0.1**, then it is the accessor SPLIT (direction vs flow) | ⏏ yes | ☐ |
 | 0.2-census | full-suite phantom census (moved here from 2.4) | ⏏ yes | ✅ **DISCHARGED** — §II.14, 13 trees rc=0, 11 sites / 1604 reads |
 | 0.3 | `metric.py` "noise mode" + rcond re-derivation | ⏏ yes | ✅ `ae4dbc1f` |
@@ -2059,7 +2132,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 2.0d | `measure.quotient_group` — `[M]` the slab's is recorded NOWHERE today | ⏏ yes | ☐ |
 | 2.1 | `Basis.domain: Manifold` (⛔ `support` rename REFUTED — §III.10) — `IndicatorBasis` takes a ctor field | ⏏ yes | ☐ |
 | 2.1b | `Basis.invariance_group` — G0's other side; today NEITHER side exists | ⏏ yes | ☐ |
-| 2.1-W | ⭐ **PRE-CARVE**: the fold-basis witness (2g het cylinder, `folded_product(4,8)`, `scattering_order=1`) — `[M]` 0 → 18.5 % catcher | ⏏ yes | ☐ **MUST precede 0.1c** |
+| 2.1-W | ⭐ **PRE-CARVE**: the fold-basis witness | ⏏ yes | ✅ `TestFoldedCylinderP1BindsTheQuotientBasis` — 3 rows, L1, `verifies("pn-scatter", "discrete-measure-quotient")`. Keystone is k_inf-invariance on a HOMOGENEOUS folded cylinder, not the 2g-het solve the row proposed (§II.16). `[M]` rebind reds all 3 at nine orders of separation. **0.1c is unblocked** |
 | 2.2 | G0 at frame construction — ⚠ ALSO owns the `AngularSymmetry` Γ-slot (§II.10, inventory #11): `support` derives from `continuous_isotropy` alone, so stage 0 refuses the shipped cylinder | ⏏ yes | ☐ |
 | 2.3 | the typed `Chart`; pushforward derives support | ⏏ yes | ☐ |
 | 2.4 | slab declares its quotient group; SO2 axis collision; **full-suite phantom census** | ⏏ yes | ☐ |
@@ -2139,7 +2212,17 @@ mine, and two were refuted the same day they were written.
 
 ## ▶ RESUMES AT — stated as OUTCOMES (`plan-authoring` §1)
 
-1. **The fold basis becomes falsifiable.** `[M]` today deleting
+1. ✅ **DONE — the fold basis is falsifiable.**
+   `TestFoldedCylinderP1BindsTheQuotientBasis`, 3 L1 rows, mutation-verified at
+   nine orders of separation. ⚠ **Read §II.16 before quoting anything below**:
+   the original text is kept per §3, and THREE of its claims were refuted at
+   execution — there were four witnesses (object-tier, none through
+   `solve_sn`), the 18.5 % figure does not reproduce (57 % on its own stated
+   fixture), and *"reds 0 of 1913"* was not a collection-ERROR artifact but a
+   run in which **pytest never started** (rc=4, 0 collected, zero on BOTH
+   scanners).
+
+   *(Original text, superseded — §3.)* `[M]` today deleting
    `MirrorEvenSphericalHarmonicBasis` outright reds **0 of 1913** tests: 179
    folded `angular_frame` calls across 72 tests, **100 % at `L = 0`**, and at
    `L = 0` its table is bit-identical to the plain SH table (`max|Δ| = 0.0`,

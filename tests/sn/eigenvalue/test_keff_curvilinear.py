@@ -874,3 +874,300 @@ class TestSphereP1DirectionalEigenvalue:
             f"curvilinear P1 source is not behaving as a surface-leakage "
             f"redistribution (it may be mimicking volumetric absorption)."
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# #10 — the FOLDED (quotient) rule binds the σ-EVEN sub-basis
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The cylinder P1 sibling of #9.  #9 reaches the Pℓ path on a SPHERE
+# through ``Quadrature.gauss_legendre(8)`` — an UNFOLDED rule, which
+# binds the plain ``SphericalHarmonicBasis`` and is therefore blind to
+# everything below.  This section is the folded-cylinder half, and it
+# exists because ``Quadrature._harmonic_basis`` makes a CHOICE that
+# nothing at the solve tier was asserting (tracker 2.1-W of
+# ``.claude/plans/angular_spaces_derived_from_symmetry.md``, #429).
+#
+# THE CHOICE.  ``folded_product`` is the σ_y-QUOTIENT of the staggered
+# product rule (Q5.6): every node carries ξ = μ_y > 0, and the fold's
+# defining law (:eq:`discrete-measure-quotient`) — ∫f d(μ/G) = ∫f dμ —
+# holds only for G-INVARIANT f.  The σ_y-ODD harmonics are not
+# G-invariant, so their discrete moments on the quotient are GARBAGE,
+# not zero: `[M]` on ``folded_product(4, 8)`` a FLAT flux analyses to
+# +6.486547 in the ξ-carrying l = 1 slot [1, 2], where the unfolded rule
+# cancels to 1e-16, and the scattering kernel's raw YᵀW analysis has no
+# Gram division anywhere to absorb it.  ``_harmonic_basis`` therefore
+# binds ``MirrorEvenSphericalHarmonicBasis`` — the σ-even sub-basis,
+# which structurally zeroes the odd columns.
+#
+# ⛔ WHY NO P0 GATE CAN SEE THIS.  `[M]` at L = 0 the σ-even table is
+# BIT-IDENTICAL to the parent's (max|ΔY| = 0.000000e+00); it first
+# diverges at L = 1 (max|ΔY| = 8.688461e-01 on ``folded_product(4, 8)``).
+# Every folded eigenvalue row in this module above runs at the default
+# ``scattering_order=0`` and is structurally blind to the binding.  So
+# is every reciprocity/Riesz row in
+# ``tests/sn/architecture/test_monomorphic_leaves.py`` that DOES reach
+# a folded rule at L = 1: ⟨Ax,y⟩ = ⟨x,A*y⟩ holds for any CONSISTENT
+# (M, R) pair because both sides read the SAME table — the
+# ``vv-principles`` two-sides-from-one-source tautology.  Those rows
+# EXERCISE the fold basis; they cannot ASSERT it.
+#
+# ⛔ WHAT THE TREE ALREADY HAD, measured rather than assumed.  2.1-W was
+# written against `[M]` *"deleting MirrorEvenSphericalHarmonicBasis reds
+# 0 of 1913"*, i.e. "no witnesses anywhere".  That is FALSE, twice over,
+# and the correction is recorded here so nobody re-derives it.
+#
+# (a) The DELETION is not an in-class mutation and cannot produce a red:
+#     ``directional.py:83`` imports the class at MODULE SCOPE and
+#     ``tests/sn/primitives/conftest.py:7`` reaches it transitively
+#     (conftest → tests.sn._test_helpers → orpheus.transport →
+#     orpheus.numerics → …quadrature → .directional).  `[M]` scoped to
+#     that directory, pytest exits rc=4 having collected NOTHING — zero
+#     ``^FAILED`` lines and zero ``^ERROR`` lines, so a scanner counting
+#     either reads "0 caught".  It measured the import graph.
+# (b) Under the REBIND (in-class, ``vv-principles`` #18) `[M]` 7 of 1827
+#     tests red over the 80-file population that can reach a folded rule
+#     (``-m "not slow"``; control 1827 passed / 0 failed / 0 error).
+#     FOUR of those seven are PRE-EXISTING:
+#       tests/sn/primitives/test_quadrature_fold.py::TestFoldedHarmonics
+#         ::test_flat_moments_are_the_isotropic_moment_alone
+#         ::test_the_folded_frame_analysis_is_isotropic_on_a_flat_flux
+#       tests/numerics/test_frame.py
+#         ::test_parseval_frame_square_closes[folded8x8-L2]
+#         ::test_parseval_dressing_installed_on_diagonal_frames[folded8x8-L2]
+#
+# ⟹ the honest statement of the gap this section closes is NOT "the fold
+# basis has no witness".  It is that all four pre-existing catchers are
+# OBJECT-tier gates on the basis and its frame — a flat-flux moment
+# table, a Parseval collapse — and NONE of them is reached through
+# ``solve_sn``.  The eigenvalue tier, where a user meets this choice, had
+# no witness at all, and that is what the two rows below supply.
+#
+# THE REFERENCE IS STRUCTURALLY INDEPENDENT.  In an infinite homogeneous
+# medium the transport solution is spatially flat and angularly
+# isotropic, so φ_ℓ ≡ 0 for every ℓ ≥ 1 and the anisotropic scattering
+# source contributes NOTHING: k = k_inf, whatever the Pℓ truncation.
+# ``get("sn_slab_2eg_1rg").k_inf`` is that closed form — a 2-group
+# transfer-matrix eigenvalue with no SN solver, no quadrature and no
+# harmonic basis anywhere in its chain (the closed-form pillar, which
+# is the only pillar that may carry an EIGENVALUE claim; MMS may not).
+# ≥2 groups, so the 1-group degeneracy does not apply.
+#
+# ⭐ MEASURED MUTATION TABLE (2026-08-31, in-process monkeypatch of
+# ``Quadrature._harmonic_basis``, ``python -O``).  Columns are the two
+# rows below; "keystone" is |k(P1) − k_inf| on the homogeneous
+# reflective cylinder, "companion" is k(P0) − k(P1) on the
+# heterogeneous vacuum cylinder.
+#
+#   arm                                        keystone 4x8 / 8x4      companion Δ
+#   M0  none (control)                          1.4699e-11 / 1.5106e-11   2.4873e-02   green / green
+#   M1  rebind → SphericalHarmonicBasis(L)      4.3231e-02 / 4.9992e-02   5.8161e-01   RED   / RED
+#   M3  mirror_axis 1 → 0                       4.3231e-02 / 4.9992e-02   6.0566e-01   RED   / RED
+#   M4  mirror_axis 1 → 2                       4.3231e-02 / 4.9992e-02   5.8161e-01   RED   / RED
+#   M5  over-mask the RADIAL even slot [1, 1]   1.4788e-11 / 1.4055e-11   0.0000e+00   green / RED
+#   M6  over-mask the AXIAL even slot [1, 0]    1.4699e-11 / 1.5106e-11   2.4873e-02   green / green
+#
+# M1 is the defining mutation (the silent rebind 2.1-W exists to make
+# falsifiable) and it is deliberately IN-CLASS: the parent is a
+# perfectly legal ``SphericalHarmonicBasis``, so nothing structural
+# breaks and only the property under test moves (``vv-principles`` #18).
+#
+# ⭐ M5 is why the companion row exists and is not decoration: dropping
+# a genuine EVEN l = 1 basis function (the ERR-072 declared-not-computed
+# family — a hand-listed mask with one slot wrong) is invisible to the
+# keystone, because a FLAT flux has no radial current for it to lose.
+# The companion is its only catcher in this module.
+#
+# ⛔ DECLARED BLINDNESS (M6).  Slot [1, 0] carries μ_z (`[M]`
+# corr(Y[:,1,0], μ_z) = +1.000), and a 1-D cylinder is symmetric under
+# μ_z → −μ_z, so the axial current is identically zero and dropping
+# that basis function moves NOTHING — on either row, at any refinement.
+# This is a theorem about the 1-D chart, not a gap in these rows: the
+# μ_z-carrying l = 1 slot has no witness reachable on any 1-D geometry,
+# and a 2-D/3-D fixture is the only place one could live.
+#
+# ⚠ HARNESS NOTE for anyone re-running the battery: ``Quadrature``
+# memoises its frames in ``_angular_frames[L]``, so a ``Quadrature``
+# instance that was already solved UNMUTATED returns the cached honest
+# frame and the mutation reads bit-identical (`[M]` 0.9726641733732218
+# both ways — a false "no teeth").  Build the rule AFTER installing the
+# mutation, or install it at ``pytest_configure`` as the battery does.
+#
+# ERR-080 does not apply here: ``folded_product`` is a genuine 2-D rule
+# whose nodes carry real μ_y/μ_z, not a 1-D rule faking azimuth 0.
+
+
+def _folded_cyl_keff(materials, mesh, quad, scattering_order: int) -> float:
+    """k_eff of a cylindrical SN solve on a FOLDED (quotient) rule.
+
+    The ``None`` arm is an explicit ``raise``, not an ``assert``: this
+    helper is module-level support code and the canonical runner is
+    ``python -O`` (``vv-principles`` Mode 8).
+    """
+    result = solve_sn(
+        materials, mesh, quad,
+        scattering_order=scattering_order,
+        max_outer=300, max_inner=500, inner_tol=1e-10, keff_tol=1e-8,
+    )
+    if result.keff is None:
+        raise AssertionError(
+            f"the folded cylindrical solve at scattering_order="
+            f"{scattering_order} returned no eigenvalue at all "
+            f"(Solution.keff is None) — there is nothing for the "
+            f"quotient-basis claim below to be asserted against"
+        )
+    return result.keff
+
+
+@pytest.mark.verifies("pn-scatter", "discrete-measure-quotient")
+@pytest.mark.l1
+class TestFoldedCylinderP1BindsTheQuotientBasis:
+    """#10 — a folded rule's Pℓ path must use the σ-EVEN sub-basis."""
+
+    @pytest.mark.parametrize("quad_factory", [
+        lambda: Quadrature.folded_product(n_mu=4, n_phi=8),
+        lambda: Quadrature.folded_product(n_mu=8, n_phi=4),
+    ], ids=["folded_4x8", "folded_8x4"])
+    def test_kinf_is_pl_order_invariant_on_the_quotient(self, quad_factory):
+        """[L1] KEYSTONE. Homogeneous reflective cylinder, 2G, folded
+        rule: k(P1) = k(P0) = k_inf, the closed form.
+
+        WHAT IT PINS.  On the quotient measure the σ_y-odd harmonics are
+        outside the function space; the fold binds the σ-even sub-basis
+        so their moments come out EXACT 0.0.  An infinite medium has
+        φ_ℓ ≡ 0 for ℓ ≥ 1 anyway, so a correct Pℓ path adds nothing and
+        k stays at the analytical k_inf at every truncation order.  Bind
+        the PARENT basis instead and the flat flux analyses to +6.49 in
+        the ξ-carrying slot, which reconstructs straight into the P1
+        source and drags k off the closed form.
+
+        WHAT REDDENS IT — `[M]` 2026-08-31, in-process monkeypatch of
+        ``Quadrature._harmonic_basis``, ``python -O``:
+
+        * honest        |k(P1) − k_inf| = 1.4699e-11 (4x8) / 1.5106e-11 (8x4)
+        * ``return SphericalHarmonicBasis(L=L)``  → 4.3231e-02 / 4.9992e-02
+        * ``mirror_axis=0``                       → 4.3231e-02 / 4.9992e-02
+        * ``mirror_axis=2``                       → 4.3231e-02 / 4.9992e-02
+
+        i.e. nine orders of separation against a 1e-6 gate.
+
+        WHAT IT CANNOT SEE, and why the companion row below exists:
+        over-masking a genuine EVEN l = 1 slot leaves this row at
+        1.4788e-11 — a flat flux has no ℓ = 1 content to lose.  The P0
+        leg is likewise a provable non-catcher for the rebind (`[M]` the
+        two tables are bit-identical at L = 0); it is kept because it
+        pins the OTHER direction — that the σ-even restriction does not
+        over-mask the isotropic sector.
+
+        The reference is ``derivations``' 2-group transfer-matrix
+        eigenvalue: no solver, no quadrature, no basis in its chain.
+        """
+        case = get("sn_slab_2eg_1rg")
+        mix = next(iter(case.materials.values()))
+
+        # ACTIVATION LEG — the ℓ=1 channel must be live, or the whole
+        # row is vacuous: a zero SigS[1] multiplies the garbage moment
+        # by zero and no basis error could reach k.
+        sig_s1 = mix.SigS[1]
+        sig_s1 = np.asarray(
+            sig_s1.todense() if hasattr(sig_s1, "todense") else sig_s1
+        )
+        assert np.abs(sig_s1).max() > 1e-3, (
+            f"vacuous fixture: SigS[1] max |.| = {np.abs(sig_s1).max():.3e}; "
+            f"with no anisotropic scattering the Pl channel is switched "
+            f"off and this row cannot see the harmonic basis at all"
+        )
+
+        mesh = _homogeneous_mesh(
+            20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL
+        )
+        keff_p0 = _folded_cyl_keff({0: mix}, mesh, quad_factory(), 0)
+        keff_p1 = _folded_cyl_keff({0: mix}, mesh, quad_factory(), 1)
+
+        assert abs(keff_p1 - case.k_inf) < 1e-6, (
+            f"P1 on a folded (quotient) rule left the analytical "
+            f"infinite-medium eigenvalue: keff_P1={keff_p1:.12f} vs "
+            f"k_inf={case.k_inf:.12f} (|Δ|={abs(keff_p1 - case.k_inf):.3e}). "
+            f"An infinite medium has phi_l = 0 for every l >= 1, so the "
+            f"Pl source MUST be inert here — a non-zero l=1 moment on "
+            f"this rule means the harmonic machinery is analysing the "
+            f"quotient in the FULL spherical-harmonic basis instead of "
+            f"its sigma-even sub-basis (the sigma-odd moments are "
+            f"garbage on a folded measure, not zero)."
+        )
+        assert abs(keff_p0 - case.k_inf) < 1e-6, (
+            f"P0 baseline broke: keff_P0={keff_p0:.12f} vs "
+            f"k_inf={case.k_inf:.12f}; the sigma-even restriction must "
+            f"leave the isotropic sector untouched (it masks only "
+            f"sigma-ODD slots), so this leg failing means the mask is "
+            f"over-masking, not that the Pl path is wrong."
+        )
+        assert abs(keff_p1 - keff_p0) < 1e-9, (
+            f"the l>=1 channel is not inert in an infinite medium: "
+            f"keff_P0={keff_p0:.12f} keff_P1={keff_p1:.12f} "
+            f"(|Δ|={abs(keff_p1 - keff_p0):.3e}).  This is the sharper "
+            f"form of the claim above — the Pl truncation order must not "
+            f"move k when the flux is flat and isotropic."
+        )
+
+    def test_p1_leakage_shift_survives_on_a_heterogeneous_quotient_solve(self):
+        """[L1] COMPANION — the non-flat-flux row, and the only catcher
+        of an over-masked EVEN slot.
+
+        Fuel core (r < 5) + moderator shell (R = 10), VACUUM outer,
+        ``folded_product(4, 8)``, 2G.  The flux is non-flat, so the
+        radial current φ_1 is genuinely non-zero and the ℓ = 1 channel
+        carries real signal — which the keystone's infinite medium, by
+        construction, cannot.
+
+        A forward-peaked P1 (``SigS[1] >= 0``) enhances leakage through
+        the vacuum boundary, so ``keff_P1 < keff_P0`` and the gap sits in
+        a physical band.  `[M]` 2026-08-31, ``python -O``:
+
+        * honest: keff_P0 = 0.9975374278381011,
+          keff_P1 = 0.9726641733732218, Δ = 2.4873e-02
+        * rebind to the parent SH basis  → Δ = 5.8161e-01  (RED, band)
+        * ``mirror_axis`` 1 → 0          → Δ = 6.0566e-01  (RED, band)
+        * over-mask the RADIAL even slot [1, 1] → Δ = 0.0000e+00
+          (P1 collapses exactly onto P0 — the radial current has
+          nowhere to live).  ⭐ The keystone reads 1.4788e-11 under that
+          same mutation, i.e. GREEN: this row is its sole catcher here.
+
+        ⭐ WHICH LEG CATCHES WHAT — measured per arm, not argued:
+
+        * the SIGN leg is the ONLY catcher of the over-masked radial
+          slot (`[M]` it fires on ``0.9975374278381011 <
+          0.9975374278381011``, and the band leg never runs);
+        * the SIGN leg is a provable NON-CATCHER for the rebind — the
+          mutated keff_P1 = 0.4159 is still *below* keff_P0, so ``<``
+          passes and only the BAND fires (`[M]` ``0.5816 < 0.1`` False).
+
+        So neither leg is redundant and neither covers the other.  Do
+        not read the sign assertion as coverage of the basis binding;
+        on its own it covers the DIRECTION of the P1 effect (the #9
+        claim, transplanted to the cylinder).
+        """
+        materials = {0: get_mixture("A", "2g"), 1: get_mixture("C", "2g")}
+        mesh = _two_region_mesh(
+            outers=(5.0, 10.0), mat_ids=(0, 1), n_cells=(20, 20),
+            coord=CoordSystem.CYLINDRICAL, bc=BC.vacuum,
+        )
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
+        keff_p0 = _folded_cyl_keff(materials, mesh, quad, 0)
+        keff_p1 = _folded_cyl_keff(materials, mesh, quad, 1)
+        delta = keff_p0 - keff_p1
+
+        assert keff_p1 < keff_p0, (
+            f"forward-peaked P1 must LOWER k_eff via enhanced leakage on "
+            f"a vacuum-bounded cylinder, got keff_P0={keff_p0:.8f} "
+            f"keff_P1={keff_p1:.8f} (Δ={delta:.3e}).  Δ == 0 exactly "
+            f"means the l=1 radial slot was masked away."
+        )
+        assert 1e-3 < delta < 1e-1, (
+            f"keff_P0 - keff_P1 = {delta:.3e} is outside the physical "
+            f"band (1e-3, 1e-1): below the floor the l=1 channel is "
+            f"switched off (an over-masked EVEN slot); above the ceiling "
+            f"the folded rule's Pl source is being fed sigma-ODD moments "
+            f"that are garbage on the quotient, not the sigma-even "
+            f"sub-basis the fold binds."
+        )

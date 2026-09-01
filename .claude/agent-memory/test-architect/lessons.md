@@ -556,6 +556,51 @@ codes). → `L34d`, `L35l`
   scheme-side regression behind closure-side reds. The single survivor was 2-D
   wavefront, whose surface (`cell_kernel_batch`) the arm omitted. → `L64e`
 
+- **⛔⛔ A "deleting X reds 0 of N" measurement is VOID when X is imported at
+  MODULE SCOPE on a conftest's import chain — pytest may never RUN.** `vv`
+  Mode-8's third pipeline class says a collection kill reports `ERROR` and a
+  `^FAILED` scanner reads 0; this is one notch past it. `[M]` deleting
+  `MirrorEvenSphericalHarmonicBasis` breaks
+  `directional.py:83` → … → `tests/sn/primitives/conftest.py:7`, so scoping
+  there gives **rc=4, 0 collected, 0 `^FAILED` AND 0 `^ERROR`** — both scanners
+  read zero and `--continue-on-collection-errors` does not help. One
+  `grep -rn "import X" orpheus/` answers it before you believe the number. The
+  honest instrument is the IN-CLASS mutation, which `vv` #18 already mandates:
+  a deletion on a module-scope-imported symbol is never in-class, so the two
+  rules meet. `[M]` the in-class rebind reds **2 committed gates** the deletion
+  reported as zero. → `L68a`
+- **⛔ A per-instance MEMO masks the mutation, and the masked reading is a
+  plausible bit-identical GREEN.** `[M]` `Quadrature._angular_frames[L]`: rule
+  built after the mutation → `keff = 0.4159228684117852`; same rule warmed by an
+  unmutated solve first → **`0.9726641733732218`, `array_equal` to honest**.
+  Install at `pytest_configure` (before any object exists) AND give every arm a
+  **BITE CHECK** that `raise`s unless the mutant differs from the honest one at
+  the load-bearing `L` — mine printed `ARM …: BIT (max|dY|@L=1 = 8.688461e-01)`
+  on all six, so no green was ambiguous. → `L68b`
+- **⭐ Read a NULL arm through THREE hypotheses, not two: insufficient mutation
+  · blind gate · the DOF is ANNIHILATED BY THE GEOMETRY.** `[M]` over-masking
+  the μ_z-carrying `l=1` slot bit (`max|dY| = 8.611363e-01`) and moved
+  **nothing** on either fixture — a 1-D cylinder is symmetric under `μ_z → −μ_z`,
+  so the axial current is identically zero at any refinement. That is a declared
+  blindness for the docstring (naming where a witness COULD live: a 2-D/3-D
+  fixture), not a defect. Discriminator, design-time and cheap: **correlate each
+  basis slot against the direction cosines and ask which the chart can excite**
+  (`corr(Y[:,1,0], μ_z) = +1.000`, `corr(Y[:,1,1], μ_x) = +1.000`,
+  `std(Y[:,1,2]) = 0`). → `L68c`
+- **⛔ A "who can reach this seam" population needs the PRODUCTION DEFAULTS, not
+  just the test-side constructor grep.** `[M]` a validated filter for direct
+  `folded_product`/`.quotient` construction gives 74 files; production's MMS
+  case builders (`mms/sn.py:2104`, `:3873`) *default* to `folded_product`, adding
+  **6 indirect-only** files — one outside `tests/sn` and `tests/numerics`
+  entirely. Union 80. Both filters carried an in-script positive control.
+  `plan-authoring` §2's FILTER clause at the call-graph tier. → `L68g`
+- **⚠ zsh does NOT word-split an unquoted parameter expansion.** `SCOPE="a b c";
+  pytest $SCOPE` passes ONE argument, selects nothing, and the summary greps
+  return empty — which reads as *"the battery found nothing"* rather than *"the
+  battery ran nothing"*. Use `${=SCOPE}` or an array, and print the collected
+  count. → `L68f`
+
+
 ## 3. Config blindness — the ORPHEUS fixture facts
 
 Generic rule: `AGENT.md` §0.6, `vv` §H2 / anti-#3 / anti-#4. Below is the
@@ -804,6 +849,25 @@ against a concrete row before trusting a green.
   asserts on the retiring solver slots, so its re-pose owes a THIRD leg that
   does not exist today: **net-new teeth created by the retirement itself**.
   → `L64h`
+
+- **⭐ REUSABLE ANCHOR for any ANGULAR-BASIS / moment claim: the infinite medium
+  is a Pℓ-ORDER-INVARIANT closed form.** Flat + isotropic ⟹ `φ_ℓ ≡ 0` for
+  `ℓ ≥ 1` ⟹ the anisotropic source is inert ⟹ `k = k_inf` at EVERY truncation
+  order, and `derivations.get(...).k_inf` has no solver, no quadrature and no
+  basis in its chain. `[M]` honest `|k(P1) − k_inf| = 1.4699e-11` vs a `1e-6`
+  gate, mutation at `4.3e-2` — nine orders. ⚠ TWO activation obligations, both
+  mandatory: assert `SigS[1] ≠ 0` IN the test (a zero ℓ=1 XS multiplies the
+  contaminated moment by zero and the row is vacuous), and pose at
+  `scattering_order ≥ 1` — `[M]` at `L = 0` the σ-even and parent tables are
+  **bit-identical** (`0.000000e+00`), diverging only from `L = 1`
+  (`8.688461e-01`). Every folded eigenvalue row in the module ran at the default
+  P0, which is exactly why the binding had no solve-path witness. → `L68d`
+- **⛔ A folded-vs-UNFOLDED equivalence gate is UNWRITABLE on a cylinder** —
+  `[M]` `Quadrature.product(4,8)` on a cylindrical `SNMesh` raises *"admits only
+  a quadrature whose every mu-level is CARRYING"* (the Q5.6.3 flip), so the
+  unfolded parent cannot be posed on the chart its child serves. Check the
+  ADMISSION guard before designing any fold/unfold invariance gate. → `L68e`
+
 
 ## 4. Reference, claim layer, and the proactive refutation
 

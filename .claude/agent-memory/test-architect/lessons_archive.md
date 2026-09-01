@@ -7579,3 +7579,164 @@ own documented reason (the `vv` Mode-8 FOURTH-class audit passes). ⚠ but the
 `operator.py:1320-1330`) rather than degrading; only `C` still degrades, via
 `is_metric_free_adjoint = True`. The test BODY is honest (it reports the
 `MissingAdjoint` as evidence text, never as the verdict); the marker is not.
+
+---
+
+## L68 — 2.1-W, the σ-even quotient sub-basis (gate SHIPPED 2026-08-31, HEAD `fc71a84e`)
+
+**Task.** #429 tracker 2.1-W: make falsifiable the choice
+`Quadrature._harmonic_basis` (`orpheus/numerics/quadrature/directional.py:505-530`)
+makes — a FOLDED rule binds `MirrorEvenSphericalHarmonicBasis` (the σ-even
+sub-basis of the quotient), an unfolded one the plain `SphericalHarmonicBasis`.
+The defining mutation is the silent rebind `return SphericalHarmonicBasis(L=L)`.
+
+**Shipped.** `tests/sn/eigenvalue/test_keff_curvilinear.py`,
+`TestFoldedCylinderP1BindsTheQuotientBasis` (2 tests / 3 rows, `[M]` 18.16 s,
+3 passed at HEAD; pyright delta **0** — 21 errors at HEAD, 21 after).
+
+### L68a ⛔⛔ The plan's founding measurement was a pytest-NEVER-RAN artifact — and it is worse than the collection-ERROR class
+
+The plan carried `[M] "deleting MirrorEvenSphericalHarmonicBasis outright reds
+0 of 1913"` and built 2.1-W's whole premise on it ("zero committed witnesses").
+
+`[M]` **REFUTED, two ways.**
+
+1. **The IN-CLASS mutation reddens two committed gates already.** Rebinding to
+   the parent basis via a `pytest_configure` monkeypatch:
+   `tests/sn/primitives/test_quadrature_fold.py` goes **14 passed → 2 failed,
+   12 passed**, the two being
+   `TestFoldedHarmonics::test_flat_moments_are_the_isotropic_moment_alone` and
+   `::test_the_folded_frame_analysis_is_isotropic_on_a_flat_flux`. Census:
+   `calls=2 folded=2 mutated_at_L={2: 1, 1: 1}` — the whole file makes exactly
+   two harmonic-basis calls and both are catchers.
+2. **The DELETION mutation cannot produce a red at all.**
+   `directional.py:83-87` imports the class at MODULE SCOPE, and
+   `tests/sn/primitives/conftest.py:7` reaches it transitively:
+   `conftest → tests.sn._test_helpers:30 → orpheus.transport:77 →
+   transport.fields:49 → cross_section_field.py:68 → orpheus.numerics:37 →
+   numerics.quadrature:71 → .directional:83 → ImportError`. Reproduced with a
+   `sitecustomize` meta-path hook that strips the attribute before any import:
+   scoping to `tests/sn/primitives/` gives **rc=4, 0 collected, 0 `^FAILED`
+   lines AND 0 `^ERROR` lines** — pytest aborts on the conftest.
+
+⟹ **the rule, and it is one notch past `vv` Mode-8's third pipeline class.**
+That class says a collection kill is reported as `ERROR` and misread as 0 by a
+`^FAILED` scanner. Here the CONFTEST dies, so pytest never reaches collection:
+*both* scanners read zero, and `--continue-on-collection-errors` does not help.
+**Before believing any "deleting X reds N", check whether X is imported at
+module scope anywhere on a conftest's import chain** — one `grep -rn "import
+X" orpheus/` answers it. If it is, the deletion measures the import graph, not
+the test suite, and the honest instrument is the IN-CLASS mutation (`vv` #18),
+which here is a legal `SphericalHarmonicBasis` and breaks no structural law.
+
+⭐ The transferable tell: a deletion mutation on a symbol with a module-scope
+import is **never** in-class, so `vv` #18 already forbids it — the two rules
+meet.
+
+### L68b ⛔ A per-instance memo masks the mutation, and the masked reading is a plausible bit-identical GREEN
+
+`Quadrature.angular_frame` memoises into `self._angular_frames[L]`
+(`directional.py:614-627`); `_harmonic_basis` itself is uncached.
+
+`[M]` same fixture, three orderings:
+* rule built AFTER the mutation installs → `keff = 0.4159228684117852`
+* rule built before, cache warmed by an unmutated solve → **`0.9726641733732218`
+  — bit-identical to honest**, `array_equal=True`, `cached frame Ls = [0, 1]`
+* rule built before, cache NOT warmed → `0.4159228684117852`
+
+The masked reading is exactly the shape of a "this gate has no teeth" verdict.
+⟹ **install the mutation at `pytest_configure` (before any object is built),
+and give every arm plugin a BITE CHECK**: build the honest and mutant basis on
+the canonical rule and `raise` unless `max|ΔY| > 0` at `L = 1`. Mine printed
+`ARM …: BIT (max|dY|@L=1 = 8.688461e-01) calls=8 folded=8` on every arm, so no
+green was ever ambiguous. L64a trap (c), now with a measured instance.
+
+### L68c ⭐ A GREEN arm can be a GEOMETRY THEOREM — a third category beside "insufficient mutation" and "blind gate"
+
+Battery over the shipped gate, all six arms bite-checked, `python -O`:
+
+| arm | keystone 4x8 / 8x4 (`\|k−k_inf\|`) | companion (Δ = k_P0 − k_P1) | pytest |
+|---|---|---|---|
+| M0 control | 1.4699e-11 / 1.5106e-11 | 2.4873e-02 | 3 passed / 18.16 s |
+| **M1 rebind → `SphericalHarmonicBasis(L)`** | 4.3231e-02 / 4.9992e-02 | 5.8161e-01 | **3 failed** |
+| M3 `mirror_axis` 1→0 | 4.3231e-02 / 4.9992e-02 | 6.0566e-01 | **3 failed** |
+| M4 `mirror_axis` 1→2 | 4.3231e-02 / 4.9992e-02 | 5.8161e-01 | **3 failed** |
+| M5 over-mask EVEN slot [1,1] (μ_x) | 1.4788e-11 / 1.4055e-11 | **0.0000e+00** | 1 failed, 2 passed |
+| M6 over-mask EVEN slot [1,0] (μ_z) | 1.4699e-11 / 1.5106e-11 | 2.4873e-02 | **3 passed** |
+
+M6 bit (`max|dY|@L=1 = 8.611363e-01`) and moved **nothing**. `[M]` the reason
+is a correlation probe against the direction cosines: slot `[1,0]` has
+`corr(Y[:,1,0], μ_z) = +1.000`, `[1,1]` has `corr(·, μ_x) = +1.000`, `[1,2]`
+has `std = 0.0` (the masked σ-odd ξ carrier). A 1-D cylinder is symmetric under
+`μ_z → −μ_z`, so the axial current is identically zero and that basis function
+is annihilated by the CHART, at any refinement, on any 1-D fixture.
+
+⟹ **read a null arm through three hypotheses, not two**: (i) the mutation was
+insufficient (L49c's Pattern-2 twin), (ii) the gate is blind, (iii) **the DOF
+the mutation broke is annihilated by the geometry**. (iii) is a declared
+blindness that belongs in the gate's docstring with its witness-location
+("only a 2-D/3-D fixture could carry one"), not a defect. The discriminator is
+cheap and design-time: **correlate each basis slot against the direction
+cosines and ask which of them the chart can excite.**
+
+⭐ And M5 is why the companion row exists at all: it separates the two rows
+exactly (keystone green at 1.4788e-11, companion red), so the non-flat-flux row
+is justified by a MEASUREMENT rather than by §0.6's general warning.
+
+### L68d ⭐ REUSABLE REFERENCE — the infinite medium is a Pℓ-ORDER-INVARIANT closed form
+
+For any claim about the ANGULAR BASIS / moment machinery, the strongest
+structurally-independent anchor available in ORPHEUS:
+
+> In an infinite homogeneous medium the solution is spatially flat and
+> angularly isotropic ⟹ `φ_ℓ ≡ 0` for every `ℓ ≥ 1` ⟹ the anisotropic
+> scattering source is inert ⟹ `k = k_inf` **at every Pℓ truncation order**.
+
+`derivations.get("sn_slab_2eg_1rg").k_inf = 1.8750000000000009` is a 2-group
+transfer-matrix eigenvalue with **no solver, no quadrature and no basis** in its
+chain — the closed-form pillar, the only one that may carry an eigenvalue claim.
+`[M]` honest `|k(P1) − k_inf| = 1.4699e-11` against a `1e-6` gate: nine orders
+of headroom, and the mutation lands at `4.3e-2`.
+
+⚠ **Two activation obligations, both mandatory:**
+* `SigS[1] ≠ 0`, asserted IN the test — a zero ℓ=1 cross-section multiplies the
+  contaminated moment by zero and the row is vacuous. (`[M]` mixture A 2g:
+  `SigS[1]` max `0.045`.)
+* the claim must be posed at `scattering_order ≥ 1`. `[M]` at `L = 0` the
+  σ-even table is **bit-identical** to the parent's (`max|ΔY| = 0.000000e+00`);
+  it first diverges at `L = 1` (`8.688461e-01`, flat-flux moment `+6.486547`).
+  Every folded eigenvalue row in the module ran at the default `P0` — which is
+  precisely why the binding had no solve-path witness.
+
+### L68e ⛔ The folded-vs-UNFOLDED equivalence gate is UNWRITABLE on a cylinder
+
+The obvious A-vs-B design (a quotient must reproduce its parent's eigenvalue)
+dies at the mesh: `[M]` `Quadrature.product(4, 8)` on a cylindrical `SNMesh`
+raises *"A cylindrical SNMesh admits only a quadrature whose every mu-level is
+CARRYING (the R12a march-start predicate): level 0 is non-carrying"*. The Q5.6.3
+admission flip means the unfolded parent cannot be posed on the chart its child
+is designed for. Check the ADMISSION guard before designing any fold/unfold
+invariance gate.
+
+### L68f ⚠ zsh does not word-split an unquoted parameter expansion
+
+`SCOPE="a b c"; pytest $SCOPE` passes **one** argument in zsh (unlike bash), so
+the run silently selects nothing and the summary greps return empty — which
+reads as "the battery found nothing" rather than "the battery ran nothing".
+`[M]` cost one confusing cycle where a control run printed no summary at all.
+Use `${=SCOPE}` or an array, and always print the collected count.
+
+### L68g Population filter — two predicates, positive-controlled, and the second one was the one I nearly missed
+
+`_harmonic_basis` returns the fold basis only when `folded_by is not None`, set
+only by `Quadrature.folded_product` / `.quotient`. Filter 1 (direct
+construction) gives **74** test files. But `[M]` production ALSO mints folded
+rules: `orpheus/derivations/continuous/mms/sn.py:2104` and `:3873`
+(`build_cylindrical_mms_case`, `build_cylindrical_anisotropic_mms_case` — "the
+case builders default to folded_product"), so filter 2 adds **6 indirect-only**
+files, one of them outside `tests/sn` and `tests/numerics` entirely
+(`tests/derivations/test_sn_mms_anisotropic_symbolic.py`). Union **80**.
+Both filters carry an in-script positive control asserting a known member.
+⟹ **a "who can reach this seam" census needs the PRODUCTION defaults, not just
+the test-side constructor grep** — the plan-authoring §2 FILTER clause, at the
+call-graph tier.
