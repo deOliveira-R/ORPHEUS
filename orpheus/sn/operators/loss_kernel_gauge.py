@@ -215,6 +215,7 @@ from numpy.typing import NDArray
 from orpheus.numerics.basis import Basis, GramStructure
 from orpheus.numerics.face_layout import face_normal
 from orpheus.numerics.frame import GalerkinFrame
+from orpheus.numerics.manifold import IndexSet, Manifold
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import (
     InverseMetricOperator,
@@ -770,6 +771,26 @@ class LossKernelBasis(Basis):
         """
         table = self.evaluate(measure.nodes)
         return np.einsum("n,nj,nk->jk", measure.weights, table, table)
+
+    @property
+    def domain(self) -> Manifold:
+        r"""The block's trace degrees of freedom, as an index set.
+
+        There is nothing to evaluate AT a point here (:meth:`evaluate` returns
+        a precomputed table), so the "points" are the block's own trace DOF
+        indices — a finite set with no metric structure, which is exactly
+        :class:`~orpheus.numerics.manifold.IndexSet`.
+
+        ⭐ Built from the same ``f"sn_trace_orbit{orbit}_g{group}"`` label the
+        block's :class:`~orpheus.numerics.measure.DiscreteMeasure` already
+        carries as its ``support``, five lines from where that measure is
+        constructed — so the basis and the measure of one frame name ONE
+        manifold rather than two.  This class was already the tree's positive
+        control on that discipline: it is the only basis that never fabricated
+        a space name, because its author named the space by the block's own
+        identity.
+        """
+        return IndexSet(label=f"sn_trace_orbit{self.orbit}_g{self.group}")
 
     @property
     def space(self) -> FunctionSpace:

@@ -89,6 +89,7 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.basis.overlap_basis import OverlapBasis
+from orpheus.numerics.manifold import EnergyGroups
 from orpheus.numerics.measure import DiscreteMeasure
 
 __all__ = [
@@ -217,7 +218,10 @@ class EnergyGrid:
         :meth:`~orpheus.geometry.mesh.Mesh1D.indicator_basis` on the spatial axis.
         """
         index_edges = np.arange(self.n_groups + 1, dtype=float) - 0.5
-        return IndicatorBasis(edges_per_axis=(index_edges,))
+        return IndicatorBasis(
+            edges_per_axis=(index_edges,),
+            partition_of=EnergyGroups(self.n_groups),
+        )
 
     def overlap_to(
         self, coarse: "EnergyGrid", /, within_group: "WithinGroupSpectrum | None" = None,

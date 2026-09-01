@@ -75,6 +75,7 @@ from orpheus.numerics.basis.base import Basis
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 
 if TYPE_CHECKING:
+    from orpheus.numerics.manifold import Manifold
     from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.space import FunctionSpace
 
@@ -177,6 +178,17 @@ class WeightedIndicatorBasis(Basis):
         return w * v
 
     # ── The coarse coefficient space (shared with the trial) ──────────────
+    @property
+    def domain(self) -> "Manifold":
+        r"""The trial indicator's manifold — the test functions live where it does.
+
+        :math:`\chi_R = w\cdot\mathbf 1_R` is the trial indicator reweighted, so
+        it eats the same points; the Petrov-Galerkin distinction is the *weight*,
+        not the domain.  Delegated for the same reason :attr:`space` is: one
+        source, and a wrapped basis cannot drift from the basis it wraps.
+        """
+        return self.indicator.domain
+
     @property
     def space(self) -> "FunctionSpace":
         r"""The coarse coefficient :class:`FunctionSpace` — the trial's, shape ``(n_cells,)``.

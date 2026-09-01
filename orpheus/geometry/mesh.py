@@ -441,7 +441,11 @@ class Mesh1D:
         # Local import — same circular-dependency avoidance as
         # :attr:`volume_measure` (numerics does not import geometry).
         from orpheus.numerics.basis.indicator_basis import IndicatorBasis
-        return IndicatorBasis(edges_per_axis=(np.asarray(self.edges, dtype=float),))
+        from orpheus.numerics.manifold import RealSpace
+        return IndicatorBasis(
+            edges_per_axis=(np.asarray(self.edges, dtype=float),),
+            partition_of=RealSpace(1),
+        )
 
     def with_distinct_cell_ids(self) -> "Mesh1D":
         r"""A geometry-identical copy whose every cell is its **own** material id.
@@ -750,10 +754,14 @@ class Mesh2D:
         ``mat_map.ravel()``) — the same flat-cell ordering in any dimension.
         """
         from orpheus.numerics.basis.indicator_basis import IndicatorBasis
-        return IndicatorBasis(edges_per_axis=(
-            np.asarray(self.edges_x, dtype=float),
-            np.asarray(self.edges_y, dtype=float),
-        ))
+        from orpheus.numerics.manifold import RealSpace
+        return IndicatorBasis(
+            edges_per_axis=(
+                np.asarray(self.edges_x, dtype=float),
+                np.asarray(self.edges_y, dtype=float),
+            ),
+            partition_of=RealSpace(2),
+        )
 
     def with_distinct_cell_ids(self) -> "Mesh2D":
         r"""A geometry-identical copy whose every cell is its **own** material id.

@@ -88,6 +88,7 @@ __all__ = [
     "HALF_LINE",
     "REAL_LINE",
     "ENERGY",
+    "ambient_dim",
 ]
 
 #: Tolerance for :meth:`Manifold.contains` on a curved manifold.  A node
@@ -444,11 +445,11 @@ class Product(Manifold):
 
     def contains(self, points: ArrayLike) -> bool:
         arr = np.atleast_2d(np.asarray(points, dtype=float))
-        split = _ambient(self.left)
-        if arr.shape[1] != split + _ambient(self.right):
+        split = ambient_dim(self.left)
+        if arr.shape[1] != split + ambient_dim(self.right):
             raise ValueError(
                 f"{self.name}.contains expects ambient dimension "
-                f"{split + _ambient(self.right)}; got shape {arr.shape}."
+                f"{split + ambient_dim(self.right)}; got shape {arr.shape}."
             )
         return self.left.contains(arr[:, :split]) and self.right.contains(
             arr[:, split:]
@@ -544,7 +545,7 @@ class FundamentalDomain(Manifold):
         return f"{self.base.name}|{self.label}"
 
     def contains(self, points: ArrayLike) -> bool:
-        arr = self._as_points(points, _ambient(self.base))
+        arr = self._as_points(points, ambient_dim(self.base))
         if not self.base.contains(arr):
             return False
         # Closed half-spaces — see the class docstring's ⛔ note on why
@@ -663,15 +664,15 @@ class Quotient(Manifold):
         width — the one place the distinction is a genuine local split
         rather than a repeated tag test.
 
-        ⚠ :func:`_ambient` still reports the REALIZATION's width: that is
+        ⚠ :func:`ambient_dim` still reports the REALIZATION's width: that is
         the canonical coordinate for composition (a :class:`Product`
         factor must have one width).  This method is deliberately the
         wider of the two.
         """
         arr = np.atleast_1d(np.asarray(points, dtype=float))
-        chart = _ambient(self.realization)
+        chart = ambient_dim(self.realization)
         if self.fundamental_domain is not None:
-            section = _ambient(self.fundamental_domain)
+            section = ambient_dim(self.fundamental_domain)
             width = arr.shape[1] if arr.ndim == 2 else 1
             if width == section and section != chart:
                 return self.fundamental_domain.contains(arr)
@@ -898,7 +899,7 @@ def _mod_trivial(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     """
     import sympy as sp
 
-    n = _ambient(base)
+    n = ambient_dim(base)
     coords = sp.symbols(f"x0:{n}", real=True)
     return Quotient(
         base=base,
@@ -937,8 +938,23 @@ _ORBIT_CATALOGUE: dict[tuple[type, str], Any] = {
 # ---------------------------------------------------------------------------
 
 
-def _ambient(m: Manifold) -> int:
-    """Ambient coordinate count — how many columns ``m`` consumes."""
+def ambient_dim(m: Manifold) -> int:
+    r"""Ambient coordinate count — how many columns ``m`` consumes.
+
+    The *embedding* width, distinct from :attr:`Manifold.dim` (the
+    *topological* dimension): :class:`Sphere` is a 2-manifold carried in
+    3 columns, and :class:`EnergyGroups` is 0-dimensional carried in 1.
+    Both numbers are real and neither derives from the other, which is
+    why this is a separate question rather than an arithmetic on ``dim``.
+
+    Public because a consumer OUTSIDE this module now asks it: an
+    :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis`
+    validates that its per-axis partition has one axis per coordinate of
+    the manifold it partitions. Kept as a module-level ``match`` rather
+    than a per-variant property so the exhaustiveness is checkable in one
+    place — adding a :class:`Manifold` member and forgetting its width
+    raises here instead of returning a plausible number.
+    """
     match m:
         case Sphere():
             return 3
@@ -949,11 +965,11 @@ def _ambient(m: Manifold) -> int:
         case RealSpace(d=d) | Ball(d=d):
             return d
         case FundamentalDomain(base=base):
-            return _ambient(base)
+            return ambient_dim(base)
         case Product(left=left, right=right):
-            return _ambient(left) + _ambient(right)
+            return ambient_dim(left) + ambient_dim(right)
         case Quotient(realization=realization):
-            return _ambient(realization)
+            return ambient_dim(realization)
     raise NotImplementedError(
         f"ambient dimension is undefined for {type(m).__name__}. A new "
         f"Manifold variant must be added here — this match is deliberately "

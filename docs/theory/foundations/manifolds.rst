@@ -462,27 +462,79 @@ morphism is applied). The morphisms are not merely *applicable* — they
 are *shipped*. The mint adds no algebra; it gives a name to one that
 already runs.
 
-⚠ **And the last row is not a naming quibble — it already ships as a
+⚠ **And the last row was not a naming quibble — it shipped as a
 falsehood.** ``measure.py:331`` at least *derives* its name, from a
-``str``; ``basis/indicator_basis.py:284`` **hard-codes** it as
+``str``; ``basis/indicator_basis.py`` **hard-coded** it as
 ``f"L2[coarse_cells_R{self.ndim}]"``. And
 :meth:`EnergyGrid.as_basis <orpheus.data.energy_grid.EnergyGrid.as_basis>`
 builds an :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis`
 over an **energy index** partition
-(``edges = arange(n_groups + 1) - 0.5``), so that basis names its own
+(``edges = arange(n_groups + 1) - 0.5``), so that basis named its own
 coefficient space after a *spatial* manifold it has nothing to do
-with. `[M]` reproduced 2026-08-31 on a two-group grid:
+with. `[M]` reproduced 2026-08-31 on a two-group grid, and again
+2026-09-01 immediately before the repair:
 
 .. code-block:: python
 
-   >>> eg = EnergyGrid(edges=np.array([1e6, 1.0, 1e-5]))   # 2 groups
-   >>> eg.as_basis().space.name
+   >>> eg = EnergyGrid(edges=np.array([1e6, 1.0, 1e-5]))    # 2 GROUPS
+   >>> mesh = Mesh1D(edges=np.array([0.0, 0.5, 1.0]), ...)  # 2 CELLS
+   >>> eg.as_basis().space.name              # BEFORE #429 tracker 2.1
    'L2[coarse_cells_R1]'
+   >>> mesh.indicator_basis().space.name
+   'L2[coarse_cells_R1]'                     # ...the very same value
+   >>> eg.as_basis().space == mesh.indicator_basis().space
+   True
 
-A :class:`~orpheus.numerics.space.FunctionSpace` that carried its
-manifold would make both names derived and this one **unspellable** —
-which is the level-2 half of the same repair, tracked at
-:ref:`manifold-seams`.
+The two compared ``==`` **and hash-equal**, so a 2-group energy space and
+a 2-cell spatial space were one value:
+:class:`~orpheus.numerics.space.FunctionSpace` identity is
+``(name, shape)``, and a false name is therefore not cosmetic but an
+illegal state that IS representable.
+
+✅ **REMEDIED 2026-09-01 by #429 tracker 2.1.** The
+:class:`~orpheus.numerics.basis.base.Basis` ABC now asks every basis what
+its functions EAT —
+:attr:`~orpheus.numerics.basis.base.Basis.domain`, a
+:class:`Manifold` — and an
+:class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis` takes the
+manifold it partitions as a required constructor field, so the name
+derives:
+
+.. code-block:: python
+
+   >>> eg.as_basis().space.name
+   'L2[coarse_cells(energy)]'
+   >>> mesh.indicator_basis().space.name
+   'L2[coarse_cells(spatial_R1)]'
+   >>> eg.as_basis().space == mesh.indicator_basis().space
+   False
+
+⭐ **What made the defect invisible for as long as it lived is worth
+recording, because it is not carelessness.** At four of the five
+production sites the basis and its
+:class:`~orpheus.numerics.measure.DiscreteMeasure` are built in the SAME
+function, three to five lines apart — and the *measure* named the
+manifold correctly the whole time (``support="energy"``,
+``"spatial_R1"``, ``f"index({label})"``). The answer was never
+unavailable, only unasked; a hard-coded f-string is exactly the shape
+that cannot be contradicted by the object sitting beside it. The durable
+gate is therefore not *"the name is right"* — which any self-consistent
+lie satisfies — but *"the two halves of one frame name ONE manifold"*
+(``tests/numerics/test_basis_domain.py::test_d6``).
+
+⭐ And assigning the type was itself a census: `[M]` it immediately
+separated two manifolds the string tag ``"energy"`` had conflated — the
+continuous energy axis in eV (:class:`Interval`, partitioned by
+``tests/data/test_energy_grid.py``) from the multigroup *index* axis
+(:class:`EnergyGroups`, what production partitions). Both have ambient
+dimension 1, so no dimensional check could have found it; only naming the
+point set does.
+
+The remaining half is the *measure's* side: ``support`` is still a
+``str``, so ``measure.py:331`` derives a correct name from an untyped tag.
+A :class:`~orpheus.numerics.space.FunctionSpace` that carried its own
+manifold would collapse both spellings into one — the level-2 half of
+this repair, tracked at :ref:`manifold-seams`.
 
 .. _manifold-string-drift:
 
@@ -2424,21 +2476,28 @@ description of a capability rather than of a repair.
        Every refusal described on this page is a capability that
        *would* fire once the slot is retyped.
    * - ``Basis.domain``
-     - **2.1.** No :class:`~orpheus.numerics.basis.base.Basis` can
-       state the manifold its functions consume, which is why the
-       ERR-080 pairing has nothing to check
-       (:ref:`manifold-three-levels`).
+     - ✅ **LANDED 2026-09-01 (2.1).** No
+       :class:`~orpheus.numerics.basis.base.Basis` could state the
+       manifold its functions consume, which is why the ERR-080 pairing
+       had nothing to check (:ref:`manifold-three-levels`). It is now an
+       abstract property, so a basis that cannot say what it eats
+       refuses to be constructed, and all six shipped subclasses answer.
        :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis`
-       is expected to take it as a **constructor field** rather than
-       derive it, and the reason is measurable: `[M]` by AST, of 18
-       ``IndicatorBasis(...)`` construction sites tree-wide **4 are in**
-       ``orpheus/``, and those four partition **three different
-       manifold families** — a finite index set
-       (``frame.py:755``, paired with ``support=f"index({axis_label})"``
+       takes it as a **constructor field** (``partition_of``) rather
+       than deriving it, and the reason was measurable in advance:
+       `[M]` by AST, of 18 ``IndicatorBasis(...)`` construction sites
+       tree-wide **4 are in** ``orpheus/``, and those four partition
+       **three different manifold families** — a finite index set
+       (``frame.py``, paired with ``support=f"index({axis_label})"``
        three lines below), :math:`\mathbb{R}^d` at two ranks
-       (``geometry/mesh.py:444`` and ``:753``), and the energy counting
-       set (``data/energy_grid.py:220``). Any value the class *derived*
-       from its own fields would hard-code one of the three.
+       (``geometry/mesh.py``), and the energy counting set
+       (``data/energy_grid.py``). Any value the class *derived* from its
+       own fields would hard-code one of the three. ⭐ The prediction
+       held, and execution added a fourth family the string tag had
+       hidden: `[M]` a partition by energy **VALUE** in eV is an
+       :class:`Interval`, not the :class:`EnergyGroups` **index** axis
+       production partitions — both ambient dimension 1, so only naming
+       the point set separates them.
    * - ``FunctionSpace.manifold``, and the derived ``L2[...]`` name
      - **2.0c.** Two sites build a level-2 name by interpolating a
        level-1 tag; one of them

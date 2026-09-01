@@ -23,6 +23,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.basis import IndicatorBasis, WeightedIndicatorBasis
+from orpheus.numerics.manifold import RealSpace
 
 pytestmark = [pytest.mark.foundation]
 
@@ -34,7 +35,7 @@ _WEIGHTS = np.array([0.5, 1.5, 1.0, 1.0])      # volume measure V_i
 
 
 def _trial() -> IndicatorBasis:
-    return IndicatorBasis(_EDGES)
+    return IndicatorBasis(_EDGES, RealSpace(1))
 
 
 def test_evaluate_is_the_plain_membership_table_weight_free():

@@ -30,6 +30,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.basis import Basis, IndicatorBasis
+from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 
 pytestmark = [pytest.mark.foundation]
@@ -43,7 +44,10 @@ _COARSE_EDGES = np.array([0.0, 2.0, 4.0])               # 2 coarse cells
 
 
 def _basis(coarse_edges=_COARSE_EDGES):
-    return IndicatorBasis(edges_per_axis=(np.asarray(coarse_edges, float),))
+    return IndicatorBasis(
+        edges_per_axis=(np.asarray(coarse_edges, float),),
+        partition_of=RealSpace(1),
+    )
 
 
 def _measure(centers=_FINE_CENTERS, vols=_FINE_VOLS):
@@ -160,7 +164,7 @@ def test_indicator_2d_matches_volume_measure_layout():
     membership of the n-D cell-centre grid is the IDENTITY matrix."""
     ex = np.array([0.0, 1.0, 2.0])                     # 2 cells in x
     ey = np.array([0.0, 1.0, 2.0, 3.0])                # 3 cells in y → 6 cells
-    b = IndicatorBasis(edges_per_axis=(ex, ey))
+    b = IndicatorBasis(edges_per_axis=(ex, ey), partition_of=RealSpace(2))
     cx = 0.5 * (ex[:-1] + ex[1:])
     cy = 0.5 * (ey[:-1] + ey[1:])
     grid_x, grid_y = np.meshgrid(cx, cy, indexing="ij")
@@ -171,7 +175,10 @@ def test_indicator_2d_matches_volume_measure_layout():
 
 def test_evaluate_rejects_wrong_dimension():
     """A 2-axis basis rejects 1-D points (the d-mismatch guard)."""
-    b = IndicatorBasis(edges_per_axis=(np.array([0.0, 1.0]), np.array([0.0, 1.0])))
+    b = IndicatorBasis(
+        edges_per_axis=(np.array([0.0, 1.0]), np.array([0.0, 1.0])),
+        partition_of=RealSpace(2),
+    )
     with pytest.raises(ValueError, match="shape"):
         b.evaluate(np.array([0.5, 0.5]))               # ambiguous: (N,) for d=2
 

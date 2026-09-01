@@ -33,8 +33,11 @@ coarse cells**.  That coarse space IS the span of the cell indicators
 carries the volume measure — inheriting would conflate the two roles); instead the
 mesh *yields* this view, via ``mesh.indicator_basis()``, symmetric with how it
 already yields ``mesh.volume_measure``.  The basis itself is **geometry-free**: it
-holds only the per-axis edge arrays, so :mod:`orpheus.numerics` stays free of any
-:mod:`orpheus.geometry` dependency.
+holds the per-axis edge arrays and the
+:class:`~orpheus.numerics.manifold.Manifold` they partition — a point set, not a
+geometry — so :mod:`orpheus.numerics` stays free of any :mod:`orpheus.geometry`
+dependency.  (Why the manifold is a *required* field and not derived: see the
+class's "Geometry-free is not manifold-free" note.)
 
 The membership table is n-D by construction
 -------------------------------------------
@@ -91,6 +94,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.basis.base import Basis, GramStructure
+from orpheus.numerics.manifold import Manifold, ambient_dim
 
 if TYPE_CHECKING:
     from orpheus.numerics.measure import DiscreteMeasure
@@ -107,10 +111,19 @@ class IndicatorBasis(Basis):
     Parameters
     ----------
     edges_per_axis : tuple[NDArray, ...]
-        One sorted ``(n_a + 1,)`` array of cell edges per spatial axis.  The
-        cells are the tensor product of the per-axis intervals; cell count is
-        :math:`\prod_a n_a`.  A 1-D partition passes a length-1 tuple
-        ``(edges,)``.  Held as arrays (not a mesh) so the basis is geometry-free.
+        One sorted ``(n_a + 1,)`` array of cell edges per axis of
+        ``partition_of`` — spatial coordinates, energy-group indices, or bare
+        indices alike.  The cells are the tensor product of the per-axis
+        intervals; cell count is :math:`\prod_a n_a`.  A 1-D partition passes a
+        length-1 tuple ``(edges,)``.  Held as arrays (not a mesh) so the basis
+        is geometry-free.
+    partition_of : Manifold
+        The manifold these edges partition — :class:`~orpheus.numerics.manifold.RealSpace`
+        for a spatial mesh, :class:`~orpheus.numerics.manifold.EnergyGroups` for a
+        group structure, :class:`~orpheus.numerics.manifold.IndexSet` for a bare
+        index axis.  **Required**, because the edge arrays cannot say it: an
+        energy-group partition and a spatial-cell partition are the same array of
+        floats and are not the same basis.  Read back through :attr:`domain`.
 
     Notes
     -----
@@ -118,9 +131,53 @@ class IndicatorBasis(Basis):
     have no value equality usable by a dataclass; an :class:`IndicatorBasis` is a
     transient *view* a mesh yields, not a value compared for equality.  (Contrast
     :class:`SphericalHarmonicBasis`, whose sole field ``L`` IS its value identity.)
+
+    Geometry-free is not manifold-free
+    ----------------------------------
+    Holding edge ARRAYS rather than a mesh keeps :mod:`orpheus.numerics` free of
+    any geometry dependency, and that is still true — a
+    :class:`~orpheus.numerics.manifold.Manifold` is a point-set, not a geometry.
+    What the array-only design lost was the basis's *identity*, and it lost it
+    silently: before ``partition_of`` existed this class named its coefficient
+    space ``f"L2[coarse_cells_R{ndim}]"``, asserting a SPATIAL manifold whatever
+    it was actually partitioning, so a 2-group energy space and a 2-cell spatial
+    space compared ``==`` **and** hash-equal.  ⭐ Every production caller already
+    had the answer in scope — each builds its
+    :class:`~orpheus.numerics.measure.DiscreteMeasure` within five lines and tags
+    that correctly (``support="energy"``, ``"spatial_R1"``,
+    ``f"index({label})"``) — so the manifold was not unavailable, only unasked.
     """
 
     edges_per_axis: tuple[NDArray, ...]
+    partition_of: Manifold
+
+    def __post_init__(self) -> None:
+        r"""Refuse a partition whose rank disagrees with its manifold's width.
+
+        A ``d``-axis tensor partition partitions a manifold whose points carry
+        ``d`` coordinates, so ``ndim`` and
+        :func:`~orpheus.numerics.manifold.ambient_dim` must agree.  This is what
+        stops a 2-axis spatial partition from claiming the energy axis.
+
+        ⚠ Deliberately the AMBIENT width and not a
+        :meth:`~orpheus.numerics.manifold.Manifold.contains` check on the cell
+        centres, which reads stronger and is wrong: `[M]` the single-region
+        index partition ``[-0.5, n - 0.5]`` that ``frame.py``'s axis marginal
+        ships has centre :math:`(n-1)/2`, not an integer, and
+        :class:`~orpheus.numerics.manifold.IndexSet` admits only integers — so
+        the stronger invariant refuses a correct production caller.  A partition
+        is a partition of the manifold, not a set of points ON it
+        (``vv-principles`` #16: never assert tighter than the type promises).
+        """
+        width = ambient_dim(self.partition_of)
+        if self.ndim != width:
+            raise ValueError(
+                f"IndicatorBasis has {self.ndim} partition axis/axes but "
+                f"{self.partition_of.name} carries {width} coordinate(s): a "
+                f"d-axis tensor partition partitions a d-coordinate manifold. "
+                f"Pass one edge array per coordinate of partition_of, or name "
+                f"the manifold these edges actually partition."
+            )
 
     # ── Gram structure: disjoint cells ⟹ diagonal Gram ────────────────────
     @property
@@ -141,8 +198,22 @@ class IndicatorBasis(Basis):
 
     @property
     def ndim(self) -> int:
-        """Number of spatial axes."""
+        """Number of partition axes."""
         return len(self.edges_per_axis)
+
+    @property
+    def domain(self) -> Manifold:
+        r"""The manifold the indicators are defined ON — what they EAT.
+
+        Equal to :attr:`partition_of`, and that is a **theorem about indicator
+        bases** rather than a restatement: :math:`\mathbf 1_R` is defined on the
+        whole of the partitioned manifold (it is the map that answers *is this
+        point in cell R*), so a partition's ambient set IS its indicators'
+        domain.  For a basis whose functions live on less than the partitioned
+        set the two would differ, which is why the ABC asks the question
+        separately.
+        """
+        return self.partition_of
 
     # ── Tabulation (the only points-consuming method) ─────────────────────
     def evaluate(self, points: NDArray, /) -> NDArray:
@@ -281,5 +352,5 @@ class IndicatorBasis(Basis):
         from orpheus.numerics.space import FunctionSpace
 
         return FunctionSpace(
-            name=f"L2[coarse_cells_R{self.ndim}]", shape=(self.n_cells,),
+            name=f"L2[coarse_cells({self.domain.name})]", shape=(self.n_cells,),
         )

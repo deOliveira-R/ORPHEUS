@@ -843,7 +843,254 @@ pass while typing the field as `str` and quietly re-introducing `Space = str`
 — the exact thing 2.0c retires. ⟹ **decide the target type first**; the row's
 `is SPACE_SPHERE` is pre-`Manifold` text that survived the mint.
 
+### ▶ 2.1 — the DESIGN, measured 2026-09-01 at `ba05f773` (before any edit)
+
+**Goal (`plan-authoring` §5, the domain's terms).** A basis function is a map,
+and a map is not defined until you say what it EATS. Every basis states the
+manifold its functions are defined ON, so that a space cannot claim an identity
+it does not have.
+
+⭐⭐ **The sharpest statement of the defect, found by reading the four
+construction sites: the measure and the basis are built in the SAME FUNCTION,
+three to five lines apart, and the measure names the manifold CORRECTLY while
+the basis fabricates a spatial one.** Nothing can see the disagreement because
+one of the two is a hard-coded f-string. `[M]` at `ba05f773`:
+
+| site | the MEASURE's `support`, lines away | the BASIS's invented name | the `Manifold` |
+|---|---|---|---|
+| `frame.py` `:759` / `:755` | `f"index({axis_label})"` | `L2[coarse_cells_R1]` | `IndexSet(axis_label, n)` |
+| `energy_grid.py` `:206` / `:220` | `"energy"` | `L2[coarse_cells_R1]` | `EnergyGroups(n_groups)` |
+| `geometry/mesh.py` `:418` / `:444` | `"spatial_R1"` | `L2[coarse_cells_R1]` | `RealSpace(1)` |
+| `geometry/mesh.py` `:731` / `:753` | `"spatial_R2"` | `L2[coarse_cells_R2]` | `RealSpace(2)` |
+| `loss_kernel_gauge.py` `:1169` / `:1164` | `f"sn_trace_orbit{orbit}_g{group}"` | `loss_kernel_coeff[orbit..._g...]` | `IndexSet(f"sn_trace_orbit...")` |
+
+⭐ The last row is the **positive control**: the one basis that does NOT
+fabricate is the one whose author named its space by the block's own identity.
+The defect is not "indicator bases are careless" — it is that four of five
+sites had the answer in scope and re-invented it.
+
+`[M]` the live collision, over the four production spaces:
+`('L2[coarse_cells_R1]', (2,))` is minted by **two different manifolds**
+(energy and spatial-1D); the `frame.py` one escapes only on `shape`.
+
+**Proposed means, and the two things injection REFUTED before any edit.**
+
+⛔ **(a) `domain` CANNOT be a dataclass field satisfying an abstract property.**
+The obvious shape — `Basis.domain` abstract, `IndicatorBasis.domain` a ctor
+field — does not run. `ABCMeta` re-checks `getattr(cls, name)` against the
+base's `__abstractmethods__`, and an annotation-only field puts **nothing** in
+`__dict__`, so the class stays abstract: `[M]` injected,
+`TypeError: Can't instantiate abstract class ... without an implementation for
+abstract method 'domain'`. Note it is order-dependent and would have "worked"
+had the field carried a default -- i.e. the shape that also re-admits `None`.
+The tree's own PRECEDENT (`plan-authoring` §1 -- read, not recalled) is
+unanimous the other way: `[M]` across **4 ABCs and ~40 subclasses**
+(`Basis.space`, `FrameBase.test`, `LinearOperator.domain` x17,
+`Manifold.dim`/`name` x9) **every** abstract property is answered by a
+`@property`, never by a field -- including `Manifold` itself, where `Interval`
+stores `a`/`b` and exposes `name`. => the field carries the basis's own
+vocabulary (`partition_of`) and `domain` is the uniform question, derived. That
+is not two spellings of one thing: *what these edges partition* and *what these
+functions eat* are the same manifold **by a theorem about indicator bases**,
+and the property is where that theorem is written down.
+
+⛔ **(b) The attractive STRONGER invariant would reject a shipped production
+site.** `domain.contains(cell_centres)` reads as the better construction check
+than a bare dimension match -- and `[M]` it REFUSES `frame.py:755`, whose
+single-region partition `[-0.5, n-0.5]` has centre `(n-1)/2`, not an integer,
+on an `IndexSet` whose `contains` requires integers. The honest invariant is
+the ambient-dimension match (a `d`-axis tensor partition partitions a manifold
+whose points carry `d` coordinates), which is `vv-principles` #16: do not
+assert tighter than the type promises.
+
+**The §6b set is 22 construction sites + 1 factory forward -- NOT the
+pre-flight's 18.** `[M]` by AST over 895 files, unclipped:
+`IndicatorBasis(` **18** (4 `orpheus/` + 14 `tests/`; **7 positional**),
+`OverlapBasis(` **3** (all `tests/`), `OverlapBasis.from_indicator` **1**
+(`energy_grid.py:270`, forwards `edges_per_axis=` and must forward the new
+field too). ⚠ The pre-flight's table was right that `OverlapBasis` inherits the
+FIELD; it never asked whether `OverlapBasis` has construction sites **of its
+own**, and `OverlapBasis(` contains no `IndicatorBasis` substring -- the
+2026-08-24 / 2026-08-29 §6b row, "members spelled without the symbol", fourth
+instance in this campaign. `WeightedIndicatorBasis` (18 sites) and
+`SphericalHarmonicBasis` (25) need **no** ctor change: both derive.
+
+**Name-pin blast radius, `[M]` validated filter with a positive control:**
+`coarse_cells` is **1 production line, 0 test pins, 4 doc lines**
+(`manifolds.rst:468,480`, `spaces.rst:1900,3547` -- all four quote the false
+name as a live example, so all four are Cardinal-Rule-3 MUST-FIX).
+
+**Done-when** -- ⛔ NOT the tracker row's `SphericalHarmonicBasis.domain is
+SPACE_SPHERE`, which is pre-`Manifold` text: `[M]` `SPACE_SPHERE` is the `str`
+`"S^2"`, and `Sphere() == SPHERE` is `True` while `Sphere() is SPHERE` is
+**`False`**, so the row's spelling would either fail or pass while typing the
+field `str`. The predicate is:
+
+* every one of the 6 shipped `Basis` subclasses answers `domain` with a
+  `Manifold` (structural -- the ABC refuses to instantiate otherwise);
+* the energy and spatial 2-cell indicator spaces are **not** `==` and **not**
+  hash-equal, with the 3-cell negative control still unequal;
+* `SphericalHarmonicBasis(L).domain == SPHERE` and
+  `MirrorEvenSphericalHarmonicBasis(L, axis).domain == SPHERE.quotient(Mirror(axis))`
+  (`[M]` names `S^2` and `S^2/sigma_y`, matching 0.1c's shipped fold tag);
+* an `IndicatorBasis` whose partition rank disagrees with its manifold's
+  ambient dimension cannot be constructed.
+
+⚠ **What 2.1 does NOT do, deliberately** -- `DiscreteMeasure.support` stays a
+`str`, so `f"L2[{support}]"` (`measure.py:331`) and the basis's new
+`f"L2[coarse_cells({domain.name})]"` remain two spellings of "the L2 name over
+a manifold". That twin is **pre-existing** (§III.10's two-site table) and is
+inventory item #10, owned by **2.0c** (`FunctionSpace.manifold`); 2.1 makes the
+second one HONEST without hoisting. Recorded here so the next reader does not
+read the twin as new.
+
 ---
+
+### ✅ 2.1 — EXECUTED 2026-09-01. What building it actually found
+
+**What shipped.** `Basis.domain` is an abstract `@property` returning a
+`Manifold`; all 6 shipped subclasses answer, and the ABC refuses to
+instantiate one that does not. `IndicatorBasis` takes a required
+`partition_of: Manifold` and derives `domain` from it; its coefficient-space
+name becomes `f"L2[coarse_cells({domain.name})]"`. `SphericalHarmonicBasis`
+answers `SPHERE`; `MirrorEven...` answers `SPHERE.quotient(Mirror(axis))`
+(**derived**, so it is the same object the folded measure carries — `[M]`
+`S^2/sigma_y`, matching 0.1c); `WeightedIndicatorBasis` and `OverlapBasis`
+delegate; `LossKernelBasis` answers its block's `IndexSet`.
+`manifold._ambient` was promoted to the public **`ambient_dim`** — the
+construction invariant is its first cross-module consumer.
+
+⭐⭐ **The type did work on its FIRST DAY: it forced a distinction the string
+tag could not make.** Assigning manifolds to the 17 test sites was supposed to
+be transcription. `[M]` two `tests/data/test_energy_grid.py` sites partition
+by **energy VALUE in eV** (`[1.0e7, 1.0e3, 1.0e-5]`) while
+`tests/data/test_mixture_condense.py` and production `EnergyGrid.as_basis()`
+partition by **group INDEX** (`arange(n+1) - 0.5`). Those are two different
+manifolds — the continuous half-line and a counting set — and the old
+vocabulary called both of them `"energy"`. They are now `HALF_LINE` and
+`EnergyGroups(n)`, and `ambient_dim` would not have caught the confusion
+(both are 1): only naming the point set does. ⟹ the mint's value is not
+only that it makes the ERR-class unspellable; it is that **assigning the type
+is itself a census** that reads every site's actual meaning.
+
+⛔ **The §6b set was 23, not the pre-flight's 18 — and the 5 extras are three
+distinct spellings, all invisible to a census of the changed class's name.**
+
+| the 5 | why a `IndicatorBasis(` census cannot return it |
+|---|---|
+| `OverlapBasis(` ×3 (`test_frame.py:427/508/788`) | a SUBCLASS's own construction sites — the pre-flight's table correctly said `OverlapBasis` inherits the FIELD, and never asked whether it has constructors of its own |
+| `OverlapBasis.from_indicator` (`overlap_basis.py:108`) | a FACTORY that forwards `edges_per_axis=` and must now forward `partition_of=` |
+| `_DenseTrial((edges,))` (`test_frame.py:462`) | a TEST-LOCAL subclass, on the SAME LINE as a counted `IndicatorBasis(` call |
+
+⟹ fifth instance of `plan-authoring` §6b's *"members spelled without the
+symbol"* in this campaign, with a spelling not in the 2026-08-24/29
+inventory: **a subclass's own constructor**. Cost: none — all three classes
+fail loudly (`TypeError: missing required positional argument`), and the
+sites were enumerated before any edit rather than by a red loop.
+
+⛔ **Two designs REFUTED by injection before any edit** (both recorded in the
+design block above): a dataclass FIELD cannot satisfy an abstract property,
+and `domain.contains(cell_centres)` — the invariant that reads stronger —
+**refuses a correct production caller**.
+
+⚠ **One known divergence, PINNED rather than deferred silently.**
+`LossKernelBasis`'s measure tags the bare label `sn_trace_orbit…_g…` while
+`IndexSet` spells the same point set `index(sn_trace_orbit…_g…)`. `test_d6`
+asserts both spellings explicitly, so **2.0c** (which retypes `support` to a
+`Manifold`) must return here and cannot resolve it by accident. The other
+four production pairs agree exactly today.
+
+⭐ **`coding-elegance` #20 caught in my OWN gate, before it landed.** `test_d6`'s
+docstring said the loss-kernel divergence *"is asserted below"* and the body
+did not assert it — the exact anti-pattern (a docstring naming a claim the
+body does not make) that §"the rebuild loses X" row logged three days ago,
+committed by the author of that row. Found by re-reading the file before
+installing it; the fix was the assertion, not the sentence.
+
+**Gates** — `tests/numerics/test_basis_domain.py`, 13 rows, all `foundation`:
+`d1` the defect keystone (energy vs spatial spaces separate, with a
+negative control), `d2` the completeness claim by **runtime** `__subclasses__`
+(landmine #4; filtered to `orpheus.`-defined classes so a test-local subclass
+cannot make it import-order-dependent), `d3` the ABC's structural refusal
+(the stub implements every OTHER abstract member, so the refusal cannot be
+credited to the wrong arm — `vv-principles` #17), `d4` the invariant both
+legs, `d5`/`d5b` the harmonic domains swept over 4 degrees × 3 mirror axes,
+⭐ `d6` **the flagship — a frame's two halves name ONE manifold**, and `d7`
+the delegation drift guard asserted by identity.
+
+⭐ Why `d6` is the keystone rather than a name assertion: a gate on the basis's
+own name is satisfied by any self-consistent lie, and the pre-2.1 name WAS
+self-consistent. `d6` compares two independently-authored halves of one frame,
+so it reddens the day either side re-invents the manifold — which is the
+failure that actually happened.
+
+**The 7-arm mutation battery — every arm a DISTINCT red set** (in-process
+monkeypatch, so there is no file to leave mutated if the harness kills the run;
+`scratch/_p21_mut/`). Run over 203 rows across 8 suites:
+
+| arm | calls | reds | which |
+|---|---|:--:|---|
+| *(none — baseline)* | 0 | **0** | — |
+| `m1` `domain` guessed from `ndim` (the original lie, one level up) | 102 | 3 | `d1`, `d6`, **`d7`** |
+| `m2` `space` name hard-coded to the pre-2.1 literal | 97 | 2 | `d1`, `d6` |
+| `m3` construction invariant removed | 163 | 1 | `d4` |
+| `m4` the fold forgets its quotient (answers `SPHERE`) | 3 | 3 | `d5b` ×3 |
+| `m5` the wrapper answers for itself instead of delegating | 1 | 1 | `d7` |
+| `m6` harmonics eat a circle | 7 | 7 | `d5` ×4, `d5b` ×3 |
+| ⭐ **POSITIVE CONTROL** — every basis eats a sphere | 105 | 6 | `d1`, `d4`, `d5b` ×3, `d6` |
+
+⭐ `m1` and `m2` separate, which is the discrimination that matters: a wrong
+NAME (`m2`) and a wrong DOMAIN (`m1`) are different failures, and only `m1`
+reds `d7`, because a wrapper faithfully delegating a wrong answer is a third
+thing again.
+
+⚠ **Two gates no arm reddens, stated rather than left to read as unwitnessed.**
+`d3` builds BOTH its legs itself (an abstract stub that must refuse and a
+completed one that must construct), so it is its own witness and no production
+mutation can reach it. `d2` is a **forward** guard — all 6 shipped bases answer
+today, so it is unfalsifiable now by construction; its value is that a basis
+added tomorrow is in scope without editing the file. Neither is a coverage gap;
+both would be, if this note were not here.
+
+⛔ **pyright caught 8 errors of mine, and the fix taught something about the
+`type: ignore` rule.** `test_d3`'s abstract stub was first written with bare
+`...` bodies and untyped signatures — so all 7 members "override `Basis` in an
+incompatible manner", plus `space` returning `None`. Retyped with full
+signatures and `raise NotImplementedError` bodies (a stub that silently returns
+`None` is not a faithful stand-in for the ABC, and the checker says so).
+
+⭐ That left **one** error, and it is the one the test EXISTS to assert:
+`Cannot instantiate abstract class "_Incomplete" — "Basis.domain" is not
+implemented`. I had removed the `# type: ignore[abstract]` on
+`coding-elegance` #19 grounds ("no `type: ignore`") — wrong here, and the tree
+settles it: `[M]` **228** `type: ignore` comments ship, and the dominant idiom
+is exactly this one, a negative leg spelling the illegal thing inside
+`pytest.raises` (`TimedFullField(interior="not a field", ...)`
+`# type: ignore[arg-type]`). ⟹ #19 targets an ignore that **hides** a defect;
+an ignore on a line whose whole purpose is to be refused **documents the
+claim**, and removing it makes the file dirty rather than honest. Restored with
+that reasoning written beside it. `[M]` the file is then `0 errors, 0 warnings`.
+
+⚠ **And a scope note on this campaign's pyright figures, so a later reader does
+not compare two populations** (`plan-authoring` §2). `[M]` a bare `npx pyright`
+over the whole project reads **2533 errors** — it includes
+`derivations/diagnostics/`, `tools/`, and other trees carrying long-standing
+pre-existing errors. The campaign's "pyright 0" claims are DELTA claims on the
+files a step touches, which is the right predicate and was never written down.
+2.1's honest figure: **0 new errors across the 19 files it touches**; 15
+pre-existing errors sit in 4 of those files at lines this work does not touch
+(`test_mixture_condense.py`, `test_axis_marginal.py`, `test_frame.py`,
+`test_harmonic_frame.py`).
+
+⛔ **The battery's FIRST run was broken, and the call counter is the only reason
+that was legible.** Every arm reported `0 failed` — including the positive
+control, which cannot be right. `[M]` the cause: **zsh does not word-split an
+unquoted scalar**, so `$SUITES` reached pytest as ONE nonexistent path and 0
+tests were collected — `rc=4`, §II.16(c)'s recorded signature, third instance in
+this campaign. Without `CALLS`, "0 reds" reads as *the gates are blind* and
+would have sent me to strengthen gates that were already fine
+(`vv-principles` #17: the harness lies before the code does, in the
+safe-looking direction). Fixed with a zsh array + an `rc` column.
 
 ### ✅ 0.2 — EXECUTED 2026-09-01, landed `ce46181c`. What the split actually found
 
@@ -2750,7 +2997,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 2.0b | `Manifold.contains` — the membership predicate; refuses the forged measure at construction | ⏏ yes | ◐ **HALF** — the predicate ships and is gated both legs (`[M]` refuses the `gauss_legendre(8)` forgery, norms `[0.1834, 0.9603]`; admits the normalised control) @ `de29bcc6`. The **refusal AT CONSTRUCTION** is unbuilt — that is the wiring, and it rides 0.1. ⛔ no `catches("ERR-080")` marker until then: refusing a forged ARRAY is not the production path refusing it |
 | 2.0c | `DiscreteMeasure.support: str → Manifold`; the `L2[...]` name derives; `quotient_group` becomes a derived property | ⏏ yes | ☐ ⛔ **BLOCKED on 1.1's σ_y entry** (§V.5d(a)). Re-scoped at the opener: **absorbs 2.0d** (§V.5d(c)); its `indicator_basis` clause **moves to 2.1** (§V.5d(e), §6b). `[M]` the retype preserves every production space name bit-identically bar two (§V.5d(f2)) |
 | 2.0d | `measure.quotient_group` | ⏏ yes | ⛔ **DISSOLVED into 2.0c** (§V.5d(c)) — `[M]` `Quotient.by` IS the group, so a stored field is a second home for it, and `support`'s four forwarding rules would have to be hand-kept in agreement. Its done-when was also unreachable as written (§V.5d(d)): the `SO2` answer is **2.4**'s declaration, not a derivation |
-| 2.1 | `Basis.domain: Manifold` (⛔ `support` rename REFUTED — §III.10) — `IndicatorBasis` takes a ctor field. ⭐ **Now also owns 2.0c's `indicator_basis` clause** (§V.5d(e)): `[M]` the false `L2[coarse_cells_R1]` name makes a 2-group ENERGY space and a 2-cell SPATIAL space `==`-EQUAL and hash-equal, with a passing negative control — an illegal state that IS representable, across 26 space-comparing sites | ⏏ yes | ☐ |
+| 2.1 | `Basis.domain: Manifold` (⛔ `support` rename REFUTED — §III.10) — `IndicatorBasis` takes a ctor field. ⭐ **Now also owns 2.0c's `indicator_basis` clause** (§V.5d(e)): `[M]` the false `L2[coarse_cells_R1]` name makes a 2-group ENERGY space and a 2-cell SPATIAL space `==`-EQUAL and hash-equal, with a passing negative control — an illegal state that IS representable | ⏏ yes | ✅ `PENDING` — `Basis.domain` abstract; `IndicatorBasis` takes `partition_of`; `ambient_dim` promoted public as its first cross-module consumer. ⭐ Keystone is `test_d6` — **a frame's two halves name ONE manifold** — not a name assertion, because the pre-2.1 name was self-consistent. `[M]` §6b set was **23**, not 18 (3 `OverlapBasis(` + `from_indicator` + a test-local subclass); 13 gates; 7-arm mutation battery. ⛔ the *"26 space-comparing sites"* figure was never re-measured and is **struck** — the repair is at the 5 producers, not at the comparers |
 | 2.1b | `Basis.invariance_group` — G0's other side; today NEITHER side exists | ⏏ yes | ☐ |
 | 2.1-W | ⭐ **PRE-CARVE**: the fold-basis witness | ⏏ yes | ✅ `TestFoldedCylinderP1BindsTheQuotientBasis` — 3 rows, L1, `verifies("pn-scatter", "discrete-measure-quotient")`. Keystone is k_inf-invariance on a HOMOGENEOUS folded cylinder, not the 2g-het solve the row proposed (§II.16). `[M]` rebind reds all 3 at nine orders of separation. **0.1c is unblocked** |
 | 2.2 | G0 at frame construction — ⚠ ALSO owns the `AngularSymmetry` Γ-slot (§II.10, inventory #11): `support` derives from `continuous_isotropy` alone, so stage 0 refuses the shipped cylinder | ⏏ yes | ☐ |
@@ -2890,7 +3137,12 @@ the last item gating anything.
 quadrature asserts a support its own nodes contradict, and the one surviving
 fiction (the 1-D lift) is NAMED, local, and self-retiring.
 
-▶ **No space claims an identity it does not have.** Tracker **2.1** —
+✅ **No space claims an identity it does not have** — tracker **2.1** LANDED
+2026-09-01. `Basis.domain` is abstract on the ABC, all 6 shipped bases answer,
+and the energy/spatial space collision is unspellable. Read the *2.1 EXECUTED*
+section before 2.0c: it hands 2.0c one new obligation.
+
+⛔ **The text below is the PRE-2.1 pointer, kept per §3.** Tracker **2.1** —
 `Basis.domain: Manifold`. It is the only remaining exit-path item that repairs
 something ALREADY WRONG rather than enabling a later step: `[M]` re-verified at
 `a2befd9b`, a 2-group ENERGY space and a 2-cell SPATIAL space are `==`-equal
@@ -2912,7 +3164,8 @@ Part XIII — do not copy it here (`plan-authoring` §9).
 |---|---|---|
 | ✅ | **0.1a**, **0.1c** | LANDED `2c1a06b1` |
 | ✅ | **0.2** | LANDED `ce46181c` |
-| 1 | **2.1** | ⭐ the only remaining exit-path item that repairs something ALREADY WRONG. `[M]` **re-verified at `a2befd9b`**: a 2-group ENERGY space and a 2-cell SPATIAL space are `==`-equal AND hash-equal (both `L2[coarse_cells_R1]`, shape `(2,)`), negative control passing. Sizing also re-verified — **18 `IndicatorBasis(` sites, 4 `orpheus/` + 14 `tests/`**, and the 39-site family does NOT widen it (siblings inherit the repair by composition). ⚠ the *"26 space-comparing sites"* figure is INHERITED and was **not** re-measured — treat as unverified. **Read the 2.1 PRE-FLIGHT section** |
+| ✅ | **2.1** | LANDED — see the 2.1 EXECUTED section. ⚠ It leaves ONE thing for 2.0c that did not exist before: `test_d6` pins the `LossKernelBasis` spelling divergence (bare label vs `index(...)`), so 2.0c must resolve it rather than inherit it |
+| ~~1~~ | ~~**2.1**~~ | ⭐ the only remaining exit-path item that repairs something ALREADY WRONG. `[M]` **re-verified at `a2befd9b`**: a 2-group ENERGY space and a 2-cell SPATIAL space are `==`-equal AND hash-equal (both `L2[coarse_cells_R1]`, shape `(2,)`), negative control passing. Sizing also re-verified — **18 `IndicatorBasis(` sites, 4 `orpheus/` + 14 `tests/`**, and the 39-site family does NOT widen it (siblings inherit the repair by composition). ⚠ the *"26 space-comparing sites"* figure is INHERITED and was **not** re-measured — treat as unverified. **Read the 2.1 PRE-FLIGHT section** |
 | 2 | **2.0c** | the retype, now unblocked. Absorbs 2.0d. `[M]` 54 literals + 5 f-strings, 94 % of the literals in `tests/` |
 | 3 | **2.1b**, **2.3**, **2.4** | G0's other side; the typed `Chart`; the slab's declared quotient group |
 | 4 | **3.1** scoped to `SO(2)` | the catalogue home + the probe |
@@ -3008,6 +3261,7 @@ fiction, 1-D arm only) · `axis_cosines` `directional.py:~295` (now STRICT) ·
 | **1.1 docs** | the corpus pass — and it REFUTED my dimension-coincidence claim, plus 3 code defects | `bf9296a1` |
 | XIV | compaction point 2 — the exit path unblocked, and its ORDER | `4a5ac108` |
 | **0.2** | ⭐ **the accessor SPLIT** — `axis_cosines` (coordinate, strict) vs `mean_axis_cosine` (the orbit mean, zero DERIVED). Found a THIRD meaning in the zeros, single-sourced `spherical_harmonics` onto the frame, collapsed `_quadrature_axis`'s ladder + its defaulted-`getattr`. `[M]` red loop 29 tests / 2 trees — the §6b set missed the EMBEDDING category | `ce46181c` |
+| **2.1** | ⭐ **no space claims an identity it does not have** — `Basis.domain` abstract, `IndicatorBasis` takes `partition_of`, `ambient_dim` promoted public. `[M]` the energy/spatial `L2[coarse_cells_R1]` collision (`==` AND hash-equal) is unspellable. 13 gates; 7-arm battery, every arm a distinct red set; §6b set was **23**, not 18 | `PENDING` |
 | **0.1a + 0.1c** | ⭐ **the frame stops forging its own domain** — `_harmonic_frame_measure` routes the rule's measure; the 1-D fiction is named + self-retiring. `[M]` route gate 0→10 of 12; §II.8's *three* losses reversed; 5-arm mutation battery, every arm's red count reconciling to zero unexplained units | `2c1a06b1` |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
@@ -3049,7 +3303,14 @@ Read these before quoting any earlier section:
 
 ## Measured baselines and costs
 
-⭐ **All five trees below were gated at `ce46181c`'s tree state**, serial
+⭐⭐ **RE-GATED at 2.1** (2026-09-01), serial `-O -m "not slow" -p no:randomly`:
+**numerics 2656** (`ce46181c`'s 2643 + 13 new `test_basis_domain.py` rows,
+reconciling exactly), data 237 + 2 deselected, geometry 727 + 4 sk + 1 xf,
+transport 645 + 1 sk, **sn 3378** — all rc=0, zero reds from a change touching
+18 files. `sphinx -E -W --keep-going` **build succeeded, 0 warnings**;
+`dead_references` **0 dead / 52 checked / 0 undecidable**.
+
+⭐ **The five trees below were gated at `ce46181c`'s tree state**, serial
 `-O -m "not slow" -p no:randomly`. Every number is a GATE (rc checked), not a
 census — do not compare them against the phantom-census figures, which came
 from a recording plugin and are a different instrument.

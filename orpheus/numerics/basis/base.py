@@ -74,6 +74,7 @@ from typing import TYPE_CHECKING
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
+    from orpheus.numerics.manifold import Manifold
     from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.space import FunctionSpace
 
@@ -235,6 +236,50 @@ class Basis(ABC):
         exact to the basis's degree; the residual is a quadrature-exactness
         diagnostic. (A one-off diagnostic, so it is naturally measure-based and
         evaluates its own table.)
+        """
+        ...
+
+    # ── The manifold the basis functions are defined ON ───────────────────
+    @property
+    @abstractmethod
+    def domain(self) -> "Manifold":
+        r"""The :class:`~orpheus.numerics.manifold.Manifold` these functions EAT.
+
+        A basis function is a **map**, and a map is not defined until its
+        source is: :math:`Y_\ell^m : S^2 \to \mathbb R` takes a POINT of
+        :math:`S^2`. This is that source.
+
+        ⚠ Not to be confused with :attr:`space`, which is the other end of a
+        different arrow. There are three levels and the two properties name two
+        of them:
+
+        =====================================  ==========================
+        level                                  named by
+        =====================================  ==========================
+        the manifold :math:`M`                 :attr:`domain` (here)
+        fields on :math:`M`, discretized       ``measure.space``
+        coefficients :math:`\mathbb R^K`       :attr:`space`
+        =====================================  ==========================
+
+        So :attr:`space` answers *what do these live in*; :attr:`domain`
+        answers *what do these eat*. The distinction is not academic — it is
+        what makes a space name falsifiable. Before this property existed, an
+        :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis` over
+        an ENERGY-group partition and one over a 2-cell SPATIAL partition both
+        named their coefficient space ``L2[coarse_cells_R1]``, so they compared
+        ``==`` **and** hash-equal: an illegal state that was representable,
+        because the manifold was smuggled through a hard-coded name string
+        (:doc:`/theory/foundations/manifolds`).
+
+        ⭐ Abstract rather than defaulted, and a ``@property`` rather than a
+        field. Abstract because a basis that cannot say what it eats is not a
+        basis, so the refusal belongs at construction. A property because a
+        dataclass FIELD does not satisfy an abstract property in Python —
+        ``ABCMeta`` re-checks ``getattr(cls, name)`` and an annotation-only
+        field puts nothing in ``__dict__``, so the subclass stays abstract —
+        and because every abstract property in this tree
+        (:attr:`space`, ``FrameBase.test``, ``LinearOperator.domain``,
+        ``Manifold.dim``) is already answered that way.
         """
         ...
 

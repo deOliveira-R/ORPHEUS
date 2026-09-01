@@ -37,6 +37,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.energy_grid import EnergyGrid, InverseEnergySpectrum
 from orpheus.data.macro_xs.mixture import Mixture
+from orpheus.numerics.manifold import EnergyGroups
 
 pytestmark = pytest.mark.foundation
 
@@ -333,7 +334,9 @@ class TestG3ScatteringTwoAxisCollapse:
         # ASCENDING coarse edges in fine-index space (orientation-correct
         # membership: nodes 0,1 → cell 0; nodes 2,3 → cell 1).
         edges = np.array([-0.5, 1.5, 3.5])
-        trial = IndicatorBasis(edges_per_axis=(edges,))
+        trial = IndicatorBasis(
+            edges_per_axis=(edges,), partition_of=EnergyGroups(_NG_FINE),
+        )
         measure = DiscreteMeasure(
             nodes=nodes, weights=np.ones(_NG_FINE), support="energy"
         )  # COUNTING measure (w=1) + flux test-weight

@@ -102,6 +102,7 @@ from scipy.special import lpmv
 from orpheus.numerics.basis.base import Basis, GramStructure
 
 if TYPE_CHECKING:
+    from orpheus.numerics.manifold import Manifold
     from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.spaces.spherical_harmonic_space import (
         SphericalHarmonicSpace,
@@ -364,7 +365,27 @@ class SphericalHarmonicBasis(Basis):
         r"""DIAGONAL — the real spherical harmonics are orthogonal (:math:`g_C` diagonal)."""
         return GramStructure.DIAGONAL
 
-    # ── Coefficient space ─────────────────────────────────────────────────
+    # ── The domain (what they eat) and the coefficient space (what they span) ──
+
+    @property
+    def domain(self) -> "Manifold":
+        r""":math:`S^2` — a real spherical harmonic eats a unit DIRECTION.
+
+        The constant answer for every degree :math:`L`: truncating the degree
+        changes what the basis SPANS, never what its functions are defined on.
+
+        ⭐ This is the property ERR-080 needed and did not have.  The defect is
+        a 1-D quadrature handing :meth:`evaluate` the forged ordinates
+        :math:`(\mu, 0, 0)`, which satisfy :math:`\lVert\Omega\rVert = 1`
+        only at :math:`\mu = \pm 1` — so they are not points of this domain,
+        and ``domain.contains(directions)`` says so
+        (:doc:`/theory/verification/error_catalog`).  Wiring that refusal into
+        :meth:`evaluate` is a separate, later step (the plan's G0); what lands
+        here is the operand it needs.
+        """
+        from orpheus.numerics.manifold import SPHERE
+
+        return SPHERE
 
     @property
     def space(self) -> "SphericalHarmonicSpace":
@@ -448,6 +469,30 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
                 f"MirrorEvenSphericalHarmonicBasis: mirror_axis must be "
                 f"0, 1 or 2; got {self.mirror_axis!r}."
             )
+
+    @property
+    def domain(self) -> "Manifold":
+        r""":math:`S^2/\sigma_a` — the QUOTIENT, not the sphere.
+
+        This is the whole content of the class stated as a type.  The parent's
+        functions eat a direction; these eat a direction **modulo the mirror**,
+        because every one of them takes the same value at :math:`\Omega` and at
+        :math:`\sigma_a\Omega` (that is what σ-even MEANS).  A function
+        constant on the orbits of :math:`H` is a function on :math:`M/H`.
+
+        Derived through :meth:`~orpheus.numerics.manifold.Manifold.quotient`
+        rather than tagged, so it is the *same* object the folded measure
+        carries — `[M]` ``S^2/sigma_y``, matching the support a
+        ``folded_product`` rule's angular frame reports.  ⭐ That agreement is
+        the point: before the two sides could name a manifold, a fold basis on
+        an unfolded measure and a fold basis on a folded one were
+        indistinguishable, and the G0 well-posedness gate the plan has carried
+        since it was written had no operands to compare.
+        """
+        from orpheus.numerics.manifold import SPHERE
+        from orpheus.numerics.symmetry import SubgroupOfO3
+
+        return SPHERE.quotient(SubgroupOfO3.Mirror("xyz"[self.mirror_axis]))
 
     @cached_property
     def even_slot_mask(self) -> NDArray:

@@ -81,7 +81,10 @@ class OverlapBasis(IndicatorBasis):
 
         The fractional trial **is** the target grid's basis-view (e.g.
         :meth:`~orpheus.data.energy_grid.EnergyGrid.as_basis`) — the coarse-cell geometry
-        (:attr:`edges_per_axis` → :attr:`n_cells`, :attr:`space`) — carrying a precomputed
+        (:attr:`edges_per_axis` → :attr:`n_cells`, :attr:`space`) and its
+        :attr:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis.partition_of`
+        manifold, both taken from ``indicator`` so the decorated basis cannot
+        drift from the grid it decorates — carrying a precomputed
         partition-of-unity ``overlap_table`` in place of the one-hot membership
         :meth:`evaluate` would compute from those edges. A one-hot table recovers the plain
         ``indicator`` (the nested degenerate). This is the canonical constructor — the
@@ -89,7 +92,11 @@ class OverlapBasis(IndicatorBasis):
         site reads "the trial is the target basis-view, mismatch-corrected" rather than
         reaching into the indicator's ``edges_per_axis``.
         """
-        return cls(edges_per_axis=indicator.edges_per_axis, overlap_table=overlap_table)
+        return cls(
+            edges_per_axis=indicator.edges_per_axis,
+            partition_of=indicator.partition_of,
+            overlap_table=overlap_table,
+        )
 
     # ── Gram structure: a straddling row shares ≥2 columns ⟹ NOT diagonal ──
     @property

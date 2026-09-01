@@ -34,6 +34,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.frame import GalerkinFrame
+from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
@@ -121,7 +122,7 @@ class TestFromGalerkin:
         """The SH narrowing is from_galerkin's ONLY remaining job (F-1) —
         and the direct constructor carries the same guard, so a harmonic
         frame over an indicator trial is unspellable, loudly, early."""
-        indicator = IndicatorBasis((np.array([0.0, 1.0, 2.0]),))
+        indicator = IndicatorBasis((np.array([0.0, 1.0, 2.0]),), RealSpace(1))
         measure = DiscreteMeasure(
             nodes=np.array([0.5, 1.5]), weights=np.ones(2), support="spatial_R1",
         )

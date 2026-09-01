@@ -102,6 +102,7 @@ from numpy.typing import NDArray
 from orpheus.numerics.axis import BasisKind, EnergyAxis
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
+from orpheus.numerics.manifold import IndexSet
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.metric import DenseMetric
 from orpheus.numerics.operator import (
@@ -752,7 +753,12 @@ def _collapse_pair(space: FunctionSpace, axis_label: str) -> _AxisCollapsePair:
     )
     n = int(flat_weights.shape[0])
     frame = GalerkinFrame(
-        basis=IndicatorBasis(edges_per_axis=(np.array([-0.5, n - 0.5]),)),
+        basis=IndicatorBasis(
+            edges_per_axis=(np.array([-0.5, n - 0.5]),),
+            # The SAME point set the measure below tags as its support —
+            # one frame, one manifold.
+            partition_of=IndexSet(label=axis_label, n=n),
+        ),
         measure=DiscreteMeasure(
             nodes=np.arange(n, dtype=float),
             weights=flat_weights,

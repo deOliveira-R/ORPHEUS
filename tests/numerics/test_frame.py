@@ -35,6 +35,7 @@ from orpheus.numerics.basis import (
 )
 from dataclasses import replace
 
+from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.metric import _DENSE_METRIC_RCOND, DenseMetric
@@ -298,7 +299,7 @@ def _indicator_frame(edges, centres, weights, test_weight=None):
     ``test_weight=None`` → :class:`GalerkinFrame` (test=trial=plain indicator);
     an array → :class:`PetrovGalerkinFrame` with a flux-weighted indicator test.
     """
-    trial = IndicatorBasis((np.asarray(edges, dtype=float),))
+    trial = IndicatorBasis((np.asarray(edges, dtype=float),), RealSpace(1))
     measure = DiscreteMeasure(
         nodes=np.asarray(centres, dtype=float),
         weights=np.asarray(weights, dtype=float),
@@ -423,9 +424,10 @@ def test_basis_gram_structure_declarations():
     The base ``Basis`` default (here via the test-only ``WeightedIndicatorBasis``) is
     DENSE — the safe refusal a new basis inherits until it consciously declares.
     """
-    ib = IndicatorBasis((np.array([0.0, 1.0, 2.0]),))
+    ib = IndicatorBasis((np.array([0.0, 1.0, 2.0]),), RealSpace(1))
     ob = OverlapBasis(
         edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
+        partition_of=RealSpace(1),
         overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
     )
     assert ib.gram_structure is GramStructure.DIAGONAL
@@ -459,7 +461,8 @@ def test_project_refuses_dense_gram_trial():
         nodes=np.array([0.5, 1.5]), weights=np.ones(2), support="spatial_R1",
     )
     dense = PetrovGalerkinFrame(
-        _DenseTrial((edges,)), measure, WeightedIndicatorBasis(IndicatorBasis((edges,)), np.ones(2)),
+        _DenseTrial((edges,), RealSpace(1)), measure,
+        WeightedIndicatorBasis(IndicatorBasis((edges,), RealSpace(1)), np.ones(2)),
     )
     with pytest.raises(NotInvertible, match="DENSE"):
         _ = dense.gram
@@ -467,8 +470,8 @@ def test_project_refuses_dense_gram_trial():
         dense.project(np.array([3.0, 5.0]))
     # Control: the SAME geometry with the honest DIAGONAL trial projects fine.
     ok = PetrovGalerkinFrame(
-        IndicatorBasis((edges,)), measure,
-        WeightedIndicatorBasis(IndicatorBasis((edges,)), np.ones(2)),
+        IndicatorBasis((edges,), RealSpace(1)), measure,
+        WeightedIndicatorBasis(IndicatorBasis((edges,), RealSpace(1)), np.ones(2)),
     )
     np.testing.assert_allclose(ok.project(np.array([3.0, 5.0])), [3.0, 5.0])
 
@@ -507,6 +510,7 @@ def _overlap_frame() -> GalerkinFrame:
     member of the DENSE population."""
     ob = OverlapBasis(
         edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
+        partition_of=RealSpace(1),
         overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
     )
     measure = DiscreteMeasure(
@@ -787,6 +791,7 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
 
     ob = OverlapBasis(
         edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
+        partition_of=RealSpace(1),
         overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
     )
     measure = DiscreteMeasure(

@@ -38,6 +38,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.manifold import (
+    ambient_dim,
     CIRCLE,
     COSINE_INTERVAL,
     ENERGY,
@@ -682,15 +683,18 @@ def test_every_variant_is_reachable_from_this_modules_list():
 
 
 def test_ambient_dimension_is_defined_for_every_variant():
-    """``_ambient`` decides how many columns ``contains`` consumes.
+    """``ambient_dim`` decides how many columns ``contains`` consumes.
 
     Its ``match`` is deliberately exhaustive with a raising fallthrough,
     so a new member that forgets it fails loudly rather than silently
     mis-splitting a product's coordinates.
-    """
-    from orpheus.numerics.manifold import _ambient
 
+    Public since #429 tracker 2.1 (it was ``_ambient``): an
+    :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis` asks it
+    from outside this module, to check that its per-axis partition has one
+    axis per coordinate of the manifold it partitions.
+    """
     for m in _ALL:
-        assert _ambient(m) >= 1
-    assert _ambient(SPHERE.quotient(SubgroupOfO3.SO2)) == 1
-    assert _ambient(SPHERE * CIRCLE) == 5
+        assert ambient_dim(m) >= 1
+    assert ambient_dim(SPHERE.quotient(SubgroupOfO3.SO2)) == 1
+    assert ambient_dim(SPHERE * CIRCLE) == 5

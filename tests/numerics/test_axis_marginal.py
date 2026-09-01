@@ -360,12 +360,14 @@ class TestFrameInduction:
         compares two spellings, not one object with itself)."""
         from orpheus.numerics.basis.indicator_basis import IndicatorBasis
         from orpheus.numerics.frame import GalerkinFrame
+        from orpheus.numerics.manifold import IndexSet
         from orpheus.numerics.measure import DiscreteMeasure
 
         n = _W_ANG.shape[0]
         return GalerkinFrame(
             basis=IndicatorBasis(
                 edges_per_axis=(np.array([-0.5, n - 0.5]),),
+                partition_of=IndexSet(label="angular", n=n),
             ),
             measure=DiscreteMeasure(
                 nodes=np.arange(n, dtype=float),

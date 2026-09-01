@@ -1897,8 +1897,9 @@ returns ``[7.0, 11.0]`` where the true projection is
 **106.3 %** on the second. Post-P7 that spelling is not merely wrong,
 it is **unrepresentable** — the exclusivity guard refuses the
 two-source space at construction, `[M]` with
-``ValueError: space 'L2[coarse_cells_R1]' carries BOTH dense
-inner_product_weights and a metric object``. The illegal state that
+``ValueError: space 'L2[coarse_cells(spatial_R1)]' carries BOTH dense
+inner_product_weights and a metric object`` (the space name gained its
+manifold at #429 tracker 2.1; the guard is unchanged). The illegal state that
 produced a 162 % value error is now a state that cannot be built.
 
 .. note::
@@ -2926,7 +2927,10 @@ discarded:
 .. code-block:: python
 
    frame = GalerkinFrame(
-       basis=IndicatorBasis(edges_per_axis=(np.array([-0.5, n - 0.5]),)),
+       basis=IndicatorBasis(
+           edges_per_axis=(np.array([-0.5, n - 0.5]),),
+           partition_of=IndexSet(label=axis_label, n=n),   # #429 tracker 2.1
+       ),
        measure=DiscreteMeasure(
            nodes=np.arange(n, dtype=float),
            weights=flat_weights,              # weights=None IS the counting measure
@@ -3541,15 +3545,22 @@ taken.
    * - ``FunctionSpace.manifold`` — the level-1 slot
      - **#429 tracker 2.0c.** A space records the index shape of its
        DOFs and not the point set those DOFs discretise, so the
-       manifold is currently smuggled through a NAME STRING: `[M]`
-       ``measure.py:331`` derives ``f"L2[{self.support}]"`` from a
-       ``str``, and ``basis/indicator_basis.py:284`` hard-codes
-       ``f"L2[coarse_cells_R{self.ndim}]"`` — which is already **false**
-       for the energy-grid basis, an index partition calling itself
-       spatial. The :class:`~orpheus.numerics.manifold.Manifold` type
-       that would make both names derived was minted 2026-08-31 and has
-       no consumer yet; the level-1 view of this seam, and the rest of
-       that migration, is at :ref:`manifold-seams`.
+       manifold is smuggled through a NAME STRING. ✅ **Half discharged
+       2026-09-01 by tracker 2.1**: ``basis/indicator_basis.py`` used to
+       hard-code ``f"L2[coarse_cells_R{self.ndim}]"`` — **false** for the
+       energy-grid basis, an index partition calling itself spatial, and
+       ``==``/hash-equal to a same-sized spatial space — and now derives
+       ``f"L2[coarse_cells({self.domain.name})]"`` from a
+       :class:`~orpheus.numerics.manifold.Manifold` the caller declares.
+       ⚠ **What remains is the measure's side**: `[M]` ``measure.py:331``
+       still derives ``f"L2[{self.support}]"`` from a ``str``, so the two
+       producers agree by discipline rather than by construction —
+       ``tests/numerics/test_basis_domain.py::test_d6`` pins that
+       agreement, and pins the one pair that does NOT yet agree in
+       spelling (``LossKernelBasis``'s bare label against ``IndexSet``'s
+       ``index(...)``), so 2.0c must return to it. The level-1 view of
+       this seam, and the rest of that migration, is at
+       :ref:`manifold-seams`.
    * - The identity flip (compare the axes tuple, not the name)
      - **S3.** Until then the derived name is the bridge
        (:ref:`spaces-identity-bridge`), and ``axes`` is declared

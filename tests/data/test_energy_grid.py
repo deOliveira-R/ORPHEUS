@@ -47,6 +47,7 @@ import pytest
 
 from orpheus.data.energy_grid import EnergyGrid, InverseEnergySpectrum
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
+from orpheus.numerics.manifold import HALF_LINE
 
 pytestmark = pytest.mark.foundation
 
@@ -84,7 +85,9 @@ class TestOrientationTrap:
         fine_pts = self._fine_points(_EG_DESC)            # 4 pts, descending energy
         # Coarse: fast {g0,g1}, thermal {g2,g3}. DESCENDING coarse edges.
         coarse_desc = np.array([1.0e7, 1.0e3, 1.0e-5])
-        table = IndicatorBasis(edges_per_axis=(coarse_desc,)).evaluate(fine_pts)
+        table = IndicatorBasis(
+            edges_per_axis=(coarse_desc,), partition_of=HALF_LINE,
+        ).evaluate(fine_pts)
         # Partition is "valid" (every fine group → exactly one coarse cell):
         np.testing.assert_array_equal(
             table.sum(axis=1), np.ones(4),
@@ -108,7 +111,9 @@ class TestOrientationTrap:
         """
         fine_pts = self._fine_points(_EG_DESC)
         coarse_asc = np.array([1.0e-5, 1.0e3, 1.0e7])     # ascending
-        table = IndicatorBasis(edges_per_axis=(coarse_asc,)).evaluate(fine_pts)
+        table = IndicatorBasis(
+            edges_per_axis=(coarse_asc,), partition_of=HALF_LINE,
+        ).evaluate(fine_pts)
         np.testing.assert_array_equal(table.sum(axis=1), np.ones(4))
         # Fast fine groups (high energy) → high ascending-cell index (1).
         np.testing.assert_array_equal(
