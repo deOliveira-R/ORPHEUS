@@ -2181,6 +2181,150 @@ constraints"* (L8) with its bill arriving: the type permits any string, so the
 tree contains manifolds that are typos of each other and tags that name nothing.
 
 
+## §V.5e ⭐ 2.0c's SECOND phase opener (2026-09-01, at `10e48312`) — unblocked, and the prize is bigger than the retype
+
+The 10th consecutive phase opener to correct its own section. `[M]` all by AST
+or runtime, each with a positive control (§V.5d(f)4 records a `grep` returning
+**zero** on this exact question while AST found all five — the ugrep anchor
+hazard). Probe: `scratch/_p20c_census*.py` (untracked).
+
+### (a) ✅ THE BLOCKER IS DISCHARGED
+
+§V.5d(a) blocked 2.0c on the missing `S²/σ_y` catalogue entry. `[M]` at
+`10e48312`, `SPHERE.quotient(SubgroupOfO3.Mirror("y"))` returns
+`'S^2/sigma_y'` — 1.1's σ_y entry landed at `b55bba56`. **2.0c is open.**
+
+### (b) ⛔ The tracker's sizing counted the PRODUCERS; a retype's risk is in the CONSUMERS
+
+The row reads *"`[M]` 54 literals + 5 f-strings, 94 % of the literals in
+`tests/`"*. Re-measured:
+
+| the row's claim | measured at `10e48312` | |
+|---|---|---|
+| 54 literals | **54** | ✅ reproduces exactly |
+| 94 % of literals in `tests/` | **51 of 54 = 94 %** | ✅ reproduces exactly |
+| "5 f-strings" | **4** `support=f"..."` construction sites | ⚠ off by one — and it is the wrong question |
+| *(never counted)* | ⛔ **16** sites CONSUMING `.support` as a string — 15 `orpheus/`, 1 `tests/` | the set that actually breaks |
+
+⭐ Both halves of the row are about **producing** a support tag; the retype
+breaks **consumers** — 12 f-strings interpolating `.support`, 2
+`.startswith()` tests, and the `L2[...]` name. A producer that hands a
+`Manifold` where a `str` was expected fails loudly at the call; a consumer that
+interpolates one silently produces `L2[Sphere()]`. ⟹ the §6b set is
+**87 producers + 16 consumers**, and the 16 are where the damage would be
+quiet. Same shape as the 2026-08-16 surprise row (a fraction over *inputs*
+retargeted at *outputs*) and as 2.1's own §6b miss.
+
+### (c) ⭐⭐ THE PRIZE: `DiscreteMeasure.phase` is stringly-typed dispatch, and the retype dissolves it
+
+`[M]` `measure.py:410-413`:
+
+```python
+if self.invariance_group is not None:      return "angular"
+if self.support.startswith("spatial") or self.support == "cells":
+                                           return "spatial"
+if self.support.startswith("energy"):      return "energy"
+raise NotImplementedError(...)
+```
+
+That is `coding-elegance`'s named anti-pattern — **stringly-typed dispatch** —
+and `discriminations`' *"a repeated conditional is a missing type"*, on a tag
+whose type is exactly what 2.0c mints. A `RealSpace` knows it is spatial; an
+`EnergyGroups` knows it is energy; a `Sphere` or a `Quotient` of one knows it is
+angular. ⟹ **`phase` becomes a property of the MANIFOLD**, and the measure's
+version is a one-line forward. The three prefix tests, the `"cells"` special
+case and the raising fallthrough all go away — replaced by a total function on
+a closed sum, which is the same move `Manifold` itself was minted by.
+
+⚠ **This is a GOAL, not yet a design.** Two things must be checked before it is
+built: whether `invariance_group`'s angular arm still needs to precede the
+manifold's answer (it is a property of the MEASURE, not of the point set), and
+what a `Product` manifold's phase is (`[R]` a product of factors with different
+phases has none — which may be the honest answer, and is a case the string
+version could not even pose).
+
+### (d) `[M]` `.phase` has **ZERO** production consumers — 7 reads, all in `tests/`
+
+So the dispatch above is exercised only by its own gates today. ⚠ That is not a
+licence to skip it: 0.1a's landing found `frame.measure.phase` **RAISING on all
+12 rules** because the forgery had destroyed `invariance_group`, and it was a
+test that caught it. It is a live surface with a latent consumer
+(`process-discipline`: "no current consumer" ≠ speculative), and its dispatch is
+the thing 2.0c makes honest.
+
+### (e) Landmine #3 holds — but ⛔ the reasoning below was WRONG, and the way it was wrong is the transferable part
+
+*(Original, kept per §3:)* "✅ Landmine #3 CONFIRMED by an independent census.
+§V.5c(d) recorded that `measure.py:411`'s `self.support == "cells"` has **no
+producer**. `[M]` the 10 distinct shipped literals are `'[-1,1]'` ×14, `'S^2'`
+×13, `'spatial_R1'` ×10, `'R'` ×9, `'energy'` ×2, `'[0,1]'` ×2,
+`'spatial_R2'`, `'index(angular)'`, `'[-1,1]^slab'`, `'probe'` — **`'cells'` is
+not among them**, and no f-string site can produce it. It is a dead arm."
+
+⛔ **REFUTED as reasoning, same day, by its own author.** `'cells'` appears at
+**7** sites, 2 of them in `orpheus/` — and a search for those turns up
+`radial_characteristic_space.py:293` (`_RayLeg(part="cells", …)`) and `:488`
+(`_PART: ClassVar[str] = "cells"`), neither of which is a `support`. So the
+CONCLUSION survives for production. But the one real producer is
+`tests/numerics/test_measure_phase.py:67` — a `parametrize` list
+`["spatial_R1", "spatial_R2", "cells"]` feeding `support=support`.
+
+⭐⭐ **And my own census had already found it.** It is the row
+`tests/numerics/test_measure_phase.py:72 (Name)` in the NON-LITERAL half of the
+same table — I answered the question from the LITERAL half and stated the
+result over the whole population. ⟹ the mechanism, which generalises past this
+campaign: **a census that helpfully separates "literal" from "non-literal"
+invites you to answer from the literal half, and a parametrized producer lives
+in the other one.** The split is a convenience for reading and a trap for
+concluding; a universal must be stated over the union or not at all.
+
+⟹ **the corrected claim**: `support="cells"` has **zero production producers**
+and **exactly one test producer, which exists to assert the arm**. That is not
+a dead arm — it is a *production-unreachable* arm with a synthetic witness,
+which `coding-standards` treats differently: retiring it means retiring its
+gate row too, not silently transcribing both into the new type.
+
+### (f) ⛔⛔ A LIVE DEFECT the opener found: the shipped FOLD cannot say it is angular
+
+`[M]` at `10e48312`, over the five shipped rule families:
+
+| rule | `support` | `invariance_group` | `phase` |
+|---|---|---|---|
+| `gauss_legendre(8)` | `[-1,1]` | `sigma_x` | `angular` |
+| `lebedev(17)` | `S^2` | `Oh` | `angular` |
+| `level_symmetric(4)` | `S^2` | `Oh` | `angular` |
+| `product(4,8)` | `S^2` | `D_8h` | `angular` |
+| ⛔ **`folded_product(4,8)`** | `S^2/sigma_y` | **`None`** | **RAISES** |
+
+The fold's `invariance_group` is legitimately `None` — the mirror was
+*quotiented away*, so the measure is not invariant under it — and
+`'S^2/sigma_y'` matches neither `startswith("spatial")` nor
+`startswith("energy")`. So the string dispatch has **no arm for a quotient**,
+and the production folded-cylinder measure raises when asked what phase-space
+factor it belongs to. ⚠ Latent: `[M]` 0 production consumers of `.phase`. It is
+still a defect, and it is the SECOND time this campaign has found `phase`
+raising on an angular object (0.1a found `frame.measure.phase` raising on all
+12 rules, from a different cause).
+
+⭐ It also answers §V.5e(c)'s first open question, and answers it **against** the
+simple design: `phase` **cannot** be a total function of the manifold alone
+while the slab's support is `[-1,1]`, because `Interval(-1,1)` is genuinely
+ambiguous — it is the slab's angular μ-axis AND exactly how a 1-D spatial
+interval would spell itself. The current code resolves that with
+`invariance_group`, a property of the MEASURE, not of the point set.
+
+⭐⭐ **And the deeper reading: `support='[-1,1]'` on a slab angular rule is
+ERR-080's defect class again — a manifold named by its CHART CODOMAIN instead
+of by the orbit space it is.** `[M]` §V.5d(b) already established that
+`S²/SO(2)`'s `realization` **is** `[-1,1]`. So the honest support is
+`SPHERE.quotient(SO2)`, whose realization is that interval — and with it, every
+one of the five rows above becomes angular *by derivation from the manifold*,
+the `Interval` ambiguity disappears, and the `invariance_group` arm is no
+longer load-bearing. ⚠ That declaration is tracker **2.4**, NOT 2.0c. 2.0c
+must therefore keep the `invariance_group` arm and add a quotient arm; the
+collapse to a single manifold-derived answer is 2.4's to finish, and 2.4 now
+has a measured reason to exist beyond tidiness.
+
 ## §V.5d ⛔ 2.0c/2.0d's phase opener — the step is BLOCKED, and 2.0d dissolves into 2.0c
 
 The 9th consecutive phase opener to correct its own section. `[M]` all by AST
