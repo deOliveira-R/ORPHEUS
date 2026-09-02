@@ -38,6 +38,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from tests.sn._test_helpers import placeholder_materials
+from orpheus.numerics.spaces.moment_head import MomentHead
 
 pytestmark = [pytest.mark.foundation]
 
@@ -74,9 +75,11 @@ def _sn(family: str = "flat") -> SNMesh:
     return SNMesh(mesh, quadrature, placeholder_materials(ng=_NG))
 
 
-def _head(sn: SNMesh, L: int = _L):
+def _head(sn: SNMesh, L: int = _L) -> MomentHead:
     """The angular head this mesh's frame induces — the single source of the layout."""
-    return sn.quad.angular_frame(L).basis.space
+    head = sn.quad.angular_frame(L).basis.space
+    assert isinstance(head, MomentHead)
+    return head
 
 
 def _field(sn: SNMesh, spatial_moments: int, seed: int) -> HarmonicMomentFlux:

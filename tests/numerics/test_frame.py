@@ -793,9 +793,9 @@ def test_the_slab_frame_is_DIAGONAL_after_the_err080_repair():
     # the DIAGONAL dressing is the plain reciprocal, and no DenseMetric is
     # installed (the arm the old body asserted)
     assert frame.basis_space.metric is None
-    np.testing.assert_allclose(
-        frame.basis_space.inner_product_weights, 1.0 / diag, rtol=1e-12
-    )
+    weights = frame.basis_space.inner_product_weights
+    assert weights is not None
+    np.testing.assert_allclose(weights, 1.0 / diag, rtol=1e-12)
 
     # ⭐ and a NEW true fact the repair creates: the sphere collapse
     # d_l G_l = W holds EXACTLY on the slab now — (2l+1) * 2/(2l+1) = 2 = W
@@ -966,6 +966,13 @@ def test_dense_frames_are_dressed_with_the_pseudo_inverse_gram(make_frame):
     assert frame.test_space is frame.basis_space
 
 
+def _dense_matrix_of(frame) -> np.ndarray:
+    """The installed DenseMetric's matrix — narrowed, so a diagonal-dressed frame fails HERE, loudly."""
+    metric = frame.basis_space.metric
+    assert isinstance(metric, DenseMetric), f"{frame} carries no DenseMetric (metric={metric!r})"
+    return np.asarray(metric.matrix)
+
+
 def _parseval_ratio_range(gram: np.ndarray, metric: np.ndarray) -> tuple[float, float]:
     r"""The DRAW-FREE range of the Parseval ratio under a candidate metric.
 
@@ -1036,7 +1043,7 @@ def test_no_diagonal_metric_can_satisfy_parseval_on_a_dense_frame():
     frame = Quadrature.folded_product(2, 4).angular_frame(3)
     gram = np.asarray(frame.discrete_gram)
 
-    dense = _parseval_ratio_range(gram, np.asarray(frame.basis_space.metric.matrix))
+    dense = _parseval_ratio_range(gram, _dense_matrix_of(frame))
     diagonal = _parseval_ratio_range(gram, _diagonal_candidate_metric(gram))
     continuum = _parseval_ratio_range(
         gram,
@@ -1098,7 +1105,7 @@ def test_diagonal_gram_suffices_for_the_collapse_and_dense_does_not_decide_it():
     # two properties are independent, which is the whole point of the name.
     assert _parseval_ratio_range(
         np.asarray(dense.discrete_gram),
-        np.asarray(dense.basis_space.metric.matrix),
+        _dense_matrix_of(dense),
     ) == pytest.approx((1.0, 1.0), abs=1e-12)
 
 
@@ -1145,7 +1152,7 @@ def test_the_dense_dressing_reds_under_the_diagonal_and_the_pre_repair_metrics()
     frame = Quadrature.folded_product(2, 4).angular_frame(3)
     gram = np.asarray(frame.discrete_gram)
 
-    dressed = _parseval_ratio_range(gram, np.asarray(frame.basis_space.metric.matrix))
+    dressed = _parseval_ratio_range(gram, _dense_matrix_of(frame))
     assert dressed == pytest.approx((1.0, 1.0), abs=1e-12), (
         f"the CONTROL leg: the honest dressing must read Parseval, else a "
         f"wrong-metric red carries no information; range {dressed}"

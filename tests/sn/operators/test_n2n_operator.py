@@ -38,6 +38,7 @@ from orpheus.transport.source_sinks import AngularSourceSink
 
 from tests.sn._test_helpers import material_xs_from_raw
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.numerics.basis.base import TruncatedBasis
 
 pytestmark = pytest.mark.foundation
 
@@ -91,10 +92,10 @@ class TestLiftIsTheConjugation:
         # about: the conjugation ``R ∘ X ∘ M`` is well-posed exactly when
         # ``X``'s ends are the frame's own coefficient space, and the
         # composition guard says so.
-        moment = N2NMomentOperator.from_material_xs(
-            mat_xs=solver.mat_xs, basis=S.frame.basis,
-        )
-        assert S.frame.basis.L == S.scattering_order
+        basis = S.frame.basis
+        assert isinstance(basis, TruncatedBasis)
+        moment = N2NMomentOperator.from_material_xs(mat_xs=solver.mat_xs, basis=basis)
+        assert basis.L == S.scattering_order
         conjugated = S.frame.conjugate(moment).apply(psi.values)
         np.testing.assert_allclose(
             got, np.asarray(conjugated) / n2n.total_weight,

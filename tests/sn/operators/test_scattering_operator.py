@@ -33,6 +33,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
+from orpheus.numerics.spaces.moment_head import MomentHead
 
 pytestmark = pytest.mark.foundation  # software-invariant tier
 
@@ -1598,8 +1599,10 @@ class TestAnisoMomentSourcePath:
         L = 3
         moments_values = op_p3.frame.analysis.apply(psi_p3.values)
         assert op_p3.scattering_order == L
+        head = op_p3.frame.basis.space
+        assert isinstance(head, MomentHead)
         out = op_p3.scattering.moment_source(
-            moments_values, skip_l0=False, head=op_p3.frame.basis.space,
+            moments_values, skip_l0=False, head=head,
         )
         expected = self._load_snapshot()["p3_apply_legendre_scattering_moments"]
         np.testing.assert_array_equal(out, expected)

@@ -1684,7 +1684,7 @@ are the two sites a Legendre-bound frame flows through with no edit; the
 `_TruncatesByOrder` Protocol is what the Legendre coefficient space must
 satisfy (`L`, `truncated`, plus `TruncatedBasis`'s `space` on the basis).
 
-### ✅ FUSED — EXECUTED 2026-09-02 (hash stamped in the follow-up). 0.1b + 0.6 + 2.2-G0 + 3.4 + 3.4b: what building THE FIX actually found
+### ✅ FUSED — EXECUTED 2026-09-02, landed `5436184e` (its gate and the typing narrowing rode the follow-up commit). 0.1b + 0.6 + 2.2-G0 + 3.4 + 3.4b: what building THE FIX actually found
 
 **The outcome.** `solve_sn(scattering_order ≥ 2)` on a 1-D chart is RIGHT:
 `[M]` LEG A (`scratch/_pl_slab_defect_repro.py`) reads `+4.000000000000` at
@@ -1859,7 +1859,49 @@ One declared-blind arm (m14), every other arm loaded, every mutant ran.
 last seven fixture fixes (its `none` arm read 7) and exposed m10's blindness;
 the table above is the re-run on the corrected tree.
 
-<GATE — recorded in the follow-up>
+**The 13-tree gate — exit predicate 5, MEASURED at `5436184e`** (`[M]` serial
+`-O -m "not slow" -p no:randomly`, per-tree denominators PREDICTED first by
+collect-only; `scratch/_fused_B_full_gate.sh` → `_fused_B_full_gate.log`,
+per-tree `_fused_B_gate_<tree>.log`; launched on the working tree that became
+`5436184e`, finished 13:00 — the commit was made mid-run, per the user's
+pre-emptive-compaction ruling): **13 of 13 rc=0; 10471 passed · 19 skipped ·
+66 xfailed · 0 failed = 10556 collected = the prediction, unit-for-unit on
+every tree.**
+
+| tree | predicted (collected) | measured | rc | wall |
+|---|---|---|---|---|
+| numerics | 2809 | **2809** passed | 0 | 30 s |
+| transport | 707 | 706 + 1 sk | 0 | 23 s |
+| geometry | 732 | 727 + 4 sk + 1 xf | 0 | 9 s |
+| data | 237 (+2 desel) | 237 | 0 | 42 s |
+| homogeneous | 50 | 50 | 0 | 2 s |
+| diffusion | 113 | 113 | 0 | 2 s |
+| cp | 141 (+13 desel) | 141 | 0 | 66 s |
+| moc | 121 (+3) | 121 | 0 | 105 s |
+| mc | 41 (+16) | 39 + 2 xf | 0 | 109 s |
+| cross_method | 81 (+8) | 81 | 0 | 13 s |
+| sn | 3439 (+116) | **3391** + 1 sk + **47** xf | 0 | 15 min 43 s |
+| derivations | 1661 (+67) | 1637 + 13 sk + 11 xf | 0 | 37 min 16 s |
+| root + harness | 424 (+2) | 419 + 5 xf | 0 | 20 s |
+| **total** | **10556** | **10471 passed · 19 skipped · 66 xfailed · 0 failed = 10556** | 0 | 61 min |
+
+Against the 2.5 row (`10454`): **+102 collected = +105 passed − 3 xfailed**,
+reconciled FILE BY FILE by collect-only against the `2ebdbc05` worktree
+(`scratch/_fused_B_collect_reconcile.log`, same runner and filter):
+numerics **+70** = `test_legendre_basis` +32 (new) · `test_descent` +20 (new)
+· `test_manifold` +11 · `test_frame` +10 · `test_spherical_harmonic_basis` +7
+· `test_quadrature_directional` −10 (`test_q8_6` retired); transport **+24** =
+`fields/test_harmonic_moment_flux` +13 · `test_material_field` +8 ·
+`test_binding_tightness` +3; sn **+4** = `primitives/test_harmonic_moment_flux`
++3 · `acceleration/test_dsa_rate` +1 — and inside sn the ERR-080 gate's three
+strict-xfail rows are now three passes (xf 50 → 47, passed +7 for +4
+collected); root+harness **+4** = `test_layer_imports` 349 → 353, the layer
+gate parametrizing over every production module and the commit adding four
+(`legendre_basis`, `descent`, `legendre_space`, `moment_head`). ⚠ The
+pre-compaction checklist had guessed two of these terms — `test_manifold`
+"+38" and the harness +4 as "the matrix's rows" — from diff impressions, not
+collect counts; the list above is the measurement. Wall 61 min on the machine
+that was also running the session.
 
 ### ✅ 0.2 — EXECUTED 2026-09-01, landed `ce46181c`. What the split actually found
 
@@ -5434,6 +5476,43 @@ folded in below; nothing from either was dropped.
 
 ## ▶ RESUMES AT — stated as OUTCOMES (`plan-authoring` §1)
 
+✅ **THE FOLLOW-UP LANDED 2026-09-02** — the commit titled
+`docs(plans): the fused commit carries its landing hash and gate` (find it by
+SUBJECT, `plan-authoring` §7.1). **The pre-emptive compaction's owed second
+half is paid; nothing is owed on the FUSED landing.** What the five owed steps
+found, in the order they ran:
+
+1. **The gate** — **13 of 13 rc=0, 10556 = the prediction**, unit-for-unit on
+   every tree; the +102 over 2.5 reconciled FILE BY FILE (the table in the
+   *FUSED EXECUTED* section). ⚠ Two of the checklist's own guesses at the
+   +102's terms below were wrong (`test_manifold` "+38" is **+11** by collect;
+   the harness "+4" is `test_layer_imports` seeing four new production
+   modules, not the matrix) — diff impressions, not counts.
+2. **The typing narrowing** — applied. ⚠ The script's `ensure_import` was
+   satisfied by a FUNCTION-LOCAL `MomentHead` import inside one test of
+   `tests/sn/primitives/test_harmonic_moment_flux.py` and added no
+   module-level one: **21 reds** (`NameError` — pytest REWRITES test-module
+   asserts, so they run under `-O`; a bare `assert` is inert only in
+   `orpheus/`), fixed by hoisting the import and dropping the local twin.
+   The five files: **197 passed**. pyright over the fused commit's `.py`
+   files: **33 → 31 diagnostics, 0 on any line the commit or the narrowing
+   touched** (`[M]` every diagnostic intersected against `git diff -U0
+   HEAD~1`; the 31 are pre-existing, on untouched lines).
+3. **The record** — `5436184e` stamped at the four placeholder sites; the
+   gate table in the *FUSED EXECUTED* section, the delta row in *Measured
+   baselines*.
+4. **#429** — the landing comment posted (`_fused_B_issue_comment.md`, filled).
+5. The `_head_tree` worktree (the bit-identity oracle at `2ebdbc05`) removed.
+
+▶ **NEXT — the user-ruled order:** ⏸ compaction, then **1.9** (#432,
+`SubgroupOfO3.O2(axis)`, its own commit), then **2.2b** (the Γ-slot), then
+4.1, 4.9, and the exit predicates' re-gate (XII.3: 1–4 and 6 met at
+`5436184e`, 5 met by the gate above; the exit re-gate re-measures all six).
+**Nothing on the exit path is blocked.**
+
+*The checklist as it stood before the compaction — EXECUTED as recorded
+above, kept per `plan-authoring` §3:*
+
 ⛔⛔ **READ THIS FIRST — a PRE-EMPTIVE compaction (the user asked for it
 with the fused commit's gate mid-run), so the landing is SPLIT across two
 commits and the second is OWED.** The FUSED commit (0.1b + 0.6 + 2.2-G0 +
@@ -5471,7 +5550,7 @@ thing a resumed session does:**
 3. **Record the gate** in this Part's baseline section (the table pattern of
    the 2.5 row) and in the *FUSED EXECUTED* section's `<GATE — recorded in
    the follow-up>` placeholder; **stamp the fused commit's hash** at the three
-   `(hash stamped in the follow-up)` sites (the section header, the tracker
+   `(hash stamped in the follow-up)` sites [✅ stamped `5436184e`] (the section header, the tracker
    row, the ledger row) and the two ✅ pointers; commit as
    `docs(plans): the fused commit carries its landing hash and gate` with the
    two trailers; push.
@@ -5583,7 +5662,7 @@ Read §V.5l(b)–(d) and the test-architect's memo
 
 ✅ **The slab's P_L scattering is right because the basis its measure pairs
 with is the trivial isotypic sub-basis of the spent group** — the fused
-step ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** LANDED 2026-09-02 `(hash stamped in the follow-up)`
+step ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** LANDED 2026-09-02 `5436184e`
 (read the *FUSED EXECUTED* section — ERR-080 CLOSED; G0 caught a
 production defect on landing).
 
@@ -5794,7 +5873,7 @@ Part XIII — do not copy it here (`plan-authoring` §9).
 | ✅ | **2.3** | LANDED 2026-09-02 `5ec3a00a` — see the *2.3 EXECUTED* section: `ManifoldMap` + `archimedes` + `barycentre`, `new_space=` retired, 60/5/15 bit-identical, reference measure deferred to 3.1. ⏬ *The pre-landing row, kept per §3:* **NEXT — read §V.5i (pre-flighted 2026-09-02).** ~~G0's other side (`[M]` `Basis.invariance_group` 0 of 6)~~ (✅ 2.1b, by derivation); the typed `Chart` (also the SECTION MAP's natural home — `_sphere_mod_so2`'s `fundamental_domain=None` comment says exactly what 2.3 must choose). ⚠ Open with the re-measure: 2.3's *"6 → 8"* premise predates `Quotient.by` (2.0c) and `on_orbit_space` (2.4) |
 | ✅ | **3.1** | LANDED 2026-09-02 — see the *3.1 EXECUTED* section: `Quotient.orbit_coordinates` + the derived `quotient_map` (codomain the ENTRY, user-ruled), `Quotient.reference` (`LEGENDRE` on the axial entries, honest `None` on σ_a and `M/{e}`, user-ruled), `AngularSymmetry.reference` reads the entry; §6d measured on a shadow copy (function scope alive 7/7, module scope dead 7/7); nine-arm battery, no arm blind. ⏬ *The pre-landing row, kept per §3:* **NEXT — read §V.5j (pre-flighted 2026-09-02).** ~~the catalogue home + the probe~~ ⛔ the HOME is landed (`manifold._ORBIT_CATALOGUE`) and the PROBE is 3.4's; what remains is the entry's chart map + its reference measure. ⭐ It inherits 2.3's deferral: the pushforward REFERENCE measure as a `Quotient` field populated INSIDE the derivation function (function-scope import — `[M]` module scope is a 5-of-5 cycle), read by `AngularSymmetry.reference`; and §6d BOTH ways before the `symmetry.py` → package re-home |
 | ✅ | **2.5** | LANDED 2026-09-02 `58ad7c28` — see the *2.5 EXECUTED* section (bit-identical; the moment space's ONE home is the frame's basis) |
-| ✅ | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | LANDED 2026-09-02 `(hash stamped in the follow-up)` — THE FIX; read the *FUSED EXECUTED* section |
+| ✅ | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | LANDED 2026-09-02 `5436184e` — THE FIX; read the *FUSED EXECUTED* section |
 | ⏸ | **COMPACTION** | user-ruled 2026-09-02: a context compaction follows the fused commit; the two commits below are the first steps after it |
 | **2** | **1.9** — `SubgroupOfO3.O2(axis)` | its own commit, FIRST after the compaction (user-ruled 2026-09-02, memo H-6) |
 | **3** | **2.2b** — the Γ-slot | its own commit (user-ruled 2026-09-02) |
@@ -6149,7 +6228,7 @@ or `gauss_legendre_on_polar_orbit(n, "x")`, on `S^2/SO2_x`.
 | **2.3** | ⭐⭐ **a measure's support is READ off the map that built it** — `ManifoldMap(domain, codomain, apply)` with `@` composition; `archimedes(axis)` and `barycentre(orbit_space)` memoised; `pushforward(phi)` reads `phi.codomain`, refuses a map out of the wrong point set, `new_space=` retired (1 + 8); `spherical_product` IS the tensor product pushed along the chart; the fold's retraction and `_embedded_nodes` typed; ERR-080 restated as the barycentre map with a FORGED codomain (arm untouched, retires at 3.4). `[M]` bit-identical 60/5/15; eleven-arm battery; numerics 2690 → 2711; matrix 10595 → 10616; reference measure deferred to 3.1 with the §6d cycle measured (5 of 5) | `5ec3a00a` (+ stamp `14c37aa9`) |
 | **3.1** | ⭐ **an orbit-space entry carries ALL of its derivation, the quotient map and the pushforward reference included** — `Quotient.orbit_coordinates` (required; the surviving invariants as a map on ambient coordinates) + the DERIVED `Quotient.quotient_map` (codomain the ENTRY), `Quotient.reference` (`LEGENDRE` on the three axial entries; honest `None` on σ_a and on `M/{e}`), populated INSIDE `_sphere_mod_so2` by a function-scope import; `AngularSymmetry.reference` READS the entry, its `LEGENDRE` import gone. `[M]` π∘φ_a = pr₁ bit-exact 12/12; β_a∘π_a the axial projection 3/3; π H-invariant on 4 groups; the numeric map == `lambdify` of the recorded invariants 5/5; §6d on a shadow copy 7/7 alive vs 0/7; nine-arm battery, none blind; numerics 2711 → 2739, matrix 10616 → 10644 | `67e38605` |
 | **2.5** | ⭐ **the angular moment space is READ off the frame, never minted from `L`** — `TruncatedBasis` (Protocol) is the harmonic family's surface and `HarmonicFrame`'s door; the Λ ends, the fission/(n,2n) ℓ=0 ends, the moment-flux head and `truncate` all read the bound basis's space (7 producers retired, 2 doors widened); A-R1 binds the CONTINUUM space (`[M]` `Λ* = Λᵀ` exactly under it, 33/33; the dressed one moves Λ* on 10/33), A-R2 derives the field head through the mesh's quadrature. `[M]` slab L=0/1/2 flux `array_equal`; 33-row metric identity; route gate with a FOREIGN basis; 11-arm battery (control 34, each producer revert → A1, the fork → A2b only), none blind; 13 trees rc=0, 10454 = predicted | `58ad7c28` |
-| **FUSED** | ⭐⭐ **THE FIX — a 1-D rule binds the Legendre basis on its orbit space; ERR-080 CLOSED** (0.1b + 0.6 + 2.2-G0 + 3.4 + 3.4b): `LegendreBasis` (the bit-matched spelling), `LegendreSpace` + `MomentHead`, the entry's probe, `Descent`, G0 as the descent arrow with the table pulled back along it, the forgery deleted, 0.6's refusal, the carriers reading their head, `OverlapBasis`'s misdeclared domain caught by G0 and fixed. `[M]` LEG A `+4.000000000000` at L = 0..2; slab L ≤ 1 `array_equal`; 135 sphere arrays bit-identical; 19-arm battery, one declared-weak arm; the 13-tree gate was RUNNING at commit time — its rows are the follow-up's | `(hash stamped in the follow-up)` |
+| **FUSED** | ⭐⭐ **THE FIX — a 1-D rule binds the Legendre basis on its orbit space; ERR-080 CLOSED** (0.1b + 0.6 + 2.2-G0 + 3.4 + 3.4b): `LegendreBasis` (the bit-matched spelling), `LegendreSpace` + `MomentHead`, the entry's probe, `Descent`, G0 as the descent arrow with the table pulled back along it, the forgery deleted, 0.6's refusal, the carriers reading their head, `OverlapBasis`'s misdeclared domain caught by G0 and fixed. `[M]` LEG A `+4.000000000000` at L = 0..2; slab L ≤ 1 `array_equal`; 135 sphere arrays bit-identical; 19-arm battery, one declared-weak arm; the 13-tree gate finished after the commit: **13 of 13 rc=0, 10556 = predicted**, reconciled file-by-file in the *FUSED EXECUTED* section | `5436184e` (follow-up: `docs(plans): the fused commit carries its landing hash and gate`) |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
 ⛔ No commit COUNT is recorded here — it is the field guaranteed to rot. Run
@@ -6399,8 +6478,19 @@ commit; same runner, same 13 trees, `scratch/_fused_25_full_gate.log`):
 predicted **10454** (transport 646 → 683, nothing else), measured **10366
 passed · 19 sk · 69 xf · 0 failed = 10454, 13 of 13 rc=0**, every tree equal
 to its predicted denominator; against the `2f294ef1` table above **+37
-passed** (transport 682 + 1 sk) and every other row identical. The fused
-commit's re-gate is the DELTA against THIS row.
+passed** (transport 682 + 1 sk) and every other row identical.
+
+⭐⭐ **RE-GATED at the FUSED commit `5436184e`** (2026-09-02, launched on the
+working tree that became the commit, finished 62 min after it;
+`scratch/_fused_B_full_gate.log`): predicted **10556** (numerics 2809 ·
+transport 707 · sn 3439 · root+harness 424, the other nine unchanged),
+measured **10471 passed · 19 sk · 66 xf · 0 failed = 10556, 13 of 13 rc=0**,
+every tree equal to its predicted denominator; against the 2.5 row **+102
+collected = +105 passed − 3 xfailed** (numerics +70, transport +24, sn +4
+with xf 50 → 47, root+harness +4), reconciled FILE BY FILE in the *FUSED
+EXECUTED* section's gate table — read the numbers there, not here. The next
+re-gate's delta is against THIS row; its own prediction is written before it
+runs.
 
 ## Durable lessons — promoted OUT of this file
 
@@ -6524,7 +6614,7 @@ logs; `2` is the final tree) · `_p31_gate_driver.sh` + `_p31_gate_*.log` +
 `_arch_31_sphinx{,_baseline}.log`. ⭐ **NEW at this compaction:**
 `_p31c_reground.py` (**re-runnable — the existence/landmark/caller/hash
 pass**) · `_p31c_full_gate.sh` + `_p31c_full_gate.log` + `_p31c_gate_<tree>.log`
-(**the 13-tree gate, prediction phase + run**). ⭐ **NEW at the FUSED commit:** `_fused_isotypic_probe.py` (**re-runnable — §III.8's probe, legs A–D**) · `_fused_g0_census.py` (the frame spy on real solves) + `_fused_baseline_slab_L01.npz` / `_fused_after_A_…` / `_fused_after_B_…` (the slab bit-identity baselines) · `_fused_iso_census.py` (**re-runnable — exit predicate 3**) · `_fused_6b_census.{md,py,out}` (the explorer's census) · `_fused_verification_plan.md` + `_fused_va_*.py` (the test-architect's memo and probes) · `_fused_edit_numerics{,_b}.py`, `_fused_edit_transport{,_b}.py`, `_fused_edit_bases_c.py` (the production edit scripts, anchored) · `_fused_B_mut/mutplugin_B.py` + `_fused_B_battery.sh` + `_fused_B_battery{,2}.log` (**the 19-arm battery — re-runnable**) · `_fused_B_red{1,3}.log` · `_fused_B_full_gate.{sh,log}` + `_fused_B_gate_<tree>.log` · `_fused_B_test_architect_brief.md`, `_fused_B_archivist_brief.md`, `_fused_B_executed_section.md`, `_fused_B_issue_comment.md`, `_fused_B_commit_msg.txt` · `_fused_B_pyright_tests.py` (**the follow-up's typing script**) · `_fused_B_edit_plan.py` · the HEAD-capture worktree `<scratchpad>/_head_tree` (`git worktree list` — remove with `git worktree remove` when done) + `_capture_tables.py` / `_tables_{HEAD,work}.npz`.
+(**the 13-tree gate, prediction phase + run**). ⭐ **NEW at the FUSED commit:** `_fused_isotypic_probe.py` (**re-runnable — §III.8's probe, legs A–D**) · `_fused_g0_census.py` (the frame spy on real solves) + `_fused_baseline_slab_L01.npz` / `_fused_after_A_…` / `_fused_after_B_…` (the slab bit-identity baselines) · `_fused_iso_census.py` (**re-runnable — exit predicate 3**) · `_fused_6b_census.{md,py,out}` (the explorer's census) · `_fused_verification_plan.md` + `_fused_va_*.py` (the test-architect's memo and probes) · `_fused_edit_numerics{,_b}.py`, `_fused_edit_transport{,_b}.py`, `_fused_edit_bases_c.py` (the production edit scripts, anchored) · `_fused_B_mut/mutplugin_B.py` + `_fused_B_battery.sh` + `_fused_B_battery{,2}.log` (**the 19-arm battery — re-runnable**) · `_fused_B_red{1,3}.log` · `_fused_B_full_gate.{sh,log}` + `_fused_B_gate_<tree>.log` · `_fused_B_test_architect_brief.md`, `_fused_B_archivist_brief.md`, `_fused_B_executed_section.md`, `_fused_B_issue_comment.md`, `_fused_B_commit_msg.txt` · `_fused_B_pyright_tests.py` (⚠ its `ensure_import` is fooled by a function-local import — see the follow-up record) · `_fused_B_followup_tests.log` (the five-file re-run + pyright) · `_fused_B_collect_reconcile.log` (**re-runnable — the per-file collect diff against a `2ebdbc05` worktree**) · `_fused_B_followup_plan_edit.py` (**the follow-up's typing script**) · `_fused_B_edit_plan.py` · the HEAD-capture worktree `<scratchpad>/_head_tree` (`git worktree list` — remove with `git worktree remove` when done) + `_capture_tables.py` / `_tables_{HEAD,work}.npz`.
 
 ## Standing constraints
 

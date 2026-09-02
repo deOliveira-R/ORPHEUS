@@ -27,6 +27,7 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.numerics.spaces.moment_head import MomentHead
 
 pytestmark = pytest.mark.foundation
 
@@ -84,9 +85,11 @@ def _head_shape(mesh: SNMesh, L: int) -> tuple[int, ...]:
     return _head_of(mesh, L).shape
 
 
-def _head_of(mesh: SNMesh, L: int):
+def _head_of(mesh: SNMesh, L: int) -> MomentHead:
     """The angular head OBJECT — the surface that says where the isotropic slot and each degree block live."""
-    return mesh.quad.angular_frame(L).basis.space
+    head = mesh.quad.angular_frame(L).basis.space
+    assert isinstance(head, MomentHead)
+    return head
 
 
 def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
@@ -175,7 +178,6 @@ class TestHarmonicMomentFluxConstruction:
         """
         from orpheus.numerics.space import FunctionSpace, TensorProductSpace
         from orpheus.numerics.spaces.legendre_space import LegendreSpace
-        from orpheus.numerics.spaces.moment_head import MomentHead
         from orpheus.numerics.spaces.spherical_harmonic_space import (
             SphericalHarmonicSpace,
         )
