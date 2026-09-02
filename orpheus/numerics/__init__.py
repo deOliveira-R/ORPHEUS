@@ -34,7 +34,7 @@ from .operator import (
     invertible,
     outer,
 )
-from orpheus.numerics.quadrature import gauss_legendre_on_mu, lebedev_sphere, level_symmetric_sn, product_mu_phi
+from orpheus.numerics.quadrature import gauss_legendre_on_mu, gauss_legendre_on_polar_orbit, lebedev_sphere, level_symmetric_sn, product_mu_phi
 from .basis import Basis, SphericalHarmonicBasis
 from .frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from .projection import AnalysisOperator, ReconstructionOperator
@@ -97,6 +97,7 @@ __all__ = [
     "gauss_chebyshev",
     "gauss_legendre",
     "gauss_legendre_on_mu",
+    "gauss_legendre_on_polar_orbit",
     "invertible",
     "lebedev_sphere",
     "level_symmetric_sn",

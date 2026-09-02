@@ -668,7 +668,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    The null direction has a closed form. The offending harmonic is
    :math:`Y_2^{+2} \propto (1-\mu^2)`, which is exactly
    :math:`\det P = 4(1-\mu^2)`, the squared orbit radius of the
-   :math:`SO(2)` action on :math:`S^2` (that :math:`\det P` is derived
+   :math:`SO(2)_x` action on :math:`S^2` (that :math:`\det P` is derived
    from the Procesi–Schwarz condition at :eq:`manifold-s2-mod-so2`, and
    what its three appearances do and do not share is
    :ref:`manifold-one-polynomial`); the predicted null vector
@@ -701,7 +701,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    dense metric is the whole answer.
 
    The repair is not a special case: a 1-D angular quadrature is a
-   quadrature on the orbit space :math:`S^2/SO(2)`, and the surviving
+   quadrature on the orbit space :math:`S^2/SO(2)_x`, and the surviving
    harmonics are that quotient's **trivial isotypic component**
    :math:`\{Y_\ell^0\} \cong \{P_\ell\}`. Tracked by **#429**;
    planned in
@@ -709,6 +709,19 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    lands, :math:`P_{\ge 2}` scattering on any 1-D chart returns a wrong
    answer — gated by
    ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``.
+
+   ⭐ **The axis in** :math:`SO(2)_x` **is load-bearing, and naming it
+   landed 2026-09-01** (tracker 2.4). It is :math:`x` for the same
+   reason this defect exists at all: `[M]` ``_evaluate_real_sh`` takes
+   ``cos θ = mu_x``, so the real spherical-harmonic pole is :math:`x`
+   and :math:`\{P_\ell(\mu_x)\}` are that basis's :math:`m = 0` members
+   — while every product rule's polar factor is :math:`\mu_z`. One
+   Gauss–Legendre rule serves both roles, which is why the group cannot
+   be spelled without its axis
+   (:ref:`manifold-so2-axis-is-a-parameter`). `[M]` the slab's rule now
+   declares ``support = S^2/SO2_x``; ⛔ that names the space the repair
+   must be posed on and **does not perform the repair** — the frame's
+   own measure is still the forged one.
 
 These identities are pinned by
 ``tests/numerics/test_spherical_harmonic_space.py`` and

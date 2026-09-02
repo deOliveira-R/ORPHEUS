@@ -47,6 +47,14 @@ Key Facts
   - **Restriction** ``μ.restrict(E)`` — indicator-multiplication
     :math:`\mathbf{1}_E \cdot \mu`; supports half-range SN :term:`sweeps <sweep>`
     and bundle cuts.
+  - **Orbit-space declaration** ``μ.on_orbit_space(M/H)`` — the *same
+    atoms*, re-read as chart coordinates of an orbit space. It moves no
+    node, changes no weight and preserves mass exactly, because it
+    applies nothing: only what the measure KNOWS about its support
+    changes (:ref:`measure-on-orbit-space`). It is how the slab's
+    :math:`\mu`-rule says it lives on :math:`S^2/SO(2)_x` rather than on
+    the interval a chart happens to map onto. Neither a
+    ``pushforward`` (no map) nor a ``quotient`` (nothing is folded).
 
 - :class:`~orpheus.numerics.measure.BundleMeasure` carries the
   **disintegration** :eq:`bundle-measure-disintegration`: a base
@@ -340,11 +348,89 @@ result carries ``None`` until the caller re-asserts it via
      - unchanged
      - dropped (restricted rule is not Gauss on the cut domain)
      - dropped (caller may re-tag if :math:`E` is invariant)
+   * - orbit-space declaration ``μ.on_orbit_space(M/H)``
+     - the orbit space itself, e.g. ``S^2/SO2_x`` (**raises** unless its
+       ``realization`` is the current support)
+     - unchanged
+     - unchanged
+     - **preserved** — the reference measure is a measure on the
+       *chart*, and the chart is unchanged
+     - dropped (a subgroup of :math:`O(3)` is a claim about an
+       **embedding**, and the orbit space fixes one the chart did not;
+       the adopter re-tags for the named axis)
 
 Be honest about what is dropped: the field becoming ``None`` is the
 correct behaviour, not a degradation. If a downstream consumer
 needs the field, it must re-establish the claim and stamp it back
 with :meth:`~orpheus.numerics.measure.DiscreteMeasure.with_metadata`.
+
+.. _measure-on-orbit-space:
+
+``on_orbit_space`` — declaring the point set, applying nothing
+---------------------------------------------------------------
+
+The last row of that table is the newest verb (tracker 2.4 of #429,
+2026-09-01) and the odd one out: every other operation in this section
+*computes* something. This one computes nothing at all.
+
+A rule built on a manifold :math:`C` is a rule on **every** orbit space
+:math:`M/H` whose invariant chart lands on :math:`C`. Declaring which
+one is a statement about the measure's *type*, and there is no
+arithmetic that can supply it:
+
+.. math::
+
+   \mu \;=\; \sum_i w_i\,\delta_{x_i} \ \text{on } C
+   \qquad\longmapsto\qquad
+   \mu \;=\; \sum_i w_i\,\delta_{x_i} \ \text{on } M/H,
+   \qquad \text{realization}(M/H) = C .
+
+Same :math:`x_i`, same :math:`w_i` — `[M]` literally the same arrays,
+not copies (``adopted.nodes is original.nodes``). Same integral, same
+mass, same exactness claim.
+
+**Why it is neither of the two verbs it resembles.**
+
+* Not a :meth:`~orpheus.numerics.measure.DiscreteMeasure.pushforward`:
+  a pushforward applies a map :math:`\varphi` and therefore *moves the
+  points*. Nothing is applied here.
+* Not a :meth:`~orpheus.numerics.measure.DiscreteMeasure.quotient`: a
+  fold starts from a measure on the **base** :math:`M`, identifies
+  orbits, and drops the atom count. A :math:`\mu`-rule was never on
+  :math:`S^2` to begin with — there is nothing to fold.
+
+⟹ the discriminator worth remembering is *where the measure starts*.
+``quotient`` walks **down** from the base; ``on_orbit_space`` stays put
+and re-labels the chart it was already on.
+
+**The one precondition.** ``on_orbit_space`` refuses unless the orbit
+space's ``realization`` is this measure's current support. `[M]` handing
+a :math:`\mu`-rule the mirror quotient ``S^2/sigma_y``, whose chart is
+the disk :math:`D^2`:
+
+.. code-block:: text
+
+   a measure on '[-1,1]' cannot be read on 'S^2/sigma_y': that orbit
+   space's chart is 'D^2'. A rule declares the orbit space whose CHART
+   it was built on; to fold a rule on the base manifold, use quotient()
+
+The message names the mismatch **and** the other verb, because "wrong
+orbit space" and "you meant to fold" are the two ways a caller arrives
+here.
+
+**What it buys, measured.** The slab's polar rule is the first consumer.
+`[M]` 2026-09-01, ``Quadrature.gauss_legendre(8)``: ``support.name``
+moves ``'[-1,1]' → 'S^2/SO2_x'`` and ``space.name`` moves
+``'L2[[-1,1]]' → 'L2[S^2/SO2_x]'``, with nodes and weights bit-identical
+to ``gauss_legendre_on_mu(8)``. Before the declaration an 8-node slab
+**angular** space and an 8-node **spatial** rule on :math:`[-1,1]` built
+from those same arrays compared ``==`` *and* hash-equal; after it they
+do not. The full argument, and why the axis in ``SO2_x`` is a parameter
+rather than a convention, is on
+:doc:`/theory/foundations/manifolds` —
+:ref:`manifold-on-orbit-space` and
+:ref:`manifold-so2-axis-is-a-parameter`. **Edited there, consumed
+here.**
 
 
 .. _discrete-measure-partition:
@@ -610,9 +696,14 @@ The groups themselves carry an order relation — containment in the
    transitively by the foundation tests in
    :file:`tests/numerics/test_symmetry.py` — every named relation in
    the static lattice (``Trivial ⊂ σ_z ⊂ O_h ⊂ O(3)``,
-   ``SO(2) ⊂ O(2) ⊂ O(3)``, the ``O_h \not\subset SO(3)`` improper-
-   rotation test, the parameterised ``C_n ⊂ C_m \iff n | m`` rule,
-   and reflexivity for every named entry) is asserted directly.
+   ``SO(2)_z ⊂ D_∞h ⊂ O(3)`` with the two OTHER axes asserted NOT
+   inside D_∞h and all three inside SO(3), ``C_n ⊂ SO(2)_z`` for every
+   n, the ``O_h \not\subset SO(3)`` improper-rotation test, the
+   parameterised ``C_n ⊂ C_m \iff n | m`` rule, and reflexivity for
+   every named entry) is asserted directly. The axis-dependent rows
+   arrived with the SO(2) parameterisation on 2026-09-01; the row this
+   comment used to name, ``SO(2) ⊂ O(2) ⊂ O(3)``, predates the O(2) →
+   D_∞h rename recorded three paragraphs below.
    Tagged ``foundation`` rather than carrying a verification ladder
    slot because the containment lattice is a software invariant
    (Hamermesh 1962 §2.5; Stiefel & Fässler 1979 Ch. 4) — there is
@@ -656,11 +747,24 @@ reverse-direction synonym ``is_subgroup_of``.
 ORPHEUS's relevant sub-lattice of :math:`O(3)` is **finite and
 small**. Slab, sphere, 1-D / 2-D Cartesian geometries combined with
 the four shipped quadrature families (Gauss-Legendre, Lebedev,
-level-symmetric, product) span the **seven** named entries encoded in
-:class:`~orpheus.numerics.symmetry.SubgroupOfO3` — ``Trivial``,
-``SO(2)``, :math:`D_{\infty h}`, ``O_h``, ``I_h``, ``SO(3)``,
-``O(3)`` — plus the parameterised families :math:`C_n`,
-:math:`D_{nh}` and :math:`\sigma_a`.
+level-symmetric, product) span the `[M]` **six** named entries encoded
+in :class:`~orpheus.numerics.symmetry.SubgroupOfO3` — ``Trivial``,
+:math:`D_{\infty h}`, ``O_h``, ``I_h``, ``SO(3)``, ``O(3)`` — plus
+`[M]` **four** parameterised families :math:`C_n`, :math:`D_{nh}`,
+:math:`\sigma_a` and :math:`SO(2)_a`.
+
+⛔ This sentence read *"the **seven** named entries … ``Trivial``,
+``SO(2)``, …"* until 2026-09-01. The axial rotation group left the enum
+that day and became :class:`~orpheus.numerics.symmetry.SO2`, a frozen
+dataclass parameterised by its axis — the same move the reflection had
+made on 2026-08-02, for the same reason and after the same kind of
+wrong answer. **The enum is now exactly the groups that have no axis to
+name.** The argument is
+:ref:`manifold-so2-axis-is-a-parameter`; the one-line version is that
+the tree carries two polar axes at once — the real spherical-harmonic
+basis and the slab's marginal are about :math:`x`, every product rule's
+polar factor is about :math:`z` — so a group tag that did not name its
+axis was a claim about the wrong pole in one of its two uses.
 
 .. note::
 
@@ -675,6 +779,21 @@ level-symmetric, product) span the **seven** named entries encoded in
    disagreed, the 3-D one *certifying* a set that violates
    :math:`\mu \to -\mu`. Naming the plane is what makes the two arms
    answer one question.
+
+   ⭐ **The axial rotation group followed on 2026-09-01, and the
+   repetition is the point.** ``SO2`` was a named, parameter-free entry
+   realized about :math:`z`: its exactness criterion asked whether every
+   node had :math:`\rho = \sqrt{x^2 + y^2} = 0`. `[M]` run against the
+   slab marginal's own embedded nodes — whose first row is
+   :math:`(-0.96028\ldots,\,0,\,0)` — that criterion returns **False**,
+   so the one shipped rule whose orbit space *is* :math:`S^2/SO(2)`
+   reported that it was not invariant under the group it had been
+   quotiented by. Same defect shape, one axis over, one month later.
+   ⟹ **a group realized on a coordinate axis carries that axis as
+   data.** ``ORPHEUS`` has now reached that ruling twice by shipping a
+   wrong answer first; :math:`C_n` is the remaining candidate, and it is
+   deliberately un-parameterised until a second consumer appears
+   (:ref:`manifold-so2-axis-is-a-parameter`).
 
 .. note::
 
@@ -725,15 +844,38 @@ The non-trivial design choice for ``is_invariant`` is the
 generating set (8 sign flips × 6 coordinate permutations for
 :math:`O_h`; 60 proper rotations + inversion for :math:`I_h`) and
 verifies that every generator's image of the node array agrees with
-the input under nearest-neighbour matching. The 1-D case
-(:math:`SO(2)`-invariance of a measure on :math:`[-1, 1]`) is
-trivial — there is no azimuthal coordinate to rotate — and the
-reflection :math:`x \to -x` is the only non-trivial 1-D check. That
-reflection is :math:`\sigma_x`, not "a reflection": the polar marginal
-embeds as :math:`(\mu, 0, 0)`, so :math:`\sigma_y` and
-:math:`\sigma_z` fix every node **pointwise** and hold trivially,
-while :math:`\sigma_x` carries the whole content. The 1-D and 3-D
-checks are the same question asked of the same embedding.
+the input under nearest-neighbour matching.
+
+A **continuous** group is not sampled at all — that is ERR-072, and the
+criterion is exact. A finite point set is closed under :math:`SO(2)_a`
+**iff every node lies ON axis** :math:`a`, because the orbit of any
+point at distance :math:`\rho > 0` from that axis is a whole circle and
+no finite set can contain one. So the predicate reads
+:math:`\rho_a \le \texttt{atol}`, where :math:`\rho_a` is the norm of
+the two coordinates *other* than :math:`a`'s.
+
+⛔ **This paragraph read** *"the 1-D case (*:math:`SO(2)`*-invariance of
+a measure on* :math:`[-1,1]`*) is trivial — there is no azimuthal
+coordinate to rotate"* **until 2026-09-01, and that is exactly the
+reading the axis parameter refutes.** It is not trivial and it is not
+free: a 1-D measure's nodes are *embedded* before the predicate runs,
+and the axis they land on decides the answer. `[M]` on
+``Quadrature.gauss_legendre(8).measure``, whose support declares
+:math:`S^2/SO(2)_x`, ``SO2('x').is_invariant`` is **True** while
+``SO2('y')`` and ``SO2('z')`` are **False** — one true row of three, not
+a vacuous yes. The embedding is read off the support: a rule on
+:math:`S^2/SO(2)_a` embeds along :math:`a` (column 0 is the convention
+only for a *bare* interval, which names no axis). `[M]`
+``gauss_legendre_on_polar_orbit(8, "z")`` — the same eight floats,
+declared about :math:`z` — is :math:`SO(2)_z`-invariant and **not**
+:math:`SO(2)_x`-invariant, the exact mirror image.
+
+The reflection :math:`x \to -x` remains the non-trivial *discrete* 1-D
+check. That reflection is :math:`\sigma_x`, not "a reflection": under
+the canonical :math:`(\mu, 0, 0)` embedding :math:`\sigma_y` and
+:math:`\sigma_z` fix every node **pointwise** and hold trivially, while
+:math:`\sigma_x` carries the whole content. The 1-D and 3-D checks are
+the same question asked of the same embedding.
 
 Tensor-product propagation of invariance is **deliberately dropped**
 to ``None`` (see the metadata-propagation table above):
@@ -1176,10 +1318,18 @@ halves are pinned by
 <orpheus.numerics.quadrature.registry.AngularSymmetry.reference>` is
 the same construction one level down, and it answers the question the
 support cannot: **the support says which space, the reference says
-which measure on it.** ``[M]`` :math:`SO(2)` spent :math:`\to`
-``legendre``; nothing spent :math:`\to` ``uniform(S^2)``; anything else
-raises :exc:`NotImplementedError`. Both are Lebesgue measure on the
-domain the reduction left, because transport integrates
+which measure on it.** ``[M]`` an **axial rotation** spent
+:math:`\to` ``legendre``; nothing spent :math:`\to` ``uniform(S^2)``;
+anything else raises :exc:`NotImplementedError`. ⭐ Note the predicate:
+since 2026-09-01 the reference arm keys on
+:attr:`rotation_axis
+<orpheus.numerics.symmetry.SubgroupOfO3.rotation_axis>` being non-``None``,
+not on equality with one group — and it is *right* to, whatever the
+axis, because the pushforward of :math:`d\Omega` under
+:math:`\mu = \hat\Omega\cdot\hat e_a` is :math:`2\pi\,d\mu` (Archimedes'
+hat-box) for **every** axis. The measure on the chart does not know
+which pole produced it; only the space does. Both are Lebesgue measure
+on the domain the reduction left, because transport integrates
 :math:`\phi = \int \psi \, d\Omega` unweighted — and ``legendre``
 **is** Lebesgue on :math:`[-1,1]`: its weight is :math:`w(x) = 1` and
 ``[M]`` its mass is exactly :math:`2`. The name records the polynomial
@@ -1216,13 +1366,24 @@ registry — drop either stage and the gate admits something wrong:
      - An :math:`S^2` cubature serving a :math:`\mu`-marginal: being
        :math:`O_h`-invariant, it is certainly
        :math:`\sigma_x`-closed.
-   * - ``gauss_legendre_on_mu(n=8)``
+   * - ``gauss_legendre_on_polar_orbit(n=8, axis="x")``
      - ``"cylinder"``
-     - :math:`[-1,1]`
+     - :math:`S^2/SO(2)_x`
      - ✗
      - ✓
      - A polar marginal serving a geometry whose two angular degrees
        of freedom both survive.
+   * - ``gauss_legendre_on_mu(n=8)``
+     - ``"slab"``
+     - :math:`[-1,1]`
+     - ✗
+     - ✓
+     - ⭐ **New row, 2026-09-01.** The *chart-level* rule, refused by
+       its own geometry: it names an interval, and the slab discretises
+       an orbit space. This is why the registry's ``GaussLegendre1D``
+       spec is ``partial(gauss_legendre_on_polar_orbit, axis="x")`` and
+       the chart rule is deliberately unregistered
+       (:ref:`manifold-polar-orbit-rule`).
    * - ``product_mu_phi(3, 5)``
      - ``"cylinder"``
      - :math:`S^2`
@@ -1238,12 +1399,25 @@ registry — drop either stage and the gate admits something wrong:
      - ✓
      - Admitted — the control row.
 
-The first three rows are the content of
-``test_the_two_stages_are_independent_and_both_load_bearing`` and
-``test_owed_symmetry_selects_by_azimuthal_parity``, and they are why
-the split is not a refactor of one predicate into two: a single
-"symmetry" stage is a strictly weaker gate than either of these
-columns, admitting the union of both failure sets.
+`[M]` every cell above was re-measured 2026-09-01. Two of the rows are
+the direct content of
+``test_the_two_stages_are_independent_and_both_load_bearing`` — the
+Lebedev-for-a-slab row (symmetry alone would admit it) and the
+odd-:math:`n_\varphi`-for-a-cylinder row (domain alone would) — with
+``test_owed_symmetry_selects_by_azimuthal_parity`` covering the parity
+pair. They are why the split is not a refactor of one predicate into
+two: a single "symmetry" stage is a strictly weaker gate than either of
+these columns, admitting the union of both failure sets.
+
+⚠ The two ``gauss_legendre`` rows carry no dedicated independence test
+and are listed as *measurements*, not as gate content — the polar-orbit
+row because it is the mirror image of the Lebedev one (a 1-D rule
+offered to a 2-D geometry), and the chart-level row because the thing
+it demonstrates is a **registration** decision rather than a selection
+one: that rule is never presented to stage 0, because it is not in the
+registry. Both reduce to the same fact, which is that stage 0 compares
+*one* datum on both sides — the geometry names the group it spends, the
+rule names the group its orbit space was quotiented by.
 
 Why the stages do not evaluate in their own order
 --------------------------------------------------
@@ -1272,8 +1446,12 @@ stating because it looks arbitrary: :math:`\lambda_{\text{geom}}`
 both derived from the same spent group — so a rule on the wrong space
 fails the reference conjunct *and* the domain conjunct, and the domain
 stage gives the better diagnosis ("your nodes live on :math:`S^2`, this
-geometry discretises :math:`[-1,1]`" beats "your measure is
-``uniform(S^2)``, we wanted ``legendre``"). Running the verification
+geometry discretises :math:`S^2/SO(2)_x`" beats "your measure is
+``uniform(S^2)``, we wanted ``legendre``"). ⭐ The domain half of that
+diagnosis got strictly sharper on 2026-09-01: it used to name the chart
+:math:`[-1,1]`, which is the *same* interval for all three axes and so
+could not distinguish a rule about the wrong pole. Running the
+verification
 after stages 0 and 1 therefore reserves it for the case it *uniquely*
 catches: **a rule on the right space carrying the wrong measure.** That
 case has no shipped instance, which is exactly why it needs a
@@ -1336,17 +1514,18 @@ geometry; a new geometry is added here, never in the selector itself:
      - :math:`\Gamma` (owed)
      - Rationale
    * - ``"slab"``
-     - :math:`SO(2)`
-     - :math:`[-1,1]`
+     - :math:`SO(2)_x`
+     - :math:`S^2/SO(2)_x`
      - :math:`\sigma_x`
-     - 1-D in :math:`z`. Azimuthal rotation about the normal is
-       integrated out, leaving :math:`\mu = \cos\theta` alone. Owed is
+     - 1-D. Azimuthal rotation about the streaming axis is integrated
+       out, leaving :math:`\mu = \hat\Omega\cdot\hat e_x` alone. Owed is
        :math:`\mu \to -\mu`, which pairs the two sweep senses;
        Gauss-Legendre nodes are symmetric (Stoer-Bulirsch §3.6), so it
-       holds.
+       holds. ⭐ Spent and owed now name the **same** axis, and so does
+       the real spherical-harmonic pole — one axis, stated on every half.
    * - ``"sphere"``
-     - :math:`SO(2)`
-     - :math:`[-1,1]`
+     - :math:`SO(2)_x`
+     - :math:`S^2/SO(2)_x`
      - :math:`\sigma_x`
      - 1-D **radial** spherical SN reduces to GL on :math:`\mu_r`, the
        cosine of the angle between ordinate and radial direction
@@ -1371,6 +1550,23 @@ geometry; a new geometry is added here, never in the selector itself:
      - :math:`D_{2h} \cong (\mathbb{Z}_2)^3` is generated by the three
        coordinate-plane mirrors, and its chambers are exactly the
        octants the sweep decomposes into.
+
+.. note::
+
+   ⛔ **The two 1-D rows read** :math:`SO(2)` **/ domain**
+   :math:`[-1,1]` **until 2026-09-01.** Both halves changed at tracker
+   2.4 and for one reason. The spent group is now :math:`SO(2)_x`,
+   because a group realized on a coordinate axis carries that axis as
+   data (:ref:`manifold-so2-axis-is-a-parameter`); and the domain is now
+   the **orbit space** rather than its chart, because
+   :attr:`AngularSymmetry.support
+   <orpheus.numerics.quadrature.registry.AngularSymmetry.support>`
+   derives it as ``SPHERE.quotient(spent)`` instead of returning a
+   hand-written ``COSINE_INTERVAL``. `[M]` the two are not
+   interchangeable: all three :math:`S^2/SO(2)_a` realize onto the
+   **same** interval, so taking the realization is exactly the step that
+   throws the axis away — and it is the step that let a slab angular
+   rule and a spatial rule on :math:`[-1,1]` be the same value.
 
 .. admonition:: What this table looked like before 2026-08-02, and why
                 it could not work
@@ -1407,9 +1603,10 @@ Worked examples
 The four canonical happy-path selections:
 
 * ``select_quadrature("slab", target_degree=15)``: the three
-  :math:`S^2` rules fail stage 0 ("geometry 'slab' discretises
-  :math:`[-1,1]` … but the rule's nodes live on :math:`S^2`"), leaving
-  GL1D (n=8 → degree 15, 8 nodes).
+  :math:`S^2` rules fail stage 0, `[M]` verbatim —
+  ``domain mismatch: geometry 'slab' discretises S^2/SO2_x, but the
+  rule's nodes live on S^2`` — leaving GL1D (n=8 → degree 15, 8 nodes),
+  whose own measure `[M]` declares ``support=S^2/SO2_x``.
 
 * ``select_quadrature("sphere", target_degree=15)``: same path as
   slab — identical spent/owed split after the 1-D radial reduction.
@@ -1535,8 +1732,25 @@ rule:
   is a derived view:
 
   - :func:`~orpheus.numerics.quadrature.gauss_legendre_on_mu` —
-    1-D rule on :math:`\mu \in [-1, 1]`, :math:`\sigma_x`-invariant,
-    exact to algebraic degree :math:`2n - 1` against ``legendre``.
+    the **chart-level** 1-D rule on :math:`\mu \in [-1, 1]`,
+    :math:`\sigma_x`-invariant, exact to algebraic degree
+    :math:`2n - 1` against ``legendre``. It names **no** orbit space,
+    on purpose: it is simultaneously the raw material of the slab's
+    rule (:math:`\mu` about :math:`x`) and the polar factor of every
+    product rule (:math:`\mu` about :math:`z`), so a factor declaring
+    one axis inside a product about the other would be a false claim.
+  - :func:`~orpheus.numerics.quadrature.gauss_legendre_on_polar_orbit`
+    — the same atoms READ on :math:`S^2/SO(2)_a` for a named axis, via
+    :meth:`~orpheus.numerics.measure.DiscreteMeasure.on_orbit_space`
+    (:ref:`measure-on-orbit-space`). This is what the SN slab solver
+    consumes through :meth:`Quadrature.gauss_legendre
+    <orpheus.numerics.quadrature.directional.Quadrature.gauss_legendre>`
+    and what the registry builds, as
+    ``partial(gauss_legendre_on_polar_orbit, axis="x")``. `[M]` its
+    nodes and weights are bit-identical to the chart rule's; its
+    ``support`` is ``S^2/SO2_x``, its ``space`` ``L2[S^2/SO2_x]``, and
+    its ``invariance_group`` is re-stamped ``Mirror(axis)`` for the
+    named axis.
   - :func:`~orpheus.numerics.quadrature.lebedev_sphere` —
     Lebedev rule on :math:`S^2`, :math:`O_h`-invariant, exact to
     spherical-harmonic degree ``order`` against ``uniform(S^2)``.

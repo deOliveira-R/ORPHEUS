@@ -287,12 +287,12 @@ class TestQuotient:
 
     @pytest.fixture(scope="class")
     def s2_mod_so2(self) -> Quotient:
-        return SPHERE.quotient(SubgroupOfO3.SO2)
+        return SPHERE.quotient(SubgroupOfO3.SO2("x"))
 
     def test_the_realization_is_the_cosine_interval(self, s2_mod_so2):
-        r""":math:`S^2/SO(2) \cong [-1,1]`, with :math:`\mu = \hat\Omega \cdot \hat z`."""
+        r""":math:`S^2/SO(2)_x \cong [-1,1]`, with :math:`\mu = \hat\Omega \cdot \hat x` — the slab\'s axis."""
         assert s2_mod_so2.realization == COSINE_INTERVAL
-        assert s2_mod_so2.name == "S^2/SO2"
+        assert s2_mod_so2.name == "S^2/SO2_x"
 
     def test_the_dimension_drops_by_the_group_dimension(self, s2_mod_so2):
         r""":math:`\dim S^2 = 2`, :math:`\dim SO(2) = 1`, quotient :math:`= 1`.
@@ -403,13 +403,29 @@ class TestQuotient:
     def test_the_derived_orbit_space_agrees_with_the_hand_written_table(self):
         r"""⭐ Two independent producers of one orbit space must agree.
 
-        ``AngularSymmetry.support`` (``quadrature/registry.py:869``) is a
+        ``AngularSymmetry.support`` (``quadrature/registry.py``) was a
         **hand-written table** — ``SO2 -> COSINE_INTERVAL``,
         ``Trivial -> SPHERE``, raise otherwise.  :meth:`Manifold.quotient`
         **derives** the same orbit space from invariant theory (the
-        Procesi--Schwarz matrix of the invariant ring).  Neither reads the
-        other, so this is a genuine two-implementation agreement and the only
-        check that either is right about :math:`S^2/G^0`.
+        Procesi--Schwarz matrix of the invariant ring).  Neither read the
+        other, so this was a genuine two-implementation agreement and the
+        only check that either was right about :math:`S^2/G^0`.
+
+        ⛔ **RE-SCOPED 2026-09-01 by tracker 2.4, which single-sourced the
+        SO(2) row.** The registry now DERIVES its domain through
+        ``SPHERE.quotient(spent)`` — so for the axial row ``theirs`` is the
+        very object ``mine`` was built from, and asking whether they agree
+        is asking one call whether it equals itself (``coding-standards``:
+        single-sourcing a duplicate demotes every gate that compared its
+        copies, and the fix stays; the gate's DESCRIPTION is what moves).
+        What survives, and is asserted below: (i) the hand-written
+        ``expected`` column is still an INDEPENDENT pin on the derivation's
+        realization — the one input that could make it fail is a wrong
+        Procesi–Schwarz derivation; (ii) the ``Trivial`` row is still two
+        producers, because the registry answers ``SPHERE`` explicitly while
+        the catalogue re-derives ``M/{e}``; (iii) the axial row's registry
+        answer must be the ORBIT SPACE, carrying the spent group, not its
+        chart — the reading a spatial rule could share.
 
         ⭐ **Strengthened 2026-09-01 by the very retype it was written to
         pin** (tracker 2.0c).  It used to compare ``mine.name == theirs``
@@ -429,22 +445,29 @@ class TestQuotient:
         from orpheus.numerics.quadrature.registry import AngularSymmetry
 
         rows = {
-            SubgroupOfO3.SO2: COSINE_INTERVAL,
+            SubgroupOfO3.SO2("x"): COSINE_INTERVAL,
+            SubgroupOfO3.SO2("z"): COSINE_INTERVAL,
             SubgroupOfO3.Trivial: SPHERE,
         }
         for group, expected in rows.items():
-            mine = SPHERE.quotient(group).realization
+            derived = SPHERE.quotient(group)
+            mine = derived.realization
             theirs = AngularSymmetry(
                 continuous_isotropy=group,
                 discrete_residual=SubgroupOfO3.Trivial,
             ).support
+            # (i) the independent pin on the derivation
             assert mine == expected, f"{group.name}: mine gave {mine.name}"
-            assert mine == theirs, (
-                f"the derived orbit space disagrees with the hand-written "
-                f"table for S^2/{group.name}: Manifold.quotient says "
-                f"{mine!r}, AngularSymmetry.support says {theirs!r}. One is "
-                f"wrong about the quotient -- do not re-baseline this."
-            )
+            if group == SubgroupOfO3.Trivial:
+                # (ii) still two producers: an explicit SPHERE vs M/{e}
+                assert theirs == SPHERE and mine == theirs
+            else:
+                # (iii) the registry hands out the orbit space itself
+                assert isinstance(theirs, Quotient) and theirs == derived, (
+                    f"AngularSymmetry.support for S^2/{group.name} is "
+                    f"{theirs!r}, not the derived orbit space"
+                )
+                assert theirs.by == group and theirs.realization == expected
 
     def test_an_uncatalogued_quotient_names_the_missing_WORK(self):
         """The engine's absence is a pick-up-able work item, not a wall.
@@ -461,7 +484,7 @@ class TestQuotient:
         assert "_ORBIT_CATALOGUE" in msg
         # ...and says what IS catalogued, by class name (labelled
         # as such, since the request is named by MANIFOLD name).
-        assert "Sphere/SO2" in msg
+        assert "Sphere/SO2_x" in msg and "Sphere/SO2_z" in msg
         assert "manifold CLASS" in msg
 
 
@@ -651,7 +674,7 @@ class TestTheTwoCoordinateSystemsMustAgree:
         for q in (
             SPHERE.quotient(SubgroupOfO3.Mirror("y")),
             SPHERE.quotient(SubgroupOfO3.Trivial),
-            SPHERE.quotient(SubgroupOfO3.SO2),
+            SPHERE.quotient(SubgroupOfO3.SO2("x")),
         ):
             if q.fundamental_domain is not None:
                 assert q.fundamental_domain.dim == q.realization.dim
@@ -706,5 +729,5 @@ def test_ambient_dimension_is_defined_for_every_variant():
     """
     for m in _ALL:
         assert ambient_dim(m) >= 1
-    assert ambient_dim(SPHERE.quotient(SubgroupOfO3.SO2)) == 1
+    assert ambient_dim(SPHERE.quotient(SubgroupOfO3.SO2("x"))) == 1
     assert ambient_dim(SPHERE * CIRCLE) == 5

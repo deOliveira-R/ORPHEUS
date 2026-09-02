@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10562**
+Total tests collected: **10584**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1298, 12.3%
-   L1, 1643, 15.6%
+   L1, 1643, 15.5%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7538, 71.4%
+   foundation, 7560, 71.4%
    unmarked, 19, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10464
+   explicit, 10486
    class-name, 46
    func-name, 0
    case, 33
@@ -381,6 +381,7 @@ Module × level grid
    numerics/test_rules_product, 0, 3, 0, 0, 38, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 67, 0
    numerics/test_si_diagnostic_trajectory, 0, 0, 0, 0, 5, 0
+   numerics/test_slab_orbit_space, 0, 0, 0, 0, 17, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_space_of_axes, 0, 0, 0, 0, 26, 0
@@ -388,7 +389,7 @@ Module × level grid
    numerics/test_spatial_moment_space, 0, 0, 0, 0, 22, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
-   numerics/test_symmetry, 0, 0, 0, 0, 105, 0
+   numerics/test_symmetry, 0, 0, 0, 0, 110, 0
    numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
    numerics/test_tensor_product_operator, 35, 0, 0, 0, 0, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
@@ -832,6 +833,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``ld-cartesian-2d-projection-coeff``, 1
    ``ld-ubld-pure-z-collision``, 1
    ``majorant``, 1
+   ``manifold-s2-mod-so2``, 1
    ``mc-lethargy-width-sign``, 1
    ``mg-inscatter-source``, 1
    ``moment-projection-transpose-T``, 1
@@ -903,7 +905,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **577** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **576** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1161,7 +1163,6 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``majorant-real-collision``
 - ``manifold-procesi-schwarz``
 - ``manifold-s2-mod-mirror``
-- ``manifold-s2-mod-so2``
 - ``matrix-functor-out``
 - ``matrix-inverse-direct-residual``
 - ``matrix-inverse-materialise``

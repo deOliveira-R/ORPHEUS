@@ -32,7 +32,7 @@ import pytest
 
 from orpheus.numerics.exactness import UNIFORM_ON_SPHERE
 from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
-from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
+from orpheus.numerics.manifold import SPHERE
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import (
     GEOMETRY_ANGULAR_SYMMETRY,
@@ -122,12 +122,14 @@ def test_geometry_angular_symmetry_table() -> None:
     finite point set on S^2 is SO(2)-closed.
     """
     assert GEOMETRY_ANGULAR_SYMMETRY == {
+        # The spent group names the SAME axis as the owed mirror's normal:
+        # the polar marginal embeds along x, and a slab spends SO(2)_x.
         "slab": AngularSymmetry(
-            continuous_isotropy=SubgroupOfO3.SO2,
+            continuous_isotropy=SubgroupOfO3.SO2("x"),
             discrete_residual=SubgroupOfO3.Mirror("x"),
         ),
         "sphere": AngularSymmetry(
-            continuous_isotropy=SubgroupOfO3.SO2,
+            continuous_isotropy=SubgroupOfO3.SO2("x"),
             discrete_residual=SubgroupOfO3.Mirror("x"),
         ),
         "cylinder": AngularSymmetry(
@@ -215,6 +217,21 @@ def test_lebedev_invert_too_high_returns_none() -> None:
     assert _lebedev_invert(top + 1000) is None
 
 
+#: The slab's angular domain — what a rule must DECLARE to clear stage 0
+#: since tracker 2.4 (2026-09-01). A chart-level rule on ``[-1,1]`` is
+#: refused there, so every test-local 1-D spec below reads its rule on the
+#: orbit space exactly as the shipped ``GaussLegendre1D`` entry does.
+_SLAB_ORBIT_SPACE = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+
+
+def _on_slab(measure: DiscreteMeasure) -> DiscreteMeasure:
+    """A 1-D rule on the chart, read on the slab's orbit space (with the
+    residual :math:`\\sigma_x` the shipped adopter also re-tags)."""
+    return measure.on_orbit_space(_SLAB_ORBIT_SPACE).with_metadata(
+        invariance_group=SubgroupOfO3.Mirror("x"),
+    )
+
+
 def _gauss_chebyshev_spec() -> QuadratureSpec:
     """A Gauss-Chebyshev entry, shaped exactly like the shipped GL one.
 
@@ -226,7 +243,7 @@ def _gauss_chebyshev_spec() -> QuadratureSpec:
     """
     return QuadratureSpec(
         name="GaussChebyshev1D",
-        factory=CHEBYSHEV_T.gauss,
+        factory=lambda n: _on_slab(CHEBYSHEV_T.gauss(n)),
         parameters={"n": int},
         degree_of_exactness_for=_gl1d_invert,   # same deg = 2n - 1
         positive_weights=True,
@@ -247,7 +264,9 @@ def test_gauss_chebyshev_clears_every_stage_except_the_reference() -> None:
     ==================  =======================================  ========
     stage               reading                                  verdict
     ==================  =======================================  ========
-    0 domain            ``support == '[-1,1]'``                  **admits**
+    0 domain            ``support == S^2/SO2_x`` (declared;      **admits**
+                        the chart-level rule is refused here
+                        since tracker 2.4)
     1 symmetry          nodes invariant under the owed           **admits**
                         :math:`\sigma_x` (computed, not
                         declared)
@@ -270,7 +289,7 @@ def test_gauss_chebyshev_clears_every_stage_except_the_reference() -> None:
     built for.
     """
     slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
-    gc = CHEBYSHEV_T.gauss(4)
+    gc = _gauss_chebyshev_spec().build({"n": 4})
 
     assert slab.admits_domain(gc), "premise: stage 0 must admit it"
     assert slab.admits_symmetry(gc), "premise: stage 1 must admit it"
@@ -352,7 +371,7 @@ def test_a_rule_with_no_exactness_claim_at_all_is_refused() -> None:
     """
     claimless = QuadratureSpec(
         name="ClaimlessGL",
-        factory=lambda n: replace(LEGENDRE.gauss(n), exactness=None),
+        factory=lambda n: replace(_on_slab(LEGENDRE.gauss(n)), exactness=None),
         parameters={"n": int},
         degree_of_exactness_for=_gl1d_invert,
         positive_weights=True,
@@ -401,7 +420,7 @@ def test_an_inversion_that_over_promises_is_caught_not_trusted() -> None:
     """
     lying = QuadratureSpec(
         name="OverPromisingGL",
-        factory=LEGENDRE.gauss,
+        factory=lambda n: _on_slab(LEGENDRE.gauss(n)),
         parameters={"n": int},
         degree_of_exactness_for=lambda _target: {"n": 1},
         positive_weights=True,
@@ -959,9 +978,9 @@ def test_log_rejected_list_carries_reasons() -> None:
     # the target still has to be rejected for living on S^2.
     for name, reason in log.rejected:
         if "V mismatch" not in reason:
-            assert "domain mismatch" in reason and "[-1,1]" in reason, (
+            assert "domain mismatch" in reason and "S^2/SO2_x" in reason, (
                 f"{name} reached the domain stage but its reason does not name "
-                f"the S^2 vs [-1,1] mismatch: {reason!r}"
+                f"the S^2 vs S^2/SO2_x mismatch: {reason!r}"
             )
     assert "domain" in stages, (
         "every rule was rejected at V, so this row no longer exercises the "
@@ -1164,10 +1183,14 @@ def test_support_is_derived_from_the_spent_group_not_declared() -> None:
     domain and the spent group from drifting apart — they are one fact,
     so there is no state in which they can disagree.
     """
-    assert AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.SO2,
-        discrete_residual=SubgroupOfO3.Mirror("z"),
-    ).support == COSINE_INTERVAL
+    # The orbit space itself, not its chart: until tracker 2.4 this row read
+    # ``== COSINE_INTERVAL``, which is the chart of S^2/SO(2) and was also
+    # exactly what a SPATIAL rule on [-1,1] declared.
+    for axis in ("x", "y", "z"):
+        assert AngularSymmetry(
+            continuous_isotropy=SubgroupOfO3.SO2(axis),
+            discrete_residual=SubgroupOfO3.Mirror(axis),
+        ).support == SPHERE.quotient(SubgroupOfO3.SO2(axis))
 
     assert AngularSymmetry(
         continuous_isotropy=SubgroupOfO3.Trivial,

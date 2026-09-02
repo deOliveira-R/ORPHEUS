@@ -310,16 +310,16 @@ page rather than the section.)
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from functools import cache
+from functools import cache, partial
 from collections.abc import Sequence
 from typing import Any, Callable
 
 from ..exactness import UNIFORM_ON_SPHERE, ReferenceMeasure
 from ..generating_measure import LEGENDRE
 from ..measure import DiscreteMeasure
-from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE, Manifold
+from orpheus.numerics.manifold import SPHERE, Manifold
 from ..symmetry import SubgroupOfO3
-from .rules_1d import gauss_legendre_on_mu
+from .rules_1d import gauss_legendre_on_polar_orbit
 from .rules_product import product_mu_phi
 from .rules_sphere import lebedev_sphere, level_symmetric_sn
 
@@ -770,7 +770,13 @@ def _registry(*specs: QuadratureSpec) -> tuple[QuadratureSpec, ...]:
 quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
     QuadratureSpec(
         name="GaussLegendre1D",
-        factory=gauss_legendre_on_mu,
+        # The rule the SLAB/SPHERE geometries admit is the polar marginal
+        # about x — declared as such, so that stage 0 compares an orbit
+        # space naming its group against a geometry naming the group it
+        # spends. The chart-level `gauss_legendre_on_mu` (the product
+        # rules' polar factor) is deliberately NOT registered: it names no
+        # axis, and stage 0 refuses it for exactly that reason.
+        factory=partial(gauss_legendre_on_polar_orbit, axis="x"),
         parameters={"n": int},
         degree_of_exactness_for=_gl1d_invert,
         positive_weights=True,
@@ -883,17 +889,23 @@ class AngularSymmetry:
         :meth:`admits_domain` compares it against the alias on every rule.
         """
         spent = self.continuous_isotropy
-        if spent == SubgroupOfO3.SO2:
-            # S²/SO(2) — the polar marginal. The orbits of the axial
-            # rotation are the constant-μ circles, so the quotient is
-            # parameterised by μ alone.
-            return COSINE_INTERVAL
         if spent == SubgroupOfO3.Trivial:
+            # S²/{e} = S² is a theorem, and the sphere is the name every
+            # 2-D / 3-D rule declares. The catalogue's derived identity
+            # quotient (`_mod_trivial`) spells the same point set
+            # `S^2/Trivial` as the derivation's OUTPUT and is pinned
+            # against this row's realization; the geometry's domain is
+            # the base itself.
             return SPHERE
-        raise NotImplementedError(
-            f"no angular domain is defined for the quotient S^2/{spent.name}; "
-            f"extend AngularSymmetry.support when a geometry first spends it"
-        )
+        # S²/SO(2)_a — the polar marginal about the spent axis. The orbits
+        # of the axial rotation are the constant-μ circles, so the quotient
+        # is parameterised by μ alone; the catalogue derives it, and a
+        # group with no entry refuses there, naming the missing WORK.
+        # Until 2026-09-01 this row was a hand-written `COSINE_INTERVAL`,
+        # which is the CHART of that orbit space and not the orbit space —
+        # exactly the axis-blind spelling a slab rule could share with a
+        # spatial interval (tracker 2.4).
+        return SPHERE.quotient(spent)
 
     @property
     def reference(self) -> ReferenceMeasure:
@@ -923,7 +935,10 @@ class AngularSymmetry:
         the polynomial family it generates, not for a weighting.
         """
         spent = self.continuous_isotropy
-        if spent == SubgroupOfO3.SO2:
+        if spent.rotation_axis is not None:
+            # Whatever the axis: the pushforward of dΩ under μ = Ω·ê_a is
+            # 2π dμ (Archimedes' hat-box), i.e. uniform in the chart
+            # coordinate — Lebesgue on [-1, 1] up to the constant.
             return LEGENDRE
         if spent == SubgroupOfO3.Trivial:
             return UNIFORM_ON_SPHERE
@@ -972,12 +987,18 @@ class AngularSymmetry:
 # symmetries of a *cube*, never of a z-uniform problem.
 
 GEOMETRY_ANGULAR_SYMMETRY: dict[str, AngularSymmetry] = {
+    # The spent group names its AXIS (2026-09-01): the polar marginal
+    # embeds along x, the residual mirror's normal is x, and the real
+    # spherical-harmonic pole is x — one axis, stated on both halves.
+    # Until then `SO2` was a bare member realized about z, so the slab's
+    # own rule read as NOT invariant under the group it was quotiented
+    # by (the angular-spaces plan's Part IV obstacle 1).
     "slab": AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.SO2,
+        continuous_isotropy=SubgroupOfO3.SO2("x"),
         discrete_residual=SubgroupOfO3.Mirror("x"),
     ),
     "sphere": AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.SO2,
+        continuous_isotropy=SubgroupOfO3.SO2("x"),
         discrete_residual=SubgroupOfO3.Mirror("x"),
     ),
     "cylinder": AngularSymmetry(
@@ -1200,9 +1221,8 @@ def select_quadrature(
             rejected.append((
                 spec.name,
                 f"domain mismatch: geometry {geometry!r} discretises "
-                f"{angular_symmetry.support.name} (= S^2/"
-                f"{angular_symmetry.continuous_isotropy.name}), but the rule's "
-                f"nodes live on {measure.support.name}",
+                f"{angular_symmetry.support.name}, but the rule's nodes "
+                f"live on {measure.support.name}",
             ))
             continue
 

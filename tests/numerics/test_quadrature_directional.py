@@ -584,7 +584,9 @@ def test_q8_4_the_1d_lift_is_still_a_FICTION_and_says_so(make) -> None:
     q = make()
     frame_measure = q.angular_frame(2).measure
     assert frame_measure is not q.measure
-    assert q.measure.support == COSINE_INTERVAL
+    # Since tracker 2.4 the slab rule DECLARES its orbit space; the fiction is
+    # that the frame then pads it back onto S^2 as if it were a point set there.
+    assert q.measure.support == SPHERE.quotient(SubgroupOfO3.SO2("x"))
     assert frame_measure.support == SPHERE          # the fiction, stated
     assert q.measure.nodes.ndim == 1
     assert frame_measure.nodes.shape == (q.N, 3)

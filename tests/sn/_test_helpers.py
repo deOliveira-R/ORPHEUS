@@ -1126,7 +1126,11 @@ def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
 
         measure = DiscreteMeasure(
             nodes=np.column_stack([eta, xi, mu_z]), weights=w,
-            support=SPHERE, invariance_group=SubgroupOfO3.SO2,
+            # The product rule's TRUE symmetry is the finite D_{n_phi h}
+            # (tests/numerics/test_symmetry.py pins it); this field read the
+            # bare `SO2` tag until 2026-09-01, when SO2 became axis-
+            # parameterised and the false constant lost its spelling.
+            support=SPHERE, invariance_group=SubgroupOfO3.Dnh(n_phi),
             exactness=ExactnessClaim(
                 reference=UNIFORM_ON_SPHERE,
                 degree=min(2 * n_mu - 1, n_phi - 1),

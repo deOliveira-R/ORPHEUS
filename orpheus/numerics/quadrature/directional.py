@@ -111,7 +111,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.axis import Axis
     from orpheus.numerics.frame import GalerkinFrame
 
-from .rules_1d import gauss_legendre_on_mu
+from .rules_1d import gauss_legendre_on_mu, gauss_legendre_on_polar_orbit
 from .rules_circle import STAGGERED, periodic_trapezoid
 from .rules_product import product_mu_phi, spherical_product
 from .rules_sphere import LevelStructure, lebedev_sphere, level_symmetric_sn
@@ -859,10 +859,19 @@ class Quadrature:
 
     @classmethod
     def gauss_legendre(cls, n_ordinates: int = 16) -> "Quadrature":
-        r""":math:`N`-point Gauss-Legendre quadrature on :math:`[-1, 1]`.
+        r""":math:`N`-point Gauss-Legendre quadrature on the polar
+        marginal :math:`S^2/SO(2)_x \cong [-1, 1]`.
 
-        Slab transport polar quadrature. ``N`` must be even for SN
-        (half-range integration over each hemisphere).
+        Slab transport polar quadrature: :math:`\mu = \hat\Omega \cdot
+        \hat e_x`, the cosine against the slab's streaming axis. ``N``
+        must be even for SN (half-range integration over each
+        hemisphere).
+
+        The measure DECLARES its orbit space (tracker 2.4, 2026-09-01):
+        its support is ``SPHERE.quotient(SubgroupOfO3.SO2("x"))`` and
+        its space is ``L2[S^2/SO2_x]``, so it cannot be mistaken for a
+        spatial rule on the same interval — see
+        :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_polar_orbit`.
 
         The x-mirror pairs ordinate :math:`i` with :math:`N - 1 - i`
         by GL-node symmetry; the y- and z-mirrors fix every ordinate
@@ -870,7 +879,7 @@ class Quadrature:
         DERIVED by :meth:`ordinate_permutation`, not stored.
         """
         return cls(
-            measure=gauss_legendre_on_mu(n_ordinates),
+            measure=gauss_legendre_on_polar_orbit(n_ordinates, axis="x"),
             level_structure=None,
         )
 

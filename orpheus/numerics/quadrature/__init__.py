@@ -78,7 +78,7 @@ from .registry import (
     quadrature_registry,
     select_quadrature,
 )
-from .rules_1d import gauss_legendre_on_mu
+from .rules_1d import gauss_legendre_on_mu, gauss_legendre_on_polar_orbit
 from .rules_circle import NODE_ALIGNED, STAGGERED, periodic_trapezoid
 from .rules_product import product_mu_phi, spherical_product
 from .rules_sphere import (
@@ -98,6 +98,7 @@ __all__ = [
     "QuadratureSpec",
     "SelectionLog",
     "gauss_legendre_on_mu",
+    "gauss_legendre_on_polar_orbit",
     "lebedev_sphere",
     "level_symmetric_sn",
     "periodic_trapezoid",

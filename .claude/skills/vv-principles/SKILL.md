@@ -1302,7 +1302,16 @@ ORTHOGONAL TO THE LADDER
   foundation                   software invariants — no theory-page :label:
                                (data structures, factory outputs, algebraic
                                reduction invariants). Use @pytest.mark.foundation;
-                               NEVER carry verifies(...).
+                               and therefore NO verifies(...) — EXCEPT where the
+                               foundation gate IS the symbolic re-derivation of a
+                               labelled equation (the algebra-of-record Branch-1
+                               shape: a SymPy identity pinned against the page's
+                               own :label:), where foundation + verifies coexist
+                               and produce a REAL coverage edge. [M] 2026-09-01:
+                               65 tests tree-wide carry both, and a `.. vv-status:
+                               documented` sentinel on such a label EXCLUDES the
+                               edge from the matrix (tests/_harness/audit.py
+                               computes testable = theory − documented).
 ```
 
 - **L4 is parallel to the correctness ladder, not part of it.**

@@ -83,6 +83,7 @@ will install.
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
 from enum import Enum
 from typing import ClassVar, Iterable
@@ -95,6 +96,10 @@ from orpheus.geometry.transformation import (
     close_group as _close_rigid_motions,
 )
 
+# `manifold` imports this module under TYPE_CHECKING only, so the runtime
+# edge symmetry -> manifold is acyclic (`[M]` injected and run in all three
+# import orders, 2026-09-01); `measure` already sits on the same path.
+from .manifold import Quotient
 from .measure import DiscreteMeasure
 from .roots_of_unity import roots_of_unity
 
@@ -112,13 +117,16 @@ _X_AXIS, _Y_AXIS, _Z_AXIS = np.eye(3)
 class _NamedSubgroup(Enum):
     """Named, parameter-free subgroups of :math:`O(3)`.
 
-    Parameterised families (:class:`Cn`, :class:`Dnh`) are separate
-    types so the order parameter ``n`` is type-safe without dragging
-    parameters into the enum machinery.
+    Parameterised families (:class:`Cn`, :class:`Dnh`, :class:`Mirror`,
+    :class:`SO2`) are separate types so their parameter — an order, or
+    an axis — is type-safe without dragging parameters into the enum
+    machinery. Two entries have LEFT this enum for that reason, each
+    after shipping a wrong answer: ``Z2`` became ``Mirror(axis)`` on
+    2026-08-02 and ``SO2`` became ``SO2(axis)`` on 2026-09-01 (tracker
+    2.4 of the angular-spaces campaign, #429).
     """
 
     Trivial = "Trivial"        # {e}
-    SO2 = "SO2"                # axial rotations C_∞ (continuous 1-parameter)
     Dinfh = "Dinfh"            # D_∞h — the FULL cylindrical group (see below)
     OctahedralOh = "Oh"        # full octahedral group, 48 elements
     IcosahedralIh = "Ih"       # full icosahedral group, 120 elements
@@ -253,10 +261,70 @@ class Mirror:
             )
 
 
+@dataclass(frozen=True)
+class SO2:
+    r"""The continuous group :math:`C_\infty` of proper rotations about a
+    named coordinate axis.
+
+    **Parameterised by the axis, because the axis is not a convention** —
+    the ruling :class:`Mirror` records for the plane, reached the same
+    way, one month later. Until 2026-09-01 this was the parameter-free
+    named entry ``SO2``, realized about :math:`z`: its exactness test
+    asked whether every node had :math:`\rho = \sqrt{x^2 + y^2} = 0`.
+    The slab's polar marginal embeds along :math:`x`, so `[M]`
+    ``SO2.is_invariant`` read ``False`` on the one shipped rule whose
+    orbit space IS :math:`S^2/SO(2)` — the axis-convention collision
+    the angular-spaces plan (#429) recorded as its Part IV obstacle 1.
+
+    The tree genuinely carries two poles, so no fiat can settle it. The
+    slab and sphere geometries, and the real spherical-harmonic basis
+    (``cos θ = μ_x`` in ``_evaluate_real_sh``), are about :math:`x`;
+    the product rules, :math:`C_n`, :math:`D_{nh}` and
+    :math:`D_{\infty h}` are about :math:`z`. One Gauss–Legendre rule on
+    :math:`\mu` serves BOTH — as the slab's rule on :math:`S^2/SO(2)_x`
+    and as the polar factor of a product on :math:`S^2/SO(2)_z` — so the
+    group a marginal was quotiented by cannot be spelled without its axis,
+    and two orbit spaces that differ only in the axis must not compare
+    equal.
+
+    Parameters
+    ----------
+    axis : str
+        The rotation axis, one of ``"x"`` / ``"y"`` / ``"z"``.
+        ``SO2("x")`` is the group the slab and sphere geometries spend
+        (:data:`~orpheus.numerics.quadrature.registry.GEOMETRY_ANGULAR_SYMMETRY`).
+        ``SO2("z")`` is the one the finite families sit inside —
+        :math:`C_n \subset SO(2)_z \subset D_{\infty h}` — because those
+        are realized about :math:`z` in the standard setting; a
+        :math:`C_n` lies in no other axis's rotation group.
+
+    See Also
+    --------
+    Mirror
+        The reflection family, parameterised for the same reason.
+    Cn
+        The finite cyclic subgroups, about :math:`z` only. They are not
+        axis-parameterised: no consumer has yet needed a :math:`C_n`
+        about another axis, and the project unifies after the second
+        instance, not before it.
+    """
+
+    axis: str
+
+    def __post_init__(self) -> None:  # pragma: no cover - guard
+        if self.axis not in ("x", "y", "z"):
+            raise ValueError(
+                f"SO2 requires axis in x/y/z, got {self.axis!r}. The axis "
+                f"names the rotation axis; there is no unnamed axial "
+                f"rotation group, which is exactly what the retired bare "
+                f"SO2 entry pretended there was."
+            )
+
+
 # Public type for "any subgroup tag". The selection logic below
-# branches on type — Cn, Dnh and Mirror are kept as separate dataclasses
-# (not enum entries) so their parameter is explicit.
-SubgroupTag = "_NamedSubgroup | Cn | Dnh | Mirror"
+# branches on type — Cn, Dnh, Mirror and SO2 are kept as separate
+# dataclasses (not enum entries) so their parameter is explicit.
+SubgroupTag = "_NamedSubgroup | Cn | Dnh | Mirror | SO2"
 
 
 # ---------------------------------------------------------------------------
@@ -279,7 +347,6 @@ SubgroupTag = "_NamedSubgroup | Cn | Dnh | Mirror"
 # used for the project's quadratures.
 _NAMED_LATTICE: set[tuple[_NamedSubgroup, _NamedSubgroup]] = {
     # Trivial ⊂ everything (handled implicitly + explicit edges below).
-    (_NamedSubgroup.Trivial, _NamedSubgroup.SO2),
     (_NamedSubgroup.Trivial, _NamedSubgroup.Dinfh),
     (_NamedSubgroup.Trivial, _NamedSubgroup.OctahedralOh),
     (_NamedSubgroup.Trivial, _NamedSubgroup.IcosahedralIh),
@@ -307,11 +374,12 @@ _NAMED_LATTICE: set[tuple[_NamedSubgroup, _NamedSubgroup]] = {
     # SO3-invariant but not reflection-symmetric.) The proper order-2
     # sibling is ``Cn(2)``, which IS inside SO2 and SO3 — the distinction
     # the two spellings exist to carry.
-
-    # SO2 ⊂ Dinfh, SO3, O3.
-    (_NamedSubgroup.SO2, _NamedSubgroup.Dinfh),
-    (_NamedSubgroup.SO2, _NamedSubgroup.SO3),
-    (_NamedSubgroup.SO2, _NamedSubgroup.O3),
+    #
+    # The axial rotation group's edges left this table on 2026-09-01 for
+    # the same reason: it is `SO2(axis)` now, and its three relations —
+    # `SO2(a) ⊆ SO3`, `SO2(a) ⊆ O3` for every axis, `SO2(z) ⊆ D_∞h` for
+    # z ALONE (D_∞h is realized about z) — are axis-dependent, which an
+    # enum-to-enum table cannot spell. They live in `_so2_contains`.
 
     # Dinfh ⊂ O3 (the projection R^2 → R^3 along a fixed axis).
     (_NamedSubgroup.Dinfh, _NamedSubgroup.O3),
@@ -351,8 +419,6 @@ class SubgroupOfO3:
     .. code-block:: python
 
         SubgroupOfO3.Trivial
-        SubgroupOfO3.Mirror('z')
-        SubgroupOfO3.SO2
         SubgroupOfO3.Dinfh
         SubgroupOfO3.OctahedralOh
         SubgroupOfO3.IcosahedralIh
@@ -365,6 +431,8 @@ class SubgroupOfO3:
 
         SubgroupOfO3.Cn(6)        # cyclic order 6
         SubgroupOfO3.Dnh(6)       # dihedral D_6h (hex lattice)
+        SubgroupOfO3.Mirror('z')  # {e, sigma_z} — the plane is named
+        SubgroupOfO3.SO2('x')     # rotations about x — the axis is named
 
     Containment via :meth:`contains` (or its synonym
     :meth:`is_subgroup_of` for the reverse-direction reading)
@@ -383,14 +451,13 @@ class SubgroupOfO3:
     # / ... access surface is statically known (these are class attributes,
     # not instance slots, so they coexist with ``__slots__``).
     Trivial: ClassVar[SubgroupOfO3]
-    SO2: ClassVar[SubgroupOfO3]
     Dinfh: ClassVar[SubgroupOfO3]
     OctahedralOh: ClassVar[SubgroupOfO3]
     IcosahedralIh: ClassVar[SubgroupOfO3]
     SO3: ClassVar[SubgroupOfO3]
     O3: ClassVar[SubgroupOfO3]
 
-    def __init__(self, tag: "_NamedSubgroup | Cn | Dnh | Mirror") -> None:
+    def __init__(self, tag: "_NamedSubgroup | Cn | Dnh | Mirror | SO2") -> None:
         self._tag = tag
 
     # --- Constructors ----------------------------------------------------
@@ -416,6 +483,32 @@ class SubgroupOfO3:
         2026-08-02 — see :class:`Mirror` for why the plane is not a
         convention."""
         return cls(Mirror(axis))
+
+    @classmethod
+    def SO2(cls, axis: str) -> "SubgroupOfO3":
+        r"""The axial rotation group :math:`C_\infty` about ``axis``.
+        Replaced the parameter-free ``SO2`` entry on 2026-09-01 — see
+        :class:`SO2` for why the axis is not a convention."""
+        return cls(SO2(axis))
+
+    @property
+    def rotation_axis(self) -> int | None:
+        r"""The coordinate index of an axial rotation group's axis, else None.
+
+        ``SO2("x") → 0``, ``SO2("y") → 1``, ``SO2("z") → 2``; every other
+        subgroup — including the ones that CONTAIN axial rotations,
+        :math:`D_{\infty h}`, :math:`SO(3)`, :math:`O(3)` — answers
+        ``None``. The continuous dual of :attr:`mirror_axis`: it identifies
+        the group whose elements are exactly the proper rotations about one
+        coordinate axis, which is what an orbit-space derivation
+        (``manifold._sphere_mod_so2`` needs the invariant coordinate) and
+        the embedding of a polar marginal (``_embedded_nodes`` puts
+        :math:`\mu` on THIS axis) read off it.
+        """
+        tag = self._tag
+        if isinstance(tag, SO2):
+            return _AXIS_INDEX[tag.axis]
+        return None
 
     @property
     def mirror_axis(self) -> int | None:
@@ -457,6 +550,10 @@ class SubgroupOfO3:
             # dropped the plane would silently collapse the three mirrors
             # into one cache entry.
             return f"SubgroupOfO3.Mirror({tag.axis!r})"
+        if isinstance(tag, SO2):
+            # Same reason as the mirror: `_GROUP_CACHE` and the walk's
+            # `visited` set key on repr(), and three axes are three groups.
+            return f"SubgroupOfO3.SO2({tag.axis!r})"
         return f"SubgroupOfO3({tag!r})"
 
     @property
@@ -471,6 +568,10 @@ class SubgroupOfO3:
             return f"D_{tag.n}h"
         if isinstance(tag, Mirror):
             return f"sigma_{tag.axis}"
+        if isinstance(tag, SO2):
+            # The orbit-space catalogue keys on this string, so an
+            # axis-blind name would merge three quotients into one entry.
+            return f"SO2_{tag.axis}"
         return repr(tag)
 
     # --- Containment lattice --------------------------------------------
@@ -545,22 +646,23 @@ class SubgroupOfO3:
         the action :math:`g` permutes the nodes among themselves and
         the matched node carries the same weight (within ``atol``).
 
-        For continuous groups (:math:`SO(2)`, :math:`SO(3)`, :math:`O(3)`)
-        the check uses a representative orbit (a non-trivial finite
-        rotation) and asserts the measure is closed; this is *necessary
-        but not sufficient* for general measures, but **sufficient by
-        construction** for the rules ORPHEUS ships, all of which are
-        either built to be group-invariant (Lebedev, level-symmetric)
-        or live in a space where the group action is trivial
-        (1-D measure on :math:`[-1, 1]` is trivially :math:`SO(2)`-invariant
-        because there is no azimuthal coordinate to rotate).
+        For continuous groups (:math:`SO(2)_a`, :math:`SO(3)`, :math:`O(3)`)
+        the check is DECIDED EXACTLY, never sampled (ERR-072): a finite
+        point set is closed under a continuous group only where the
+        group acts trivially, so :math:`SO(2)_a`-invariance means every
+        node lies ON axis :math:`a` and :math:`SO(3)`-invariance means
+        every node sits at the origin. A polar marginal embeds along the
+        axis its orbit space names (``(μ, 0, 0)`` for the slab's
+        :math:`S^2/SO(2)_x`), so it is :math:`SO(2)_x`-invariant and
+        :math:`SO(2)_z`-NON-invariant — the axis is load-bearing, which
+        is why it is a parameter.
 
         Strategy by group:
 
         - **Trivial**: always ``True`` (every measure is invariant
           under the identity).
-        - **Mirror / Cn / SO2 / Dinfh / SO3 / O3 / Dnh**: handled via the
-          1-D vs sphere dispatch — see :func:`_check_invariance` below.
+        - **Mirror / Cn / SO2 / Dinfh / SO3 / O3 / Dnh**: handled on the
+          embedded nodes — see :func:`_check_invariance` below.
         - **OctahedralOh**: requires (i) closure under the 6
           coordinate-axis sign flips (:math:`x \to -x`, etc.) and
           (ii) closure under coordinate permutations (24 even
@@ -578,10 +680,11 @@ class SubgroupOfO3:
         Parameters
         ----------
         measure : DiscreteMeasure
-            The measure to test. Must live on either a 1-D space
-            (``"[-1,1]"``, ``"[0,1]"``, …) or :math:`S^2`
-            (``"S^2"``); other spaces fall back to a conservative
-            "trivial group invariance only" semantics.
+            The measure to test. Its nodes are embedded in
+            :math:`\mathbb{R}^3` by :func:`_embedded_nodes` — a polar
+            marginal along the axis its orbit space names (column 0 when
+            the support is a bare interval), a planar rule as
+            :math:`(x, y, 0)`.
         atol : float, optional
             Tolerance for weight equality between matched orbit
             partners. Default ``1e-13`` matches the floating-point
@@ -627,7 +730,9 @@ def _realized_ops(tag) -> "list[RigidMotion] | None":
             return _octahedral_ops()
         if tag is _NamedSubgroup.IcosahedralIh:
             return _icosahedral_ops()
-        return None  # SO2 / Dinfh / SO3 / O3 are continuous — no finite set
+        return None  # Dinfh / SO3 / O3 are continuous — no finite set
+    if isinstance(tag, SO2):
+        return None  # continuous, whatever the axis
     if isinstance(tag, Mirror):
         # One generator, so the closed group is {e, sigma_a}: order 2.
         return _reflections(tag.axis)
@@ -708,6 +813,12 @@ def _contains(outer, inner) -> bool:
     if isinstance(outer, _NamedSubgroup) and isinstance(inner, _NamedSubgroup):
         return _named_contains(outer, inner)
 
+    # ----- Either side is an axial rotation group ---------------------
+    # The one continuous family WITH a parameter, so its relations are
+    # neither in the enum table nor computable from a finite realization.
+    if isinstance(outer, SO2) or isinstance(inner, SO2):
+        return _so2_contains(outer, inner)
+
     # ----- Inner is named, outer is parameterised --------------------
     if isinstance(outer, Cn) and isinstance(inner, _NamedSubgroup):
         # The only named subgroup of an arbitrary Cn is the trivial group.
@@ -734,13 +845,13 @@ def _contains(outer, inner) -> bool:
 
     # ----- Outer is named, inner is parameterised --------------------
     if isinstance(outer, _NamedSubgroup) and isinstance(inner, Cn):
-        # Cn ⊂ SO2 for every n (SO(2) = union over n of C_n).
+        # Cn ⊂ SO2(z) for every n (SO(2) = union over n of C_n) — that
+        # edge lives in `_so2_contains`, since it holds for z ALONE.
         # Cn ⊂ Dinfh, SO3, O3 transitively. Cn ⊂ Oh / Ih only for specific
         # n that match the polyhedral rotation axes — out of scope for
         # the static lattice (Cn ⊂ Oh would need n ∈ {1,2,3,4,6}; we do
         # not encode this until a consumer needs it).
         if outer in (
-            _NamedSubgroup.SO2,
             _NamedSubgroup.Dinfh,
             _NamedSubgroup.SO3,
             _NamedSubgroup.O3,
@@ -792,6 +903,45 @@ def _contains(outer, inner) -> bool:
     return False
 
 
+def _so2_contains(outer, inner) -> bool:
+    r"""Containment when at least one side is :math:`SO(2)_a`.
+
+    Every relation here is AXIS-dependent, which is what put the family
+    outside the enum table. In the standard setting the finite families
+    :math:`C_n`, :math:`D_{nh}` and the continuous :math:`D_{\infty h}`
+    are all realized about :math:`z`, so:
+
+    * :math:`SO(2)_a \subseteq SO(3), O(3)` for every axis (proper
+      rotations, and a subgroup of the proper rotations);
+    * :math:`SO(2)_a \subseteq D_{\infty h}` iff :math:`a = z` —
+      :math:`D_{\infty h}`'s continuous factor IS :math:`SO(2)_z`, and a
+      rotation about :math:`x` does not preserve the :math:`z`-axis;
+    * :math:`C_n \subseteq SO(2)_a` iff :math:`a = z`, for every
+      :math:`n` (:math:`SO(2)_z = \bigcup_n C_n`);
+    * :math:`SO(2)_a \supseteq \{e\}` always, and nothing else that is
+      finite: a mirror and every :math:`D_{nh}` carry :math:`\det = -1`
+      elements, and no other finite subgroup here is cyclic about a
+      coordinate axis;
+    * :math:`SO(2)_a` and :math:`SO(2)_b` are incomparable for
+      :math:`a \ne b` — their intersection is :math:`\{e\}`.
+    """
+    if isinstance(outer, SO2) and isinstance(inner, SO2):
+        return outer.axis == inner.axis
+    if isinstance(inner, SO2):
+        if isinstance(outer, _NamedSubgroup):
+            if outer in (_NamedSubgroup.SO3, _NamedSubgroup.O3):
+                return True
+            if outer is _NamedSubgroup.Dinfh:
+                return inner.axis == "z"
+        return False  # every finite group, whatever its family
+    # outer is SO2(a), inner is anything but SO2
+    if isinstance(inner, _NamedSubgroup):
+        return inner is _NamedSubgroup.Trivial
+    if isinstance(inner, Cn):
+        return outer.axis == "z"
+    return False  # Dnh and Mirror: improper elements
+
+
 # ---------------------------------------------------------------------------
 # Invariance check
 # ---------------------------------------------------------------------------
@@ -803,6 +953,14 @@ def _embedded_nodes(measure: DiscreteMeasure) -> np.ndarray:
     The tree's canonical embedding: a polar marginal :math:`\mu` becomes
     :math:`(\mu, 0, 0)`, a planar rule :math:`(x, y)` becomes
     :math:`(x, y, 0)`.
+
+    ⭐ Since 2026-09-01 the polar marginal's axis is READ, not assumed:
+    a 1-D measure whose support is the orbit space :math:`S^2/SO(2)_a`
+    embeds along :math:`a`, because :math:`\mu` is by definition the
+    cosine against that axis — so a rule declared on
+    :math:`S^2/SO(2)_z` lands on the :math:`z`-axis and is
+    :math:`SO(2)_z`-invariant, as it should be. Column 0 is the
+    convention only for a bare interval, which names no axis.
 
     ⛔ This paragraph used to add *"written down in
     :meth:`Quadrature.axis_cosines` and used by ``spherical_harmonics``
@@ -823,8 +981,22 @@ def _embedded_nodes(measure: DiscreteMeasure) -> np.ndarray:
     if d == 3:
         return nodes
     embedded = np.zeros((n, 3))
-    embedded[:, :d] = nodes
+    axis = _polar_axis_of(measure.support) if d == 1 else None
+    if axis is None:
+        embedded[:, :d] = nodes
+    else:
+        embedded[:, axis] = nodes[:, 0]
     return embedded
+
+
+def _polar_axis_of(support) -> int | None:
+    r"""The axis a polar marginal's :math:`\mu` is measured against, if
+    its support says — i.e. the rotation axis of the group an orbit space
+    :math:`S^2/SO(2)_a` was quotiented by. ``None`` for anything else,
+    including a bare interval."""
+    if isinstance(support, Quotient):
+        return support.by.rotation_axis
+    return None
 
 
 def _check_invariance(tag, measure: DiscreteMeasure, atol: float) -> bool:
@@ -887,22 +1059,25 @@ def _invariance_on_points(
     atol: float,
 ) -> bool:
     """Invariance check for 3-D-node measures (typically on :math:`S^2`)."""
-    if isinstance(tag, _NamedSubgroup):
-        if tag is _NamedSubgroup.SO2:
-            # DECIDED EXACTLY, never sampled (ERR-072).  A continuous
-            # group cannot be tested by a finite sample: the sample
-            # generates a finite SUBgroup, and closure under that
-            # subgroup is strictly weaker than closure under G.
-            return _is_axis_supported(nodes, atol)
+    if isinstance(tag, SO2):
+        # DECIDED EXACTLY, never sampled (ERR-072).  A continuous
+        # group cannot be tested by a finite sample: the sample
+        # generates a finite SUBgroup, and closure under that
+        # subgroup is strictly weaker than closure under G.  And
+        # decided about THE NAMED AXIS: until 2026-09-01 this arm read
+        # rho = hypot(x, y) whatever the group meant, so the slab's
+        # x-axis marginal answered False to its own spent group.
+        return _is_axis_supported(nodes, tag.axis, atol)
 
+    if isinstance(tag, _NamedSubgroup):
         if tag is _NamedSubgroup.Dinfh:
             # D_∞h = C_∞ + in-plane C₂ axes + σ_h + σ_v + improper
-            # products.  Its continuous factor C_∞ forces axis support
-            # exactly as SO(2) does; on an axis-supported set the
-            # in-plane C₂ and σ_v act identically to σ_h (both send
-            # (0,0,z) -> (0,0,-z)), so σ_h closure is the whole of the
-            # remaining condition.  Both conjuncts exact.
-            return _is_axis_supported(nodes, atol) and (
+            # products.  Its continuous factor is SO(2)_z and forces
+            # z-axis support exactly as SO2("z") does; on an
+            # axis-supported set the in-plane C₂ and σ_v act identically
+            # to σ_h (both send (0,0,z) -> (0,0,-z)), so σ_h closure is
+            # the whole of the remaining condition.  Both conjuncts exact.
+            return _is_axis_supported(nodes, "z", atol) and (
                 _orbit_closure(nodes, weights, _reflections("z"), atol) is not None
             )
 
@@ -994,15 +1169,17 @@ def _inversion_op() -> RigidMotion:
     return RigidMotion.inversion(3)
 
 
-def _is_axis_supported(nodes: np.ndarray, atol: float) -> bool:
-    r"""``True`` iff every node lies on the :math:`z`-axis.
+def _is_axis_supported(nodes: np.ndarray, axis: str, atol: float) -> bool:
+    r"""``True`` iff every node lies on the named coordinate axis.
 
-    The exact criterion for **SO(2)-invariance of a FINITE point set**.
-    The :math:`SO(2)` orbit of a point at cylindrical radius
-    :math:`\rho > 0` is a whole circle — an infinite set — so a finite
-    set containing it cannot be closed. Points with :math:`\rho = 0`
-    are fixed by every rotation about :math:`z`. Hence closure
-    :math:`\iff` every node has :math:`\rho \le` ``atol``.
+    The exact criterion for **:math:`SO(2)_a`-invariance of a FINITE
+    point set**. The :math:`SO(2)_a` orbit of a point at distance
+    :math:`\rho > 0` from axis :math:`a` is a whole circle — an infinite
+    set — so a finite set containing it cannot be closed. Points with
+    :math:`\rho = 0` are fixed by every rotation about :math:`a`. Hence
+    closure :math:`\iff` every node has :math:`\rho \le` ``atol``, where
+    :math:`\rho` is the norm of the two coordinates OTHER than
+    :math:`a`'s.
 
     Replaces the retired ``_so2_representatives()``, which sampled
     :math:`\{0, 90, 180, 270\}^\circ` and therefore tested closure under
@@ -1017,9 +1194,12 @@ def _is_axis_supported(nodes: np.ndarray, atol: float) -> bool:
     SO(2)-invariant.** A consumer needing "this rule respects a
     continuous azimuthal symmetry" is asking a question about the
     rule's exactness space, not about node-set closure, and must not
-    be answered here.
+    be answered here. The measures that DO pass are the polar marginals
+    — a rule on :math:`S^2/SO(2)_a` embeds ON axis :math:`a`, where the
+    group acts trivially — and they pass for their own axis only.
     """
-    return bool(np.all(np.hypot(nodes[:, 0], nodes[:, 1]) <= atol))
+    b, c = (i for i in range(3) if i != _AXIS_INDEX[axis])
+    return bool(np.all(np.hypot(nodes[:, b], nodes[:, c]) <= atol))
 
 
 def _is_origin_supported(nodes: np.ndarray, atol: float) -> bool:
@@ -1128,8 +1308,13 @@ def _vertical_mirrors(n: int) -> list[RigidMotion]:
     return [rotation @ sigma_0 for rotation in _cyclic_ops(n)]
 
 
+@functools.cache
 def _octahedral_ops() -> list[RigidMotion]:
     """Generator set for the full octahedral group :math:`O_h` (48 elements).
+
+    Memoised (2026-09-01): it is a constant, and ``_contains`` asks
+    ``_realized_ops`` for it on every containment question involving
+    :math:`O_h` — see :func:`_icosahedral_ops` for the measurement.
 
     The full group is generated by:
 
@@ -1150,8 +1335,19 @@ def _octahedral_ops() -> list[RigidMotion]:
     ]
 
 
+@functools.cache
 def _icosahedral_ops() -> list[RigidMotion]:
     """Generator set for the icosahedral group :math:`I_h` (120 elements).
+
+    ⚠ Memoised (2026-09-01), and it matters: this "generator set" is
+    itself a full 120-element CLOSURE (~0.2 s), and ``_contains`` asks
+    ``_realized_ops`` for it on every containment question involving
+    :math:`I_h` — the finite-vs-finite guard runs before any lattice
+    lookup. `[M]` a single ``maximal_invariance_groups`` walk over a
+    product rule rebuilt it **41 times** (9.3 s of a 9.4 s walk) once
+    the axial family offered three axes instead of one; the element
+    cache in ``_group_elements`` never helped, because the guard pays
+    for the generating set before the cache is consulted.
 
     The icosahedral group is generated by a 5-fold rotation about a
     vertex axis and a 3-fold rotation about a face axis, plus
@@ -1390,7 +1586,6 @@ def _orbit_closure(
 # Pre-instantiated singletons attached to the public class. These are
 # the canonical way users obtain a SubgroupOfO3 for a named entry.
 SubgroupOfO3.Trivial = SubgroupOfO3._from_named(_NamedSubgroup.Trivial)
-SubgroupOfO3.SO2 = SubgroupOfO3._from_named(_NamedSubgroup.SO2)
 SubgroupOfO3.Dinfh = SubgroupOfO3._from_named(_NamedSubgroup.Dinfh)
 SubgroupOfO3.OctahedralOh = SubgroupOfO3._from_named(_NamedSubgroup.OctahedralOh)
 SubgroupOfO3.IcosahedralIh = SubgroupOfO3._from_named(_NamedSubgroup.IcosahedralIh)
@@ -1447,7 +1642,7 @@ def candidate_groups(
     :func:`_distinct_azimuths` for why divisors suffice).
     """
     named = [
-        SubgroupOfO3.Trivial, SubgroupOfO3.SO2,
+        SubgroupOfO3.Trivial,
         SubgroupOfO3.Dinfh, SubgroupOfO3.OctahedralOh,
         SubgroupOfO3.IcosahedralIh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
     ]
@@ -1457,6 +1652,11 @@ def candidate_groups(
     # at all, and unlike the retired parameter-free Z2 it offers the walk
     # all three planes instead of silently only sigma_z.
     named += [SubgroupOfO3.Mirror(a) for a in ("x", "y", "z")]
+    # And all three axial rotation groups, for the same reason: offering
+    # only z (what the retired bare SO2 amounted to) made every x-pole
+    # rule — the slab's own polar marginal — read as carrying no
+    # continuous symmetry at all.
+    named += [SubgroupOfO3.SO2(a) for a in ("x", "y", "z")]
     nodes = measure.nodes
     if nodes.ndim == 1 or nodes.shape[1] < 3:
         return tuple(named)
@@ -1525,9 +1725,13 @@ def maximal_invariance_groups(
     Notes
     -----
     The answer is about the group's realization in the **standard setting**
-    (principal axis along z), not up to conjugation. A rule whose symmetry
-    axis is not z reports a smaller group, which is correct for a gate
-    comparing against a geometry in the same frame.
+    (principal axis along z for the finite families :math:`C_n` /
+    :math:`D_{nh}` and for :math:`D_{\infty h}`), not up to conjugation. A
+    rule whose symmetry axis is not z reports a smaller group from those
+    families, which is correct for a gate comparing against a geometry in
+    the same frame. The two families whose parameter IS the axis —
+    :class:`Mirror` and :class:`SO2` — are offered on all three axes, so a
+    polar marginal along :math:`x` reports :math:`SO(2)_x`.
     """
     cands = tuple(candidates) if candidates is not None else candidate_groups(
         measure, atol=atol

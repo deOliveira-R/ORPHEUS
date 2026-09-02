@@ -5460,14 +5460,40 @@ older entries classify against.
    ``True`` from the real group — the return type cannot carry the evidence
    that would expose it.
 
-   **Which test catches it.** None today (the defect is filed, not yet
-   fixed). The gate that catches it by construction is the
-   **monotonicity law** — for every asserted lattice edge ``A ⊆ B`` and
-   every measure ``m``, ``B.is_invariant(m) ⟹ A.is_invariant(m)`` — which
-   flagged 68 violations on 11 measures × 19 groups in one loop, of which
-   48 trace to this entry. The companion is a return-shape change: once
-   ``_orbit_closure`` returns its per-operator permutations,
-   ``len(perms) == 4`` for a group of infinite order is visibly wrong.
+   **Which test catches it.** ⛔ This block read *"None today (the defect
+   is filed, not yet fixed)"*, which was true when the entry was filed and
+   is not true now. `[M]` 2026-09-01, three gates carry
+   ``catches("ERR-072")`` in ``tests/numerics/test_symmetry.py``:
+   ``test_no_discrete_cubature_is_so2_invariant`` (every shipped sphere
+   rule must answer ``False``, because an off-axis orbit is a circle),
+   ``test_so2_verdict_is_not_a_function_of_n_phi_mod_4`` (the signature
+   itself: the verdict must be **constant** across
+   ``n_phi ∈ {2,3,4,5,6,7,8,12,16}``, where the sampled criterion gave
+   ``True`` at the multiples of 4), and
+   ``test_icosahedral_vertex_set_is_not_so3_invariant``. The fix that made
+   them green is the **exact** criterion: a finite point set is
+   :math:`SO(2)`-closed iff every node lies ON the axis, which the last
+   clause of this entry's Lesson had already stated.
+
+   ⭐ **Re-scoped 2026-09-01 (tracker 2.4 of #429), and the re-scoping is
+   ``vv-principles`` #13's finite-roster corollary applied to the gates
+   themselves.** The axial rotation group became ``SO2(axis)``, so
+   ``test_no_discrete_cubature_is_so2_invariant`` now loops over **all
+   three axes** per rule rather than the one the retired member happened
+   to be realized about. That matters for this entry specifically: the
+   defect was a criterion answering about :math:`z` regardless of what was
+   asked, and a single-axis gate is the shape that cannot see it.
+
+   The gate that catches it *by construction* remains the **compatibility
+   law** — for every asserted lattice edge ``A ⊆ B`` and every measure
+   ``m``, ``B.is_invariant(m) ⟹ A.is_invariant(m)`` — which flagged 68
+   violations on 11 measures × 19 groups in one loop when this entry was
+   filed, of which 48 trace here. `[M]` re-run 2026-09-01 over 15 groups ×
+   6 fixtures (including two polar marginals declared about *different*
+   axes): **0 violations over 342 (edge × fixture) pairs**. The companion
+   was a return-shape change: once ``_orbit_closure`` returns its
+   per-operator permutations, ``len(perms) == 4`` for a group of infinite
+   order is visibly wrong.
 
    **Lesson.** A finite "representative orbit" certifies **only the group
    the sample generates** — compute that group and compare it to the
@@ -5475,12 +5501,38 @@ older entries classify against.
    discrete statement is usually a different predicate entirely: a finite
    node set on ``S²`` is ``SO(2)``-invariant iff every node lies on the axis
    (an off-axis orbit is a circle), so the correct answer is ``False`` for
-   every genuine ``S²`` rule and the ``invariance_group=SO2`` tags on the
-   product/GL rules are a claim about the **continuum measure being
-   discretised**, not about the discrete measure. Two different claims
-   must not share a predicate name. → ``numerical-bug-signatures``
-   Signature 4 (a quadrature-dependent constant baked into a check) in
-   its group-theoretic form.
+   every genuine ``S²`` rule and the ``invariance_group=SO2`` tags then
+   carried by the product/GL rules were a claim about the **continuum
+   measure being discretised**, not about the discrete measure. Two
+   different claims must not share a predicate name.
+   → ``numerical-bug-signatures`` Signature 4 (a quadrature-dependent
+   constant baked into a check) in its group-theoretic form.
+
+   ⭐ **Two later corrections to this Lesson's own vocabulary, each
+   dated, and each forced by shipping a further wrong answer.**
+
+   1. **2026-08-03** — the ``invariance_group=SO2`` tags this paragraph
+      names were **retired**. The spent group moved off the invariance
+      tag (a claim about node-set *closure*) and onto the geometry
+      table's ``continuous_isotropy`` (a claim about the *reduction*),
+      which is where the two-claims-one-name split is actually resolved.
+   2. **2026-09-01 (tracker 2.4 of #429)** — *"every node lies on the
+      axis"* was itself under-specified, because **which** axis is not a
+      convention in this tree: `[M]` ``_evaluate_real_sh`` takes
+      ``cos θ = mu_x`` while every product rule's polar factor is
+      :math:`\mu_z`, and one Gauss–Legendre rule serves both. The
+      predicate is now :math:`\rho_a \le \texttt{atol}` for a **named**
+      ``a``, carried by ``SubgroupOfO3.SO2(axis)``.
+
+   ⭐ The measured symptom of the *unnamed* version is the sharpest
+   restatement of this entry's own lesson, one level up: `[M]` the
+   retired ``hypot(x, y)`` criterion returns **False** on the slab's own
+   polar marginal — the one shipped rule whose orbit space *is*
+   :math:`S^2/SO(2)` — because it asks about :math:`z` while the nodes
+   sit on :math:`x`. The 2026-08-02 fix replaced a *sampled* predicate
+   with an *exact* one; it did not notice that the exact one still named
+   the wrong axis. ⟹ **making a predicate exact does not make it the
+   right predicate.** See :ref:`manifold-so2-axis-is-a-parameter`.
 
 .. error-entry:: ERR-073
    :title: _orbit_closure documents "find a permutation π such that M(nodes)_i = nodes_{π(i)}" but only ever finds SOME same-weight partner per node: the map is never checked for injectivity, so duplicating one node of an O_h-invariant rule yields a measure with M#µ ≠ µ that certifies invariant
@@ -6083,6 +6135,29 @@ older entries classify against.
      ``Quadrature.mean_axis_cosine``, where the zero is the orbit mean
      :math:`\langle\Omega_i\rangle` and is therefore derived rather than
      defaulted.
+
+     ✅ **Progress 2026-09-01 (tracker 2.4) — the SPACE is now named, and
+     the defect is unchanged.** Two things landed. (a) The axial rotation
+     group carries its **axis**: ``SubgroupOfO3.SO2(axis)`` replaced the
+     parameter-free enum member, for the reason this entry itself
+     demonstrates — the tree runs **two poles at once**, `[M]`
+     ``_evaluate_real_sh`` takes ``cos θ = mu_x`` while every product
+     rule's polar factor is :math:`\mu_z`, and one Gauss–Legendre rule
+     serves both. (b) The slab's polar quadrature **declares** its orbit
+     space: `[M]` ``Quadrature.gauss_legendre(8).measure.support.name`` is
+     ``'S^2/SO2_x'`` (was ``'[-1,1]'``), via the new verb
+     ``DiscreteMeasure.on_orbit_space``. `[M]` measured consequence: an
+     8-node slab ANGULAR space and an 8-node SPATIAL rule on
+     :math:`[-1,1]` built from the same arrays were ``==`` **and**
+     hash-equal before this and are unequal after — a real collision,
+     closed. ⛔ **None of that repairs ERR-080.** The forged
+     :math:`(\mu, 0, 0)` measure is still constructible; the level-1
+     refusal is tracker 2.0b plus the fused fix step, and the honest
+     **section** — for which 2.4 supplies only the axis-general spelling
+     :math:`\mu \mapsto \mu\,\hat e_a + \sqrt{1-\mu^2}\,\hat e_b` — is
+     tracker 2.3. See
+     :ref:`manifold-orbit-space-declaration` and
+     :ref:`manifold-the-axis-convention-for-a-section`.
 
      ⚠ **Narrowed 2026-09-01** (phase 0.1a of
      ``.claude/plans/angular_spaces_derived_from_symmetry.md``): that

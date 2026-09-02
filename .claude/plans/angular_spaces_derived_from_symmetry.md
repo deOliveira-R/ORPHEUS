@@ -1819,6 +1819,12 @@ admissible `H` and reports it beside the acyclicity certificate. A user-supplied
    uses **column 0** as the polar axis while the `SO2`/`Dinfh` realizations use
    **z** (`symmetry.py:800-819` vs `:889-899`, `:1014`). The measured `False` is
    fact; the "should be `True`" is reasoned and **unverified**. Phase 2.4.
+   ✅ **REMEDIED 2026-09-01 by 2.4** — the `[R]` was right about the mechanism
+   and the fix was not a convention: `SO2` is axis-parameterised (user
+   ruling), `[M]` `SO2("x").is_invariant(slab)` is **True** and `SO2("z")`
+   **False**, both DERIVED (a finite set is `SO(2)_a`-closed iff on axis `a`;
+   the marginal embeds along the axis its orbit space names). The 2.4
+   EXECUTED section (c) carries the table.
 2. `[M]` the rules populate their symmetry fields **inconsistently and with two
    different concepts**:
    `gauss_legendre(8)`: `invariance_group=Mirror('x')`, `folded_by=None`;
@@ -1826,6 +1832,11 @@ admissible `H` and reports it beside the acyclicity certificate. A user-supplied
    `invariance_group` = the symmetry of the NODE SET **within** its support;
    `folded_by` = the QUOTIENT group. **The slab's quotient group is recorded
    nowhere.** Anything built on these must not conflate them.
+   ✅ **REMEDIED — `folded_by` retired at 2.0c, the slab's quotient group
+   recorded at 2.4 (2026-09-01).** Both concepts now live in ONE mechanism:
+   the quotient group is `Quotient.by`, read through `measure.quotient_group`
+   for the discrete fold (`Mirror('y')`) and the continuous marginal
+   (`SO2('x')`) alike, and `invariance_group` keeps its one meaning.
 
 ---
 
@@ -2418,6 +2429,206 @@ axis the rotation is about, and the slab's μ is a cosine against a specific pol
 `S^2/SO2_z` ≠ `S^2/SO2_x`, and changing the catalogue key) or whether the
 convention is fixed by fiat and documented. **This is a design ruling, not a
 measurement** — surface it before building.
+
+✅ **RULED 2026-09-01 (user): parameterise `SO2(axis)` like `Mirror`.** Put
+to the user with the numbers below, and the recommended option chosen. What
+made it a ruling and not a fiat is that the tree carries **two** poles, so no
+single convention could be right: `[M]` the group catalogue's `SO2` tested
+`hypot(x, y) = 0` (about **z**); the slab embeds its marginal as `(μ, 0, 0)`
+(**x**); `_evaluate_real_sh` takes `cos_theta = mu_x` (the spherical-harmonic
+pole is **x**); the product rules' polar factor is `μ = μ_z` (**z**); and ONE
+function, `gauss_legendre_on_mu`, serves both the slab's rule (an orbit space
+about x) and the product factor (about z) — `[M]` `rules_product.py:361/:696`
+and `directional.py:1002` consume it, and `spherical_product` reads neither
+its `support` nor its `invariance_group`. The two refused options and why:
+*fix by fiat* re-ships the retired-`Z2` defect (an unnamed group "realized" on
+one axis while a consumer needs another — the tree already ruled this once, on
+2026-08-02); *move the slab to z* has no single pole to standardise on and
+would touch the sweep, the SH basis, every `Mirror('x')` row and every slab
+snapshot.
+
+---
+
+## 2.4 EXECUTED (2026-09-01) — the slab says what space its ordinates live on
+
+**Landed as ONE commit with its gates, per §6b/§6c.** The step's own title
+(*"the slab rule declares its quotient group"*) named a one-line declaration;
+what shipped is the declaration **plus the two things it was silently
+assuming**: that the group it declares names an axis, and that the rule it
+declares on is the slab's and not the product rules' factor.
+
+### (a) What changed, by file — production
+
+| file | what |
+|---|---|
+| `numerics/symmetry.py` | `SO2(axis)` frozen tag beside `Mirror(axis)`; the bare `_NamedSubgroup.SO2` member and `SubgroupOfO3.SO2` singleton **retired**; `SubgroupOfO3.SO2(axis)` constructor, `rotation_axis` (the continuous dual of `mirror_axis`); `name` → `SO2_{axis}`, `repr` carries the axis (the walk and `_GROUP_CACHE` key on it); `_is_axis_supported(nodes, axis, atol)` — the exactness test about the NAMED axis; `_so2_contains` — the axis-dependent lattice rows, out of the enum table (`SO2(a) ⊆ SO3, O3` ∀a; `SO2(z) ⊆ D_∞h` for z alone; `C_n ⊆ SO2(z)` alone; distinct axes incomparable; no finite group but `{e}` inside); `candidate_groups` offers all three axes; ⭐ `_embedded_nodes` **reads the axis off the orbit space** — a 1-D measure on `S^2/SO2_a` embeds along `a`, column 0 only for a bare interval; `_octahedral_ops`/`_icosahedral_ops` memoised (see (e)) |
+| `numerics/manifold.py` | `_sphere_mod_so2` reads the axis off the group (invariants `p1 = x_a`, `p2 = x_b² + x_c²`) — ONE derivation, three catalogue keys `SO2_x/y/z`, exactly as the mirrors; `Manifold.quotient` **memoised** (`_catalogued_quotient`, `functools.cache` on `(base, group)`); `gram` frozen to `ImmutableMatrix` in all three builders so a `Quotient` is hashable |
+| `numerics/measure.py` | NEW `DiscreteMeasure.on_orbit_space(quotient)` — the same atoms read as chart coordinates of `M/H`; refuses unless `quotient.realization == self.support`; drops `invariance_group` (an embedding statement), keeps `exactness` (a chart statement). `phase`'s docstring re-tensed (it still described the **string** dispatch 2.0c retired) and the fallback arm's comment corrected — see (c) |
+| `numerics/quadrature/rules_1d.py` | NEW `gauss_legendre_on_polar_orbit(n, axis)` = `gauss_legendre_on_mu(n).on_orbit_space(SPHERE.quotient(SO2(axis)))` re-tagged `Mirror(axis)`; `gauss_legendre_on_mu` stays on the chart (it is the product factor); module docstring rewritten around the two objects |
+| `numerics/quadrature/directional.py` | `Quadrature.gauss_legendre` builds the declared x-marginal |
+| `numerics/quadrature/registry.py` | `AngularSymmetry.support` = `SPHERE if Trivial else SPHERE.quotient(spent)` (the hand-written `COSINE_INTERVAL` row retired); `.reference` keys on `rotation_axis is not None`; slab/sphere rows spend `SO2("x")`; the `GaussLegendre1D` spec's factory is `partial(gauss_legendre_on_polar_orbit, axis="x")`; the stage-0 message drops its now-redundant `(= S^2/…)` |
+| `numerics/quadrature/__init__.py`, `numerics/__init__.py` | export the adopter |
+
+### (b) ✅ The keystone — the live defect is unspellable, and no coordinate moved
+
+`[M]` `Quadrature.gauss_legendre(8).measure`: `support` **`S^2/SO2_x`**, space
+**`L2[S^2/SO2_x]`**, `phase` angular, `quotient_group` `SO2('x')`,
+`invariance_group` `Mirror('x')`; nodes and weights **bit-identical** to
+`gauss_legendre_on_mu(8)`; `Quotient.contains(nodes)` True. Against an 8-node
+spatial rule on `Interval(-1,1)`: spaces **unequal, hashes unequal**. Positive
+control in the gate: two spatial 8-node rules on the interval ARE equal — the
+ROLE is the discriminator, not the shape. Gate `test_a1` (3 rows) +
+`test_a2` (3 rows), `tests/numerics/test_slab_orbit_space.py`.
+
+### (c) ⭐ Part IV obstacle 1 — answered by DERIVATION, and the axis is load-bearing at stage 0
+
+`[M]` `SO2('x').is_invariant(slab GL8)` **True**; `SO2('z')` **False**;
+`Mirror('x'/'y'/'z')` True; `Dinfh` False. The derivation, one line: a finite
+set is `SO(2)_a`-closed iff every node lies ON axis `a`; the marginal embeds
+along the axis its orbit space names; hence True for its own axis only. And
+the z-declared rule `gauss_legendre_on_polar_orbit(8, "z")` answers the
+**opposite** way (`SO2('z')` True, `SO2('x')` False), which is what makes the
+axis a parameter rather than a label. `maximal_invariance_groups(slab)` →
+`{SO2_x, σ_x, σ_y, σ_z}`, walk == bruteforce.
+
+`[M]` stage 0 for `slab` and `sphere`: the declared x-marginal **admitted**;
+the chart-level `gauss_legendre_on_mu(8)` **REFUSED**; the z-declared and
+y-declared marginals **REFUSED**. ⟹ §6c is satisfied by inputs that exist in
+the tree at landing — before 2.4 the chart-level rule *was* the registered slab
+rule. `select_quadrature("slab", target_degree=7)` still chooses
+`GaussLegendre1D`, now on `L2[S^2/SO2_x]`.
+
+⛔ **The pre-flight's (c) was half wrong, and my own 2.0c comment was the
+wrong half.** §V.5g(c) said the `phase` fallback arm "becomes unreachable for
+the slab" — true — and the comment I wrote INTO `measure.py` at 2.0c said
+*"this arm becomes unreachable"* — **false**. `[M]` `gauss_legendre_on_mu(8)`
+is a shipped, public rule on a bare `Interval` carrying `Mirror('x')`, and it
+reaches the arm and answers `"angular"` there; it cannot declare an orbit
+space because it is the product rules' polar factor about z. The §6c check the
+pre-flight prescribed found it; the arm stays, its comment now says what
+reaches it, and `test_a3` witnesses both the slab answering from its manifold
+alone (`invariance_group=None` → angular, `quotient_group == SO2('x')`) and
+the chart rule answering via the arm. *A prediction written into a code
+comment does not enforce itself* — the 2.1 `test_d6` row, one file over.
+
+### (d) The §6b set, as the red loop enumerated it
+
+**29** comparison sites in `orpheus/` by AST (predicate: any `Compare` with an
+`Attribute` named `support`/`space`/`domain`/`codomain`/`realization`/
+`measure_space` on either side; positive control `admits_domain` found;
+`scratch/_p24_compare_census.py`). ⛔ The pre-flight's *23* was a different,
+unstated predicate — and **neither number was the set**: 26 of the 29 compare
+a FIELD's space against a space derived from the SAME measure, so they rename
+together; the 3 that can see a declaration are `registry.py:938`
+(`admits_domain`, stage 0), `generating_measure.py:399` (the affine remap,
+untouched because `LEGENDRE` stays on the chart) and `rules_product.py:435`
+(the azimuthal factor, unaffected). ⛔ The pre-flight's *"3 literal
+`L2[[-1,1]]` pins"* is **0** in `orpheus/`, `tests/` and `docs/` by
+fixed-string grep; the 3 were in this plan.
+
+The set that actually reddened (`[M]` loop 1: 12 failed + 7 errors + 1
+collection error over 11 files): `test_symmetry.py` (**21** `SO2` sites, one
+collection error), `test_manifold.py` (4 code sites + the name pin + the
+two-producer gate), `test_registry.py` (the table, the derived-support gate,
+and **5 selection tests whose test-local specs built chart-level rules** —
+`CHEBYSHEV_T.gauss`, `LEGENDRE.gauss` — now refused at stage 0 BEFORE the
+stage they exercise; each now reads its rule on the slab's orbit space through
+one helper), `test_quadrature_directional.py` (the `q8_4` support pin),
+`tests/sn/_test_helpers.py` (a **false** constant `invariance_group=SO2` on a
+synthetic product rule — now the honest `Dnh(n_phi)`), and one stale prose
+site in `test_sweep_regression.py`. ⭐ The registry five are the §6b spelling
+that no census could return: **a test-local FACTORY producing an input the
+production gate now refuses** — the gate got stricter, and every fixture that
+relied on the old laxness had to say what it is.
+
+### (e) ⚠ A pre-existing hot spot, amplified 1.2× and then removed
+
+Loop 2 did not finish in 300 s. `[M]` `test_computed_symmetry_matches_the_construction`:
+one `maximal_invariance_groups` walk over `product(4,3)` took **9.4 s**, of
+which **9.3 s** was `_icosahedral_ops()` rebuilding its 120-element closure
+**41 times** — `_contains` asks `_realized_ops` for the generating set in its
+finite-vs-finite GUARD, before the element cache in `_group_elements` is ever
+consulted, so the memo on the closure never covered the guard. `[M]` with the
+pre-2.4 13-candidate set the same walk paid **35** rebuilds (≈8 s): the cost
+was already there; three more axial candidates raised it to 41 and the two
+lattice-wide tests (the construction walk over 9 rules, the compatibility law
+over every rule × 256 pairs) over the harness timeout. Fixed at the source —
+`_octahedral_ops`/`_icosahedral_ops` are constants and are now `functools.cache`d;
+`[M]` the walk is **36 ms**, `test_symmetry.py` runs in **15 s**. ⟹ the
+transferable half: *a memo on a derived object does not cover a guard that
+asks for its inputs*, and a candidate-set growth multiplies the guard, not
+the memo. (Companion to `lessons` L16 — the regression hid behind green.)
+
+### (f) `[M]` Gates at this tree state (serial, `-O -m "not slow" -p no:randomly`)
+
+| tree | at 2.0c | at 2.4 | delta | rc |
+|---|---|---|---|---|
+| numerics | 2657 | **2679** | +22 | 0 |
+| transport | 645 +1sk | 645 +1sk | — | 0 |
+| geometry | 727 +4sk +1xf | 727 +4sk +1xf | — | 0 |
+| data | 237 | 237 | — | 0 |
+| sn | 3384 +1sk +116desel +50xf | 3384 +1sk +116desel +50xf | — (15 min 24 s) | 0 |
+| cross_method | (not gated at 2.0c) | 81 +8desel | — | 0 |
+| diffusion | (not gated at 2.0c) | 113 | — | 0 |
+
+**Seven of the thirteen trees gated at this tree state**, all rc=0. Not
+measured here: cp, derivations, homogeneous, mc, moc, and the root-level
+modules other than the two docs gates — exit predicate 5 still stands and is
+still best spent immediately before the fused step.
+
+⭐ **The +22 reconciles against a second, independently counted instrument**:
+the V&V matrix (`docs/theory/verification/matrix.rst`, regenerated by the
+Sphinx build) went **10562 → 10584**, `foundation` 7538 → 7560, with
+`numerics/test_slab_orbit_space` entering at 17 and `test_symmetry` moving
+105 → 110 — the same 22 units the tree gate counted. `dead_references`:
+**0 dead / 52 checked / 0 undecidable** after the corpus pass.
+
+⭐ The sn column is the one that matters for a RENAME step, and it moved by
+nothing: `[M]` 3384 of 3384, no snapshot re-baselined, no space-name pin
+anywhere in `tests/sn` — the 26 field-vs-mesh comparison sites really do
+rename together, and the `.npz` snapshots carry arrays, not spaces.
+
+The +22 reconciles unit for unit: **17** rows in `test_slab_orbit_space.py`
+(a1 ×3, a2 ×3, a3, b1 ×3, b2 ×2, b3, c1, c2, d1, d2), **+4** new
+`test_symmetry.py` gates (rotation axis validated at construction; three axes
+incomparable; `rotation_axis` the dual of `mirror_axis`; the walk offered all
+three axes), **+1** parametrize row (`test_o3_contains_every_proper_subgroup`
+now lists `SO2("x")` and `SO2("z")` where it listed one bare `SO2`).
+pyright **0** on the six touched production files and the new gate file
+(⚠ the four errors it DID report were mine — sympy's stubs type
+`ImmutableMatrix.det()` loosely — fixed by taking the determinant before
+freezing; the 12 remaining hits are pre-existing lines in
+`tests/sn/_test_helpers.py:671–865,1175` and `test_symmetry.py:1164`, outside
+every hunk of this step).
+
+### (g) `[M]` The per-arm mutation battery — the verdict is a TABLE (`vv-principles` #17)
+
+`scratch/_p24_mutation.py`, crash-safe by copy-aside (5 files, all byte-identical
+after), scoped to the 7 suites that can redden; baseline green first. Every
+arm mutates ONE claim; every arm reddened, each with a **distinct** red set:
+
+| arm | mutation | red |
+|---|---|---|
+| A | the exactness test ignores the axis (always z — the retired behaviour) | **9** — the marginal's own-axis gate, `test_b1`, the candidate walk, two SO3-on-marginal gates |
+| B | the embedding ignores the orbit space's axis (column 0 always) | **5** — the two gates that declare about y/z |
+| C | the derivation ignores the axis (`p1 = z` whatever the group) | **1** — `test_d1` (the generators name the coordinate) |
+| D | the slab adopter declares the WRONG axis | **26** — keystone, phase, registry selection, stage 0 |
+| E | `on_orbit_space`'s chart guard removed | **1** — `test_c2` |
+| F | the registry answers the CHART, not the orbit space (the pre-2.4 row) | **18** — every selection gate, stage 0 |
+| G | lattice: `C_n ⊆ SO2` about EVERY axis | **7** — `test_cn_in_so2` + the downward-closure law on marginals |
+| H | lattice: `SO2(any) ⊆ D_∞h` | **1** — `test_so2_chain` |
+| I | the walk offered only z (the retired bare `SO2`) | **1** — the candidate-groups gate |
+| J | the residual re-tagged on the WRONG axis | **5** — `test_a3`, `test_b1`, two selector gates that ask the nodes |
+| K | `Quotient.name` drops the axis (three quotients, one name) | **58** — 51 failed + 7 collection errors (the catalogue keys collide) |
+| ★ | positive control — `Mirror` containment inverted | **6** |
+
+⭐ Two readings worth keeping. Arms **C** and **E** redden exactly one gate
+each: the derivation's axis and the chart guard have precisely one witness
+apiece, which is enough and is stated. Arm **B** is the one that separates
+*the axis is stored* from *the axis is used*: with the embedding blind to it,
+every x-declared assertion still passes and only the y/z-declared ones fail —
+a battery over the shipped slab alone would have read B as BLIND, which is why
+the gates declare about all three axes.
 
 ---
 
@@ -3525,7 +3736,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 2.1-W | ⭐ **PRE-CARVE**: the fold-basis witness | ⏏ yes | ✅ `TestFoldedCylinderP1BindsTheQuotientBasis` — 3 rows, L1, `verifies("pn-scatter", "discrete-measure-quotient")`. Keystone is k_inf-invariance on a HOMOGENEOUS folded cylinder, not the 2g-het solve the row proposed (§II.16). `[M]` rebind reds all 3 at nine orders of separation. **0.1c is unblocked** |
 | 2.2 | G0 at frame construction — ⚠ ALSO owns the `AngularSymmetry` Γ-slot (§II.10, inventory #11): `support` derives from `continuous_isotropy` alone, so stage 0 refuses the shipped cylinder | ⏏ yes | ☐ |
 | 2.3 | the typed `Chart`; pushforward derives support | ⏏ yes | ☐ |
-| 2.4 | slab declares its quotient group (`SPHERE.quotient(SO2)`); the SO2 axis-convention ruling. ~~full-suite phantom census~~ ⛔ **that MOVED to Phase 0 and is DISCHARGED** (`ee60010e`+`ccda0e61`) — it was 0.2's denominator, not 2.4's | ⏏ yes | ☐ ▶ **NEXT.** ⭐ Pre-flighted 2026-09-01 (**§V.5g**): it repairs a **LIVE** defect — `[M]` an 8-node slab ANGULAR space and an 8-node SPATIAL space on `[-1,1]` are `==` AND hash-equal, 2.1's collision one level up. ⛔ It is also the ONE step that RENAMES a shipped space, so size it by the **23** comparison sites, not the 3 literals |
+| 2.4 | slab declares its quotient group (`SPHERE.quotient(SO2("x"))`); the SO2 axis-convention ruling. ~~full-suite phantom census~~ ⛔ **that MOVED to Phase 0 and is DISCHARGED** (`ee60010e`+`ccda0e61`) — it was 0.2's denominator, not 2.4's | ⏏ yes | ✅ **LANDED 2026-09-01** (hash stamped in the follow-up commit) — read the *2.4 EXECUTED* section. **User-ruled:** `SO2(axis)` parameterised like `Mirror` (the tree carries TWO poles — slab/SH about x, product/`C_n`/`D_nh` about z — so no fiat could be right); `gauss_legendre_on_polar_orbit(n, axis)` declares, `gauss_legendre_on_mu` stays on the chart as the product factor. `[M]` the `[-1,1]` angular/spatial collision is unspellable (`L2[S^2/SO2_x]` ≠ `L2[[-1,1]]`, hashes differ); Part IV obstacle 1 answered by DERIVATION (`SO2("x")` True / `SO2("z")` False); stage 0 refuses the chart-level rule AND the wrong axis; 4 trees rc=0, +22 reconciling unit-for-unit; pyright 0. ⛔ the pre-flight's *23 sites / 3 literals* were the wrong instruments — the set was the **5 test-local factories** the stricter gate refused, found by the red loop. ⚠ Also removed a pre-existing 9 s hot spot the extra candidates amplified (§(e)) |
 | 3.1 | `numerics/symmetry/` catalog (⏏ scoped to `SO(2)`) | ⏏ partial | ☐ |
 | 3.2 | `ReynoldsProjection` | no | ☐ |
 | 3.3 | `OrbitAxis` + retraction/section minting | no | ☐ |
@@ -3698,8 +3909,34 @@ absorbing 2.0d. Read the *2.0c EXECUTED* section: it records four defects the
 TYPE found that the string could not, and one repair the mutation battery caught
 with no witness.
 
-▶ **The slab says what space its ordinates live on, and stops naming it by the
-interval a chart happens to map onto.** Tracker **2.4** — the slab's angular
+✅ **The slab says what space its ordinates live on** — tracker **2.4**
+LANDED 2026-09-01 (hash in the follow-up stamp commit). The slab's rule is
+`gauss_legendre_on_polar_orbit(n, "x")`, on `S^2/SO2_x`; `SO2` is
+axis-parameterised by user ruling; the `[-1,1]` angular/spatial collision is
+unspellable; Part IV obstacle 1 is answered by derivation. **Read the *2.4
+EXECUTED* section** — it records the ruling's evidence, the §6b set the red
+loop actually found (five test-local factories, not the 23 sites), a
+prediction of mine in a production comment that the §6c check refuted, and a
+pre-existing 9 s hot spot the step amplified and then removed.
+
+▶ **A basis states the symmetry group its functions are invariant under, and
+the frame checks its two halves agree** — trackers **2.1b** (`Basis.invariance_group`,
+G0's other side: `[M]` 0 of 6 subclasses answer it) and **2.3** (the typed
+`Chart`, and the SECTION MAP's home — the honest `φ = 0` half-meridian ERR-080's
+level-1 half needs; `_sphere_mod_so2` now says where it goes). ⚠ Run the
+phase opener first: every one of the twelve so far has corrected its own
+section (2.4's pre-flight was the twelfth, and its execution then refuted
+two of the pre-flight's own numbers), and 2.3's premise — *"completes the
+engine seed 6 → 8"* — was written before 2.0c/2.4 made `Quotient.by` and
+`on_orbit_space` real.
+
+⛔ **The text below is the PRE-2.4 pointer, kept per §3.** It described the
+tree at `8cc69e7f`; its five findings all held at execution except the second
+half of #4 (the fallback arm is reachable by the chart-level μ-rule) and the
+sizing in #3 (neither number was the set):
+
+~~▶ **The slab says what space its ordinates live on, and stops naming it by the
+interval a chart happens to map onto.**~~ Tracker **2.4** — the slab's angular
 support becomes `SPHERE.quotient(SubgroupOfO3.SO2)`. ⭐ **Pre-flighted
 2026-09-01 at `8cc69e7f` — read §V.5g before designing; it re-classed the
 step.** Five things a fresh session must not re-derive:
@@ -3794,8 +4031,8 @@ Part XIII — do not copy it here (`plan-authoring` §9).
 | ✅ | **2.1** | LANDED — see the 2.1 EXECUTED section. ⚠ It leaves ONE thing for 2.0c that did not exist before: `test_d6` pins the `LossKernelBasis` spelling divergence (bare label vs `index(...)`), so 2.0c must resolve it rather than inherit it |
 | ~~1~~ | ~~**2.1**~~ | ⭐ the only remaining exit-path item that repairs something ALREADY WRONG. `[M]` **re-verified at `a2befd9b`**: a 2-group ENERGY space and a 2-cell SPATIAL space are `==`-equal AND hash-equal (both `L2[coarse_cells_R1]`, shape `(2,)`), negative control passing. Sizing also re-verified — **18 `IndicatorBasis(` sites, 4 `orpheus/` + 14 `tests/`**, and the 39-site family does NOT widen it (siblings inherit the repair by composition). ⚠ the *"26 space-comparing sites"* figure is INHERITED and was **not** re-measured — treat as unverified. **Read the 2.1 PRE-FLIGHT section** |
 | ✅ | **2.0c** (+ **2.0d** absorbed) | LANDED — see the *2.0c EXECUTED* section. `Space = str` and its six tags retired across all six implementors; `phase` dispatches on the manifold's TYPE (user-ruled); the LIVE `folded_product(…).measure.phase` defect fixed; `pushforward`'s fabricated default retired; 2.1's `LossKernelBasis` handoff discharged **and witnessed** (its repair was measured BLIND first) |
-| **1** | ▶ **2.4** | **NEXT**, and its pre-flight (**§V.5g**) re-classed it: it is not wiring but a **defect fix of 2.1's kind** — `[M]` an 8-node slab ANGULAR space and an 8-node SPATIAL space on `[-1,1]` are `==` AND hash-equal today, and 2.0c could not fix it (the supports are honestly identical). ⛔ The ONE step that RENAMES a shipped space: size by the **23** comparison sites, not the 3 literals. Also discharges 2.0c's `invariance_group` fallback arm (§6c) and owes a RULING on `SO2`'s missing axis |
-| 2 | **2.1b**, **2.3** | G0's other side; the typed `Chart` (also the SECTION MAP's natural home) |
+| ✅ | **2.4** | LANDED 2026-09-01 — see the *2.4 EXECUTED* section. The defect fix of 2.1's kind: `[M]` the `[-1,1]` angular/spatial collision is unspellable; `SO2(axis)` user-ruled; stage 0 now refuses a chart-level rule and a wrong-axis rule. ⛔ its pre-flight's sizing (*23 sites / 3 literals*) was the wrong instrument twice — the §6b set was the five test-local factories the stricter gate refused |
+| **1** | ▶ **2.1b**, **2.3** | **NEXT.** G0's other side (`[M]` `Basis.invariance_group` 0 of 6); the typed `Chart` (also the SECTION MAP's natural home — `_sphere_mod_so2`'s `fundamental_domain=None` comment says exactly what 2.3 must choose). ⚠ Open with the re-measure: 2.3's *"6 → 8"* premise predates `Quotient.by` (2.0c) and `on_orbit_space` (2.4) |
 | 4 | **3.1** scoped to `SO(2)` | the catalogue home + the probe |
 | 5 | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | **ONE COMMIT — see XII.1b.** THE FIX |
 | 6 | **4.1**, **4.9**, then the six exit predicates (XII.3) | |
@@ -3892,26 +4129,43 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
 ✅ **6 of 6 answer `domain`**; `invariance_group` is still **0 of 6**, so G0's
 other side (tracker **2.1b**) remains absent.
 
-**Landed and callable** (`file:line` re-derived by AST at `8cc69e7f`. ⚠ **ten of
-these MOVED at 2.0c** — `measure.py` gained ~36 lines of header prose and a new
-property, so every landmark below `:300` in that file shifted. Do not trust a
-copy from an earlier record):
-`class Manifold` `manifold.py:104` · `Sphere` `:231` · `Interval` `:284` ·
-`Ball` `:460` · `FundamentalDomain` `:492` · `Quotient` `:562`,
-its `by` field `:580` · `ambient_dim` `:946` ·
+**Landed and callable** (`file:line` re-derived by AST at the 2.4 tree,
+2026-09-01. ⚠ **Nine MOVED at 2.4** — `manifold.py`'s `quotient` body moved
+into a memoised module function so everything from `Ball` down shifted UP by
+14 and the builders below grew; `measure.py`'s `phase` prose grew; `registry.py`
+grew. ⚠ `symmetry.py` gained a class and two functions. Do not trust a copy
+from an earlier record):
+`class Manifold` `manifold.py:105` · `Sphere` `:231` · `Interval` `:284` ·
+`Ball` `:446` · `FundamentalDomain` `:478` · `Quotient` `:548`,
+its `by` field `:566` · ⭐ `_catalogued_quotient` `:714` **NEW** (the memo) ·
+`_sphere_mod_so2` `:745` (⭐ now reads the axis) · `ambient_dim` `:998` ·
 `Basis.domain` `basis/base.py:245` · `Basis.space` `:288` ·
 `IndicatorBasis` `basis/indicator_basis.py:108` ·
 `_evaluate_real_sh` `basis/spherical_harmonic_basis.py:550` ·
-`DiscreteMeasure.support` `measure.py:303` (now a `Manifold`), `.space` `:345`,
-⭐ `.quotient_group` `:406` **NEW** (2.0d, derived from `Quotient.by`),
-`.phase` `:428` (now a `match` on the manifold's TYPE), `.pushforward` `:818`
-(⚠ `new_space` is now **required**) ·
-`AngularSymmetry.support` `registry.py:870` (⭐ now `-> Manifold`),
-`admits_domain` `:936` ·
+`DiscreteMeasure.support` `measure.py:303`, `.space` `:345`,
+`.quotient_group` `:406`, `.phase` `:428`, `.pushforward` `:831`
+(⚠ `new_space` **required**), ⭐ `.on_orbit_space` `:989` **NEW** (2.4) ·
+⭐ `class SO2` `symmetry.py:265` **NEW**, `SubgroupOfO3.SO2` (ctor) `:488`,
+`rotation_axis` `:495`, `_so2_contains` `:906` **NEW**, `_embedded_nodes`
+`:950` (⭐ axis-aware), `_polar_axis_of` `:992` **NEW**,
+`_is_axis_supported` `:1172` (⭐ takes `axis`), `candidate_groups` `:1635` ·
+`AngularSymmetry.support` `registry.py:876` (⭐ now `SPHERE.quotient(spent)`),
+`admits_domain` `:951` ·
+⭐ `gauss_legendre_on_polar_orbit` `rules_1d.py:155` **NEW** (the slab's
+adopter) · `Quadrature.gauss_legendre` `directional.py:861` ·
 `Quadrature.axis_cosines` `directional.py:294` (STRICT),
 `mean_axis_cosine` `:325`, `spherical_harmonics` `:621`,
 `angular_frame` `:676`, `_harmonic_frame_measure` `:728` (the ERR-080 fiction,
 1-D arm only).
+
+⭐ **Two `SO2` spellings are now landmines of their own**, for any scratch
+script written before 2026-09-01: `SubgroupOfO3.SO2` is a **constructor** —
+`SubgroupOfO3.SO2("x")` — and a bare `SubgroupOfO3.SO2` is a bound method
+that fails at the consumer (`.name`, `.is_invariant`); and a catalogue key
+`(Sphere, "SO2")` no longer exists — the keys are `SO2_x`/`SO2_y`/`SO2_z`.
+`gauss_legendre_on_mu(n).support` is still `COSINE_INTERVAL` (it is the
+product factor); the slab's rule is `Quadrature.gauss_legendre(n).measure`
+or `gauss_legendre_on_polar_orbit(n, "x")`, on `S^2/SO2_x`.
 
 ## Landing ledger
 
@@ -3943,6 +4197,7 @@ its `by` field `:580` · `ambient_dim` `:946` ·
 | **2.0c** (+2.0d) | ⭐⭐ **a measure names the point set it lives on** — `Space = str` and its six tags RETIRED across all six implementors; `phase`, the `L2[…]` name, the fold and the tensor product all DERIVED from the manifold. `[M]` 10 of 10 names bit-identical; a LIVE defect fixed (`folded_product(…).measure.phase` raised); 4 defects found that the string could not express, all green before; ⛔ the mutation battery read 2.1's handoff repair as BLIND and its witness now reds 6 of 6 | `025834f5` |
 | **2.1** | ⭐ **no space claims an identity it does not have** — `Basis.domain` abstract, `IndicatorBasis` takes `partition_of`, `ambient_dim` promoted public. `[M]` the energy/spatial `L2[coarse_cells_R1]` collision (`==` AND hash-equal) is unspellable. 13 gates; 7-arm battery, every arm a distinct red set; §6b set was **23**, not 18 | `c461fe8d` |
 | **0.1a + 0.1c** | ⭐ **the frame stops forging its own domain** — `_harmonic_frame_measure` routes the rule's measure; the 1-D fiction is named + self-retiring. `[M]` route gate 0→10 of 12; §II.8's *three* losses reversed; 5-arm mutation battery, every arm's red count reconciling to zero unexplained units | `2c1a06b1` |
+| **2.4** | ⭐⭐ **the slab says what space its ordinates live on** — `SO2(axis)` parameterised (user-ruled: the tree has TWO poles), `S^2/SO2_x` declared by `gauss_legendre_on_polar_orbit`, `on_orbit_space` minted, the registry derives its domain. `[M]` the `[-1,1]` angular/spatial collision unspellable; Part IV obstacle 1 answered by derivation; stage 0 refuses the chart-level and wrong-axis rules; 4 trees rc=0, +22 reconciling; a pre-existing 9 s lattice-walk hot spot removed | (stamped in the follow-up) |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
 ⛔ No commit COUNT is recorded here — it is the field guaranteed to rot. Run
@@ -3998,19 +4253,31 @@ Read these before quoting any earlier section:
 | 0.1/L1's site `directional.py:587-593` | ⛔ **DRIFTED** — `[M]` 2026-09-01 the fabrication is at **`:624`**; `angular_frame` begins at `:580` |
 | §II.4 + §II.8: the forgery destroys the **support tag** | ⛔ **INCOMPLETE — it destroys THREE fields.** `[M]` `invariance_group` (10 of 12 rules → 0 of 12 frames) and `exactness` (same split) were dropped too, so `frame.measure.phase` RAISED on all 12. §II.8's correction block |
 | §II.15 R4 (*a value gate cannot be the keystone*) | ✅ **RE-DERIVED INDEPENDENTLY at 0.1a**, on my own gates rather than inherited: under the exact pre-carve mutation the value gate `test_q8_5` passes **8 of 8** while the route gate `test_q8_1` reds **8 of 8** |
+| §V.5g(d): *"size 2.4 by the **23** comparison sites"* | ⛔ **the 23 had no stated predicate, and no comparison count was the set.** `[M]` by AST under a stated predicate there are **29**; 26 compare a field's space against one derived from the SAME measure and rename together; the 3 that can see a declaration were all handled by design. The set the red loop found was **5 test-local FACTORIES** in `test_registry.py` that built chart-level rules the stricter stage 0 now refuses — a §6b spelling no comparison census returns. 2.4 EXECUTED (d) |
+| §V.5g(d): *"3 literal `L2[[-1,1]]` pins, 1 production f-string + 2 docstrings"* | ⛔ **0** in `orpheus/`, `tests/` and `docs/` by fixed-string grep — the three were in THIS PLAN. The earlier grep used a regex with `\[` under ugrep, which is the nexus-tools landmine; re-run with `-F` |
+| `measure.py`'s 2.0c comment on the `phase` fallback arm: *"tracker 2.4 makes the slab declare `SPHERE.quotient(SO2)` … and this arm becomes unreachable"* | ⛔ **FALSE, by my own hand, and the §6c check §V.5g(c) prescribed is what caught it.** Unreachable for the SLAB, yes; `[M]` the chart-level `gauss_legendre_on_mu(8)` — public, shipped, the product rules' polar factor, which cannot declare an axis — reaches it and answers `"angular"`. Arm kept, comment corrected, witnessed in `test_a3`. A prediction in a production comment enforces itself no better than one in a gate's docstring (the `test_d6` row) |
+| `test_symmetry.py`: *"a polar marginal is NOT SO(2)-invariant"* (the 2026-08 inversion of *"trivially SO(2)-invariant"*) | ⛔ **INVERTED A SECOND TIME, and both earlier forms were right about what they measured.** With the axis named, `[M]` the marginal IS invariant under `SO2("x")` (its own spent group) and NOT under `SO2("z")`; the bare tag could only ever report one of the two. Re-argued in place, with the z-declared marginal answering the opposite way |
+| the 2.0c `phase` docstring bullets (*"spatial — iff support is a spatial tag (`"spatial_…"` / `"cells"`)"*, *"angular — iff `invariance_group` is set"*) | ⛔ **present-tense-false since 2.0c** — they described the STRING dispatch 2.0c retired while the body underneath matched on manifold types. Re-tensed at 2.4 in passing; nothing tested prose |
+| Part IV obstacle 2 (*"the slab's quotient group is recorded nowhere"*) | ✅ **REMEDIED** — `folded_by` retired at 2.0c, the slab's group recorded at 2.4 as `Quotient.by` read through `measure.quotient_group`, one mechanism for the discrete fold and the continuous marginal |
 
 ## Measured baselines and costs
 
-⭐⭐ **RE-GATED at 2.0c** (2026-09-01, `025834f5`), serial
-`-O -m "not slow" -p no:randomly`, five trees, **all rc=0**:
+⭐⭐ **RE-GATED at 2.4** (2026-09-01), serial `-O -m "not slow" -p no:randomly`,
+**all rc=0** — the sn column is filled in by the 2.4 EXECUTED section's gate
+row once its detached run reports (it is the long one; read that section
+rather than this table for it):
 
-| tree | at 2.1 | at 2.0c | delta |
-|---|---|---|---|
-| numerics | 2656 | **2657** | +1 |
-| data | 237 (+2 desel) | 237 | — |
-| geometry | 727 +4sk +1xf | 727 +4sk +1xf | — |
-| transport | 645 +1sk | 645 +1sk | — |
-| sn | 3378 +1sk +50xf | **3384** +1sk +116desel +50xf | +6 |
+| tree | at 2.1 | at 2.0c | at 2.4 | delta 2.0c → 2.4 |
+|---|---|---|---|---|
+| numerics | 2656 | 2657 | **2679** | +22 (17 new-file rows, +4 symmetry gates, +1 parametrize row — reconciled) |
+| data | 237 (+2 desel) | 237 | 237 | — |
+| geometry | 727 +4sk +1xf | 727 +4sk +1xf | 727 +4sk +1xf | — |
+| transport | 645 +1sk | 645 +1sk | 645 +1sk | — |
+| sn | 3378 +1sk +50xf | 3384 +1sk +116desel +50xf | 3384 +1sk +116desel +50xf | — (the rename moved nothing; 15 min 24 s) |
+
+⛔ **Prior table, kept per §3** — *"RE-GATED at 2.0c (`025834f5`): numerics
+2657, data 237, geometry 727, transport 645, sn 3384"*; superseded by the
+column above.
 
 ⭐ **The delta reconciles unit-for-unit against a second, independently counted
 instrument.** The V&V matrix went **10555 → 10562** (+7): `+1` the new
@@ -4070,7 +4337,8 @@ so a re-reader does not mistake it for a stale number.
   Last full 13-tree gate: CS4c step 4's `10106 / 0 / 19 sk / 66 xf`.
   `[M]` measured green at `025834f5` (2.0c's exit gate, serial, rc=0 each):
   **numerics 2657 · data 237 · geometry 727 · transport 645 · sn 3384** —
-  **five** of the thirteen. ⛔ The previous version of this bullet said "six …
+  **five** of the thirteen. ⭐ **At 2.4: SEVEN of thirteen** (the five above
+  re-gated — numerics **2679** — plus cross_method 81 and diffusion 113, all rc=0). ⛔ The previous version of this bullet said "six …
   the remaining seven (diffusion, **data**, …)" and listed `data` on BOTH
   sides; corrected by enumerating `tests/*/` rather than recalling it.
   Not measured at this HEAD: **cp, cross_method, derivations, diffusion,
@@ -4139,6 +4407,18 @@ because it is not yet clear they generalise past it:
    dimension 1, so no structural or dimensional check could have found it;
    only being forced to NAME each site's point set does. ⟹ budget the
    site-by-site pass as investigation, not as chore.
+6. ⭐ **A memo on a DERIVED object does not cover a guard that asks for its
+   INPUTS — and growing a candidate set multiplies the guard, not the memo.**
+   2.4 added three axial candidates to the lattice walk and two lattice-wide
+   tests went from seconds to past the harness timeout. `[M]` the walk's
+   time was 99 % one un-memoised generating-set builder (`_icosahedral_ops`,
+   itself a 120-element closure) called 41 times from `_contains`'s
+   finite-vs-finite guard — while `_group_elements`, one call downstream,
+   had memoised the closure all along. The pre-2.4 set already paid 35
+   rebuilds; nothing noticed because 8 s per walk hid inside a green suite
+   (`lessons` L16). ⟹ when a change widens a set the lattice walks, profile
+   ONE walk before and after; and memoise at the layer a guard touches, not
+   only at the layer the result lives.
 
 ## Artifacts
 
@@ -4156,7 +4436,7 @@ the memo is not. · `p20c_*.py` (the 2.0c opener's censuses).
 (**re-runnable RST self-check: underlines, ladder, table widths, label
 uniqueness, xref resolution with a positive control**) · `rcond_rederivation.md`
 + `probe_rcond_01…17_*.py` · `angular_symmetry_wiring_survey.md` ·
-`basis_domain_verification_plan.md` · `n2n_pl_*.md` (4). ⭐ **NEW at 2.1/2.0c:** `_p21_mut/` (the 7-arm battery + its driver — ⚠ the driver's first version handed pytest ONE nonexistent path because **zsh does not word-split an unquoted scalar**; the fixed one uses an array and prints `rc` and `CALLS` per arm) · `_p21_redloop.log` (the 5-tree gate) · `_p21_numerics_final.log` · `_p21_pyright.log` (854 KB, whole-project) · `_p21_sphinx.log` · `_p20c_census.py` + `_p20c_census2.py` (**re-runnable — they ARE 2.0c's opener**, AST with positive controls).
+`basis_domain_verification_plan.md` · `n2n_pl_*.md` (4). ⭐ **NEW at 2.1/2.0c:** `_p21_mut/` (the 7-arm battery + its driver — ⚠ the driver's first version handed pytest ONE nonexistent path because **zsh does not word-split an unquoted scalar**; the fixed one uses an array and prints `rc` and `CALLS` per arm) · `_p21_redloop.log` (the 5-tree gate) · `_p21_numerics_final.log` · `_p21_pyright.log` (854 KB, whole-project) · `_p21_sphinx.log` · `_p20c_census.py` + `_p20c_census2.py` (**re-runnable — they ARE 2.0c's opener**, AST with positive controls). ⭐ **NEW at 2.4:** `_p24_compare_census.py` (the 29-site comparison census, AST, positive control) · `_p24_mutation.py` (**the 12-arm battery — re-runnable**, copy-aside integrity, prints its own `BATTERY COMPLETE`) · `_p24_gate_{numerics,transport,geometry,data,sn,cross_method,diffusion}.log` · `_p24_redloop{1,2}.log` (loop 1 is the §6b enumeration) · `_p24_commit.txt` · `_p24_pristine/` (the pre-2.4 production files, byte-exact). ⚠ `_p24_preflight.py` and `_p24_reground.py` predate the ruling and spell `SubgroupOfO3.SO2` bare — they no longer run as written; the reground script's landmark half still does.
 
 ## Standing constraints
 

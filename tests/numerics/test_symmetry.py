@@ -66,7 +66,7 @@ def _measure_from_1d_quad(q) -> DiscreteMeasure:
 _NAMED = [
     SubgroupOfO3.Trivial,
     SubgroupOfO3.Mirror("z"),
-    SubgroupOfO3.SO2,
+    SubgroupOfO3.SO2("z"),
     SubgroupOfO3.Dinfh,
     SubgroupOfO3.OctahedralOh,
     SubgroupOfO3.IcosahedralIh,
@@ -95,7 +95,8 @@ def test_trivial_inside_every_named_group(G: SubgroupOfO3) -> None:
     "G",
     [
         SubgroupOfO3.Mirror("z"),
-        SubgroupOfO3.SO2,
+        SubgroupOfO3.SO2("x"),
+        SubgroupOfO3.SO2("z"),
         SubgroupOfO3.Dinfh,
         SubgroupOfO3.OctahedralOh,
         SubgroupOfO3.IcosahedralIh,
@@ -110,10 +111,18 @@ def test_o3_contains_every_proper_subgroup(G: SubgroupOfO3) -> None:
 
 @pytest.mark.foundation
 def test_so2_chain() -> None:
-    r""":math:`SO(2) \subset D_{\infty h} \subset O(3)` — the axisymmetric tower."""
-    assert SubgroupOfO3.Dinfh.contains(SubgroupOfO3.SO2)
+    r""":math:`SO(2)_z \subset D_{\infty h} \subset O(3)` — the axisymmetric
+    tower, about the axis :math:`D_{\infty h}` is realized on. About any
+    other axis the middle link breaks and the outer one holds: a rotation
+    about :math:`x` is a proper rotation (so it is in :math:`O(3)`) that does
+    not preserve the :math:`z`-axis (so it is not in :math:`D_{\infty h}`)."""
+    assert SubgroupOfO3.Dinfh.contains(SubgroupOfO3.SO2("z"))
     assert SubgroupOfO3.O3.contains(SubgroupOfO3.Dinfh)
-    assert SubgroupOfO3.O3.contains(SubgroupOfO3.SO2)  # transitive
+    assert SubgroupOfO3.O3.contains(SubgroupOfO3.SO2("z"))  # transitive
+    for other in ("x", "y"):
+        assert not SubgroupOfO3.Dinfh.contains(SubgroupOfO3.SO2(other))
+        assert SubgroupOfO3.O3.contains(SubgroupOfO3.SO2(other))
+        assert SubgroupOfO3.SO3.contains(SubgroupOfO3.SO2(other))
 
 
 @pytest.mark.foundation
@@ -190,8 +199,12 @@ def test_cyclic_containment_by_divisibility(
 @pytest.mark.foundation
 @pytest.mark.parametrize("n", [1, 2, 3, 4, 6, 8])
 def test_cn_in_so2(n: int) -> None:
-    r""":math:`SO(2) = \bigcup_n C_n`, so every :math:`C_n` is inside."""
-    assert SubgroupOfO3.SO2.contains(SubgroupOfO3.Cn(n))
+    r""":math:`SO(2)_z = \bigcup_n C_n`, so every :math:`C_n` is inside —
+    and inside no other axis's rotation group, since :math:`C_n` is
+    realized about :math:`z`."""
+    assert SubgroupOfO3.SO2("z").contains(SubgroupOfO3.Cn(n))
+    for other in ("x", "y"):
+        assert not SubgroupOfO3.SO2(other).contains(SubgroupOfO3.Cn(n))
 
 
 @pytest.mark.foundation
@@ -243,7 +256,7 @@ def test_dnh_in_o3() -> None:
         assert SubgroupOfO3.O3.contains(SubgroupOfO3.Dnh(n))
         assert SubgroupOfO3.Dinfh.contains(SubgroupOfO3.Dnh(n))
         # Not in SO(2)/SO(3) — D_nh contains improper rotations.
-        assert not SubgroupOfO3.SO2.contains(SubgroupOfO3.Dnh(n))
+        assert not SubgroupOfO3.SO2("z").contains(SubgroupOfO3.Dnh(n))
         assert not SubgroupOfO3.SO3.contains(SubgroupOfO3.Dnh(n))
 
 
@@ -256,7 +269,7 @@ def test_dnh_in_o3() -> None:
 def test_is_subgroup_of_reverses_contains() -> None:
     """``A.is_subgroup_of(B)`` is equivalent to ``B.contains(A)``."""
     assert SubgroupOfO3.Mirror("z").is_subgroup_of(SubgroupOfO3.OctahedralOh)
-    assert SubgroupOfO3.SO2.is_subgroup_of(SubgroupOfO3.O3)
+    assert SubgroupOfO3.SO2("x").is_subgroup_of(SubgroupOfO3.O3)
     assert SubgroupOfO3.OctahedralOh.is_subgroup_of(SubgroupOfO3.O3)
     assert not SubgroupOfO3.O3.is_subgroup_of(SubgroupOfO3.OctahedralOh)
 
@@ -316,44 +329,60 @@ def test_level_symmetric_is_octahedral_invariant(sn_order: int) -> None:
 
 
 # ============================================================================
-# Invariance — 1-D Gauss-Legendre (SO2-invariant by degeneracy)
+# Invariance — 1-D Gauss-Legendre: invariant under its OWN axial group only
 # ============================================================================
 
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("n", [4, 8, 16])
-def test_gauss_legendre_1d_is_NOT_so2_invariant(n: int) -> None:
-    r"""A polar marginal is **not** :math:`SO(2)`-invariant, and the
-    inverted claim is what made a 1-D measure answer :math:`O(3)`.
+def test_a_polar_marginal_is_invariant_under_its_OWN_axial_group_only(
+    n: int,
+) -> None:
+    r"""A polar marginal about :math:`x` is :math:`SO(2)_x`-invariant and
+    :math:`SO(2)_z`-NON-invariant — the two answers the bare ``SO2`` tag
+    could not tell apart, and the whole reason the group names its axis.
 
-    This gate is the INVERSION of a test that asserted the opposite
-    ("trivially :math:`SO(2)`-invariant: there is no azimuthal coordinate
-    to rotate"). The premise was a category error. A measure on
-    :math:`[-1,1]` embeds as :math:`(\mu, 0, 0)` — the tree's canonical
-    embedding, written down in :meth:`Quadrature.axis_cosines` and used by
-    ``spherical_harmonics`` internally — and a rotation about :math:`z`
-    **moves** :math:`(\mu, 0, 0)` off the x-axis. The old claim was only
-    true for a :math:`(0, 0, \mu)` embedding, i.e. it silently used a
-    different convention from the mirror branch sitting beside it.
+    ⚠ This gate has been INVERTED twice, and both earlier forms were
+    right about what they measured. The first asserted the marginal is
+    *"trivially SO(2)-invariant: there is no azimuthal coordinate to
+    rotate"* — true of the group the marginal was quotiented BY, false as
+    a node-set statement under the retired z-realized ``SO2``. The second
+    asserted it is **not** :math:`SO(2)`-invariant — true, because that
+    ``SO2`` was about :math:`z` and a rotation about :math:`z` moves
+    :math:`(\mu, 0, 0)` off the x-axis, and it recorded the reason as an
+    axis-convention collision (the angular-spaces plan's Part IV obstacle
+    1). Tracker 2.4 (2026-09-01) resolved the collision by naming the axis
+    rather than by fiat, and the derivation is one line: a finite point
+    set is :math:`SO(2)_a`-closed iff every node lies ON axis :math:`a`
+    (:func:`_is_axis_supported`); the marginal embeds along :math:`x`; so
+    the verdict is ``True`` for :math:`a = x` and ``False`` otherwise.
 
-    What "there is no azimuthal coordinate to rotate" really described is
-    the group the marginal was quotiented BY. That is a real and useful
-    fact, but it is a property of the REDUCTION, not of this point set,
-    and it lives in ``AngularSymmetry.continuous_isotropy`` where it
-    derives the support.
+    Both the chart-level measure (a bare interval, embedded along column
+    0 by convention) and the slab's DECLARED measure (support
+    ``S^2/SO2_x``, embedded along the axis its orbit space names) answer
+    the same way — and a marginal declared about :math:`z` answers the
+    opposite way, which is what makes the axis load-bearing rather than
+    decorative.
 
-    The old claim also could not fail: `[M]` it held for EVERY measure on
-    :math:`[-1,1]`, including a deliberately asymmetric one — certifying a
-    continuous group that was never tested, which is ERR-072's shape and
-    contradicted :func:`_is_axis_supported`, the exact criterion the same
-    module applies to three-dimensional nodes.
+    The old "cannot fail" defect is still guarded one section down:
+    ``test_invariance_is_exact_on_polar_marginals_not_vacuous`` shows the
+    same fixtures ARE distinguishable, by :math:`\sigma_x`.
     """
+    from orpheus.numerics.quadrature import gauss_legendre_on_polar_orbit
+
     q = Quadrature.gauss_legendre(n_ordinates=n)
-    mu = _measure_from_1d_quad(q)
-    assert not SubgroupOfO3.SO2.is_invariant(mu)
-    # And the property the slab actually owes DOES hold — otherwise this
-    # gate would be satisfied by a measure with no symmetry at all.
-    assert SubgroupOfO3.Mirror("x").is_invariant(mu)
+    for mu in (_measure_from_1d_quad(q), q.measure):
+        assert SubgroupOfO3.SO2("x").is_invariant(mu)
+        assert not SubgroupOfO3.SO2("y").is_invariant(mu)
+        assert not SubgroupOfO3.SO2("z").is_invariant(mu)
+        # And the property the slab actually owes DOES hold — otherwise
+        # this gate would be satisfied by a measure with no symmetry at all.
+        assert SubgroupOfO3.Mirror("x").is_invariant(mu)
+
+    about_z = gauss_legendre_on_polar_orbit(n, axis="z")
+    assert SubgroupOfO3.SO2("z").is_invariant(about_z)
+    assert not SubgroupOfO3.SO2("x").is_invariant(about_z)
+    assert SubgroupOfO3.Mirror("z").is_invariant(about_z)
 
 
 @pytest.mark.foundation
@@ -475,10 +504,12 @@ def test_no_discrete_cubature_is_so2_invariant() -> None:
     """
     for name, q in _production_sphere_rules():
         mu = _measure_from_sphere_quad(q)
-        assert not SubgroupOfO3.SO2.is_invariant(mu), (
-            f"{name} certified SO(2)-invariant, but a finite point set with "
-            f"off-axis nodes has infinite SO(2) orbits and cannot be closed"
-        )
+        for axis in ("x", "y", "z"):
+            assert not SubgroupOfO3.SO2(axis).is_invariant(mu), (
+                f"{name} certified SO(2)_{axis}-invariant, but a finite point "
+                f"set with off-axis nodes has infinite SO(2) orbits and cannot "
+                f"be closed"
+            )
 
 
 @pytest.mark.foundation
@@ -493,7 +524,7 @@ def test_so2_verdict_is_not_a_function_of_n_phi_mod_4() -> None:
     the group. The correct verdict is constant across the family.
     """
     verdicts = {
-        n_phi: SubgroupOfO3.SO2.is_invariant(
+        n_phi: SubgroupOfO3.SO2("z").is_invariant(
             _measure_from_sphere_quad(Quadrature.product(n_mu=4, n_phi=n_phi))
         )
         for n_phi in (2, 3, 4, 5, 6, 7, 8, 12, 16)
@@ -591,9 +622,12 @@ def test_axis_supported_measure_is_so2_invariant_but_not_so3() -> None:
         weights=np.array([1.0, 1.0]),
         support=SPHERE,
     )
-    assert SubgroupOfO3.SO2.is_invariant(poles)
+    assert SubgroupOfO3.SO2("z").is_invariant(poles)
     assert SubgroupOfO3.Dinfh.is_invariant(poles)
     assert not SubgroupOfO3.SO3.is_invariant(poles)
+    # The axis discriminates: the z-poles are moved by a rotation about x.
+    assert not SubgroupOfO3.SO2("x").is_invariant(poles)
+    assert not SubgroupOfO3.SO2("y").is_invariant(poles)
 
     # Unequal weights break sigma_h, hence O(2), while SO(2) survives.
     lopsided = DiscreteMeasure(
@@ -601,7 +635,7 @@ def test_axis_supported_measure_is_so2_invariant_but_not_so3() -> None:
         weights=np.array([1.0, 2.0]),
         support=SPHERE,
     )
-    assert SubgroupOfO3.SO2.is_invariant(lopsided)
+    assert SubgroupOfO3.SO2("z").is_invariant(lopsided)
     assert not SubgroupOfO3.Dinfh.is_invariant(lopsided)
 
 
@@ -1056,9 +1090,10 @@ def test_product_declares_the_group_the_walk_computes() -> None:
         assert [g.name for g in computed] == [SubgroupOfO3.Dnh(n_phi).name], (
             f"n_phi={n_phi}: walk says {[g.name for g in computed]}"
         )
-        assert not SubgroupOfO3.SO2.is_invariant(mu), (
-            f"n_phi={n_phi}: no finite point set on S^2 is SO(2)-closed"
-        )
+        for axis in ("x", "y", "z"):
+            assert not SubgroupOfO3.SO2(axis).is_invariant(mu), (
+                f"n_phi={n_phi}: no finite point set on S^2 is SO(2)_{axis}-closed"
+            )
 
 
 # ============================================================================
@@ -1252,11 +1287,11 @@ def test_a_mirror_is_improper_so_it_is_not_inside_the_rotation_groups() -> None:
     assert sorted(round(d) for d in dets) == [-1, 1], dets
 
     assert not SubgroupOfO3.SO3.contains(SubgroupOfO3.Mirror("z"))
-    assert not SubgroupOfO3.SO2.contains(SubgroupOfO3.Mirror("z"))
+    assert not SubgroupOfO3.SO2("z").contains(SubgroupOfO3.Mirror("z"))
     assert SubgroupOfO3.O3.contains(SubgroupOfO3.Mirror("z"))
     # The proper sibling behaves oppositely.
     assert SubgroupOfO3.SO3.contains(SubgroupOfO3.Cn(2))
-    assert SubgroupOfO3.SO2.contains(SubgroupOfO3.Cn(2))
+    assert SubgroupOfO3.SO2("z").contains(SubgroupOfO3.Cn(2))
 
 
 @pytest.mark.foundation
@@ -1302,9 +1337,18 @@ def test_so3_on_a_polar_marginal_requires_reflection_symmetry() -> None:
     # No rotational group is invariant on a polar marginal, symmetric or
     # not — and crucially these are NOT vacuous "always False" rows: the
     # sigma_x pair below shows the same fixtures ARE distinguishable.
-    for rotational in (SubgroupOfO3.SO2, SubgroupOfO3.Cn(3), SubgroupOfO3.SO3):
+    for rotational in (
+        SubgroupOfO3.SO2("z"), SubgroupOfO3.SO2("y"),
+        SubgroupOfO3.Cn(3), SubgroupOfO3.SO3,
+    ):
         assert not rotational.is_invariant(asymmetric), rotational
         assert not rotational.is_invariant(symmetric), rotational
+    # ⭐ The one rotational group that IS invariant is the marginal's OWN —
+    # SO(2)_x acts trivially on the x-axis the marginal embeds along — and
+    # it is invariant on the asymmetric fixture too, which is exactly why
+    # it cannot be the discriminator: it says nothing about the node set.
+    assert SubgroupOfO3.SO2("x").is_invariant(asymmetric)
+    assert SubgroupOfO3.SO2("x").is_invariant(symmetric)
 
     # The reflection is the discriminator, and it separates the fixtures.
     assert not SubgroupOfO3.Mirror("x").is_invariant(asymmetric)
@@ -1326,7 +1370,8 @@ def test_invariance_is_downward_closed_on_polar_marginals() -> None:
         # anything here, and listing only sigma_z would leave the
         # reflection family untested on this path.
         SubgroupOfO3.Mirror("x"), SubgroupOfO3.Mirror("y"),
-        SubgroupOfO3.Trivial, SubgroupOfO3.Mirror("z"), SubgroupOfO3.SO2,
+        SubgroupOfO3.Trivial, SubgroupOfO3.Mirror("z"),
+        SubgroupOfO3.SO2("x"), SubgroupOfO3.SO2("y"), SubgroupOfO3.SO2("z"),
         SubgroupOfO3.Dinfh, SubgroupOfO3.OctahedralOh,
         SubgroupOfO3.IcosahedralIh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
         SubgroupOfO3.Cn(1), SubgroupOfO3.Cn(2), SubgroupOfO3.Cn(3),
@@ -1398,7 +1443,8 @@ def test_a_mirror_reaches_a_REAL_arm_for_every_continuous_outer_group(
     assert SubgroupOfO3.O3.contains(sigma)
     assert SubgroupOfO3.Dinfh.contains(sigma)
     assert not SubgroupOfO3.SO3.contains(sigma)
-    assert not SubgroupOfO3.SO2.contains(sigma)
+    for rot_axis in ("x", "y", "z"):
+        assert not SubgroupOfO3.SO2(rot_axis).contains(sigma)
 
 
 @pytest.mark.foundation
@@ -1412,7 +1458,83 @@ def test_a_mirror_has_exactly_two_subgroups(axis: str) -> None:
     for other in ("x", "y", "z"):
         if other != axis:
             assert not sigma.contains(SubgroupOfO3.Mirror(other))
-    assert not sigma.contains(SubgroupOfO3.SO2)
+    for rot_axis in ("x", "y", "z"):
+        assert not sigma.contains(SubgroupOfO3.SO2(rot_axis))
+
+
+@pytest.mark.foundation
+def test_the_rotation_axis_is_validated_at_CONSTRUCTION() -> None:
+    """There is no unnamed axial rotation group — which is what the retired
+    bare ``SO2`` entry pretended there was (tracker 2.4, 2026-09-01)."""
+    for axis in ("x", "y", "z"):
+        g = SubgroupOfO3.SO2(axis)
+        assert g.name == f"SO2_{axis}"
+        assert repr(g) == f"SubgroupOfO3.SO2({axis!r})"
+    with pytest.raises(ValueError, match="axis in x/y/z"):
+        SubgroupOfO3.SO2("w")
+    with pytest.raises(ValueError, match="unnamed axial rotation"):
+        SubgroupOfO3.SO2("")
+
+
+@pytest.mark.foundation
+def test_so2_axes_are_three_incomparable_groups() -> None:
+    r"""Three axes, three groups: :math:`SO(2)_a \cap SO(2)_b = \{e\}` for
+    :math:`a \ne b`, so neither contains the other, and they are not equal
+    — the property that keeps ``S^2/SO2_x`` and ``S^2/SO2_z`` two different
+    orbit spaces in the catalogue."""
+    axes = ("x", "y", "z")
+    for a in axes:
+        for b in axes:
+            g, h = SubgroupOfO3.SO2(a), SubgroupOfO3.SO2(b)
+            assert g.contains(h) is (a == b)
+            assert (g == h) is (a == b)
+            assert (hash(g) == hash(h)) is (a == b)
+        # The only finite subgroup of any of them is the trivial one.
+        assert SubgroupOfO3.SO2(a).contains(SubgroupOfO3.Trivial)
+        for n in (1, 2, 3, 4):
+            assert not SubgroupOfO3.SO2(a).contains(SubgroupOfO3.Dnh(n))
+
+
+@pytest.mark.foundation
+def test_rotation_axis_is_the_continuous_dual_of_mirror_axis() -> None:
+    """``rotation_axis`` answers the axial family alone — exactly as
+    ``mirror_axis`` answers the reflection family alone — so an orbit-space
+    derivation can read the invariant coordinate off the group and nothing
+    that merely CONTAINS axial rotations answers by accident."""
+    for axis, index in (("x", 0), ("y", 1), ("z", 2)):
+        assert SubgroupOfO3.SO2(axis).rotation_axis == index
+        assert SubgroupOfO3.SO2(axis).mirror_axis is None
+        assert SubgroupOfO3.Mirror(axis).rotation_axis is None
+    for contains_rotations in (
+        SubgroupOfO3.Dinfh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
+        SubgroupOfO3.Cn(4), SubgroupOfO3.Dnh(2), SubgroupOfO3.Trivial,
+    ):
+        assert contains_rotations.rotation_axis is None
+
+
+@pytest.mark.foundation
+def test_candidate_groups_offer_all_three_axial_rotation_groups() -> None:
+    """The walk is offered every axis, so a polar marginal along x reports
+    :math:`SO(2)_x` rather than reading as carrying no continuous symmetry
+    — what the retired z-only ``SO2`` amounted to. Walk and brute force
+    must agree on it, as on everything."""
+    from orpheus.numerics.symmetry import (
+        candidate_groups,
+        maximal_invariance_groups,
+    )
+
+    q = Quadrature.gauss_legendre(n_ordinates=8)
+    offered = {g.name for g in candidate_groups(q.measure)}
+    assert {"SO2_x", "SO2_y", "SO2_z"} <= offered
+    walk = {g.name for g in maximal_invariance_groups(q.measure)}
+    brute = {
+        g.name for g in maximal_invariance_groups(q.measure, method="bruteforce")
+    }
+    assert walk == brute
+    assert "SO2_x" in walk and "SO2_z" not in walk and "SO2_y" not in walk
+    # The rest of the slab's symmetry: the three mirrors, none inside SO2_x
+    # (they are improper) and none containing it (they are finite).
+    assert {"sigma_x", "sigma_y", "sigma_z"} <= walk
 
 
 @pytest.mark.foundation

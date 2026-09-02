@@ -433,37 +433,42 @@ class DiscreteMeasure:
         — a derived **category**, read from the measure's structure rather than
         a hand-set label (see :data:`Phase`).
 
-        Derivation, by category (symmetry-derived where the symmetry exists):
+        Derivation, by category — a ``match`` on the TYPE of the support
+        manifold (the user's ruling of 2026-09-01: ``Phase`` is a transport
+        taxonomy and a manifold is pure geometry, so the dispatch lives on
+        the measure and reads the manifold's type):
 
-        * **angular** — iff :attr:`invariance_group` is set. An angular
-          quadrature IS the measure invariant under a subgroup of :math:`O(3)`
-          (octahedral :math:`O_h` for Lebedev, axial :math:`SO(2)` for a
-          product/slab rule); that symmetry is *why* it integrates spherical
-          harmonics and *why* it is angular (Erlangen — the group fixes the
-          homogeneous space :math:`S^2`). This is the principled, worked
-          instance.
-        * **spatial** — iff :attr:`support` is a spatial tag
-          (``"spatial_…"`` / ``"cells"``). Spatial measures carry no
-          :math:`O(3)` symmetry (a mesh is not rotation-invariant); they are a
-          *different category* and will earn a typed spatial support when
-          spatial homogenisation first Frame-binds one.
-        * **energy** — iff :attr:`support` is an energy tag (``"energy…"``). The
+        * **angular** — iff :attr:`support` is a :class:`Sphere` or any
+          quotient of one: Lebedev's :math:`S^2`, the fold's
+          :math:`S^2/\sigma_y`, the slab's :math:`S^2/SO(2)_x` (declared
+          by :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_polar_orbit`
+          since tracker 2.4). The direction variable lives on the sphere,
+          and every residual symmetry a rule spent still leaves it there.
+          ⚠ One more input is angular by a *fallback*: a rule on a bare
+          :class:`Interval` that carries an :math:`O(3)` invariance tag —
+          the chart-level :math:`\mu`-rule
+          :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_mu`
+          itself, which serves as the polar FACTOR of product rules and so
+          cannot declare an orbit space. It is the one shipped input that
+          reaches that arm (`[M]` 2026-09-01).
+        * **spatial** — iff :attr:`support` is a :class:`RealSpace`. Spatial
+          measures carry no :math:`O(3)` symmetry (a mesh is not
+          rotation-invariant); they are a *different category*.
+        * **energy** — iff :attr:`support` is :class:`EnergyGroups`. The
           multigroup energy axis: a **counting** measure on the discrete group
           index (``weights = 1``; ``φ_g`` is group-integrated), Frame-bound by
           energy condensation
           (:meth:`~orpheus.data.macro_xs.mixture.Mixture.condense`, via
-          :meth:`~orpheus.data.energy_grid.EnergyGrid.as_measure`). Like the
-          spatial factor it carries no :math:`O(3)` symmetry — the support tag
-          supplies its physical identity, not the bare integer nodes.
+          :meth:`~orpheus.data.energy_grid.EnergyGrid.as_measure`).
 
-        Anything else raises — an untagged generic rule has no determined phase.
-        The asymmetry IS the signal: each factor gets its own typed machinery as
-        it is bound, not a premature uniform abstraction (the user's design
-        ruling). The phase cannot be read off the bare nodes — a slab's
-        :math:`\mu\in[-1,1]` is geometrically indistinguishable from a 1-D
-        spatial interval, and an energy group index from any integer-noded
-        counting rule; the physical identity is exactly what the symmetry group
-        / support tag supplies.
+        Anything else raises — an untagged rule on an ambiguous point set
+        has no determined phase. The asymmetry IS the signal: each factor
+        gets its own typed machinery as it is bound, not a premature uniform
+        abstraction (the user's design ruling). The phase cannot be read off
+        the bare nodes — a :math:`\mu\in[-1,1]` chart is geometrically
+        indistinguishable from a 1-D spatial interval, and an energy group
+        index from any integer-noded counting rule; the physical identity is
+        exactly what the support manifold supplies.
         """
         match self.support:
             # A sphere and any quotient of one are the direction variable's
@@ -481,12 +486,20 @@ class DiscreteMeasure:
             case _ if self.invariance_group is not None:
                 # ⚠ The one genuinely ambiguous point set, and the reason
                 # ``phase`` is a property of the MEASURE and not of the
-                # manifold: a slab angular rule declares ``Interval(-1, 1)``,
-                # which is exactly how a 1-D spatial interval would spell
-                # itself. The O(3) symmetry is what tells them apart, and it
-                # lives on the measure. ⟹ tracker 2.4 makes the slab declare
-                # ``SPHERE.quotient(SO2)`` — whose realization IS [-1, 1] — and
-                # this arm becomes unreachable.
+                # manifold: a rule on ``Interval(-1, 1)`` spells itself
+                # exactly as a 1-D spatial interval would. The O(3) symmetry
+                # is what tells them apart, and it lives on the measure.
+                #
+                # Since tracker 2.4 (2026-09-01) the SLAB no longer needs
+                # this arm — its quadrature declares S^2/SO2_x and answers
+                # from the Sphere-quotient arm above. ⛔ The arm is NOT
+                # unreachable, though, which the 2.4 pre-flight predicted
+                # it would be: the chart-level μ-rule `gauss_legendre_on_mu`
+                # keeps a bare Interval with a Mirror('x') tag, because it is
+                # also the polar FACTOR of every product rule and a factor
+                # declaring an orbit space about x inside a product about z
+                # would be a false claim. `[M]` that rule is the one shipped
+                # input still arriving here.
                 return "angular"
         raise NotImplementedError(
             f"phase is undetermined for a measure on {self.support.name!r}: "
@@ -972,6 +985,49 @@ class DiscreteMeasure:
     # ------------------------------------------------------------------
     # Quotient by a symmetry group
     # ------------------------------------------------------------------
+
+    def on_orbit_space(self, orbit_space: Quotient) -> DiscreteMeasure:
+        r"""The same atoms, read as chart coordinates of an orbit space.
+
+        A rule built on a manifold :math:`C` is a rule on every orbit
+        space :math:`M/H` whose chart codomain
+        (:attr:`~orpheus.numerics.manifold.Quotient.realization`) is
+        :math:`C`: same points, same weights — only what the measure
+        KNOWS about its support changes, from "an interval" to "the polar
+        marginal of a sphere, about this axis". It is how the slab says
+        its :math:`\mu`-rule lives on :math:`S^2/SO(2)_x` rather than on
+        the interval a chart happens to map onto, which is ERR-080's
+        defect class stated at the level of spaces (tracker 2.4, 2026-09-01):
+        `[M]` before it, an 8-node slab ANGULAR space and an 8-node SPATIAL
+        space on :math:`[-1,1]` were ``==`` and hash-equal.
+
+        It is NOT a :meth:`pushforward` — no map is applied — and NOT a
+        :meth:`quotient` — the fold starts from a measure on the BASE and
+        identifies orbits, whereas a :math:`\mu`-rule was never on
+        :math:`S^2` to begin with.
+
+        ``invariance_group`` is DROPPED: a subgroup of :math:`O(3)` is a
+        statement about an embedding, and the orbit space fixes an
+        embedding (its axis) that the chart did not. The adopter that
+        knows the residual re-tags it. ``exactness`` survives: the
+        reference measure is a measure on the chart, and the chart is
+        unchanged.
+
+        Raises
+        ------
+        ValueError
+            If ``orbit_space.realization`` is not this measure's support —
+            the one precondition, refused where the declaration is written.
+        """
+        if orbit_space.realization != self.support:
+            raise ValueError(
+                f"a measure on {self.support.name!r} cannot be read on "
+                f"{orbit_space.name!r}: that orbit space's chart is "
+                f"{orbit_space.realization.name!r}. A rule declares the "
+                f"orbit space whose CHART it was built on; to fold a rule on "
+                f"the base manifold, use quotient()."
+            )
+        return replace(self, support=orbit_space, invariance_group=None)
 
     def quotient(
         self,
