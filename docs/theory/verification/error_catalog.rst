@@ -6136,6 +6136,52 @@ older entries classify against.
      :math:`\langle\Omega_i\rangle` and is therefore derived rather than
      defaulted.
 
+     ✅ **Progress 2026-09-02 (tracker 2.3) — the forged map now has ONE
+     honest typed spelling, and this entry gets a one-sentence
+     statement.** :class:`~orpheus.numerics.manifold.ManifoldMap` gives
+     the point-set layer its **arrows**: a frozen value carrying
+     ``domain``, ``codomain`` and ``apply``, so a map's target is a
+     *field* rather than something a call site asserts. Three arrows
+     were typed, and one of them is exactly this defect's:
+     :func:`~orpheus.numerics.manifold.barycentre`, the orbit-barycentre
+     map :math:`\mu \mapsto \mu\,\hat e_a` out of
+     :math:`S^2/SO(2)_a`, whose codomain is
+     :class:`~orpheus.numerics.manifold.Ball`\ ``(3)`` — because
+     :math:`1 - \lVert\mu\hat e_a\rVert^2 = 1 - \mu^2 = \tfrac14\det P`,
+     the squared orbit radius, so the image lies ON :math:`S^2` only at
+     the two poles and strictly inside the ball elsewhere.
+
+     ⟹ **ERR-080, restated in that vocabulary: it is the barycentre map
+     with a forged codomain.** `[M]` 2026-09-02 on
+     ``gauss_legendre(8)``, ``_harmonic_frame_measure()``'s nodes are
+     ``np.array_equal`` to ``barycentre(measure.support)(measure.nodes)``
+     — the arithmetic was never wrong. What is false is a **type**:
+     ``Ball(3).contains`` is ``True`` on those nodes and
+     ``Sphere().contains`` is ``False`` (norms
+     :math:`0.1834\ldots0.9603`). That is why no tolerance and no
+     arithmetic check has ever reached this defect. The *honest*
+     spelling of the same map, ``symmetry._embedded_nodes``, now READS
+     :func:`~orpheus.numerics.manifold.barycentre` (`[M]`
+     bit-identical on 12 rows), so the Pattern-2 twin is collapsed and
+     only the forgery remains.
+
+     ⛔ **Nothing here repairs the defect, and the forgery arm was left
+     alone ON PURPOSE.** It stays a raw
+     :class:`~orpheus.numerics.measure.DiscreteMeasure` constructor —
+     with a comment naming the map it forges — because routing it
+     through :meth:`~orpheus.numerics.measure.DiscreteMeasure.pushforward`
+     would force it to name ``Ball(3)``, i.e. would repair this entry's
+     level-1 half inside a step whose subject is the type system. No
+     membership check runs inside a map either: that refusal is tracker
+     2.0b, at measure construction. `[M]` the **Gate** below still
+     declares **three** ``xfail(strict=True)`` rows and 2.3 edits none
+     of them. ⚠ The one thing that *is* now unspellable is the move via
+     the verb: ``pushforward`` retired ``new_space=`` and reads its
+     target off the map, refusing a map out of the wrong point set — so
+     "apply :math:`\beta_a` and declare the result on :math:`S^2`" has
+     no spelling through it. See :ref:`manifold-arrows` and
+     :ref:`manifold-barycentre`.
+
      ✅ **Progress 2026-09-01 (tracker 2.4) — the SPACE is now named, and
      the defect is unchanged.** Two things landed. (a) The axial rotation
      group carries its **axis**: ``SubgroupOfO3.SO2(axis)`` replaced the
@@ -6392,11 +6438,30 @@ older entries classify against.
      ``support`` tag was FORGED to match, and the binder validated neither. The
      greppable tell is a constructor that writes a membership claim
      (``support=``, ``space=``, ``units=``) as a **literal** while its
-     neighbours derive theirs — here ``support=SPHERE`` (``SPACE_SPHERE``
-     before 2026-09-01; a typed literal is still a literal) sits between
+     neighbours derive theirs — the worked example being
+     ``spherical_product``, where ``support=SPHERE`` (``SPACE_SPHERE``
+     before 2026-09-01; a typed literal is still a literal) sat between
      ``invariance_group`` (*"COMPUTED from the factors ... never a declared
      literal"*) and ``exactness`` (*"DERIVED from the two factors' own
-     claims"*). ⭐ And the corollary the ``metric.py`` reading makes vivid: a
+     claims"*).
+     ⛔ **That exemplar was REMEDIED on 2026-09-02 (tracker 2.3), and the
+     lesson is unchanged — read the sentence above in the past tense.**
+     ``spherical_product`` is now
+     ``(polar * azimuthal).pushforward(archimedes("z"))``, so the third
+     claim is derived exactly like its two neighbours: the support is the
+     typed chart's ``codomain``. `[M]` both quoted comments still sit
+     verbatim in the source and now annotate **consecutive** keyword
+     arguments, with the literal that used to divide them gone.
+     The tell survives its own worked example. `[M]` 2026-09-02,
+     ``grep -rn "support=SPHERE" orpheus/`` returns **four** live
+     constructions: three are honest tabulations whose nodes really are
+     on :math:`S^2` (the ``UNIFORM_ON_SPHERE`` reference measure, and
+     the Lebedev and level-symmetric rules), and the fourth is the one
+     this entry is about — ``Quadrature._harmonic_frame_measure``'s 1-D
+     arm, kept literal **by design** (see the 2026-09-02 progress block
+     above). A literal is a tell, not a verdict; what makes this one a
+     forgery is that ``Sphere().contains`` refuses its nodes.
+     ⭐ And the corollary the ``metric.py`` reading makes vivid: a
      rank-deficiency discovered while TUNING A TOLERANCE is a structural fact
      wearing a numerical costume — before pinning an ``rcond`` that discards a
      mode, identify the mode.

@@ -681,16 +681,44 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    not roundoff.**
 
    The cause is upstream of the metric entirely: a 1-D rule carries no
-   azimuthal information, but ``Quadrature.angular_frame`` builds its
-   measure by ``column_stack``\ ing three axis-cosine arrays — two of
-   which are the zero FALLBACK, not data — and then declares the result
-   ``support=SPHERE`` over nodes with
+   azimuthal information, but the measure ``Quadrature.angular_frame``
+   integrates against pads the polar nodes with two zero columns and
+   then declares the result ``support=SPHERE`` over nodes with
    :math:`\lVert\Omega\rVert \ne 1`. ``_evaluate_real_sh`` duly reads
    :math:`\arctan2(0, 0) = 0` and every :math:`m > 0` harmonic becomes a
    non-zero constant across the ordinate set. The frame is therefore
    **ill-posed on that pairing**, and no choice of metric — diagonal,
    dense, or otherwise — repairs a basis that is linearly dependent on
    its own nodes.
+
+   .. note::
+
+      ⛔ **This paragraph read "**\ ``angular_frame`` **builds its
+      measure by** ``column_stack``\ **ing three axis-cosine arrays —
+      two of which are the zero FALLBACK, not data" until 2026-09-02.**
+      True when written and repealed by #429's own phases 0.1a and 0.2
+      (both 2026-09-01), which is the campaign correcting the
+      *description* while leaving the *defect*: the padding now runs
+      only on the 1-D arm of ``Quadrature._harmonic_frame_measure``
+      (`[M]` 10 of 12 shipped rules hand the frame their own measure
+      instead), the zeros are written at that one site rather than
+      obtained from an accessor named *"direction cosine along axis
+      i"*, and ``axis_cosines`` now **refuses** a suppressed axis. None
+      of that changes the flux: the fabrication still happens on every
+      slab solve.
+
+      ⭐ Since 2026-09-02 (tracker 2.3) the tree also has the
+      vocabulary to say what the padding *is*. The map
+      :math:`\mu \mapsto \mu\,\hat e_a` is the **orbit barycentre**,
+      typed as
+      :func:`~orpheus.numerics.manifold.barycentre` with codomain
+      :class:`~orpheus.numerics.manifold.Ball`\ ``(3)`` — because
+      :math:`1 - \lVert\mu\hat e_a\rVert^2 = 1-\mu^2 = \tfrac14\det P`,
+      the same squared orbit radius as above. So ERR-080's level-1 half
+      is *that map with a forged codomain*, and `[M]` the forged nodes
+      are ``np.array_equal`` to the honest map's image
+      (:ref:`manifold-barycentre`). The arithmetic was never wrong; a
+      **type** is.
 
    ⚠ Consequently, campaign 1 P7's reading of the same measurement — one
    ``~1e-16`` *"noise mode"*, recorded in

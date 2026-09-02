@@ -32,6 +32,14 @@ Key Facts
     space; the foundation of composite (panelled) :term:`quadrature`.
   - **Pushforward** ``μ.pushforward(φ)`` — image measure
     :math:`\varphi_* \mu` (:eq:`discrete-measure-pushforward`).
+    :math:`\varphi` is a **typed arrow**
+    (:class:`~orpheus.numerics.manifold.ManifoldMap`, carrying its own
+    ``domain`` and ``codomain``), so the image's support is **read off
+    the map** and a map out of a point set this measure does not live
+    on is refused. The target was fabricated until 2026-09-01 and
+    named at the call site until 2026-09-02; the arrow now carries it,
+    which is what makes a forged codomain unspellable through this
+    verb (:ref:`manifold-arrow-type`).
   - **Quotient** ``μ.quotient(G)`` — the fold
     :math:`\mu/G` onto the orbifold :math:`\mathcal{X}/G`
     (:eq:`discrete-measure-quotient`): pushforward onto orbit
@@ -159,6 +167,29 @@ caller wants Radon-Nikodym semantics
 :math:`|\det D\varphi|^{-1}` must be applied to the weights
 explicitly.
 
+**And** :math:`\varphi` **is an object, not a callable** (#429 tracker
+2.3, 2026-09-02). It is a
+:class:`~orpheus.numerics.manifold.ManifoldMap`, a frozen value
+carrying ``domain``, ``codomain`` and ``apply``, so the identity above
+is typed end to end: :math:`\mathcal{X}` is the map's domain and must
+equal this measure's support — the verb **raises** otherwise — and
+:math:`\mathcal{Y}` is the map's codomain, which is where the image
+measure is declared to live. `[M]` the refusal is by manifold *value*,
+so two measures carrying byte-identical nodes on different manifolds
+get different answers: ``gauss_legendre_on_polar_orbit(4, "x")`` (on
+:math:`S^2/SO(2)_x`) and ``gauss_legendre_on_mu(4)`` (on
+:math:`[-1,1]`) are ``np.array_equal``, and only the second may be
+pushed along the product embedding.
+
+⛔ The two earlier spellings are retired and are worth recording,
+because the direction of travel is the campaign's whole argument: until
+2026-09-01 the target was **fabricated** by the verb itself as
+``f"φ_*({μ.support})"`` — a manifold nobody had derived — and until
+2026-09-02 it was **named at the call site** (``new_space=``), where a
+caller who is not :math:`\varphi`'s author is unopposed. Only the map's
+author knows :math:`\mathcal{Y}`, and the map is now that author's
+statement (:ref:`manifold-arrow-type`).
+
 Two derived operations build on it. **Consolidation**
 (:meth:`~orpheus.numerics.measure.DiscreteMeasure.consolidate`)
 merges coincident atoms by summing their weights — the reduction a
@@ -194,7 +225,16 @@ and not a convention:
 where :math:`\varphi_{\mathrm{rep}}` sends each node to its orbit's
 first-appearing member (the only *group-generic* section — a
 geometric section such as :math:`\xi \to |\xi|` exists only for a
-mirror). The summed weights are the orbit-stabilizer weights
+mirror). Since 2026-09-02 that retraction is a typed
+:class:`~orpheus.numerics.manifold.ManifoldMap` out of ``μ.support``
+and onto ``μ.support.quotient(G)``, so the fold's target is the
+catalogue's own orbit space **by identity** rather than a name minted
+here — `[M]` ``folded_product(4, 8).measure.support is
+SPHERE.quotient(SubgroupOfO3.Mirror("y"))`` on 5 of 5 shipped
+configurations. Its image stays in the *base's* coordinates, which is
+the quotient's section coordinate system
+(:ref:`manifold-two-coordinate-systems`). The summed weights are the
+orbit-stabilizer weights
 :math:`W = w \cdot |G|/|\mathrm{Stab}(x)|`, derived rather than
 chosen. The quotient is defined only on a measure whose
 :math:`G`-invariance is *certified*
@@ -305,7 +345,7 @@ result carries ``None`` until the caller re-asserts it via
      - ``degree_of_exactness``
      - ``invariance_group``
    * - tensor product ``μ * ν``
-     - ``f"{μ.support} × {ν.support}"``
+     - ``μ.support * ν.support`` — the product manifold
      - :math:`N_\mu \cdot N_\nu`
      - :math:`d_\mu + d_\nu`
      - :math:`\min(p_\mu, p_\nu)` if both set, else dropped
@@ -318,7 +358,8 @@ result carries ``None`` until the caller re-asserts it via
      - :math:`\min(p_\mu, p_\nu)` if both set, else dropped
      - dropped (concatenation generally breaks invariance)
    * - pushforward ``μ.pushforward(φ)``
-     - explicit ``new_space=`` argument or ``f"φ_*({μ.support})"``
+     - ``φ.codomain`` — **read off the map** (**raises** unless
+       ``φ.domain == μ.support``)
      - unchanged
      - inferred from ``φ``'s output shape
      - dropped (φ-image of a polynomial-exact rule is not
@@ -333,7 +374,8 @@ result carries ``None`` until the caller re-asserts it via
      - **preserved** (a group permuting the atoms still permutes
        the merged ones)
    * - quotient ``μ.quotient(G)``
-     - ``f"{μ.support}/{G.name}"``
+     - ``μ.support.quotient(G)`` — the catalogue's own orbit space,
+       read off the retraction's codomain
      - one atom per :math:`G`-orbit
      - unchanged
      - dropped (an honest claim would be against the pushforward

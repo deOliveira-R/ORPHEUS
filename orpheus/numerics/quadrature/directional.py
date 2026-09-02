@@ -295,10 +295,12 @@ class Quadrature:
         r"""Direction cosines along axis :math:`i` (dim-agnostic).
 
         For 1-D slab quadratures (``nodes.shape == (N,)``), only
-        :math:`i = 0` is meaningful; other indices return zeros. For
-        multi-dim cubatures, returns ``nodes[:, axis_index]`` with
-        a zero fallback for axes beyond the measure's intrinsic
-        dimensionality (the dim-agnostic shape primitive in
+        :math:`i = 0` is meaningful; any other index is REFUSED (see the
+        raise below — until phase 0.2, 2026-09-01, it returned zeros, and
+        that zero fallback was the accessor-shaped spelling of ERR-080's
+        fabrication). For multi-dim cubatures, returns ``nodes[:, axis_index]``;
+        an axis beyond the measure's intrinsic dimensionality is likewise
+        refused (the dim-agnostic shape primitive in
         :mod:`orpheus.transport.mesh.axis` interprets "no quadrature data on
         this axis" as "no ordinate is outflowing on it").
 
@@ -781,6 +783,13 @@ class Quadrature:
         # ``axis_cosines`` refuse a suppressed axis without breaking this arm.
         # These zeros are NOT the orbit mean's answer being reused — they are a
         # chosen REPRESENTATIVE (a botched one; the barycentre is off S²).
+        # ⚠ Since 2026-09-02 (tracker 2.3) the tree spells this map ONCE,
+        # typed: ``manifold.barycentre(self.measure.support)`` — whose
+        # codomain is ``Ball(3)``, because that is where μ·ê_a lands. This
+        # arm computes the same image and declares it on ``SPHERE`` by raw
+        # constructor; it cannot be re-spelled through ``pushforward``
+        # without telling the truth about the codomain, which is why it
+        # stays a raw constructor until 3.4 retires it.
         padding = np.zeros(self.measure.n_points)
         return DiscreteMeasure(
             nodes=np.column_stack([self.measure.nodes, padding, padding]),

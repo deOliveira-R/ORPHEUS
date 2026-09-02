@@ -26,7 +26,8 @@ consequences, all measured, and all of them the reason this type exists:
 * **The algebra ran as string concatenation.**  ``f"{a} x {b}"`` was the
   product, ``f"{a}/{H.name}"`` the quotient, ``f"phi_*({a})"`` the
   pushforward codomain.  Those are :meth:`__mul__`, :meth:`quotient` and a
-  chart's codomain; the interpolation *was* the operation, unnamed.
+  :class:`ManifoldMap`'s codomain; the interpolation *was* the operation,
+  unnamed.
 * **The vocabulary drifted.**  ``'S^2/<sigma_y>'`` and ``'S^2/sigma_y'``
   both shipped, naming one quotient and unequal under ``==``.
 
@@ -70,6 +71,7 @@ from __future__ import annotations
 import functools
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -98,6 +100,10 @@ __all__ = [
     "REAL_LINE",
     "ENERGY",
     "ambient_dim",
+    "ManifoldMap",
+    "archimedes",
+    "barycentre",
+    "AXIS_INDEX",
 ]
 
 #: Tolerance for :meth:`Manifold.contains` on a curved manifold.  A node
@@ -711,6 +717,283 @@ UNIT_INTERVAL = Interval(0.0, 1.0)  # replaced SPACE_INTERVAL_01
 HALF_LINE = Interval(0.0, float(np.inf))  # replaced SPACE_HALF_LINE
 REAL_LINE = Interval(float(-np.inf), float(np.inf))  # replaced SPACE_R
 ENERGY = EnergyGroups()
+
+
+# ---------------------------------------------------------------------------
+# Maps between manifolds — the ARROWS of the category the members above are
+# the objects of (2026-09-02, #429 tracker 2.3)
+# ---------------------------------------------------------------------------
+
+#: The ambient coordinate an axis label names.  :math:`\mathbb{R}^3`'s axes
+#: are a convention of THIS module's curved members (a sphere is carried in
+#: three columns, a polar marginal names the axis its :math:`\mu` is measured
+#: against), so the table lives here and :mod:`orpheus.numerics.symmetry`
+#: reads it — the direction the runtime import graph already runs
+#: (``symmetry -> manifold``).  Until 2026-09-02 it was
+#: ``symmetry._AXIS_INDEX``; :func:`archimedes` needed it and this module
+#: cannot import ``symmetry`` at module scope (see the module docstring).
+#: The mirror family names its plane by the NORMAL, so ``AXIS_INDEX["x"]``
+#: selects the normal of :math:`\sigma_x` as well as the axis of
+#: :math:`SO(2)_x`.
+AXIS_INDEX: dict[str, int] = {"x": 0, "y": 1, "z": 2}
+
+
+@dataclass(frozen=True)
+class ManifoldMap:
+    r"""A map :math:`\varphi : M \to N` between manifolds — an arrow, TYPED.
+
+    The point-level analogue of a
+    :class:`~orpheus.numerics.operator.LinearOperator`: where an operator
+    carries its ``domain`` and ``codomain`` as function spaces, a map
+    carries its two point sets, and every construction that used to be
+    *"apply a callable to the nodes and name the result's manifold by
+    hand"* becomes an arrow whose codomain is READ.  The two induced arrows
+    on the levels above are the reason the type exists:
+
+    * the **pushforward** of a measure,
+      :meth:`DiscreteMeasure.pushforward(phi) <orpheus.numerics.measure.DiscreteMeasure.pushforward>`
+      — :math:`\varphi_*\mu` lives on :math:`N` **because** :math:`\varphi`
+      says so, and a measure on :math:`X \neq M` is refused;
+    * the **pullback** of a function, :math:`f \mapsto f \circ \varphi`,
+      which is what :func:`~orpheus.numerics.measure.DiscreteMeasure.integrate`
+      evaluates on the pushed measure
+      (:eq:`discrete-measure-pushforward`) and what a ``Descent`` (tracker
+      3.4b) applies to a basis.
+
+    ⭐ **Why this is a repair and not decoration.**  `[M]` at 2.3's opener
+    (2026-09-02) the tree spelled THREE such maps around the quotient, none
+    typed: the orbit retraction inside
+    :meth:`~orpheus.numerics.measure.DiscreteMeasure.quotient` (a lambda
+    plus a hand-named ``new_space``), the Archimedes chart inside
+    ``spherical_product`` (a loop plus the literal ``support=SPHERE``), and
+    the orbit-barycentre map :math:`S^2/SO(2)_a \to D^3` spelled **twice**
+    — honestly by ``symmetry._embedded_nodes``, and dishonestly by the
+    ERR-080 forgery arm, which applies the SAME :math:`\mu \mapsto \mu\,\hat
+    e_a` and declares the result on :math:`S^2`.  A codomain that is a
+    field of the map cannot be forged at the call site; that is the whole
+    of what this type buys.  (`[M]` 2026-09-02: :class:`Ball` had no consumer
+    outside this module — ``Ball(2)`` is the :math:`\sigma_y` entry's
+    :attr:`~Quotient.realization` — and ``Ball(3)`` had never been
+    constructed; :func:`barycentre` is the first arrow whose CODOMAIN is a
+    ball, which is what makes the forged codomain refusable in kind.)
+
+    **Composition** is ``psi @ phi`` for :math:`\psi \circ \varphi`, refused
+    unless ``phi.codomain == psi.domain`` — the same guard, at the same
+    tier, as :class:`~orpheus.numerics.operator.OperatorProduct`.  The law
+    that makes it a functor, and the one intrinsic property worth testing
+    (there is nothing else a map of finite point sets can get wrong that
+    :meth:`Manifold.contains` does not already catch):
+
+    .. math::
+
+       (\psi \circ \varphi)_* \mu \;=\; \psi_* (\varphi_* \mu).
+
+    Parameters
+    ----------
+    domain, codomain : Manifold
+        The two point sets.  Compared by VALUE (every manifold is a frozen
+        value type), so a map out of ``COSINE_INTERVAL * CIRCLE`` accepts a
+        measure whose support was built by the same product — and refuses
+        one on ``S^2/SO2_x * S^1``, which is the same numbers meaning a
+        different function of direction.
+    apply : callable
+        The map on AMBIENT coordinates, vectorised over an
+        ``(n, ambient_dim(domain))`` array (``(n,)`` is accepted for a 1-D
+        domain) and returning ``(n, ambient_dim(codomain))``.  It is called
+        ONCE with the whole array, so an index-based map — the orbit
+        retraction ``nodes -> nodes[representative]``, a well-defined map
+        on the finite node set that happens to be spelled by index — is a
+        map like any other.
+
+    Notes
+    -----
+    The **Jacobian is not this type's business**.  ``pushforward`` is the
+    :math:`\varphi`-image (weights preserved), and a change of variables
+    against a target reference measure is the caller's — the same
+    asymmetry the pushforward has always documented.  The pushforward
+    REFERENCE measure of a catalogued orbit space (the :math:`2\pi\,d\mu`
+    of Archimedes' hat-box) is a field of the catalogue ENTRY, not of the
+    map, and lands with tracker 3.1 — `[M]` 2026-09-02 a module-scope
+    ``manifold -> exactness`` import to carry it here kills 5 of 5 fresh
+    import orders, so it must be populated inside the derivation function
+    (function-scope import), never at module scope.
+
+    No membership check runs on the image: :meth:`Manifold.contains` at
+    measure CONSTRUCTION (tracker 0.1b) is the ruled home of that refusal,
+    and a map whose ``apply`` lands outside its declared codomain is caught
+    there, on the measure it produced, rather than twice.
+    """
+
+    domain: Manifold
+    codomain: Manifold
+    apply: Callable[[NDArray], NDArray]
+
+    def __call__(self, points: ArrayLike) -> NDArray:
+        """``apply`` on a float array — the map, as a map."""
+        return np.asarray(self.apply(np.asarray(points, dtype=float)))
+
+    def __matmul__(self, other: object) -> "ManifoldMap":
+        r"""Composition :math:`\psi \circ \varphi` as ``psi @ phi``.
+
+        Refused unless ``phi.codomain == psi.domain`` — a map out of the
+        wrong point set is a type error at the level of spaces, exactly as
+        an operator product over unequal spaces is.
+        """
+        if not isinstance(other, ManifoldMap):
+            return NotImplemented
+        if other.codomain != self.domain:
+            raise ValueError(
+                f"cannot compose: the inner map lands on "
+                f"{other.codomain.name!r} but the outer map is defined on "
+                f"{self.domain.name!r}. A composition psi @ phi needs "
+                f"phi.codomain == psi.domain."
+            )
+        inner, outer = other.apply, self.apply
+        return ManifoldMap(
+            domain=other.domain,
+            codomain=self.codomain,
+            apply=lambda points: outer(inner(points)),
+        )
+
+
+@functools.cache
+def archimedes(axis: str = "z") -> ManifoldMap:
+    r"""The Archimedes chart :math:`[-1,1] \times S^1 \to S^2` about ``axis``.
+
+    Write :math:`a` for the axis and :math:`b, c` for its two cyclic
+    successors (:math:`z \to x, y`; :math:`x \to y, z`; :math:`y \to z, x`
+    — a right-handed frame in every case).  Then
+
+    .. math::
+
+       (\mu,\ (\cos\varphi, \sin\varphi)) \;\mapsto\;
+       \mu\,\hat e_a + \sqrt{1-\mu^2}\,(\cos\varphi\,\hat e_b
+       + \sin\varphi\,\hat e_c),
+
+    which for ``axis="z"`` is :eq:`product-mu-phi-cosines` verbatim:
+    :math:`\mu_x = \sin\theta\cos\varphi`, :math:`\mu_y = \sin\theta
+    \sin\varphi`, :math:`\mu_z = \mu`.  The domain is the PRODUCT
+    manifold ``COSINE_INTERVAL * CIRCLE`` — a polar factor times a circle
+    factor, in that coordinate order — so
+    :func:`~orpheus.numerics.quadrature.rules_product.spherical_product`
+    reads as ``(polar * azimuthal).pushforward(archimedes("z"))`` and its
+    support is the chart's codomain, not a literal.
+
+    **Named for Archimedes' hat-box theorem**, which is the statement about
+    this map that transport needs: the pushforward of the uniform measure
+    :math:`d\Omega` along the polar coordinate :math:`\mu = \Omega \cdot
+    \hat e_a` is :math:`2\pi\,d\mu` — uniform on :math:`[-1,1]` — so a
+    Gauss-Legendre rule in :math:`\mu` times any circle rule is exact on
+    the sphere against Lebesgue measure.  That fact is what
+    ``AngularSymmetry.reference`` answers (``LEGENDRE`` for every axis) and
+    what tracker 3.1 moves onto the catalogue entry; the map is the
+    geometric half of it.
+
+    ⚠ It is a *parametrisation*, not a chart in the strict sense: the
+    circle collapses at :math:`\mu = \pm 1` (both poles are the image of
+    a whole fibre), which is exactly the singular stratum of
+    :math:`S^2/SO(2)_a` — the map is one-to-one off the stratum and the
+    stratum is where it is not.  Its inverse on :math:`S^2 \setminus
+    \{\pm \hat e_a\}` is the :math:`(\mu, \varphi)` chart.
+
+    Memoised so that two requests for the same axis are ONE object, which
+    is what lets a derivation agreement be stated by identity.
+
+    Raises
+    ------
+    ValueError
+        For an ``axis`` other than ``"x"``, ``"y"``, ``"z"``.
+    """
+    try:
+        a = AXIS_INDEX[axis]
+    except KeyError:
+        raise ValueError(
+            f"axis must be one of {sorted(AXIS_INDEX)}, got {axis!r}"
+        ) from None
+    b, c = (a + 1) % 3, (a + 2) % 3
+
+    def apply(points: NDArray) -> NDArray:
+        mu, cos_phi, sin_phi = points[:, 0], points[:, 1], points[:, 2]
+        sin_theta = np.sqrt(1.0 - mu**2)
+        out = np.empty((points.shape[0], 3))
+        out[:, a] = mu
+        out[:, b] = sin_theta * cos_phi
+        out[:, c] = sin_theta * sin_phi
+        return out
+
+    return ManifoldMap(
+        domain=COSINE_INTERVAL * CIRCLE, codomain=SPHERE, apply=apply
+    )
+
+
+@functools.cache
+def barycentre(orbit_space: Quotient) -> ManifoldMap:
+    r"""The orbit-barycentre map :math:`S^2/SO(2)_a \to D^3`,
+    :math:`\mu \mapsto \mu\,\hat e_a`.
+
+    An orbit of the axial rotation group is the circle
+    :math:`\{\Omega : \Omega \cdot \hat e_a = \mu\}`, of radius
+    :math:`\sqrt{1-\mu^2}` about the point :math:`\mu\,\hat e_a` on the
+    axis.  That point is the orbit's barycentre (its mean under the
+    fibre's uniform measure), and it lies **inside the ball, off the
+    sphere**: :math:`1 - \|\mu\hat e_a\|^2 = 1 - \mu^2 = \tfrac14 \det P`,
+    the squared orbit radius the catalogue records as
+    :attr:`Quotient.det_gram`.  So the map lands on :math:`S^2` exactly on
+    the singular stratum (the poles, where the orbit is a point) and
+    nowhere else — which is why its codomain is :class:`Ball` and can be
+    nothing else.
+
+    **This is the map ERR-080 forges.**  `[M]` 2026-09-02 the tree spelled
+    it twice: ``symmetry._embedded_nodes`` (honestly — an invariance check
+    wants the barycentre, because a rotation about :math:`a` fixes it), and
+    ``Quadrature._harmonic_frame_measure``'s 1-D arm, which computes the
+    same :math:`(\mu, 0, 0)` and declares it a measure on ``SPHERE``.  The
+    first now reads this function; the second is the fiction 3.4 retires,
+    and it cannot be re-spelled through this map without lying about the
+    codomain — which is the point.
+
+    Not a section: a section of the quotient lands ON :math:`S^2` by
+    picking a representative, and for a positive-dimensional group none is
+    canonical (:attr:`Quotient.fundamental_domain` is ``None`` for every
+    :math:`S^2/SO(2)_a` entry on purpose).  The barycentre is canonical
+    precisely because it is not a representative.
+
+    Parameters
+    ----------
+    orbit_space : Quotient
+        An :math:`S^2/SO(2)_a` entry of the catalogue — the axis is READ off
+        its group.  Any other manifold (a mirror quotient, the trivial
+        quotient, a bare interval) is refused: only an axial-rotation orbit
+        has a barycentre on an axis.
+
+    Raises
+    ------
+    ValueError
+        If ``orbit_space`` is not a quotient of the sphere by an axial
+        rotation group.
+    """
+    axis = (
+        orbit_space.by.rotation_axis
+        if isinstance(orbit_space, Quotient)
+        and isinstance(orbit_space.base, Sphere)
+        else None
+    )
+    if axis is None:
+        raise ValueError(
+            f"the barycentre map is defined on an orbit space S^2/SO(2)_a "
+            f"of the sphere by an axial rotation group; got "
+            f"{getattr(orbit_space, 'name', orbit_space)!r}. A mirror "
+            f"quotient's orbits have no axis to lie on, and a point of a "
+            f"bare interval is not an orbit at all."
+        )
+
+    def apply(points: NDArray) -> NDArray:
+        mu = points[:, 0] if points.ndim == 2 else points
+        out = np.zeros((mu.shape[0], 3))
+        out[:, axis] = mu
+        return out
+
+    return ManifoldMap(domain=orbit_space, codomain=Ball(3), apply=apply)
 
 
 # ---------------------------------------------------------------------------

@@ -9401,3 +9401,144 @@ ask; the `support`-instead-of-`domain` refutation was already on the page) · Co
 **5** · Derivation source **3** — the isomorphism is textbook and hand-written; there is no
 `derivations/` script for it and one would be ceremony, but the *rating* is honestly low.
 **Weakest dimension: derivation source**, structurally so for a type-law page.
+
+---
+
+## L-082
+
+**2026-09-02 — #429 tracker 2.3: the point-set category gets its ARROWS.** Docs-only pass over
+`manifolds.rst` (+883/−42, a new `=`-level section on the arrows), `discrete_measures.rst`
+(+46/−4), `spherical_harmonics.rst` (+32/−4), `error_catalog.rst` ERR-080 (+68/−3), plus the
+regenerated `matrix.rst`. `-E -W` baseline **0** W/E/C → final **0**, EXIT=0.
+
+### (a) A brief's "zero production consumers" about a TYPE is a claim about one CONSTRUCTION
+
+The brief said *"`Ball` (minted 2026-08-31) had 0 production consumers before this step;
+`barycentre` is its first"*. `[M]` `git grep "Ball(" HEAD -- orpheus tests` returns **six** lines:
+the class definition, one `match` pattern (`case RealSpace(d=d) | Ball(d=d)` in `ambient_dim`),
+and **four** constructions — every one of them `Ball(2)`, three in `tests/` and one in production
+(`manifold.py:922`, the `S^2/sigma_y` entry's `realization`). So `Ball` *was* consumed. What had
+never existed is **`Ball(3)`**, and what is new *in kind* is that a `Ball` is now the **codomain of
+an arrow** rather than a field of a catalogue entry.
+
+⟹ census a type's constructions **with their arguments**, and say which *kind* of use is new. The
+production docstring carries the same overstatement (`ManifoldMap`'s *"the barycentre map's honest
+codomain (`Ball`) had 0 production consumers until it did"*) — reported, not edited.
+
+### (b) ⭐⭐ A retirement can delete the corpus's own WORKED EXAMPLE of a rule that survives
+
+ERR-080's **Lesson** bullet taught the greppable tell — *a constructor writing a membership claim
+as a **literal** while its neighbours derive theirs* — and its exhibit was `spherical_product`,
+where `support=SPHERE` *"sits between `invariance_group` (COMPUTED …) and `exactness`
+(DERIVED …)"*. Tracker 2.3 removed **exactly that literal**. The rule is untouched; its evidence
+went present-tense-false, and nothing greps it (the *neighbours* are still there verbatim — `[M]`
+both comments survive and now annotate **consecutive** kwargs).
+
+⟹ after any retirement, grep the corpus for the retired construct **as an EXHIBIT**, not only as a
+symbol: a sentence of the form *"here X sits between Y and Z"* dies when X moves even though X's
+name never appears in a role. Repair = past-tense the exhibit, keep the rule, **re-census the
+tell**: `[M]` `grep -rn "support=SPHERE" orpheus/` = **4** live constructions, of which 3 are
+honest tabulations (`UNIFORM_ON_SPHERE`, Lebedev, level-symmetric) and 1 is the forgery. A literal
+is a *tell*, not a verdict — what makes the fourth a forgery is that `Sphere().contains` refuses it.
+
+### (c) A "phase N mints the typed X" prediction: the PHASE lands, a type lands, X does not
+
+`manifolds.rst` predicted *"the choice belongs to the step that mints the typed `Chart` — not to
+the orbit-space derivation"* and named tracker 2.3. 2.3 landed **on the day**, minted
+`ManifoldMap`, and **made no section**. Three of `coding-standards`' falsified-prediction
+components split apart: PHASE right, MECHANISM half-right (a typed map, differently named),
+DELIVERABLE absent. ⭐ The *reason* is the transferable half and it came from the naming ruling: a
+chart is `M ⊃ U → ℝⁿ`, and **only the inverse of the Archimedes map is one** — the retraction lands
+on a `Quotient`, the barycentre on a `Ball` — so a type called `Chart` would have mis-described two
+of its own three instances. `[M]` `Quotient.fundamental_domain` still has **zero** readers outside
+`manifold.py` (the field, its `__post_init__` gate, `contains`'s dispatch, three builders).
+
+### (d) ⛔ The xref gate's `head_role` blindness is at the HEAD-CHECK line — and an inert patch reads exactly like a clean tree
+
+L-062/L-067 record the one-line fix as `head_role = "mod" if "." in target else role`. I applied it
+to the **first** `candidate_paths(target, namespaces, role)` call. `[M]` patched == stock ==
+`DEAD TARGETS: 0` — which reads as *"the corpus is clean"*. It is not where the decline happens:
+`judge()` returns `Judgement(Outcome.ALIVE|...)` from that call and only later runs the head-check
+
+```python
+head = target.split(".")[0]
+if not any(lookup(c) [0] for c in candidate_paths(head, namespaces, role)):
+    return Judgement(Outcome.DECLINED)
+```
+
+— and `candidate_paths("orpheus", (), "class")` is `()` on an `.rst` page's empty namespace, so
+`any(())` is False ⟹ DECLINED. Patch **that** line. `[M]` with a throwaway `docs/_ctl.rst`
+carrying two dead + one live role: **stock 0 dead**, **patched 2 dead / 2 sites**, `decidable`
+5797 → 5799. Corpus reading, control removed: patched over `docs orpheus tests` = **0 dead**,
+1006 files / 16 886 roles / 14 184 decidable.
+
+⟹ **the control must SPLIT the two gates.** L-071 says "run an end-to-end positive control"; the
+sharpening is that *stock == patched* is itself the tell that the patch is inert — an equal reading
+carries no information about where the blindness lives. (The `head_role` fix is still **unlanded**
+in `tools/check_docstring_xrefs.py`; the ERR-026 branch owes it.)
+
+### (e) ⛔⛔ A trailing SPACE before a closing role backtick swallows the sentence — `-W` is silent
+
+`` :math:`\max\lvert … \rvert = ` `` (note the space) does not close the role. The rendered HTML
+carried a literal `` ` **0.0** for :math:`a \in \{x,y,z\}\) `` — raw markup, on a build that
+reported **0 warnings**. Caught only by the tag-stripped HTML scan for `**` / ` `` `.
+
+⟹ two gates, both cheap: the **render** scan (authoritative), and a corpus-wide source regex that
+localises it in one line — ``:(?:math|ref|eq|doc|class|func|meth|attr|mod|data|exc|cite|term):`[^`]*\s` ``.
+`[M]` after the fix: **0** corpus-wide, so mine was the only one.
+
+### (f) Smartquotes mis-directs a closing `"` that follows an inline literal — extend the quote
+
+`` **… the typed** ``Chart``\ **" until 2026-09-02.** `` renders `Chart“ until` — a LEFT quote where
+a right one belongs, because the `"` has no preceding word character. Detector:
+`re.finditer(r"“(?=\s*(until|and|,|\.))", stripped_html)` (⚠ it also flags a quotation that *opens*
+with one of those words — read the hit, don't count it). ⭐ The fix that costs nothing: **end the
+quoted fragment on a WORD by extending it**, since the extension is usually verbatim anyway
+(`… the typed `Chart` — not to the orbit-space derivation"`). Shortening would have been the
+natural move and is the wrong one.
+
+### (g) ⭐⭐ A composition/functoriality law is measurable ON THE SHIPPED OBJECT — find the chain
+
+`(ψ∘φ)_*μ = ψ_*(φ_*μ)` reads as an abstract type law until you look for a shipped chain. `[M]`
+`Quadrature.folded_product` **is** one: `[-1,1]×S¹ --archimedes--> S² --retraction--> S²/σ_y`, and
+`retraction @ archimedes` type-checks. One-shot vs two-step vs the shipped rule: `array_equal` on
+nodes and weights, support by **identity** with the catalogue entry, on **5 of 5** configurations.
+⚠ And the fixture must be stated: the shipped fold uses the **staggered** circle rule
+(`Σ = ∅`); `[M]` node-aligned puts **4** nodes on `Σ = {ξ=0}` and folds 16 atoms into **10** orbits
+(sizes `[1,1,1,1,2,2,2,2,2,2]`, the singletons being the fixed points) against staggered's **8**,
+all of size 2. The functoriality half is fixture-independent; the agreement-with-the-shipped-rule
+half is a statement about which circle rule ships.
+
+### (h) An HTML slice anchored on the NEXT SECTION'S TITLE can land inside your own section
+
+L-074 says anchor with `rfind` because the TOC repeats titles. Insufficient: a `:ref:` renders as
+the **target's title**, so if your new section cross-references the next one, `rfind(next_title)`
+lands *inside* you. `[M]` my first slice read **1 659** chars of a **21 909**-char section and
+reported "0 leaks" — a designed-green reading. ⟹ anchor both ends on a **distinctive sentence**,
+and sanity-check the slice LENGTH against the source's line count before believing its verdict.
+
+### (i) Reproduced, and worth carrying: the ERR-080 restatement
+
+`[M]` on `gauss_legendre(8)`: `_harmonic_frame_measure()`'s nodes are `np.array_equal` to
+`barycentre(measure.support)(measure.nodes)`; `Ball(3).contains` → **True**, `Sphere().contains` →
+**False**, norms `0.183435 … 0.960290`. So the defect is *the barycentre map with a forged
+codomain* — the arithmetic was never wrong, a **type** is. That single sentence replaced three
+paragraphs of mechanism in the catalogue entry and in two theory pages.
+
+Other reproductions, all independent of the brief: 60-of-60 product bit-identity (nodes + weights);
+`π ∘ archimedes_a = pr₁` **bit-exactly** over 500 random `(μ,φ)` per axis, `‖image‖−1 ≤ 2.22e-16`;
+`1−‖μê_a‖² = 1−μ²` to **0.0**; `_embedded_nodes == barycentre` on 12 rows; the `manifold ⇄
+exactness` two-cycle killing **5 of 5** fresh import orders on a throwaway package with the measured
+topology (positive control: 5 of 5 clean with the `TYPE_CHECKING` guard restored); `exactness.py`
+imports `manifold` at module scope **twice** (`:115`, `:116`).
+
+### Quality self-assessment (Directive 3)
+
+Derivation depth **5** (the barycentre geometry, the hat-box, `π∘φ = pr₁`, the fold as a two-arrow
+chain, all derived and measured) · Cross-references **5** (348 fully-qualified roles checked by
+import, 0 dead; every `:ref:`/`:eq:`/`:doc:` resolved) · Numerical evidence **5** (60/60, 12/12,
+5/5, 500×3, two positive controls) · Failed approaches **4** (the falsified `Chart` prediction, the
+refuted `Ball` claim, the inert xref patch — all published) · Code traceability **5** ·
+Derivation source **3** — no `derivations/` script; the algebra (hat-box, orbit barycentre,
+Procesi–Schwarz) is textbook and already lives in the catalogue's SymPy regression tests.
+**Weakest dimension: derivation source**, structurally so for a type-law page.

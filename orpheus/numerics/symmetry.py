@@ -99,7 +99,7 @@ from orpheus.geometry.transformation import (
 # `manifold` imports this module under TYPE_CHECKING only, so the runtime
 # edge symmetry -> manifold is acyclic (`[M]` injected and run in all three
 # import orders, 2026-09-01); `measure` already sits on the same path.
-from .manifold import Quotient
+from .manifold import AXIS_INDEX, Quotient, barycentre
 from .measure import DiscreteMeasure
 from .roots_of_unity import roots_of_unity
 
@@ -508,7 +508,7 @@ class SubgroupOfO3:
         """
         tag = self._tag
         if isinstance(tag, SO2):
-            return _AXIS_INDEX[tag.axis]
+            return AXIS_INDEX[tag.axis]
         return None
 
     @property
@@ -963,6 +963,16 @@ def _embedded_nodes(measure: DiscreteMeasure) -> np.ndarray:
     :math:`SO(2)_z`-invariant, as it should be. Column 0 is the
     convention only for a bare interval, which names no axis.
 
+    ⭐ Since 2026-09-02 (#429 tracker 2.3) that arm IS the typed
+    orbit-barycentre map :func:`~orpheus.numerics.manifold.barycentre`
+    — :math:`\mu \mapsto \mu\,\hat e_a`, the orbit's centre, which lies
+    inside the ball and on the sphere only at the poles. An invariance
+    check wants exactly that point (a rotation about :math:`a` fixes it),
+    and the map's codomain says honestly where it lands: this function
+    returns points of :math:`\mathbb{R}^3`, not of :math:`S^2`, and
+    nothing downstream may assume otherwise. The ERR-080 forgery is the
+    same map with its codomain declared as the sphere.
+
     ⛔ This paragraph used to add *"written down in
     :meth:`Quadrature.axis_cosines` and used by ``spherical_harmonics``
     internally"*. Both halves went false at phase 0.2 (2026-09-01):
@@ -981,12 +991,13 @@ def _embedded_nodes(measure: DiscreteMeasure) -> np.ndarray:
     n, d = nodes.shape
     if d == 3:
         return nodes
+    if d == 1 and _polar_axis_of(measure.support) is not None:
+        # ``_polar_axis_of`` is the map's own precondition, so this cannot
+        # raise; the isinstance narrows the type for the checker only.
+        assert isinstance(measure.support, Quotient)
+        return barycentre(measure.support)(nodes)
     embedded = np.zeros((n, 3))
-    axis = _polar_axis_of(measure.support) if d == 1 else None
-    if axis is None:
-        embedded[:, :d] = nodes
-    else:
-        embedded[:, axis] = nodes[:, 0]
+    embedded[:, :d] = nodes
     return embedded
 
 
@@ -1133,15 +1144,10 @@ def _invariance_on_points(
 # generating set that realizes it in the standard 3-D setting.
 
 
-#: The coordinate axes, by name. The mirror family names its plane by the
-#: NORMAL, so ``_AXIS_INDEX["x"]`` selects the normal of :math:`\sigma_x`.
-_AXIS_INDEX = {"x": 0, "y": 1, "z": 2}
-
-
 def _axis_vector(axis: str) -> np.ndarray:
     """The unit vector along a named coordinate axis."""
     try:
-        return np.eye(3)[_AXIS_INDEX[axis]]
+        return np.eye(3)[AXIS_INDEX[axis]]
     except KeyError:
         raise ValueError(f"axis must be x/y/z, got {axis!r}") from None
 
@@ -1199,7 +1205,7 @@ def _is_axis_supported(nodes: np.ndarray, axis: str, atol: float) -> bool:
     — a rule on :math:`S^2/SO(2)_a` embeds ON axis :math:`a`, where the
     group acts trivially — and they pass for their own axis only.
     """
-    b, c = (i for i in range(3) if i != _AXIS_INDEX[axis])
+    b, c = (i for i in range(3) if i != AXIS_INDEX[axis])
     return bool(np.all(np.hypot(nodes[:, b], nodes[:, c]) <= atol))
 
 

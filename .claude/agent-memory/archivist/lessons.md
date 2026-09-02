@@ -538,6 +538,31 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   tree-wide. Nothing else sees it — the role is UNQUALIFIED (the xref gate skips those by design,
   `DEAD TARGETS: 0`) and the module has no `automodule` (nexus `dead_references` = 0 dead / 52
   checked). A fully-qualified copy is decidable where the unqualified original is not. → L-081
+- **⭐⭐ A brief's "zero production consumers" about a TYPE is a claim about ONE CONSTRUCTION —
+  census with ARGUMENTS.** `[M]` a briefed *"`Ball` had 0 production consumers"* was false:
+  `git grep "Ball(" HEAD` = 6 lines, of which **four** are constructions, all `Ball(2)`, one in
+  production (the sigma_y entry's `realization`). What had never existed is **`Ball(3)`**, and what
+  is new *in kind* is a `Ball` as an arrow's **codomain** rather than an entry's field. The
+  production docstring carries the same overstatement — report it, don't edit it. -> L-082
+- **⭐⭐ A retirement can delete the corpus's own WORKED EXAMPLE of a rule that survives, and no
+  symbol grep sees it.** ERR-080's *"a constructor writing a membership claim as a **literal** while
+  its neighbours derive theirs"* had `spherical_product`'s `support=SPHERE` *"sitting between
+  `invariance_group` and `exactness`"* as its exhibit; 2.3 removed exactly that literal. Rule
+  intact, evidence false, and the sentence never names the retired construct in a role. ⟹ grep the
+  retired construct **as an exhibit** (*"here X sits between Y and Z"*), past-tense the exhibit,
+  keep the rule, and **re-census the tell** (`[M]` 5 -> 4 live: 3 honest tabulations + 1 forgery —
+  a literal is a tell, not a verdict). -> L-082
+- **⭐ A "phase N mints the typed X" prediction can land on the DAY, mint a type, and still not
+  deliver X.** 2.3 minted `ManifoldMap` and made no section; PHASE right, MECHANISM half-right,
+  DELIVERABLE absent. ⭐ The transferable half is the naming ruling that caused it — *a chart is
+  `M ⊃ U → R^n`, and only the INVERSE of the shipped map is one* — so `Chart` would have
+  mis-described 2 of its own 3 instances. Publish the reason, not just the tense flip. -> L-082
+- **⭐⭐ A composition law is measurable ON THE SHIPPED OBJECT — look for the chain before calling
+  it abstract.** `folded_product` **is** `retraction o archimedes`, so functoriality is `[M]` 5 of 5
+  (one-shot == two-step == the shipped rule, support by identity). ⚠ State the fixture: the fold
+  ships the STAGGERED circle rule (`Sigma = empty`); node-aligned puts 4 nodes on `Sigma` and folds
+  16 -> **10** orbits with four singletons, so a wrong shift agrees with itself and not with
+  production. -> L-082
 - **⭐ A section TITLE is a count too, and a roster count needs the command that produces it.**
   One edit shipped *"The four realizations…"* over a five-row table; the same page carried two of
   my own earlier universals that were wrong when written (*"Nine variants"* — `[M]` 8 at the
@@ -586,6 +611,22 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   (`head_role = "mod" if "." in target else role`) on a COPY, run as a SUBPROCESS **from inside
   the repo** (it resolves against `REPO_ROOT`, so a `/tmp` copy scans 0 files), read 1 dead / 2
   sites where the stock gate read 0. → L-067, L-062
+- **⛔⛔ A TRAILING SPACE before a closing role backtick swallows the sentence, and `-W` is
+  SILENT.** `` :math:`… \rvert = ` `` does not close; the HTML carried raw `` ` **0.0** for
+  :math:`a … `` on a **0-warning** build. Two gates: the tag-stripped **render** scan for `**` /
+  double-backtick (authoritative), and a one-line corpus regex that localises it —
+  ``:(?:math|ref|eq|doc|class|func|meth|attr|mod|data|exc|cite|term):`[^`]*\s` `` (`[M]` 0
+  corpus-wide after my fix, so mine was the only one). -> L-082
+- **⭐ Smartquotes mis-directs a closing `"` that follows an inline literal** (`` typed** ``X``\ **" ``
+  renders `X“`). Detect with `re.finditer(r'“(?=\s*(until|and|,|\.))', stripped_html)` — ⚠ it also
+  flags a quote that OPENS with one of those words, so read the hit. Fix by **extending** the quoted
+  fragment to end on a WORD; the extension is usually verbatim anyway, and shortening is the natural
+  wrong move. -> L-082
+- **⛔ An HTML slice anchored on the NEXT SECTION'S TITLE can land INSIDE your own section** — a
+  `:ref:` renders as the target's TITLE, so `rfind(next_title)` is not a boundary when you cite the
+  next section. `[M]` my slice read **1 659** of **21 909** chars and reported "0 leaks", a
+  designed-green reading. Anchor BOTH ends on a distinctive SENTENCE and sanity-check the slice
+  LENGTH. (Sharpens L-074, which only warned about the TOC.) -> L-082
 - **⭐ Two independently-VOCABULARIED instruments agreeing IS the acceptance evidence.** nexus
   `dead_references` (by RENDERED target) and the patched gate (by IMPORT) returned the SAME
   single finding; neither alone was persuasive (the stock gate said 0; nexus's set-difference
@@ -1844,6 +1885,16 @@ never paraphrase a level definition. → L-010
   -x -C <tmp>`, then run that tree's own copy of the gate on it). `[M]` 81 dead / 124 sites both
   sides while adding 80 xref roles. Its file-count will differ (untracked files); the DEAD number is
   the gate. → L-059
+- **⛔⛔ The xref gate's `head_role` blindness is at the HEAD-CHECK line, not the first
+  `candidate_paths` call — and an INERT patch reads exactly like a clean tree.** `judge()` returns
+  ALIVE from the first call and only later runs `if not any(lookup(c)[0] for c in
+  candidate_paths(head, namespaces, role))`, where `candidate_paths("orpheus", (), "class")` is
+  `()` on an `.rst` page ⟹ DECLINED. Patch THAT line. `[M]` with a throwaway `docs/_ctl.rst` (2
+  dead + 1 live role): stock **0 dead**, patched **2 dead / 2 sites**, `decidable` 5797 -> 5799.
+  ⟹ the control must SPLIT the two gates: **stock == patched is itself the tell that the patch is
+  inert**. Corpus reading (control removed) over `docs orpheus tests`: **0 dead**, 1006 files /
+  16 886 roles / 14 184 decidable. The fix is still UNLANDED in
+  `tools/check_docstring_xrefs.py`. -> L-082
 - **⭐⭐ Validate your OWN self-check parser against a known-good member before believing its
   negatives.** My list-table column checker required a trailing space after a cell's `-`, so a
   legal EMPTY cell (`^     -$`) read as a ragged table — two false positives on PRE-EXISTING

@@ -109,7 +109,7 @@ from ..exactness import (
     OrthogonalSystem,
 )
 from ..measure import DiscreteMeasure
-from orpheus.numerics.manifold import CIRCLE, SPHERE
+from orpheus.numerics.manifold import CIRCLE, archimedes
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_mu
 from .rules_circle import NODE_ALIGNED, periodic_trapezoid
@@ -340,7 +340,13 @@ def spherical_product(
     The constructive twin of :func:`spherical_product_claim` — that
     function composes the factors' *claims* through the product theorem;
     this one composes their *measures* through the embedding
-    :eq:`product-mu-phi-cosines`,
+    :eq:`product-mu-phi-cosines` — the typed chart
+    :func:`~orpheus.numerics.manifold.archimedes` — as
+    ``(polar * azimuthal).pushforward(archimedes("z"))``, so the result's
+    support is the chart's codomain and the tensor product is the
+    measure's own :meth:`~orpheus.numerics.measure.DiscreteMeasure.__mul__`
+    (#429 tracker 2.3, 2026-09-02; until then a hand loop plus a
+    ``support=SPHERE`` literal — L7),
 
     .. math::
 
@@ -404,9 +410,9 @@ def spherical_product(
     Returns
     -------
     DiscreteMeasure
-        Nodes shape ``(n_mu * n_phi, 3)`` on
-        ``support=SPHERE``, with derived ``invariance_group``
-        and ``exactness``.
+        Nodes shape ``(n_mu * n_phi, 3)`` on :data:`~orpheus.numerics.manifold.SPHERE`
+        — DERIVED as the Archimedes chart's codomain, never declared —
+        with derived ``invariance_group`` and ``exactness``.
     LevelStructure
         Per-level indexing for the cylindrical sweep, ordered by the
         stable η-sort (see the tie-break comment at the sort).
@@ -473,62 +479,21 @@ def spherical_product(
     claim = spherical_product_claim(polar_claim, azimuthal_claim)
     group = _derived_product_group(polar, azimuthal, atol=atol)
 
-    mu_gl, w_gl = polar.nodes, polar.weights
+    mu_gl = polar.nodes
     cos_phi, sin_phi = azimuthal.nodes[:, 0], azimuthal.nodes[:, 1]
-    w_phi = azimuthal.weights
     n_mu = polar.n_points
     n_phi = azimuthal.n_points
 
-    n_total = n_mu * n_phi
-    mu_x = np.empty(n_total)
-    mu_y = np.empty(n_total)
-    mu_z = np.empty(n_total)
-    weights = np.empty(n_total)
-    level_membership: list[np.ndarray] = []
-
-    idx = 0
-    for p in range(n_mu):
-        mu_val = mu_gl[p]
-        sin_theta = np.sqrt(1.0 - mu_val**2)
-        level_idx: list[int] = []
-        for m in range(n_phi):
-            mu_x[idx] = sin_theta * cos_phi[m]
-            mu_y[idx] = sin_theta * sin_phi[m]
-            mu_z[idx] = mu_val
-            weights[idx] = w_gl[p] * w_phi[m]
-            level_idx.append(idx)
-            idx += 1
-        # MEMBERSHIP ONLY — the ordering belongs to the fiber, and
-        # `LevelStructure.from_level_membership` owns it.
-        #
-        # η = sinθ·cos φ, and `cos φ_m = cos φ_{n_φ−m}` holds BIT-exactly
-        # for roots of unity, so a level's η values come in genuine
-        # ties: `[M]` only ⌊n_φ/2⌋+1 distinct values among n_φ ordinates
-        # (5 of 8 at n_φ=8). Under the `linspace`+`cos` azimuths this
-        # rule used until 2026-08-02, round-off manufactured 8 fake
-        # distinctions and the sort never saw a tie. This is the
-        # 2-to-1-ness the `LevelStructure.level_indices` warning names
-        # ("an ordering of the circle modulo the mirror") made literal.
-        #
-        # Until 2026-08-13 this loop closed with
-        # `np.argsort(mu_x[level_arr], kind="stable")`, and the comment
-        # here argued that `kind="stable"` was load-bearing. It was — as
-        # a REPAIR. Stable keeps the construction order, i.e. increasing
-        # φ within an η-tie, which is precisely the fiber key with the φ
-        # component left implicit in the loop nesting instead of written
-        # down. Naming φ retires the repair: the key is injective, so no
-        # tie survives for any algorithm to break. `[M]` the re-route is
-        # bit-identical on 8 product configurations (n_μ ∈ {2,3,4,5,6},
-        # n_φ ∈ {6,8,10,16,24,32}) and on 5 folded ones — on a FOLDED
-        # level η is injective by itself (the T22b theorem the accessor
-        # merge rests on), so the fold never saw the tie-break either.
-        level_membership.append(np.array(level_idx))
-
-    nodes = np.column_stack([mu_x, mu_y, mu_z])  # (N, 3)
-    measure = DiscreteMeasure(
-        nodes=nodes,
-        weights=weights,
-        support=SPHERE,
+    # ⭐ The rule IS the algebra: the tensor product of the two factors
+    # (outer loop μ, inner loop φ — ``DiscreteMeasure.__mul__``'s Cartesian
+    # order, on the product manifold ``[-1,1] × S^1``) pushed forward along
+    # the Archimedes chart about z, whose codomain is the sphere. The
+    # support is READ off the chart; the group and the claim are re-attached
+    # because a pushforward drops both (a map need not preserve either, and
+    # this one is what the two derivations above are theorems ABOUT).
+    # `[M]` bit-identical with the hand loop it replaced on every shipped
+    # configuration (see ``tests/numerics/test_rules_product.py``).
+    measure = (polar * azimuthal).pushforward(archimedes("z")).with_metadata(
         # COMPUTED from the factors by the three generator checks above
         # — never a declared literal. This module shipped three false
         # symmetry declarations (ERR-072/073/074); a declaration is
@@ -538,6 +503,36 @@ def spherical_product(
         # states what a polar × azimuthal embedding into S^2 is exact on.
         exactness=claim,
     )
+    nodes = measure.nodes  # (N, 3)
+
+    # Level MEMBERSHIP: each polar node is its own level, and the Cartesian
+    # order puts level p's n_phi ordinates in one contiguous block. Membership
+    # only — the ordering belongs to the fiber, and
+    # `LevelStructure.from_level_membership` owns it.
+    #
+    # η = sinθ·cos φ, and `cos φ_m = cos φ_{n_φ−m}` holds BIT-exactly
+    # for roots of unity, so a level's η values come in genuine
+    # ties: `[M]` only ⌊n_φ/2⌋+1 distinct values among n_φ ordinates
+    # (5 of 8 at n_φ=8). Under the `linspace`+`cos` azimuths this
+    # rule used until 2026-08-02, round-off manufactured 8 fake
+    # distinctions and the sort never saw a tie. This is the
+    # 2-to-1-ness the `LevelStructure.level_indices` warning names
+    # ("an ordering of the circle modulo the mirror") made literal.
+    #
+    # Until 2026-08-13 this loop closed with
+    # `np.argsort(mu_x[level_arr], kind="stable")`, and the comment
+    # here argued that `kind="stable"` was load-bearing. It was — as
+    # a REPAIR. Stable keeps the construction order, i.e. increasing
+    # φ within an η-tie, which is precisely the fiber key with the φ
+    # component left implicit in the loop nesting instead of written
+    # down. Naming φ retires the repair: the key is injective, so no
+    # tie survives for any algorithm to break. `[M]` the re-route is
+    # bit-identical on 8 product configurations (n_μ ∈ {2,3,4,5,6},
+    # n_φ ∈ {6,8,10,16,24,32}) and on 5 folded ones — on a FOLDED
+    # level η is injective by itself (the T22b theorem the accessor
+    # merge rests on), so the fold never saw the tie-break either.
+    level_membership = list(np.arange(n_mu * n_phi).reshape(n_mu, n_phi))
+
     structure = LevelStructure.from_level_membership(
         level_membership,
         nodes=nodes,
@@ -564,7 +559,7 @@ def spherical_product(
         azimuth=np.tile(
             np.mod(np.arctan2(sin_phi, cos_phi), 2.0 * np.pi), n_mu
         ),
-        hemisphere=np.sign(mu_z).astype(np.int64),
+        hemisphere=np.sign(nodes[:, 2]).astype(np.int64),
     )
     return measure, structure
 

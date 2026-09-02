@@ -28,6 +28,15 @@ Three groups:
    ships when it reproduces them by computation instead of by lookup.  A
    specification written first cannot be shaped to flatter the
    implementation (``vv-principles`` #17).
+
+
+4. **The arrows** (#429 tracker 2.3, 2026-09-02).  A :class:`ManifoldMap`
+   is a frozen value with two endpoints; composition is functorial on the
+   pushforward; and the two named maps — the Archimedes chart
+   :math:`[-1,1] \times S^1 \to S^2` and the orbit barycentre
+   :math:`S^2/SO(2)_a \to D^3` — each land where their codomain says,
+   with the ERR-080 discriminator (the barycentre is OFF the sphere except
+   at the poles) stated as a property of the map.
 """
 
 from __future__ import annotations
@@ -731,3 +740,165 @@ def test_ambient_dimension_is_defined_for_every_variant():
         assert ambient_dim(m) >= 1
     assert ambient_dim(SPHERE.quotient(SubgroupOfO3.SO2("x"))) == 1
     assert ambient_dim(SPHERE * CIRCLE) == 5
+
+
+# ---------------------------------------------------------------------------
+# 4. Maps between manifolds — the arrows (#429 tracker 2.3, 2026-09-02)
+# ---------------------------------------------------------------------------
+
+
+class TestManifoldMap:
+    r"""A :class:`ManifoldMap` is a typed arrow, and the tree's three maps
+    around the quotient are instances of it.
+
+    The intrinsic laws (``feedback_test_intrinsic_properties``): a map is a
+    frozen value with two endpoints; composition is refused across
+    mismatched endpoints and is functorial on the pushforward,
+    :math:`(\psi \circ \varphi)_*\mu = \psi_*(\varphi_*\mu)`.  Then the two
+    named maps, each with a positive leg AND the refusal leg
+    (``vv-principles`` #11): :func:`archimedes` lands on the sphere for
+    every axis and collapses the fibre onto the stratum; :func:`barycentre`
+    lands INSIDE the ball and on the sphere only at the poles — which is the
+    ERR-080 discriminator stated as a property of a map rather than of a
+    quadrature — and refuses any orbit space that is not an axial one.
+    """
+
+    def test_a_map_is_a_frozen_value_with_two_endpoints(self) -> None:
+        from orpheus.numerics.manifold import ManifoldMap
+
+        double = ManifoldMap(COSINE_INTERVAL, Interval(-2.0, 2.0), lambda x: 2.0 * x)
+        assert double.domain == COSINE_INTERVAL
+        assert double.codomain == Interval(-2.0, 2.0)
+        assert np.array_equal(double(np.array([0.5, -1.0])), [1.0, -2.0])
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            double.codomain = SPHERE  # type: ignore[misc]
+
+    def test_composition_requires_matching_endpoints(self) -> None:
+        from orpheus.numerics.manifold import ManifoldMap
+
+        phi = ManifoldMap(COSINE_INTERVAL, UNIT_INTERVAL, lambda x: 0.5 * (x + 1.0))
+        psi = ManifoldMap(UNIT_INTERVAL, UNIT_INTERVAL, lambda x: x * x)
+        both = psi @ phi
+        assert both.domain is COSINE_INTERVAL and both.codomain is UNIT_INTERVAL
+        assert np.array_equal(both(np.array([1.0, -1.0, 0.0])), [1.0, 0.0, 0.25])
+
+        # phi lands on [0,1]; a map out of [-1,1] cannot follow it.
+        with pytest.raises(ValueError, match="cannot compose"):
+            _ = phi @ phi
+        with pytest.raises(TypeError):
+            _ = phi @ "not a map"  # type: ignore[operator]
+
+    def test_functoriality_the_pushforward_of_a_composite_is_the_composite_of_pushforwards(
+        self,
+    ) -> None:
+        from orpheus.numerics.manifold import ManifoldMap
+        from orpheus.numerics.measure import gauss_legendre
+
+        phi = ManifoldMap(COSINE_INTERVAL, UNIT_INTERVAL, lambda x: 0.5 * (x + 1.0))
+        psi = ManifoldMap(UNIT_INTERVAL, UNIT_INTERVAL, lambda x: x * x)
+        mu = gauss_legendre(5)
+
+        at_once = mu.pushforward(psi @ phi)
+        stepwise = mu.pushforward(phi).pushforward(psi)
+        assert np.array_equal(at_once.nodes, stepwise.nodes)
+        assert np.array_equal(at_once.weights, stepwise.weights)
+        assert at_once.support == stepwise.support == UNIT_INTERVAL
+
+    @pytest.mark.parametrize("axis", ["x", "y", "z"])
+    def test_archimedes_lands_on_the_sphere_and_collapses_the_fibre_at_the_poles(
+        self, axis: str
+    ) -> None:
+        from orpheus.numerics.manifold import AXIS_INDEX, archimedes
+
+        chart = archimedes(axis)
+        assert chart.domain == COSINE_INTERVAL * CIRCLE
+        assert chart.codomain is SPHERE
+
+        mu = np.linspace(-1.0, 1.0, 7)
+        phi = 2.0 * np.pi * np.arange(8) / 8
+        # Cartesian order of the product measure: outer mu, inner phi.
+        points = np.column_stack(
+            [np.repeat(mu, 8), np.tile(np.cos(phi), 7), np.tile(np.sin(phi), 7)]
+        )
+        image = chart(points)
+        assert SPHERE.contains(image)
+        a = AXIS_INDEX[axis]
+        assert np.array_equal(image[:, a], np.repeat(mu, 8))
+        # Both poles are the image of a WHOLE fibre — the singular stratum.
+        pole = np.zeros(3)
+        pole[a] = 1.0
+        assert np.array_equal(image[-8:], np.tile(pole, (8, 1)))
+        assert np.array_equal(image[:8], np.tile(-pole, (8, 1)))
+
+    def test_archimedes_about_z_is_the_labelled_equation_verbatim(self) -> None:
+        r""":eq:`product-mu-phi-cosines`: :math:`\mu_x = \sin\theta\cos\varphi`,
+        :math:`\mu_y = \sin\theta\sin\varphi`, :math:`\mu_z = \mu` — spelled
+        by hand, and bit-identical to the chart."""
+        from orpheus.numerics.manifold import archimedes
+
+        mu = np.array([-0.9, -0.3, 0.0, 0.4, 0.75])
+        phi = np.array([0.3, 1.1, 2.9, 4.0, 5.5])
+        points = np.column_stack([mu, np.cos(phi), np.sin(phi)])
+        sin_theta = np.sqrt(1.0 - mu**2)
+        by_hand = np.column_stack([sin_theta * np.cos(phi), sin_theta * np.sin(phi), mu])
+        assert np.array_equal(archimedes("z")(points), by_hand)
+        assert archimedes("z") is archimedes("z")  # one object per axis
+        with pytest.raises(ValueError, match="axis must be one of"):
+            archimedes("w")
+
+    @pytest.mark.parametrize("axis", ["x", "y", "z"])
+    def test_barycentre_lands_in_the_ball_and_on_the_sphere_only_at_the_poles(
+        self, axis: str
+    ) -> None:
+        from orpheus.numerics.manifold import AXIS_INDEX, barycentre
+
+        orbit_space = SPHERE.quotient(SubgroupOfO3.SO2(axis))
+        centre = barycentre(orbit_space)
+        assert centre.domain is orbit_space  # the memoised entry itself
+        assert centre.codomain == Ball(3)
+
+        mu = np.linspace(-1.0, 1.0, 9)
+        image = centre(mu)
+        assert np.array_equal(image, centre(mu[:, None]))  # (N,) and (N,1) agree
+        assert Ball(3).contains(image)
+        # Off the sphere everywhere except the poles: this is ERR-080's
+        # forgery, stated as what the map's image IS.
+        assert not SPHERE.contains(image[1:-1])
+        assert SPHERE.contains(image[[0, -1]])
+        # 1 - |b|^2 is the squared orbit radius, det P / 4 = 1 - mu^2.
+        assert np.allclose(1.0 - np.sum(image * image, axis=1), 1.0 - mu**2)
+        a = AXIS_INDEX[axis]
+        assert np.array_equal(image[:, a], mu)
+        assert not np.any(image[:, [i for i in range(3) if i != a]])
+
+    def test_barycentre_refuses_anything_but_an_axial_orbit_space(self) -> None:
+        from orpheus.numerics.manifold import barycentre
+
+        barycentre(SPHERE.quotient(SubgroupOfO3.SO2("x")))  # positive control
+        for not_axial in (
+            SPHERE.quotient(SubgroupOfO3.Mirror("y")),
+            SPHERE.quotient(SubgroupOfO3.Trivial),
+            COSINE_INTERVAL,
+        ):
+            with pytest.raises(ValueError, match="axial rotation group"):
+                barycentre(not_axial)  # type: ignore[arg-type]
+
+    @pytest.mark.parametrize("axis", ["x", "y", "z"])
+    def test_barycentre_is_the_embedding_the_invariance_check_reads(
+        self, axis: str
+    ) -> None:
+        """Pattern 2: the honest spelling of the map READS the map.
+
+        ``symmetry._embedded_nodes`` is what ``is_invariant`` and the
+        motion-preservation check embed a polar marginal through; since
+        2.3 it is this map, so the two cannot drift.
+        """
+        from orpheus.numerics.manifold import barycentre
+        from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_polar_orbit
+        from orpheus.numerics.symmetry import _embedded_nodes
+
+        rule = gauss_legendre_on_polar_orbit(8, axis)
+        assert isinstance(rule.support, Quotient)
+        assert np.array_equal(
+            _embedded_nodes(rule), barycentre(rule.support)(rule.nodes)
+        )

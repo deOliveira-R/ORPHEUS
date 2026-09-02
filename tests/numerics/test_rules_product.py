@@ -510,3 +510,118 @@ def test_off_circle_fiber_nodes_are_refused() -> None:
     )
     with pytest.raises(ValueError, match="unit"):
         spherical_product(gauss_legendre_on_mu(4), inflated)
+
+
+# ---------------------------------------------------------------------------
+# The product rule IS the algebra: (polar ⊗ azimuthal) pushed along the
+# Archimedes chart (#429 tracker 2.3, 2026-09-02)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(
+    ("n_mu", "n_phi"), [(2, 6), (4, 8), (5, 10), (3, 16), (6, 32)]
+)
+def test_the_product_rule_is_the_tensor_product_pushed_along_the_archimedes_chart(
+    n_mu: int, n_phi: int
+) -> None:
+    r"""Derivation agreement, and the support READ off the chart.
+
+    Until 2026-09-02 :func:`spherical_product` built its nodes in a hand
+    loop and declared ``support=SPHERE`` — a literal that nothing could
+    contradict (L7).  Now it is
+    ``(polar * azimuthal).pushforward(archimedes("z"))``: the tensor product
+    is the measure's own, the embedding is the typed chart, and the support
+    is the chart's codomain.  This gate holds the OLD loop as the
+    structurally-independent reference realization (the same role the
+    hand-rolled ξ→|ξ| fold plays for ``quotient()``) and pins bit-identity
+    — `[M]` 0 of 60 configurations differ at the carve
+    (n_μ ∈ {2..6} × n_φ ∈ {6,8,10,16,24,32} × both shifts), every field of
+    the measure AND of the level structure — plus the identity that the
+    done-when asks for: the support is the chart's codomain, not a copy of
+    it.
+    """
+    from orpheus.numerics.manifold import archimedes
+    from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
+    from orpheus.numerics.quadrature.rules_circle import NODE_ALIGNED, periodic_trapezoid
+
+    polar = gauss_legendre_on_mu(n_mu)
+    azimuthal = periodic_trapezoid(n_phi, shift=NODE_ALIGNED)
+    measure, structure = product_mu_phi(n_mu, n_phi)
+
+    # The reference: the pre-2.3 loop, transcribed — outer μ, inner φ.
+    cos_phi, sin_phi = azimuthal.nodes[:, 0], azimuthal.nodes[:, 1]
+    nodes = np.empty((n_mu * n_phi, 3))
+    weights = np.empty(n_mu * n_phi)
+    idx = 0
+    for p in range(n_mu):
+        mu = polar.nodes[p]
+        sin_theta = np.sqrt(1.0 - mu**2)
+        for m in range(n_phi):
+            nodes[idx] = (sin_theta * cos_phi[m], sin_theta * sin_phi[m], mu)
+            weights[idx] = polar.weights[p] * azimuthal.weights[m]
+            idx += 1
+    assert np.array_equal(measure.nodes, nodes)
+    assert np.array_equal(measure.weights, weights)
+
+    # DERIVED: the support is the chart's codomain — one object, not a
+    # literal that happens to agree with it.
+    assert measure.support is archimedes("z").codomain
+    assert measure.support is SPHERE
+    # And the group/claim survive the pushforward (re-attached, since a map
+    # need not preserve either).
+    assert measure.invariance_group == SubgroupOfO3.Dnh(n_phi)
+    assert measure.degree_of_exactness == min(2 * n_mu - 1, n_phi - 1)
+    # Level MEMBERSHIP is the Cartesian block structure of the product.
+    for p, level in enumerate(structure.level_indices):
+        assert sorted(int(i) for i in level) == list(range(p * n_phi, (p + 1) * n_phi))
+
+
+@pytest.mark.foundation
+def test_no_measure_built_by_spherical_product_names_its_support_by_literal() -> None:
+    """The done-when, as an AST fact about the constructor's own source.
+
+    Scoped to the MAP-BUILT constructor (the tell over every ``support=``
+    keyword in the tree would be pinned red forever by the three honest
+    tabulations — Lebedev, level-symmetric, the reference measure — that
+    live ON the sphere and say so; ``plan-authoring`` §10's third shape).
+    """
+    import ast
+    import inspect
+
+    from orpheus.numerics.quadrature import rules_product
+
+    tree = ast.parse(inspect.getsource(rules_product.spherical_product))
+    support_keywords = [
+        kw
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        for kw in node.keywords
+        if kw.arg == "support"
+    ]
+    assert support_keywords == [], ast.dump(support_keywords[0])
+
+
+@pytest.mark.foundation
+def test_spherical_product_refuses_a_polar_factor_off_the_charts_domain() -> None:
+    r"""The Archimedes chart is a map out of :math:`[-1,1] \times S^1`, so the
+    polar factor must live on the CHART, :math:`[-1,1]` — the slab's rule on
+    :math:`S^2/SO(2)_x` carries the same numbers and is a different measure
+    (its points are orbits about **x**, not cosines against **z**), and the
+    typed pushforward refuses it where the literal used to accept it.
+    Positive leg: the chart-level factor is exactly what ``product()`` hands
+    in.
+    """
+    from orpheus.numerics.quadrature.rules_1d import (
+        gauss_legendre_on_mu,
+        gauss_legendre_on_polar_orbit,
+    )
+    from orpheus.numerics.quadrature.rules_circle import NODE_ALIGNED, periodic_trapezoid
+    from orpheus.numerics.quadrature.rules_product import spherical_product
+
+    azimuthal = periodic_trapezoid(8, shift=NODE_ALIGNED)
+    accepted, _ = spherical_product(gauss_legendre_on_mu(4), azimuthal)
+    assert accepted.support is SPHERE
+
+    with pytest.raises(ValueError, match="map's domain must be the measure's support"):
+        spherical_product(gauss_legendre_on_polar_orbit(4, "x"), azimuthal)

@@ -31,6 +31,7 @@ from orpheus.numerics.manifold import (
     COSINE_INTERVAL,
     IndexSet,
     Interval,
+    ManifoldMap,
     REAL_LINE,
     SPHERE,
     UNIT_INTERVAL,
@@ -259,7 +260,7 @@ def test_direct_sum_composite_quadrature() -> None:
     # Build N-point GL on [-1, 0] and [0, 1] via pushforward, then
     # direct-sum on the common space "[-1,1]".
     base_left = gauss_legendre(4).pushforward(
-        lambda x: 0.5 * (x - 1.0), new_space=COSINE_INTERVAL,
+        ManifoldMap(COSINE_INTERVAL, COSINE_INTERVAL, lambda x: 0.5 * (x - 1.0)),
     )
     # The pushforward x -> (x-1)/2 maps [-1,1] to [-1, 0]. The Jacobian
     # (1/2) MUST be applied to the weights manually — the pushforward
@@ -270,7 +271,7 @@ def test_direct_sum_composite_quadrature() -> None:
         support=base_left.support,
     )
     base_right = gauss_legendre(4).pushforward(
-        lambda x: 0.5 * (x + 1.0), new_space=COSINE_INTERVAL,
+        ManifoldMap(COSINE_INTERVAL, COSINE_INTERVAL, lambda x: 0.5 * (x + 1.0)),
     )
     base_right = DiscreteMeasure(
         nodes=base_right.nodes,
@@ -300,7 +301,9 @@ def test_pushforward_invertible_map_change_of_variables() -> None:
     """
     n = 200  # midpoint rule needs many points to reach 1/5
     base = equispaced(0.0, 1.0, n)
-    pushed = base.pushforward(lambda x: x ** 2, new_space=UNIT_INTERVAL)
+    pushed = base.pushforward(
+        ManifoldMap(UNIT_INTERVAL, UNIT_INTERVAL, lambda x: x ** 2)
+    )
     assert pushed.n_points == n
     assert np.allclose(pushed.weights, base.weights)
     assert np.allclose(pushed.nodes, base.nodes ** 2)
@@ -319,33 +322,49 @@ def test_pushforward_drops_metadata() -> None:
     base = gauss_legendre(5).with_metadata(invariance_group=SubgroupOfO3.O3)
     assert base.invariance_group == SubgroupOfO3.O3
     assert base.degree_of_exactness == 9
-    pushed = base.pushforward(lambda x: x ** 3, new_space=IndexSet(label="img"))
+    pushed = base.pushforward(
+        ManifoldMap(COSINE_INTERVAL, IndexSet(label="img"), lambda x: x ** 3)
+    )
     assert pushed.invariance_group is None
     assert pushed.degree_of_exactness is None
 
 
 @pytest.mark.foundation
-def test_pushforward_REFUSES_to_invent_a_target_space() -> None:
-    r"""``pushforward`` will not name a manifold nobody has computed.
+def test_pushforward_READS_its_target_off_the_map_and_refuses_a_map_out_of_elsewhere() -> None:
+    r"""``pushforward`` lands where the MAP says, and only along a map out of
+    the measure's own support.
 
-    ⭐ Until 2026-09-01 (#429 tracker 2.0c) ``new_space`` was optional and
-    defaulted to a FABRICATED support named ``f"φ_*({self.support})"`` — and
-    this test pinned that name.  The image :math:`\varphi(\mathcal{X})` of a
-    manifold under an arbitrary map is a manifold nobody has derived; naming it
-    does not make it known, and a space asserting an identity it does not have
-    is precisely the defect class this campaign exists to remove (ERR-080 is
-    the same move on a quadrature's support).
+    ⭐ Three states of one verb, in campaign order (#429).  Until 2026-09-01
+    ``new_space`` was optional and defaulted to a FABRICATED support named
+    ``f"φ_*({self.support})"`` — and this test pinned that name.  Tracker
+    2.0c made the caller NAME the target (this test then pinned the refusal
+    of a bare callable).  Tracker 2.3 (2026-09-02) makes the map CARRY it —
+    a :class:`~orpheus.numerics.manifold.ManifoldMap` with ``domain`` and
+    ``codomain`` — so the target cannot be forged at the call site at all:
+    ERR-080 is the barycentre map applied with its codomain declared as
+    :math:`S^2`, and through this verb that sentence has no spelling.
 
-    So the gate flips from pinning the fabrication to pinning its **refusal**.
-    Only ``φ``'s author knows :math:`\mathcal{Y}`, so only they can name it.
+    Three legs (vv-principles #11): the positive one, and two refusals — a
+    map out of the WRONG point set (the same numbers on a different
+    manifold), and the retired call-site spelling of a target.
     """
-    base = gauss_legendre(3)
-    with pytest.raises(TypeError, match="new_space"):
-        _ = base.pushforward(lambda x: x + 1.0)  # type: ignore[call-arg]
+    base = gauss_legendre(3)  # on COSINE_INTERVAL
+    shift = ManifoldMap(COSINE_INTERVAL, Interval(0.0, 2.0), lambda x: x + 1.0)
 
-    # ...and the positive leg: named, it works (vv-principles #11).
-    named = base.pushforward(lambda x: x + 1.0, new_space=Interval(0.0, 2.0))
-    assert named.support == Interval(0.0, 2.0)
+    pushed = base.pushforward(shift)
+    assert pushed.support == Interval(0.0, 2.0)
+    assert pushed.support is shift.codomain  # READ, not re-derived
+    assert np.array_equal(pushed.nodes, base.nodes + 1.0)
+
+    # The same arithmetic, out of a point set this measure does not live on.
+    elsewhere = ManifoldMap(UNIT_INTERVAL, Interval(0.0, 2.0), lambda x: x + 1.0)
+    with pytest.raises(ValueError, match="map's domain"):
+        _ = base.pushforward(elsewhere)
+
+    # The 2.0c spelling — a bare callable plus a target named at the call
+    # site — is gone, not merely discouraged.
+    with pytest.raises(TypeError, match="new_space"):
+        _ = base.pushforward(lambda x: x + 1.0, new_space=Interval(0.0, 2.0))  # type: ignore
 
 
 @pytest.mark.foundation
@@ -714,7 +733,7 @@ def test_quotient_is_pushforward_then_consolidate_with_orbifold_weights() -> Non
         return out
 
     folded = mu.pushforward(
-        to_representative, new_space=SPHERE.quotient(SubgroupOfO3.Mirror("y")),
+        ManifoldMap(SPHERE, SPHERE.quotient(SubgroupOfO3.Mirror("y")), to_representative),
     ).consolidate()
 
     n_fixed = int((np.abs(q.mu_y) < 1e-14).sum())
@@ -790,7 +809,11 @@ def test_quotient_agrees_with_the_geometric_section_orbit_by_orbit() -> None:
     reference_nodes = mu.nodes.copy()
     reference_nodes[:, 1] = np.abs(reference_nodes[:, 1])
     reference = mu.pushforward(
-        lambda nodes: reference_nodes, new_space=SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+        ManifoldMap(
+            SPHERE,
+            SPHERE.quotient(SubgroupOfO3.Mirror("y")),
+            lambda nodes: reference_nodes,
+        )
     ).consolidate()
 
     assert folded.n_points == reference.n_points == 20  # Burnside (32+8)/2

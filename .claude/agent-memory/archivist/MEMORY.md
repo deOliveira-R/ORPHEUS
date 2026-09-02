@@ -46,6 +46,18 @@ stage + gate.
   ⚠ **REPORTED, code-only** (3 items: `__all__`, a symbol collision, a hand-typed fixture) —
   detail, the four findings and the numbers are in the lesson. → [[lessons-L80]]
 
+- **A map carries its two point sets, so a codomain cannot be forged** — 2026-09-02, same branch,
+  tracker **2.3** (`ManifoldMap`; `archimedes`, the orbit retraction, `barycentre`). Docs
+  **UNCOMMITTED** (mine): `manifolds.rst` +883/−42 (a new `=` section + 6 `-` subsections, one new
+  `documented` eq-label `manifold-map-functoriality`), `discrete_measures.rst` +46, `error_catalog.rst`
+  ERR-080 +68 (**stays OPEN**), `spherical_harmonics.rst` +32, regenerated `matrix.rst`
+  (10595 → **10616**; sentinels 576 → **577**; `numerics/test_manifold` 56 → **70**,
+  `test_rules_product` 38 → **45**). `-E -W` **0 → 0**, EXIT=0. ⚠ **REPORTED, code-only** (4 items:
+  a docstring promising a zero-fallback where the body raises, a gate docstring saying "two"
+  strict-xfails where three ship, a `Ball` overstatement, an over-indented comment block).
+  ⚠ Two brief claims REFUTED and one instrument found broken — the detail is in the lesson.
+  → [[lessons-L82]]
+
 - **A basis declares its symmetry by naming what it EATS** — 2026-09-01, same branch, tracker
   **2.1b** (`Basis.invariance_group`, DERIVED + `@final`). Docs **UNCOMMITTED** (mine):
   `manifolds.rst` +591 (a new `=` section + 4 `-` subsections), `discrete_measures.rst` +90 (a

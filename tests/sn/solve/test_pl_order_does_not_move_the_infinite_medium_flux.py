@@ -1,8 +1,9 @@
 r"""An infinite medium's flux is isotropic, so :math:`P_L` order cannot move it.
 
 ⛔ **This module is RED by design at** :math:`L \ge 2` **(ERR-080).** The
-two strict-xfail rows below assert the physics; the tree does not yet
-deliver it. They retire themselves — an ``XPASS`` under
+three strict-xfail rows below (`[M]` by AST 2026-09-02 — this line read
+"two" while the third row existed) assert the physics; the tree does not
+yet deliver it. They retire themselves — an ``XPASS`` under
 ``xfail(strict=True)`` is a FAILURE, so the marker cannot outlive the
 repair.
 

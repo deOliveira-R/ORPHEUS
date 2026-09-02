@@ -26,7 +26,7 @@ Manifolds: the Point Set, the Orbit Space, and What a Basis Eats
       role: "the point-set layer — the manifold M a measure is supported on and a basis function is defined over, its algebra (product, orbit space, membership), the invariant-theoretic derivation that produces an orbit space, the TWO coordinate systems an orbit space honestly has (the invariant chart's codomain and a section's image), and the three-level separation (manifold / fields on it / coefficients) that keeps a FunctionSpace from being mistaken for a domain"
       depends_on: []
       related: [discrete_measures, spaces, frame, spherical_harmonics]
-      status: "MINTED, gated, WIRED, and CONSUMED. Two catalogued derivations ship (S^2/SO(2)_a for the three ROTATION axes and S^2/<sigma_a> for the three MIRROR axes — six keys, two procedures — plus the derived identity quotient), and a Quotient carries BOTH coordinate systems after the 2026-08-31 two-slot ruling. `Space = str` and its six SPACE_* tags are RETIRED (tracker 2.0c, 2026-09-01): `DiscreteMeasure.support`, `GeneratingMeasure.support`, `UniformMeasure.support`, `ProductMeasure.support`, the `ReferenceMeasure` Protocol and `AngularSymmetry.support` all carry a Manifold, and `Basis.domain` does too (2.1). Tracker 2.1b (2026-09-01) read a SECOND answer off that same slot: `Basis.invariance_group` is DERIVED from `domain` by a match on its TYPE (a Quotient of the sphere -> its `by`; the sphere -> Trivial; anything else -> None), so a basis declares the symmetry its functions HAVE by naming the manifold they EAT. `[M]` 6 of 6 shipped bases answer, the property is @final, and it cost zero subclass edits and no new field. ERR-080's pairing therefore has BOTH operands and is a computable lattice verdict — `[M]` `Trivial contains SO2('x')` is False for the slab, while the shipped fold's two halves are literally ONE group object. Nothing CONSUMES that verdict yet: the frame's pairing gate is tracker 2.2, and a gate written on the FRAME's measure would be inert today because that measure still carries the forged S^2. Tracker 2.4 (2026-09-01) gave the axial rotation group its AXIS — `SO2(axis)` beside `Mirror(axis)` — and made the slab's polar rule DECLARE its orbit space: `Quadrature.gauss_legendre(8).measure.support.name == 'S^2/SO2_x'`, via the new verb `DiscreteMeasure.on_orbit_space`. That is this page's first PRODUCTION consumer, and it collapsed the registry twin (`AngularSymmetry.support` now calls `SPHERE.quotient`). ERR-080 itself is still OPEN — the forgery's REFUSAL at construction is tracker 2.0b + the fused fix step, and the honest SECTION is tracker 2.3; neither is this page's capability"
+      status: "MINTED, gated, WIRED, and CONSUMED. Two catalogued derivations ship (S^2/SO(2)_a for the three ROTATION axes and S^2/<sigma_a> for the three MIRROR axes — six keys, two procedures — plus the derived identity quotient), and a Quotient carries BOTH coordinate systems after the 2026-08-31 two-slot ruling. `Space = str` and its six SPACE_* tags are RETIRED (tracker 2.0c, 2026-09-01): `DiscreteMeasure.support`, `GeneratingMeasure.support`, `UniformMeasure.support`, `ProductMeasure.support`, the `ReferenceMeasure` Protocol and `AngularSymmetry.support` all carry a Manifold, and `Basis.domain` does too (2.1). Tracker 2.1b (2026-09-01) read a SECOND answer off that same slot: `Basis.invariance_group` is DERIVED from `domain` by a match on its TYPE (a Quotient of the sphere -> its `by`; the sphere -> Trivial; anything else -> None), so a basis declares the symmetry its functions HAVE by naming the manifold they EAT. `[M]` 6 of 6 shipped bases answer, the property is @final, and it cost zero subclass edits and no new field. ERR-080's pairing therefore has BOTH operands and is a computable lattice verdict — `[M]` `Trivial contains SO2('x')` is False for the slab, while the shipped fold's two halves are literally ONE group object. Nothing CONSUMES that verdict yet: the frame's pairing gate is tracker 2.2, and a gate written on the FRAME's measure would be inert today because that measure still carries the forged S^2. Tracker 2.4 (2026-09-01) gave the axial rotation group its AXIS — `SO2(axis)` beside `Mirror(axis)` — and made the slab's polar rule DECLARE its orbit space: `Quadrature.gauss_legendre(8).measure.support.name == 'S^2/SO2_x'`, via the new verb `DiscreteMeasure.on_orbit_space`. That is this page's first PRODUCTION consumer, and it collapsed the registry twin (`AngularSymmetry.support` now calls `SPHERE.quotient`). Tracker 2.3 (2026-09-02) gave the category its ARROWS: `ManifoldMap(domain, codomain, apply)` is a frozen value type, composition `psi @ phi` is refused across mismatched endpoints, and `DiscreteMeasure.pushforward` now READS its target off `phi.codomain` (`new_space=` retired) and refuses a map out of the wrong point set — by manifold VALUE, so the slab's `S^2/SO2_x` rule and the chart rule on `[-1,1]`, whose nodes are `np.array_equal`, are told apart. Three arrows are typed: `archimedes(axis)` ([-1,1] x S^1 -> S^2, Archimedes' hat-box, `[M]` the product rule is bit-identical to its retired hand loop on 60 of 60 configurations and its support IS the chart's codomain); the orbit retraction inside `quotient()`; and `barycentre(orbit_space)` (S^2/SO(2)_a -> Ball(3), since 1 - norm(mu e_a)^2 = 1 - mu^2 = det P / 4). ERR-080 restated in that vocabulary: it is the barycentre map with a FORGED codomain — `[M]` the forgery's nodes are np.array_equal to the honest map's image and differ only in the type claimed. 2.3 is an ENABLER and repairs nothing: no membership check runs inside a map (that refusal is tracker 2.0b, at measure construction), the forgery arm stays a raw constructor BY DESIGN until 3.4, and `[M]` the ERR-080 gate still declares three xfail(strict=True) rows. Neither the entry's chart nor its section ships — `[M]` `Quotient.fundamental_domain` still has zero readers outside this module, and the pushforward REFERENCE measure is deferred to 3.1 because `[M]` a module-scope manifold -> exactness import closes a two-hop cycle that kills 5 of 5 fresh import orders. ERR-080 itself is still OPEN"
 
 
 This page develops the **point-set layer** — the thing a measure is
@@ -172,6 +172,33 @@ polynomial three times over.
      :math:`\mu_z`, and **one** Gauss–Legendre rule serves both roles —
      so the group a marginal was quotiented by cannot be spelled without
      naming its axis (:ref:`manifold-so2-axis-is-a-parameter`).
+   - ⭐ **A map carries its two point sets, so a codomain cannot be
+     forged at the call site** (tracker 2.3, 2026-09-02).
+     :class:`~orpheus.numerics.manifold.ManifoldMap` gives the
+     category its **arrows**; ``pushforward`` reads its target off
+     ``φ.codomain`` (``new_space=`` retired) and refuses a map whose
+     ``domain`` is not the measure's support — by manifold VALUE, so
+     `[M]` the slab's rule and the chart rule, whose nodes are
+     ``np.array_equal``, are told apart. Three arrows ship: the
+     Archimedes chart, whose codomain the product rule now READS
+     (`[M]` bit-identical to the retired hand loop on **60 of 60**
+     configurations); the orbit retraction inside ``quotient()``; and
+     the orbit **barycentre**
+     :math:`\mu \mapsto \mu\,\hat e_a`, whose honest codomain is
+     ``Ball(3)`` because :math:`1-\lVert\mu\hat e_a\rVert^2 = 1-\mu^2
+     = \tfrac14\det P`. ⟹ **ERR-080 is that map with a forged
+     codomain** — `[M]` the forgery's nodes are ``np.array_equal`` to
+     the honest map's image and differ only in the type claimed
+     (:ref:`manifold-arrows`).
+   - ⛔ **2.3 is an ENABLER: it repairs nothing.** No membership check
+     runs inside a map (that refusal is tracker 2.0b, at measure
+     construction); the forgery arm stays a raw constructor **by
+     design**, because routing it through ``pushforward`` would force
+     it to tell the truth; and `[M]` the ERR-080 gate still declares
+     **three** ``xfail(strict=True)`` rows, untouched. Neither the
+     entry's chart nor its section ships — `[M]`
+     ``fundamental_domain`` still has zero readers outside the module
+     (:ref:`manifold-arrows-not-built`).
    - **The algebra was already running, spelled as string
      interpolation.** `[M]` ``measure.py:588`` was
      :meth:`__mul__ <orpheus.numerics.manifold.Manifold.__mul__>`
@@ -504,8 +531,8 @@ in ``tests/``. Four of the 18 are the ones that matter here:
    :header-rows: 1
    :widths: 22 40 38
 
-   * - Site
-     - What it computes today
+   * - Site (as of 2026-08-31)
+     - What it computed, until the verb replaced it
      - The verb it *is*
    * - ``measure.py:588``
      - ``new_space = f"{self.support} × {other.support}"``
@@ -524,6 +551,22 @@ in ``tests/``. Four of the 18 are the ones that matter here:
      - ``name = f"L2[{self.support}]"``
      - the *derived* level-2 name — the level-1 object smuggled inside
        a level-2 label
+
+⛔ **Every cell of the middle column is now history, and each of the four
+died on a different date.** The column header read *"What it computes
+today"* until 2026-09-02; it was true when written and the campaign
+repealed it row by row. Rows 1 and 2 became :meth:`Manifold.__mul__
+<orpheus.numerics.manifold.Manifold.__mul__>` and
+:meth:`Manifold.quotient
+<orpheus.numerics.manifold.Manifold.quotient>` at tracker 2.0c
+(2026-09-01); row 4's ``str`` became a typed
+:class:`~orpheus.numerics.manifold.Manifold` the same day (the
+interpolation survives, but of a point set rather than a tag — see the
+✅ below); and row 3 is the last to go, at tracker 2.3 (2026-09-02),
+where the pushforward's codomain stopped being *named at the call site*
+and became a field of the map (:ref:`manifold-arrow-type`). The rows
+stay because the *argument* is what they carry: the mint added no
+algebra, and this is the evidence.
 
 This is the strongest available form of the project's own type-minting
 criterion (``coding-standards``, *Type vs property*: mint **iff** there
@@ -628,14 +671,32 @@ hours apart, and the second one repealed the first one's premise.
 (c) The vocabulary drifted, and a nonsense quotient is spellable
 ----------------------------------------------------------------
 
-`[M]` both ``'S^2/<sigma_y>'`` (``tests/numerics/test_measure.py:701``,
-a hand-written ``new_space=``) and ``'S^2/sigma_y'``
-(``:777``, ``:947``, and what the production
+`[M]` **2026-08-31, on the tree as it then stood** — read this
+subsection in the past tense throughout — both ``'S^2/<sigma_y>'`` (a
+hand-written ``new_space=`` in ``tests/numerics/test_measure.py``) and
+``'S^2/sigma_y'`` (two further sites, and what the production
 :meth:`DiscreteMeasure.quotient
-<orpheus.numerics.measure.DiscreteMeasure.quotient>` emits, since
-``SubgroupOfO3.Mirror("y").name == "sigma_y"``) ship. They name **one**
-quotient and are **unequal under** ``==``. Also shipped as support
-literals: ``'img'``, ``'probe'``, ``'[-1,1]^slab'``.
+<orpheus.numerics.measure.DiscreteMeasure.quotient>` emitted, since
+``SubgroupOfO3.Mirror("y").name == "sigma_y"``) shipped. They named
+**one** quotient and were **unequal under** ``==``. Also shipped as
+support literals: ``'img'``, ``'probe'``, ``'[-1,1]^slab'``.
+
+.. note::
+
+   ⛔ **The mechanism this subsection describes is retired, and its two
+   halves died separately.** The *tag* went at tracker 2.0c
+   (2026-09-01), when ``support`` became a
+   :class:`~orpheus.numerics.manifold.Manifold` and two strings naming
+   one quotient stopped being expressible. The *hand-written target*
+   went at tracker 2.3 (2026-09-02): ``new_space=`` is retired and a
+   pushforward reads its codomain off the map
+   (:ref:`manifold-arrow-type`). The subsection stays because the
+   demonstration below — a nonsense quotient accepted by one verb and
+   refused by the other — is the argument that the mint was a repair
+   and not a re-spelling. ⚠ Line numbers in the original `[M]` are
+   deliberately dropped here: which line of a test file carried a
+   spelling is not a durable fact, and three of the four cited files
+   have since been edited by this campaign.
 
 The sharper demonstration is what the quotient verb accepts. `[M]`
 2026-08-31, folding a :math:`\sigma_y`-invariant 4-node set by
@@ -2299,8 +2360,15 @@ correct; what could not serve both was the *type*.
    * - what the tree ships as ``measure.nodes``
      - the **chart**, :math:`(8,)`
      - the **section**, :math:`(16,3)`
-   * - `[M]` ``measure.support``
-     - ``'[-1,1]'`` — the *realization's* name
+   * - `[M]` ``measure.support`` (2026-09-02)
+     - ``'S^2/SO2_x'`` — the *quotient's* name. ⛔ This cell read
+       ``'[-1,1]'`` — the *realization's* name — until 2026-09-02; it
+       was true when written and tracker 2.4 repealed it on
+       2026-09-01, when the slab's rule began *declaring* its orbit
+       space (:ref:`manifold-orbit-space-declaration`). The row's
+       point survives intact: what the rule ships as ``nodes`` is
+       still the **chart**, one column, and only the *support* now
+       says which orbit space those chart coordinates are for.
      - ``'S^2/sigma_y'`` — the *quotient's* name
 
 ⟹ **For a positive-dimensional group the chart is strictly cheaper and
@@ -2519,14 +2587,24 @@ ruling has been violated — however clean the interface looks.
    * - the chart :math:`M/H \to N`
      - ⛔ **not a slot**
      - only its **codomain** ships, as ``realization`` — the mirror of
-       the row above, where only the *image* ships. Neither **map**
-       does
+       the row above, where only the *image* ships. Neither **map** is
+       a field. ⭐ **Narrowed 2026-09-02 (tracker 2.3):** a map is now
+       a *type* (:class:`~orpheus.numerics.manifold.ManifoldMap`), so
+       this row is a missing **slot** rather than a missing
+       vocabulary. `[M]` none of the three arrows the tree ships is
+       this chart or that section — the reasons are enumerated per
+       arrow at :ref:`manifold-arrows-not-built`.
    * - the pushforward measure :math:`\pi_*\mu`
      - ⛔ **not a slot**
      - the measure descends today via
        :meth:`DiscreteMeasure.quotient
        <orpheus.numerics.measure.DiscreteMeasure.quotient>`, which
-       knows nothing about this catalogue
+       knows nothing about this catalogue. ⚠ **And it cannot be added
+       by importing** — `[M]` 2026-09-02, a module-scope
+       ``manifold → exactness`` edge closes a two-hop cycle and kills
+       5 of 5 fresh import orders; the viable mechanism is a
+       function-scope import inside the derivation function
+       (:ref:`manifold-arrows-not-built`, item 2). Tracker **3.1**.
 
 `[M]` **7 of 9** — by ``dataclasses.fields``, ``Quotient`` declares ten
 fields: ``base``, ``by``, ``realization``, ``fundamental_domain``,
@@ -3056,13 +3134,658 @@ tree fabricated as :math:`(\mu, 0, 0)` — the fabrication is the same map
 with the :math:`\hat e_b` term dropped, which is exactly why its rows
 have norms :math:`|\mu| < 1` rather than :math:`1`.
 
-⚠ **It is still a CHOICE, and it belongs to tracker 2.3.** Every
-half-meridian is a section; :math:`\varphi = 0` merely names one, and
-which one you pick is a convention about where azimuth zero sits, not a
-derivation. The shipped catalogue entry therefore keeps
-``fundamental_domain=None`` on purpose, and the choice belongs to the
-step that mints the typed ``Chart`` — not to the orbit-space derivation,
-which would then be smuggling a convention into a theorem.
+⚠ **It is still a CHOICE.** Every half-meridian is a section;
+:math:`\varphi = 0` merely names one, and which one you pick is a
+convention about where azimuth zero sits, not a derivation. The shipped
+catalogue entry therefore keeps ``fundamental_domain=None`` on purpose,
+and the choice belongs to whichever step declares a section — not to
+the orbit-space derivation, which would then be smuggling a convention
+into a theorem.
+
+.. note::
+
+   ⛔ **This paragraph read "and it belongs to tracker 2.3 … the step
+   that mints the typed** ``Chart`` **— not to the orbit-space
+   derivation" until 2026-09-02.** Tracker 2.3
+   landed on that date and the prediction is half right, in the way
+   worth recording (``coding-standards``, the *falsified prediction*
+   tense class): the **phase** was right and a typed map did land, but
+   it is :class:`~orpheus.numerics.manifold.ManifoldMap` rather than a
+   ``Chart``, and **the choice was not made**. `[M]` 2026-09-02 the
+   three arrows 2.3 types are a parametrisation of the *base*
+   (``archimedes``), a per-measure orbit *retraction*, and the orbit
+   *barycentre*, which lands off :math:`S^2` by construction — none of
+   them is a section, and
+   :attr:`Quotient.fundamental_domain
+   <orpheus.numerics.manifold.Quotient.fundamental_domain>` is still
+   read by nothing outside :mod:`orpheus.numerics.manifold` itself.
+   The naming ruling is the reason: *a chart is* :math:`M \supset U \to
+   \mathbb{R}^n`, and only the **inverse** of the Archimedes map is
+   one, so a type called ``Chart`` would have mis-described two of its
+   own three instances (:ref:`manifold-arrows`). The section is still
+   owed, and it is still a choice.
+
+
+.. _manifold-arrows:
+
+Maps between manifolds: the ARROWS
+==================================
+
+Everything above this point is about **objects**. A category needs
+arrows too, and the tree had been drawing three of them freehand:
+whenever a construction wanted to move a point set somewhere else it
+applied a callable and then *named the destination by hand*, at the
+call site, in whatever vocabulary was locally convenient. That is the
+shape a forged claim takes — the same shape :ref:`ERR-080
+<manifold-err-080>` has — because a destination named at the call site
+is a claim nobody else made and nothing can contradict.
+
+Tracker 2.3 (2026-09-02) gives the arrows a type. It adds no
+mathematics: every one of the three maps below was already being
+computed, correctly, in production. What it adds is that the
+**codomain travels with the map** instead of being supplied by the
+caller, so *"apply this map and declare the result to live on*
+:math:`S^2`\ *"* stops being a sentence anyone can write.
+
+
+.. _manifold-arrow-type:
+
+The type: a map carries its two point sets
+-------------------------------------------
+
+:class:`~orpheus.numerics.manifold.ManifoldMap` is a frozen value with
+three fields — ``domain``, ``codomain``, ``apply`` — and it is the
+point-level analogue of a
+:class:`~orpheus.numerics.operator.LinearOperator`: where an operator
+carries the two *function spaces* it maps between, a map carries the
+two *point sets*. The design ruling (user, 2026-09-02) was for **one**
+value type with named maps as factories — ``archimedes(axis)``,
+``barycentre(orbit_space)`` — exactly as
+:data:`~orpheus.numerics.manifold.SPHERE` and ``LEGENDRE`` are values
+of their own types rather than subclasses of them.
+
+Two arrows are *induced* by every :math:`\varphi : M \to N`, and they
+are the reason the type exists rather than being decoration:
+
+- the **pushforward of a measure**,
+  :meth:`DiscreteMeasure.pushforward
+  <orpheus.numerics.measure.DiscreteMeasure.pushforward>` — the image
+  measure :math:`\varphi_*\mu` lives on :math:`N` *because*
+  :math:`\varphi` says so (:eq:`discrete-measure-pushforward`);
+- the **pullback of a function**, :math:`f \mapsto f \circ \varphi`,
+  which is what the change-of-variables identity evaluates on the
+  pushed measure. ⛔ Nothing in the tree applies a pullback through
+  this type yet: the planned consumer is the map that restricts a
+  basis to an orbit space (tracker 3.4b), and until it lands the
+  second arrow is a statement about what the type *is*, not about
+  what ships.
+
+⭐ **The verb that changed is the pushforward, and its three states are
+the campaign in miniature.** The same operation, spelled three ways
+across five weeks:
+
+.. list-table:: ``pushforward`` — who names the target
+   :header-rows: 1
+   :widths: 16 40 44
+
+   * - When
+     - Spelling
+     - Who names :math:`\mathcal{Y}`, and what could contradict them
+   * - until 2026-09-01
+     - ``μ.pushforward(f)``
+     - **Nobody.** The support was *fabricated* as
+       ``f"φ_*({self.support})"`` — a manifold nobody has derived,
+       wearing a name that makes it look like one
+       (:ref:`manifold-string-algebra`).
+   * - 2026-09-01 (2.0c)
+     - ``μ.pushforward(f, new_space=Y)``
+     - **The call site.** An improvement — only :math:`\varphi`'s
+       author knows :math:`\mathcal{Y}`, and now somebody had to say
+       it — but the caller is not always that author, and a caller who
+       is wrong is unopposed.
+   * - 2026-09-02 (2.3)
+     - ``μ.pushforward(φ)``
+     - **The map.** ``new_space=`` is retired; the target is *read*
+       off ``φ.codomain``, and the verb additionally **refuses** a map
+       whose ``domain`` is not this measure's support.
+
+The refusal is by manifold **value**, not by array shape, and the
+sharpest witness for that is a pair of measures carrying *literally the
+same numbers*. `[M]` 2026-09-02:
+``gauss_legendre_on_polar_orbit(4, "x").nodes`` is ``np.array_equal``
+to ``gauss_legendre_on_mu(4).nodes`` — the slab's rule is the chart
+rule with a declared orbit space (:ref:`manifold-polar-orbit-rule`) —
+and handing the first to the product embedding raises where the second
+is accepted:
+
+.. code-block:: text
+
+   ValueError: cannot push a measure on 'S^2/SO2_x × S^1' forward
+   along a map out of '[-1,1] × S^1': the map's domain must be the
+   measure's support. Build the map out of 'S^2/SO2_x × S^1', or hand
+   this verb a measure on '[-1,1] × S^1' — the same numbers on a
+   different manifold are a different measure.
+
+Note where the difference surfaces: not on the polar factor but on the
+**product**, because :meth:`Manifold.__mul__
+<orpheus.numerics.manifold.Manifold.__mul__>` carried it there. The
+algebra of objects is what makes the arrow's guard discriminating.
+
+.. note::
+
+   **No membership check runs inside the map**, deliberately. A map
+   whose ``apply`` lands outside its declared codomain is a real
+   defect, and its ruled home is
+   :meth:`~orpheus.numerics.manifold.Manifold.contains` at *measure
+   construction* (tracker 2.0b) — one refusal, on the object that
+   actually escapes, rather than two half-refusals. ⛔ That is still
+   **not built**: nothing calls ``contains`` on the way in, so a
+   measure whose nodes are not points of its support remains
+   constructible and **ERR-080 remains open**
+   (:ref:`manifold-seams`).
+
+   The **Jacobian** is likewise not this type's business. ``pushforward``
+   is the :math:`\varphi`-image with weights preserved verbatim; a
+   change of variables against a target *reference* measure is the
+   caller's, and that asymmetry is documented where the identity lives
+   (:doc:`/theory/foundations/discrete_measures`).
+
+
+.. _manifold-three-arrows:
+
+The three maps the tree was already spelling
+---------------------------------------------
+
+`[M]` 2026-09-02, at 2.3's opener the tree drew three arrows around the
+quotient and none of them was typed. One of them it drew **twice** —
+once honestly and once as ERR-080.
+
+.. list-table:: Three arrows, four spellings
+   :header-rows: 1
+   :widths: 22 30 24 24
+
+   * - Arrow
+     - How it was spelled
+     - Codomain, before
+     - Codomain, after
+   * - the orbit retraction
+       :math:`M \to M/H`
+     - a ``lambda`` plus a hand-written ``new_space=``, inside
+       :meth:`DiscreteMeasure.quotient
+       <orpheus.numerics.measure.DiscreteMeasure.quotient>`
+     - named at the call site
+     - ``self.support.quotient(group)`` — the **catalogue's own
+       object**, by identity
+   * - the Archimedes chart
+       :math:`[-1,1]\times S^1 \to S^2`
+     - a hand-written double loop plus the literal
+       ``support=SPHERE``, inside ``spherical_product``
+     - a literal
+     - :data:`~orpheus.numerics.manifold.SPHERE`, **read** off
+       ``archimedes("z").codomain``
+   * - the orbit barycentre
+       :math:`S^2/SO(2)_a \to D^3`, **honest** spelling
+     - inline in ``symmetry._embedded_nodes``, which embeds a polar
+       marginal for an invariance check
+     - (untyped — a bare array)
+     - :class:`~orpheus.numerics.manifold.Ball`\ ``(3)``, via
+       :func:`~orpheus.numerics.manifold.barycentre`
+   * - the **same** map, **forged** spelling
+     - inline in ``Quadrature._harmonic_frame_measure``'s 1-D arm
+     - ⛔ ``support=SPHERE`` — **a lie**
+     - ⛔ unchanged, **by design** (see below)
+
+⭐ **The fourth row is the whole argument.** Rows three and four compute
+*the same image* — `[M]` 2026-09-02 on ``gauss_legendre(8)``, the
+forgery's nodes are ``np.array_equal`` to
+``barycentre(measure.support)(measure.nodes)`` — and differ only in
+what they claim about where that image lives. The honest one says
+:math:`D^3` and is right (`[M]` ``Ball(3).contains`` → ``True``); the
+forged one says :math:`S^2` and is wrong (`[M]` ``Sphere().contains``
+→ ``False``, norms :math:`0.1834 \ldots 0.9603`). A codomain that is a
+**field of the map** cannot be forged at the call site; that is the
+entire purchase of this type.
+
+The forgery therefore **stays a raw constructor** until tracker 3.4
+retires it, and that is not an oversight: it *cannot* be re-spelled
+through ``pushforward`` without telling the truth about its codomain,
+so re-spelling it would silently repair ERR-080's level-1 half in a
+step whose subject is the type system. The arm carries a comment
+naming the map it is a forgery of.
+
+
+.. _manifold-archimedes:
+
+Archimedes: :math:`[-1,1] \times S^1 \to S^2`
+----------------------------------------------
+
+Write :math:`a` for an axis and :math:`b, c` for its two cyclic
+successors (:math:`z \to x, y`; :math:`x \to y, z`; :math:`y \to z, x`
+— a right-handed frame in every case). The map is
+
+.. math::
+
+   \varphi_a(\mu, (\cos\varphi, \sin\varphi))
+   \;=\; \mu\,\hat e_a
+   \;+\; \sqrt{1-\mu^2}\,\bigl(\cos\varphi\,\hat e_b
+                               + \sin\varphi\,\hat e_c\bigr),
+
+which for :math:`a = z` is the direction-cosine triple every product
+rule has always used —
+:math:`\mu_x = \sin\theta\cos\varphi`,
+:math:`\mu_y = \sin\theta\sin\varphi`,
+:math:`\mu_z = \mu`, with :math:`\sin\theta = \sqrt{1-\mu^2}` — stated
+as an equation in the module docstring of
+``orpheus.numerics.quadrature.rules_product`` and pinned against the
+map by hand in
+``tests/numerics/test_manifold.py::test_archimedes_about_z_is_the_labelled_equation_verbatim``.
+
+**Its relation to the orbit-space chart is exact, and it is a
+projection.** The chart of :math:`S^2/SO(2)_a` is
+:math:`\pi(\Omega) = \Omega\cdot\hat e_a`
+(:ref:`manifold-s2-so2`, step 5), and composing gives
+
+.. math::
+
+   \pi \circ \varphi_a \;=\; \mathrm{pr}_1 ,
+
+`[M]` bit-exactly: over 500 random :math:`(\mu, \varphi)` pairs per
+axis, :math:`\max\lvert \pi(\varphi_a(\mu,\varphi)) - \mu \rvert =`
+**0.0** for :math:`a \in \{x,y,z\}`, with
+:math:`\max\bigl\lvert\lVert\varphi_a\rVert - 1\bigr\rvert \le`
+**2.22e-16**. So the polar factor of a product rule *is* the orbit-space
+coordinate, and the circle factor is the fibre the quotient forgets —
+which is why one Gauss–Legendre rule can serve both a slab marginal and
+a product rule's polar factor
+(:ref:`manifold-so2-axis-is-a-parameter`).
+
+.. admonition:: Why it is named for Archimedes
+   :class: note
+
+   **Archimedes' hat-box theorem** is the statement about this map that
+   transport actually needs: the pushforward of the uniform measure
+   :math:`d\Omega` along :math:`\mu = \Omega\cdot\hat e_a` is
+   :math:`2\pi\,d\mu` — *uniform* on :math:`[-1,1]`, for every axis. A
+   Gauss–Legendre rule in :math:`\mu` times any circle rule is therefore
+   exact on the sphere against Lebesgue measure, which is the theorem
+   :func:`~orpheus.numerics.quadrature.rules_product.spherical_product_claim`
+   composes the two factors' claims through.
+
+   ⚠ **Edited elsewhere, consumed here.** The corpus already owns that
+   fact in the *registry* register — which reference measure the
+   quadrature registry answers for a spent group, and why it keys on
+   ``rotation_axis`` being non-``None`` rather than on one group
+   (:doc:`/theory/foundations/discrete_measures`). This page owns it in
+   the *map* register: the hat-box is a statement about
+   :math:`\varphi_a`, and the pushforward reference measure it names is
+   a field of the **catalogue entry**, not of the map
+   (:ref:`manifold-arrows-not-built`).
+
+⚠ **It is a parametrisation, not a chart in the strict sense**, and the
+place it fails is not incidental — it is the stratum. The circle factor
+**collapses** at :math:`\mu = \pm 1`: a whole fibre maps to one pole.
+That is exactly the singular locus of :math:`S^2/SO(2)_a`
+(:ref:`manifold-singular-stratum`), so the map is injective off the
+stratum and the stratum is precisely where it is not. Its inverse on
+:math:`S^2 \setminus \{\pm\hat e_a\}` is the :math:`(\mu, \varphi)`
+chart. The collapse is gated directly: `[M]` on a
+:math:`7 \times 8` grid the eight images at :math:`\mu = +1` are
+``np.array_equal`` to :math:`\hat e_a` repeated, and likewise at
+:math:`\mu = -1`.
+
+**What the product rule now reads.**
+:func:`~orpheus.numerics.quadrature.rules_product.spherical_product`
+was a hand-written double loop that filled a
+:math:`(n_\mu n_\varphi, 3)` array and then declared
+``support=SPHERE``. It is now the algebra it always was:
+
+.. code-block:: python
+
+   measure = (polar * azimuthal).pushforward(archimedes("z")).with_metadata(
+       invariance_group=group,   # DERIVED from the factors' generators
+       exactness=claim,          # DERIVED through the product theorem
+   )
+
+— the tensor product is the measure's own
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.__mul__` on the
+product manifold :math:`[-1,1]\times S^1`, the embedding is the typed
+chart, and the support is the chart's codomain. `[M]` 2026-09-02,
+re-run independently of the gate: over **60** configurations
+(:math:`n_\mu \in \{2,3,4,5,6\}` :math:`\times` :math:`n_\varphi \in
+\{6,8,10,16,24,32\}` :math:`\times` both circle shifts), **0** differ
+from the transcribed pre-2.3 loop — ``np.array_equal`` on nodes and on
+weights — and ``measure.support`` **is** ``archimedes("z").codomain``,
+one object rather than a literal that happens to agree.
+
+⭐ Two derivations of the same rule now meet: the *claim* side composes
+the factors' exactness through the product theorem, and the *measure*
+side composes their atoms through this chart. Neither reads the other,
+and both refuse a mismatched factor pair — the claim side on the
+exactness system, the measure side on the manifold.
+
+
+.. _manifold-barycentre:
+
+The orbit barycentre: :math:`S^2/SO(2)_a \to D^3`, and why it is not a section
+-------------------------------------------------------------------------------
+
+An orbit of :math:`SO(2)_a` is the circle
+:math:`\{\Omega : \Omega\cdot\hat e_a = \mu\}`, of radius
+:math:`\sqrt{1-\mu^2}` about the point :math:`\mu\,\hat e_a` on the
+axis. That point is the orbit's **barycentre** — its mean under the
+fibre's uniform measure — and the map
+
+.. math::
+
+   \beta_a : \mu \;\longmapsto\; \mu\,\hat e_a
+
+is what a consumer wanting *one representative point per orbit* keeps
+reaching for. Where it lands is a one-line computation, and it is the
+whole story:
+
+.. math::
+
+   1 - \lVert \mu\,\hat e_a \rVert^2 \;=\; 1 - \mu^2
+   \;=\; \tfrac14 \det P ,
+
+the **squared orbit radius**, which is the quantity the catalogue
+already records as :attr:`Quotient.det_gram
+<orpheus.numerics.manifold.Quotient.det_gram>` — `[M]` the shipped
+entry's ``det_gram`` is :math:`4 p_2` (:eq:`manifold-s2-mod-so2`),
+which restricted to the sphere by :math:`p_1^2 + p_2 = 1` is
+:math:`4(1-\mu^2)` (:ref:`manifold-s2-so2`, step 5); the identity
+reproduces to **0.0** over nine :math:`\mu` values. So :math:`\beta_a` lands **on**
+:math:`S^2` exactly where the orbit radius vanishes — the two poles,
+i.e. the singular stratum — and strictly **inside** the ball
+everywhere else. Its codomain is
+:class:`~orpheus.numerics.manifold.Ball`\ ``(3)`` and can be nothing
+else: `[M]` ``Ball(3).contains`` → ``True`` on the whole image,
+``Sphere().contains`` → ``False`` on the interior and ``True`` on the
+two poles.
+
+⛔ **It is not a section, and the distinction is the one ERR-080 got
+wrong.** A section of :math:`S^2 \to S^2/SO(2)_a` lands **on**
+:math:`S^2` by picking a representative *direction*; for a
+positive-dimensional group no such pick is canonical, which is why
+every :math:`S^2/SO(2)_a` entry carries ``fundamental_domain=None`` on
+purpose (:ref:`manifold-err-080-is-a-section`). The barycentre is
+canonical *precisely because it is not a representative*: it is the
+orbit's mean, and a mean of unit vectors is not a unit vector.
+
+⟹ **ERR-080, restated in one sentence of this section's vocabulary:
+the forgery is** :math:`\beta_a` **with its codomain declared as**
+:math:`S^2` **instead of** :math:`D^3`. Everything else about the
+computation is right. That is why the defect is invisible to any
+arithmetic check and why no tolerance reaches it: the numbers are the
+correct barycentres, and what is false is a *type*.
+
+.. list-table:: The two spellings of :math:`\beta_a`, measured on ``gauss_legendre(8)``
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * -
+     - ``symmetry._embedded_nodes``
+     - ``Quadrature._harmonic_frame_measure`` (1-D arm)
+   * - what it computes
+     - :math:`\mu \mapsto \mu\,\hat e_a`, axis read off the support's
+       group
+     - :math:`\mu \mapsto (\mu, 0, 0)` by zero-padding
+   * - `[M]` are the images equal?
+     - **yes** — ``np.array_equal``, both directions
+     - **yes**
+   * - declared codomain
+     - ``Ball(3)`` — via
+       :func:`~orpheus.numerics.manifold.barycentre` since 2.3
+     - ⛔ ``SPHERE``
+   * - `[M]` is the declaration true?
+     - ✅ ``Ball(3).contains`` → ``True``
+     - ⛔ ``Sphere().contains`` → ``False``; norms
+       :math:`0.1834\ldots0.9603`
+   * - why it wants the barycentre
+     - an invariance check *should* use it: a rotation about :math:`a`
+       **fixes** the barycentre, so the point is genuinely
+       :math:`SO(2)_a`-invariant
+     - it wants a **direction**, which the barycentre is not — so it
+       is the wrong map, honestly applied
+
+⭐ **The honest spelling now reads the map** (Pattern 2 — one spelling
+of one concept). ``symmetry._embedded_nodes``'s polar-marginal arm is
+``barycentre(measure.support)(nodes)``, so the two cannot drift; `[M]`
+bit-identical on **12** rows (``gauss_legendre_on_polar_orbit(n, axis)``
+for :math:`n \in \{2,4,8,16\}` and all three axes). And the map
+**refuses** anything that is not an axial orbit space — a mirror
+quotient, the trivial quotient, a bare interval — because a mirror
+orbit is a pair of points with no axis to lie on, and a point of an
+interval is not an orbit at all.
+
+.. note::
+
+   ⚠ **A brief for this step reported that** :class:`Ball`
+   **had zero production consumers before it.** `[M]` that is not what
+   the tree says, and the correct statement is sharper. ``Ball(2)`` has
+   been production since 2026-08-31 as the :math:`\sigma_y` entry's
+   ``realization`` (``manifold.py``, the mirror derivation) and is
+   matched in the ambient-dimension table. What had **never** been
+   constructed anywhere — `[M]` ``git grep "Ball("`` over ``orpheus/``
+   and ``tests/`` at the pre-2.3 commit returns **six** lines — the
+   class definition, one ``match`` pattern, and **four** constructions,
+   every one of them ``Ball(2)`` — is ``Ball(3)``, and what is new
+   in kind is that a :class:`Ball` is now the **codomain of an arrow**
+   rather than a field of a catalogue entry. The production docstring
+   states the weaker claim; it is reported rather than edited here.
+
+
+.. _manifold-arrow-composition:
+
+Composition, functoriality, and the fold as a two-arrow chain
+---------------------------------------------------------------
+
+Composition is ``psi @ phi`` for :math:`\psi \circ \varphi`, refused
+unless ``phi.codomain == psi.domain`` — the same guard, at the same
+tier, as an operator product over unequal spaces:
+
+.. code-block:: text
+
+   ValueError: cannot compose: the inner map lands on 'S^2' but the
+   outer map is defined on '[-1,1] × S^1'. A composition psi @ phi
+   needs phi.codomain == psi.domain.
+
+The one law worth stating — and, for a map of finite point sets whose
+membership :meth:`~orpheus.numerics.manifold.Manifold.contains`
+already governs, essentially the only intrinsic thing such a map can
+get wrong — is that the pushforward is a **functor**:
+
+.. math::
+   :label: manifold-map-functoriality
+
+   (\psi \circ \varphi)_* \mu \;=\; \psi_*\bigl(\varphi_* \mu\bigr).
+
+.. (vv-status rationale) manifold-map-functoriality: A structural law
+   of the arrow type, not a solver claim, so it carries no L0..L3
+   ladder slot and no ``verifies(...)`` marker. It is gated by the
+   ``foundation`` test
+   ``tests/numerics/test_manifold.py::TestManifoldMap::test_functoriality_the_pushforward_of_a_composite_is_the_composite_of_pushforwards``
+   (nodes and weights by ``np.array_equal``, and the support by
+   value), and re-measured on production objects by the shipped-fold
+   table in this section.
+.. vv-status: manifold-map-functoriality documented
+
+⭐ **This is not an abstract law here — the shipped cylindrical fold is
+literally a chain of two of these arrows.**
+:meth:`Quadrature.folded_product
+<orpheus.numerics.quadrature.directional.Quadrature.folded_product>`
+builds a product rule and then folds it, and after 2.3 both halves are
+typed maps:
+
+.. math::
+
+   [-1,1] \times S^1
+   \;\xrightarrow{\ \varphi_z\ }\; S^2
+   \;\xrightarrow{\ \rho\ }\; S^2/\langle\sigma_y\rangle ,
+
+with :math:`\rho` the orbit retraction that
+:meth:`DiscreteMeasure.quotient
+<orpheus.numerics.measure.DiscreteMeasure.quotient>` builds from the
+invariance certificate. Because :math:`\varphi_z` lands on
+:math:`S^2` and :math:`\rho` is defined there, ``rho @ chart``
+type-checks, and :eq:`manifold-map-functoriality` says the one-shot
+route must agree with the two-step one.
+
+`[M]` 2026-09-02, measured — the composite built with ``@``, pushed in
+one step and consolidated, against the two-step route, against the
+shipped rule:
+
+.. list-table:: The fold, three ways
+   :header-rows: 1
+   :widths: 18 14 24 22 22
+
+   * - :math:`(n_\mu, n_\varphi)`
+     - :math:`N` after the fold
+     - one-shot ``ρ @ φ`` vs two-step
+     - vs shipped ``folded_product``
+     - ``support``
+   * - (2, 8)
+     - 8
+     - ``array_equal`` ✅
+     - ``array_equal`` ✅
+     - ``'S^2/sigma_y'``, by **identity** with the catalogue entry
+   * - (4, 8)
+     - 16
+     - ✅
+     - ✅
+     - ✅
+   * - (4, 16)
+     - 32
+     - ✅
+     - ✅
+     - ✅
+   * - (6, 10)
+     - 30
+     - ✅
+     - ✅
+     - ✅
+   * - (3, 24)
+     - 36
+     - ✅
+     - ✅
+     - ✅
+
+⚠ **Read the fixture, not just the ticks.** The reconstruction uses the
+**staggered** circle rule, which is what ``folded_product`` selects
+(:math:`\Sigma = \varnothing`, the fold's well-posedness condition);
+with the node-aligned shift the same code agrees with itself on both
+routes but does *not* reproduce the shipped rule, because it is then a
+different rule. `[M]` at :math:`(2, 8)`: node-aligned puts **4** nodes
+on :math:`\Sigma = \{\xi = 0\}`, so its 16 atoms fold into **10**
+orbits — sizes ``[1,1,1,1,2,2,2,2,2,2]``, the four singletons being
+the fixed points — while staggered puts **0** there and folds into
+**8**, all of size 2. The functoriality half is fixture-independent;
+the third column is a statement about which circle rule ships, and the
+singleton orbits are exactly the well-posedness condition the fold's
+own :math:`\Sigma = \varnothing` requirement names.
+
+
+.. _manifold-arrows-not-built:
+
+What 2.3 did NOT build
+------------------------
+
+Three things, stated so the next phase does not re-derive a decision
+already taken and so no reader mistakes an arrow for a repair.
+
+**(1) Neither of the catalogue entry's own two maps ships.** The
+:ref:`engine data model <manifold-engine-data-model>` lists the
+entry's *chart* :math:`M/H \to N` and its *section* as procedure
+outputs that are not slots, and 2.3 does not change that — it changes
+only whether such a thing could be *expressed*. None of the three
+arrows above is either of them:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 32 38
+
+   * - Arrow
+     - Type
+     - Why it is not the entry's chart or section
+   * - :math:`\varphi_a`, ``archimedes``
+     - :math:`[-1,1]\times S^1 \to S^2`
+     - a parametrisation of the **base**, not a chart of the orbit
+       space. Its first component *is* the chart, in the sense
+       :math:`\pi \circ \varphi_a = \mathrm{pr}_1` measured above, but
+       the chart :math:`\pi : S^2 \to [-1,1]` itself is still not a
+       value anywhere.
+   * - :math:`\rho`, the retraction
+     - :math:`M \to M/H`
+     - built **per measure** from an invariance certificate, so it
+       depends on the atoms and not only on :math:`(M, H)` — it cannot
+       be a field of an entry. Its image stays in the base's
+       coordinates, which is the section's coordinate system, but it
+       is not a section: it is the quotient map with a chosen
+       representative per *realized* orbit.
+   * - :math:`\beta_a`, ``barycentre``
+     - :math:`S^2/SO(2)_a \to D^3`
+     - a map **out of** the orbit space, landing off :math:`S^2`. A
+       section is a map **into** the base. See above.
+
+⟹ ``fundamental_domain=None`` on every :math:`S^2/SO(2)_a` entry is
+still the honest answer, and :attr:`Quotient.fundamental_domain
+<orpheus.numerics.manifold.Quotient.fundamental_domain>` still has
+`[M]` **zero production readers**. The section remains a *choice*
+(:ref:`manifold-the-axis-convention-for-a-section`), and 2.3 declined
+to make it.
+
+**(2) The pushforward reference measure is deferred to tracker 3.1 —
+and the reason is a measured import cycle.** An orbit space's
+pushforward reference (the :math:`2\pi\,d\mu` of the hat-box) is a
+field of the catalogue **entry**, not of the map, because it is a
+property of :math:`(M, H)` rather than of any one arrow. It is
+answered today by a twin on the registry —
+:attr:`AngularSymmetry.reference
+<orpheus.numerics.quadrature.registry.AngularSymmetry.reference>`,
+``LEGENDRE`` for any axial rotation and ``UNIFORM_ON_SPHERE`` for the
+trivial group — and collapsing that twin onto the entry is the same
+move tracker 2.4 made for ``support`` (:ref:`manifold-twin-lookup`).
+
+⛔ It cannot be done by adding an import. `[M]` 2026-09-02 by AST with
+relative imports resolved, :mod:`orpheus.numerics.exactness` imports
+:mod:`orpheus.numerics.manifold` at **module scope, twice** — once for
+:class:`~orpheus.numerics.manifold.Manifold` and once for
+:data:`~orpheus.numerics.manifold.CIRCLE` and
+:data:`~orpheus.numerics.manifold.SPHERE`. A module-scope
+``manifold → exactness`` edge therefore closes a **two-hop** cycle,
+with no import order that survives it: demonstrated on a throwaway
+package carrying exactly that topology — no production file touched —
+**5 of 5** entry points die with
+
+.. code-block:: text
+
+   ImportError: cannot import name 'Manifold' from partially
+   initialized module 'pkg.manifold' (most likely due to a circular
+   import)
+
+and **5 of 5** import cleanly with the ``TYPE_CHECKING`` guard
+restored (the positive control, without which a clean reading carries
+no information). ⟹ the viable mechanism is a
+:class:`~orpheus.numerics.manifold.Quotient` field populated **inside**
+the derivation function through a function-scope import — the idiom
+``_sphere_mod_so2`` already uses for SymPy — never at module scope.
+This is the same guard as :ref:`manifold-import-cycle`, on a second
+pair of modules.
+
+**(3) ERR-080 is not repaired, and 2.3 moves neither of its gates.**
+Nothing here calls
+:meth:`~orpheus.numerics.manifold.Manifold.contains` on the way into a
+measure, so the forged :math:`(\mu, 0, 0)` measure is still
+constructible; the forgery arm is still a raw
+:class:`~orpheus.numerics.measure.DiscreteMeasure` constructor by
+design; and the level-2 half — the trivial isotypic sub-basis
+:math:`\{Y_\ell^0\} \cong \{P_\ell\}` — is untouched. `[M]` by AST
+over ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``
+the module still declares **three** ``@pytest.mark.xfail(strict=True)``
+rows and 2.3 edits none of them. What 2.3 buys ERR-080 is a
+*sentence*: the defect now has a name in the type system's own
+vocabulary — :math:`\beta_a` with a forged codomain — and one honest
+implementation of that map to point at.
 
 
 .. _manifold-basis-invariance-group:
@@ -3567,11 +4290,31 @@ bodies separated:
      - module, **runtime**
      - ⭐ **New at tracker 2.4** — ``_polar_axis_of`` needs
        :class:`~orpheus.numerics.manifold.Quotient` to read a polar
-       marginal's axis off its support.
+       marginal's axis off its support. `[M]` **re-measured
+       2026-09-02**: the same line now imports **three** names,
+       ``AXIS_INDEX``, ``Quotient`` and
+       :func:`~orpheus.numerics.manifold.barycentre` — tracker 2.3
+       moved the axis-index table here (:math:`\mathbb{R}^3`'s axes are
+       a convention of *this* module's curved members) and made the
+       polar embedding read the typed map (:ref:`manifold-barycentre`).
+       The edge's direction and scope did not move; only its payload
+       grew, which is the direction that keeps the guard affordable.
    * - ``symmetry.py:103``
      - ``symmetry → measure``
      - module, **runtime**
      -
+   * - ``exactness.py:115``, ``:116``
+     - ``exactness → manifold``
+     - module, **runtime**, **twice**
+     - ⭐ **A second pair, first measured 2026-09-02.**
+       :mod:`orpheus.numerics.exactness` imports
+       :class:`~orpheus.numerics.manifold.Manifold` and then
+       :data:`~orpheus.numerics.manifold.CIRCLE` /
+       :data:`~orpheus.numerics.manifold.SPHERE`, both at module scope.
+       So a ``manifold → exactness`` edge — which is what carrying an
+       orbit space's pushforward *reference measure* on the catalogue
+       entry would want — closes a **two-hop** cycle of its own
+       (:ref:`manifold-arrows-not-built`, item 2).
 
 ⟹ **the guard is now strictly more load-bearing than when it was
 written.** Before tracker 2.4 the loop a runtime ``manifold → symmetry``
@@ -3791,20 +4534,50 @@ description of a capability rather than of a repair.
        spellings into one.
    * - The two MAPS — the ``chart`` and the section — and the
        pushforward measure, as entry fields
-     - **Phase 1.1 / 3.1.** `[M]` 7 of the derivation procedure's 9
-       outputs are slots on
+     - **Phase 1.1 / 3.1, and NARROWED at 2.3.** `[M]` 7 of the
+       derivation procedure's 9 outputs are slots on
        :class:`~orpheus.numerics.manifold.Quotient` today. What ships
        of each map is only its *end*: the chart's **codomain**
        (``realization``) and the section's **image**
-       (``fundamental_domain``); neither map itself is a slot, so
-       nothing can currently *apply* one — which is why
-       ``Quotient.contains`` must accept both languages rather than
-       normalising to one (:ref:`manifold-two-coordinate-systems`).
+       (``fundamental_domain``); neither map itself is a slot — which
+       is why ``Quotient.contains`` must accept both languages rather
+       than normalising to one
+       (:ref:`manifold-two-coordinate-systems`).
+
+       ⭐ **What tracker 2.3 changed (2026-09-02) is that a map is now
+       expressible.** ⛔ This row read *"nothing can currently apply
+       one"* until then; that is now false in general —
+       :class:`~orpheus.numerics.manifold.ManifoldMap` is a value type
+       and three arrows ship — and still true of *these two*. `[M]`
+       none of the three is the entry's chart or its section, for
+       three different structural reasons enumerated at
+       :ref:`manifold-arrows-not-built`, and
+       :attr:`~orpheus.numerics.manifold.Quotient.fundamental_domain`
+       still has **zero** readers outside
+       :mod:`orpheus.numerics.manifold` itself.
+
        The pushforward measure is not a slot either: a measure
        descends via :meth:`DiscreteMeasure.quotient
        <orpheus.numerics.measure.DiscreteMeasure.quotient>`, which
        knows nothing about the catalogue
-       (:ref:`manifold-engine-data-model`).
+       (:ref:`manifold-engine-data-model`). ⚠ `[M]` 2026-09-02 that one
+       is blocked on an **import cycle**, not on a design question: a
+       module-scope ``manifold → exactness`` edge kills 5 of 5 fresh
+       import orders, so the field must be populated inside the
+       derivation function.
+   * - A ``ManifoldMap`` for the ERR-080 forgery arm
+     - ⛔ **Deliberately NOT built, and it is the point.**
+       ``Quadrature._harmonic_frame_measure``'s 1-D arm computes the
+       orbit barycentre and declares it on :math:`S^2`; `[M]`
+       2026-09-02 its nodes are ``np.array_equal`` to
+       :func:`~orpheus.numerics.manifold.barycentre`'s image. It stays
+       a **raw** :class:`~orpheus.numerics.measure.DiscreteMeasure`
+       constructor because routing it through
+       :meth:`~orpheus.numerics.measure.DiscreteMeasure.pushforward`
+       would force it to name ``Ball(3)`` — i.e. would repair
+       ERR-080's level-1 half inside a step whose subject is the type
+       system. Retired at tracker **3.4**, together with the ``if``
+       (:ref:`manifold-barycentre`).
    * - The remaining catalogue entries
      - **Phase 1.1.** `[M]` **six keys** ship — ``(Sphere,
        "SO2_x"/"SO2_y"/"SO2_z")`` and ``(Sphere,
@@ -3885,21 +4658,23 @@ description of a capability rather than of a repair.
 Verification
 ============
 
-The gates live in ``tests/numerics/test_manifold.py``: `[M]` **42 test
-functions, 56 collected rows**, run under the canonical
-``python -O -m pytest`` invocation. Two functions are parametrized —
-one over the 13-member shipped-variant list, one over three bases — and
-the two counts are given separately because they move for different
-reasons: adding a *variant* moves the second and not the first.
+The gates live in ``tests/numerics/test_manifold.py``: `[M]` **50 test
+functions, 70 collected rows**, run under the canonical
+``python -O -m pytest`` invocation. Several functions are parametrized
+— over the shipped-variant list, over three bases, and (since tracker
+2.3) over the three rotation axes — and the two counts are given
+separately because they move for different reasons: adding a *variant*
+moves the second and not the first.
 
 ⚠ The row count here is the one the generated V&V matrix reports for
 this module, which is a second, independent reading of the same tree
 (``docs/theory/verification/matrix.rst``, ``numerics/test_manifold``
-row). `[M]` it read **44** before the two-slot ruling and **56** after.
-An earlier version of this paragraph said *"30 test functions, 40
-collected rows"*; both numbers were wrong when written — the module had
-32 functions and 44 rows — which is why the count is now stated with
-the instrument that produces it.
+row). `[M]` it read **44** before the two-slot ruling, **56** after,
+and **70** after tracker 2.3 added ``TestManifoldMap``. An earlier
+version of this paragraph said *"30 test functions, 40 collected
+rows"*; both numbers were wrong when written — the module had 32
+functions and 44 rows — which is why the count is now stated with the
+instrument that produces it.
 
 **Every one carries** ``@pytest.mark.foundation`` **and none carries**
 ``verifies(...)``, and that is the correct tier rather than an
@@ -3912,7 +4687,7 @@ derivation), not an L0–L3 claim about a solver, a flux or an
 eigenvalue. Tagging them ``verifies`` would mint a coverage edge that
 an audit would then trust.
 
-Six groups, and what each is for:
+Seven groups, and what each is for:
 
 .. list-table::
    :header-rows: 1
@@ -3974,6 +4749,25 @@ Six groups, and what each is for:
        field express both a half-space and a hyperplane —
        :math:`\dim = 2` for a lone normal, :math:`\dim = 1` once its
        antipode joins it.
+   * - ⭐ The ARROWS (``TestManifoldMap``, tracker 2.3)
+     - The type's own laws first — a map is a frozen value with two
+       endpoints; composition is refused across mismatched endpoints
+       (**both** legs, plus the ``TypeError`` on a non-map); the
+       pushforward is **functorial**
+       (:eq:`manifold-map-functoriality`), nodes and weights by
+       ``np.array_equal``. Then the two named maps, each with a
+       positive leg *and* a refusal leg: ``archimedes`` lands on
+       :math:`S^2` for **all three** axes and collapses the fibre onto
+       the stratum, and equals the direction-cosine triple spelled by
+       hand; ``barycentre`` lands **inside** the ball and on the sphere
+       **only at the poles** — which is the ERR-080 discriminator
+       stated as a property of a *map* rather than of a quadrature —
+       satisfies :math:`1-\lVert b\rVert^2 = 1-\mu^2`, and refuses a
+       mirror quotient, the trivial quotient and a bare interval with
+       :math:`SO(2)` as the positive control. A final row pins the
+       Pattern-2 collapse: ``symmetry._embedded_nodes`` is
+       ``np.array_equal`` to the map it now reads
+       (:ref:`manifold-barycentre`).
 
 ⭐ Two exhaustiveness gates are worth naming separately, because they
 are what make "closed sum" a checkable claim rather than a description.
@@ -4021,6 +4815,54 @@ for merge status.**
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-09-02
+     - **The category gets its ARROWS, and a codomain stops being
+       something a caller can assert.** Every construction that moved
+       a point set had been applying a callable and then *naming the
+       destination by hand* — which is the exact shape of
+       :ref:`ERR-080 <manifold-err-080>`, since a destination named at
+       the call site is a claim nothing can contradict.
+       :class:`~orpheus.numerics.manifold.ManifoldMap` makes it a
+       field: one frozen value type (``domain``, ``codomain``,
+       ``apply``) with named maps as **factories**, ruled that way
+       (user, 2026-09-02) for the same reason
+       :data:`~orpheus.numerics.manifold.SPHERE` is a value and not a
+       subclass. :meth:`DiscreteMeasure.pushforward
+       <orpheus.numerics.measure.DiscreteMeasure.pushforward>` retires
+       ``new_space=`` and **reads** its target, and additionally
+       refuses a map out of the wrong point set — by manifold VALUE,
+       which is what makes it discriminating: `[M]` the slab's
+       :math:`S^2/SO(2)_x` rule and the chart rule on :math:`[-1,1]`
+       have ``np.array_equal`` nodes and only one of them is accepted.
+       Three arrows are typed — the **Archimedes** chart
+       :math:`[-1,1]\times S^1 \to S^2` (named for the hat-box
+       theorem; `[M]` :math:`\pi \circ \varphi_a = \mathrm{pr}_1`
+       bit-exactly, and the product rule is now
+       ``(polar * azimuthal).pushforward(archimedes("z"))``,
+       bit-identical to its retired hand loop on **60 of 60**
+       configurations with its support **identical** to the chart's
+       codomain); the orbit **retraction** inside ``quotient()``, now
+       landing on the catalogue's own object; and the orbit
+       **barycentre** :math:`\mu \mapsto \mu\,\hat e_a`, whose honest
+       codomain is ``Ball(3)`` because
+       :math:`1 - \lVert\mu\hat e_a\rVert^2 = 1-\mu^2 = \tfrac14\det P`
+       — it lands ON the sphere only at the stratum, so it is
+       **canonical precisely because it is not a section**. ⭐ That
+       gives ERR-080 a one-sentence statement in the type system's own
+       vocabulary — *the barycentre map with a forged codomain* —
+       and `[M]` the forgery's nodes are ``np.array_equal`` to the
+       honest map's image, so what is false about it is a **type** and
+       nothing else. The honest spelling
+       (``symmetry._embedded_nodes``) now reads the map, collapsing a
+       Pattern-2 twin (`[M]` bit-identical on 12 rows).
+       ⛔ **An enabler, not a repair**: no membership check runs inside
+       a map, the forgery arm stays a raw constructor **by design**
+       until tracker 3.4, and the gate still declares three
+       ``xfail(strict=True)`` rows (:ref:`manifold-arrows`).
+     - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_
+     - *(in development)* ``fix/angular-phantom-support``; tracker 2.3.
+       ⚠ The code was **uncommitted in the working tree** when this row
+       was written — trust ``git log`` over this cell for its hash.
    * - 2026-09-01
      - **A basis learns what it EATS — and therefore what symmetry it
        HAS.** :class:`~orpheus.numerics.basis.base.Basis` gained the

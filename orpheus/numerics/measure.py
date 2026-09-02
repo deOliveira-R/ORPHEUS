@@ -32,9 +32,11 @@ named factories) composes 1-D rules into 2-D / :math:`S^2` rules
 - **Direct sum** ``μ + ν``. Concatenation on a shared space — used
   when a domain is partitioned into subintervals each carrying its
   own rule.
-- **Pushforward** ``μ.pushforward(φ, new_space=N)``. Image measure
-  :math:`\varphi_* \mu` under a measurable map
-  :math:`\varphi : \mathcal{X} \to \mathcal{Y}`. The change-of-variables
+- **Pushforward** ``μ.pushforward(φ)``. Image measure
+  :math:`\varphi_* \mu` under a typed map
+  :math:`\varphi : \mathcal{X} \to \mathcal{Y}`
+  (a :class:`~orpheus.numerics.manifold.ManifoldMap`, whose codomain
+  is where the image lives). The change-of-variables
   identity holds verbatim:
   :math:`\int g \, d(\varphi_* \mu) = \int g \circ \varphi \, d\mu`.
 - **Restriction** ``μ.restrict(E)``. Indicator-multiplication
@@ -91,6 +93,7 @@ from orpheus.numerics.manifold import (
     EnergyGroups,
     Interval,
     Manifold,
+    ManifoldMap,
     Quotient,
     RealSpace,
     Sphere,
@@ -286,16 +289,17 @@ class DiscreteMeasure:
     propagation table):
 
     - ``μ * ν`` — tensor product, returns a measure on
-      ``f"{μ.support} × {ν.support}"``.
+      ``μ.support * ν.support`` (the product manifold).
     - ``μ + ν`` — direct sum on a shared space; raises ``ValueError``
       if ``μ.support != ν.support``.
-    - ``μ.pushforward(φ, new_space=N)`` — image measure under ``φ``, on the
-      manifold ``N`` the caller names (required since 2.0c). Weights are
-      preserved; nodes become ``φ(nodes)``. The Jacobian of ``φ`` is
+    - ``μ.pushforward(φ)`` — image measure under a typed map ``φ``
+      (:class:`~orpheus.numerics.manifold.ManifoldMap`), on
+      ``φ.codomain``; refused unless ``φ.domain == μ.support``. Weights
+      are preserved; nodes become ``φ(nodes)``. The Jacobian of ``φ`` is
       the **caller's responsibility**: this is the φ-image semantics,
       not a Radon-Nikodym derivative against a reference measure.
     - ``μ.quotient(G)`` — the fold: one atom per :math:`G`-orbit on
-      ``f"{μ.support}/{G.name}"``, carrying the summed orbit weight
+      ``μ.support.quotient(G)``, carrying the summed orbit weight
       :math:`W = w \cdot |G| / |\mathrm{Stab}|`. Mass is preserved;
       refuses unless the measure is certified :math:`G`-invariant.
     - ``μ.restrict(E)`` — keep atoms where ``E(x)`` is true; drop the
@@ -833,13 +837,8 @@ class DiscreteMeasure:
     # Pushforward (image measure)
     # ------------------------------------------------------------------
 
-    def pushforward(
-        self,
-        phi: Callable[[np.ndarray], np.ndarray],
-        *,
-        new_space: Manifold,
-    ) -> DiscreteMeasure:
-        r"""Image measure :math:`\varphi_* \mu` under :math:`\varphi`.
+    def pushforward(self, phi: ManifoldMap) -> DiscreteMeasure:
+        r"""Image measure :math:`\varphi_* \mu` under the typed map :math:`\varphi`.
 
         For any test function :math:`g` on the target space,
 
@@ -867,33 +866,53 @@ class DiscreteMeasure:
 
         Parameters
         ----------
-        phi : callable
-            Map :math:`\varphi : \mathcal{X} \to \mathcal{Y}`.
-            Called once with the full ``nodes`` array. Must return
-            an array of shape ``(N,)`` or ``(N, d')``.
-        new_space : Manifold
-            The target point set :math:`\mathcal{Y}` — **required**.
+        phi : ManifoldMap
+            The map :math:`\varphi : \mathcal{X} \to \mathcal{Y}`, carrying
+            both point sets. ``φ.domain`` must be this measure's support;
+            the image lives on ``φ.codomain``. Applied once to the full
+            ``nodes`` array.
 
-            ⭐ It was optional until 2026-09-01, defaulting to a
-            *fabricated* support named ``f"φ_*({self.support})"``. That
-            default is the defect this campaign exists to remove: the image
-            of a manifold under an arbitrary map is a manifold nobody has
-            computed, and naming it does not make it known. Only ``φ``'s
-            author knows :math:`\mathcal{Y}`, so only they can name it.
-            (``[M]`` at the retype: 7 of 8 call sites already passed it; the
-            one that did not was a test asserting the fabricated name.)
+            ⭐ **The target is READ off the map, never named at the call
+            site** (#429 tracker 2.3, 2026-09-02). Until 2026-09-01 this
+            method took a bare callable and *fabricated* the support as
+            ``f"φ_*({self.support})"``; tracker 2.0c made the caller name
+            it (``new_space=``); this step makes the map carry it, so a
+            codomain cannot be forged where the map is applied — the
+            ERR-080 move (the barycentre map declared to land on
+            :math:`S^2`) is unspellable through this verb. Only ``φ``'s
+            author knows :math:`\mathcal{Y}`, and the map IS that author's
+            statement.
 
         Returns
         -------
         DiscreteMeasure
-            A new measure with ``nodes = φ(nodes)`` and unchanged
-            weights. ``invariance_group`` is dropped (in general
-            ``φ`` does not preserve a group action), and
-            ``degree_of_exactness`` is dropped unless ``φ`` is the
-            identity (which we cannot statically determine —
-            caller's responsibility to set if desired).
+            A new measure on ``φ.codomain`` with ``nodes = φ(nodes)`` and
+            unchanged weights. ``invariance_group`` is dropped (in general
+            ``φ`` does not preserve a group action), and ``exactness`` is
+            dropped (an honest claim would be against the pushforward
+            reference, which the caller re-attaches if it knows it —
+            :func:`~orpheus.numerics.quadrature.rules_product.spherical_product`
+            does, through the product theorem).
+
+        Raises
+        ------
+        ValueError
+            If ``φ.domain`` is not this measure's support — a map out of
+            :math:`M` cannot be applied to a measure on :math:`X \neq M`,
+            however compatible the arrays happen to be. The refusal is by
+            manifold VALUE, so the slab's :math:`S^2/SO(2)_x` rule is
+            refused by a map out of the bare interval its numbers live on.
         """
-        new_nodes = np.asarray(phi(self.nodes))
+        if phi.domain != self.support:
+            raise ValueError(
+                f"cannot push a measure on {self.support.name!r} forward "
+                f"along a map out of {phi.domain.name!r}: the map's domain "
+                f"must be the measure's support. Build the map out of "
+                f"{self.support.name!r}, or hand this verb a measure on "
+                f"{phi.domain.name!r} — the same numbers on a different "
+                f"manifold are a different measure."
+            )
+        new_nodes = phi(self.nodes)
         if new_nodes.shape[0] != self.n_points:
             raise ValueError(
                 f"pushforward map must preserve number of atoms, "
@@ -903,7 +922,7 @@ class DiscreteMeasure:
         return DiscreteMeasure(
             nodes=new_nodes,
             weights=self.weights.copy(),
-            support=new_space,
+            support=phi.codomain,
             invariance_group=None,
             exactness=None,
         )
@@ -1130,8 +1149,9 @@ class DiscreteMeasure:
         -------
         DiscreteMeasure
             One atom per :math:`G`-orbit, at the orbit's first-appearing
-            node, carrying the summed orbit weight; ``support`` tagged
-            ``f"{support}/{group.name}"``.
+            node, carrying the summed orbit weight, on the orbit space
+            ``support.quotient(group)`` — the catalogue's entry, read off
+            the retraction's codomain.
 
         Raises
         ------
@@ -1158,13 +1178,18 @@ class DiscreteMeasure:
         for orbit in certificate.orbits():
             representative[orbit] = orbit.min()
 
-        return self.pushforward(
-            lambda nodes: nodes[representative],
-            # ⭐ The folded measure lives on the ORBIT SPACE, and the orbit space
-            # is what ``Manifold.quotient`` builds — the same catalogue entry a
-            # geometry consults, not a second spelling of its name.
-            new_space=self.support.quotient(group),
-        ).consolidate()
+        # ⭐ The orbit retraction is a MAP, typed: out of this measure's
+        # support, onto the ORBIT SPACE that ``Manifold.quotient`` builds —
+        # the same catalogue entry a geometry consults, not a second spelling
+        # of its name. Its image stays in the BASE's coordinates (the
+        # representative is a node of the parent), which is the quotient's
+        # section coordinate system (``Quotient.contains`` accepts both).
+        retraction = ManifoldMap(
+            domain=self.support,
+            codomain=self.support.quotient(group),
+            apply=lambda nodes: nodes[representative],
+        )
+        return self.pushforward(retraction).consolidate()
 
     # ------------------------------------------------------------------
     # Restriction
