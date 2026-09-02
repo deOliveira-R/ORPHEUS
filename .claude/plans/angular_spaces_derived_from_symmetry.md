@@ -696,7 +696,8 @@ continuous quotient. The tree holds two quotient records — a group object
 (wired, discrete) and a string tag (inert, continuous) — and the slab is the
 unwired half."* `[M]` 2026-09-01 at `8cc69e7f`: there is **no string tag any
 more**, and `Quotient.by` is a group object that handles the *continuous* case
-identically — `SPHERE.quotient(SubgroupOfO3.SO2).by` **is** `SubgroupOfO3.SO2`,
+identically — `SPHERE.quotient(SubgroupOfO3.SO2).by` **is** `SubgroupOfO3.SO2`
+(spelled `SO2("x")` since 2.4 — the group names its axis),
 and `DiscreteMeasure.quotient_group` derives from it for discrete and continuous
 folds alike. So the "two records" are now ONE mechanism, and the structural
 obstacle this paragraph named **does not exist**.
@@ -705,7 +706,10 @@ obstacle this paragraph named **does not exist**.
 half.** Not because the machinery is missing — it is present and exercised — but
 because the slab rule declares `Interval(-1,1)` instead of the quotient. That is
 now a one-line declaration against a working catalogue, which is why 2.4 stopped
-being a research question (§V.5g).
+being a research question (§V.5g). ✅ **WIRED at 2.4 (`17501245`)** — and the
+"one line" was three: the group had to name its axis first, and the
+declaration had to live on the slab's ADOPTER rather than on the chart-level
+rule the product factor shares (2.4 EXECUTED).
 
 
 
@@ -1787,6 +1791,17 @@ the same manifold.** String equality would refuse a legal pairing, and an alias
 table would be exactly the hard-code D0.4 forbids. ⟹ **G0 compares the AMBIENT
 manifold; G2 carries the quotient.** The principled predicate is:
 
+> ⛔ **VOID as written since 2.4 (2026-09-01) — both premises moved.** The
+> vocabulary is `Manifold` OBJECT equality (2.0c), and the slab measure says
+> `S^2/SO2_x` (2.4), so "those name the same manifold" is now literally one
+> memoised object. `[M]` at `8fc781d2` an equality G0 refuses exactly the Part
+> I pairing (slab rule `S^2/SO2_x` vs SH `S^2`) and admits both shipped angular
+> pairings (the fold's two halves are both `S^2/sigma_y`; Lebedev vs SH both
+> `S^2`); the one legal pairing it would refuse — `P_ℓ` on a full sphere rule
+> — ships nowhere. Whether G0 is equality or ambient-base + the lattice below
+> is a RULING owed at 2.2's opener; see **§V.5h(a)**. The lattice predicate
+> below stands as G2, and its MEASURE side is real since 2.4.
+
 > a function may be evaluated on a quotient **iff** it is invariant under the
 > group being quotiented out ⟹ `measure.quotient_group ⊆ basis.invariance_group`
 
@@ -1928,7 +1943,7 @@ exactly those 2 nodes of 1 rule (§II.1).
 |---|---|---|---|
 | 7 | `Basis.domain: Manifold` | absent (L2) | 2.1 |
 | 8 | `Basis.invariance_group: SubgroupOfO3` | absent | 2.1b |
-| 9 | `measure.quotient_group: SubgroupOfO3 \| None` | `[M]` **absent** — `folded_by` is the discrete case on the wrong object, and Part IV records *"the slab's quotient group is recorded nowhere"* | 2.0d |
+| 9 | `measure.quotient_group: SubgroupOfO3 \| None` | ~~`[M]` **absent** — `folded_by` is the discrete case on the wrong object, and Part IV records *"the slab's quotient group is recorded nowhere"*~~ ✅ **REMEDIED** — derived from `Quotient.by` at 2.0c; the slab's answers `SO2('x')` since 2.4 (`17501245`) | 2.0d → 2.0c + 2.4 |
 | 10 | `FunctionSpace.manifold` | smuggled through a NAME STRING at 2 sites, one of them `[M]` already FALSE (§III.10) | 2.0c |
 | 11 | ⭐ **`AngularSymmetry` needs its Γ slot** | `[M]` `support` derives from `continuous_isotropy` ALONE, so `folded_product`'s `S^2/sigma_y` matches **no** geometry and stage 0 would refuse the shipped cylinder (§II.10) | **2.2 — NEW, was unowned** |
 
@@ -2601,7 +2616,7 @@ freezing; the 12 remaining hits are pre-existing lines in
 `tests/sn/_test_helpers.py:671–865,1175` and `test_symmetry.py:1164`, outside
 every hunk of this step).
 
-### (g) `[M]` The per-arm mutation battery — the verdict is a TABLE (`vv-principles` #17)
+### (g0) `[M]` The per-arm mutation battery — the verdict is a TABLE (`vv-principles` #17)
 
 `scratch/_p24_mutation.py`, crash-safe by copy-aside (5 files, all byte-identical
 after), scoped to the 7 suites that can redden; baseline green first. Every
@@ -2629,6 +2644,119 @@ apiece, which is enough and is stated. Arm **B** is the one that separates
 every x-declared assertion still passes and only the y/z-declared ones fail —
 a battery over the shipped slab alone would have read B as BLIND, which is why
 the gates declare about all three axes.
+
+---
+
+## §V.5h ⭐⭐ 2.1b + 2.3's PRE-FLIGHT (2026-09-01, at `8fc781d2`) — G0 is now a MANIFOLD question, and half of 2.3 may have no consumer
+
+The **13th** opener, run at the compaction point so the next session designs
+against the tree rather than against Part IV's 2026-08-31 vocabulary. Every
+`[M]` below is at `8fc781d2`.
+
+### (a) ⛔ Part IV's *"G0 cannot be a tag-equality test"* is VOID — both of its premises moved
+
+Part IV argued: *the slab measure honestly says `[-1,1]`; a trivial-isotypic
+basis honestly lives on `S²/SO(2)`; those name the same manifold; string
+equality would refuse a legal pairing.* Since 2.0c the vocabulary is
+`Manifold` **object** equality, and since 2.4 the slab measure says
+`S^2/SO2_x`. Measured on the three pairings the tree ships, with two candidate
+G0 predicates side by side:
+
+| pairing | `measure.support` | `basis.domain` | G0 as `==` | G0 as ambient-base `==` | `measure.quotient_group` |
+|---|---|---|---|---|---|
+| slab rule vs `SphericalHarmonicBasis(L=2)` | `S^2/SO2_x` | `S^2` | **False** | True | `SO2('x')` |
+| `folded_product(4,8)` vs its own frame basis (`MirrorEven…`) | `S^2/sigma_y` | `S^2/sigma_y` | **True** | True | `Mirror('y')` |
+| `lebedev(17)` vs `SphericalHarmonicBasis(L=2)` | `S^2` | `S^2` | **True** | True | `None` |
+| energy measure vs `SphericalHarmonicBasis(L=2)` | `energy` | `S^2` | False | False | — |
+
+⟹ **An equality G0 refuses exactly the Part I bug and admits both shipped
+angular pairings** — it is the `test_d6` keystone's own claim (*a frame's two
+halves name ONE manifold*), now spellable for the slab. The ONE legal pairing
+equality would refuse and the ambient-base + lattice form would admit is
+row 3 of Part IV's table — `P_ℓ(μ)` evaluated on a full sphere rule — and
+`[M]` it ships **nowhere** (`class LegendreBasis` is 0; no basis today has a
+quotient domain except the fold's, which pairs with its own quotient rule).
+⟹ **2.2's opener owes a RULING, not a measurement**: G0 = object equality
+(stronger, one predicate, refuses the unshipped legal pairing until someone
+needs it) **or** G0 = ambient-base equality + G2 = lattice. Part IV's
+paragraph is annotated in place; it must not be built to as written.
+
+### (b) ✅ G2's MEASURE side became real at 2.4; the BASIS side is all of 2.1b
+
+`[M]` `gauss_legendre(8).measure.quotient_group == SO2('x')` (was `None`
+before 2.4) and `folded_product(4,8).measure.quotient_group == Mirror('y')`.
+The lattice answers Part IV's four rows on the measure side today:
+`Trivial.contains(SO2('x'))` **False** (refuses the bug once a full-SH basis
+says `Trivial`), `SO2('x').contains(SO2('x'))` True (the repair),
+`SO2('x').contains(Trivial)` True (a smaller space on a full rule),
+`Mirror('y').contains(Mirror('y'))` True (the fold). `[M]` by runtime
+`__subclasses__`: **0 of 6** bases answer `invariance_group`. Derivable:
+`SphericalHarmonicBasis` → `Trivial`; `MirrorEvenSphericalHarmonicBasis` →
+`Mirror(axis)` (it carries `mirror_axis`); the future `LegendreBasis` →
+`SO2(axis)`. ⚠ **A category question 2.1b's opener must rule:** the three
+indicator-family bases and `LossKernelBasis` live on `RealSpace` /
+`EnergyGroups` / `IndexSet`, where no subgroup of `O(3)` acts — `None`
+(the `mirror_axis` tax again, and §8's branchable value) or `Trivial` (true,
+and vacuous)? Read `IndicatorBasis.domain` before choosing.
+
+### (c) ⛔ 2.2's gate at the FRAME is INERT until 0.1b — XII.1b's fusion re-confirmed at this HEAD
+
+`[M]` `gauss_legendre(8).angular_frame(2).measure.support.name == 'S^2'` — the
+FORGED measure — while `gauss_legendre(8).measure.support.name ==
+'S^2/SO2_x'`. The frame never sees the rule's declaration, so a G0/G2 written
+on `(frame.measure, basis)` admits the slab and catches nothing; one written
+on `(quadrature.measure, basis)` refuses the slab **today**, i.e. reddens
+every slab solve until 3.4 — the *gate whose only witness is production*
+hazard XII.1b names. Land 2.2 with 0.1b + 0.6 + 3.4, as ruled.
+
+### (d) 2.1b's §6c question, answered before it is asked
+
+Alone, 2.1b refuses nothing: it is a field with one consumer (2.2's G2). Its
+honest witness at landing is not a refusal but an AGREEMENT on a shipped
+pairing: `[M]` the fold's two halves — `folded_product(4,8).measure.quotient_group
+== Mirror('y')` and its basis's `invariance_group` (to be `Mirror('y')`) —
+satisfy `⊆`, plus the negative leg spelled as the lattice's verdict,
+`SO2('x') ⊆ Trivial` is False for the slab rule against a full-SH basis. That
+is a real witness (the fold ships) and not a frame refusal (which would be
+§6c-vacuous until the fused step).
+
+### (e) ⛔ 2.3 re-measured: the CHART half has consumers, the SECTION half may have NONE
+
+`[M]` `dataclasses.fields(Quotient)` is **10**: `base, by, realization,
+fundamental_domain, generators, syzygy, gram, det_gram, derived_by,
+singular_stratum`. D0.1's chart (the MAP) and pushforward measure are still
+absent (`class Chart` **0**). Consumers a typed arrow would have today:
+`pushforward` has **1** production call site (inside `quotient()`,
+`measure.py:1156`) and 1 test file; `spherical_product` composes `S²` nodes as
+`column_stack([mu_x, mu_y, mu_z])` + a `support=SPHERE` literal
+(`rules_product.py:531`) — the Archimedes parametrisation, unnamed; and the
+fold's `quotient()`.
+
+⛔ `[R]` **The SECTION half of 2.3 has no consumer once 3.4 lands.** A section
+`S²/SO(2)_a → S²` exists to evaluate an `S²`-function at an orbit-space point
+— which is ERR-080's forgery, the thing 0.1b retires. What 3.4b's `Descent`
+needs is the **quotient map** `π: S² → S²/SO(2)_a`, `Ω ↦ Ω·ê_a`, to pull
+`P_ℓ` back (`P_ℓ ∘ π` is the `m = 0` harmonic) — an arrow in the OTHER
+direction. Part XIV's own pointer (written at the 2.0c compaction) calls 2.3
+*"the SECTION MAP's natural home"*; treat that as a **hypothesis** and settle
+it at 2.3's opener by enumerating who would call a section after 3.4. If the
+answer is nobody, 2.3 is the quotient map + the product parametrisation, and
+`_sphere_mod_so2`'s `fundamental_domain=None` stays `None` on purpose.
+
+`[R]` **A Pattern-2 twin for 2.3/3.1 to absorb:** D0.1's *pushforward
+measure* of a quotient is today answered by `AngularSymmetry.reference`'s
+dispatch (`LEGENDRE` for any `SO2`, `UNIFORM_ON_SPHERE` for `Trivial`,
+raise otherwise). That is the catalogue entry's 8th field living on the
+registry; the seed should carry it and the registry should read it.
+
+### (f) Order, and a §6b note
+
+2.1b first (small, one field, the fold as witness); then 2.3 with (e) settled
+at its opener. Both are enablers whose consumer is the fused step. ⚠ 2.1b
+re-signatures nothing, but it ADDS an abstract member to `Basis` if made
+abstract like `domain` — then the §6b set is every subclass constructor
+**including test-local ones** (`_DenseTrial` at 2.1: 23, not 18), enumerated by
+runtime `__subclasses__` after importing every module (landmine #4).
 
 ---
 
@@ -3840,36 +3968,38 @@ this is right: the forgery is what CONCEALS the missing discrete-quotient slot).
 
 ---
 
-# Part XIV — ⏸ COMPACTION **RECORD** (2026-09-01, 3rd of the day) + ▶ Resume surface
+# Part XIV — ⏸ COMPACTION **RECORD** (2026-09-01, 4th of the day) + ▶ Resume surface
 
 ⚠ **Naming, because it has been ambiguous since the plan was written.** Part VI
 schedules two *planned* pauses — "COMPACTION POINT 1 — after Phase 3" and
 "COMPACTION POINT 2 — after Phase 5". **This Part is neither.** It is the
 running RECORD of where the campaign actually is, rewritten at each real
-compaction. It has been rewritten five times (2026-08-31, and four times on
+compaction. It has been rewritten six times (2026-08-31, and five times on
 2026-09-01); do not try to match its number against Part VI's.
 
 **Read in this order on pick-up:** this Part → Part XIII (the tracker) → Part XII
 (the exit gate, esp. **XII.1b**) → the phase you are executing. **Part IX,
 §II.15, §II.16, §V.5d, §V.5e and the 2.1 / 0.2 execution sections first if you
 are about to re-propose anything** — the supersession table below is the count
-that is kept current (`[M]` **43 rows, 42 of them ⛔**, counted 2026-09-01
-after 2.0c and 2.4's pre-flight — the count is re-derived by script, never
-incremented by hand), and
+that is kept current (`[M]` **48 rows, 47 of them ⛔**, counted 2026-09-01
+after 2.4 landed — the count is re-derived by script, never incremented by
+hand), and
 most of those are mine, several written the same day they were refuted, one
 refuted *by my own fix*, and one a denominator I "corrected" in the WRONG
 direction.
 
 ⭐ **The single most useful habit this campaign has, stated so it survives:**
 every phase begins by RE-MEASURING its own section's premises before designing.
-`[M]` **TWELVE consecutive phase openers have corrected their own section**, and
+`[M]` **THIRTEEN consecutive phase openers have corrected their own section**, and
 two of them (P6, and 2.0a's sizing) dissolved or re-scoped the phase entirely.
 The eleventh (2.0c's third opener, §V.5f) found that the step's own title named
 **one implementor of a six-implementor contract**, one of them spelled so that
 no census of the alias could return it; the twelfth (2.4's pre-flight, §V.5g)
 found that the step filed as *wiring* repairs a **live** defect, and is the one
-step in the campaign that RENAMES a shipped space. Budget the opener; it has never once
-been wasted.
+step in the campaign that RENAMES a shipped space; the thirteenth (2.1b + 2.3's
+pre-flight, **§V.5h**, run at this compaction) found Part IV's G0 argument VOID
+under the post-2.4 vocabulary and half of 2.3 possibly consumer-less. Budget the
+opener; it has never once been wasted.
 
 ⚠ This supersedes the two earlier versions of this RECORD. Their content is
 folded in below; nothing from either was dropped.
@@ -3922,13 +4052,16 @@ pre-existing 9 s hot spot the step amplified and then removed.
 ▶ **A basis states the symmetry group its functions are invariant under, and
 the frame checks its two halves agree** — trackers **2.1b** (`Basis.invariance_group`,
 G0's other side: `[M]` 0 of 6 subclasses answer it) and **2.3** (the typed
-`Chart`, and the SECTION MAP's home — the honest `φ = 0` half-meridian ERR-080's
-level-1 half needs; `_sphere_mod_so2` now says where it goes). ⚠ Run the
-phase opener first: every one of the twelve so far has corrected its own
-section (2.4's pre-flight was the twelfth, and its execution then refuted
-two of the pre-flight's own numbers), and 2.3's premise — *"completes the
-engine seed 6 → 8"* — was written before 2.0c/2.4 made `Quotient.by` and
-`on_orbit_space` real.
+`Chart` — ⚠ *"the SECTION MAP's home"* is a HYPOTHESIS, see §V.5h(e): the
+section may have no consumer after 3.4, while the QUOTIENT MAP has one in
+3.4b). ⭐ **Pre-flighted at this compaction — read §V.5h before designing.**
+It found Part IV's *"G0 cannot be a tag-equality test"* VOID (an equality G0
+refuses exactly the Part I bug and admits both shipped angular pairings — a
+RULING for 2.2's opener), G2's measure side already real (the slab's
+`quotient_group` is `SO2('x')`), 2.2's frame gate inert until 0.1b (the frame
+still sees the forged `S^2`), and 2.3's *"6 → 8"* premise pre-dating
+`Quotient.by` and `on_orbit_space` (`Quotient` has 10 fields; chart and
+pushforward measure absent; `pushforward` has ONE production caller).
 
 ⛔ **The text below is the PRE-2.4 pointer, kept per §3.** It described the
 tree at `8cc69e7f`; its five findings all held at execution except the second
@@ -4113,11 +4246,11 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
    the plan cites, not just the ones you intend to use — a dangling hash reads
    exactly like a live one.
 
-### §1 existence-checks — re-run 2026-09-01 at `8cc69e7f`
+### §1 existence-checks — re-run 2026-09-01 at `8fc781d2`
 
 `[M]` in `orpheus/`, by AST, **with positive controls in the same pass**
-(`class Manifold` → `manifold.py:104`, `Sphere` → `:231`, `Interval` → `:284`,
-`Ball` → `:460`, `FundamentalDomain` → `:492`, `Quotient` → `:562` — all found):
+(`class Manifold` → `manifold.py:113`, `Quotient` → `:556`, `SO2` →
+`symmetry.py:265`, `Mirror` → `:200` — all found):
 `class Chart` **0** · `class LegendreBasis` **0** · `class Descent` **0** ·
 `class ReynoldsProjection` **0** · `class OrbitAxis` **0**.
 ⟹ nothing the pointer promises exists yet.
@@ -4129,16 +4262,17 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
 ✅ **6 of 6 answer `domain`**; `invariance_group` is still **0 of 6**, so G0's
 other side (tracker **2.1b**) remains absent.
 
-**Landed and callable** (`file:line` re-derived by AST at the 2.4 tree,
-2026-09-01. ⚠ **Nine MOVED at 2.4** — `manifold.py`'s `quotient` body moved
-into a memoised module function so everything from `Ball` down shifted UP by
-14 and the builders below grew; `measure.py`'s `phase` prose grew; `registry.py`
-grew. ⚠ `symmetry.py` gained a class and two functions. Do not trust a copy
-from an earlier record):
-`class Manifold` `manifold.py:105` · `Sphere` `:231` · `Interval` `:284` ·
-`Ball` `:446` · `FundamentalDomain` `:478` · `Quotient` `:548`,
-its `by` field `:566` · ⭐ `_catalogued_quotient` `:714` **NEW** (the memo) ·
-`_sphere_mod_so2` `:745` (⭐ now reads the axis) · `ambient_dim` `:998` ·
+**Landed and callable** (`file:line` re-derived by AST at `8fc781d2`,
+2026-09-01. ⚠ **`manifold.py` moved TWICE this session** — the `quotient`
+body moved into a memoised module function at 2.4 (everything from `Ball`
+down shifted up), then the module docstring grew by 8 lines at the archivist's
+findings (everything shifted down). `measure.py`'s `phase` prose grew;
+`registry.py` grew; `symmetry.py` gained a class and two functions. Do not
+trust a copy from an earlier record):
+`class Manifold` `manifold.py:113` · `Sphere` `:225` · `Interval` `:278` ·
+`Ball` `:454` · `FundamentalDomain` `:486` · `Quotient` `:556`,
+its `by` field `:574` · ⭐ `_catalogued_quotient` `:722` **NEW** (the memo) ·
+`_sphere_mod_so2` `:753` (⭐ now reads the axis) · `ambient_dim` `:1006` ·
 `Basis.domain` `basis/base.py:245` · `Basis.space` `:288` ·
 `IndicatorBasis` `basis/indicator_basis.py:108` ·
 `_evaluate_real_sh` `basis/spherical_harmonic_basis.py:550` ·
@@ -4353,7 +4487,7 @@ so a re-reader does not mistake it for a stale number.
 ⛔ **Do not keep a COUNT here** (`plan-authoring` §9 — the file re-measures
 itself, and a copied count is guaranteed to go stale while looking
 authoritative). `.claude/rules/plan-authoring.md`'s surprise log is the record;
-`[M]` it holds **67** dated rows at `765757a0`, and the campaign's own
+`[M]` it holds **71** dated rows at `8fc781d2`, and the campaign's own
 contributions are the ones a `grep` for this plan's vocabulary finds. *(An
 earlier version of this paragraph asserted "seven rows across the campaign" —
 un-countable, since no mechanical predicate separates this campaign's rows from
