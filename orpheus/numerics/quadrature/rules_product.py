@@ -108,7 +108,8 @@ from ..exactness import (
     ExactnessClaim,
     OrthogonalSystem,
 )
-from ..measure import SPACE_CIRCLE, SPACE_SPHERE, DiscreteMeasure
+from ..measure import DiscreteMeasure
+from orpheus.numerics.manifold import CIRCLE, SPHERE
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_mu
 from .rules_circle import NODE_ALIGNED, periodic_trapezoid
@@ -390,7 +391,7 @@ def spherical_product(
         claim (e.g.
         :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_mu`).
     azimuthal : DiscreteMeasure
-        A circle rule on :data:`~orpheus.numerics.measure.SPACE_CIRCLE`,
+        A circle rule on :data:`~orpheus.numerics.manifold.CIRCLE`,
         nodes shape ``(n_phi, 2)`` of unit points
         :math:`(\cos\varphi, \sin\varphi)`, carrying a TRIGONOMETRIC
         exactness claim (e.g.
@@ -404,7 +405,7 @@ def spherical_product(
     -------
     DiscreteMeasure
         Nodes shape ``(n_mu * n_phi, 3)`` on
-        ``support=SPACE_SPHERE``, with derived ``invariance_group``
+        ``support=SPHERE``, with derived ``invariance_group``
         and ``exactness``.
     LevelStructure
         Per-level indexing for the cylindrical sweep, ordered by the
@@ -431,10 +432,10 @@ def spherical_product(
             f"(μ = cos(θ)); got extremes "
             f"[{polar.nodes.min()}, {polar.nodes.max()}]"
         )
-    if azimuthal.support != SPACE_CIRCLE:
+    if azimuthal.support != CIRCLE:
         raise ValueError(
             f"the azimuthal factor must be a circle rule on "
-            f"{SPACE_CIRCLE!r}, got support {azimuthal.support!r}. An "
+            f"{CIRCLE!r}, got support {azimuthal.support!r}. An "
             f"interval rule with the same angles is a DIFFERENT object "
             f"carrying a different (algebraic) claim — the confusion "
             f"the exactness carve exists to prevent."
@@ -527,7 +528,7 @@ def spherical_product(
     measure = DiscreteMeasure(
         nodes=nodes,
         weights=weights,
-        support=SPACE_SPHERE,
+        support=SPHERE,
         # COMPUTED from the factors by the three generator checks above
         # — never a declared literal. This module shipped three false
         # symmetry declarations (ERR-072/073/074); a declaration is

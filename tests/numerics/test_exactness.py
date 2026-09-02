@@ -38,7 +38,8 @@ from orpheus.numerics.generating_measure import (
     LEGENDRE,
     jacobi,
 )
-from orpheus.numerics.measure import SPACE_CIRCLE, Space
+from orpheus.numerics.manifold import Manifold
+from orpheus.numerics.manifold import CIRCLE, COSINE_INTERVAL
 
 pytestmark = [pytest.mark.foundation]
 
@@ -55,7 +56,7 @@ class _FourierRef:
     """
 
     name: str = "uniform_on_circle"
-    support: Space = SPACE_CIRCLE
+    support: Manifold = CIRCLE
     orthogonal_system: OrthogonalSystem = OrthogonalSystem.TRIGONOMETRIC
 
 
@@ -147,7 +148,7 @@ def test_tensor_reference_is_the_PRODUCT_not_a_factor() -> None:
     assert product.reference != LEGENDRE
     assert product.reference != CHEBYSHEV_T
     assert product.reference.name == "legendre ⊗ chebyshev_t"
-    assert product.reference.support == "[-1,1] × [-1,1]"
+    assert product.reference.support == COSINE_INTERVAL * COSINE_INTERVAL
 
 
 def test_tensor_is_NOT_idempotent() -> None:
@@ -162,7 +163,7 @@ def test_tensor_is_NOT_idempotent() -> None:
     assert squared is not None
     assert squared != a
     assert squared.degree == a.degree
-    assert squared.reference.support == "[-1,1] × [-1,1]"
+    assert squared.reference.support == COSINE_INTERVAL * COSINE_INTERVAL
 
 
 def test_tensor_degree_never_strengthens() -> None:

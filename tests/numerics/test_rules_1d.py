@@ -22,7 +22,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.measure import SPACE_INTERVAL_M11, DiscreteMeasure
+from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.manifold import COSINE_INTERVAL
 from orpheus.numerics.quadrature import gauss_legendre_on_mu
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.symmetry import SubgroupOfO3
@@ -44,7 +45,7 @@ def test_gauss_legendre_returns_discrete_measure(n: int) -> None:
     assert m.n_points == n
     assert m.nodes.shape == (n,)
     assert m.weights.shape == (n,)
-    assert m.support == SPACE_INTERVAL_M11
+    assert m.support == COSINE_INTERVAL
     assert m.invariance_group == SubgroupOfO3.Mirror("x")
     assert m.degree_of_exactness == 2 * n - 1
 

@@ -29,7 +29,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.exactness import OrthogonalSystem
-from orpheus.numerics.measure import SPACE_CIRCLE, DiscreteMeasure, equispaced
+from orpheus.numerics.measure import DiscreteMeasure, equispaced
+from orpheus.numerics.manifold import CIRCLE
 from orpheus.numerics.quadrature.rules_circle import (
     NODE_ALIGNED,
     STAGGERED,
@@ -64,7 +65,7 @@ def test_shape_space_and_mass(n: int, shift: Fraction) -> None:
     assert isinstance(rule, DiscreteMeasure)
     assert rule.n_points == n
     assert rule.nodes.shape == (n, 2)
-    assert rule.support == SPACE_CIRCLE
+    assert rule.support == CIRCLE
     np.testing.assert_allclose(
         np.linalg.norm(rule.nodes, axis=1), 1.0, rtol=0, atol=4e-16,
     )
@@ -84,7 +85,7 @@ def test_the_claim_names_the_circle_and_its_system(
     assert claim is not None
     assert claim.degree == n - 1
     assert claim.system is OrthogonalSystem.TRIGONOMETRIC
-    assert claim.reference.support == SPACE_CIRCLE
+    assert claim.reference.support == CIRCLE
 
 
 @pytest.mark.foundation

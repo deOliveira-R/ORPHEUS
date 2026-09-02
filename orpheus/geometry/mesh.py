@@ -411,11 +411,13 @@ class Mesh1D:
         # import :mod:`orpheus.geometry.mesh`, but the inverse
         # direction would force every consumer of mesh.py to bring
         # in the measure module.
+        from orpheus.numerics.manifold import RealSpace
         from orpheus.numerics.measure import DiscreteMeasure
         return DiscreteMeasure(
             nodes=self.centers,
             weights=self.volumes,
-            support="spatial_R1",
+            # The same ``RealSpace(1)`` ``indicator_basis`` partitions below.
+            support=RealSpace(1),
         )
 
     def indicator_basis(self):
@@ -723,6 +725,7 @@ class Mesh2D:
         --------
         :meth:`Mesh1D.volume_measure` — the 1-D analogue.
         """
+        from orpheus.numerics.manifold import RealSpace
         from orpheus.numerics.measure import DiscreteMeasure
         cx = self.centers_x
         cy = self.centers_y
@@ -732,7 +735,7 @@ class Mesh2D:
         return DiscreteMeasure(
             nodes=nodes,
             weights=weights,
-            support="spatial_R2",
+            support=RealSpace(2),
         )
 
     @property

@@ -29,6 +29,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import LevelStructure, Quadrature
@@ -552,8 +554,8 @@ def test_q8_3_the_fold_keeps_its_quotient_tag_all_the_way_to_the_frame() -> None
     ``frame.measure_space`` moves ``L2[S^2]`` → ``L2[S^2/sigma_y]``.
     """
     q = Quadrature.folded_product(n_mu=4, n_phi=8)
-    assert q.measure.support == "S^2/sigma_y"
-    assert q.angular_frame(2).measure.support == "S^2/sigma_y"
+    assert q.measure.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+    assert q.angular_frame(2).measure.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
     assert q.angular_frame(2).measure_space.name == "L2[S^2/sigma_y]"
     # …and an UNfolded sibling of the same family still says S^2, so the
     # assertion above is discriminating rather than a tautology on the tag.
@@ -582,8 +584,8 @@ def test_q8_4_the_1d_lift_is_still_a_FICTION_and_says_so(make) -> None:
     q = make()
     frame_measure = q.angular_frame(2).measure
     assert frame_measure is not q.measure
-    assert q.measure.support == "[-1,1]"
-    assert frame_measure.support == "S^2"          # the fiction, stated
+    assert q.measure.support == COSINE_INTERVAL
+    assert frame_measure.support == SPHERE          # the fiction, stated
     assert q.measure.nodes.ndim == 1
     assert frame_measure.nodes.shape == (q.N, 3)
     # the fabricated azimuth: every node is padded onto the phi = 0 meridian

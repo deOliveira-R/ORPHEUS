@@ -79,6 +79,23 @@ from typing import TYPE_CHECKING, Callable, Literal, Protocol, runtime_checkable
 
 import numpy as np
 
+# ⭐ A module-scope import, and it is safe by design rather than by luck:
+# ``manifold`` reaches ``symmetry`` (which imports THIS module at module scope)
+# only under ``TYPE_CHECKING``, so the cycle ``measure → manifold → symmetry →
+# measure`` never closes at runtime. ``[M]`` 2026-09-01, injected and run in
+# five import orders (measure / symmetry / geometry / registry / sn.solver
+# first) — all clean. Do not promote ``manifold``'s TYPE_CHECKING import of
+# ``symmetry`` to module scope without re-running that probe.
+from orpheus.numerics.manifold import (
+    COSINE_INTERVAL,
+    EnergyGroups,
+    Interval,
+    Manifold,
+    Quotient,
+    RealSpace,
+    Sphere,
+)
+
 if TYPE_CHECKING:
     # ``axis`` is lower-level (imports nothing from this module); the
     # forward-ref keeps the annotation cost-free — the runtime import
@@ -94,40 +111,51 @@ if TYPE_CHECKING:
     # module (its ``gauss`` returns a DiscreteMeasure), so the arrow runs
     # one way and the field holds the object by forward reference.
     from orpheus.numerics.generating_measure import GeneratingMeasure
-    # ``exactness`` imports ``Space`` from here, so the same one-way arrow
-    # applies: the field holds an ``ExactnessClaim`` by forward reference.
+    # ``exactness`` imports ``DiscreteMeasure`` from here, so the same
+    # one-way arrow applies: the field holds an ``ExactnessClaim`` by
+    # forward reference.
     from orpheus.numerics.exactness import ExactnessClaim
 
 # ---------------------------------------------------------------------------
-# Space tags
+# The point set a measure lives on
 # ---------------------------------------------------------------------------
 
-# String tags for measurable spaces. Treated as opaque labels at runtime —
-# composition operations stitch them together (e.g. ``"[-1,1]" * "S^1"
-# → "[-1,1] × S^1"``) but no type-level enforcement is attempted, in
-# line with the design note in `.claude/plans/sn_reshape.md` Issue 2
-# ("Don't try to enforce ``Space`` types via Python generics — not
-# expressive enough without runtime overhead").
-Space = str
-
-# Common aliases used across the project. These are recommendations, not
-# constraints; user code may pass arbitrary strings.
-SPACE_R = "R"
-SPACE_HALF_LINE = "[0,inf)"
-SPACE_INTERVAL_M11 = "[-1,1]"
-SPACE_INTERVAL_01 = "[0,1]"
-# The circle names the MANIFOLD, not a chart of it. It was ``"[0,2π)"``
-# until 2026-08-02, which put an off-pattern member in a family whose
-# sibling is ``SPACE_SPHERE = "S^2"`` — and, worse, made the tag assert a
-# coordinate. The distinction is load-bearing here: the periodic
-# trapezoid's nodes are the roots of unity as POINTS
-# (:func:`~orpheus.numerics.roots_of_unity.roots_of_unity`), because only
-# in that representation is an on-axis node exactly ``0.0``; an angle
-# chart would have re-introduced the very rounding
-# :mod:`~orpheus.numerics.roots_of_unity` exists to remove. Uniform
-# measure on S^1 has mass 2π, on S^2 mass 4π — one family, one rule.
-SPACE_CIRCLE = "S^1"
-SPACE_SPHERE = "S^2"
+# ⛔ Until 2026-09-01 this section defined ``Space = str`` plus six ``SPACE_*``
+# string tags, and its comment read: *"Treated as opaque labels at runtime —
+# composition operations stitch them together (e.g. `"[-1,1]" * "S^1"` →
+# `"[-1,1] × S^1"`) but no type-level enforcement is attempted, in line with
+# the design note in `.claude/plans/sn_reshape.md` Issue 2 ('Don't try to
+# enforce ``Space`` types via Python generics — not expressive enough without
+# runtime overhead')."*
+#
+# ⭐ That note was answered rather than overruled. The objection was to
+# *generics* — a phantom type parameter, erased at runtime, buying nothing;
+# it is still correct. What ships instead is a closed sum of ORDINARY VALUES
+# (:mod:`orpheus.numerics.manifold`), so the "stitching" the comment describes
+# is now :meth:`Manifold.__mul__` returning a ``Product`` that can answer
+# ``dim`` and ``contains``, at no runtime cost and with no generics.
+#
+# ``Space = str`` was retired 2026-09-01 (#429 tracker 2.0c): a measure now
+# names the point set it lives on with a :class:`~orpheus.numerics.manifold.Manifold`,
+# so ``support`` carries the object's structure — its dimension, its membership
+# predicate, its quotient and product algebra — instead of a tag that only a
+# reader could interpret. The six ``SPACE_*`` string constants below retired
+# with it; their replacements are the shipped ``Manifold`` members
+# (``REAL_LINE``, ``HALF_LINE``, ``COSINE_INTERVAL``, ``UNIT_INTERVAL``,
+# ``CIRCLE``, ``SPHERE``, ``ENERGY``) and every one of them reproduces the
+# retired tag's spelling bit-identically through :attr:`Manifold.name`
+# (``[M]`` 10 of 10 at the retype).
+# ⭐ The circle names the MANIFOLD, not a chart of it — a distinction that
+# outlived the tag it was written for, and is now carried by the type. The tag
+# was ``"[0,2π)"`` until 2026-08-02, which made it assert a COORDINATE; the
+# load-bearing consequence is that the periodic trapezoid's nodes are the roots
+# of unity as POINTS (:func:`~orpheus.numerics.roots_of_unity.roots_of_unity`),
+# because only in that representation is an on-axis node exactly ``0.0`` — an
+# angle chart would have re-introduced the very rounding
+# :mod:`~orpheus.numerics.roots_of_unity` exists to remove. Uniform measure on
+# S^1 has mass 2π, on S^2 mass 4π — one family, one rule. That is now
+# :class:`~orpheus.numerics.manifold.Circle` and
+# :class:`~orpheus.numerics.manifold.Sphere`, which cannot be spelled as a chart.
 
 # The physical FACTOR of transport phase space (position × direction × energy)
 # a measure discretises. A closed enumeration — there are exactly these factors
@@ -169,14 +197,22 @@ class DiscreteMeasure:
         Array of weights, shape ``(N,)``. Weights MAY be negative
         (e.g. signed quadratures) but most rules in this codebase
         produce non-negative weights.
-    support : Space
-        Opaque string tag for the **measurable support** — the σ-algebra /
-        ambient space the nodes live on (``"S^2"``, ``"[-1,1]"``,
-        ``"spatial_R1"``, …). Used for sanity checks (direct sum requires
-        equal tags) and composition bookkeeping (tensor product concatenates
-        tags). NOTE: this is the *continuous support*, distinct from the
-        induced *discrete function space* :attr:`space` (the operator-algebra
-        domain) and from the physical :attr:`phase` (angular/spatial/energy).
+    support : Manifold
+        The **point set the atoms live on** — :class:`Sphere`,
+        :class:`Interval`, :class:`RealSpace`, an orbit space
+        :class:`Quotient`, … (:mod:`orpheus.numerics.manifold`).
+
+        It is an OBJECT, not a tag, and three things are derived from it that
+        a string could only assert: :attr:`phase` (which factor of transport
+        phase space this discretises) reads its TYPE; :attr:`space`'s name
+        reads its :attr:`~Manifold.name`; and :meth:`quotient` folds onto
+        ``support.quotient(G)`` — the catalogue's orbit space, not a
+        fabricated one. Direct sum requires equal supports and the tensor
+        product multiplies them, both through the manifold's own algebra.
+
+        NOTE: this is the *continuous support*, distinct from the induced
+        *discrete function space* :attr:`space` (the operator-algebra domain)
+        and from the physical :attr:`phase` (angular/spatial/energy).
     invariance_group : SubgroupOfO3 | None, optional
         The maximal subgroup of :math:`O(3)` under which the measure is
         invariant (its nodes permute among themselves with weights
@@ -264,7 +300,7 @@ class DiscreteMeasure:
 
     nodes: np.ndarray
     weights: np.ndarray
-    support: Space
+    support: Manifold
     invariance_group: "SubgroupOfO3 | None" = None
     exactness: "ExactnessClaim | None" = None
 
@@ -321,14 +357,15 @@ class DiscreteMeasure:
         symmetric and neither is fabricated ad-hoc by the binder.
 
         Distinct from :attr:`support` (the *continuous* measurable space the
-        nodes live on, a string tag) — this is the *discrete* function space.
+        nodes live on, a :class:`~orpheus.numerics.manifold.Manifold`) — this is
+        the *discrete* function space.
         Lazy import (``FunctionSpace`` is a higher-level construct; mirrors
         :attr:`SphericalHarmonicBasis.space`'s lazy import).
         """
         from orpheus.numerics.space import FunctionSpace
 
         return FunctionSpace(
-            name=f"L2[{self.support}]",
+            name=f"L2[{self.support.name}]",
             shape=(self.n_points,),
             inner_product_weights=self.weights,
         )
@@ -364,6 +401,28 @@ class DiscreteMeasure:
             kind=BasisKind.NODAL,
             generator=self,
         )
+
+    @property
+    def quotient_group(self) -> "SubgroupOfO3 | None":
+        r"""The group this measure's support was folded BY, or ``None``.
+
+        ⭐ **Derived, never stored** — tracker 2.0d asked for a
+        ``quotient_group`` FIELD and it dissolved into 2.0c at the phase
+        opener: :attr:`Quotient.by` already *is* the group, so a stored copy
+        would be a second home for one fact and the two would have to be kept
+        in agreement by hand across every operation that rebuilds a measure
+        (:meth:`restrict`, :meth:`consolidate`, :meth:`reorder`, …).
+
+        ⚠ Distinct from :attr:`invariance_group`, and the two are almost
+        complementary: ``invariance_group`` is the symmetry the measure
+        **HAS**, ``quotient_group`` the symmetry it has **SPENT**. A folded
+        rule reports ``None`` for the first (the mirror was quotiented away,
+        so its nodes are no longer closed under it) and the group for the
+        second. Reading either as the other is
+        ``plan-authoring`` §3's ambiguous-name hazard, and ``invariance_group``
+        has drawn it before.
+        """
+        return self.support.by if isinstance(self.support, Quotient) else None
 
     @property
     def phase(self) -> Phase:
@@ -406,18 +465,36 @@ class DiscreteMeasure:
         counting rule; the physical identity is exactly what the symmetry group
         / support tag supplies.
         """
-        if self.invariance_group is not None:
-            return "angular"
-        if self.support.startswith("spatial") or self.support == "cells":
-            return "spatial"
-        if self.support.startswith("energy"):
-            return "energy"
+        match self.support:
+            # A sphere and any quotient of one are the direction variable's
+            # home, whatever residual symmetry the rule spent. The quotient arm
+            # is what the shipped fold needs: ``folded_product(4, 8)`` lives on
+            # S²/σ_y with ``invariance_group=None`` (the mirror was quotiented
+            # AWAY, so the measure is not invariant under it), and before this
+            # arm existed asking it for its phase RAISED.
+            case Sphere() | Quotient(base=Sphere()):
+                return "angular"
+            case EnergyGroups():
+                return "energy"
+            case RealSpace():
+                return "spatial"
+            case _ if self.invariance_group is not None:
+                # ⚠ The one genuinely ambiguous point set, and the reason
+                # ``phase`` is a property of the MEASURE and not of the
+                # manifold: a slab angular rule declares ``Interval(-1, 1)``,
+                # which is exactly how a 1-D spatial interval would spell
+                # itself. The O(3) symmetry is what tells them apart, and it
+                # lives on the measure. ⟹ tracker 2.4 makes the slab declare
+                # ``SPHERE.quotient(SO2)`` — whose realization IS [-1, 1] — and
+                # this arm becomes unreachable.
+                return "angular"
         raise NotImplementedError(
-            f"phase is undetermined for support {self.support!r}: only the "
-            f"angular factor (O(3)-symmetric, via invariance_group) and "
-            f"spatial measures (a 'spatial…'/'cells' support) carry a derived "
-            f"phase today. The energy factor and other generic rules get their "
-            f"typed per-category machinery when first Frame-bound."
+            f"phase is undetermined for a measure on {self.support.name!r}: "
+            f"the direction factor is any sphere or quotient of one, the "
+            f"energy factor is EnergyGroups, and the position factor is "
+            f"RealSpace. An Interval is ambiguous between the slab's μ-axis "
+            f"and a 1-D spatial interval, so it is angular only when the "
+            f"measure carries the O(3) symmetry that says so."
         )
 
     # ------------------------------------------------------------------
@@ -497,11 +574,11 @@ class DiscreteMeasure:
     def __repr__(self) -> str:
         if self.invariance_group is None:
             return (
-                f"DiscreteMeasure(support={self.support!r}, "
+                f"DiscreteMeasure(support={self.support.name!r}, "
                 f"n_points={self.n_points})"
             )
         return (
-            f"DiscreteMeasure(support={self.support!r}, "
+            f"DiscreteMeasure(support={self.support.name!r}, "
             f"n_points={self.n_points}, "
             f"invariance_group={self.invariance_group!r})"
         )
@@ -584,8 +661,9 @@ class DiscreteMeasure:
         # Outer product of weights, flattened in matching order.
         new_weights = np.outer(self.weights, other.weights).reshape(-1)
 
-        # Metadata propagation.
-        new_space = f"{self.support} × {other.support}"
+        # Metadata propagation. ⭐ The product of the two point sets IS the
+        # product manifold — ``Manifold.__mul__`` — not a string that spells one.
+        new_space = self.support * other.support
 
         return DiscreteMeasure(
             nodes=new_nodes,
@@ -640,7 +718,7 @@ class DiscreteMeasure:
         if self.support != other.support:
             raise ValueError(
                 f"direct sum requires equal spaces, got "
-                f"{self.support!r} and {other.support!r}"
+                f"{self.support.name!r} and {other.support.name!r}"
             )
         if self.dim != other.dim:
             raise ValueError(
@@ -741,7 +819,7 @@ class DiscreteMeasure:
         self,
         phi: Callable[[np.ndarray], np.ndarray],
         *,
-        new_space: Space | None = None,
+        new_space: Manifold,
     ) -> DiscreteMeasure:
         r"""Image measure :math:`\varphi_* \mu` under :math:`\varphi`.
 
@@ -775,11 +853,17 @@ class DiscreteMeasure:
             Map :math:`\varphi : \mathcal{X} \to \mathcal{Y}`.
             Called once with the full ``nodes`` array. Must return
             an array of shape ``(N,)`` or ``(N, d')``.
-        new_space : Space, optional
-            Tag for the target space :math:`\mathcal{Y}`. Defaults
-            to ``f"φ_*({self.support})"`` if not provided — set this
-            explicitly when the target has a known canonical name
-            (e.g. ``"[0,1]"`` after a linear remap).
+        new_space : Manifold
+            The target point set :math:`\mathcal{Y}` — **required**.
+
+            ⭐ It was optional until 2026-09-01, defaulting to a
+            *fabricated* support named ``f"φ_*({self.support})"``. That
+            default is the defect this campaign exists to remove: the image
+            of a manifold under an arbitrary map is a manifold nobody has
+            computed, and naming it does not make it known. Only ``φ``'s
+            author knows :math:`\mathcal{Y}`, so only they can name it.
+            (``[M]`` at the retype: 7 of 8 call sites already passed it; the
+            one that did not was a test asserting the fabricated name.)
 
         Returns
         -------
@@ -798,14 +882,10 @@ class DiscreteMeasure:
                 f"got {new_nodes.shape[0]} from N={self.n_points}"
             )
 
-        target_space = (
-            new_space if new_space is not None else f"φ_*({self.support})"
-        )
-
         return DiscreteMeasure(
             nodes=new_nodes,
             weights=self.weights.copy(),
-            support=target_space,
+            support=new_space,
             invariance_group=None,
             exactness=None,
         )
@@ -1019,7 +1099,10 @@ class DiscreteMeasure:
 
         return self.pushforward(
             lambda nodes: nodes[representative],
-            new_space=f"{self.support}/{group.name}",
+            # ⭐ The folded measure lives on the ORBIT SPACE, and the orbit space
+            # is what ``Manifold.quotient`` builds — the same catalogue entry a
+            # geometry consults, not a second spelling of its name.
+            new_space=self.support.quotient(group),
         ).consolidate()
 
     # ------------------------------------------------------------------
@@ -1417,7 +1500,7 @@ def gauss_legendre(n: int) -> DiscreteMeasure:
     Returns
     -------
     DiscreteMeasure
-        On ``support="[-1,1]"`` with ``degree_of_exactness=2n-1``.
+        On ``support=COSINE_INTERVAL`` with ``degree_of_exactness=2n-1``.
 
     See Also
     --------
@@ -1473,7 +1556,7 @@ def gauss_chebyshev(n: int) -> DiscreteMeasure:
     Returns
     -------
     DiscreteMeasure
-        On ``support="[-1,1]"`` with ``degree_of_exactness=2n-1``
+        On ``support=COSINE_INTERVAL`` with ``degree_of_exactness=2n-1``
         (with respect to the weighted integral).
     """
     from orpheus.numerics.generating_measure import CHEBYSHEV_T
@@ -1523,7 +1606,7 @@ def equispaced(a: float, b: float, n: int) -> DiscreteMeasure:
     Returns
     -------
     DiscreteMeasure
-        On ``support=f"[{a},{b}]"`` with ``degree_of_exactness=1``.
+        On ``support=Interval(a, b)`` with ``degree_of_exactness=1``.
     """
     if n < 1:
         raise ValueError(f"equispaced requires n >= 1, got n={n}")
@@ -1538,7 +1621,7 @@ def equispaced(a: float, b: float, n: int) -> DiscreteMeasure:
     h = (b - a) / n
     nodes = a + (np.arange(n) + 0.5) * h
     weights = np.full(n, h)
-    support = f"[{a},{b}]"
+    support = Interval(a, b)
     return DiscreteMeasure(
         nodes=nodes,
         weights=weights,
@@ -1568,12 +1651,6 @@ __all__ = [
     "BundleMeasure",
     "DiscreteMeasure",
     "DiscreteMeasurePartition",
-    "Space",
-    "SPACE_R",
-    "SPACE_INTERVAL_M11",
-    "SPACE_INTERVAL_01",
-    "SPACE_CIRCLE",
-    "SPACE_SPHERE",
     "equispaced",
     "gauss_chebyshev",
     "gauss_legendre",

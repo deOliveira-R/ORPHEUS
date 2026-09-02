@@ -26,7 +26,7 @@ Manifolds: the Point Set, the Orbit Space, and What a Basis Eats
       role: "the point-set layer — the manifold M a measure is supported on and a basis function is defined over, its algebra (product, orbit space, membership), the invariant-theoretic derivation that produces an orbit space, the TWO coordinate systems an orbit space honestly has (the invariant chart's codomain and a section's image), and the three-level separation (manifold / fields on it / coefficients) that keeps a FunctionSpace from being mistaken for a domain"
       depends_on: []
       related: [discrete_measures, spaces, frame, spherical_harmonics]
-      status: "the type is MINTED and gated (tracker 2.0a, 2026-08-31); two catalogued derivations ship (S^2/SO(2) and S^2/<sigma_a> for the three mirrors, plus the derived identity quotient), and a Quotient carries BOTH coordinate systems after the 2026-08-31 two-slot ruling. It still has ZERO production consumers — the migration off `Space = str` is 2.0b/2.0c/2.1 and has not landed"
+      status: "MINTED, gated, and WIRED. Two catalogued derivations ship (S^2/SO(2) and S^2/<sigma_a> for the three mirrors, plus the derived identity quotient), and a Quotient carries BOTH coordinate systems after the 2026-08-31 two-slot ruling. `Space = str` and its six SPACE_* tags are RETIRED (tracker 2.0c, 2026-09-01): `DiscreteMeasure.support`, `GeneratingMeasure.support`, `UniformMeasure.support`, `ProductMeasure.support`, the `ReferenceMeasure` Protocol and `AngularSymmetry.support` all carry a Manifold, and `Basis.domain` does too (2.1). ERR-080 itself is still OPEN — the forgery's REFUSAL at construction is tracker 2.0b + the fused fix step, not this page's capability"
 
 
 This page develops the **point-set layer** — the thing a measure is
@@ -123,11 +123,14 @@ polynomial three times over.
      of 1 — and :class:`Sphere <orpheus.numerics.manifold.Sphere>`
      refuses them, three hops upstream of the wrong answer
      (:ref:`manifold-err-080`).
-   - ⛔ **The predicate is NOT yet wired.** The type ships and is
-     gated; `[M]` it has **zero** production consumers, and
-     ``Space = str`` is still live at ``measure.py:111``. ERR-080 is
-     open. This page documents a **capability**, not a fix
-     (:ref:`manifold-seams`).
+   - ✅ **The type is WIRED** (tracker 2.0c, 2026-09-01): ``Space = str``
+     and its six ``SPACE_*`` tags are retired, and every measure in the
+     tree carries a ``Manifold``. ⛔ **The membership PREDICATE is still
+     not enforced at construction**, which is the half ERR-080 needs:
+     :meth:`contains` ships and is gated, but nothing calls it on the way
+     in, so the forged :math:`(\mu, 0, 0)` measure is still
+     *constructible*. ERR-080 is **open** — its refusal is tracker 2.0b
+     plus the fused fix step (:ref:`manifold-seams`).
    - **The algebra was already running, spelled as string
      interpolation.** `[M]` ``measure.py:588`` was
      :meth:`__mul__ <orpheus.numerics.manifold.Manifold.__mul__>`
@@ -310,17 +313,20 @@ manifold. A derived name is only as true as what it derives from.
 What the string tag could not do
 ================================
 
-Level 1 was ``Space = str`` (``measure.py:111``), with the module's own
-comment on the alias set reading, verbatim:
+Level 1 **was** ``Space = str`` (``measure.py:111``, retired 2026-09-01 by
+tracker 2.0c), with the module's own comment on the alias set reading,
+verbatim:
 
    *"Common aliases used across the project. These are recommendations,
    not constraints; user code may pass arbitrary strings."*
-   — ``measure.py:113-114``
+   — ``measure.py:113-114``, as it stood
 
-That is an honest description of a slot with no semantics, and it is
-still what ships. Three consequences follow from it, each measured; the
-type answers all three, and the argument for minting it is these
-sites, not the size of the migration.
+That is an honest description of a slot with no semantics. Three
+consequences followed from it, each measured; the type answers all three,
+and the argument for minting it was these sites, not the size of the
+migration. **All three are now closed in the code** — the sections below are
+kept in the present tense of the tag they describe, because they are the
+*reason* the type exists and re-tensing them would erase the evidence.
 
 .. _manifold-err-080:
 
@@ -332,7 +338,8 @@ A 1-dimensional angular quadrature carries no azimuthal information.
 <orpheus.numerics.quadrature.directional.Quadrature.angular_frame>`
 nonetheless builds its measure by ``column_stack``\ ing three
 axis-cosine arrays — two of which are a zero *fallback*, not data — and
-declares the result ``support=SPACE_SPHERE``. The rows are then
+declared the result ``support=SPACE_SPHERE`` (today ``support=SPHERE`` —
+the forgery survived the retype; only its spelling changed). The rows are then
 :math:`(\mu, 0, 0)` with
 :math:`\lVert\Omega\rVert = |\mu| \neq 1`: points of :math:`[-1,1]`,
 not of :math:`S^2`.
@@ -786,10 +793,22 @@ thing that keeps it honest.
 `[M]` the names reproduce the retired ``SPACE_*`` string tags
 **verbatim** — ``S^2``, ``S^1``, ``[-1,1]``, ``[0,1]``, ``[0,inf)``,
 ``R``, ``energy``, ``spatial_R1``, ``index(angular)`` — so the
-migration off ``Space = str`` cannot silently re-word an error message
+migration off ``Space = str`` could not silently re-word an error message
 or an ``L2[...]`` space name that a test pins. That is a deliberate
 constraint on the type, gated by
 ``tests/numerics/test_manifold.py::TestTypeLaws::test_the_names_reproduce_the_retired_string_tags``.
+
+✅ **The constraint paid, and it is now a fact rather than a design
+intent.** `[M]` 2026-09-01, immediately before tracker 2.0c touched a call
+site: **10 of 10** tag constants reproduce exactly, and so do the two
+*derived* spellings the tag vocabulary built by hand — ``S^2/sigma_y`` via
+:attr:`Quotient.name` (against ``f"{support}/{group.name}"``) and
+``[-1,1] × [-1,1]`` via :attr:`Product.name` (against ``f"{a} × {b}"``). The
+single divergence in the whole migration is the affine remap
+``LEGENDRE.on(0, 1)``, whose f-string over floats read ``"[0.0,1.0]"`` where
+``Interval(0.0, 1.0).name`` normalises to ``"[0,1]"`` — a re-baseline of two
+test pins, and an improvement: the object is the same interval whatever the
+float repr of its endpoints, which the string could not say.
 
 Two consolidations are visible in that table and were the reason the
 member list in the plan's own row was incomplete:
@@ -2465,16 +2484,25 @@ description of a capability rather than of a repair.
 
    * - Not built
      - Where it lands, and what stands in for it today
-   * - ⛔ **Any production consumer at all**
-     - **#429 tracker 2.0b.** `[M]` 2026-08-31: the only importers of
-       :mod:`orpheus.numerics.manifold` are its own test module.
+   * - ⛔ ~~**Any production consumer at all**~~
+     - ✅ **REMEDIED 2026-09-01 (tracker 2.0c).** *(Recorded as written —
+       `[M]` 2026-08-31: "the only importers of
+       :mod:`orpheus.numerics.manifold` are its own test module;
        ``Space = str`` is still live at ``measure.py:111`` with its six
        ``SPACE_*`` aliases, ``DiscreteMeasure.support`` is still a
-       ``str``, and **ERR-080 is still open** — held by an
+       ``str``".)* The alias and all six tags are retired; ``support`` is
+       a ``Manifold`` on all six implementors, the tensor product and the
+       fold route through :meth:`Manifold.__mul__` and
+       :meth:`Manifold.quotient`, and :attr:`DiscreteMeasure.phase`
+       dispatches on the manifold's TYPE instead of on string prefixes.
+
+       ⚠ **ERR-080 is still open** — held by the same
        ``xfail(strict=True)`` gate at
        ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``.
-       Every refusal described on this page is a capability that
-       *would* fire once the slot is retyped.
+       Retyping the slot is what makes the refusal *spellable*; it does
+       not make it *fire*. Nothing calls :meth:`contains` on the way in,
+       so the forged measure is still constructible — that is the row
+       below, and the fused fix step.
    * - ``Basis.domain``
      - ✅ **LANDED 2026-09-01 (2.1).** No
        :class:`~orpheus.numerics.basis.base.Basis` could state the

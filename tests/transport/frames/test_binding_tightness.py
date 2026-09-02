@@ -48,7 +48,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.measure import SPACE_INTERVAL_M11, DiscreteMeasure
+from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.manifold import COSINE_INTERVAL
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
 
@@ -70,7 +71,7 @@ def _equispaced_frame(L: int, n: int) -> HarmonicFrame:
     mu = np.linspace(-1.0, 1.0, n + 2)[1:-1]
     w = np.full(mu.size, 2.0 / mu.size)
     quad = Quadrature(
-        measure=DiscreteMeasure(nodes=mu, weights=w, support=SPACE_INTERVAL_M11),
+        measure=DiscreteMeasure(nodes=mu, weights=w, support=COSINE_INTERVAL),
     )
     return HarmonicFrame.from_galerkin(quad.angular_frame(L))
 

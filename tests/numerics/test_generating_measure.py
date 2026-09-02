@@ -33,6 +33,7 @@ import numpy as np
 import pytest
 from scipy.special import gammaln, roots_chebyu, roots_jacobi
 
+from orpheus.numerics.manifold import UNIT_INTERVAL
 from orpheus.numerics.generating_measure import (
     CHEBYSHEV_T,
     CHEBYSHEV_U,
@@ -536,9 +537,13 @@ def test_remapped_rule_integrates_on_the_new_interval(
 @pytest.mark.foundation
 def test_remap_reports_the_new_interval_and_mass() -> None:
     remapped = LEGENDRE.on(0.0, 1.0)
-    assert remapped.support == "[0.0,1.0]"
+    # ⭐ `Interval(0.0, 1.0)`, not the string `"[0.0,1.0]"` the f-string used to
+    # build. The name normalises to "[0,1]" — a principled re-baseline, and the
+    # reason to compare the OBJECT: the interval is the same one whatever the
+    # float repr of its endpoints, which a string comparison could not say.
+    assert remapped.support == UNIT_INTERVAL
     np.testing.assert_allclose(remapped.mass, 1.0, rtol=1e-15)
-    assert remapped.gauss(3).support == "[0.0,1.0]"
+    assert remapped.gauss(3).support == UNIT_INTERVAL
 
 
 # ===========================================================================

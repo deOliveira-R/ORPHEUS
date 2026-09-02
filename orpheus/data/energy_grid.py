@@ -198,13 +198,25 @@ class EnergyGrid:
         because ORPHEUS ``φ_g`` is already group-integrated, so the discrete reaction
         rate is a plain group sum (a lethargy/Δu weight would break rate preservation —
         the within-group ``w`` lives in the overlap fractions, not here).
-        ``support="energy"`` tags the physical phase-space factor
+        ``support=EnergyGroups()`` IS the physical phase-space factor
         (:attr:`~orpheus.numerics.measure.DiscreteMeasure.phase` reads it). Symmetric
         with :meth:`~orpheus.geometry.mesh.Mesh1D.volume_measure` on the spatial axis.
         """
         n = self.n_groups
         return DiscreteMeasure(
-            nodes=np.arange(n, dtype=float), weights=np.ones(n), support="energy",
+            # ⭐ The SAME manifold :meth:`as_basis` partitions, three lines
+            # below — one axis, one point set. The two used to say it
+            # separately (``EnergyGroups()`` here, the string ``"energy"``
+            # there), which is the divergence ``test_d6`` exists to refuse.
+            nodes=np.arange(n, dtype=float),
+            weights=np.ones(n),
+            # ⚠ ``EnergyGroups(n)``, not the bare ``EnergyGroups()``: the group
+            # COUNT is part of the point set's identity, and this measure knows
+            # it. Under the retired string tag both halves said ``"energy"`` and
+            # agreed by being equally uninformative — the tag was lossy, and the
+            # loss is what hid the disagreement (``as_basis`` has always built
+            # ``EnergyGroups(ng=n)``).
+            support=EnergyGroups(n),
         )
 
     def as_basis(self) -> IndicatorBasis:

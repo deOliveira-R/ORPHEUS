@@ -28,6 +28,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.manifold import UNIT_INTERVAL
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import (
     DiagonalOperator,
@@ -154,7 +155,7 @@ class TestDiagonalFromMeasure:
     def test_from_discrete_measure(self):
         nodes = np.array([0.1, 0.5, 0.9])
         weights = np.array([0.2, 0.4, 0.4])
-        measure = DiscreteMeasure(nodes=nodes, weights=weights, support="[0,1]")
+        measure = DiscreteMeasure(nodes=nodes, weights=weights, support=UNIT_INTERVAL)
         D = DiagonalOperator.from_measure(measure)
         np.testing.assert_array_equal(D.weights, weights)
         x = np.array([1.0, 1.0, 1.0])
@@ -163,7 +164,7 @@ class TestDiagonalFromMeasure:
     def test_from_measure_axis_argument(self):
         nodes = np.array([0.1, 0.5])
         weights = np.array([0.5, 0.5])
-        measure = DiscreteMeasure(nodes=nodes, weights=weights, support="[0,1]")
+        measure = DiscreteMeasure(nodes=nodes, weights=weights, support=UNIT_INTERVAL)
         D = DiagonalOperator.from_measure(measure, axis=1)
         x = np.ones((3, 2, 4))
         out = D.apply(x)

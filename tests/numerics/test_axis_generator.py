@@ -25,6 +25,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
+from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.axis import Axis, BasisKind
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -293,7 +294,7 @@ class TestG8TheMintIsASectionOfTheForgetfulMap:
         m = DiscreteMeasure(
             nodes=np.array([0.5, 1.5, 2.5]),
             weights=np.array([0.2, 0.3, 0.5]),
-            support="spatial_R1",
+            support=RealSpace(1),
         )
         a = m.axis("spatial")
         _require(a.generator is m, "the mint must record its generator")
@@ -339,7 +340,7 @@ class TestG5GeneratorAsIsTheOneRefusalHome:
 
         m = DiscreteMeasure(
             nodes=np.array([0.5, 1.5]), weights=np.array([0.4, 0.6]),
-            support="spatial_R1",
+            support=RealSpace(1),
         )
         a = m.axis("spatial")
         with pytest.raises(ValueError, match="DiscreteMeasure"):

@@ -400,21 +400,31 @@ class TestQuotient:
         assert q.is_free
         assert q.dim == base.dim
 
-    def test_the_trivial_answer_agrees_with_the_shipped_string_twin(self):
-        r"""⭐ The mint is a RE-TYPING, and this pins the migration.
+    def test_the_derived_orbit_space_agrees_with_the_hand_written_table(self):
+        r"""⭐ Two independent producers of one orbit space must agree.
 
-        ``AngularSymmetry.support`` (``quadrature/registry.py:869``) is
-        already an orbit-space catalogue in the string vocabulary: it
-        maps ``SO2 -> "[-1,1]"`` and ``Trivial -> "S^2"`` and raises for
-        anything else, with the same "extend it when a geometry first
-        spends it" shape as :meth:`Manifold.quotient`'s refusal.  It is
-        the Pattern-2 twin this type exists to absorb, so the two must
-        agree on every row both can answer — otherwise the eventual
-        collapse (tracker 2.2) silently changes an answer.
+        ``AngularSymmetry.support`` (``quadrature/registry.py:869``) is a
+        **hand-written table** — ``SO2 -> COSINE_INTERVAL``,
+        ``Trivial -> SPHERE``, raise otherwise.  :meth:`Manifold.quotient`
+        **derives** the same orbit space from invariant theory (the
+        Procesi--Schwarz matrix of the invariant ring).  Neither reads the
+        other, so this is a genuine two-implementation agreement and the only
+        check that either is right about :math:`S^2/G^0`.
 
-        `[M]` both rows agree today.  ⚠ If this ever reddens, do NOT
-        re-baseline: one of the two is wrong about a quotient, and which
-        one is a mathematical question, not a test-maintenance one.
+        ⭐ **Strengthened 2026-09-01 by the very retype it was written to
+        pin** (tracker 2.0c).  It used to compare ``mine.name == theirs``
+        because ``theirs`` was a *string* — the strongest claim the string
+        vocabulary admitted.  Both sides are now ``Manifold``, so the gate
+        asserts **object equality**: not merely that two producers spell the
+        orbit space the same way, but that they produce the same point set.
+        A name gate is satisfied by any self-consistent lie; this one is not.
+        (``coding-standards``' mirror clause: a retirement can silently
+        PROMOTE a gate's claim class, and the docstring must move with it or
+        it goes on advertising the weaker claim.)
+
+        ⚠ If this ever reddens, do NOT re-baseline: one of the two is wrong
+        about a quotient, and which one is a mathematical question, not a
+        test-maintenance one.
         """
         from orpheus.numerics.quadrature.registry import AngularSymmetry
 
@@ -429,10 +439,10 @@ class TestQuotient:
                 discrete_residual=SubgroupOfO3.Trivial,
             ).support
             assert mine == expected, f"{group.name}: mine gave {mine.name}"
-            assert mine.name == theirs, (
-                f"the mint disagrees with the shipped string twin for "
-                f"S^2/{group.name}: Manifold says {mine.name!r}, "
-                f"AngularSymmetry.support says {theirs!r}. One of them is "
+            assert mine == theirs, (
+                f"the derived orbit space disagrees with the hand-written "
+                f"table for S^2/{group.name}: Manifold.quotient says "
+                f"{mine!r}, AngularSymmetry.support says {theirs!r}. One is "
                 f"wrong about the quotient -- do not re-baseline this."
             )
 

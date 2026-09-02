@@ -752,17 +752,20 @@ def _collapse_pair(space: FunctionSpace, axis_label: str) -> _AxisCollapsePair:
         else np.asarray(w, dtype=float).ravel()
     )
     n = int(flat_weights.shape[0])
+    # ⭐ One frame, one manifold — and now literally one expression. Both
+    # halves used to say it separately (the basis as an ``IndexSet``, the
+    # measure as ``f"index({axis_label})"``), which is two spellings of one
+    # fact and exactly what a frame's two halves must not have.
+    points = IndexSet(label=axis_label, n=n)
     frame = GalerkinFrame(
         basis=IndicatorBasis(
             edges_per_axis=(np.array([-0.5, n - 0.5]),),
-            # The SAME point set the measure below tags as its support —
-            # one frame, one manifold.
-            partition_of=IndexSet(label=axis_label, n=n),
+            partition_of=points,
         ),
         measure=DiscreteMeasure(
             nodes=np.arange(n, dtype=float),
             weights=flat_weights,
-            support=f"index({axis_label})",
+            support=points,
         ),
     )
 

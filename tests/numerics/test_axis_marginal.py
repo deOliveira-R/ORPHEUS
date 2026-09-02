@@ -36,6 +36,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
+from orpheus.numerics.manifold import IndexSet
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.axis import Axis, BasisKind
 from orpheus.numerics.quadrature import Quadrature
@@ -372,7 +373,7 @@ class TestFrameInduction:
             measure=DiscreteMeasure(
                 nodes=np.arange(n, dtype=float),
                 weights=_W_ANG,
-                support="index(angular)",
+                support=IndexSet(label="angular"),
             ),
         )
 

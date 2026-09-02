@@ -56,6 +56,7 @@ from orpheus.geometry import Mesh1D, Mesh2D
 # The SPACE-FACTOR axis vocabulary (campaign 1, CS1) — aliased because this
 # module's own ``Axis1D``/``self.axes`` are GEOMETRIC axes (a different
 # concept; the naming coordination is the Q3 rename issue).
+from orpheus.numerics.manifold import RealSpace
 from orpheus.numerics.axis import Axis as SpaceFactorAxis
 from orpheus.numerics.axis import BasisKind, EnergyAxis
 from orpheus.numerics.space import FunctionSpace
@@ -539,7 +540,7 @@ class MaterialMesh:
         return DiscreteMeasure(
             nodes=nodes,
             weights=self.volumes.ravel(),
-            support=f"spatial_R{self.ndim}",
+            support=RealSpace(self.ndim),
         )
 
     @property

@@ -168,7 +168,8 @@ from fractions import Fraction
 import numpy as np
 
 from ..exactness import UNIFORM_ON_CIRCLE, ExactnessClaim
-from ..measure import SPACE_CIRCLE, DiscreteMeasure
+from ..measure import DiscreteMeasure
+from orpheus.numerics.manifold import CIRCLE
 from ..roots_of_unity import roots_of_unity
 
 #: The two shifts for which the node set is mirror-symmetric — the whole
@@ -278,7 +279,7 @@ def periodic_trapezoid(n: int, *, shift: Fraction) -> DiscreteMeasure:
     return DiscreteMeasure(
         nodes=np.column_stack([cos_phi, sin_phi]),
         weights=np.full(n, 2.0 * np.pi / n),
-        support=SPACE_CIRCLE,
+        support=CIRCLE,
         # TRIGONOMETRIC degree n-1 against uniform measure on S^1, tight
         # by :eq:`periodic-trapezoid-aliasing` and independent of the
         # shift. Both halves of the claim are needed: the same integer

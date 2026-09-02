@@ -161,12 +161,13 @@ import numpy as np
 from scipy.special import gammaln
 
 from .exactness import ExactnessClaim, OrthogonalSystem
-from .measure import (
-    SPACE_HALF_LINE,
-    SPACE_INTERVAL_M11,
-    SPACE_R,
-    DiscreteMeasure,
-    Space,
+from .measure import DiscreteMeasure
+from orpheus.numerics.manifold import (
+    COSINE_INTERVAL,
+    HALF_LINE,
+    Interval,
+    Manifold,
+    REAL_LINE,
 )
 
 # Type of a recurrence-coefficient generator: n -> (alpha, beta), each of
@@ -202,7 +203,7 @@ class GeneratingMeasure:
         carry different :attr:`recurrence` callables and reach the
         coefficients by different code paths. (That the two paths agree
         numerically is a separate, testable claim, and it is tested.)
-    support : Space
+    support : Manifold
         The interval the measure lives on.
     recurrence : callable
         ``n -> (alpha, beta)``, each of shape ``(n,)``, following
@@ -214,7 +215,7 @@ class GeneratingMeasure:
     """
 
     name: str
-    support: Space
+    support: Manifold
     recurrence: RecurrenceCoefficients = field(compare=False, repr=False)
 
     # -- derived quantities -------------------------------------------
@@ -395,11 +396,11 @@ class GeneratingMeasure:
         Defined only for measures on :math:`[-1,1]`; the unbounded
         families have no finite interval to remap onto.
         """
-        if self.support != SPACE_INTERVAL_M11:
+        if self.support != COSINE_INTERVAL:
             raise ValueError(
                 f"affine remap is defined for measures on "
-                f"{SPACE_INTERVAL_M11}, but {self.name} lives on "
-                f"{self.support}"
+                f"{COSINE_INTERVAL.name}, but {self.name} lives on "
+                f"{self.support.name}"
             )
         if not a < b:
             raise ValueError(f"require a < b, got a={a}, b={b}")
@@ -417,7 +418,10 @@ class GeneratingMeasure:
 
         return GeneratingMeasure(
             name=f"{self.name}_on[{a},{b}]",
-            support=f"[{a},{b}]",
+            # The remapped family lives on the interval itself, not on a string
+            # that spells one — ``Interval`` is the same type the source support
+            # already is, so ``affine_remap`` composes with itself.
+            support=Interval(a, b),
             recurrence=remapped,
         )
 
@@ -475,7 +479,7 @@ def _hermite_recurrence(n: int) -> "tuple[np.ndarray, np.ndarray]":
 #: its Gauss rule is exact for plain polynomial integration.
 LEGENDRE = GeneratingMeasure(
     name="legendre",
-    support=SPACE_INTERVAL_M11,
+    support=COSINE_INTERVAL,
     recurrence=_legendre_recurrence,
 )
 
@@ -484,21 +488,21 @@ LEGENDRE = GeneratingMeasure(
 #: integrate bare polynomials on :math:`[-1,1]`.
 CHEBYSHEV_T = GeneratingMeasure(
     name="chebyshev_t",
-    support=SPACE_INTERVAL_M11,
+    support=COSINE_INTERVAL,
     recurrence=_chebyshev_t_recurrence,
 )
 
 #: Weight :math:`w(x) = (1-x^2)^{+1/2}` on :math:`[-1,1]`.
 CHEBYSHEV_U = GeneratingMeasure(
     name="chebyshev_u",
-    support=SPACE_INTERVAL_M11,
+    support=COSINE_INTERVAL,
     recurrence=_chebyshev_u_recurrence,
 )
 
 #: Weight :math:`w(x) = e^{-x^2}` on :math:`\mathbb{R}`.
 HERMITE = GeneratingMeasure(
     name="hermite",
-    support=SPACE_R,
+    support=REAL_LINE,
     recurrence=_hermite_recurrence,
 )
 
@@ -562,7 +566,7 @@ def jacobi(a: float, b: float) -> GeneratingMeasure:
 
     return GeneratingMeasure(
         name=_jacobi_name(a, b),
-        support=SPACE_INTERVAL_M11,
+        support=COSINE_INTERVAL,
         recurrence=recurrence,
     )
 
@@ -611,7 +615,7 @@ def laguerre(a: float = 0.0) -> GeneratingMeasure:
 
     return GeneratingMeasure(
         name="laguerre" if a == 0.0 else f"laguerre(a={a})",
-        support=SPACE_HALF_LINE,
+        support=HALF_LINE,
         recurrence=recurrence,
     )
 

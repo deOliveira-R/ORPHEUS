@@ -303,7 +303,7 @@ def _indicator_frame(edges, centres, weights, test_weight=None):
     measure = DiscreteMeasure(
         nodes=np.asarray(centres, dtype=float),
         weights=np.asarray(weights, dtype=float),
-        support="spatial_R1",
+        support=RealSpace(1),
     )
     if test_weight is None:
         return GalerkinFrame(trial, measure)
@@ -458,7 +458,7 @@ def test_project_refuses_dense_gram_trial():
 
     edges = np.array([0.0, 1.0, 2.0])
     measure = DiscreteMeasure(
-        nodes=np.array([0.5, 1.5]), weights=np.ones(2), support="spatial_R1",
+        nodes=np.array([0.5, 1.5]), weights=np.ones(2), support=RealSpace(1),
     )
     dense = PetrovGalerkinFrame(
         _DenseTrial((edges,), RealSpace(1)), measure,
@@ -514,7 +514,7 @@ def _overlap_frame() -> GalerkinFrame:
         overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
     )
     measure = DiscreteMeasure(
-        nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support="spatial_R1",
+        nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support=RealSpace(1),
     )
     return GalerkinFrame(ob, measure)
 
@@ -795,7 +795,7 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
         overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
     )
     measure = DiscreteMeasure(
-        nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support="spatial_R1",
+        nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support=RealSpace(1),
     )
     frame = GalerkinFrame(ob, measure)
     dressed = _replace(

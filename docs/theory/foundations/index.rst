@@ -122,8 +122,10 @@ represented — not what collision, scattering, and fission *are*.
        produces an orbit space from a symmetry group, and the
        three-level separation (manifold / fields on it / coefficients)
        that keeps a ``FunctionSpace`` from being mistaken for a domain.
-       ⛔ The type is minted and gated; the migration off
-       ``Space = str`` has **not** landed.
+       ✅ The migration off ``Space = str`` **landed 2026-09-01**
+       (tracker 2.0c): a measure's ``support`` IS a manifold, and its
+       phase, its induced space's name and its orbit space are all
+       derived from it.
    * - :doc:`/theory/foundations/discrete_measures`
      - Quadrature and measure: axes, weights, and integration.
    * - :doc:`/theory/foundations/spherical_harmonics`

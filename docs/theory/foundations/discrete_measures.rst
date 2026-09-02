@@ -53,22 +53,24 @@ Key Facts
   measure on :math:`\mathcal{B}` plus, for each base point, a fiber
   measure on :math:`\pi^{-1}(b)`. SN does not consume bundles in the
   Wave A campaign; MoC ray-bundle quadratures (Wave 2) will.
-- The support tag (``μ.support``) is a runtime ``str`` — Python
-  generics over a measurable-space type are not expressive enough
-  without runtime overhead, so the project uses opaque string tags
-  for sanity checks and documentation only. (Distinct from the
-  derived ``μ.space``, the induced discrete-:math:`L^2`
+- The support (``μ.support``) **is the point set the atoms live on**, a
+  :class:`~orpheus.numerics.manifold.Manifold` — with ``dim``,
+  ``contains``, ``__mul__`` and a catalogued ``quotient``. (Distinct from
+  the derived ``μ.space``, the induced discrete-:math:`L^2`
   :class:`~orpheus.numerics.space.FunctionSpace`.)
-  ⚠ **Still true of what ships, and no longer the only option.** The
-  prior ruling it cites rejects a *phantom type parameter*, not a
-  first-class value; a :class:`~orpheus.numerics.manifold.Manifold`
-  type — with ``contains``, ``__mul__`` and a catalogued
-  ``quotient`` — was minted 2026-08-31 and is documented at
-  :doc:`/theory/foundations/manifolds`. `[M]` this slot has **not**
-  been retyped: it is still a ``str``, and the three support rules in
-  the propagation table below are still string interpolation. What
-  the new type buys, and what it does not yet, is
-  :ref:`stated there <manifold-seams>`.
+
+  ⛔ ~~*It was a runtime* ``str`` *— "Python generics over a
+  measurable-space type are not expressive enough without runtime
+  overhead, so the project uses opaque string tags for sanity checks and
+  documentation only."*~~ **RETIRED 2026-09-01 (tracker 2.0c).** ⭐ The
+  ruling that sentence cites was *answered, not overruled*: it rejects a
+  **phantom type parameter** — erased at runtime, buying nothing — and it
+  is still correct. What ships instead is a closed sum of ordinary
+  **values**, which costs no generics and no runtime overhead, and which
+  the tag could not do. The three support rules in the propagation table
+  below were string interpolation and are now the manifold's own algebra:
+  :math:`\mu \otimes \nu` multiplies the supports, the fold takes
+  ``support.quotient(G)``, and the direct sum compares objects.
 - A measure **generates space factors, not only whole spaces**:
   :meth:`μ.axis(label) <orpheus.numerics.measure.DiscreteMeasure.axis>`
   is the axis-composed sibling of ``μ.space``, minting one

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10555**
+Total tests collected: **10562**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1643, 15.6%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7531, 71.4%
+   foundation, 7538, 71.4%
    unmarked, 19, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10457
+   explicit, 10464
    class-name, 46
    func-name, 0
    case, 33
@@ -364,7 +364,7 @@ Module × level grid
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
-   numerics/test_measure_phase, 0, 0, 0, 0, 11, 0
+   numerics/test_measure_phase, 0, 0, 0, 0, 12, 0
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 26, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
@@ -419,7 +419,7 @@ Module × level grid
    operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 20, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
-   operators/test_loss_kernel_gauge, 0, 0, 0, 0, 51, 0
+   operators/test_loss_kernel_gauge, 0, 0, 0, 0, 57, 0
    operators/test_loss_nullspace_reflective_box, 0, 0, 0, 0, 12, 0
    operators/test_loss_transpose_solve, 0, 0, 0, 0, 16, 0
    operators/test_n2n_operator, 0, 0, 0, 0, 10, 0

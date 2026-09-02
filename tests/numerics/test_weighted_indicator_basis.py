@@ -139,6 +139,6 @@ def test_mass_matrix_raises_test_only_basis():
     from orpheus.numerics.measure import DiscreteMeasure
 
     wb = WeightedIndicatorBasis(_trial(), np.array([2.0, 3.0, 5.0, 7.0]))
-    measure = DiscreteMeasure(nodes=_NODES, weights=_WEIGHTS, support="spatial_R1")
+    measure = DiscreteMeasure(nodes=_NODES, weights=_WEIGHTS, support=RealSpace(1))
     with pytest.raises(NotImplementedError, match="no consumer"):
         wb.mass_matrix(measure)

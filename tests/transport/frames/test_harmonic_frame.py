@@ -124,7 +124,7 @@ class TestFromGalerkin:
         frame over an indicator trial is unspellable, loudly, early."""
         indicator = IndicatorBasis((np.array([0.0, 1.0, 2.0]),), RealSpace(1))
         measure = DiscreteMeasure(
-            nodes=np.array([0.5, 1.5]), weights=np.ones(2), support="spatial_R1",
+            nodes=np.array([0.5, 1.5]), weights=np.ones(2), support=RealSpace(1),
         )
         with pytest.raises(TypeError, match="spherical-harmonic trial"):
             HarmonicFrame.from_galerkin(GalerkinFrame(indicator, measure))

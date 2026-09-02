@@ -1080,11 +1080,12 @@ def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
     regime measurable rather than merely asserted.
     """
     from orpheus.numerics.exactness import UNIFORM_ON_SPHERE, ExactnessClaim
-    from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
+    from orpheus.numerics.manifold import SPHERE
+    from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.quadrature.rules_sphere import (
-    LevelStructure,
-    PolarInvariant,
-)
+        LevelStructure,
+        PolarInvariant,
+    )
     from orpheus.numerics.symmetry import SubgroupOfO3
 
     if tie_break not in PRODUCT_LEVEL_ORDERINGS:
@@ -1125,7 +1126,7 @@ def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
 
         measure = DiscreteMeasure(
             nodes=np.column_stack([eta, xi, mu_z]), weights=w,
-            support=SPACE_SPHERE, invariance_group=SubgroupOfO3.SO2,
+            support=SPHERE, invariance_group=SubgroupOfO3.SO2,
             exactness=ExactnessClaim(
                 reference=UNIFORM_ON_SPHERE,
                 degree=min(2 * n_mu - 1, n_phi - 1),

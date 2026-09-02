@@ -316,7 +316,8 @@ from typing import Any, Callable
 
 from ..exactness import UNIFORM_ON_SPHERE, ReferenceMeasure
 from ..generating_measure import LEGENDRE
-from ..measure import SPACE_INTERVAL_M11, SPACE_SPHERE, DiscreteMeasure
+from ..measure import DiscreteMeasure
+from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE, Manifold
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_mu
 from .rules_product import product_mu_phi
@@ -866,22 +867,29 @@ class AngularSymmetry:
     discrete_residual: SubgroupOfO3
 
     @property
-    def support(self) -> str:
+    def support(self) -> Manifold:
         r"""The angular domain :math:`S^2/G^0` — derived, not declared.
 
-        Returns the ``support`` tag a rule's measure must carry to be
-        admissible for this geometry. Deriving it (rather than storing
-        a second, independent column) keeps the domain and the spent
-        group from drifting apart: they are one fact.
+        Returns the point set a rule's measure must live on to be admissible
+        for this geometry. Deriving it (rather than storing a second,
+        independent column) keeps the domain and the spent group from drifting
+        apart: they are one fact.
+
+        ⚠ Until 2026-09-01 this was annotated ``-> str`` while its comparison
+        partner :attr:`DiscreteMeasure.support` was annotated ``-> Space``, and
+        ``Space`` **was** ``str`` — so the two were the same type to a checker
+        and different strings to every census. That is why an audit of the
+        ``Space`` alias could not return this method even though
+        :meth:`admits_domain` compares it against the alias on every rule.
         """
         spent = self.continuous_isotropy
         if spent == SubgroupOfO3.SO2:
             # S²/SO(2) — the polar marginal. The orbits of the axial
             # rotation are the constant-μ circles, so the quotient is
             # parameterised by μ alone.
-            return SPACE_INTERVAL_M11
+            return COSINE_INTERVAL
         if spent == SubgroupOfO3.Trivial:
-            return SPACE_SPHERE
+            return SPHERE
         raise NotImplementedError(
             f"no angular domain is defined for the quotient S^2/{spent.name}; "
             f"extend AngularSymmetry.support when a geometry first spends it"
@@ -1192,9 +1200,9 @@ def select_quadrature(
             rejected.append((
                 spec.name,
                 f"domain mismatch: geometry {geometry!r} discretises "
-                f"{angular_symmetry.support} (= S^2/"
+                f"{angular_symmetry.support.name} (= S^2/"
                 f"{angular_symmetry.continuous_isotropy.name}), but the rule's "
-                f"nodes live on {measure.support}",
+                f"nodes live on {measure.support.name}",
             ))
             continue
 

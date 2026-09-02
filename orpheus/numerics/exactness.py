@@ -106,11 +106,14 @@ See Also
 
 from __future__ import annotations
 
+import functools
+import operator
 from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol, runtime_checkable
 
-from .measure import SPACE_CIRCLE, SPACE_SPHERE, Space
+from orpheus.numerics.manifold import Manifold
+from orpheus.numerics.manifold import CIRCLE, SPHERE
 
 
 class OrthogonalSystem(Enum):
@@ -164,7 +167,7 @@ class ReferenceMeasure(Protocol):
         ...
 
     @property
-    def support(self) -> Space:
+    def support(self) -> Manifold:
         """The domain the measure lives on."""
         ...
 
@@ -199,7 +202,7 @@ class UniformMeasure:
 
     Attributes
     ----------
-    support : Space
+    support : Manifold
         The domain :math:`\mathcal{X}`.
     orthogonal_system : OrthogonalSystem
         Which family the harmonic analysis of :math:`\mathcal{X}`
@@ -207,7 +210,7 @@ class UniformMeasure:
         spherical harmonics on :math:`S^2`.
     """
 
-    support: Space
+    support: Manifold
     orthogonal_system: OrthogonalSystem
 
     @property
@@ -215,7 +218,7 @@ class UniformMeasure:
         """Canonical identity — two uniform measures on the same domain
         with the same system ARE the same measure, so the name is
         derived rather than stored and cannot disagree with the fields."""
-        return f"uniform({self.support})"
+        return f"uniform({self.support.name})"
 
 
 #: Lebesgue measure on the circle :math:`[0, 2\pi)`. The reference the
@@ -224,7 +227,7 @@ class UniformMeasure:
 #: *trigonometric* degree, not the algebraic degree the same nodes would
 #: carry when read as a midpoint rule on an interval.
 UNIFORM_ON_CIRCLE = UniformMeasure(
-    support=SPACE_CIRCLE, orthogonal_system=OrthogonalSystem.TRIGONOMETRIC,
+    support=CIRCLE, orthogonal_system=OrthogonalSystem.TRIGONOMETRIC,
 )
 
 #: Lebesgue measure on :math:`S^2`. The reference for cubatures whose
@@ -232,7 +235,7 @@ UNIFORM_ON_CIRCLE = UniformMeasure(
 #: level-symmetric rule claims) rather than about a weight on an
 #: interval.
 UNIFORM_ON_SPHERE = UniformMeasure(
-    support=SPACE_SPHERE,
+    support=SPHERE,
     orthogonal_system=OrthogonalSystem.SPHERICAL_HARMONIC,
 )
 
@@ -281,8 +284,17 @@ class ProductMeasure:
         return " ⊗ ".join(f.name for f in self.factors)
 
     @property
-    def support(self) -> Space:
-        return " × ".join(f.support for f in self.factors)
+    def support(self) -> Manifold:
+        r"""The product of the factors' point sets.
+
+        ⭐ This was ``" × ".join(f.support for f in self.factors)`` until
+        2026-09-01 — the product-manifold algebra transcribed as string
+        concatenation, one interpolation per factor. ``Manifold.__mul__`` is
+        that algebra, so the reduction below IS the mathematics rather than a
+        rendering of it, and the resulting ``Product`` can answer ``dim`` and
+        ``contains`` where the string could only be read.
+        """
+        return functools.reduce(operator.mul, (f.support for f in self.factors))
 
     @property
     def orthogonal_system(self) -> OrthogonalSystem:

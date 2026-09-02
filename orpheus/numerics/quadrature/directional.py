@@ -93,11 +93,8 @@ from orpheus.numerics.basis.spherical_harmonic_basis import (
     MirrorEvenSphericalHarmonicBasis,
     SphericalHarmonicBasis,
 )
-from orpheus.numerics.measure import (
-    SPACE_SPHERE,
-    DiscreteMeasure,
-    DiscreteMeasurePartition,
-)
+from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
+from orpheus.numerics.manifold import SPHERE
 # An ordinate permutation is a group action on the measure, so it is
 # certified by the SAME machinery that proves invariance — one source of
 # truth for "does this motion permute these weighted nodes?"
@@ -788,7 +785,7 @@ class Quadrature:
         return DiscreteMeasure(
             nodes=np.column_stack([self.measure.nodes, padding, padding]),
             weights=self.weights,
-            support=SPACE_SPHERE,
+            support=SPHERE,
         )
 
     # ────────────────────────────────────────────────────────────

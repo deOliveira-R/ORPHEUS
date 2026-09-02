@@ -29,6 +29,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.symmetry import SubgroupOfO3
 from orpheus.numerics.quadrature import Quadrature
@@ -47,13 +48,13 @@ def _measure_from_sphere_quad(q) -> DiscreteMeasure:
     formalise; tests can use it today without depending on Issue 4.
     """
     nodes = np.column_stack([q.mu_x, q.mu_y, q.mu_z])
-    return DiscreteMeasure(nodes=nodes, weights=q.weights, support="S^2")
+    return DiscreteMeasure(nodes=nodes, weights=q.weights, support=SPHERE)
 
 
 def _measure_from_1d_quad(q) -> DiscreteMeasure:
     """Build a 1-D DiscreteMeasure on :math:`[-1, 1]` from a 1-D quadrature."""
     return DiscreteMeasure(
-        nodes=q.mu_x, weights=q.weights, support="[-1,1]",
+        nodes=q.mu_x, weights=q.weights, support=COSINE_INTERVAL,
     )
 
 
@@ -391,7 +392,7 @@ def test_trivial_invariance_is_universal() -> None:
     # An asymmetric, non-symmetric, non-axisymmetric measure.
     nodes = np.array([[0.5, 0.3, 0.1], [0.7, -0.2, 0.4]])
     weights = np.array([1.0, 2.0])
-    mu = DiscreteMeasure(nodes=nodes, weights=weights, support="S^2")
+    mu = DiscreteMeasure(nodes=nodes, weights=weights, support=SPHERE)
     assert SubgroupOfO3.Trivial.is_invariant(mu)
 
 
@@ -408,7 +409,7 @@ def test_asymmetric_measure_not_octahedral_invariant() -> None:
     p2 = np.array([0.7, 0.5, 0.5]) / np.linalg.norm([0.7, 0.5, 0.5])
     nodes = np.vstack([p1, p2])
     weights = np.array([1.0, 2.0])
-    mu = DiscreteMeasure(nodes=nodes, weights=weights, support="S^2")
+    mu = DiscreteMeasure(nodes=nodes, weights=weights, support=SPHERE)
     assert not SubgroupOfO3.OctahedralOh.is_invariant(mu)
 
 
@@ -545,7 +546,7 @@ def test_icosahedral_vertex_set_is_not_so3_invariant() -> None:
     """
     verts = _icosahedron_vertices()
     ico = DiscreteMeasure(
-        nodes=verts, weights=np.full(len(verts), 1.0), support="S^2",
+        nodes=verts, weights=np.full(len(verts), 1.0), support=SPHERE,
     )
     # Sanity: the fixture really is the I_h orbit it claims to be.
     assert len(verts) == 12
@@ -588,7 +589,7 @@ def test_axis_supported_measure_is_so2_invariant_but_not_so3() -> None:
     poles = DiscreteMeasure(
         nodes=np.array([[0.0, 0.0, 1.0], [0.0, 0.0, -1.0]]),
         weights=np.array([1.0, 1.0]),
-        support="S^2",
+        support=SPHERE,
     )
     assert SubgroupOfO3.SO2.is_invariant(poles)
     assert SubgroupOfO3.Dinfh.is_invariant(poles)
@@ -598,7 +599,7 @@ def test_axis_supported_measure_is_so2_invariant_but_not_so3() -> None:
     lopsided = DiscreteMeasure(
         nodes=np.array([[0.0, 0.0, 1.0], [0.0, 0.0, -1.0]]),
         weights=np.array([1.0, 2.0]),
-        support="S^2",
+        support=SPHERE,
     )
     assert SubgroupOfO3.SO2.is_invariant(lopsided)
     assert not SubgroupOfO3.Dinfh.is_invariant(lopsided)
@@ -659,7 +660,7 @@ def test_duplicated_node_breaks_oh_invariance() -> None:
     duplicated = DiscreteMeasure(
         nodes=np.vstack([nodes, nodes[0]]),
         weights=np.concatenate([weights, [weights[0]]]),
-        support="S^2",
+        support=SPHERE,
     )
 
     # Independent ground truth: O_h contains sigma_x, so the mass carried at
@@ -1181,7 +1182,7 @@ def test_singular_set_requires_an_invariant_measure() -> None:
     lopsided = DiscreteMeasure(
         nodes=np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),
         weights=np.array([1.0, 2.0]),
-        support="S^2",
+        support=SPHERE,
     )
     with pytest.raises(ValueError, match="invariant"):
         singular_set(lopsided, SubgroupOfO3.OctahedralOh)
@@ -1290,12 +1291,12 @@ def test_so3_on_a_polar_marginal_requires_reflection_symmetry() -> None:
     asymmetric = DiscreteMeasure(
         nodes=np.array([-0.9, -0.1, 0.3]),
         weights=np.ones(3),
-        support="[-1,1]",
+        support=COSINE_INTERVAL,
     )
     symmetric = DiscreteMeasure(
         nodes=np.array([-0.6, -0.2, 0.2, 0.6]),
         weights=np.ones(4),
-        support="[-1,1]",
+        support=COSINE_INTERVAL,
     )
 
     # No rotational group is invariant on a polar marginal, symmetric or
@@ -1334,15 +1335,15 @@ def test_invariance_is_downward_closed_on_polar_marginals() -> None:
     measures = {
         "asymmetric": DiscreteMeasure(
             nodes=np.array([-0.9, -0.1, 0.3]), weights=np.ones(3),
-            support="[-1,1]",
+            support=COSINE_INTERVAL,
         ),
         "symmetric": DiscreteMeasure(
             nodes=np.array([-0.6, -0.2, 0.2, 0.6]), weights=np.ones(4),
-            support="[-1,1]",
+            support=COSINE_INTERVAL,
         ),
         "symmetric-nodes-unequal-weights": DiscreteMeasure(
             nodes=np.array([-0.6, 0.6]), weights=np.array([1.0, 2.0]),
-            support="[-1,1]",
+            support=COSINE_INTERVAL,
         ),
     }
 
@@ -1444,11 +1445,11 @@ def test_the_two_invariance_ARMS_agree_on_the_canonical_embedding() -> None:
     weights = np.full(4, 0.5)
 
     def both_arms(mu: np.ndarray, axis: str) -> tuple[bool, bool]:
-        one_d = DiscreteMeasure(nodes=mu, weights=weights, support="[-1,1]")
+        one_d = DiscreteMeasure(nodes=mu, weights=weights, support=COSINE_INTERVAL)
         embedded = DiscreteMeasure(
             nodes=np.column_stack([mu, np.zeros(4), np.zeros(4)]),
             weights=weights,
-            support="S^2",
+            support=SPHERE,
         )
         g = SubgroupOfO3.Mirror(axis)
         return g.is_invariant(one_d), g.is_invariant(embedded)

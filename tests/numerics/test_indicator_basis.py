@@ -51,7 +51,7 @@ def _basis(coarse_edges=_COARSE_EDGES):
 
 
 def _measure(centers=_FINE_CENTERS, vols=_FINE_VOLS):
-    return DiscreteMeasure(nodes=centers, weights=vols, support="spatial_R1")
+    return DiscreteMeasure(nodes=centers, weights=vols, support=RealSpace(1))
 
 
 def _independent_membership(coarse_edges, centers):

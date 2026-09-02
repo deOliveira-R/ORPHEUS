@@ -32,6 +32,7 @@ import pytest
 
 from orpheus.numerics.exactness import UNIFORM_ON_SPHERE
 from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
+from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import (
     GEOMETRY_ANGULAR_SYMMETRY,
@@ -909,7 +910,7 @@ def test_log_records_geometry_metadata() -> None:
     )
     # Both halves are reconstructible from the log, so a reader can
     # replay stages 0 and 1 without re-deriving the decomposition.
-    assert log.angular_symmetry.support == "S^2"
+    assert log.angular_symmetry.support == SPHERE
     assert log.target_degree == 4
     assert log.requested_flags == {"level_structured": True}
 
@@ -1166,12 +1167,12 @@ def test_support_is_derived_from_the_spent_group_not_declared() -> None:
     assert AngularSymmetry(
         continuous_isotropy=SubgroupOfO3.SO2,
         discrete_residual=SubgroupOfO3.Mirror("z"),
-    ).support == "[-1,1]"
+    ).support == COSINE_INTERVAL
 
     assert AngularSymmetry(
         continuous_isotropy=SubgroupOfO3.Trivial,
         discrete_residual=SubgroupOfO3.Dnh(2),
-    ).support == "S^2"
+    ).support == SPHERE
 
     # An unmapped quotient must refuse loudly rather than guess: a wrong
     # domain silently admits a rule of the wrong dimensionality.

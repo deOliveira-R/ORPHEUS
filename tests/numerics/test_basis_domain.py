@@ -281,17 +281,26 @@ def test_d6_a_frames_two_halves_name_ONE_manifold() -> None:
     self-consistent lie; this one cannot be, because the two names come from
     independently-authored halves.
 
-    ⚠ Two known limits, stated rather than hidden:
+    ⭐⭐ **STRENGTHENED at tracker 2.0c (2026-09-01), and by the same change
+    it demanded.** Until then ``support`` was a ``str``, so the strongest
+    claim this gate could make was ``basis.domain.name == measure.support`` —
+    the two halves SPELL the manifold the same way. Both halves are now
+    ``Manifold``, so it asserts they ARE the same manifold, which is what the
+    test's own name has always said. (``coding-standards``' mirror clause: a
+    retirement can silently PROMOTE a gate's claim class; the description
+    moves with it or it goes on advertising the weaker claim.)
 
-    * the fifth production pair (``frame.py``'s axis marginal, a private
-      ``_collapse_pair`` whose frame is deliberately forgetful) is pinned
-      instead by ``tests/numerics/test_axis_marginal.py``'s independent
-      re-spelling of the same construction;
-    * ``LossKernelBasis`` agrees on the point SET and not on its spelling —
-      its measure tags the bare label while ``IndexSet`` wraps it as
-      ``index(...)``. That divergence is asserted below rather than skipped,
-      so tracker **2.0c** (which retypes ``support`` to a ``Manifold``) must
-      come back here and cannot resolve it by accident.
+    ⚠ One known limit, stated rather than hidden: the fifth production pair
+    (``frame.py``'s axis marginal, a private ``_collapse_pair`` whose frame is
+    deliberately forgetful) is pinned instead by
+    ``tests/numerics/test_axis_marginal.py``'s independent re-spelling of the
+    same construction.
+
+    ✅ The ``LossKernelBasis`` divergence this test used to pin — its measure
+    tagging the bare label while ``IndexSet`` wrapped it as ``index(...)`` —
+    was **discharged at 2.0c**, and not by agreement: the measure now reads
+    ``support=basis.domain``, so the two cannot differ. It is asserted below as
+    a third pair rather than as an exception.
     """
     mesh = Mesh1D(
         edges=np.array([0.0, 0.5, 1.0]), mat_ids=np.array([0, 1]),
@@ -305,16 +314,20 @@ def test_d6_a_frames_two_halves_name_ONE_manifold() -> None:
         ("EnergyGrid", grid.as_basis(), grid.as_measure()),
     ]
     for who, basis, measure in pairs:
-        assert basis.domain.name == measure.support, (
+        assert basis.domain == measure.support, (
             f"{who}: the frame's basis says it lives on "
-            f"{basis.domain.name!r} and its measure says {measure.support!r} — "
+            f"{basis.domain!r} and its measure says {measure.support!r} — "
             f"one frame, two manifolds."
         )
 
     # ...and the spaces those agreeing halves mint stay distinguishable.
     assert mesh.indicator_basis().space != grid.as_basis().space
 
-    # The loss-kernel pair: ONE point set, TWO spellings — pinned, not skipped.
+    # The loss-kernel pair, now ONE point set with ONE spelling. Its measure
+    # is built inside `_build_gauge_blocks`, so this pins the basis's half and
+    # the production site reads it directly (`loss_kernel_gauge.py`,
+    # `support=basis.domain`) — the divergence is unspellable, not merely
+    # absent.
     block = LossKernelBasis(table=np.eye(2), orbit=(0, 1), group=3)
     assert isinstance(block.domain, IndexSet)
     assert block.domain.label == "sn_trace_orbit(0, 1)_g3"

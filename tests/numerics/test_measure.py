@@ -26,13 +26,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.measure import (
-    BundleMeasure,
-    DiscreteMeasure,
-    SPACE_INTERVAL_M11,
-    equispaced,
-    gauss_chebyshev,
-    gauss_legendre,
+from orpheus.numerics.measure import BundleMeasure, DiscreteMeasure, equispaced, gauss_chebyshev, gauss_legendre
+from orpheus.numerics.manifold import (
+    COSINE_INTERVAL,
+    IndexSet,
+    Interval,
+    REAL_LINE,
+    SPHERE,
+    UNIT_INTERVAL,
 )
 from orpheus.numerics.symmetry import SubgroupOfO3
 
@@ -220,7 +221,7 @@ def test_tensor_product_metadata_propagation() -> None:
     a = gauss_legendre(3)  # dx = 5
     b = gauss_legendre(4)  # dx = 7
     p = a * b
-    assert p.support == "[-1,1] × [-1,1]"
+    assert p.support == COSINE_INTERVAL * COSINE_INTERVAL
     assert p.degree_of_exactness == 5
     assert p.invariance_group is None
 
@@ -258,7 +259,7 @@ def test_direct_sum_composite_quadrature() -> None:
     # Build N-point GL on [-1, 0] and [0, 1] via pushforward, then
     # direct-sum on the common space "[-1,1]".
     base_left = gauss_legendre(4).pushforward(
-        lambda x: 0.5 * (x - 1.0), new_space=SPACE_INTERVAL_M11,
+        lambda x: 0.5 * (x - 1.0), new_space=COSINE_INTERVAL,
     )
     # The pushforward x -> (x-1)/2 maps [-1,1] to [-1, 0]. The Jacobian
     # (1/2) MUST be applied to the weights manually — the pushforward
@@ -269,7 +270,7 @@ def test_direct_sum_composite_quadrature() -> None:
         support=base_left.support,
     )
     base_right = gauss_legendre(4).pushforward(
-        lambda x: 0.5 * (x + 1.0), new_space=SPACE_INTERVAL_M11,
+        lambda x: 0.5 * (x + 1.0), new_space=COSINE_INTERVAL,
     )
     base_right = DiscreteMeasure(
         nodes=base_right.nodes,
@@ -299,7 +300,7 @@ def test_pushforward_invertible_map_change_of_variables() -> None:
     """
     n = 200  # midpoint rule needs many points to reach 1/5
     base = equispaced(0.0, 1.0, n)
-    pushed = base.pushforward(lambda x: x ** 2, new_space="[0,1]")
+    pushed = base.pushforward(lambda x: x ** 2, new_space=UNIT_INTERVAL)
     assert pushed.n_points == n
     assert np.allclose(pushed.weights, base.weights)
     assert np.allclose(pushed.nodes, base.nodes ** 2)
@@ -318,18 +319,33 @@ def test_pushforward_drops_metadata() -> None:
     base = gauss_legendre(5).with_metadata(invariance_group=SubgroupOfO3.O3)
     assert base.invariance_group == SubgroupOfO3.O3
     assert base.degree_of_exactness == 9
-    pushed = base.pushforward(lambda x: x ** 3, new_space="img")
+    pushed = base.pushforward(lambda x: x ** 3, new_space=IndexSet(label="img"))
     assert pushed.invariance_group is None
     assert pushed.degree_of_exactness is None
 
 
 @pytest.mark.foundation
-def test_pushforward_default_space_tag() -> None:
-    """When no ``new_space`` is provided, the target tag is
-    ``f"φ_*({source.space})"``."""
+def test_pushforward_REFUSES_to_invent_a_target_space() -> None:
+    r"""``pushforward`` will not name a manifold nobody has computed.
+
+    ⭐ Until 2026-09-01 (#429 tracker 2.0c) ``new_space`` was optional and
+    defaulted to a FABRICATED support named ``f"φ_*({self.support})"`` — and
+    this test pinned that name.  The image :math:`\varphi(\mathcal{X})` of a
+    manifold under an arbitrary map is a manifold nobody has derived; naming it
+    does not make it known, and a space asserting an identity it does not have
+    is precisely the defect class this campaign exists to remove (ERR-080 is
+    the same move on a quadrature's support).
+
+    So the gate flips from pinning the fabrication to pinning its **refusal**.
+    Only ``φ``'s author knows :math:`\mathcal{Y}`, so only they can name it.
+    """
     base = gauss_legendre(3)
-    pushed = base.pushforward(lambda x: x + 1.0)
-    assert pushed.support == "φ_*([-1,1])"
+    with pytest.raises(TypeError, match="new_space"):
+        _ = base.pushforward(lambda x: x + 1.0)  # type: ignore[call-arg]
+
+    # ...and the positive leg: named, it works (vv-principles #11).
+    named = base.pushforward(lambda x: x + 1.0, new_space=Interval(0.0, 2.0))
+    assert named.support == Interval(0.0, 2.0)
 
 
 @pytest.mark.foundation
@@ -369,19 +385,19 @@ def test_construction_invariants() -> None:
         DiscreteMeasure(
             nodes=np.array([1.0, 2.0]),
             weights=np.array([[1.0], [1.0]]),
-            support="R",
+            support=REAL_LINE,
         )
     with pytest.raises(ValueError, match="disagree on N"):
         DiscreteMeasure(
             nodes=np.array([1.0, 2.0, 3.0]),
             weights=np.array([1.0, 1.0]),
-            support="R",
+            support=REAL_LINE,
         )
     with pytest.raises(ValueError, match="nodes must be 1-D"):
         DiscreteMeasure(
             nodes=np.zeros((2, 2, 2)),
             weights=np.array([1.0, 1.0]),
-            support="R",
+            support=REAL_LINE,
         )
 
 
@@ -619,7 +635,7 @@ def test_consolidate_merges_coincident_atoms_preserving_mass() -> None:
     mu = DiscreteMeasure(
         nodes=np.array([0.0, 1.0, 0.0, 2.0, 1.0]),
         weights=np.array([0.5, 0.25, 0.5, 1.0, 0.75]),
-        support="[-1,1]",
+        support=COSINE_INTERVAL,
     )
     out = mu.consolidate()
     assert out.n_points == 3
@@ -635,7 +651,7 @@ def test_consolidate_is_idempotent_and_a_no_op_when_already_reduced() -> None:
     mu = DiscreteMeasure(
         nodes=np.array([0.0, 1.0, 0.0]),
         weights=np.array([1.0, 2.0, 3.0]),
-        support="[-1,1]",
+        support=COSINE_INTERVAL,
     )
     once = mu.consolidate()
     twice = once.consolidate()
@@ -644,7 +660,7 @@ def test_consolidate_is_idempotent_and_a_no_op_when_already_reduced() -> None:
 
     already = DiscreteMeasure(
         nodes=np.array([0.0, 1.0]), weights=np.array([1.0, 2.0]),
-        support="[-1,1]",
+        support=COSINE_INTERVAL,
     )
     assert already.consolidate() is already
 
@@ -664,7 +680,7 @@ def test_consolidate_preserves_the_claims_pushforward_drops() -> None:
     mu = DiscreteMeasure(
         nodes=np.array([-1.0, 0.0, 0.0, 1.0]),
         weights=np.array([1.0, 0.5, 0.5, 1.0]),
-        support="[-1,1]",
+        support=COSINE_INTERVAL,
         invariance_group=SubgroupOfO3.Mirror("z"),
         exactness=ExactnessClaim(reference=LEGENDRE, degree=3),
     )
@@ -698,7 +714,7 @@ def test_quotient_is_pushforward_then_consolidate_with_orbifold_weights() -> Non
         return out
 
     folded = mu.pushforward(
-        to_representative, new_space="S^2/<sigma_y>",
+        to_representative, new_space=SPHERE.quotient(SubgroupOfO3.Mirror("y")),
     ).consolidate()
 
     n_fixed = int((np.abs(q.mu_y) < 1e-14).sum())
@@ -750,7 +766,7 @@ def _fold_ring(n_phi: int = 8) -> DiscreteMeasure:
     return DiscreteMeasure(
         nodes=nodes,
         weights=np.full(n_phi, 4.0 * np.pi / n_phi),
-        support="S^2",
+        support=SPHERE,
     )
 
 
@@ -774,7 +790,7 @@ def test_quotient_agrees_with_the_geometric_section_orbit_by_orbit() -> None:
     reference_nodes = mu.nodes.copy()
     reference_nodes[:, 1] = np.abs(reference_nodes[:, 1])
     reference = mu.pushforward(
-        lambda nodes: reference_nodes, new_space="S^2/sigma_y"
+        lambda nodes: reference_nodes, new_space=SPHERE.quotient(SubgroupOfO3.Mirror("y"))
     ).consolidate()
 
     assert folded.n_points == reference.n_points == 20  # Burnside (32+8)/2
@@ -889,7 +905,7 @@ def test_quotient_refuses_without_a_certificate() -> None:
     lopsided = DiscreteMeasure(
         nodes=np.array([[0.6, 0.8, 0.0], [0.6, 0.5, 0.62449979983984]]),
         weights=np.array([1.0, 1.0]),
-        support="S^2",
+        support=SPHERE,
     )
     with pytest.raises(ValueError, match="is defined only for a sigma_y-invariant"):
         lopsided.quotient(group)
@@ -906,10 +922,23 @@ def test_the_fold_consumes_the_symmetry_idempotent_only_on_a_trivial_action() ->
 
     Free action: the folded measure keeps one member per mirror pair, so
     it is no longer :math:`\sigma_y`-invariant — a second ``quotient``
-    REFUSES rather than silently halving again. Trivial action (every
-    node fixed, e.g. the slab embedding :math:`(\mu, 0, 0)`): the
-    quotient is the identity on ``(nodes, weights)`` and literally
-    idempotent."""
+    REFUSES rather than silently halving again. Trivial action (every node
+    fixed — the great circle in the :math:`xz`-plane, which :math:`\sigma_y`
+    fixes pointwise): the quotient is the identity on ``(nodes, weights)`` and
+    literally idempotent.
+
+    ⭐ **The fixture changed at tracker 2.0c, and the reason is the campaign's
+    own subject.** It used to be :math:`(\mu, 0, 0)` on ``"[-1,1]^slab"`` —
+    described as "the slab embedding". Those points lie on **no** manifold
+    carrying a :math:`\sigma_y` action: :math:`(-0.7, 0, 0)` is not on
+    :math:`S^2`, and an interval has no :math:`O(3)` action at all. The string
+    support could not notice — it fabricated the tag ``"[-1,1]^slab/sigma_y"``
+    and the test went green. Typing ``support`` made
+    :meth:`Manifold.quotient` refuse it, which is correct and is ERR-080's
+    defect class exactly: a point set named by a CHART CODOMAIN rather than by
+    the space it is. The honest :math:`\sigma_y`-fixed subset of the sphere is
+    the :math:`xz` great circle, and it makes the claim stronger — the nodes
+    are genuinely on the manifold whose quotient is being taken."""
     group = SubgroupOfO3.Mirror("y")
 
     folded = _fold_ring().quotient(group)
@@ -917,19 +946,28 @@ def test_the_fold_consumes_the_symmetry_idempotent_only_on_a_trivial_action() ->
     with pytest.raises(ValueError, match="is defined only for a sigma_y-invariant"):
         folded.quotient(group)
 
-    slab = DiscreteMeasure(
-        nodes=np.column_stack(
-            [np.array([-0.7, 0.1, 0.9]), np.zeros(3), np.zeros(3)]
-        ),
+    theta = np.array([0.3, 1.7, 2.9])
+    fixed = DiscreteMeasure(
+        nodes=np.column_stack([np.cos(theta), np.zeros(3), np.sin(theta)]),
         weights=np.array([0.4, 1.1, 0.5]),
-        support="[-1,1]^slab",
+        support=SPHERE,
     )
-    once = slab.quotient(group)
-    np.testing.assert_array_equal(once.nodes, slab.nodes)
-    np.testing.assert_array_equal(once.weights, slab.weights)
-    twice = once.quotient(group)
-    np.testing.assert_array_equal(twice.nodes, once.nodes)
-    np.testing.assert_array_equal(twice.weights, once.weights)
+    # Every node is its own σ_y image, so the fold has nothing to merge.
+    assert np.allclose(np.linalg.norm(fixed.nodes, axis=1), 1.0)
+    once = fixed.quotient(group)
+    np.testing.assert_array_equal(once.nodes, fixed.nodes)
+    np.testing.assert_array_equal(once.weights, fixed.weights)
+
+    # ⭐ ...and the fold is idempotent on the ATOMS ONLY. Re-folding is refused
+    # even here, because the SPACE moved: `once` lives on S²/σ_y, and σ_y has
+    # already been spent there. Until 2026-09-01 this assertion read
+    # `twice.nodes == once.nodes` and passed — the string support happily
+    # fabricated "…/sigma_y/sigma_y", so the test contradicted its own
+    # docstring's "the quotient CHANGES the space, so re-folding is ill-posed"
+    # and nothing could tell. Typing `support` made the two agree.
+    assert once.support == SPHERE.quotient(group)
+    with pytest.raises(NotImplementedError, match="S\\^2/sigma_y/sigma_y"):
+        once.quotient(group)
 
 
 @pytest.mark.foundation
@@ -944,7 +982,7 @@ def test_quotient_tags_the_orbifold_support_and_drops_both_claims() -> None:
     assert mu.invariance_group is not None  # the knob the drop is about
 
     folded = mu.quotient(SubgroupOfO3.Mirror("y"))
-    assert folded.support == "S^2/sigma_y"
+    assert folded.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
     assert folded.invariance_group is None
     assert folded.exactness is None
     assert folded.degree_of_exactness is None
@@ -1068,11 +1106,11 @@ def test_a_rule_with_no_reference_has_NO_claim_at_all() -> None:
     """
     a = DiscreteMeasure(
         nodes=np.array([-0.5, 0.5]), weights=np.array([1.0, 1.0]),
-        support="[-1,1]",
+        support=COSINE_INTERVAL,
     )
     b = DiscreteMeasure(
         nodes=np.array([-0.25, 0.25]), weights=np.array([1.0, 1.0]),
-        support="[-1,1]",
+        support=COSINE_INTERVAL,
     )
     assert a.exactness is None and b.exactness is None
     assert a.degree_of_exactness is None

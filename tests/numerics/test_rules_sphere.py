@@ -18,7 +18,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
+from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.manifold import SPHERE
 from orpheus.numerics.quadrature import (
     NODE_ALIGNED,
     STAGGERED,
@@ -48,7 +49,7 @@ def test_lebedev_returns_discrete_measure(order: int) -> None:
     assert m.nodes.ndim == 2
     assert m.nodes.shape[1] == 3  # (N, 3)
     assert m.weights.shape == (m.n_points,)
-    assert m.support == SPACE_SPHERE
+    assert m.support == SPHERE
     assert m.invariance_group == SubgroupOfO3.OctahedralOh
     assert m.degree_of_exactness == order
 
@@ -126,7 +127,7 @@ def test_level_symmetric_returns_measure_and_structure(sn_order: int) -> None:
     assert isinstance(m, DiscreteMeasure)
     assert m.nodes.ndim == 2
     assert m.nodes.shape[1] == 3
-    assert m.support == SPACE_SPHERE
+    assert m.support == SPHERE
     assert m.invariance_group == SubgroupOfO3.OctahedralOh
     # BUILD-MEASURED since #337 (no clean formula of N under the
     # moment-matched seed): `[M]` 3 at S2 (single orbit, weight forced

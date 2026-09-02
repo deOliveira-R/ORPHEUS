@@ -338,7 +338,7 @@ class TestG3ScatteringTwoAxisCollapse:
             edges_per_axis=(edges,), partition_of=EnergyGroups(_NG_FINE),
         )
         measure = DiscreteMeasure(
-            nodes=nodes, weights=np.ones(_NG_FINE), support="energy"
+            nodes=nodes, weights=np.ones(_NG_FINE), support=EnergyGroups()
         )  # COUNTING measure (w=1) + flux test-weight
         return PetrovGalerkinFrame(trial, measure, WeightedIndicatorBasis(trial, _PHI))
 

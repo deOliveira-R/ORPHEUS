@@ -702,15 +702,20 @@ class Quotient(Manifold):
 
 
 # ---------------------------------------------------------------------------
-# The shipped members, under their retired tag names
+# The shipped members. Until 2026-09-01 (#429 tracker 2.0c) each of these had a
+# string twin in ``measure.py`` — ``SPACE_SPHERE``, ``SPACE_INTERVAL_M11``, … —
+# and ``DiscreteMeasure.support`` carried the twin rather than the member. Both
+# vocabularies shipped at once, which is why the comments below name what each
+# member replaced: the tags are gone, and every one of these reproduces its
+# tag's spelling bit-identically through :attr:`Manifold.name`.
 # ---------------------------------------------------------------------------
 
 SPHERE = Sphere()
 CIRCLE = Circle()
-COSINE_INTERVAL = Interval(-1.0, 1.0)  # was SPACE_INTERVAL_M11
-UNIT_INTERVAL = Interval(0.0, 1.0)  # was SPACE_INTERVAL_01
-HALF_LINE = Interval(0.0, float(np.inf))  # was SPACE_HALF_LINE
-REAL_LINE = Interval(float(-np.inf), float(np.inf))  # was SPACE_R
+COSINE_INTERVAL = Interval(-1.0, 1.0)  # replaced SPACE_INTERVAL_M11
+UNIT_INTERVAL = Interval(0.0, 1.0)  # replaced SPACE_INTERVAL_01
+HALF_LINE = Interval(0.0, float(np.inf))  # replaced SPACE_HALF_LINE
+REAL_LINE = Interval(float(-np.inf), float(np.inf))  # replaced SPACE_R
 ENERGY = EnergyGroups()
 
 

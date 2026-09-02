@@ -93,6 +93,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.manifold import IndexSet
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC
 from orpheus.numerics.basis import GramStructure
@@ -395,7 +396,7 @@ def test_the_frame_gram_probe_agrees_with_the_true_gram():
         frame = GalerkinFrame(
             block.basis,
             DiscreteMeasure(nodes=indices.astype(float),
-                            weights=metric[indices], support="probe"),
+                            weights=metric[indices], support=IndexSet(label="probe")),
         )
         diagonal = np.asarray(frame.gram.inner_product_weights)
         np.testing.assert_allclose(diagonal, np.ones_like(diagonal), atol=1e-12)
@@ -787,3 +788,49 @@ def test_the_TANGENTIAL_component_is_untouched_not_annihilated():
     # And no block ever claims a zero-metric DOF in the first place.
     for block in gauge.blocks:
         assert np.all(metric[block.gather.indices] > 0.0)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("label, cells, bcs, kwargs", _SINGULAR,
+                         ids=[row[0] for row in _SINGULAR])
+def test_each_blocks_frame_names_ONE_manifold_on_both_halves(
+        label, cells, bcs, kwargs):
+    r"""⭐ The production gauge's basis and measure agree on the point set.
+
+    Every block is a :class:`~orpheus.numerics.frame.GalerkinFrame` over a
+    :class:`LossKernelBasis` and a
+    :class:`~orpheus.numerics.measure.DiscreteMeasure` built four lines apart
+    in ``_build_gauge_blocks``. Until 2026-09-01 the two named the same point
+    set in **two spellings** — the measure tagged the bare label
+    ``sn_trace_orbit(…)_g…`` while the basis wrapped it as ``index(…)`` — and
+    tracker 2.1 pinned that divergence in
+    ``tests/numerics/test_basis_domain.py::test_d6``, explicitly so that
+    tracker 2.0c *"must come back here and cannot resolve it by accident"*.
+
+    ⛔ **It was resolved by accident, and this gate is why that is now
+    visible.** 2.0c made the measure read ``support=basis.domain``, which
+    closes the divergence by construction — and a mutation battery then
+    measured the repair as **BLIND**: replacing that expression with a wrong
+    ``IndexSet`` reddened **nothing tree-wide**, because ``test_d6`` asserts
+    the *basis*'s half and no gate reached the production *measure*'s.
+
+    The observable path is the block's own operator wiring: the gather's
+    codomain IS ``measure.space``, whose name is ``L2[{support.name}]``. So
+    this compares the two halves through production plumbing rather than by
+    re-reading the constructor. `[M]` the mutation now reddens every row.
+
+    (``vv-principles`` #17: the verdict of a battery is a TABLE, and an arm
+    that reddens nothing is a claim with no witness — not a claim that holds.)
+    """
+    gauge = LossKernelGauge.for_mesh(_mesh(cells, bcs, **kwargs))
+    assert gauge.blocks, f"{label}: no blocks — the fixture is not singular"
+    for block in gauge.blocks:
+        domain = block.basis.domain
+        assert isinstance(domain, IndexSet)
+        assert block.gather.codomain is not None
+        assert block.gather.codomain.name == f"L2[{domain.name}]", (
+            f"{label}: block {block.basis.orbit}/g{block.basis.group} — the "
+            f"basis says its functions live on {domain.name!r} while its "
+            f"measure induced {block.gather.codomain.name!r}. One frame, two "
+            f"manifolds."
+        )

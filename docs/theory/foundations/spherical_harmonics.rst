@@ -684,7 +684,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    azimuthal information, but ``Quadrature.angular_frame`` builds its
    measure by ``column_stack``\ ing three axis-cosine arrays — two of
    which are the zero FALLBACK, not data — and then declares the result
-   ``support=SPACE_SPHERE`` over nodes with
+   ``support=SPHERE`` over nodes with
    :math:`\lVert\Omega\rVert \ne 1`. ``_evaluate_real_sh`` duly reads
    :math:`\arctan2(0, 0) = 0` and every :math:`m > 0` harmonic becomes a
    non-zero constant across the ordinate set. The frame is therefore

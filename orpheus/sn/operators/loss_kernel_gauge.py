@@ -1187,7 +1187,14 @@ class LossKernelGauge(LinearOperator):
                 measure = DiscreteMeasure(
                     nodes=indices.astype(float),
                     weights=metric[indices],
-                    support=f"sn_trace_orbit{orbit}_g{group}",
+                    # ⭐ Read from the basis, not re-spelled beside it. Tracker
+                    # 2.1 left this pair as the ONE production frame whose two
+                    # halves disagreed in spelling — the measure tagged the bare
+                    # ``sn_trace_orbit…`` label while the basis wrapped it in
+                    # ``index(…)`` — and pinned the divergence in ``test_d6``.
+                    # Taking the manifold from its owner closes it by
+                    # construction rather than by keeping two strings equal.
+                    support=basis.domain,
                 )
                 frame = GalerkinFrame(basis, measure)
                 blocks.append(_GaugeBlock(

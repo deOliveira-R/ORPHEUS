@@ -2186,6 +2186,260 @@ constraints"* (L8) with its bill arriving: the type permits any string, so the
 tree contains manifolds that are typos of each other and tags that name nothing.
 
 
+## 2.0c EXECUTED (2026-09-01) — a measure names the point set it lives on
+
+**Goal (outcome).** A measure states *where its atoms live* as an object with
+structure, so the phase-space factor it belongs to, the space it induces, and
+the orbit space it folds onto are all DERIVED rather than spelled.
+
+### What landed
+
+| # | the change | why it is not merely a retype |
+|---|---|---|
+| 1 | `Space = str` and the six `SPACE_*` tag constants **RETIRED**; `support: Manifold` on all six implementors (`DiscreteMeasure`, `GeneratingMeasure`, `UniformMeasure`, `ProductMeasure`, the `ReferenceMeasure` **Protocol**, and `AngularSymmetry` — the one spelled `-> str`) | the tree carried **two parallel vocabularies** for one concept (§V.5f(b)); this collapses them |
+| 2 | ⭐ `DiscreteMeasure.phase` — stringly-typed dispatch → a `match` on the manifold's TYPE (user-ruled, §V.5f(e)) | `startswith("spatial")`/`== "cells"`/`startswith("energy")` gone; `manifold.py` stays pure geometry |
+| 3 | ⛔⛔ **the LIVE defect fixed** — `folded_product(4,8).measure.phase` RAISED, now answers `angular` | a `Quotient(base=Sphere())` arm; the fold's `invariance_group` is legitimately `None` |
+| 4 | ⭐ `μ.quotient(G)` routes through `Manifold.quotient` | the fold's target is the **catalogue's** orbit space, not a fabricated `f"{support}/{G.name}"` |
+| 5 | ⭐ `μ ⊗ ν` and `ProductMeasure.support` route through `Manifold.__mul__` | the product algebra shipped as `" × ".join(...)` and `f"{a} × {b}"` — two hand-rolled spellings of one operator |
+| 6 | ⭐ `pushforward(new_space=...)` is **REQUIRED**; the fabricated `f"φ_*({support})"` default is gone | the image of a manifold under an arbitrary map is a manifold nobody derived — naming it does not make it known. `[M]` 7 of 8 call sites already passed it |
+| 7 | ✅ **2.1's handoff discharged** — `LossKernelBasis`'s measure now reads `support=basis.domain` | the one production frame whose halves disagreed in spelling; closed by construction, not by keeping two strings equal |
+| 8 | `Mesh1D`/`Mesh2D`/`EnergyGrid`/`material_mesh`/`frame.py` — every f-string producer takes the manifold its own basis partitions | four of five build basis and measure in one function; `frame.py` now names the manifold ONCE and hands it to both halves |
+| 9 | 2.0d absorbed: `DiscreteMeasure.quotient_group` derived from `Quotient.by` | `[M]` it agrees with `Quadrature.folded_by` — two independent records of one fact |
+
+### ⭐ Four things the TYPE found that the string could not
+
+Each was green before the retype and is a real defect, not a migration cost.
+
+1. ⛔ **`EnergyGrid.as_measure` and `.as_basis` named DIFFERENT manifolds.**
+   `[M]` the measure said `EnergyGroups(ng=None)`, the basis `EnergyGroups(ng=2)`.
+   Under the tag both said `"energy"` and **agreed by being equally
+   uninformative** — the string was lossy, and the loss is what hid the
+   disagreement. This is precisely `test_d6`'s claim, caught on a pair 2.1 had
+   already touched.
+2. ⛔ **A test fixture called `(μ, 0, 0)` on `"[-1,1]^slab"` "the slab
+   embedding" and folded it by σ_y.** Those points lie on **no** manifold with
+   a σ_y action (`(-0.7,0,0)` is not on `S²`; an interval has no `O(3)` action).
+   The string fabricated `"[-1,1]^slab/sigma_y"`; `Manifold.quotient` refuses.
+   ⟹ ERR-080's defect class *inside a test that was green*. Replaced by the
+   genuine σ_y-fixed set — the `xz` great circle — which is a stronger claim.
+3. ⛔ **That same test contradicted its own docstring.** The header says *"the
+   quotient CHANGES the space, so re-folding is ill-posed"*; the body then
+   re-folded and asserted idempotence. `[M]` `(S²/σ_y).quotient(σ_y)` is
+   correctly refused. `coding-elegance` #20 — a docstring naming a claim the
+   body does not make — resolved by making the body assert the docstring.
+4. ⛔ **`test_angular_phase_is_symmetry_derived_not_support_tagged` INVERTED.**
+   It asserted that stripping `invariance_group` from a Lebedev rule makes
+   `phase` RAISE, because `"S^2"` was an inert string no branch read. `Sphere`
+   is a *reason*, so a measure on one is angular regardless — which is exactly
+   what lets the shipped fold answer. Renamed and re-argued in place, per §3.
+
+### ⚖ Gates: one promoted, one retired, one re-based
+
+* ⭐ **PROMOTED** — `test_manifold.py`'s two-producer agreement gate compared
+  `Manifold.quotient(...).realization` against `AngularSymmetry.support`. Both
+  sides are now `Manifold`, so it asserts **object equality** where it could
+  only assert **names** before. `coding-standards`' mirror clause: a retirement
+  can silently strengthen a gate's claim class, and the docstring must move
+  with it. ⚠ It is **not** tautological — `AngularSymmetry.support` still
+  hand-writes its table while `Manifold.quotient` derives the orbit space from
+  invariant theory; neither reads the other.
+* **RETIRED with its arm** — `test_spatial_supports_have_spatial_phase`'s
+  `"cells"` parameter. `[M]` §V.5e(e): zero production producers, and its only
+  producer was *that parametrize list* — a synthetic witness for the arm it
+  witnessed. The replacement runs `d = 1, 2, 3`; `d = 3` passes with no
+  production change, where the prefix test needed a new tag per dimension.
+* **RE-BASED, principled** — `LEGENDRE.on(0, 1).support` was the string
+  `"[0.0,1.0]"` (an f-string over floats) and is now `Interval(0.0, 1.0)`,
+  whose `name` normalises to `"[0,1]"`. Comparing the OBJECT says the interval
+  is the same one whatever the float repr — which the string could not.
+
+### `[M]` The mutation battery — 9 arms, and the one that came back BLIND
+
+Crash-safe by construction (every touched file copied aside *before* the first
+mutation and diffed against the copy afterwards — a `finally` does not survive a
+SIGTERM, a copy does; all 5 files verified clean).
+
+| arm | reds | what it pins |
+|---|---|---|
+| A | 1 | `phase`'s `Quotient(base=Sphere())` arm — the LIVE defect's fix |
+| B | 1 | `phase`'s `Sphere()` arm |
+| C | 3 | `phase`'s `RealSpace()` arm |
+| D | 3 | the fold routes through `Manifold.quotient` |
+| E | 1 | the tensor product routes through `Manifold.__mul__` |
+| ⛔ **F** | **0 → 6** | the loss-kernel measure reads `basis.domain` |
+| G | 1 | the energy measure carries its group count |
+| H | 1 | `AngularSymmetry`'s table vs the derived orbit space |
+| ★ | 7 | **positive control** — `Manifold.name` lies |
+
+⛔⛔ **Arm F came back BLIND, and it is the one thing 2.1 explicitly handed this
+step.** 2.1's `test_d6` pinned the `LossKernelBasis` spelling divergence and its
+docstring said 2.0c *"must come back here and **cannot resolve it by
+accident**"*. 2.0c resolved it — `support=basis.domain` — and **that is exactly
+what resolving it by accident looks like**: the divergence became unspellable,
+`test_d6` went green for a different reason, and replacing the expression with a
+wrong `IndexSet` reddened **nothing tree-wide** (re-measured against the
+loss-kernel suite too, to separate *no witness* from *not measured* — genuinely
+zero). `test_d6` asserts the BASIS's half; no gate reached the production
+MEASURE's.
+
+⟹ the witness now exists —
+`test_each_blocks_frame_names_ONE_manifold_on_both_halves`, 6 rows over the
+singular fixtures — and it compares the two halves **through production
+plumbing** (`block.gather.codomain.name == f"L2[{basis.domain.name}]"`, the
+gather's codomain being the measure's induced space) rather than by re-reading
+the constructor. `[M]` the arm now reddens 6 of 6.
+
+⭐ The transferable shape, and it is `vv-principles` #17 read in an unfamiliar
+direction: the battery is normally run to find gates with no teeth. Here it
+found a **repair with no gate** — a change that is correct, that makes a defect
+unspellable, and that nothing would notice being reverted. A prediction ("2.0c
+cannot resolve this by accident") does not enforce itself; only a mutation does.
+
+### `[M]` Bit-identity of every shipped space name
+
+Before touching a call site: **10 of 10** tag constants reproduce their
+spelling exactly through `Manifold.name` (`S^2`, `S^1`, `[-1,1]`, `[0,1]`,
+`[0,inf)`, `R`, `energy`, `spatial_R1`, `spatial_R2`, `index(angular)`), and so
+do the two derived spellings (`S^2/sigma_y` via `Quotient.name`,
+`[-1,1] × [-1,1]` via `Product.name`). The single divergence is the affine
+remap above.
+
+### §6d — the new module-scope edge, injected and RUN
+
+`measure.py` now imports `manifold.py` at module scope. `[M]` safe **by design,
+not by luck**: `manifold → symmetry` is `TYPE_CHECKING`-only, so the cycle
+`measure → manifold → symmetry → measure` never closes at runtime. Injected and
+run in **five** import orders (measure / symmetry / geometry / registry /
+sn.solver first) — all clean. Both modules are `orpheus.numerics.*`, so no
+package-to-package edge is created and the layer contract is untouched.
+
+### ⚠ Two process notes worth carrying
+
+1. ⛔ **L25, at tree scale.** The vocabulary sweep was a tree-wide regex, and it
+   corrupted **history prose in `manifold.py` itself** — `"was
+   SPACE_INTERVAL_M11"` became `"was COSINE_INTERVAL"`, i.e. the file defining
+   the replacements had its own record of what it replaced overwritten. Caught
+   by reading the diff, not by any test (prose has no gate). L25 is written for
+   a *file-internal* `replace_all`; the same premise — "every occurrence here is
+   the target concept" — fails identically across a tree, and the file most
+   likely to hold the counterexample is the one that documents the rename.
+2. ⭐ **The census's own positive control failed, correctly, at the end.** It
+   asserted *"an f-string producer exists"* — true when written, and false once
+   the retype retired all four. `lessons` **L62** exactly: a control drawn from
+   the TREE validates a filter only for shapes the tree still exhibits. A
+   control that fails because the work succeeded is the control working.
+
+---
+
+## §V.5f ⭐⭐ 2.0c's THIRD opener (2026-09-01, at `4921d737`) — `support` is an INTERFACE, not a field
+
+The **11th consecutive** phase opener to correct its own section, and the first
+to change the step's *unit of work* rather than its sizing. `[M]` all by AST,
+each pass carrying positive controls; probes `scratch/_p20c_{census,space_alias,
+space_exact,compare,stringops}.py` (untracked, re-runnable).
+
+### (a) ⛔ The tracker names ONE implementor of a SIX-implementor contract
+
+The row reads *"`DiscreteMeasure.support: str → Manifold`"*. `[M]` by AST, the
+bare `Space` alias is annotated at **7** sites across **5 classes** — and a
+**6th implementor is spelled `str`**, so no alias census can return it:
+
+| class | site | how it is spelled |
+|---|---|---|
+| `ReferenceMeasure` | `exactness.py:167` | ⭐ a **`Protocol`** — `support` is a structural CONTRACT |
+| `UniformMeasure` | `exactness.py:210` | `support: Space` |
+| `ProductMeasure` | `exactness.py:284` | `-> Space`, **derived** |
+| `GeneratingMeasure` | `generating_measure.py:217` | `support: Space` |
+| `DiscreteMeasure` | `measure.py:267` (+ `:744` `new_space: Space \| None`) | `support: Space` |
+| ⛔ `AngularSymmetry` | `registry.py:869` | **`-> str`** — the alias's EXPANSION |
+| *(test-local)* | `tests/numerics/test_exactness.py:58` `_FourierRef` | `support: Space` |
+
+⭐⭐ **And the sixth is not a bystander — it is `DiscreteMeasure.support`'s
+comparison partner.** `[M]` `registry.py:930`, stage 0 of the admission ladder:
+
+```python
+def admits_domain(self, measure: DiscreteMeasure) -> bool:
+    return measure.support == self.support        # DiscreteMeasure vs AngularSymmetry
+```
+
+Retyping one side and not the other makes this `Manifold == str`, which is
+**`False`, not an error** — Python compares unequal types silently. ⟹ the
+`Space` retype **cannot be split by class**; the six move in one commit or
+stage 0 silently refuses every rule (`plan-authoring` §6b).
+
+⟹ **§6b's seventh spelling, for the 2026-08-24 / 08-29 / 09-01 inventory:
+an implementor annotated with the alias's EXPANSION rather than the alias.**
+`Space = str` means `-> str` and `-> Space` are the SAME annotation to the type
+checker and DIFFERENT strings to every census. A `TypeAlias` is invisible at the
+only tier a grep or an AST-annotation pass can see.
+
+### (b) `[M]` The two vocabularies both ship, and `manifold.py` says otherwise
+
+| the tag vocabulary | the type vocabulary |
+|---|---|
+| `measure.py:115-130` — `SPACE_R`, `SPACE_HALF_LINE`, `SPACE_INTERVAL_M11`, `SPACE_INTERVAL_01`, `SPACE_CIRCLE`, `SPACE_SPHERE` | `manifold.py:708-714` — `REAL_LINE`, `HALF_LINE`, `COSINE_INTERVAL`, `UNIT_INTERVAL`, `CIRCLE`, `SPHERE`, `ENERGY` |
+
+⚠ `manifold.py:710-713` comments each new constant *"was `SPACE_INTERVAL_M11`"*
+etc., and its section header reads *"under their **retired** tag names"*. `[M]`
+**none of them is retired** — `generating_measure.py:398` compares against
+`SPACE_INTERVAL_M11` today, and 9 production sites still import the family.
+The comments are ASPIRATIONAL wearing the past tense (`coding-standards`'
+present-vs-past-tense rule, inverted: here the *past* tense is the false one).
+**2.0c is what makes them true**, and it owes them their re-tensing.
+
+### (c) ⭐ `ProductMeasure.support` IS the product algebra, transcribed as string concatenation
+
+`[M]` `exactness.py:285`: `" × ".join(f.support for f in self.factors)`, and
+`measure.py:588`: `f"{self.support} × {other.support}"`. `Manifold.__mul__`
+(`manifold.py:156`) already builds a `Product`. ⟹ two hand-rolled string
+spellings of one operator that ships — Pattern 1 + Pattern 2 in one line each.
+
+### (d) Predicates for the three counts, so none of them is re-read as another
+
+`plan-authoring` §2's FILTER clause: each number below names what it counts.
+
+| predicate | `[M]` at `4921d737` | reconciles with |
+|---|---|---|
+| `support=` **keyword arguments** (producers) | **87** (32 `orpheus/`, 55 `tests/`) | ✅ §V.5e's 87, exactly |
+| ...of which **string literals** | **54**, 51 in `tests/` = 94 % | ✅ §V.5e, exactly |
+| **all** `.support` Load reads | **71** (31 `orpheus/`, 40 `tests/`) | *(never counted before)* |
+| ...feeding a **string operation** (14 f-string, 2 `.startswith`, 1 `str.join`) | **17** (16 `orpheus/`, 1 `tests/`) | ⚠ §V.5e said **16**; different filter, both stated |
+| `support` **comparisons** (`==`/`!=`) | **33** (5 `orpheus/`, 28 `tests/`) | *(never counted before)* |
+
+⭐ The 17 are the quiet ones and they are almost all **repairable mechanically**:
+`f"L2[{self.support}]"` → `…{self.support.name}]`. The two `.startswith()` calls
+are inside `phase` and the retype **dissolves them**. The 33 comparisons fail in
+mixed directions — `admits_domain` goes silently `False`, `generating_measure.py:398`
+raises always — which is why the set must land whole.
+
+### (e) ⚖ The design fork this opener opens: WHERE does `phase` live?
+
+§V.5e(c) proposed *"`phase` becomes a property of the MANIFOLD, and the measure's
+version is a one-line forward"* — and §V.5e(f) then refuted its totality
+(`Interval(-1,1)` is genuinely both the slab's μ-axis and a 1-D spatial
+interval). **Both remain true**; what neither settled is the layering:
+
+* `Phase` is a **transport** taxonomy (position × direction × energy) and is
+  defined in `numerics/measure.py:132`.
+* `Manifold` is **pure geometry** in `numerics/manifold.py`. A `Sphere` is not
+  intrinsically "angular" — it is angular *because transport's direction
+  variable lives on it*.
+
+✅ **RULED by the user, 2026-09-01: dispatch on the manifold TYPE, `phase`
+stays on the measure.** `manifold.py` stays pure geometry — no transport
+vocabulary crosses into it. The reasoning below is the ruling's argument;
+§V.5e(c)'s *"`phase` becomes a property of the MANIFOLD"* is ⛔ **SUPERSEDED**.
+
+⟹ **the ruled means:** keep `phase` on
+`DiscreteMeasure` and dispatch on the manifold's **TYPE** (`Sphere` /
+`Quotient(base=Sphere)` → angular; `EnergyGroups` → energy; `RealSpace` →
+spatial; `Interval` → ambiguous, defer to `invariance_group`). That kills the
+stringly-typed dispatch without moving transport vocabulary into a pure-math
+module. The alternative — `Manifold.phase` — is what §V.5e(c) proposed and is
+recorded here so the fork is visible rather than silently resolved.
+
+---
+
 ## §V.5e ⭐ 2.0c's SECOND phase opener (2026-09-01, at `10e48312`) — unblocked, and the prize is bigger than the retype
 
 The 10th consecutive phase opener to correct its own section. `[M]` all by AST
@@ -3152,7 +3406,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 1.8 | vocabulary reconciliation | no | ☐ |
 | 2.0a | ⭐ **MINT `Manifold`** (D0.7, user-ruled) — retires `Space = str` | ⏏ yes | ✅ `b8c05d16` — 9 variants, 40 tests, pyright 0. ⚠ the TYPE only; `support` is still `str` (that is 2.0c/2.1) |
 | 2.0b | `Manifold.contains` — the membership predicate; refuses the forged measure at construction | ⏏ yes | ◐ **HALF** — the predicate ships and is gated both legs (`[M]` refuses the `gauss_legendre(8)` forgery, norms `[0.1834, 0.9603]`; admits the normalised control) @ `b8c05d16`. The **refusal AT CONSTRUCTION** is unbuilt — that is the wiring, and it rides 0.1. ⛔ no `catches("ERR-080")` marker until then: refusing a forged ARRAY is not the production path refusing it |
-| 2.0c | `DiscreteMeasure.support: str → Manifold`; the `L2[...]` name derives; `quotient_group` becomes a derived property | ⏏ yes | ☐ ⛔ **BLOCKED on 1.1's σ_y entry** (§V.5d(a)). Re-scoped at the opener: **absorbs 2.0d** (§V.5d(c)); its `indicator_basis` clause **moves to 2.1** (§V.5d(e), §6b). `[M]` the retype preserves every production space name bit-identically bar two (§V.5d(f2)) |
+| 2.0c | `DiscreteMeasure.support: str → Manifold`; the `L2[...]` name derives; `quotient_group` becomes a derived property | ⏏ yes | ☐ ▶ **NEXT.** ~~⛔ BLOCKED on 1.1's σ_y entry (§V.5d(a))~~ ✅ **REMEDIED 2026-09-01** — 1.1 landed `b55bba56`; `[M]` `SPHERE.quotient(SubgroupOfO3.Mirror("y"))` → `'S^2/sigma_y'` (§V.5e(a)). ⭐ **Read §V.5e before designing** — the second opener re-shaped the step: the row's sizing counts PRODUCERS (`[M]` §6b ≈ 87 producers + **16 consumers**, and the 16 are where a retype fails QUIETLY), the prize is that `phase` is stringly-typed dispatch, and it carries a LIVE defect (`folded_product(4,8).measure.phase` **RAISES**). Re-scoped at the opener: **absorbs 2.0d** (§V.5d(c)); its `indicator_basis` clause **moves to 2.1** (§V.5d(e), §6b). `[M]` the retype preserves every production space name bit-identically bar two (§V.5d(f2)) |
 | 2.0d | `measure.quotient_group` | ⏏ yes | ⛔ **DISSOLVED into 2.0c** (§V.5d(c)) — `[M]` `Quotient.by` IS the group, so a stored field is a second home for it, and `support`'s four forwarding rules would have to be hand-kept in agreement. Its done-when was also unreachable as written (§V.5d(d)): the `SO2` answer is **2.4**'s declaration, not a derivation |
 | 2.1 | `Basis.domain: Manifold` (⛔ `support` rename REFUTED — §III.10) — `IndicatorBasis` takes a ctor field. ⭐ **Now also owns 2.0c's `indicator_basis` clause** (§V.5d(e)): `[M]` the false `L2[coarse_cells_R1]` name makes a 2-group ENERGY space and a 2-cell SPATIAL space `==`-EQUAL and hash-equal, with a passing negative control — an illegal state that IS representable | ⏏ yes | ✅ `c461fe8d` — `Basis.domain` abstract; `IndicatorBasis` takes `partition_of`; `ambient_dim` promoted public as its first cross-module consumer. ⭐ Keystone is `test_d6` — **a frame's two halves name ONE manifold** — not a name assertion, because the pre-2.1 name was self-consistent. `[M]` §6b set was **23**, not 18 (3 `OverlapBasis(` + `from_indicator` + a test-local subclass); 13 gates; 7-arm mutation battery. ⛔ the *"26 space-comparing sites"* figure was never re-measured and is **struck** — the repair is at the 5 producers, not at the comparers |
 | 2.1b | `Basis.invariance_group` — G0's other side; today NEITHER side exists | ⏏ yes | ☐ |
@@ -3276,16 +3530,20 @@ compaction. It has been rewritten four times (2026-08-31, and three times on
 (the exit gate, esp. **XII.1b**) → the phase you are executing. **Part IX,
 §II.15, §II.16, §V.5d, §V.5e and the 2.1 / 0.2 execution sections first if you
 are about to re-propose anything** — the supersession table below is the count
-that is kept current (`[M]` 32 rows, 31 of them ⛔, counted 2026-09-01), and
+that is kept current (`[M]` **39 rows, 38 of them ⛔**, counted 2026-09-01
+after 2.0c — the count is re-derived by script, never incremented by hand), and
 most of those are mine, several written the same day they were refuted, one
 refuted *by my own fix*, and one a denominator I "corrected" in the WRONG
 direction.
 
 ⭐ **The single most useful habit this campaign has, stated so it survives:**
 every phase begins by RE-MEASURING its own section's premises before designing.
-`[M]` **ten consecutive phase openers have corrected their own section**, and
+`[M]` **eleven consecutive phase openers have corrected their own section**, and
 two of them (P6, and 2.0a's sizing) dissolved or re-scoped the phase entirely.
-Budget the opener; it has never once been wasted.
+The eleventh (2.0c's third opener, §V.5f) found that the step's own title named
+**one implementor of a six-implementor contract**, one of them spelled so that
+no census of the alias could return it. Budget the opener; it has never once
+been wasted.
 
 ⚠ This supersedes the two earlier versions of this RECORD. Their content is
 folded in below; nothing from either was dropped.
@@ -3306,11 +3564,29 @@ fiction (the 1-D lift) is NAMED, local, and self-retiring.
 and the energy/spatial space collision is unspellable. Read the *2.1 EXECUTED*
 section before 2.0c: it hands 2.0c one new obligation.
 
-▶ **A measure names the point set it lives on, and the phase-space factor it
-belongs to is DERIVED from that.** Tracker **2.0c** —
-`DiscreteMeasure.support: str → Manifold`, absorbing 2.0d. Its opener ran
-2026-09-01 and is **§V.5e** — ⭐ **read that before designing; it materially
-re-shaped the step.** Four things a fresh session must not re-derive:
+✅ **A measure names the point set it lives on, and the phase-space factor it
+belongs to is DERIVED from that** — tracker **2.0c** LANDED 2026-09-01,
+absorbing 2.0d. Read the *2.0c EXECUTED* section: it records four defects the
+TYPE found that the string could not, and one repair the mutation battery caught
+with no witness.
+
+▶ **The slab says what space its ordinates live on, and stops naming it by the
+interval a chart happens to map onto.** Tracker **2.4** — the slab's angular
+support becomes `SPHERE.quotient(SubgroupOfO3.SO2)`. ⭐ Three things 2.0c
+established that make this the right next step:
+
+1. `[M]` `S²/SO(2)`'s `realization` **is** `[-1,1]`, so the declaration changes
+   no coordinate — only what the object knows about itself.
+2. ⛔ `Interval(-1,1)` is the **one** point set `phase` cannot classify from its
+   type (it is the slab's μ-axis AND exactly how a 1-D spatial interval spells
+   itself). `phase` therefore still carries an `invariance_group` fallback arm,
+   which 2.4 makes **unreachable** — check that, per §6c, when it lands.
+3. ⭐ ERR-080's level-1 half needs the honest `φ = 0` half-meridian, and the
+   tree fabricates it today by zero-padding to `(μ, 0, 0)`, which is off `S²`.
+
+⛔ **The text below is the PRE-2.0c pointer, kept per §3.** Its opener ran
+2026-09-01 and is **§V.5e**; **§V.5f** is the third opener, which re-scoped the
+step again. Four things it established:
 
 1. ✅ **Unblocked.** `[M]` `SPHERE.quotient(SubgroupOfO3.Mirror("y"))` answers
    `'S^2/sigma_y'` at this HEAD; 1.1's entry landed at `b55bba56`.
@@ -3366,8 +3642,9 @@ Part XIII — do not copy it here (`plan-authoring` §9).
 | ✅ | **0.2** | LANDED `ce46181c` |
 | ✅ | **2.1** | LANDED — see the 2.1 EXECUTED section. ⚠ It leaves ONE thing for 2.0c that did not exist before: `test_d6` pins the `LossKernelBasis` spelling divergence (bare label vs `index(...)`), so 2.0c must resolve it rather than inherit it |
 | ~~1~~ | ~~**2.1**~~ | ⭐ the only remaining exit-path item that repairs something ALREADY WRONG. `[M]` **re-verified at `a2befd9b`**: a 2-group ENERGY space and a 2-cell SPATIAL space are `==`-equal AND hash-equal (both `L2[coarse_cells_R1]`, shape `(2,)`), negative control passing. Sizing also re-verified — **18 `IndicatorBasis(` sites, 4 `orpheus/` + 14 `tests/`**, and the 39-site family does NOT widen it (siblings inherit the repair by composition). ⚠ the *"26 space-comparing sites"* figure is INHERITED and was **not** re-measured — treat as unverified. **Read the 2.1 PRE-FLIGHT section** |
-| **1** | ▶ **2.0c** | **NEXT.** The retype, unblocked and re-scoped by its own opener (**§V.5e**). Absorbs 2.0d. `[M]` §6b ≈ **87 producers + 16 consumers**; the tracker's *"54 literals + 5 f-strings"* counts producers only and is ⛔ the wrong side. Carries a LIVE defect fix (`folded_product(…).measure.phase` RAISES) and dissolves a stringly-typed dispatch |
-| 3 | **2.1b**, **2.3**, **2.4** | G0's other side; the typed `Chart`; the slab's declared quotient group |
+| ✅ | **2.0c** (+ **2.0d** absorbed) | LANDED — see the *2.0c EXECUTED* section. `Space = str` and its six tags retired across all six implementors; `phase` dispatches on the manifold's TYPE (user-ruled); the LIVE `folded_product(…).measure.phase` defect fixed; `pushforward`'s fabricated default retired; 2.1's `LossKernelBasis` handoff discharged **and witnessed** (its repair was measured BLIND first) |
+| **1** | ▶ **2.4** | **NEXT**, and it gained weight at 2.0c. The slab declaring `SPHERE.quotient(SO2)` — whose realization IS `[-1,1]` — is what dissolves the one genuinely ambiguous point set, makes `phase`'s `invariance_group` arm **unreachable**, and gives ERR-080's level-1 half the honest `φ = 0` half-meridian instead of a zero-padded `(μ, 0, 0)` |
+| 2 | **2.1b**, **2.3** | G0's other side; the typed `Chart` (also the SECTION MAP's natural home) |
 | 4 | **3.1** scoped to `SO(2)` | the catalogue home + the probe |
 | 5 | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | **ONE COMMIT — see XII.1b.** THE FIX |
 | 6 | **4.1**, **4.9**, then the six exit predicates (XII.3) | |
@@ -3394,7 +3671,7 @@ MAP — and `[M]` the honest `φ = 0` half-meridian is exactly what ERR-080's
 level-1 half needs, since the tree currently fabricates it by zero-padding to
 `(μ, 0, 0)`, which is off `S²`.
 
-### ⛔ EIGHT landmines for the pick-up session's own greps and censuses
+### ⛔ NINE landmines for the pick-up session's own greps and censuses
 
 1. **`invariance_group` returns ~55 grep hits and the plan's claim still holds.**
    `[M]` exactly ONE class defines it — `DiscreteMeasure` — meaning *the group
@@ -3406,8 +3683,10 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
    `Basis` subclasses answer `domain` too, so the grep is now genuinely
    ambiguous between two LIVE meanings — `dom` in **Man** for a basis, `dom`
    in **Vect** for an operator. Discriminate by the class, not by the name.
-3. **`measure.py:411`'s `self.support == "cells"` has NO producer.**
-   Denominator in §V.5c(d). **2.0c acceptance item.**
+3. ✅ **DISCHARGED at 2.0c** — `measure.py`'s `self.support == "cells"` arm is
+   gone with the string dispatch, and its only producer (a `parametrize` list)
+   retired with it. *(Kept per §3: it was a **production-unreachable arm with a
+   synthetic witness**, not a dead one — §V.5e(e).)*
 4. ⭐ **NEW — a `Basis` subclass census by AST UNDERCOUNTS.** `[M]` AST said
    3 direct / 5 recursive; runtime says **4 / 6**, and the runtime answer is
    the one that matches §II.15's independent count. Inheritance is a runtime
@@ -3417,19 +3696,29 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
    `column_stack([q.axis_cosines(a) for a in range(3)])` will die on a 1-D
    rule. That composition is the R³ **embedding**: call
    `_embedded_nodes(q.measure)`. For the flux question, `mean_axis_cosine`.
-6. ⭐ **NEW — `IndicatorBasis` now needs `partition_of`** (since `c461fe8d`).
+6. ⭐⭐ **NEW at 2.0c — `support=` takes a `Manifold`, never a string.** Any
+   scratch script, probe or diagnostic written before 2026-09-01 that does
+   `DiscreteMeasure(..., support="S^2")` now stores a `str` in a field the rest
+   of the tree calls `.name`/`.quotient()` on, and fails at the *consumer*, not
+   at construction (nothing validates the field's type). The members are in
+   `orpheus.numerics.manifold`: `SPHERE`, `CIRCLE`, `COSINE_INTERVAL`,
+   `UNIT_INTERVAL`, `HALF_LINE`, `REAL_LINE`, `ENERGY`, plus `RealSpace(d)`,
+   `IndexSet(label=…)`, `EnergyGroups(n)`, `Interval(a, b)`.
+   ⚠ And `pushforward` now **requires** `new_space`.
+
+7. ⭐ **`IndicatorBasis` needs `partition_of`** (since `c461fe8d`).
    Every construction site takes a `Manifold`; a scratch script written before
    that dies with `TypeError: missing required positional argument`. The
    manifold is whatever the edges partition — `RealSpace(d)`, `EnergyGroups`,
    `IndexSet`, or `Interval` for a partition by physical VALUE.
-7. ⭐⭐ **NEW, and it is a CENSUS-READING trap, not a grep one.** A census that
+8. ⭐⭐ **A CENSUS-READING trap, not a grep one.** A census that
    helpfully splits its hits into "literal" and "non-literal" invites you to
    answer a universal from the LITERAL half. `[M]` 2026-09-01 I concluded
    *"`support='cells'` has no producer"* from exactly that split; the real
    producer is a `parametrize` list feeding `support=support`, which my own
    table had already printed as a non-literal row. **State a universal over
    the union, or not at all.**
-8. ⚠ **NEW — a hash in this plan can be AMENDED AWAY.** `[M]` `de29bcc6` was
+9. ⚠ **A hash in this plan can be AMENDED AWAY.** `[M]` `de29bcc6` was
    cited by two tracker rows and is orphaned (amended into `b8c05d16` 39 s
    later; no branch contains it, so it will be GC'd). Corrected 2026-09-01.
    ⟹ on pick-up, run `git merge-base --is-ancestor <h> HEAD` over EVERY hash
@@ -3534,6 +3823,13 @@ Read these before quoting any earlier section:
 | 2.1 row: *"across 26 space-comparing sites"* | ⛔ **STRUCK** — inherited, never re-measured, and the wrong predicate anyway: the repair is at the 5 PRODUCERS of the false name, not at the comparers |
 | the 2.1 done-when *"`domain is SPACE_SPHERE`"* | ⛔ pre-`Manifold` text — `SPACE_SPHERE` is the `str` `"S^2"`, and `[M]` `Sphere() == SPHERE` is `True` while `is` is **`False`**. Built as written it would have re-introduced `Space = str` |
 | 2.0a / 2.0b: `✅ de29bcc6` | ⛔ **DANGLING** — `[M]` amended 39 s later into `b8c05d16` and now orphaned (no branch contains it, so it will be GC'd). The ledger already said `b8c05d16`; the plan disagreed with itself. Re-pointed 2026-09-01 |
+| 2.0c row: *"`DiscreteMeasure.support: str → Manifold`"* | ⛔ **names ONE implementor of SIX.** `[M]` the `Space` alias is annotated at 7 sites over 5 classes — incl. the `ReferenceMeasure` **Protocol** — and a 6th implementor (`AngularSymmetry.support`) is spelled **`-> str`**, the alias's EXPANSION, so no alias census can return it. It is `DiscreteMeasure.support`'s comparison partner in stage 0, and `Manifold == str` is silently `False`. §V.5f(a) |
+| §V.5e(c): *"`phase` becomes a property of the MANIFOLD"* | ⛔ **SUPERSEDED by the user's ruling** (2026-09-01): dispatch on the manifold's TYPE, `phase` stays on the measure. `Phase` is a transport taxonomy and `Manifold` is pure geometry; a `Sphere` is angular *because transport's direction variable lives on it*, not intrinsically. §V.5f(e) |
+| `manifold.py`'s *"the shipped members, under their **retired** tag names"* | ⛔ **ASPIRATIONAL when written** — `[M]` none of the six was retired; `generating_measure.py:398` compared against `SPACE_INTERVAL_M11` and 9 production sites imported the family. ✅ **True as of 2.0c**, and the comments now say *replaced*, in the past tense they had already claimed |
+| 2.1's `test_d6`: *"2.0c must come back here and cannot resolve it by accident"* | ⛔ **it DID resolve it by accident.** The repair (`support=basis.domain`) makes the divergence unspellable, so `test_d6` went green for a different reason — and `[M]` the mutation battery read the repair as **BLIND tree-wide**. A prediction does not enforce itself. Witness written; arm now reds 6 of 6 |
+| `pushforward(new_space=None)` defaulting to `f"φ_*({support})"` | ⛔ **RETIRED** — the image of a manifold under an arbitrary map is a manifold nobody derived, and naming it does not make it known. `[M]` 7 of 8 call sites already passed the target; the one that did not was a test asserting the fabrication. Its gate flips to the refusal |
+| `test_measure.py`'s *"the slab embedding `(μ,0,0)`"* fixture on `"[-1,1]^slab"` | ⛔ **ERR-080's defect class INSIDE A GREEN TEST.** Those points are on no manifold with a σ_y action; the string fabricated `"[-1,1]^slab/sigma_y"` and `Manifold.quotient` refuses. Replaced by the genuine σ_y-fixed set (the `xz` great circle). The same test also **contradicted its own docstring** — header: *"re-folding is ill-posed"*, body: re-folds and asserts idempotence |
+| `test_angular_phase_is_symmetry_derived_not_support_tagged` | ⛔ **its claim INVERTED.** It asserted that stripping `invariance_group` makes `phase` RAISE, because `"S^2"` was an inert string no branch read. `Sphere` is a *reason*, so the measure stays angular — which is what lets the shipped fold answer at all. Renamed + re-argued in place |
 | §V.5e(e): *"`support='cells'` has no producer — a dead arm"* | ⛔ **REFUTED same day, by its own author.** Production yes; the real producer is a `parametrize` list at `tests/numerics/test_measure_phase.py:67`, which MY OWN census had found as a non-literal row and I failed to read. ⟹ *production-unreachable with a synthetic witness*, not dead |
 | 2.0c row: *"54 literals + 5 f-strings, 94 % in `tests/`"* | ⛔ **counts the PRODUCERS.** `[M]` the two headline numbers reproduce EXACTLY (54, 94 %) and "5 f-strings" is **4**; the set a retype breaks is the **16 CONSUMERS** (15 `orpheus/`), never counted. §V.5e(b) |
 | `DiscreteMeasure.phase` is total on the shipped rules | ⛔ **FALSE — `folded_product(4,8).measure.phase` RAISES** (`[M]` support `S^2/sigma_y`, `invariance_group=None`, no quotient arm). A live defect, latent only because `[M]` `.phase` has **0** production consumers. §V.5e(f) |

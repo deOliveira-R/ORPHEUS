@@ -64,7 +64,8 @@ from functools import lru_cache
 import numpy as np
 
 from ..exactness import UNIFORM_ON_SPHERE, ExactnessClaim
-from ..measure import SPACE_SPHERE, DiscreteMeasure
+from ..measure import DiscreteMeasure
+from orpheus.numerics.manifold import SPHERE
 from ..symmetry import SubgroupOfO3
 
 
@@ -126,7 +127,7 @@ def lebedev_sphere(order: int) -> DiscreteMeasure:
     return DiscreteMeasure(
         nodes=nodes,
         weights=w,
-        support=SPACE_SPHERE,
+        support=SPHERE,
         invariance_group=SubgroupOfO3.OctahedralOh,
         # SPHERICAL-HARMONIC degree, against Lebesgue measure on S^2 —
         # not an algebraic degree, and not against a weight on an
@@ -1112,7 +1113,7 @@ def level_symmetric_sn(
     measure = DiscreteMeasure(
         nodes=nodes,
         weights=w,
-        support=SPACE_SPHERE,
+        support=SPHERE,
         invariance_group=SubgroupOfO3.OctahedralOh,
         # ⭐ BUILD-MEASURED since #337: the achieved degree is not a
         # clean formula of N under the moment-matched seed (`[M]` N+1

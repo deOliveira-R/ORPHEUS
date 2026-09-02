@@ -34,6 +34,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.manifold import SPHERE
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
@@ -113,7 +114,7 @@ def test_a_hand_built_sigma_y_quotient_constructs_without_the_factory_tag():
         measure=DiscreteMeasure(
             nodes=np.array(ref.measure.nodes, copy=True),
             weights=np.array(ref.measure.weights, copy=True),
-            support="S^2",
+            support=SPHERE,
         ),
         level_structure=LevelStructure(
             n_levels=ref.level_structure.n_levels,

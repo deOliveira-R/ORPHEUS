@@ -15,7 +15,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
+from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
 from orpheus.numerics.quadrature import product_mu_phi
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 from orpheus.numerics.quadrature import Quadrature
@@ -38,7 +39,7 @@ def test_product_returns_measure_and_structure(n_mu: int, n_phi: int) -> None:
     assert m.nodes.ndim == 2
     assert m.nodes.shape == (n_mu * n_phi, 3)
     assert m.weights.shape == (n_mu * n_phi,)
-    assert m.support == SPACE_SPHERE
+    assert m.support == SPHERE
     # D_{n_phi h}, not SO(2): the phi grid is a FINITE set, so no
     # continuous rotation preserves it. The rule carried SO2 until
     # 2026-08-02 — a claim no finite point set on S^2 can satisfy.
@@ -227,14 +228,15 @@ def test_e4_the_theorem_refuses_the_wrong_systems() -> None:
     from orpheus.numerics.exactness import ExactnessClaim, UniformMeasure
     from orpheus.numerics.exactness import OrthogonalSystem as OS
     from orpheus.numerics.generating_measure import LEGENDRE
-    from orpheus.numerics.measure import SPACE_CIRCLE, equispaced
+    from orpheus.numerics.manifold import CIRCLE
+    from orpheus.numerics.measure import equispaced
     from orpheus.numerics.quadrature.rules_product import (
         spherical_product_claim,
     )
 
     algebraic = ExactnessClaim(LEGENDRE, 7)
     trigonometric = ExactnessClaim(
-        UniformMeasure(SPACE_CIRCLE, OS.TRIGONOMETRIC), 7
+        UniformMeasure(CIRCLE, OS.TRIGONOMETRIC), 7
     )
 
     with pytest.raises(ValueError, match="TRIGONOMETRIC"):
@@ -463,7 +465,7 @@ def test_a_factor_pair_with_an_unrealized_group_family_is_refused() -> None:
     lopsided_polar = DiscreteMeasure(
         nodes=np.array([-0.5, 0.2, 0.7]),
         weights=np.array([0.6, 0.7, 0.7]),
-        support="[-1,1]",
+        support=COSINE_INTERVAL,
         exactness=gauss_legendre_on_mu(3).exactness,  # borrowed, valid-typed
     )
     with pytest.raises(ValueError, match=r"C_8v.*does not realize"):
@@ -491,7 +493,7 @@ def test_an_interval_rule_as_the_fiber_is_refused_by_its_space() -> None:
 def test_off_circle_fiber_nodes_are_refused() -> None:
     """Non-unit circle nodes would embed to direction cosines with
     ||Omega|| != 1 — refused at the door."""
-    from orpheus.numerics.measure import SPACE_CIRCLE
+    from orpheus.numerics.manifold import CIRCLE
     from orpheus.numerics.quadrature import (
         NODE_ALIGNED,
         gauss_legendre_on_mu,
@@ -503,7 +505,7 @@ def test_off_circle_fiber_nodes_are_refused() -> None:
     inflated = DiscreteMeasure(
         nodes=1.1 * honest.nodes,
         weights=honest.weights,
-        support=SPACE_CIRCLE,
+        support=CIRCLE,
         exactness=honest.exactness,
     )
     with pytest.raises(ValueError, match="unit"):
