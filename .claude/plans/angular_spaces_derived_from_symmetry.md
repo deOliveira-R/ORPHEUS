@@ -688,9 +688,24 @@ four authored sections in `docs/theory/foundations/discrete_measures.rst`
 **already states this campaign's diagnosis and DERIVES its parity mask by probe
 rather than hand-listing it** — a genuine precedent for 3.4's mechanism. ⚠ But
 its KEY cannot be borrowed: `folded_by` is a group object recording a *discrete*
-fold, structurally unavailable for a *continuous* quotient. **The tree holds two
-quotient records — a group object (wired, discrete) and a string tag (inert,
-continuous) — and the slab is the unwired half.**
+fold.
+
+⛔ **The paragraph that followed here is REFUTED by 2.0c, and the refutation is
+the useful part.** It read: *"`folded_by` … is structurally unavailable for a
+continuous quotient. The tree holds two quotient records — a group object
+(wired, discrete) and a string tag (inert, continuous) — and the slab is the
+unwired half."* `[M]` 2026-09-01 at `8cc69e7f`: there is **no string tag any
+more**, and `Quotient.by` is a group object that handles the *continuous* case
+identically — `SPHERE.quotient(SubgroupOfO3.SO2).by` **is** `SubgroupOfO3.SO2`,
+and `DiscreteMeasure.quotient_group` derives from it for discrete and continuous
+folds alike. So the "two records" are now ONE mechanism, and the structural
+obstacle this paragraph named **does not exist**.
+
+✅ **What survives, and it is 2.4's whole content: the slab is still the unwired
+half.** Not because the machinery is missing — it is present and exercised — but
+because the slab rule declares `Interval(-1,1)` instead of the quotient. That is
+now a one-line declaration against a working catalogue, which is why 2.4 stopped
+being a research question (§V.5g).
 
 
 
@@ -2331,7 +2346,86 @@ package-to-package edge is created and the layer contract is untouched.
 
 ---
 
+## §V.5g ⭐⭐ 2.4's PRE-FLIGHT (2026-09-01, at `8cc69e7f`) — it repairs a LIVE defect, and it is the one step that is NOT name-preserving
+
+The **12th** consecutive opener to correct its own section, and it changes 2.4's
+CLASS: the tracker files it under wiring (*"the slab rule declares its quotient
+group"*), and it is a defect fix of exactly 2.1's kind.
+
+### (a) ✅ The premise holds, measured rather than inherited
+
+`[M]` at `8cc69e7f`: `SPHERE.quotient(SubgroupOfO3.SO2)` →  name `S^2/SO2`,
+`realization` **`Interval(-1.0, 1.0)`**, and `== COSINE_INTERVAL` is `True`;
+`dim` 1 on both. `Quotient.contains(μ-nodes)` is `True`, so the declaration
+changes **no coordinate** — only what the object knows about itself.
+
+### (b) ⛔⛔ THE FINDING: the `[-1,1]` space collision is LIVE, and it is 2.1's defect one level up
+
+`[M]` an 8-node slab **angular** rule and an 8-node **spatial** measure on
+`Interval(-1,1)`:
+
+| | support | space | |
+|---|---|---|---|
+| angular (`gauss_legendre(8)`) | `[-1,1]` | `L2[[-1,1]]`, shape `(8,)` | |
+| spatial (a measure on `[-1,1]`) | `[-1,1]` | `L2[[-1,1]]`, shape `(8,)` | |
+| | **supports `==`** | ⛔ **spaces `==` AND hash-equal** | |
+
+`FunctionSpace.__eq__` is `(name, shape)`, so **an angular space and a spatial
+space are the same object to every composability check.** This is precisely the
+illegal state 2.1 made unrepresentable for the energy/spatial pair
+(`L2[coarse_cells_R1]`) — and it survived 2.0c because both sides genuinely live
+on `Interval(-1,1)`: the retype made the supports *honest*, and they are honestly
+identical. Typing the support was necessary and is not sufficient; the slab's
+support is still named by its **chart codomain** instead of by the orbit space it
+is, which is ERR-080's defect class stated at the level of spaces.
+
+`[M]` after the declaration: `L2[S^2/SO2]` vs `L2[[-1,1]]` — `==` is **`False`**,
+and the collision is unspellable.
+
+⟹ **2.4 is not wiring.** Like 2.1 it repairs something ALREADY WRONG, which is
+the property that earned 2.1 its place at the head of the queue.
+
+### (c) ⭐ It discharges 2.0c's surviving fallback arm — check it per §6c
+
+`[M]` a measure on `SPHERE.quotient(SO2)` with `invariance_group=None` answers
+`phase == "angular"` from the **manifold alone**. So 2.0c's ⚠-marked
+`case _ if self.invariance_group is not None` arm — kept because `Interval` is
+genuinely ambiguous — becomes unreachable for the slab. ⛔ **Do not delete it on
+that basis alone**: `phase` is public and an `Interval`-supported measure is
+still constructible by a caller. The §6c question is whether any *shipped* input
+still reaches it; if none does, the honest move is to say so in its docstring,
+not to remove the arm.
+
+### (d) ⛔ It is the ONE step that RENAMES a shipped space — and 2.0c's bit-identity does not extend to it
+
+Every previous step preserved names exactly (`[M]` 2.0c: 10 of 10). 2.4
+**deliberately** does not: `L2[[-1,1]]` → `L2[S^2/SO2]` on every slab angular
+space. `[M]` the literal-pin surface is small — **3** occurrences of
+`L2[[-1,1]]` tree-wide, of which 1 is production's own f-string and 2 are
+docstrings — but the real surface is **23** space-comparison sites in
+`orpheus/`, because a `FunctionSpace` compares by `(name, shape)`. ⟹ size 2.4
+by the **comparison** surface, never by the literal one; a literal census here
+is the same wrong-side error §V.5f(d) caught in 2.0c's own row.
+
+### (e) ⛔ Part IV's obstacle 1 is REAL and unresolved: `SO2` names no axis
+
+`[M]` `symmetry.py:121` — `SO2 = "SO2"`, a bare named member, comment *"axial
+rotations C_∞"*. It has **no `.axis`** (checked: absent), while `Mirror` IS
+parameterised (`Mirror('x')`, `Mirror('y')`). So `S^2/SO2` does not say **which**
+axis the rotation is about, and the slab's μ is a cosine against a specific pole.
+`[M]` the shipped slab rule meanwhile declares `invariance_group=Mirror('x')`.
+⟹ 2.4 must settle whether `SO2` becomes axis-parameterised (making
+`S^2/SO2_z` ≠ `S^2/SO2_x`, and changing the catalogue key) or whether the
+convention is fixed by fiat and documented. **This is a design ruling, not a
+measurement** — surface it before building.
+
+---
+
 ## §V.5f ⭐⭐ 2.0c's THIRD opener (2026-09-01, at `4921d737`) — `support` is an INTERFACE, not a field
+
+> ✅ **BANNER: 2.0c LANDED at `025834f5`.** This opener's central finding — that
+> the step named ONE implementor of SIX — shaped the landing: all six were
+> retyped in one commit. Kept for its reasoning and its §6b spelling.
 
 The **11th consecutive** phase opener to correct its own section, and the first
 to change the step's *unit of work* rather than its sizing. `[M]` all by AST,
@@ -2441,6 +2535,13 @@ recorded here so the fork is visible rather than silently resolved.
 ---
 
 ## §V.5e ⭐ 2.0c's SECOND phase opener (2026-09-01, at `10e48312`) — unblocked, and the prize is bigger than the retype
+
+> ✅ **BANNER: 2.0c LANDED at `025834f5` (2026-09-01).** This is the opener that
+> re-scoped it, kept for its reasoning. Its findings are all DISCHARGED: the live
+> `folded_product(…).measure.phase` defect is fixed, the stringly-typed dispatch
+> is gone, the `"cells"` arm retired with its synthetic witness, and the 16
+> consumers were re-pointed. ⚠ Its `[M]` readings of `.support` quote STRINGS —
+> that field is a `Manifold` now.
 
 The 10th consecutive phase opener to correct its own section. `[M]` all by AST
 or runtime, each with a positive control (§V.5d(f)4 records a `grep` returning
@@ -2584,7 +2685,18 @@ must therefore keep the `invariance_group` arm and add a quotient arm; the
 collapse to a single manifold-derived answer is 2.4's to finish, and 2.4 now
 has a measured reason to exist beyond tidiness.
 
-## §V.5d ⛔ 2.0c/2.0d's phase opener — the step is BLOCKED, and 2.0d dissolves into 2.0c
+## §V.5d ⛔ 2.0c/2.0d's phase opener (2026-08-31) — ✅ ITS BLOCKER IS DISCHARGED; 2.0d dissolves into 2.0c
+
+> ✅ **BANNER, read before the section. Everything below about 2.0c being
+> BLOCKED is HISTORY** (kept per §3, which requires the refuted text to stay).
+> 1.1's σ_y catalogue entry landed at `b55bba56`, §V.5e(a) discharged the
+> blocker, and **2.0c LANDED at `025834f5`** on 2026-09-01. `[M]` at
+> `8cc69e7f`, `SPHERE.quotient(SubgroupOfO3.Mirror("y"))` answers
+> `'S^2/sigma_y'` rather than raising, and `_ORBIT_CATALOGUE` is no longer a
+> one-entry table. ⚠ Its `folded_product(4,8).measure.support` readings are
+> also pre-2.0c: that field is a `Quotient` OBJECT now, not the string this
+> section quotes. The section is retained for its *reasoning*, which is what
+> re-scoped the step — not for its status claims.
 
 The 9th consecutive phase opener to correct its own section. `[M]` all by AST
 or by runtime probe, 2026-08-31 evening, at `a9bfebab`; probes in
@@ -3413,7 +3525,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 2.1-W | ⭐ **PRE-CARVE**: the fold-basis witness | ⏏ yes | ✅ `TestFoldedCylinderP1BindsTheQuotientBasis` — 3 rows, L1, `verifies("pn-scatter", "discrete-measure-quotient")`. Keystone is k_inf-invariance on a HOMOGENEOUS folded cylinder, not the 2g-het solve the row proposed (§II.16). `[M]` rebind reds all 3 at nine orders of separation. **0.1c is unblocked** |
 | 2.2 | G0 at frame construction — ⚠ ALSO owns the `AngularSymmetry` Γ-slot (§II.10, inventory #11): `support` derives from `continuous_isotropy` alone, so stage 0 refuses the shipped cylinder | ⏏ yes | ☐ |
 | 2.3 | the typed `Chart`; pushforward derives support | ⏏ yes | ☐ |
-| 2.4 | slab declares its quotient group; SO2 axis collision; **full-suite phantom census** | ⏏ yes | ☐ |
+| 2.4 | slab declares its quotient group (`SPHERE.quotient(SO2)`); the SO2 axis-convention ruling. ~~full-suite phantom census~~ ⛔ **that MOVED to Phase 0 and is DISCHARGED** (`ee60010e`+`ccda0e61`) — it was 0.2's denominator, not 2.4's | ⏏ yes | ☐ ▶ **NEXT.** ⭐ Pre-flighted 2026-09-01 (**§V.5g**): it repairs a **LIVE** defect — `[M]` an 8-node slab ANGULAR space and an 8-node SPATIAL space on `[-1,1]` are `==` AND hash-equal, 2.1's collision one level up. ⛔ It is also the ONE step that RENAMES a shipped space, so size it by the **23** comparison sites, not the 3 literals |
 | 3.1 | `numerics/symmetry/` catalog (⏏ scoped to `SO(2)`) | ⏏ partial | ☐ |
 | 3.2 | `ReynoldsProjection` | no | ☐ |
 | 3.3 | `OrbitAxis` + retraction/section minting | no | ☐ |
@@ -3523,26 +3635,29 @@ this is right: the forgery is what CONCEALS the missing discrete-quotient slot).
 schedules two *planned* pauses — "COMPACTION POINT 1 — after Phase 3" and
 "COMPACTION POINT 2 — after Phase 5". **This Part is neither.** It is the
 running RECORD of where the campaign actually is, rewritten at each real
-compaction. It has been rewritten four times (2026-08-31, and three times on
+compaction. It has been rewritten five times (2026-08-31, and four times on
 2026-09-01); do not try to match its number against Part VI's.
 
 **Read in this order on pick-up:** this Part → Part XIII (the tracker) → Part XII
 (the exit gate, esp. **XII.1b**) → the phase you are executing. **Part IX,
 §II.15, §II.16, §V.5d, §V.5e and the 2.1 / 0.2 execution sections first if you
 are about to re-propose anything** — the supersession table below is the count
-that is kept current (`[M]` **39 rows, 38 of them ⛔**, counted 2026-09-01
-after 2.0c — the count is re-derived by script, never incremented by hand), and
+that is kept current (`[M]` **43 rows, 42 of them ⛔**, counted 2026-09-01
+after 2.0c and 2.4's pre-flight — the count is re-derived by script, never
+incremented by hand), and
 most of those are mine, several written the same day they were refuted, one
 refuted *by my own fix*, and one a denominator I "corrected" in the WRONG
 direction.
 
 ⭐ **The single most useful habit this campaign has, stated so it survives:**
 every phase begins by RE-MEASURING its own section's premises before designing.
-`[M]` **eleven consecutive phase openers have corrected their own section**, and
+`[M]` **TWELVE consecutive phase openers have corrected their own section**, and
 two of them (P6, and 2.0a's sizing) dissolved or re-scoped the phase entirely.
 The eleventh (2.0c's third opener, §V.5f) found that the step's own title named
 **one implementor of a six-implementor contract**, one of them spelled so that
-no census of the alias could return it. Budget the opener; it has never once
+no census of the alias could return it; the twelfth (2.4's pre-flight, §V.5g)
+found that the step filed as *wiring* repairs a **live** defect, and is the one
+step in the campaign that RENAMES a shipped space. Budget the opener; it has never once
 been wasted.
 
 ⚠ This supersedes the two earlier versions of this RECORD. Their content is
@@ -3559,10 +3674,23 @@ the last item gating anything.
 quadrature asserts a support its own nodes contradict, and the one surviving
 fiction (the 1-D lift) is NAMED, local, and self-retiring.
 
-✅ **No space claims an identity it does not have** — tracker **2.1** LANDED
-`c461fe8d` (2026-09-01). `Basis.domain` is abstract on the ABC, all 6 shipped bases answer,
-and the energy/spatial space collision is unspellable. Read the *2.1 EXECUTED*
-section before 2.0c: it hands 2.0c one new obligation.
+✅ **A basis states the manifold its functions eat** — tracker **2.1** LANDED
+`c461fe8d` (2026-09-01). `Basis.domain` is abstract on the ABC, all 6 shipped
+bases answer, and the **energy/spatial** collision (`L2[coarse_cells_R1]`) is
+unspellable.
+⛔ **Its headline used to read *"no space claims an identity it does not
+have"*, and that universal is FALSE** — `[M]` 2026-09-01 (§V.5g) an 8-node slab
+ANGULAR space and an 8-node SPATIAL space on `[-1,1]` are still `==` AND
+hash-equal. 2.1 closed one pair; the same defect class survives wherever two
+roles honestly share a point set, and closing THIS one is **2.4**. The claim is
+re-tensed to what was measured, per §2's quantifier clause.
+
+✅ **A measure names the point set it lives on** — tracker **2.0c** LANDED
+`025834f5` (2026-09-01), absorbing 2.0d. `Space = str` and its six `SPACE_*`
+tags are retired across all six implementors; `phase`, the `L2[…]` name, the
+fold and the tensor product are DERIVED from the manifold. Read the *2.0c
+EXECUTED* section — it records four defects the TYPE found that the string
+could not, and one repair the mutation battery caught with **no witness**.
 
 ✅ **A measure names the point set it lives on, and the phase-space factor it
 belongs to is DERIVED from that** — tracker **2.0c** LANDED 2026-09-01,
@@ -3572,17 +3700,40 @@ with no witness.
 
 ▶ **The slab says what space its ordinates live on, and stops naming it by the
 interval a chart happens to map onto.** Tracker **2.4** — the slab's angular
-support becomes `SPHERE.quotient(SubgroupOfO3.SO2)`. ⭐ Three things 2.0c
-established that make this the right next step:
+support becomes `SPHERE.quotient(SubgroupOfO3.SO2)`. ⭐ **Pre-flighted
+2026-09-01 at `8cc69e7f` — read §V.5g before designing; it re-classed the
+step.** Five things a fresh session must not re-derive:
 
-1. `[M]` `S²/SO(2)`'s `realization` **is** `[-1,1]`, so the declaration changes
-   no coordinate — only what the object knows about itself.
-2. ⛔ `Interval(-1,1)` is the **one** point set `phase` cannot classify from its
-   type (it is the slab's μ-axis AND exactly how a 1-D spatial interval spells
-   itself). `phase` therefore still carries an `invariance_group` fallback arm,
-   which 2.4 makes **unreachable** — check that, per §6c, when it lands.
-3. ⭐ ERR-080's level-1 half needs the honest `φ = 0` half-meridian, and the
-   tree fabricates it today by zero-padding to `(μ, 0, 0)`, which is off `S²`.
+1. ✅ **The premise holds.** `[M]` `S²/SO(2)`'s `realization` **is**
+   `Interval(-1,1) == COSINE_INTERVAL`, and `Quotient.contains(μ-nodes)` is
+   `True` — the declaration changes **no coordinate**, only what the object
+   knows about itself.
+2. ⛔⛔ **It repairs a LIVE defect, so it is NOT wiring — it is 2.1's class.**
+   `[M]` an 8-node slab **angular** space and an 8-node **spatial** space on
+   `[-1,1]` are `==`-equal **AND hash-equal** (both `L2[[-1,1]]`, shape `(8,)`).
+   2.0c could not fix this: it made the supports *honest*, and they are honestly
+   identical. The slab's support is still named by its CHART CODOMAIN — ERR-080's
+   defect class, stated at the level of spaces. `[M]` after the declaration,
+   `L2[S^2/SO2]` vs `L2[[-1,1]]` are unequal and the collision is unspellable.
+3. ⛔ **It is the ONE step that RENAMES a shipped space.** Every prior step
+   preserved names exactly (`[M]` 2.0c: 10 of 10). Size it by the **23**
+   space-comparison sites in `orpheus/`, **not** by the 3 literal `L2[[-1,1]]`
+   pins — a literal census is the same wrong-side error §V.5f(d) caught in
+   2.0c's own row.
+4. ⭐ **It discharges 2.0c's surviving fallback arm.** `[M]` a measure on the
+   quotient answers `phase == "angular"` with `invariance_group=None`, from the
+   manifold alone. ⚠ Per §6c, do **not** delete the arm on that basis — `phase`
+   is public and an `Interval` measure is still constructible; check whether any
+   SHIPPED input reaches it, and if none does, say so in the docstring.
+5. ⛔ **Part IV's obstacle 1 is real and needs a RULING, not a measurement.**
+   `[M]` `symmetry.py:121` — `SO2 = "SO2"` is a bare member with **no `.axis`**,
+   while `Mirror` is parameterised. So `S²/SO2` does not say which axis, and the
+   shipped slab rule declares `invariance_group=Mirror('x')`. Decide:
+   axis-parameterise `SO2` (changing the catalogue key) or fix the convention by
+   fiat and document it. **Surface this before building.**
+
+⭐ And ERR-080's level-1 half still needs the honest `φ = 0` half-meridian; the
+tree fabricates it by zero-padding to `(μ, 0, 0)`, which is off `S²`.
 
 ⛔ **The text below is the PRE-2.0c pointer, kept per §3.** Its opener ran
 2026-09-01 and is **§V.5e**; **§V.5f** is the third opener, which re-scoped the
@@ -3643,7 +3794,7 @@ Part XIII — do not copy it here (`plan-authoring` §9).
 | ✅ | **2.1** | LANDED — see the 2.1 EXECUTED section. ⚠ It leaves ONE thing for 2.0c that did not exist before: `test_d6` pins the `LossKernelBasis` spelling divergence (bare label vs `index(...)`), so 2.0c must resolve it rather than inherit it |
 | ~~1~~ | ~~**2.1**~~ | ⭐ the only remaining exit-path item that repairs something ALREADY WRONG. `[M]` **re-verified at `a2befd9b`**: a 2-group ENERGY space and a 2-cell SPATIAL space are `==`-equal AND hash-equal (both `L2[coarse_cells_R1]`, shape `(2,)`), negative control passing. Sizing also re-verified — **18 `IndicatorBasis(` sites, 4 `orpheus/` + 14 `tests/`**, and the 39-site family does NOT widen it (siblings inherit the repair by composition). ⚠ the *"26 space-comparing sites"* figure is INHERITED and was **not** re-measured — treat as unverified. **Read the 2.1 PRE-FLIGHT section** |
 | ✅ | **2.0c** (+ **2.0d** absorbed) | LANDED — see the *2.0c EXECUTED* section. `Space = str` and its six tags retired across all six implementors; `phase` dispatches on the manifold's TYPE (user-ruled); the LIVE `folded_product(…).measure.phase` defect fixed; `pushforward`'s fabricated default retired; 2.1's `LossKernelBasis` handoff discharged **and witnessed** (its repair was measured BLIND first) |
-| **1** | ▶ **2.4** | **NEXT**, and it gained weight at 2.0c. The slab declaring `SPHERE.quotient(SO2)` — whose realization IS `[-1,1]` — is what dissolves the one genuinely ambiguous point set, makes `phase`'s `invariance_group` arm **unreachable**, and gives ERR-080's level-1 half the honest `φ = 0` half-meridian instead of a zero-padded `(μ, 0, 0)` |
+| **1** | ▶ **2.4** | **NEXT**, and its pre-flight (**§V.5g**) re-classed it: it is not wiring but a **defect fix of 2.1's kind** — `[M]` an 8-node slab ANGULAR space and an 8-node SPATIAL space on `[-1,1]` are `==` AND hash-equal today, and 2.0c could not fix it (the supports are honestly identical). ⛔ The ONE step that RENAMES a shipped space: size by the **23** comparison sites, not the 3 literals. Also discharges 2.0c's `invariance_group` fallback arm (§6c) and owes a RULING on `SO2`'s missing axis |
 | 2 | **2.1b**, **2.3** | G0's other side; the typed `Chart` (also the SECTION MAP's natural home) |
 | 4 | **3.1** scoped to `SO(2)` | the catalogue home + the probe |
 | 5 | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | **ONE COMMIT — see XII.1b.** THE FIX |
@@ -3725,37 +3876,42 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
    the plan cites, not just the ones you intend to use — a dangling hash reads
    exactly like a live one.
 
-### §1 existence-checks — re-run 2026-09-01 at `765757a0`
+### §1 existence-checks — re-run 2026-09-01 at `8cc69e7f`
 
 `[M]` in `orpheus/`, by AST, **with positive controls in the same pass**
-(`class Quotient` → `manifold.py:562`, `class Manifold` → `:104`,
-`class Ball` → `:460`, `class FundamentalDomain` → `:492`):
+(`class Manifold` → `manifold.py:104`, `Sphere` → `:231`, `Interval` → `:284`,
+`Ball` → `:460`, `FundamentalDomain` → `:492`, `Quotient` → `:562` — all found):
 `class Chart` **0** · `class LegendreBasis` **0** · `class Descent` **0** ·
 `class ReynoldsProjection` **0** · `class OrbitAxis` **0**.
 ⟹ nothing the pointer promises exists yet.
 
-`[M]` by **RUNTIME** `__subclasses__` (⛔ *not* AST — see the corrections
-table): `Basis` has **4 direct / 6 recursive** subclasses. ✅ Since `c461fe8d`
-**6 of 6 answer `domain`**; `invariance_group` is still **0 of 6**, so G0's
+`[M]` by **RUNTIME** `__subclasses__` after importing every `orpheus` module
+(⛔ *not* AST — landmine #4): `Basis` has **4 direct / 6 recursive**, all six
+`orpheus`-defined — `IndicatorBasis`, `OverlapBasis`, `WeightedIndicatorBasis`,
+`SphericalHarmonicBasis`, `MirrorEvenSphericalHarmonicBasis`, `LossKernelBasis`.
+✅ **6 of 6 answer `domain`**; `invariance_group` is still **0 of 6**, so G0's
 other side (tracker **2.1b**) remains absent.
 
-**Landed and callable** (`file:line` re-derived by AST at `765757a0` — every
-one of these moved at least once during the campaign, so do not trust an older
-copy):
-`class Manifold` `manifold.py:104` · `class Ball` `:460` ·
-`class FundamentalDomain` `:492` · `class Quotient` `:562` ·
-`ambient_dim` `:941` ⭐ NEW (public since 2.1) ·
-`Basis.domain` `basis/base.py:245` ⭐ NEW · `Basis.space` `:288` ·
-`IndicatorBasis` `basis/indicator_basis.py:108`, its `__post_init__` `:154`,
-its `domain` `:205` ·
-`SphericalHarmonicBasis.domain` `basis/spherical_harmonic_basis.py:371`,
-`MirrorEven….domain` `:474`, `_evaluate_real_sh` `:550` ·
-`DiscreteMeasure.support` `measure.py:267`, `.space` `:309`,
-⛔ `.phase` `:369` (the stringly-typed dispatch 2.0c dissolves) ·
-`Quadrature.axis_cosines` `directional.py:297` (STRICT),
-`mean_axis_cosine` `:328`, `spherical_harmonics` `:624`,
-`angular_frame` `:679`, `_harmonic_frame_measure` `:731` (the ERR-080 fiction,
-1-D arm only) · `admits_domain` `registry.py:928`.
+**Landed and callable** (`file:line` re-derived by AST at `8cc69e7f`. ⚠ **ten of
+these MOVED at 2.0c** — `measure.py` gained ~36 lines of header prose and a new
+property, so every landmark below `:300` in that file shifted. Do not trust a
+copy from an earlier record):
+`class Manifold` `manifold.py:104` · `Sphere` `:231` · `Interval` `:284` ·
+`Ball` `:460` · `FundamentalDomain` `:492` · `Quotient` `:562`,
+its `by` field `:580` · `ambient_dim` `:946` ·
+`Basis.domain` `basis/base.py:245` · `Basis.space` `:288` ·
+`IndicatorBasis` `basis/indicator_basis.py:108` ·
+`_evaluate_real_sh` `basis/spherical_harmonic_basis.py:550` ·
+`DiscreteMeasure.support` `measure.py:303` (now a `Manifold`), `.space` `:345`,
+⭐ `.quotient_group` `:406` **NEW** (2.0d, derived from `Quotient.by`),
+`.phase` `:428` (now a `match` on the manifold's TYPE), `.pushforward` `:818`
+(⚠ `new_space` is now **required**) ·
+`AngularSymmetry.support` `registry.py:870` (⭐ now `-> Manifold`),
+`admits_domain` `:936` ·
+`Quadrature.axis_cosines` `directional.py:294` (STRICT),
+`mean_axis_cosine` `:325`, `spherical_harmonics` `:621`,
+`angular_frame` `:676`, `_harmonic_frame_measure` `:728` (the ERR-080 fiction,
+1-D arm only).
 
 ## Landing ledger
 
@@ -3832,6 +3988,10 @@ Read these before quoting any earlier section:
 | `test_measure.py`'s *"the slab embedding `(μ,0,0)`"* fixture on `"[-1,1]^slab"` | ⛔ **ERR-080's defect class INSIDE A GREEN TEST.** Those points are on no manifold with a σ_y action; the string fabricated `"[-1,1]^slab/sigma_y"` and `Manifold.quotient` refuses. Replaced by the genuine σ_y-fixed set (the `xz` great circle). The same test also **contradicted its own docstring** — header: *"re-folding is ill-posed"*, body: re-folds and asserts idempotence |
 | `test_angular_phase_is_symmetry_derived_not_support_tagged` | ⛔ **its claim INVERTED.** It asserted that stripping `invariance_group` makes `phase` RAISE, because `"S^2"` was an inert string no branch read. `Sphere` is a *reason*, so the measure stays angular — which is what lets the shipped fold answer at all. Renamed + re-argued in place |
 | §V.5e(e): *"`support='cells'` has no producer — a dead arm"* | ⛔ **REFUTED same day, by its own author.** Production yes; the real producer is a `parametrize` list at `tests/numerics/test_measure_phase.py:67`, which MY OWN census had found as a non-literal row and I failed to read. ⟹ *production-unreachable with a synthetic witness*, not dead |
+| §II.13: *"`folded_by` is structurally unavailable for a continuous quotient; the tree holds TWO quotient records, a group object and a string tag"* | ⛔ **REFUTED by 2.0c** — `[M]` there is no string tag any more, and `Quotient.by` handles the continuous case identically (`SPHERE.quotient(SO2).by` **is** `SubgroupOfO3.SO2`), with `measure.quotient_group` deriving from it for discrete and continuous folds alike. The two records are ONE mechanism and the structural obstacle does not exist. ✅ What survives is 2.4's whole content: the slab is still the unwired half — now a one-line declaration against a working catalogue, not a research question |
+| 2.1's headline: *"no space claims an identity it does not have"* | ⛔ **FALSE as a UNIVERSAL** — `[M]` 2026-09-01 (§V.5g) an 8-node slab ANGULAR space and an 8-node SPATIAL space on `[-1,1]` are still `==` AND hash-equal. 2.1 closed the energy/spatial pair; the class survives wherever two ROLES honestly share a point set. ⭐ And 2.0c could not close it — the retype made the supports *honest*, and they are honestly identical. Re-tensed to what was measured; closing it is **2.4** |
+| 2.4's summary tracker row: *"…; **full-suite phantom census**"* | ⛔ **STALE — the census MOVED to Phase 0 on 2026-08-31 and is DISCHARGED** (`ee60010e`+`ccda0e61`); it was 0.2's denominator, not 2.4's. The DETAILED row (Part XI) recorded the move and the summary row did not, so the plan disagreed with itself — the same class as the `de29bcc6` dangling hash, found by the same sweep |
+| 2.4 filed as wiring (*"the slab rule declares its quotient group"*) | ⛔ **RE-CLASSED at its pre-flight** — it repairs a **LIVE** defect of 2.1's kind (the `[-1,1]` space collision above), and it is the ONE step that RENAMES a shipped space, so its §6b set is the **23** comparison sites, not the 3 literal pins. §V.5g |
 | 2.0c row: *"54 literals + 5 f-strings, 94 % in `tests/`"* | ⛔ **counts the PRODUCERS.** `[M]` the two headline numbers reproduce EXACTLY (54, 94 %) and "5 f-strings" is **4**; the set a retype breaks is the **16 CONSUMERS** (15 `orpheus/`), never counted. §V.5e(b) |
 | `DiscreteMeasure.phase` is total on the shipped rules | ⛔ **FALSE — `folded_product(4,8).measure.phase` RAISES** (`[M]` support `S^2/sigma_y`, `invariance_group=None`, no quotient arm). A live defect, latent only because `[M]` `.phase` has **0** production consumers. §V.5e(f) |
 | *"`Basis.domain` 0 of 6 subclasses"* | ⛔⛔ **the ORIGINAL 6 WAS RIGHT — my "correction" to 5 was itself wrong, and shipped at `4a5ac108`.** `[M]` 2026-09-01 by RUNTIME `__subclasses__` after importing every `orpheus` module: **4 direct, 6 recursive**, and `0 of 6` define `domain` or `invariance_group`. My static AST census undercounted (it matched only `ast.Name` bases). §II.15's own *"7 transitive subclasses (6 production + `_DenseTrial`)"* already said 6, so the plan was self-inconsistent and I resolved it toward the wrong side. ⟹ **for a subclass census use RUNTIME introspection, not AST** — inheritance is a runtime relation and an AST pass cannot see re-exports, aliased bases or qualified base names |
@@ -3841,16 +4001,32 @@ Read these before quoting any earlier section:
 
 ## Measured baselines and costs
 
-⭐⭐ **RE-GATED at 2.1** (2026-09-01), serial `-O -m "not slow" -p no:randomly`:
-**numerics 2656** (`ce46181c`'s 2643 + 13 new `test_basis_domain.py` rows,
-reconciling exactly), data 237 + 2 deselected, geometry 727 + 4 sk + 1 xf,
-transport 645 + 1 sk, **sn 3378** — all rc=0, zero reds from a change touching
-18 files. `sphinx -E -W --keep-going` **build succeeded, 0 warnings**;
-`dead_references` **0 dead / 52 checked / 0 undecidable**; pyright **0 new
-errors** across the 19 touched files. ⭐ Second instrument, independently
-counted: the V&V matrix went **10542 → 10555**, all 13 in `foundation`
-(7518 → 7531), with one new module row `numerics/test_basis_domain` at exactly
-13 — so the tree gate and the matrix agree unit-for-unit.
+⭐⭐ **RE-GATED at 2.0c** (2026-09-01, `025834f5`), serial
+`-O -m "not slow" -p no:randomly`, five trees, **all rc=0**:
+
+| tree | at 2.1 | at 2.0c | delta |
+|---|---|---|---|
+| numerics | 2656 | **2657** | +1 |
+| data | 237 (+2 desel) | 237 | — |
+| geometry | 727 +4sk +1xf | 727 +4sk +1xf | — |
+| transport | 645 +1sk | 645 +1sk | — |
+| sn | 3378 +1sk +50xf | **3384** +1sk +116desel +50xf | +6 |
+
+⭐ **The delta reconciles unit-for-unit against a second, independently counted
+instrument.** The V&V matrix went **10555 → 10562** (+7): `+1` the new
+`test_measure_phase` row (the live-defect witness) and `+6` the new
+`test_loss_kernel_gauge` rows (the BLIND repair's witness) — matching the tree
+gate's `+1` numerics and `+6` sn exactly. `foundation` 7531 → 7538.
+`sphinx -E -W --keep-going` **build succeeded, 0 warnings**; `dead_references`
+**0 dead / 52 checked / 0 undecidable** (⚠ it found **1** on the first pass — a
+`:data:` xref my rename re-pointed at the retired module; nothing else in the
+toolchain can see that surface); pyright **0** across all 18 touched files
+(10 production + 8 test).
+
+⛔ **Prior baseline, kept per §3** — *"RE-GATED at 2.1: numerics 2656
+(`ce46181c`'s 2643 + 13 new `test_basis_domain.py` rows), … V&V matrix
+10542 → 10555, all 13 in `foundation` (7518 → 7531)."* Correct when written and
+superseded by the table above.
 ⚠ **pyright scope**, so a later reader does not compare two populations: a bare
 `npx pyright` over the whole project reads `[M]` **2533** errors (it includes
 `derivations/diagnostics/`, `tools/`, …). Every "pyright 0" in this plan is a
@@ -3891,9 +4067,16 @@ so a re-reader does not mistake it for a stale number.
   `test_bc_universal_invariants.py`, `[M]` identical at HEAD and on lines this
   work does not touch.
 * ⚠ **The 13-tree GATE baseline is still UNMEASURED.** Exit predicate 5 stands.
-  Last full 13-tree gate: CS4c step 4's `10106 / 0 / 19 sk / 66 xf`. Six of the
-  13 are now measured green at this HEAD (above); the remaining seven
-  (diffusion, data, homogeneous, cross_method, moc, mc, cp) are not.
+  Last full 13-tree gate: CS4c step 4's `10106 / 0 / 19 sk / 66 xf`.
+  `[M]` measured green at `025834f5` (2.0c's exit gate, serial, rc=0 each):
+  **numerics 2657 · data 237 · geometry 727 · transport 645 · sn 3384** —
+  **five** of the thirteen. ⛔ The previous version of this bullet said "six …
+  the remaining seven (diffusion, **data**, …)" and listed `data` on BOTH
+  sides; corrected by enumerating `tests/*/` rather than recalling it.
+  Not measured at this HEAD: **cp, cross_method, derivations, diffusion,
+  homogeneous, mc, moc**, plus the eight root-level `tests/test_*.py` modules
+  (of which `test_error_catalogue_reconciles` + `test_docstring_xrefs` **were**
+  run green at 2.0c — 50 passed — because the corpus pass touched them).
   ⟹ **best spent immediately before the fused step #5**, where it becomes
   load-bearing — not now.
 
