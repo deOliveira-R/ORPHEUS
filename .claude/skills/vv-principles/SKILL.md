@@ -353,7 +353,18 @@ any other review work.
     group** — break a codomain, swap an axis, scale a weight — and, if an
     arm you meant as the control reddens fewer gates than an ordinary arm,
     name the ordinary arm as the effective control rather than lowering
-    the bar. Same session, same battery, the harness's other lie: the
+    the bar. ⭐ **And the NEGATIVE control of an invariance test has the
+    same trap one level up: the SUT's stabiliser can be strictly larger
+    than the group it is DECLARED under, so "an element outside H" can
+    still be a null control.** `[M]` 2026-09-02, #429 tracker 3.1
+    (archivist): the quotient map π_a of S²/SO(2)_a is bit-exactly
+    invariant under the mirrors σ_b, b ≠ a — O(2)_a and SO(2)_a induce the
+    same orbit partition, so a quotient map fixes the PARTITION and the
+    partition does not fix the group. A negative leg spelled as "a mirror,
+    which is not in SO(2)" reads as a control and moves nothing. ⟹ before
+    choosing the outsider, measure the SUT's actual stabiliser (or reason
+    it out: what else preserves the partition?), and pick the outsider
+    outside THAT — here a rotation about another axis. Same session, same battery, the harness's other lie: the
     driver's inline `$(...)` capture returned EMPTY summaries for the four
     widest arms; read arm output from a FILE.
 18. **NEVER credit a mutation's reds as coverage of a property when the
