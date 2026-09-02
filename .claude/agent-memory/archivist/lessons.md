@@ -563,6 +563,42 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   ships the STAGGERED circle rule (`Sigma = empty`); node-aligned puts 4 nodes on `Sigma` and folds
   16 -> **10** orbits with four singletons, so a wrong shift agrees with itself and not with
   production. -> L-082
+- **⭐⭐ "Picklable" and "round-trips EQUAL" are TWO claims, and a `functools.partial`
+  splits them.** `[M]` over 7 shipped entries the callable round-trips with identical
+  output **7 of 7** (a `lambda` would raise) and compares equal **1 of 7** — only the
+  plain module-level function, which pickles *by reference* and so returns the same
+  object. ⭐ The refutation gave the better argument: `field(compare=False)` is what
+  makes the OWNING dataclass round-trip equal 7 of 7, so the exclusion is load-bearing
+  for serialisation (the object is a cache key), not merely "a function has no value
+  equality" — which is what the production comment says. → L-083
+- **⭐⭐ A negative leg must sit outside the measured functional's TRUE stabiliser, not
+  outside the group you are documenting.** My natural choice failed on 3 of 7 and the
+  failure was the finding: `[M]` the quotient map `π_a` is bit-exactly invariant under
+  `σ_b` (b≠a), because a reflection in a plane CONTAINING the axis fixes every
+  constant-μ circle — so `O(2)_a` and `SO(2)_a` induce the same orbit partition. ⟹ a
+  quotient map determines the PARTITION and the partition does not determine the group;
+  `Quotient.by` is a DECLARATION. Sharper than ERR-072: that predicate under-determines
+  because it is SAMPLED, this one while being EXACT. Re-chosen, the leg is 7 of 7.
+  → L-083
+- **⭐⭐ A §6d import verdict needs BOTH module-scope placements — and the package
+  `__init__` is usually why the answer is placement-independent.** Top-of-file and
+  bottom-of-file die with DIFFERENT `ImportError`s (`Manifold` vs `DiscreteMeasure`,
+  one hop apart); testing the *most favourable* position is what turns a sample into a
+  claim. `[M]` 7/7 alive at function scope, 0/7 at either module placement — identical
+  across all seven entry points because `numerics/__init__.py` eagerly imports
+  `.measure`, so the entry point has no say. Run it on a **RENAMED** shadow package
+  (`shadowpkg`), which defeats the editable finder more simply than stripping it, and
+  print `__file__` per subprocess. ⭐ The rule the section rests on: **a
+  `TYPE_CHECKING` guard defers a NAME and can never carry a VALUE** — so a type and a
+  value need two mechanisms, and "the cycle blocks the import" is not "the cycle blocks
+  the slot". ⭐ Its safety condition is a property of the CALL SITES (`[M]` 0 of 8 at
+  depth 0, by AST) and can be broken from outside the module; publish the TOTAL as the
+  positive control, since zero-calls and zero-module-scope-calls print the same zero.
+  → L-083
+- **⭐ Two new fields of one step can have OPPOSITE consumption — census each, don't
+  average.** `[M]` `Quotient.reference` has ONE production reader; `quotient_map` has
+  ZERO (ten occurrences, all in one test module). Half the step is consumed, half is a
+  capability; L-079's three-places rule applies to the second half only. → L-083
 - **⭐ A section TITLE is a count too, and a roster count needs the command that produces it.**
   One edit shipped *"The four realizations…"* over a five-row table; the same page carried two of
   my own earlier universals that were wrong when written (*"Nine variants"* — `[M]` 8 at the

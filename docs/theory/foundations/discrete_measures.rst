@@ -1149,7 +1149,14 @@ always names its stage — points at the paragraph that explains it.
    on :math:`[-1,1]`, ``uniform(S^2)`` on the sphere. It is *derived
    from the spent group*, by :attr:`AngularSymmetry.reference
    <orpheus.numerics.quadrature.registry.AngularSymmetry.reference>`,
-   exactly as the domain is (see *Spent and owed* below).
+   exactly as the domain is (see *Spent and owed* below) — and since
+   #429 tracker 3.1 (2026-09-02) the two are derived from **one
+   object**: the property reads
+   :attr:`Quotient.reference
+   <orpheus.numerics.manifold.Quotient.reference>` off the very orbit-space
+   catalogue entry that ``support`` returns, where the measure is a
+   recorded output of the orbit-space derivation rather than a second
+   table (:ref:`manifold-pushforward-reference`).
 
    Most rules have a parameter-dependent degree — :math:`2n - 1` for
    Gauss-Legendre, ``order`` for Lebedev,
@@ -1452,20 +1459,51 @@ the same construction one level down, and it answers the question the
 support cannot: **the support says which space, the reference says
 which measure on it.** ``[M]`` an **axial rotation** spent
 :math:`\to` ``legendre``; nothing spent :math:`\to` ``uniform(S^2)``;
-anything else raises :exc:`NotImplementedError`. ⭐ Note the predicate:
-since 2026-09-01 the reference arm keys on
-:attr:`rotation_axis
-<orpheus.numerics.symmetry.SubgroupOfO3.rotation_axis>` being non-``None``,
-not on equality with one group — and it is *right* to, whatever the
-axis, because the pushforward of :math:`d\Omega` under
+anything else raises :exc:`NotImplementedError`.
+
+⛔ **The PREDICATE moved on 2026-09-02, and the sentence that named it
+is history.** This paragraph continued *"⭐ Note the predicate: since
+2026-09-01 the reference arm keys on* :attr:`rotation_axis
+<orpheus.numerics.symmetry.SubgroupOfO3.rotation_axis>` *being
+non-*``None``\ *, not on equality with one group"*. True when written;
+repealed hours later by #429 tracker 3.1, which collapsed the twin the
+way tracker 2.4 collapsed ``support``. The property now keys on
+**nothing**: it *reads*
+:attr:`Quotient.reference
+<orpheus.numerics.manifold.Quotient.reference>` off the catalogue entry
+``support`` already returns, and ``[M]`` for a slab the two are the
+same object by ``is`` identity. The axis-generality the old predicate
+bought did not go away — it moved into the derivation, which reads its
+axis off the group and answers ``legendre`` for all three
+(:ref:`manifold-second-twin-reference`).
+
+The **reason** it is axis-general is unchanged and is the load-bearing
+half: the pushforward of :math:`d\Omega` under
 :math:`\mu = \hat\Omega\cdot\hat e_a` is :math:`2\pi\,d\mu` (Archimedes'
-hat-box) for **every** axis. The measure on the chart does not know
-which pole produced it; only the space does. Both are Lebesgue measure
-on the domain the reduction left, because transport integrates
+hat-box) for **every** axis (:eq:`manifold-quotient-pushforward`). The
+measure on the chart does not know which pole produced it; only the
+space does. Both answers are Lebesgue measure on the domain the
+reduction left, because transport integrates
 :math:`\phi = \int \psi \, d\Omega` unweighted — and ``legendre``
 **is** Lebesgue on :math:`[-1,1]`: its weight is :math:`w(x) = 1` and
 ``[M]`` its mass is exactly :math:`2`. The name records the polynomial
 family the measure generates, not a weighting.
+
+⚠ **Two things the collapse did NOT change, and both are deliberate.**
+The ``uniform(S^2)`` arm is *not* a catalogue read: a geometry that
+spends nothing is handed the **base**, and Lebesgue on :math:`S^2` is a
+property of the base that a :class:`~orpheus.numerics.manifold.Manifold`
+does not carry — so the identity quotient itself ships
+``reference=None`` and the registry keeps its own arm (user-ruled
+2026-09-02). And the refusal is now reachable for a *second* reason: a
+spent group with no catalogue entry is refused by ``support``, one call
+earlier, while a spent **mirror** has an entry whose ``reference`` is
+``None`` — its pushforward is the weighted disk measure
+:math:`2\,du\,dv/\sqrt{1-u^2-v^2}`, which no shipped
+:class:`~orpheus.numerics.exactness.ReferenceMeasure` realization
+spells. ``[M]`` that arm bites no shipped geometry, since none spends a
+mirror; the message names the missing **work**
+(:ref:`manifold-pushforward-reference`).
 
 A rule can get the space right and the measure wrong — that is exactly
 the gap stage 2's reference conjunct exists to close, and the

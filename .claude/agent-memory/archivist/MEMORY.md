@@ -46,6 +46,19 @@ stage + gate.
   ⚠ **REPORTED, code-only** (3 items: `__all__`, a symbol collision, a hand-typed fixture) —
   detail, the four findings and the numbers are in the lesson. → [[lessons-L80]]
 
+- **A catalogue entry carries its own ARROW and the measure that arrow pushes forward** — 2026-09-02,
+  same branch, tracker **3.1** (`Quotient.orbit_coordinates` + the derived `quotient_map`;
+  `Quotient.reference`; the registry twin `AngularSymmetry.reference` collapsed). Docs
+  **UNCOMMITTED** (mine): `manifolds.rst` +1226, `discrete_measures.rst` +58,
+  `error_catalog.rst` ERR-080 +55 (**stays OPEN**), regenerated `matrix.rst` (sentinels
+  577 → **578**; the test-count moves are the CODE side's). One new `documented` eq-label
+  `manifold-quotient-pushforward`. `-E -W` **0 → 0**, EXIT=0; xref gate 0 dead (stock AND
+  patched, split control run); nexus `dead_references` 0/52. ⚠ **REPORTED, code-only** (2
+  items: a future-tense docstring at `manifold.py:968`; `reference.support` is the CHART's
+  space and nothing gates the pair). ⚠ Three brief numbers corrected (a "pickle round-trip
+  equal" that is 1 of 7; `.reference` reads 9 → 10; a `match Quotient` site attributed to
+  `barycentre`, which uses `isinstance`) and two widened 5 → 7. → [[lessons-L83]]
+
 - **A map carries its two point sets, so a codomain cannot be forged** — 2026-09-02, same branch,
   tracker **2.3** (`ManifoldMap`; `archimedes`, the orbit retraction, `barycentre`). Docs
   **UNCOMMITTED** (mine): `manifolds.rst` +883/−42 (a new `=` section + 6 `-` subsections, one new

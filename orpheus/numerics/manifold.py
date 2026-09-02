@@ -38,7 +38,7 @@ operations every manifold answers (:attr:`dim`, :meth:`contains`,
 ideal, and under this shape it cannot be asked for one.
 
 ⚠ **This module imports nothing from** :mod:`orpheus.numerics` **at
-runtime, and that is load-bearing, not tidiness.**
+module scope, and that is load-bearing, not tidiness.**
 :mod:`orpheus.numerics.symmetry` imports :mod:`orpheus.numerics.measure`
 at module scope, and — since tracker 2.4 (2026-09-01) — imports THIS
 module at module scope too (to read a polar marginal's axis off its
@@ -55,6 +55,17 @@ NOT that nothing here reads the group — the catalogue builders read
 is that the group always arrives **as an argument**, so those reads are
 duck-typed and need no import.  (``measure.py`` defers its own
 ``symmetry`` import to function scope for exactly the same reason.)
+The one runtime edge this module does carry runs INSIDE a derivation
+function: ``_sphere_mod_so2`` imports ``LEGENDRE`` from
+:mod:`orpheus.numerics.generating_measure` at function scope, to populate
+the entry's :attr:`Quotient.reference` (#429 tracker 3.1, 2026-09-02).
+That is safe because no quotient is built while any module is still
+initialising — `[M]` 0 module-scope ``.quotient()`` calls in ``orpheus/``;
+the first runs at rule construction, after every module has loaded — and
+it was MEASURED rather than argued: injected on a shadow copy of the
+package, the function-scope import survives **7 of 7** fresh import
+orders, while the same line at module scope kills **7 of 7** (the cycle
+closes through ``measure``, which ``generating_measure`` imports).
 
 Why a closed sum rather than a polymorphic hierarchy: the members are
 stable (about a dozen, and every new orbit space is another *instance* of
@@ -70,7 +81,7 @@ from __future__ import annotations
 
 import functools
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -78,6 +89,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 if TYPE_CHECKING:  # a runtime import closes BOTH cycles documented above
+    from orpheus.numerics.exactness import ReferenceMeasure
     from orpheus.numerics.symmetry import SubgroupOfO3
 
 __all__ = [
@@ -583,6 +595,23 @@ class Quotient(Manifold):
     #: Its coordinates are the INVARIANTS', the same language as
     #: :attr:`generators`, :attr:`gram` and :attr:`det_gram`.
     realization: Manifold
+    #: The quotient map's action on the base's AMBIENT coordinates,
+    #: returning the orbit's coordinates in the :attr:`realization`'s
+    #: language — D0.1's "chart" output, as the derivation returns it:
+    #: the invariants that SURVIVE eliminating the base's own ideal
+    #: (``p_1 = x_a`` for ``S^2/SO(2)_a``; ``(p_1, p_2) = (x_b, x_c)`` for
+    #: ``S^2/sigma_a``; every coordinate for ``M/{e}``).  An engine would
+    #: ``lambdify`` them; the hand entries spell the column selection
+    #: directly, and the entry's regression test pins the two against each
+    #: other.  The typed arrow is :attr:`quotient_map`; this is only its
+    #: ``apply``, kept as a plain callable because the arrow's codomain is
+    #: the entry ITSELF, which does not exist until construction ends.
+    #: Excluded from equality and hashing: a function has no value
+    #: equality, and the map is DERIVED from ``(base, by)``, which the
+    #: comparison already covers.
+    orbit_coordinates: Callable[[NDArray], NDArray] = field(
+        compare=False, repr=False
+    )
     #: The section's IMAGE, in the BASE's coordinates — the other of the
     #: quotient's two honest coordinate systems (user ruling,
     #: 2026-08-31).  ``None`` when no canonical section exists, which for
@@ -619,6 +648,23 @@ class Quotient(Manifold):
     #: on purpose: an incremental engine rollout is exactly that, and
     #: without this field the migration would have to be all-or-nothing.
     derived_by: str = "hand"
+    #: The pushforward of the base's Lebesgue measure along the quotient
+    #: map, :math:`\pi_*\,d\Omega`, as a
+    #: :class:`~orpheus.numerics.exactness.ReferenceMeasure` — the measure
+    #: a degree of exactness on this orbit space is AGAINST.  For
+    #: ``S^2/SO(2)_a`` it is Archimedes' hat-box theorem, :math:`2\pi\,d\mu`:
+    #: Lebesgue on :math:`[-1,1]` up to a constant no claim carries, so the
+    #: field is ``LEGENDRE``.  ``None`` means *no shipped realization spells
+    #: it*, and both shipped ``None``\ s are honest: ``S^2/sigma_a``'s
+    #: pushforward is the weighted disk measure
+    #: :math:`2\,dx\,dz/\sqrt{1-x^2-z^2}`, a Jacobian no ``UniformMeasure``
+    #: or 1-D recurrence expresses; ``M/{e}``'s is Lebesgue on the BASE,
+    #: whose orthogonal system is a property of the base that
+    #: :class:`Manifold` does not carry.  Until 2026-09-02 (#429 tracker
+    #: 3.1) the axial answer lived on the registry alone
+    #: (``AngularSymmetry.reference``) — the twin ``support`` had at 2.4;
+    #: the registry now READS this field.
+    reference: "ReferenceMeasure | None" = None
 
     def __post_init__(self) -> None:
         r"""The two coordinate systems must describe the SAME orbit space.
@@ -653,6 +699,40 @@ class Quotient(Manifold):
     @property
     def name(self) -> str:
         return f"{self.base.name}/{self.by.name}"
+
+    @property
+    def quotient_map(self) -> ManifoldMap:
+        r"""The quotient map :math:`\pi : M \to M/H`, as a typed arrow.
+
+        Its codomain is THIS entry — never the :attr:`realization`, which
+        is where the same numbers land when read as a chart, and which is
+        exactly the reading tracker 2.4 made refusable (a rule on
+        :math:`[-1,1]` is not a rule on :math:`S^2/SO(2)_x`).  A measure
+        pushed forward along it lives on the orbit space; a function on
+        the orbit space pulled back along it is :math:`H`-invariant by
+        construction, which is what a ``Descent`` (tracker 3.4b) reads.
+
+        ⚠ Its image is in the REALIZATION's coordinates.  The orbit
+        retraction that :meth:`DiscreteMeasure.quotient
+        <orpheus.numerics.measure.DiscreteMeasure.quotient>` builds lands
+        on the same codomain in the SECTION's coordinates (a representative
+        per realized orbit, still in the base's ambient width); the two
+        are the two honest coordinate systems :meth:`contains` accepts.
+
+        Derived, not stored, for the reason
+        :attr:`~orpheus.numerics.basis.base.Basis.invariance_group` is:
+        the arrow is a function of fields the entry already carries
+        (:attr:`base`, itself, :attr:`orbit_coordinates`), and a stored
+        copy would be one more thing able to disagree with them.  `[M]`
+        2026-09-02: :math:`\pi_a \circ \varphi_a = \mathrm{pr}_1`
+        bit-exactly on 12 of 12 (three axes × four Gauss orders) and
+        :math:`\beta_a \circ \pi_a` the axial projection on 3 of 3 —
+        :func:`archimedes` and :func:`barycentre` are the arrows on either
+        side of this one.
+        """
+        return ManifoldMap(
+            domain=self.base, codomain=self, apply=self.orbit_coordinates
+        )
 
     def contains(self, points: ArrayLike) -> bool:
         r"""Membership, in EITHER of the quotient's two coordinate systems.
@@ -813,10 +893,10 @@ class ManifoldMap:
     asymmetry the pushforward has always documented.  The pushforward
     REFERENCE measure of a catalogued orbit space (the :math:`2\pi\,d\mu`
     of Archimedes' hat-box) is a field of the catalogue ENTRY, not of the
-    map, and lands with tracker 3.1 — `[M]` 2026-09-02 a module-scope
-    ``manifold -> exactness`` import to carry it here kills 5 of 5 fresh
-    import orders, so it must be populated inside the derivation function
-    (function-scope import), never at module scope.
+    map — :attr:`Quotient.reference`, since tracker 3.1 (2026-09-02) — and
+    it is populated inside the derivation function, never at module scope:
+    `[M]` a module-scope ``manifold -> exactness`` import kills every fresh
+    import order (5 of 5 measured at 2.3, 7 of 7 at 3.1).
 
     No membership check runs on the image: :meth:`Manifold.contains` at
     measure CONSTRUCTION (tracker 0.1b) is the ruled home of that refusal,
@@ -885,9 +965,9 @@ def archimedes(axis: str = "z") -> ManifoldMap:
     \hat e_a` is :math:`2\pi\,d\mu` — uniform on :math:`[-1,1]` — so a
     Gauss-Legendre rule in :math:`\mu` times any circle rule is exact on
     the sphere against Lebesgue measure.  That fact is what
-    ``AngularSymmetry.reference`` answers (``LEGENDRE`` for every axis) and
-    what tracker 3.1 moves onto the catalogue entry; the map is the
-    geometric half of it.
+    ``AngularSymmetry.reference`` answers (``LEGENDRE`` for every axis) by
+    reading it off the catalogue entry — :attr:`Quotient.reference`, where
+    tracker 3.1 (2026-09-02) put it; the map is the geometric half of it.
 
     ⚠ It is a *parametrisation*, not a chart in the strict sense: the
     circle collapses at :math:`\mu = \pm 1` (both poles are the image of
@@ -1001,6 +1081,26 @@ def barycentre(orbit_space: Quotient) -> ManifoldMap:
 # ---------------------------------------------------------------------------
 
 
+def _ambient_columns(columns: int | list[int], points: NDArray) -> NDArray:
+    r"""``points[:, columns]`` — every shipped entry's orbit coordinates.
+
+    They are a SELECTION of the base's ambient coordinates because each
+    surviving invariant is a coordinate function (``x_a``; ``x_b, x_c``);
+    an entry whose invariants are higher-degree polynomials (``S^2/C_n``)
+    would carry a genuine polynomial map here instead.  A module-level
+    function partially applied, rather than a lambda, so an entry stays
+    picklable and the column is visible in the ``repr``.  An ``int``
+    selects one column and returns ``(n,)`` — the shape a 1-D measure
+    carries its nodes in; a list returns ``(n, k)``.
+    """
+    return np.asarray(points)[:, columns]
+
+
+def _all_coordinates(points: NDArray) -> NDArray:
+    """The identity — ``M/{e}``'s orbit coordinates ARE the point's."""
+    return np.asarray(points)
+
+
 @functools.cache
 def _catalogued_quotient(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     """The memoised body of :meth:`Manifold.quotient` — see its Notes."""
@@ -1071,12 +1171,27 @@ def _sphere_mod_so2(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     poles: the two points with full stabilizer, hence the singular
     stratum, hence why the orbit space is an orbifold.
 
+    ⭐ The entry's two remaining derivation outputs (#429 tracker 3.1,
+    2026-09-02).  The **quotient map** is the surviving invariant read as
+    a function of direction, :math:`\pi_a : \Omega \mapsto \Omega \cdot
+    \hat e_a = p_1` — `[M]` :math:`\pi_a \circ \varphi_a = \mathrm{pr}_1`
+    bit-exactly against the Archimedes parametrisation, on every axis.
+    The **pushforward reference** is Archimedes' hat-box theorem: the
+    image of :math:`d\Omega` under :math:`\mu` is :math:`2\pi\,d\mu`,
+    uniform in the invariant, so a degree of exactness on this orbit
+    space is against Lebesgue on :math:`[-1,1]` — ``LEGENDRE``, whose
+    weight is 1 and whose name is the polynomial family, not a weighting.
+
     SymPy is imported lazily: it costs ~250 ms and nothing else in
     :mod:`orpheus.numerics` needs it, so a session that never asks for a
     quotient never pays for it — and :meth:`Manifold.quotient` memoises,
-    so a session that asks pays the derivation once.
+    so a session that asks pays the derivation once.  ``LEGENDRE`` is
+    imported here too, and MUST stay at function scope: see the module
+    docstring for the measured cycle a module-scope import closes.
     """
     import sympy as sp
+
+    from orpheus.numerics.generating_measure import LEGENDRE
 
     axis = group.rotation_axis
     if axis is None:
@@ -1107,6 +1222,10 @@ def _sphere_mod_so2(base: Manifold, group: "SubgroupOfO3") -> Quotient:
         base=base,
         by=group,
         realization=COSINE_INTERVAL,
+        # pi_a: the surviving invariant p_1 = x_a, read off the base's
+        # ambient coordinates.  (n,) out, the shape a polar marginal's
+        # nodes have.
+        orbit_coordinates=functools.partial(_ambient_columns, axis),
         generators=(p1 - x_a, p2 - (x_b**2 + x_c**2)),
         syzygy=(),
         # Frozen, so the Quotient — a frozen value type — is hashable, which
@@ -1114,13 +1233,17 @@ def _sphere_mod_so2(base: Manifold, group: "SubgroupOfO3") -> Quotient:
         gram=sp.ImmutableMatrix(gram),
         det_gram=det_gram,
         derived_by="hand",
+        # Hat-box: (pi_a)_* dOmega = 2 pi dmu.  Lebesgue on [-1,1] up to a
+        # constant no exactness claim carries, so the reference is LEGENDRE.
+        reference=LEGENDRE,
         # No CANONICAL section: any half-meridian sections S^2 -> S^2/SO(2)_a
         # and none is distinguished, which is the normal case for a
         # positive-dimensional group.  ⛔ ERR-080 is the tree having needed
         # one anyway and fabricated it by zero-padding to (mu, 0, 0), which
         # is off S^2.  Declaring one (the phi=0 half-meridian, mu on axis a,
-        # sqrt(1-mu^2) on axis b, 0 on axis c) is a CHOICE and belongs to the
-        # step that mints the typed Chart (tracker 2.3), not to this derivation.
+        # sqrt(1-mu^2) on axis b, 0 on axis c) is a CHOICE, not a derivation
+        # output: tracker 2.3 declined it ([M] 0 production readers of a
+        # section) and 3.1 ships the QUOTIENT MAP instead, which is one.
         fundamental_domain=None,
         # det P = 4 p_2 = 4(1 - mu^2) after the sphere ideal p_1^2 + p_2 = 1;
         # it vanishes at the poles mu = +-1.  A locus, in the realization's
@@ -1166,6 +1289,24 @@ def _sphere_mod_mirror(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     realization's coordinates is the disk's BOUNDARY, and is a circle,
     not a finite point set.
 
+    ⭐ The entry's two remaining derivation outputs (#429 tracker 3.1,
+    2026-09-02).  The **quotient map** is the pair of surviving invariants
+    read as functions of direction, :math:`\pi_a : \Omega \mapsto (x_b,
+    x_c)` — the disk coordinates — and it is :math:`\sigma_a`-invariant
+    bit-exactly, since the reflection touches only the column it drops.
+    The **pushforward reference** is the image of :math:`d\Omega` under
+    that map: the two hemispheres fold onto the disk with the Jacobian
+    of :math:`x_a = \pm\sqrt{1 - x_b^2 - x_c^2}`, giving the WEIGHTED
+    disk measure :math:`2\,dx_b\,dx_c/\sqrt{1 - x_b^2 - x_c^2}`.  No
+    shipped :class:`~orpheus.numerics.exactness.ReferenceMeasure`
+    realization spells that (``UniformMeasure`` has no weight, the
+    generating measures are 1-D recurrences, ``ProductMeasure`` needs
+    separable factors), so the entry ships ``reference=None`` — honestly:
+    `[M]` the fold drops ``exactness`` and nothing reads it.  Adding a
+    weighted-disk realization to ``exactness.py`` is the missing WORK, and
+    ``AngularSymmetry.reference`` names it if a geometry ever spends a
+    mirror.
+
     Full derivation with SymPy output, the Molien completeness check and
     the ``dim(m/m^2)`` minimality check:
     ``scratch/sigma_y_orbit_derivation.md`` (untracked; the load-bearing
@@ -1203,6 +1344,11 @@ def _sphere_mod_mirror(base: Manifold, group: "SubgroupOfO3") -> Quotient:
         by=group,
         # The CHART codomain, in invariant coordinates (p_1, p_2).
         realization=Ball(2),
+        # pi_a: the two surviving invariants (x_b, x_c) — the kept columns,
+        # in the order the disk's coordinates (p_1, p_2) are named.
+        orbit_coordinates=functools.partial(
+            _ambient_columns, [i for i in range(3) if i != axis]
+        ),
         # The SECTION's image, in the base's ambient coordinates — what
         # DiscreteMeasure.quotient actually emits.  Closed, not strict:
         # [M] the cylindrical march seeds a level at x_a = 0 exactly.
@@ -1220,6 +1366,9 @@ def _sphere_mod_mirror(base: Manifold, group: "SubgroupOfO3") -> Quotient:
         gram=sp.ImmutableMatrix(gram),
         det_gram=det_gram,
         derived_by="hand",
+        # The pushforward is the weighted disk measure 2 dx dz / sqrt(1-x^2-z^2)
+        # (see the docstring); no shipped ReferenceMeasure spells it.
+        reference=None,
         # det P = 4 p_3 = 4(1 - u0^2 - u1^2) after the sphere ideal: the
         # disk's boundary circle.
         singular_stratum=sp.simplify(1 - u[0] ** 2 - u[1] ** 2),
@@ -1240,6 +1389,18 @@ def _mod_trivial(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     answer, re-derived rather than tabulated: that property maps
     ``Trivial -> "S^2"`` in the string vocabulary and is the twin this
     type exists to absorb.
+
+    The quotient map is the identity (every coordinate survives), and the
+    pushforward of Lebesgue along the identity is Lebesgue on the BASE —
+    which this generic derivation cannot spell as a
+    :class:`~orpheus.numerics.exactness.ReferenceMeasure`, because the
+    orthogonal system Lebesgue on :math:`M` indexes (spherical harmonics
+    on :math:`S^2`, Fourier on :math:`S^1`, polynomials on an interval)
+    is a property of the base that :class:`Manifold` does not carry.  So
+    ``reference=None`` here, and the registry's trivial arm reads
+    ``UNIFORM_ON_SPHERE`` off the bare sphere it hands out as the domain
+    — that arm never sees this entry (#429 tracker 3.1, user-ruled
+    2026-09-02).
     """
     import sympy as sp
 
@@ -1249,11 +1410,15 @@ def _mod_trivial(base: Manifold, group: "SubgroupOfO3") -> Quotient:
         base=base,
         by=group,
         realization=base,
+        orbit_coordinates=_all_coordinates,
         generators=tuple(coords),
         syzygy=(),
         gram=sp.ImmutableMatrix(sp.eye(n)),
         det_gram=sp.Integer(1),
         derived_by="hand",
+        # Lebesgue on the base; its orthogonal system is the base's to
+        # know, and Manifold does not carry it (see the docstring).
+        reference=None,
         # M/{e} = M, so the identity map is a section and its image is all
         # of M — a fundamental domain cut by NO half-spaces.
         fundamental_domain=FundamentalDomain(base, (), "all"),

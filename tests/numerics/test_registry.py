@@ -1309,3 +1309,41 @@ def test_selector_asks_the_nodes_not_the_declared_tag() -> None:
     _, log = select_quadrature("slab", target_degree=15)
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "GaussLegendre1D"
+
+
+@pytest.mark.foundation
+def test_the_reference_is_READ_off_the_catalogue_entry() -> None:
+    r"""Pattern 2 (#429 tracker 3.1, 2026-09-02): the hat-box answer has ONE
+    home, and it is the orbit space's own derivation.
+
+    ``AngularSymmetry.reference`` used to TABULATE ``LEGENDRE`` for any
+    rotation axis; it now reads :attr:`Quotient.reference` off the entry
+    :attr:`support` derives — the same collapse ``support`` underwent at
+    tracker 2.4. Three legs: the axial geometry reads the entry's field by
+    IDENTITY; the geometry that spends nothing has the bare sphere as its
+    domain, so its reference is the sphere's own Lebesgue measure (a
+    property of the base, not a catalogue read — user-ruled); and the
+    arm for an entry whose pushforward no shipped realization spells
+    RAISES naming the missing work (``plan-authoring`` §6c: the gate lands
+    with its witness — a constructed geometry spending a mirror).
+    """
+    from orpheus.numerics.manifold import Quotient
+
+    slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
+    assert isinstance(slab.support, Quotient)
+    assert slab.reference is slab.support.reference
+    assert slab.reference is LEGENDRE
+
+    cylinder = GEOMETRY_ANGULAR_SYMMETRY["cylinder"]
+    assert cylinder.support is SPHERE
+    assert cylinder.reference is UNIFORM_ON_SPHERE
+
+    spends_a_mirror = AngularSymmetry(
+        continuous_isotropy=SubgroupOfO3.Mirror("y"),
+        discrete_residual=SubgroupOfO3.Trivial,
+    )
+    mirror_entry = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+    assert spends_a_mirror.support == mirror_entry
+    assert mirror_entry.reference is None
+    with pytest.raises(NotImplementedError, match="no shipped ReferenceMeasure"):
+        _ = spends_a_mirror.reference

@@ -315,9 +315,8 @@ from collections.abc import Sequence
 from typing import Any, Callable
 
 from ..exactness import UNIFORM_ON_SPHERE, ReferenceMeasure
-from ..generating_measure import LEGENDRE
 from ..measure import DiscreteMeasure
-from orpheus.numerics.manifold import SPHERE, Manifold
+from orpheus.numerics.manifold import SPHERE, Manifold, Quotient
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_polar_orbit
 from .rules_product import product_mu_phi
@@ -909,14 +908,31 @@ class AngularSymmetry:
 
     @property
     def reference(self) -> ReferenceMeasure:
-        r"""The measure a degree must be **against** — derived, not declared.
+        r"""The measure a degree must be **against** — READ off the orbit space.
 
         Transport integrates :math:`\phi = \int \psi \, d\Omega`
         **unweighted**, so the reference is Lebesgue measure on whatever
-        angular domain the dimensional reduction left behind. Like
+        angular domain the dimensional reduction left behind — the
+        pushforward of :math:`d\Omega` along the quotient map of the spent
+        group, which is a derivation OUTPUT of the catalogue entry
+        (:attr:`Quotient.reference
+        <orpheus.numerics.manifold.Quotient.reference>`). Like
         :attr:`support`, it is a function of the spent group alone: the
-        domain and the measure on it are one fact, and storing a second
-        column would let them drift.
+        domain and the measure on it are one fact, and since #429 tracker
+        3.1 (2026-09-02) they are read off ONE object. Until then this
+        property was the hat-box theorem's second home — ``LEGENDRE``
+        tabulated here for any rotation axis while the entry carried every
+        other output of its derivation — the same twin :attr:`support` was
+        until tracker 2.4 (`[M]` one production reader, the selector's V
+        stage).
+
+        The one arm that is not a catalogue read is the geometry that spends
+        NOTHING. Its domain is the bare sphere, not the trivial quotient
+        (:attr:`support` returns ``SPHERE`` so that every 2-D / 3-D rule's
+        declared support matches at stage 0), and Lebesgue on :math:`S^2`
+        is ``UNIFORM_ON_SPHERE`` — a property of the base, which is why the
+        trivial entry itself ships ``reference=None`` (user-ruled
+        2026-09-02).
 
         ⭐ Why this is not redundant with :attr:`support`. The support says
         *which space*; the reference says *which measure on that space*, and
@@ -932,21 +948,35 @@ class AngularSymmetry:
 
         ``LEGENDRE`` is Lebesgue measure on :math:`[-1,1]`: its weight is
         :math:`w(x) = 1`, and `[M]` its mass is exactly 2. It is named for
-        the polynomial family it generates, not for a weighting.
+        the polynomial family it generates, not for a weighting; the
+        hat-box constant :math:`2\pi` is no claim's business.
+
+        Raises
+        ------
+        NotImplementedError
+            If the spent group's catalogue entry carries no reference — no
+            shipped :class:`ReferenceMeasure` realization spells the
+            pushforward (the mirrors' weighted disk measure). The message
+            names the missing WORK. A spent group with no catalogue entry
+            at all is refused one call earlier, by :attr:`support`.
         """
-        spent = self.continuous_isotropy
-        if spent.rotation_axis is not None:
-            # Whatever the axis: the pushforward of dΩ under μ = Ω·ê_a is
-            # 2π dμ (Archimedes' hat-box), i.e. uniform in the chart
-            # coordinate — Lebesgue on [-1, 1] up to the constant.
-            return LEGENDRE
-        if spent == SubgroupOfO3.Trivial:
-            return UNIFORM_ON_SPHERE
-        raise NotImplementedError(
-            f"no exactness reference is defined for the quotient "
-            f"S^2/{spent.name}; extend AngularSymmetry.reference when a "
-            f"geometry first spends it"
-        )
+        support = self.support
+        if isinstance(support, Quotient):
+            reference = support.reference
+            if reference is None:
+                raise NotImplementedError(
+                    f"the catalogue entry for {support.name} carries no "
+                    f"exactness reference: no shipped ReferenceMeasure "
+                    f"realization spells the pushforward of dOmega along its "
+                    f"quotient map. Add one to orpheus/numerics/exactness.py "
+                    f"and populate `reference` in the entry's derivation in "
+                    f"orpheus/numerics/manifold.py."
+                )
+            return reference
+        # The bare sphere: a geometry that spends nothing integrates
+        # against Lebesgue on S^2 itself, and the sphere is the base, not
+        # a catalogue entry.
+        return UNIFORM_ON_SPHERE
 
     def admits_domain(self, measure: DiscreteMeasure) -> bool:
         """Stage 0 — does the rule live on this geometry's angular domain?"""

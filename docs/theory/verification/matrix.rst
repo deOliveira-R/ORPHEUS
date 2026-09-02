@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10616**
+Total tests collected: **10644**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1298, 12.2%
-   L1, 1643, 15.5%
+   L1, 1643, 15.4%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7592, 71.5%
+   foundation, 7620, 71.6%
    unmarked, 19, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10518
+   explicit, 10546
    class-name, 46
    func-name, 0
    case, 33
@@ -360,7 +360,7 @@ Module × level grid
    numerics/test_iteration, 0, 3, 0, 0, 28, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 136, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
-   numerics/test_manifold, 0, 0, 0, 0, 70, 0
+   numerics/test_manifold, 0, 0, 0, 0, 97, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -372,7 +372,7 @@ Module × level grid
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
    numerics/test_power_iteration_record, 0, 0, 0, 0, 30, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 88, 0
-   numerics/test_registry, 0, 0, 0, 0, 74, 0
+   numerics/test_registry, 0, 0, 0, 0, 75, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_riesz_legs, 0, 0, 0, 0, 0, 11
    numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
@@ -905,7 +905,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **577** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **578** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1163,6 +1163,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``majorant-real-collision``
 - ``manifold-map-functoriality``
 - ``manifold-procesi-schwarz``
+- ``manifold-quotient-pushforward``
 - ``manifold-s2-mod-mirror``
 - ``matrix-functor-out``
 - ``matrix-inverse-direct-residual``

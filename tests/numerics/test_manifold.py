@@ -37,6 +37,16 @@ Three groups:
    :math:`S^2/SO(2)_a \to D^3` — each land where their codomain says,
    with the ERR-080 discriminator (the barycentre is OFF the sphere except
    at the poles) stated as a property of the map.
+
+5. **The entry's own map and its reference** (#429 tracker 3.1,
+   2026-09-02).  D0.1's last two derivation outputs are fields of the
+   :class:`Quotient`: the quotient map :math:`\pi : M \to M/H` (an arrow
+   INTO the entry, :math:`H`-invariant by the defining property, agreeing
+   with the recorded symbolic invariants, and sitting between the two
+   arrows of group 4 — :math:`\pi \circ \varphi_a = \mathrm{pr}_1`,
+   :math:`\beta_a \circ \pi = ` the axial projection) and the pushforward
+   reference (the hat-box measure on the axial entries; ``None`` where no
+   shipped realization spells it), which the registry now READS.
 """
 
 from __future__ import annotations
@@ -674,6 +684,7 @@ class TestTheTwoCoordinateSystemsMustAgree:
                 base=SPHERE,
                 by=SubgroupOfO3.Mirror("y"),
                 realization=COSINE_INTERVAL,
+                orbit_coordinates=lambda points: points[:, 1],
                 fundamental_domain=hemisphere,
             )
 
@@ -901,4 +912,299 @@ class TestManifoldMap:
         assert isinstance(rule.support, Quotient)
         assert np.array_equal(
             _embedded_nodes(rule), barycentre(rule.support)(rule.nodes)
+        )
+
+
+# ---------------------------------------------------------------------------
+# 5. The entry's own map and its reference (#429 tracker 3.1)
+# ---------------------------------------------------------------------------
+
+
+def _random_directions(n: int, seed: int = 0) -> np.ndarray:
+    rng = np.random.default_rng(seed)
+    omega = rng.normal(size=(n, 3))
+    return omega / np.linalg.norm(omega, axis=1, keepdims=True)
+
+
+def _rotation_about(axis: int, theta: float) -> np.ndarray:
+    """A proper rotation about coordinate axis ``axis`` — an element of
+    :math:`SO(2)_a`, written by hand so the test does not read the group
+    it is checking."""
+    b, c = (axis + 1) % 3, (axis + 2) % 3
+    R = np.eye(3)
+    R[b, b] = R[c, c] = np.cos(theta)
+    R[b, c], R[c, b] = -np.sin(theta), np.sin(theta)
+    return R
+
+
+#: Every shipped orbit space of the sphere: the six catalogue keys plus the
+#: derived identity quotient.  A universal below is a universal over THIS.
+_ROSTER = [
+    SubgroupOfO3.SO2("x"), SubgroupOfO3.SO2("y"), SubgroupOfO3.SO2("z"),
+    SubgroupOfO3.Mirror("x"), SubgroupOfO3.Mirror("y"), SubgroupOfO3.Mirror("z"),
+    SubgroupOfO3.Trivial,
+]
+
+
+class TestTheEntryCarriesItsQuotientMapAndItsReference:
+    r"""D0.1's last two derivation outputs are FIELDS of the entry.
+
+    Until 2026-09-02 the quotient map :math:`\pi : S^2 \to S^2/SO(2)_a`
+    *"was not a value anywhere"* and the pushforward reference lived on
+    the registry as a tabulated twin.  Each test below pins one law the
+    map must satisfy AS a quotient map — :math:`H`-invariance (its
+    defining property), agreement with the symbolic invariants the entry
+    records, the two witnesses against the arrows on either side of it,
+    and the pushforward identity :eq:`discrete-measure-pushforward` on a
+    real sphere rule — then the reference, and that the registry reads it
+    off ONE object.
+    """
+
+    _AXES = ["x", "y", "z"]
+
+    @pytest.mark.parametrize("axis", _AXES)
+    def test_the_quotient_map_is_an_arrow_from_the_base_INTO_the_entry(
+        self, axis: str
+    ) -> None:
+        """Codomain = the entry itself, never its chart codomain — the
+        distinction tracker 2.4 made refusable, now carried by the map."""
+        from orpheus.numerics.manifold import ManifoldMap
+
+        q = SPHERE.quotient(SubgroupOfO3.SO2(axis))
+        pi = q.quotient_map
+        assert isinstance(pi, ManifoldMap)
+        assert pi.domain is SPHERE
+        assert pi.codomain is q
+        assert pi.codomain != COSINE_INTERVAL
+        mu = pi(_random_directions(64))
+        assert mu.shape == (64,)
+        assert q.contains(mu)
+
+    @pytest.mark.parametrize("group", _ROSTER, ids=lambda g: g.name)
+    def test_the_quotient_map_is_INVARIANT_under_the_group_it_quotients_by(
+        self, group
+    ) -> None:
+        r"""The defining property of a quotient map: :math:`\pi(h\Omega) =
+        \pi(\Omega)` for every :math:`h \in H` — bit-exactly here, because
+        every shipped :math:`h` has exact 0/±1 entries in the rows
+        :math:`\pi` reads.  With the negative leg (``vv-principles`` #11):
+        an element OUTSIDE :math:`H` moves the image.
+
+        ⚠ The outsider must be chosen: `[M]` 2026-09-02 (archivist)
+        :math:`\pi_a` is ALSO invariant under :math:`\sigma_b`, :math:`b
+        \neq a` — :math:`O(2)_a` and :math:`SO(2)_a` induce the same orbit
+        partition, so a quotient map determines the PARTITION and the
+        partition does not determine the group.  ``Quotient.by`` is a
+        declaration, not something the map could recover.  The outsider
+        below is a rotation about ANOTHER axis, which does move it."""
+        q = SPHERE.quotient(group)
+        pi = q.quotient_map
+        omega = _random_directions(128, seed=1)
+        before = pi(omega)
+        if group.rotation_axis is not None:
+            elements = [_rotation_about(group.rotation_axis, t) for t in (0.3, 1.7, 4.1)]
+            outsider = _rotation_about((group.rotation_axis + 1) % 3, 0.3)
+        elif group.mirror_axis is not None:
+            elements = [np.diag([-1.0 if i == group.mirror_axis else 1.0 for i in range(3)])]
+            outsider = np.diag([-1.0 if i != group.mirror_axis else 1.0 for i in range(3)])
+        else:
+            elements = [np.eye(3)]
+            outsider = _rotation_about(0, 0.3)
+        for h in elements:
+            assert np.array_equal(pi(omega @ h.T), before), group.name
+        assert not np.array_equal(pi(omega @ outsider.T), before), group.name
+
+    @pytest.mark.parametrize("group", _ROSTER, ids=lambda g: g.name)
+    def test_the_numeric_map_IS_the_recorded_symbolic_invariants(self, group) -> None:
+        r"""⭐ The D0.1 tie: the engine would ``lambdify`` the surviving
+        invariants; the hand entry spells them as a column selection.  The
+        two must agree on random directions — bit-exactly, since every
+        surviving invariant of the shipped entries is a coordinate
+        function.  The convention pinned here: the realization's
+        coordinates are the FIRST ``ambient_dim(realization)`` generators,
+        each written as ``p_i - (invariant in x, y, z)`` (or the bare
+        coordinate for the trivial entry)."""
+        sp = pytest.importorskip("sympy")
+        q = SPHERE.quotient(group)
+        k = ambient_dim(q.realization)
+        # Each generator is written `slot - invariant(ambient)`, the slot
+        # being the ONE symbol it depends on with derivative exactly 1 — or
+        # a bare ambient coordinate (the trivial entry).  Found structurally,
+        # not by name: the sphere entries spell the ambient `x y z`, the
+        # generic trivial derivation spells it `x0:n`.
+        surviving = []
+        for g in q.generators[:k]:
+            slots = [sym for sym in g.free_symbols if sp.diff(g, sym) == 1]
+            if isinstance(g, sp.Symbol):
+                surviving.append(g)
+            else:
+                assert len(slots) == 1, (group.name, g)
+                surviving.append(sp.solve(g, slots[0])[0])
+        ambient = sorted(set().union(*(e.free_symbols for e in surviving)), key=str)
+        assert len(ambient) <= 3
+        # the derivations' coordinate order IS the name order (x < y < z,
+        # x0 < x1 < x2), so the sorted symbols bind to the columns in order
+        columns = [int(str(a)[1:]) if str(a)[1:].isdigit() else "xyz".index(str(a)) for a in ambient]
+        symbolic = sp.lambdify(ambient, surviving, "numpy")
+        omega = _random_directions(32, seed=2)
+        expected = np.column_stack(np.broadcast_arrays(*symbolic(*omega[:, columns].T)))
+        got = q.orbit_coordinates(omega)
+        assert np.array_equal(got.reshape(32, -1), expected), group.name
+
+    @pytest.mark.parametrize("axis", _AXES)
+    def test_pi_after_archimedes_is_the_first_projection_BIT_EXACTLY(
+        self, axis: str
+    ) -> None:
+        r""":math:`\pi_a \circ \varphi_a = \mathrm{pr}_1` — the arrow on the
+        other side of the Archimedes parametrisation, composed through the
+        typed ``@`` so the endpoints are checked too."""
+        from orpheus.numerics.manifold import archimedes
+        from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
+
+        q = SPHERE.quotient(SubgroupOfO3.SO2(axis))
+        composite = q.quotient_map @ archimedes(axis)
+        assert composite.domain == COSINE_INTERVAL * CIRCLE
+        assert composite.codomain is q
+        rng = np.random.default_rng(3)
+        for n in (2, 4, 8, 16):
+            mu = np.asarray(gauss_legendre_on_mu(n).nodes).reshape(-1)
+            phi = rng.uniform(0.0, 2.0 * np.pi, size=mu.size)
+            points = np.column_stack([mu, np.cos(phi), np.sin(phi)])
+            assert np.array_equal(composite(points), mu), (axis, n)
+
+    @pytest.mark.parametrize("axis", _AXES)
+    def test_barycentre_after_pi_is_the_axial_projection(self, axis: str) -> None:
+        r""":math:`\beta_a \circ \pi_a : \Omega \mapsto (\Omega \cdot \hat e_a)
+        \hat e_a` — the orbit's centre, and the ERR-080 forgery's honest
+        spelling: a point of the ball, on the sphere only at the poles."""
+        from orpheus.numerics.manifold import AXIS_INDEX, barycentre
+
+        q = SPHERE.quotient(SubgroupOfO3.SO2(axis))
+        composite = barycentre(q) @ q.quotient_map
+        assert composite.domain is SPHERE and composite.codomain == Ball(3)
+        omega = _random_directions(256, seed=4)
+        projection = np.zeros_like(omega)
+        projection[:, AXIS_INDEX[axis]] = omega[:, AXIS_INDEX[axis]]
+        assert np.array_equal(composite(omega), projection)
+        assert Ball(3).contains(composite(omega))
+        assert not SPHERE.contains(composite(omega))
+
+    def test_a_sphere_rule_pushed_along_pi_lands_on_the_entry_and_obeys_the_pullback_identity(
+        self,
+    ) -> None:
+        r"""The two induced arrows, on a REAL rule: :math:`\pi_*\mu` lives on
+        :math:`S^2/SO(2)_x` because :math:`\pi` says so, and
+        :math:`\int f \, d(\pi_*\mu) = \int (f \circ \pi) \, d\mu`
+        (:eq:`discrete-measure-pushforward`) — checked on
+        :math:`f(\mu) = \mu^2`, whose sphere integral is :math:`4\pi/3`.
+        With the refusal leg: a rule on the chart cannot be pushed along a
+        map out of the sphere."""
+        from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
+        from orpheus.numerics.quadrature.rules_sphere import level_symmetric_sn
+
+        q = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        rule, _ = level_symmetric_sn(4)
+        pushed = rule.pushforward(q.quotient_map)
+        assert pushed.support is q
+        assert np.array_equal(pushed.nodes, rule.nodes[:, 0])
+        assert np.array_equal(pushed.weights, rule.weights)
+        lhs = pushed.integrate(lambda mu: mu**2)
+        rhs = rule.integrate(lambda omega: omega[:, 0] ** 2)
+        assert lhs == rhs
+        assert np.isclose(lhs, 4.0 * np.pi / 3.0)
+        with pytest.raises(ValueError, match="map's domain must be the measure's support"):
+            gauss_legendre_on_mu(4).pushforward(q.quotient_map)
+
+    def test_the_axial_entries_carry_the_hat_box_reference_and_the_others_carry_None(
+        self,
+    ) -> None:
+        r"""Archimedes: :math:`\mu_* d\Omega = 2\pi\,d\mu`, so the reference
+        is Lebesgue on :math:`[-1,1]` — ``LEGENDRE``, identically, on all
+        three axes.  ``None`` on the mirror (a weighted disk measure no
+        shipped realization spells) and on the trivial quotient (Lebesgue
+        on the BASE, whose orthogonal system the type does not carry)."""
+        from orpheus.numerics.generating_measure import LEGENDRE
+
+        for axis in self._AXES:
+            assert SPHERE.quotient(SubgroupOfO3.SO2(axis)).reference is LEGENDRE
+        assert LEGENDRE.support == COSINE_INTERVAL
+        for axis in self._AXES:
+            assert SPHERE.quotient(SubgroupOfO3.Mirror(axis)).reference is None
+        assert SPHERE.quotient(SubgroupOfO3.Trivial).reference is None
+        assert CIRCLE.quotient(SubgroupOfO3.Trivial).reference is None
+        # ⚠ A reference lives on the REALIZATION — the chart codomain, where
+        # the quotient map's image lands and where 2 pi d(mu) is written —
+        # never on the entry, which would demand a measure carry an axis it
+        # does not know.  `[M]` 2026-09-02 (archivist): nothing in orpheus/
+        # reads `reference.support`, so this is the only pin on it.
+        for group in _ROSTER:
+            q = SPHERE.quotient(group)
+            if q.reference is not None:
+                assert q.reference.support == q.realization
+                assert q.reference.support != q
+
+    def test_the_map_is_DERIVED_so_it_takes_no_part_in_equality_and_survives_a_pickle(
+        self,
+    ) -> None:
+        """Two honest constructions of one entry compare equal (a function
+        has no value equality, and the map is a function of ``(base, by)``),
+        and an entry — a support, hence a thing measures carry — pickles."""
+        import pickle
+
+        q = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        twin = dataclasses.replace(q, orbit_coordinates=lambda points: points[:, 0])
+        assert twin == q and hash(twin) == hash(q)
+        assert twin.quotient_map.codomain is twin
+        omega = _random_directions(8, seed=5)
+        back = pickle.loads(pickle.dumps(q))
+        assert back == q
+        assert np.array_equal(back.quotient_map(omega), q.quotient_map(omega))
+        assert back.reference == q.reference
+
+    def test_no_quotient_is_minted_at_MODULE_scope_anywhere_in_the_package(self) -> None:
+        r"""The function-scope import's safety condition, gated.
+
+        ``_sphere_mod_so2`` imports ``LEGENDRE`` at FUNCTION scope; `[M]` the
+        same line at module scope kills 7 of 7 fresh import orders (the cycle
+        closes through ``measure``, which ``generating_measure`` imports, and
+        ``numerics/__init__`` imports ``measure`` eagerly).  That is safe
+        exactly while no quotient is built during package initialisation —
+        a property of the CALL SITES, which a later module-scope
+        ``SPHERE.quotient(...)`` anywhere in ``orpheus/`` would silently
+        break.  So the condition is asserted here, by AST over the package,
+        with a positive control proving the detector sees a violation.
+        """
+        import ast
+        import pathlib
+
+        import orpheus
+
+        def module_scope_minting(tree: ast.AST) -> list[int]:
+            hits: list[int] = []
+            for node in getattr(tree, "body", []):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    continue  # a body below this runs at CALL time, not import time
+                for sub in ast.walk(node):
+                    if (
+                        isinstance(sub, ast.Call)
+                        and isinstance(sub.func, ast.Attribute)
+                        and sub.func.attr in ("quotient", "on_orbit_space")
+                    ):
+                        hits.append(sub.lineno)
+            return hits
+
+        # positive control: the detector flags a module-scope mint
+        control = ast.parse("from m import SPHERE, G\nQ = SPHERE.quotient(G)\ndef f():\n    return SPHERE.quotient(G)\n")
+        assert module_scope_minting(control) == [2]
+
+        root = pathlib.Path(orpheus.__file__).parent
+        offenders = {
+            str(path.relative_to(root.parent)): lines
+            for path in sorted(root.rglob("*.py"))
+            if (lines := module_scope_minting(ast.parse(path.read_text())))
+        }
+        assert offenders == {}, (
+            f"a quotient is minted at module scope in {offenders}; that runs "
+            f"during package initialisation and re-opens the manifold -> "
+            f"generating_measure -> measure import cycle"
         )

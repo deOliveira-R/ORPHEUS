@@ -9542,3 +9542,175 @@ refuted `Ball` claim, the inert xref patch — all published) · Code traceabili
 Derivation source **3** — no `derivations/` script; the algebra (hat-box, orbit barycentre,
 Procesi–Schwarz) is textbook and already lives in the catalogue's SymPy regression tests.
 **Weakest dimension: derivation source**, structurally so for a type-law page.
+
+## L-083 — the catalogue entry's own arrow (#429 tracker 3.1): a "picklable" claim that splits in two, a stabiliser bigger than its group, and an import cycle whose verdict is placement-independent
+
+**Task.** Docs-only pass for #429 tracker 3.1 on branch `fix/angular-phantom-support`
+(HEAD `3623adc2` + uncommitted code). Two new `Quotient` fields — `orbit_coordinates`
+(+ the derived `quotient_map` property) and `reference` — plus the registry twin
+`AngularSymmetry.reference` collapsing onto the entry. Edited
+`docs/theory/foundations/manifolds.rst` (+1226/−…), `discrete_measures.rst` (+58),
+`error_catalog.rst` (+55); `matrix.rst` regenerated. Baseline and final `-E -W`
+both **0** W/E/C, EXIT=0.
+
+### (a) ⛔ REFUTED: "picklable, `[M]` pickle round-trip equal" is TWO claims and only one holds
+
+The brief said the `functools.partial(_ambient_columns, …)` spelling is
+*"picklable, `[M]` pickle round-trip equal"*. `[M]` over all **7** shipped quotients
+of `S^2` (six catalogue keys + the derived identity): the callable round-trips with
+no `PicklingError` and gives bit-identical output **7 of 7** — that is the property
+the spelling was chosen for, and it holds, and a `lambda` would fail it. But
+`pickle.loads(pickle.dumps(f)) == f` is **1 of 7**: `functools.partial` inherits
+`object.__eq__`, so only the trivial entry's plain module-level `_all_coordinates`
+compares equal, and for a reason that does not generalise (a function pickles *by
+reference*, so unpickling returns the same object).
+
+⭐ **The refutation produced a better argument than the claim.** The load-bearing
+consequence is what `field(compare=False)` *buys*: `[M]` `pickle.loads(pickle.dumps(q))
+== q` is **True 7 of 7** precisely BECAUSE the callable is excluded from `__eq__` —
+and the entry is memoised into a cache and used as a dict key. So the exclusion is
+load-bearing for **serialisation**, not merely "a function has no value equality"
+(which is what the production comment says, and is true but weaker). ⟹ when a brief
+conflates *X works* with *X compares equal*, measure both; the gap is usually where
+the design's real justification lives.
+
+### (b) ⭐⭐ A quotient map's own stabiliser can be BIGGER than the group the entry names — an EXACT predicate that still under-determines
+
+Writing the "H-invariance, with a negative leg" row I chose the natural negative
+element (a mirror about a different axis) and it **failed on 3 of 7** — the three
+`SO2(a)` entries. Not a defect: `[M]` `π_a` is bit-exactly unchanged under `σ_b`
+for `b ≠ a`, and `σ_b ∉ SO(2)_a`. The reason is structural — a reflection in a plane
+*containing* the axis maps each constant-`μ` circle to itself, so `O(2)_a` and
+`SO(2)_a` induce the **same orbit partition** of `S²`, hence the same orbit space,
+invariants and map. The mirror family is the contrast that makes it checkable: there
+the stabiliser is exactly `⟨σ_a⟩` and `σ_x` genuinely moves `π_y`'s image.
+
+⟹ **a quotient map determines the PARTITION, and the partition does not determine
+the group.** `Quotient.by` is a *declaration*; nothing derives it, and
+`Basis.invariance_group` reads it. ⭐ And the epistemic shape is one register sharper
+than ERR-072: that one is a group predicate under-determining its group because it was
+**sampled**; this one under-determines while being **exact**, so no refinement can
+fix it. Re-run with a rotation about a different axis the negative leg is **7 of 7**.
+⟹ a "negative leg" must be chosen outside the measured functional's TRUE stabiliser,
+not outside the group you happen to be documenting (vv #17's control clause, at the
+design tier).
+
+### (c) ⭐⭐ A §6d import-cycle verdict needs BOTH module-scope placements, and the package `__init__` is what makes it placement-independent
+
+The brief measured *"function-scope alive 7/7, module-scope dead 7/7 —
+`ImportError: cannot import name 'DiscreteMeasure'`"*. Reproduced on my own **renamed
+shadow copy** (`shadowpkg`, so the editable install's `sys.meta_path` finder cannot
+serve the real tree — every subprocess prints the `__file__` it loaded; L-050's trap,
+defeated by renaming rather than by stripping the finder). Verdict reproduced; the
+**message did not**, and chasing that produced the better section:
+
+| placement | alive | first failure |
+|---|---|---|
+| function scope (shipped) | **7 of 7** | — (the positive control) |
+| module scope, **top** of file | **0 of 7** | `cannot import name 'Manifold'` — `exactness` is reached first |
+| module scope, **bottom**, every name bound | **0 of 7** | `cannot import name 'DiscreteMeasure'` — one hop on, in `generating_measure`'s own `measure` import |
+
+⭐ Testing the *most favourable* module-scope position is what turns "module scope is
+dead" from a sample into a claim: bottom-placement is the one a reader would propose
+as the fix, and it is dead too. ⭐⭐ And the reason all seven entry points agree is
+`orpheus/numerics/__init__.py` eagerly importing `.measure` at module scope — the
+package body runs first, so the entry point has no say and the effective order is
+fixed. That is publishable: it says the cycle is **not** order-dependent, unlike the
+one the module's guard was written for (which is exactly what let a smoke test pass
+on a broken façade).
+
+⭐ **The transferable rule the section is built on:** a `TYPE_CHECKING` guard defers a
+**name** and can never carry a **value**. 3.1 needs both — the *type*
+`ReferenceMeasure` (annotation only, erased under `from __future__ import
+annotations`) and the *value* `LEGENDRE` — so it needs two different mechanisms, and
+the corpus had been treating "the cycle blocks the import" as "the cycle blocks the
+slot". `[M]` the type's import is free because `ReferenceMeasure` is a
+`@runtime_checkable` `Protocol` of three members that `LEGENDRE` (a
+`GeneratingMeasure`) satisfies **structurally**.
+
+### (d) ⭐ Its safety condition is a property of the CALL SITES, so it can be broken from outside the module
+
+The function-scope import is safe iff the function never runs during module
+initialisation. `[M]` by AST over `orpheus/` **with call depth tracked**: **8** calls
+that can mint a quotient (7 `.quotient(…)` + 1 `.on_orbit_space(…)`), **0 of 8** at
+module scope. ⭐ Publish the *total* as the positive control — a filter finding zero
+CALLS prints the same safe-looking zero as one finding zero MODULE-SCOPE calls, and
+only the first number separates them. And say the hazard is external: a future
+module-scope `SPHERE.quotient(...)` anywhere re-opens the cycle from the other end,
+gated by nothing; the check's predicate is *call depth zero*, not the spelling.
+
+### (e) The brief's other numbers, re-derived
+
+| brief | mine | verdict |
+|---|---|---|
+| `dataclasses.fields(Quotient)` = 12 | 12 | ✅ |
+| `manifold.py` `:612 / :667 / :704 / :1084 / :1099 / :1194 / :1238 / :1371 / :1421` | all exact | ✅ |
+| registry `:910` `.reference`, `:979` `UNIFORM_ON_SPHERE` | exact; the `support.reference` read is `:965`, brief said `:964` | ✅ (±1) |
+| four geometries answer as before, slab/sphere by identity | reproduced, `is`-identity confirmed | ✅ |
+| π ∘ φ = pr₁ bit-exact 12 of 12 | 12 of 12 | ✅ |
+| β ∘ π = axial projection 3 of 3 | 3 of 3 | ✅ |
+| ∫μ² d(π\_\*μ) ≈ 4π/3 | `4.18879020478639`, **1 ULP** from 4π/3 | ✅, sharpened |
+| symbolic-invariants tie 5 of 5 | **7 of 7** (brief's 5 was a sample of the 7-entry roster) | ✅, widened |
+| `.reference` reads in `orpheus/` = 9 | **10** by AST (the new `support.reference` is the 10th) | ⚠ off by one |
+| 3 `match Quotient(...)` patterns incl. one "inside `barycentre`" | 3 patterns, but `barycentre` uses `isinstance`; the third is `ambient_dim` `:1484` | ⚠ site mis-attributed, conclusion right |
+| `class Descent` / `class IsometryGroup` = 0 | 0 / 0 | ✅ |
+
+### (f) ⭐ The honest-scope finding the brief did not state: 3.1's two halves have OPPOSITE consumption
+
+`[M]` over `orpheus/`: `Quotient.reference` has **one** production reader
+(`registry.py:965`) while `quotient_map` and `orbit_coordinates` have **zero** outside
+their own module — ten and three occurrences respectively, all in
+`tests/numerics/test_manifold.py`. So half of 3.1 is CONSUMED and half is a
+capability. Stated in Key Facts, the new section's `.. warning::`, the ERR-080 block
+and the changelog row, per L-079's three-places rule for a zero-consumer mint.
+
+### (g) ⭐ A gotcha found by writing, not by grepping: the reference lives in the CHART's coordinates
+
+`[M]` `GEOMETRY_ANGULAR_SYMMETRY['slab'].support.name` is `'S^2/SO2_x'` while its
+`reference.support.name` is `'[-1,1]'`, and `grep` finds **no** read of
+`reference.support` in `orpheus/`. Not a defect — `2π dμ` is naturally written in the
+invariant, which is where `quotient_map`'s image lands — but a future gate must assert
+`entry.reference.support == entry.realization`, **never** `== entry`: the second would
+demand a measure carry an axis the measure genuinely does not know. This is the
+two-coordinate-systems asymmetry one register down, and it needed a `.. warning::`
+because nothing in the tree states it.
+
+### (h) Instrument notes
+
+- **My HTML render slice was designed-green on the first attempt**: `body.find("The
+  second operand…")` matched the `.. contents::` TOC entry, giving a **749**-char
+  slice that reported "0 backticks". L-082's trap, hit again. Fixed by anchoring on
+  the section `id=`s with `rfind` for the end **and asserting the slice length**
+  (54 315 chars) plus seven known-content probes. Result: 0 stray backticks (the 2
+  found are inside a `.. code-block:: text` quoting the production `NotImplementedError`
+  verbatim, which contains a literal backtick), 0 leaked roles, 0 smartquote
+  mis-directions, 21 `<cite>` all `[M]`, 28 internal links rendering.
+- **The xref gate needed its split control again.** With a throwaway `docs/_arch31_ctl.rst`
+  carrying 2 dead + 1 live role: **stock 0 dead**, **patched 2 dead / 2 sites**,
+  `decidable` +2 — the split is what proves the patch is live. Control removed:
+  patched **0 dead** over 1006 files / 16 967 roles / 14 263 decidable. L-082's
+  `head_role` fix is still **UNLANDED** in `tools/check_docstring_xrefs.py`.
+- **My own structural self-check's one "failure" is the known false positive**: the
+  duplicate `boltzmann` eq-label is a `.. code-block:: rst` EXAMPLE in
+  `verification/harness.rst`. A label scanner that cannot see literal blocks reports
+  the corpus documenting itself.
+- **`rm -rf` inside a compound Bash command is refused here** (as `process-discipline`
+  records) — the shadow copy at `scratch/_arch31_shadow/` survives; its rebuild recipe
+  is in `scratch/_arch31_cycle.py`.
+- **Predicted and confirmed:** +1 `documented` label ⟹ `matrix.rst` sentinels
+  **577 → 578**, `manifold-quotient-pushforward` in the documented list. The test-count
+  moves in the same regenerated file (10616 → **10638**, `test_manifold` 70 → **91**,
+  `test_registry` 74 → **75**) are the CODE side's uncommitted tests absorbed by the
+  `-E` rebuild — a legitimate by-product, reported not reverted.
+
+### (i) Quality self-assessment
+
+Derivation depth **5** (the hat-box and the weighted-disk Jacobian both derived from
+scratch and mass-checked to 4π) · Cross-references **5** (135 project roles, 0 dead;
+28 rendering links in the new sections) · Numerical evidence **5** (every table row
+re-measured; three brief numbers corrected) · Failed approaches **5** (three
+tombstoned rows, one discharged deferral, one prediction verified verbatim) · Code
+traceability **5** · Derivation source **3** — the two pushforwards are derived in the
+PAGE with a SymPy cross-check I ran in `scratch/`, not in a tracked
+`derivations/` module. ⟹ **weakest dimension: derivation source.** The honest ask is
+below.

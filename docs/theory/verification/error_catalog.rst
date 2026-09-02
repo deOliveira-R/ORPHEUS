@@ -6136,6 +6136,61 @@ older entries classify against.
      :math:`\langle\Omega_i\rangle` and is therefore derived rather than
      defaulted.
 
+     ✅ **Progress 2026-09-02 (tracker 3.1) — the honest map is now a
+     FIELD of the orbit space, and so is the measure it pushes
+     forward. The defect is unchanged.** Tracker 2.3 gave the point-set
+     layer arrows; 3.1 gives the catalogue **entry** the one arrow it
+     owns, :math:`\pi : M \to M/H`.
+     :attr:`~orpheus.numerics.manifold.Quotient.orbit_coordinates`
+     stores the quotient map's action on the base's ambient coordinates
+     (for :math:`S^2/SO(2)_a` it is the single surviving invariant
+     :math:`p_1 = \Omega\cdot\hat e_a`) and
+     :attr:`Quotient.quotient_map
+     <orpheus.numerics.manifold.Quotient.quotient_map>` derives the typed
+     arrow, whose **codomain is the entry** and never the
+     ``realization``. `[M]` 2026-09-02 the map is
+     :math:`H`-invariant bit-exactly with a negative leg,
+     :math:`\pi_a\circ\varphi_a = \mathrm{pr}_1` on **12 of 12**, and
+     :math:`\beta_a\circ\pi_a` is the axial projection on **3 of 3** —
+     so the honest barycentre map this entry names, the Archimedes
+     parametrisation and the quotient map now form one commuting
+     triangle, all three typed.
+
+     ⟹ **What that buys ERR-080 is the second half of its restatement.**
+     2.3 said the defect is the barycentre map with a forged codomain.
+     3.1 says what the forged arm was *reaching for* and could not
+     spell: a rule on a 1-D chart is a rule on
+     :math:`S^2/SO(2)_x`, and moving it to :math:`S^2` is a **pushforward
+     along a map** — which is now an operation with an owner, a domain
+     and a codomain, and which `[M]` REFUSES a measure whose support is
+     not the map's domain. The forgery is still spellable only because
+     it is a raw constructor and does not go through any of it.
+
+     ⛔ **Nothing here repairs the defect, and 3.1's two halves differ in
+     consumption.** `[M]` 2026-09-02 over ``orpheus/``:
+     :attr:`~orpheus.numerics.manifold.Quotient.reference` — the second
+     new field, carrying :math:`\pi_*\,d\Omega` as a
+     :class:`~orpheus.numerics.exactness.ReferenceMeasure`, ``LEGENDRE``
+     on the three axial entries by Archimedes' hat-box and ``None`` on
+     the mirrors and on :math:`M/\{e\}` — has **one** production reader,
+     :attr:`AngularSymmetry.reference
+     <orpheus.numerics.quadrature.registry.AngularSymmetry.reference>`,
+     which now reads the entry instead of tabulating a twin. But
+     ``quotient_map`` and ``orbit_coordinates`` have **zero** production
+     readers outside their own module: nothing in production pushes a
+     measure along :math:`\pi` yet, the ``angular_frame`` 1-D arm still
+     writes ``support=SPHERE`` over non-unit rows, no membership check
+     runs on the way into a measure, and `[M]` the **Gate** below still
+     declares **three** ``xfail(strict=True)`` rows, none of which 3.1
+     touches. ⚠ Nor does 3.1 supply a **section**: `[M]`
+     ``fundamental_domain`` is still ``None`` on every
+     :math:`S^2/SO(2)_a` entry, deliberately, because a section is a
+     *choice* while a quotient map is a derivation *output* — and this
+     entry's level-1 half is precisely a fabricated section
+     (:ref:`manifold-err-080-is-a-section`). See
+     :ref:`manifold-quotient-map` and
+     :ref:`manifold-pushforward-reference`.
+
      ✅ **Progress 2026-09-02 (tracker 2.3) — the forged map now has ONE
      honest typed spelling, and this entry gets a one-sentence
      statement.** :class:`~orpheus.numerics.manifold.ManifoldMap` gives
