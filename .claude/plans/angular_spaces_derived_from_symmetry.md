@@ -2959,6 +2959,112 @@ the gates declare about all three axes.
 
 ---
 
+## §V.5j ⭐⭐ 3.1's PRE-FLIGHT (2026-09-02, at `14c37aa9`) — the catalogue HOME is already landed, the row's re-home is not on the path, and what 3.1 still owes is TWO fields and one map
+
+The **17th** opener, run at the compaction point after 2.3 landed. Every `[M]`
+below is at `14c37aa9` (`scratch/_p23_reground.py`, AST/regex with positive
+controls; the existence pass is the same instrument Part XIV's §1 uses).
+
+### (a) ⛔ The row's premise is pre-2.0a: the "`numerics/symmetry/` catalog" LIVES IN `manifold.py`, ruled at E. Placement
+
+3.1's row reads *"`numerics/symmetry/` catalog: `IsometryGroup` entries from
+1.1 … `[M]` `numerics/symmetry.py` is a module today — this is a re-home"*.
+`[M]` the catalogue is `manifold._ORBIT_CATALOGUE` (`manifold.py:1270`): six
+keys, two procedures (`_sphere_mod_so2` `:1036`, `_sphere_mod_mirror` `:1132`)
+plus the derived trivial quotient (`_mod_trivial` `:1229`), memoised through
+`_catalogued_quotient` `:1005` — placed there by E. Placement (*"`Manifold` …
+its own module with no intra-`numerics` imports"*) and consumed in production
+since 2.4. `class IsometryGroup` **0** — the tree's group type is
+`SubgroupOfO3` (`symmetry.py:414`, 7 classes in the module) and minting a
+second would be the twin the plan forbids. ⟹ **the "catalog home" half of 3.1
+is LANDED** (2.0a + 1.1 + 2.4), and XII.2's *"the catalog home + the probe"*
+is half discharged. The re-home of `symmetry.py` (1847 lines, 7 classes, 29
+functions, **30** importer files — 10 `orpheus/`, 20 `tests/`) into a package
+serves Phases 5–6 (the other entries), which XII.2 says are **NOT on the
+path**; and ⚠ §6d: `numerics/__init__.py:43` re-exports `SubgroupOfO3` and
+`tests/test_layer_imports.py:172-190` documents the `numerics → geometry`
+back-edge that runs THROUGH `symmetry` (it imports `geometry.transformation`),
+tolerated only because geometry imports numerics by SUBMODULE. A package
+re-home must keep that discipline and is its own §6d step — not 3.1's.
+
+### (b) The data model, measured against D0.1's field list — 5 of 7 derivation outputs ship; the two missing are the ones 2.3 named
+
+D0.1: an entry's fields ARE the procedure's outputs — *generators, syzygy
+ideal, `P`, `det P`, the chart, the pushforward measure, the stratum*. `[M]`
+`dataclasses.fields(Quotient)` = `base, by, realization, fundamental_domain,
+generators, syzygy, gram, det_gram, derived_by, singular_stratum` (10).
+Present: generators ✓ syzygy ✓ `P` ✓ (`gram`) `det P` ✓ stratum ✓ (+
+`derived_by`, the provenance D0.1 also asks for, and the symbolic regression
+tests in `test_manifold.py::TestQuotient`). **Absent: the chart, as a MAP —
+and the pushforward measure.** `realization` is the chart's CODOMAIN; the
+map `S² → S²/SO(2)_a`, `Ω ↦ Ω·ê_a`, *"is still not a value anywhere"*
+(`manifolds.rst`, the arrows-not-built section). 2.3 minted the TYPE it
+needs (`ManifoldMap`) and its witness already exists: the archivist measured
+`π ∘ archimedes_a = pr₁` bit-exactly. The row's other items — *the action on
+the axis index set, Haar (or counting) measure* — have **0** consumers on the
+exit path (3.4 reads the mask, `Descent` reads the quotient map).
+
+### (c) The pushforward REFERENCE measure — the residue 2.3 deferred, its §6b/§6c/§6d measured
+
+*Twin:* `AngularSymmetry.reference` (`registry.py:911`) answers `LEGENDRE`
+for any rotation axis, `UNIFORM_ON_SPHERE` for `Trivial`, raises otherwise.
+`[M]` its ONE production reader is the selector's V stage,
+`registry.py:1272` (`wanted = angular_symmetry.reference`). ⚠ Landmine: a
+grep for `.reference` returns **46** hits because `ExactnessClaim.reference`
+shares the name (`exactness.py:343/391/399`) — discriminate by the receiver.
+*§6b for a new `Quotient` field with a default:* `[M]` **3** constructor
+sites, all in `manifold.py` (the three derivation returns `:1106`, `:1201`,
+`:1248`) + 1 in `tests/`; the other `Quotient(` hits (`measure.py:489`,
+`manifold.py:1319`) are `match` patterns, untouched by a keyword field.
+*§6d:* module scope is a **5 of 5** cycle (measured at 2.3); the viable
+mechanism is a function-scope import inside the derivation function — ⚠ and
+that is safe only if no quotient is built at IMPORT time. `[M]` today
+`AngularSymmetry.support`/`.reference` are properties, `gauss_legendre_on_polar_orbit`
+is a function, and the registry's static table stores specs, not measures —
+so the first `quotient()` runs at rule construction, after every module is
+loaded. **Inject and run at 3.1's opener anyway** (the 2026-08-26 §6d row:
+order-dependent cycles pass smoke tests in the reassuring direction).
+*§6c:* the σ_y entry's pushforward is the WEIGHTED disk measure
+`2 dx dz / √(1 − x² − z²)`, which no shipped `ReferenceMeasure` realization
+can spell (`UniformMeasure`, `GeneratingMeasure` — 1-D recurrences —,
+`ProductMeasure`); it ships `None`, and honestly: `[M]` the fold drops
+`exactness`, so nothing reads it. The `S²/Trivial` entry's is
+`UNIFORM_ON_SPHERE` — but ⚠ `AngularSymmetry.support` returns the bare
+`SPHERE` for `Trivial`, not the trivial quotient, so the registry's `Trivial`
+arm cannot read it off the entry without a design choice (route `support`
+through `_mod_trivial`, or keep the arm). Rule it at the opener.
+
+### (d) "The probe" — it is 3.4's, and its idiom ships for a MIRROR
+
+XII.2's *"the catalog home + the probe"* names §III.8's isotypic probe:
+invariance of each real-SH slot under `SO(2)`-about-`x` over incommensurate
+angles × random directions (`[M]` §III.8: exactly `{(ℓ,0)}`, 5 of 25 slots at
+`L = 4`). The idiom ships as `MirrorEvenSphericalHarmonicBasis.even_slot_mask`
+(`spherical_harmonic_basis.py:498`, `_PARITY_PROBE_DIRECTIONS`) for a group
+of order 2; the `SO(2)` version must sample INCOMMENSURATE angles
+(`vv-principles` #13 — right angles generate `C₄`). It is the input 3.4's
+`LegendreBasis` mask is derived from, so it lands with 3.4 (fused step),
+not as 3.1's deliverable — unless 3.1's opener rules the probe a method of
+the catalogue ENTRY (*"which slots of a basis on my base descend to me"*),
+which is where a `Descent` (3.4b) would read it from. Two homes, one
+ruling; do not build it twice.
+
+### (e) ⟹ the honest scope of 3.1, as a hypothesis for its opener to rule
+
+**3.1 = the entry carries its two remaining derivation outputs**: (i) `chart:
+ManifoldMap` — `S² → S²/SO(2)_a`, `Ω ↦ Ω·ê_a`, codomain the entry itself,
+witnessed by `π ∘ archimedes_a = pr₁` and by `barycentre ∘ π` being the
+axial projection; (ii) `reference: ReferenceMeasure | None` — `LEGENDRE`
+for the three axial entries, populated inside `_sphere_mod_so2` by
+function-scope import; `AngularSymmetry.reference` reads it. Small — three
+constructor sites, one twin absorbed, one new field pair. The package
+re-home and the other entries stay off the path (XII.2). §6c for (i):
+nothing shipped is refused by a chart field; its witnesses are derivation
+agreements, like 2.3's. `plan-authoring` §1: *this scope is a hypothesis
+until the opener re-measures (a)–(d) at its own HEAD.*
+
+---
+
 ## §V.5i ⭐⭐ 2.3's PRE-FLIGHT (2026-09-02, at `4d946988`) — the SECTION has no consumer, the tree already spells THREE maps, and one of them TWICE
 
 The **15th** opener, run at the compaction point after 2.1b landed so the next
@@ -4424,21 +4530,21 @@ this is right: the forgery is what CONCEALS the missing discrete-quotient slot).
 
 ---
 
-# Part XIV — ⏸ COMPACTION **RECORD** (2026-09-02, 1st of the day — after 2.1b, with 2.3 pre-flighted) + ▶ Resume surface
+# Part XIV — ⏸ COMPACTION **RECORD** (2026-09-02, 2nd of the day — after 2.3, with 3.1 pre-flighted) + ▶ Resume surface
 
 ⚠ **Naming, because it has been ambiguous since the plan was written.** Part VI
 schedules two *planned* pauses — "COMPACTION POINT 1 — after Phase 3" and
 "COMPACTION POINT 2 — after Phase 5". **This Part is neither.** It is the
 running RECORD of where the campaign actually is, rewritten at each real
-compaction. It has been rewritten eight times (2026-08-31, six times on
-2026-09-01, once on 2026-09-02); do not try to match its number against Part VI's.
+compaction. It has been rewritten nine times (2026-08-31, six times on
+2026-09-01, twice on 2026-09-02); do not try to match its number against Part VI's.
 
 **Read in this order on pick-up:** this Part → Part XIII (the tracker) → Part XII
 (the exit gate, esp. **XII.1b**) → the phase you are executing. **Part IX,
 §II.15, §II.16, §V.5d, §V.5e and the 2.1 / 0.2 execution sections first if you
 are about to re-propose anything** — the supersession table below is the count
-that is kept current (`[M]` **53 rows, 50 of them ⛔**, counted 2026-09-02
-at 2.3's pre-flight — predicate: every `| `-led line of that table except the
+that is kept current (`[M]` **58 rows, 54 of them ⛔**, counted 2026-09-02
+at 3.1's pre-flight — predicate: every `| `-led line of that table except the
 header and separator, ⛔ anywhere in the status column; re-derived by script,
 never incremented by hand. ⚠ The previous record read *48 / 47* under an
 UNSTATED predicate and 2.1b added exactly 2 rows, so the two predicates
@@ -4450,7 +4556,7 @@ direction.
 
 ⭐ **The single most useful habit this campaign has, stated so it survives:**
 every phase begins by RE-MEASURING its own section's premises before designing.
-`[M]` **FIFTEEN consecutive phase openers have corrected their own section**, and
+`[M]` **SIXTEEN consecutive phase openers have corrected their own section**, and
 two of them (P6, and 2.0a's sizing) dissolved or re-scoped the phase entirely.
 The eleventh (2.0c's third opener, §V.5f) found that the step's own title named
 **one implementor of a six-implementor contract**, one of them spelled so that
@@ -4466,8 +4572,16 @@ edits, the way 2.0d dissolved into 2.0c; the fifteenth (2.3's pre-flight,
 **§V.5i**, run at this compaction) confirmed by census that a SECTION has no
 production consumer, found the barycentre map spelled TWICE (once honestly,
 once as ERR-080's forgery), and scoped a done-when that three honest
-tabulations would have pinned red forever. Budget the opener; it has never
-once been wasted.
+tabulations would have pinned red forever; the sixteenth (2.3's own opener,
+at execution) is the first whose pre-flight survived intact — (a)–(f)
+reproduced 6 of 6 — and it still corrected the row's NAME (*"the typed
+`Chart`"* → `ManifoldMap`, user-ruled: a chart is `M ⊃ U → ℝⁿ`) and one
+symbol's HOME (the axis table), and then had one of its OWN claims refuted by
+the archivist on landing (the `Ball` census, §V.5i(b)); the seventeenth
+(3.1's pre-flight, **§V.5j**, run at this compaction) found the row's
+"catalog home" half already LANDED and its package re-home OFF the exit path,
+leaving 3.1 two fields and one map. Budget the opener; it has never once been
+wasted.
 
 ⚠ This supersedes the two earlier versions of this RECORD. Their content is
 folded in below; nothing from either was dropped.
@@ -4543,7 +4657,19 @@ deferral to 3.1 with the §6d cycle MEASURED.
 
 ▶ **An orbit space is a catalogue entry that carries ALL of its derivation —
 including the measure the quotient map pushes forward** — tracker **3.1**,
-scoped to `SO(2)`. ⚠ Open with the opener: re-measure 3.1's row (it names a
+scoped to `SO(2)`. ⭐ **Pre-flighted at this compaction — read §V.5j before
+designing.** It found the row's premise pre-2.0a (`[M]` the catalogue lives in
+`manifold.py`, six keys, ruled at E. Placement; `class IsometryGroup` 0 — do
+not mint a second group type), the `symmetry.py` package re-home OFF the exit
+path (XII.2) and a §6d step of its own (`numerics/__init__.py:43` re-exports
+`SubgroupOfO3`; the `numerics → geometry` back-edge runs through it), and the
+honest remaining scope to be TWO fields and ONE map: the entry's chart
+`Ω ↦ Ω·ê_a` as a `ManifoldMap` (witness `π ∘ archimedes_a = pr₁`, measured
+bit-exact) and its pushforward reference (`LEGENDRE`, populated INSIDE the
+derivation function; `[M]` 3 constructor sites, 1 production reader of the
+registry twin at `registry.py:1272`; the σ_y entry ships `None`, honestly).
+"The probe" is 3.4's (§III.8; the mirror idiom ships at
+`spherical_harmonic_basis.py:498`). ⚠ Open with the opener: re-measure 3.1's row (it names a
 `numerics/symmetry/` PACKAGE re-home — §6d both ways, and the import-linter's
 declared contract first) and the 2.3 residue (a `Quotient.reference` field
 populated INSIDE `_sphere_mod_so2` / `_mod_trivial` via function-scope import;
@@ -4706,7 +4832,7 @@ Part XIII — do not copy it here (`plan-authoring` §9).
 | ✅ | **2.4** | LANDED `17501245` — see the *2.4 EXECUTED* section. The defect fix of 2.1's kind: `[M]` the `[-1,1]` angular/spatial collision is unspellable; `SO2(axis)` user-ruled; stage 0 now refuses a chart-level rule and a wrong-axis rule. ⛔ its pre-flight's sizing (*23 sites / 3 literals*) was the wrong instrument twice — the §6b set was the five test-local factories the stricter gate refused |
 | ✅ | **2.1b** | LANDED `9b4a4d9c` — see the *2.1b EXECUTED* section. G0's other side by DERIVATION (`domain.by`), one `@final` property, zero subclass edits; the four-row table runs as `test_e5`; the fold's halves read ONE object. ⛔ its §V.5h(f) §6b sizing was void (the set was empty) |
 | ✅ | **2.3** | LANDED 2026-09-02 `5ec3a00a` — see the *2.3 EXECUTED* section: `ManifoldMap` + `archimedes` + `barycentre`, `new_space=` retired, 60/5/15 bit-identical, reference measure deferred to 3.1. ⏬ *The pre-landing row, kept per §3:* **NEXT — read §V.5i (pre-flighted 2026-09-02).** ~~G0's other side (`[M]` `Basis.invariance_group` 0 of 6)~~ (✅ 2.1b, by derivation); the typed `Chart` (also the SECTION MAP's natural home — `_sphere_mod_so2`'s `fundamental_domain=None` comment says exactly what 2.3 must choose). ⚠ Open with the re-measure: 2.3's *"6 → 8"* premise predates `Quotient.by` (2.0c) and `on_orbit_space` (2.4) |
-| **1** | ▶ **3.1** scoped to `SO(2)` | **NEXT.** the catalogue home + the probe. ⭐ It inherits 2.3's deferral: the pushforward REFERENCE measure as a `Quotient` field populated INSIDE the derivation function (function-scope import — `[M]` module scope is a 5-of-5 cycle), read by `AngularSymmetry.reference`; and §6d BOTH ways before the `symmetry.py` → package re-home |
+| **1** | ▶ **3.1** scoped to `SO(2)` | **NEXT — read §V.5j (pre-flighted 2026-09-02).** ~~the catalogue home + the probe~~ ⛔ the HOME is landed (`manifold._ORBIT_CATALOGUE`) and the PROBE is 3.4's; what remains is the entry's chart map + its reference measure. ⭐ It inherits 2.3's deferral: the pushforward REFERENCE measure as a `Quotient` field populated INSIDE the derivation function (function-scope import — `[M]` module scope is a 5-of-5 cycle), read by `AngularSymmetry.reference`; and §6d BOTH ways before the `symmetry.py` → package re-home |
 | 5 | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | **ONE COMMIT — see XII.1b.** THE FIX |
 | 6 | **4.1**, **4.9**, then the six exit predicates (XII.3) | |
 
@@ -4725,6 +4851,10 @@ stays green — which is how a real refusal decays into a warning. Land the four
 together or not at all.
 
 ### ⭐ What this session's ruling changed about a LATER step
+
+⛔ **SUPERSEDED — kept per §3.** 2.3 LANDED (`5ec3a00a`) without the section
+map (§V.5i(a) refuted it by census) and under the name `ManifoldMap`; the
+paragraph below is the 2026-09-01 reading.
 
 **2.3 (the typed `Chart`) gained weight.** It was *"completes the engine seed
 6 → 8"*; after the two-slot ruling it is also the natural home for the SECTION
@@ -4765,7 +4895,8 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
    `orpheus.numerics.manifold`: `SPHERE`, `CIRCLE`, `COSINE_INTERVAL`,
    `UNIT_INTERVAL`, `HALF_LINE`, `REAL_LINE`, `ENERGY`, plus `RealSpace(d)`,
    `IndexSet(label=…)`, `EnergyGroups(n)`, `Interval(a, b)`.
-   ⚠ And `pushforward` now **requires** `new_space`.
+   ⚠ ~~And `pushforward` now **requires** `new_space`.~~ ⛔ superseded at
+   2.3 — it takes a `ManifoldMap`; see landmine #10.
 
 7. ⭐ **`IndicatorBasis` needs `partition_of`** (since `c461fe8d`).
    Every construction site takes a `Manifold`; a scratch script written before
@@ -4785,6 +4916,37 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
    ⟹ on pick-up, run `git merge-base --is-ancestor <h> HEAD` over EVERY hash
    the plan cites, not just the ones you intend to use — a dangling hash reads
    exactly like a live one.
+10. ⭐⭐ **NEW at 2.3 — `pushforward` takes ONE argument, a `ManifoldMap`.**
+    `μ.pushforward(fn, new_space=N)` (2.0c's spelling, alive for one day) is a
+    `TypeError`; spell `μ.pushforward(ManifoldMap(μ.support, N, fn))`, and
+    the map's `domain` must `==` the measure's support or it is refused by
+    VALUE (the slab's `S^2/SO2_x` rule is refused by a map out of `[-1,1]`).
+    `symmetry._AXIS_INDEX` is gone — `manifold.AXIS_INDEX`. A `grep` for
+    `.reference` is ambiguous between `AngularSymmetry.reference` (the
+    registry twin, 1 production reader) and `ExactnessClaim.reference`
+    (46 hits tree-wide). And a mutation battery whose per-arm summary is
+    read through a shell `$(...)` capture can return an EMPTY summary for
+    the widest arms (`[M]` 4 of 11 at 2.3) — read from a log file.
+
+### §1 existence-checks — re-run 2026-09-02 at `14c37aa9` (post-2.3)
+
+`[M]` by Python regex over `orpheus/**` + `tests/**` (`scratch/_p23_reground.py`),
+positive control `class Quotient` **1** (`manifold.py:562`): `class Chart`
+**0** (its ruled successor `class ManifoldMap` **1**, `manifold.py:742`) ·
+`class LegendreBasis` **0** · `class Descent` **0** · `class ReynoldsProjection`
+**0** · `class OrbitAxis` **0** · `class IsometryGroup` **0** (3.1's row's
+name for what ships as `SubgroupOfO3` — do not mint it). ⛔ The `Ball`
+fact below was WRONG as written (its census excluded `manifold.py`; `Ball(2)`
+is the σ_y realization at `:922`): the honest fact is *no consumer outside its
+module, and `Ball(3)` never constructed* — `barycentre` (`:930`) is now the
+first arrow with a ball codomain. Hash check, same predicate as below: **34**
+distinct 8-hex hashes in this Part, **33** ancestors of HEAD, 1 dangling
+(`de29bcc6`, known). `[M]` by RUNTIME `__subclasses__`: `Basis` 4 direct / 6
+recursive, 6 of 6 answer `domain` AND `invariance_group` — unchanged.
+`support=SPHERE` code literals in `orpheus/`: **4** (was 5; the map-built one
+in `rules_product.py` is gone; the forgery's stays by design until 3.4).
+
+⛔ **The block below is the 2.1b-era re-run, kept per §3.**
 
 ### §1 existence-checks — re-run 2026-09-02 at `4d946988`
 
@@ -4812,6 +4974,43 @@ other side (tracker **2.1b**) remains absent~~ ✅ **6 of 6 answer
 property (`basis/base.py:291`).
 
 ⭐ 2.1b added one landmark file: `orpheus/numerics/basis/base.py` — `class Basis` :120 · `domain` :247 · `invariance_group` :291 (`[M]` grep, 2026-09-01; the module-scope imports it gained shift nothing below them but these).
+
+**Landed and callable** (`file:line` re-derived by AST at `14c37aa9`,
+2026-09-02, after 2.3. ⚠ `manifold.py` grew by ~290 lines at 2.3 — the arrows
+section sits BETWEEN the constants and the catalogue, so everything from
+`_catalogued_quotient` down moved by that much; `measure.py`, `symmetry.py`,
+`directional.py`, `rules_product.py` moved by a few lines each):
+`class Manifold` `manifold.py:119` · `Sphere` `:231` · `Interval` `:284` ·
+`Ball` `:460` · `FundamentalDomain` `:492` · `Quotient` `:562`, its `by`
+field `:580` · ⭐ `AXIS_INDEX` `:738` **NEW** · ⭐ `class ManifoldMap` `:742`
+**NEW** (`__matmul__` `:835`) · ⭐ `archimedes` `:860` **NEW** · ⭐
+`barycentre` `:930` **NEW** · `_catalogued_quotient` `:1005` ·
+`_sphere_mod_so2` `:1036` · `_sphere_mod_mirror` `:1132` · `_mod_trivial`
+`:1229` · `_ORBIT_CATALOGUE` `:1270` · `ambient_dim` `:1289` ·
+`Basis.domain` `basis/base.py:247` · `Basis.invariance_group` `:291` ·
+`Basis.space` `:370` · `IndicatorBasis` `basis/indicator_basis.py:108` ·
+`_evaluate_real_sh` `basis/spherical_harmonic_basis.py:550` ·
+`DiscreteMeasure.support` `measure.py:311`, `.space` `:353`,
+`.quotient_group` `:414`, `.phase` `:437`, `.__mul__` `:612`, ⭐
+`.pushforward` `:840` (takes a `ManifoldMap`; production callers
+`:1192` inside `quotient()` and `rules_product.py:496`), `.on_orbit_space`
+`:1013`, `.quotient` `:1056` · `class SO2` `symmetry.py:265`,
+`SubgroupOfO3.SO2` (ctor) `:489`, `rotation_axis` `:496`, `_so2_contains`
+`:907`, `_embedded_nodes` `:951` (⭐ reads `barycentre`), `_polar_axis_of`
+`:1004`, `_is_axis_supported` `:1179`, `candidate_groups` `:1642` ·
+`AngularSymmetry` `registry.py:826`, `.support` `:876`, `.reference` `:911`
+(⚠ the twin 3.1 absorbs; reader `:1272`), `.admits_domain` `:951` ·
+`gauss_legendre_on_polar_orbit` `rules_1d.py:155` · `Quadrature.quotient`
+`directional.py:548`, `axis_cosines` `:294`, `mean_axis_cosine` `:327`,
+`spherical_harmonics` `:623`, `angular_frame` `:678`,
+`_harmonic_frame_measure` `:730` (the forgery line is now `:797`),
+`Quadrature.gauss_legendre` `:870` · `spherical_product` `rules_product.py:332`
+(⭐ the chart pushforward at `:496`), `_derived_product_group` `:233` ·
+`ReferenceMeasure` `exactness.py:152`, `UniformMeasure` `:181`,
+`UNIFORM_ON_SPHERE` `:237` · `LEGENDRE` `generating_measure.py:480`.
+
+⛔ **The block below is the 2.1b-era list, kept per §3 — every `manifold.py`
+line below `Ball` in it is STALE by ~290 lines.**
 
 **Landed and callable** (`file:line` re-derived by AST at `4d946988`,
 2026-09-02. ⚠ `measure.py` and `symmetry.py` moved at 2.1b and at this
@@ -4887,6 +5086,7 @@ or `gauss_legendre_on_polar_orbit(n, "x")`, on `S^2/SO2_x`.
 | **0.1a + 0.1c** | ⭐ **the frame stops forging its own domain** — `_harmonic_frame_measure` routes the rule's measure; the 1-D fiction is named + self-retiring. `[M]` route gate 0→10 of 12; §II.8's *three* losses reversed; 5-arm mutation battery, every arm's red count reconciling to zero unexplained units | `2c1a06b1` |
 | **2.4** | ⭐⭐ **the slab says what space its ordinates live on** — `SO2(axis)` parameterised (user-ruled: the tree has TWO poles), `S^2/SO2_x` declared by `gauss_legendre_on_polar_orbit`, `on_orbit_space` minted, the registry derives its domain. `[M]` the `[-1,1]` angular/spatial collision unspellable; Part IV obstacle 1 answered by derivation; stage 0 refuses the chart-level and wrong-axis rules; 4 trees rc=0, +22 reconciling; a pre-existing 9 s lattice-walk hot spot removed | `17501245` |
 | **2.1b** | ⭐ **a basis states the symmetry its functions HAVE, by naming what they EAT** — `Basis.invariance_group` DERIVED from `domain` (`Quotient.by` / `Trivial` / `None`), `@final`, zero subclass edits; the fold's two halves read ONE object; ERR-080's pairing is a lattice verdict (`Trivial ⊉ SO2('x')`), refused by nothing yet. 11 gates, 8-arm battery (1 blind by construction), 3 stale docstrings fixed on sight; numerics 2679 → 2690 | `9b4a4d9c` |
+| **2.3** | ⭐⭐ **a measure's support is READ off the map that built it** — `ManifoldMap(domain, codomain, apply)` with `@` composition; `archimedes(axis)` and `barycentre(orbit_space)` memoised; `pushforward(phi)` reads `phi.codomain`, refuses a map out of the wrong point set, `new_space=` retired (1 + 8); `spherical_product` IS the tensor product pushed along the chart; the fold's retraction and `_embedded_nodes` typed; ERR-080 restated as the barycentre map with a FORGED codomain (arm untouched, retires at 3.4). `[M]` bit-identical 60/5/15; eleven-arm battery; numerics 2690 → 2711; matrix 10595 → 10616; reference measure deferred to 3.1 with the §6d cycle measured (5 of 5) | `5ec3a00a` (+ stamp `14c37aa9`) |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
 ⛔ No commit COUNT is recorded here — it is the field guaranteed to rot. Run
@@ -4952,6 +5152,11 @@ Read these before quoting any earlier section:
 | tracker 2.1b's row: *"which today has **neither** side"* | ✅ **REMEDIED, and was already half-false when the 2.4 record was written** — the measure side became real at 2.4 (`quotient_group`), the basis side at 2.1b; corrected in place |
 | 2.3's done-when: *"`grep` finds no `SPACE_SPHERE` literal at a measure constructor"* | ⛔ **§10's third shape** — `[M]` 5 `support=SPHERE` literals in production, **3 honest tabulations** (Lebedev, level-symmetric, the reference measure) the step must not touch; scope it to MAP-BUILT measures (2 of 5). §V.5i(c) |
 | Part XIV's pre-2.4 pointer: *"2.3 — the typed `Chart` (also the SECTION MAP's natural home)"* | ⛔ **REFUTED by census** — `[M]` `fundamental_domain` has 0 production readers; the only section-like consumer is the forgery arm 3.4 retires. 2.3 is the quotient map + the Archimedes chart. §V.5i(a) |
+| 2.3's row and every pointer: *"the typed `Chart`"* | ⛔ **the NAME was refuted at the ruling (2026-09-02)** — a chart is `M ⊃ U → ℝⁿ`; of the three maps only the inverse of the Archimedes one is a chart. User-ruled `ManifoldMap`, one frozen value type, factories for the named maps. *2.3 EXECUTED* |
+| §V.5i(b), the `ManifoldMap` docstring and the archivist's brief: *"`Ball` has 0 production consumers"* | ⛔ **FALSE — the census excluded `manifold.py`**, where `Ball(2)` is the σ_y entry's `realization` (`:922`). Honest: 0 consumers OUTSIDE its module, `Ball(3)` never constructed. Caught by the archivist re-deriving it; corrected in code, plan and page. `plan-authoring` surprise log, 2026-09-02 |
+| 2.0a-R's supersession row: *"chart + pushforward wait on `Chart` (2.3)"* | ⛔ **HALF discharged** — 2.3 shipped the chart's TYPE and three arrows, but `[M]` the ENTRY's own chart map `Ω ↦ Ω·ê_a` and its pushforward measure are still not fields (`Quotient` has 10 fields, 5 of D0.1's 7 derivation outputs); both wait on **3.1**, §V.5j(b)–(c) |
+| §V.5i(d) and this Part's 2.3 pointer: *"`pushforward` has ONE production caller"* | ✅ true when written; **2** after 2.3 (`measure.py:1192`, `rules_product.py:496`) — do not re-quote the 1 |
+| 3.1's row: *"`numerics/symmetry/` catalog … this is a re-home"* and XII.2's *"the catalog home + the probe"* | ⛔ **pre-2.0a premise** — `[M]` the catalogue is `manifold._ORBIT_CATALOGUE` (E. Placement), the probe is 3.4's (§III.8), and the package re-home is OFF the exit path. 3.1's honest scope is two fields + one map. §V.5j |
 
 ## Measured baselines and costs
 
@@ -4968,7 +5173,21 @@ rather than this table for it):
 | transport | 645 +1sk | 645 +1sk | 645 +1sk | — |
 | sn | 3378 +1sk +50xf | 3384 +1sk +116desel +50xf | 3384 +1sk +116desel +50xf | — (the rename moved nothing; 15 min 24 s) |
 
-⚠ **No gate at this compaction** (2026-09-02) — the tree is 2.1b's plus two docstring lines in `measure.py` (`4d946988`); 2.1b's row below is the current baseline.
+⭐⭐ **RE-GATED at 2.3** (2026-09-02, `5ec3a00a`, same runner, all rc=0):
+numerics **2711** (2690 + 21: `TestManifoldMap` 14, `test_rules_product` +7,
+`test_measure` net 0) · sn primitives + mesh + angular + transport/frames
+**579** · sn/operators **1274** + 5 xf · sn/sweep **919** + 1 sk + 31 xf ·
+geometry + `_harness` + mms-ordering **736** + 4 sk + 1 xf · root docs gates
+**415** + 5 xf. V&V matrix **10595 → 10616** (+21, matching the numerics
+delta unit-for-unit). `sphinx -E -W` 0/0/0; `dead_references` 0 / 52;
+pyright 0 on the 8 touched files. ⚠ These are SLICES, not the tree table
+above: `sn/operators` + `sn/sweep` + the primitives set are three of `sn`'s
+subtrees, and the geometry number bundles two extra paths — do not compare
+them against the per-tree column. data / transport / cp / derivations …
+**not re-run** at 2.3 (the change is bit-identical on every measure any of
+them builds, `[M]` 60/5/15).
+
+⛔ *Prior, kept per §3:* ⚠ **No gate at the 1st 2026-09-02 compaction** — the tree was 2.1b's plus two docstring lines in `measure.py` (`4d946988`); 2.1b's row below was the baseline then.
 
 ⭐ **RE-GATED at 2.1b** (2026-09-01, same runner): numerics **2690** rc=0
 (2679 + 11, reconciled unit-for-unit against section E's rows: `e1` 1, `e2` 4,
@@ -5051,20 +5270,31 @@ so a re-reader does not mistake it for a stale number.
   (of which `test_error_catalogue_reconciles` + `test_docstring_xrefs` **were**
   run green at 2.0c — 50 passed — because the corpus pass touched them).
   ⟹ **best spent immediately before the fused step #5**, where it becomes
-  load-bearing — not now.
+  load-bearing — not now. ⭐ At 2.3 (`5ec3a00a`) the slices in the RE-GATED
+  block above were run (numerics whole; sn by three subtrees; geometry +
+  harness) — still not the 13-tree gate.
 
 ## Durable lessons — promoted OUT of this file
 
 ⛔ **Do not keep a COUNT here** (`plan-authoring` §9 — the file re-measures
 itself, and a copied count is guaranteed to go stale while looking
 authoritative). `.claude/rules/plan-authoring.md`'s surprise log is the record;
-`[M]` it holds **71** dated rows at `8fc781d2`, and the campaign's own
+`[M]` it holds **72** dated rows at `14c37aa9`, and the campaign's own
 contributions are the ones a `grep` for this plan's vocabulary finds. *(An
 earlier version of this paragraph asserted "seven rows across the campaign" —
 un-countable, since no mechanical predicate separates this campaign's rows from
 the rest.)*
 
-The two most recent, both 2026-09-01:
+The most recent, 2026-09-02 (this compaction), and the two before it:
+
+* **A consumer census that EXCLUDES the defining module cannot see
+  in-module consumers** — and reads as "nothing names it". Founding failure:
+  §V.5i(b)'s *"`Ball` has 0 production consumers"*, relayed into a docstring
+  and a dispatch brief; `grep -v manifold.py` hid `Ball(2)`, the σ_y entry's
+  own realization. (Promoted alongside it, to `vv-principles` #17: **a mutation
+  control inside the SUT's own invariance group is a null control** — 2.3's
+  μ → −μ control sat inside the product rule's σ_h and reddened 9 where two
+  ordinary arms reddened 58/57.)
 
 * **"The rebuild loses X" is a completeness claim over the source TYPE'S FIELD
   LIST** — and the denominator, `dataclasses.fields(T)`, is always available
@@ -5141,7 +5371,7 @@ the memo is not. · `p20c_*.py` (the 2.0c opener's censuses).
 (**re-runnable RST self-check: underlines, ladder, table widths, label
 uniqueness, xref resolution with a positive control**) · `rcond_rederivation.md`
 + `probe_rcond_01…17_*.py` · `angular_symmetry_wiring_survey.md` ·
-`basis_domain_verification_plan.md` · `n2n_pl_*.md` (4). ⭐ **NEW at 2.1/2.0c:** `_p21_mut/` (the 7-arm battery + its driver — ⚠ the driver's first version handed pytest ONE nonexistent path because **zsh does not word-split an unquoted scalar**; the fixed one uses an array and prints `rc` and `CALLS` per arm) · `_p21_redloop.log` (the 5-tree gate) · `_p21_numerics_final.log` · `_p21_pyright.log` (854 KB, whole-project) · `_p21_sphinx.log` · `_p20c_census.py` + `_p20c_census2.py` (**re-runnable — they ARE 2.0c's opener**, AST with positive controls). ⭐ **NEW at 2.4:** `_p24_compare_census.py` (the 29-site comparison census, AST, positive control) · `_p24_mutation.py` (**the 12-arm battery — re-runnable**, copy-aside integrity, prints its own `BATTERY COMPLETE`) · `_p24_gate_{numerics,transport,geometry,data,sn,cross_method,diffusion}.log` · `_p24_redloop{1,2}.log` (loop 1 is the §6b enumeration) · `_p24_commit.txt` · `_p24_pristine/` (the pre-2.4 production files, byte-exact). ⚠ `_p24_preflight.py` and `_p24_reground.py` predate the ruling and spell `SubgroupOfO3.SO2` bare — they no longer run as written; the reground script's landmark half still does.
+`basis_domain_verification_plan.md` · `n2n_pl_*.md` (4). ⭐ **NEW at 2.1/2.0c:** `_p21_mut/` (the 7-arm battery + its driver — ⚠ the driver's first version handed pytest ONE nonexistent path because **zsh does not word-split an unquoted scalar**; the fixed one uses an array and prints `rc` and `CALLS` per arm) · `_p21_redloop.log` (the 5-tree gate) · `_p21_numerics_final.log` · `_p21_pyright.log` (854 KB, whole-project) · `_p21_sphinx.log` · `_p20c_census.py` + `_p20c_census2.py` (**re-runnable — they ARE 2.0c's opener**, AST with positive controls). ⭐ **NEW at 2.4:** `_p24_compare_census.py` (the 29-site comparison census, AST, positive control) · `_p24_mutation.py` (**the 12-arm battery — re-runnable**, copy-aside integrity, prints its own `BATTERY COMPLETE`) · `_p24_gate_{numerics,transport,geometry,data,sn,cross_method,diffusion}.log` · `_p24_redloop{1,2}.log` (loop 1 is the §6b enumeration) · `_p24_commit.txt` · `_p24_pristine/` (the pre-2.4 production files, byte-exact). ⚠ `_p24_preflight.py` and `_p24_reground.py` predate the ruling and spell `SubgroupOfO3.SO2` bare — they no longer run as written; the reground script's landmark half still does. ⭐ **NEW at 2.3:** `_p23_bitid.py` (**re-runnable — the 60/5/15 bit-identity table**, loading the pristine copies from the session scratchpad; copy them into `scratch/` if they are wanted past the session) · `_p23_mut/mutplugin23.py` + `_p23_gate_driver.sh` (the eleven-arm battery; ⚠ its `$(...)` capture dropped four arms — `_p23_mut/_arm_*.log` are the re-runs to files) · `_p23_gate_{numerics,sn_prim_mesh_ang_frames,sn_operators,sn_sweep,geom_harness_mms,rootdocs,post}.log` · `_p23_red1.log` (the first red loop: exactly the 8 `new_space=` sites) · `_p23_executed_section.md` (the section's draft with placeholders) · `_p23_reground.py` (**re-runnable — this compaction's existence/hash/landmark/count pass**) · `_p23_issue_comment.md` · `_arch_23_sphinx.log`.
 
 ## Standing constraints
 

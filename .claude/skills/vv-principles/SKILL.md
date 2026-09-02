@@ -338,6 +338,24 @@ any other review work.
     (`upstream_state.angular_upstream is None`, `SNMesh.is_cartesian`).
     A grep had said the same, weakly; the battery also rules out dynamic and
     inherited readers.
+    ⭐ **And the POSITIVE CONTROL can itself be Mode-12 blind: a mutation
+    inside the SUT's own invariance group is a null control.** #17 says
+    include a mutation that MUST redden many gates. The one that comes to
+    mind is the *simplest* corruption of the object — negate it, flip it —
+    and the simplest corruptions are exactly the symmetries a well-built
+    fixture is invariant under. `[M]` 2026-09-02, #429 tracker 2.3: the
+    control for a chart battery negated μ in the Archimedes chart
+    (`out[:, a] = -mu`); Gauss–Legendre nodes are symmetric about 0 and
+    the product rule carries σ_h, so the node SET was unchanged and only
+    the **9** order-sensitive pins moved, while two ordinary arms reddened
+    **58** and **57**. Read naïvely, the battery says the suite is blind to
+    its control. ⟹ **choose the control OUTSIDE the fixture's symmetry
+    group** — break a codomain, swap an axis, scale a weight — and, if an
+    arm you meant as the control reddens fewer gates than an ordinary arm,
+    name the ordinary arm as the effective control rather than lowering
+    the bar. Same session, same battery, the harness's other lie: the
+    driver's inline `$(...)` capture returned EMPTY summaries for the four
+    widest arms; read arm output from a FILE.
 18. **NEVER credit a mutation's reds as coverage of a property when the
     mutation also breaks a STRUCTURAL law the object obeys** (linearity,
     symmetry, positivity, conservation, a shape/type contract) —
