@@ -3166,7 +3166,12 @@ not a new reference.
    P_\ell \otimes \Sigma_{s,\ell}`
    (:eq:`scattering-as-tensor-product-sum`) is real and realized — it is
    what :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`
-   *is*. Lifting that shape up to the **full** kernel
+   *is*. ⚠ Since 2026-09-02 (#429 / ERR-080) its per-:math:`\ell` block
+   contraction is selected by the RANK of the operator's angular head
+   (:class:`~orpheus.numerics.spaces.moment_head.MomentHead`), because a
+   1-D rule's head is FLAT and has no :math:`m` axis: the projector
+   :math:`P_\ell` is ``head.degree_block(l)``, not a hard-coded
+   ``[l, :2l+1]`` (:ref:`spaces-moment-head`). Lifting that shape up to the **full** kernel
    :math:`R\circ\Lambda\circ M` was **considered and rejected**. A
    :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator` would
    require :math:`R` and :math:`M` to be tensor-product *factors* on
@@ -3629,7 +3634,9 @@ moment) and the role (flux ↔ source). The four leaves and three edges:
    * - top-right leaf
      - :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
      - The flux moments :math:`\phi_\ell^m(\vec r, g)` — the same flux
-       state in moment space (``(L+1, 2L+1, ng, *spatial)``). A
+       state in moment space (``(<angular head>, ng, *spatial)``:
+       ``(L+1, 2L+1)`` on a rule that binds the harmonics, ``(L+1,)`` on
+       a 1-D rule since 2026-09-02 — :ref:`spaces-moment-head`). A
        ``MomentField`` carrier; ``flux units`` =
        :data:`~orpheus.numerics.units.SCALAR_FLUX_UNITS` (a moment is
        angle-integrated, so the :math:`\ell=0` block **is** the scalar

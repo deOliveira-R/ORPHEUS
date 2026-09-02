@@ -1556,7 +1556,7 @@ class TestAnisoMomentSourcePath:
         # truncation (== 1 on this fixture, asserted below).
         assert op_p1.scattering_order == L
         out = op_p1.scattering.moment_source(
-            moments_values, skip_l0=False,
+            moments_values, skip_l0=False, head=op_p1.frame.basis.space,
         )
         expected = self._load_snapshot()["p1_apply_legendre_scattering_moments"]
         np.testing.assert_array_equal(out, expected)
@@ -1599,7 +1599,7 @@ class TestAnisoMomentSourcePath:
         moments_values = op_p3.frame.analysis.apply(psi_p3.values)
         assert op_p3.scattering_order == L
         out = op_p3.scattering.moment_source(
-            moments_values, skip_l0=False,
+            moments_values, skip_l0=False, head=op_p3.frame.basis.space,
         )
         expected = self._load_snapshot()["p3_apply_legendre_scattering_moments"]
         np.testing.assert_array_equal(out, expected)

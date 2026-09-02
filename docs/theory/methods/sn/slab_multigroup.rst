@@ -318,9 +318,6 @@ polynomial of degree :math:`\leq L`.
    .. implements:: addition-theorem
       :by: orpheus.numerics.basis.spherical_harmonic_basis._evaluate_real_sh
 
-   .. implements:: addition-theorem
-      :by: orpheus.numerics.quadrature.directional.Quadrature.spherical_harmonics
-
    which is the identity used by Eq. :eq:`pn-scatter` to expand the
    :math:`P_\ell` scattering kernel as a finite tensor product over
    :math:`m`.  Equivalently the discrete orthogonality on a quadrature
@@ -354,7 +351,14 @@ polynomial of degree :math:`\leq L`.
    into a spatial-energy moment field carrying the principled
    ``(ng, nx, ny)`` layout (see :ref:`theory-sn-index-convention`;
    the codepath presents the full moment field as
-   ``(L+1, 2L+1, ng, nx, ny)`` with energy leading the spatial axes).
+   ``(<angular head>, ng, nx, ny)`` with energy leading the spatial
+   axes). ⚠ On a **slab** — this page's subject — that head has been
+   FLAT since 2026-09-02: a 1-D rule binds
+   :class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis`, so the
+   field is ``(L+1, ng, nx, ny)`` and there is no :math:`m` axis. It was
+   ``(L+1, 2L+1, …)`` before, and the :math:`m \ne 0` columns it carried
+   were :doc:`ERR-080 </theory/verification/error_catalog>`'s
+   fabrication (:ref:`sh-legendre-is-the-1d-family`).
 
 3. **Reconstruct per-ordinate source**: for each Legendre order
    :math:`\ell \geq 1` (the :math:`\ell = 0` term is handled by
@@ -742,7 +746,7 @@ normalisation
 (4\pi/(2\ell+1))\,\delta_{\ell\ell'}\delta_{mm'}` working out across
 both projection and reconstruction. The Galerkin frame is **real**
 spherical harmonics (the
-:meth:`~orpheus.numerics.quadrature.Quadrature.spherical_harmonics`
+:meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame` (its ``table``; the ``spherical_harmonics`` pass-through accessor was retired 2026-09-02 with #429's fix)
 implementation), not complex --- this is the convention native to
 the Lebedev tabulation and avoids carrying complex arithmetic
 through the source-iteration inner loop.

@@ -69,7 +69,7 @@ five legacy SN-only subclasses (``AngularQuadrature``,
 
 The per-ordinate angular data is exposed through the cached
 :attr:`~orpheus.numerics.quadrature.Quadrature.octants` partition and
-the :meth:`~orpheus.numerics.quadrature.Quadrature.spherical_harmonics`
+the :meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame`
 / :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`
 methods. The selection driver is
 :func:`~orpheus.numerics.quadrature.select_quadrature`, backed by the

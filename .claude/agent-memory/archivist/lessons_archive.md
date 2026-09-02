@@ -9869,3 +9869,83 @@ probes — `derivations/numerics/frame_metric_forks.py` exposing
 `derive_parseval_vs_continuum_ratio()` and `derive_lambda_adjoint_metric_inertia()`
 returning the two tables above — so the page can cite a module instead of
 describing a construction.
+
+## L-085 — the FIX lands: a repair changes the BASIS, and the corpus's shape contract turns out to be one family's
+
+**#429's fused commit (0.1b + 0.6 + 2.2 + 3.4 + 3.4b), ERR-080 CLOSED, 2026-09-02.**
+13 pages, +1756/−240, `-E -W` 0→0 EXIT=0, patched-xref `DEAD TARGETS: 0` (with an
+end-to-end positive control reading 2), nexus `dead_references` 0/52, sentinels
+579 → **582** (exactly my three new `documented` eq-labels).
+
+**(a) ⭐⭐ A CORPUS-WIDE SHAPE CONTRACT can be one family's layout wearing a
+universal.** The brief named `operator_algebra`/`adjoint` for "Λ's contraction by
+head rank". `[M]` the claim `(L+1, 2L+1, ng, *spatial)` is asserted as THE moment
+layout at **9 sites over 7 pages** — including `conventions/indexing_and_layout.rst`
+(the convention page, ×3) and `methods/sn/slab_multigroup.rst`, whose subject is
+the one chart where it is now FALSE (`[M]` a `gauss_legendre(8)` phase space gives
+`(3, 1, 4)`, i.e. `(L+1, ng, nx)`; `level_symmetric(8)` gives `(3, 5, 1, 4)`).
+⟹ **when a repair adds a SECOND member to a family the corpus only ever had one of,
+grep the SHAPE, not the symbol** — the symbol (`HarmonicMomentFlux`) is unchanged
+and every hit resolves.
+
+**(b) ⭐⭐ The flagship WITNESS of a neighbouring page can be the defect, tabulated.**
+`frame.rst`'s dense-arm section had the slab GL(8) L=2 Gram as its witness, with rows
+reading *"live slots per degree [1,1,3]"* and *"diagonal 0.8 on the two surviving
+ℓ=2, m≠0 slots"*. Those two `0.8`s ARE ERR-080's fabricated columns. `[M]` post-fix
+the same frame is **DIAGONAL**, off-diagonal `8.8e-17`, diagonal `2/(2ℓ+1)` exactly,
+and `spaces.rst`'s three-way frame-square table moves it from *"no G_ℓ exists at any
+metric, residual 0.30–10.2"* into the row where the closure **HOLDS**
+(`[M]` ≤ 5.1e-16 over 200 seeds). ⟹ preserve the numbers, tombstone the
+interpretation, and RE-MEASURE the replacement — mine found a new witness of the
+*good* kind (`gauss_legendre(2)` L=2: DENSE, rank-deficient, closure holds at
+≤1.6e-15) whose rank deficiency has a **closed form** (P_n vanishes at GL_n's own
+roots), which is strictly stronger than the row it replaces.
+
+**(c) ⚠ Two brief numbers refuted by re-measurement, both about the SAME sentence's
+two observables.** The production docstring says *"with pure `lpmv` [the slab flux]
+moves by 4e-16"*. `[M]` on ERR-080's own fixture, against a pinned `git archive HEAD`
+tree: `array_equal` at L=0 either way, and at **L=1 the flux moves by 2.753e-14** —
+~60× the quoted figure, because `4.44e-16/8.88e-16` is the memo's **TABLE**-level
+number and the docstring's sentence is about the **FLUX**. A `1e-16` table
+perturbation is amplified by the Krylov solve. Same shape one line over: *"`eval_legendre`
+differs at ℓ≥2 by up to 8e-16"* — `[M]` my max over GL(2,4,8,16) at L≤4 is **4.777e-16**;
+the 8.0e-16 is over a wider (unstated) rule set. ⟹ a float-agreement figure needs its
+OBSERVABLE named, not just its fixture (L-051's ratio rule, moved from a ratio to a
+perturbation).
+
+**(d) ⭐ A "still OPEN" clause can be repealed while its NEIGHBOUR stays exactly
+true, in one sentence.** ERR-080's Key Facts bullet read *"the membership PREDICATE
+is still not enforced at construction … so the forged measure is still constructible.
+ERR-080 is open"*. `[M]` half 1 is STILL TRUE — a forged `DiscreteMeasure` on `SPHERE`
+constructs today — and half 2 is false: what closed the defect is the refusal at the
+BASIS (0.6) and at the FRAME (G0), not at the measure. Splitting the sentence in place
+is what keeps the seams table honest; past-tensing the whole bullet would have deleted
+a live seam (2.0b).
+
+**(e) ⛔ The pages I EDITED carry 152 pre-existing nested-markup leaks and I added 8
+of my own before catching them.** The authoritative gate is the RENDERED HTML with
+`<pre>`/`<code>` stripped, sliced BETWEEN consecutive section `id=`s (an unbounded
+60 000-char slice reported leaks from four sections away). A source-side regex over
+the diff was ~90 % false-positive. My eight were all one shape: **bold or a literal
+nested inside an italic quotation** (`*"… **X** …"*`, `*"… ``Y`` …"*`) — the natural
+spelling for a §3 tombstone. ⟹ tombstone a quoted claim with plain quotes plus
+`, verbatim,`, never with an outer `*…*`. Attribution after the fix: `[M]` **0 of 176**
+leaks trace to a line I added (checked by matching each leak's stripped context
+against my diff's `+` lines).
+
+**(f) ⭐ The test tree MOVED under me mid-session, and the moving part was the
+evidence I was about to cite.** At my first census `tests/numerics/test_legendre_basis.py`
+and `test_descent.py` **did not exist** (the ERR-080 gate's docstring names them in the
+present tense); by the final build both ship (15/32 and 9/20 rows) and
+`numerics/test_manifold` had gone 70 → **108** rows. ⟹ re-run every count against the
+FINAL tree after the last build, and prefer the generated `matrix.rst` row as the
+second instrument (L-080, one level up: here the shelf life was ~90 minutes).
+
+**(g) The G0 predicate is ONE arrow, and that is the publishable insight.** The corpus
+had stated the pairing as the lattice containment `G_spent ⊆ G_have`. `[M]` all seven
+shipped pairings: the containment is only the `K ⊆ H` arm, and the other two admits are
+pairings it **cannot express** — in particular Legendre-on-a-full-sphere-rule
+(`[M]` `lebedev(11)` → a `(50,3)` table). ⟹ when a shipped predicate is *wider* than the
+one the corpus derived, say so at the derivation's table too, or the page reads as if the
+narrower one shipped.
+

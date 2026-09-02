@@ -35,7 +35,17 @@ from orpheus.numerics.basis import (
 )
 from dataclasses import replace
 
-from orpheus.numerics.manifold import RealSpace
+from scipy.linalg import eigh as scipy_eigh
+
+from orpheus.numerics.basis.legendre_basis import LegendreBasis
+# NOT re-exported from ``orpheus.numerics.basis`` (its ``__all__`` carries
+# Basis/Descent/GramStructure/Indicator/Legendre/Overlap/SH/Truncated/
+# WeightedIndicator) — imported from its module, as every other consumer does.
+from orpheus.numerics.basis.spherical_harmonic_basis import (
+    MirrorEvenSphericalHarmonicBasis,
+)
+from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE, RealSpace
+from orpheus.numerics.symmetry import SubgroupOfO3
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.metric import _DENSE_METRIC_RCOND, DenseMetric
@@ -429,6 +439,7 @@ def test_basis_gram_structure_declarations():
         edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
         partition_of=RealSpace(1),
         overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
+        fine=RealSpace(1),   # the three fine rows live on the same line the two coarse cells partition
     )
     assert ib.gram_structure is GramStructure.DIAGONAL
     assert SphericalHarmonicBasis(L=1).gram_structure is GramStructure.DIAGONAL
@@ -512,6 +523,7 @@ def _overlap_frame() -> GalerkinFrame:
         edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
         partition_of=RealSpace(1),
         overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
+        fine=RealSpace(1),   # the three fine rows live on the same line the two coarse cells partition
     )
     measure = DiscreteMeasure(
         nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support=RealSpace(1),
@@ -552,14 +564,61 @@ _PARSEVAL_FRAME_CASES = _DIAGONAL_FRAME_CASES + [
 #: family (vv-principles #13): a slab measure, a coarse product at L=2,
 #: a coarse level-symmetric at L=3, and a non-angular partition-of-unity
 #: basis.
+#: ⛔ RE-KEYED 2026-09-02 (#429). The ``slab-GL8-L2`` param DIED with the
+#: ERR-080 repair: a 1-D rule now binds the LEGENDRE basis on its own orbit
+#: space, and `[M]` that Gram is **DIAGONAL** — offdiag ``8.808e-17``, diag
+#: ``[2, 2/3, 0.4] = 2/(2l+1)`` exactly. Its replacements are chosen so the
+#: mechanism COUNT rises rather than falls (six, up from four):
+#:
+#: * ``folded_product(2,4)-L3`` — a σ-fold quotient basis, `[M]` live-block
+#:   relative off-diagonal **1.000**, untouched by #429;
+#: * ``equispaced(8)-L3`` — the LEGENDRE family's only dense-AND-full-rank
+#:   witness. ⭐ A theorem forces this: `[M]` 12 of 12 rows, a ``GL_n`` rule's
+#:   Legendre Gram is diagonal-and-exact for ``L <= n-1`` and has a
+#:   structurally DEAD slot at ``l = n`` (the nodes ARE ``P_n``'s roots), so
+#:   **no 1-D Gauss frame can be dense and full rank** — the dense Legendre
+#:   arm has to come from a non-Gauss 1-D measure;
+#: * ``LS4-L4-Legendre`` — the Legendre basis on a FULL-SPHERE rule (the G0
+#:   row-4 pairing), so the dense arm is exercised on both charts of the
+#:   orbit space, not only the realization's.
 _DENSE_FRAME_CASES = [
-    pytest.param(
-        lambda: Quadrature.gauss_legendre(8).angular_frame(2), id="slab-GL8-L2",
-    ),
     pytest.param(lambda: Quadrature.product(4, 4).angular_frame(2), id="product4x4-L2"),
     pytest.param(lambda: Quadrature.level_symmetric(4).angular_frame(3), id="LS4-L3"),
+    pytest.param(
+        lambda: Quadrature.folded_product(2, 4).angular_frame(3),
+        id="folded2x4-L3",
+    ),
+    pytest.param(lambda: _equispaced_legendre_frame(3), id="equispaced8-L3"),
+    pytest.param(
+        lambda: GalerkinFrame(
+            LegendreBasis(L=4), Quadrature.level_symmetric(4).measure
+        ),
+        id="LS4-L4-Legendre",
+    ),
     pytest.param(_overlap_frame, id="overlap-R1"),
 ]
+
+
+def _equispaced_legendre_frame(L: int, n: int = 8):
+    r"""An equispaced-equal-weight 1-D rule, declared on the orbit space it lives on.
+
+    ⭐ The ONLY dense-and-full-rank Legendre witness that exists, by the dead-slot
+    theorem above (`[M]` ``n = 8, L = 3``: offdiag ``2.222e-01``, **0 dead slots**,
+    rank 4/4; ``L = 4``: rank 5/5). Its support is
+    ``SPHERE.quotient(SO2("x"))`` — the honest declaration a 1-D angular rule
+    makes — which is also what lets G0 admit it; a twin declaring the raw
+    ``COSINE_INTERVAL`` is G0's constructed refusal witness and lives in
+    ``tests/transport/frames/test_binding_tightness.py``.
+    """
+    mu = np.linspace(-1.0, 1.0, n + 2)[1:-1]
+    weights = np.full(mu.size, 2.0 / mu.size)
+    return Quadrature(
+        measure=DiscreteMeasure(
+            nodes=mu,
+            weights=weights,
+            support=SPHERE.quotient(SubgroupOfO3.SO2("x")),
+        )
+    ).angular_frame(L)
 
 
 @pytest.mark.foundation
@@ -683,41 +742,113 @@ def test_parseval_reds_under_the_pre_repair_continuum_metric():
 
 
 @pytest.mark.foundation
-def test_slab_frame_is_dressed_with_the_matrix_parseval_metric():
-    r"""The slab GL frame measures DENSE and carries the MATRIX Parseval metric.
+@pytest.mark.catches("ERR-080")
+def test_the_slab_frame_is_DIAGONAL_after_the_err080_repair():
+    r"""⛔ **INVERTED 2026-09-02 (#429/ERR-080).** This gate pinned DENSE on the slab; the slab is now DIAGONAL.
 
-    The declared/measured separation stays (two questions, two
-    properties): the SH basis DECLARES DIAGONAL (continuum-orthogonal);
-    the measured verdict on THIS measure is DENSE (`[M]` 2026-08-23,
-    discovery record ``scratch/probe_f1_parseval_slab.py``: total weight
-    2 not 4π, live slots [1, 1, 3] per degree, live off-diagonals at
-    0.93 of the Cauchy–Schwarz scale — NO diagonal candidate satisfies
-    Parseval). Until P7 (2026-08-30) that verdict REFUSED the dressing —
-    this gate then pinned the refusal (``basis_space`` array-equal to the
-    undressed continuum metric), with the matrix home recorded as the
-    CS4c Riesz-leg debt. P7 installed it: the space carries a
-    :class:`~orpheus.numerics.metric.DenseMetric` whose matrix is the
-    Moore–Penrose pseudo-inverse of the (symmetrized) measured Gram, the
-    legacy weights slot reads ``None`` (it describes the DIAGONAL source
-    only — a dense-metric space is NOT Euclidean), and the isometry gate
-    runs on this frame (the retired skip). This flip IS the phase's §6c
-    witness: the pre-P7 body was designed-red the moment the dressing
-    landed.
+    Read the history, because deleting it would lose the measurement that
+    makes the inversion checkable. Until the repair a 1-D rule's frame bound
+    the FULL real spherical harmonics to a measure forged onto :math:`S^2` as
+    :math:`(\mu, 0, 0)`. `[M]` 2026-08-23 that Gram measured DENSE — total
+    weight 2 not :math:`4\pi`, live slots ``[1, 1, 3]`` per degree,
+    off-diagonals at 0.93 of the Cauchy–Schwarz scale — and P7 (2026-08-30)
+    dressed it with the Moore–Penrose ``DenseMetric``. **That density was the
+    defect's own signature**: the degenerate :math:`m > 0` harmonics were
+    linearly dependent on the slab nodes, which is why the discrete Gram was
+    rank-deficient and the per-mode scattering multiplier stopped being a
+    function of the flux.
+
+    After the repair a 1-D rule binds the Legendre basis on
+    :math:`S^2/SO(2)_x`. `[M]` 2026-09-02: the Gram is **DIAGONAL** —
+    off-diagonal ``8.808e-17``, diagonal ``[2, 2/3, 0.4] = 2/(2\ell+1)``
+    exactly, rank 3/3 — and the dressed metric is the plain reciprocal.
+
+    ⭐ **The stronger claim this gate now carries, and the reason it is not
+    merely a weakened re-pin.** The fabricated :math:`m \ne 0` slots are
+    **unspellable**: the coefficient space is FLAT, shape ``(L+1,)``, so
+    there is no slot for them to live in. The old pin asserted the fabricated
+    :math:`\ell = 2` row ``[0.4, 0.8, 0.8]`` — `[M]` two-thirds honest, since
+    ``0.4 = 2/5`` IS the correct :math:`m = 0` entry and only the two
+    ``0.8``\ s were fabricated. This row pins the honest three and asserts the
+    other two cannot be indexed at all.
     """
     frame = Quadrature.gauss_legendre(8).angular_frame(2)
+
+    assert isinstance(frame.basis, LegendreBasis)
     assert frame.basis.gram_structure is GramStructure.DIAGONAL       # declared
-    assert frame.discrete_gram_structure is GramStructure.DENSE       # measured
+    assert frame.discrete_gram_structure is GramStructure.DIAGONAL    # measured
+    assert frame.table.shape == (8, 3), "the Legendre head is FLAT"
+
+    gram = frame.discrete_gram
+    diag = np.diagonal(gram)
+    np.testing.assert_allclose(diag, [2.0, 2.0 / 3.0, 0.4], rtol=1e-12)
+    assert float(np.max(np.abs(gram - np.diag(diag)))) < 1e-14
+    assert np.linalg.matrix_rank(gram) == 3
+
+    # the fabricated slots are UNSPELLABLE — not zeroed, absent
+    assert frame.basis.space.shape == (3,)
+    with pytest.raises(IndexError):
+        _ = gram[2, 3]
+
+    # the DIAGONAL dressing is the plain reciprocal, and no DenseMetric is
+    # installed (the arm the old body asserted)
+    assert frame.basis_space.metric is None
+    np.testing.assert_allclose(
+        frame.basis_space.inner_product_weights, 1.0 / diag, rtol=1e-12
+    )
+
+    # ⭐ and a NEW true fact the repair creates: the sphere collapse
+    # d_l G_l = W holds EXACTLY on the slab now — (2l+1) * 2/(2l+1) = 2 = W
+    # — where before it was unspellable (see D3 below).
+    np.testing.assert_allclose(
+        frame.basis.addition_theorem_factor * diag,
+        float(frame.measure.weights.sum()),
+        rtol=1e-12,
+    )
+
+
+@pytest.mark.foundation
+def test_the_dense_matrix_parseval_dressing_rides_a_quotient_basis_frame():
+    r"""The DENSE arm's flagship, re-keyed off the slab (#429 §5.5).
+
+    ``folded_product(2, 4).angular_frame(3)`` binds the σ-even harmonic
+    sub-basis on :math:`S^2/\sigma_y` and is untouched by the ERR-080 repair.
+    `[M]` 2026-09-02: verdict DENSE, **live-block relative off-diagonal
+    1.000** (a genuine coupling, not a rank artefact), rank 4/28 — and the
+    draw-free separation is **2.7× today's retired flagship**
+    (see :func:`test_no_diagonal_metric_can_satisfy_parseval_on_a_dense_frame`).
+
+    ⚠ **Not** ``angular_frame(2)`` on the same rule, though it also reads
+    DENSE: `[M]` its live-block relative off-diagonal is ``8.6e-17``, i.e. it
+    is numerically diagonal and its DENSE verdict is driven by rank
+    deficiency alone. A dense gate keyed there would be pinning a label.
+    """
+    frame = Quadrature.folded_product(2, 4).angular_frame(3)
+    assert frame.discrete_gram_structure is GramStructure.DENSE
+
+    gram = frame.discrete_gram
+    live = np.diagonal(gram) > 1e-14
+    block = gram[np.ix_(live, live)]
+    scale = np.sqrt(np.outer(np.diagonal(block), np.diagonal(block)))
+    relative_offdiag = float(
+        np.max(np.abs(block - np.diag(np.diagonal(block))) / scale)
+    )
+    assert relative_offdiag > 0.5, (
+        f"the dense flagship must be genuinely COUPLED, not merely "
+        f"rank-deficient; live-block relative offdiag {relative_offdiag:.3e}"
+    )
+
     metric = frame.basis_space.metric
     assert isinstance(metric, DenseMetric)
-    g = frame.discrete_gram
     np.testing.assert_allclose(
         metric.matrix,
         np.linalg.pinv(
-            (g + g.T) / 2.0, hermitian=True, rcond=_DENSE_METRIC_RCOND
+            (gram + gram.T) / 2.0, hermitian=True, rcond=_DENSE_METRIC_RCOND
         ),
         rtol=1e-12, atol=1e-15,
     )
     assert frame.basis_space.inner_product_weights is None
+    assert frame.test_space is frame.basis_space
 
 
 @pytest.mark.foundation
@@ -793,6 +924,7 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
         edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
         partition_of=RealSpace(1),
         overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
+        fine=RealSpace(1),   # the three fine rows live on the same line the two coarse cells partition
     )
     measure = DiscreteMeasure(
         nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support=RealSpace(1),
@@ -834,126 +966,207 @@ def test_dense_frames_are_dressed_with_the_pseudo_inverse_gram(make_frame):
     assert frame.test_space is frame.basis_space
 
 
+def _parseval_ratio_range(gram: np.ndarray, metric: np.ndarray) -> tuple[float, float]:
+    r"""The DRAW-FREE range of the Parseval ratio under a candidate metric.
+
+    For a band-limited :math:`\psi = S_0 c` the analysis coefficients are
+    :math:`\phi = Gc` and the discrete norm is :math:`c^\top G c`, so the
+    Parseval ratio is the generalized Rayleigh quotient
+
+    .. math:: r(c) \;=\; \frac{(Gc)^\top M (Gc)}{c^\top G c},
+
+    whose RANGE over :math:`c \in \mathrm{range}(G)` is the generalized
+    eigenvalue range of the pencil :math:`(G M G,\; G)` restricted there.
+    Closed form, exact, and — unlike a random draw — a property of the FRAME.
+
+    ⛔ **Why this replaces the seeded statistic.** `[M]` 2026-09-02, 400
+    seeds on the frame D2/D4 used to pin: the same ratio ranged
+    **0.2327 … 1.9975**. A committed floor of ``1.5`` there pinned a SEED,
+    not a frame (``vv-principles`` #31), and would go red on any innocent
+    fixture edit.
+    """
+    symmetric = (gram + gram.T) / 2.0
+    eigenvalues, vectors = np.linalg.eigh(symmetric)
+    keep = eigenvalues > 1e-10 * max(float(eigenvalues.max()), 1.0)
+    basis = vectors[:, keep]
+    left = basis.T @ (symmetric @ metric @ symmetric) @ basis
+    right = basis.T @ symmetric @ basis
+    spectrum = scipy_eigh(left, right, eigvals_only=True)
+    return float(np.min(spectrum)), float(np.max(spectrum))
+
+
+def _diagonal_candidate_metric(gram: np.ndarray) -> np.ndarray:
+    """The best diagonal candidate ``1/G_kk`` (0.0 on dead slots — Moore–Penrose)."""
+    diagonal = np.diagonal(gram)
+    live = diagonal > 0.0
+    return np.diag(np.where(live, 1.0 / np.where(live, diagonal, 1.0), 0.0))
+
+
 @pytest.mark.l1
 @pytest.mark.catches("ERR-039")
 def test_no_diagonal_metric_can_satisfy_parseval_on_a_dense_frame():
-    r"""D2 — THE WRONG-METRIC DISCRIMINATOR (vv-principles #19's loaded reading).
+    r"""D2 — THE WRONG-METRIC DISCRIMINATOR (``vv-principles`` #19's loaded reading).
 
-    Three readings of the SAME band-limited ψ on the slab GL8/L=2 frame
-    (`[M]` 2026-08-30, THIS seed — the floors are draw-dependent, the
-    dense ≈1 is a theorem): undressed continuum **25.53**, the best
-    diagonal candidate ``1/diag(G)`` **1.806**, the dense pseudo-inverse
-    **0.999999999999999**. The middle reading is the phase's whole
-    justification: on this frame a diagonal metric is not merely
-    unavailable, it is PROVABLY insufficient. And this family is the only
-    correctness evidence the metric has — reciprocity holds to 1e-16 for
-    EVERY invertible G (#409) and can never adjudicate one. ⚠ Slab-only
-    by measurement: `[M]` the same diagonal candidate reads 1.066 on
-    product(4,4) and 0.996 on LS4-L3 — the separation is frame-dependent,
-    so only the slab's is gated.
+    ⛔ **RE-KEYED 2026-09-02 (#429).** This gate rode ``slab-GL8-L2``, whose
+    Gram is DIAGONAL after the ERR-080 repair — the separation it measured
+    was a property of the fabrication. Its replacement is
+    ``folded_product(2, 4).angular_frame(3)``, a σ-fold quotient-basis frame
+    untouched by the repair.
+
+    ⭐ And the replacement is STRICTLY stronger, in the exact sense the claim
+    needs. `[M]` 2026-09-02, draw-free ranges of the Parseval ratio:
+
+    ==========================  =====================  ==================
+    metric                      range                  worst :math:`|r-1|`
+    ==========================  =====================  ==================
+    dense Moore–Penrose         ``[1.000, 1.000]``     ``0.000``
+    best diagonal candidate     ``[1.000, 3.000]``     **2.000**
+    undressed continuum         ``[10.53, 157.9]``     ``156.9``
+    ==========================  =====================  ==================
+
+    The diagonal candidate's range never drops BELOW 1 here, so *"no diagonal
+    metric can satisfy Parseval"* is witnessed **strictly** rather than
+    on-average — the retired slab witness had range ``[0.065, 2.000]``, i.e.
+    it under- and over-shot, and a draw could land near 1.
+
+    This family is the only correctness evidence the metric has: reciprocity
+    holds to 1e-16 for EVERY invertible :math:`G` (#409) and can never
+    adjudicate one.
     """
-    frame = Quadrature.gauss_legendre(8).angular_frame(2)
-    rng = np.random.default_rng(1234)
-    c = rng.standard_normal(frame.basis.space.shape)
-    psi = frame.basis.synthesize(c, frame.table)
-    norm_w = frame.measure_space.inner_product(psi, psi)
-    phi = frame.analysis.apply(psi)
+    frame = Quadrature.folded_product(2, 4).angular_frame(3)
+    gram = np.asarray(frame.discrete_gram)
 
-    dense = frame.basis_space.inner_product(phi, phi) / norm_w
-    diag = np.diagonal(frame.discrete_gram).reshape(frame.basis.space.shape)
-    live = diag > 0.0
-    diagonal_candidate = replace(
-        frame.basis.space,
-        inner_product_weights=np.where(
-            live, 1.0 / np.where(live, diag, 1.0), 0.0
+    dense = _parseval_ratio_range(gram, np.asarray(frame.basis_space.metric.matrix))
+    diagonal = _parseval_ratio_range(gram, _diagonal_candidate_metric(gram))
+    continuum = _parseval_ratio_range(
+        gram,
+        np.diag(
+            np.asarray(frame.basis.space.inner_product_weights, dtype=float).reshape(-1)
         ),
     )
-    diagonal = diagonal_candidate.inner_product(phi, phi) / norm_w
-    continuum = frame.basis.space.inner_product(phi, phi) / norm_w
-    assert dense == pytest.approx(1.0, rel=1e-12)
-    assert diagonal > 1.5, f"diagonal candidate read {diagonal:.4f}"
-    assert continuum > 10.0, f"continuum metric read {continuum:.4f}"
+
+    assert dense == pytest.approx((1.0, 1.0), abs=1e-12), f"dense range {dense}"
+    assert diagonal[1] > 2.5, f"diagonal candidate range {diagonal}"
+    assert diagonal[0] >= 1.0 - 1e-12, (
+        f"the diagonal candidate must be STRICTLY insufficient (never below 1) "
+        f"on this frame; range {diagonal}"
+    )
+    assert continuum[0] > 10.0, f"continuum range {continuum}"
 
 
 @pytest.mark.foundation
 def test_diagonal_gram_suffices_for_the_collapse_and_dense_does_not_decide_it():
-    r"""D3 — why the frame-square gate keeps NO slab param.
+    r"""D3 — a DIAGONAL verdict SUFFICES for the sphere collapse; a DENSE one decides nothing.
 
-    The positive replacement for a silent param removal: `[M]` 2026-08-30
-    under the CORRECT dense Parseval metric, the isometry holds (≈1,
-    rtol 1e-12) while ``M.H`` vs ``R/W`` reads rel **2.65** (this seed) —
-    because the slab's live ℓ=2 Gram diagonal is ``[0.4, 0.8, 0.8]``,
-    not a single per-ℓ scalar, so no :math:`G_\ell` exists and the
-    collapse :math:`d_\ell G_\ell = W` is unspellable there at ANY
-    metric.
+    The collapse is :math:`M^\dagger = R/W`, which holds iff a per-degree
+    scalar :math:`G_\ell` exists with :math:`d_\ell G_\ell = W`.
 
-    ⛔ REFRAMED 2026-08-30 (archivist refutation of this gate's first
-    name, "…is a sphere-family property"): `[M]` ``product(4,4)`` L=2 IS
-    a sphere rule and BREAKS the collapse (rel 3.1e-3–0.333 over 200
-    seeds), while ``folded_product(4,6)`` L=3 measures DENSE and
-    SATISFIES it to 2.8e-15 — its only live off-diagonal block is
-    rank-1 (det −8.7e-17), so :math:`Y(G^{+} − \mathrm{diag}(d)/W) = 0`
-    holds anyway. The decidable statement is the current name:
-    a DIAGONAL verdict is SUFFICIENT for the collapse; a DENSE verdict
-    does not decide it either way. The slab is a DENSE member where it
-    fails, which is all this gate pins.
+    ⛔ **RE-KEYED and INVERTED 2026-09-02 (#429).** This gate's failing
+    witness was the slab, whose live :math:`\ell = 2` Gram diagonal was the
+    fabricated ``[0.4, 0.8, 0.8]`` — three numbers where the theory has one,
+    so no :math:`G_\ell` existed. `[M]` after the repair the slab's Gram is
+    ``diag(2/(2\ell+1))`` and the Legendre dual factor is :math:`2\ell+1`, so
+    :math:`d_\ell G_\ell = 2 = W` **exactly** and the collapse HOLDS there —
+    the inversion is asserted below, because it is the sharpest statement the
+    repair licenses and it would otherwise be lost.
+
+    The DENSE failing witness moves to ``folded_product(2, 4).angular_frame(3)``:
+    `[M]` matrix-level ``max|M† − R/W| / max|R/W| = 0.6564``, draw-free (both
+    faces swept as matrices, no random probe).
+
+    ⛔ The gate's NAME survives the re-key because the decidable statement is
+    unchanged and was itself a 2026-08-30 refutation of an earlier name
+    ("…is a sphere-family property"): `[M]` ``product(4,4)`` L=2 IS a sphere
+    rule and BREAKS the collapse, while ``folded_product(4,6)`` L=3 measures
+    DENSE and SATISFIES it — so DENSE does not decide it either way.
     """
-    frame = Quadrature.gauss_legendre(8).angular_frame(2)
-    rng = np.random.default_rng(1234)
-    c = rng.standard_normal(frame.basis.space.shape)
-    psi = frame.basis.synthesize(c, frame.table)
-    phi = frame.analysis.apply(psi)
-    assert frame.basis_space.inner_product(phi, phi) == pytest.approx(
-        frame.measure_space.inner_product(psi, psi), rel=1e-12
+    slab = Quadrature.gauss_legendre(8).angular_frame(2)
+    assert slab.discrete_gram_structure is GramStructure.DIAGONAL
+    assert _collapse_residual(slab) < 1e-12, (
+        "the repaired slab frame must SATISFY the collapse: its Legendre Gram "
+        "is diag(2/(2l+1)) and its dual factor is (2l+1), so d_l G_l = 2 = W"
     )
-    live_l2 = np.diagonal(frame.discrete_gram).reshape(frame.basis.space.shape)[2]
-    np.testing.assert_allclose(live_l2[live_l2 > 0.0], [0.4, 0.8, 0.8], rtol=1e-12)
-    w_total = float(frame.measure.weights.sum())
-    y = rng.standard_normal(frame.basis_space.shape)
-    lhs = frame.analysis.H.apply(y)
-    rhs = frame.reconstruction.apply(y) / w_total
-    rel = float(np.max(np.abs(lhs - rhs)) / np.max(np.abs(rhs)))
-    assert rel > 0.5, (
-        f"the sphere collapse unexpectedly held on the slab (rel {rel:.3g})"
+
+    dense = Quadrature.folded_product(2, 4).angular_frame(3)
+    assert dense.discrete_gram_structure is GramStructure.DENSE
+    residual = _collapse_residual(dense)
+    assert residual > 0.5, (
+        f"the DENSE witness must BREAK the collapse (rel {residual:.4g})"
+    )
+
+    # the isometry still holds there under the correct dense dressing — the
+    # two properties are independent, which is the whole point of the name.
+    assert _parseval_ratio_range(
+        np.asarray(dense.discrete_gram),
+        np.asarray(dense.basis_space.metric.matrix),
+    ) == pytest.approx((1.0, 1.0), abs=1e-12)
+
+
+def _collapse_residual(frame) -> float:
+    r"""``max|M† − R/W| / max|R/W|`` with both faces swept as MATRICES — draw-free."""
+    shape = frame.basis_space.shape
+    n_modes = int(np.prod(shape))
+
+    def sweep(operator):
+        columns = []
+        for index in range(n_modes):
+            unit = np.zeros(n_modes)
+            unit[index] = 1.0
+            columns.append(np.asarray(operator.apply(unit.reshape(shape))).ravel())
+        return np.array(columns).T
+
+    adjoint = sweep(frame.analysis.H)
+    reconstruction = sweep(frame.reconstruction) / float(frame.measure.weights.sum())
+    return float(
+        np.max(np.abs(adjoint - reconstruction)) / np.max(np.abs(reconstruction))
     )
 
 
 @pytest.mark.foundation
 def test_the_dense_dressing_reds_under_the_diagonal_and_the_pre_repair_metrics():
-    r"""D4 — the DENSE arm's loadedness witness, modelled on the diagonal
-    arm's (pre-seed the cached space with a wrong metric; the isometry
-    must FAIL). Two wrong metrics, two floors, both `[M]` on this seed:
-    the pre-repair continuum reads 25.53 (floor 10) and the best diagonal
-    candidate reads 1.806 (floor 1.5). The dressed reading passes at
-    1e-12 (D2) — the family is loaded, not blind.
+    r"""D4 — the DENSE arm's loadedness witness (``vv-principles`` #19).
+
+    A green isometry reading is compatible with a LOADED gate and with a
+    BLIND one; only the WRONG-metric reading discriminates. So this row
+    installs two wrong metrics and requires each to break Parseval by a
+    measured margin.
+
+    ⛔ **RE-POSED DRAW-FREE 2026-09-02.** The retired body pinned floors of
+    ``10`` and ``1.5`` on a single seeded draw; `[M]` the ``1.5`` floor was a
+    SEED — the same statistic ranged **0.2327 … 1.9975** over 400 draws on
+    the very frame it pinned. The floors below are on
+    :func:`_parseval_ratio_range`, which is the exact range of that ratio
+    over the whole band-limited subspace and so cannot move with a draw.
+
+    `[M]` 2026-09-02 on ``folded_product(2,4).angular_frame(3)``: continuum
+    ``[10.53, 157.9]``, best diagonal candidate ``[1.000, 3.000]``, dressed
+    ``[1.000, 1.000]``.
     """
-    for label, floor in (("continuum", 10.0), ("diagonal", 1.5)):
-        frame = Quadrature.gauss_legendre(8).angular_frame(2)
-        if label == "continuum":
-            wrong = SphericalHarmonicSpace.from_L(2)
-        else:
-            diag = np.diagonal(frame.discrete_gram).reshape(
-                frame.basis.space.shape
-            )
-            live = diag > 0.0
-            wrong = replace(
-                frame.basis.space,
-                inner_product_weights=np.where(
-                    live, 1.0 / np.where(live, diag, 1.0), 0.0
-                ),
-            )
-        vars(frame)["basis_space"] = wrong
-        vars(frame)["test_space"] = wrong
-        rng = np.random.default_rng(1234)
-        c = rng.standard_normal(wrong.shape)
-        psi = frame.basis.synthesize(c, frame.table)
-        phi = frame.analysis.apply(psi)
-        ratio = frame.basis_space.inner_product(phi, phi) / (
-            frame.measure_space.inner_product(psi, psi)
-        )
-        assert ratio > floor, (
-            f"{label} metric read Parseval {ratio:.3g} — the gate would be "
-            f"blind to it"
+    frame = Quadrature.folded_product(2, 4).angular_frame(3)
+    gram = np.asarray(frame.discrete_gram)
+
+    dressed = _parseval_ratio_range(gram, np.asarray(frame.basis_space.metric.matrix))
+    assert dressed == pytest.approx((1.0, 1.0), abs=1e-12), (
+        f"the CONTROL leg: the honest dressing must read Parseval, else a "
+        f"wrong-metric red carries no information; range {dressed}"
+    )
+
+    for label, metric, floor in (
+        (
+            "continuum",
+            np.diag(
+                np.asarray(
+                    frame.basis.space.inner_product_weights, dtype=float
+                ).reshape(-1)
+            ),
+            10.0,
+        ),
+        ("diagonal", _diagonal_candidate_metric(gram), 2.5),
+    ):
+        low, high = _parseval_ratio_range(gram, metric)
+        assert max(abs(low - 1.0), abs(high - 1.0)) > floor - 1.0, (
+            f"{label} metric read Parseval range [{low:.4g}, {high:.4g}] — "
+            f"the gate would be blind to it"
         )
 
 
@@ -989,3 +1202,229 @@ def test_the_dressing_lands_parseval_on_the_production_anisotropic_frame():
     )
     pre_repair = frame.basis.space.inner_product(phi, phi) / norm_w
     assert pre_repair > 10.0, f"pre-repair metric read {pre_repair:.4f}"
+
+
+# ══════════════════════════════════════════════════════════════════════
+# G0 (#429 tracker 2.2) — a frame's two halves must name ONE orbit space
+# ══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-080")
+class TestG0TheFrameBindsAlongAQuotientMap:
+    r"""The construction-time arrow ``measure.support -> basis.domain``.
+
+    A frame binds functions on ``basis.domain`` to a rule on
+    ``measure.support``; that is well-posed **iff** the functions can be
+    evaluated at the rule's nodes, i.e. iff a quotient map exists between the
+    two. ONE predicate — the lattice one — decides all seven shipped
+    pairings, and it is the frame-level statement of ERR-080: a basis eats
+    points of its own orbit space or of a FINER one, never of a coarser one.
+
+    ⛔ **§6c — G0 lands with no shipped production refusal.** `[M]`
+    2026-09-02: after the fused commit every support the dispatch selects
+    picks a basis G0 admits, so nothing production BUILDS is rejected. Its
+    refusal witnesses therefore have to be CONSTRUCTED, and they are, below —
+    from shipped classes, exactly the pairing the repair removed. A gate
+    whose rejected input does not exist ships green and unable to fail.
+    """
+
+    def test_a_rule_on_the_CHART_is_refused_for_a_basis_on_the_orbit_space(self) -> None:
+        """G0 compares the ENTRY, never its realization (tracker 2.4's ruling,
+        at the frame): the same eight cosines declared on the chart ``[-1,1]``
+        are refused for a Legendre basis on ``S^2/SO2_x`` — no quotient map
+        ``[-1,1] -> S^2/SO2_x`` exists, the chart is not the orbit space —
+        and admitted once declared on the entry. Built DIRECTLY on the frame,
+        because the quadrature's dispatch refuses a chart-level rule one guard
+        earlier and would otherwise mask a G0 that compared realizations
+        (`[M]` 2026-09-02, battery arm m10 was BLIND without this row)."""
+        rule = Quadrature.gauss_legendre(8).measure
+        on_chart = DiscreteMeasure(
+            nodes=rule.nodes, weights=rule.weights, support=COSINE_INTERVAL,
+        )
+        with pytest.raises(ValueError, match="no quotient map"):
+            GalerkinFrame(LegendreBasis(L=2), on_chart)
+        on_entry = DiscreteMeasure(
+            nodes=rule.nodes, weights=rule.weights,
+            support=SPHERE.quotient(SubgroupOfO3.SO2("x")),
+        )
+        frame = GalerkinFrame(LegendreBasis(L=2), on_entry)
+        assert frame.table.shape == (8, 3)
+
+    def test_the_four_shipped_pairings_are_admitted(self) -> None:
+        r"""Rows 1–4 of the pairing table, each a frame production actually builds (or was asked to).
+
+        =====  =====================  ==========  =======================
+        row    measure support        basis       spent :math:`\subseteq` has
+        =====  =====================  ==========  =======================
+        1      :math:`S^2`            SH          ``Trivial ⊆ Trivial``
+        2      :math:`S^2/\sigma_y`   MirrorEven  ``σ_y ⊆ σ_y``
+        3      :math:`S^2/SO(2)_x`    Legendre    ``SO2_x ⊆ SO2_x``
+        4 ⭐   :math:`S^2`            Legendre    ``Trivial ⊆ SO2_x``
+        =====  =====================  ==========  =======================
+
+        Row 4 is the pairing the user asked to be buildable:
+        :math:`P_\ell(\Omega\cdot\hat e_x)` on a Lebedev or level-symmetric
+        rule, reached by the entry's own quotient map.
+        """
+        sphere_rule = Quadrature.level_symmetric(4)
+        fold_rule = Quadrature.folded_product(4, 8)
+        slab_rule = Quadrature.gauss_legendre(8)
+
+        # row 1 — the full harmonics on a full-sphere rule
+        row1 = GalerkinFrame(SphericalHarmonicBasis(L=2), sphere_rule.measure)
+        assert row1.table.shape == (24, 3, 5)
+
+        # row 2 — the sigma-even sub-basis on the fold (dispatch-selected)
+        row2 = fold_rule.angular_frame(2)
+        assert isinstance(row2.basis, MirrorEvenSphericalHarmonicBasis)
+
+        # row 3 — the Legendre basis on the slab's own orbit space
+        row3 = slab_rule.angular_frame(2)
+        assert isinstance(row3.basis, LegendreBasis)
+        assert row3.table.shape == (8, 3)
+
+        # row 4 — the Legendre basis on a FULL-SPHERE rule
+        row4 = GalerkinFrame(LegendreBasis(L=2), sphere_rule.measure)
+        assert row4.table.shape == (24, 3)
+
+        for frame in (row1, row2, row3, row4):
+            assert frame.descent is not None
+            assert frame.descent.domain == frame.measure.support
+            assert frame.descent.codomain == frame.basis.domain
+            assert frame.test_descent is frame.descent  # Galerkin: test IS trial
+
+    def test_the_three_refusals_are_constructed_from_shipped_classes(self) -> None:
+        r"""Rows 5–7 — including **the Part I bug**, which is ERR-080's own pairing.
+
+        Row 5 is the frame the tree built for every 1-D solve until
+        2026-09-02: the FULL harmonics (``Trivial``) on a rule whose measure
+        lives on :math:`S^2/SO(2)_x`. ``Trivial ⊉ SO(2)_x``, so no arrow
+        exists — a coarser orbit space cannot map onto a finer one, which is
+        exactly the direction the forged :math:`(\mu, 0, 0)` nodes pretended
+        to travel.
+        """
+        slab = Quadrature.gauss_legendre(8).measure
+        fold = Quadrature.folded_product(4, 8).measure
+
+        # row 5 — THE PART I BUG
+        with pytest.raises(ValueError, match="no quotient map"):
+            GalerkinFrame(SphericalHarmonicBasis(L=2), slab)
+
+        # row 6 — the full harmonics on a mirror fold
+        with pytest.raises(ValueError, match="no quotient map"):
+            GalerkinFrame(SphericalHarmonicBasis(L=2), fold)
+
+        # row 7 ⚠ — the Legendre basis on a sigma_y fold. Mathematically
+        # ADMISSIBLE (a mirror across the polar axis does not move mu), and
+        # refused here because Basis.invariance_group is DERIVED as the
+        # domain's `by` — a strict LOWER bound — and SubgroupOfO3 has no
+        # axis-parameterised O(2) to declare instead. Inert today (the
+        # dispatch never selects it); GitHub #432, its own step. Recorded as
+        # a row so the refusal cannot be mistaken for a theorem.
+        with pytest.raises(ValueError, match="no quotient map"):
+            GalerkinFrame(LegendreBasis(L=2), fold)
+
+    def test_the_message_names_both_halves_and_both_groups(self) -> None:
+        r"""The refusal is a DIAGNOSIS, not a wall — it says which spaces, which groups, and where to look."""
+        with pytest.raises(ValueError) as excinfo:
+            GalerkinFrame(
+                SphericalHarmonicBasis(L=2), Quadrature.gauss_legendre(8).measure
+            )
+        message = str(excinfo.value)
+        for fragment in ("S^2", "S^2/SO2_x", "spent SO2_x", "has Trivial", "ERR-080"):
+            assert fragment in message, f"{fragment!r} missing from: {message}"
+
+    def test_g0_fires_on_BOTH_construction_paths(self) -> None:
+        r"""``GalerkinFrame`` has a hand-written ``__init__``, so the dataclass ``__post_init__`` is not enough.
+
+        ``plan-authoring`` §6b in miniature: one guard, two doors. A gate on
+        one door certifies the other by accident.
+        """
+        slab = Quadrature.gauss_legendre(8).measure
+        with pytest.raises(ValueError, match="no quotient map"):
+            GalerkinFrame(SphericalHarmonicBasis(L=2), slab)          # ctor path
+        with pytest.raises(ValueError, match="no quotient map"):
+            PetrovGalerkinFrame(                                       # dataclass path
+                basis=SphericalHarmonicBasis(L=2),
+                measure=slab,
+                test_basis=SphericalHarmonicBasis(L=2),
+            )
+
+    def test_the_table_is_the_pullback_along_the_descent_arrow(self) -> None:
+        r"""B9 — ``frame.table == basis.evaluate(π(nodes))``, and the raw-node tabulation RAISES.
+
+        The arrow is not decoration: the table is the basis pulled back along
+        it. On a Legendre-on-a-full-sphere frame the pullback is the entry's
+        quotient map, and `[M]` ``π(nodes) == axis_cosines(0)`` bit-exactly on
+        every sphere rule — so the frame's table is the Legendre table at the
+        rule's own polar cosines.
+
+        NEGATIVE leg: hand the flat basis the RAW ``(N, 3)`` nodes and it
+        must REFUSE, rather than silently broadcasting three columns into a
+        width the basis would accept.
+        """
+        entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        for build in (
+            lambda: Quadrature.level_symmetric(4),
+            lambda: Quadrature.lebedev(11),
+            lambda: Quadrature.product(4, 6),
+        ):
+            rule = build()
+            basis = LegendreBasis(L=3)
+            frame = GalerkinFrame(basis, rule.measure)
+            nodes = np.asarray(rule.measure.nodes, dtype=float)
+
+            cosines = entry.quotient_map(nodes)
+            assert np.array_equal(
+                cosines, np.asarray(rule.axis_cosines(0), dtype=float)
+            )
+            assert np.array_equal(frame.table, basis.evaluate(cosines))
+            assert np.array_equal(frame.table, basis.evaluate(frame.descent(nodes)))
+
+            # the raw-node tabulation is refused, not broadcast
+            with pytest.raises(ValueError, match="not all lie on it|expected points"):
+                basis.evaluate(np.column_stack([nodes[:, 0], nodes[:, 1]]))
+
+    def test_g0_respects_the_subgroup_order_relation(self) -> None:
+        r"""``vv-principles`` #15 — the predicate and the lattice cross-check each other.
+
+        G0 is a predicate on a pair of orbit spaces and ``SubgroupOfO3.contains``
+        is the order relation it must respect. Gated over every edge among the
+        shipped angular groups, neither half can be wrong alone without this
+        reddening — which is what makes it worth more than either a
+        per-pairing table or a per-lattice-edge table.
+        """
+        nodes = np.asarray(Quadrature.level_symmetric(4).measure.nodes, dtype=float)
+        weights = np.asarray(Quadrature.level_symmetric(4).weights, dtype=float)
+        # ⚠ The unfolded case is the BARE sphere, not ``SPHERE.quotient(Trivial)``
+        # — that is what every shipped unfolded rule declares (`[M]` LS4,
+        # lebedev(11), product(4,6) all carry ``support=Sphere()``), and the two
+        # are NOT the same object here: ``S^2/Trivial`` is a ``Quotient`` whose
+        # realization is ``S^2``, and ``quotient_onto(S^2/Trivial, S^2)`` returns
+        # ``None`` although the two spaces are isomorphic. Unreachable from any
+        # shipped producer, so it is recorded rather than gated.
+        supports = {
+            SubgroupOfO3.Trivial: SPHERE,
+            SubgroupOfO3.SO2("x"): SPHERE.quotient(SubgroupOfO3.SO2("x")),
+            SubgroupOfO3.Mirror("y"): SPHERE.quotient(SubgroupOfO3.Mirror("y")),
+        }
+        checked = 0
+        for spent, support in supports.items():
+            measure = DiscreteMeasure(nodes=nodes, weights=weights, support=support)
+            for has, basis in (
+                (SubgroupOfO3.Trivial, SphericalHarmonicBasis(L=2)),
+                (SubgroupOfO3.SO2("x"), LegendreBasis(L=2)),
+                (
+                    SubgroupOfO3.Mirror("y"),
+                    MirrorEvenSphericalHarmonicBasis(L=2, mirror_axis=1),
+                ),
+            ):
+                admissible = has.contains(spent)
+                if admissible:
+                    GalerkinFrame(basis, measure)
+                else:
+                    with pytest.raises(ValueError, match="no quotient map"):
+                        GalerkinFrame(basis, measure)
+                checked += 1
+        assert checked == 9

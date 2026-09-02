@@ -56,6 +56,7 @@ from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import IncompatibleOperatorComposition, OperatorProduct
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
+from orpheus.numerics.spaces.legendre_space import LegendreSpace
 from orpheus.numerics.spaces.spherical_harmonic_space import SphericalHarmonicSpace
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
@@ -82,16 +83,35 @@ _SIG2 = np.array([[0.00, 0.03], [0.01, 0.00]])
 
 @dataclass(frozen=True)
 class _ForeignTruncatedBasis(Basis):
-    """The same functions as the real harmonics, delegated — with a RENAMED
+    """The same functions as the rule's OWN basis, delegated — with a RENAMED
     coefficient space, and NOT a ``SphericalHarmonicBasis`` subclass. It
     carries a truncation order, which is the ONE thing the door asks for;
-    its renamed space is ``(name, shape)``-unequal to ``from_L(L)``, which
-    is what the route gate reads."""
+    its renamed space is ``(name, shape)``-unequal to the honest mint, which
+    is what the route gate reads.
+
+    ⛔ **The parent is a FIELD since 2026-09-02 (#429).** It used to hard-code
+    ``SphericalHarmonicBasis(L)``, hence ``domain = SPHERE`` — and the frame's
+    G0 arrow now refuses a basis on :math:`S^2` bound to a rule whose measure
+    lives on :math:`S^2/SO(2)_x`, which is the whole of ERR-080. Delegating
+    the domain keeps the mutant admissible **wherever the honest basis is**,
+    so the ONE thing that differs between the two runs stays the coefficient
+    SPACE — which is what this module's route gate is about (``vv-principles``
+    #18: a mutation that also breaks a structural law over-states its own
+    coverage).
+    """
 
     L: int
+    parent: Basis
 
-    def _parent(self) -> SphericalHarmonicBasis:
-        return SphericalHarmonicBasis(L=self.L)
+    @classmethod
+    def like(cls, basis: Basis) -> "_ForeignTruncatedBasis":
+        """A foreign twin of ``basis``: same functions, same domain, renamed space."""
+        order = getattr(basis, "L", None)
+        assert isinstance(order, int)
+        return cls(L=order, parent=basis)
+
+    def _parent(self) -> Basis:
+        return self.parent
 
     def evaluate(self, points, /):
         return self._parent().evaluate(points)
@@ -116,15 +136,15 @@ class _ForeignTruncatedBasis(Basis):
 
     @property
     def gram_structure(self) -> GramStructure:
-        return GramStructure.DIAGONAL
+        return self._parent().gram_structure
 
     @property
     def domain(self) -> Manifold:
-        return SPHERE
+        return self._parent().domain
 
     @property
     def space(self) -> FunctionSpace:
-        return replace(SphericalHarmonicSpace.from_L(self.L), name=_MUTANT_NAME)
+        return replace(self._parent().space, name=_MUTANT_NAME)
 
 
 def _slab(nx: int = 4, n_ord: int = 4, ng: int = 2) -> SNMesh:
@@ -161,7 +181,7 @@ def _bind_foreign(sn: SNMesh, L: int) -> HarmonicFrame:
     # own) — the test is about the SPACE, not the nodes
     honest = sn.quad.angular_frame(L)
     cache = sn.quad._angular_frames or {}
-    cache[L] = GalerkinFrame(_ForeignTruncatedBasis(L=L), honest.measure)
+    cache[L] = GalerkinFrame(_ForeignTruncatedBasis.like(honest.basis), honest.measure)
     object.__setattr__(sn.quad, "_angular_frames", cache)
     frame = HarmonicFrame.for_space(sn.angular_bulk_space, L)
     assert frame.basis.space.name == _MUTANT_NAME, "the route through for_space did not reach the foreign frame"
@@ -206,10 +226,13 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
     # re-minted the family from an integer would hand back the default name
     truncated = field.truncate(0).space
     assert isinstance(truncated, TensorProductSpace)
-    assert truncated.factors[0].shape == (1, 1)
+    # the truncated head keeps its own FAMILY's L = 0 layout — ``(1, 1)`` for
+    # the rectangular harmonics, ``(1,)`` for the flat Legendre family the
+    # slab now binds. Read off the honest head, so this line cannot drift.
+    assert truncated.factors[0].shape == sn.quad.angular_frame(0).basis.space.shape
     assert truncated.factors[0].name == _MUTANT_NAME
 
-    foreign = _ForeignTruncatedBasis(L=L)
+    foreign = _ForeignTruncatedBasis.like(sn.quad.angular_frame(L).basis)
     assert LegendreMomentScattering.from_material_xs(mat, foreign).domain.name == _MUTANT_NAME
     assert N2NMomentOperator.from_material_xs(mat, foreign).codomain.name == _MUTANT_NAME
 
@@ -255,7 +278,15 @@ def test_landing_a_binds_the_continuum_space_and_is_metric_identical(label: str,
     q = _RULES[label]()              # built in the body, never in the parametrize list
     frame = HarmonicFrame.from_galerkin(q.angular_frame(L))
     ends = frame.basis.space
-    minted = SphericalHarmonicSpace.from_L(L)
+    # ⛔ RE-KEYED 2026-09-02 (#429): the mint to compare against is the one the
+    # rule's ORBIT SPACE carries. A 1-D rule's frame binds the flat Legendre
+    # head, a sphere rule's the rectangular harmonics — so a gate that
+    # compared every rule to ``SphericalHarmonicSpace.from_L(L)`` was reading
+    # one family's layout as the contract.
+    minted = (
+        LegendreSpace.from_L(L, "x") if label.startswith("gauss_legendre")
+        else SphericalHarmonicSpace.from_L(L)
+    )
     assert ends == minted
     assert ends.inner_product_weights is not None and minted.inner_product_weights is not None
     np.testing.assert_array_equal(ends.inner_product_weights, minted.inner_product_weights)
@@ -276,10 +307,19 @@ def test_the_operator_ends_carry_the_continuum_metric_not_the_dressed_one() -> N
     L = 1                      # the synthetic data carries P0 and P1
     S = ScatteringOperator.from_solver_data(mat_xs=_mat_xs(), space=sn.full_field_space, scattering_order=L)
     ends = S._moment_scattering(skip_l0=False).domain
-    minted = SphericalHarmonicSpace.from_L(L)
+    # the mint the ends must equal is the FRAME's basis space — on this slab
+    # fixture the flat Legendre head, on a sphere rule the harmonics'. ⭐ Both
+    # families carry the SAME per-degree continuum Gram 4pi/(2l+1) (the
+    # descent is an isometry), which is exactly what makes Landing A's
+    # binding metric-identical across the ERR-080 repair.
+    minted = sn.quad.angular_frame(L).basis.space
     assert ends.inner_product_weights is not None and minted.inner_product_weights is not None
     np.testing.assert_array_equal(ends.inner_product_weights, minted.inner_product_weights)
     assert ends.metric is None
+    np.testing.assert_array_equal(
+        np.asarray(minted.inner_product_weights).reshape(-1),
+        4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0),
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -302,10 +342,22 @@ def test_the_door_asks_for_a_truncation_order_not_for_one_class() -> None:
     with pytest.raises(TypeError, match="truncation order"):
         HarmonicFrame.from_galerkin(GalerkinFrame(indicator, measure))
 
-    foreign = _ForeignTruncatedBasis(L=1)
+    # ⚠ The foreign basis is built as a twin of the RULE'S OWN basis
+    # (2026-09-02, #429): the frame's G0 arrow refuses a basis on
+    # :math:`S^2` bound to a 1-D rule's :math:`S^2/SO(2)_x`, so a mutant
+    # hard-coding the harmonics would red for the WRONG reason and this gate
+    # would stop measuring the door.
+    rule = Quadrature.gauss_legendre(4)
+    foreign = _ForeignTruncatedBasis.like(rule.angular_frame(1).basis)
     assert isinstance(foreign, TruncatedBasis)
     assert not isinstance(foreign, SphericalHarmonicBasis)
-    frame = HarmonicFrame(foreign, Quadrature.gauss_legendre(4).measure)
+    frame = HarmonicFrame(foreign, rule.measure)
     assert frame.truncation_order == 1
-    upgraded = HarmonicFrame.from_galerkin(GalerkinFrame(foreign, Quadrature.gauss_legendre(4).measure))
+    upgraded = HarmonicFrame.from_galerkin(GalerkinFrame(foreign, rule.measure))
     assert upgraded.truncation_order == 1
+
+    # …and the same twin on a SPHERE rule, so the door gate is not keyed to
+    # one family either (the foreign basis there wraps the harmonics).
+    sphere = Quadrature.level_symmetric(4)
+    foreign_sphere = _ForeignTruncatedBasis.like(sphere.angular_frame(1).basis)
+    assert HarmonicFrame(foreign_sphere, sphere.measure).truncation_order == 1

@@ -554,8 +554,27 @@ per-:math:`\ell` moment-space group transfer
 (:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`),
 carrying **both** the :math:`\ell = 0` in-scatter and the
 :math:`\ell\ge1` redistribution so one analysis and one reconstruction
-serve the whole scattering source.  Its transpose is therefore the
-product transpose
+serve the whole scattering source.
+
+.. note::
+
+   ⚠ **Since 2026-09-02** :math:`\Lambda` **and** :math:`\Lambda^{\mathsf T}`
+   **read the LAYOUT off the angular head rather than assuming the
+   rectangular one** (#429 / ERR-080). Both verbs take the operator's
+   own head — its domain — and ask it for the degree-:math:`\ell` block
+   and for how many axes precede the group axis; the group contraction
+   is then selected by the head's RANK:
+   ``"mfc...,fg->mgc..."`` for the real harmonics (rank 2, an
+   :math:`m` axis in front of the group axis) and
+   ``"fc...,fg->gc..."`` for the FLAT Legendre head a 1-D rule binds
+   (rank 1). The harmonic specs are the former inline ones verbatim, so
+   that path is bit-identical by construction; an unshipped rank is
+   refused by name. ⛔ Before that, the loop spelled the :math:`m` axis
+   into its ``einsum`` and its slicing, so a flat head would have
+   contracted the **group** axis as if it were :math:`m` — silently.
+   See :ref:`spaces-moment-head`.
+
+Its transpose is therefore the product transpose
 
 .. math::
    :label: sn-scattering-adjoint-kernel-transpose

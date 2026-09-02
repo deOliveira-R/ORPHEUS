@@ -102,7 +102,7 @@ from numpy.typing import NDArray
 from orpheus.numerics.axis import BasisKind, EnergyAxis
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
-from orpheus.numerics.manifold import IndexSet
+from orpheus.numerics.manifold import IndexSet, ManifoldMap, quotient_onto
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.metric import DenseMetric
 from orpheus.numerics.operator import (
@@ -129,6 +129,41 @@ __all__ = ["FrameBase", "GalerkinFrame", "PetrovGalerkinFrame"]
 _DISCRETE_GRAM_DIAGONALITY_RTOL = 1e-10
 
 
+def _descent_arrow(basis: Basis, measure: DiscreteMeasure, role: str) -> ManifoldMap:
+    r"""G0 — the frame's two halves must name ONE orbit space, up to a quotient map.
+
+    A frame binds functions on ``basis.domain`` to a rule on
+    ``measure.support``; that is well-posed iff the functions can be
+    evaluated at the rule's nodes, i.e. iff a quotient map
+    ``measure.support -> basis.domain`` EXISTS
+    (:func:`~orpheus.numerics.manifold.quotient_onto`: equality, the entry's
+    own map, or the induced :math:`M/K \to M/H` for :math:`K \subseteq H`).
+    The frame's table is the basis pulled back along that arrow. ONE
+    predicate (user-ruled 2026-09-02, #429 tracker 2.2): it refuses the Part
+    I bug — the full harmonics (``Trivial``) on the slab's :math:`S^2/SO(2)_x`
+    — and admits the slab's Legendre basis, the fold's σ-even harmonics, the
+    full harmonics on a full-sphere rule, AND the Legendre basis on a
+    full-sphere rule. `[M]` 2026-09-02, before this gate, every one of the
+    21 frames three real solves built passed it; after the forgery's
+    retirement the slab-harmonics pairing is exactly the one it refuses.
+    """
+    arrow = quotient_onto(measure.support, basis.domain)
+    if arrow is None:
+        spent = getattr(measure, "quotient_group", None)
+        has = getattr(basis, "invariance_group", None)
+        raise ValueError(
+            f"a frame binds {role} functions on {basis.domain.name!r} to a "
+            f"rule on {measure.support.name!r}, and no quotient map "
+            f"{measure.support.name} -> {basis.domain.name} exists (the rule "
+            f"spent {spent.name if spent is not None else None}, the basis "
+            f"has {has.name if has is not None else None}). A basis eats "
+            f"points of its own orbit space or of a finer one; give the rule "
+            f"the basis its orbit space carries "
+            f"(Quadrature.angular_frame derives it) — #429, ERR-080."
+        )
+    return arrow
+
+
 @dataclass(frozen=True)
 class FrameBase(ABC):
     r"""A discrete frame: a :class:`Basis` bound to a :class:`DiscreteMeasure`.
@@ -150,6 +185,26 @@ class FrameBase(ABC):
     basis: Basis
     measure: DiscreteMeasure
 
+    def __post_init__(self) -> None:
+        # G0 at construction, on BOTH halves (the trial here; the test basis
+        # through :attr:`test_descent` on first use, since the discipline
+        # subclass binds it) — a frame over an incompatible pairing is
+        # unspellable, loudly, early.
+        _descent_arrow(self.basis, self.measure, "trial")
+
+    # ── the G0 arrows: what the tables are pulled back along ──────────────
+    @cached_property
+    def descent(self) -> ManifoldMap:
+        r"""The quotient map ``measure.support -> basis.domain`` the trial table is pulled back along (G0)."""
+        return _descent_arrow(self.basis, self.measure, "trial")
+
+    @cached_property
+    def test_descent(self) -> ManifoldMap:
+        r"""The same arrow for the TEST basis (``test is trial`` on a Galerkin frame)."""
+        if self.test is self.basis:
+            return self.descent
+        return _descent_arrow(self.test, self.measure, "test")
+
     # ── the discipline hook ───────────────────────────────────────────────
     @property
     @abstractmethod
@@ -169,8 +224,11 @@ class FrameBase(ABC):
 
         Evaluated ONCE and cached; the reconstruction face and (for a Galerkin frame)
         the analysis face read this rather than re-tabulating (the L16 perf guard).
+        The nodes are pulled back along the G0 arrow first (:attr:`descent`):
+        the identity for a basis on the rule's own orbit space, the quotient
+        map for a Legendre basis on a full-sphere rule.
         """
-        return self.basis.evaluate(self.measure.nodes)
+        return self.basis.evaluate(self.descent(self.measure.nodes))
 
     @cached_property
     def discrete_gram(self) -> NDArray:
@@ -312,7 +370,7 @@ class FrameBase(ABC):
         overrides it to *reuse* :attr:`table` (``test is trial`` ⟹ the same array,
         no re-evaluation, 0-ULP-identical analysis).
         """
-        return self.test.evaluate(self.measure.nodes)
+        return self.test.evaluate(self.test_descent(self.measure.nodes))
 
     @cached_property
     def test_space(self) -> FunctionSpace:
@@ -551,6 +609,7 @@ class GalerkinFrame(PetrovGalerkinFrame):
         object.__setattr__(self, "basis", basis)
         object.__setattr__(self, "measure", measure)
         object.__setattr__(self, "test_basis", basis)
+        _descent_arrow(basis, measure, "trial")   # G0 (the dataclass path runs __post_init__; this ctor must too)
 
     @cached_property
     def test_table(self) -> NDArray:

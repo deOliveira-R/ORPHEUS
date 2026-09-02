@@ -30,6 +30,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.measure import DiscreteMeasure
@@ -394,7 +395,7 @@ def test_q4_8_derivation_refuses_when_closure_actually_breaks() -> None:
 def test_q5_1_spherical_harmonics_shape() -> None:
     """spherical_harmonics(L) returns shape (N, L+1, 2L+1)."""
     q = Quadrature.lebedev(17)
-    Y = q.spherical_harmonics(2)
+    Y = q.angular_frame(2).table
     assert Y.shape == (q.N, 3, 5)
 
 
@@ -411,7 +412,7 @@ def test_q5_2_spherical_harmonics_l0_constant() -> None:
     normalisation value.
     """
     q = Quadrature.lebedev(17)
-    Y = q.spherical_harmonics(0)
+    Y = q.angular_frame(0).table
     np.testing.assert_allclose(Y[:, 0, 0], Y[0, 0, 0])
     assert Y[0, 0, 0] != 0.0
 
@@ -565,34 +566,60 @@ def test_q8_3_the_fold_keeps_its_quotient_tag_all_the_way_to_the_frame() -> None
 @pytest.mark.parametrize(
     "make", [r[1] for r in _LIFTED_RULES], ids=[r[0] for r in _LIFTED_RULES]
 )
-def test_q8_4_the_1d_lift_is_still_a_FICTION_and_says_so(make) -> None:
-    """⚠ SELF-RETIRING. A 1-D rule does NOT route, because the map it would
-    need does not exist: a point of :math:`[-1,1]` is an ORBIT of the
-    :math:`SO(2)` action, not a point of :math:`S^2`. The arrow that exists
-    runs the other way (the quotient :math:`S^2 \\to [-1,1]`).
+@pytest.mark.catches("ERR-080")
+def test_q8_4_the_1d_rule_ROUTES_its_own_measure_and_binds_the_legendre_basis(
+    make,
+) -> None:
+    r"""⏏ **The retirement trigger FIRED (2026-09-02, #429) — this gate is its successor.**
 
-    So ``angular_frame`` still pads :math:`\\mu` to :math:`(\\mu, 0, 0)` and
-    calls the result :math:`S^2` — ERR-080's construction, kept deliberately
-    and named at
-    :meth:`Quadrature._harmonic_frame_measure`.
+    What it said before, and why: a 1-D rule did NOT route, because the map it
+    would need does not exist — a point of :math:`[-1,1]` is an ORBIT of the
+    :math:`SO(2)` action, not a point of :math:`S^2`, and the arrow that
+    exists runs the other way (the quotient :math:`S^2 \to [-1,1]`). So
+    ``angular_frame`` padded :math:`\mu` to :math:`(\mu, 0, 0)` and called the
+    result :math:`S^2`. That gate asserted the FICTION, named it, and declared
+    itself the retirement trigger: *"when Phase 3.4 gives the 1-D chart its
+    trivial isotypic sub-basis, the branch disappears and this gate goes RED —
+    which is what forces it to be rewritten rather than silently outlived."*
+    It went red exactly as designed, and this body is the rewrite.
 
-    ⏏ **This test is the retirement trigger.** When Phase 3.4 gives the 1-D
-    chart its trivial isotypic sub-basis, the branch disappears and this gate
-    goes RED — which is what forces it to be rewritten rather than silently
-    outlived.
+    ⭐ **A ROUTE gate, not a value gate** (``lessons`` L64a). The rebuilt
+    measure was already ``==`` to the rule's own on the routed rules — which
+    is precisely why the leak hid for as long as it did — so ``is``-identity
+    is the only assertion that can see the decision. `[M]` 0.1a took the route
+    count from 0 to 10 of 12; the fused commit takes it to **12 of 12**.
+
+    Three claims, and each is a different mechanism:
+
+    1. the frame's measure **IS** the rule's (route, not rebuild);
+    2. the basis is a :class:`LegendreBasis` on :math:`S^2/SO(2)_x` (the
+       dispatch reads the measure's SUPPORT, not the ``folded_by`` tag);
+    3. the table is FLAT, ``(N, L+1)`` — there is no fabricated
+       :math:`m \ne 0` slot for the defect to live in.
     """
     q = make()
-    frame_measure = q.angular_frame(2).measure
-    assert frame_measure is not q.measure
-    # Since tracker 2.4 the slab rule DECLARES its orbit space; the fiction is
-    # that the frame then pads it back onto S^2 as if it were a point set there.
+    frame = q.angular_frame(2)
+
+    # 1 — the ROUTE
+    assert frame.measure is q.measure, (
+        "the 1-D frame must ROUTE the rule's own measure, not rebuild one"
+    )
     assert q.measure.support == SPHERE.quotient(SubgroupOfO3.SO2("x"))
-    assert frame_measure.support == SPHERE          # the fiction, stated
     assert q.measure.nodes.ndim == 1
-    assert frame_measure.nodes.shape == (q.N, 3)
-    # the fabricated azimuth: every node is padded onto the phi = 0 meridian
-    np.testing.assert_array_equal(frame_measure.nodes[:, 1], np.zeros(q.N))
-    np.testing.assert_array_equal(frame_measure.nodes[:, 2], np.zeros(q.N))
+
+    # 2 — the basis the orbit space carries
+    assert isinstance(frame.basis, LegendreBasis)
+    assert frame.basis.domain == q.measure.support
+    assert frame.basis.axis == "x"
+    assert frame.basis.invariance_group == q.measure.quotient_group
+
+    # 3 — the flat table: the fabricated slots are UNSPELLABLE
+    assert frame.table.shape == (q.N, 3)
+    assert frame.basis.space.shape == (3,)
+
+    # …and the forged construction the fiction used is GONE from production:
+    # no shipped call rebuilds a padded (mu, 0, 0) measure on S^2.
+    assert not hasattr(q, "_harmonic_frame_measure")
 
 
 @pytest.mark.parametrize(
@@ -611,47 +638,6 @@ def test_q8_5_routing_moved_no_numbers(make) -> None:
     rebuilt = np.column_stack([q.axis_cosines(0), q.axis_cosines(1), q.axis_cosines(2)])
     np.testing.assert_array_equal(m.nodes, rebuilt)
     np.testing.assert_array_equal(m.weights, q.weights)
-
-
-@pytest.mark.parametrize(
-    "make",
-    [r[1] for r in _ROUTED_RULES + _LIFTED_RULES],
-    ids=[r[0] for r in _ROUTED_RULES + _LIFTED_RULES],
-)
-def test_q8_6_spherical_harmonics_IS_the_frame_table_one_object(make) -> None:
-    """``spherical_harmonics(L)`` and ``angular_frame(L).table`` are ONE object.
-
-    ⛔ **This gate was DEMOTED by phase 0.2, deliberately, and is kept for a
-    narrower claim — read this before "restoring" the old assertion.** It was
-    written at 0.1a as a bit-identity comparison of two *independently
-    assembled* tables (`[M]` 36 of 36 agreeing over 12 rules × L ∈ {0,1,2}).
-    0.2 then single-sourced ``spherical_harmonics`` onto the frame, so that
-    comparison became ``x == x``: **no input can make the two sides differ**,
-    and a gate wearing an authoritative name for a comparison that cannot fail
-    is worse than no gate (``coding-standards``).
-
-    The demotion is CORRECT — prevention beats detection, and the twin that
-    could drift is gone — so what moves is the gate's CLAIM, not the fix. What
-    it now pins is the **single-sourcing itself**: an ``is`` identity, which
-    reddens the moment anyone re-introduces a second evaluation path. That is
-    a real regression to guard, and it is the one this gate can still see.
-
-    ⭐ The value coverage did not move to nothing: ``test_q5_1`` (shape) and
-    ``test_q5_2`` (Y_0^0 constancy) pin the table against literals authored
-    independently of both spellings, so the carve cost no coverage.
-    """
-    q = make()
-    for L in (0, 1, 2):
-        assert q.spherical_harmonics(L) is q.angular_frame(L).table
-
-
-# ─── Q9: the accessor SPLIT — coordinate vs orbit mean ──────────────────
-#
-# Phase 0.2. ``axis_cosines`` answered two different questions with one
-# signature, and the zeros it returned for a suppressed axis carried both
-# meanings at once: "there is no such coordinate" AND "nothing flows there".
-# `[M]` the full-suite census found 1 consumer meaning the first and 3 meaning
-# the second, so a blanket refusal would have broken three correct call sites.
 
 
 def _orbit_mean_by_quadrature(mu: float, n_phi: int = 8) -> np.ndarray:

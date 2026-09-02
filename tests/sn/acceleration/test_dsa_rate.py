@@ -734,18 +734,41 @@ class TestP1DSAArm:
             )
 
     def test_moment_pair_injection_object_pins(self):
-        """The object-level pins (D8's ℓ=1 siblings): the frame's
-        slab ℓ=1 row IS w·μ (the SH table's slab component is μ
-        bit-exactly), and the (33) synthesis is the exact right
-        inverse of the pair restriction (R∘P = I on (φ₀, φ₁) — the
-        μ-arm is moment-0-free and the iso arm moment-1-free by
-        quadrature symmetry and W₂ exactness)."""
+        r"""The object-level pins (D8's ℓ=1 siblings), RE-KEYED 2026-09-02 (#429).
+
+        The claim is unchanged: the DSA :math:`\ell = 1` analysis/synthesis
+        coefficient IS the polar cosine :math:`\mu` per ordinate, and the (33)
+        synthesis is the exact right inverse of the pair restriction
+        (:math:`R\circ P = I` on :math:`(\phi_0, \phi_1)` — the μ-arm is
+        moment-0-free and the iso arm moment-1-free by quadrature symmetry
+        and :math:`W_2` exactness).
+
+        ⛔ **What moved.** The pins read the frame's RECTANGULAR harmonic
+        table at ``[:, 0, 0]`` and ``[:, 1, 1]``. A 1-D rule no longer binds
+        that layout — its frame carries the Legendre basis, whose table is
+        FLAT ``(N, L+1)`` — so ``[:, 1, 1]`` is now an ``IndexError``, and
+        the production read was re-pointed to ``quadrature.axis_cosines(0)``.
+        The pins follow it.
+
+        ⚠ **A VALUE leg cannot discriminate the two accessors.** `[M]`
+        2026-09-02: ``axis_cosines(0)`` and ``mean_axis_cosine(0)`` are
+        ``array_equal`` on all 5 shipped Gauss–Legendre rules — Mode 12 at
+        the accessor, so a substitution is invisible to every number below.
+        The discriminating leg is the REFUSAL, and it is asserted in
+        :func:`test_the_dsa_mu_read_is_the_coordinate_accessor_not_the_mean`.
+        """
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         mu = np.asarray(quad.mu_x, dtype=float)
         w = np.asarray(quad.weights, dtype=float)
         table = np.asarray(quad.angular_frame(1).table)
-        np.testing.assert_array_equal(table[:, 0, 0], np.ones(mu.size))
-        np.testing.assert_array_equal(table[:, 1, 1], mu)
+        assert table.shape == (mu.size, 2), "the 1-D frame's table is FLAT"
+        np.testing.assert_array_equal(table[:, 0], np.ones(mu.size))
+        np.testing.assert_array_equal(table[:, 1], mu)
+        # …and the production read is the coordinate accessor, bit-exactly
+        # the same numbers as that column.
+        np.testing.assert_array_equal(
+            np.asarray(quad.axis_cosines(0), dtype=float), mu
+        )
 
         rng = np.random.default_rng(31)
         phi0 = rng.normal(size=(2, 5))
@@ -759,6 +782,48 @@ class TestP1DSAArm:
         m1 = np.einsum("n,ngk->gk", w * mu, synth)
         np.testing.assert_allclose(m0, phi0, rtol=1e-13, atol=1e-13)
         np.testing.assert_allclose(m1, phi1, rtol=1e-13, atol=1e-13)
+
+    def test_the_dsa_mu_read_is_the_coordinate_accessor_not_the_mean(self):
+        r"""B12's discriminating leg — the only one that can tell the two accessors apart.
+
+        The :math:`\ell = 1` DSA coefficient is a COORDINATE question, so it
+        is answered by the coordinate accessor. ``axis_cosines(i)`` REFUSES a
+        suppressed axis; ``mean_axis_cosine(i)`` returns the orbit mean, which
+        on a 1-D rule is a vector of ZEROS — the exact quantity ERR-080 forged
+        into a direction. `[M]` 2026-09-02:
+
+        * ``axis_cosines(0) == mean_axis_cosine(0)`` bit-for-bit on 5 of 5
+          Gauss–Legendre rules ⟹ **no value gate can discriminate**;
+        * ``axis_cosines(1)`` raises on a 1-D rule; ``mean_axis_cosine(1)``
+          returns ``[0., 0., …]`` silently.
+
+        So a substitution of the mean for the coordinate would be inert on
+        every number the DSA suite computes, and loud only here.
+        """
+        for n_ordinates in (2, 4, 8, 16, 32):
+            quad = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
+
+            # the blindness, asserted rather than assumed
+            np.testing.assert_array_equal(
+                np.asarray(quad.axis_cosines(0), dtype=float),
+                np.asarray(quad.mean_axis_cosine(0), dtype=float),
+            )
+
+            # the discrimination
+            with pytest.raises(ValueError, match=r"axis_cosines\(1\) has no answer"):
+                quad.axis_cosines(1)
+            np.testing.assert_array_equal(
+                np.asarray(quad.mean_axis_cosine(1), dtype=float),
+                np.zeros(n_ordinates),
+            )
+
+        # …and a 3-D rule answers both, so the refusal is about the RULE's
+        # dimension and not about the accessor being unimplemented.
+        sphere = Quadrature.level_symmetric(4)
+        assert np.asarray(sphere.axis_cosines(1)).shape == (sphere.N,)
+        assert not np.array_equal(
+            np.asarray(sphere.axis_cosines(1)), np.zeros(sphere.N)
+        )
 
 
 # ── The partial-consistency negative control (matrix tier) ────────────

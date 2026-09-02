@@ -710,7 +710,8 @@ class Quotient(Manifold):
         :math:`[-1,1]` is not a rule on :math:`S^2/SO(2)_x`).  A measure
         pushed forward along it lives on the orbit space; a function on
         the orbit space pulled back along it is :math:`H`-invariant by
-        construction, which is what a ``Descent`` (tracker 3.4b) reads.
+        construction, which is what :class:`~orpheus.numerics.basis.descent.Descent`
+        reads, and what a frame tabulates through (:func:`quotient_onto`).
 
         ⚠ Its image is in the REALIZATION's coordinates.  The orbit
         retraction that :meth:`DiscreteMeasure.quotient
@@ -733,6 +734,66 @@ class Quotient(Manifold):
         return ManifoldMap(
             domain=self.base, codomain=self, apply=self.orbit_coordinates
         )
+
+    def descending_slots(
+        self, basis: Any, *, probe: ArrayLike | None = None, atol: float = 1e-12,
+    ) -> NDArray:
+        r"""Which slots of a basis on my BASE descend to me — the isotypic probe.
+
+        A function on the base descends to the orbit space iff it is
+        constant on the fibres of :attr:`quotient_map`, i.e. iff it takes the
+        same value at a point and at every image of that point under the
+        group. So the entry asks exactly that: tabulate ``basis`` at generic
+        base points and at their images under the group's GENERIC elements
+        (:meth:`SubgroupOfO3.generic_images
+        <orpheus.numerics.symmetry.SubgroupOfO3.generic_images>` — every
+        element of a finite group; for :math:`SO(2)_a`, rotations by
+        INCOMMENSURATE angles, because a sample of right angles generates
+        :math:`C_4` and falsely admits the :math:`m = \pm 4` slots at
+        :math:`L \ge 4`; ``vv-principles`` #13) and keep the slots that agree
+        to ``atol`` at every image. Returns a boolean mask over the table's
+        mode axes (``basis.evaluate(points).shape[1:]``).
+
+        The probe lives HERE (user-ruled 2026-09-02) because the predicate
+        is a theorem about :math:`\pi`, which this entry owns, and its two
+        readers — :class:`~orpheus.numerics.basis.descent.Descent` and the
+        σ-even harmonic sub-basis
+        (:attr:`~orpheus.numerics.basis.spherical_harmonic_basis.MirrorEvenSphericalHarmonicBasis.even_slot_mask`)
+        — must not spell it twice. `[M]` 2026-09-02, about x at
+        :math:`L = 4`: exactly :math:`\{(\ell, 0)\}`, 5 real slots of 25
+        (the :math:`|m| > \ell` padding is identically zero and descends
+        vacuously — count real slots, not table slots); about y and z the
+        invariant subspace is one-dimensional per degree but NOT slot-aligned
+        from :math:`\ell \ge 2` (the harmonics' polar axis is x), which is
+        the descent's business, not this probe's — it answers honestly
+        about whatever slots the basis has.
+
+        ``basis`` is any object with ``evaluate(points) -> (N, *modes)`` on
+        the base (duck-typed: this module imports nothing from
+        ``numerics.basis``). Only sphere entries carry a default probe.
+        """
+        if probe is None:
+            if self.base != SPHERE:
+                raise NotImplementedError(
+                    f"Quotient.descending_slots: no default probe set for a "
+                    f"quotient of {self.base.name}; pass generic base points "
+                    f"as probe=."
+                )
+            probe = _GENERIC_SPHERE_PROBE
+        points = np.asarray(probe, dtype=float)
+        if not self.base.contains(points):
+            raise ValueError(
+                f"Quotient.descending_slots: the probe points are not on the "
+                f"base {self.base.name}."
+            )
+        reference = np.asarray(basis.evaluate(points))
+        mask = np.ones(reference.shape[1:], dtype=bool)
+        for image in self.by.generic_images(points):
+            mask &= np.all(
+                np.isclose(basis.evaluate(image), reference, rtol=0.0, atol=atol),
+                axis=0,
+            )
+        return mask
 
     def contains(self, points: ArrayLike) -> bool:
         r"""Membership, in EITHER of the quotient's two coordinate systems.
@@ -817,6 +878,18 @@ ENERGY = EnergyGroups()
 #: :math:`SO(2)_x`.
 AXIS_INDEX: dict[str, int] = {"x": 0, "y": 1, "z": 2}
 
+#: Nine GENERIC unit directions — no component zero, no two related by a
+#: coordinate symmetry — the base points at which an orbit-space entry asks
+#: which functions of a basis are constant on its fibres
+#: (:meth:`Quotient.descending_slots`).  Deterministic (a fixed seed) so the
+#: answer is reproducible, normalised so they ARE points of :math:`S^2`
+#: (`[M]` 2026-09-02: the retired mirror probe's five directions had norms
+#: 0.83–0.998 and were refused the day the harmonics refused off-sphere
+#: points; normalising them left every mask bit-identical, 15 of 15).
+_GENERIC_SPHERE_PROBE: NDArray = (
+    lambda g: g / np.linalg.norm(g, axis=1)[:, None]
+)(np.random.default_rng(20260902).normal(size=(9, 3)))
+
 
 @dataclass(frozen=True)
 class ManifoldMap:
@@ -837,8 +910,9 @@ class ManifoldMap:
     * the **pullback** of a function, :math:`f \mapsto f \circ \varphi`,
       which is what :func:`~orpheus.numerics.measure.DiscreteMeasure.integrate`
       evaluates on the pushed measure
-      (:eq:`discrete-measure-pushforward`) and what a ``Descent`` (tracker
-      3.4b) applies to a basis.
+      (:eq:`discrete-measure-pushforward`) and what a frame applies to its
+      basis along :func:`quotient_onto` (the G0 arrow, #429 tracker 2.2) —
+      :class:`~orpheus.numerics.basis.descent.Descent` reads the same map.
 
     ⭐ **Why this is a repair and not decoration.**  `[M]` at 2.3's opener
     (2026-09-02) the tree spelled THREE such maps around the quotient, none
@@ -1026,11 +1100,13 @@ def barycentre(orbit_space: Quotient) -> ManifoldMap:
     **This is the map ERR-080 forges.**  `[M]` 2026-09-02 the tree spelled
     it twice: ``symmetry._embedded_nodes`` (honestly — an invariance check
     wants the barycentre, because a rotation about :math:`a` fixes it), and
-    ``Quadrature._harmonic_frame_measure``'s 1-D arm, which computes the
-    same :math:`(\mu, 0, 0)` and declares it a measure on ``SPHERE``.  The
-    first now reads this function; the second is the fiction 3.4 retires,
-    and it cannot be re-spelled through this map without lying about the
-    codomain — which is the point.
+    ``Quadrature._harmonic_frame_measure``'s 1-D arm, which computed the
+    same :math:`(\mu, 0, 0)` and declared it a measure on ``SPHERE``.  The
+    first now reads this function; the second was RETIRED with #429's fused
+    commit (2026-09-02) — a 1-D rule's frame reads the rule's own measure
+    and binds the Legendre basis on the orbit space — and it could not have
+    been re-spelled through this map without lying about the codomain,
+    which was the point.
 
     Not a section: a section of the quotient lands ON :math:`S^2` by
     picking a representative, and for a positive-dimensional group none is
@@ -1079,6 +1155,64 @@ def barycentre(orbit_space: Quotient) -> ManifoldMap:
 # ---------------------------------------------------------------------------
 # The orbit-space catalogue
 # ---------------------------------------------------------------------------
+
+
+def quotient_onto(source: Manifold, target: Manifold) -> ManifoldMap | None:
+    r"""The quotient map ``source -> target`` when ``target`` is a quotient of ``source`` — else ``None``.
+
+    The arrow a FRAME tabulates its basis through (#429 tracker 2.2, G0,
+    user-ruled 2026-09-02: ONE predicate, the lattice one): a frame binding
+    functions on ``target`` to a rule on ``source`` is admissible iff this
+    arrow exists, and its table is the basis pulled back along it. Three
+    honest cases:
+
+    * ``source == target`` — the identity (equality is the special case
+      :math:`K = H`; the slab rule on :math:`S^2/SO(2)_x` and the Legendre
+      basis on the same entry);
+    * ``target`` is a quotient of ``source`` itself — the entry's own
+      :attr:`Quotient.quotient_map` (a Legendre basis on a full-sphere rule:
+      :math:`P_\ell(\Omega\cdot\hat e_a)`, legitimate on a Lebedev or
+      level-symmetric rule);
+    * both are quotients of one base and the group ``source`` SPENT is
+      contained in the group ``target`` was quotiented BY (:math:`K \subseteq H`,
+      :meth:`SubgroupOfO3.contains <orpheus.numerics.symmetry.SubgroupOfO3.contains>`)
+      — the induced map :math:`M/K \to M/H`, applied to the source's
+      representatives (section coordinates: a folded rule's nodes are points
+      of the base). ⚠ A source given in its REALIZATION's coordinates against
+      a different target has no chart-to-chart map here yet; no shipped rule
+      needs one.
+
+    ``None`` is the refusal — the Part I bug (full harmonics on the slab's
+    :math:`S^2/SO(2)_x`: ``Trivial ⊉ SO2('x')``), or the full harmonics on a
+    mirror fold. ⚠ It also refuses the mathematically admissible Legendre
+    basis on a :math:`\sigma_b`-fold, because the basis DECLARES
+    :math:`SO(2)_a` (the derived lower bound) and no axis-parameterised
+    :math:`O(2)` member exists to declare — GitHub #432, its own step.
+    """
+    if source == target:
+        return ManifoldMap(domain=source, codomain=target, apply=_all_coordinates)
+    if (
+        isinstance(source, Quotient)
+        and source.base == target
+        and source.by.name == "Trivial"
+    ):
+        # M/{e} -> M: the trivial quotient IS the base (`_mod_trivial`'s
+        # theorem, `P = I`), so the arrow is the identity on coordinates.
+        # Unreachable by any shipped unfolded rule (they declare the bare
+        # sphere), recorded because the lattice says it exists.
+        return ManifoldMap(domain=source, codomain=target, apply=_all_coordinates)
+    if isinstance(target, Quotient):
+        if source == target.base:
+            return target.quotient_map
+        if (
+            isinstance(source, Quotient)
+            and source.base == target.base
+            and target.by.contains(source.by)
+        ):
+            return ManifoldMap(
+                domain=source, codomain=target, apply=target.orbit_coordinates,
+            )
+    return None
 
 
 def _ambient_columns(columns: int | list[int], points: NDArray) -> NDArray:

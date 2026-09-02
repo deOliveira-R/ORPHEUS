@@ -6115,16 +6115,151 @@ older entries classify against.
    :title: A 1-D quadrature supplies mu_y = mu_z = 0 meaning "there is no azimuthal information" and the real-spherical-harmonic basis reads it as "the azimuth is 0", so every m > 0 harmonic degenerates to a non-zero constant — and P_L scattering at L >= 2 returns a wrong answer, with the wrong sign, from a public unguarded entry point
 
 
+   - ✅ **FIXED 2026-09-02 — #429's fused commit (0.1b + 0.6 + 2.2 + 3.4 +
+     3.4b). Everything below this bullet is HISTORY; read it in the past
+     tense.** The repair is not a special case and not a guard: **a 1-D
+     rule's frame now binds the basis its own orbit space admits.** The
+     measure is the rule's own — the forged :math:`(\mu,0,0)`
+     construction (``Quadrature._harmonic_frame_measure``) is DELETED —
+     its support is the catalogue entry :math:`S^2/SO(2)_x`, and the
+     functions on that orbit space are the :math:`SO(2)`-action's
+     **trivial isotypic component**, one-dimensional in every degree and
+     spanned downstairs by :math:`\{P_\ell(\mu)\}`
+     (:class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis`,
+     :math:`L+1` members, a FLAT coefficient space, no fabricated slots
+     to zero). ⭐ The numbers were never wrong: a MEAN — the orbit
+     barycentre — had been handed to a basis that needs a POINT.
+
+     `[M]` 2026-09-02, this entry's own fixture (1-group infinite medium,
+     ``gauss_legendre(8)``, reflective slab, ``inner_tol=1e-13``,
+     ``inner_solver="krylov"``), post-repair against a pinned pre-repair
+     tree (``git archive HEAD`` in a separate interpreter with the
+     editable finder stripped and ``orpheus.__file__`` asserted):
+
+     .. list-table:: ERR-080, before and after
+        :header-rows: 1
+        :widths: 8 28 28 18 18
+
+        * - :math:`L`
+          - pre-repair :math:`\phi`
+          - post-repair :math:`\phi`
+          - ``array_equal``?
+          - :math:`\max\lvert\Delta\rvert`
+        * - 0
+          - ``+4.000000000000``
+          - ``+4.000000000000``
+          - **yes**
+          - ``0.000e+00``
+        * - 1
+          - ``+4.000000000000``
+          - ``+4.000000000000``
+          - **yes**
+          - ``0.000e+00``
+        * - 2
+          - ``-3.7647058824`` (194 % error, wrong sign)
+          - ``+4.000000000000``
+          - no
+          - ``7.765e+00``
+        * - 3
+          - ``+0.4541646`` (89 % low)
+          - ``+4.000000000000``
+          - no
+          - ``3.546e+00``
+
+     ⭐ **The bit-identity at** :math:`L \le 1` **is a result, not an
+     absence of one**: the repair changed nothing where the old basis was
+     already right, so the two rows that were the gate's positive
+     controls are still reaching the analytic answer by the same float
+     program. ⚠ The pre-repair :math:`L = 3` value is quoted to **seven**
+     significant figures here and to twelve elsewhere in this entry; only
+     seven reproduce (`[M]` ``0.454164584953462`` on the pinned tree
+     against the recorded ``0.454164575725``). It is a garbage value
+     converged by GMRES — the residual pins the answer, not the digits —
+     so do not read the trailing digits as data.
+
+     The **second** public symptom is closed with it: `[M]`
+     ``solve_sn_fixed_source(gauss_legendre(16), scattering_order=4)``
+     raised ``ValueError: DenseMetric was handed an inconsistent inverse
+     face: max|G G+ G - G| = 7.117e-04`` on the pinned pre-repair tree and
+     returns ``+4.000000000000`` (rel. 2.22e-16) after. The crash is gone
+     for the structural reason predicted in the Fix bullet below and not
+     by any change to ``DenseMetric``: with no fabricated azimuth a 1-D
+     Gauss–Legendre rule carries only the Legendre polynomials it
+     integrates exactly, so its Gram is DIAGONAL — `[M]`
+     ``gauss_legendre(8).angular_frame(2).discrete_gram_structure`` is
+     ``GramStructure.DIAGONAL``, off-diagonal **exactly** ``0.0``,
+     diagonal :math:`2/(2\ell+1) = [2,\ 2/3,\ 2/5]`. That was written here
+     as *"the falsifiable check on the day it lands"*; it lands true.
+
+     ⭐ **The residual coarse-rule rows are labelled, not swept.** `[M]`
+     2026-09-02, over the 13 shipped ``(constructor, order)`` rules ×
+     :math:`L \in \{1,2,3,4\}`, feeding an isotropic :math:`\psi \equiv 1`
+     through each frame's own analysis face, the largest
+     :math:`\ell \ge 1` moment relative to :math:`\phi_0` is
+     :math:`\le 4.3\times10^{-16}` on **49 of 52** rows. The three
+     exceptions are all at :math:`L = 4` and each has a closed-form
+     cause, none of them this defect:
+
+     * ``gauss_legendre(2)`` :math:`= 3.9\times10^{-1}` — the **dead-slot
+       theorem** (below): ``GL_2`` cannot resolve degree 2, let alone 4;
+     * ``product(4,4)`` :math:`= 2.9\times10^{-1}` and
+       ``folded_product(2,4)`` :math:`= 3.9\times10^{-1}` — the two-pole
+       aliasing of an under-resolved azimuthal factor, **pre-existing**
+       under the spherical-harmonic basis and untouched by this repair
+       (both are full-sphere/fold rules whose frames the fix does not
+       reach).
+
+     ⭐ **The dead-slot theorem** (user-ruled 2026-09-02). `[M]` 12 of 12
+     rows (``GL_n``, :math:`n \in \{2,4,8,16\}`,
+     :math:`L \in \{n-1, n, n+1\}`): ``GL_n``'s Legendre Gram is diagonal
+     and exact for :math:`L \le n-1` (off-diagonal
+     :math:`\le 1.5\times10^{-15}`, diagonal :math:`2/(2\ell+1)`), and at
+     :math:`\ell = n` acquires a **structurally dead slot** —
+     :math:`P_n` vanishes identically at ``GL_n``'s nodes, because those
+     nodes ARE its roots (`[M]` :math:`G_{nn} \sim 10^{-31}`). At
+     :math:`L \ge n+1` the off-diagonal becomes :math:`O(10^{-1})` as
+     well. ⟹ **no 1-D Gauss–Legendre frame can be both dense and
+     full-rank**, so every post-repair slab dense arm is the degenerate
+     one, and it takes the ``DenseMetric`` pseudo-inverse for the same
+     reason an over-resolved sphere frame does. That is a *resolution*
+     statement about the rule, not a fabrication.
+
+     ⛔ **What is NOT closed by this fix, stated so nothing reads as
+     more than it is.** (a) The membership predicate still does not run
+     at measure construction — `[M]` a ``DiscreteMeasure`` with
+     :math:`(\mu,0,0)` nodes and ``support=SPHERE`` is **still
+     constructible** (tracker 2.0b). What is now impossible is reaching a
+     basis with it: :meth:`SphericalHarmonicBasis.evaluate
+     <orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.evaluate>`
+     REFUSES a non-unit direction (tracker 0.6), and the frame's G0
+     refuses the pairing one level up. (b) G0 is a **lower-bound**
+     verdict and refuses one mathematically admissible pairing —
+     :math:`P_\ell(\Omega\cdot\hat e_x)` on a :math:`\sigma_y`-fold,
+     legitimate because a Legendre polynomial in :math:`\mu_x` is
+     invariant under the full :math:`O(2)_x` including :math:`\sigma_y`,
+     which the derived ``SO2('x')`` cannot declare. Inert today (no
+     dispatch selects it) and tracked as **GitHub #432**.
+
+     **Gate**: the same module, now the repair's witness —
+     ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``.
+     Its three ``xfail(strict=True)`` rows XPASSed under the fix, which
+     under ``strict`` is a failure, so the markers were deleted with the
+     fix — the self-retirement they were written for. The rows keep their
+     ``catches("ERR-080")`` markers and are now the regression gate.
+     See :ref:`manifold-descending-slots`, :ref:`manifold-descent`,
+     :ref:`manifold-g0-descent-arrow` and
+     :ref:`frame-g0-descent-arrow`.
+
    - **Where**: ``orpheus/numerics/basis/spherical_harmonic_basis.py``
      (``_evaluate_real_sh``, the :math:`\ell \ge 2` spherical branch:
      ``cos_phi = mu_y / sin_theta``, ``sin_phi = mu_z / sin_theta``,
      ``phi = arctan2(sin_phi, cos_phi)``), reached from
      ``orpheus/numerics/quadrature/directional.py``
-     (``Quadrature._harmonic_frame_measure``, whose 1-D arm pads the polar
-     nodes with two zero columns and declares the result
+     (``Quadrature._harmonic_frame_measure``, whose 1-D arm padded the polar
+     nodes with two zero columns and declared the result
      ``support=SPHERE`` — ``SPACE_SPHERE`` until 2026-09-01, when tracker
      2.0c retired the string tags; **only the spelling moved, the forgery
-     did not**).
+     did not**, until the method was DELETED with the fix on 2026-09-02).
      ⚠ **Re-spelled 2026-09-01** (phase 0.2): that padding used to be
      ``column_stack``\ ing ``axis_cosines(0..2)``, i.e. it obtained its zeros
      from an accessor named *"direction cosine along axis i"*, which is what
@@ -6175,11 +6310,11 @@ older entries classify against.
      two DEFECTIVE orders is the POINT, not a disappointment.** A pre-step
      that moved those two numbers would have flipped an
      ``xfail(strict=True)`` row without repairing anything, which is the
-     one failure mode a self-retiring gate cannot survive. `[M]` the
-     **Gate** below still declares **three** ``xfail(strict=True)`` rows
-     and 2.5 edits none of them; the forged :math:`(\mu, 0, 0)` measure
-     is still constructible; and the basis 2.5 makes bindable does not
-     exist — `[M]` the surface's shipped implementors are **2 of the 5**
+     one failure mode a self-retiring gate cannot survive. `[M]` at 2.5
+     the **Gate** below still declared **three** ``xfail(strict=True)``
+     rows and 2.5 edited none of them; the forged :math:`(\mu, 0, 0)`
+     measure was still constructible; and the basis 2.5 made bindable did
+     not yet exist — `[M]` the surface's shipped implementors are **2 of the 5**
      :class:`~orpheus.numerics.basis.Basis` subclasses (the full
      harmonics and their σ-even restriction), the third being tracker
      3.4. See :ref:`frame-moment-space-single-home` for the census, the
@@ -6226,12 +6361,19 @@ older entries classify against.
      <orpheus.numerics.quadrature.registry.AngularSymmetry.reference>`,
      which now reads the entry instead of tabulating a twin. But
      ``quotient_map`` and ``orbit_coordinates`` have **zero** production
-     readers outside their own module: nothing in production pushes a
-     measure along :math:`\pi` yet, the ``angular_frame`` 1-D arm still
-     writes ``support=SPHERE`` over non-unit rows, no membership check
-     runs on the way into a measure, and `[M]` the **Gate** below still
-     declares **three** ``xfail(strict=True)`` rows, none of which 3.1
-     touches. ⚠ Nor does 3.1 supply a **section**: `[M]`
+     readers outside their own module: at 3.1 nothing in production
+     pushed a measure along :math:`\pi`, the ``angular_frame`` 1-D arm
+     still wrote ``support=SPHERE`` over non-unit rows, no membership
+     check ran on the way into a measure, and `[M]` the **Gate** below
+     still declared **three** ``xfail(strict=True)`` rows, none of which
+     3.1 touched. ⚠ Both of 3.1's fields have production readers after
+     the fused commit: `[M]` ``quotient_map`` is read by
+     :meth:`LegendreBasis.evaluate
+     <orpheus.numerics.basis.legendre_basis.LegendreBasis.evaluate>`
+     (pulling a full-sphere rule's directions back to :math:`\mu`) and by
+     :class:`~orpheus.numerics.basis.descent.Descent`, and
+     :func:`~orpheus.numerics.manifold.quotient_onto` returns it as the
+     frame's G0 arrow. ⚠ Nor does 3.1 supply a **section**: `[M]`
      ``fundamental_domain`` is still ``None`` on every
      :math:`S^2/SO(2)_a` entry, deliberately, because a section is a
      *choice* while a quotient map is a derivation *output* — and this
@@ -6255,11 +6397,11 @@ older entries classify against.
      the squared orbit radius, so the image lies ON :math:`S^2` only at
      the two poles and strictly inside the ball elsewhere.
 
-     ⟹ **ERR-080, restated in that vocabulary: it is the barycentre map
-     with a forged codomain.** `[M]` 2026-09-02 on
-     ``gauss_legendre(8)``, ``_harmonic_frame_measure()``'s nodes are
+     ⟹ **ERR-080, restated in that vocabulary: it was the barycentre map
+     with a forged codomain.** `[M]` 2026-09-02, before the fix, on
+     ``gauss_legendre(8)``, ``_harmonic_frame_measure()``'s nodes were
      ``np.array_equal`` to ``barycentre(measure.support)(measure.nodes)``
-     — the arithmetic was never wrong. What is false is a **type**:
+     — the arithmetic was never wrong. What was false is a **type**:
      ``Ball(3).contains`` is ``True`` on those nodes and
      ``Sphere().contains`` is ``False`` (norms
      :math:`0.1834\ldots0.9603`). That is why no tolerance and no
@@ -6277,9 +6419,9 @@ older entries classify against.
      would force it to name ``Ball(3)``, i.e. would repair this entry's
      level-1 half inside a step whose subject is the type system. No
      membership check runs inside a map either: that refusal is tracker
-     2.0b, at measure construction. `[M]` the **Gate** below still
-     declares **three** ``xfail(strict=True)`` rows and 2.3 edits none
-     of them. ⚠ The one thing that *is* now unspellable is the move via
+     2.0b, at measure construction. `[M]` at 2.3 the **Gate** below
+     still declared **three** ``xfail(strict=True)`` rows and 2.3 edited
+     none of them. ⚠ The one thing that *is* now unspellable is the move via
      the verb: ``pushforward`` retired ``new_space=`` and reads its
      target off the map, refusing a map out of the wrong point set — so
      "apply :math:`\beta_a` and declare the result on :math:`S^2`" has
@@ -6300,9 +6442,9 @@ older entries classify against.
      8-node slab ANGULAR space and an 8-node SPATIAL rule on
      :math:`[-1,1]` built from the same arrays were ``==`` **and**
      hash-equal before this and are unequal after — a real collision,
-     closed. ⛔ **None of that repairs ERR-080.** The forged
-     :math:`(\mu, 0, 0)` measure is still constructible; the level-1
-     refusal is tracker 2.0b plus the fused fix step, and the honest
+     closed. ⛔ **None of that repaired ERR-080.** The forged
+     :math:`(\mu, 0, 0)` measure was still constructible; the level-1
+     refusal was tracker 2.0b plus the fused fix step, and the honest
      **section** — for which 2.4 supplies only the axis-general spelling
      :math:`\mu \mapsto \mu\,\hat e_a + \sqrt{1-\mu^2}\,\hat e_b` — is
      tracker 2.3. See
@@ -6428,18 +6570,31 @@ older entries classify against.
        misses is **100 % of the ordinates on every slab rule**. It is written
        with ``np.where``, not ``if``, so no coverage tool can report the branch
        unexercised.
-     * ``Quadrature.spherical_harmonics``'s own docstring states the invariant
-       that would make the code correct — *"only the*
+     * ``Quadrature.spherical_harmonics``'s own docstring stated the
+       invariant that would make the code correct — *"only the*
        :math:`m = 0` *harmonics carry non-zero values; the other slots are
-       filled with zeros"* — so a reader checking the contract finds it
-       AFFIRMED in prose while the code implements the opposite.
+       filled with zeros"* — so a reader checking the contract found it
+       AFFIRMED in prose while the code implemented the opposite.
+       ✅ Since 2026-09-02 that sentence is not merely true but
+       unnecessary: a 1-D rule has **no** :math:`m \ne 0` slots to fill,
+       because its frame's table is the FLAT :math:`(N, L+1)` Legendre
+       table. The docstring's *"shape* :math:`(N, L+1, 2L+1)`\ *"* now
+       describes the rules that bind the harmonics — the sphere rules and
+       the fold — and says so.
 
-   - **A green test PINNED it.** ``tests/numerics/test_frame.py:906`` asserts the
+   - **A green test PINNED it.** ``tests/numerics/test_frame.py:906`` asserted the
      live :math:`\ell = 2` Gram diagonal is ``[0.4, 0.8, 0.8]`` at
      ``rtol=1e-12`` — and the two ``0.8``\ s ARE the fabricated slots. ``[M]``
-     12 sites repo-wide consume the slab-GL-:math:`L{=}2` frame as a fixture
-     (7 tests, 4 docs, 1 production comment). Migration, not deletion, is owed
-     to all 12.
+     12 sites repo-wide consumed the slab-GL-:math:`L{=}2` frame as a fixture
+     (7 tests, 4 docs, 1 production comment). Migration, not deletion, was owed
+     to all 12, and it is what the fix's re-pin performs.
+     ⚠ **The pin was two-thirds honest and the migration must keep the
+     honest third**: `[M]` the pre-repair :math:`\ell = 2` Gram row is
+     ``[0, 0, 0.4, 0.8, 0.8]``, and ``0.4`` :math:`= 2/5` is the CORRECT
+     :math:`m = 0` entry — it is the only one that survives, and `[M]` it
+     survives *exactly*, as the third entry of the post-repair diagonal
+     :math:`2/(2\ell+1) = [2,\ 2/3,\ 2/5]`. A re-pin that deletes all
+     three loses a real datum.
    - ⛔ **The mechanism had been MEASURED one day earlier and mis-read as
      noise.** Campaign 1's P7 (2026-08-30) recorded the slab Gram's singular
      values in ``orpheus/numerics/metric.py`` as *"2.71 / 1.42 / 4.92e-1 /
@@ -6471,24 +6626,39 @@ older entries classify against.
      ⚠ The FABRICATION is universal — it happens on every slab solve including
      :math:`L = 0` — while the SYMPTOM is not; it is harmless at
      :math:`L \le 1` for the two independent reasons above.
-   - **Fix** — *proposed, NOT yet landed (tracked by #429; the gate below ships
-     first)*: not a special case. A 1-D angular quadrature is a quadrature on
+   - **Fix** — ✅ **LANDED 2026-09-02, #429's fused commit** (this bullet is
+     the plan as it stood; each of its three legs is marked with what
+     actually shipped): not a special case. A 1-D angular quadrature is a quadrature on
      the orbit space :math:`S^2/SO(2)`, and the harmonics that survive the
      quotient are its **trivial isotypic component**
      :math:`\{Y_\ell^0\} \cong \{P_\ell\}` — derived by probing the group
      action, not hand-listed. The three structural repairs it decomposes into:
      ``angular_frame`` must stop writing ``support=SPHERE`` over nodes
-     with :math:`\lVert\Omega\rVert \ne 1` *(⛔ still OPEN — the symbol was
+     with :math:`\lVert\Omega\rVert \ne 1` — ✅ **LANDED 2026-09-02,
+     tracker 0.1b**: ``_harmonic_frame_measure`` is DELETED and
+     ``angular_frame`` binds the rule's own measure on `[M]` **12 of 12**
+     shipped rules, ``frame.measure is q.measure``; the symbol was
      ``SPACE_SPHERE`` until tracker 2.0c retired the string tags on
-     2026-09-01; the claim is now typed and still false)*; ✅ ``Basis`` must
+     2026-09-01, and only the spelling had moved until then; ✅ ``Basis`` must
      be able to declare its ``domain`` so the pairing is checkable where the
      two objects meet — **LANDED 2026-09-01, tracker 2.1**, with the
      symmetry operand following the same day at **tracker 2.1b**
      (``invariance_group``, DERIVED from that ``domain``), so the pairing
-     is now *computable*; ⛔ what is still absent on this leg is a
-     CONSUMER that refuses on the verdict — tracker 2.2; and
+     is now *computable*; ✅ **the CONSUMER that refuses on the verdict
+     LANDED 2026-09-02 (tracker 2.2)** — and it is one predicate rather
+     than the containment this bullet anticipated: the frame demands that
+     a quotient map ``measure.support -> basis.domain`` EXIST
+     (:func:`~orpheus.numerics.manifold.quotient_onto`), which subsumes
+     the containment as its :math:`K \subseteq H` arm and additionally
+     admits the two pairings a bare containment test cannot express
+     (:ref:`frame-g0-descent-arrow`); and
      ``_evaluate_real_sh`` must REFUSE a non-unit direction vector rather than
-     inventing an azimuth for it *(⛔ still OPEN)*. ⭐ The first two both need
+     inventing an azimuth for it — ✅ **LANDED 2026-09-02, tracker 0.6**:
+     the refusal is in
+     :meth:`SphericalHarmonicBasis.evaluate
+     <orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.evaluate>`,
+     a real ``raise`` naming the count of off-sphere rows and pointing at
+     the Legendre basis. ⭐ The first two both need
      an object for the point set, which the tree did not have — ✅ it does now
      (:mod:`orpheus.numerics.manifold`, minted 2026-08-31 and wired
      2026-09-01), so what remains is the REFUSAL, not the vocabulary: the
@@ -6497,16 +6667,16 @@ older entries classify against.
      construction (``[M]`` ``Sphere().contains`` on this very measure) and
      the three-level argument for why a ``FunctionSpace`` cannot BE the
      ``domain`` — :doc:`/theory/foundations/manifolds`,
-     :ref:`manifold-err-080` and :ref:`manifold-three-levels`. ⛔ That type
-     now HAS production consumers — ``[M]`` every measure's ``support``
-     since tracker 2.0c, every basis's ``domain`` since 2.1, and the
-     slab's declared orbit space since 2.4 — **and this defect is still
-     unrepaired**, because none of them is the REFUSAL: the forged
-     :math:`(\mu,0,0)` measure remains constructible until the three
-     items above land. (This clause read *"That type has no production
-     consumer yet — it is a capability"* until 2026-09-01, when the
-     campaign's own next three steps repealed the first half while
-     leaving the second exactly true.) Plan:
+     :ref:`manifold-err-080` and :ref:`manifold-three-levels`. ✅ **All
+     three items landed together on 2026-09-02 and the defect is
+     repaired.** (This clause read *"That type has no production consumer
+     yet — it is a capability"* until 2026-09-01, when the campaign's own
+     next three steps repealed the first half; it then read *"…and this
+     defect is still unrepaired, because none of them is the REFUSAL"*
+     until 2026-09-02, when the fused commit supplied the refusal.
+     ⚠ Its literal residue survives and is worth keeping: `[M]` a forged
+     measure is **still constructible** — what is gone is every path from
+     one to a basis.) Plan:
      ``.claude/plans/angular_spaces_derived_from_symmetry.md``.
      ``[M]`` the repair also closes the crash by removing the need for a dense
      metric on a slab at all: with no fabricated azimuth a 1-D rule carries
@@ -6520,12 +6690,25 @@ older entries classify against.
      (:math:`\Delta = +0.000\mathrm{e}{+}00`), returns
      :math:`+4.000000000000` at :math:`L \ge 2`, and is *exactly inert* on 3-D
      rules (:math:`\max|\Delta Y| = 0.0`).
+     ✅ **All four predictions held on the shipped fix** — the Gram is
+     ``DIAGONAL`` with off-diagonal exactly ``0.0``, the bit-identity at
+     :math:`L \le 1` is ``array_equal``, and the 3-D inertness is now a
+     *theorem* rather than a sample: a full-sphere rule binds the same
+     basis class to the same measure OBJECT, and G0's arrow for it is the
+     identity (``_all_coordinates``, ``np.asarray(points)``), so the
+     frame's table is the same float program.
    - **Gate**:
      ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``
-     — ``xfail(strict=True)`` at :math:`L = 2` and :math:`L = 3`, with
-     :math:`L = 0, 1` as GREEN positive controls proving the fixture reaches the
-     analytic answer. The strict marker self-retires: an ``XPASS`` is a failure,
-     so the repair cannot land while the gate still claims the defect.
+     — it carried ``xfail(strict=True)`` at :math:`L = 2` and :math:`L = 3`,
+     with :math:`L = 0, 1` as GREEN positive controls proving the fixture
+     reaches the analytic answer. ✅ **The strict marker self-retired as
+     designed**: the fix made those rows XPASS, which under ``strict`` is a
+     failure, so the markers were deleted in the same commit — the repair
+     could not land while the gate still claimed the defect. The rows keep
+     their ``catches("ERR-080")`` markers and are the regression gate now.
+     ⚠ The two control rows are the arm that separates *"the fix works"*
+     from *"the fixture stopped discriminating"*, and they are the reason
+     the :math:`L \le 1` bit-identity above is worth measuring.
    - **Family**: **ERR-004 / ERR-025** (quadrature normalisation read through
      the total weight only — the same blindness of a :math:`\Sigma w` gate to
      node PLACEMENT); **ERR-051** (``assert_galerkin_idempotency`` asserting the
@@ -6556,15 +6739,22 @@ older entries classify against.
      typed chart's ``codomain``. `[M]` both quoted comments still sit
      verbatim in the source and now annotate **consecutive** keyword
      arguments, with the literal that used to divide them gone.
-     The tell survives its own worked example. `[M]` 2026-09-02,
-     ``grep -rn "support=SPHERE" orpheus/`` returns **four** live
-     constructions: three are honest tabulations whose nodes really are
-     on :math:`S^2` (the ``UNIFORM_ON_SPHERE`` reference measure, and
-     the Lebedev and level-symmetric rules), and the fourth is the one
+     The tell survives its own worked example. ⛔ **And then the fix
+     deleted the census's own counter-example — read the next sentence in
+     the past tense.** `[M]` 2026-09-02 *before* the fused commit,
+     ``grep -rn "support=SPHERE" orpheus/`` returned **four** live
+     constructions: three honest tabulations whose nodes really are on
+     :math:`S^2` (the ``UNIFORM_ON_SPHERE`` reference measure, and the
+     Lebedev and level-symmetric rules), and a fourth that was the one
      this entry is about — ``Quadrature._harmonic_frame_measure``'s 1-D
-     arm, kept literal **by design** (see the 2026-09-02 progress block
-     above). A literal is a tell, not a verdict; what makes this one a
-     forgery is that ``Sphere().contains`` refuses its nodes.
+     arm, kept literal by design. `[M]` after the commit the same grep
+     returns **three**, all honest. So the tell is intact and its
+     shipped counter-example is gone: *a literal is a tell, not a
+     verdict*, and what made that one a forgery was that
+     ``Sphere().contains`` refused its nodes. ⭐ The transferable form —
+     **a retirement can delete the corpus's own worked EXAMPLE of a rule
+     that survives, and no symbol grep sees it**, because the sentence
+     names the retired construct in a role rather than by name.
      ⭐ And the corollary the ``metric.py`` reading makes vivid: a
      rank-deficiency discovered while TUNING A TOLERANCE is a structural fact
      wearing a numerical costume — before pinning an ``rcond`` that discards a

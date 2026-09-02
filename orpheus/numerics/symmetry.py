@@ -699,6 +699,47 @@ class SubgroupOfO3:
         """
         return _check_invariance(self._tag, measure, atol)
 
+    def generic_images(self, points: "np.ndarray") -> list["np.ndarray"]:
+        r"""The images of ``points`` under a GENERIC set of this group's elements.
+
+        The surface an orbit-space entry's isotypic probe needs
+        (:meth:`Quotient.descending_slots
+        <orpheus.numerics.manifold.Quotient.descending_slots>`, #429 tracker
+        3.4): a function is constant on the group's orbits iff it agrees at
+        every point with its value at every image. For a FINITE group the
+        generic set is every element (the memoised closure of the
+        realization). For :math:`SO(2)_a` it is rotations about :math:`a` by
+        INCOMMENSURATE angles: a finite sample of a continuous group
+        generates a finite SUBgroup, and a sample of right angles generates
+        :math:`C_4`, which `[M]` 2026-09-02 falsely admits the
+        :math:`m = \pm 4` real-harmonic slots at :math:`L \ge 4`
+        (``vv-principles`` #13 — this is the trap :meth:`is_invariant` avoids
+        by deciding continuous groups EXACTLY; a probe of FUNCTIONS cannot,
+        so it samples where no finite subgroup can hide). The continuous
+        groups with no axis to rotate about (:math:`D_{\infty h}`,
+        :math:`SO(3)`, :math:`O(3)`) refuse until a consumer needs them.
+
+        ``points`` is ``(N, 3)``; each image is ``(N, 3)``, the linear part
+        of the element applied row-wise (every realized element fixes the
+        origin).
+        """
+        pts = np.asarray(points, dtype=float)
+        tag = self._tag
+        if isinstance(tag, SO2):
+            axis = _axis_vector(tag.axis)
+            return [
+                pts @ RigidMotion.rotation_about_axis(axis=axis, angle=theta).linear.T
+                for theta in _INCOMMENSURATE_ANGLES
+            ]
+        elements = _group_elements(tag)
+        if elements is None:
+            raise NotImplementedError(
+                f"SubgroupOfO3.generic_images: {self.name} is a continuous "
+                f"group with no rotation axis to sample about; no consumer "
+                f"has needed its orbit images yet."
+            )
+        return [pts @ element.linear.T for element in elements]
+
 
 # ---------------------------------------------------------------------------
 # Containment lookup
@@ -977,10 +1018,12 @@ def _embedded_nodes(measure: DiscreteMeasure) -> np.ndarray:
     :meth:`Quadrature.axis_cosines` and used by ``spherical_harmonics``
     internally"*. Both halves went false at phase 0.2 (2026-09-01):
     ``axis_cosines`` now REFUSES a suppressed axis rather than embedding into
-    it, and ``spherical_harmonics`` delegates to the angular frame. The one
-    place that still performs this padding on purpose is
-    ``Quadrature._harmonic_frame_measure``'s 1-D arm, which is ERR-080's
-    fiction and says so. It is the *data*
+    it, and the ``spherical_harmonics`` accessor delegated to the angular
+    frame until it was retired (2026-09-02). The one
+    place that still performed this padding on purpose —
+    ``Quadrature._harmonic_frame_measure``'s 1-D arm, ERR-080's fiction —
+    was RETIRED with #429's fused commit (2026-09-02): a 1-D rule's frame
+    reads the rule's own measure. It is the *data*
     that is lifted, not the group — :class:`SubgroupOfO3`'s named entries
     (:math:`O_h`, :math:`I_h`) genuinely are three-dimensional, and there is
     nothing to restrict them to.
@@ -1142,6 +1185,17 @@ def _invariance_on_points(
 # constructions all live in `orpheus.geometry.transformation`; what remains
 # here is the translation from a TAG (`Mirror("x")`, `Dnh(6)`) into the
 # generating set that realizes it in the standard 3-D setting.
+
+
+#: Rotation angles for :meth:`SubgroupOfO3.generic_images` on an
+#: :math:`SO(2)_a` — pairwise incommensurate with :math:`\pi` and with each
+#: other (`[M]` #429 §III.8: six of these × nine generic directions at
+#: :math:`L = 4` select exactly the :math:`m = 0` harmonics; four right
+#: angles do not).
+_INCOMMENSURATE_ANGLES: tuple[float, ...] = (
+    1.0, float(np.sqrt(2.0)), float(np.e), 2.5, float(np.sqrt(7.0)),
+    float(np.pi / 3.0 + 0.1),
+)
 
 
 def _axis_vector(axis: str) -> np.ndarray:

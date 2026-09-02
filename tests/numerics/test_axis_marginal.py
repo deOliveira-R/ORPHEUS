@@ -365,15 +365,26 @@ class TestFrameInduction:
         from orpheus.numerics.measure import DiscreteMeasure
 
         n = _W_ANG.shape[0]
+        # ⭐ ONE manifold object for both halves, exactly as the production
+        # mint spells it (``frame.py:818`` binds one ``points``). ⛔ RE-KEYED
+        # 2026-09-02 (#429 tracker 2.2): this fixture spelled a SIZED
+        # ``IndexSet(label="angular", n=n)`` on the basis and an UNSIZED one
+        # on the measure. Both render as ``index(angular)``, so the drift was
+        # invisible in every message — and ``==`` separates them, so the
+        # frame's new G0 arrow refuses the pairing. G0 compares manifolds by
+        # EQUALITY; naming the same object on both halves is what production
+        # does and what this literal must do to be its spelling-independent
+        # twin rather than a differently-broken one.
+        points = IndexSet(label="angular", n=n)
         return GalerkinFrame(
             basis=IndicatorBasis(
                 edges_per_axis=(np.array([-0.5, n - 0.5]),),
-                partition_of=IndexSet(label="angular", n=n),
+                partition_of=points,
             ),
             measure=DiscreteMeasure(
                 nodes=np.arange(n, dtype=float),
                 weights=_W_ANG,
-                support=IndexSet(label="angular"),
+                support=points,
             ),
         )
 

@@ -105,7 +105,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -119,13 +119,6 @@ if TYPE_CHECKING:
 
 
 __all__ = ["HarmonicMomentFlux"]
-
-
-@runtime_checkable
-class _TruncatesByOrder(Protocol):
-    """An angular head space that truncates to a lower order within its own family."""
-
-    def truncated(self, L_new: int, /) -> "FunctionSpace": ...
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
@@ -196,7 +189,7 @@ class HarmonicMomentFlux(MomentField):
                 f"HarmonicMomentFlux.l_block: l={l} out of range "
                 f"[0, {self.L}]"
             )
-        return self.values[l, : 2 * l + 1]
+        return self.values[self.head.degree_block(l)]
 
     def isotropic_part(self) -> "HarmonicMomentFlux":
         r"""Return the :math:`\ell = 0` (isotropic) projection.
@@ -205,8 +198,9 @@ class HarmonicMomentFlux(MomentField):
         Used by the foldable-vs-residual scattering split when the
         consumer wants the :math:`P_0` content alone.
         """
+        iso = self.head.isotropic_slot
         out = np.zeros_like(self.values)
-        out[0, 0] = self.values[0, 0]
+        out[iso] = self.values[iso]
         return HarmonicMomentFlux(
             values=out, space=self.space, L=self.L,
             spatial_moments=self.spatial_moments,
@@ -224,7 +218,7 @@ class HarmonicMomentFlux(MomentField):
         :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`.
         """
         out = self.values.copy()
-        out[0, 0] = 0.0
+        out[self.head.isotropic_slot] = 0.0
         return HarmonicMomentFlux(
             values=out, space=self.space, L=self.L,
             spatial_moments=self.spatial_moments,
@@ -271,8 +265,9 @@ class HarmonicMomentFlux(MomentField):
         # gated): the widened target carries the scheme's mass-bearing
         # moment axis, which this field's densified SpatialMomentSpace
         # factor does not hold — the caller holding the pose passes space=.
+        iso = self.head.isotropic_slot
         if space is not None:
-            return ScalarFlux(values=self.values[0, 0].copy(), space=space)
+            return ScalarFlux(values=self.values[iso].copy(), space=space)
         if self.spatial_moments != 1:
             raise TypeError(
                 "HarmonicMomentFlux.scalar_flux: a widened "
@@ -282,7 +277,7 @@ class HarmonicMomentFlux(MomentField):
             )
         assert isinstance(self.space, TensorProductSpace)  # type-narrowing
         return ScalarFlux(
-            values=self.values[0, 0].copy(),
+            values=self.values[iso].copy(),
             space=self.space.factors[1],
         )
 
@@ -331,12 +326,7 @@ class HarmonicMomentFlux(MomentField):
         from orpheus.numerics.space import TensorProductSpace
 
         assert isinstance(self.space, TensorProductSpace)  # type-narrowing
-        head = self.space.factors[0]
-        if not isinstance(head, _TruncatesByOrder):
-            raise TypeError(
-                f"HarmonicMomentFlux.truncate: the angular head factor "
-                f"{head.name!r} carries no truncation order to truncate by."
-            )
+        head = self.head
         new_head = head.truncated(L_new)
         # CS4b: the trailing dims are the space's own shape contract
         # (everything after the head's axes — ng, spatial, and the optional

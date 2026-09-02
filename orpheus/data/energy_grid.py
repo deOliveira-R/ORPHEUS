@@ -283,7 +283,10 @@ class EnergyGrid:
             )
         # The trial IS the coarse grid's basis-view (the target you project ONTO),
         # decorated with the fractional overlap table (the mismatch treatment).
-        return OverlapBasis.from_indicator(coarse.as_basis(), table)
+        # The trial EATS this (fine) grid's groups and SPANS the coarse ones.
+        return OverlapBasis.from_indicator(
+            coarse.as_basis(), table, fine=EnergyGroups(self.n_groups),
+        )
 
     def _overlap_table(
         self, coarse: "EnergyGrid", within_group: "WithinGroupSpectrum", /,

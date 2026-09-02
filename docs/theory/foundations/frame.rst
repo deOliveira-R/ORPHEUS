@@ -195,12 +195,21 @@ Key Facts
   single scalar :math:`W` — :math:`M^* = R/W`, :math:`R^* = W\,M`
   (:eq:`frame-square-closure-sh`) — because each live :math:`\ell`
   block of :math:`G` is one constant. A ``DENSE`` frame carries the
-  right metric and need not satisfy that collapse: `[M]` of the four
-  ``DENSE`` **angular** frames measured — slab GL(8) :math:`L{=}2`,
-  ``product(4,4)`` :math:`L{=}2`, ``level_symmetric(4)`` :math:`L{=}3`
-  and ``folded_product(4,6)`` :math:`L{=}3` — three break it and one
-  does not, so ``DIAGONAL`` is *sufficient* and ``DENSE`` is
-  *undecided*. Never
+  right metric and need not satisfy that collapse, so ``DIAGONAL`` is
+  *sufficient* and ``DENSE`` is *undecided*. ⛔ This bullet named the
+  slab GL(8) :math:`L{=}2` frame as one of "the four ``DENSE``
+  angular frames measured … three break it and one does not", until
+  2026-09-02; that frame is now ``DIAGONAL`` and its closure HOLDS
+  (:ref:`frame-g0-descent-arrow`). `[M]` 2026-09-02, 200 seeds each,
+  the statement is unchanged and better witnessed: ``product(4,4)``
+  :math:`L{=}2` (:math:`7.6\times10^{-4}`–:math:`0.47`),
+  ``level_symmetric(4)`` :math:`L{=}3`
+  (:math:`4.3\times10^{-2}`–:math:`0.15`) and
+  ``folded_product(2,4)`` :math:`L{=}3` (:math:`0.26`–:math:`1.65`)
+  break it, while ``folded_product(4,6)`` :math:`L{=}3` and — a NEW
+  witness, from the other basis family — ``gauss_legendre(2)``
+  :math:`L{=}2` do **not** (:math:`\le 1.9\times10^{-15}`), both
+  because their disagreement lives entirely in :math:`\ker Y`. Never
   quote the closure as a frame law
   (:ref:`spaces-metric-frame-square` on
   :doc:`/theory/foundations/spaces`).
@@ -686,7 +695,16 @@ one for the other is the trap this subsection exists to close.
 Two measured disagreements ship today, one in each direction:
 
 * the SH basis **declares** ``DIAGONAL`` (it is continuum-orthogonal)
-  and **measures** ``DENSE`` on the slab Gauss–Legendre measure;
+  and **measures** ``DENSE`` on an under-resolved sphere rule —
+  ``product(4,4)`` at :math:`L = 2`, say. ⛔ This bullet read *"on the
+  slab Gauss–Legendre measure"* until 2026-09-02, when the fused
+  ERR-080 commit stopped a 1-D rule binding that basis at all; `[M]` the
+  slab GL(8) :math:`L{=}2` frame now binds
+  :class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis` and
+  **measures** ``DIAGONAL``, off-diagonal :math:`8.8\times10^{-17}`,
+  diagonal exactly :math:`2/(2\ell+1) = [2,\ 2/3,\ 2/5]`. ⭐ The
+  disagreement was never a property of the basis or of the measure
+  alone: it was the *pairing*, and the pairing was ill-posed;
 * an :class:`~orpheus.numerics.basis.overlap_basis.OverlapBasis`
   **declares** ``PARTITION_OF_UNITY`` — true, and what ``project``
   needs — while its trial Gram **measures** ``DENSE``, because a
@@ -765,8 +783,60 @@ full three-way split — and the shipped ``DENSE`` frame that *does*
 close, for a reason worth knowing — is
 :ref:`spaces-metric-frame-square`.
 
-The witness is the slab. `[M]` 2026-08-23,
-``Quadrature.gauss_legendre(8).angular_frame(2)``:
+.. note::
+
+   ⛔ **Retraction (2026-09-02, #429 / ERR-080). The table below is
+   HISTORY: its numbers are exactly right and the frame it measures no
+   longer exists.** The slab GL(8) :math:`L{=}2` frame was ``DENSE``
+   *because* its basis was fabricating azimuthal columns — the rows
+   "live slots per degree :math:`[1,1,3]`" and "diagonal :math:`0.8` on
+   the two surviving :math:`\ell{=}2`, :math:`m \ne 0` slots" ARE the
+   fabrication, tabulated. Since the fused commit a 1-D rule binds the
+   Legendre basis its orbit space admits, and `[M]` 2026-09-02 the same
+   frame reads:
+
+   .. list-table:: The same frame, after the repair
+      :header-rows: 1
+      :widths: 40 60
+
+      * - Quantity
+        - Measured
+      * - Total weight :math:`W`
+        - :math:`2` exactly — unchanged, it is the rule's
+      * - Live slots per degree, :math:`\ell = 0,1,2`
+        - :math:`[\,1,\ 1,\ 1\,]` — a FLAT head of :math:`L+1`
+          coefficients; there are no :math:`m` slots to fabricate
+      * - Diagonal
+        - :math:`2/(2\ell+1) = [\,2,\ 2/3,\ 2/5\,]`, exact
+      * - Largest off-diagonal
+        - :math:`8.8\times10^{-17}`; relative to
+          :math:`\sqrt{G_{jj}G_{kk}}`, **0.0** under the verdict's
+          threshold
+      * - Verdict
+        - ``DIAGONAL`` — the dense arm is not reached, and the frame
+          square's scalar closure now HOLDS on it
+          (`[M]` :math:`\le 5.1\times10^{-16}` over 200 seeds)
+
+   ⭐ **The impossibility argument below is unaffected and its
+   conclusion is unchanged** — a diagonal metric still cannot undo a
+   coupling between two slots, and that is what makes the dense arm
+   necessary. What changed is which frames exercise it. `[M]`
+   2026-09-02 the shipped ``DENSE`` angular frames are
+   ``product(4,4)`` :math:`L{=}2`, ``level_symmetric(4)`` :math:`L{=}3`,
+   ``folded_product(2,4)`` :math:`L{=}2`\ /:math:`3`,
+   ``folded_product(4,6)`` :math:`L{=}3`, and — from the *other* basis
+   family — ``gauss_legendre(2)`` at :math:`L \ge 2`, whose dense
+   verdict is the **dead-slot theorem** rather than a fabrication:
+   :math:`P_n` vanishes identically at ``GL_n``'s own nodes, so a 1-D
+   Gauss frame is diagonal-and-exact for :math:`L \le n-1` and
+   rank-deficient at :math:`\ell = n` (`[M]` 12 of 12 rows). ⟹ **no
+   1-D Gauss–Legendre frame can be both dense and full-rank**, which is
+   worth knowing before anyone reads a slab dense arm as a defect
+   again.
+
+The witness WAS the slab. `[M]` 2026-08-23,
+``Quadrature.gauss_legendre(8).angular_frame(2)``, **before the ERR-080
+repair**:
 
 .. list-table:: The slab GL(8) discrete Gram at :math:`L = 2` — why no diagonal metric works
    :header-rows: 1
@@ -4325,6 +4395,211 @@ disagree (``coding-standards``, the single-sourcing demotion). It keeps
 the discovery-path ``is``-identity it still tests, and the shape claim it
 used to carry moved to a new external pin against a hand-written literal.
 
+.. _frame-g0-descent-arrow:
+
+G0 — the frame's two halves must name ONE orbit space
+-------------------------------------------------------
+
+The subsection above settles where the *coefficient space* comes from.
+This one settles the question one level below it, and it is the check
+whose absence was :doc:`ERR-080 </theory/verification/error_catalog>`:
+**what makes a (basis, measure) pairing admissible at all?**
+
+Landed 2026-09-02, #429 tracker 2.2, inside the fused commit that
+repaired ERR-080. The point-set derivation is
+:ref:`manifold-g0-descent-arrow` on
+:doc:`/theory/foundations/manifolds`; what follows is the frame's side
+of it.
+
+The predicate, and why it is ONE
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A frame binds functions on ``basis.domain`` to a rule on
+``measure.support``. That is well-posed exactly when the functions can
+be *evaluated at the rule's nodes* — i.e. when there is a map from the
+rule's point set to the basis's:
+
+   **admissible iff a quotient map** ``measure.support -> basis.domain``
+   **EXISTS; and the frame's table is the basis pulled back along it.**
+
+:func:`~orpheus.numerics.manifold.quotient_onto` returns that arrow or
+``None``. Three cases are honest: the identity (equality is the special
+case :math:`K = H`), the entry's own
+:attr:`~orpheus.numerics.manifold.Quotient.quotient_map` when the target
+is a quotient of the source, and the induced :math:`M/K \to M/H` when
+both are quotients of one base with :math:`K \subseteq H`.
+
+⭐ **This subsumes the containment the pairing was first stated as, and
+it admits two pairings the containment cannot express.** The lattice
+verdict :math:`G_{\text{spent}} \subseteq G_{\text{have}}`
+(:ref:`manifold-invariance-pairing`) is precisely the third case. The
+first two are not lattice statements at all — and the second of them is
+a binding somebody actually wants: a Legendre basis
+:math:`P_\ell(\Omega\cdot\hat e_a)` on a **full-sphere** rule, which is
+a perfectly good expansion on a Lebedev or level-symmetric node set and
+which a bare containment test refuses. Asking for the ARROW is the same
+question asked in the category, and it answers all three.
+
+`[M]` 2026-09-02, every shipped pairing constructed and run:
+
+.. list-table:: G0 on the shipped pairings
+   :header-rows: 1
+   :widths: 26 26 10 38
+
+   * - rule (``measure.support``)
+     - basis (``domain``)
+     - G0
+     - arrow, or reason
+   * - slab GL — :math:`S^2/SO(2)_x`
+     - Legendre on :math:`S^2/SO(2)_x`
+     - ✅
+     - identity — **what the repair binds**
+   * - sphere rule — :math:`S^2`
+     - full harmonics on :math:`S^2`
+     - ✅
+     - identity
+   * - sphere rule — :math:`S^2`
+     - Legendre on :math:`S^2/SO(2)_x`
+     - ✅
+     - the entry's :math:`\pi` — `[M]` ``lebedev(11)`` gives a
+       :math:`(50, 3)` table at :math:`L = 2`, ``level_symmetric(8)`` an
+       :math:`(80, 3)` one
+   * - :math:`\sigma_y` fold — :math:`S^2/\sigma_y`
+     - :math:`\sigma`-even harmonics on the same entry
+     - ✅
+     - identity
+   * - slab GL — :math:`S^2/SO(2)_x`
+     - full harmonics on :math:`S^2`
+     - ⛔
+     - **ERR-080.** No map :math:`S^2/SO(2)_x \to S^2` exists; the arrow
+       runs the other way
+   * - :math:`\sigma_y` fold
+     - full harmonics on :math:`S^2`
+     - ⛔
+     - same shape — a fold cannot carry the unfolded family
+   * - :math:`\sigma_y` fold
+     - Legendre on :math:`S^2/SO(2)_x`
+     - ⛔
+     - ⚠ mathematically **admissible**; over-refused (GitHub #432)
+
+The message names both point sets, both groups, and
+:meth:`Quadrature.angular_frame
+<orpheus.numerics.quadrature.directional.Quadrature.angular_frame>` as
+the surface that derives the right basis — so a caller who trips it is
+told what to do rather than what happened.
+
+.. warning::
+
+   ⚠ **The last row is a known over-refusal and it is inert today.**
+   :math:`P_\ell(\Omega\cdot\hat e_x)` is invariant under the full
+   :math:`O(2)_x`, :math:`\sigma_y` included, but
+   :attr:`Basis.invariance_group
+   <orpheus.numerics.basis.base.Basis.invariance_group>` is DERIVED as
+   ``SO2('x')``, a strict lower bound, and no axis-parameterised
+   :math:`O(2)` member exists to declare instead. `[M]` no dispatch
+   selects that pairing — the fold binds its :math:`\sigma`-even
+   harmonics — so nothing shipped reaches it. Tracked at **#432**, and
+   recorded here because it is the landmine a cylindrical :math:`P_L`
+   expansion walks into.
+
+Where it fires, and why in three places
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``FrameBase.__post_init__`` checks the **trial** half at construction, so
+an inadmissible frame is unspellable rather than merely wrong.
+:attr:`~orpheus.numerics.frame.FrameBase.test_descent` checks the
+**test** half on first use, because the Petrov-Galerkin subclass binds
+the test basis and it is not available in the base's ``__post_init__``
+(on a Galerkin frame ``test is basis``, and the same cached arrow is
+returned). And :class:`~orpheus.numerics.frame.GalerkinFrame`'s
+hand-written ``__init__`` calls the helper explicitly — it bypasses the
+dataclass ``__init__`` that would otherwise run ``__post_init__``, so a
+gate installed only on the dataclass path would have been inert on the
+one constructor every angular frame in the tree goes through.
+
+⭐ **The arrow is not merely a gate; it is what the table is built
+with.** :attr:`FrameBase.table <orpheus.numerics.frame.FrameBase.table>`
+evaluates ``self.basis.evaluate(self.descent(self.measure.nodes))``, and
+:attr:`~orpheus.numerics.frame.FrameBase.test_table` the same through
+``test_descent``. So the check and the tabulation read ONE object: a
+frame that passed G0 cannot then tabulate through a different map, which
+is the failure mode a separate validator would have left open. On every
+identity arm the map is ``np.asarray(points)`` — a bit-preserving
+no-op — which is why the repair is **exactly inert** on the full-sphere
+and folded rules, as a theorem rather than as a sample: same basis
+class, same measure object, identity map, therefore the same float
+program.
+
+The moment head — a carrier reads its layout, never assumes one
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+G0 admits two basis families onto angular frames, and they have
+different coefficient LAYOUTS. The real harmonics' space is the
+rectangular :math:`(L+1, 2L+1)` table with the addition-theorem-shifted
+:math:`[\ell + m]` column and zero padding outside :math:`|m| \le \ell`;
+:class:`~orpheus.numerics.spaces.legendre_space.LegendreSpace` is
+**FLAT**, :math:`(L+1,)`, one coefficient per degree. A moment field's
+space is ``<head> ⊗ cells`` either way, so the *rank* of the leading
+factor is now a variable.
+
+:class:`~orpheus.numerics.spaces.moment_head.MomentHead` is the
+``runtime_checkable`` ``Protocol`` that makes the layout the head's to
+say: ``L``, ``shape``, ``isotropic_slot``, ``degree_block(l)`` and
+``truncated(L_new)``. Both space classes satisfy it structurally, and a
+consumer holding ``space.factors[0]`` narrows with ``isinstance`` — the
+same key-on-what-it-declares idiom as
+:class:`~orpheus.numerics.basis.base.TruncatedBasis` on the basis side.
+
+⛔ **Why it is a repair and not decoration: on a flat head the old reads
+returned the wrong array and raised NOTHING.** Every carrier read that
+indexed ``values[0, 0]`` or sliced ``values[l, :2l+1]`` was spelling the
+first family's layout as if it were the contract. On a
+:math:`(L+1, n_g, n_x)` tensor, ``values[0, 0]`` is *group 0's spatial
+slice* — a well-shaped array of the wrong thing. `[M]` the sites:
+``scalar_flux``, ``isotropic_part``, ``anisotropic_part``, ``l_block``,
+the fission :math:`\ell = 0` dyad, ``ng`` (which located the group axis
+at a hard-coded index 2), ``zeros_for_mesh_and_L``, and — the one no
+census had listed — the material field's per-degree group contraction,
+which spelled the :math:`m` axis into its ``einsum`` spec
+(``"mfc...,fg->mgc..."``) and its slicing. That last one would have
+contracted the GROUP axis as if it were :math:`m`. All of them now read
+the head:
+
+.. list-table:: What the head says, per family
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - Question
+     - real harmonics
+     - Legendre (a 1-D rule)
+   * - ``shape``
+     - :math:`(L+1,\ 2L+1)`
+     - :math:`(L+1,)`
+   * - ``isotropic_slot``
+     - ``(0, 0)``
+     - ``(0,)``
+   * - ``degree_block(l)``
+     - ``(l, 0:2l+1)``
+     - ``(l,)``
+   * - rank (``len(shape)``) ⟹ the group axis
+     - 2 ⟹ ``values.shape[2]``
+     - 1 ⟹ ``values.shape[1]``
+   * - :math:`\Lambda`'s block contraction
+     - ``"mfc...,fg->mgc..."``
+     - ``"fc...,fg->gc..."``
+
+`[M]` 2026-09-02, built through the production carrier: a
+``gauss_legendre(8)`` phase space gives
+``HarmonicMomentFlux.zeros_for_mesh_and_L(sn, 2).values.shape ==
+(3, 1, 4)`` with head ``legendre_space(S^2/SO2_x)``, while
+``level_symmetric(8)`` and ``folded_product(4,8)`` give ``(3, 5, 1, 4)``
+with head ``spherical_harmonic_space``. The :math:`\Lambda` specs are
+the former inline ones **verbatim** on the rank-2 rows, so the harmonic
+path is bit-identical by construction; the rank-1 rows are new, and a
+head of any other rank is refused by name rather than contracted
+wrongly.
+
+
 .. _frame-composed-verbs:
 
 The frame's composed-operator verbs
@@ -5391,7 +5666,10 @@ Implementation map
 
 The full-space projector — the operator that projects the SN
 :math:`(N, n_x, n_y, n_g)` angular flux onto the
-:math:`(L+1, 2L+1, n_x, n_y, n_g)` moment field — is built as a
+:math:`(\text{head}, n_x, n_y, n_g)` moment field, the head being
+:math:`(L+1, 2L+1)` on a rule that binds the harmonics and
+:math:`(L+1,)` on a 1-D rule since 2026-09-02
+(:ref:`frame-g0-descent-arrow`) — is built as a
 **tensor product** of the angular-axis analysis face :math:`M`
 and identity operators on the spatial / energy axes:
 

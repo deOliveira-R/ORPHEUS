@@ -311,7 +311,12 @@ class TestApplyAdmission:
         sn_mesh = _slab()
         corrector = DSACorrection.from_sn_mesh(sn_mesh)
         L = 1
-        shape = (L + 1, 2 * L + 1, sn_mesh.ng, *sn_mesh.spatial_shape)
+        # the angular head is READ off the frame (#429): the slab's is FLAT.
+        shape = (
+            *sn_mesh.quad.angular_frame(L).basis.space.shape,
+            sn_mesh.ng,
+            *sn_mesh.spatial_shape,
+        )
         windowed = FullField(
             interior=HarmonicMomentFlux.from_mesh_and_L(
                 np.ones(shape), sn_mesh, L

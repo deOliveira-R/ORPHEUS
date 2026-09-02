@@ -393,10 +393,18 @@ def test_the_frame_gram_probe_agrees_with_the_true_gram():
     metric = np.asarray(mesh.angular_trace.inner_product_weights, dtype=float)
     for block in gauge.blocks:
         indices = block.gather.indices
+        # ⛔ RE-KEYED 2026-09-02 (#429 tracker 2.2). The probe measure named
+        # its own manifold (``IndexSet(label="probe")``) while the block's
+        # basis eats ``index(sn_trace_orbit(...)_g0)`` — two different point
+        # sets, which the frame's new G0 arrow refuses. The probe was never
+        # about the LABEL: it integrates the block's own trace metric over the
+        # block's own indices, so it must name the basis's manifold. Naming
+        # the same object on both halves is what production does
+        # (``frame.py:818`` binds one ``points``).
         frame = GalerkinFrame(
             block.basis,
             DiscreteMeasure(nodes=indices.astype(float),
-                            weights=metric[indices], support=IndexSet(label="probe")),
+                            weights=metric[indices], support=block.basis.domain),
         )
         diagonal = np.asarray(frame.gram.inner_product_weights)
         np.testing.assert_allclose(diagonal, np.ones_like(diagonal), atol=1e-12)

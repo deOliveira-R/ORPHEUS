@@ -61,6 +61,34 @@ def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
+def _head_shape(mesh: SNMesh, L: int) -> tuple[int, ...]:
+    r"""The angular HEAD's own axes for this mesh at order :math:`L`.
+
+    ⭐ **Read off the FRAME, never spelled** (#429 tracker 2.5). Two families
+    ship and they have different ranks: the real spherical harmonics'
+    rectangular ``(L+1, 2L+1)`` table on a sphere rule, and the Legendre
+    family's FLAT ``(L+1,)`` on a 1-D rule's :math:`S^2/SO(2)_a` — one
+    coefficient per degree, because the trivial isotypic component of
+    :math:`SO(2)` is one-dimensional in every degree.
+
+    ⛔ Until the ERR-080 repair every fixture in this file hard-coded
+    ``(L+1, 2L+1)``, which read the FIRST family's layout as if it were the
+    contract. On the slab that is not merely a shape mismatch: on a flat head
+    ``values[0, 0]`` is **group 0's spatial slice** and raises nothing, so
+    ``scalar_flux`` / ``isotropic_part`` / ``anisotropic_part`` / ``l_block``
+    would have returned a wrong array SILENTLY.
+
+    ⚠ Both layouts stay exercised in this module: ``_slab_mesh`` now carries
+    the flat head, ``_2d_mesh`` (level-symmetric) the rectangular one.
+    """
+    return _head_of(mesh, L).shape
+
+
+def _head_of(mesh: SNMesh, L: int):
+    """The angular head OBJECT — the surface that says where the isotropic slot and each degree block live."""
+    return mesh.quad.angular_frame(L).basis.space
+
+
 def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
     """Build a small 2-D Cartesian :class:`SNMesh`."""
     mesh = Mesh2D(
@@ -83,7 +111,7 @@ class TestHarmonicMomentFluxConstruction:
         L = 2
         phi = HarmonicMomentFlux.zeros_for_mesh_and_L(m, L)
         # (L+1, 2L+1, ng, *spatial) = (3, 5, 2, 4) on the 1-D slab
-        assert phi.values.shape == (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
+        assert phi.values.shape == (*_head_shape(m, L), m.ng, *m.spatial_shape)
         assert np.all(phi.values == 0.0)
         assert isinstance(phi, HarmonicMomentFlux)
         assert phi.L == L
@@ -120,46 +148,63 @@ class TestHarmonicMomentFluxConstruction:
         m = _slab_mesh()
         phi = HarmonicMomentFlux.zeros_for_mesh_and_L(m, L=0)
         assert phi.ng == m.ng
-        # C5.2 (#225): nx/ny field read-throughs retired; spatial
-        # shape reads are rank-generic (the space's shape contract).
-        assert phi.values.shape[3:] == m.spatial_shape
+        # C5.2 (#225): nx/ny field read-throughs retired; spatial shape
+        # reads are rank-generic (the space's shape contract).
+        # ⛔ RE-KEYED 2026-09-02 (#429): ``shape[3:]`` hard-coded a TWO-axis
+        # head plus the group axis. The head's rank is the head's to say
+        # (``len(phi.head.shape)``) — 2 for the rectangular harmonics, 1 for
+        # the flat Legendre family a 1-D rule now binds.
+        assert phi.values.shape[len(phi.head.shape) + 1:] == m.spatial_shape
+        assert phi.head.shape == _head_shape(m, 0)
 
-    def test_space_is_tensor_product_of_sh_and_cell_group(self) -> None:
-        r"""D-E invariant: the typed field's ``space`` is a
-        :class:`TensorProductSpace` whose factors are
-        ``SphericalHarmonicSpace(L)`` and a cell-group
-        :class:`FunctionSpace`.
+    def test_space_is_tensor_product_of_the_frames_head_and_the_cell_group(
+        self,
+    ) -> None:
+        r"""D-E invariant: the field's ``space`` is ``<angular head> ⊗ cells``.
 
-        This is the FIRST production consumer of D-B's
-        :class:`TensorProductSpace` primitive in a typed transport
-        Field. The moment-axis structure is type-visible via the
-        composition tree — consumers asking for ``L`` via the
-        composition-tree query (Issue #207) get the right answer:
-        ``phi.space.factors[0].L == phi.L``.
+        ⛔ **RE-KEYED 2026-09-02 (#429).** The head used to be asserted as a
+        :class:`SphericalHarmonicSpace` unconditionally. **Two** families now
+        ship, and which one a field carries is READ off the frame the
+        quadrature bound: the rectangular harmonics on a sphere rule, the
+        FLAT :class:`LegendreSpace` on a 1-D rule's :math:`S^2/SO(2)_x`. Both
+        rows are asserted below, because a gate keyed on one family would
+        certify the other by accident.
+
+        The moment-axis structure stays type-visible through the composition
+        tree (Issue #207): ``phi.space.factors[0].L == phi.L`` on both.
         """
-        from orpheus.numerics.space import (
-            FunctionSpace, TensorProductSpace,
-        )
+        from orpheus.numerics.space import FunctionSpace, TensorProductSpace
+        from orpheus.numerics.spaces.legendre_space import LegendreSpace
+        from orpheus.numerics.spaces.moment_head import MomentHead
         from orpheus.numerics.spaces.spherical_harmonic_space import (
             SphericalHarmonicSpace,
         )
-        m = _slab_mesh()
+
         L = 2
-        phi = HarmonicMomentFlux.zeros_for_mesh_and_L(m, L=L)
-        # Space typing invariants.
-        assert isinstance(phi.space, TensorProductSpace)
-        assert len(phi.space.factors) == 2
-        # Factor 0: SphericalHarmonicSpace carrying the L parameter.
-        sh_factor = phi.space.factors[0]
-        assert isinstance(sh_factor, SphericalHarmonicSpace)
-        assert sh_factor.L == L
-        assert sh_factor.shape == (L + 1, 2 * L + 1)
-        # Factor 1: cell-group FunctionSpace.
-        cg_factor = phi.space.factors[1]
-        assert isinstance(cg_factor, FunctionSpace)
-        assert cg_factor.shape == (m.ng, *m.spatial_shape)
-        # Combined shape matches the field's data shape.
-        assert phi.space.shape == phi.values.shape
+        for mesh, family, head_shape in (
+            (_slab_mesh(), LegendreSpace, (L + 1,)),
+            (_2d_mesh(ng=1), SphericalHarmonicSpace, (L + 1, 2 * L + 1)),
+        ):
+            phi = HarmonicMomentFlux.zeros_for_mesh_and_L(mesh, L=L)
+            assert isinstance(phi.space, TensorProductSpace)
+            assert len(phi.space.factors) == 2
+
+            head = phi.space.factors[0]
+            assert isinstance(head, family), (
+                f"{type(mesh.quad._harmonic_basis(L)).__name__} should induce "
+                f"a {family.__name__} head; got {type(head).__name__}"
+            )
+            # …and whichever family it is, it satisfies the ONE surface every
+            # consumer reads (the structural Protocol, not the class).
+            assert isinstance(head, MomentHead)
+            assert head.L == L
+            assert head.shape == head_shape
+            assert head is phi.head
+
+            cells = phi.space.factors[1]
+            assert isinstance(cells, FunctionSpace)
+            assert cells.shape == (mesh.ng, *mesh.spatial_shape)
+            assert phi.space.shape == phi.values.shape
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -172,21 +217,27 @@ class TestHarmonicMomentFluxSlicing:
         m = _slab_mesh()
         L = 2
         phi = HarmonicMomentFlux.zeros_for_mesh_and_L(m, L)
+        head = phi.head
         for l in range(L + 1):
             block = phi.l_block(l)
-            assert block.shape == (2 * l + 1, m.ng, *m.spatial_shape)
+            # the block's own leading extent is the HEAD's degree block —
+            # ``2l+1`` on the rectangular harmonics, a single coefficient
+            # (no leading axis at all) on the flat Legendre head.
+            expected_lead = np.zeros(head.shape)[head.degree_block(l)].shape
+            assert block.shape == (*expected_lead, m.ng, *m.spatial_shape)
 
     def test_l_block_values_match_underlying_slice(self) -> None:
         m = _slab_mesh()
         L = 2
         rng = np.random.default_rng(seed=0)
         vals = rng.standard_normal(
-            (L + 1, 2 * L + 1, m.ng, *m.spatial_shape),
+            (*_head_shape(m, L), m.ng, *m.spatial_shape),
         )
         phi = HarmonicMomentFlux.from_mesh_and_L(vals, m, L)
+        head = phi.head
         for l in range(L + 1):
             np.testing.assert_array_equal(
-                phi.l_block(l), vals[l, : 2 * l + 1],
+                phi.l_block(l), vals[head.degree_block(l)],
             )
 
     def test_l_block_out_of_range_raises(self) -> None:
@@ -202,33 +253,49 @@ class TestHarmonicMomentFluxSlicing:
         L = 2
         rng = np.random.default_rng(seed=1)
         vals = rng.standard_normal(
-            (L + 1, 2 * L + 1, m.ng, *m.spatial_shape),
+            (*_head_shape(m, L), m.ng, *m.spatial_shape),
         )
         phi = HarmonicMomentFlux.from_mesh_and_L(vals, m, L)
         iso = phi.isotropic_part()
+        head = phi.head
         assert isinstance(iso, HarmonicMomentFlux)
         assert iso.L == L
-        # ℓ=0 m=0 slot preserved.
-        np.testing.assert_array_equal(iso.values[0, 0], vals[0, 0])
-        # Every other slot zeroed.
-        np.testing.assert_array_equal(iso.values[1:], 0.0)
-        # The ℓ=0 row's m≥1 slots (zero-padding) stay zero.
-        np.testing.assert_array_equal(iso.values[0, 1:], 0.0)
+        # the isotropic slot is preserved — its INDEX is the head's to say
+        # (``(0, 0)`` rectangular, ``(0,)`` flat); ``values[0, 0]`` on a flat
+        # head is group 0's spatial slice and raises nothing, which is the
+        # silent-wrongness this row now cannot have.
+        np.testing.assert_array_equal(
+            iso.values[head.isotropic_slot], vals[head.isotropic_slot]
+        )
+        # every OTHER slot of the head is zeroed — enumerated through the
+        # head's own degree blocks rather than by a layout literal.
+        for l in range(1, L + 1):
+            np.testing.assert_array_equal(iso.values[head.degree_block(l)], 0.0)
+        # …and within degree 0, anything that is not the isotropic slot
+        # (the rectangular head's m >= 1 padding; empty on a flat head).
+        degree_zero = np.zeros(head.shape)
+        degree_zero[head.degree_block(0)] = 1.0
+        degree_zero[head.isotropic_slot] = 0.0
+        np.testing.assert_array_equal(iso.values[degree_zero == 1.0], 0.0)
 
     def test_anisotropic_part_zeros_l_eq_0(self) -> None:
         m = _slab_mesh()
         L = 2
         rng = np.random.default_rng(seed=2)
         vals = rng.standard_normal(
-            (L + 1, 2 * L + 1, m.ng, *m.spatial_shape),
+            (*_head_shape(m, L), m.ng, *m.spatial_shape),
         )
         phi = HarmonicMomentFlux.from_mesh_and_L(vals, m, L)
         aniso = phi.anisotropic_part()
+        head = phi.head
         assert isinstance(aniso, HarmonicMomentFlux)
-        # ℓ=0 m=0 slot zeroed.
-        np.testing.assert_array_equal(aniso.values[0, 0], 0.0)
-        # ℓ ≥ 1 preserved.
-        np.testing.assert_array_equal(aniso.values[1:], vals[1:])
+        # the isotropic slot is zeroed…
+        np.testing.assert_array_equal(aniso.values[head.isotropic_slot], 0.0)
+        # …and every higher degree is preserved.
+        for l in range(1, L + 1):
+            np.testing.assert_array_equal(
+                aniso.values[head.degree_block(l)], vals[head.degree_block(l)]
+            )
 
     def test_iso_plus_aniso_recovers_self(self) -> None:
         r"""The ℓ=0 / ℓ≥1 decomposition is complete:
@@ -246,12 +313,18 @@ class TestHarmonicMomentFluxSlicing:
         L = 2
         rng = np.random.default_rng(seed=3)
         vals = rng.standard_normal(
-            (L + 1, 2 * L + 1, m.ng, *m.spatial_shape),
+            (*_head_shape(m, L), m.ng, *m.spatial_shape),
         )
-        # Zero the ℓ=0 m≥1 padding so iso+aniso reproduces vals
-        # exactly (the padding is not part of the legitimate
-        # moment-space content).
-        vals[0, 1:] = 0.0
+        # Zero everything in degree 0 that is not the isotropic slot (the
+        # rectangular head's m >= 1 padding; on a FLAT head the degree-0
+        # block IS the isotropic slot, so this zeroes nothing) so that
+        # iso + aniso reproduces ``vals`` exactly — the padding is not part
+        # of the legitimate moment-space content.
+        _head = _head_of(m, L)
+        _degree_zero = np.zeros(_head.shape)
+        _degree_zero[_head.degree_block(0)] = 1.0
+        _degree_zero[_head.isotropic_slot] = 0.0
+        vals[_degree_zero == 1.0] = 0.0
         phi = HarmonicMomentFlux.from_mesh_and_L(vals, m, L)
         # The typed recombination — the capability the CS3 carve unlocked.
         recombined = phi.isotropic_part() + phi.anisotropic_part()
@@ -278,13 +351,13 @@ class TestHarmonicMomentFluxScalarFlux:
         L = 1
         rng = np.random.default_rng(seed=4)
         vals = rng.standard_normal(
-            (L + 1, 2 * L + 1, m.ng, *m.spatial_shape),
+            (*_head_shape(m, L), m.ng, *m.spatial_shape),
         )
         phi = HarmonicMomentFlux.from_mesh_and_L(vals, m, L)
         sf = phi.scalar_flux()
         assert isinstance(sf, ScalarFlux)
         assert sf.values.shape == (m.ng, *m.spatial_shape)
-        np.testing.assert_array_equal(sf.values, vals[0, 0])
+        np.testing.assert_array_equal(sf.values, vals[phi.head.isotropic_slot])
 
     def test_scalar_flux_agrees_with_integrate_angular(self) -> None:
         """``M(\\psi).scalar_flux() == \\psi.integrate_angular()``.
@@ -326,15 +399,20 @@ class TestHarmonicMomentFluxTruncate:
         L = 3
         rng = np.random.default_rng(seed=6)
         vals = rng.standard_normal(
-            (L + 1, 2 * L + 1, m.ng, *m.spatial_shape),
+            (*_head_shape(m, L), m.ng, *m.spatial_shape),
         )
         phi = HarmonicMomentFlux.from_mesh_and_L(vals, m, L)
         for L_new in range(L + 1):
             trunc = phi.truncate(L_new)
             assert trunc.L == L_new
             assert trunc.values.shape == (
-                L_new + 1, 2 * L_new + 1, m.ng, *m.spatial_shape,
+                *_head_shape(m, L_new), m.ng, *m.spatial_shape,
             )
+            # ⭐ and the truncated head stays in the SAME family — a flat
+            # head truncates to a flat head, a rectangular one to a
+            # rectangular one (``MomentHead.truncated`` is the family's own
+            # verb, not a shape literal).
+            assert trunc.head == phi.head.truncated(L_new)
             # For each ℓ ≤ L_new, the (ℓ, m) entries inside |m|≤ℓ
             # match the source.
             for l in range(L_new + 1):
@@ -371,7 +449,7 @@ class TestHarmonicMomentFluxAlgebra:
         """
         m = _slab_mesh()
         L = 1
-        shape = (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
+        shape = (*_head_shape(m, L), m.ng, *m.spatial_shape)
         a = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L)
         b = HarmonicMomentFlux.from_mesh_and_L(2.0 * np.ones(shape), m, L)
         s = a + b
@@ -392,7 +470,7 @@ class TestHarmonicMomentFluxAlgebra:
         """
         m = _slab_mesh()
         L = 1
-        shape = (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
+        shape = (*_head_shape(m, L), m.ng, *m.spatial_shape)
         a = HarmonicMomentFlux.from_mesh_and_L(3.0 * np.ones(shape), m, L)
         b = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L)
         c = a - b
@@ -403,7 +481,7 @@ class TestHarmonicMomentFluxAlgebra:
     def test_scalar_mul_left_and_right(self) -> None:
         m = _slab_mesh()
         L = 1
-        shape = (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
+        shape = (*_head_shape(m, L), m.ng, *m.spatial_shape)
         a = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L)
         np.testing.assert_array_equal(
             (3.0 * a).values, (a * 3.0).values,
@@ -415,7 +493,7 @@ class TestHarmonicMomentFluxAlgebra:
     def test_div(self) -> None:
         m = _slab_mesh()
         L = 0
-        shape = (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
+        shape = (*_head_shape(m, L), m.ng, *m.spatial_shape)
         a = HarmonicMomentFlux.from_mesh_and_L(2.0 * np.ones(shape), m, L)
         np.testing.assert_array_equal(
             (a / 2.0).values, np.ones(shape),
@@ -424,14 +502,14 @@ class TestHarmonicMomentFluxAlgebra:
     def test_neg(self) -> None:
         m = _slab_mesh()
         L = 1
-        shape = (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
+        shape = (*_head_shape(m, L), m.ng, *m.spatial_shape)
         a = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L)
         np.testing.assert_array_equal((-a).values, -np.ones(shape))
 
     def test_partner_must_be_same_type(self) -> None:
         m = _slab_mesh()
         L = 1
-        shape = (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
+        shape = (*_head_shape(m, L), m.ng, *m.spatial_shape)
         a = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L)
         with pytest.raises(TypeError):
             a + 5  # type: ignore[operator]  # not a HarmonicMomentFlux
@@ -443,7 +521,7 @@ class TestHarmonicMomentFluxAlgebra:
         m1 = _slab_mesh()
         m2 = _stretched_mesh()
         L = 1
-        shape = (L + 1, 2 * L + 1, m1.ng, *m1.spatial_shape)
+        shape = (*_head_shape(m1, L), m1.ng, *m1.spatial_shape)
         a = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m1, L)
         twin = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), _slab_mesh(), L)
         _ = a + twin  # twin content — legal since the F2 re-key
@@ -543,7 +621,7 @@ class TestRLambdaMRoundTrip:
         L = 1
         rng = np.random.default_rng(seed=7)
         moments_values = rng.standard_normal(
-            (L + 1, 2 * L + 1, mix.ng, nx, ny),
+            (*_head_shape(sn_mesh, L), mix.ng, nx, ny),
         )
         moments = HarmonicMomentFlux.from_mesh_and_L(moments_values, sn_mesh, L)
 
@@ -584,7 +662,7 @@ class TestRLambdaMRoundTrip:
 
         L = 1
         moments_values = np.zeros(
-            (L + 1, 2 * L + 1, mix.ng, nx, ny),
+            (*_head_shape(sn_mesh, L), mix.ng, nx, ny),
         )
         Lam = LegendreMomentScattering.from_material_xs(
             mat_xs=solver.mat_xs, basis=SphericalHarmonicBasis(L=L), skip_l0=True,
@@ -604,7 +682,18 @@ class TestZerosForMeshAndL:
         m = _slab_mesh()
         phi = HarmonicMomentFlux.zeros_for_mesh_and_L(m, L=0)
         assert phi.L == 0
-        assert phi.values.shape == (1, 1, m.ng, *m.spatial_shape)
+        # ⛔ RE-KEYED 2026-09-02 (#429): ``(1, 1, ...)`` is the RECTANGULAR
+        # head at L = 0. The slab's Legendre head is FLAT, ``(1,)``.
+        # ⭐ And L = 0 is not a corner case here: ``fission.py`` and
+        # ``n2n.py`` mint ``for_space(interior, 0)`` on EVERY solve,
+        # isotropic included — this is the shape the whole tree sees most.
+        assert phi.values.shape == (*_head_shape(m, 0), m.ng, *m.spatial_shape)
+        assert phi.values.shape == (1, m.ng, *m.spatial_shape)
+
+        # the rectangular twin, so both layouts stay pinned at L = 0
+        sphere = _2d_mesh(ng=1)
+        rect = HarmonicMomentFlux.zeros_for_mesh_and_L(sphere, L=0)
+        assert rect.values.shape == (1, 1, sphere.ng, *sphere.spatial_shape)
 
     def test_factory_returns_owned_ndarray(self) -> None:
         m = _slab_mesh()
@@ -622,3 +711,99 @@ class TestZerosForMeshAndL:
         phi_copy = phi.copy()
         assert phi.values is not phi_copy.values
         np.testing.assert_array_equal(phi.values, phi_copy.values)
+
+
+# ════════════════════════════════════════════════════════════════════
+# B13 (#429) — a RANK-1 angular head, dispatched rather than assumed
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestRankOneAngularHead:
+    r"""Every view verb reads the head's LAYOUT; none assumes two axes.
+
+    ⛔ **The failure this class exists to prevent is SILENT.** Before #429 the
+    views indexed ``values[0, 0]`` (``scalar_flux``, ``isotropic_part``),
+    sliced ``values[l, :2l+1]`` (``l_block``, ``anisotropic_part``) and rebuilt
+    ``(L_new+1, 2L_new+1, *shape[2:])`` (``truncate``). On a FLAT head —
+    ``(L+1, ng, nx)`` — ``values[0, 0]`` is **group 0's spatial slice**: a
+    real array of the wrong quantity, no exception, no shape error. So the
+    rows below assert the correct answers AND demonstrate that the wrong
+    layout reads would have returned something rather than raising.
+
+    ⭐ **The** :math:`L = 0` **chain is where this lands hardest.**
+    ``fission.py`` and ``n2n.py`` mint ``for_space(interior, 0)`` on EVERY
+    solve, isotropic included — so a flat head at :math:`L = 0` is the single
+    most-travelled shape in the tree, not a corner case.
+    """
+
+    def test_the_slab_field_carries_a_rank_one_head_and_every_view_is_correct(
+        self,
+    ) -> None:
+        mesh = _slab_mesh()
+        L = 1
+        head = _head_of(mesh, L)
+        assert len(head.shape) == 1, "the slab's Legendre head is FLAT"
+        assert head.isotropic_slot == (0,)
+        assert head.degree_block(1) == (1,)
+
+        rng = np.random.default_rng(20260902)
+        vals = rng.standard_normal((*head.shape, mesh.ng, *mesh.spatial_shape))
+        phi = HarmonicMomentFlux.from_mesh_and_L(vals, mesh, L)
+
+        # equality, not identity: the head is re-derived per space mint and
+        # LegendreSpace compares by (name, shape) like every FunctionSpace.
+        assert phi.head == head
+        assert phi.ng == mesh.ng
+        np.testing.assert_array_equal(phi.scalar_flux().values, vals[0])
+        np.testing.assert_array_equal(phi.isotropic_part().values[0], vals[0])
+        np.testing.assert_array_equal(phi.isotropic_part().values[1], 0.0)
+        np.testing.assert_array_equal(phi.anisotropic_part().values[0], 0.0)
+        np.testing.assert_array_equal(phi.anisotropic_part().values[1], vals[1])
+        np.testing.assert_array_equal(phi.l_block(0), vals[0])
+        np.testing.assert_array_equal(phi.l_block(1), vals[1])
+
+        truncated = phi.truncate(0)
+        assert truncated.values.shape == (1, mesh.ng, *mesh.spatial_shape)
+        np.testing.assert_array_equal(truncated.values[0], vals[0])
+
+    def test_the_two_axis_read_would_have_been_SILENT_on_a_flat_head(self) -> None:
+        r"""The demonstration, not an assertion about production: ``values[0, 0]`` RETURNS on a flat head.
+
+        This is why the repair could not have been found by running the
+        suite: a wrong-layout read raises nothing, it just answers the wrong
+        question. ``[M]`` on the slab at :math:`L = 1`, ``values[0, 0]`` is
+        ``values[0][0]`` — the ℓ=0 moment of GROUP 0 — with shape
+        ``(nx,)`` where the scalar flux has ``(ng, nx)``.
+        """
+        mesh = _slab_mesh()
+        L = 1
+        head = _head_of(mesh, L)
+        rng = np.random.default_rng(20260902)
+        vals = rng.standard_normal((*head.shape, mesh.ng, *mesh.spatial_shape))
+
+        two_axis_read = vals[0, 0]                 # what the old code did
+        honest_read = vals[head.isotropic_slot]    # what the head says
+
+        assert two_axis_read.shape == mesh.spatial_shape
+        assert honest_read.shape == (mesh.ng, *mesh.spatial_shape)
+        assert two_axis_read.shape != honest_read.shape
+        np.testing.assert_array_equal(two_axis_read, honest_read[0])
+
+    def test_the_rank_two_head_is_unchanged(self) -> None:
+        """The CONTROL: the rectangular family still answers exactly as before."""
+        mesh = _2d_mesh(ng=1)
+        L = 1
+        head = _head_of(mesh, L)
+        assert len(head.shape) == 2
+        assert head.isotropic_slot == (0, 0)
+        assert head.degree_block(1) == (1, slice(0, 3))
+
+        rng = np.random.default_rng(20260902)
+        vals = rng.standard_normal((*head.shape, mesh.ng, *mesh.spatial_shape))
+        phi = HarmonicMomentFlux.from_mesh_and_L(vals, mesh, L)
+
+        np.testing.assert_array_equal(phi.scalar_flux().values, vals[0, 0])
+        np.testing.assert_array_equal(phi.l_block(1), vals[1, :3])
+        assert phi.truncate(0).values.shape == (
+            1, 1, mesh.ng, *mesh.spatial_shape
+        )

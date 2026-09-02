@@ -89,6 +89,7 @@ from orpheus.numerics.manifold import (
     RealSpace,
     ambient_dim,
 )
+from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -379,9 +380,15 @@ def test_d7_a_wrapping_basis_cannot_drift_from_the_basis_it_wraps() -> None:
     assert weighted.space == trial.space
 
     table = np.array([[1.0, 0.0], [0.0, 1.0]])
-    overlap = OverlapBasis.from_indicator(trial, table)
-    assert overlap.domain is trial.domain
+    overlap = OverlapBasis.from_indicator(trial, table, fine=EnergyGroups(2))
+    # ⚠ Since #429's fused commit (2026-09-02) the overlap's DOMAIN is the
+    # FINE partition it EATS (the table's rows), deliberately NOT the wrapped
+    # basis's — that inherited `domain = partition_of` was the defect the
+    # frame's G0 caught on landing (every `Mixture.condense` refused). What
+    # cannot drift is the COARSE side it spans: the partition it decorates.
+    assert overlap.domain == EnergyGroups(2)
     assert overlap.partition_of is trial.partition_of
+    assert overlap.space == trial.space
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -389,33 +396,41 @@ def test_d7_a_wrapping_basis_cannot_drift_from_the_basis_it_wraps() -> None:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-def test_e1_the_folds_two_halves_read_ONE_group_and_the_slabs_pairing_is_refusable() -> None:
-    r"""⭐⭐ KEYSTONE — Part IV's G2 has both operands, and they agree where they should.
+def test_e1_the_folds_two_halves_read_ONE_group_and_the_slab_now_does_too() -> None:
+    r"""⭐⭐ KEYSTONE — a frame's two halves name ONE orbit space, and the slab now does.
 
-    **Positive leg: the shipped fold.** Its measure SPENT ``Mirror('y')``
-    (folded onto :math:`S^2/\sigma_y`) and its frame basis HAS ``Mirror('y')``
-    (the σ_y-even harmonics on the same orbit space). Asserted three ways,
-    strongest last: the lattice verdict G2 will read, equality, and
-    **identity** — the two halves are the ``by`` of one memoised
-    :class:`Quotient`, so there is no second tag that could drift. This is
-    the witness ``plan-authoring`` §6c allows a field with no consumer yet:
-    an AGREEMENT on a pairing that ships, not a refusal that nothing reaches.
+    **The fold (unchanged).** Its measure SPENT ``Mirror('y')`` (folded onto
+    :math:`S^2/\sigma_y`) and its frame basis HAS ``Mirror('y')`` (the
+    σ_y-even harmonics on the same orbit space). Asserted three ways,
+    strongest last: the lattice verdict, equality, and **identity** — the two
+    halves are the ``by`` of one memoised :class:`Quotient`, so there is no
+    second tag that could drift.
 
-    **Negative leg: the slab.** ``gauss_legendre(8)`` spent ``SO2('x')``
-    (tracker 2.4) and the harmonics its frame binds today HAVE only
-    ``Trivial``, so ``Trivial ⊇ SO2('x')`` is **False** — the Part I bug
-    (ERR-080) stated as a lattice verdict for the first time. ⚠ A
-    measurement, not a refusal: nothing checks it on the frame until tracker
-    2.2, and the frame's own measure still carries the forged ``S^2``
-    (§V.5h(c)), which is why the verdict is read off the QUADRATURE's
-    measure — the object that knows what it spent.
+    **The slab — ⛔ INVERTED 2026-09-02 (#429/ERR-080).** This leg used to
+    read the DEFECT as a verdict: ``gauss_legendre(8)`` spent ``SO2('x')``
+    while the harmonics its frame bound HAVE only ``Trivial``, so
+    ``Trivial ⊇ SO2('x')`` was **False** and nothing refused it (tracker 2.2
+    did not exist; the frame's measure still carried the forged
+    :math:`S^2`). The fused commit closed both halves: the frame binds the
+    Legendre basis on :math:`S^2/SO(2)_x`, so the verdict is now **True** by
+    the same three assertions the fold gets.
+
+    ⭐ **The refusal did not disappear — it MOVED, and it is asserted here.**
+    A verdict that merely flipped to True would be a weaker gate than the one
+    it replaced (the old negative leg was the only place the lattice's
+    discriminating power was visible). So the refused pairing is constructed
+    directly, from shipped classes: a raw ``GalerkinFrame`` binding the full
+    harmonics to the slab's own measure — exactly what production built
+    before the repair — and G0 rejects it. That is row 5 of the G0 pairing
+    table, whose other six rows live in
+    ``tests/numerics/test_frame.py::TestG0TheFrameBindsAlongAQuotientMap``.
     """
     fold = Quadrature.folded_product(n_mu=4, n_phi=8)
     fold_basis = fold.angular_frame(2).basis
     spent = fold.measure.quotient_group
     has = fold_basis.invariance_group
     assert spent is not None and has is not None
-    assert has.contains(spent)                             # G2's verdict
+    assert has.contains(spent)                             # the lattice verdict
     assert has == spent == SubgroupOfO3.Mirror("y")
     assert has is spent                                    # ONE object, not two agreeing tags...
     assert fold_basis.domain is fold.measure.support       # ...because the manifold is one object
@@ -425,9 +440,15 @@ def test_e1_the_folds_two_halves_read_ONE_group_and_the_slabs_pairing_is_refusab
     spent = slab.measure.quotient_group
     has = slab_basis.invariance_group
     assert spent is not None and has is not None
-    assert spent == SubgroupOfO3.SO2("x")
-    assert has == SubgroupOfO3.Trivial
-    assert not has.contains(spent)                         # ERR-080, as a verdict
+    assert has.contains(spent)                             # ⭐ was False (ERR-080)
+    assert has == spent == SubgroupOfO3.SO2("x")
+    assert has is spent
+    assert slab_basis.domain is slab.measure.support
+
+    # …and the pairing that WAS built is now refused at construction (G0's
+    # row 5) — the negative leg this gate would otherwise have lost.
+    with pytest.raises(ValueError, match="no quotient map"):
+        GalerkinFrame(SphericalHarmonicBasis(L=2), slab.measure)
 
 
 @pytest.mark.parametrize("L", [0, 1, 3, 7])
@@ -485,7 +506,7 @@ def test_e3_no_subgroup_of_O3_acts_on_a_mesh_a_group_index_or_a_trace_index() ->
         "energy indicator": energy,
         "spatial indicator": spatial,
         "weighted (delegates)": WeightedIndicatorBasis(energy, np.ones(2)),
-        "overlap (delegates)": OverlapBasis.from_indicator(energy, np.eye(2)),
+        "overlap (delegates)": OverlapBasis.from_indicator(energy, np.eye(2), fine=EnergyGroups(2)),
         "loss kernel": LossKernelBasis(table=np.eye(2), orbit=(0, 1), group=3),
     }
     for who, basis in cases.items():

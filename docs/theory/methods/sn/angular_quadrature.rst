@@ -458,6 +458,90 @@ there.
    general motion-derived method then retired the table once every
    consumer read it.
 
+.. _quadrature-basis-is-derived:
+
+The angular BASIS is derived from the rule's orbit space
+---------------------------------------------------------
+
+A rule does not merely supply nodes and weights; it supplies the point
+set they live on, and that point set decides which functions the rule
+can carry. Since 2026-09-02 (#429's fused commit, the
+:doc:`ERR-080 </theory/verification/error_catalog>` repair)
+:meth:`Quadrature.angular_frame(L)
+<orpheus.numerics.quadrature.Quadrature.angular_frame>` reads
+``measure.support`` and derives the basis — it never chooses one, and
+it no longer dispatches on the ``folded_by`` tag:
+
+.. list-table:: What each shipped family binds at degree :math:`L`
+   :header-rows: 1
+   :widths: 26 24 24 26
+
+   * - Rule
+     - ``measure.support``
+     - Basis bound
+     - Coefficient head
+   * - ``gauss_legendre(n)``
+     - :math:`S^2/SO(2)_x`
+     - :class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis`
+     - **FLAT**, :math:`(L+1,)`
+   * - ``lebedev``, ``level_symmetric``, ``product``
+     - :math:`S^2`
+     - :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`
+     - :math:`(L+1,\ 2L+1)`
+   * - ``folded_product``
+     - :math:`S^2/\sigma_y`
+     - ``MirrorEvenSphericalHarmonicBasis``
+     - :math:`(L+1,\ 2L+1)`, :math:`\sigma`-odd columns zeroed
+
+`[M]` 2026-09-02 over the twelve shipped constructions: the family is
+as tabulated, and ``frame.measure is q.measure`` on **12 of 12** — the
+frame is handed the rule's own measure, never a rebuilt one.
+
+⛔ **Why this is a repair.** A 1-D rule samples the **orbit space**
+:math:`S^2/SO(2)_x`, not the sphere: one of its nodes is a whole circle
+of directions at fixed :math:`\mu`. Until 2026-09-02 the frame padded
+:math:`\mu` to :math:`(\mu, 0, 0)`, called the result a measure on
+:math:`S^2`, and bound the full real harmonics to it — so
+``_evaluate_real_sh`` read the fabricated ``arctan2(0, 0) = 0`` as a
+real azimuth and ``solve_sn(scattering_order >= 2)`` returned a wrong
+answer on **every** 1-D chart. The functions on the orbit space are the
+:math:`SO(2)`-invariant ones, i.e. :math:`\{P_\ell(\mu)\}`
+(:ref:`sh-legendre-is-the-1d-family`), and a frame now REFUSES the old
+pairing outright (:ref:`frame-g0-descent-arrow`).
+
+.. note::
+
+   ⚠ **The embedding in the paragraph above about mirrors is a
+   different thing and it stays.**
+   :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`
+   asks whether a rigid motion permutes the rule's weighted nodes, and
+   for that question the orbit **barycentre**
+   :math:`\mu \mapsto \mu\,\hat e_a` is the right map — a rotation about
+   :math:`a` genuinely fixes it, so the invariance test is honest
+   (:ref:`manifold-barycentre`). `[M]` it still answers
+   :math:`\pi(n) = N-1-n` for :math:`\sigma_x` and the identity for
+   :math:`\sigma_y`/:math:`\sigma_z` on ``gauss_legendre(8)``. What
+   ERR-080 was is the SAME map used to feed a **basis**, which needs a
+   point and was handed a mean.
+
+.. warning::
+
+   ⭐ **A coarse 1-D rule at high** :math:`L` **is rank-deficient, and
+   it is a resolution statement rather than a defect.** `[M]` 12 of 12
+   rows (:math:`n \in \{2,4,8,16\}`, :math:`L \in \{n-1,n,n+1\}`):
+   ``GL_n``'s Legendre Gram is diagonal and exact for
+   :math:`L \le n-1` and has a **structurally dead slot** at
+   :math:`\ell = n`, because :math:`P_n` vanishes identically at
+   ``GL_n``'s nodes — they ARE its roots. So `[M]`
+   ``gauss_legendre(2)`` at :math:`L \ge 2` measures ``DENSE`` and takes
+   the pseudo-inverse metric arm, exactly as an over-resolved sphere
+   frame does. Read a slab dense arm as *"this rule cannot resolve that
+   degree"*, never as a recurrence of ERR-080: the post-repair Gram has
+   :math:`L+1` slots with a closed-form dead one, where the pre-repair
+   one had :math:`(L+1)(2L+1)` of which the :math:`m \ne 0` ones were
+   invented.
+
+
 Comparison Table
 -----------------
 

@@ -656,14 +656,23 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
 
 .. warning::
 
-   ⛔ **The paragraph above is true and its diagnosis is INCOMPLETE, and
-   the missing half is the load-bearing one (ERR-080, 2026-08-31).** On
-   the slab Gauss–Legendre measure the discrete Gram is not merely
-   *non-diagonal* — at :math:`L = 2` it is **rank-deficient**: 5 live
-   slots, rank 4. So :math:`G^{+}` is not "the matrix realization that a
-   non-diagonal Gram needs"; it is a pseudo-inverse **silently
-   discarding a null direction**, which is a structural degeneracy
-   wearing a conditioning costume.
+   ⛔ **The paragraph above is true and its diagnosis was INCOMPLETE,
+   and the missing half was the load-bearing one (ERR-080, 2026-08-31;
+   REPAIRED 2026-09-02).** On the slab Gauss–Legendre measure the
+   discrete Gram was not merely *non-diagonal* — at :math:`L = 2` it was
+   **rank-deficient**: 5 live slots, rank 4. So :math:`G^{+}` was not
+   "the matrix realization that a non-diagonal Gram needs"; it was a
+   pseudo-inverse **silently discarding a null direction**, a structural
+   degeneracy wearing a conditioning costume.
+
+   ✅ **What repaired it is not a metric at all: a 1-D rule no longer
+   binds this basis.** `[M]` 2026-09-02
+   ``gauss_legendre(8).angular_frame(2)`` binds
+   :class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis` to the
+   rule's own measure, measures ``DIAGONAL`` with off-diagonal
+   :math:`8.8\times10^{-17}` and diagonal :math:`2/(2\ell+1)`, and the
+   dense arm is not reached. Everything below in this warning is the
+   record of the defect; read it in the past tense.
 
    The null direction has a closed form. The offending harmonic is
    :math:`Y_2^{+2} \propto (1-\mu^2)`, which is exactly
@@ -680,16 +689,17 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    alignment, not the difference). **It is a theorem about the quotient,
    not roundoff.**
 
-   The cause is upstream of the metric entirely: a 1-D rule carries no
+   The cause was upstream of the metric entirely: a 1-D rule carries no
    azimuthal information, but the measure ``Quadrature.angular_frame``
-   integrates against pads the polar nodes with two zero columns and
-   then declares the result ``support=SPHERE`` over nodes with
-   :math:`\lVert\Omega\rVert \ne 1`. ``_evaluate_real_sh`` duly reads
-   :math:`\arctan2(0, 0) = 0` and every :math:`m > 0` harmonic becomes a
-   non-zero constant across the ordinate set. The frame is therefore
+   integrated against padded the polar nodes with two zero columns and
+   then declared the result ``support=SPHERE`` over nodes with
+   :math:`\lVert\Omega\rVert \ne 1`. ``_evaluate_real_sh`` duly read
+   :math:`\arctan2(0, 0) = 0` and every :math:`m > 0` harmonic became a
+   non-zero constant across the ordinate set. The frame was therefore
    **ill-posed on that pairing**, and no choice of metric — diagonal,
    dense, or otherwise — repairs a basis that is linearly dependent on
-   its own nodes.
+   its own nodes. ⟹ which is why the repair changed the **pairing**:
+   see :ref:`sh-legendre-is-the-1d-family` below.
 
    .. note::
 
@@ -704,8 +714,9 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
       instead), the zeros are written at that one site rather than
       obtained from an accessor named *"direction cosine along axis
       i"*, and ``axis_cosines`` now **refuses** a suppressed axis. None
-      of that changes the flux: the fabrication still happens on every
-      slab solve.
+      of that changed the flux: the fabrication still happened on every
+      slab solve. ✅ The method itself was **deleted** on 2026-09-02 and
+      `[M]` ``frame.measure is q.measure`` on **12 of 12** rules.
 
       ⭐ Since 2026-09-02 (tracker 2.3) the tree also has the
       vocabulary to say what the padding *is*. The map
@@ -728,15 +739,15 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    candidate) all stand; what does not stand is the inference that a
    dense metric is the whole answer.
 
-   The repair is not a special case: a 1-D angular quadrature is a
-   quadrature on the orbit space :math:`S^2/SO(2)_x`, and the surviving
-   harmonics are that quotient's **trivial isotypic component**
-   :math:`\{Y_\ell^0\} \cong \{P_\ell\}`. Tracked by **#429**;
-   planned in
-   ``.claude/plans/angular_spaces_derived_from_symmetry.md``. Until it
-   lands, :math:`P_{\ge 2}` scattering on any 1-D chart returns a wrong
-   answer — gated by
-   ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``.
+   ✅ **The repair LANDED 2026-09-02 (#429's fused commit), and it is
+   not a special case**: a 1-D angular quadrature is a quadrature on the
+   orbit space :math:`S^2/SO(2)_x`, and the surviving harmonics are that
+   quotient's **trivial isotypic component**
+   :math:`\{Y_\ell^0\} \cong \{P_\ell\}`. `[M]` the gate
+   ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``
+   went from three ``xfail(strict=True)`` rows to green, and
+   :math:`P_{\ge 2}` scattering on a 1-D chart returns the analytic
+   answer at every order (:ref:`sh-legendre-is-the-1d-family`).
 
    ⭐ **The axis in** :math:`SO(2)_x` **is load-bearing, and naming it
    landed 2026-09-01** (tracker 2.4). It is :math:`x` for the same
@@ -746,10 +757,11 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    — while every product rule's polar factor is :math:`\mu_z`. One
    Gauss–Legendre rule serves both roles, which is why the group cannot
    be spelled without its axis
-   (:ref:`manifold-so2-axis-is-a-parameter`). `[M]` the slab's rule now
-   declares ``support = S^2/SO2_x``; ⛔ that names the space the repair
-   must be posed on and **does not perform the repair** — the frame's
-   own measure is still the forged one.
+   (:ref:`manifold-so2-axis-is-a-parameter`). `[M]` the slab's rule
+   declares ``support = S^2/SO2_x``; that named the space the repair had
+   to be posed on and did not perform it. ✅ 2026-09-02 performs it: the
+   frame's measure IS the rule's, and the basis is the one that orbit
+   space admits.
 
 These identities are pinned by
 ``tests/numerics/test_spherical_harmonic_space.py`` and
@@ -842,6 +854,174 @@ floating-point limit; the agreement is at machine precision (≤
 ``nulp ≈ 16`` on the multiplications).
 
 
+.. _sh-legendre-is-the-1d-family:
+
+The 1-D family: :math:`\{P_\ell\}` on :math:`S^2/SO(2)_a`
+============================================================
+
+This chapter is the other half of the basis story, and it exists because
+the harmonics are the wrong family on a 1-D rule. Landed 2026-09-02
+(#429's fused commit, the ERR-080 repair).
+
+Why a 1-D rule cannot carry :math:`\{Y_\ell^m\}`
+--------------------------------------------------
+
+A one-dimensional angular quadrature does not sample the sphere; it
+samples the **orbit space** :math:`S^2/SO(2)_a` — a point of it is a
+whole circle of directions at fixed :math:`\mu = \Omega\cdot\hat e_a`,
+and the rule declares exactly that
+(`[M]` ``gauss_legendre(8).measure.support.name == 'S^2/SO2_x'``). A
+real spherical harmonic eats a **point of** :math:`S^2`, so it is not a
+function on that space at all, and handing it the orbit's barycentre
+:math:`(\mu, 0, 0)` — which is what the tree did until 2026-09-02 — is
+handing a MEAN to something that needs a POINT
+(:doc:`ERR-080 </theory/verification/error_catalog>`).
+
+The functions on :math:`M/H` are the :math:`H`-invariant functions on
+:math:`M` (:eq:`manifold-descent-isomorphism`). For :math:`H = SO(2)_a`
+acting on the degree-:math:`\ell` harmonics, that invariant subspace is
+the **trivial isotypic component**, which by Schur's lemma is
+one-dimensional in every degree — and downstairs it is spanned by the
+Legendre polynomial:
+
+.. math::
+   :label: sh-legendre-is-the-trivial-isotypic
+
+   \operatorname{span}\{Y_\ell^m\}^{SO(2)_a}
+   \;=\; \operatorname{span}\{Y_\ell^{0}\}
+   \;\cong\; \operatorname{span}\{P_\ell(\mu)\},
+   \qquad \mu = \Omega\cdot\hat e_a .
+
+So the basis a 1-D rule binds is
+:class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis`:
+:math:`L+1` members, a **flat** coefficient space, and no fabricated
+slots to zero. `[M]` 2026-09-02 the entry's own probe returns exactly
+that — about :math:`x` at :math:`L = 4`, **5 real slots of 25**, one per
+degree (:ref:`manifold-descending-slots`).
+
+.. (vv-status rationale) A representation-theoretic identity naming
+   which functions descend; it is not a solver claim. Its verifiable
+   content is the entry's isotypic probe (a foundation gate) and the
+   bit-identity of the two realizations, ``Descent.is_isomorphism``.
+.. vv-status: sh-legendre-is-the-trivial-isotypic documented
+
+Conventions, and the one that is a measured constraint
+--------------------------------------------------------
+
+Three conventions travel with the family, and the third is not a taste.
+
+**The addition-theorem (canonical-dual) factor is** :math:`2\ell+1`,
+exactly as for the harmonics — the reconstruction
+:math:`R = (2\ell+1)P_\ell` restricted to the descended column IS the
+spherical-harmonic reconstruction restricted to :math:`m = 0`, so the
+two families agree on the one convention that a solver's scattering
+source is built from.
+
+**The continuum Gram is** :math:`4\pi/(2\ell+1)`, not the bare Legendre
+mass-2 value :math:`2/(2\ell+1)` — because the Gram is taken against
+the *pushforward* :math:`\pi_*\,d\Omega = 2\pi\,d\mu`, which is what
+makes the descent an **isometry** rather than merely an isomorphism
+(:eq:`spaces-legendre-pushforward-gram` on
+:doc:`/theory/foundations/spaces`).
+
+.. warning::
+
+   ⛔ **The polynomial's SPELLING is a measured constraint. No single**
+   ``scipy`` **routine reproduces the harmonics'** :math:`m = 0`
+   **column bit-for-bit.** `[M]` 2026-09-02 over
+   ``gauss_legendre(2, 4, 8, 16)`` at :math:`L \le 4`, against
+   ``_evaluate_real_sh``'s own column:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 46 54
+
+      * - spelling
+        - :math:`\max\lvert\Delta\rvert` vs the column
+      * - ``lpmv(0, ℓ, μ)`` everywhere
+        - :math:`0` except at :math:`\ell = 1`, where it is
+          **8.3e-17 … 1.1e-16**
+      * - ``eval_legendre(ℓ, μ)`` everywhere
+        - :math:`0` at :math:`\ell \le 1`; **up to 4.8e-16** at
+          :math:`\ell \ge 2`
+      * - ``1.0`` / :math:`\mu` (the input array) / ``lpmv`` — shipped
+        - ``array_equal``, **4 of 4** rules
+
+   The branching is what
+   :func:`~orpheus.numerics.basis.legendre_basis.legendre_table` ships,
+   and it is load-bearing one layer up. `[M]` with it, the converged
+   slab flux at :math:`L = 0, 1` is ``array_equal`` to the pre-repair
+   answer — the repair moves nothing where the old basis was already
+   right; with pure ``lpmv`` the :math:`L = 1` row is not, and moves by
+   **2.753e-14** on ERR-080's own fixture (a :math:`10^{-16}` table
+   perturbation amplified by the Krylov solve). Those two rows are the
+   gate's positive controls, so that would have traded a bit-identity
+   claim for a tolerance on exactly the arm that separates *"the fix
+   works"* from *"the fixture stopped discriminating"*.
+
+Two coordinate systems, and the pairing they buy
+---------------------------------------------------
+
+:meth:`LegendreBasis.evaluate
+<orpheus.numerics.basis.legendre_basis.LegendreBasis.evaluate>` accepts
+points of the orbit space in **either** of its two honest coordinate
+systems (:ref:`manifold-two-coordinate-systems`): the realization's —
+``(N,)`` or ``(N, 1)`` values of :math:`\mu`, which is a 1-D rule's own
+node array — and the base's, ``(N, 3)`` unit directions, pulled back
+along the entry's
+:attr:`~orpheus.numerics.manifold.Quotient.quotient_map`. Anything else
+is refused naming both.
+
+⭐ The second arm is a capability, not plumbing: it makes
+:math:`P_\ell(\Omega\cdot\hat e_a)` a legitimate expansion **on a
+full-sphere rule** — `[M]` ``lebedev(11)`` at :math:`L = 2` gives a
+:math:`(50, 3)` table, ``level_symmetric(8)`` an :math:`(80, 3)` one —
+which is the G0 case a bare lattice containment cannot express
+(:ref:`frame-g0-descent-arrow`).
+
+.. warning::
+
+   ⚠ **On a full-sphere rule that pairing ALIASES at** :math:`L = 4`
+   **for the two-pole reason, and it is not a defect in this family.**
+   `[M]` 2026-09-02, feeding an isotropic :math:`\psi \equiv 1` through
+   each frame's own analysis face, the largest :math:`\ell \ge 1`
+   moment relative to :math:`\phi_0` is :math:`\le 4.3\times10^{-16}`
+   on **49 of 52** shipped ``(rule, L)`` rows. The three exceptions are
+   all at :math:`L = 4`: ``gauss_legendre(2)``
+   (:math:`3.9\times10^{-1}` — the dead-slot theorem below),
+   ``product(4,4)`` (:math:`2.9\times10^{-1}`) and
+   ``folded_product(2,4)`` (:math:`3.9\times10^{-1}`). The last two are
+   **pre-existing under the harmonic basis** and untouched by the
+   repair: a product rule's polar factor is :math:`\mu_z` while these
+   harmonics' pole is :math:`\mu_x`, so a rule resolved to degree
+   :math:`d` about one axis is not resolved to :math:`d` about the
+   other (:ref:`manifold-so2-axis-is-a-parameter`).
+
+The dead-slot theorem
+------------------------
+
+⭐ **A Gauss–Legendre rule's Legendre Gram is diagonal and exact for**
+:math:`L \le n-1` **and has a structurally DEAD slot at** :math:`\ell = n`.
+`[M]` 2026-09-02, 12 of 12 rows (:math:`n \in \{2,4,8,16\}`,
+:math:`L \in \{n-1, n, n+1\}`): at :math:`L \le n-1` the off-diagonal is
+:math:`\le 1.5\times10^{-15}` and the diagonal is :math:`2/(2\ell+1)`;
+at :math:`\ell = n` the diagonal entry is :math:`\sim 10^{-31}`, because
+:math:`P_n` vanishes identically at ``GL_n``'s nodes — **those nodes ARE
+its roots**; at :math:`L \ge n+1` the off-diagonal is :math:`O(10^{-1})`
+as well.
+
+⟹ **no 1-D Gauss–Legendre frame can be both dense and full-rank.** A
+slab frame at :math:`L \ge n` therefore takes the
+:class:`~orpheus.numerics.metric.DenseMetric` pseudo-inverse arm, for
+the same reason an over-resolved sphere frame does (user ruling,
+2026-09-02) — and that is a statement about the rule's *resolution*,
+not a fabrication. It is worth knowing before anyone reads a slab dense
+arm as a recurrence of ERR-080: `[M]` the discriminator is that the
+post-repair slab Gram has :math:`L+1` slots and a closed-form dead one,
+where the pre-repair one had :math:`(L+1)(2L+1)` slots of which the
+:math:`m \ne 0` ones were invented.
+
+
 Implementation map
 ==================
 
@@ -852,7 +1032,13 @@ per-component sibling
 :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate_from_components`).
 Its return value is the ``(N, L+1, 2L+1)`` **table** consumed by the
 spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`. The frame
-caches the table once (``frame.table``) and the two faces delegate:
+caches the table once (``frame.table``) and the two faces delegate.
+⚠ Since 2026-09-02 that method **refuses** a direction that is not on
+:math:`S^2` (:math:`\lVert\Omega\rVert` off 1 by more than
+:math:`10^{-12}`), naming the count of offending rows and pointing at
+:class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis` — ERR-080's
+level-2 refusal. A 1-D rule's frame carries the FLAT ``(N, L+1)``
+Legendre table instead (:ref:`sh-legendre-is-the-1d-family`):
 
 * the **analysis face** ``frame.analysis`` — the Galerkin projection
   :math:`\phi^{\ell m} = \sum_n w_n\,Y_\ell^m(\hat\Omega_n)\,\psi_n`
@@ -865,29 +1051,40 @@ caches the table once (``frame.table``) and the two faces delegate:
   (:meth:`SphericalHarmonicBasis.reconstruct
   <orpheus.numerics.basis.SphericalHarmonicBasis.reconstruct>`).
 
-The single home of the :math:`S^2` embedding is
+The single home of the angular frame is
 :meth:`Quadrature.angular_frame(L)
-<orpheus.numerics.quadrature.Quadrature.angular_frame>`, which binds
-the SH basis to the quadrature's angular measure so PN, SN, and MC
-consume the same frame without importing from :mod:`orpheus.sn`.
+<orpheus.numerics.quadrature.Quadrature.angular_frame>`, so PN, SN and
+MC consume the same frame without importing from :mod:`orpheus.sn`.
+⛔ This paragraph read *"which binds the SH basis to the quadrature's
+angular measure"* until 2026-09-02, and the unqualified *"the SH
+basis"* was the whole of ERR-080. Since #429's fused commit
+``angular_frame`` binds **the basis the rule's own orbit space
+admits**, and it binds it to the rule's own measure (`[M]`
+``frame.measure is q.measure`` on 12 of 12 shipped rules).
 
 The complete data flow:
 
 .. code-block:: text
 
-   Quadrature (Lebedev / level-symmetric / Gauss-Legendre × φ)
+   Quadrature
         │   .angular_frame(L)
-        ▼
-   Frame(SphericalHarmonicBasis(L), s2_measure)
+        │   .measure.support decides the family (never `folded_by`):
         │
-        │   .table = basis.evaluate(measure.nodes) → Y[n, ℓ, ℓ+m]
+        ├─ S²                 → SphericalHarmonicBasis(L)      (N, L+1, 2L+1)
+        ├─ S²/σ_a             → MirrorEvenSphericalHarmonicBasis (odd cols 0)
+        └─ S²/SO(2)_a         → LegendreBasis(L, axis=a)       (N, L+1)  ← 1-D
+        ▼
+   GalerkinFrame(basis, quadrature.measure)        ← the rule's OWN measure
+        │   G0 at construction: quotient_onto(measure.support, basis.domain)
+        │
+        │   .table = basis.evaluate(descent(measure.nodes))
         │   (cached once; both faces delegate)
         │
         ├──────────────► frame.analysis        (M = Y* W)
-        │                    Π : ψ_n  →  φ^{ℓm}
+        │                    Π : ψ_n  →  φ_ℓ  (or φ^{ℓm})
         │
         └──────────────► frame.reconstruction  (R = (2ℓ+1) S₀)
-                             R : φ^{ℓm}  →  q_n
+                             R : φ_ℓ  →  q_n
 
 
 Cross-method consumers

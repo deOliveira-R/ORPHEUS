@@ -128,6 +128,7 @@ from orpheus.transport.source_sinks import (
 )
 
 if TYPE_CHECKING:
+    from orpheus.numerics.spaces.moment_head import MomentHead
     from orpheus.numerics.operator import (
         OperatorProduct,
         TensorProductOperator,
@@ -179,27 +180,44 @@ class FissionMomentOperator(BoundOperator):
         # block); is_invertible inherits base False (rank 1).
         return True
 
+    @property
+    def _head(self) -> "MomentHead":
+        r"""The angular HEAD (this operator's domain) — which index tuple is the :math:`\ell = 0` slot is ITS to say (#429)."""
+        from orpheus.numerics.spaces.moment_head import MomentHead
+
+        if not isinstance(self.domain, MomentHead):
+            raise TypeError(
+                f"FissionMomentOperator: the moment ends must be an angular "
+                f"HEAD space; got {type(self.domain).__name__}."
+            )
+        return self.domain
+
     def _admit(self, moments: np.ndarray) -> None:
-        if moments.ndim < 3 or moments.shape[0] != 1 or moments.shape[1] != 1:
+        head = self._head
+        rank = len(head.shape)
+        if moments.ndim < rank + 1 or moments.shape[:rank] != tuple(head.shape):
             raise ValueError(
-                f"FissionMomentOperator acts on L=0 moment tensors "
-                f"(1, 1, ng, *spatial); got shape {moments.shape}"
+                f"FissionMomentOperator acts on L=0 moment tensors whose "
+                f"leading axes are the head {tuple(head.shape)} of "
+                f"{head.name!r} (then ng, *spatial); got shape {moments.shape}"
             )
 
     def apply(self, moments: np.ndarray) -> np.ndarray:
-        r"""Dyad on the :math:`\ell=0` block: ``out[0,0] = F₀ m[0,0]``."""
+        r"""Dyad on the :math:`\ell=0` block: ``out[iso] = F₀ m[iso]``, ``iso`` the head's isotropic slot."""
         m = np.asarray(moments)
         self._admit(m)
+        iso = self._head.isotropic_slot
         out = np.zeros_like(m)
-        out[0, 0] = self.energy.kernel.apply(m[0, 0])
+        out[iso] = self.energy.kernel.apply(m[iso])
         return out
 
     def apply_transpose(self, moments: np.ndarray) -> np.ndarray:
         r"""Dual dyad on the :math:`\ell=0` block (the factor swap)."""
         m = np.asarray(moments)
         self._admit(m)
+        iso = self._head.isotropic_slot
         out = np.zeros_like(m)
-        out[0, 0] = self.energy.kernel.apply_transpose(m[0, 0])
+        out[iso] = self.energy.kernel.apply_transpose(m[iso])
         return out
 
 

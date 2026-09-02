@@ -18,13 +18,18 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.basis.legendre_basis import LegendreBasis
+from orpheus.numerics.manifold import SPHERE
+from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.metric import (
+    _DENSE_METRIC_RCOND,
     _DENSE_METRIC_SYMMETRY_RTOL,
     DenseMetric,
     DiagonalMetric,
 )
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.symmetry import SubgroupOfO3
 
 pytestmark = pytest.mark.foundation
 
@@ -33,6 +38,23 @@ def _require(condition: bool, message: str) -> None:
     """A ``-O``-firing assertion (NOT a bare ``assert``)."""
     if not condition:
         pytest.fail(message)
+
+
+def _equispaced_legendre_gram(*, L: int, n: int = 8) -> np.ndarray:
+    r"""The Legendre Gram of an equispaced-equal-weight 1-D rule.
+
+    ⭐ The only dense-AND-full-rank Legendre Gram that exists, by the
+    dead-slot theorem (`[M]` 12 of 12 rows: a ``GL_n`` rule's Legendre Gram
+    is diagonal-and-exact for ``L <= n-1`` and has a structurally zero
+    ``(n, n)`` entry — ``P_n`` vanishes at its own roots), so a Gauss rule
+    cannot supply one. `[M]` ``n = 8, L = 4``: rank 5/5, offdiag ``2.222e-01``.
+    """
+    mu = np.linspace(-1.0, 1.0, n + 2)[1:-1]
+    weights = np.full(mu.size, 2.0 / mu.size)
+    measure = DiscreteMeasure(
+        nodes=mu, weights=weights, support=SPHERE.quotient(SubgroupOfO3.SO2("x"))
+    )
+    return LegendreBasis(L=L).mass_matrix(measure)
 
 
 #: Exact-binary-fraction fixture: every entry a multiple of 1/4, so G@x and
@@ -69,30 +91,76 @@ class TestDenseMetricLaws:
         )
 
     def test_dense_metric_matrix_and_pairing_are_symmetric(self):
-        """A2 — symmetry of the INSTALLED matrix, on the flagship Gram.
+        r"""A2 — symmetry of the INSTALLED matrix, on a Gram where the SPELLING is observable.
 
-        The matrix leg is the load-bearing one: [M] 2026-08-30,
-        ``np.linalg.pinv`` WITHOUT ``hermitian=True`` gives
-        ``max|M−Mᵀ| = 4.74e-14`` on this Gram while the pairing asymmetry
-        stays at ``1.5e-15`` — a pairing-only gate is BLIND to the
-        spelling choice (battery arm M3's catcher is THIS matrix leg).
+        The matrix leg is the load-bearing one: ``np.linalg.pinv`` WITHOUT
+        ``hermitian=True`` returns a matrix that is only symmetric to
+        round-off, so the gate's job is to red on that spelling (battery arm
+        M3). A pairing-only gate is blind to it.
+
+        ⛔ **RE-KEYED 2026-09-02 (#429).** This rode ``gauss_legendre(8)``'s
+        :math:`L = 2` Gram, whose density was ERR-080's fabrication; the
+        repaired slab frame's Gram is DIAGONAL and its pinv is trivially
+        symmetric, so the gate would have gone INERT with no red — a
+        ``plan-authoring`` §6c demotion with no signal.
+
+        ⚠ **The obvious replacement does not work, and that is worth
+        recording.** `[M]` 2026-09-02, ``max|M − Mᵀ|`` for the honest
+        (``hermitian=True``) and the naive spelling:
+
+        ===============================  ===========  ===========
+        Gram                             hermitian    naive
+        ===============================  ===========  ===========
+        slab GL8 L=2 (post-repair)       ``0.0``      ``2.9e-16``
+        ``folded_product(2,4)`` L=2      ``1.9e-17``  ``9.0e-17``
+        ``folded_product(2,4)`` L=3      ``6.9e-18``  ``2.6e-17``
+        ``product(4,4)`` L=2             ``2.0e-17``  ``5.7e-16``
+        ``level_symmetric(4)`` L=3       ``4.2e-17``  ``3.7e-15``
+        **equispaced(8) L=4**            ``1.6e-30``  ``7.1e-15``
+        ===============================  ===========  ===========
+
+        The first three sit BELOW the ``1e-15`` threshold under BOTH
+        spellings, so keying A2 there would have kept a green gate that could
+        no longer red. The two rows below are the two that discriminate, and
+        they are different mechanisms (a 1-D Legendre measure and a
+        full-sphere harmonic one) so neither is fixture-bound.
         """
-        frame = Quadrature.gauss_legendre(8).angular_frame(2)
-        metric = DenseMetric.inverse_of(frame.discrete_gram)
-        asym = float(np.max(np.abs(metric.matrix - metric.matrix.T)))
-        _require(
-            asym <= 1e-15,
-            f"installed matrix asymmetry {asym:.3e} > 1e-15",
-        )
-        rng = np.random.default_rng(20260830)
-        x = rng.standard_normal(metric.dim)
-        y = rng.standard_normal(metric.dim)
-        space = FunctionSpace("slab_par", (metric.dim,), metric=metric)
-        _require(
-            space.inner_product(x, y)
-            == pytest.approx(space.inner_product(y, x), rel=1e-14),
-            "pairing is not symmetric",
-        )
+        for label, gram, floor in (
+            ("equispaced(8)-L4", _equispaced_legendre_gram(L=4), 5e-15),
+            (
+                "LS4-L3",
+                np.asarray(Quadrature.level_symmetric(4).angular_frame(3).discrete_gram),
+                2e-15,
+            ),
+        ):
+            metric = DenseMetric.inverse_of(gram)
+            asym = float(np.max(np.abs(metric.matrix - metric.matrix.T)))
+            _require(
+                asym <= 1e-15,
+                f"{label}: installed matrix asymmetry {asym:.3e} > 1e-15",
+            )
+
+            # …and the NAIVE spelling this gate exists to catch really does
+            # exceed the threshold on this Gram (vv-principles #19: only the
+            # wrong-spelling reading tells you the gate is loaded).
+            symmetric = (gram + gram.T) / 2.0
+            naive = np.linalg.pinv(symmetric, rcond=_DENSE_METRIC_RCOND)
+            naive_asym = float(np.max(np.abs(naive - naive.T)))
+            _require(
+                naive_asym > floor,
+                f"{label}: the naive pinv spelling reads {naive_asym:.3e} — "
+                f"this gate cannot red on it, so it is not a witness",
+            )
+
+            rng = np.random.default_rng(20260830)
+            x = rng.standard_normal(metric.dim)
+            y = rng.standard_normal(metric.dim)
+            space = FunctionSpace(f"parseval_{label}", (metric.dim,), metric=metric)
+            _require(
+                space.inner_product(x, y)
+                == pytest.approx(space.inner_product(y, x), rel=1e-14),
+                f"{label}: pairing is not symmetric",
+            )
 
     def test_dense_metric_refuses_an_asymmetric_matrix(self):
         """A3 — the symmetry guard's negative leg (an asymmetric form is

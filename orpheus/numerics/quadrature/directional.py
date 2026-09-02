@@ -41,11 +41,11 @@ The :class:`DiscreteMeasure` primitive is enough mathematically; the
 class only adds:
 
 1. The *SN-side derived-data surface* (``ordinate_permutation``,
-   ``spherical_harmonics``, octants) over the one underlying measure.
+   ``angular_frame``, octants) over the one underlying measure.
 2. A *bundling* for the cylindrical-level side-channel
    (:class:`LevelStructure`) that one of two quadrature families
    carries.
-3. Convenience methods (``axis_cosines``, ``spherical_harmonics``)
+3. Convenience methods (``axis_cosines``, ``angular_frame``)
    that take an axis index or :math:`L` and return the right slice
    of derived data.
 
@@ -89,12 +89,11 @@ import dataclasses
 
 import numpy as np
 
-from orpheus.numerics.basis.spherical_harmonic_basis import (
-    MirrorEvenSphericalHarmonicBasis,
-    SphericalHarmonicBasis,
-)
+from orpheus.numerics.basis.base import Basis
+from orpheus.numerics.basis.descent import Descent
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
-from orpheus.numerics.manifold import SPHERE
+from orpheus.numerics.manifold import Quotient, Sphere
 # An ordinate permutation is a group action on the measure, so it is
 # certified by the SAME machinery that proves invariance — one source of
 # truth for "does this motion permute these weighted nodes?"
@@ -212,11 +211,13 @@ class Quadrature:
     measure: DiscreteMeasure
     level_structure: LevelStructure | None = None
     #: The symmetry subgroup this rule was QUOTIENTED by, or ``None`` for
-    #: an unfolded rule.  Set by :meth:`quotient`; consumed by the
-    #: harmonic machinery (:meth:`spherical_harmonics` /
-    #: :meth:`angular_frame`), which must bind the σ-EVEN sub-basis on a
-    #: folded rule — the σ-odd harmonics are not in the quotient's
-    #: function space and their raw moments are garbage, not zero (Q5.6).
+    #: an unfolded rule.  Set by :meth:`quotient`.  PROVENANCE since
+    #: 2026-09-02 (#429): the harmonic machinery binds its basis off the
+    #: MEASURE'S SUPPORT (:meth:`_harmonic_basis` reads the orbit space and
+    #: :class:`~orpheus.numerics.basis.descent.Descent`'s discriminator), not
+    #: off this tag — the same fact lives on
+    #: :attr:`DiscreteMeasure.quotient_group
+    #: <orpheus.numerics.measure.DiscreteMeasure.quotient_group>`.
     folded_by: "SubgroupOfO3 | None" = None
 
     #: Per-L interning cache for :meth:`angular_frame` (CS4c §14.4 — the
@@ -593,113 +594,61 @@ class Quadrature:
     # Spherical harmonics evaluation
     # ────────────────────────────────────────────────────────────
 
-    def _harmonic_basis(self, L: int) -> SphericalHarmonicBasis:
-        r"""The harmonic basis this rule's function space admits.
+    def _harmonic_basis(self, L: int) -> Basis:
+        r"""The degree-:math:`L` basis this rule's function space admits — DERIVED from the point set its measure lives on.
 
-        An unfolded rule spans the full degree-:math:`L` real SH basis.
-        A FOLDED rule (:attr:`folded_by` set) is a quotient measure —
-        the σ-odd harmonics are not in its function space, and the raw
-        :math:`Y^{\mathsf T} W` analysis (which has no Gram division
-        anywhere on the scattering path) would return garbage for them,
-        not zero — so the fold binds the σ-EVEN sub-basis
-        (:class:`~orpheus.numerics.basis.spherical_harmonic_basis.MirrorEvenSphericalHarmonicBasis`,
-        rectangular layout, odd columns structurally zeroed).  Only a
-        single-mirror fold has the ±parity split this realizes; folding
-        by any other group refuses here until a consumer exists.
+        The measure's :attr:`~orpheus.numerics.measure.DiscreteMeasure.support`
+        says which functions the rule can carry, and nothing else does
+        (#429's thesis — *angular spaces are derived from symmetry*):
+
+        * the bare sphere — the full real harmonics
+          :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`;
+        * an orbit space of the sphere — whatever
+          :class:`~orpheus.numerics.basis.descent.Descent`'s discriminator
+          says for that ENTRY: the Legendre basis on :math:`S^2/SO(2)_a` (a
+          1-D rule — THE FIX for ERR-080, 2026-09-02), the σ-even harmonics
+          on :math:`S^2/\sigma_a` (the fold; rectangular layout, odd columns
+          structurally zeroed);
+        * anything else refuses, naming the work.
+
+        Until 2026-09-02 this dispatched on the :attr:`folded_by` TAG and
+        knew nothing of the 1-D case: a 1-D rule got the full harmonics on a
+        measure forged onto :math:`S^2`, which is the whole of ERR-080.
         """
-        if self.folded_by is None:
+        support = self.measure.support
+        if isinstance(support, Sphere):
             return SphericalHarmonicBasis(L=L)
-        axis = self.folded_by.mirror_axis
-        if axis is None:
-            raise NotImplementedError(
-                f"harmonic machinery on a rule folded by "
-                f"{self.folded_by.name}: only a single-mirror fold has "
-                f"the even/odd parity split the restricted sub-basis "
-                f"realizes; no consumer needs another group's quotient "
-                f"basis yet."
-            )
-        return MirrorEvenSphericalHarmonicBasis(L=L, mirror_axis=axis)
-
-    def spherical_harmonics(self, L: int) -> np.ndarray:
-        r"""Real spherical harmonics :math:`Y_l^m` evaluated at the
-        ordinates, shape :math:`(N, L+1, 2L+1)`.
-
-        ⛔ **This docstring stated the invariant that would make the code
-        correct, and the code has never implemented it (ERR-080, #429).**
-        Until 2026-08 it read: *"for slab GL1D quadratures only the*
-        :math:`m = 0` *harmonics* :math:`Y_l^0(\mu_x)` *carry non-zero
-        values; the other slots are filled with zeros (1-D angular
-        variation is purely polar)."* That is what SHOULD happen and is
-        the contract every consumer was entitled to assume. What actually
-        happens: a 1-D rule supplies :math:`\mu_y = \mu_z = 0` meaning
-        *"there is no azimuthal information"*, and
-        :func:`~orpheus.numerics.basis.spherical_harmonic_basis._evaluate_real_sh`
-        reads it as *"the azimuth is 0"* — :math:`\arctan2(0,0) = 0` — so
-        for :math:`\ell \ge 2` **every** :math:`m > 0` slot is a non-zero
-        CONSTANT across the ordinates (:math:`1/\sqrt3` at
-        :math:`\ell = 2`), not a zero.
-
-        :math:`\ell \le 1` is clean only by accident: that branch is
-        hard-coded in Cartesian form and never computes an azimuth.
-
-        Consequences, both reachable from ``solve_sn`` on any 1-D chart:
-        a WRONG ANSWER at :math:`L \ge 2` (`[M]` an infinite medium reads
-        :math:`-3.7647` against an analytic :math:`+4.0`), and at higher
-        (order, :math:`L`) a hard ``ValueError`` from
-        :class:`~orpheus.numerics.metric.DenseMetric` — `[M]`
-        ``gauss_legendre(16)`` with ``scattering_order=4`` raises, and the
-        message blames the metric rather than the fabrication three hops
-        upstream.
-
-        For sphere cubatures all :math:`(l, m)` pairs are evaluated and
-        this defect does not arise (`[M]` 3-D rules are unaffected at
-        every :math:`L`).
-
-        Gated by
-        ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``;
-        repaired by Phase 3.4 of
-        ``.claude/plans/angular_spaces_derived_from_symmetry.md``, after
-        which the original sentence above becomes TRUE and this warning
-        retires with it.
-
-        ⭐ **Single-sourced onto the frame, 2026-09-01 (phase 0.2).** This used
-        to column-stack the three axis cosines itself — a second copy of the
-        1-D fabrication, and a Pattern-2 twin of ``angular_frame(L).table``
-        that agreed with it `[M]` **36 of 36** over 12 rules ×
-        :math:`L \in \{0,1,2\}` while being able to drift at any time. It now
-        *is* that table. Two facts made this the right call rather than a
-        risky one: `[M]` the two were already bit-identical, and `[M]` this
-        method has **zero production consumers** (0 call sites in ``orpheus/``,
-        9 in ``tests/``), so the frame — which every production consumer does
-        read — was already the single source in practice.
-        """
-        return self.angular_frame(L).table
+        if isinstance(support, Quotient) and isinstance(support.base, Sphere):
+            return Descent.for_entry(support, L).frame_basis
+        raise NotImplementedError(
+            f"harmonic machinery on a rule whose measure lives on "
+            f"{support.name}: only the sphere and its catalogued orbit "
+            f"spaces carry a shipped angular basis."
+        )
 
     def angular_frame(self, L: int) -> "GalerkinFrame":
         r"""The degree-:math:`L` spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame` on this quadrature.
 
-        Binds :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` (degree
-        :math:`L`) to the measure :meth:`_harmonic_frame_measure` supplies —
-        **this quadrature's own measure** whenever its nodes already are
-        three-component directions, and only otherwise a construction (read
-        that method: the 1-D case is ERR-080's fiction, kept deliberately and
-        named). The weights are the analysis metric either way. The frame is a
-        pure-Galerkin frame (test IS trial — the SH basis is its own test
+        Binds the basis the rule's orbit space admits (:meth:`_harmonic_basis`
+        — the full harmonics on a sphere rule, the Legendre basis on a 1-D
+        rule's :math:`S^2/SO(2)_a`, the σ-even harmonics on a fold) to
+        **this quadrature's own measure**, always. Until 2026-09-02 a 1-D
+        rule's measure was rebuilt here by padding :math:`\mu` to
+        :math:`(\mu, 0, 0)` and calling the result :math:`S^2` — ERR-080's
+        construction, retired with #429's fused commit; the route gate
+        ``test_q8_4`` pins ``frame.measure is q.measure`` on 12 of 12 shipped
+        rules. The weights are the analysis metric. The frame is a
+        pure-Galerkin frame (test IS trial — the basis is its own test
         basis); its :attr:`~orpheus.numerics.frame.FrameBase.analysis` face is
         the :math:`Y^* W` moment projection :math:`M` and its
         :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face the
         addition-theorem synthesis :math:`R`.
 
-        ``frame.table`` equals :meth:`spherical_harmonics` ``(L)``
-        bit-identically — `[M]` 2026-09-01, **36 of 36** over 12 shipped rules
-        × :math:`L \in \{0,1,2\}`. ⚠ Read the *reason* rather than inheriting
-        it: until 0.1a both spellings shared one literal ``column_stack`` of
-        the three axis cosines, so they agreed **by construction** and no input
-        could separate them. They are now assembled independently — this frame
-        reads ``measure.nodes``, :meth:`spherical_harmonics` still
-        column-stacks — so the equality is a fact about the shipped rules, not
-        about the code, and it is gated rather than assumed
-        (``tests/numerics/test_quadrature_directional.py``, Q8.6).
+        ``frame.table`` IS the rule's angular basis table — the ONE spelling
+        since 2026-09-02: the pass-through accessor ``spherical_harmonics(L)``
+        (zero production consumers, and a name that became false the day a
+        1-D rule bound its Legendre basis) was retired with #429's fused
+        commit; its nine test readers read this frame's table.
 
         The single source of the angular frame consumed by
         :class:`~orpheus.transport.operators.scattering.ScatteringOperator` — its §5.6 kernel
@@ -723,79 +672,9 @@ class Quadrature:
         cached = self._angular_frames.get(L)
         if cached is not None:
             return cached
-        frame = GalerkinFrame(self._harmonic_basis(L), self._harmonic_frame_measure())
+        frame = GalerkinFrame(self._harmonic_basis(L), self.measure)
         self._angular_frames[L] = frame
         return frame
-
-    def _harmonic_frame_measure(self) -> DiscreteMeasure:
-        r"""The measure :meth:`angular_frame` integrates the harmonics against.
-
-        A spherical harmonic eats a **point of** :math:`S^2 \subset \mathbb{R}^3`,
-        so a rule whose nodes already are three-component directions needs no
-        construction at all: it hands the frame **its own measure**, and the
-        frame's domain is then the rule's, by identity rather than by
-        reconstruction. `[M]` 2026-09-01, 10 of the 12 shipped rules take this
-        route, and on every one of them the previously-constructed nodes were
-        ``np.array_equal`` to the rule's own.
-
-        Routing the measure rather than rebuilding it is what stops three
-        truths being destroyed between the rule and the frame. The rebuilt
-        measure carried only ``nodes``/``weights``/a literal ``support``, so it
-        silently dropped:
-
-        * the **support tag** — `[M]` ``folded_product`` declares
-          :math:`S^2/\sigma_y` and was overwritten with :math:`S^2`, i.e. the
-          frame asserted a domain twice the size of the one its nodes cover;
-        * the **invariance group** — `[M]` carried by 10 of 12 rules and by 0 of
-          12 frames, which is why
-          :attr:`DiscreteMeasure.phase <orpheus.numerics.measure.DiscreteMeasure.phase>`
-          keys on it and *the angular frame's own measure could not say it was
-          angular* (it raised ``NotImplementedError``);
-        * the **exactness claim** — same 10-of-12 / 0-of-12 split, so
-          ``degree_of_exactness`` and ``generating_measure`` both read ``None``
-          on a frame built from a rule that knows both.
-
-        ⚠ **The 1-D arm below is ERR-080's construction, kept deliberately and
-        named** (the ``coding-standards`` transitional-violation idiom — a
-        literal with a retirement trigger, not an anonymous one). It is a
-        *fiction*: there is **no map** :math:`[-1,1] \to S^2` to apply here,
-        because a point of :math:`[-1,1]` is an **orbit** of the
-        :math:`SO(2)` action, not a point of the sphere. The arrow that exists
-        runs the other way — the quotient :math:`S^2 \to [-1,1]`. Padding
-        :math:`\mu` to :math:`(\mu, 0, 0)` picks a representative, and
-        ``_evaluate_real_sh`` then reads the fabricated ``arctan2(0, 0) = 0``
-        as a real azimuth: that is why ``solve_sn(scattering_order >= 2)``
-        returns a wrong answer on every 1-D chart.
-
-        **Retirement trigger:** Phase 3.4 of
-        ``.claude/plans/angular_spaces_derived_from_symmetry.md`` gives the 1-D
-        chart its trivial isotypic sub-basis (a true ``LegendreBasis`` on
-        :math:`[-1,1]`), after which this branch takes the same route as every
-        other rule and the ``if`` disappears with it.
-        """
-        if self.dim == 3:
-            return self.measure
-        # ⚠ The zeros are INVENTED HERE, deliberately in view. They used to
-        # arrive from ``axis_cosines(1)``/``(2)`` — an accessor named "direction
-        # cosine along axis i" — which is what let the invention read as a
-        # lookup for as long as it did. Spelling them at the one site that
-        # commits the fiction is the whole of phase 0.2's decoupling: it lets
-        # ``axis_cosines`` refuse a suppressed axis without breaking this arm.
-        # These zeros are NOT the orbit mean's answer being reused — they are a
-        # chosen REPRESENTATIVE (a botched one; the barycentre is off S²).
-        # ⚠ Since 2026-09-02 (tracker 2.3) the tree spells this map ONCE,
-        # typed: ``manifold.barycentre(self.measure.support)`` — whose
-        # codomain is ``Ball(3)``, because that is where μ·ê_a lands. This
-        # arm computes the same image and declares it on ``SPHERE`` by raw
-        # constructor; it cannot be re-spelled through ``pushforward``
-        # without telling the truth about the codomain, which is why it
-        # stays a raw constructor until 3.4 retires it.
-        padding = np.zeros(self.measure.n_points)
-        return DiscreteMeasure(
-            nodes=np.column_stack([self.measure.nodes, padding, padding]),
-            weights=self.weights,
-            support=SPHERE,
-        )
 
     # ────────────────────────────────────────────────────────────
     # Octants (cached partition by sign-of-direction)

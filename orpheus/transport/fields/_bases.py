@@ -116,6 +116,7 @@ from orpheus.numerics.spaces.radial_characteristic_space import (
 )
 
 if TYPE_CHECKING:
+    from orpheus.numerics.spaces.moment_head import MomentHead
     from orpheus.numerics.quadrature.directional import Quadrature
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
     from orpheus.numerics.face_layout import FaceLayout
@@ -645,15 +646,43 @@ class MomentField(BulkField):
     # ── Metadata read-through (the axes-less family's own ng) ────────
 
     @property
+    def head(self) -> "MomentHead":
+        r"""The angular HEAD factor of this field's space — the family that
+        says which index tuple is the isotropic slot, which selects a degree
+        block, and how many leading axes it owns (#429, 2026-09-02:
+        ``(L+1, 2L+1)`` for the real harmonics, ``(L+1,)`` for the Legendre
+        basis a 1-D rule binds). Every layout read on the carrier goes
+        through it; none assumes the rectangular family."""
+        from orpheus.numerics.space import TensorProductSpace
+        from orpheus.numerics.spaces.moment_head import MomentHead
+
+        if not isinstance(self.space, TensorProductSpace):
+            raise TypeError(
+                f"{type(self).__name__}: a moment field's space is a tensor "
+                f"product <angular head> ⊗ cells; got "
+                f"{type(self.space).__name__}."
+            )
+        head = self.space.factors[0]
+        if not isinstance(head, MomentHead):
+            raise TypeError(
+                f"{type(self).__name__}: the leading factor {head.name!r} "
+                f"is not an angular head (no isotropic slot / degree block "
+                f"surface)."
+            )
+        return head
+
+    @property
     def ng(self) -> int:
-        r"""Number of energy groups — the moment shape contract's axis 2.
+        r"""Number of energy groups — the axis right after the angular head's.
 
         The moment family's space is a TensorProductSpace (axes-less until
-        CS2 axis-ifies the SH factor), so the base's EnergyAxis read has
+        CS2 axis-ifies the angular factor), so the base's EnergyAxis read has
         nothing to find; the family's OWN shape contract
-        ``(L+1, 2L+1, ng, *spatial[, …])`` locates ``ng`` at index 2.
+        ``(<head>, ng, *spatial[, …])`` locates ``ng`` right after the
+        head's axes — index 2 for the rectangular harmonics, 1 for a flat
+        Legendre head.
         """
-        return int(self.space.shape[2])
+        return int(self.space.shape[len(self.head.shape)])
 
     # ── Algebra extension (over BulkField) ───────────────────────────
 
@@ -748,8 +777,9 @@ class MomentField(BulkField):
         :meth:`from_mesh_and_L`.
         """
         n_moments = cell_moment_count(spatial_moments, mesh.ndim)
+        head = _angular_head_space(mesh, L)
         values = np.zeros(
-            (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape,
+            (*head.shape, mesh.ng, *mesh.spatial_shape,
              *spatial_moment_tail(n_moments)),
         )
         return cls.from_mesh_and_L(

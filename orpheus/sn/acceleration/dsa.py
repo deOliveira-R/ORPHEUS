@@ -576,14 +576,15 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         self._angular_trace = angular_trace
         self._scattering_order = int(scattering_order)
         w = np.asarray(quadrature.weights, dtype=float)
-        # The ℓ=1 analysis/synthesis coefficients come off the FRAME's
-        # own ℓ=1 table row (its slab component IS μ bit-exactly — the
-        # D8-family pin), so "the frame's ℓ=1 row" is a CALLED single
-        # source, not a claim: one spelling shared with the scattering
-        # kernel's moment machinery, never a re-derived w·μ twin.
-        mu_row = np.asarray(
-            quadrature.angular_frame(1).table, dtype=float
-        )[:, 1, 1]
+        # The ℓ=1 analysis/synthesis coefficient IS the polar cosine μ per
+        # ordinate — a COORDINATE question, answered by the coordinate
+        # accessor (`axis_cosines(0)` refuses a suppressed axis, so a rule
+        # with no x-cosine fails here, not silently). Until 2026-09-02 this
+        # read the frame's ℓ=1 Cartesian table slot ``[:, 1, 1]`` — the
+        # rectangular harmonic layout, which a 1-D rule no longer binds
+        # (#429: its frame carries the Legendre basis, table ``(N, L+1)``).
+        # `[M]` bit-identical to that slot on 5 of 5 Gauss–Legendre rules.
+        mu_row = np.asarray(quadrature.axis_cosines(0), dtype=float)
         self._sum_w = float(w.sum())
         self._w_mu = w * mu_row
         self._mu = mu_row

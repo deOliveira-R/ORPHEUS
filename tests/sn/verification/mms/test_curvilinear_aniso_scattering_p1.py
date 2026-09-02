@@ -72,7 +72,7 @@ Structural independence of the hand-references
      \qquad
      \phi_1^m = \sum_n w_n\,Y_1^m(\Omega_n)\,\psi_n.
 
-  This reuses ``quad.spherical_harmonics(1)`` (a verified primitive,
+  This reuses ``quad.angular_frame(1).table`` (a verified primitive,
   below the trusted-library line — see ``algebra-of-record`` §structural
   independence) but assembles the moment sum by an INDEPENDENT explicit
   Python loop, not the production frame analysis/reconstruction faces /
@@ -241,7 +241,7 @@ def test_cylindrical_p1_source_matches_hand_reference():
     #   phi_1^m = sum_n w_n Y_1^m(Omega_n) psi_n.
     # Y shape (N, L+1, 2L+1); the ell=1 block lives at index [:, 1, :],
     # with the m-slot running 0,1,2 (the addition-theorem-shifted index).
-    Y = quad.spherical_harmonics(1)
+    Y = quad.angular_frame(1).table
     wts = quad.weights
     psi_vals = psi.values[:, 0, :]  # (N, nx)
     nx = sn_mesh.spatial_shape[0]

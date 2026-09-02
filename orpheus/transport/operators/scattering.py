@@ -66,6 +66,7 @@ import numpy as np
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.basis.base import TruncatedBasis
+from orpheus.numerics.spaces.moment_head import MomentHead
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.frames import (
     HarmonicAnalysisOperator,
@@ -119,6 +120,17 @@ if TYPE_CHECKING:
 
 
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
+
+
+def _moment_head_of(space: "FunctionSpace | None", owner: str) -> MomentHead:
+    """Narrow a moment operator's end to the MomentHead surface, loudly."""
+    if not isinstance(space, MomentHead):
+        raise TypeError(
+            f"{owner}: the moment ends must be an angular HEAD space "
+            f"(SphericalHarmonicSpace or LegendreSpace); got "
+            f"{type(space).__name__}."
+        )
+    return space
 
 
 @dataclass(eq=False)
@@ -217,6 +229,12 @@ class LegendreMomentScattering(BoundOperator):
         )
 
     @property
+    def _head(self) -> MomentHead:
+        r"""The angular HEAD the moment verbs read the layout from — this
+        operator's own domain (the bound basis's coefficient space)."""
+        return _moment_head_of(self.domain, type(self).__name__)
+
+    @property
     def L(self) -> int:
         r"""The Legendre truncation :math:`L` — DERIVED from the bound
         field (the truncation is the order; single source)."""
@@ -280,7 +298,7 @@ class LegendreMomentScattering(BoundOperator):
         from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
         if isinstance(moments, HarmonicMomentFlux):
             out_values = self.scattering.moment_source(
-                moments.values, skip_l0=self.skip_l0,
+                moments.values, skip_l0=self.skip_l0, head=self._head,
             )
             # flux moment → source moment: the explicit role change
             # (CS4b S4 — same space, new class; role is class identity).
@@ -288,7 +306,9 @@ class LegendreMomentScattering(BoundOperator):
                 values=out_values, space=moments.space, L=moments.L,
                 spatial_moments=moments.spatial_moments,
             )
-        return self.scattering.moment_source(moments, skip_l0=self.skip_l0)
+        return self.scattering.moment_source(
+            moments, skip_l0=self.skip_l0, head=self._head,
+        )
 
     def apply_transpose(
         self, moments: "np.ndarray | HarmonicMomentSourceSink",
@@ -319,14 +339,14 @@ class LegendreMomentScattering(BoundOperator):
 
         if isinstance(moments, HarmonicMomentSourceSink):
             out_values = self.scattering.moment_source_transpose(
-                moments.values, skip_l0=self.skip_l0,
+                moments.values, skip_l0=self.skip_l0, head=self._head,
             )
             return HarmonicMomentFlux(
                 values=out_values, space=moments.space, L=moments.L,
                 spatial_moments=moments.spatial_moments,
             )
         return self.scattering.moment_source_transpose(
-            moments, skip_l0=self.skip_l0,
+            moments, skip_l0=self.skip_l0, head=self._head,
         )
 
 
@@ -389,6 +409,11 @@ class N2NMomentOperator(BoundOperator):
         )
 
     @property
+    def _head(self) -> MomentHead:
+        r"""The angular HEAD the emission verb reads the layout from — this operator's domain."""
+        return _moment_head_of(self.domain, type(self).__name__)
+
+    @property
     def is_adjointable(self) -> bool:
         # ν·Σ_{2n}^T (apply_transpose) is the ℓ=0 group-transpose; caps ⊇
         # apply_transpose. is_invertible inherits base False.
@@ -400,11 +425,11 @@ class N2NMomentOperator(BoundOperator):
         Bare ndarray (the endomorphic moment-space view a ``frame.conjugate``
         ``OperatorProduct`` chain composes on).
         """
-        return self.n2n.moment_emission(moments)
+        return self.n2n.moment_emission(moments, head=self._head)
 
     def apply_transpose(self, moments: np.ndarray) -> np.ndarray:
         r"""The :math:`\ell=0` group-transpose :math:`(\nu_{2n}\,\Sigma_{2n})^{T}` (bare ndarray)."""
-        return self.n2n.moment_emission_transpose(moments)
+        return self.n2n.moment_emission_transpose(moments, head=self._head)
 
 
 @dataclass(eq=False)

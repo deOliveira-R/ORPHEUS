@@ -89,9 +89,22 @@ def _angular_values(m: SNMesh, seed: int) -> np.ndarray:
     return rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape))
 
 
+def _head(m: SNMesh, L: int = _L):
+    """The angular head this mesh's frame induces — the SINGLE source of the layout (#429)."""
+    return m.quad.angular_frame(L).basis.space
+
+
 def _moment_values(m: SNMesh, seed: int, L: int = _L) -> np.ndarray:
+    r"""Random moment values in the HEAD's own layout.
+
+    ⛔ RE-KEYED 2026-09-02 (#429). This built ``(L+1, 2L+1, …)``
+    unconditionally — the rectangular spherical-harmonic head — on a
+    ``_slab_mesh`` whose rule now binds the FLAT Legendre head ``(L+1,)``.
+    Both families stay exercised in this module: ``_slab_mesh`` is flat,
+    ``_2d_mesh`` (level-symmetric) is rectangular.
+    """
     rng = np.random.default_rng(seed)
-    return rng.standard_normal((L + 1, 2 * L + 1, m.ng, *m.spatial_shape))
+    return rng.standard_normal((*_head(m, L).shape, m.ng, *m.spatial_shape))
 
 
 # ── from_galerkin: a behaviour-identical upgrade; the frame is SHARED ──
@@ -181,14 +194,30 @@ class TestMint:
         assert face.frame is HarmonicFrame.for_space(m.angular_bulk_space, _L)
 
     def test_moment_codomain_shape_against_a_hand_written_literal(self) -> None:
-        """The EXTERNAL pin (coding-standards): the moment codomain's shape
-        written by hand, independently of the frame — ``(L+1, 2L+1, ng,
-        *spatial)`` for the full-sphere family the slab still binds before
-        #429's fix — so a drift of the single source is a red here."""
-        m = _slab_mesh()
-        face = _frame(m).flux_analysis_on(m.angular_bulk_space)
-        assert face.codomain.shape == (3, 5, m.ng, *m.spatial_shape)
-        assert HarmonicMomentFlux.zeros_for_mesh_and_L(m, _L).space.shape == (3, 5, m.ng, *m.spatial_shape)
+        r"""The EXTERNAL pin (``coding-standards``): the codomain's shape written by HAND, per family.
+
+        This gate's whole value is that its literal is authored independently
+        of the frame, so a drift of the single source reds here. ⛔ RE-KEYED
+        2026-09-02 (#429): the literal was ``(3, 5, ng, *spatial)`` on the
+        SLAB — the full-sphere family the slab bound before the fix. The slab
+        now binds the flat Legendre head, so the honest hand-written literal
+        there is ``(3, ng, *spatial)``; the rectangular literal MOVES to the
+        sphere-rule fixture rather than being deleted, because losing it would
+        leave the rectangular family with no external pin at all.
+        """
+        slab = _slab_mesh()
+        face = _frame(slab).flux_analysis_on(slab.angular_bulk_space)
+        assert face.codomain.shape == (3, slab.ng, *slab.spatial_shape)
+        assert HarmonicMomentFlux.zeros_for_mesh_and_L(slab, _L).space.shape == (
+            3, slab.ng, *slab.spatial_shape
+        )
+
+        sphere = _2d_mesh()
+        sphere_face = _frame(sphere).flux_analysis_on(sphere.angular_bulk_space)
+        assert sphere_face.codomain.shape == (3, 5, sphere.ng, *sphere.spatial_shape)
+        assert HarmonicMomentFlux.zeros_for_mesh_and_L(sphere, _L).space.shape == (
+            3, 5, sphere.ng, *sphere.spatial_shape
+        )
 
     def test_codomain_sh_factor_is_the_frames_parseval_space(self) -> None:
         """The single-source pin: the minted codomain's SH factor IS the
@@ -393,7 +422,8 @@ class TestSourceReconstructionFace:
         recon = frame.source_reconstruction_on(m.angular_bulk_space)
         psi = AngularFlux(values=_angular_values(m, 10), space=m.angular_bulk_space)
         moments = analysis.apply(psi)
-        assert moments.values.shape == (_L + 1, 2 * _L + 1, m.ng, *m.spatial_shape)
+        assert moments.values.shape == (*_head(m).shape, m.ng, *m.spatial_shape)
+        assert _head(m).shape == (_L + 1, 2 * _L + 1), "a sphere rule: rectangular"
         q = HarmonicMomentSourceSink(
             values=moments.values, space=recon.domain, L=_L, spatial_moments=1,
         )
@@ -432,9 +462,24 @@ class TestP7DenseMetricRidesTheMint:
         from orpheus.numerics.basis import GramStructure
         from orpheus.numerics.space import FunctionSpace
 
-        m = _slab_mesh()  # GL(4) quadrature
-        frame = HarmonicFrame.from_galerkin(m.quad.angular_frame(2))
+        # ⛔ RE-KEYED 2026-09-02 (#429). This rode the slab GL(4) frame at
+        # L = 2, whose DENSE verdict was ERR-080's own signature — the forged
+        # (mu, 0, 0) nodes made the degenerate m > 0 harmonics linearly
+        # dependent, so the Gram was rank-deficient. The repaired slab frame
+        # binds the Legendre basis and measures DIAGONAL, so the gate would
+        # have gone INERT there (its whole subject is the DENSE arm).
+        # ``level_symmetric(4)`` at L = 3 is the production-shaped DENSE mint
+        # that replaces it: a sphere rule, harmonic basis, `[M]` verdict DENSE
+        # (LS4 at L = 2 measures DIAGONAL, which is why the order moves too).
+        m = _2d_mesh()
+        L_dense = 3
+        frame = HarmonicFrame.from_galerkin(m.quad.angular_frame(L_dense))
         assert frame.discrete_gram_structure is GramStructure.DENSE
+        assert (
+            HarmonicFrame.from_galerkin(m.quad.angular_frame(2))
+            .discrete_gram_structure
+            is GramStructure.DIAGONAL
+        ), "the ORDER is what makes this frame dense — state it, do not assume it"
         moment = frame.flux_analysis_on(m.angular_bulk_space).codomain
         assert moment.metric is not None, "the dense factor was dropped"
         sh = frame.basis_space

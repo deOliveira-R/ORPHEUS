@@ -793,7 +793,9 @@ axes :math:`(n_x, n_y)`.
    * - :class:`HarmonicMomentFlux`
      - :math:`\phi_{\ell m}(r, g)` --- Pℓ moment coefficients
      - 1/(cm²·s·sr·eV) [inherits from source field]
-     - ``(L+1, 2L+1, ng, nx, ny)``
+     - ``(<angular head>, ng, nx, ny)`` — ``(L+1, 2L+1)`` on a rule
+       that binds the spherical harmonics, ``(L+1,)`` on a 1-D rule
+       (see the note below this table)
      - ``frame.analysis.apply`` output (the SH
        :class:`~orpheus.numerics.frame.GalerkinFrame`'s analysis face;
        :mod:`orpheus.transport.operators.scattering`); typed wrapper at
@@ -1244,8 +1246,25 @@ lives in scattered docstrings.
      - ``(N, ng, nx, ny)``
      - :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
    * - ``LegendreMomentScattering`` moment field
-     - ``(L+1, 2L+1, ng, nx, ny)``
+     - ``(<angular head>, ng, nx, ny)`` — see the note below
      - :mod:`orpheus.transport.operators.scattering`
+
+.. note::
+
+   ⚠ **The** ``(L+1, 2L+1, …)`` **head is the REAL-HARMONIC family's,
+   not the moment carrier's contract** (2026-09-02, #429 / ERR-080).
+   A moment field's space is ``<angular head> ⊗ cells``, and since the
+   ERR-080 repair a **1-D** rule binds a FLAT head — `[M]` a
+   ``gauss_legendre(8)`` phase space gives
+   ``HarmonicMomentFlux.zeros_for_mesh_and_L(sn, 2).values.shape ==
+   (3, 1, 4)``, i.e. ``(L+1, ng, *spatial)``, while
+   ``level_symmetric(8)`` and ``folded_product(4,8)`` give
+   ``(3, 5, 1, 4)``. Read every ``(L+1, 2L+1, …)`` shape on this page as
+   *the shape on a rule that binds the spherical harmonics*. The layout
+   is now the head's to say —
+   :class:`~orpheus.numerics.spaces.moment_head.MomentHead`'s
+   ``isotropic_slot`` / ``degree_block`` / ``shape`` — and a consumer
+   READS it (:ref:`spaces-moment-head`).
 
 .. note:: **Two rows above were re-homed, one is still stale
    (audit 2026-08-09).** The flux rows used to read

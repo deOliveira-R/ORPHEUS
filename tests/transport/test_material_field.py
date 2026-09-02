@@ -19,6 +19,8 @@ Three tiers, deliberately separated:
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import pytest
 
@@ -83,6 +85,39 @@ def _moments(sm=0, seed=3, nx=_NX):
         if sm == 0
         else (_L + 1, 2 * _L + 1, _NG, nx, 1, sm)
     )
+    return rng.uniform(-1.0, 1.0, size=shape)
+
+
+def _head(rank: int = 2):
+    r"""The angular HEAD to hand a moment verb (#429 tracker 2.5).
+
+    A moments tensor's leading axes ARE the head's, and which head a
+    consumer holds is read off its frame — the rectangular ``(L+1, 2L+1)``
+    real harmonics on a sphere rule, the FLAT ``(L+1,)`` Legendre family on a
+    1-D rule's :math:`S^2/SO(2)_x`. The verbs take it as a parameter because
+    the per-degree contraction spec DEPENDS on it: `[M]` on a flat head the
+    old einsum ``mfc...,fg->mgc...`` would have contracted the GROUP axis as
+    if it were :math:`m` — silently, with no shape error.
+
+    Both ranks are exercised in this module (``rank=2`` on the default
+    fixtures, ``rank=1`` in :class:`TestFlatAngularHead`), so neither
+    layout is certified by the other.
+    """
+    from orpheus.numerics.spaces.legendre_space import LegendreSpace
+    from orpheus.numerics.spaces.spherical_harmonic_space import (
+        SphericalHarmonicSpace,
+    )
+
+    return (
+        SphericalHarmonicSpace.from_L(_L) if rank == 2
+        else LegendreSpace.from_L(_L, "x")
+    )
+
+
+def _flat_moments(sm=0, seed=3, nx=_NX):
+    """Moments in the FLAT (Legendre) head's layout — one coefficient per degree."""
+    rng = np.random.default_rng(seed)
+    shape = (_L + 1, _NG, nx, 1) if sm == 0 else (_L + 1, _NG, nx, 1, sm)
     return rng.uniform(-1.0, 1.0, size=shape)
 
 
@@ -155,7 +190,7 @@ class TestAdmission:
         sf, _, _ = _fields()
         bad = np.zeros((_L + 2, 2 * (_L + 1) + 1, _NG, _NX, 1))
         with pytest.raises(ValueError, match="truncate the field"):
-            sf.moment_source(bad, skip_l0=True)
+            sf.moment_source(bad, skip_l0=True, head=_head())
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -235,7 +270,7 @@ class TestIndependentReference:
     def test_moment_source(self, sm, skip_l0):
         sf, _, _ = _fields()
         mom = _moments(sm)
-        out = sf.moment_source(mom, skip_l0=skip_l0)
+        out = sf.moment_source(mom, skip_l0=skip_l0, head=_head())
         ref = np.zeros_like(mom)
         for ix in range(_NX):
             sig_s = _sig_of(_mid_of_cell(ix))[0]
@@ -250,7 +285,7 @@ class TestIndependentReference:
     def test_moment_source_transpose(self, skip_l0):
         sf, _, _ = _fields()
         mom = _moments(seed=5)
-        out = sf.moment_source_transpose(mom, skip_l0=skip_l0)
+        out = sf.moment_source_transpose(mom, skip_l0=skip_l0, head=_head())
         ref = np.zeros_like(mom)
         for ix in range(_NX):
             sig_s = _sig_of(_mid_of_cell(ix))[0]
@@ -288,7 +323,7 @@ class TestIndependentReference:
     def test_n2n_moment_emission_touches_only_l0(self):
         _, nf, _ = _fields()
         mom = _moments(seed=9)
-        out = nf.moment_emission(mom)
+        out = nf.moment_emission(mom, head=_head())
         if not np.array_equal(out[1:], np.zeros_like(out[1:])):
             pytest.fail(
                 "the (n,2n) field carries ONE matrix (ORPHEUS's P0 model of the "
@@ -306,7 +341,7 @@ class TestIndependentReference:
     def test_n2n_moment_emission_transpose(self):
         _, nf, _ = _fields()
         mom = _moments(seed=11)
-        out = nf.moment_emission_transpose(mom)
+        out = nf.moment_emission_transpose(mom, head=_head())
         ref = np.zeros_like(mom[0, 0])
         for ix in range(_NX):
             sig2 = _sig_of(_mid_of_cell(ix))[1]
@@ -332,8 +367,10 @@ class TestIndependentReference:
         forward/transpose pair cross-checks itself with no reference."""
         sf, _, _ = _fields()
         a, b = _moments(seed=13), _moments(seed=14)
-        lhs = float(np.sum(sf.moment_source(a, skip_l0=False) * b))
-        rhs = float(np.sum(a * sf.moment_source_transpose(b, skip_l0=False)))
+        lhs = float(np.sum(sf.moment_source(a, skip_l0=False, head=_head()) * b))
+        rhs = float(
+            np.sum(a * sf.moment_source_transpose(b, skip_l0=False, head=_head()))
+        )
         np.testing.assert_allclose(lhs, rhs, rtol=1e-12)
 
 # (The transitional facade battery — every verb bit-identical to the
@@ -472,3 +509,147 @@ class TestFissionIndependentReference:
         np.testing.assert_array_equal(
             ff.gather_nu_sig_f((_NX, 1)), mat_xs.fission_production,
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The FLAT angular head (#429 tracker 2.5) — the verbs' new dispatch axis
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestFlatAngularHead:
+    r"""A rank-1 head is DISPATCHED, and the failure it replaces was SILENT.
+
+    ⛔ **§6c.** ``head=`` is a new parameter whose whole purpose is to select a
+    per-degree contraction. Every row above hands the RECTANGULAR head, so
+    without this class the rank-1 arm would land with no input that reaches
+    it — a gate structurally unable to fail. The rows here construct that
+    input and pin the arm against a hand-rolled reference.
+
+    ⭐ **Why the old spelling was silent rather than loud.** The contraction
+    was ``mfc...,fg->mgc...``: on a flat ``(L+1, ng, nx, …)`` tensor the
+    einsum's ``m`` binds the DEGREE axis and ``f`` binds the GROUP axis, so it
+    contracts the group index against the degree index and returns a
+    well-shaped array of the wrong quantity — the same failure family as
+    ``values[0, 0]`` on a flat moment field.
+    """
+
+    @pytest.mark.parametrize("sm", [0, 4], ids=["scalar", "LD-2^d=4"])
+    @pytest.mark.parametrize("skip_l0", [True, False], ids=["l>=1", "l>=0"])
+    def test_moment_source_on_a_flat_head(self, sm, skip_l0):
+        """The independent reference, one degree per coefficient."""
+        sf, _, _ = _fields()
+        mom = _flat_moments(sm)
+        out = sf.moment_source(mom, skip_l0=skip_l0, head=_head(rank=1))
+        ref = np.zeros_like(mom)
+        for ix in range(_NX):
+            sig_s = _sig_of(_mid_of_cell(ix))[0]
+            for l in range(1 if skip_l0 else 0, _L + 1):
+                ref[l, :, ix, 0] = np.tensordot(
+                    sig_s[l].T, mom[l, :, ix, 0], axes=1,
+                )
+        np.testing.assert_allclose(out, ref, rtol=0, atol=1e-15)
+
+    def test_moment_source_transpose_on_a_flat_head(self):
+        sf, _, _ = _fields()
+        mom = _flat_moments(seed=5)
+        out = sf.moment_source_transpose(mom, skip_l0=False, head=_head(rank=1))
+        ref = np.zeros_like(mom)
+        for ix in range(_NX):
+            sig_s = _sig_of(_mid_of_cell(ix))[0]
+            for l in range(_L + 1):
+                ref[l, :, ix, 0] = np.tensordot(
+                    sig_s[l], mom[l, :, ix, 0], axes=1,
+                )
+        np.testing.assert_allclose(out, ref, rtol=0, atol=1e-15)
+
+    def test_the_rectangular_spec_would_be_SILENT_on_a_flat_tensor(self):
+        r"""The demonstration: the old per-degree loop RETURNS on a flat tensor.
+
+        Not a claim about production — production now dispatches on the head —
+        but the record of why no test could have caught this by running. The
+        retired loop sliced ``moments[l, :2l+1]`` and contracted
+        ``"mfc...,fg->mgc..."``. On a flat ``(L+1, ng, nx, 1)`` tensor axis 1
+        is the GROUP axis, so ``[:2l+1]`` selects groups and the einsum's
+        ``m`` binds what is left of them: a well-shaped array of the wrong
+        quantity, no exception anywhere.
+        """
+        sf, _, _ = _fields()
+        mom = _flat_moments(seed=11)
+        honest = sf.moment_source(mom, skip_l0=False, head=_head(rank=1))
+
+        # the RETIRED loop, transcribed and applied to the flat tensor
+        wrong = np.zeros_like(mom)
+        for kernel_idx, ix in enumerate(range(_NX)):
+            sig_s = _sig_of(_mid_of_cell(ix))[0]
+            for l in range(_L + 1):
+                view = mom[l, : 2 * l + 1][..., ix, 0]      # selects GROUPS
+                if view.shape[0] == 0:
+                    continue
+                contracted = np.einsum(
+                    "mf,fg->mg", view.reshape(view.shape[0], -1)[:, :_NG],
+                    sig_s[l],
+                )
+                wrong[l, : contracted.shape[0], ix, 0] = contracted[:, 0]
+
+        assert wrong.shape == honest.shape, (
+            "the retired spelling is SHAPE-compatible on a flat tensor — that "
+            "is the finding, and it is why the defect was silent"
+        )
+        assert not np.allclose(wrong, honest), (
+            "the retired spelling must disagree with the head-dispatched one, "
+            "else this arm carries no claim"
+        )
+
+    def test_a_head_of_an_unshipped_rank_is_refused_naming_the_shipped_ones(self):
+        """The dispatch names its own domain rather than falling through."""
+
+        @dataclass(frozen=True)
+        class _RankThreeHead:
+            """A minimal ``MomentHead`` of an unshipped rank — a stub, not a space."""
+
+            L: int
+            shape: tuple[int, ...]
+            name: str = "rank3_head"
+            isotropic_slot: tuple[int, ...] = (0, 0, 0)
+
+            def degree_block(self, l, /):
+                return (l, slice(None), slice(None))
+
+            def truncated(self, L_new, /):
+                raise NotImplementedError
+
+        sf, _, _ = _fields()
+        head = _RankThreeHead(L=_L, shape=(_L + 1, 2 * _L + 1, 1))
+        mom = np.zeros((_L + 1, 2 * _L + 1, 1, _NG, _NX, 1))
+        with pytest.raises(NotImplementedError) as excinfo:
+            sf.moment_source(mom, skip_l0=False, head=head)
+        message = str(excinfo.value)
+        assert "rank 3" in message
+        assert "rank 2" in message and "rank 1" in message, (
+            f"the refusal must name the shipped ranks: {message}"
+        )
+
+    def test_a_moments_tensor_whose_leading_axes_are_not_the_head_is_refused(self):
+        r"""The head is a CONTRACT on the operand, not a hint.
+
+        ⚠ **The guard is one-sided, and the limitation is recorded rather
+        than asserted away.** It compares ``moments.shape[:rank]`` against the
+        head's shape, so it catches a FLAT tensor offered to a RECTANGULAR
+        head (``(3, 2)`` vs ``(3, 5)`` — the direction below) and does NOT
+        catch the reverse when the leading extent happens to agree: a
+        rectangular ``(3, 5, ng, …)`` tensor with a flat ``(3,)`` head passes
+        it and dies further in with ``IndexError: index 2 is out of bounds for
+        axis 1``. Unreachable from production (every call site hands the
+        operator's OWN head, minted from the same frame as the moments), so it
+        is a message-quality gap, not a correctness one — see the return.
+        """
+        sf, _, _ = _fields()
+        with pytest.raises(ValueError, match="lead with the angular head"):
+            sf.moment_source(_flat_moments(), skip_l0=False, head=_head())
+
+        # the reverse direction — a RECTANGULAR tensor offered with a FLAT
+        # head — is refused at the SAME guard since the group axis is checked
+        # too (until 2026-09-02 it passed the guard and died in the loop with
+        # an IndexError, reading its m-axis as the groups)
+        with pytest.raises(ValueError, match="lead with the angular head"):
+            sf.moment_source(_moments(), skip_l0=False, head=_head(rank=1))

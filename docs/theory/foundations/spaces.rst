@@ -2065,25 +2065,47 @@ splits the shipped frames three ways rather than two:
      - :math:`\le 1\times10^{-15}`
      - each live :math:`\ell` block is one constant; per-degree
        diagonal spread :math:`\le 4\times10^{-15}`
-   * - ``gauss_legendre(8)``, :math:`L=2`
-     - ``DENSE``
-     - :math:`0.30`–:math:`10.2` (200 seeds)
-     - the live :math:`\ell{=}2` diagonal is
-       :math:`[0.4,\,0.8,\,0.8]` — no :math:`G_\ell` exists, at **any**
-       metric
+   * - ⛔ ``gauss_legendre(8)``, :math:`L=2` — **this row is HISTORY**
+     - was ``DENSE``
+     - was :math:`0.30`–:math:`10.2` (200 seeds)
+     - the live :math:`\ell{=}2` diagonal was
+       :math:`[0.4,\,0.8,\,0.8]` — no :math:`G_\ell` existed, at
+       **any** metric. ⭐ Both :math:`0.8`\ s were ERR-080's fabricated
+       :math:`m \ne 0` slots; since #429's fused commit (2026-09-02) a
+       1-D rule binds a FLAT Legendre head and this frame is
+       ``DIAGONAL`` with :math:`G_\ell = 2/(2\ell+1)` — one number per
+       degree — so it moves into the **first** row of this table.
+       `[M]` 2026-09-02, 200 seeds: rel :math:`\le 5.1\times10^{-16}`,
+       and the same at ``gauss_legendre(4)``, ``(16)`` and at
+       :math:`L = 3`
    * - ``product(4,4)`` :math:`L{=}2`; ``level_symmetric(4)``
-       :math:`L{=}3`
+       :math:`L{=}3`; ``folded_product(2,4)`` :math:`L{=}3`
      - ``DENSE``
-     - :math:`3\times10^{-3}`–:math:`0.33`
-     - same cause, milder: only the top degree's block is non-constant
-   * - ``folded_product(4,6)``, :math:`L=3`
+     - `[M]` 2026-09-02, 200 seeds:
+       :math:`7.6\times10^{-4}`–:math:`0.47`,
+       :math:`4.3\times10^{-2}`–:math:`0.15`,
+       :math:`0.26`–:math:`1.65`
+     - same cause, milder: only the top degree's block is non-constant.
+       (The third is new here — it takes over the slab's role as the
+       loudest breaker, on a SHIPPED rule and a basis the repair does
+       not touch)
+   * - ``folded_product(4,6)``, :math:`L=3`; ``gauss_legendre(2)``,
+       :math:`L=2`
      - ``DENSE``
-     - :math:`\le 3\times10^{-15}` (200 seeds)
-     - its coupling is a pure **rank deficiency**, so the disagreement
-       lives entirely in :math:`\ker Y`
+     - :math:`\le 3\times10^{-15}` / `[M]`
+       :math:`\le 1.6\times10^{-15}` (200 seeds each)
+     - their coupling is a pure **rank deficiency**, so the
+       disagreement lives entirely in :math:`\ker Y`. ⭐ The second is
+       a 2026-09-02 addition and it is the stronger exhibit, because it
+       is a **Legendre** frame and its rank deficiency has a closed
+       form: :math:`P_2` vanishes identically at ``GL_2``'s two nodes,
+       which ARE its roots (the dead-slot theorem —
+       :math:`G_{22} \sim 10^{-33}`). Two families, one mechanism
 
 The last row is the one that makes the statement a theorem rather than a
-correlation, and it was found by measuring rather than by reasoning.
+correlation, and it was found by measuring rather than by reasoning
+(and it now has a second, independently-caused member — see the
+``gauss_legendre(2)`` note in that row).
 That frame's only live off-diagonal couples two :math:`\ell = 3` slots
 whose :math:`2\times2` block is
 ``[[0.6732, 0.8691], [0.8691, 1.1220]]``
@@ -2179,6 +2201,129 @@ metric that can now be *spelled* is not a metric anyone has *chosen*.
    putting the metric on the factor that cannot express it. The
    space-held object closes the first and leaves the second's *machinery*
    available for whatever chooses its value.
+
+
+.. _spaces-moment-head:
+
+The angular HEAD of a moment space — two families, one surface
+-----------------------------------------------------------------
+
+The metric sections above are about *what a factor measures with*. This
+one is about a question that had never been asked because it had only
+one answer: **what SHAPE does the leading factor of a moment space
+have, and who is allowed to know?**
+
+Landed 2026-09-02, #429 tracker 3.4/3.4b, inside the fused commit that
+repaired :doc:`ERR-080 </theory/verification/error_catalog>`.
+
+A moment field's space is ``<head> ⊗ cells``. Until 2026-09-02 the head
+was always
+:class:`~orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace`
+— the rectangular :math:`(L+1, 2L+1)` table with the
+addition-theorem-shifted :math:`[\ell + m]` column and zero padding
+outside :math:`|m| \le \ell`. The ERR-080 repair adds a second family:
+:class:`~orpheus.numerics.spaces.legendre_space.LegendreSpace`, the
+coefficient space of :math:`\{P_\ell(\mu)\}_{\ell \le L}` on the orbit
+space :math:`S^2/SO(2)_a`, which is **FLAT** — :math:`(L+1,)`, one
+coefficient per degree, because the trivial isotypic component of the
+:math:`SO(2)` action is one-dimensional in every degree
+(:ref:`manifold-descending-slots`).
+
+Two families with different ranks means the layout is a *variable*, so
+it needs an owner. :class:`~orpheus.numerics.spaces.moment_head.MomentHead`
+is a ``runtime_checkable`` ``Protocol`` carrying exactly what a consumer
+must not assume: ``L``, ``shape``, ``isotropic_slot``,
+``degree_block(l)``, ``truncated(L_new)``. Both classes satisfy it
+structurally — no base class, no registration — and a consumer holding
+``space.factors[0]`` narrows with ``isinstance``, the same
+key-on-what-it-declares idiom as
+:class:`~orpheus.numerics.basis.base.TruncatedBasis` on the basis side.
+
+.. list-table:: What the head answers, per family
+   :header-rows: 1
+   :widths: 30 34 36
+
+   * - Question
+     - ``spherical_harmonic_space``
+     - ``legendre_space(S^2/SO2_a)``
+   * - ``shape``
+     - :math:`(L+1,\ 2L+1)`
+     - :math:`(L+1,)`
+   * - ``isotropic_slot``
+     - ``(0, 0)``
+     - ``(0,)``
+   * - ``degree_block(l)``
+     - ``(l, 0:2l+1)``
+     - ``(l,)``
+   * - rank ⟹ where the group axis is
+     - 2 ⟹ ``values.shape[2]``
+     - 1 ⟹ ``values.shape[1]``
+   * - continuum metric
+     - :math:`4\pi/(2\ell+1)` per degree, spread over the
+       :math:`2\ell+1` live columns
+     - :math:`4\pi/(2\ell+1)` per degree
+
+⭐ **The two metrics agreeing is not a coincidence and it is the reason
+the descent is an ISOMETRY rather than merely an isomorphism.** The
+Legendre Gram is taken against the **pushforward** of :math:`d\Omega`
+along the quotient map — :math:`\pi_*\,d\Omega = 2\pi\,d\mu` by
+Archimedes' hat-box, which is what
+:attr:`Quotient.reference <orpheus.numerics.manifold.Quotient.reference>`
+carries — so
+
+.. math::
+   :label: spaces-legendre-pushforward-gram
+
+   \int_{S^2/SO(2)_a} P_\ell^2 \; \mathrm{d}(\pi_*\Omega)
+   \;=\; \int_{-1}^{1} P_\ell(\mu)^2 \, 2\pi \,\mathrm{d}\mu
+   \;=\; \frac{4\pi}{2\ell+1},
+
+exactly the harmonics'
+:attr:`metric_per_ell <orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.metric_per_ell>`.
+
+.. warning::
+
+   ⚠ **NOT the bare Legendre mass-2 normalisation**
+   :math:`2/(2\ell+1)`, which is the Gram against :math:`\mathrm{d}\mu`
+   with no :math:`2\pi`. The two differ by a factor :math:`2\pi` and the
+   wrong one would move **every operator end's metric** on every 1-D
+   solve. The discriminator is which measure the orbit space carries,
+   and the orbit space carries the pushforward of the sphere's — a
+   1-D angular rule is a rule on :math:`S^2/SO(2)_a`, not on an
+   abstract interval.
+
+   ⚠ And do not confuse either with the **discrete** Gram a frame
+   measures, which is against the RULE's weights: `[M]` a
+   Gauss–Legendre rule sums to :math:`W = 2`, so its discrete Legendre
+   Gram is :math:`2/(2\ell+1)` and its Parseval-dressed ``basis_space``
+   carries the inverse, :math:`(2\ell+1)/2`. Continuum, discrete and
+   Parseval-dressed are three different arrays on this space exactly as
+   they are on the harmonic one (:ref:`spaces-metric-three-sources`).
+
+.. (vv-status rationale) A normalisation identity: it states which Gram
+   the Legendre head carries and why, not what a solver computes. Its
+   verifiable content is the constructor gate on
+   ``LegendreSpace.from_L`` (the metric is sourced from
+   ``LegendreBasis.metric_per_ell``, so the formula has one home) and
+   the bit-identity of the descent, which would fail under the mass-2
+   normalisation.
+.. vv-status: spaces-legendre-pushforward-gram documented
+
+⛔ **Why the Protocol is a repair and not decoration: on a flat head the
+pre-2026-09-02 reads returned the wrong array and raised NOTHING.** A
+consumer indexing ``values[0, 0]`` on an :math:`(L+1, n_g, n_x)` tensor
+gets *group 0's spatial slice* — well-shaped, silently wrong. The full
+list of sites that read the rectangular layout as if it were the
+contract: ``scalar_flux``, ``isotropic_part``, ``anisotropic_part``,
+``l_block``, the fission :math:`\ell = 0` dyad, ``ng`` (which located
+the group axis at a hard-coded index 2), ``zeros_for_mesh_and_L``, and
+the material field's per-degree group contraction, whose ``einsum``
+spelled the :math:`m` axis into its subscripts and would have contracted
+the GROUP axis as if it were :math:`m`. All of them read the head now;
+the harmonic specs are the former inline ones **verbatim**, so that path
+is bit-identical by construction, and a head of an unshipped rank is
+refused by name rather than contracted wrongly. The frame-side account
+is :ref:`frame-g0-descent-arrow`.
 
 
 .. _spaces-collapse-doctrine:

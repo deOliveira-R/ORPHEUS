@@ -462,7 +462,13 @@ class TestFullScatterKernelLDTrailingAxis:
             ScatteringMaterialField,
         )
 
-        def _old_leg(self, moments, *, skip_l0):
+        def _old_leg(self, moments, *, skip_l0, head=None):
+            # ``head=`` arrived with #429 (the angular head is a parameter of
+            # the moment verbs now); the surrogate accepts and IGNORES it —
+            # the PRE-FIX arm transcribed here predates it and hard-codes the
+            # rectangular layout, which is exactly what it must do to stand in
+            # for the retired spelling.
+            del head
             out = np.zeros_like(moments)
             l_start = 1 if skip_l0 else 0
             for mid, idx in self.cells_by_material.items():
@@ -477,7 +483,8 @@ class TestFullScatterKernelLDTrailingAxis:
                     )
             return out
 
-        def _old_n2n(self, moments):
+        def _old_n2n(self, moments, *, head=None):
+            del head
             out = np.zeros_like(moments)
             for mid, idx in self.cells_by_material.items():
                 kern = self.per_material[mid]

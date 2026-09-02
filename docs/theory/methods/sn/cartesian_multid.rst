@@ -1925,7 +1925,11 @@ the three scattering producers in
    * - :meth:`~orpheus.transport.material_field.ScatteringMaterialField.moment_source`
        (né ``apply_legendre_scattering_moments``)
      - ``"mfc,fg->mgc"`` :math:`\to` ``"mfc...,fg->mgc..."``
-     - the per-:math:`\ell` block-diagonal :math:`\Lambda\phi`
+     - the per-:math:`\ell` block-diagonal :math:`\Lambda\phi`. ⚠ Since
+       2026-09-02 the ``m`` in that spec is the **real-harmonic head's**
+       axis, and the verb selects the spec by the head's RANK — a 1-D
+       rule's FLAT head takes ``"fc...,fg->gc..."`` (:ref:`spaces-moment-head`).
+       The harmonic spec is this row's, verbatim
 
 The trailing ``...`` is the **spectator broadcast**: it matches the
 spatial-moment axis (if present) and contracts nothing over it — exactly the

@@ -92,6 +92,11 @@ def rng() -> np.random.Generator:
     return np.random.default_rng(208)
 
 
+def _moment_shape(m: SNMesh, L: int) -> tuple[int, ...]:
+    """``<angular head> ⊗ (ng, *spatial)`` — the head is read off the frame (#429)."""
+    return (*m.quad.angular_frame(L).basis.space.shape, m.ng, *m.spatial_shape)
+
+
 def _make_flux(leaf: str, m: SNMesh, rng: np.random.Generator) -> Field:
     """A flux leaf with DISTINCT random values (NOT flat — Mode-9)."""
     if leaf == "angular":
@@ -100,8 +105,11 @@ def _make_flux(leaf: str, m: SNMesh, rng: np.random.Generator) -> Field:
         return ScalarFlux(values=rng.standard_normal((m.ng, *m.spatial_shape)), space=m.bulk_space)
     if leaf == "moment":
         # HarmonicMomentFlux is rank-d like the other leaves: its space is
-        # (L+1, 2L+1, ng, *spatial) — rank-1 (nx,) on a 1-D mesh, no phantom ny.
-        shape = (_MOMENT_L + 1, 2 * _MOMENT_L + 1, m.ng, *m.spatial_shape)
+        # <angular head> ⊗ (ng, *spatial) — rank-1 (nx,) on a 1-D mesh, no
+        # phantom ny. ⛔ RE-KEYED 2026-09-02 (#429): the head's own rank is the
+        # head's to say (flat (L+1,) on a 1-D rule, rectangular (L+1, 2L+1) on
+        # a sphere rule), so it is READ off the frame rather than spelled.
+        shape = _moment_shape(m, _MOMENT_L)
         return HarmonicMomentFlux.from_mesh_and_L(
             rng.standard_normal(shape), m, _MOMENT_L,
         )
@@ -118,8 +126,9 @@ def _zeros_like_flux(leaf: str, m: SNMesh) -> Field:
     if leaf == "scalar":
         return ScalarFlux(values=np.zeros((m.ng, *m.spatial_shape)), space=m.bulk_space)
     if leaf == "moment":
-        shape = (_MOMENT_L + 1, 2 * _MOMENT_L + 1, m.ng, *m.spatial_shape)
-        return HarmonicMomentFlux.from_mesh_and_L(np.zeros(shape), m, _MOMENT_L)
+        return HarmonicMomentFlux.from_mesh_and_L(
+            np.zeros(_moment_shape(m, _MOMENT_L)), m, _MOMENT_L
+        )
     if leaf == "boundary":
         return AngularBoundaryFlux.zeros(m.angular_trace)
     raise ValueError(leaf)

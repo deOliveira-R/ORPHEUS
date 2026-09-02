@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10681**
+Total tests collected: **10783**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1298, 12.2%
-   L1, 1643, 15.4%
+   L0, 1298, 12.0%
+   L1, 1644, 15.2%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7657, 71.7%
+   foundation, 7758, 71.9%
    unmarked, 19, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10583
+   explicit, 10685
    class-name, 46
    func-name, 0
    case, 33
@@ -49,7 +49,7 @@ Module × level grid
 
    acceleration/test_dsa_acceleration, 0, 0, 7, 0, 0, 0
    acceleration/test_dsa_low_order, 0, 0, 0, 0, 14, 0
-   acceleration/test_dsa_rate, 0, 62, 2, 0, 6, 0
+   acceleration/test_dsa_rate, 0, 63, 2, 0, 6, 0
    analytical/test_angular_diffusion_limit_consistency, 0, 3, 0, 0, 0, 0
    analytical/test_cp_standoff_curvilinear, 0, 2, 1, 0, 0, 0
    analytical/test_kinf_homogeneous, 0, 31, 0, 0, 0, 0
@@ -267,10 +267,10 @@ Module × level grid
    fields/test_coefficient_fields, 0, 0, 0, 0, 9, 0
    fields/test_facefield_hierarchy, 0, 0, 0, 0, 7, 0
    fields/test_field_space_identity, 0, 0, 0, 0, 9, 0
-   fields/test_harmonic_moment_flux, 0, 0, 0, 0, 13, 0
+   fields/test_harmonic_moment_flux, 0, 0, 0, 0, 26, 0
    fields/test_meshless_construction, 0, 0, 0, 0, 8, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
-   frames/test_binding_tightness, 0, 0, 0, 0, 17, 0
+   frames/test_binding_tightness, 0, 0, 0, 0, 20, 0
    frames/test_harmonic_frame, 0, 0, 0, 0, 29, 0
    frames/test_moment_space_is_read_off_the_frame, 0, 0, 0, 0, 36, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
@@ -339,6 +339,7 @@ Module × level grid
    numerics/test_coupled_operator, 0, 0, 0, 0, 65, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
+   numerics/test_descent, 0, 0, 0, 0, 20, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 4, 0
@@ -350,7 +351,7 @@ Module × level grid
    numerics/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
    numerics/test_field, 0, 0, 0, 0, 31, 0
    numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0
-   numerics/test_frame, 0, 15, 0, 0, 35, 0
+   numerics/test_frame, 0, 15, 0, 0, 45, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 7, 0
    numerics/test_generating_measure, 0, 78, 0, 0, 178, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
@@ -360,8 +361,9 @@ Module × level grid
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 28, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 136, 0
+   numerics/test_legendre_basis, 0, 0, 0, 0, 32, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
-   numerics/test_manifold, 0, 0, 0, 0, 97, 0
+   numerics/test_manifold, 0, 0, 0, 0, 108, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -372,7 +374,7 @@ Module × level grid
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
    numerics/test_power_iteration_record, 0, 0, 0, 0, 30, 0
-   numerics/test_quadrature_directional, 0, 0, 0, 0, 88, 0
+   numerics/test_quadrature_directional, 0, 0, 0, 0, 78, 0
    numerics/test_registry, 0, 0, 0, 0, 75, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_riesz_legs, 0, 0, 0, 0, 0, 11
@@ -388,7 +390,7 @@ Module × level grid
    numerics/test_space_of_axes, 0, 0, 0, 0, 26, 0
    numerics/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    numerics/test_spatial_moment_space, 0, 0, 0, 0, 22, 0
-   numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
+   numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 7, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
    numerics/test_symmetry, 0, 0, 0, 0, 110, 0
    numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
@@ -458,7 +460,7 @@ Module × level grid
    primitives/test_cell_flattening_invariant, 0, 0, 0, 0, 3, 0
    primitives/test_dag_ownership, 0, 0, 0, 0, 18, 0
    primitives/test_face_name_crosswalk, 0, 0, 0, 0, 4, 0
-   primitives/test_harmonic_moment_flux, 0, 0, 0, 0, 31, 0
+   primitives/test_harmonic_moment_flux, 0, 0, 0, 0, 34, 0
    primitives/test_method_space, 5, 0, 0, 0, 0, 0
    primitives/test_octants_property, 60, 0, 0, 0, 0, 0
    primitives/test_properties, 4, 0, 0, 0, 0, 0
@@ -517,7 +519,7 @@ Module × level grid
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 349, 0
+   test_layer_imports, 0, 0, 0, 0, 353, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -529,7 +531,7 @@ Module × level grid
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
    transport/test_kernels, 0, 0, 0, 0, 60, 0
-   transport/test_material_field, 0, 0, 0, 0, 35, 0
+   transport/test_material_field, 0, 0, 0, 0, 43, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_material_mesh_admission, 0, 0, 0, 0, 6, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
@@ -716,6 +718,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``characteristic-ode``, 6
    ``kin-kernel-special-values``, 6
    ``ld-ubld-d1-reduction``, 6
+   ``manifold-fibre-constancy``, 6
    ``peierls-greens-slab-T``, 6
    ``singular-eigenfunction-eq54``, 6
    ``sn-space-angle-separability``, 6
@@ -906,7 +909,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **579** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **582** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1162,6 +1165,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``loss-rep-scanmarch-solve-affine``
 - ``majorant-no-collision``
 - ``majorant-real-collision``
+- ``manifold-descent-isomorphism``
 - ``manifold-map-functoriality``
 - ``manifold-procesi-schwarz``
 - ``manifold-quotient-pushforward``
@@ -1341,6 +1345,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``self-collision-probability-slab``
 - ``sh-aniso-scattering-operator``
 - ``sh-funk-hecke-eigenvalue``
+- ``sh-legendre-is-the-trivial-isotypic``
 - ``sh-pl-scattering-reconstruction``
 - ``si-convergence-residual``
 - ``si-gauss-seidel-splitting``
@@ -1431,6 +1436,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``spaces-collapse-rank-one-gram``
 - ``spaces-collapse-retraction``
 - ``spaces-collapse-section``
+- ``spaces-legendre-pushforward-gram``
 - ``spaces-pseudo-inverse-parseval``
 - ``spatial-moment-append-policy``
 - ``spatial-moment-kronecker-order``

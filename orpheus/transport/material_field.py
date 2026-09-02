@@ -56,6 +56,7 @@ from orpheus.transport.kernels import (
 )
 
 if TYPE_CHECKING:
+    from orpheus.numerics.spaces.moment_head import MomentHead
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 __all__ = [
@@ -160,6 +161,33 @@ class MaterialField(Generic[K]):
             Q[cells] += contracted
 
 
+#: The group contraction of one degree block, by the RANK of the angular head
+#: (how many leading axes the moments tensor owes the head): the rectangular
+#: harmonic head keeps an ``m`` axis in front of the group axis, the flat
+#: Legendre head does not. The letters are the former inline specs, verbatim
+#: for the harmonic rows (bit-identical); ``f`` is the source group, ``g`` the
+#: sink group, ``c...`` the cells.
+_BLOCK_CONTRACTION: dict[tuple[int, bool], str] = {
+    (2, False): "mfc...,fg->mgc...",
+    (2, True): "mfc...,gf->mgc...",
+    (1, False): "fc...,fg->gc...",
+    (1, True): "fc...,gf->gc...",
+}
+
+
+def _block_contraction(head: "MomentHead", *, transposed: bool) -> str:
+    """The einsum spec for one degree block of a moments tensor with this head."""
+    rank = len(head.shape)
+    try:
+        return _BLOCK_CONTRACTION[(rank, transposed)]
+    except KeyError:
+        raise NotImplementedError(
+            f"moment verbs: an angular head of rank {rank} ({head.name!r}) "
+            f"has no block contraction; the shipped heads are rank 2 (the "
+            f"real harmonics) and rank 1 (the Legendre basis)."
+        ) from None
+
+
 @dataclass(frozen=True)
 class ScatteringMaterialField(MaterialField[ScatteringKernel]):
     r"""The scattering channel's field: Legendre transfer stacks over the layout.
@@ -242,33 +270,53 @@ class ScatteringMaterialField(MaterialField[ScatteringKernel]):
     # ── moment-carrier verbs (the frame-conjugated Λ) ─────────────────
 
     def _moment_blocks(
-        self, moments: np.ndarray, *, skip_l0: bool, spec: str,
+        self, moments: np.ndarray, *, skip_l0: bool, head: "MomentHead", spec: str,
     ) -> np.ndarray:
         r"""The per-ℓ block-diagonal group contraction shared by the two
         moment verbs (the former ``apply_legendre_scattering_moments``
-        loop, verbatim — trailing-contiguous indexing kept so numpy never
-        rearranges axes under the fancy index)."""
+        loop — trailing-contiguous indexing kept so numpy never
+        rearranges axes under the fancy index).
+
+        The moments tensor's leading axes are the angular HEAD's
+        (:class:`~orpheus.numerics.spaces.moment_head.MomentHead`): the
+        rectangular ``(L+1, 2L+1)`` of the real harmonics, or the flat
+        ``(L+1,)`` of the Legendre basis on a 1-D rule (#429, 2026-09-02).
+        The head says which index tuple is the degree-:math:`\ell` block
+        and how many axes precede the group axis; until 2026-09-02 this
+        loop spelled the harmonics' m-axis into its einsum and its
+        slicing, and a flat head would have contracted the GROUP axis as
+        if it were :math:`m` — silently.
+        """
         L = self.order
-        if moments.shape[0] != L + 1:
+        rank = len(head.shape)
+        ng = next(iter(self.per_material.values())).ng
+        if (
+            moments.ndim < rank + 1
+            or moments.shape[:rank] != tuple(head.shape)
+            or moments.shape[rank] != ng
+        ):
             raise ValueError(
                 f"ScatteringMaterialField moment verb: the moments tensor "
-                f"carries {moments.shape[0]} Legendre blocks but this "
-                f"field is truncated to order {L} ({L + 1} blocks); "
-                f"truncate the field to the operator's order"
+                f"{moments.shape} must lead with the angular head "
+                f"{tuple(head.shape)} of {head.name!r} followed by the "
+                f"{ng}-group axis (this field is truncated to order {L}); "
+                f"truncate the field to the operator's order and hand the "
+                f"operator's own head — a rectangular tensor offered with a "
+                f"flat head would otherwise read its m-axis as the groups."
             )
         out = np.zeros_like(moments)
         l_start = 1 if skip_l0 else 0
         for kernel, idx in self._laid_out():
-            cells = (slice(None), slice(None), *idx)
+            cells = (slice(None),) * rank + tuple(idx)
             for l in range(l_start, L + 1):
-                n_m = 2 * l + 1
-                moments_view = moments[l, :n_m][cells]
+                block = head.degree_block(l)
+                moments_view = moments[block][cells]
                 out_block = np.einsum(spec, moments_view, kernel.moments[l])
-                out[l, :n_m][cells] = out_block + out[l, :n_m][cells]
+                out[block][cells] = out_block + out[block][cells]
         return out
 
     def moment_source(
-        self, moments: np.ndarray, *, skip_l0: bool,
+        self, moments: np.ndarray, *, skip_l0: bool, head: "MomentHead",
     ) -> np.ndarray:
         r"""Apply the per-ℓ block-diagonal redistribution :math:`\Lambda`
         to a moment field (the former
@@ -276,18 +324,21 @@ class ScatteringMaterialField(MaterialField[ScatteringKernel]):
         :math:`(\Lambda\phi)_\ell^m|_g = \sum_{g'}
         \Sigma_{s,\ell}^{m(\vec r)}(g'\to g)\,\phi_\ell^m|_{g'}`.
         ``skip_l0=True`` leaves the :math:`\ell=0` block zero (the P0
-        fast path owns it)."""
+        fast path owns it). ``head`` is the operator's angular head (its
+        domain), which fixes the layout the contraction reads."""
         return self._moment_blocks(
-            moments, skip_l0=skip_l0, spec="mfc...,fg->mgc...",
+            moments, skip_l0=skip_l0, head=head,
+            spec=_block_contraction(head, transposed=False),
         )
 
     def moment_source_transpose(
-        self, moments: np.ndarray, *, skip_l0: bool,
+        self, moments: np.ndarray, *, skip_l0: bool, head: "MomentHead",
     ) -> np.ndarray:
         r"""Apply :math:`\Lambda^{T}` — the per-ℓ group-transpose twin of
         :meth:`moment_source` (sink-group contraction ``gf``)."""
         return self._moment_blocks(
-            moments, skip_l0=skip_l0, spec="mfc...,gf->mgc...",
+            moments, skip_l0=skip_l0, head=head,
+            spec=_block_contraction(head, transposed=True),
         )
 
 
@@ -338,7 +389,7 @@ class N2NMaterialField(MaterialField[N2NKernel]):
             spec=_TRANSPOSE, scale=float(N2NKernel.multiplicity),
         )
 
-    def moment_emission(self, moments: np.ndarray) -> np.ndarray:
+    def moment_emission(self, moments: np.ndarray, *, head: "MomentHead") -> np.ndarray:
         r"""Apply the :math:`\ell=0` moment operator
         :math:`\nu_{2n}\,\Sigma_{2n}` (the former ``apply_n2n_moments``
         arm): only the ``[0, 0]`` block is read and written; every
@@ -348,21 +399,34 @@ class N2NMaterialField(MaterialField[N2NKernel]):
         is a modelling choice, NOT a property of the reaction
         (``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-p0-truncation,
         issue #426)."""
-        return self._moment_l0(moments, spec="mfc...,fg->mgc...")
+        return self._moment_l0(
+            moments, head=head, spec=_block_contraction(head, transposed=False),
+        )
 
-    def moment_emission_transpose(self, moments: np.ndarray) -> np.ndarray:
+    def moment_emission_transpose(
+        self, moments: np.ndarray, *, head: "MomentHead",
+    ) -> np.ndarray:
         r"""Apply :math:`(\nu_{2n}\,\Sigma_{2n})^{T}` — the ℓ=0
         group-transpose twin of :meth:`moment_emission`."""
-        return self._moment_l0(moments, spec="mfc...,gf->mgc...")
+        return self._moment_l0(
+            moments, head=head, spec=_block_contraction(head, transposed=True),
+        )
 
-    def _moment_l0(self, moments: np.ndarray, *, spec: str) -> np.ndarray:
+    def _moment_l0(
+        self, moments: np.ndarray, *, head: "MomentHead", spec: str,
+    ) -> np.ndarray:
+        # Only the l = 0 block is read and written; its index tuple and the
+        # number of axes before the group axis are the HEAD's to say
+        # (rectangular harmonics or the flat Legendre head — #429).
         mult = float(N2NKernel.multiplicity)
+        rank = len(head.shape)
+        block = head.degree_block(0)
         out = np.zeros_like(moments)
         for kernel, idx in self._laid_out():
-            cells = (slice(None), slice(None), *idx)
-            mv = moments[0, :1][cells]  # (1, ng, *spatial) — the ℓ=0 moment
-            out[0, :1][cells] = (
-                mult * np.einsum(spec, mv, kernel.matrix) + out[0, :1][cells]
+            cells = (slice(None),) * rank + tuple(idx)
+            mv = moments[block][cells]  # the l = 0 moment over these cells
+            out[block][cells] = (
+                mult * np.einsum(spec, mv, kernel.matrix) + out[block][cells]
             )
         return out
 

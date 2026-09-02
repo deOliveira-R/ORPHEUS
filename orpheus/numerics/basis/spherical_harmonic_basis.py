@@ -102,7 +102,7 @@ from scipy.special import lpmv
 from orpheus.numerics.basis.base import Basis, GramStructure
 
 if TYPE_CHECKING:
-    from orpheus.numerics.manifold import Manifold
+    from orpheus.numerics.manifold import Manifold, Quotient
     from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.spaces.spherical_harmonic_space import (
         SphericalHarmonicSpace,
@@ -170,6 +170,20 @@ class SphericalHarmonicBasis(Basis):
         return 2.0 * np.arange(self.L + 1) + 1.0
 
     @cached_property
+    def live_slot_mask(self) -> NDArray:
+        r"""``(L+1, 2L+1)`` bool — ``True`` on the :math:`|m| \le \ell` slots, ``False`` on the padding.
+
+        The rectangular table's own layout, stated once: column ``l + m``
+        holds :math:`Y_\ell^m`, so row :math:`\ell` is live on columns
+        ``0 .. 2l`` and identically zero beyond. Consumers that restrict a
+        table or a mask to REAL slots (the descent's upstairs face, a
+        slot count) read this rather than re-deriving the rule.
+        """
+        cols = np.arange(2 * self.L + 1)
+        rows = np.arange(self.L + 1)
+        return cols[None, :] <= 2 * rows[:, None]
+
+    @cached_property
     def metric_per_ell(self) -> NDArray:
         r"""The Gram-matrix diagonal :math:`4\pi/(2\ell+1)` per :math:`\ell`, shape ``(L+1,)``.
 
@@ -205,6 +219,21 @@ class SphericalHarmonicBasis(Basis):
                 f"SphericalHarmonicBasis.evaluate expects directions of shape "
                 f"(N, 3); got {directions.shape}."
             )
+        if not self.domain.contains(directions):
+            # 0.6 (#429): a real spherical harmonic eats a POINT of S^2. The
+            # forged (mu, 0, 0) ordinates of a 1-D rule — ERR-080's
+            # construction — have |Omega| = |mu| < 1 off the poles and read a
+            # fabricated azimuth as a real one; they are refused here, in
+            # kind, rather than tabulated wrong.
+            off = int(np.sum(np.abs(np.linalg.norm(directions, axis=1) - 1.0) > 1e-12))
+            raise ValueError(
+                f"SphericalHarmonicBasis.evaluate: {off} of "
+                f"{directions.shape[0]} directions are not points of S^2 "
+                f"(|Omega| off 1 by more than 1e-12). A real spherical "
+                f"harmonic eats a unit direction; a 1-D rule's mu is a point "
+                f"of S^2/SO(2), whose basis is the Legendre basis "
+                f"(orpheus.numerics.basis.legendre_basis) — ERR-080."
+            )
         return _evaluate_real_sh(
             self.L, directions[:, 0], directions[:, 1], directions[:, 2],
         )
@@ -233,7 +262,7 @@ class SphericalHarmonicBasis(Basis):
         NDArray, shape ``(N, L+1, 2L+1)``
             Same layout as :meth:`evaluate`.
         """
-        return _evaluate_real_sh(self.L, mu_x, mu_y, mu_z)
+        return self.evaluate(np.column_stack([mu_x, mu_y, mu_z]))
 
     # ── Mass matrix ───────────────────────────────────────────────────
 
@@ -379,9 +408,9 @@ class SphericalHarmonicBasis(Basis):
         :math:`(\mu, 0, 0)`, which satisfy :math:`\lVert\Omega\rVert = 1`
         only at :math:`\mu = \pm 1` — so they are not points of this domain,
         and ``domain.contains(directions)`` says so
-        (:doc:`/theory/verification/error_catalog`).  Wiring that refusal into
-        :meth:`evaluate` is a separate, later step (the plan's G0); what lands
-        here is the operand it needs.
+        (:doc:`/theory/verification/error_catalog`).  Since 2026-09-02 that
+        refusal IS wired into :meth:`evaluate` (#429 tracker 0.6), and the
+        frame's G0 refuses the pairing one level up.
         """
         from orpheus.numerics.manifold import SPHERE
 
@@ -403,19 +432,6 @@ class SphericalHarmonicBasis(Basis):
         return SphericalHarmonicSpace.from_L(self.L)
 
 
-# Deterministic generic direction set for the parity derivation — no
-# component zero, no two directions related by a coordinate symmetry, so
-# a harmonic that is neither even nor odd under the probed mirror cannot
-# masquerade as either (and a broken evaluate cannot classify cleanly).
-_PARITY_PROBE_DIRECTIONS = np.array(
-    [
-        [0.3, 0.5, 0.81],
-        [-0.7, 0.2, 0.4],
-        [0.1, -0.9, 0.3],
-        [0.6, 0.4, -0.63],
-        [-0.2, -0.5, 0.83],
-    ]
-)
 
 
 @dataclass(frozen=True)
@@ -442,13 +458,19 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
     fixed-slot reads) flows through unchanged with the odd moments
     coming out as EXACT ``0.0``.
 
-    The per-slot parity is **DERIVED**, never hand-listed: the parent
-    basis is evaluated at generic directions and at their σ-images,
-    and each slot classifies as even (all equal) or odd (all negated).
-    The hand rule is chart-subtle — this basis measures its azimuth
-    FROM :math:`\mu_y`, so the σ_y-odd set mixes the cos and sin
-    branches ({cos, m odd} ∪ {sin, |m| even}) and any "mask the sin
-    branch" shortcut would zero the wrong functions (ERR-072's
+    The per-slot parity is **DERIVED**, never hand-listed — and since
+    2026-09-02 (#429 tracker 3.4, user-ruled) it is derived by the
+    ENTRY: :meth:`Quotient.descending_slots
+    <orpheus.numerics.manifold.Quotient.descending_slots>` asks which
+    slots of the parent are constant on the fibres of the fold's own
+    quotient map (σ-even = constant on the orbit :math:`\{\Omega,
+    \sigma\Omega\}`), the same probe :class:`~orpheus.numerics.basis.descent.Descent`
+    reads for every entry; the private five-direction probe this class
+    carried is retired (`[M]` the mask is bit-identical through the entry,
+    15 of 15 (axis, L) rows). The hand rule is chart-subtle — this basis
+    measures its azimuth FROM :math:`\mu_y`, so the σ_y-odd set mixes the
+    cos and sin branches ({cos, m odd} ∪ {sin, |m| even}) and any "mask the
+    sin branch" shortcut would zero the wrong functions (ERR-072's
     declared-not-computed family).
 
     Parameters
@@ -471,7 +493,7 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
             )
 
     @property
-    def domain(self) -> "Manifold":
+    def domain(self) -> "Quotient":
         r""":math:`S^2/\sigma_a` — the QUOTIENT, not the sphere.
 
         This is the whole content of the class stated as a type.  The parent's
@@ -498,34 +520,16 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
     def even_slot_mask(self) -> NDArray:
         r"""``(L+1, 2L+1)`` float mask — 1.0 on σ-even slots, 0.0 on σ-odd.
 
-        Padding slots (:math:`|m| > \ell`, identically zero) classify
-        as even; a slot that is neither even nor odd under the mirror
-        raises (impossible for a coordinate mirror on real SH — such a
-        result certifies a broken evaluate, not a legal basis).
+        READ off the fold's catalogue entry — the slots of the parent
+        harmonics that DESCEND to :math:`S^2/\sigma_a` (constant on the
+        fibres of its quotient map; :meth:`Quotient.descending_slots
+        <orpheus.numerics.manifold.Quotient.descending_slots>`). Padding
+        slots (:math:`|m| > \ell`, identically zero) descend vacuously and
+        stay unmasked — inert, the parent already zeroes them.
         """
-        probe = _PARITY_PROBE_DIRECTIONS
-        mirrored = probe.copy()
-        mirrored[:, self.mirror_axis] *= -1.0
-        Y = _evaluate_real_sh(
-            self.L, probe[:, 0], probe[:, 1], probe[:, 2]
-        )
-        Y_m = _evaluate_real_sh(
-            self.L, mirrored[:, 0], mirrored[:, 1], mirrored[:, 2]
-        )
-        even = np.all(np.isclose(Y, Y_m, rtol=0.0, atol=1e-12), axis=0)
-        odd = np.all(np.isclose(Y, -Y_m, rtol=0.0, atol=1e-12), axis=0)
-        unclassified = ~(even | odd)
-        if np.any(unclassified):
-            raise RuntimeError(
-                f"MirrorEvenSphericalHarmonicBasis: slots "
-                f"{np.argwhere(unclassified).tolist()} are neither even "
-                f"nor odd under the axis-{self.mirror_axis} mirror — the "
-                f"parent evaluate is broken (a real SH is always one or "
-                f"the other under a coordinate reflection)."
-            )
-        # Padding (zero both ways) satisfies BOTH; keeping it unmasked is
-        # inert — the parent already zeroes it.
-        return even.astype(float)
+        return self.domain.descending_slots(
+            SphericalHarmonicBasis(L=self.L)
+        ).astype(float)
 
     def evaluate(self, directions: NDArray) -> NDArray:
         table = super().evaluate(directions)

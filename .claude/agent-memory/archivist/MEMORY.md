@@ -39,6 +39,23 @@ stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
+- **THE FIX: a 1-D rule's frame binds the basis its ORBIT SPACE admits — ERR-080 CLOSED** —
+  2026-09-02, same branch, #429's fused commit (0.1b + 0.6 + 2.2 + 3.4 + 3.4b). Docs
+  **UNCOMMITTED** (mine): 12 hand-edited pages +1756/−240 — `manifolds.rst` (new `=` chapter
+  *What descends*: the isotypic probe, the `Descent`, G0; 4 Key Facts bullets re-tensed, status
+  YAML, seams row, changelog), `error_catalog.rst` (ERR-080 **FIXED** banner + before/after
+  table + every "still OPEN" clause retensed), `frame.rst` (new `frame-g0-descent-arrow` §,
+  7-row admit/refuse table, MomentHead; the flagship DENSE witness retracted), `spaces.rst`
+  (`spaces-moment-head` §; the frame-square 3-way table re-measured), `spherical_harmonics.rst`
+  (new `=` chapter *the 1-D family*), `angular_quadrature.rst`, + `adjoint`/`operator_algebra`/
+  `acceleration`/`indexing_and_layout`/`slab_multigroup`/`cartesian_multid`, and regenerated
+  `matrix.rst` (sentinels 579 → **582** = my three new `documented` eq-labels). `-E -W` **0 → 0**,
+  EXIT=0; patched-xref `DEAD TARGETS: 0` (positive control read 2); nexus `dead_references`
+  0/52. ⚠ **REPORTED, code-only** (4 items, headed by a docstring number off ~60× because it
+  names the TABLE's observable while the sentence is about the FLUX). ⚠ Two brief numbers
+  refuted, one corpus-wide shape contract found stale at 9 sites, 8 self-inflicted
+  nested-markup leaks caught and fixed. → [[lessons-L85]]
+
 - **The angular moment space is READ off the frame, never minted from `L`** — 2026-09-02,
   same branch, tracker **2.5** (`TruncatedBasis` Protocol; both `HarmonicFrame` doors; seven
   re-mint sites; `truncated` on the head). Docs **UNCOMMITTED** (mine): `frame.rst` +427 (a new

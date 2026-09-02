@@ -76,6 +76,7 @@ from orpheus.numerics.manifold import (
     Quotient,
     RealSpace,
     Sphere,
+    quotient_onto,
 )
 from orpheus.numerics.symmetry import SubgroupOfO3
 
@@ -1208,3 +1209,346 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
             f"during package initialisation and re-opens the manifold -> "
             f"generating_measure -> measure import cycle"
         )
+
+
+# ══════════════════════════════════════════════════════════════════════
+# The ENTRY's isotypic probe — which functions on my base descend to me
+# (#429 tracker 3.4; the probe both ``Descent`` and the σ-even harmonic
+#  sub-basis read, so the predicate is spelled ONCE)
+# ══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.verifies("manifold-fibre-constancy")
+class TestDescendingSlots:
+    r"""``Quotient.descending_slots`` — the theorem about :math:`\pi`, gated.
+
+    ⭐ Carries ``verifies("manifold-fibre-constancy")``: the probe IS
+    :math:`f(g\,x) = f(x)` transcribed, evaluated at generic base points and
+    their images under the group's generic elements. ``[M]`` 2026-09-02 that
+    label was listed as an ORPHAN equation in the generated V&V matrix (zero
+    tests carrying its marker), and it is not a ``documented``-sentineled one
+    — so this is a real coverage edge, not a topic tag.
+
+    A function on the base descends to :math:`M/H` **iff** it is constant on
+    the fibres of the entry's own quotient map. The probe asks exactly that:
+    it tabulates a basis at generic base points and at their images under the
+    group's generic elements, and keeps the slots that agree.
+
+    Claim layer: **structural (L0)**, closed form — for :math:`SO(2)_x` and
+    the real harmonics the answer is a THEOREM (Schur: the trivial isotypic
+    component is one-dimensional in every degree, spanned by
+    :math:`Y_\ell^0`), so the positive leg is checkable against
+    :math:`\{(\ell, \ell)\}` written independently of the probe.
+    """
+
+    def test_about_x_exactly_the_m_zero_slots_descend(self) -> None:
+        r"""B5 — the descending real slots about :math:`x` are exactly :math:`\{(\ell, 0)\}`.
+
+        ``[M]`` 2026-09-02 at :math:`L = 4`: **25 of 45** table slots test as
+        invariant, of which **20 are** :math:`|m| > \ell` **padding** — so the
+        honest count is **5 real of 25**, one per degree, and they sit on the
+        rectangular layout's diagonal (column :math:`\ell + m` with
+        :math:`m = 0`).
+
+        The expected set is written from the representation theory, not read
+        off the probe, so this row is a check and not a restatement.
+        """
+        from orpheus.numerics.basis.spherical_harmonic_basis import (
+            SphericalHarmonicBasis,
+        )
+
+        for L in (1, 2, 3, 4, 5):
+            basis = SphericalHarmonicBasis(L=L)
+            mask = SPHERE.quotient(SubgroupOfO3.SO2("x")).descending_slots(basis)
+            real = mask & basis.live_slot_mask
+
+            expected = np.zeros_like(real)
+            for ell in range(L + 1):
+                expected[ell, ell] = True  # column l + m at m = 0
+            assert np.array_equal(real, expected), (
+                f"L={L}: descending real slots {np.argwhere(real).tolist()}"
+            )
+            assert int(real.sum()) == L + 1
+
+    def test_padding_slots_are_not_counted_as_descending(self) -> None:
+        r"""B5b — the DENOMINATOR: a padded layout's :math:`|m| > \ell` slots descend vacuously.
+
+        They are identically zero, so they are constant on every fibre of
+        every group — counting them makes the mask read as "all of them" and
+        hides the actual selection. ``[M]`` at :math:`L = 4`: 45 table slots,
+        25 live, 25 pass the probe, **5** of those are live.
+        """
+        from orpheus.numerics.basis.spherical_harmonic_basis import (
+            SphericalHarmonicBasis,
+        )
+
+        L = 4
+        basis = SphericalHarmonicBasis(L=L)
+        mask = SPHERE.quotient(SubgroupOfO3.SO2("x")).descending_slots(basis)
+
+        assert mask.shape == (L + 1, 2 * L + 1)
+        assert mask.size == 45
+        assert int(basis.live_slot_mask.sum()) == 25
+        assert int(mask.sum()) == 25
+        assert int((mask & basis.live_slot_mask).sum()) == 5
+
+        # the padding is what inflates the raw count — and it is inert,
+        # because the parent already tabulates it as exactly zero.
+        padding = mask & ~basis.live_slot_mask
+        assert int(padding.sum()) == 20
+        probe_table = basis.evaluate(_generic_unit_directions())
+        assert np.array_equal(
+            probe_table[:, padding], np.zeros((probe_table.shape[0], 20))
+        )
+
+    def test_a_right_angle_sample_falsely_admits_slots_from_L_four(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        r"""⛔ The vv-#13 NEGATIVE control — and it is BLIND below :math:`L = 4`.
+
+        A finite sample of a continuous group generates a finite SUBgroup:
+        four right angles generate :math:`C_4`, not :math:`SO(2)`, so every
+        :math:`m \equiv 0 \pmod 4` harmonic is falsely certified invariant.
+
+        ``[M]`` 2026-09-02, live descending slots about x under a right-angle
+        sample: :math:`L = 1,2,3` are **unchanged** (2, 3, 4 — identical to
+        the honest answer); :math:`L = 4` reads **7** (the true 5 plus
+        :math:`(4,\pm4)`); :math:`L = 5` reads **10** (plus :math:`(5,\pm4)`).
+
+        ⟹ **a probe gate without an** :math:`L \ge 4` **row has an
+        unfalsifiable control** — which is the whole reason this row exists
+        and why it asserts the blindness at low :math:`L` explicitly rather
+        than only the catch at high :math:`L`.
+        """
+        import orpheus.numerics.symmetry as symmetry
+        from orpheus.numerics.basis.spherical_harmonic_basis import (
+            SphericalHarmonicBasis,
+        )
+
+        entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+
+        def live_count(L: int) -> int:
+            basis = SphericalHarmonicBasis(L=L)
+            return int((entry.descending_slots(basis) & basis.live_slot_mask).sum())
+
+        honest = {L: live_count(L) for L in (1, 2, 3, 4, 5)}
+        assert honest == {1: 2, 2: 3, 3: 4, 4: 5, 5: 6}
+
+        monkeypatch.setattr(
+            symmetry,
+            "_INCOMMENSURATE_ANGLES",
+            (np.pi / 2.0, np.pi, 3.0 * np.pi / 2.0, 2.0 * np.pi),
+        )
+        degenerate = {L: live_count(L) for L in (1, 2, 3, 4, 5)}
+
+        assert degenerate[4] == 7 and degenerate[5] == 10, (
+            f"the right-angle sample must falsely admit the m = ±4 slots; "
+            f"read {degenerate}"
+        )
+        assert {L: degenerate[L] for L in (1, 2, 3)} == {1: 2, 2: 3, 3: 4}, (
+            f"the control is BLIND below L = 4 — that is the finding, not a "
+            f"defect in this row; read {degenerate}"
+        )
+
+    def test_the_mirror_leg_reproduces_the_sigma_even_mask_bit_for_bit(self) -> None:
+        r"""The FINITE-group leg: for :math:`\sigma_a` the probe IS ``even_slot_mask``.
+
+        ``[M]`` 2026-09-02 ``array_equal`` on **15 of 15** (3 axes ×
+        :math:`L \in \{1..5\}`) rows, against a σ-parity classification
+        written here from the definition (evaluate at generic directions and
+        at their σ-images; even ⟺ equal). That reference shares no code with
+        the probe, so this is a check of the probe, not of its spelling.
+
+        NEGATIVE leg: the mask MOVES when the mirror axis moves — otherwise
+        "the probe reproduces the mask" would be compatible with a mask that
+        does not depend on the group at all.
+        """
+        from orpheus.numerics.basis.spherical_harmonic_basis import (
+            MirrorEvenSphericalHarmonicBasis,
+            SphericalHarmonicBasis,
+        )
+
+        probe = _generic_unit_directions()
+        for axis_index, axis_name in enumerate("xyz"):
+            for L in (1, 2, 3, 4, 5):
+                mask = MirrorEvenSphericalHarmonicBasis(
+                    L=L, mirror_axis=axis_index
+                ).even_slot_mask
+
+                mirrored = probe.copy()
+                mirrored[:, axis_index] *= -1.0
+                table = SphericalHarmonicBasis(L=L).evaluate(probe)
+                reflected = SphericalHarmonicBasis(L=L).evaluate(mirrored)
+                parity_even = np.all(
+                    np.isclose(table, reflected, rtol=0.0, atol=1e-12), axis=0
+                ).astype(float)
+
+                assert np.array_equal(mask, parity_even), (
+                    f"axis {axis_name}, L={L}: the entry's probe and a direct "
+                    f"parity classification disagree"
+                )
+                assert int(mask.sum()) == {1: 5, 2: 12, 3: 22, 4: 35, 5: 51}[L]
+
+                other = MirrorEvenSphericalHarmonicBasis(
+                    L=L, mirror_axis=(axis_index + 1) % 3
+                ).even_slot_mask
+                assert not np.array_equal(mask, other), (
+                    f"the mask must depend on the mirror AXIS (L={L})"
+                )
+
+    def test_the_probe_refuses_points_off_the_base_and_an_unsupported_base(self) -> None:
+        r"""Two refusals: a probe off the base, and a base with no default probe set."""
+        from orpheus.numerics.basis.spherical_harmonic_basis import (
+            SphericalHarmonicBasis,
+        )
+
+        entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        with pytest.raises(ValueError, match="not on the\n?\\s*base|not on the base"):
+            entry.descending_slots(
+                SphericalHarmonicBasis(L=1), probe=np.array([[0.3, 0.4, 0.5]])
+            )
+
+        # positive leg: a hand-supplied probe ON the base is accepted, and it
+        # gives the SAME answer as the default one (the mask is a property of
+        # the group, not of the nine directions the module happens to seed).
+        alternate = _generic_unit_directions(seed=31337)
+        assert np.array_equal(
+            entry.descending_slots(SphericalHarmonicBasis(L=4), probe=alternate),
+            entry.descending_slots(SphericalHarmonicBasis(L=4)),
+        )
+
+        with pytest.raises(NotImplementedError, match="no default probe"):
+            ENERGY.quotient(SubgroupOfO3.Trivial).descending_slots(
+                SphericalHarmonicBasis(L=1)
+            )
+
+    def test_a_continuous_group_with_no_rotation_axis_refuses_generic_images(self) -> None:
+        r"""The probe's group surface refuses what it cannot sample honestly, rather than sampling badly."""
+        points = _generic_unit_directions()
+        for group in (SubgroupOfO3.SO3, SubgroupOfO3.O3, SubgroupOfO3.Dinfh):
+            with pytest.raises(NotImplementedError, match="no rotation axis"):
+                group.generic_images(points)
+
+        # positive legs, one per branch: a finite group yields every element,
+        # an SO(2) yields the incommensurate rotations.
+        finite = SubgroupOfO3.Mirror("y").generic_images(points)
+        assert len(finite) >= 2 and all(im.shape == points.shape for im in finite)
+        rotations = SubgroupOfO3.SO2("x").generic_images(points)
+        assert len(rotations) == 6
+        for image in rotations:
+            np.testing.assert_allclose(
+                np.linalg.norm(image, axis=1), 1.0, atol=1e-14
+            )
+            # a rotation about x fixes the x-component — the property the
+            # whole descent rests on.
+            np.testing.assert_allclose(image[:, 0], points[:, 0], atol=1e-14)
+
+
+def _generic_unit_directions(seed: int = 20260902, n: int = 9) -> np.ndarray:
+    """Deterministic generic unit directions — no component zero, none related by a coordinate symmetry."""
+    raw = np.random.default_rng(seed).normal(size=(n, 3))
+    return raw / np.linalg.norm(raw, axis=1)[:, None]
+
+
+# ══════════════════════════════════════════════════════════════════════
+# ``quotient_onto`` — the arrow a FRAME tabulates its basis through (G0)
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestQuotientOnto:
+    r"""The G0 arrow: three admit cases and the refusal, as a function of the two manifolds alone.
+
+    A frame binding functions on ``target`` to a rule on ``source`` is
+    well-posed iff the functions can be evaluated at the rule's nodes, i.e.
+    iff a quotient map ``source -> target`` exists. ``None`` is the refusal
+    and it is the whole content of ERR-080's frame-level repair.
+    """
+
+    def test_equality_is_the_identity_arrow(self) -> None:
+        r"""``source == target`` — the special case :math:`K = H` (the slab rule with the Legendre basis)."""
+        entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        arrow = quotient_onto(entry, entry)
+        assert arrow is not None
+        assert arrow.domain == entry and arrow.codomain == entry
+
+        cosines = np.linspace(-0.9, 0.9, 5)
+        assert np.array_equal(arrow(cosines.reshape(-1, 1)), cosines.reshape(-1, 1))
+
+        assert quotient_onto(SPHERE, SPHERE) is not None
+
+    def test_a_quotient_of_the_source_is_reached_by_the_entrys_own_map(self) -> None:
+        r"""``target`` is a quotient of ``source`` — the Legendre basis on a FULL-SPHERE rule.
+
+        ⭐ This is the pairing the user asked to be buildable:
+        :math:`P_\ell(\Omega\cdot\hat e_a)` is a legitimate basis on a
+        Lebedev or level-symmetric rule, and the arrow that makes it
+        well-posed is the entry's own quotient map.
+        """
+        entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        arrow = quotient_onto(SPHERE, entry)
+        assert arrow is not None
+        assert arrow.domain == SPHERE and arrow.codomain == entry
+
+        directions = _generic_unit_directions()
+        assert np.array_equal(arrow(directions), entry.quotient_map(directions))
+        assert np.array_equal(arrow(directions), directions[:, 0])
+
+    def test_a_finer_orbit_space_maps_onto_a_coarser_one(self) -> None:
+        r"""Both sides quotients of one base with :math:`K \subseteq H` — the induced :math:`M/K \to M/H`."""
+        fine = SPHERE.quotient(SubgroupOfO3.Trivial)
+        coarse = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        assert SubgroupOfO3.SO2("x").contains(SubgroupOfO3.Trivial)
+
+        arrow = quotient_onto(fine, coarse)
+        assert arrow is not None
+        directions = _generic_unit_directions()
+        assert np.array_equal(arrow(directions), coarse.orbit_coordinates(directions))
+
+    def test_the_refusal_is_the_part_one_bug_and_the_lattice_says_why(self) -> None:
+        r"""``None`` — the full harmonics on the slab's orbit space (ERR-080's own pairing).
+
+        :math:`\mathrm{Trivial} \not\supseteq SO(2)_x`, so no arrow
+        :math:`S^2/SO(2)_x \to S^2` exists — a coarser space cannot map onto
+        a finer one, which is exactly the direction ERR-080's forged nodes
+        pretended to travel.
+        """
+        slab_entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        fold_entry = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+
+        assert quotient_onto(slab_entry, SPHERE) is None
+        assert quotient_onto(fold_entry, SPHERE) is None
+        assert quotient_onto(slab_entry, fold_entry) is None
+        assert quotient_onto(SPHERE, ENERGY) is None
+
+        # the lattice fact the refusal reads
+        assert not SubgroupOfO3.Trivial.contains(SubgroupOfO3.SO2("x"))
+        assert not SubgroupOfO3.SO2("x").contains(SubgroupOfO3.Mirror("y"))
+
+    def test_the_arrow_respects_the_subgroup_ORDER_relation(self) -> None:
+        r"""``vv-principles`` #15 — a predicate that must respect an order relation gets the compatibility law.
+
+        :math:`K \subseteq H` and an arrow onto :math:`M/H` implies an arrow
+        onto :math:`M/K`'s coarsening: over every lattice edge among the
+        shipped angular groups, ``quotient_onto`` and ``SubgroupOfO3.contains``
+        agree — neither half can be wrong alone without this reddening.
+        """
+        groups = (
+            SubgroupOfO3.Trivial,
+            SubgroupOfO3.SO2("x"),
+            SubgroupOfO3.SO2("y"),
+            SubgroupOfO3.Mirror("x"),
+            SubgroupOfO3.Mirror("y"),
+        )
+        checked = 0
+        for spent in groups:
+            for has in groups:
+                source = SPHERE.quotient(spent)
+                target = SPHERE.quotient(has)
+                admitted = quotient_onto(source, target) is not None
+                assert admitted == has.contains(spent), (
+                    f"quotient_onto({source.name} -> {target.name}) = "
+                    f"{admitted} but {has.name}.contains({spent.name}) = "
+                    f"{has.contains(spent)}"
+                )
+                checked += 1
+        assert checked == 25

@@ -334,11 +334,19 @@ class TestG3ScatteringTwoAxisCollapse:
         # ASCENDING coarse edges in fine-index space (orientation-correct
         # membership: nodes 0,1 → cell 0; nodes 2,3 → cell 1).
         edges = np.array([-0.5, 1.5, 3.5])
-        trial = IndicatorBasis(
-            edges_per_axis=(edges,), partition_of=EnergyGroups(_NG_FINE),
-        )
+        # ⛔ RE-KEYED 2026-09-02 (#429 tracker 2.2). This fixture named a
+        # SIZED ``EnergyGroups(_NG_FINE)`` on the basis and an UNSIZED
+        # ``EnergyGroups()`` on the measure. Both render as ``energy``, so the
+        # drift was invisible in every message — and ``==`` separates them, so
+        # the frame's new G0 arrow refuses the pairing. Production names ONE
+        # sized object on both halves (``EnergyGrid.as_measure`` /
+        # ``as_basis``, ``energy_grid.py:219/235``); G0 compares manifolds by
+        # EQUALITY, so the literal must do the same to be production's
+        # spelling-independent twin rather than a differently-broken one.
+        groups = EnergyGroups(_NG_FINE)
+        trial = IndicatorBasis(edges_per_axis=(edges,), partition_of=groups)
         measure = DiscreteMeasure(
-            nodes=nodes, weights=np.ones(_NG_FINE), support=EnergyGroups()
+            nodes=nodes, weights=np.ones(_NG_FINE), support=groups
         )  # COUNTING measure (w=1) + flux test-weight
         return PetrovGalerkinFrame(trial, measure, WeightedIndicatorBasis(trial, _PHI))
 

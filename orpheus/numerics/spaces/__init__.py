@@ -54,6 +54,8 @@ References
 from __future__ import annotations
 
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.spaces.legendre_space import LegendreSpace
+from orpheus.numerics.spaces.moment_head import MomentHead
 from orpheus.numerics.spaces.spatial_moment_space import (
     SpatialMomentSpace,
     spatial_moment_tail,
@@ -72,6 +74,8 @@ __all__ = [
     "AngularFaceTraceSpace",
     "AngularTraceSpace",
     "FullFieldSpace",
+    "LegendreSpace",
+    "MomentHead",
     "ScalarTraceSpace",
     "SpatialMomentSpace",
     "SphericalHarmonicSpace",

@@ -82,9 +82,19 @@ class TestLiftIsTheConjugation:
         got = n2n.apply(psi).values
 
         S = solver.scattering_op
+        # ⛔ RE-KEYED 2026-09-02 (#429). The moment operator was minted from a
+        # hand-named ``SphericalHarmonicBasis``; on this 1-D fixture the
+        # frame now binds the FLAT Legendre basis, so the conjugation's ends
+        # no longer composed (`[M]` ``A.domain=SphericalHarmonicSpace(1,1)``
+        # vs ``B.codomain=LegendreSpace(1,)``). ⭐ Reading the basis OFF THE
+        # FRAME is not merely the repair — it is the property this gate is
+        # about: the conjugation ``R ∘ X ∘ M`` is well-posed exactly when
+        # ``X``'s ends are the frame's own coefficient space, and the
+        # composition guard says so.
         moment = N2NMomentOperator.from_material_xs(
-            mat_xs=solver.mat_xs, basis=SphericalHarmonicBasis(L=S.scattering_order),
+            mat_xs=solver.mat_xs, basis=S.frame.basis,
         )
+        assert S.frame.basis.L == S.scattering_order
         conjugated = S.frame.conjugate(moment).apply(psi.values)
         np.testing.assert_allclose(
             got, np.asarray(conjugated) / n2n.total_weight,

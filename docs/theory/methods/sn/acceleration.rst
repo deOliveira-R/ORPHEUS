@@ -638,14 +638,32 @@ In production, :math:`R` is
 :meth:`~orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular`
 (pinned 0-ULP: a separate einsum would differ at ULP from the frame's
 fused reduction because floating-point addition is not associative).
-The P1 arm's :math:`\ell = 1` analysis row is
-``angular_frame(1).table[:, 1, 1]`` — the spherical-harmonic table's
-slab component, which **is** :math:`\mu` bit-exactly, a *called* single
-source rather than a re-derived :math:`w\mu` twin.  A hand-rolled
-:math:`R = \sum_n w_n r_n` would be a fourth spelling of a projector
-that already has three (the frame face, the in-sweep moment
+The P1 arm's :math:`\ell = 1` analysis coefficient is
+:meth:`quadrature.axis_cosines(0)
+<orpheus.numerics.quadrature.Quadrature.axis_cosines>` — the polar
+cosine :math:`\mu` per ordinate, read from the **coordinate** accessor.
+A hand-rolled :math:`R = \sum_n w_n r_n` would be a fourth spelling of a
+projector that already has three (the frame face, the in-sweep moment
 accumulation, and the scattering :math:`\ell = 0` in-scatter) — the
 Smell-16 twin path the frame exists to prevent.
+
+.. note::
+
+   ⛔ **This read used to be** ``angular_frame(1).table[:, 1, 1]``\ **,
+   and #429's fused commit had to move it** (2026-09-02). That slot is
+   the rectangular spherical-harmonic layout's :math:`(\ell, m) = (1,0)`
+   Cartesian component — and a 1-D rule no longer binds that basis, so
+   the index would be reading the FLAT Legendre table's :math:`\ell = 1`
+   column *by accident of shape* rather than by contract
+   (:ref:`sh-legendre-is-the-1d-family`). ⭐ The replacement is not a
+   weaker source, it is the **right** one: "the :math:`\ell = 1`
+   coefficient" is a COORDINATE question, and
+   :meth:`~orpheus.numerics.quadrature.Quadrature.axis_cosines`
+   is the coordinate accessor — which since 2026-09-01 *refuses* a
+   suppressed axis, so a rule with no :math:`x` cosine fails loudly here
+   instead of silently taking a zero. `[M]` bit-identical to the old
+   slot on **5 of 5** Gauss–Legendre rules, which is what makes it a
+   re-pointing rather than a change of value.
 
 The consistency derivation (:ref:`sn-dsa-consistency-is-derived`) reads
 cleanly in this language: the low-order operator is the Schur

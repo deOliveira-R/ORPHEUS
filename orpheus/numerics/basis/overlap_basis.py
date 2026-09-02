@@ -28,7 +28,7 @@ table gives ``reconstruction(ones) = 1`` → the diagonal Gram :math:`\Phi_G =
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 
 import numpy as np
@@ -36,6 +36,7 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.basis.base import GramStructure
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
+from orpheus.numerics.manifold import Manifold
 
 __all__ = ["OverlapBasis"]
 
@@ -72,10 +73,29 @@ class OverlapBasis(IndicatorBasis):
     """
 
     overlap_table: NDArray
+    #: The manifold the fine ROWS of :attr:`overlap_table` index — what these
+    #: functions EAT (the fine partition a condensation projects FROM), as
+    #: opposed to :attr:`partition_of`, the coarse partition they SPAN. ⭐
+    #: Until 2026-09-02 (#429, the frame's G0) this class inherited
+    #: ``domain = partition_of`` and so declared that it ate the COARSE
+    #: nodes while :meth:`evaluate` validates the FINE row count — a basis
+    #: whose domain named the wrong end of its own map. Nothing compared the
+    #: two until G0 did: `[M]` every non-degenerate ``Mixture.condense``
+    #: raised on the first G0 (45 tests in 3 files), the day a frame checked
+    #: that its two halves name one point set. ``kw_only`` because
+    #: :class:`IndicatorBasis`'s positional fields precede it.
+    fine: Manifold = field(kw_only=True)
+
+    @property
+    def domain(self) -> Manifold:
+        r"""The FINE partition — a fractional-overlap function eats a fine-group node
+        (its table's rows) and spans the coarse groups (:attr:`partition_of`, its
+        columns). The two ends of the map are two manifolds, and this is the source."""
+        return self.fine
 
     @classmethod
     def from_indicator(
-        cls, indicator: IndicatorBasis, overlap_table: NDArray, /,
+        cls, indicator: IndicatorBasis, overlap_table: NDArray, /, *, fine: Manifold,
     ) -> "OverlapBasis":
         r"""Decorate a (nested) :class:`IndicatorBasis` with a fractional membership table.
 
@@ -90,12 +110,15 @@ class OverlapBasis(IndicatorBasis):
         ``indicator`` (the nested degenerate). This is the canonical constructor — the
         binary :meth:`~orpheus.data.energy_grid.EnergyGrid.overlap_to` calls it — so a call
         site reads "the trial is the target basis-view, mismatch-corrected" rather than
-        reaching into the indicator's ``edges_per_axis``.
+        reaching into the indicator's ``edges_per_axis``. ``fine`` is the
+        manifold the table's ROWS index — the partition the functions EAT —
+        which is not the indicator's (that is the coarse one they span).
         """
         return cls(
             edges_per_axis=indicator.edges_per_axis,
             partition_of=indicator.partition_of,
             overlap_table=overlap_table,
+            fine=fine,
         )
 
     # ── Gram structure: a straddling row shares ≥2 columns ⟹ NOT diagonal ──

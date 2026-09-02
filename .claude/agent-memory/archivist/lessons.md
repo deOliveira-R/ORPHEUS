@@ -637,6 +637,32 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   mint, and the page's own table listed 8; *"30 test functions, 40 collected rows"* — `[M]` 32 /
   44). Prefer a second instrument: the generated `matrix.rst` row confirmed the test count
   independently. → L-080
+- **⭐⭐ A corpus-wide SHAPE CONTRACT can be one family's layout wearing a universal — grep
+  the SHAPE, not the symbol.** `[M]` `(L+1, 2L+1, ng, *spatial)` is asserted as THE moment
+  layout at 9 sites / 7 pages, including the CONVENTION page and the SLAB page, where a 1-D
+  rule now gives `(L+1, ng, nx)`. The carrier class never changed, so every xref resolves.
+  Same pass: the neighbouring page's **flagship dense WITNESS was the defect, tabulated**
+  (the two `0.8`s in `frame.rst`'s slab Gram ARE the fabricated columns) — preserve the
+  numbers, tombstone the interpretation, re-measure the replacement (mine found a
+  strictly-stronger one with a closed-form cause). → L-085
+- **⭐⭐ A float-agreement figure needs its OBSERVABLE, not just its fixture.** A docstring's
+  *"with pure `lpmv` the flux moves by 4e-16"* is the memo's **table**-level number; `[M]` the
+  FLUX moves **2.753e-14** (Krylov amplifies a 1e-16 table perturbation). ⟹ two brief numbers
+  refuted, both by naming which quantity was measured. → L-085
+- **⛔ Tombstone a quoted claim with plain quotes + `, verbatim,` — NEVER an outer `*…*`.**
+  Bold/literal nested inside an italic quotation is the natural §3 spelling and it LEAKS
+  (`-W` silent). The gate is the rendered HTML with `<pre>`/`<code>` stripped, sliced BETWEEN
+  consecutive section `id=`s; a source regex over the diff is ~90 % false-positive. `[M]` 8
+  self-inflicted, all fixed; 0 of 176 remaining leaks trace to a line I added. → L-085
+- **⭐ A "still OPEN" clause can be repealed while its NEIGHBOUR stays exactly true.** `[M]`
+  ERR-080's bullet: the membership predicate is STILL unenforced (a forged measure still
+  constructs) and the defect is STILL closed — the refusal moved to the basis and the frame.
+  Split in place; past-tensing the bullet would have deleted a live seam. → L-085
+- **⭐ The test tree can move UNDER you mid-session, and the mover is the evidence you were
+  about to cite.** `[M]` two test modules the gate's docstring named in the present tense did
+  not exist at my first census and shipped by my final build; `test_manifold` went 70 → 108
+  rows. Re-run every count after the last build, with `matrix.rst` as the second instrument.
+  → L-085
 
 ## 2. The build is BLIND to most doc-correctness defects — grep is the gate
 

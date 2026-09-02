@@ -181,7 +181,7 @@ class TestFoldedHarmonics:
         """Σ w Y ψ_flat = [4π at (0,0), EXACT 0.0 elsewhere] — the +6.49
         garbage channel is structurally closed."""
         fold = Quadrature.folded_product(4, 8)
-        Y = fold.spherical_harmonics(2)
+        Y = fold.angular_frame(2).table
         M = np.einsum("n,nlm->lm", fold.weights, np.ones(fold.N)[:, None, None] * Y)
         np.testing.assert_allclose(M[0, 0], 4.0 * np.pi, rtol=1e-14)
         M_rest = M.copy()

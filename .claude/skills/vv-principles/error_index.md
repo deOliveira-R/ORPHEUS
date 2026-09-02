@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**80 entries · 265 catching tests · 0 uncaught.**
+**80 entries · 278 catching tests · 0 uncaught.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -112,4 +112,4 @@ None — every catalogued defect has at least one catching test.
 | ERR-077 | 1 | relocating to_local from the restriction operator to the half-trace space (G6.5) turned an impl… |
 | ERR-078 | 3 | RadialCharacteristicOperator.solve set the outflow corner to the marched value and never read t… |
 | ERR-079 | 10 | IterationRecord.exhausted_budget compared a scipy GMRES restart-cycle budget against an Arnoldi… |
-| ERR-080 | 3 | A 1-D quadrature supplies mu_y = mu_z = 0 meaning "there is no azimuthal information" and the r… |
+| ERR-080 | 16 | A 1-D quadrature supplies mu_y = mu_z = 0 meaning "there is no azimuthal information" and the r… |

@@ -251,6 +251,22 @@ class SphericalHarmonicSpace(FunctionSpace):
             )
         return replace(type(self).from_L(L_new), name=self.name)
 
+    # ── the MomentHead surface (orpheus.numerics.spaces.moment_head) ──
+
+    @property
+    def isotropic_slot(self) -> tuple[int, ...]:
+        r"""``(0, 0)`` — the :math:`(\ell, m) = (0, 0)` slot of the rectangular head."""
+        return (0, 0)
+
+    def degree_block(self, l: int, /) -> tuple[int | slice, ...]:
+        r"""``(l, 0:2l+1)`` — the degree-:math:`\ell` block: row :math:`\ell`, its :math:`2\ell+1` live columns."""
+        if not 0 <= l <= self.L:
+            raise ValueError(
+                f"SphericalHarmonicSpace.degree_block: l={l} out of range "
+                f"[0, {self.L}]."
+            )
+        return (l, slice(0, 2 * l + 1))
+
     @property
     def addition_theorem_factor(self) -> NDArray:
         r"""The :math:`(2\ell+1)` factor per :math:`\ell`, shape ``(L+1,)``.
