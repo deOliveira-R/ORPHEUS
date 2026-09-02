@@ -6070,7 +6070,9 @@ older entries classify against.
      ``orpheus/numerics/quadrature/directional.py``
      (``Quadrature._harmonic_frame_measure``, whose 1-D arm pads the polar
      nodes with two zero columns and declares the result
-     ``support=SPACE_SPHERE``).
+     ``support=SPHERE`` — ``SPACE_SPHERE`` until 2026-09-01, when tracker
+     2.0c retired the string tags; **only the spelling moved, the forgery
+     did not**).
      ⚠ **Re-spelled 2026-09-01** (phase 0.2): that padding used to be
      ``column_stack``\ ing ``axis_cosines(0..2)``, i.e. it obtained its zeros
      from an accessor named *"direction cosine along axis i"*, which is what
@@ -6212,12 +6214,17 @@ older entries classify against.
      quotient are its **trivial isotypic component**
      :math:`\{Y_\ell^0\} \cong \{P_\ell\}` — derived by probing the group
      action, not hand-listed. The three structural repairs it decomposes into:
-     ``angular_frame`` must stop writing ``support=SPACE_SPHERE`` over nodes
-     with :math:`\lVert\Omega\rVert \ne 1`; ``Basis`` must be able to declare
-     its ``domain`` so the pairing is checkable where the two objects meet; and
+     ``angular_frame`` must stop writing ``support=SPHERE`` over nodes
+     with :math:`\lVert\Omega\rVert \ne 1` *(⛔ still OPEN — the symbol was
+     ``SPACE_SPHERE`` until tracker 2.0c retired the string tags on
+     2026-09-01; the claim is now typed and still false)*; ✅ ``Basis`` must
+     be able to declare its ``domain`` so the pairing is checkable where the
+     two objects meet — **LANDED 2026-09-01, tracker 2.1**; and
      ``_evaluate_real_sh`` must REFUSE a non-unit direction vector rather than
-     inventing an azimuth for it. ⭐ The first two both need an object for the
-     point set, which the tree did not have: the
+     inventing an azimuth for it *(⛔ still OPEN)*. ⭐ The first two both need
+     an object for the point set, which the tree did not have — ✅ it does now
+     (:mod:`orpheus.numerics.manifold`, minted 2026-08-31 and wired
+     2026-09-01), so what remains is the REFUSAL, not the vocabulary: the
      :class:`~orpheus.numerics.manifold.Manifold` type minted 2026-08-31
      supplies the membership predicate that refuses the forgery at
      construction (``[M]`` ``Sphere().contains`` on this very measure) and
@@ -6261,7 +6268,8 @@ older entries classify against.
      ``support`` tag was FORGED to match, and the binder validated neither. The
      greppable tell is a constructor that writes a membership claim
      (``support=``, ``space=``, ``units=``) as a **literal** while its
-     neighbours derive theirs — here ``support=SPACE_SPHERE`` sits between
+     neighbours derive theirs — here ``support=SPHERE`` (``SPACE_SPHERE``
+     before 2026-09-01; a typed literal is still a literal) sits between
      ``invariance_group`` (*"COMPUTED from the factors ... never a declared
      literal"*) and ``exactness`` (*"DERIVED from the two factors' own
      claims"*). ⭐ And the corollary the ``metric.py`` reading makes vivid: a
