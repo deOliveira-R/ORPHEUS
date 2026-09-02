@@ -5290,7 +5290,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 1.6 | `ℛ* = ℛ` as adjoint-vs-dual | no | ☐ |
 | 1.7 | the support algebra, written | no | ☐ |
 | 1.8 | vocabulary reconciliation | no | ☐ |
-| 1.9 | ⭐ **NEW 2026-09-02 (user-ruled after 2.5) — a basis states the FULL group its functions have: `SubgroupOfO3.O2(axis)`**, so `P_ℓ(Ω·ê_a)` declares `O(2)_a` (the stabiliser fact of 3.1: `O(2)_a` and `SO(2)_a` induce the same orbit partition) and the lattice G0 ADMITS a Legendre basis on a σ_b-folded rule (b ≠ a). Memo H-6. Its own commit, FIRST after the compaction that follows the fused commit | no | ☐ — after ⏸ |
+| 1.9 | ⭐ **NEW 2026-09-02 (user-ruled after 2.5) — a basis states the FULL group its functions have: `SubgroupOfO3.O2(axis)`**, so `P_ℓ(Ω·ê_a)` declares `O(2)_a` (the stabiliser fact of 3.1: `O(2)_a` and `SO(2)_a` induce the same orbit partition) and the lattice G0 ADMITS a Legendre basis on a σ_b-folded rule (b ≠ a). Memo H-6. Its own commit, FIRST after the compaction that follows the fused commit | no | ⏳ IN FLIGHT 2026-09-02 — built, green, uncommitted; see Part XIV's ⏳⏳ block |
 | 2.0a | ⭐ **MINT `Manifold`** (D0.7, user-ruled) — retires `Space = str` | ⏏ yes | ✅ `b8c05d16` — 9 variants, 40 tests, pyright 0. ⚠ the TYPE only; `support` is still `str` (that is 2.0c/2.1) |
 | 2.0b | `Manifold.contains` — the membership predicate; refuses the forged measure at construction | ⏏ yes | ◐ **HALF** — the predicate ships and is gated both legs (`[M]` refuses the `gauss_legendre(8)` forgery, norms `[0.1834, 0.9603]`; admits the normalised control) @ `b8c05d16`. The **refusal AT CONSTRUCTION** is unbuilt — that is the wiring, and it rides 0.1. ⛔ no `catches("ERR-080")` marker until then: refusing a forged ARRAY is not the production path refusing it |
 | 2.0c | `DiscreteMeasure.support: str → Manifold`; the `L2[...]` name derives; `quotient_group` becomes a derived property | ⏏ yes | ✅ `025834f5` — all **six** implementors retyped in one commit (the row named one; §V.5f(a)). `phase` dispatches on the manifold's TYPE; the LIVE `folded_product` defect fixed; `pushforward`'s fabricated default retired; 2.1's handoff discharged **and witnessed** (⛔ the repair measured BLIND first). `[M]` 5 trees rc=0, +7 tests, matrix reconciling unit-for-unit. ~~▶ NEXT.~~ ~~⛔ BLOCKED on 1.1's σ_y entry (§V.5d(a))~~ ✅ **REMEDIED 2026-09-01** — 1.1 landed `b55bba56`; `[M]` `SPHERE.quotient(SubgroupOfO3.Mirror("y"))` → `'S^2/sigma_y'` (§V.5e(a)). ⭐ **Read §V.5e before designing** — the second opener re-shaped the step: the row's sizing counts PRODUCERS (`[M]` §6b ≈ 87 producers + **16 consumers**, and the 16 are where a retype fails QUIETLY), the prize is that `phase` is stringly-typed dispatch, and it carries a LIVE defect (`folded_product(4,8).measure.phase` **RAISES**). Re-scoped at the opener: **absorbs 2.0d** (§V.5d(c)); its `indicator_basis` clause **moves to 2.1** (§V.5d(e), §6b). `[M]` the retype preserves every production space name bit-identically bar two (§V.5d(f2)) |
@@ -5475,6 +5475,54 @@ folded in below; nothing from either was dropped.
 ---
 
 ## ▶ RESUMES AT — stated as OUTCOMES (`plan-authoring` §1)
+
+⏳⏳ **1.9 (#432) IS IN FLIGHT — BUILT, GREEN ON ITS TREES, UNCOMMITTED (2026-09-02, ~15:00).
+READ THIS BLOCK FIRST.** `git status --porcelain | grep -v scratch/` lists **33 modified
+files** (14 `orpheus/`, 19 `tests/`) — the whole change; nothing is staged. If the tree is
+CLEAN when you read this, 1.9 landed and the ledger below has its hash.
+
+*The rulings (user, 2026-09-02, at the opener — §V.5m in the 1.9 EXECUTED section, drafted in
+`scratch/_p19_executed_section.md`):* (1) `S²/SO(2)_a` and `S²/O(2)_a` are ONE catalogue
+entry, named by its STABILISER `O2(a)` (`[M]` the invariant rings coincide); (2)
+`SPHERE.quotient(SubgroupOfO3.SO2(a))` REFUSES with the theorem — the more principled option
+regardless of the ~65-site re-spelling it cost (the user's rule, now in memory: effort is
+never the tie-break); (3) the registry's slab/sphere `continuous_isotropy` is `O2("x")`.
+
+*What is DONE:* `SubgroupOfO3.O2(axis)` (`symmetry.py`: computed axial relations
+`_fixes_axis`/`_axial_contains`, exact invariance, both-component `generic_images`, walk
+candidates); `manifold._sphere_mod_o2` (renamed) with `by = O2(a)` and the SO2 refusal;
+registry / rules_1d / LegendreBasis.domain / LegendreSpace name; 14 modules re-spelled
+(`_p19_edit_symmetry.py`, `_p19_edit_manifold.py`, `_p19_edit_rest.py`, `_p19_edit_pass2.py`,
+re-runnable against `scratch/_p19_pristine/`); tests re-spelled (`_p19_respell_tests.py`,
+`_p19_fix_tests.py`, `_p19_respell_test_prose.py`). `[M]` red loops: numerics **2809/0**,
+transport **706+1sk/0**, geometry 727, harness 403, sn subtrees (operators, primitives, mesh,
+angular, acceleration, solve, architecture, eigenvalue, regression + 4 root files)
+**2360 + 16 xf / 0** (`_p19_red{1,2,3}.log`); pyright 0 on the touched modules. `[M]` the
+fold witness: Legendre on `folded_product(4,8)` constructs along `S^2/sigma_y -> S^2/O2_x`,
+ℓ≥1 isotropic moments ≤ 1.4e-15 at L = 2/4/6; the x-fold refuses `axis="x"`, admits `"z"`;
+the slab walk reports `{O2_x, sigma_x}`; +3 candidates cost ≤ 5 % per walk. Two opener
+findings: the tabulated arm said `SO2('x') ⊉ C_1` while `⊇ {e}` (`test_cn_in_so2[1]` pinned
+it — fixed by computing); under the O(2) probe a right-angle sample generates C_4v, admitting
+6/8 slots at L = 4/5 where the SO(2) probe read 7/10.
+
+*What is IN FLIGHT (three agents, dispatched ~14:55):* the **archivist** on `docs/theory`
+(brief `scratch/_p19_archivist_brief.md`; must keep every `:label:`; sphinx `-E -W` +
+`dead_references`); the **test-architect** on new gates + an IN-PROCESS battery under
+`scratch/_p19_mut/` (brief `_p19_test_architect_brief.md`; edits only the seven test files
+it names); the **elegance-enforcer** on the production diff (findings only). ⚠ If you resume
+after a compaction and cannot see their reports, their outputs are what they wrote to disk:
+`git status` (new test functions, docs pages), `scratch/_p19_mut/`, `scratch/_p19_sphinx.log`.
+
+*What is OWED, in order:* (1) read the three reports; act on elegance findings (production
+edits are yours alone — L38); reconcile the test-architect's collect delta; (2) sphinx
+`-E -W` + `dead_references` on the final tree; (3) the 13-tree gate — `scratch/_p19_full_gate.sh`
+(prediction phase then run, ~62 min, detached; log `_p19_full_gate.log`, per-tree
+`_p19_gate_<tree>.log`); predict the delta vs the fused row (10556) FIRST from the
+collect counts; (4) fill `<GATE>/<DR>/<TA>/<ARCH>` in `scratch/_p19_commit_msg.txt`,
+`_p19_issue_comment.md`, `_p19_executed_section.md`; paste the executed section into Part
+XIII after the FUSED EXECUTED section; stamp the tracker row and the ledger; (5) stage BY
+PATH (never `-A`), `git commit -F scratch/_p19_commit_msg.txt`, push, `gh issue comment 432
+-F scratch/_p19_issue_comment.md`; (6) then **2.2b** (the Γ-slot), 4.1, 4.9, the exit re-gate.
 
 ✅ **THE FOLLOW-UP LANDED 2026-09-02 as `26151a8d`** — the commit titled
 `docs(plans): the fused commit carries its landing hash and gate` (the hash
@@ -5875,7 +5923,7 @@ Part XIII — do not copy it here (`plan-authoring` §9).
 | ✅ | **2.5** | LANDED 2026-09-02 `58ad7c28` — see the *2.5 EXECUTED* section (bit-identical; the moment space's ONE home is the frame's basis) |
 | ✅ | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | LANDED 2026-09-02 `5436184e` — THE FIX; read the *FUSED EXECUTED* section |
 | ⏸ | **COMPACTION** | user-ruled 2026-09-02: a context compaction follows the fused commit; the two commits below are the first steps after it |
-| **2** | **1.9** — `SubgroupOfO3.O2(axis)` | its own commit, FIRST after the compaction (user-ruled 2026-09-02, memo H-6) |
+| ⏳ | **1.9** — `SubgroupOfO3.O2(axis)` | IN FLIGHT 2026-09-02 (built, green on its trees, uncommitted — the ⏳⏳ block at the top of the resume section); its own commit, FIRST after the compaction (user-ruled, memo H-6) |
 | **3** | **2.2b** — the Γ-slot | its own commit (user-ruled 2026-09-02) |
 | 4 | **4.1**, **4.9**, then the six exit predicates (XII.3) | |
 
@@ -6030,6 +6078,15 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
     lattice edge is `SO2(a) ⊆ O2(a)` for every `a`, and `O2(z) ⊆ Dinfh` only —
     `Dinfh` is parameter-free about z; for `a ≠ z` the only shipped supergroup
     is `O3`. Reason it from the realizations, not from this row.
+15. ⭐⭐ **NEW at 1.9 (in flight) — `SPHERE.quotient(SubgroupOfO3.SO2(a))` RAISES.** The
+    orbit space is `SPHERE.quotient(SubgroupOfO3.O2(a))`, name `S^2/O2_x`, `by == O2(a)`;
+    every scratch script spelling the SO2 quotient dies with `ValueError: S^2/SO2_x is the
+    orbit space S^2/O2_x …`. `_sphere_mod_so2` is GONE (`_sphere_mod_o2`). `quotient_group`
+    of a slab rule is `O2('x')`; `LegendreBasis.invariance_group` is `O2(axis)`; the space is
+    `L2[S^2/O2_x]` / `legendre_space(S^2/O2_x)`. The lattice test `_NAMED`/`groups` lists
+    that build quotients must spell O2; the SO2 GROUP itself still exists for lattice
+    questions (`Cn ⊆ SO2_z`, `SO2_z ⊆ Dinfh`). A `grep 'O2('` now returns the real member
+    beside the 12 `SO2(` hits — use the word-bounded form.
 
 ### §1 existence-checks — re-run 2026-09-02 at `2f294ef1` (post-3.1)
 
