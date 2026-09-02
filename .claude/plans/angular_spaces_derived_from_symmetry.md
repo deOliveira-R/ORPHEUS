@@ -5476,9 +5476,9 @@ folded in below; nothing from either was dropped.
 
 ## ▶ RESUMES AT — stated as OUTCOMES (`plan-authoring` §1)
 
-✅ **THE FOLLOW-UP LANDED 2026-09-02** — the commit titled
-`docs(plans): the fused commit carries its landing hash and gate` (find it by
-SUBJECT, `plan-authoring` §7.1). **The pre-emptive compaction's owed second
+✅ **THE FOLLOW-UP LANDED 2026-09-02 as `26151a8d`** — the commit titled
+`docs(plans): the fused commit carries its landing hash and gate` (the hash
+stamped by the compaction-prep commit that followed it). **The pre-emptive compaction's owed second
 half is paid; nothing is owed on the FUSED landing.** What the five owed steps
 found, in the order they ran:
 
@@ -5905,7 +5905,7 @@ MAP — and `[M]` the honest `φ = 0` half-meridian is exactly what ERR-080's
 level-1 half needs, since the tree currently fabricates it by zero-padding to
 `(μ, 0, 0)`, which is off `S²`.
 
-### ⛔ NINE landmines for the pick-up session's own greps and censuses
+### ⛔ Landmines for the pick-up session's own greps and censuses (numbered, newest LAST)
 
 1. **`invariance_group` returns ~55 grep hits and the plan's claim still holds.**
    `[M]` exactly ONE class defines it — `DiscreteMeasure` — meaning *the group
@@ -6012,6 +6012,24 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
     `measure.support → basis.domain` exists (message fragment *"no quotient
     map"*); a sized `EnergyGroups(n)` and the unsized `ENERGY` are UNEQUAL
     manifolds under it — name one object on both halves.
+14. ⭐ **NEW at the compaction prep after the follow-up — `O2` is a name this
+    module REJECTED once, and a bare `O2(` grep lies.** 1.9 (#432) mints
+    `SubgroupOfO3.O2(axis)`. `[M]` `orpheus/numerics/symmetry.py:136-148`:
+    `Dinfh` was NAMED `O2` until 2026-08-02 and was renamed because that entry
+    realizes axial rotations + σ_h (C_∞h), while true O(2) embedded in 3-D is
+    C_∞v — rotations about the axis + the VERTICAL mirrors — which is exactly
+    the group #432 wants (`P_ℓ(Ω·ê_a)` is invariant under rotations about `a`
+    and mirrors through planes CONTAINING `a`). So 1.9's member is the C_∞v
+    realization, NOT a re-parameterization of `Dinfh`, and that note's history
+    sentence (*"named `O2` … wrong in a load-bearing way"*) must be reconciled
+    IN THE SAME COMMIT so it cannot read as condemning the new member
+    (`plan-authoring` §3's ambiguous-name hazard; §1's rejected-name clause —
+    the name is free BECAUSE it was rejected). ⚠ The census: `grep 'O2('`
+    returns **14** hits in `symmetry.py`, 12 of them `SO2(`; use
+    `grep -P '(?<![A-Za-z_])O2\b'` (**2** hits, both the note). `[R]` the
+    lattice edge is `SO2(a) ⊆ O2(a)` for every `a`, and `O2(z) ⊆ Dinfh` only —
+    `Dinfh` is parameter-free about z; for `a ≠ z` the only shipped supergroup
+    is `O3`. Reason it from the realizations, not from this row.
 
 ### §1 existence-checks — re-run 2026-09-02 at `2f294ef1` (post-3.1)
 
@@ -6228,7 +6246,7 @@ or `gauss_legendre_on_polar_orbit(n, "x")`, on `S^2/SO2_x`.
 | **2.3** | ⭐⭐ **a measure's support is READ off the map that built it** — `ManifoldMap(domain, codomain, apply)` with `@` composition; `archimedes(axis)` and `barycentre(orbit_space)` memoised; `pushforward(phi)` reads `phi.codomain`, refuses a map out of the wrong point set, `new_space=` retired (1 + 8); `spherical_product` IS the tensor product pushed along the chart; the fold's retraction and `_embedded_nodes` typed; ERR-080 restated as the barycentre map with a FORGED codomain (arm untouched, retires at 3.4). `[M]` bit-identical 60/5/15; eleven-arm battery; numerics 2690 → 2711; matrix 10595 → 10616; reference measure deferred to 3.1 with the §6d cycle measured (5 of 5) | `5ec3a00a` (+ stamp `14c37aa9`) |
 | **3.1** | ⭐ **an orbit-space entry carries ALL of its derivation, the quotient map and the pushforward reference included** — `Quotient.orbit_coordinates` (required; the surviving invariants as a map on ambient coordinates) + the DERIVED `Quotient.quotient_map` (codomain the ENTRY), `Quotient.reference` (`LEGENDRE` on the three axial entries; honest `None` on σ_a and on `M/{e}`), populated INSIDE `_sphere_mod_so2` by a function-scope import; `AngularSymmetry.reference` READS the entry, its `LEGENDRE` import gone. `[M]` π∘φ_a = pr₁ bit-exact 12/12; β_a∘π_a the axial projection 3/3; π H-invariant on 4 groups; the numeric map == `lambdify` of the recorded invariants 5/5; §6d on a shadow copy 7/7 alive vs 0/7; nine-arm battery, none blind; numerics 2711 → 2739, matrix 10616 → 10644 | `67e38605` |
 | **2.5** | ⭐ **the angular moment space is READ off the frame, never minted from `L`** — `TruncatedBasis` (Protocol) is the harmonic family's surface and `HarmonicFrame`'s door; the Λ ends, the fission/(n,2n) ℓ=0 ends, the moment-flux head and `truncate` all read the bound basis's space (7 producers retired, 2 doors widened); A-R1 binds the CONTINUUM space (`[M]` `Λ* = Λᵀ` exactly under it, 33/33; the dressed one moves Λ* on 10/33), A-R2 derives the field head through the mesh's quadrature. `[M]` slab L=0/1/2 flux `array_equal`; 33-row metric identity; route gate with a FOREIGN basis; 11-arm battery (control 34, each producer revert → A1, the fork → A2b only), none blind; 13 trees rc=0, 10454 = predicted | `58ad7c28` |
-| **FUSED** | ⭐⭐ **THE FIX — a 1-D rule binds the Legendre basis on its orbit space; ERR-080 CLOSED** (0.1b + 0.6 + 2.2-G0 + 3.4 + 3.4b): `LegendreBasis` (the bit-matched spelling), `LegendreSpace` + `MomentHead`, the entry's probe, `Descent`, G0 as the descent arrow with the table pulled back along it, the forgery deleted, 0.6's refusal, the carriers reading their head, `OverlapBasis`'s misdeclared domain caught by G0 and fixed. `[M]` LEG A `+4.000000000000` at L = 0..2; slab L ≤ 1 `array_equal`; 135 sphere arrays bit-identical; 19-arm battery, one declared-weak arm; the 13-tree gate finished after the commit: **13 of 13 rc=0, 10556 = predicted**, reconciled file-by-file in the *FUSED EXECUTED* section | `5436184e` (follow-up: `docs(plans): the fused commit carries its landing hash and gate`) |
+| **FUSED** | ⭐⭐ **THE FIX — a 1-D rule binds the Legendre basis on its orbit space; ERR-080 CLOSED** (0.1b + 0.6 + 2.2-G0 + 3.4 + 3.4b): `LegendreBasis` (the bit-matched spelling), `LegendreSpace` + `MomentHead`, the entry's probe, `Descent`, G0 as the descent arrow with the table pulled back along it, the forgery deleted, 0.6's refusal, the carriers reading their head, `OverlapBasis`'s misdeclared domain caught by G0 and fixed. `[M]` LEG A `+4.000000000000` at L = 0..2; slab L ≤ 1 `array_equal`; 135 sphere arrays bit-identical; 19-arm battery, one declared-weak arm; the 13-tree gate finished after the commit: **13 of 13 rc=0, 10556 = predicted**, reconciled file-by-file in the *FUSED EXECUTED* section | `5436184e` + follow-up `26151a8d` (gate record, typing narrowing) |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
 ⛔ No commit COUNT is recorded here — it is the field guaranteed to rot. Run
