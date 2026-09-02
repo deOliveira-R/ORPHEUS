@@ -32,7 +32,7 @@ named factories) composes 1-D rules into 2-D / :math:`S^2` rules
 - **Direct sum** ``μ + ν``. Concatenation on a shared space — used
   when a domain is partitioned into subintervals each carrying its
   own rule.
-- **Pushforward** ``μ.pushforward(φ)``. Image measure
+- **Pushforward** ``μ.pushforward(φ, new_space=N)``. Image measure
   :math:`\varphi_* \mu` under a measurable map
   :math:`\varphi : \mathcal{X} \to \mathcal{Y}`. The change-of-variables
   identity holds verbatim:
@@ -289,7 +289,8 @@ class DiscreteMeasure:
       ``f"{μ.support} × {ν.support}"``.
     - ``μ + ν`` — direct sum on a shared space; raises ``ValueError``
       if ``μ.support != ν.support``.
-    - ``μ.pushforward(φ)`` — image measure under ``φ``. Weights are
+    - ``μ.pushforward(φ, new_space=N)`` — image measure under ``φ``, on the
+      manifold ``N`` the caller names (required since 2.0c). Weights are
       preserved; nodes become ``φ(nodes)``. The Jacobian of ``φ`` is
       the **caller's responsibility**: this is the φ-image semantics,
       not a Radon-Nikodym derivative against a reference measure.
