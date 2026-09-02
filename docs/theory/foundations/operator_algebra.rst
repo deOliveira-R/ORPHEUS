@@ -4139,14 +4139,30 @@ the carrier verbs.
    :by: orpheus.transport.frames.harmonic_frame.HarmonicFrame.from_galerkin
 
    **Implemented by** the operative content — ``return cls(basis,
-   frame.measure)``, after an upgrade-boundary guard that rejects a
-   non-:class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`
-   trial basis *there* rather than later, when a mint first reads the
-   SH-only truncation order :math:`L`. The claim is worth stating only
+   frame.measure)``, after an upgrade-boundary guard that rejects a trial
+   basis carrying **no truncation order** *there* rather than later, when
+   a mint first reads :math:`L`. The claim is worth stating only
    because the construction rebuilds **nothing**: basis, measure and
    projection table are carried over, so the inherited ndarray faces and the
    §5.6 kernel stay bit-identical and the IS-A is substitutability in fact,
    not merely in the type checker.
+
+   ⚠ **This clause named ONE CLASS until 2026-09-02** — it read *"rejects
+   a non-*\ ``SphericalHarmonicBasis``\ * trial basis … the SH-only
+   truncation order* :math:`L`\ *"*, which was an accurate description of
+   the guard and a false description of the concept. #429 tracker 2.5
+   replaced both ``isinstance`` doors with a demand for the
+   :class:`~orpheus.numerics.basis.base.TruncatedBasis` **surface**
+   (``L`` + ``space``): :math:`L` is not SH-only — it is the harmonic
+   *family's* truncation order, shared by the σ-even restriction a folded
+   rule binds and by the Legendre basis on :math:`S^2/SO(2)_a` that
+   tracker 3.4 will bind on a 1-D one. The same step made every operator
+   end and every moment-field head READ the bound basis's coefficient
+   space instead of re-minting it from the integer, so the family the
+   quadrature chooses propagates by construction. See
+   :ref:`frame-moment-space-single-home` for the eight-homes census, the
+   ``basis.space``-vs-``basis_space`` fork with its measurements, and the
+   gates.
 
 .. note::
 

@@ -77,7 +77,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 from numpy.typing import NDArray
 
-from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.numerics.basis.base import Basis, TruncatedBasis
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
@@ -177,7 +177,7 @@ class HarmonicAnalysisOperator(
         self.domain_carrier = domain_carrier
         self.codomain_carrier = codomain_carrier
         # The wrap parameters, read once at mint time (moment = f(angular, L)).
-        self._L = frame.basis.L
+        self._L = frame.truncation_order
         self._spatial_moments = BulkField._spatial_moments_per_axis_of(domain)
 
     @property
@@ -248,7 +248,7 @@ class HarmonicReconstructionOperator(
         self._codomain = codomain
         self.domain_carrier = domain_carrier
         self.codomain_carrier = codomain_carrier
-        self._L = frame.basis.L
+        self._L = frame.truncation_order
         self._spatial_moments = BulkField._spatial_moments_per_axis_of(codomain)
 
     @property
@@ -300,16 +300,48 @@ class HarmonicReconstructionOperator(
 _UPGRADE_SLOT = "_harmonic_frame_upgrade"
 
 
+def _admit_truncated(basis: Basis, door: str) -> TruncatedBasis:
+    r"""The door's ONE demand: a trial basis that carries a truncation order.
+
+    The mints read ``L`` and the operator ends read ``space`` — the
+    :class:`~orpheus.numerics.basis.base.TruncatedBasis` surface — so that
+    is what the door asks for, TYPED, at the door (a frame built over an
+    indicator trial fails HERE with a message naming the surface, not three
+    frames later with an ``AttributeError``). Until #429 tracker 2.5
+    (2026-09-02) this door named ONE class, ``SphericalHarmonicBasis``,
+    which would have refused the slab's Legendre basis on every 1-D solve
+    at :math:`L = 0`.
+    """
+    if not isinstance(basis, TruncatedBasis):
+        raise TypeError(
+            f"{door} requires a trial basis carrying a truncation order L "
+            f"(the harmonic family: the real spherical harmonics, their "
+            f"sigma-even restriction, the Legendre basis on S^2/SO(2)_a); "
+            f"got {type(basis).__name__}, which carries none. The mints read "
+            f"L and the operator ends read the basis's coefficient space."
+        )
+    return basis
+
+
 @dataclass(frozen=True, init=False)
 class HarmonicFrame(GalerkinFrame):
     r"""The angular spherical-harmonic :class:`GalerkinFrame` — the shared
     operator factory that mints the carrier-typed faces.
 
-    Constructed from ``(basis, measure)`` alone — the constructor narrows the
-    trial basis to :class:`SphericalHarmonicBasis` (a harmonic frame over any
-    other trial is an illegal state, and the truncation order ``L`` the mints
-    read exists only on the SH basis) — or upgraded from a generic
-    ``quadrature.angular_frame(L)`` via :meth:`from_galerkin`. Identity is the
+    Constructed from ``(basis, measure)`` alone — the constructor demands a
+    trial basis carrying a truncation order
+    (:class:`~orpheus.numerics.basis.base.TruncatedBasis`: the real
+    spherical harmonics, their σ-even restriction, the Legendre basis on
+    :math:`S^2/SO(2)_a`; a harmonic frame over an indicator trial is an
+    illegal state, refused at the door) — or upgraded from a generic
+    ``quadrature.angular_frame(L)`` via :meth:`from_galerkin`. WHICH family
+    the frame binds is the quadrature's decision, derived from the point
+    set its measure lives on; this frame reads the basis it is handed. ⭐
+    The basis is the single source of the angular coefficient space: the
+    operator ends and the moment fields minted downstream read
+    ``frame.basis.space`` (#429 tracker 2.5, 2026-09-02 — until then seven
+    production sites re-minted it from ``L`` as the full-sphere family,
+    which is exactly the family a 1-D rule must NOT bind). Identity is the
     table's identity: two frames over the same pairing are the same
     projection, and every face minted here shares this frame's cached table
     and F-0 Parseval codomain.
@@ -321,29 +353,30 @@ class HarmonicFrame(GalerkinFrame):
     where the S4-amendment's spaces-demand was aimed.
     """
 
-    # Covariant narrowing of the inherited frozen (read-only) field: the
-    # constructor guard below guarantees it, and the mints read ``basis.L``.
-    basis: SphericalHarmonicBasis
+    # The inherited frozen (read-only) field, un-narrowed: the door guarantees
+    # the TruncatedBasis surface, and the mints read it through
+    # :attr:`truncation_order`.
+    basis: Basis
 
-    def __init__(
-        self, basis: SphericalHarmonicBasis, measure: DiscreteMeasure,
-    ) -> None:
-        if not isinstance(basis, SphericalHarmonicBasis):
-            raise TypeError(
-                f"HarmonicFrame requires a spherical-harmonic trial basis; "
-                f"got {type(basis).__name__}. (The mints read the SH-only "
-                f"truncation order L.)"
-            )
+    def __init__(self, basis: Basis, measure: DiscreteMeasure) -> None:
+        _admit_truncated(basis, "HarmonicFrame")
         super().__init__(basis, measure)
+
+    @property
+    def truncation_order(self) -> int:
+        r"""The truncation order :math:`L` of the bound family — what the mints read."""
+        return _admit_truncated(self.basis, "HarmonicFrame").L
 
     @classmethod
     def from_galerkin(cls, frame: GalerkinFrame) -> "HarmonicFrame":
         r"""Upgrade a generic angular :class:`GalerkinFrame`, reusing its basis
         + measure (no rebuild — the table / numerics spaces / faces are
-        bit-identical). The ONLY job left here after F-1 is the SH narrowing:
-        a frame over any other trial basis (e.g. an indicator basis) is
-        rejected at the upgrade boundary, not later when a mint first reads
-        the SH-only ``L``.
+        bit-identical). The ONLY job left here after F-1 is the door: a
+        frame over a trial basis carrying no truncation order (an indicator
+        basis) is rejected at the upgrade boundary, not later when a mint
+        first reads ``L``. The family itself is NOT narrowed — the fold's
+        σ-even harmonics and the slab's Legendre basis pass exactly as the
+        full harmonics do (#429 tracker 2.5).
 
         INTERNED per upstream frame object (CS4c §14.4): upgrading the same
         :class:`GalerkinFrame` twice returns the SAME :class:`HarmonicFrame`
@@ -366,11 +399,7 @@ class HarmonicFrame(GalerkinFrame):
         if cached is not None:
             return cached
         basis = frame.basis
-        if not isinstance(basis, SphericalHarmonicBasis):
-            raise TypeError(
-                f"HarmonicFrame.from_galerkin requires a spherical-harmonic "
-                f"trial basis; got {type(basis).__name__}."
-            )
+        _admit_truncated(basis, "HarmonicFrame.from_galerkin")
         upgraded = cls(basis, frame.measure)
         inst_dict[_UPGRADE_SLOT] = upgraded
         return upgraded
@@ -420,12 +449,16 @@ class HarmonicFrame(GalerkinFrame):
     def moment_space_on(self, angular_space: "FunctionSpace") -> "FunctionSpace":
         r"""The moment codomain derived from an angular domain (+ this frame's ``L``) — the SINGLE SOURCE of the moment-space derivation (CS4c §14.4: public, so field mints consume it instead of re-deriving; drift between a face's codomain and a minted moment field's space is unspellable).
 
-        ``basis_space * of_axes(<cell axes>)`` — the SH factor is the frame's
-        OWN F-0-dressed :attr:`~orpheus.numerics.frame.FrameBase.basis_space`
-        (single source: the Parseval metric rides into the product), the cell
-        group is the angular space's own energy/spatial axes (the same
-        instances the carrier's mints share, so the product content-equals
-        ``MomentField._space_for_mesh_and_L``'s) — with the densified
+        ``basis_space * of_axes(<cell axes>)`` — the angular HEAD factor is
+        the frame's OWN F-0-dressed
+        :attr:`~orpheus.numerics.frame.FrameBase.basis_space` (the bound
+        basis's coefficient space, whatever family the quadrature bound —
+        the spherical-harmonic space on a full-sphere rule; single source:
+        the Parseval metric rides into the product), the cell group is the
+        angular space's own energy/spatial axes (the same instances the
+        carrier's mints share, so the product content-equals
+        ``MomentField._space_for_mesh_and_L``'s, which since #429 tracker
+        2.5 reads the SAME basis through the mesh's quadrature) — with the densified
         ``SpatialMomentSpace`` factor appended for a widened angular space.
         Runs once per mint: the derivation direction is moment = f(angular,
         L), never the reverse.

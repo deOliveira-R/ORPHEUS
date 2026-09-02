@@ -118,17 +118,20 @@ class TestFromGalerkin:
             frame.analysis.apply(vals), gf.analysis.apply(vals),
         )
 
-    def test_non_sh_trial_basis_is_rejected_at_both_doors(self) -> None:
-        """The SH narrowing is from_galerkin's ONLY remaining job (F-1) —
-        and the direct constructor carries the same guard, so a harmonic
-        frame over an indicator trial is unspellable, loudly, early."""
+    def test_a_trial_basis_without_a_truncation_order_is_rejected_at_both_doors(self) -> None:
+        """The door is from_galerkin's ONLY remaining job (F-1) — and the
+        direct constructor carries the same guard, so a harmonic frame over
+        an indicator trial is unspellable, loudly, early. Since #429 tracker
+        2.5 the door asks for the TruncatedBasis SURFACE (a truncation
+        order), not for one class: the fold's sigma-even harmonics and the
+        slab's Legendre basis pass exactly as the full harmonics do."""
         indicator = IndicatorBasis((np.array([0.0, 1.0, 2.0]),), RealSpace(1))
         measure = DiscreteMeasure(
             nodes=np.array([0.5, 1.5]), weights=np.ones(2), support=RealSpace(1),
         )
-        with pytest.raises(TypeError, match="spherical-harmonic trial"):
+        with pytest.raises(TypeError, match="truncation order"):
             HarmonicFrame.from_galerkin(GalerkinFrame(indicator, measure))
-        with pytest.raises(TypeError, match="spherical-harmonic trial"):
+        with pytest.raises(TypeError, match="truncation order"):
             HarmonicFrame(indicator, measure)  # type: ignore[arg-type]
 
     def test_same_pairing_frames_compare_equal(self) -> None:
@@ -158,13 +161,34 @@ class TestMint:
     def test_moment_codomain_content_equals_the_carrier_mint(self) -> None:
         """moment = f(angular, L), derived ONCE at mint time — and it
         content-equals the carrier mint's own space (the admission seam is
-        metric-blind, so the F-0 dressing does not disturb it)."""
+        metric-blind, so the F-0 dressing does not disturb it).
+
+        ⚠ Since #429 tracker 2.5 (2026-09-02) BOTH sides derive from ONE
+        source — the quadrature's frame basis — so the equality below can
+        no longer catch a drift between a hand-minted carrier space and
+        the face's codomain (coding-standards: single-sourcing a duplicate
+        demotes every gate that compared its copies). What it still tests
+        is the DISCOVERY path: the carrier's mint and the face's mint reach
+        the SAME frame object through the HUB, asserted by identity. The
+        external pin the demotion needs — a hand-written literal shape —
+        is the next test."""
         m = _slab_mesh()
         face = _frame(m).flux_analysis_on(m.angular_bulk_space)
         assert (
             face.codomain
             == HarmonicMomentFlux.zeros_for_mesh_and_L(m, _L).space
         )
+        assert face.frame is HarmonicFrame.for_space(m.angular_bulk_space, _L)
+
+    def test_moment_codomain_shape_against_a_hand_written_literal(self) -> None:
+        """The EXTERNAL pin (coding-standards): the moment codomain's shape
+        written by hand, independently of the frame — ``(L+1, 2L+1, ng,
+        *spatial)`` for the full-sphere family the slab still binds before
+        #429's fix — so a drift of the single source is a red here."""
+        m = _slab_mesh()
+        face = _frame(m).flux_analysis_on(m.angular_bulk_space)
+        assert face.codomain.shape == (3, 5, m.ng, *m.spatial_shape)
+        assert HarmonicMomentFlux.zeros_for_mesh_and_L(m, _L).space.shape == (3, 5, m.ng, *m.spatial_shape)
 
     def test_codomain_sh_factor_is_the_frames_parseval_space(self) -> None:
         """The single-source pin: the minted codomain's SH factor IS the

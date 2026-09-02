@@ -60,6 +60,7 @@ from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 
 from tests.transport._integral_kernel_helpers import require
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 
 pytestmark = pytest.mark.foundation
 
@@ -147,7 +148,7 @@ class TestLegendreMomentScatteringHasRealSpaces:
         op = solver_p1_het.scattering_op
         frame = op.frame
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         # Λ is endomorphic on coefficient (basis) space.
         require(
@@ -174,7 +175,7 @@ class TestLegendreMomentScatteringHasRealSpaces:
         """
         op = solver_p1_het.scattering_op
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         require(
             lam.is_adjointable and not lam.is_invertible,
@@ -208,7 +209,7 @@ class TestLegendreMomentScatteringHasRealSpaces:
         op = solver_p1_het.scattering_op
         frame = op.frame
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         inner = OperatorProduct(lam, frame.analysis)
         require(
@@ -256,7 +257,7 @@ class TestFrameConjugateEqualsRLambdaM:
         frame = op.frame
         conjugate = _require_conjugate(frame)
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
 
@@ -300,7 +301,7 @@ class TestFrameReconstructAfterEqualsRLambda:
         frame = op.frame
         reconstruct_after = _require_reconstruct_after(frame)
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         moments = frame.analysis.apply(psi.values)  # φ = M·ψ (the windowed bulk)
@@ -332,7 +333,7 @@ class TestFrameReconstructAfterEqualsRLambda:
         conjugate = _require_conjugate(frame)
         reconstruct_after = _require_reconstruct_after(frame)
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         moments = frame.analysis.apply(psi.values)  # φ = M·ψ (the windowed bulk)
@@ -371,7 +372,7 @@ class TestProductionApplyEqualsComposedOperator:
         frame = op.frame
         conjugate = _require_conjugate(frame)
         lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, L=op.scattering_order, skip_l0=True,
+            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         np.testing.assert_array_equal(

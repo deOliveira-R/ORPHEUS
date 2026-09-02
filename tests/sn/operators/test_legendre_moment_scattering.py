@@ -24,6 +24,7 @@ import pytest
 
 from tests.sn._test_helpers import material_xs_from_raw
 from orpheus.transport.operators.scattering import LegendreMomentScattering
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 
 
 def _make_simple_lambda(
@@ -59,7 +60,7 @@ def _make_simple_lambda(
     )
     Lam = LegendreMomentScattering.from_material_xs(
         mat_xs=mat_xs,
-        L=L,
+        basis=SphericalHarmonicBasis(L=L),
         skip_l0=skip_l0,
     )
     return Lam, sig_s, cells_by_mat
@@ -188,7 +189,7 @@ class TestEnergyContractionDirection:
         )
         Lam = LegendreMomentScattering.from_material_xs(
             mat_xs=mat_xs,
-            L=L,
+            basis=SphericalHarmonicBasis(L=L),
             skip_l0=True,
         )
         # ℓ=1, m=0, single cell, only g_from=0 nonzero
@@ -213,7 +214,7 @@ class TestEnergyContractionDirection:
         )
         Lam = LegendreMomentScattering.from_material_xs(
             mat_xs=mat_xs,
-            L=1,
+            basis=SphericalHarmonicBasis(L=1),
             skip_l0=True,
         )
         # All groups equal 1.0 in the (ℓ=1, m=0) slot
@@ -257,7 +258,7 @@ class TestBitIdenticalToLegacyInlinedMath:
             ng=ng, nx=nx, ny=ny,
         )
         Lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=mat_xs, L=L, skip_l0=True,
+            mat_xs=mat_xs, basis=SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         moments = rng.standard_normal((L + 1, 2 * L + 1, ng, nx, ny))
 

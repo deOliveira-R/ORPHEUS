@@ -72,6 +72,7 @@ from tests.sn._test_helpers import (
     material_xs_from_raw,
     placeholder_materials,
 )
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 
 pytestmark = [pytest.mark.foundation]
 
@@ -331,8 +332,8 @@ class TestPredicateFaithfulness:
             # posed composite, like S.
             IsotropicFission.from_material_xs(mat, space=survey_space),
             FissionOperator.from_solver_data(mat_xs=mat, space=composite),
-            LegendreMomentScattering.from_material_xs(mat_xs=mat, L=1, skip_l0=True),
-            N2NMomentOperator.from_material_xs(mat_xs=mat, L=1),
+            LegendreMomentScattering.from_material_xs(mat_xs=mat, basis=SphericalHarmonicBasis(L=1), skip_l0=True),
+            N2NMomentOperator.from_material_xs(mat_xs=mat, basis=SphericalHarmonicBasis(L=1)),
             ScatteringOperator.from_solver_data(
                 mat_xs=mat,
                 scattering_order=0,

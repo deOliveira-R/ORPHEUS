@@ -9714,3 +9714,158 @@ traceability **5** · Derivation source **3** — the two pushforwards are deriv
 PAGE with a SymPy cross-check I ran in `scratch/`, not in a tracked
 `derivations/` module. ⟹ **weakest dimension: derivation source.** The honest ask is
 below.
+
+---
+
+## L-084 — the moment space's single home (#429 tracker 2.5): a page that already ⛔-stamps the metric the step binds, and a table that was 3× more measurable at the OPERATOR level
+
+**Task.** Document #429 tracker 2.5 — *the angular moment space is READ off the
+frame, never minted from `L`*. Doc-only (a 13-tree pytest gate + a mutation
+battery were running; `orpheus/` and `tests/` were READ-ONLY). Baseline `-E -W`
+**0** W/E/C EXIT=0; final **0**, EXIT=0; xref gate `DEAD TARGETS: 0`; nexus
+`dead_references` 0 dead / 52 checked both sides.
+
+### (a) ⭐⭐ The brief's target pages were the wrong two, and the RIGHT page already
+carries a ⛔ verdict AGAINST the thing the step does
+
+The brief said the new section belongs on `frame.rst` **or** `spaces.rst`,
+"whichever owns the moment-space derivation". `[M]` `grep -rn moment_space_on
+docs/` = **0** — neither owns it, and the phrase is not in the corpus at all. The
+decisive test was `AGENT.md`'s *self-undermining-if-homed-elsewhere*: the step's
+load-bearing choice is `basis.space` (continuum Gram) over `basis_space`
+(Parseval `G⁻¹`), and **only `frame.rst` owns that distinction** (F-0's
+§*"What was wrong before"*). Homing it anywhere else would have restated F-0's
+metric material as a twin.
+
+⚠ **And the hazard nobody flagged:** `spherical_harmonics.rst`'s three-metric
+table stamps the continuum Gram with *"⛔ **What the frame exposed before F-0** —
+the wrong side for covariant moments"*, and the step binds Λ's ends to **exactly
+that space**. A reader lands on that ⛔ and concludes the step re-opened F-0. The
+paragraph that resolves it is now the section's centre: F-0's verdict is about
+the **analysis face's CODOMAIN** (where the value IS a covariant moment); Λ's ends
+are an **endomorphism's** domain/codomain, and an ℓ-diagonal metric commutes with
+a per-ℓ scalar. ⟹ **when a step binds an object the corpus has already condemned
+in a different role, the doc's first job is to name the ROLE the condemnation was
+scoped to** — not to repeat the step's own "it is bit-identical" argument.
+
+### (b) ⭐⭐ An OPERATOR-movement table measured with a probe vector is a one-draw
+reading — build the matrix column by column and the numbers get BETTER, not just safer
+
+L-076 says this for a gate docstring; here it changed the published table. Probe
+vector (`default_rng(3)`, relative Frobenius) vs column-by-column (`e_k` through
+both arms):
+
+| quantity | one draw | draw-free (operator) |
+|---|---|---|
+| inert rows | `≤1e-12` (23/33) | `≤1.045e-16` (23/33) |
+| DIAGONAL movers | `4.26e-2 … 8.68e-2` | `9.70e-2 … 1.372e-1` |
+| DENSE movers | `9.07e-2 … 9.881e-1` | `1.082e-1 … 1.5839` |
+| `Λ* = Λᵀ` under the continuum end | `≤1.82e-16` | **exactly `0.0`, 33/33** |
+
+The last row is the one worth having: at operator level the `g_C Λᵀ g_C⁻¹`
+sandwich is a per-mode scalar times its own reciprocal, so the identity is
+**bit-exact**, and the `1.8e-16` is the reduction order of a random application.
+Publishing the draw-free form also moved the headline from "up to 99 %" to
+"up to 158 %".
+
+⭐ **And read the movers by IDENTITY, not by size.** All 10 observable rows are
+`gauss_legendre` or `folded_product` at `L ≥ 1` — the two families whose discrete
+Gram is `m`-dependent, i.e. *exactly* ERR-080's forged-azimuth rules and the σ_y
+fold. On the six full-sphere degree-exact rules the fork is inert on all 18 rows.
+So the wrong choice would have been invisible to every full-sphere regression
+fixture and wrong on precisely the rules the campaign is repairing.
+
+### (c) ⭐⭐ A brief's `[M]` census needs its PREDICATE — "eight homes" was right and
+its command was not
+
+The brief said *"eight homes … seven production sites"*. Re-run, `git grep -n
+"SphericalHarmonicSpace.from_L" HEAD -- orpheus/` returns **13 lines**: **8
+executable calls** (7 re-mints + the basis's own `space`) and **5 docstring
+mentions**. The counts are right; the command as cited returns a number that
+matches neither. Published form: *"13 lines, of which 8 are executable calls"*.
+Post-step the same command returns **6** lines, **1** executable — and the
+honest rider is that `SphericalHarmonicSpace.truncated` calls `type(self).from_L`
+**inside the space's own module**, which the grep cannot see and which is where a
+family is entitled to name itself.
+
+Likewise the brief's *"metric-DIFFERENT on 12 of 12 shipped (rule, L) rows"*: my
+census over the gate's own roster is **33 of 33** (11 rule constructions drawn
+from all **five** `Quadrature` classmethod factories × `L ∈ {0,1,2}`). The 12
+is not reproducible from anything the brief names. And the brief's
+*"`apply_metric` moves 96–161 %"* did not reproduce under any norm I tried —
+replaced by the exact per-ℓ ratio `[(2ℓ+1)/4π]²` (`6.33e-3 / 5.70e-2 / 1.58e-1`),
+which is draw-free and reproduces the F-0 page's own `157.9 / 17.5 / 6.3`.
+
+### (d) ⭐⭐ The step's own acceptance measurement was WEAKER than the one available —
+and the stronger one is a statement about a *strict-xfail* gate
+
+The brief cited slab fluxes `array_equal` at `L ∈ {0,1,2}` from a `scratch/`
+`.npz` I must not cite (ephemeral path). Rebuilt from the ERR-080 gate's own
+fixture (1-group infinite medium, `gauss_legendre(8)`, 4 cells, reflective ×2,
+uniform per-ordinate source, Krylov `inner_tol=1e-13`, `max_inner=5000`) and run
+against a `git archive HEAD` tree in a subprocess with the editable finder
+stripped (`sys.meta_path` filtered, `orpheus.__file__` asserted): `array_equal`
+at **L = 0, 1, 2 AND 3**, `max|Δ| = 0.0` on all four.
+
+⭐ The extra order is the point, and it is a V&V argument rather than a bigger
+number: **a pre-step must be bit-identical even where the answer is WRONG**,
+because `L = 2, 3` are `xfail(strict=True)` rows and any movement there could
+flip an XPASS without repairing anything. Framed that way, "nothing moved at the
+defective orders" stops being a disappointment and becomes the acceptance
+criterion.
+
+### (e) ⭐ Reading the tests to write the doc surfaced an UNDOCUMENTED asymmetry
+older than the step
+
+`tests/transport/frames/test_harmonic_frame.py` asserts `face.codomain ==
+HarmonicMomentFlux.zeros_for_mesh_and_L(m, L).space`. `[M]` on a 2-group slab at
+`L = 0,1,2` that is `True` at every order **and the two heads' metrics differ at
+every order** — the face's head is the frame's *dressed* `basis_space` (matrix
+metric at `L = 2`, `inner_product_weights is None`), the field's head is the
+*continuum* one. Identity is `(name, shape)`, so nothing in the tree can tell
+them apart. Unchanged by 2.5 (pre-step the field head was `from_L(L)`, same
+continuum Gram) — so it is a **gotcha to record**, not a defect to report, and it
+belongs in the doc precisely because a reader just told *"the space is read off
+the frame"* will assume the field inherits the face's metric.
+
+### (f) Predicted-then-measured generated artefact
+
+One `documented` eq-label ⟹ `matrix.rst` sentinel **578 → 579**, predicted from
+`tests/_harness/audit._scan_theory_equations` before the build and confirmed
+after. The build also absorbed the CODE side's +37 collected tests
+(`test_moment_space_is_read_off_the_frame` 36 rows + `test_harmonic_frame` +1) —
+a legitimate dirty-tree by-product, reported not reverted.
+
+### (g) Instruments, and one of mine that lied
+
+- The added-text nested-markup scan found exactly one real defect — a `:math:`
+  role inside `**bold**` in my own ERR-080 block — among 9 candidates; the other
+  8 were `* -` list-table bullets that my `*…*` emphasis regex reads as emphasis.
+  ⟹ a list-table body makes an emphasis scan ~90 % false positive; adjudicate,
+  never count.
+- ⛔ **My HTML slice was 302 177 chars — the whole page — because I anchored on
+  the bare label text, which also appears in the TOC.** It "passed" while
+  measuring the wrong region, and only the length looked wrong. Anchoring on
+  `id="<label>"` with `rfind` gave 38 183 chars and the sanity phrases. (L-080's
+  rule, re-broken by using the label rather than the `id=` attribute.)
+- Single-backtick scan over the diff caught `` `.H` `` (a title-reference, not a
+  literal) in my prose. Its 40 sibling hits were all inside the manifolds
+  `code-block:: yaml` status string, where single backticks are the existing
+  convention — the scan is only usable per-file-context.
+
+### Quality self-assessment (Directive 3)
+
+| dimension | score | note |
+|---|---|---|
+| Derivation depth | 5 | the fork derived from commutation of an ℓ-diagonal metric with a per-ℓ scalar, with the exact reciprocal ratio |
+| Cross-references | 5 | 17 qualified roles, all import-resolved; 4 `:ref:` hrefs verified in the built HTML |
+| Numerical evidence | 5 | 33-row census, operator-level draw-free table, end-to-end pre/post `array_equal` on 4 orders |
+| Failed approaches | 4 | the F-0 hazard and the demoted canary are recorded; no *falsified* alternative existed to narrate |
+| Code traceability | 5 | every claim carries its `file:line` or its command |
+| **Derivation source** | **2** | ⛔ again: all six measurements live in `scratch/` probes, not a tracked `derivations/` module. Same weakest dimension as L-083. |
+
+**Standing ask (third session running):** a tracked home for frame/metric
+probes — `derivations/numerics/frame_metric_forks.py` exposing
+`derive_parseval_vs_continuum_ratio()` and `derive_lambda_adjoint_metric_inertia()`
+returning the two tables above — so the page can cite a module instead of
+describing a construction.

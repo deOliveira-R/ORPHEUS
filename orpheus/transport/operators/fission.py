@@ -356,9 +356,12 @@ class FissionOperator(BoundOperator["FullField"]):
         kernel field is immutable, so the cache cannot go stale). The
         forward production path keeps the reaction-rate fast path (the S
         ruling: the frame form is the validated NON-hot-path spelling)."""
-        sh = _sh_space_l0()
+        # The ℓ=0 ends are the bound frame's BASIS space — read, never
+        # minted from the integer 0 (#429 tracker 2.5): which family spans
+        # the moments is the quadrature's decision.
+        ends = self.frame.basis.space
         return self.frame.conjugate(
-            FissionMomentOperator(self.energy, domain=sh, codomain=sh),
+            FissionMomentOperator(self.energy, domain=ends, codomain=ends),
         )
 
     def _interior_space(self) -> "FunctionSpace":
@@ -499,12 +502,3 @@ class FissionOperator(BoundOperator["FullField"]):
             / self.total_weight
         )
 
-
-def _sh_space_l0() -> "FunctionSpace":
-    """The L=0 spherical-harmonic coefficient space — the moment
-    factor's endomorphic ends (the S ``_sh_space`` idiom)."""
-    from orpheus.numerics.spaces.spherical_harmonic_space import (
-        SphericalHarmonicSpace,
-    )
-
-    return SphericalHarmonicSpace.from_L(0)

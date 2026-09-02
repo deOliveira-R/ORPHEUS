@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10644**
+Total tests collected: **10681**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 1643, 15.4%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7620, 71.6%
+   foundation, 7657, 71.7%
    unmarked, 19, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10546
+   explicit, 10583
    class-name, 46
    func-name, 0
    case, 33
@@ -271,7 +271,8 @@ Module × level grid
    fields/test_meshless_construction, 0, 0, 0, 0, 8, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
    frames/test_binding_tightness, 0, 0, 0, 0, 17, 0
-   frames/test_harmonic_frame, 0, 0, 0, 0, 28, 0
+   frames/test_harmonic_frame, 0, 0, 0, 0, 29, 0
+   frames/test_moment_space_is_read_off_the_frame, 0, 0, 0, 0, 36, 0
    geometry/test_bc_equivalence_snapshot, 0, 0, 0, 0, 44, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 50, 0, 0, 5, 0
@@ -905,7 +906,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **578** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **579** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1180,6 +1181,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``moc-scalar-flux-reconstruction``
 - ``mode-conservation-target``
 - ``moment-projection-transpose-T``
+- ``moment-space-read-off-the-frame``
 - ``morel-montry-closure``
 - ``morel-montry-folded-arc``
 - ``multiplication-operator-action``

@@ -47,7 +47,7 @@ References
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional
 
 import numpy as np
@@ -227,6 +227,29 @@ class SphericalHarmonicSpace(FunctionSpace):
         SH convention's formula has a single canonical home.
         """
         return self.basis.metric_per_ell
+
+    def truncated(self, L_new: int) -> "SphericalHarmonicSpace":
+        r"""This family's space at the lower order ``L_new`` — the head a moment field truncates TO.
+
+        The moment carrier truncates by asking its angular HEAD factor for
+        the same family one order down, never by re-minting a family from
+        an integer (#429 tracker 2.5): a Legendre head truncates to a
+        Legendre head, a spherical-harmonic head to this. Returns the
+        CONTINUUM-metric member (:meth:`from_L`) under THIS head's own
+        name — the head keeps its identity and only its order moves — so
+        a frame-dressed head drops its Parseval dressing on truncation,
+        exactly as it always did: the metric is the frame's to install,
+        never the field's to carry across orders. (The production name
+        is the class's canonical one, so this is bit-identical to the
+        ``from_L(L_new)`` it replaced; what it refuses to do is hand a
+        renamed head back the default name — the tell of an integer mint.)
+        """
+        if not 0 <= L_new <= self.L:
+            raise ValueError(
+                f"SphericalHarmonicSpace.truncated: L_new={L_new} must lie "
+                f"in [0, {self.L}]."
+            )
+        return replace(type(self).from_L(L_new), name=self.name)
 
     @property
     def addition_theorem_factor(self) -> NDArray:

@@ -39,6 +39,20 @@ stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
+- **The angular moment space is READ off the frame, never minted from `L`** — 2026-09-02,
+  same branch, tracker **2.5** (`TruncatedBasis` Protocol; both `HarmonicFrame` doors; seven
+  re-mint sites; `truncated` on the head). Docs **UNCOMMITTED** (mine): `frame.rst` +427 (a new
+  `-` section + 6 `~` subsections + 1 Key Facts bullet; ONE new `documented` eq-label
+  `moment-space-read-off-the-frame`), `operator_algebra.rst` +24 (a tombstoned `implements`
+  body), `manifolds.rst` +23 (status YAML + the lower-bound remedy), `spaces.rst` +11,
+  `cartesian_multid.rst` +16, `error_catalog.rst` ERR-080 +49 (**stays OPEN**), regenerated
+  `matrix.rst` (sentinels 578 → **579**, exactly as predicted; the +37 tests are the CODE
+  side's). `-E -W` **0 → 0**, EXIT=0; xref gate `DEAD TARGETS: 0`; nexus `dead_references`
+  0/52. ⚠ **REPORTED, code-only** (4 items, headed by the `harmonic_moment_source_sink`
+  docstring twin the step's own sibling correction skipped). ⚠ Three brief numbers did not
+  reproduce (its census command, "12 of 12", "96–161 %") and its two candidate host pages were
+  both wrong — detail in the lesson. → [[lessons-L84]]
+
 - **A quotient carries TWO coordinate systems — the chart and the section** — 2026-08-31/09-01,
   branch `fix/angular-phantom-support` (#429). Docs **UNCOMMITTED** (mine; main agent commits):
   `manifolds.rst` +1152/−85 + the regenerated `matrix.rst`; code side landed `b55bba56`

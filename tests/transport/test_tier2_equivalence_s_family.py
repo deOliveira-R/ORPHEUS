@@ -38,6 +38,7 @@ from orpheus.transport.operators.scattering import (
 )
 
 from tests.sn._test_helpers import material_xs_from_raw
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 
 pytestmark = pytest.mark.foundation
 
@@ -119,7 +120,7 @@ class TestSFamilyTierTwoEquivalence:
     def test_moment_pair_from_material_xs_equals_the_exact_ctor(self):
         mat_xs = _mat_xs()
         sh = SphericalHarmonicSpace.from_L(1)
-        rich = LegendreMomentScattering.from_material_xs(mat_xs, 1, skip_l0=False)
+        rich = LegendreMomentScattering.from_material_xs(mat_xs, SphericalHarmonicBasis(L=1), skip_l0=False)
         exact = LegendreMomentScattering(
             ScatteringMaterialField.from_material_xs(mat_xs).truncated(1),
             skip_l0=False, domain=sh, codomain=sh,
@@ -131,7 +132,7 @@ class TestSFamilyTierTwoEquivalence:
         ):
             pytest.fail("Λ datum drifted")
 
-        rich_n = N2NMomentOperator.from_material_xs(mat_xs, 1)
+        rich_n = N2NMomentOperator.from_material_xs(mat_xs, SphericalHarmonicBasis(L=1))
         exact_n = N2NMomentOperator(
             N2NMaterialField.from_material_xs(mat_xs), domain=sh, codomain=sh,
         )

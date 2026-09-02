@@ -37,6 +37,7 @@ from orpheus.transport.operators.scattering import N2NMomentOperator
 from orpheus.transport.source_sinks import AngularSourceSink
 
 from tests.sn._test_helpers import material_xs_from_raw
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 
 pytestmark = pytest.mark.foundation
 
@@ -82,7 +83,7 @@ class TestLiftIsTheConjugation:
 
         S = solver.scattering_op
         moment = N2NMomentOperator.from_material_xs(
-            mat_xs=solver.mat_xs, L=S.scattering_order,
+            mat_xs=solver.mat_xs, basis=SphericalHarmonicBasis(L=S.scattering_order),
         )
         conjugated = S.frame.conjugate(moment).apply(psi.values)
         np.testing.assert_allclose(

@@ -1711,6 +1711,22 @@ cell/group space,
    tensor product). Foundation-gated by test_spatial_moment_field_space.
 .. vv-status: two-moment-carrier-space documented
 
+.. note::
+
+   **The first factor is named for this chapter's setting, not by
+   construction.** A :math:`d \ge 2` Cartesian mesh carries a full-sphere
+   angular rule, so the angular head genuinely *is* a
+   :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`. In general
+   the head is *the coefficient space of the basis the mesh's quadrature
+   bound at* :math:`L`, READ off the frame
+   (:eq:`moment-space-read-off-the-frame`,
+   :ref:`frame-moment-space-single-home`) — the σ-even restriction on a
+   folded rule, and the Legendre basis on :math:`S^2/SO(2)_a` on a 1-D
+   chart once #429 tracker 3.4 lands. Since 2026-09-02 the field factory
+   reads it rather than minting it from :math:`L`, so the leading
+   :math:`(L{+}1, 2L{+}1)` rectangle below is the *harmonic* head's
+   layout and not a property of moment fields as such.
+
 so the stored ndarray gains a trailing :math:`(\text{per\_axis})^d`
 spatial-moment axis after the :math:`(\ell, m, g, *\text{spatial})` prefix.
 The orthogonality is what makes the architecture clean: the scattering

@@ -7740,3 +7740,150 @@ Both filters carry an in-script positive control asserting a known member.
 ⟹ **a "who can reach this seam" census needs the PRODUCTION defaults, not just
 the test-side constructor grep** — the plan-authoring §2 FILTER clause, at the
 call-graph tier.
+
+---
+
+## L69 — the FUSED step (Landing A + B) for #429 / ERR-080 (verification plan delivered 2026-09-02, HEAD `17e0eb0e`)
+
+Two landings ruled by the user: **A** — "the angular moment space is READ off the frame,
+never minted from `L`" (bit-identical pre-step, 7 `SphericalHarmonicSpace.from_L(L)`
+producers re-pointed + the `HarmonicFrame` SH narrowing widened); **B** — the ONE fused
+commit `0.1b + 0.6 + 2.2 + 3.4 + 3.4b` that mints a true `LegendreBasis` on
+`S²/SO(2)_a`, arms G0 at the frame, deletes the 1-D `(μ,0,0)` forgery, and makes
+`_evaluate_real_sh` refuse off-sphere points. Plan: `scratch/_fused_verification_plan.md`.
+Probes: `scratch/_fused_va_{dense,bits,lpmv,einsum,metricfork,hfork2,isotypic,misc,operands,census,theorem,testcount}.py`.
+
+### (a) ⛔⛔ NO single library routine reproduces a hand-BRANCHED production table
+
+The brief asserted `Y[:, ℓ, ℓ] = lpmv(0, ℓ, μ_x) = P_ℓ(μ_x)` **bit-exactly**, and the
+whole "slab L ≤ 1 flux is bit-identical across the repair" exit predicate rests on it.
+`[M]` `_evaluate_real_sh` hardcodes `Y[:,0,0] = 1.0` and `Y[:,1,1] = mu_x` (the INPUT
+array) and only calls `lpmv` from ℓ ≥ 2. So:
+
+```
+l=0   == lpmv ✓   == eval_legendre ✓
+l=1   == lpmv ✗ (8.327e-17 GL8, 1.110e-16 GL16/LS4/lebedev)   == eval_legendre ✓
+l>=2  == lpmv ✓   == eval_legendre ✗ (3.3e-16 … 8.0e-16)
+```
+
+The consequence is not cosmetic. Simulating the replacement contraction on the REAL slab
+tables (`ng=2`, `nx=4`), the **matched** spelling (`1.0` / `μ` / `lpmv`) gives
+`array_equal` on `analyze`, `analyze_transpose` AND `reconstruct` at L = 0, 1, 2 on GL8
+and GL16 — **6 of 6 rows, `max|Δ| = 0.00e+00`** — while the pure-`lpmv` spelling breaks
+every one at `4.44e-16` (GL8) / `8.88e-16` (GL16). ⭐ And the same matched spelling makes
+the `Descent` isomorphism `array_equal` (`max|Δ| = 0.000e+00`) on **7 of 7** full-sphere
+and folded rules at L = 4, so the gate can be stated at the BIT tier rather than "to
+machine precision".
+
+⟹ **when a new type must reproduce an existing table bit-exactly, diff the existing
+producer's BRANCHES, not its name.** A hardcoded low-order block is a second spelling of
+the same function and it is invisible to a spot-check at one ℓ.
+
+### (b) ⛔⛔ A space and its metric-dressed twin are `==`-EQUAL and metrically DIFFERENT
+
+Landing A's charter offered `frame.basis.space` **/** `frame.basis_space` as one thing.
+`[M]` over 12 (rule, L) rows: `basis.space` is metric-IDENTICAL to
+`SphericalHarmonicSpace.from_L(L)` (12/12, `array_equal` on the weights) and
+`basis_space` is metric-DIFFERENT (12/12) — `[12.566…]` vs `[0.5]` on the slab, vs
+`[0.0796]` on a sphere rule, and a `DenseMetric` (no weights at all) on the slab at L=2.
+The observable: `apply_metric` moves **96.0 %–161.3 % relative**.
+
+`FunctionSpace.__eq__` is `(name, shape)`, so BOTH compare equal, no `==`-based gate can
+see the fork, and the bit-identity charter would have been met on paper while every
+moment operator's `.H` moved. This is `plan-authoring` §8 in its exact G6.3-step-8.0
+shape (87 % on a boundary law) — a *metric* is an input a consumer branches on.
+
+⟹ **when a charter names two spellings of "the space", measure `apply_metric` on both
+before writing one line.** `==` is the wrong instrument by construction here.
+
+### (c) ⛔ A vv#13 negative control can be BLIND below a threshold parameter value
+
+The SO(2) isotypic probe's whole point is that right angles generate `C₄` and falsely
+admit slots. `[M]` about the SH polar axis (x), incommensurate and right angles agree
+EXACTLY at L = 1, 2, 3 — **zero** false positives — and the first divergence is at L = 4
+(`(4,0)`, `(4,8)`, i.e. m = ±4), growing at L = 5 (`+ (5,1)`, `(5,9)`). So the mutation
+arm "swap incommensurate for right angles" reddens **only** at L ≥ 4, and a probe gate
+parametrized over L ∈ {1,2,3} ships with an unfalsifiable control.
+
+⭐ Companion measurement, needed to read the number: the honest answer at L = 4 is
+**25 of 45 table slots**, of which 20 are `|m| > ℓ` padding (invariant under everything)
+⟹ **5 real of 25**, which is what §III.8 recorded. A gate counting table slots reports 25
+and reads as "all of them".
+
+⟹ **a vv#13 control needs its own activation threshold measured**, and a probe over a
+padded layout needs its denominator stated in REAL slots.
+
+### (d) ⭐⭐ A random-draw separation statistic has an exact, draw-free replacement
+
+`test_frame.py`'s D3/D4 pin "no diagonal metric can satisfy Parseval on a dense frame"
+with a floor (`1.5`) on a randomly drawn coefficient vector. `[M]` 400 seeds on the very
+frame it pins: the ratio ranges **0.2327 … 1.9975** (median 1.827) — the floor pins a
+SEED. The ratio is `(Gc)ᵀD(Gc)/(cᵀGc)` with `D = diag(1/G_kk)`, i.e. a generalized
+Rayleigh quotient, so its exact range is the generalized eigenvalue range of `(G D G, G)`
+on `range(G)` — closed form, one `eigvalsh`, no draw. Measured that way today's flagship
+reads `[0.065, 2.000]`.
+
+⟹ **before pinning a floor on a random probe, ask whether the statistic is a Rayleigh
+quotient.** If it is, the range is exact and the gate stops being seed-fragile.
+
+### (e) ⭐⭐ The Gauss–Legendre DEAD-SLOT theorem (a project config fact)
+
+`[M]` 12 of 12 rows (`n ∈ {2,4,8,16}` × `L ∈ {n−1, n, n+1}`): a `GL_n` rule's Legendre
+Gram is **DIAGONAL and exact** (`max|diag − 2/(2ℓ+1)| ≤ 4.7e-16`, offdiag ≤ `3.7e-15`)
+for `L ≤ n−1`, and acquires a **structurally dead slot exactly at ℓ = n** — because the
+`GL_n` nodes ARE `P_n`'s roots. Hence **no 1-D Gauss–Legendre frame is dense AND
+full-rank.** Consequences for gate design: (i) the slab GL8/L=2 frame's Gram becomes
+DIAGONAL under a Legendre basis (offdiag `1.418e-16`), so the campaign-1 flagship DENSE
+witness dies; (ii) `solve_sn(gauss_legendre(2), scattering_order ≥ 2)` reaches a
+near-singular `DenseMetric` (`cond` up to `1.9e32`) that the Penrose guard currently
+ACCEPTS; (iii) the full-rank dense Legendre witness must come from a **non-Gauss** 1-D
+measure — `[M]` equispaced `n = 8, L = 3`: offdiag `6.107e-01`, 0 dead slots, cond `21.0`.
+
+⭐ And the elegant coincidence: that equispaced measure IS
+`tests/transport/frames/test_binding_tightness.py::_equispaced_frame`, the one existing
+fixture G0 would refuse (it declares `support = COSINE_INTERVAL`). Re-declaring its
+support as `SPHERE.quotient(SO2("x"))` makes it pass G0 **and** become the post-carve
+dense flagship — one edit, two problems.
+
+⭐ The B-unaffected replacement that needs no new fixture at all:
+`folded_product(2,4).angular_frame(2)` reads range `[1.000, 2.707]` and `(…,3)` reads
+`[1.000, 3.707]` — **1.7×/2.7× today's flagship separation**, and never below 1 (today's
+goes to 0.065).
+
+### (f) ⚠ A DERIVED `invariance_group` is a LOWER bound, so a lattice gate can refuse a CORRECT pairing
+
+`Basis.invariance_group` is derived `@final` as `domain.by`. For `{P_ℓ(Ω·ê_x)}` that is
+`SO2('x')` — but `[R]` the true stabiliser is `O(2)_x`: `σ_y` does not move `μ_x`, so the
+functions ARE σ_y-invariant. `[M]` `SO2('x').contains(Mirror('y')) = False`, so a lattice
+G0 refuses Legendre-on-a-σ_y-folded rule, which is mathematically admissible. The ABC's
+own docstring predicts this ("the reading is a LOWER BOUND… the remedy is to declare the
+finer domain") — and `[M]` there is no axis-parameterised `O2` to declare
+(`SubgroupOfO3` ships `Trivial/Dinfh/OctahedralOh/IcosahedralIh/SO3/O3` + `Cn/Dnh/Mirror/SO2`;
+`Dinfh` is parameter-free). Inert today (the dispatch never selects that pairing) and a
+§6c landmine the day a cylindrical `P_L` expansion is wanted.
+
+### (g) other measured hazards worth carrying
+
+* **A value gate cannot discriminate `axis_cosines(0)` from `mean_axis_cosine(0)`** —
+  `[M]` bit-identical on 5 of 5 GL rules. The DSA μ-read's principled choice has only the
+  REFUSAL leg as a witness (`axis_cosines(1)` raises; `mean_axis_cosine(1)` returns zeros).
+* **G0 lands with ZERO shipped production refusals** — `[M]` 7 of 7 pairings admitted
+  today, and post-carve the dispatch selects the admitted basis for every shipped support.
+  Its one tree witness (`_equispaced_frame`) hits THREE guards in sequence, and `[M]`
+  `dom.realization == COSINE_INTERVAL` is **True** while `dom == COSINE_INTERVAL` is
+  False, so an equality-G0 and a realization-comparing G0 give OPPOSITE verdicts on it.
+* **A pin can be two-thirds honest.** `test_frame.py:906` pins `[0.4, 0.8, 0.8]` as "the
+  fabricated ℓ=2 Gram diagonal"; `[M]` the row is `[0, 0, 0.4, 0.8, 0.8]` and `0.4 = 2/5`
+  is the CORRECT m=0 entry — only the two `0.8`s are fabricated. A re-pin that deletes all
+  three loses a real datum.
+* **The carrier's two-axis head fails SILENTLY on a rank-1 head.** `scalar_flux`,
+  `isotropic_part`, `anisotropic_part`, `moment(ℓ)` and `truncate` all index
+  `values[0, 0]`; on a `(L+1, ng, nx)` array that is group 0's spatial slice, no exception.
+  And the L = 0 chain (`fission.py:305`, `n2n.py:200`) puts the **isotropic** solve inside
+  the blast radius, not only `scattering_order ≥ 1`.
+* **Exit predicate 3's "two coarse-rule rows" is up to FOUR.** `[M]` post-carve the
+  isotropic-flux ℓ≥1 moment is ≤ `8.8e-17` on GL4/8/16/32 through L=5 but reads
+  `7.778e-01` on `gauss_legendre(2)` at L ≥ 4; and if the Legendre-on-a-full-sphere
+  pairing is exercised, `product(4,4)` L=4 reads `3.665e+00` and `folded_product(2,4)`
+  L=4 reads `4.887e+00`. `[R]` the mechanism for the last two is the tree's TWO POLES
+  (SH about x, the product family about z), not a defect.

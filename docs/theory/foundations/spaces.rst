@@ -2134,6 +2134,17 @@ differences imply space differences* is unaffected — it flows through
 the axis-derived name, :ref:`spaces-identity-bridge`, and an axis-built
 space cannot carry a metric object at all.)
 
+⚠ **The consequence for any GATE over these two spellings**: a
+``==`` assertion is structurally blind to which of them a producer
+bound, so it cannot adjudicate a choice between them. `[M]` 2026-09-02
+over 33 shipped (rule, :math:`L`) rows the frame's ``basis_space`` and
+its ``basis.space`` are ``(name, shape)``-equal on **33 of 33** and
+metric-different on **33 of 33**. When #429 tracker 2.5 bound the
+angular operator ends to one of the two, the gate that pins the choice
+therefore had to assert the metric ARRAY with the other spelling as its
+negative control (``vv-principles`` #19) —
+:ref:`frame-moment-space-single-home`.
+
 **3. Expressible is not known — the curvilinear moment mass stays
 refused.** The multi-moment cell mass on a curved chart was blocked on
 **two** independent things, deliberately named because they need

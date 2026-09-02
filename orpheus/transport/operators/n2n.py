@@ -319,14 +319,13 @@ class N2NOperator(BoundOperator["FullField"]):
         is what makes :meth:`apply_transpose` factor reversal instead of
         arithmetic; the forward keeps the reaction-rate fast path (the S
         ruling). Cached at first access (the kernel field is immutable)."""
-        from orpheus.numerics.spaces.spherical_harmonic_space import (
-            SphericalHarmonicSpace,
-        )
         from orpheus.transport.operators.scattering import N2NMomentOperator
 
-        sh = SphericalHarmonicSpace.from_L(0)
+        # The ℓ=0 ends are the bound frame's BASIS space — read, never
+        # minted from the integer 0 (#429 tracker 2.5).
+        ends = self.frame.basis.space
         return self.frame.conjugate(
-            N2NMomentOperator(self.energy.n2n, domain=sh, codomain=sh),
+            N2NMomentOperator(self.energy.n2n, domain=ends, codomain=ends),
         )
 
     @overload

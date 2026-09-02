@@ -68,6 +68,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 
 OUT_FILE = Path(__file__).parent / "pre_t3_snapshots.npz"
 
@@ -224,7 +225,7 @@ def _capture_legendre_moments(
         moments_values, solver.sn_mesh, L,
     )
     Lam = LegendreMomentScattering.from_material_xs(
-        mat_xs=solver.mat_xs, L=L, skip_l0=False,
+        mat_xs=solver.mat_xs, basis=SphericalHarmonicBasis(L=L), skip_l0=False,
     )
     scattered = Lam.apply(moments)
     return scattered.values.copy()

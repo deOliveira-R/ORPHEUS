@@ -6136,6 +6136,55 @@ older entries classify against.
      :math:`\langle\Omega_i\rangle` and is therefore derived rather than
      defaulted.
 
+     ✅ **Progress 2026-09-02 (tracker 2.5) — the angular moment space
+     now has ONE home, so the repair's blast radius fell from eight
+     sites to one. The defect is unchanged.** The level-2 half of the
+     Fix below binds a basis whose domain is :math:`S^2/SO(2)_a` — a
+     class that is not a
+     :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`. `[M]`
+     2026-09-02 the tree could not have absorbed it: the harmonic frame
+     had **two** ``isinstance(basis, SphericalHarmonicBasis)`` doors,
+     and **seven** production sites re-minted the angular coefficient
+     space from the integer :math:`L` as
+     ``SphericalHarmonicSpace.from_L(L)`` beside the frame that already
+     carried it — the :math:`\Lambda` ends in three spellings, the
+     fission and :math:`(n,2n)` :math:`\ell = 0` ends, the moment
+     field's head, and ``truncate``. Every copy silently chose the
+     full-sphere family, so the day a 1-D rule binds its Legendre basis
+     each copy disagrees with the frame at the ``(name, shape)``
+     composability guard — and because fission and :math:`(n,2n)` mint
+     at :math:`\ell = 0`, the **first** disagreement is at
+     :math:`L = 0`, on an isotropic solve, in a channel unrelated to
+     anisotropic scattering.
+
+     ⟹ **What that buys ERR-080 is a clean landing surface for the
+     repair, and nothing else.** Both doors now demand the
+     :class:`~orpheus.numerics.basis.base.TruncatedBasis` *surface*
+     (``L`` + ``space``) rather than a class, and every one of the seven
+     sites READS ``frame.basis.space``, so the family a quadrature
+     chooses propagates by construction. `[M]` 2026-09-02 over 33 rows
+     (the eleven shipped ``Quadrature`` constructions ×
+     :math:`L \in \{0,1,2\}`) the space now read is ``(name, shape)``-equal
+     AND ``array_equal`` on its metric to the ``from_L(L)`` mint it
+     replaces, **33 of 33**; :math:`\Lambda`'s ``.H`` is bit-identical on
+     **33 of 33**; and end-to-end on **this entry's own gate fixture**
+     the converged scalar flux is ``np.array_equal`` pre/post at
+     :math:`L = 0, 1, 2` **and** :math:`3`, ``max|Δ| = 0.0``.
+
+     ⛔ **Nothing here repairs the defect, and the bit-identity at the
+     two DEFECTIVE orders is the POINT, not a disappointment.** A pre-step
+     that moved those two numbers would have flipped an
+     ``xfail(strict=True)`` row without repairing anything, which is the
+     one failure mode a self-retiring gate cannot survive. `[M]` the
+     **Gate** below still declares **three** ``xfail(strict=True)`` rows
+     and 2.5 edits none of them; the forged :math:`(\mu, 0, 0)` measure
+     is still constructible; and the basis 2.5 makes bindable does not
+     exist — `[M]` the surface's shipped implementors are **2 of the 5**
+     :class:`~orpheus.numerics.basis.Basis` subclasses (the full
+     harmonics and their σ-even restriction), the third being tracker
+     3.4. See :ref:`frame-moment-space-single-home` for the census, the
+     ``basis.space``-vs-``basis_space`` fork and the three gates.
+
      ✅ **Progress 2026-09-02 (tracker 3.1) — the honest map is now a
      FIELD of the orbit space, and so is the measure it pushes
      forward. The defect is unchanged.** Tracker 2.3 gave the point-set

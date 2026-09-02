@@ -1512,6 +1512,178 @@ ruling (§V.5h(a)).
 
 ---
 
+### ✅ 2.5 — EXECUTED 2026-09-02 (hash stamped in the follow-up). What building it actually found
+
+**The outcome.** The angular moment space has ONE home — the basis the
+quadrature's frame bound — and every consumer READS it. `TruncatedBasis`
+(`numerics/basis/base.py`, a `runtime_checkable` Protocol: `L` + `space`) is
+the harmonic family's shared surface; `HarmonicFrame`'s two doors ask for
+THAT surface (`_admit_truncated`, message *"truncation order"*), not for one
+class, and the mints read `frame.truncation_order`; the Λ ends read
+`self.flux_analysis.frame.basis.space` (`ScatteringOperator._moment_space`,
+was `_sh_space`), the two tier-2 classmethods take a `basis: TruncatedBasis`,
+the fission and (n,2n) ℓ=0 ends read `self.frame.basis.space`
+(`_sh_space_l0` deleted), the moment-flux field's head is
+`mesh.quad.angular_frame(L).basis.space` (`_angular_head_space`, a
+`_CarriesQuadrature` Protocol; a quadrature-less `MaterialMesh` refused
+with a typed message), and `truncate` asks the head for ITS OWN family one
+order down (`SphericalHarmonicSpace.truncated`, name-preserving) and slices
+by the new head's shape — head-layout-agnostic, so B13's `truncate` row is
+already discharged. Minted at the fused step's opener (§V.5l) and executed
+the same session — no separate opener; the test-architect's memo
+(`scratch/_fused_verification_plan.md`) was read before the first line.
+
+**Two rulings I made (the memo's A-R1 / A-R2), recorded here because a plan
+must not hide a decision in a diff:**
+
+1. **A-R1 — the ends bind `basis.space`, the CONTINUUM space, not the
+   frame's Parseval-dressed `basis_space`.** `[M]` the fork, re-derived by
+   the archivist draw-free (the test-architect's *"`apply_metric` moves
+   96–161 %"* did NOT reproduce under any norm — a relayed number, §4):
+   the two spaces are `(name, shape)`-equal and metric-DIFFERENT on **33 of
+   33** (rule, L) rows (11 constructions from all 5 factories × L ∈
+   {0,1,2}); the per-ℓ metric ratio is exactly `[(2ℓ+1)/4π]²` =
+   `6.33e-3 / 5.70e-2 / 1.58e-1`; and Λ's Hilbert adjoint under the
+   CONTINUUM end is `Λ* = Λᵀ` **exactly (0.0) on 33/33**, while under the
+   dressed end it MOVES on 10/33 rows — every `gauss_legendre` /
+   `folded_product` row at L ≥ 1 (`9.7e-2 … 1.37e-1` on the DIAGONAL-verdict
+   ones, `1.08e-1 … 1.58` on the DENSE ones). ⛔ My first argument for the
+   ruling — *"Λ is diagonal in ℓ so its adjoint agrees under either metric
+   wherever the Gram is diagonal"* — is REFUTED by the six DIAGONAL movers
+   and is struck. The ruling stands on the measurement: binding the basis's
+   own space keeps every number and every `.H` bit-identical to the
+   `from_L(L)` mint it replaces, which is A's whole acceptance. Gated with
+   the dressed space as the NEGATIVE control (A2, and the m10 arm).
+2. **A-R2 — `_space_for_mesh_and_L` RE-DERIVES from the frame, through the
+   mesh's quadrature.** The memo's dichotomy (*each choice reds a
+   population*) is a POST-B statement; with the SH basis bound everywhere
+   both populations are green and bit-identical. `from_mesh_and_L(values,
+   mesh, L)` keeps its signature — the mesh carries the quadrature, so it
+   is frame-derived and not an `L`-mint; `[M]` 51 + 22 test constructions
+   untouched.
+
+**The §6b set, as executed** (predicate: every site that minted the space
+or narrowed the basis, by the explorer's AST census + the red loop): 7
+producers (`scattering.py` ×3, `fission.py`, `n2n.py`, `_bases.py`,
+`harmonic_moment_flux.py`), 2 doors + 1 annotation (`harmonic_frame.py`),
+the SH space's own `truncated` (new), the Protocol + export — 9 production
+files; **26 test call sites in 8 files** re-keyed from `L=` to
+`basis=SphericalHarmonicBasis(L=…)` (the explorer's grep read 28 LINES; two
+were the same site counted twice), 1 refusal test re-pinned
+(`test_harmonic_frame.py`: *"spherical-harmonic trial"* → *"truncation
+order"*), 1 canary re-described + 1 external literal pin added. pyright
+**0** on the 9 production files; **20** diagnostics on the 9 touched test
+files, `[M]` **0 on a touched line** (intersected by script — all
+pre-existing).
+
+**Bit-identity, measured.** The slab GL8 fixed-source flux at
+`L = 0, 1, 2` (`scratch/_fused_g0_census.py`'s fixture) is `array_equal`
+before/after, `max|Δ| = 0.0` on all three (`scratch/_fused_baseline_slab_L01.npz`
+vs `_fused_after_A_slab_L01.npz`); the sphere GL8 and folded(2,4)
+cylinder solves reproduce their values; 21 frame constructions, 3 unique
+pairings, unchanged. Every operator end and field head is
+`(name, shape)`-equal AND metric-`array_equal` to `from_L(L)` on 11 shipped
+rules × L ∈ {0,1,2} (gate A2, 33 rows).
+
+**Gates** (`tests/transport/frames/test_moment_space_is_read_off_the_frame.py`,
+36 rows, + 2 in `test_harmonic_frame.py`):
+
+| gate | asserts | §6c witness it rejects |
+|---|---|---|
+| **A1** the ROUTE gate | a FOREIGN truncated basis (`_ForeignTruncatedBasis`: NOT an SH subclass, delegates the numerics, RENAMED coefficient space) bound into the quadrature's cache makes every operator end and the field head MOVE; `truncate` keeps the foreign name; the tier-2 mints take the basis | an end minted from `L` fails `OperatorProduct`'s guard `A.domain == B.codomain` — the negative leg, and every producer revert's red |
+| **A2** metric identity (33 rows) + A2b on a posed composite | `frame.basis.space == from_L(L)` AND metric `array_equal`; the dressed `basis_space` is `==` and metric-different (`[M]` archivist: 33/33, ratio `[(2ℓ+1)/4π]²`) | the dressed space (the fork) |
+| **A3** the door | an indicator trial refused at BOTH doors with *"truncation order"*; the foreign basis admitted, `truncation_order` read | the pre-2.5 `isinstance` narrowing |
+| **A5** the demoted canary, re-described | both sides now derive from ONE source; keeps the discovery-path `is`-identity | — (a tautology named as one, per coding-standards) |
+| **A6** the external pin | the moment codomain's shape as a hand-written literal `(3, 5, ng, nx)` | a wrong-`L` frame |
+
+**Red loop.** Scope: `tests/transport`, `tests/numerics/{test_frame,test_basis_domain}.py`,
+`tests/sn/operators`, `tests/sn/primitives`, the ERR-080 gate,
+`test_dsa_rate.py`: **2403 passed, 2 failed** — both MY fixture defects in
+the new gate (the foreign frame built on the RAW 1-D measure, which the SH
+numerics refuse — it must ride the production frame's measure, today the
+forged padding, tomorrow the rule's own; and a `scattering_order=2` request
+against two-moment synthetic data), fixed; then **113 passed** on the five
+gate files. The first launch died at COLLECTION with a `SyntaxError`: my
+re-key script inserted the added import INSIDE a multi-line import block —
+re-placed after the last top-level import by AST, 8 of 8 compile.
+
+**Mutation battery** (`scratch/_fused_25_mut/mutplugin25.py` +
+`_fused_25_battery.sh`, in-process, `pytest_configure`-time, a CALL COUNTER
+per arm; scope 113 tests; `scratch/_fused_25_battery.log`):
+
+| arm | mutant | reds | verdict |
+|---|---|---|---|
+| none | — | 0 / 113 | baseline |
+| POSITIVE CONTROL | `SphericalHarmonicBasis.space` renamed | **34** (A2's 33 rows + 1), CALLS 109 | the harness sees |
+| m1 `_moment_space` → `from_L` | | **1** — A1, CALLS 3 | caught |
+| m2 fission ends → `from_L(0)` | | **1** — A1, CALLS 1 | caught |
+| m3 (n,2n) ends → `from_L(0)` | | **1** — A1, CALLS 1 | caught |
+| m4 field head → `from_L(L)` | | **1** — A1, CALLS 40 | caught |
+| m5 `truncated` drops the name | | **1** — A1, CALLS 5 | caught (the name-preservation is what makes it visible) |
+| m6 / m7 tier-2 mints → `from_L(basis.L)` | | **1** each — A1, CALLS 13 / 2 | caught |
+| m8 / m9 a door narrows to SH again | | **3** each — A3, A1, the re-pinned door test, CALLS 174 / 173 | caught |
+| m10 THE FORK: ends read `basis_space` | | **1** — A2b, CALLS 5 | caught — by the metric assertion only, as predicted: `==` is blind to it |
+
+No arm blind; every mutant ran (CALLS > 0); integrity: only the 19 intended
+files modified, nothing else in `orpheus/` or `tests/`.
+
+**Gate** (13 trees, predicted first, `scratch/_fused_25_full_gate.sh` →
+`_fused_25_full_gate.log`, serial canonical runner): predicted transport
+646 → **683** (+36 in the new file + 1 in `test_harmonic_frame.py`), every
+other tree unchanged, **10417 → 10454**. `[M]` **MEASURED, 13 of 13 rc=0:
+10366 passed · 19 skipped · 69 xfailed · 0 failed = 10454, every tree equal
+to its predicted denominator** — transport 682 + 1 sk = 683; the other
+twelve trees bit-for-bit the pre-2.5 rows (numerics 2739 · geometry
+727+4sk+1xf · data 237 · homogeneous 50 · diffusion 113 · cp 141 · moc 121
+· mc 39+2xf · cross_method 81 · sn 3384+1sk+50xf · derivations
+1637+13sk+11xf · root+harness 415+5xf); 61 min 55 s on a machine also
+running the archivist. Delta against the pre-2.5 baseline: **+37 passed,
+nothing else moved** — the 36 + 1 new gates, reconciled unit-for-unit.
+⚠ The run started on the pre-docs tree and `root+harness` ran AFTER the
+archivist's docs edits landed, so the docs gates tested the final corpus;
+the five post-gate docstring corrections (the archivist's findings + my
+refuted argument) are docstring-only and were re-run on the transport /
+frame / primitives slices before the commit.
+
+**Docs (archivist, same session).** `frame.rst` +452 — the SSOT section
+`frame-moment-space-single-home` (eight-homes census, the fork, why the
+continuum end is right for Λ, the `TruncatedBasis` door, the field head +
+truncation, the three gates with their §6c witnesses; one new documented
+label `moment-space-read-off-the-frame`, a Key Facts bullet, a
+Development-history entry); `operator_algebra.rst` (the `from_galerkin`
+guard's *"SH-only truncation order"* claim corrected + tombstoned);
+`manifolds.rst` (status YAML + a paragraph under
+`manifold-invariance-lower-bound`); `spaces.rst` (metric-blind identity's
+gate consequence); `cartesian_multid.rst` (`two-moment-carrier-space`
+scoped to the page's full-sphere setting); `error_catalog.rst` (ERR-080
+Progress (2.5), entry OPEN); `matrix.rst` regenerated (sentinels 578 →
+579). `sphinx -E -W` 0/0/0; `dead_references` 0 / 52; docstring-xref
+checker 0. ⛔ **Three claims of my brief refuted by re-derivation**: the
+mint census is 8 executable calls (7 re-mints + the basis's own), the fork
+denominator is 33/33 not 12/12, and *"`apply_metric` moves 96–161 %"* did
+not reproduce (see A-R1). Four docstring defects it could not edit (sources
+frozen under the gate) — `harmonic_moment_source_sink.py:40-41` and `:113`
+(the flux twin was re-tensed, the source/sink sibling was skipped), the
+prose idiom `find_factor(SphericalHarmonicSpace).L` (5 sites, 0 production
+calls), `_bases.py:628`'s two-axis shape contract, and
+`directional.py:596`'s `-> SphericalHarmonicBasis` annotation (3.4's) —
+applied after the gate, in the follow-up.
+
+**NOT claimed.** No production number moved (by construction and by
+measurement); no 1-D rule binds a Legendre basis yet; `HarmonicMomentFlux`'s
+`[0, 0]` head reads (`isotropic_part`, `scalar_flux`, `anisotropic_part`,
+`moment(ℓ)`) and `FissionMomentOperator`'s `m[0, 0]` are STILL two-axis
+reads (the memo's B13 minus `truncate`) — they are the fused commit's, where
+a rank-1 head first exists. `test_binding_tightness._equispaced_frame` is
+untouched (G0 is the fused commit's).
+
+**Residue for the fused commit** (so it is not re-derived): the foreign-basis
+idiom in A1 is the shape of the Legendre gate's fixture (a non-SH basis
+through the production chain); `_angular_head_space` and `_moment_space`
+are the two sites a Legendre-bound frame flows through with no edit; the
+`_TruncatesByOrder` Protocol is what the Legendre coefficient space must
+satisfy (`L`, `truncated`, plus `TruncatedBasis`'s `space` on the basis).
+
 ### ✅ 0.2 — EXECUTED 2026-09-01, landed `ce46181c`. What the split actually found
 
 **The shape that shipped.** `axis_cosines(i)` is now the COORDINATE question
@@ -4893,7 +5065,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 2.3 | the typed `Chart` ⛔ ruled **`ManifoldMap`**; pushforward derives support | ⏏ yes | ✅ landed 2026-09-02 `5ec3a00a` — read the *2.3 EXECUTED* section |
 | 2.4 | slab declares its quotient group (`SPHERE.quotient(SO2("x"))`); the SO2 axis-convention ruling. ~~full-suite phantom census~~ ⛔ **that MOVED to Phase 0 and is DISCHARGED** (`ee60010e`+`ccda0e61`) — it was 0.2's denominator, not 2.4's | ⏏ yes | ✅ `17501245` — read the *2.4 EXECUTED* section. **User-ruled:** `SO2(axis)` parameterised like `Mirror` (the tree carries TWO poles — slab/SH about x, product/`C_n`/`D_nh` about z — so no fiat could be right); `gauss_legendre_on_polar_orbit(n, axis)` declares, `gauss_legendre_on_mu` stays on the chart as the product factor. `[M]` the `[-1,1]` angular/spatial collision is unspellable (`L2[S^2/SO2_x]` ≠ `L2[[-1,1]]`, hashes differ); Part IV obstacle 1 answered by DERIVATION (`SO2("x")` True / `SO2("z")` False); stage 0 refuses the chart-level rule AND the wrong axis; 4 trees rc=0, +22 reconciling unit-for-unit; pyright 0. ⛔ the pre-flight's *23 sites / 3 literals* were the wrong instruments — the set was the **5 test-local factories** the stricter gate refused, found by the red loop. ⚠ Also removed a pre-existing 9 s hot spot the extra candidates amplified (§(e)) |
 | 3.1 | ~~`numerics/symmetry/` catalog~~ ⛔ the catalogue HOME landed at 2.0a/1.1/2.4 (`manifold._ORBIT_CATALOGUE`, §V.5j(a)); 3.1 = the entry's quotient map + pushforward reference (⏏ scoped to `SO(2)`) | ⏏ partial | ✅ landed 2026-09-02 — read the *3.1 EXECUTED* section (`Quotient.orbit_coordinates` + derived `quotient_map`, `Quotient.reference`; `AngularSymmetry.reference` reads the entry) |
-| 2.5 | ⭐ **NEW 2026-09-02 (the fused step's opener, §V.5l) — the angular moment space is READ off the frame, never minted from `L`.** `[M]` 8 production `SphericalHarmonicSpace.from_L(L)` mints build operator ends and the moment-flux field's space from `L` alone; `HarmonicFrame` narrows to `SphericalHarmonicBasis` at two doors; the `(name, shape)` guards compare the mints to `frame.basis_space`. The Stage-2 generator ruling's own defect, found by re-censusing 3.4-R's evidence. Bit-identical alone (the SH basis is still everywhere); PRECEDES the fused commit (§6b: the flat basis mismatches every retained mint) | ⏏ yes | ☐ ▶ NEXT — read §V.5l(d) and `scratch/_fused_verification_plan.md` |
+| 2.5 | ⭐ **NEW 2026-09-02 (the fused step's opener, §V.5l) — the angular moment space is READ off the frame, never minted from `L`.** `[M]` 8 production `SphericalHarmonicSpace.from_L(L)` mints build operator ends and the moment-flux field's space from `L` alone; `HarmonicFrame` narrows to `SphericalHarmonicBasis` at two doors; the `(name, shape)` guards compare the mints to `frame.basis_space`. The Stage-2 generator ruling's own defect, found by re-censusing 3.4-R's evidence. Bit-identical alone (the SH basis is still everywhere); PRECEDES the fused commit (§6b: the flat basis mismatches every retained mint) | ⏏ yes | ✅ **EXECUTED 2026-09-02** (hash stamped in the follow-up) — read the *2.5 EXECUTED* section: 7 producers + 2 doors read the frame's basis; `TruncatedBasis`; A-R1 (`basis.space`, not the dressed one) and A-R2 (re-derive through the mesh's quadrature) ruled and gated; slab L=0/1/2 `array_equal`; 11-arm battery, none blind |
 | 2.2b | ⭐ **NEW 2026-09-02 — the Γ-slot, SPLIT off 2.2** (user-ruled): stage 0 admits a rule on `S²/H` for `H ⊆ Γ` (lattice, derived); stage 1 asks Γ-invariance THROUGH the entry's `quotient_map`. `[M]` today `cylinder.admits_domain(folded)` False AND `admits_symmetry` False; `select_quadrature` 0 production callers | ⏏ yes | ☐ — its OWN commit, right AFTER the fused one |
 | 3.2 | `ReynoldsProjection` | no | ☐ |
 | 3.3 | `OrbitAxis` + retraction/section minting | no | ☐ |
@@ -5149,18 +5321,19 @@ stays because its Trivial support is `SPHERE`, never a quotient. **Read the
 nine-arm battery whose m3/m4 pair triangulates *the registry reads the
 entry, and the entry says what the table said*.
 
-▶ **The angular moment space is READ off the frame, never minted from `L`** —
-tracker **2.5**, MINTED 2026-09-02 at the fused step's opener (§V.5l), its own
-bit-identical commit BEFORE the fused one. `[M]` 8 production
+✅ **The angular moment space is READ off the frame, never minted from `L`** —
+tracker **2.5**, MINTED 2026-09-02 at the fused step's opener (§V.5l) and
+LANDED the same session as its own bit-identical commit BEFORE the fused one
+(read the *2.5 EXECUTED* section). `[M]` 8 production
 `SphericalHarmonicSpace.from_L` mints, two SH `isinstance` doors on
 `HarmonicFrame`, `(name, shape)` guards between them and the frame — the
 Stage-2 generator ruling's own defect, found by re-censusing 3.4-R's evidence.
 Read §V.5l(b)–(d) and the test-architect's memo
 (`scratch/_fused_verification_plan.md`) before designing.
 
-▶ **then — the slab's P_L scattering is right because the basis its measure pairs
+▶ **The slab's P_L scattering is right because the basis its measure pairs
 with is the trivial isotypic sub-basis of the spent group** — the fused
-step ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)**, ONE commit (XII.1b), **after 2.5**.
+step ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)**, ONE commit (XII.1b), NEXT.
 ⭐ **Its opener RAN 2026-09-02 (§V.5l): four rulings taken, all recorded there —
 read §V.5l first, then §V.5k.** It found
 the fusion premise intact by direct reading, THE FIX's blast radius to be
@@ -5364,10 +5537,10 @@ Part XIII — do not copy it here (`plan-authoring` §9).
 | ✅ | **2.1b** | LANDED `9b4a4d9c` — see the *2.1b EXECUTED* section. G0's other side by DERIVATION (`domain.by`), one `@final` property, zero subclass edits; the four-row table runs as `test_e5`; the fold's halves read ONE object. ⛔ its §V.5h(f) §6b sizing was void (the set was empty) |
 | ✅ | **2.3** | LANDED 2026-09-02 `5ec3a00a` — see the *2.3 EXECUTED* section: `ManifoldMap` + `archimedes` + `barycentre`, `new_space=` retired, 60/5/15 bit-identical, reference measure deferred to 3.1. ⏬ *The pre-landing row, kept per §3:* **NEXT — read §V.5i (pre-flighted 2026-09-02).** ~~G0's other side (`[M]` `Basis.invariance_group` 0 of 6)~~ (✅ 2.1b, by derivation); the typed `Chart` (also the SECTION MAP's natural home — `_sphere_mod_so2`'s `fundamental_domain=None` comment says exactly what 2.3 must choose). ⚠ Open with the re-measure: 2.3's *"6 → 8"* premise predates `Quotient.by` (2.0c) and `on_orbit_space` (2.4) |
 | ✅ | **3.1** | LANDED 2026-09-02 — see the *3.1 EXECUTED* section: `Quotient.orbit_coordinates` + the derived `quotient_map` (codomain the ENTRY, user-ruled), `Quotient.reference` (`LEGENDRE` on the axial entries, honest `None` on σ_a and `M/{e}`, user-ruled), `AngularSymmetry.reference` reads the entry; §6d measured on a shadow copy (function scope alive 7/7, module scope dead 7/7); nine-arm battery, no arm blind. ⏬ *The pre-landing row, kept per §3:* **NEXT — read §V.5j (pre-flighted 2026-09-02).** ~~the catalogue home + the probe~~ ⛔ the HOME is landed (`manifold._ORBIT_CATALOGUE`) and the PROBE is 3.4's; what remains is the entry's chart map + its reference measure. ⭐ It inherits 2.3's deferral: the pushforward REFERENCE measure as a `Quotient` field populated INSIDE the derivation function (function-scope import — `[M]` module scope is a 5-of-5 cycle), read by `AngularSymmetry.reference`; and §6d BOTH ways before the `symmetry.py` → package re-home |
-| **1** | ⭐ **2.5** | **NEXT — the pre-step, its own bit-identical commit.** MINTED 2026-09-02 at the fused step's opener (§V.5l, user-ruled): the angular moment space is READ off the frame, never minted from `L`. Read §V.5l(b)–(d) and `scratch/_fused_verification_plan.md` first |
-| **2** | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | **after 2.5 — ONE COMMIT — see XII.1b. Read §V.5l (the opener, 2026-09-02) then §V.5k.** THE FIX. Four rulings taken at the opener (§V.5l(c)); G0 = the descent arrow, `P_ℓ` on a full-sphere rule built now. ⚠ Before it: measure the 13-tree gate baseline (exit predicate 5, still unmeasured), and 2.2 owes its G0 ruling (§V.5h(a)). Open with the opener: §III.8's probe (the SO(2) version needs INCOMMENSURATE angles, vv-principles #13), `Descent` pulls `P_ℓ` back along `Quotient.quotient_map`, and a claim on the descended basis is against `Quotient.reference` |
-| **3** | **2.2b** — the Γ-slot | its own commit, right after the fused one (user-ruled 2026-09-02) |
-| 4 | **4.1**, **4.9**, then the six exit predicates (XII.3) | |
+| ✅ | **2.5** | LANDED 2026-09-02 — see the *2.5 EXECUTED* section (bit-identical; the moment space's ONE home is the frame's basis) |
+| **1** | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | **NEXT — ONE COMMIT — see XII.1b. Read §V.5l (the opener, 2026-09-02) then §V.5k.** THE FIX. Four rulings taken at the opener (§V.5l(c)); G0 = the descent arrow, `P_ℓ` on a full-sphere rule built now. ⚠ Before it: measure the 13-tree gate baseline (exit predicate 5, still unmeasured), and 2.2 owes its G0 ruling (§V.5h(a)). Open with the opener: §III.8's probe (the SO(2) version needs INCOMMENSURATE angles, vv-principles #13), `Descent` pulls `P_ℓ` back along `Quotient.quotient_map`, and a claim on the descended basis is against `Quotient.reference` |
+| **2** | **2.2b** — the Γ-slot | its own commit, right after the fused one (user-ruled 2026-09-02) |
+| 3 | **4.1**, **4.9**, then the six exit predicates (XII.3) | |
 
 ⚠ **2.1 and 2.0c were independent** — both needed only `Manifold`. 2.1 went
 first because it was smaller and fixed a live defect. ✅ That is settled;
@@ -5699,6 +5872,7 @@ or `gauss_legendre_on_polar_orbit(n, "x")`, on `S^2/SO2_x`.
 | **2.1b** | ⭐ **a basis states the symmetry its functions HAVE, by naming what they EAT** — `Basis.invariance_group` DERIVED from `domain` (`Quotient.by` / `Trivial` / `None`), `@final`, zero subclass edits; the fold's two halves read ONE object; ERR-080's pairing is a lattice verdict (`Trivial ⊉ SO2('x')`), refused by nothing yet. 11 gates, 8-arm battery (1 blind by construction), 3 stale docstrings fixed on sight; numerics 2679 → 2690 | `9b4a4d9c` |
 | **2.3** | ⭐⭐ **a measure's support is READ off the map that built it** — `ManifoldMap(domain, codomain, apply)` with `@` composition; `archimedes(axis)` and `barycentre(orbit_space)` memoised; `pushforward(phi)` reads `phi.codomain`, refuses a map out of the wrong point set, `new_space=` retired (1 + 8); `spherical_product` IS the tensor product pushed along the chart; the fold's retraction and `_embedded_nodes` typed; ERR-080 restated as the barycentre map with a FORGED codomain (arm untouched, retires at 3.4). `[M]` bit-identical 60/5/15; eleven-arm battery; numerics 2690 → 2711; matrix 10595 → 10616; reference measure deferred to 3.1 with the §6d cycle measured (5 of 5) | `5ec3a00a` (+ stamp `14c37aa9`) |
 | **3.1** | ⭐ **an orbit-space entry carries ALL of its derivation, the quotient map and the pushforward reference included** — `Quotient.orbit_coordinates` (required; the surviving invariants as a map on ambient coordinates) + the DERIVED `Quotient.quotient_map` (codomain the ENTRY), `Quotient.reference` (`LEGENDRE` on the three axial entries; honest `None` on σ_a and on `M/{e}`), populated INSIDE `_sphere_mod_so2` by a function-scope import; `AngularSymmetry.reference` READS the entry, its `LEGENDRE` import gone. `[M]` π∘φ_a = pr₁ bit-exact 12/12; β_a∘π_a the axial projection 3/3; π H-invariant on 4 groups; the numeric map == `lambdify` of the recorded invariants 5/5; §6d on a shadow copy 7/7 alive vs 0/7; nine-arm battery, none blind; numerics 2711 → 2739, matrix 10616 → 10644 | `67e38605` |
+| **2.5** | ⭐ **the angular moment space is READ off the frame, never minted from `L`** — `TruncatedBasis` (Protocol) is the harmonic family's surface and `HarmonicFrame`'s door; the Λ ends, the fission/(n,2n) ℓ=0 ends, the moment-flux head and `truncate` all read the bound basis's space (7 producers retired, 2 doors widened); A-R1 binds the CONTINUUM space (`[M]` `Λ* = Λᵀ` exactly under it, 33/33; the dressed one moves Λ* on 10/33), A-R2 derives the field head through the mesh's quadrature. `[M]` slab L=0/1/2 flux `array_equal`; 33-row metric identity; route gate with a FOREIGN basis; 11-arm battery (control 34, each producer revert → A1, the fork → A2b only), none blind | (stamped in the follow-up) |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
 ⛔ No commit COUNT is recorded here — it is the field guaranteed to rot. Run
@@ -5942,6 +6116,14 @@ the opener's probes; the `derivations` tree alone was 36 min at 0.2 on a
 quiet machine. Predicate for the next re-gate: the same 13 trees, the same
 filter; the fused commit's predicted deltas are +3 XPASS→pass in `sn/solve`
 and whatever 2.5 and the fix add — write the prediction BEFORE the run.
+
+⭐⭐ **RE-GATED at 2.5** (2026-09-02, the working tree that became the 2.5
+commit; same runner, same 13 trees, `scratch/_fused_25_full_gate.log`):
+predicted **10454** (transport 646 → 683, nothing else), measured **10366
+passed · 19 sk · 69 xf · 0 failed = 10454, 13 of 13 rc=0**, every tree equal
+to its predicted denominator; against the `2f294ef1` table above **+37
+passed** (transport 682 + 1 sk) and every other row identical. The fused
+commit's re-gate is the DELTA against THIS row.
 
 ## Durable lessons — promoted OUT of this file
 

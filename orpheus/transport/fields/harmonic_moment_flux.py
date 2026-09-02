@@ -36,8 +36,12 @@ D-E Field-inheritance migration:
   is now inherited via :func:`dataclasses.replace`).
 * Adds the ``space: FunctionSpace`` field; the canonical space is a
   :class:`~orpheus.numerics.space.TensorProductSpace` of the form
-  :math:`\mathrm{SphericalHarmonicSpace}(L) \otimes
-  \mathrm{CellGroupSpace}(ng, nx, ny)` — the **first
+  :math:`\mathrm{<angular\ head>}(L) \otimes
+  \mathrm{CellGroupSpace}(ng, nx, ny)`, the head being the coefficient
+  space of the basis the mesh's quadrature frame bound at :math:`L`
+  (:math:`\mathrm{SphericalHarmonicSpace}(L)` on a full-sphere rule;
+  READ off the frame since #429 tracker 2.5, never minted from
+  :math:`L`) — the **first
   TensorProductSpace consumer in a typed Field** (D-B's L1 primitive
   is now load-bearing).
 * Keeps ``mesh: SNMesh`` as an additive field under ``TYPE_CHECKING``
@@ -47,7 +51,7 @@ D-E Field-inheritance migration:
 * The ``L`` parameter is encoded in ``space.shape`` (and queryable via
   the composition-tree walk per Issue #207); the redundant ``L`` field
   is kept as a top-level attribute for ergonomic access — equivalent
-  to ``self.space.find_factor(SphericalHarmonicSpace).L`` but avoiding
+  to the head factor's own ``L`` (``self.space.factors[0].L``) but avoiding
   the traversal at hot-path read sites.
 * Introduces :meth:`from_mesh_and_L` for ergonomic 3-arg construction
   (the kw_only constructor requires explicit ``space``; the classmethod
@@ -92,7 +96,7 @@ References
   flux.
 * Depth B plan §3.3, §6 step D-E.
 * Issue #207 — architectural pattern: composition queries traverse the
-  tensor-product tree; ``space.find_factor(SphericalHarmonicSpace).L``
+  tensor-product tree; the head factor's own ``L`` (``space.factors[0].L``)
   is the composition-aware way to read the truncation order.
 * Issue #197 PR-TYPED-4 — original typed-wrapper introduction (now
   superseded by this Field-inheriting form).
@@ -101,7 +105,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -117,6 +121,13 @@ if TYPE_CHECKING:
 __all__ = ["HarmonicMomentFlux"]
 
 
+@runtime_checkable
+class _TruncatesByOrder(Protocol):
+    """An angular head space that truncates to a lower order within its own family."""
+
+    def truncated(self, L_new: int, /) -> "FunctionSpace": ...
+
+
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class HarmonicMomentFlux(MomentField):
     r"""Real-spherical-harmonic moment field :math:`\phi_\ell^m(\vec r, g)`.
@@ -128,8 +139,10 @@ class HarmonicMomentFlux(MomentField):
     space : FunctionSpace
         The function space this field lives on. Canonically a
         :class:`TensorProductSpace` of the form
-        :math:`\mathrm{SphericalHarmonicSpace}(L) \otimes
-        \mathrm{CellGroupSpace}`. Construction via
+        :math:`\mathrm{<angular\ head>}(L) \otimes
+        \mathrm{CellGroupSpace}` — the head READ off the mesh's quadrature
+        frame (:math:`\mathrm{SphericalHarmonicSpace}(L)` on a
+        full-sphere rule). Construction via
         :meth:`from_mesh_and_L` is the canonical path; direct kw-only
         construction is for callers that already hold a constructed
         space.
@@ -288,9 +301,12 @@ class HarmonicMomentFlux(MomentField):
         knowledge).
 
         The truncated space is a structural edit of the CURRENT space:
-        the spherical-harmonic head factor is swapped for
-        ``from_L(L_new)`` and every remaining factor (the cell-group
-        bulk, the optional ``SpatialMomentSpace``) is kept verbatim —
+        the angular head factor is asked for ITS OWN family one order
+        down (``head.truncated(L_new)`` — a spherical-harmonic head
+        truncates to a spherical-harmonic head, a Legendre head to a
+        Legendre head; #429 tracker 2.5, never re-minted from an integer)
+        and every remaining factor (the cell-group bulk, the optional
+        ``SpatialMomentSpace``) is kept verbatim —
         `[M]` content-equal to the factory's own mint at
         ``(mesh, L_new, spatial_moments)`` on both widths (gated:
         ``tests/transport/fields/test_harmonic_moment_flux.py``).
@@ -313,26 +329,28 @@ class HarmonicMomentFlux(MomentField):
         from operator import mul
 
         from orpheus.numerics.space import TensorProductSpace
-        from orpheus.numerics.spaces.spherical_harmonic_space import (
-            SphericalHarmonicSpace,
-        )
-        # CS4b: the trailing dims are the space's own shape contract
-        # (everything after the two harmonic axes — ng, spatial, and the
-        # optional moment tail), so the copy below is tail-correct at
-        # every width with no branch.
-        new_shape = (L_new + 1, 2 * L_new + 1, *self.space.shape[2:])
-        new_values = np.zeros(new_shape, dtype=self.values.dtype)
-        new_values[: L_new + 1, : 2 * L_new + 1] = (
-            self.values[: L_new + 1, : 2 * L_new + 1]
-        )
+
         assert isinstance(self.space, TensorProductSpace)  # type-narrowing
+        head = self.space.factors[0]
+        if not isinstance(head, _TruncatesByOrder):
+            raise TypeError(
+                f"HarmonicMomentFlux.truncate: the angular head factor "
+                f"{head.name!r} carries no truncation order to truncate by."
+            )
+        new_head = head.truncated(L_new)
+        # CS4b: the trailing dims are the space's own shape contract
+        # (everything after the head's axes — ng, spatial, and the optional
+        # moment tail), and the kept block is the head's own leading corner
+        # in each of ITS axes (a lower order keeps the low-index modes of
+        # every head layout), so the copy below is tail- and head-correct
+        # at every width with no branch.
+        keep = tuple(slice(0, n) for n in new_head.shape)
+        new_shape = (*new_head.shape, *self.space.shape[len(head.shape):])
+        new_values = np.zeros(new_shape, dtype=self.values.dtype)
+        new_values[keep] = self.values[keep]
         return HarmonicMomentFlux(
             values=new_values,
-            space=reduce(
-                mul,
-                self.space.factors[1:],
-                SphericalHarmonicSpace.from_L(L_new),
-            ),
+            space=reduce(mul, self.space.factors[1:], new_head),
             L=L_new,
             spatial_moments=self.spatial_moments,
         )

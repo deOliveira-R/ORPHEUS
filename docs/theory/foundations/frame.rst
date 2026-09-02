@@ -299,6 +299,21 @@ Key Facts
   whose frame operator :math:`S = T^*T` is :math:`4\pi` times the
   identity; the tightness constant IS this :math:`c_V`.)
 
+- **The frame is the single source of the COEFFICIENT SPACE too, not
+  only of the faces** (:ref:`frame-moment-space-single-home`, #429
+  tracker 2.5). A consumer reads the space off the bound basis
+  (:eq:`moment-space-read-off-the-frame`); it never re-mints it from the
+  truncation order, because an integer does not say *which family* — the
+  full harmonics on a full-sphere rule, the σ-even restriction on a
+  folded one, the Legendre basis on :math:`S^2/SO(2)_a` on a 1-D one.
+  `[M]` 2026-09-02 the angular moment space had **eight** homes (one
+  basis + seven ``from_L(L)`` re-mints) and now has one. ⚠ Two spellings
+  live on a frame and they are different objects: ``basis.space``
+  carries the CONTINUUM Gram and is the end an :math:`\ell`-diagonal
+  operator wants; ``basis_space`` carries the Parseval metric
+  :math:`G^{-1}` and is the ANALYSIS FACE's codomain
+  (:ref:`frame-parseval-metric`). ``==`` cannot tell them apart.
+
 
 The discrete frame — analysis, synthesis, and the frame operator
 ================================================================
@@ -3898,6 +3913,418 @@ Galerkin **because** the eigenbasis of a self-adjoint (here
 :math:`SO(3)`-invariant) operator is orthogonal: ``test is trial`` is
 forced by symmetry, not chosen.
 
+
+.. _frame-moment-space-single-home:
+
+The coefficient space has ONE home — the bound basis, never the integer
+------------------------------------------------------------------------
+
+Everything above derives the spherical-harmonic frame's *structure* from
+the symmetry of the kernel. This subsection settles a different question,
+and it is the one a consumer gets wrong: **where does the coefficient
+space come from?** The frame is a Stage-2 generator — binding a basis to a
+measure induces the two faces *and* the space those faces land in, at one
+site. A consumer that keeps the faces and re-derives the space has
+retained the induced part, and the copy is silently a different object the
+moment the family changes.
+
+Landed 2026-09-02, #429 tracker 2.5, as the pre-step the ERR-080 repair
+needs.
+
+The defect: eight homes for one space
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`[M]` 2026-09-02, ``git grep -n "SphericalHarmonicSpace.from_L" HEAD --
+orpheus/`` over the pre-step tree returns **13** lines, of which **8 are
+executable calls** and 5 are docstring mentions. So the angular
+coefficient space had **eight** homes. One is legitimate —
+:attr:`SphericalHarmonicBasis.space
+<orpheus.numerics.basis.SphericalHarmonicBasis.space>`, where a basis
+answers *what do my coefficients live in?* — and **seven** were production
+consumers re-minting it from the integer :math:`L`:
+
+.. list-table:: `[M]` The seven re-mint sites, at the pre-2.5 tree
+   :header-rows: 1
+   :widths: 40 34 26
+
+   * - Site
+     - What it was minting
+     - Now reads
+   * - ``LegendreMomentScattering.from_material_xs``
+     - the endomorphic ends of :math:`\Lambda`
+     - ``basis.space`` (the tier-2 classmethod takes the basis)
+   * - ``N2NMomentOperator.from_material_xs``
+     - the same, for the :math:`(n,2n)` channel
+     - ``basis.space``
+   * - ``ScatteringOperator._sh_space``
+     - the ends of the internally-minted :math:`\Lambda`
+     - ``_moment_space`` = ``frame.basis.space``
+   * - ``fission.py``'s ``_sh_space_l0``
+     - the :math:`\ell = 0` ends of :math:`F`
+     - ``self.frame.basis.space`` (helper retired)
+   * - ``N2NOperator.full_n2n_kernel``
+     - the :math:`\ell = 0` ends of the :math:`(n,2n)` dyad
+     - ``self.frame.basis.space``
+   * - ``MomentField._space_for_mesh_and_L``
+     - the moment field's angular HEAD factor
+     - ``mesh.quad.angular_frame(L).basis.space``
+   * - ``HarmonicMomentFlux.truncate``
+     - the head of the truncated space
+     - ``head.truncated(L_new)`` — the head's OWN family
+
+Two further narrowings guarded the frame itself: both
+:class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`
+doors (the constructor and
+:meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.from_galerkin`)
+tested ``isinstance(basis, SphericalHarmonicBasis)`` and refused anything
+else.
+
+⛔ **Why this is a defect and not merely a duplication.** An integer does
+not say *which family*. Every one of the seven copies silently chose the
+full-sphere real spherical harmonics — which is right on a full-sphere
+rule and wrong on a 1-D one, where the surviving harmonics are the
+trivial isotypic component :math:`\{Y_\ell^0\} \cong \{P_\ell\}` of
+:math:`S^2/SO(2)_a` (:ref:`manifold-s2-so2`, ERR-080). The day the
+quadrature binds that Legendre basis, each copy disagrees with the frame
+at the ``(name, shape)`` composability guard, and — because fission and
+:math:`(n,2n)` mint their ends at :math:`\ell = 0` on *every* solve — the
+**first** disagreement is at :math:`L = 0`, on an isotropic problem, in a
+channel that has nothing to do with anisotropic scattering. That is a
+seven-site blast radius sitting between the ERR-080 repair and a green
+tree; tracker 2.5 removes it before the repair, not with it.
+
+`[M]` after the step the same command returns **6** lines, of which
+**exactly one** is an executable call — ``spherical_harmonic_basis.py:403``,
+the basis's own ``space`` property — and the other five are docstring
+mentions. (``SphericalHarmonicSpace.truncated`` calls
+``type(self).from_L`` inside the space's own module, which is where a
+family is *entitled* to name itself.)
+
+Which space, though — ``basis.space`` or ``basis_space``?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A frame carries **two** spellings of the coefficient space and they are
+different objects. The basis's own
+:attr:`Basis.space <orpheus.numerics.basis.Basis.space>` carries the
+**continuum** Gram :math:`g_C = 4\pi/(2\ell+1)`
+(:eq:`sh-space-metric`); the frame's
+:attr:`~orpheus.numerics.frame.FrameBase.basis_space` **replaces** that
+with the Parseval metric :math:`G^{-1}` — the inverse *discrete* Gram —
+because the analysis face returns covariant moments
+(:ref:`frame-parseval-metric`, and
+:ref:`frame-parseval-what-was-wrong` for what the pre-F-0 continuum
+reading cost).
+
+⚠ So the fork is a live hazard for a reader of this page: the corpus
+stamps the continuum Gram with a ⛔ *"the wrong side for covariant
+moments"* (:ref:`spherical-harmonics`, the three-metric table), and
+tracker 2.5 binds the operator ends to exactly that space. **It is not a
+regression of F-0, because it is not the same object.** F-0's verdict is
+about the **analysis face's codomain**, where the value IS a covariant
+moment vector. :math:`\Lambda`'s ends are the domain and codomain of an
+**endomorphism** on the coefficient index set — an object whose adjoint,
+under any metric diagonal in :math:`\ell`, is its transpose.
+
+The identity the step installs:
+
+.. math::
+   :label: moment-space-read-off-the-frame
+
+   \Phi_L \;\equiv\; \bigl(\text{the basis } q\text{'s frame binds at } L
+   \bigr).\texttt{space},
+   \qquad
+   \Lambda,\,F_0,\,N_0 : \Phi_L \to \Phi_L ,
+   \qquad
+   \text{head}(\phi) \;=\; \Phi_L ,
+
+.. (vv-status rationale) Named-field-typing identity: the angular moment
+   space is the coefficient space of the basis the quadrature bound, read
+   off the frame, and it is the shared end of every moment-space operator
+   and the head factor of every moment field. Not a solver claim — no
+   eigenvalue, no flux. The verifiable content is the foundation gate
+   ``tests/transport/frames/test_moment_space_is_read_off_the_frame.py``
+   (the ROUTE / METRIC-IDENTITY / DOOR trio) plus the composability guard
+   ``A.domain == B.codomain`` it leans on.
+.. vv-status: moment-space-read-off-the-frame documented
+
+with :math:`q` the quadrature, so that *which family* is the quadrature's
+decision (:meth:`Quadrature._harmonic_basis
+<orpheus.numerics.quadrature.Quadrature._harmonic_basis>` derives it from
+the point set the measure lives on — the σ-even restriction on a folded
+rule, the full harmonics otherwise) and every consumer is a reader.
+
+**Measured, on the shipped rules.** Over **33 rows** — eleven rule
+constructions drawn from **all five** shipped ``Quadrature`` classmethod
+factories (`[M]` ``vars(Quadrature)``: ``gauss_legendre`` 2/8/16,
+``level_symmetric`` 4/8, ``lebedev`` 11/17, ``product`` (4,6)/(8,8),
+``folded_product`` (2,4)/(4,8)) × :math:`L \in \{0,1,2\}`, each frame
+built as ``HarmonicFrame.from_galerkin(q.angular_frame(L))``:
+
+.. list-table:: `[M]` 2026-09-02 — the two spellings against the ``from_L(L)`` mint they replace
+   :header-rows: 1
+   :widths: 40 20 40
+
+   * - Comparison
+     - Rows
+     - Reading
+   * - ``frame.basis.space == from_L(L)``
+     - 33 / 33
+     - ``(name, shape)``-equal
+   * - ``inner_product_weights`` ``array_equal`` to ``from_L(L)``'s
+     - 33 / 33
+     - metric-identical — so nothing downstream can move
+   * - ``frame.basis.space is from_L(L)``
+     - 0 / 33
+     - content-equal, never the same object
+   * - ``frame.basis_space == frame.basis.space``
+     - 33 / 33
+     - ``(name, shape)``-equal — **equality is metric-blind**
+   * - ``frame.basis_space`` metric ≠ ``frame.basis.space`` metric
+     - 33 / 33
+     - the fork a ``==`` gate structurally cannot see
+
+The last two rows are the reason the gate for this step asserts the metric
+ARRAY and not the space: a ``==`` comparison would have passed under
+*either* choice (``vv-principles`` #19 — the reading that discriminates is
+the wrong-structure one).
+
+The size of the fork is **draw-free and exact**, not a sampled number. On
+a degree-exact full-sphere rule the discrete Gram reproduces the continuum
+one, :math:`G = g_C`, so the two metrics are exact reciprocals and their
+ratio is
+
+.. math::
+
+   \frac{(\texttt{basis\_space})_{\ell}}{(\texttt{basis.space})_{\ell}}
+   \;=\; \Bigl(\frac{2\ell+1}{4\pi}\Bigr)^{2}
+   \;=\; 6.332574\times10^{-3},\;
+         5.699317\times10^{-2},\;
+         1.583143\times10^{-1}
+   \quad (\ell = 0,1,2),
+
+i.e. the same :math:`157.9\,/\,17.5\,/\,6.3` per-:math:`\ell` factors
+:ref:`frame-parseval-what-was-wrong` already records for the pre-F-0
+metric, read in the other direction. On a ``gauss_legendre`` rule, whose
+weights sum to :math:`2` rather than :math:`4\pi`, the discrete Gram is
+:math:`2/(2\ell+1)` and the ratio is :math:`(2\ell+1)^2/8\pi` —
+:math:`3.978874\times10^{-2}` and :math:`3.580986\times10^{-1}` at
+:math:`\ell = 0, 1`. (That :math:`\Sigma w = 2` is itself the slab's
+signature: a 1-D rule integrates over :math:`\mu`, not over the sphere.)
+
+Why the continuum space is the right end for :math:`\Lambda`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:math:`\Lambda` is a scalar per :math:`\ell` (Funk–Hecke, above), so it
+**commutes** with any metric that is diagonal in :math:`\ell` and constant
+within each :math:`\ell` block. Its Hilbert adjoint under such a metric,
+:math:`\Lambda^{*} = M_g^{-1}\Lambda^{\top}M_g`, therefore collapses to
+:math:`\Lambda^{\top}`. The continuum Gram is such a metric **by
+construction and on every rule** — it is a property of the harmonics, not
+of the sampling. The Parseval dressing is not: it inherits whatever
+structure the *discrete* Gram has.
+
+`[M]` 2026-09-02, on a two-group four-cell slab binding. **Measured at
+the OPERATOR level, not with a probe vector**: :math:`\Lambda^{*}` is
+built column by column by pushing each :math:`e_k` through both arms, so
+the numbers below are draw-free (a single random application is a
+one-draw reading of the same quantity, and its ULP tail is a property of
+the reduction order rather than of the operator). Relative Frobenius of
+the matrix difference:
+
+.. list-table:: `[M]` Where the fork is observable in :math:`\Lambda^{*}`
+   :header-rows: 1
+   :widths: 30 14 56
+
+   * - Rows
+     - Count
+     - Relative movement of :math:`\Lambda^{*}` under the dressed end
+   * - inert
+     - 23 / 33
+     - :math:`\le 1.045\times10^{-16}` — the 18 full-sphere degree-exact
+       rows (``level_symmetric``, ``lebedev``, ``product`` at every
+       :math:`L`) plus the five :math:`L = 0` rows, where there is one
+       mode and nothing to commute with
+   * - moves, ``DIAGONAL`` dressing
+     - 6 / 33
+     - :math:`9.699\times10^{-2}` … :math:`1.372\times10^{-1}` —
+       ``gauss_legendre`` (2, 8, 16) at :math:`L = 1` and
+       ``folded_product`` (2,4)/(4,8) at :math:`L \ge 1`
+   * - moves, ``DENSE`` dressing
+     - 4 / 33
+     - :math:`1.082\times10^{-1}` … :math:`1.5839` —
+       ``gauss_legendre`` (2, 8, 16) and ``folded_product`` (2,4) at
+       :math:`L = 2`, where ``basis_space`` installs the matrix
+       pseudo-inverse (:ref:`frame-parseval-dense-arm`) and
+       ``inner_product_weights`` is ``None`` altogether
+
+⭐ **Read the third column by IDENTITY, not by size.** Every row on which
+the fork is observable is a ``gauss_legendre`` rule or a σ\ :sub:`y`-folded
+one at :math:`L \ge 1` — precisely the two families whose discrete Gram is
+:math:`m`-dependent, i.e. the forged-azimuth rules ERR-080 is about and
+the fold whose sub-basis is a genuine quotient. On the six full-sphere
+degree-exact rules the choice is inert on all 18 rows. So binding the
+frame's dressed space would have moved :math:`\Lambda`'s adjoint by up to
+:math:`158\,\%` on exactly the rules this campaign is repairing, and been
+invisible everywhere a full-sphere regression fixture would have looked —
+which is the shape of a change that ships green and is wrong later.
+
+With the continuum end, :math:`\Lambda^{*} = \Lambda^{\top}` holds on all
+33 rows **exactly**: `[M]` the column-built adjoint matrix and the
+transpose of the column-built forward matrix are ``array_equal``,
+:math:`\lVert\Lambda^{*} - \Lambda^{\top}\rVert = 0.0`, because the
+:math:`g_C \Lambda^{\top} g_C^{-1}` sandwich is a per-mode scalar times
+its own reciprocal. (Applied to a random vector instead, the same
+identity reads :math:`\le 1.82\times10^{-16}` relative — the reduction
+order, not the algebra.)
+
+**Nothing moved.** The two ends' metrics are ``array_equal`` (table
+above), so ``.H`` is the *same float program* under either — `[M]`
+2026-09-02, ``Λ.H`` applied to a fixed draw is ``array_equal`` between
+the read space and the ``from_L(L)`` mint it replaces on **33 of 33**
+rows — and the forward ``apply`` / ``apply_transpose`` never read an end
+metric at all. End-to-end on the ERR-080 gate's own fixture — one-group infinite
+medium, ``gauss_legendre(8)``, four cells, reflective/reflective, uniform
+per-ordinate source, Krylov inner at ``inner_tol=1e-13``,
+``max_inner=5000`` — the converged scalar flux is ``np.array_equal``
+between the pre-step tree and the post-step tree at :math:`L = 0, 1, 2`
+**and** :math:`3`, ``max|Δ| = 0.0`` on all four. It is bit-identical even
+at the orders where the answer is *wrong*, which is the property a
+pre-step owes an ``xfail(strict=True)`` gate: it must not perturb the
+defect it is clearing the way for.
+
+The door asks for a SURFACE, not for a class
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The two ``isinstance(basis, SphericalHarmonicBasis)`` narrowings are
+replaced by one demand, expressed as a ``runtime_checkable``
+:class:`~orpheus.numerics.basis.base.TruncatedBasis` ``Protocol`` with two
+members — ``L`` and ``space`` — which are exactly what the frame's mints
+and the operator ends read.
+
+A ``Protocol`` rather than a class list, for the same reason
+:ref:`manifold-invariance-lower-bound` gives for deriving a basis's
+symmetry from its ``domain`` rather than from its subclass: *a class list
+is a closed enumeration of today's members, and the point of this step is
+that tomorrow's member arrives.* The σ-even restriction and the Legendre
+basis on :math:`S^2/SO(2)_a` are as much harmonic-family members as the
+full harmonics; a door naming one class refuses them, and refuses them
+with an ``AttributeError`` three frames later rather than at the door.
+
+`[M]` 2026-09-02 the tree ships **five** :class:`~orpheus.numerics.basis.Basis`
+subclasses and **two** satisfy the surface —
+:class:`~orpheus.numerics.basis.SphericalHarmonicBasis` and its σ-even
+restriction ``MirrorEvenSphericalHarmonicBasis``. The other three —
+:class:`~orpheus.numerics.basis.IndicatorBasis`,
+:class:`~orpheus.numerics.basis.OverlapBasis` and
+:class:`~orpheus.numerics.basis.WeightedIndicatorBasis` — do not, and an
+indicator trial is refused at both doors with a message naming the
+*truncation order* rather than a class. ⛔ The third member the surface
+exists FOR — the Legendre basis on :math:`S^2/SO(2)_a` — is tracker 3.4
+and **does not ship**: 2.5 is a capability, and ERR-080 stays open.
+
+The field's head, and truncation inside the family
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A moment field is not built from a frame, it is built from a mesh and an
+order — so its head factor has to be *found*. It is found the same way:
+``mesh.quad.angular_frame(L).basis.space``, behind a small
+``_CarriesQuadrature`` Protocol so that a bare material mesh, which has no
+angular quadrature and therefore no angular head to read, is refused with
+a message that says so instead of failing later on a shape. The public
+factory keeps its ``(values, mesh, L)`` signature: the mesh carries the
+quadrature, so the head is frame-derived even though the caller passes an
+integer.
+
+⚠ **Gotcha, and it is older than this step: the FACE's moment codomain
+and the FIELD's space are metric-different and compare EQUAL.**
+:meth:`HarmonicFrame.moment_space_on
+<orpheus.transport.frames.harmonic_frame.HarmonicFrame.moment_space_on>`
+builds the analysis face's codomain from the frame's **dressed**
+``basis_space`` — correctly, because that is where a covariant moment
+vector lands (:ref:`frame-parseval-metric`) — while
+``HarmonicMomentFlux.zeros_for_mesh_and_L`` builds the field's head from
+the basis's **continuum** space. `[M]` 2026-09-02, on a two-group slab
+carrier at :math:`L = 0, 1, 2`: ``face.codomain == field.space`` is
+``True`` at every order and the two heads' metrics differ at every order
+(at :math:`L = 2` the face's head has no ``inner_product_weights`` at
+all — the ``DENSE`` arm's matrix metric — while the field's carries
+:math:`4\pi/(2\ell+1)`). Nothing in the tree can tell them apart, because
+identity is ``(name, shape)`` (:ref:`spaces-metric-not-on-the-axis`). The
+asymmetry is **unchanged** by tracker 2.5: before it the field's head was
+``from_L(L)``, which carries the same continuum Gram the bound basis's
+space does. It is recorded here because a reader who has just been told
+*"the space is read off the frame"* will otherwise assume the field
+inherits the face's metric, and it does not.
+
+Truncation is the same rule applied to a *lower* order.
+:meth:`HarmonicMomentFlux.truncate
+<orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.truncate>`
+asks the current head for **its own family** one order down
+(``head.truncated(L_new)``, a second small Protocol) and slices the kept
+block by the new head's own shape, so a spherical-harmonic head truncates
+to a spherical-harmonic head and a Legendre head to a Legendre head. The
+implementation on
+:meth:`SphericalHarmonicSpace.truncated
+<orpheus.numerics.spaces.SphericalHarmonicSpace.truncated>` returns
+``from_L(L_new)`` under **this** head's own name, so identity survives the
+order change; a head that had been renamed cannot be handed back the
+default name, which is the tell of an integer mint. ⚠ The kept block is
+the head's leading corner in each of its own axes — a lower order keeps
+the low-index modes of every head layout — which is what makes the slice
+layout-agnostic rather than hard-coded to the harmonics'
+:math:`(L{+}1, 2L{+}1)` rectangle.
+
+The gates, and the input each one rejects
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``tests/transport/frames/test_moment_space_is_read_off_the_frame.py``,
+``@pytest.mark.foundation``. Three gates, each with a shipped-or-constructible
+input it rejects (``plan-authoring`` §6c — a gate that lands with no case
+to catch is green by construction):
+
+.. list-table:: The three gates and their witnesses
+   :header-rows: 1
+   :widths: 22 40 38
+
+   * - Gate
+     - What it asserts
+     - The input it rejects
+   * - **ROUTE**
+     - a FOREIGN truncated basis — carrying ``L``, *not* a
+       spherical-harmonic subclass, with a renamed coefficient space —
+       bound into the quadrature's own frame cache makes every operator
+       end and the moment field's head MOVE with it
+     - an end minted from :math:`L` alone: it fails the composability
+       guard ``A.domain == B.codomain`` under
+       :meth:`frame.conjugate <orpheus.numerics.frame.FrameBase.conjugate>`,
+       which is the red a reverted producer produces
+   * - **METRIC IDENTITY**
+     - the bound end carries the basis's own CONTINUUM Gram, bit-for-bit
+       equal to the ``from_L(L)`` mint, on every (rule, :math:`L`) row
+     - the frame's Parseval-dressed ``basis_space``, asserted to be
+       ``(name, shape)``-equal and metric-DIFFERENT — the negative
+       control that makes the positive leg discriminating rather than
+       blind
+   * - **DOOR**
+     - both doors demand the ``TruncatedBasis`` surface, typed, with a
+       message naming the truncation order
+     - an indicator trial (refused at both doors) — and, in the other
+       direction, the foreign truncated basis, which the old
+       ``isinstance`` door refused and which is now admitted
+
+⚠ The ROUTE gate's mutant is *unconstructible* before the door widens, so
+the door and the seven producers are one step, not two
+(``plan-authoring`` §6b).
+
+One existing gate was **demoted** by the step and is retained with a
+narrower description:
+``tests/transport/frames/test_harmonic_frame.py::test_moment_codomain_content_equals_the_carrier_mint``
+compared a face's moment codomain against the carrier's own mint, and
+both sides now derive from one source, so no input can make them
+disagree (``coding-standards``, the single-sourcing demotion). It keeps
+the discovery-path ``is``-identity it still tests, and the shape claim it
+used to carry moved to a new external pin against a hand-written literal.
+
 .. _frame-composed-verbs:
 
 The frame's composed-operator verbs
@@ -5112,6 +5539,31 @@ inherit the trial-side Parseval metric, `[M]` on pain of a
 evidence is the wrong-metric discriminator, not reciprocity — the
 Hilbert-adjoint identity holds for every invertible :math:`G` and can
 never adjudicate one (:ref:`frame-parseval-dense-arm`).
+
+**2026-09-02 — #429 tracker 2.5: the frame is the single source of the
+COEFFICIENT SPACE, not only of the faces.** F-1 made the *faces* bound
+operators minted by the frame; the *space* those faces land in was still
+being re-derived by their consumers. `[M]` the angular coefficient space
+had **eight** homes — the bound basis plus **seven** production sites
+re-minting ``SphericalHarmonicSpace.from_L(L)`` — and two
+``isinstance(basis, SphericalHarmonicBasis)`` doors on
+:class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` that
+would have refused the very basis ERR-080's repair needs. Both doors now
+ask for the :class:`~orpheus.numerics.basis.base.TruncatedBasis`
+**surface** and every consumer READS ``basis.space``
+(:eq:`moment-space-read-off-the-frame`), so *which family* is the
+quadrature's decision and propagates by construction. The fork the step
+had to settle is this page's own: the operator ends bind the basis's
+**continuum** Gram, not the frame's Parseval-dressed ``basis_space``,
+because an :math:`\ell`-diagonal metric commutes with a per-:math:`\ell`
+scalar and the dressing does not — `[M]` binding the dressed space would
+have moved :math:`\Lambda^{*}` by up to :math:`158\,\%`, on exactly the
+1-D and folded rules the campaign is repairing and on none of the
+full-sphere ones. Nothing moved: `[M]` metric-identical to the mint it
+replaces on **33 of 33** (rule, :math:`L`) rows and the slab flux
+``array_equal`` pre/post at :math:`L = 0` … :math:`3`. A capability, not
+a repair — ERR-080 stays open. Full account:
+:ref:`frame-moment-space-single-home`.
 
 References
 ==========

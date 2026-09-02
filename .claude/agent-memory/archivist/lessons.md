@@ -599,6 +599,38 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   average.** `[M]` `Quotient.reference` has ONE production reader; `quotient_map` has
   ZERO (ten occurrences, all in one test module). Half the step is consumed, half is a
   capability; L-079's three-places rule applies to the second half only. → L-083
+- **⭐⭐ When a step binds an object the corpus has already ⛔-CONDEMNED, the doc's first
+  job is to name the ROLE that condemnation was scoped to.** #429 2.5 binds Λ's ends to the
+  CONTINUUM Gram, which `spherical_harmonics.rst`'s three-metric table stamps *"the wrong
+  side for covariant moments"*. Not a regression: F-0's verdict is about the analysis face's
+  CODOMAIN; Λ's ends are an ENDOMORPHISM's, and an ℓ-diagonal metric commutes with a per-ℓ
+  scalar. ⭐ The same test picked the host page: the brief offered two, `[M]` `moment_space_on`
+  = **0** doc hits (neither owns it), and only `frame.rst` owns `basis.space`-vs-`basis_space`
+  — homing it elsewhere would twin F-0's metric narrative. → L-084
+- **⭐⭐ An OPERATOR-movement table built column-by-column beats a probe vector, and the
+  numbers get BETTER.** `[M]` one draw vs `e_k`-columns: inert band `1e-12` → **1.045e-16**,
+  DENSE movers `≤0.988` → **1.5839**, and `Λ* = Λᵀ` under the continuum end goes from
+  `≤1.82e-16` to **exactly 0.0 on 33/33** (the `g_C Λᵀ g_C⁻¹` sandwich is a scalar times its
+  reciprocal). ⭐ Then read the movers by IDENTITY: all 10 are `gauss_legendre`/`folded_product`
+  at `L ≥ 1` — the `m`-dependent-Gram families — so the wrong binding would have been
+  invisible to every full-sphere fixture and wrong exactly where ERR-080 lives. → L-084, L-076
+- **⭐⭐ A pre-step's acceptance is bit-identity WHERE THE ANSWER IS WRONG.** The brief cited
+  `L ∈ {0,1,2}` from a `scratch/.npz`; rebuilt on the ERR-080 gate's own fixture against a
+  `git archive HEAD` subprocess (editable finder stripped, `orpheus.__file__` asserted) it is
+  `array_equal` at **L = 0,1,2 AND 3**, `max|Δ| = 0.0`. The extra order is the argument: `L = 2,3`
+  are `xfail(strict=True)` rows, so movement there could flip an XPASS without repairing
+  anything. → L-084
+- **⭐ A brief's `[M]` census owes its PREDICATE, and the cited command usually returns a third
+  number.** *"eight homes"* was right; `git grep "…from_L" HEAD -- orpheus/` returns **13 lines
+  = 8 executable + 5 docstrings**. Publish *"13 lines, of which 8 are calls"*. Same pass: a
+  briefed *"12 of 12 (rule, L) rows"* is **33 of 33** on the gate's own roster (11 constructions
+  from all **five** factories × L∈{0,1,2}), and a briefed *"`apply_metric` moves 96–161 %"* did
+  not reproduce under any norm — replaced by the exact per-ℓ ratio `[(2ℓ+1)/4π]²`. → L-084
+- **⛔ Anchor an HTML slice on `id="<label>"`, never on the bare label text — the TOC carries it
+  too.** `[M]` my slice read **302 177** chars (the whole page) and "passed"; `rfind('id="…"')`
+  gave **38 183** and the sanity phrases. (L-080's rule, re-broken one level down.) ⚠ And an
+  emphasis regex over a page with list-tables is ~90 % false positive (`* -` bullets) —
+  adjudicate every hit, never count them. → L-084, L-080
 - **⭐ A section TITLE is a count too, and a roster count needs the command that produces it.**
   One edit shipped *"The four realizations…"* over a five-row table; the same page carried two of
   my own earlier universals that were wrong when written (*"Nine variants"* — `[M]` 8 at the

@@ -1020,7 +1020,8 @@ class TensorProductSpace(FunctionSpace):
 
         The tree query the moment-carrier fields rely on to recover their
         typed factor from a composed space — e.g.
-        ``space.find_factor(SphericalHarmonicSpace).L`` recovers the
+        ``space.find_factor(SphericalHarmonicSpace).L`` (on a full-sphere
+        rule; the head factor's own ``L`` in general) recovers the
         angular truncation order, and
         ``space.find_factor(SpatialMomentSpace).per_axis`` recovers the
         spatial-moment basis size — without the consumer having to know

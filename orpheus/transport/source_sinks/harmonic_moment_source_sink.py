@@ -38,8 +38,10 @@ the flux side a torsor — the historical reason this section was titled
 "bare vs FluxRole").
 
 All construction (the ``L`` / ``spatial_moments`` fields, the
-``(L+1, 2L+1, ng, *spatial[, …])`` shape, the ``SphericalHarmonicSpace(L) ⊗
-CellGroup`` :class:`~orpheus.numerics.space.TensorProductSpace`, the
+``(<angular head>, ng, *spatial[, …])`` shape — ``(L+1, 2L+1, …)`` for the
+harmonic family — the ``<angular head>(L) ⊗ CellGroup``
+:class:`~orpheus.numerics.space.TensorProductSpace` whose head is READ off
+the mesh's quadrature frame (#429 tracker 2.5), the
 :meth:`~orpheus.transport.fields._bases.MomentField.from_mesh_and_L` /
 :meth:`~orpheus.transport.fields._bases.MomentField.zeros_for_mesh_and_L`
 factories, the ``L``-match ``_check_partner``) is inherited from
@@ -110,7 +112,11 @@ class HarmonicMomentSourceSink(MomentField):
     space : FunctionSpace
         The function space — canonically a
         :class:`~orpheus.numerics.space.TensorProductSpace`
-        ``SphericalHarmonicSpace(L) ⊗ CellGroup``. Construction via
+        ``<angular head>(L) ⊗ CellGroup``, the head being the coefficient
+        space of the basis the mesh's quadrature frame bound at ``L``
+        (``SphericalHarmonicSpace(L)`` on a full-sphere rule; READ off
+        ``mesh.quad.angular_frame(L)`` since #429 tracker 2.5, never minted
+        from ``L``). Construction via
         :meth:`~orpheus.transport.fields._bases.MomentField.from_mesh_and_L`
         is the canonical path.
     mesh : SNMesh

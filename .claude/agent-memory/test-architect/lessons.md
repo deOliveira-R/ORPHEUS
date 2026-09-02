@@ -1968,3 +1968,66 @@ declared layer contract — and all three are **0 today**, at a marginal
 **254 ms** cold-import cost carried entirely by the target package's eager
 `__init__`. Run the §6d check even when you expect it to pass, and price the
 edge, not the diff. → `L67j`
+
+## FUSED step A+B (#429 / ERR-080) — pre-carve (2026-09-02) → `L69`
+
+**Gates that cannot red.** ⛔⛔ **A SPACE and its metric-DRESSED twin are `==`-EQUAL
+and metrically DIFFERENT — so a charter that names both spellings of "the space" has
+an unmeasured fork, and no `==` gate can see it.** `[M]` over 12 (rule, L) rows,
+`frame.basis.space` is `array_equal` on the metric to `SphericalHarmonicSpace.from_L(L)`
+(12/12) while `frame.basis_space` (the Parseval dressing) is not (12/12) — `[12.566…]`
+vs `[0.5]` / `[0.0796]`, and a `DenseMetric` with NO weights at slab L=2; `apply_metric`
+moves **96.0 %–161.3 % relative**. `FunctionSpace.__eq__` is `(name, shape)`, so a
+"bit-identical pre-step" acceptance passes on paper while every `.H` moves —
+`plan-authoring` §8's enabler-with-a-blast-radius. ⟹ **measure `apply_metric` on both
+candidate spellings before writing a line**, and ship the fork as a NEGATIVE leg
+("the end's weights are NOT the dressed ones") so a later drift is a red. → `L69b`
+
+⛔ **A vv#13 negative control can be BLIND below a threshold parameter value.** `[M]`
+the SO(2) isotypic probe's right-angle trap: incommensurate and right angles agree
+EXACTLY at L = 1, 2, 3 (zero false positives) and first diverge at **L = 4**
+(`m = ±4`), growing at L = 5. A probe gate parametrized over L ≤ 3 ships with an
+unfalsifiable control. ⟹ **measure the control's own ACTIVATION threshold** and put a
+row above it. ⭐ Companion: over a PADDED layout the denominator must be REAL slots —
+`[M]` 25 of 45 table slots are invariant at L=4, of which 20 are `|m|>ℓ` padding, so
+the honest answer is **5 of 25**. → `L69c`
+
+**Tolerance.** ⭐⭐ **A random-draw separation statistic usually has an EXACT
+draw-free replacement — ask whether it is a Rayleigh quotient.** `[M]` the committed
+"no diagonal metric satisfies Parseval" floor (`1.5`) pins a SEED: the same statistic
+ranges **0.2327 … 1.9975** over 400 draws on the very frame it gates. It is
+`(Gc)ᵀD(Gc)/(cᵀGc)`, so its exact range is the generalized eigenvalue range of
+`(G D G, G)` on `range(G)` — one `eigvalsh`, closed form. → `L69d`
+
+**Bit-identity.** ⛔⛔ **When a new type must reproduce an existing table bit-exactly,
+diff the existing producer's BRANCHES, not its name — no single library routine
+reproduces a hand-branched table.** `[M]` `_evaluate_real_sh` hardcodes `Y[:,0,0]=1.0`
+and `Y[:,1,1]=mu_x` and only calls `lpmv` from ℓ≥2, so `lpmv` matches at ℓ=0 and ℓ≥2
+and MISSES ℓ=1 (`8.33e-17`), while `eval_legendre` matches at ℓ≤1 and misses ℓ≥2
+(`3.3e-16 … 8.0e-16`). The matched branching gives `array_equal` on `analyze` /
+`analyze_transpose` / `reconstruct` — **6 of 6 rows, `max|Δ| = 0.0`** — and makes the
+descent gate statable at the BIT tier (`0.000e+00` on 7 of 7 sphere rules). A
+spot-check at one ℓ certifies the wrong spelling. → `L69a`
+
+**Config blindness (ORPHEUS).** ⭐⭐ **The Gauss–Legendre DEAD-SLOT theorem:** `[M]`
+12/12 rows — a `GL_n` rule's Legendre Gram is DIAGONAL and exact for `L ≤ n−1`
+(`max|diag − 2/(2ℓ+1)| ≤ 4.7e-16`) and has a **structurally dead slot at ℓ = n** (the
+nodes ARE `P_n`'s roots). So **no 1-D Gauss frame is dense AND full-rank**: the slab
+GL8/L=2 flagship DENSE witness becomes DIAGONAL (offdiag `1.418e-16`), and the full-rank
+dense witness must come from a NON-Gauss 1-D measure (`[M]` equispaced n=8, L=3: offdiag
+`6.107e-01`, 0 dead, cond 21.0) or from a coarse SPHERE rule. ⭐ The zero-new-fixture
+replacement: `folded_product(2,4).angular_frame(2|3)` reads separation `[1.000, 2.707]` /
+`[1.000, 3.707]` — **1.7×/2.7× the incumbent**, and never below 1 where the incumbent
+reaches 0.065. → `L69e`
+
+⚠ **A DERIVED `invariance_group` is a LOWER bound, so a lattice admission gate can
+REFUSE a correct pairing.** `[M]` `{P_ℓ(Ω·ê_x)}` is `O(2)_x`-invariant (σ_y does not
+move μ_x) but the derivation reads `domain.by = SO2('x')`, and
+`SO2('x').contains(Mirror('y')) = False` — so the gate refuses Legendre on a σ_y fold.
+No axis-parameterised `O2` exists to declare instead. Check a derived-symmetry gate's
+predicate against the SUT's TRUE stabiliser before shipping the refusal. → `L69f`
+
+⚠ **A value gate cannot always discriminate two accessors** — `[M]` `axis_cosines(0)`
+and `mean_axis_cosine(0)` are `array_equal` on 5 of 5 1-D rules, so a "the read equals
+the coordinate" leg is Mode-12 blind and only the REFUSAL leg (`axis_cosines(1)` raises;
+`mean_axis_cosine(1)` returns zeros) attributes the choice. → `L69g`

@@ -26,6 +26,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 from tests.sn._test_helpers import placeholder_materials
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 
 pytestmark = pytest.mark.foundation
 
@@ -547,7 +548,7 @@ class TestRLambdaMRoundTrip:
         moments = HarmonicMomentFlux.from_mesh_and_L(moments_values, sn_mesh, L)
 
         Lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver.mat_xs, L=L, skip_l0=True,
+            mat_xs=solver.mat_xs, basis=SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         out = Lam.apply(moments)
         # flux moment IN → source moment OUT (the explicit role change).
@@ -586,7 +587,7 @@ class TestRLambdaMRoundTrip:
             (L + 1, 2 * L + 1, mix.ng, nx, ny),
         )
         Lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver.mat_xs, L=L, skip_l0=True,
+            mat_xs=solver.mat_xs, basis=SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         out = Lam.apply(moments_values)
         assert isinstance(out, np.ndarray)

@@ -65,7 +65,10 @@ own values-vs-space check (CS4b S4 collapsed the per-family
 ``_phase_space_shape`` hook into it). Every family sources its space from the
 CARRIER's cached mints (campaign 1 CS4b): the Angular/Scalar families
 read ``mesh.angular_bulk_space`` / ``mesh.bulk_space``, ``MomentField``
-composes ``SphericalHarmonicSpace(L) * mesh.bulk_space``, and the
+composes ``<the quadrature frame's basis space at L> * mesh.bulk_space``
+(the spherical-harmonic space on a full-sphere rule — READ off
+``mesh.quad.angular_frame(L)``, never minted from ``L``; #429 tracker
+2.5), and the
 ``BoundaryField`` families read the cached traces
 (``mesh.angular_trace`` / ``mesh.scalar_trace`` via
 :meth:`FaceField._face_space_of`). Role is CLASS identity — the leaves
@@ -89,7 +92,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Hashable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, Mapping, Self, TypeVar
+from typing import TYPE_CHECKING, Generic, Mapping, Self, TypeVar, Protocol, runtime_checkable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -105,9 +108,6 @@ from orpheus.numerics.spaces.spatial_moment_space import (
     SpatialMomentSpace,
     spatial_moment_tail,
 )
-from orpheus.numerics.spaces.spherical_harmonic_space import (
-    SphericalHarmonicSpace,
-)
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.numerics.spaces.radial_characteristic_space import (
@@ -116,6 +116,7 @@ from orpheus.numerics.spaces.radial_characteristic_space import (
 )
 
 if TYPE_CHECKING:
+    from orpheus.numerics.quadrature.directional import Quadrature
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
     from orpheus.numerics.face_layout import FaceLayout
     from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -208,8 +209,8 @@ class BulkField(Field):
           carrier that binds no scheme cannot host a moment tail; the
           scheme binds at transport-method augmentation).
         * **Densified base** (the harmonic family's
-          ``SphericalHarmonicSpace * cell_group`` — until CS2 axis-ifies
-          the SH factor): a
+          ``<angular head> * cell_group`` — until CS2 axis-ifies
+          the angular head factor): a
           :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
           factor via the tensor-product ``*``, exactly as
           :meth:`HarmonicMomentFlux.from_mesh_and_L` composes the angular
@@ -553,6 +554,41 @@ class ScalarField(BulkField):
         )
 
 
+@runtime_checkable
+class _CarriesQuadrature(Protocol):
+    """A mesh that carries an angular quadrature — the SN phase-space carrier's surface."""
+
+    @property
+    def quad(self) -> "Quadrature": ...
+
+
+def _angular_head_space(mesh: "MaterialMesh", L: int) -> FunctionSpace:
+    r"""The moment family's angular HEAD at order ``L`` — READ off the mesh's
+    quadrature frame, never minted from ``L``.
+
+    ``mesh.quad.angular_frame(L).basis.space``: the coefficient space of
+    the basis the quadrature bound — the spherical-harmonic space on a
+    full-sphere rule, the Legendre space on a 1-D rule once the quotient
+    basis lands (#429 tracker 3.4). Until tracker 2.5 (2026-09-02) this
+    site minted ``SphericalHarmonicSpace.from_L(L)`` — one of seven
+    production copies of a space the frame already carried, and the one a
+    flat 1-D basis would have mismatched at every moment field's
+    values-vs-space check. The continuum-metric space (``basis.space``),
+    content-equal to the frame's Parseval-dressed ``basis_space`` that the
+    minted faces bind, exactly as before.
+
+    A mesh without a quadrature has no angular head to read — a transport
+    ``MaterialMesh`` alone cannot host a moment field, and says so.
+    """
+    if not isinstance(mesh, _CarriesQuadrature):
+        raise TypeError(
+            f"a moment field's angular head is READ off the mesh's quadrature "
+            f"frame, and {type(mesh).__name__} carries no quadrature; build "
+            f"the moment field on the SN phase-space carrier (an SNMesh)."
+        )
+    return mesh.quad.angular_frame(L).basis.space
+
+
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class MomentField(BulkField):
     r"""Real-spherical-harmonic moment-space bulk family (storage base).
@@ -587,11 +623,13 @@ class MomentField(BulkField):
     source/sink sibling triggered the "clean before extending" pass.
     """
 
-    #: Maximum harmonic order retained. Determines the leading two axes'
-    #: sizes: ``values.shape[:2] == (L+1, 2L+1)``. Encoded in ``space.shape``
+    #: Maximum harmonic order retained. Determines the angular HEAD's axes —
+    #: ``values.shape[:2] == (L+1, 2L+1)`` for the harmonic family the
+    #: full-sphere rules bind (a flat head, one axis, once a 1-D rule binds
+    #: its Legendre basis — #429 tracker 3.4). Encoded in ``space.shape``
     #: AND kept as a top-level field for ergonomic hot-path read access
-    #: (avoids a per-read composition-tree traversal of
-    #: ``space.find_factor(SphericalHarmonicSpace).L``).
+    #: (avoids a per-read composition-tree traversal of the head factor's
+    #: own ``L``).
     L: int
 
     #: Optional within-cell spatial-moment basis size per axis (#240
@@ -646,19 +684,21 @@ class MomentField(BulkField):
         r"""Construct from raw values + mesh + L, deriving the
         :class:`TensorProductSpace`.
 
-        Builds the space as ``SphericalHarmonicSpace.from_L(L) *
-        mesh.bulk_space`` — the cell-group factor IS the carrier's cached
-        scalar bulk (campaign 1 CS4b: one mint, metric-carrying), and the
-        moment-axis structure is type-visible through the composition
-        tree (queryable via ``space.find_factor(SphericalHarmonicSpace).L``
-        per Issue #207).
+        Builds the space as ``<angular head> * mesh.bulk_space`` — the
+        angular head READ off the mesh's quadrature frame at ``L``
+        (``mesh.quad.angular_frame(L).basis.space``; the spherical-harmonic
+        space on a full-sphere rule — #429 tracker 2.5, never minted from
+        ``L``), the cell-group factor IS the carrier's cached scalar bulk
+        (campaign 1 CS4b: one mint, metric-carrying), and the moment-axis
+        structure is type-visible through the composition tree (queryable
+        via ``space.find_factor(...)`` per Issue #207).
 
         ``spatial_moments`` (default ``1``, byte-identical #240 D5b-S3-A0)
         optionally composes a within-cell
         :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
         factor on AFTER the cell-group space — EXACTLY the same ``*``
-        composition that adds the angular ``SphericalHarmonicSpace`` ("append
-        iff > 1", single-sourced with the space's own shape contract).
+        composition that adds the angular head ("append iff > 1",
+        single-sourced with the space's own shape contract).
         """
         return cls(
             values=values,
@@ -679,9 +719,9 @@ class MomentField(BulkField):
         :meth:`space_on` (the admission-guard reference), so the factory
         and the guards cannot drift.
         """
-        sh_space = SphericalHarmonicSpace.from_L(L)
+        head = _angular_head_space(mesh, L)
         return cls._compose_spatial_moments(
-            sh_space * mesh.bulk_space, mesh, spatial_moments,
+            head * mesh.bulk_space, mesh, spatial_moments,
         )
 
     def space_on(self, mesh: "MaterialMesh") -> FunctionSpace:

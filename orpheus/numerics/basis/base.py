@@ -69,7 +69,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, Protocol, final, runtime_checkable
 
 from numpy.typing import NDArray
 
@@ -81,7 +81,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
 
 
-__all__ = ["Basis", "GramStructure"]
+__all__ = ["Basis", "GramStructure", "TruncatedBasis"]
 
 
 class GramStructure(Enum):
@@ -115,6 +115,46 @@ class GramStructure(Enum):
     DIAGONAL = "diagonal"
     PARTITION_OF_UNITY = "partition_of_unity"
     DENSE = "dense"
+
+
+@runtime_checkable
+class TruncatedBasis(Protocol):
+    r"""A basis indexed by a truncation ORDER :math:`L` — the harmonic family's shared surface.
+
+    The real spherical harmonics, their σ-even restriction and the Legendre
+    basis on :math:`S^2/SO(2)_a` are each *one family of functions truncated
+    at a degree*, and every consumer that spells "the coefficient space of
+    order :math:`L`" — an operator's endomorphic ends, a moment field's
+    angular head, a frame's mint — reads it off such a basis
+    (:attr:`space`), never mints it from the integer. The family the frame
+    binds is DERIVED from the point set its measure lives on
+    (:meth:`~orpheus.numerics.quadrature.directional.Quadrature._harmonic_basis`),
+    so a consumer that re-minted the space from ``L`` would silently choose
+    the full-sphere family on every rule — which is exactly how the angular
+    moment space had eight homes until #429 tracker 2.5 (2026-09-02):
+    seven production ``SphericalHarmonicSpace.from_L(L)`` mints beside the
+    frame that already carried it.
+
+    Structural (``Protocol``) and ``runtime_checkable``: the
+    :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` door
+    asks for THIS surface — *does the trial basis carry a truncation
+    order?* — not for one class, because the fold's σ-even restriction and
+    the slab's Legendre basis are as much harmonic-family members as the
+    full harmonics, and a door that named one class refused the others
+    (`[M]` 2026-09-02, the two ``isinstance`` narrowings at that door were
+    the first thing a 1-D solve would have hit after the fix, at
+    :math:`L = 0`).
+    """
+
+    @property
+    def L(self) -> int:
+        """The truncation order — the degree the family is cut at."""
+        ...
+
+    @property
+    def space(self) -> "FunctionSpace":
+        """The coefficient space this truncated family spans."""
+        ...
 
 
 class Basis(ABC):

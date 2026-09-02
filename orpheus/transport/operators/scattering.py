@@ -65,7 +65,7 @@ import numpy as np
 
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces import SphericalHarmonicSpace
+from orpheus.numerics.basis.base import TruncatedBasis
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.frames import (
     HarmonicAnalysisOperator,
@@ -195,21 +195,25 @@ class LegendreMomentScattering(BoundOperator):
     def from_material_xs(
         cls,
         mat_xs: "MaterialXSField",
-        L: int,
+        basis: TruncatedBasis,
         *,
         skip_l0: bool = True,
     ) -> "LegendreMomentScattering":
         r"""Tier-2 extract-and-mint: pull the scattering channel of a
         :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
-        facade, truncate to ``L``, and bind the endomorphic SH ends
-        (``SphericalHarmonicSpace.from_L(L)`` supplying both — the
-        endomorphism sugar lives HERE, never on the exact ctor)."""
-        sh_space = SphericalHarmonicSpace.from_L(L)
+        facade, truncate to the basis's order, and bind the endomorphic ends
+        on the BASIS's coefficient space (``basis.space`` supplying both —
+        the endomorphism sugar lives HERE, never on the exact ctor). The
+        basis is the single source of the moment space (#429 tracker 2.5):
+        an integer cannot say which family — full harmonics on a sphere
+        rule, Legendre on a 1-D rule — so the caller hands the basis its
+        frame bound, and the ends are that basis's, never re-minted."""
+        ends = basis.space
         return cls(
-            ScatteringMaterialField.from_material_xs(mat_xs).truncated(L),
+            ScatteringMaterialField.from_material_xs(mat_xs).truncated(basis.L),
             skip_l0=skip_l0,
-            domain=sh_space,
-            codomain=sh_space,
+            domain=ends,
+            codomain=ends,
         )
 
     @property
@@ -371,15 +375,17 @@ class N2NMomentOperator(BoundOperator):
 
     @classmethod
     def from_material_xs(
-        cls, mat_xs: "MaterialXSField", L: int,
+        cls, mat_xs: "MaterialXSField", basis: TruncatedBasis,
     ) -> "N2NMomentOperator":
         r"""Tier-2 extract-and-mint: pull the :math:`(n,2n)` channel of a
-        facade and bind the endomorphic SH ends at order ``L``."""
-        sh_space = SphericalHarmonicSpace.from_L(L)
+        facade and bind the endomorphic ends on the BASIS's coefficient
+        space (``basis.space``, both — the single source of the moment
+        space, #429 tracker 2.5; the order is the basis's)."""
+        ends = basis.space
         return cls(
             N2NMaterialField.from_material_xs(mat_xs),
-            domain=sh_space,
-            codomain=sh_space,
+            domain=ends,
+            codomain=ends,
         )
 
     @property
@@ -515,10 +521,27 @@ class ScatteringOperator(BoundOperator["FullField"]):
         return float(self.flux_analysis.frame.measure.weights.sum())
 
     @property
-    def _sh_space(self) -> "FunctionSpace":
-        r"""The SH coefficient space of this binding's order — the
-        endomorphic ends of the internally-minted moment factors."""
-        return SphericalHarmonicSpace.from_L(self.scattering_order)
+    def _moment_space(self) -> "FunctionSpace":
+        r"""The coefficient space of the bound frame's BASIS — the
+        endomorphic ends of the internally-minted moment factors.
+
+        READ off the retained faces' frame (``frame.basis.space``), never
+        minted from :attr:`scattering_order`: which family spans the
+        moments is the quadrature's decision (full harmonics on a sphere
+        rule, Legendre on a 1-D rule), and the frame already carries it.
+        The continuum-metric space (the basis's own), not the frame's
+        Parseval-dressed ``basis_space``: `[M]` #429 tracker 2.5 the two are
+        ``(name, shape)``-equal and metric-DIFFERENT on 33 of 33 shipped
+        (rule, L) rows (the per-:math:`\ell` ratio is exactly
+        :math:`[(2\ell+1)/4\pi]^2`), and under the continuum end the
+        factor's Hilbert adjoint is its transpose EXACTLY
+        (:math:`\Lambda^* = \Lambda^{\mathsf T}`, 0.0 on 33/33) while the
+        dressed end would move it on 10 of 33 rows (every 1-D and folded
+        rule at :math:`\ell \ge 1`) — binding the basis's own space is what
+        keeps every number and every ``.H`` bit-identical to the
+        ``from_L(L)`` mint it replaces. (Equality is ``(name, shape)`` and
+        cannot see the fork; the gate asserts the metric ARRAY.)"""
+        return self.flux_analysis.frame.basis.space
 
     def _moment_scattering(self, *, skip_l0: bool) -> LegendreMomentScattering:
         r"""Mint the moment-space :math:`\Lambda` factor on this binding's
@@ -526,9 +549,9 @@ class ScatteringOperator(BoundOperator["FullField"]):
         the §5.6 kernel, the full conjugation, and the aniso moment
         route; the windowed arm consumes the cached :attr:`kernel`
         factors)."""
-        sh = self._sh_space
+        ends = self._moment_space
         return LegendreMomentScattering(
-            self.scattering, skip_l0=skip_l0, domain=sh, codomain=sh,
+            self.scattering, skip_l0=skip_l0, domain=ends, codomain=ends,
         )
 
     @property
