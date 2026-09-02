@@ -496,6 +496,48 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   the special case `H = G⁰`, so the collapse is `support = base.quotient(G⁰).realization.name`.
   ⭐ Chasing the distinction found a latent break: stage 0 is a STRING compare, and `[M]`
   `cylinder.admits_domain(folded_product(4,8).measure)` is **False**. → L-080
+- **⭐⭐ A campaign day lands SIBLING steps, and each one repeals a PREMISE somewhere else in the
+  corpus — grep for the premise, not for the step's name.** `[M]` FOUR present-tense-false claims,
+  none in my brief, all true when written and repealed hours earlier by 2.0c/2.1: *"`support` is
+  still a `str`"* · *"the slot is `domain`, and it is **not yet built**"* · *"`indicator_basis.py`
+  **hard-codes** it"* (×2 pages). ⭐ The sharpest is ERR-080's entry **contradicting itself 170
+  lines apart** — a `✅ Progress (2.4)` block announcing the first production consumer, then a Fix
+  bullet reading *"⛔ That type has no production consumer yet"*. Repair shape: keep the numbers
+  and the verdict, tombstone only the PREMISE, in place (`⛔ This clause read "…" until <date>:
+  true when written, and repealed hours later by <step>, which is the campaign's own step`).
+  → L-081
+- **⭐⭐ The brief's target SECTION can be absent, and a page's shared WORD can be a different
+  object.** Briefed to extend *"wherever `quotient_group` / HAS-vs-SPENT is explained"*: `[M]`
+  **0** hits on that page, and its heavy *"spent"* is the registry's continuous `G^0` (a geometry
+  spends it), not a measure's fold group. Write the missing home rather than bolting onto the
+  homonym. ⚠ And the claim I nearly shipped in it — *"two of the fields in the table above name a
+  subgroup"* — was false: the propagation table carries only the STORED one, because a derived
+  field has nothing to propagate. → L-081
+- **⭐⭐ Widen a table to the WHOLE shipped roster before writing prose over it — the added row
+  is usually the one that turns a design note into a theorem.** I drafted *"the **four** shipped
+  angular rules"*; `[M]` `vars(Quadrature)` + `isinstance(v, classmethod)` says **FIVE**
+  (L-074's finite-roster miss, now in my own prose). Re-run at 5, the bottom two rows ARE the
+  argument: the slab carries **two different groups in two slots on one measure**
+  (`HAS Mirror('x')` / `SPENT SO2('x')`), and the σ_y fold `HAS None` **because** it spent σ_y —
+  *spending a symmetry destroys having it*. ⭐ Same fix on the pairing table: re-posed as the
+  pairing the tree ACTUALLY forms (each rule vs the basis its own `angular_frame(2)` binds) it
+  reads **1 of 5 fails**, strictly stronger than four hand-picked rows. ⚠ Then I wrote *"the same
+  denominator ERR-080's scope census reports"* — **false**, that one counts `(constructor, order)`
+  rows (7 of 15); struck, and the incomparability published as a ⚠. → L-081
+- **⭐⭐ A quoted tracker/plan row is a QUOTATION — grep it out of its source before it ships.**
+  I published an italic *"the tracker read …"* that fused two separate plan clauses and invented
+  the framing they "asked for". A paraphrase in quotation marks reads as verbatim. → L-081
+- **⭐ Soften every superlative and every "share no X" — check the DEGENERATE member.**
+  *"the **largest** group known to map the node set to itself"* (it is a stored DECLARATION, not
+  a computed stabiliser) and *"the full degree-L harmonics **share no symmetry**"* (`[M]` false at
+  `L=0`: `space.shape == (1,1)`, one constant, O(3)-invariant — the page's own lower-bound
+  caveat). → L-081
+- **⭐⭐ Quoting a docstring INTO the corpus is itself an instrument.** Copying
+  `quotient_group`'s *"(:meth:`restrict`, :meth:`consolidate`, :meth:`reorder`, …)"* tripped my
+  role-import probe: `[M]` `hasattr(DiscreteMeasure, "reorder")` is **False**, only occurrence
+  tree-wide. Nothing else sees it — the role is UNQUALIFIED (the xref gate skips those by design,
+  `DEAD TARGETS: 0`) and the module has no `automodule` (nexus `dead_references` = 0 dead / 52
+  checked). A fully-qualified copy is decidable where the unqualified original is not. → L-081
 - **⭐ A section TITLE is a count too, and a roster count needs the command that produces it.**
   One edit shipped *"The four realizations…"* over a five-row table; the same page carried two of
   my own earlier universals that were wrong when written (*"Nine variants"* — `[M]` 8 at the
@@ -1802,6 +1844,19 @@ never paraphrase a level definition. → L-010
   -x -C <tmp>`, then run that tree's own copy of the gate on it). `[M]` 81 dead / 124 sites both
   sides while adding 80 xref roles. Its file-count will differ (untracked files); the DEAD number is
   the gate. → L-059
+- **⭐⭐ Validate your OWN self-check parser against a known-good member before believing its
+  negatives.** My list-table column checker required a trailing space after a cell's `-`, so a
+  legal EMPTY cell (`^     -$`) read as a ragged table — two false positives on PRE-EXISTING
+  tables, which is exactly the direction that wastes a cycle chasing a non-defect. Fix:
+  `^     -(\s|$)`. Same for a corpus label-uniqueness scan: my "duplicate `boltzmann` eq-label"
+  was a `.. code-block:: rst` EXAMPLE, not a label — a scanner that cannot see literal blocks
+  reports the corpus's own documentation of itself. (`nexus-tools`' positive-control rule, turned
+  on the instrument I wrote.) → L-081
+- **⭐ The two-build rule is broken by EDITING AFTER LAUNCH, every time — this pass cost FOUR.**
+  Each extra build was bought by one late correction (a quotation, a role qualification, a
+  denominator). ⟹ the self-consistency pass — universals, quotations, denominators, superlatives
+  — runs to EXHAUSTION before the first verification build. Baseline and final were both **0**
+  W/E/C, EXIT=0, so the acceptance evidence held; the cost was pure wall-clock. → L-081
 - **RE-MEASURE the `-E` baseline every session; never assume a recorded number** (it has drifted
   9 → 1 → 0; measured 0 again 2026-08-11). Diff the WARNING/ERROR/CRITICAL SET pre/post, not just
   the count. A full `-E` rebuild can exceed the 120 s foreground cap — background it, or the

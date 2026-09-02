@@ -6159,6 +6159,44 @@ older entries classify against.
      :ref:`manifold-orbit-space-declaration` and
      :ref:`manifold-the-axis-convention-for-a-section`.
 
+     ✅ **Progress 2026-09-01 (tracker 2.1b) — the pairing has its SECOND
+     operand, and is now a computable VERDICT rather than a story.**
+     Tracker 2.1 gave a :class:`~orpheus.numerics.basis.base.Basis` a
+     ``domain``; 2.1b read the group off it.
+     :attr:`Basis.invariance_group
+     <orpheus.numerics.basis.base.Basis.invariance_group>` is **derived**
+     by a ``match`` on the domain's TYPE — a quotient of the sphere gives
+     its ``by``, the sphere gives ``Trivial``, anything else gives
+     ``None`` — because a function on :math:`M/H`, pulled back to
+     :math:`M`, *is* an :math:`H`-invariant function. `[M]` **6 of 6**
+     shipped bases answer, the property is ``@final``, and it cost
+     **zero** subclass edits and no new field. So the pairing the Fix
+     bullet below calls for — *"``Basis`` must be able to declare its
+     ``domain`` so the pairing is checkable where the two objects meet"*
+     — now has a predicate to be checked WITH, the containment
+     :math:`G_{\text{spent}} \subseteq G_{\text{have}}` in the subgroup
+     lattice, and it evaluates on shipping objects: `[M]`
+     ``gauss_legendre(8).measure.quotient_group`` is ``SO2('x')`` while
+     the ``SphericalHarmonicBasis(L=2)`` its frame binds has ``Trivial``,
+     and ``Trivial.contains(SO2('x'))`` is **False** — ERR-080, stated as
+     a lattice verdict for the first time. For contrast the shipped
+     :math:`\sigma_y` fold reads **True** with the two halves the *same
+     object* (``basis.invariance_group is measure.quotient_group``,
+     because ``basis.domain is measure.support``).
+     ⛔ **Nothing refuses on that verdict, and this does not repair the
+     defect.** The frame's pairing gate is tracker 2.2, fused with its
+     siblings; `[M]` a gate written on the *frame's* measure would be
+     inert today, because ``gauss_legendre(8).angular_frame(2)``'s
+     measure still declares ``support.name == 'S^2'`` while the
+     quadrature's own measure declares ``'S^2/SO2_x'``. That is why the
+     witness — ``tests/numerics/test_basis_domain.py::test_e1`` — reads
+     the verdict off the **quadrature's** measure, and why its negative
+     leg is a *measurement made spellable* rather than a refusal
+     (``plan-authoring`` §6c). The **Gate** bullet below is unchanged:
+     the ``xfail(strict=True)`` rows still hold this entry open. See
+     :ref:`manifold-basis-invariance-group` and
+     :ref:`manifold-invariance-pairing`.
+
      ⚠ **Narrowed 2026-09-01** (phase 0.1a of
      ``.claude/plans/angular_spaces_derived_from_symmetry.md``): that
      ``column_stack`` used to run for **every** rule, inside ``angular_frame``
@@ -6294,7 +6332,11 @@ older entries classify against.
      ``SPACE_SPHERE`` until tracker 2.0c retired the string tags on
      2026-09-01; the claim is now typed and still false)*; ✅ ``Basis`` must
      be able to declare its ``domain`` so the pairing is checkable where the
-     two objects meet — **LANDED 2026-09-01, tracker 2.1**; and
+     two objects meet — **LANDED 2026-09-01, tracker 2.1**, with the
+     symmetry operand following the same day at **tracker 2.1b**
+     (``invariance_group``, DERIVED from that ``domain``), so the pairing
+     is now *computable*; ⛔ what is still absent on this leg is a
+     CONSUMER that refuses on the verdict — tracker 2.2; and
      ``_evaluate_real_sh`` must REFUSE a non-unit direction vector rather than
      inventing an azimuth for it *(⛔ still OPEN)*. ⭐ The first two both need
      an object for the point set, which the tree did not have — ✅ it does now
@@ -6306,8 +6348,15 @@ older entries classify against.
      the three-level argument for why a ``FunctionSpace`` cannot BE the
      ``domain`` — :doc:`/theory/foundations/manifolds`,
      :ref:`manifold-err-080` and :ref:`manifold-three-levels`. ⛔ That type
-     has **no production consumer yet** — it is a capability, and this
-     defect is unrepaired until the three items above land. Plan:
+     now HAS production consumers — ``[M]`` every measure's ``support``
+     since tracker 2.0c, every basis's ``domain`` since 2.1, and the
+     slab's declared orbit space since 2.4 — **and this defect is still
+     unrepaired**, because none of them is the REFUSAL: the forged
+     :math:`(\mu,0,0)` measure remains constructible until the three
+     items above land. (This clause read *"That type has no production
+     consumer yet — it is a capability"* until 2026-09-01, when the
+     campaign's own next three steps repealed the first half while
+     leaving the second exactly true.) Plan:
      ``.claude/plans/angular_spaces_derived_from_symmetry.md``.
      ``[M]`` the repair also closes the crash by removing the need for a dense
      metric on a slab at all: with no fabricated azimuth a 1-D rule carries

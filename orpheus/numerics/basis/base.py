@@ -69,12 +69,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from numpy.typing import NDArray
 
+from orpheus.numerics.manifold import Manifold, Quotient, Sphere
+from orpheus.numerics.symmetry import SubgroupOfO3
+
 if TYPE_CHECKING:
-    from orpheus.numerics.manifold import Manifold
     from orpheus.numerics.measure import DiscreteMeasure
     from orpheus.numerics.space import FunctionSpace
 
@@ -242,7 +244,7 @@ class Basis(ABC):
     # ── The manifold the basis functions are defined ON ───────────────────
     @property
     @abstractmethod
-    def domain(self) -> "Manifold":
+    def domain(self) -> Manifold:
         r"""The :class:`~orpheus.numerics.manifold.Manifold` these functions EAT.
 
         A basis function is a **map**, and a map is not defined until its
@@ -282,6 +284,86 @@ class Basis(ABC):
         ``Manifold.dim``) is already answered that way.
         """
         ...
+
+    # ── The symmetry the basis functions HAVE — read off the domain ───────
+    @property
+    @final
+    def invariance_group(self) -> SubgroupOfO3 | None:
+        r"""The subgroup of :math:`O(3)` every one of these functions is invariant under.
+
+        ⭐ **Derived, never stored, and ``@final``** — the basis-side twin of
+        :attr:`DiscreteMeasure.quotient_group
+        <orpheus.numerics.measure.DiscreteMeasure.quotient_group>`, for the
+        same reason it is derived there: a basis declares the symmetry its
+        functions HAVE by naming the manifold they EAT. A function on an
+        orbit space :math:`M/H` is, pulled back to :math:`M`, exactly an
+        :math:`H`-invariant function — that is what a function on a quotient
+        *is* — so the group is already in :attr:`domain`, as
+        :attr:`Quotient.by <orpheus.numerics.manifold.Quotient.by>`, and a
+        second slot for it would be a second home for one fact, kept in
+        agreement by hand. (#429 tracker 2.1b, 2026-09-01: the tracker asked
+        for a FIELD answered by six subclasses; the phase opener found the
+        answer sitting in ``domain.by``, exactly as tracker 2.0d's
+        ``quotient_group`` field dissolved into ``Quotient.by`` at 2.0c.)
+
+        Three answers, by the TYPE of :attr:`domain`:
+
+        * a :class:`~orpheus.numerics.manifold.Quotient` of the sphere — the
+          group it was quotiented BY. The σ-even sub-basis
+          (:class:`~orpheus.numerics.basis.spherical_harmonic_basis.MirrorEvenSphericalHarmonicBasis`)
+          answers ``Mirror(axis)``; the Legendre basis on
+          :math:`S^2/SO(2)_a` (tracker 3.4) will answer ``SO2(a)``.
+        * the :class:`~orpheus.numerics.manifold.Sphere` itself —
+          :attr:`SubgroupOfO3.Trivial <orpheus.numerics.symmetry.SubgroupOfO3.Trivial>`.
+          :math:`O(3)` acts on the domain and the basis has spent none of it:
+          the full degree-:math:`L` real harmonics have no common symmetry.
+        * anything else — ``None``. No subgroup of :math:`O(3)` acts on a
+          spatial mesh, an energy-group index or a trace-DOF index set, so
+          the question has no answer there rather than a trivial one: it is
+          the category answer :attr:`DiscreteMeasure.phase
+          <orpheus.numerics.measure.DiscreteMeasure.phase>`'s dispatch gives
+          for the same manifolds, and the reason ``Trivial`` would be a lie —
+          it asserts an action that does not exist.
+
+        ⚠ **HAS versus SPENT.** A measure carries two group slots because the
+        two come apart for a POINT SET: a rule can be *closed under* a mirror
+        (``invariance_group``, HAS) without having been *folded by* it
+        (``quotient_group``, SPENT), and once folded it is no longer closed.
+        For FUNCTIONS the two coincide — being :math:`H`-invariant and
+        descending to :math:`M/H` are one property — so a basis carries one
+        slot, named for what it HAS, and read off what its domain SPENT. The
+        ``None`` of the two properties mean different things for the same
+        reason: a full-sphere rule has spent nothing (``quotient_group`` is
+        ``None``), while the full-sphere harmonics HAVE the trivial group.
+
+        ⚠ **The reading is a LOWER BOUND, and under-declaring is legal but
+        lossy.** ``SphericalHarmonicBasis(L=0)`` is :math:`O(3)`-invariant
+        and answers ``Trivial``, because its domain says :math:`S^2`. A basis
+        invariant under more than its domain shows will be refused pairings
+        it could have admitted once the frame checks its two halves (Part
+        IV's G2, tracker 2.2: the group a measure SPENT must be one the basis
+        HAS — ``measure.quotient_group ⊆ basis.invariance_group``). The
+        remedy is to declare the finer domain, never to override this
+        property: an override lets :attr:`domain` and this answer disagree,
+        which is precisely the two-tags-that-drift state the derivation
+        exists to make unspellable — hence ``@final``.
+
+        `[M]` 2026-09-01: the fold's two halves read ONE object —
+        ``folded_product(4, 8).measure.quotient_group`` and its frame basis's
+        ``invariance_group`` are both ``Mirror('y')``, the ``by`` of the one
+        memoised :class:`~orpheus.numerics.manifold.Quotient` — while the
+        slab's rule (``S^2/SO2_x``, spent ``SO2('x')``) against the
+        full-sphere harmonics (``Trivial``) reads ``Trivial ⊇ SO2('x')``
+        **False**: ERR-080's pairing is a lattice verdict now, and nothing
+        yet refuses on it (``tests/numerics/test_basis_domain.py::test_e1``).
+        """
+        match self.domain:
+            case Quotient(base=Sphere(), by=group):
+                return group
+            case Sphere():
+                return SubgroupOfO3.Trivial
+            case _:
+                return None
 
     @property
     @abstractmethod

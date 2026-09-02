@@ -28,14 +28,34 @@ only unasked. So the durable gate is not "the name is right" but **"the two
 halves of one frame name ONE manifold"**, which goes red the day either side
 re-invents it.
 
-What is NOT claimed here
-========================
+What was NOT claimed when this file landed, and is now
+=====================================================
 
-``DiscreteMeasure.support`` is still a ``str`` (that retype is tracker 2.0c),
-so ``measure.py``'s ``f"L2[{support}]"`` and the basis's new
-``f"L2[coarse_cells({domain.name})]"`` remain two spellings of the L² name.
-``test_d6`` pins their AGREEMENT, which is the property that matters and the
-thing 2.0c must preserve.
+At 2.1 ``DiscreteMeasure.support`` was still a ``str``, so ``test_d6`` could
+only pin that a frame's two halves SPELLED the manifold the same way.
+✅ Tracker 2.0c (2026-09-01) retyped it, and ``test_d6`` asserts the halves
+ARE one manifold (its own docstring records the promotion).
+
+...and the symmetry its functions HAVE — #429 tracker 2.1b (section E)
+======================================================================
+
+A basis states the group its functions are invariant under, and it does so
+by naming its domain: a function on an orbit space :math:`M/H` is an
+:math:`H`-invariant function, so
+:attr:`~orpheus.numerics.basis.base.Basis.invariance_group` is READ off
+:attr:`~orpheus.numerics.basis.base.Basis.domain` — ``Quotient.by``;
+``Trivial`` on the bare sphere; ``None`` where no subgroup of :math:`O(3)`
+acts. The tracker asked for a field answered by six subclasses; the phase
+opener found the answer already sitting in the fold basis's domain, the way
+2.0d's ``quotient_group`` field dissolved into ``Quotient.by`` at 2.0c.
+
+The keystone is ``test_e1``: the fold's two halves read ONE group object,
+and the slab's pairing with the full-sphere harmonics — ERR-080's — reads as
+the lattice verdict False. ⚠ Nothing REFUSES on that verdict yet: the frame
+gate is tracker 2.2 (fused with 0.1b + 0.6 + 3.4), so ``test_e1``'s negative
+leg is a measurement made spellable, not a refusal (``plan-authoring`` §6c —
+the witness a field with no consumer can honestly carry is an AGREEMENT on a
+shipped pairing, and the fold ships).
 
 See :doc:`/theory/foundations/manifolds` §(b) and
 :doc:`/theory/foundations/spaces`.
@@ -65,10 +85,12 @@ from orpheus.numerics.manifold import (
     EnergyGroups,
     IndexSet,
     Manifold,
+    Quotient,
     RealSpace,
     ambient_dim,
 )
 from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.symmetry import SubgroupOfO3
 from orpheus.sn.operators.loss_kernel_gauge import LossKernelBasis
@@ -79,6 +101,47 @@ pytestmark = [pytest.mark.foundation]
 _TWO_CELLS = (np.array([0.0, 0.5, 1.0]),)
 _TWO_GROUPS = (np.arange(3, dtype=float) - 0.5,)
 _THREE_CELLS = (np.array([0.0, 0.3, 0.6, 1.0]),)
+
+
+class _AbstractStub(Basis):
+    """Every abstract member of :class:`Basis` EXCEPT ``domain``.
+
+    Full signatures, and bodies that RAISE rather than ``...``: a stub whose
+    members silently return ``None`` is not a faithful stand-in for the ABC,
+    and the type checker says so. Nothing here is ever reached. ``test_d3``
+    uses it bare (it must refuse to construct); section E subclasses it with
+    a ``domain`` alone, so that the group a basis HAS is shown to be decided
+    by the DOMAIN and by nothing else about the class.
+    """
+
+    def evaluate(self, points: NDArray, /) -> NDArray:
+        raise NotImplementedError
+
+    def synthesize(self, c: NDArray, table: NDArray, /) -> NDArray:
+        raise NotImplementedError
+
+    def analyze(self, v: NDArray, table: NDArray, w: NDArray, /) -> NDArray:
+        raise NotImplementedError
+
+    def analyze_transpose(
+        self, c: NDArray, table: NDArray, w: NDArray, /,
+    ) -> NDArray:
+        raise NotImplementedError
+
+    def reconstruct(self, c: NDArray, table: NDArray, /) -> NDArray:
+        raise NotImplementedError
+
+    def reconstruct_transpose(
+        self, v: NDArray, table: NDArray, /,
+    ) -> NDArray:
+        raise NotImplementedError
+
+    def mass_matrix(self, measure: DiscreteMeasure, /) -> NDArray:
+        raise NotImplementedError
+
+    @property
+    def space(self) -> FunctionSpace:
+        raise NotImplementedError
 
 
 def test_d1_an_energy_space_and_a_spatial_space_are_not_the_same_space() -> None:
@@ -147,54 +210,21 @@ def test_d2_every_shipped_basis_answers_what_its_functions_eat() -> None:
 def test_d3_a_basis_that_cannot_say_what_it_eats_cannot_be_built() -> None:
     """The refusal is STRUCTURAL — at construction, not at first call.
 
-    The stub implements every other abstract member, so ``domain`` is the only
-    thing missing and the refusal cannot be credited to the wrong arm
-    (``vv-principles`` #17's granularity trap). The positive leg is the same
-    stub WITH ``domain``, which must construct.
+    The stub (:class:`_AbstractStub`, module scope since 2.1b) implements
+    every other abstract member, so ``domain`` is the only thing missing and
+    the refusal cannot be credited to the wrong arm (``vv-principles`` #17's
+    granularity trap). The positive leg is the same stub WITH ``domain``,
+    which must construct.
     """
-
-    class _Incomplete(Basis):
-        # Full signatures, and bodies that RAISE rather than `...`: a stub
-        # whose members silently return None is not a faithful stand-in for
-        # the ABC, and the type checker says so.  Nothing here is ever
-        # reached — the class cannot be instantiated, which is the claim.
-        def evaluate(self, points: NDArray, /) -> NDArray:
-            raise NotImplementedError
-
-        def synthesize(self, c: NDArray, table: NDArray, /) -> NDArray:
-            raise NotImplementedError
-
-        def analyze(self, v: NDArray, table: NDArray, w: NDArray, /) -> NDArray:
-            raise NotImplementedError
-
-        def analyze_transpose(
-            self, c: NDArray, table: NDArray, w: NDArray, /,
-        ) -> NDArray:
-            raise NotImplementedError
-
-        def reconstruct(self, c: NDArray, table: NDArray, /) -> NDArray:
-            raise NotImplementedError
-
-        def reconstruct_transpose(
-            self, v: NDArray, table: NDArray, /,
-        ) -> NDArray:
-            raise NotImplementedError
-
-        def mass_matrix(self, measure: DiscreteMeasure, /) -> NDArray:
-            raise NotImplementedError
-
-        @property
-        def space(self) -> FunctionSpace:
-            raise NotImplementedError
 
     # The ignore DOCUMENTS the claim rather than hiding a defect: pyright
     # reports exactly the refusal this line asserts ("Basis.domain is not
     # implemented"), which is the established idiom for a negative leg here
     # (e.g. tests/transport/test_timed_full_field.py:126).
     with pytest.raises(TypeError, match="domain"):
-        _Incomplete()                                # type: ignore[abstract]
+        _AbstractStub()                              # type: ignore[abstract]
 
-    class _Complete(_Incomplete):
+    class _Complete(_AbstractStub):
         @property
         def domain(self) -> Manifold:
             return SPHERE
@@ -352,3 +382,194 @@ def test_d7_a_wrapping_basis_cannot_drift_from_the_basis_it_wraps() -> None:
     overlap = OverlapBasis.from_indicator(trial, table)
     assert overlap.domain is trial.domain
     assert overlap.partition_of is trial.partition_of
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# E. ...and the symmetry its functions HAVE — #429 tracker 2.1b
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_e1_the_folds_two_halves_read_ONE_group_and_the_slabs_pairing_is_refusable() -> None:
+    r"""⭐⭐ KEYSTONE — Part IV's G2 has both operands, and they agree where they should.
+
+    **Positive leg: the shipped fold.** Its measure SPENT ``Mirror('y')``
+    (folded onto :math:`S^2/\sigma_y`) and its frame basis HAS ``Mirror('y')``
+    (the σ_y-even harmonics on the same orbit space). Asserted three ways,
+    strongest last: the lattice verdict G2 will read, equality, and
+    **identity** — the two halves are the ``by`` of one memoised
+    :class:`Quotient`, so there is no second tag that could drift. This is
+    the witness ``plan-authoring`` §6c allows a field with no consumer yet:
+    an AGREEMENT on a pairing that ships, not a refusal that nothing reaches.
+
+    **Negative leg: the slab.** ``gauss_legendre(8)`` spent ``SO2('x')``
+    (tracker 2.4) and the harmonics its frame binds today HAVE only
+    ``Trivial``, so ``Trivial ⊇ SO2('x')`` is **False** — the Part I bug
+    (ERR-080) stated as a lattice verdict for the first time. ⚠ A
+    measurement, not a refusal: nothing checks it on the frame until tracker
+    2.2, and the frame's own measure still carries the forged ``S^2``
+    (§V.5h(c)), which is why the verdict is read off the QUADRATURE's
+    measure — the object that knows what it spent.
+    """
+    fold = Quadrature.folded_product(n_mu=4, n_phi=8)
+    fold_basis = fold.angular_frame(2).basis
+    spent = fold.measure.quotient_group
+    has = fold_basis.invariance_group
+    assert spent is not None and has is not None
+    assert has.contains(spent)                             # G2's verdict
+    assert has == spent == SubgroupOfO3.Mirror("y")
+    assert has is spent                                    # ONE object, not two agreeing tags...
+    assert fold_basis.domain is fold.measure.support       # ...because the manifold is one object
+
+    slab = Quadrature.gauss_legendre(8)
+    slab_basis = slab.angular_frame(2).basis
+    spent = slab.measure.quotient_group
+    has = slab_basis.invariance_group
+    assert spent is not None and has is not None
+    assert spent == SubgroupOfO3.SO2("x")
+    assert has == SubgroupOfO3.Trivial
+    assert not has.contains(spent)                         # ERR-080, as a verdict
+
+
+@pytest.mark.parametrize("L", [0, 1, 3, 7])
+def test_e2_the_full_sphere_harmonics_HAVE_the_trivial_group(L: int) -> None:
+    """``Trivial``, and not ``None``: :math:`O(3)` ACTS on :math:`S^2`, and the
+    basis spent none of it.
+
+    Swept over four degrees because "constant in ``L``" is the claim —
+    and ``L = 0`` is included on purpose: :math:`P_0` is
+    :math:`O(3)`-invariant and still answers ``Trivial``, because the reading
+    is the lower bound the DOMAIN guarantees, not a computed stabiliser
+    (under-declaration is legal and lossy; see the property's docstring).
+    """
+    assert SphericalHarmonicBasis(L=L).invariance_group == SubgroupOfO3.Trivial
+
+
+@pytest.mark.parametrize("axis", [0, 1, 2])
+def test_e2b_a_mirror_even_harmonic_HAS_its_mirror_read_off_its_domain(axis: int) -> None:
+    """The group is DERIVED: it is the domain's ``by``, by identity.
+
+    A stored copy that happened to be right would pass ``==`` and fail ``is``
+    (`[M]` ``Mirror('y') is Mirror('y')`` is False for two constructions), so
+    the identity leg is what separates *derived* from *duplicated*. The
+    negative leg — a different mirror is a different, incomparable group —
+    shows the answer moves with the axis rather than being one constant.
+    """
+    basis = MirrorEvenSphericalHarmonicBasis(L=2, mirror_axis=axis)
+    assert basis.invariance_group == SubgroupOfO3.Mirror("xyz"[axis])
+    assert isinstance(basis.domain, Quotient)
+    assert basis.invariance_group is basis.domain.by
+
+    other = MirrorEvenSphericalHarmonicBasis(L=2, mirror_axis=(axis + 1) % 3)
+    mine, theirs = basis.invariance_group, other.invariance_group
+    assert mine is not None and theirs is not None
+    assert not mine.contains(theirs)
+
+
+def test_e3_no_subgroup_of_O3_acts_on_a_mesh_a_group_index_or_a_trace_index() -> None:
+    """The category leg: ``None``, not ``Trivial``, on every non-angular basis.
+
+    ``Trivial`` would assert an :math:`O(3)` action that does not exist on a
+    spatial partition, an energy-group index or a trace-DOF index set; the
+    measure side gives the same category answer for the same manifolds
+    (:attr:`DiscreteMeasure.phase`). Wrappers answer by DELEGATION (they
+    delegate ``domain``, and the group is read off it), so a wrapped energy
+    basis cannot answer differently from the basis it wraps.
+
+    The positive control is in the same test (``vv-principles`` #11): the
+    ``None`` is decided by the DOMAIN, so the same class shape with a sphere
+    domain answers ``Trivial`` — the arm is not "everything is None".
+    """
+    energy = IndicatorBasis(_TWO_GROUPS, EnergyGroups(2))
+    spatial = IndicatorBasis(_TWO_CELLS, RealSpace(1))
+    cases = {
+        "energy indicator": energy,
+        "spatial indicator": spatial,
+        "weighted (delegates)": WeightedIndicatorBasis(energy, np.ones(2)),
+        "overlap (delegates)": OverlapBasis.from_indicator(energy, np.eye(2)),
+        "loss kernel": LossKernelBasis(table=np.eye(2), orbit=(0, 1), group=3),
+    }
+    for who, basis in cases.items():
+        assert basis.invariance_group is None, who
+
+    class _OnSphere(_AbstractStub):
+        @property
+        def domain(self) -> Manifold:
+            return SPHERE
+
+    assert _OnSphere().invariance_group == SubgroupOfO3.Trivial   # positive control
+
+
+def test_e4_the_group_is_decided_by_the_domain_and_by_nothing_else() -> None:
+    """The three arms of the derivation on ONE class shape, differing only in
+    ``domain``.
+
+    This is the gate that separates *reads the domain* from *knows the
+    class*: an implementation keyed on the subclass (an ``isinstance`` on
+    ``SphericalHarmonicBasis``, say) would give every stub the same answer.
+    The quotient arm is exercised with ``SO2('x')`` — a second group FAMILY
+    through the same arm, since the shipped fold basis only ever brings a
+    ``Mirror``.
+    """
+
+    class _OnEnergy(_AbstractStub):
+        @property
+        def domain(self) -> Manifold:
+            return ENERGY
+
+    class _OnSphere(_AbstractStub):
+        @property
+        def domain(self) -> Manifold:
+            return SPHERE
+
+    class _OnPolarOrbit(_AbstractStub):
+        @property
+        def domain(self) -> Manifold:
+            return SPHERE.quotient(SubgroupOfO3.SO2("x"))
+
+    assert _OnEnergy().invariance_group is None
+    assert _OnSphere().invariance_group == SubgroupOfO3.Trivial
+    assert _OnPolarOrbit().invariance_group == SubgroupOfO3.SO2("x")
+
+
+def test_e5_part_IV_lattice_table_runs_on_the_objects_that_ship() -> None:
+    r"""Part IV's four-row table as a test — tracker 2.1b's done-when.
+
+    Each row pairs a basis's HAS with a measure's SPENT and asserts the
+    verdict Part IV states. Rows 2 and 3 need a basis on
+    :math:`S^2/SO(2)_x`, which is tracker 3.4's ``LegendreBasis`` and does
+    not ship; a test-local stub declaring that DOMAIN stands in for it, and
+    ⚠ **must be replaced by the real basis when 3.4 lands** — a retirement
+    trigger, not a permanent fixture.
+
+    Row 3's measure side is spelled ``None``: a full-sphere rule has SPENT
+    nothing, and ``quotient_group`` answers ``None`` rather than ``Trivial``
+    for a point set (HAS ≠ SPENT there). The lattice element that ``None``
+    stands for on the SPENT side is :math:`\{e\}`, which every group
+    contains — asserted explicitly rather than through a local spelling of
+    G2's ``None`` rule, because the predicate that reads these operands is
+    tracker 2.2's to write once, in production.
+    """
+
+    class _OnPolarOrbit(_AbstractStub):
+        @property
+        def domain(self) -> Manifold:
+            return SPHERE.quotient(SubgroupOfO3.SO2("x"))
+
+    slab = Quadrature.gauss_legendre(8).measure            # spent SO2('x')
+    sphere = Quadrature.lebedev(17).measure                # spent nothing
+    fold = Quadrature.folded_product(4, 8).measure         # spent Mirror('y')
+    full_sh = SphericalHarmonicBasis(L=2).invariance_group
+    legendre_like = _OnPolarOrbit().invariance_group
+    fold_basis = MirrorEvenSphericalHarmonicBasis(L=2, mirror_axis=1).invariance_group
+    assert full_sh is not None and legendre_like is not None and fold_basis is not None
+    assert slab.quotient_group is not None and fold.quotient_group is not None
+
+    # row 1 — Trivial (full SH) vs SO2 (slab): refuses the Part I bug, categorically
+    assert not full_sh.contains(slab.quotient_group)
+    # row 2 — SO2 (trivial isotypic) vs SO2 (slab): the repair
+    assert legendre_like.contains(slab.quotient_group)
+    # row 3 — SO2 vs Trivial (sphere): a smaller space on a full rule is legal
+    assert sphere.quotient_group is None
+    assert legendre_like.contains(SubgroupOfO3.Trivial)
+    # row 4 — Mirror(y) vs Mirror(y): the shipped fold
+    assert fold_basis.contains(fold.quotient_group)

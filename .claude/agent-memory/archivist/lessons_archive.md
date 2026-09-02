@@ -9251,3 +9251,153 @@ for the shipped `a = y` ordering. **The rank is what carries the argument** — 
    dp; `[M]` those literals sit **4.79e-13** off `S²` against `_MEMBERSHIP_ATOL = 1e-12`, while
    the production values are exact (`0.0`). Green, and on half the tolerance budget for no
    reason.
+
+---
+
+## L-081 — a derived property's doc pass: the brief's target section did not exist, and four present-tense-false claims sat in the pages I was sent to edit
+
+**Task.** #429 tracker **2.1b** (2026-09-01, branch `fix/angular-phantom-support`): document a
+concrete `@final` DERIVED property `Basis.invariance_group -> SubgroupOfO3 | None` on the `Basis`
+ABC — a `match` on the TYPE of `self.domain` (a `Quotient` of the sphere → its `by`; the bare
+`Sphere` → `Trivial`; anything else → `None`). Docs-only; the main agent owned `orpheus/` and
+`tests/` (a gate run was in flight).
+
+### (a) The brief's item-2 target DID NOT EXIST — run the brief's own census first
+
+The brief said: *"`docs/theory/foundations/discrete_measures.rst` — wherever `quotient_group` /
+the HAS-versus-SPENT distinction is explained for the measure … add the basis-side sentence"*.
+`[M]` `grep quotient_group docs/theory/foundations/discrete_measures.rst` → **0 hits**, and the
+page's heavy use of *"spent"* is a **different object**: the registry's `G^0`, the continuous
+symmetry a *geometry* spends by dimensional reduction (`AngularSymmetry`, §"Spent and owed"), not
+the group a *measure* was folded by. Two vocabularies, one word, no overlap in the sentences.
+
+⟹ the honest move was to WRITE the missing home: a new `-` subsection
+`measure-has-versus-spent` under "Composition algebra — metadata propagation" that names both
+group slots, then the basis-side consequence with a cross-ref. The surplus is where the work is
+(L-072/L-075's rule, again).
+
+⚠ And a claim I nearly shipped in that new section: *"Two of the fields in the table above name a
+subgroup of O(3)"* — `[M]` **false**: the metadata-propagation table carries `invariance_group`
+and NOT `quotient_group`, precisely because the latter is derived and there is nothing to
+propagate. Caught by re-reading the table I was pointing at.
+
+### (b) FOUR present-tense-false claims, all repealed by the campaign's OWN sibling steps hours earlier
+
+None was in the brief. All four were true when written and repealed by 2.0c / 2.1 landing the
+same day — `plan-authoring` §3's *"a fact can die by being FIXED"*, at corpus scale:
+
+| site | the false claim | repealed by |
+|---|---|---|
+| `manifolds.rst` §(b) | *"`support` is still a `str`, so `measure.py:331` derives a correct name from an untyped tag"* | 2.0c (`support: Manifold`; the derivation moved to `measure.py:371`, `f"L2[{self.support.name}]"`) |
+| `manifolds.rst` three-levels note | *"The slot is therefore `domain`, and it is :ref:`not yet built`"* | 2.1 (abstract on the ABC, `[M]` 6 of 6 subclasses answer) |
+| `manifolds.rst` seams table | *"one of them (`basis/indicator_basis.py:284`) **hard-codes** it and `[M]` is already **false** for the energy-grid basis"* | 2.1 (`:355` now `f"L2[coarse_cells({self.domain.name})]"`) |
+| `spaces.rst` seams table | *"`[M]` `measure.py:331` still derives `f"L2[{self.support}]"` from a `str`"* | 2.0c |
+| `error_catalog.rst` ERR-080 Fix bullet | *"⛔ That type has **no production consumer yet** — it is a capability"* | 2.0c + 2.1 + 2.4 (measure `support`, basis `domain`, the slab's declared orbit space) |
+
+⭐ The ERR-080 one is the sharpest: the SAME entry carries a `✅ Progress 2026-09-01 (tracker
+2.4)` block **170 lines above** announcing the first production consumer, and then the Fix bullet
+denies one exists. A page contradicting itself, and the stale half is the quotable one (L-077).
+⟹ **after a multi-step campaign day, grep the pages for the PREMISE each landed step repealed**,
+not for the step's own name. The repair shape that works: keep the numbers, keep the verdict,
+tombstone the premise in place (`⛔ This clause read "…" until 2026-09-01: true when written, and
+repealed hours later by 2.0c, which is the campaign's own step`).
+
+### (c) The universal I had to fix TWICE, and the exhaustive table that replaced it
+
+Draft 1 said *"the **four** shipped angular rules realise three of the four combinations"*. `[M]`
+`vars(Quadrature)` + `isinstance(v, classmethod)` says **FIVE** factories — `gauss_legendre`,
+`lebedev`, `level_symmetric`, `product`, `folded_product` — the same finite-roster miss L-074
+recorded on a *gate's* roster, now in my own prose. Re-measured, all five:
+
+| rule | `support.name` | HAS (`invariance_group`) | SPENT (`quotient_group`) |
+|---|---|---|---|
+| `lebedev(17)` | `S^2` | `OctahedralOh` | `None` |
+| `level_symmetric(8)` | `S^2` | `OctahedralOh` | `None` |
+| `product(4,8)` | `S^2` | `Dnh(8)` | `None` |
+| `gauss_legendre(8)` | `S^2/SO2_x` | `Mirror('x')` | `SO2('x')` |
+| `folded_product(4,8)` | `S^2/sigma_y` | **`None`** | `Mirror('y')` |
+
+⭐⭐ The two bottom rows are the whole HAS/SPENT argument, and I would not have had them from a
+four-row table: the slab carries **two different groups in two slots on one measure** (so no
+single field could hold both), and the fold HAS *nothing* **because** it spent σ_y — a fold keeps
+one representative per orbit, so the survivors are no longer closed under the mirror. *Spending a
+symmetry destroys having it.* The exhaustive census turned a design note into a theorem with a
+witness.
+
+⭐ Same fix on the PAIRING table: draft 1 captioned it *"the four pairings the tree can form"*.
+Re-run on the pairing the tree **actually forms** — each rule against the basis its own
+`angular_frame(2)` binds — gives **5 of 5**, and the finding gets strictly stronger: `[M]`
+**exactly 1 of 5 fails** (`Trivial ⊇ SO2('x')` → False), and it is the 1-D one. ⚠ I then wrote
+*"which is the same denominator ERR-080's own scope census reports"* — **false**, that census
+counts `(constructor, order)` rows (7 of 15). Struck and replaced with an explicit ⚠ saying the
+two denominators are not comparable.
+
+### (d) A quoted tracker row is a quotation — check it against the plan
+
+I published *"the tracker read `Basis.invariance_group`, absent, to be answered by the six
+subclasses"* in italic quotation marks. `[M]` the plan's verbatim text is *"`Basis.invariance_group`
+— absent; derivable for every shipped basis"*, with the *"0 of 6 subclasses answer it"* coming
+from a **separate** census clause (§V.5h(b)). My version fused two sources and invented the
+"six overrides" framing as if the tracker had asked for it. Corrected to the verbatim pair, with
+"which invited six overrides" clearly marked as the inference. ⟹ **anything inside quotation
+marks gets grepped out of its source before it ships**; a paraphrase in italics reads as a quote.
+
+### (e) The two claims I had to soften, both over-reach in the same direction
+
+1. *"`invariance_group` — the **largest** group known to map the node set to itself"*. The field
+   is a **stored declaration**, not a computed stabiliser, and its `None` means *unspecified*.
+   Writing "largest" would have licensed reading it as a maximal-stabiliser guarantee.
+2. The `Sphere()` arm's *why*: *"the full degree-L real harmonics share no symmetry"* — `[M]`
+   FALSE at `L = 0` (`space.shape == (1,1)`, a single constant, O(3)-invariant), which is the
+   very lower-bound caveat the next subsection makes. Rewritten to *"a domain of S² promises no
+   invariance, whatever the individual functions happen to have"* — the property is a
+   **declaration read off a type**, never a stabiliser.
+
+### (f) Findings reported upward, not fixed (code-side)
+
+- ⛔ **`orpheus/numerics/measure.py:417` cites a method that does not exist.**
+  `quotient_group`'s docstring reads *"(:meth:`restrict`, :meth:`consolidate`, :meth:`reorder`,
+  …)"*; `[M]` `hasattr(DiscreteMeasure, "reorder")` is **False** and it is the only occurrence
+  tree-wide. Found by COPYING the sentence into the corpus — my copy tripped my own role-import
+  probe, and nothing else could see it: the role is **unqualified**, so
+  `tools/check_docstring_xrefs.py` skips it by design (`DEAD TARGETS: 0`) and nexus
+  `dead_references` returns `0 dead / 52 checked`, because `numerics/measure.py` carries no
+  `automodule`. ⟹ **the act of quoting a docstring into the corpus is itself an instrument** —
+  a fully-qualified copy is decidable where the unqualified original is not.
+- Live methods for the sentence: `restrict`, `consolidate`, `partition_by`, `pushforward`,
+  `quotient`, `on_orbit_space`, `with_metadata`.
+
+### (g) What worked, and the numbers
+
+- **Self-check-before-build, run to exhaustion.** One ~3 s python script (underline lengths in
+  CODE POINTS · file-local marker ladder · per-table column consistency incl. **empty cells**
+  (`^     -$`) · `:widths:` sums · corpus-wide anchor/eq-label uniqueness · `:ref:`/`:eq:`/`:doc:`
+  resolution · **role import-resolution**, 419 qualified `orpheus.*` roles, 0 dead). ⚠ My first
+  version's table parser required a trailing space after the cell dash and reported 2 false
+  RAGGED tables — **validate the parser against a known-good member** before believing its
+  negatives (the `nexus-tools` positive-control rule, applied to my own instrument).
+- **The unqualified-role decision is a CONVENTION question, not a correctness one.** My 6
+  unqualified `:class:` roles (`Manifold`, `Quotient`, `EnergyGroups`, `Interval`, `RealSpace`,
+  `IndexSet`) match the page's existing 4/3/4/3/1/1 and `[M]` **0** of them resolve to an href
+  — the module has no `automodule`, and the page's own seams table records that as a known gap.
+  Kept plain, per the no-half-surfacing rule.
+- **Build discipline: I broke my own two-build rule and paid FOUR builds**, every extra one
+  bought by an edit made after launching. Baseline `-E -W` = **0** W/E/C, EXIT=0; final = **0**,
+  EXIT=0; sets identical. ⟹ the self-consistency pass (universals, quotations, denominators) must
+  finish *before* the first verification build, not beside it.
+- **Matrix prediction held and the sentinel count was the check.** `[M]` 10584 → **10595**
+  (+11, all `foundation`, all `numerics/test_basis_domain` 13 → **24**); documented-sentinel count
+  **576 → 576**, exactly as predicted since 2.1b adds no `.. math:: :label:`. Predicting BOTH
+  registries is what makes the +11 an explanation rather than a coincidence (L-077's rule).
+
+### Quality self-assessment
+
+Derivation depth **5** (the `F(M/H) ≅ F(M)^H` isomorphism written out, with the descent argument,
+and the HAS/SPENT asymmetry derived from it) · Cross-references **5** (419 qualified roles
+verified by import; 6 new anchors, 12 inbound hrefs verified in the built HTML) · Numerical
+evidence **5** (three exhaustive measured tables, every denominator enumerated) · Failed
+approaches **4** (the dissolved six-override design is documented as the tracker's own refuted
+ask; the `support`-instead-of-`domain` refutation was already on the page) · Code traceability
+**5** · Derivation source **3** — the isomorphism is textbook and hand-written; there is no
+`derivations/` script for it and one would be ceremony, but the *rating* is honestly low.
+**Weakest dimension: derivation source**, structurally so for a type-law page.

@@ -433,6 +433,96 @@ rather than a convention, is on
 here.**
 
 
+.. _measure-has-versus-spent:
+
+``invariance_group`` and ``quotient_group`` — what a measure HAS and what it SPENT
+-----------------------------------------------------------------------------------
+
+One of the fields in the propagation table above names a subgroup of
+:math:`O(3)`, and it has a sibling that does **not** appear there —
+because the sibling is not a stored field, so there is nothing for an
+operation to propagate. The two are almost complementary.
+:attr:`invariance_group
+<orpheus.numerics.measure.DiscreteMeasure.invariance_group>` is the
+stored one: a recorded subgroup under which the atoms — nodes and
+weights — are closed, i.e. what the measure **HAS**. It is a
+*declaration*, not a computed stabiliser, and its ``None`` means
+*unspecified*, never *trivial*.
+:attr:`quotient_group
+<orpheus.numerics.measure.DiscreteMeasure.quotient_group>` is *derived*
+and never stored (tracker 2.0c of #429): the group the measure's support
+was folded by, read straight off :attr:`Quotient.by
+<orpheus.numerics.manifold.Quotient.by>`, so there is no second home for
+it to drift from — the same argument
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.restrict`,
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.consolidate` and
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.partition_by` would
+otherwise each have to honour by hand, every time they rebuild a
+measure.
+
+For a **point set** the two come apart in both directions, and the
+shipped angular rules demonstrate it. The denominator is every
+``classmethod`` factory on
+:class:`~orpheus.numerics.quadrature.directional.Quadrature`, enumerated
+by ``vars(Quadrature)`` — `[M]` **five of five**, so this is the family
+and not a sample (``vv-principles`` #31's finite-roster corollary):
+
+.. list-table:: `[M]` 2026-09-01 — all five shipped ``Quadrature`` factories
+   :header-rows: 1
+   :widths: 26 20 27 27
+
+   * - Rule
+     - ``support.name``
+     - HAS (``invariance_group``)
+     - SPENT (``quotient_group``)
+   * - ``Quadrature.lebedev(17)``
+     - ``'S^2'``
+     - ``OctahedralOh``
+     - ``None``
+   * - ``Quadrature.level_symmetric(8)``
+     - ``'S^2'``
+     - ``OctahedralOh``
+     - ``None``
+   * - ``Quadrature.product(4, 8)``
+     - ``'S^2'``
+     - ``Dnh(8)``
+     - ``None``
+   * - ``Quadrature.gauss_legendre(8)``
+     - ``'S^2/SO2_x'``
+     - ``Mirror('x')``
+     - ``SO2('x')``
+   * - ``Quadrature.folded_product(4, 8)``
+     - ``'S^2/sigma_y'``
+     - ``None``
+     - ``Mirror('y')``
+
+The slab's polar rule carries **two different groups in the two slots**;
+and the :math:`\sigma_y` fold HAS nothing *because* it spent
+:math:`\sigma_y` — a fold keeps one representative per orbit, so the
+surviving set is no longer closed under the mirror it was folded by.
+**Spending a symmetry destroys having it**, which is why reading either
+slot as the other is ``plan-authoring`` §3's ambiguous-name hazard.
+
+⭐ **A BASIS carries only one of these, and that asymmetry is a theorem,
+not an omission.** A function on an orbit space :math:`M/H`, pulled back
+to :math:`M`, is exactly an :math:`H`-invariant function — being a
+function on the quotient *is* being :math:`H`-invariant — so for
+functions "has" and "spent" are one property.
+:attr:`Basis.invariance_group
+<orpheus.numerics.basis.base.Basis.invariance_group>` is consequently a
+single ``@final`` slot, named for what the basis HAS and **derived** by a
+``match`` on what its :attr:`~orpheus.numerics.basis.base.Basis.domain`
+SPENT (#429 tracker 2.1b). The two ``None``\ s then mean different
+things for the same reason: a full-sphere rule's ``quotient_group`` is
+``None`` because it spent nothing, while the full-sphere harmonics'
+``invariance_group`` is ``Trivial`` because they *have* the trivial
+group. The derivation, the lower-bound caveat, and the pairing verdict
+it makes computable are on
+:doc:`/theory/foundations/manifolds` —
+:ref:`manifold-has-versus-spent` and
+:ref:`manifold-invariance-pairing`. **Edited there, consumed here.**
+
+
 .. _discrete-measure-partition:
 
 Partition by labelling predicate

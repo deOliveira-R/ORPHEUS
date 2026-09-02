@@ -219,8 +219,11 @@ class DiscreteMeasure:
         preserved), as a typed
         :class:`~orpheus.numerics.symmetry.SubgroupOfO3` — e.g.
         ``SubgroupOfO3.OctahedralOh`` for a Lebedev cubature,
-        ``SubgroupOfO3.SO2`` for an azimuthally-symmetric product/slab rule.
-        ``None`` means "unspecified". This symmetry is the structural
+        ``SubgroupOfO3.Dnh(n_phi)`` for a product rule, ``SubgroupOfO3.Mirror('x')``
+        for the slab's polar marginal — never a continuous group for a finite
+        point set, which is closed under :math:`SO(2)_a` only on the axis
+        (ERR-072; the slab's rule *spent* ``SO2('x')`` instead, see
+        :attr:`quotient_group`). ``None`` means "unspecified". This symmetry is the structural
         signature of the **angular** phase-space factor: a measure carrying
         an :math:`O(3)`-subgroup invariance lives on :math:`S^2` (Erlangen —
         the group fixes the homogeneous space), which :attr:`phase` reads.
@@ -411,7 +414,8 @@ class DiscreteMeasure:
         opener: :attr:`Quotient.by` already *is* the group, so a stored copy
         would be a second home for one fact and the two would have to be kept
         in agreement by hand across every operation that rebuilds a measure
-        (:meth:`restrict`, :meth:`consolidate`, :meth:`reorder`, …).
+        (:meth:`restrict`, :meth:`consolidate`, :meth:`partition_by`,
+        :meth:`on_orbit_space`, …).
 
         ⚠ Distinct from :attr:`invariance_group`, and the two are almost
         complementary: ``invariance_group`` is the symmetry the measure

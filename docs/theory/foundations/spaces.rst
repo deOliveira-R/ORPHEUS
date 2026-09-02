@@ -3552,15 +3552,21 @@ taken.
        ``==``/hash-equal to a same-sized spatial space — and now derives
        ``f"L2[coarse_cells({self.domain.name})]"`` from a
        :class:`~orpheus.numerics.manifold.Manifold` the caller declares.
-       ⚠ **What remains is the measure's side**: `[M]` ``measure.py:331``
-       still derives ``f"L2[{self.support}]"`` from a ``str``, so the two
-       producers agree by discipline rather than by construction —
+       ⚠ **What remains is that the SPACE records only the string.**
+       `[M]` both producers now interpolate a typed
+       :class:`~orpheus.numerics.manifold.Manifold` — ``measure.py:371``
+       is ``f"L2[{self.support.name}]"`` since tracker 2.0c retyped
+       ``support``, and the indicator basis is the line above — but a
+       ``FunctionSpace`` still holds the resulting *name*, so the two
+       producers agree by discipline rather than by construction.
        ``tests/numerics/test_basis_domain.py::test_d6`` pins that
        agreement, and pins the one pair that does NOT yet agree in
        spelling (``LossKernelBasis``'s bare label against ``IndexSet``'s
-       ``index(...)``), so 2.0c must return to it. The level-1 view of
-       this seam, and the rest of that migration, is at
-       :ref:`manifold-seams`.
+       ``index(...)``). ⛔ This clause read *"`[M]` ``measure.py:331``
+       still derives ``f"L2[{self.support}]"`` from a ``str``"* until
+       2026-09-01: true when written, and repealed hours later by 2.0c,
+       which is the campaign's own step. The level-1 view of this seam,
+       and the rest of that migration, is at :ref:`manifold-seams`.
    * - The identity flip (compare the axes tuple, not the name)
      - **S3.** Until then the derived name is the bridge
        (:ref:`spaces-identity-bridge`), and ``axes`` is declared

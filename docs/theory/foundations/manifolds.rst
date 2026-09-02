@@ -26,7 +26,7 @@ Manifolds: the Point Set, the Orbit Space, and What a Basis Eats
       role: "the point-set layer — the manifold M a measure is supported on and a basis function is defined over, its algebra (product, orbit space, membership), the invariant-theoretic derivation that produces an orbit space, the TWO coordinate systems an orbit space honestly has (the invariant chart's codomain and a section's image), and the three-level separation (manifold / fields on it / coefficients) that keeps a FunctionSpace from being mistaken for a domain"
       depends_on: []
       related: [discrete_measures, spaces, frame, spherical_harmonics]
-      status: "MINTED, gated, WIRED, and CONSUMED. Two catalogued derivations ship (S^2/SO(2)_a for the three ROTATION axes and S^2/<sigma_a> for the three MIRROR axes — six keys, two procedures — plus the derived identity quotient), and a Quotient carries BOTH coordinate systems after the 2026-08-31 two-slot ruling. `Space = str` and its six SPACE_* tags are RETIRED (tracker 2.0c, 2026-09-01): `DiscreteMeasure.support`, `GeneratingMeasure.support`, `UniformMeasure.support`, `ProductMeasure.support`, the `ReferenceMeasure` Protocol and `AngularSymmetry.support` all carry a Manifold, and `Basis.domain` does too (2.1). Tracker 2.4 (2026-09-01) gave the axial rotation group its AXIS — `SO2(axis)` beside `Mirror(axis)` — and made the slab's polar rule DECLARE its orbit space: `Quadrature.gauss_legendre(8).measure.support.name == 'S^2/SO2_x'`, via the new verb `DiscreteMeasure.on_orbit_space`. That is this page's first PRODUCTION consumer, and it collapsed the registry twin (`AngularSymmetry.support` now calls `SPHERE.quotient`). ERR-080 itself is still OPEN — the forgery's REFUSAL at construction is tracker 2.0b + the fused fix step, and the honest SECTION is tracker 2.3; neither is this page's capability"
+      status: "MINTED, gated, WIRED, and CONSUMED. Two catalogued derivations ship (S^2/SO(2)_a for the three ROTATION axes and S^2/<sigma_a> for the three MIRROR axes — six keys, two procedures — plus the derived identity quotient), and a Quotient carries BOTH coordinate systems after the 2026-08-31 two-slot ruling. `Space = str` and its six SPACE_* tags are RETIRED (tracker 2.0c, 2026-09-01): `DiscreteMeasure.support`, `GeneratingMeasure.support`, `UniformMeasure.support`, `ProductMeasure.support`, the `ReferenceMeasure` Protocol and `AngularSymmetry.support` all carry a Manifold, and `Basis.domain` does too (2.1). Tracker 2.1b (2026-09-01) read a SECOND answer off that same slot: `Basis.invariance_group` is DERIVED from `domain` by a match on its TYPE (a Quotient of the sphere -> its `by`; the sphere -> Trivial; anything else -> None), so a basis declares the symmetry its functions HAVE by naming the manifold they EAT. `[M]` 6 of 6 shipped bases answer, the property is @final, and it cost zero subclass edits and no new field. ERR-080's pairing therefore has BOTH operands and is a computable lattice verdict — `[M]` `Trivial contains SO2('x')` is False for the slab, while the shipped fold's two halves are literally ONE group object. Nothing CONSUMES that verdict yet: the frame's pairing gate is tracker 2.2, and a gate written on the FRAME's measure would be inert today because that measure still carries the forged S^2. Tracker 2.4 (2026-09-01) gave the axial rotation group its AXIS — `SO2(axis)` beside `Mirror(axis)` — and made the slab's polar rule DECLARE its orbit space: `Quadrature.gauss_legendre(8).measure.support.name == 'S^2/SO2_x'`, via the new verb `DiscreteMeasure.on_orbit_space`. That is this page's first PRODUCTION consumer, and it collapsed the registry twin (`AngularSymmetry.support` now calls `SPHERE.quotient`). ERR-080 itself is still OPEN — the forgery's REFUSAL at construction is tracker 2.0b + the fused fix step, and the honest SECTION is tracker 2.3; neither is this page's capability"
 
 
 This page develops the **point-set layer** — the thing a measure is
@@ -140,6 +140,30 @@ polynomial three times over.
      wiring: `[M]` before it, an 8-node slab **angular** space and an
      8-node **spatial** rule on :math:`[-1,1]` compared ``==`` *and*
      hash-equal (:ref:`manifold-orbit-space-declaration`).
+   - ⭐ **A basis declares the symmetry its functions HAVE by naming the
+     manifold they EAT** (tracker 2.1b, 2026-09-01). A function on
+     :math:`M/H`, pulled back to :math:`M`, *is* an
+     :math:`H`-invariant function — so for FUNCTIONS the group a basis
+     HAS and the group its domain SPENT are one property, and
+     :attr:`Basis.invariance_group
+     <orpheus.numerics.basis.base.Basis.invariance_group>` is a
+     ``match`` on ``domain``: stored nowhere, ``@final``, `[M]` **6 of
+     6** shipped bases answering with **0** subclass edits. For a POINT
+     SET they come apart, which is why a measure needs **two** slots:
+     `[M]` the slab's rule HAS ``Mirror('x')`` while it SPENT
+     ``SO2('x')``, and the :math:`\sigma_y` fold HAS **nothing**,
+     because folding destroys the closure it spends
+     (:ref:`manifold-has-versus-spent`).
+   - ⛔ **The pairing is now a MEASUREMENT, and still not a refusal.**
+     Both operands of the ERR-080 pairing now exist — `[M]`
+     ``Trivial ⊇ SO2('x')`` is **False** for the slab's rule against the
+     full-sphere harmonics its frame binds today, and ``Mirror('y') ⊇
+     Mirror('y')`` is **True** for the shipped fold, where the two
+     halves are the ``by`` of **one** memoised :class:`Quotient`
+     (``has is spent``). Nothing consumes the verdict: the frame's
+     pairing gate is tracker 2.2, and `[M]` the slab frame's own measure
+     still carries the forged ``S^2``, so a gate written there would be
+     inert today (:ref:`manifold-invariance-pairing`).
    - ⭐ **The rotation axis is a PARAMETER, not a convention — because
      the tree carries two poles.** :math:`SO(2)` left the parameter-free
      enum on 2026-09-01 and became ``SO2(axis)``, exactly as the
@@ -329,8 +353,12 @@ manifold. A derived name is only as true as what it derives from.
    proposal past.) Second, the collision is a *word*, not a type:
    ``dom`` is the source of a morphism in both readings, in **Man** for
    a basis function and in **Vect** for an operator. Same functor,
-   different categories. The slot is therefore ``domain``, and it is
-   :ref:`not yet built <manifold-seams>`.
+   different categories. The slot is therefore ``domain``, and it
+   :ref:`landed 2026-09-01 <manifold-seams>` (tracker 2.1) as an
+   abstract property of the ABC — `[M]` answered by **6 of 6** shipped
+   subclasses, the denominator being ``Basis.__subclasses__()`` walked
+   recursively at runtime. ⛔ This sentence read *"it is not yet built"*
+   until that day.
 
 
 .. _manifold-string-tag:
@@ -572,11 +600,28 @@ continuous energy axis in eV (:class:`Interval`, partitioned by
 dimension 1, so no dimensional check could have found it; only naming the
 point set does.
 
-The remaining half is the *measure's* side: ``support`` is still a
-``str``, so ``measure.py:331`` derives a correct name from an untyped tag.
-A :class:`~orpheus.numerics.space.FunctionSpace` that carried its own
-manifold would collapse both spellings into one — the level-2 half of
-this repair, tracked at :ref:`manifold-seams`.
+⭐ **And the slot answers a SECOND question, which is what tracker 2.1b
+collected the same day.** Once a basis names the manifold its functions
+eat, it has already declared the symmetry those functions *have*: a
+function on an orbit space :math:`M/H` is, pulled back to :math:`M`,
+exactly an :math:`H`-invariant function. So
+:attr:`Basis.invariance_group
+<orpheus.numerics.basis.base.Basis.invariance_group>` is **derived from**
+``domain`` and stored nowhere — the second operand of the ERR-080 pairing,
+obtained for no new field and no subclass edit
+(:ref:`manifold-basis-invariance-group`).
+
+The remaining half is the *measure's* side, and since tracker 2.0c it is a
+**name** rather than a type: ``support`` became a :class:`Manifold` that
+same day, so ``measure.py:371`` now derives ``f"L2[{self.support.name}]"``
+from a typed point set. What is still missing is that
+:class:`~orpheus.numerics.space.FunctionSpace` records only the resulting
+string; one that carried its own manifold would collapse both spellings
+into one — the level-2 half of this repair, tracked at
+:ref:`manifold-seams`. ⛔ This paragraph read *"``support`` is still a
+``str``, so ``measure.py:331`` derives a correct name from an untyped
+tag"* until 2026-09-01, and it was true when written: 2.1 and 2.0c landed
+hours apart, and the second one repealed the first one's premise.
 
 .. _manifold-string-drift:
 
@@ -3020,6 +3065,443 @@ step that mints the typed ``Chart`` — not to the orbit-space derivation,
 which would then be smuggling a convention into a theorem.
 
 
+.. _manifold-basis-invariance-group:
+
+The second operand: a basis declares the symmetry its functions HAVE
+====================================================================
+
+The section above gave the pairing's **measure** side: a rule that says
+which orbit space its atoms live on. This section is the **basis** side
+— tracker 2.1b, 2026-09-01 — and the whole of its content is that the
+basis side needed *no new field*. It follows from one elementary fact
+about functions on a quotient:
+
+.. math::
+
+   \mathcal{F}(M/H) \;\;\xrightarrow[\;\cong\;]{\;\;\pi^*\;\;}\;\;
+   \bigl\{\, f \in \mathcal{F}(M) \;:\; f \circ h = f \ \ \forall h \in H \,\bigr\}
+   \;=\; \mathcal{F}(M)^H ,
+
+with :math:`\pi : M \to M/H` the orbit projection and
+:math:`\mathcal{F}` any function class the projection respects —
+continuous, measurable, :math:`L^2`, smooth off the singular stratum.
+Nothing here needs regularity; the statement is set-theoretic. Pulling a
+function back along :math:`\pi` produces an :math:`H`-invariant function
+on :math:`M`, and every :math:`H`-invariant function descends to the
+quotient, because it is constant on orbits and the orbits *are* the
+points of :math:`M/H`. Being a function on :math:`M/H` **is** being
+:math:`H`-invariant, spelled two ways. So a basis that has
+already named :math:`M/H` as its :attr:`domain
+<orpheus.numerics.basis.base.Basis.domain>` has already declared its
+group: the group is :attr:`Quotient.by
+<orpheus.numerics.manifold.Quotient.by>`, sitting inside the slot
+tracker 2.1 minted.
+
+⭐ **The tracker asked for the wrong object, and the phase opener said
+so.** Its row read, verbatim, *"``Basis.invariance_group`` — absent;
+derivable for every shipped basis"*, and the plan's own census measured
+*"0 of 6 subclasses answer it"*. Both true — and the design they invited
+was a second abstract property with six overrides, kept in agreement
+with ``domain`` by hand: exactly the two-tags-that-drift shape this page
+exists to argue against. `[M]` **0 of 6** shipped
+bases carried the name before this step — ``git show HEAD:`` over every
+module of :mod:`orpheus.numerics.basis` and over
+:mod:`orpheus.sn.operators.loss_kernel_gauge`, which is where
+:class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelBasis` lives,
+returns zero occurrences in each. After it, **6 of 6** answer (the
+denominator is ``Basis.__subclasses__()`` walked recursively at runtime,
+not a hand-list) and the basis-side diff is **one** file,
+``orpheus/numerics/basis/base.py``: one concrete ``@final`` property on
+the ABC, **zero** subclass edits. That is ``coding-standards``' *clean
+before extending* landing as a no-op extension through a single generic
+body, and it is the same dissolution tracker 2.0d's ``quotient_group``
+**field** underwent at 2.0c, one level over: the fact was already in the
+type, so the field would have been its second home.
+
+.. _manifold-has-versus-spent:
+
+HAS and SPENT: one slot for a function, two for a point set
+------------------------------------------------------------
+
+A measure carries **two** group slots and a basis carries **one**, and
+that asymmetry is not an oversight on either side — it is the difference
+between a point set and a function.
+
+* :attr:`DiscreteMeasure.invariance_group
+  <orpheus.numerics.measure.DiscreteMeasure.invariance_group>` — what the
+  atom list **HAS**: a stored field recording a subgroup under which the
+  nodes, weights included, are closed. It is a *declaration*, not a
+  computed stabiliser, and ``None`` means unspecified rather than
+  trivial.
+* :attr:`DiscreteMeasure.quotient_group
+  <orpheus.numerics.measure.DiscreteMeasure.quotient_group>` — what it
+  **SPENT**: the group its support was folded by, derived from
+  :attr:`Quotient.by <orpheus.numerics.manifold.Quotient.by>` and stored
+  nowhere (tracker 2.0c).
+
+For a POINT SET these come apart in both directions, and the shipped
+rules realise three of the four combinations. The table is **exhaustive
+over the family**, not a sample: its denominator is every
+``classmethod`` factory on
+:class:`~orpheus.numerics.quadrature.directional.Quadrature`,
+enumerated by ``vars(Quadrature)`` — `[M]` **five of five**
+(``vv-principles`` #31's finite-roster corollary: for an enumerable
+shipped set, probe every member, because the one you skip is where the
+counterexample lives).
+
+.. list-table:: `[M]` 2026-09-01 — HAS and SPENT on all five shipped rules
+   :header-rows: 1
+   :widths: 26 20 27 27
+
+   * - Rule
+     - ``support.name``
+     - HAS (``invariance_group``)
+     - SPENT (``quotient_group``)
+   * - ``lebedev(17)``
+     - ``'S^2'``
+     - ``OctahedralOh``
+     - ``None``
+   * - ``level_symmetric(8)``
+     - ``'S^2'``
+     - ``OctahedralOh``
+     - ``None``
+   * - ``product(4, 8)``
+     - ``'S^2'``
+     - ``Dnh(8)``
+     - ``None``
+   * - ``gauss_legendre(8)``
+     - ``'S^2/SO2_x'``
+     - ``Mirror('x')``
+     - ``SO2('x')``
+   * - ``folded_product(4, 8)``
+     - ``'S^2/sigma_y'``
+     - ``None``
+     - ``Mirror('y')``
+
+⚠ The missing combination is (**no** HAS, **no** SPENT) — an untagged
+rule on the bare sphere. Nothing shipped is in that state, which is a
+fact about the rules, not about the type.
+
+Read the last two rows. The slab's polar rule HAS :math:`\sigma_x` and
+SPENT :math:`SO(2)_x` — **two different groups in two slots on one
+measure**, so no single field could carry both. And the
+:math:`\sigma_y`-folded product rule HAS **nothing**, precisely because
+it spent :math:`\sigma_y`: folding keeps one representative per orbit,
+and a set with one point of each mirror pair is no longer closed under
+the mirror. *Spending a symmetry destroys having it* — which is why
+reading either slot as the other is ``plan-authoring`` §3's
+ambiguous-name hazard, and why
+:attr:`~orpheus.numerics.measure.DiscreteMeasure.quotient_group`'s own
+docstring says so.
+
+For FUNCTIONS the two collapse, by the isomorphism above. There is no
+"folded away" to lose: a basis on :math:`M/H` *is* a set of
+:math:`H`-invariant functions on :math:`M`, so what it has and what its
+domain spent are one property. A basis therefore carries **one** slot,
+named for what it HAS and read off what its domain SPENT:
+
+.. list-table:: `[M]` 2026-09-01 — the one slot, over all six shipped bases
+   :header-rows: 1
+   :widths: 36 30 34
+
+   * - Basis
+     - ``domain.name``
+     - ``invariance_group``
+   * - ``SphericalHarmonicBasis(L)``, :math:`L \in \{0,1,3,7\}`
+     - ``'S^2'``
+     - ``Trivial``
+   * - ``MirrorEvenSphericalHarmonicBasis(L=2, mirror_axis=a)``,
+       :math:`a \in \{x,y,z\}`
+     - ``'S^2/sigma_a'``
+     - ``Mirror(a)`` — and ``is domain.by``
+   * - ``IndicatorBasis`` from
+       :meth:`EnergyGrid.as_basis
+       <orpheus.data.energy_grid.EnergyGrid.as_basis>`
+     - ``'energy'`` (an :class:`EnergyGroups`)
+     - ``None``
+   * - ``IndicatorBasis`` from
+       :meth:`Mesh1D.indicator_basis
+       <orpheus.geometry.mesh.Mesh1D.indicator_basis>`
+     - ``'spatial_R1'`` (a :class:`RealSpace`)
+     - ``None``
+   * - ``WeightedIndicatorBasis``, ``OverlapBasis`` — both **delegate**
+       ``domain`` to the basis they wrap
+     - the wrapped basis's
+     - ``None``, by delegation
+   * - ``LossKernelBasis``
+     - ``'index(sn_trace_orbit(...)_g)'`` (an :class:`IndexSet`)
+     - ``None``
+
+The mirror-even row is the one that carries the design: `[M]` the
+answer is not merely *equal* to ``domain.by``, it **is** it —
+``basis.invariance_group is basis.domain.by`` — so there is no second
+object that could drift. A stored copy that happened to be right would
+pass ``==`` and fail ``is``, which is what
+``test_e2b_a_mirror_even_harmonic_HAS_its_mirror_read_off_its_domain``
+asserts.
+
+.. _manifold-invariance-three-arms:
+
+Three arms, and why the answer off the sphere is ``None``, not ``Trivial``
+---------------------------------------------------------------------------
+
+The derivation is a ``match`` on the **type** of ``domain``, with three
+arms:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 20 46
+
+   * - ``domain``
+     - Answer
+     - Why
+   * - ``Quotient(base=Sphere(), by=H)``
+     - :math:`H`
+     - the functions descend from :math:`M/H`, so they are exactly the
+       :math:`H`-invariant ones
+   * - ``Sphere()``
+     - ``Trivial``
+     - :math:`O(3)` **acts** on the domain and the basis has spent none
+       of it — a domain of :math:`S^2` promises no invariance, whatever
+       the individual functions happen to have (see the lower bound
+       below)
+   * - anything else
+     - ``None``
+     - no subgroup of :math:`O(3)` acts at all
+
+⚠ **The third arm is a category answer, and** ``Trivial`` **would be a
+lie.** No subgroup of :math:`O(3)` acts on a spatial mesh, an
+energy-group index or a trace-DOF index set — there is no rotation of a
+list of group boundaries. ``Trivial`` names the subgroup :math:`\{e\}`
+**of** :math:`O(3)`, so writing it asserts that :math:`O(3)` acts on
+this domain at all; ``None`` says the question does not arise. The
+distinction is exactly the one
+:attr:`DiscreteMeasure.phase <orpheus.numerics.measure.DiscreteMeasure.phase>`
+already draws for the *same* manifolds when it refuses to classify a
+non-angular support as angular, and it is why the two spellings of
+"nothing" on the two sides mean opposite things: a full-sphere rule's
+``quotient_group`` is ``None`` because it **spent nothing**, while
+full-sphere harmonics' ``invariance_group`` is ``Trivial`` because they
+**have** the trivial group. Same word in English, different lattice
+elements — :math:`\{e\}` on one side, *no answer* on the other.
+
+⭐ And the arms are decided by the domain and by nothing else, which is
+a testable claim rather than a description:
+``test_e4_the_group_is_decided_by_the_domain_and_by_nothing_else`` runs
+all three on **one** class shape whose instances differ only in
+``domain``, so an implementation keyed on the subclass — an
+``isinstance`` on ``SphericalHarmonicBasis``, say — would give every
+stub the same answer and fail.
+
+.. _manifold-invariance-lower-bound:
+
+The reading is a LOWER BOUND, and that is why the property is ``@final``
+-------------------------------------------------------------------------
+
+The domain gives the symmetry the basis is *guaranteed* to have, not the
+largest one it happens to have. `[M]` ``SphericalHarmonicBasis(L=0)`` is
+a single constant function, invariant under all of :math:`O(3)` — and it
+answers ``Trivial``, at :math:`L \in \{0,1,3,7\}` alike, because its
+domain says :math:`S^2` and a domain of :math:`S^2` promises nothing
+more. The property is a **declaration read off a type**, never a
+computed stabiliser.
+
+Under-declaring is therefore *legal and lossy*: a basis invariant under
+more than its domain shows will be refused pairings it could have
+admitted, once the frame checks the two halves
+(:ref:`manifold-invariance-pairing`). The remedy is to **declare the
+finer domain** — a Legendre basis on :math:`S^2/SO(2)_x` rather than the
+full harmonics on :math:`S^2` — which is tracker 3.4, and which is the
+level-2 half of ERR-080's repair.
+
+⛔ **The remedy is never to override the property**, and the type
+enforces that: an override lets ``domain`` and ``invariance_group``
+disagree, which is precisely the two-homes-for-one-fact state the
+derivation exists to make unspellable. Hence ``@final`` — `[M]`
+``Basis.__dict__['invariance_group'].fget.__final__`` is ``True``. It is
+the same argument that keeps
+:attr:`~orpheus.numerics.measure.DiscreteMeasure.quotient_group` derived
+rather than stored, applied to the object on the other side of the
+frame.
+
+.. _manifold-invariance-pairing:
+
+The pairing, measured: ERR-080 as a lattice verdict
+-----------------------------------------------------
+
+With both operands in hand, the check ERR-080 needs can finally be
+*written down*. The rule is a containment in the subgroup lattice:
+
+.. math::
+
+   \text{admissible}
+   \quad\Longleftrightarrow\quad
+   \underbrace{G_{\text{spent}}}_{\texttt{measure.quotient\_group}}
+   \;\subseteq\;
+   \underbrace{G_{\text{have}}}_{\texttt{basis.invariance\_group}} ,
+
+read as: *the symmetry a rule folded away must be one the basis's
+functions are blind to.* If the rule kept one representative per
+:math:`H`-orbit, then any function that distinguishes points within an
+orbit has been handed a sample that cannot see the distinction, and the
+pairing is a forgery whatever its shapes say.
+
+Measured on the objects that ship, and on the pairing the tree
+**actually forms**: each rule against the basis its own
+``angular_frame(2)`` binds. The denominator is again all five
+``Quadrature`` factories, and `[M]` **exactly one of the five fails**:
+
+.. list-table:: `[M]` 2026-09-01 — ``rule.measure`` vs ``rule.angular_frame(2).basis``
+   :header-rows: 1
+   :widths: 26 22 18 34
+
+   * - Rule
+     - Basis its frame binds
+     - SPENT / HAVE
+     - ``have.contains(spent)``
+   * - ``folded_product(4, 8)``
+     - ``MirrorEvenSphericalHarmonicBasis`` (``mirror_axis=1``)
+     - ``Mirror('y')`` / ``Mirror('y')``
+     - ✅ **True** — and the two are the *same object*
+       (``have is spent``), because ``basis.domain is measure.support``
+       is one memoised :class:`Quotient`
+   * - ``gauss_legendre(8)``
+     - ``SphericalHarmonicBasis``
+     - ``SO2('x')`` / ``Trivial``
+     - ⛔ **False** — ERR-080, as a lattice verdict
+   * - ``lebedev(17)``
+     - ``SphericalHarmonicBasis``
+     - ``None`` / ``Trivial``
+     - spent nothing, so nothing to contain — admitted
+   * - ``level_symmetric(8)``
+     - ``SphericalHarmonicBasis``
+     - ``None`` / ``Trivial``
+     - the same
+   * - ``product(4, 8)``
+     - ``SphericalHarmonicBasis``
+     - ``None`` / ``Trivial``
+     - the same
+
+The first row is the whole design in one line: the fold's two halves do
+not merely *agree*, they read one group object out of one manifold, so
+no drift between them is representable. The second row is ERR-080 —
+stated, for the first time in this corpus, as a verdict a predicate
+could return rather than as a story about zero-padded columns. And the
+shape of the table matters as much as the verdict in it: the defect is
+**not** a general weakness of the harmonic frame — `[M]` **1 of the 5**
+shipped rules fails its own frame's pairing, and it is the 1-D one.
+⚠ That is a *different* denominator from ERR-080's own scope census,
+which counts ``(constructor, order)`` rows (`[M]` 7 of 15 non-zero, 5 of
+them this defect); the two are not comparable and neither implies the
+other.
+
+.. note::
+
+   ⛔ **Nothing refuses on this verdict yet, and the reason is worth
+   stating precisely.** The frame's pairing gate — the plan's **G2**,
+   fused with its siblings at tracker 2.2 — is not written. And a gate
+   written naively on the *frame's* measure would be **inert on the very
+   row it is for**: `[M]` 2026-09-01,
+   ``Quadrature.gauss_legendre(8).angular_frame(2).measure.support.name``
+   is still ``'S^2'`` (the surviving 1-D forgery,
+   :ref:`manifold-err-080`) while
+   ``Quadrature.gauss_legendre(8).measure.support.name`` is
+   ``'S^2/SO2_x'``. That is why the gate below reads the verdict off the
+   **quadrature's** measure — the object that knows what it spent — and
+   why the negative leg is a *measurement made spellable*, not a
+   refusal (``plan-authoring`` §6c: a step that adds a gate must land
+   with the case the gate catches, and this step deliberately adds the
+   operand rather than the gate).
+
+   ⛔ **ERR-080 is OPEN.** It is held by the ``xfail(strict=True)`` gate
+   at
+   ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``,
+   three rows red by design. Nothing on this page repairs it.
+
+**The campaign plan's "Part IV" lattice table, as a test.** That
+four-row admissibility table — the same section of the #429 plan quoted
+at :ref:`manifold-err-080-is-a-section` — was the *done-when* for this
+step, and it now runs on real objects rather than on names
+(``test_e5_part_IV_lattice_table_runs_on_the_objects_that_ship``):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 30 26 34
+
+   * - Row
+     - Basis space (HAVE)
+     - Rule (SPENT)
+     - Verdict
+   * - 1
+     - full :math:`S^2` harmonics — ``Trivial``
+     - slab — ``SO2('x')``
+     - ⛔ refused: this is ERR-080's pairing, and the refusal is
+       categorical — no tolerance is involved
+   * - 2
+     - :math:`S^2/SO(2)_x` — ``SO2('x')``
+     - slab — ``SO2('x')``
+     - ✅ the repair
+   * - 3
+     - :math:`S^2/SO(2)_x` — ``SO2('x')``
+     - full sphere — ``None``
+     - ✅ a smaller space on a full rule is legal
+   * - 4
+     - :math:`S^2/\langle\sigma_y\rangle` — ``Mirror('y')``
+     - fold — ``Mirror('y')``
+     - ✅ the shipped fold
+
+⚠ Two readings of that table are worth pinning. Row 3's measure side is
+spelled ``None`` and not ``Trivial``, for the reason
+:ref:`manifold-invariance-three-arms` gives: a full-sphere rule has SPENT
+nothing, and the lattice element ``None`` stands for on that side is
+:math:`\{e\}`, which every group contains. And rows 2 and 3 need a basis
+on :math:`S^2/SO(2)_x` — tracker 3.4's Legendre basis, which `[M]` does
+**not** ship (``class LegendreBasis`` is **0** hits over ``orpheus`` and
+``tests``); the gate stands one in with a test-local stub declaring that
+*domain*, carrying an explicit retirement trigger in its docstring. That
+is a fixture with an expiry date, not a permanent one.
+
+**The gates.** Section E of ``tests/numerics/test_basis_domain.py``,
+`[M]` **six** functions and **eleven** collected rows — the module went
+13 rows → 24, and the V&V matrix's ``numerics/test_basis_domain`` row
+reads the same +11 independently — all ``@pytest.mark.foundation``
+(the property is a type law, not a solver claim, and carries no theory
+equation label):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 76
+
+   * - Gate
+     - What it pins
+   * - ``test_e1``
+     - ⭐⭐ the keystone, both legs: the fold's two halves read ONE
+       group object (``==``, then ``is``), and the slab's pairing is
+       **refusable** — asserted on the quadrature's measure, for the
+       reason in the note above.
+   * - ``test_e2``
+     - the full-sphere harmonics HAVE ``Trivial`` at
+       :math:`L \in \{0,1,3,7\}` — :math:`L = 0` included on purpose,
+       as the lower-bound witness.
+   * - ``test_e2b``
+     - the mirror-even basis HAS its mirror **by identity**
+       (``is domain.by``), over all three axes, with a negative leg
+       showing a different mirror is incomparable — so the answer moves
+       with the axis rather than being one constant.
+   * - ``test_e3``
+     - the category leg: ``None`` on every non-angular basis, including
+       both delegating wrappers — with a positive control (the same
+       class shape on a sphere answers ``Trivial``), so the arm is not
+       "everything is ``None``" (``vv-principles`` #11).
+   * - ``test_e4``
+     - the three arms on one class shape differing only in ``domain``,
+       with the quotient arm exercised through a **second group family**
+       (``SO2``), since the shipped fold basis only ever brings a
+       ``Mirror``.
+   * - ``test_e5``
+     - Part IV's four-row table above, on shipping objects.
+
+
 .. _manifold-gotchas:
 
 Gotchas
@@ -3269,12 +3751,44 @@ description of a capability rather than of a repair.
        :class:`Interval`, not the :class:`EnergyGroups` **index** axis
        production partitions — both ambient dimension 1, so only naming
        the point set separates them.
+   * - ``Basis.invariance_group``
+     - ✅ **LANDED 2026-09-01 (2.1b), and DERIVED — this row exists to
+       record that no slot was added.** The pairing ERR-080 needs has two
+       operands and the basis's was missing; the tracker recorded the
+       property as *absent and derivable*, which invited a second
+       abstract property with six overrides, and the phase opener found
+       the answer already sitting in ``domain.by``.
+       A function on :math:`M/H` *is* an :math:`H`-invariant function, so
+       the group is read by a ``match`` on the domain's TYPE — `[M]`
+       **6 of 6** shipped bases answer, with **0** subclass edits and one
+       ``@final`` property on the ABC. This is tracker 2.0d's
+       ``quotient_group`` FIELD dissolving into :attr:`Quotient.by
+       <orpheus.numerics.manifold.Quotient.by>` at 2.0c, replayed one
+       level over (:ref:`manifold-basis-invariance-group`).
+
+       ⛔ **Still not built: the CONSUMER.** Both operands exist and
+       `[M]` the verdict is computable — ``Trivial ⊇ SO2('x')`` is
+       ``False`` for the slab — but nothing refuses on it. The frame's
+       pairing gate is tracker **2.2**, fused with its siblings, and
+       `[M]` a gate written on the *frame's* measure would be inert
+       today because that measure still carries the forged ``S^2``
+       (:ref:`manifold-invariance-pairing`). ERR-080 remains open.
    * - ``FunctionSpace.manifold``, and the derived ``L2[...]`` name
-     - **2.0c.** Two sites build a level-2 name by interpolating a
-       level-1 tag; one of them
-       (``basis/indicator_basis.py:284``) hard-codes it and `[M]` is
-       already **false** for the energy-grid basis
-       (:ref:`manifold-string-algebra`).
+     - **Still open, and the reason narrowed.** Two sites build a level-2
+       name by interpolating a level-1 tag, and both now interpolate a
+       typed :class:`Manifold`: `[M]` ``measure.py:371`` is
+       ``f"L2[{self.support.name}]"`` (2.0c retyped ``support``) and
+       ``basis/indicator_basis.py:355`` is
+       ``f"L2[coarse_cells({self.domain.name})]"`` (2.1 gave the basis a
+       ``domain``). ⛔ This row read *"one of them
+       (``basis/indicator_basis.py:284``) **hard-codes** it and `[M]` is
+       already **false** for the energy-grid basis"* until 2026-09-01 —
+       true when written, repaired by 2.1
+       (:ref:`manifold-string-algebra`). What remains is the seam
+       itself: a ``FunctionSpace`` still records the **string**, so the
+       two producers agree by discipline rather than by construction, and
+       a space that carried its own manifold would collapse both
+       spellings into one.
    * - The two MAPS — the ``chart`` and the section — and the
        pushforward measure, as entry fields
      - **Phase 1.1 / 3.1.** `[M]` 7 of the derivation procedure's 9
@@ -3471,6 +3985,21 @@ shipped variant through the exhaustive ``match``. The benefit of a
 closed sum is that an operation can be checked against every member,
 and that benefit is only real if the member list is itself pinned.
 
+.. note::
+
+   **A second module carries the CONSUMER-side gates**, and it is where
+   this page's basis-facing claims are pinned:
+   ``tests/numerics/test_basis_domain.py``, `[M]` **24** collected rows
+   (was 13 before tracker 2.1b; the count is the generated V&V matrix's
+   ``numerics/test_basis_domain`` row, the same independent instrument
+   used above). Section D pins ``domain`` — every shipped basis answers,
+   a basis that cannot say what it eats **cannot be constructed**, and
+   the flagship ``test_d6`` pins *"the two halves of one frame name ONE
+   manifold"*. Section E pins ``invariance_group``
+   (:ref:`manifold-basis-invariance-group`). Every row there is
+   ``@pytest.mark.foundation`` for the same reason as this module's:
+   these are the type's own laws, not an L0–L3 claim about a flux.
+
 
 .. _manifold-development-history:
 
@@ -3492,6 +4021,42 @@ for merge status.**
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-09-01
+     - **A basis learns what it EATS — and therefore what symmetry it
+       HAS.** :class:`~orpheus.numerics.basis.base.Basis` gained the
+       level-1 slot the three-level table had listed as ⛔ *nothing*
+       (:ref:`manifold-three-levels`): ``domain``, a :class:`Manifold`,
+       abstract on the ABC so a basis that cannot say what it consumes
+       **cannot be constructed**. That closed a live falsehood — `[M]`
+       ``basis/indicator_basis.py`` hard-coded its coefficient space's
+       name as ``f"L2[coarse_cells_R{ndim}]"``, so a 2-group **energy**
+       basis and a 2-cell **spatial** basis compared ``==`` *and*
+       hash-equal; they do not now
+       (:ref:`manifold-string-algebra`). ⭐ Assigning the type was itself
+       a census: it separated the continuous energy axis in eV
+       (:class:`Interval`) from the multigroup *index* axis
+       (:class:`EnergyGroups`), which the tag ``"energy"`` had conflated
+       at equal ambient dimension. **Then the same slot answered a
+       second question for free.** A function on :math:`M/H` *is* an
+       :math:`H`-invariant function, so
+       :attr:`~orpheus.numerics.basis.base.Basis.invariance_group` is a
+       ``match`` on ``domain`` — `[M]` **6 of 6** shipped bases answer,
+       ``@final``, **0** subclass edits, no new field. The tracker had
+       recorded the property as *absent and derivable*, which invited six
+       overrides; the phase opener dissolved them, exactly as tracker
+       2.0d's ``quotient_group`` **field** had dissolved into
+       :attr:`Quotient.by <orpheus.numerics.manifold.Quotient.by>` one
+       step earlier. With both operands in hand
+       the ERR-080 pairing became a **lattice verdict** — `[M]`
+       ``Trivial ⊇ SO2('x')`` is ``False`` for the slab, while the
+       shipped fold's two halves are literally one group object
+       (:ref:`manifold-basis-invariance-group`). ⛔ **Nothing refuses on
+       that verdict**: the frame's pairing gate is tracker 2.2, and
+       ERR-080 stays open, held by its ``xfail(strict=True)`` gate.
+     - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_
+     - *(in development)* ``fix/angular-phantom-support``; trackers 2.1
+       and 2.1b. ⚠ 2.1b was **uncommitted in the working tree** when this
+       row was written — trust ``git log`` over this cell for its hash.
    * - 2026-09-01
      - **The axial rotation group gets its AXIS, and the type gets its
        first production consumer.** :math:`SO(2)` left the parameter-free

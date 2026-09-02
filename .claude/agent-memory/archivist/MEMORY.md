@@ -46,6 +46,16 @@ stage + gate.
   ⚠ **REPORTED, code-only** (3 items: `__all__`, a symbol collision, a hand-typed fixture) —
   detail, the four findings and the numbers are in the lesson. → [[lessons-L80]]
 
+- **A basis declares its symmetry by naming what it EATS** — 2026-09-01, same branch, tracker
+  **2.1b** (`Basis.invariance_group`, DERIVED + `@final`). Docs **UNCOMMITTED** (mine):
+  `manifolds.rst` +591 (a new `=` section + 4 `-` subsections), `discrete_measures.rst` +90 (a
+  new HAS/SPENT subsection — the brief's target section did **not exist**), `spaces.rst` +18,
+  `error_catalog.rst` +55 (ERR-080 **stays OPEN**), regenerated `matrix.rst` (10584 → **10595**,
+  `numerics/test_basis_domain` 13 → **24**, sentinels **576 → 576**). `-E -W` **0 → 0**, EXIT=0.
+  ⚠ **REPORTED, code-only**: `orpheus/numerics/measure.py:417` cites `:meth:`reorder``, which
+  does not exist. ⚠ Four present-tense-false corpus claims found and tombstoned in place, none of
+  them in the brief. → [[lessons-L81]]
+
 - **ERR-026 history block: 29 roles → 13, 15 dead → 0** — branch
   `docs/err026-history-is-not-a-crossref`, 2026-08-18. ⛔ still open, re-confirmed unlanded
   2026-08-24: the `head_role` one-liner (blindness is ROLE-scoped, not `.rst`-scoped) and

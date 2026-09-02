@@ -447,9 +447,10 @@ class SubgroupOfO3:
 
     # Pre-instantiated named singletons — assigned at module scope below,
     # after the class and ``_NamedSubgroup`` are fully defined.  Declared
-    # here as ClassVars so the public ``SubgroupOfO3.SO2`` / ``.OctahedralOh``
+    # here as ClassVars so the public ``SubgroupOfO3.Trivial`` / ``.OctahedralOh``
     # / ... access surface is statically known (these are class attributes,
-    # not instance slots, so they coexist with ``__slots__``).
+    # not instance slots, so they coexist with ``__slots__``). ``SO2`` and
+    # ``Mirror`` are NOT here: both are axis-parameterised constructors below.
     Trivial: ClassVar[SubgroupOfO3]
     Dinfh: ClassVar[SubgroupOfO3]
     OctahedralOh: ClassVar[SubgroupOfO3]
