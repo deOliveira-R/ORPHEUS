@@ -9949,3 +9949,97 @@ pairings it **cannot express** — in particular Legendre-on-a-full-sphere-rule
 one the corpus derived, say so at the derivation's table too, or the page reads as if the
 narrower one shipped.
 
+
+---
+
+## L-086 — the naming law (#432): a page-wide RENAME whose brief describes a design the review then replaced, and a caveat that became the theorem
+
+**Task.** #429 tracker 1.9 / GitHub #432: `SubgroupOfO3.O2(axis)` — the pointwise
+stabiliser of a coordinate axis — joins the lattice, and the axial orbit space is
+RE-KEYED from the rotation half onto it (`S^2/SO2_x` → `S^2/O2_x`). Nine `docs/` pages,
+`+1144/−355`. Baseline and final `-E -W` both **0** W/E/C, EXIT=0.
+
+**(a) ⭐⭐ THE HEADLINE: a mid-task design delta made a whole subsection of my new prose
+describe a REJECTED design — and the rejected design was the one I had MEASURED.**
+I had written, with `[M]` markers, *"nine catalogue keys, six entries; the three `SO2_a`
+keys are kept deliberately so the refusal carries the diagnosis"* — reproducible, exact,
+and the elegance review had already replaced it: the refusal moves to
+`Quotient.__post_init__` (a construction invariant on `by == by.orbit_stabiliser`, so
+`dataclasses.replace` is refused too) plus the catalogue DOOR, and the three decoy keys
+go away. ⟹ **when a brief says the change is "already in the working tree", ask whether
+a REVIEW is still running on it** — a measured `[M]` is worthless if it measures a
+transient. The repair that worked: keep the rejected design as a `.. note::` titled
+*"A rejected first design, kept because it is the tempting one"*, with the four concrete
+costs (validation inside a derivation · a second function-scope import that falsifies the
+module's own "one runtime edge" paragraph · three keys deriving nothing · `replace()`
+still accepted). ⭐ That note is now the strongest paragraph in the section, because it
+is the only place the *reason* for the construction invariant is falsifiable.
+
+**(b) ⭐⭐ A page's own ⚠ CAVEAT can be the THEOREM the next step is built on — read
+every caveat as a candidate ruling before writing a new section.** `manifolds.rst`
+already carried a measured note: *"the map's own stabiliser is BIGGER than H for the
+axial family, so H-invariance cannot recover `by` — it is a declaration, not a computed
+stabiliser"*, with `[M]` π_a invariant under σ_b for b≠a. Every measurement in it is
+unchanged by #432; what moved is the CONCLUSION. Written as a caveat it says *`by` is
+free*; read once more it is the argument for a rule — *if the map cannot tell two groups
+apart, do not let the catalogue offer two names for one point set*. ⟹ the edit is a
+`✅ And that is exactly why …` paragraph appended IN PLACE, plus a `⛔ this note ended
+at "…genuinely indistinguishable" until <date>, and a reader who stopped there would
+conclude `by` is free — it is not; it is DETERMINED, by the orbit partition plus
+maximality.* Deleting the caveat would have destroyed the derivation of the rule.
+
+**(c) ⭐⭐ Two brief numbers refuted, and the refutations were the better content.**
+(i) *"+3 candidates cost ≤ 5 % per walk"* — `[M]` min over 15 interleaved repeats,
+**11.3 – 26.2 %** (slab 5.0→5.6 ms, `product(4,8)` 107.5→135.6, `level_symmetric(4)`
+320.8→367.1, `lebedev(11)` 283.8→329.9, `folded_product(4,8)` 103.5→115.2). (ii) The
+brief's *"`O2(x) ⊇ D_1h = {e, σ_z}`"* — `[M]` `_group_elements(Dnh(1))` is **order 4**,
+the Klein group `{e, σ_y, σ_z, C_2^x}`, which is *why* it sits in `O(2)_x` and in no
+other axial stabiliser; the two-element reading would not have explained the axis
+dependence. ⭐ And the number the brief did NOT have: the walk's answer **shrinks**,
+`{SO2_x, σ_x, σ_y, σ_z}` → `{O2_x, σ_x}`, because σ_y, σ_z are ABSORBED by O(2)_x while
+σ_x flips the axis and is absorbed by nothing. A simplification is a better headline
+than a cost.
+
+**(d) ⭐ Reproduce a "nothing moved" claim against a PINNED tree, not by reasoning.**
+`AngularSymmetry.support` now calls `SPHERE.quotient(O2(a))`, so the pre-change arm
+cannot be simulated in the live tree — `dataclasses.replace(sym, continuous_isotropy=
+SO2(a))` RAISES. `git archive HEAD orpheus | tar -x` into a temp dir, run the same
+24-row stage-0 probe in a subprocess with the editable finder stripped and
+`orpheus.__file__` asserted: **24 of 24 identical**, and the pre-tree independently
+confirms the old names (`S^2/SO2_x`, `L2[S^2/SO2_x]`, `quotient_group == SO2_x`) and the
+old refusal (all three `S^2/sigma_y → S^2/SO2_a` arrows `None`). Same trick gives the
+before/after column of every table for free.
+
+**(e) ⭐⭐ A compatibility-law re-run needs its CONTROL in the same script.** The page
+recorded *"15 groups × 6 fixtures, 0 violations over 342 (edge × fixture) pairs"* with
+no definition of "edge". Reconstructing it (ordered pairs `B ≠ A` with `B.contains(A)`)
+reproduced **57 edges / 342 pairs / 0** exactly — and only THAT made the widened reading
+(18 groups → **75 edges / 450 pairs / 0**) a widening rather than a different instrument.
+⟹ re-derive a recorded aggregate's DEFINITION by matching its old number before quoting
+the new one.
+
+**(f) ⭐ A "documents the DESTINATION" instruction leaves one unavoidable dead xref, and
+that is the report's job.** `SubgroupOfO3.orbit_stabiliser` does not ship yet, so the
+patched xref gate reads **1 dead / 2 sites** and nexus `dead_references` reads **1 of 53
+checked** — the SAME single finding from two independently-vocabularied instruments,
+which is the acceptance evidence that it is the only one. Stock gate: **0** (its
+`head_role` blindness, L-062/L-082 — still unlanded). ⟹ when a pass is told to describe
+an unlanded symbol, say in the report exactly which role goes dead and when it resolves.
+
+**(g) Findings NOT in the brief, all present-tense-false on pages I was already in.**
+FOUR `ERR-080 remains open` / `ERR-080 is OPEN` clauses in body prose (the machine
+header's blanket *"every 'still OPEN' clause … was repealed"* does not reach a reader who
+lands on the paragraph); `frame.rst`'s *"the third member … does not ship: ERR-080 stays
+open"* with a `[M]` **five subclasses / two satisfy the surface** census that is now
+`[M]` **6 / 3**; `cartesian_multid.rst`'s *"once #429 tracker 3.4 lands"* and
+`operator_algebra.rst`'s *"tracker 3.4 will bind"*, both landed. ⟹ a rename sweep is a
+free staleness audit of every page it opens, and the FUTURE-TENSE promise is the class
+the symbol grep cannot find (L-066's third register, again).
+
+**(h) ⚠ My own new tombstones re-introduced the L-085 nesting leak, five times.**
+`*"… **bold** …"*` and `*"… ``literal`` …"*` are the natural §3 spelling and both leak.
+⭐ My first source-side scanner MISSED three of them: `RX_I = \*((?:[^*])+?)\*` cannot
+match an italic run that CONTAINS `**`. Widened to `\*(.{1,600}?)\*` with a
+`(?<![*\w])` / `(?![*\w])` guard and set-differenced against `git show HEAD:<file>`, it
+found all five. ⟹ the italic-run scanner must allow `*` inside the body, or it is blind
+to exactly the case the rule exists for.

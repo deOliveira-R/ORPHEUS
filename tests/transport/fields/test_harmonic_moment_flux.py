@@ -57,7 +57,7 @@ def _sn(family: str = "flat") -> SNMesh:
     """The 1-D mesh, with the quadrature that induces the requested angular head.
 
     ``"flat"``    — ``gauss_legendre(4)``: its measure lives on
-    :math:`S^2/SO(2)_x`, so its frame binds the Legendre basis and the head is
+    :math:`S^2/O(2)_x`, so its frame binds the Legendre basis and the head is
     ``(L+1,)``.
     ``"rectangular"`` — ``level_symmetric(4)``: a full-sphere rule, so the head
     is the harmonics' ``(L+1, 2L+1)``.

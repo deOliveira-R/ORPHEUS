@@ -1721,8 +1721,9 @@ cell/group space,
    bound at* :math:`L`, READ off the frame
    (:eq:`moment-space-read-off-the-frame`,
    :ref:`frame-moment-space-single-home`) — the σ-even restriction on a
-   folded rule, and the Legendre basis on :math:`S^2/SO(2)_a` on a 1-D
-   chart once #429 tracker 3.4 lands. Since 2026-09-02 the field factory
+   folded rule, and the Legendre basis on :math:`S^2/O(2)_a` on a 1-D
+   chart, which #429 tracker 3.4 landed on 2026-09-02. Since then the
+   field factory
    reads it rather than minting it from :math:`L`, so the leading
    :math:`(L{+}1, 2L{+}1)` rectangle below is the *harmonic* head's
    layout and not a property of moment fields as such.

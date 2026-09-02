@@ -52,7 +52,7 @@ def _equispaced_legendre_gram(*, L: int, n: int = 8) -> np.ndarray:
     mu = np.linspace(-1.0, 1.0, n + 2)[1:-1]
     weights = np.full(mu.size, 2.0 / mu.size)
     measure = DiscreteMeasure(
-        nodes=mu, weights=weights, support=SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        nodes=mu, weights=weights, support=SPHERE.quotient(SubgroupOfO3.O2("x"))
     )
     return LegendreBasis(L=L).mass_matrix(measure)
 

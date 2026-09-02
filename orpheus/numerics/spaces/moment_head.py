@@ -5,9 +5,10 @@ space of the basis the quadrature's frame bound (#429 tracker 2.5, 2026-09-02).
 Two families ship. The real spherical harmonics' head is the rectangular
 ``(L+1, 2L+1)`` table with the addition-theorem-shifted ``[l + m]`` column and
 zero padding outside :math:`|m| \le \ell`; the Legendre basis on
-:math:`S^2/SO(2)_a` has a FLAT head, ``(L+1,)`` — one coefficient per degree,
-because the trivial isotypic component of :math:`SO(2)` is one-dimensional in
-every degree (`[M]` 2026-09-02, a rank test about every axis).
+:math:`S^2/O(2)_a` has a FLAT head, ``(L+1,)`` — one coefficient per degree,
+because the trivial isotypic component of :math:`O(2)_a` (equivalently of its
+rotation half, which has the same orbits) is one-dimensional in every degree
+(`[M]` 2026-09-02, a rank test about every axis).
 
 Until #429's fused commit every consumer that indexed ``values[0, 0]`` or
 sliced ``values[l, :2l+1]`` read the FIRST family's layout as if it were the

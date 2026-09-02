@@ -2224,9 +2224,11 @@ addition-theorem-shifted :math:`[\ell + m]` column and zero padding
 outside :math:`|m| \le \ell`. The ERR-080 repair adds a second family:
 :class:`~orpheus.numerics.spaces.legendre_space.LegendreSpace`, the
 coefficient space of :math:`\{P_\ell(\mu)\}_{\ell \le L}` on the orbit
-space :math:`S^2/SO(2)_a`, which is **FLAT** — :math:`(L+1,)`, one
+space :math:`S^2/O(2)_a`, which is **FLAT** — :math:`(L+1,)`, one
 coefficient per degree, because the trivial isotypic component of the
-:math:`SO(2)` action is one-dimensional in every degree
+:math:`O(2)_a` action — equivalently of its rotation half, which has the
+same orbits (:ref:`manifold-orbit-space-stabiliser`) — is
+one-dimensional in every degree
 (:ref:`manifold-descending-slots`).
 
 Two families with different ranks means the layout is a *variable*, so
@@ -2245,7 +2247,7 @@ key-on-what-it-declares idiom as
 
    * - Question
      - ``spherical_harmonic_space``
-     - ``legendre_space(S^2/SO2_a)``
+     - ``legendre_space(S^2/O2_a)``
    * - ``shape``
      - :math:`(L+1,\ 2L+1)`
      - :math:`(L+1,)`
@@ -2274,7 +2276,7 @@ carries — so
 .. math::
    :label: spaces-legendre-pushforward-gram
 
-   \int_{S^2/SO(2)_a} P_\ell^2 \; \mathrm{d}(\pi_*\Omega)
+   \int_{S^2/O(2)_a} P_\ell^2 \; \mathrm{d}(\pi_*\Omega)
    \;=\; \int_{-1}^{1} P_\ell(\mu)^2 \, 2\pi \,\mathrm{d}\mu
    \;=\; \frac{4\pi}{2\ell+1},
 
@@ -2289,8 +2291,12 @@ exactly the harmonics'
    wrong one would move **every operator end's metric** on every 1-D
    solve. The discriminator is which measure the orbit space carries,
    and the orbit space carries the pushforward of the sphere's — a
-   1-D angular rule is a rule on :math:`S^2/SO(2)_a`, not on an
-   abstract interval.
+   1-D angular rule is a rule on :math:`S^2/O(2)_a`, not on an
+   abstract interval. ⛔ That orbit space was spelled
+   :math:`S^2/SO(2)_a` here until 2026-09-02; #432 renamed it onto the
+   axis's full stabiliser, which changes no integral on this page —
+   :math:`\pi_*\,d\Omega` is the pushforward along the SAME map
+   (:ref:`manifold-orbit-space-stabiliser`).
 
    ⚠ And do not confuse either with the **discrete** Gram a frame
    measures, which is against the RULE's weights: `[M]` a

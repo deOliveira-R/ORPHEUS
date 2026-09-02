@@ -231,7 +231,7 @@ class SphericalHarmonicBasis(Basis):
                 f"{directions.shape[0]} directions are not points of S^2 "
                 f"(|Omega| off 1 by more than 1e-12). A real spherical "
                 f"harmonic eats a unit direction; a 1-D rule's mu is a point "
-                f"of S^2/SO(2), whose basis is the Legendre basis "
+                f"of S^2/O(2)_a, whose basis is the Legendre basis "
                 f"(orpheus.numerics.basis.legendre_basis) — ERR-080."
             )
         return _evaluate_real_sh(
@@ -511,10 +511,10 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
         indistinguishable, and the G0 well-posedness gate the plan has carried
         since it was written had no operands to compare.
         """
-        from orpheus.numerics.manifold import SPHERE
+        from orpheus.numerics.manifold import AXIS_LETTER, SPHERE
         from orpheus.numerics.symmetry import SubgroupOfO3
 
-        return SPHERE.quotient(SubgroupOfO3.Mirror("xyz"[self.mirror_axis]))
+        return SPHERE.quotient(SubgroupOfO3.Mirror(AXIS_LETTER[self.mirror_axis]))
 
     @cached_property
     def even_slot_mask(self) -> NDArray:

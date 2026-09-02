@@ -4162,8 +4162,8 @@ the carrier verbs.
    :class:`~orpheus.numerics.basis.base.TruncatedBasis` **surface**
    (``L`` + ``space``): :math:`L` is not SH-only — it is the harmonic
    *family's* truncation order, shared by the σ-even restriction a folded
-   rule binds and by the Legendre basis on :math:`S^2/SO(2)_a` that
-   tracker 3.4 will bind on a 1-D one. The same step made every operator
+   rule binds and by the Legendre basis on :math:`S^2/O(2)_a` that
+   tracker 3.4 bound on a 1-D one the same day. The same step made every operator
    end and every moment-field head READ the bound basis's coefficient
    space instead of re-minting it from the integer, so the family the
    quadrature chooses propagates by construction. See

@@ -398,7 +398,7 @@ def _moment_shape(m: SNMesh, L: int) -> tuple[int, ...]:
     ``(L+1, 2L+1, ng, *spatial)`` unconditionally. Which head a field carries
     is READ off the frame the quadrature bound: the harmonics' ``(L+1, 2L+1)``
     on a sphere rule, the FLAT Legendre ``(L+1,)`` on a 1-D rule's
-    :math:`S^2/SO(2)_x` — one coefficient per degree, because the trivial
+    :math:`S^2/O(2)_x` — one coefficient per degree, because the trivial
     isotypic component of :math:`SO(2)` is one-dimensional in every degree.
     """
     return (*m.quad.angular_frame(L).basis.space.shape, m.ng, *m.spatial_shape)

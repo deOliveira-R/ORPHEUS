@@ -2031,3 +2031,61 @@ predicate against the SUT's TRUE stabiliser before shipping the refusal. → `L6
 and `mean_axis_cosine(0)` are `array_equal` on 5 of 5 1-D rules, so a "the read equals
 the coordinate" leg is Mode-12 blind and only the REFUSAL leg (`axis_cosines(1)` raises;
 `mean_axis_cosine(1)` returns zeros) attributes the choice. → `L69g`
+
+## O(2)_a stabiliser additions (2026-09-02, #429 tracker 1.9 / #432) → `L70`
+
+**Gates that cannot red.** ⛔ **`hash(a) != hash(b)` is NOT a legal "these are
+different value types" leg — a frozen dataclass's generated `__hash__` hashes the
+FIELD TUPLE, not the class.** `[M]` `hash(SO2('x')) == hash(O2('x')) ==
+hash(Mirror('x'))` and `hash(Cn(2)) == hash(Dnh(2))`; `__eq__` still discriminates
+(it opens `other.__class__ is self.__class__`), so `len({Mirror('x'), SO2('x'),
+O2('x')}) == 3` and dicts are correct. The hash leg is the one that comes to mind
+beside `a != b`, reds on CORRECT code, and reads as extra rigour — I shipped it into
+3 parametrized rows and it failed all 3. Assert separation through the CONTAINER.
+→ `L70a`
+
+⛔⛔ **Before writing a control that separates two groups, ask whether their
+INVARIANT RINGS differ — if they coincide, the control is unwritable at every
+fixture and the honest deliverable is the measured inertness.** A brief asked for
+"a σ_v-odd function constant across the SO(2) images and not across O(2)'s"; no such
+function exists (`R[x]^{SO2_a} = R[x]^{O2_a}` is the theorem the orbit-space entry is
+built on). `[M]` 18 rows (3 axes × L=1..6): the two masks are `array_equal`, so
+dropping the mirrored half is production-INERT at the shipped incommensurate angles.
+⭐ The discriminating regime is the DEGENERATE sample (right angles generate `C_4`
+without it, `C_4v` with it) — ship the impossibility as a NAMED blindness row
+pointing there, or a later battery arm's silence reads as a coverage gap.
+→ `L70b`
+
+⛔ **A refusal that makes an old spelling UNCONSTRUCTIBLE turns the "revert the
+spelling" arm into a crash arm.** `[M]` 144 reds / 5 collection errors over 19 files,
+all by raising — attributing nothing about the value claim (`L31`/`L25`). Ship the
+attributable twin beside it (mutate a field the refusal does not guard: `[M]` 4 reds,
+3 files). → `L70d`
+
+**Reference & claim layer.** ⭐ **REUSABLE — the stabiliser-maximality gate for any
+orbit-space catalogue:** `G ⊆ entry.by ⟺ every generic image of generic base points
+leaves `entry.orbit_coordinates` unchanged`. RHS = what "these are the orbits"
+MEANS, LHS = the lattice, so neither half can be wrong alone (`vv` #15), and it is
+the maximality claim in both directions. `[M]` 140 (entry × group) pairs, 0
+mismatches, **33 inside / 107 outside** (both directions populated), 0.74 s; the
+denominator EXCLUDES the axis-free continuous groups and asserts their refusal so it
+cannot silently widen. Non-vacuity companion: `[M]` 7 groups inside `O(2)_x` vs 3
+inside `SO(2)_x` — the 4 edges the smaller naming would lose. → `L70c`
+
+**Harness discipline.** ⭐⭐ **Report the battery split NEW vs PRE-EXISTING per arm,
+never a total — the arms with ZERO pre-existing catchers are the headline.** `[M]`
+2 of 17 arms were witness-less before the dispatch (the axial lattice's `SO(3)`
+properness edge, 5 reds all new; the space name READ off the basis domain, 2 reds all
+new), and one arm (`invariance_group` → the lower bound) reddened **4, all
+pre-existing** — my rows add nothing there, which is worth saying. A "17 arms, all
+caught" total hides both facts. ⭐ Companion: pick the POSITIVE CONTROL at the
+IDENTITY tier when the subject is a name — `[M]` "the group's `name` drops its axis"
+reds **624 across 57 files** (the name is a `FunctionSpace` identity component) against
+24/3 for the value-tier control. → `L70e`
+
+⚠ **A design delta arriving MID-DISPATCH is a re-key list, not a rewrite — and the
+message-fragment gate is the one at risk.** When a refusal's ENFORCEMENT SITE moves,
+pin the sentence the refusal exists to SAY (preserved by the move) plus the ERROR
+TYPE / ordering (which the move can break: a check placed after the catalogue lookup
+raises `NotImplementedError`, not the theorem's `ValueError`), never the diagnosis
+wording. → `L70f`

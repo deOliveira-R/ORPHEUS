@@ -1,14 +1,15 @@
-r"""The Legendre basis on :math:`S^2/SO(2)_a` — the object that repairs ERR-080.
+r"""The Legendre basis on :math:`S^2/O(2)_a` — the object that repairs ERR-080.
 
 ``solve_sn(scattering_order >= 2)`` on any 1-D chart returned a wrong answer
 because a 1-D rule's frame bound the FULL real spherical harmonics to a
 measure whose nodes had been forged onto :math:`S^2` as :math:`(\mu, 0, 0)`.
-A point of :math:`[-1,1]` is an ORBIT of the :math:`SO(2)_x` action, not a
+A point of :math:`[-1,1]` is an ORBIT of the :math:`O(2)_x` action, not a
 point of the sphere, and the harmonics read the fabricated azimuth as a real
-one. The functions on that orbit space are the :math:`SO(2)`-invariant
-functions on the base — the trivial isotypic component, one-dimensional in
-every degree, spanned downstairs by :math:`P_\ell(\mu)`. This module is that
-basis's own gate.
+one. The functions on that orbit space are the :math:`O(2)_a`-invariant
+functions on the base — equivalently the :math:`SO(2)_a`-invariant ones, the
+two groups having ONE invariant ring and therefore one orbit space (#432) —
+the trivial isotypic component, one-dimensional in every degree, spanned
+downstairs by :math:`P_\ell(\mu)`. This module is that basis's own gate.
 
 Claim layer and pillar (``vv-principles`` §"three pillars", ``AGENT.md`` §1.5)
 ------------------------------------------------------------------------------
@@ -262,7 +263,7 @@ def test_evaluate_accepts_both_honest_coordinate_systems(label: str) -> None:
     """
     quadrature = _rule(label)
     basis = LegendreBasis(L=3)
-    entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+    entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
 
     directions = np.asarray(quadrature.measure.nodes, dtype=float)
     cosines = entry.quotient_map(directions)
@@ -313,17 +314,27 @@ def test_points_off_the_orbit_space_are_refused_in_either_chart() -> None:
 def test_the_basis_states_its_orbit_space_and_its_spent_group() -> None:
     r"""The domain IS the catalogue entry, so ``invariance_group`` is DERIVED, not declared.
 
-    ⚠ The derived answer is the lower bound :math:`SO(2)_a`; the functions are
-    in fact :math:`O(2)_a`-invariant (a mirror across the polar axis does not
-    move :math:`\mu`). Declaring that needs an axis-parameterised :math:`O(2)`
-    member — GitHub #432. The consequence is recorded, not asserted away:
-    a Legendre basis on a :math:`\sigma_b`-fold is refused by G0 today
-    although it is mathematically admissible.
+    ⭐ The derived answer is the FULL group these functions have,
+    :math:`O(2)_a` — the stabiliser of the polar axis, rotations about it AND
+    the mirrors through it — because the catalogue entry is named by its
+    stabiliser (#432, landed 2026-09-02).
+
+    ⛔ **This docstring read the opposite until 2026-09-02** and the
+    correction is the record of what the member bought. It said: *"the
+    derived answer is the lower bound* :math:`SO(2)_a`\ *; the functions are
+    in fact* :math:`O(2)_a`\ *-invariant … declaring that needs an
+    axis-parameterised* :math:`O(2)` *member — GitHub #432. The consequence
+    is recorded, not asserted away: a Legendre basis on a*
+    :math:`\sigma_b`\ *-fold is refused by G0 today although it is
+    mathematically admissible."* Both halves are now false: the member
+    exists, the derivation returns it, and that pairing is ADMITTED —
+    ``tests/numerics/test_frame.py::TestTheStabiliserDecidesAdmissionOnAMirrorFold``
+    is the six-admitted / three-refused table.
     """
     for axis in ("x", "y", "z"):
         basis = LegendreBasis(L=2, axis=axis)
-        assert basis.domain == SPHERE.quotient(SubgroupOfO3.SO2(axis))
-        assert basis.invariance_group == SubgroupOfO3.SO2(axis)
+        assert basis.domain == SPHERE.quotient(SubgroupOfO3.O2(axis))
+        assert basis.invariance_group == SubgroupOfO3.O2(axis)
         assert basis.space == LegendreSpace.from_L(2, axis)
         assert basis.space.shape == (3,)
 
@@ -370,7 +381,7 @@ def test_the_descended_column_is_bit_identical_to_the_sh_m0_slot(label: str) -> 
     )
 
     # ── the mutation arms: two "obvious" re-spellings, both must MOVE ──
-    mu = SPHERE.quotient(SubgroupOfO3.SO2("x")).quotient_map(directions)
+    mu = SPHERE.quotient(SubgroupOfO3.O2("x")).quotient_map(directions)
     pure_lpmv = np.column_stack([lpmv(0, ell, mu) for ell in range(L + 1)])
     pure_eval = np.column_stack([eval_legendre(ell, mu) for ell in range(L + 1)])
 
@@ -558,3 +569,81 @@ def test_reconstruct_transpose_is_the_transpose_of_reconstruct() -> None:
     # NEGATIVE: a factor dropped on one side only breaks it.
     broken = np.einsum("nl,n...->l...", table, v)
     assert not np.isclose(lhs, float(phi @ broken))
+
+
+# ══════════════════════════════════════════════════════════════════════
+# The coefficient space NAMES itself after the basis's domain — #432
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_the_space_name_is_READ_off_the_basis_domain_not_spelled_a_second_time() -> None:
+    r"""``LegendreSpace.from_L`` builds its name from ``basis.domain.name``,
+    so the orbit space is spelled ONCE (`coding-elegance` Pattern 2).
+
+    A ``FunctionSpace``'s identity is ``(name, shape)``, so this string is
+    not decoration: two axes must be two spaces, and the name is the only
+    thing that separates them (both are ``(L+1,)``). Until #432 the
+    convention was written a second time as an f-string over the axis
+    letter, ``"legendre_space(S^2/SO2_{axis})"`` — a twin that went
+    present-tense-false the moment the entry was renamed, and that no value
+    gate could see.
+
+    ⭐ The ROUTE gate (`test-architect` lessons §1, the CS5 recipe): a value
+    row comparing the name to ``f"legendre_space({basis.domain.name})"`` is
+    green under BOTH spellings today, because they agree. The
+    discriminating leg moves the basis's domain and requires the space's
+    name to move WITH it — which only the read can do. `[M]` 2026-09-02
+    under a domain re-pointed at ``S^2/O2_z``, the name reads
+    ``legendre_space(S^2/O2_z)``; a hard-coded f-string reads
+    ``legendre_space(S^2/O2_x)`` and the row reddens.
+    """
+    for axis in ("x", "y", "z"):
+        for L in (0, 2, 4):
+            basis = LegendreBasis(L=L, axis=axis)
+            space = LegendreSpace.from_L(L, axis)
+            assert space.name == f"legendre_space({basis.domain.name})"
+            assert space.name == f"legendre_space(S^2/O2_{axis})"
+            assert space.shape == (L + 1,)
+            assert space.spent_axis == axis
+            assert basis.space == space
+
+    # three axes, three DISTINCT spaces at one shape — the reason the name
+    # carries the entry at all.
+    spaces = [LegendreSpace.from_L(2, a) for a in ("x", "y", "z")]
+    assert len({s.name for s in spaces}) == 3
+    assert len({s.shape for s in spaces}) == 1
+
+
+def test_moving_the_basis_DOMAIN_moves_the_space_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    r"""The route leg of the row above, as its own test so the mutation that
+    proves it is named.
+
+    Re-pointing ``LegendreBasis.domain`` at a DIFFERENT catalogue entry must
+    move ``LegendreSpace.from_L``'s name, because the name is read from it.
+    The control is the unpatched call in the same test: it reads the honest
+    name, so a patch that silently failed to install would not be mistaken
+    for a passing gate (`vv-principles` #17 — the harness lies before the
+    code does).
+
+    ⚠ The patch targets the PROPERTY on the class, which is what ``from_L``
+    resolves through; patching an instance attribute would be a no-op on a
+    frozen dataclass and would read as "the name does not follow the
+    domain".
+    """
+    honest = LegendreSpace.from_L(2, "x")
+    assert honest.name == "legendre_space(S^2/O2_x)"
+
+    decoy = SPHERE.quotient(SubgroupOfO3.O2("z"))
+    assert decoy.name == "S^2/O2_z"
+    monkeypatch.setattr(
+        LegendreBasis, "domain", property(lambda self: decoy), raising=True
+    )
+    assert LegendreBasis(L=2, axis="x").domain is decoy   # the patch installed
+    moved = LegendreSpace.from_L(2, "x")
+    assert moved.name == "legendre_space(S^2/O2_z)", moved.name
+    assert moved.name != honest.name
+    # shape and the spent-axis field are NOT read off the domain, so they
+    # must be unmoved — which pins that the patch changed one thing.
+    assert moved.shape == honest.shape and moved.spent_axis == honest.spent_axis

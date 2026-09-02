@@ -616,7 +616,7 @@ def _equispaced_legendre_frame(L: int, n: int = 8):
         measure=DiscreteMeasure(
             nodes=mu,
             weights=weights,
-            support=SPHERE.quotient(SubgroupOfO3.SO2("x")),
+            support=SPHERE.quotient(SubgroupOfO3.O2("x")),
         )
     ).angular_frame(L)
 
@@ -759,7 +759,7 @@ def test_the_slab_frame_is_DIAGONAL_after_the_err080_repair():
     function of the flux.
 
     After the repair a 1-D rule binds the Legendre basis on
-    :math:`S^2/SO(2)_x`. `[M]` 2026-09-02: the Gram is **DIAGONAL** —
+    :math:`S^2/O(2)_x`. `[M]` 2026-09-02: the Gram is **DIAGONAL** —
     off-diagonal ``8.808e-17``, diagonal ``[2, 2/3, 0.4] = 2/(2\ell+1)``
     exactly, rank 3/3 — and the dressed metric is the plain reciprocal.
 
@@ -1239,8 +1239,8 @@ class TestG0TheFrameBindsAlongAQuotientMap:
     def test_a_rule_on_the_CHART_is_refused_for_a_basis_on_the_orbit_space(self) -> None:
         """G0 compares the ENTRY, never its realization (tracker 2.4's ruling,
         at the frame): the same eight cosines declared on the chart ``[-1,1]``
-        are refused for a Legendre basis on ``S^2/SO2_x`` — no quotient map
-        ``[-1,1] -> S^2/SO2_x`` exists, the chart is not the orbit space —
+        are refused for a Legendre basis on ``S^2/O2_x`` — no quotient map
+        ``[-1,1] -> S^2/O2_x`` exists, the chart is not the orbit space —
         and admitted once declared on the entry. Built DIRECTLY on the frame,
         because the quadrature's dispatch refuses a chart-level rule one guard
         earlier and would otherwise mask a G0 that compared realizations
@@ -1253,7 +1253,7 @@ class TestG0TheFrameBindsAlongAQuotientMap:
             GalerkinFrame(LegendreBasis(L=2), on_chart)
         on_entry = DiscreteMeasure(
             nodes=rule.nodes, weights=rule.weights,
-            support=SPHERE.quotient(SubgroupOfO3.SO2("x")),
+            support=SPHERE.quotient(SubgroupOfO3.O2("x")),
         )
         frame = GalerkinFrame(LegendreBasis(L=2), on_entry)
         assert frame.table.shape == (8, 3)
@@ -1266,7 +1266,7 @@ class TestG0TheFrameBindsAlongAQuotientMap:
         =====  =====================  ==========  =======================
         1      :math:`S^2`            SH          ``Trivial ⊆ Trivial``
         2      :math:`S^2/\sigma_y`   MirrorEven  ``σ_y ⊆ σ_y``
-        3      :math:`S^2/SO(2)_x`    Legendre    ``SO2_x ⊆ SO2_x``
+        3      :math:`S^2/O(2)_x`    Legendre    ``O2_x ⊆ O2_x``
         4 ⭐   :math:`S^2`            Legendre    ``Trivial ⊆ SO2_x``
         =====  =====================  ==========  =======================
 
@@ -1301,12 +1301,12 @@ class TestG0TheFrameBindsAlongAQuotientMap:
             assert frame.descent.codomain == frame.basis.domain
             assert frame.test_descent is frame.descent  # Galerkin: test IS trial
 
-    def test_the_three_refusals_are_constructed_from_shipped_classes(self) -> None:
-        r"""Rows 5–7 — including **the Part I bug**, which is ERR-080's own pairing.
+    def test_the_two_refusals_and_the_admitted_fold_pairing_are_constructed_from_shipped_classes(self) -> None:
+        r"""Rows 5–7 — including **the Part I bug**, which is ERR-080's own pairing — and row 7 ADMITS since #432.
 
         Row 5 is the frame the tree built for every 1-D solve until
         2026-09-02: the FULL harmonics (``Trivial``) on a rule whose measure
-        lives on :math:`S^2/SO(2)_x`. ``Trivial ⊉ SO(2)_x``, so no arrow
+        lives on :math:`S^2/O(2)_x`. ``Trivial ⊉ O(2)_x``, so no arrow
         exists — a coarser orbit space cannot map onto a finer one, which is
         exactly the direction the forged :math:`(\mu, 0, 0)` nodes pretended
         to travel.
@@ -1322,15 +1322,25 @@ class TestG0TheFrameBindsAlongAQuotientMap:
         with pytest.raises(ValueError, match="no quotient map"):
             GalerkinFrame(SphericalHarmonicBasis(L=2), fold)
 
-        # row 7 ⚠ — the Legendre basis on a sigma_y fold. Mathematically
-        # ADMISSIBLE (a mirror across the polar axis does not move mu), and
-        # refused here because Basis.invariance_group is DERIVED as the
-        # domain's `by` — a strict LOWER bound — and SubgroupOfO3 has no
-        # axis-parameterised O(2) to declare instead. Inert today (the
-        # dispatch never selects it); GitHub #432, its own step. Recorded as
-        # a row so the refusal cannot be mistaken for a theorem.
+        # row 7 — the Legendre basis on a sigma_y fold: ADMITTED since
+        # 2026-09-02 (#432). The entry is named by its stabiliser O(2)_x
+        # (rotations about x AND the mirrors through it), so the basis
+        # declares the FULL group its functions have and `O2('x') ⊇
+        # Mirror('y')` gives the arrow S^2/sigma_y -> S^2/O2_x. Until then
+        # Basis.invariance_group could only be derived as the lower bound
+        # SO2('x') and this mathematically admissible pairing was refused —
+        # recorded here as a row for the same reason the refusal was.
+        admitted = GalerkinFrame(LegendreBasis(L=2), fold)
+        assert admitted.descent.domain == fold.support
+        assert admitted.descent.codomain == LegendreBasis(L=2).domain
+        assert admitted.table.shape == (fold.n_points, 3)
+        # and the mirror that FLIPS the axis is still outside O(2)_x: the
+        # Legendre basis about x on an x-FOLDED rule is refused, while the
+        # same basis about z (sigma_x fixes the z-axis) is admitted.
+        x_fold = Quadrature.product(4, 8).quotient(SubgroupOfO3.Mirror("x")).measure
         with pytest.raises(ValueError, match="no quotient map"):
-            GalerkinFrame(LegendreBasis(L=2), fold)
+            GalerkinFrame(LegendreBasis(L=2, axis="x"), x_fold)
+        GalerkinFrame(LegendreBasis(L=2, axis="z"), x_fold)
 
     def test_the_message_names_both_halves_and_both_groups(self) -> None:
         r"""The refusal is a DIAGNOSIS, not a wall — it says which spaces, which groups, and where to look."""
@@ -1339,7 +1349,7 @@ class TestG0TheFrameBindsAlongAQuotientMap:
                 SphericalHarmonicBasis(L=2), Quadrature.gauss_legendre(8).measure
             )
         message = str(excinfo.value)
-        for fragment in ("S^2", "S^2/SO2_x", "spent SO2_x", "has Trivial", "ERR-080"):
+        for fragment in ("S^2", "S^2/O2_x", "spent O2_x", "has Trivial", "ERR-080"):
             assert fragment in message, f"{fragment!r} missing from: {message}"
 
     def test_g0_fires_on_BOTH_construction_paths(self) -> None:
@@ -1371,7 +1381,7 @@ class TestG0TheFrameBindsAlongAQuotientMap:
         must REFUSE, rather than silently broadcasting three columns into a
         width the basis would accept.
         """
-        entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
         for build in (
             lambda: Quadrature.level_symmetric(4),
             lambda: Quadrature.lebedev(11),
@@ -1413,7 +1423,7 @@ class TestG0TheFrameBindsAlongAQuotientMap:
         # shipped producer, so it is recorded rather than gated.
         supports = {
             SubgroupOfO3.Trivial: SPHERE,
-            SubgroupOfO3.SO2("x"): SPHERE.quotient(SubgroupOfO3.SO2("x")),
+            SubgroupOfO3.O2("x"): SPHERE.quotient(SubgroupOfO3.O2("x")),
             SubgroupOfO3.Mirror("y"): SPHERE.quotient(SubgroupOfO3.Mirror("y")),
         }
         checked = 0
@@ -1421,7 +1431,7 @@ class TestG0TheFrameBindsAlongAQuotientMap:
             measure = DiscreteMeasure(nodes=nodes, weights=weights, support=support)
             for has, basis in (
                 (SubgroupOfO3.Trivial, SphericalHarmonicBasis(L=2)),
-                (SubgroupOfO3.SO2("x"), LegendreBasis(L=2)),
+                (SubgroupOfO3.O2("x"), LegendreBasis(L=2)),
                 (
                     SubgroupOfO3.Mirror("y"),
                     MirrorEvenSphericalHarmonicBasis(L=2, mirror_axis=1),
@@ -1435,3 +1445,146 @@ class TestG0TheFrameBindsAlongAQuotientMap:
                         GalerkinFrame(basis, measure)
                 checked += 1
         assert checked == 9
+
+
+# ══════════════════════════════════════════════════════════════════════
+# G0 on a MIRROR FOLD — the pairing #432 turned from refused into admitted
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestTheStabiliserDecidesAdmissionOnAMirrorFold:
+    r"""``LegendreBasis(axis=a)`` on a :math:`\sigma_b`-folded rule is
+    admitted **iff** :math:`b \ne a` — the lattice fact
+    :math:`\sigma_b \in O(2)_a \iff b \ne a`, read at the frame tier.
+
+    Before #432 the Legendre basis could only DERIVE the lower bound
+    :math:`SO(2)_a` from its domain, so :math:`\sigma_b \notin SO(2)_a` for
+    every :math:`b` and **all six** off-axis pairings were over-refused —
+    a mathematically admissible frame the tree could not build. Naming the
+    orbit space by its stabiliser moved three of them per axis, and left the
+    on-axis one refused, which is the discriminating half: :math:`\sigma_a`
+    FLIPS :math:`\hat e_a`, so it is the one coordinate mirror outside
+    :math:`O(2)_a`.
+
+    Claim layer: **term-level (L0)**, closed form (the lattice edge) plus a
+    **flux-shape**-free numerical witness (the isotropic moments below). No
+    eigenvalue claim is made anywhere in this class.
+    """
+
+    @staticmethod
+    def _mirror_folds() -> "dict[str, DiscreteMeasure]":
+        r"""The three :math:`\sigma_b`-folded measures, and the honest note
+        about where each comes from.
+
+        ⚠ **Only two of the three are SHIPPED.** ``product(4, 8)`` folds
+        under :math:`\sigma_x` and :math:`\sigma_y` (the fold acts within a
+        polar level), and `[M]` 2026-09-02 refuses to fold under
+        :math:`\sigma_z` — *"the quotient does not act on the fiber: level 0
+        (invariant value -0.861136…)"* — because :math:`\sigma_z` permutes
+        the polar LEVELS rather than acting inside them. The z row is
+        therefore CONSTRUCTED here (a hand-built half-sphere measure declared
+        on ``S^2/sigma_z``), and it is labelled as such: a §6c denominator
+        that silently counted it as shipped would over-report the gate's
+        production reach.
+        """
+        rule = Quadrature.product(n_mu=4, n_phi=8)
+        nodes = np.column_stack([rule.mu_x, rule.mu_y, rule.mu_z])
+        upper = nodes[:, 2] >= 0.0
+        return {
+            "x": rule.quotient(SubgroupOfO3.Mirror("x")).measure,   # SHIPPED
+            "y": rule.quotient(SubgroupOfO3.Mirror("y")).measure,   # SHIPPED
+            "z": DiscreteMeasure(                                   # CONSTRUCTED
+                nodes=nodes[upper],
+                weights=2.0 * rule.weights[upper],
+                support=SPHERE.quotient(SubgroupOfO3.Mirror("z")),
+            ),
+        }
+
+    def test_the_nine_axis_by_fold_pairings_split_exactly_on_the_lattice_edge(
+        self,
+    ) -> None:
+        r"""The full :math:`3 \times 3` table — **9 pairings, 6 admitted, 3
+        refused**, and the refused ones are exactly the diagonal.
+
+        `[M]` 2026-09-02: every admitted frame tabulates ``(n_points, L+1)``
+        and its descent runs ``S^2/sigma_b -> S^2/O2_a``; every refused one
+        raises ``ValueError`` naming *"no quotient map"*. The verdict is
+        compared against ``SubgroupOfO3.O2(a).contains(Mirror(b))`` computed
+        in the same loop, so the frame tier and the lattice tier cross-check
+        each other (``vv-principles`` #15) rather than the test restating a
+        table.
+        """
+        folds = self._mirror_folds()
+        admitted = refused = 0
+        for fold_axis, measure in folds.items():
+            assert measure.support.name == f"S^2/sigma_{fold_axis}"
+            for basis_axis in ("x", "y", "z"):
+                basis = LegendreBasis(L=2, axis=basis_axis)
+                edge = SubgroupOfO3.O2(basis_axis).contains(
+                    SubgroupOfO3.Mirror(fold_axis)
+                )
+                assert edge is (basis_axis != fold_axis)
+                if edge:
+                    frame = GalerkinFrame(basis, measure)
+                    assert frame.table.shape == (measure.n_points, 3)
+                    assert frame.descent.domain == measure.support
+                    assert frame.descent.codomain == basis.domain
+                    admitted += 1
+                else:
+                    with pytest.raises(ValueError, match="no quotient map"):
+                        GalerkinFrame(basis, measure)
+                    refused += 1
+        assert (admitted, refused) == (6, 3)
+
+    @pytest.mark.parametrize("L", [2, 4, 6])
+    def test_the_admitted_fold_frame_reproduces_the_isotropic_moments(
+        self, L: int
+    ) -> None:
+        r"""The numerical witness for the newly-admitted pairing, on the
+        SHIPPED fold ``folded_product(4, 8)`` (:math:`\sigma_y`).
+
+        Analysing the constant field :math:`\psi \equiv 1` must give
+        :math:`\phi_0 = \int_{S^2} \mathrm{d}\Omega = 4\pi` and
+        :math:`\phi_\ell = 0` for :math:`\ell \ge 1` — a closed form
+        (:math:`\int_{-1}^{1} P_\ell \,\mathrm{d}\mu = 2\delta_{\ell 0}`,
+        pushed forward by Archimedes' hat box) that needs no solver, no
+        reference implementation and no tolerance beyond round-off.
+
+        `[M]` 2026-09-02 on ``folded_product(4, 8)`` (16 nodes,
+        :math:`\sum w = 4\pi`): :math:`\phi_0` reproduces
+        :math:`4\pi = 12.566370614359172` and
+        :math:`\max_{\ell \ge 1} |\phi_\ell|` reads **8.465e-16** at
+        :math:`L = 2` and **1.388e-15** at :math:`L = 4` and :math:`L = 6`,
+        against the ``1e-13`` absolute band asserted here — two orders of
+        margin, and the band is absolute because the quantity being bounded
+        is a difference of :math:`O(4\pi)` sums.
+
+        ⚠ Non-vacuity: :math:`\phi_0` is asserted at the SAME band, so a
+        frame that returned zeros everywhere would fail rather than pass the
+        :math:`\ell \ge 1` leg vacuously.
+        """
+        fold = Quadrature.folded_product(n_mu=4, n_phi=8).measure
+        assert fold.support == SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+
+        frame = GalerkinFrame(LegendreBasis(L=L), fold)
+        moments = frame.analysis.apply(np.ones(fold.n_points))
+        assert moments.shape == (L + 1,)
+        np.testing.assert_allclose(moments[0], 4.0 * np.pi, atol=1e-13)
+        assert float(np.max(np.abs(moments[1:]))) < 1e-13, moments
+        # the fold's own mass, so the phi_0 row is not reading a coincidence
+        np.testing.assert_allclose(fold.weights.sum(), 4.0 * np.pi, atol=1e-13)
+
+    def test_the_refusal_on_the_ON_AXIS_fold_names_both_orbit_spaces(self) -> None:
+        r"""The refused diagonal is a DIAGNOSIS: the message names the
+        basis's orbit space, the rule's, and both spent groups — so a reader
+        can see that :math:`\sigma_a \notin O(2)_a` rather than only that
+        something was rejected.
+        """
+        x_fold = Quadrature.product(n_mu=4, n_phi=8).quotient(
+            SubgroupOfO3.Mirror("x")
+        ).measure
+        with pytest.raises(ValueError) as excinfo:
+            GalerkinFrame(LegendreBasis(L=2, axis="x"), x_fold)
+        message = str(excinfo.value)
+        for fragment in ("S^2/O2_x", "S^2/sigma_x", "no quotient map"):
+            assert fragment in message, f"{fragment!r} missing from: {message}"

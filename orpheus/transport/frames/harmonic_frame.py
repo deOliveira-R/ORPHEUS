@@ -316,7 +316,7 @@ def _admit_truncated(basis: Basis, door: str) -> TruncatedBasis:
         raise TypeError(
             f"{door} requires a trial basis carrying a truncation order L "
             f"(the harmonic family: the real spherical harmonics, their "
-            f"sigma-even restriction, the Legendre basis on S^2/SO(2)_a); "
+            f"sigma-even restriction, the Legendre basis on S^2/O(2)_a); "
             f"got {type(basis).__name__}, which carries none. The mints read "
             f"L and the operator ends read the basis's coefficient space."
         )
@@ -332,7 +332,7 @@ class HarmonicFrame(GalerkinFrame):
     trial basis carrying a truncation order
     (:class:`~orpheus.numerics.basis.base.TruncatedBasis`: the real
     spherical harmonics, their σ-even restriction, the Legendre basis on
-    :math:`S^2/SO(2)_a`; a harmonic frame over an indicator trial is an
+    :math:`S^2/O(2)_a`; a harmonic frame over an indicator trial is an
     illegal state, refused at the door) — or upgraded from a generic
     ``quadrature.angular_frame(L)`` via :meth:`from_galerkin`. WHICH family
     the frame binds is the quadrature's decision, derived from the point

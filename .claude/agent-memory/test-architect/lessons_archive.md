@@ -7887,3 +7887,146 @@ finer domain") — and `[M]` there is no axis-parameterised `O2` to declare
   pairing is exercised, `product(4,4)` L=4 reads `3.665e+00` and `folded_product(2,4)`
   L=4 reads `4.887e+00`. `[R]` the mechanism for the last two is the tree's TWO POLES
   (SH about x, the product family about z), not a defect.
+
+---
+
+## L70 — #429 tracker 1.9 / #432 `SubgroupOfO3.O2(axis)` (gates SHIPPED 2026-09-02, HEAD `e590623f` + uncommitted)
+
+**The change.** An orbit space is named by the LARGEST group with its orbits. The
+constant-μ circles on `S²` are the orbits of `SO(2)_a` **and** of its stabiliser
+`O(2)_a = {g : g ê_a = ê_a}` (a vertical mirror carries each circle onto itself), so
+`R[x]^{SO2_a} = R[x]^{O2_a}` and the catalogue entry `S^2/O2_a` records the bigger
+group. `SPHERE.quotient(SO2(a))` is REFUSED with that theorem. The consequence:
+`LegendreBasis.invariance_group` derives the FULL group, and `GalerkinFrame`'s G0
+admits the Legendre basis on a σ_b-fold for `b ≠ a` (previously over-refused —
+`L69f`).
+
+**Deliverable.** 43 new tests across 5 files (`tests/numerics/test_symmetry.py` +23,
+`test_manifold.py` +8, `test_frame.py` +5, `test_registry.py` +5,
+`test_legendre_basis.py` +2), a 17-arm in-process battery (`scratch/_p19_mut/`), and
+one present-tense-false docstring repaired.
+
+### L70a ⛔ A frozen dataclass's generated `__hash__` hashes the FIELD TUPLE, not the class
+
+`[M]` `hash(SubgroupOfO3.SO2('x')) == hash(SubgroupOfO3.O2('x')) ==
+hash(SubgroupOfO3.Mirror('x'))` — all three `_tag`s are frozen dataclasses whose only
+field is `axis`, and `dataclasses`' generated `__hash__` is `hash((self.axis,))`. Same
+for `hash(Cn(2)) == hash(Dnh(2))`. Equality still discriminates (the generated
+`__eq__` opens with `other.__class__ is self.__class__`), so dicts and sets are
+CORRECT — `len({Mirror('x'), SO2('x'), O2('x')}) == 3`. It is a bucket collision, not
+a defect.
+
+⟹ **`hash(a) != hash(b)` is NOT a legal "these are different groups" leg.** It is the
+leg that comes to mind beside `a != b`, it reds on correct code, and it reads in
+review as extra rigour. I wrote it into three parametrized rows and it failed on all
+three. The property that matters — and the one to assert — is that a SET keeps them
+apart. Generalisation: for any family of same-signature frozen value types, the hash
+is a function of the field values ALONE; test identity through the container, never
+through the digest.
+
+### L70b ⛔⛔ When two groups share an INVARIANT RING, no function can separate them — so a brief's "σ_v-odd control" is unwritable, and the honest deliverable is the measured inertness
+
+The brief asked for: *"the mirrored half genuinely differs from the rotations (a
+control: a σ_v-ODD function is NOT constant across them while it IS across the SO(2)
+half)"*. **No such function exists.** If `f` is constant on every `SO(2)_a` orbit and
+σ_v carries each constant-μ circle onto itself, then `f(σ_v x) = f(x)` pointwise —
+which is the same theorem `_sphere_mod_o2` records as its reason for existing.
+
+`[M]` over **3 axes × L = 1..6 = 18 rows**, the descending-slot mask computed from
+`generic_images(O2(a))` is `array_equal` to the one from `generic_images(SO2(a))`. So
+dropping the mirrored half is **production-INERT at the shipped incommensurate
+angles**, and no `descending_slots` row can catch it.
+
+⭐ The regime where the mirrored half IS observable is the **degenerate sample**: four
+right angles generate `C_4` without it and `C_4v` with it, so the existing
+`test_a_right_angle_sample_falsely_admits_slots_from_L_four` reads 7 → 6 live slots at
+`L = 4` and 10 → 8 at `L = 5`. Battery arm `c` (drop the mirrored half) reddens **7**
+rows: my 6 structural `generic_images` rows plus that ONE pre-existing degenerate-sample
+control — i.e. before the structural rows, the component split had exactly one witness,
+and it lives in the *blindness* control rather than in any positive gate.
+
+⟹ two transferable moves. (1) **Before writing a control that separates two groups,
+ask whether their invariant RINGS differ** — one line of algebra, and if they coincide
+the control is unwritable at every fixture. (2) Ship the impossibility as a
+**measured, named blindness row** (`test_the_MIRRORED_half_is_inert_…_that_is_a_THEOREM`)
+pointing at the regime that does discriminate; otherwise a later battery arm reddens
+nothing there and reads as a coverage gap instead of a theorem.
+
+### L70c ⭐ The stabiliser-maximality gate — "named by the LARGEST group with these orbits", as a runnable test
+
+Reusable shape for any orbit-space / quotient catalogue:
+
+> for every group `G` the lattice can spell:
+> `G ⊆ entry.by`  ⟺  every generic image of generic base points leaves
+> `entry.orbit_coordinates` unchanged.
+
+The RHS is what *"these are the orbits"* means; the LHS is the lattice's answer, so
+neither half can be wrong alone (`vv` #15). It is also the MAXIMALITY claim: a `by`
+set too small leaves a group outside it still fixing the invariants (⟸ fails); too big
+and an element moves them (⟹ fails).
+
+`[M]` 2026-09-02: **140** (entry × group) pairs — 7 shipped sphere entries × 20 groups
+whose generic images can be sampled — **0** mismatches, **33** inside / **107**
+outside, 0.74 s. ⚠ The denominator EXCLUDES `D_∞h`, `SO(3)`, `O(3)`: they are
+continuous with no axis to sample about and `generic_images` refuses them by design —
+asserted in the same row so the exclusion cannot silently widen.
+
+Non-vacuity companion, and it is the row that shows the rename bought something:
+`[M]` **7** of the 20 groups sit inside `O(2)_x` (`Trivial, sigma_y, sigma_z, SO2_x,
+O2_x, C_1, D_1h`) against **3** inside `SO(2)_x` (`Trivial, SO2_x, C_1`) — the four
+edges the rotation-half naming would have lost, two of which (`sigma_y`, `sigma_z`) are
+exactly what admits the Legendre basis on a σ_b-fold.
+
+### L70d ⛔ A refusal that makes an OLD SPELLING unconstructible turns "revert the spelling" into a crash arm — it attributes nothing, and its attributable twin must be shipped beside it
+
+Arm `h` (`LegendreBasis.domain` back to `SPHERE.quotient(SO2(axis))`) now RAISES at the
+property, because the catalogue refuses the rotation half. `[M]` **144 reds / 5
+collection errors across 19 files** — loud, wide, and about the *raise*, not about the
+domain claim (`L31`/`L25`: a mutation that reds by raising has attributed nothing).
+The attributable twin is arm `h2` (`invariance_group` returns the lower bound while the
+domain stays legal): `[M]` **4 reds**, all pre-existing, in 3 files. Ship both, and
+read only the second as evidence about the claim.
+
+### L70e ⭐ The two arms with ZERO pre-existing catchers are the report's headline — compute new-vs-pre-existing per arm, not a total
+
+`[M]` per-arm split over `tests/numerics + tests/transport` (3558 passed baseline,
+17 arms, ~52 s each, every arm carrying a BITE assertion that printed its own defect):
+
+| arm | reds | of which NEW | pre-existing |
+|---|---:|---:|---:|
+| `f` `_axial_contains` puts `O2 ⊆ SO3` | 5 | 5 | **0** |
+| `i` `LegendreSpace.from_L` hard-codes the old name | 2 | 2 | **0** |
+| `c` `generic_images` drops the mirrored half | 7 | 6 | 1 |
+| `g` `candidate_groups` without the O2 rows | 2 | 1 | 1 |
+| `d` the orbit space records the group it was asked for | 4 | 3 | 1 |
+| `h2` `invariance_group` is the lower bound | 4 | 0 | 4 |
+
+Two arms were **witness-less before this dispatch** — the properness of the axial
+lattice's `SO(3)` edge, and the space name being READ off the basis's domain. A
+whole-battery total (e.g. "17 arms, all caught") would have hidden both. `h2` is the
+honest opposite: the invariance-group claim was already fully gated and my rows add
+nothing there — worth saying, because a plan that credits every new gate equally is
+overstating.
+
+⭐ The two POSITIVE CONTROLS were chosen at different tiers and the wide one is the
+useful one: `P1` (`_is_axis_supported` always True) reds **24** in 3 files;
+`P2` (`O2.name` drops the axis) reds **624** in **57** files, because the entry's name
+is a `FunctionSpace` identity component and every consumer keyed on it moves. The
+`rotation_axis`-returns-None arm (`m`) reads the same shape (617 / 57) — those two are
+the tree's real load-bearing surfaces for this member.
+
+### L70f ⚠ A design delta arriving MID-DISPATCH is a re-key list, not a rewrite
+
+The coordinator landed an accepted elegance review while the battery ran (mint
+`orbit_stabiliser`; move the refusal into `Quotient.__post_init__` + a
+`_catalogued_quotient` door check; drop the three `SO2_a` catalogue keys;
+`_fixes_axis` loses `proper_only`). The message-fragment gate was the one at risk:
+I had pinned **six** fragments and only the head *"is the orbit space S^2/O2_a"* was
+promised verbatim. Re-posed to that head PLUS a **placement** leg (`ValueError`
+carrying it, and NOT the catalogue's `NotImplementedError` "no catalogue entry") — the
+second leg is the one that gains teeth after the move, since a check placed AFTER the
+lookup, or a key merely deleted, reddens it.
+
+⟹ when a refusal's ENFORCEMENT SITE is about to move, pin the sentence the refusal
+exists to say (which the move preserves) and the ERROR TYPE / ordering (which the move
+can break), never the diagnosis wording.

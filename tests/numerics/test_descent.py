@@ -89,7 +89,7 @@ def _rule(label: str) -> Quadrature:
 
 
 def _so2(axis: str):
-    return SPHERE.quotient(SubgroupOfO3.SO2(axis))
+    return SPHERE.quotient(SubgroupOfO3.O2(axis))
 
 
 # ══════════════════════════════════════════════════════════════════════

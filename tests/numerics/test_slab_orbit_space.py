@@ -13,7 +13,7 @@ check in the tree. That is tracker 2.1's energy/spatial collision
 retype made the supports honest, and they were honestly identical.
 
 The repair is a DECLARATION: the slab's rule is read on the orbit space
-:math:`S^2/SO(2)_x` (:meth:`DiscreteMeasure.on_orbit_space`, adopted by
+:math:`S^2/O(2)_x` (:meth:`DiscreteMeasure.on_orbit_space`, adopted by
 :func:`gauss_legendre_on_polar_orbit`), whose chart is the same interval.
 No coordinate changes; what the measure knows about itself does, and with
 it the space name, the phase, the spent group, and the registry's stage-0
@@ -94,7 +94,7 @@ def test_a1_a_slab_angular_space_is_not_a_spatial_space_on_its_chart(
     assert angular.space.shape == spatial.space.shape == (n,)
     assert angular.space != spatial.space
     assert hash(angular.space) != hash(spatial.space)
-    assert angular.space.name == f"L2[S^2/SO2_x]"
+    assert angular.space.name == f"L2[S^2/O2_x]"
     assert spatial.space.name == "L2[[-1,1]]"
 
     # positive control: role, not shape, is the discriminator
@@ -134,7 +134,7 @@ def test_a3_the_slab_answers_from_its_manifold_alone() -> None:
     slab = Quadrature.gauss_legendre(8).measure
     stripped = replace(slab, invariance_group=None)
     assert stripped.phase == "angular"
-    assert stripped.quotient_group == SubgroupOfO3.SO2("x")
+    assert stripped.quotient_group == SubgroupOfO3.O2("x")
     assert slab.invariance_group == SubgroupOfO3.Mirror("x")
 
     chart = gauss_legendre_on_mu(8)
@@ -162,7 +162,7 @@ def test_b1_the_marginal_is_invariant_under_the_group_it_was_quotiented_by(
     `[M]` the retired bare ``SO2`` answered ``False`` on the slab, because it
     was realized about :math:`z` while the slab embeds along :math:`x`."""
     m = gauss_legendre_on_polar_orbit(8, axis)
-    assert m.quotient_group == SubgroupOfO3.SO2(axis)
+    assert m.quotient_group == SubgroupOfO3.O2(axis)
     assert m.quotient_group is not None
     assert m.quotient_group.is_invariant(m)
     for other in _AXES:
@@ -184,7 +184,7 @@ def test_b2_stage_0_refuses_the_chart_level_rule_and_the_wrong_axis(
     admitted. Before tracker 2.4 the first of these was the registered
     slab rule."""
     symmetry = GEOMETRY_ANGULAR_SYMMETRY[geometry]
-    assert symmetry.support == SPHERE.quotient(SubgroupOfO3.SO2("x"))
+    assert symmetry.support == SPHERE.quotient(SubgroupOfO3.O2("x"))
 
     assert symmetry.admits_domain(Quadrature.gauss_legendre(8).measure)
     assert symmetry.admits_domain(gauss_legendre_on_polar_orbit(8, "x"))
@@ -200,8 +200,8 @@ def test_b3_the_selector_still_hands_the_slab_its_declared_rule() -> None:
     measure, log = select_quadrature("slab", target_degree=7)
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "GaussLegendre1D"
-    assert measure.support == SPHERE.quotient(SubgroupOfO3.SO2("x"))
-    assert measure.space.name == "L2[S^2/SO2_x]"
+    assert measure.support == SPHERE.quotient(SubgroupOfO3.O2("x"))
+    assert measure.space.name == "L2[S^2/O2_x]"
     assert measure.exactness is not None
     assert measure.exactness.reference == GEOMETRY_ANGULAR_SYMMETRY["slab"].reference
 
@@ -217,7 +217,7 @@ def test_c1_a_rule_on_the_chart_is_read_on_the_orbit_space() -> None:
     space, the embedding-dependent tag is dropped, the chart-level exactness
     claim is kept."""
     chart = gauss_legendre_on_mu(6)
-    orbit = SPHERE.quotient(SubgroupOfO3.SO2("y"))
+    orbit = SPHERE.quotient(SubgroupOfO3.O2("y"))
     read = chart.on_orbit_space(orbit)
 
     assert read.support is orbit
@@ -226,7 +226,7 @@ def test_c1_a_rule_on_the_chart_is_read_on_the_orbit_space() -> None:
     assert read.invariance_group is None
     assert read.exactness == chart.exactness
     assert read.phase == "angular"
-    assert read.quotient_group == SubgroupOfO3.SO2("y")
+    assert read.quotient_group == SubgroupOfO3.O2("y")
 
 
 @pytest.mark.foundation
@@ -240,9 +240,9 @@ def test_c2_the_wrong_chart_is_refused_where_the_declaration_is_written() -> Non
         nodes=np.array([0.25, 0.75]), weights=np.array([0.5, 0.5]),
         support=UNIT_INTERVAL,
     )
-    so2_x = SPHERE.quotient(SubgroupOfO3.SO2("x"))
-    with pytest.raises(ValueError, match=r"\[0,1\].*S\^2/SO2_x.*\[-1,1\]"):
-        on_unit.on_orbit_space(so2_x)
+    o2_x = SPHERE.quotient(SubgroupOfO3.O2("x"))
+    with pytest.raises(ValueError, match=r"\[0,1\].*S\^2/O2_x.*\[-1,1\]"):
+        on_unit.on_orbit_space(o2_x)
 
     on_sphere = Quadrature.lebedev(order=5).measure
     with pytest.raises(ValueError, match="use quotient\\(\\)"):
@@ -257,7 +257,7 @@ def test_c2_the_wrong_chart_is_refused_where_the_declaration_is_written() -> Non
 @pytest.mark.foundation
 @pytest.mark.verifies("manifold-s2-mod-so2")
 def test_d1_three_axes_three_quotients_one_derivation() -> None:
-    r"""The catalogue derives :math:`S^2/SO(2)_a` for each axis from ONE
+    r"""The catalogue derives :math:`S^2/O(2)_a` for each axis from ONE
     procedure that reads the axis off the group: the invariants are
     :math:`p_1 = x_a` and :math:`p_2 = x_b^2 + x_c^2`, the realization is
     :math:`[-1,1]` in every case, and the three results are three different
@@ -268,11 +268,11 @@ def test_d1_three_axes_three_quotients_one_derivation() -> None:
     p1, p2 = sp.symbols("p1 p2", real=True)
     coord = {"x": x, "y": y, "z": z}
 
-    quotients = {a: SPHERE.quotient(SubgroupOfO3.SO2(a)) for a in _AXES}
+    quotients = {a: SPHERE.quotient(SubgroupOfO3.O2(a)) for a in _AXES}
     for a, q in quotients.items():
-        assert q.name == f"S^2/SO2_{a}"
+        assert q.name == f"S^2/O2_{a}"
         assert q.realization == COSINE_INTERVAL
-        assert q.by == SubgroupOfO3.SO2(a)
+        assert q.by == SubgroupOfO3.O2(a)
         others = [coord[b] for b in _AXES if b != a]
         assert sp.simplify(q.generators[0] - (p1 - coord[a])) == 0
         assert sp.simplify(
@@ -291,12 +291,18 @@ def test_d2_the_catalogue_memoises_and_the_orbit_space_is_hashable() -> None:
     symbolic derivation per construction would sit on every slab solve's
     path. A frozen value type that cannot be hashed is a contradiction; the
     Gram matrix is immutable so it can."""
-    a = SPHERE.quotient(SubgroupOfO3.SO2("x"))
-    b = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+    a = SPHERE.quotient(SubgroupOfO3.O2("x"))
+    b = SPHERE.quotient(SubgroupOfO3.O2("x"))
     assert a is b
     assert hash(a) == hash(b)
     # a fresh, un-memoised derivation agrees with the recorded one
-    from orpheus.numerics.manifold import _sphere_mod_so2
+    from orpheus.numerics.manifold import _sphere_mod_o2
 
-    fresh = _sphere_mod_so2(SPHERE, SubgroupOfO3.SO2("x"))
+    fresh = _sphere_mod_o2(SPHERE, SubgroupOfO3.O2("x"))
     assert fresh is not a and fresh == a and hash(fresh) == hash(a)
+    # and the derivation REFUSES the rotation half, naming the stabiliser
+    # (#432): S^2/SO(2)_x IS this entry, so it is not a second one.
+    with pytest.raises(ValueError, match="is the orbit space S\\^2/O2_x"):
+        _sphere_mod_o2(SPHERE, SubgroupOfO3.SO2("x"))
+    with pytest.raises(ValueError, match="is the orbit space S\\^2/O2_x"):
+        SPHERE.quotient(SubgroupOfO3.SO2("x"))

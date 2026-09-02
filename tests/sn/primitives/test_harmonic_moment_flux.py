@@ -169,7 +169,7 @@ class TestHarmonicMomentFluxConstruction:
         :class:`SphericalHarmonicSpace` unconditionally. **Two** families now
         ship, and which one a field carries is READ off the frame the
         quadrature bound: the rectangular harmonics on a sphere rule, the
-        FLAT :class:`LegendreSpace` on a 1-D rule's :math:`S^2/SO(2)_x`. Both
+        FLAT :class:`LegendreSpace` on a 1-D rule's :math:`S^2/O(2)_x`. Both
         rows are asserted below, because a gate keyed on one family would
         certify the other by accident.
 

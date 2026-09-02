@@ -246,9 +246,9 @@ class TestSNMesh:
         (``Quadrature.product(n_mu, n_phi)`` = Gauss-Legendre on
         :math:`\mu` × equispaced on :math:`\phi`), NOT Lebedev. A
         degenerate ``ny=1`` mesh is physically a slab in :math:`x`, whose
-        spent symmetry is **SO(2)** about :math:`x` — the group the 1-D
-        ``gauss_legendre`` reference's orbit space ``S^2/SO2_x`` was
-        quotiented by (its ``invariance_group`` is the residual
+        spent symmetry is **O(2)** about :math:`x` — the stabiliser of the
+        axis, by which the 1-D ``gauss_legendre`` reference's orbit space
+        ``S^2/O2_x`` is named (its ``invariance_group`` is the residual
         ``Mirror('x')``). The product rule *is* the GL polar rule lifted
         to 2-D, so the
         1-D-vs-2-D comparison is apples-to-apples in the polar angle.

@@ -1,4 +1,4 @@
-r"""The Legendre basis :math:`\{P_\ell\}` on the orbit space :math:`S^2/SO(2)_a` — THE FIX for ERR-080.
+r"""The Legendre basis :math:`\{P_\ell\}` on the orbit space :math:`S^2/O(2)_a` — THE FIX for ERR-080.
 
 The defect (#429, ERR-080)
 ==========================
@@ -16,9 +16,11 @@ handed to a basis that needs a POINT.
 The repair, in the domain's own terms
 =====================================
 
-A 1-D rule's measure lives on :math:`S^2/SO(2)_a` (tracker 2.4 declares it),
-and the functions on an orbit space are the :math:`H`-invariant functions on
-the base — for :math:`SO(2)_a` the **trivial isotypic component** of the
+A 1-D rule's measure lives on :math:`S^2/O(2)_a` (tracker 2.4 declares it;
+named by its stabiliser since #432), and the functions on an orbit space are
+the :math:`H`-invariant functions on the base — for :math:`O(2)_a`
+(equivalently its rotation half, which has the same orbits) the **trivial
+isotypic component** of the
 degree-:math:`\ell` harmonics, which is one-dimensional in every degree
 (Schur; `[M]` 2026-09-02, a rank test about every axis) and is spanned
 downstairs by :math:`P_\ell(\mu)`, :math:`\mu = \Omega\cdot\hat e_a`. So the
@@ -111,26 +113,29 @@ def legendre_table(L: int, mu: NDArray) -> NDArray:
 
 @dataclass(frozen=True)
 class LegendreBasis(Basis):
-    r"""Legendre polynomials :math:`\{P_\ell\}_{\ell \le L}` on :math:`S^2/SO(2)_a`.
+    r"""Legendre polynomials :math:`\{P_\ell\}_{\ell \le L}` on :math:`S^2/O(2)_a`.
 
     Parameters
     ----------
     L : int
         Maximum degree retained. Negative ``L`` is rejected.
     axis : str, default ``"x"``
-        The rotation axis of the spent :math:`SO(2)` — the polar axis the
-        cosine :math:`\mu` is measured against. The slab and sphere
-        geometries spend :math:`SO(2)_x`.
+        The axis of the spent stabiliser :math:`O(2)_a` — the polar axis
+        the cosine :math:`\mu` is measured against. The slab and sphere
+        geometries spend :math:`O(2)_x`.
 
     Notes
     -----
     Frozen dataclass — equality and hashing are by ``(L, axis)``. Its
-    :attr:`domain` is the catalogue ENTRY :math:`S^2/SO(2)_a`, so
+    :attr:`domain` is the catalogue ENTRY :math:`S^2/O(2)_a`, so
     :attr:`~orpheus.numerics.basis.base.Basis.invariance_group` answers
-    ``SO2(axis)`` by derivation (tracker 2.1b) — the DECLARED lower bound;
-    the functions are in fact :math:`O(2)_a`-invariant, and declaring that
-    needs an axis-parameterised :math:`O(2)` member (GitHub #432, its own
-    step). The table is FLAT: ``(N, L+1)``.
+    ``O2(axis)`` by derivation (tracker 2.1b) — the FULL group these
+    functions have, since a mirror through the polar axis does not move
+    :math:`\mu`. That is what lets the frame's G0 admit this basis on a
+    :math:`\sigma_b`-folded rule, :math:`b \ne a` (#432, 2026-09-02; until
+    the entry was named by its stabiliser the derived answer was the lower
+    bound ``SO2(axis)`` and that pairing was over-refused). The table is
+    FLAT: ``(N, L+1)``.
     """
 
     L: int
@@ -248,11 +253,11 @@ class LegendreBasis(Basis):
 
     @property
     def domain(self) -> "Quotient":
-        r"""The catalogue entry :math:`S^2/SO(2)_a` — a Legendre polynomial eats an ORBIT of the axial rotations."""
+        r"""The catalogue entry :math:`S^2/O(2)_a` — a Legendre polynomial eats an ORBIT of the axis's stabiliser, a constant-:math:`\mu` circle."""
         from orpheus.numerics.manifold import SPHERE
         from orpheus.numerics.symmetry import SubgroupOfO3
 
-        return SPHERE.quotient(SubgroupOfO3.SO2(self.axis))
+        return SPHERE.quotient(SubgroupOfO3.O2(self.axis))
 
     @property
     def space(self) -> "LegendreSpace":

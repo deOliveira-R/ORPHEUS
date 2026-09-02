@@ -658,6 +658,38 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   ERR-080's bullet: the membership predicate is STILL unenforced (a forged measure still
   constructs) and the defect is STILL closed — the refusal moved to the basis and the frame.
   Split in place; past-tensing the bullet would have deleted a live seam. → L-085
+- **⭐⭐ A brief saying "the change is ALREADY in the working tree" does not mean the
+  DESIGN is settled — ask whether a review is still running, because a measured `[M]`
+  of a transient is worthless.** A mid-task delta replaced the design a whole subsection
+  of my new prose described *and had measured* (nine catalogue keys with three decoy
+  refusal routes → six keys, the refusal re-homed onto a construction invariant
+  `by == by.orbit_stabiliser` plus the catalogue door). ⟹ keep the rejected design as a
+  `.. note:: A rejected first design, kept because it is the tempting one` listing its
+  concrete costs — it becomes the only falsifiable statement of WHY the invariant exists.
+  → L-086
+- **⭐⭐ A page's own ⚠ CAVEAT can be the THEOREM the next step is built on — read every
+  caveat as a candidate ruling before writing a new section.** `[M]` *"the map's own
+  stabiliser is BIGGER than H … `by` is a declaration, not a computed stabiliser"* was
+  measured, unchanged, and its CONCLUSION inverted: if the map cannot tell two groups
+  apart, do not let the catalogue offer two names for one point set. Append
+  `✅ And that is exactly why …` IN PLACE plus a `⛔ this note ended at "…" until <date>`,
+  never delete — the caveat is the rule's derivation. → L-086
+- **⭐⭐ Re-derive a recorded aggregate's DEFINITION by reproducing its OLD number before
+  quoting a new one.** A page's *"0 violations over 342 (edge × fixture) pairs"* never
+  defined "edge"; reconstructing it and hitting **57 edges / 342 / 0** exactly is what
+  made the widened **75 / 450 / 0** a widening rather than a different instrument. Same
+  pass: two brief numbers refuted (a *"≤ 5 %"* walk cost is `[M]` **11.3–26.2 %**; a
+  *"D_1h = {e, σ_z}"* is `[M]` **order 4**, the Klein group, which is *why* it sits in
+  one axial stabiliser only), and the number the brief lacked was the better headline —
+  the walk's answer SHRINKS, `{SO2_x,σ_x,σ_y,σ_z}` → `{O2_x,σ_x}`. → L-086
+- **⛔ My italic-run leak scanner was blind to the case it exists for: `\*((?:[^*])+?)\*`
+  cannot match an italic run CONTAINING `**`.** Three of five self-inflicted L-085
+  tombstone leaks were invisible until the body class was widened to `.{1,600}?` with
+  `(?<![*\w])`/`(?![*\w])` guards, set-differenced against `git show HEAD:<file>`. → L-086
+- **⭐ When a pass is told to document an UNLANDED symbol, name the dead role in the
+  report.** `[M]` the patched xref gate and nexus `dead_references` both returned the
+  SAME single finding (the not-yet-shipped accessor) — two independently-vocabularied
+  instruments agreeing is what proves it is the only one. → L-086
 - **⭐ The test tree can move UNDER you mid-session, and the mover is the evidence you were
   about to cite.** `[M]` two test modules the gate's docstring named in the present tense did
   not exist at my first census and shipped by my final build; `test_manifold` went 70 → 108

@@ -94,7 +94,7 @@ def _head(rank: int = 2):
     A moments tensor's leading axes ARE the head's, and which head a
     consumer holds is read off its frame — the rectangular ``(L+1, 2L+1)``
     real harmonics on a sphere rule, the FLAT ``(L+1,)`` Legendre family on a
-    1-D rule's :math:`S^2/SO(2)_x`. The verbs take it as a parameter because
+    1-D rule's :math:`S^2/O(2)_x`. The verbs take it as a parameter because
     the per-degree contraction spec DEPENDS on it: `[M]` on a flat head the
     old einsum ``mfc...,fg->mgc...`` would have contracted the GROUP axis as
     if it were :math:`m` — silently, with no shape error.

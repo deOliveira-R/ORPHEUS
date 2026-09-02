@@ -741,7 +741,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
 
    ✅ **The repair LANDED 2026-09-02 (#429's fused commit), and it is
    not a special case**: a 1-D angular quadrature is a quadrature on the
-   orbit space :math:`S^2/SO(2)_x`, and the surviving harmonics are that
+   orbit space :math:`S^2/O(2)_x`, and the surviving harmonics are that
    quotient's **trivial isotypic component**
    :math:`\{Y_\ell^0\} \cong \{P_\ell\}`. `[M]` the gate
    ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``
@@ -749,8 +749,10 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    :math:`P_{\ge 2}` scattering on a 1-D chart returns the analytic
    answer at every order (:ref:`sh-legendre-is-the-1d-family`).
 
-   ⭐ **The axis in** :math:`SO(2)_x` **is load-bearing, and naming it
-   landed 2026-09-01** (tracker 2.4). It is :math:`x` for the same
+   ⭐ **The axis in** :math:`O(2)_x` **is load-bearing, and naming it
+   landed 2026-09-01** (tracker 2.4; the group itself was re-named onto
+   the axis's full stabiliser at #432 on 2026-09-02,
+   :ref:`manifold-orbit-space-stabiliser`). It is :math:`x` for the same
    reason this defect exists at all: `[M]` ``_evaluate_real_sh`` takes
    ``cos θ = mu_x``, so the real spherical-harmonic pole is :math:`x`
    and :math:`\{P_\ell(\mu_x)\}` are that basis's :math:`m = 0` members
@@ -758,7 +760,7 @@ it equals :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
    Gauss–Legendre rule serves both roles, which is why the group cannot
    be spelled without its axis
    (:ref:`manifold-so2-axis-is-a-parameter`). `[M]` the slab's rule
-   declares ``support = S^2/SO2_x``; that named the space the repair had
+   declares ``support = S^2/O2_x``; that named the space the repair had
    to be posed on and did not perform it. ✅ 2026-09-02 performs it: the
    frame's measure IS the rule's, and the basis is the one that orbit
    space admits.
@@ -856,7 +858,7 @@ floating-point limit; the agreement is at machine precision (≤
 
 .. _sh-legendre-is-the-1d-family:
 
-The 1-D family: :math:`\{P_\ell\}` on :math:`S^2/SO(2)_a`
+The 1-D family: :math:`\{P_\ell\}` on :math:`S^2/O(2)_a`
 ============================================================
 
 This chapter is the other half of the basis story, and it exists because
@@ -867,10 +869,10 @@ Why a 1-D rule cannot carry :math:`\{Y_\ell^m\}`
 --------------------------------------------------
 
 A one-dimensional angular quadrature does not sample the sphere; it
-samples the **orbit space** :math:`S^2/SO(2)_a` — a point of it is a
+samples the **orbit space** :math:`S^2/O(2)_a` — a point of it is a
 whole circle of directions at fixed :math:`\mu = \Omega\cdot\hat e_a`,
 and the rule declares exactly that
-(`[M]` ``gauss_legendre(8).measure.support.name == 'S^2/SO2_x'``). A
+(`[M]` ``gauss_legendre(8).measure.support.name == 'S^2/O2_x'``). A
 real spherical harmonic eats a **point of** :math:`S^2`, so it is not a
 function on that space at all, and handing it the orbit's barycentre
 :math:`(\mu, 0, 0)` — which is what the tree did until 2026-09-02 — is
@@ -878,7 +880,7 @@ handing a MEAN to something that needs a POINT
 (:doc:`ERR-080 </theory/verification/error_catalog>`).
 
 The functions on :math:`M/H` are the :math:`H`-invariant functions on
-:math:`M` (:eq:`manifold-descent-isomorphism`). For :math:`H = SO(2)_a`
+:math:`M` (:eq:`manifold-descent-isomorphism`). For :math:`H = O(2)_a`
 acting on the degree-:math:`\ell` harmonics, that invariant subspace is
 the **trivial isotypic component**, which by Schur's lemma is
 one-dimensional in every degree — and downstairs it is spanned by the
@@ -891,6 +893,21 @@ Legendre polynomial:
    \;=\; \operatorname{span}\{Y_\ell^{0}\}
    \;\cong\; \operatorname{span}\{P_\ell(\mu)\},
    \qquad \mu = \Omega\cdot\hat e_a .
+
+⭐ **The statement is the same for the rotation half, and that is a
+theorem rather than a coincidence.** :math:`SO(2)_a` and its stabiliser
+:math:`O(2)_a` have the *same orbits* on :math:`S^2` — a reflection in a
+plane containing the axis carries each constant-\ :math:`\mu` circle
+onto itself — so they have the same invariant functions and
+:eq:`sh-legendre-is-the-trivial-isotypic` may be read with either group
+in the exponent. `[M]` 2026-09-02, on the real harmonics at
+:math:`L \in \{2, 4\}` about all three axes, the entry's isotypic probe
+returns the **identical** slot mask for :math:`O(2)_a` and
+:math:`SO(2)_a` on **6 of 6** rows — even though the :math:`O(2)_a`
+probe samples **12** group elements to the rotation half's **6**,
+because it must reach both components. The ORBIT SPACE, however, has one
+name and it is the stabiliser's:
+:ref:`manifold-orbit-space-stabiliser`.
 
 So the basis a 1-D rule binds is
 :class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis`:
@@ -1072,7 +1089,7 @@ The complete data flow:
         │
         ├─ S²                 → SphericalHarmonicBasis(L)      (N, L+1, 2L+1)
         ├─ S²/σ_a             → MirrorEvenSphericalHarmonicBasis (odd cols 0)
-        └─ S²/SO(2)_a         → LegendreBasis(L, axis=a)       (N, L+1)  ← 1-D
+        └─ S²/O(2)_a          → LegendreBasis(L, axis=a)       (N, L+1)  ← 1-D
         ▼
    GalerkinFrame(basis, quadrature.measure)        ← the rule's OWN measure
         │   G0 at construction: quotient_onto(measure.support, basis.domain)

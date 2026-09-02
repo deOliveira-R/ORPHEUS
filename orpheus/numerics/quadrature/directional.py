@@ -605,7 +605,7 @@ class Quadrature:
           :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`;
         * an orbit space of the sphere — whatever
           :class:`~orpheus.numerics.basis.descent.Descent`'s discriminator
-          says for that ENTRY: the Legendre basis on :math:`S^2/SO(2)_a` (a
+          says for that ENTRY: the Legendre basis on :math:`S^2/O(2)_a` (a
           1-D rule — THE FIX for ERR-080, 2026-09-02), the σ-even harmonics
           on :math:`S^2/\sigma_a` (the fold; rectangular layout, odd columns
           structurally zeroed);
@@ -631,7 +631,7 @@ class Quadrature:
 
         Binds the basis the rule's orbit space admits (:meth:`_harmonic_basis`
         — the full harmonics on a sphere rule, the Legendre basis on a 1-D
-        rule's :math:`S^2/SO(2)_a`, the σ-even harmonics on a fold) to
+        rule's :math:`S^2/O(2)_a`, the σ-even harmonics on a fold) to
         **this quadrature's own measure**, always. Until 2026-09-02 a 1-D
         rule's measure was rebuilt here by padding :math:`\mu` to
         :math:`(\mu, 0, 0)` and calling the result :math:`S^2` — ERR-080's
@@ -748,7 +748,7 @@ class Quadrature:
     @classmethod
     def gauss_legendre(cls, n_ordinates: int = 16) -> "Quadrature":
         r""":math:`N`-point Gauss-Legendre quadrature on the polar
-        marginal :math:`S^2/SO(2)_x \cong [-1, 1]`.
+        marginal :math:`S^2/O(2)_x \cong [-1, 1]`.
 
         Slab transport polar quadrature: :math:`\mu = \hat\Omega \cdot
         \hat e_x`, the cosine against the slab's streaming axis. ``N``
@@ -756,8 +756,9 @@ class Quadrature:
         hemisphere).
 
         The measure DECLARES its orbit space (tracker 2.4, 2026-09-01):
-        its support is ``SPHERE.quotient(SubgroupOfO3.SO2("x"))`` and
-        its space is ``L2[S^2/SO2_x]``, so it cannot be mistaken for a
+        its support is ``SPHERE.quotient(SubgroupOfO3.O2("x"))`` — the
+        stabiliser of the axis, since #432 — and its space is
+        ``L2[S^2/O2_x]``, so it cannot be mistaken for a
         spatial rule on the same interval — see
         :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_polar_orbit`.
 

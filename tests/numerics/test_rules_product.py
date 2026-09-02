@@ -606,7 +606,7 @@ def test_no_measure_built_by_spherical_product_names_its_support_by_literal() ->
 def test_spherical_product_refuses_a_polar_factor_off_the_charts_domain() -> None:
     r"""The Archimedes chart is a map out of :math:`[-1,1] \times S^1`, so the
     polar factor must live on the CHART, :math:`[-1,1]` — the slab's rule on
-    :math:`S^2/SO(2)_x` carries the same numbers and is a different measure
+    :math:`S^2/O(2)_x` carries the same numbers and is a different measure
     (its points are orbits about **x**, not cosines against **z**), and the
     typed pushforward refuses it where the literal used to accept it.
     Positive leg: the chart-level factor is exactly what ``product()`` hands

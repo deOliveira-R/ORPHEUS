@@ -51,12 +51,13 @@ order-dependent — which is what let a smoke test miss it.
 :class:`SubgroupOfO3` is therefore referenced under
 :data:`typing.TYPE_CHECKING` only.  ⚠ The reason that is affordable is
 NOT that nothing here reads the group — the catalogue builders read
-``group.name``, ``group.mirror_axis`` and ``group.rotation_axis`` — it
+``group.name``, ``group.mirror_axis`` and ``group.rotation_axis``, and
+:class:`Quotient` reads ``by.orbit_stabiliser`` — it
 is that the group always arrives **as an argument**, so those reads are
 duck-typed and need no import.  (``measure.py`` defers its own
 ``symmetry`` import to function scope for exactly the same reason.)
 The one runtime edge this module does carry runs INSIDE a derivation
-function: ``_sphere_mod_so2`` imports ``LEGENDRE`` from
+function: ``_sphere_mod_o2`` imports ``LEGENDRE`` from
 :mod:`orpheus.numerics.generating_measure` at function scope, to populate
 the entry's :attr:`Quotient.reference` (#429 tracker 3.1, 2026-09-02).
 That is safe because no quotient is built while any module is still
@@ -205,6 +206,14 @@ class Manifold(ABC):
         NotImplementedError
             When no entry exists, naming the missing WORK rather than
             the gap, so a fresh session can pick it up.
+        ValueError
+            When ``group`` is not the orbit space's STABILISER
+            (:attr:`~orpheus.numerics.symmetry.SubgroupOfO3.orbit_stabiliser`)
+            — the largest subgroup with its orbits.  A smaller orbit-equivalent
+            group names the same point set, so it is not a second entry
+            but a second spelling, and it is refused with the theorem
+            (`[M]` ``SPHERE.quotient(SubgroupOfO3.SO2("x"))`` is refused
+            naming ``O2("x")``; #432, 2026-09-02).
 
         Notes
         -----
@@ -585,13 +594,27 @@ class Quotient(Manifold):
     manifold: where the action is not free, the image of :math:`H`'s
     fixed-point set is a singular stratum.  Any design that assumes a
     quotient is a smooth submersion is wrong exactly there — and for
-    :math:`S^2/SO(2)` that locus is :math:`\mu = \pm 1`, the poles.
+    :math:`S^2/O(2)_a` that locus is :math:`\mu = \pm 1`, the poles.
     """
 
     base: Manifold
+    #: The group the orbit space is NAMED BY — its **stabiliser**: the
+    #: largest subgroup of :math:`O(3)` whose orbits are these orbits,
+    #: equivalently the largest one fixing every invariant in
+    #: :attr:`generators`.  A smaller orbit-equivalent group gives the same
+    #: point set and the same derivation output, so it is not a second
+    #: entry — it is refused (`[M]` :math:`S^2/SO(2)_a` is
+    #: :math:`S^2/O(2)_a`: a vertical mirror carries each constant-\ :math:`\mu`
+    #: circle onto itself), and refused WHERE IT IS WRITTEN: ``__post_init__``
+    #: reads ``by.orbit_stabiliser``, so a ``replace(entry, by=...)`` cannot
+    #: forge a second spelling either, and the catalogue door reads it before
+    #: any lookup so the answer is the theorem and never "no catalogue
+    #: entry" (#432, 2026-09-02).  One orbit space, one spelling — which is what lets
+    #: :attr:`~orpheus.numerics.basis.base.Basis.invariance_group`, read
+    #: off this field, be the FULL group a basis on the entry has.
     by: "SubgroupOfO3"
     #: The orbit space realized as an honest manifold — what a chart of
-    #: ``M/H`` maps ONTO.  For ``S^2/SO(2)`` this is ``Interval(-1, 1)``.
+    #: ``M/H`` maps ONTO.  For ``S^2/O(2)_a`` this is ``Interval(-1, 1)``.
     #: Its coordinates are the INVARIANTS', the same language as
     #: :attr:`generators`, :attr:`gram` and :attr:`det_gram`.
     realization: Manifold
@@ -599,7 +622,7 @@ class Quotient(Manifold):
     #: returning the orbit's coordinates in the :attr:`realization`'s
     #: language — D0.1's "chart" output, as the derivation returns it:
     #: the invariants that SURVIVE eliminating the base's own ideal
-    #: (``p_1 = x_a`` for ``S^2/SO(2)_a``; ``(p_1, p_2) = (x_b, x_c)`` for
+    #: (``p_1 = x_a`` for ``S^2/O(2)_a``; ``(p_1, p_2) = (x_b, x_c)`` for
     #: ``S^2/sigma_a``; every coordinate for ``M/{e}``).  An engine would
     #: ``lambdify`` them; the hand entries spell the column selection
     #: directly, and the entry's regression test pins the two against each
@@ -616,7 +639,7 @@ class Quotient(Manifold):
     #: quotient's two honest coordinate systems (user ruling,
     #: 2026-08-31).  ``None`` when no canonical section exists, which for
     #: a positive-dimensional group is the normal case: any half-meridian
-    #: sections ``S^2 -> S^2/SO(2)`` and none is distinguished.
+    #: sections ``S^2 -> S^2/O(2)_a`` and none is distinguished.
     #:
     #: ⭐ Why a SECOND slot rather than a wider ``realization``: the two
     #: answer different questions and the tree needs both.  ``[M]`` the
@@ -624,7 +647,7 @@ class Quotient(Manifold):
     #: drops exactly the coordinate the forgery corrupts, so the forged
     #: row ``(mu, 0)`` is a legal point of the disk — while the section
     #: refuses it.  And ``[M]`` ERR-080 IS a botched section of
-    #: ``S^2/SO(2)``: a consumer needed one, the realization is a chart,
+    #: ``S^2/O(2)_a``: a consumer needed one, the realization is a chart,
     #: and the tree fabricated one by zero-padding to ``(mu, 0, 0)``,
     #: which is off ``S^2``.  With this slot that padding has nowhere to
     #: live.
@@ -652,7 +675,7 @@ class Quotient(Manifold):
     #: map, :math:`\pi_*\,d\Omega`, as a
     #: :class:`~orpheus.numerics.exactness.ReferenceMeasure` — the measure
     #: a degree of exactness on this orbit space is AGAINST.  For
-    #: ``S^2/SO(2)_a`` it is Archimedes' hat-box theorem, :math:`2\pi\,d\mu`:
+    #: ``S^2/O(2)_a`` it is Archimedes' hat-box theorem, :math:`2\pi\,d\mu`:
     #: Lebesgue on :math:`[-1,1]` up to a constant no claim carries, so the
     #: field is ``LEGENDRE``.  ``None`` means *no shipped realization spells
     #: it*, and both shipped ``None``\ s are honest: ``S^2/sigma_a``'s
@@ -678,7 +701,17 @@ class Quotient(Manifold):
         1 against ``[-1,1]``'s 1 — so a mis-specified entry (a hemisphere
         offered for a 1-D orbit space, an equality normal forgotten) is
         refused where it is written, not where it is read.
+
+        And the group must be the orbit space's STABILISER
+        (:func:`_assert_named_by_stabiliser`).  `[M]` 2026-09-02, before this
+        check: ``replace(SPHERE.quotient(O2("x")), by=SO2("x"))`` constructed,
+        compared unequal to the catalogue entry, and was accepted by
+        :func:`barycentre` and the polar-axis reader — ERR-080's own defect
+        class (one orbit space, two objects) reopened by the very idiom
+        Pattern 4 blesses, because the refusal then lived in ONE builder
+        rather than on the type.
         """
+        _assert_named_by_stabiliser(self.base, self.by)
         if self.fundamental_domain is None:
             return
         if self.fundamental_domain.dim != self.realization.dim:
@@ -707,7 +740,7 @@ class Quotient(Manifold):
         Its codomain is THIS entry — never the :attr:`realization`, which
         is where the same numbers land when read as a chart, and which is
         exactly the reading tracker 2.4 made refusable (a rule on
-        :math:`[-1,1]` is not a rule on :math:`S^2/SO(2)_x`).  A measure
+        :math:`[-1,1]` is not a rule on :math:`S^2/O(2)_x`).  A measure
         pushed forward along it lives on the orbit space; a function on
         the orbit space pulled back along it is :math:`H`-invariant by
         construction, which is what :class:`~orpheus.numerics.basis.descent.Descent`
@@ -747,7 +780,8 @@ class Quotient(Manifold):
         base points and at their images under the group's GENERIC elements
         (:meth:`SubgroupOfO3.generic_images
         <orpheus.numerics.symmetry.SubgroupOfO3.generic_images>` — every
-        element of a finite group; for :math:`SO(2)_a`, rotations by
+        element of a finite group; for the axial groups :math:`SO(2)_a` /
+        :math:`O(2)_a`, rotations by
         INCOMMENSURATE angles, because a sample of right angles generates
         :math:`C_4` and falsely admits the :math:`m = \pm 4` slots at
         :math:`L \ge 4`; ``vv-principles`` #13) and keep the slots that agree
@@ -875,8 +909,11 @@ ENERGY = EnergyGroups()
 #: cannot import ``symmetry`` at module scope (see the module docstring).
 #: The mirror family names its plane by the NORMAL, so ``AXIS_INDEX["x"]``
 #: selects the normal of :math:`\sigma_x` as well as the axis of
-#: :math:`SO(2)_x`.
-AXIS_INDEX: dict[str, int] = {"x": 0, "y": 1, "z": 2}
+#: :math:`SO(2)_x` and :math:`O(2)_x`.
+AXIS_LETTER: tuple[str, str, str] = ("x", "y", "z")
+#: The inverse, ``AXIS_INDEX[AXIS_LETTER[i]] == i`` — one spelling of the
+#: convention, DERIVED from the letters so the two cannot disagree.
+AXIS_INDEX: dict[str, int] = {a: i for i, a in enumerate(AXIS_LETTER)}
 
 #: Nine GENERIC unit directions — no component zero, no two related by a
 #: coordinate symmetry — the base points at which an orbit-space entry asks
@@ -920,7 +957,7 @@ class ManifoldMap:
     :meth:`~orpheus.numerics.measure.DiscreteMeasure.quotient` (a lambda
     plus a hand-named ``new_space``), the Archimedes chart inside
     ``spherical_product`` (a loop plus the literal ``support=SPHERE``), and
-    the orbit-barycentre map :math:`S^2/SO(2)_a \to D^3` spelled **twice**
+    the orbit-barycentre map :math:`S^2/O(2)_a \to D^3` spelled **twice**
     — honestly by ``symmetry._embedded_nodes``, and dishonestly by the
     ERR-080 forgery arm, which applies the SAME :math:`\mu \mapsto \mu\,\hat
     e_a` and declares the result on :math:`S^2`.  A codomain that is a
@@ -948,7 +985,7 @@ class ManifoldMap:
         The two point sets.  Compared by VALUE (every manifold is a frozen
         value type), so a map out of ``COSINE_INTERVAL * CIRCLE`` accepts a
         measure whose support was built by the same product — and refuses
-        one on ``S^2/SO2_x * S^1``, which is the same numbers meaning a
+        one on ``S^2/O2_x * S^1``, which is the same numbers meaning a
         different function of direction.
     apply : callable
         The map on AMBIENT coordinates, vectorised over an
@@ -1046,7 +1083,7 @@ def archimedes(axis: str = "z") -> ManifoldMap:
     ⚠ It is a *parametrisation*, not a chart in the strict sense: the
     circle collapses at :math:`\mu = \pm 1` (both poles are the image of
     a whole fibre), which is exactly the singular stratum of
-    :math:`S^2/SO(2)_a` — the map is one-to-one off the stratum and the
+    :math:`S^2/O(2)_a` — the map is one-to-one off the stratum and the
     stratum is where it is not.  Its inverse on :math:`S^2 \setminus
     \{\pm \hat e_a\}` is the :math:`(\mu, \varphi)` chart.
 
@@ -1082,10 +1119,10 @@ def archimedes(axis: str = "z") -> ManifoldMap:
 
 @functools.cache
 def barycentre(orbit_space: Quotient) -> ManifoldMap:
-    r"""The orbit-barycentre map :math:`S^2/SO(2)_a \to D^3`,
+    r"""The orbit-barycentre map :math:`S^2/O(2)_a \to D^3`,
     :math:`\mu \mapsto \mu\,\hat e_a`.
 
-    An orbit of the axial rotation group is the circle
+    An orbit of the axial group :math:`O(2)_a` is the circle
     :math:`\{\Omega : \Omega \cdot \hat e_a = \mu\}`, of radius
     :math:`\sqrt{1-\mu^2}` about the point :math:`\mu\,\hat e_a` on the
     axis.  That point is the orbit's barycentre (its mean under the
@@ -1111,22 +1148,22 @@ def barycentre(orbit_space: Quotient) -> ManifoldMap:
     Not a section: a section of the quotient lands ON :math:`S^2` by
     picking a representative, and for a positive-dimensional group none is
     canonical (:attr:`Quotient.fundamental_domain` is ``None`` for every
-    :math:`S^2/SO(2)_a` entry on purpose).  The barycentre is canonical
+    :math:`S^2/O(2)_a` entry on purpose).  The barycentre is canonical
     precisely because it is not a representative.
 
     Parameters
     ----------
     orbit_space : Quotient
-        An :math:`S^2/SO(2)_a` entry of the catalogue — the axis is READ off
+        An :math:`S^2/O(2)_a` entry of the catalogue — the axis is READ off
         its group.  Any other manifold (a mirror quotient, the trivial
-        quotient, a bare interval) is refused: only an axial-rotation orbit
-        has a barycentre on an axis.
+        quotient, a bare interval) is refused: only an axial orbit — a
+        constant-:math:`\mu` circle — has a barycentre on an axis.
 
     Raises
     ------
     ValueError
         If ``orbit_space`` is not a quotient of the sphere by an axial
-        rotation group.
+        group.
     """
     axis = (
         orbit_space.by.rotation_axis
@@ -1136,8 +1173,8 @@ def barycentre(orbit_space: Quotient) -> ManifoldMap:
     )
     if axis is None:
         raise ValueError(
-            f"the barycentre map is defined on an orbit space S^2/SO(2)_a "
-            f"of the sphere by an axial rotation group; got "
+            f"the barycentre map is defined on an orbit space S^2/O(2)_a "
+            f"of the sphere by an axial group; got "
             f"{getattr(orbit_space, 'name', orbit_space)!r}. A mirror "
             f"quotient's orbits have no axis to lie on, and a point of a "
             f"bare interval is not an orbit at all."
@@ -1167,7 +1204,7 @@ def quotient_onto(source: Manifold, target: Manifold) -> ManifoldMap | None:
     honest cases:
 
     * ``source == target`` — the identity (equality is the special case
-      :math:`K = H`; the slab rule on :math:`S^2/SO(2)_x` and the Legendre
+      :math:`K = H`; the slab rule on :math:`S^2/O(2)_x` and the Legendre
       basis on the same entry);
     * ``target`` is a quotient of ``source`` itself — the entry's own
       :attr:`Quotient.quotient_map` (a Legendre basis on a full-sphere rule:
@@ -1183,11 +1220,15 @@ def quotient_onto(source: Manifold, target: Manifold) -> ManifoldMap | None:
       needs one.
 
     ``None`` is the refusal — the Part I bug (full harmonics on the slab's
-    :math:`S^2/SO(2)_x`: ``Trivial ⊉ SO2('x')``), or the full harmonics on a
-    mirror fold. ⚠ It also refuses the mathematically admissible Legendre
-    basis on a :math:`\sigma_b`-fold, because the basis DECLARES
-    :math:`SO(2)_a` (the derived lower bound) and no axis-parameterised
-    :math:`O(2)` member exists to declare — GitHub #432, its own step.
+    :math:`S^2/O(2)_x`: ``Trivial ⊉ O2('x')``), or the full harmonics on a
+    mirror fold. The Legendre basis on a :math:`\sigma_b`-fold
+    (:math:`b \ne a`) is ADMITTED by the third case (#432, 2026-09-02):
+    the entry is named by its stabiliser :math:`O(2)_a` and
+    :math:`\sigma_b \in O(2)_a`, so the induced :math:`S^2/\sigma_b \to
+    S^2/O(2)_a` exists and the fold's section coordinates are read
+    straight into :math:`\mu`. Until then the basis could only declare the
+    derived lower bound :math:`SO(2)_a`, and that pairing — mathematically
+    admissible — was over-refused.
     """
     if source == target:
         return ManifoldMap(domain=source, codomain=target, apply=_all_coordinates)
@@ -1248,6 +1289,11 @@ def _catalogued_quotient(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     # trivial action is free, vacuously, since its only element is
     # the identity.  The procedure reproduces the known answer, so
     # this case is also a positive control on the machinery.
+    # The door's half of the invariant `Quotient.__post_init__` enforces:
+    # refuse a non-stabiliser group BEFORE the lookup, so the answer is the
+    # theorem (this orbit space exists, under its stabiliser's name) and
+    # never "no catalogue entry" for an entry that exists.
+    _assert_named_by_stabiliser(base, group)
     if group.name == "Trivial":
         return _mod_trivial(base, group)
 
@@ -1267,23 +1313,38 @@ def _catalogued_quotient(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     return entry(base, group)
 
 
-def _sphere_mod_so2(base: Manifold, group: "SubgroupOfO3") -> Quotient:
-    r"""``S^2 / SO(2)_a = [-1, 1]``, derived per the standard procedure.
+def _sphere_mod_o2(base: Manifold, group: "SubgroupOfO3") -> Quotient:
+    r"""``S^2 / O(2)_a = [-1, 1]``, derived per the standard procedure.
 
-    Write :math:`a` for the rotation axis and :math:`b, c` for the other
-    two.  Invariants of the axial rotations acting on :math:`\mathbb{R}^3`
-    are :math:`p_1 = x_a` and :math:`p_2 = x_b^2 + x_c^2`; they are
-    algebraically independent, so the syzygy ideal is empty.  The
-    Procesi–Schwarz matrix is
+    Write :math:`a` for the axis and :math:`b, c` for the other two.
+    Invariants of :math:`O(2)_a` — the rotations about :math:`a` AND the
+    mirrors through it — acting on :math:`\mathbb{R}^3` are :math:`p_1 =
+    x_a` and :math:`p_2 = x_b^2 + x_c^2`; they are algebraically
+    independent, so the syzygy ideal is empty.  ⭐ They are exactly the
+    invariants of the rotation half :math:`SO(2)_a` alone: a vertical
+    mirror fixes :math:`x_a` and :math:`x_b^2 + x_c^2`, so
+    :math:`\mathbb{R}[x]^{SO(2)_a} = \mathbb{R}[x]^{O(2)_a}`, the two
+    groups have the same orbits (the constant-:math:`\mu` circles), and
+    this ONE derivation is the orbit space of both.  **The entry is named
+    by the stabiliser** — the largest group with these orbits, which is
+    :math:`O(2)_a = \{g : g\hat e_a = \hat e_a\}` — and asking for the
+    quotient by :math:`SO(2)_a` is refused with that theorem, at the
+    catalogue door and at :class:`Quotient`'s construction, both reading
+    :attr:`~orpheus.numerics.symmetry.SubgroupOfO3.orbit_stabiliser`
+    (:func:`_assert_named_by_stabiliser`; this builder is a pure
+    derivation and trusts ``group``), so one
+    orbit space has one spelling (#432, 2026-09-02; until then the entry
+    was keyed and named by the rotation half, and the Legendre basis on it
+    could declare only that lower bound).  The Procesi–Schwarz matrix is
 
     .. math:: P = \begin{pmatrix} 1 & 0 \\ 0 & 4 p_2 \end{pmatrix},
               \qquad \det P = 4 p_2,
 
-    so :math:`\mathbb{R}^3/SO(2)_a = \{p_2 \ge 0\}`.  Adjoining the
+    so :math:`\mathbb{R}^3/O(2)_a = \{p_2 \ge 0\}`.  Adjoining the
     sphere's own ideal :math:`p_1^2 + p_2 = 1` and writing
     :math:`\mu = p_1`:
 
-    .. math:: S^2/SO(2)_a = \{\mu \in \mathbb{R} : 1 - \mu^2 \ge 0\}
+    .. math:: S^2/O(2)_a = \{\mu \in \mathbb{R} : 1 - \mu^2 \ge 0\}
               = [-1, 1].
 
     ⭐ The three axes are ONE derivation reading the axis off the group —
@@ -1291,11 +1352,11 @@ def _sphere_mod_so2(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     are (2026-09-01, tracker 2.4).  The three orbit spaces are isometric
     and their realizations identical, and they are still three different
     quotients: :math:`\mu` is the cosine against a DIFFERENT axis in
-    each, so a rule on :math:`S^2/SO(2)_x` (the slab's — `[M]` the real
+    each, so a rule on :math:`S^2/O(2)_x` (the slab's — `[M]` the real
     spherical-harmonic pole is :math:`x`) and a rule on
-    :math:`S^2/SO(2)_z` (the polar factor of a product rule) carry the
+    :math:`S^2/O(2)_z` (the polar factor of a product rule) carry the
     same numbers and mean different functions of direction.  That is why
-    :attr:`Quotient.name` spells the axis (``S^2/SO2_x``) and why the two
+    :attr:`Quotient.name` spells the axis (``S^2/O2_x``) and why the two
     do not compare equal.
 
     ⭐ :math:`\det P = 4(1-\mu^2)` is the squared orbit radius, and it is
@@ -1330,11 +1391,11 @@ def _sphere_mod_so2(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     axis = group.rotation_axis
     if axis is None:
         # An admission contract, so a real raise: `-O` strips `assert`.
-        # Reachable only by registering this builder under a non-SO2 key.
+        # Reachable only by registering this builder under a non-axial key.
         raise ValueError(
-            f"the axial-rotation orbit-space derivation needs a rotation "
-            f"axis, and {group.name!r} has none. Register _sphere_mod_so2 "
-            f"only against SO2 entries."
+            f"the axial orbit-space derivation needs an axis, and "
+            f"{group.name!r} has none. Register _sphere_mod_o2 only against "
+            f"O2 entries."
         )
     coords = sp.symbols("x y z", real=True)
     x_a = coords[axis]
@@ -1370,7 +1431,7 @@ def _sphere_mod_so2(base: Manifold, group: "SubgroupOfO3") -> Quotient:
         # Hat-box: (pi_a)_* dOmega = 2 pi dmu.  Lebesgue on [-1,1] up to a
         # constant no exactness claim carries, so the reference is LEGENDRE.
         reference=LEGENDRE,
-        # No CANONICAL section: any half-meridian sections S^2 -> S^2/SO(2)_a
+        # No CANONICAL section: any half-meridian sections S^2 -> S^2/O(2)_a
         # and none is distinguished, which is the normal case for a
         # positive-dimensional group.  ⛔ ERR-080 is the tree having needed
         # one anyway and fabricated it by zero-padding to (mu, 0, 0), which
@@ -1413,7 +1474,7 @@ def _sphere_mod_mirror(base: Manifold, group: "SubgroupOfO3") -> Quotient:
 
     ⚠ The dimension does NOT drop — :math:`\dim = 2 - 0 = 2`, because
     :math:`H` is finite.  That single fact is what makes this entry
-    structurally unlike ``S^2/SO(2)`` (where :math:`2 - 1 = 1`) and is
+    structurally unlike ``S^2/O(2)_a`` (where :math:`2 - 1 = 1`) and is
     why it, and not the first entry, forced the chart-vs-section ruling:
     with no reduction, the chart buys nothing and the section is
     canonical.
@@ -1566,13 +1627,20 @@ def _mod_trivial(base: Manifold, group: "SubgroupOfO3") -> Quotient:
 #: a quotient is binary dispatch: it is a property of neither operand
 #: alone.  About a dozen entries are expected; the engine that would
 #: compute them instead of reading them is deferred, not refused.
-_ORBIT_CATALOGUE: dict[tuple[type, str], Any] = {
-    # All three axial rotation groups share ONE derivation — it reads the
-    # axis off the group — so they are three keys, not three procedures.
-    # (The key was the bare "SO2" until 2026-09-01; see symmetry.SO2.)
-    (Sphere, "SO2_x"): _sphere_mod_so2,
-    (Sphere, "SO2_y"): _sphere_mod_so2,
-    (Sphere, "SO2_z"): _sphere_mod_so2,
+_ORBIT_CATALOGUE: dict[
+    tuple[type, str], Callable[[Manifold, "SubgroupOfO3"], Quotient]
+] = {
+    # The three axial orbit spaces S^2/O(2)_a share ONE derivation — it
+    # reads the axis off the group — so they are three keys, not three
+    # procedures.  (The key was the bare "SO2" until 2026-09-01, see
+    # symmetry.SO2, and the rotation half "SO2_a" until 2026-09-02.)  The
+    # entry is NAMED BY ITS STABILISER O(2)_a (#432).  Every key here is a
+    # DERIVATION: a smaller orbit-equivalent group is refused at the door
+    # by `orbit_stabiliser`, never routed through a key, so the "catalogued
+    # today" listing in the door's message is exactly what can be built.
+    (Sphere, "O2_x"): _sphere_mod_o2,
+    (Sphere, "O2_y"): _sphere_mod_o2,
+    (Sphere, "O2_z"): _sphere_mod_o2,
     # And the three mirrors, the same way.
     (Sphere, "sigma_x"): _sphere_mod_mirror,
     (Sphere, "sigma_y"): _sphere_mod_mirror,
@@ -1583,6 +1651,36 @@ _ORBIT_CATALOGUE: dict[tuple[type, str], Any] = {
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _assert_named_by_stabiliser(base: Manifold, group: "SubgroupOfO3") -> None:
+    r"""Refuse a group that is not its own
+    :attr:`~orpheus.numerics.symmetry.SubgroupOfO3.orbit_stabiliser`.
+
+    An orbit space is named by its stabiliser — the largest subgroup of
+    :math:`O(3)` with its orbits.  A smaller orbit-equivalent group
+    (:math:`SO(2)_a` for :math:`O(2)_a`; :math:`SO(3)` for :math:`O(3)`)
+    has the same invariant ring, hence the same orbits, hence the same
+    orbit space: a second SPELLING of one entry, which is the defect class
+    ERR-080 belongs to (one orbit space, two unequal objects).  Refused
+    with the theorem and the spelling to use, at BOTH doors — construction
+    (:meth:`Quotient.__post_init__`) and the catalogue lookup
+    (:func:`_catalogued_quotient`) — so the message is never "no catalogue
+    entry" for an entry that exists (#432, 2026-09-02).  The group arrives
+    as an argument, so the read is duck-typed and this module imports
+    nothing for it (module docstring).
+    """
+    stabiliser = group.orbit_stabiliser
+    if group == stabiliser:
+        return
+    raise ValueError(
+        f"{base.name}/{group.name} is the orbit space "
+        f"{base.name}/{stabiliser.name}: {group.name} and its stabiliser "
+        f"{stabiliser.name} — the largest subgroup of O(3) with its orbits — "
+        f"have the same invariant ring, so the same orbits and ONE orbit "
+        f"space. An orbit space is named by its stabiliser; spell "
+        f"{stabiliser!r} (#432)."
+    )
 
 
 def ambient_dim(m: Manifold) -> int:

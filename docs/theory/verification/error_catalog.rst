@@ -5490,7 +5490,11 @@ older entries classify against.
    violations on 11 measures × 19 groups in one loop when this entry was
    filed, of which 48 trace here. `[M]` re-run 2026-09-01 over 15 groups ×
    6 fixtures (including two polar marginals declared about *different*
-   axes): **0 violations over 342 (edge × fixture) pairs**. The companion
+   axes): **0 violations over 342 (edge × fixture) pairs**; `[M]` re-run
+   2026-09-02 with the three axial STABILISERS :math:`O(2)_a` added
+   (#432), 18 groups × the same 6 fixtures, **57 → 75 edges** and **0
+   violations over 450 pairs**, with the 15-group control reproducing
+   342/0 in the same script. The companion
    was a return-shape change: once ``_orbit_closure`` returns its
    per-operator permutations, ``len(perms) == 4`` for a group of infinite
    order is visibly wrong.
@@ -5523,12 +5527,23 @@ older entries classify against.
       :math:`\mu_z`, and one Gauss–Legendre rule serves both. The
       predicate is now :math:`\rho_a \le \texttt{atol}` for a **named**
       ``a``, carried by ``SubgroupOfO3.SO2(axis)``.
+   3. **2026-09-02 (#432)** — the same exact predicate answers for the
+      axis's full **stabiliser** ``SubgroupOfO3.O2(axis)``, and adds no
+      second condition: axis support is already forced by the rotation
+      half, and a point *on* the axis is fixed by every vertical mirror.
+      ⚠ It therefore does NOT ask for :math:`\mu \to -\mu` symmetry —
+      `[M]` an asymmetric :math:`\mu`-set on the :math:`x`-axis is
+      :math:`O(2)_x`-invariant and **not** :math:`\sigma_x`-invariant.
+      The sampling hazard this entry is about is unchanged and doubles:
+      ``O2(a).generic_images`` must reach BOTH components, so `[M]` it
+      returns **12** images to ``SO2(a)``'s **6**
+      (:ref:`manifold-orbit-space-stabiliser`).
 
    ⭐ The measured symptom of the *unnamed* version is the sharpest
    restatement of this entry's own lesson, one level up: `[M]` the
    retired ``hypot(x, y)`` criterion returns **False** on the slab's own
    polar marginal — the one shipped rule whose orbit space *is*
-   :math:`S^2/SO(2)` — because it asks about :math:`z` while the nodes
+   :math:`S^2/O(2)_x` — because it asks about :math:`z` while the nodes
    sit on :math:`x`. The 2026-08-02 fix replaced a *sampled* predicate
    with an *exact* one; it did not notice that the exact one still named
    the wrong axis. ⟹ **making a predicate exact does not make it the
@@ -6121,8 +6136,11 @@ older entries classify against.
      rule's frame now binds the basis its own orbit space admits.** The
      measure is the rule's own — the forged :math:`(\mu,0,0)`
      construction (``Quadrature._harmonic_frame_measure``) is DELETED —
-     its support is the catalogue entry :math:`S^2/SO(2)_x`, and the
-     functions on that orbit space are the :math:`SO(2)`-action's
+     its support is the catalogue entry :math:`S^2/O(2)_x`
+     (named ``'S^2/SO2_x'`` until #432 re-keyed the entry onto the
+     axis's full stabiliser on 2026-09-02,
+     :ref:`manifold-orbit-space-stabiliser`), and the
+     functions on that orbit space are the :math:`O(2)_x`-action's
      **trivial isotypic component**, one-dimensional in every degree and
      spanned downstairs by :math:`\{P_\ell(\mu)\}`
      (:class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis`,
@@ -6232,13 +6250,21 @@ older entries classify against.
      basis with it: :meth:`SphericalHarmonicBasis.evaluate
      <orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.evaluate>`
      REFUSES a non-unit direction (tracker 0.6), and the frame's G0
-     refuses the pairing one level up. (b) G0 is a **lower-bound**
-     verdict and refuses one mathematically admissible pairing —
-     :math:`P_\ell(\Omega\cdot\hat e_x)` on a :math:`\sigma_y`-fold,
-     legitimate because a Legendre polynomial in :math:`\mu_x` is
-     invariant under the full :math:`O(2)_x` including :math:`\sigma_y`,
-     which the derived ``SO2('x')`` cannot declare. Inert today (no
-     dispatch selects it) and tracked as **GitHub #432**.
+     refuses the pairing one level up. (b) ⛔ This clause read,
+     verbatim, "G0 is a **lower-bound** verdict and refuses one
+     mathematically admissible pairing — :math:`P_\ell(\Omega\cdot\hat
+     e_x)` on a :math:`\sigma_y`-fold … which the derived ``SO2('x')``
+     cannot declare. Inert today (no dispatch selects it) and tracked as
+     **GitHub #432**" — true when written and **repealed the same
+     day**. #432 landed: an orbit space is named by its STABILISER, so
+     the entry is :math:`S^2/O(2)_x`, the derived ``invariance_group``
+     is the full :math:`O(2)_x`, and `[M]` 2026-09-02 the frame ADMITS
+     ``LegendreBasis(L)`` on ``folded_product(4, 8)`` with a
+     :math:`(16, L{+}1)` table — while the negative leg
+     ``LegendreBasis(axis="y")`` on the same fold stays refused
+     (:ref:`manifold-orbit-space-stabiliser`,
+     :ref:`frame-g0-descent-arrow`). G0 is not a lower-bound verdict any
+     more; it is the arrow, and the declaration it reads is exact.
 
      **Gate**: the same module, now the repair's witness —
      ``tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py``.
@@ -6274,7 +6300,7 @@ older entries classify against.
      ✅ **Progress 2026-09-02 (tracker 2.5) — the angular moment space
      now has ONE home, so the repair's blast radius fell from eight
      sites to one. The defect is unchanged.** The level-2 half of the
-     Fix below binds a basis whose domain is :math:`S^2/SO(2)_a` — a
+     Fix below binds a basis whose domain is :math:`S^2/O(2)_a` — a
      class that is not a
      :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`. `[M]`
      2026-09-02 the tree could not have absorbed it: the harmonic frame
@@ -6327,7 +6353,7 @@ older entries classify against.
      owns, :math:`\pi : M \to M/H`.
      :attr:`~orpheus.numerics.manifold.Quotient.orbit_coordinates`
      stores the quotient map's action on the base's ambient coordinates
-     (for :math:`S^2/SO(2)_a` it is the single surviving invariant
+     (for :math:`S^2/O(2)_a` it is the single surviving invariant
      :math:`p_1 = \Omega\cdot\hat e_a`) and
      :attr:`Quotient.quotient_map
      <orpheus.numerics.manifold.Quotient.quotient_map>` derives the typed
@@ -6344,7 +6370,7 @@ older entries classify against.
      2.3 said the defect is the barycentre map with a forged codomain.
      3.1 says what the forged arm was *reaching for* and could not
      spell: a rule on a 1-D chart is a rule on
-     :math:`S^2/SO(2)_x`, and moving it to :math:`S^2` is a **pushforward
+     :math:`S^2/O(2)_x`, and moving it to :math:`S^2` is a **pushforward
      along a map** — which is now an operation with an owner, a domain
      and a codomain, and which `[M]` REFUSES a measure whose support is
      not the map's domain. The forgery is still spellable only because
@@ -6375,7 +6401,7 @@ older entries classify against.
      :func:`~orpheus.numerics.manifold.quotient_onto` returns it as the
      frame's G0 arrow. ⚠ Nor does 3.1 supply a **section**: `[M]`
      ``fundamental_domain`` is still ``None`` on every
-     :math:`S^2/SO(2)_a` entry, deliberately, because a section is a
+     :math:`S^2/O(2)_a` entry, deliberately, because a section is a
      *choice* while a quotient map is a derivation *output* — and this
      entry's level-1 half is precisely a fabricated section
      (:ref:`manifold-err-080-is-a-section`). See
@@ -6391,7 +6417,7 @@ older entries classify against.
      were typed, and one of them is exactly this defect's:
      :func:`~orpheus.numerics.manifold.barycentre`, the orbit-barycentre
      map :math:`\mu \mapsto \mu\,\hat e_a` out of
-     :math:`S^2/SO(2)_a`, whose codomain is
+     :math:`S^2/O(2)_a`, whose codomain is
      :class:`~orpheus.numerics.manifold.Ball`\ ``(3)`` — because
      :math:`1 - \lVert\mu\hat e_a\rVert^2 = 1 - \mu^2 = \tfrac14\det P`,
      the squared orbit radius, so the image lies ON :math:`S^2` only at
@@ -6431,13 +6457,16 @@ older entries classify against.
      ✅ **Progress 2026-09-01 (tracker 2.4) — the SPACE is now named, and
      the defect is unchanged.** Two things landed. (a) The axial rotation
      group carries its **axis**: ``SubgroupOfO3.SO2(axis)`` replaced the
-     parameter-free enum member, for the reason this entry itself
+     parameter-free enum member (and, at #432 on 2026-09-02, the ENTRY
+     moved up to the axis's full stabiliser ``SubgroupOfO3.O2(axis)``),
+     for the reason this entry itself
      demonstrates — the tree runs **two poles at once**, `[M]`
      ``_evaluate_real_sh`` takes ``cos θ = mu_x`` while every product
      rule's polar factor is :math:`\mu_z`, and one Gauss–Legendre rule
      serves both. (b) The slab's polar quadrature **declares** its orbit
      space: `[M]` ``Quadrature.gauss_legendre(8).measure.support.name`` is
-     ``'S^2/SO2_x'`` (was ``'[-1,1]'``), via the new verb
+     ``'S^2/O2_x'`` (was ``'[-1,1]'``, and ``'S^2/SO2_x'`` between
+     2026-09-01 and #432), via the new verb
      ``DiscreteMeasure.on_orbit_space``. `[M]` measured consequence: an
      8-node slab ANGULAR space and an 8-node SPATIAL rule on
      :math:`[-1,1]` built from the same arrays were ``==`` **and**
@@ -6468,9 +6497,10 @@ older entries classify against.
      — now has a predicate to be checked WITH, the containment
      :math:`G_{\text{spent}} \subseteq G_{\text{have}}` in the subgroup
      lattice, and it evaluates on shipping objects: `[M]`
-     ``gauss_legendre(8).measure.quotient_group`` is ``SO2('x')`` while
+     ``gauss_legendre(8).measure.quotient_group`` is ``O2('x')``
+     (``SO2('x')`` until #432) while
      the ``SphericalHarmonicBasis(L=2)`` its frame binds has ``Trivial``,
-     and ``Trivial.contains(SO2('x'))`` is **False** — ERR-080, stated as
+     and ``Trivial.contains(O2('x'))`` is **False** — ERR-080, stated as
      a lattice verdict for the first time. For contrast the shipped
      :math:`\sigma_y` fold reads **True** with the two halves the *same
      object* (``basis.invariance_group is measure.quotient_group``,
@@ -6480,7 +6510,7 @@ older entries classify against.
      siblings; `[M]` a gate written on the *frame's* measure would be
      inert today, because ``gauss_legendre(8).angular_frame(2)``'s
      measure still declares ``support.name == 'S^2'`` while the
-     quadrature's own measure declares ``'S^2/SO2_x'``. That is why the
+     quadrature's own measure declares ``'S^2/O2_x'``. That is why the
      witness — ``tests/numerics/test_basis_domain.py::test_e1`` — reads
      the verdict off the **quadrature's** measure, and why its negative
      leg is a *measurement made spellable* rather than a refusal
@@ -6527,7 +6557,7 @@ older entries classify against.
      agreement is only 1.5e-07 and measures the six digits the prediction was
      transcribed to, not the physics; the alignment is the
      transcription-independent statistic and is the one to quote. So the rank
-     deficiency is a theorem about the quotient :math:`S^2/SO(2)`, not a
+     deficiency is a theorem about the quotient :math:`S^2/O(2)_a`, not a
      numerical curiosity.
    - ⛔ **A SECOND public symptom, found 2026-08-31 while re-deriving
      ``_DENSE_METRIC_RCOND``: at higher (order, :math:`L`) it is not a wrong
@@ -6629,7 +6659,7 @@ older entries classify against.
    - **Fix** — ✅ **LANDED 2026-09-02, #429's fused commit** (this bullet is
      the plan as it stood; each of its three legs is marked with what
      actually shipped): not a special case. A 1-D angular quadrature is a quadrature on
-     the orbit space :math:`S^2/SO(2)`, and the harmonics that survive the
+     the orbit space :math:`S^2/O(2)_a`, and the harmonics that survive the
      quotient are its **trivial isotypic component**
      :math:`\{Y_\ell^0\} \cong \{P_\ell\}` — derived by probing the group
      action, not hand-listed. The three structural repairs it decomposes into:

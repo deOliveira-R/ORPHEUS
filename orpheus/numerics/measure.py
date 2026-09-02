@@ -224,9 +224,10 @@ class DiscreteMeasure:
         ``SubgroupOfO3.OctahedralOh`` for a Lebedev cubature,
         ``SubgroupOfO3.Dnh(n_phi)`` for a product rule, ``SubgroupOfO3.Mirror('x')``
         for the slab's polar marginal — never a continuous group for a finite
-        point set, which is closed under :math:`SO(2)_a` only on the axis
-        (ERR-072; the slab's rule *spent* ``SO2('x')`` instead, see
-        :attr:`quotient_group`). ``None`` means "unspecified". This symmetry is the structural
+        point set, which is closed under an axial group :math:`O(2)_a` (or
+        its rotation half) only on the axis (ERR-072; the slab's rule *spent*
+        ``O2('x')`` instead, see :attr:`quotient_group`). ``None`` means
+        "unspecified". This symmetry is the structural
         signature of the **angular** phase-space factor: a measure carrying
         an :math:`O(3)`-subgroup invariance lives on :math:`S^2` (Erlangen —
         the group fixes the homogeneous space), which :attr:`phase` reads.
@@ -449,7 +450,7 @@ class DiscreteMeasure:
 
         * **angular** — iff :attr:`support` is a :class:`Sphere` or any
           quotient of one: Lebedev's :math:`S^2`, the fold's
-          :math:`S^2/\sigma_y`, the slab's :math:`S^2/SO(2)_x` (declared
+          :math:`S^2/\sigma_y`, the slab's :math:`S^2/O(2)_x` (declared
           by :func:`~orpheus.numerics.quadrature.rules_1d.gauss_legendre_on_polar_orbit`
           since tracker 2.4). The direction variable lives on the sphere,
           and every residual symmetry a rule spent still leaves it there.
@@ -500,7 +501,7 @@ class DiscreteMeasure:
                 # is what tells them apart, and it lives on the measure.
                 #
                 # Since tracker 2.4 (2026-09-01) the SLAB no longer needs
-                # this arm — its quadrature declares S^2/SO2_x and answers
+                # this arm — its quadrature declares S^2/O2_x and answers
                 # from the Sphere-quotient arm above. ⛔ The arm is NOT
                 # unreachable, though, which the 2.4 pre-flight predicted
                 # it would be: the chart-level μ-rule `gauss_legendre_on_mu`
@@ -900,7 +901,7 @@ class DiscreteMeasure:
             If ``φ.domain`` is not this measure's support — a map out of
             :math:`M` cannot be applied to a measure on :math:`X \neq M`,
             however compatible the arrays happen to be. The refusal is by
-            manifold VALUE, so the slab's :math:`S^2/SO(2)_x` rule is
+            manifold VALUE, so the slab's :math:`S^2/O(2)_x` rule is
             refused by a map out of the bare interval its numbers live on.
         """
         if phi.domain != self.support:
@@ -1019,7 +1020,7 @@ class DiscreteMeasure:
         :math:`C`: same points, same weights — only what the measure
         KNOWS about its support changes, from "an interval" to "the polar
         marginal of a sphere, about this axis". It is how the slab says
-        its :math:`\mu`-rule lives on :math:`S^2/SO(2)_x` rather than on
+        its :math:`\mu`-rule lives on :math:`S^2/O(2)_x` rather than on
         the interval a chart happens to map onto, which is ERR-080's
         defect class stated at the level of spaces (tracker 2.4, 2026-09-01):
         `[M]` before it, an 8-node slab ANGULAR space and an 8-node SPATIAL

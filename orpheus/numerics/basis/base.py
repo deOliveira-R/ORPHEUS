@@ -122,7 +122,7 @@ class TruncatedBasis(Protocol):
     r"""A basis indexed by a truncation ORDER :math:`L` — the harmonic family's shared surface.
 
     The real spherical harmonics, their σ-even restriction and the Legendre
-    basis on :math:`S^2/SO(2)_a` are each *one family of functions truncated
+    basis on :math:`S^2/O(2)_a` are each *one family of functions truncated
     at a degree*, and every consumer that spells "the coefficient space of
     order :math:`L`" — an operator's endomorphic ends, a moment field's
     angular head, a frame's mint — reads it off such a basis
@@ -352,7 +352,8 @@ class Basis(ABC):
           group it was quotiented BY. The σ-even sub-basis
           (:class:`~orpheus.numerics.basis.spherical_harmonic_basis.MirrorEvenSphericalHarmonicBasis`)
           answers ``Mirror(axis)``; the Legendre basis on
-          :math:`S^2/SO(2)_a` (tracker 3.4) will answer ``SO2(a)``.
+          :math:`S^2/O(2)_a` (tracker 3.4) answers ``O2(a)`` — the FULL
+          stabiliser, since the entry is named by it (#432).
         * the :class:`~orpheus.numerics.manifold.Sphere` itself —
           :attr:`SubgroupOfO3.Trivial <orpheus.numerics.symmetry.SubgroupOfO3.Trivial>`.
           :math:`O(3)` acts on the domain and the basis has spent none of it:
@@ -392,8 +393,8 @@ class Basis(ABC):
         ``folded_product(4, 8).measure.quotient_group`` and its frame basis's
         ``invariance_group`` are both ``Mirror('y')``, the ``by`` of the one
         memoised :class:`~orpheus.numerics.manifold.Quotient` — while the
-        slab's rule (``S^2/SO2_x``, spent ``SO2('x')``) against the
-        full-sphere harmonics (``Trivial``) reads ``Trivial ⊇ SO2('x')``
+        slab's rule (``S^2/O2_x``, spent ``O2('x')``) against the
+        full-sphere harmonics (``Trivial``) reads ``Trivial ⊇ O2('x')``
         **False**: ERR-080's pairing is a lattice verdict now, and nothing
         yet refuses on it (``tests/numerics/test_basis_domain.py::test_e1``).
         """

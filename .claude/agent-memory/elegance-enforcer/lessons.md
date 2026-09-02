@@ -359,3 +359,35 @@ producer conventions, raise conditions). Calibration: a machinery/driver file yi
 ~14× smaller cut than a teaching file — CORRECT, not under-delivery; hunt the `#`-comment
 retirement TOMBSTONES there, and grep each cut tombstone's claimed destination to confirm
 the constraint landed. → archive L-014
+
+### L-021 — A registry key added ONLY to route to a REFUSAL corrupts every consumer that reads the registry as an INVENTORY
+Detection, and it is grep-then-RUN. When a diff adds table/registry keys whose declared
+purpose is "reach the handler and be refused there" (a decoy key giving a better error than
+"no entry"), the fix is local and the damage is not: **find every site that enumerates the
+registry's keys and run it.** The recurring victim is the sibling error path — a
+`NotImplementedError` that prints `sorted(REGISTRY)` as *"catalogued today"* now advertises
+entries that unconditionally raise, so the message meant to be the map of what EXISTS is the
+one place still selling the retired spelling as live. `[M]` 2026-09-02, #432: 3 decoy
+`Sphere/SO2_a` keys made `SPHERE.quotient(Cn(4))` list 9 entries of which 3 are unobtainable.
+Grading: this is NOT a coextensive-today NIT — *catalogued* and *obtainable* disagree the
+moment the key lands, so leg 2 of the VIOLATION standard is met without any future edit.
+Structural fix to demand: split the two roles (a `_ALIASES` table consulted before the
+registry), never a filter in the message — a filter is the same fact spelled a third time.
+⭐ Generalises §10's shape (a metric invalidated by its own campaign's success) from a NUMBER
+to an ENUMERATED SET: ask of any registry-derived listing, *"after this change, is every
+member still deliverable?"*
+
+### L-022 — A refusal placed in the DERIVATION instead of on the TYPE pays in import edges and re-derived arguments
+The tier question ("where does this new invariant live?") has a cheap tell: count what the
+chosen site had to IMPORT and RECONSTRUCT to state it. `[M]` #432 put "the `by` group must be
+the stabiliser" inside a catalogue derivation, which then needed (a) a new function-scope
+`manifold -> symmetry` runtime import in a module whose docstring is a measured argument about
+that exact cycle, (b) a `letter = "xyz"[axis]` round-trip because the accessor it had
+(`rotation_axis: int`) had thrown the letter away, and (c) decoy registry keys to be reachable
+at all (L-021). All three vanish if the fact lives as a property on the GROUP and the check on
+`__post_init__`. ⭐ The confirming signal is usually already in the file: here `Quotient.__post_init__`'s
+own docstring says *"a mis-specified entry is refused **where it is written**, not where it is
+read"* — the doctrine was present and the new invariant did not follow it. So: before grading a
+refusal's tier, grep the target type's existing `__post_init__` for a doctrine sentence, and test
+`dataclasses.replace(entry, <field>=<illegal>)` — Pattern 4 promises `replace()` re-runs the
+invariant, and it only keeps that promise for invariants that are actually IN `__post_init__`.

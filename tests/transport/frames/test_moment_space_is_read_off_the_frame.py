@@ -92,7 +92,7 @@ class _ForeignTruncatedBasis(Basis):
     ⛔ **The parent is a FIELD since 2026-09-02 (#429).** It used to hard-code
     ``SphericalHarmonicBasis(L)``, hence ``domain = SPHERE`` — and the frame's
     G0 arrow now refuses a basis on :math:`S^2` bound to a rule whose measure
-    lives on :math:`S^2/SO(2)_x`, which is the whole of ERR-080. Delegating
+    lives on :math:`S^2/O(2)_x`, which is the whole of ERR-080. Delegating
     the domain keeps the mutant admissible **wherever the honest basis is**,
     so the ONE thing that differs between the two runs stays the coefficient
     SPACE — which is what this module's route gate is about (``vv-principles``
@@ -344,7 +344,7 @@ def test_the_door_asks_for_a_truncation_order_not_for_one_class() -> None:
 
     # ⚠ The foreign basis is built as a twin of the RULE'S OWN basis
     # (2026-09-02, #429): the frame's G0 arrow refuses a basis on
-    # :math:`S^2` bound to a 1-D rule's :math:`S^2/SO(2)_x`, so a mutant
+    # :math:`S^2` bound to a 1-D rule's :math:`S^2/O(2)_x`, so a mutant
     # hard-coding the harmonics would red for the WRONG reason and this gate
     # would stop measuring the door.
     rule = Quadrature.gauss_legendre(4)

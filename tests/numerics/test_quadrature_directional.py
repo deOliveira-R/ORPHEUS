@@ -592,7 +592,7 @@ def test_q8_4_the_1d_rule_ROUTES_its_own_measure_and_binds_the_legendre_basis(
     Three claims, and each is a different mechanism:
 
     1. the frame's measure **IS** the rule's (route, not rebuild);
-    2. the basis is a :class:`LegendreBasis` on :math:`S^2/SO(2)_x` (the
+    2. the basis is a :class:`LegendreBasis` on :math:`S^2/O(2)_x` (the
        dispatch reads the measure's SUPPORT, not the ``folded_by`` tag);
     3. the table is FLAT, ``(N, L+1)`` — there is no fabricated
        :math:`m \ne 0` slot for the defect to live in.
@@ -604,7 +604,7 @@ def test_q8_4_the_1d_rule_ROUTES_its_own_measure_and_binds_the_legendre_basis(
     assert frame.measure is q.measure, (
         "the 1-D frame must ROUTE the rule's own measure, not rebuild one"
     )
-    assert q.measure.support == SPHERE.quotient(SubgroupOfO3.SO2("x"))
+    assert q.measure.support == SPHERE.quotient(SubgroupOfO3.O2("x"))
     assert q.measure.nodes.ndim == 1
 
     # 2 — the basis the orbit space carries

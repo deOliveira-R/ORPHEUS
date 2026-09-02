@@ -1,5 +1,5 @@
 r"""1-D quadrature rules on the polar cosine interval :math:`[-1, 1]`,
-and their adoption onto the orbit space :math:`S^2/SO(2)_a`.
+and their adoption onto the orbit space :math:`S^2/O(2)_a`.
 
 Two objects live here, and the distinction is the point (tracker 2.4 of
 the angular-spaces campaign, #429, 2026-09-01):
@@ -16,25 +16,29 @@ the angular-spaces campaign, #429, 2026-09-01):
   a product about the other would be a false claim, so the chart-level
   rule declares neither.
 * :func:`gauss_legendre_on_polar_orbit` — the same atoms READ on
-  :math:`S^2/SO(2)_a` for a named axis :math:`a`, via
+  :math:`S^2/O(2)_a` for a named axis :math:`a` (the orbit space of the
+  axis's STABILISER — rotations about it and mirrors through it; named
+  by that group since #432), via
   :meth:`~orpheus.numerics.measure.DiscreteMeasure.on_orbit_space`. This
   is what the SN slab solver consumes, through
   :meth:`~orpheus.numerics.quadrature.Quadrature.gauss_legendre`, and
   what the quadrature registry's ``GaussLegendre1D`` spec builds — so
-  its space is ``L2[S^2/SO2_x]``, not ``L2[[-1,1]]``, and it can no
+  its space is ``L2[S^2/O2_x]``, not ``L2[[-1,1]]``, and it can no
   longer be confused with an 8-node SPATIAL rule on the same interval
   (`[M]` the two were ``==`` and hash-equal before this).
 
-The group the polar marginal was quotiented **by** — :math:`SO(2)_a`,
-whose fiber action is the curvilinear :math:`\alpha` term — is thus
-carried by the orbit space itself (:attr:`Quotient.by`), and the
+The group the polar marginal was quotiented **by** — the stabiliser
+:math:`O(2)_a` of the axis, whose rotation half's fiber action is the
+curvilinear :math:`\alpha` term — is thus carried by the orbit space
+itself (:attr:`Quotient.by`), and the
 geometry table's
 :attr:`~orpheus.numerics.quadrature.registry.AngularSymmetry.continuous_isotropy`
 names the same group; stage 0 of quadrature selection compares the two.
 Until 2026-08-03 the spent group was carried in the invariance TAG; see
 the note at :func:`gauss_legendre_on_mu`'s return statement for why that
-had to move, and :class:`~orpheus.numerics.symmetry.SO2` for why the
-group now names its axis.
+had to move, :class:`~orpheus.numerics.symmetry.SO2` for why the
+group now names its axis, and :class:`~orpheus.numerics.symmetry.O2` for
+why the entry is named by the stabiliser rather than the rotation half.
 
 There is **no adapter class** in between — ``Quadrature`` is one type
 with named classmethod factories.
@@ -105,7 +109,7 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
     See Also
     --------
     :func:`gauss_legendre_on_polar_orbit` — the same atoms declared on
-    :math:`S^2/SO(2)_a`; what the slab consumes.
+    :math:`S^2/O(2)_a`; what the slab consumes.
     :meth:`orpheus.numerics.quadrature.Quadrature.gauss_legendre` — the
     named factory SN calls. It is a factory on the single
     ``Quadrature`` type, not an adapter class: the four per-family
@@ -145,7 +149,7 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
         # SO(2)-invariant.
         #
         # The spent half is NOT lost: `gauss_legendre_on_polar_orbit`
-        # declares the orbit space S²/SO(2)_a this rule is read on, and
+        # declares the orbit space S²/O(2)_a this rule is read on, and
         # `AngularSymmetry.continuous_isotropy` (registry.py) names the
         # same group for the geometry — stage 0 compares the two.
         invariance_group=SubgroupOfO3.Mirror("x"),
@@ -153,7 +157,7 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
 
 
 def gauss_legendre_on_polar_orbit(n: int, axis: str) -> DiscreteMeasure:
-    r"""The :math:`n`-point Gauss-Legendre rule READ on :math:`S^2/SO(2)_a`.
+    r"""The :math:`n`-point Gauss-Legendre rule READ on :math:`S^2/O(2)_a`.
 
     The polar marginal about ``axis``: the same nodes and weights as
     :func:`gauss_legendre_on_mu`, whose :math:`\mu` is now known to be
@@ -165,7 +169,7 @@ def gauss_legendre_on_polar_orbit(n: int, axis: str) -> DiscreteMeasure:
     its :math:`m = 0` members.
 
     What the declaration buys, and it is a repair rather than wiring:
-    the measure's space is ``L2[S^2/SO2_x]``, so it no longer compares
+    the measure's space is ``L2[S^2/O2_x]``, so it no longer compares
     equal to a spatial rule on :math:`[-1, 1]` with the same node count
     (`[M]` 2026-09-01: an 8-node slab angular space and an 8-node spatial
     space were ``==`` AND hash-equal, 2.1's energy/spatial collision one
@@ -177,7 +181,7 @@ def gauss_legendre_on_polar_orbit(n: int, axis: str) -> DiscreteMeasure:
 
     The residual :math:`\{e, \sigma_a\}` — the reflection :math:`\mu \to
     -\mu` the slab owes its two sweep senses — descends to the orbit
-    space (it normalises :math:`SO(2)_a`) and the Gauss nodes are closed
+    space (it normalises :math:`O(2)_a`) and the Gauss nodes are closed
     under it bit-exactly (see :func:`gauss_legendre_on_mu`), so it is
     re-tagged here for the named axis; :meth:`DiscreteMeasure.on_orbit_space`
     drops the chart's tag because a subgroup of :math:`O(3)` is a
@@ -188,18 +192,19 @@ def gauss_legendre_on_polar_orbit(n: int, axis: str) -> DiscreteMeasure:
     n : int
         Number of nodes, as for :func:`gauss_legendre_on_mu`.
     axis : str
-        The rotation axis of the group the marginal was quotiented by,
-        one of ``"x"`` / ``"y"`` / ``"z"``.
+        The axis the marginal's cosine is measured against — the axis its
+        stabiliser :math:`O(2)_a` fixes — one of ``"x"`` / ``"y"`` / ``"z"``.
 
     Returns
     -------
     DiscreteMeasure
-        On ``support=SPHERE.quotient(SubgroupOfO3.SO2(axis))``, with
+        On ``support=SPHERE.quotient(SubgroupOfO3.O2(axis))``, with
         ``invariance_group=SubgroupOfO3.Mirror(axis)``; ``phase`` is
         ``"angular"`` from the manifold alone and ``quotient_group`` is
-        the axial rotation group.
+        the stabiliser :math:`O(2)_a` (#432: the orbit space is named by
+        the largest group with its orbits, not by its rotation half).
     """
-    orbit_space = SPHERE.quotient(SubgroupOfO3.SO2(axis))
+    orbit_space = SPHERE.quotient(SubgroupOfO3.O2(axis))
     return gauss_legendre_on_mu(n).on_orbit_space(orbit_space).with_metadata(
         invariance_group=SubgroupOfO3.Mirror(axis),
     )

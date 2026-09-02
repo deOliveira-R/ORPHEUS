@@ -197,18 +197,19 @@ dimensional reduction **spends**, and the discrete residual
      - :math:`\Gamma` (owed)
      - Rationale
    * - ``"slab"``
-     - :math:`SO(2)`
-     - :math:`[-1,1]`
+     - :math:`O(2)_x`
+     - :math:`S^2/O(2)_x` (chart :math:`[-1,1]`)
      - :math:`Z_2`
-     - 1-D in :math:`z`. Azimuthal rotation about the slab normal is
+     - 1-D in :math:`x`, the slab normal and the tree's polar axis
+       (tracker 2.4). Azimuthal rotation about the slab normal is
        integrated out analytically, so the angular variable is
        :math:`\mu = \cos\theta` alone. What remains owed is
        :math:`\mu \to -\mu`, the reflection that pairs the two sweep
        senses and that a reflecting end face consumes. Gauss-Legendre
        nodes are symmetric (Stoer-Bulirsch §3.6), so it holds.
    * - ``"sphere"``
-     - :math:`SO(2)`
-     - :math:`[-1,1]`
+     - :math:`O(2)_x`
+     - :math:`S^2/O(2)_x` (chart :math:`[-1,1]`)
      - :math:`Z_2`
      - The 1-D **radial** spherical SN reduces to GL on
        :math:`\mu_r = \cos\theta_r`, the cosine of the angle between
@@ -832,9 +833,10 @@ class AngularSymmetry:
 
     * :attr:`continuous_isotropy` :math:`G^0` — the continuous
       subgroup that the dimensional reduction **spends**. A slab is
-      invariant under every rotation about :math:`z`, so
-      :math:`\psi` depends on :math:`\Omega` only through
-      :math:`\mu = \Omega\cdot\hat z`; the azimuth is integrated out
+      invariant under the full stabiliser :math:`O(2)_x` of its normal
+      — every rotation about it and every reflection in a plane
+      containing it — so :math:`\psi` depends on :math:`\Omega` only
+      through :math:`\mu = \Omega\cdot\hat e_x`; the azimuth is integrated out
       analytically and never discretised. What this half determines is
       the *domain*: the angular variable lives on the quotient
       :math:`S^2/G^0` (:attr:`support`). In curvilinear geometry its
@@ -896,9 +898,9 @@ class AngularSymmetry:
             # against this row's realization; the geometry's domain is
             # the base itself.
             return SPHERE
-        # S²/SO(2)_a — the polar marginal about the spent axis. The orbits
-        # of the axial rotation are the constant-μ circles, so the quotient
-        # is parameterised by μ alone; the catalogue derives it, and a
+        # S²/O(2)_a — the polar marginal about the spent axis. The orbits
+        # of the stabiliser are the constant-μ circles, so the quotient is
+        # parameterised by μ alone; the catalogue derives it, and a
         # group with no entry refuses there, naming the missing WORK.
         # Until 2026-09-01 this row was a hand-written `COSINE_INTERVAL`,
         # which is the CHART of that orbit space and not the orbit space —
@@ -994,8 +996,9 @@ class AngularSymmetry:
 # (hexagonal lattice, 2-D / 3-D spherical, …) are added here, not in
 # the selector itself.
 #
-# `slab` / `sphere`: the 1-D reductions. Azimuthal symmetry about the
-#   local axis is spent, leaving a μ-marginal; what remains owed is the
+# `slab` / `sphere`: the 1-D reductions. The stabiliser O(2) of the
+#   local axis — the rotations about it and the mirrors through it — is
+#   spent, leaving a μ-marginal; what remains owed is the
 #   forward/backward reflection μ → −μ, which is what pairs the two
 #   sweep senses and what a reflecting end face consumes.
 #
@@ -1023,12 +1026,19 @@ GEOMETRY_ANGULAR_SYMMETRY: dict[str, AngularSymmetry] = {
     # Until then `SO2` was a bare member realized about z, so the slab's
     # own rule read as NOT invariant under the group it was quotiented
     # by (the angular-spaces plan's Part IV obstacle 1).
+    # And it is the FULL stabiliser O(2)_x (2026-09-02, #432), not its
+    # rotation half: a slab is symmetric under y -> -y as well as under
+    # every rotation about x, and with O(2)_x spent the recorded residual
+    # sigma_x is exactly G/G^0.  Under SO(2)_x the true residual would be
+    # the Klein four-group and the recorded mirror half of it; the orbit
+    # space is the same either way, and its catalogue entry is named by
+    # the stabiliser.
     "slab": AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.SO2("x"),
+        continuous_isotropy=SubgroupOfO3.O2("x"),
         discrete_residual=SubgroupOfO3.Mirror("x"),
     ),
     "sphere": AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.SO2("x"),
+        continuous_isotropy=SubgroupOfO3.O2("x"),
         discrete_residual=SubgroupOfO3.Mirror("x"),
     ),
     "cylinder": AngularSymmetry(

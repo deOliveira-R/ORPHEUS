@@ -140,7 +140,7 @@ def _descent_arrow(basis: Basis, measure: DiscreteMeasure, role: str) -> Manifol
     own map, or the induced :math:`M/K \to M/H` for :math:`K \subseteq H`).
     The frame's table is the basis pulled back along that arrow. ONE
     predicate (user-ruled 2026-09-02, #429 tracker 2.2): it refuses the Part
-    I bug — the full harmonics (``Trivial``) on the slab's :math:`S^2/SO(2)_x`
+    I bug — the full harmonics (``Trivial``) on the slab's :math:`S^2/O(2)_x`
     — and admits the slab's Legendre basis, the fold's σ-even harmonics, the
     full harmonics on a full-sphere rule, AND the Legendre basis on a
     full-sphere rule. `[M]` 2026-09-02, before this gate, every one of the

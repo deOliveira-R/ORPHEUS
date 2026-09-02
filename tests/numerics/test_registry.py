@@ -32,7 +32,7 @@ import pytest
 
 from orpheus.numerics.exactness import UNIFORM_ON_SPHERE
 from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
-from orpheus.numerics.manifold import SPHERE
+from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE, Quotient
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import (
     GEOMETRY_ANGULAR_SYMMETRY,
@@ -125,11 +125,11 @@ def test_geometry_angular_symmetry_table() -> None:
         # The spent group names the SAME axis as the owed mirror's normal:
         # the polar marginal embeds along x, and a slab spends SO(2)_x.
         "slab": AngularSymmetry(
-            continuous_isotropy=SubgroupOfO3.SO2("x"),
+            continuous_isotropy=SubgroupOfO3.O2("x"),
             discrete_residual=SubgroupOfO3.Mirror("x"),
         ),
         "sphere": AngularSymmetry(
-            continuous_isotropy=SubgroupOfO3.SO2("x"),
+            continuous_isotropy=SubgroupOfO3.O2("x"),
             discrete_residual=SubgroupOfO3.Mirror("x"),
         ),
         "cylinder": AngularSymmetry(
@@ -221,7 +221,7 @@ def test_lebedev_invert_too_high_returns_none() -> None:
 #: since tracker 2.4 (2026-09-01). A chart-level rule on ``[-1,1]`` is
 #: refused there, so every test-local 1-D spec below reads its rule on the
 #: orbit space exactly as the shipped ``GaussLegendre1D`` entry does.
-_SLAB_ORBIT_SPACE = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+_SLAB_ORBIT_SPACE = SPHERE.quotient(SubgroupOfO3.O2("x"))
 
 
 def _on_slab(measure: DiscreteMeasure) -> DiscreteMeasure:
@@ -264,7 +264,7 @@ def test_gauss_chebyshev_clears_every_stage_except_the_reference() -> None:
     ==================  =======================================  ========
     stage               reading                                  verdict
     ==================  =======================================  ========
-    0 domain            ``support == S^2/SO2_x`` (declared;      **admits**
+    0 domain            ``support == S^2/O2_x`` (declared;      **admits**
                         the chart-level rule is refused here
                         since tracker 2.4)
     1 symmetry          nodes invariant under the owed           **admits**
@@ -978,9 +978,9 @@ def test_log_rejected_list_carries_reasons() -> None:
     # the target still has to be rejected for living on S^2.
     for name, reason in log.rejected:
         if "V mismatch" not in reason:
-            assert "domain mismatch" in reason and "S^2/SO2_x" in reason, (
+            assert "domain mismatch" in reason and "S^2/O2_x" in reason, (
                 f"{name} reached the domain stage but its reason does not name "
-                f"the S^2 vs S^2/SO2_x mismatch: {reason!r}"
+                f"the S^2 vs S^2/O2_x mismatch: {reason!r}"
             )
     assert "domain" in stages, (
         "every rule was rejected at V, so this row no longer exercises the "
@@ -1188,9 +1188,9 @@ def test_support_is_derived_from_the_spent_group_not_declared() -> None:
     # exactly what a SPATIAL rule on [-1,1] declared.
     for axis in ("x", "y", "z"):
         assert AngularSymmetry(
-            continuous_isotropy=SubgroupOfO3.SO2(axis),
+            continuous_isotropy=SubgroupOfO3.O2(axis),
             discrete_residual=SubgroupOfO3.Mirror(axis),
-        ).support == SPHERE.quotient(SubgroupOfO3.SO2(axis))
+        ).support == SPHERE.quotient(SubgroupOfO3.O2(axis))
 
     assert AngularSymmetry(
         continuous_isotropy=SubgroupOfO3.Trivial,
@@ -1347,3 +1347,111 @@ def test_the_reference_is_READ_off_the_catalogue_entry() -> None:
     assert mirror_entry.reference is None
     with pytest.raises(NotImplementedError, match="no shipped ReferenceMeasure"):
         _ = spends_a_mirror.reference
+
+
+# ---------------------------------------------------------------------------
+# The 1-D geometries spend the full STABILISER — #432, 2026-09-02
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.foundation
+def test_the_one_dimensional_geometries_spend_the_STABILISER_not_its_rotation_half() -> None:
+    r"""``slab`` and ``sphere`` spend :math:`O(2)_x`, not :math:`SO(2)_x`.
+
+    A slab is invariant under every rotation about its normal **and** under
+    :math:`y \to -y` — the whole stabiliser of :math:`\hat e_x` — which is
+    why its flux depends on :math:`\Omega` only through :math:`\mu`. Spending
+    the rotation half alone would understate :math:`G^0`, and the recorded
+    residual :math:`\sigma_x` would then not be :math:`G/G^0`.
+
+    ⭐ The row that gives this content rather than restating the table: the
+    residual :math:`\sigma_x` must lie **outside** the spent group, or
+    "residual" is the wrong word. `[M]` 2026-09-02 :math:`\sigma_x \notin
+    O(2)_x` (it flips the axis) while :math:`\sigma_y, \sigma_z \in O(2)_x`
+    (they contain it) — so the recorded pair really is a complement, and
+    exactly one of the three coordinate mirrors could have played that role.
+
+    The 2-D/3-D geometries are the CONTROL: they spend ``Trivial`` and
+    discretise the bare sphere, so a change that gave every geometry an axial
+    group would redden here.
+    """
+    for geometry in ("slab", "sphere"):
+        symmetry = GEOMETRY_ANGULAR_SYMMETRY[geometry]
+        assert symmetry.continuous_isotropy == SubgroupOfO3.O2("x"), geometry
+        assert symmetry.continuous_isotropy != SubgroupOfO3.SO2("x")
+        assert symmetry.discrete_residual == SubgroupOfO3.Mirror("x")
+        # the residual is genuinely OUTSIDE the spent group
+        assert not symmetry.continuous_isotropy.contains(symmetry.discrete_residual)
+        # ... and the other two mirrors are INSIDE it, so "outside" is a
+        # discriminating statement about sigma_x and not about mirrors.
+        for inside in ("y", "z"):
+            assert symmetry.continuous_isotropy.contains(SubgroupOfO3.Mirror(inside))
+
+    for geometry in ("cylinder", "cartesian2d"):
+        symmetry = GEOMETRY_ANGULAR_SYMMETRY[geometry]
+        assert symmetry.continuous_isotropy == SubgroupOfO3.Trivial, geometry
+        assert symmetry.support == SPHERE
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("geometry", ["slab", "sphere"])
+def test_the_support_is_DERIVED_as_the_stabiliser_orbit_space(geometry: str) -> None:
+    r"""``AngularSymmetry.support`` is ``SPHERE.quotient(G^0)`` — the
+    catalogue entry, derived, never a hand-written chart.
+
+    Since #432 that entry is ``S^2/O2_x``, and the row asserts the whole
+    tuple the derivation produces: the entry itself, its ``by``, its name,
+    its realization and its pushforward reference. The reference matters
+    independently — a degree of exactness on this orbit space is against
+    Lebesgue on :math:`[-1,1]` (Archimedes' hat box), which is what makes
+    ``LEGENDRE`` the right generating measure for the selector's stage-2
+    comparison.
+    """
+    symmetry = GEOMETRY_ANGULAR_SYMMETRY[geometry]
+    entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
+    support = symmetry.support
+    # the narrowing IS part of the claim: ``support`` is typed ``Manifold``,
+    # and the row asserts it is specifically a catalogued QUOTIENT.
+    assert isinstance(support, Quotient)
+    assert support == entry
+    assert support.by == SubgroupOfO3.O2("x")
+    assert support.name == "S^2/O2_x"
+    assert support.realization == COSINE_INTERVAL
+    assert symmetry.reference is LEGENDRE
+    # the chart is NOT the orbit space (tracker 2.4's ruling, still binding)
+    assert symmetry.support != COSINE_INTERVAL
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("geometry", ["slab", "sphere"])
+def test_selection_still_lands_on_GaussLegendre1D_over_the_stabiliser_orbit_space(
+    geometry: str,
+) -> None:
+    r"""End-to-end: the renamed orbit space must not move the selector's
+    answer, and the three :math:`S^2` rules must still be rejected on DOMAIN
+    with a message naming the new entry.
+
+    `[M]` 2026-09-02 at ``target_degree=5``: ``GaussLegendre1D`` with
+    ``n = 4``, measure on ``S^2/O2_x`` carrying ``invariance_group ==
+    sigma_x``, and all three sphere rules rejected as *"geometry '…'
+    discretises S^2/O2_x, but the rule's nodes live on S^2"*.
+
+    ⚠ The rejection REASON is asserted because it is the one place the
+    entry's NAME reaches a user-facing string; a stage-0 comparison that had
+    kept comparing charts would still choose GL1D and would print the old
+    name, so the choice alone is not a discriminating observation.
+    """
+    measure, log = select_quadrature(geometry, target_degree=5)
+    assert log.chosen_spec is not None
+    assert log.chosen_spec.name == "GaussLegendre1D"
+    assert log.chosen_parameters == {"n": 4}
+    assert measure.support == SPHERE.quotient(SubgroupOfO3.O2("x"))
+    assert measure.invariance_group == SubgroupOfO3.Mirror("x")
+
+    rejected = dict(log.rejected)
+    assert set(rejected) == {
+        "LebedevSphere", "LevelSymmetricSN", "ProductQuadrature",
+    }
+    for name, reason in rejected.items():
+        assert "S^2/O2_x" in reason, f"{name}: {reason}"
+        assert "domain mismatch" in reason, f"{name}: {reason}"

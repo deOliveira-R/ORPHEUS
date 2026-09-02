@@ -314,7 +314,7 @@ Key Facts
   (:eq:`moment-space-read-off-the-frame`); it never re-mints it from the
   truncation order, because an integer does not say *which family* — the
   full harmonics on a full-sphere rule, the σ-even restriction on a
-  folded one, the Legendre basis on :math:`S^2/SO(2)_a` on a 1-D one.
+  folded one, the Legendre basis on :math:`S^2/O(2)_a` on a 1-D one.
   `[M]` 2026-09-02 the angular moment space had **eight** homes (one
   basis + seven ``from_L(L)`` re-mints) and now has one. ⚠ Two spellings
   live on a frame and they are different objects: ``basis.space``
@@ -4054,7 +4054,7 @@ not say *which family*. Every one of the seven copies silently chose the
 full-sphere real spherical harmonics — which is right on a full-sphere
 rule and wrong on a 1-D one, where the surviving harmonics are the
 trivial isotypic component :math:`\{Y_\ell^0\} \cong \{P_\ell\}` of
-:math:`S^2/SO(2)_a` (:ref:`manifold-s2-so2`, ERR-080). The day the
+:math:`S^2/O(2)_a` (:ref:`manifold-s2-so2`, ERR-080). The day the
 quadrature binds that Legendre basis, each copy disagrees with the frame
 at the ``(name, shape)`` composability guard, and — because fission and
 :math:`(n,2n)` mint their ends at :math:`\ell = 0` on *every* solve — the
@@ -4276,21 +4276,29 @@ A ``Protocol`` rather than a class list, for the same reason
 symmetry from its ``domain`` rather than from its subclass: *a class list
 is a closed enumeration of today's members, and the point of this step is
 that tomorrow's member arrives.* The σ-even restriction and the Legendre
-basis on :math:`S^2/SO(2)_a` are as much harmonic-family members as the
+basis on :math:`S^2/O(2)_a` are as much harmonic-family members as the
 full harmonics; a door naming one class refuses them, and refuses them
 with an ``AttributeError`` three frames later rather than at the door.
 
-`[M]` 2026-09-02 the tree ships **five** :class:`~orpheus.numerics.basis.Basis`
-subclasses and **two** satisfy the surface —
-:class:`~orpheus.numerics.basis.SphericalHarmonicBasis` and its σ-even
-restriction ``MirrorEvenSphericalHarmonicBasis``. The other three —
-:class:`~orpheus.numerics.basis.IndicatorBasis`,
+`[M]` 2026-09-02, after #429's fused commit: the tree ships **six**
+:class:`~orpheus.numerics.basis.Basis` subclasses and **three** satisfy
+the surface — :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`,
+its σ-even restriction ``MirrorEvenSphericalHarmonicBasis``, and
+:class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis`. The other
+three — :class:`~orpheus.numerics.basis.IndicatorBasis`,
 :class:`~orpheus.numerics.basis.OverlapBasis` and
 :class:`~orpheus.numerics.basis.WeightedIndicatorBasis` — do not, and an
 indicator trial is refused at both doors with a message naming the
-*truncation order* rather than a class. ⛔ The third member the surface
-exists FOR — the Legendre basis on :math:`S^2/SO(2)_a` — is tracker 3.4
-and **does not ship**: 2.5 is a capability, and ERR-080 stays open.
+*truncation order* rather than a class.
+
+⛔ **Until later the same day this paragraph read** "five subclasses and
+two satisfy the surface", **and ended** "The third member the surface
+exists FOR — the Legendre basis on :math:`S^2/O(2)_a` — is tracker 3.4
+and **does not ship**: 2.5 is a capability, and ERR-080 stays open."
+Both halves were true when written; tracker 3.4 landed
+the third member hours afterwards and CLOSED ERR-080. The step's design
+is what made that landing a no-op at the doors — which is the point the
+paragraph above makes, now with its own witness.
 
 The field's head, and truncation inside the family
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4450,8 +4458,8 @@ question asked in the category, and it answers all three.
      - basis (``domain``)
      - G0
      - arrow, or reason
-   * - slab GL — :math:`S^2/SO(2)_x`
-     - Legendre on :math:`S^2/SO(2)_x`
+   * - slab GL — :math:`S^2/O(2)_x`
+     - Legendre on :math:`S^2/O(2)_x`
      - ✅
      - identity — **what the repair binds**
    * - sphere rule — :math:`S^2`
@@ -4459,7 +4467,7 @@ question asked in the category, and it answers all three.
      - ✅
      - identity
    * - sphere rule — :math:`S^2`
-     - Legendre on :math:`S^2/SO(2)_x`
+     - Legendre on :math:`S^2/O(2)_x`
      - ✅
      - the entry's :math:`\pi` — `[M]` ``lebedev(11)`` gives a
        :math:`(50, 3)` table at :math:`L = 2`, ``level_symmetric(8)`` an
@@ -4468,19 +4476,29 @@ question asked in the category, and it answers all three.
      - :math:`\sigma`-even harmonics on the same entry
      - ✅
      - identity
-   * - slab GL — :math:`S^2/SO(2)_x`
+   * - slab GL — :math:`S^2/O(2)_x`
      - full harmonics on :math:`S^2`
      - ⛔
-     - **ERR-080.** No map :math:`S^2/SO(2)_x \to S^2` exists; the arrow
+     - **ERR-080.** No map :math:`S^2/O(2)_x \to S^2` exists; the arrow
        runs the other way
    * - :math:`\sigma_y` fold
      - full harmonics on :math:`S^2`
      - ⛔
      - same shape — a fold cannot carry the unfolded family
    * - :math:`\sigma_y` fold
-     - Legendre on :math:`S^2/SO(2)_x`
+     - Legendre on :math:`S^2/O(2)_x`
+     - ✅
+     - the induced :math:`S^2/\sigma_y \to S^2/O(2)_x`, since
+       :math:`\sigma_y \in O(2)_x` — `[M]` ``folded_product(4, 8)``
+       gives a :math:`(16, 3)` table at :math:`L = 2`. ⛔ This row read
+       **⛔ ⚠ mathematically admissible; over-refused (GitHub #432)**
+       until 2026-09-02
+   * - :math:`\sigma_y` fold
+     - Legendre on :math:`S^2/O(2)_y`
      - ⛔
-     - ⚠ mathematically **admissible**; over-refused (GitHub #432)
+     - the NEGATIVE leg of the row above: :math:`\sigma_y \notin O(2)_y`
+       — a mirror in the :math:`y`-plane flips :math:`\hat e_y` — so no
+       arrow exists
 
 The message names both point sets, both groups, and
 :meth:`Quadrature.angular_frame
@@ -4490,17 +4508,43 @@ told what to do rather than what happened.
 
 .. warning::
 
-   ⚠ **The last row is a known over-refusal and it is inert today.**
-   :math:`P_\ell(\Omega\cdot\hat e_x)` is invariant under the full
-   :math:`O(2)_x`, :math:`\sigma_y` included, but
-   :attr:`Basis.invariance_group
-   <orpheus.numerics.basis.base.Basis.invariance_group>` is DERIVED as
-   ``SO2('x')``, a strict lower bound, and no axis-parameterised
-   :math:`O(2)` member exists to declare instead. `[M]` no dispatch
-   selects that pairing — the fold binds its :math:`\sigma`-even
-   harmonics — so nothing shipped reaches it. Tracked at **#432**, and
-   recorded here because it is the landmine a cylindrical :math:`P_L`
-   expansion walks into.
+   ⛔ **This warning read as follows until 2026-09-02, and its
+   diagnosis was correct — the DECLARATION was too weak, not the
+   pairing:**
+
+      *⚠ The last row is a known over-refusal and it is inert today.*
+      :math:`P_\ell(\Omega\cdot\hat e_x)` *is invariant under the full*
+      :math:`O(2)_x`, :math:`\sigma_y` *included, but*
+      ``Basis.invariance_group`` *is DERIVED as* ``SO2('x')``, *a strict
+      lower bound, and no axis-parameterised* :math:`O(2)` *member
+      exists to declare instead.* `[M]` *no dispatch selects that
+      pairing — the fold binds its* :math:`\sigma`-*even harmonics — so
+      nothing shipped reaches it. Tracked at* **#432**.
+
+   ✅ **#432 landed 2026-09-02.** The missing member ships as
+   :class:`~orpheus.numerics.symmetry.O2`, the pointwise stabiliser of
+   the axis, and an orbit space is now NAMED by its stabiliser — so
+   ``invariance_group``, still derived from the domain, is the full
+   :math:`O(2)_x` the warning already knew the functions had
+   (:ref:`manifold-orbit-space-stabiliser`). `[M]` 2026-09-02:
+   ``GalerkinFrame(LegendreBasis(L=L, axis="x"),
+   Quadrature.folded_product(4, 8).measure)`` constructs at
+   :math:`L = 0, 2, 4, 6` with a :math:`(16, L{+}1)` table, and an
+   isotropic field's moments through it read :math:`4\pi =
+   12.566370614359172` at :math:`\ell = 0` — bit-identical to
+   ``measure.weights.sum()`` — and :math:`\le 1.42\times10^{-15}` at
+   :math:`\ell \ge 1`, so the fold aliases nothing into the retained
+   degrees (the azimuthal rule is exact to trigonometric degree 7 and
+   the fold is :math:`\sigma_y`-even).
+
+   ⚠ **The admission is not blanket, and the negative legs are the
+   evidence of that.** `[M]` on the same :math:`\sigma_y` fold,
+   ``LegendreBasis(axis="y")`` is still REFUSED — :math:`\sigma_y`
+   flips :math:`\hat e_y`, so it is in no :math:`O(2)_y` — while
+   ``axis="z"`` is admitted; and on a :math:`\sigma_x`-folded
+   ``product(4, 8)`` the verdicts swap, ``axis="x"`` refused and
+   ``axis="z"`` admitted with a :math:`(20, 3)` table. The predicate
+   is the arrow, and the arrow is the lattice.
 
 Where it fires, and why in three places
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4591,7 +4635,7 @@ the head:
 `[M]` 2026-09-02, built through the production carrier: a
 ``gauss_legendre(8)`` phase space gives
 ``HarmonicMomentFlux.zeros_for_mesh_and_L(sn, 2).values.shape ==
-(3, 1, 4)`` with head ``legendre_space(S^2/SO2_x)``, while
+(3, 1, 4)`` with head ``legendre_space(S^2/O2_x)``, while
 ``level_symmetric(8)`` and ``folded_product(4,8)`` give ``(3, 5, 1, 4)``
 with head ``spherical_harmonic_space``. The :math:`\Lambda` specs are
 the former inline ones **verbatim** on the rank-2 rows, so the harmonic

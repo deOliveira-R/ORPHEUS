@@ -105,7 +105,7 @@ orbit space :math:`S^2/SO(2)`, and the harmonics that survive are that
 quotient's **trivial isotypic component** :math:`\{Y_\ell^0\} \cong
 \{P_\ell\}`. #429's fused commit gives a 1-D rule's frame the
 :class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis` on
-:math:`S^2/SO(2)_x` bound to the rule's OWN measure (the forged
+:math:`S^2/O(2)_x` bound to the rule's OWN measure (the forged
 :math:`(\mu,0,0)` construction is retired), and the frame gate G0 refuses
 the pairing that produced the defect. Planned in
 ``.claude/plans/angular_spaces_derived_from_symmetry.md``; Phase 0.7 is

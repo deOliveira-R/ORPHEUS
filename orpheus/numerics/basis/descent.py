@@ -2,16 +2,16 @@ r"""``Descent`` — the two realizations of the functions on an orbit space, as 
 
 The functions on :math:`M/H` have two honest realizations (#429 Part V.5 §C,
 user-ruled 2026-08-31): **upstairs**, the :math:`H`-invariant subspace of a
-basis on the base — for the real spherical harmonics and :math:`SO(2)_x`,
+basis on the base — for the real spherical harmonics and :math:`O(2)_x`,
 the :math:`m = 0` column, :math:`\{Y_\ell^0\}`; for a coordinate mirror, the
 σ-even slots — and **downstairs**, the quotient's OWN classical basis when
-one exists — :math:`\{P_\ell(\mu)\}` on :math:`S^2/SO(2)_a`. They are
+one exists — :math:`\{P_\ell(\mu)\}` on :math:`S^2/O(2)_a`. They are
 isomorphic (:math:`\mathrm{Funcs}(M)^H \cong \mathrm{Funcs}(M/H)`), and
 without a witness they are a Cardinal-Rule-2 twin. This class is the witness
 and the DISCRIMINATOR, written where both realizations can see it:
 
     **downstairs when the quotient has a classical named basis
-    (**:math:`S^2/SO(2)_a \to \{P_\ell\}`**), upstairs otherwise (**:math:`S^2/\sigma_a`
+    (**:math:`S^2/O(2)_a \to \{P_\ell\}`**), upstairs otherwise (**:math:`S^2/\sigma_a`
     **has no classical family — its σ-even harmonics are the only spellable
     realization).**
 
@@ -55,7 +55,7 @@ from orpheus.numerics.basis.spherical_harmonic_basis import (
     MirrorEvenSphericalHarmonicBasis,
     SphericalHarmonicBasis,
 )
-from orpheus.numerics.manifold import SPHERE, Quotient
+from orpheus.numerics.manifold import AXIS_LETTER, Quotient, SPHERE
 
 __all__ = ["Descent"]
 
@@ -115,7 +115,7 @@ class Descent:
     def downstairs(self) -> Basis | None:
         r"""The quotient's OWN classical basis, or ``None`` when it has none.
 
-        :math:`S^2/SO(2)_a` → :class:`LegendreBasis` about ``a``; a mirror
+        :math:`S^2/O(2)_a` → :class:`LegendreBasis` about ``a``; a mirror
         quotient has no classical family; the trivial quotient's downstairs
         IS the parent.
         """
@@ -123,7 +123,7 @@ class Descent:
         axis = by.rotation_axis
         if axis is not None:
             L = _truncation_order(self.parent)
-            return LegendreBasis(L=L, axis="xyz"[axis])
+            return LegendreBasis(L=L, axis=AXIS_LETTER[axis])
         if self.entry.base == self.entry.realization and by.name == "Trivial":
             return self.parent
         return None
@@ -133,7 +133,7 @@ class Descent:
         r"""The parent's invariant SUB-basis, kept in the parent's layout.
 
         A coordinate mirror: :class:`MirrorEvenSphericalHarmonicBasis`
-        (structurally zeroed σ-odd columns). :math:`SO(2)_x`: the
+        (structurally zeroed σ-odd columns). :math:`O(2)_x`: the
         :math:`m = 0` column is the whole face, and the tree ships no masked
         harmonic basis for it — the downstairs realization is the one every
         consumer binds — so the face is answered by :attr:`upstairs_columns`
@@ -160,7 +160,7 @@ class Descent:
         r"""The sentence that says which realization a frame binds — and why."""
         return (
             "downstairs when the quotient has a classical named basis "
-            "(S^2/SO(2)_a -> {P_l}), upstairs otherwise (S^2/sigma_a has no "
+            "(S^2/O(2)_a -> {P_l}), upstairs otherwise (S^2/sigma_a has no "
             "classical family; its sigma-even harmonics are the only "
             "spellable realization)"
         )
@@ -179,8 +179,8 @@ class Descent:
         r"""The parent's table at ``points`` restricted to the descending slots — the upstairs face, tabulated.
 
         Shape ``(N, K)`` with the slots in row-major mask order. For
-        :math:`SO(2)_x` that is one slot per degree in ascending :math:`\ell`
-        — the :math:`m = 0` column. Refused for an :math:`SO(2)` about any
+        :math:`O(2)_x` that is one slot per degree in ascending :math:`\ell`
+        — the :math:`m = 0` column. Refused for an axial group about any
         other axis: there the invariant subspace is not slot-aligned from
         :math:`\ell \ge 2`, and a restriction by slots would be WRONG rather
         than incomplete (axis-keyed, so the refusal fires at every
@@ -188,11 +188,11 @@ class Descent:
         hold).
         """
         axis = self.entry.by.rotation_axis
-        if axis is not None and "xyz"[axis] != _HARMONIC_POLAR_AXIS:
+        if axis is not None and AXIS_LETTER[axis] != _HARMONIC_POLAR_AXIS:
             raise NotImplementedError(
                 f"Descent.upstairs_columns: the real harmonics' polar axis is "
-                f"{_HARMONIC_POLAR_AXIS!r}; about {'xyz'[axis]!r} the "
-                f"SO(2)-invariant subspace is not a set of slots (it spreads "
+                f"{_HARMONIC_POLAR_AXIS!r}; about {AXIS_LETTER[axis]!r} the "
+                f"{self.entry.by.name}-invariant subspace is not a set of slots (it spreads "
                 f"over several from l >= 2). The downstairs face is "
                 f"available at every axis; an upstairs face there needs a "
                 f"rotated harmonic table, which no consumer has asked for."

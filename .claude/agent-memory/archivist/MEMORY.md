@@ -39,6 +39,27 @@ stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
+- **THE NAMING LAW: an orbit space is named by its STABILISER (#432)** — 2026-09-02, same
+  branch, #429 tracker 1.9. Docs **UNCOMMITTED** (mine): 9 hand-edited pages **+1144/−355**
+  — `manifolds.rst` (a new `-` chapter *An orbit space is named by its STABILISER*: the
+  naming law, `orbit_stabiliser`, the construction invariant, the 5-element symbolic table,
+  the three near neighbours, the exact invariance criterion, the before/after readings, the
+  24-of-24 stage-0 null; the lattice section rewritten with the COMPUTED axial relations and
+  11 edges; the compatibility law re-run; the walk's SHRINKING report; a #432 dev-history
+  row; the machine header), `frame.rst` (row 7 ✅ + a NEGATIVE row + the ⛔-tombstoned
+  warning; the 5/2 → **6/3** `TruncatedBasis` census), `spherical_harmonics.rst`,
+  `discrete_measures.rst`, `spaces.rst`, `angular_quadrature.rst`, `cartesian_multid.rst`,
+  `operator_algebra.rst`, `error_catalog.rst` (ERR-080 + ERR-072), + regenerated
+  `matrix.rst` (sentinels 582 → **584** = my two new `documented` eq-labels, exactly as
+  predicted). `-E -W` **0 → 0**, EXIT=0. ⚠ **ONE dead xref BY INSTRUCTION**
+  (`SubgroupOfO3.orbit_stabiliser`, the accepted-but-unlanded accessor) — patched gate 1
+  dead/2 sites, nexus `dead_references` 1 of 53, the SAME finding from both. ⚠ **REPORTED,
+  code-only** (2: a `test_e4` docstring naming `SO2('x')` over a body that builds `O2("x")`;
+  a `symmetry.py` comment calling D_∞h "the group a cylinder actually carries" where the
+  registry row spends `Trivial`). ⚠ Mid-task DESIGN DELTA replaced the design I had already
+  measured; two brief numbers refuted; 8 present-tense-false claims found outside the brief.
+  → [[lessons-L86]]
+
 - **THE FIX: a 1-D rule's frame binds the basis its ORBIT SPACE admits — ERR-080 CLOSED** —
   2026-09-02, same branch, #429's fused commit (0.1b + 0.6 + 2.2 + 3.4 + 3.4b). Docs
   **UNCOMMITTED** (mine): 12 hand-edited pages +1756/−240 — `manifolds.rst` (new `=` chapter

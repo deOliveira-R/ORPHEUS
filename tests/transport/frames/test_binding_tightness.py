@@ -72,7 +72,7 @@ def _equispaced_frame(L: int, n: int) -> HarmonicFrame:
     ⛔ **RE-DECLARED 2026-09-02 (#429).** This fixture built its measure with
     ``support=COSINE_INTERVAL`` — the bare interval :math:`[-1,1]`. That is
     the *realization* of an angular rule's point set, not the point set: a
-    1-D angular rule integrates over :math:`S^2/SO(2)_x`, whose realization
+    1-D angular rule integrates over :math:`S^2/O(2)_x`, whose realization
     happens to be that interval. Post-repair the distinction is enforced at
     two doors, and this fixture hit **both**:
 
@@ -105,7 +105,7 @@ def _equispaced_measure(n: int, *, support: str) -> DiscreteMeasure:
     mu = np.linspace(-1.0, 1.0, n + 2)[1:-1]
     w = np.full(mu.size, 2.0 / mu.size)
     declared = (
-        SPHERE.quotient(SubgroupOfO3.SO2("x")) if support == "orbit"
+        SPHERE.quotient(SubgroupOfO3.O2("x")) if support == "orbit"
         else COSINE_INTERVAL
     )
     return DiscreteMeasure(nodes=mu, weights=w, support=declared)
@@ -353,7 +353,7 @@ class TestABareIntervalMeasureIsRefused:
         predicate had to be ruled rather than inferred, and why declaring the
         realization was never harmless.
         """
-        entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
         assert entry.realization == COSINE_INTERVAL
         assert entry != COSINE_INTERVAL
 

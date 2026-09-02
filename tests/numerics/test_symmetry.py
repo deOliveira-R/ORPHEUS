@@ -201,10 +201,17 @@ def test_cyclic_containment_by_divisibility(
 def test_cn_in_so2(n: int) -> None:
     r""":math:`SO(2)_z = \bigcup_n C_n`, so every :math:`C_n` is inside —
     and inside no other axis's rotation group, since :math:`C_n` is
-    realized about :math:`z`."""
+    realized about :math:`z`. Except :math:`C_1 = \{e\}`, which is inside
+    everything: ⛔ until 2026-09-02 the tabulated axial arm answered
+    ``SO2('x') ⊉ C_1`` while ``SO2('x') ⊇ {e}`` — one group under two
+    spellings, two answers — and this test pinned the wrong one; the
+    relation is now COMPUTED from the realization (``_fixes_axis``) and
+    cannot disagree with itself (#432)."""
     assert SubgroupOfO3.SO2("z").contains(SubgroupOfO3.Cn(n))
+    assert SubgroupOfO3.O2("z").contains(SubgroupOfO3.Cn(n))
     for other in ("x", "y"):
-        assert not SubgroupOfO3.SO2(other).contains(SubgroupOfO3.Cn(n))
+        assert SubgroupOfO3.SO2(other).contains(SubgroupOfO3.Cn(n)) is (n == 1)
+        assert SubgroupOfO3.O2(other).contains(SubgroupOfO3.Cn(n)) is (n == 1)
 
 
 @pytest.mark.foundation
@@ -359,7 +366,7 @@ def test_a_polar_marginal_is_invariant_under_its_OWN_axial_group_only(
 
     Both the chart-level measure (a bare interval, embedded along column
     0 by convention) and the slab's DECLARED measure (support
-    ``S^2/SO2_x``, embedded along the axis its orbit space names) answer
+    ``S^2/O2_x``, embedded along the axis its orbit space names) answer
     the same way — and a marginal declared about :math:`z` answers the
     opposite way, which is what makes the axis load-bearing rather than
     decorative.
@@ -1480,7 +1487,7 @@ def test_the_rotation_axis_is_validated_at_CONSTRUCTION() -> None:
 def test_so2_axes_are_three_incomparable_groups() -> None:
     r"""Three axes, three groups: :math:`SO(2)_a \cap SO(2)_b = \{e\}` for
     :math:`a \ne b`, so neither contains the other, and they are not equal
-    — the property that keeps ``S^2/SO2_x`` and ``S^2/SO2_z`` two different
+    — the property that keeps ``S^2/O2_x`` and ``S^2/O2_z`` two different
     orbit spaces in the catalogue."""
     axes = ("x", "y", "z")
     for a in axes:
@@ -1514,10 +1521,19 @@ def test_rotation_axis_is_the_continuous_dual_of_mirror_axis() -> None:
 
 @pytest.mark.foundation
 def test_candidate_groups_offer_all_three_axial_rotation_groups() -> None:
-    """The walk is offered every axis, so a polar marginal along x reports
-    :math:`SO(2)_x` rather than reading as carrying no continuous symmetry
-    — what the retired z-only ``SO2`` amounted to. Walk and brute force
-    must agree on it, as on everything."""
+    r"""The walk is offered every axis of BOTH axial families, so a polar
+    marginal along x reports :math:`O(2)_x` — its full stabiliser — rather
+    than reading as carrying no continuous symmetry (what the retired
+    z-only ``SO2`` amounted to) or stopping at the rotations (what the walk
+    reported before #432). Walk and brute force must agree on it, as on
+    everything.
+
+    `[M]` 2026-09-02 the slab's maximal elements are ``{O2_x, sigma_x}``:
+    :math:`SO(2)_x`, :math:`\sigma_y` and :math:`\sigma_z` all sit inside
+    :math:`O(2)_x`, and :math:`\sigma_x` — which FLIPS the axis — sits
+    beside it, in neither. The group they generate is :math:`D_{\infty h}`
+    about :math:`x`, which the lattice cannot spell (``Dinfh`` is about z),
+    so the two incomparable maxima are the honest answer."""
     from orpheus.numerics.symmetry import (
         candidate_groups,
         maximal_invariance_groups,
@@ -1525,16 +1541,19 @@ def test_candidate_groups_offer_all_three_axial_rotation_groups() -> None:
 
     q = Quadrature.gauss_legendre(n_ordinates=8)
     offered = {g.name for g in candidate_groups(q.measure)}
-    assert {"SO2_x", "SO2_y", "SO2_z"} <= offered
+    assert {"SO2_x", "SO2_y", "SO2_z", "O2_x", "O2_y", "O2_z"} <= offered
     walk = {g.name for g in maximal_invariance_groups(q.measure)}
     brute = {
         g.name for g in maximal_invariance_groups(q.measure, method="bruteforce")
     }
     assert walk == brute
-    assert "SO2_x" in walk and "SO2_z" not in walk and "SO2_y" not in walk
-    # The rest of the slab's symmetry: the three mirrors, none inside SO2_x
-    # (they are improper) and none containing it (they are finite).
-    assert {"sigma_x", "sigma_y", "sigma_z"} <= walk
+    assert walk == {"O2_x", "sigma_x"}
+    # The groups the maximum absorbs: the rotations and the two mirrors
+    # THROUGH the axis are invariant AND inside O2_x, hence not maximal.
+    for absorbed in ("SO2_x", "sigma_y", "sigma_z"):
+        g = next(c for c in candidate_groups(q.measure) if c.name == absorbed)
+        assert g.is_invariant(q.measure) and SubgroupOfO3.O2("x").contains(g)
+    assert not SubgroupOfO3.O2("x").contains(SubgroupOfO3.Mirror("x"))
 
 
 @pytest.mark.foundation
@@ -1605,3 +1624,688 @@ def test_a_shipped_rule_already_discriminates_the_planes() -> None:
     assert not SubgroupOfO3.Mirror("x").is_invariant(measure)
     assert SubgroupOfO3.Mirror("y").is_invariant(measure)
     assert SubgroupOfO3.Mirror("z").is_invariant(measure)
+
+
+# ============================================================================
+# The axial STABILISER O(2)_a = C_∞v — #432, 2026-09-02
+# ============================================================================
+#
+# An orbit space is named by the LARGEST group with its orbits. The
+# constant-μ circles on S² are the orbits of SO(2)_a AND of its stabiliser
+# O(2)_a = {g ∈ O(3) : g ê_a = ê_a} — a vertical mirror carries each circle
+# onto itself — so the two have one invariant ring, one derivation and one
+# orbit space, and the entry records the bigger group. This section gates the
+# new member: its lattice edges, its exact invariance criterion, and the
+# two-component generic-image set the isotypic probe reads.
+#
+# Claim layer: **term-level (L0)**, closed form. Every reference below is a
+# group-theoretic fact written from the definition (`vv-principles` §pillars,
+# and §8 of the test-architect lessons: a pure-math primitive has no MMS row
+# and no semi-analytical row — every row is closed form or exact integer
+# arithmetic).
+
+
+#: The groups the lattice can spell today, in one list so the order-relation
+#: laws below run over an ENUMERATED denominator rather than a sample
+#: (`plan-authoring` §2). 23 members: the named six, three mirrors, three
+#: SO(2), three O(2), C_1..C_4, D_1h..D_4h.
+_SPELLABLE = (
+    [
+        SubgroupOfO3.Trivial, SubgroupOfO3.Dinfh, SubgroupOfO3.OctahedralOh,
+        SubgroupOfO3.IcosahedralIh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
+    ]
+    + [SubgroupOfO3.Mirror(a) for a in ("x", "y", "z")]
+    + [SubgroupOfO3.SO2(a) for a in ("x", "y", "z")]
+    + [SubgroupOfO3.O2(a) for a in ("x", "y", "z")]
+    + [SubgroupOfO3.Cn(n) for n in (1, 2, 3, 4)]
+    + [SubgroupOfO3.Dnh(n) for n in (1, 2, 3, 4)]
+)
+
+
+@pytest.mark.foundation
+def test_the_O2_axis_is_validated_at_CONSTRUCTION() -> None:
+    r"""There is no unnamed axial GROUP, for the reason there is no unnamed
+    axial ROTATION group (tracker 2.4) and no unnamed reflection (2026-08-02).
+
+    The name and the ``repr`` both carry the axis, and both are load-bearing
+    rather than cosmetic: :attr:`SubgroupOfO3.name` keys the orbit-space
+    catalogue (``S^2/O2_x``) and ``repr`` keys ``_GROUP_CACHE`` and the
+    lattice walk's ``visited`` set, so an axis-blind spelling would silently
+    merge three groups into one entry.
+    """
+    for axis in ("x", "y", "z"):
+        g = SubgroupOfO3.O2(axis)
+        assert g.name == f"O2_{axis}"
+        assert repr(g) == f"SubgroupOfO3.O2({axis!r})"
+    # three names, three reprs — the collapse the cache would suffer.
+    assert len({SubgroupOfO3.O2(a).name for a in ("x", "y", "z")}) == 3
+    assert len({repr(SubgroupOfO3.O2(a)) for a in ("x", "y", "z")}) == 3
+
+    with pytest.raises(ValueError, match="axis in x/y/z"):
+        SubgroupOfO3.O2("w")
+    with pytest.raises(ValueError, match="unnamed axial group"):
+        SubgroupOfO3.O2("")
+
+
+@pytest.mark.foundation
+def test_rotation_axis_answers_for_the_STABILISER_too_and_mirror_axis_does_not() -> None:
+    r"""``rotation_axis`` is the *axial-family* accessor, not the
+    *rotation-family* one — it answers for :math:`O(2)_a` as well as
+    :math:`SO(2)_a`, because both fix :math:`\hat e_a` pointwise and both
+    name the axis whose polar interval their orbit space IS.
+
+    That is exactly what ``manifold._sphere_mod_o2`` reads to pick the
+    surviving invariant, what ``_polar_axis_of`` reads to decide a 1-D
+    measure's embedding axis, and what ``barycentre`` reads to place the
+    orbit's centre. A property that answered ``None`` for :math:`O(2)_a`
+    would send all three through the ``None`` branch.
+
+    The companion of the existing SO(2)-only row
+    :func:`test_rotation_axis_is_the_continuous_dual_of_mirror_axis`; the
+    NEGATIVE half is shared with it — nothing that merely *contains* axial
+    rotations may answer.
+    """
+    for axis, index in (("x", 0), ("y", 1), ("z", 2)):
+        assert SubgroupOfO3.O2(axis).rotation_axis == index
+        assert SubgroupOfO3.O2(axis).mirror_axis is None
+    # NEGATIVE: D_∞h contains every rotation about z and answers None,
+    # because sigma_h FLIPS the axis — the discriminating case, since a
+    # naive "does it contain the rotations?" reading would answer 2.
+    assert SubgroupOfO3.Dinfh.contains(SubgroupOfO3.SO2("z"))
+    assert SubgroupOfO3.Dinfh.rotation_axis is None
+    for other in (
+        SubgroupOfO3.SO3, SubgroupOfO3.O3, SubgroupOfO3.Cn(4),
+        SubgroupOfO3.Dnh(2), SubgroupOfO3.Trivial,
+        SubgroupOfO3.Mirror("x"), SubgroupOfO3.OctahedralOh,
+    ):
+        assert other.rotation_axis is None, other.name
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("axis", ["x", "y", "z"])
+def test_the_stabiliser_sits_strictly_above_its_rotation_half(axis: str) -> None:
+    r"""The identity component: :math:`SO(2)_a \subsetneq O(2)_a`, and the
+    containment does NOT run the other way — the vertical mirrors are
+    improper, so they lie in no rotation group.
+
+    Against the continuous named entries, the two families answer
+    DIFFERENTLY exactly where properness bites: both sit inside
+    :math:`O(3)`, only the proper half sits inside :math:`SO(3)`. That
+    asymmetry is the whole content of "stabiliser, not rotation group", and
+    it is the row a mutation collapsing ``_axial_contains``'s two families
+    into one must redden.
+    """
+    rot, stab = SubgroupOfO3.SO2(axis), SubgroupOfO3.O2(axis)
+
+    assert stab.contains(rot)
+    assert not rot.contains(stab)
+    assert stab != rot
+    # ⚠ ``hash`` does NOT discriminate them and must not be asserted to:
+    # a frozen dataclass's generated ``__hash__`` hashes the FIELD TUPLE and
+    # not the class, so `[M]` 2026-09-02 ``hash(SO2(a)) == hash(O2(a)) ==
+    # hash(Mirror(a))`` on every axis (and ``hash(Cn(n)) == hash(Dnh(n))``).
+    # Equality still discriminates — the generated ``__eq__`` requires
+    # ``other.__class__ is self.__class__`` — so dicts and sets are correct
+    # and this is a collision, not a bug. The property that matters is the
+    # one asserted here.
+    assert len({stab, rot, SubgroupOfO3.Mirror(axis)}) == 3
+
+    assert SubgroupOfO3.O3.contains(stab)
+    assert SubgroupOfO3.O3.contains(rot)
+    # the discriminating pair: O(2)_a carries reflections, SO(2)_a does not.
+    assert not SubgroupOfO3.SO3.contains(stab)
+    assert SubgroupOfO3.SO3.contains(rot)
+
+    # D_∞h = O(2)_z × {e, σ_h} is realized about z, so it contains BOTH
+    # axial families about z and NEITHER about any other axis.
+    assert SubgroupOfO3.Dinfh.contains(stab) is (axis == "z")
+    assert SubgroupOfO3.Dinfh.contains(rot) is (axis == "z")
+    # ... and no axial group contains D_∞h, SO(3) or O(3): none fixes an axis.
+    for continuous in (SubgroupOfO3.Dinfh, SubgroupOfO3.SO3, SubgroupOfO3.O3):
+        assert not stab.contains(continuous)
+        assert not rot.contains(continuous)
+
+
+@pytest.mark.foundation
+def test_O2_axes_are_three_incomparable_groups() -> None:
+    r"""Three axes, three groups — the companion of
+    :func:`test_so2_axes_are_three_incomparable_groups`.
+
+    :math:`O(2)_a \cap O(2)_b = \{e, \sigma_c\}` for :math:`a \ne b`, which
+    is neither of them, so the two are incomparable; and equality and hash
+    agree with containment. That is the property keeping ``S^2/O2_x`` and
+    ``S^2/O2_z`` two different orbit spaces in the catalogue, and the one a
+    repr or a ``__eq__`` that dropped the axis would destroy.
+    """
+    axes = ("x", "y", "z")
+    for a in axes:
+        for b in axes:
+            g, h = SubgroupOfO3.O2(a), SubgroupOfO3.O2(b)
+            assert g.contains(h) is (a == b)
+            assert (g == h) is (a == b)
+            assert (hash(g) == hash(h)) is (a == b)
+            # cross-family: O(2)_a ⊇ SO(2)_b iff a == b, never conversely.
+            assert g.contains(SubgroupOfO3.SO2(b)) is (a == b)
+            assert SubgroupOfO3.SO2(b).contains(g) is False
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("axis", ["x", "y", "z"])
+def test_exactly_the_mirrors_THROUGH_the_axis_lie_in_its_stabiliser(
+    axis: str,
+) -> None:
+    r"""``O2(a) ⊇ Mirror(b)`` **iff** :math:`b \ne a` — computed from
+    :math:`\sigma_b`'s own realization, not tabulated.
+
+    :math:`\sigma_b` has normal :math:`\hat e_b`, so its plane CONTAINS
+    :math:`\hat e_a` for :math:`b \ne a` (a vertical mirror, which fixes the
+    axis pointwise) and is PERPENDICULAR to it for :math:`b = a` (the
+    horizontal mirror :math:`\sigma_h`, which sends :math:`\hat e_a \to
+    -\hat e_a`). Two of three planes in, one out — the fact that makes the
+    Legendre basis admissible on a :math:`\sigma_b`-fold and refused on a
+    :math:`\sigma_a`-fold (``tests/numerics/test_frame.py``'s nine-pairing
+    table is the same statement one tier up).
+
+    The rotation half admits NO mirror on any axis (``det = -1``), which is
+    the leg that keeps this from reading as "any reflection is fine".
+    """
+    stab, rot = SubgroupOfO3.O2(axis), SubgroupOfO3.SO2(axis)
+    for plane in ("x", "y", "z"):
+        assert stab.contains(SubgroupOfO3.Mirror(plane)) is (plane != axis), (
+            f"O2({axis}) vs sigma_{plane}"
+        )
+        assert not rot.contains(SubgroupOfO3.Mirror(plane))
+    # exactly two of the three coordinate mirrors, never three, never one.
+    assert sum(
+        stab.contains(SubgroupOfO3.Mirror(p)) for p in ("x", "y", "z")
+    ) == 2
+
+
+@pytest.mark.foundation
+def test_the_finite_relations_of_the_stabiliser_are_COMPUTED_from_realizations() -> None:
+    r"""Every :math:`(\text{axial}, \text{finite})` relation follows from one
+    question — *does every element of the finite group fix* :math:`\hat e_a`? —
+    so the answers are n-dependent and axis-dependent in ways no enum-to-enum
+    table can spell.
+
+    `[M]` 2026-09-02, over the four orders and three axes below:
+
+    * :math:`C_n \subseteq O(2)_z` for every :math:`n` (realized about z),
+      and inside another axis's stabiliser only for :math:`n = 1`;
+    * :math:`D_{1h} = \{e, \sigma_z, \sigma_y, C_2(x)\}` — order 4 — is
+      inside :math:`O(2)_x` **and no other axis's**, because every one of
+      its four elements fixes :math:`\hat e_x`;
+    * :math:`D_{nh} \not\subseteq O(2)_a` for :math:`n \ge 2` on every axis
+      (its in-plane :math:`C_2` axes flip whichever axis is not theirs);
+    * :math:`O_h` and :math:`I_h` are inside no axial group (they move every
+      axis), and no axial group is inside them (a finite group cannot
+      contain a continuous one).
+
+    The :math:`D_{1h} \subseteq O(2)_x`-only row is the sharp one: read as
+    "a dihedral group is never inside an axial group" it would be a false
+    universal, and read as "D_1h is inside every O(2)_a" it would be false
+    on two of three axes. Only the computed relation gets both right.
+    """
+    for n in (1, 2, 3, 4, 6):
+        assert SubgroupOfO3.O2("z").contains(SubgroupOfO3.Cn(n)), n
+        for other in ("x", "y"):
+            assert SubgroupOfO3.O2(other).contains(SubgroupOfO3.Cn(n)) is (n == 1)
+
+    for axis in ("x", "y", "z"):
+        assert SubgroupOfO3.O2(axis).contains(SubgroupOfO3.Dnh(1)) is (axis == "x")
+        for n in (2, 3, 4, 6):
+            assert not SubgroupOfO3.O2(axis).contains(SubgroupOfO3.Dnh(n)), (axis, n)
+        for polyhedral in (
+            SubgroupOfO3.OctahedralOh, SubgroupOfO3.IcosahedralIh,
+        ):
+            assert not SubgroupOfO3.O2(axis).contains(polyhedral)
+            assert not polyhedral.contains(SubgroupOfO3.O2(axis))
+        # ... and the trivial group is inside every one of them, under both
+        # of its spellings (the `C_1` / `Trivial` collision `_fixes_axis`
+        # retired — see `test_cn_in_so2`'s history note).
+        assert SubgroupOfO3.O2(axis).contains(SubgroupOfO3.Trivial)
+        assert SubgroupOfO3.O2(axis).contains(SubgroupOfO3.Cn(1))
+
+
+@pytest.mark.foundation
+def test_the_whole_spellable_lattice_obeys_the_order_relation_laws() -> None:
+    r"""``vv-principles`` #15's compatibility discipline applied to the
+    lattice itself, over EVERY group the module can spell — continuous
+    members included.
+
+    The existing :func:`test_computed_containment_obeys_the_order_relation_laws`
+    runs over ten FINITE groups, so the axial families (which have no finite
+    realization to compare) are outside it entirely. This row widens the
+    denominator to all 23 spellable groups — `[M]` 2026-09-02: **529** ordered
+    pairs, **131** strict edges, of which **23 touch an** :math:`O(2)_a` — and
+    checks the three laws an order relation must satisfy:
+
+    * reflexivity on every member;
+    * antisymmetry, stated as *mutual containment implies the same group* —
+      by ORDER for a finite pair and by ``==`` when either side is
+      continuous. ⚠ ``Trivial`` and ``C_1`` are one group under two
+      spellings, so they DO contain each other while comparing unequal; that
+      is why the finite arm compares orders rather than identity;
+    * transitivity, over all :math:`23^3 = 12167` triples.
+
+    Lagrange (a subgroup's order divides the group's) is asserted only on the
+    finite × finite pairs, where an order exists.
+
+    The containment MATRIX is computed once and the laws are then read off
+    it — 529 ``contains`` calls rather than 12167, which is what makes the
+    triple loop affordable (`[M]` 0.43 s for the matrix).
+    """
+    from orpheus.numerics.symmetry import _group_elements
+
+    n = len(_SPELLABLE)
+    assert n == 23, f"the spellable set moved: {n} members"
+    below = [[a.contains(b) for b in _SPELLABLE] for a in _SPELLABLE]
+    elements = [_group_elements(g._tag) for g in _SPELLABLE]
+    order = [None if e is None else len(e) for e in elements]
+
+    for i, g in enumerate(_SPELLABLE):
+        assert below[i][i], f"not reflexive at {g.name}"
+
+    for i in range(n):
+        for j in range(n):
+            if i == j or not (below[i][j] and below[j][i]):
+                continue
+            if order[i] is None or order[j] is None:
+                assert _SPELLABLE[i] == _SPELLABLE[j], (
+                    f"{_SPELLABLE[i].name} and {_SPELLABLE[j].name} contain "
+                    f"each other but are not equal, and one is continuous"
+                )
+            else:
+                assert order[i] == order[j], (
+                    f"{_SPELLABLE[i].name} and {_SPELLABLE[j].name} contain "
+                    f"each other but have orders {order[i]} != {order[j]}"
+                )
+
+    for i in range(n):
+        for j in range(n):
+            outer_order, inner_order = order[i], order[j]
+            if not below[i][j] or outer_order is None or inner_order is None:
+                continue
+            assert outer_order % inner_order == 0, (
+                f"{_SPELLABLE[i].name} contains {_SPELLABLE[j].name} but "
+                f"{inner_order} does not divide {outer_order} — impossible"
+            )
+
+    broken = [
+        (_SPELLABLE[i].name, _SPELLABLE[j].name, _SPELLABLE[k].name)
+        for i in range(n) for j in range(n) for k in range(n)
+        if below[i][j] and below[j][k] and not below[i][k]
+    ]
+    assert not broken, f"{len(broken)} transitivity violations: {broken[:5]}"
+
+    # NON-VACUITY (`vv-principles` #20): the widening must actually reach the
+    # new member, or the row is the old gate wearing a bigger list.
+    axial = {i for i, g in enumerate(_SPELLABLE) if g.name.startswith("O2_")}
+    touching = sum(
+        1 for i in range(n) for j in range(n)
+        if i != j and below[i][j] and (i in axial or j in axial)
+    )
+    assert touching == 23, f"O(2)-touching strict edges: {touching}"
+    strict = sum(1 for i in range(n) for j in range(n) if i != j and below[i][j])
+    assert strict == 131, f"strict edges: {strict}"
+
+
+# ---------------------------------------------------------------------------
+# Exact invariance for O(2)_a — decided, never sampled (ERR-072)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("axis", ["x", "y", "z"])
+def test_O2_invariance_is_axis_support_and_needs_NO_mu_reflection(
+    axis: str,
+) -> None:
+    r"""A finite point set is :math:`O(2)_a`-closed **iff** every node lies
+    ON axis :math:`a` — the same exact criterion as :math:`SO(2)_a`, because
+    the rotation half already forces axis support and a point on the axis is
+    fixed by every vertical mirror. Decided, never sampled (ERR-072).
+
+    ⭐ The ASYMMETRIC leg is the discriminating one and it is the reason this
+    row is not a restatement of the :math:`\sigma`-mirror gates: a
+    :math:`\mu`-set with no :math:`\mu \to -\mu` symmetry is
+    :math:`O(2)_a`-invariant (``True``) while :math:`\sigma_a` — the mirror
+    that FLIPS the axis, the slab's own residual — reads ``False`` on the
+    same data. `[M]` 2026-09-02 on ``mu = [-0.9, -0.3, 0.3, 0.7]`` declared
+    on ``S^2/O2_a``: :math:`O(2)_a` ``True``, :math:`\sigma_a` ``False``,
+    both other axes' stabilisers ``False``.
+
+    A criterion that had (wrongly) required the reflection would read
+    ``False`` on the asymmetric leg; one that had dropped the axis would read
+    ``True`` on all three axes. The symmetric leg is the CONTROL that keeps
+    the agreement from being the trivial "everything is True".
+    """
+    from orpheus.numerics.manifold import SPHERE
+
+    entry = SPHERE.quotient(SubgroupOfO3.O2(axis))
+    weights = np.full(4, 0.5)
+    asymmetric = np.array([-0.9, -0.3, 0.3, 0.7])   # violates mu -> -mu
+    symmetric = np.array([-0.7, -0.3, 0.3, 0.7])
+
+    for mu, mirror_holds in ((asymmetric, False), (symmetric, True)):
+        measure = DiscreteMeasure(nodes=mu, weights=weights, support=entry)
+        for other in ("x", "y", "z"):
+            assert SubgroupOfO3.O2(other).is_invariant(measure) is (other == axis)
+            assert SubgroupOfO3.SO2(other).is_invariant(measure) is (other == axis)
+        # the axis-flipping mirror is a DIFFERENT question, and it separates
+        # the two legs — which is what makes the O(2) answer non-vacuous.
+        assert SubgroupOfO3.Mirror(axis).is_invariant(measure) is mirror_holds
+
+
+@pytest.mark.foundation
+def test_no_shipped_sphere_cubature_is_O2_invariant_on_ANY_axis() -> None:
+    r"""The intended consequence of deciding the continuous groups exactly:
+    a rule with genuinely off-axis nodes has infinite orbits and cannot be
+    closed under any :math:`O(2)_a`.
+
+    `[M]` 2026-09-02, **4 rules × 3 axes = 12 verdicts, all ``False``**:
+    ``product(4, 8)``, ``level_symmetric(4)``, ``lebedev(11)``,
+    ``folded_product(4, 8)``. The 1-D polar marginal — the one measure that
+    DOES pass, and only for its own axis — is the positive control, so this
+    is a two-sided statement rather than a blanket refusal.
+
+    The sibling :func:`test_no_discrete_cubature_is_so2_invariant` makes the
+    same claim for the rotation half; both are needed, because a criterion
+    keyed on the wrong half would satisfy one and not the other.
+    """
+    rules = {
+        "product(4,8)": Quadrature.product(n_mu=4, n_phi=8).measure,
+        "level_symmetric(4)": Quadrature.level_symmetric(sn_order=4).measure,
+        "lebedev(11)": Quadrature.lebedev(order=11).measure,
+        "folded_product(4,8)": Quadrature.folded_product(n_mu=4, n_phi=8).measure,
+    }
+    verdicts = 0
+    for name, measure in rules.items():
+        for axis in ("x", "y", "z"):
+            verdicts += 1
+            assert not SubgroupOfO3.O2(axis).is_invariant(measure), (
+                f"{name} certified O(2)_{axis}-invariant, but a finite point "
+                f"set with off-axis nodes has infinite O(2) orbits"
+            )
+    assert verdicts == 12
+
+    # POSITIVE CONTROL: the polar marginal passes, for its own axis alone.
+    from orpheus.numerics.quadrature import gauss_legendre_on_polar_orbit
+
+    for axis in ("x", "y", "z"):
+        marginal = gauss_legendre_on_polar_orbit(8, axis=axis)
+        assert SubgroupOfO3.O2(axis).is_invariant(marginal)
+
+
+@pytest.mark.foundation
+def test_the_downward_closure_law_actually_EXERCISES_the_new_member() -> None:
+    r"""``vv-principles`` #15 / #20 — the compatibility law's DENOMINATOR.
+
+    :func:`test_invariance_is_downward_closed` runs over
+    ``candidate_groups``, which since #432 offers the three
+    :math:`O(2)_a`. A widened candidate list makes that gate look stronger
+    without proving it reaches the new member: a pair
+    :math:`(\text{outer}, \text{inner})` only enters the law when
+    ``outer.contains(inner)`` holds, so an O(2) row that is inside nothing
+    and contains nothing would be checked ZERO times and the law would still
+    report "no violations".
+
+    `[M]` 2026-09-02, over the SEVEN rules :func:`_walk_rules` supplies
+    (``product(4, n_phi)`` for ``n_phi`` in 3/4/8, ``level_symmetric`` 4/8,
+    ``lebedev`` 5/11): **1090** ordered pairs enter the law, of which **166**
+    have an :math:`O(2)_a` on one side — and BOTH directions are populated
+    (**138** with the stabiliser as the outer group, **28** as the inner).
+    Zero violations on the exercised subset alone.
+    """
+    from orpheus.numerics.symmetry import candidate_groups
+
+    checked = 0
+    touching_o2 = 0
+    o2_outer = 0
+    o2_inner = 0
+    violations: list[str] = []
+    for name, q in _walk_rules():
+        mu = _measure_from_sphere_quad(q)
+        cands = candidate_groups(mu)
+        invariant = {repr(g): g.is_invariant(mu) for g in cands}
+        for outer in cands:
+            for inner in cands:
+                if outer == inner or not outer.contains(inner):
+                    continue
+                checked += 1
+                out_is, in_is = (
+                    outer.name.startswith("O2_"), inner.name.startswith("O2_"),
+                )
+                touching_o2 += int(out_is or in_is)
+                o2_outer += int(out_is)
+                o2_inner += int(in_is)
+                if invariant[repr(outer)] and not invariant[repr(inner)]:
+                    violations.append(f"{name}: {outer.name} > {inner.name}")
+    assert not violations, violations[:10]
+    assert checked == 1090, f"pairs entering the law: {checked}"
+    assert touching_o2 == 166, f"pairs touching an O(2): {touching_o2}"
+    assert o2_outer == 138 and o2_inner == 28, (o2_outer, o2_inner)
+
+
+# ---------------------------------------------------------------------------
+# generic_images — the two components the isotypic probe samples
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("axis", ["x", "y", "z"])
+def test_generic_images_of_the_stabiliser_carry_BOTH_components(
+    axis: str,
+) -> None:
+    r"""``generic_images(O2(a))`` is :math:`SO(2)_a`'s six incommensurate
+    rotations **plus** each of them composed with one vertical mirror — a
+    generic element of each of the group's two connected components.
+
+    The determinant is the component label and it is exact: `[M]` 2026-09-02
+    the twelve reconstructed linear parts read :math:`+1` six times and
+    :math:`-1` six times, against :math:`SO(2)_a`'s six :math:`+1`. A
+    mutation that drops the mirrored half moves the count 12 → 6 and the
+    determinant multiset; one that composes with the HORIZONTAL mirror
+    :math:`\sigma_a` instead keeps both, and is caught by the next row.
+
+    ⚠ The count is not arbitrary — six is
+    ``len(symmetry._INCOMMENSURATE_ANGLES)``, read here rather than written,
+    so a future angle added to the sample does not red this row for the
+    wrong reason.
+    """
+    from orpheus.numerics.symmetry import _INCOMMENSURATE_ANGLES
+
+    points = _generic_directions()
+    m = len(_INCOMMENSURATE_ANGLES)
+    rotations = SubgroupOfO3.SO2(axis).generic_images(points)
+    both = SubgroupOfO3.O2(axis).generic_images(points)
+    assert len(rotations) == m
+    assert len(both) == 2 * m
+
+    dets = [round(float(np.linalg.det(_linear_part(points, im))), 9) for im in both]
+    assert dets.count(1.0) == m and dets.count(-1.0) == m, dets
+    assert all(
+        round(float(np.linalg.det(_linear_part(points, im))), 9) == 1.0
+        for im in rotations
+    )
+    # the proper half of O(2)_a IS SO(2)_a's sample, element for element.
+    for proper, rotation in zip(both[:m], rotations):
+        assert np.array_equal(proper, rotation)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("axis", ["x", "y", "z"])
+def test_every_generic_image_of_the_stabiliser_FIXES_THE_AXIS(axis: str) -> None:
+    r"""The DEFINING property, as a gate: :math:`O(2)_a = \{g : g\hat e_a =
+    \hat e_a\}`, so every sampled element — rotation and mirrored alike —
+    must leave :math:`\hat e_a` exactly where it is, and must be an isometry.
+
+    `[M]` 2026-09-02: :math:`\max|g\hat e_a - \hat e_a| = 0.000e+00` over
+    all twelve images on all three axes (the coordinate mirror is a signed
+    diagonal, hence bit-exact, and the rotation fixes the axis by
+    construction), and the Gram matrix of nine generic directions moves by
+    at most ``5.6e-16``.
+
+    ⭐ The NEGATIVE control is the mirror that is NOT in the group: the
+    horizontal :math:`\sigma_a` sends :math:`\hat e_a \to -\hat e_a`, so a
+    ``generic_images`` composing with it instead of a vertical mirror would
+    read :math:`|g\hat e_a - \hat e_a| = 2`. Asserted here, because without
+    it the row would pass for a sample that fixed the axis by accident —
+    and ``2.0`` is what the mutation actually produces.
+    """
+    from orpheus.geometry.transformation import RigidMotion
+    from orpheus.numerics.symmetry import _axis_vector
+
+    e_a = _axis_vector(axis)
+    images = SubgroupOfO3.O2(axis).generic_images(e_a.reshape(1, 3))
+    assert len(images) == 12
+    assert max(float(np.max(np.abs(im[0] - e_a))) for im in images) == 0.0
+
+    points = _generic_directions()
+    gram = points @ points.T
+    for image in SubgroupOfO3.O2(axis).generic_images(points):
+        np.testing.assert_allclose(image @ image.T, gram, atol=1e-14)
+
+    # NEGATIVE control — the horizontal mirror is outside O(2)_a and moves
+    # the axis by the full diameter.
+    sigma_h = RigidMotion.reflection(normal=e_a)
+    assert float(np.max(np.abs(sigma_h.linear @ e_a - e_a))) == 2.0
+    assert not SubgroupOfO3.O2(axis).contains(SubgroupOfO3.Mirror(axis))
+
+
+@pytest.mark.foundation
+def test_the_MIRRORED_half_is_inert_for_the_incommensurate_probe_and_that_is_a_THEOREM() -> None:
+    r"""⛔ **A declared blindness, measured** — and the refutation of the
+    obvious control for the previous two rows.
+
+    The natural companion to "``generic_images(O2)`` carries both
+    components" is *"a* :math:`\sigma_v`-odd function is constant across the
+    rotation half and not across the mirrored half"*. **No such function
+    exists.** If :math:`f` is constant on every :math:`SO(2)_a` orbit and
+    :math:`\sigma_v` carries each constant-:math:`\mu` circle onto itself,
+    then :math:`f(\sigma_v x) = f(x)` for every :math:`x` — which is exactly
+    the theorem ``manifold._sphere_mod_o2`` records,
+    :math:`\mathbb{R}[x]^{SO(2)_a} = \mathbb{R}[x]^{O(2)_a}`, and the reason
+    ONE derivation serves both groups.
+
+    `[M]` 2026-09-02, over **3 axes × L = 1..6 = 18 rows**: the descending
+    mask computed from ``generic_images(O2(a))`` is ``array_equal`` to the
+    one computed from ``generic_images(SO2(a))``. So dropping the mirrored
+    half is production-INERT at the shipped incommensurate angles, and no
+    ``descending_slots`` row can catch it.
+
+    ⟹ Where the mirrored half IS observable is the DEGENERATE-sample
+    regime, and it is gated elsewhere:
+    ``test_manifold.py::TestDescendingSlots::test_a_right_angle_sample_falsely_admits_slots_from_L_four``
+    measures right angles generating :math:`C_{4v}` rather than
+    :math:`C_4` (6 rather than 7 live slots at :math:`L = 4`; 8 rather than
+    10 at :math:`L = 5`). This row exists so the inertness is written down
+    rather than discovered by a battery arm that reddens nothing.
+    """
+    from orpheus.numerics.basis.spherical_harmonic_basis import (
+        SphericalHarmonicBasis,
+    )
+
+    points = _generic_directions()
+
+    def mask(basis, group) -> np.ndarray:
+        reference = np.asarray(basis.evaluate(points))
+        out = np.ones(reference.shape[1:], dtype=bool)
+        for image in group.generic_images(points):
+            out &= np.all(
+                np.isclose(basis.evaluate(image), reference, rtol=0.0, atol=1e-12),
+                axis=0,
+            )
+        return out
+
+    rows = 0
+    for axis in ("x", "y", "z"):
+        for L in (1, 2, 3, 4, 5, 6):
+            basis = SphericalHarmonicBasis(L=L)
+            both = mask(basis, SubgroupOfO3.O2(axis))
+            proper = mask(basis, SubgroupOfO3.SO2(axis))
+            assert np.array_equal(both, proper), (
+                f"axis {axis}, L={L}: the mirrored half changed the mask — "
+                f"which the invariant-ring theorem forbids"
+            )
+            rows += 1
+    assert rows == 18
+
+    # NON-VACUITY: the masks are not "everything" — about x they select one
+    # real slot per degree, so the equality above is a real coincidence of
+    # two selections rather than of two universal answers.
+    basis = SphericalHarmonicBasis(L=4)
+    live = mask(basis, SubgroupOfO3.O2("x")) & basis.live_slot_mask
+    assert int(live.sum()) == 5 and int(basis.live_slot_mask.sum()) == 25
+
+
+def _generic_directions(seed: int = 20260902, n: int = 9) -> np.ndarray:
+    """Deterministic generic unit directions — no component zero, no pair
+    related by a coordinate symmetry."""
+    raw = np.random.default_rng(seed).normal(size=(n, 3))
+    return raw / np.linalg.norm(raw, axis=1)[:, None]
+
+
+def _linear_part(points: np.ndarray, image: np.ndarray) -> np.ndarray:
+    """Recover ``g`` from ``points @ g.T = image`` — the test reads the
+    MATRIX back out of the action rather than importing the constructor the
+    production code used."""
+    solved, *_ = np.linalg.lstsq(points, image, rcond=None)
+    return solved.T
+
+
+# ---------------------------------------------------------------------------
+# The orbit STABILISER — the group an orbit space is named by
+# ---------------------------------------------------------------------------
+
+
+class TestOrbitStabiliser:
+    r"""The defining laws of :attr:`SubgroupOfO3.orbit_stabiliser` — the
+    largest subgroup of :math:`O(3)` with this group's orbits (a math concept
+    ships with a test of its intrinsic properties, not only of its use).
+
+    Two laws over the whole spellable lattice, and the census of WHICH
+    members grow: exactly the two connected groups, whose improper
+    extension fixes every invariant.  (That the two axial groups then share
+    one orbit space at the tier the tree reads — identical descending-slot
+    masks — is ``test_the_MIRRORED_half_is_inert_…_THEOREM`` above.)
+    """
+
+    @staticmethod
+    def _lattice() -> list[SubgroupOfO3]:
+        """Every family the module realizes, one or more members each — the
+        DENOMINATOR of the two universals below, written out."""
+        G = SubgroupOfO3
+        return (
+            [G.Trivial, G.Dinfh, G.OctahedralOh, G.IcosahedralIh, G.SO3, G.O3]
+            + [G.Cn(n) for n in (1, 2, 3, 4, 6)]
+            + [G.Dnh(n) for n in (1, 2, 3, 4)]
+            + [G.Mirror(a) for a in "xyz"]
+            + [G.SO2(a) for a in "xyz"]
+            + [G.O2(a) for a in "xyz"]
+        )
+
+    def test_it_CONTAINS_the_group_and_is_IDEMPOTENT(self) -> None:
+        """Closure and idempotence: ``G ⊆ Stab(G)`` and ``Stab(Stab(G)) =
+        Stab(G)`` — a stabiliser is its own stabiliser — on 24 of 24."""
+        groups = self._lattice()
+        assert len(groups) == 24
+        for g in groups:
+            s = g.orbit_stabiliser
+            assert s.contains(g), (g, s)
+            assert s.orbit_stabiliser == s, (g, s)
+
+    def test_exactly_the_two_CONNECTED_groups_grow(self) -> None:
+        """`[M]` the non-identity cases are ``SO2(a) → O2(a)`` on each axis and
+        ``SO3 → O3``; every finite group, ``D_∞h``, ``O2(a)`` and ``O3`` is
+        its own stabiliser (24 of 24 enumerated above)."""
+        grown = {
+            repr(g): repr(g.orbit_stabiliser)
+            for g in self._lattice()
+            if g.orbit_stabiliser != g
+        }
+        assert grown == {
+            "SubgroupOfO3.SO2('x')": "SubgroupOfO3.O2('x')",
+            "SubgroupOfO3.SO2('y')": "SubgroupOfO3.O2('y')",
+            "SubgroupOfO3.SO2('z')": "SubgroupOfO3.O2('z')",
+            "SubgroupOfO3.SO3": "SubgroupOfO3.O3",
+        }

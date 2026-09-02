@@ -1,7 +1,7 @@
-r"""Function space for Legendre moment coefficients on an :math:`SO(2)` orbit space.
+r"""Function space for Legendre moment coefficients on an :math:`O(2)_a` orbit space.
 
 The coefficient space of :class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis`
-— :math:`\{P_\ell(\mu)\}_{\ell \le L}` on :math:`S^2/SO(2)_a` — a **FLAT** head of
+— :math:`\{P_\ell(\mu)\}_{\ell \le L}` on :math:`S^2/O(2)_a` — a **FLAT** head of
 shape ``(L+1,)``. The sibling of
 :class:`~orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace`
 in the :class:`~orpheus.numerics.spaces.moment_head.MomentHead` family, and the
@@ -33,14 +33,15 @@ __all__ = ["LegendreSpace"]
 
 @dataclass(frozen=True)
 class LegendreSpace(FunctionSpace):
-    r"""Function space of Legendre moment coefficients up to degree :math:`L` on :math:`S^2/SO(2)_a`.
+    r"""Function space of Legendre moment coefficients up to degree :math:`L` on :math:`S^2/O(2)_a`.
 
     Parameters
     ----------
     name : str
-        Inherited. Convention: ``"legendre_space(S^2/SO2_<axis>)"`` — the
-        orbit space is in the name because two axes are two spaces (the
-        tree carries two poles; tracker 2.4).
+        Inherited. Convention: ``"legendre_space(S^2/O2_<axis>)"`` — the
+        orbit space's own name, READ off the basis's domain by
+        :meth:`from_L` rather than spelled a second time, because two axes
+        are two spaces (the tree carries two poles; tracker 2.4).
     shape : tuple[int, ...]
         Inherited. MUST equal ``(L + 1,)``; ``__post_init__`` checks.
     inner_product_weights : NDArray, optional
@@ -50,7 +51,7 @@ class LegendreSpace(FunctionSpace):
     L : int, default 0
         Maximum degree retained.
     spent_axis : str, default ``"x"``
-        The rotation axis of the spent :math:`SO(2)` (``axis`` is a
+        The axis of the spent stabiliser :math:`O(2)_a` (``axis`` is a
         :class:`FunctionSpace` method, hence the longer name).
 
     Notes
@@ -92,7 +93,7 @@ class LegendreSpace(FunctionSpace):
         """
         basis = LegendreBasis(L=L, axis=axis)
         return cls(
-            name=f"legendre_space(S^2/SO2_{axis})",
+            name=f"legendre_space({basis.domain.name})",
             shape=(L + 1,),
             inner_product_weights=basis.metric_per_ell,
             L=L,

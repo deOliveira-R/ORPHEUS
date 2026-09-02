@@ -481,7 +481,7 @@ it no longer dispatches on the ``folded_by`` tag:
      - Basis bound
      - Coefficient head
    * - ``gauss_legendre(n)``
-     - :math:`S^2/SO(2)_x`
+     - :math:`S^2/O(2)_x`
      - :class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis`
      - **FLAT**, :math:`(L+1,)`
    * - ``lebedev``, ``level_symmetric``, ``product``
@@ -498,14 +498,18 @@ as tabulated, and ``frame.measure is q.measure`` on **12 of 12** — the
 frame is handed the rule's own measure, never a rebuilt one.
 
 ⛔ **Why this is a repair.** A 1-D rule samples the **orbit space**
-:math:`S^2/SO(2)_x`, not the sphere: one of its nodes is a whole circle
+:math:`S^2/O(2)_x`, not the sphere: one of its nodes is a whole circle
 of directions at fixed :math:`\mu`. Until 2026-09-02 the frame padded
 :math:`\mu` to :math:`(\mu, 0, 0)`, called the result a measure on
 :math:`S^2`, and bound the full real harmonics to it — so
 ``_evaluate_real_sh`` read the fabricated ``arctan2(0, 0) = 0`` as a
 real azimuth and ``solve_sn(scattering_order >= 2)`` returned a wrong
 answer on **every** 1-D chart. The functions on the orbit space are the
-:math:`SO(2)`-invariant ones, i.e. :math:`\{P_\ell(\mu)\}`
+:math:`O(2)_x`-invariant ones — equivalently the
+:math:`SO(2)_x`-invariant ones, since the two groups have the same
+orbits and the entry is named by the larger
+(:ref:`manifold-orbit-space-stabiliser`) — i.e.
+:math:`\{P_\ell(\mu)\}`
 (:ref:`sh-legendre-is-the-1d-family`), and a frame now REFUSES the old
 pairing outright (:ref:`frame-g0-descent-arrow`).
 

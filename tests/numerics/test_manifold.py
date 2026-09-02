@@ -307,12 +307,12 @@ class TestQuotient:
 
     @pytest.fixture(scope="class")
     def s2_mod_so2(self) -> Quotient:
-        return SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        return SPHERE.quotient(SubgroupOfO3.O2("x"))
 
     def test_the_realization_is_the_cosine_interval(self, s2_mod_so2):
-        r""":math:`S^2/SO(2)_x \cong [-1,1]`, with :math:`\mu = \hat\Omega \cdot \hat x` — the slab\'s axis."""
+        r""":math:`S^2/O(2)_x \cong [-1,1]`, with :math:`\mu = \hat\Omega \cdot \hat x` — the slab\'s axis."""
         assert s2_mod_so2.realization == COSINE_INTERVAL
-        assert s2_mod_so2.name == "S^2/SO2_x"
+        assert s2_mod_so2.name == "S^2/O2_x"
 
     def test_the_dimension_drops_by_the_group_dimension(self, s2_mod_so2):
         r""":math:`\dim S^2 = 2`, :math:`\dim SO(2) = 1`, quotient :math:`= 1`.
@@ -465,8 +465,8 @@ class TestQuotient:
         from orpheus.numerics.quadrature.registry import AngularSymmetry
 
         rows = {
-            SubgroupOfO3.SO2("x"): COSINE_INTERVAL,
-            SubgroupOfO3.SO2("z"): COSINE_INTERVAL,
+            SubgroupOfO3.O2("x"): COSINE_INTERVAL,
+            SubgroupOfO3.O2("z"): COSINE_INTERVAL,
             SubgroupOfO3.Trivial: SPHERE,
         }
         for group, expected in rows.items():
@@ -504,7 +504,7 @@ class TestQuotient:
         assert "_ORBIT_CATALOGUE" in msg
         # ...and says what IS catalogued, by class name (labelled
         # as such, since the request is named by MANIFOLD name).
-        assert "Sphere/SO2_x" in msg and "Sphere/SO2_z" in msg
+        assert "Sphere/O2_x" in msg and "Sphere/O2_z" in msg
         assert "manifold CLASS" in msg
 
 
@@ -695,7 +695,7 @@ class TestTheTwoCoordinateSystemsMustAgree:
         for q in (
             SPHERE.quotient(SubgroupOfO3.Mirror("y")),
             SPHERE.quotient(SubgroupOfO3.Trivial),
-            SPHERE.quotient(SubgroupOfO3.SO2("x")),
+            SPHERE.quotient(SubgroupOfO3.O2("x")),
         ):
             if q.fundamental_domain is not None:
                 assert q.fundamental_domain.dim == q.realization.dim
@@ -750,7 +750,7 @@ def test_ambient_dimension_is_defined_for_every_variant():
     """
     for m in _ALL:
         assert ambient_dim(m) >= 1
-    assert ambient_dim(SPHERE.quotient(SubgroupOfO3.SO2("x"))) == 1
+    assert ambient_dim(SPHERE.quotient(SubgroupOfO3.O2("x"))) == 1
     assert ambient_dim(SPHERE * CIRCLE) == 5
 
 
@@ -864,7 +864,7 @@ class TestManifoldMap:
     ) -> None:
         from orpheus.numerics.manifold import AXIS_INDEX, barycentre
 
-        orbit_space = SPHERE.quotient(SubgroupOfO3.SO2(axis))
+        orbit_space = SPHERE.quotient(SubgroupOfO3.O2(axis))
         centre = barycentre(orbit_space)
         assert centre.domain is orbit_space  # the memoised entry itself
         assert centre.codomain == Ball(3)
@@ -886,13 +886,13 @@ class TestManifoldMap:
     def test_barycentre_refuses_anything_but_an_axial_orbit_space(self) -> None:
         from orpheus.numerics.manifold import barycentre
 
-        barycentre(SPHERE.quotient(SubgroupOfO3.SO2("x")))  # positive control
+        barycentre(SPHERE.quotient(SubgroupOfO3.O2("x")))  # positive control
         for not_axial in (
             SPHERE.quotient(SubgroupOfO3.Mirror("y")),
             SPHERE.quotient(SubgroupOfO3.Trivial),
             COSINE_INTERVAL,
         ):
-            with pytest.raises(ValueError, match="axial rotation group"):
+            with pytest.raises(ValueError, match="axial group"):
                 barycentre(not_axial)  # type: ignore[arg-type]
 
     @pytest.mark.parametrize("axis", ["x", "y", "z"])
@@ -941,7 +941,7 @@ def _rotation_about(axis: int, theta: float) -> np.ndarray:
 #: Every shipped orbit space of the sphere: the six catalogue keys plus the
 #: derived identity quotient.  A universal below is a universal over THIS.
 _ROSTER = [
-    SubgroupOfO3.SO2("x"), SubgroupOfO3.SO2("y"), SubgroupOfO3.SO2("z"),
+    SubgroupOfO3.O2("x"), SubgroupOfO3.O2("y"), SubgroupOfO3.O2("z"),
     SubgroupOfO3.Mirror("x"), SubgroupOfO3.Mirror("y"), SubgroupOfO3.Mirror("z"),
     SubgroupOfO3.Trivial,
 ]
@@ -971,7 +971,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         distinction tracker 2.4 made refusable, now carried by the map."""
         from orpheus.numerics.manifold import ManifoldMap
 
-        q = SPHERE.quotient(SubgroupOfO3.SO2(axis))
+        q = SPHERE.quotient(SubgroupOfO3.O2(axis))
         pi = q.quotient_map
         assert isinstance(pi, ManifoldMap)
         assert pi.domain is SPHERE
@@ -1062,7 +1062,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         from orpheus.numerics.manifold import archimedes
         from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
 
-        q = SPHERE.quotient(SubgroupOfO3.SO2(axis))
+        q = SPHERE.quotient(SubgroupOfO3.O2(axis))
         composite = q.quotient_map @ archimedes(axis)
         assert composite.domain == COSINE_INTERVAL * CIRCLE
         assert composite.codomain is q
@@ -1080,7 +1080,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         spelling: a point of the ball, on the sphere only at the poles."""
         from orpheus.numerics.manifold import AXIS_INDEX, barycentre
 
-        q = SPHERE.quotient(SubgroupOfO3.SO2(axis))
+        q = SPHERE.quotient(SubgroupOfO3.O2(axis))
         composite = barycentre(q) @ q.quotient_map
         assert composite.domain is SPHERE and composite.codomain == Ball(3)
         omega = _random_directions(256, seed=4)
@@ -1094,7 +1094,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         self,
     ) -> None:
         r"""The two induced arrows, on a REAL rule: :math:`\pi_*\mu` lives on
-        :math:`S^2/SO(2)_x` because :math:`\pi` says so, and
+        :math:`S^2/O(2)_x` because :math:`\pi` says so, and
         :math:`\int f \, d(\pi_*\mu) = \int (f \circ \pi) \, d\mu`
         (:eq:`discrete-measure-pushforward`) — checked on
         :math:`f(\mu) = \mu^2`, whose sphere integral is :math:`4\pi/3`.
@@ -1103,7 +1103,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
         from orpheus.numerics.quadrature.rules_sphere import level_symmetric_sn
 
-        q = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        q = SPHERE.quotient(SubgroupOfO3.O2("x"))
         rule, _ = level_symmetric_sn(4)
         pushed = rule.pushforward(q.quotient_map)
         assert pushed.support is q
@@ -1127,7 +1127,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         from orpheus.numerics.generating_measure import LEGENDRE
 
         for axis in self._AXES:
-            assert SPHERE.quotient(SubgroupOfO3.SO2(axis)).reference is LEGENDRE
+            assert SPHERE.quotient(SubgroupOfO3.O2(axis)).reference is LEGENDRE
         assert LEGENDRE.support == COSINE_INTERVAL
         for axis in self._AXES:
             assert SPHERE.quotient(SubgroupOfO3.Mirror(axis)).reference is None
@@ -1152,7 +1152,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         and an entry — a support, hence a thing measures carry — pickles."""
         import pickle
 
-        q = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        q = SPHERE.quotient(SubgroupOfO3.O2("x"))
         twin = dataclasses.replace(q, orbit_coordinates=lambda points: points[:, 0])
         assert twin == q and hash(twin) == hash(q)
         assert twin.quotient_map.codomain is twin
@@ -1165,7 +1165,7 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
     def test_no_quotient_is_minted_at_MODULE_scope_anywhere_in_the_package(self) -> None:
         r"""The function-scope import's safety condition, gated.
 
-        ``_sphere_mod_so2`` imports ``LEGENDRE`` at FUNCTION scope; `[M]` the
+        ``_sphere_mod_o2`` imports ``LEGENDRE`` at FUNCTION scope; `[M]` the
         same line at module scope kills 7 of 7 fresh import orders (the cycle
         closes through ``measure``, which ``generating_measure`` imports, and
         ``numerics/__init__`` imports ``measure`` eagerly).  That is safe
@@ -1259,7 +1259,7 @@ class TestDescendingSlots:
 
         for L in (1, 2, 3, 4, 5):
             basis = SphericalHarmonicBasis(L=L)
-            mask = SPHERE.quotient(SubgroupOfO3.SO2("x")).descending_slots(basis)
+            mask = SPHERE.quotient(SubgroupOfO3.O2("x")).descending_slots(basis)
             real = mask & basis.live_slot_mask
 
             expected = np.zeros_like(real)
@@ -1284,7 +1284,7 @@ class TestDescendingSlots:
 
         L = 4
         basis = SphericalHarmonicBasis(L=L)
-        mask = SPHERE.quotient(SubgroupOfO3.SO2("x")).descending_slots(basis)
+        mask = SPHERE.quotient(SubgroupOfO3.O2("x")).descending_slots(basis)
 
         assert mask.shape == (L + 1, 2 * L + 1)
         assert mask.size == 45
@@ -1311,9 +1311,19 @@ class TestDescendingSlots:
         :math:`m \equiv 0 \pmod 4` harmonic is falsely certified invariant.
 
         ``[M]`` 2026-09-02, live descending slots about x under a right-angle
-        sample: :math:`L = 1,2,3` are **unchanged** (2, 3, 4 — identical to
-        the honest answer); :math:`L = 4` reads **7** (the true 5 plus
-        :math:`(4,\pm4)`); :math:`L = 5` reads **10** (plus :math:`(5,\pm4)`).
+        sample of the SO(2)-only probe: :math:`L = 1,2,3` are **unchanged**
+        (2, 3, 4 — identical to the honest answer); :math:`L = 4` read **7**
+        (the true 5 plus :math:`(4,\pm4)`); :math:`L = 5` read **10** (plus
+        :math:`(5,\pm4)`).
+
+        ⭐ Since #432 (later the same day) the entry is :math:`S^2/O(2)_x` and
+        its probe samples BOTH components — each right-angle rotation and its
+        composition with one vertical mirror — so the sample generates
+        :math:`C_{4v}`, not :math:`C_4`, and only the :math:`\sigma_v`-EVEN
+        member of each :math:`\pm 4` pair is falsely admitted: ``[M]``
+        :math:`L = 4` reads **6** (slot ``(4, 8)``) and :math:`L = 5` reads
+        **8**. The mirrored half of the probe is doing real work; the control
+        is still blind below :math:`L = 4`, which is the finding.
 
         ⟹ **a probe gate without an** :math:`L \ge 4` **row has an
         unfalsifiable control** — which is the whole reason this row exists
@@ -1325,7 +1335,7 @@ class TestDescendingSlots:
             SphericalHarmonicBasis,
         )
 
-        entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
 
         def live_count(L: int) -> int:
             basis = SphericalHarmonicBasis(L=L)
@@ -1341,9 +1351,9 @@ class TestDescendingSlots:
         )
         degenerate = {L: live_count(L) for L in (1, 2, 3, 4, 5)}
 
-        assert degenerate[4] == 7 and degenerate[5] == 10, (
-            f"the right-angle sample must falsely admit the m = ±4 slots; "
-            f"read {degenerate}"
+        assert degenerate[4] == 6 and degenerate[5] == 8, (
+            f"the right-angle sample must falsely admit the sigma_v-even "
+            f"m = +4 slot per degree >= 4 (C_4v, not C_4); read {degenerate}"
         )
         assert {L: degenerate[L] for L in (1, 2, 3)} == {1: 2, 2: 3, 3: 4}, (
             f"the control is BLIND below L = 4 — that is the finding, not a "
@@ -1402,7 +1412,7 @@ class TestDescendingSlots:
             SphericalHarmonicBasis,
         )
 
-        entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
         with pytest.raises(ValueError, match="not on the\n?\\s*base|not on the base"):
             entry.descending_slots(
                 SphericalHarmonicBasis(L=1), probe=np.array([[0.3, 0.4, 0.5]])
@@ -1466,7 +1476,7 @@ class TestQuotientOnto:
 
     def test_equality_is_the_identity_arrow(self) -> None:
         r"""``source == target`` — the special case :math:`K = H` (the slab rule with the Legendre basis)."""
-        entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
         arrow = quotient_onto(entry, entry)
         assert arrow is not None
         assert arrow.domain == entry and arrow.codomain == entry
@@ -1484,7 +1494,7 @@ class TestQuotientOnto:
         Lebedev or level-symmetric rule, and the arrow that makes it
         well-posed is the entry's own quotient map.
         """
-        entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
         arrow = quotient_onto(SPHERE, entry)
         assert arrow is not None
         assert arrow.domain == SPHERE and arrow.codomain == entry
@@ -1496,7 +1506,7 @@ class TestQuotientOnto:
     def test_a_finer_orbit_space_maps_onto_a_coarser_one(self) -> None:
         r"""Both sides quotients of one base with :math:`K \subseteq H` — the induced :math:`M/K \to M/H`."""
         fine = SPHERE.quotient(SubgroupOfO3.Trivial)
-        coarse = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        coarse = SPHERE.quotient(SubgroupOfO3.O2("x"))
         assert SubgroupOfO3.SO2("x").contains(SubgroupOfO3.Trivial)
 
         arrow = quotient_onto(fine, coarse)
@@ -1508,11 +1518,11 @@ class TestQuotientOnto:
         r"""``None`` — the full harmonics on the slab's orbit space (ERR-080's own pairing).
 
         :math:`\mathrm{Trivial} \not\supseteq SO(2)_x`, so no arrow
-        :math:`S^2/SO(2)_x \to S^2` exists — a coarser space cannot map onto
+        :math:`S^2/O(2)_x \to S^2` exists — a coarser space cannot map onto
         a finer one, which is exactly the direction ERR-080's forged nodes
         pretended to travel.
         """
-        slab_entry = SPHERE.quotient(SubgroupOfO3.SO2("x"))
+        slab_entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
         fold_entry = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
 
         assert quotient_onto(slab_entry, SPHERE) is None
@@ -1534,8 +1544,8 @@ class TestQuotientOnto:
         """
         groups = (
             SubgroupOfO3.Trivial,
-            SubgroupOfO3.SO2("x"),
-            SubgroupOfO3.SO2("y"),
+            SubgroupOfO3.O2("x"),
+            SubgroupOfO3.O2("y"),
             SubgroupOfO3.Mirror("x"),
             SubgroupOfO3.Mirror("y"),
         )
@@ -1552,3 +1562,255 @@ class TestQuotientOnto:
                 )
                 checked += 1
         assert checked == 25
+
+
+# ══════════════════════════════════════════════════════════════════════
+# The entry is named by its STABILISER — #432, 2026-09-02
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestTheOrbitSpaceIsNamedByItsStabiliser:
+    r"""One orbit space, one spelling: :math:`S^2/SO(2)_a` **is**
+    :math:`S^2/O(2)_a`, so the catalogue records the larger group and refuses
+    the smaller one.
+
+    The invariants of :math:`SO(2)_a` acting on :math:`\mathbb{R}^3` are
+    :math:`x_a` and :math:`x_b^2 + x_c^2`, and a vertical mirror fixes both —
+    so :math:`\mathbb{R}[x]^{SO(2)_a} = \mathbb{R}[x]^{O(2)_a}`, the two
+    groups have the SAME orbits (the constant-:math:`\mu` circles), and one
+    derivation produces one entry. Naming it by the stabiliser is what lets
+    :attr:`~orpheus.numerics.basis.base.Basis.invariance_group`, read off
+    :attr:`Quotient.by`, be the FULL group a basis on the entry has
+    (previously it could only be derived as the lower bound, and the
+    mathematically admissible Legendre-on-a-:math:`\sigma_b`-fold pairing was
+    over-refused).
+
+    Claim layer: **term-level (L0)**, closed form — the invariant-theory
+    statement above, checked against the group action itself.
+    """
+
+    @pytest.mark.parametrize("axis", ["x", "y", "z"])
+    def test_the_entry_records_the_stabiliser_and_its_two_derivation_outputs(
+        self, axis: str
+    ) -> None:
+        r"""The POSITIVE leg: ``S^2/O2_a`` exists on every axis, carries
+        :math:`O(2)_a` as its ``by``, the cosine interval as its realization,
+        and Archimedes' hat-box measure (``LEGENDRE``) as its pushforward
+        reference."""
+        from orpheus.numerics.generating_measure import LEGENDRE
+        from orpheus.numerics.manifold import AXIS_INDEX
+
+        stabiliser = SubgroupOfO3.O2(axis)
+        entry = SPHERE.quotient(stabiliser)
+        assert entry.by == stabiliser
+        assert entry.name == f"S^2/O2_{axis}"
+        assert entry.realization == COSINE_INTERVAL
+        assert entry.reference is LEGENDRE
+        assert entry.dim == 1
+        # the surviving invariant IS the cosine against THIS axis
+        directions = _generic_unit_directions()
+        assert np.array_equal(
+            entry.orbit_coordinates(directions), directions[:, AXIS_INDEX[axis]]
+        )
+        # three axes, three DIFFERENT entries — same numbers, different maps
+        others = [SPHERE.quotient(SubgroupOfO3.O2(b)) for b in "xyz" if b != axis]
+        assert all(entry != other for other in others)
+
+    @pytest.mark.parametrize("axis", ["x", "y", "z"])
+    def test_the_quotient_by_the_ROTATION_HALF_is_refused_with_the_theorem(
+        self, axis: str
+    ) -> None:
+        r"""The NEGATIVE leg (``vv-principles`` #11): asking for
+        :math:`S^2/SO(2)_a` raises, and the message carries the reason rather
+        than merely the refusal — it names the stabiliser, the invariants, and
+        the spelling to use.
+
+        ⚠ The pinned fragment is the message's HEAD,
+        ``"S^2/SO2_a is the orbit space S^2/O2_a"`` — it names both orbit
+        spaces and is the sentence the refusal exists to say, so it is the
+        piece that must survive wherever the check is enforced from (the
+        derivation, the catalogue door, or the type's own construction
+        invariant). The rest of the message is a diagnosis and is
+        deliberately NOT pinned, so re-wording it is not a false red.
+
+        ⭐ The second leg is a PLACEMENT claim, and it is the one with teeth
+        after the check moves: the refusal must be a ``ValueError`` carrying
+        that sentence and NOT the catalogue's ``NotImplementedError``
+        ("no catalogue entry", which names the derivation WORK). Those are
+        the two ways ``S^2/SO2_a`` can fail to build, and only one of them is
+        the theorem — so a check placed AFTER the catalogue lookup, or a key
+        merely deleted from the table, reddens here.
+        """
+        rotation_half = SubgroupOfO3.SO2(axis)
+        with pytest.raises(ValueError) as excinfo:
+            SPHERE.quotient(rotation_half)
+        message = str(excinfo.value)
+        assert f"S^2/SO2_{axis} is the orbit space S^2/O2_{axis}" in message, (
+            message
+        )
+        assert "no catalogue entry" not in message
+        assert not isinstance(excinfo.value, NotImplementedError)
+
+    def test_the_entry_is_named_by_the_LARGEST_group_with_its_orbits(self) -> None:
+        r"""⭐ The theorem as a test: for every group the lattice can spell,
+
+        .. math:: G \subseteq \mathtt{entry.by}
+                  \iff \text{every generic image of } G
+                  \text{ leaves } \mathtt{orbit\_coordinates} \text{ unchanged.}
+
+        The right-hand side is what "these are the orbits" MEANS — the orbit
+        coordinates are constant on the fibres of :math:`\pi` — and the
+        left-hand side is the lattice's answer. Neither half can be wrong
+        alone without this reddening (``vv-principles`` #15), and it is the
+        maximality claim: were ``by`` set to a proper subgroup, some group
+        outside it would still fix the invariants and the ⟸ direction would
+        fail; were it set to something too big, an element would move them and
+        ⟹ would fail.
+
+        `[M]` 2026-09-02: **140** (entry, group) pairs over the seven shipped
+        sphere entries × the 20 groups whose generic images can be sampled —
+        **0** mismatches, **33** pairs inside and **107** outside, so BOTH
+        directions are populated (`vv-principles` #20). Cost 0.74 s.
+
+        ⚠ The denominator EXCLUDES :math:`D_{\infty h}`, :math:`SO(3)` and
+        :math:`O(3)`: they are continuous with no axis to sample about and
+        :meth:`generic_images` refuses them by design. Their absence is
+        asserted, so the exclusion cannot silently widen.
+        """
+        entries = (
+            [SubgroupOfO3.O2(a) for a in "xyz"]
+            + [SubgroupOfO3.Mirror(a) for a in "xyz"]
+            + [SubgroupOfO3.Trivial]
+        )
+        groups = (
+            [
+                SubgroupOfO3.Trivial, SubgroupOfO3.OctahedralOh,
+                SubgroupOfO3.IcosahedralIh,
+            ]
+            + [SubgroupOfO3.Mirror(a) for a in "xyz"]
+            + [SubgroupOfO3.SO2(a) for a in "xyz"]
+            + [SubgroupOfO3.O2(a) for a in "xyz"]
+            + [SubgroupOfO3.Cn(n) for n in (1, 2, 3, 4)]
+            + [SubgroupOfO3.Dnh(n) for n in (1, 2, 3, 4)]
+        )
+        assert len(entries) == 7 and len(groups) == 20
+
+        points = _generic_unit_directions()
+        mismatches: list[str] = []
+        inside = outside = 0
+        for spent in entries:
+            entry = SPHERE.quotient(spent)
+            reference = entry.orbit_coordinates(points)
+            for group in groups:
+                fixes = all(
+                    np.allclose(entry.orbit_coordinates(image), reference, atol=1e-12)
+                    for image in group.generic_images(points)
+                )
+                contained = entry.by.contains(group)
+                inside += int(contained)
+                outside += int(not contained)
+                if fixes != contained:
+                    mismatches.append(
+                        f"{entry.name}: {group.name} fixes the invariants="
+                        f"{fixes} but by.contains={contained}"
+                    )
+        assert not mismatches, mismatches[:8]
+        assert inside + outside == 140
+        assert inside == 33 and outside == 107, (inside, outside)
+
+        # the three excluded groups, asserted rather than assumed
+        for axis_free in (
+            SubgroupOfO3.Dinfh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
+        ):
+            with pytest.raises(NotImplementedError, match="no rotation axis"):
+                axis_free.generic_images(points)
+
+    def test_the_stabiliser_of_the_axial_entry_is_STRICTLY_bigger_than_the_rotation_half(
+        self,
+    ) -> None:
+        r"""Non-vacuity for the row above: the maximality claim only has
+        content if the stabiliser is genuinely larger than the group whose
+        derivation produced the entry.
+
+        `[M]` 2026-09-02 on ``S^2/O2_x``: **7** of the 20 spellable groups sit
+        inside :math:`O(2)_x` — ``Trivial``, ``sigma_y``, ``sigma_z``,
+        ``SO2_x``, ``O2_x``, ``C_1``, ``D_1h`` — while only **3** sit inside
+        the rotation half :math:`SO(2)_x` (``Trivial``, ``SO2_x``, ``C_1``;
+        the two vertical mirrors and :math:`D_{1h}` are improper, and
+        :math:`O(2)_x` itself is strictly bigger). So naming the entry by the
+        rotation half would lose **four** edges, of which ``sigma_y`` and
+        ``sigma_z`` are exactly what admits the Legendre basis on a
+        :math:`\sigma_b`-fold.
+        """
+        groups = (
+            [
+                SubgroupOfO3.Trivial, SubgroupOfO3.OctahedralOh,
+                SubgroupOfO3.IcosahedralIh,
+            ]
+            + [SubgroupOfO3.Mirror(a) for a in "xyz"]
+            + [SubgroupOfO3.SO2(a) for a in "xyz"]
+            + [SubgroupOfO3.O2(a) for a in "xyz"]
+            + [SubgroupOfO3.Cn(n) for n in (1, 2, 3, 4)]
+            + [SubgroupOfO3.Dnh(n) for n in (1, 2, 3, 4)]
+        )
+        stabiliser_side = {
+            g.name for g in groups if SubgroupOfO3.O2("x").contains(g)
+        }
+        rotation_side = {
+            g.name for g in groups if SubgroupOfO3.SO2("x").contains(g)
+        }
+        assert stabiliser_side == {
+            "Trivial", "sigma_y", "sigma_z", "SO2_x", "O2_x", "C_1", "D_1h",
+        }
+        assert rotation_side == {"Trivial", "SO2_x", "C_1"}
+        assert rotation_side < stabiliser_side
+        assert stabiliser_side - rotation_side == {
+            "O2_x", "sigma_y", "sigma_z", "D_1h",
+        }
+
+    # ── the invariant lives on the TYPE, not in one builder ──────────
+
+    def test_replace_cannot_forge_a_second_spelling(self) -> None:
+        r"""``Quotient.__post_init__`` reads ``by.orbit_stabiliser``.
+
+        `[M]` 2026-09-02, while the refusal lived inside ``_sphere_mod_o2``
+        alone: ``replace(entry, by=SO2("x"))`` constructed, compared unequal
+        to the catalogue entry under ``==``, and was accepted by
+        ``barycentre`` and the polar-axis reader — ERR-080's own defect
+        class (one orbit space, two objects) through the idiom Pattern 4
+        blesses (elegance review).  Refused where it is written.
+        """
+        from dataclasses import replace
+
+        entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
+        with pytest.raises(ValueError, match=r"is the orbit space S\^2/O2_x"):
+            replace(entry, by=SubgroupOfO3.SO2("x"))
+
+    def test_the_door_names_the_spelling_and_SO3_is_refused_the_same_way(
+        self,
+    ) -> None:
+        r"""The door's message ends in the spelling to use, and the same law
+        refuses the other connected group: :math:`S^2/SO(3)` is the point
+        :math:`S^2/O(3)` (``orbit_stabiliser`` is one rule, not an axial
+        special case)."""
+        with pytest.raises(ValueError, match=r"spell SubgroupOfO3\.O2\('y'\)"):
+            SPHERE.quotient(SubgroupOfO3.SO2("y"))
+        with pytest.raises(ValueError, match=r"S\^2/SO3 is the orbit space S\^2/O3"):
+            SPHERE.quotient(SubgroupOfO3.SO3)
+
+    def test_every_catalogue_key_is_OBTAINABLE(self) -> None:
+        r"""The door's "catalogued today" listing is exactly what can be
+        built: no key routes to a refusal.  `[M]` until 2026-09-02 three of
+        nine did (``SO2_a`` decoys kept to reach the in-builder refusal), and
+        the ``NotImplementedError`` for an uncatalogued group advertised them
+        as entries.
+        """
+        from orpheus.numerics.manifold import _ORBIT_CATALOGUE
+
+        names = sorted(g for _, g in _ORBIT_CATALOGUE)
+        assert names == ["O2_x", "O2_y", "O2_z", "sigma_x", "sigma_y", "sigma_z"]
+        with pytest.raises(NotImplementedError) as excinfo:
+            SPHERE.quotient(SubgroupOfO3.Cn(4))
+        for name in names:
+            assert f"Sphere/{name}" in str(excinfo.value)
+        assert "SO2" not in str(excinfo.value)

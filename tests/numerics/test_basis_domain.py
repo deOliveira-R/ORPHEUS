@@ -412,7 +412,7 @@ def test_e1_the_folds_two_halves_read_ONE_group_and_the_slab_now_does_too() -> N
     ``Trivial ⊇ SO2('x')`` was **False** and nothing refused it (tracker 2.2
     did not exist; the frame's measure still carried the forged
     :math:`S^2`). The fused commit closed both halves: the frame binds the
-    Legendre basis on :math:`S^2/SO(2)_x`, so the verdict is now **True** by
+    Legendre basis on :math:`S^2/O(2)_x`, so the verdict is now **True** by
     the same three assertions the fold gets.
 
     ⭐ **The refusal did not disappear — it MOVED, and it is asserted here.**
@@ -441,7 +441,7 @@ def test_e1_the_folds_two_halves_read_ONE_group_and_the_slab_now_does_too() -> N
     has = slab_basis.invariance_group
     assert spent is not None and has is not None
     assert has.contains(spent)                             # ⭐ was False (ERR-080)
-    assert has == spent == SubgroupOfO3.SO2("x")
+    assert has == spent == SubgroupOfO3.O2("x")
     assert has is spent
     assert slab_basis.domain is slab.measure.support
 
@@ -527,9 +527,10 @@ def test_e4_the_group_is_decided_by_the_domain_and_by_nothing_else() -> None:
     This is the gate that separates *reads the domain* from *knows the
     class*: an implementation keyed on the subclass (an ``isinstance`` on
     ``SphericalHarmonicBasis``, say) would give every stub the same answer.
-    The quotient arm is exercised with ``SO2('x')`` — a second group FAMILY
-    through the same arm, since the shipped fold basis only ever brings a
-    ``Mirror``.
+    The quotient arm is exercised with ``O2('x')`` (the stabiliser the
+    entry is named by since #432; ``SO2('x')`` until 2026-09-02) — a second
+    group FAMILY through the same arm, since the shipped fold basis only
+    ever brings a ``Mirror``.
     """
 
     class _OnEnergy(_AbstractStub):
@@ -545,11 +546,11 @@ def test_e4_the_group_is_decided_by_the_domain_and_by_nothing_else() -> None:
     class _OnPolarOrbit(_AbstractStub):
         @property
         def domain(self) -> Manifold:
-            return SPHERE.quotient(SubgroupOfO3.SO2("x"))
+            return SPHERE.quotient(SubgroupOfO3.O2("x"))
 
     assert _OnEnergy().invariance_group is None
     assert _OnSphere().invariance_group == SubgroupOfO3.Trivial
-    assert _OnPolarOrbit().invariance_group == SubgroupOfO3.SO2("x")
+    assert _OnPolarOrbit().invariance_group == SubgroupOfO3.O2("x")
 
 
 def test_e5_part_IV_lattice_table_runs_on_the_objects_that_ship() -> None:
@@ -557,7 +558,7 @@ def test_e5_part_IV_lattice_table_runs_on_the_objects_that_ship() -> None:
 
     Each row pairs a basis's HAS with a measure's SPENT and asserts the
     verdict Part IV states. Rows 2 and 3 need a basis on
-    :math:`S^2/SO(2)_x`, which is tracker 3.4's ``LegendreBasis`` and does
+    :math:`S^2/O(2)_x`, which is tracker 3.4's ``LegendreBasis`` and does
     not ship; a test-local stub declaring that DOMAIN stands in for it, and
     ⚠ **must be replaced by the real basis when 3.4 lands** — a retirement
     trigger, not a permanent fixture.
@@ -574,9 +575,9 @@ def test_e5_part_IV_lattice_table_runs_on_the_objects_that_ship() -> None:
     class _OnPolarOrbit(_AbstractStub):
         @property
         def domain(self) -> Manifold:
-            return SPHERE.quotient(SubgroupOfO3.SO2("x"))
+            return SPHERE.quotient(SubgroupOfO3.O2("x"))
 
-    slab = Quadrature.gauss_legendre(8).measure            # spent SO2('x')
+    slab = Quadrature.gauss_legendre(8).measure            # spent O2('x')
     sphere = Quadrature.lebedev(17).measure                # spent nothing
     fold = Quadrature.folded_product(4, 8).measure         # spent Mirror('y')
     full_sh = SphericalHarmonicBasis(L=2).invariance_group

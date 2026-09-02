@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **10783**
+Total tests collected: **10831**
 
 V&V level distribution
 ----------------------
@@ -22,8 +22,8 @@ V&V level distribution
    L1, 1644, 15.2%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 7758, 71.9%
-   unmarked, 19, 0.2%
+   foundation, 7799, 72.0%
+   unmarked, 26, 0.2%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 10685
+   explicit, 10726
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 19
+   unmarked, 26
 
 Module × level grid
 -------------------
@@ -351,7 +351,7 @@ Module × level grid
    numerics/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
    numerics/test_field, 0, 0, 0, 0, 31, 0
    numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0
-   numerics/test_frame, 0, 15, 0, 0, 45, 0
+   numerics/test_frame, 0, 15, 0, 0, 45, 5
    numerics/test_full_field_space, 0, 0, 0, 0, 7, 0
    numerics/test_generating_measure, 0, 78, 0, 0, 178, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
@@ -361,9 +361,9 @@ Module × level grid
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 28, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 136, 0
-   numerics/test_legendre_basis, 0, 0, 0, 0, 32, 0
+   numerics/test_legendre_basis, 0, 0, 0, 0, 34, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
-   numerics/test_manifold, 0, 0, 0, 0, 108, 0
+   numerics/test_manifold, 0, 0, 0, 0, 119, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
    numerics/test_measure, 0, 17, 0, 0, 48, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -375,7 +375,7 @@ Module × level grid
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
    numerics/test_power_iteration_record, 0, 0, 0, 0, 30, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 78, 0
-   numerics/test_registry, 0, 0, 0, 0, 75, 0
+   numerics/test_registry, 0, 0, 0, 0, 80, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_riesz_legs, 0, 0, 0, 0, 0, 11
    numerics/test_roots_of_unity, 0, 0, 0, 0, 251, 0
@@ -392,7 +392,7 @@ Module × level grid
    numerics/test_spatial_moment_space, 0, 0, 0, 0, 22, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 7, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
-   numerics/test_symmetry, 0, 0, 0, 0, 110, 0
+   numerics/test_symmetry, 0, 0, 0, 0, 133, 2
    numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
    numerics/test_tensor_product_operator, 35, 0, 0, 0, 0, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
@@ -909,7 +909,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **582** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **584** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1165,6 +1165,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``loss-rep-scanmarch-solve-affine``
 - ``majorant-no-collision``
 - ``majorant-real-collision``
+- ``manifold-axial-invariant-rings``
+- ``manifold-axial-stabiliser``
 - ``manifold-descent-isomorphism``
 - ``manifold-map-functoriality``
 - ``manifold-procesi-schwarz``
@@ -1522,7 +1524,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**19 tests** have no V&V level marker.
+**26 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1535,7 +1537,9 @@ taxonomy.
    :widths: 60, 10
 
    ``tests/numerics/test_riesz_legs.py``, 11
+   ``tests/numerics/test_frame.py``, 5
    ``tests/sn/operators/test_sn_boundary_realizer.py``, 5
+   ``tests/numerics/test_symmetry.py``, 2
    ``tests/sn/sweep/core/test_cache.py``, 2
    ``tests/sn/angular/test_redistribution.py``, 1
 

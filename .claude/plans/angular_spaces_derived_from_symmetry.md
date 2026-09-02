@@ -1903,6 +1903,190 @@ pre-compaction checklist had guessed two of these terms — `test_manifold`
 collect counts; the list above is the measurement. Wall 61 min on the machine
 that was also running the session.
 
+### 1.9 EXECUTED — `SubgroupOfO3.O2(axis)`: an orbit space is named by its STABILISER (2026-09-02, landed `<HASH>`)
+
+**Goal (the outcome).** A basis on the slab's orbit space declares the FULL group its
+functions have, so the frame's lattice gate G0 admits every mathematically admissible
+pairing — in particular the Legendre basis on a σ_b-folded rule — and refuses nothing
+that the mathematics admits.
+
+#### §V.5m — the opener (the 20th consecutive opener to correct its own section)
+
+Premises re-measured at `e590623f` before designing (`scratch/_19_census.py`, re-runnable):
+
+* §1 existence, with positive controls (`class SO2` 1, `"SO2_x"` 3): `class O2` **0**,
+  `def O2(` **0**, `"O2_"` keys **0**, word-bounded `O2(` **0** — landmine #14 held; the
+  only `O2` in the tree was `Dinfh`'s rejected old name (`symmetry.py:136-148`).
+* The prose corpus (§1's rejected-name clause): `.claude/agent-memory/cross-domain-attacker/
+  quadrature_symmetry_quotient_frames.md:225` had ALREADY concluded, during the quadrature
+  campaign, *"`GaussLegendre1D`'s tag must move `SO2 → O2` in the same commit"*; the
+  test-architect's `L69f` records the over-refusal. The name was free because it had been
+  rejected for the WRONG group and never minted for the right one.
+* ⛔ **The issue's row was under-specified, and the opener corrected it.** #432 offered two
+  designs and asked for a ruling: (1) ONE catalogue entry named by the stabiliser
+  (`by = O2(a)`), or (2) TWO entries (the slab keeps `S²/SO2_a`, the Legendre basis moves to
+  `S²/O2_a`, and G0's third arm learns an "identical invariants ⟹ identity map" case for the
+  slab's `(N,)` μ-nodes). `[M]` the invariant rings coincide
+  (`R[x]^{SO(2)_a} = R[x]^{O(2)_a} = R[x_a, x_b²+x_c²]`), so (2) is two unequal `Quotient`
+  objects for one manifold — the defect class 2.1 and 2.4 removed — plus a special arm.
+  **User-ruled (1)**, with two riders: `SPHERE.quotient(SO2(a))` REFUSES with the theorem
+  rather than normalising (the user's rule: *"if option 2 is more principled but requires
+  more effort, option 2 is the right option"* — a call site naming a non-stabiliser group is
+  the state to make unspellable, and one orbit space then has one spelling in the tree), and
+  the registry's slab/sphere `continuous_isotropy` flips to `O2("x")` (with O(2)_x spent the
+  recorded residual `Mirror("x")` is exactly G/G⁰; under SO(2)_x the true residual is the
+  Klein four-group and the recorded mirror is half of it).
+* The naming blast radius, `[M]` by regex per tree BEFORE the edit: the token `SO2_[xyz]`
+  in 5 production files (10 hits) / 6 test files (27) / 5 theory pages (50) / this plan
+  (30); `SubgroupOfO3.SO2(` at 9 production sites (5 orbit-space callers + 3 in
+  `symmetry.py` + 1 docstring) and 112 test sites in 11 files (most are LATTICE tests that
+  keep SO2; the orbit-space ones flip).
+* `[M]` the walk's cost before: slab 6.0 ms · product(4,8) 114 ms · level_symmetric(4)
+  348 ms · folded_product(4,8) 110 ms · lebedev(11) 310 ms (warm caches, loaded machine).
+
+#### What landed (one commit)
+
+| piece | where | the sentence |
+|---|---|---|
+| `O2(axis)` | `symmetry.py` (`class O2`, `SubgroupOfO3.O2`, repr/name `O2_x`, `rotation_axis` answers) | the stabiliser `{g ∈ O(3): g ê_a = ê_a}` = C_∞v; identity component `SO2(a)`; `D_∞h = O(2)_z × {e, σ_h}`; the rejected-name note reconciled in place |
+| computed axial relations | `_fixes_axis` (memoised) + `_axial_contains` (replaces `_so2_contains`) | a finite group ⊆ `O2(a)` iff every element fixes `ê_a`; ⊆ `SO2(a)` iff also proper — `[M]` the tabulated arm said `SO2('x') ⊉ C_1` while `SO2('x') ⊇ {e}`, and `test_cn_in_so2[1]` pinned the wrong one |
+| exact invariance | `_invariance_on_points` | `O2(a)`-closed ⟺ axis-supported (the SO2 criterion; axis points are fixed by the vertical mirrors) |
+| the probe's images | `generic_images` | both components: 6 incommensurate rotations + each ∘ one vertical mirror (12) |
+| the walk | `candidate_groups` | offers `O2` on three axes; `[M]` slab → `{O2_x, sigma_x}` (walk = brute), the generated group D_∞h about x unspellable |
+| ONE entry, refusal | `manifold._sphere_mod_o2` (was `_sphere_mod_so2`), catalogue keys `O2_*` (+ `SO2_*` routed to the refusal), `Quotient.by` documented | `by = O2(a)`; `SPHERE.quotient(SO2(a))` → `ValueError` *"S^2/SO2_x is the orbit space S^2/O2_x … spell SubgroupOfO3.O2('x') (#432)"* |
+| the spenders | `registry.py` slab/sphere `O2("x")`; `rules_1d.gauss_legendre_on_polar_orbit` | `[M]` `gauss_legendre(8).measure.support.name == 'S^2/O2_x'`, `quotient_group == O2('x')`, space `L2[S^2/O2_x]` |
+| the basis | `LegendreBasis.domain` → the O2 entry; `LegendreSpace.from_L` names itself off `basis.domain.name` | `invariance_group == O2(axis)` — the FULL group; one spelling of the entry's name |
+| G0 | unchanged in code | `[M]` `GalerkinFrame(LegendreBasis(L), folded_product(4,8).measure)` constructs, arrow `S^2/sigma_y -> S^2/O2_x`, table `(16, L+1)`; isotropic ℓ≥1 moments ≤ 1.4e-15 at L = 2, 4, 6, ℓ = 0 = 4π (no aliasing: the φ-rule is exact to trig degree 7 and the fold is σ_y-even); the x-fold negative leg: `LegendreBasis(axis="x")` on `product(4,8).quotient(Mirror("x"))` REFUSED, `axis="z"` admitted |
+| docstrings | 14 production modules | every entry-level spelling of the slab's orbit space reads `S^2/O(2)_a`; the math about the rotation half's orbits stays SO(2) where that is what the sentence is about |
+
+`[M]` after: walk cost slab 5.7 ms · product 133 ms · LS4 366 ms · fold 115 ms · lebedev
+328 ms. ⛔ My reading of that as *"+3 candidates ≤ 5 %"* was ONE warm-cache draw on a loaded
+machine, and the archivist REFUTED it the same afternoon with the right instrument (min of 15
+interleaved repeats, `scratch/_p19_probe6.py`): **+11.3 – 26.2 %** — slab 5.0→5.6 ms, fold
+103.5→115.2, product 107.5→135.6, lebedev 283.8→329.9, LS4 320.8→367.1. Same cause as the
+2026-08-28 draw row of `plan-authoring` §4: a timing is a stochastic measurement and its
+configuration includes the repeat protocol. No new rebuilds (memo lesson 6). `[M]` the
+probe on the O2 entry at L = 4: 5 real slots of 25 (the m = 0 column) — and under a
+right-angle sample it generates C_4v, not C_4, admitting only the σ_v-EVEN member of each
+±4 pair (6 at L = 4, 8 at L = 5; the SO(2)-only probe read 7 / 10): the mirrored half of
+the probe does real work. pyright over the 14 touched modules: **0**.
+
+#### The §6b set (the red loop is the enumeration)
+
+Red loop 1 (numerics / transport / harness, `_p19_red1.log`): numerics collection KILLED
+by `test_registry.py` building the old spelling at import (the harness lesson: production
+in a parametrize list); transport 6 reds, all the refusal. Mechanical re-spell of the
+tests' CODE patterns (`_p19_respell_tests.py`, 10 files: `SPHERE.quotient(SO2(` ×41,
+names ×7, `continuous_isotropy` ×3, `.quotient_group ==` ×3, `.by ==` ×1,
+`invariance_group ==` ×2, `has == spent ==` ×1). Red loop 2 (`_p19_red2.log`): transport
+706 + 1 sk green, geometry 727 green, harness 403 green, numerics **17 reds / 2792** —
+every one a SEMANTIC member: the G0 row that asserted the refusal (now the admitted
+witness + the x-fold negative leg), the frame's and `quotient_onto`'s order-relation
+walks (SO2 → O2 in the `has`/`groups` sets), `_ROSTER` and the registry rows dict, the
+barycentre message pin (*"axial rotation group"* → *"axial group"*), the un-memoised
+derivation's name + the refusal added, the right-angle control's numbers (7/10 → 6/8),
+the catalogue listing, `test_cn_in_so2[1]` (the corrected edge), the walk's slab answer
+(`_p19_fix_tests.py`, 4 files). Red loop 3 (`_p19_red3.log`): numerics 2809 green; the sn
+subtrees 2360 passed + 16 xfailed / 0 (8 min 14 s).
+
+#### The elegance round — the review's ONE absence, and what it cost to leave it
+
+The elegance-enforcer's review of the production diff returned four VIOLATIONS and one
+CONCERN that explained all four as one absence: **the tree had no *stabiliser* concept on the
+group**, so the fact the whole step turns on — *the largest subgroup of O(3) with `SO(2)_a`'s
+orbits is `O(2)_a`* — was spelled three times (three `SO2_a` decoy catalogue keys routing to a
+refusal; `_sphere_mod_o2` rebuilding the group it was HANDED from an integer through
+`"xyz"[axis]`; `Quotient.by`'s docstring declaring an invariant nothing enforced) and lived in
+the wrong tier. `[M]` the review's forgery: `replace(SPHERE.quotient(O2('x')), by=SO2('x'))`
+constructed, compared unequal to the entry under `==`, and was accepted by `barycentre` and the
+polar-axis reader — ERR-080's own defect class reopened by the idiom Pattern 4 blesses, because
+the refusal lived in ONE builder. Accepted in full, in the same commit (bias to completion):
+
+| finding | fix |
+|---|---|
+| no home for the stabiliser | `SubgroupOfO3.orbit_stabiliser` — `SO2(a) → O2(a)`, `SO3 → O3`, every other member itself (`[R]` a finite group's orbit-preserving isometry agrees with one element on an open set, hence everywhere; `D_∞h`/`O(2)_a`/`O(3)` are the stabilisers of their own orbit families; `[M]` 24 of 24 lattice members gated). `Quotient.__post_init__` checks `by == by.orbit_stabiliser`; the door `_catalogued_quotient` checks it BEFORE the lookup — one helper, `_assert_named_by_stabiliser`, two callers, the message fragment *"S^2/SO2_x is the orbit space S^2/O2_x … spell SubgroupOfO3.O2('x')"* kept verbatim. `_sphere_mod_o2` is a pure derivation again with ONE function-scope import; the three decoy keys are gone (`[M]` the `NotImplementedError` listing named 9 entries of which 3 raised; now 6 of 6 obtainable) |
+| the `manifold → symmetry` runtime edge the refusal had added, documented as *"the one runtime edge"* while there were two | gone with the import; the module docstring is true again |
+| `D_1h = {e, σ_h}` in fresh prose, and its pre-existing twin in `_contains` | `[M]` order **4**, `{e, C_2^x, σ_y, σ_z}` — every element fixes ê_x, which is WHY it sits in `O(2)_x` and in no other axial stabiliser (the archivist measured the same, independently) |
+| `_so2_contains` named in a comment after the rename | `_axial_contains` |
+| `np.allclose(atol=1e-12)` — the default `rtol=1e-5` made the effective tolerance **1e-5** on a unit component | absolute, `_MEMBERSHIP_ATOL = 1e-9`, shared with `_finite_contains` (ONE band); `_fixes_axis` lost its `proper_only` flag and `_axial_contains` spells `SO(2)_a = O(2)_a ∩ SO(3)` by composing with the lattice's own `SO(3)` relation |
+| the registry's geometry table still teaching `SO(2)`, and the chart `[-1,1]` as the domain | `O(2)_x`, `S^2/O(2)_x` (chart `[-1,1]`), *"1-D in x"* |
+| `descent.upstairs_columns`' message naming SO(2); `measure.py`'s half-flipped sentence; `barycentre`'s *"axial rotation group"*; the `D_∞h` note's *"the group a cylinder actually carries"* (`[M]` archivist: the cylinder row spends `Trivial`; `Dinfh` is consumed nowhere outside `symmetry.py` and its tests) | the message reads the entry's group; the prose reconciled; the cylinder claim demoted to what is measured |
+| `"xyz"[i]` open-coded at 4 sites, plus a literal forward map inside `mirror_axis` | `AXIS_LETTER` beside `AXIS_INDEX`, the index map DERIVED from the letters |
+| rename `rotation_axis → fixed_axis` | ⛔ **NOT taken**: `C_n` fixes ẑ pointwise and answers `None`, so the proposed name lies for a family the old one merely omits; the precise term is the **principal axis**, a WIDER accessor with different answers on three families — a design step, **#433** |
+
+pyright 0 on the six modules; red loop `_p19b_red1.log`: **3563 passed / 1 skipped** (56 s).
+⚠ Two of the review's own attacks it withdrew are worth keeping: the descent under `O2` is
+bit-identical to the pre-diff `SO2` answer at every axis and L ≤ 4 (the invariant-ring theorem
+REALIZED, not asserted), and the function-scope `manifold → symmetry` import was safe in 7 of 7
+import orders — the defect was honesty, not breakage.
+
+#### Gates (test-architect) — 43 rows + 5 of mine; a 17-arm battery with two net-new witnesses
+
+`[M]` collect delta numerics **+43** (`test_symmetry` +23 — the axial stabiliser section: axis
+validated at construction, `rotation_axis` answers, strictly above its rotation half per axis,
+three incomparable axes, exactly the mirrors THROUGH the axis, the finite relations computed,
+the whole spellable lattice obeys the order-relation laws (23 members / 131 strict edges), the
+downward-closure law exercises the new member (1090/166/138/28), invariance is axis support and
+needs NO μ-reflection, no shipped cubature is O2-invariant on any axis, `generic_images` carries
+both components and every image fixes the axis; `test_manifold` +8 — the entry records the
+stabiliser and its two derivation outputs, the rotation half refused with the theorem on three
+axes **as a `ValueError`, not the catalogue's `NotImplementedError`** (the placement leg that
+gained teeth when the refusal moved to the door), named by the LARGEST group (140/33/107),
+strictly bigger than the rotation half (7 vs 3 of 20); `test_frame` +5 — the axis × fold
+pairings split exactly on the lattice edge, the admitted fold reproduces the isotropic moments
+at L = 2/4/6, the on-axis refusal names both orbit spaces; `test_registry` +5; `test_legendre_basis`
++2 — the space name is READ off the basis's domain). Plus mine after the elegance round (+5):
+`TestOrbitStabiliser` (closure + idempotence and the census of which members grow, 24 of 24)
+and three rows on `TestTheOrbitSpaceIsNamedByItsStabiliser` (the `replace` forgery refused; the
+door's spelling and `S^2/SO3 → S^2/O3` by the same law; every catalogue key OBTAINABLE).
+Two existing docstrings were present-tense-false against their own bodies and fixed in place.
+
+**Battery** (`scratch/_p19_mut/`, in-process, numerics + transport, 17 arms, every arm with a
+BITE assertion): the P2 control (`O2.name` drops the axis) reddens **624** across 57 files — the
+name is a `FunctionSpace` identity component; **two arms had ZERO pre-existing catchers** and now
+have witnesses — `O(2)_a ⊄ SO(3)` (5 reds, 0 before) and `LegendreSpace.from_L` hard-coding the
+old name (2, 0 before); one arm is declared INERT and gated as a named blindness row: dropping
+the mirrored half of `generic_images` cannot move any `descending_slots` mask at incommensurate
+angles, because `R[x]^{SO2_a} = R[x]^{O2_a}` — the theorem itself (18 of 18 rows `array_equal`;
+the discriminating regime is the degenerate right-angle sample, C_4 vs C_4v, which is the
+right-angle control). ⛔ Three refutations of MY brief, all measured: the "σ_v-odd control" is
+mathematically impossible (same theorem); `O2(x) ⊇ D_1h` holds on **x alone**; the "9 fold
+pairings" has only **two** shipped folds (`product(4,8).quotient(Mirror("z"))` RAISES — σ_z
+permutes the polar levels — so the z row is a constructed half-sphere measure, labelled so).
+Production observation, NOT a defect: `hash(SO2(a)) == hash(O2(a)) == hash(Mirror(a))` — a
+frozen dataclass hashes its field tuple; `__eq__` discriminates the class; sets and both
+`functools.cache`s stay correct. It matters for test design only (a `hash(a) != hash(b)` leg
+reds on correct code). Post-elegance battery, 19 arms (three re-keyed + `d1` the stabiliser
+check inert + `d2` `orbit_stabiliser` the identity): **19 of 19 arms bite** on a 0/0 baseline
+(`scratch/_p19b_battery.log`, ~52 s per arm) — `d1` reddens **6** (the `replace` forgery gate
+and the placement leg: with the check inert, `SO2` falls through to the catalogue's
+`NotImplementedError`), `d2` **7**; the re-keyed `a` (drop the `SO(3)` intersection) **11**,
+`k` (axis-blind) **20**, `d` (re-add a decoy key AND bypass the invariant, the two moves the
+round made unnecessary) **7**; the controls P1 24, P2 586 + 39 collection errors; `h` 139 + 5
+by raising; the thinnest arms `g` and `i` at **2**. In-process, nothing written: the same 14
+production files after as before.
+
+#### Docs (archivist) — written to the ACCEPTED design; 7 present-tense-false claims fixed
+
+`+1144 / −355` across 9 theory pages + regenerated `matrix.rst`: a new `manifolds.rst` chapter
+(`manifold-orbit-space-stabiliser`; two new eq-labels, `manifold-axial-stabiliser` and
+`manifold-axial-invariant-rings`, the invariant-ring identity re-derived in SymPy with two
+controls) stating the naming law, `orbit_stabiliser`'s three-row rule, the construction
+invariant and the door, six keys / six entries, and the rejected nine-key design kept as a note
+with its four costs; the lattice section rewritten for the computed axial relations; `frame.rst`
+G0 row 7 ✅ + a negative row, the `TruncatedBasis` census 5/2 → **6/3**; ERR-080 and ERR-072
+re-tensed. False claims found that were NOT re-spellings: `D_1h` order 4 (my brief said 2); the
+walk cost (above); *"ERR-080 remains open"* ×4 in body prose; `frame.rst`'s "the third member
+does not ship"; two future-tense "once tracker 3.4 lands"; `rotation_axis` described as
+"exactly the rotations about one axis" (false once `O2` answers it; re-described as *the axis
+whose polar interval the orbit space IS*, 6 of 21 groups); the lower-bound remedy sentence.
+`[M]` stage 0 identical on **24 of 24** (geometry × rule) against a pinned pre-change tree.
+Sphinx `-E -W`: 0 before, 0 after (the set, not the count). `dead_references` on the archivist's
+tree: **1 dead / 53 checked** — `orbit_stabiliser`, unlanded at the time; on the final tree
+(`scratch/_p19b_sphinx.log`, `-E -W` rc 0, 0 warnings) **0 dead / 52 checked**.
+
+#### Gate — **13 of 13 rc=0, 10604 = predicted** — the fused row's 10556 + 48, all of it numerics (2809 → 2857: the 43 test-architect rows + my 5), every other tree unit-identical to the fused row, the harness 424 unchanged (the archivist's two new equation labels added no parametrized row this time; predicted from collect counts BEFORE the run, phase 1 of `scratch/_p19_full_gate.sh`). Wall **60 min 27 s** on the session's machine (`scratch/_p19_full_gate.log`, per-tree `_p19_gate_<tree>.log`), started at `2ea2da73` with the 52 files dirty.
+
 ### ✅ 0.2 — EXECUTED 2026-09-01, landed `ce46181c`. What the split actually found
 
 **The shape that shipped.** `axis_cosines(i)` is now the COORDINATE question
@@ -5290,7 +5474,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 1.6 | `ℛ* = ℛ` as adjoint-vs-dual | no | ☐ |
 | 1.7 | the support algebra, written | no | ☐ |
 | 1.8 | vocabulary reconciliation | no | ☐ |
-| 1.9 | ⭐ **NEW 2026-09-02 (user-ruled after 2.5) — a basis states the FULL group its functions have: `SubgroupOfO3.O2(axis)`**, so `P_ℓ(Ω·ê_a)` declares `O(2)_a` (the stabiliser fact of 3.1: `O(2)_a` and `SO(2)_a` induce the same orbit partition) and the lattice G0 ADMITS a Legendre basis on a σ_b-folded rule (b ≠ a). Memo H-6. Its own commit, FIRST after the compaction that follows the fused commit | no | ⏳ IN FLIGHT 2026-09-02 — built, green, uncommitted; see Part XIV's ⏳⏳ block |
+| 1.9 | ⭐ **NEW 2026-09-02 (user-ruled after 2.5) — a basis states the FULL group its functions have: `SubgroupOfO3.O2(axis)`**, so `P_ℓ(Ω·ê_a)` declares `O(2)_a` (the stabiliser fact of 3.1: `O(2)_a` and `SO(2)_a` induce the same orbit partition) and the lattice G0 ADMITS a Legendre basis on a σ_b-folded rule (b ≠ a). Memo H-6. Its own commit, FIRST after the compaction that follows the fused commit | no | ✅ **LANDED 2026-09-02 `<HASH>`** — one entry named by its stabiliser, the refusal on the TYPE and at the door (`orbit_stabiliser`, the elegance round's one absence); read the *1.9 EXECUTED* section; the deferred accessor design is #433 |
 | 2.0a | ⭐ **MINT `Manifold`** (D0.7, user-ruled) — retires `Space = str` | ⏏ yes | ✅ `b8c05d16` — 9 variants, 40 tests, pyright 0. ⚠ the TYPE only; `support` is still `str` (that is 2.0c/2.1) |
 | 2.0b | `Manifold.contains` — the membership predicate; refuses the forged measure at construction | ⏏ yes | ◐ **HALF** — the predicate ships and is gated both legs (`[M]` refuses the `gauss_legendre(8)` forgery, norms `[0.1834, 0.9603]`; admits the normalised control) @ `b8c05d16`. The **refusal AT CONSTRUCTION** is unbuilt — that is the wiring, and it rides 0.1. ⛔ no `catches("ERR-080")` marker until then: refusing a forged ARRAY is not the production path refusing it |
 | 2.0c | `DiscreteMeasure.support: str → Manifold`; the `L2[...]` name derives; `quotient_group` becomes a derived property | ⏏ yes | ✅ `025834f5` — all **six** implementors retyped in one commit (the row named one; §V.5f(a)). `phase` dispatches on the manifold's TYPE; the LIVE `folded_product` defect fixed; `pushforward`'s fabricated default retired; 2.1's handoff discharged **and witnessed** (⛔ the repair measured BLIND first). `[M]` 5 trees rc=0, +7 tests, matrix reconciling unit-for-unit. ~~▶ NEXT.~~ ~~⛔ BLOCKED on 1.1's σ_y entry (§V.5d(a))~~ ✅ **REMEDIED 2026-09-01** — 1.1 landed `b55bba56`; `[M]` `SPHERE.quotient(SubgroupOfO3.Mirror("y"))` → `'S^2/sigma_y'` (§V.5e(a)). ⭐ **Read §V.5e before designing** — the second opener re-shaped the step: the row's sizing counts PRODUCERS (`[M]` §6b ≈ 87 producers + **16 consumers**, and the 16 are where a retype fails QUIETLY), the prize is that `phase` is stringly-typed dispatch, and it carries a LIVE defect (`folded_product(4,8).measure.phase` **RAISES**). Re-scoped at the opener: **absorbs 2.0d** (§V.5d(c)); its `indicator_basis` clause **moves to 2.1** (§V.5d(e), §6b). `[M]` the retype preserves every production space name bit-identically bar two (§V.5d(f2)) |
@@ -5476,53 +5660,40 @@ folded in below; nothing from either was dropped.
 
 ## ▶ RESUMES AT — stated as OUTCOMES (`plan-authoring` §1)
 
-⏳⏳ **1.9 (#432) IS IN FLIGHT — BUILT, GREEN ON ITS TREES, UNCOMMITTED (2026-09-02, ~15:00).
-READ THIS BLOCK FIRST.** `git status --porcelain | grep -v scratch/` lists **33 modified
-files** (14 `orpheus/`, 19 `tests/`) — the whole change; nothing is staged. If the tree is
-CLEAN when you read this, 1.9 landed and the ledger below has its hash.
+✅ **1.9 (#432) LANDED 2026-09-02 as `<HASH>`** — the commit titled `feat(numerics): an orbit
+space is named by its stabiliser — SubgroupOfO3.O2(axis)`, its hash stamped by the plan-only
+commit that followed. **Nothing is owed on 1.9.** The record is the *1.9 EXECUTED* section in
+Part XIII; the short form, in the order it happened:
 
-*The rulings (user, 2026-09-02, at the opener — §V.5m in the 1.9 EXECUTED section, drafted in
-`scratch/_p19_executed_section.md`):* (1) `S²/SO(2)_a` and `S²/O(2)_a` are ONE catalogue
-entry, named by its STABILISER `O2(a)` (`[M]` the invariant rings coincide); (2)
-`SPHERE.quotient(SubgroupOfO3.SO2(a))` REFUSES with the theorem — the more principled option
-regardless of the ~65-site re-spelling it cost (the user's rule, now in memory: effort is
-never the tie-break); (3) the registry's slab/sphere `continuous_isotropy` is `O2("x")`.
+1. **The rulings** (user, at the opener): `S²/SO(2)_a` and `S²/O(2)_a` are ONE catalogue entry,
+   named by its STABILISER `O2(a)` (`[M]` the invariant rings coincide);
+   `SPHERE.quotient(SubgroupOfO3.SO2(a))` REFUSES with the theorem — the more principled option
+   regardless of the re-spelling it cost (now a memory rule: effort is never the tie-break); the
+   registry's slab/sphere `continuous_isotropy` is `O2("x")`.
+2. **The elegance round found the step's ONE absence** — the tree had no *stabiliser* concept
+   on the group, so the theorem was spelled three times and the refusal lived in a builder
+   (`[M]` `replace(entry, by=SO2('x'))` forged a second spelling and `barycentre` accepted
+   it). Landed in the same commit: `SubgroupOfO3.orbit_stabiliser` (`SO2(a) → O2(a)`,
+   `SO3 → O3`, every other member itself, 24 of 24 gated); `Quotient.__post_init__` and the
+   catalogue door both refuse a non-stabiliser group; the three `SO2_a` decoy keys are gone;
+   `_fixes_axis` spells `SO(2)_a = O(2)_a ∩ SO(3)` by composition with ONE absolute tolerance;
+   `D_1h` is order 4; `AXIS_LETTER`. ⛔ The proposed `rotation_axis → fixed_axis` rename was
+   REFUSED (`C_n` fixes ẑ pointwise and answers `None`; the precise term is the principal
+   axis, a wider accessor) — **#433**.
+3. **The gate**: **13 of 13 rc=0, 10604 = predicted** — the fused row's 10556 + 48, all of it numerics (2809 → 2857: the 43 test-architect rows + my 5), every other tree unit-identical to the fused row, the harness 424 unchanged (the archivist's two new equation labels added no parametrized row this time; predicted from collect counts BEFORE the run, phase 1 of `scratch/_p19_full_gate.sh`). Wall **60 min 27 s** on the session's machine (`scratch/_p19_full_gate.log`, per-tree `_p19_gate_<tree>.log`), started at `2ea2da73` with the 52 files dirty.
+4. **Two of my own numbers were refuted by the agents and corrected in place before shipping**:
+   the walk cost (*"+3 candidates ≤ 5 %"* was ONE warm-cache draw; `[M]` +11.3–26.2 % by the
+   min of 15 interleaved repeats — the `plan-authoring` surprise log carries the row: a timing
+   is a stochastic measurement whose configuration is the repeat protocol) and `D_1h = {e, σ_h}`
+   (order 4, `{e, C_2^x, σ_y, σ_z}`).
+5. **Gates and docs**: +48 rows (43 test-architect, 5 mine); the 19-arm in-process battery all
+   biting on a 0/0 baseline, two of its arms the FIRST witnesses of `O(2)_a ⊄ SO(3)` and of the
+   space name being READ off the domain, one arm theorem-inert and gated as a named blindness
+   row; 9 theory pages + a new `manifolds.rst` chapter on the stabiliser law, 7 present-tense-
+   false claims fixed; sphinx `-E -W` 0 before and after; `dead_references` 0 / 52.
 
-*What is DONE:* `SubgroupOfO3.O2(axis)` (`symmetry.py`: computed axial relations
-`_fixes_axis`/`_axial_contains`, exact invariance, both-component `generic_images`, walk
-candidates); `manifold._sphere_mod_o2` (renamed) with `by = O2(a)` and the SO2 refusal;
-registry / rules_1d / LegendreBasis.domain / LegendreSpace name; 14 modules re-spelled
-(`_p19_edit_symmetry.py`, `_p19_edit_manifold.py`, `_p19_edit_rest.py`, `_p19_edit_pass2.py`,
-re-runnable against `scratch/_p19_pristine/`); tests re-spelled (`_p19_respell_tests.py`,
-`_p19_fix_tests.py`, `_p19_respell_test_prose.py`). `[M]` red loops: numerics **2809/0**,
-transport **706+1sk/0**, geometry 727, harness 403, sn subtrees (operators, primitives, mesh,
-angular, acceleration, solve, architecture, eigenvalue, regression + 4 root files)
-**2360 + 16 xf / 0** (`_p19_red{1,2,3}.log`); pyright 0 on the touched modules. `[M]` the
-fold witness: Legendre on `folded_product(4,8)` constructs along `S^2/sigma_y -> S^2/O2_x`,
-ℓ≥1 isotropic moments ≤ 1.4e-15 at L = 2/4/6; the x-fold refuses `axis="x"`, admits `"z"`;
-the slab walk reports `{O2_x, sigma_x}`; +3 candidates cost ≤ 5 % per walk. Two opener
-findings: the tabulated arm said `SO2('x') ⊉ C_1` while `⊇ {e}` (`test_cn_in_so2[1]` pinned
-it — fixed by computing); under the O(2) probe a right-angle sample generates C_4v, admitting
-6/8 slots at L = 4/5 where the SO(2) probe read 7/10.
-
-*What is IN FLIGHT (three agents, dispatched ~14:55):* the **archivist** on `docs/theory`
-(brief `scratch/_p19_archivist_brief.md`; must keep every `:label:`; sphinx `-E -W` +
-`dead_references`); the **test-architect** on new gates + an IN-PROCESS battery under
-`scratch/_p19_mut/` (brief `_p19_test_architect_brief.md`; edits only the seven test files
-it names); the **elegance-enforcer** on the production diff (findings only). ⚠ If you resume
-after a compaction and cannot see their reports, their outputs are what they wrote to disk:
-`git status` (new test functions, docs pages), `scratch/_p19_mut/`, `scratch/_p19_sphinx.log`.
-
-*What is OWED, in order:* (1) read the three reports; act on elegance findings (production
-edits are yours alone — L38); reconcile the test-architect's collect delta; (2) sphinx
-`-E -W` + `dead_references` on the final tree; (3) the 13-tree gate — `scratch/_p19_full_gate.sh`
-(prediction phase then run, ~62 min, detached; log `_p19_full_gate.log`, per-tree
-`_p19_gate_<tree>.log`); predict the delta vs the fused row (10556) FIRST from the
-collect counts; (4) fill `<GATE>/<DR>/<TA>/<ARCH>` in `scratch/_p19_commit_msg.txt`,
-`_p19_issue_comment.md`, `_p19_executed_section.md`; paste the executed section into Part
-XIII after the FUSED EXECUTED section; stamp the tracker row and the ledger; (5) stage BY
-PATH (never `-A`), `git commit -F scratch/_p19_commit_msg.txt`, push, `gh issue comment 432
--F scratch/_p19_issue_comment.md`; (6) then **2.2b** (the Γ-slot), 4.1, 4.9, the exit re-gate.
+The ⏏ ORDER table rules what follows; its first unlanded row is **2.2b (the Γ-slot)**, then
+4.1, 4.9 and the exit predicates' re-gate (XII.3). #426/#428 stay blocked behind #429.
 
 ✅ **THE FOLLOW-UP LANDED 2026-09-02 as `26151a8d`** — the commit titled
 `docs(plans): the fused commit carries its landing hash and gate` (the hash
@@ -5922,6 +6093,7 @@ Part XIII — do not copy it here (`plan-authoring` §9).
 | ✅ | **3.1** | LANDED 2026-09-02 — see the *3.1 EXECUTED* section: `Quotient.orbit_coordinates` + the derived `quotient_map` (codomain the ENTRY, user-ruled), `Quotient.reference` (`LEGENDRE` on the axial entries, honest `None` on σ_a and `M/{e}`, user-ruled), `AngularSymmetry.reference` reads the entry; §6d measured on a shadow copy (function scope alive 7/7, module scope dead 7/7); nine-arm battery, no arm blind. ⏬ *The pre-landing row, kept per §3:* **NEXT — read §V.5j (pre-flighted 2026-09-02).** ~~the catalogue home + the probe~~ ⛔ the HOME is landed (`manifold._ORBIT_CATALOGUE`) and the PROBE is 3.4's; what remains is the entry's chart map + its reference measure. ⭐ It inherits 2.3's deferral: the pushforward REFERENCE measure as a `Quotient` field populated INSIDE the derivation function (function-scope import — `[M]` module scope is a 5-of-5 cycle), read by `AngularSymmetry.reference`; and §6d BOTH ways before the `symmetry.py` → package re-home |
 | ✅ | **2.5** | LANDED 2026-09-02 `58ad7c28` — see the *2.5 EXECUTED* section (bit-identical; the moment space's ONE home is the frame's basis) |
 | ✅ | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | LANDED 2026-09-02 `5436184e` — THE FIX; read the *FUSED EXECUTED* section |
+| ✅ | ⭐ **1.9** | LANDED 2026-09-02 `<HASH>` — an orbit space is named by its STABILISER (`SubgroupOfO3.O2(axis)`, `orbit_stabiliser`); read the *1.9 EXECUTED* section |
 | ⏸ | **COMPACTION** | user-ruled 2026-09-02: a context compaction follows the fused commit; the two commits below are the first steps after it |
 | ⏳ | **1.9** — `SubgroupOfO3.O2(axis)` | IN FLIGHT 2026-09-02 (built, green on its trees, uncommitted — the ⏳⏳ block at the top of the resume section); its own commit, FIRST after the compaction (user-ruled, memo H-6) |
 | **3** | **2.2b** — the Γ-slot | its own commit (user-ruled 2026-09-02) |
@@ -6078,10 +6250,17 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
     lattice edge is `SO2(a) ⊆ O2(a)` for every `a`, and `O2(z) ⊆ Dinfh` only —
     `Dinfh` is parameter-free about z; for `a ≠ z` the only shipped supergroup
     is `O3`. Reason it from the realizations, not from this row.
-15. ⭐⭐ **NEW at 1.9 (in flight) — `SPHERE.quotient(SubgroupOfO3.SO2(a))` RAISES.** The
-    orbit space is `SPHERE.quotient(SubgroupOfO3.O2(a))`, name `S^2/O2_x`, `by == O2(a)`;
-    every scratch script spelling the SO2 quotient dies with `ValueError: S^2/SO2_x is the
-    orbit space S^2/O2_x …`. `_sphere_mod_so2` is GONE (`_sphere_mod_o2`). `quotient_group`
+15. ⭐⭐ **NEW at 1.9 — `SPHERE.quotient(SubgroupOfO3.SO2(a))` RAISES, at the door AND at
+    construction.** The orbit space is `SPHERE.quotient(SubgroupOfO3.O2(a))`, name `S^2/O2_x`,
+    `by == O2(a)`; every scratch script spelling the SO2 quotient dies with `ValueError:
+    S^2/SO2_x is the orbit space S^2/O2_x …`. The refusal is `_assert_named_by_stabiliser`
+    reading `group.orbit_stabiliser` — called by `Quotient.__post_init__` and by
+    `_catalogued_quotient` BEFORE the lookup, never by a builder; so `replace(entry,
+    by=SO2(a))` raises too, and `SPHERE.quotient(SO3)` raises naming `O3`.
+    `_ORBIT_CATALOGUE` has SIX keys (`O2_*`, `sigma_*`) and NO `SO2_*` key.
+    `_sphere_mod_so2` is GONE (`_sphere_mod_o2`, a pure derivation); `_fixes_axis(tag, axis)`
+    has no `proper_only` (the SO(2) half is `∩ SO(3)` in `_axial_contains`);
+    `AXIS_LETTER` lives beside `AXIS_INDEX` in `manifold.py`. `quotient_group`
     of a slab rule is `O2('x')`; `LegendreBasis.invariance_group` is `O2(axis)`; the space is
     `L2[S^2/O2_x]` / `legendre_space(S^2/O2_x)`. The lattice test `_NAMED`/`groups` lists
     that build quotients must spell O2; the SO2 GROUP itself still exists for lattice
@@ -6304,6 +6483,7 @@ or `gauss_legendre_on_polar_orbit(n, "x")`, on `S^2/SO2_x`.
 | **3.1** | ⭐ **an orbit-space entry carries ALL of its derivation, the quotient map and the pushforward reference included** — `Quotient.orbit_coordinates` (required; the surviving invariants as a map on ambient coordinates) + the DERIVED `Quotient.quotient_map` (codomain the ENTRY), `Quotient.reference` (`LEGENDRE` on the three axial entries; honest `None` on σ_a and on `M/{e}`), populated INSIDE `_sphere_mod_so2` by a function-scope import; `AngularSymmetry.reference` READS the entry, its `LEGENDRE` import gone. `[M]` π∘φ_a = pr₁ bit-exact 12/12; β_a∘π_a the axial projection 3/3; π H-invariant on 4 groups; the numeric map == `lambdify` of the recorded invariants 5/5; §6d on a shadow copy 7/7 alive vs 0/7; nine-arm battery, none blind; numerics 2711 → 2739, matrix 10616 → 10644 | `67e38605` |
 | **2.5** | ⭐ **the angular moment space is READ off the frame, never minted from `L`** — `TruncatedBasis` (Protocol) is the harmonic family's surface and `HarmonicFrame`'s door; the Λ ends, the fission/(n,2n) ℓ=0 ends, the moment-flux head and `truncate` all read the bound basis's space (7 producers retired, 2 doors widened); A-R1 binds the CONTINUUM space (`[M]` `Λ* = Λᵀ` exactly under it, 33/33; the dressed one moves Λ* on 10/33), A-R2 derives the field head through the mesh's quadrature. `[M]` slab L=0/1/2 flux `array_equal`; 33-row metric identity; route gate with a FOREIGN basis; 11-arm battery (control 34, each producer revert → A1, the fork → A2b only), none blind; 13 trees rc=0, 10454 = predicted | `58ad7c28` |
 | **FUSED** | ⭐⭐ **THE FIX — a 1-D rule binds the Legendre basis on its orbit space; ERR-080 CLOSED** (0.1b + 0.6 + 2.2-G0 + 3.4 + 3.4b): `LegendreBasis` (the bit-matched spelling), `LegendreSpace` + `MomentHead`, the entry's probe, `Descent`, G0 as the descent arrow with the table pulled back along it, the forgery deleted, 0.6's refusal, the carriers reading their head, `OverlapBasis`'s misdeclared domain caught by G0 and fixed. `[M]` LEG A `+4.000000000000` at L = 0..2; slab L ≤ 1 `array_equal`; 135 sphere arrays bit-identical; 19-arm battery, one declared-weak arm; the 13-tree gate finished after the commit: **13 of 13 rc=0, 10556 = predicted**, reconciled file-by-file in the *FUSED EXECUTED* section | `5436184e` + follow-up `26151a8d` (gate record, typing narrowing) |
+| **1.9** | ⭐ **an orbit space is named by its STABILISER — `SubgroupOfO3.O2(axis)`, and a basis on it declares the FULL group** (#432): `O2(a)` = the stabiliser `{g : g ê_a = ê_a}`, the axial lattice relations COMPUTED from realizations (`SO(2)_a = O(2)_a ∩ SO(3)` by composition), exact O(2) invariance, both-component `generic_images`; ONE catalogue entry `S^2/O2_a`, `SPHERE.quotient(SO2(a))` REFUSED with the theorem (user-ruled over normalising); the elegance round's `orbit_stabiliser` puts the refusal on `Quotient.__post_init__` and at the door, retires the three decoy keys and the second runtime import; the registry spends `O2("x")`; `LegendreSpace` names itself off the basis's domain. `[M]` the Legendre basis is ADMITTED on a σ_y-fold (ℓ≥1 isotropic moments ≤ 1.4e-15 at L = 2/4/6) and refused on the x-fold; 19-arm battery all biting; 13 of 13 rc=0, 10604 = predicted (fused 10556 + 48 numerics), 60 min 27 s | `<HASH>` |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
 ⛔ No commit COUNT is recorded here — it is the field guaranteed to rot. Run
