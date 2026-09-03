@@ -5849,6 +5849,33 @@ folded in below; nothing from either was dropped.
 
 ## ▶ RESUMES AT — stated as OUTCOMES (`plan-authoring` §1)
 
+⏸⏸ **STATE AT COMPACTION — 2026-09-02, HEAD `c51d0692` (pushed; origin == HEAD; the tracked
+tree CLEAN — `git status --porcelain | grep -v '^??'` is empty; `scratch/` untracked as always).
+READ THIS BLOCK, THEN THE THREE ✅ BLOCKS BELOW IT, THEN XII.3.** The campaign's EXIT PATH IS
+COMPLETE: 1.9 (`c1d53206`) and 2.2b (`a7c8de6d`) landed, 4.1/4.9 were found DELIVERED by the
+fused commit, and all six exit predicates (XII.3) were re-measured on the final tree. No code
+is in flight. **Two rulings are owed to the user, and nothing proceeds without them:**
+
+1. **#429 — umbrella or close?** The plan's non-path phases (1.2–1.8, 3.2/3.3, 4.2–4.8, 5, 6, 7)
+   still live under it. If it stays the umbrella, the natural first row is **4.4** (the
+   coarse-rule class routed to the exactness machinery — the exit census's three documented
+   exceptions, `gauss_legendre(2)` / `product(4,4)` / `folded_product(2,4)` at L ≥ 4, are its
+   witnesses; #370's gap 1, `folded_product`'s `exactness is None`, sits beside it), then 4.2
+   (the normalization audit) and Phase 5 (curvilinear). If it closes, each phase is re-filed
+   as its own issue with the ORDER table's text and its `[M]` premises.
+2. **Resume Campaign 2 (XII.4)?** `.claude/plans/cs4c_binding_design.md` §18.6 step 1 — #426's
+   remedy routes restored (n,2n) moments into a `P_L` path that is now correct at every order;
+   #426 and #428 are UNBLOCKED. The user PAUSED that campaign; it is theirs to reopen.
+
+*Residue filed, not owed here:* **#433** (the `rotation_axis` accessor is not the principal
+axis — a design step, refused as a rename); the II.11 collateral (`orbit_certificate` refusing
+1-D nodes by SHAPE, and its false two-arm message) was CLOSED as a by-product of 2.2b.
+
+*Re-runnable instruments a resumed session may need:* `scratch/_exit_regate.py` (the six
+predicates: `capture` under a `git archive` of any commit, `compare`, `slab`, `census`),
+`scratch/_22b_mut/` and `scratch/_p19_mut/` (the in-process batteries), `scratch/_22b_full_gate.sh`
+(the 13-tree gate driver, prediction phase then run; the last row is **10752** at `a7c8de6d`).
+
 ✅ **1.9 (#432) LANDED 2026-09-02 as `c1d53206`** — the commit titled `feat(numerics): an orbit
 space is named by its stabiliser — SubgroupOfO3.O2(axis)`, its hash stamped by the plan-only
 commit that followed. **Nothing is owed on 1.9.** The record is the *1.9 EXECUTED* section in
@@ -6514,6 +6541,26 @@ level-1 half needs, since the tree currently fabricates it by zero-padding to
     that build quotients must spell O2; the SO2 GROUP itself still exists for lattice
     questions (`Cn ⊆ SO2_z`, `SO2_z ⊆ Dinfh`). A `grep 'O2('` now returns the real member
     beside the 12 `SO2(` hits — use the word-bounded form.
+16. ⭐⭐ **NEW at 2.2b — invariance, certificates and ordinate permutations of a rule on an
+    orbit space are asked ON the orbit space, never on the ambient representatives.**
+    `Mirror('y').is_invariant(folded_product(4,8).measure)` is **True** (σ_y acts trivially on
+    `S²/σ_y`), `D_2h` likewise, and `folded.ordinate_permutation(σ_y)` is the IDENTITY — a
+    scratch script that expected `False`/`None` on a fold is reading the retired ambient
+    semantics. `_invariance_on_points`, `_polar_axis_of` and `_section_nodes` are GONE; the
+    kernel is `_invariance_on_orbit_space`, the closure `_orbit_space_closure`, the
+    single-motion face `induced_permutation`; `_embedded_nodes` now reads the entry's lift
+    (`Quotient.ambient_representatives` — the barycentre for the axial entry, INSIDE the
+    ball, so `base.contains(...)` on it is False by design). `Quotient.section_coordinates`
+    never shipped under that name. `_continuous_decomposition` returns the identity component
+    as a GROUP (`SubgroupOfO3.identity_component`), not a string. `(M/H).quotient(G)` for
+    `G ⊆ H` RAISES `ValueError` ("lies in the spent group"); `(M/H).quotient(Trivial)` is
+    admitted (the identity entry). `spent_group(D, X)` lives beside `quotient_onto`;
+    `AngularSymmetry.admits_domain` is `spent is not None and Γ.contains(spent)`. The
+    ambient container for a bare support is `RealSpace(3).quotient(Trivial)`, name
+    `spatial_R3/Trivial`. `RigidMotion.permutes`/`preserves` carry no width check of their
+    own (`on_points` refuses; `permutation_between` / `permutation_preserving` are the free
+    functions). `is_normalised_by` acts by the motion's LINEAR part (a translation normalises
+    everything, by the ordinate-permutation convention).
 
 ### §1 existence-checks — re-run 2026-09-02 at `2f294ef1` (post-3.1)
 
