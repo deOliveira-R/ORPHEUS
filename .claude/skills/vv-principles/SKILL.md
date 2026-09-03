@@ -992,6 +992,60 @@ any other review work.
     > `AngularFlux|HarmonicMomentFlux ×N`, equal counts on all 6 scenarios.
     > Reading "4 arms" as four alternatives over-counts the bodies and
     > under-counts the branching.
+
+    ⭐ **A census's NOT-RUN row is a measurement; its EXPLANATION is a separate,
+    usually UNMEASURED claim — and the two candidate explanations need OPPOSITE
+    repairs.** Never attach a reason to a zero-traffic arm without discriminating
+    *"no consumer exists"* from *"this workload never reaches the consumer"* —
+    instead enumerate the production BRANCHES on the path to that arm and check
+    whether the workload took **both** sides of each. The two readings demand
+    opposite work — a design decision (retire / declare a future consumer) versus
+    one more scenario — so guessing produces a durable **false-dead certificate**,
+    and it points the flattering way: "no consumer" reads as a finished
+    investigation, and nothing prompts a re-check. ⟹ the discriminator is cheap
+    and mechanical: for each zero row, name the `if`/`is None` that gates its
+    consumer, and add ONE scenario on the unexercised side.
+
+    > `[M]` 2026-08-31, ORPHEUS CS4c step 5 (re-run of the 2026-08-30 step-0
+    > census). Step 0 recorded `IsotropicScattering.apply_transpose` and
+    > `IsotropicN2N.apply_transpose` as NOT-RUN with the reason *"declared future
+    > consumer = the adjoint diffusion chain (#281); no such entry exists at
+    > HEAD"*. The consumer existed at HEAD and was neither diffusion nor future:
+    > the **ray-system adjoint**, `sn/operators/radial_characteristic.py:1536`,
+    > fed `S.isotropic_energy + N2N.energy` at `sn/coupled_system.py:591`.
+    > `solve_sn_adjoint` branches on `radial_characteristic_field_space is None`
+    > (`sn/solver.py:2919`) and step 0's workload had **only slab adjoints**,
+    > which take the early return. Adding ONE curvilinear adjoint scenario
+    > (0.9 s) moved both rows from 0 to **985 calls each** — **2 of step 0's 5
+    > dead-arm rows were configuration artefacts**. ⭐ The aggravator: step 0's
+    > own caveat said *"the residual risk is not another solver family, it is
+    > another configuration of a driven family"* — the memo stated the right
+    > hazard and then attributed 2 of its own rows the wrong way, because a
+    > *stated* hazard reads as an *assessed* one (#13's tell, at census scale).
+
+    ⭐ **A verb reads dead when a consumer is fed the operator's KERNEL instead
+    of the operator — a fifth way, distinct from (d)'s parent-override.** (d)
+    covers a fused parent that overrides `apply` and reads the child's *data*.
+    This is the sibling case: **one slot fed two different LEVELS of the same
+    abstraction**, so one sibling's verb is the hottest in the census and the
+    other's reads dead — with no override anywhere. ⟹ before crediting a zero
+    on a verb whose body is a one-line delegation
+    (`return self.kernel.apply_transpose(...)`), grep the **delegate's** call
+    sites too: a caller holding the kernel bypasses the verb while computing
+    identical arithmetic. Retiring on that zero removes a real spelling of a
+    live path; recording "no consumer" is equally wrong.
+
+    > `[M]` 2026-08-31, ORPHEUS CS4c step 5. `RadialCharacteristicEmission` is
+    > constructed twice in production and its `emission_kernel` slot is fed
+    > `S.isotropic_energy + N2N.energy` — the **operators** — at
+    > `sn/coupled_system.py:591`, but **`F.kernel`** — the
+    > `TensorProductOperator` — at `sn/solver.py:2947`. So
+    > `radial_characteristic.py:1536`'s `emission_kernel.apply_transpose(...)`
+    > routes into each iso operator's own verb on the loss side (**985 calls
+    > each**) and steps OVER `IsotropicFission.apply_transpose` on the fission
+    > side (**0**), whose whole body is
+    > `return self.kernel.apply_transpose(_values_of(chi))`. One
+    > abstraction-level inconsistency, two opposite census verdicts.
 30. **NEVER credit an "X is not data of this operation" claim from the
     ARITHMETIC — check the CODOMAIN constructor.** Purity / locality /
     diagonality tell you X is not needed to COMPUTE the action; they say
