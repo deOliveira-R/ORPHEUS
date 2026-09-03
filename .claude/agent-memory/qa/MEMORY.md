@@ -24,25 +24,29 @@ meta-lesson once, list its instances); never truncate.
 
 ## 2. Active / in-flight state
 
-**CS4c step 0 — the RUNTIME FEEDING CENSUS, 2026-08-30.** ⏹ **DELIVERED** —
-`scratch/cs4c_feeding_census.md` (HEAD `2f44ed4e`, tree clean; read-only, no
-tracked file edited; instruments `scratch/cs4c_step0_{spy,drive}.py` + 2 probes).
-11 production entries × the 13-site roster; 23-verb denominator; every arm fired
-by an activation control; 11/11 headline numbers bit-identical instrumented vs
-control. Load-bearing, all `[M]`: (1) **SN's C binding
-(`sn/coupled_system.py:446`) is minted 20–25× per k-solve and applied ZERO
-times** — `StreamingCollisionOperator` overrides `OperatorSum.apply` and reads
-`self.diagonal.coefficient.values`; (2) the S `FullField` arm **re-dispatches**
-on `psi.interior`, so "4 arms" over-counts bodies; (3) on **2-D Cartesian**, S's
-arriving composite is a *different* `FullFieldSpace` (moment interior) from the
-bound one (angular interior) — a shipped non-endomorphism corroborating the §1
-two-space ruling; (4) `S.apply[ScalarFlux]` = **0 prod traffic** (#205 arm);
-(5) `C.apply[ndarray]` = **2 calls, one site** (`homogeneous/solver.py:194`);
-(6) the iso pair returns **bare ndarray from typed input**, 4816 applies, bound
-`space=None`. Refuted: the windowed carrier is routed by **dimensionality**, not
-by `inner_schedule` (12-row probe); and SN C is silent under Krylov too.
-✅ `vv-principles` #29 sharpening (the (d) NO-arm way + bodies-not-arms) **LANDED**
-— nothing owed. Lesson **L-076**, digest rule **A14**.
+**#429 symmetry/quotient carve — TERM-LEVEL REVIEW, 2026-09-02.** ⏹
+**DELIVERED** (HEAD `c1fca8bd`, branch `fix/angular-phantom-support`;
+READ-ONLY — no tracked file edited, revert proven by `diff -q` vs pristine
+copies AND gate-green-again 670/670). 9 probes `scratch/_rev_qa_*.py`,
+13-arm mutation battery `scratch/_rev_qa_arm_*.log` (positive control 111
+reds). CONFIRMED by brute force built in plain numpy: `is_normalised_by`
+5103/5103, `normalises` 729/729, `contains` 575/576 (the 1 was MY improper
+"SO(3)" sample), `orbit_stabiliser` 24/24 against a genuine maximum search,
+vv#15 law 1260/1260, barycentre equivariance 183/183. EIGHT findings, all
+`[M]`: (1) `identity_component` false on 12 of 22 members, 0 consumers;
+(2) `is_invariant`'s O_h/I_h docstring bullets describe RETIRED code (the
+I_h one advertises an ERR-072-shaped 12-element sample); (3) the
+"brute-conjugation CONTROL" is production α-renamed (AST-proven); (4)
+registry stage 0 re-uses Γ (a rule-CLOSURE requirement) as a licence to
+FOLD — the σ_y fold is admitted for `cartesian2d`, emptying 2 of 4 sweep
+quadrants; (5) both kernel short-circuits 0-red; (6) three arms of
+`_identity_component_normalises` have ONE catcher each; (7)
+`candidate_groups` branches on node STORAGE WIDTH — one fold reports
+`{D_2h}` or `{σ_x,σ_y,σ_z}` by spelling; (8) `Cn(1)` vs `Trivial`, one
+group two doors. Lessons **L-077**, digest rules **A15**/**A16**.
+⚠ **TWO skill items OWED and NOT landed** (the brief forbade tracked-file
+edits): the Γ-reuse anti-pattern and the α-normalised-AST control check —
+drop-in text is in the review's final message and in L-077 §findings 3-4.
 
 ### ⚠ The ONE still-open debt
 
@@ -51,7 +55,8 @@ by `inner_schedule` (12-row probe); and SN C is silent under Krylov too.
 *inferred-relation-under-a-DECLARED-name*, N3 *a recall counter placed DOWNSTREAM
 of a filter cannot count what the filter dropped*. Drop-in text: L-070 §12 (they
 live in digest **A11** only). N2 (the Mode-8 DECODER dual) ✅ landed.
-**Land N1/N3 before the next review closes.**
+**Land N1/N3 before the next review closes** — and with them the TWO new
+items from L-077 (Γ-reuse; the α-AST control check).
 
 ### ⏹ Complete — one line each; the evidence is the lesson, the tense is git
 

@@ -1466,3 +1466,32 @@ family:
   `\.name\b` cross-checks the split. L-009 said fields are grep-problems;
   this adds: when the same spelling is a method THERE and a field HERE, every
   member census needs the receiver column or it answers a different question.
+
+---
+
+## L-038 -- A "consumers" census must split EXECUTABLE sites from PROSE citations in its FIRST pass — a line-grep flatters a public function by its own docstring fame
+
+Mapping the `symmetry.py`/`manifold.py` public surface (2026-09-02), the
+word-bounded line census reported `maximal_invariance_groups` at "5 orpheus/
+lines / 4 files" and `singular_set` at "1 / 1" — and an AST census over
+`Call`/`Name`-loads in files that IMPORT the name found **0** executable
+production callers for both (every hit was a `:func:` role inside another
+module's docstring or a comment). 3 of the 6 public `symmetry.py` functions
+were in this state; `barycentre` likewise (4 prose lines, 0 calls). Nexus
+`impact` inherits the same flattery, because a docstring `:func:` role mints a
+`references` edge that reads like a caller. The direction is the dangerous
+one: a well-documented function looks well-consumed, so a retirement audit
+under-prices it as "live" and a boundary discussion over-weights it.
+
+How to apply: for any "who consumes X" deliverable, run the AST pass FIRST
+(`Call`/`Name` loads restricted to files whose import census binds the name;
+string-annotation `"X | None"` counted separately) and report the grep-line
+count only as the PROSE column. Three cheap corollaries from the same run:
+(a) Nexus `dead_functions` on these two modules returned 8 private candidates —
+**8 of 8 false positives** (callers were `@property` bodies, a function object
+captured in a module-level catalogue dict, or a class-body install), so
+confirm every candidate by AST before listing it; (b) the CLI `nexus impact`
+prints its depth-1 list then dies with a traceback — use the MCP tool, the
+CLI `callers` is fine; (c) `__all__` vs the AST public set is a one-line diff
+worth printing — it surfaced 3 production-consumed names missing from
+`__all__` and 1 alias with zero references tree-wide.

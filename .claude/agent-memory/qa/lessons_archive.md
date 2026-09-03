@@ -4771,3 +4771,115 @@ signal (vv #21's self-contradicting-file shape, at clause granularity).
 **Landed:** `vv-principles` #29 gains the (d) NO-arm sharpening + the
 BODIES-not-ARMS discipline, with this measurement as its worked example.
 Deliverable: `scratch/cs4c_feeding_census.md`.
+
+---
+
+## L-077 — the #429 symmetry/quotient carve: a brute-force + mutation review
+
+**Date** 2026-09-02. **Tree** branch `fix/angular-phantom-support`, HEAD
+`c1fca8bd`, tracked tree clean. **Subject** `orpheus/numerics/symmetry.py`
+(2455 L) + `orpheus/numerics/manifold.py` (1958 L) after `c1d53206`
+(`SubgroupOfO3.O2(axis)`, the naming law) and `a7c8de6d` (the invariance
+question moved onto the orbit space). Read-only: no tracked file edited;
+`diff -q` against pristine copies + gate-green-again (670/670, 48.5 s) both
+proved the revert.
+
+### What the brute force CONFIRMED (so the review's negatives are trustworthy)
+
+The core group theory is *right*, and measured against references built in
+plain numpy, never through the module:
+
+* `is_normalised_by` — **5103/5103** agree (27 tags × 189 motions = 168
+  distinct group elements + 12 random O(3) + 9 partial rotations). The
+  finite subset (3402/3402) is an EXACT conjugation reference.
+* `normalises` — **729/729** ordered pairs (27²), self-normalisation 27/27,
+  normaliser closed under product on every probed pair.
+* `contains` — **575/576**; the one disagreement was MY probe (`Q *
+  sign(diag(R))` from a QR is orthogonal, **77 of 200 improper**, so my
+  "SO(3) sample" contained reflections). Instrument failure, not a finding —
+  `plan-authoring` §4's VERIFY sharpening, live.
+* `orbit_stabiliser` — **24/24** against a genuine maximum search. The search
+  is finite by `g ∈ K ⟹ h⁻¹g ∈ Stab(p₀)`, so `K ⊆ H·O(2)_{p₀}`; sampled
+  360 stabiliser elements × 17 test points. **σ_y's stabiliser really is σ_y
+  alone** (0 extra), same for every C_n, D_nh, O_h, I_h.
+* vv#15 compatibility law — **1260/1260** (edge × fixture) over 9 fixtures
+  including two hand-built folds.
+* the axial `lift` (barycentre) — equivariant on **183/183** normaliser
+  pairs, worst 6.66e-16; `π∘lift = id` at **0.000e+00** on all three axes.
+* the hemisphere section at the equator — `σ_y(section) = section` at
+  **0.000e+00** on the ρ=1 rows: an equator node IS its own mate.
+* tolerance margins — node-match and weight-match residual **0.000e+00** on
+  all 15 certified (rule × mirror) cells; realized-element orthogonality
+  1.33e-15 against a 1e-9 band (7.5e5× slack). No tolerance is load-bearing.
+
+### The mutation table (in-process plugin, `pytest_configure`, caches cleared)
+
+Scope: 6 files, 670 tests, ~50 s/arm. Positive control **111 reds**.
+
+| arm | mutation | calls | reds |
+|---|---|---:|---:|
+| PC | every finite group collapses to {e} | 45 | **111** |
+| M1 | `orbit_stabiliser` → `self` | 100 | 6 |
+| M2 | axial normaliser `±ê_a` → `+ê_a` | 361 | 63 |
+| M3 | `_identity_component_normalises` → True | 1085 | **1** |
+| M3a/b/c/d/e | its five arms, separately | 723/90/**1**/197/675 | 7/27/**1**/**1**/**1** |
+| M4 | `_fixes_every_point` → True (ERR-072) | 376 | 25 |
+| M5 | drop kernel step 1, swallow the raise | 2290 | **0** |
+| M5b | drop kernel step 1, raise escapes | 2025 | 16 |
+| M6 | drop kernel step 2 (`H ⊇ G` short-circuit) | 2290 | **0** |
+| M7 | ERR-073 relation-not-bijection | 6235 | 57 |
+| M8 | hemisphere section → LOWER half | 200 | 3 |
+| M9 | barycentre axis → 0 (ERR-080 forgery) | 495 | 27 |
+| M10 | `_assert_named_by_stabiliser` off | 28 | 5 |
+
+### The findings
+
+1. **`identity_component` is FALSE on 12 of 22 members and has ZERO
+   consumers.** A finite subgroup of O(3) is discrete, so its identity
+   component is `{e}`; the property returns `self`. Worse, the docstring's
+   own operative property — *"its orbits are connected, so it fixes every
+   point of any finite invariant set"* — is violated by the returned value
+   on **11 of 22**. `[M]` `grep "\.identity_component"` over `orpheus/`,
+   `tests/`, `docs/theory/` = **0 hits**. A13's shape with the polarity of a
+   *wrong* answer rather than a dead field.
+2. **`is_invariant`'s O_h and I_h docstring bullets describe a RETIRED
+   implementation.** Proven mechanically: unparse every function on the
+   call chain and grep — `sorted`/`fingerprint`/`multiset`/`radii`/
+   `icosahedron`/`vertex`/`representative orbit`/`np.abs` all **absent**.
+   The I_h bullet advertises *"a 12-element representative orbit"* — the
+   exact ERR-072 sampling defect the same docstring elsewhere says the
+   module abolished.
+3. **The "brute-conjugation CONTROL" is the production expression,
+   α-renamed.** `ast.unparse` both, α-normalise the bound variables:
+   **character-identical**, and `_closed(H)` returns `_group_elements` — the
+   same list. The redeeming content is the *neighbouring* hand-derived
+   `assert brute is (axis == mirror)`; the docstring credits the tautology.
+4. **Registry stage 0 re-uses Γ for a second job with the opposite soundness
+   direction.** `discrete_residual` is documented as a CLOSURE requirement on
+   the RULE (*"the symmetry a reflecting x or y face needs"*); stage 0
+   `Γ ⊇ spent_group(...)` reads it as a LICENCE TO FOLD. `[M]` the σ_y fold
+   is admitted at both stages for `cartesian2d`, whose own docstring says
+   *"2-D Cartesian (x-y) … never a symmetry of a z-uniform problem"* — the
+   fold discards every `μ_y < 0` ordinate, emptying **2 of 4** sweep
+   quadrants. Sound for the cylinder (σ_y IS the azimuthal reflection there),
+   unsound for cartesian2d, and the two rows are byte-identical.
+5. **Both kernel short-circuits are unwitnessed** (M5 0 reds, M6 0 reds).
+   Step 1's refusal is duplicated one frame down in `Quotient.induced_action`
+   (M5b: 16 reds ⟹ its real job is converting a raise into a `False`); step 2
+   is a provable theorem-shaped optimisation (`orbit_coordinates` is
+   H-invariant, so the fall-through returns the identity permutation
+   bit-exactly).
+6. **Three arms of `_identity_component_normalises` have ONE catcher each,
+   and it is the SAME test.** Arm (c) is invoked **once** in 670 tests.
+7. **`candidate_groups` branches on node STORAGE WIDTH** (`shape[1] < 3`)
+   after the carve made width non-load-bearing (`ambient_representatives`
+   accepts both). `[M]` ONE fold, two spellings: `maximal_invariance_groups`
+   reports **`{D_2h}`** at ambient width and **`{σ_x, σ_y, σ_z}`** at chart
+   width. `is_invariant` itself is identical on 7 of 7 groups, so the
+   divergence is entirely in the candidate filter.
+8. `Cn(1)` and `Trivial` are one group, two spellings, two behaviours:
+   `SPHERE.quotient(Trivial)` builds, `SPHERE.quotient(Cn(1))` raises
+   *"no catalogue entry for S^2/C_1"* — `_assert_named_by_stabiliser` passes
+   it because `C_1.orbit_stabiliser == C_1`.
+
+Deliverable: `scratch/_rev_qa_*.py` (9 probes) + `scratch/_rev_qa_arm_*.log`.

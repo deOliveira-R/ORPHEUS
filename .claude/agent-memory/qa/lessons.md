@@ -137,6 +137,34 @@ the 7 roster classes, `cp`/`moc`/`mc` = 0 — so "measures its workload only"
 stops being a ritual disclaimer and names the real residual (another *config*
 of a driven family, not another family). → L-076
 
+**A15. When a guard's refusal is DUPLICATED one frame down, the outer one has
+no witness and mutating it "away" reads GREEN.** [companion to A12: A12 is one
+body / many sites; this is one refusal / two frames] `[M]` #429: deleting
+`_invariance_on_orbit_space`'s step-1 normaliser check reddened **0 of 670**
+because `Quotient.induced_action` refuses the same motions — and deleting it
+WITHOUT swallowing that raise reddened **16**, so the outer guard's real job
+is converting a raise into a `False`, which is not what its gate asserts.
+⟹ run BOTH arms (swallow / let-it-raise); the difference names the guard's
+actual contribution. Same run: step 2 (`H ⊇ G ⟹ True`) is 0/670 too, and
+there it is CORRECT — `orbit_coordinates` is H-invariant, so the fall-through
+returns the identity permutation bit-exactly. A 0-red arm is *guard with a
+twin* or *provable optimisation*; decide which by algebra, not by red count.
+⭐ And the per-ARM discipline pays here: `_identity_component_normalises`
+whole-body → **1** red, but its five arms → 7 / 27 / **1** / **1** / **1**,
+with arm (c) invoked **once** in the whole suite. → L-077
+
+**A16. A "brute-force CONTROL" can be the production expression α-renamed —
+prove it by AST, not by reading.** [skill: #22 is the shared-INPUT case; this
+is the shared-EXPRESSION case, and it is mechanically decidable]
+`ast.unparse` the production statement and the test's reference expression,
+α-normalise the bound variables, compare strings. `[M]` #429's
+`test_the_criterion_agrees_with_a_brute_conjugation_control`: **character-
+identical**, and the test's element list is production's own
+`_group_elements`. Its real content is the neighbouring hand-derived
+`assert brute is (axis == mirror)`; the docstring credits the tautology.
+⟹ for every gate whose docstring says "control" / "brute force" /
+"independent", run the two-line AST diff before crediting it. → L-077
+
 ---
 
 ## B. Where a gate is structurally blind (ORPHEUS shapes)
