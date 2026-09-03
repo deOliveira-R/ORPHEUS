@@ -1661,3 +1661,27 @@ Targeted evidence only: `tests/data` + both recipe consumers **279 passed /
 0 failed**; the two archivist-touched test files **53 passed**; `sphinx -W`
 clean; `dead_references` 0 dead / 52 checked. **Run the full gate before the
 next merge that claims a baseline.**
+
+### 18.8 ⏸ Re-anchored 2026-09-03 — the baseline is MEASURED; the symmetry review landed in between
+
+Between §18.7's `01ed1d79` and this note, the user chartered and closed a fresh-context
+review of the symmetry & quotient machine — **#434, CLOSED**, four carves R1 `f9d3b15b`
+→ R4 `13423a59` → R2 `27703297` → R3 `fe219888`, all ff-merged to `main` at `de3cba4d`
+(plan + compaction record: `.claude/plans/symmetry_machine_reads_like_the_math.md`).
+✅ **The 13-tree baseline at `main` `de3cba4d` is `[M]` 11007 collected, 13 of 13 rc=0**
+(R3's gate, `scratch/_r3_full_gate.log`; per tree: numerics 3255, transport 707,
+geometry 732, data 237, homogeneous 50, diffusion 113, cp 141, moc 121, mc 41,
+cross_method 81, sn 3439, derivations 1661, root+harness 429). §18.7's "UNMEASURED"
+warning is repealed by this measurement; its 10116 prediction was never run as such
+(the +10 rows are inside the 11007).
+
+**What #434 changed that step 5 / #426 / #428 may touch** (§1 existence-checks at
+resume): `SubgroupOfO3.is_invariant` is GONE — invariance is asked of the measure
+(`measure.is_invariant_under(G)` and four sibling verbs; `orpheus/numerics/invariance.py`);
+the registry's `AngularSymmetry` is `(spent, unspent, owed)`; a `Quotient` carries its lift
+as `lift_coordinates` / `lift_codomain`; `manifold.spent_group` is retired. Nothing in
+`orpheus/transport/` or the CS ladder's operators was touched.
+
+**Resume order unchanged** — §18.6: #426's Be-reflected with/without-ℓ≥1 measurement →
+#428's four-solver check → step 5 at §17's ▶ block. The two rulings owed from before the
+review (#429 umbrella-or-close; resume Campaign 2) still stand as owed.
