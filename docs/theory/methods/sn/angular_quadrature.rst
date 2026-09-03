@@ -522,11 +522,22 @@ pairing outright (:ref:`frame-g0-descent-arrow`).
    for that question the orbit **barycentre**
    :math:`\mu \mapsto \mu\,\hat e_a` is the right map — a rotation about
    :math:`a` genuinely fixes it, so the invariance test is honest
-   (:ref:`manifold-barycentre`). `[M]` it still answers
+   (:ref:`manifold-barycentre`). `[M]` 2026-09-03 it still answers
    :math:`\pi(n) = N-1-n` for :math:`\sigma_x` and the identity for
    :math:`\sigma_y`/:math:`\sigma_z` on ``gauss_legendre(8)``. What
    ERR-080 was is the SAME map used to feed a **basis**, which needs a
    point and was handed a mean.
+
+   ⭐ **Since #434 R4 (2026-09-03) that reading is the general one, not
+   a 1-D special case.** Every catalogued orbit space's lift is the
+   orbit barycentre — the Reynolds projector :math:`P_H` onto
+   :math:`H`'s fixed subspace — so a :math:`\sigma_y`-**folded** rule's
+   representatives are projected to :math:`(x, 0, z)` before the same
+   question is asked of them, and the mirror the fold SPENT now reads as
+   the identity permutation rather than as a refusal
+   (:ref:`manifold-lift`). The two claims are one claim: an invariance
+   question about a rule on :math:`M/H` is a question about ORBITS, and
+   the canonical point of an orbit is its mean.
 
 .. warning::
 

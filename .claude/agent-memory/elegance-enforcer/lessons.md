@@ -391,3 +391,18 @@ read"* — the doctrine was present and the new invariant did not follow it. So:
 refusal's tier, grep the target type's existing `__post_init__` for a doctrine sentence, and test
 `dataclasses.replace(entry, <field>=<illegal>)` — Pattern 4 promises `replace()` re-runs the
 invariant, and it only keeps that promise for invariants that are actually IN `__post_init__`.
+
+### L-023 — A field excluded from `__eq__` + a memo keyed on the owner = a CALL-ORDER-dependent answer
+Detection, and it is a two-step grep. When a diff adds a field whose stated job is to let a
+consumer DISCRIMINATE ("the codomain a reader checks to learn which it was handed", a
+`kind`, a `units`, a `provenance`), ask (a) can `__eq__`/`__hash__` tell two owners apart on
+it, and (b) is there a `functools.cache`/dict keyed on the OWNER? Both together and the memo
+serves one owner's answer for the other's — and the corruption flows from the forged object
+INTO the honest one, so it is not merely "the liar lies". `[M]` 2026-09-03 #434 R4:
+`barycentre(entry).codomain` reads `S^2` or `D^3` purely by which entry was asked first.
+⚠ Grade this a VIOLATION without a future-edit hunt: leg 2 is met the moment the field
+lands, exactly as in L-021 (*catalogued* vs *obtainable*). The tell in a diff is a
+`field(compare=False)` whose justifying comment says "derived from X" while a SIBLING field
+derived from the same X is compared — that reason proves too much; the honest reason for
+excluding the siblings is usually "a function has no value equality", which does not
+transfer to a value-typed field. → topic file `symmetry_realization_carve_rulings.md`

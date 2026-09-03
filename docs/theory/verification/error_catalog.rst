@@ -6423,6 +6423,17 @@ older entries classify against.
      parametrisation and the quotient map now form one commuting
      triangle, all three typed.
 
+     ⚠ **The barycentre is the map this entry forges, and after #434 R4
+     the FORGERY has a sharper statement still.** The defect was never
+     "the wrong family's map": it was :math:`P_H` — a canonical point of
+     the **ambient** space, the mean of an orbit — declared to be a
+     point of :math:`S^2`. Now that every entry's lift is that same
+     projector, the one-sentence restatement covers the whole catalogue
+     rather than one family, and the type that refuses it is
+     :attr:`~orpheus.numerics.manifold.Quotient.lift_codomain`: a field,
+     read by the consumer, rather than a literal a call site asserts
+     (:ref:`manifold-lift`).
+
      ⟹ **What that buys ERR-080 is the second half of its restatement.**
      2.3 said the defect is the barycentre map with a forged codomain.
      3.1 says what the forged arm was *reaching for* and could not
@@ -6495,10 +6506,23 @@ older entries classify against.
      collapsed and only the forgery remained. ⚠ Since #429 tracker 2.2b
      (2026-09-02) that read goes one hop further, through the entry's
      own :attr:`Quotient.lift
-     <orpheus.numerics.manifold.Quotient.lift>` — the axial family's
-     lift IS the barycentre — and `[M]` the identity is unmoved:
-     ``array_equal`` on the same 12 rows, on a pinned pre-change tree
-     and on the post-change one alike.
+     <orpheus.numerics.manifold.Quotient.lift>` — and since #434 R4
+     (2026-09-03) that lift is a stored **field** rather than a branch
+     on the group's tag, and it is the barycentre on **every**
+     catalogued entry rather than on the axial family alone: one
+     formula, the Reynolds projector :math:`P_H` onto :math:`H`'s fixed
+     subspace (:ref:`manifold-lift`). ⛔ This clause read *"the axial
+     family's lift IS the barycentre"* until then — true, and narrower
+     than the thing it was describing, because the mirror family's lift
+     was a hemisphere SECTION and the sentence had no reason to mention
+     it. `[M]` the identity is unmoved across both steps:
+     ``array_equal`` on the same 12 rows, on a pinned pre-change tree,
+     on the 2.2b tree and after R4 alike; and the ENTRY POINT is now
+     :meth:`~orpheus.numerics.manifold.Quotient.orbit_barycentres`,
+     renamed from ``ambient_representatives`` because on the ambient
+     width it no longer passes points through as representatives — it
+     projects them, which is what makes the name true on both arms
+     rather than on one.
 
      ⛔ **Nothing here repairs the defect, and the forgery arm was left
      alone ON PURPOSE.** It stays a raw

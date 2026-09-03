@@ -42,9 +42,12 @@ def mirror_partner_indices(quad, axis: int | str) -> np.ndarray:
     r"""Partner-ordinate indices under the mirror about ``axis``, derived
     independently of production.
 
-    Lifts the ordinates to ``(N, 3)`` direction cosines (a 1-D slab
-    rule's missing components are genuinely zero), negates the named
-    component, and EXACT-matches each image against the node set. The
+    Lifts the ordinates to ``(N, 3)`` orbit barycentres — direction
+    cosines for a full-sphere rule, ``(μ, 0, 0)`` for a slab rule (its
+    missing components are genuinely zero), and since R4 of #434
+    (2026-09-03) the barycentre ``(x, 0, z)`` of a σ_y-folded rule's
+    representative, which lies in the ball — negates the named component,
+    and EXACT-matches each image against the node set. The
     window (``1e-12``) only absorbs trig-roundoff of the ordinate
     constructors — a sign flip itself is IEEE-exact.
 
@@ -62,12 +65,18 @@ def mirror_partner_indices(quad, axis: int | str) -> np.ndarray:
     # commutes with the orbit mean — matching embedded barycentres is therefore
     # equivalent to matching orbits, and the 1-D case stays correct.
     #
-    # ⚠ Independence note (``vv-principles`` #22): production's
-    # ``ordinate_permutation`` certifies through ``RigidMotion.preserves``,
+    # ⚠ Independence note (``vv-principles`` #22), PER SUPPORT: production's
+    # ``ordinate_permutation`` certifies through the orbit-space closure,
     # which embeds with this SAME function. So this reference no longer
     # cross-checks the EMBEDDING convention — it cross-checks the PERMUTATION,
-    # which is its subject. A change to the embedding moves both sides
-    # together and is invisible here by construction.
+    # which is its subject. For the nine unfolded rules the embedding is the
+    # identity or a zero-pad and the sharing ends there; for a FOLD (since R4
+    # of #434, 2026-09-03) the embedding routes through the entry's chart and
+    # lift, the same pair the closure reads — a wider sharing, stated so that
+    # a fold row is not read as an independent check of the lift. On a fold
+    # the y-mirror's answer is the identity permutation, and it agrees with
+    # ``induced_permutation`` (gated in test_manifold.py's R4 rows); until R4
+    # the two disagreed — this raised where the closure answered.
     nodes = np.asarray(_embedded_nodes(quad.measure), dtype=float)
     mirrored = nodes.copy()
     mirrored[:, idx] *= -1.0

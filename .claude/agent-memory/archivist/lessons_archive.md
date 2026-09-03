@@ -10295,3 +10295,154 @@ builds **24** groups from 1193 reads. *"A hand table is not buying speed here;
 it is buying a second, unverifiable copy of the answer"* is the paragraph that
 pre-empts the objection — and it only exists because I ran the memo counters
 instead of quoting the docstring's `41 times / 9.3 s`.
+
+---
+
+## L-089 — R4 of #434: the code moved UNDER me twice, and the second time it changed a claim I had already published
+
+**Task.** The docs half of #434 R4 ("the lift is a derivation output, and an orbit
+space's dimension is a theorem") — `orpheus/numerics/manifold.py` mostly, plus
+`symmetry.py`, `basis/descent.py`, `quadrature/directional.py`, all UNCOMMITTED on
+`fix/angular-phantom-support`. Deliverables: a census, a re-derivation on
+`manifolds.rst`, ERR-080's wording, the build + `dead_references`, and a report.
+
+**Output.** 4 pages, +1127 / −196 (1 of them the regenerated matrix). `sphinx -E -W -q`
+**EXIT=0, log 0 bytes** (a completely clean build, so the count-unchanged gate is met
+absolutely). `check_docstring_xrefs` DEAD 0; my own import probe with controls 429/0;
+nexus `dead_references` 0 dead / 52 checked; V&V sentinels **591 → 593** (my two new
+`documented` labels), `numerics/test_manifold` **143 → 240** (code-side), collected
+**10964 → 11061**.
+
+### The finding that dominates the session: a LIVE branch under two other agents
+
+`git status` at dispatch showed 4 modified `orpheus/` files. By the time I probed the
+code for the second time it showed **20**, including `tests/` (the R4 gates had landed)
+and a second pass of `orpheus/numerics/manifold.py` from the elegance review. Three
+concrete consequences, in the order I hit them:
+
+1. **The brief's premise "tests are not yet written" was already false.** The R4 gate
+   set — 9 `TestR4*` classes, 27 functions, `[M]` 102 collected rows — was in the tree.
+   I only noticed because a census I ran to CHECK a plan claim (*"no test pins
+   `sigma_y/Trivial`"*, `[M]` **2 hits**) returned hits in a test file that should not
+   have had them. ⟹ *a census that disagrees with a brief is evidence about the TREE,
+   not about the census.* The result: I could name the gates instead of writing
+   "the gates #434 R4 lands", which is the difference between a coverage claim and a
+   citation.
+2. **The elegance review re-shaped `__post_init__` from THREE clauses to FOUR** (adding
+   a lift-codomain **ambient-width** gate), moved `_generic_orbit_dimension(group, base)`
+   onto `SubgroupOfO3.generic_orbit_dimension(points)`, and turned the single generic
+   POINT into a probe **SET** with a MAXIMUM. I had already written and BUILT three
+   clauses and a single point. Caught by re-reading the live `__post_init__` while
+   hunting a *different* claim (the `repr` one below), not by any check I had planned.
+3. **`lift_codomain` flipped from `field(compare=False)` to compared**, with a measured
+   justification I could not have invented: `[M]` with it excluded,
+   `replace(entry, lift_codomain=SPHERE)` compared **EQUAL** to the catalogue entry and
+   `barycentre`'s `functools.cache` then answered for both — ERR-080's own shape
+   re-minted by the field built to refuse it. My published sentence *"both are
+   `field(compare=False)`"* was false in three places.
+
+⟹ **the rule.** On a live branch, the re-read is not a pre-flight, it is a LOOP: re-read
+the module's public surface (`dataclasses.fields`, `dir(cls)`, the `__post_init__` body)
+**after every build**, and treat any sentence naming a field's `compare`/`repr`/default,
+a guard's clause COUNT, or a helper's SIGNATURE as the highest-decay class. `-W` is
+silent on all three — the build was EXIT=0 with the false compare claim in it.
+
+### The instrument that found the one defect I introduced
+
+The **rendered-HTML slice** (L-069/L-080), anchored on `role="main"`, with display math,
+inline math, `<pre>` and `<code>` stripped, counting visible backticks and leaked
+`:role:` spellings. It caught `*"a map :math:`M/H \to M`, for any entry"*` — a role
+opening inside an emphasis run — rendering as **`M/H to M`, the LaTeX backslash eaten**,
+on a **0-warning** build. My source-side `re.S` differential (L-076) said `new=0` and was
+right about *nesting* and blind to this: the defect is not `**…``…``…**`, it is a role
+that never parsed. ⟹ keep BOTH: the source diff is free and runs every edit; the render
+slice is the only thing that sees a role that did not parse.
+
+⭐ The per-SECTION slice is what made the page-wide counts usable: manifolds.html carries
+74 visible backticks and 1 leaked `:mod:` role, and slicing to my eight `id=`s gave
+**0 / 0 on all eight**, with both survivors proven pre-existing by `git show HEAD:`.
+A page-wide count would have indicted the whole page for someone else's prose.
+
+⚠ And a harness trap of my own: `nohup … &` inside a `run_in_background` Bash call
+reports "completed, exit 0" for the *shell*, not for sphinx. I read a STALE `manifolds.html`
+and concluded my fix had not taken. Run the verification build in the FOREGROUND with a
+long timeout, or assert a distinctive new phrase is in the built HTML before believing it.
+
+### Four claims in the module's own docstrings that are FALSE (reported, not edited)
+
+1. `_coordinate_chart`: *"the columns are visible in the ``repr``"* — `[M]` both
+   `orbit_coordinates` and `lift_coordinates` are `field(repr=False)`, and
+   `repr(SPHERE.quotient(O2("x")))` contains neither `_ambient_columns` nor
+   `_embed_columns` nor `functools.partial`. The picklability half is true.
+2. `__post_init__` clause 4: *"both forgeries of clause 2 ship `fundamental_domain=None`
+   and this clause returns early on them"* — `[M]` HALF false: the `S²/σ_x`-on-`[-1,1]`
+   forgery carries `FundamentalDomain(SPHERE, ((1,0,0),), 'x>=0')`, `dim` 2, which
+   against a 1-D realization violates clause 4 **as well**. The clause still needs its
+   own input; the reason is ORDERING (clause 2 runs first), not absence.
+3. The module docstring's read-set list omits `group.name`, which `[M]` is read **13**
+   times — more than the eight members it does name put together. The previous version
+   named it; the R4 rewrite dropped it while adding the four new ones.
+4. `manifolds.rst`'s import table cited `manifold.py:92/:93/:1194` and
+   `symmetry.py:102/:103`; `[M]` live they are `:96/:97/:1679` and `:105/:106`, and
+   92/93/1194 were **already stale at HEAD**. The table's own preamble says the numbers
+   are re-derived rather than carried — so this is the preamble's contract going unpaid.
+   Its caption *"Every edge among …"* also over-promises by three (`manifold.py:1432`
+   function-scope `→ symmetry`; `measure.py:116/:120` TYPE_CHECKING).
+
+### Numbers I re-measured rather than relayed, and what changed
+
+| the plan / brief said | `[M]` mine | verdict |
+|---|---|---|
+| `barycentre` 41 lines in manifolds.rst | **47 hits / 42 lines** | brief counted LINES; off by one |
+| *"no test pins `sigma_y/Trivial`" (0 hits)* | **2 hits**, both docstrings of the new R4 gate | refuted as stated; the substance ("no ASSERTION pins it") survives |
+| `max\|section − P_H\| = 9.943e-01 / 9.735e-01 / 9.778e-01` | `9.748e-01 / 9.932e-01 / 9.953e-01` | a DRAW; the two maps differ in column `a` alone, where the gap IS \|x_a\|, **supremum exactly 1** — published the bound |
+| *"both folded call sites pass `axis="x"`"* | a runtime spy over the harness's 6 consumer modules: **62** calls, 4 `(support, axis)` cells, fold × **x** only, 327 passed | corroborated, and strictly stronger than a source read |
+| harness residuals `1.15e+00 / 1.19e+00`, `31 of 33` | `1.155e+00 / 1.189e+00`, **31 of 33** by re-installing the pre-R4 pass-through in the same interpreter | reproduced exactly |
+| min chart separation `1.155/4.403e-01/2.751e-01/1.510e-01` | identical | reproduced |
+| `_embedded_nodes == barycentre` 12 of 12 | **12 of 12** | reproduced |
+| the trapezoid ladder | `2.220e-16 / 3.331e-16 / 6.661e-16 / 1.554e-15 / 2.831e-14` at n = 8/16/32/64/1024 | reproduced; **more points is worse** |
+
+⭐ **The independent reference I built and would build again**: `P_H` from the group's
+**realized matrices** — an orthonormal basis of `⋂ ker X ∩ ⋂ ker(r−I)` by SVD, then
+`B Bᵀ`. It reads no column index, so a swapped pair or an off-by-one scatter moves the
+SUT and leaves it fixed; `array_equal` on 8 of 8 entries × 41 vectors, `max|Δ| = 0.0`.
+Two more, one per family: the finite group's own MEAN (`array_equal`, exact — `(x+(−x))/2`
+is `0.0` in IEEE-754) and the orbit-circle trapezoid. Three references, three structural
+angles, no shared code above numpy.
+
+### The doc SHAPE this event class wanted
+
+A **branch-becomes-one-formula** carve (N per-family arms collapse into a single
+derivation output). What worked:
+
+1. **The general statement gets its own labelled equation and ONE home** — here
+   `manifold-reynolds-projector` in the ARROWS chapter, where the map's codomain
+   argument already lived — and every other site POINTS at it. The lift section then
+   narrates the FIELD and cites the label; nothing is stated twice.
+2. **Retitle the section that said "one per catalogued family"**, keep the anchor.
+   The old title is the claim the carve refutes.
+3. **The retired arm gets a `.. note::` with WHAT WAS LOST, stated precisely** — here:
+   the section lands ON `S²` and the barycentre does not, so a consumer needing a
+   *direction* no longer gets one from the lift; `[M]` none does; and the section's
+   IMAGE survives in `fundamental_domain`, so what retired is the *map into it*.
+4. **A rename with three generations gets ONE bullet list, not three paragraphs**
+   (`section_coordinates` → `ambient_representatives` → `orbit_barycentres`), closing on
+   the transferable rule: *a name that must be qualified per argument is a disjunction
+   wearing a noun.*
+5. **The Mode-12 blindness gets a LABELLED subsection**, because it is a design
+   constraint on the gates rather than a caveat — with the three consequences numbered
+   (no end-to-end catcher; assert at the ambient tier; the round trip is a declared-blind
+   leg) and the discriminator's magnitude on both sides (`O(1)` ambient vs **exactly
+   zero** through the chart).
+
+### The self-check that paid, and its three standing false positives
+
+One ~120-line Python pass, ~2 s, run to EXHAUSTION before the first build: label/anchor
+uniqueness (exact-line), underline code-points + marker ladder, `list-table` column
+consistency + `:widths:`, `:ref:`/`:eq:`/`:doc:` resolution corpus-wide, role import
+resolution, source-side nested markup vs `HEAD`, trailing-space-before-closing-backtick,
+and `_scan_theory_equations`. It has three KNOWN false positives on this corpus, and
+recording them is what keeps the next run cheap: the `boltzmann` "duplicate" is a
+`.. code-block:: rst` EXAMPLE in `harness.rst`; a "ragged" `list-table` row is a legal
+EMPTY cell (`^     -$`, no trailing space); and a "dangling" `:doc:` is a RELATIVE
+docname. Two builds total (plus one wasted on the `nohup` illusion).

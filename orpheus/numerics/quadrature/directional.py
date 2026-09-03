@@ -129,7 +129,7 @@ _OCTANT_SIGN_EPS = 1e-15
 #: names a real axis this rule has quotiented away (mean zero, a genuine
 #: answer), while ``i >= 3`` names no axis at all. Matches the width of the
 #: base's ambient space every orbit-space entry lifts into
-#: (:meth:`~orpheus.numerics.manifold.Quotient.ambient_representatives`).
+#: (:meth:`~orpheus.numerics.manifold.Quotient.orbit_barycentres`).
 _DIRECTION_AMBIENT_DIM = 3
 
 

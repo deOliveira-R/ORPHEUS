@@ -1724,12 +1724,14 @@ def test_rotation_axis_answers_for_the_STABILISER_too_and_mirror_axis_does_not()
     name the axis whose polar interval their orbit space IS.
 
     That is exactly what ``manifold._sphere_mod_o2`` reads to pick the
-    surviving invariant, what ``Quotient.lift`` reads to lift a 1-D
-    measure's nodes through the barycentre (until 2026-09-02 a separate
-    ``_polar_axis_of`` read it to pick an embedding axis; #429 tracker 2.2b
-    retired that into the entry's lift), and what ``barycentre`` reads to
-    place the orbit's centre. A property that answered ``None`` for
-    :math:`O(2)_a` would send all three through the ``None`` branch.
+    surviving invariant AND, since R4 of #434 (2026-09-03), to call
+    ``_coordinate_chart`` for the entry's chart/lift pair — the lift is a
+    FIELD the builder populates, no longer a branch that read this property
+    at lift time (until 2026-09-02 a separate ``_polar_axis_of`` read it to
+    pick an embedding axis; #429 tracker 2.2b retired that into the entry's
+    lift; R4 retired the lift's own branch). A property that answered
+    ``None`` for :math:`O(2)_a` would send the builder through the ``None``
+    branch.
 
     The companion of the existing SO(2)-only row
     :func:`test_rotation_axis_is_the_continuous_dual_of_mirror_axis`; the

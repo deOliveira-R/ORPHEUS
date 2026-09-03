@@ -124,7 +124,7 @@ class Descent:
         if axis is not None:
             L = _truncation_order(self.parent)
             return LegendreBasis(L=L, axis=AXIS_LETTER[axis])
-        if self.entry.base == self.entry.realization and by.name == "Trivial":
+        if self.entry.base == self.entry.realization and by.is_trivial:
             return self.parent
         return None
 
@@ -146,7 +146,7 @@ class Descent:
             return MirrorEvenSphericalHarmonicBasis(
                 L=_truncation_order(self.parent), mirror_axis=mirror,
             )
-        if by.name == "Trivial":
+        if by.is_trivial:
             return self.parent
         raise NotImplementedError(
             f"Descent.upstairs: no masked harmonic basis ships for "

@@ -19,6 +19,18 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 retirement shim, scanner finding, plan line and "MEASURED" block are point-in-time snapshots.
 Verify, then write, then FLAG every scope-expansion the verification forced.
 
+- **⛔⛔ ON A LIVE BRANCH THE RE-READ IS A LOOP, NOT A PRE-FLIGHT — re-read the module's
+  public surface AFTER EVERY BUILD.** Dispatched at 4 modified `orpheus/` files, I finished
+  at 20: the R4 gates landed mid-task (so a briefed "no test pins X" was `[M]` **2 hits**,
+  and I could NAME the gates instead of promising them), and an elegance pass re-shaped
+  `__post_init__` from THREE clauses to **FOUR**, turned a single generic POINT into a
+  probe SET with a MAXIMUM, and flipped `lift_codomain` from `compare=False` to COMPARED —
+  falsifying a sentence I had already written and BUILT clean. ⟹ the highest-decay class is
+  a sentence naming a field's `compare`/`repr`/default, a guard's clause COUNT, or a
+  helper's SIGNATURE: `-W` is silent on all three (EXIT=0 with the false compare claim in
+  it). Read `dataclasses.fields`, `dir(cls)` and the `__post_init__` BODY, every time.
+  ⭐ And the tell that caught it: a census that DISAGREES with the brief is evidence about
+  the TREE, not about the census. → L-089
 - **⭐⭐ Before minting a citation to EQUATION N, grep the corpus for what it already says
   about EQUATION N.** A brief's characterisation can be RIGHT and INCOMPLETE — the harder
   case. `[M]` BMC Eq. (52) states TWO things; the corpus already carries a MEASURED refutation
@@ -758,6 +770,16 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
 **Meta-rule: `-W` proves only "I added no NEW warning". The acceptance evidence for a correctness
 sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 
+- **⭐⭐ The source diff and the RENDER slice see DIFFERENT defect classes — keep both.**
+  L-076's `re.S` source differential is free and catches NESTING (`**``x``**`); it is blind
+  to a role that never PARSED. `[M]` mine said `new=0` while the rendered page carried
+  `*"a map :math:`M/H \to M`, …"*` as **`M/H to M`** — a role opened inside an emphasis
+  run, the LaTeX backslash eaten, on a **0-warning EXIT=0** build. ⭐ Slice the built HTML
+  to YOUR OWN section `id=`s (mine: **0 backticks / 0 leaked roles on 8 of 8**, against 74
+  and 1 page-wide, both survivors proven pre-existing by `git show HEAD:`) — a page-wide
+  count indicts someone else's prose. ⚠ `nohup … &` inside a background Bash call reports
+  the SHELL's exit, not sphinx's: I read a stale HTML and thought my fix had not taken.
+  Build in the FOREGROUND, or assert a distinctive new phrase is in the page. → L-089
 - **⛔ On a LIVE branch, re-run the xref gate after EVERY build, not once at the end.** A
   concurrent carve renamed a method I had already published (`Realization.images` →
   `generic_images`) plus retired a sibling; `sphinx -E -W` stayed at **0** throughout, because
@@ -1773,6 +1795,19 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
 
 ## 6. Match the doc SHAPE to the event class
 
+- **⭐⭐ A BRANCH-BECOMES-ONE-FORMULA carve (N per-family arms collapse into one
+  derivation output) has a five-move shape.** (1) The general statement gets ONE labelled
+  equation in ONE home — the chapter where the object's own argument already lives — and
+  every other site POINTS at it. (2) Retitle the section whose title states the claim the
+  carve refutes ("one per catalogued family"), keeping the anchor. (3) The retired arm
+  gets a `.. note::` saying WHAT WAS LOST, precisely: here the section lands ON the base
+  and the projector does not, `[M]` no shipped consumer needs that, and the section's
+  IMAGE survives in another field — so what retired is the *map into it*. (4) A name with
+  three generations is ONE bullet list closing on the transferable rule (*a name that must
+  be qualified per argument is a disjunction wearing a noun*). (5) The Mode-12 blindness
+  gets a LABELLED subsection with its three consequences NUMBERED, because it constrains
+  the gates rather than caveating them — and with the discriminator's size on BOTH sides
+  (`O(1)` ambient vs **exactly zero** through the chart). → L-089
 - **⭐⭐ A NEW LAYER nobody owned gets its OWN PAGE, and the decisive argument is
   self-undermining-if-homed-elsewhere.** Documenting level 1 of a three-level stack: a section
   titled *"a function space is not a domain"* **inside the function-space page** re-commits the
@@ -2085,6 +2120,11 @@ never paraphrase a level definition. → L-010
   inert**. Corpus reading (control removed) over `docs orpheus tests`: **0 dead**, 1006 files /
   16 886 roles / 14 184 decidable. The fix is still UNLANDED in
   `tools/check_docstring_xrefs.py`. -> L-082
+- **⭐ This corpus's structural self-check has THREE standing false positives — record
+  them or every run re-litigates.** `[M]` 2026-09-03: the `boltzmann` "duplicate eq-label"
+  is a `.. code-block:: rst` EXAMPLE in `harness.rst`; a "ragged `list-table`" row is a
+  legal EMPTY cell (`^     -$`, no trailing space — match `^     -(\s|$)`); a "dangling
+  `:doc:`" is a RELATIVE docname. Everything else the pass reports is real. → L-089
 - **⭐⭐ Validate your OWN self-check parser against a known-good member before believing its
   negatives.** My list-table column checker required a trailing space after a cell's `-`, so a
   legal EMPTY cell (`^     -$`) read as a ragged table — two false positives on PRE-EXISTING

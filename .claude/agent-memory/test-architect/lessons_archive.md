@@ -8506,3 +8506,280 @@ residual vs `n`: `8 → 2.220e-16`, `16 → 3.331e-16`, `32 → 5.551e-16`, `64 
 `1024 → 2.587e-14`. The rule integrates `cos θ`/`sin θ` exactly for `n ≥ 3`; everything
 past that is summation error. Ship `n = 16, atol = 1e-14` and SAY in the docstring that
 raising `n` degrades it — otherwise a later session "strengthens" the gate into a false red.
+
+### L73i — the DECLARED-BLIND control arm reddened, and its red set partitioned the suite
+
+`chart_pair_reverses_BOTH_halves` was shipped as a null arm on a theorem:
+`embed ∘ select` is the orthogonal projector onto the span of the selected columns,
+and a projector does not know the ORDER its columns are written in, so reversing a
+list in BOTH halves is exactly `P_H`. `[M]` 2026-09-03 it reddened **6 of 4597**:
+
+| red | why |
+|---|---|
+| `TestTheEntryCarriesItsQuotientMapAndItsReference::test_the_numeric_map_IS_the_recorded_symbol` ×3 | the entry's own symbolic-vs-numeric chart pin reads the column ORDER |
+| `TestTheInducedActionIsWellDefinedAndActsAsTheTheoremSays::test_sigma_x_on_the_sigma_y_fold_is_the_disks_x_flip` | a positional disk-coordinate read |
+| `TestR4…::test_select_is_bit_identical_to_the_entrys_own_orbit_coordinates[S2/Trivial, R3/Trivial]` ×2 | the TRIVIAL builder uses `_all_coordinates` and never routes through `_coordinate_chart`, so the test's reversed `select` legitimately disagrees with the entry's identity chart |
+
+Every projector row (A1, A3, A4, B, C, E) stayed GREEN — as designed. ⟹ the arm
+did what no green arm could: it PARTITIONED the committed set into *"rows blind to
+column order, by theorem"* and *"rows that gate the order"*, and it showed that A2
+is loaded on the two trivial entries against a helper/builder disagreement.
+
+### L73j — the bite check read its own mutant (LATE BINDING)
+
+`dim_law_probes_a_POLE` reported `bit=0` in the smoke test. Cause:
+`_generic_orbit_dimension` resolves `_generic_point` through the MODULE GLOBALS at
+call time, so the captured `honest_orbit_dim` function object returns the MUTATED
+rank too — the check compared mutant-vs-mutant. Repair: take the honest value
+BEFORE the patch. `[M]` 18 of 19 arms bit on the first smoke pass; this was the
+19th, and it is exactly the failure the smoke pass exists to find.
+
+⟹ **a bite check that dereferences the patched name through a captured callable is
+not a control.** Capture VALUES, not callables, on the honest side.
+
+### L73k — a law that lands as PREVENTION-BY-CONSTRUCTION has no value-tier witness
+
+`[M]` the arm replacing the dimension law's `rank[X p : X ∈ 𝔤]` with `group.dim`
+reddens **0 of 4597**. Every shipped entry has `rank == dim H` — axial `1 = 1`,
+mirror and trivial `0 = 0` — so the law's entire reason for being stated on the
+ORBIT rather than on the GROUP is un-witnessed by the catalogue; and the gate I had
+written (`test_dim_H_alone_would_be_WRONG_and_the_rank_helper_says_why`) asserts the
+TEST's own rank helper, which a production mutation cannot touch.
+
+**Repair, measured.** Two entries that are constructible on the landed tree and
+refused the moment the law reads `dim H`:
+
+| entry | honest law | `dim H` law |
+|---|---|---|
+| `S^2/O(3)` on `IndexSet(dim 0)` | `2 − 2 = 0` ✓ | `2 − 3 = −1` ⛔ |
+| `R^3/O(3)` on `[0, ∞)` (`dim 1`) | `3 − 2 = 1` ✓ | `3 − 3 = 0` ⛔ |
+
+`scratch/_r4_dimH_witness.py` — **2 passed honest / 2 failed under the arm**.
+(⚠ `R^3/SO(3)` is NOT usable: `_assert_named_by_stabiliser` refuses it first,
+naming `O(3)`. The stabiliser law preempts the dimension law on that spelling.)
+
+⭐ **And the mirror finding: three natural mutants are UNINSTALLABLE, each refused
+by a NAMED guard** — which is a finding, not a failure:
+
+| mutant | refused by |
+|---|---|
+| a mirror builder shipping a half-meridian `fundamental_domain` against `Ball(2)` | the fd clause of `Quotient.__post_init__` |
+| an axial builder realizing `S^2/O(2)_x` on `Ball(2)` | **the dimension law itself** — the forgery is unspellable at the BUILDER tier, so only D2's direct `Quotient(...)` can witness it |
+| an axial builder re-naming the entry by its rotation half `SO(2)_a` | `_assert_named_by_stabiliser` (#432) |
+
+A fourth candidate is inert **by TYPE, not by a guard**: reversing an `int` column
+is the identity, so the axial arm cannot express the both-halves reversal at all.
+
+### L73l — an R4-only red set is not `vv`#17's "mirror"; the discriminator is the consumer census
+
+`orbit_barycentres_passes_ambient_width_through` (the pre-carve pass-through
+restored) reddens **9 R4 rows and 0 of the 4588 others** — including the five
+`_embedded_nodes` consumers and every `tests/geometry` mirror gate.
+
+`vv`#17's red-set-by-IDENTITY clause would read that as *"the symbol has no
+consumer; its pins are a mirror"*. It has two consumers (`_act_through`,
+`_embedded_nodes`) and they are blind for a **measured** reason: the chart drops
+exactly the column the projector rewrites, `[M]` 0 of 9925 kernel answers move.
+
+⟹ the R4-only red set is the EVIDENCE that E2/E5 are net-new coverage. The two
+readings — *no consumer* and *consumers blind by theorem* — are told apart by the
+PRE-CARVE consumer census, never by the red count.
+
+### L73m — the battery's measured table (19 + 3 arms, 4597-row denominator)
+
+Scope `tests/numerics tests/geometry tests/transport` + the two SN
+`_embedded_nodes` consumers; `-m "not slow"`, serial, `python -O`.
+Baseline **4597 passed / 5 skipped / 1 xfailed / 0 failed in 51.9 s**; 22 arms
+≈ 20 min. Pristine copies of the three carved modules taken before arm 1 and
+`diff -q` clean after the last. Every arm carried a BITE CHECK; **22 of 22 bit**.
+
+Every gate class A–I has at least one arm that reddens it. The two arms that
+redden most widely are `embed_writes_ones` (243) and `dim_law_probes_a_POLE` (723
++ 39 ERRORs — a CRASH arm: every axial entry refuses at construction, so it reds
+by RAISING and attributes the generic-point premise, nothing at the value tier).
+The positive control `orbit_coordinates_returns_column_zero` reddens **99** (37 R4
++ 62 non-R4 across `test_manifold`, `test_symmetry`, `test_slab_orbit_space`,
+`test_quadrature_directional`, `test_reemission_closure`) — chosen OUTSIDE every
+entry's symmetry group, per `vv`#17's own trap.
+
+## L74 — #434 R2, "invariance is the measure's question; groups import geometry only" (plan + gates DELIVERED 2026-09-03, pre-carve; branch `fix/angular-phantom-support`, HEAD `caad5bf3`, R4 uncommitted in the tree)
+
+Deliverables: `scratch/_r2_verification_plan.md` (10 sections, 33 gate rows in 9 groups,
+19-arm battery, 5 open rulings), `scratch/_r2_gates_draft.py` (**121** rows, dry-run
+**18 failed / 103 passed in 5.92 s** through `scratch/_r2_shim.py`; pyright 18 errors, all
+18 naming the unlanded API, 0 others), `scratch/_r2_test_migration.md` (the §6b set),
+plus two frozen references captured at HEAD (`_r2_perm_baseline.npz` 45 rows,
+`_r2_selection_baseline.json` 48 rows).
+
+### L74a — ⛔⛔ The blocking obstacle to reversing an import edge was a CONSTANT, not a type; and `import <package>` alone stays rc=0 while 6 of 9 entry points die
+
+R2's stated means: *"`manifold.py` imports `symmetry` at module scope"*. The plan
+enumerated the KERNEL names leaving `symmetry` (`Quotient`, `RealSpace`,
+`DiscreteMeasure`) and never asked what else `symmetry` imports from `manifold`. `[M]`
+`symmetry.py:105` reads `AXIS_INDEX, AXIS_LETTER` too, at **6** sites
+(`:560, 667, 1059, 1073, 1440, 1707`) inside `rotation_axis`, `mirror_axis`,
+`_letter_of`, `_perpendicular_letter`, `_realize`, `_axis_vector` — none of which moves.
+
+`[M]` `scratch/_r2_import_probe.py` — a shadow copy of `orpheus/`, four injected variants,
+one `python -c "import X"` SUBPROCESS per (variant, entry):
+
+| variant | clean |
+|---|---|
+| V0 baseline | 9 of 9 |
+| V1 = the plan's literal means | **3 of 9** — `ImportError: cannot import name 'AXIS_INDEX' from partially initialized module 'orpheus.numerics.manifold'` |
+| V2 = V1 + `symmetry` stops importing `manifold` (AXIS constants local; the rest under `TYPE_CHECKING`) | 9 of 9 |
+| V3 = V2 + a real `invariance.py` + `measure → invariance` at module scope | **10 of 10** |
+
+⭐ Under V1 **`import orpheus` alone still returns rc=0**, so a package-root smoke test
+reports GREEN. The existing `test_entry_point_imports_in_a_fresh_interpreter` covers 6
+entries and catches only 3 of the 6 deaths; the 4 that must be ADDED
+(`numerics.manifold`, `numerics.measure`, `numerics.invariance`,
+`numerics.quadrature.registry`) are exactly the uncovered ones.
+
+⟹ **when a carve's goal is to REVERSE an edge, enumerate every name the reversed-from
+module imports from the reversed-to one — including CONSTANTS — and inject-and-run before
+designing a single gate.** A type moves with the concept; a constant does not, and it is
+invisible to a review that reads the concept.
+
+### L74b — Three of the carve's four behaviour changes are INERT on every shipped input, and each needed its own denominator
+
+The plan listed four changes and one exception list. Measured separately:
+
+| change | shipped witnesses | the measurement |
+|---|---|---|
+| position test at the NODE window (`atol` → `atol·100`) | **0 of 15 rules** | every rule's off-axis barycentre residual is `0.000e+00` (bit-exact — the axial lift puts μ ON the axis) or `≥ 5.774e-01`; a `10^11` gap, nothing in `(1e-13, 1e-11]` |
+| `_distinct_azimuths` window from its argument | **0 of 15** | `n_az` identical at merge `1e-9` and `1e-13` on all 15 (8/16/24/40/12/20/36/8/8/2/2/2/4/2/2) |
+| `_maximal` on STRICT containment | **0 of 31 members** | 0 distinct pairs among the 31 expressible `SubgroupOfO3` values contain each other (R1's `Cn(1)→Trivial` closed the only known one) |
+| deleted kernel step 2 | **32 distinct (rule × group) rows** — a MUST-STAY-GREEN table, not a witness | 10 bare-sphere rules × `{Trivial}`; 3 GL rules × `{Trivial, σ_y, σ_z, SO2_x, O2_x, D_1h}`; 2 folds × `{Trivial, σ_y}` |
+
+⟹ **a plan listing N behaviour changes owes N separate shipped-denominator measurements**,
+not one exception list. Three of these four land green and unfalsifiable without a
+manufactured fixture (§6c), and the fourth is the opposite shape.
+
+The manufactured witnesses: a BARE-sphere 2-node measure at `(±1, ε, 0)` — bare so the
+quotienting group is `{e}`, FINITE, so the position leg genuinely RUNS (on `S²/O(2)_a` the
+barycentre is on the axis by construction and the leg is a tautology); four equatorial
+nodes at `φ = 0, 5e-10, π/2, π/2+5e-8`; and a six-line duck-typed pre-order stub for
+`_maximal`, which reads only `!=` and `.contains`.
+
+### L74c — ⛔ A plan's stated behaviour change was ALREADY TRUE at HEAD
+
+*"`symmetry_groups` on a measure whose only symmetry is `{e}` returns `(Trivial,)` (today
+`()`)"*. `[M]` on the elegance review's own fixture (seed 7, 9 random unit nodes) both
+`walk` and `bruteforce` read `(Trivial,)` **today** — the `()` was the `Cn(1)`/`Trivial`
+alias pair, closed by **R1** a commit earlier. ⟹ the row is a REGRESSION PIN on R1, carries
+NO information about R2's `_maximal` change, and its docstring must say so, or the
+battery's expected null on it reads as a blind gate. **Measure the "today" side of every
+before/after claim, not only the "after".**
+
+### L74d — ⭐ Changing WHICH NODES a derived quantity reads moved 3 of 15 shipped answers the plan never listed
+
+C3's fix is *"`candidate_groups` on the EMBEDDED nodes"*. Simulated over the whole shipped
+denominator BEFORE designing gates (`scratch/_r2_opener3.py`): the three `gauss_legendre`
+polar marginals move `{O2_x, σ_x}` → **`{O2_x, D_2h}`** (`|C|` 15 → 18), and
+`folded_product(4,8)`'s candidate SET shrinks 20 → 18 (the barycentre projection zeroes the
+`y` column, so 4 azimuths collapse to 2 and `C_4`/`D_4h` stop being offered) while its
+ANSWER stays `{D_2h}`. The widening is correct — `D_2h ⊇ σ_x`, `D_4h`/`D_∞h` are refused
+because their `C_4^z`/`C_∞^z` do not normalise `O(2)_x` — and it reds two committed gates,
+one of whose NAME (`test_the_candidate_SET_is_untouched_by_the_carve`) becomes false.
+⟹ **simulate the changed function over the whole shipped denominator before designing the
+gates**; the answer that moves is rarely the one the finding is about.
+
+### L74e — ⭐ A search function's two realizations can return the same SET in a different ORDER
+
+`[M]` on a chart-spelled fold, `maximal_invariance_groups` returns
+`['sigma_z','sigma_x','sigma_y']` by `walk` and `['sigma_x','sigma_y','sigma_z']` by
+`bruteforce`. The walk pops a stack; the scan iterates the candidate list. ⟹ **every gate
+on such a function compares `sorted(...)` or a `set`** — a tuple comparison is a flake
+waiting for a candidate-order change.
+
+### L74f — The shim dry-run refuted my OWN predicted fixture value
+
+I predicted the azimuth fixture reads `3` at `atol=1e-13` both before and after. `[M]` the
+post-R2 answer is **4**: with the merge window at `1e-13` the `5e-10` pair no longer merges
+either, so BOTH the `1e-13` and the `1e-7` rows are witnesses and a third row at `1e-9`
+is the control pinning the window the literal used to be. A prediction written into a
+parametrize list is a `[M]` claim; the shim is what makes it cheap to refute.
+
+### L74g — ⚠ `ast.col_offset` is UTF-8 BYTES, and my first quantification of the hazard was wrong in the alarming direction
+
+A pre-existing `scratch/_r2_rewrite_is_invariant.py` (not mine; 2026-09-03 01:49) builds
+source spans as `cumulative_char_offset[lineno-1] + node.col_offset`. `[M]` `col_offset`
+counts **bytes** (`x = 'μμμ'; G.is_invariant(m)` → `col_offset = 14`, char index 11), so
+the construction is wrong in principle. I was one command from publishing *"128 of 128
+call sites corrupt"*, measured by the PROXY *"a non-ASCII line exists at or before the
+call"*. Re-measured with the honest instrument — slice vs `ast.get_source_segment` —
+the answer is **0 of 128**: the non-ASCII in these files lives in docstrings and comments,
+never on a line before a call, and the cumulative part is char-indexed on both sides so
+only the CURRENT line's prefix matters. ⟹ **a latent hazard with 0 witnesses is a rider,
+not a defect**, and *"does this construction differ from the correct one on this corpus?"*
+is a different question from *"could it?"* — answer the first with the correct
+implementation as the reference, never with a proxy for it.
+
+### L74h — the AST rewrite table, for the record
+
+`[M]` **91** `.is_invariant(...)` CALL nodes (AST, `func` an `Attribute`), 5 files: 88 test
+calls in 3 files, 2 in `symmetry.py` (the walk's own), **1 production consumer**
+(`registry.py:1012`). The plan said *"170 test attribute sites / 3 files"* — 1.9× over; a
+LINE census of `\bis_invariant\b` gives 116 lines / 9 files. Shapes (receiver, argument):
+`Call/Name` 49, `Attribute/Name` 19, `Name/Name` 18, `Call/Call` 4, `Name/Attribute` 1;
+`atol=` on 2 of 91; exactly one positional argument on 91 of 91; **0** sites with a
+compound expression on either side, so the evaluation-order swap the rewrite introduces is
+immaterial — stated because "immaterial" is a claim. Import sites of the moved names:
+**30 in 12 files**, of which `tests/_harness/references.py:31` is on EVERY test module's
+import chain (break it → rc=4 / 0 collected / 0 `^FAILED` / 0 `^ERROR`, both scanners
+read zero — `L68a`).
+
+### L74i — the R2 mutation battery (`scratch/_r2_{mut.py,battery.sh}`), and the three harness defects its PRE-LANDING run exposed
+
+23 arms (22 + a positive control), modelled on `scratch/_r4_{mut,battery}.sh`. Built
+against an API that does not exist yet — `scratch/_r2_edit_production.py` has not run, so
+`orpheus/numerics/invariance.py` is not on the tree. `[M]` full run pre-landing:
+**23 UNINSTALLABLE, 0 FAILED, 0 ERROR, pristine diff silent, ~14.5 s/arm over 1186 tests
+in 9 scope files**; **15 of 23** then BITE-validated against the unlanded API through
+`scratch/_r2_shim.py` (`-p scratch._r2_mut -p scratch._r2_shim` — the shim registered
+LAST, because pluggy fires `pytest_configure` in LIFO registration order and the first
+attempt with the natural order reported *"the module itself is absent"* on every arm).
+
+**⛔ A `_precondition` must be an arm's FIRST statement, and it must raise
+`Uninstallable`, not the bite's `RuntimeError`.** `[M]` the first draft's
+`h_symmetry_reexports_the_kernel` rebound `symmetry.maximal_invariance_groups =
+getattr(INV, "symmetry_groups", None)` BEFORE its precondition ran; pre-landing `INV` is
+absent, so it bound a live production symbol to **`None`** and then reported UNINSTALLABLE
+— **13 reds attributed to nothing**, on a run whose header says the arm did not install.
+A partial install under a failed precondition is worse than a crash: the reds look like a
+finding and the header denies the arm ran. ⟹ separate the two verbs by what they mean —
+`_precondition` = *the tree is not in the state this arm models* (expected, quiet);
+`_bite` = *the mutant is inert on its witness* (a finding) — and let no arm mutate before
+its precondition has passed.
+
+**⛔ A bite check that asserts `SUT is mutant` proves the REBIND took, not that the mutant
+DIFFERS — `vv` #19 at the harness tier.** `[M]` `i_err045_message_reverted` first asserted
+only the rebind and duly installed pre-landing, reddening **0**: the honest message and the
+"reverted" message are IDENTICAL there, because the diagnosis R2 corrects has not been
+corrected yet. Re-posed to CALL both guards on `folded_product(4,8)` axis `y` and compare
+the two message strings, it correctly reports UNINSTALLABLE until the correction lands.
+⟹ a bite must compare the mutant's ANSWER against the honest one on a named witness;
+"the patch is in place" is the one reading that carries no information about bite.
+
+**⛔ A carve can dissolve a mutation's own distinction — check the arm against the CURRENT
+tree, not against the tree the arm was designed for.** `b_single_motion_face_bypasses_the_
+closure` was specified as *"match ambiently instead of on the chart"* and spelled
+`permutation_preserving(embed(measure), motion.on_points(embed(measure)), …)`. `[M]` the
+bite refused it: **after R4** `_embedded_nodes` returns orbit BARYCENTRES, and a σ_y fold's
+barycentres carry `y = 0`, so σ_y maps each to itself and the ambient match is
+bit-identical to the chart match. The honest pre-tracker-2.2b reading is
+`measure.nodes` — the stored REPRESENTATIVES, whose σ_y-mates are absent. One carve
+(R4's projector lift) had silently made the intended mutation a no-op.
+
+**Other mechanics worth carrying**: every captured symbol through
+`getattr(module, name, None)` so an unspelled name reports UNINSTALLABLE rather than
+crashing the battery (the R4 INTERNALERROR lesson); `_rebind` sweeping every `sys.modules`
+holder because `from X import name` binds the function OBJECT; the three SOURCE-parsing
+gates (the module-scope import census, the deferred-import census, the `_orbit_closure`
+call-site count) mutated by a `pathlib.Path.read_text` patch **scoped to one path**, so
+nothing is written to disk and the source mutation is crash-safe by construction; the
+positive control forced to run FIRST by the driver; and one arm — a module-scope import
+cycle — declared **UNINSTALLABLE by construction**, because the gate it must redden spawns
+a fresh interpreter that re-imports clean source, with its witness named
+(`scratch/_r2_import_probe.py`) rather than left as an unexplained blind row.

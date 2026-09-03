@@ -76,6 +76,8 @@ from orpheus.numerics.manifold import (
     Quotient,
     RealSpace,
     Sphere,
+    _all_coordinates,
+    _coordinate_chart,
     quotient_onto,
 )
 from orpheus.numerics.symmetry import SubgroupOfO3
@@ -103,6 +105,7 @@ from orpheus.numerics.quadrature.rules_1d import (
 from orpheus.numerics.symmetry import (
     SubgroupOfO3,
     candidate_groups,
+    induced_permutation,
     maximal_invariance_groups,
 )
 
@@ -695,24 +698,35 @@ class TestTheTwoCoordinateSystemsMustAgree:
     """The construction invariant, and the case it catches."""
 
     def test_a_mismatched_fundamental_domain_is_REFUSED_at_construction(self):
-        r"""§6c: the gate lands with its own witness.
+        r"""§6c: the gate lands with its own witness — on the input that ONLY
+        this clause refuses.
 
-        A hemisphere (``dim`` 2, no antipodal pair) offered against a
-        1-D realization is exactly the mistake the rule exists to catch —
-        an equality normal forgotten, so the section describes a bigger
-        object than the chart.
+        A half-meridian (an antipodal normal PAIR spells an equality, so
+        ``dim`` 1) offered against the disk (``dim`` 2) is the mistake this
+        rule exists to catch: a section describing a smaller object than the
+        chart.  ⚠ Until R4 of #434 (2026-09-03) this row offered a hemisphere
+        against ``[-1,1]`` — an input that ALSO violates the dimension law
+        ``dim(M/H) = dim M − dim(generic orbit)``, which now runs first, so it
+        pinned whichever clause ran first rather than this one (`[M]`
+        ``scratch/_r4_probe10.py``: the half-meridian input passes the
+        dimension law, 2 − 0 = 2, and is refused by this clause verbatim).
         """
-        from orpheus.numerics.manifold import Quotient
+        from orpheus.numerics.manifold import Quotient, _coordinate_chart
 
-        hemisphere = FundamentalDomain(SPHERE, ((0.0, 1.0, 0.0),), "y>=0")
-        assert hemisphere.dim == 2 and COSINE_INTERVAL.dim == 1
+        half_meridian = FundamentalDomain(
+            SPHERE, ((0.0, 1.0, 0.0), (0.0, -1.0, 0.0)), "y=0"
+        )
+        assert half_meridian.dim == 1 and Ball(2).dim == 2
+        chart, lift = _coordinate_chart([0, 2], 3)
         with pytest.raises(ValueError, match="must describe the same"):
             Quotient(
                 base=SPHERE,
                 by=SubgroupOfO3.Mirror("y"),
-                realization=COSINE_INTERVAL,
-                orbit_coordinates=lambda points: points[:, 1],
-                fundamental_domain=hemisphere,
+                realization=Ball(2),
+                orbit_coordinates=chart,
+                lift_coordinates=lift,
+                lift_codomain=Ball(3),
+                fundamental_domain=half_meridian,
             )
 
     def test_the_shipped_entries_SATISFY_it(self):
@@ -909,17 +923,22 @@ class TestManifoldMap:
         assert np.array_equal(image[:, a], mu)
         assert not np.any(image[:, [i for i in range(3) if i != a]])
 
-    def test_barycentre_refuses_anything_but_an_axial_orbit_space(self) -> None:
+    def test_barycentre_refuses_a_bare_manifold_and_nothing_else(self) -> None:
+        r"""Since R4 of #434 (2026-09-03) the barycentre map is the lift of
+        EVERY catalogued entry — the Reynolds projector — so the refusal is
+        for a point set that is not an orbit space at all; the widened
+        positive side over all entries is
+        ``TestR4TheLiftIsADerivationOutputNotATagBranch``."""
         from orpheus.numerics.manifold import barycentre
 
-        barycentre(SPHERE.quotient(SubgroupOfO3.O2("x")))  # positive control
-        for not_axial in (
+        for entry in (
+            SPHERE.quotient(SubgroupOfO3.O2("x")),
             SPHERE.quotient(SubgroupOfO3.Mirror("y")),
             SPHERE.quotient(SubgroupOfO3.Trivial),
-            COSINE_INTERVAL,
         ):
-            with pytest.raises(ValueError, match="axial group"):
-                barycentre(not_axial)  # type: ignore[arg-type]
+            assert barycentre(entry).domain == entry  # positive legs
+        with pytest.raises(ValueError, match="not orbits"):
+            barycentre(COSINE_INTERVAL)  # type: ignore[arg-type]
 
     @pytest.mark.parametrize("axis", ["x", "y", "z"])
     def test_barycentre_is_the_embedding_the_invariance_check_reads(
@@ -1913,20 +1932,12 @@ class TestTheLiftIsARightInverseOfTheQuotientMap:
             np.asarray(entry.orbit_coordinates(lifted)).reshape(-1), mu[:, 0]
         )
 
-    @pytest.mark.foundation
-    @pytest.mark.parametrize("axis", _g22b_AXES)
-    def test_a_mirror_entrys_lift_is_the_hemisphere_section_and_pi_undoes_it(self, axis):
-        entry = SPHERE.quotient(SubgroupOfO3.Mirror(axis))
-        rng = np.random.default_rng(20260902)
-        rho = np.sqrt(rng.uniform(0.0, 1.0, 200))
-        phi = rng.uniform(0.0, 2.0 * np.pi, 200)
-        chart = np.column_stack([rho * np.cos(phi), rho * np.sin(phi)])
-        lifted = np.asarray(entry.lift(chart), dtype=float)
-        # lands ON the sphere and INSIDE the entry's own fundamental domain
-        assert np.allclose(np.linalg.norm(lifted, axis=1), 1.0, atol=1e-14)
-        assert entry.fundamental_domain is not None
-        assert entry.fundamental_domain.contains(lifted)
-        assert np.array_equal(np.asarray(entry.orbit_coordinates(lifted)), chart)
+    # ``test_a_mirror_entrys_lift_is_the_hemisphere_section_and_pi_undoes_it``
+    # stood here until R4 of #434 (2026-09-03): the mirror entry's lift is the
+    # orbit BARYCENTRE now, like the axial one, and lands in the ball — see
+    # ``TestR4TheCoordinateChartPairIsTheReynoldsProjector`` (lift ∘ chart == P_H, with the
+    # round-trip leg kept and labelled blind) and
+    # ``TestR4TheLiftIsADerivationOutputNotATagBranch`` (the codomain).
 
     @pytest.mark.foundation
     def test_the_trivial_entrys_lift_is_the_identity(self):
@@ -1938,21 +1949,22 @@ class TestTheLiftIsARightInverseOfTheQuotientMap:
         assert np.array_equal(np.asarray(entry.orbit_coordinates(pts)), pts)
 
     @pytest.mark.foundation
-    def test_the_axial_lift_lands_in_the_BALL_and_says_so(self):
-        r"""⚠ The axial lift is NOT a section, and its codomain is the honest
-        record of that: `[M]` ``barycentre(S^2/O2_x).codomain`` is ``D^3``,
-        while the mirror and trivial lifts land on the base ``S^2``.  A gate
-        asserting one uniform codomain across the three families would be
-        FALSE — and the falsehood is ERR-080's own (a map into the ball
-        declared as a map into the sphere)."""
+    def test_the_sphere_lifts_land_in_the_BALL_and_say_so(self):
+        r"""⚠ A sphere entry's lift is NOT a section, and its codomain is the
+        honest record of that: `[M]` ``barycentre(S^2/O2_x).codomain`` and
+        ``barycentre(S^2/sigma_y).codomain`` are both ``D^3`` (the mirror
+        entry joined the axial one at R4 of #434, 2026-09-03 — until then it
+        lifted through a hemisphere SECTION onto ``S^2``, and this row's
+        docstring argued that one uniform codomain across the three families
+        would be false; that argument is REPEALED: only the trivial entry's
+        lift is a section now).  The ERR-080 discriminator is unchanged: a map
+        into the ball declared as a map into the sphere is the forgery."""
         axial = SPHERE.quotient(SubgroupOfO3.O2("x"))
         assert isinstance(axial.lift.codomain, Ball)
         assert axial.lift.codomain == barycentre(axial).codomain
-        for entry in (
-            SPHERE.quotient(SubgroupOfO3.Mirror("y")),
-            SPHERE.quotient(SubgroupOfO3.Trivial),
-        ):
-            assert entry.lift.codomain == entry.base
+        assert isinstance(SPHERE.quotient(SubgroupOfO3.Mirror("y")).lift.codomain, Ball)
+        trivial = SPHERE.quotient(SubgroupOfO3.Trivial)
+        assert trivial.lift.codomain == trivial.base
         # and the axial image really is off the sphere away from the poles
         img = np.asarray(axial.lift(np.array([[0.3]])), dtype=float)
         assert not SPHERE.contains(img)
@@ -2068,26 +2080,12 @@ def _closed(group: SubgroupOfO3) -> list[RigidMotion]:
 
 # G3 — tests/numerics/test_manifold.py
 # =============================================================================
-class TestSectionCoordinatesDispatchOnWidthAndRefuseAnythingElse:
-    """``ambient_representatives`` is the ONE place the two coordinate systems are
-    told apart, and it must refuse a third width rather than guess."""
-
-    @pytest.mark.foundation
-    def test_base_width_passes_through_and_chart_width_is_lifted(self):
-        fold = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
-        nodes = np.asarray(Quadrature.folded_product(4, 8).measure.nodes, dtype=float)
-        assert np.array_equal(np.asarray(fold.ambient_representatives(nodes)), nodes)
-        chart = _disk_points()
-        assert np.array_equal(
-            np.asarray(fold.ambient_representatives(chart)),
-            np.asarray(fold.lift(chart)),
-        )
-
-    @pytest.mark.foundation
-    def test_a_width_in_neither_system_is_refused_by_name(self):
-        fold = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
-        with pytest.raises(ValueError, match="neither"):
-            fold.ambient_representatives(np.zeros((4, 7)))
+# ``TestSectionCoordinatesDispatchOnWidthAndRefuseAnythingElse`` stood here until
+# R4 of #434 (2026-09-03): ``ambient_representatives`` passed ambient-width points
+# through as representatives, and that pass-through is what R4 retired — the
+# method is ``orbit_barycentres`` now and maps BOTH widths to the orbit
+# barycentre.  Its rows are superseded by ``TestR4OrbitBarycentresIsOneConceptOnBothWidths``
+# (both widths; the pass-through gone; the width refusal under the new name).
 
 
 # =============================================================================
@@ -2157,3 +2155,1246 @@ class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
 
 
 # =============================================================================
+
+
+# =============================================================================
+# ===== R4 gates (test-architect, 2026-09-03) — the lift is a derivation output
+# =============================================================================
+
+_R4_I3 = np.eye(3)
+_R4_ATOL_EXACT = 1e-14          # C1 / B2: a 30x margin over the measured floors
+_R4_ATOL_NEAR_BIT = 1e-13       # C3's non-signed-permutation leg (measured 5.0e-16)
+_R4_O1 = 0.1                    # C2: the negative leg's floor (measured >= 5.5e-01)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# References — every one computed from the group's REALIZATION
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _r4_reynolds_projector(group: SubgroupOfO3) -> np.ndarray:
+    r"""``P_H``, the orthogonal projector of :math:`\mathbb{R}^3` onto the
+    fixed subspace :math:`(\mathbb{R}^3)^H` — the INDEPENDENT reference.
+
+    Built from the realization alone: an orthonormal basis ``B`` of the common
+    null space of the Lie generators (:math:`Xp = 0`) and of :math:`r - I` for
+    every coset representative, then :math:`P = B B^{\mathsf T}`.  ``[D]``
+    :math:`p \in (\mathbb{R}^3)^H` iff every element fixes it, iff the
+    identity component's algebra kills it AND each representative fixes it —
+    the component being connected, its own condition is exactly ``Xp = 0``.
+
+    It reads NO column index, which is what makes it independent of
+    ``_coordinate_chart`` (see the module docstring).
+    """
+    realization = group.realization
+    rows = [np.asarray(X, dtype=float) for X in realization.component.generators]
+    rows += [np.asarray(m.linear, dtype=float) - _R4_I3
+             for m in realization.representatives]
+    stacked = np.vstack(rows) if rows else np.zeros((0, 3))
+    if stacked.shape[0] == 0:
+        return _R4_I3.copy()
+    _, singular, vt = np.linalg.svd(stacked)
+    rank = int((singular > 1e-9).sum())
+    basis = vt[rank:].T if rank < 3 else np.zeros((3, 0))
+    return basis @ basis.T
+
+
+def _r4_orbit_dim(group: SubgroupOfO3, point: np.ndarray) -> int:
+    r"""``dim(H·p) = rank[X p : X ∈ 𝔤]`` — the INDEPENDENT reference for the
+    dimension law.
+
+    The orbit of a point under a Lie group is the image of the group, and its
+    tangent space at ``p`` is spanned by ``{X p}`` over a basis of the algebra.
+    A finite group has no algebra, so the rank is 0 whatever the point.
+    """
+    generators = group.realization.component.generators
+    if not generators:
+        return 0
+    stacked = np.stack([np.asarray(X, dtype=float) @ point for X in generators])
+    return int(np.linalg.matrix_rank(stacked, tol=1e-9))
+
+
+def _r4_group_mean(group: SubgroupOfO3, points: np.ndarray) -> np.ndarray:
+    """``(1/|H|) Σ_{g∈H} g p`` — the Reynolds average, over the group's OWN
+    element list, with no manifold code in the room.
+
+    Spelled as a stacked ``mean`` rather than ``sum(...)/len`` because the
+    latter types as ``NDArray | float`` (an empty ``sum`` is ``0``) and would
+    need a ``# type: ignore`` — ``coding-elegance`` anti-pattern #19: the
+    principled spelling is also the one that reads like the average it is.
+    ``[M]`` 2026-09-03 the two are ``array_equal`` on all four finite entries,
+    so the bit tier below is unaffected by the choice.
+    """
+    stacked = np.stack([
+        points @ np.asarray(m.linear, dtype=float).T
+        for m in group.realization.elements
+    ])
+    return stacked.mean(axis=0)
+
+
+def _r4_circle_mean(axis: int, points: np.ndarray, n: int = 16) -> np.ndarray:
+    r"""The mean of ``p`` over the circle :math:`\{R_\theta p\}` about ``axis``,
+    by an ``n``-point trapezoid.
+
+    ⚠ ``n = 16`` is a MEASURED choice and MORE IS WORSE — the trapezoid
+    integrates :math:`\cos\theta` and :math:`\sin\theta` exactly for
+    :math:`n \ge 3`, so everything past that is summation error.  ``[M]``
+    2026-09-03, residual against ``P_H p``: ``n=8 → 2.220e-16``,
+    ``16 → 3.331e-16``, ``32 → 5.551e-16``, ``64 → 1.110e-15``,
+    ``1024 → 2.587e-14``.  Do not "strengthen" this row by raising ``n``.
+    """
+    accumulated = np.zeros_like(points)
+    for k in range(n):
+        rotation = RigidMotion.rotation_about_axis(
+            axis=_R4_I3[axis], angle=2.0 * np.pi * k / n,
+        )
+        accumulated += points @ np.asarray(rotation.linear, dtype=float).T
+    return accumulated / n
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Fixtures — parametrize over a LABEL, build in the body
+# ─────────────────────────────────────────────────────────────────────
+
+#: Every orbit space the tree can construct whose base has ambient width 3 —
+#: the 6 catalogue entries plus the two shipped trivial ones (``R^3/{e}`` IS
+#: ``symmetry._ambient_orbit_space()``, a production object).  The FINITE
+#: roster is probed whole, never sampled (``vv-principles`` #31's finite-roster
+#: corollary; #13's ladder rule governs unbounded families, and this is not one).
+_R4_ENTRY_LABELS = (
+    "O2_x", "O2_y", "O2_z",
+    "sigma_x", "sigma_y", "sigma_z",
+    "S2/Trivial", "R3/Trivial",
+)
+
+_R4_MIRROR_LABELS = ("sigma_x", "sigma_y", "sigma_z")
+_R4_AXIAL_LABELS = ("O2_x", "O2_y", "O2_z")
+_R4_FOLDS = ((2, 4), (4, 6), (4, 8), (8, 8))
+
+
+def _r4_entry(label: str) -> Quotient:
+    """The orbit space named by ``label`` — built in the test body."""
+    if label == "S2/Trivial":
+        return SPHERE.quotient(SubgroupOfO3.Trivial)
+    if label == "R3/Trivial":
+        return RealSpace(3).quotient(SubgroupOfO3.Trivial)
+    family, axis = label.split("_")
+    group = (SubgroupOfO3.O2(axis) if family == "O2"
+             else SubgroupOfO3.Mirror(axis))
+    return SPHERE.quotient(group)
+
+
+def _r4_sphere_points(n: int = 41, seed: int = 20260903) -> np.ndarray:
+    """Seeded unit vectors — generic, so no coordinate is accidentally zero."""
+    rng = np.random.default_rng(seed)
+    points = rng.standard_normal((n, 3))
+    return points / np.linalg.norm(points, axis=1, keepdims=True)
+
+
+def _r4_disk_points(n: int = 64, seed: int = 11) -> np.ndarray:
+    """Seeded points of the closed unit disk — a mirror entry's chart."""
+    rng = np.random.default_rng(seed)
+    rho = np.sqrt(rng.uniform(0.0, 1.0, n))
+    phi = rng.uniform(0.0, 2.0 * np.pi, n)
+    return np.column_stack([rho * np.cos(phi), rho * np.sin(phi)])
+
+
+def _r4_chart_of(entry: Quotient, points: np.ndarray) -> np.ndarray:
+    """The entry's chart image as a 2-D column block, whatever its width."""
+    chart = np.asarray(entry.orbit_coordinates(points), dtype=float)
+    return chart if chart.ndim == 2 else chart[:, None]
+
+
+def _r4_generic_point(entry: Quotient) -> np.ndarray:
+    """A generic point of the entry's base — the one the dimension law reads."""
+    if entry.base == SPHERE:
+        return np.array(
+            [0.31622776601683794, 0.5477225575051661, 0.7745966692414834]
+        )
+    return np.array([0.3, -0.7, 1.1])
+
+
+def _r4_forged(kind: str) -> dict:
+    r"""The two B2 forgeries, as constructor kwargs.
+
+    ``[M]`` 2026-09-03 on the PRE-carve tree BOTH construct — that is this
+    plan's §6c witness that the dimension law lands with the case it catches.
+    Both carry ``fundamental_domain=None``, so the EXISTING fd clause returns
+    early and provably cannot see them.
+    """
+    if kind == "axial_on_a_disk":
+        # S^2/O(2)_z: 2 - 1 = 1, offered a 2-dimensional realization.
+        group, realization, columns = SubgroupOfO3.O2("z"), Ball(2), [0, 1]
+    else:
+        # S^2/sigma_x: 2 - 0 = 2, offered a 1-dimensional realization.
+        group, realization, columns = SubgroupOfO3.Mirror("x"), COSINE_INTERVAL, 1
+    select, embed = _coordinate_chart(columns, ambient_dim(SPHERE))
+    return {
+        "base": SPHERE, "by": group, "realization": realization,
+        "orbit_coordinates": select,
+        "lift_coordinates": embed, "lift_codomain": Ball(3),
+    }
+
+
+def _r4_hand_built_octahedral() -> dict:
+    r"""A LEGAL entry outside all three retired ``lift`` arms — the §6c witness
+    that retiring the tag branch is a capability, not merely "no test broke".
+
+    ``[M]`` 2026-09-03 on the PRE-carve tree it CONSTRUCTS (``O_h`` is its own
+    ``orbit_stabiliser``, and the dimension law reads ``2 − 0 = 2`` ✓) and
+    ``entry.lift`` raises ``NotImplementedError: no lift is spelled for S^2/Oh``.
+    Its chart is a placeholder — ``S^2/O_h``'s real invariants are higher-degree
+    polynomials (#435) — and the row asserts only that the FIELD is read, never
+    that the chart is the derivation's.
+    """
+    select, embed = _coordinate_chart([0, 1], ambient_dim(SPHERE))
+    return {
+        "base": SPHERE, "by": SubgroupOfO3.OctahedralOh, "realization": Ball(2),
+        "orbit_coordinates": select,
+        "lift_coordinates": embed, "lift_codomain": Ball(3),
+    }
+
+
+# =====================================================================
+# A — the chart pair IS the Reynolds projector (finding B4)
+# =====================================================================
+class TestR4TheCoordinateChartPairIsTheReynoldsProjector:
+    r"""``embed ∘ select = P_H``, the orthogonal projector onto
+    :math:`(\mathbb{R}^3)^H`.
+
+    This is the carve's central claim and the reason ONE helper can spell the
+    lift for every column-selection entry: the axial entry's
+    :math:`\mu \mapsto \mu\,\hat e_a`, the mirror entry's
+    :math:`(x_b, x_c) \mapsto (0, x_b, x_c)` and the trivial entry's identity
+    are the SAME map — the Reynolds average of the group — read at three
+    different fixed subspaces.
+
+    ⭐ **Bit-identity here is a THEOREM, not a draw** (``vv-principles`` #31,
+    and the finite-roster corollary: the population is 8 entries and every one
+    is probed).  ``select`` is a column read, ``embed`` writes those floats
+    into a zero array, and ``[M]`` ``P_H`` is a 0/1 DIAGONAL on all 8 shipped
+    entries, so ``p @ P.T`` re-reads the same floats.  Measured
+    ``max|emb(sel p) − P p| = 0.000e+00``, ``array_equal`` on 8 of 8.
+    ⚠ The bit tier is a claim about the SHIPPED entries: an entry whose ``H``
+    is not axis-aligned has a dense ``P_H`` and belongs at
+    ``assert_array_almost_equal_nulp``.  ``test_the_projector_is_diagonal_here``
+    pins that PREMISE, so the day it stops holding the suite says which claim
+    it lost rather than reddening a row whose subject is elsewhere.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", _R4_ENTRY_LABELS)
+    def test_embed_after_select_is_the_reynolds_projector(self, label: str) -> None:
+        entry = _r4_entry(label)
+        columns = _r4_columns_of(entry)
+        select, embed = _coordinate_chart(columns, ambient_dim(entry.base))
+        points = _r4_sphere_points()
+        projector = _r4_reynolds_projector(entry.by)
+
+        chart = np.asarray(select(points), dtype=float)
+        lifted = np.asarray(embed(chart), dtype=float)
+        np.testing.assert_array_equal(
+            lifted, points @ projector.T,
+            err_msg=(
+                f"{entry.name}: embed(select(p)) is not the Reynolds projector "
+                f"onto (R^3)^H — max|D| = "
+                f"{np.abs(lifted - points @ projector.T).max():.3e}"
+            ),
+        )
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", _R4_ENTRY_LABELS)
+    def test_select_is_bit_identical_to_the_entrys_own_orbit_coordinates(
+        self, label: str,
+    ) -> None:
+        """The frame-table landmine (plan Landmine 2): the chart must not move.
+
+        ``[M]`` 2026-09-03 ``array_equal`` on 8 of 8 entries — which is what
+        licenses the exit instrument's ``135 of 135`` prediction without
+        re-running it per row.
+        """
+        entry = _r4_entry(label)
+        select, _ = _coordinate_chart(
+            _r4_columns_of(entry), ambient_dim(entry.base),
+        )
+        points = _r4_sphere_points()
+        np.testing.assert_array_equal(
+            np.asarray(select(points)),
+            np.asarray(entry.orbit_coordinates(points)),
+            err_msg=f"{entry.name}: the chart moved — the frame tables ride on it",
+        )
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", _R4_ENTRY_LABELS)
+    def test_the_projector_is_idempotent_symmetric_and_here_DIAGONAL(
+        self, label: str,
+    ) -> None:
+        """A projector's defining laws, asserted on the SUT's own pair — plus
+        the diagonality PREMISE the bit tier rests on."""
+        entry = _r4_entry(label)
+        select, embed = _coordinate_chart(
+            _r4_columns_of(entry), ambient_dim(entry.base),
+        )
+
+        def apply(points: np.ndarray) -> np.ndarray:
+            return np.asarray(embed(select(points)), dtype=float)
+
+        points = _r4_sphere_points()
+        once = apply(points)
+        np.testing.assert_array_equal(apply(once), once)  # P^2 = P
+
+        projector = _r4_reynolds_projector(entry.by)
+        np.testing.assert_array_equal(projector, projector.T)  # P = P^T
+        np.testing.assert_array_equal(
+            projector, np.diag(np.diag(projector)),
+            err_msg=(
+                f"{entry.name}: P_H is no longer diagonal, so the array_equal "
+                f"tier above is no longer a theorem — move those rows to "
+                f"assert_array_almost_equal_nulp and say why."
+            ),
+        )
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", _R4_ENTRY_LABELS)
+    def test_lift_after_chart_is_the_projector_and_the_round_trip_is_the_identity(
+        self, label: str,
+    ) -> None:
+        r"""``λ ∘ π = P_H`` (the TEETH) and ``π ∘ λ = id`` (declared BLIND).
+
+        ⚠ The second leg is blind to this whole carve: ``[M]`` 2026-09-03 the
+        retired hemisphere section satisfies it too, because it writes the
+        chart columns back unchanged and its :math:`\sqrt{\cdot}` lands only in
+        the DROPPED column.  It ships because the round-trip law is what makes
+        ``lift`` a right inverse at all; the discrimination is in the first
+        leg, ``[M]`` ``max|section − projector| = 9.943e-01 / 9.735e-01 /
+        9.778e-01`` on the three mirror entries.
+        """
+        entry = _r4_entry(label)
+        points = _r4_sphere_points()
+        projector = _r4_reynolds_projector(entry.by)
+
+        # TEETH: the lift of the chart is the projection, not a section.
+        lifted = np.asarray(entry.lift_coordinates(
+            _r4_chart_of(entry, points)), dtype=float)
+        np.testing.assert_array_equal(lifted, points @ projector.T)
+
+        # BLIND (labelled): pi . lambda = id on the chart.
+        chart = _r4_chart_of(entry, points)
+        np.testing.assert_array_equal(
+            _r4_chart_of(entry, np.asarray(entry.lift_coordinates(chart))), chart,
+        )
+
+
+def _r4_columns_of(entry: Quotient) -> int | list[int]:
+    """The entry's invariant columns — the SUT-side spelling, read from the
+    TAG accessors (never from the realization, which the reference owns)."""
+    group = entry.by
+    if group.rotation_axis is not None:
+        return group.rotation_axis
+    if group.mirror_axis is not None:
+        return [i for i in range(3) if i != group.mirror_axis]
+    return list(range(ambient_dim(entry.base)))
+
+
+# =====================================================================
+# B — the barycentre IS the orbit mean (the name's justification)
+# =====================================================================
+class TestR4TheLiftIsTheOrbitBarycentre:
+    r"""The projector is not merely *a* right inverse — it is the orbit's MEAN,
+    which is why the name ``orbit_barycentres`` is honest on every entry and
+    why the map is equivariant (class C).
+
+    :math:`P_H = \frac{1}{|H|}\sum_{g \in H} g` for a finite group (Reynolds),
+    and its continuous form for a compact one.  Both legs below compute that
+    average from the group and compare it to the lift.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", (*_R4_MIRROR_LABELS, "S2/Trivial"))
+    def test_a_FINITE_entrys_lift_is_the_mean_over_the_group(
+        self, label: str,
+    ) -> None:
+        """``[M]`` 2026-09-03 ``array_equal`` — bit-exact, because
+        ``(x + (−x))/2`` is exactly ``0.0`` and ``(y + y)/2`` is exactly ``y``."""
+        entry = _r4_entry(label)
+        points = _r4_sphere_points()
+        lifted = np.asarray(
+            entry.lift_coordinates(_r4_chart_of(entry, points)), dtype=float,
+        )
+        np.testing.assert_array_equal(
+            lifted, _r4_group_mean(entry.by, points),
+            err_msg=f"{entry.name}: the lift is not the orbit's mean",
+        )
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", _R4_AXIAL_LABELS)
+    def test_an_AXIAL_entrys_lift_is_the_orbit_circles_centre(
+        self, label: str,
+    ) -> None:
+        r"""An :math:`O(2)_a` orbit is the circle
+        :math:`\{\Omega\cdot\hat e_a = \mu\}`; its centre is
+        :math:`\mu\,\hat e_a`, inside the ball.
+
+        ``[M]`` residual against a 16-point trapezoid: ``3.331e-16`` — see
+        :func:`_r4_circle_mean` for why a LARGER ``n`` is worse.
+        """
+        entry = _r4_entry(label)
+        axis = entry.by.rotation_axis
+        assert axis is not None
+        points = _r4_sphere_points()
+        lifted = np.asarray(
+            entry.lift_coordinates(_r4_chart_of(entry, points)), dtype=float,
+        )
+        reference = _r4_circle_mean(axis, points)
+        np.testing.assert_allclose(
+            lifted, reference, rtol=0.0, atol=_R4_ATOL_EXACT,
+            err_msg=(
+                f"{entry.name}: the lift is not the orbit circle's centre — "
+                f"max|D| = {np.abs(lifted - reference).max():.3e}"
+            ),
+        )
+
+
+# =====================================================================
+# C — equivariance under the normaliser, and ONLY there
+# =====================================================================
+class TestR4TheLiftIsEquivariantUnderTheNormaliserAndOnlyThere:
+    r"""``g P_H = P_H g`` iff :math:`g` normalises :math:`H`, because
+    :math:`g P_H g^{-1} = P_{gHg^{-1}}`.
+
+    That identity is the whole justification for replacing the mirror entry's
+    hemisphere SECTION (which is not equivariant — an axis-reversing normaliser
+    carries it off the fundamental domain) with the orbit BARYCENTRE.
+
+    ⛔ **This class is the ONLY place the property is falsifiable.**  Routing it
+    through :meth:`Quotient.induced_action` is Mode-12 blind: the chart drops
+    exactly the column the projector zeroes.  ``[M]`` 0 of 9925 kernel answers
+    move under R4's lift.  The third row below states that blindness as a
+    measurement rather than leaving it to be rediscovered.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", ("sigma_y", "O2_x"))
+    def test_the_projector_commutes_with_every_NORMALISING_motion(
+        self, label: str,
+    ) -> None:
+        """``[M]`` ``max|P g p − g P p| = 0.000e+00`` on the axis-aligned
+        normalisers and ``1.218e-16`` on ``C₂ᶻ`` (trig roundoff in the rotation
+        matrix), so ``atol=1e-14`` carries a 4-order margin."""
+        entry = _r4_entry(label)
+        projector = _r4_reynolds_projector(entry.by)
+        points = _r4_sphere_points()
+        motions = _r4_probe_motions()
+        normalising = [(n, m) for n, m in motions if entry.by.is_normalised_by(m)]
+        assert len(normalising) >= 5, "the probe set stopped exercising the normaliser"
+        for name, motion in normalising:
+            linear = np.asarray(motion.linear, dtype=float)
+            lhs = (points @ linear.T) @ projector.T
+            rhs = (points @ projector.T) @ linear.T
+            np.testing.assert_allclose(
+                lhs, rhs, rtol=0.0, atol=_R4_ATOL_EXACT,
+                err_msg=f"{entry.name}: the lift is not equivariant under {name}",
+            )
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize(
+        "label,motion_name", [("sigma_y", "C4_z"), ("sigma_y", "R_generic"),
+                              ("O2_x", "C4_y")],
+    )
+    def test_a_NON_normalising_motion_breaks_equivariance_by_ORDER_ONE(
+        self, label: str, motion_name: str,
+    ) -> None:
+        r"""⭐ The ``vv-principles`` #19 discriminating reading.  The positive
+        leg above is compatible with a lift that is equivariant under
+        EVERYTHING (the identity, say); only this one says the property has
+        content.
+
+        ``[M]`` ``max|P g p − g P p| = 9.943e-01`` (``C₄ᶻ`` on
+        :math:`\sigma_y`, which conjugates it to :math:`\sigma_x`),
+        ``5.524e-01`` (a generic rotation), ``9.943e-01`` (``C₄ʸ`` on
+        :math:`O(2)_x`) — so the ``>= 0.1`` floor cannot be met by noise.
+        """
+        entry = _r4_entry(label)
+        motion = dict(_r4_probe_motions())[motion_name]
+        assert not entry.by.is_normalised_by(motion), (
+            f"{motion_name} normalises {entry.by.name} — this row's premise is "
+            f"gone and it has become a false red"
+        )
+        projector = _r4_reynolds_projector(entry.by)
+        points = _r4_sphere_points()
+        linear = np.asarray(motion.linear, dtype=float)
+        gap = float(np.abs(
+            (points @ linear.T) @ projector.T - (points @ projector.T) @ linear.T
+        ).max())
+        assert gap >= _R4_O1, (
+            f"{entry.name} under {motion_name}: the equivariance defect is "
+            f"{gap:.3e}, below the O(1) floor — the negative leg has gone blind"
+        )
+
+    @pytest.mark.foundation
+    def test_the_CHART_is_blind_to_all_of_this_and_the_two_tiers_say_why(
+        self,
+    ) -> None:
+        r"""⛔ The declared blindness, MEASURED, in two tiers.
+
+        ``π(g · P_H p)`` vs ``π(g · p)`` over every representative of the 31
+        expressible members that normalises :math:`\sigma_y`, on a shipped fold:
+
+        =========================================  ======  =============  =========
+        population                                  rows   ``array_equal``  max|Δ|
+        =========================================  ======  =============  =========
+        signed-permutation normalisers                100            100  0.000e+00
+        the rest (all of them :math:`I_h` elements)     7              0  4.996e-16
+        =========================================  ======  =============  =========
+
+        Mechanism: ``is_normalised_by`` admits at ``_ELEMENT_ATOL = 1e-9``, so
+        an icosahedral element fixing :math:`\hat e_y` only to ~1e-16 carries
+        non-zero off-axis entries and does not commute with :math:`P_H`
+        exactly.  The closure's node window is
+        ``_NODE_WINDOW_FACTOR × atol = 1e-7`` — NINE orders above — which is
+        why ``[M]`` 0 of 9925 kernel answers move.
+
+        Two legs, not one: a single ``allclose`` over the union would hide the
+        BIT half, which is the one a future non-signed-permutation motion
+        cannot silently weaken.
+        """
+        fold = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+        projector = _r4_reynolds_projector(fold.by)
+        nodes = np.asarray(
+            Quadrature.folded_product(n_mu=4, n_phi=8).measure.nodes, dtype=float,
+        )
+        exact_rows = near_rows = 0
+        worst_near = 0.0
+        for group in _r4_every_member():
+            for motion in group.realization.representatives:
+                if not fold.by.is_normalised_by(motion):
+                    continue
+                linear = np.asarray(motion.linear, dtype=float)
+                direct = _r4_chart_of(fold, nodes @ linear.T)
+                through = _r4_chart_of(fold, (nodes @ projector.T) @ linear.T)
+                if _r4_is_signed_permutation(linear):
+                    np.testing.assert_array_equal(direct, through)
+                    exact_rows += 1
+                else:
+                    gap = float(np.abs(direct - through).max())
+                    worst_near = max(worst_near, gap)
+                    assert gap <= _R4_ATOL_NEAR_BIT, (
+                        f"a non-signed-permutation normaliser moved the chart by "
+                        f"{gap:.3e} — the kernel's blindness is no longer a theorem"
+                    )
+                    near_rows += 1
+        assert exact_rows >= 100 and near_rows >= 1, (
+            f"the probe lost a population: {exact_rows} exact, {near_rows} near "
+            f"(measured 100 and 7) — a one-population reading cannot say which "
+            f"tier moved"
+        )
+
+
+def _r4_probe_motions() -> list[tuple[str, RigidMotion]]:
+    """A named motion set spanning both sides of the normaliser."""
+    axis = np.array([0.3, 0.5, 0.81])
+    axis = axis / np.linalg.norm(axis)
+    return [
+        ("sigma_x", RigidMotion.reflection(normal=_R4_I3[0])),
+        ("sigma_y", RigidMotion.reflection(normal=_R4_I3[1])),
+        ("sigma_z", RigidMotion.reflection(normal=_R4_I3[2])),
+        ("C2_z", RigidMotion.rotation_about_axis(axis=_R4_I3[2], angle=np.pi)),
+        ("C4_z", RigidMotion.rotation_about_axis(axis=_R4_I3[2], angle=np.pi / 2)),
+        ("C4_y", RigidMotion.rotation_about_axis(axis=_R4_I3[1], angle=np.pi / 2)),
+        ("-I", RigidMotion.inversion(3)),
+        ("R_generic", RigidMotion.rotation_about_axis(axis=axis, angle=0.7)),
+    ]
+
+
+def _r4_every_member() -> list[SubgroupOfO3]:
+    """Every expressible member — 31 spellings, 30 distinct groups.  The FINITE
+    roster, probed whole (``vv-principles`` #31's finite-roster corollary)."""
+    members = [SubgroupOfO3.Trivial, SubgroupOfO3.Dinfh,
+               SubgroupOfO3.OctahedralOh, SubgroupOfO3.IcosahedralIh,
+               SubgroupOfO3.SO3, SubgroupOfO3.O3]
+    members += [SubgroupOfO3.Mirror(a) for a in "xyz"]
+    members += [SubgroupOfO3.SO2(a) for a in "xyz"]
+    members += [SubgroupOfO3.O2(a) for a in "xyz"]
+    members += [SubgroupOfO3.Cn(n) for n in range(1, 9)]
+    members += [SubgroupOfO3.Dnh(n) for n in range(1, 9)]
+    return members
+
+
+def _r4_is_signed_permutation(linear: np.ndarray) -> bool:
+    """``True`` iff every entry is exactly ``0.0`` or ``±1.0`` — the class in
+    which the chart identity is BIT-exact rather than merely close."""
+    absolute = np.abs(linear)
+    return bool(np.all((absolute == 0.0) | (absolute == 1.0)))
+
+
+# =====================================================================
+# D — an orbit space's dimension is a theorem (finding B2)
+# =====================================================================
+class TestR4AnOrbitSpacesDimensionIsATheorem:
+    r""":math:`\dim(M/H) = \dim M - \dim(H\!\cdot\!p)` at a GENERIC
+    :math:`p`, with :math:`\dim(H\!\cdot\!p) = \operatorname{rank}[Xp : X \in
+    \mathfrak g]`.
+
+    ⭐ Stated on the ORBIT and not on the group, because ``dim H`` alone is
+    wrong on two cases the tree will meet: ``[M]`` :math:`O(3)` on :math:`S^2`
+    (rank 2 ⟹ 0 ✓, where ``dim H = 3`` gives −1) and :math:`SO(3)` on
+    :math:`\mathbb{R}^3` (rank 2 ⟹ 1 ✓, where ``dim H = 3`` gives 0).  Without
+    :meth:`test_dim_H_alone_would_be_WRONG` the law reads as a needlessly
+    indirect spelling of ``base.dim − by.dim`` and a later session simplifies it
+    into a bug.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", _R4_ENTRY_LABELS)
+    def test_every_constructible_entry_satisfies_the_law(self, label: str) -> None:
+        """``[M]`` 8 of 8 — axial ``2−1=1``, mirror and ``S²/{e}`` ``2−0=2``,
+        ``R³/{e}`` ``3−0=3``."""
+        entry = _r4_entry(label)
+        orbit = _r4_orbit_dim(entry.by, _r4_generic_point(entry))
+        assert entry.realization.dim == entry.base.dim - orbit, (
+            f"{entry.name}: realization.dim={entry.realization.dim} but "
+            f"base.dim − dim(orbit) = {entry.base.dim} − {orbit}"
+        )
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("kind", ("axial_on_a_disk", "mirror_on_an_interval"))
+    def test_the_two_FORGERIES_are_refused_at_construction_naming_the_law(
+        self, kind: str,
+    ) -> None:
+        r"""§6c: the gate lands with the case it catches.
+
+        ``[M]`` 2026-09-03 on the PRE-carve tree BOTH construct —
+        ``S^2/O2_z`` realized on ``Ball(2)`` (the law says ``2−1 = 1 ≠ 2``) and
+        ``S^2/sigma_x`` realized on ``[-1,1]`` (``2−0 = 2 ≠ 1``).  Both carry
+        ``fundamental_domain=None``, so the pre-existing fd clause returns early
+        and provably cannot see them: the dimension law is the only thing that
+        can refuse them, which is what makes them ITS witnesses and not a
+        second gate's.
+        """
+        with pytest.raises(ValueError, match=r"generic orbit|dimension"):
+            Quotient(**_r4_forged(kind))
+
+    @pytest.mark.foundation
+    def test_dim_H_alone_would_be_WRONG_and_the_rank_helper_says_why(self) -> None:
+        r"""Reference-side controls ONLY — no catalogue entry exists for either
+        (:math:`S^2/O(3)` is #440, :math:`\mathbb{R}^3/SO(3)` is uncatalogued),
+        so this row asserts the RANK HELPER and the arithmetic and never builds
+        a ``Quotient``.
+
+        ``D_∞h`` on :math:`S^2` is the third row on purpose: there ``dim H``
+        HAPPENS to agree, which is what shows the agreement is a coincidence
+        rather than a rule.
+        """
+        on_sphere = np.array(
+            [0.31622776601683794, 0.5477225575051661, 0.7745966692414834]
+        )
+        in_space = np.array([0.3, -0.7, 1.1])
+
+        assert _r4_orbit_dim(SubgroupOfO3.O3, on_sphere) == 2      # 2 − 2 = 0
+        assert SubgroupOfO3.O3.dim == 3                            # 2 − 3 = −1 ✗
+        assert _r4_orbit_dim(SubgroupOfO3.SO3, in_space) == 2      # 3 − 2 = 1
+        assert SubgroupOfO3.SO3.dim == 3                           # 3 − 3 = 0 ✗
+        # the coincidence row
+        assert _r4_orbit_dim(SubgroupOfO3.Dinfh, on_sphere) == 1
+        assert SubgroupOfO3.Dinfh.dim == 1
+
+        # and the GENERIC-point premise: at a POLE the axial rank collapses and
+        # the law would refuse all three shipped axial entries.
+        pole = np.array([1.0, 0.0, 0.0])
+        assert _r4_orbit_dim(SubgroupOfO3.O2("x"), on_sphere) == 1
+        assert _r4_orbit_dim(SubgroupOfO3.O2("x"), pole) == 0
+
+    @pytest.mark.foundation
+    def test_the_dimension_law_and_the_fundamental_domain_gate_are_DISTINCT(
+        self,
+    ) -> None:
+        r"""⛔ Two clauses in one ``__post_init__``, so each owes a
+        DISCRIMINATING input and the ORDER owes a pin (``lessons`` L43c).
+
+        ``[M]`` 2026-09-03 the fd gate's HISTORICAL witness
+        (``by=Mirror("y")``, ``realization=[-1,1]``, a hemisphere fd) violates
+        BOTH laws after R4, so a row asserting its old message would be pinning
+        whichever clause happens to run first.  The two inputs below violate
+        exactly one law each; the third asserts, on the both-violating input,
+        that the ruled-first fragment is present and the other absent — which
+        is what reddens when the clauses swap order.
+        """
+        # (a) the dimension law ALONE — fd is None, so that clause returns early
+        with pytest.raises(ValueError, match=r"generic orbit|dimension") as only_dim:
+            Quotient(**_r4_forged("axial_on_a_disk"))
+        assert "fundamental domain" not in str(only_dim.value)
+
+        # (b) the fd gate ALONE — the law reads 2 − 0 = 2 == Ball(2).dim ✓, and
+        #     the half-meridian's ANTIPODAL PAIR drops it to dim 1.
+        select, embed = _coordinate_chart([0, 2], ambient_dim(SPHERE))
+        half_meridian = FundamentalDomain(
+            SPHERE, ((0.0, 1.0, 0.0), (0.0, -1.0, 0.0)), "y=0",
+        )
+        assert half_meridian.dim == 1 and Ball(2).dim == 2
+        with pytest.raises(ValueError, match="must describe the same") as only_fd:
+            Quotient(
+                base=SPHERE, by=SubgroupOfO3.Mirror("y"), realization=Ball(2),
+                orbit_coordinates=select, lift_coordinates=embed,
+                lift_codomain=Ball(3), fundamental_domain=half_meridian,
+            )
+        assert "generic orbit" not in str(only_fd.value)
+
+        # (c) the ORDER, on the input that violates both
+        hemisphere = FundamentalDomain(SPHERE, ((0.0, 1.0, 0.0),), "y>=0")
+        select1, embed1 = _coordinate_chart(1, ambient_dim(SPHERE))
+        with pytest.raises(ValueError) as both:
+            Quotient(
+                base=SPHERE, by=SubgroupOfO3.Mirror("y"),
+                realization=COSINE_INTERVAL,
+                orbit_coordinates=select1, lift_coordinates=embed1,
+                lift_codomain=Ball(3), fundamental_domain=hemisphere,
+            )
+        message = str(both.value)
+        # ⚠ RULED ORDER: the dimension law runs FIRST (open ruling 1 of the
+        # plan).  Flip the two clauses in ``__post_init__`` and this reds.
+        assert "generic orbit" in message or "dimension" in message
+        assert "must describe the same" not in message
+
+
+# =====================================================================
+# E — orbit_barycentres: ONE concept on both widths (finding B6)
+# =====================================================================
+class TestR4OrbitBarycentresIsOneConceptOnBothWidths:
+    r"""``ambient_representatives`` promised a REPRESENTATIVE and returned a
+    barycentre — a fold's nodes passed through (representatives ON
+    :math:`S^2`) while a marginal's were lifted (barycentres inside the ball).
+    Two things under one name.  ``orbit_barycentres`` is one:
+
+    * chart width → ``lift_coordinates(points)``
+    * ambient width → ``lift_coordinates(orbit_coordinates(points))`` = ``P_H p``
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", _R4_ENTRY_LABELS)
+    def test_both_widths_answer_the_projector(self, label: str) -> None:
+        entry = _r4_entry(label)
+        points = _r4_sphere_points()
+        projector = _r4_reynolds_projector(entry.by)
+        expected = points @ projector.T
+
+        np.testing.assert_array_equal(
+            np.asarray(entry.orbit_barycentres(points), dtype=float), expected,
+            err_msg=f"{entry.name}: the AMBIENT-width arm is not the projector",
+        )
+        np.testing.assert_array_equal(
+            np.asarray(
+                entry.orbit_barycentres(_r4_chart_of(entry, points)), dtype=float,
+            ),
+            expected,
+            err_msg=f"{entry.name}: the CHART-width arm is not the projector",
+        )
+
+    @pytest.mark.foundation
+    def test_the_ambient_arm_no_longer_passes_a_FOLDS_NODES_through(self) -> None:
+        r"""⭐ The rename's whole content, and the only row that sees it.
+
+        ``[M]`` 2026-09-03 on the PRE-carve tree
+        ``ambient_representatives(fold_nodes)`` is ``array_equal`` to the nodes
+        (a documented pass-through) and those nodes are ON :math:`S^2`; after
+        R4 the answer is :math:`P_H p`, OFF :math:`S^2` and inside the ball.
+        Without this row the rename is a pure re-labelling with no witness.
+        """
+        fold = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+        nodes = np.asarray(
+            Quadrature.folded_product(n_mu=4, n_phi=8).measure.nodes, dtype=float,
+        )
+        assert SPHERE.contains(nodes)          # the representatives ARE on S^2
+        answer = np.asarray(fold.orbit_barycentres(nodes), dtype=float)
+        assert not np.array_equal(answer, nodes), (
+            "the ambient arm still passes a fold's nodes through — "
+            "`orbit_barycentres` is two concepts under one name again"
+        )
+        np.testing.assert_array_equal(
+            answer, nodes @ _r4_reynolds_projector(fold.by).T,
+        )
+        assert not SPHERE.contains(answer)
+        assert Ball(3).contains(answer)
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("shape", _R4_FOLDS)
+    def test_it_is_idempotent_and_INJECTIVE_on_a_folds_node_set(
+        self, shape: tuple[int, int],
+    ) -> None:
+        r"""The projection's one silent failure mode is collapsing two orbits.
+
+        ``[D]`` it cannot: on a :math:`\sigma_a`-fold two representatives
+        sharing :math:`(x_b, x_c)` share :math:`|x_a| = \sqrt{1-x_b^2-x_c^2}`
+        and both have :math:`x_a \ge 0`, so they are the same node.  ``[M]``
+        min chart separation ``1.155e+00 / 4.403e-01 / 2.751e-01 / 1.510e-01``
+        on ``folded_product`` (2,4)/(4,6)/(4,8)/(8,8) — six orders above the
+        ``1e-7`` node window.
+        """
+        n_mu, n_phi = shape
+        measure = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi).measure
+        entry = measure.support
+        assert isinstance(entry, Quotient)
+        nodes = np.asarray(measure.nodes, dtype=float)
+
+        once = np.asarray(entry.orbit_barycentres(nodes), dtype=float)
+        np.testing.assert_array_equal(
+            np.asarray(entry.orbit_barycentres(once), dtype=float), once,
+        )
+        separation = np.linalg.norm(once[:, None, :] - once[None, :, :], axis=-1)
+        np.fill_diagonal(separation, np.inf)
+        assert float(separation.min()) > 1e-7, (
+            f"folded_product({n_mu},{n_phi}): the projection collapsed two "
+            f"orbits — min separation {float(separation.min()):.3e}"
+        )
+
+    @pytest.mark.foundation
+    def test_a_width_in_neither_system_is_refused_BY_NAME(self) -> None:
+        """Re-keys the retired ``test_a_width_in_neither_system_is_refused_by_name``:
+        the method's name changed, the refusal did not."""
+        fold = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+        with pytest.raises(ValueError, match="neither"):
+            fold.orbit_barycentres(np.zeros((4, 7)))
+
+    @pytest.mark.foundation
+    def test_the_HARNESS_fold_answer_now_agrees_with_the_kernel(self) -> None:
+        r"""⭐ ``tests/_harness/references.py``'s partner map is derived from
+        ``_embedded_nodes``, so R4 moves ONE of its 33 (rule × axis) answers per
+        fold — and it moves it INTO agreement with the kernel.
+
+        ``[M]`` 2026-09-03: 31 of 33 answers unchanged; the 2 that move are
+        ``axis="y"`` on the two folds, where the harness RAISED (residual
+        ``1.19e+00``) and now returns the identity permutation (residual
+        ``0.00e+00``) — which is exactly what ``induced_permutation`` has
+        answered since #429 tracker 2.2b.  ``[M]`` **no call site passes
+        ``axis="y"`` on a fold** (both pass ``"x"``: a literal at
+        ``test_snmesh_realizer_wiring.py:439,450``, and the CYL fold's only
+        realized face carries ``ReflectiveBoundary(axis='x')`` at
+        ``test_b3_domain_narrowing.py:164,175``), so no committed assertion
+        moved — which is why this capability needs a gate of its own or it
+        lands unrecorded.
+        """
+        from tests._harness.references import mirror_partner_indices
+
+        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
+        reference = mirror_partner_indices(quad, "y")
+        np.testing.assert_array_equal(reference, np.arange(quad.N))
+
+        kernel = induced_permutation(
+            quad.measure, RigidMotion.reflection(normal=_R4_I3[1]), atol=1e-9,
+        )
+        assert kernel is not None
+        np.testing.assert_array_equal(np.asarray(kernel.indices), reference)
+
+        # the axis the two folded CALL SITES actually pass is untouched
+        np.testing.assert_array_equal(
+            mirror_partner_indices(quad, "x"),
+            mirror_partner_indices(quad, "x"),
+        )
+
+
+# =====================================================================
+# F — the lift is a FIELD, not a tag branch (finding B1)
+# =====================================================================
+class TestR4TheLiftIsADerivationOutputNotATagBranch:
+    r"""Every other derivation output is a field; the lift was a three-arm
+    branch on the group's family, with a ``NotImplementedError`` telling the
+    reader to add a fourth arm.  R4 makes it two REQUIRED fields, so a new
+    entry cannot forget it and no consumer re-derives the family from the tag.
+    """
+
+    @pytest.mark.foundation
+    def test_the_two_fields_are_REQUIRED_and_carry_no_default(self) -> None:
+        r"""⚠ ``vv`` Mode-8, signature-tautological class: "pass the fields and
+        it constructs" is green before and after.  The falsifiable half is the
+        OMISSION, plus a ``dataclasses.fields`` read — and the second half is a
+        grep-tier obligation wearing a test, labelled as such
+        (``lessons`` L59d).
+        """
+        names = {f.name: f for f in dataclasses.fields(Quotient)}
+        for name in ("lift_coordinates", "lift_codomain"):
+            assert name in names, f"{name} is not a field of Quotient"
+            field = names[name]
+            assert field.default is dataclasses.MISSING, (
+                f"{name} has a default, so a new entry CAN forget it — which is "
+                f"the whole reason the plan made it required"
+            )
+            assert field.default_factory is dataclasses.MISSING
+
+        select, _ = _coordinate_chart(0, ambient_dim(SPHERE))
+        with pytest.raises(TypeError):
+            Quotient(  # type: ignore[call-arg]
+                base=SPHERE, by=SubgroupOfO3.O2("x"),
+                realization=COSINE_INTERVAL, orbit_coordinates=select,
+            )
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", _R4_ENTRY_LABELS)
+    def test_lift_assembles_the_typed_arrow_from_the_two_fields(
+        self, label: str,
+    ) -> None:
+        """``lift`` is derived from the fields and from nothing else — no
+        family test survives inside it."""
+        entry = _r4_entry(label)
+        arrow = entry.lift
+        assert arrow.domain is entry
+        assert arrow.codomain == entry.lift_codomain
+        chart = _r4_chart_of(entry, _r4_sphere_points())
+        np.testing.assert_array_equal(
+            np.asarray(arrow(chart), dtype=float),
+            np.asarray(entry.lift_coordinates(chart), dtype=float),
+        )
+
+    @pytest.mark.foundation
+    def test_an_entry_OUTSIDE_the_three_retired_arms_answers(self) -> None:
+        r"""§6c, and R4's cleanest witness.
+
+        ``[M]`` 2026-09-03 on the PRE-carve tree a hand-built
+        ``S^2/O_h`` CONSTRUCTS (``O_h`` is its own ``orbit_stabiliser``; the
+        dimension law reads ``2 − 0 = 2`` ✓) and ``entry.lift`` raises
+        ``NotImplementedError: no lift is spelled for S^2/Oh``.  After R4 it
+        answers from its own field.  The input the branch could not serve
+        exists in the tree at the moment the branch retires — so the
+        retirement is a capability, not merely "no test broke".
+        """
+        entry = Quotient(**_r4_hand_built_octahedral())
+        chart = _r4_disk_points()
+        lifted = np.asarray(entry.lift(chart), dtype=float)
+        assert lifted.shape == (chart.shape[0], 3)
+        np.testing.assert_array_equal(
+            lifted, np.asarray(entry.lift_coordinates(chart), dtype=float),
+        )
+        assert entry.lift.codomain == entry.lift_codomain
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", _R4_ENTRY_LABELS)
+    def test_the_codomain_is_the_BALL_for_both_sphere_families(
+        self, label: str,
+    ) -> None:
+        r"""⛔ **This row REPEALS a claim, it does not extend one.**  The
+        superseded gate's argument was *"a gate asserting one uniform codomain
+        across the three families would be FALSE"* — ``[M]`` pre-carve the
+        codomains are axial ``D^3``, mirror ``S^2``, trivial ``S^2``.  After R4
+        BOTH sphere families land in the ball, because both lifts are the orbit
+        MEAN and a mean is a point of the convex hull, not of the sphere.  Only
+        the trivial entry's lift is a section, and its codomain is its base.
+
+        The ERR-080 discriminator survives and is what keeps the row loaded:
+        the image is off :math:`S^2` except where the orbit is a single point.
+        """
+        entry = _r4_entry(label)
+        if entry.by.is_trivial:
+            assert entry.lift_codomain == entry.base
+            return
+        assert entry.lift_codomain == Ball(3)
+        chart = _r4_chart_of(entry, _r4_sphere_points())
+        image = np.asarray(entry.lift_coordinates(chart), dtype=float)
+        assert Ball(3).contains(image)
+        assert not SPHERE.contains(image)
+
+    @pytest.mark.foundation
+    def test_barycentre_is_defined_on_EVERY_entry_and_refuses_only_a_BARE_manifold(
+        self,
+    ) -> None:
+        r"""Item 4 of the carve: ``barycentre(entry)`` IS ``entry.lift`` for
+        every catalogued entry, no longer axial-only.
+
+        ``[M]`` 2026-09-03 on the PRE-carve tree ``barycentre`` refuses the
+        mirror AND the trivial entries by name (*"...by an axial group; got
+        'S^2/Trivial'"*), which is what makes this row red before the carve.
+        The refusal leg survives, narrowed to what it was always ABOUT — an
+        argument that is not an orbit space at all (``vv-principles`` #11: the
+        positive leg is what turns "it raises" into "the claim is right").
+        """
+        for label in _R4_ENTRY_LABELS:
+            entry = _r4_entry(label)
+            arrow = barycentre(entry)
+            assert arrow.domain is entry
+            assert arrow.codomain == entry.lift_codomain
+            chart = _r4_chart_of(entry, _r4_sphere_points())
+            np.testing.assert_array_equal(
+                np.asarray(arrow(chart), dtype=float),
+                np.asarray(entry.lift_coordinates(chart), dtype=float),
+            )
+        with pytest.raises(ValueError):
+            barycentre(COSINE_INTERVAL)  # type: ignore[arg-type]
+
+
+# =====================================================================
+# G — the hemisphere section retires, and its refusal keeps a home
+# =====================================================================
+class TestR4TheHemisphereSectionIsRetiredAndItsRefusalHasAHome:
+    r"""``_hemisphere_section`` was the mirror entry's lift: a genuine section
+    onto the fundamental domain, at the cost of a :math:`\sqrt{\cdot}`, a
+    ``rho^2 > 1 + 1e-12`` refusal, and NON-equivariance under the
+    axis-reversing normalisers (class C).  The projector replaces all three.
+
+    ⛔ **Retirement-means-test-migration, run with its denominator.**  ``[M]``
+    2026-09-03 a Python-``re`` sweep of ``tests/`` for the section's three
+    distinctive message fragments (``"closed unit disk"``, ``"rho^2"``,
+    ``"hemisphere section is defined"``) returns **0 hits**, with the positive
+    control finding the production lines.  So the refusal had NO witness
+    anywhere in the tree and nothing migrates — which is exactly why its
+    successor's teeth are NET-NEW (``lessons`` L4) and why the second row below
+    is written rather than assumed.
+    """
+
+    @pytest.mark.foundation
+    def test_the_symbol_is_gone(self) -> None:
+        from orpheus.numerics import manifold
+
+        assert not hasattr(manifold, "_hemisphere_section"), (
+            "the hemisphere section still ships — its sqrt, its literal and "
+            "its refusal were the three things R4 retires"
+        )
+
+    @pytest.mark.foundation
+    def test_an_OFF_DISK_chart_point_is_refused_by_the_MEMBERSHIP_predicate(
+        self,
+    ) -> None:
+        r"""The refusal's new home.  ``embed`` is a linear map and validates
+        nothing by design; the predicate that a chart point is a point of the
+        orbit space is :meth:`Quotient.contains`, and it already answers.
+
+        ``[M]`` 2026-09-03: ``entry.contains([[0.9, 0.9]])`` is ``False``
+        (:math:`\rho^2 = 1.62`, a pair corresponding to NO direction) and
+        ``entry.contains([[1.0, 0.0]])`` is ``True`` — the boundary circle,
+        which the cylindrical march seeds at :math:`x_a = 0` exactly, so a
+        strict inequality here would refuse a direction production marches
+        from.
+        """
+        entry = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+        assert not entry.contains(np.array([[0.9, 0.9]]))
+        assert entry.contains(np.array([[1.0, 0.0]]))       # the mirror circle
+        assert entry.contains(_r4_disk_points())            # the positive leg
+
+
+# =====================================================================
+# H — (M/H)/{e} IS M/H (finding B3)
+# =====================================================================
+class TestR4TheTrivialQuotientOfAnOrbitSpaceIsThatOrbitSpace:
+    r""":math:`(M/H)/\{e\} = M/H` is the same theorem as :math:`M/\{e\} = M`,
+    and the door already names the trivial group as its ONE admitted exception.
+    What it did instead was build a SECOND ``Quotient`` — ``[M]`` pre-carve
+    ``S^2/sigma_y/Trivial``, unequal to and not identical with its own base:
+    the very class (one orbit space, two objects) that ``#432``'s naming law
+    and ERR-080 exist to make unspellable.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", ("sigma_y", "O2_x"))
+    def test_M_over_H_mod_e_IS_M_over_H_by_IDENTITY(self, label: str) -> None:
+        """Identity, not equality: the catalogue memoises, so the one object is
+        the assertion.  ``[M]`` pre-carve ``is`` is False and ``==`` is False."""
+        entry = _r4_entry(label)
+        assert entry.quotient(SubgroupOfO3.Trivial) is entry
+
+    @pytest.mark.foundation
+    def test_the_measure_level_verb_keeps_every_node_on_the_ENTRYS_OWN_support(
+        self,
+    ) -> None:
+        """``[M]`` pre-carve the 16 nodes land on ``S^2/sigma_y/Trivial``; after
+        R4 they land on ``S^2/sigma_y``, which is where they already were."""
+        measure = Quadrature.folded_product(n_mu=4, n_phi=8).measure
+        folded = measure.quotient(SubgroupOfO3.Trivial)
+        assert folded.support is measure.support
+        assert folded.support.name == "S^2/sigma_y"
+        np.testing.assert_array_equal(folded.nodes, measure.nodes)
+        np.testing.assert_array_equal(folded.weights, measure.weights)
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("label", ("S2", "CIRCLE", "COSINE_INTERVAL"))
+    def test_M_mod_e_on_a_NON_quotient_base_still_DERIVES(self, label: str) -> None:
+        r"""The control the short-circuit must not swallow.  ``M/{e}`` on an
+        ordinary manifold is still the derived identity ENTRY — the catalogue's
+        positive control on its own machinery — and the new arm fires only when
+        the base is already an orbit space."""
+        base = {"S2": SPHERE, "CIRCLE": CIRCLE,
+                "COSINE_INTERVAL": COSINE_INTERVAL}[label]
+        entry = base.quotient(SubgroupOfO3.Trivial)
+        assert isinstance(entry, Quotient)
+        assert entry is not base
+        assert entry.realization == base
+        assert entry.dim == base.dim
+        assert entry.singular_stratum is None and entry.is_free
+
+
+# =====================================================================
+# I — the trivial group is asked STRUCTURALLY (finding B5)
+# =====================================================================
+class TestR4TheTrivialGroupIsAskedOfTheTypeNotOfItsName:
+    r"""``name == "Trivial"`` appeared at five sites (3 in ``manifold.py``, 2 in
+    ``basis/descent.py``) — a stringly-typed dispatch on a property the type can
+    answer (``coding-elegance`` anti-pattern #4).
+
+    ⚠ The roster is FINITE and enumerable, so it is probed WHOLE rather than
+    sampled: ``vv-principles`` #13's ladder rule governs unbounded families,
+    and #31's finite-roster corollary governs this one.  ONE row with the
+    roster inside, not 31 parametrized rows (#20, row inflation).
+    """
+
+    @pytest.mark.foundation
+    def test_is_trivial_over_EVERY_expressible_member(self) -> None:
+        """``[M]`` 31 spellings, 30 distinct members; ``is_trivial`` is True on
+        exactly the 2 spellings of ``{e}`` (``Trivial`` and ``Cn(1)``, which R1
+        normalises onto the same tag at construction)."""
+        members = _r4_every_member()
+        assert len(members) == 31, "the roster changed — re-derive the count"
+        trivial = [g for g in members if g.is_trivial]
+        assert [g.name for g in trivial] == ["Trivial", "Trivial"]
+        assert len(set(trivial)) == 1
+        for group in members:
+            assert group.is_trivial == (group == SubgroupOfO3.Trivial), group.name
+
+    @pytest.mark.foundation
+    def test_it_agrees_with_a_STRUCTURAL_reference_off_the_realization(
+        self,
+    ) -> None:
+        r"""The independent side: :math:`\{e\}` is the group whose identity
+        component is 0-dimensional AND which has exactly one coset — read off
+        the realization, which the property need not consult.  ``[M]`` the two
+        answers agree on 31 of 31."""
+        for group in _r4_every_member():
+            realization = group.realization
+            structural = (realization.component.dim == 0
+                          and len(realization.representatives) == 1)
+            assert group.is_trivial is structural, group.name
+
+    @pytest.mark.foundation
+    def test_the_five_call_sites_answer_identically(self) -> None:
+        """Not a refactor tautology: each site's OBSERVABLE is asserted, with
+        the values measured on the pre-carve tree."""
+        from orpheus.numerics.basis.descent import Descent
+        from orpheus.numerics.basis.spherical_harmonic_basis import (
+            SphericalHarmonicBasis,
+        )
+
+        entry = SPHERE.quotient(SubgroupOfO3.Trivial)
+        descent = Descent.for_entry(entry, 3)
+        assert isinstance(descent.frame_basis, SphericalHarmonicBasis)   # :127
+        assert isinstance(descent.upstairs, SphericalHarmonicBasis)      # :149
+
+        arrow = quotient_onto(entry, SPHERE)                             # :1372
+        assert arrow is not None
+        points = _r4_sphere_points()
+        np.testing.assert_array_equal(np.asarray(arrow(points)), points)
+
+        # :1510 — the door admits the trivial group on every base, including
+        # one that is already an orbit space (class H).
+        assert isinstance(CIRCLE.quotient(SubgroupOfO3.Trivial), Quotient)
+        # ⚠ item 4 (barycentre widened to every entry) is a DIFFERENT subject
+        # and lives in its own row — a mixed-subject assertion here would make
+        # its red unattributable.  See
+        # ``TestR4TheLiftIsADerivationOutputNotATagBranch
+        # ::test_barycentre_is_defined_on_EVERY_entry_and_refuses_only_a_BARE_manifold``.
+
+
+class TestR4TheLiftCodomainIsComparedAndGated:
+    r"""Elegance review of R4 (2026-09-03), finding 1.
+
+    `[M]` with ``lift_codomain`` excluded from ``__eq__``,
+    ``replace(entry, lift_codomain=SPHERE)`` compared EQUAL to the catalogue
+    entry and — ``barycentre`` being memoised on the entry — whichever was
+    asked first answered for both: an arrow off the sphere declaring itself
+    onto it, ERR-080's shape, re-minted by the field built to refuse it.  Two
+    legs: the field is compared, and a codomain of the wrong width is refused
+    where the entry is written.
+    """
+
+    @pytest.mark.foundation
+    def test_a_different_codomain_is_a_different_entry(self) -> None:
+        entry = SPHERE.quotient(SubgroupOfO3.O2("z"))
+        forged = dataclasses.replace(entry, lift_codomain=SPHERE)
+        assert forged != entry
+        assert hash(forged) != hash(entry)
+        # and the memo cannot be poisoned through the forgery
+        assert barycentre(entry).codomain == Ball(3)
+        assert barycentre(forged).codomain == SPHERE
+
+    @pytest.mark.foundation
+    def test_a_codomain_of_the_wrong_width_is_refused(self) -> None:
+        entry = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+        with pytest.raises(ValueError, match="ambient space"):
+            dataclasses.replace(entry, lift_codomain=Ball(2))
+
+
+class TestR4TheDimensionLawIsAMaximumOverTheProbeSet:
+    r"""Elegance review of R4 (2026-09-03), finding 2.
+
+    Orbit dimension is upper semicontinuous — it drops only on the singular
+    stratum — so the generic value is the MAXIMUM over a probe set.  `[M]` a
+    single-point spelling evaluated at a probe row placed ON the axis refused
+    :math:`S^2/O(2)_z` and ADMITTED the disk forgery: the law inverted.  This
+    row poisons one probe row the same way and asserts the law still
+    discriminates; the positive control is the shipped probe.
+    """
+
+    @pytest.mark.foundation
+    def test_a_probe_row_on_the_axis_does_not_invert_the_law(self, monkeypatch) -> None:
+        from orpheus.numerics import manifold as mod
+
+        poisoned = np.array(mod._GENERIC_SPHERE_PROBE, copy=True)
+        poisoned[0] = np.array([0.0, 0.0, 1.0])  # ON the z-axis: an O(2)_z orbit of dimension 0
+        monkeypatch.setattr(mod, "_GENERIC_SPHERE_PROBE", poisoned)
+        mod._catalogued_quotient.cache_clear()
+        try:
+            entry = SPHERE.quotient(SubgroupOfO3.O2("z"))  # must still construct
+            assert entry.realization.dim == 1
+            chart, lift = _coordinate_chart([0, 1], 3)
+            with pytest.raises(ValueError, match="realizes its dimension"):
+                Quotient(
+                    base=SPHERE, by=SubgroupOfO3.O2("z"), realization=Ball(2),
+                    orbit_coordinates=chart, lift_coordinates=lift, lift_codomain=Ball(3),
+                )
+        finally:
+            mod._catalogued_quotient.cache_clear()
+
+    @pytest.mark.foundation
+    def test_the_group_answers_the_orbit_dimension_and_fixes_is_its_zero(self) -> None:
+        probe = np.asarray(_r4_sphere_points(), dtype=float)
+        assert SubgroupOfO3.O2("x").generic_orbit_dimension(probe) == 1
+        assert SubgroupOfO3.SO3.generic_orbit_dimension(probe) == 2
+        assert SubgroupOfO3.Dnh(4).generic_orbit_dimension(probe) == 0
+        on_axis = np.array([[1.0, 0.0, 0.0], [-0.3, 0.0, 0.0]])
+        component = SubgroupOfO3.O2("x").realization.component
+        assert component.fixes(on_axis, atol=1e-12)
+        assert component.orbit_dimension(on_axis) == 0
+
+
+# ===== the dimension law's SHAPE witness (test-architect, 2026-09-03; the battery
+# arm `dim_law_reads_dim_H` reddened 0 rows without it) =====
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("case", ("S2_mod_O3_is_a_POINT", "R3_mod_O3_is_a_RAY"))
+def test_the_law_subtracts_the_ORBITS_dimension_not_dim_H(case: str) -> None:
+    r"""⭐ The only inputs on which ``dim M − dim(generic orbit)`` and
+    ``dim M − dim H`` DISAGREE, and both construct.
+
+    ``[M]`` 2026-09-03: shipped-entry-wide the two formulas agree (axial
+    ``1 = 1``, mirror/trivial ``0 = 0``), so a battery arm replacing the rank
+    with ``group.dim`` reddens **0 of 4597** rows.  These two do the work:
+
+    * :math:`S^2/O(3)` is a POINT — one orbit, ``2 − 2 = 0`` ✓, while
+      ``dim H = 3`` gives ``−1``;
+    * :math:`\mathbb{R}^3/O(3)` is the radial RAY — ``3 − 2 = 1`` ✓, while
+      ``dim H = 3`` gives ``0``.
+
+    Neither is catalogued (:math:`S^2/O(3)` is #440), so the row builds the
+    ``Quotient`` directly — which is exactly the tier the law lives at.
+    """
+    if case == "S2_mod_O3_is_a_POINT":
+        base, realization, codomain = SPHERE, IndexSet(label="pt", n=1), Ball(3)
+    else:
+        base, realization, codomain = RealSpace(3), HALF_LINE, RealSpace(3)
+    entry = Quotient(
+        base=base, by=SubgroupOfO3.O3, realization=realization,
+        orbit_coordinates=_all_coordinates, lift_coordinates=_all_coordinates,
+        lift_codomain=codomain,
+    )
+    assert entry.dim == base.dim - 2, (
+        f"{entry.name}: a generic O(3)-orbit is 2-dimensional on both bases, "
+        f"so the orbit space is {base.dim - 2}-dimensional"
+    )
+    assert SubgroupOfO3.O3.dim == 3, (
+        "dim H = 3 here, so a law written as dim M − dim H would refuse this "
+        "entry — which is the whole reason the law is stated on the ORBIT"
+    )

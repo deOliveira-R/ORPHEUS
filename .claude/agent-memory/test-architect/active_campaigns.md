@@ -295,3 +295,25 @@ memo (`[M]` 105 mentions / 15 files argue yes); (4) `_ambient_orbit_space` uncha
 confirm nobody tightens the short-circuit onto it; (5) is the harness's fold answer moving
 from refusal to identity permutation WANTED (it makes the harness agree with
 `induced_permutation`).
+
+### R4 battery — RUN 2026-09-03 post-carve (22 arms)
+
+`scratch/_r4_mut.py` (in-process `pytest_configure` plugin, `--r4-arm=`, a BITE
+CHECK per arm) + `scratch/_r4_battery.sh` (pristine `cp` before arm 1, `diff -q`
+after the last; `--continue-on-collection-errors`, `^ERROR` counted separately).
+Log `scratch/_r4_battery.log` (+ `_r4_battery2.log`), per-arm `_r4_arm_<ARM>.log`.
+
+`[M]` baseline **4597 passed / 0 failed / 51.9 s** over `tests/numerics
+tests/geometry tests/transport` + the two SN `_embedded_nodes` consumers.
+**22 of 22 arms BIT; pristine diff clean.** Every gate class A–I is reddened by
+at least one arm.
+
+**Three findings, all in `lessons_archive.md` L73i–L73m:**
+- ⛔ `dim_law_reads_dim_H` reds **0 of 4597** — a prevention-by-construction law
+  with no value-tier witness. Repair delivered: `scratch/_r4_dimH_witness.py`
+  (`S^2/O(3)` on a 0-dim `IndexSet`; `R^3/O(3)` on `[0,∞)`), 2 pass honest /
+  2 fail mutant. **Owed to `tests/numerics/test_manifold.py`.**
+- ⭐ the declared-BLIND control reddened 6, and its red set PARTITIONS the suite
+  (projector rows blind by theorem; column-ORDER rows separately gated).
+- ⭐ three natural mutants are UNINSTALLABLE, each refused by a named guard —
+  including the dimension law refusing its own builder-tier forgery.

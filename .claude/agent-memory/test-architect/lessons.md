@@ -307,6 +307,41 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   `0.000e+00`, **0 of 7** others (all `I_h`) at `4.996e-16`, because `is_normalised_by`
   admits at `_ELEMENT_ATOL=1e-9` while the node window is `1e-7`. Ship TWO legs; one
   `allclose` over the union hides the exact half. → `L73a`, `L73b`
+- **⭐⭐ A DECLARED-BLIND control arm that REDDENS is a finding about the gate set,
+  not a broken control — run it and read its red SET.** `[M]` R4: reversing the
+  chart's column list in BOTH halves of `_coordinate_chart` leaves
+  `embed ∘ select` EXACTLY `P_H` (a projector does not know the order its
+  columns are written in), so I shipped it as a null arm — and it reddened **6
+  of 4597**: 4 non-R4 rows that read the chart's column ORDER positionally, and
+  2 R4 rows on the two TRIVIAL entries, whose builder uses `_all_coordinates`
+  and never routes through the helper, so the test's reversed `select`
+  legitimately disagrees with the entry's identity chart. Both reds are honest.
+  ⟹ the arm PARTITIONED the suite into "projector rows (blind, as designed)"
+  and "order rows (separately gated)" — a claim no green arm could have made.
+  → `L73i`
+- **⛔ A bite check can read its OWN mutant when the mutated symbol is resolved
+  by LATE BINDING.** `[M]` R4: `_generic_orbit_dimension` looks `_generic_point`
+  up in the module globals at CALL time, so the captured "honest" function
+  object returns the MUTATED rank too; the check compared mutant-vs-mutant and
+  reported *"the mutant is inert"*. **Evaluate the honest value BEFORE the
+  patch**, never through a captured callable that dereferences the patched name.
+  Cost: one arm reporting `bit=0` in the smoke test, which is where the smoke
+  test earns its place (18 of 19 bit; the 19th was this). → `L73j`
+- **⛔⛔ When a law lands as PREVENTION-BY-CONSTRUCTION, its own mutation arm can
+  redden NOTHING and its builder-level mutants become UNINSTALLABLE — the value
+  tier has no witness and only a DIRECT construction can supply one.** `[M]` R4:
+  the arm replacing the dimension law's `rank[X p]` with `group.dim` reddens
+  **0 of 4597**, because every SHIPPED entry has `rank == dim H` (axial 1 = 1,
+  mirror/trivial 0 = 0) — the law's whole reason for being stated on the ORBIT
+  is un-witnessed by the catalogue, and the gate I had written asserted only the
+  TEST's own rank helper (which the production mutation cannot touch). Repair,
+  measured: two directly-constructed entries that are constructible today and
+  refused the moment the law reads `dim H` — `S^2/O(3)` on a 0-dim `IndexSet`
+  (`2−2 = 0` vs `2−3 = −1`) and `R^3/O(3)` on `[0,∞)` (`3−2 = 1` vs `0`);
+  **2 passed honest / 2 failed mutant**. ⭐ Companion: three natural R4 mutants
+  are UNINSTALLABLE, each refused by a NAMED guard (the fd clause; the dimension
+  law itself; `_assert_named_by_stabiliser`) — an uninstallable arm is a finding,
+  and the guard's name is the finding. → `L73k`
 - **⭐ When the API does not exist yet, the runnable dry-run is a SHIM.** `[M]` R4:
   `scratch/_r4_shim.py` installs the unlanded fields/verbs/laws in-process, then
   `pytest -p _r4_shim <draft>` reads **100 passed / 2 failed in 0.91 s** — the 2 being
@@ -606,6 +641,18 @@ codes). → `L34d`, `L35l`
   KEYWORD — a POSITIONAL one would silently re-bind), docstring `:meth:` xrefs (invisible
   to `-W` at every severity when the module is not `automodule`'d; `dead_references` is
   the only reader), and a harness on every module's import chain. → `L73d`, `L73e`
+- **⛔ A red set entirely INSIDE the new gate class is not automatically `vv`#17's
+  "mirror, not a gate" — discriminate by asking whether the consumers EXIST and
+  are blind FOR A STATED REASON.** `[M]` R4: the arm restoring the pre-carve
+  `orbit_barycentres` ambient pass-through reddens **9 R4 rows and 0 of the 4588
+  others**, including the five `_embedded_nodes` consumers and every geometry
+  mirror gate. `vv`#17's identity clause would read that as "the symbol has no
+  consumer". It has two (`_act_through`, `_embedded_nodes`) and they are blind
+  by a MEASURED Mode-12 argument (the chart drops the column the projector
+  rewrites; 0 of 9925 kernel answers move). ⟹ the R4-only red set is the
+  EVIDENCE that those rows are net-new coverage, not the evidence they are a
+  mirror — and the two readings are told apart by the pre-carve consumer census,
+  not by the count. → `L73l`
 - **⭐ An "does this consumer move?" question needs THREE measurements, and only the
   third settles it: the function's OUTPUT, the consumer's ANSWER, and WHICH ARGUMENTS THE
   CALL SITES ACTUALLY PASS.** `[M]` R4 vs `tests/_harness/references.py`: the embedding
@@ -617,6 +664,53 @@ codes). → `L34d`, `L35l`
   gate passes 8 of 8 before AND after while `|μ_y|max` collapses `8.7e-01 → 0.0` on its 2
   FOLDED rows, making its own *"μ_y/μ_z must be held"* vacuous in y there (`vv` #20).
   → `L73f`
+- **⛔⛔ When a carve's goal is to REVERSE an import edge, enumerate every name the
+  reversed-FROM module imports from the reversed-TO one — CONSTANTS included — and
+  inject-and-run on a shadow copy before designing one gate.** `[M]` R2 named the three
+  TYPES leaving `symmetry`; the survivor was two AXIS constants read at 6 sites, and the
+  plan's literal means kills **6 of 9** entry points with a partially-initialized-module
+  `ImportError`. ⭐ `import orpheus` alone stays **rc=0**, so a package-root smoke test
+  reports green; the existing fresh-interpreter gate covers 6 entries and catches only 3
+  of the 6 deaths. A type moves with the concept; a constant does not, and it is invisible
+  to a review that reads the concept. → `L74a`
+- **⛔ A plan listing N behaviour changes owes N SEPARATE shipped-denominator
+  measurements, not one exception list.** `[M]` 3 of R2's 4 were INERT on every shipped
+  input — position window 0 of 15 rules (residuals are `0.000e+00` or `≥ 5.8e-01`, a
+  `10^11` gap), azimuth window 0 of 15, `_maximal` strictness 0 of 31 members — so each
+  lands green and unfalsifiable without a MANUFACTURED fixture (§6c), while the fourth
+  (a deleted step) is the opposite shape: 32 shipped rows, a MUST-STAY-GREEN table.
+  ⭐ Companion: **measure the TODAY side of every before/after claim** — one of R2's
+  stated changes was ALREADY TRUE at HEAD (a prior carve in the same campaign had closed
+  it), so the row is a regression pin on THAT carve and its expected null in the battery
+  must be declared or it reads as a blind gate. → `L74b`, `L74c`
+- **⭐ Changing WHICH NODES a derived quantity reads moves answers the finding is not
+  about — simulate the changed function over the WHOLE shipped denominator before
+  designing gates.** `[M]` R2's `candidate_groups`-on-barycentres moved **3 of 15** rules
+  (`{O2_x, σ_x}` → `{O2_x, D_2h}`) and shrank a fold's candidate set 20 → 18, reddening two
+  committed gates one of whose NAME (`…_is_untouched_by_the_carve`) becomes false. Neither
+  was in the plan's exception list. ⭐ And **a search function's two realizations can return
+  one SET in two ORDERS** (`walk` pops a stack, `bruteforce` iterates the list) — compare
+  `sorted(...)` or a `set`, never a tuple. → `L74d`, `L74e`
+- **⚠ `ast.col_offset` counts UTF-8 BYTES; `ast.get_source_segment` is the only safe
+  reader — and quantify such a hazard against the CORRECT implementation, never against a
+  proxy for it.** `[M]` I was one command from publishing *"128 of 128 rewrite spans
+  corrupt"*, measured by the proxy *"a non-ASCII line exists at or before the call"*; the
+  honest instrument (slice vs `get_source_segment`) reads **0 of 128** — the non-ASCII
+  lives in docstrings, never on a line before a call. A latent hazard with 0 witnesses is
+  a RIDER, not a defect. → `L74g`
+- **⛔ In a mutation plugin, a PRECONDITION ("the tree is not in the state this arm
+  models") must be the arm's FIRST statement and must raise a distinct
+  `Uninstallable`, never the bite's `RuntimeError`.** `[M]` R2: an arm rebound a live
+  production symbol to `None` BEFORE its precondition ran, then reported UNINSTALLABLE —
+  **13 reds attributed to nothing**, with the header denying the arm installed. A partial
+  install under a failed precondition is worse than a crash. ⭐ Companion: **a bite that
+  asserts `SUT is mutant` proves the REBIND, not the BITE** (`vv` #19 at the harness
+  tier) — one arm installed happily and reddened 0 because the honest and "reverted"
+  strings were identical pre-landing; a bite must compare the mutant's ANSWER to the
+  honest one on a named witness. ⭐⭐ And **a prior carve can dissolve a mutation's own
+  distinction**: an "ambient instead of chart" arm was a NO-OP because R4 had made
+  `_embedded_nodes` return barycentres whose mirror column is already zero — check every
+  arm against the CURRENT tree, not the tree it was designed for. → `L74i`
 - **⛔ A per-instance MEMO masks the mutation, and the masked reading is a
   plausible bit-identical GREEN.** `[M]` `Quadrature._angular_frames[L]`: rule
   built after the mutation → `keff = 0.4159228684117852`; same rule warmed by an

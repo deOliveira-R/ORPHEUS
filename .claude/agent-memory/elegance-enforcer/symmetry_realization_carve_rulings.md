@@ -61,3 +61,61 @@ the two findings are the same finding read from both ends.
 (the manifold an orbit space IS, `[M]` ~15 production reads in `manifold.py` /
 `measure.py` / `descent.py`). Two concepts, one word, one subsystem. R2 puts both in
 one frame.
+
+---
+
+# #434 R4 — "the lift is a derivation output, and an orbit space's dimension is a theorem"
+
+Reviewed 2026-09-03, same branch, uncommitted carve in `manifold.py` (bulk) +
+`symmetry.py` + `basis/descent.py`. Probes `scratch/_r4_elegance_probe{1..8}.py`.
+
+**⭐⭐ The flagship, and it generalises past this campaign: a DERIVED field excluded
+from `__eq__` + a `functools.cache` keyed on the OWNING object = call-order-dependent
+wrong answers.** `Quotient.lift_codomain` shipped `field(compare=False)`, so
+`replace(entry, lift_codomain=SPHERE) == entry` AND `hash` equal; `barycentre` is
+`@functools.cache`d on the `Quotient`, so `[M]` `barycentre(entry).codomain` reads
+`S^2` or `D^3` **depending on which of the two entries was asked first** — the
+honest entry gets poisoned by the forged one. The field's own docstring says its
+purpose is "the codomain a consumer reads to learn which it was handed". ⟹ **when a
+diff adds a field whose stated job is to let a consumer DISCRIMINATE, check (a) that
+`__eq__` can tell the two apart and (b) every memo keyed on the owner.** The stated
+exclusion reason ("derived from `(base, by)`") proves too much: `realization` is
+derived the same way and IS compared; the real reason the sibling callables are
+excluded is that *a function has no value equality*, which a `Manifold` has.
+
+**⭐ The R1 lesson recurred one carve later, in the same `__post_init__`.** R4 gated
+`realization` (the dimension law) and left the two NEW required fields
+(`lift_coordinates`, `lift_codomain`) with no clause — no width check against the
+base's ambient space, though `_act_through` hands the lift's output to
+`RigidMotion.on_points`. `[M]` `replace(entry, lift_codomain=Ball(2))` constructs
+while the lift still emits width 3.
+
+**⭐ A guard resting on an unstated "generic point" is an assumption where the
+mathematics offers a computation.** `_generic_orbit_dimension` takes the rank at
+`_GENERIC_SPHERE_PROBE[0]`. `[M]` poison row 0 with `e_z` and the dimension law
+**inverts**: the true `S^2/O(2)_z` is REFUSED and the `Ball(2)` forgery it exists to
+refuse is ADMITTED. The probe constant is a *seeded RNG* whose docstring names only
+`descending_slots` as its consumer, and it has already been re-generated once in this
+codebase's history. `dim(generic orbit) = max_p dim(H·p)` (orbit dimension is upper
+semicontinuous) ⟹ **`max` over the probe set is both the theorem and the fix.**
+Coextensive today (`[M]` 9 of 9 probe rows agree on all 7 continuous groups) ⟹ graded
+CONCERN, not VIOLATION, under the three-leg standard.
+
+**Native place, with the strongest form of the argument: the new function is the
+GENERAL form of a method the target type already has.** `manifold.py` open-codes
+`rank[X p : X ∈ 𝔤]` by reaching `group.realization.component.generators` — three
+levels into another module's value types, and it is exactly `IdentityComponent.fixes`
+generalised (`fixes(pts) ⟺ orbit_dimension(pts) == 0`). It also re-asks, with the
+numpy DEFAULT tolerance, the question `IdentityComponent.__post_init__` already asks
+with `tol=_ELEMENT_ATOL`. ⟹ when a carve adds a computation about type T outside T,
+grep T for the special case — if one exists as a method, the general form belongs
+beside it and inherits its band for free.
+
+**Withdrawn attacks worth not re-running.** `is_trivial` as a tag test — `[M]`
+`SubgroupOfO3.__post_init__` normalises `Cn(1)` to the `Trivial` tag, so the tag IS
+the identity (R1's ruling) and the test is as strong as a structural one. A
+`CoordinateChart(select, embed)` value type — fails the concept-count test (one field
++ one class replaces three fields; `quotient_map`/`lift` gain a hop) and its benefit
+is absorbed by one `__post_init__` clause. `_embedded_nodes` now projecting a fold's
+representatives — `π∘g∘P_H = π∘g` for `g ∈ N(H)`, so the chart answers cannot move
+(`[M]` 0 of 9925) and the position test becomes strictly more correct.

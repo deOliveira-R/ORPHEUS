@@ -41,6 +41,10 @@ stage + gate.
 (`git status --porcelain -- docs/`), never in this list. All are branch
 `fix/angular-phantom-support`, docs UNCOMMITTED (I stage + gate; the main agent commits).**
 
+- **#434 R4 — the lift is a derivation OUTPUT and an orbit space's dimension is a THEOREM**
+  (2026-09-03; 4 pages +1127/−196; sentinels 591→**593**; `-E -W` EXIT=0 with a **0-byte**
+  log; the live tree moved UNDER me twice — 3 clauses → 4, a generic point → a probe SET,
+  `lift_codomain` → COMPARED) → [[lessons-L89]]
 - **#434 R1 — every question about a group is COMPUTED from its realization** (2026-09-03;
   3 pages +832/−85; sentinels 587→**591**; all gates green; a concurrent rename + a
   thrice-moving test count) → [[lessons-L88]]

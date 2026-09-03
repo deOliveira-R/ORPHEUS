@@ -561,6 +561,13 @@ class SubgroupOfO3:
         return None
 
     @property
+    def is_trivial(self) -> bool:
+        r"""``True`` for :math:`\{e\}` — the one group that acts trivially on
+        every orbit space, admitted on every base by the catalogue door
+        (which reads this, not the NAME — #434 R4)."""
+        return self._tag is _NamedSubgroup.Trivial
+
+    @property
     def realization(self) -> "Realization":
         r"""The group as what it IS — its identity component and one
         representative per connected component (:class:`Realization`),
@@ -577,9 +584,22 @@ class SubgroupOfO3:
         r"""The group's dimension as a Lie group — 0 for a finite member, 1 for
         the axial families and :math:`D_{\infty h}`, 3 for :math:`SO(3)` and
         :math:`O(3)`.  Read off the identity component, which is the half that
-        has one; what an orbit space's dimension law reads
-        (:class:`~orpheus.numerics.manifold.Quotient`)."""
+        has one.  ⚠ **NOT** what an orbit space's dimension law subtracts: that
+        is the generic ORBIT's dimension (:meth:`generic_orbit_dimension`), and
+        ``dim H`` is wrong for :math:`O(3)` on :math:`S^2` (3, orbits 2) and
+        :math:`SO(3)` on :math:`\mathbb{R}^3` — a law spelled ``base.dim -
+        by.dim`` would give −1 and 0 (#434 R4, 2026-09-03)."""
         return self.realization.component.dim
+
+    def generic_orbit_dimension(self, points: np.ndarray) -> int:
+        r"""The dimension of this group's generic orbit through ``points`` —
+        the largest :math:`G^0`-orbit over the probe set
+        (:meth:`IdentityComponent.orbit_dimension`; the coset representatives
+        move orbits without changing their dimension).  ⚠ NOT :attr:`dim`:
+        :math:`O(3)` has :math:`\dim 3` and 2-dimensional orbits on
+        :math:`S^2`.  The one surface :mod:`~orpheus.numerics.manifold`'s
+        dimension law reads."""
+        return self.realization.component.orbit_dimension(points)
 
     @property
     def orbit_stabiliser(self) -> "SubgroupOfO3":
@@ -1259,6 +1279,29 @@ class IdentityComponent:
             return True
         return all(bool(np.abs(pts @ X.T).max() <= atol) for X in self.generators)
 
+    def orbit_dimension(self, points: np.ndarray, *, atol: float = _ELEMENT_ATOL) -> int:
+        r"""The dimension of the LARGEST :math:`G^0`-orbit through ``points`` —
+        :math:`\max_p \operatorname{rank}[X p : X \in \mathfrak g]`, the
+        tangent space of the orbit through :math:`p`; orbit dimension is upper
+        semicontinuous, so the maximum over a generic probe set IS the generic
+        value.  :meth:`fixes` is this at zero: ``fixes(pts)`` iff
+        ``orbit_dimension(pts) == 0``.  The rank is taken at the element band,
+        the same tolerance that validates this component's own ``dim``
+        (:meth:`__post_init__`), so the two rank questions cannot answer
+        differently.  What an orbit space's dimension law subtracts
+        (:class:`~orpheus.numerics.manifold.Quotient`): `[D]` a torus on
+        :math:`S^2` has 1-dimensional orbits, :math:`SO(3)` 2-dimensional ones
+        (the sphere is one orbit), :math:`SO(3)` on :math:`\mathbb{R}^3` also
+        2 (so :math:`\mathbb{R}^3/SO(3)` is one-dimensional).
+        """
+        if not self.generators:
+            return 0
+        pts = np.atleast_2d(np.asarray(points, dtype=float))
+        return max(
+            int(np.linalg.matrix_rank(np.stack([X @ p for X in self.generators]), tol=atol))
+            for p in pts
+        )
+
 
 
 @dataclass(frozen=True, eq=False)
@@ -1455,23 +1498,22 @@ def _group_elements(tag) -> "list[RigidMotion] | None":
 
 
 def _embedded_nodes(measure: DiscreteMeasure) -> np.ndarray:
-    r"""The measure's nodes as points of the BASE — representatives in
-    :math:`\mathbb{R}^3`.
+    r"""The measure's nodes as orbit BARYCENTRES in :math:`\mathbb{R}^3`.
 
     A measure on an orbit space answers through its entry: the nodes are
-    carried to the base by :meth:`Quotient.ambient_representatives
-    <orpheus.numerics.manifold.Quotient.ambient_representatives>` — as given
-    when they already are representatives (a fold's nodes), through the
-    entry's :attr:`~orpheus.numerics.manifold.Quotient.lift` when they are
-    chart coordinates (a polar marginal's :math:`\mu` lifts through the
-    orbit BARYCENTRE :math:`\mu \mapsto \mu\,\hat e_a`, which lies inside
-    the ball and on the sphere only at the poles — the honest point an
-    invariance question wants, since every isometry that descends to the
-    orbit space carries barycentres to barycentres). A measure that names
-    no orbit space keeps the tree's zero-padding convention: a chart-level
-    interval's :math:`\mu` becomes :math:`(\mu, 0, 0)` (column 0 — a bare
-    interval names no axis), a planar rule :math:`(x, y)` becomes
-    :math:`(x, y, 0)`, a sphere rule is itself.
+    carried to the base's ambient space by :meth:`Quotient.orbit_barycentres
+    <orpheus.numerics.manifold.Quotient.orbit_barycentres>` — the Reynolds
+    projector of a fold's representatives (since #434 R4, 2026-09-03; until
+    then a fold's nodes passed through as representatives), the entry's
+    :attr:`~orpheus.numerics.manifold.Quotient.lift` of a polar marginal's
+    chart coordinates (:math:`\mu \mapsto \mu\,\hat e_a`, inside the ball,
+    on the sphere only at the poles) — the honest point an invariance
+    question wants, since every isometry that descends to the orbit space
+    carries barycentres to barycentres. A measure that names no orbit space
+    keeps the tree's zero-padding convention: a chart-level interval's
+    :math:`\mu` becomes :math:`(\mu, 0, 0)` (column 0 — a bare interval
+    names no axis), a planar rule :math:`(x, y)` becomes :math:`(x, y, 0)`,
+    a sphere rule is itself.
 
     ⭐ Since 2026-09-02 (#429 tracker 2.2b) the axis is READ off the entry's
     lift rather than by this function: until then it embedded a polar
@@ -1485,7 +1527,7 @@ def _embedded_nodes(measure: DiscreteMeasure) -> np.ndarray:
     """
     support = measure.support
     if isinstance(support, Quotient):
-        return support.ambient_representatives(measure.nodes)
+        return support.orbit_barycentres(measure.nodes)
     nodes = measure.nodes
     if nodes.ndim == 1:
         nodes = nodes[:, None]
@@ -1546,8 +1588,8 @@ def _orbit_space_closure(
     ``argmin`` guard, the weight leg, and the two windows.
     """
     orbit_space = _orbit_space_of(measure)
-    section = _embedded_nodes(measure)
-    chart = _as_columns(orbit_space.orbit_coordinates(section))
+    barycentres = _embedded_nodes(measure)
+    chart = _as_columns(orbit_space.orbit_coordinates(barycentres))
     motions = list(motions)
     if not all(orbit_space.by.is_normalised_by(g) for g in motions):
         return None
@@ -1556,7 +1598,7 @@ def _orbit_space_closure(
         measure.weights,
         motions,
         atol,
-        images_of=lambda g: _as_columns(orbit_space.induced_action(g)(section)),
+        images_of=lambda g: _as_columns(orbit_space.induced_action(g)(barycentres)),
     )
 
 
@@ -1627,13 +1669,13 @@ def _check_invariance(
 def _invariance_on_orbit_space(
     group: "SubgroupOfO3",
     orbit_space: Quotient,
-    section: np.ndarray,
+    barycentres: np.ndarray,
     weights: np.ndarray,
     atol: float,
 ) -> bool:
-    r"""``True`` iff the weighted point set ``section`` (representatives in
-    the base's ambient space) is invariant under ``tag`` acting ON
-    ``orbit_space`` :math:`= M/H` — ``group`` acting.
+    r"""``True`` iff the weighted point set ``barycentres`` (orbit
+    barycentres in the base's ambient space) is invariant under ``group``
+    acting ON ``orbit_space`` :math:`= M/H`.
 
     Four facts, in the order they are cheapest and most decisive:
 
@@ -1651,12 +1693,14 @@ def _invariance_on_orbit_space(
        :math:`SO(2)_z \subseteq O(2)_z` while :math:`D_{\infty h}
        \not\subseteq O(2)_z`, so step 2 did NOT answer it), or :math:`H`
        is finite and a node's own :math:`G^0`-orbit — a circle, or a
-       sphere — must collapse: the node lies on the axis, or is the origin
-       (:meth:`IdentityComponent.fixes`, the same exact criterion the ambient
-       arm has applied since ERR-072, stated once). The position test runs
-       ONLY in the second case, where it is exact; in the first it would be
-       a tautology on the barycentre lift, which is on the axis by
-       construction.
+       sphere — must collapse: the barycentre lies on the axis, or is the
+       origin (:meth:`IdentityComponent.fixes`, the same exact criterion the
+       ambient arm has applied since ERR-072, stated once; exact on the
+       barycentre because the chart is injective on orbits — the linear
+       invariants separate them — so :math:`G^0` fixes :math:`P_H p` iff it
+       fixes :math:`[p]`). The position test runs ONLY in the second case;
+       in the first it would be a tautology, an axial entry's barycentre
+       lying on the axis by construction.
     4. Every element (finite :math:`G`) or discrete coset representative
        (continuous :math:`G`) must permute the weighted node set in CHART
        coordinates through its induced action (:func:`_orbit_space_closure`).
@@ -1672,17 +1716,17 @@ def _invariance_on_orbit_space(
         # the stabiliser's own component, read as VECTORS: `identity_component`
         # would round-trip through _letter_of and refuse a non-coordinate axis.
         stabiliser.realization.component.contains(component)
-        or component.fixes(section, atol=atol)
+        or component.fixes(barycentres, atol=atol)
     ):
         return False
     elements = realization.representatives
-    chart = _as_columns(orbit_space.orbit_coordinates(section))
+    chart = _as_columns(orbit_space.orbit_coordinates(barycentres))
     certificate = _orbit_closure(
         chart,
         weights,
         elements,
         atol,
-        images_of=lambda g: _as_columns(orbit_space.induced_action(g)(section)),
+        images_of=lambda g: _as_columns(orbit_space.induced_action(g)(barycentres)),
     )
     return certificate is not None
 
