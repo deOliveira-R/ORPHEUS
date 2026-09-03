@@ -10185,3 +10185,113 @@ positive control 2/2. Rendered slice of the new chapter: **0** visible backticks
 **0** leaked role openers. Source-side nested-literal-in-bold, set-differenced
 against HEAD: **0 NEW** on all four pages. Audit: 917→**920** labels,
 584→**587** documented, **0** violations.
+
+## L-088 — R1 of #434: a carve whose whole claim is "no answer changed", and the FULL GRID as the only honest instrument
+
+**The task.** `#434 R1` re-poses every question about a subgroup of `O(3)` as a
+computation on its *realization* (identity component + coset representatives),
+retiring two hand-written relation surfaces, thirteen per-family functions, a
+group cache and a type alias. I owned the docs half: 3 hand-edited pages
+(`manifolds.rst` +722/−65, `discrete_measures.rst` +75/−16,
+`error_catalog.rst` +35/−4) plus the regenerated `matrix.rst`. `-E -W` 0 → 0,
+EXIT=0; patched xref gate `DEAD TARGETS: 0` (stock agrees; positive control
+reads 2); nexus `dead_references` 0 dead / 52 checked; rendered-leak
+set-difference vs a pinned HEAD build: **0 added** on the two pages I wrote
+prose into.
+
+### (a) ⭐⭐ When a carve's ENTIRE claim is "no answer changed", the instrument is the FULL GRID — and the two zeros are the finding
+
+A retirement of a hand table is exactly the kind that can silently move an
+answer nobody looks at, because the answers anyone *thinks* to name are the
+ones the table already got right. So the honest denominator is not the edges
+the plan enumerates; it is every ordered pair. `[M]` against a pinned
+pre-carve tree (`git archive HEAD`, editable finder stripped,
+`orpheus.__file__` asserted per subprocess): `contains` **0 of 729**,
+`normalises` **0 of 729** (27 × 27 spellings), `is_invariant` **0 of 270**
+(10 shipped rules × 27 groups), the walk **0 of 10 rules**. Three readings
+move and each was named in advance. ⟹ **publish the grid, and say in the page
+why a grid rather than a list** — that sentence is what stops the next reader
+re-deriving the coverage argument.
+
+⭐ The companion move that made the widening credible: **reproduce the
+recorded aggregate's OLD numbers before quoting a new one** (L-086's rule).
+The page carried `57 edges / 342 pairs / 0` and `75 / 450 / 0` for the vv-#15
+compatibility law; both reproduce EXACTLY on the pre-carve *and* the carved
+tree, so my widened `175 edges / 1750 pairs / 0` reads as the same instrument
+at a bigger denominator rather than a different one. Four readings, two trees,
+one claim.
+
+### (b) ⭐⭐ A concurrent carve RENAMED a method I had already published — the xref gate caught it, the build could not
+
+Mid-task the coordinator landed further R1 work: `Realization.images` →
+`Realization.generic_images`, `IdentityComponent.conjugated_by` retired, a
+`__post_init__` added, `_tags_contain` / `_orbit_space_of` / `_IDENTITY_3` /
+`_NODE_WINDOW_FACTOR` minted, and the kernel's `Trivial` fast path removed.
+`sphinx -E -W` stayed at **0** through all of it — a `:meth:` at a renamed
+member renders as plain text. The patched xref gate found it in one run.
+⟹ **on a live branch, re-run the xref gate after EVERY build, not once at the
+end**, and re-read the public surface (`dir(cls)`) rather than trusting the
+module you read an hour ago. `[M]` every numeric claim I had published
+re-measured identically on the new tree — it was only the NAME that moved,
+which is precisely the class `-W` cannot see.
+
+### (c) ⭐⭐ The test tree moved THREE times under me: 230 → 212 → 215 in one afternoon, and the fix is to publish a DIRECTION
+
+A Verification section that quotes a per-module row count is a hostage on a
+live branch. I wrote `212 + 2`, rebuilt, and the matrix read `215 + 2`. ⟹ when
+a count is *being changed by the very carve you are documenting*, publish the
+**direction and its mechanism** and point at the generated matrix for the
+value: *"the row is FALLING, because the carve retires the gates that pinned
+the per-family arms it dissolved"* is durable; `212` is stale on the next
+build. ⭐ And a falling test count is the EXPECTED shape when a carve removes
+spellings — say so, or a later reader reads it as lost coverage.
+
+### (d) ⛔ My own tombstone leaked, and only a rendered SET-DIFFERENCE could tell it from 132 pre-existing ones
+
+Following §3 I quoted the retired paragraph verbatim — and spelled it
+`*"… (``symmetry._axial_contains``)"*`, an outer italic run around a literal.
+That is L-085's exact rule, broken by its own author. The raw leak inventory
+on these pages is **34 / 8 / 90**, all tombstones from earlier campaigns, so a
+COUNT is useless; the acceptance criterion is the multiset difference against a
+build of the pinned HEAD tree. `[M]` before the fix: manifolds ADDED 2; after:
+**0 added, 0 removed**. ⚠ And read `added == removed` as a CONTEXT SHIFT, not
+two events: `error_catalog` showed `+2 / −2`, the same pre-existing
+``vv-principles``-inside-bold leak whose ±90-char window my inserted paragraph
+had moved. ⟹ **build HEAD's docs once into a scratch tree** (`git archive HEAD
+docs tools tests`, `PYTHONPATH=<tree>`); it is a few minutes and it converts an
+unusable count into a decidable answer. ⚠ Do NOT substitute a source-side
+italic regex: over a page of list-tables it reported 10 hits and **all 10 were
+`* -` bullets**.
+
+### (e) ⭐ Inherited counts: two of three did NOT reproduce, and both were in text I was about to publish
+
+The plan's ledger gave `_contains` "109 lines, 31 dispatch sites" and "eleven
+per-family helpers". `[M]` by AST: **109 lines** (reproduces) but **28**
+dispatch sites inside `_contains` (24 `isinstance` + 4 `is _NamedSubgroup.X`),
+and **thirteen** functions retired, not eleven. The ledger's 31 came from a
+different predicate over a different scope. ⟹ a relayed count needs its
+PREDICATE re-derived, not just its number re-run — and the module-wide pair I
+measured instead (`86 → 31` sites under one stated predicate) is the more
+useful number anyway.
+
+### (f) ⭐ Two docstring claims to REPORT rather than repair, both quantifier defects
+
+`orbit_stabiliser`'s docstring says *"Exactly two MEMBERS are not their own
+stabiliser"*; `[M]` **4 of 26** distinct members move (`SO2_x/y/z`, `SO3`) —
+it is two FAMILIES, and the axial family has three axes. The page carried the
+same word and I corrected it there. And `_tags_contain`'s `[M] 419 per walk on
+a slab rule` measures **420** on my instrument (217 repeats + 203 distinct,
+stable cold and warm). Everything else verified: all 11 containment relations
+the `contains` docstring lists "for the record", the `1.3e-15` orthogonality
+defect (**1.332e-15**), the ERR-072 2-of-8 over-certification, the 8-of-8
+incommensurate positive control.
+
+### (g) ⭐ A memo/perf claim is publishable EXPERT context when you measure it yourself
+
+The obvious objection to "compute, don't tabulate" is cost. `functools.cache`'s
+own `cache_info` answers it in three lines: `[M]` one walk on `lebedev(9)`
+asks **1152** containment questions of which 629 are literal repeats, and
+builds **24** groups from 1193 reads. *"A hand table is not buying speed here;
+it is buying a second, unverifiable copy of the answer"* is the paragraph that
+pre-empts the objection — and it only exists because I ran the memo counters
+instead of quoting the docstring's `41 times / 9.3 s`.

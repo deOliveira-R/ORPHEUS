@@ -39,6 +39,11 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 
 ## 3. Durable reference (reusable design-review pointers)
 
+- [symmetry_realization_carve_rulings.md](symmetry_realization_carve_rulings.md) — ⭐⭐ #434 R1
+  (group-as-realization): the tag-is-IDENTITY / one-functor-to-STRUCTURE shape; ⭐ **the guard
+  does not move with the mathematics** (new value types carrying the theorem shipped with no
+  `__post_init__`; `dim` spelled `len` where the math means RANK); a `dim ∈ {0,1,3}` branch is
+  ESSENTIAL; a dispatch→computation carve silently WIDENS the old refusals; reusable probes.
 - [orbit_space_invariance_rulings.md](orbit_space_invariance_rulings.md) — ⭐⭐ #429 2.2b
   (the Γ-slot): the ambient-vs-orbit-space TWO-CAMPS pattern (census the shared EMBEDDING
   helper, not the migrated method); the per-arm `ManifoldMap.domain/codomain` honesty tell;

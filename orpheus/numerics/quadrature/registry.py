@@ -1291,7 +1291,7 @@ def select_quadrature(
         # ---- Stage 1: the owed discrete symmetry ----------------------
         #
         # Computed from the instantiated nodes. Note this is NOT
-        # `residual.is_subgroup_of(measure.invariance_group)`: a declared
+        # `measure.invariance_group.contains(residual)`: a declared
         # tag is only required to be TRUE of the nodes, never maximal, so
         # the lattice route can reject a rule that satisfies the owed
         # symmetry perfectly well. Asking the nodes directly cannot go

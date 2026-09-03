@@ -1461,9 +1461,13 @@ class TestDescendingSlots:
     def test_a_continuous_group_with_no_rotation_axis_refuses_generic_images(self) -> None:
         r"""The probe's group surface refuses what it cannot sample honestly, rather than sampling badly."""
         points = _generic_unit_directions()
-        for group in (SubgroupOfO3.SO3, SubgroupOfO3.O3, SubgroupOfO3.Dinfh):
+        for group in (SubgroupOfO3.SO3, SubgroupOfO3.O3):
             with pytest.raises(NotImplementedError, match="no rotation axis"):
                 group.generic_images(points)
+        # D_inf_h HAS an axis (z) and four components: since R1 of #434
+        # (2026-09-02) its realization samples the torus about z composed with
+        # each coset representative — 6 angles x 4 components.
+        assert len(SubgroupOfO3.Dinfh.generic_images(points)) == 24
 
         # positive legs, one per branch: a finite group yields every element,
         # an SO(2) yields the incommensurate rotations.
@@ -1745,9 +1749,7 @@ class TestTheOrbitSpaceIsNamedByItsStabiliser:
         assert inside == 33 and outside == 107, (inside, outside)
 
         # the three excluded groups, asserted rather than assumed
-        for axis_free in (
-            SubgroupOfO3.Dinfh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
-        ):
+        for axis_free in (SubgroupOfO3.SO3, SubgroupOfO3.O3):
             with pytest.raises(NotImplementedError, match="no rotation axis"):
                 axis_free.generic_images(points)
 
@@ -1785,10 +1787,11 @@ class TestTheOrbitSpaceIsNamedByItsStabiliser:
         rotation_side = {
             g.name for g in groups if SubgroupOfO3.SO2("x").contains(g)
         }
+        # C_1 IS Trivial since 2026-09-02 (R1 of #434), so it is not a second name here.
         assert stabiliser_side == {
-            "Trivial", "sigma_y", "sigma_z", "SO2_x", "O2_x", "C_1", "D_1h",
+            "Trivial", "sigma_y", "sigma_z", "SO2_x", "O2_x", "D_1h",
         }
-        assert rotation_side == {"Trivial", "SO2_x", "C_1"}
+        assert rotation_side == {"Trivial", "SO2_x"}
         assert rotation_side < stabiliser_side
         assert stabiliser_side - rotation_side == {
             "O2_x", "sigma_y", "sigma_z", "D_1h",

@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**80 entries · 278 catching tests · 0 uncaught.**
+**80 entries · 282 catching tests · 0 uncaught.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -104,7 +104,7 @@ None — every catalogued defect has at least one catching test.
 | ERR-069 | 2 | the d3 direct-seed carve wired the ψ½ r=R corner datum for vacuum(0) and reflective(B_b) only:… |
 | ERR-070 | 4 | the σ_r-fold: realizing the within-group scattering gain as a diagonal σ_r-sweep (A_wg.solve wi… |
 | ERR-071 | 4 | the composite sweep inverse dropped the rhs's OUTFLOW-trace rows: (L+C)⁻¹ seeded its boundary b… |
-| ERR-072 | 3 | SubgroupOfO3.SO2.is_invariant certifies a NON-SO(2)-invariant rule: the "representative orbit"… |
+| ERR-072 | 7 | SubgroupOfO3.SO2.is_invariant certifies a NON-SO(2)-invariant rule: the "representative orbit"… |
 | ERR-073 | 3 | _orbit_closure documents "find a permutation π such that M(nodes)_i = nodes_{π(i)}" but only ev… |
 | ERR-074 | 1 | _find_reflections computed a reflection partner map by bare argmin and never checked that the r… |
 | ERR-075 | 6 | the SN realizer returned an AFFINE operator for prescribed inflow and withheld the BlockRole.BO… |

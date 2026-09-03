@@ -8164,3 +8164,345 @@ exactly why it needs a gate rather than a note. ⭐ And the sharpest row the sam
 carries: `[M]` **`O2_x` CONTAINS `σ_y` but does not NORMALISE it** — the counterexample
 to the intuition a reviewer supplies for free, and the reason step 1 must precede
 step 2.
+
+## L72 — #434 R1, "every question about a group is computed from its realization" (plan + gates delivered 2026-09-03; carve LANDED mid-dispatch, symmetry.py `d541cbe6…`→`3c83caf9…`)
+
+**Deliverables.** `scratch/_r1_verification_plan.md` (12 measured corrections,
+28 gates in 9 classes, the dim / identity_component / orbit_stabiliser tables,
+a 20-arm battery table, 5 open rulings), `scratch/_r1_gates_draft.py`
+(importable, `[M]` 28 passed / 10.46 s cold / 3.80 s warm, pyright 0 errors, 0
+top-level name collisions with `tests/numerics/test_symmetry.py`),
+`scratch/_r1_test_migration.md`, `scratch/_r1_mut.py` + `_r1_battery.sh`.
+
+### L72a — the carve LANDED mid-dispatch, and that inverted the deliverable's evidentiary status
+
+The brief said "BEFORE the main agent implements it". `[M]` the file was
+already modified at first import (`dataclasses.is_dataclass(SubgroupOfO3)` True
+and `g._tag = 'X'` raising, while the source I had read 12 minutes earlier
+showed `__slots__` + a plain `__init__`). The hash moved **four** times during
+the dispatch; `tests/numerics/test_{symmetry,manifold,registry}.py`,
+`registry.py` and four `.rst` pages were migrated in parallel.
+
+⟹ **Every gate became MEASURED rather than predicted**, and the §6b list became
+a RESIDUAL. Discipline that made it safe: bracket every measurement with
+`shasum -a 256 <file> | cut -c1-16` BEFORE and AFTER, take a `cp -a` pristine
+copy before the first mutation, and `diff -q` after every battery batch (the
+battery is pure monkeypatch, so the only file changes were the main agent's —
+which `diff` then attributes correctly instead of alarming).
+
+⭐ The headline the collision produced for free: `[M]` `tests/numerics/` =
+**3004 passed / 0 failed / 46.02 s** under the full carve — 13 helpers retired,
+`_NAMED_LATTICE` gone, `Cn(1) → Trivial`, `identity_component` corrected — and
+**nothing reds**. The migration is a quality obligation, not a red list.
+
+### L72b — ⛔⛔ a done-when spelled with `is` on a value type is a FALSE RED waiting
+
+The plan's done-when read `SubgroupOfO3.Cn(1) is SubgroupOfO3.Trivial`. `[M]`
+`is` is **False**, `==` is True: `__post_init__` normalises the TAG, so the
+constructor returns a fresh instance carrying the normalised tag rather than
+the pre-instantiated singleton. Landing that leg would have reddened a correct
+implementation. ⟹ for a merge on a **value** type gate `==`, `hash`, `name`,
+`repr`, container-dedup and the downstream door (`SPHERE.quotient(Cn(1)) ==
+SPHERE.quotient(Trivial)`) — and say in the docstring that `is` is deliberately
+NOT asserted, or the next reader adds it back. Pairs with L70a: the SEPARATION
+half is asserted through the container, never through `hash(a) != hash(b)`.
+
+### L72c — ⭐⭐ an independent construction of a finite group's ELEMENT SET is cheap, and it is the keystone
+
+`[M]` all 22 finite realizations rebuilt in plain numpy from each group's
+DEFINITION — `C_n` = Rodrigues `exp(θ[ê_z]ₓ)` (not the module's circle-point /
+roots-of-unity form), `D_nh` = rotations ∪ rotations·σ_h ∪ half-turns at
+`kπ/n` ∪ mirrors (the `D_n × {e,σ_h}` definition, not a closure), `σ_a` =
+`I − 2n̂n̂ᵀ`, `O_h` = the 48 signed permutations by index assignment, and **`I_h`
+by the FLAG construction** (the unique rotation carrying one
+(vertex, neighbour) pair of the icosahedron onto every other, ×{±I}; production
+runs a BFS closure of `{R_5, R_3, −I}`). Build cost **2.9 ms**; agreement with
+production **22/22, worst per-element residual 1.166e-15**, six orders inside
+`_ELEMENT_ATOL = 1e-9`.
+
+⟹ **State where the independence STOPS.** The reference shares production's
+standard SETTING (principal axis z, vertex on x) and must, because containment
+in that module is *literal subgroup containment in that setting*; a conjugated
+reference answers a different question. What is independent is the ALGORITHM.
+Writing that sentence is what turns "an independent construction" from a slogan
+into a claim.
+
+### L72d — ⛔ the obvious element-set mutation is UNCONSTRUCTIBLE, and the obvious dim-2 mutation is a CRASH ARM
+
+Two arms failed for structural reasons that are themselves findings:
+
+* *"perturb one `O_h` matrix by 1e-6"* → `RigidMotion.__post_init__` refuses a
+  linear part off orthogonality by more than **1e-12**
+  (`ValueError: linear part is not orthogonal`). L70d's shape. The in-class
+  mutation is a **SUBSTITUTION** — a legal rigid motion that is simply not an
+  element of the group (5 reds). Corollary: `_ELEMENT_ATOL` can never be
+  exercised by a non-orthogonal element, only by a wrong-but-legal one, which
+  is why a "the window bites" gate would be signature-tautological (L35e).
+* *"give `O(2)_a` a second independent generator"* (to gate "so(3) has no
+  2-dimensional subalgebra") reds **14** rows — but `[M]` **10 of them by
+  RAISING** (`_in_span`: `too many values to unpack`; `axis`: `only a torus has
+  an axis`), which attributes nothing (L31/L25). The theorem is a CONSTRUCTION
+  INVARIANT of `_in_span`, not an assumption. The attributable catcher is the
+  STRUCTURAL row; the honest in-class torus mutation is a **rotated axis**
+  (13 reds, all assertions).
+
+⟹ before designing a numerical-perturbation arm, check the type's own
+construction guard; if it refuses the perturbation, the in-class move is a
+substitution inside the guard's admissible set.
+
+### L72e — ⭐ a genuine MAXIMUM search is affordable as a gate once it is vectorised
+
+The `orbit_stabiliser` claim is *"the LARGEST subgroup of O(3) with this group's
+orbits"*. qa's probe searched it in Python loops. Vectorised —
+`einsum` the candidate set `H·O(2)_{p₀}` (the finiteness argument: `g p₀ ∈ H p₀`
+⟹ `h⁻¹g ∈ Stab(p₀)`), then filter by probe point with an analytic orbit
+predicate — `[M]` **0.61 s over all 31 members**, 180-point stabiliser sample,
+13 probes.
+
+⭐ It needs **both halves**, and the second is the one that witnesses anything:
+(a) MAXIMALITY — every surviving candidate lies inside the reported stabiliser;
+(b) CORRECTNESS — every element of the reported stabiliser preserves every
+orbit, **and where it GREW the growth is witnessed** (some sampled element of
+`Stab(H)` is outside `H`). Without (b) the `SO(2)_a → O(2)_a` and `SO(3) → O(3)`
+rows are unearned. `[M]` the growth census is exactly
+`{SO2_x→O2_x, SO2_y→O2_y, SO2_z→O2_z, SO3→O3}`.
+
+### L72f — the two rows NO arm reds are DECLARED reference-side controls, and saying so is the deliverable
+
+`[M]` 20 arms, 20 bit, 20 red; **26 of 28** rows reddened. The 2 that are not —
+`test_the_reference_construction_is_ITSELF_a_group` and
+`test_a_WRONG_stabiliser_claim_fails_the_orbit_check` — call **no production
+predicate** by design: one validates the reference (vv #17), one validates that
+a wrong claim would fail the two rows above it. Their green is the *licence* to
+read the neighbouring rows as coverage, not coverage itself. Both docstrings now
+say so, because an audit that counts them is counting nothing.
+
+⭐ And read the two **1-red** arms as the headline, not as weakness (L70e):
+`identity_component_returns_self` re-installs exactly what shipped until
+2026-09-02 and `[M]` **one** row in the whole tree notices — the one this plan
+adds. Before it, that property had **zero** readers, zero tests and zero doc
+roles, and was wrong on **21 of 22** finite members.
+
+### L72g — ⛔ a MERGE collapses denominators silently: count DISTINCT, not entries
+
+`Cn(1) == Trivial` made two roster constants hold duplicates, and both gates
+still pass:
+
+* `test_computed_containment_obeys_the_order_relation_laws`: `finite` list
+  `[M]` **10 entries / 9 distinct**, and `order = {g: …}` is a dict, so it holds
+  **9** keys while the loops iterate the list.
+* `_SPELLABLE`: `[M]` **23 entries / 22 distinct**, and the gate asserts
+  `n == 23` — a LIST length. Its pinned edge counts (`strict == 131`,
+  `touching == 23`) COUNT the duplicate (`Trivial ⊇ C_1` and `C_1 ⊇ Trivial` are
+  two "strict" edges for one group). Its docstring's *"they DO contain each
+  other **while comparing unequal**"* went present-tense-FALSE.
+
+⟹ after any value-merge, grep the roster constants and assert
+`len(set(roster)) == len(roster) == N`; a length assertion on a list is blind to
+exactly the thing the merge changed.
+
+### L72h — cost is a DESIGN INPUT for a lattice gate: ration the denominator, name the exclusion
+
+`[M]` the behaviour contract's full tables cost **17.79 s** (`is_normalised_by`,
+31 × 336 motions) and **22.78 s** (`normalises`, 31²) — 40.6 s of pytest for two
+rows. Per-member cost concentrates savagely: `I_h` 1.98 ms/call, `O_h` 0.86,
+everything else ≤ 0.57, and for `normalises` the 44 pairs with `O_h`/`I_h` as
+the OTHER argument are `[M]` **19.9 s of the 23.0 s**.
+
+⟹ the gates ship **1426** (31 × 46 stratified motions) and **931 of 961** pairs,
+each naming its exclusion in its own docstring, and the full tables stay in the
+main agent's `scratch/_r1_behaviour.py`. A stratified motion set is chosen to
+SEPARATE (mirrors, half-turns, quarter-turns, incommensurate rotations, improper
+partners, diagonal and polyhedral axes), and its census is asserted: `[M]` **578
+True / 848 False**, with the **4 CONSTANT columns** (`Trivial`, `C_1`, `SO3`,
+`O3` — normal in `O(3)`, a theorem) named in the assertion so a criterion that
+made one separable, or made a separable member constant, reds.
+
+### L72i — ⭐ the two rows I got wrong were MINE, and chasing them produced the best gate in the file
+
+First draft asserted `O2("x").contains(Mirror("x"))` and
+`SO2("z").normalises(Dnh(n))`. Both are **False** and production is right
+(`σ_x` has normal `ê_x`, so it FLIPS the axis and is not in the stabiliser; a
+rotation about z carries `D_nh`'s in-plane `C₂'` axes to axes the group does not
+contain). L35f's rule — *when a shipped predicate rejects your test input,
+suspect the FIXTURE first* — held.
+
+⭐ The repair is the sharpest row in the plan: on ONE group and ONE family,
+containment and normalisation are **independent in both directions** —
+`[M]` `O2_x`: `σ_x` not-contained/normalised, `σ_y` and `σ_z`
+contained/not-normalised. That is the row that forces step 1 (normalise) before
+step 2 (contains) in the invariance kernel, and it is strictly stronger than the
+committed one-directional version.
+
+### L72j — a name can be FREE in code and TAKEN in the prose corpus
+
+`[M]` `class Realization` : **0** occurrences in `orpheus/` + `tests/`. And
+`Realization` (capital R) appears **32** times in `.claude/`, in every case
+naming the third axis of the operator campaign — *Operator · Splitting ·
+Realization*, "how an operator is computed". `plan-authoring` §1's name clause
+run FORWARD: the name is not refuted, it is *taken*, and a fresh session reading
+it in `numerics/symmetry.py` arrives with the other meaning primed. Raised as an
+open ruling rather than a blocker (the gates import whatever lands).
+
+---
+
+## L73 — #434 R4, "the lift is a derivation output, and an orbit space's dimension is a theorem" (plan + gates DELIVERED 2026-09-03, pre-carve; R1's 13-tree gate running concurrently)
+
+**Route.** Bash + `.venv/bin/python` probes only (`scratch/_r4_probe{1..13}.py`,
+`_r4_census.py`, `_r4_shim.py`). READ-ONLY on `orpheus/`, `tests/`, `docs/`,
+`.claude/` throughout — a 13-tree gate was mid-run on the working tree
+(`scratch/_r1_full_gate.log`, R1 uncommitted). Nexus tools were present and unused: every
+question was a completeness census over spellings, which `plan-authoring` §2's FILTER
+clause routes to Python `re`, not to a graph walk.
+
+Deliverables: `scratch/_r4_verification_plan.md`, `scratch/_r4_gates_draft.py`
+(31 functions / **102 rows**), `scratch/_r4_test_migration.md`.
+
+### L73a — ⛔⛔ The carve's whole subject was Mode-12 invisible to the machinery it lives in, and the DECISIVE measurement cost one in-process monkeypatch
+
+R4 replaces a mirror orbit space's lift (a hemisphere SECTION onto the fundamental
+domain) with the orbit BARYCENTRE `P_H p` — a change of `max |section − projector| =
+9.943e-01 / 9.735e-01 / 9.778e-01` in the ambient space. The invariance kernel
+(`_orbit_space_closure`, `is_invariant`, `maximal_invariance_groups`,
+`ordinate_permutation`, `induced_permutation`) reads `orbit_coordinates(...)` of whatever
+the lift returns — and `orbit_coordinates` is exactly the column selection `P_H` re-writes,
+so `π(g · P_H p) = π(g · p)` for every `g` in the normaliser and the kernel cannot see it.
+
+`[M]` the decisive form — install R4's lift semantics over
+`Quotient.ambient_representatives` in-process and re-run the campaign's OWN behaviour
+battery (`scratch/_r1_behaviour.py capture`, 31 groups × the containment/normaliser/
+invariance/walk tables): **0 of 9925 answers moved**, twice 9.1 s. That single number
+replaced every argument in the plan and produced three design constraints:
+(a) no kernel-tier row may be credited as a catcher; (b) every gate asserts at the AMBIENT
+tier; (c) `chart ∘ lift == id` is a DECLARED BLIND leg (`[M]` true of the retired section
+too), so it ships labelled with the teeth in `lift ∘ chart == P_H`.
+
+⟹ **When a carve moves an intermediate that a chart later projects away, model the new
+semantics as a monkeypatch and re-run the campaign's behaviour capture BEFORE designing
+gates.** It is the cheapest possible Mode-12 stabiliser computation and it is empirical.
+
+### L73b — The bit-vs-near split of a "block-diagonal ⟹ commutes" claim is TWO populations, and one `np.allclose` would have hidden the exact half
+
+The brief asked: the closure now acts on barycentres, and every normalising `g` is
+block-diagonal, so `chart(g·P p) == chart(g·p)` — bit-exact, or within the node window?
+
+`[M]` over 3 folds × every representative of the 31 members that normalises `⟨σ_y⟩` (261
+motions): **243 `array_equal`, 18 not**, `max |Δ| = 4.996e-16`, and the 18 are ALL `I_h`
+elements. Re-partitioned by the right predicate:
+
+| population | rows | `array_equal` | max\|Δ\| |
+|---|---|---|---|
+| signed-permutation normalisers | **100** | **100** | `0.000e+00` |
+| the rest (all `I_h`) | **7** | **0** | `4.996e-16` |
+
+Mechanism: `is_normalised_by` admits at `_ELEMENT_ATOL = 1e-9`, so an icosahedral element
+fixing `ê_y` only to ~1e-16 carries non-zero off-axis entries and does not commute with
+`P_H` exactly. The closure's node window is `_NODE_WINDOW_FACTOR × atol = 1e-7` — NINE
+orders above — which is why L73a's 0 of 9925 holds.
+
+⟹ **ship the row as TWO legs**: `array_equal` on the signed-permutation population (a bit
+wall a future non-signed motion cannot silently weaken) and `atol=1e-13` on the rest with
+the window quoted. A single `allclose` over the union is green either way and loses the
+statement that the shipped traffic is EXACT.
+
+### L73c — ⭐ A DRY-RUN SHIM turns a gate draft into a measurement, and it caught a mixed-subject assertion on the first run
+
+`lessons` L31/L33 says ship a plan's gates as a runnable module. Here the API does not
+exist yet, so the runnable form is a **shim**: `scratch/_r4_shim.py` installs
+`_coordinate_chart`, `lift_coordinates`/`lift_codomain` (as ctor kwargs AND properties),
+`orbit_barycentres`, `is_trivial`, the dimension law wrapped around `__post_init__`, the
+`(M/H)/{e}` short-circuit and the widened `barycentre`, then
+`pytest -p _r4_shim scratch/_r4_gates_draft.py`.
+
+`[M]` **100 passed / 2 failed in 0.91 s**, and the 2 are exactly the claims a shim cannot
+provide (real `dataclasses.fields` entries; a retired symbol's absence).
+
+The find: my `test_the_five_call_sites_answer_identically` (subject: `is_trivial`) ended
+with `assert barycentre(entry).domain is entry` — item 4's WIDENING, a different carve
+item. A red there would have been unattributable between two unrelated subjects. It is now
+its own row with a positive leg over all 8 entries and the narrowed refusal, which is also
+the ONLY gate item 4 has.
+
+`[M]` pyright over the draft: 28 errors, all 28 naming the not-yet-landed API, 0 others —
+after re-spelling `sum(...)/len(...)` (types as `NDArray | float`) as the stacked `mean`
+it is (`coding-elegance` anti-#19; `[M]` `array_equal` either way).
+
+### L73d — ⛔ A filter's own POSITIVE CONTROL caught it, in the flattering direction, on the §6b constructor set
+
+The §6b set for two new REQUIRED dataclass fields is "every direct construction". First
+spelling: `^\s*Quotient\s*\(|=\s*Quotient\s*\(` → **1 hit**, and the control
+`    return Quotient(` did NOT match (the line begins with `return`). Corrected
+`\bQuotient\s*\(` → **10 hits**, including production's own three builders.
+The wrong answer said *"only one construction site to fix"*.
+
+Same session, same shape, on my OWN prose: I wrote *"a `getattr(…, 'name', …)` sweep over
+`orpheus/` returns 0"* from memory; `[M]` it returns **3** — all three inside error-message
+f-strings, none in a condition, so the CONCLUSION survived and the sentence did not.
+Both corrections are recorded in place in the migration doc.
+
+### L73e — The §6b members a spelling census cannot return, measured for this carve
+
+- **`match` PATTERNS on the changed type** — `[M]` 3 sites (`measure.py:490`,
+  `manifold.py:1947`, `basis/base.py:402`). All KEYWORD patterns, so inserting fields is
+  safe; a POSITIONAL one would silently re-bind. One reading; its absence is invisible.
+- **Docstring cross-references** — `numerics/manifold.py` and `symmetry.py` carry no
+  `automodule`, so a dead `:meth:` renders as plain text at EVERY severity.
+  `mcp__nexus__dead_references` is the only instrument that reads that surface.
+- **A test HARNESS on every module's import chain** — `tests/_harness/references.py:31`
+  imports `symmetry._embedded_nodes`; break it and the suite dies at COLLECTION with
+  `0 collected` and both `^FAILED` and `^ERROR` reading zero (L68a).
+
+### L73f — The opener question, answered in three measurements instead of one
+
+*"Does projecting a fold's representatives to barycentres change what
+`tests/_harness/references.py` asserts?"* The tempting single measurement is the function's
+output. Three were needed, and only the third settles it:
+
+1. `_embedded_nodes` output, 11 rules → `array_equal` on **9 of 11**; the 2 folds move.
+2. the harness's ANSWER (partner map + refusal), 11 × 3 axes → **31 of 33 unchanged**; the
+   2 that move are `axis="y"` **on a fold** (RAISES today at residual 1.15–1.19; identity
+   permutation after).
+3. **which axis each folded call site passes** → `[M]` `"x"`, both of them (a literal at
+   `test_snmesh_realizer_wiring.py:439,450`; the CYL fold's only realized face carries
+   `ReflectiveBoundary(axis='x')`, measured by building the `SNMesh`).
+
+⟹ no committed assertion moves. ⭐ But the change is a real CAPABILITY — the harness stops
+contradicting `induced_permutation`, which has answered the identity since #429 2.2b — and
+nothing else in the tree states it, so it needs a gate of its own or it lands unrecorded.
+
+⚠ And a quantified coverage note the census would have missed:
+`tests/sn/sweep/curvilinear/test_coupled_pole_mu_level_invariant.py`'s `_CUBATURES`
+includes 2 folded rows. `[M]` the gate passes on 8 of 8 before AND after, but on those 2
+rows `|μ_y|max` collapses `8.688e-01 → 0.000e+00` and `9.082e-01 → 0.000e+00`, so its
+docstring's *"μ_y/μ_z must be held"* goes vacuous in y on 2 of 8 (`vv` #20). The remedy is
+the docstring note, not a re-key: feeding raw nodes would re-mint the Pattern-2 duplicate
+that file records as removed.
+
+### L73g — §6c witnesses that EXIST pre-carve, found by construction rather than by hope
+
+Three of R4's claims land with a case the tree already carries, each measured:
+
+- **the dimension law** — `[M]` BOTH forgeries construct today
+  (`S^2/O2_z` on `Ball(2)`; `S^2/sigma_x` on `[-1,1]`), and both carry
+  `fundamental_domain=None` so the pre-existing fd clause returns early and provably
+  cannot see them. They are ITS witnesses and no other gate's.
+- **retiring the three-arm `lift` branch** — `[M]` a hand-built
+  `Quotient(base=SPHERE, by=OctahedralOh, realization=Ball(2), …)` CONSTRUCTS today
+  (`O_h` is its own `orbit_stabiliser`; the law reads `2−0 = 2` ✓) and `entry.lift` raises
+  `NotImplementedError: no lift is spelled for S^2/Oh`.
+- **`(M/H)/{e}`** — `[M]` today it builds a second object `S^2/sigma_y/Trivial`, and
+  `[M]` **no test pins that string** (Python `re` over `tests/`: 0); the only carrier is
+  `manifolds.rst:7563`. So the change would otherwise land unwitnessed.
+
+⚠ And the L43c companion: the dimension law and the fd gate are two clauses in one
+`__post_init__`, and `[M]` the fd gate's HISTORICAL witness violates BOTH after R4. Each
+owes a DISCRIMINATING input — measured and both constructible — and the ORDER owes its own
+row (present fragment / absent fragment on the both-violating input).
+
+### L73h — Instrument choice measured, not assumed: MORE trapezoid points is WORSE
+
+The axial lift is the orbit CIRCLE's mean; the reference is a trapezoid of `R_θ p`. `[M]`
+residual vs `n`: `8 → 2.220e-16`, `16 → 3.331e-16`, `32 → 5.551e-16`, `64 → 1.110e-15`,
+`1024 → 2.587e-14`. The rule integrates `cos θ`/`sin θ` exactly for `n ≥ 3`; everything
+past that is summation error. Ship `n = 16, atol = 1e-14` and SAY in the docstring that
+raising `n` degrades it — otherwise a later session "strengthens" the gate into a false red.

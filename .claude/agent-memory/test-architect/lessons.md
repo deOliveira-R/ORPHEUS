@@ -291,6 +291,31 @@ THERE. Below: only the shapes vv lacks, plus the repair recipes.
   are off the concrete class (2 staticmethods, 1 base function, 1 base
   property), so a concrete-class battery binds **5 of 9** and reports a
   confident partial zero. → `L64d`
+- **⛔⛔ When a carve moves an INTERMEDIATE that a later chart projects away, model
+  the new semantics as a MONKEYPATCH and re-run the campaign's own behaviour capture
+  BEFORE designing gates — it is the cheapest empirical Mode-12 stabiliser.** `[M]` R4
+  replaces a mirror orbit space's hemisphere SECTION with the orbit barycentre `P_H p`
+  (`max|section − projector| = 9.94e-01`) and the WHOLE invariance machinery is blind:
+  `orbit_coordinates` is exactly the column selection `P_H` re-writes, so
+  `π(g·P p) = π(g·p)` for every normalising `g`. Installing R4's lift over
+  `Quotient.ambient_representatives` in-process and re-running the campaign's 31-group
+  behaviour battery read **0 of 9925 answers moved** (9.1 s). That one number yielded
+  three design constraints — no kernel row may be credited a catcher; every gate asserts
+  at the AMBIENT tier; the round-trip `chart ∘ lift == id` is a DECLARED BLIND leg (true
+  of the retired section too). ⭐ Companion: the "block-diagonal ⟹ commutes" half is TWO
+  populations — `[M]` **100 of 100** signed-permutation normalisers `array_equal` at
+  `0.000e+00`, **0 of 7** others (all `I_h`) at `4.996e-16`, because `is_normalised_by`
+  admits at `_ELEMENT_ATOL=1e-9` while the node window is `1e-7`. Ship TWO legs; one
+  `allclose` over the union hides the exact half. → `L73a`, `L73b`
+- **⭐ When the API does not exist yet, the runnable dry-run is a SHIM.** `[M]` R4:
+  `scratch/_r4_shim.py` installs the unlanded fields/verbs/laws in-process, then
+  `pytest -p _r4_shim <draft>` reads **100 passed / 2 failed in 0.91 s** — the 2 being
+  exactly what a shim cannot provide (real `dataclasses.fields`; a retired symbol's
+  absence). It caught, on the first run, a MIXED-SUBJECT assertion I had written (item
+  4's `barycentre` widening trailing a row whose subject was `is_trivial`), whose red
+  would have been unattributable between two carve items. Run pyright too: 28 errors, all
+  28 naming the unlanded API, 0 others — after re-spelling `sum(...)/len(...)` (types
+  `NDArray | float`) as the stacked `mean` it is. → `L73c`
 - **⛔ A design memo's HAZARD PROSE is a claim — run it.** `[M]` the ruled
   "silent, plausible-wrong k" of a wrong-family closure is LOUD on every
   geometry that matters (sphere `TypeError` naming the requirement; cylinder
@@ -569,6 +594,29 @@ codes). → `L34d`, `L35l`
   a deletion on a module-scope-imported symbol is never in-class, so the two
   rules meet. `[M]` the in-class rebind reds **2 committed gates** the deletion
   reported as zero. → `L68a`
+- **⛔ A §6b constructor census's own POSITIVE CONTROL is what catches it, and the wrong
+  answer points the FLATTERING way.** `[M]` R4: `^\s*Quotient\s*\(|=\s*Quotient\s*\(`
+  returned **1 hit** and its control `    return Quotient(` did NOT match (the line begins
+  with `return`); `\bQuotient\s*\(` returns **10**, production's own three builders
+  included. The false reading said *"only one construction site to fix"*. Same session,
+  same shape, in my OWN prose: I wrote *"a `getattr(…,'name',…)` sweep returns 0"* from
+  memory — `[M]` it returns **3** (all in message f-strings, none in a condition, so the
+  conclusion survived and the sentence did not). ⭐ And the members no spelling census can
+  return, enumerated for that carve: `match` PATTERNS on the changed type (`[M]` 3, all
+  KEYWORD — a POSITIONAL one would silently re-bind), docstring `:meth:` xrefs (invisible
+  to `-W` at every severity when the module is not `automodule`'d; `dead_references` is
+  the only reader), and a harness on every module's import chain. → `L73d`, `L73e`
+- **⭐ An "does this consumer move?" question needs THREE measurements, and only the
+  third settles it: the function's OUTPUT, the consumer's ANSWER, and WHICH ARGUMENTS THE
+  CALL SITES ACTUALLY PASS.** `[M]` R4 vs `tests/_harness/references.py`: the embedding
+  moves on 2 of 11 rules, the harness's answer moves on 2 of 33 (rule × axis) rows — and
+  `[M]` **no call site passes the axis that moves** (both folded sites pass `"x"`; the CYL
+  one via `ReflectiveBoundary(axis='x')`, measured by building the `SNMesh`). ⟹ zero reds,
+  and the change is a real CAPABILITY nothing else states, so it needs its own gate.
+  ⚠ A per-consumer census still misses a per-ROW coverage loss: `[M]` a curvilinear seed
+  gate passes 8 of 8 before AND after while `|μ_y|max` collapses `8.7e-01 → 0.0` on its 2
+  FOLDED rows, making its own *"μ_y/μ_z must be held"* vacuous in y there (`vv` #20).
+  → `L73f`
 - **⛔ A per-instance MEMO masks the mutation, and the masked reading is a
   plausible bit-identical GREEN.** `[M]` `Quadrature._angular_frames[L]`: rule
   built after the mutation → `keff = 0.4159228684117852`; same rule warmed by an
@@ -2130,3 +2178,127 @@ first). Price every guard with a stronger-than-the-change control AT EACH TIER a
 write the inert tier into the docstring. ⭐ Its sibling: **the equality short circuit
 in a lattice predicate is itself a gate** — `[M]` `sigma_x ⊉ O2_x`, so asking the Γ leg
 unconditionally makes the slab refuse its own rule (10 of 28 rows). → `L71f`, `L71g`
+
+## #434 R1 additions (2026-09-03, the realization carve) → `L72`
+
+**Gates that cannot red.** ⛔⛔ **A done-when spelled with `is` on a VALUE type is
+a false red waiting.** `[M]` `SubgroupOfO3.Cn(1) is SubgroupOfO3.Trivial` is
+**False** while `==` is True — `__post_init__` normalises the TAG, so the
+constructor returns a fresh instance, not the singleton. Gate a value-merge with
+`==` / `hash` / `name` / `repr` / container-dedup / the downstream door, and say
+in the docstring that `is` is NOT asserted or the next reader adds it back. Pairs
+with `L70a` (the SEPARATION half goes through the container, never
+`hash(a) != hash(b)`). → `L72b`
+
+⛔ **The obvious numerical-perturbation arm can be UNCONSTRUCTIBLE, and the
+obvious structural arm a CRASH arm.** `[M]` "perturb one `O_h` matrix by 1e-6" →
+`RigidMotion.__post_init__` refuses off-orthogonality > 1e-12; the in-class move
+is a **SUBSTITUTION** inside the guard's admissible set (a legal rigid motion
+that is not an element). And "give the torus a second generator" reds 14 rows of
+which **10 by RAISING** — the theorem is a construction invariant of `_in_span`,
+so the attributable catcher is the STRUCTURAL row and the honest torus mutation
+is a **rotated axis** (13 reds, all assertions). Check the type's own
+construction guard BEFORE designing a perturbation arm. → `L72d`
+
+⛔ **A value-MERGE collapses roster denominators silently — count DISTINCT, not
+entries.** `[M]` after `Cn(1) == Trivial`: one gate's `finite` list is 10 entries
+/ **9 distinct** (its `order` dict silently holds 9 keys), another's `_SPELLABLE`
+is 23 / **22** while the gate asserts `n == 23` — a LIST length, blind to exactly
+what the merge changed — and its pinned edge counts COUNT the duplicate. Assert
+`len(set(roster)) == len(roster) == N`, and grep the roster's docstring: *"they
+contain each other while comparing unequal"* went present-tense-false.
+→ `L72g`
+
+⭐ **The rows NO arm reds may be DECLARED reference-side controls — say so in
+their docstrings.** `[M]` 20 arms / 26 of 28 rows red; the 2 survivors call no
+production predicate by design (the reference's own validity control, and the
+"a wrong claim would fail" control). Their green is the LICENCE to read the
+neighbouring rows as coverage, not coverage. An audit that counts them counts
+nothing. → `L72f`
+
+**Reference & claim layer.** ⭐⭐ **An independent construction of a finite
+group's ELEMENT SET is cheap and is the keystone — but state where the
+independence STOPS.** `[M]` all 22 finite realizations rebuilt in plain numpy
+from the definitions (Rodrigues `C_n`; `D_n × {e,σ_h}` for `D_nh`; 48 signed
+permutations by index assignment for `O_h`; **`I_h` by the FLAG construction**
+against production's BFS closure) — **2.9 ms**, agreement **22/22 at 1.166e-15**,
+six orders inside `_ELEMENT_ATOL`. The reference SHARES the standard setting and
+must (containment there is literal subgroup containment *in that setting*); what
+is independent is the ALGORITHM. Writing that sentence is what makes it a claim.
+→ `L72c`
+
+⭐ **A genuine MAXIMUM search is affordable once vectorised, and it needs BOTH
+halves.** `[M]` 0.61 s over 31 members (candidate set `H·O(2)_{p₀}` by `einsum`,
+180-point stabiliser sample, 13 probes). (a) MAXIMALITY: every survivor lies
+inside the reported stabiliser; (b) CORRECTNESS: every element of the reported
+stabiliser preserves every orbit **and where it GREW the growth is witnessed**
+(some sampled element is outside `H`). Without (b) the growth rows are unearned.
+→ `L72e`
+
+**Harness discipline.** ⚠ **When the carve lands MID-DISPATCH, bracket every
+measurement with the file's SHA and take a `cp -a` pristine copy before the
+first mutation** — then `diff -q` attributes a changed file to the concurrent
+writer instead of alarming. `[M]` the hash moved four times; the gates became
+MEASURED rather than predicted and the §6b list became a RESIDUAL (state the
+predicate, not the set). Free headline: the full carve reds **0 of 3004** in
+`tests/numerics/`. → `L72a`
+
+⛔ **Ration a lattice gate's denominator by MEASURED per-member cost and name the
+exclusion.** `[M]` the full tables are 17.79 s + 22.78 s for two rows; `I_h`
+alone is 1.98 ms/call and the 44 pairs with `O_h`/`I_h` as the OTHER argument are
+19.9 s of 23.0 s. Ship 1426 (31 × 46 STRATIFIED motions, chosen to SEPARATE) and
+931 of 961, each naming its exclusion; assert the census (`[M]` 578 True / 848
+False) and NAME the constant columns that are constant by theorem. → `L72h`
+
+⭐ **A proposed name can be free in CODE and taken in the PROSE corpus.** `[M]`
+`class Realization` = 0 in `orpheus/`+`tests/`; `Realization` = 32 in `.claude/`,
+every one naming the operator campaign's third axis. `plan-authoring` §1 run
+forward. → `L72j`
+
+**Config blindness.** ⭐ **When a shipped predicate rejects your test input,
+suspect the FIXTURE first (`L35f`) — and the repair may be the best gate in the
+file.** `[M]` two of my own rows were wrong; chasing them produced the row where
+containment and normalisation are **independent in BOTH directions on one group
+and one family** (`O2_x`: `σ_x` not-contained/normalised; `σ_y`,`σ_z`
+contained/not-normalised) — strictly stronger than the committed one-directional
+version, and the reason step 1 must precede step 2 in the invariance kernel.
+→ `L72i`
+
+## #434 R4 additions (2026-09-03, the lift-as-derivation-output carve) → `L73`
+
+Grouped by the families above; the two headline entries are already inlined in §1 and §2.
+
+**§1 (gates that cannot red) — ⭐ §6c witnesses found by CONSTRUCTION, three of them,
+each measured on the PRE-carve tree.** A step's claim lands with the case it catches only
+if you go looking for that case; here all three existed and none was obvious:
+- the DIMENSION LAW's witnesses are the two forged entries — `[M]` both CONSTRUCT today
+  (`S^2/O2_z` realized on `Ball(2)`; `S^2/sigma_x` on `[-1,1]`), and both carry
+  `fundamental_domain=None`, so the pre-existing sibling clause returns early and
+  provably cannot see them: they are ITS witnesses and no other gate's;
+- RETIRING a three-arm tag branch is witnessed by a LEGAL member outside all three arms —
+  `[M]` a hand-built `Quotient(by=OctahedralOh, realization=Ball(2), …)` constructs today
+  (`O_h` is its own `orbit_stabiliser`, the law reads `2−0=2` ✓) and `entry.lift` raises
+  `NotImplementedError`;
+- an IDENTITY simplification (`(M/H)/{e}` returns the base) is witnessed by the object it
+  stops building — `[M]` today it builds a second `S^2/sigma_y/Trivial`, and **no test
+  pins that string** (Python `re` over `tests/`: 0 hits; the only carrier is a doc line),
+  so the change would land unwitnessed.
+⚠ L43c companion: when the new law and an existing clause share one `__post_init__`,
+`[M]` the OLD clause's historical witness violates BOTH afterwards. Each owes a
+DISCRIMINATING input (measured, both constructible) and the ORDER owes its own row —
+present-fragment / absent-fragment on the both-violating input. → `L73g`
+
+**§5 (tolerance) — an instrument's ORDER is a measured choice and MORE CAN BE WORSE.**
+`[M]` the orbit-circle mean by trapezoid: residual `n=8 → 2.220e-16`, `16 → 3.331e-16`,
+`32 → 5.551e-16`, `64 → 1.110e-15`, `1024 → 2.587e-14`. The rule is exact on `cos θ`/`sin θ`
+for `n ≥ 3`, so everything past that is summation error. Ship the small `n` and SAY in the
+docstring that raising it degrades the gate — otherwise a later session "strengthens" it
+into a false red. → `L73h`
+
+**§5 (tolerance) — a bit tier can be a THEOREM, and then its PREMISE is what to gate.**
+`embed ∘ select == P_H` is `array_equal` on 8 of 8 entries because `select` is a column
+read, `embed` writes those floats into zeros, and `[M]` `P_H` is a 0/1 DIAGONAL on every
+shipped entry. That last clause is contingent — a non-axis-aligned `H` gives a dense `P_H`
+and the row belongs at `nulp`. ⟹ assert `P == diag(diag(P))` as the row's own premise, so
+the day it stops holding the suite says WHICH claim it lost instead of reddening a row
+whose subject is elsewhere (`lessons` L61a's premise-gating shape). → `L73a`

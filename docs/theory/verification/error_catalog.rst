@@ -5475,6 +5475,19 @@ older entries classify against.
    :math:`SO(2)`-closed iff every node lies ON the axis, which the last
    clause of this entry's Lesson had already stated.
 
+   ⭐ **The live defence, since 2026-09-03 (#434 R1), is one method.**
+   That criterion is now spelled once, as :meth:`IdentityComponent.fixes
+   <orpheus.numerics.symmetry.IdentityComponent.fixes>`: the condition
+   :math:`Xp = 0` for every generator :math:`X` of the identity
+   component and every node :math:`p`, which reads *"on the axis"* for a
+   torus (:math:`|\hat a \times p| = 0` is the distance from the axis)
+   and *"at the origin"* for :math:`SO(3)`. It replaced two helpers that
+   spelled the two cases apart (``_is_axis_supported`` and
+   ``_is_origin_supported``), and it is what the invariance kernel calls:
+   the three gates named above are its witnesses, and `[M]` the shipped
+   predicate is unchanged by the carve — **0 of 270** ``is_invariant``
+   cells moved against a pinned pre-carve tree.
+
    ⭐ **Re-scoped 2026-09-01 (tracker 2.4 of #429), and the re-scoping is
    ``vv-principles`` #13's finite-roster corollary applied to the gates
    themselves.** The axial rotation group became ``SO2(axis)``, so
@@ -5515,15 +5528,33 @@ older entries classify against.
    inside :math:`D_{2h}` while a generic angle does not — the same
    ``n mod 4`` signature, one predicate over. The shipped answer is
    exact instead: conjugation by a CONNECTED group is continuous, hence
-   constant into a finite group, so
-   :func:`~orpheus.numerics.symmetry._identity_component_normalises`
-   computes a **commutator against the rotation generator**
-   :math:`[\hat e_a]_\times` and the finitely many coset
+   constant into a finite group, so the identity component is decided
+   through its **Lie algebra** and the finitely many coset
    representatives are asked one by one. `[M]` a ten-angle
    incommensurate sample agrees with the exact criterion on **8 of 8**
    pairs, which is the positive control that a ``False`` is a refusal
    rather than a broken filter. See
    :ref:`manifold-normaliser-sampling-control`.
+
+   ⭐ **2026-09-03 (#434 R1) — five per-family arms became ONE body, and
+   the defence is unchanged.** This paragraph named
+   ``symmetry._identity_component_normalises``, a five-arm dispatch of
+   which `[M]` one arm was invoked exactly ONCE across 670 tests.
+   :meth:`IdentityComponent.normalises
+   <orpheus.numerics.symmetry.IdentityComponent.normalises>` replaces
+   it with the criterion :math:`[X, \mathfrak h] \subseteq \mathfrak h`
+   and :math:`X - \mathrm{Ad}_s X \in \mathfrak h` for every generator
+   :math:`X` and every coset representative :math:`s` of :math:`H`,
+   carried with its proof at
+   :ref:`manifold-normaliser-lie-criterion-section`. On a finite
+   :math:`H` that expression **is** the commutator against
+   :math:`[\hat e_a]_\times`, so the retired arm's answer was right;
+   what it was not is *derived* — and four of its five branches had no
+   witness that could have said otherwise, which is
+   ``vv-principles`` #17's multi-arm granularity trap in production
+   code rather than in a gate. `[M]` the two implementations agree on
+   **729 of 729** ordered pairs over the 27 shipped spellings, and the
+   2-of-8 over-certification above re-measures unchanged.
 
    **Lesson.** A finite "representative orbit" certifies **only the group
    the sample generates** — compute that group and compare it to the

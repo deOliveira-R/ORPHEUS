@@ -829,16 +829,18 @@ The groups themselves carry an order relation — containment in the
 
 .. (vv-status rationale) subgroup-of-o3-containment: Verified
    transitively by the foundation tests in
-   :file:`tests/numerics/test_symmetry.py` — every named relation in
-   the static lattice (``Trivial ⊂ σ_z ⊂ O_h ⊂ O(3)``,
+   :file:`tests/numerics/test_symmetry.py` — every named relation the
+   gates assert (``Trivial ⊂ σ_z ⊂ O_h ⊂ O(3)``,
    ``SO(2)_z ⊂ O(2)_z ⊂ D_∞h ⊂ O(3)`` with the two OTHER axes asserted
    NOT inside D_∞h and SO(2)_a inside SO(3) on all three while O(2)_a is
    inside none of them, ``C_n ⊂ SO(2)_z`` for every n, the
    ``O_h \not\subset SO(3)`` improper-rotation test, the parameterised
    ``C_n ⊂ C_m \iff n | m`` rule, and reflexivity for every named entry)
    is asserted directly. The axis-dependent rows arrived with the SO(2)
-   parameterisation on 2026-09-01 and are COMPUTED from the finite
-   group's realization since #432 (2026-09-02) rather than tabulated.
+   parameterisation on 2026-09-01 and were COMPUTED from the finite
+   group's realization from #432 (2026-09-02); since #434 R1
+   (2026-09-03) EVERY row is, and no relation between two groups is
+   tabulated anywhere (see manifold-realization on the manifolds page).
    The row this comment used to name, ``SO(2) ⊂ O(2) ⊂ O(3)``, predates
    the O(2) → D_∞h rename recorded three paragraphs below — and note
    that the chain is TRUE again under the 2026-09-02 reading, where
@@ -851,9 +853,18 @@ The groups themselves carry an order relation — containment in the
 
 The "if and only if" is the standard set-theoretic definition of a
 subgroup; what it buys is a *decidable* order over the named entries
-and the parameterised families, implemented by
-:meth:`~orpheus.numerics.symmetry.SubgroupOfO3.contains` and its
-reverse-direction synonym ``is_subgroup_of``.
+and the parameterised families, implemented by the single verb
+:meth:`~orpheus.numerics.symmetry.SubgroupOfO3.contains` — a
+computation on the two groups' realizations
+(:ref:`manifold-realization`), not a lookup.
+
+⛔ **There was a reverse-direction synonym** ``is_subgroup_of``, and
+this sentence named it until 2026-09-03. #434 R1 retired it: two
+spellings of one relation is the same defect one tier down as two
+spellings of one group, and `[M]` it had **zero** production callers
+against 14 test sites, all of which now read ``contains``. A relation
+has one direction and one name; a reader who wants
+``H.is_subgroup_of(G)`` writes ``G.contains(H)``.
 
 .. warning::
 
@@ -908,6 +919,30 @@ the tree carries two polar axes at once — the real spherical-harmonic
 basis and the slab's marginal are about :math:`x`, every product rule's
 polar factor is about :math:`z` — so a group tag that did not name its
 axis was a claim about the wrong pole in one of its two uses.
+
+.. important::
+
+   **A tag is a NAME; the answers come from a realization** (#434 R1,
+   2026-09-03). Every entry above — named or parameterised, finite or
+   continuous — is turned into the pair (identity component, one
+   representative per connected component) exactly once, and every
+   question this page asks of a group is one computation on that pair.
+   The classification that makes the pair sufficient, its one-line proof
+   (:math:`\mathfrak{so}(3) \cong (\mathbb R^3, \times)` has no
+   two-dimensional subalgebra, so a connected subgroup is
+   :math:`\{e\}`, a circle about a named axis, or :math:`SO(3)`), and
+   the per-question bodies are derived once on the manifolds page:
+   :ref:`manifold-realization`. **Edited there, mirrored here.**
+
+   What this page owns is the measure-facing consequence, and it is the
+   one that keeps ERR-072 shut: a CONTINUOUS group is never sampled,
+   because its identity component is decided by CONNECTEDNESS — a
+   connected orbit inside a finite point set is a point — and its
+   remaining finitely many components are asked as a finite group is.
+   The predicates below are those two statements read at each family.
+   `[M]` 2026-09-03 the carve moved **0 of 270** ``is_invariant`` cells
+   (10 shipped rules × 27 group spellings) and **0 of 10** walk reports,
+   measured against a pinned pre-carve tree.
 
 .. note::
 
@@ -967,8 +1002,14 @@ axis was a claim about the wrong pole in one of its two uses.
      character-table or generator-based machinery is implemented because
      none is yet needed." Both halves are now false. Containment between
      two FINITE groups is decided by **computed matrix containment** on
-     their realized operator sets; the static table is consulted only
-     when one side is continuous. The lattice itself is a **computed**
+     their realized operator sets. ⛔ This bullet went on to say that
+     *"the static table is consulted only when one side is continuous"*
+     — true when written and false since #434 R1 (2026-09-03): there is
+     no static table left to consult, because a continuous group is
+     represented by its identity component and its coset
+     representatives and is asked the same two questions a finite one is
+     (:ref:`manifold-realization`). The lattice itself is a
+     **computed**
      Hasse diagram of maximal-subgroup relations, walked downward from
      high symmetry to find the symmetry a node set actually has — the
      crystallographic construction. A *declared* invariance group is a
@@ -988,13 +1029,31 @@ verify that the project's wrapper code preserves the property the
 literature establishes, and to reject accidental loss (e.g., a
 quadrature reshaped through a non-symmetric pushforward).
 
-The non-trivial design choice for ``is_invariant`` is the
-**fingerprint strategy**: rather than enumerating all 48 elements of
-:math:`O_h` or all 120 elements of :math:`I_h`, the check applies a
-generating set (8 sign flips × 6 coordinate permutations for
-:math:`O_h`; 60 proper rotations + inversion for :math:`I_h`) and
-verifies that every generator's image of the node array agrees with
-the input under nearest-neighbour matching.
+The non-trivial design choice for ``is_invariant`` is that a finite
+group is asked through **every one of its elements** — not through a
+sample, and not through a fingerprint. The realization closes the
+shipped generating set once and memoises it (8 sign flips × 6
+coordinate permutations close to the 48 elements of :math:`O_h`; 60
+proper rotations plus the inversion to the 120 of :math:`I_h`), and
+the check verifies that each element's image of the node array agrees
+with the input under a matching that must also be a BIJECTION
+(ERR-073's guard). Closure under a generating set does imply closure
+under the group it generates, so the generator-only shortcut would be
+*sound* here; it is not taken, because that same soundness argument is
+the one that failed for the continuous families and produced ERR-072,
+and one rule that holds for every family is worth more than saving 40
+matrix products on a memoised object.
+
+⛔ **This paragraph described a "fingerprint strategy" until
+2026-09-03** — a sorted :math:`(|x|, |y|, |z|)` multiset for
+:math:`O_h`, and a 12-element *representative orbit* for :math:`I_h`.
+Both were retired code long before the prose was: `[M]` the call chain
+:meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant` reaches
+contains none of ``sorted`` / ``fingerprint`` / ``multiset`` /
+``icosahedron`` / ``vertex``. The :math:`I_h` half is worth naming as a
+near miss — a 12-vertex representative orbit is ERR-072's own shape, a
+finite sample standing in for a group — and it went out with the
+closure check rather than because anyone noticed the resemblance.
 
 A **continuous** group is not sampled at all — that is ERR-072, and the
 criterion is exact. A finite point set is closed under :math:`SO(2)_a`

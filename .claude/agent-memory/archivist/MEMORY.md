@@ -37,150 +37,43 @@ history" changelog at `docs/theory/methods/sn/history.rst` (⚠ NOT the pre-spli
 grep must `test -f` the SOURCE). Active track = **#231** (§3); main agent commits, I
 stage + gate.
 
-**In flight (ONE line each; the evidence is in the lesson, the state is in git):**
+**In flight — ONE line each. The evidence is in the lesson; the STATE is in git
+(`git status --porcelain -- docs/`), never in this list. All are branch
+`fix/angular-phantom-support`, docs UNCOMMITTED (I stage + gate; the main agent commits).**
 
-- **THE Γ-SLOT: a symmetry is asked ON the orbit space, and a geometry admits a FOLD of its
-  domain (#429 tracker 2.2b)** — 2026-09-02, same branch, its own commit after the fused one.
-  Docs **UNCOMMITTED** (mine): 4 hand-edited pages **+1318/−107** — `manifolds.rst` (a new `=`
-  chapter *Who ACTS on an orbit space*: the normaliser theorem + 2 new `documented` eq-labels,
-  the lift's three arms, `induced_action`'s refusal, the ONE four-step kernel, the Γ-slot with
-  `spent_group`, `ordinate_permutation`'s re-homing, the spent-group door, a what-moved table;
-  plus 10 in-place repairs incl. a DISCHARGED seam, the retired `_polar_axis_of` import row,
-  the machine header and a dev-history row), `discrete_measures.rst` (stage 0/1 + a 3rd new
-  label + a new witness row in the independence table + the verbatim message), `error_catalog.rst`
-  (ERR-080 re-tensed; ERR-072 gains the right-angle-over-certification control),
-  `frame.rst` (the shared-arrow cross-link), + regenerated `matrix.rst` (sentinels 584 → **587**,
-  exactly my +3). `-E -W` **0 → 0**, EXIT=0; xref gate 0 dead / 14618 (stock AND patched, with an
-  end-to-end positive control); nexus `dead_references` 0/52; render slice 0 backticks / 0 leaked
-  roles. ⚠ **A mid-task DESIGN DELTA landed WHILE I measured** — a half-written tree gave
-  plausible wrong answers, 2 of its 7 items shipped differently from the message, and my measured
-  *"II.11 is HALF closed"* became fully closed. ⚠ **REPORTED, code-only**: the `orbit_certificate`
-  refusal message is now a THREE-arm disjunction wearing two-arm text (§II.11's residue).
-  → [[lessons-L87]]
+- **#434 R1 — every question about a group is COMPUTED from its realization** (2026-09-03;
+  3 pages +832/−85; sentinels 587→**591**; all gates green; a concurrent rename + a
+  thrice-moving test count) → [[lessons-L88]]
+- **#429 2.2b — the Γ-slot: a symmetry is asked ON the orbit space** (2026-09-02; 4 pages
+  +1318/−107; sentinels 584→587) → [[lessons-L87]]
+- **#432 — an orbit space is named by its STABILISER** (2026-09-02; 9 pages +1144/−355;
+  sentinels 582→584; one dead xref BY INSTRUCTION) → [[lessons-L86]]
+- **#429 fused commit — a 1-D rule's frame binds the basis its ORBIT SPACE admits; ERR-080
+  CLOSED** (2026-09-02; 12 pages +1756/−240; sentinels 579→582) → [[lessons-L85]]
+- **#429 2.5 — the angular moment space is READ off the frame** (2026-09-02; sentinels
+  578→579) → [[lessons-L84]]
+- **#429 3.1 — a catalogue entry carries its own ARROW and the measure it pushes forward**
+  (2026-09-02; sentinels 577→578) → [[lessons-L83]]
+- **#429 2.3 — a map carries its two point sets, so a codomain cannot be forged**
+  (2026-09-02; sentinels 576→577) → [[lessons-L82]]
+- **#429 2.1b — a basis declares its symmetry by naming what it EATS** (2026-09-01;
+  sentinels 576→576) → [[lessons-L81]]
+- **#429 2.0a — a quotient carries TWO coordinate systems, the chart and the section**
+  (2026-08-31; code landed `b55bba56` mid-session) → [[lessons-L80]]
+- ⛔ **ERR-026 history block** — branch `docs/err026-history-is-not-a-crossref`, 2026-08-18,
+  still OPEN and re-confirmed unlanded 2026-08-24 (the `head_role` one-liner; 40 of 100 stale
+  raw file paths in the catalogue) → [[lessons-L62]]
 
-- **THE NAMING LAW: an orbit space is named by its STABILISER (#432)** — 2026-09-02, same
-  branch, #429 tracker 1.9. Docs **UNCOMMITTED** (mine): 9 hand-edited pages **+1144/−355**
-  — `manifolds.rst` (a new `-` chapter *An orbit space is named by its STABILISER*: the
-  naming law, `orbit_stabiliser`, the construction invariant, the 5-element symbolic table,
-  the three near neighbours, the exact invariance criterion, the before/after readings, the
-  24-of-24 stage-0 null; the lattice section rewritten with the COMPUTED axial relations and
-  11 edges; the compatibility law re-run; the walk's SHRINKING report; a #432 dev-history
-  row; the machine header), `frame.rst` (row 7 ✅ + a NEGATIVE row + the ⛔-tombstoned
-  warning; the 5/2 → **6/3** `TruncatedBasis` census), `spherical_harmonics.rst`,
-  `discrete_measures.rst`, `spaces.rst`, `angular_quadrature.rst`, `cartesian_multid.rst`,
-  `operator_algebra.rst`, `error_catalog.rst` (ERR-080 + ERR-072), + regenerated
-  `matrix.rst` (sentinels 582 → **584** = my two new `documented` eq-labels, exactly as
-  predicted). `-E -W` **0 → 0**, EXIT=0. ⚠ **ONE dead xref BY INSTRUCTION**
-  (`SubgroupOfO3.orbit_stabiliser`, the accepted-but-unlanded accessor) — patched gate 1
-  dead/2 sites, nexus `dead_references` 1 of 53, the SAME finding from both. ⚠ **REPORTED,
-  code-only** (2: a `test_e4` docstring naming `SO2('x')` over a body that builds `O2("x")`;
-  a `symmetry.py` comment calling D_∞h "the group a cylinder actually carries" where the
-  registry row spends `Trivial`). ⚠ Mid-task DESIGN DELTA replaced the design I had already
-  measured; two brief numbers refuted; 8 present-tense-false claims found outside the brief.
-  → [[lessons-L86]]
+⚠ **Every entry above is a snapshot.** Reconcile with git FIRST — this list has frozen
+"in flight" on landed work SIX times. `git merge-base --is-ancestor <hash> HEAD`, and
+`git branch --list <branch>` (a vanished branch means merged).
 
-- **THE FIX: a 1-D rule's frame binds the basis its ORBIT SPACE admits — ERR-080 CLOSED** —
-  2026-09-02, same branch, #429's fused commit (0.1b + 0.6 + 2.2 + 3.4 + 3.4b). Docs
-  **UNCOMMITTED** (mine): 12 hand-edited pages +1756/−240 — `manifolds.rst` (new `=` chapter
-  *What descends*: the isotypic probe, the `Descent`, G0; 4 Key Facts bullets re-tensed, status
-  YAML, seams row, changelog), `error_catalog.rst` (ERR-080 **FIXED** banner + before/after
-  table + every "still OPEN" clause retensed), `frame.rst` (new `frame-g0-descent-arrow` §,
-  7-row admit/refuse table, MomentHead; the flagship DENSE witness retracted), `spaces.rst`
-  (`spaces-moment-head` §; the frame-square 3-way table re-measured), `spherical_harmonics.rst`
-  (new `=` chapter *the 1-D family*), `angular_quadrature.rst`, + `adjoint`/`operator_algebra`/
-  `acceleration`/`indexing_and_layout`/`slab_multigroup`/`cartesian_multid`, and regenerated
-  `matrix.rst` (sentinels 579 → **582** = my three new `documented` eq-labels). `-E -W` **0 → 0**,
-  EXIT=0; patched-xref `DEAD TARGETS: 0` (positive control read 2); nexus `dead_references`
-  0/52. ⚠ **REPORTED, code-only** (4 items, headed by a docstring number off ~60× because it
-  names the TABLE's observable while the sentence is about the FLUX). ⚠ Two brief numbers
-  refuted, one corpus-wide shape contract found stale at 9 sites, 8 self-inflicted
-  nested-markup leaks caught and fixed. → [[lessons-L85]]
-
-- **The angular moment space is READ off the frame, never minted from `L`** — 2026-09-02,
-  same branch, tracker **2.5** (`TruncatedBasis` Protocol; both `HarmonicFrame` doors; seven
-  re-mint sites; `truncated` on the head). Docs **UNCOMMITTED** (mine): `frame.rst` +427 (a new
-  `-` section + 6 `~` subsections + 1 Key Facts bullet; ONE new `documented` eq-label
-  `moment-space-read-off-the-frame`), `operator_algebra.rst` +24 (a tombstoned `implements`
-  body), `manifolds.rst` +23 (status YAML + the lower-bound remedy), `spaces.rst` +11,
-  `cartesian_multid.rst` +16, `error_catalog.rst` ERR-080 +49 (**stays OPEN**), regenerated
-  `matrix.rst` (sentinels 578 → **579**, exactly as predicted; the +37 tests are the CODE
-  side's). `-E -W` **0 → 0**, EXIT=0; xref gate `DEAD TARGETS: 0`; nexus `dead_references`
-  0/52. ⚠ **REPORTED, code-only** (4 items, headed by the `harmonic_moment_source_sink`
-  docstring twin the step's own sibling correction skipped). ⚠ Three brief numbers did not
-  reproduce (its census command, "12 of 12", "96–161 %") and its two candidate host pages were
-  both wrong — detail in the lesson. → [[lessons-L84]]
-
-- **A quotient carries TWO coordinate systems — the chart and the section** — 2026-08-31/09-01,
-  branch `fix/angular-phantom-support` (#429). Docs **UNCOMMITTED** (mine; main agent commits):
-  `manifolds.rst` +1152/−85 + the regenerated `matrix.rst`; code side landed `b55bba56`
-  **mid-session**. All gates green and every generated artefact moved exactly as predicted.
-  ⚠ **REPORTED, code-only** (3 items: `__all__`, a symbol collision, a hand-typed fixture) —
-  detail, the four findings and the numbers are in the lesson. → [[lessons-L80]]
-
-- **A catalogue entry carries its own ARROW and the measure that arrow pushes forward** — 2026-09-02,
-  same branch, tracker **3.1** (`Quotient.orbit_coordinates` + the derived `quotient_map`;
-  `Quotient.reference`; the registry twin `AngularSymmetry.reference` collapsed). Docs
-  **UNCOMMITTED** (mine): `manifolds.rst` +1226, `discrete_measures.rst` +58,
-  `error_catalog.rst` ERR-080 +55 (**stays OPEN**), regenerated `matrix.rst` (sentinels
-  577 → **578**; the test-count moves are the CODE side's). One new `documented` eq-label
-  `manifold-quotient-pushforward`. `-E -W` **0 → 0**, EXIT=0; xref gate 0 dead (stock AND
-  patched, split control run); nexus `dead_references` 0/52. ⚠ **REPORTED, code-only** (2
-  items: a future-tense docstring at `manifold.py:968`; `reference.support` is the CHART's
-  space and nothing gates the pair). ⚠ Three brief numbers corrected (a "pickle round-trip
-  equal" that is 1 of 7; `.reference` reads 9 → 10; a `match Quotient` site attributed to
-  `barycentre`, which uses `isinstance`) and two widened 5 → 7. → [[lessons-L83]]
-
-- **A map carries its two point sets, so a codomain cannot be forged** — 2026-09-02, same branch,
-  tracker **2.3** (`ManifoldMap`; `archimedes`, the orbit retraction, `barycentre`). Docs
-  **UNCOMMITTED** (mine): `manifolds.rst` +883/−42 (a new `=` section + 6 `-` subsections, one new
-  `documented` eq-label `manifold-map-functoriality`), `discrete_measures.rst` +46, `error_catalog.rst`
-  ERR-080 +68 (**stays OPEN**), `spherical_harmonics.rst` +32, regenerated `matrix.rst`
-  (10595 → **10616**; sentinels 576 → **577**; `numerics/test_manifold` 56 → **70**,
-  `test_rules_product` 38 → **45**). `-E -W` **0 → 0**, EXIT=0. ⚠ **REPORTED, code-only** (4 items:
-  a docstring promising a zero-fallback where the body raises, a gate docstring saying "two"
-  strict-xfails where three ship, a `Ball` overstatement, an over-indented comment block).
-  ⚠ Two brief claims REFUTED and one instrument found broken — the detail is in the lesson.
-  → [[lessons-L82]]
-
-- **A basis declares its symmetry by naming what it EATS** — 2026-09-01, same branch, tracker
-  **2.1b** (`Basis.invariance_group`, DERIVED + `@final`). Docs **UNCOMMITTED** (mine):
-  `manifolds.rst` +591 (a new `=` section + 4 `-` subsections), `discrete_measures.rst` +90 (a
-  new HAS/SPENT subsection — the brief's target section did **not exist**), `spaces.rst` +18,
-  `error_catalog.rst` +55 (ERR-080 **stays OPEN**), regenerated `matrix.rst` (10584 → **10595**,
-  `numerics/test_basis_domain` 13 → **24**, sentinels **576 → 576**). `-E -W` **0 → 0**, EXIT=0.
-  ⚠ **REPORTED, code-only**: `orpheus/numerics/measure.py:417` cites `:meth:`reorder``, which
-  does not exist. ⚠ Four present-tense-false corpus claims found and tombstoned in place, none of
-  them in the brief. → [[lessons-L81]]
-
-- **ERR-026 history block: 29 roles → 13, 15 dead → 0** — branch
-  `docs/err026-history-is-not-a-crossref`, 2026-08-18. ⛔ still open, re-confirmed unlanded
-  2026-08-24: the `head_role` one-liner (blindness is ROLE-scoped, not `.rst`-scoped) and
-  **40 of 100** stale raw file paths in the catalogue. → [[lessons-L62]]
-
-**⏹ MERGED — collapse to one line each; the durable record is the lesson + the tree.**
-⚠ This list has frozen "in flight" on landed work **SIX** times; reconcile with `git` first —
-`git merge-base --is-ancestor <hash> HEAD`, and `git branch --list <branch>` (a vanished branch
-means merged). The 2026-09-01 pass found FOUR stale at once.
-
-- 2026-08-31: **manifolds page** the point-set layer gets a page (`fba4205a`) [[lessons-L79]] ·
-  **CS4c step 4** the fission channel becomes two bindings (`4e46dbb9`) [[lessons-L77]] ·
-  **(n,2n)** physics-vs-model isotropy (`6906f2a2`) [[lessons-L78]].
-- 2026-08-30/29: **P7** the metric becomes an OBJECT (`2ef04dbb`) [[lessons-L76]] ·
-  **P4-remainder** the producer binds the axis (`cd176f69`) [[lessons-L75]].
-- 2026-08-29: **CS5** axis-generator doctrine (`4e7b8977`/`b0bfc06c`/`cb3cd15b` + docs
-  `f8c69117`; all 3 reported code gaps repaired at `cb3cd15b`) [[lessons-L74]] ·
-  **§5b P0** carrying-prose sweep (`8d093334`) [[lessons-L73]] · **P4.9b** operator poses
-  (`9c3eb60a`) [[lessons-L72]] · **P4.9a** closure owns its march (`ca852c44`/`7a0f434c`)
-  [[lessons-L71]].
-- 2026-08-28 and earlier: α-dome citation retraction + `alpha-dome-recursion` rename
-  [[lessons-L70]] · τ-arity + LD-curvilinear-Padé [[lessons-L69]] · campaign-1 history rows
-  `68d265ef` [[lessons-L68]] · Campaign 1 `55bb47b9` [[lessons-L68]]…[[lessons-L63]] ·
-  MD→corpus catalogue port `a79f57aa` [[lessons-L61]] · nexus #82 declarations `144cdf51`
-  [[lessons-L60]] [[lessons-L59]] · nexus graph-path retirement [[lessons-L58]] · #344
-  loss-kernel-gauge [[lessons-L57]] · Q5.6.4 τ/partition carve [[lessons-L54]] · Boundary
-  B3.0–B3.2 [[lessons-L42]] · DSA #2 close-out [[lessons-L39]].
-- Their CODE-side reports are GitHub's to track, not this file's; the corpus-wide
-  RST-nested-markup finding lives on **#379**.
+**⏹ MERGED — the durable record is the lesson + the tree; this is only a pointer.**
+Every docs pass from 2026-08 back to the Boundary/DSA work is archived as
+[[lessons-L39]]…[[lessons-L79]] (one `## L-0NN` section each, with its commits).
+Nothing here needs re-listing: `git log --oneline -- docs/` is the index, and each
+lesson names its own hashes. Their CODE-side reports are GitHub's to track; the
+corpus-wide RST-nested-markup finding lives on **#379**.
 
 ## 3. Durable reference (reusable doc-architecture)
 

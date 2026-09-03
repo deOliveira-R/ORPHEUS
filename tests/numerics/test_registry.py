@@ -1299,7 +1299,7 @@ def test_selector_asks_the_nodes_not_the_declared_tag() -> None:
     since been corrected to :math:`\sigma_x` — the symmetry the measure
     actually has, rather than the one its reduction spent — so the lattice
     route and the node route now agree, and the original assertion
-    (``not Mirror('x').is_subgroup_of(Mirror('x'))``) is simply false.
+    (``not Mirror('x').contains(Mirror('x'))``) is simply false.
 
     A gate whose witness can be removed by fixing an unrelated bug is
     pinning a COINCIDENCE, not a mechanism. So this now injects a
@@ -1316,7 +1316,7 @@ def test_selector_asks_the_nodes_not_the_declared_tag() -> None:
     # The honest declaration and the nodes now agree — no trap left here.
     declared = gl.invariance_group
     assert declared is not None
-    assert slab.discrete_residual.is_subgroup_of(declared)
+    assert declared.contains(slab.discrete_residual)
     assert slab.admits_symmetry(gl)
 
     # Weaken the DECLARATION to something true-but-not-maximal. Every
@@ -1327,7 +1327,7 @@ def test_selector_asks_the_nodes_not_the_declared_tag() -> None:
     # must accept...
     weakened = understated.invariance_group
     assert weakened is not None
-    assert not slab.discrete_residual.is_subgroup_of(weakened)
+    assert not weakened.contains(slab.discrete_residual)
     # ...while stage 1, which asks the NODES, is unmoved.
     assert slab.admits_symmetry(understated)
 

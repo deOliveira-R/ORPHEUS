@@ -723,12 +723,48 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   not exist at my first census and shipped by my final build; `test_manifold` went 70 → 108
   rows. Re-run every count after the last build, with `matrix.rst` as the second instrument.
   → L-085
+- **⭐⭐ When a count is being moved BY THE CARVE YOU ARE DOCUMENTING, publish the DIRECTION
+  and its mechanism, not the value.** `[M]` `test_symmetry` read 230 → 212 → **215** across
+  three of my own builds in one afternoon. *"The row is FALLING, because the carve retires the
+  gates that pinned the per-family arms it dissolved"* is durable and explains why a falling
+  count is not lost coverage; `212` is stale on the next build. (L-085's rule, sharpened for a
+  count with a live author.) → L-088
+- **⭐⭐ When a carve's ENTIRE claim is "no answer changed", the instrument is the FULL GRID —
+  and the ZEROS are the finding.** The edges anyone thinks to name are the ones the retired
+  hand table already got right. `[M]` `contains` **0 of 729**, `normalises` **0 of 729**,
+  `is_invariant` **0 of 270**, walk **0 of 10**, against a pinned `git archive HEAD` tree. Say
+  IN THE PAGE why a grid and not a list. ⭐ Reproduce the recorded aggregate's OLD numbers on
+  BOTH trees first (57/342/0 and 75/450/0 four ways) — that is what makes a widened 175/1750
+  read as the same instrument. → L-088, L-086
+- **⛔ A rendered-leak COUNT is useless on a tombstone-heavy page — build HEAD's docs and take
+  the multiset DIFFERENCE.** `[M]` raw inventory 34/8/90, essentially all pre-existing; my own
+  `*"… (``literal``)"*` tombstone was findable only as `ADDED 2 → 0`. ⚠ Read `added == removed`
+  as a CONTEXT SHIFT (my inserted paragraph moved a pre-existing leak's ±90-char window), not
+  as two events. ⚠ A source-side italic regex is unusable: 10 hits, **all 10** `* -` list-table
+  bullets. `git archive HEAD docs tools tests` + `PYTHONPATH=<tree>` costs minutes and converts
+  an unusable count into a decidable answer. → L-088, L-085
+- **⭐ A relayed COUNT needs its PREDICATE re-derived, not just its number re-run.** `[M]` a
+  ledger's *"109 lines, 31 dispatch sites"*: the 109 reproduces, the 31 is **28** under a
+  stated AST predicate; its *"eleven per-family helpers"* is **thirteen**. The module-wide pair
+  I measured instead (86 → 31 sites, one predicate) was the better number anyway. → L-088
+- **⭐ `functools.cache`'s own `cache_info` turns "but isn't computing slower than a table?"
+  into publishable expert context.** `[M]` one walk asks 1152 containment questions of which
+  629 are literal repeats, and builds **24** groups from 1193 reads ⟹ *"a hand table is not
+  buying speed here; it is buying a second, unverifiable copy of the answer."* Measure it
+  rather than quoting the docstring's own figure. → L-088
 
 ## 2. The build is BLIND to most doc-correctness defects — grep is the gate
 
 **Meta-rule: `-W` proves only "I added no NEW warning". The acceptance evidence for a correctness
 sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 
+- **⛔ On a LIVE branch, re-run the xref gate after EVERY build, not once at the end.** A
+  concurrent carve renamed a method I had already published (`Realization.images` →
+  `generic_images`) plus retired a sibling; `sphinx -E -W` stayed at **0** throughout, because
+  a `:meth:` at a renamed member is plain text. The patched gate found it in one run. `[M]`
+  every NUMBER I had published re-measured identically on the new tree — only the NAME moved,
+  which is exactly the class the build cannot see. Re-read the public surface (`dir(cls)`),
+  never the module you read an hour ago. → L-088
 - **Unresolvable `:func:`/`:class:`/`:meth:`/`:attr:` render as PLAIN TEXT with no warning.** After
   any carve that deletes or renames a symbol, `grep -rn "<symbol>" docs/` and repoint every hit.
   → L-002

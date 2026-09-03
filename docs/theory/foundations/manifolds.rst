@@ -26,7 +26,7 @@ Manifolds: the Point Set, the Orbit Space, and What a Basis Eats
       role: "the point-set layer — the manifold M a measure is supported on and a basis function is defined over, its algebra (product, orbit space, membership), the invariant-theoretic derivation that produces an orbit space, the TWO coordinate systems an orbit space honestly has (the invariant chart's codomain and a section's image), and the three-level separation (manifold / fields on it / coefficients) that keeps a FunctionSpace from being mistaken for a domain"
       depends_on: []
       related: [discrete_measures, spaces, frame, spherical_harmonics]
-      status: "MINTED, gated, WIRED, and CONSUMED. Two catalogued derivations ship (S^2/O(2)_a for the three AXIAL entries and S^2/<sigma_a> for the three MIRROR axes — six keys, two procedures — plus the derived identity quotient), and a Quotient carries BOTH coordinate systems after the 2026-08-31 two-slot ruling. `Space = str` and its six SPACE_* tags are RETIRED (tracker 2.0c, 2026-09-01): `DiscreteMeasure.support`, `GeneratingMeasure.support`, `UniformMeasure.support`, `ProductMeasure.support`, the `ReferenceMeasure` Protocol and `AngularSymmetry.support` all carry a Manifold, and `Basis.domain` does too (2.1). Tracker 2.1b (2026-09-01) read a SECOND answer off that same slot: `Basis.invariance_group` is DERIVED from `domain` by a match on its TYPE (a Quotient of the sphere -> its `by`; the sphere -> Trivial; anything else -> None), so a basis declares the symmetry its functions HAVE by naming the manifold they EAT. `[M]` 6 of 6 shipped bases answer, the property is @final, and it cost zero subclass edits and no new field. ERR-080's pairing therefore has BOTH operands and is a computable lattice verdict — `[M]` `Trivial contains O2('x')` is False for the slab (it read SO2('x') until #432), while the shipped fold's two halves are literally ONE group object. Nothing CONSUMES that verdict yet: the frame's pairing gate is tracker 2.2, and a gate written on the FRAME's measure would be inert today because that measure still carries the forged S^2. Tracker 2.4 (2026-09-01) gave the axial rotation group its AXIS — `SO2(axis)` beside `Mirror(axis)` — and made the slab's polar rule DECLARE its orbit space: `Quadrature.gauss_legendre(8).measure.support.name == 'S^2/O2_x'`, via the new verb `DiscreteMeasure.on_orbit_space`. That is this page's first PRODUCTION consumer, and it collapsed the registry twin (`AngularSymmetry.support` now calls `SPHERE.quotient`). Tracker 2.3 (2026-09-02) gave the category its ARROWS: `ManifoldMap(domain, codomain, apply)` is a frozen value type, composition `psi @ phi` is refused across mismatched endpoints, and `DiscreteMeasure.pushforward` now READS its target off `phi.codomain` (`new_space=` retired) and refuses a map out of the wrong point set — by manifold VALUE, so the slab's `S^2/O2_x` rule and the chart rule on `[-1,1]`, whose nodes are `np.array_equal`, are told apart. Three arrows are typed: `archimedes(axis)` ([-1,1] x S^1 -> S^2, Archimedes' hat-box, `[M]` the product rule is bit-identical to its retired hand loop on 60 of 60 configurations and its support IS the chart's codomain); the orbit retraction inside `quotient()`; and `barycentre(orbit_space)` (S^2/O(2)_a -> Ball(3), since 1 - norm(mu e_a)^2 = 1 - mu^2 = det P / 4). ERR-080 restated in that vocabulary: it is the barycentre map with a FORGED codomain — `[M]` the forgery's nodes are np.array_equal to the honest map's image and differ only in the type claimed. 2.3 is an ENABLER and repairs nothing: no membership check runs inside a map (that refusal is tracker 2.0b, at measure construction), the forgery arm stays a raw constructor BY DESIGN until 3.4, and `[M]` the ERR-080 gate still declares three xfail(strict=True) rows. Neither the entry's chart nor its section ships. Tracker 3.1 (2026-09-02) gave the CATALOGUE ENTRY its own arrow and the measure that arrow pushes forward: `orbit_coordinates` stores the quotient map's action on the base's ambient coordinates and `Quotient.quotient_map` derives the typed arrow, whose CODOMAIN IS THE ENTRY and never the realization (user-ruled; reading it onto [-1,1] is the axis-blind reading 2.4 made refusable) -- `[M]` H-invariant with a negative leg, pi_a . phi_a = pr_1 bit-exact on 12 of 12, beta_a . pi_a the axial projection on 3 of 3, and the change of variables on level_symmetric(4) reading 4.18879020478639, 1 ULP from 4pi/3. `Quotient.reference` carries pi_* dOmega: LEGENDRE on the three axial entries by Archimedes' hat-box, None on the three mirrors (the weighted disk measure 2 du dv / sqrt(1-u^2-v^2), which no shipped ReferenceMeasure realization spells) and on M/{e} (Lebesgue on the BASE, whose orthogonal system a Manifold does not carry) -- both None user-ruled 2026-09-02. `AngularSymmetry.reference` now READS that field, collapsing the campaign's SECOND Pattern-2 twin after `support` at 2.4; its bare-sphere arm stays, deliberately, because a geometry that spends nothing is handed the BASE. The engine seed is therefore complete: `[M]` 9 of 9 procedure outputs are slots over TWELVE fields (was 6 of 8, then 7 of 9), though all SEVEN quotients of S^2 the catalogue produces still read derived_by='hand'. `[M]` the value arrives by a FUNCTION-scope import of generating_measure (alive 7 of 7 import orders; every module-scope placement dead 7 of 7, at the top and at the bottom of the file alike) while the TYPE rides TYPE_CHECKING -- a guard defers a name and can never carry a value. 3.1 is an ENABLER too: `[M]` `reference` has ONE production reader and `quotient_map` has ZERO, the entry's SECTION still does not ship, and ERR-080 itself is still OPEN with its three xfail(strict=True) rows untouched. Tracker 2.5 (2026-09-02) is the campaign's FRAME-side pre-step and is documented on theory/foundations/frame (frame-moment-space-single-home), not here: both HarmonicFrame doors stopped naming SphericalHarmonicBasis and now demand the two-member TruncatedBasis surface (L + space) — the same key-on-what-it-declares move this page makes for invariance_group — and the SEVEN production sites that re-minted the angular coefficient space from the integer L now READ it off the bound basis. So 3.4's Legendre basis on S^2/O2_a is bindable and its space propagates to every operator end and every moment field by construction. `[M]` 33 of 33 (rule, L) rows are metric-identical to the from_L(L) mint they replace, and the converged slab flux on ERR-080's own gate fixture is array_equal pre/post at L = 0, 1, 2 and 3 — bit-identical even where the answer is wrong, which is what a pre-step owes an xfail(strict=True) gate. A capability, not a repair. THE FUSED COMMIT (2026-09-02, trackers 0.1b + 0.6 + 2.2 + 3.4 + 3.4b) IS THE REPAIR, and ERR-080 is CLOSED. Three objects land on this page. (1) `Quotient.descending_slots` — the isotypic probe, user-ruled onto the ENTRY because fibre-constancy is a theorem about pi and it has two readers; it samples SO(2) at INCOMMENSURATE angles because four right angles generate C_4 and falsely admit m = +-4 at L >= 4 (vv #13), a control that is blind below L = 4. `[M]` about x at L=4 it returns exactly {(l,0)}, 5 real slots of 25; about y/z only 2, because the invariant subspace is one-dimensional per degree and slot-ALIGNED only about the harmonics own polar axis x. The fold sigma-even mask now READS it, `[M]` bit-identical on 15 of 15 (axis, L) rows, and its retired five-direction probe had norms 0.83-0.998 (off the sphere, and refusable after 0.6). (2) `Descent` — the two realizations of Funcs(M/H) as ONE object with the discriminator (downstairs iff the quotient has a classical named basis) as `frame_basis`, which `Quadrature._harmonic_basis` binds; `[M]` the isomorphism is array_equal, max|D| = 0.0, on 7 of 7 sphere rules at L=4, and that BIT tier is a measured constraint on the polynomial SPELLING (no single scipy routine reproduces the harmonics m=0 column: lpmv differs at l=1 by 8.3e-17..1.1e-16, eval_legendre at l>=2 by up to 4.8e-16). The upstairs refusal is AXIS-keyed, not alignment-keyed, because about y/z alignment holds at l <= 1 and L=0 is where every solve mints. (3) `quotient_onto` — G0, ONE predicate: a frame is admissible iff a quotient map measure.support -> basis.domain EXISTS, and its table is the basis pulled back along it. `[M]` all seven shipped pairings measured: identity for slab+Legendre, sphere+harmonics and fold+sigma-even; the entry own pi for Legendre-on-a-sphere-rule; REFUSED for slab+full-harmonics (ERR-080), fold+full-harmonics, and — mathematically admissible, over-refused because invariance_group is a LOWER bound with no axis-parameterised O(2) to declare — Legendre-on-a-sigma_y-fold (GitHub #432). `[M]` end to end on ERR-080 own fixture, against a pinned pre-repair tree: phi is array_equal at L = 0 and 1 (max|D| = 0.0) and moves 7.765 / 3.546 at L = 2, 3 to +4.000000000000; gauss_legendre(16) at scattering_order=4 raised a DenseMetric Penrose ValueError before and returns +4.000000000000 after. NOT closed by it: the membership predicate still does not run at measure construction (2.0b) — a forged measure is still CONSTRUCTIBLE, and what is gone is every path from one to a basis; `fundamental_domain` is still None on every axial entry with zero readers. #432 LANDED the same day (see below). Trackers 2.5 / 3.1 / 2.3 / 2.4 / 2.1b were correctly recorded as enablers, and every "still OPEN / still declares three xfail rows" clause in this page dated before 2026-09-02 was repealed by this commit. #432 (2026-09-02) IS THE NAMING LAW: an orbit space is named by its STABILISER, the largest subgroup of O(3) with its orbits. `SubgroupOfO3.O2(axis)` — the pointwise stabiliser O(2)_a = C_inf,v of a coordinate axis, rotations about it AND mirrors through it — joins the lattice beside SO2(axis) and Mirror(axis); `SubgroupOfO3.orbit_stabiliser` names which group an orbit space is recorded under and moves exactly TWO lattice members (SO2(a) -> O2(a) because R[x]^SO(2)_a = R[x_a, x_b^2+x_c^2] = R[x]^O(2)_a, and SO3 -> O3 because both fix only the radius); every other member is its own stabiliser. `Quotient.__post_init__` refuses a non-maximal `by` (a construction invariant, so `dataclasses.replace(entry, by=SO2("x"))` is refused too) and `_catalogued_quotient` refuses at the door with the theorem, so `_sphere_mod_o2` is a pure derivation with one function-scope import and the catalogue keeps SIX keys for SIX entries. Consequences, all `[M]` 2026-09-02: the three axial entries are named `S^2/O2_a`; `gauss_legendre(8).measure.support.name == 'S^2/O2_x'`, `.quotient_group == O2('x')`, `.space.name == 'L2[S^2/O2_x]'`; `LegendreBasis(L).domain.name == 'S^2/O2_x'` and `.invariance_group == O2(axis)` — the FULL group the P_l have, no longer a strict lower bound — with `LegendreSpace.from_L` READING the name off the basis's domain (`legendre_space(S^2/O2_x)`); GEOMETRY_ANGULAR_SYMMETRY["slab"/"sphere"].continuous_isotropy = O2("x") (user-ruled: with O(2)_x spent the recorded residual Mirror("x") is exactly G/G^0, where under SO(2)_x the true residual is the Klein four-group and the recorded mirror is half of it). Every axial relation against a FINITE group is COMPUTED from that group's realization (`_fixes_axis`, absolute tol 1e-9; SO(2)_a = O(2)_a intersect SO(3) by composition, no proper_only flag) rather than tabulated — `[M]` the tabulated arm it replaced answered `SO2('x') not-contains C_1` while `SO2('x') contains Trivial`, one group under two spellings and two answers, with a committed test pinning the wrong one. THE OVER-REFUSAL AT #432 IS GONE: `[M]` `GalerkinFrame(LegendreBasis(L), folded_product(4,8).measure)` constructs at L = 0,2,4,6 with a (16, L+1) table and the arrow S^2/sigma_y -> S^2/O2_x, the isotropic field reading exactly 4pi at l=0 (bit-identical to sum(weights)) and <= 1.42e-15 at l >= 1; the NEGATIVE leg `axis="y"` on the same fold is still refused, and on a sigma_x-folded rule `axis="x"` is refused while `axis="z"` is admitted. NOTHING NUMERICAL MOVED: `[M]` stage 0 of quadrature selection is identical on 24 of 24 (geometry x rule) rows against a pinned pre-change tree, and the invariance/containment compatibility law re-runs at 0 violations over 450 (edge x fixture) pairs over 18 groups, with the 15-group control reproducing its recorded 342/0 exactly. The walk's report SIMPLIFIES rather than grows: `[M]` gauss_legendre(8) reports {O2_x, sigma_x} where it reported {SO2_x, sigma_x, sigma_y, sigma_z}, because sigma_y and sigma_z are absorbed by O(2)_x while sigma_x flips the axis and is absorbed by nothing. TRACKER 2.2b (2026-09-02, user-ruled) MOVES THE INVARIANCE QUESTION ONTO THE ORBIT SPACE and gives the registry its Gamma slot. An isometry descends to M/H iff it NORMALISES H, decided exactly per family (`SubgroupOfO3.is_normalised_by` / `normalises`): a finite H by conjugating its element set, SO(2)_a / O(2)_a / D_inf_h by g e_a = +-e_a, and a CONTINUOUS G through its rotation generator [e_a]_x plus its coset representatives -- never sampled, and `[M]` the four-right-angle sample over-certifies on 2 of 8 (G, H) pairs, ERR-072 recurring in a new predicate. `Quotient.lift` is a right inverse of the quotient map, derived per family (the orbit barycentre for the axial entries -- EQUIVARIANT, not a section, which is all an induced action needs; the hemisphere section for a mirror; the identity for the trivial entry), `[M]` pi . lift = id to 0.000e+00 on all three; `Quotient.induced_action(motion)` is the arrow [p] -> [g p] and REFUSES a motion outside the normaliser (`[M]` C_4 about z on S^2/sigma_y). `is_invariant` has ONE kernel (`_invariance_on_orbit_space`): a bare support is asked on the trivial orbit space R^3/{e} (`[M]` `_ambient_orbit_space().name == 'spatial_R3/Trivial'` -- the ambient space and not the sphere, because every barycentre and every zero-padded node lands OFF S^2), and `[M]` that reduction agrees with the retired ambient reading on 150 of 150 (sphere rule x candidate group) rows. `_polar_axis_of` and `_invariance_on_points` are RETIRED; `_embedded_nodes` reads the entry via `ambient_representatives` (RENAMED from `section_coordinates` at the elegance review: the axial arm returns a BARYCENTRE, not a representative, so the old name promised ERR-080's own forged codomain) and is still array_equal to `barycentre` on 12 of 12 rows. The registry stage 0 is now ONE expression -- Gamma contains `spent_group(D, X)`, what the descent arrow `quotient_onto(D, X)` SPENDS ({e} for the identity, target.by for a fold of the base, refused naming the missing work for the induced map between two quotients) -- over the SAME arrow a frame G0 reads, and stage 1 asks Gamma-invariance ON X. Reading `X.by` instead would have REFUSED the geometry's own domain (`[M]` the slab's sigma_x does not contain O(2)_x). `[M]` the shipped cylindrical fold (folded_product(4,8), S^2/sigma_y) is ADMITTED at both stages for cylinder and cartesian2d where it was refused at both; stage-0 refusals move 12 -> 10 of 20 (constructor x geometry) pairs with no pair moving the other way; the FOLD arm has NO witness on slab/sphere, since `[M]` no shipped orbit space is a proper further quotient of S^2/O(2)_x (the only arrow out of it is the identity, which spends {e}). NOTHING ELSE MOVED: `[M]` gauss_legendre(8) 0 of 15 candidate groups change, product(4,8) 0 of 23, folded_product(4,8) 4 of 21 (sigma_y, C_2, D_1h, D_2h, all False -> True), walk(fold) {sigma_x, sigma_z} -> {D_2h} with walk(slab) and walk(product) unchanged and brute-force agreement 6 of 6 both sides, and the compatibility law re-runs at 0 violations over 342 and 450 (edge x fixture) pairs. The spent-group door refuses (M/H)/G for G contained in H with the theorem, with ONE exception it names: the trivial group is admitted on every base as the identity ENTRY (`[M]` `S^2/sigma_y/Trivial`, and the fold measure's quotient by Trivial returns all 16 nodes on it) -- acting trivially is not the same defect as being spelled twice. `orbit_certificate` follows the same route and the plan's section II.11 lead is CLOSED: `[M]` orbit_certificate(gauss_legendre(8), sigma_x) AND the same call on the BARE chart rule gauss_legendre_on_mu(8) both return 2 permutations where both were refused by SHAPE. What survives is the MESSAGE at measure.py/symmetry.py, now a THREE-arm disjunction wearing two-arm text -- its new third arm is 'the group does not normalise the spent group' (reported, not repaired; a production edit). `Quadrature.ordinate_permutation` moved onto the same kernel, so the tree has ONE notion of 'does this isometry permute the ordinates': `[M]` sigma_y on the fold now yields the IDENTITY permutation where it yielded None, and every other (rule x mirror) cell over four rules is unchanged. `is_normalised_by` asks the motion's LINEAR part rather than refusing a translated motion -- a point group acts on directions and a translation does not move one, which is the convention ordinate_permutation already ran. GitHub #370 gap 2 (stage 0 cannot match a quotient support) is CLOSED, the way that issue demanded -- by the lattice arrow, not by widening a tag; gap 1 stands, `[M]` folded_product(4,8).measure.exactness is still None. The fold measure invariance_group stays None BY DESIGN: the stored slot is a statement about the representatives, the computed predicate is about the orbits"
+      status: "MINTED, gated, WIRED, and CONSUMED. Two catalogued derivations ship (S^2/O(2)_a for the three AXIAL entries and S^2/<sigma_a> for the three MIRROR axes — six keys, two procedures — plus the derived identity quotient), and a Quotient carries BOTH coordinate systems after the 2026-08-31 two-slot ruling. `Space = str` and its six SPACE_* tags are RETIRED (tracker 2.0c, 2026-09-01): `DiscreteMeasure.support`, `GeneratingMeasure.support`, `UniformMeasure.support`, `ProductMeasure.support`, the `ReferenceMeasure` Protocol and `AngularSymmetry.support` all carry a Manifold, and `Basis.domain` does too (2.1). Tracker 2.1b (2026-09-01) read a SECOND answer off that same slot: `Basis.invariance_group` is DERIVED from `domain` by a match on its TYPE (a Quotient of the sphere -> its `by`; the sphere -> Trivial; anything else -> None), so a basis declares the symmetry its functions HAVE by naming the manifold they EAT. `[M]` 6 of 6 shipped bases answer, the property is @final, and it cost zero subclass edits and no new field. ERR-080's pairing therefore has BOTH operands and is a computable lattice verdict — `[M]` `Trivial contains O2('x')` is False for the slab (it read SO2('x') until #432), while the shipped fold's two halves are literally ONE group object. Nothing CONSUMES that verdict yet: the frame's pairing gate is tracker 2.2, and a gate written on the FRAME's measure would be inert today because that measure still carries the forged S^2. Tracker 2.4 (2026-09-01) gave the axial rotation group its AXIS — `SO2(axis)` beside `Mirror(axis)` — and made the slab's polar rule DECLARE its orbit space: `Quadrature.gauss_legendre(8).measure.support.name == 'S^2/O2_x'`, via the new verb `DiscreteMeasure.on_orbit_space`. That is this page's first PRODUCTION consumer, and it collapsed the registry twin (`AngularSymmetry.support` now calls `SPHERE.quotient`). Tracker 2.3 (2026-09-02) gave the category its ARROWS: `ManifoldMap(domain, codomain, apply)` is a frozen value type, composition `psi @ phi` is refused across mismatched endpoints, and `DiscreteMeasure.pushforward` now READS its target off `phi.codomain` (`new_space=` retired) and refuses a map out of the wrong point set — by manifold VALUE, so the slab's `S^2/O2_x` rule and the chart rule on `[-1,1]`, whose nodes are `np.array_equal`, are told apart. Three arrows are typed: `archimedes(axis)` ([-1,1] x S^1 -> S^2, Archimedes' hat-box, `[M]` the product rule is bit-identical to its retired hand loop on 60 of 60 configurations and its support IS the chart's codomain); the orbit retraction inside `quotient()`; and `barycentre(orbit_space)` (S^2/O(2)_a -> Ball(3), since 1 - norm(mu e_a)^2 = 1 - mu^2 = det P / 4). ERR-080 restated in that vocabulary: it is the barycentre map with a FORGED codomain — `[M]` the forgery's nodes are np.array_equal to the honest map's image and differ only in the type claimed. 2.3 is an ENABLER and repairs nothing: no membership check runs inside a map (that refusal is tracker 2.0b, at measure construction), the forgery arm stays a raw constructor BY DESIGN until 3.4, and `[M]` the ERR-080 gate still declares three xfail(strict=True) rows. Neither the entry's chart nor its section ships. Tracker 3.1 (2026-09-02) gave the CATALOGUE ENTRY its own arrow and the measure that arrow pushes forward: `orbit_coordinates` stores the quotient map's action on the base's ambient coordinates and `Quotient.quotient_map` derives the typed arrow, whose CODOMAIN IS THE ENTRY and never the realization (user-ruled; reading it onto [-1,1] is the axis-blind reading 2.4 made refusable) -- `[M]` H-invariant with a negative leg, pi_a . phi_a = pr_1 bit-exact on 12 of 12, beta_a . pi_a the axial projection on 3 of 3, and the change of variables on level_symmetric(4) reading 4.18879020478639, 1 ULP from 4pi/3. `Quotient.reference` carries pi_* dOmega: LEGENDRE on the three axial entries by Archimedes' hat-box, None on the three mirrors (the weighted disk measure 2 du dv / sqrt(1-u^2-v^2), which no shipped ReferenceMeasure realization spells) and on M/{e} (Lebesgue on the BASE, whose orthogonal system a Manifold does not carry) -- both None user-ruled 2026-09-02. `AngularSymmetry.reference` now READS that field, collapsing the campaign's SECOND Pattern-2 twin after `support` at 2.4; its bare-sphere arm stays, deliberately, because a geometry that spends nothing is handed the BASE. The engine seed is therefore complete: `[M]` 9 of 9 procedure outputs are slots over TWELVE fields (was 6 of 8, then 7 of 9), though all SEVEN quotients of S^2 the catalogue produces still read derived_by='hand'. `[M]` the value arrives by a FUNCTION-scope import of generating_measure (alive 7 of 7 import orders; every module-scope placement dead 7 of 7, at the top and at the bottom of the file alike) while the TYPE rides TYPE_CHECKING -- a guard defers a name and can never carry a value. 3.1 is an ENABLER too: `[M]` `reference` has ONE production reader and `quotient_map` has ZERO, the entry's SECTION still does not ship, and ERR-080 itself is still OPEN with its three xfail(strict=True) rows untouched. Tracker 2.5 (2026-09-02) is the campaign's FRAME-side pre-step and is documented on theory/foundations/frame (frame-moment-space-single-home), not here: both HarmonicFrame doors stopped naming SphericalHarmonicBasis and now demand the two-member TruncatedBasis surface (L + space) — the same key-on-what-it-declares move this page makes for invariance_group — and the SEVEN production sites that re-minted the angular coefficient space from the integer L now READ it off the bound basis. So 3.4's Legendre basis on S^2/O2_a is bindable and its space propagates to every operator end and every moment field by construction. `[M]` 33 of 33 (rule, L) rows are metric-identical to the from_L(L) mint they replace, and the converged slab flux on ERR-080's own gate fixture is array_equal pre/post at L = 0, 1, 2 and 3 — bit-identical even where the answer is wrong, which is what a pre-step owes an xfail(strict=True) gate. A capability, not a repair. THE FUSED COMMIT (2026-09-02, trackers 0.1b + 0.6 + 2.2 + 3.4 + 3.4b) IS THE REPAIR, and ERR-080 is CLOSED. Three objects land on this page. (1) `Quotient.descending_slots` — the isotypic probe, user-ruled onto the ENTRY because fibre-constancy is a theorem about pi and it has two readers; it samples SO(2) at INCOMMENSURATE angles because four right angles generate C_4 and falsely admit m = +-4 at L >= 4 (vv #13), a control that is blind below L = 4. `[M]` about x at L=4 it returns exactly {(l,0)}, 5 real slots of 25; about y/z only 2, because the invariant subspace is one-dimensional per degree and slot-ALIGNED only about the harmonics own polar axis x. The fold sigma-even mask now READS it, `[M]` bit-identical on 15 of 15 (axis, L) rows, and its retired five-direction probe had norms 0.83-0.998 (off the sphere, and refusable after 0.6). (2) `Descent` — the two realizations of Funcs(M/H) as ONE object with the discriminator (downstairs iff the quotient has a classical named basis) as `frame_basis`, which `Quadrature._harmonic_basis` binds; `[M]` the isomorphism is array_equal, max|D| = 0.0, on 7 of 7 sphere rules at L=4, and that BIT tier is a measured constraint on the polynomial SPELLING (no single scipy routine reproduces the harmonics m=0 column: lpmv differs at l=1 by 8.3e-17..1.1e-16, eval_legendre at l>=2 by up to 4.8e-16). The upstairs refusal is AXIS-keyed, not alignment-keyed, because about y/z alignment holds at l <= 1 and L=0 is where every solve mints. (3) `quotient_onto` — G0, ONE predicate: a frame is admissible iff a quotient map measure.support -> basis.domain EXISTS, and its table is the basis pulled back along it. `[M]` all seven shipped pairings measured: identity for slab+Legendre, sphere+harmonics and fold+sigma-even; the entry own pi for Legendre-on-a-sphere-rule; REFUSED for slab+full-harmonics (ERR-080), fold+full-harmonics, and — mathematically admissible, over-refused because invariance_group is a LOWER bound with no axis-parameterised O(2) to declare — Legendre-on-a-sigma_y-fold (GitHub #432). `[M]` end to end on ERR-080 own fixture, against a pinned pre-repair tree: phi is array_equal at L = 0 and 1 (max|D| = 0.0) and moves 7.765 / 3.546 at L = 2, 3 to +4.000000000000; gauss_legendre(16) at scattering_order=4 raised a DenseMetric Penrose ValueError before and returns +4.000000000000 after. NOT closed by it: the membership predicate still does not run at measure construction (2.0b) — a forged measure is still CONSTRUCTIBLE, and what is gone is every path from one to a basis; `fundamental_domain` is still None on every axial entry with zero readers. #432 LANDED the same day (see below). Trackers 2.5 / 3.1 / 2.3 / 2.4 / 2.1b were correctly recorded as enablers, and every "still OPEN / still declares three xfail rows" clause in this page dated before 2026-09-02 was repealed by this commit. #432 (2026-09-02) IS THE NAMING LAW: an orbit space is named by its STABILISER, the largest subgroup of O(3) with its orbits. `SubgroupOfO3.O2(axis)` — the pointwise stabiliser O(2)_a = C_inf,v of a coordinate axis, rotations about it AND mirrors through it — joins the lattice beside SO2(axis) and Mirror(axis); `SubgroupOfO3.orbit_stabiliser` names which group an orbit space is recorded under and moves exactly TWO lattice members (SO2(a) -> O2(a) because R[x]^SO(2)_a = R[x_a, x_b^2+x_c^2] = R[x]^O(2)_a, and SO3 -> O3 because both fix only the radius); every other member is its own stabiliser. `Quotient.__post_init__` refuses a non-maximal `by` (a construction invariant, so `dataclasses.replace(entry, by=SO2("x"))` is refused too) and `_catalogued_quotient` refuses at the door with the theorem, so `_sphere_mod_o2` is a pure derivation with one function-scope import and the catalogue keeps SIX keys for SIX entries. Consequences, all `[M]` 2026-09-02: the three axial entries are named `S^2/O2_a`; `gauss_legendre(8).measure.support.name == 'S^2/O2_x'`, `.quotient_group == O2('x')`, `.space.name == 'L2[S^2/O2_x]'`; `LegendreBasis(L).domain.name == 'S^2/O2_x'` and `.invariance_group == O2(axis)` — the FULL group the P_l have, no longer a strict lower bound — with `LegendreSpace.from_L` READING the name off the basis's domain (`legendre_space(S^2/O2_x)`); GEOMETRY_ANGULAR_SYMMETRY["slab"/"sphere"].continuous_isotropy = O2("x") (user-ruled: with O(2)_x spent the recorded residual Mirror("x") is exactly G/G^0, where under SO(2)_x the true residual is the Klein four-group and the recorded mirror is half of it). Every axial relation against a FINITE group is COMPUTED from that group's realization (from the realization; one absolute element band `_ELEMENT_ATOL` = 1e-9; SO(2)_a = O(2)_a intersect SO(3) by composition, no proper_only flag) rather than tabulated — `[M]` the tabulated arm it replaced answered `SO2('x') not-contains C_1` while `SO2('x') contains Trivial`, one group under two spellings and two answers, with a committed test pinning the wrong one. THE OVER-REFUSAL AT #432 IS GONE: `[M]` `GalerkinFrame(LegendreBasis(L), folded_product(4,8).measure)` constructs at L = 0,2,4,6 with a (16, L+1) table and the arrow S^2/sigma_y -> S^2/O2_x, the isotropic field reading exactly 4pi at l=0 (bit-identical to sum(weights)) and <= 1.42e-15 at l >= 1; the NEGATIVE leg `axis="y"` on the same fold is still refused, and on a sigma_x-folded rule `axis="x"` is refused while `axis="z"` is admitted. NOTHING NUMERICAL MOVED: `[M]` stage 0 of quadrature selection is identical on 24 of 24 (geometry x rule) rows against a pinned pre-change tree, and the invariance/containment compatibility law re-runs at 0 violations over 450 (edge x fixture) pairs over 18 groups, with the 15-group control reproducing its recorded 342/0 exactly. The walk's report SIMPLIFIES rather than grows: `[M]` gauss_legendre(8) reports {O2_x, sigma_x} where it reported {SO2_x, sigma_x, sigma_y, sigma_z}, because sigma_y and sigma_z are absorbed by O(2)_x while sigma_x flips the axis and is absorbed by nothing. TRACKER 2.2b (2026-09-02, user-ruled) MOVES THE INVARIANCE QUESTION ONTO THE ORBIT SPACE and gives the registry its Gamma slot. An isometry descends to M/H iff it NORMALISES H, decided exactly per family (`SubgroupOfO3.is_normalised_by` / `normalises`): a finite H by conjugating its element set, SO(2)_a / O(2)_a / D_inf_h by g e_a = +-e_a, and a CONTINUOUS G through the Lie condition on its identity component plus its coset representatives -- never sampled, and `[M]` the four-right-angle sample over-certifies on 2 of 8 (G, H) pairs, ERR-072 recurring in a new predicate. `Quotient.lift` is a right inverse of the quotient map, derived per family (the orbit barycentre for the axial entries -- EQUIVARIANT, not a section, which is all an induced action needs; the hemisphere section for a mirror; the identity for the trivial entry), `[M]` pi . lift = id to 0.000e+00 on all three; `Quotient.induced_action(motion)` is the arrow [p] -> [g p] and REFUSES a motion outside the normaliser (`[M]` C_4 about z on S^2/sigma_y). `is_invariant` has ONE kernel (`_invariance_on_orbit_space`): a bare support is asked on the trivial orbit space R^3/{e} (`[M]` `_ambient_orbit_space().name == 'spatial_R3/Trivial'` -- the ambient space and not the sphere, because every barycentre and every zero-padded node lands OFF S^2), and `[M]` that reduction agrees with the retired ambient reading on 150 of 150 (sphere rule x candidate group) rows. `_polar_axis_of` and `_invariance_on_points` are RETIRED; `_embedded_nodes` reads the entry via `ambient_representatives` (RENAMED from `section_coordinates` at the elegance review: the axial arm returns a BARYCENTRE, not a representative, so the old name promised ERR-080's own forged codomain) and is still array_equal to `barycentre` on 12 of 12 rows. The registry stage 0 is now ONE expression -- Gamma contains `spent_group(D, X)`, what the descent arrow `quotient_onto(D, X)` SPENDS ({e} for the identity, target.by for a fold of the base, refused naming the missing work for the induced map between two quotients) -- over the SAME arrow a frame G0 reads, and stage 1 asks Gamma-invariance ON X. Reading `X.by` instead would have REFUSED the geometry's own domain (`[M]` the slab's sigma_x does not contain O(2)_x). `[M]` the shipped cylindrical fold (folded_product(4,8), S^2/sigma_y) is ADMITTED at both stages for cylinder and cartesian2d where it was refused at both; stage-0 refusals move 12 -> 10 of 20 (constructor x geometry) pairs with no pair moving the other way; the FOLD arm has NO witness on slab/sphere, since `[M]` no shipped orbit space is a proper further quotient of S^2/O(2)_x (the only arrow out of it is the identity, which spends {e}). NOTHING ELSE MOVED: `[M]` gauss_legendre(8) 0 of 15 candidate groups change, product(4,8) 0 of 23, folded_product(4,8) 4 of 21 (sigma_y, C_2, D_1h, D_2h, all False -> True), walk(fold) {sigma_x, sigma_z} -> {D_2h} with walk(slab) and walk(product) unchanged and brute-force agreement 6 of 6 both sides, and the compatibility law re-runs at 0 violations over 342 and 450 (edge x fixture) pairs. The spent-group door refuses (M/H)/G for G contained in H with the theorem, with ONE exception it names: the trivial group is admitted on every base as the identity ENTRY (`[M]` `S^2/sigma_y/Trivial`, and the fold measure's quotient by Trivial returns all 16 nodes on it) -- acting trivially is not the same defect as being spelled twice. `orbit_certificate` follows the same route and the plan's section II.11 lead is CLOSED: `[M]` orbit_certificate(gauss_legendre(8), sigma_x) AND the same call on the BARE chart rule gauss_legendre_on_mu(8) both return 2 permutations where both were refused by SHAPE. What survives is the MESSAGE at measure.py/symmetry.py, now a THREE-arm disjunction wearing two-arm text -- its new third arm is 'the group does not normalise the spent group' (reported, not repaired; a production edit). `Quadrature.ordinate_permutation` moved onto the same kernel, so the tree has ONE notion of 'does this isometry permute the ordinates': `[M]` sigma_y on the fold now yields the IDENTITY permutation where it yielded None, and every other (rule x mirror) cell over four rules is unchanged. `is_normalised_by` asks the motion's LINEAR part rather than refusing a translated motion -- a point group acts on directions and a translation does not move one, which is the convention ordinate_permutation already ran. GitHub #370 gap 2 (stage 0 cannot match a quotient support) is CLOSED, the way that issue demanded -- by the lattice arrow, not by widening a tag; gap 1 stands, `[M]` folded_product(4,8).measure.exactness is still None. The fold measure invariance_group stays None BY DESIGN: the stored slot is a statement about the representatives, the computed predicate is about the orbits. #434 R1 (2026-09-03, UNCOMMITTED in the working tree when this was written — trust git) MAKES EVERY QUESTION ABOUT A GROUP A COMPUTATION ON ITS REALIZATION. so(3) is simple and 3-dimensional, so its subalgebras are {0}, one line R[a]_x per axis, and so(3) itself — never dimension 2 — and a closed subgroup of O(3) is therefore exactly (identity component, one representative per connected component): `IdentityComponent` (a tuple of skew generators) and `Realization` (component + representatives, identity first). `contains`, `is_normalised_by`, `normalises`, `identity_component`, `dim`, `generic_images` and "does G0 fix these nodes" are each ONE body on that pair, and NO relation between two groups is written down anywhere: `_NAMED_LATTICE` (8 hand edges), `_named_contains`, `_contains` (109 lines, 28 tag-dispatch sites by AST: 24 isinstance + 4 `is _NamedSubgroup.X`; module-wide the same predicate falls 86 -> 31), `_finite_contains`, `_fixes_axis`, `_axial_contains`, `_rotation_generator`, `_maps_axis_to_itself`, `_continuous_decomposition`, `_fixes_every_point`, `_identity_component_normalises` (five per-family arms), `_is_axis_supported`, `_is_origin_supported`, `SubgroupTag`, `is_subgroup_of` and `_GROUP_CACHE` are RETIRED. `[M]` against a pinned pre-carve tree over 27 spellings (26 distinct groups): `contains` 0 of 729 ordered pairs moved, `normalises` 0 of 729, `is_invariant` 0 of 270 (10 rules x 27 groups), the walk 0 of 10 rules, and the vv-#15 compatibility law 0 violations on both trees at every denominator it has been run at (57 edges/342 pairs, 75/450, and the widened 175/1750). THREE answers move, all intended: `identity_component` is now Trivial for every finite member (17 of 27 spellings; it returned the group ITSELF before, contradicting its own docstring's "its orbits are connected" on O_h, and invisible because the property had ZERO readers — the two sites needing it destructured `_continuous_decomposition`); `Cn(1)` normalises to the `Trivial` tag on the type, so one group has one spelling (before: each contained the other, they compared unequal, `_maximal` dropped BOTH, hash differed, and `SPHERE.quotient(Cn(1))` answered "no catalogue entry"); and `dim` in {0,1,3} is NEW, with no production consumer until R4 reads it for the orbit-space dimension law. `SubgroupOfO3` is a frozen dataclass (`g._tag = ...` raised nothing before and moved `hash(quotient)` under three memos); `orbit_stabiliser` is structural (finite -> self; dim 3 -> O(3); torus about a -> O(2)_a if it contains self, else self if self contains it, else a NAMED refusal no shipped member reaches). `_MEMBERSHIP_ATOL` is renamed `_ELEMENT_ATOL` (1e-9, the one element-level band) so the identically-spelled 1e-12 POINT band in manifold.py no longer makes one grep answer twice"
 
 
 This page develops the **point-set layer** — the thing a measure is
@@ -1161,6 +1161,15 @@ could not name:
    by :math:`4\times10^{-2}` to :math:`8\times10^{-1}`, not by ULPs.
    ``contains`` is a **universal**, not a mean: one bad row is enough.
 
+   ⚠ **The name was ambiguous until 2026-09-03, and this note owns the
+   surviving half.** ``symmetry.py`` carried a constant of the SAME
+   spelling at :math:`10^{-9}`, asking a different question — whether
+   two realized *operators* are the same ELEMENT of a group, not whether
+   a *point* lies on a manifold — so a grep for ``_MEMBERSHIP_ATOL``
+   returned two bands and two meanings. #434 R1 renamed that one
+   ``_ELEMENT_ATOL``; :math:`10^{-12}` here is the point band, and it is
+   now the only ``_MEMBERSHIP_ATOL`` in the tree.
+
 
 .. _manifold-orbit-space:
 
@@ -1721,8 +1730,18 @@ door.
 **(1) The group answers which group it would be named by.**
 :attr:`SubgroupOfO3.orbit_stabiliser
 <orpheus.numerics.symmetry.SubgroupOfO3.orbit_stabiliser>` returns the
-largest subgroup of :math:`O(3)` with this group's orbits. It is a
-total function on the shipped lattice and it moves exactly two members:
+largest subgroup of :math:`O(3)` with this group's orbits. Since #434 R1
+(2026-09-03) it reads the answer off the group's **realization**
+(:ref:`manifold-realization`) rather than matching its tag: a finite
+group is its own stabiliser; a component of dimension 3 answers
+:math:`O(3)`; a torus about :math:`\hat a` answers :math:`O(2)_a` when
+:math:`O(2)_a` contains it and itself when it contains :math:`O(2)_a`.
+That third clause is where :math:`D_{\infty h}` lands, and the case
+neither containment covers raises a NAMED refusal rather than falling
+through to a wrong answer — `[M]` no shipped member reaches it, and
+`[M]` the accessor is still total on the lattice, its answers unchanged
+by the carve except for the ``C_1`` merge. It moves exactly two
+FAMILIES:
 
 .. list-table:: ``orbit_stabiliser`` over the shipped lattice
    :header-rows: 1
@@ -1751,11 +1770,15 @@ total function on the shipped lattice and it moves exactly two members:
        continuous :math:`D_{\infty h}`, :math:`O(2)_a`, :math:`O(3)`,
        whose orbits already determine them.
 
-⚠ Read the table's shape, not only its rows: **two** groups in the
+⚠ Read the table's shape, not only its rows: **two families** in the
 lattice are not their own orbit stabiliser, and those are exactly the
 two whose orbit space a caller might reasonably ask for by the wrong
 name. That is why the property is worth minting rather than a
-special case in the sphere derivation.
+special case in the sphere derivation. ⚠ *Families*, not members —
+`[M]` 2026-09-03 over the 27 spellings this page's fixtures build, the
+accessor moves **4** of them, because the axial family has three axes
+(:math:`SO(2)_x`, :math:`SO(2)_y`, :math:`SO(2)_z`, :math:`SO(3)`). The
+denominator matters here for the same reason the axis is a parameter.
 
 **(2) The type refuses to hold a non-maximal** ``by``.
 :class:`~orpheus.numerics.manifold.Quotient`'s ``__post_init__``
@@ -1964,6 +1987,358 @@ groups that have **no** axis to name: `[M]` **six** members —
    shipping a wrong answer. When a :math:`C_n` about :math:`x` first
    appears, this is the paragraph that says what to do.
 
+.. _manifold-realization:
+
+A closed subgroup of :math:`O(3)` IS (identity component, coset representatives)
+---------------------------------------------------------------------------------
+
+Every question this page asks about a group — *does it contain that
+one?*, *does it normalise it, so it acts on the orbit space?*, *does its
+connected part fix these nodes?*, *what is its dimension?* — used to be
+answered by a different piece of code per family of group, and two of
+those pieces were hand-written tables of relations between NAMES. #434
+R1 (2026-09-03) replaced all of them with one representation and one
+body per question. The representation is not a data-structure choice; it
+is a classification theorem, and the theorem is what makes the
+replacement possible.
+
+The theorem — :math:`\mathfrak{so}(3)` has no two-dimensional subalgebra
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A compact subgroup :math:`G \le O(3)` is a closed Lie subgroup. Write
+:math:`G^0` for its identity component — the connected part — and recall
+that :math:`G/G^0` is finite, so
+
+.. math::
+   :label: manifold-group-as-component-and-cosets
+
+   G \;=\; \bigsqcup_{r \in R} r\,G^0 ,
+   \qquad R \ \text{a set of coset representatives},\ e \in R,
+
+with :math:`G^0 = \exp\mathfrak g` determined by the Lie subalgebra
+:math:`\mathfrak g \subseteq \mathfrak{so}(3)`. That decomposition is
+only *useful* because the second factor is small and the first has just
+three possibilities:
+
+.. math::
+   :label: manifold-so3-subalgebras
+
+   \mathfrak g \;\in\;
+   \bigl\{\, \{0\},\ \ \mathbb R\,[\hat a]_\times\ (\hat a \in S^2),\ \
+   \mathfrak{so}(3) \,\bigr\},
+   \qquad \dim\mathfrak g \in \{0, 1, 3\} \ \text{— never } 2 .
+
+.. (vv-status rationale) manifold-group-as-component-and-cosets and
+   manifold-so3-subalgebras: two structural facts of Lie theory,
+   transcribed here because the shipped representation IS this
+   decomposition and every predicate on it is one case table over
+   ``dim``. Neither states a flux, eigenvalue or convergence claim, so
+   neither has an L0..L3 ladder slot. Their CODE content is verified by
+   the foundation gates on ``SubgroupOfO3.contains`` /
+   ``is_normalised_by`` / ``normalises`` / ``dim`` in
+   ``tests/numerics/test_symmetry.py``, which carry
+   ``@pytest.mark.foundation`` and therefore no ``verifies(...)`` marker
+   by ``vv-principles``' foundation-tier rule.
+.. vv-status: manifold-group-as-component-and-cosets documented
+.. vv-status: manifold-so3-subalgebras documented
+
+**The one-line reason, and it is a complete proof.** As a Lie algebra
+:math:`\mathfrak{so}(3)` is :math:`(\mathbb R^3, \times)`: the map
+:math:`v \mapsto [v]_\times` (the skew matrix with
+:math:`[v]_\times w = v \times w`) is an isomorphism onto
+:math:`\mathfrak{so}(3)`, and it carries the cross product onto the
+bracket,
+
+.. math::
+   :label: manifold-so3-is-the-cross-product
+
+   \bigl[\,[\hat a]_\times,\ [\hat b]_\times\,\bigr]
+   \;=\; [\,\hat a \times \hat b\,]_\times .
+
+.. (vv-status rationale) manifold-so3-is-the-cross-product: the standard
+   Lie-algebra isomorphism (R^3, x) ~ so(3), transcribed because it is
+   the whole content of the dimension law above and because the shipped
+   ``symmetry._skew`` / ``symmetry._axis_of`` pair IS this map and its
+   inverse. Not a solver claim; verified as an identity on the shipped
+   generators (the foundation gates over ``_realize``'s output), and
+   ``[M]`` 2026-09-03 by direct evaluation over the nine coordinate
+   pairs, max deviation exactly 0.
+.. vv-status: manifold-so3-is-the-cross-product documented
+
+Now suppose :math:`\mathfrak g` is a subalgebra with
+:math:`\dim\mathfrak g = 2`, spanned by independent :math:`u, v`. Then
+:math:`u \times v \in \mathfrak g` by closure, and :math:`u \times v` is
+perpendicular to both :math:`u` and :math:`v` and nonzero — a **third**
+independent direction inside a two-dimensional space. Contradiction. So
+a subalgebra has dimension 0, 1 or 3, and in the middle case it is the
+line through a single :math:`[\hat a]_\times`, whose exponential is the
+circle of rotations about :math:`\hat a`. `[M]` 2026-09-03,
+:eq:`manifold-so3-is-the-cross-product` evaluated over the nine
+coordinate pairs :math:`(\hat a, \hat b)`: maximum deviation
+:math:`0.000\times10^{0}` — exactly zero, the identity being a
+rearrangement of the same six signed entries — and the membership test
+:math:`[\hat x \times \hat y]_\times \in
+\operatorname{span}\{[\hat x]_\times\}` answers ``False``, which is the
+contradiction realized.
+
+⟹ **a closed subgroup of** :math:`O(3)` **is exactly the pair (identity
+component, coset representatives)**, and the identity component is
+exactly one of: the trivial group, a circle about a named axis, or
+:math:`SO(3)`. That is
+:class:`~orpheus.numerics.symmetry.IdentityComponent` (a tuple of
+skew generators, and nothing else) and
+:class:`~orpheus.numerics.symmetry.Realization` (a component plus a
+tuple of :class:`~orpheus.geometry.transformation.RigidMotion`
+representatives, identity first). For a FINITE group the identity
+component is trivial and the representatives are every element, so the
+finite and continuous cases are one type rather than two arms.
+
+.. list-table:: `[M]` 2026-09-03 — what the lattice realizes, over the
+   27 spellings this page's fixtures build (26 distinct groups)
+   :header-rows: 1
+   :widths: 12 14 30 44
+
+   * - :math:`\dim`
+     - spellings
+     - :math:`\mathfrak g`
+     - members
+   * - 0
+     - 18
+     - :math:`\{0\}`; :math:`G` is finite and its representatives are
+       its elements
+     - ``Trivial``, :math:`O_h`, :math:`I_h`, :math:`C_n`,
+       :math:`D_{nh}`, :math:`\sigma_a` (:math:`C_1` is ``Trivial``,
+       so 18 spellings are 17 groups)
+   * - 1
+     - 7
+     - :math:`\mathbb R\,[\hat a]_\times` — a circle about :math:`\hat a`
+     - :math:`SO(2)_a` (1 component), :math:`O(2)_a` (2),
+       :math:`D_{\infty h}` (4)
+   * - 3
+     - 2
+     - :math:`\mathfrak{so}(3)`
+     - :math:`SO(3)` (1 component), :math:`O(3)` (2, the second
+       generated by :math:`-I`)
+   * - 2
+     - **0**
+     - —
+     - :eq:`manifold-so3-subalgebras`: there is no such subalgebra, so
+       there is no such subgroup to represent
+
+:attr:`SubgroupOfO3.dim <orpheus.numerics.symmetry.SubgroupOfO3.dim>`
+reads that number off the component. It is new at R1 and has no
+production consumer yet: the dimension law on an orbit space —
+:math:`\dim(M/H) = \dim M - \dim H` on the principal stratum,
+:ref:`manifold-dimension-drop` — **will** read it when #434 R4 lands,
+which is the carve that makes the lift a derivation output. Stating the
+consumer as future tense is deliberate; today ``dim`` is a capability.
+
+One body per question
+~~~~~~~~~~~~~~~~~~~~~
+
+Each row below was, before R1, between two and five branches on the
+group's tag, plus (for the first two) a table of relations between
+names. Each is now one expression on the realization.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 74
+
+   * - question
+     - the one body
+   * - :math:`g \in G`
+     - :math:`g` lies in some coset: :math:`r^{-1}g \in G^0` for some
+       representative :math:`r`. And :math:`h \in G^0` is decided by
+       :math:`\dim`: the identity alone; a PROPER motion fixing
+       :math:`\hat a`; any proper motion.
+   * - :math:`H \subseteq G`
+     - :math:`\mathfrak h \subseteq \mathfrak g` (a torus in a torus iff
+       the axes are parallel; anything in :math:`\mathfrak{so}(3)`;
+       :math:`\{0\}` in everything) **and** every representative of
+       :math:`H` is an element of :math:`G`.
+   * - :math:`gGg^{-1} = G`
+     - :math:`\mathrm{Ad}_g\,\mathfrak g = \mathfrak g` — for a torus,
+       :math:`g\hat a = \pm\hat a`, since
+       :math:`Q[\hat a]_\times Q^{\mathsf T} = \det Q\,[Q\hat a]_\times`
+       and a span cannot see the sign — **and** every representative
+       conjugates back into :math:`G`.
+   * - :math:`G \subseteq N(H)`
+     - the component exactly, through the Lie algebra
+       (:eq:`manifold-normaliser-lie-criterion`), and each representative
+       of :math:`G` one by one.
+   * - :math:`G^0` fixes these points
+     - :math:`Xp = 0` for every generator :math:`X` and every point
+       :math:`p`. For a torus :math:`|\hat a \times p| = 0`, i.e.
+       :math:`p` is ON the axis; for :math:`SO(3)`, :math:`p = 0`.
+       This is one body where the tree carried two
+       (``_is_axis_supported`` and ``_is_origin_supported``), and it is
+       the criterion ERR-072 is about
+       (:ref:`manifold-normaliser-sampling-control`).
+   * - a generic set of elements
+     - every element (finite), or the incommensurate rotations of the
+       component composed with each representative (a torus) —
+       :meth:`Realization.generic_images
+       <orpheus.numerics.symmetry.Realization.generic_images>`. `[M]`
+       2026-09-03: 1 / 2 / 4 / 48 images for ``Trivial`` /
+       :math:`\sigma_z` / :math:`C_4` / :math:`O_h`; 6 / 12 / **24** for
+       :math:`SO(2)_a` / :math:`O(2)_a` / :math:`D_{\infty h}` — six
+       incommensurate angles times the number of components, so
+       :math:`D_{\infty h}` is answerable for the first time, having had
+       no arm of its own before. :math:`SO(3)` and :math:`O(3)` refuse
+       by name: no axis to sample about, and no consumer yet.
+
+⭐ **The tag survives, and survives as exactly one thing: the group's
+IDENTITY and its name.** :func:`~orpheus.numerics.symmetry._realize` is
+the single place it is read for structure, memoised on the tag because
+the lattice walk asks :math:`O(n^3)` questions per measure and would
+otherwise re-close the same group — `[M]` a single walk once rebuilt
+:math:`I_h` 41 times, 9.3 s of a 9.4 s walk. Everywhere else the tag is
+read only by ``name`` and ``__repr__`` and by the constructors.
+
+⭐ **Computing rather than tabulating costs nothing here, because the
+lattice walk's queries are overwhelmingly REPEATS and both layers are
+memoised on immutable tags.** `[M]` 2026-09-03, cleared caches, one
+:func:`~orpheus.numerics.symmetry.maximal_invariance_groups` walk per
+rule, counted off ``functools.cache``'s own ``cache_info``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - walk on
+     - ``_tags_contain`` (queries → distinct)
+     - ``_realize`` (reads → groups built)
+   * - ``gauss_legendre(8)``
+     - 420 → 203
+     - 433 → **15**
+   * - ``product(4, 8)``
+     - 880 → 427
+     - 995 → **22**
+   * - ``lebedev(9)``
+     - 1152 → 523
+     - 1193 → **24**
+
+Roughly half of every walk's containment questions are literally the
+same question asked again, and a walk that asks a thousand structural
+questions builds **fewer than 25 groups**. A hand-written table is not
+buying speed over this; it is buying a second, unverifiable copy of the
+answer.
+
+.. _manifold-realization-one-spelling:
+
+One group, one spelling — :math:`C_1` IS the trivial group
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:class:`~orpheus.numerics.symmetry.SubgroupOfO3` is a frozen dataclass
+whose ``__post_init__`` rewrites the tag ``Cn(1)`` to ``Trivial``. It is
+the naming law of :ref:`manifold-orbit-space-stabiliser` applied one
+tier down — *an object has one spelling* — and it is Pattern 4: the
+second spelling is not refused, it is **unrepresentable**. `[M]`
+2026-09-03: ``SubgroupOfO3.Cn(1) == SubgroupOfO3.Trivial`` is ``True``,
+``repr`` reads ``SubgroupOfO3.Trivial``, and the hashes agree, so the
+27 spellings this page probes are 26 groups.
+
+Two spellings for one group is not a cosmetic defect. `[M]` before the
+merge each ``contains`` the other and the two compare **unequal**, so
+:func:`~orpheus.numerics.symmetry._maximal` — which keeps a group only
+when nothing else strictly contains it — dropped **both**, and a walk
+that found :math:`\{e\}` reported the empty tuple; ``hash`` differed, so
+a memo keyed on a :class:`~orpheus.numerics.manifold.Quotient` missed;
+and ``SPHERE.quotient(Cn(1))`` answered *"no catalogue entry"*, the one
+message the door promises never to give for a group it holds.
+
+⚠ **Frozen, and that is load-bearing rather than hygiene.** `[M]`
+2026-09-03 ``g._tag = "MUTATED"`` now raises
+``FrozenInstanceError``; before R1 it SUCCEEDED, and because a
+:class:`~orpheus.numerics.manifold.Quotient` carries the group as a
+field, mutating it moved ``hash(quotient)`` out from under three memos
+keyed on it. Every tag class was already frozen; the wrapper was the
+one mutable link in the chain.
+
+The identity component was wrong, and nothing read it
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:attr:`SubgroupOfO3.identity_component
+<orpheus.numerics.symmetry.SubgroupOfO3.identity_component>` is now read
+off the realization: ``Trivial`` for every finite member (a finite
+subgroup of :math:`O(3)` is discrete, so its identity component is
+:math:`\{e\}`), :math:`SO(2)_a` for the axial families and
+:math:`D_{\infty h}`, :math:`SO(3)` for :math:`SO(3)` and
+:math:`O(3)`.
+
+⛔ **Until 2026-09-03 it returned the group ITSELF for every finite
+member.** `[M]` measured against a pinned pre-carve tree (``git archive
+HEAD``, editable finder stripped, ``orpheus.__file__`` asserted), the
+answer moves on **17 of the 27 spellings** — every finite one, from
+:math:`O_h` and :math:`I_h` through every :math:`C_n`, :math:`D_{nh}`
+and :math:`\sigma_a`. It contradicted its own docstring, which said
+*"its orbits are connected, so it fixes every point"* — false of
+:math:`O_h`, whose orbits are 48 points.
+
+⭐ **Why nothing noticed, and it is the more useful half.** The property
+had **zero readers**. The two places that genuinely needed the identity
+component destructured a private helper instead
+(``_continuous_decomposition``, now retired), so the public accessor was
+a claim nobody could falsify by using it — ``vv-principles`` #17's
+guard-with-no-witness, wearing a ``@property`` instead of a ``raise``.
+Its first reader arrives with #434 R4. That ordering is the argument for
+fixing it now rather than when the consumer lands: a wrong accessor with
+no reader is indistinguishable from a right one until the day it is
+read, and on that day the failure is attributed to the new consumer.
+
+What the carve moved, and what it did not
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The behaviour contract, measured against the pinned pre-carve tree. Both
+runs enumerate the same 27 spellings; the ``contains`` and ``normalises``
+tables are the full :math:`27 \times 27` grids.
+
+.. list-table:: `[M]` 2026-09-03 — pre-carve (``git archive HEAD``) vs the
+   realization
+   :header-rows: 1
+   :widths: 34 22 44
+
+   * - reading
+     - moved
+     - what that says
+   * - ``A.contains(B)``
+     - **0 of 729**
+     - 109 lines of dispatch and two hand tables replaced with no
+       change to a single answer
+   * - ``A.normalises(B)``
+     - **0 of 729**
+     - the five per-family arms and the one Lie criterion agree
+       everywhere they are both defined
+   * - ``g.is_invariant(m)``
+     - **0 of 270**
+     - 10 shipped rules × 27 groups, the selection-facing predicate
+   * - ``maximal_invariance_groups``
+     - **0 of 10 rules**
+     - the walk's report is unchanged rule by rule
+   * - the compatibility law
+     - **0 violations, both sides**
+     - 175 edges × 10 fixtures = 1750 (edge × fixture) pairs; the
+       recorded 57/342 and 75/450 readings reproduce EXACTLY on both
+       trees, which is what licenses reading 1750 as a widening of the
+       same instrument rather than a different one
+   * - ``g.identity_component``
+     - **17 of 27**
+     - the intended repair above
+   * - ``g.orbit_stabiliser``
+     - **1 of 27**
+     - and only because ``C_1`` merged into ``Trivial``; the accessor's
+       answers are otherwise untouched
+   * - ``g.dim``
+     - **new**
+     - ``AttributeError`` on the pre-carve tree
+
+⭐ The two zeros are the finding. A carve that deletes a hand-written
+relation table is exactly the kind that can silently change an answer
+nobody is looking at, and the honest instrument is the FULL grid rather
+than the edges anyone thought to name — the same reason the
+compatibility law is run at every denominator it has ever been run at
+rather than only at the newest one.
+
 .. _manifold-so2-axis-lattice:
 
 What the axis buys in the containment lattice
@@ -1972,27 +2347,49 @@ What the axis buys in the containment lattice
 The parameter is not decoration on a name — it changes the **order**.
 The two AXIAL families, :math:`SO(2)_a` and its stabiliser
 :math:`O(2)_a` (:ref:`manifold-orbit-space-stabiliser`), are the
-continuous ones *with* a parameter, so their relations are neither in
-the enum-to-enum table nor decidable finite-vs-finite, and they live in
-their own arm (``symmetry._axial_contains``).
+continuous ones *with* a parameter, so their edges depend on which axis
+each side names and no enumeration over group NAMES can carry them.
 
-⭐ **Every relation against a FINITE group is COMPUTED, not tabulated**
-— since 2026-09-02, from that group's own realization: it lies inside
-:math:`O(2)_a` iff each of its elements fixes :math:`\hat e_a`
-(``symmetry._fixes_axis``, absolute tolerance :math:`10^{-9}`, the same
-constant the finite-vs-finite arm uses). The rotation half needs no
-second predicate — :math:`SO(2)_a = O(2)_a \cap SO(3)`, so the arm
-COMPOSES the axis test with ``SubgroupOfO3.SO3.contains`` rather than
-carrying a ``proper_only`` flag, which is the same "build primitives,
-not products" move one tier down. That is the same move the
-finite-vs-finite
-arm made on 2026-08-02, one tier up, and it is worth the paragraph
-because the table it replaced had already contradicted itself: `[M]` it
-answered ``SO2('x') ⊉ C_1`` while ``SO2('x') ⊇ Trivial`` — **one group
-under two spellings, two answers** — and a committed test pinned the
-wrong one. A computed relation cannot disagree with itself.
+⭐ **Every relation in the lattice is COMPUTED from the two groups'
+realizations, and no relation between two groups is written down
+anywhere** (:ref:`manifold-realization`, #434 R1, 2026-09-03).
+:math:`H \subseteq G` holds iff :math:`\mathfrak h \subseteq
+\mathfrak g` and every coset representative of :math:`H` is an ELEMENT
+of :math:`G`; for the axial pair that unfolds to exactly the two
+statements the retired arm spelled by hand — a finite group lies inside
+:math:`O(2)_a` iff each of its elements fixes :math:`\hat e_a`, and
+inside :math:`SO(2)_a` iff it is also proper, since
+:math:`SO(2)_a = O(2)_a \cap SO(3)`.
 
-`[M]` 2026-09-02, measured on the live tree over all three axes:
+⛔ **This paragraph named an arm, and the arm is gone.** It read, until
+2026-09-03 and verbatim, that the axial families' relations "are
+neither in the enum-to-enum table nor decidable finite-vs-finite, and
+they live in their own arm (``symmetry._axial_contains``)", computed
+through ``symmetry._fixes_axis``. True when written, and #434 R1
+dissolved the
+distinction it rests on: there is no enum-to-enum table, no
+finite-vs-finite arm and no axial arm, because there is no per-family
+dispatch left to arm. What survives verbatim is the tolerance — one
+absolute band, :math:`10^{-9}`, for every element-level comparison a
+realization makes (``symmetry._ELEMENT_ATOL``, renamed from
+``_MEMBERSHIP_ATOL`` in the same carve so that the identically-spelled
+:math:`10^{-12}` band in ``manifold.py`` — a POINT on a manifold, a
+different question — stops making one grep answer twice).
+
+⭐ **The history is why the paragraph exists at all, and it is now
+twice over.** The hand-maintained table this section used to describe
+had already contradicted itself: `[M]` it answered
+``SO2('x') ⊉ C_1`` while ``SO2('x') ⊇ Trivial`` — **one group under two
+spellings, two answers** — and a committed test pinned the wrong one.
+#432 computed the axial edges and that contradiction went; #434 R1
+computed the rest and removed the second spelling as well, since
+``Cn(1)`` now normalises to the ``Trivial`` tag on the type
+(:ref:`manifold-realization-one-spelling`). A computed relation cannot
+disagree with itself, and a group with one spelling cannot be asked
+twice.
+
+`[M]` 2026-09-02, re-measured 2026-09-03 on the live tree over all
+three axes:
 
 .. list-table:: The two axial families' edges
    :header-rows: 1
@@ -2069,6 +2466,19 @@ violations over 450 (edge × fixture) pairs.** The 15-group control was
 re-run in the same script and reproduced its recorded reading exactly
 (57 edges, 342 pairs, 0 violations), which is what licenses reading the
 new number as a widening rather than a different instrument.
+
+✅ **Re-run again at 2026-09-03, after #434 R1 made every edge a
+computation on the realizations, at three denominators and on BOTH
+trees.** `[M]` the 15-group and 18-group readings above reproduce
+EXACTLY on the pinned pre-carve tree and on the carved one — 57/342/0
+and 75/450/0, four readings, all identical — and the same law widened
+to **27** group spellings × **10** shipped rules
+(``gauss_legendre`` 8 and 16, ``product`` (4,8) and (4,4),
+``folded_product`` (4,8) and (4,6), ``level_symmetric`` 4 and 8,
+``lebedev`` 9 and 17) reads **175 edges** and **0 violations over 1750
+(edge × fixture) pairs**, again on both trees. The old readings
+reproducing is what makes 1750 a widening; the two trees agreeing is
+what makes it a regression gate on the carve.
 
 The most informative row is the one that could not exist before: `[M]`
 ``gauss_legendre_on_polar_orbit(8, "z")`` — the same eight nodes,
@@ -6340,15 +6750,21 @@ than evaluating on whatever representative it was handed.
 
 :meth:`SubgroupOfO3.is_normalised_by
 <orpheus.numerics.symmetry.SubgroupOfO3.is_normalised_by>` decides
-:eq:`manifold-normaliser-descent` family by family, and every family is
-decided EXACTLY — no family is sampled (ERR-072):
+:eq:`manifold-normaliser-descent` in ONE body on the realization
+(:ref:`manifold-realization`): :math:`g` must carry the Lie algebra onto
+itself, :math:`\mathrm{Ad}_g\,\mathfrak h = \mathfrak h`, and it must
+conjugate every coset representative back into :math:`H`. No family is
+sampled (ERR-072). Read at each family that unfolds to the statements
+below, which is what the table records — the *answers*, not five pieces
+of code:
 
-.. list-table:: `[M]` 2026-09-02 — one positive and one negative leg per family
+.. list-table:: `[M]` 2026-09-02, re-measured 2026-09-03 — one positive
+   and one negative leg per family
    :header-rows: 1
    :widths: 22 40 19 19
 
    * - Family of :math:`H`
-     - How ``is_normalised_by`` decides it
+     - What the one body reduces to
      - Positive leg
      - Negative leg
    * - FINITE (:math:`\sigma_a`, :math:`C_n`, :math:`D_{nh}`,
@@ -6385,33 +6801,147 @@ be the bug.
 ⚠ **A TRANSLATED motion is projected, not refused** — the question is
 asked of the motion's LINEAR part. A point group acts on *directions*
 and a translation does not move a direction, so a translated deck
-element normalises exactly what its rotation does; `[M]` 2026-09-02 a
-pure translation answers ``True`` for every family, which is the same
+element normalises exactly what its rotation does; `[M]` 2026-09-03 a
+pure translation answers ``True`` on **26 of 26** distinct members of
+the lattice, which is the same
 convention :meth:`Quadrature.ordinate_permutation
 <orpheus.numerics.quadrature.directional.Quadrature.ordinate_permutation>`
 already runs (a periodic wrap's ordinate permutation is the identity).
 Refusing would have made an isometry that plainly acts on the sphere
 unaskable.
 
+.. _manifold-normaliser-lie-criterion-section:
+
+The group-level criterion — one Lie condition, not five family arms
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 :meth:`SubgroupOfO3.normalises
 <orpheus.numerics.symmetry.SubgroupOfO3.normalises>` lifts the question
-from an ELEMENT to a GROUP — *does* :math:`G` *act on* :math:`M/H`? A
-finite :math:`G` asks each of its elements. A CONTINUOUS :math:`G`
-cannot be asked element by element, and this is precisely where
-ERR-072's trap lives, so it is decided through structure instead:
-conjugation by a CONNECTED group is a continuous map, and a continuous
-map into a FINITE group is constant, hence trivial. So
+from an ELEMENT to a GROUP — *does* :math:`G` *act on* :math:`M/H`?
+Writing :math:`G = \bigsqcup_r r\,G^0`
+(:eq:`manifold-group-as-component-and-cosets`), :math:`G \subseteq N(H)`
+splits along that decomposition and along nothing else: each
+representative :math:`r` is one element, asked by
+:eq:`manifold-normaliser-descent`; and :math:`G^0` cannot be asked
+element by element, because it has infinitely many. This is exactly
+where ERR-072's trap lives — sample the connected group and conjugate —
+so the connected half is decided through its Lie algebra:
 
-* :math:`SO(2)_a` normalises a finite :math:`H` **iff** every element
-  of :math:`H` commutes with the rotation generator
-  :math:`[\hat e_a]_\times` (one matrix, one commutator per element);
-* :math:`SO(3)` normalises a finite :math:`H` **iff**
-  :math:`H \subseteq \{e, -I\}`, the centre of :math:`O(3)`;
-* on a CONTINUOUS :math:`H` the axial groups agree iff they name the
-  same axis;
+.. math::
+   :label: manifold-normaliser-lie-criterion
 
-and the finitely many **coset representatives** of the disconnected
-families are then asked one by one —
+   \operatorname{Lie} N(H) \;=\;
+   \bigl\{\, X \in \mathfrak{so}(3) \;:\;
+   [X, \mathfrak h] \subseteq \mathfrak h
+   \ \ \text{and}\ \
+   X - \mathrm{Ad}_s X \in \mathfrak h \ \ \forall\, s \in R_H \,\bigr\},
+
+.. (vv-status rationale) manifold-normaliser-lie-criterion: the Lie
+   algebra of the normaliser of a closed subgroup, transcribed with its
+   proof because the shipped ``IdentityComponent.normalises`` IS this
+   expression and every per-family arm it replaced is a corollary of it.
+   A structural criterion of Lie theory, not a solver claim, with no
+   L0..L3 ladder slot. Its CODE content is verified by the foundation
+   gates on ``SubgroupOfO3.normalises`` and by the sampling control
+   below (:ref:`manifold-normaliser-sampling-control`), both under
+   ``@pytest.mark.foundation``.
+.. vv-status: manifold-normaliser-lie-criterion documented
+
+so that :math:`G^0 \subseteq N(H)` iff :math:`\mathfrak g \subseteq
+\operatorname{Lie} N(H)` — a finite number of matrix conditions,
+:math:`\dim\mathfrak g \le 3` generators against
+:math:`\dim\mathfrak h \le 3` generators and :math:`|R_H|` coset
+representatives of :math:`H`.
+
+**The proof, both directions.** *Necessity*: if :math:`\exp(tX)`
+normalises :math:`H` then for each :math:`s \in H` the curve
+:math:`f(t) = \exp(tX)\,s\,\exp(-tX)\,s^{-1}` lies in :math:`H`, starts
+at the identity, and is continuous, so it lies in :math:`H^0`;
+differentiating at :math:`t = 0` gives
+:math:`X - \mathrm{Ad}_s X \in \mathfrak h`, and taking :math:`s` inside
+:math:`H^0` gives :math:`[X, \mathfrak h] \subseteq \mathfrak h`.
+*Sufficiency*: put :math:`Y_s = X - \mathrm{Ad}_s X \in \mathfrak h`;
+then :math:`f'(t)f(t)^{-1} = \mathrm{Ad}_{\exp(tX)} Y_s`, which lies in
+:math:`\mathrm{Ad}_{\exp(tX)}\mathfrak h = \mathfrak h` because the
+first condition makes :math:`\mathfrak h` invariant under
+:math:`\mathrm{ad}_X` and hence under :math:`\mathrm{Ad}_{\exp(tX)}`. So
+:math:`f` never leaves :math:`H^0`, and :math:`\exp(tX)` normalises
+:math:`H`.
+
+**Why the coset representatives of** :math:`H` **suffice.** For
+:math:`s h` with :math:`h = \exp Y`, :math:`Y \in \mathfrak h`,
+
+.. math::
+
+   X - \mathrm{Ad}_{sh} X
+   \;=\; (X - \mathrm{Ad}_s X)
+   \;+\; \mathrm{Ad}_s\,(X - \mathrm{Ad}_h X),
+
+and :math:`X - \mathrm{Ad}_h X = -(\mathrm{ad}_Y X +
+\tfrac12\mathrm{ad}_Y^2 X + \dots) \in \mathfrak h` by the first
+condition, while :math:`\mathrm{Ad}_s` preserves :math:`\mathfrak h`
+because :math:`H^0` is normal in :math:`H`. So the second condition on
+:math:`R_H` implies it on all of :math:`H`.
+
+⭐ **The five per-family arms are corollaries, and this is where they
+went.** Read :eq:`manifold-normaliser-lie-criterion` at each family and
+the retired arms fall out of it, verbatim:
+
+.. list-table:: `[M]` 2026-09-03 — the one criterion, evaluated per family
+   :header-rows: 1
+   :widths: 24 46 30
+
+   * - the case
+     - what :eq:`manifold-normaliser-lie-criterion` reduces to
+     - measured
+   * - :math:`H` FINITE (:math:`\mathfrak h = 0`)
+     - the bracket condition is vacuous and
+       :math:`X - \mathrm{Ad}_s X = 0` says :math:`s` COMMUTES with
+       :math:`X` — one matrix, one commutator per element, which is
+       precisely the retired arm
+     - agrees with a direct commutator test on **51 of 51** (axis ×
+       finite-family) rows
+   * - :math:`H = O(2)_b` or :math:`SO(2)_b`
+     - :math:`[[\hat a]_\times, [\hat b]_\times] = [\hat a \times
+       \hat b]_\times` lies in the LINE of :math:`[\hat b]_\times` only
+       when :math:`\hat a \times \hat b = 0`, i.e.
+       :math:`\hat a \parallel \hat b`; then
+       :math:`X - \mathrm{Ad}_{\sigma_v} X = 2X \in \mathfrak h`
+       (an improper :math:`g` sends :math:`[v]_\times` to
+       :math:`-[gv]_\times`)
+     - ``normalises`` equals *"the axes agree"* on **9 of 9**
+       (:math:`a`, :math:`b`) pairs, for both :math:`SO(2)_b` and
+       :math:`O(2)_b`
+   * - :math:`H = D_{\infty h}`
+     - the same, with the family's axis fixed at :math:`z`
+     - :math:`SO(2)_a` normalises it for :math:`a = z` only
+       (``True``/``False``/``False`` on :math:`z`/:math:`x`/:math:`y`)
+   * - :math:`G^0 = SO(3)`, :math:`H` finite
+     - all three generators must commute with every :math:`s`, and only
+       :math:`\pm I` commutes with all of :math:`\mathfrak{so}(3)` —
+       so :math:`H \subseteq \{e, -I\}`, the centre of :math:`O(3)`
+     - ``False`` on all 16 non-trivial finite members probed, ``True``
+       on ``Trivial``, and ``True`` on :math:`\{e, -I\}` built directly
+       as a :class:`~orpheus.numerics.symmetry.Realization` — the
+       positive leg, which has no named member to be asked through
+   * - :math:`H = \{e\}`, :math:`SO(3)`, :math:`O(3)`
+     - normal in :math:`O(3)`; every condition holds identically
+     - ``True`` for every :math:`G`
+
+⛔ **This subsection listed those five as the criterion until
+2026-09-03**, in the shape the code then had — a five-arm dispatch in
+``symmetry._identity_component_normalises``, each arm resting on one or
+two tests, one of them (`[M]` qa's per-arm census) invoked exactly ONCE
+across 670 tests. Every arm's *answer* was right, which is why the
+prose survived the check that mattered: `[M]` over the full
+:math:`27\times27` grid, the one Lie criterion and the five arms agree
+on **729 of 729** ordered pairs
+(:ref:`manifold-realization`). What changed is that four of the five
+were unfalsifiable-in-practice branches and are now one expression with
+a proof above it.
+
+Finally the disconnected families are closed by their **coset
+representatives** —
 :math:`O(2)_a = SO(2)_a \sqcup SO(2)_a\sigma_v`,
 :math:`D_{\infty h} = SO(2)_z \sqcup SO(2)_z\sigma_h \sqcup
 SO(2)_z\sigma_v \sqcup SO(2)_z C_2'`,
@@ -6513,9 +7043,22 @@ pairs**, and in the flattering direction both times:
 every predicate about a continuous group, and it recurs with the SAME
 signature — a sample that happens to generate a finite subgroup
 containing the answer. That is why
-:func:`~orpheus.numerics.symmetry._identity_component_normalises`
-computes a **commutator against the rotation generator** rather than
-conjugating by anything at all.
+:meth:`IdentityComponent.normalises
+<orpheus.numerics.symmetry.IdentityComponent.normalises>` evaluates the
+Lie condition :eq:`manifold-normaliser-lie-criterion` — a bracket and a
+finite set of :math:`X - \mathrm{Ad}_s X` memberships — rather than
+conjugating by any sample of group elements at all. On a finite
+:math:`H` that expression *is* the commutator against
+:math:`[\hat e_a]_\times`; the point is that it is derived from the
+criterion rather than written down as a family rule, so the same
+protection extends to the cases nobody enumerated.
+
+⚠ This paragraph named ``symmetry._identity_component_normalises`` until
+2026-09-03, when #434 R1 dissolved that helper's five per-family arms
+into the one criterion above. The reasoning is unchanged, the measured
+2-of-8 over-certification is unchanged, and `[M]` the two
+implementations agree on 729 of 729 ordered pairs
+(:ref:`manifold-realization`) — only the name and the derivation moved.
 
 .. _manifold-lift:
 
@@ -6672,13 +7215,36 @@ decisive first:
    the orbit space. Either :math:`G^0 \subseteq H` and it does so
    trivially, or :math:`H` is finite and the node's own
    :math:`G^0`-orbit — a circle, or a sphere — has to collapse, which is
-   the axis-support (or origin) rule the ambient arm has applied since
-   ERR-072, stated once.
+   :meth:`IdentityComponent.fixes
+   <orpheus.numerics.symmetry.IdentityComponent.fixes>`: the condition
+   :math:`Xp = 0` for every generator, which reads *"on the axis"* for a
+   torus and *"at the origin"* for :math:`SO(3)`. That is the
+   axis-support (or origin) rule the ambient arm has applied since
+   ERR-072, now stated once in one body rather than twice in two
+   (``_is_axis_supported`` and ``_is_origin_supported`` retired at #434
+   R1, 2026-09-03).
 4. Every element (finite :math:`G`) or discrete coset representative
    (continuous :math:`G`) must permute the weighted node set **in chart
    coordinates** through its induced action
    (:func:`~orpheus.numerics.symmetry._orbit_closure`, with ERR-073's
-   bijection guard).
+   bijection guard). ⭐ Since R1 those are the SAME slot — the kernel
+   iterates :attr:`Realization.representatives
+   <orpheus.numerics.symmetry.Realization.representatives>` and a finite
+   group's representatives ARE its elements
+   (:ref:`manifold-realization`), so step 4 has one arm where the prose
+   above still reads as two cases.
+
+⭐ **The kernel has no fast path, and losing one is this carve's theme
+in miniature.** A ``Trivial`` / ``Cn(1)`` short-circuit stood in front
+of these four steps until 2026-09-03 (#434 R1). Removing it is a
+*theorem*, not a micro-optimisation traded away: :math:`\{e\}`
+normalises every stabiliser, so step 1 passes, and it lies inside every
+one, so step 2 returns ``True`` — the general body already gives the
+special case its answer, `[M]` identically on 7 of 7 shipped rule
+shapes. A branch that can only ever agree with the body beneath it is a
+second place for one answer to live, and the second place is where a
+divergence hides; that is the same argument, one tier down, that
+retires a hand-written relation table.
 
 ⭐ **Step 3's two cases are the elegance review's correction, and the
 second one is what keeps the position test honest.** The POSITION test
@@ -7096,7 +7662,10 @@ pre-change tree, one probe per row.
        :math:`A \subseteq B \wedge P(B) \Rightarrow P(A)`
        (``vv-principles`` #15)
      - 0 violations over 342 and over 450 (edge × fixture) pairs
-     - **0 violations, both denominators, unchanged**
+     - **0 violations, both denominators, unchanged** — and unchanged
+       again over #434 R1 at a third, widened denominator (175 edges,
+       1750 pairs, 27 groups × 10 rules), on the pre-carve and carved
+       trees alike
    * - ``_embedded_nodes`` against
        :func:`~orpheus.numerics.manifold.barycentre`, 12 rows
      - ``array_equal`` 12 of 12
@@ -7686,12 +8255,45 @@ equivalence) and ``numerics/test_registry`` **80 → 107** (the
 ``@pytest.mark.foundation`` for this page's standing reason: they gate
 the type's own laws, not an L0–L3 claim about a flux.
 
+⚠ **The symmetry module's row is FALLING under #434 R1 — read its value
+from the matrix, never from here.** The carve retires the gates that
+pinned the per-family arms it dissolved, so the count goes DOWN, which
+is the expected shape when the thing under test stops having five
+spellings and is why R1's acceptance evidence is a behaviour contract
+rather than a count (below). `[M]` 2026-09-03 the row was observed at
+230, 212 and 215 within one afternoon as the carve landed, which is the
+reason this paragraph names a direction and a mechanism instead of a
+number. ``numerics/test_manifold`` (**143**) and
+``numerics/test_registry`` (**107**) are unmoved by it.
+
 The fused commit's other two objects have their own modules, both
-``@pytest.mark.foundation``: `[M]` ``tests/numerics/test_legendre_basis.py``
-(**15** functions, **32** rows) and ``tests/numerics/test_descent.py``
-(**9** functions, **20** rows) — the intrinsic laws of the new basis and
-the bit-identity of the two realizations respectively
-(:ref:`manifold-descent`).
+``@pytest.mark.foundation``: `[M]` 2026-09-03
+``tests/numerics/test_legendre_basis.py`` (**34** rows) and
+``tests/numerics/test_descent.py`` (**20** rows) — the intrinsic laws of
+the new basis and the bit-identity of the two realizations respectively
+(:ref:`manifold-descent`). ⛔ The first read *"15 functions, 32 rows"*
+until 2026-09-03; the matrix reported 34 on the day it was written, so
+the function count and the row count were taken from different readings
+of the same tree. Only the row count is quoted now, because it has an
+instrument that re-measures itself.
+
+⭐ **#434 R1's verification is a BEHAVIOUR CONTRACT, not a test-count
+delta, and it is the shape a carve of this kind owes.** The carve
+deletes two hand-written relation surfaces and thirteen per-family functions
+while promising that no answer changes; the honest instrument is
+therefore the full answer grid, captured on a pinned pre-carve tree
+(``git archive HEAD``, the editable finder stripped and
+``orpheus.__file__`` asserted in each subprocess) and compared cell by
+cell. `[M]` 2026-09-03: ``contains`` and ``normalises`` over the full
+:math:`27\times27` grids, **0 of 729** each; ``is_invariant`` over 10
+shipped rules × 27 groups, **0 of 270**;
+``maximal_invariance_groups`` over the same 10 rules, **0**; the
+compatibility law at three denominators on both trees, **0 violations
+throughout**. Three readings move and each is named in advance
+(:ref:`manifold-realization`). A grid is the right denominator here for
+the reason :ref:`manifold-normaliser-sampling-control` gives one tier
+down: the edges anyone thinks to name are the ones a hand table already
+got right.
 
 **Every one carries** ``@pytest.mark.foundation`` **and none carries**
 ``verifies(...)``, and that is the correct tier rather than an
@@ -7835,6 +8437,57 @@ for merge status.**
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-09-03
+     - ⭐⭐ **Every question about a group is COMPUTED from its
+       realization, and no relation between two groups is written down
+       anywhere.** :math:`\mathfrak{so}(3)` is simple and
+       three-dimensional, so its subalgebras are :math:`\{0\}`, one line
+       :math:`\mathbb R\,[\hat a]_\times` per axis, and
+       :math:`\mathfrak{so}(3)` itself — never dimension **2**
+       (:eq:`manifold-so3-subalgebras`, proved in one line from
+       :math:`\mathfrak{so}(3) \cong (\mathbb R^3, \times)`). A closed
+       subgroup of :math:`O(3)` is therefore exactly (identity
+       component, one representative per connected component):
+       :class:`~orpheus.numerics.symmetry.IdentityComponent` and
+       :class:`~orpheus.numerics.symmetry.Realization`, and
+       ``contains`` / ``is_normalised_by`` / ``normalises`` /
+       ``identity_component`` / ``dim`` / ``generic_images`` / *"does*
+       :math:`G^0` *fix these nodes"* are each ONE body on that pair
+       (:ref:`manifold-realization`). `[M]` **thirteen** functions
+       retire — twelve private per-family helpers plus the public
+       ``is_subgroup_of`` — together with the module's TWO hand-written
+       relation surfaces (``_NAMED_LATTICE``'s 8 enum-to-enum edges and
+       ``_axial_contains``'s hand-spelled axial rows, each of which had
+       shipped a false edge before it went), a group cache and a type
+       alias;
+       ``_contains`` alone was **109 lines** carrying **28** tag-dispatch
+       sites (by AST: 24 ``isinstance`` calls + 4 ``is
+       _NamedSubgroup.X`` comparisons), and module-wide the same
+       predicate falls from **86** sites to **31**. The normaliser's five
+       arms
+       collapse into the Lie criterion
+       :eq:`manifold-normaliser-lie-criterion`, now carried with its
+       proof (:ref:`manifold-normaliser-lie-criterion-section`).
+       ⛔ **Nothing observable moved except three intended answers**:
+       `[M]` against a pinned pre-carve tree over 27 spellings,
+       ``contains`` **0 of 729** ordered pairs, ``normalises`` **0 of
+       729**, ``is_invariant`` **0 of 270**, the walk **0 of 10** rules,
+       and the compatibility law 0 violations on both trees at every
+       denominator (57/342, 75/450, and the widened 175/1750). The three
+       that move: ``identity_component`` is ``Trivial`` for every finite
+       member (**17 of 27** spellings — it returned the group ITSELF,
+       contradicting its own docstring, and had **zero readers**);
+       ``Cn(1)`` normalises to the ``Trivial`` tag so one group has one
+       spelling; and ``dim`` :math:`\in \{0,1,3\}` is NEW, with no
+       consumer until R4 reads it for the orbit-space dimension law.
+       :class:`~orpheus.numerics.symmetry.SubgroupOfO3` becomes a frozen
+       dataclass — before, ``g._tag = …`` succeeded and moved
+       ``hash(quotient)`` under three memos keyed on it.
+     - `#434 <https://github.com/deOliveira-R/ORPHEUS/issues/434>`_
+     - *(in development)* ``fix/angular-phantom-support``; carve R1 of
+       the symmetry-machine review. ⚠ Uncommitted in the working tree
+       when this row was written — trust ``git`` over this cell.
+       ``numerics/symmetry.py``, ``numerics/quadrature/registry.py``
    * - 2026-09-02
      - ⭐⭐ **A symmetry is asked ON the orbit space, and a geometry
        admits a rule on a FOLD of its domain.** The invariance question
@@ -7851,9 +8504,13 @@ for merge status.**
        <orpheus.numerics.symmetry.SubgroupOfO3.normalises>` decide
        :eq:`manifold-normaliser-descent` — an isometry descends to
        :math:`M/H` iff it normalises :math:`H` — EXACTLY for every
-       family, the continuous ones through the rotation generator
-       :math:`[\hat e_a]_\times` and their coset representatives rather
-       than by sampling; `[M]` the four-right-angle sample
+       family, the continuous ones through their identity component and
+       their coset representatives rather than by sampling (this row
+       read *"through the rotation generator*
+       :math:`[\hat e_a]_\times`\ *"* until 2026-09-03, naming the
+       finite-:math:`H` case of what is now one Lie criterion,
+       :eq:`manifold-normaliser-lie-criterion`); `[M]` the
+       four-right-angle sample
        over-certifies on **2 of 8** :math:`(G, H)` pairs, which is
        ERR-072's mechanism recurring in a NEW predicate
        (:ref:`manifold-normaliser-sampling-control`).
