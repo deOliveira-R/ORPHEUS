@@ -5255,7 +5255,7 @@ premises; and the Phase 3.4 encoding ruling once made.
 
 | # | item | depends on | done when | Q# |
 |---|---|---|---|---|
-| 4.1 | **Retrofit the 1-D slab angular axis as `S²/SO(2)`.** The hard-coded `μ`-only path becomes the zero-configuration instance of the general machinery, **deleted, not shadowed**. | 3.1–3.4, 0.1 | see the corrected gate below | Q2.1 |
+| 4.1 | **Retrofit the 1-D slab angular axis as `S²/SO(2)`.** The hard-coded `μ`-only path becomes the zero-configuration instance of the general machinery, **deleted, not shadowed**. | 3.1–3.4, 0.1 | see the corrected gate below — ✅ **MET**: delivered by the fused commit `5436184e`, re-measured on the final tree 2026-09-02 (`scratch/_exit_regate.py`): L ≤ 1 `array_equal` to the pre-fix baseline, L = 2, 3 `+4.000000000000`, 135 of 135 3-D arrays bit-identical to `2ebdbc05` | Q2.1 |
 | 4.2 | **Normalization audit, forced by 4.1.** The pushforward `dΩ/4π ↦ dμ/2` fixes the `2π` exactly once. | 4.1, 2.3 | every angular normalization traced to a single pushforward statement; any discrepancy filed as an ERR, never silently patched | Q2.2 |
 | 4.3 | **Realization/quotient commuting square:** `ℛ ∘ bind(K).on(V) == bind(K).on(V/H)` for `S`, `F`, `C`. The central correctness assertion, and cheap. | 3.2, 4.1 | passes for all three kernel kinds; a deliberately `H`-asymmetric `Σ_t` REDs it (negative control) | Q2.3 |
 | 4.4 | **Quadrature symmetry annotation** + the **coarse-rule class**: `level_symmetric(4)` L=3 and `folded_product(2,4)` L=3 are DENSE/rank-deficient because `L` exceeds what the rule resolves. Route them to the Q6 `exactness` machinery, which `[M]` is currently disconnected (§I.3). | 3.1 | every quadrature carries a group; an unannotated set refuses to participate in a quotient; the two coarse rows have a stated verdict | Q3.1 |
@@ -5263,7 +5263,7 @@ premises; and the Phase 3.4 encoding ruling once made.
 | 4.6 | `transport/symmetry.py`: `H_max = Sym(geom) ∩ Sym(mat) ∩ Sym(BC)`, reported beside the acyclicity certificate; user-supplied `H` validated against it. | 3.1 | an asymmetric material patch reports the REDUCED `H_max`, not the geometric one | Q3.3 |
 | 4.7 | **G3 check** at Declaration: per-term commutation, randomized on a few `g` plus exact structural checks where available. | 4.6, 4.3 | each of `L, C, S, B, F` reports its own descent verdict; the sum descends iff all terms do | Q3.4 |
 | 4.8 | **Ray-effect residue metric** when G2 fails and the user forces the reduction. | 4.5 | forced-`C₆` produces a measurable, reportable residue rather than a silent wrong answer | Q3.5 |
-| **4.9** | ⭐ **NEW — re-key the collateral consumers.** `[M]` **12 sites repo-wide consume the slab-GL-L2 frame as a fixture** (7 tests, 4 docs, 1 production comment). In particular `tests/numerics/test_frame.py:906` asserts the live `ℓ=2` Gram diagonal is `[0.4, 0.8, 0.8]` at `rtol=1e-12` — **the two `0.8`s ARE the fabricated slots.** A green test PINS the defect. | 4.1 | every one of the 12 re-pinned, **not deleted** (`coding-standards`: retirement means test migration) | — |
+| **4.9** | ⭐ **NEW — re-key the collateral consumers.** `[M]` **12 sites repo-wide consume the slab-GL-L2 frame as a fixture** (7 tests, 4 docs, 1 production comment). In particular `tests/numerics/test_frame.py:906` asserts the live `ℓ=2` Gram diagonal is `[0.4, 0.8, 0.8]` at `rtol=1e-12` — **the two `0.8`s ARE the fabricated slots.** A green test PINS the defect. | 4.1 | every one of the 12 re-pinned, **not deleted** (`coding-standards`: retirement means test migration) — ✅ **DONE** at the fused commit's red loops; `[M]` 2026-09-02 every slab × harmonic-basis construction in `tests/` is a REFUSAL pin, the fabricated diagonal survives only as history | — |
 
 ### ⛔ Phase 4.1's gate, CORRECTED — the source plan's version is designed-green
 
@@ -5592,20 +5592,37 @@ lines**, so nothing else is waiting on the layer.
 
 ## XII.3 ⏏ The exit predicate — all six, measured, before returning
 
-1. ✅ **MET 2026-09-02** — `scratch/_pl_slab_defect_repro.py` LEG A reads **`+4.000000000000`** at
-   `L = 0, 1, 2` (`[M]` rel 1.2e-15 / 4.4e-16 / 6.7e-16) and the gate's L = 3 row passes.
-2. ✅ **MET** — the three strict-xfail rows XPASSed and their markers are deleted; `catches("ERR-080")` kept and mutation-verified (16 of 170 rows red under the re-forged defect, 0 of the 3-D rows).
-3. ✅ **MET** — `[M]` ≤ 4.3e-16 on 49 of 52 (rule, L) rows (13 rules × L ∈ 1..4); the three exceptions carry their verdict: `gauss_legendre(2)` at L ≥ 4 (the GL dead-slot theorem, pinned), `product(4,4)` and `folded_product(2,4)` at L ≥ 4 (the two-pole aliasing under the harmonics, PRE-EXISTING) — *up to four rows, not two* (the memo's H-9), routed to Phase 4.4.
-4. ✅ **MET** — `[M]` 135 arrays (9 sphere rules × L ∈ 0..4: table, Gram, analysis) `array_equal` to HEAD via a detached-worktree capture; published in the docs as a THEOREM (same basis, same measure object, the identity arrow).
-5. The **full 13-tree gate green**, with per-tree deltas PREDICTED before the
-   run (`reference_test_execution_env`). ✅ **BASELINE MEASURED 2026-09-02 at
-   `2f294ef1` (code = `17e0eb0e`): 10329 / 19 sk / 69 xf / 0 failed = 10417
-   collected, 13 of 13 rc=0, every tree equal to its predicted denominator**
-   (Part XIV's baseline table). The predicate for the fused commit's re-gate is
-   the DELTA against this row, predicted first. *(Kept per §3: before this
-   date the baseline was UNMEASURED — step 4's `10106 / 0 / 19 sk / 66 xf`
-   was the last full gate, `10116` predicted-not-run at CS4c §18.7.)*
-6. ✅ **MET** — `sphinx -E -W` 0/0/0 (twice: after the archivist, after the accessor retirement); `dead_references` 0 / 53 after the API page's stale `:meth:` was re-pointed.
+✅ **ALL SIX MET — re-measured on the FINAL tree `66439bd4` (2026-09-02, after 1.9 and
+2.2b landed), `scratch/_exit_regate.py` re-runnable.** The 2026-09-02 fused-commit readings
+are kept below each item per §3.
+
+1. ✅ **MET** — `[M]` final tree: the slab GL8 flux reads **`+4.000000000000`** at
+   `L = 0, 1, 2, 3` (rel `1.2e-15 / 4.4e-16 / 6.7e-16 / 6.7e-16`); the instrument is the
+   gate `tests/sn/solve/test_pl_order_does_not_move_the_infinite_medium_flux.py` (green in
+   the 10752 gate). ⚠ `scratch/_pl_slab_defect_repro.py`'s FORGED leg is unspellable since
+   0.6 (it raises ERR-080's refusal — the point), so the repro is a museum piece and LEG A
+   lives in the gate. *(At the fused commit: LEG A `+4.000000000000` at `L = 0, 1, 2`.)*
+2. ✅ **MET** — `[M]` final tree: the three strict-xfail rows are gone (0 `xfail` markers
+   naming ERR-080), `catches("ERR-080")` kept on **9** sites, mutation-verified at the fused
+   commit (16 of 170 rows red under the re-forged defect, 0 of the 3-D rows).
+3. ✅ **MET** — `[M]` final tree, 15 shipped rules × L ∈ 1..4 = **60 rows**: the isotropic
+   field's `|ℓ ≥ 1| / ℓ = 0` reads ≤ 5e-16 on **57 of 60**; the three exceptions are exactly
+   the documented three, at L = 4 only — `gauss_legendre(2)` (`3.9e-01`, the GL dead-slot
+   theorem, pinned), `product(4,4)` (`2.9e-01`) and `folded_product(2,4)` (`3.9e-01`), the
+   two-pole aliasing under the harmonics, PRE-EXISTING, routed to Phase 4.4. *(At the fused
+   commit: ≤ 4.3e-16 on 49 of 52 rows over 13 rules, the same three exceptions.)*
+4. ✅ **MET — and now MEASURED rather than cited as a theorem**: `[M]` final tree, 9 bare-sphere
+   rules × L ∈ 0..4 × (table, Gram, analysis of a seeded random field) = **135 of 135 arrays
+   `array_equal`** between the campaign's BASE tree `2ebdbc05` (`git archive`, imported with
+   the editable finder stripped) and HEAD. Every landing of the campaign is inert on a 3-D
+   rule, unit-for-unit. *(At the fused commit: 135 arrays to HEAD via a detached-worktree
+   capture, published as a theorem — same basis, same measure object, the identity arrow.)*
+5. ✅ **MET** — the **13-tree gate at `a7c8de6d`: 13 of 13 rc=0, 10752 = predicted**, every
+   tree equal to its predicted denominator (the 2.2b EXECUTED section); the plan-only commit
+   after it changes no code. *(The baseline row: 10417 at `2f294ef1`; the fused row 10556;
+   the 1.9 row 10604; each predicted before its run.)*
+6. ✅ **MET** — `sphinx -E -W` 0/0 as a SET on the final tree (`scratch/_22b_sphinx_final.log`);
+   `dead_references` **0 / 52** after the 2.2b docs pass.
 
 ## XII.4 ⏏ On return
 
@@ -5666,7 +5683,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 3.4-R | ⚠ the encoding ruling | ⏏ yes | ✅ **RULED 2026-08-31 (user): (b) true `LegendreBasis`** — see below. ⛔ its EVIDENCE (*15 sites, ONE production*) was re-censused 2026-09-02 and found one layer too narrow (§V.5l(b)); **RE-AFFIRMED by the user at the opener, with 2.5 minted in front of it** |
 | 3.4-R2 | ⚠ the DESCENT ruling | no | ✅ **RULED 2026-08-31 (user-endorsed): (i) mint `Descent`** — Part V.5 §C |
 | 3.4b | ⭐ **`Descent`** — the iso witness; lands WITH or BEFORE 3.4 | no | ✅ **the fused commit** — `numerics/basis/descent.py`: the two realizations, the isomorphism at the BIT (7/7 sphere rules), the discriminator as `frame_basis` |
-| 4.1 | retrofit the slab axis (CORRECTED gate) | ⏏ yes | ☐ |
+| 4.1 | retrofit the slab axis (CORRECTED gate) | ⏏ yes | ✅ **DELIVERED by the fused commit `5436184e`** (the 1-D arm deleted, the Legendre basis bound on the orbit space — *deleted, not shadowed*), **VERIFIED on the final tree 2026-09-02** (`scratch/_exit_regate.py`): L ≤ 1 `array_equal` to the pre-fix baseline, L = 2, 3 read `+4.000000000000`, 135 of 135 3-D arrays bit-identical to `2ebdbc05` |
 | 4.2 | normalization audit | no | ☐ |
 | 4.3 | commuting-square test | no | ☐ |
 | 4.4 | quadrature symmetry annotation + the coarse-rule class | no | ☐ |
@@ -5674,11 +5691,11 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 4.6 | `H_max` | no | ☐ |
 | 4.7 | G3 check | no | ☐ |
 | 4.8 | ray-effect residue | no | ☐ |
-| 4.9 | re-key the 12 collateral sites | ⏏ yes | ☐ |
+| 4.9 | re-key the 12 collateral sites | ⏏ yes | ✅ **DONE at the fused commit's red loops** — `[M]` 2026-09-02 on the final tree every slab × harmonic-basis construction in `tests/` is a REFUSAL pin (`no quotient map` / `not points of S^2`; 6 sites read), the fabricated `[0.4, 0.8, 0.8]` survives only as HISTORY (3 test docstrings + the catalogue's ERR-080 record), 0 production comments; nothing consumes the slab-GL-L2 frame as a fixture because it can no longer be built |
 | 5.1–5.4 | curvilinear S_N | no | ☐ |
 | 6.1–6.4 | spatial quotients | no | ☐ |
 | 7.1–7.4 | isotypic decomposition | no | ☐ |
-| ⏏ | **the six exit predicates (XII.3)** | — | ☐ |
+| ⏏ | **the six exit predicates (XII.3)** | — | ✅ **ALL SIX MET, re-measured on the final tree `66439bd4` (2026-09-02)** — read XII.3 |
 
 **Open rulings blocking the EXIT PATH:** ⭐ **NONE.** (One ruling is open OFF the exit path: **3.4-R2**, the descent isomorphism — Part V.5 §C. It must be ruled before 3.4 lands, but it does not block the return to Campaign 2.)
 
@@ -5908,8 +5925,22 @@ stamped by the plan-only commit that followed. **Nothing is owed on 2.2b.** The 
    re-stated, II.11 made whole; sphinx `-E -W` 0 → 0; `dead_references` 0 / 52. #370's gap 2
    is closed by this landing; its gap 1 stands.
 
-The ⏏ ORDER table rules what follows; its first unlanded rows are **4.1** and **4.9**, then
-the exit predicates' re-gate (XII.3). #426/#428 stay blocked behind #429.
+✅ **4.1 AND 4.9 WERE DELIVERED BY THE FUSED COMMIT, AND THE SIX EXIT PREDICATES (XII.3) ARE
+MET — re-measured on the final tree `66439bd4`, 2026-09-02.** The 4.1 opener (the 22nd
+consecutive opener) found its section already satisfied: the retrofit IS the fused fix (the
+1-D arm deleted, the Legendre basis bound on the orbit space — *deleted, not shadowed*), and
+its CORRECTED gate reads `[M]` L ≤ 1 `array_equal` to the pre-fix baseline, L = 2, 3
+`+4.000000000000`, **135 of 135** 3-D arrays bit-identical to the campaign's base `2ebdbc05`
+(measured, `scratch/_exit_regate.py`); 4.9's twelve consumers of the slab-GL-L2 frame cannot
+exist (the frame cannot be built — G0 refuses full harmonics on the slab's orbit space),
+`[M]` every slab × harmonic-basis construction in `tests/` is a REFUSAL pin and the
+fabricated diagonal survives only as history. Nothing was re-executed; both rows are stamped
+with the measurement. **The campaign's exit path is COMPLETE** — XII.4 applies: return to
+Campaign 2 (`.claude/plans/cs4c_binding_design.md` §18.6 step 1, #426's remedy, which routes
+restored (n,2n) moments into a `P_L` path that is now CORRECT at every order). **#426/#428
+are UNBLOCKED.** ⚠ #429 stays OPEN: the plan's phases 1.2–1.8, 3.2/3.3, 4.2–4.8, 5, 6 and 7
+were declared NOT on the path and may land in any later session — a ruling is owed on
+whether #429 remains the umbrella for them or closes with them re-filed as their own issues.
 
 ✅ **THE FOLLOW-UP LANDED 2026-09-02 as `26151a8d`** — the commit titled
 `docs(plans): the fused commit carries its landing hash and gate` (the hash
