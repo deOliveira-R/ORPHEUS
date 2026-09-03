@@ -14,9 +14,32 @@ configuration; a bare number is a plan defect.
 
 ## ▶ RESUMES AT — read this block first, whole
 
-**STATE 2026-09-02.** Plan written; four rulings taken (§0); issues filed; **nothing
-landed**. Next act: dispatch `test-architect` for **R1**'s gates (§II.R1), then the
-main agent implements R1 directly (surgical carve — `delegation.md`).
+**STATE 2026-09-03.** R1 IMPLEMENTED on the working tree, gated, documented — the
+13-tree gate running at the time of writing (`scratch/_r1_full_gate.log`); the commit
+lands when it reads 13 of 13 rc=0. ✅ R1 LANDED `f9d3b15b` (2026-09-03; gate 10737 collected, 13 of 13 rc=0, 59 min 35 s).
+Next act: **R4**'s opener (§II.R4) — dispatch `test-architect` for its gates; the
+dimension law reads `SubgroupOfO3.dim`, which R1 delivered.
+
+**R1's record, for the reader who resumes here.** `[M]` behaviour contract
+(`scratch/_r1_behaviour.py`): 9925 answers, 53 moved, all intended. Walk cost, min of 15
+interleaved repeats, pristine → R1 (`scratch/_r1_walk_timing_3.log`): cold slab 342 →
+344 ms (+0.4 %, the first walk closes the polyhedral groups either way), product(4,8)
+155 → 39, lebedev(9) 371 → 72, folded 108 → 4, level_symmetric(8) 1774 → 459; warm
+5.9 → 1.6, 137 → 12, 324 → 15, 107 → 4, 1421 → 33 ms — the containment answer is
+memoised on the tag pair and membership is linear algebra on the matrices (without the
+memo the slab walk was +450 %: `[M]` 3888 `RigidMotion` mints per walk, each paying the
+orthogonality check). Elegance review: 4 violations + 6 concerns, all taken (the
+realization's guards; the kernel takes the GROUP; `_orbit_space_of`; `orbit_certificate`
+reads the realization; D∞h now answers `generic_images`; `images` → `generic_images`;
+`conjugated_by` retired for lack of a consumer). Test-architect: 28 gates in 9 classes;
+the 45-row α-renamed control retired; M1/M2/M3 denominators re-keyed (1090 → 919; 23 →
+22 members, 131 → 108 strict, 23 → 20 touching). Battery 20 arms: 19 bite; the
+two-generator arm is UNINSTALLABLE (refused by the guard) — its direct witness is
+`TestR1TheRealizationRefusesIllegalStates`. Archivist: +841/−90 over 4 pages, sphinx 0/0,
+`dead_references` 0/52, sentinels 587 → 591. Residue filed: #442 (the four-way naming
+dispatch → a tag Protocol at the 6th family), #443 (SymPy derivations for the two theorems).
+Surprise logged in place (not promoted — a one-off): the done-when `Cn(1) is Trivial` was
+false as written; `==` is the contract (§II.R1).
 
 **ORDER (dependency-forced): R1 → R4 → R2 → R3.** R4 reads R1's `dim`; R2 moves the
 kernel onto R1's realization and R4's lift; R3's coverage predicate reads R1's
@@ -184,6 +207,15 @@ both answers.
   the only shipped instance of the latter is `Dinfh` itself).
 - `rotation_axis` / `mirror_axis` stay as the tag-level readers the basis modules use
   (their retirement is #438's / the descent registry's business, not this carve's).
+- **Name ruling (main agent, 2026-09-03; the test-architect's R-1).** `Realization` /
+  `IdentityComponent` KEPT. `[M]` "realization" is taken 32× in the prose corpus by the
+  operator campaign's third axis (an abstract operator realized as a kernel) and by
+  `Quotient.realization` (the manifold an orbit space IS); but it is also this module's
+  own prior vocabulary (`_realized_ops`, "every realization is in the standard setting",
+  the tests' `realization` rows) and the textbook term for a matrix realization of a
+  point group — the same concept, one tier down: an abstract object made concrete. The
+  `SubgroupOfO3.realization` docstring disambiguates from the manifold's; the trigger
+  to rename is R2 writing both in one frame (then `component_decomposition`).
 - Tolerances: `_MEMBERSHIP_ATOL` (symmetry) → `_ELEMENT_ATOL = 1e-9`, the one band for
   every element-level comparison in the realization; `_X/_Y/_Z_AXIS` → `_axis_vector`.
 - Kept, because 11 test files import them by name (`[M]` explorer §2c): `_realized_ops`
@@ -216,9 +248,15 @@ with the min-of-15 interleaved protocol (`scratch/_p19_probe6.py`'s shape), not 
 tag); tests importing privates (§2c): 20 sites / 11 files, of which `_MEMBERSHIP_ATOL`
 (`test_symmetry.py:2404`) and `is_subgroup_of` (14 sites, 2 files) change spelling.
 
-**Done when:** `grep -c "isinstance(tag" symmetry.py` ≤ 3 (naming + `_realize`);
-`_NAMED_LATTICE` absent; the before/after tables agree except the three intended rows;
-`SubgroupOfO3.Cn(1) is SubgroupOfO3.Trivial`; `FrozenInstanceError` pinned; the qa
+**Done when:** `grep -c "isinstance(tag" symmetry.py` ≤ 3 (naming + `_realize`)
+(⛔ REFUTED 2026-09-03 as a number, kept as intent: `[M]` 26 sites in 10 owners remain,
+19 of them the four-way naming/constructor dispatch the ruling keeps — #442 tracks its
+collapse; the STRUCTURAL dispatch is one `_realize`); `_NAMED_LATTICE` absent; the
+before/after tables agree except the three intended rows;
+`SubgroupOfO3.Cn(1) == SubgroupOfO3.Trivial` (⛔ the first draft said `is`; `[M]`
+test-architect: `__post_init__` normalises the TAG, so the constructor returns a fresh
+value, equal and same-hash, not the singleton — `is` would red a correct implementation);
+`FrozenInstanceError` pinned; the qa
 brute-force probes 1, 2, 4 promoted to gates with the SAME denominators (27 × 189, 27²,
 24², 24) and an INDEPENDENT construction (not `_group_elements` — build the element sets
 from the tag's definition in the test); the C8 arms each reddened by a gate that names

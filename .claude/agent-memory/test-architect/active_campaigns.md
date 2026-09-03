@@ -259,3 +259,39 @@ theory page's Development-history changelog.
 - **DSA for SN (#2) — full gate battery DELIVERED (`.claude/plans/archive/dsa_verification_spec.md`, PRE-carve, runs AFTER #280 walk unification).** 13 gates D1–D13 (lessons L23; sharpens vv Mode 9). THE crux = the **correction→0 PARTITION**: FP-invariance (D3–D5) catches ONLY the σ_r-fold #215 class (1/8 canonical errors, ANISOTROPIC config mandatory — `Mixture` ctor DIRECT, `make_mixture` nulls ℓ≥1); the other 7 (R/P/`A_diff`/correction-sign/boundary) are FP-INVISIBLE (correction→0) → caught ONLY by object gates (D1/D2 assemble≡hand-stencil, D7 R-conservation+anti-#8 delta-source, D8 P≡Rᵀ frame-adjoint) + rate gates (D11 ρ=0.2247c residual-estimator, D12 reflective-divergence, D13 count-table). D6 correction→0 (+first-iterate non-triviality closes the dead-R blind spot), D9 no-masking, D10 σ_r routing Mode-11 guard. Phase-map 3a=D1/D2, 3b=D3–D10, 3c=D11–D13. 7 tensions for plan-of-record (R4 low-order provenance ruling; L16 shared-closure independence; D8 blocks on cross-domain-attacker PG-frame; ERR-070 to file on first σ_r-fold catch). #215 has NO ERR entry (catalog ends ERR-069).
 - **A3/#280 Phase-2.5 walk-unification** — S0/2.5a/2.5b/2.5c/2.5d gate files AUTHORED; the surface (reverse-scan `apply_transpose`, swap-law, two-factor `is_adjointable`) is on `main` (residue above is the live successor). Recipe [a3-reverse-scan](a3_reverse_scan_transpose_verification.md); lessons L17/L18/L19. 2.5c Part-A completion breaks (`is_adjointable` False→True broke `test_capability_survival`/`test_inverse_operator_equivalence` rows) reported. Reconcile per-hash vs git before resuming.
 - **Prior SN campaigns** (#206/#208/#236/#240/#247/#251/#257/#18/#19/#20) MERGED to `main` — NOT open work. `git merge-base --is-ancestor <hash> HEAD` before trusting any "in-flight" claim.
+
+## #434 R4 — the lift is a derivation output, an orbit space's dimension is a theorem (⏹ PLAN + GATES DELIVERED 2026-09-03, pre-carve)
+
+**Deliverables**: `scratch/_r4_verification_plan.md`, `scratch/_r4_gates_draft.py`
+(31 functions / **102 rows**, classes A–I), `scratch/_r4_test_migration.md`.
+Authority `.claude/plans/symmetry_machine_reads_like_the_math.md` §II.R4 (findings
+B1–B7). Tree at `2dcd8511 dirty=5` — R1 applied and UNCOMMITTED, its 13-tree gate
+running concurrently (`scratch/_r1_full_gate.log`). **NO tracked file edited.**
+Probes `scratch/_r4_probe{1..13}.py`, census `_r4_census.py`, shim `_r4_shim.py`.
+
+**The finding that shaped everything.** ⛔⛔ the invariance kernel is Mode-12 BLIND to
+R4: `orbit_coordinates` is exactly the column selection the new projector re-writes.
+`[M]` R4's lift installed in-process + the R1 behaviour battery re-captured:
+**0 of 9925 answers moved**. ⟹ no kernel row may be credited a catcher; every gate
+asserts at the AMBIENT tier (`max|section − projector| = 9.94e-01`); the round-trip
+`chart ∘ lift == id` is a declared BLIND leg. Detail → `lessons_archive.md` **L73**.
+
+**Measured contract inputs the coordinator will need**
+- R1's 13-tree collection `[M]` **10737** (PHASE-1 block of `_r1_full_gate.log`);
+  R4 predicts **10834** (+102 added, −5 superseded, 3 re-keyed in place).
+- Exit instrument `135 of 135` is safe: `[M]` `select` is `array_equal` to today's
+  `orbit_coordinates` on 8 of 8 entries.
+- `tests/_harness/references.py` (Landmine 3): **no code change**; `[M]` 31 of 33
+  (rule × axis) answers unchanged, the 2 that move are `axis="y"` on a fold, reached by
+  **no call site**. Owes a prose widening of its `vv`#22 note (the fold rows now share
+  the chart with production) and ONE new gate (E5).
+- `test_the_trivial_quotient_is_derived_not_tabulated`'s param list is `[SPHERE, CIRCLE,
+  COSINE_INTERVAL]` — `[M]` 3 of 3 non-`Quotient`, so **no re-key is owed** there.
+
+**FIVE open rulings, all in the plan's §6** — (1) the ORDER of the two `__post_init__`
+clauses (the draft assumes dimension-law-first and D4 pins it); (2) `lift_codomain` for a
+trivial entry on a base of ambient width ≠ 3; (3) whether `barycentre` keeps its name and
+memo (`[M]` 105 mentions / 15 files argue yes); (4) `_ambient_orbit_space` unchanged —
+confirm nobody tightens the short-circuit onto it; (5) is the harness's fold answer moving
+from refusal to identity permutation WANTED (it makes the harness agree with
+`induced_permutation`).
