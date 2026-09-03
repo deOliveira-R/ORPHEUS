@@ -21,7 +21,13 @@ lands when it reads 13 of 13 rc=0. ✅ R1 LANDED `f9d3b15b` (2026-09-03; gate 10
 10737 + 103 to the row: 102 architect rows + 4 elegance + 2 witness − 5 retired — 13 of
 13 rc=0, 59 min 36 s).
 ✅ R2 LANDED `27703297` (2026-09-03; gate 10965 collected — predicted to the row: R4's 10840 + 120 gate rows + 5 layer-gate params — 13 of 13 rc=0, 59 min 43 s).
-Next act: **R3** (§II.R3) — its opener re-measures the registry's three-field premise
+✅ R3 LANDED `fe219888` (2026-09-03; gate 11007 collected — predicted to the row: R2's 10965 + 42 gate rows — 13 of 13 rc=0, 62 min 28 s (harness tree re-run once)) — `Closes #434`.
+⏹ **CAMPAIGN COMPLETE.** Exit instruments on the final tree: 135 of 135 arrays
+`array_equal`, slab `+4.000000000000` at L = 0..3, census 57 of 60 (`scratch/_r3_exit_regate.log`).
+The compaction record is the ⏸ section at the end.  Next: back to Campaign 2
+(`.claude/plans/cs4c_binding_design.md` §18.6 step 1 — #426/#428), and the two rulings
+still owed from before this review (#429 umbrella-or-close; resume Campaign 2).
+(R3's act, as it was planned — kept for the record:) its opener re-measures the registry's three-field premise
 (`AngularSymmetry(spent, unspent, owed)`) and the coverage predicate against the tree;
 test-architect before the edit; the last carve's commit `Closes #434`; then the exit
 instruments once more and the compaction record.  (R2's act, as it was planned — kept
@@ -113,6 +119,31 @@ and tests fixed. Surprises logged in place: (a) `[M]` two intended moves were th
 candidate set — a literal dict keyed on a producer's output is a §6b member of any
 change to that producer, and no symbol census returns it (promoted: plan-authoring
 surprise log, 2026-09-03).
+
+**R3's record, for the reader who resumes here.** Opener: the plan's `[R]` table row for the
+cylinder (`Mirror('y')`) was REFUTED on the plan's own z-uniformity argument — ψ is even in
+the axial cosine too, and `[M]` `Dnh(1)` is realized as exactly {e, σ_y, σ_z, C_2^x}, the
+group the two mirrors generate; cartesian2d `Mirror('z')`, slab/sphere `Trivial` confirmed.
+The coverage predicate `H ⊆ Γ·K` ships as `SubgroupOfO3.is_subset_of_product(gamma=, kappa=)`
+(keyword-only; body on `Realization` like its four siblings; the theorem in its docstring;
+`[M]` the product is not either factor — `O(2)_x ⊆ O_h·SO(2)_x` with neither factor
+containing it; with Γ = {e} it is `contains`, 441 of 441). Stage 0's reason is
+single-sourced in `AngularSymmetry.domain_refusal` (`[M]` 17 shipped refusals: 14 arrow /
+3 coverage / 0 both — the old disjunctive message named a satisfied fact on all 17).
+`[M]` the σ_y fold REFUSED on cartesian2d (D1; ERR-081 minted), admitted on the cylinder; σ_z
+folds admitted on both; slab/sphere unchanged; `select_quadrature` 0 of 48 choices moved.
+Elegance: 3 violations + 5 should-fix + 6 nits, all taken — the headline one a COSINE
+MISLABEL in my cylinder row (this tree's ξ is the azimuthal cosine, column 1, negated by
+σ_y; μ the axial, column 2, negated by σ_z — the physics stood, two labels were swapped);
+the owed group's letter is R, Ω stays the direction. Archivist: +1127/−330 over 4 pages,
+the labelled stage-0 criterion re-worded with its label kept, a SYMBOLS block, ERR-081,
+sentinels 593 → 593, `dead_references` 0/52; three false docstrings found and fixed.
+Surprises logged in place: (a) the `[R]` row — the loop worked, the label priced the
+refutation at zero; (b) the cosine mislabel — a docstring written from the plan's
+vocabulary (`ω → −ω`) instead of the tree's (`ξ = Ω·φ̂`), caught by review; (c) ⭐ R2's two
+frozen tables were read from UNTRACKED `scratch/` by a TRACKED gate — green on this
+checkout, `FileNotFoundError` on any other — moved to `tests/numerics/data/` (promoted:
+plan-authoring surprise log, 2026-09-03).
 
 **ORDER (dependency-forced): R1 → R4 → R2 → R3.** R4 reads R1's `dim`; R2 moves the
 kernel onto R1's realization and R4's lift; R3's coverage predicate reads R1's
@@ -562,6 +593,33 @@ mismatch; R1's realization is dimension-generic by construction, the tag is not)
 **After R4 (2 of 4)** and **after R3**: the phase → commit table, corrections superseding
 older text, the measured gate counts and costs, the surprise log rows owed to
 `plan-authoring.md`.
+
+### ⏸ COMPACTION RECORD — the campaign, closed 2026-09-03
+
+| carve | commit | gate (collected, 13 of 13 rc=0, serial) |
+|---|---|---|
+| R1 — the group is computed from its realization | `f9d3b15b` | 10737, 59 min 35 s |
+| R4 — the lift is the projector; the dimension law | `13423a59` | 10840 (+103 predicted to the row), 59 min 36 s |
+| R2 — invariance is the measure's question | `27703297` | 10965 (+125 predicted to the row), 59 min 43 s |
+| R3 — the ledger: spent, unspent, owed | `fe219888` | 11007 collected — predicted to the row: R2's 10965 + 42 gate rows — 13 of 13 rc=0, 62 min 28 s (harness tree re-run once) |
+
+**Corrections superseding older text** (each also edited in place with ⛔): §II.R4's
+one-probe generic point (a maximum over a probe set ships); §II.R2's two intended moves
+(three); §II.R3's cylinder row `Mirror('y')` (`Dnh(1)` ships) and its `covered(...)`
+spelling (`is_subset_of_product(gamma=, kappa=)` ships, on the group); the done-when
+`Cn(1) is Trivial` (`==` is the contract).
+
+**Surprise-log rows written to `plan-authoring.md`** (2026-09-03): a literal whose KEY SET
+is a producer's output is a §6b member no symbol census returns, and a family with two
+word orders hides its other half; a tracked gate reading an UNTRACKED artefact is green
+on one checkout only.
+
+**Residue (GitHub):** #435 CST engine scope; #436 face pairings; #437 Sym(μ) from nodes;
+#438 character gate; #439 {e, −I}; #440 S²/O(3) point; #441 TY reference; #442 tag
+Protocol (add the `mirror_axis`/`rotation_axis` tag reads the R3 review found); #443
+SymPy derivations (`H ⊆ ΓK` added, comment 2026-09-03); #444 one address for frozen test
+artefacts (four spellings) + a gate that a test reads only tracked paths (filed 2026-09-03);
+#442 gained the R3 review's two tag reads.
 
 ## Landmines
 
