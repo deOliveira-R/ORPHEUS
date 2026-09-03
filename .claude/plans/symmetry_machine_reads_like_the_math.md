@@ -17,8 +17,18 @@ configuration; a bare number is a plan defect.
 **STATE 2026-09-03.** R1 IMPLEMENTED on the working tree, gated, documented — the
 13-tree gate running at the time of writing (`scratch/_r1_full_gate.log`); the commit
 lands when it reads 13 of 13 rc=0. ✅ R1 LANDED `f9d3b15b` (2026-09-03; gate 10737 collected, 13 of 13 rc=0, 59 min 35 s).
-Next act: **R4**'s opener (§II.R4) — dispatch `test-architect` for its gates; the
-dimension law reads `SubgroupOfO3.dim`, which R1 delivered.
+✅ R4 LANDED `13423a59` (2026-09-03; gate 10840 collected — predicted
+10737 + 103 to the row: 102 architect rows + 4 elegance + 2 witness − 5 retired — 13 of
+13 rc=0, 59 min 36 s).
+Next act: **R2** (§II.R2) — on the clean tree run `scratch/_r2_edit_production.py`
+then `scratch/_r2_edit_tests.py` (anchor fixes expected; the architect's §7 order
+re-points `tests/_harness/references.py:31` first and re-collects) → scoped suites →
+behaviour contract (`scratch/_r1_behaviour.py`; the two INTENDED moves: gauss_legendre
+walks → `{O2_x, D_2h}`, the folded candidate set 20 → 18) → exit re-gate → pyright →
+battery `scratch/_r2_mut.py` (19 arms + control; the architect is building it) →
+elegance → archivist (17 `is_invariant` role xrefs across 6 files; manifolds.rst's
+cycle paragraph; a page for the new module) → sphinx → `dead_references` → gate →
+commit `Refs #434`.
 
 **R1's record, for the reader who resumes here.** `[M]` behaviour contract
 (`scratch/_r1_behaviour.py`): 9925 answers, 53 moved, all intended. Walk cost, min of 15
@@ -40,6 +50,33 @@ two-generator arm is UNINSTALLABLE (refused by the guard) — its direct witness
 dispatch → a tag Protocol at the 6th family), #443 (SymPy derivations for the two theorems).
 Surprise logged in place (not promoted — a one-off): the done-when `Cn(1) is Trivial` was
 false as written; `==` is the contract (§II.R1).
+
+**R4's record, for the reader who resumes here.** `[M]` the invariance kernel is
+Mode-12 BLIND to the carve — the chart is the column selection the projector
+re-writes — so 0 of 9925 behaviour answers moved and the gates assert at the ambient
+tier; exit re-gate 135 of 135 arrays `array_equal`, slab `+4.000000000000` at L = 0..3,
+census 57 of 60; pyright 0. Elegance: 1 violation + 5 should-fix + 3 nits, all taken —
+`lift_codomain` COMPARED (an entry's identity includes where its lift lands);
+`generic_orbit_dimension(points)` is the GROUP's method, asked of the base's probe set
+(`manifold._generic_points`); the generic orbit's dimension is the MAXIMUM of
+`rank{X p}` over that set (upper semicontinuity), not a single probe's — see the ⛔ in
+§II.R4; `__post_init__` states four theorems in order (stabiliser, dimension, the
+lift's ambient width, fundamental-domain agreement), each with its own witness.
+Test-architect: 102 rows in 9 classes; battery 22 of 22 arms bite, and the
+`dim_law_reads_dim_H` arm reddened **0 of 4597** catalogue rows (every shipped entry
+has `rank[X p] = dim H`) — hence the two §6c witness rows, `S²/O(3)` is a POINT and
+`ℝ³/O(3)` a RAY, the only constructible inputs on which the two laws disagree.
+Archivist: +1127/−196 over manifolds.rst, error_catalog.rst, angular_quadrature.rst
+(matrix.rst regenerated), every `[M]` re-measured (`embed ∘ select == P_H` from the
+realized matrices, `array_equal` on 8 of 8 entries × 41 vectors; harness 31 of 33 rows
+unchanged, the 2 movers the y-folds; equivariance breaks by exactly 1.0 under a quarter
+turn between axes), sentinels 591 → 593, sphinx 0/0, `dead_references` 0/52; three false
+docstring claims in manifold.py found and corrected (repr visibility ×2 — both chart
+fields are `repr=False`; the forgery-ordering clause). Surprises, logged in place, not
+promoted: (a) this plan's *"no test pinned the name `S^2/sigma_y/Trivial`"* — `[M]` 2
+hits, both docstrings of the new gate, so *no assertion* pins it and the sentence as
+written did not survive; (b) §II.R4's means spelled the generic point as ONE probe —
+refuted by the elegance pass (⛔ at the bullet).
 
 **ORDER (dependency-forced): R1 → R4 → R2 → R3.** R4 reads R1's `dim`; R2 moves the
 kernel onto R1's realization and R4's lift; R3's coverage predicate reads R1's
@@ -294,7 +331,12 @@ derivation populated — and cannot be constructed with a chart of the wrong dim
 - **Dimension law in `__post_init__`:** `realization.dim == base.dim − dim(generic orbit)`,
   with `dim(generic orbit) = rank[X p : X ∈ 𝔤]` at a generic point `p` of the base
   (`_GENERIC_SPHERE_PROBE[0]` for the sphere; a generic vector for `RealSpace`/`Ball`;
-  0 for a finite group without a point). `[D]` `O(2)_a` on `S²`: rank 1 → 1 ✓;
+  0 for a finite group without a point). ⛔ REFUTED 2026-09-03 (elegance pass): ONE
+  probe is not generic — `[M]` with the probe on the axis the law both refused the
+  honest `S²/O2_z` and admitted the disk forgery; shipped as the MAXIMUM of
+  `rank{X p}` over the base's probe set (`manifold._generic_points`,
+  `SubgroupOfO3.generic_orbit_dimension`), the maximum being the generic value by
+  upper semicontinuity of rank. `[D]` `O(2)_a` on `S²`: rank 1 → 1 ✓;
   finite: 0 → 2 ✓; trivial on any base: 0 ✓; `O(3)` on `S²` (#440): rank 2 → 0 ✓;
   `SO(3)` on `ℝ³`: rank 2 → 1 ✓ — `dim H` alone is WRONG for the last two, which is why
   the law is stated on the orbit. Negative legs: the two forgeries of B2.
@@ -351,6 +393,30 @@ no `TYPE_CHECKING` cycle note, no duck-typed group.
 - `manifold.py` imports `symmetry` at module scope; `Quotient.by: SubgroupOfO3` typed;
   `_trivial_group` retired; the module docstring's cycle paragraph deleted (with the
   `[M]` import-order measurements kept as history in the docs page, not the module).
+  ⛔ **R2 opener (test-architect, 2026-09-03): as written R2 does not import.**
+  `symmetry.py:105` reads `AXIS_INDEX, AXIS_LETTER` from `manifold` at module scope at
+  6 sites that do not move, so `manifold → symmetry` at module scope closes a 2-cycle —
+  `[M]` shadow tree, one subprocess per (variant, entry point): 3 of 9 entry points
+  clean, the rest dying `ImportError: cannot import name 'AXIS_INDEX' from partially
+  initialized module`. **Ruling (main agent): the axis table moves BACK to `symmetry.py`**
+  (its home until 2026-09-02; `manifold.py:1060`'s own comment records the move and its
+  reason — the import direction — which R2 reverses); `manifold`, `basis/descent.py`
+  and `basis/spherical_harmonic_basis.py` import it from there (2 production + 4 test
+  readers). `[M]` with that move plus a real `invariance.py`: 10 of 10 entry points.
+- ⛔ **C3 moves shipped answers the plan did not list** (`[M]` test-architect): with
+  `candidate_groups` on the EMBEDDED nodes, `gauss_legendre(2/8/16)`'s walk goes
+  `{O2_x, σ_x}` → `{O2_x, D_2h}` (correct: the embedded `(μ, 0, 0)` set has two
+  z-azimuths, `D_2h ⊇ σ_x`, and `D_2h` acts on `S²/O(2)_x` by `μ ↦ ±μ`), and
+  `folded_product(4,8)`'s candidate set shrinks 20 → 18. Ruling: ACCEPT (the walk has 0
+  production callers; the answer is more informative) and re-key the two gates.
+- Three of R2's four behaviour changes are INERT on every shipped rule (`[M]` position
+  window 0 of 15, azimuth window 0 of 15, `_maximal` strictness 0 of 31) — each lands
+  with a MANUFACTURED witness (the gates draft) or it lands unfalsifiable; the deleted
+  step 2 is the opposite shape (32 shipped rows, a MUST-STAY-GREEN table).
+- `_distinct_azimuths`' window: `atol · _NODE_WINDOW_FACTOR` (a position question, the
+  node window — identical on all 15 shipped rules either way). `_embedded_nodes` keeps
+  its name (5 importers incl. the harness). Continuous group ⇒ `certificate is None`
+  confirmed as policy (`[M]` 6 of 135 rows are `invariant=True, certificate=None`).
 - `Quadrature.ordinate_permutation` → `self.measure.permutation_under(motion3.linear_part,
   atol=_REFLECTION_ATOL)`; `AngularSymmetry.admits_symmetry` → `measure.is_invariant_under(…)`.
 - `orbit_certificate` for a continuous group stays `None` by policy (its docstring says
@@ -358,7 +424,9 @@ no `TYPE_CHECKING` cycle note, no duck-typed group.
 - C5 (the `is_invariant` strategy bullets), C6 (the ERR-045 message names the fold).
 
 **§6b set** `[M]` explorer §1a/1b/2c: `SubgroupOfO3.is_invariant` — 1 production
-caller (`registry.py:1012`), **170 test attribute sites / 3 files** (rewrite by AST with
+caller (`registry.py:1012`), **91 `.is_invariant(` CALL sites / 5 files** (⛔ the
+explorer's "170 attribute sites / 3 files" counted attribute LOADS incl. docstrings;
+the test-architect's AST call census is the migration's denominator) (rewrite by AST with
 source-span replacement, receiver ↔ first argument: `G.is_invariant(m, …)` →
 `m.is_invariant_under(G, …)`); `orbit_certificate(` 1 production (`measure.py:1169`) + 8
 test sites / 2 files; `singular_set(` 11 test sites / 4 files; `maximal_invariance_groups(`
@@ -372,9 +440,10 @@ all three import orders before trusting the AST — the last census that said "n
 was blind to relative imports (plan-authoring 2026-08-31).
 
 **Done when:** `grep -rn "TYPE_CHECKING" orpheus/numerics/manifold.py` finds only the
-`exactness`/`transformation` type imports (or none); `grep -n "^\s*from\|^\s*import"`
-inside function bodies of `measure.py`/`manifold.py`/`symmetry.py`/`invariance.py` finds
-only `sympy`/`LEGENDRE`/`itertools`; `is_invariant_under ≡ certificate_under is not None`
+`exactness`/`transformation` type imports (or none); the CYCLE-MOTIVATED deferred imports
+are gone — `measure.py`'s function-scope `orbit_certificate`, `manifold.py`'s
+`_trivial_group`, `symmetry.py`'s `measure` import — (⛔ REFUTED as "no function-scope
+imports at all": `[M]` `measure.py` legitimately defers 6 imports R2 does not touch); `is_invariant_under ≡ certificate_under is not None`
 for every finite group on every shipped rule (`[M]` the R2 gate); the asymmetric rule's
 `symmetry_groups()` is `(Trivial,)`; the fold reports `(Dnh(2),)` in both spellings; the
 kernel's (candidate × 12 rules) table unchanged from R1; step 2's deletion reddens nothing
