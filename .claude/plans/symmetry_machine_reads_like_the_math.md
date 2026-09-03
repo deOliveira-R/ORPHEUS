@@ -20,7 +20,12 @@ lands when it reads 13 of 13 rc=0. ✅ R1 LANDED `f9d3b15b` (2026-09-03; gate 10
 ✅ R4 LANDED `13423a59` (2026-09-03; gate 10840 collected — predicted
 10737 + 103 to the row: 102 architect rows + 4 elegance + 2 witness − 5 retired — 13 of
 13 rc=0, 59 min 36 s).
-Next act: **R2** (§II.R2) — on the clean tree run `scratch/_r2_edit_production.py`
+✅ R2 LANDED `27703297` (2026-09-03; gate 10965 collected — predicted to the row: R4's 10840 + 120 gate rows + 5 layer-gate params — 13 of 13 rc=0, 59 min 43 s).
+Next act: **R3** (§II.R3) — its opener re-measures the registry's three-field premise
+(`AngularSymmetry(spent, unspent, owed)`) and the coverage predicate against the tree;
+test-architect before the edit; the last carve's commit `Closes #434`; then the exit
+instruments once more and the compaction record.  (R2's act, as it was planned — kept
+for the record:) on the clean tree run `scratch/_r2_edit_production.py`
 then `scratch/_r2_edit_tests.py` (anchor fixes expected; the architect's §7 order
 re-points `tests/_harness/references.py:31` first and re-collects) → scoped suites →
 behaviour contract (`scratch/_r1_behaviour.py`; the two INTENDED moves: gauss_legendre
@@ -77,6 +82,37 @@ promoted: (a) this plan's *"no test pinned the name `S^2/sigma_y/Trivial`"* — 
 hits, both docstrings of the new gate, so *no assertion* pins it and the sentence as
 written did not survive; (b) §II.R4's means spelled the generic point as ONE probe —
 refuted by the elegance pass (⛔ at the bullet).
+
+**R2's record, for the reader who resumes here.** The two scripts ran with 5 anchor
+fixes and 3 tooling defects — the test-call rewriter sliced a NESTED call with stale
+offsets (fixed: innermost edits per pass, re-parse, loop); the production script's
+string-annotation regex hit the `TYPE_CHECKING` import line itself; the gate draft's
+repo-root constant was one level short (validated through a shim from `scratch/`,
+where it was right). Behaviour contract `[M]` 1 of 9925 answers moved — the slab walk
+`{σ_x, O2_x}` → `{O2_x, D_2h}`; the archivist found a THIRD intended move the plan's
+`[M]` two did not list (`folded_product(4,6)`'s walk `{D_1h, σ_x}` → `{D_2h}`, same
+mechanism, the contract's walk table holds 5 rules and not that one). Exit re-gate
+135 of 135, slab `+4.000000000000`, census 57 of 60; pyright 0. Test-architect: 120
+rows in 12 classes (117 + 3 old spellings in the retired-names gate); battery 23 arms,
+positive control 254 reds, 22 of 22 installable arms bite, 1 uninstallable by
+construction — one arm was INERT as first spelled (an ambient match on the barycentres
+is bit-identical to the chart match after R4: the fold's y column is zero there) and
+was re-spelled onto the stored representatives (3 reds — vv-principles #17: a prior
+carve can dissolve a mutation's own distinction). Elegance: 3 violations + 10
+should-fix + 7 nits, all taken but one pre-existing nit — the false import contract
+(`symmetry` also imports the numpy-only `roots_of_unity`, which must stay a leaf); 18
+stale cross-references in 8 modules, spelled with the family's OTHER name, which is
+why the free functions now carry the verbs' names (`certificate_under`,
+`permutation_under`, `singular_set_under`); the named `WEIGHT_ATOL` + `_node_window`;
+the sentence that keeps step 1 for continuous groups; the fold diagnosis on the
+support's TYPE and `by.contains(Mirror(axis))`; `Literal` for the walk method. Archivist:
++843/−362 over 3 pages, 0 dead in docs, sentinels 593 → 593, two inherited numbers
+corrected (144 of 144; ten duck-typed members), eleven stale docstring sites in code
+and tests fixed. Surprises logged in place: (a) `[M]` two intended moves were three;
+(b) the migration memo's re-key list missed FOUR verdict pins whose KEY SET is the
+candidate set — a literal dict keyed on a producer's output is a §6b member of any
+change to that producer, and no symbol census returns it (promoted: plan-authoring
+surprise log, 2026-09-03).
 
 **ORDER (dependency-forced): R1 → R4 → R2 → R3.** R4 reads R1's `dim`; R2 moves the
 kernel onto R1's realization and R4's lift; R3's coverage predicate reads R1's
@@ -403,7 +439,9 @@ no `TYPE_CHECKING` cycle note, no duck-typed group.
   reason — the import direction — which R2 reverses); `manifold`, `basis/descent.py`
   and `basis/spherical_harmonic_basis.py` import it from there (2 production + 4 test
   readers). `[M]` with that move plus a real `invariance.py`: 10 of 10 entry points.
-- ⛔ **C3 moves shipped answers the plan did not list** (`[M]` test-architect): with
+- ⛔ **C3 moves shipped answers the plan did not list** (`[M]` test-architect; ⛔ and
+  the archivist found a THIRD at landing, 2026-09-03: `folded_product(4,6)`'s walk
+  `{D_1h, σ_x}` → `{D_2h}` — same mechanism, strengthening direction): with
   `candidate_groups` on the EMBEDDED nodes, `gauss_legendre(2/8/16)`'s walk goes
   `{O2_x, σ_x}` → `{O2_x, D_2h}` (correct: the embedded `(μ, 0, 0)` set has two
   z-azimuths, `D_2h ⊇ σ_x`, and `D_2h` acts on `S²/O(2)_x` by `μ ↦ ±μ`), and
