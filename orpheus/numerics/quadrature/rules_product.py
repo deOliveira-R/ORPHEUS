@@ -40,14 +40,14 @@ each measured on its factor through
 :meth:`~orpheus.geometry.transformation.RigidMotion.preserves` (see
 :func:`spherical_product`); a factor pair failing a check is refused,
 never mis-tagged. The independent realization —
-:func:`~orpheus.numerics.symmetry.maximal_invariance_groups`
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.symmetry_groups`
 computing the group from the ASSEMBLED nodes — pins the same answer
 in ``tests/``, so the derivation and the walk verify each other.
 
 .. caution::
 
    The agreement holds to ~1e-16, not bit-exactly, and the match window
-   (``symmetry._NODE_WINDOW_FACTOR``) is what absorbs the difference.
+   (``invariance._NODE_WINDOW_FACTOR``) is what absorbs the difference.
    Lebedev's :math:`O_h` claim, by contrast, is exact on both sides
    because signed permutations are exact in IEEE.
 
@@ -262,7 +262,7 @@ def _derived_product_group(
     tags: this module shipped three false symmetry declarations
     (ERR-072/073/074), so the derivation's inputs are *measured* facts,
     not declarations. The independent realization — the Hasse walk
-    :func:`~orpheus.numerics.symmetry.maximal_invariance_groups` over
+    :meth:`~orpheus.numerics.measure.DiscreteMeasure.symmetry_groups` over
     the ASSEMBLED nodes — pins the same answer in ``tests/``; the two
     verify each other.
 
@@ -386,7 +386,7 @@ def spherical_product(
       from the construction itself (each polar node is its own level,
       :attr:`~orpheus.numerics.quadrature.rules_sphere.PolarInvariant.SIGNED_MU_Z`);
       :math:`\Sigma` needs nothing stored — it is a query
-      (:func:`~orpheus.numerics.symmetry.singular_set`) downstream of
+      (:meth:`~orpheus.numerics.measure.DiscreteMeasure.singular_set_under`) downstream of
       the nodes.
 
     Parameters

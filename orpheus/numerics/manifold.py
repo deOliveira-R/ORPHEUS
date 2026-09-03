@@ -37,41 +37,24 @@ operations every manifold answers (:attr:`dim`, :meth:`contains`,
 *quotient* can answer on :class:`Quotient` alone.  A sphere has no syzygy
 ideal, and under this shape it cannot be asked for one.
 
-⚠ **This module imports nothing from** :mod:`orpheus.numerics` **at
-module scope, and that is load-bearing, not tidiness.**
-:mod:`orpheus.numerics.symmetry` imports :mod:`orpheus.numerics.measure`
-at module scope, and — since tracker 2.4 (2026-09-01) — imports THIS
-module at module scope too (to read a polar marginal's axis off its
-:class:`Quotient` support); ``measure`` imports this module at module
-scope since 2.0c.  So a module-scope ``manifold -> symmetry`` edge would
-close a **direct 2-cycle** ``manifold <-> symmetry`` as well as the
-3-cycle ``measure -> manifold -> symmetry -> measure``, and `[M]` the
-2-cycle fails in ALL THREE import orders where the 3-cycle was
-order-dependent — which is what let a smoke test miss it.
-:class:`SubgroupOfO3` is therefore referenced under
-:data:`typing.TYPE_CHECKING` only.  ⚠ The reason that is affordable is
-NOT that nothing here reads the group — the catalogue builders read
-``group.mirror_axis`` and ``group.rotation_axis``, the door reads
-``group.is_trivial``, ``contains`` and — as the catalogue's LOOKUP KEY
-(:data:`_ORBIT_CATALOGUE`, keyed on ``(type(base), group.name)``; #442) —
-``group.name``, which :attr:`Quotient.name` reads too, and
-:class:`Quotient` reads ``by.orbit_stabiliser``, ``by.dim`` and
-``by.generic_orbit_dimension`` (the dimension law), ``by.is_normalised_by``
-and ``by.generic_images`` — it
-is that the group always arrives **as an argument**, so those reads are
-duck-typed and need no import.  (``measure.py`` defers its own
-``symmetry`` import to function scope for exactly the same reason.)
-The one runtime edge this module does carry runs INSIDE a derivation
-function: ``_sphere_mod_o2`` imports ``LEGENDRE`` from
-:mod:`orpheus.numerics.generating_measure` at function scope, to populate
-the entry's :attr:`Quotient.reference` (#429 tracker 3.1, 2026-09-02).
-That is safe because no quotient is built while any module is still
-initialising — `[M]` 0 module-scope ``.quotient()`` calls in ``orpheus/``;
-the first runs at rule construction, after every module has loaded — and
-it was MEASURED rather than argued: injected on a shadow copy of the
-package, the function-scope import survives **7 of 7** fresh import
-orders, while the same line at module scope kills **7 of 7** (the cycle
-closes through ``measure``, which ``generating_measure`` imports).
+⚠ **The import direction is** ``manifold -> symmetry`` **, at module scope,
+since R2 of #434 (2026-09-03).**  A :class:`Quotient` is a manifold and a
+group, so this module imports :class:`~orpheus.numerics.symmetry.SubgroupOfO3`
+(and the axis table) like any other dependency; ``symmetry`` imports only
+:mod:`orpheus.geometry.transformation`.  Until R2 the direction ran the other
+way — ``symmetry`` held the invariance kernel and therefore imported
+``measure``, which imports this module, so a module-scope ``manifold ->
+symmetry`` edge closed a cycle and the group could be referenced here only
+under ``TYPE_CHECKING``, ten of its members duck-typed (`[M]` by AST on a
+``group`` / ``.by`` receiver, 24 sites — the count has been published as three,
+seven and nine under narrower predicates).  The kernel now
+lives in :mod:`orpheus.numerics.invariance`, below ``measure``, and no cycle
+remains to defer around.  The one runtime edge this module still carries at
+FUNCTION scope is ``_sphere_mod_o2``'s import of ``LEGENDRE`` from
+:mod:`orpheus.numerics.generating_measure` (which imports ``measure``, which
+imports this module) — safe because no quotient is built while any module is
+initialising (`[M]` 0 module-scope ``.quotient()`` calls in ``orpheus/``), and
+measured rather than argued (7 of 7 fresh import orders at #429 tracker 3.1).
 
 Why a closed sum rather than a polymorphic hierarchy: the members are
 stable (about a dozen, and every new orbit space is another *instance* of
@@ -94,10 +77,13 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-if TYPE_CHECKING:  # a runtime import closes BOTH cycles documented above
+from orpheus.numerics.symmetry import AXIS_INDEX, AXIS_LETTER, SubgroupOfO3
+
+if TYPE_CHECKING:  # exactness imports this module at module scope — a real
+    # cycle; RigidMotion is annotation-only here (transformation imports no
+    # numerics, so that one is a choice, not a cycle)
     from orpheus.geometry.transformation import RigidMotion
     from orpheus.numerics.exactness import ReferenceMeasure
-    from orpheus.numerics.symmetry import SubgroupOfO3
 
 __all__ = [
     "Manifold",
@@ -122,7 +108,8 @@ __all__ = [
     "ManifoldMap",
     "archimedes",
     "barycentre",
-    "AXIS_INDEX",
+    "quotient_onto",
+    "spent_group",
 ]
 
 #: Tolerance for :meth:`Manifold.contains` on a curved manifold.  A node
@@ -196,7 +183,7 @@ class Manifold(ABC):
             return NotImplemented
         return Product(self, other)
 
-    def quotient(self, group: "SubgroupOfO3") -> "Quotient":
+    def quotient(self, group: SubgroupOfO3) -> "Quotient":
         r"""The orbit space :math:`M/H`, by catalogue lookup.
 
         Computing an orbit space from scratch — invariant ring, syzygy
@@ -623,7 +610,7 @@ class Quotient(Manifold):
     #: entry" (#432, 2026-09-02).  One orbit space, one spelling — which is what lets
     #: :attr:`~orpheus.numerics.basis.base.Basis.invariance_group`, read
     #: off this field, be the FULL group a basis on the entry has.
-    by: "SubgroupOfO3"
+    by: SubgroupOfO3
     #: The orbit space realized as an honest manifold — what a chart of
     #: ``M/H`` maps ONTO.  For ``S^2/O(2)_a`` this is ``Interval(-1, 1)``.
     #: Its coordinates are the INVARIANTS', the same language as
@@ -1095,21 +1082,12 @@ ENERGY = EnergyGroups()
 # the objects of (2026-09-02, #429 tracker 2.3)
 # ---------------------------------------------------------------------------
 
-#: The ambient coordinate an axis label names.  :math:`\mathbb{R}^3`'s axes
-#: are a convention of THIS module's curved members (a sphere is carried in
-#: three columns, a polar marginal names the axis its :math:`\mu` is measured
-#: against), so the table lives here and :mod:`orpheus.numerics.symmetry`
-#: reads it — the direction the runtime import graph already runs
-#: (``symmetry -> manifold``).  Until 2026-09-02 it was
-#: ``symmetry._AXIS_INDEX``; :func:`archimedes` needed it and this module
-#: cannot import ``symmetry`` at module scope (see the module docstring).
-#: The mirror family names its plane by the NORMAL, so ``AXIS_INDEX["x"]``
-#: selects the normal of :math:`\sigma_x` as well as the axis of
-#: :math:`SO(2)_x` and :math:`O(2)_x`.
-AXIS_LETTER: tuple[str, str, str] = ("x", "y", "z")
-#: The inverse, ``AXIS_INDEX[AXIS_LETTER[i]] == i`` — one spelling of the
-#: convention, DERIVED from the letters so the two cannot disagree.
-AXIS_INDEX: dict[str, int] = {a: i for i, a in enumerate(AXIS_LETTER)}
+# The axis table (``AXIS_LETTER`` / ``AXIS_INDEX``) lives in
+# :mod:`orpheus.numerics.symmetry` and is imported above: it lived HERE from
+# 2026-09-02 to 2026-09-03 because this module could not import ``symmetry``
+# at module scope, and moved back with R2 of #434 when the import direction
+# reversed (`[M]` keeping it here under the new direction closed a 2-cycle
+# that killed 6 of 9 entry points).
 
 #: Nine GENERIC unit directions — no component zero, no two related by a
 #: coordinate symmetry — the base points at which an orbit-space entry asks
@@ -1154,7 +1132,8 @@ class ManifoldMap:
     plus a hand-named ``new_space``), the Archimedes chart inside
     ``spherical_product`` (a loop plus the literal ``support=SPHERE``), and
     the orbit-barycentre map :math:`S^2/O(2)_a \to D^3` spelled **twice**
-    — honestly by ``symmetry._embedded_nodes``, and dishonestly by the
+    — honestly by ``_embedded_nodes`` (then in ``symmetry``, in ``invariance``
+    since R2), and dishonestly by the
     ERR-080 forgery arm, which applies the SAME :math:`\mu \mapsto \mu\,\hat
     e_a` and declares the result on :math:`S^2`.  A codomain that is a
     field of the map cannot be forged at the call site; that is the whole
@@ -1335,7 +1314,8 @@ def barycentre(orbit_space: Quotient) -> ManifoldMap:
     the mirror entries lifted through a hemisphere section instead.
 
     **This is the map ERR-080 forges.**  `[M]` 2026-09-02 the tree spelled it
-    twice: ``symmetry._embedded_nodes`` (honestly — an invariance check wants
+    twice: ``_embedded_nodes`` (then in ``symmetry``, in ``invariance`` since
+    R2 — honestly: an invariance check wants
     the barycentre, because a rotation about :math:`a` fixes it), and
     ``Quadrature._harmonic_frame_measure``'s 1-D arm, which computed the
     same :math:`(\mu, 0, 0)` and declared it a measure on ``SPHERE``.  The
@@ -1435,7 +1415,7 @@ def quotient_onto(source: Manifold, target: Manifold) -> ManifoldMap | None:
     return None
 
 
-def spent_group(source: Manifold, target: Manifold) -> "SubgroupOfO3 | None":
+def spent_group(source: Manifold, target: Manifold) -> SubgroupOfO3 | None:
     r"""The group the descent arrow ``source -> target`` SPENDS, or ``None``
     when :func:`quotient_onto` has no arrow.
 
@@ -1461,7 +1441,7 @@ def spent_group(source: Manifold, target: Manifold) -> "SubgroupOfO3 | None":
     if quotient_onto(source, target) is None:
         return None
     if source == target or not isinstance(target, Quotient):
-        return _trivial_group()
+        return SubgroupOfO3.Trivial
     if source == target.base:
         return target.by
     raise NotImplementedError(
@@ -1471,13 +1451,6 @@ def spent_group(source: Manifold, target: Manifold) -> "SubgroupOfO3 | None":
         f"which the registry does not record; add it to AngularSymmetry "
         f"when a fold of a reduced domain ships."
     )
-
-
-def _trivial_group() -> "SubgroupOfO3":
-    """The trivial subgroup — imported at function scope (module docstring)."""
-    from orpheus.numerics.symmetry import SubgroupOfO3
-
-    return SubgroupOfO3.Trivial
 
 
 def _act_through(orbit_space: Quotient, motion: "RigidMotion", points: NDArray) -> NDArray:
@@ -1582,7 +1555,7 @@ def _generic_points(base: Manifold) -> NDArray:
 
 
 @functools.cache
-def _catalogued_quotient(base: Manifold, group: "SubgroupOfO3") -> Quotient:
+def _catalogued_quotient(base: Manifold, group: SubgroupOfO3) -> Quotient:
     """The memoised body of :meth:`Manifold.quotient` — see its Notes."""
     # M/{e} = M is a THEOREM for every manifold, not a table row —
     # so it is derived here rather than needing one entry per member.
@@ -1640,7 +1613,7 @@ def _catalogued_quotient(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     return entry(base, group)
 
 
-def _sphere_mod_o2(base: Manifold, group: "SubgroupOfO3") -> Quotient:
+def _sphere_mod_o2(base: Manifold, group: SubgroupOfO3) -> Quotient:
     r"""``S^2 / O(2)_a = [-1, 1]``, derived per the standard procedure.
 
     Write :math:`a` for the axis and :math:`b, c` for the other two.
@@ -1778,7 +1751,7 @@ def _sphere_mod_o2(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     )
 
 
-def _sphere_mod_mirror(base: Manifold, group: "SubgroupOfO3") -> Quotient:
+def _sphere_mod_mirror(base: Manifold, group: SubgroupOfO3) -> Quotient:
     r"""``S^2 / <sigma_a> = D^2``, derived per the standard procedure.
 
     The shipped CYLINDRICAL FOLD.  ``[M]``
@@ -1904,7 +1877,7 @@ def _sphere_mod_mirror(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     )
 
 
-def _mod_trivial(base: Manifold, group: "SubgroupOfO3") -> Quotient:
+def _mod_trivial(base: Manifold, group: SubgroupOfO3) -> Quotient:
     r"""``M/{e} = M`` — the identity quotient, derived not tabulated.
 
     The invariant ring of the trivial group is all of
@@ -1918,7 +1891,7 @@ def _mod_trivial(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     hands out the bare ``SPHERE`` for a geometry that spends nothing and
     never this entry (0 production ``SPHERE.quotient(Trivial)`` sites).  It
     is the orbit space a measure that names no group is asked ON —
-    ``symmetry._ambient_orbit_space`` is ``RealSpace(3)/{e}`` — and the
+    ``invariance._ambient_orbit_space`` is ``RealSpace(3)/{e}`` — and the
     catalogue's positive control: the procedure reproducing a known answer.
     (Until 2026-09-03 this paragraph claimed the registry read it — the
     twin it names had been absorbed the other way, by the registry handing
@@ -1970,7 +1943,7 @@ def _mod_trivial(base: Manifold, group: "SubgroupOfO3") -> Quotient:
 #: alone.  About a dozen entries are expected; the engine that would
 #: compute them instead of reading them is deferred, not refused.
 _ORBIT_CATALOGUE: dict[
-    tuple[type, str], Callable[[Manifold, "SubgroupOfO3"], Quotient]
+    tuple[type, str], Callable[[Manifold, SubgroupOfO3], Quotient]
 ] = {
     # The three axial orbit spaces S^2/O(2)_a share ONE derivation — it
     # reads the axis off the group — so they are three keys, not three
@@ -1995,7 +1968,7 @@ _ORBIT_CATALOGUE: dict[
 # ---------------------------------------------------------------------------
 
 
-def _assert_named_by_stabiliser(base: Manifold, group: "SubgroupOfO3") -> None:
+def _assert_named_by_stabiliser(base: Manifold, group: SubgroupOfO3) -> None:
     r"""Refuse a group that is not its own
     :attr:`~orpheus.numerics.symmetry.SubgroupOfO3.orbit_stabiliser`.
 

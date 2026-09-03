@@ -511,8 +511,8 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
         indistinguishable, and the G0 well-posedness gate the plan has carried
         since it was written had no operands to compare.
         """
-        from orpheus.numerics.manifold import AXIS_LETTER, SPHERE
-        from orpheus.numerics.symmetry import SubgroupOfO3
+        from orpheus.numerics.manifold import SPHERE
+        from orpheus.numerics.symmetry import AXIS_LETTER, SubgroupOfO3
 
         return SPHERE.quotient(SubgroupOfO3.Mirror(AXIS_LETTER[self.mirror_axis]))
 

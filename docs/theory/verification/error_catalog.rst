@@ -3729,10 +3729,38 @@ older entries classify against.
    (positive+negative-paired incl. realize-time legs poisoning
    ``quad.reflection_partners``, mutation-verified in-process).
 
+   ⭐ **The refusal learned to name a FOLD, 2026-09-03 (#434 R2).** The
+   guard's message used to end *"(ERR-045: wrong pairing, or a
+   non-axis-aligned reflection that needs a different BC type)"* on
+   **every** failure, and on one shipped family that diagnosis is simply
+   wrong. A rule whose orbit space SPENT the mirror — ``folded_product(4,
+   8)``, whose support is :math:`S^2/\sigma_y` — has no specular partner
+   on that face **by construction**: the reflection acts trivially on the
+   fold, so the outflow half of the pairing is not stored at all. `[M]`
+   2026-09-03, ``folded_product(4, 8).measure.permutation_under(σ_y)`` is
+   the **identity permutation** on the orbit space, while the same match
+   against the stored representatives is ``None``; and
+   ``support.by.contains(Mirror('y'))`` is ``True``. The message now says
+   which symmetry was spent and that the outflow half is not stored,
+   instead of sending the reader to look for a wrong table.
+
+   ⭐ Two properties of *how* it asks are worth more than the message.
+   It is asked of the support's **type**
+   (``isinstance(support, Quotient)``) and of the group's own
+   **containment** predicate (``support.by.contains(Mirror(axis))``) —
+   not of a name, and not of a tag — so a rule folded by a group that
+   merely CONTAINS the mirror (:math:`D_{2h}`, :math:`O_h`) is diagnosed
+   the same way, and a group tag this module has never heard of needs no
+   new arm. That is the ERR-074 lesson applied to a *diagnosis* rather
+   than to a map: a message that names a group action is a claim, and the
+   claim is checkable.
+
    **Lesson:** Reflection contracts compose: the inflow partition,
    the involution property, and the inflow → outflow image are three
    independent invariants. All three must hold; checking only one or
-   two leaves a hole.
+   two leaves a hole. ⭐ And a guard's *diagnosis* is a fourth claim,
+   with its own failure mode: a message that names ONE cause on every
+   red is right exactly as often as that cause is the only one.
 
 .. error-entry:: ERR-046
    :title: Albedo / white kernel with α > 1 (sub-Markov violation)
@@ -5488,6 +5516,27 @@ older entries classify against.
    predicate is unchanged by the carve — **0 of 270** ``is_invariant``
    cells moved against a pinned pre-carve tree.
 
+   ⭐ **The kernel that calls it moved house on 2026-09-03 (#434 R2), and
+   the defence is again unchanged.** It now lives in
+   ``orpheus.numerics.invariance`` — a module below ``measure``, so
+   ``symmetry`` reaches no package but ``geometry.transformation`` (and
+   its own numpy-only ``roots_of_unity``) — and the
+   verb is :meth:`DiscreteMeasure.is_invariant_under
+   <orpheus.numerics.measure.DiscreteMeasure.is_invariant_under>`;
+   ``SubgroupOfO3.is_invariant`` is deleted, with no façade
+   (:ref:`discrete-measure-invariance-module`). Two of that carve's three
+   deletions are worth reading against **this** entry, because both are
+   the *shape* it warns about and neither is an instance of it. (a) The
+   ``G ⊆ H ⟹ True`` short circuit went, and it could go because the
+   closure re-proves it: `[M]` it would have fired on **28** (rule ×
+   group) rows with **0** disagreements. (b) The normaliser check did
+   **not** go, and the asymmetry is exactly ERR-072's: for a finite
+   :math:`G` the closure's per-motion guard re-proves normalisation,
+   because the representatives it iterates ARE the elements — but for a
+   CONTINUOUS :math:`G` they cover only the components, so deleting the
+   check would certify :math:`G` from a finite sample of it, which is
+   this entry's own defect one predicate over.
+
    ⭐ **Re-scoped 2026-09-01 (tracker 2.4 of #429), and the re-scoping is
    ``vv-principles`` #13's finite-roster corollary applied to the gates
    themselves.** The axial rotation group became ``SO2(axis)``, so
@@ -5499,7 +5548,8 @@ older entries classify against.
 
    The gate that catches it *by construction* remains the **compatibility
    law** — for every asserted lattice edge ``A ⊆ B`` and every measure
-   ``m``, ``B.is_invariant(m) ⟹ A.is_invariant(m)`` — which flagged 68
+   ``m``, ``m.is_invariant_under(B) ⟹ m.is_invariant_under(A)`` (spelled
+   ``B.is_invariant(m) ⟹ A.is_invariant(m)`` until #434 R2) — which flagged 68
    violations on 11 measures × 19 groups in one loop when this entry was
    filed, of which 48 trace here. `[M]` re-run 2026-09-01 over 15 groups ×
    6 fixtures (including two polar marginals declared about *different*
@@ -5613,6 +5663,14 @@ older entries classify against.
    **Date:** filed 2026-08-02 (same pre-carve audit as ERR-072).
    **Module:** ``numerics`` (``orpheus/numerics/symmetry.py:904-954``;
    the same defect in ``_is_reflection_invariant_1d:619-648``).
+   ⭐ **The guard's home since 2026-09-03 (#434 R2) is**
+   ``orpheus.numerics.invariance._orbit_closure``, and the move made
+   the "one closure" claim structural rather than asserted: `[M]` that
+   function has exactly **one** call site tree-wide, and its
+   ``images_of`` argument — the induced action on the orbit space — is
+   now REQUIRED rather than defaulting to the ambient action, so no
+   caller can reach a second matching path
+   (:ref:`discrete-measure-invariance-one-closure`).
    **Class:** Mode 12 — the measured functional ("does every image have a
    same-weight partner?") has the many-to-one maps inside its invariance
    group, so the multiplicity error is annihilated exactly, at every
@@ -5733,7 +5791,9 @@ older entries classify against.
    that can break"; the discriminating parameter has to be in the list on
    purpose. The odd rows are what give it teeth.
 
-   **The fix, and why it cost nothing.** ``symmetry._orbit_closure`` already
+   **The fix, and why it cost nothing.** ``_orbit_closure`` (in
+   ``symmetry`` when this was written, in
+   ``orpheus.numerics.invariance`` since #434 R2, 2026-09-03) already
    computes the permutation while proving closure, and already requires a
    **bijection** with matched positions *and* equal weights (that requirement
    is ERR-073's fix). So routing the partner map through it supplies all three
@@ -6500,7 +6560,9 @@ older entries classify against.
      ``Sphere().contains`` is ``False`` (norms
      :math:`0.1834\ldots0.9603`). That is why no tolerance and no
      arithmetic check has ever reached this defect. The *honest*
-     spelling of the same map, ``symmetry._embedded_nodes``, READ
+     spelling of the same map, ``_embedded_nodes`` (in ``symmetry`` when
+     this was measured, in ``orpheus.numerics.invariance`` since #434 R2
+     on 2026-09-03), READ
      :func:`~orpheus.numerics.manifold.barycentre` from that step on
      (`[M]` bit-identical on 12 rows), so the Pattern-2 twin was
      collapsed and only the forgery remained. ⚠ Since #429 tracker 2.2b

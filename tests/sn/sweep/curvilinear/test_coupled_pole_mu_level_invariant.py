@@ -72,7 +72,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.numerics.symmetry import _embedded_nodes
+from orpheus.numerics.invariance import _embedded_nodes
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import _make_1g_mixture

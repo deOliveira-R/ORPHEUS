@@ -94,16 +94,8 @@ from orpheus.numerics.basis.descent import Descent
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
 from orpheus.numerics.manifold import Quotient, Sphere
-# An ordinate permutation is a group action on the measure, so it is
-# certified by the SAME machinery that proves invariance — one source of
-# truth for "does this motion permute these weighted nodes?"
-# (``induced_permutation``, the single-motion face of the closure that
-# `is_invariant` and `orbit_certificate` read), asked ON the rule's orbit
-# space with the measure-level windows (#429 tracker 2.2b, 2026-09-02).
-from orpheus.numerics.symmetry import (
-    SubgroupOfO3,
-    induced_permutation,
-)
+from orpheus.numerics.invariance import WEIGHT_ATOL
+from orpheus.numerics.symmetry import SubgroupOfO3
 
 if TYPE_CHECKING:
     from orpheus.geometry.transformation import Permutation, RigidMotion
@@ -161,9 +153,9 @@ def _octant_sign_predicate(nodes: np.ndarray) -> np.ndarray:
 
 
 #: Weight-match tolerance for certifying an ordinate permutation. Passed to
-#: :func:`~orpheus.numerics.symmetry.induced_permutation`, which compares
+#: :meth:`~orpheus.numerics.measure.DiscreteMeasure.permutation_under`, which compares
 #: weights at this window and positions at
-#: :data:`~orpheus.numerics.symmetry._NODE_WINDOW_FACTOR` times it — the
+#: :data:`~orpheus.numerics.invariance._NODE_WINDOW_FACTOR` times it — the
 #: same two windows the measure-level orbit certification uses, because it
 #: IS that certification, asked of one motion.
 _REFLECTION_ATOL = 1e-13
@@ -511,13 +503,13 @@ class Quadrature:
           lower-dimensional motion is lifted through
           :meth:`~orpheus.geometry.transformation.RigidMotion.embedded_in`;
         * the same two tolerance windows (node window
-          :data:`~orpheus.numerics.symmetry._NODE_WINDOW_FACTOR` times the
+          :data:`~orpheus.numerics.invariance._NODE_WINDOW_FACTOR` times the
           weight window, the measure-level claim recorded on
           ``_orbit_closure``);
         * the same three certifications, delivered by
-          :func:`~orpheus.numerics.symmetry.induced_permutation` (the
-          single-motion face of the closure ``is_invariant`` and
-          ``orbit_certificate`` read, so the three cannot disagree):
+          :meth:`~orpheus.numerics.measure.DiscreteMeasure.permutation_under` (the
+          single-motion face of the closure ``is_invariant_under`` and
+          ``certificate_under`` read, so the three cannot disagree):
           every image matches a node (no bare ``argmin`` — ERR-074), the
           match is a **bijection** (ERR-073), and the matched nodes carry
           equal weights (a deck transformation is measure-preserving —
@@ -545,8 +537,8 @@ class Quadrature:
         motion3 = (
             motion if motion.dimension == 3 else motion.embedded_in(3)
         )
-        return induced_permutation(
-            self.measure, motion3.linear_part, atol=_REFLECTION_ATOL,
+        return self.measure.permutation_under(
+            motion3.linear_part, atol=_REFLECTION_ATOL,
         )
 
     # ────────────────────────────────────────────────────────────
@@ -554,7 +546,7 @@ class Quadrature:
     # ────────────────────────────────────────────────────────────
 
     def quotient(
-        self, group: "SubgroupOfO3", *, atol: float = 1e-13
+        self, group: "SubgroupOfO3", *, atol: float = WEIGHT_ATOL
     ) -> "Quadrature":
         r"""The quotient quadrature :math:`\mu / G` — **THE FOLD**, lifted
         to the :class:`Quadrature` tier.

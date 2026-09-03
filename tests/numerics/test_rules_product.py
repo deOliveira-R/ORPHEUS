@@ -396,16 +396,15 @@ def test_the_seam_selects_the_staggered_fiber_and_the_fold_composes() -> None:
         periodic_trapezoid,
         spherical_product,
     )
-    from orpheus.numerics.symmetry import singular_set
 
     mirror = SubgroupOfO3.Mirror("y")
     polar = gauss_legendre_on_mu(4)
 
     aligned, _ = spherical_product(polar, periodic_trapezoid(8, shift=NODE_ALIGNED))
-    assert singular_set(aligned, mirror).size == 2 * 4  # phi=0 and pi per level
+    assert aligned.singular_set_under(mirror).size == 2 * 4  # phi=0 and pi per level
 
     staggered, _ = spherical_product(polar, periodic_trapezoid(8, shift=STAGGERED))
-    assert singular_set(staggered, mirror).size == 0  # free — the fold's condition
+    assert staggered.singular_set_under(mirror).size == 0  # free — the fold's condition
 
     folded = staggered.quotient(mirror)
     assert folded.n_points == staggered.n_points // 2
@@ -433,7 +432,6 @@ def test_the_derived_group_and_the_hasse_walk_verify_each_other() -> None:
         periodic_trapezoid,
         spherical_product,
     )
-    from orpheus.numerics.symmetry import maximal_invariance_groups
 
     for n_mu, n_phi, shift in [(2, 4, None), (4, 8, STAGGERED)]:
         if shift is None:
@@ -444,7 +442,7 @@ def test_the_derived_group_and_the_hasse_walk_verify_each_other() -> None:
                 periodic_trapezoid(n_phi, shift=shift),
             )
         assert measure.invariance_group == SubgroupOfO3.Dnh(n_phi)
-        walk = maximal_invariance_groups(measure)
+        walk = measure.symmetry_groups()
         assert SubgroupOfO3.Dnh(n_phi) in walk, (n_mu, n_phi, walk)
 
 

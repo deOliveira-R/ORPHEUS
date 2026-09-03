@@ -41,6 +41,11 @@ stage + gate.
 (`git status --porcelain -- docs/`), never in this list. All are branch
 `fix/angular-phantom-support`, docs UNCOMMITTED (I stage + gate; the main agent commits).**
 
+- **#434 R2 — invariance is the MEASURE's question; groups import geometry only**
+  (2026-09-03; 4 pages +839/−368; sentinels **593→593** — no eq-label, as the plan predicted;
+  `-E -W` EXIT=0 with a **0-byte** log both sides; `dead_references` 0 in `docs/`, 2/3 sites
+  in `tests/`; a `[M]`'s denominator moved 150→144 while its finding did not; the plan's TWO
+  intended moves were THREE) → [[lessons-L90]]
 - **#434 R4 — the lift is a derivation OUTPUT and an orbit space's dimension is a THEOREM**
   (2026-09-03; 4 pages +1127/−196; sentinels 591→**593**; `-E -W` EXIT=0 with a **0-byte**
   log; the live tree moved UNDER me twice — 3 clauses → 4, a generic point → a probe SET,

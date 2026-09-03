@@ -754,7 +754,7 @@ since :math:`\cot(\Delta\omega/2)\tan(\Delta\omega/4) \to \tfrac12`.
    mechanism gates in ``tests/sn/sweep/test_tau_arc_wellposedness.py``,
    re-posed at Q5.6.4 —
    ``test_the_fold_mechanism_is_an_empty_singular_set`` asserts the
-   MECHANISM (Σ = ∅, computed via ``singular_set``, never declared) and
+   MECHANISM (Σ = ∅, computed via ``singular_set_under``, never declared) and
    ``test_the_folded_tau_is_bounded_with_the_reversal_identity`` the
    CONSEQUENCE (τ ⊂ [1/4, 3/4] per level plus the reversal identity at
    64 ULP), each at n_φ ∈ {8, 16, 32, 64} on the folded staggered product

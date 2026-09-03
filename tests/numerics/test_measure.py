@@ -864,12 +864,12 @@ def test_quotient_weights_are_orbit_stabilizer_derived() -> None:
     read off the CERTIFICATE — and mass is preserved (quotient, not
     restriction)."""
     from orpheus.numerics.quadrature import Quadrature
-    from orpheus.numerics.symmetry import orbit_certificate
+    from orpheus.numerics.invariance import certificate_under
 
     mu = Quadrature.product(n_mu=4, n_phi=8).measure
     group = SubgroupOfO3.Mirror("y")
 
-    cert = orbit_certificate(mu, group)
+    cert = mu.certificate_under(group)
     assert cert is not None
     order = len(cert.operators)  # |G| = 2 for a mirror
     assert order == 2
@@ -897,13 +897,13 @@ def test_a_free_action_folds_to_uniform_double_weights() -> None:
     orbit-stabilizer weight collapses to a uniform :math:`|G| \cdot w` —
     per-atom BIT-exact (``w + w`` never rounds), with no mixed
     :math:`w/2w` sum."""
-    from orpheus.numerics.symmetry import orbit_certificate, singular_set
+    from orpheus.numerics.invariance import certificate_under
 
     mu = _fold_ring(n_phi=8)
     group = SubgroupOfO3.Mirror("y")
 
-    assert singular_set(mu, group).size == 0  # Σ = ∅ — the action is free
-    cert = orbit_certificate(mu, group)
+    assert mu.singular_set_under(group).size == 0  # Σ = ∅ — the action is free
+    cert = mu.certificate_under(group)
     assert cert is not None
     assert all(orbit.size == len(cert.operators) for orbit in cert.orbits())
 
@@ -976,7 +976,7 @@ def test_the_fold_consumes_the_symmetry_idempotent_only_on_a_trivial_action() ->
     # refused is a quotient by the group already spent. Until 2026-09-02 the
     # refusal read "not sigma_y-invariant" — the ambient reading of the
     # representatives, which 2.2b retired (#429).
-    assert SubgroupOfO3.Mirror("y").is_invariant(folded)
+    assert folded.is_invariant_under(SubgroupOfO3.Mirror("y"))
     with pytest.raises(ValueError, match="lies in the spent group sigma_y"):
         folded.quotient(group)
 

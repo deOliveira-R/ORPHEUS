@@ -35,7 +35,7 @@ from orpheus.numerics.manifold import COSINE_INTERVAL, SPHERE
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import LevelStructure, Quadrature
-from orpheus.numerics.symmetry import _embedded_nodes
+from orpheus.numerics.invariance import _embedded_nodes
 
 pytestmark = [pytest.mark.foundation]
 

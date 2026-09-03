@@ -105,7 +105,7 @@ from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.operator import adjointable
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
-from orpheus.numerics.symmetry import _embedded_nodes
+from orpheus.numerics.invariance import _embedded_nodes
 from orpheus.sn.boundary import realizer as realizer_module
 from orpheus.sn.boundary.realizer import (
     SNBoundaryRealizer,

@@ -119,3 +119,76 @@ the identity (R1's ruling) and the test is as strong as a structural one. A
 is absorbed by one `__post_init__` clause. `_embedded_nodes` now projecting a fold's
 representatives — `π∘g∘P_H = π∘g` for `g ∈ N(H)`, so the chart answers cannot move
 (`[M]` 0 of 9925) and the position test becomes strictly more correct.
+
+---
+
+# #434 R2 — "invariance is the measure's question" (reviewed 2026-09-03)
+
+The kernel left `symmetry.py` for a new `orpheus/numerics/invariance.py`; five verbs
+landed on `DiscreteMeasure`; `SubgroupOfO3.is_invariant` was DELETED with no façade;
+the axis table moved BACK to `symmetry` so `manifold -> symmetry` could go module-scope.
+3 violations / 10 should-fix / 7 nits, all argued at `file:line` in
+`scratch/_r2_elegance_findings.md` (untracked). What transfers:
+
+**⭐⭐ A KERNEL-MOVE's blast radius is the docstring XREF surface, and the one instrument
+that reads it is BLIND until Sphinx rebuilds.** `[M]` the call sites were swept perfectly
+(0 broken imports, 0 `NameError`s) and **18 present-tense production docstring references
+to deleted/moved names survived** across 8 files. `mcp__nexus__dead_references` answered
+`0 dead / 52 checked` — its graph predated the carve — so during the elegance pass it is
+worse than useless: it prints a clean, confident, *wrong* zero. ⟹ on any move/delete
+carve, run the census yourself (validated Python regex + a stated positive control) and
+schedule `dead_references` as the *post-rebuild* backstop, never as the check.
+
+**⭐ And the discrimination that makes the manual pass non-redundant: `dead_references`
+catches the ADDRESS half, never the CONCEPT half.** Half the 18 were resolvable-role
+failures it will eventually find (`:meth:`…SubgroupOfO3.is_invariant``). The other half
+carry no role at all and no instrument can see them — *"the concept whose **checking face
+is** :mod:`…symmetry`"* (`roots_of_unity.py:10`), *"the construction **this module's**
+:math:`O_h` **check** validates"*, *"this module imports geometry.transformation **and
+nothing else of ORPHEUS**"*. Those are the architectural claim the carve INVERTED, and a
+reader who believes one puts the next predicate back where it came from.
+
+**⭐ The HALF-UPDATED SENTENCE is the highest-value tell in a move diff.** Twice here the
+diff re-pointed 2 of 3 Sphinx roles *inside one sentence* and left the dead name
+(`directional.py:511/515` fixed, `:516`'s ``is_invariant`` left; `measure.py:88`'s comment
+block kept while the import it justified moved). The corrected clauses lend the stale one
+their authority. ⟹ when a diff touches a docstring line, read the WHOLE paragraph, not the
+changed line.
+
+**⭐ A module docstring's headline sentence — the one stating the carve's achievement — is
+where to look first, because it is written last and never re-checked.** `[M]`
+`symmetry.py:56` claimed "imports `geometry.transformation` and nothing else of ORPHEUS";
+AST says `from .roots_of_unity import roots_of_unity` at `:103`. The conclusion
+(acyclicity) held only via an unstated premise (roots_of_unity is a numpy-only leaf) —
+plan-authoring §2's so/therefore defect, in code, in an *import contract*.
+
+**⭐ A landed test module can arrive still wearing its DRAFT docstring.** `[M]`
+`test_invariance.py:1` said *"DRAFT. Importable once R2 lands"*, `:3-7` gave a run
+instruction pointing at untracked `scratch/` paths, and `:9-25`'s routing table named 5
+other files for 5 classes that are all IN this file. Unfalsifiable by any gate. ⟹ when a
+test-architect's draft is landed verbatim, the docstring is part of the diff — grep it for
+"DRAFT", `scratch/`, and future tense.
+
+**Verified mechanism worth reusing: `Realization.normalises(H) ==
+component.normalises(H) AND all(H.is_normalised_by(r) for r in representatives)`, and
+`IdentityComponent.normalises` is VACUOUSLY TRUE at `dim 0`.** ⟹ a group-level normaliser
+guard in front of a closure that already checks every element is EXACTLY redundant for
+finite groups and load-bearing only for continuous ones. Here that discriminator was
+unstated while a neighbouring ⚠ paragraph told the reader to delete redundant guards —
+an invitation to remove the only `G⁰` check.
+
+**Judgement calibration.** Two findings were DOWNGRADED for good reasons worth repeating:
+(a) `_specular.py`'s `getattr(spent, "mirror_axis", None)` + `"xyz".index(axis)` is a
+textbook duck-type/twin-table hit, but `test_i1`'s *negative* leg
+(`assert "non-axis-aligned" not in message`) reddens on every failure mode → should-fix,
+not violation. **Look for the witness before grading a smell.** (b) the `1e-13` literal at
+11 sites is byte-coextensive today → should-fix, not violation — though the diff ADDED 5 of
+the 11 and a named spelling of the same window already ships (`directional._REFLECTION_ATOL`).
+
+**Exemplary, worth copying:** `_orbit_closure`'s `images_of` made REQUIRED so the dead
+ambient default is unspellable (Pattern 2 enforced by the *signature*, not a docstring);
+`TestR2RetiredNames` pairing every absence leg with a positive control from the same module;
+`_maximal`'s strictness resting on a MEASURED reflexivity theorem rather than `h != g`; and
+the module-alias import (`from orpheus.numerics import invariance as _invariance`) chosen
+because it makes the delegation resolvable at call time for a counting spy — a style choice
+with a gate behind it.

@@ -22,7 +22,7 @@ THE MECHANISM GATE (T27's spec): at the most-activating configuration —
 folded + staggered, swept to the largest supported ``n_φ`` (min τ_raw
 falls monotonically toward 1/5, so large ``n_φ`` is the worst case;
 τ_raw is ``n_μ``-independent, the sinθ cancels in the ratio) — assert
-the MECHANISM (``Σ = ∅``, computed via ``singular_set``, never declared)
+the MECHANISM (``Σ = ∅``, computed via ``singular_set_under``, never declared)
 and the CONSEQUENCE (``τ_raw ⊂ [1/5, 4/5]``, strictly away from
 ``{0, 1}``, plus the reversal identity ``τ_m + τ_{M−1−m} = 1``).
 Reddenable on ONE mutation: revert Q5.2's staggered offset to δ = 0
@@ -58,7 +58,7 @@ from orpheus.numerics.quadrature import (
     periodic_trapezoid,
     spherical_product,
 )
-from orpheus.numerics.symmetry import SubgroupOfO3, singular_set
+from orpheus.numerics.symmetry import SubgroupOfO3
 from orpheus.sn.angular.closure import morel_montry_tau_per_level
 from tests.sn._test_helpers import seam_quad
 
@@ -219,7 +219,7 @@ def test_the_fold_mechanism_is_an_empty_singular_set(n_phi: int):
     parent, _ = spherical_product(
         gauss_legendre_on_mu(4), periodic_trapezoid(n_phi, shift=_FOLD_SHIFT)
     )
-    sigma = singular_set(parent, _MIRROR_Y)
+    sigma = parent.singular_set_under(_MIRROR_Y)
     assert sigma.size == 0, (
         f"n_phi={n_phi}: the fold's mechanism is broken — the parent has "
         f"{sigma.size} singular node(s) under {_MIRROR_Y.name}; the arc "

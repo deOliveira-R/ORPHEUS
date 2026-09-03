@@ -39,7 +39,12 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 
 ## 3. Durable reference (reusable design-review pointers)
 
-- [symmetry_realization_carve_rulings.md](symmetry_realization_carve_rulings.md) — ⭐⭐ #434 R1+R4
+- [symmetry_realization_carve_rulings.md](symmetry_realization_carve_rulings.md) — ⭐⭐ #434 R1+R4+R2
+  (R2: a kernel-MOVE's blast radius is the docstring XREF surface — `dead_references` is BLIND
+  until Sphinx rebuilds AND catches only the ADDRESS half, never the CONCEPT half; the
+  HALF-UPDATED SENTENCE tell; a module docstring's headline claim is written last and never
+  re-checked; a landed test module still wearing its DRAFT docstring; look for the WITNESS
+  before grading a smell). ⭐⭐ #434 R1+R4
   (R4: a `compare=False` field + a memo keyed on the owner = call-order-dependent answers (L-023);
   a guard resting on an unstated "generic point" where `max_p` IS the theorem; the general form of
   an existing method belongs beside it). ⭐⭐ #434 R1

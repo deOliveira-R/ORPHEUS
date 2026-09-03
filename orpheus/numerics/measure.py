@@ -81,13 +81,20 @@ from typing import TYPE_CHECKING, Callable, Literal, Protocol, runtime_checkable
 
 import numpy as np
 
-# ⭐ A module-scope import, and it is safe by design rather than by luck:
-# ``manifold`` reaches ``symmetry`` (which imports THIS module at module scope)
-# only under ``TYPE_CHECKING``, so the cycle ``measure → manifold → symmetry →
-# measure`` never closes at runtime. ``[M]`` 2026-09-01, injected and run in
-# five import orders (measure / symmetry / geometry / registry / sn.solver
-# first) — all clean. Do not promote ``manifold``'s TYPE_CHECKING import of
-# ``symmetry`` to module scope without re-running that probe.
+# ⭐ Module-scope imports, safe by the LAYERING rather than by luck: ``symmetry``
+# imports only ``geometry.transformation`` and the numpy-only
+# ``roots_of_unity``; ``manifold`` imports ``symmetry``; ``invariance`` imports
+# both and reads THIS module under ``TYPE_CHECKING`` only.  The arrows run one
+# way — measure → invariance → manifold → symmetry — so no cycle can close at
+# runtime.  (Until R2 of #434, 2026-09-03, ``symmetry`` held the invariance
+# kernel and imported this module at module scope, ``manifold`` could reach
+# ``symmetry`` only under ``TYPE_CHECKING``, and `[M]` 2026-09-01 five import
+# orders were probed by hand.  The live witness is now the fresh-interpreter
+# gate in ``tests/test_layer_imports.py`` over every entry point the old cycle
+# killed.)  ``invariance`` is bound as a MODULE so each verb below resolves its
+# kernel at call time — the delegation a counting spy can see.
+from orpheus.numerics import invariance as _invariance
+from orpheus.numerics.symmetry import SubgroupOfO3
 from orpheus.numerics.manifold import (
     COSINE_INTERVAL,
     EnergyGroups,
@@ -100,15 +107,17 @@ from orpheus.numerics.manifold import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from orpheus.geometry.transformation import Permutation, RigidMotion
+    from .invariance import OrbitCertificate
     # ``axis`` is lower-level (imports nothing from this module); the
     # forward-ref keeps the annotation cost-free — the runtime import
     # lives inside the ``axis()`` mint, mirroring ``space``'s lazy style.
     from orpheus.numerics.axis import Axis
 
-    # Forward-ref only: ``symmetry`` imports FROM this module, so a runtime
-    # import would cycle. The field stores a ``SubgroupOfO3`` object (passed
-    # by the angular quadrature factories, which already import it).
-    from orpheus.numerics.symmetry import SubgroupOfO3
+    # ``space`` imports FROM this module (a function space is built on a
+    # measure), so the arrow runs one way and the annotation is a forward
+    # reference.
     from orpheus.numerics.space import FunctionSpace
     # Same forward-ref reason: ``generating_measure`` imports FROM this
     # module (its ``gauss`` returns a DiscreteMeasure), so the arrow runs
@@ -1054,11 +1063,72 @@ class DiscreteMeasure:
             )
         return replace(self, support=orbit_space, invariance_group=None)
 
+    # ── Invariance — the measure's question, answered on its orbit space ──
+    # (R2 of #434, 2026-09-03: five verbs, each delegating to ONE kernel in
+    # :mod:`orpheus.numerics.invariance`; until then the predicate lived on the
+    # GROUP, which dragged this module into the group module's imports.)
+
+    def is_invariant_under(
+        self, group: "SubgroupOfO3", *, atol: float = _invariance.WEIGHT_ATOL,
+    ) -> bool:
+        r"""``True`` iff this measure is invariant under every element of
+        ``group``, asked ON its orbit space
+        (:func:`~orpheus.numerics.invariance.is_invariant_under`): the group
+        must normalise the quotienting group, a continuous group's identity
+        component must fix every node's orbit barycentre, and every element
+        (or coset representative) must permute the weighted nodes through its
+        induced action.  ``atol`` is the WEIGHT window; nodes match at
+        :data:`~orpheus.numerics.invariance._NODE_WINDOW_FACTOR` times it."""
+        return _invariance.is_invariant_under(self, group, atol=atol)
+
+    def certificate_under(
+        self, group: "SubgroupOfO3", *, atol: float = _invariance.WEIGHT_ATOL,
+    ) -> "OrbitCertificate | None":
+        r"""The realized action of ``group`` on this measure — every element's
+        permutation of the nodes on the orbit space
+        (:func:`~orpheus.numerics.invariance.certificate_under`) — or ``None``
+        when the group is continuous (no finite element set: POLICY, while the
+        measure may well be invariant under it), does not act on the orbit
+        space, or does not permute the weighted nodes there."""
+        return _invariance.certificate_under(self, group, atol=atol)
+
+    def permutation_under(
+        self, motion: "RigidMotion", *, atol: float = _invariance.WEIGHT_ATOL,
+    ) -> "Permutation | None":
+        r"""The permutation ``motion`` induces on the weighted nodes, on the
+        orbit space (:func:`~orpheus.numerics.invariance.permutation_under`) —
+        the single-motion face of :meth:`certificate_under` — or ``None`` if
+        it is not a symmetry there."""
+        return _invariance.permutation_under(self, motion, atol=atol)
+
+    def singular_set_under(
+        self, group: "SubgroupOfO3", *, atol: float = _invariance.WEIGHT_ATOL,
+    ) -> np.ndarray:
+        r"""Indices of the nodes fixed by some non-identity element of ``group``
+        — the orbifold singular set :math:`\Sigma`, an integer identity on the
+        certificate (:func:`~orpheus.numerics.invariance.singular_set_under`).
+        Raises if no certificate exists."""
+        return _invariance.singular_set_under(self, group, atol=atol)
+
+    def symmetry_groups(
+        self,
+        *,
+        atol: float = _invariance.WEIGHT_ATOL,
+        candidates: "Iterable[SubgroupOfO3] | None" = None,
+        method: Literal["walk", "bruteforce"] = "walk",
+    ) -> "tuple[SubgroupOfO3, ...]":
+        r"""The maximal expressible groups leaving this measure invariant
+        (:func:`~orpheus.numerics.invariance.symmetry_groups`) — its symmetry,
+        computed from the nodes, never declared."""
+        return _invariance.symmetry_groups(
+            self, atol=atol, candidates=candidates, method=method,
+        )
+
     def quotient(
         self,
         group: "SubgroupOfO3",
         *,
-        atol: float = 1e-13,
+        atol: float = _invariance.WEIGHT_ATOL,
     ) -> DiscreteMeasure:
         r"""The quotient measure :math:`\mu / G` on the orbifold
         :math:`\mathcal{X}/G` — THE FOLD.
@@ -1116,7 +1186,7 @@ class DiscreteMeasure:
 
         **Precondition by construction.** The quotient is defined only
         on a :math:`G`-invariant measure; the certificate
-        (:func:`~orpheus.numerics.symmetry.orbit_certificate`) is the
+        (:meth:`certificate_under`) is the
         proof, and it cannot be built for a non-invariant measure, a
         CONTINUOUS group (no finite node permutation), or nodes without
         a 3-D realization — all three refuse loudly here.
@@ -1124,7 +1194,7 @@ class DiscreteMeasure:
         **The fold consumes the symmetry.** The result carries
         ``invariance_group=None``: the representative section is not
         :math:`G`-equivariant, so no residual invariance is guaranteed
-        (ask :func:`~orpheus.numerics.symmetry.maximal_invariance_groups`
+        (ask :meth:`symmetry_groups`
         of the result if one is needed). Consequently a SECOND
         ``quotient(group)`` refuses — except in the degenerate case
         where every node was fixed (the action was trivial), where the
@@ -1161,12 +1231,7 @@ class DiscreteMeasure:
             or ``group`` continuous / without a finite realization on
             these nodes).
         """
-        # Lazy import: ``symmetry`` imports FROM this module (it takes a
-        # DiscreteMeasure), so a module-level import here would be
-        # circular. Mirrors the ``space`` property's lazy import.
-        from orpheus.numerics.symmetry import orbit_certificate
-
-        certificate = orbit_certificate(self, group, atol=atol)
+        certificate = self.certificate_under(group, atol=atol)
         if certificate is None:
             raise ValueError(
                 f"a quotient is defined only for a {group.name}-invariant "

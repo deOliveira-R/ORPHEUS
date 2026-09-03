@@ -55,7 +55,8 @@ from orpheus.numerics.basis.spherical_harmonic_basis import (
     MirrorEvenSphericalHarmonicBasis,
     SphericalHarmonicBasis,
 )
-from orpheus.numerics.manifold import AXIS_LETTER, Quotient, SPHERE
+from orpheus.numerics.manifold import Quotient, SPHERE
+from orpheus.numerics.symmetry import AXIS_LETTER
 
 __all__ = ["Descent"]
 

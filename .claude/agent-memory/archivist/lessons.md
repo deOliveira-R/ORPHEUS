@@ -19,6 +19,25 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 retirement shim, scanner finding, plan line and "MEASURED" block are point-in-time snapshots.
 Verify, then write, then FLAG every scope-expansion the verification forced.
 
+- **⭐⭐ A `[M]` whose DENOMINATOR is a COMPUTED SET has a shelf life the FINDING does
+  not — write what computes it.** `[M]` two sites read *"the reduction agrees on **150 of
+  150** (sphere rule × candidate group) rows"*; re-measured it is **144 of 144**, every
+  row still identical. The denominator is `sum(len(candidate_groups(r)))`, an output of
+  the machinery the campaign keeps re-deriving (it moved twice in two days). Repair: not
+  a tombstone but *"the finding is unchanged and only the DENOMINATOR moved, because it
+  is the size of a candidate set"*. → L-090
+- **⭐⭐ A plan's list of INTENDED behaviour moves is a sample — run the whole shipped
+  roster.** The plan named two; `[M]` against a pinned `git archive HEAD` tree there are
+  **three** (`folded_product(4,6)`'s walk `{D_1h,σ_x}` → `{D_2h}`, same mechanism, a
+  strengthening). ⭐ And separate the two questions: the invariance PREDICATE moved **0 of
+  330** (11 rules × a FIXED 30-spelling list) while the WALK moved on **4 of 11** — what
+  changed is which questions the walk thinks to ask, not what any answer is. → L-090,
+  L-074
+- **⭐ A rejected-design / refusal note can have ONE of its N costs EXPIRE.** One of four
+  costs listed against a rejected design (*"needs a second function-scope import"*) went
+  to zero when the carve reversed the import direction. Date that clause with a `⛔`, keep
+  the note, and say the ruling does not depend on it (*"the three surviving costs are each
+  sufficient on their own"*). → L-090, L-074
 - **⛔⛔ ON A LIVE BRANCH THE RE-READ IS A LOOP, NOT A PRE-FLIGHT — re-read the module's
   public surface AFTER EVERY BUILD.** Dispatched at 4 modified `orpheus/` files, I finished
   at 20: the R4 gates landed mid-task (so a briefed "no test pins X" was `[M]` **2 hits**,
@@ -770,6 +789,13 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
 **Meta-rule: `-W` proves only "I added no NEW warning". The acceptance evidence for a correctness
 sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 
+- **⛔ An AST IMPORT CENSUS needs TWO resolutions, not one — and the second hid the
+  load-bearing edge.** Relative imports (`level > 0`, unqualified `.module`) is the known
+  trap. The new one: `from orpheus.numerics import invariance as _invariance` has
+  `node.module == "orpheus.numerics"`, so it is an edge to the **SUBMODULE** and a filter
+  comparing `node.module` against a module set reports it ABSENT — `[M]` mine hid
+  `measure → invariance`, the single most load-bearing runtime edge in the carve. One
+  positive control per import SHAPE. → L-090
 - **⭐⭐ The source diff and the RENDER slice see DIFFERENT defect classes — keep both.**
   L-076's `re.S` source differential is free and catches NESTING (`**``x``**`); it is blind
   to a role that never PARSED. `[M]` mine said `new=0` while the rendered page carried
@@ -1795,6 +1821,25 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
 
 ## 6. Match the doc SHAPE to the event class
 
+- **⭐⭐ A KERNEL CHANGING HOUSE (a module split + a receiver↔argument rename) splits into
+  TWO registers, and putting both in one place is the twin.** The kernel's MATHEMATICS
+  stays where its argument already flows (three conjuncts, in the chapter that derives the
+  normaliser criterion); the module's own section owns the BOUNDARY — why the verbs are the
+  measure's, why no façade, the call-site proof of one closure, the numerical evidence — and
+  goes on the page that owns the OTHER operand. `[M]` no `automodule` exists for the sibling
+  modules, so the new one gets none and `:mod:` renders plain text by page convention.
+  ⭐ Four moves that carry the weight: **(a)** "ONE closure" publishes as a CALL-SITE COUNT
+  (`[M]` 1 caller / 3 callers, and the ambient default REMOVED — *a default nobody uses is a
+  second code path*), never as prose; **(b)** an architectural step that is right and has NO
+  shipped discriminator gets named as inert WITH its denominator (`[M]` the chart match ==
+  the ambient-on-barycentres match on **1027 of 1027**; what moves an answer is reading the
+  barycentres, not the chart) — `vv` #19 at the design tier; **(c)** the REFUTED variant is
+  reproduced on a renamed shadow package (`[M]` 10/10 vs **3/10**, ~1 min, no production file
+  touched), and the publishable half is the three SURVIVORS, one of which is `import orpheus`
+  itself; **(d)** a section NAMED after the thing that no longer exists keeps its label and
+  is RETITLED (a bare `:ref:` renders the target's title, so every citer improves) with the
+  falsified claims verbatim under a `⛔` in their own subsection — and its citers are a blast
+  radius: 3 of 6 were themselves present-tense-false. → L-090
 - **⭐⭐ A BRANCH-BECOMES-ONE-FORMULA carve (N per-family arms collapse into one
   derivation output) has a five-move shape.** (1) The general statement gets ONE labelled
   equation in ONE home — the chapter where the object's own argument already lives — and

@@ -12,7 +12,7 @@ The ``invariance_group`` tag is a **construction-time** fact — the
 factory built the node set, so it knows its symmetry — and a permanent
 gate (``test_every_registry_rule_declares_a_symmetry_it_actually_has``)
 pins every shipped rule's tag against
-:func:`~orpheus.numerics.symmetry.maximal_invariance_groups`, which
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.symmetry_groups`, which
 computes the group from the nodes. Anything that *selects* on symmetry
 asks the nodes rather than the tag: a tag can be true without being
 maximal, and until 2026-08-02 one of them was not even true.

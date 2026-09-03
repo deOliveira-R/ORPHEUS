@@ -164,12 +164,12 @@ def test_b1_the_marginal_is_invariant_under_the_group_it_was_quotiented_by(
     m = gauss_legendre_on_polar_orbit(8, axis)
     assert m.quotient_group == SubgroupOfO3.O2(axis)
     assert m.quotient_group is not None
-    assert m.quotient_group.is_invariant(m)
+    assert m.is_invariant_under(m.quotient_group)
     for other in _AXES:
-        assert SubgroupOfO3.SO2(other).is_invariant(m) is (other == axis)
+        assert m.is_invariant_under(SubgroupOfO3.SO2(other)) is (other == axis)
     # the residual the adopter re-tags is the mirror normal to the SAME axis
     assert m.invariance_group == SubgroupOfO3.Mirror(axis)
-    assert SubgroupOfO3.Mirror(axis).is_invariant(m)
+    assert m.is_invariant_under(SubgroupOfO3.Mirror(axis))
 
 
 @pytest.mark.foundation

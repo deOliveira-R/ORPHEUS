@@ -1,4 +1,4 @@
-r"""Subgroups of :math:`O(3)` and discrete-measure invariance.
+r"""Subgroups of :math:`O(3)` — named, realized, and ordered by containment.
 
 Quadrature *selection* is fundamentally a symmetry-matching problem.
 A geometry has a natural symmetry group :math:`G_{\text{geom}}`
@@ -46,12 +46,19 @@ false edge before it went (``_NAMED_LATTICE``'s ``D_nh ⊆ O2``, retired
 the argument for computing rather than hand-maintaining, made twice, in
 two different shapes.
 
-:meth:`SubgroupOfO3.is_invariant` decides a measure's invariance ON the
-measure's orbit space (:func:`_invariance_on_orbit_space`): a finite group
-must permute the weighted node set through its induced action, and a
-continuous group is decided EXACTLY through its identity component — which
-must fix every node, since its orbits are connected — and its finitely many
-coset representatives, never through a sample of its elements (ERR-072).
+Whether a MEASURE is invariant under a group is the measure's question, and
+it lives with the measure: :meth:`DiscreteMeasure.is_invariant_under
+<orpheus.numerics.measure.DiscreteMeasure.is_invariant_under>` and its siblings
+delegate to :mod:`orpheus.numerics.invariance` (since R2 of #434, 2026-09-03 —
+until then the kernel, the closure and the lattice walk lived here, this
+module imported :mod:`~orpheus.numerics.measure` at module scope, and the
+manifold module could reference a group only under ``TYPE_CHECKING``).  This
+module imports :mod:`orpheus.geometry.transformation` and, inside
+``numerics``, only :mod:`~orpheus.numerics.roots_of_unity` — itself a
+numpy-only leaf (`[M]` 2026-09-03: its imports are ``numpy`` and
+``numpy.typing``), and it must STAY one, because the day it imports
+``measure`` or ``manifold`` this module re-acquires the cycle R2 broke: a
+group is a group.
 
 References
 ----------
@@ -64,8 +71,8 @@ References
   point groups, invariant theory of finite groups).
 * Lebedev, V.I. (1976). "Quadratures on a sphere." *USSR Computational
   Mathematics and Mathematical Physics* **16**(2), 10-24. The
-  octahedral-invariant construction this module's :math:`O_h` check
-  validates.
+  octahedral-invariant construction the :math:`O_h` invariance check
+  (:mod:`~orpheus.numerics.invariance`) validates.
 * Carlson, B.G. and Lathrop, K.D. (1968). "Transport theory: the
   method of discrete ordinates." In *Computing Methods in Reactor
   Physics*, Greenspan, Kelber, Okrent, eds., Gordon & Breach.
@@ -88,23 +95,30 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, ClassVar, Iterable
+from typing import ClassVar
 
 import numpy as np
 
 from orpheus.geometry.transformation import (
-    Permutation,
     RigidMotion,
     close_group as _close_rigid_motions,
-    permutation_preserving,
 )
 
-# `manifold` imports this module under TYPE_CHECKING only, so the runtime
-# edge symmetry -> manifold is acyclic (`[M]` injected and run in all three
-# import orders, 2026-09-01); `measure` already sits on the same path.
-from .manifold import AXIS_INDEX, AXIS_LETTER, Quotient, RealSpace
-from .measure import DiscreteMeasure
 from .roots_of_unity import roots_of_unity
+
+#: The ambient coordinate an axis label names.  :math:`\mathbb{R}^3`'s axes
+#: are the convention every realization below is built in (principal axis
+#: along z, vertex on x), and the manifold module reads it — the direction
+#: the runtime import graph runs since R2 of #434 (``manifold -> symmetry``;
+#: until then it ran the other way and the table lived in ``manifold``, and
+#: `[M]` re-importing it from there under the new direction closed a 2-cycle
+#: that killed 6 of 9 entry points).  The mirror family names its plane by
+#: the NORMAL, so ``AXIS_INDEX["x"]`` selects the normal of :math:`\sigma_x`
+#: as well as the axis of :math:`SO(2)_x` and :math:`O(2)_x`.
+AXIS_LETTER: tuple[str, str, str] = ("x", "y", "z")
+#: The inverse, ``AXIS_INDEX[AXIS_LETTER[i]] == i`` — one spelling of the
+#: convention, DERIVED from the letters so the two cannot disagree.
+AXIS_INDEX: dict[str, int] = {a: i for i, a in enumerate(AXIS_LETTER)}
 
 #: The absolute tolerance under which two realized operators, or a vector and
 #: its image, are the same ELEMENT — the one band for every element-level
@@ -460,8 +474,11 @@ class SubgroupOfO3:
 
     Containment via :meth:`contains` implements
     :eq:`subgroup-of-o3-containment`, COMPUTED from the two groups'
-    :attr:`realization`; invariance via :meth:`is_invariant` asks a
-    :class:`~orpheus.numerics.measure.DiscreteMeasure` on its orbit space.
+    :attr:`realization`.  Whether a measure is invariant under this group is
+    the MEASURE's question — :meth:`DiscreteMeasure.is_invariant_under
+    <orpheus.numerics.measure.DiscreteMeasure.is_invariant_under>` (R2 of
+    #434; until 2026-09-03 an ``is_invariant`` method lived here and dragged
+    the measure module into this one's imports).
 
     A frozen value type, like every tag it wraps and every
     :class:`~orpheus.numerics.manifold.Manifold` that carries one as a field:
@@ -553,7 +570,7 @@ class SubgroupOfO3:
         group's orbit space on :math:`S^2` IS, which is what an orbit-space
         derivation (``manifold._sphere_mod_o2`` needs the invariant
         coordinate) and the embedding of a polar marginal
-        (``_embedded_nodes`` puts :math:`\mu` on THIS axis) read off it.
+        (``invariance._embedded_nodes`` puts :math:`\mu` on THIS axis) read off it.
         """
         tag = self._tag
         if isinstance(tag, (SO2, O2)):
@@ -870,100 +887,6 @@ class SubgroupOfO3:
             return SubgroupOfO3.SO3
         return SubgroupOfO3.SO2(_letter_of(component.axis))
 
-    def is_invariant(
-        self,
-        measure: DiscreteMeasure,
-        *,
-        atol: float = 1e-13,
-    ) -> bool:
-        r"""``True`` iff ``measure`` is invariant under every element of
-        ``self``.
-
-        For a finite group :math:`G` acting on the ambient space of the
-        measure's nodes, invariance means: for every :math:`g \in G`,
-        the action :math:`g` permutes the nodes among themselves and
-        the matched node carries the same weight (within ``atol``).
-
-        For continuous groups (:math:`SO(2)_a`, :math:`O(2)_a`,
-        :math:`SO(3)`, :math:`O(3)`) the check is DECIDED EXACTLY, never
-        sampled (ERR-072): a finite point set is closed under a continuous
-        group only where the group acts trivially, so :math:`SO(2)_a`- and
-        :math:`O(2)_a`-invariance both mean every node lies ON axis
-        :math:`a` (a point on the axis is fixed by the vertical mirrors
-        too) and :math:`SO(3)`-invariance means every node sits at the
-        origin.
-
-        ⭐ **A measure on an ORBIT SPACE is asked on the orbit space**
-        (#429 tracker 2.2b, user-ruled 2026-09-02). A fold's nodes are
-        REPRESENTATIVES, and a slab rule's nodes are the chart coordinate
-        :math:`\mu` of :math:`S^2/O(2)_a`; asking whether the ambient
-        action permutes those points answers a different question —
-        `[M]` :math:`\sigma_y` read *not invariant* on ``folded_product``
-        (it maps a :math:`y \ge 0` representative to its absent mate)
-        while it acts TRIVIALLY on :math:`S^2/\sigma_y`, and every
-        :math:`\Gamma`-admission of the shipped cylinder configuration
-        failed on that reading. So for a support that is a
-        :class:`~orpheus.numerics.manifold.Quotient` :math:`M/H` the
-        group must first NORMALISE :math:`H` (:meth:`normalises` — else
-        it does not act on the orbit space at all), a group inside
-        :math:`H` acts trivially, and otherwise every element acts through
-        the entry's :meth:`~orpheus.numerics.manifold.Quotient.induced_action`
-        on the chart coordinates of the nodes (chart-width nodes are lifted
-        by the entry's :attr:`~orpheus.numerics.manifold.Quotient.lift`,
-        the barycentre for the axial entry). A measure that names no orbit
-        space (a bare sphere, a chart-level interval) is asked in the
-        ambient :math:`\mathbb{R}^3` — the trivial orbit space — with the
-        tree's zero-padding convention for lower-dimensional nodes, so the
-        two readings are ONE kernel (:func:`_invariance_on_orbit_space`)
-        and cannot disagree. A polar marginal on :math:`S^2/O(2)_x` is
-        therefore :math:`SO(2)_x`-invariant (the group acts trivially on
-        its orbit space) and :math:`SO(2)_z`-NON-invariant (it does not
-        normalise :math:`O(2)_x`) — the axis is load-bearing, which is why
-        it is a parameter.
-
-        Strategy by group:
-
-        - **Trivial**: always ``True`` (every measure is invariant
-          under the identity).
-        - **Mirror / Cn / Dnh** and every other FINITE group: every
-          element's induced action must permute the weighted node set
-          (:func:`_orbit_closure`, ERR-073's bijection guard included).
-        - **SO2 / O2 / Dinfh / SO3 / O3**: decided EXACTLY, never sampled
-          (ERR-072) — the identity component must FIX every node of a
-          finite set on the orbit space (its orbits are connected:
-          :meth:`IdentityComponent.fixes`, the axis-support / origin rule),
-          and the discrete coset representatives act as finite elements do.
-        - **OctahedralOh / IcosahedralIh**: the same finite rule over all
-          48 / all 120 realized elements (:func:`_octahedral_ops`,
-          :func:`_icosahedral_ops`, closed once and cached) — no fingerprint,
-          no representative orbit: `[M]` 2026-09-02 this docstring still
-          described a sorted-:math:`(|x|,|y|,|z|)` multiset and a 12-vertex
-          sample that the call chain had not contained since the closure
-          check landed.  Lebedev grids do **not** carry :math:`I_h` symmetry
-          (they are :math:`O_h`-invariant by construction), so the
-          :math:`I_h` closure correctly rejects them.
-
-        Parameters
-        ----------
-        measure : DiscreteMeasure
-            The measure to test, ON its support: a
-            :class:`~orpheus.numerics.manifold.Quotient` support is asked
-            through the entry's induced action; a bare support is embedded
-            in :math:`\mathbb{R}^3` by :func:`_embedded_nodes` (column 0
-            for a bare interval, :math:`(x, y, 0)` for a planar rule).
-        atol : float, optional
-            Tolerance for weight equality between matched orbit
-            partners. Default ``1e-13`` matches the floating-point
-            noise on a 1-D Gauss-Legendre weight computation.
-
-        Returns
-        -------
-        bool
-            ``True`` if ``measure`` is :math:`G`-invariant within
-            ``atol``, ``False`` otherwise.
-        """
-        return _check_invariance(self, measure, atol)
-
     def generic_images(self, points: "np.ndarray") -> list["np.ndarray"]:
         r"""The images of ``points`` under a GENERIC set of this group's elements.
 
@@ -980,7 +903,8 @@ class SubgroupOfO3:
         generates a finite SUBgroup, and a sample of right angles generates
         :math:`C_4`, which `[M]` 2026-09-02 falsely admits the
         :math:`m = \pm 4` real-harmonic slots at :math:`L \ge 4`
-        (``vv-principles`` #13 — this is the trap :meth:`is_invariant` avoids
+        (``vv-principles`` #13 — this is the trap
+        :func:`~orpheus.numerics.invariance.is_invariant_under` avoids
         by deciding continuous groups EXACTLY; a probe of FUNCTIONS cannot,
         so it samples where no finite subgroup can hide). :math:`D_{\infty h}`
         has an axis (:math:`z`) and four components, so since 2026-09-02 (R1
@@ -1434,7 +1358,7 @@ def _tags_contain(outer, inner) -> bool:
     containment answer is a pure function of them and the lattice walk asks
     :math:`O(n^3)` questions per measure, most of them repeats (`[M]` 420
     per walk on a slab rule — 203 distinct pairs, 217 cache hits,
-    ``cache_info`` after one ``maximal_invariance_groups(gauss_legendre(8))``,
+    ``cache_info`` after one ``gauss_legendre(8).measure.symmetry_groups()``,
     2026-09-03)."""
     if outer == inner:
         return True
@@ -1490,245 +1414,6 @@ def _group_elements(tag) -> "list[RigidMotion] | None":
     :func:`_realize`), or ``None`` for a continuous one."""
     realization = _realize(tag)
     return list(realization.elements) if realization.is_finite else None
-
-
-# ---------------------------------------------------------------------------
-# Invariance check
-# ---------------------------------------------------------------------------
-
-
-def _embedded_nodes(measure: DiscreteMeasure) -> np.ndarray:
-    r"""The measure's nodes as orbit BARYCENTRES in :math:`\mathbb{R}^3`.
-
-    A measure on an orbit space answers through its entry: the nodes are
-    carried to the base's ambient space by :meth:`Quotient.orbit_barycentres
-    <orpheus.numerics.manifold.Quotient.orbit_barycentres>` — the Reynolds
-    projector of a fold's representatives (since #434 R4, 2026-09-03; until
-    then a fold's nodes passed through as representatives), the entry's
-    :attr:`~orpheus.numerics.manifold.Quotient.lift` of a polar marginal's
-    chart coordinates (:math:`\mu \mapsto \mu\,\hat e_a`, inside the ball,
-    on the sphere only at the poles) — the honest point an invariance
-    question wants, since every isometry that descends to the orbit space
-    carries barycentres to barycentres. A measure that names no orbit space
-    keeps the tree's zero-padding convention: a chart-level interval's
-    :math:`\mu` becomes :math:`(\mu, 0, 0)` (column 0 — a bare interval
-    names no axis), a planar rule :math:`(x, y)` becomes :math:`(x, y, 0)`,
-    a sphere rule is itself.
-
-    ⭐ Since 2026-09-02 (#429 tracker 2.2b) the axis is READ off the entry's
-    lift rather than by this function: until then it embedded a polar
-    marginal through :func:`~orpheus.numerics.manifold.barycentre` after
-    reading the axis itself, and the invariance question was then asked
-    in the AMBIENT space — right for a bare sphere rule, wrong for a fold,
-    whose representatives are not closed under the group that folded them
-    although that group acts trivially on the orbit space. The question
-    is now asked ON the orbit space (:func:`_invariance_on_orbit_space`);
-    this function only supplies the representatives.
-    """
-    support = measure.support
-    if isinstance(support, Quotient):
-        return support.orbit_barycentres(measure.nodes)
-    nodes = measure.nodes
-    if nodes.ndim == 1:
-        nodes = nodes[:, None]
-    n, d = nodes.shape
-    if d == 3:
-        return nodes
-    embedded = np.zeros((n, 3))
-    embedded[:, :d] = nodes
-    return embedded
-
-
-def _as_columns(points: np.ndarray) -> np.ndarray:
-    """``(n,)`` chart coordinates as the ``(n, 1)`` column a point-set match wants."""
-    arr = np.asarray(points, dtype=float)
-    return arr if arr.ndim == 2 else arr[:, None]
-
-
-@functools.cache
-def _ambient_orbit_space() -> Quotient:
-    r"""The trivial orbit space :math:`\mathbb{R}^3/\{e\}` — where a measure
-    that names no orbit space is asked. Its chart is the ambient space
-    itself, its lift the identity, and every isometry descends to it, so
-    the orbit-space kernel reduces on it to the ambient question. The base
-    is :math:`\mathbb{R}^3` and not the sphere on purpose: a zero-padded
-    interval or planar rule lands OFF the sphere, and the container must
-    honestly contain what is put in it."""
-    return RealSpace(3).quotient(SubgroupOfO3.Trivial)
-
-
-def _orbit_space_of(measure: DiscreteMeasure) -> Quotient:
-    r"""The orbit space a measure is asked ON — its support when that is a
-    :class:`~orpheus.numerics.manifold.Quotient`, else the trivial orbit
-    space :math:`\mathbb{R}^3/\{e\}` (:func:`_ambient_orbit_space`), where
-    the two readings coincide.  ONE spelling, so the closure and the
-    invariance kernel cannot disagree about which space they are on."""
-    support = measure.support
-    return support if isinstance(support, Quotient) else _ambient_orbit_space()
-
-
-def _orbit_space_closure(
-    measure: DiscreteMeasure,
-    motions: "Iterable[RigidMotion]",
-    atol: float,
-) -> "OrbitCertificate | None":
-    r"""The certificate of ``motions`` acting ON the measure's orbit space —
-    the one closure every "does this isometry permute these ordinates"
-    question in the tree is answered by (#429 tracker 2.2b).
-
-    The measure's nodes are carried to the base (:func:`_embedded_nodes`),
-    read as CHART points of the orbit space (a bare support is the trivial
-    orbit space :math:`\mathbb{R}^3/\{e\}`, where chart and base coincide),
-    and each motion's image of the chart set is its
-    :meth:`~orpheus.numerics.manifold.Quotient.induced_action` — which
-    exists only for a motion that normalises the quotienting group, so a
-    motion that does not act on the orbit space is ``None`` here, exactly
-    as one that acts without permuting is. The match itself is
-    :func:`_orbit_closure`: ERR-073's bijection guard, ERR-074's no-bare-
-    ``argmin`` guard, the weight leg, and the two windows.
-    """
-    orbit_space = _orbit_space_of(measure)
-    barycentres = _embedded_nodes(measure)
-    chart = _as_columns(orbit_space.orbit_coordinates(barycentres))
-    motions = list(motions)
-    if not all(orbit_space.by.is_normalised_by(g) for g in motions):
-        return None
-    return _orbit_closure(
-        chart,
-        measure.weights,
-        motions,
-        atol,
-        images_of=lambda g: _as_columns(orbit_space.induced_action(g)(barycentres)),
-    )
-
-
-def induced_permutation(
-    measure: DiscreteMeasure, motion: RigidMotion, *, atol: float,
-) -> "Permutation | None":
-    r"""The permutation ``motion`` induces on the measure's weighted nodes,
-    ON the measure's orbit space — or ``None`` if it is not a symmetry there.
-
-    The single-motion face of :func:`orbit_certificate` and the kernel
-    :meth:`SubgroupOfO3.is_invariant` reads, so that a quadrature's
-    :meth:`~orpheus.numerics.quadrature.directional.Quadrature.ordinate_permutation`
-    and its invariance can never disagree about a fold: `[M]` until
-    2026-09-02 they did — :math:`\sigma_y` on ``folded_product(4, 8)`` was
-    *invariant* to one reading and *no permutation* to the other, because
-    the second matched the fold's representatives in the ambient space where
-    their :math:`\sigma_y`-mates are absent. On the orbit space it is the
-    identity permutation, which is what a reflecting face on a folded rule
-    realizes. ``atol`` is the WEIGHT window; the node window is
-    :data:`_NODE_WINDOW_FACTOR` times it.
-    """
-    certificate = _orbit_space_closure(measure, [motion], atol)
-    return None if certificate is None else certificate.permutations[0]
-
-
-def _check_invariance(
-    group: "SubgroupOfO3", measure: DiscreteMeasure, atol: float,
-) -> bool:
-    r"""Dispatch for :meth:`SubgroupOfO3.is_invariant` — **one arm, on the
-    orbit space**.
-
-    A measure on a :class:`~orpheus.numerics.manifold.Quotient` support is
-    asked on that orbit space; a measure on a bare support is asked on the
-    trivial orbit space :math:`\mathbb{R}^3/\{e\}` — not :math:`S^2/\{e\}`,
-    because a zero-padded interval or planar rule lands OFF the sphere
-    (:func:`_ambient_orbit_space`) — with its nodes embedded in
-    :math:`\mathbb{R}^3` (:func:`_embedded_nodes`). One kernel,
-    :func:`_invariance_on_orbit_space`, answers both.  No fast path: `{e}`
-    normalises every stabiliser and lies inside it, so steps 1-2 of the
-    kernel answer it; the ``Trivial`` / ``Cn(1)`` branches that stood here
-    until 2026-09-03 were special cases of the general body (`[M]` identical
-    on 7 of 7 shipped rule shapes, and provable from the two steps).
-
-    **History, kept because both halves are still instructive.** Until
-    2026-09-02 this embedded EVERY measure in :math:`\mathbb{R}^3` and asked
-    the ambient question — which is right for a bare sphere rule and wrong
-    for a fold, whose nodes are representatives (#429 tracker 2.2b). And
-    before 2026-08-02 it had a separate 1-D arm that was over-promising:
-    `[M]` it had exactly ONE discriminating branch — the :math:`\mu \to
-    -\mu` reflection test — and waved every other group through, so its
-    output was a one-bit function of the input wearing a nineteen-group
-    lattice walk (``Sym(gauss_legendre_on_mu(8))`` was reported as
-    :math:`O(3)`; it is :math:`\{e, \sigma_x\}` with the mirrors fixing the
-    axis pointwise), and an ASYMMETRIC 1-D measure was certified
-    :math:`SO(2)`- and :math:`C_4`-invariant — ERR-072's shape. Note what
-    monotonicity could NOT see: the compatibility law :math:`A \subseteq B
-    \wedge P(B) \Rightarrow P(A)` measured zero violations, because when
-    everything reads ``True`` the implication is vacuous. A consistency law
-    is blind to uniform over-certification; only a computed answer catches
-    it.
-    """
-    return _invariance_on_orbit_space(
-        group, _orbit_space_of(measure), _embedded_nodes(measure),
-        measure.weights, atol,
-    )
-
-
-def _invariance_on_orbit_space(
-    group: "SubgroupOfO3",
-    orbit_space: Quotient,
-    barycentres: np.ndarray,
-    weights: np.ndarray,
-    atol: float,
-) -> bool:
-    r"""``True`` iff the weighted point set ``barycentres`` (orbit
-    barycentres in the base's ambient space) is invariant under ``group``
-    acting ON ``orbit_space`` :math:`= M/H`.
-
-    Four facts, in the order they are cheapest and most decisive:
-
-    1. :math:`G` must NORMALISE :math:`H`, else it does not act on
-       :math:`M/H` at all (:meth:`SubgroupOfO3.normalises`) — ``False``.
-    2. :math:`G \subseteq H` acts trivially on :math:`M/H` — every element
-       fixes every orbit — ``True`` whatever the nodes.
-    3. For a CONTINUOUS :math:`G` the elements are infinite, so the question
-       is decided exactly through its realization
-       (:attr:`SubgroupOfO3.realization`): the identity component
-       :math:`G^0` has connected orbits, and a connected orbit inside a
-       finite set is a point, so :math:`G^0` must FIX every node on the
-       orbit space. Either :math:`G^0 \subseteq H` and it does so
-       trivially (`[M]` :math:`D_{\infty h}` on :math:`S^2/O(2)_z`:
-       :math:`SO(2)_z \subseteq O(2)_z` while :math:`D_{\infty h}
-       \not\subseteq O(2)_z`, so step 2 did NOT answer it), or :math:`H`
-       is finite and a node's own :math:`G^0`-orbit — a circle, or a
-       sphere — must collapse: the barycentre lies on the axis, or is the
-       origin (:meth:`IdentityComponent.fixes`, the same exact criterion the
-       ambient arm has applied since ERR-072, stated once; exact on the
-       barycentre because the chart is injective on orbits — the linear
-       invariants separate them — so :math:`G^0` fixes :math:`P_H p` iff it
-       fixes :math:`[p]`). The position test runs ONLY in the second case;
-       in the first it would be a tautology, an axial entry's barycentre
-       lying on the axis by construction.
-    4. Every element (finite :math:`G`) or discrete coset representative
-       (continuous :math:`G`) must permute the weighted node set in CHART
-       coordinates through its induced action (:func:`_orbit_space_closure`).
-    """
-    stabiliser = orbit_space.by
-    if not group.normalises(stabiliser):
-        return False
-    if stabiliser.contains(group):
-        return True
-    realization = group.realization
-    component = realization.component
-    if not realization.is_finite and not (
-        # the stabiliser's own component, read as VECTORS: `identity_component`
-        # would round-trip through _letter_of and refuse a non-coordinate axis.
-        stabiliser.realization.component.contains(component)
-        or component.fixes(barycentres, atol=atol)
-    ):
-        return False
-    elements = realization.representatives
-    chart = _as_columns(orbit_space.orbit_coordinates(barycentres))
-    certificate = _orbit_closure(
-        chart,
-        weights,
-        elements,
-        atol,
-        images_of=lambda g: _as_columns(orbit_space.induced_action(g)(barycentres)),
-    )
-    return certificate is not None
 
 
 _INCOMMENSURATE_ANGLES: tuple[float, ...] = (
@@ -1892,7 +1577,8 @@ def _icosahedral_ops() -> list[RigidMotion]:
     ⚠ Memoised (2026-09-01), and it matters: this "generator set" is
     itself a full 120-element CLOSURE (~0.2 s).  `[M]` before the
     realization was cached (:func:`_realize`, 2026-09-02) a single
-    ``maximal_invariance_groups`` walk over a product rule rebuilt it
+    ``symmetry_groups`` walk (then ``maximal_invariance_groups``, in this
+    module) over a product rule rebuilt it
     **41 times** (9.3 s of a 9.4 s walk) once the axial family offered
     three axes instead of one — the retired containment dispatch asked
     for the generating set on every question, before any element cache
@@ -1948,195 +1634,6 @@ def _rotation_about_axis(axis: np.ndarray, theta: float) -> RigidMotion:
 
 
 # ---------------------------------------------------------------------------
-# Orbit-closure check, and the certificate it produces
-# ---------------------------------------------------------------------------
-
-#: The node-match window is this multiple of ``atol``, which is the WEIGHT
-#: window. The asymmetry is deliberate and worth naming rather than leaving
-#: as a bare ``* 100``: a node coordinate is the accumulated result of a
-#: matrix product against a constructed direction cosine, so it carries more
-#: round-off than a weight, which is usually read straight from a table. Both
-#: windows are ABSOLUTE — for rules whose weights are O(1e-3) the weight test
-#: is correspondingly stricter in relative terms, which is a known
-#: characteristic of this check and not an accident of it.
-_NODE_WINDOW_FACTOR = 100.0
-
-
-@dataclass(frozen=True)
-class OrbitCertificate:
-    r"""The realized action of a group on a point set.
-
-    Returned by the closure check instead of a bare ``True``. The check
-    ALREADY computes, for each operator :math:`M` and node :math:`i`, the
-    index :math:`\pi_M(i)` with :math:`M x_i = x_{\pi_M(i)}` — it simply
-    discarded it. A ``-> bool`` predicate that internally builds the
-    permutation IS the missing primitive; widening the return type is
-    cheaper than minting a class to recompute it.
-
-    Everything below is a *reading* of the permutations, not new work:
-
-    * :attr:`singular_set` — the orbifold **singular set**
-      :math:`\Sigma = \{x : \mathrm{Stab}(x) \neq \{e\}\}`. Because
-      :math:`\pi_M(i) = i` means exactly :math:`M x_i = x_i`, i.e.
-      :math:`x_i \in \mathrm{Fix}(M)`, membership is an **integer
-      identity** — exact, with no tolerance. The only place a tolerance
-      enters is matching nodes while BUILDING :math:`\pi`, which is the
-      one place the question is honestly numerical.
-    * :attr:`stabilizer_order` — :math:`|\mathrm{Stab}(x_i)|`, the orbit
-      type; by orbit-stabilizer the orbit length is :math:`|G|` divided
-      by it.
-    * :meth:`orbits` — the :math:`G`-orbits themselves.
-
-    A certificate exists only for a :math:`G`-INVARIANT set, so
-    :math:`\Sigma` is unrepresentable without the closure proof — which is
-    the precondition ("the quotient is defined only on a G-invariant
-    measure") enforced by construction rather than by a comment.
-    """
-
-    operators: "tuple[RigidMotion, ...]"
-    permutations: "tuple[Permutation, ...]"
-
-    @property
-    def n_points(self) -> int:
-        return self.permutations[0].n if self.permutations else 0
-
-    @property
-    def _non_identity(self) -> "list[Permutation]":
-        """The permutations of operators other than the identity.
-
-        The identity fixes every point, so including it would report the
-        whole set as singular. The test asks the ELEMENT whether it is the
-        identity of its own dimension, rather than comparing against a
-        hard-coded ``np.eye(3)`` — the certificate is a statement about a
-        group acting on a point set, and nothing in it is three-dimensional.
-        """
-        return [
-            perm
-            for M, perm in zip(self.operators, self.permutations)
-            if not M.approximately_equals(RigidMotion.identity(M.dimension))
-        ]
-
-    @property
-    def singular_set(self) -> np.ndarray:
-        r"""Indices of the **singular points** — :math:`\Sigma`.
-
-        A point is singular iff some non-identity group element fixes it.
-        Under a reflection the fixed locus is a **mirror**; a point fixed
-        by two mirrors is a corner reflector; a point on a rotation axis
-        with no mirror is a cone point.
-        """
-        fixed = np.zeros(self.n_points, dtype=bool)
-        for perm in self._non_identity:
-            fixed[perm.fixed_points] = True
-        return np.flatnonzero(fixed)
-
-    @property
-    def stabilizer_order(self) -> np.ndarray:
-        r""":math:`|\mathrm{Stab}(x_i)|` for every node ``i``.
-
-        ``1`` exactly on the regular (free) points; the singular set is
-        ``> 1``. Meaningful only when the certificate was built from the
-        FULL group rather than a generating set.
-        """
-        order = np.zeros(self.n_points, dtype=np.int64)
-        for perm in self.permutations:
-            order[perm.fixed_points] += 1
-        return order
-
-    def orbits(self) -> "tuple[np.ndarray, ...]":
-        """The :math:`G`-orbits, as arrays of node indices."""
-        parent = list(range(self.n_points))
-
-        def find(a: int) -> int:
-            while parent[a] != a:
-                parent[a] = parent[parent[a]]
-                a = parent[a]
-            return a
-
-        for perm in self.permutations:
-            for i, j in enumerate(perm.indices):
-                ra, rb = find(i), find(int(j))
-                if ra != rb:
-                    parent[ra] = rb
-
-        buckets: "dict[int, list[int]]" = {}
-        for i in range(self.n_points):
-            buckets.setdefault(find(i), []).append(i)
-        return tuple(np.array(v, dtype=np.int64) for v in buckets.values())
-
-
-def _orbit_closure(
-    nodes: np.ndarray,
-    weights: np.ndarray,
-    ops: Iterable[RigidMotion],
-    atol: float,
-    *,
-    images_of: "Callable[[RigidMotion], np.ndarray] | None" = None,
-) -> "OrbitCertificate | None":
-    """Check that applying every operator ``M ∈ ops`` to ``nodes``
-    yields the same multiset of (node, weight) pairs.
-
-    The per-element work is
-    :func:`~orpheus.geometry.transformation.permutation_preserving`; what
-    remains here is the *measure*-level question — that EVERY element
-    preserves it, and the certificate assembled from the results. The
-    matching, the bijectivity requirement (ERR-073) and the weight guard all
-    live in the core, so this module no longer carries a second copy of them.
-    ``images_of`` supplies each operator's image of the node set when the
-    action is not the ambient one — an operator's INDUCED action on an orbit
-    space, applied to chart coordinates (#429 tracker 2.2b); by default the
-    operator acts on the points themselves.
-
-    The two windows: ``atol`` is the WEIGHT tolerance, and the node-match
-    window is :data:`_NODE_WINDOW_FACTOR` times larger. That relationship is
-    a claim about *measures* — a coordinate accumulates matrix-product
-    round-off while a weight is usually read from a table — so it is stated
-    here rather than inside the geometry primitive, which takes the two
-    windows separately and refuses to guess.
-
-    For each :math:`M`, compute :math:`M(\\text{nodes})` and find a
-    permutation :math:`\\pi` such that
-    :math:`M(\\text{nodes})_i = \\text{nodes}_{\\pi(i)}` (within
-    ``atol``). The match is verified element-wise, then the weight
-    equality :math:`w_i = w_{\\pi(i)}` is checked.
-
-    The match is required to be a **bijection**. Nearest-neighbour
-    matching alone only proves every image has *a* same-weight partner,
-    which is strictly weaker than "the action permutes the nodes": two
-    distinct sources may land on one target, leaving some node
-    unmatched entirely. Such a set is NOT :math:`G`-invariant — its
-    mass is distributed differently from its image — yet it passes an
-    injectivity-free check. Appending a bit-identical duplicate of any
-    node to an :math:`O_h`-invariant rule is the minimal witness: the
-    duplicated position then carries twice the mass of its mirror
-    image, and every one of the 48 match maps is non-injective.
-    Since :math:`\\pi` maps an :math:`n`-set to an :math:`n`-set,
-    injectivity is equivalent to bijectivity, so counting distinct
-    targets suffices. (ERR-073.)
-
-    Returns ``None`` at the first failure, else the
-    :class:`OrbitCertificate` carrying every :math:`\\pi_M`.
-    """
-    kept_ops: "list[RigidMotion]" = []
-    perms: "list[Permutation]" = []
-
-    for M in ops:
-        images = M.on_points(nodes) if images_of is None else images_of(M)
-        pi = permutation_preserving(
-            nodes,
-            images,
-            weights,
-            atol=atol * _NODE_WINDOW_FACTOR,
-            weight_atol=atol,
-        )
-        if pi is None:
-            return None
-        kept_ops.append(M)
-        perms.append(pi)
-    return OrbitCertificate(operators=tuple(kept_ops), permutations=tuple(perms))
-
-
-# ---------------------------------------------------------------------------
 # Public attribute install
 # ---------------------------------------------------------------------------
 
@@ -2150,271 +1647,10 @@ SubgroupOfO3.SO3 = SubgroupOfO3._from_named(_NamedSubgroup.SO3)
 SubgroupOfO3.O3 = SubgroupOfO3._from_named(_NamedSubgroup.O3)
 
 
-# ---------------------------------------------------------------------------
-# The subgroup graph, and walking it to find a measure's symmetry
-# ---------------------------------------------------------------------------
-#
-# Crystallography does not ASK a structure what its symmetry group is — it
-# walks the subgroup lattice downward from high symmetry until it reaches
-# the symmetry the structure actually has. The graph is the Hasse diagram of
-# the lattice: nodes are groups, edges are MAXIMAL-subgroup relations
-# (International Tables Vol. A1 renders it as a Bärnighausen tree).
-#
-# That is the machinery this module needs. A DECLARED invariance group is a
-# claim with no construction behind it, and such claims have already shipped
-# false here twice. A COMPUTED one cannot lie about the object it was
-# computed from.
-
-
-def _distinct_azimuths(nodes: np.ndarray, atol: float) -> int:
-    r"""Number of distinct azimuthal angles among the off-axis nodes.
-
-    Bounds the cyclic families: a :math:`C_n` rotation (``n > 1``) fixes no
-    azimuth, so the azimuths split into FREE orbits of size ``n`` and
-    therefore ``n`` divides this count. That turns two infinite families
-    into a handful of divisors.
-    """
-    rho = np.hypot(nodes[:, 0], nodes[:, 1])
-    off_axis = nodes[rho > atol]
-    if off_axis.shape[0] == 0:
-        return 0
-    phi = np.sort(np.mod(np.arctan2(off_axis[:, 1], off_axis[:, 0]), 2.0 * np.pi))
-    distinct = [phi[0]]
-    for p in phi[1:]:
-        if p - distinct[-1] > 1e-9:
-            distinct.append(float(p))
-    # The first and last can be the same angle seen either side of the branch.
-    if len(distinct) > 1 and (2.0 * np.pi - distinct[-1] + distinct[0]) < 1e-9:
-        distinct.pop()
-    return len(distinct)
-
-
-def candidate_groups(
-    measure: DiscreteMeasure, *, atol: float = 1e-13,
-) -> "tuple[SubgroupOfO3, ...]":
-    """The expressible groups worth testing against ``measure``.
-
-    The named entries always, plus :math:`C_n` / :math:`D_{nh}` for each
-    divisor of the measure's distinct-azimuth count (see
-    :func:`_distinct_azimuths` for why divisors suffice).
-    """
-    named = [
-        SubgroupOfO3.Trivial,
-        SubgroupOfO3.Dinfh, SubgroupOfO3.OctahedralOh,
-        SubgroupOfO3.IcosahedralIh, SubgroupOfO3.SO3, SubgroupOfO3.O3,
-    ]
-    # All three mirrors, always. The parameter set of a reflection family
-    # is {x, y, z} — FINITE BY CONSTRUCTION, so unlike Cn/Dnh (which need
-    # the distinct-azimuth divisor bound to stay finite) it needs no bound
-    # at all, and unlike the retired parameter-free Z2 it offers the walk
-    # all three planes instead of silently only sigma_z.
-    named += [SubgroupOfO3.Mirror(a) for a in ("x", "y", "z")]
-    # And all three axial rotation groups, for the same reason: offering
-    # only z (what the retired bare SO2 amounted to) made every x-pole
-    # rule — the slab's own polar marginal — read as carrying no
-    # continuous symmetry at all.
-    named += [SubgroupOfO3.SO2(a) for a in ("x", "y", "z")]
-    # And the three stabilisers O(2)_a above them (#432, 2026-09-02).
-    # Finite-vs-finite the walk never sees them as equal, and on a polar
-    # marginal they are what is MAXIMAL: the slab's rule reports O(2)_x
-    # (with its μ → −μ mirror σ_x beside it, since σ_x flips the axis and
-    # so lies in neither) where it used to stop at the rotations.
-    named += [SubgroupOfO3.O2(a) for a in ("x", "y", "z")]
-    nodes = measure.nodes
-    if nodes.ndim == 1 or nodes.shape[1] < 3:
-        return tuple(named)
-    n_az = _distinct_azimuths(nodes, atol)
-    families: "list[SubgroupOfO3]" = []
-    for d in (d for d in range(1, n_az + 1) if n_az % d == 0) if n_az else (1,):
-        if d > 1:  # C_1 IS Trivial, already in `named`; D_1h is a real group of order 4
-            families.append(SubgroupOfO3.Cn(d))
-        families.append(SubgroupOfO3.Dnh(d))
-    return tuple(named + families)
-
-
-def _maximal(groups: "Iterable[SubgroupOfO3]") -> "tuple[SubgroupOfO3, ...]":
-    """Those members not strictly contained in another member."""
-    items = list(groups)
-    return tuple(
-        g for g in items
-        if not any(h != g and h.contains(g) for h in items)
-    )
-
-
-def maximal_subgroups(
-    group: "SubgroupOfO3", candidates: "Iterable[SubgroupOfO3]",
-) -> "tuple[SubgroupOfO3, ...]":
-    """The Hasse edges below ``group`` — its maximal proper subgroups.
-
-    Derived from :meth:`SubgroupOfO3.contains`, never tabulated: a
-    hand-drawn Bärnighausen tree would be exactly the unverifiable claim
-    the computed lattice exists to eliminate.
-    """
-    below = [h for h in candidates if h != group and group.contains(h)]
-    return _maximal(below)
-
-
-def maximal_invariance_groups(
-    measure: DiscreteMeasure,
-    *,
-    atol: float = 1e-13,
-    candidates: "Iterable[SubgroupOfO3] | None" = None,
-    method: str = "walk",
-) -> "tuple[SubgroupOfO3, ...]":
-    r"""The maximal groups leaving ``measure`` invariant — its symmetry.
-
-    Returns the maximal elements of
-    :math:`\{G \in C : \mu \text{ is } G\text{-invariant}\}`. Several
-    incomparable maxima can survive (a rule may carry both a rotation group
-    and a reflection with neither inside the other); the true
-    :math:`\mathrm{Sym}(\mu)` is the group they GENERATE, which need not be
-    expressible in the candidate set — so the maximal elements, not a single
-    tag, are the honest answer.
-
-    **Soundness.** Invariance is DOWNWARD-CLOSED: if :math:`\mu` is
-    :math:`G`-invariant and :math:`H \le G`, then :math:`\mu` is
-    :math:`H`-invariant. So the invariant set is an order ideal, giving the
-    walk both prunings — a failing node kills every supergroup, a passing
-    node implies every subgroup. The walk therefore *requires* a correct
-    lattice and is simultaneously a test of it.
-
-    Parameters
-    ----------
-    method : {"walk", "bruteforce"}
-        Two realizations of the same definition. ``"walk"`` descends the
-        Hasse diagram with both prunings; ``"bruteforce"`` tests every
-        candidate. They must agree on every input — that agreement is the
-        verification instrument, not a mere fast-path check.
-
-    Notes
-    -----
-    The answer is about the group's realization in the **standard setting**
-    (principal axis along z for the finite families :math:`C_n` /
-    :math:`D_{nh}` and for :math:`D_{\infty h}`), not up to conjugation. A
-    rule whose symmetry axis is not z reports a smaller group from those
-    families, which is correct for a gate comparing against a geometry in
-    the same frame. The three families whose parameter IS the axis —
-    :class:`Mirror`, :class:`SO2` and :class:`O2` — are offered on all three
-    axes, so a polar marginal along :math:`x` reports :math:`O(2)_x`.
-    """
-    cands = tuple(candidates) if candidates is not None else candidate_groups(
-        measure, atol=atol
-    )
-
-    if method == "bruteforce":
-        return _maximal(
-            g for g in cands if g.is_invariant(measure, atol=atol)
-        )
-    if method != "walk":
-        raise ValueError(
-            f"method must be 'walk' or 'bruteforce', got {method!r}"
-        )
-
-    accepted: "list[SubgroupOfO3]" = []
-    visited: "set[SubgroupOfO3]" = set()
-    stack = list(_maximal(cands))
-    while stack:
-        group = stack.pop()
-        if group in visited:
-            continue
-        visited.add(group)
-        if any(a.contains(group) for a in accepted):
-            continue  # already implied by an accepted supergroup
-        if group.is_invariant(measure, atol=atol):
-            accepted.append(group)  # everything below is implied — do not descend
-        else:
-            stack.extend(maximal_subgroups(group, cands))
-    return _maximal(accepted)
-
-
-def orbit_certificate(
-    measure: DiscreteMeasure,
-    group: "SubgroupOfO3",
-    *,
-    atol: float = 1e-13,
-) -> "OrbitCertificate | None":
-    r"""The realized action of ``group`` on ``measure``, ON the measure's
-    orbit space — or ``None``.
-
-    ``None`` when the group is CONTINUOUS (no finite element set to
-    permute nodes by), when it does not act on the measure's orbit space
-    (it does not normalise the quotienting group), or when some element
-    does not permute the weighted node set there. The certificate is built
-    from the group's ELEMENTS, not a generating set: orbit closure only
-    needs generators, but a point's stabilizer may be generated by a
-    non-generator, so :math:`\Sigma` needs them all. Its ``operators`` are
-    the ambient motions; its ``permutations`` are of the measure's nodes
-    read as CHART points of the orbit space under each element's
-    :meth:`~orpheus.numerics.manifold.Quotient.induced_action` — for a bare
-    support (the trivial orbit space) exactly the ambient permutations,
-    for a fold the permutations of the REPRESENTATIVES, for a polar
-    marginal the permutations of :math:`\mu` (#429 tracker 2.2b,
-    2026-09-02; until then a 1-D node set was refused here by SHAPE, the
-    II.11 defect).  One closure (:func:`_orbit_space_closure`) serves
-    this, :meth:`SubgroupOfO3.is_invariant` and
-    :func:`induced_permutation`, so they cannot disagree.
-    """
-    realization = group.realization
-    if not realization.is_finite:
-        return None
-    return _orbit_space_closure(measure, realization.elements, atol)
-
-
-def singular_set(
-    measure: DiscreteMeasure,
-    group: "SubgroupOfO3",
-    *,
-    atol: float = 1e-13,
-) -> np.ndarray:
-    r"""The **singular set** :math:`\Sigma` of ``measure`` under ``group``.
-
-    Indices of the **singular points** — those whose stabilizer is
-    non-trivial, i.e. fixed by some non-identity group element. Under a
-    reflection the fixed locus is a **mirror**; a point on two mirrors is a
-    corner reflector; a point on a rotation axis with no mirror through it
-    is a cone point.
-
-    Membership is decided by :math:`\pi_M(i) = i` — an **integer identity**,
-    exact, with no tolerance. The three ad-hoc float comparisons the tree
-    grew for this question (``_OCTANT_SIGN_EPS``, ``_MU_DIRECTION_EPS``,
-    ``TANGENTIAL_EPS``) were all asking it numerically; measured across 29
-    production rules, the separation between "zero" and "nonzero" cosines is
-    a factor of :math:`2.7\times10^{13}`, so the tolerance was never doing
-    real work. The only honestly-numerical step is matching nodes while
-    BUILDING :math:`\pi`, which is ``atol``.
-
-    Raises
-    ------
-    ValueError
-        If ``measure`` is not ``group``-invariant. :math:`\Sigma` is defined
-        only on an invariant set — a quotient needs something to quotient —
-        so the illegal state is unrepresentable rather than silently
-        returning a wrong answer.
-    """
-    cert = orbit_certificate(measure, group, atol=atol)
-    if cert is None:
-        raise ValueError(
-            f"the singular set is defined only for a {group.name}-invariant "
-            f"measure with a finite realization; no certificate exists "
-            f"because {group.name} is continuous (no finite node "
-            f"permutation), or does not ACT on this measure's orbit space "
-            f"{measure.support.name} (it does not normalise the group "
-            f"already spent there), or acts there without permuting the "
-            f"weighted nodes — this measure is not {group.name}-invariant "
-            f"on its orbit space."
-        )
-    return cert.singular_set
-
-
 __all__ = [
+    "AXIS_INDEX",
+    "AXIS_LETTER",
     "IdentityComponent",
-    "OrbitCertificate",
     "Realization",
     "SubgroupOfO3",
-    "candidate_groups",
-    "induced_permutation",
-    "maximal_invariance_groups",
-    "maximal_subgroups",
-    "orbit_certificate",
-    "singular_set",
 ]

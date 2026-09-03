@@ -74,11 +74,7 @@ from orpheus.numerics.quadrature.rules_1d import (
     gauss_legendre_on_mu,
     gauss_legendre_on_polar_orbit,
 )
-from orpheus.numerics.symmetry import (
-    SubgroupOfO3,
-    candidate_groups,
-    maximal_invariance_groups,
-)
+from orpheus.numerics.symmetry import SubgroupOfO3
 
 
 # ---------------------------------------------------------------------------

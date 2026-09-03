@@ -287,15 +287,37 @@ def assert_specular_pairing_maps_inflow_to_outflow(
         from ._errors import ReflectionDidNotMapInflowToOutflowError
 
         worst = int(np.flatnonzero(bad)[0])
+        # On a rule whose orbit space SPENT this mirror the pairing is the
+        # IDENTITY — the mirror acts trivially on the fold — and the outflow
+        # half is simply not stored: name that, not a wrong pairing (R2 of
+        # #434, 2026-09-03; `[M]` folded_product(4,8), axis y).  Asked of the
+        # support's TYPE and of the group's containment predicate — no
+        # duck-typed group and no tag read, so a group that merely CONTAINS
+        # the mirror (D_2h, O_h) is diagnosed the same way.
+        from orpheus.numerics.manifold import Quotient
+        from orpheus.numerics.symmetry import SubgroupOfO3
+
+        support = quadrature.measure.support
+        folded = isinstance(support, Quotient) and support.by.contains(
+            SubgroupOfO3.Mirror(axis)
+        )
+        cause = (
+            f"the rule lives on the orbit space "
+            f"{support.name}, which SPENT the mirror about "
+            f"{axis!r}: the reflection acts trivially there and the outflow "
+            f"half is not stored, so this folded rule has no specular partner "
+            f"on that face"
+            if folded
+            else "ERR-045: wrong pairing, or a non-axis-aligned reflection "
+            "that needs a different BC type"
+        )
         raise ReflectionDidNotMapInflowToOutflowError(
             f"the specular pairing about axis {axis!r} maps ordinate "
             f"{worst} "
             f"(μ_{axis}={mu_axis[worst]:+.6e}) to ordinate "
             f"{int(perm[worst])} "
             f"(μ_{axis}={partner_mu[worst]:+.6e}) — same sign "
-            f"class instead of the outflow partner (ERR-045: wrong "
-            f"pairing, or a non-axis-aligned "
-            f"reflection that needs a different BC type).",
+            f"class instead of the outflow partner ({cause}).",
             law=law_key,
         )
 

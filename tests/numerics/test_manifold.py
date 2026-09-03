@@ -102,12 +102,8 @@ from orpheus.numerics.quadrature.rules_1d import (
     gauss_legendre_on_mu,
     gauss_legendre_on_polar_orbit,
 )
-from orpheus.numerics.symmetry import (
-    SubgroupOfO3,
-    candidate_groups,
-    induced_permutation,
-    maximal_invariance_groups,
-)
+from orpheus.numerics.symmetry import SubgroupOfO3
+from orpheus.numerics.invariance import permutation_under
 
 pytestmark = pytest.mark.foundation
 
@@ -946,13 +942,13 @@ class TestManifoldMap:
     ) -> None:
         """Pattern 2: the honest spelling of the map READS the map.
 
-        ``symmetry._embedded_nodes`` is what ``is_invariant`` and the
+        ``invariance._embedded_nodes`` is what ``is_invariant_under`` and the
         motion-preservation check embed a polar marginal through; since
         2.3 it is this map, so the two cannot drift.
         """
         from orpheus.numerics.manifold import barycentre
         from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_polar_orbit
-        from orpheus.numerics.symmetry import _embedded_nodes
+        from orpheus.numerics.invariance import _embedded_nodes
 
         rule = gauss_legendre_on_polar_orbit(8, axis)
         assert isinstance(rule.support, Quotient)
@@ -1982,7 +1978,8 @@ class TestTheInducedActionIsWellDefinedAndActsAsTheTheoremSays:
 
     ⛔ **§6c note, and the coordinator must read it before crediting this
     gate.**  The refusal is provably UNREACHABLE from
-    :meth:`SubgroupOfO3.is_invariant`: the orbit-space kernel asks
+    :meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`
+    (``SubgroupOfO3.is_invariant`` until R2 of #434): the orbit-space kernel asks
     ``G.normalises(H)`` at step 1 and only then applies ``induced_action`` to
     elements of ``G``, every one of which normalises ``H`` because ``G``
     does.  So its only witness is a DIRECT call — which is what this class
@@ -2117,7 +2114,7 @@ class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
     @pytest.mark.foundation
     @pytest.mark.parametrize("axis", _g22b_AXES)
     def test_the_axial_embedding_IS_the_entrys_lift(self, axis):
-        from orpheus.numerics.symmetry import _embedded_nodes
+        from orpheus.numerics.invariance import _embedded_nodes
 
         rule = gauss_legendre_on_polar_orbit(8, axis)
         nodes = np.asarray(rule.nodes, dtype=float).reshape(-1, 1)
@@ -2145,7 +2142,7 @@ class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
     def test_a_BARE_interval_keeps_the_column_zero_convention(self):
         """The arm that does NOT retire: a bare interval names no axis, so
         column 0 is the convention and there is no lift to read."""
-        from orpheus.numerics.symmetry import _embedded_nodes
+        from orpheus.numerics.invariance import _embedded_nodes
 
         m = gauss_legendre_on_mu(8)
         assert m.support == COSINE_INTERVAL
@@ -2258,7 +2255,7 @@ def _r4_circle_mean(axis: int, points: np.ndarray, n: int = 16) -> np.ndarray:
 
 #: Every orbit space the tree can construct whose base has ambient width 3 —
 #: the 6 catalogue entries plus the two shipped trivial ones (``R^3/{e}`` IS
-#: ``symmetry._ambient_orbit_space()``, a production object).  The FINITE
+#: ``invariance._ambient_orbit_space()``, a production object).  The FINITE
 #: roster is probed whole, never sampled (``vv-principles`` #31's finite-roster
 #: corollary; #13's ladder rule governs unbounded families, and this is not one).
 _R4_ENTRY_LABELS = (
@@ -2963,7 +2960,7 @@ class TestR4OrbitBarycentresIsOneConceptOnBothWidths:
         ``[M]`` 2026-09-03: 31 of 33 answers unchanged; the 2 that move are
         ``axis="y"`` on the two folds, where the harness RAISED (residual
         ``1.19e+00``) and now returns the identity permutation (residual
-        ``0.00e+00``) — which is exactly what ``induced_permutation`` has
+        ``0.00e+00``) — which is exactly what ``permutation_under`` has
         answered since #429 tracker 2.2b.  ``[M]`` **no call site passes
         ``axis="y"`` on a fold** (both pass ``"x"``: a literal at
         ``test_snmesh_realizer_wiring.py:439,450``, and the CYL fold's only
@@ -2978,9 +2975,7 @@ class TestR4OrbitBarycentresIsOneConceptOnBothWidths:
         reference = mirror_partner_indices(quad, "y")
         np.testing.assert_array_equal(reference, np.arange(quad.N))
 
-        kernel = induced_permutation(
-            quad.measure, RigidMotion.reflection(normal=_R4_I3[1]), atol=1e-9,
-        )
+        kernel = quad.measure.permutation_under(RigidMotion.reflection(normal=_R4_I3[1]), atol=1e-9)
         assert kernel is not None
         np.testing.assert_array_equal(np.asarray(kernel.indices), reference)
 

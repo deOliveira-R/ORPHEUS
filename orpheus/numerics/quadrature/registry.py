@@ -34,7 +34,7 @@ order:
    the extra symmetry is unused, not violated.
 
    :math:`\operatorname{Sym}(Q)` is **computed from the rule's nodes**
-   (:meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant`),
+   (:meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`),
    never read from a declared tag. A declared group is a claim with no
    construction behind it, and the claim that used to sit here was
    false: ``product_mu_phi`` advertised :math:`SO(2)`, which no finite
@@ -437,7 +437,7 @@ class QuadratureSpec:
     :math:`SO(2)`, which is false for every finite point set on
     :math:`S^2`. The group is now **computed** from the instantiated
     measure by
-    :meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant`.
+    :meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`.
     The measure's own ``invariance_group`` metadata survives as the
     single source of that tag (``DiscreteMeasure.phase`` reads it);
     duplicating it here was a twin source of truth.
@@ -1007,9 +1007,12 @@ class AngularSymmetry:
     def admits_symmetry(self, measure: DiscreteMeasure) -> bool:
         """Stage 1 — is the rule closed under the owed discrete symmetry?
 
-        Computed from the nodes, never read from a declared tag.
+        Computed from the nodes, never read from a declared tag — the
+        measure's own question (:meth:`DiscreteMeasure.is_invariant_under
+        <orpheus.numerics.measure.DiscreteMeasure.is_invariant_under>`,
+        R2 of #434).
         """
-        return self.discrete_residual.is_invariant(measure)
+        return measure.is_invariant_under(self.discrete_residual)
 
 
 # Static table — one entry per supported geometry. New geometries
@@ -1301,7 +1304,7 @@ def select_quadrature(
         # was quotiented BY" as the worked example until 2026-08-14. `[M]`
         # gauss_legendre_on_mu(8).invariance_group is Mirror('x') — the
         # 2026-08-02 slab/sphere correction reached the rule's declared tag
-        # too — and `[M]` walking maximal_invariance_groups over all four
+        # too — and `[M]` walking ``measure.symmetry_groups()`` over all four
         # registry rules, 0 of 4 are true-but-not-maximal today. The
         # argument stands on the CONTRACT (a declaration may be modest);
         # the example it used to lean on no longer exists.

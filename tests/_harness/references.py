@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.numerics.symmetry import _embedded_nodes
+from orpheus.numerics.invariance import _embedded_nodes
 
 #: Axis letter → direction-cosine column. Deliberately a local literal
 #: rather than an import of the production convention home
@@ -75,8 +75,10 @@ def mirror_partner_indices(quad, axis: int | str) -> np.ndarray:
     # lift, the same pair the closure reads — a wider sharing, stated so that
     # a fold row is not read as an independent check of the lift. On a fold
     # the y-mirror's answer is the identity permutation, and it agrees with
-    # ``induced_permutation`` (gated in test_manifold.py's R4 rows); until R4
-    # the two disagreed — this raised where the closure answered.
+    # ``DiscreteMeasure.permutation_under`` (gated in test_manifold.py's R4
+    # rows); until R4 the two disagreed — this raised where the closure
+    # answered.  ``_embedded_nodes`` lives in ``orpheus.numerics.invariance``
+    # since R2 of #434.
     nodes = np.asarray(_embedded_nodes(quad.measure), dtype=float)
     mirrored = nodes.copy()
     mirrored[:, idx] *= -1.0

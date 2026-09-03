@@ -10446,3 +10446,123 @@ recording them is what keeps the next run cheap: the `boltzmann` "duplicate" is 
 `.. code-block:: rst` EXAMPLE in `harness.rst`; a "ragged" `list-table` row is a legal
 EMPTY cell (`^     -$`, no trailing space); and a "dangling" `:doc:` is a RELATIVE
 docname. Two builds total (plus one wasted on the `nohup` illusion).
+
+---
+
+## L-090 — R2 of #434: the kernel changes HOUSE, and the hardest half of the sweep is a `[M]`'s DENOMINATOR
+
+**Task.** Docs pass for carve R2 of #434 — the invariance kernel leaves
+`numerics/symmetry.py` for a new `numerics/invariance.py`, the five verbs move onto
+`DiscreteMeasure`, `SubgroupOfO3.is_invariant` is DELETED with no façade, and the import
+direction reverses (`manifold → symmetry` at module scope). 4 pages, **+839/−368**
+(`manifolds` +481/−343, `discrete_measures` +285/−15, `error_catalog` +66/−4,
+`structured_geometry` +1/−1); baseline and final `-E -W` both EXIT=0 with a **0-byte**
+log; sentinels **593 → 593** (no eq-label added, as the verification plan predicted);
+`dead_references` **2 dead / 3 sites, all in `tests/`**, 0 in `docs/`.
+
+### 1. ⭐⭐ A `[M]` whose DENOMINATOR is a COMPUTED SET has a shelf life the FINDING does not
+
+Two sites carried *"the reduction agrees on **150 of 150** (sphere rule × candidate
+group) rows"*, measured 2026-09-02. `[M]` re-measured it is **144 of 144** — and the
+FINDING (every row identical) is unchanged. The denominator is
+`sum(len(candidate_groups(rule)))`, i.e. an output of the very machinery the campaign
+keeps re-deriving; it moved twice in two days (R1's one-spelling merge, R2 reading the
+azimuth count off the orbit barycentres). ⟹ when a `[M]`'s denominator is a *computed*
+population rather than a fixed roster, **write what computes it**, and expect the number
+to rot while the row does not. The repair that reads best is not a tombstone but a
+sentence: *"the finding is unchanged and only the DENOMINATOR moved, because it is the
+size of a candidate set and the candidate set has been re-derived twice since."*
+
+### 2. ⭐⭐ The plan named TWO intended behaviour moves; the WHOLE roster had THREE
+
+`§II.R2` listed *"gauss_legendre walks → {O2_x, D_2h}, the folded candidate set 20 → 18"*.
+Running all 11 shipped rules against a pinned `git archive HEAD` tree: `[M]`
+**`folded_product(4,6)`'s walk also moves**, `{D_1h, σ_x} → {D_2h}`, by the same
+mechanism (its stored representatives have 3 azimuths, its barycentres 2, so `C_3`/`D_3h`
+leave the candidate set and `C_2`/`D_2h` enter). It is a *strengthening* — `D_2h` contains
+both answers it replaces — but it is a third row nobody had written down, and it was free
+to find. (L-074's finite-roster rule, third instance.) ⭐ And the sharpest framing came
+from separating the two questions: the invariance PREDICATE moved **0 of 330** (11 rules ×
+a FIXED 30-spelling group list), while the WALK moved on **4 of 11** — because what
+changed is *which questions the walk thinks to ask*, not what any answer is.
+
+### 3. ⭐⭐ "ONE closure" is a CALL-SITE COUNT, and that is the only form of it worth publishing
+
+Three docstrings had claimed one closure while two functions carried an identical inlined
+lambda. R2's repair is checkable: `[M]` by AST, `_orbit_closure` has **one** call site
+tree-wide (inside `_orbit_space_closure`), `_orbit_space_closure` has **three** (one per
+verb that needs it), and `images_of` is now REQUIRED rather than defaulting to the ambient
+action — *"a default nobody uses is a second code path that only a future caller can
+discover"*. Publish the call graph; "these three cannot disagree" is then a statement
+about the tree rather than about anyone's intention.
+
+### 4. ⭐⭐ An architectural step can be RIGHT and have NO shipped discriminator — say so instead of crediting it
+
+The kernel matches nodes in the orbit space's CHART coordinates through each motion's
+`induced_action`, and it is tempting to read that as the step that fixed the fold. `[M]`
+over **1027** (rule × group × element) rows where the element normalises the quotienting
+group, an ambient nearest-neighbour match performed *on the barycentres* returns the
+identical permutation on **1027 of 1027**. What moves an answer is reading the
+**barycentres** instead of the stored representatives (`[M]` σ_y on `folded_product(4,8)`:
+`None` against the stored representatives, the **identity permutation** against the
+barycentres, chart or ambient alike). ⟹ a gate on the chart step has no shipped witness
+and cannot have one until an entry ships whose Reynolds projector is not injective on
+orbits. That is `vv-principles` #19 at the DESIGN tier: name the inert arm in the page,
+with its denominator, so the next reader does not credit it.
+
+### 5. ⛔ My AST import census had TWO silent filter defects, and the second hid the load-bearing edge
+
+`plan-authoring` 2026-08-31 records that a filter on `node.module.startswith("orpheus")`
+drops every RELATIVE import. I knew that and wrote it correctly. `[M]` the census still
+reported **`measure → invariance` as ABSENT** — the single most load-bearing runtime edge
+in the carve — because `from orpheus.numerics import invariance as _invariance` has
+`node.module == "orpheus.numerics"`: it is an edge to the **SUBMODULE**, and a filter
+comparing `node.module` against a module set cannot see it. ⟹ an import census needs
+BOTH resolutions and a positive control per shape. Caught only because the answer
+contradicted the carve's own comment.
+
+### 6. ⭐ A rejected-design note can have ONE of its N costs EXPIRE — date the clause, keep the note
+
+`manifolds.rst` carried *"a rejected first design, kept because it is the tempting one"*
+listing FOUR costs, one of which was *"needs a second function-scope import
+(`SubgroupOfO3`) so the module's own 'one runtime edge' paragraph stops being true"*. R2
+reversed the import direction, so that cost is now zero. Deleting the clause destroys the
+record; leaving it ships a false cost. The repair is a dated `⛔` naming the expired
+clause AND saying the ruling does not depend on it — *"the three surviving costs are each
+sufficient on their own"*. (L-074's half-falsified-refusal shape, applied to a cost list.)
+
+### 7. ⭐ Reproducing the REFUTED variant on a renamed shadow package costs ~1 minute and IS the ruling's evidence
+
+The plan's opener refuted R2-as-written (`symmetry` still reading the axis table from
+`manifold`) with *"3 of 9 entry points clean"*. Reproduced independently — full copy of
+`orpheus/` into `shadowpkg`, every `\borpheus\b` rewritten, one fresh interpreter per
+(variant, entry point) — `[M]` **V0 10 of 10, V1 3 of 10**, and the seven that die name
+`ImportError: cannot import name 'Quotient' from partially initialized module`. ⭐ The
+publishable half is the three SURVIVORS: `import orpheus` alone is one of them, so a smoke
+test on the package root reports GREEN on a façade that cannot serve one numerics entry
+point. No production file touched, so the crash-unsafe-revert hazard cannot bite.
+
+### 8. The section that was NAMED after the thing that no longer exists
+
+`.. _manifold-import-cycle:` had six in-page citers and a title reading *"The module
+imports nothing from ``numerics`` at MODULE scope — on purpose"* — present-tense-false the
+moment R2 landed. Ruling: **keep the label** (a stale NAME is not a false CLAIM; all six
+citers are intra-doc, so a rename would be caught by `-W`, but the section is still where
+the cycle is documented), **retitle** the section (a bare `:ref:` renders the target's
+TITLE, so every citer improves), and give the history its own `~` subsection so the
+falsified claims stay verbatim under a `⛔`. Three of the six citers were themselves
+present-tense-false and needed their own edits — a label's citers are a blast radius.
+
+### 9. Where the module's own documentation went, and why not a new page
+
+`invariance.py` is *a measure × a group*, and the corpus already had both homes: the
+orbit-space kernel's MATHEMATICS on `manifolds.rst` (`manifold-one-invariance-kernel`,
+inside the chapter that derives the normaliser criterion) and the MEASURE on
+`discrete_measures.rst`. A new page would have split an argument that flows
+normaliser → lift → induced action → kernel. Ruling: the kernel's three conjuncts stay on
+`manifolds.rst` (re-derived); the module's own section — the BOUNDARY register: why the
+verbs are the measure's, why no façade, the call-site proof of one closure, the
+Reynolds-projector argument for the barycentres, the two gotchas — is a new `-` section on
+`discrete_measures.rst`, five `~` subsections, plus one Key Facts bullet. `[M]` no
+`automodule` exists for any of `numerics.{symmetry,manifold,measure}`, so `invariance`
+gets none either and every `:mod:` renders plain text by page convention.

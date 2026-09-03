@@ -237,6 +237,15 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         "orpheus",
         "orpheus.numerics",
         "orpheus.numerics.symmetry",
+        # R2 of #434 (2026-09-03): the four entries the V1 cycle killed that
+        # the list above could not see — `[M]` with `manifold -> symmetry` at
+        # module scope AND symmetry still importing the axis table from
+        # manifold, 6 of 9 entry points died while `import orpheus` stayed
+        # green (order-dependent; plan-authoring §6d).
+        "orpheus.numerics.manifold",
+        "orpheus.numerics.measure",
+        "orpheus.numerics.invariance",
+        "orpheus.numerics.quadrature.registry",
         "orpheus.geometry",
         "orpheus.geometry.transformation",
         "orpheus.sn.solver",

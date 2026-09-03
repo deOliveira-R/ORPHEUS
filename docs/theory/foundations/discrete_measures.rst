@@ -64,6 +64,20 @@ Key Facts
     the interval a chart happens to map onto. Neither a
     ``pushforward`` (no map) nor a ``quotient`` (nothing is folded).
 
+- **Invariance is the measure's question, and so are the verbs.** Five of
+  them — :meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`,
+  :meth:`~orpheus.numerics.measure.DiscreteMeasure.certificate_under`,
+  :meth:`~orpheus.numerics.measure.DiscreteMeasure.permutation_under`,
+  :meth:`~orpheus.numerics.measure.DiscreteMeasure.singular_set_under` and
+  :meth:`~orpheus.numerics.measure.DiscreteMeasure.symmetry_groups` — each a
+  thin delegation to ONE kernel in ``orpheus.numerics.invariance``, asked ON
+  the measure's own orbit space. ⛔ The predicate lived on the GROUP
+  (``SubgroupOfO3.is_invariant``) until 2026-09-03; #434 R2 deleted it with
+  no façade, because a group carries a realization and the *nodes, weights
+  and orbit space* the predicate reads are all the measure's. `[M]` the
+  mathematics did not move — **0 of 330** (rule × group) answers, against a
+  pinned pre-carve tree (:ref:`discrete-measure-invariance-module`).
+
 - :class:`~orpheus.numerics.measure.BundleMeasure` carries the
   **disintegration** :eq:`bundle-measure-disintegration`: a base
   measure on :math:`\mathcal{B}` plus, for each base point, a fiber
@@ -238,7 +252,7 @@ orbit-stabilizer weights
 :math:`W = w \cdot |G|/|\mathrm{Stab}(x)|`, derived rather than
 chosen. The quotient is defined only on a measure whose
 :math:`G`-invariance is *certified*
-(:func:`~orpheus.numerics.symmetry.orbit_certificate`); when the
+(:func:`~orpheus.numerics.invariance.certificate_under`); when the
 action is **free** — empty singular set :math:`\Sigma = \varnothing`
 — every orbit has length :math:`|G|` and the weights collapse to a
 uniform :math:`|G| \cdot w`, which is the fold's well-posedness
@@ -808,7 +822,9 @@ in a weight-preserving way:
    the foundation gates in :file:`tests/numerics/test_symmetry.py`
    (``test_lebedev_is_octahedral_invariant`` positive +
    ``test_lebedev_is_NOT_icosahedral_invariant`` negative, via
-   ``SubgroupOfO3.is_invariant``). A definitional identity, not a solver claim.
+   ``DiscreteMeasure.is_invariant_under`` — spelled
+   ``SubgroupOfO3.is_invariant`` until R2 of #434 on 2026-09-03). A
+   definitional identity, not a solver claim.
 .. vv-status: discrete-measure-g-invariance documented
 
 When this holds, integrating any :math:`G`-invariant integrand
@@ -873,7 +889,7 @@ has one direction and one name; a reader who wants
    2026-08-02. Two things break when it is used that way. Whether a
    *rule* carries a symmetry is a question about its **nodes** —
    answered by :eq:`discrete-measure-g-invariance` through
-   :meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant` —
+   :meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under` —
    whereas a lattice query can only consult a *declared* tag, which may
    be false or merely under-claimed. And the geometry side is not one
    group at all: it splits into the continuous half the dimensional
@@ -940,7 +956,7 @@ axis was a claim about the wrong pole in one of its two uses.
    connected orbit inside a finite point set is a point — and its
    remaining finitely many components are asked as a finite group is.
    The predicates below are those two statements read at each family.
-   `[M]` 2026-09-03 the carve moved **0 of 270** ``is_invariant`` cells
+   `[M]` 2026-09-03 the carve moved **0 of 270** ``is_invariant_under`` cells
    (10 shipped rules × 27 group spellings) and **0 of 10** walk reports,
    measured against a pinned pre-carve tree.
 
@@ -1022,14 +1038,14 @@ quadratures (Carlson & Lathrop 1968) are :math:`O_h`-invariant *by
 construction*: their generating points are constrained to lie on
 the orbits of the octahedral group through the choice of
 free-parameter algebraic equations. The
-:meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant` check
-in this module therefore *confirms* what the construction
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`
+check therefore *confirms* what the construction
 guarantees rather than *discovering* invariance — its job is to
 verify that the project's wrapper code preserves the property the
 literature establishes, and to reject accidental loss (e.g., a
 quadrature reshaped through a non-symmetric pushforward).
 
-The non-trivial design choice for ``is_invariant`` is that a finite
+The non-trivial design choice for ``is_invariant_under`` is that a finite
 group is asked through **every one of its elements** — not through a
 sample, and not through a fingerprint. The realization closes the
 shipped generating set once and memoises it (8 sign flips × 6
@@ -1048,7 +1064,7 @@ matrix products on a memoised object.
 2026-09-03** — a sorted :math:`(|x|, |y|, |z|)` multiset for
 :math:`O_h`, and a 12-element *representative orbit* for :math:`I_h`.
 Both were retired code long before the prose was: `[M]` the call chain
-:meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant` reaches
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under` reaches
 contains none of ``sorted`` / ``fingerprint`` / ``multiset`` /
 ``icosahedron`` / ``vertex``. The :math:`I_h` half is worth naming as a
 near miss — a 12-vertex representative orbit is ERR-072's own shape, a
@@ -1081,7 +1097,7 @@ reading the axis parameter refutes.** It is not trivial and it is not
 free: a 1-D measure's nodes are *embedded* before the predicate runs,
 and the axis they land on decides the answer. `[M]` on
 ``Quadrature.gauss_legendre(8).measure``, whose support declares
-:math:`S^2/O(2)_x`, ``SO2('x').is_invariant`` is **True** while
+:math:`S^2/O(2)_x`, ``is_invariant_under(SO2('x'))`` is **True** while
 ``SO2('y')`` and ``SO2('z')`` are **False** — and `[M]` 2026-09-02 the
 stabilisers answer identically, ``O2('x')`` **True** / ``O2('y')``,
 ``O2('z')`` **False**. One true row of three, not
@@ -1109,6 +1125,256 @@ later issue if and when a consumer needs it; today the field is
 re-stamped on tensor-product results via
 :meth:`~orpheus.numerics.measure.DiscreteMeasure.with_metadata`
 when the caller knows the result is invariant.
+
+.. _discrete-measure-invariance-module:
+
+The verbs are the MEASURE's — ``orpheus.numerics.invariance``
+--------------------------------------------------------------
+
+Invariance is a relation between **two** operands, and until 2026-09-03
+the tree asked it of the wrong one. ``SubgroupOfO3.is_invariant(measure)``
+put the verb on the group; R2 of #434 moved it onto the measure and gave
+the kernel a module of its own,
+``orpheus.numerics.invariance``. The mathematics did not
+change — `[M]` **0 of 330** (rule × group) answers moved against a pinned
+pre-carve tree — and the reason for the move is not tidiness.
+
+**A group carries a realization and nothing else.** Since #434 R1 a
+:class:`~orpheus.numerics.symmetry.SubgroupOfO3` *is* its identity
+component plus one representative per connected component
+(:ref:`manifold-realization`); that is enough to answer every question
+about the group, and it is enough to answer no question about a point
+set. The three things the predicate actually reads — the **nodes**, the
+**weights**, and the **orbit space the question is asked on** — are all
+carried by the measure. A verb whose receiver supplies one operand and
+whose argument supplies three is on the wrong object, and the import
+graph said so out loud: ``symmetry`` had to import ``measure`` to spell
+it, which is what made ``manifold`` unable to name a group at all
+(:ref:`manifold-import-cycle`).
+
+.. list-table:: The five verbs, on :class:`~orpheus.numerics.measure.DiscreteMeasure`
+   :header-rows: 1
+   :widths: 26 30 44
+
+   * - Verb
+     - Returns
+     - What the empty answer means
+   * - :meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`
+     - ``bool``
+     - ``False``: the group does not normalise the quotienting group, or
+       its identity component moves a node's orbit barycentre, or some
+       element fails to permute the weighted nodes on the orbit space.
+   * - :meth:`~orpheus.numerics.measure.DiscreteMeasure.certificate_under`
+     - ``OrbitCertificate | None``
+     - ``None`` has **three** causes, and only two of them mean "not
+       invariant": a CONTINUOUS group has no finite element set to
+       permute nodes by (a policy, not a verdict — the measure may well
+       be invariant under it), the group may not act on the orbit space,
+       or some element may fail to permute. `[M]` on the 11 shipped rules
+       × their candidate sets, **99** rows return ``None`` for the first
+       reason alone, **6** of them on a measure that IS invariant.
+   * - :meth:`~orpheus.numerics.measure.DiscreteMeasure.permutation_under`
+     - ``Permutation | None``
+     - The single-motion face of the certificate. ``None`` means the
+       motion is not a symmetry **there** — on the orbit space, not in
+       the ambient space.
+   * - :meth:`~orpheus.numerics.measure.DiscreteMeasure.singular_set_under`
+     - ``np.ndarray`` of indices
+     - Raises rather than returning empty: :math:`\Sigma` is defined only
+       on an invariant measure, so the illegal state is unrepresentable.
+       An empty array is the *free* action, which is the fold's
+       well-posedness condition.
+   * - :meth:`~orpheus.numerics.measure.DiscreteMeasure.symmetry_groups`
+     - ``tuple[SubgroupOfO3, ...]``
+     - The maximal expressible groups leaving the measure invariant. Never
+       empty: the trivial group always survives.
+
+`[M]` 2026-09-03, by AST over ``orpheus/``: outside the five one-line
+delegations there are **three** production consumers — the fold's
+precondition (``measure.py:1234``, inside
+:meth:`~orpheus.numerics.measure.DiscreteMeasure.quotient`), the
+ordinate permutation (``directional.py:540``) and the registry's stage 1
+(``registry.py:1015``). The walk has none, and that is deliberate: it is
+the *instrument* that checks a declared tag, not something a solve calls.
+
+.. _discrete-measure-invariance-no-facade:
+
+Why there is no façade
+~~~~~~~~~~~~~~~~~~~~~~~
+
+``SubgroupOfO3.is_invariant`` was **deleted**, not kept as a one-line
+delegation, and the user ruling that said so (ruling 2 of #434,
+2026-09-02) gave the reason: *a façade would keep one deferred import
+alive*. A method on the group that forwards to the measure still has to
+name ``DiscreteMeasure`` — in its annotation at least — and the whole
+point of the carve is that ``symmetry`` reaches no other package:
+`[M]` its module-scope imports are ``orpheus.geometry.transformation``
+and its own numpy-only ``roots_of_unity``, and nothing else.
+
+`[M]` that edge is not a stylistic preference. On a renamed shadow copy
+of the package, one fresh interpreter per (variant, entry point): with
+``symmetry`` reading a single name from ``manifold`` at module scope —
+which is all a façade's annotation would eventually cost — **3 of 10**
+entry points import, against **10 of 10** shipped. ⚠ And ``import
+orpheus`` alone is one of the three survivors, so a smoke test on the
+package root reports GREEN on a façade that cannot serve one numerics
+entry point (:ref:`manifold-import-cycle`).
+
+The deprecation-shim reflex is the wrong one here for a second reason
+that is worth stating separately: the migration is a **spelling** change
+(receiver ↔ argument), so every call site had to be visited anyway. A
+façade buys nothing at a call site that is already being edited; it only
+buys a second name for one answer.
+
+.. _discrete-measure-invariance-one-closure:
+
+ONE closure, structurally rather than by docstring
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Three docstrings claimed *"one closure"* while the tree carried two: the
+invariance kernel inlined a character-for-character copy of the orbit
+closure's lambda rather than calling it. R2 removed the copy and made the
+claim checkable by construction:
+
+* ``_orbit_closure`` — the per-operator match, with ERR-073's bijection
+  requirement and ERR-074's no-bare-``argmin`` requirement — has `[M]`
+  exactly **one** call site tree-wide, inside ``_orbit_space_closure``;
+* its ``images_of`` argument is **required**. It used to default to the
+  ambient action, and that default was dead — every caller passed the
+  induced action. A default nobody uses is a second code path that only
+  a future caller can discover;
+* ``_orbit_space_closure`` — normaliser check, chart, induced action,
+  match — has `[M]` exactly **three** call sites, one per verb that needs
+  it (``permutation_under``, ``is_invariant_under``,
+  ``certificate_under``).
+
+So "these three cannot disagree about a fold" is a statement about the
+call graph, not about anyone's intention.
+
+.. _discrete-measure-invariance-barycentres:
+
+Why the candidate set reads the orbit BARYCENTRES — the Reynolds projector
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The walk does not test every subgroup of :math:`O(3)`; it tests the
+*expressible* ones, and the parameterised families :math:`C_n` /
+:math:`D_{nh}` are bounded by counting the measure's distinct azimuths (a
+:math:`C_n` rotation with :math:`n > 1` fixes no azimuth, so :math:`n`
+divides that count). Until R2 the count was taken on the **stored** node
+array, which meant one fold had two candidate sets depending on how its
+nodes happened to be spelled. It is now taken on the orbit
+**barycentres** — the same points the kernel itself reads.
+
+The justification is the projector, not a convention. A fold's
+barycentre map is the **Reynolds projector**
+:math:`P_H = \frac{1}{|H|}\sum_{h \in H} \rho(h)`, and `[M]` 2026-09-03
+:meth:`Quotient.orbit_barycentres
+<orpheus.numerics.manifold.Quotient.orbit_barycentres>` is
+``np.array_equal`` to that sum computed directly from the group's
+realized matrices, on both shipped folds (:ref:`manifold-lift`). Two
+properties follow, and together they are the whole argument:
+
+* :math:`P_H` is **equivariant under the normaliser** — for
+  :math:`g \in N(H)`, :math:`g P_H = P_{gHg^{-1}} g = P_H g` — so every
+  isometry that can act on the orbit space carries barycentres to
+  barycentres. The stored representatives have no such property: they are
+  a *section*, chosen by a tie-break, and a section is not equivariant.
+* The stored representatives are, by construction, **not closed** under
+  the group that folded them — that is what folding means. Counting
+  azimuths on them therefore measures the section, not the orbit space.
+
+`[M]` on ``folded_product(4, 8)``: the stored representatives have **4**
+distinct azimuths and their barycentres have **2**
+(``max|barycentre − stored| = 8.688e-01``). The consequences, measured
+against a pinned pre-carve tree over the 11 shipped rules:
+
+.. list-table:: `[M]` 2026-09-03 — the candidate set and the walk, before → after
+   :header-rows: 1
+   :widths: 28 20 52
+
+   * - Rule
+     - Candidates
+     - :meth:`~orpheus.numerics.measure.DiscreteMeasure.symmetry_groups`
+   * - ``gauss_legendre(2)``, ``(8)``, ``(16)``
+     - 15 → **18**
+     - :math:`\{O(2)_x, \sigma_x\}` → :math:`\{D_{2h}, O(2)_x\}`.
+       :math:`C_2`, :math:`D_{1h}`, :math:`D_{2h}` are newly offered; the
+       polar marginal's barycentres are :math:`(\mu, 0, 0)`, two
+       :math:`z`-azimuths, so :math:`D_{2h}` is reachable and it
+       **contains** :math:`\sigma_x`. A strengthening, not a move.
+   * - ``folded_product(4, 8)``
+     - 20 → **18**
+     - :math:`\{D_{2h}\}` → unchanged. :math:`C_4` and :math:`D_{4h}` stop
+       being offered, and `[M]` neither is an invariance of that rule, so
+       the walk loses two rejections and no information.
+   * - ``folded_product(4, 6)``
+     - 18 → **18**
+     - :math:`\{D_{1h}, \sigma_x\}` → :math:`\{D_{2h}\}`. The set is the
+       same size and its members changed (:math:`C_3`, :math:`D_{3h}` out;
+       :math:`C_2`, :math:`D_{2h}` in), and again :math:`D_{2h}` contains
+       both answers it replaces. ⚠ This row is a **third** intended move,
+       beyond the two the plan named — found only by running the whole
+       roster rather than the two rules the plan listed.
+   * - ``product(4, 8)``, ``product(3, 5)``, ``lebedev(5)``,
+       ``lebedev(11)``, ``level_symmetric(4)``, ``level_symmetric(8)``
+     - unchanged
+     - unchanged (:math:`\{D_{8h}\}`, :math:`\{D_{5h}\}`,
+       :math:`\{O_h\}`, :math:`\{O_h\}`, :math:`\{O_h\}`,
+       :math:`\{O_h\}`) — every bare-sphere rule stores its own
+       barycentres.
+
+⭐ **The invariance PREDICATE moved on none of them.** `[M]` over a fixed
+30-spelling group list × the same 11 rules — 330 rows, both trees built
+from the same ``(rule, group.name)`` keys — **0** cells differ. What moved
+is which questions the walk thinks to ask, and in every case the new
+answer contains the old one.
+
+.. _discrete-measure-invariance-gotchas:
+
+Two gotchas, both measured
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**(1) The chart step is currently INERT, and the barycentre step is
+not.** The kernel matches nodes in the orbit space's *chart* coordinates,
+through each motion's
+:meth:`~orpheus.numerics.manifold.Quotient.induced_action`. It is
+tempting to read that as the step that fixed the fold; it is not. `[M]`
+2026-09-03, over every (rule × group × element) row on the 11 shipped
+rules where the element normalises the quotienting group — **1027** rows
+— an ambient nearest-neighbour match performed *on the barycentres*
+returns the identical permutation to the chart match on **1027 of 1027**.
+The step that changes an answer is reading the **barycentres** instead of
+the stored representatives: `[M]` :math:`\sigma_y` on
+``folded_product(4, 8)`` is ``None`` matched against the stored
+representatives and the **identity permutation** matched against the
+barycentres, chart or ambient alike.
+
+⟹ a gate written on the chart step has no shipped witness and cannot
+have one until an entry ships whose Reynolds projector is *not* injective
+on orbits (on :math:`S^2` a mirror's is, and an axial entry's chart is a
+bijection onto :math:`[-1,1]`). That is ``vv-principles`` #19 read at the
+design tier: the chart is what makes the question well-posed on a general
+orbit space, and it is not what any shipped answer turns on. Say so
+rather than crediting it.
+
+**(2) The two windows are not one window.** ``atol`` throughout is the
+**weight** window, and node positions are matched at
+:data:`~orpheus.numerics.invariance._NODE_WINDOW_FACTOR` (= 100) times
+it. The asymmetry is deliberate — a node coordinate is the accumulated
+result of a matrix product against a constructed direction cosine, while
+a weight is usually read straight from a table — and it is spelled once,
+as ``invariance.WEIGHT_ATOL`` and ``invariance._node_window(atol)``.
+`[M]` 2026-09-03, by AST over the seven modules the carve touches, the
+count of *executable* ``1e-13`` constants falls **9 → 3**, and the three
+survivors are each a different window with its own name:
+``WEIGHT_ATOL``'s own definition, ``directional._REFLECTION_ATOL`` (the
+ordinate-permutation weight window, documented as the same number and
+deliberately re-declared where it is consumed) and
+``rules_product.spherical_product``'s ``atol`` default (a *composition*
+tolerance, not an invariance one). ⚠ Both
+windows are ABSOLUTE: for a rule whose weights are :math:`O(10^{-3})` the
+weight test is correspondingly stricter in relative terms. That is a
+known characteristic of the check, not an accident of it.
 
 .. _quadrature-selection-algorithm:
 
@@ -1208,16 +1474,20 @@ always names its stage — points at the paragraph that explains it.
    unused, not violated.
 
    :math:`\operatorname{Sym}(Q)` is **computed from the rule's nodes**
-   by :meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant`
+   by :meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`
    applied to a generating set (:eq:`discrete-measure-g-invariance`),
    never read from a declared tag. ⭐ Since #429 tracker 2.2b
    (2026-09-02) that computation is made **on the rule's own support**:
    a rule on an orbit space is asked whether :math:`\Gamma` permutes its
    ORBITS, not whether it permutes the representatives that stand for
-   them. ``admits_symmetry``'s own text did not change — it is still
-   ``Γ.is_invariant(measure)`` — and it became correct for a folded rule
-   only because ``is_invariant`` moved
-   (:ref:`manifold-one-invariance-kernel`). `[M]` :math:`\sigma_y` and
+   them. ``admits_symmetry`` asks the same question it always asked, and
+   it became correct for a folded rule only because that predicate moved
+   (:ref:`manifold-one-invariance-kernel`). ⛔ **This passage read** *"its
+   own text did not change — it is still* ``Γ.is_invariant(measure)``\ *"*
+   **until 2026-09-03**: R2 of #434 changed the text and nothing else,
+   the body now reading
+   ``measure.is_invariant_under(self.discrete_residual)``
+   (:ref:`discrete-measure-invariance-module`). `[M]` :math:`\sigma_y` and
    :math:`D_{2h}` read ``False`` on ``folded_product(4, 8)`` before that
    step and ``True`` after, because :math:`\sigma_y` acts trivially on
    :math:`S^2/\sigma_y`; `[M]` on ``gauss_legendre(8)`` and
@@ -2379,7 +2649,7 @@ References
 * Lebedev, V.I. (1976). "Quadratures on a sphere." *USSR Computational
   Mathematics and Mathematical Physics* **16**, no. 2, 10-24. The
   octahedral-invariant construction validated by
-  :meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant`.
+  :meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`.
 * Carlson, B.G. and Lathrop, K.D. (1968). "Transport theory: the
   method of discrete ordinates." In *Computing Methods in Reactor
   Physics*, Greenspan, Kelber, Okrent, eds., Gordon & Breach.
