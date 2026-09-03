@@ -10566,3 +10566,140 @@ Reynolds-projector argument for the barycentres, the two gotchas — is a new `-
 `discrete_measures.rst`, five `~` subsections, plus one Key Facts bullet. `[M]` no
 `automodule` exists for any of `numerics.{symmetry,manifold,measure}`, so `invariance`
 gets none either and every `:mod:` renders plain text by page convention.
+
+---
+
+## L-091 — R3 of #434: a SLOT SPLITS IN TWO, and the retired name is the least of it
+
+**Task.** Docs pass for the last carve of #434. `AngularSymmetry(continuous_isotropy,
+discrete_residual)` becomes `AngularSymmetry(spent, unspent, owed)`; stage 0 becomes
+"the descent arrow exists ∧ `H ⊆ Γ·K`"; `manifold.spent_group` retires. Deliverables
+V3 + N6 of `scratch/_r3_elegance_findings.md`. Pages: `manifolds.rst`,
+`discrete_measures.rst`, `error_catalog.rst`, `frame.rst`. `[M]` +1115/−325 over 4
+pages; `-E -W` EXIT=0 with a **0-byte** log both sides; sentinels **593 → 593**;
+`dead_references` 0 dead / 52; xref gate `DEAD TARGETS: 0`; my own import probe over
+**923** fully-qualified `orpheus.*` roles on the four pages, 0 dead.
+
+### (a) ⭐⭐ A FIELD SPLIT is not a rename — one of the two survivors keeps the retired
+### name's LETTER, and the corpus's Γ now means the opposite half
+
+The brief called this out (V3 item 4) and it is worth generalising. A rename gives one
+old name and one new name; a SPLIT gives one old name and two new ones, and the corpus
+symbol usually follows the *wrong* survivor. Here `discrete_residual` (Γ, the owed
+closure) split into `unspent` (the NEW fold licence) and `owed` — and R3 gave Γ to
+`unspent`. So every pre-R3 sentence saying "Γ" is not merely stale, it is **inverted**.
+
+⟹ The instrument that worked: a **SYMBOLS block** as a labelled `.. admonition::`
+(`quadrature-symbols`) with a `Symbol | Field | Meaning | Was` table — the fourth
+column is what makes it a tombstone rather than a glossary — plus an explicit
+grep-able discriminator sentence: *"a page that pairs Γ with G⁰, or calls Γ a
+residual, predates 2026-09-03"*. The elegance review had asked for the symbols block
+as an architectural opportunity; it turned out to be the load-bearing artefact of the
+whole pass, because it is the only place the two bindings sit side by side.
+
+⭐ And the ANCHOR: `manifold-gamma-slot` (7 citers on 3 pages) now names a letter it no
+longer holds. Retitled to the concept (`The registry's ledger — …`), anchor KEPT, with
+a head `.. note::` saying the name is a fossil and why (a cross-doc `:ref:` that dangles
+is silent at every severity). `[M]` all 7 citers render the new title automatically.
+
+### (b) ⭐⭐ A `[M]` COUNT whose member set is not stated is NOT reproducible — and the
+### spread across plausible member sets is the finding
+
+The production docstring carried *"197 such triples over the expressible members"*
+(triples where `H ⊆ ΓK` while neither factor contains `H`). I could not reproduce it.
+`[M]` on a natural 21-member set (`Trivial, SO(3), O(3), O_h, I_h, D_∞h, σ_{x,y,z},
+SO(2)_{x,y,z}, O(2)_{x,y,z}, C_{2,3,4}, D_{1h,2h,3h}`; 12 finite ⟹ 21·12·21 = **5292**
+triples, the review's own denominator) the answer is **217**; swapping `D_3h → C_6`
+gives **181** and `C_3 → D_4h` gives **255**. The denominator matched and the numerator
+did not, which is exactly the signature of an unstated member set.
+⟹ published MY count WITH the member list enumerated in the prose, plus a ⚠ saying the
+count is a property of the member set and **the witness is what to quote**
+(`O(2)_x ⊆ O_h·SO(2)_x` while neither factor contains it — that one is a theorem-shaped
+fact, reproducible forever). The sibling figure in the same docstring, *"441 of 441
+ordered pairs over 21 members"*, reproduced EXACTLY on the same set — so one number in
+one sentence was reproducible and its neighbour was not.
+
+### (c) ⭐⭐ A "shipped" denominator can contain a CONSTRUCTED member, and only
+### enumerating the set finds it
+
+`domain_refusal`'s docstring says *"over 4 geometries × 7 shipped rules the 17 stage-0
+refusals split 14 arrow / 3 coverage / 0 both"*. The split reproduces to the row — but
+only for ONE 7-rule set, and its seventh member is `product(4,8).quotient(Mirror("z"))`,
+which no factory ships. `[M]` the five `Quadrature` factories alone give 9 admitted / 8
+arrow / 3 coverage of 20; adding `gauss_legendre_on_mu` gives 12 arrow; only the
+constructed σ_z fold reaches 14/3/0. It has to be there — it is the only input that
+separates the cylinder's Γ from the plane's — so the set is RIGHT and the word
+"shipped" is wrong. ⟹ when a docstring hands you an `n`-row denominator, **enumerate
+candidate sets until one reproduces**, then publish the enumeration; the search itself
+is the evidence.
+
+### (d) ⭐⭐ A test docstring's "this leg is INERT at the selector tier" is a
+### NEGATIVE claim about production, and the in-process neutering measures it in 20 s
+
+The R3 gate class carried an honest-scope note: *"at `select_quadrature` the coverage
+leg is INERT: nothing registered is a fold, and the 1-D rule is refused for the cylinder
+by stage 2's V conjunct first"*. `[M]` both clauses are false. `GaussLegendre1D` IS
+registered and its support IS a fold (`S^2/O(2)_x`, `H = O(2)_x`), and the shipped log
+for `select_quadrature("cylinder", 5)` reads `domain mismatch: … a fold by O2_x …
+(unspent D_1h, spent Trivial)` — stage 0's coverage clause, not stage 2. Measured by
+monkeypatching `SubgroupOfO3.is_subset_of_product` to return `True` in-process
+(restored in a `finally`, verified by identity): the rejection MOVES to stage 2's V
+conjunct and the CHOSEN rule is unchanged (`LebedevSphere(order=5)` either way).
+⟹ the honest statement is *"the leg changes the REASON at the selector tier and no
+selection"*, which is what shipped in the page — and it is a stronger scope note than
+the one it replaces, because it names what a mutation would and would not move.
+⚠ Report the test docstring; do not edit `tests/`.
+
+### (e) ⭐ Re-measure a SIGN-COUNT before publishing it — `sign(0)` is a third class
+
+I inherited *"2 of 4 (sign μ_x, sign μ_y) sweep quadrants empty"* for the σ_y fold and
+wrote a comparison sentence for the unfolded rule from the same probe's summary line:
+*"all 8 octants populated, 4 nodes each"*. `[M]` false. `product(4,8)` has 32 nodes of
+which **16 lie ON a coordinate plane** (`μ_x` or `μ_y` exactly 0); the four
+strictly-signed quadrants carry 4 each and the eight strictly-signed octants carry **2**
+each. The fold's own figure is right (its 16 nodes are all strictly signed,
+`μ_y ∈ [+0.1945, +0.8688]`). ⟹ when a claim counts SIGN CLASSES, `sign(x) == 0` is a
+class of its own and a symmetric product rule puts half its nodes there; say
+"strictly-signed" and give the on-plane count.
+
+### (f) ⭐ The equality SHORT CIRCUIT is the page's own argument, and the carve turns it
+### into history WITHOUT weakening it
+
+`manifolds.rst` carried a ⭐ paragraph arguing that stage 0 must be ONE expression
+because the naive two-conjunct spelling needs a special case for equality — with the
+measured reason (`σ_x ⊉ O(2)_x`, an infinite group cannot sit in a finite one). R3's
+coverage test needs no such case: `[M]` the slab's own rule reads
+`O(2)_x ⊆ {e}·O(2)_x`, TRUE. ⟹ do not delete the argument — it is the *derivation of
+the requirement the new predicate satisfies*. Re-home it into a dated ⛔ admonition
+("The second conjunct read something else until …"), numbered 1. and 2., where 2. IS
+the short-circuit argument now reading as the reason the coverage form is better. The
+falsified design and its replacement's justification are the same sentence.
+
+### (g) ⭐ Deliverable shape for this class: manifolds owns the LATTICE, the selection
+### page owns the LEDGER
+
+Two pages both wanted the material. Split by register: `manifolds.rst` (the point-set /
+group layer) got the coverage THEOREM (two-step derivation off
+`:eq:`manifold-group-as-component-and-cosets``), a new row in its own *One body per
+question* table, and the measured 28-row grid; `discrete_measures.rst` (the selection
+algorithm) got the three-fact ledger, the SYMBOLS block, the per-geometry derivation of
+Γ with the cosine conventions, and the worked examples. Each cites the other once. `[M]`
+zero new eq-labels on either page — both existing labels re-worded and kept (they are
+`:eq:` APIs with 4 citers between them), so sentinels moved 593 → 593.
+
+### (h) ⛔⛔ An ERR entry with no marker REDDENS A GATE — a docs-only pass can break the
+### suite, and only running the gate finds it
+
+ERR-081 shipped with its catching class named in prose. Two consequences, and I found
+the second only by running the gate: (1) the build regenerated
+`.claude/skills/vv-principles/error_index.md` from **80 entries · 0 uncaught** to
+**81 entries · 1 uncaught** with a new "⛔ Uncaught" heading (correct, generated, never
+hand-edit); and (2) `[M]`
+`tests/test_error_catalogue_reconciles.py::test_every_declared_entry_has_a_catching_test`
+goes **RED** — *"1 catalogued defect(s) have no `@pytest.mark.catches`: ['ERR-081']"*.
+Its docstring offers *"or say in the entry why no test can exist"*, but the assertion
+is `_catalogue_ids() - _marker_ids()` and parses no exemption, so the marker is
+MANDATORY. ⟹ after minting any `.. error-entry::`, run that module (0.2 s, no venv
+beyond pytest) and report the `@pytest.mark.catches("ERR-NNN")` as a BLOCKING companion
+edit. A docs-only pass with an "I do not edit `tests/`" constraint can still put the
+tree red, and the `-W` build is silent about it.

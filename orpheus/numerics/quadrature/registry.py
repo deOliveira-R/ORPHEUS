@@ -13,21 +13,31 @@ Quadrature selection is *fundamentally* a five-stage filter, in priority
 order:
 
 0. **Domain compatibility.**
-   :math:`\mathcal{D}_Q = S^2 / G^0_{\text{geom}}` — the rule's nodes
-   must live on the angular domain the geometry's *dimensional
-   reduction* left behind. A slab integrates :math:`\phi` out
-   analytically and wants a :math:`\mu`-marginal on :math:`[-1,1]`; a
-   cylinder retains both angular degrees of freedom and wants
-   :math:`S^2`. This stage is **not** a refinement of the symmetry
-   stage below — it is the other half of the same decomposition (see
-   :class:`AngularSymmetry`), and without it the symmetry stage alone
-   admits a Lebedev rule for a slab.
+   The rule's nodes must live on the angular domain the geometry's
+   *dimensional reduction* left behind, :math:`S^2 / K_{\text{geom}}` with
+   :math:`K` the stabiliser the reduction SPENT — or on a FOLD of it by a
+   symmetry the solution still HAS in the local frame: the descent arrow
+   :math:`S^2/K \to \mathcal{D}_Q` must exist, and the group
+   :math:`H_Q` the rule's support was quotiented by must satisfy
+   :math:`H_Q \subseteq \Gamma_{\text{geom}} K_{\text{geom}}`, with
+   :math:`\Gamma` the finite UNSPENT symmetry
+   (:meth:`SubgroupOfO3.is_subset_of_product
+   <orpheus.numerics.symmetry.SubgroupOfO3.is_subset_of_product>`). A slab
+   integrates :math:`\phi` out analytically and wants a :math:`\mu`-marginal
+   on :math:`[-1,1]`; a cylinder retains both angular degrees of freedom and
+   wants :math:`S^2` or its :math:`\sigma_y` / :math:`\sigma_z` fold; a
+   z-uniform Cartesian plane admits the :math:`\sigma_z` fold and REFUSES
+   the :math:`\sigma_y` one (until R3 of #434 it admitted it — the
+   symmetry recorded for reflecting faces was read as a fold licence, and
+   two of the four sweep quadrants were empty). This stage is **not** a
+   refinement of the symmetry stage below — it is a different fact about
+   the geometry (see :class:`AngularSymmetry`), and without it the symmetry
+   stage alone admits a Lebedev rule for a slab.
 1. **G compatibility** (symmetry).
-   :math:`\Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q)` — the
-   rule must be invariant under the geometry's *discrete residual*
-   symmetry, the half of its symmetry group that survives the
-   reduction and must therefore be realized as an ordinate
-   permutation. A quadrature with **less** symmetry imprints spurious
+   :math:`R_{\text{geom}} \subseteq \operatorname{Sym}(Q)` — the
+   rule must be invariant under the symmetry the geometry still OWES: the
+   closure a reflecting face consumes, which must be realized as an
+   ordinate permutation. A quadrature with **less** symmetry imprints spurious
    low-order asymmetry on a symmetric problem (Lebedev 1976, §1;
    Stiefel & Fässler 1979 Ch. 5) and cannot represent a reflecting
    boundary exactly. A quadrature with **more** symmetry is fine —
@@ -90,17 +100,21 @@ Formally,
    :label: quadrature-selection-criterion
 
    Q^{\star} \;=\; \arg\min\Bigl\{\, n(Q) \;:\;\;
-   \mathcal{D}_Q = S^2 / G^0_{\text{geom}}
-   \;\wedge\; \Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q)
+   S^2 / K_{\text{geom}} \twoheadrightarrow \mathcal{D}_Q
+   \;\wedge\; H_Q \subseteq \Gamma_{\text{geom}} K_{\text{geom}}
+   \;\wedge\; R_{\text{geom}} \subseteq \operatorname{Sym}(Q)
    \;\wedge\; \mathcal{E}(Q) \succeq (\lambda_{\text{geom}},\, d)
    \;\wedge\; F_{\text{req}} \subseteq F_Q
    \,\Bigr\},
 
 where :math:`n(Q)` is the number of nodes,
-:math:`\mathcal{D}_Q` is the domain the rule's nodes live on,
-:math:`G^0_{\text{geom}}` and :math:`\Gamma_{\text{geom}}` are the
-continuous and discrete halves of the geometry's angular symmetry
-(:class:`AngularSymmetry`), :math:`\operatorname{Sym}(Q)` is the group
+:math:`\mathcal{D}_Q` is the domain the rule's nodes live on and
+:math:`H_Q` the group it was folded by (:math:`\{e\}` for a bare rule),
+:math:`K_{\text{geom}}`, :math:`\Gamma_{\text{geom}}` and
+:math:`R_{\text{geom}}` are what the geometry SPENT, what its solution
+keeps UNSPENT, and what it OWES — the reflection closure — (:class:`AngularSymmetry`;
+:math:`\Omega` is the direction throughout, never a group),
+:math:`\operatorname{Sym}(Q)` is the group
 the rule's nodes are actually invariant under,
 :math:`\mathcal{E}(Q)` is the rule's exactness claim
 (:class:`~orpheus.numerics.exactness.ExactnessClaim` — a reference
@@ -182,51 +196,71 @@ needs a field to live in — it cannot be inferred from a shared class docstring
 Geometry → angular-symmetry assignment
 --------------------------------------
 
-Each geometry declares the two halves of its angular symmetry (see
-:class:`AngularSymmetry`): the continuous part :math:`G^0` that the
-dimensional reduction **spends**, and the discrete residual
-:math:`\Gamma` still **owed** to the quadrature.
+Each geometry declares three facts about its angular symmetry (see
+:class:`AngularSymmetry`): the stabiliser :math:`K` the dimensional
+reduction **spends**, the finite symmetry :math:`\Gamma` the solution
+keeps **unspent** in the local frame (what a fold may spend), and the
+closure :math:`R` still **owed** to a reflecting face.
 
 .. list-table::
    :header-rows: 1
-   :widths: 18 12 12 12 46
+   :widths: 14 10 10 10 10 46
 
    * - Geometry
-     - :math:`G^0` (spent)
-     - Domain :math:`S^2/G^0`
-     - :math:`\Gamma` (owed)
+     - :math:`K` (spent)
+     - Domain :math:`S^2/K`
+     - :math:`\Gamma` (unspent)
+     - :math:`R` (owed)
      - Rationale
    * - ``"slab"``
      - :math:`O(2)_x`
      - :math:`S^2/O(2)_x` (chart :math:`[-1,1]`)
-     - :math:`Z_2`
+     - :math:`\{e\}`
+     - :math:`\sigma_x`
      - 1-D in :math:`x`, the slab normal and the tree's polar axis
-       (tracker 2.4). Azimuthal rotation about the slab normal is
-       integrated out analytically, so the angular variable is
-       :math:`\mu = \cos\theta` alone. What remains owed is
+       (tracker 2.4). Azimuthal rotation about the slab normal — and every
+       reflection in a plane containing it — is integrated out
+       analytically, so the angular variable is :math:`\mu = \cos\theta`
+       alone. Nothing finite is left unspent: a slab solution is not
+       even in :math:`\mu` for a general source. What remains owed is
        :math:`\mu \to -\mu`, the reflection that pairs the two sweep
        senses and that a reflecting end face consumes. Gauss-Legendre
        nodes are symmetric (Stoer-Bulirsch §3.6), so it holds.
    * - ``"sphere"``
      - :math:`O(2)_x`
      - :math:`S^2/O(2)_x` (chart :math:`[-1,1]`)
-     - :math:`Z_2`
+     - :math:`\{e\}`
+     - :math:`\sigma_x`
      - The 1-D **radial** spherical SN reduces to GL on
        :math:`\mu_r = \cos\theta_r`, the cosine of the angle between
        the ordinate and the radial direction (Lewis & Miller 1993
        §4.4). The continuous problem has :math:`O(3)` symmetry; the
-       radial reduction spends the azimuth about :math:`\hat r` and
-       leaves the same :math:`Z_2` as the slab. Here the spent half is
-       not free — its fiber action reappears in the sweep as the
+       radial reduction spends the stabiliser of :math:`\hat r` and
+       leaves the same owed :math:`\sigma_r` as the slab. Here the spent
+       half is not free — its fiber action reappears in the sweep as the
        angular-redistribution :math:`\alpha` term.
    * - ``"cylinder"``
      - trivial
      - :math:`S^2`
+     - :math:`D_{1h} = \{e, \sigma_y, \sigma_z, C_2^x\}`
      - :math:`D_{2h}`
      - An axisymmetric cylinder is :math:`\phi`-independent in
        *space*, but that does not reduce the *angular* domain: both
-       angular degrees of freedom survive, so the rule must live on
-       :math:`S^2`. Owed is :math:`D_{2h}`, the coordinate-plane
+       angular degrees of freedom survive, so the rule lives on
+       :math:`S^2` or on a fold of it. In the local frame
+       (:math:`\eta = \Omega\cdot\hat r`, :math:`\xi = \Omega\cdot\hat\phi`,
+       :math:`\mu = \Omega\cdot\hat z` — the tree's columns 0, 1, 2) the
+       solution IS even under :math:`\sigma_y` (:math:`\xi \to -\xi`, the
+       azimuthal cosine: the problem is invariant under :math:`\phi \to
+       -\phi`, which pairs :math:`+\xi` with :math:`-\xi`) and under
+       :math:`\sigma_z` (:math:`\mu \to -\mu`, the axial cosine: the
+       geometry is z-uniform, :math:`\partial_z` is absent, and :math:`\mu`
+       enters the streaming operator only through :math:`|\eta| =
+       \sqrt{1-\mu^2}`; a scattering kernel in :math:`\Omega\cdot\Omega'` is
+       invariant under any joint orthogonal map) — the group they generate is
+       :math:`D_{1h}` about the radial axis (`[M]` 2026-09-03 the
+       realization's four elements). The shipped ``folded_product`` spends
+       :math:`\sigma_y`. Owed is :math:`D_{2h}`, the coordinate-plane
        mirrors. The cylindrical SN sweep additionally requires
        per-:math:`\mu` polar-level structure for the azimuthal
        redistribution coefficients; request it via the
@@ -234,9 +268,15 @@ dimensional reduction **spends**, and the discrete residual
    * - ``"cartesian2d"``
      - trivial
      - :math:`S^2`
+     - :math:`\sigma_z`
      - :math:`D_{2h}`
-     - 2-D Cartesian (x-y). :math:`D_{2h} \cong (\mathbb{Z}_2)^3` is
-       generated by the three coordinate-plane mirrors, and its
+     - 2-D Cartesian (x-y), z-uniform: :math:`\psi` is even in
+       :math:`\mu_z`, and in NOTHING else — the :math:`\sigma_y` fold that
+       is legitimate on the cylinder is not licensed here (`[M]` until R3
+       of #434 it was admitted at both stages, and 2 of the 4
+       :math:`(\operatorname{sign}\mu_x, \operatorname{sign}\mu_y)` sweep
+       quadrants were then empty). :math:`D_{2h} \cong (\mathbb{Z}_2)^3`
+       is generated by the three coordinate-plane mirrors, and its
        chambers are exactly the octants the sweep decomposes into —
        which is precisely the symmetry a reflecting :math:`x` or
        :math:`y` face needs to be representable exactly.
@@ -253,11 +293,13 @@ dimensional reduction **spends**, and the discrete residual
    ``cartesian2d`` read :math:`O_h`, a 6× over-claim demanding the
    :math:`x \leftrightarrow z` exchange, never a symmetry of a
    z-uniform problem. Splitting spent from owed is what makes the gate
-   both satisfiable and discriminating.
+   both satisfiable and discriminating — and splitting UNSPENT from owed
+   (R3 of #434, 2026-09-03) is what stops the owed closure being read as
+   a fold licence.
 
 When 2-D / 3-D spherical SN lands, this table gains ``"sphere2d"`` /
-``"sphere3d"`` entries; both spend nothing continuously and owe at
-least :math:`D_{2h}`.
+``"sphere3d"`` entries; both spend nothing continuously, keep nothing
+unspent, and owe at least :math:`D_{2h}`.
 
 References
 ----------
@@ -317,7 +359,7 @@ from typing import Any, Callable
 
 from ..exactness import UNIFORM_ON_SPHERE, ReferenceMeasure
 from ..measure import DiscreteMeasure
-from orpheus.numerics.manifold import SPHERE, Manifold, Quotient, spent_group
+from orpheus.numerics.manifold import SPHERE, Manifold, Quotient, quotient_onto
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_polar_orbit
 from .rules_product import product_mu_phi
@@ -824,58 +866,92 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
 
 @dataclass(frozen=True)
 class AngularSymmetry:
-    r"""What a geometry demands of its angular discretisation.
+    r"""What a geometry demands of its angular discretisation — a ledger.
 
-    A geometry's symmetry group :math:`G` does not act on the angular
-    variable as one undifferentiated thing. It splits by **how the
-    action is used**, and the two halves place two different demands
-    on a quadrature:
+    A geometry's symmetry does not act on the angular variable as one
+    undifferentiated thing.  It splits by **what each part is used for**,
+    and the three parts are three different facts that place three
+    different demands on a quadrature:
 
-    * :attr:`continuous_isotropy` :math:`G^0` — the continuous
-      subgroup that the dimensional reduction **spends**. A slab is
-      invariant under the full stabiliser :math:`O(2)_x` of its normal
-      — every rotation about it and every reflection in a plane
-      containing it — so :math:`\psi` depends on :math:`\Omega` only
-      through :math:`\mu = \Omega\cdot\hat e_x`; the azimuth is integrated out
-      analytically and never discretised. What this half determines is
-      the *domain*: the angular variable lives on the quotient
-      :math:`S^2/G^0` (:attr:`support`). In curvilinear geometry its
-      non-trivial fiber action is what appears in the sweep as the
-      angular-redistribution (:math:`\alpha`) term — the reduction is
-      "paid for" there.
-    * :attr:`discrete_residual` :math:`\Gamma = G/G^0` — the finite
-      residual, still **owed**. It cannot be integrated away; it must
-      be realized as a permutation of the ordinates. This is the half
-      a reflecting boundary condition consumes: the face reflection
-      :math:`\sigma_{\hat n}` maps ordinate :math:`m` to ordinate
-      :math:`m'` *exactly* only if the node set is closed under
-      :math:`\sigma_{\hat n}`.
+    * :attr:`spent` :math:`K` — the stabiliser the dimensional reduction
+      integrates away.  A slab is invariant under the full stabiliser
+      :math:`O(2)_x` of its normal — every rotation about it and every
+      reflection in a plane containing it — so :math:`\psi` depends on
+      :math:`\Omega` only through :math:`\mu = \Omega\cdot\hat e_x`; the
+      azimuth is integrated out analytically and never discretised.  What
+      this part determines is the *domain*: the angular variable lives on
+      the orbit space :math:`S^2/K` (:attr:`support`).  In curvilinear
+      geometry its non-trivial fiber action is what appears in the sweep
+      as the angular-redistribution (:math:`\alpha`) term — the reduction
+      is "paid for" there.
+    * :attr:`unspent` :math:`\Gamma` — the FINITE symmetry the solution
+      still has in the geometry's local frame, which the reduction did not
+      spend and which a FOLD may.  A z-uniform problem is even in
+      :math:`\mu_z`; an axisymmetric cylinder is even under the local
+      azimuthal reflection as well.  What this part determines is which
+      folds stage 0 admits: a rule on :math:`S^2/H` is admissible iff
+      :math:`H \subseteq \Gamma K` — the fold spent nothing the solution
+      does not have.
+    * :attr:`owed` :math:`R` — the closure a reflecting face needs,
+      still owed by the quadrature: the face reflection :math:`\sigma_{\hat
+      n}` maps ordinate :math:`m` to ordinate :math:`m'` *exactly* only if
+      the node set is closed under :math:`\sigma_{\hat n}`.  It cannot be
+      integrated away; it must be realized as a permutation of the
+      ordinates (stage 1).
 
-    Splitting them is what makes the selection gate expressible. The
-    table this replaced recorded only :math:`G^0` and compared it to a
-    rule's declared group, which is unsatisfiable by construction — no
-    finite point set on :math:`S^2` is :math:`SO(2)`-closed — so the
-    gate could only ever pass on a false declaration, and did.
+    ⚠ Until R3 of #434 (2026-09-03) the ledger had two entries and the
+    owed closure did the unspent symmetry's job: stage 0 admitted any fold
+    by a subgroup of what the geometry OWED, so a :math:`\sigma_y` fold —
+    legitimate on the cylinder — was admitted for ``cartesian2d``, whose
+    solution is even in :math:`\mu_z` only, and 2 of the 4 sweep quadrants
+    were empty.  A symmetry recorded for one job (closing a face) was
+    spent on another (licensing a fold).  And the two entries were
+    documented as :math:`G^0` and :math:`G/G^0`, a factorisation the
+    slab's :math:`O(2)_x` — disconnected — never was.
+
+    The first split (spent from owed, 2026-08-02) is what made the
+    selection gate expressible at all: the table it replaced recorded only
+    the spent group and compared it to a rule's declared group, which is
+    unsatisfiable by construction — no finite point set on :math:`S^2` is
+    :math:`SO(2)`-closed — so the gate could only ever pass on a false
+    declaration, and did.
 
     Attributes
     ----------
-    continuous_isotropy : SubgroupOfO3
-        :math:`G^0`, the half spent by the reduction. Determines
-        :attr:`support`. Use
-        :attr:`SubgroupOfO3.Trivial` when the reduction spends nothing
-        (a 2-D or 3-D geometry retains both angular degrees of
-        freedom).
-    discrete_residual : SubgroupOfO3
-        :math:`\Gamma`, the finite half a quadrature must realize as
-        an ordinate permutation.
+    spent : SubgroupOfO3
+        :math:`K`, the stabiliser spent by the reduction.  Determines
+        :attr:`support` and :attr:`reference`.  Use
+        :attr:`SubgroupOfO3.Trivial` when the reduction spends nothing (a
+        2-D or 3-D geometry retains both angular degrees of freedom).
+    unspent : SubgroupOfO3
+        :math:`\Gamma`, the finite symmetry the solution keeps in the local
+        frame — the fold licence.  Must be finite (its elements are
+        enumerated by the coverage test).
+    owed : SubgroupOfO3
+        :math:`R`, the finite reflection closure a quadrature must realize as an
+        ordinate permutation for a reflecting face.  Must be finite.
     """
 
-    continuous_isotropy: SubgroupOfO3
-    discrete_residual: SubgroupOfO3
+    spent: SubgroupOfO3
+    unspent: SubgroupOfO3
+    owed: SubgroupOfO3
+
+    def __post_init__(self) -> None:
+        for role, group, job in (
+            ("unspent", self.unspent, "its elements are enumerated by the fold licence"),
+            ("owed", self.owed, "it must be realized as an ordinate permutation"),
+        ):
+            if not group.realization.is_finite:
+                raise ValueError(
+                    f"AngularSymmetry.{role} must be a finite group ({job}); "
+                    f"{group.name} is continuous"
+                )
 
     @property
     def support(self) -> Manifold:
-        r"""The angular domain :math:`S^2/G^0` — derived, not declared.
+        r"""The angular domain :math:`S^2/K` — the orbit space of the SPENT
+        stabiliser (disconnected on the 1-D rows: :math:`O(2)_x`), derived,
+        not declared.
 
         Returns the point set a rule's measure must live on to be admissible
         for this geometry. Deriving it (rather than storing a second,
@@ -889,7 +965,7 @@ class AngularSymmetry:
         ``Space`` alias could not return this method even though
         :meth:`admits_domain` compares it against the alias on every rule.
         """
-        spent = self.continuous_isotropy
+        spent = self.spent
         if spent == SubgroupOfO3.Trivial:
             # S²/{e} = S² is a theorem, and the sphere is the name every
             # 2-D / 3-D rule declares. The catalogue's derived identity
@@ -982,27 +1058,67 @@ class AngularSymmetry:
 
     def admits_domain(self, measure: DiscreteMeasure) -> bool:
         r"""Stage 0 — the rule lives on this geometry's angular domain, or
-        on a FOLD of it by part of the owed residual.
+        on a FOLD of it by a symmetry the solution still has.
 
         Two conditions, both read off the lattice and neither declared: the
-        descent arrow :math:`S^2/G^0 \to X` onto the rule's support must
-        EXIST (:func:`~orpheus.numerics.manifold.quotient_onto` — the same
-        arrow a frame's G0 reads, of which equality is the identity case),
-        AND what that arrow SPENDS
-        (:func:`~orpheus.numerics.manifold.spent_group` — :math:`\{e\}` for
-        the identity, the fold's group for a fold of the domain) must lie in
-        :math:`\Gamma`: a fold spends part of what the geometry OWES, and
-        only that part may be spent. One expression, because the question is
-        about the arrow: reading the group :math:`X` was quotiented by
-        relative to its OWN base would refuse the geometry's own domain
-        (`[M]` the slab's :math:`\sigma_x \not\supseteq O(2)_x`). `[M]` until 2026-09-02 this was
-        ``measure.support == self.support`` — equality, no lattice — and it
-        refused the shipped cylinder configuration, ``folded_product`` on
-        :math:`S^2/\sigma_y` (#429 tracker 2.2b; §II.10 of the plan measured
-        5 production builds rejected).
+        descent arrow :math:`S^2/K \to X` onto the rule's support must EXIST
+        (:func:`~orpheus.numerics.manifold.quotient_onto` — the same arrow
+        a frame's G0 reads, of which equality is the identity case), AND
+        the group :math:`H` the rule's support was quotiented by
+        (:attr:`DiscreteMeasure.quotient_group
+        <orpheus.numerics.measure.DiscreteMeasure.quotient_group>`,
+        :math:`\{e\}` for a bare rule) must lie in :math:`\Gamma K`
+        (:meth:`SubgroupOfO3.is_subset_of_product
+        <orpheus.numerics.symmetry.SubgroupOfO3.is_subset_of_product>`):
+        a fold may spend only what the solution has.  Total — every
+        (rule, geometry) pair answers, no arm raises.
+
+        `[M]` the slab's own rule, :math:`O(2)_x \subseteq \{e\}\,O(2)_x`,
+        admitted; the shipped :math:`\sigma_y` fold on the cylinder,
+        :math:`\sigma_y \subseteq D_{1h}`, admitted; the same fold on
+        ``cartesian2d``, :math:`\sigma_y \not\subseteq \sigma_z`, REFUSED.
+        Until R3 of #434 (2026-09-03) the second condition read "what the
+        arrow spends lies in the OWED closure" — the closure a reflecting
+        face needs, read as a fold licence — and the ``cartesian2d`` fold
+        was admitted; until 2026-09-02 this was ``measure.support ==
+        self.support`` — equality, no lattice — and it refused the shipped
+        cylinder configuration (#429 tracker 2.2b).
         """
-        spent = spent_group(self.support, measure.support)
-        return spent is not None and self.discrete_residual.contains(spent)
+        return self.domain_refusal(measure) is None
+
+    def domain_refusal(self, measure: DiscreteMeasure) -> str | None:
+        r"""Stage 0's verdict WITH its reason — the one failing clause, or
+        ``None`` when the rule is admitted.
+
+        :meth:`admits_domain` is this predicate's ``is None``; the selector
+        appends the returned reason.  Spelled once, so the report cannot
+        drift from the decision (`[M]` 2026-09-03, over 4 geometries × 7
+        rules — the five ``Quadrature`` factories, ``gauss_legendre_on_mu``
+        and a constructed σ_z fold — the 17 stage-0 refusals split 14 arrow / 3 coverage /
+        0 both — a disjunctive message named a satisfied fact on all 17).
+        """
+        if quotient_onto(self.support, measure.support) is None:
+            return (
+                f"the rule's nodes live on {measure.support.name}, and "
+                f"{self.support.name} has no descent arrow onto it"
+            )
+        # The rule's support is a quotient of this geometry's domain, so it
+        # is angular and the group it was folded by is a subgroup of O(3);
+        # ``None`` — no fold — is the trivial group HERE, honestly, because
+        # the arrow check ran first (a non-angular support never reaches
+        # this line, and on the SPENT side ``None`` may mean "nothing acts").
+        folded_by = (
+            SubgroupOfO3.Trivial if measure.quotient_group is None
+            else measure.quotient_group
+        )
+        if not folded_by.is_subset_of_product(gamma=self.unspent, kappa=self.spent):
+            return (
+                f"the rule's nodes live on {measure.support.name}, a fold by "
+                f"{folded_by.name}, which is not a symmetry the solution has "
+                f"in this geometry's frame (unspent {self.unspent.name}, "
+                f"spent {self.spent.name})"
+            )
+        return None
 
     def admits_symmetry(self, measure: DiscreteMeasure) -> bool:
         """Stage 1 — is the rule closed under the owed discrete symmetry?
@@ -1012,7 +1128,7 @@ class AngularSymmetry:
         <orpheus.numerics.measure.DiscreteMeasure.is_invariant_under>`,
         R2 of #434).
         """
-        return measure.is_invariant_under(self.discrete_residual)
+        return measure.is_invariant_under(self.owed)
 
 
 # Static table — one entry per supported geometry. New geometries
@@ -1044,33 +1160,44 @@ class AngularSymmetry:
 
 GEOMETRY_ANGULAR_SYMMETRY: dict[str, AngularSymmetry] = {
     # The spent group names its AXIS (2026-09-01): the polar marginal
-    # embeds along x, the residual mirror's normal is x, and the real
+    # embeds along x, the owed mirror's normal is x, and the real
     # spherical-harmonic pole is x — one axis, stated on both halves.
     # Until then `SO2` was a bare member realized about z, so the slab's
     # own rule read as NOT invariant under the group it was quotiented
     # by (the angular-spaces plan's Part IV obstacle 1).
     # And it is the FULL stabiliser O(2)_x (2026-09-02, #432), not its
     # rotation half: a slab is symmetric under y -> -y as well as under
-    # every rotation about x, and with O(2)_x spent the recorded residual
-    # sigma_x is exactly G/G^0.  Under SO(2)_x the true residual would be
-    # the Klein four-group and the recorded mirror half of it; the orbit
-    # space is the same either way, and its catalogue entry is named by
-    # the stabiliser.
+    # every rotation about x, and with O(2)_x spent nothing finite is left
+    # unspent (a slab solution is not even in mu); the owed closure is the
+    # end face's sigma_x.  Under SO(2)_x the unspent group would be a
+    # Klein four-group; the orbit space is the same either way, and its
+    # catalogue entry is named by the stabiliser.
     "slab": AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.O2("x"),
-        discrete_residual=SubgroupOfO3.Mirror("x"),
+        spent=SubgroupOfO3.O2("x"),
+        unspent=SubgroupOfO3.Trivial,
+        owed=SubgroupOfO3.Mirror("x"),
     ),
     "sphere": AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.O2("x"),
-        discrete_residual=SubgroupOfO3.Mirror("x"),
+        spent=SubgroupOfO3.O2("x"),
+        unspent=SubgroupOfO3.Trivial,
+        owed=SubgroupOfO3.Mirror("x"),
     ),
+    # z-uniform (even in the AXIAL cosine mu: sigma_z) AND azimuthally
+    # symmetric (even in the azimuthal cosine xi: sigma_y) — D_1h about the
+    # radial axis, {e, sigma_y, sigma_z, C_2^x}; the derivation is the
+    # module docstring's ledger row.  The plan's [R] row said
+    # Mirror('y') alone; the opener refuted it on the plan's own
+    # z-uniformity argument for cartesian2d (2026-09-03).
     "cylinder": AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.Trivial,
-        discrete_residual=SubgroupOfO3.Dnh(2),
+        spent=SubgroupOfO3.Trivial,
+        unspent=SubgroupOfO3.Dnh(1),
+        owed=SubgroupOfO3.Dnh(2),
     ),
+    # z-uniform only: even in mu_z, and in nothing else.
     "cartesian2d": AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.Trivial,
-        discrete_residual=SubgroupOfO3.Dnh(2),
+        spent=SubgroupOfO3.Trivial,
+        unspent=SubgroupOfO3.Mirror("z"),
+        owed=SubgroupOfO3.Dnh(2),
     ),
 }
 
@@ -1095,9 +1222,10 @@ class SelectionLog:
     geometry : str
         The geometry tag from the original call.
     angular_symmetry : AngularSymmetry
-        The geometry's angular symmetry — both halves — resolved from
-        :data:`GEOMETRY_ANGULAR_SYMMETRY`. Carries the required
-        ``support`` and the owed ``discrete_residual``, so a reader of
+        The geometry's angular-symmetry ledger — spent, unspent, owed —
+        resolved from :data:`GEOMETRY_ANGULAR_SYMMETRY`. Carries the
+        required ``support``, the fold licence ``unspent`` and the owed
+        closure, so a reader of
         the log can reconstruct stages 0 and 1 without re-deriving
         them.
     target_degree : int
@@ -1179,7 +1307,7 @@ def select_quadrature(
     minimum-points"* until 2026-08-14. Both halves were wrong, and in the
     same way: **stage 0 (domain) is missing**. It was added 2026-08-02 as
     the other half of the geometry's angular-symmetry decomposition —
-    :math:`G^0` spent by the dimensional reduction, :math:`\Gamma` still
+    the stabiliser spent by the dimensional reduction, the closure still
     owed to the quadrature — and without it the symmetry stage alone admits
     a Lebedev rule for a slab. See the module docstring's stages 0-4, and
     :ref:`quadrature-selection-algorithm` for the measured witness.
@@ -1280,21 +1408,19 @@ def select_quadrature(
         measure = spec.build(params)
 
         # ---- Stage 0: angular domain ----------------------------------
-        if not angular_symmetry.admits_domain(measure):
+        domain_refusal = angular_symmetry.domain_refusal(measure)
+        if domain_refusal is not None:
             rejected.append((
                 spec.name,
                 f"domain mismatch: geometry {geometry!r} discretises "
-                f"{angular_symmetry.support.name}, but the rule's nodes "
-                f"live on {measure.support.name} — no descent arrow onto it, "
-                f"or a fold by a group outside the owed "
-                f"{angular_symmetry.discrete_residual.name}",
+                f"{angular_symmetry.support.name}, but {domain_refusal}",
             ))
             continue
 
         # ---- Stage 1: the owed discrete symmetry ----------------------
         #
         # Computed from the instantiated nodes. Note this is NOT
-        # `measure.invariance_group.contains(residual)`: a declared
+        # `measure.invariance_group.contains(owed)`: a declared
         # tag is only required to be TRUE of the nodes, never maximal, so
         # the lattice route can reject a rule that satisfies the owed
         # symmetry perfectly well. Asking the nodes directly cannot go
@@ -1312,7 +1438,7 @@ def select_quadrature(
             rejected.append((
                 spec.name,
                 f"symmetry mismatch: geometry {geometry!r} owes "
-                f"{angular_symmetry.discrete_residual.name}, which the rule's "
+                f"{angular_symmetry.owed.name}, which the rule's "
                 f"nodes at {params} are not invariant under",
             ))
             continue

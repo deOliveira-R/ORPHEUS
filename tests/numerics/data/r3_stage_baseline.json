@@ -1,0 +1,257 @@
+{
+ "folded_product(2,4)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 4,
+  "quotient_group": "sigma_y",
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2/sigma_y"
+ },
+ "folded_product(4,8)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 16,
+  "quotient_group": "sigma_y",
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2/sigma_y"
+ },
+ "gauss_legendre(16)": {
+  "cartesian2d.domain": false,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": false,
+  "cylinder.symmetry": true,
+  "n_points": 16,
+  "quotient_group": "O2_x",
+  "slab.domain": true,
+  "slab.symmetry": true,
+  "sphere.domain": true,
+  "sphere.symmetry": true,
+  "support": "S^2/O2_x"
+ },
+ "gauss_legendre(2)": {
+  "cartesian2d.domain": false,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": false,
+  "cylinder.symmetry": true,
+  "n_points": 2,
+  "quotient_group": "O2_x",
+  "slab.domain": true,
+  "slab.symmetry": true,
+  "sphere.domain": true,
+  "sphere.symmetry": true,
+  "support": "S^2/O2_x"
+ },
+ "gauss_legendre(8)": {
+  "cartesian2d.domain": false,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": false,
+  "cylinder.symmetry": true,
+  "n_points": 8,
+  "quotient_group": "O2_x",
+  "slab.domain": true,
+  "slab.symmetry": true,
+  "sphere.domain": true,
+  "sphere.symmetry": true,
+  "support": "S^2/O2_x"
+ },
+ "gauss_legendre(8)/Dinfh": {
+  "note": "UNCONSTRUCTIBLE ValueError: a quotient is defined only for a Dinfh-invariant measure with a finite realization; no certificate exists because Dinfh is continuous (no finite node permutation), or does not ACT on this measure's orbit space S^2/O2_x (it does not normalise the group already spent there), or acts there without permuting the weighted nodes \u2014 this measure is not Dinfh-invariant on its orbit space."
+ },
+ "gauss_legendre(8)/O3": {
+  "note": "UNCONSTRUCTIBLE ValueError: a quotient is defined only for a O3-invariant measure with a finite realization; no certificate exists because O3 is continuous (no finite node permutation), or does not ACT on this measure's orbit space S^2/O2_x (it does not normalise the group already spent there), or acts there without permuting the weighted nodes \u2014 this measure is not O3-invariant on its orbit space."
+ },
+ "gauss_legendre(8)/sigma_x": {
+  "note": "UNCONSTRUCTIBLE NotImplementedError: no catalogue entry for S^2/O2_x/sigma_x: derive it once (minimal invariants p_1..p_k of R[x]^H; syzygy ideal I by elimination; Procesi-Schwarz P_ij = <grad p_i, grad p_j> with P >= 0; intersect with the ideal of S^2/O2_x) and register it in orpheus/numerics/manifold.py's _ORBIT_CATALOGUE, or implement the derivation engine. Catalogued today (manifold CLASS / group): ['Sphere/O2_x', 'Sphere/O2_y', 'Sphere/O2_z', 'Sphere/sigma_x', 'Sphere/sigma_y', 'Sphere/sigma_z']."
+ },
+ "lebedev(13)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 74,
+  "quotient_group": null,
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2"
+ },
+ "lebedev(17)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 110,
+  "quotient_group": null,
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2"
+ },
+ "lebedev(5)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 14,
+  "quotient_group": null,
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2"
+ },
+ "lebedev(9)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 38,
+  "quotient_group": null,
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2"
+ },
+ "level_symmetric(4)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 24,
+  "quotient_group": null,
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2"
+ },
+ "level_symmetric(6)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 48,
+  "quotient_group": null,
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2"
+ },
+ "level_symmetric(8)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 80,
+  "quotient_group": null,
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2"
+ },
+ "product(4,4)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 16,
+  "quotient_group": null,
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2"
+ },
+ "product(4,8)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 32,
+  "quotient_group": null,
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2"
+ },
+ "product(4,8)/Cn2": {
+  "note": "UNCONSTRUCTIBLE NotImplementedError: no catalogue entry for S^2/C_2: derive it once (minimal invariants p_1..p_k of R[x]^H; syzygy ideal I by elimination; Procesi-Schwarz P_ij = <grad p_i, grad p_j> with P >= 0; intersect with the ideal of S^2) and register it in orpheus/numerics/manifold.py's _ORBIT_CATALOGUE, or implement the derivation engine. Catalogued today (manifold CLASS / group): ['Sphere/O2_x', 'Sphere/O2_y', 'Sphere/O2_z', 'Sphere/sigma_x', 'Sphere/sigma_y', 'Sphere/sigma_z']."
+ },
+ "product(4,8)/D1h": {
+  "note": "UNCONSTRUCTIBLE NotImplementedError: no catalogue entry for S^2/D_1h: derive it once (minimal invariants p_1..p_k of R[x]^H; syzygy ideal I by elimination; Procesi-Schwarz P_ij = <grad p_i, grad p_j> with P >= 0; intersect with the ideal of S^2) and register it in orpheus/numerics/manifold.py's _ORBIT_CATALOGUE, or implement the derivation engine. Catalogued today (manifold CLASS / group): ['Sphere/O2_x', 'Sphere/O2_y', 'Sphere/O2_z', 'Sphere/sigma_x', 'Sphere/sigma_y', 'Sphere/sigma_z']."
+ },
+ "product(4,8)/D2h": {
+  "note": "UNCONSTRUCTIBLE NotImplementedError: no catalogue entry for S^2/D_2h: derive it once (minimal invariants p_1..p_k of R[x]^H; syzygy ideal I by elimination; Procesi-Schwarz P_ij = <grad p_i, grad p_j> with P >= 0; intersect with the ideal of S^2) and register it in orpheus/numerics/manifold.py's _ORBIT_CATALOGUE, or implement the derivation engine. Catalogued today (manifold CLASS / group): ['Sphere/O2_x', 'Sphere/O2_y', 'Sphere/O2_z', 'Sphere/sigma_x', 'Sphere/sigma_y', 'Sphere/sigma_z']."
+ },
+ "product(4,8)/O2x": {
+  "note": "UNCONSTRUCTIBLE ValueError: a quotient is defined only for a O2_x-invariant measure with a finite realization; no certificate exists because O2_x is continuous (no finite node permutation), or does not ACT on this measure's orbit space S^2 (it does not normalise the group already spent there), or acts there without permuting the weighted nodes \u2014 this measure is not O2_x-invariant on its orbit space."
+ },
+ "product(4,8)/sigma_x": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 20,
+  "quotient_group": "sigma_x",
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2/sigma_x"
+ },
+ "product(4,8)/sigma_y": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 20,
+  "quotient_group": "sigma_y",
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2/sigma_y"
+ },
+ "product(4,8)/sigma_z": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 16,
+  "quotient_group": "sigma_z",
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2/sigma_z"
+ },
+ "product(8,8)": {
+  "cartesian2d.domain": true,
+  "cartesian2d.symmetry": true,
+  "cylinder.domain": true,
+  "cylinder.symmetry": true,
+  "n_points": 64,
+  "quotient_group": null,
+  "slab.domain": false,
+  "slab.symmetry": true,
+  "sphere.domain": false,
+  "sphere.symmetry": true,
+  "support": "S^2"
+ }
+}

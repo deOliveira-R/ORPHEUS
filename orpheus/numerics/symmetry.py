@@ -177,7 +177,7 @@ class _NamedSubgroup(Enum):
     # so the relation the test asserted is correct once the name is.
     # (It is the continuous symmetry an axisymmetric cylinder HAS; the
     # geometry table does not spend it — `[M]` 2026-09-02 the cylinder
-    # row's ``continuous_isotropy`` is ``Trivial`` and nothing outside
+    # row's ``spent`` group is ``Trivial`` and nothing outside
     # this module and its tests consumes ``Dinfh``.) In the new
     # vocabulary it is the stabiliser of the z-axis as a LINE,
     # D_∞h = O(2)_z × {e, σ_h}, and ``Dinfh.contains(O2("z"))`` is the
@@ -738,6 +738,67 @@ class SubgroupOfO3:
 
     # --- Containment lattice --------------------------------------------
 
+    def is_subset_of_product(self, *, gamma: "SubgroupOfO3", kappa: "SubgroupOfO3") -> bool:
+        r"""``True`` iff ``self ⊆ gamma · kappa`` — every element of this group
+        is :math:`\gamma k` for some :math:`\gamma \in \Gamma`, :math:`k \in K`.
+        Keyword-only, because the two factors play different ROLES — :math:`\Gamma`
+        is enumerated and must be finite, :math:`K` may be continuous — and two
+        same-typed positionals would let them swap silently.  (The ANSWER is
+        symmetric: for a subgroup :math:`H = H^{-1}`, so :math:`H \subseteq
+        \Gamma K \iff H^{-1} \subseteq K^{-1}\Gamma^{-1} = K\Gamma`; and
+        :math:`\gamma^{-1}` ranges over :math:`\Gamma` exactly as :math:`\gamma`
+        does — `[M]` 2026-09-03 the battery arms mutating either are EQUIVALENT
+        mutants, 0 reds on 3297 rows, by these two identities and not by a
+        missing gate.)
+
+        The question a registry's stage 0 asks of a FOLD (R3 of #434,
+        2026-09-03): a rule whose support was quotiented by :math:`H` is
+        admissible for a geometry that SPENT :math:`K` in its dimensional
+        reduction and whose solution still has the finite symmetry
+        :math:`\Gamma` in the local frame iff :math:`H \subseteq \Gamma K` —
+        the fold spent nothing the solution does not have.  :math:`\Gamma K`
+        is a SET, not a group (:math:`\Gamma` need not normalise :math:`K`),
+        and the test is TOTAL: no join, no coset space, no case that raises
+        (the predecessor, ``manifold.spent_group``, raised on the induced
+        arrow between two quotients — the coset arm that coverage decides).
+
+        **Theorem — the two conjuncts, and why they are exact.**
+        :math:`\Gamma K = \bigcup_{\gamma \in \Gamma} \gamma K` is a finite
+        union of closed cosets.  :math:`H^0` is connected and contains
+        :math:`e`, so it lies inside the single coset containing :math:`e` —
+        and :math:`e \in \gamma K \Rightarrow \gamma \in K \Rightarrow \gamma K
+        = K`, so that coset is :math:`K` itself: :math:`H \subseteq \Gamma K
+        \Rightarrow H^0 \subseteq K^0`, the first conjunct, decided on the Lie
+        algebras (:meth:`IdentityComponent.contains`).  Then :math:`H =
+        \bigsqcup_r r H^0` over the coset representatives :math:`r` of
+        :math:`H`, and with :math:`H^0 \subseteq K`: :math:`r H^0 \subseteq
+        r K \subseteq \Gamma K \iff r \in \Gamma K \iff \exists \gamma:
+        \gamma^{-1} r \in K` — the second conjunct, decided by
+        :meth:`Realization.contains_element` over :math:`\Gamma`'s elements.
+        Both implications reverse, so the predicate is the definition, not
+        an approximation of it.  :math:`\Gamma` must be FINITE — its
+        elements are enumerated — and a continuous :math:`\Gamma` is refused.
+
+        `[M]` 2026-09-03 the PRODUCT is not either factor: :math:`O(2)_x
+        \subseteq O_h \cdot SO(2)_x` while neither :math:`O_h` nor
+        :math:`SO(2)_x` contains :math:`O(2)_x` — :math:`O(2)_x = SO(2)_x
+        \sqcup \sigma_z\,SO(2)_x` and :math:`\sigma_z \in O_h` (`[M]` 217
+        such triples over the 21 members ``docs/theory/foundations/manifolds.rst``
+        enumerates; the count moves with the member set, the witness does
+        not).  With :math:`\Gamma = \{e\}` it
+        is :meth:`contains`, bit-equal on 441 of 441 ordered pairs.  The
+        registry's shipped rows are its consumers and live in its docstring.
+        """
+        if not gamma.realization.is_finite:
+            raise ValueError(
+                f"'{self.name} ⊆ {gamma.name}·{kappa.name}' is decided over "
+                f"{gamma.name}'s elements, so that factor must be finite; "
+                f"{gamma.name} is continuous"
+            )
+        return self.realization.is_subset_of_product(
+            gamma=gamma.realization, kappa=kappa.realization
+        )
+
     def contains(self, other: "SubgroupOfO3") -> bool:
         r"""``True`` iff ``other ⊆ self`` in the :math:`O(3)` lattice.
 
@@ -1242,7 +1303,10 @@ class Realization:
     :math:`G` iff it preserves :math:`\mathfrak g` and conjugates every
     representative into :math:`G` (:meth:`is_normalised_by`); :math:`G`
     normalises :math:`H` iff its component does, exactly, and each of its
-    representatives does (:meth:`normalises`).  A hand-maintained relation
+    representatives does (:meth:`normalises`); :math:`H \subseteq \Gamma K`
+    iff :math:`\mathfrak h \subseteq \mathfrak k` and every representative of
+    :math:`H` lands in :math:`K` after some :math:`\gamma^{-1}`
+    (:meth:`is_subset_of_product`).  A hand-maintained relation
     table is a claim with no construction behind it, and this module shipped
     two such claims that were false; a realization cannot disagree with
     itself.
@@ -1290,6 +1354,22 @@ class Realization:
         Q = motion.linear
         return any(
             self.component._contains_matrix(r.linear.T @ Q, atol)
+            for r in self.representatives
+        )
+
+    def is_subset_of_product(
+        self, *, gamma: "Realization", kappa: "Realization", atol: float = _ELEMENT_ATOL,
+    ) -> bool:
+        r""":math:`G \subseteq \Gamma K` — :math:`\mathfrak g \subseteq \mathfrak k`
+        and every representative :math:`r` of :math:`G` has some :math:`\gamma
+        \in \Gamma` with :math:`\gamma^{-1} r \in K` (the theorem is on
+        :meth:`SubgroupOfO3.is_subset_of_product`, which guards that
+        :math:`\Gamma` is finite before delegating here).  :meth:`contains` is
+        the :math:`\Gamma = \{e\}` case."""
+        if not kappa.component.contains(self.component, atol=atol):
+            return False
+        return all(
+            any(kappa.contains_element(g.inverse() @ r, atol=atol) for g in gamma.elements)
             for r in self.representatives
         )
 

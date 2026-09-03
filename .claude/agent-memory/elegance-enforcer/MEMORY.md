@@ -39,7 +39,11 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 
 ## 3. Durable reference (reusable design-review pointers)
 
-- [symmetry_realization_carve_rulings.md](symmetry_realization_carve_rulings.md) — ⭐⭐ #434 R1+R4+R2
+- [symmetry_realization_carve_rulings.md](symmetry_realization_carve_rulings.md) — ⭐⭐ #434 R1+R4+R2+R3
+  (R3: the ledger carve whose every violation was in the DERIVATION SURFACE — a geometry-local
+  cosine convention inverted in prose while the code stayed right; a re-bound Greek letter (Γ owed→unspent,
+  Ω minted where Ω is the direction); a predicate split whose refusal MESSAGE never split (`[M]` named a
+  satisfied fact on 17 of 17); the sibling-delegation home test; a prefix-truncated baseline gate.)
   (R2: a kernel-MOVE's blast radius is the docstring XREF surface — `dead_references` is BLIND
   until Sphinx rebuilds AND catches only the ADDRESS half, never the CONCEPT half; the
   HALF-UPDATED SENTENCE tell; a module docstring's headline claim is written last and never

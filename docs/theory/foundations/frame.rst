@@ -4442,9 +4442,11 @@ both are quotients of one base with :math:`K \subseteq H`.
 :meth:`AngularSymmetry.admits_domain
 <orpheus.numerics.quadrature.registry.AngularSymmetry.admits_domain>`'s
 support EQUALITY with the same
-:func:`~orpheus.numerics.manifold.quotient_onto` question, plus the
-requirement that the group a rule's orbit space was quotiented by lie in
-the residual :math:`\Gamma` the geometry still owes. So a frame and a
+:func:`~orpheus.numerics.manifold.quotient_onto` question, plus a
+containment on the group a rule's orbit space was quotiented by — which
+#434 R3 (2026-09-03) re-posed against what the geometry's solution keeps
+UNSPENT rather than what a reflecting face is owed
+(:ref:`manifold-gamma-slot`; ERR-081). So a frame and a
 selector now ask the point-set layer one question with two consumers
 rather than two questions with one answer each, and `[M]` the shipped
 cylindrical fold — refused at both selection stages until that date — is

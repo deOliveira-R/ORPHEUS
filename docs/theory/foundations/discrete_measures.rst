@@ -1398,73 +1398,114 @@ rejection message read off a
 always names its stage — points at the paragraph that explains it.
 
 0. **Domain compatibility.** The rule's nodes must live on the angular
-   domain the geometry's *dimensional reduction* left behind:
-   :math:`\mathcal{D}_Q = S^2 / G^0_{\text{geom}}`. A slab integrates
-   the azimuth out analytically, so its angular variable is
-   :math:`\mu = \cos\theta` on :math:`[-1,1]`, and a rule whose nodes
-   are points of :math:`S^2` is the **wrong shape of object** — not an
-   over-resolved one, not an expensive one, but a rule for a different
-   integral. A cylinder retains both angular degrees of freedom and
-   wants :math:`S^2`.
+   domain the geometry's *dimensional reduction* left behind —
+   :math:`\mathcal{D}_Q = S^2 / K_{\text{geom}}`, with :math:`K` the
+   stabiliser the reduction SPENT — or on a **fold** of it by a symmetry
+   the solution still HAS. A slab integrates the azimuth out
+   analytically, so its angular variable is :math:`\mu = \cos\theta`
+   alone, and a rule whose nodes are points of :math:`S^2` is the
+   **wrong shape of object** — not an over-resolved one, not an
+   expensive one, but a rule for a different integral. A cylinder
+   retains both angular degrees of freedom and wants :math:`S^2` or a
+   fold of it.
 
    This stage is **not** a refinement of the symmetry stage below. It
-   is the other half of the same decomposition of the geometry's
-   angular symmetry (see
+   asks about a *different fact* of the geometry (see
    :class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`, and
-   the subsection *Spent and owed* below), and the two conjuncts are
-   logically independent: without stage 0, the symmetry stage alone
-   admits a Lebedev rule for a slab, because an :math:`O_h`-invariant
-   rule certainly satisfies the :math:`\sigma_x` a slab owes.
+   the subsection *The ledger: spent, unspent, owed* below), and the two
+   conjuncts are logically independent: without stage 0, the symmetry
+   stage alone admits a Lebedev rule for a slab, because an
+   :math:`O_h`-invariant rule certainly satisfies the :math:`\sigma_x` a
+   slab owes.
 
    ⭐ **The domain is a LATTICE relation, not an equality — #429 tracker
    2.2b, 2026-09-02.** A rule may legitimately live on a *fold* of the
-   geometry's domain, :math:`X = \mathcal{D}_Q / K`, and the shipped
+   geometry's domain, :math:`X = \mathcal{D}_Q / H`, and the shipped
    cylindrical rule does: ``folded_product`` halves the sphere by
-   :math:`\sigma_y`. So the stage asks two things, and neither is
-   declared anywhere — both are read off the orbit-space catalogue:
+   :math:`\sigma_y`. ⭐ **And the fold needs a LICENCE, which is a third
+   fact about the geometry — #434 R3, 2026-09-03.** So the stage asks
+   two things, and neither is declared anywhere; both are read off the
+   orbit-space catalogue and the containment lattice:
 
    .. math::
       :label: quadrature-stage-zero-descent
 
       \text{stage 0} \iff
-      \operatorname{spent}(\mathcal{D}_Q \to X)
-      \ \text{exists and}\ \subseteq \Gamma_{\text{geom}}.
+      \bigl(S^2/K_{\text{geom}} \twoheadrightarrow X\bigr)\ \text{exists}
+      \ \wedge\
+      H_Q \subseteq \Gamma_{\text{geom}}\, K_{\text{geom}} .
 
    .. (vv-status rationale) quadrature-stage-zero-descent: The shipped
-      body of ``AngularSymmetry.admits_domain`` written as a predicate.
-      A selection rule, not a solver claim, with no L0..L3 ladder slot;
-      the verifiable content is the registry's own selection gates in
-      ``tests/numerics/test_quadrature_registry.py`` and the measured
-      (constructor x geometry) grid recorded on the manifolds page
+      body of ``AngularSymmetry.domain_refusal`` written as a predicate
+      (``admits_domain`` is its ``is None``). A selection rule, not a
+      solver claim, with no L0..L3 ladder slot; the verifiable content
+      is the registry's own selection gates in
+      ``tests/numerics/test_registry.py`` — the class
+      ``TestStageZeroIsTheDescentArrowPlusTheUnspentSymmetry`` carries a
+      live witness for EACH conjunct — plus the measured (rule x
+      geometry) grid recorded on the manifolds page
       (:ref:`manifold-gamma-slot`).
    .. vv-status: quadrature-stage-zero-descent documented
 
-   The descent arrow is :func:`~orpheus.numerics.manifold.quotient_onto`
-   — the SAME arrow a frame's G0 reads
-   (:ref:`frame-g0-descent-arrow`), of which equality is the identity
-   case — and :func:`~orpheus.numerics.manifold.spent_group` names what
-   it SPENDS: only what the geometry still OWES may be spent by a fold,
-   because a rule that has quotiented away a symmetry :math:`\Gamma`
-   still needs realized as an ordinate permutation cannot serve that
-   geometry. ⚠ It is what the ARROW spends, not the group :math:`X` was
-   quotiented by relative to its own base — reading the latter would
-   refuse the geometry's OWN domain, since a slab's rule lives on
-   :math:`S^2/O(2)_x` and `[M]`
-   :math:`\sigma_x \not\supseteq O(2)_x`. The identity arrow spends
-   :math:`\{e\}` by construction, which is why the predicate needs no
-   special case for equality. ⛔ Until 2026-09-02 the stage
-   was ``measure.support == self.support``, and `[M]` it refused the
-   shipped cylinder configuration; now `[M]` ``folded_product(4, 8)`` is
-   admitted at both stages for ``"cylinder"`` and ``"cartesian2d"``,
-   the stage-0 refusal count over the five ``Quadrature`` factories ×
-   the four geometries moves **12 → 10 of 20**, and no pair moved the
-   other way (:ref:`manifold-gamma-slot`).
+   where :math:`X` is the manifold the rule's nodes live on and
+   :math:`H_Q` is the group :math:`X` was quotiented by
+   (:attr:`DiscreteMeasure.quotient_group
+   <orpheus.numerics.measure.DiscreteMeasure.quotient_group>`,
+   :math:`\{e\}` for a bare rule).
+
+   **The descent arrow** is
+   :func:`~orpheus.numerics.manifold.quotient_onto` — the SAME arrow a
+   frame's G0 reads (:ref:`frame-g0-descent-arrow`), of which equality
+   is the identity case. It answers whether a rule's node set is even
+   *addressable* from this geometry's domain.
+
+   **The coverage test** is the fold licence. :math:`\Gamma K` is a
+   SET, not a group, so this is not a lattice query; it is nonetheless
+   exactly decidable in two conjuncts, and the derivation — plus why
+   :math:`\Gamma` must be finite while :math:`K` need not be — is at
+   :ref:`manifold-coverage-by-a-product-section`. The reading is: *a
+   fold may spend only what the solution has, modulo what the reduction
+   already spent.* `[M]` 2026-09-03 the four verdicts that pin it — the
+   slab's own rule through :math:`O(2)_x \subseteq \{e\}\,O(2)_x`, the
+   :math:`\sigma_y` fold admitted on the cylinder and REFUSED on
+   ``cartesian2d``, and a :math:`\sigma_z` fold admitted on both — are
+   the content of that gate class.
+
+   ⛔ **The second conjunct read the OWED closure until 2026-09-03, and
+   that was ERR-081.** From tracker 2.2b to #434 R3 it asked whether
+   what the descent arrow *spends* lies in :math:`\Gamma_{\text{owed}}`,
+   through a helper ``manifold.spent_group(source, target)`` that named
+   the arrow's spent group and raised a ``NotImplementedError`` on the
+   induced map between two quotients of one base. Two consequences, one
+   of them a live defect:
+
+   - a symmetry recorded so that a **reflecting face** is an exact
+     ordinate permutation was read as evidence that the **solution** is
+     even under it, and on a z-uniform Cartesian plane those differ —
+     `[M]` that plane owes :math:`D_{2h}` and is even in :math:`\mu_z`
+     alone, so a :math:`\sigma_y` fold was admitted and `[M]` **2 of
+     the 4** :math:`(\operatorname{sign}\mu_x,
+     \operatorname{sign}\mu_y)` sweep quadrants of ``folded_product(4,
+     8)`` are empty;
+   - it needed an equality short circuit in front of it, because
+     reading the fold group against the geometry's own domain refuses
+     that domain: `[M]` :math:`\sigma_x \not\supseteq O(2)_x`. The
+     coverage test needs no such case — `[M]` the slab's own rule is
+     :math:`O(2)_x \subseteq \{e\}\,O(2)_x` — so ``admits_domain`` is
+     TOTAL: `[M]` 2026-09-03, 0 raises over 4 geometries × 7 rules —
+     the five ``Quadrature`` factories, the chart-level
+     ``gauss_legendre_on_mu``, and a constructed :math:`\sigma_z` fold
+     (the grid is tabulated at :ref:`manifold-gamma-slot`).
+
+   ⛔ Before that, until 2026-09-02, the stage was
+   ``measure.support == self.support``, and `[M]` it refused the
+   shipped cylinder configuration outright.
 
 1. **G compatibility (symmetry).** The rule's node set must be closed
-   under the geometry's *discrete residual* symmetry —
-   :math:`\Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q)` — the
-   half of the geometry's symmetry group that survives the reduction
-   and must therefore be realized as a permutation of the ordinates. A
+   under the closure the geometry still OWES —
+   :math:`R_{\text{geom}} \subseteq \operatorname{Sym}(Q)` — the part
+   of the geometry's symmetry that cannot be integrated away and must
+   therefore be realized as a permutation of the ordinates. A
    quadrature with **less** symmetry imprints spurious low-order
    asymmetry on a symmetric problem (Lebedev 1976, §1; Stiefel &
    Fässler 1979 Ch. 5) and cannot represent a reflecting boundary
@@ -1486,7 +1527,8 @@ always names its stage — points at the paragraph that explains it.
    own text did not change — it is still* ``Γ.is_invariant(measure)``\ *"*
    **until 2026-09-03**: R2 of #434 changed the text and nothing else,
    the body now reading
-   ``measure.is_invariant_under(self.discrete_residual)``
+   ``measure.is_invariant_under(self.owed)`` — the field was called
+   ``discrete_residual`` until #434 R3 renamed it on 2026-09-03
    (:ref:`discrete-measure-invariance-module`). `[M]` :math:`\sigma_y` and
    :math:`D_{2h}` read ``False`` on ``folded_product(4, 8)`` before that
    step and ``True`` after, because :math:`\sigma_y` acts trivially on
@@ -1525,8 +1567,10 @@ always names its stage — points at the paragraph that explains it.
    named :eq:`subgroup-of-o3-containment` as the mechanism that drove
    it, until 2026-08-14. Every clause of that was retired on
    2026-08-02. :math:`G_{\text{geom}}` recorded the **spent**
-   continuous half and became :math:`\Gamma_{\text{geom}}`, the
-   **owed** discrete half; :math:`G_Q`, a declared parameter-free field
+   continuous half and became the **owed** closure — written
+   :math:`\Gamma_{\text{geom}}` until #434 R3 gave that letter to the
+   UNSPENT symmetry on 2026-09-03, and :math:`R_{\text{geom}}` since;
+   :math:`G_Q`, a declared parameter-free field
    on the spec, became :math:`\operatorname{Sym}(Q)`, computed from the
    instantiated nodes; and the lattice stopped being the mechanism. The
    retired gate was unsatisfiable by any discrete azimuthal rule and
@@ -1565,7 +1609,7 @@ always names its stage — points at the paragraph that explains it.
    on :math:`[-1,1]`, ``uniform(S^2)`` on the sphere. It is *derived
    from the spent group*, by :attr:`AngularSymmetry.reference
    <orpheus.numerics.quadrature.registry.AngularSymmetry.reference>`,
-   exactly as the domain is (see *Spent and owed* below) — and since
+   exactly as the domain is (see *The ledger* below) — and since
    #429 tracker 3.1 (2026-09-02) the two are derived from **one
    object**: the property reads
    :attr:`Quotient.reference
@@ -1701,8 +1745,9 @@ Formally, the selection criterion is
    :label: quadrature-selection-criterion
 
    Q^{\star} \;=\; \arg\min\Bigl\{\, n(Q) \;:\;\;
-   \mathcal{D}_Q = S^2 / G^0_{\text{geom}}
-   \;\wedge\; \Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q)
+   S^2 / K_{\text{geom}} \twoheadrightarrow \mathcal{D}_Q
+   \;\wedge\; H_Q \subseteq \Gamma_{\text{geom}} K_{\text{geom}}
+   \;\wedge\; R_{\text{geom}} \subseteq \operatorname{Sym}(Q)
    \;\wedge\; \mathcal{E}(Q) \succeq (\lambda_{\text{geom}},\, d)
    \;\wedge\; F_{\text{req}} \subseteq F_Q
    \,\Bigr\},
@@ -1724,13 +1769,17 @@ Formally, the selection criterion is
    ``test_select_cylinder_rejects_odd_azimuthal_product_rule`` for what
    the owed group discriminates, and
    ``test_selector_asks_the_nodes_not_the_declared_tag`` for
-   computed-not-declared); and there is a negative path
+   computed-not-declared); the two conjuncts stage 0 acquired on
+   2026-09-02 and 2026-09-03 carry the class
+   ``TestStageZeroIsTheDescentArrowPlusTheUnspentSymmetry``, with a
+   live witness for EACH; and there is a negative path
    (``test_no_rule_fits_raises_with_log``,
    ``test_truly_incompatible_flags_raises``). Tagged ``foundation``
    rather than carrying a verification ladder slot because the
    selection chain is a software invariant (the predicate
-   :math:`\mathcal{D}_Q = S^2/G^0_{\text{geom}} \wedge
-   \Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q) \wedge
+   :math:`S^2/K_{\text{geom}} \twoheadrightarrow \mathcal{D}_Q \wedge
+   H_Q \subseteq \Gamma_{\text{geom}} K_{\text{geom}} \wedge
+   R_{\text{geom}} \subseteq \operatorname{Sym}(Q) \wedge
    \mathcal{E}(Q) \succeq (\lambda_{\text{geom}}, d) \wedge
    F_{\text{req}} \subseteq F_Q`), not a physics-equation claim with
    an L0..L3 ladder slot — the ladder lives on the rules themselves
@@ -1746,10 +1795,13 @@ Formally, the selection criterion is
 .. vv-status: quadrature-selection-criterion documented
 
 where :math:`n(Q)` is the number of nodes,
-:math:`\mathcal{D}_Q` is the domain the rule's nodes live on,
-:math:`G^0_{\text{geom}}` and :math:`\Gamma_{\text{geom}}` are the
-continuous and discrete halves of the geometry's angular symmetry
-(:class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`),
+:math:`\mathcal{D}_Q` is the domain the rule's nodes live on and
+:math:`H_Q` the group it was folded by (:math:`\{e\}` for a bare rule),
+:math:`K_{\text{geom}}`, :math:`\Gamma_{\text{geom}}` and
+:math:`R_{\text{geom}}` are the three facts the geometry records — what
+its reduction SPENT, what its solution keeps UNSPENT, and the closure it
+still OWES (:class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`;
+:math:`\Omega` is the direction throughout, never a group),
 :math:`\operatorname{Sym}(Q) \subseteq O(3)` is the group the rule's
 nodes are **computed** to be invariant under,
 :math:`\mathcal{E}(Q)` is the rule's exactness **claim**
@@ -1791,12 +1843,22 @@ answers to two questions on one scale.
       \;\wedge\; F_{\text{req}} \subseteq F_Q
       \,\Bigr\},
 
-   that is, three conjuncts instead of four, with the domain conjunct
-   absent entirely and the symmetry conjunct in its retired
+   that is, three conjuncts where the criterion now has five, with the
+   domain half absent entirely and the symmetry conjunct in its retired
    declared-tag form. The 2026-08-02 change that split spent from owed
    rewrote the geometry table, the worked examples, the rejection
    messages **and the predicate quoted inside this equation's own
    vv-status rationale**, and left the labelled equation alone.
+
+   ⭐ **The equation has moved twice more since, and both times WITH its
+   prose** — which is the discipline this admonition exists to install.
+   #429 tracker 2.2b (2026-09-02) replaced the domain EQUALITY with the
+   descent arrow, and #434 R3 (2026-09-03) added the coverage conjunct
+   and re-lettered the owed closure from :math:`\Gamma_{\text{geom}}` to
+   :math:`R_{\text{geom}}`, so that :math:`\Gamma` could name the
+   UNSPENT symmetry. Each time the "where" list, the vv-status
+   rationale's quoted predicate and the geometry table were edited in
+   the same pass; the tell described below is what the check is for.
 
    The V conjunct then moved later the same day, from
    :math:`\deg(Q) \ge d` to the claim-domination form above, for an
@@ -1820,48 +1882,137 @@ answers to two questions on one scale.
    an API — correcting the prose around it does not correct it, and the
    equation is where a reader in a hurry actually looks.
 
-Spent and owed: why the domain and the symmetry are two stages
+The ledger: spent, unspent, owed — three facts, three stages
 --------------------------------------------------------------
 
-A geometry's angular symmetry group :math:`G \subseteq O(3)` does not
-act on the angular variable as one undifferentiated thing. It splits by
-**how the action is used**, and the two halves place two different
-demands on a quadrature
-(:class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`):
+A geometry's angular symmetry does not act on the angular variable as
+one undifferentiated thing. It splits by **how the action is used**, and
+since #434 R3 (2026-09-03) the registry
+(:class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`) records
+three parts, because a quadrature is asked three different questions:
 
-* :math:`G^0`, the continuous part, is **spent** by the dimensional
-  reduction. A slab is invariant under every rotation about :math:`z`,
-  so :math:`\psi` depends on :math:`\Omega` only through
-  :math:`\mu = \Omega\cdot\hat z`; the azimuth is integrated out
-  analytically and never discretised. What this half determines is the
-  *domain* — the angular variable lives on the quotient
-  :math:`S^2/G^0`. In curvilinear geometry the spent half is not free:
-  its non-trivial fiber action reappears in the sweep as the
-  angular-redistribution (:math:`\alpha`) term, which is where the
-  reduction is paid for.
-* :math:`\Gamma = G/G^0`, the finite residual, is still **owed**. It
-  cannot be integrated away, so a quadrature must realize it as a
-  permutation of the ordinates. This is the half a reflecting boundary
-  condition consumes.
+* :math:`K`, the stabiliser the dimensional reduction **spends**. A slab
+  is invariant under the full stabiliser :math:`O(2)_x` of its normal —
+  every rotation about it and every reflection in a plane containing it
+  — so :math:`\psi` depends on :math:`\Omega` only through
+  :math:`\mu = \Omega\cdot\hat e_x`; the azimuth is integrated out
+  analytically and never discretised. What this part determines is the
+  *domain*: the angular variable lives on the orbit space
+  :math:`S^2/K`, and the reference measure is the pushforward of
+  :math:`d\Omega` along that quotient map. In curvilinear geometry the
+  spent part is not free — its non-trivial fiber action reappears in the
+  sweep as the angular-redistribution (:math:`\alpha`) term, which is
+  where the reduction is paid for.
+* :math:`\Gamma`, the FINITE symmetry the solution still has
+  **unspent**, in the geometry's own local frame. A z-uniform problem is
+  even in :math:`\mu_z`; an axisymmetric cylinder is even under the
+  local azimuthal reflection as well. What this part determines is
+  which **folds** stage 0 admits: a rule on :math:`S^2/H` is admissible
+  iff :math:`H \subseteq \Gamma K`, i.e. the fold spent nothing the
+  solution does not have.
+* :math:`R`, the reflection closure still **owed**. It cannot be
+  integrated away, so a quadrature must realize it as a permutation of
+  the ordinates: the face reflection :math:`\sigma_{\hat n}` maps
+  ordinate :math:`m` to ordinate :math:`m'` *exactly* only if the node
+  set is closed under :math:`\sigma_{\hat n}`. This is the part a
+  reflecting boundary condition consumes.
 
-The two demands are of different **kinds**, and that is the structural
-reason one stage cannot carry both. Stage 0 is a question about the
-*carrier*: is this node set even a set of points of the right space? It
-compares a tag on the measure against the derived quotient, and its
-answer is a type, not a tolerance. Stage 1 is a question about the
-*arrangement of the nodes within that carrier*: given that they are
-points of the right space, is the set closed under a finite group
-action? Its answer is a permutation-existence check
-(:eq:`discrete-measure-g-invariance`) run against the nodes. Folding
-the two into one predicate over one group would require comparing
-:math:`G^0`, which is continuous, against a finite point set — and that
-comparison has no true instances, which is exactly the shape the
-retired gate had.
+.. _quadrature-symbols:
+
+.. admonition:: Symbols — and two letters that were re-bound on 2026-09-03
+   :class: important
+
+   This vocabulary has three groups and one direction, and the angular
+   corpus spells one of the four letters two ways elsewhere. Read this
+   block before quoting any equation on this page.
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 12 16 42 30
+
+      * - Symbol
+        - Field
+        - Meaning
+        - Was
+      * - :math:`\Omega`
+        - —
+        - the DIRECTION — a point of :math:`S^2`, the variable
+          :math:`\phi = \int \psi \, d\Omega` integrates over. Never a
+          group, anywhere in this corpus.
+        - unchanged
+      * - :math:`K`
+        - ``spent``
+        - the stabiliser the dimensional reduction integrated away;
+          derives the domain :math:`S^2/K` and the reference measure
+        - :math:`G^0`, ``continuous_isotropy``
+      * - :math:`\Gamma`
+        - ``unspent``
+        - the FINITE symmetry the solution keeps in the local frame —
+          the fold licence
+        - **did not exist**; the letter meant the row below
+      * - :math:`R`
+        - ``owed``
+        - the reflection closure a reflecting face needs, realized as an
+          ordinate permutation
+        - :math:`\Gamma = G/G^0`, ``discrete_residual``
+
+   ⚠ **Two of those four rows moved on the same day, and one letter
+   changed sides.** Until 2026-09-03 the ledger had TWO entries, written
+   :math:`G^0` and :math:`\Gamma = G/G^0`, as though they were a group
+   and its component quotient. Both halves of that were wrong.
+
+   * It was never a factorisation. `[M]` the slab and the sphere spend
+     :math:`O(2)_x`, which is DISCONNECTED, so it is not any group's
+     identity component and there is no :math:`G` for which the two
+     recorded entries are :math:`G^0` and :math:`G/G^0`. The registry's
+     own comment conceded as much — under :math:`SO(2)_x` the recorded
+     :math:`\sigma_x` would be half of a Klein four-group — and #432
+     re-keyed the row onto the full stabiliser without re-lettering it.
+   * The owed closure was doing a **second job it was never a statement
+     about**: licensing folds. That is ERR-081, and it is why
+     :math:`\Gamma` is now the *unspent* symmetry.
+
+   ⚠ A page or docstring that pairs :math:`\Gamma` with :math:`G^0`, or
+   that calls :math:`\Gamma` a *residual*, is describing the two-entry
+   ledger and predates 2026-09-03. ⚠ And :math:`\Omega` briefly named
+   the owed group in a draft of the registry module docstring; it does
+   not, and a scattering kernel in
+   :math:`\Omega\cdot\Omega'` on the same page is what makes that
+   collision unacceptable.
+
+The three demands are of different **kinds**, and that is the structural
+reason one stage cannot carry all of them. Stage 0 is a question about
+the *carrier*: is this node set even a set of points of the right space,
+or of a space that one legitimately descends onto? It compares two
+manifolds through the orbit-space catalogue, and its answer is a type,
+not a tolerance. Stage 1 is a question about the *arrangement of the
+nodes within that carrier*: given that they are points of the right
+space, is the set closed under a finite group action? Its answer is a
+permutation-existence check (:eq:`discrete-measure-g-invariance`) run
+against the nodes. Folding the two into one predicate over one group
+would require comparing :math:`K`, which is routinely continuous,
+against a finite point set — and that comparison has no true instances,
+which is exactly the shape the retired gate had.
+
+**And the third fact cannot be folded into either, which is the whole
+content of ERR-081.** :math:`\Gamma` and :math:`R` are both finite and
+both live on the same lattice, so a two-entry ledger reads as complete
+and the second entry gets asked both questions. They are different
+claims: *"the node set must be closed under this"* is a demand on the
+QUADRATURE, while *"the solution is even under this"* is a fact about
+the PHYSICS. `[M]` on the shipped table they agree on the cylinder
+(:math:`D_{1h} \subset D_{2h}`, and the :math:`\sigma_y` fold is
+licensed by both readings) and disagree on the plane, where
+:math:`\sigma_y \in D_{2h}` is owed while the solution is even in
+:math:`\mu_z` alone. Every shipped rule lives on the cylinder side of
+that disagreement, which is why the two-entry ledger looked healthy
+(``vv-principles`` anti-pattern #33 — a fact recorded for one job spent
+on another).
 
 **The domain is derived, never stored — and so is the measure on it.**
 :attr:`AngularSymmetry.support
 <orpheus.numerics.quadrature.registry.AngularSymmetry.support>`
-computes :math:`S^2/G^0` from the spent group rather than holding a
+computes :math:`S^2/K` from the spent group rather than holding a
 second, independent column, so there is no state in which the domain
 and the spent group disagree — they are one fact. An unmapped quotient
 raises :exc:`NotImplementedError` rather than guessing, because a wrong
@@ -1992,22 +2143,50 @@ registry — drop either stage and the gate admits something wrong:
      - ⭐ **New row, 2026-09-02 (#429 tracker 2.2b).** The shipped
        cylindrical configuration, on a FOLD of the geometry's domain:
        admitted because the descent arrow
-       :math:`S^2 \to S^2/\sigma_y` exists and SPENDS
-       :math:`\sigma_y`, which lies in :math:`D_{2h}`, the residual the
-       cylinder owes. `[M]` both stages read ``False`` before that step
+       :math:`S^2 \to S^2/\sigma_y` exists **and** the fold group is
+       covered, :math:`\sigma_y \subseteq D_{1h}\{e\}`. `[M]` both
+       stages read ``False`` before that step
        (:ref:`manifold-gamma-slot`).
+   * - ``folded_product(4, 8)``
+     - ``"cartesian2d"``
+     - :math:`S^2/\sigma_y`
+     - ✗
+     - ✓
+     - ⭐ **New row, 2026-09-03 (#434 R3) — and the only verdict this
+       table has ever had go back.** The SAME rule, one geometry over.
+       The arrow exists, so stage 0 refuses on **coverage**:
+       :math:`\sigma_y \not\subseteq \sigma_z\{e\}`, because a
+       z-uniform plane's solution is even in :math:`\mu_z` alone. `[M]`
+       admitted at both stages from 2026-09-02 to 2026-09-03 — that is
+       ERR-081 — and `[M]` 2 of the 4 :math:`(\operatorname{sign}\mu_x,
+       \operatorname{sign}\mu_y)` sweep quadrants of this rule are
+       empty. Stage 1 stays ✓, which is the point: the OWED closure
+       :math:`D_{2h}` genuinely IS realized on the fold, and reading
+       that as a fold licence is what the third ledger entry ends.
+   * - :math:`\sigma_z` fold of ``product(4, 8)``
+     - ``"cartesian2d"``
+     - :math:`S^2/\sigma_z`
+     - ✓
+     - ✓
+     - ⭐ **New row, 2026-09-03.** The control for the row above,
+       constructed rather than shipped: the fold the plane's solution
+       DOES license, :math:`\sigma_z \subseteq \sigma_z\{e\}`. Without
+       it the coverage leg reads as a blanket refusal of folds on this
+       geometry rather than as a licence question.
 
-`[M]` every cell above was re-measured 2026-09-01, and the five
+`[M]` every cell above was re-measured 2026-09-01, the five
 pre-existing rows were **re-measured again 2026-09-02** against a pinned
-pre-change tree after stage 0 stopped being an equality: all ten
-verdicts are unchanged. The row that moved is the new one, which had no
-entry here because it could not be admitted. Two of the rows are
+pre-change tree after stage 0 stopped being an equality — all ten
+verdicts unchanged — and the whole table was **re-measured 2026-09-03**
+on the live tree at #434 R3. Two of the rows are
 the direct content of
 ``test_the_two_stages_are_independent_and_both_load_bearing`` — the
 Lebedev-for-a-slab row (symmetry alone would admit it) and the
 odd-:math:`n_\varphi`-for-a-cylinder row (domain alone would) — with
 ``test_owed_symmetry_selects_by_azimuthal_parity`` covering the parity
-pair. They are why the split is not a refactor of one predicate into
+pair, and the three fold rows the direct content of
+``TestStageZeroIsTheDescentArrowPlusTheUnspentSymmetry``. They are why
+the split is not a refactor of one predicate into
 two: a single "symmetry" stage is a strictly weaker gate than either of
 these columns, admitting the union of both failure sets.
 
@@ -2020,10 +2199,13 @@ one: that rule is never presented to stage 0, because it is not in the
 registry. Both reduce to the same fact, which is that stage 0 reads
 *one lattice* on both sides — the geometry names the group it spends,
 the rule names the group its orbit space was quotiented by, and the
-stage asks for an arrow between the two orbit spaces those groups name
+stage asks for an arrow between the two orbit spaces those groups name,
+plus a containment on the second group
 (:eq:`quadrature-stage-zero-descent`). ⛔ This sentence read *"stage 0
 compares one datum on both sides"* until 2026-09-02, when the datum
-comparison became an arrow plus a containment. Neither of the two rows
+comparison became an arrow plus a containment; the containment's right
+operand moved from the owed closure to the unspent symmetry at #434 R3
+(2026-09-03). Neither of the two rows
 it explains moved: `[M]` both are still ``✗`` at stage 0, because
 ``quotient_onto`` finds no arrow from :math:`S^2/O(2)_x` onto a bare
 interval or onto a differently-poled axial quotient.
@@ -2109,56 +2291,147 @@ Geometry → angular-symmetry assignment
 
 The selector's static geometry table
 (:data:`~orpheus.numerics.quadrature.registry.GEOMETRY_ANGULAR_SYMMETRY`)
-records **both halves** of each geometry's angular symmetry, for the
-reasons set out under *Spent and owed* above. One row per supported
+records **all three** of each geometry's angular-symmetry facts, for the
+reasons set out under *The ledger* above. One row per supported
 geometry; a new geometry is added here, never in the selector itself:
 
 .. list-table::
    :header-rows: 1
-   :widths: 18 12 12 12 46
+   :widths: 14 10 12 10 10 44
 
    * - Geometry
-     - :math:`G^0` (spent)
-     - Domain :math:`S^2/G^0`
-     - :math:`\Gamma` (owed)
+     - :math:`K` (spent)
+     - Domain :math:`S^2/K`
+     - :math:`\Gamma` (unspent)
+     - :math:`R` (owed)
      - Rationale
    * - ``"slab"``
      - :math:`O(2)_x`
      - :math:`S^2/O(2)_x`
+     - :math:`\{e\}`
      - :math:`\sigma_x`
-     - 1-D. Azimuthal rotation about the streaming axis is integrated
-       out, leaving :math:`\mu = \hat\Omega\cdot\hat e_x` alone. Owed is
+     - 1-D. Azimuthal rotation about the streaming axis — and every
+       reflection in a plane containing it — is integrated out, leaving
+       :math:`\mu = \hat\Omega\cdot\hat e_x` alone. **Nothing finite is
+       left unspent:** a slab's solution is not even in :math:`\mu` for
+       a general source, so no fold of its domain is licensed. Owed is
        :math:`\mu \to -\mu`, which pairs the two sweep senses;
        Gauss-Legendre nodes are symmetric (Stoer-Bulirsch §3.6), so it
-       holds. ⭐ Spent and owed now name the **same** axis, and so does
-       the real spherical-harmonic pole — one axis, stated on every half.
+       holds. ⭐ Spent and owed name the **same** axis, and so does
+       the real spherical-harmonic pole — one axis, stated on every part.
    * - ``"sphere"``
      - :math:`O(2)_x`
      - :math:`S^2/O(2)_x`
+     - :math:`\{e\}`
      - :math:`\sigma_x`
      - 1-D **radial** spherical SN reduces to GL on :math:`\mu_r`, the
        cosine of the angle between ordinate and radial direction
        (Lewis & Miller 1993 §4.4). The continuous problem is
-       :math:`O(3)`-symmetric; the radial reduction spends the azimuth
-       about :math:`\hat r`. Here the spent half is not free — its
-       fiber action reappears in the sweep as the
+       :math:`O(3)`-symmetric; the radial reduction spends the
+       stabiliser of :math:`\hat r`. Here the spent part is not free —
+       its fiber action reappears in the sweep as the
        angular-redistribution :math:`\alpha` term.
    * - ``"cylinder"``
      - trivial
      - :math:`S^2`
+     - :math:`D_{1h}`
      - :math:`D_{2h}`
      - An axisymmetric cylinder is :math:`\phi`-independent in
        *space*, which does not reduce the *angular* domain: both
-       angular degrees of freedom survive. The cylindrical SN sweep
+       angular degrees of freedom survive, so a rule lives on
+       :math:`S^2` or on a fold of it. What the solution keeps is
+       :math:`D_{1h} = \{e, \sigma_y, \sigma_z, C_2^x\}` about the
+       radial axis — derived below. The shipped ``folded_product``
+       spends :math:`\sigma_y`. The cylindrical SN sweep
        also requires per-:math:`\mu` polar-level structure; request it
        via ``level_structured=True``.
    * - ``"cartesian2d"``
      - trivial
      - :math:`S^2`
+     - :math:`\sigma_z`
      - :math:`D_{2h}`
-     - :math:`D_{2h} \cong (\mathbb{Z}_2)^3` is generated by the three
-       coordinate-plane mirrors, and its chambers are exactly the
-       octants the sweep decomposes into.
+     - 2-D Cartesian (x-y), z-uniform: :math:`\psi` is even in
+       :math:`\mu_z`, and in **nothing else** — so the
+       :math:`\sigma_y` fold that is legitimate on the cylinder is not
+       licensed here (ERR-081). :math:`D_{2h} \cong (\mathbb{Z}_2)^3`
+       is generated by the three coordinate-plane mirrors, and its
+       chambers are exactly the octants the sweep decomposes into —
+       which is precisely the symmetry a reflecting :math:`x` or
+       :math:`y` face needs to be representable exactly.
+
+Deriving :math:`\Gamma` — the cylinder, in its own local frame
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The unspent column is the one that has to be *read off the transport
+equation*, because it is a statement about the SOLUTION rather than
+about the discretisation. The cylinder is the interesting row and its
+derivation fixes the convention every other row is read in.
+
+The 1-D radial cylindrical sweep works in a LOCAL frame that rotates
+with the spatial azimuth :math:`\varphi`, and the tree's three ordinate
+columns are that frame's cosines
+(:attr:`Quadrature.eta
+<orpheus.numerics.quadrature.directional.Quadrature.eta>`,
+:attr:`~orpheus.numerics.quadrature.directional.Quadrature.xi` and
+:attr:`~orpheus.numerics.quadrature.directional.Quadrature.mu_z` —
+columns 0, 1, 2 of ``measure.nodes``):
+
+.. math::
+
+   \eta = \Omega\cdot\hat r, \qquad
+   \xi  = \Omega\cdot\hat\varphi, \qquad
+   \mu  = \Omega\cdot\hat z ,
+
+so :math:`\xi` is the **azimuthal** cosine and :math:`\mu` the **axial**
+one. The governing equation is
+:eq:`transport-cylindrical` on
+:doc:`/theory/methods/sn/index`:
+
+.. math::
+
+   \frac{\eta}{r}\frac{\partial (r\psi)}{\partial r}
+   - \frac{1}{r}\frac{\partial (\xi\psi)}{\partial\varphi}
+   + \Sigt{} \psi = \frac{Q}{W} .
+
+Two evenness statements follow, and together they generate
+:math:`D_{1h}`.
+
+* **Even under** :math:`\sigma_y` (:math:`\xi \to -\xi`). An
+  axisymmetric configuration is invariant under :math:`\varphi \to
+  -\varphi`, which reverses the sense of :math:`\hat\varphi` and so
+  pairs :math:`+\xi` with :math:`-\xi`; the scattering kernel depends
+  on :math:`\Omega\cdot\Omega'` and is invariant under any joint
+  orthogonal map. This is the reflection ``folded_product`` folds by,
+  and its own factory docstring names it the same way.
+* **Even under** :math:`\sigma_z` (:math:`\mu \to -\mu`). The geometry
+  is z-uniform, so :math:`\partial_z` is absent from the equation
+  entirely and :math:`\mu` enters only through
+  :math:`\lvert\eta\rvert = \sqrt{1-\mu^2}` — an even function.
+
+:math:`\langle \sigma_y, \sigma_z\rangle` is a Klein four-group, and
+`[M]` 2026-09-03 ``SubgroupOfO3.Dnh(1).realization`` has exactly the
+four elements :math:`\{e,\ \sigma_y,\ \sigma_z,\ C_2^x\}` — the
+:math:`D_{1h}` the table records, about the radial axis.
+
+.. warning::
+
+   ⚠ **Do not read** :math:`\sigma_z` **as the azimuthal fold.**
+   :math:`\sigma_z` negates column 2, the AXIAL cosine :math:`\mu`;
+   :math:`\sigma_y` negates column 1, the azimuthal :math:`\xi`. The
+   :math:`\sqrt{1-\cdot^2}` argument belongs to :math:`\mu` and not to
+   :math:`\xi`, which appears **linearly and explicitly** in the
+   redistribution term :math:`-(1/r)\,\partial(\xi\psi)/\partial\varphi`.
+   Getting this backwards would build a :math:`\sigma_z`-declared rule
+   that folds column 1 — and stage 0 reads the DECLARED
+   ``support.by``, not the nodes, so the mismatch would be admitted
+   silently and the wrong half of the sphere thrown away. The same
+   mislabel misdirects the r-z cylinder work, whose whole content is
+   dropping exactly the z-uniformity generator.
+
+The ``cartesian2d`` row is the same derivation with one clause removed:
+z-uniformity survives, axisymmetry does not, so :math:`\Gamma =
+\langle\sigma_z\rangle` alone. That single-clause difference is ERR-081
+in one line.
 
 .. note::
 
@@ -2169,17 +2442,23 @@ geometry; a new geometry is added here, never in the selector itself:
    coordinate axis carries that axis as data
    (:ref:`manifold-so2-axis-is-a-parameter`); at #432 it became the
    axis's full **stabiliser** :math:`O(2)_x`, user-ruled, because with
-   :math:`O(2)_x` spent the recorded residual :math:`\sigma_x` is
-   exactly :math:`G/G^0` — under :math:`SO(2)_x` the true residual is
-   the Klein four-group and the recorded mirror is half of it — and
+   :math:`O(2)_x` spent, the recorded :math:`\sigma_x` is exactly what
+   the reduction leaves owed — under :math:`SO(2)_x` it would be half of
+   a Klein four-group — and
    because the orbit space is named by its stabiliser either way
    (:ref:`manifold-orbit-space-stabiliser`). A slab IS symmetric under
-   :math:`y \to -y`. `[M]` stage 0 is unchanged on **24 of 24**
+   :math:`y \to -y`. ⛔ This paragraph argued the point as *"the recorded
+   residual is exactly* :math:`G/G^0`\ *"* until 2026-09-03. The ruling
+   is unchanged and the reason is: `[M]` :math:`O(2)_x` is DISCONNECTED,
+   so the two recorded entries were never a group and its component
+   quotient, and #434 R3 retired that framing along with the two-entry
+   ledger (see the symbols block under *The ledger* above). `[M]` stage 0 is unchanged on **24 of 24**
    (geometry × rule) rows — a statement about *this* change, and one a
    later step deliberately did not preserve: #429 tracker 2.2b
    (2026-09-02) replaced the equality with a lattice relation and `[M]`
-   moved 2 of 20 (constructor × geometry) pairs
-   (:ref:`manifold-gamma-slot`). And the domain is now
+   moved 2 of 20 (constructor × geometry) pairs — one of which #434 R3
+   moved back the next day, when the fold licence stopped being read off
+   the owed closure (:ref:`manifold-gamma-slot`). And the domain is now
    the **orbit space** rather than its chart, because
    :attr:`AngularSymmetry.support
    <orpheus.numerics.quadrature.registry.AngularSymmetry.support>`
@@ -2226,21 +2505,25 @@ The four canonical happy-path selections:
 
 * ``select_quadrature("slab", target_degree=15)``: the three
   :math:`S^2` rules fail stage 0, `[M]` verbatim (re-measured
-  2026-09-02; the clause after the dash is new at tracker 2.2b, when the
-  stage acquired its second conjunct) —
+  2026-09-03) —
   ``domain mismatch: geometry 'slab' discretises S^2/O2_x, but the
-  rule's nodes live on S^2 — no descent arrow onto it, or a fold by a
-  group outside the owed sigma_x`` — leaving GL1D (n=8 → degree 15, 8
+  rule's nodes live on S^2, and S^2/O2_x has no descent arrow onto it``
+  — leaving GL1D (n=8 → degree 15, 8
   nodes), whose own measure `[M]` declares ``support=S^2/O2_x``.
-  ⚠ The message is a **disjunction** and does not say which conjunct
-  bit; the two supports it prints are what let a reader resolve it.
-  `[M]` here it is the FIRST (no arrow), while for a cylinder rejecting
-  the slab's polar rule the arrow :math:`S^2 \to S^2/O(2)_x` does exist
-  and it is the SECOND — :math:`O(2)_x \not\subseteq D_{2h}`, an
-  infinite group cannot sit inside a finite one.
+  ⭐ The message names **one** clause, the one that actually bit; the
+  same rejection for a cylinder is the OTHER clause and says so:
+  `[M]` ``…the rule's nodes live on S^2/O2_x, a fold by O2_x, which is
+  not a symmetry the solution has in this geometry's frame (unspent
+  D_1h, spent Trivial)`` — the arrow :math:`S^2 \to S^2/O(2)_x` exists
+  there and it is the coverage test that refuses, because
+  :math:`SO(2)_x \not\subseteq \{0\}` on the identity components.
+  ⛔ Until #434 R3 (2026-09-03) the message was a **disjunction** —
+  *"no descent arrow onto it, or a fold by a group outside the owed
+  sigma_x"* — naming both causes on every refusal, and `[M]` on the
+  28-row grid it named a SATISFIED fact 17 times out of 17.
 
 * ``select_quadrature("sphere", target_degree=15)``: same path as
-  slab — identical spent/owed split after the 1-D radial reduction.
+  slab — an identical ledger row after the 1-D radial reduction.
 
 * ``select_quadrature("cylinder", target_degree=5,
   level_structured=True)``: ``ProductQuadrature`` with
@@ -2283,8 +2566,9 @@ the full decision provenance:
    for name, reason in log.rejected:
        print(f"  - {name}: {reason}")
    # - GaussLegendre1D: domain mismatch: geometry 'cartesian2d'
-   #   discretises S^2 (= S^2/Trivial), but the rule's nodes live
-   #   on [-1,1]
+   #   discretises S^2, but the rule's nodes live on S^2/O2_x, a fold
+   #   by O2_x, which is not a symmetry the solution has in this
+   #   geometry's frame (unspent sigma_z, spent Trivial)
 
 The rejection names its *stage*, and the stage is the diagnosis. A
 ``domain mismatch`` says the rule is the wrong shape of object for

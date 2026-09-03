@@ -1077,6 +1077,52 @@ any other review work.
     so no amount of care about the first can substitute for looking at
     the second.
 
+33. **NEVER let a fact recorded for ONE job be spent on ANOTHER** — a
+    symmetry (or tolerance, or tag) written down because predicate A needs
+    it must not be read by predicate B asking a different question —
+    **instead** give each job its own field, and name the field by the job.
+    The failure is silent in both directions: B is answered from a value
+    that was never a claim about B's question, and it stays green because
+    the two questions happen to agree on every shipped input.
+    The review tell is one grep: **a field read by two predicates whose
+    docstrings ask different questions.**  If the second reader cannot say
+    why the first job's answer is also its answer, it needs its own entry.
+    > `[M]` 2026-09-03, #434 D1 (`qa`, the symmetry-machine review). The
+    > quadrature registry recorded, per geometry, the closure a reflecting
+    > FACE needs (`D_2h`: the ordinates must be closed under the coordinate
+    > mirrors so a face reflection is an exact permutation). Stage 0 then
+    > read the SAME field as a FOLD licence — "a rule folded by a subgroup
+    > of what the geometry owes is admissible" — so `folded_product(4,8)`,
+    > a σ_y fold, was admitted for `cartesian2d`, whose z-uniform solution
+    > is even in μ_z ONLY: 2 of the 4 `(sign μ_x, sign μ_y)` sweep
+    > quadrants were empty. The two questions ("must the nodes be closed
+    > under σ?" and "is ψ even under σ?") agree on the cylinder and differ
+    > on the plane, and every registered rule lives on the cylinder side.
+    > Fixed at R3 by a THIRD field, `unspent` (the finite symmetry the
+    > solution still has in the local frame), and a total coverage test
+    > `H ⊆ unspent · spent` on the group the rule was folded by.
+34. **NEVER credit a "brute-force control" — or any second implementation
+    offered as an independent oracle — on the strength of its NAME**
+    — **instead** check that its BODY is structurally independent of the
+    thing it checks, and do it mechanically: compare the two ASTs after
+    α-normalisation (rename every local to a canonical placeholder). Two
+    functions that are α-equivalent are ONE implementation wearing two
+    names, and their agreement is a tautology, not evidence — anti-pattern
+    #7's shared-upstream-identity failure at the level of code rather than
+    of derivation.  A reviewer reading the two bodies separately does not
+    see it: each reads correctly, and the copy is what *made* them read
+    the same.
+    > `[M]` 2026-09-03, #434 C1 (`qa`). The symmetry module shipped an
+    > invariance predicate and a certificate builder whose three
+    > docstrings claimed "ONE closure"; the predicate's body INLINED a
+    > character-for-character copy of the closure's lambda. Nothing
+    > declared the copy, and the two agreed on every input by
+    > construction. The α-normalised AST check found it in one pass; R2
+    > of #434 then made the copy unspellable (the closure's `images_of`
+    > became REQUIRED and the second body was deleted), and the structural
+    > claim is now GATED — `_orbit_closure` has exactly one call site,
+    > asserted by AST in `tests/numerics/test_invariance.py`.
+
 ---
 
 ## The 6 AI failure modes — mechanism and detection

@@ -19,6 +19,37 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 retirement shim, scanner finding, plan line and "MEASURED" block are point-in-time snapshots.
 Verify, then write, then FLAG every scope-expansion the verification forced.
 
+- **⭐⭐ A `[M]` COUNT with no MEMBER SET stated is not reproducible — and the spread
+  over plausible sets is the finding.** A production docstring's *"197 such triples
+  over the expressible members"* would not reproduce: `[M]` on a natural 21-member
+  group set (12 finite ⟹ 21·12·21 = **5292**, the review's OWN denominator) it is
+  **217**; swapping one member reads 181 or 255. The denominator matched and the
+  numerator did not — the signature of an unstated set. Its neighbour in the same
+  docstring (*"441 of 441 ordered pairs"*) reproduced EXACTLY on the same set, so one
+  sentence held one reproducible number and one not. ⟹ publish YOUR count WITH the
+  members enumerated, and quote the WITNESS (`O(2)_x ⊆ O_h·SO(2)_x` while neither
+  factor contains it) — a witness is a theorem, a count is a fixture. → L-091
+- **⭐⭐ A "shipped" denominator can contain a CONSTRUCTED member — enumerate candidate
+  sets until one reproduces.** *"4 geometries × 7 shipped rules ⟹ 17 refusals, 14
+  arrow / 3 coverage / 0 both"* reproduces to the row for exactly ONE 7-rule set whose
+  seventh member no factory ships (a σ_z fold built by `.quotient(Mirror("z"))`). `[M]`
+  the five shipped factories alone give 8 arrow / 3 coverage of 20. The set is RIGHT —
+  it is the only input separating two geometries' Γ — and the WORD is wrong. The search
+  is the evidence; publish the enumeration. → L-091
+- **⭐⭐ A test docstring's "this leg is INERT in production" is a NEGATIVE claim, and an
+  in-process neutering measures it in 20 s.** `[M]` a gate's honest-scope note said
+  *"nothing registered is a fold, and the 1-D rule is refused by stage 2 first"* — both
+  false: the registered `GaussLegendre1D` IS a fold (`S^2/O(2)_x`) and the shipped log
+  shows stage 0's coverage clause refusing it. Monkeypatching the predicate to `True`
+  (restored in `finally`, identity-verified) moved the rejection to stage 2 and left the
+  CHOSEN rule unchanged ⟹ the honest scope is *"changes the REASON, not the
+  selection"*, which is strictly stronger. Report the docstring; you do not edit
+  `tests/`. → L-091
+- **⭐ Re-measure a SIGN-COUNT: `sign(0)` is a third class.** I relayed *"all 8 octants
+  populated, 4 nodes each"* for a product rule; `[M]` **16 of its 32 nodes lie ON a
+  coordinate plane**, the four strictly-signed quadrants carry 4 and the eight
+  strictly-signed octants carry **2**. Say "strictly-signed" and give the on-plane
+  count. → L-091
 - **⭐⭐ A `[M]` whose DENOMINATOR is a COMPUTED SET has a shelf life the FINDING does
   not — write what computes it.** `[M]` two sites read *"the reduction agrees on **150 of
   150** (sphere rule × candidate group) rows"*; re-measured it is **144 of 144**, every
@@ -1378,6 +1409,24 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 **Meta-rule: grep the SYMBOL, the full MODULE PATH, and the CONCEPT'S human paraphrase. Then ask of
 each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
 
+- **⭐⭐ A FIELD SPLIT is not a rename: one survivor inherits the retired name's LETTER,
+  and the corpus symbol usually follows the WRONG one.** `discrete_residual` (Γ, the
+  OWED closure) split into `unspent` + `owed`, and the carve gave Γ to `unspent` — so
+  every pre-split "Γ" sentence is INVERTED, not merely stale. ⟹ ship a **SYMBOLS
+  block** as a labelled admonition with a `Symbol | Field | Meaning | Was` table (the
+  fourth column is what makes it a tombstone) plus a grep-able discriminator
+  (*"a page that pairs Γ with G⁰, or calls Γ a residual, predates <date>"*). And an
+  ANCHOR naming the retired letter is RETITLED to the concept, anchor KEPT, with a head
+  `.. note::` saying the name is a fossil — `[M]` all 7 citers on 3 pages then render
+  the new title for free. → L-091
+- **⭐ A page's own ⭐ argument FOR a special case becomes the derivation of the
+  requirement its replacement satisfies — re-home it, never delete it.** The
+  equality-short-circuit argument (`σ_x ⊉ O(2)_x`, so reading the fold group against
+  the geometry's own domain refuses that domain) is exactly why the successor predicate
+  needing no such case is better (`[M]` `O(2)_x ⊆ {e}·O(2)_x`). Put it inside the dated
+  ⛔ as numbered item 2, where the falsified design and its replacement's justification
+  are one sentence. → L-091
+
 - **⭐⭐ An ONTOLOGY OVERTURN is not a retirement sweep — grep the retired symbol to FIND the
   sites, then read the enclosing ARGUMENT to decide the edit.** The dead-ref half finishes in
   one pass; the load-bearing half has no dead symbol in it. A five-obstruction proof that
@@ -1821,6 +1870,14 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
 
 ## 6. Match the doc SHAPE to the event class
 
+- **⭐⭐ A LEDGER GAINING A FIELD splits across two pages by REGISTER, not by size.**
+  The point-set/group page takes the THEOREM (the new predicate derived off the page's
+  own decomposition equation), a row in its existing *one body per question* table, and
+  the measured admission grid; the ALGORITHM page takes the ledger, the SYMBOLS block,
+  the per-geometry derivation with its coordinate conventions, and the worked examples.
+  Each cites the other once. `[M]` zero new eq-labels — both existing `:eq:` APIs
+  re-worded with their labels kept, so sentinels did not move. → L-091
+
 - **⭐⭐ A KERNEL CHANGING HOUSE (a module split + a receiver↔argument rename) splits into
   TWO registers, and putting both in one place is the twin.** The kernel's MATHEMATICS
   stays where its argument already flows (three conjuncts, in the chapter that derives the
@@ -2165,6 +2222,16 @@ never paraphrase a level definition. → L-010
   inert**. Corpus reading (control removed) over `docs orpheus tests`: **0 dead**, 1006 files /
   16 886 roles / 14 184 decidable. The fix is still UNLANDED in
   `tools/check_docstring_xrefs.py`. -> L-082
+- **⛔⛔ An ERR entry WITHOUT its `catches` marker REDDENS A GATE — a docs-only pass can
+  break the suite, and only running the gate finds it.** `[M]` adding ERR-081 moved the
+  generated `.claude/skills/vv-principles/error_index.md` 80/0-uncaught → 81/1 (never
+  hand-edit it) AND turned
+  `tests/test_error_catalogue_reconciles.py::test_every_declared_entry_has_a_catching_test`
+  RED; its docstring offers *"or say in the entry why no test can exist"* but the
+  assertion parses nothing, so there is **no machine-readable exemption**. ⟹ after
+  minting any `.. error-entry::`, RUN
+  `pytest tests/test_error_catalogue_reconciles.py`, and report the required
+  `@pytest.mark.catches("ERR-NNN")` as BLOCKING, not as a nicety. → L-091
 - **⭐ This corpus's structural self-check has THREE standing false positives — record
   them or every run re-litigates.** `[M]` 2026-09-03: the `boltzmann` "duplicate eq-label"
   is a `.. code-block:: rst` EXAMPLE in `harness.rst`; a "ragged `list-table`" row is a

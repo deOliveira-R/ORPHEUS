@@ -109,7 +109,6 @@ __all__ = [
     "archimedes",
     "barycentre",
     "quotient_onto",
-    "spent_group",
 ]
 
 #: Tolerance for :meth:`Manifold.contains` on a curved manifold.  A node
@@ -1413,44 +1412,6 @@ def quotient_onto(source: Manifold, target: Manifold) -> ManifoldMap | None:
                 domain=source, codomain=target, apply=target.orbit_coordinates,
             )
     return None
-
-
-def spent_group(source: Manifold, target: Manifold) -> SubgroupOfO3 | None:
-    r"""The group the descent arrow ``source -> target`` SPENDS, or ``None``
-    when :func:`quotient_onto` has no arrow.
-
-    What a registry's stage 0 asks of a fold (#429 tracker 2.2b): a rule on
-    :math:`X` is admissible for a geometry whose domain is :math:`D` iff
-    :math:`D` descends onto :math:`X` AND what the descent spends lies in
-    the residual the geometry still OWES — so the question is about the
-    ARROW, not about the group :math:`X` was quotiented by relative to its
-    own base (`[M]` reading ``X.by`` there refuses the geometry's own domain:
-    the slab's :math:`\sigma_x \not\supseteq O(2)_x`). Three cases, the
-    arrow's own:
-
-    * the identity (``source == target``, or the trivial quotient onto its
-      base) spends :math:`\{e\}`;
-    * the entry's own quotient map (``source`` is the base of ``target``)
-      spends ``target.by``;
-    * the induced map between two quotients of one base spends the part of
-      ``target.by`` beyond ``source.by`` — a coset space, not a subgroup, and
-      the geometry's FULL group :math:`G = G^0\Gamma` that it must lie in is
-      not a registry field — refused naming the missing work; `[M]` no
-      shipped rule reaches it (every shipped fold is of the bare sphere).
-    """
-    if quotient_onto(source, target) is None:
-        return None
-    if source == target or not isinstance(target, Quotient):
-        return SubgroupOfO3.Trivial
-    if source == target.base:
-        return target.by
-    raise NotImplementedError(
-        f"what the induced arrow {source.name} -> {target.name} spends is a "
-        f"coset of {target.by.name} by {getattr(source, 'by', source).name}, "
-        f"and admitting it needs the geometry's FULL group G = G^0 Gamma, "
-        f"which the registry does not record; add it to AngularSymmetry "
-        f"when a fold of a reduced domain ships."
-    )
 
 
 def _act_through(orbit_space: Quotient, motion: "RigidMotion", points: NDArray) -> NDArray:

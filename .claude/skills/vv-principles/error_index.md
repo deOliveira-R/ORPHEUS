@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**80 entries · 282 catching tests · 0 uncaught.**
+**81 entries · 287 catching tests · 0 uncaught.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-081` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-081")`.
+Append a `.. error-entry:: ERR-082` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-082")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -113,3 +113,4 @@ None — every catalogued defect has at least one catching test.
 | ERR-078 | 3 | RadialCharacteristicOperator.solve set the outflow corner to the marched value and never read t… |
 | ERR-079 | 10 | IterationRecord.exhausted_budget compared a scipy GMRES restart-cycle budget against an Arnoldi… |
 | ERR-080 | 16 | A 1-D quadrature supplies mu_y = mu_z = 0 meaning "there is no azimuthal information" and the r… |
+| ERR-081 | 5 | The quadrature registry recorded ONE finite group per geometry — the reflection closure a refle… |

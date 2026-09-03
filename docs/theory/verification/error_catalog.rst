@@ -5625,8 +5625,13 @@ older entries classify against.
    1. **2026-08-03** — the ``invariance_group=SO2`` tags this paragraph
       names were **retired**. The spent group moved off the invariance
       tag (a claim about node-set *closure*) and onto the geometry
-      table's ``continuous_isotropy`` (a claim about the *reduction*),
-      which is where the two-claims-one-name split is actually resolved.
+      table's spent slot (a claim about the *reduction*), which is where
+      the two-claims-one-name split is actually resolved. ⚠ That slot
+      was called ``continuous_isotropy`` until #434 R3 renamed it
+      ``spent`` on 2026-09-03, when the ledger grew a third entry —
+      and the split this bullet celebrates turned out to be
+      **incomplete** in exactly this entry's own shape: the OTHER slot
+      was carrying two claims under one name, which is ERR-081.
    2. **2026-09-01 (tracker 2.4 of #429)** — *"every node lies on the
       axis"* was itself under-specified, because **which** axis is not a
       convention in this tree: `[M]` ``_evaluate_real_sh`` takes
@@ -6938,3 +6943,175 @@ older entries classify against.
      rank-deficiency discovered while TUNING A TOLERANCE is a structural fact
      wearing a numerical costume — before pinning an ``rcond`` that discards a
      mode, identify the mode.
+
+.. error-entry:: ERR-081
+   :title: The quadrature registry recorded ONE finite group per geometry — the reflection closure a reflecting FACE is owed — and stage 0 read it as a FOLD LICENCE, so a sigma_y-folded rule was admitted for a z-uniform Cartesian plane whose solution is even in mu_z alone, leaving 2 of the 4 (sign mu_x, sign mu_y) sweep quadrants empty
+
+
+   **Status:** ✅ **FIXED 2026-09-03 — #434 R3.** The ledger carries a
+   THIRD field, ``unspent``, and stage 0's coverage test reads that one.
+   Bounded while it was live: `[M]` ``folded_product`` is not in
+   ``quadrature_registry``, so ``select_quadrature`` never presented the
+   rule to stage 0 — the admission was reachable only by calling
+   ``AngularSymmetry.admits_domain`` directly, which is what a consumer
+   registering the fold would have done next.
+
+   **Failure mode:** **#6 (convention drift)** — the definition site and
+   the usage site disagreed about what the recorded group MEANT. It is
+   also the first catalogued instance of ``vv-principles`` anti-pattern
+   **#33**: a fact recorded for one job spent on another.
+
+   **Module:**
+   :class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`, stage
+   0 (``admits_domain``) and the
+   :data:`~orpheus.numerics.quadrature.registry.GEOMETRY_ANGULAR_SYMMETRY`
+   table.
+
+   **Mechanism.** From 2026-08-02 the registry recorded two facts per
+   geometry: the continuous part the dimensional reduction SPENT, and
+   one finite group. That finite group's job is stated in its own
+   docstring and is unambiguous — a reflecting face maps ordinate
+   :math:`m` to ordinate :math:`m'` *exactly* only if the node set is
+   closed under the face reflection, so the quadrature OWES that
+   closure. Then #429 tracker 2.2b (2026-09-02) taught stage 0 to admit
+   a rule living on a FOLD of the geometry's domain, and it needed a
+   bound on which folds. The only finite group on hand was the owed
+   closure, so the new conjunct asked whether what the fold spends lies
+   inside it.
+
+   Those are two different questions:
+
+   - *"the node set must be closed under* :math:`\sigma` *"* is a demand
+     on the QUADRATURE, made so that a boundary condition is exact;
+   - *"the solution is even under* :math:`\sigma` *"* is a fact about
+     the PHYSICS, and it is what licenses throwing half the sphere away.
+
+   On an axisymmetric cylinder they agree, because the solution really
+   is even under the local azimuthal reflection. On a z-uniform
+   Cartesian plane they do not: `[M]` 2026-09-03 that geometry owes
+   :math:`D_{2h}` — the three coordinate mirrors, whose chambers are the
+   octants the sweep decomposes into — while its solution is even in
+   :math:`\mu_z` **alone**. :math:`\sigma_y \in D_{2h}`, so a
+   :math:`\sigma_y` fold passed.
+
+   **Symptom, measured.** `[M]` 2026-09-03 on
+   ``Quadrature.folded_product(4, 8)``, the shipped :math:`\sigma_y`
+   fold: all 16 nodes carry :math:`\mu_y \in [+0.1945, +0.8688]`, so
+   the :math:`(\operatorname{sign}\mu_x, \operatorname{sign}\mu_y)`
+   populations are :math:`(-,+) : 8` and :math:`(+,+) : 8` — **2 of the
+   4 quadrants are empty**, and 4 of the 8 strictly-signed octants. A
+   2-D Cartesian sweep decomposes by exactly those quadrants, so half of
+   them would have had no ordinates to march. Compare the unfolded
+   ``product(4, 8)``: `[M]` each of the four quadrants carries 4 of its
+   32 nodes, all 8 strictly-signed octants carry 2, and the remaining
+   16 nodes lie ON a coordinate plane (:math:`\mu_x` or :math:`\mu_y`
+   exactly :math:`0`).
+
+   **How it hid.** Three things, and the third is the general lesson.
+
+   1. **No shipped rule sat on the disagreeing side.** `[M]` the fold is
+      unregistered, so the selector never asked. Of the four registered
+      specs three are bare (:math:`H = \{e\}` — Lebedev,
+      level-symmetric, product), which every ledger spelling admits;
+      the fourth, ``GaussLegendre1D``, IS a fold
+      (:math:`H = O(2)_x`) and IS refused for the 2-D geometries by the
+      coverage leg — but for a reason the two ledgers agree on, since
+      :math:`O(2)_x` is infinite and lies inside neither
+      :math:`D_{2h}` nor :math:`\Gamma K`. `[M]` neutering the coverage
+      leg in-process moves that rejection from stage 0 to stage 2's
+      V conjunct (*"exact against legendre, but geometry 'cylinder'
+      integrates against uniform(S^2)"*) and leaves the CHOICE
+      unchanged.
+   2. **Stage 1 is GREEN on the offending rule, correctly.** `[M]`
+      2026-09-03 ``cartesian2d.admits_symmetry(folded_product(4, 8))``
+      is ``True``: the owed :math:`D_{2h}` genuinely IS realized as an
+      ordinate permutation on the orbit space, because
+      :math:`\sigma_y` acts trivially there. So the pair of stages read
+      ✓/✓ and looked like a well-supported admission.
+   3. **The refusal message could not have said otherwise.** Stage 0's
+      text was a DISJUNCTION — *"no descent arrow onto it, or a fold by
+      a group outside the owed sigma_x"* — naming both causes on every
+      refusal while the predicate had already decided which one bit and
+      discarded the answer. `[M]` over 4 geometries × 7 rules, the 17
+      stage-0 refusals split **14 arrow-only / 3 coverage-only / 0
+      both**, so the message named a *satisfied* fact on all 17. A
+      reader of a genuine licence refusal was sent to look for a missing
+      arrow.
+
+   **Fix.** Three fields, three jobs
+   (:class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`):
+   ``spent`` :math:`K` derives the domain and the reference measure;
+   ``unspent`` :math:`\Gamma` is the finite symmetry the solution still
+   has in the geometry's local frame and is the ONLY thing stage 0 reads
+   as a fold licence; ``owed`` :math:`R` is stage 1's, unchanged. The
+   coverage test is
+   :math:`H \subseteq \Gamma K` on the group :math:`H` the rule's
+   support was folded by
+   (:meth:`SubgroupOfO3.is_subset_of_product
+   <orpheus.numerics.symmetry.SubgroupOfO3.is_subset_of_product>`,
+   derived at :ref:`manifold-coverage-by-a-product-section`). `[M]`
+   2026-09-03 the cylinder reads :math:`(\{e\},\ D_{1h},\ D_{2h})` and
+   the plane :math:`(\{e\},\ \sigma_z,\ D_{2h})`, so the
+   :math:`\sigma_y` fold is admitted on the first
+   (:math:`\sigma_y \subseteq D_{1h}\{e\}`) and REFUSED on the second
+   (:math:`\sigma_y \not\subseteq \sigma_z\{e\}`), while a
+   :math:`\sigma_z` fold is admitted on both.
+   ``AngularSymmetry.domain_refusal`` now returns the ONE failing clause
+   and the selector appends it, so the licence refusal says
+   *"a fold by sigma_y, which is not a symmetry the solution has in this
+   geometry's frame (unspent sigma_z, spent Trivial)"* and does not
+   mention arrows.
+
+   **Nothing selected moved.** `[M]` 2026-09-03 against the frozen
+   baseline at ``tests/numerics/data/r2_selection_baseline.json``, all
+   **48** (geometry × target degree) rows keep their chosen spec name,
+   parameters and node count; **96** ``domain mismatch`` strings were
+   re-worded and **8 of 8** ``symmetry mismatch`` strings are
+   byte-identical.
+
+   **Catching test — SHIPPED (#434 R3, 2026-09-03):**
+   ``tests/numerics/test_registry.py``, class
+   ``TestStageZeroIsTheDescentArrowPlusTheUnspentSymmetry``. Its
+   ``test_a_z_fold_is_admitted_iff_its_mirror_lies_in_the_unspent_symmetry``
+   is the direct witness: it asserts the plane REFUSES the
+   :math:`\sigma_y` fold, ADMITS the :math:`\sigma_z` fold, and that the
+   refusal reason names ``unspent sigma_z`` and ``fold by sigma_y`` and
+   does **not** contain ``descent arrow``. The sibling rows pin the
+   other conjunct (a 1-D rule refused for a 2-D geometry by the
+   identity-component leg, with the arrow present) and the row a naive
+   spelling breaks (the slab's own rule, admitted with no equality short
+   circuit).
+
+   ⚠ **The 14 / 3 / 0 split's denominator, stated so it re-runs.** The
+   seven rules are ``gauss_legendre(8)``, ``gauss_legendre_on_mu(8)``,
+   ``product(4, 8)``, ``folded_product(4, 8)``, ``lebedev(5)``,
+   ``level_symmetric(4)`` and ``product(4, 8).quotient(Mirror("z"))`` —
+   the last CONSTRUCTED rather than shipped, because it is the only
+   input that separates the cylinder's :math:`\Gamma` from the plane's.
+   `[M]` on the five ``Quadrature`` factories alone the same grid reads
+   9 admitted / 8 arrow / 3 coverage of 20.
+
+   ⛔ **The marker is a REQUIRED companion edit, and the tree enforces
+   it.** The gate above is named in prose here; a
+   ``@pytest.mark.catches("ERR-081")`` on that class is what turns the
+   claim into a graph edge. Until it lands,
+   ``tests/test_error_catalogue_reconciles.py::test_every_declared_entry_has_a_catching_test``
+   is RED (*"1 catalogued defect(s) have no @pytest.mark.catches"*) and
+   the generated index lists ERR-081 under **Uncaught** — by design, on
+   both counts: `vv-principles` defines a ``catches`` marker as a
+   coverage CLAIM, so its absence is the honest signal that the claim
+   was never made, and the arm has no machine-readable exemption.
+
+   **Lesson.** A group is not a fact about a geometry; a group *in a
+   named slot* is. When a second consumer needs "a finite symmetry of
+   this geometry", it will find the one that is already recorded and use
+   it — and the two questions will agree on every shipped input, because
+   the shipped inputs are what the first slot was chosen for. ⟹ give
+   each job its own field, name the field by the JOB rather than by the
+   mathematics (``owed`` and ``unspent``, not ``residual``), and when
+   two predicates read one field, ask whether the second one can say
+   *why* the first one's answer is also its answer. Here it could not.
+   → ``vv-principles`` anti-pattern #33; and the review that found it
+   also produced #34 (a "brute-force control" credited on its name —
+   check independence by α-normalised AST, because a copied body is a
+   tautology wearing two names).

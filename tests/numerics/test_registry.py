@@ -137,30 +137,40 @@ def test_registry_specs_are_well_formed() -> None:
 def test_geometry_angular_symmetry_table() -> None:
     """Each geometry declares both halves of its angular symmetry.
 
-    The SPENT continuous half fixes the angular domain; the OWED
-    discrete half is what a quadrature must realize as an ordinate
-    permutation. Recording only the spent half (as this table did
-    until 2026-08-02) makes the selection gate unsatisfiable — no
-    finite point set on S^2 is SO(2)-closed.
+    The SPENT stabiliser fixes the angular domain; the UNSPENT finite
+    symmetry — what the solution still has in the local frame — is the fold
+    licence (R3 of #434, 2026-09-03); the OWED closure is what a quadrature
+    must realize as an ordinate permutation for a reflecting face. Recording
+    only the spent half (as this table did until 2026-08-02) makes the
+    selection gate unsatisfiable — no finite point set on S^2 is
+    SO(2)-closed; recording owed without unspent (until R3) let the face
+    closure be read as a fold licence.
     """
     assert GEOMETRY_ANGULAR_SYMMETRY == {
         # The spent group names the SAME axis as the owed mirror's normal:
-        # the polar marginal embeds along x, and a slab spends SO(2)_x.
+        # the polar marginal embeds along x, and a slab spends O(2)_x.
         "slab": AngularSymmetry(
-            continuous_isotropy=SubgroupOfO3.O2("x"),
-            discrete_residual=SubgroupOfO3.Mirror("x"),
+            spent=SubgroupOfO3.O2("x"),
+            unspent=SubgroupOfO3.Trivial,
+            owed=SubgroupOfO3.Mirror("x"),
         ),
         "sphere": AngularSymmetry(
-            continuous_isotropy=SubgroupOfO3.O2("x"),
-            discrete_residual=SubgroupOfO3.Mirror("x"),
+            spent=SubgroupOfO3.O2("x"),
+            unspent=SubgroupOfO3.Trivial,
+            owed=SubgroupOfO3.Mirror("x"),
         ),
+        # z-uniform (even in the axial cosine mu: sigma_z) AND azimuthally
+        # symmetric (even in the azimuthal cosine xi: sigma_y) — D_1h.
         "cylinder": AngularSymmetry(
-            continuous_isotropy=SubgroupOfO3.Trivial,
-            discrete_residual=SubgroupOfO3.Dnh(2),
+            spent=SubgroupOfO3.Trivial,
+            unspent=SubgroupOfO3.Dnh(1),
+            owed=SubgroupOfO3.Dnh(2),
         ),
+        # z-uniform only: even in mu_z, and in nothing else (D1 of #434).
         "cartesian2d": AngularSymmetry(
-            continuous_isotropy=SubgroupOfO3.Trivial,
-            discrete_residual=SubgroupOfO3.Dnh(2),
+            spent=SubgroupOfO3.Trivial,
+            unspent=SubgroupOfO3.Mirror("z"),
+            owed=SubgroupOfO3.Dnh(2),
         ),
     }
 
@@ -946,11 +956,12 @@ def test_log_records_geometry_metadata() -> None:
     )
     assert log.geometry == "cylinder"
     assert log.angular_symmetry == AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.Trivial,
-        discrete_residual=SubgroupOfO3.Dnh(2),
+        spent=SubgroupOfO3.Trivial,
+        unspent=SubgroupOfO3.Dnh(1),
+        owed=SubgroupOfO3.Dnh(2),
     )
-    # Both halves are reconstructible from the log, so a reader can
-    # replay stages 0 and 1 without re-deriving the decomposition.
+    # All three entries are reconstructible from the log, so a reader can
+    # replay stages 0 and 1 without re-deriving the ledger.
     assert log.angular_symmetry.support == SPHERE
     assert log.target_degree == 4
     assert log.requested_flags == {"level_structured": True}
@@ -1199,7 +1210,7 @@ def test_registry_override_success_path() -> None:
 
 @pytest.mark.foundation
 def test_support_is_derived_from_the_spent_group_not_declared() -> None:
-    """The angular domain IS the quotient S^2/G^0.
+    """The angular domain IS the orbit space S^2/K of the SPENT stabiliser.
 
     Deriving it rather than storing a second column is what keeps the
     domain and the spent group from drifting apart — they are one fact,
@@ -1210,21 +1221,24 @@ def test_support_is_derived_from_the_spent_group_not_declared() -> None:
     # exactly what a SPATIAL rule on [-1,1] declared.
     for axis in ("x", "y", "z"):
         assert AngularSymmetry(
-            continuous_isotropy=SubgroupOfO3.O2(axis),
-            discrete_residual=SubgroupOfO3.Mirror(axis),
+            spent=SubgroupOfO3.O2(axis),
+            unspent=SubgroupOfO3.Trivial,
+            owed=SubgroupOfO3.Mirror(axis),
         ).support == SPHERE.quotient(SubgroupOfO3.O2(axis))
 
     assert AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.Trivial,
-        discrete_residual=SubgroupOfO3.Dnh(2),
+        spent=SubgroupOfO3.Trivial,
+        unspent=SubgroupOfO3.Mirror("z"),
+        owed=SubgroupOfO3.Dnh(2),
     ).support == SPHERE
 
     # An unmapped quotient must refuse loudly rather than guess: a wrong
     # domain silently admits a rule of the wrong dimensionality.
     with pytest.raises(NotImplementedError, match="S\\^2/"):
         _ = AngularSymmetry(
-            continuous_isotropy=SubgroupOfO3.OctahedralOh,
-            discrete_residual=SubgroupOfO3.Mirror("z"),
+            spent=SubgroupOfO3.OctahedralOh,
+            unspent=SubgroupOfO3.Trivial,
+            owed=SubgroupOfO3.Mirror("z"),
         ).support
 
 
@@ -1312,7 +1326,7 @@ def test_selector_asks_the_nodes_not_the_declared_tag() -> None:
     # The honest declaration and the nodes now agree — no trap left here.
     declared = gl.invariance_group
     assert declared is not None
-    assert declared.contains(slab.discrete_residual)
+    assert declared.contains(slab.owed)
     assert slab.admits_symmetry(gl)
 
     # Weaken the DECLARATION to something true-but-not-maximal. Every
@@ -1323,7 +1337,7 @@ def test_selector_asks_the_nodes_not_the_declared_tag() -> None:
     # must accept...
     weakened = understated.invariance_group
     assert weakened is not None
-    assert not weakened.contains(slab.discrete_residual)
+    assert not weakened.contains(slab.owed)
     # ...while stage 1, which asks the NODES, is unmoved.
     assert slab.admits_symmetry(understated)
 
@@ -1361,8 +1375,9 @@ def test_the_reference_is_READ_off_the_catalogue_entry() -> None:
     assert cylinder.reference is UNIFORM_ON_SPHERE
 
     spends_a_mirror = AngularSymmetry(
-        continuous_isotropy=SubgroupOfO3.Mirror("y"),
-        discrete_residual=SubgroupOfO3.Trivial,
+        spent=SubgroupOfO3.Mirror("y"),
+        unspent=SubgroupOfO3.Trivial,
+        owed=SubgroupOfO3.Trivial,
     )
     mirror_entry = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
     assert spends_a_mirror.support == mirror_entry
@@ -1399,19 +1414,21 @@ def test_the_one_dimensional_geometries_spend_the_STABILISER_not_its_rotation_ha
     """
     for geometry in ("slab", "sphere"):
         symmetry = GEOMETRY_ANGULAR_SYMMETRY[geometry]
-        assert symmetry.continuous_isotropy == SubgroupOfO3.O2("x"), geometry
-        assert symmetry.continuous_isotropy != SubgroupOfO3.SO2("x")
-        assert symmetry.discrete_residual == SubgroupOfO3.Mirror("x")
-        # the residual is genuinely OUTSIDE the spent group
-        assert not symmetry.continuous_isotropy.contains(symmetry.discrete_residual)
+        assert symmetry.spent == SubgroupOfO3.O2("x"), geometry
+        assert symmetry.spent != SubgroupOfO3.SO2("x")
+        assert symmetry.owed == SubgroupOfO3.Mirror("x")
+        # nothing finite is left unspent by a 1-D reduction
+        assert symmetry.unspent == SubgroupOfO3.Trivial
+        # the owed closure is genuinely OUTSIDE the spent group
+        assert not symmetry.spent.contains(symmetry.owed)
         # ... and the other two mirrors are INSIDE it, so "outside" is a
         # discriminating statement about sigma_x and not about mirrors.
         for inside in ("y", "z"):
-            assert symmetry.continuous_isotropy.contains(SubgroupOfO3.Mirror(inside))
+            assert symmetry.spent.contains(SubgroupOfO3.Mirror(inside))
 
     for geometry in ("cylinder", "cartesian2d"):
         symmetry = GEOMETRY_ANGULAR_SYMMETRY[geometry]
-        assert symmetry.continuous_isotropy == SubgroupOfO3.Trivial, geometry
+        assert symmetry.spent == SubgroupOfO3.Trivial, geometry
         assert symmetry.support == SPHERE
 
 
@@ -1517,30 +1534,44 @@ _g22b_INCOMMENSURATE = (1.0, float(np.sqrt(2.0)), float(np.e), 2.5, float(np.sqr
 
 # G12 — tests/numerics/test_registry.py
 # =============================================================================
-class TestStageZeroIsTheDescentArrowPlusTheOwedResidual:
-    r"""(vii) Stage 0 through the arrow.
+@pytest.mark.catches("ERR-081")
+class TestStageZeroIsTheDescentArrowPlusTheUnspentSymmetry:
+    r"""(vii) Stage 0 through the arrow, and the coverage test.
 
-    `[M]` 2026-09-02, over 4 geometries × 7 rules = 28 rows, the carve moves
-    **4**: cylinder and cartesian2d each admit the σ_y fold AND a σ_z fold,
-    where equality refused both.  Nothing else moves.
+    `[M]` 2026-09-02, over 4 geometries × 7 rules = 28 rows, the arrow carve
+    moved **4**: cylinder and cartesian2d each admitted the σ_y fold AND a σ_z
+    fold, where equality refused both.  R3 of #434 (2026-09-03) then moved
+    exactly **one** of those back: the σ_y fold on ``cartesian2d`` is REFUSED,
+    because the fold spent a symmetry a z-uniform Cartesian solution does
+    not have (its only unspent symmetry is σ_z) — the owed closure had been
+    read as a fold licence (D1).
 
     Two legs, and BOTH have a live witness at landing (``plan-authoring``
     §6c):
 
-    * the **equality short circuit** is load-bearing on **10** rows — remove
-      it and ``sigma_x ⊇ O2_x`` reads ``False``, so the SLAB refuses its own
-      Gauss-Legendre rule and the cylinder refuses every sphere rule;
-    * the **Γ-containment leg** is load-bearing on **4** rows — remove it and
-      the arrow ``S² → S²/O2_x`` admits a 1-D POLAR rule for a 2-D geometry.
+    * the **descent arrow** ``S²/K → X`` must exist — remove it and the slab
+      admits a σ_y fold it has no arrow onto;
+    * the **coverage leg** ``H ⊆ Γ·K`` (:meth:`SubgroupOfO3.is_subset_of_product`)
+      — remove it and the arrow ``S² → S²/O2_x`` admits a 1-D POLAR rule for
+      a 2-D geometry, and cartesian2d admits the σ_y fold again.  It is
+      TOTAL: the slab's own rule passes it as ``O2_x ⊆ {e}·O2_x``, so there
+      is no equality short circuit to keep in front of it (until R3 there
+      was one, because the predecessor ``owed.contains(H)`` refused the
+      slab's own rule — ``σ_x ⊉ O(2)_x`` — and needed the identity case
+      short-circuited).
 
-    ⚠ **And the honest scope of the second one.** `[M]` at the
-    ``select_quadrature`` tier the Γ leg is INERT: with it removed the
-    selector picks the same spec on all 16 (geometry × degree) rows, because
-    stage 2's V conjunct refuses ``GaussLegendre1D`` for the cylinder first
-    (*"the rule is exact against legendre, but geometry 'cylinder' integrates
-    against uniform(S^2)"*).  So the leg's gate belongs HERE, at the
-    ``admits_domain`` tier, and no end-to-end selector row may be credited
-    to it.
+    ⚠ **And the honest scope of the coverage leg at the selector tier.**
+    `[M]` at ``select_quadrature`` it changes the REASON and never the
+    selection: ``GaussLegendre1D`` IS registered and IS a fold (``S^2/O2_x``,
+    ``H = O(2)_x``), and the shipped log for ``select_quadrature("cylinder",
+    5)`` refuses it at stage 0 by the coverage clause (*"a fold by O2_x …
+    unspent D_1h, spent Trivial"*); neuter the leg in-process and the refusal
+    moves to stage 2's V conjunct while the choice, ``LebedevSphere(5)``,
+    stays — 0 of 48 (geometry × degree) choices move.  So the leg's gate
+    belongs HERE, at the ``admits_domain`` tier, and no end-to-end selector
+    row may be credited to it.  (Until 2026-09-03 this paragraph said
+    "nothing registered is a fold" and named stage 2 as the refuser — both
+    false, the archivist measured.)
     """
 
     @pytest.mark.foundation
@@ -1550,45 +1581,62 @@ class TestStageZeroIsTheDescentArrowPlusTheOwedResidual:
         fold = Quadrature.folded_product(4, 8).measure
         assert cyl.admits_domain(fold)
         assert quotient_onto(cyl.support, fold.support) is not None
-        assert cyl.discrete_residual.contains(fold.support.by)
+        assert fold.support.by.is_subset_of_product(gamma=cyl.unspent, kappa=cyl.spent)
         # the slab has no arrow at all: S^2/O2_x -> S^2/sigma_y does not exist
         assert quotient_onto(slab.support, fold.support) is None
         assert not slab.admits_domain(fold)
 
     @pytest.mark.foundation
-    def test_a_z_fold_is_admitted_iff_its_mirror_lies_in_the_owed_residual(self):
-        """`[M]` ``D_2h.contains(σ_z)`` is ``True``, so a z-fold is admitted
-        for the cylinder; the leg is what makes that a LATTICE verdict rather
-        than a spelling coincidence."""
-        cyl = GEOMETRY_ANGULAR_SYMMETRY["cylinder"]
+    def test_a_z_fold_is_admitted_iff_its_mirror_lies_in_the_unspent_symmetry(self):
+        """`[M]` ``σ_z ⊆ D_1h·{e}`` on the cylinder and ``σ_z ⊆ σ_z·{e}`` on
+        cartesian2d, so a z-fold is admitted for both; the leg is what makes
+        that a LATTICE verdict rather than a spelling coincidence — and the
+        σ_y fold, ``σ_y ⊄ σ_z·{e}``, is refused for cartesian2d by the same
+        leg (the D1 witness)."""
         zfold = Quadrature.product(4, 8).measure.quotient(SubgroupOfO3.Mirror("z"))
         assert zfold.support == SPHERE.quotient(SubgroupOfO3.Mirror("z"))
-        assert cyl.discrete_residual.contains(SubgroupOfO3.Mirror("z"))
-        assert cyl.admits_domain(zfold)
+        yfold = Quadrature.folded_product(4, 8).measure
+        for geometry in ("cylinder", "cartesian2d"):
+            sym = GEOMETRY_ANGULAR_SYMMETRY[geometry]
+            assert SubgroupOfO3.Mirror("z").is_subset_of_product(gamma=sym.unspent, kappa=sym.spent)
+            assert sym.admits_domain(zfold), geometry
+        plane = GEOMETRY_ANGULAR_SYMMETRY["cartesian2d"]
+        assert not SubgroupOfO3.Mirror("y").is_subset_of_product(gamma=plane.unspent, kappa=plane.spent)
+        assert not plane.admits_domain(yfold)                      # D1 closed
+        assert GEOMETRY_ANGULAR_SYMMETRY["cylinder"].admits_domain(yfold)
+        # and the reason names the fold licence, not the arrow (the arrow
+        # exists: S^2 -> S^2/sigma_y is the entry's own quotient map)
+        reason = plane.domain_refusal(yfold)
+        assert reason is not None and "unspent sigma_z" in reason and "fold by sigma_y" in reason
+        assert "descent arrow" not in reason
+        assert plane.domain_refusal(zfold) is None
 
     @pytest.mark.foundation
-    def test_a_ONE_DIMENSIONAL_rule_is_refused_by_the_owed_residual_alone(self):
-        r"""The Γ leg's only witness.  The arrow ``S² → S²/O2_x`` EXISTS (the
-        entry's own quotient map), so equality is no longer what refuses a
-        polar rule for a 2-D geometry — ``D_2h ⊉ O(2)_x`` is."""
+    def test_a_ONE_DIMENSIONAL_rule_is_refused_by_the_unspent_symmetry_alone(self):
+        r"""The arrow ``S² → S²/O2_x`` EXISTS (the entry's own quotient map),
+        so the arrow is not what refuses a polar rule for a 2-D geometry —
+        ``O(2)_x ⊄ Γ·{e}`` is: its identity component ``SO(2)_x`` is not
+        inside ``{e}``, the first conjunct of the coverage theorem."""
         for geometry in ("cylinder", "cartesian2d"):
             sym = GEOMETRY_ANGULAR_SYMMETRY[geometry]
             slab_rule = Quadrature.gauss_legendre(8).measure
             assert quotient_onto(sym.support, slab_rule.support) is not None
-            assert not sym.discrete_residual.contains(slab_rule.support.by)
+            assert not slab_rule.support.by.is_subset_of_product(gamma=sym.unspent, kappa=sym.spent)
             assert not sym.admits_domain(slab_rule)
 
     @pytest.mark.foundation
     def test_the_slab_still_admits_its_own_rule_through_the_identity_arrow(self):
-        r"""⛔ The row a naive spelling breaks.  ``Γ = σ_x`` for the slab and
-        ``σ_x ⊉ O(2)_x`` (`[M]` ``False``), so asking the Γ leg
-        UNCONDITIONALLY refuses the slab's own Gauss-Legendre rule.  The
-        equality case must short-circuit BEFORE the Γ leg — "for X == D there
-        is nothing to contain"."""
+        r"""⛔ The row a naive spelling breaks.  The slab OWES ``σ_x`` and
+        ``σ_x ⊉ O(2)_x`` (`[M]` ``False``), so reading the owed closure as the
+        fold licence refuses the slab's own Gauss-Legendre rule — which is
+        why, until R3 of #434, the identity case had to short-circuit in
+        front of that leg.  The coverage test needs no short circuit: the
+        slab's own rule is ``O(2)_x ⊆ {e}·O(2)_x``, total and true."""
         slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
         rule = Quadrature.gauss_legendre(8).measure
         assert rule.support == slab.support
-        assert not slab.discrete_residual.contains(rule.support.by)  # the trap
+        assert not slab.owed.contains(rule.support.by)               # the trap
+        assert rule.support.by.is_subset_of_product(gamma=slab.unspent, kappa=slab.spent)
         assert slab.admits_domain(rule)
         for geometry in ("cylinder", "cartesian2d"):
             sym = GEOMETRY_ANGULAR_SYMMETRY[geometry]
@@ -1600,7 +1648,14 @@ class TestStageZeroIsTheDescentArrowPlusTheOwedResidual:
                 assert sym.admits_domain(factory())
 
     @pytest.mark.foundation
-    def test_the_rejection_message_names_the_missing_arrow(self):
+    def test_the_rejection_message_names_the_one_failing_clause(self):
+        """The 1-D rule on the cylinder HAS a descent arrow (``S² → S²/O2_x`` is
+        the entry's own quotient map); what refuses it is the fold licence —
+        ``O(2)_x ⊄ D_1h·{e}`` — and the reason says so, and ONLY so.  Until R3
+        of #434 the message was a disjunction naming both causes on every
+        refusal (`[M]` 14 of 17 shipped stage-0 refusals fail the arrow only,
+        3 the licence only, 0 both) and this row was named for the arrow.
+        """
         from orpheus.numerics.quadrature.registry import select_quadrature
 
         _, log = select_quadrature("cylinder", 5)
@@ -1608,7 +1663,13 @@ class TestStageZeroIsTheDescentArrowPlusTheOwedResidual:
         assert reasons, "GaussLegendre1D was not rejected for the cylinder"
         assert "domain mismatch" in reasons[0]
         assert "S^2/O2_x" in reasons[0]
-        assert "arrow" in reasons[0] or "descent" in reasons[0]
+        assert "fold by O2_x" in reasons[0] and "unspent D_1h" in reasons[0]
+        assert "arrow" not in reasons[0]
+        # ... and a rule with NO arrow is told exactly that, and nothing else
+        _, log = select_quadrature("slab", 5)
+        reasons = [r for name, r in log.rejected if name == "LebedevSphere"]
+        assert reasons and "no descent arrow" in reasons[0]
+        assert "unspent" not in reasons[0]
 
 
 # =============================================================================

@@ -498,8 +498,7 @@ class TestQuotient:
             derived = SPHERE.quotient(group)
             mine = derived.realization
             theirs = AngularSymmetry(
-                continuous_isotropy=group,
-                discrete_residual=SubgroupOfO3.Trivial,
+                spent=group, unspent=SubgroupOfO3.Trivial, owed=SubgroupOfO3.Trivial,
             ).support
             # (i) the independent pin on the derivation
             assert mine == expected, f"{group.name}: mine gave {mine.name}"

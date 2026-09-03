@@ -1,6 +1,6 @@
 ---
 name: symmetry-realization-carve-rulings
-description: #434 R1 (group-as-realization) elegance review — the tag→realization functor shape, where the invariant tier lost its guard, and the reusable probes.
+description: "#434 R1+R3 elegance reviews — the tag→realization functor shape; and R3's ledger carve, whose every violation was in the derivation SURFACE (an inverted cosine convention, a re-bound Greek letter, a message that never split)."
 metadata:
   type: project
 ---
@@ -192,3 +192,56 @@ ambient default is unspellable (Pattern 2 enforced by the *signature*, not a doc
 the module-alias import (`from orpheus.numerics import invariance as _invariance`) chosen
 because it makes the delegation resolvable at call time for a counting spy — a style choice
 with a gate behind it.
+
+---
+
+## R3 (2026-09-03) — the three-field ledger `AngularSymmetry(spent, unspent, owed)`
+
+Reviewed pre-commit. The CODE was right on every axis I could measure (role grid clean,
+`__post_init__` making the totality claim true rather than hoped-for, general-first `H ⊆ ΓK`
+with `[M]` 197 of 5292 distinguishing triples). **Every violation was in the derivation
+SURFACE.** Five lessons that transfer past this campaign:
+
+1. ⭐⭐ **A geometry-LOCAL coordinate convention is a corpus fact, and a carve's prose can
+   invert it while the code stays correct — because the group OBJECT is the same either way.**
+   R3's cylinder row attributed `ξ → −ξ` to `σ_z`; `[M]` in this tree `ξ` is column 1 (the
+   AZIMUTHAL cosine, `directional.py:441-443`, `docs/theory/methods/sn/index.rst:903`), which is
+   what `σ_y` flips — `σ_z` flips column 2 (`μ`, axial). `unspent=Dnh(1)` contains BOTH mirrors,
+   so no test can see it. ⟹ when a row names a cosine/letter, check it against the module's own
+   COMPONENT-CONVENTION block, never against the sentence's plausibility. The tell that made it
+   findable: two ADJACENT table rows spelled one group's action two ways (`cylinder` said ξ,
+   `cartesian2d` said μ_z, for the same `Mirror('z')`).
+2. ⭐ **A carve that RE-BINDS a Greek letter creates a corpus collision no build catches.**
+   R3 moved Γ from *owed* to *unspent* and minted **Ω** for owed — while Ω is the ordinate
+   direction fifteen lines away in the same docstring (`∫ψ dΩ`, `Ω·Ω′`) and everywhere in the SN
+   corpus, and while the theory page still binds Γ = owed inside a `:eq:`-cited labelled
+   equation. ⟹ before minting a symbol in a docstring, grep that module docstring for the glyph;
+   before re-binding one, grep the theory page that cites it.
+3. **When a carve SPLITS two conflated facts in a predicate, check the REFUSAL MESSAGE split
+   too.** R3's whole content is that stage 0 was two different facts; the message stayed a
+   disjunction. Measurable in one probe: for each refused pair, which conjunct fails alone?
+   `[M]` 17 refusals, 14 arrow-only, 3 coverage-only, **0 both** — so the message named a
+   satisfied fact every single time. The single-source fix is a `*_refusal() -> str | None`
+   sibling with `admits_*` defined as `is None`; re-asking the conjunct at the call site
+   re-creates the twin the carve removed.
+4. **Home test for a new predicate, with a hard denominator:** count how many SIBLING predicates
+   on the class delegate to the value type vs. reach into it. `[M]` `contains` /
+   `is_normalised_by` / `normalises` / `generic_images` are 4 of 4 one-line delegations to
+   `Realization`; `is_subset_of_product` reached into **6 members of two classes** and dropped
+   the `atol` thread every sibling carries — feature envy with a number, and the divergence
+   habitat is the tolerance policy. Secondary tell: the value type's docstring enumerates
+   "every predicate is one body" and lists four, so a fifth elsewhere makes the inventory wrong.
+5. **A frozen-baseline gate weakened to a PREFIX comparison is usually truncated wider than the
+   change.** R3 truncated every rejection string to its stage; `[M]` 96 stage-0 strings moved and
+   **8 of 8 stage-1 strings were byte-identical**, so that pin was discarded for nothing — while
+   the class docstring still advertised "every rejection STRING". Do not re-freeze a pre-carve
+   baseline; narrow the truncation to the one stage that moved and say so in the docstring.
+
+**And the boundary lesson (AGENT.md's deletion rule, paying again):** the retirement was clean
+inside `orpheus/` (`[M]` `continuous_isotropy`/`discrete_residual` 0 hits; `spent_group` one
+correctly past-tense mention) and *wide open in `docs/theory/`* — 3 dead `:func:` roles, a
+labelled equation still stating the retired criterion with a `(vv-status rationale)` claiming it
+is "the shipped body", a section arguing AGAINST the shipped design, and 6 present-tense-false
+field names including an `[M]`-marked claim about the shipped table. `dead_references` is the
+only instrument that reads that surface, and a `.. math:: :label:` is an API: correcting the
+prose around an equation does not correct the equation.

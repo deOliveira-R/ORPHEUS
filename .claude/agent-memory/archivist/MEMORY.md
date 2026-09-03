@@ -41,6 +41,14 @@ stage + gate.
 (`git status --porcelain -- docs/`), never in this list. All are branch
 `fix/angular-phantom-support`, docs UNCOMMITTED (I stage + gate; the main agent commits).**
 
+- **#434 R3 — a slot SPLITS in two and the retired name's LETTER follows the wrong survivor**
+  (2026-09-03; the campaign's LAST carve, its commit `Closes #434`; 4 pages +1115/−325;
+  sentinels **593→593** — both `:eq:` APIs re-worded, labels kept; `-E -W` EXIT=0 with a
+  **0-byte** log both sides; `dead_references` 0/52; xref gate 0 dead; my own import probe
+  923 roles / 0 dead. New: ERR-081 — the catalogue's first `vv` #33 instance — shipped
+  UNCAUGHT by design, `error_index.md` regenerated 80/0 → 81/1. Two production `[M]`s did
+  not reproduce: a triple COUNT with no member set (197 vs my **217** on a stated 21-member
+  set) and a test docstring's "the coverage leg is INERT at the selector tier") → [[lessons-L91]]
 - **#434 R2 — invariance is the MEASURE's question; groups import geometry only**
   (2026-09-03; 4 pages +839/−368; sentinels **593→593** — no eq-label, as the plan predicted;
   `-E -W` EXIT=0 with a **0-byte** log both sides; `dead_references` 0 in `docs/`, 2/3 sites

@@ -1,0 +1,540 @@
+{
+ "cartesian2d|1": {
+  "chosen": "ProductQuadrature",
+  "n_points": 2,
+  "parameters": {
+   "n_mu": 1,
+   "n_phi": 2
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cartesian2d|11": {
+  "chosen": "LebedevSphere",
+  "n_points": 50,
+  "parameters": {
+   "order": 11
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cartesian2d|13": {
+  "chosen": "LebedevSphere",
+  "n_points": 74,
+  "parameters": {
+   "order": 13
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cartesian2d|17": {
+  "chosen": "LebedevSphere",
+  "n_points": 110,
+  "parameters": {
+   "order": 17
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cartesian2d|2": {
+  "chosen": "LebedevSphere",
+  "n_points": 6,
+  "parameters": {
+   "order": 3
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h",
+   "ProductQuadrature::symmetry mismatch: geometry 'cartesian2d' owes D_2h, which the rule's nodes at {'n_mu': 2, 'n_phi': 3} are not invariant under"
+  ]
+ },
+ "cartesian2d|3": {
+  "chosen": "LebedevSphere",
+  "n_points": 6,
+  "parameters": {
+   "order": 3
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cartesian2d|4": {
+  "chosen": "LebedevSphere",
+  "n_points": 14,
+  "parameters": {
+   "order": 5
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h",
+   "ProductQuadrature::symmetry mismatch: geometry 'cartesian2d' owes D_2h, which the rule's nodes at {'n_mu': 3, 'n_phi': 5} are not invariant under"
+  ]
+ },
+ "cartesian2d|5": {
+  "chosen": "LebedevSphere",
+  "n_points": 14,
+  "parameters": {
+   "order": 5
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cartesian2d|6": {
+  "chosen": "LebedevSphere",
+  "n_points": 26,
+  "parameters": {
+   "order": 7
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h",
+   "ProductQuadrature::symmetry mismatch: geometry 'cartesian2d' owes D_2h, which the rule's nodes at {'n_mu': 4, 'n_phi': 7} are not invariant under"
+  ]
+ },
+ "cartesian2d|7": {
+  "chosen": "LebedevSphere",
+  "n_points": 26,
+  "parameters": {
+   "order": 7
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cartesian2d|8": {
+  "chosen": "LebedevSphere",
+  "n_points": 38,
+  "parameters": {
+   "order": 9
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h",
+   "ProductQuadrature::symmetry mismatch: geometry 'cartesian2d' owes D_2h, which the rule's nodes at {'n_mu': 5, 'n_phi': 9} are not invariant under"
+  ]
+ },
+ "cartesian2d|9": {
+  "chosen": "LebedevSphere",
+  "n_points": 38,
+  "parameters": {
+   "order": 9
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cartesian2d' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cylinder|1": {
+  "chosen": "ProductQuadrature",
+  "n_points": 2,
+  "parameters": {
+   "n_mu": 1,
+   "n_phi": 2
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cylinder|11": {
+  "chosen": "LebedevSphere",
+  "n_points": 50,
+  "parameters": {
+   "order": 11
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cylinder|13": {
+  "chosen": "LebedevSphere",
+  "n_points": 74,
+  "parameters": {
+   "order": 13
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cylinder|17": {
+  "chosen": "LebedevSphere",
+  "n_points": 110,
+  "parameters": {
+   "order": 17
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cylinder|2": {
+  "chosen": "LebedevSphere",
+  "n_points": 6,
+  "parameters": {
+   "order": 3
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h",
+   "ProductQuadrature::symmetry mismatch: geometry 'cylinder' owes D_2h, which the rule's nodes at {'n_mu': 2, 'n_phi': 3} are not invariant under"
+  ]
+ },
+ "cylinder|3": {
+  "chosen": "LebedevSphere",
+  "n_points": 6,
+  "parameters": {
+   "order": 3
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cylinder|4": {
+  "chosen": "LebedevSphere",
+  "n_points": 14,
+  "parameters": {
+   "order": 5
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h",
+   "ProductQuadrature::symmetry mismatch: geometry 'cylinder' owes D_2h, which the rule's nodes at {'n_mu': 3, 'n_phi': 5} are not invariant under"
+  ]
+ },
+ "cylinder|5": {
+  "chosen": "LebedevSphere",
+  "n_points": 14,
+  "parameters": {
+   "order": 5
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cylinder|6": {
+  "chosen": "LebedevSphere",
+  "n_points": 26,
+  "parameters": {
+   "order": 7
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h",
+   "ProductQuadrature::symmetry mismatch: geometry 'cylinder' owes D_2h, which the rule's nodes at {'n_mu': 4, 'n_phi': 7} are not invariant under"
+  ]
+ },
+ "cylinder|7": {
+  "chosen": "LebedevSphere",
+  "n_points": 26,
+  "parameters": {
+   "order": 7
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "cylinder|8": {
+  "chosen": "LebedevSphere",
+  "n_points": 38,
+  "parameters": {
+   "order": 9
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h",
+   "ProductQuadrature::symmetry mismatch: geometry 'cylinder' owes D_2h, which the rule's nodes at {'n_mu': 5, 'n_phi': 9} are not invariant under"
+  ]
+ },
+ "cylinder|9": {
+  "chosen": "LebedevSphere",
+  "n_points": 38,
+  "parameters": {
+   "order": 9
+  },
+  "rejected": [
+   "GaussLegendre1D::domain mismatch: geometry 'cylinder' discretises S^2, but the rule's nodes live on S^2/O2_x \u2014 no descent arrow onto it, or a fold by a group outside the owed D_2h"
+  ]
+ },
+ "slab|1": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 2,
+  "parameters": {
+   "n": 2
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "slab|11": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 6,
+  "parameters": {
+   "n": 6
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "slab|13": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 8,
+  "parameters": {
+   "n": 8
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "slab|17": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 10,
+  "parameters": {
+   "n": 10
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "slab|2": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 2,
+  "parameters": {
+   "n": 2
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "slab|3": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 2,
+  "parameters": {
+   "n": 2
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "slab|4": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 4,
+  "parameters": {
+   "n": 4
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "slab|5": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 4,
+  "parameters": {
+   "n": 4
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "slab|6": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 4,
+  "parameters": {
+   "n": 4
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "slab|7": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 4,
+  "parameters": {
+   "n": 4
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "slab|8": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 6,
+  "parameters": {
+   "n": 6
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "slab|9": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 6,
+  "parameters": {
+   "n": 6
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|1": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 2,
+  "parameters": {
+   "n": 2
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|11": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 6,
+  "parameters": {
+   "n": 6
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|13": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 8,
+  "parameters": {
+   "n": 8
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|17": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 10,
+  "parameters": {
+   "n": 10
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|2": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 2,
+  "parameters": {
+   "n": 2
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|3": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 2,
+  "parameters": {
+   "n": 2
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|4": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 4,
+  "parameters": {
+   "n": 4
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|5": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 4,
+  "parameters": {
+   "n": 4
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|6": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 4,
+  "parameters": {
+   "n": 4
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|7": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 4,
+  "parameters": {
+   "n": 4
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|8": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 6,
+  "parameters": {
+   "n": 6
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ },
+ "sphere|9": {
+  "chosen": "GaussLegendre1D",
+  "n_points": 6,
+  "parameters": {
+   "n": 6
+  },
+  "rejected": [
+   "LebedevSphere::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "LevelSymmetricSN::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x",
+   "ProductQuadrature::domain mismatch: geometry 'sphere' discretises S^2/O2_x, but the rule's nodes live on S^2 \u2014 no descent arrow onto it, or a fold by a group outside the owed sigma_x"
+  ]
+ }
+}

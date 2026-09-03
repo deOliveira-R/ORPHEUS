@@ -54,6 +54,7 @@ from orpheus.numerics.manifold import SPHERE, Quotient
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.numerics.symmetry import SubgroupOfO3
+from tests.numerics import NUMERICS_DATA
 
 ORPHEUS_ROOT = pathlib.Path(__file__).resolve().parents[2]
 _NUMERICS = ORPHEUS_ROOT / "orpheus" / "numerics"
@@ -936,7 +937,7 @@ class TestR2OrdinatePermutationIsUnchanged:
     """H4b — the rename is a PURE re-spelling, so the answer is bit-identical.
 
     -> ``tests/numerics/test_quadrature_directional.py``.  The reference is a table
-    FROZEN at HEAD before the carve (``scratch/_r2_perm_baseline.npz``, `[M]` 45
+    FROZEN at HEAD before the carve (``tests/numerics/data/r2_perm_baseline.npz``, `[M]` 45
     (rule x axis) rows, 0 of them ``None``) — a value R2 cannot have produced.  Any
     tolerance here would be a red flag (`vv` bit-identity).
     """
@@ -946,7 +947,7 @@ class TestR2OrdinatePermutationIsUnchanged:
     def test_h4b_every_permutation_is_array_equal_to_the_frozen_table(
         self, rule_label: str
     ) -> None:
-        baseline = np.load(ORPHEUS_ROOT / "scratch" / "_r2_perm_baseline.npz")
+        baseline = np.load(NUMERICS_DATA / "r2_perm_baseline.npz")
         quad = _r2_rule(rule_label)
         for axis in ("x", "y", "z"):
             motion = SelfPairedDeck.mirror(axis=axis, dimension=3).motion
@@ -966,10 +967,14 @@ class TestR2SelectionIsUnchanged:
     (``registry.py:1012``) is the ONE production call site of ``is_invariant``; R2
     re-spells it ``measure.is_invariant_under(self.owed)``.  A pure re-spelling, so the
     verdict must be EQUAL — chosen spec, its parameters, the point count, and every
-    rejection STRING (the strings are an API the moment a test pins one).
+    rejection STRING (the strings are an API the moment a test pins one) —
+    except stage 0's, pinned at its STAGE since R3 of #434 re-worded it; its
+    wording is pinned once in ``tests/numerics/test_registry.py`` (see
+    ``stage_of``).
 
     The reference is a table FROZEN at HEAD before the carve
-    (``scratch/_r2_selection_baseline.json``, `[M]` 48 (geometry x degree) verdicts, all
+    (``tests/numerics/data/r2_selection_baseline.json``, `[M]` 48 (geometry x degree)
+    verdicts, all
     48 selecting).
     """
 
@@ -982,18 +987,30 @@ class TestR2SelectionIsUnchanged:
 
         from orpheus.numerics.quadrature.registry import select_quadrature
 
-        baseline = json.loads(
-            (ORPHEUS_ROOT / "scratch" / "_r2_selection_baseline.json").read_text()
-        )
+        baseline = json.loads((NUMERICS_DATA / "r2_selection_baseline.json").read_text())
+
+        def stage_of(rejection: str) -> str:
+            # Every rejection string is pinned VERBATIM except stage 0's,
+            # which R3 of #434 re-worded (`[M]` 96 of 96 domain-mismatch
+            # strings moved, 8 of 8 symmetry-mismatch strings unchanged, 0 of
+            # 48 choices moved): that one is pinned at its STAGE here and its
+            # wording is pinned once, deliberately, beside the R3 rows in
+            # tests/numerics/test_registry.py.
+            spec, reason = rejection.split("::", 1)
+            if not reason.startswith("domain mismatch"):
+                return rejection
+            return f"{spec}::domain mismatch"
+
         for degree in (1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 17):
             key = f"{geometry}|{degree}"
-            want = baseline[key]
+            want = dict(baseline[key])
+            want["rejected"] = sorted(stage_of(r) for r in want["rejected"])
             measure, log = select_quadrature(geometry, degree)
             got = {
                 "chosen": log.chosen_spec.name if log.chosen_spec else None,
                 "parameters": dict(log.chosen_parameters or {}),
                 "n_points": int(measure.n_points),
-                "rejected": sorted(f"{n}::{r}" for n, r in log.rejected),
+                "rejected": sorted(stage_of(f"{n}::{r}") for n, r in log.rejected),
             }
             assert got == want, f"{key}: selection moved\n  want {want}\n  got  {got}"
 

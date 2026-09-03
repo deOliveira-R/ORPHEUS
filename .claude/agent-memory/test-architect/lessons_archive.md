@@ -8783,3 +8783,152 @@ positive control forced to run FIRST by the driver; and one arm — a module-sco
 cycle — declared **UNINSTALLABLE by construction**, because the gate it must redden spawns
 a fresh interpreter that re-imports clean source, with its witness named
 (`scratch/_r2_import_probe.py`) rather than left as an unexplained blind row.
+
+## L75 — #434 R3, "the registry names what it spends, what it leaves, and what it owes" (plan + gates + battery DELIVERED 2026-09-03; carve LANDED mid-dispatch and MOVED TWICE MORE)
+
+**Shape.** `AngularSymmetry(continuous_isotropy, discrete_residual)` →
+`(spent, unspent, owed)`; stage 0's fold licence moves from the OWED closure to a new
+UNSPENT group; `manifold.spent_group` retired for a total predicate
+`SubgroupOfO3.is_subset_of_product` (`H ⊆ Γ·K`). Deliverables:
+`scratch/_r3_{verification_plan.md,gates_draft.py,test_migration.md,mut.py,battery.sh,
+capture.py,physics.py,predicate_laws.py,quadrants.py,census.py}` +
+`scratch/_r3_baseline_HEAD.json`.
+
+**Terminal state.** 42 gate rows / 8 classes, 42 passed in 1.84 s, pyright 0.
+Battery **16 arms, 16 installed and BIT, 14 redden (32/22/16/13/8/8/7/6/6/4/4/2/1/1),
+2 DECLARED NULLS at exactly 0**, baseline 0, SHAs stable, pristine diff clean.
+Predicted count delta +42 (`tests/numerics` 3213 → 3255; tree 10965 → 11007).
+
+### The tree moved THREE times during one dispatch
+
+06:04 the production carve; ~06:2x the test migration (15 reds → 0, and the R2
+baselines moved `scratch/` → `tests/numerics/data/`); ~07:0x the ELEGANCE pass,
+which re-signatured `is_subset_of_product` to KEYWORD-ONLY, delegated its two
+conjuncts to a new `Realization.is_subset_of_product`, and replaced
+`admits_domain`'s body with `self.domain_refusal(measure) is None` (a new
+`-> str | None` verb). Two battery arms went UNINSTALLABLE mid-run and six crashed;
+the `shasum` bracketing is what attributed it to the writer instead of alarming.
+
+### Refutations of the brief, measured
+
+1. `measure.quotient_group` returns **`None`**, not `Trivial`, for a bare rule.
+2. A D∞h/σ_x fold of the SLAB's domain is **NOT constructible** (two different
+   refusals, one layer down) ⟹ the retired `spent_group` coset arm had **no
+   constructible witness**, so "total, no `NotImplementedError`" is satisfied
+   VACUOUSLY and needs an honest-scope row.
+3. The moved cells are **5 of 168**, and **2 are not in the plan's list**:
+   `product(4,8)/σ_x` is refused for the **cylinder** too (`σ_x ∉ D_1h`).
+4. `TestR2SelectionIsUnchanged` **did not cover R3 — it RED on 4 of 4**:
+   `[M]` 96 of 96 domain-mismatch strings moved, 8 of 8 symmetry strings and
+   0 of 48 choices did not.
+5. The γ⁻¹ arm can NEVER bite (a theorem, §L75a).
+
+### L75a — the inverse direction of a coset search is a THEOREM, not a weak arm
+
+`∃γ∈Γ: γ⁻¹r ∈ K` and `∃γ∈Γ: γr ∈ K` are the SAME claim, because the existential
+ranges over a GROUP, closed under inversion (substitute `γ' = γ⁻¹`). `[M]`
+**0 disagreements over 891 (H, Γ, K) triples, Γ = C_4 included** — so the nullity
+is the group axiom, NOT (as the brief supposed) an artefact of the shipped table's
+involution-only Γs. Its sibling: the SIDE of the product (`ΓK` vs `KΓ`) is
+un-witnessable in this vocabulary — `[M]` equal as SETS on **all 81** finite
+`(Γ, K)` pairs, because every spellable member is built from coordinate-axis
+rotations and coordinate-plane mirrors and a 45° mirror is unspellable. Ship both
+as DECLARED-NULL arms with their denominators and an INVERTED bite check (the
+mutant must AGREE); their green is a licence to read the neighbours, not coverage.
+
+### L75b — a PRODUCT predicate whose shipped rows all have a trivial factor
+
+`[M]` all four geometry rows: slab/sphere `(K=O(2)_x, Γ={e})`, cylinder
+`(K={e}, Γ=D_1h)`, cartesian2d `(K={e}, Γ=σ_z)`. So `Γ·K` is always `Γ` or `K` and
+**the whole reason the predicate is not `contains` is unexercised by the
+registry**. Reachable in the vocabulary — `[M]` **137** triples where Γ is
+load-bearing (covered WITH it, refused WITHOUT) — so the §6c witness is
+manufactured, four rows, and mandatory. ⟹ census a new relation's SHIPPED
+arguments for degenerate factors before crediting its new structure.
+
+### L75c — the physics claim behind a registry field, and its three findings
+
+`unspent` is a claim about the CONTINUUM equation; a gate cannot verify it. What a
+gate CAN do is measure the DISCRETE solver's answer, which every downstream fold
+rests on: solve a deliberately asymmetric fixed-source problem, compare ψ at
+ordinate n with ψ at the ordinate the group element maps it to; a positive leg per
+element of the group, a NEGATIVE leg per element outside it. `[M]` 1.0 s for three
+fixtures:
+
+| geometry | rule | σ_z | σ_y | σ_x |
+|---|---|---|---|---|
+| cartesian2d | product(4,8), 5×3, corner source | **0.0** EVEN (32/32 moved) | 6.043e-01 NOT | 8.175e-01 NOT |
+| cylinder | folded_product(4,8), refl/vac | **0.0** EVEN (16/16) | **no permutation** | 7.224e-01 NOT |
+| slab | gauss_legendre(8) | 0.0 **VACUOUS** (0/8) | 0.0 **VACUOUS** (0/8) | 6.493e-01 NOT (8/8) |
+
+⛔ **(i) The σ_y half of the cylinder's `D_1h` is UN-WITNESSABLE by construction.**
+`[M]` a cylindrical `SNMesh` admits only CARRYING quadratures — **15 of 15**
+`folded_product` rules pass `assert_carrying_quadrature`, **0 of 20**
+`product`/`lebedev`/`level_symmetric` do. Every admissible rule IS the σ_y
+quotient, so no cylindrical solve stores both signs of μ_y: Mode 12 at the fixture,
+no fixture findable. The honest gate asserts the STRUCTURAL commitment instead.
+
+⭐ **(ii) The vacuity guard caught a claim I would have published.** On the slab,
+σ_y and σ_z read `0.0` — and their permutations are the IDENTITY (a 1-D polar rule
+carries μ_y = μ_z = 0 on every ordinate, ERR-080's territory). Reported without the
+guard, *"the slab is even under σ_y and σ_z"* contradicts `unspent = Trivial` with
+an authoritative number. ⟹ every evenness leg asserts `perm moves k/N` with k
+written down.
+
+⚠ **(iii) Measure the quadrant census on `Quadrature.mu_x/mu_y`, NOT on
+`measure.orbit_barycentres`.** After R4 the barycentres are `P_H p`, so a fold's
+mirror column is exactly zero and `np.sign` reports **0 of 4 quadrants for every
+fold** — plausible, flattering, wrong. On the ordinate cosines: unfolded 4 of 4;
+σ_z fold (LICENSED) **4 of 4**; σ_y fold (REFUSED) **2 of 4**, μ_y > 0 on all 16.
+
+### L75d — three harness defects, each caught by its own guard
+
+* **`textwrap.dedent` strips FOUR spaces from a method's source**, so a
+  `_source_mutant` target copied at class indentation never matches. The
+  precondition reported UNINSTALLABLE instead of silently no-op'ing.
+* **A re-TYPED mutant's re-worded `raise` reds a `match=` gate for a reason the
+  mutation is not about.** Three arms reddened
+  `test_a3_a_continuous_covering_factor_is_refused` on a message mismatch before
+  the arms were rebuilt as `inspect.getsource` transforms (L44i, earning its place
+  again).
+* **A bite check must call the LIVE class attribute**, not a captured helper that
+  routes through the ORIGINAL guard — the finiteness arm's bite read the honest
+  predicate and reported the mutant inert (L73j's family, one frame out).
+* ⭐ And a *fourth*, in the gates rather than the harness: the non-vacuity guard on
+  the independent-reference row (`0 < trues < rows`) fired on `H = Trivial`, where
+  the reference answers **99 of 99 True BY THEOREM** (`{e} ⊆ ΓK` always). Branch it
+  and name the theorem; do not weaken it.
+
+### L75e — a `-> str | None` refusal verb, and WHICH clause refuses WHICH input
+
+The elegance pass replaced stage 0's boolean with `domain_refusal(measure) -> str |
+None`, collapsing TWO guards into one value (L35f: `is None` proves only that SOME
+guard fired). It owes an INPUT-side isolation and DISJOINT fragments (L43c). And
+⛔ my own first draft asserted the wrong clause: `quotient_onto(S², S²/O(2)_x)`
+EXISTS (the entry's own quotient map), so a 1-D rule for a 2-D geometry passes the
+ARROW and is refused by COVERAGE. `[M]` the shipped split is **arrow 14 / coverage
+3 / both 0** over 4 geometries × 4 registered specs — so the pre-verb disjunctive
+message named a SATISFIED fact on all 17 refusals. Which clause refuses which input
+is a MEASUREMENT, not an intuition.
+
+### L75f — the red-set composition, read by identity
+
+3 of 14 biting arms redden ONLY the draft (`a_component_leg_reads_dim` 2,
+`a_finiteness_guard_dropped` 1, `d_post_init_checks_only_unspent` 1). `vv` #17's
+identity clause would read that as "a mirror, not a gate"; L73l's discrimination
+says otherwise, and the discriminator is the pre-carve CONSUMER census: the
+consumers exist (`admits_domain`, `__post_init__`) and are blind FOR A STATED
+REASON — the shipped table's only continuous `spent` is `O(2)_x` and the only
+continuous `quotient_group` is the SAME `O(2)_x`, so the distinction cannot reach
+the registry; and the two guards have no shipped witness at all (§6c). ⟹ net-new
+coverage of public API, not a mirror.
+
+### L75g — the battery's scope, with its exclusion priced
+
+`[M]` by a validated text census the WHOLE R3 API — `select_quadrature` 51,
+`GEOMETRY_ANGULAR_SYMMETRY` 45, `AngularSymmetry` 42, `admits_domain` 25,
+`admits_symmetry` 16, `domain_refusal` 8, `is_subset_of_product` 16 — has **ZERO**
+sites outside `orpheus/numerics/` + `tests/numerics/`. That table is what licenses
+scoping to `tests/numerics` (**3255 collected / ~26 s per arm**, 16 arms ≈ 7 min)
+and excluding `tests/sn` (~80 min, the pre-merge gate's business). An excluded
+directory with no number beside it reads as an oversight.

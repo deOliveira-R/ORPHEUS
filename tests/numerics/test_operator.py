@@ -15,6 +15,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from tests.numerics import NUMERICS_DATA
 from orpheus.numerics.operator import (
     IdentityOperator,
     InverseOperator,
@@ -749,7 +750,7 @@ def test_repr_with_function_spaces_shows_names():
 # dense anchor + pre-carve baseline inheritance + the factor-kind matrix
 # ───────────────────────────────────────────────────────────────────────
 
-_REROUTE_BASELINE = "tests/numerics/data/step6_product_reroute_baseline.npz"
+_REROUTE_BASELINE = NUMERICS_DATA / "step6_product_reroute_baseline.npz"
 
 
 def _reroute_fixtures():

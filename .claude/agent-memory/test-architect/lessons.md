@@ -2396,3 +2396,107 @@ shipped entry. That last clause is contingent — a non-axis-aligned `H` gives a
 and the row belongs at `nulp`. ⟹ assert `P == diag(diag(P))` as the row's own premise, so
 the day it stops holding the suite says WHICH claim it lost instead of reddening a row
 whose subject is elsewhere (`lessons` L61a's premise-gating shape). → `L73a`
+
+## #434 R3 additions (2026-09-03, the three-field registry ledger) → `L75`
+
+Grouped by the families above.
+
+**§1 (gates that cannot red).** ⛔⛔ **A coset search's INVERSE direction is a
+THEOREM, not a weak arm — compute the mutation's own stabiliser before shipping
+it.** `∃γ∈Γ: γ⁻¹r ∈ K` and `∃γ: γr ∈ K` are the same claim because the
+existential ranges over a GROUP; `[M]` **0 disagreements over 891** `(H,Γ,K)`
+triples **with Γ = C_4** — so the brief's guess ("every shipped Γ is an involution
+group") named the wrong reason and would have made the arm look merely weak.
+Sibling: the SIDE of the product (`ΓK` vs `KΓ`) is un-witnessable in this
+vocabulary, `[M]` equal as SETS on **all 81** finite pairs, since a 45° mirror is
+unspellable. Ship BOTH as DECLARED-NULL arms with an INVERTED bite check (the
+mutant must AGREE) and their denominators; their green is a licence, not coverage
+(`L72f`). → `L75a`
+
+⛔ **A PRODUCT relation whose every SHIPPED row has a trivial factor has no witness
+for the product at all.** `[M]` 4 of 4 geometry rows are `(K, {e})` or `({e}, Γ)`,
+so `Γ·K` is always one factor and the whole reason the predicate is not `contains`
+is unexercised. Reachable though — `[M]` **137** triples where Γ is load-bearing
+(covered WITH it, refused WITHOUT) — so the §6c witness is manufactured and
+mandatory. ⟹ census a new relation's shipped ARGUMENTS for degenerate factors
+before crediting its new structure. → `L75b`
+
+⭐⭐ **An evenness/invariance leg owes a `perm moves k/N` VACUITY guard, and it
+will fire.** `[M]` on the SLAB, σ_y and σ_z read `max|ψ(gΩ)−ψ(Ω)| = 0.0` — with
+IDENTITY permutations (a 1-D polar rule carries μ_y = μ_z = 0 on every ordinate,
+ERR-080's territory). Published without the guard, *"the slab is even under σ_y and
+σ_z"* would have contradicted its own `unspent = Trivial` row with an
+authoritative number. `vv` Mode-8's tautological class wearing a physics claim.
+→ `L75c`(ii)
+
+⛔ **A "no permutation exists" reading is the RIGHT answer, not a failure.** `[M]`
+a cylindrical `SNMesh` admits only CARRYING quadratures — **15 of 15**
+`folded_product`, **0 of 20** `product`/`lebedev`/`level_symmetric` — so every
+admissible rule IS the σ_y quotient and no cylindrical solve stores both signs of
+μ_y. The σ_y half of the cylinder's declared symmetry is Mode-12 blind BY
+CONSTRUCTION; the honest gate asserts the structural commitment (the solver refuses
+every unfolded rule) instead of showing a green row. → `L75c`(i)
+
+⛔ **A `-> str | None` refusal verb collapses N guards into one value, and WHICH
+clause refuses WHICH input is a MEASUREMENT.** My own first draft asserted the
+ARROW for a 1-D rule on a 2-D geometry and was wrong — `quotient_onto(S²,
+S²/O(2)_x)` EXISTS (the entry's own quotient map), so it is refused by COVERAGE.
+`[M]` the shipped split is **arrow 14 / coverage 3 / both 0**, so the pre-verb
+DISJUNCTIVE message named a satisfied fact on all 17 refusals. Owe it input-side
+isolation (`L35f`) + disjoint fragments (`L43c`). → `L75e`
+
+⭐ **A non-vacuity guard (`0 < trues < rows`) on an independent-reference row fires
+on the member that is constant BY THEOREM** — here `H = Trivial`, `[M]` 99 of 99
+True, because `{e} ⊆ ΓK` always. Branch it and name the theorem; weakening it
+throws away the guard that made the other eight rows mean something. → `L75d`
+
+**§2 (harness discipline).** ⚠ **`textwrap.dedent` strips FOUR spaces from a
+method's source**, so a `_source_mutant` target copied at class indentation never
+matches — the precondition must report UNINSTALLABLE rather than `str.replace`
+no-op'ing silently. ⛔ **A re-TYPED mutant's re-worded `raise` reds a `match=` gate
+for a reason the mutation is not about** (3 arms did, before they were rebuilt as
+`inspect.getsource` transforms — `L44i` again). ⛔ **A bite check must call the
+LIVE class attribute**, not a captured helper that routes through the ORIGINAL
+guard (`L73j`, one frame out). → `L75d`
+
+⚠ **The carve can land THREE times in one dispatch.** `[M]` production at 06:04,
+the test migration at ~06:2x (15 reds → 0), the ELEGANCE pass at ~07:0x — which
+re-signatured the predicate to KEYWORD-ONLY, moved its two conjuncts to a new
+delegate class, and replaced the stage-0 body with a refusal verb. Two arms went
+UNINSTALLABLE mid-run and six crashed. `shasum` BEFORE/AFTER in the driver is what
+attributed it to the writer; the §6b list must state its PREDICATE, not a set.
+→ `L75`
+
+**§3 (config blindness).** ⚠ **A fold's quadrant census must read the ORDINATE
+cosines, not the orbit barycentres.** After #434 R4 the barycentres are `P_H p`, so
+a fold's mirror column is exactly zero and `np.sign` reports **0 of 4** quadrants
+for EVERY fold — plausible, flattering, wrong. On `Quadrature.mu_x/mu_y`: unfolded
+4 of 4, the LICENSED σ_z fold **4 of 4**, the REFUSED σ_y fold **2 of 4**.
+→ `L75c`(iii)
+
+**§4 (reference & claim layer).** ⭐ **A registry field that asserts a PHYSICS
+claim can be gated at the SOLVER tier for ~1 s, and that is the most a gate can
+say.** The continuum claim ("ψ is even under this group") is a derivation, not a
+test; the discrete claim is exactly checkable — solve a deliberately asymmetric
+fixed source, compare ψ at ordinate n with ψ at the ordinate g maps it to, one
+positive leg per element IN the group and one NEGATIVE leg per element outside it.
+`[M]` cartesian2d σ_z **0.0** EVEN vs σ_y 6.043e-01 / σ_x 8.175e-01 NOT; cylinder
+σ_z **0.0** vs σ_x 7.224e-01; slab σ_x 6.493e-01. That measures the D1 defect's
+physics instead of arguing it from z-uniformity. → `L75c`
+
+⭐ **Do NOT gate a table relation you cannot derive.** `[M]` `owed ⊇ unspent` holds
+on 4 of 4 shipped rows and has no theorem under it (the owed closure is what a
+FACE consumes, the unspent group what the SOLUTION has). A gate would be a
+coverage claim that FALSE-REDS the first geometry whose solution symmetry no face
+consumes. Record it as an observation WITH its denominator, nowhere as an
+assertion. → `L75`
+
+**§6 (carve archetypes) — RENAME-A-FIELD-AND-MOVE-ITS-MEANING.** The re-spelling
+is free and the re-KEY is the whole job: enumerate the cells whose ANSWER moves
+(here 5 of 168, and **2 were not in the plan's list**), freeze the pre-carve table
+from a `git archive HEAD` shadow tree, and ship the moved set as a RULED-MOVES
+dict so an unruled move is a red with a name. ⛔ And the sibling gate that pinned a
+frozen record including MESSAGE strings will RED — `[M]` 96 of 96 rejection
+strings moved while 0 of 48 choices did; the repair is to split the value half
+(keep the frozen table) from the wording half (pin at the STAGE), never to
+re-freeze prose. → `L75`, `L75e`

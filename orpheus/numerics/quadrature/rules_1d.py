@@ -32,7 +32,7 @@ The group the polar marginal was quotiented **by** — the stabiliser
 curvilinear :math:`\alpha` term — is thus carried by the orbit space
 itself (:attr:`Quotient.by`), and the
 geometry table's
-:attr:`~orpheus.numerics.quadrature.registry.AngularSymmetry.continuous_isotropy`
+:attr:`~orpheus.numerics.quadrature.registry.AngularSymmetry.spent`
 names the same group; stage 0 of quadrature selection compares the two.
 Until 2026-08-03 the spent group was carried in the invariance TAG; see
 the note at :func:`gauss_legendre_on_mu`'s return statement for why that
@@ -150,7 +150,7 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
         #
         # The spent half is NOT lost: `gauss_legendre_on_polar_orbit`
         # declares the orbit space S²/O(2)_a this rule is read on, and
-        # `AngularSymmetry.continuous_isotropy` (registry.py) names the
+        # `AngularSymmetry.spent` (registry.py) names the
         # same group for the geometry — stage 0 compares the two.
         invariance_group=SubgroupOfO3.Mirror("x"),
     )
