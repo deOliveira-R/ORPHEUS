@@ -4437,6 +4437,24 @@ case :math:`K = H`), the entry's own
 is a quotient of the source, and the induced :math:`M/K \to M/H` when
 both are quotients of one base with :math:`K \subseteq H`.
 
+⭐ **The registry's stage 0 reads the SAME arrow, since 2026-09-02.**
+#429 tracker 2.2b replaced
+:meth:`AngularSymmetry.admits_domain
+<orpheus.numerics.quadrature.registry.AngularSymmetry.admits_domain>`'s
+support EQUALITY with the same
+:func:`~orpheus.numerics.manifold.quotient_onto` question, plus the
+requirement that the group a rule's orbit space was quotiented by lie in
+the residual :math:`\Gamma` the geometry still owes. So a frame and a
+selector now ask the point-set layer one question with two consumers
+rather than two questions with one answer each, and `[M]` the shipped
+cylindrical fold — refused at both selection stages until that date — is
+admitted at both (see
+:doc:`/theory/foundations/manifolds`,
+:ref:`manifold-gamma-slot`). Nothing on the FRAME side moved: `[M]`
+2026-09-02, ``GalerkinFrame(LegendreBasis(L), folded_product(4, 8).measure)``
+still constructs at :math:`L \in \{0, 2, 4, 6\}` with a
+:math:`(16, L+1)` table, exactly as it did before.
+
 ⭐ **This subsumes the containment the pairing was first stated as, and
 it admits two pairings the containment cannot express.** The lattice
 verdict :math:`G_{\text{spent}} \subseteq G_{\text{have}}`

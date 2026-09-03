@@ -54,6 +54,32 @@ from orpheus.numerics.quadrature.registry import (
 )
 from orpheus.numerics.symmetry import SubgroupOfO3
 
+# 2.2b gates (test-architect, 2026-09-02) — the draft's imports, verbatim
+import numpy as np
+import pytest
+
+from orpheus.geometry.transformation import RigidMotion
+from orpheus.numerics.manifold import (
+    COSINE_INTERVAL,
+    SPHERE,
+    Ball,
+    Quotient,
+    barycentre,
+    quotient_onto,
+)
+from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.quadrature.directional import Quadrature
+from orpheus.numerics.quadrature.registry import GEOMETRY_ANGULAR_SYMMETRY
+from orpheus.numerics.quadrature.rules_1d import (
+    gauss_legendre_on_mu,
+    gauss_legendre_on_polar_orbit,
+)
+from orpheus.numerics.symmetry import (
+    SubgroupOfO3,
+    candidate_groups,
+    maximal_invariance_groups,
+)
+
 
 # ---------------------------------------------------------------------------
 # Registry sanity
@@ -1455,3 +1481,248 @@ def test_selection_still_lands_on_GaussLegendre1D_over_the_stabiliser_orbit_spac
     for name, reason in rejected.items():
         assert "S^2/O2_x" in reason, f"{name}: {reason}"
         assert "domain mismatch" in reason, f"{name}: {reason}"
+
+
+# =============================================================================
+# 2.2b — the Γ-slot: gates drafted by the test-architect (2026-09-02)
+# =============================================================================
+
+_g22b_AXES = ("x", "y", "z")
+
+
+def _g22b_trivially_quotiented_product() -> DiscreteMeasure:
+    from dataclasses import replace
+
+    return replace(
+        Quadrature.product(4, 8).measure,
+        support=SPHERE.quotient(SubgroupOfO3.Trivial),
+    )
+
+
+
+
+def _g22b_rot(axis: str, theta: float) -> RigidMotion:
+    return RigidMotion.rotation_about_axis(axis=np.eye(3)["xyz".index(axis)], angle=theta)
+
+
+def _g22b_mirror(axis: str) -> RigidMotion:
+    return RigidMotion.reflection(normal=np.eye(3)["xyz".index(axis)])
+
+
+#: Pairwise-incommensurate angles.  A right-angle sample of a continuous
+#: family generates C_4 and certifies what it never tested (ERR-072,
+#: ``vv-principles`` #13); the CONTROL below is allowed to sample because it
+#: can only REFUTE, and it is compared against a criterion that never does.
+_g22b_INCOMMENSURATE = (1.0, float(np.sqrt(2.0)), float(np.e), 2.5, float(np.sqrt(7.0)))
+
+
+# =============================================================================
+
+
+# G12 — tests/numerics/test_registry.py
+# =============================================================================
+class TestStageZeroIsTheDescentArrowPlusTheOwedResidual:
+    r"""(vii) Stage 0 through the arrow.
+
+    `[M]` 2026-09-02, over 4 geometries × 7 rules = 28 rows, the carve moves
+    **4**: cylinder and cartesian2d each admit the σ_y fold AND a σ_z fold,
+    where equality refused both.  Nothing else moves.
+
+    Two legs, and BOTH have a live witness at landing (``plan-authoring``
+    §6c):
+
+    * the **equality short circuit** is load-bearing on **10** rows — remove
+      it and ``sigma_x ⊇ O2_x`` reads ``False``, so the SLAB refuses its own
+      Gauss-Legendre rule and the cylinder refuses every sphere rule;
+    * the **Γ-containment leg** is load-bearing on **4** rows — remove it and
+      the arrow ``S² → S²/O2_x`` admits a 1-D POLAR rule for a 2-D geometry.
+
+    ⚠ **And the honest scope of the second one.** `[M]` at the
+    ``select_quadrature`` tier the Γ leg is INERT: with it removed the
+    selector picks the same spec on all 16 (geometry × degree) rows, because
+    stage 2's V conjunct refuses ``GaussLegendre1D`` for the cylinder first
+    (*"the rule is exact against legendre, but geometry 'cylinder' integrates
+    against uniform(S^2)"*).  So the leg's gate belongs HERE, at the
+    ``admits_domain`` tier, and no end-to-end selector row may be credited
+    to it.
+    """
+
+    @pytest.mark.foundation
+    def test_the_cylinder_admits_the_shipped_fold_and_the_slab_does_not(self):
+        cyl = GEOMETRY_ANGULAR_SYMMETRY["cylinder"]
+        slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
+        fold = Quadrature.folded_product(4, 8).measure
+        assert cyl.admits_domain(fold)
+        assert quotient_onto(cyl.support, fold.support) is not None
+        assert cyl.discrete_residual.contains(fold.support.by)
+        # the slab has no arrow at all: S^2/O2_x -> S^2/sigma_y does not exist
+        assert quotient_onto(slab.support, fold.support) is None
+        assert not slab.admits_domain(fold)
+
+    @pytest.mark.foundation
+    def test_a_z_fold_is_admitted_iff_its_mirror_lies_in_the_owed_residual(self):
+        """`[M]` ``D_2h.contains(σ_z)`` is ``True``, so a z-fold is admitted
+        for the cylinder; the leg is what makes that a LATTICE verdict rather
+        than a spelling coincidence."""
+        cyl = GEOMETRY_ANGULAR_SYMMETRY["cylinder"]
+        zfold = Quadrature.product(4, 8).measure.quotient(SubgroupOfO3.Mirror("z"))
+        assert zfold.support == SPHERE.quotient(SubgroupOfO3.Mirror("z"))
+        assert cyl.discrete_residual.contains(SubgroupOfO3.Mirror("z"))
+        assert cyl.admits_domain(zfold)
+
+    @pytest.mark.foundation
+    def test_a_ONE_DIMENSIONAL_rule_is_refused_by_the_owed_residual_alone(self):
+        r"""The Γ leg's only witness.  The arrow ``S² → S²/O2_x`` EXISTS (the
+        entry's own quotient map), so equality is no longer what refuses a
+        polar rule for a 2-D geometry — ``D_2h ⊉ O(2)_x`` is."""
+        for geometry in ("cylinder", "cartesian2d"):
+            sym = GEOMETRY_ANGULAR_SYMMETRY[geometry]
+            slab_rule = Quadrature.gauss_legendre(8).measure
+            assert quotient_onto(sym.support, slab_rule.support) is not None
+            assert not sym.discrete_residual.contains(slab_rule.support.by)
+            assert not sym.admits_domain(slab_rule)
+
+    @pytest.mark.foundation
+    def test_the_slab_still_admits_its_own_rule_through_the_identity_arrow(self):
+        r"""⛔ The row a naive spelling breaks.  ``Γ = σ_x`` for the slab and
+        ``σ_x ⊉ O(2)_x`` (`[M]` ``False``), so asking the Γ leg
+        UNCONDITIONALLY refuses the slab's own Gauss-Legendre rule.  The
+        equality case must short-circuit BEFORE the Γ leg — "for X == D there
+        is nothing to contain"."""
+        slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
+        rule = Quadrature.gauss_legendre(8).measure
+        assert rule.support == slab.support
+        assert not slab.discrete_residual.contains(rule.support.by)  # the trap
+        assert slab.admits_domain(rule)
+        for geometry in ("cylinder", "cartesian2d"):
+            sym = GEOMETRY_ANGULAR_SYMMETRY[geometry]
+            for factory in (
+                lambda: Quadrature.product(4, 8).measure,
+                lambda: Quadrature.level_symmetric(4).measure,
+                lambda: Quadrature.lebedev(5).measure,
+            ):
+                assert sym.admits_domain(factory())
+
+    @pytest.mark.foundation
+    def test_the_rejection_message_names_the_missing_arrow(self):
+        from orpheus.numerics.quadrature.registry import select_quadrature
+
+        _, log = select_quadrature("cylinder", 5)
+        reasons = [r for name, r in log.rejected if name == "GaussLegendre1D"]
+        assert reasons, "GaussLegendre1D was not rejected for the cylinder"
+        assert "domain mismatch" in reasons[0]
+        assert "S^2/O2_x" in reasons[0]
+        assert "arrow" in reasons[0] or "descent" in reasons[0]
+
+
+# =============================================================================
+
+
+# G13 — tests/numerics/test_registry.py
+# =============================================================================
+class TestStageOneOnAFoldAsksTheOrbitSpaceNotTheRepresentatives:
+    r"""(viii) Stage 1 on the fold — the positive leg and a real negative one.
+
+    `[M]` before the carve ``cylinder.admits_symmetry(folded_product(4, 8))``
+    was ``False``: Γ = D_2h was asked of the AMBIENT representatives and σ_y
+    maps a y ≥ 0 node to its absent mate.  After, it is ``True`` — and the
+    negative leg below proves the row is not simply "everything passes now".
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("n_mu,n_phi", [(2, 4), (4, 8), (6, 8)])
+    def test_the_cylinder_owed_symmetry_is_realized_on_the_fold(self, n_mu, n_phi):
+        cyl = GEOMETRY_ANGULAR_SYMMETRY["cylinder"]
+        assert cyl.admits_symmetry(Quadrature.folded_product(n_mu, n_phi).measure)
+
+    @pytest.mark.foundation
+    def test_a_fold_whose_representatives_are_not_closed_is_refused(self):
+        cyl = GEOMETRY_ANGULAR_SYMMETRY["cylinder"]
+        m = Quadrature.folded_product(4, 8).measure
+        nodes = np.asarray(m.nodes, dtype=float)
+        weights = np.asarray(m.weights, dtype=float)
+        bumped = weights.copy()
+        bumped[0] *= 1.5
+        assert not cyl.admits_symmetry(
+            DiscreteMeasure(nodes=nodes, weights=bumped, support=m.support)
+        )
+        assert not cyl.admits_symmetry(
+            DiscreteMeasure(nodes=nodes[1:], weights=weights[1:], support=m.support)
+        )
+
+    @pytest.mark.foundation
+    def test_both_stages_are_needed_for_the_fold(self):
+        """Stage 0 and stage 1 are independent on the fold too: the slab
+        admits neither, and a perturbed fold clears stage 0 and fails
+        stage 1."""
+        cyl = GEOMETRY_ANGULAR_SYMMETRY["cylinder"]
+        slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
+        m = Quadrature.folded_product(4, 8).measure
+        assert cyl.admits_domain(m) and cyl.admits_symmetry(m)
+        assert not slab.admits_domain(m)
+        bumped = np.asarray(m.weights, dtype=float).copy()
+        bumped[0] *= 1.5
+        broken = DiscreteMeasure(
+            nodes=np.asarray(m.nodes, dtype=float), weights=bumped, support=m.support
+        )
+        assert cyl.admits_domain(broken) and not cyl.admits_symmetry(broken)
+
+
+# =============================================================================
+
+
+# G14 — tests/numerics/test_registry.py
+# =============================================================================
+class TestTheSelectorIsUNMOVEDByTheCarve:
+    r"""(ix) ``select_quadrature`` end-to-end.
+
+    ``folded_product`` is NOT registered (the design records the structural
+    reasons), so **no end-to-end selection exercises the fold** and the carve
+    cannot be credited with an end-to-end row.  What the selector owes
+    instead is a REGRESSION statement: `[M]` 4 geometries × 4 degrees = 16
+    rows, the chosen spec, its parameters and its point count are identical
+    before and after the carve.
+    """
+
+    _EXPECTED = {
+        ("slab", 1): ("GaussLegendre1D", {"n": 2}, 2),
+        ("slab", 3): ("GaussLegendre1D", {"n": 2}, 2),
+        ("slab", 5): ("GaussLegendre1D", {"n": 4}, 4),
+        ("slab", 7): ("GaussLegendre1D", {"n": 4}, 4),
+        ("sphere", 1): ("GaussLegendre1D", {"n": 2}, 2),
+        ("sphere", 3): ("GaussLegendre1D", {"n": 2}, 2),
+        ("sphere", 5): ("GaussLegendre1D", {"n": 4}, 4),
+        ("sphere", 7): ("GaussLegendre1D", {"n": 4}, 4),
+        ("cylinder", 1): ("ProductQuadrature", {"n_mu": 1, "n_phi": 2}, 2),
+        ("cylinder", 3): ("LebedevSphere", {"order": 3}, 6),
+        ("cylinder", 5): ("LebedevSphere", {"order": 5}, 14),
+        ("cylinder", 7): ("LebedevSphere", {"order": 7}, 26),
+        ("cartesian2d", 1): ("ProductQuadrature", {"n_mu": 1, "n_phi": 2}, 2),
+        ("cartesian2d", 3): ("LebedevSphere", {"order": 3}, 6),
+        ("cartesian2d", 5): ("LebedevSphere", {"order": 5}, 14),
+        ("cartesian2d", 7): ("LebedevSphere", {"order": 7}, 26),
+    }
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("key", sorted(_EXPECTED))
+    def test_the_chosen_rule_is_unmoved(self, key):
+        from orpheus.numerics.quadrature.registry import select_quadrature
+
+        geometry, degree = key
+        name, params, n_points = self._EXPECTED[key]
+        measure, log = select_quadrature(geometry, degree)
+        assert log.chosen_spec.name == name
+        assert log.chosen_parameters == params
+        assert measure.n_points == n_points
+
+    @pytest.mark.foundation
+    def test_the_fold_is_not_registered_so_no_selection_reaches_it(self):
+        from orpheus.numerics.quadrature.registry import quadrature_registry
+
+        assert "folded" not in {s.name.lower() for s in quadrature_registry}
+        supports = set()
+        for spec in quadrature_registry:
+            params = spec.degree_of_exactness_for(5)
+            assert params is not None
+            supports.add(spec.build(params).support.name)
+        assert "S^2/sigma_y" not in supports

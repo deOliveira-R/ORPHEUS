@@ -317,7 +317,7 @@ from typing import Any, Callable
 
 from ..exactness import UNIFORM_ON_SPHERE, ReferenceMeasure
 from ..measure import DiscreteMeasure
-from orpheus.numerics.manifold import SPHERE, Manifold, Quotient
+from orpheus.numerics.manifold import SPHERE, Manifold, Quotient, spent_group
 from ..symmetry import SubgroupOfO3
 from .rules_1d import gauss_legendre_on_polar_orbit
 from .rules_product import product_mu_phi
@@ -981,8 +981,28 @@ class AngularSymmetry:
         return UNIFORM_ON_SPHERE
 
     def admits_domain(self, measure: DiscreteMeasure) -> bool:
-        """Stage 0 — does the rule live on this geometry's angular domain?"""
-        return measure.support == self.support
+        r"""Stage 0 — the rule lives on this geometry's angular domain, or
+        on a FOLD of it by part of the owed residual.
+
+        Two conditions, both read off the lattice and neither declared: the
+        descent arrow :math:`S^2/G^0 \to X` onto the rule's support must
+        EXIST (:func:`~orpheus.numerics.manifold.quotient_onto` — the same
+        arrow a frame's G0 reads, of which equality is the identity case),
+        AND what that arrow SPENDS
+        (:func:`~orpheus.numerics.manifold.spent_group` — :math:`\{e\}` for
+        the identity, the fold's group for a fold of the domain) must lie in
+        :math:`\Gamma`: a fold spends part of what the geometry OWES, and
+        only that part may be spent. One expression, because the question is
+        about the arrow: reading the group :math:`X` was quotiented by
+        relative to its OWN base would refuse the geometry's own domain
+        (`[M]` the slab's :math:`\sigma_x \not\supseteq O(2)_x`). `[M]` until 2026-09-02 this was
+        ``measure.support == self.support`` — equality, no lattice — and it
+        refused the shipped cylinder configuration, ``folded_product`` on
+        :math:`S^2/\sigma_y` (#429 tracker 2.2b; §II.10 of the plan measured
+        5 production builds rejected).
+        """
+        spent = spent_group(self.support, measure.support)
+        return spent is not None and self.discrete_residual.contains(spent)
 
     def admits_symmetry(self, measure: DiscreteMeasure) -> bool:
         """Stage 1 — is the rule closed under the owed discrete symmetry?
@@ -1262,7 +1282,9 @@ def select_quadrature(
                 spec.name,
                 f"domain mismatch: geometry {geometry!r} discretises "
                 f"{angular_symmetry.support.name}, but the rule's nodes "
-                f"live on {measure.support.name}",
+                f"live on {measure.support.name} — no descent arrow onto it, "
+                f"or a fold by a group outside the owed "
+                f"{angular_symmetry.discrete_residual.name}",
             ))
             continue
 

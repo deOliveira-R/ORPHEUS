@@ -943,12 +943,18 @@ def test_quotient_refuses_without_a_certificate() -> None:
 def test_the_fold_consumes_the_symmetry_idempotent_only_on_a_trivial_action() -> None:
     r"""The quotient CHANGES the space (T5), so re-folding is ill-posed.
 
-    Free action: the folded measure keeps one member per mirror pair, so
-    it is no longer :math:`\sigma_y`-invariant — a second ``quotient``
-    REFUSES rather than silently halving again. Trivial action (every node
+    Free action: the folded measure keeps one member per mirror pair. A
+    second ``quotient`` REFUSES rather than silently halving again — and
+    since #429 tracker 2.2b (2026-09-02) it refuses for the RIGHT reason:
+    the fold IS :math:`\sigma_y`-invariant on its orbit space (the group it
+    was folded by acts trivially there — asked in the ambient space, the
+    representatives looked "not closed", which was the wrong question), so
+    what is refused is quotienting by a group already SPENT: there is
+    nothing to quotient, and ``S^2/sigma_y/sigma_y`` would be a second
+    spelling of ``S^2/sigma_y``. Trivial action on the ATOMS (every node
     fixed — the great circle in the :math:`xz`-plane, which :math:`\sigma_y`
-    fixes pointwise): the quotient is the identity on ``(nodes, weights)`` and
-    literally idempotent.
+    fixes pointwise): the quotient is the identity on ``(nodes, weights)``
+    and literally idempotent, and the second fold is refused the same way.
 
     ⭐ **The fixture changed at tracker 2.0c, and the reason is the campaign's
     own subject.** It used to be :math:`(\mu, 0, 0)` on ``"[-1,1]^slab"`` —
@@ -966,7 +972,12 @@ def test_the_fold_consumes_the_symmetry_idempotent_only_on_a_trivial_action() ->
 
     folded = _fold_ring().quotient(group)
     assert folded.invariance_group is None  # the section is not equivariant
-    with pytest.raises(ValueError, match="is defined only for a sigma_y-invariant"):
+    # On its orbit space the fold IS sigma_y-invariant (trivially); what is
+    # refused is a quotient by the group already spent. Until 2026-09-02 the
+    # refusal read "not sigma_y-invariant" — the ambient reading of the
+    # representatives, which 2.2b retired (#429).
+    assert SubgroupOfO3.Mirror("y").is_invariant(folded)
+    with pytest.raises(ValueError, match="lies in the spent group sigma_y"):
         folded.quotient(group)
 
     theta = np.array([0.3, 1.7, 2.9])
@@ -989,7 +1000,10 @@ def test_the_fold_consumes_the_symmetry_idempotent_only_on_a_trivial_action() ->
     # docstring's "the quotient CHANGES the space, so re-folding is ill-posed"
     # and nothing could tell. Typing `support` made the two agree.
     assert once.support == SPHERE.quotient(group)
-    with pytest.raises(NotImplementedError, match="S\\^2/sigma_y/sigma_y"):
+    # Until 2026-09-02 this was the catalogue's NotImplementedError naming
+    # "S^2/sigma_y/sigma_y" as work to derive — an orbit space that EXISTS
+    # under its one spelling; the door now says so (#429 tracker 2.2b).
+    with pytest.raises(ValueError, match="lies in the spent group sigma_y"):
         once.quotient(group)
 
 

@@ -92,21 +92,32 @@ class TestQuotientLift:
         )
 
     def test_refolding_by_the_consumed_mirror_is_refused(self):
-        """The fold consumes ITS OWN symmetry: the representatives all sit
-        on the ξ > 0 side, so σ_y no longer carries the node set onto
-        itself and the certificate cannot be built.  (A DIFFERENT
-        surviving symmetry may still fold — σ_z's certificate builds
-        from the nodes; on the product it is then the STRUCTURE that
-        refuses, because σ_z merges the signed-μ_z levels — the
-        level-merging arm gated at Q5.3.)"""
+        """The fold consumes ITS OWN symmetry: σ_y is SPENT on the orbit
+        space the fold lives on — it acts trivially there — so a second
+        fold by it has nothing to quotient and is refused with that
+        theorem at the catalogue door (#429 tracker 2.2b, 2026-09-02).
+        Until then the refusal read "not σ_y-invariant": the
+        representatives all sit on the ξ > 0 side, so the AMBIENT reading
+        found no permutation — the wrong question, retired with 2.2b.
+        (A DIFFERENT surviving symmetry may still fold — σ_z's certificate
+        builds on the orbit space; on the product it is then the
+        STRUCTURE that refuses, because σ_z merges the signed-μ_z levels
+        — the level-merging arm gated at Q5.3.)"""
         folded = Quadrature.folded_product(4, 8)
-        with pytest.raises(ValueError, match="quotient is defined only"):
+        with pytest.raises(ValueError, match="lies in the spent group sigma_y"):
             folded.quotient(_MIRROR_Y)
 
     def test_the_slab_rule_refuses_through_the_primitive(self):
-        """A 1-D measure has no 3-D realization — the measure-level refusal
-        passes through the lift unchanged."""
-        with pytest.raises(ValueError, match="quotient is defined only"):
+        """The slab rule's μ-nodes ARE σ_x-closed on their orbit space
+        (μ ↦ −μ; since #429 tracker 2.2b the certificate is built on the
+        orbit space, so a 1-D node set is no longer refused by SHAPE — the
+        II.11 defect). What refuses is the CATALOGUE: the half-range fold
+        S²/O(2)_x / σ_x is a real orbit space ([0, 1]) that no entry
+        derives yet, and the refusal names that work rather than a false
+        "not invariant"."""
+        with pytest.raises(
+            NotImplementedError, match=r"no catalogue entry for S\^2/O2_x/sigma_x",
+        ):
             Quadrature.gauss_legendre(4).quotient(SubgroupOfO3.Mirror("x"))
 
 

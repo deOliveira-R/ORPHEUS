@@ -1874,7 +1874,10 @@ def test_h3_mixing_dimensions_raises() -> None:
         three.on_points(np.zeros((4, 2)))
     with pytest.raises(ValueError, match="trailing dimension"):
         three.on_directions(np.zeros((4, 2)))
-    with pytest.raises(ValueError, match=r"shape \(n, 3\)"):
+    # `permutes` owns no width check of its own since 2026-09-02 (#429
+    # tracker 2.2b): the match is `permutation_between` on `on_points`'s
+    # image, so the refusal is `on_points`'s — one home for the contract.
+    with pytest.raises(ValueError, match="trailing dimension"):
         three.permutes(np.zeros((4, 2)), atol=_TOL_MATCH)
     with pytest.raises(ValueError, match="compose permutations"):
         _ = Permutation.identity(3) @ Permutation.identity(4)

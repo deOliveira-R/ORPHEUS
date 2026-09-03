@@ -90,6 +90,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 if TYPE_CHECKING:  # a runtime import closes BOTH cycles documented above
+    from orpheus.geometry.transformation import RigidMotion
     from orpheus.numerics.exactness import ReferenceMeasure
     from orpheus.numerics.symmetry import SubgroupOfO3
 
@@ -213,7 +214,12 @@ class Manifold(ABC):
             group names the same point set, so it is not a second entry
             but a second spelling, and it is refused with the theorem
             (`[M]` ``SPHERE.quotient(SubgroupOfO3.SO2("x"))`` is refused
-            naming ``O2("x")``; #432, 2026-09-02).
+            naming ``O2("x")``; #432, 2026-09-02).  And when ``self`` is
+            already an orbit space and ``group`` lies in the group it spent:
+            such a group acts TRIVIALLY here, the quotient is the identity,
+            and ``S^2/sigma_y/sigma_y`` would be a second spelling of
+            ``S^2/sigma_y`` (#429 tracker 2.2b) — refused naming the orbit
+            space the caller already has.
 
         Notes
         -----
@@ -768,6 +774,134 @@ class Quotient(Manifold):
             domain=self.base, codomain=self, apply=self.orbit_coordinates
         )
 
+    @property
+    def lift(self) -> ManifoldMap:
+        r"""A lift of the chart into the base — a right inverse of the
+        quotient map, :math:`\pi \circ \lambda = \mathrm{id}` on the
+        :attr:`realization`.
+
+        The arrow an ORBIT-SPACE question needs when a measure's nodes
+        arrive in chart coordinates (a slab rule carries :math:`\mu`, not a
+        point of :math:`S^2`): lift them to the base, act there, read the
+        orbit off the image (:meth:`induced_action`). Three honest
+        realizations, one per catalogued family (#429 tracker 2.2b,
+        2026-09-02):
+
+        * the axial entry's is the orbit BARYCENTRE :func:`barycentre`,
+          :math:`\mu \mapsto \mu\,\hat e_a` — not a section (it lands
+          inside the ball, on the sphere only at the poles) but
+          EQUIVARIANT under every isometry that descends to the orbit
+          space, because the barycentre of an orbit is canonical: an
+          isometry carrying orbits onto orbits carries their means onto
+          their means. That is all an induced action requires, and it is
+          the reason the axial entry needs no section (none is canonical);
+        * a mirror entry's is the hemisphere section onto its
+          :attr:`fundamental_domain`, :math:`(x_b, x_c) \mapsto
+          (\sqrt{1 - x_b^2 - x_c^2}\,\hat e_a + x_b \hat e_b + x_c \hat e_c)`;
+        * the trivial entry's is the identity — the chart IS the base.
+
+        Typed honestly, arm by arm: the domain is this entry in its chart
+        coordinates on all three; the codomain is the base :math:`S^2` for
+        the two arms that are sections and the ball :math:`D^3` for the
+        barycentre, which is not — the same arrow :func:`barycentre` already
+        is, so a consumer reading the codomain learns which it was handed.
+        Derived, not stored, for the reason :attr:`quotient_map` is: a
+        function of :attr:`by` and :attr:`base` alone.
+        """
+        by = self.by
+        if by.rotation_axis is not None:
+            return barycentre(self)
+        if by.mirror_axis is not None:
+            return ManifoldMap(
+                domain=self,
+                codomain=self.base,
+                apply=functools.partial(_hemisphere_section, by.mirror_axis),
+            )
+        if by.name == "Trivial":
+            return ManifoldMap(
+                domain=self, codomain=self.base, apply=_all_coordinates,
+            )
+        raise NotImplementedError(
+            f"no lift is spelled for {self.name}: add the entry's section "
+            f"(or its equivariant barycentre) to Quotient.lift in "
+            f"orpheus/numerics/manifold.py."
+        )
+
+    def ambient_representatives(self, points: ArrayLike) -> NDArray:
+        r"""One point of the base's AMBIENT space per orbit — a representative
+        ON the base when the entry has a section (a fold's nodes, the
+        hemisphere section), the orbit BARYCENTRE inside the ball for the
+        axial entry, which has none.
+
+        The two honest coordinate systems :meth:`contains` accepts, told
+        apart by width: ambient-width points (what a fold's nodes are) pass
+        through unchanged; chart-width points (the :attr:`realization`'s
+        width) are carried up by :attr:`lift`. ⚠ The output is NOT claimed
+        to lie on the base — for the axial entry it does not (the barycentre
+        of a constant-:math:`\mu` circle is :math:`\mu\,\hat e_a`, on the
+        sphere only at the poles); it is the point an ORBIT question wants,
+        because every isometry that descends to the orbit space carries it
+        to its image orbit's own point (:meth:`induced_action`). A consumer
+        that needs a direction on :math:`S^2` must ask for a section, and
+        the axial entry refuses to invent one (:attr:`fundamental_domain`
+        is ``None`` there on purpose). Named for what it returns so that
+        the ERR-080 shape — a chart coordinate wearing the type of a point
+        of :math:`S^2` — has no name to hide behind.
+        """
+        arr = np.asarray(points, dtype=float)
+        if arr.ndim == 1:
+            arr = arr[:, None]
+        width = arr.shape[1]
+        if width == ambient_dim(self.base):
+            return arr
+        if width == ambient_dim(self.realization):
+            lifted = np.asarray(self.lift(arr), dtype=float)
+            return lifted if lifted.ndim == 2 else lifted[:, None]
+        raise ValueError(
+            f"{self.name}: points of width {width} are in neither the base's "
+            f"coordinates ({ambient_dim(self.base)}) nor the chart's "
+            f"({ambient_dim(self.realization)})."
+        )
+
+    def induced_action(self, motion: "RigidMotion") -> ManifoldMap:
+        r"""The action of the isometry ``motion`` ON this orbit space,
+        :math:`M/H \to M/H`, :math:`[p] \mapsto [g\,p]`.
+
+        Well-defined iff :math:`g` NORMALISES :math:`H` (:math:`gHg^{-1} =
+        H`): then :math:`g` carries every :math:`H`-orbit onto an
+        :math:`H`-orbit and the image orbit is a function of the orbit
+        alone. Otherwise :math:`[g\,p]` depends on the representative and
+        the map is not a map — REFUSED with the reason, rather than
+        evaluated on whatever representative arrived (`[M]` :math:`C_4`
+        about :math:`z` does not normalise :math:`\sigma_y`; it conjugates
+        it to :math:`\sigma_x`). The question is asked of the group
+        (:meth:`SubgroupOfO3.is_normalised_by
+        <orpheus.numerics.symmetry.SubgroupOfO3.is_normalised_by>`),
+        duck-typed like every other read of :attr:`by` in this module.
+
+        Section coordinates in (chart-width points are lifted first, by
+        :meth:`ambient_representatives`), chart coordinates out — the
+        convention of :attr:`quotient_map`. This is the arrow the OWED
+        residual symmetry :math:`\Gamma` of a geometry acts through on a
+        folded rule (#429 tracker 2.2b, 2026-09-02): a fold's nodes are
+        representatives, so asking :math:`\sigma_y` of the representatives
+        of :math:`S^2/\sigma_y` in the ambient space reads *"not
+        closed"* while :math:`\sigma_y` acts TRIVIALLY on the orbit space
+        — the question was being asked in the wrong place.
+        """
+        if not self.by.is_normalised_by(motion):
+            raise ValueError(
+                f"{motion!r} does not descend to {self.name}: it does not "
+                f"normalise {self.by.name} (g H g^-1 != H), so [p] -> [g p] "
+                f"is not a function of the orbit. Only the normaliser of the "
+                f"quotienting group acts on an orbit space."
+            )
+        return ManifoldMap(
+            domain=self,
+            codomain=self,
+            apply=functools.partial(_act_through, self, motion),
+        )
+
     def descending_slots(
         self, basis: Any, *, probe: ArrayLike | None = None, atol: float = 1e-12,
     ) -> NDArray:
@@ -1256,6 +1390,83 @@ def quotient_onto(source: Manifold, target: Manifold) -> ManifoldMap | None:
     return None
 
 
+def spent_group(source: Manifold, target: Manifold) -> "SubgroupOfO3 | None":
+    r"""The group the descent arrow ``source -> target`` SPENDS, or ``None``
+    when :func:`quotient_onto` has no arrow.
+
+    What a registry's stage 0 asks of a fold (#429 tracker 2.2b): a rule on
+    :math:`X` is admissible for a geometry whose domain is :math:`D` iff
+    :math:`D` descends onto :math:`X` AND what the descent spends lies in
+    the residual the geometry still OWES — so the question is about the
+    ARROW, not about the group :math:`X` was quotiented by relative to its
+    own base (`[M]` reading ``X.by`` there refuses the geometry's own domain:
+    the slab's :math:`\sigma_x \not\supseteq O(2)_x`). Three cases, the
+    arrow's own:
+
+    * the identity (``source == target``, or the trivial quotient onto its
+      base) spends :math:`\{e\}`;
+    * the entry's own quotient map (``source`` is the base of ``target``)
+      spends ``target.by``;
+    * the induced map between two quotients of one base spends the part of
+      ``target.by`` beyond ``source.by`` — a coset space, not a subgroup, and
+      the geometry's FULL group :math:`G = G^0\Gamma` that it must lie in is
+      not a registry field — refused naming the missing work; `[M]` no
+      shipped rule reaches it (every shipped fold is of the bare sphere).
+    """
+    if quotient_onto(source, target) is None:
+        return None
+    if source == target or not isinstance(target, Quotient):
+        return _trivial_group()
+    if source == target.base:
+        return target.by
+    raise NotImplementedError(
+        f"what the induced arrow {source.name} -> {target.name} spends is a "
+        f"coset of {target.by.name} by {getattr(source, 'by', source).name}, "
+        f"and admitting it needs the geometry's FULL group G = G^0 Gamma, "
+        f"which the registry does not record; add it to AngularSymmetry "
+        f"when a fold of a reduced domain ships."
+    )
+
+
+def _trivial_group() -> "SubgroupOfO3":
+    """The trivial subgroup — imported at function scope (module docstring)."""
+    from orpheus.numerics.symmetry import SubgroupOfO3
+
+    return SubgroupOfO3.Trivial
+
+
+def _hemisphere_section(axis: int, points: NDArray) -> NDArray:
+    r"""The section :math:`(x_b, x_c) \mapsto (+\sqrt{1-\rho^2}, x_b, x_c)` of
+    :math:`S^2 \to S^2/\sigma_a` — the representative on the closed
+    hemisphere :math:`x_a \ge 0`, which is the entry's fundamental domain.
+    The chart's boundary circle :math:`\rho = 1` (the mirror's fixed
+    locus) lifts to :math:`x_a = 0`; a point OUTSIDE the closed disk is no
+    chart coordinate of this orbit space and is refused rather than
+    clamped onto a plausible wrong point (a round-off band of ``1e-12``
+    past the circle is absorbed, as :meth:`Manifold.contains` absorbs it).
+    """
+    chart = np.asarray(points, dtype=float)
+    kept = [i for i in range(3) if i != axis]
+    radial = 1.0 - (chart * chart).sum(axis=1)
+    if np.any(radial < -1e-12):
+        raise ValueError(
+            f"the hemisphere section is defined on the closed unit disk; "
+            f"got a chart point with rho^2 = {float(1.0 - radial.min()):.6g} > 1."
+        )
+    section = np.zeros((chart.shape[0], 3))
+    section[:, kept] = chart
+    section[:, axis] = np.sqrt(np.maximum(0.0, radial))
+    return section
+
+
+def _act_through(orbit_space: Quotient, motion: "RigidMotion", points: NDArray) -> NDArray:
+    r""":math:`[p] \mapsto [g\,p]` — :meth:`Quotient.induced_action`'s apply,
+    a module-level function partially applied so the arrow is picklable."""
+    return orbit_space.orbit_coordinates(
+        motion.on_points(orbit_space.ambient_representatives(points))
+    )
+
+
 def _ambient_columns(columns: int | list[int], points: NDArray) -> NDArray:
     r"""``points[:, columns]`` — every shipped entry's orbit coordinates.
 
@@ -1289,13 +1500,33 @@ def _catalogued_quotient(base: Manifold, group: "SubgroupOfO3") -> Quotient:
     # trivial action is free, vacuously, since its only element is
     # the identity.  The procedure reproduces the known answer, so
     # this case is also a positive control on the machinery.
+    # The trivial group is admitted on EVERY base, first: M/{e} is the
+    # identity ENTRY (`_mod_trivial` — a derivation output, the catalogue's
+    # positive control, and the orbit space a measure that names no group
+    # is asked on), so (M/H)/{e} is that entry too, not a refusal.  It is
+    # the one deliberate exception to the door below, and it is named here
+    # so that no session "tightens" the door for consistency and takes the
+    # ambient container with it.
+    if group.name == "Trivial":
+        return _mod_trivial(base, group)
+    # A group that acts TRIVIALLY on an orbit space — one inside the group
+    # already spent — has nothing to quotient: (M/H)/G for G ⊆ H is M/H
+    # itself, a second spelling of one orbit space.  Refused with the theorem
+    # (#429 tracker 2.2b, 2026-09-02), by the same law that names an entry
+    # by its stabiliser: never "derive S^2/sigma_y/sigma_y", which would
+    # send a caller off to derive an orbit space that exists.
+    if isinstance(base, Quotient) and base.by.contains(group):
+        raise ValueError(
+            f"{base.name}/{group.name} is {base.name}: {group.name} lies in "
+            f"the spent group {base.by.name}, so it acts trivially on the "
+            f"orbit space and the quotient is the identity — there is "
+            f"nothing to quotient. The orbit space is {base.name} already."
+        )
     # The door's half of the invariant `Quotient.__post_init__` enforces:
     # refuse a non-stabiliser group BEFORE the lookup, so the answer is the
     # theorem (this orbit space exists, under its stabiliser's name) and
     # never "no catalogue entry" for an entry that exists.
     _assert_named_by_stabiliser(base, group)
-    if group.name == "Trivial":
-        return _mod_trivial(base, group)
 
     entry = _ORBIT_CATALOGUE.get((type(base), group.name))
     if entry is None:
@@ -1550,7 +1781,7 @@ def _sphere_mod_mirror(base: Manifold, group: "SubgroupOfO3") -> Quotient:
         fundamental_domain=FundamentalDomain(
             base=base,
             normals=(tuple(1.0 if i == axis else 0.0 for i in range(3)),),
-            label=f"{'xyz'[axis]}>=0",
+            label=f"{AXIS_LETTER[axis]}>=0",
         ),
         generators=(
             u[0] - invariants[0],

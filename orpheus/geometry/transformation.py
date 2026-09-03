@@ -138,6 +138,8 @@ __all__ = [
     "Permutation",
     "RigidMotion",
     "close_group",
+    "permutation_between",
+    "permutation_preserving",
 ]
 
 
@@ -279,6 +281,80 @@ class Permutation:
 
     def __repr__(self) -> str:  # pragma: no cover - display only
         return f"Permutation({self.indices.tolist()})"
+
+
+def permutation_between(
+    points: "ArrayLike", images: "ArrayLike", *, atol: float
+) -> "Permutation | None":
+    r"""The permutation :math:`\pi` with :math:`\text{images}_i =
+    \text{points}_{\pi(i)}`, or ``None`` if the images are not the point set.
+
+    The point-set half of :meth:`RigidMotion.permutes`, on its own because
+    an ACTION is not always an isometry of the ambient space: the action
+    an isometry INDUCES on an orbit space (:meth:`Quotient.induced_action
+    <orpheus.numerics.manifold.Quotient.induced_action>`) maps chart points
+    to chart points through the quotient map, and asking whether it
+    permutes a weighted node set is this same question with the images
+    supplied rather than computed. Two guards, and the second is the one
+    that is easy to omit:
+
+    1. every image is within ``atol`` of some point of the set;
+    2. the match is a **bijection** (ERR-073).
+
+    Nearest-neighbour matching alone proves only that every image has *a*
+    partner, which is strictly weaker than "the images are the set": two
+    distinct sources may land on one target, leaving some point unmatched.
+    Since :math:`\pi` maps an :math:`n`-set to an :math:`n`-set, injectivity
+    is equivalent to bijectivity, so counting distinct targets suffices.
+    """
+    x = np.asarray(points, dtype=float)
+    moved = np.asarray(images, dtype=float)
+    if x.ndim != 2 or moved.shape != x.shape:
+        raise ValueError(
+            f"points must have shape (n, d) and images the same shape, "
+            f"got {x.shape} and {moved.shape}"
+        )
+    n = x.shape[0]
+    # Nearest-neighbour match, all sources at once. Point counts here are
+    # small (Lebedev-17 is 110), so the (n, n) distance matrix is cheaper
+    # than a per-point Python loop — and one match rule cannot disagree
+    # with itself the way a fast path plus a fallback can.
+    dist = np.linalg.norm(moved[:, None, :] - x[None, :, :], axis=2)
+    pi = np.argmin(dist, axis=1)
+    if np.any(dist[np.arange(n), pi] > atol):
+        return None  # some image is not a point of the set at all
+    if np.unique(pi).size != n:
+        return None  # the match is not a bijection (ERR-073)
+    return Permutation(pi.astype(np.int64))
+
+
+def permutation_preserving(
+    points: "ArrayLike",
+    images: "ArrayLike",
+    weights: "ArrayLike",
+    *,
+    atol: float,
+    weight_atol: float,
+) -> "Permutation | None":
+    r""":func:`permutation_between` **and** :math:`w_i = w_{\pi(i)}`, or ``None``.
+
+    The weighted half of :meth:`RigidMotion.preserves`, free of the motion for
+    the reason :func:`permutation_between` is: a point set can be carried onto
+    itself while the weights it carries are not, and such a set is not
+    invariant for any integration purpose.
+    """
+    pi = permutation_between(points, images, atol=atol)
+    if pi is None:
+        return None
+    w = np.asarray(weights, dtype=float)
+    if w.shape != (pi.n,):
+        raise ValueError(
+            f"weights must have shape ({pi.n},) to match the points, "
+            f"got {w.shape}"
+        )
+    if np.any(np.abs(w[pi.indices] - w) > weight_atol):
+        return None
+    return pi
 
 
 @dataclass(frozen=True, eq=False)
@@ -612,24 +688,7 @@ class RigidMotion:
         suffices. (ERR-073.)
         """
         x = np.asarray(points, dtype=float)
-        if x.ndim != 2 or x.shape[1] != self.dimension:
-            raise ValueError(
-                f"points must have shape (n, {self.dimension}), "
-                f"got {x.shape}"
-            )
-        n = x.shape[0]
-        moved = self.on_points(x)
-        # Nearest-neighbour match, all sources at once. Point counts here are
-        # small (Lebedev-17 is 110), so the (n, n) distance matrix is cheaper
-        # than a per-point Python loop — and one match rule cannot disagree
-        # with itself the way a fast path plus a fallback can.
-        dist = np.linalg.norm(moved[:, None, :] - x[None, :, :], axis=2)
-        pi = np.argmin(dist, axis=1)
-        if np.any(dist[np.arange(n), pi] > atol):
-            return None  # some image is not a point of the set at all
-        if np.unique(pi).size != n:
-            return None  # the match is not a bijection (ERR-073)
-        return Permutation(pi.astype(np.int64))
+        return permutation_between(x, self.on_points(x), atol=atol)
 
     def preserves(
         self,
@@ -654,18 +713,10 @@ class RigidMotion:
         weight, which is usually read straight from a table; a caller that
         wants them equal must say so.
         """
-        pi = self.permutes(points, atol=atol)
-        if pi is None:
-            return None
-        w = np.asarray(weights, dtype=float)
-        if w.shape != (pi.n,):
-            raise ValueError(
-                f"weights must have shape ({pi.n},) to match the points, "
-                f"got {w.shape}"
-            )
-        if np.any(np.abs(w[pi.indices] - w) > weight_atol):
-            return None
-        return pi
+        x = np.asarray(points, dtype=float)
+        return permutation_preserving(
+            x, self.on_points(x), weights, atol=atol, weight_atol=weight_atol,
+        )
 
     # -- equality ---------------------------------------------------------
 

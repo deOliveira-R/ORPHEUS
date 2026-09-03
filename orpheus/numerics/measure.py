@@ -1170,9 +1170,13 @@ class DiscreteMeasure:
         if certificate is None:
             raise ValueError(
                 f"a quotient is defined only for a {group.name}-invariant "
-                f"measure with a finite realization; this measure is not "
-                f"{group.name}-invariant (or {group.name} is continuous, "
-                f"and a continuous group has no finite node permutation)"
+                f"measure with a finite realization; no certificate exists "
+                f"because {group.name} is continuous (no finite node "
+                f"permutation), or does not ACT on this measure's orbit "
+                f"space {self.support.name} (it does not normalise the group "
+                f"already spent there), or acts there without permuting the "
+                f"weighted nodes — this measure is not {group.name}-invariant "
+                f"on its orbit space."
             )
 
         representative = np.arange(self.n_points, dtype=np.int64)

@@ -2089,3 +2089,44 @@ pin the sentence the refusal exists to SAY (preserved by the move) plus the ERRO
 TYPE / ordering (which the move can break: a check placed after the catalogue lookup
 raises `NotImplementedError`, not the theorem's `ValueError`), never the diagnosis
 wording. → `L70f`
+
+**Harness discipline.** ⭐⭐ **When a concurrent carve holds `orpheus/`, SNAPSHOT it
+(`git archive <HEAD> orpheus | tar -x`) and SHADOW the design outside the package.**
+⚠ The editable install's MetaPathFinder beats `PYTHONPATH` — you must strip it from
+`sys.meta_path` or the snapshot is never loaded. The shadow's validity control is that
+it reproduces the shipped answers EXACTLY on every input the design says it does not
+touch (`[M]` 395 of 415 rows), which is what turns the changed rows into evidence.
+`[M]` every prediction reproduced against the landed carve. → `L71a`
+
+**Harness discipline.** ⭐⭐ **A §6b table is a MEASUREMENT, not a reading: wrap the
+method in a `-p` plugin, return the honest answer, and record `(test id, support,
+before, after-shadow)` over a real suite run.** `[M]` 1636 `is_invariant` calls / 74
+tests → exactly **1** verdict moves, and only **4** calls tree-wide ever see the new
+case. A grep returns 61 sites and cannot say which. ⚠ Reproduce the KEYWORD-ONLY
+signature or the harness fails 72 tests for its own reason. → `L71b`
+
+**Gates that cannot red.** ⭐⭐ **A design's HEADLINE consequence can be its least
+falsifiable one** — ask which arm produces it and whether that arm reads the data.
+`[M]` the advertised flip came from a `H.contains(G)` short circuit that never looks
+at a node: it stays True with a node deleted AND a weight perturbed, while three
+sibling groups go False. Gate the wiring with it; gate the data with the sibling, and
+say so in the docstring. → `L71c`
+
+**Config blindness.** ⛔ **A design's consequence LIST is a universal and owes its
+denominator — and the denominator is `candidate_groups(measure)`, never a group list
+you typed.** `[M]` the design named 2 flips, the honest count is 4 per fold (20 of 415
+rows); my own first pass said 12 because my hand list omitted `Dnh(1)`. → `L71d`
+
+**Carve archetypes.** ⭐ **"Retire this internal" is a §6b question about its SECOND
+consumer, and a family that agrees on ONE parameter value hides it.** `[M]`
+`_embedded_nodes` also feeds `ordinate_permutation`; deleting its axial arm returns a
+wrong permutation on 2 of 3 axes, invisible because the slab's own axis is where the
+two spellings agree — and the suite is 2857/0 either way. → `L71e`
+
+**Gates that cannot red.** ⛔ **A new guard can be load-bearing at its API tier and
+INERT at the tier its end-to-end test lives on.** `[M]` removing stage 0's Γ leg moves
+4 of 28 `admits_domain` rows and **0 of 16** selector rows (a later stage refuses
+first). Price every guard with a stronger-than-the-change control AT EACH TIER and
+write the inert tier into the docstring. ⭐ Its sibling: **the equality short circuit
+in a lattice predicate is itself a gate** — `[M]` `sigma_x ⊉ O2_x`, so asking the Γ leg
+unconditionally makes the slab refuse its own rule (10 of 28 rows). → `L71f`, `L71g`

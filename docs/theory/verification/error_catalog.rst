@@ -5494,10 +5494,36 @@ older entries classify against.
    2026-09-02 with the three axial STABILISERS :math:`O(2)_a` added
    (#432), 18 groups × the same 6 fixtures, **57 → 75 edges** and **0
    violations over 450 pairs**, with the 15-group control reproducing
-   342/0 in the same script. The companion
+   342/0 in the same script; `[M]` re-run again 2026-09-02 after #429
+   tracker 2.2b moved the invariance question onto the orbit space,
+   **0 violations at both denominators, unchanged**. The companion
    was a return-shape change: once ``_orbit_closure`` returns its
    per-operator permutations, ``len(perms) == 4`` for a group of infinite
    order is visibly wrong.
+
+   ⭐ **2026-09-02 — the same mechanism recurs in a NEW predicate, and
+   this time it was caught at design time.** #429 tracker 2.2b needed a
+   second question about a continuous group: does :math:`G` NORMALISE
+   :math:`H`, i.e. does it act on the orbit space :math:`M/H` at all?
+   The tempting implementation is the one this entry indicts — sample
+   :math:`G` and conjugate. `[M]` 2026-09-02, over eight
+   :math:`(G, H)` pairs with :math:`G` continuous, the four-right-angle
+   sample :math:`\{0, \pi/2, \pi, 3\pi/2\}` answers ``True`` on **2 of
+   8** where the exact criterion answers ``False``:
+   :math:`(SO(2)_x, D_{2h})` and :math:`(SO(2)_z, D_{2h})`, because the
+   quarter turns permute :math:`\{\sigma_y, \sigma_z\}` and land back
+   inside :math:`D_{2h}` while a generic angle does not — the same
+   ``n mod 4`` signature, one predicate over. The shipped answer is
+   exact instead: conjugation by a CONNECTED group is continuous, hence
+   constant into a finite group, so
+   :func:`~orpheus.numerics.symmetry._identity_component_normalises`
+   computes a **commutator against the rotation generator**
+   :math:`[\hat e_a]_\times` and the finitely many coset
+   representatives are asked one by one. `[M]` a ten-angle
+   incommensurate sample agrees with the exact criterion on **8 of 8**
+   pairs, which is the positive control that a ``False`` is a refusal
+   rather than a broken filter. See
+   :ref:`manifold-normaliser-sampling-control`.
 
    **Lesson.** A finite "representative orbit" certifies **only the group
    the sample generates** — compute that group and compare it to the
@@ -6432,10 +6458,16 @@ older entries classify against.
      ``Sphere().contains`` is ``False`` (norms
      :math:`0.1834\ldots0.9603`). That is why no tolerance and no
      arithmetic check has ever reached this defect. The *honest*
-     spelling of the same map, ``symmetry._embedded_nodes``, now READS
-     :func:`~orpheus.numerics.manifold.barycentre` (`[M]`
-     bit-identical on 12 rows), so the Pattern-2 twin is collapsed and
-     only the forgery remains.
+     spelling of the same map, ``symmetry._embedded_nodes``, READ
+     :func:`~orpheus.numerics.manifold.barycentre` from that step on
+     (`[M]` bit-identical on 12 rows), so the Pattern-2 twin was
+     collapsed and only the forgery remained. ⚠ Since #429 tracker 2.2b
+     (2026-09-02) that read goes one hop further, through the entry's
+     own :attr:`Quotient.lift
+     <orpheus.numerics.manifold.Quotient.lift>` — the axial family's
+     lift IS the barycentre — and `[M]` the identity is unmoved:
+     ``array_equal`` on the same 12 rows, on a pinned pre-change tree
+     and on the post-change one alike.
 
      ⛔ **Nothing here repairs the defect, and the forgery arm was left
      alone ON PURPOSE.** It stays a raw

@@ -97,12 +97,12 @@ from orpheus.numerics.manifold import Quotient, Sphere
 # An ordinate permutation is a group action on the measure, so it is
 # certified by the SAME machinery that proves invariance — one source of
 # truth for "does this motion permute these weighted nodes?"
-# (``RigidMotion.preserves``), asked with the measure-level windows and
-# the canonical R³ embedding (``_embedded_nodes``).
+# (``induced_permutation``, the single-motion face of the closure that
+# `is_invariant` and `orbit_certificate` read), asked ON the rule's orbit
+# space with the measure-level windows (#429 tracker 2.2b, 2026-09-02).
 from orpheus.numerics.symmetry import (
-    _NODE_WINDOW_FACTOR,
     SubgroupOfO3,
-    _embedded_nodes,
+    induced_permutation,
 )
 
 if TYPE_CHECKING:
@@ -127,8 +127,9 @@ _OCTANT_SIGN_EPS = 1e-15
 #: suppresses. This is the bound :meth:`Quadrature.mean_axis_cosine` checks,
 #: and it is a different question from the rule's own ``dim``: ``dim <= i < 3``
 #: names a real axis this rule has quotiented away (mean zero, a genuine
-#: answer), while ``i >= 3`` names no axis at all. Matches the embedding in
-#: :func:`~orpheus.numerics.symmetry._embedded_nodes`.
+#: answer), while ``i >= 3`` names no axis at all. Matches the width of the
+#: base's ambient space every orbit-space entry lifts into
+#: (:meth:`~orpheus.numerics.manifold.Quotient.ambient_representatives`).
 _DIRECTION_AMBIENT_DIM = 3
 
 
@@ -159,12 +160,12 @@ def _octant_sign_predicate(nodes: np.ndarray) -> np.ndarray:
     return out
 
 
-#: Node-match tolerance for certifying an ordinate permutation. Passed to
-#: :meth:`~orpheus.geometry.transformation.RigidMotion.preserves`, which
-#: matches positions inside ``atol`` (fed ``_REFLECTION_ATOL *
-#: _NODE_WINDOW_FACTOR`` below) and compares weights at ``weight_atol``
-#: (fed ``_REFLECTION_ATOL``) — the same two windows the measure-level
-#: orbit certification uses.
+#: Weight-match tolerance for certifying an ordinate permutation. Passed to
+#: :func:`~orpheus.numerics.symmetry.induced_permutation`, which compares
+#: weights at this window and positions at
+#: :data:`~orpheus.numerics.symmetry._NODE_WINDOW_FACTOR` times it — the
+#: same two windows the measure-level orbit certification uses, because it
+#: IS that certification, asked of one motion.
 _REFLECTION_ATOL = 1e-13
 
 
@@ -497,17 +498,26 @@ class Quadrature:
         rotation had no path. This method is the general question, asked
         with exactly the discipline the table carried:
 
-        * the same canonical :math:`\mathbb{R}^3` embedding
-          (:func:`~orpheus.numerics.symmetry._embedded_nodes` — a polar
-          :math:`\mu` becomes :math:`(\mu, 0, 0)`), with a lower-dimensional
-          motion lifted through
+        * the same reading of the nodes — ON the rule's orbit space
+          (#429 tracker 2.2b, 2026-09-02): a polar marginal's :math:`\mu`
+          is carried to the base through the entry's lift and acted on
+          through the entry's
+          :meth:`~orpheus.numerics.manifold.Quotient.induced_action`, a
+          fold's REPRESENTATIVES likewise (so :math:`\sigma_y` on a
+          :math:`\sigma_y`-folded rule is the IDENTITY permutation of the
+          stored ordinates — it acts trivially on the orbit space — where
+          the ambient reading found no permutation and a reflecting face
+          on a folded rule was refused), a bare sphere rule as itself; a
+          lower-dimensional motion is lifted through
           :meth:`~orpheus.geometry.transformation.RigidMotion.embedded_in`;
         * the same two tolerance windows (node window
           :data:`~orpheus.numerics.symmetry._NODE_WINDOW_FACTOR` times the
           weight window, the measure-level claim recorded on
           ``_orbit_closure``);
         * the same three certifications, delivered by
-          :meth:`~orpheus.geometry.transformation.RigidMotion.preserves`:
+          :func:`~orpheus.numerics.symmetry.induced_permutation` (the
+          single-motion face of the closure ``is_invariant`` and
+          ``orbit_certificate`` read, so the three cannot disagree):
           every image matches a node (no bare ``argmin`` — ERR-074), the
           match is a **bijection** (ERR-073), and the matched nodes carry
           equal weights (a deck transformation is measure-preserving —
@@ -535,11 +545,8 @@ class Quadrature:
         motion3 = (
             motion if motion.dimension == 3 else motion.embedded_in(3)
         )
-        return motion3.linear_part.preserves(
-            _embedded_nodes(self.measure),
-            self.measure.weights,
-            atol=_REFLECTION_ATOL * _NODE_WINDOW_FACTOR,
-            weight_atol=_REFLECTION_ATOL,
+        return induced_permutation(
+            self.measure, motion3.linear_part, atol=_REFLECTION_ATOL,
         )
 
     # ────────────────────────────────────────────────────────────

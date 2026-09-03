@@ -2087,6 +2087,178 @@ tree: **1 dead / 53 checked** — `orbit_stabiliser`, unlanded at the time; on t
 
 #### Gate — **13 of 13 rc=0, 10604 = predicted** — the fused row's 10556 + 48, all of it numerics (2809 → 2857: the 43 test-architect rows + my 5), every other tree unit-identical to the fused row, the harness 424 unchanged (the archivist's two new equation labels added no parametrized row this time; predicted from collect counts BEFORE the run, phase 1 of `scratch/_p19_full_gate.sh`). Wall **60 min 27 s** on the session's machine (`scratch/_p19_full_gate.log`, per-tree `_p19_gate_<tree>.log`), started at `2ea2da73` with the 52 files dirty.
 
+### 2.2b EXECUTED — the Γ-slot: a geometry admits a FOLD of its domain, and asks the owed symmetry ON the orbit space (2026-09-02, landed `<HASH>`)
+
+**Goal (the outcome).** The shipped cylinder configuration — `folded_product`, a rule on
+`S²/σ_y` — is admissible for the cylinder by the selector's own two stages, because the
+ontology can say that a rule was quotiented by part of the owed residual, and because the
+owed residual is asked of the rule where the rule lives.
+
+#### §V.5n — the opener (the 21st consecutive opener; this one CONFIRMED its section)
+
+Premises re-measured at `4b7d24c3` before designing: `cylinder.admits_domain(folded)` **False**
+(stage 0 was equality of supports), `admits_symmetry(folded)` **False** (Γ = D_2h asked on the
+ambient representatives: σ_x and σ_z permute them, σ_y maps a `y ≥ 0` node to its absent
+mate), `D_2h ⊇ σ_y` True, `select_quadrature` 0 production callers, `orbit_certificate` on the
+fold under σ_y `None`. The §6c witness exists alone (the folded cylinder rule, refused at both
+stages). The tracker row's four `[M]` claims all reproduce.
+
+**Three rulings (user, all the recommended option):** (R1) the induced action of an isometry
+on an orbit space is MACHINERY on `Quotient`, refusing a motion that does not normalise `by`,
+and `SubgroupOfO3.is_invariant` asks a quotient-supported measure THROUGH it — one invariance
+notion; (R2) stage 0 reads the existing descent arrow `quotient_onto` plus `Γ ⊇ X.by`; (R3)
+the axial entries take the same route with the barycentre as the equivariant lift.
+
+⭐ **What the algebra needed that the ruling did not spell.** An isometry `g` descends to
+`M/H` iff it normalises `H` — for a FINITE `H` a conjugation check; for a CONTINUOUS group
+asking to act, an exact criterion rather than a sampled one (ERR-072's shape): conjugation by
+a connected group is continuous, so into a finite group it is constant, i.e. `SO(2)_a`
+normalises a finite `H` iff every element commutes with the rotation generator `[ê_a]_×`, and
+`SO(3)` iff `H ⊆ {e, −I}`; the discrete coset representatives (`σ_v`; `σ_h, σ_v, C_2'`;
+`−I`) are then finite elements. And a continuous group's identity component must FIX every
+node of a finite set on the orbit space (its orbits are connected), which for a finite `H` is
+the axis-support / origin rule on the SECTION nodes — the criterion the ambient arm applied
+since ERR-072, now stated once.
+
+#### What landed (one commit)
+
+| piece | where | the sentence |
+|---|---|---|
+| the point-set match, free of the motion | `geometry/transformation.py` `permutation_between`, `permutation_preserving`; `RigidMotion.permutes`/`preserves` call them | an induced action is not an ambient isometry, and its images must be matched by the same rule (ERR-073's bijection guard included) |
+| the lift | `Quotient.lift` | barycentre (axial; not a section — equivariant under the normaliser, which is all an induced action needs, and why the axial entry needs no section) / hemisphere section (mirror) / identity (trivial); `π ∘ lift = id` |
+| the induced action | `Quotient.induced_action(motion)` + `section_coordinates` | `[p] ↦ [g p]`, section coordinates in (chart-width lifted), chart coordinates out; REFUSED unless `by.is_normalised_by(motion)` — `[M]` `C_4` about z on `S²/σ_y` refused; `σ_x` acts as `(x,z) ↦ (−x,z)` on the disk and `μ ↦ −μ` on the interval |
+| the normaliser | `SubgroupOfO3.is_normalised_by`, `normalises`; `_rotation_generator`, `_continuous_decomposition`, `_identity_component_normalises` | `[M]` `O2(x) ⊳ σ_x` True, `⊳ σ_y` False; `D_∞h ⊳ O2(z)` True; `SO(3) ⊳ σ_x` False; `O(3) ⊳ O2(x)` False; `D_2h ⊳ σ_y` True; `C_4 ⊳ σ_y` False |
+| ONE kernel | `_invariance_on_orbit_space`; `_check_invariance` routes a bare support to `S²/{e}`; `_invariance_on_points` RETIRED; `_polar_axis_of` RETIRED; `_embedded_nodes` reads `section_coordinates` | normalise → `G ⊆ H` trivial → identity component fixes every node → coset representatives / elements permute the CHART set through the induced action (`_orbit_closure(images_of=)`) |
+| the certificate | `orbit_certificate` on the orbit space | agrees with `is_invariant` by construction; II.11's refusal of 1-D nodes by SHAPE is gone as a by-product (`[M]` `orbit_certificate(gauss_legendre(8), σ_x)` exists) |
+| the spent-group door | `_catalogued_quotient` | `(M/H)/G` for `G ⊆ H` is `M/H`: refused with the theorem, never "derive `S^2/sigma_y/sigma_y`" |
+| stage 0 | `AngularSymmetry.admits_domain` | `quotient_onto(S²/G⁰, X)` exists AND `Γ ⊇ X.by` — the frames' G0 and the selector read ONE arrow; the rejection message names the missing arrow |
+
+`[M]` the smoke on the final tree: cylinder ADMITS the fold at both stages; the fold under
+`σ_x/σ_y/σ_z/D_2h` True, `C_4`/`O2_x` False; the slab rule's nine answers unchanged; product
+(bare sphere) unchanged; `walk(fold) = {D_2h}`, `walk(slab) = {O2_x, σ_x}`, `walk(product) =
+{D_8h}`; `orbit_certificate(fold, σ_y)` exists. pyright 0 on the four modules.
+
+#### The §6b set (the red loop is the enumeration)
+
+Red loop 1 (numerics + transport + geometry + the two sn `_embedded_nodes` consumers +
+harness, `_22b_red1.log`): **1 red / 4367** — `test_the_fold_consumes_the_symmetry_idempotent_only_on_a_trivial_action`,
+whose first leg pinned *"the fold is no longer σ_y-invariant"* (the ambient reading) and whose
+second leg pinned the catalogue's `NotImplementedError` naming `S^2/sigma_y/sigma_y` as work to
+derive. Both are the same fact now — a quotient by the SPENT group is refused at the door with
+the theorem — and the test says so. Red loop 2 (numerics, `_22b_red2.log`): **2857 / 0**.
+
+#### Gates (test-architect) — 14 classes / 148 rows, pasted; the §6b set READ by an in-process call census
+
+The test-architect worked against a pristine `4b7d24c3` snapshot (the tree went unimportable
+under it for twenty minutes — the decorator slip) plus a SHADOW of the design outside `orpheus/`
+whose validity control is that it reproduces the shipped answers exactly on 395 of 415
+(rule × candidate) rows. The §6b set was measured, not read: a `-p` plugin recorded every
+`is_invariant` / `admits_domain` / `admits_symmetry` call over six trees (5725 tests) —
+**1636 `is_invariant` calls / 74 tests, 1 verdict moves** (the fold-idempotence test); 107 + 59
+stage calls, **0 move, not one ever sees a fold**; 1 internal pin (`_embedded_nodes ==
+barycentre`, which survives because the lift was re-pointed rather than deleted). Pre-change
+literals pinned: the slab and polar-orbit rules' full 15-candidate verdict dicts, the fold's
+21-candidate dict before and after, the 16-row selector table, the lattice rows. Gates, one
+per named input they REJECT at landing: the lift is a right inverse of the quotient map on all
+three families; the induced action is well-defined (`C_4` about z and a rotation about y REFUSED
+on `S²/σ_y` and `S²/O2_x`) and acts as the theorem says; `ambient_representatives` dispatches
+on width and refuses anything else; the embedding reads the lift; the normaliser criterion
+agrees with a brute conjugation CONTROL at incommensurate angles (the control may sample; the
+production code never does); the trivial quotient answers exactly like the bare sphere; the
+slab and sphere families answer exactly as before the carve (the pinned dicts); the fold is
+invariant under exactly the groups that descend and close; the compatibility law holds on the
+orbit-space route; the walk on a fold reports `D_2h`; `orbit_certificate` and `is_invariant`
+AGREE (re-posed from "now answer different questions" once the certificate moved too);
+stage 0 is the descent arrow plus the owed residual (cylinder × fold ADMITTED, slab × fold
+refused, slab × slab identity); stage 1 on a fold asks the orbit space (a fold with a dropped
+node REFUSED); the selector is UNMOVED (16 of 16 rows pick the same spec — the Γ leg is inert
+at that tier because stage 2's V conjunct refuses a fold first). Refutations of MY memo, all
+measured and kept: 4 flips per fold not 2 (`σ_y, C_2, D_1h, D_2h`; 20 of 415 rows); `σ_y`'s
+flip is the least falsifiable (the `H ⊇ G` theorem never reads a node); "a fold by σ_x of the
+σ_y-fold works today" was FALSE; `_embedded_nodes` also feeds `ordinate_permutation`, so R3
+read as DELETE would have embedded an `S²/O2_y` rule along x (max |Δ| 0.96) — the re-point
+route was taken. `[M]` the 148 rows: 147 green against the first carve (the one red the
+`orbit_certificate` docstring, fixed in the elegance round), 592 of 592 across the five
+affected files after it, 4882 / 0 on the wide loop.
+
+#### The elegance round — 3 violations + 7 concerns, all taken
+
+The reviewer's own control: the retired ambient kernel re-instated in-process and replayed
+over 23 groups × 10 measures — **3 of 230 answers changed**, `σ_y`, `C_2`, `D_2h` on the fold,
+all intended; every non-fold family bit-identical. The exact normaliser held against a
+brute-force conjugation reference on **529 pairs and 138 motions, 0 disagreements** (its own
+first run reported 46 — its reference's fault, `plan-authoring` §4's verify clause working).
+
+| finding | what was wrong | fix |
+|---|---|---|
+| V1 two camps | `Quadrature.ordinate_permutation` matched the AMBIENT nodes: on the fold `σ_y` → `None` while `is_invariant` → True; the boundary realizer would REFUSE a reflection that acts trivially on the orbit space while the registry admits the rule — three subsystems away | `symmetry.induced_permutation(measure, motion, atol)`, the single-motion face of ONE closure `_orbit_space_closure` read by `is_invariant`, `orbit_certificate` and `ordinate_permutation`; `[M]` the fold's `σ_y` permutation is the identity of the stored ordinates |
+| V2 a lift that lies by its name | `section_coordinates` returned the barycentre (inside the ball) under a name promising a point of the base — ERR-080's shape | RENAMED `ambient_representatives`, docstring says what it returns and why; `lift`'s arms typed consistently (domain = the entry; codomain `D^3` / `S^2` / `S^2`) |
+| V3 a guard unable to fail | the docstring claimed a continuous `H` was "answered at step 2" (`H ⊇ G`) — false for `D_∞h` on `S²/O2_z` (`SO2_z ⊆ O2_z`, `D_∞h ⊄ O2_z`); the fall-through position test on the barycentre was a tautology (on the axis by construction) | step 2 tests `H ⊇ G⁰` too; `SubgroupOfO3.identity_component` (a GROUP; `_continuous_decomposition` returns it, the `"SO3"` sentinel gone); the position test runs ONLY for a finite `H`, where it is exact |
+| C1 | the width validation re-duplicated (1 → 3 copies) by the very extraction meant to single-source | one home: `on_points` + `permutation_between`; one test pin re-pointed |
+| C5 | `is_normalised_by` read the whole motion on the finite arm and the linear part on the continuous ones (a translation normalised `D_∞h` and not `O_h`) | the LINEAR part on both — the convention `ordinate_permutation` states (a point group acts on directions) |
+| C6 | the spent-group door refused `(S²/σ_y)/{e}` while `S²/{e}` is an entry; and `S²/{e}` was the container for padded points OFF the sphere | `{e}` admitted on every base first, named as the one exception; the ambient container is `RealSpace(3)/{e}` |
+| C7 | `admits_domain` read `X.by` relative to the WRONG base and needed an equality branch (`[M]` the slab's `σ_x ⊉ O2_x`) | `spent_group(D, X)` beside `quotient_onto` — what the ARROW spends; one expression |
+| C4 | the hemisphere lift's clamp turned an off-chart point into a plausible wrong one | refuses `ρ > 1` past a round-off band; the draft gates witness all three lift arms |
+| C2 / C3 / N1 | `_as_columns` at four sites; the `"SO3"` string; finiteness spelled twice in `orbit_certificate` | two sites inside the one helper (the producer's `(n,)` for a 1-D chart is the tree's node convention, left); the group; one spelling |
+
+Withdrawn by the reviewer itself, worth keeping: `by.name == "Trivial"` is the house idiom (5
+prior sites); the barycentre is an isometry of the chart onto the axis, so the match window is
+unchanged; the four `assert elements is not None` are type-narrowing over a total dispatch.
+
+**Battery** (`scratch/_22b_mut/`, in-process, numerics 3005 rows, 14 arms; baseline 0/0):
+the positive control (`is_invariant` always True) reddens **60**; the normaliser made inert
+**37**; the axial lift as the zero-pad forgery **28**; the induced action applied to the
+AMBIENT points **90**; stage 0 back to equality **3** (the fold rows only — `[M]` equality and
+the arrow+Γ predicate agree on 24 of 28 geometry × rule rows); stage 0 without the Γ leg **4**;
+stage 0 without the identity case (every rule asked `Γ ⊇ X.by`) **44**; stage 1 asked on the
+ambient nodes **18** (re-keyed after the round: the trivial orbit space for every support);
+the identity component's fixedness dropped **23**; the chart closure without its weight leg
+**4**; `_embedded_nodes` reading column 0 instead of the lift **24**. Two arms are the
+findings rather than the reds: the bijectivity leg is **UNINSTALLABLE** — the `Permutation`
+TYPE refuses a non-bijection at construction ("indices are not a permutation of range(17): 1
+value(s) repeat"), so the ERR-073 guard is held twice and no battery can redden it (Pattern 4,
+the strongest witness); and the kernel with BOTH containment short circuits removed reddens
+**0 of 3005** with a real mutant installed (the original arm set a flag nothing read; re-keyed
+to a copy of the kernel without steps 2) — the short circuits are theorems the closure
+re-proves, not branches that decide an answer. Tree integrity after: the same 5 production
+files (in-process, nothing written).
+
+#### Docs (archivist) — a new chapter on who ACTS on an orbit space; +1404 over four pages
+
+`manifolds.rst` **+1232**: a new `=` chapter *Who ACTS on an orbit space — the normaliser, the
+lift, the induced action* (8 subsections: the descent criterion, eq-label
+`manifold-normaliser-descent`; the sampling control; the lift; `induced_action`; the ONE
+four-step kernel; the Γ-slot, eq-label `manifold-gamma-slot-stage-zero`;
+`ordinate_permutation`; `orbit_certificate` and II.11; the spent-group door; what moved) plus
+12 in-place repairs (a ⛔-tombstoned warning, the `_polar_axis_of` import-census row, a
+DISCHARGED seam, the barycentre tables, the machine header, a dev-history row);
+`discrete_measures.rst` **+112** (stage 0 through the arrow, eq-label
+`quadrature-stage-zero-descent`; stage 1; a witness row; the 24-of-24 note);
+`error_catalog.rst` **+42** (II.11 now WHOLE: `orbit_certificate(gauss_legendre_on_mu(8), σ_x)`
+went `None` → 2 permutations); `frame.rst` +18; `matrix.rst` regenerated (584 → 587
+documented labels, exactly the three new ones). Every "before" reading from a pinned `git
+archive 4b7d24c3` copy: stage 0/1 — cylinder AND cartesian2d admit the fold at both stages
+(both False before); `walk(fold)` `{σ_x, σ_z}` → `{D_2h}`; the compatibility law 0
+violations at 342 and 450 pairs both sides; `π ∘ lift = id` exactly on all four entries;
+bare-`S²` vs trivial-quotient agreement 150 of 150; the right-angle sample over-certifies the
+normaliser on 2 of 8 pairs while ten incommensurate angles agree 8 of 8 (the control);
+stage-0 refusals over the 5 factories × 4 geometries **12 → 10 of 20**, no pair `True →
+False`. Sphinx `-E -W` 0 → 0 as a set; `dead_references` 0 / 52; the L-062-patched xref gate
+0 dead with an end-to-end positive control (2 / 2). Claims of mine it refuted: the memo's
+"fold by σ_x of the σ_y-fold works today" (false both sides); the delta's "refuses a translated
+motion" (it takes the linear part) and "`Ball(3)`" (it is `RealSpace(3)`); and it found the
+certificate's refusal message a THREE-arm disjunction wearing two-arm text (fixed in the same
+commit: continuous / does not act on the orbit space / acts without permuting). Its one owed
+follow-up: #370's gap 2 is CLOSED the way that issue demanded (the lattice arrow, not a
+widened tag); gap 1 stands (`folded_product(4,8).measure.exactness is None`).
+
+#### Gate — **13 of 13 rc=0, 10752 = predicted** — the 1.9 row's 10604 + 148, all of it numerics (2857 → 3005: the test-architect's 14 classes; my own test edits add no row), every other tree unit-identical to the 1.9 row, the harness 424 unchanged (the archivist's three new equation labels added no parametrized row); predicted from collect counts BEFORE the run (phase 1 of `scratch/_22b_full_gate.sh`). Wall **59 min 27 s** on the session's machine with Sphinx building alongside for the first minutes (`scratch/_22b_full_gate.log`, per-tree `_22b_gate_<tree>.log`), started at `4b7d24c3` with the 26 files dirty. The sn tree's 3439 is the witness that the moved `ordinate_permutation` changed nothing for the boundary realizer and the deck consumers on every shipped configuration.
+
+Predicted BEFORE the run from collect counts: numerics **3005** (2857 + the 148 drafted rows;
+my own test edits add no row), geometry 732, transport 707, every other tree as the 1.9 row
+— **10752** against the 1.9 row's 10604, +148 all numerics, the harness expected at 424 unless
+the docs pass adds a parametrized row.
+
 ### ✅ 0.2 — EXECUTED 2026-09-01, landed `ce46181c`. What the split actually found
 
 **The shape that shipped.** `axis_cosines(i)` is now the COORDINATE question
@@ -5487,7 +5659,7 @@ Status: `☐` not started · `▶` in flight · `✅ <hash>` landed · `⛔` ref
 | 2.4 | slab declares its quotient group (`SPHERE.quotient(SO2("x"))`); the SO2 axis-convention ruling. ~~full-suite phantom census~~ ⛔ **that MOVED to Phase 0 and is DISCHARGED** (`ee60010e`+`ccda0e61`) — it was 0.2's denominator, not 2.4's | ⏏ yes | ✅ `17501245` — read the *2.4 EXECUTED* section. **User-ruled:** `SO2(axis)` parameterised like `Mirror` (the tree carries TWO poles — slab/SH about x, product/`C_n`/`D_nh` about z — so no fiat could be right); `gauss_legendre_on_polar_orbit(n, axis)` declares, `gauss_legendre_on_mu` stays on the chart as the product factor. `[M]` the `[-1,1]` angular/spatial collision is unspellable (`L2[S^2/SO2_x]` ≠ `L2[[-1,1]]`, hashes differ); Part IV obstacle 1 answered by DERIVATION (`SO2("x")` True / `SO2("z")` False); stage 0 refuses the chart-level rule AND the wrong axis; 4 trees rc=0, +22 reconciling unit-for-unit; pyright 0. ⛔ the pre-flight's *23 sites / 3 literals* were the wrong instruments — the set was the **5 test-local factories** the stricter gate refused, found by the red loop. ⚠ Also removed a pre-existing 9 s hot spot the extra candidates amplified (§(e)) |
 | 3.1 | ~~`numerics/symmetry/` catalog~~ ⛔ the catalogue HOME landed at 2.0a/1.1/2.4 (`manifold._ORBIT_CATALOGUE`, §V.5j(a)); 3.1 = the entry's quotient map + pushforward reference (⏏ scoped to `SO(2)`) | ⏏ partial | ✅ landed 2026-09-02 — read the *3.1 EXECUTED* section (`Quotient.orbit_coordinates` + derived `quotient_map`, `Quotient.reference`; `AngularSymmetry.reference` reads the entry) |
 | 2.5 | ⭐ **NEW 2026-09-02 (the fused step's opener, §V.5l) — the angular moment space is READ off the frame, never minted from `L`.** `[M]` 8 production `SphericalHarmonicSpace.from_L(L)` mints build operator ends and the moment-flux field's space from `L` alone; `HarmonicFrame` narrows to `SphericalHarmonicBasis` at two doors; the `(name, shape)` guards compare the mints to `frame.basis_space`. The Stage-2 generator ruling's own defect, found by re-censusing 3.4-R's evidence. Bit-identical alone (the SH basis is still everywhere); PRECEDES the fused commit (§6b: the flat basis mismatches every retained mint) | ⏏ yes | ✅ `58ad7c28` — read the *2.5 EXECUTED* section: 7 producers + 2 doors read the frame's basis; `TruncatedBasis`; A-R1 (`basis.space`, not the dressed one) and A-R2 (re-derive through the mesh's quadrature) ruled and gated; slab L=0/1/2 `array_equal`; 11-arm battery, none blind |
-| 2.2b | ⭐ **NEW 2026-09-02 — the Γ-slot, SPLIT off 2.2** (user-ruled): stage 0 admits a rule on `S²/H` for `H ⊆ Γ` (lattice, derived); stage 1 asks Γ-invariance THROUGH the entry's `quotient_map`. `[M]` today `cylinder.admits_domain(folded)` False AND `admits_symmetry` False; `select_quadrature` 0 production callers | ⏏ yes | ☐ — its OWN commit, right AFTER the fused one |
+| 2.2b | ⭐ **NEW 2026-09-02 — the Γ-slot, SPLIT off 2.2** (user-ruled): stage 0 admits a rule on `S²/H` for `H ⊆ Γ` (lattice, derived); stage 1 asks Γ-invariance THROUGH the entry's `quotient_map`. `[M]` today `cylinder.admits_domain(folded)` False AND `admits_symmetry` False; `select_quadrature` 0 production callers | ⏏ yes | ✅ **LANDED 2026-09-02 `<HASH>`** — stage 0 through the descent arrow + what it SPENDS; the owed symmetry asked ON the orbit space through `Quotient.induced_action` (one closure for `is_invariant`, `orbit_certificate` and `ordinate_permutation`); read the *2.2b EXECUTED* section |
 | 3.2 | `ReynoldsProjection` | no | ☐ |
 | 3.3 | `OrbitAxis` + retraction/section minting | no | ☐ |
 | 3.4 | ⭐ **trivial isotypic sub-basis — THE FIX** | ⏏ yes | ✅ **the fused commit** (2026-09-02) — `LegendreBasis` + `LegendreSpace` + `MomentHead`; the entry's probe; `_harmonic_basis` dispatches on the SUPPORT; LEG A `+4.000000000000` at L = 0..2, the ERR-080 gate XPASSed, its markers deleted. Read the *FUSED EXECUTED* section |
@@ -5692,8 +5864,52 @@ Part XIII; the short form, in the order it happened:
    row; 9 theory pages + a new `manifolds.rst` chapter on the stabiliser law, 7 present-tense-
    false claims fixed; sphinx `-E -W` 0 before and after; `dead_references` 0 / 52.
 
-The ⏏ ORDER table rules what follows; its first unlanded row is **2.2b (the Γ-slot)**, then
-4.1, 4.9 and the exit predicates' re-gate (XII.3). #426/#428 stay blocked behind #429.
+✅ **2.2b (the Γ-slot) LANDED 2026-09-02 as `<HASH>`** — the commit titled `feat(numerics): a
+geometry admits a fold of its domain, and asks the owed symmetry ON the orbit space`, its hash
+stamped by the plan-only commit that followed. **Nothing is owed on 2.2b.** The record is the
+*2.2b EXECUTED* section in Part XIII; the short form:
+
+1. **The rulings** (user, three, all the recommended option): the induced action of an
+   isometry on an orbit space is MACHINERY on `Quotient`, refusing a motion that does not
+   normalise the quotienting group, and `is_invariant` asks a quotient-supported measure
+   through it — one notion of invariance; stage 0 reads the descent arrow `quotient_onto`
+   plus what it SPENDS in Γ; the axial entries take the same route with the barycentre as the
+   equivariant lift.
+2. **The algebra the ruling did not spell**: `g` descends to `M/H` iff it normalises `H`; for
+   a continuous group the normaliser is EXACT through the rotation generator `[ê_a]_×` and one
+   representative per coset, never sampled (ERR-072); a continuous group's identity component
+   must FIX every node of a finite set on the orbit space (connected orbits) — the
+   axis-support / origin rule on the section nodes, run only where the quotienting group is
+   finite. `[M]` the exact normaliser against brute conjugation: 529 pairs, 138 motions, 0
+   disagreements.
+3. **What shipped**: `Quotient.lift` / `ambient_representatives` / `induced_action`;
+   `SubgroupOfO3.is_normalised_by` / `normalises` / `identity_component`; ONE closure
+   `_orbit_space_closure` read by `is_invariant`, `orbit_certificate` and the new
+   `induced_permutation` (which `Quadrature.ordinate_permutation` now reads — on a fold σ_y is
+   the identity permutation of the stored ordinates, where the ambient reading found none and
+   a reflecting face would have been refused); `spent_group(D, X)` beside `quotient_onto`;
+   `admits_domain` one expression; the spent-group door with `{e}` as its named exception; the
+   ambient container `R³/{e}`; `_invariance_on_points` and `_polar_axis_of` RETIRED;
+   `permutation_between` / `permutation_preserving` factored out of `RigidMotion`; II.11's
+   1-D shape refusal gone as a by-product.
+4. **Measured**: cylinder and cartesian2d ADMIT the folded rule at both stages (both False
+   before); the kernel swap moved 3 of 230 (group × measure) answers, all on the fold, all
+   intended; the slab and product families bit-identical; the selector UNMOVED on 16 of 16
+   rows (stage 2's V conjunct refuses a fold first — the Γ leg is load-bearing at
+   `admits_domain`, 4 of 28 rows). 148 gate rows (14 classes) from the test-architect, whose
+   in-process call census read the §6b set (1636 `is_invariant` calls, 1 verdict moves); the
+   14-arm battery: 12 bite, the bijectivity leg UNINSTALLABLE (the `Permutation` type
+   refuses), the containment short circuits theorems (0 reds with a real mutant).
+5. **The gate**: **13 of 13 rc=0, 10752 = predicted** — the 1.9 row's 10604 + 148, all of it numerics (2857 → 3005: the test-architect's 14 classes; my own test edits add no row), every other tree unit-identical to the 1.9 row, the harness 424 unchanged (the archivist's three new equation labels added no parametrized row); predicted from collect counts BEFORE the run (phase 1 of `scratch/_22b_full_gate.sh`). Wall **59 min 27 s** on the session's machine with Sphinx building alongside for the first minutes (`scratch/_22b_full_gate.log`, per-tree `_22b_gate_<tree>.log`), started at `4b7d24c3` with the 26 files dirty. The sn tree's 3439 is the witness that the moved `ordinate_permutation` changed nothing for the boundary realizer and the deck consumers on every shipped configuration.
+6. **Refuted, corrected in place**: my memo's 2 flips per fold were 4; "a fold by σ_x of the
+   σ_y-fold works today" was false; two claims in my delta to the archivist (translations
+   "refused" — they act by their linear part; the container "the ball" — it is `R³`).
+7. **Docs**: a new `manifolds.rst` chapter on who acts on an orbit space (+1232), stage 0/1
+   re-stated, II.11 made whole; sphinx `-E -W` 0 → 0; `dead_references` 0 / 52. #370's gap 2
+   is closed by this landing; its gap 1 stands.
+
+The ⏏ ORDER table rules what follows; its first unlanded rows are **4.1** and **4.9**, then
+the exit predicates' re-gate (XII.3). #426/#428 stay blocked behind #429.
 
 ✅ **THE FOLLOW-UP LANDED 2026-09-02 as `26151a8d`** — the commit titled
 `docs(plans): the fused commit carries its landing hash and gate` (the hash
@@ -6094,9 +6310,10 @@ Part XIII — do not copy it here (`plan-authoring` §9).
 | ✅ | **2.5** | LANDED 2026-09-02 `58ad7c28` — see the *2.5 EXECUTED* section (bit-identical; the moment space's ONE home is the frame's basis) |
 | ✅ | ⭐ **0.1b + 0.6 + 2.2 + 3.4 (+ 3.4b)** | LANDED 2026-09-02 `5436184e` — THE FIX; read the *FUSED EXECUTED* section |
 | ✅ | ⭐ **1.9** | LANDED 2026-09-02 `c1d53206` — an orbit space is named by its STABILISER (`SubgroupOfO3.O2(axis)`, `orbit_stabiliser`); read the *1.9 EXECUTED* section |
+| ✅ | ⭐ **2.2b** | LANDED 2026-09-02 `<HASH>` — the Γ-slot: a geometry admits a FOLD of its domain (stage 0 through the descent arrow), and the owed symmetry is asked ON the orbit space (`Quotient.induced_action`, the normaliser, one closure); read the *2.2b EXECUTED* section |
 | ⏸ | **COMPACTION** | user-ruled 2026-09-02: a context compaction follows the fused commit; the two commits below are the first steps after it |
 | ⏳ | **1.9** — `SubgroupOfO3.O2(axis)` | IN FLIGHT 2026-09-02 (built, green on its trees, uncommitted — the ⏳⏳ block at the top of the resume section); its own commit, FIRST after the compaction (user-ruled, memo H-6) |
-| **3** | **2.2b** — the Γ-slot | its own commit (user-ruled 2026-09-02) |
+| **3** | **2.2b** — the Γ-slot | ✅ LANDED 2026-09-02 `<HASH>`, its own commit |
 | 4 | **4.1**, **4.9**, then the six exit predicates (XII.3) | |
 
 ⚠ **2.1 and 2.0c were independent** — both needed only `Manifold`. 2.1 went
@@ -6484,6 +6701,7 @@ or `gauss_legendre_on_polar_orbit(n, "x")`, on `S^2/SO2_x`.
 | **2.5** | ⭐ **the angular moment space is READ off the frame, never minted from `L`** — `TruncatedBasis` (Protocol) is the harmonic family's surface and `HarmonicFrame`'s door; the Λ ends, the fission/(n,2n) ℓ=0 ends, the moment-flux head and `truncate` all read the bound basis's space (7 producers retired, 2 doors widened); A-R1 binds the CONTINUUM space (`[M]` `Λ* = Λᵀ` exactly under it, 33/33; the dressed one moves Λ* on 10/33), A-R2 derives the field head through the mesh's quadrature. `[M]` slab L=0/1/2 flux `array_equal`; 33-row metric identity; route gate with a FOREIGN basis; 11-arm battery (control 34, each producer revert → A1, the fork → A2b only), none blind; 13 trees rc=0, 10454 = predicted | `58ad7c28` |
 | **FUSED** | ⭐⭐ **THE FIX — a 1-D rule binds the Legendre basis on its orbit space; ERR-080 CLOSED** (0.1b + 0.6 + 2.2-G0 + 3.4 + 3.4b): `LegendreBasis` (the bit-matched spelling), `LegendreSpace` + `MomentHead`, the entry's probe, `Descent`, G0 as the descent arrow with the table pulled back along it, the forgery deleted, 0.6's refusal, the carriers reading their head, `OverlapBasis`'s misdeclared domain caught by G0 and fixed. `[M]` LEG A `+4.000000000000` at L = 0..2; slab L ≤ 1 `array_equal`; 135 sphere arrays bit-identical; 19-arm battery, one declared-weak arm; the 13-tree gate finished after the commit: **13 of 13 rc=0, 10556 = predicted**, reconciled file-by-file in the *FUSED EXECUTED* section | `5436184e` + follow-up `26151a8d` (gate record, typing narrowing) |
 | **1.9** | ⭐ **an orbit space is named by its STABILISER — `SubgroupOfO3.O2(axis)`, and a basis on it declares the FULL group** (#432): `O2(a)` = the stabiliser `{g : g ê_a = ê_a}`, the axial lattice relations COMPUTED from realizations (`SO(2)_a = O(2)_a ∩ SO(3)` by composition), exact O(2) invariance, both-component `generic_images`; ONE catalogue entry `S^2/O2_a`, `SPHERE.quotient(SO2(a))` REFUSED with the theorem (user-ruled over normalising); the elegance round's `orbit_stabiliser` puts the refusal on `Quotient.__post_init__` and at the door, retires the three decoy keys and the second runtime import; the registry spends `O2("x")`; `LegendreSpace` names itself off the basis's domain. `[M]` the Legendre basis is ADMITTED on a σ_y-fold (ℓ≥1 isotropic moments ≤ 1.4e-15 at L = 2/4/6) and refused on the x-fold; 19-arm battery all biting; 13 of 13 rc=0, 10604 = predicted (fused 10556 + 48 numerics), 60 min 27 s | `c1d53206` |
+| **2.2b** | ⭐ **the Γ-slot — a geometry admits a FOLD of its domain, and the owed symmetry is asked ON the orbit space** (#429): `Quotient.induced_action` (well-defined iff the motion normalises the quotienting group — `SubgroupOfO3.is_normalised_by` / `normalises`, EXACT for the continuous members through the rotation generator and one representative per coset), `Quotient.lift` / `ambient_representatives`, ONE closure `_orbit_space_closure` read by `is_invariant`, `orbit_certificate` and `induced_permutation` (which `Quadrature.ordinate_permutation` reads — on a fold σ_y is the identity permutation of the stored ordinates); stage 0 = `quotient_onto(D, X)` exists AND `Γ ⊇ spent_group(D, X)`; the spent-group door; `_invariance_on_points`/`_polar_axis_of` retired; II.11's 1-D shape refusal gone. `[M]` cylinder and cartesian2d ADMIT `folded_product` at both stages (both False before); 3 of 230 answers moved, all on the fold; 148 gate rows; 14-arm battery (12 bite, the bijectivity leg uninstallable, the short circuits theorems); 13 of 13 rc=0, 10752 = predicted (1.9's 10604 + 148 numerics), 59 min 27 s | `<HASH>` |
 
 **Branch** `fix/angular-phantom-support`, pushed, ⚠ **nothing merged.**
 ⛔ No commit COUNT is recorded here — it is the field guaranteed to rot. Run

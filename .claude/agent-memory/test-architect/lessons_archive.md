@@ -8030,3 +8030,137 @@ lookup, or a key merely deleted, reddens it.
 ⟹ when a refusal's ENFORCEMENT SITE is about to move, pin the sentence the refusal
 exists to say (which the move preserves) and the ERROR TYPE / ordering (which the move
 can break), never the diagnosis wording.
+
+## L71 — #429 tracker 2.2b, the Γ-slot (plan delivered 2026-09-02, HEAD `4b7d24c3`, carve landing concurrently)
+
+**Subject.** A geometry demands `(G⁰, Γ)`; a rule may live on a further quotient
+`X = D/H` (a FOLD). Stage 0 becomes *"the descent arrow `quotient_onto(D, X)` exists
+AND `Γ ⊇ X.by`"*; `SubgroupOfO3.is_invariant` routes a quotient-supported measure
+through `Quotient.induced_action`, so a group acting trivially on the orbit space is
+no longer read as "not closed" on the representatives.
+Deliverables: `scratch/_22b_verification_plan.md`, `scratch/_22b_gates_draft.py`
+(14 classes), `scratch/_22b_mut/mutplugin_22b.py` (14 arms, not run),
+`scratch/_22b/*.py` (probes + a shadow of the design).
+
+### L71a — ⭐⭐ THE METHOD: when the tree is held by a concurrent carve, snapshot it and SHADOW the design
+
+The coordinator held `orpheus/` and the package went **unimportable mid-dispatch**
+(`@dataclass` left decorating a newly inserted `def`). Two moves recovered the whole
+dispatch and are the transferable half:
+
+1. `git archive <HEAD> orpheus | tar -x -C scratch/<n>/pristine`, then neutralise the
+   editable install's MetaPathFinder (`sys.meta_path = [f for f in sys.meta_path if
+   "editable" not in …]`) and `sys.path.insert(0, PRISTINE)`. **The `.pth` finder wins
+   over `PYTHONPATH`**, so a bare `PYTHONPATH=` does NOT re-point the package —
+   measured, and it is the step everyone will skip.
+2. Write the DESIGN as a shadow module outside `orpheus/` and diff BEFORE vs AFTER on
+   real production objects. Its validity control is that it reproduces the shipped
+   answers **exactly** on every input the design says it does not touch (`[M]` 395 of
+   415 rows identical) — that is what makes the 20 changed rows evidence rather than
+   a guess. This is a pre-carve verification plan's strongest instrument and it needs
+   NO production edit, so it is legal under a "do not touch `orpheus/`" constraint.
+
+`[M]` every prediction the shadow made reproduced verbatim against the landed carve
+(4 flips, the walk, both stages, the slab literals, the embedding).
+
+### L71b — ⭐⭐ CENSUS BY EVALUATION beats census by reading, and it answers the §6b question directly
+
+A grep census over `is_invariant(` returns 61 test sites and CANNOT say which verdict
+moves, because the measure is built by a fixture. A `-p` plugin wrapping the method,
+returning the honest answer and recording `(test id, support kind, before,
+after-shadow)`, ran a real suite and answered it: **1636 calls, 74 tests, exactly 1
+verdict moves**. Supports seen: `S^2` 1402, `[-1,1]` 93, `S^2/O2_x` 88, `S^2/O2_z` 29,
+`S^2/O2_y` 20, **`S^2/sigma_y` 4**. Same trick on the two registry stages: 107 + 59
+calls, **0 move, and not one ever sees a fold**.
+⟹ the §6b table becomes a measurement with a denominator instead of a reading.
+⚠ Mechanics: the wrapper must reproduce the KEYWORD-ONLY signature (`*, atol`) or 72
+tests fail for the harness's reason and the census reads as a catastrophe (`vv` #17,
+the harness lies first); take a no-wrapper baseline in the same command.
+
+### L71c — ⭐⭐ THE HEADLINE FLIP CAN BE THE LEAST FALSIFIABLE ONE
+
+The design's named consequence was `Mirror('y').is_invariant(fold)` `False → True`.
+`[M]` that verdict is produced by the step-2 short circuit (`H.contains(G)` — G acts
+trivially on `M/H`) and **never reads a node**: it stays `True` on a fold with a node
+DELETED and on a fold with a weight scaled 1.5×, while `D_2h`/`C_2`/`D_1h`/`σ_x` all
+go `False`. So the flip a plan advertises gates the WIRING; the discriminating gate is
+a different group. ⟹ for every advertised consequence, ask *which arm produced it* and
+whether that arm can see the data — `vv-principles` #19 applied to a design's own
+headline. Say it in the gate's docstring rather than hiding it.
+
+### L71d — ⛔ A CONSEQUENCE LIST IS A UNIVERSAL AND OWES ITS DENOMINATOR
+
+The design's §8 named **2** flips (`Mirror('y')`, `Dnh(2)`). `[M]` over each rule's own
+`candidate_groups` set — 21 shipped rules, **415 rows** — the carve moves **20**, i.e.
+**4 per fold**: `σ_y`, `C_2`, `D_1h`, `D_2h`. My own first pass under-counted to 12
+because I used a HAND-WRITTEN group list (which had `Dnh(2)/(3)/(4)` but not `Dnh(1)`).
+⟹ the denominator for a group-lattice claim is `candidate_groups(measure)`, never a
+list you typed; `plan-authoring` §2, and it bit the person applying it.
+
+### L71e — ⭐ A RETIREMENT'S BLAST RADIUS IS ITS SECOND CONSUMER, and a 1-of-3-axes agreement hides it
+
+The design ruled *"the axial arm of `_embedded_nodes` RETIRES"*. `[M]` that function
+has TWO production readers and only one is the invariance kernel: the other is
+`Quadrature.ordinate_permutation`. Deleted, an `S^2/O2_y`/`O2_z` rule embeds as
+`(μ,0,0)` (max |Δ| **9.603e-01**) and `ordinate_permutation(σ_x)` returns the μ→−μ
+permutation where the identity is right — a silent wrong answer in a public accessor
+on **2 of 3 axes**, invisible because the slab's own `S^2/O2_x` is the axis where the
+two spellings agree. The landed carve took the re-point route
+(`support.section_coordinates(nodes)`), so the hazard did not fire — and `[M]`
+`tests/numerics` is **2857 passed / 0 failed** with no gate added, i.e. reverting that
+half would still be invisible. ⟹ a "retire this internal" ruling is a §6b question:
+enumerate the readers, and when the families agree on ONE parameter value, that value
+is the blind spot.
+
+### L71f — ⛔ A NEW GUARD CAN BE INERT AT THE TIER ITS END-TO-END TEST LIVES ON
+
+Stage 0's new Γ-containment leg is load-bearing at the `admits_domain` API tier
+(`[M]` 4 of 28 geometry×rule rows; without it a 1-D polar rule is admitted for a 2-D
+geometry). At the `select_quadrature` tier it is **INERT**: with the leg removed —
+a control strictly stronger than the change — the selector picks the identical spec,
+parameters and point count on **16 of 16** rows, because stage 2's V conjunct refuses
+the rule first. ⟹ price every new guard with a stronger-than-the-change control AT
+EACH TIER, and write the inert tier into the gate's docstring, or a future green
+end-to-end row gets credited to it. (`plan-authoring` §8's sharpening, arriving from
+the guard side.)
+
+### L71g — ⭐ THE EQUALITY SHORT CIRCUIT IN A LATTICE PREDICATE IS ITSELF A GATE
+
+`admits_domain` reads "arrow exists AND (support == domain OR Γ ⊇ support.by)". The
+`==` arm is not an optimisation: `[M]` `sigma_x.contains(O2_x)` is **False**, so asking
+the Γ leg unconditionally makes the SLAB refuse its own Gauss-Legendre rule, and the
+cylinder refuse every sphere rule — **10 of 28 rows**, the widest non-control arm of
+the battery. ⟹ when a predicate carves out an identity case, gate the carve-out;
+"for X == D there is nothing to contain" is a claim, and its counterexample ships.
+
+### L71h — bit-exactness as a THEOREM, and its shelf life
+
+`[M]` every law of the new machinery is exact: `π∘lift = id` `array_equal` on 3
+families, `ind(g)∘ind(h) = ind(g·h)` **0.000e+00** over 128 pairs, the chart-closure
+match residual **0.000e+00** on 3 folds × 8 elements, the axial chart path exact at 5
+GL orders. The reason is a theorem, not a draw (`vv` #31): every shipped
+`orbit_coordinates` is a COLUMN SELECTION and every `D_2h` element is a SIGNED
+PERMUTATION, so no arithmetic touches a surviving coordinate. ⚠ **Write the shelf
+life beside it**: the argument dies at the first group with a genuine rotation
+(`C_3`/`C_6`, a hex lattice), and an `array_equal` pin then becomes a false red.
+
+### L71i — ⛔ A NEW INVARIANCE NOTION SPLITS AN OLD ONE, and the sibling's PROSE goes false
+
+`orbit_certificate` reads the AMBIENT nodes. After the carve `[M]` `σ_y`/`C_2`/`D_2h`
+on a fold are `is_invariant=True` with `orbit_certificate=None` (while `σ_x` has both)
+— correct, and it makes two production claims present-tense-false: the certificate's
+docstring gives `None` exactly two causes (there is now a third), and
+`DiscreteMeasure.quotient`'s refusal says *"this measure is not σ_y-invariant"*. The
+coordinator repaired the second in flight (`"lies in the spent group sigma_y"`); the
+first is still open. ⟹ when a predicate is re-posed on a new space, grep the module
+for every OTHER function whose docstring enumerates that predicate's outcomes.
+
+### L71j — the intrinsic-law gate a group-theory spec forgets
+
+The ruled `normalises` spec (`H ⊆ {e, −I}` for `SO(3)`), read literally, answers
+`SO3.normalises(SO3) = False` and `SO3.normalises(O3) = False`. Both are theorems the
+other way. **Latent** (a `Quotient.by` is only ever `O2_a`/`σ_a`/`Trivial`), which is
+exactly why it needs a gate rather than a note. ⭐ And the sharpest row the same gate
+carries: `[M]` **`O2_x` CONTAINS `σ_y` but does not NORMALISE it** — the counterexample
+to the intuition a reviewer supplies for free, and the reason step 1 must precede
+step 2.

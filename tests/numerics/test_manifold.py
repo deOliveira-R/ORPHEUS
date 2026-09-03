@@ -80,6 +80,32 @@ from orpheus.numerics.manifold import (
 )
 from orpheus.numerics.symmetry import SubgroupOfO3
 
+# 2.2b gates (test-architect, 2026-09-02) — the draft's imports, verbatim
+import numpy as np
+import pytest
+
+from orpheus.geometry.transformation import RigidMotion
+from orpheus.numerics.manifold import (
+    COSINE_INTERVAL,
+    SPHERE,
+    Ball,
+    Quotient,
+    barycentre,
+    quotient_onto,
+)
+from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.quadrature.directional import Quadrature
+from orpheus.numerics.quadrature.registry import GEOMETRY_ANGULAR_SYMMETRY
+from orpheus.numerics.quadrature.rules_1d import (
+    gauss_legendre_on_mu,
+    gauss_legendre_on_polar_orbit,
+)
+from orpheus.numerics.symmetry import (
+    SubgroupOfO3,
+    candidate_groups,
+    maximal_invariance_groups,
+)
+
 pytestmark = pytest.mark.foundation
 
 
@@ -1814,3 +1840,317 @@ class TestTheOrbitSpaceIsNamedByItsStabiliser:
         for name in names:
             assert f"Sphere/{name}" in str(excinfo.value)
         assert "SO2" not in str(excinfo.value)
+
+
+# =============================================================================
+# 2.2b — the Γ-slot: gates drafted by the test-architect (2026-09-02)
+# =============================================================================
+
+_g22b_AXES = ("x", "y", "z")
+
+
+def _g22b_trivially_quotiented_product() -> DiscreteMeasure:
+    from dataclasses import replace
+
+    return replace(
+        Quadrature.product(4, 8).measure,
+        support=SPHERE.quotient(SubgroupOfO3.Trivial),
+    )
+
+
+
+
+def _g22b_rot(axis: str, theta: float) -> RigidMotion:
+    return RigidMotion.rotation_about_axis(axis=np.eye(3)["xyz".index(axis)], angle=theta)
+
+
+def _g22b_mirror(axis: str) -> RigidMotion:
+    return RigidMotion.reflection(normal=np.eye(3)["xyz".index(axis)])
+
+
+#: Pairwise-incommensurate angles.  A right-angle sample of a continuous
+#: family generates C_4 and certifies what it never tested (ERR-072,
+#: ``vv-principles`` #13); the CONTROL below is allowed to sample because it
+#: can only REFUTE, and it is compared against a criterion that never does.
+_g22b_INCOMMENSURATE = (1.0, float(np.sqrt(2.0)), float(np.e), 2.5, float(np.sqrt(7.0)))
+
+
+# =============================================================================
+
+
+# G1 — tests/numerics/test_manifold.py
+# =============================================================================
+class TestTheLiftIsARightInverseOfTheQuotientMap:
+    r"""(ii) ``π ∘ lift = id`` on the chart, for all three entry families.
+
+    The lift is what lets an orbit-space question be asked of a measure whose
+    nodes arrive in CHART coordinates (a slab rule carries μ, not a point of
+    S²).  Its defining property is the only one an induced action needs, and
+    it is EXACT on every shipped family — `[M]` 2026-09-02, ``array_equal``
+    True on 200 disk points, 201 μ values and 200 sphere points.
+
+    ⭐ Bit-exactness here is a THEOREM, not a draw (``vv-principles`` #31):
+    every shipped ``orbit_coordinates`` is a COLUMN SELECTION, and the lift
+    writes exactly the selected columns back, so no arithmetic happens on the
+    surviving coordinates at all.  The √ that the hemisphere section computes
+    lands only in the DROPPED column.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("axis", _g22b_AXES)
+    def test_the_axial_entrys_lift_is_the_barycentre_and_pi_undoes_it(self, axis):
+        entry = SPHERE.quotient(SubgroupOfO3.O2(axis))
+        mu = np.linspace(-1.0, 1.0, 201).reshape(-1, 1)
+        lifted = np.asarray(entry.lift(mu), dtype=float)
+        # the barycentre μ ê_a — the orbit's MEAN, inside the ball
+        expected = np.zeros((201, 3))
+        expected[:, "xyz".index(axis)] = mu[:, 0]
+        assert np.array_equal(lifted, expected)
+        assert np.array_equal(
+            np.asarray(entry.orbit_coordinates(lifted)).reshape(-1), mu[:, 0]
+        )
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("axis", _g22b_AXES)
+    def test_a_mirror_entrys_lift_is_the_hemisphere_section_and_pi_undoes_it(self, axis):
+        entry = SPHERE.quotient(SubgroupOfO3.Mirror(axis))
+        rng = np.random.default_rng(20260902)
+        rho = np.sqrt(rng.uniform(0.0, 1.0, 200))
+        phi = rng.uniform(0.0, 2.0 * np.pi, 200)
+        chart = np.column_stack([rho * np.cos(phi), rho * np.sin(phi)])
+        lifted = np.asarray(entry.lift(chart), dtype=float)
+        # lands ON the sphere and INSIDE the entry's own fundamental domain
+        assert np.allclose(np.linalg.norm(lifted, axis=1), 1.0, atol=1e-14)
+        assert entry.fundamental_domain is not None
+        assert entry.fundamental_domain.contains(lifted)
+        assert np.array_equal(np.asarray(entry.orbit_coordinates(lifted)), chart)
+
+    @pytest.mark.foundation
+    def test_the_trivial_entrys_lift_is_the_identity(self):
+        entry = SPHERE.quotient(SubgroupOfO3.Trivial)
+        rng = np.random.default_rng(7)
+        pts = rng.normal(size=(200, 3))
+        pts /= np.linalg.norm(pts, axis=1)[:, None]
+        assert np.array_equal(np.asarray(entry.lift(pts), dtype=float), pts)
+        assert np.array_equal(np.asarray(entry.orbit_coordinates(pts)), pts)
+
+    @pytest.mark.foundation
+    def test_the_axial_lift_lands_in_the_BALL_and_says_so(self):
+        r"""⚠ The axial lift is NOT a section, and its codomain is the honest
+        record of that: `[M]` ``barycentre(S^2/O2_x).codomain`` is ``D^3``,
+        while the mirror and trivial lifts land on the base ``S^2``.  A gate
+        asserting one uniform codomain across the three families would be
+        FALSE — and the falsehood is ERR-080's own (a map into the ball
+        declared as a map into the sphere)."""
+        axial = SPHERE.quotient(SubgroupOfO3.O2("x"))
+        assert isinstance(axial.lift.codomain, Ball)
+        assert axial.lift.codomain == barycentre(axial).codomain
+        for entry in (
+            SPHERE.quotient(SubgroupOfO3.Mirror("y")),
+            SPHERE.quotient(SubgroupOfO3.Trivial),
+        ):
+            assert entry.lift.codomain == entry.base
+        # and the axial image really is off the sphere away from the poles
+        img = np.asarray(axial.lift(np.array([[0.3]])), dtype=float)
+        assert not SPHERE.contains(img)
+        assert SPHERE.contains(np.asarray(axial.lift(np.array([[1.0]])), dtype=float))
+
+
+# =============================================================================
+
+
+# G2 — tests/numerics/test_manifold.py
+# =============================================================================
+class TestTheInducedActionIsWellDefinedAndActsAsTheTheoremSays:
+    r"""(i) ``Quotient.induced_action`` — REFUSE what does not normalise, and
+    act as the algebra says on what does.
+
+    ⛔ **§6c note, and the coordinator must read it before crediting this
+    gate.**  The refusal is provably UNREACHABLE from
+    :meth:`SubgroupOfO3.is_invariant`: the orbit-space kernel asks
+    ``G.normalises(H)`` at step 1 and only then applies ``induced_action`` to
+    elements of ``G``, every one of which normalises ``H`` because ``G``
+    does.  So its only witness is a DIRECT call — which is what this class
+    is.  Do not add an end-to-end row for it; there is none to add.
+    """
+
+    @pytest.mark.foundation
+    def test_a_motion_that_does_not_normalise_the_group_is_REFUSED(self):
+        fold = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+        c4z = _g22b_rot("z", np.pi / 2.0)
+        # `[M]` C_4 about z conjugates sigma_y to sigma_x — measured, the
+        # conjugated linear part is diag(-1, +1, +1) to 2.2e-16.
+        conj = _g22b_mirror("y").conjugated_by(c4z)
+        assert np.allclose(conj.linear, np.diag([-1.0, 1.0, 1.0]), atol=1e-12)
+        with pytest.raises(ValueError, match="normalise"):
+            fold.induced_action(c4z)
+
+    @pytest.mark.foundation
+    def test_a_rotation_about_another_axis_does_not_descend_to_an_AXIAL_entry(self):
+        entry = SPHERE.quotient(SubgroupOfO3.O2("x"))
+        with pytest.raises(ValueError, match="normalise"):
+            entry.induced_action(_g22b_rot("y", 1.0))
+        # the positive control: about its OWN axis it descends, and is the
+        # IDENTITY on the chart (every orbit is fixed as a set).
+        act = entry.induced_action(_g22b_rot("x", 1.0))
+        mu = np.linspace(-1.0, 1.0, 21).reshape(-1, 1)
+        assert np.allclose(np.asarray(act(mu)).reshape(-1), mu[:, 0], atol=1e-15)
+
+    @pytest.mark.foundation
+    def test_sigma_x_on_the_sigma_y_fold_is_the_disks_x_flip(self):
+        fold = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+        rng = np.random.default_rng(11)
+        rho = np.sqrt(rng.uniform(0.0, 1.0, 64))
+        phi = rng.uniform(0.0, 2.0 * np.pi, 64)
+        chart = np.column_stack([rho * np.cos(phi), rho * np.sin(phi)])
+        got = np.asarray(fold.induced_action(_g22b_mirror("x"))(chart), dtype=float)
+        assert np.allclose(got, chart * np.array([-1.0, 1.0]), atol=1e-15)
+        got_z = np.asarray(fold.induced_action(_g22b_mirror("z"))(chart), dtype=float)
+        assert np.allclose(got_z, chart * np.array([1.0, -1.0]), atol=1e-15)
+        # and the quotienting mirror itself acts TRIVIALLY — the whole point.
+        got_y = np.asarray(fold.induced_action(_g22b_mirror("y"))(chart), dtype=float)
+        assert np.allclose(got_y, chart, atol=1e-15)
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("axis", _g22b_AXES)
+    def test_the_axis_flipping_mirror_is_mu_to_minus_mu_THROUGH_the_barycentre(self, axis):
+        entry = SPHERE.quotient(SubgroupOfO3.O2(axis))
+        mu = np.linspace(-1.0, 1.0, 41).reshape(-1, 1)
+        got = np.asarray(entry.induced_action(_g22b_mirror(axis))(mu), dtype=float)
+        assert np.array_equal(got.reshape(-1), -mu[:, 0])
+
+    @pytest.mark.foundation
+    def test_the_induced_action_is_a_GROUP_HOMOMORPHISM_on_the_chart(self):
+        r"""``ind(g) ∘ ind(h) = ind(g·h)`` — the law that separates a correct
+        induced action from one applied to the AMBIENT nodes.
+
+        `[M]` 2026-09-02: max |difference| **0.000e+00** over 128 pairs
+        (2 entries × 8 × 8 elements of D_2h).  Exact because every D_2h
+        element is a signed permutation and every chart is a column
+        selection; a fold's chart image and its chart nodes are then bit-equal
+        rather than merely close.
+        """
+        elements = _closed(SubgroupOfO3.Dnh(2))
+        for entry, chart in (
+            (SPHERE.quotient(SubgroupOfO3.Mirror("y")), _disk_points()),
+            (SPHERE.quotient(SubgroupOfO3.O2("x")), np.linspace(-1, 1, 17).reshape(-1, 1)),
+        ):
+            for g in elements:
+                for h in elements:
+                    lhs = np.asarray(
+                        entry.induced_action(g)(entry.induced_action(h)(chart)),
+                        dtype=float,
+                    )
+                    rhs = np.asarray(entry.induced_action(g @ h)(chart), dtype=float)
+                    assert np.allclose(lhs, rhs, atol=1e-14), (g, h)
+
+
+def _disk_points() -> np.ndarray:
+    rng = np.random.default_rng(3)
+    rho = np.sqrt(rng.uniform(0.0, 1.0, 32))
+    phi = rng.uniform(0.0, 2.0 * np.pi, 32)
+    return np.column_stack([rho * np.cos(phi), rho * np.sin(phi)])
+
+
+def _closed(group: SubgroupOfO3) -> list[RigidMotion]:
+    from orpheus.numerics.symmetry import _group_elements
+
+    elems = _group_elements(group._tag)
+    assert elems is not None
+    return list(elems)
+
+
+# =============================================================================
+
+
+# G3 — tests/numerics/test_manifold.py
+# =============================================================================
+class TestSectionCoordinatesDispatchOnWidthAndRefuseAnythingElse:
+    """``ambient_representatives`` is the ONE place the two coordinate systems are
+    told apart, and it must refuse a third width rather than guess."""
+
+    @pytest.mark.foundation
+    def test_base_width_passes_through_and_chart_width_is_lifted(self):
+        fold = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+        nodes = np.asarray(Quadrature.folded_product(4, 8).measure.nodes, dtype=float)
+        assert np.array_equal(np.asarray(fold.ambient_representatives(nodes)), nodes)
+        chart = _disk_points()
+        assert np.array_equal(
+            np.asarray(fold.ambient_representatives(chart)),
+            np.asarray(fold.lift(chart)),
+        )
+
+    @pytest.mark.foundation
+    def test_a_width_in_neither_system_is_refused_by_name(self):
+        fold = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
+        with pytest.raises(ValueError, match="neither"):
+            fold.ambient_representatives(np.zeros((4, 7)))
+
+
+# =============================================================================
+
+
+# G4 — tests/numerics/test_manifold.py
+# =============================================================================
+class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
+    r"""⛔ **The design's R3 says the axial arm of ``_embedded_nodes``
+    "RETIRES".  Deleting it is a SILENT WRONG ANSWER in a second consumer.**
+
+    `[M]` 2026-09-02.  ``_embedded_nodes`` has TWO production readers, and
+    only one of them is the invariance kernel: ``Quadrature.ordinate_permutation``
+    (``directional.py:539``) feeds it to ``RigidMotion.preserves``.  With the
+    axial arm deleted, a rule on ``S^2/O2_y`` embeds as ``(μ, 0, 0)`` instead
+    of ``(0, μ, 0)`` — max |difference| **9.603e-01** — and
+    ``ordinate_permutation(σ_x)`` answers the μ→−μ permutation
+    ``[7, 6, 5, 4]`` where the honest answer is the IDENTITY ``[0, 1, 2, 3]``,
+    with σ_y flipping the other way.  Two of the three axes are wrong; the
+    slab's own ``S^2/O2_x`` is the one axis where the two agree, which is why
+    ``symmetry.py``'s own suite cannot see it.
+
+    ⟹ the arm is RE-POINTED, not deleted: ``_embedded_nodes``'s axial branch
+    reads ``measure.support.lift(nodes)``.  `[M]` that is ``array_equal`` to
+    today's answer on all three axes, so the re-point is bit-identical AND
+    single-sources the lift (Pattern 2).
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("axis", _g22b_AXES)
+    def test_the_axial_embedding_IS_the_entrys_lift(self, axis):
+        from orpheus.numerics.symmetry import _embedded_nodes
+
+        rule = gauss_legendre_on_polar_orbit(8, axis)
+        nodes = np.asarray(rule.nodes, dtype=float).reshape(-1, 1)
+        assert np.array_equal(
+            np.asarray(_embedded_nodes(rule), dtype=float),
+            np.asarray(rule.support.lift(nodes), dtype=float),
+        )
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("axis", _g22b_AXES)
+    def test_ordinate_permutation_still_reads_the_axis_the_orbit_space_names(self, axis):
+        """The consumer a deleted axial arm would corrupt, pinned directly.
+
+        `[M]` the identity/flip pattern is diagonal in the axis: only the
+        mirror NORMAL to the orbit space's own axis moves the ordinates."""
+        rule = gauss_legendre_on_polar_orbit(8, axis)
+        quad = Quadrature(measure=rule)
+        for other in _g22b_AXES:
+            perm = quad.ordinate_permutation(_g22b_mirror(other))
+            assert perm is not None
+            moved = perm.indices.tolist() != list(range(rule.n_points))
+            assert moved is (other == axis), (axis, other)
+
+    @pytest.mark.foundation
+    def test_a_BARE_interval_keeps_the_column_zero_convention(self):
+        """The arm that does NOT retire: a bare interval names no axis, so
+        column 0 is the convention and there is no lift to read."""
+        from orpheus.numerics.symmetry import _embedded_nodes
+
+        m = gauss_legendre_on_mu(8)
+        assert m.support == COSINE_INTERVAL
+        emb = np.asarray(_embedded_nodes(m), dtype=float)
+        assert np.array_equal(emb[:, 0], np.asarray(m.nodes, dtype=float))
+        assert np.array_equal(emb[:, 1:], np.zeros((m.n_points, 2)))
+
+
+# =============================================================================

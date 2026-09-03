@@ -34,6 +34,32 @@ from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.symmetry import SubgroupOfO3
 from orpheus.numerics.quadrature import Quadrature
 
+# 2.2b gates (test-architect, 2026-09-02) — the draft's imports, verbatim
+import numpy as np
+import pytest
+
+from orpheus.geometry.transformation import RigidMotion
+from orpheus.numerics.manifold import (
+    COSINE_INTERVAL,
+    SPHERE,
+    Ball,
+    Quotient,
+    barycentre,
+    quotient_onto,
+)
+from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.quadrature.directional import Quadrature
+from orpheus.numerics.quadrature.registry import GEOMETRY_ANGULAR_SYMMETRY
+from orpheus.numerics.quadrature.rules_1d import (
+    gauss_legendre_on_mu,
+    gauss_legendre_on_polar_orbit,
+)
+from orpheus.numerics.symmetry import (
+    SubgroupOfO3,
+    candidate_groups,
+    maximal_invariance_groups,
+)
+
 
 # ============================================================================
 # Helpers
@@ -1695,10 +1721,12 @@ def test_rotation_axis_answers_for_the_STABILISER_too_and_mirror_axis_does_not()
     name the axis whose polar interval their orbit space IS.
 
     That is exactly what ``manifold._sphere_mod_o2`` reads to pick the
-    surviving invariant, what ``_polar_axis_of`` reads to decide a 1-D
-    measure's embedding axis, and what ``barycentre`` reads to place the
-    orbit's centre. A property that answered ``None`` for :math:`O(2)_a`
-    would send all three through the ``None`` branch.
+    surviving invariant, what ``Quotient.lift`` reads to lift a 1-D
+    measure's nodes through the barycentre (until 2026-09-02 a separate
+    ``_polar_axis_of`` read it to pick an embedding axis; #429 tracker 2.2b
+    retired that into the entry's lift), and what ``barycentre`` reads to
+    place the orbit's centre. A property that answered ``None`` for
+    :math:`O(2)_a` would send all three through the ``None`` branch.
 
     The companion of the existing SO(2)-only row
     :func:`test_rotation_axis_is_the_continuous_dual_of_mirror_axis`; the
@@ -2309,3 +2337,617 @@ class TestOrbitStabiliser:
             "SubgroupOfO3.SO2('z')": "SubgroupOfO3.O2('z')",
             "SubgroupOfO3.SO3": "SubgroupOfO3.O3",
         }
+
+
+# =============================================================================
+# 2.2b — the Γ-slot: gates drafted by the test-architect (2026-09-02)
+# =============================================================================
+
+_g22b_AXES = ("x", "y", "z")
+
+
+def _g22b_trivially_quotiented_product() -> DiscreteMeasure:
+    from dataclasses import replace
+
+    return replace(
+        Quadrature.product(4, 8).measure,
+        support=SPHERE.quotient(SubgroupOfO3.Trivial),
+    )
+
+
+
+
+def _g22b_rot(axis: str, theta: float) -> RigidMotion:
+    return RigidMotion.rotation_about_axis(axis=np.eye(3)["xyz".index(axis)], angle=theta)
+
+
+def _g22b_mirror(axis: str) -> RigidMotion:
+    return RigidMotion.reflection(normal=np.eye(3)["xyz".index(axis)])
+
+
+#: Pairwise-incommensurate angles.  A right-angle sample of a continuous
+#: family generates C_4 and certifies what it never tested (ERR-072,
+#: ``vv-principles`` #13); the CONTROL below is allowed to sample because it
+#: can only REFUTE, and it is compared against a criterion that never does.
+_g22b_INCOMMENSURATE = (1.0, float(np.sqrt(2.0)), float(np.e), 2.5, float(np.sqrt(7.0)))
+
+
+# =============================================================================
+
+
+# G5 — tests/numerics/test_symmetry.py
+# =============================================================================
+class TestTheNormaliserCriterionIsEXACTAndAgreesWithBruteConjugation:
+    r"""(iii) ``is_normalised_by`` / ``normalises``, positive AND negative
+    legs per family, with a brute-conjugation CONTROL.
+
+    The production criterion is **exact and never sampled** (ERR-072): a
+    motion normalises the axial families iff it maps ``ê_a`` to ``±ê_a``, and
+    the finite families are decided by conjugating the ELEMENT SET.  The
+    control here MAY sample — sampling can only refute a universal, never
+    certify one — and it is what proves the exact criterion is not merely
+    self-consistent.
+
+    `[M]` 2026-09-02: criterion == brute on **12 of 12** (mirror × axis ×
+    four incommensurate angles), and the worst conjugation residual over 14
+    (group × angle) pairs is **3.331e-16**, i.e. 3.0e+06× inside the shipped
+    ``_MEMBERSHIP_ATOL`` of 1e-9.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("theta", _g22b_INCOMMENSURATE)
+    @pytest.mark.parametrize("axis", _g22b_AXES)
+    @pytest.mark.parametrize("mirror", _g22b_AXES)
+    def test_the_criterion_agrees_with_a_brute_conjugation_control(
+        self, mirror, axis, theta
+    ):
+        from orpheus.numerics.symmetry import _MEMBERSHIP_ATOL
+
+        H = SubgroupOfO3.Mirror(mirror)
+        motion = _g22b_rot(axis, theta)
+        elements = _closed(H)
+        brute = all(
+            any(
+                e.conjugated_by(motion).approximately_equals(f, atol=_MEMBERSHIP_ATOL)
+                for f in elements
+            )
+            for e in elements
+        )
+        assert H.is_normalised_by(motion) is brute
+        # non-vacuity: the control must SEPARATE, not answer True everywhere
+        assert brute is (axis == mirror)
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("axis", _g22b_AXES)
+    def test_an_axial_group_is_normalised_exactly_by_the_axis_preserving_motions(
+        self, axis
+    ):
+        for H in (SubgroupOfO3.O2(axis), SubgroupOfO3.SO2(axis)):
+            assert H.is_normalised_by(_g22b_rot(axis, float(np.e)))       # rotation about a
+            assert H.is_normalised_by(_g22b_mirror(axis))                 # flips ê_a -> -ê_a
+            for other in _g22b_AXES:
+                if other == axis:
+                    continue
+                assert not H.is_normalised_by(_g22b_rot(other, 1.0))
+                assert H.is_normalised_by(_g22b_mirror(other))            # fixes ê_a
+
+    @pytest.mark.foundation
+    def test_the_GROUP_level_normaliser_positive_and_negative_legs(self):
+        r"""`[M]` every row measured 2026-09-02 on the shadow of the design.
+
+        ⚠ ``O2_x.normalises(σ_y)`` is **False** although ``O2_x CONTAINS
+        σ_y`` — containment does not imply normalisation for a subgroup that
+        is not normal, and a rotation about x conjugates σ_y to a mirror in a
+        tilted plane.  That pair is the reason step 1 (normalise) must run
+        BEFORE step 2 (contains), and it is the sharpest row here.
+        """
+        O2x, SO2x = SubgroupOfO3.O2("x"), SubgroupOfO3.SO2("x")
+        sx, sy, sz = (SubgroupOfO3.Mirror(a) for a in _g22b_AXES)
+        assert O2x.contains(sy) and not O2x.normalises(sy)      # <- the sharp row
+        assert O2x.normalises(sx) and O2x.normalises(SO2x) and O2x.normalises(O2x)
+        assert O2x.normalises(SubgroupOfO3.Trivial)
+        assert not O2x.normalises(SubgroupOfO3.Cn(4))
+        assert SubgroupOfO3.Dinfh.normalises(SubgroupOfO3.O2("z"))
+        assert SubgroupOfO3.Dinfh.normalises(sz)
+        assert not SubgroupOfO3.Dinfh.normalises(O2x)
+        assert SubgroupOfO3.SO3.normalises(SubgroupOfO3.Trivial)
+        assert not SubgroupOfO3.SO3.normalises(sz)
+        assert not SubgroupOfO3.SO3.normalises(SubgroupOfO3.O2("z"))
+        for a in _g22b_AXES:                       # D_2h normalises each of its mirrors
+            assert SubgroupOfO3.Dnh(2).normalises(SubgroupOfO3.Mirror(a))
+        assert SubgroupOfO3.Dnh(2).normalises(O2x)
+        assert not SubgroupOfO3.Cn(4).normalises(sy)
+        assert SubgroupOfO3.Cn(4).normalises(sz)
+        assert SubgroupOfO3.SO2("y").normalises(sy)
+        assert not SubgroupOfO3.SO2("z").normalises(sy)
+
+    @pytest.mark.foundation
+    def test_normalisation_is_REFLEXIVE_on_every_spellable_group(self):
+        r"""⛔ **The design's spec, read literally, gets this WRONG for the
+        continuous families.**  It prescribes ``H ⊆ {e, −I}`` for ``SO(3)``,
+        which makes ``SO3.normalises(SO3)`` and ``SO3.normalises(O3)``
+        answer ``False`` — and every group normalises itself, by theorem.
+
+        `[M]` the shadow written from the design text answers ``False`` on
+        both.  It is LATENT for the shipped inputs (a ``Quotient.by`` is only
+        ever ``O2_a``, ``σ_a`` or ``Trivial``), which is exactly why it needs
+        a gate rather than a fix note: nothing else in the tree will ever ask.
+        """
+        for g in _every_spellable_group():
+            assert g.normalises(g), g.name
+
+    @pytest.mark.foundation
+    def test_the_two_spellings_of_the_normaliser_agree_where_both_apply(self):
+        """``G.normalises(H)`` must be ``all(H.is_normalised_by(g))`` over a
+        finite ``G`` — one relation, two entry points, no drift."""
+        for G in (
+            SubgroupOfO3.Dnh(2),
+            SubgroupOfO3.Cn(4),
+            SubgroupOfO3.Mirror("x"),
+            SubgroupOfO3.OctahedralOh,
+        ):
+            for H in (
+                SubgroupOfO3.Mirror("y"),
+                SubgroupOfO3.O2("x"),
+                SubgroupOfO3.Trivial,
+            ):
+                assert G.normalises(H) is all(
+                    H.is_normalised_by(g) for g in _closed(G)
+                ), (G.name, H.name)
+
+    @pytest.mark.foundation
+    def test_a_CONTINUOUS_normaliser_is_not_contradicted_by_any_sampled_element(self):
+        """A necessary condition on the exact criterion: if ``G.normalises(H)``
+        then no element of ``G`` — sampled at incommensurate angles, which a
+        certificate may not do but a REFUTATION may — can fail
+        ``H.is_normalised_by``."""
+        for axis in _g22b_AXES:
+            for G in (SubgroupOfO3.SO2(axis), SubgroupOfO3.O2(axis)):
+                for H in (SubgroupOfO3.O2(axis), SubgroupOfO3.Mirror(axis)):
+                    if not G.normalises(H):
+                        continue
+                    for theta in _g22b_INCOMMENSURATE:
+                        assert H.is_normalised_by(_g22b_rot(axis, theta)), (G.name, H.name)
+                    for other in _g22b_AXES:
+                        assert H.is_normalised_by(_g22b_mirror(other)) or other == axis
+
+
+def _every_spellable_group() -> list[SubgroupOfO3]:
+    named = [
+        SubgroupOfO3.Trivial,
+        SubgroupOfO3.Dinfh,
+        SubgroupOfO3.OctahedralOh,
+        SubgroupOfO3.IcosahedralIh,
+        SubgroupOfO3.SO3,
+        SubgroupOfO3.O3,
+    ]
+    named += [SubgroupOfO3.Mirror(a) for a in _g22b_AXES]
+    named += [SubgroupOfO3.SO2(a) for a in _g22b_AXES]
+    named += [SubgroupOfO3.O2(a) for a in _g22b_AXES]
+    named += [SubgroupOfO3.Cn(n) for n in (1, 2, 3, 4)]
+    named += [SubgroupOfO3.Dnh(n) for n in (1, 2, 3, 4)]
+    return named
+
+
+# =============================================================================
+
+
+# G6 — tests/numerics/test_symmetry.py
+# =============================================================================
+class TestTheTrivialQuotientAnswersExactlyLikeTheBareSphere:
+    r"""(v) The bit-identity witness that the orbit-space route CONTAINS the
+    ambient kernel.
+
+    ``S²/{e} = S²`` is a theorem (``_mod_trivial``: ``P = I``), so routing a
+    trivially-quotiented measure through ``_invariance_on_orbit_space`` must
+    reproduce ``_invariance_on_points`` exactly — for the finite families
+    (step 5 becomes plain orbit closure on the base's own coordinates) AND
+    for the continuous ones (step 4 becomes the axis-support / origin-support
+    rule the ambient kernel already applies).
+
+    `[M]` 2026-09-02: **85 rows** (5 shipped sphere rules × 17 groups), **0
+    differ**.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize(
+        "name,factory",
+        [
+            ("product(4,8)", lambda: Quadrature.product(4, 8).measure),
+            ("product(2,4)", lambda: Quadrature.product(2, 4).measure),
+            ("level_symmetric(4)", lambda: Quadrature.level_symmetric(4).measure),
+            ("lebedev(5)", lambda: Quadrature.lebedev(5).measure),
+            ("lebedev(11)", lambda: Quadrature.lebedev(11).measure),
+        ],
+    )
+    def test_every_candidate_group_answers_identically(self, name, factory):
+        from dataclasses import replace
+
+        bare = factory()
+        assert bare.support == SPHERE
+        trivial = replace(bare, support=SPHERE.quotient(SubgroupOfO3.Trivial))
+        assert isinstance(trivial.support, Quotient)
+        checked = 0
+        for g in _every_spellable_group():
+            checked += 1
+            assert g.is_invariant(bare) is g.is_invariant(trivial), (name, g.name)
+        assert checked >= 17, checked
+
+
+# =============================================================================
+
+
+# G7 — tests/numerics/test_symmetry.py
+# =============================================================================
+class TestTheSlabAndSphereFamiliesAnswerExactlyAsBeforeTheCarve:
+    r"""(vi) The PRE-CHANGE baseline, as literals.
+
+    Measured on the pristine tree at ``4b7d24c3`` on 2026-09-02, over each
+    rule's OWN ``candidate_groups`` set — not a hand list, which is how the
+    first pass of this measurement under-counted the fold's flips by two
+    (``D_1h`` and ``C_2`` were absent from the hand list).
+
+    `[M]` the whole carve moves **20 of 415** rows over 21 shipped rules,
+    every one of them on a σ_y FOLD.  Nothing on a slab rule, a polar
+    marginal on any axis, a product rule, a level-symmetric rule or a
+    Lebedev rule moves at all.
+    """
+
+    _SLAB_GL8 = {
+        "O2_x": True, "SO2_x": True, "Trivial": True,
+        "sigma_x": True, "sigma_y": True, "sigma_z": True,
+        "Dinfh": False, "Ih": False, "O2_y": False, "O2_z": False,
+        "O3": False, "Oh": False, "SO2_y": False, "SO2_z": False, "SO3": False,
+    }
+    _POLAR_Z = {
+        "Dinfh": True, "O2_z": True, "SO2_z": True, "Trivial": True,
+        "sigma_x": True, "sigma_y": True, "sigma_z": True,
+        "Ih": False, "O2_x": False, "O2_y": False, "O3": False, "Oh": False,
+        "SO2_x": False, "SO2_y": False, "SO3": False,
+    }
+
+    @pytest.mark.foundation
+    def test_the_slab_rule_is_bit_identical_to_the_pre_change_answers(self):
+        m = Quadrature.gauss_legendre(8).measure
+        got = {g.name: g.is_invariant(m) for g in candidate_groups(m)}
+        assert got == self._SLAB_GL8
+
+    @pytest.mark.foundation
+    def test_a_polar_marginal_about_z_is_bit_identical_too(self):
+        r"""⭐ The ``S^2/O2_z`` marginal is the ONLY shipped input that
+        reaches step 4 with a CONTINUOUS quotienting group: ``D_∞h``
+        normalises ``O(2)_z`` and is not contained in it, so the verdict is
+        decided by the identity component fixing every chart node and then by
+        the coset representatives — not by the step-2 short circuit.  `[M]`
+        ``Dinfh`` reads ``True`` here and ``False`` on an ASYMMETRIC marginal
+        on the same entry, so the row discriminates."""
+        m = gauss_legendre_on_polar_orbit(8, "z")
+        got = {g.name: g.is_invariant(m) for g in candidate_groups(m)}
+        assert got == self._POLAR_Z
+        asym = DiscreteMeasure(
+            nodes=np.array([-0.9, -0.3, 0.3, 0.7]),
+            weights=np.full(4, 0.5),
+            support=SPHERE.quotient(SubgroupOfO3.O2("z")),
+        )
+        assert SubgroupOfO3.O2("z").is_invariant(asym)
+        assert not SubgroupOfO3.Dinfh.is_invariant(asym)
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("n", [2, 3, 4, 8, 16])
+    @pytest.mark.parametrize("axis", _g22b_AXES)
+    def test_no_axial_marginal_on_any_axis_moves(self, axis, n):
+        """`[M]` 3 axes × 21 groups = 63 rows, 0 changed."""
+        m = gauss_legendre_on_polar_orbit(n, axis)
+        assert SubgroupOfO3.O2(axis).is_invariant(m)
+        assert SubgroupOfO3.SO2(axis).is_invariant(m)
+        assert SubgroupOfO3.Mirror(axis).is_invariant(m)   # GL nodes are ±-paired
+        for other in _g22b_AXES:
+            if other == axis:
+                continue
+            assert not SubgroupOfO3.O2(other).is_invariant(m)
+            assert not SubgroupOfO3.SO2(other).is_invariant(m)
+            assert SubgroupOfO3.Mirror(other).is_invariant(m)  # fixes the axis
+
+
+# =============================================================================
+
+
+# G8 — tests/numerics/test_symmetry.py
+# =============================================================================
+class TestTheFoldIsInvariantUnderExactlyTheGroupsThatDescendAndClose:
+    r"""The carve's own consequence — and the DENOMINATOR the design memo did
+    not carry.
+
+    ⛔ **The design's §8 names two flips (``Mirror('y')`` and ``Dnh(2)``).
+    `[M]` there are FOUR**, on every shipped fold: ``σ_y``, ``C_2``,
+    ``D_1h`` and ``D_2h``, all ``False → True``.  Measured over each rule's
+    own candidate set: 5 folds × 4 = **20 of 415** rows.
+
+    ⚠ **And the headline flip is the least falsifiable one.**  ``σ_y`` is
+    answered by the step-2 short circuit (``H.contains(G)`` — G acts
+    trivially on ``M/H``), which never looks at a node.  `[M]` it stays
+    ``True`` on a fold with a node DELETED and on a fold with a weight
+    perturbed by 1.5×, while ``D_2h`` and ``σ_x`` both go ``False`` on both.
+    So ``σ_y`` gates the WIRING and ``D_2h`` gates the node-level closure;
+    citing the σ_y row as evidence of the latter is ``vv-principles`` #19.
+    """
+
+    _FOLD_AFTER = {
+        "C_1": True, "C_2": True, "D_1h": True, "D_2h": True, "Trivial": True,
+        "sigma_x": True, "sigma_y": True, "sigma_z": True,
+        "C_4": False, "D_4h": False, "Dinfh": False, "Ih": False,
+        "O2_x": False, "O2_y": False, "O2_z": False, "O3": False, "Oh": False,
+        "SO2_x": False, "SO2_y": False, "SO2_z": False, "SO3": False,
+    }
+
+    @pytest.mark.foundation
+    def test_the_whole_verdict_set_on_the_shipped_fold(self):
+        m = Quadrature.folded_product(4, 8).measure
+        assert isinstance(m.support, Quotient)
+        got = {g.name: g.is_invariant(m) for g in candidate_groups(m)}
+        assert got == self._FOLD_AFTER
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("n_mu,n_phi", [(2, 4), (4, 4), (4, 8), (6, 8), (8, 8)])
+    def test_all_four_flips_hold_on_every_shipped_fold(self, n_mu, n_phi):
+        m = Quadrature.folded_product(n_mu, n_phi).measure
+        for name in ("sigma_y", "C_2", "D_1h", "D_2h"):
+            g = next(c for c in candidate_groups(m) if c.name == name)
+            assert g.is_invariant(m), name
+
+    @pytest.mark.foundation
+    def test_the_node_reading_flips_are_falsifiable_and_sigma_y_is_NOT(self):
+        r"""The discriminating half of the flip, and the honest admission
+        about the other half.  `[M]` both perturbations below move ``D_2h``,
+        ``C_2``, ``D_1h`` and ``σ_x`` to ``False`` and leave ``σ_y`` ``True``
+        — because σ_y acts trivially on ``S²/σ_y`` for EVERY measure there,
+        which is a theorem about the space, not a fact about the rule."""
+        m = Quadrature.folded_product(4, 8).measure
+        nodes = np.asarray(m.nodes, dtype=float)
+        weights = np.asarray(m.weights, dtype=float)
+
+        bumped = weights.copy()
+        bumped[0] *= 1.5
+        perturbed = DiscreteMeasure(nodes=nodes, weights=bumped, support=m.support)
+        dropped = DiscreteMeasure(
+            nodes=nodes[1:], weights=weights[1:], support=m.support
+        )
+        for broken in (perturbed, dropped):
+            assert not SubgroupOfO3.Dnh(2).is_invariant(broken)
+            assert not SubgroupOfO3.Cn(2).is_invariant(broken)
+            assert not SubgroupOfO3.Mirror("x").is_invariant(broken)
+            # unfalsifiable BY CONSTRUCTION — stated, not hidden
+            assert SubgroupOfO3.Mirror("y").is_invariant(broken)
+
+    @pytest.mark.foundation
+    def test_a_group_that_does_not_NORMALISE_the_fold_is_refused_whatever_the_nodes(
+        self,
+    ):
+        r"""Step 1 is a statement about the GROUPS, not the measure: ``C_4``
+        about z conjugates ``σ_y`` to ``σ_x``, so it does not act on
+        ``S²/σ_y`` at all and the verdict is ``False`` for every rule on that
+        space — including the one whose PARENT is ``C_4``-invariant.  `[M]`
+        ``product(4, 8)`` is ``C_4``-invariant; its σ_y fold is not."""
+        parent = Quadrature.product(4, 8).measure
+        fold = Quadrature.folded_product(4, 8).measure
+        assert SubgroupOfO3.Cn(4).is_invariant(parent)
+        assert not SubgroupOfO3.Cn(4).is_invariant(fold)
+        assert SubgroupOfO3.Dnh(2).normalises(SubgroupOfO3.Mirror("y"))
+        assert not SubgroupOfO3.Cn(4).normalises(SubgroupOfO3.Mirror("y"))
+
+
+# =============================================================================
+
+
+# G9 — tests/numerics/test_symmetry.py
+# =============================================================================
+class TestTheCompatibilityLawHoldsOnTheOrbitSpaceRoute:
+    r"""(iv) ``vv-principles`` #15 — ``A ⊆ B ∧ P(B, μ) ⟹ P(A, μ)``, re-run
+    over the lattice × the ORBIT-SPACE route.
+
+    ⛔ **The module's existing downward-closure gates cannot reach this
+    carve.**  `[M]` ``_walk_rules()`` supplies 3 products + 2 level-symmetric
+    + 2 Lebedev and `_measure_from_sphere_quad` re-declares
+    ``support=SPHERE`` on every one — so the whole existing instrument runs
+    on the ambient kernel and is structurally blind to the orbit-space one.
+    This class is the missing denominator.
+
+    `[M]` 2026-09-02, 0 violations on the fold, the slab rule, the three
+    axial marginals and a trivial-quotient sphere rule.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize(
+        "name,factory",
+        [
+            ("folded_product(4,8)", lambda: Quadrature.folded_product(4, 8).measure),
+            ("folded_product(2,4)", lambda: Quadrature.folded_product(2, 4).measure),
+            ("folded_product(6,8)", lambda: Quadrature.folded_product(6, 8).measure),
+            ("slab gauss_legendre(8)", lambda: Quadrature.gauss_legendre(8).measure),
+            ("polar_orbit(8,z)", lambda: gauss_legendre_on_polar_orbit(8, "z")),
+            ("trivial-quotient product(4,8)", _g22b_trivially_quotiented_product),
+        ],
+    )
+    def test_invariance_is_downward_closed_on_the_orbit_space_route(self, name, factory):
+        measure = factory()
+        assert isinstance(measure.support, Quotient), name
+        cands = candidate_groups(measure)
+        invariant = {repr(g): g.is_invariant(measure) for g in cands}
+        checked = 0
+        violations = []
+        for outer in cands:
+            for inner in cands:
+                if outer == inner or not outer.contains(inner):
+                    continue
+                checked += 1
+                if invariant[repr(outer)] and not invariant[repr(inner)]:
+                    violations.append(f"{name}: {outer.name} > {inner.name}")
+        assert checked > 40, f"{name}: only {checked} pairs — the gate is too thin"
+        assert not violations, violations[:8]
+
+
+# =============================================================================
+
+
+# G10 — tests/numerics/test_symmetry.py
+# =============================================================================
+class TestTheWalkOnAFoldReportsTheGroupTheGeometryOwes:
+    r"""(x) The Hasse walk on a fold — measured BEFORE, and predicted AFTER
+    from the Γ-closure on the orbit space.
+
+    `[M]` before the carve: ``['sigma_z', 'sigma_x']`` — two incomparable
+    maxima, because the ambient kernel could not see that σ_y is free and
+    therefore could not close the pair up to ``D_2h``.
+    `[M]` after: ``['D_2h']``, on all five shipped folds, with the walk and
+    the bruteforce scan AGREEING (the module's own two-realization
+    instrument, which is why the answer is derivable and not merely pinned).
+
+    ⭐ ``candidate_groups`` is UNCHANGED — it reads ``_distinct_azimuths`` of
+    the nodes and never asks ``is_invariant`` — so the whole move lives in
+    the walk's verdicts, not in its search space.
+
+    ⚠ ``maximal_invariance_groups`` has **0 production callers** (`[M]` the
+    only ``orpheus/`` hit is its own ``def``), so this change cannot move a
+    solve.  Nothing in the tree pinned the walk on a fold before this class.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("n_mu,n_phi", [(2, 4), (4, 4), (4, 8), (6, 8), (8, 8)])
+    def test_the_walk_and_the_bruteforce_scan_agree_and_report_D2h(self, n_mu, n_phi):
+        m = Quadrature.folded_product(n_mu, n_phi).measure
+        walk = sorted(g.name for g in maximal_invariance_groups(m, method="walk"))
+        brute = sorted(
+            g.name for g in maximal_invariance_groups(m, method="bruteforce")
+        )
+        assert walk == brute, (walk, brute)
+        assert walk == ["D_2h"]
+
+    @pytest.mark.foundation
+    def test_the_candidate_SET_is_untouched_by_the_carve(self):
+        m = Quadrature.folded_product(4, 8).measure
+        names = sorted(g.name for g in candidate_groups(m))
+        assert names == sorted(
+            [
+                "C_1", "C_2", "C_4", "D_1h", "D_2h", "D_4h", "Dinfh", "Ih",
+                "O2_x", "O2_y", "O2_z", "O3", "Oh", "SO2_x", "SO2_y", "SO2_z",
+                "SO3", "Trivial", "sigma_x", "sigma_y", "sigma_z",
+            ]
+        )
+
+
+# =============================================================================
+
+
+# G11 — tests/numerics/test_symmetry.py
+# =============================================================================
+class TestOrbitCertificateAndInvarianceNowAnswerDifferentQuestions:
+    r"""⛔ **A divergence the carve CREATES, and the message that goes
+    present-tense-false with it.**
+
+    ``orbit_certificate`` reads ``measure.nodes`` in the AMBIENT space, so
+    after the carve ``is_invariant`` and ``orbit_certificate`` answer
+    different questions on a fold: `[M]` ``σ_y`` / ``C_2`` / ``D_2h`` are
+    ``is_invariant = True`` with ``orbit_certificate = None``, while ``σ_x``
+    has both.  That is CORRECT — a group acting trivially on the orbit space
+    permutes no ambient node — but two things in the tree assert otherwise:
+
+    * ``orbit_certificate``'s docstring gives ``None`` exactly two causes
+      ("not invariant" / "continuous"); there is now a THIRD;
+    * ``DiscreteMeasure.quotient``'s refusal says *"this measure is not
+      σ_y-invariant"*, which the carve makes FALSE.
+
+    Both are ``coding-standards`` MUST-FIXes, in the carve's own commit.  The
+    honest message names the mechanism: *no finite permutation of the NODES
+    realizes σ_y; the measure IS σ_y-invariant on its orbit space, where σ_y
+    acts trivially, so a second fold by the same group is the identity.*
+    """
+
+    @pytest.mark.foundation
+    def test_the_certificate_and_the_verdict_cannot_disagree_on_a_fold(self):
+        r"""✅ **Re-posed 2026-09-02.**  The draft predicted a DIVERGENCE
+        (``is_invariant`` True with ``orbit_certificate`` None) because the
+        certificate read the AMBIENT nodes.  `[M]` the coordinator closed it
+        the better way instead: ``orbit_certificate`` now builds on the
+        CHART, through ``induced_action``, via ``_orbit_closure(...,
+        images_of=)`` — so there is ONE invariance notion, which is R1.
+
+        What is owed is therefore the AGREEMENT, gated: on a fold, for every
+        candidate group, ``is_invariant`` and ``orbit_certificate is not
+        None`` must answer the same — except for the continuous groups, which
+        have no finite realization to permute anything with.
+        """
+        from orpheus.numerics.symmetry import _realized_ops, orbit_certificate
+
+        m = Quadrature.folded_product(4, 8).measure
+        checked = 0
+        for g in candidate_groups(m):
+            if _realized_ops(g._tag) is None:   # continuous: no realization
+                assert orbit_certificate(m, g) is None
+                continue
+            checked += 1
+            assert (orbit_certificate(m, g) is not None) is g.is_invariant(m), g.name
+        assert checked >= 10, checked
+        # and the permutations are the induced ones: sigma_y acts TRIVIALLY on
+        # S^2/sigma_y, so its chart permutation is the identity.
+        cert = orbit_certificate(m, SubgroupOfO3.Mirror("y"))
+        assert cert is not None
+        for perm in cert.permutations:
+            assert perm.indices.tolist() == list(range(m.n_points))
+        # the control: sigma_x MOVES the chart, so its permutation is not id
+        cert_x = orbit_certificate(m, SubgroupOfO3.Mirror("x"))
+        assert cert_x is not None
+        assert any(
+            p.indices.tolist() != list(range(m.n_points)) for p in cert_x.permutations
+        )
+
+    @pytest.mark.foundation
+    def test_the_refold_refusal_no_longer_claims_the_measure_is_not_invariant(self):
+        r"""✅ Already repaired by the coordinator in flight: `[M]`
+        ``tests/numerics/test_measure.py::test_the_fold_consumes_the_symmetry_idempotent_only_on_a_trivial_action``
+        now expects ``"lies in the spent group sigma_y"``.  This row is the
+        SIBLING claim on the ``Quadrature``-tier fold, which that test does
+        not reach — keep both, or the tier with no witness is the one that
+        drifts back."""
+        m = Quadrature.folded_product(4, 8).measure
+        with pytest.raises(ValueError) as excinfo:
+            m.quotient(SubgroupOfO3.Mirror("y"))
+        message = str(excinfo.value)
+        assert "not sigma_y-invariant" not in message, (
+            "the refusal still asserts non-invariance, which tracker 2.2b "
+            f"made false: {message!r}"
+        )
+        assert "spent" in message
+
+    @pytest.mark.foundation
+    def test_orbit_certificates_docstring_gives_None_its_THIRD_cause(self):
+        r"""⛔ A docstring MUST-FIX the carve creates.  ``orbit_certificate``
+        documents ``None`` as meaning *"not group-invariant, or the group is
+        CONTINUOUS"* — after 2.2b there is a third cause, and it is the one a
+        fold hits.  A gate on prose is unusual; it is here because the claim
+        is a COVERAGE claim (an audit reads that docstring as the function's
+        contract) and nothing else can see it."""
+        from orpheus.numerics.symmetry import orbit_certificate
+
+        doc = orbit_certificate.__doc__ or ""
+        assert "orbit space" in doc or "chart" in doc, (
+            "orbit_certificate's docstring still describes the AMBIENT "
+            "reading; tracker 2.2b moved its body onto the CHART (through "
+            "Quotient.induced_action), and added a third cause of None (the "
+            "group does not normalise the quotienting group). Its two "
+            "downstream readers -- `singular_set` and "
+            "`DiscreteMeasure.quotient` -- inherit the new semantics."
+        )
+
+
+# =============================================================================
+
+
+def _closed(group: SubgroupOfO3) -> list[RigidMotion]:
+    """The group's realized ELEMENTS (the closure), for the brute-force
+    conjugation controls above — the draft defined it beside the manifold
+    gates; the symmetry gates need it too."""
+    from orpheus.numerics.symmetry import _group_elements
+
+    elems = _group_elements(group._tag)
+    assert elems is not None
+    return list(elems)

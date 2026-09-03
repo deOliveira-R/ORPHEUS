@@ -39,6 +39,25 @@ stage + gate.
 
 **In flight (ONE line each; the evidence is in the lesson, the state is in git):**
 
+- **THE Γ-SLOT: a symmetry is asked ON the orbit space, and a geometry admits a FOLD of its
+  domain (#429 tracker 2.2b)** — 2026-09-02, same branch, its own commit after the fused one.
+  Docs **UNCOMMITTED** (mine): 4 hand-edited pages **+1318/−107** — `manifolds.rst` (a new `=`
+  chapter *Who ACTS on an orbit space*: the normaliser theorem + 2 new `documented` eq-labels,
+  the lift's three arms, `induced_action`'s refusal, the ONE four-step kernel, the Γ-slot with
+  `spent_group`, `ordinate_permutation`'s re-homing, the spent-group door, a what-moved table;
+  plus 10 in-place repairs incl. a DISCHARGED seam, the retired `_polar_axis_of` import row,
+  the machine header and a dev-history row), `discrete_measures.rst` (stage 0/1 + a 3rd new
+  label + a new witness row in the independence table + the verbatim message), `error_catalog.rst`
+  (ERR-080 re-tensed; ERR-072 gains the right-angle-over-certification control),
+  `frame.rst` (the shared-arrow cross-link), + regenerated `matrix.rst` (sentinels 584 → **587**,
+  exactly my +3). `-E -W` **0 → 0**, EXIT=0; xref gate 0 dead / 14618 (stock AND patched, with an
+  end-to-end positive control); nexus `dead_references` 0/52; render slice 0 backticks / 0 leaked
+  roles. ⚠ **A mid-task DESIGN DELTA landed WHILE I measured** — a half-written tree gave
+  plausible wrong answers, 2 of its 7 items shipped differently from the message, and my measured
+  *"II.11 is HALF closed"* became fully closed. ⚠ **REPORTED, code-only**: the `orbit_certificate`
+  refusal message is now a THREE-arm disjunction wearing two-arm text (§II.11's residue).
+  → [[lessons-L87]]
+
 - **THE NAMING LAW: an orbit space is named by its STABILISER (#432)** — 2026-09-02, same
   branch, #429 tracker 1.9. Docs **UNCOMMITTED** (mine): 9 hand-edited pages **+1144/−355**
   — `manifolds.rst` (a new `-` chapter *An orbit space is named by its STABILISER*: the

@@ -10043,3 +10043,145 @@ match an italic run that CONTAINS `**`. Widened to `\*(.{1,600}?)\*` with a
 `(?<![*\w])` / `(?![*\w])` guard and set-differenced against `git show HEAD:<file>`, it
 found all five. ⟹ the italic-run scanner must allow `*` inside the body, or it is blind
 to exactly the case the rule exists for.
+
+---
+
+## L-087 — the Γ-slot (#429 tracker 2.2b): a mid-task DESIGN DELTA that landed WHILE I measured, and a "half closed" verdict the delta made whole
+
+**Task.** Docs pass for #429 tracker 2.2b — the invariance question moves onto the
+ORBIT SPACE, and the quadrature registry's stage 0 becomes a lattice relation.
+Branch `fix/angular-phantom-support`, HEAD `4b7d24c3`, production carve UNCOMMITTED.
+Pages: `manifolds.rst` (+1232), `discrete_measures.rst` (+112), `error_catalog.rst`
+(+42), `frame.rst` (+18), + regenerated `matrix.rst`.
+
+### 1. ⛔⛔ The tree was BEING EDITED while I probed, and a half-written module gives
+### plausible-looking wrong answers
+
+The coordinator's mid-task message said an elegance-review delta was "accepted;
+landing in the next ~hour" and that measurements after ~19:45 would read the new
+behaviour. `[M]` at 18:26 `manifold.py` already defined `ambient_representatives`
+and `spent_group` while `symmetry.py` still CALLED `section_coordinates` — so
+`ordinate_permutation` raised `AttributeError: 'Quotient' object has no attribute
+'section_coordinates'` on every rule. I had ALREADY run a probe in that window and
+recorded `TypeError`/`AttributeError` rows as if they were behaviour.
+
+⟹ **When told a change is landing, do not poll on ONE symbol — poll on the
+INVARIANT that the rename is complete tree-wide** (`git grep -q old_name --
+orpheus/` returning empty), and take every "before" reading from the pinned
+`git archive HEAD` copy, which cannot move. My first poller fired on
+`def spent_group && def ambient_representatives` and was **premature**; the second,
+on `! git grep section_coordinates orpheus/`, fired at 18:31:18 and was right.
+
+⚠ And the aggravator: a half-landed tree does not raise ImportError. It raises
+`AttributeError` deep inside a call, which reads as *"this rule does not support
+that question"* — a plausible domain answer.
+
+### 2. ⭐⭐ TWO of the seven delta items shipped DIFFERENTLY from the message, and
+### the shipped forms are better — document the CODE, report the delta
+
+The coordinator's list is a brief and obeys L-001: verify, then write.
+
+| the message said | `[M]` what shipped |
+|---|---|
+| `is_normalised_by` **REFUSES** a translated motion | it takes `motion.linear_part` — a point group acts on DIRECTIONS and a translation does not move one, matching `ordinate_permutation`'s wrap convention. `[M]` a pure translation answers `True` for every family |
+| `_ambient_orbit_space` becomes **`Ball(3).quotient(Trivial)`** | `[M]` `RealSpace(3).quotient(Trivial)`, name `'spatial_R3/Trivial'`; the docstring's reason is better than the brief's (*"a zero-padded interval or planar rule lands OFF the sphere, and the container must honestly contain what is put in it"*) |
+
+Both were caught by running the probe and then READING the shipped body. Neither is
+a defect; publishing the brief's version would have been.
+
+### 3. ⭐⭐ A verdict I had already WRITTEN AND MEASURED — "II.11 is HALF closed" —
+### became fully closed by the delta, and only a re-run found it
+
+Pre-delta I measured `orbit_certificate(gauss_legendre_on_mu(8), σ_x) → None` and
+published a table row reading *"⛔ II.11 SURVIVES here — a BARE support keeps the
+1-D shape refusal"*, with a §-heading to match (*"the II.11 lead is HALF
+closed"*). The delta routed a bare support through `RealSpace(3)/{e}` and DELETED
+the shape test, so `[M]` post-delta that same call returns **2 permutations**. A
+section title, a table row, a closing paragraph and the machine header all had to
+flip from HALF to CLOSED.
+
+⟹ **A "what survives" verdict is the most delta-fragile sentence a close-out can
+carry**, because it is a claim about the ABSENCE of a repair, and a concurrent
+review's whole job is to add repairs. Re-run every *"X still …"* clause after the
+last code edit, not just the numbers. (L-080's zero-shelf-life rule, at section
+scope rather than at gap scope.)
+
+### 4. ⭐ What SURVIVED the delta unchanged — and re-measuring it is what proved the delta safe
+
+`[M]` all against the pinned `4b7d24c3` copy, re-run after the landing:
+`is_invariant` over `candidate_groups` — fold **4 of 21** flip (σ_y, C_2, D_1h,
+D_2h, all False→True), `gauss_legendre(8)` **0 of 15**, `product(4,8)` **0 of 23**;
+`walk(fold)` `{σ_x, σ_z}` → `{D_2h}` with slab/product unchanged and brute-force
+agreement **6 of 6** both sides; the compatibility law **0 violations at 342 AND
+450** (edge × fixture) pairs, both sides; `_embedded_nodes` ≡ `barycentre`
+**12 of 12** both sides; stage-0 refusals **12 → 10 of 20** with **no** pair going
+True→False; the `z`-marginal's and the chart rule's answers group-for-group
+identical.
+
+### 5. ⭐⭐ The brief's own design memo carried a claim that was false on BOTH trees
+
+*"a fold by σ_x of the σ_y-fold works today and stays"* — `[M]`
+`folded_product(4,8).measure.quotient(Mirror("x"))` raises `NotImplementedError`
+(no catalogue entry for `S^2/sigma_y/sigma_x`) at HEAD **and** after. What 2.2b
+changed on that verb is only the σ_y row, and it changed the REASON (from
+`orbit_certificate`'s misleading *"this measure is not sigma_y-invariant"* — the
+ambient reading — to the door's theorem), not the refusal.
+
+### 6. ⭐ A design's ONE-EXPRESSION form is a publishable argument, and the naive
+### two-conjunct form is the exhibit
+
+My pre-delta stage 0 was *"the arrow exists AND (`X == D` OR `Γ ⊇ X.by`)"* — the
+equality special case looked like a convenience. `[M]` it is load-bearing: without
+it the predicate refuses the geometry's OWN domain, because a slab's rule lives on
+`S^2/O(2)_x` and `σ_x ⊉ O(2)_x` (an infinite group cannot sit in a finite one).
+`spent_group(D, X)` — `{e}` for the identity, `target.by` for a fold of the base,
+`NotImplementedError` naming the missing work for the induced map — makes it ONE
+expression with no special case. Publish the failed spelling as the reason the
+shipped one is one expression.
+
+### 7. ⭐ Two ERR-072 recurrences, both worth a catalogue note
+
+(a) The right-angle sample OVER-CERTIFIES the new NORMALISER predicate too:
+`[M]` over 8 (G, H) pairs with G continuous, `{0, π/2, π, 3π/2}` answers `True`
+on **2** where the exact criterion says `False` — `(SO(2)_x, D_2h)` and
+`(SO(2)_z, D_2h)`, because the quarter turns permute `{σ_y, σ_z}` back into
+`D_2h`. The ten-angle incommensurate sample agrees **8 of 8** (the positive
+control). Added to ERR-072 as a dated progress note.
+(b) The kernel's position test (node on the axis / at the origin) would be a
+**tautology** on an axial entry — the barycentre lift is on the axis by
+construction — so the shipped kernel runs it ONLY for a finite quotienting group
+and answers the continuous case by `G⁰ ⊆ H`. `[M]` step 2 does not subsume it:
+on `S^2/O(2)_z`, `H ⊇ SO(2)_z = G⁰` while `H ⊉ D_∞h`, so `D_∞h` reaches step 3
+and is admitted there. vv #19 at the kernel rather than at a gate.
+
+### 8. ⭐ A RENAME's rationale can be this page's own subject
+
+`section_coordinates` → `ambient_representatives`: a *section* is a choice of
+representative, a point OF the base, and the axial arm returns the orbit's
+BARYCENTRE, which is inside the ball. The old name promised a codomain it does not
+land in — literally ERR-080's defect one level up, caught on the NAME alone before
+the step landed. That paragraph is the best thing in the chapter.
+
+### 9. ⚠ The test tree moved TWICE under me (L-085 again)
+
+`matrix.rst` went 10831 → **10979** collected rows between my first and last build
+(`numerics/test_manifold` 119→143, `test_symmetry` 133→230, `test_registry`
+80→107) — the concurrent test-architect's gates. My own contribution is exactly
+**+3 sentinels** (584 → 587), as predicted. The page's Verification section cited
+*"70 test functions, 108 collected rows"*; `[M]` at my final build it is **91 /
+143**, so the ladder gained a rung. ⟹ re-read every generated-artefact citation
+after the LAST build, and treat the matrix as the second instrument for both.
+
+### 10. Gates
+
+`-E -W` baseline **0** WARNING/ERROR/CRITICAL/SyntaxWarning, EXIT=0 → final
+**0**, EXIT=0 (set unchanged, measured as a set). Stock xref gate **0 dead /
+14618 decidable**; the L-062-patched copy at `scratch/` depth 1, run as a
+subprocess with an end-to-end positive control (a throwaway `docs/_22b_ctl.rst`
+with 2 dead + 1 live role: stock **0**, patched **2 dead / 2 sites**), also
+**0 dead**. nexus `dead_references` **0 dead / 52 checked**. My own import probe
+over the four edited pages: **850** fully-qualified project roles, **0** dead,
+positive control 2/2. Rendered slice of the new chapter: **0** visible backticks,
+**0** leaked role openers. Source-side nested-literal-in-bold, set-differenced
+against HEAD: **0 NEW** on all four pages. Audit: 917→**920** labels,
+584→**587** documented, **0** violations.

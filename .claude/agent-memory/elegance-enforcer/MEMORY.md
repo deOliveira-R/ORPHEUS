@@ -39,6 +39,11 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 
 ## 3. Durable reference (reusable design-review pointers)
 
+- [orbit_space_invariance_rulings.md](orbit_space_invariance_rulings.md) — ⭐⭐ #429 2.2b
+  (the Γ-slot): the ambient-vs-orbit-space TWO-CAMPS pattern (census the shared EMBEDDING
+  helper, not the migrated method); the per-arm `ManifoldMap.domain/codomain` honesty tell;
+  replay-the-deleted-kernel as the kernel-swap regression instrument (`[M]` 3 of 230);
+  a guard downstream of a canonicalising map is a tautology.
 - [dsa_accelerator_rulings.md](dsa_accelerator_rulings.md) — consistent-DSA (#2) 3b:
   the bar (derivation-pin = L-005 gold standard; 3-P0-frame ANTI-MINT; `integrate_angular`
   single-source hoist + tangent-map; #208 torsor correction-is-a-DISPLACEMENT; teeth with

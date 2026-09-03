@@ -1091,6 +1091,50 @@ always names its stage — points at the paragraph that explains it.
    admits a Lebedev rule for a slab, because an :math:`O_h`-invariant
    rule certainly satisfies the :math:`\sigma_x` a slab owes.
 
+   ⭐ **The domain is a LATTICE relation, not an equality — #429 tracker
+   2.2b, 2026-09-02.** A rule may legitimately live on a *fold* of the
+   geometry's domain, :math:`X = \mathcal{D}_Q / K`, and the shipped
+   cylindrical rule does: ``folded_product`` halves the sphere by
+   :math:`\sigma_y`. So the stage asks two things, and neither is
+   declared anywhere — both are read off the orbit-space catalogue:
+
+   .. math::
+      :label: quadrature-stage-zero-descent
+
+      \text{stage 0} \iff
+      \operatorname{spent}(\mathcal{D}_Q \to X)
+      \ \text{exists and}\ \subseteq \Gamma_{\text{geom}}.
+
+   .. (vv-status rationale) quadrature-stage-zero-descent: The shipped
+      body of ``AngularSymmetry.admits_domain`` written as a predicate.
+      A selection rule, not a solver claim, with no L0..L3 ladder slot;
+      the verifiable content is the registry's own selection gates in
+      ``tests/numerics/test_quadrature_registry.py`` and the measured
+      (constructor x geometry) grid recorded on the manifolds page
+      (:ref:`manifold-gamma-slot`).
+   .. vv-status: quadrature-stage-zero-descent documented
+
+   The descent arrow is :func:`~orpheus.numerics.manifold.quotient_onto`
+   — the SAME arrow a frame's G0 reads
+   (:ref:`frame-g0-descent-arrow`), of which equality is the identity
+   case — and :func:`~orpheus.numerics.manifold.spent_group` names what
+   it SPENDS: only what the geometry still OWES may be spent by a fold,
+   because a rule that has quotiented away a symmetry :math:`\Gamma`
+   still needs realized as an ordinate permutation cannot serve that
+   geometry. ⚠ It is what the ARROW spends, not the group :math:`X` was
+   quotiented by relative to its own base — reading the latter would
+   refuse the geometry's OWN domain, since a slab's rule lives on
+   :math:`S^2/O(2)_x` and `[M]`
+   :math:`\sigma_x \not\supseteq O(2)_x`. The identity arrow spends
+   :math:`\{e\}` by construction, which is why the predicate needs no
+   special case for equality. ⛔ Until 2026-09-02 the stage
+   was ``measure.support == self.support``, and `[M]` it refused the
+   shipped cylinder configuration; now `[M]` ``folded_product(4, 8)`` is
+   admitted at both stages for ``"cylinder"`` and ``"cartesian2d"``,
+   the stage-0 refusal count over the five ``Quadrature`` factories ×
+   the four geometries moves **12 → 10 of 20**, and no pair moved the
+   other way (:ref:`manifold-gamma-slot`).
+
 1. **G compatibility (symmetry).** The rule's node set must be closed
    under the geometry's *discrete residual* symmetry —
    :math:`\Gamma_{\text{geom}} \subseteq \operatorname{Sym}(Q)` — the
@@ -1107,7 +1151,19 @@ always names its stage — points at the paragraph that explains it.
    :math:`\operatorname{Sym}(Q)` is **computed from the rule's nodes**
    by :meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_invariant`
    applied to a generating set (:eq:`discrete-measure-g-invariance`),
-   never read from a declared tag. The containment lattice
+   never read from a declared tag. ⭐ Since #429 tracker 2.2b
+   (2026-09-02) that computation is made **on the rule's own support**:
+   a rule on an orbit space is asked whether :math:`\Gamma` permutes its
+   ORBITS, not whether it permutes the representatives that stand for
+   them. ``admits_symmetry``'s own text did not change — it is still
+   ``Γ.is_invariant(measure)`` — and it became correct for a folded rule
+   only because ``is_invariant`` moved
+   (:ref:`manifold-one-invariance-kernel`). `[M]` :math:`\sigma_y` and
+   :math:`D_{2h}` read ``False`` on ``folded_product(4, 8)`` before that
+   step and ``True`` after, because :math:`\sigma_y` acts trivially on
+   :math:`S^2/\sigma_y`; `[M]` on ``gauss_legendre(8)`` and
+   ``product(4, 8)`` **0 of 15** and **0 of 23** candidate-group answers
+   changed. The containment lattice
    :eq:`subgroup-of-o3-containment` is the order relation *on the
    groups*; it is not the gate, and routing the gate through it fails
    in **both** directions:
@@ -1599,8 +1655,24 @@ registry — drop either stage and the gate admits something wrong:
      - ✓
      - ✓
      - Admitted — the control row.
+   * - ``folded_product(4, 8)``
+     - ``"cylinder"``
+     - :math:`S^2/\sigma_y`
+     - ✓
+     - ✓
+     - ⭐ **New row, 2026-09-02 (#429 tracker 2.2b).** The shipped
+       cylindrical configuration, on a FOLD of the geometry's domain:
+       admitted because the descent arrow
+       :math:`S^2 \to S^2/\sigma_y` exists and SPENDS
+       :math:`\sigma_y`, which lies in :math:`D_{2h}`, the residual the
+       cylinder owes. `[M]` both stages read ``False`` before that step
+       (:ref:`manifold-gamma-slot`).
 
-`[M]` every cell above was re-measured 2026-09-01. Two of the rows are
+`[M]` every cell above was re-measured 2026-09-01, and the five
+pre-existing rows were **re-measured again 2026-09-02** against a pinned
+pre-change tree after stage 0 stopped being an equality: all ten
+verdicts are unchanged. The row that moved is the new one, which had no
+entry here because it could not be admitted. Two of the rows are
 the direct content of
 ``test_the_two_stages_are_independent_and_both_load_bearing`` — the
 Lebedev-for-a-slab row (symmetry alone would admit it) and the
@@ -1616,9 +1688,16 @@ row because it is the mirror image of the Lebedev one (a 1-D rule
 offered to a 2-D geometry), and the chart-level row because the thing
 it demonstrates is a **registration** decision rather than a selection
 one: that rule is never presented to stage 0, because it is not in the
-registry. Both reduce to the same fact, which is that stage 0 compares
-*one* datum on both sides — the geometry names the group it spends, the
-rule names the group its orbit space was quotiented by.
+registry. Both reduce to the same fact, which is that stage 0 reads
+*one lattice* on both sides — the geometry names the group it spends,
+the rule names the group its orbit space was quotiented by, and the
+stage asks for an arrow between the two orbit spaces those groups name
+(:eq:`quadrature-stage-zero-descent`). ⛔ This sentence read *"stage 0
+compares one datum on both sides"* until 2026-09-02, when the datum
+comparison became an arrow plus a containment. Neither of the two rows
+it explains moved: `[M]` both are still ``✗`` at stage 0, because
+``quotient_onto`` finds no arrow from :math:`S^2/O(2)_x` onto a bare
+interval or onto a differently-poled axial quotient.
 
 Why the stages do not evaluate in their own order
 --------------------------------------------------
@@ -1767,7 +1846,11 @@ geometry; a new geometry is added here, never in the selector itself:
    because the orbit space is named by its stabiliser either way
    (:ref:`manifold-orbit-space-stabiliser`). A slab IS symmetric under
    :math:`y \to -y`. `[M]` stage 0 is unchanged on **24 of 24**
-   (geometry × rule) rows. And the domain is now
+   (geometry × rule) rows — a statement about *this* change, and one a
+   later step deliberately did not preserve: #429 tracker 2.2b
+   (2026-09-02) replaced the equality with a lattice relation and `[M]`
+   moved 2 of 20 (constructor × geometry) pairs
+   (:ref:`manifold-gamma-slot`). And the domain is now
    the **orbit space** rather than its chart, because
    :attr:`AngularSymmetry.support
    <orpheus.numerics.quadrature.registry.AngularSymmetry.support>`
@@ -1813,10 +1896,19 @@ Worked examples
 The four canonical happy-path selections:
 
 * ``select_quadrature("slab", target_degree=15)``: the three
-  :math:`S^2` rules fail stage 0, `[M]` verbatim —
+  :math:`S^2` rules fail stage 0, `[M]` verbatim (re-measured
+  2026-09-02; the clause after the dash is new at tracker 2.2b, when the
+  stage acquired its second conjunct) —
   ``domain mismatch: geometry 'slab' discretises S^2/O2_x, but the
-  rule's nodes live on S^2`` — leaving GL1D (n=8 → degree 15, 8 nodes),
-  whose own measure `[M]` declares ``support=S^2/O2_x``.
+  rule's nodes live on S^2 — no descent arrow onto it, or a fold by a
+  group outside the owed sigma_x`` — leaving GL1D (n=8 → degree 15, 8
+  nodes), whose own measure `[M]` declares ``support=S^2/O2_x``.
+  ⚠ The message is a **disjunction** and does not say which conjunct
+  bit; the two supports it prints are what let a reader resolve it.
+  `[M]` here it is the FIRST (no arrow), while for a cylinder rejecting
+  the slab's polar rule the arrow :math:`S^2 \to S^2/O(2)_x` does exist
+  and it is the SECOND — :math:`O(2)_x \not\subseteq D_{2h}`, an
+  infinite group cannot sit inside a finite one.
 
 * ``select_quadrature("sphere", target_degree=15)``: same path as
   slab — identical spent/owed split after the 1-D radial reduction.

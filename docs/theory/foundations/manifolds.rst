@@ -26,7 +26,7 @@ Manifolds: the Point Set, the Orbit Space, and What a Basis Eats
       role: "the point-set layer — the manifold M a measure is supported on and a basis function is defined over, its algebra (product, orbit space, membership), the invariant-theoretic derivation that produces an orbit space, the TWO coordinate systems an orbit space honestly has (the invariant chart's codomain and a section's image), and the three-level separation (manifold / fields on it / coefficients) that keeps a FunctionSpace from being mistaken for a domain"
       depends_on: []
       related: [discrete_measures, spaces, frame, spherical_harmonics]
-      status: "MINTED, gated, WIRED, and CONSUMED. Two catalogued derivations ship (S^2/O(2)_a for the three AXIAL entries and S^2/<sigma_a> for the three MIRROR axes — six keys, two procedures — plus the derived identity quotient), and a Quotient carries BOTH coordinate systems after the 2026-08-31 two-slot ruling. `Space = str` and its six SPACE_* tags are RETIRED (tracker 2.0c, 2026-09-01): `DiscreteMeasure.support`, `GeneratingMeasure.support`, `UniformMeasure.support`, `ProductMeasure.support`, the `ReferenceMeasure` Protocol and `AngularSymmetry.support` all carry a Manifold, and `Basis.domain` does too (2.1). Tracker 2.1b (2026-09-01) read a SECOND answer off that same slot: `Basis.invariance_group` is DERIVED from `domain` by a match on its TYPE (a Quotient of the sphere -> its `by`; the sphere -> Trivial; anything else -> None), so a basis declares the symmetry its functions HAVE by naming the manifold they EAT. `[M]` 6 of 6 shipped bases answer, the property is @final, and it cost zero subclass edits and no new field. ERR-080's pairing therefore has BOTH operands and is a computable lattice verdict — `[M]` `Trivial contains O2('x')` is False for the slab (it read SO2('x') until #432), while the shipped fold's two halves are literally ONE group object. Nothing CONSUMES that verdict yet: the frame's pairing gate is tracker 2.2, and a gate written on the FRAME's measure would be inert today because that measure still carries the forged S^2. Tracker 2.4 (2026-09-01) gave the axial rotation group its AXIS — `SO2(axis)` beside `Mirror(axis)` — and made the slab's polar rule DECLARE its orbit space: `Quadrature.gauss_legendre(8).measure.support.name == 'S^2/O2_x'`, via the new verb `DiscreteMeasure.on_orbit_space`. That is this page's first PRODUCTION consumer, and it collapsed the registry twin (`AngularSymmetry.support` now calls `SPHERE.quotient`). Tracker 2.3 (2026-09-02) gave the category its ARROWS: `ManifoldMap(domain, codomain, apply)` is a frozen value type, composition `psi @ phi` is refused across mismatched endpoints, and `DiscreteMeasure.pushforward` now READS its target off `phi.codomain` (`new_space=` retired) and refuses a map out of the wrong point set — by manifold VALUE, so the slab's `S^2/O2_x` rule and the chart rule on `[-1,1]`, whose nodes are `np.array_equal`, are told apart. Three arrows are typed: `archimedes(axis)` ([-1,1] x S^1 -> S^2, Archimedes' hat-box, `[M]` the product rule is bit-identical to its retired hand loop on 60 of 60 configurations and its support IS the chart's codomain); the orbit retraction inside `quotient()`; and `barycentre(orbit_space)` (S^2/O(2)_a -> Ball(3), since 1 - norm(mu e_a)^2 = 1 - mu^2 = det P / 4). ERR-080 restated in that vocabulary: it is the barycentre map with a FORGED codomain — `[M]` the forgery's nodes are np.array_equal to the honest map's image and differ only in the type claimed. 2.3 is an ENABLER and repairs nothing: no membership check runs inside a map (that refusal is tracker 2.0b, at measure construction), the forgery arm stays a raw constructor BY DESIGN until 3.4, and `[M]` the ERR-080 gate still declares three xfail(strict=True) rows. Neither the entry's chart nor its section ships. Tracker 3.1 (2026-09-02) gave the CATALOGUE ENTRY its own arrow and the measure that arrow pushes forward: `orbit_coordinates` stores the quotient map's action on the base's ambient coordinates and `Quotient.quotient_map` derives the typed arrow, whose CODOMAIN IS THE ENTRY and never the realization (user-ruled; reading it onto [-1,1] is the axis-blind reading 2.4 made refusable) -- `[M]` H-invariant with a negative leg, pi_a . phi_a = pr_1 bit-exact on 12 of 12, beta_a . pi_a the axial projection on 3 of 3, and the change of variables on level_symmetric(4) reading 4.18879020478639, 1 ULP from 4pi/3. `Quotient.reference` carries pi_* dOmega: LEGENDRE on the three axial entries by Archimedes' hat-box, None on the three mirrors (the weighted disk measure 2 du dv / sqrt(1-u^2-v^2), which no shipped ReferenceMeasure realization spells) and on M/{e} (Lebesgue on the BASE, whose orthogonal system a Manifold does not carry) -- both None user-ruled 2026-09-02. `AngularSymmetry.reference` now READS that field, collapsing the campaign's SECOND Pattern-2 twin after `support` at 2.4; its bare-sphere arm stays, deliberately, because a geometry that spends nothing is handed the BASE. The engine seed is therefore complete: `[M]` 9 of 9 procedure outputs are slots over TWELVE fields (was 6 of 8, then 7 of 9), though all SEVEN quotients of S^2 the catalogue produces still read derived_by='hand'. `[M]` the value arrives by a FUNCTION-scope import of generating_measure (alive 7 of 7 import orders; every module-scope placement dead 7 of 7, at the top and at the bottom of the file alike) while the TYPE rides TYPE_CHECKING -- a guard defers a name and can never carry a value. 3.1 is an ENABLER too: `[M]` `reference` has ONE production reader and `quotient_map` has ZERO, the entry's SECTION still does not ship, and ERR-080 itself is still OPEN with its three xfail(strict=True) rows untouched. Tracker 2.5 (2026-09-02) is the campaign's FRAME-side pre-step and is documented on theory/foundations/frame (frame-moment-space-single-home), not here: both HarmonicFrame doors stopped naming SphericalHarmonicBasis and now demand the two-member TruncatedBasis surface (L + space) — the same key-on-what-it-declares move this page makes for invariance_group — and the SEVEN production sites that re-minted the angular coefficient space from the integer L now READ it off the bound basis. So 3.4's Legendre basis on S^2/O2_a is bindable and its space propagates to every operator end and every moment field by construction. `[M]` 33 of 33 (rule, L) rows are metric-identical to the from_L(L) mint they replace, and the converged slab flux on ERR-080's own gate fixture is array_equal pre/post at L = 0, 1, 2 and 3 — bit-identical even where the answer is wrong, which is what a pre-step owes an xfail(strict=True) gate. A capability, not a repair. THE FUSED COMMIT (2026-09-02, trackers 0.1b + 0.6 + 2.2 + 3.4 + 3.4b) IS THE REPAIR, and ERR-080 is CLOSED. Three objects land on this page. (1) `Quotient.descending_slots` — the isotypic probe, user-ruled onto the ENTRY because fibre-constancy is a theorem about pi and it has two readers; it samples SO(2) at INCOMMENSURATE angles because four right angles generate C_4 and falsely admit m = +-4 at L >= 4 (vv #13), a control that is blind below L = 4. `[M]` about x at L=4 it returns exactly {(l,0)}, 5 real slots of 25; about y/z only 2, because the invariant subspace is one-dimensional per degree and slot-ALIGNED only about the harmonics own polar axis x. The fold sigma-even mask now READS it, `[M]` bit-identical on 15 of 15 (axis, L) rows, and its retired five-direction probe had norms 0.83-0.998 (off the sphere, and refusable after 0.6). (2) `Descent` — the two realizations of Funcs(M/H) as ONE object with the discriminator (downstairs iff the quotient has a classical named basis) as `frame_basis`, which `Quadrature._harmonic_basis` binds; `[M]` the isomorphism is array_equal, max|D| = 0.0, on 7 of 7 sphere rules at L=4, and that BIT tier is a measured constraint on the polynomial SPELLING (no single scipy routine reproduces the harmonics m=0 column: lpmv differs at l=1 by 8.3e-17..1.1e-16, eval_legendre at l>=2 by up to 4.8e-16). The upstairs refusal is AXIS-keyed, not alignment-keyed, because about y/z alignment holds at l <= 1 and L=0 is where every solve mints. (3) `quotient_onto` — G0, ONE predicate: a frame is admissible iff a quotient map measure.support -> basis.domain EXISTS, and its table is the basis pulled back along it. `[M]` all seven shipped pairings measured: identity for slab+Legendre, sphere+harmonics and fold+sigma-even; the entry own pi for Legendre-on-a-sphere-rule; REFUSED for slab+full-harmonics (ERR-080), fold+full-harmonics, and — mathematically admissible, over-refused because invariance_group is a LOWER bound with no axis-parameterised O(2) to declare — Legendre-on-a-sigma_y-fold (GitHub #432). `[M]` end to end on ERR-080 own fixture, against a pinned pre-repair tree: phi is array_equal at L = 0 and 1 (max|D| = 0.0) and moves 7.765 / 3.546 at L = 2, 3 to +4.000000000000; gauss_legendre(16) at scattering_order=4 raised a DenseMetric Penrose ValueError before and returns +4.000000000000 after. NOT closed by it: the membership predicate still does not run at measure construction (2.0b) — a forged measure is still CONSTRUCTIBLE, and what is gone is every path from one to a basis; `fundamental_domain` is still None on every axial entry with zero readers. #432 LANDED the same day (see below). Trackers 2.5 / 3.1 / 2.3 / 2.4 / 2.1b were correctly recorded as enablers, and every "still OPEN / still declares three xfail rows" clause in this page dated before 2026-09-02 was repealed by this commit. #432 (2026-09-02) IS THE NAMING LAW: an orbit space is named by its STABILISER, the largest subgroup of O(3) with its orbits. `SubgroupOfO3.O2(axis)` — the pointwise stabiliser O(2)_a = C_inf,v of a coordinate axis, rotations about it AND mirrors through it — joins the lattice beside SO2(axis) and Mirror(axis); `SubgroupOfO3.orbit_stabiliser` names which group an orbit space is recorded under and moves exactly TWO lattice members (SO2(a) -> O2(a) because R[x]^SO(2)_a = R[x_a, x_b^2+x_c^2] = R[x]^O(2)_a, and SO3 -> O3 because both fix only the radius); every other member is its own stabiliser. `Quotient.__post_init__` refuses a non-maximal `by` (a construction invariant, so `dataclasses.replace(entry, by=SO2("x"))` is refused too) and `_catalogued_quotient` refuses at the door with the theorem, so `_sphere_mod_o2` is a pure derivation with one function-scope import and the catalogue keeps SIX keys for SIX entries. Consequences, all `[M]` 2026-09-02: the three axial entries are named `S^2/O2_a`; `gauss_legendre(8).measure.support.name == 'S^2/O2_x'`, `.quotient_group == O2('x')`, `.space.name == 'L2[S^2/O2_x]'`; `LegendreBasis(L).domain.name == 'S^2/O2_x'` and `.invariance_group == O2(axis)` — the FULL group the P_l have, no longer a strict lower bound — with `LegendreSpace.from_L` READING the name off the basis's domain (`legendre_space(S^2/O2_x)`); GEOMETRY_ANGULAR_SYMMETRY["slab"/"sphere"].continuous_isotropy = O2("x") (user-ruled: with O(2)_x spent the recorded residual Mirror("x") is exactly G/G^0, where under SO(2)_x the true residual is the Klein four-group and the recorded mirror is half of it). Every axial relation against a FINITE group is COMPUTED from that group's realization (`_fixes_axis`, absolute tol 1e-9; SO(2)_a = O(2)_a intersect SO(3) by composition, no proper_only flag) rather than tabulated — `[M]` the tabulated arm it replaced answered `SO2('x') not-contains C_1` while `SO2('x') contains Trivial`, one group under two spellings and two answers, with a committed test pinning the wrong one. THE OVER-REFUSAL AT #432 IS GONE: `[M]` `GalerkinFrame(LegendreBasis(L), folded_product(4,8).measure)` constructs at L = 0,2,4,6 with a (16, L+1) table and the arrow S^2/sigma_y -> S^2/O2_x, the isotropic field reading exactly 4pi at l=0 (bit-identical to sum(weights)) and <= 1.42e-15 at l >= 1; the NEGATIVE leg `axis="y"` on the same fold is still refused, and on a sigma_x-folded rule `axis="x"` is refused while `axis="z"` is admitted. NOTHING NUMERICAL MOVED: `[M]` stage 0 of quadrature selection is identical on 24 of 24 (geometry x rule) rows against a pinned pre-change tree, and the invariance/containment compatibility law re-runs at 0 violations over 450 (edge x fixture) pairs over 18 groups, with the 15-group control reproducing its recorded 342/0 exactly. The walk's report SIMPLIFIES rather than grows: `[M]` gauss_legendre(8) reports {O2_x, sigma_x} where it reported {SO2_x, sigma_x, sigma_y, sigma_z}, because sigma_y and sigma_z are absorbed by O(2)_x while sigma_x flips the axis and is absorbed by nothing"
+      status: "MINTED, gated, WIRED, and CONSUMED. Two catalogued derivations ship (S^2/O(2)_a for the three AXIAL entries and S^2/<sigma_a> for the three MIRROR axes — six keys, two procedures — plus the derived identity quotient), and a Quotient carries BOTH coordinate systems after the 2026-08-31 two-slot ruling. `Space = str` and its six SPACE_* tags are RETIRED (tracker 2.0c, 2026-09-01): `DiscreteMeasure.support`, `GeneratingMeasure.support`, `UniformMeasure.support`, `ProductMeasure.support`, the `ReferenceMeasure` Protocol and `AngularSymmetry.support` all carry a Manifold, and `Basis.domain` does too (2.1). Tracker 2.1b (2026-09-01) read a SECOND answer off that same slot: `Basis.invariance_group` is DERIVED from `domain` by a match on its TYPE (a Quotient of the sphere -> its `by`; the sphere -> Trivial; anything else -> None), so a basis declares the symmetry its functions HAVE by naming the manifold they EAT. `[M]` 6 of 6 shipped bases answer, the property is @final, and it cost zero subclass edits and no new field. ERR-080's pairing therefore has BOTH operands and is a computable lattice verdict — `[M]` `Trivial contains O2('x')` is False for the slab (it read SO2('x') until #432), while the shipped fold's two halves are literally ONE group object. Nothing CONSUMES that verdict yet: the frame's pairing gate is tracker 2.2, and a gate written on the FRAME's measure would be inert today because that measure still carries the forged S^2. Tracker 2.4 (2026-09-01) gave the axial rotation group its AXIS — `SO2(axis)` beside `Mirror(axis)` — and made the slab's polar rule DECLARE its orbit space: `Quadrature.gauss_legendre(8).measure.support.name == 'S^2/O2_x'`, via the new verb `DiscreteMeasure.on_orbit_space`. That is this page's first PRODUCTION consumer, and it collapsed the registry twin (`AngularSymmetry.support` now calls `SPHERE.quotient`). Tracker 2.3 (2026-09-02) gave the category its ARROWS: `ManifoldMap(domain, codomain, apply)` is a frozen value type, composition `psi @ phi` is refused across mismatched endpoints, and `DiscreteMeasure.pushforward` now READS its target off `phi.codomain` (`new_space=` retired) and refuses a map out of the wrong point set — by manifold VALUE, so the slab's `S^2/O2_x` rule and the chart rule on `[-1,1]`, whose nodes are `np.array_equal`, are told apart. Three arrows are typed: `archimedes(axis)` ([-1,1] x S^1 -> S^2, Archimedes' hat-box, `[M]` the product rule is bit-identical to its retired hand loop on 60 of 60 configurations and its support IS the chart's codomain); the orbit retraction inside `quotient()`; and `barycentre(orbit_space)` (S^2/O(2)_a -> Ball(3), since 1 - norm(mu e_a)^2 = 1 - mu^2 = det P / 4). ERR-080 restated in that vocabulary: it is the barycentre map with a FORGED codomain — `[M]` the forgery's nodes are np.array_equal to the honest map's image and differ only in the type claimed. 2.3 is an ENABLER and repairs nothing: no membership check runs inside a map (that refusal is tracker 2.0b, at measure construction), the forgery arm stays a raw constructor BY DESIGN until 3.4, and `[M]` the ERR-080 gate still declares three xfail(strict=True) rows. Neither the entry's chart nor its section ships. Tracker 3.1 (2026-09-02) gave the CATALOGUE ENTRY its own arrow and the measure that arrow pushes forward: `orbit_coordinates` stores the quotient map's action on the base's ambient coordinates and `Quotient.quotient_map` derives the typed arrow, whose CODOMAIN IS THE ENTRY and never the realization (user-ruled; reading it onto [-1,1] is the axis-blind reading 2.4 made refusable) -- `[M]` H-invariant with a negative leg, pi_a . phi_a = pr_1 bit-exact on 12 of 12, beta_a . pi_a the axial projection on 3 of 3, and the change of variables on level_symmetric(4) reading 4.18879020478639, 1 ULP from 4pi/3. `Quotient.reference` carries pi_* dOmega: LEGENDRE on the three axial entries by Archimedes' hat-box, None on the three mirrors (the weighted disk measure 2 du dv / sqrt(1-u^2-v^2), which no shipped ReferenceMeasure realization spells) and on M/{e} (Lebesgue on the BASE, whose orthogonal system a Manifold does not carry) -- both None user-ruled 2026-09-02. `AngularSymmetry.reference` now READS that field, collapsing the campaign's SECOND Pattern-2 twin after `support` at 2.4; its bare-sphere arm stays, deliberately, because a geometry that spends nothing is handed the BASE. The engine seed is therefore complete: `[M]` 9 of 9 procedure outputs are slots over TWELVE fields (was 6 of 8, then 7 of 9), though all SEVEN quotients of S^2 the catalogue produces still read derived_by='hand'. `[M]` the value arrives by a FUNCTION-scope import of generating_measure (alive 7 of 7 import orders; every module-scope placement dead 7 of 7, at the top and at the bottom of the file alike) while the TYPE rides TYPE_CHECKING -- a guard defers a name and can never carry a value. 3.1 is an ENABLER too: `[M]` `reference` has ONE production reader and `quotient_map` has ZERO, the entry's SECTION still does not ship, and ERR-080 itself is still OPEN with its three xfail(strict=True) rows untouched. Tracker 2.5 (2026-09-02) is the campaign's FRAME-side pre-step and is documented on theory/foundations/frame (frame-moment-space-single-home), not here: both HarmonicFrame doors stopped naming SphericalHarmonicBasis and now demand the two-member TruncatedBasis surface (L + space) — the same key-on-what-it-declares move this page makes for invariance_group — and the SEVEN production sites that re-minted the angular coefficient space from the integer L now READ it off the bound basis. So 3.4's Legendre basis on S^2/O2_a is bindable and its space propagates to every operator end and every moment field by construction. `[M]` 33 of 33 (rule, L) rows are metric-identical to the from_L(L) mint they replace, and the converged slab flux on ERR-080's own gate fixture is array_equal pre/post at L = 0, 1, 2 and 3 — bit-identical even where the answer is wrong, which is what a pre-step owes an xfail(strict=True) gate. A capability, not a repair. THE FUSED COMMIT (2026-09-02, trackers 0.1b + 0.6 + 2.2 + 3.4 + 3.4b) IS THE REPAIR, and ERR-080 is CLOSED. Three objects land on this page. (1) `Quotient.descending_slots` — the isotypic probe, user-ruled onto the ENTRY because fibre-constancy is a theorem about pi and it has two readers; it samples SO(2) at INCOMMENSURATE angles because four right angles generate C_4 and falsely admit m = +-4 at L >= 4 (vv #13), a control that is blind below L = 4. `[M]` about x at L=4 it returns exactly {(l,0)}, 5 real slots of 25; about y/z only 2, because the invariant subspace is one-dimensional per degree and slot-ALIGNED only about the harmonics own polar axis x. The fold sigma-even mask now READS it, `[M]` bit-identical on 15 of 15 (axis, L) rows, and its retired five-direction probe had norms 0.83-0.998 (off the sphere, and refusable after 0.6). (2) `Descent` — the two realizations of Funcs(M/H) as ONE object with the discriminator (downstairs iff the quotient has a classical named basis) as `frame_basis`, which `Quadrature._harmonic_basis` binds; `[M]` the isomorphism is array_equal, max|D| = 0.0, on 7 of 7 sphere rules at L=4, and that BIT tier is a measured constraint on the polynomial SPELLING (no single scipy routine reproduces the harmonics m=0 column: lpmv differs at l=1 by 8.3e-17..1.1e-16, eval_legendre at l>=2 by up to 4.8e-16). The upstairs refusal is AXIS-keyed, not alignment-keyed, because about y/z alignment holds at l <= 1 and L=0 is where every solve mints. (3) `quotient_onto` — G0, ONE predicate: a frame is admissible iff a quotient map measure.support -> basis.domain EXISTS, and its table is the basis pulled back along it. `[M]` all seven shipped pairings measured: identity for slab+Legendre, sphere+harmonics and fold+sigma-even; the entry own pi for Legendre-on-a-sphere-rule; REFUSED for slab+full-harmonics (ERR-080), fold+full-harmonics, and — mathematically admissible, over-refused because invariance_group is a LOWER bound with no axis-parameterised O(2) to declare — Legendre-on-a-sigma_y-fold (GitHub #432). `[M]` end to end on ERR-080 own fixture, against a pinned pre-repair tree: phi is array_equal at L = 0 and 1 (max|D| = 0.0) and moves 7.765 / 3.546 at L = 2, 3 to +4.000000000000; gauss_legendre(16) at scattering_order=4 raised a DenseMetric Penrose ValueError before and returns +4.000000000000 after. NOT closed by it: the membership predicate still does not run at measure construction (2.0b) — a forged measure is still CONSTRUCTIBLE, and what is gone is every path from one to a basis; `fundamental_domain` is still None on every axial entry with zero readers. #432 LANDED the same day (see below). Trackers 2.5 / 3.1 / 2.3 / 2.4 / 2.1b were correctly recorded as enablers, and every "still OPEN / still declares three xfail rows" clause in this page dated before 2026-09-02 was repealed by this commit. #432 (2026-09-02) IS THE NAMING LAW: an orbit space is named by its STABILISER, the largest subgroup of O(3) with its orbits. `SubgroupOfO3.O2(axis)` — the pointwise stabiliser O(2)_a = C_inf,v of a coordinate axis, rotations about it AND mirrors through it — joins the lattice beside SO2(axis) and Mirror(axis); `SubgroupOfO3.orbit_stabiliser` names which group an orbit space is recorded under and moves exactly TWO lattice members (SO2(a) -> O2(a) because R[x]^SO(2)_a = R[x_a, x_b^2+x_c^2] = R[x]^O(2)_a, and SO3 -> O3 because both fix only the radius); every other member is its own stabiliser. `Quotient.__post_init__` refuses a non-maximal `by` (a construction invariant, so `dataclasses.replace(entry, by=SO2("x"))` is refused too) and `_catalogued_quotient` refuses at the door with the theorem, so `_sphere_mod_o2` is a pure derivation with one function-scope import and the catalogue keeps SIX keys for SIX entries. Consequences, all `[M]` 2026-09-02: the three axial entries are named `S^2/O2_a`; `gauss_legendre(8).measure.support.name == 'S^2/O2_x'`, `.quotient_group == O2('x')`, `.space.name == 'L2[S^2/O2_x]'`; `LegendreBasis(L).domain.name == 'S^2/O2_x'` and `.invariance_group == O2(axis)` — the FULL group the P_l have, no longer a strict lower bound — with `LegendreSpace.from_L` READING the name off the basis's domain (`legendre_space(S^2/O2_x)`); GEOMETRY_ANGULAR_SYMMETRY["slab"/"sphere"].continuous_isotropy = O2("x") (user-ruled: with O(2)_x spent the recorded residual Mirror("x") is exactly G/G^0, where under SO(2)_x the true residual is the Klein four-group and the recorded mirror is half of it). Every axial relation against a FINITE group is COMPUTED from that group's realization (`_fixes_axis`, absolute tol 1e-9; SO(2)_a = O(2)_a intersect SO(3) by composition, no proper_only flag) rather than tabulated — `[M]` the tabulated arm it replaced answered `SO2('x') not-contains C_1` while `SO2('x') contains Trivial`, one group under two spellings and two answers, with a committed test pinning the wrong one. THE OVER-REFUSAL AT #432 IS GONE: `[M]` `GalerkinFrame(LegendreBasis(L), folded_product(4,8).measure)` constructs at L = 0,2,4,6 with a (16, L+1) table and the arrow S^2/sigma_y -> S^2/O2_x, the isotropic field reading exactly 4pi at l=0 (bit-identical to sum(weights)) and <= 1.42e-15 at l >= 1; the NEGATIVE leg `axis="y"` on the same fold is still refused, and on a sigma_x-folded rule `axis="x"` is refused while `axis="z"` is admitted. NOTHING NUMERICAL MOVED: `[M]` stage 0 of quadrature selection is identical on 24 of 24 (geometry x rule) rows against a pinned pre-change tree, and the invariance/containment compatibility law re-runs at 0 violations over 450 (edge x fixture) pairs over 18 groups, with the 15-group control reproducing its recorded 342/0 exactly. The walk's report SIMPLIFIES rather than grows: `[M]` gauss_legendre(8) reports {O2_x, sigma_x} where it reported {SO2_x, sigma_x, sigma_y, sigma_z}, because sigma_y and sigma_z are absorbed by O(2)_x while sigma_x flips the axis and is absorbed by nothing. TRACKER 2.2b (2026-09-02, user-ruled) MOVES THE INVARIANCE QUESTION ONTO THE ORBIT SPACE and gives the registry its Gamma slot. An isometry descends to M/H iff it NORMALISES H, decided exactly per family (`SubgroupOfO3.is_normalised_by` / `normalises`): a finite H by conjugating its element set, SO(2)_a / O(2)_a / D_inf_h by g e_a = +-e_a, and a CONTINUOUS G through its rotation generator [e_a]_x plus its coset representatives -- never sampled, and `[M]` the four-right-angle sample over-certifies on 2 of 8 (G, H) pairs, ERR-072 recurring in a new predicate. `Quotient.lift` is a right inverse of the quotient map, derived per family (the orbit barycentre for the axial entries -- EQUIVARIANT, not a section, which is all an induced action needs; the hemisphere section for a mirror; the identity for the trivial entry), `[M]` pi . lift = id to 0.000e+00 on all three; `Quotient.induced_action(motion)` is the arrow [p] -> [g p] and REFUSES a motion outside the normaliser (`[M]` C_4 about z on S^2/sigma_y). `is_invariant` has ONE kernel (`_invariance_on_orbit_space`): a bare support is asked on the trivial orbit space R^3/{e} (`[M]` `_ambient_orbit_space().name == 'spatial_R3/Trivial'` -- the ambient space and not the sphere, because every barycentre and every zero-padded node lands OFF S^2), and `[M]` that reduction agrees with the retired ambient reading on 150 of 150 (sphere rule x candidate group) rows. `_polar_axis_of` and `_invariance_on_points` are RETIRED; `_embedded_nodes` reads the entry via `ambient_representatives` (RENAMED from `section_coordinates` at the elegance review: the axial arm returns a BARYCENTRE, not a representative, so the old name promised ERR-080's own forged codomain) and is still array_equal to `barycentre` on 12 of 12 rows. The registry stage 0 is now ONE expression -- Gamma contains `spent_group(D, X)`, what the descent arrow `quotient_onto(D, X)` SPENDS ({e} for the identity, target.by for a fold of the base, refused naming the missing work for the induced map between two quotients) -- over the SAME arrow a frame G0 reads, and stage 1 asks Gamma-invariance ON X. Reading `X.by` instead would have REFUSED the geometry's own domain (`[M]` the slab's sigma_x does not contain O(2)_x). `[M]` the shipped cylindrical fold (folded_product(4,8), S^2/sigma_y) is ADMITTED at both stages for cylinder and cartesian2d where it was refused at both; stage-0 refusals move 12 -> 10 of 20 (constructor x geometry) pairs with no pair moving the other way; the FOLD arm has NO witness on slab/sphere, since `[M]` no shipped orbit space is a proper further quotient of S^2/O(2)_x (the only arrow out of it is the identity, which spends {e}). NOTHING ELSE MOVED: `[M]` gauss_legendre(8) 0 of 15 candidate groups change, product(4,8) 0 of 23, folded_product(4,8) 4 of 21 (sigma_y, C_2, D_1h, D_2h, all False -> True), walk(fold) {sigma_x, sigma_z} -> {D_2h} with walk(slab) and walk(product) unchanged and brute-force agreement 6 of 6 both sides, and the compatibility law re-runs at 0 violations over 342 and 450 (edge x fixture) pairs. The spent-group door refuses (M/H)/G for G contained in H with the theorem, with ONE exception it names: the trivial group is admitted on every base as the identity ENTRY (`[M]` `S^2/sigma_y/Trivial`, and the fold measure's quotient by Trivial returns all 16 nodes on it) -- acting trivially is not the same defect as being spelled twice. `orbit_certificate` follows the same route and the plan's section II.11 lead is CLOSED: `[M]` orbit_certificate(gauss_legendre(8), sigma_x) AND the same call on the BARE chart rule gauss_legendre_on_mu(8) both return 2 permutations where both were refused by SHAPE. What survives is the MESSAGE at measure.py/symmetry.py, now a THREE-arm disjunction wearing two-arm text -- its new third arm is 'the group does not normalise the spent group' (reported, not repaired; a production edit). `Quadrature.ordinate_permutation` moved onto the same kernel, so the tree has ONE notion of 'does this isometry permute the ordinates': `[M]` sigma_y on the fold now yields the IDENTITY permutation where it yielded None, and every other (rule x mirror) cell over four rules is unchanged. `is_normalised_by` asks the motion's LINEAR part rather than refusing a translated motion -- a point group acts on directions and a translation does not move one, which is the convention ordinate_permutation already ran. GitHub #370 gap 2 (stage 0 cannot match a quotient support) is CLOSED, the way that issue demanded -- by the lattice arrow, not by widening a tag; gap 1 stands, `[M]` folded_product(4,8).measure.exactness is still None. The fold measure invariance_group stays None BY DESIGN: the stored slot is a statement about the representatives, the computed predicate is about the orbits"
 
 
 This page develops the **point-set layer** — the thing a measure is
@@ -3523,35 +3523,72 @@ was correct about which object is the special case and wrong about how
 much of it to keep, and the intervening retype (2.0c) is what made the
 better answer expressible.
 
-.. warning::
+.. admonition:: ✅ RESOLVED 2026-09-02 (#429 tracker 2.2b) — stage 0 reads
+                the descent arrow
+   :class: tip
 
-   ⚠ **A live consequence of (iii), re-measured 2026-09-01: still
-   latent, and its stated CAUSE is now wrong.** ``admits_domain`` is
-   ``measure.support == self.support``. `[M]` the cylinder declares
-   ``S^2`` (a :class:`~orpheus.numerics.manifold.Sphere`) while the
-   shipped cylindrical rule carries ``folded_product(4,8).measure.support
-   == S^2/sigma_y`` (a :class:`~orpheus.numerics.manifold.Quotient`), so
-   ``GEOMETRY_ANGULAR_SYMMETRY["cylinder"].admits_domain(...)`` is
-   **False** — stage 0 would still reject the tree's own fold.
+   `[M]` 2026-09-02, against a pinned pre-change tree:
+   ``GEOMETRY_ANGULAR_SYMMETRY["cylinder"].admits_domain`` on
+   ``folded_product(4, 8).measure`` is now **True**, and so is
+   ``admits_symmetry``. Over the five shipped ``Quadrature`` factories ×
+   the four geometries the stage-0 refusal count went **12 → 10 of 20**,
+   with no pair moving ``True`` → ``False``. The predicate is
+   :eq:`manifold-gamma-slot-stage-zero`: a descent arrow
+   :math:`\mathcal{D} \to X` must EXIST — equality being its identity
+   case — and the group the rule's orbit space was quotiented by must lie
+   in the residual :math:`\Gamma` the geometry still owes
+   (:ref:`manifold-gamma-slot`).
 
-   ⛔ This block read *"the gate is a **string comparison** … two
-   different quotients that the string vocabulary cannot tell apart"*
-   until 2026-09-01. Both halves are void: tracker 2.0c made it a
-   ``Manifold`` value comparison, and the two quotients are now
-   perfectly distinguishable — which is the point. **The mismatch was
-   never the vocabulary; it was the claim.** A rule folded by a member
-   of :math:`\Gamma` lives on :math:`S^2/\Gamma'` while the geometry
-   declares :math:`S^2/G^0`, and those are two genuinely different orbit
-   spaces. Typing them made the disagreement *legible* instead of
-   removing it, which is the correct outcome and the reason the fix is
-   still not to loosen the comparison.
+   ⭐ **The paragraph below diagnosed this correctly and mis-called the
+   remedy in one word, which is worth preserving.** *The mismatch was
+   never the vocabulary; it was the claim* is exactly right, and it is
+   why the fix is not a looser comparison: :math:`S^2/\sigma_y` and
+   :math:`S^2` really are different orbit spaces and the gate really must
+   not equate them. What the paragraph could not see is that they are
+   related by an ARROW, and that the arrow — plus the requirement that
+   only OWED symmetry may be spent — is a *different* predicate rather
+   than a weakened one. It is nonetheless weaker in effect, and the
+   measurement says by how much: two of twenty pairs.
 
-   It bites nothing today for one reason only: `[M]` ``folded_product``
-   is **not in** ``quadrature_registry`` (four specs ship —
-   ``GaussLegendre1D``, ``LebedevSphere``, ``LevelSymmetricSN``,
-   ``ProductQuadrature``), so the selector never presents it to stage 0.
-   The day it is registered, this is the first thing that fires.
-   Recorded as a seam (:ref:`manifold-seams`).
+   ⛔ **The block as it stood, kept verbatim** (``plan-authoring`` §3):
+
+      ⚠ **A live consequence of (iii), re-measured 2026-09-01: still
+      latent, and its stated CAUSE is now wrong.** ``admits_domain`` is
+      ``measure.support == self.support``. `[M]` the cylinder declares
+      ``S^2`` (a :class:`~orpheus.numerics.manifold.Sphere`) while the
+      shipped cylindrical rule carries
+      ``folded_product(4,8).measure.support == S^2/sigma_y`` (a
+      :class:`~orpheus.numerics.manifold.Quotient`), so
+      ``GEOMETRY_ANGULAR_SYMMETRY["cylinder"].admits_domain(...)`` is
+      **False** — stage 0 would still reject the tree's own fold.
+
+      ⛔ This block read "the gate is a string comparison … two different
+      quotients that the string vocabulary cannot tell apart", verbatim,
+      until 2026-09-01. Both halves are void: tracker 2.0c made it a
+      ``Manifold`` value comparison, and the two quotients are now
+      perfectly distinguishable — which is the point. **The mismatch was
+      never the vocabulary; it was the claim.** A rule folded by a member
+      of :math:`\Gamma` lives on :math:`S^2/\Gamma'` while the geometry
+      declares :math:`S^2/G^0`, and those are two genuinely different
+      orbit spaces. Typing them made the disagreement *legible* instead
+      of removing it, which is the correct outcome and the reason the fix
+      is still not to loosen the comparison.
+
+      It bites nothing today for one reason only: `[M]` ``folded_product``
+      is **not in** ``quadrature_registry`` (four specs ship —
+      ``GaussLegendre1D``, ``LebedevSphere``, ``LevelSymmetricSN``,
+      ``ProductQuadrature``), so the selector never presents it to stage
+      0. The day it is registered, this is the first thing that fires.
+      Recorded as a seam (:ref:`manifold-seams`).
+
+   ⚠ That last paragraph's fact survives and its inference does not.
+   ``folded_product`` is still unregistered — `[M]` 2026-09-02 the same
+   four specs ship — so nothing in the SELECTOR exercises the new arm
+   yet; what changed is that the gate no longer refuses the rule when it
+   is asked directly. Registration is still blocked, now on stage 2
+   rather than stage 0: `[M]` ``folded_product(4, 8).measure.exactness``
+   is ``None`` (`GitHub #370
+   <https://github.com/deOliveira-R/ORPHEUS/issues/370>`_, gap 1).
 
 
 .. _manifold-second-twin-reference:
@@ -3616,9 +3653,13 @@ collapse — all four geometries, and the arm that raises:
 ⚠ **The** ``Trivial`` **row is the surviving divergence, and 3.1
 widened it rather than closing it — user-ruled, 2026-09-02.** Reading
 (ii) above already records why ``support`` short-circuits to the bare
-sphere: a geometry that spends nothing discretises :math:`S^2`, and
-``'S^2'`` is the name every 2-D/3-D rule declares, so stage 0 must
-compare against the base. The reference arm inherits that: since the
+sphere: a geometry that spends nothing discretises :math:`S^2`, so
+stage 0's descent arrow must have the BASE as its source — which is what
+lets a fold of it be admitted (:ref:`manifold-gamma-slot`). ⛔ This
+clause read *"and 'S^2' is the name every 2-D/3-D rule declares, so
+stage 0 must compare against the base"* until 2026-09-02: `[M]`
+``folded_product(4, 8)`` is a 3-D-node rule declaring
+``'S^2/sigma_y'``, and it is exactly the rule the arrow exists for. The reference arm inherits that: since the
 domain handed out is the **base**, the measure on it is Lebesgue on
 :math:`S^2`, which is
 :data:`~orpheus.numerics.exactness.UNIFORM_ON_SPHERE` — and the
@@ -3818,21 +3859,33 @@ part of. So the tree carries two functions:
      - **yes**, as ``partial(..., axis="x")``
 
 ⭐ **The chart-level rule is deliberately NOT registered, and stage 0 is
-what enforces it.** `[M]` on the slab's ``AngularSymmetry``:
+what enforces it.** `[M]` re-measured 2026-09-02 on the slab's
+``AngularSymmetry``, and every reading is unchanged by tracker 2.2b:
 ``admits_domain`` is **False** for ``gauss_legendre_on_mu(8)`` (support
 ``[-1,1]``), **False** for a marginal declared about :math:`y` or
-:math:`z`, and **True** only for the :math:`x`-declared rule. One fact
-on both sides — the geometry names the group it spends, the rule names
-the group its orbit space was quotiented by — so a rule about the wrong
-pole is refused by the same comparison that refuses a sphere cubature.
+:math:`z`, and **True** only for the :math:`x`-declared rule. The
+geometry names the group it spends and the rule names the group its
+orbit space was quotiented by, so a rule about the wrong pole is refused
+by the same predicate that refuses a sphere cubature.
 
-`[M]` the live rejection text a slab selection now emits for the three
-:math:`S^2` rules reads:
+⛔ This paragraph said the predicate compares *"one fact on both sides"*
+until 2026-09-02. That was equality, and stage 0 is no longer equality:
+it asks for a descent ARROW plus a containment
+(:eq:`manifold-gamma-slot-stage-zero`, :ref:`manifold-gamma-slot`). The
+three readings above are unaffected, for a reason worth stating: `[M]`
+``quotient_onto`` finds **no** arrow from :math:`S^2/O(2)_x` onto
+:math:`[-1,1]`, onto :math:`S^2/O(2)_y` or onto :math:`S^2/O(2)_z` — a
+chart is not an orbit space and two distinct axial quotients are
+incomparable — so all three still fail the FIRST conjunct.
+
+`[M]` 2026-09-02, the live rejection text a slab selection emits for the
+three :math:`S^2` rules reads:
 
 .. code-block:: text
 
-   domain mismatch: geometry 'slab' discretises S^2/O2_x, but the
-   rule's nodes live on S^2
+   domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's
+   nodes live on S^2 — no descent arrow onto it, or a fold by a group
+   outside the owed sigma_x
 
 .. note::
 
@@ -4080,7 +4133,11 @@ once honestly and once as ERR-080.
        marginal for an invariance check
      - (untyped — a bare array)
      - :class:`~orpheus.numerics.manifold.Ball`\ ``(3)``, via
-       :func:`~orpheus.numerics.manifold.barycentre`
+       :func:`~orpheus.numerics.manifold.barycentre` — and since
+       2026-09-02 reached through
+       :attr:`Quotient.lift
+       <orpheus.numerics.manifold.Quotient.lift>`, the axial member of a
+       three-family right inverse (:ref:`manifold-lift`)
    * - the **same** map, **forged** spelling
      - inline in ``Quadrature._harmonic_frame_measure``'s 1-D arm
        (**deleted** 2026-09-02)
@@ -4310,7 +4367,9 @@ correct barycentres, and what is false is a *type*.
      - **yes**
    * - declared codomain
      - ``Ball(3)`` — via
-       :func:`~orpheus.numerics.manifold.barycentre` since 2.3
+       :func:`~orpheus.numerics.manifold.barycentre` since 2.3, read off
+       :attr:`Quotient.lift
+       <orpheus.numerics.manifold.Quotient.lift>` since 2.2b
      - ⛔ ``SPHERE``
    * - `[M]` is the declaration true?
      - ✅ ``Ball(3).contains`` → ``True``
@@ -4323,15 +4382,27 @@ correct barycentres, and what is false is a *type*.
      - it wants a **direction**, which the barycentre is not — so it
        is the wrong map, honestly applied
 
-⭐ **The honest spelling now reads the map** (Pattern 2 — one spelling
-of one concept). ``symmetry._embedded_nodes``'s polar-marginal arm is
-``barycentre(measure.support)(nodes)``, so the two cannot drift; `[M]`
-bit-identical on **12** rows (``gauss_legendre_on_polar_orbit(n, axis)``
-for :math:`n \in \{2,4,8,16\}` and all three axes). And the map
-**refuses** anything that is not an axial orbit space — a mirror
-quotient, the trivial quotient, a bare interval — because a mirror
-orbit is a pair of points with no axis to lie on, and a point of an
-interval is not an orbit at all.
+⭐ **The honest spelling reads the map** (Pattern 2 — one spelling of
+one concept), and since 2026-09-02 it reads it through the ENTRY.
+``symmetry._embedded_nodes`` no longer names :func:`barycentre
+<orpheus.numerics.manifold.barycentre>` at all: it asks
+:meth:`Quotient.ambient_representatives
+<orpheus.numerics.manifold.Quotient.ambient_representatives>`, which
+dispatches on width and lifts chart coordinates through
+:attr:`Quotient.lift <orpheus.numerics.manifold.Quotient.lift>` — whose
+axial realization IS this map (:ref:`manifold-lift`). One more hop, the
+same single source, and now a mirror entry and the trivial entry have
+lifts too. `[M]` the identity is unmoved by that re-routing:
+``_embedded_nodes`` is ``np.array_equal`` to
+``barycentre(measure.support)(measure.nodes)`` on **12 of 12** rows
+(``gauss_legendre_on_polar_orbit(n, axis)``,
+:math:`n \in \{2,4,8,16\}` × all three axes) on the pre-change tree AND
+on the post-change one. The map itself still **refuses** anything that
+is not an axial orbit space — a mirror quotient, the trivial quotient, a
+bare interval — because a mirror orbit is a pair of points with no axis
+to lie on, and a point of an interval is not an orbit at all; those two
+cases are now served by the OTHER two arms of
+:attr:`~orpheus.numerics.manifold.Quotient.lift`.
 
 .. note::
 
@@ -5385,11 +5456,25 @@ measure**, so no single field could carry both. And the
 :math:`\sigma_y`-folded product rule HAS **nothing**, precisely because
 it spent :math:`\sigma_y`: folding keeps one representative per orbit,
 and a set with one point of each mirror pair is no longer closed under
-the mirror. *Spending a symmetry destroys having it* — which is why
-reading either slot as the other is ``plan-authoring`` §3's
+the mirror **in the base**. *Spending a symmetry destroys having it* —
+which is why reading either slot as the other is ``plan-authoring`` §3's
 ambiguous-name hazard, and why
 :attr:`~orpheus.numerics.measure.DiscreteMeasure.quotient_group`'s own
 docstring says so.
+
+⚠ **Three words were added to that sentence on 2026-09-02, and they are
+load-bearing.** *In the base* is where the fold's node set fails to be
+closed; on the ORBIT SPACE :math:`\sigma_y` acts trivially and every
+orbit is its own image, so `[M]` since tracker 2.2b
+``SubgroupOfO3.Mirror("y").is_invariant(folded_product(4, 8).measure)``
+is **True** where it was ``False``
+(:ref:`manifold-one-invariance-kernel`). The stored slot did NOT move —
+`[M]` ``invariance_group`` is still ``None`` on that rule — because it
+is a declaration about the representatives, which is the object the
+sentence above is about. The computed predicate now answers a THIRD
+question, *does the group act on the orbit space and permute it*, and
+the fold's answer to that is yes for the whole of :math:`D_{2h}`
+(:ref:`manifold-2-2b-what-moved`).
 
 For FUNCTIONS the two collapse, by the isomorphism above. There is no
 "folded away" to lose: a basis on :math:`M/H` *is* a set of
@@ -6183,6 +6268,885 @@ and a frame that passed G0 cannot then tabulate through a different map.
 See :ref:`frame-g0-descent-arrow` for the frame-side account.
 
 
+.. _manifold-normaliser:
+
+Who ACTS on an orbit space — the normaliser, the lift, the induced action
+=========================================================================
+
+Everything above this point builds orbit spaces and maps *into* and *out
+of* them. This chapter asks the question that has to be answered before
+a symmetry can be tested on one at all: **which isometries act on**
+:math:`M/H` **in the first place**, and what does a point of
+:math:`M/H` have to be handed to them as.
+
+It exists because the tree was asking an invariance question in the
+wrong place. A fold's nodes are **representatives** — one point of each
+:math:`\sigma_y`-orbit — and a polar marginal's nodes are the *chart
+coordinate* :math:`\mu` of :math:`S^2/O(2)_x`. Asking whether the
+AMBIENT action of a group permutes those points is a different question
+from asking whether the group permutes the *orbits*, and the two
+disagree on exactly the object the shipped cylinder uses. `[M]` 2026-09-02,
+against a pinned pre-change tree (``git archive HEAD orpheus`` at
+``4b7d24c3``, imported with the editable finder stripped and
+``orpheus.__file__`` asserted): :math:`\sigma_y` read *not invariant* on
+``folded_product(4, 8)`` — it maps a :math:`y \ge 0` representative onto
+its absent mate — while it acts **trivially** on :math:`S^2/\sigma_y`,
+where every orbit is its own image. Every :math:`\Gamma`-admission of
+the shipped cylinder configuration failed on that reading
+(:ref:`manifold-gamma-slot`).
+
+#429 tracker 2.2b (user-ruled 2026-09-02, three rulings) makes the
+orbit-space reading the ONLY reading: one invariance kernel, one
+descent arrow shared by the frame and the selector, and the axial
+entries taking the same route as the folds.
+
+.. _manifold-normaliser-criterion:
+
+The criterion — an isometry descends iff it NORMALISES the group
+-----------------------------------------------------------------
+
+Let :math:`H \le O(3)` and let :math:`[p]_H` be the :math:`H`-orbit of
+:math:`p \in M`. The obvious definition of an action on :math:`M/H` is
+:math:`g \cdot [p]_H := [g\,p]_H`, and it is a definition only when the
+right-hand side does not depend on which representative arrived:
+
+.. math::
+   :label: manifold-normaliser-descent
+
+   g\cdot[p]_H := [g\,p]_H \ \text{ is well defined on } M/H
+   \quad\Longleftrightarrow\quad
+   g\,H\,g^{-1} = H .
+
+.. (vv-status rationale) manifold-normaliser-descent: A definition-level
+   criterion of group theory (an isometry descends to an orbit space iff
+   it lies in the normaliser), transcribed here because the tree now
+   implements it as a refusal. It states no solver claim and has no
+   L0..L3 ladder slot. Its CODE content is verified by the foundation
+   gates on ``SubgroupOfO3.is_normalised_by`` / ``normalises`` and by
+   ``Quotient.induced_action``'s refusal leg; its consequence for
+   selection is measured at :ref:`manifold-gamma-slot`.
+.. vv-status: manifold-normaliser-descent documented
+
+If :math:`p' = h\,p` is another representative then
+:math:`g\,p' = (g h g^{-1})\,g\,p`, so :math:`[g\,p']_H = [g\,p]_H`
+for every :math:`h` exactly when :math:`gHg^{-1} \subseteq H`; the
+reverse inclusion follows by applying the same argument to
+:math:`g^{-1}`. Outside the normaliser :math:`[g\,p]_H` is not a
+function of the orbit, and there is no action to test invariance
+against — which is why
+:meth:`Quotient.induced_action
+<orpheus.numerics.manifold.Quotient.induced_action>` **refuses** rather
+than evaluating on whatever representative it was handed.
+
+:meth:`SubgroupOfO3.is_normalised_by
+<orpheus.numerics.symmetry.SubgroupOfO3.is_normalised_by>` decides
+:eq:`manifold-normaliser-descent` family by family, and every family is
+decided EXACTLY — no family is sampled (ERR-072):
+
+.. list-table:: `[M]` 2026-09-02 — one positive and one negative leg per family
+   :header-rows: 1
+   :widths: 22 40 19 19
+
+   * - Family of :math:`H`
+     - How ``is_normalised_by`` decides it
+     - Positive leg
+     - Negative leg
+   * - FINITE (:math:`\sigma_a`, :math:`C_n`, :math:`D_{nh}`,
+       :math:`O_h`, :math:`I_h`)
+     - the conjugated element set equals the element set, element by
+       element, through
+       :meth:`RigidMotion.conjugated_by
+       <orpheus.geometry.transformation.RigidMotion.conjugated_by>`
+     - ✅ ``True``
+     - ✅ ``False``
+   * - :math:`SO(2)_a`, :math:`O(2)_a`
+     - :math:`g\hat e_a = \pm\hat e_a` — :math:`g` carries the LINE of
+       :math:`a` onto itself, so the rotations about :math:`a` are
+       conjugated to the rotations about :math:`a` and the mirrors
+       through :math:`a` to the mirrors through :math:`a`
+     - ✅ ``True``
+     - ✅ ``False``
+   * - :math:`D_{\infty h}`
+     - the same, for :math:`z`
+     - ✅ ``True``
+     - ✅ ``False``
+   * - :math:`\{e\}`, :math:`SO(3)`, :math:`O(3)`
+     - normal in :math:`O(3)`, so **everything** normalises them
+     - ✅ ``True``
+     - ⚠ ``True`` — and that IS the answer, not a gap: these three
+       families have no negative leg to find
+
+⚠ Read the last row as a measurement, not as an omission. `[M]` over
+the eleven families probed, **8 have a genuine negative leg and 3 do
+not**, because :math:`\{e\}`, :math:`SO(3)` and :math:`O(3)` are normal
+subgroups of :math:`O(3)`. A probe that reported ``False`` there would
+be the bug.
+
+⚠ **A TRANSLATED motion is projected, not refused** — the question is
+asked of the motion's LINEAR part. A point group acts on *directions*
+and a translation does not move a direction, so a translated deck
+element normalises exactly what its rotation does; `[M]` 2026-09-02 a
+pure translation answers ``True`` for every family, which is the same
+convention :meth:`Quadrature.ordinate_permutation
+<orpheus.numerics.quadrature.directional.Quadrature.ordinate_permutation>`
+already runs (a periodic wrap's ordinate permutation is the identity).
+Refusing would have made an isometry that plainly acts on the sphere
+unaskable.
+
+:meth:`SubgroupOfO3.normalises
+<orpheus.numerics.symmetry.SubgroupOfO3.normalises>` lifts the question
+from an ELEMENT to a GROUP — *does* :math:`G` *act on* :math:`M/H`? A
+finite :math:`G` asks each of its elements. A CONTINUOUS :math:`G`
+cannot be asked element by element, and this is precisely where
+ERR-072's trap lives, so it is decided through structure instead:
+conjugation by a CONNECTED group is a continuous map, and a continuous
+map into a FINITE group is constant, hence trivial. So
+
+* :math:`SO(2)_a` normalises a finite :math:`H` **iff** every element
+  of :math:`H` commutes with the rotation generator
+  :math:`[\hat e_a]_\times` (one matrix, one commutator per element);
+* :math:`SO(3)` normalises a finite :math:`H` **iff**
+  :math:`H \subseteq \{e, -I\}`, the centre of :math:`O(3)`;
+* on a CONTINUOUS :math:`H` the axial groups agree iff they name the
+  same axis;
+
+and the finitely many **coset representatives** of the disconnected
+families are then asked one by one —
+:math:`O(2)_a = SO(2)_a \sqcup SO(2)_a\sigma_v`,
+:math:`D_{\infty h} = SO(2)_z \sqcup SO(2)_z\sigma_h \sqcup
+SO(2)_z\sigma_v \sqcup SO(2)_z C_2'`,
+:math:`O(3) = SO(3) \sqcup SO(3)(-I)`. Exact on the identity component
+and finite on the representatives is exact on the whole group.
+
+.. list-table:: `[M]` 2026-09-02 — ``A.normalises(B)``, a selection
+   :header-rows: 1
+   :widths: 16 16 12 56
+
+   * - :math:`A`
+     - :math:`B`
+     - Answer
+     - Why
+   * - :math:`D_{2h}`
+     - :math:`\sigma_y`
+     - ``True``
+     - every element of :math:`D_{2h}` sends :math:`\hat e_y` to
+       :math:`\pm\hat e_y`
+   * - :math:`C_4` (about :math:`z`)
+     - :math:`\sigma_y`
+     - ``False``
+     - the quarter turn conjugates :math:`\sigma_y` to
+       :math:`\sigma_x`
+   * - :math:`SO(2)_x`
+     - :math:`\sigma_x`
+     - ``True``
+     - :math:`\sigma_x` commutes with :math:`[\hat e_x]_\times`
+   * - :math:`SO(2)_x`
+     - :math:`\sigma_y`
+     - ``False``
+     - it does not
+   * - :math:`SO(2)_x`
+     - :math:`O(2)_x` / :math:`O(2)_y`
+     - ``True`` / ``False``
+     - the axial pair agrees only on a shared axis
+   * - :math:`D_{\infty h}`
+     - :math:`O(2)_z` / :math:`O(2)_x`
+     - ``True`` / ``False``
+     - the same, with :math:`z` fixed by the family
+   * - :math:`SO(3)`
+     - :math:`\{e\}` / :math:`\sigma_x`
+     - ``True`` / ``False``
+     - a finite :math:`H` must sit inside :math:`\{e, -I\}`
+   * - :math:`O_h`
+     - :math:`\sigma_x` / :math:`C_4`
+     - ``False`` / ``False``
+     - :math:`O_h` contains the :math:`x \leftrightarrow y` exchange,
+       which moves both
+
+.. _manifold-normaliser-sampling-control:
+
+⭐ The control — and the sampled criterion over-certifies HERE too
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two probes, on the same eight :math:`(G, H)` pairs with :math:`G`
+continuous, both run 2026-09-02 on the working tree.
+
+**The positive control.** Conjugate by ten rotations of :math:`G`'s
+identity component at angles pairwise incommensurate with :math:`\pi`
+(:math:`1`, :math:`\sqrt 2`, :math:`e`, :math:`2.5`, :math:`\sqrt 7`,
+:math:`\pi/3 + 0.1`, :math:`0.37`, :math:`1.913`, :math:`e/3`,
+:math:`5.1`) and ask :meth:`is_normalised_by
+<orpheus.numerics.symmetry.SubgroupOfO3.is_normalised_by>` of each; the
+conjunction must equal the exact answer. `[M]` **8 of 8 pairs agree**,
+:math:`10` angles each. Without this the exact criterion's ``False``
+answers would be indistinguishable from a criterion that is merely
+strict.
+
+**The negative control, and it is the interesting one.** Replace the ten
+angles by the four RIGHT angles :math:`\{0, \pi/2, \pi, 3\pi/2\}` — the
+sample ERR-072 was built from. `[M]` the answer changes on **2 of the 8
+pairs**, and in the flattering direction both times:
+
+.. list-table:: `[M]` 2026-09-02 — the four-right-angle sample vs the exact criterion
+   :header-rows: 1
+   :widths: 26 22 22 30
+
+   * - :math:`(G, H)`
+     - right-angle sample
+     - exact
+     - reading
+   * - :math:`(SO(2)_x,\ D_{2h})`
+     - ``True``
+     - ``False``
+     - the quarter turns permute
+       :math:`\{\sigma_y, \sigma_z\}` and land back in
+       :math:`D_{2h}`; a generic angle does not
+   * - :math:`(SO(2)_z,\ D_{2h})`
+     - ``True``
+     - ``False``
+     - the same, one axis over
+   * - the other six pairs
+     - agree
+     - agree
+     - :math:`\sigma_x, \sigma_z, O(2)_a, C_4` under their own axes
+
+⟹ ERR-072's mechanism is not confined to ``is_invariant``: it recurs in
+every predicate about a continuous group, and it recurs with the SAME
+signature — a sample that happens to generate a finite subgroup
+containing the answer. That is why
+:func:`~orpheus.numerics.symmetry._identity_component_normalises`
+computes a **commutator against the rotation generator** rather than
+conjugating by anything at all.
+
+.. _manifold-lift:
+
+The lift — a right inverse of the quotient map, one per catalogued family
+--------------------------------------------------------------------------
+
+:eq:`manifold-normaliser-descent` is about points of the BASE, and a
+measure's nodes are not always points of the base: a fold carries
+representatives (base coordinates, width 3) while a polar marginal
+carries :math:`\mu` (chart coordinates, width 1). The arrow that closes
+the gap is :attr:`Quotient.lift
+<orpheus.numerics.manifold.Quotient.lift>`, a right inverse of the
+quotient map — :math:`\pi \circ \lambda = \mathrm{id}` on the
+:attr:`~orpheus.numerics.manifold.Quotient.realization` — derived per
+entry from :attr:`~orpheus.numerics.manifold.Quotient.by` and
+:attr:`~orpheus.numerics.manifold.Quotient.base` alone, exactly as
+:attr:`~orpheus.numerics.manifold.Quotient.quotient_map` is.
+
+.. list-table:: `[M]` 2026-09-02 — the three realizations, and the law
+   :header-rows: 1
+   :widths: 20 40 20 20
+
+   * - Entry
+     - ``lift``
+     - Typed arrow
+     - :math:`\max\lvert \pi(\lambda(x)) - x\rvert`
+   * - :math:`S^2/O(2)_a` (axial)
+     - the orbit BARYCENTRE
+       :func:`~orpheus.numerics.manifold.barycentre`,
+       :math:`\mu \mapsto \mu\,\hat e_a`
+     - ``S^2/O2_a → D^3``
+     - ``0.000e+00``
+   * - :math:`S^2/\sigma_a` (mirror)
+     - the hemisphere SECTION onto the entry's
+       :attr:`~orpheus.numerics.manifold.Quotient.fundamental_domain`,
+       :math:`(x_b, x_c) \mapsto
+       \sqrt{1 - x_b^2 - x_c^2}\,\hat e_a + x_b\hat e_b + x_c\hat e_c`
+     - ``S^2/sigma_a → S^2``
+     - ``0.000e+00``
+   * - :math:`M/\{e\}` (trivial)
+     - the identity — the chart IS the base
+     - ``M/Trivial → M``
+     - ``0.000e+00``
+
+⭐ **Every arm's DOMAIN is the entry, and only the codomains differ.** A
+lift consumes chart coordinates, so its domain is the orbit space itself
+rather than the :attr:`~orpheus.numerics.manifold.Quotient.realization`
+the chart coordinates are *valued in* — the same ruling that made
+:attr:`~orpheus.numerics.manifold.Quotient.quotient_map`'s codomain the
+entry and never the interval (:ref:`manifold-quotient-map`). The
+codomains are per-arm and honest: :math:`D^3` for the barycentre, which
+lands ON the sphere only at the poles, and :math:`S^2` for the two that
+really do return points of the base.
+
+⭐ **The axial entry's lift is NOT a section, and that is why it works.**
+Its image lies inside the ball and on the sphere only at the two poles
+(:ref:`manifold-barycentre`), so it is not a choice of representative —
+and no canonical choice exists, which is the structural asymmetry
+:ref:`manifold-chart-section-asymmetry` records. What an induced action needs is
+weaker than a section and the barycentre HAS it: the barycentre of an
+orbit is canonical, so any isometry carrying :math:`H`-orbits onto
+:math:`H`-orbits carries their means onto their means. Equivariance
+under the normaliser is the whole requirement, and it is available where
+a section is not.
+
+:meth:`Quotient.ambient_representatives
+<orpheus.numerics.manifold.Quotient.ambient_representatives>` is the
+dispatcher: it tells the two honest coordinate systems apart by WIDTH
+(the same discrimination :meth:`Quotient.contains
+<orpheus.numerics.manifold.Quotient.contains>` already made, see
+:ref:`manifold-two-coordinate-systems`), passes base-width points
+through, and lifts chart-width ones. `[M]` 2026-09-02, on chart input it
+is ``np.array_equal`` to
+:attr:`~orpheus.numerics.manifold.Quotient.lift` on all four shipped
+entries.
+
+⚠ **It was called** ``section_coordinates`` **for about two hours on
+2026-09-02, and the rename is worth its own paragraph, because the old
+name was ERR-080's own defect one level up.** A *section* is a choice of
+representative — a point OF the base — and the axial arm cannot return
+one: it returns the orbit's barycentre, which lies strictly inside the
+ball except at the poles. So the method promised a codomain it does not
+land in, which is exactly the thing this page spends a chapter calling
+the ERR-080 forgery (:ref:`manifold-err-080-is-a-section`). The name
+that shipped says only what is true of every arm — a point of the base's
+AMBIENT space, one per orbit. Caught by the elegance review before the
+step landed, on the name alone.
+
+.. _manifold-induced-action:
+
+``Quotient.induced_action`` — the arrow, and the refusal
+----------------------------------------------------------
+
+:meth:`Quotient.induced_action(motion)
+<orpheus.numerics.manifold.Quotient.induced_action>` returns the typed
+arrow :math:`M/H \to M/H` of :eq:`manifold-normaliser-descent`: section
+coordinates in (chart-width input is lifted first), chart coordinates
+out — the same convention as
+:attr:`~orpheus.numerics.manifold.Quotient.quotient_map`. When the
+motion is outside the normaliser it raises, naming the theorem.
+
+.. list-table:: `[M]` 2026-09-02 — ``SPHERE.quotient(Mirror("y")).induced_action(g)``
+   :header-rows: 1
+   :widths: 22 20 58
+
+   * - :math:`g`
+     - Verdict
+     - What it does on the disk chart :math:`(x, z)`
+   * - :math:`\sigma_x`
+     - admitted
+     - :math:`(x, z) \mapsto (-x, z)` — `[M]` on the representative
+       :math:`(0.6, 0, 0.8)`, image ``[-0.6, 0.8]``
+   * - :math:`\sigma_y`
+     - admitted
+     - the IDENTITY on the chart — it is the group that was spent
+   * - :math:`\sigma_z`
+     - admitted
+     - :math:`(x, z) \mapsto (x, -z)`
+   * - :math:`C_2` about :math:`z`
+     - admitted
+     - :math:`(x, z) \mapsto (-x, z)`
+   * - :math:`C_4` about :math:`z`
+     - ⛔ **refused**, ``ValueError``
+     - it conjugates :math:`\sigma_y` to :math:`\sigma_x`, so
+       :math:`[g\,p]` depends on which of the two representatives
+       arrived
+
+The refusal is the section's §6c witness: an input that exists in the
+tree today and that the new guard rejects. It is also the reason the
+guard is asked of the GROUP
+(:meth:`~orpheus.numerics.symmetry.SubgroupOfO3.is_normalised_by`,
+duck-typed) rather than re-derived here — :mod:`orpheus.numerics.manifold`
+imports nothing from :mod:`orpheus.numerics.symmetry` at module scope
+(:ref:`manifold-import-cycle`).
+
+.. _manifold-one-invariance-kernel:
+
+ONE invariance kernel — a measure is asked ON its own support
+---------------------------------------------------------------
+
+``SubgroupOfO3.is_invariant`` now routes every measure through a single
+kernel, ``_invariance_on_orbit_space``, in four steps, cheapest and most
+decisive first:
+
+1. :math:`G` must NORMALISE :math:`H` (:meth:`normalises
+   <orpheus.numerics.symmetry.SubgroupOfO3.normalises>`) — otherwise it
+   does not act on :math:`M/H` at all, and the answer is ``False``
+   because the question is ill-posed, not because the nodes fail it.
+2. :math:`G \subseteq H` acts TRIVIALLY: every element fixes every
+   orbit, so the answer is ``True`` whatever the nodes are.
+3. For a CONTINUOUS :math:`G` the elements are infinite, so its identity
+   component :math:`G^0` is decided by structure: a connected orbit
+   inside a FINITE set is a point, so :math:`G^0` must FIX every node ON
+   the orbit space. Either :math:`G^0 \subseteq H` and it does so
+   trivially, or :math:`H` is finite and the node's own
+   :math:`G^0`-orbit — a circle, or a sphere — has to collapse, which is
+   the axis-support (or origin) rule the ambient arm has applied since
+   ERR-072, stated once.
+4. Every element (finite :math:`G`) or discrete coset representative
+   (continuous :math:`G`) must permute the weighted node set **in chart
+   coordinates** through its induced action
+   (:func:`~orpheus.numerics.symmetry._orbit_closure`, with ERR-073's
+   bijection guard).
+
+⭐ **Step 3's two cases are the elegance review's correction, and the
+second one is what keeps the position test honest.** The POSITION test
+(node on the axis / at the origin) runs only when :math:`H` is finite.
+On an axial entry it would be a **tautology**: the lift of a chart point
+is the barycentre :math:`\mu\,\hat e_a`, which is on axis :math:`a` by
+construction, so "is every node on the axis?" cannot answer anything —
+``vv-principles`` #19, at the kernel rather than at a gate. There the
+honest answer comes from :math:`G^0 \subseteq H` instead. `[M]` step 2
+does **not** subsume that case: on ``gauss_legendre_on_polar_orbit(8,
+"z")`` (support :math:`S^2/O(2)_z`),
+:math:`H \supseteq SO(2)_z = G^0` while
+:math:`H \not\supseteq D_{\infty h}`, so :math:`D_{\infty h}` reaches
+step 3 and is admitted there — `[M]` ``True``, unchanged from the
+pre-change tree.
+
+**A measure that names no orbit space is asked on the TRIVIAL one.** A
+bare :class:`~orpheus.numerics.manifold.Sphere` support, or a
+chart-level :class:`~orpheus.numerics.manifold.Interval`, is handed
+:math:`\mathbb{R}^3/\{e\}` — `[M]` 2026-09-02
+``_ambient_orbit_space().name`` is ``'spatial_R3/Trivial'``. Its chart
+is the base, its lift is the identity, and every isometry descends to
+it, so the kernel *reduces* on it to the ambient question the tree asked
+before, with the same zero-padding convention for lower-dimensional
+nodes (:func:`~orpheus.numerics.symmetry._embedded_nodes`). There is one
+kernel and there are not two readings that could disagree.
+
+⚠ **The base is** :math:`\mathbb{R}^3` **and not the sphere, on
+purpose** — a zero-padded interval or planar rule, and every barycentre,
+lands OFF :math:`S^2`, and a container must honestly contain what is put
+in it. That is this chapter's own subject applied to itself: naming
+:math:`S^2` there would be the ERR-080 forgery one more time, in the
+kernel that exists to make it unspellable.
+
+⭐ **The reduction is measured, not asserted.** `[M]` 2026-09-02, over
+six shipped sphere rules (``product(4,8)``, ``product(3,5)``,
+``lebedev(5)``, ``lebedev(11)``, ``level_symmetric(4)``,
+``level_symmetric(8)``) × every group
+:func:`~orpheus.numerics.symmetry.candidate_groups` offers each of them,
+the answer with ``support`` replaced by the trivial quotient is
+identical to the answer on the bare sphere on **150 of 150** (rule ×
+group) rows.
+
+.. _manifold-gamma-slot:
+
+The :math:`\Gamma`-slot — a geometry admits a rule on a FOLD of its domain
+----------------------------------------------------------------------------
+
+The consumer. A geometry demands a pair :math:`(G^0, \Gamma)`: the
+continuous half :math:`G^0` its dimensional reduction SPENDS, leaving
+the angular domain :math:`\mathcal{D} = S^2/G^0`, and the discrete half
+:math:`\Gamma = G/G^0` still OWED to the quadrature
+(:ref:`manifold-twin-lookup`). A rule may live on a further quotient
+:math:`X = \mathcal{D}/K` — a FOLD — and the two questions the registry
+asks are both about the orbit space, never about the ambient nodes:
+
+.. math::
+   :label: manifold-gamma-slot-stage-zero
+
+   \text{stage 0} \iff
+   \operatorname{spent}(\mathcal{D} \to X) \ \text{exists and}\
+   \subseteq \Gamma,
+   \qquad
+   \text{stage 1} \iff \Gamma \text{-invariant on } X .
+
+.. (vv-status rationale) manifold-gamma-slot-stage-zero: A statement of
+   an admission PREDICATE — which rules a geometry's angular domain
+   admits — not a solver claim, and it has no L0..L3 ladder slot. Its
+   two conjuncts are the shipped bodies of
+   ``AngularSymmetry.admits_domain`` and ``admits_symmetry``; the
+   verifiable content is the registry's own selection gates in
+   ``tests/numerics/test_quadrature_registry.py`` plus the measured
+   (constructor x geometry) grid recorded under this label.
+.. vv-status: manifold-gamma-slot-stage-zero documented
+
+**Stage 0 reads the descent arrow, and it is the SAME arrow a frame's
+G0 reads.** :func:`~orpheus.numerics.manifold.quotient_onto` answers
+whether :math:`\mathcal{D} \to X` exists — equality being its identity
+case — and
+:func:`~orpheus.numerics.manifold.spent_group` names what that arrow
+SPENDS. Only part of what the geometry OWES may be spent by a fold: a
+rule folded by a group OUTSIDE :math:`\Gamma` has quotiented away a
+symmetry the geometry still needs realized as an ordinate permutation.
+One arrow serves both consumers (:ref:`manifold-g0-descent-arrow` for
+the frame's half).
+
+⭐ **It is ONE expression because the question is about the ARROW.** The
+tempting spelling is *"equality, OR the group* :math:`X` *was quotiented
+by lies in* :math:`\Gamma`\ *"* — two conjuncts with a special case for
+equality. That special case is not a convenience: without it the
+predicate REFUSES the geometry's own domain, because a slab's own rule
+lives on :math:`S^2/O(2)_x` and `[M]`
+:math:`\sigma_x \not\supseteq O(2)_x` — an infinite group cannot sit in
+a finite one, so reading :math:`X.\text{by}` against the SPHERE asks the
+wrong base's question. What the arrow spends is the right object, and it
+is :math:`\{e\}` for the identity by construction:
+
+.. list-table:: `[M]` 2026-09-02 — ``spent_group(source, target)``, every arrow the shipped catalogue admits
+   :header-rows: 1
+   :widths: 26 26 22 26
+
+   * - Source
+     - Target
+     - Spends
+     - The arrow
+   * - :math:`S^2`
+     - :math:`S^2`
+     - :math:`\{e\}`
+     - identity
+   * - :math:`S^2`
+     - :math:`S^2/O(2)_a`, :math:`S^2/\sigma_a`
+     - :math:`O(2)_a`, :math:`\sigma_a`
+     - the entry's own :math:`\pi`
+   * - :math:`S^2/O(2)_a`
+     - itself
+     - :math:`\{e\}`
+     - identity
+   * - :math:`S^2/\sigma_y`
+     - :math:`S^2/O(2)_x`
+     - ⛔ ``NotImplementedError``
+     - the induced map between two quotients of one base — what it
+       spends is a COSET, not a subgroup, and the geometry's full
+       :math:`G = G^0\Gamma` is not a registry field. `[M]` no shipped
+       rule reaches it: every shipped fold is a fold of the bare sphere
+
+⚠ That last row is a refusal that names the missing WORK rather than a
+gap — the same discipline the orbit-space catalogue itself follows
+(:ref:`manifold-refusal-names-the-work`).
+
+**Stage 1 is asked on** :math:`X`. ``admits_symmetry``'s text did not
+change — it is still ``Γ.is_invariant(measure)`` — and it is correct for
+a fold now only because ``is_invariant`` itself moved to the orbit space
+(:ref:`manifold-one-invariance-kernel`).
+
+.. list-table:: `[M]` 2026-09-02 — the five shipped ``Quadrature``
+                factories × the four geometries, against a pinned
+                pre-change tree
+   :header-rows: 1
+   :widths: 22 20 14 22 22
+
+   * - Rule
+     - ``support``
+     - Geometry
+     - Stage 0, before → after
+     - Stage 1, before → after
+   * - ``folded_product(4, 8)``
+     - ``'S^2/sigma_y'``
+     - ``"cylinder"``
+     - ⛔ ``False`` → ✅ ``True``
+     - ⛔ ``False`` → ✅ ``True``
+   * - ``folded_product(4, 8)``
+     - ``'S^2/sigma_y'``
+     - ``"cartesian2d"``
+     - ⛔ ``False`` → ✅ ``True``
+     - ⛔ ``False`` → ✅ ``True``
+   * - the other **18** pairs
+     - —
+     - —
+     - unchanged
+     - unchanged
+
+`[M]` over the full grid the stage-0 refusal count is **12 → 10 of 20**,
+and **no** pair went ``True`` → ``False``: the new predicate admits a
+strict superset. The two that move are the shipped cylindrical fold
+against the two geometries that spend nothing continuous, which is
+exactly the configuration §II.10 of the campaign plan identified as
+unreachable.
+
+.. warning::
+
+   ⚠ **The FOLD arm has no witness on the SLAB, and that is a property
+   of the catalogue rather than of the design.** `[M]`
+   ``quotient_onto(S^2/O2_x, X)`` is non-``None`` for **exactly one** of
+   the catalogued spaces of :math:`S^2` — :math:`X = S^2/O(2)_x` itself,
+   the identity arrow, which spends :math:`\{e\}`. No shipped orbit
+   space is a proper further quotient of a slab's domain, so on
+   ``"slab"`` and ``"sphere"`` stage 0 admits exactly what equality
+   admitted. It bites on ``"cylinder"`` and ``"cartesian2d"``, whose
+   domain is the whole sphere. A future entry :math:`(S^2/O(2)_x)/K`
+   would activate it — and would land on the ``NotImplementedError``
+   above until the registry records a geometry's full :math:`G`. Stated
+   here so a reader does not infer coverage from the predicate's
+   generality (``plan-authoring`` §6c).
+
+The rejection message names both conjuncts, so a reader of a
+:class:`~orpheus.numerics.quadrature.registry.SelectionLog` can tell
+which failed by inspecting the two supports. `[M]` 2026-09-02, the live
+text a slab selection emits for the three :math:`S^2` rules:
+
+.. code-block:: text
+
+   domain mismatch: geometry 'slab' discretises S^2/O2_x, but the rule's
+   nodes live on S^2 — no descent arrow onto it, or a fold by a group
+   outside the owed sigma_x
+
+⚠ It is a DISJUNCTION and does not say which clause bit. `[M]` for the
+cylinder rejecting the slab's polar rule the arrow **does** exist
+(:math:`S^2 \to S^2/O(2)_x`) and it is the second clause that refuses,
+since :math:`O(2)_x \not\subseteq D_{2h}` — an infinite group cannot sit
+in a finite one. The two supports printed in the same sentence are what
+lets a reader resolve it.
+
+.. _manifold-orbit-certificate-orbit-space:
+
+``orbit_certificate`` follows — and the II.11 lead is CLOSED
+--------------------------------------------------------------
+
+:func:`~orpheus.numerics.symmetry.orbit_certificate` takes the same
+route, so the certificate and the predicate cannot disagree about
+whether a fold is closed under its owed residual. On a
+:class:`~orpheus.numerics.manifold.Quotient` support it refuses a group
+that does not normalise the spent group, and otherwise builds the
+permutations of the CHART points under each element's induced action.
+
+That CLOSES a defect lead the campaign recorded and did not schedule
+(§II.11 of the plan): the certificate used to refuse a 1-D measure by
+SHAPE, before invariance was ever asked, and its refusal message said
+something false when it did. The shape test is gone — a bare support is
+asked on the trivial orbit space like any other, and a 1-D node set is
+a legitimate point set there.
+
+.. list-table:: `[M]` 2026-09-02 — ``orbit_certificate``, before → after
+   :header-rows: 1
+   :widths: 26 14 16 20 24
+
+   * - Measure
+     - Group
+     - ``is_invariant``
+     - Certificate, before → after
+     - Why, after
+   * - ``gauss_legendre(8)`` (``'S^2/O2_x'``)
+     - ``True``
+     - :math:`\sigma_x`
+     - ⛔ ``None`` → ✅ 2 permutations
+     - ✅ **the II.11 case, closed**
+   * - ``gauss_legendre_on_mu(8)`` (``'[-1,1]'``, BARE)
+     - ``True``
+     - :math:`\sigma_x`
+     - ⛔ ``None`` → ✅ 2 permutations
+     - ✅ **the shape refusal is gone for a bare support too**
+   * - ``folded_product(4, 8)`` (``'S^2/sigma_y'``)
+     - ``False`` → ``True``
+     - :math:`\sigma_y`
+     - ⛔ ``None`` → ✅ 2 permutations
+     - the group that was spent, acting trivially
+   * - ``folded_product(4, 8)``
+     - ``False`` → ``True``
+     - :math:`D_{2h}`
+     - ⛔ ``None`` → ✅ 8 permutations
+     - the cylinder's owed residual, realized
+   * - ``gauss_legendre(8)``
+     - ``True``
+     - :math:`O(2)_x`
+     - ``None`` → ``None``
+     - correct, and unchanged: a continuous group has no finite node
+       permutation
+   * - ``gauss_legendre(8)`` / ``folded_product(4, 8)``
+     - ``False``
+     - :math:`C_4`
+     - ``None`` → ``None``
+     - ⚠ a **new** arm — :math:`C_4` normalises neither
+       :math:`O(2)_x` nor :math:`\sigma_y`
+
+⛔ **What of II.11 remains — the MESSAGE, and it grew an arm.** The
+refusal text at ``measure.py`` and ``symmetry.py`` still reads *"this
+measure is not X-invariant (or X is continuous, and a continuous group
+has no finite node permutation)"*, and it is now a **three**-arm
+disjunction wearing two-arm text: the third arm — the group does not
+NORMALISE the spent group — arrived with this step. `[M]` on
+``gauss_legendre(8)`` under :math:`C_4` the parenthetical is false
+(:math:`C_4` is finite) and the true reason, *"it does not act on this
+orbit space at all"*, is not among the two the sentence offers. This is
+``vv-principles`` #17's multi-arm granularity trap in a production
+guard. It is REPORTED here rather than repaired, because the repair is a
+message and a guard in :mod:`orpheus.numerics.measure` /
+:mod:`orpheus.numerics.symmetry`, and this pass touches only
+``docs/theory``.
+
+.. _manifold-spent-group-door:
+
+The spent-group door — :math:`(M/H)/G` for :math:`G \subseteq H` is refused
+-----------------------------------------------------------------------------
+
+A group inside the group already spent acts trivially on the orbit
+space, so quotienting by it is the identity and
+:math:`S^2/\sigma_y/\sigma_y` would be a SECOND SPELLING of
+:math:`S^2/\sigma_y`. That is the same disease the naming law diagnoses
+(:ref:`manifold-orbit-space-stabiliser`), so it gets the same treatment:
+``_catalogued_quotient`` refuses at the door, with the theorem, before
+any lookup.
+
+.. code-block:: text
+
+   S^2/sigma_y/sigma_y is S^2/sigma_y: sigma_y lies in the spent group
+   sigma_y, so it acts trivially on the orbit space and the quotient is
+   the identity — there is nothing to quotient. The orbit space is
+   S^2/sigma_y already.
+
+`[M]` 2026-09-02: ``SPHERE.quotient(Mirror("y")).quotient(g)`` raises
+that ``ValueError`` for :math:`g = \sigma_y` and falls through to the
+catalogue's own ``NotImplementedError`` for :math:`g = \sigma_x`
+(*"no catalogue entry for S^2/sigma_y/sigma_x"*). The refusal reaches
+the measure-level verb too:
+``folded_product(4,8).measure.quotient(Mirror("y"))`` raises the door's
+message where it used to raise ``orbit_certificate``'s
+*"this measure is not sigma_y-invariant"* — which was the AMBIENT
+reading, and is exactly the sentence 2.2b made false.
+
+⭐ **The door names ONE exception, and it is a derivation output rather
+than a special case.** The trivial group is admitted on every base,
+including an orbit space: :math:`(M/H)/\{e\}` is the identity entry
+:math:`M/H/\{e\}`, derived by ``_mod_trivial`` exactly as
+:math:`M/\{e\} = M` is, and it doubles as a positive control on the
+machinery (:ref:`manifold-twin-lookup`). `[M]` 2026-09-02
+``SPHERE.quotient(Mirror("y")).quotient(Trivial).name`` is
+``'S^2/sigma_y/Trivial'`` and
+``folded_product(4,8).measure.quotient(Trivial)`` returns all **16**
+nodes on that support — the identity fold, which is what asking for it
+should mean. Refusing it would have been the door mistaking *"acts
+trivially"* for *"is spelled twice"*; only the SECOND is a naming
+defect.
+
+⚠ **A brief for this step reported that a second fold by** :math:`\sigma_x`
+**"works today and stays".** `[M]` it does not, on either tree: both
+before and after, ``folded_product(4,8).measure.quotient(Mirror("x"))``
+raises ``NotImplementedError`` because the catalogue has no
+:math:`S^2/\sigma_y/\sigma_x` entry. What 2.2b changed on that verb is
+only the :math:`\sigma_y` row, and it changed the REASON, not the
+refusal.
+
+.. _manifold-ordinate-permutation-orbit-space:
+
+One notion of "does this isometry permute the ordinates"
+----------------------------------------------------------
+
+:meth:`Quadrature.ordinate_permutation
+<orpheus.numerics.quadrature.directional.Quadrature.ordinate_permutation>`
+is the tree's single source for that question — the boundary realizer
+and the specular deck both read it — and it embedded a rule's nodes in
+:math:`\mathbb{R}^3` and asked the AMBIENT question, exactly as
+``is_invariant`` did. It now takes the orbit-space route too, so the two
+cannot answer differently about one rule.
+
+.. list-table:: `[M]` 2026-09-02 — ``ordinate_permutation(sigma_a)``, before → after
+   :header-rows: 1
+   :widths: 26 24 24 26
+
+   * - Rule
+     - :math:`\sigma_x`
+     - :math:`\sigma_y`
+     - :math:`\sigma_z`
+   * - ``folded_product(4, 8)`` (:math:`S^2/\sigma_y`)
+     - 16-cycle, 0 fixed → unchanged
+     - ⛔ ``None`` → ✅ **the IDENTITY permutation**
+     - 16-cycle, 0 fixed → unchanged
+   * - ``gauss_legendre(8)`` (:math:`S^2/O(2)_x`)
+     - 8 nodes, 0 fixed → unchanged
+     - IDENTITY → unchanged
+     - IDENTITY → unchanged
+   * - ``product(4, 8)``, ``lebedev(11)`` (:math:`S^2`)
+     - unchanged
+     - unchanged
+     - unchanged
+
+⭐ **The one cell that moves is the right one, and it is the fold's own
+spent group.** :math:`\sigma_y` acts trivially on :math:`S^2/\sigma_y`,
+so the permutation it induces on the stored ordinates is the identity —
+where the ambient reading answered ``None`` (*"not a symmetry of this
+rule"*) because a :math:`y \ge 0` representative maps to a point the
+rule does not carry. The slab's two ``IDENTITY`` cells are the same fact
+one entry over and were already right: a polar marginal's nodes lift to
+the :math:`x`-axis, which :math:`\sigma_y` and :math:`\sigma_z` fix
+pointwise.
+
+.. _manifold-2-2b-what-moved:
+
+What moved, and what did not
+------------------------------
+
+Everything below was measured on 2026-09-02 against a pinned
+pre-change tree, one probe per row.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Reading
+     - Before
+     - After
+   * - ``is_invariant`` over
+       :func:`~orpheus.numerics.symmetry.candidate_groups`,
+       ``folded_product(4, 8)``
+     - —
+     - **4 of 21** flip, all ``False`` → ``True``:
+       :math:`\sigma_y`, :math:`C_2`, :math:`D_{1h}`, :math:`D_{2h}`
+   * - the same, ``gauss_legendre(8)``
+     - —
+     - **0 of 15** change
+   * - the same, ``product(4, 8)``
+     - —
+     - **0 of 23** change
+   * - :func:`~orpheus.numerics.symmetry.maximal_invariance_groups`
+       on the fold
+     - ``{sigma_x, sigma_z}``
+     - ``{D_2h}`` — the two mirrors are absorbed into the group that
+       contains them, and :math:`\sigma_y` joins because it acts
+       trivially
+   * - the walk on ``gauss_legendre(8)`` / ``product(4, 8)``
+     - ``{O2_x, sigma_x}`` / ``{D_8h}``
+     - unchanged
+   * - the walk against brute force over 6 shipped rules
+     - 6 of 6 agree
+     - 6 of 6 agree
+   * - the compatibility law
+       :math:`A \subseteq B \wedge P(B) \Rightarrow P(A)`
+       (``vv-principles`` #15)
+     - 0 violations over 342 and over 450 (edge × fixture) pairs
+     - **0 violations, both denominators, unchanged**
+   * - ``_embedded_nodes`` against
+       :func:`~orpheus.numerics.manifold.barycentre`, 12 rows
+     - ``array_equal`` 12 of 12
+     - **12 of 12**, now reached through
+       :meth:`~orpheus.numerics.manifold.Quotient.ambient_representatives`
+       and :attr:`Quotient.lift
+       <orpheus.numerics.manifold.Quotient.lift>`
+   * - ``ordinate_permutation`` on the fold under
+       :math:`\sigma_y`
+     - ``None``
+     - **the IDENTITY permutation**
+       (:ref:`manifold-ordinate-permutation-orbit-space`); every other
+       (rule × mirror) cell over four rules is unchanged
+   * - ``orbit_certificate`` on a BARE 1-D support
+     - ``None`` — refused by SHAPE (§II.11)
+     - **2 permutations**; the shape test is gone
+   * - the ``is_invariant`` answers on
+       ``gauss_legendre_on_polar_orbit(8, "z")`` and on the chart rule
+       ``gauss_legendre_on_mu(8)``
+     - 7 and 6 candidate groups ``True``
+     - **unchanged**, group for group
+   * - walk cost, min of 9 repeats, host ``.venv``, loaded machine
+     - fold 115.7 ms, slab 5.8 ms, ``product(4,8)`` 134.4 ms
+     - fold 106.9 ms, slab 5.8 ms, ``product(4,8)`` 136.5 ms — within
+       the noise of a loaded machine; no cost claim is made either way
+
+⚠ **The declaration and the computation now answer differently about a
+fold, deliberately.** ``folded_product(4, 8).measure.invariance_group``
+is still ``None`` — the STORED tag is a statement about the
+representatives, and folding really does destroy having
+:math:`\sigma_y` as a symmetry OF THE SECTION — while
+``Mirror("y").is_invariant(...)`` is now ``True``, because it asks about
+the ORBITS and every orbit is its own image. Those are two questions,
+and :ref:`manifold-has-versus-spent` is where the slots are told apart. A
+reader who reads either as the other gets ``plan-authoring`` §3's
+ambiguous-name hazard.
+
+⭐ **What this unblocks, and what it does not.** `GitHub #370
+<https://github.com/deOliveira-R/ORPHEUS/issues/370>`_ records two
+structural gaps that stop ``folded_product`` being REGISTERED. Its
+second — *"stage 0 cannot match a quotient support"* — is closed here,
+and closed the way that issue demanded: not by widening
+:attr:`AngularSymmetry.support
+<orpheus.numerics.quadrature.registry.AngularSymmetry.support>` to
+accept a quotient tag, but by reading the lattice's own descent arrow.
+Its first is untouched: `[M]` 2026-09-02
+``folded_product(4, 8).measure.exactness`` is still ``None``, and a rule
+with no exactness claim is refused at stage 2. Registration remains
+blocked, on a derivation rather than on a predicate.
+
 .. _manifold-gotchas:
 
 Gotchas
@@ -6282,17 +7246,23 @@ carried:
    * - ``symmetry.py:102``
      - ``symmetry → manifold``
      - module, **runtime**
-     - ⭐ **New at tracker 2.4** — ``_polar_axis_of`` needs
+     - ⭐ **New at tracker 2.4**, when ``_polar_axis_of`` needed
        :class:`~orpheus.numerics.manifold.Quotient` to read a polar
-       marginal's axis off its support. `[M]` **re-measured
-       2026-09-02**: the same line now imports **three** names,
-       ``AXIS_INDEX``, ``Quotient`` and
-       :func:`~orpheus.numerics.manifold.barycentre` — tracker 2.3
-       moved the axis-index table here (:math:`\mathbb{R}^3`'s axes are
-       a convention of *this* module's curved members) and made the
-       polar embedding read the typed map (:ref:`manifold-barycentre`).
-       The edge's direction and scope did not move; only its payload
-       grew, which is the direction that keeps the guard affordable.
+       marginal's axis off its support. `[M]` **re-measured 2026-09-02
+       after tracker 2.2b**: that helper is RETIRED — the axis is read
+       by the entry's own :attr:`~orpheus.numerics.manifold.Quotient.lift`
+       now, not by this module — and the line still imports three names,
+       but a different three: ``AXIS_INDEX``,
+       :data:`~orpheus.numerics.manifold.SPHERE` and ``Quotient``.
+       :func:`~orpheus.numerics.manifold.barycentre` left the import
+       list because nothing here names it any more
+       (:ref:`manifold-lift`); ``SPHERE`` arrived because a measure on a
+       bare support is asked on the trivial orbit space
+       :math:`\mathbb{R}^3/\{e\}`
+       (:ref:`manifold-one-invariance-kernel`). The
+       edge's direction and scope have not moved across either step;
+       only its payload changes, which is the direction that keeps the
+       guard affordable.
    * - ``symmetry.py:103``
      - ``symmetry → measure``
      - module, **runtime**
@@ -6640,13 +7610,17 @@ description of a capability rather than of a repair.
        read *"``gauss_legendre(8).measure.support`` is ``'[-1,1]'`` —
        the realization's name … the registry's stage-0 gate compares it
        by string equality"*. The register split is closed and the gate
-       is a value comparison. ⚠ What SURVIVES is the *disagreement it
-       exposed*, which was never a vocabulary problem: `[M]`
-       ``GEOMETRY_ANGULAR_SYMMETRY["cylinder"].admits_domain`` on the
-       shipped fold is still **False**, because a rule folded by a
-       member of :math:`\Gamma` genuinely does not live on the geometry's
-       :math:`S^2/G^0`. Latent only because ``folded_product`` is not a
-       registered spec (:ref:`manifold-twin-lookup`).
+       is a value comparison. ⛔ This row then read *"What SURVIVES is
+       the disagreement it exposed … admits_domain on the shipped fold
+       is still False, because a rule folded by a member of Γ genuinely
+       does not live on the geometry's S^2/G^0"*, verbatim, until
+       2026-09-02. The premise stays true and the conclusion is gone:
+       the two orbit spaces really are different, and stage 0 now asks
+       for the ARROW between them rather than for their equality. `[M]`
+       2026-09-02 that call is **True**, and so is ``admits_symmetry``
+       (:ref:`manifold-gamma-slot`). ✅ **This seam is DISCHARGED** —
+       what still blocks registration is stage 2, not stage 0
+       (:ref:`manifold-2-2b-what-moved`).
    * - The derivation ENGINE
      - **Deferred, not refused** — the ruling, the falsifiable
        compliance check and the acceptance suite that is already
@@ -6683,7 +7657,7 @@ Verification
 ============
 
 The gates live in ``tests/numerics/test_manifold.py``: `[M]` 2026-09-02,
-**70 test functions, 108 collected rows** (by AST for the first, by the
+**91 test functions, 143 collected rows** (by AST for the first, by the
 generated matrix for the second), run under the canonical
 ``python -O -m pytest`` invocation. Several functions are parametrized
 — over the shipped-variant list, over three bases, and (since tracker
@@ -6695,12 +7669,22 @@ moves the second and not the first.
 this module, which is a second, independent reading of the same tree
 (``docs/theory/verification/matrix.rst``, ``numerics/test_manifold``
 row). `[M]` it read **44** before the two-slot ruling, **56** after,
-**70** after tracker 2.3 added ``TestManifoldMap``, and **108** after
-the fused commit added the isotypic probe's gates. An earlier version
-of this paragraph said *"30 test functions, 40 collected rows"*; both
-numbers were wrong when written — the module had 32 functions and 44
-rows — which is why the count is now stated with the instrument that
-produces it.
+**70** after tracker 2.3 added ``TestManifoldMap``, **108** after the
+fused commit added the isotypic probe's gates, and **143** after tracker
+2.2b added the lift, the induced action and the spent-group door. An
+earlier version of this paragraph said *"30 test functions, 40 collected
+rows"*; both numbers were wrong when written — the module had 32
+functions and 44 rows — which is why the count is now stated with the
+instrument that produces it.
+
+⭐ **Tracker 2.2b's gates are spread over three modules, and the two
+siblings moved further than this one.** `[M]` 2026-09-02 from the same
+generated matrix: ``numerics/test_symmetry`` **133 → 230** rows (the
+normaliser's per-family legs, the sampling controls and the one-kernel
+equivalence) and ``numerics/test_registry`` **80 → 107** (the
+:math:`\Gamma`-slot's admission grid). All three modules are
+``@pytest.mark.foundation`` for this page's standing reason: they gate
+the type's own laws, not an L0–L3 claim about a flux.
 
 The fused commit's other two objects have their own modules, both
 ``@pytest.mark.foundation``: `[M]` ``tests/numerics/test_legendre_basis.py``
@@ -6799,8 +7783,11 @@ Seven groups, and what each is for:
        mirror quotient, the trivial quotient and a bare interval with
        an :math:`O(2)_a` entry as the positive control. A final row pins the
        Pattern-2 collapse: ``symmetry._embedded_nodes`` is
-       ``np.array_equal`` to the map it now reads
-       (:ref:`manifold-barycentre`).
+       ``np.array_equal`` to the map it reads
+       (:ref:`manifold-barycentre`) — `[M]` 12 of 12 rows, and still 12
+       of 12 after tracker 2.2b re-routed the read through
+       :attr:`Quotient.lift
+       <orpheus.numerics.manifold.Quotient.lift>` (:ref:`manifold-lift`).
 
 ⭐ Two exhaustiveness gates are worth naming separately, because they
 are what make "closed sum" a checkable claim rather than a description.
@@ -6848,6 +7835,82 @@ for merge status.**
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-09-02
+     - ⭐⭐ **A symmetry is asked ON the orbit space, and a geometry
+       admits a rule on a FOLD of its domain.** The invariance question
+       was being asked in the ambient space, where a fold's nodes are
+       one representative per orbit and a polar marginal's nodes are a
+       chart coordinate; `[M]` :math:`\sigma_y` therefore read *not
+       invariant* on the shipped ``folded_product(4, 8)`` while acting
+       TRIVIALLY on :math:`S^2/\sigma_y`, and every
+       :math:`\Gamma`-admission of the shipped cylinder configuration
+       failed on that reading. Three objects land.
+       :meth:`SubgroupOfO3.is_normalised_by
+       <orpheus.numerics.symmetry.SubgroupOfO3.is_normalised_by>` and
+       :meth:`normalises
+       <orpheus.numerics.symmetry.SubgroupOfO3.normalises>` decide
+       :eq:`manifold-normaliser-descent` — an isometry descends to
+       :math:`M/H` iff it normalises :math:`H` — EXACTLY for every
+       family, the continuous ones through the rotation generator
+       :math:`[\hat e_a]_\times` and their coset representatives rather
+       than by sampling; `[M]` the four-right-angle sample
+       over-certifies on **2 of 8** :math:`(G, H)` pairs, which is
+       ERR-072's mechanism recurring in a NEW predicate
+       (:ref:`manifold-normaliser-sampling-control`).
+       :attr:`Quotient.lift <orpheus.numerics.manifold.Quotient.lift>`
+       gives every catalogued family a right inverse of its quotient map
+       — the orbit BARYCENTRE for the axial entries (equivariant, not a
+       section, which is all an induced action needs), the hemisphere
+       section for a mirror, the identity for the trivial entry; `[M]`
+       :math:`\pi \circ \lambda = \mathrm{id}` to ``0.000e+00`` on all
+       three (:ref:`manifold-lift`). And
+       :meth:`Quotient.induced_action
+       <orpheus.numerics.manifold.Quotient.induced_action>` is the
+       arrow :math:`[p] \mapsto [g\,p]`, refusing a motion outside the
+       normaliser (`[M]` :math:`C_4` about :math:`z` on
+       :math:`S^2/\sigma_y`). ``is_invariant`` then has ONE kernel: a
+       bare support is asked on the trivial orbit space
+       :math:`\mathbb{R}^3/\{e\}` — the ambient space and not the
+       sphere, because every barycentre and every zero-padded node lands
+       off :math:`S^2` — and `[M]` that reduction is identical to the
+       old ambient reading on **150 of 150** (sphere rule × candidate
+       group) rows. The consumer is the registry's
+       :math:`\Gamma`-slot: stage 0 is now ONE expression, *what the
+       descent arrow SPENDS lies in* :math:`\Gamma`
+       (:eq:`manifold-gamma-slot-stage-zero`,
+       :func:`~orpheus.numerics.manifold.spent_group`) — over the SAME
+       arrow a frame's G0 reads — and `[M]` the shipped cylindrical fold
+       is admitted at both stages where it was refused at both, with the
+       stage-0 refusal count moving **12 → 10 of 20** (constructor ×
+       geometry) pairs and no pair moving the other way. `[M]` nothing
+       else did:
+       the slab rule's answers are unchanged on **0 of 15** candidate
+       groups, ``product(4, 8)`` on **0 of 23**, the walk on both is
+       unchanged and agrees with brute force **6 of 6**, the
+       compatibility law re-runs at **0 violations** over 342 and 450
+       (edge × fixture) pairs, and ``_embedded_nodes`` stays
+       ``array_equal`` to :func:`~orpheus.numerics.manifold.barycentre`
+       on **12 of 12** rows. ``_polar_axis_of`` and
+       ``_invariance_on_points`` are RETIRED; the spent-group door
+       refuses :math:`(M/H)/G` for :math:`G \subseteq H` with the
+       theorem, naming the trivial group as its one exception (an
+       identity ENTRY, not a second spelling);
+       :meth:`Quadrature.ordinate_permutation
+       <orpheus.numerics.quadrature.directional.Quadrature.ordinate_permutation>`
+       takes the same route, so `[M]` :math:`\sigma_y` on the fold now
+       yields the IDENTITY permutation where it yielded ``None``
+       (:ref:`manifold-ordinate-permutation-orbit-space`); and
+       ``orbit_certificate`` follows it too, CLOSING the §II.11 lead —
+       `[M]` ``orbit_certificate(gauss_legendre(8), sigma_x)`` and the
+       same call on the BARE chart rule both return a certificate where
+       both were refused by SHAPE, while the refusal MESSAGE grows a
+       third unnamed arm and is reported rather than repaired
+       (:ref:`manifold-orbit-certificate-orbit-space`).
+     - `#429 <https://github.com/deOliveira-R/ORPHEUS/issues/429>`_
+     - *(in development)* ``fix/angular-phantom-support``; tracker 2.2b,
+       user-ruled 2026-09-02 (three rulings). ⚠ Uncommitted in the
+       working tree when this row was written — trust ``git`` over this
+       cell.
    * - 2026-09-02
      - ⭐⭐ **An orbit space is named by its STABILISER, so it has ONE
        spelling — and the naming law is an accessor plus a construction
@@ -7019,8 +8082,11 @@ for merge status.**
        and `[M]` the forgery's nodes are ``np.array_equal`` to the
        honest map's image, so what is false about it is a **type** and
        nothing else. The honest spelling
-       (``symmetry._embedded_nodes``) now reads the map, collapsing a
-       Pattern-2 twin (`[M]` bit-identical on 12 rows).
+       (``symmetry._embedded_nodes``) read the map from this step on,
+       collapsing a Pattern-2 twin (`[M]` bit-identical on 12 rows; the
+       read moved behind :attr:`Quotient.lift
+       <orpheus.numerics.manifold.Quotient.lift>` at tracker 2.2b and
+       `[M]` is still bit-identical on 12 rows).
        ⛔ **An enabler, not a repair**: no membership check runs inside
        a map, the forgery arm stays a raw constructor **by design**
        until tracker 3.4, and the gate still declares three

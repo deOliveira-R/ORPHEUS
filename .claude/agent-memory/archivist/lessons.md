@@ -690,6 +690,34 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   report.** `[M]` the patched xref gate and nexus `dead_references` both returned the
   SAME single finding (the not-yet-shipped accessor) — two independently-vocabularied
   instruments agreeing is what proves it is the only one. → L-086
+- **⛔⛔ When a coordinator says a change is LANDING, poll on the INVARIANT that the rename
+  is complete tree-wide, never on one new symbol — a half-written tree answers plausibly.**
+  `[M]` `manifold.py` had both new symbols while `symmetry.py` still CALLED the old one, so
+  `ordinate_permutation` raised `AttributeError: 'Quotient' has no attribute
+  'section_coordinates'` on every rule — which reads as *"this rule does not support that
+  question"*, not as a broken tree. The right poll is `! git grep -q <old> -- orpheus/`; the
+  right "before" is the pinned `git archive HEAD` copy, which cannot move. → L-087
+- **⭐⭐ A mid-task delta's message is a BRIEF: `[M]` 2 of its 7 items shipped DIFFERENTLY,
+  and both shipped forms were better.** *"REFUSES a translated motion"* → it takes
+  `motion.linear_part` (a point group acts on directions); *"`Ball(3).quotient(Trivial)`"* →
+  `RealSpace(3).quotient(Trivial)`, with a better stated reason. Run the probe, then READ the
+  shipped body; publish the code, report the delta. → L-087
+- **⭐⭐ A "what SURVIVES / still open" verdict is the most delta-fragile sentence a close-out
+  carries** — it is a claim about the ABSENCE of a repair, and a concurrent review's whole job
+  is to add repairs. `[M]` my measured *"II.11 is HALF closed — a BARE support keeps the 1-D
+  shape refusal"* became fully closed by the delta (`orbit_certificate` on the bare chart rule:
+  `None` → 2 permutations), flipping a section title, a table row, a paragraph and the machine
+  header. Re-run every *"X still …"* clause after the LAST code edit, not just the numbers.
+  (L-080 at section scope.) → L-087
+- **⭐ A design's ONE-EXPRESSION form is a publishable argument, and the naive two-conjunct
+  form is its exhibit.** My stage 0 was *"the arrow exists AND (`X == D` OR `Γ ⊇ X.by`)"*;
+  `[M]` the equality case is load-bearing, not a convenience — without it the predicate refuses
+  the geometry's OWN domain (`σ_x ⊉ O(2)_x`). Asking what the ARROW SPENDS (`{e}` for the
+  identity) removes the special case. Publish the failed spelling as the reason. → L-087
+- **⭐ A RENAME's rationale can be the page's own subject — say so.** `section_coordinates` →
+  `ambient_representatives`: a *section* is a point OF the base and the axial arm returns the
+  BARYCENTRE, inside the ball — the old name promised ERR-080's own forged codomain, caught on
+  the NAME alone. → L-087
 - **⭐ The test tree can move UNDER you mid-session, and the mover is the evidence you were
   about to cite.** `[M]` two test modules the gate's docstring named in the present tense did
   not exist at my first census and shipped by my final build; `test_manifold` went 70 → 108
