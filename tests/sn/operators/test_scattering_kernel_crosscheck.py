@@ -197,7 +197,7 @@ class TestScatteringKernelReproducesAnisoPath:
         psi = _aniso_psi(solver_p1_het)
         moments = op.frame.analysis.apply(psi.values)
         require(
-            op.scattering_order >= 1,
+            op.legendre_order >= 1,
             "Cross-check config must be ANISOTROPIC (scattering_order ≥ 1) "
             "so Λ's ℓ≥1 blocks are exercised — else the kernel cross-check "
             "is vacuous.",

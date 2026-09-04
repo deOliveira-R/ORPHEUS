@@ -628,7 +628,7 @@ class TestRLambdaMRoundTrip:
         )
         moments = HarmonicMomentFlux.from_mesh_and_L(moments_values, sn_mesh, L)
 
-        Lam = LegendreMomentTransfer.from_field(
+        Lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(solver.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         out = Lam.apply(moments)
@@ -667,7 +667,7 @@ class TestRLambdaMRoundTrip:
         moments_values = np.zeros(
             (*_head_shape(sn_mesh, L), mix.ng, nx, ny),
         )
-        Lam = LegendreMomentTransfer.from_field(
+        Lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(solver.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         out = Lam.apply(moments_values)

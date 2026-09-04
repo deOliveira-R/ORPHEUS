@@ -171,11 +171,18 @@ class TestAdmission:
                 cells_by_material={0: (np.array([0]),)},
             )
 
-    def test_mixed_order_refuses_on_order_read(self):
-        f = MaterialField(  # base admits it — order is scattering-tier
+    def test_mixed_orders_are_padded_to_the_widest_at_construction(self):
+        r"""ONE order by construction (the elegance review's R2, #426 step 2):
+        a material whose stack is shorter than the widest is padded with
+        exact zeros — the law the isotope sum and ``at_order`` apply, now
+        at the field's own admission — so ``order`` cannot raise and a
+        heterogeneous library (NL = 7 beside NL = 1) builds a readable
+        field. Until 2026-09-04 the field admitted the mixed map and
+        refused lazily on the ``order`` read."""
+        f = MaterialField(  # the base admits it — order is transfer-tier
             per_material={
                 0: TransferKernel(moments=(np.eye(2),)),
-                1: TransferKernel(moments=(np.eye(2), np.zeros((2, 2)))),
+                1: TransferKernel(moments=(np.eye(2), np.ones((2, 2)))),
             },
             cells_by_material={0: (np.array([0]),)},
         )
@@ -183,8 +190,10 @@ class TestAdmission:
             per_material=dict(f.per_material),
             cells_by_material=dict(f.cells_by_material),
         )
-        with pytest.raises(ValueError, match="mixed stored orders"):
-            _ = sf.order
+        assert sf.order == 1
+        np.testing.assert_array_equal(sf.per_material[0].moments[1], 0.0)
+        np.testing.assert_array_equal(sf.per_material[1].moments[1], 1.0)
+        assert sf.per_material[0].moments[1].flags.writeable is False
 
     def test_mappings_are_read_only(self):
         sf, _, _ = _fields()
@@ -210,7 +219,7 @@ class TestTruncationAndSharing:
         sf, _, _ = _fields()
         p0 = sf.at_order(0)
         if p0.order != 0:
-            pytest.fail("truncated(0) must carry order 0")
+            pytest.fail("at_order(0) must carry order 0")
         for mid in sf.per_material:
             np.testing.assert_array_equal(
                 p0.per_material[mid].p0, sf.per_material[mid].p0,

@@ -225,7 +225,7 @@ def _capture_legendre_moments(
     moments = HarmonicMomentFlux.from_mesh_and_L(
         moments_values, solver.sn_mesh, L,
     )
-    Lam = LegendreMomentTransfer.from_field(
+    Lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(solver.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=False,
         )
     scattered = Lam.apply(moments)

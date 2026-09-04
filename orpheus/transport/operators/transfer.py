@@ -76,6 +76,7 @@ see :meth:`~TransferOperator.apply_transpose`.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import cached_property, singledispatchmethod
 from typing import TYPE_CHECKING, Any, ClassVar, Self, cast, overload
@@ -211,7 +212,7 @@ class LegendreMomentTransfer(BoundOperator):
     skip_l0: bool = True
 
     @classmethod
-    def from_field(
+    def on_basis(
         cls,
         transfer: "TransferMaterialField",
         basis: TruncatedBasis,
@@ -367,7 +368,7 @@ class TransferOperator(BoundOperator["FullField"]):
       :class:`~orpheus.transport.material_field.TransferMaterialField`
       (per-material Legendre stacks with their yield, over the mesh
       layout), already at this binding's order (the order IS
-      :attr:`scattering_order` — single source);
+      :attr:`legendre_order` — single source);
     * :attr:`flux_analysis` / :attr:`source_reconstruction` — the two
       typed faces minted from the HUB-interned
       :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`
@@ -420,11 +421,22 @@ class TransferOperator(BoundOperator["FullField"]):
     #: :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicTransfer`.
     #: A ClassVar, not a field: it is the role's identity, not a datum.
     isotropic_binding: ClassVar[type[IsotropicTransfer]] = IsotropicTransfer
+    #: The channel this term reads off the facade — the role's other fact
+    #: (:meth:`TransferMaterialField.scattering
+    #: <orpheus.transport.material_field.TransferMaterialField.scattering>`
+    #: for :math:`S`, :meth:`~orpheus.transport.material_field.TransferMaterialField.n2n`
+    #: for :math:`N_{2n}`). No default on the core: a role that forgets it
+    #: fails at its first mint instead of silently reading scattering. A
+    #: role is therefore two class constants and no code — the shape F3
+    #: ruled, and what makes the AST role gate airtight.
+    channel: ClassVar[Callable[["MaterialXSField"], "TransferMaterialField"]]
 
     # A transfer gain is a BULK operator — the moment-folding
-    # `Σ_c · ⟨P_ℓ, ψ⟩` reads and writes the bulk flux only (A_bb), no
-    # boundary action. Class-level constant (unannotated so the dataclass
-    # does not treat it as a field).
+    # Σ_c·⟨P_ℓ, ψ⟩ reads and writes the bulk flux only (A_bb), no boundary
+    # action. A class-level DEFAULT of the base's `block_role` instance
+    # attribute, deliberately unannotated: a `ClassVar` annotation would
+    # override the base's instance variable (pyright refuses it) and a
+    # plain annotation would make it a dataclass field.
     block_role = BlockRole.BULK
 
     def __post_init__(self) -> None:
@@ -444,6 +456,30 @@ class TransferOperator(BoundOperator["FullField"]):
                 f"a different angular space than this binding's interior "
                 f"— mint the faces from the SAME posed space (tier 2 does)."
             )
+        if self.source_reconstruction.codomain != interior:
+            raise TypeError(
+                f"{type(self).__name__}: the source-reconstruction face lands "
+                f"on a different angular space than this binding's interior "
+                f"— mint the faces from the SAME posed space (tier 2 does)."
+            )
+
+    @classmethod
+    def from_solver_data(
+        cls,
+        *,
+        mat_xs: "MaterialXSField",
+        scattering_order: int,
+        space: "FunctionSpace",
+    ) -> Self:
+        r"""Tier-2 extract-and-mint (CS4c §14): the role's :attr:`channel`
+        of the facade, bound on the posed composite at the solve's order
+        through :meth:`from_field`. ONE body for both terms — the defect
+        #426 step 2 repaired was two mint bodies of one recipe, one of
+        which minted at :math:`L = 0` while the other minted at the solve's
+        order; a role now carries no mint body to drift."""
+        return cls.from_field(
+            cls.channel(mat_xs), scattering_order=scattering_order, space=space,
+        )
 
     @classmethod
     def from_field(
@@ -455,9 +491,8 @@ class TransferOperator(BoundOperator["FullField"]):
     ) -> Self:
         r"""Tier-2 mint (CS4c §14): bring a channel's field to the solve's
         order, mint the two faces from the HUB-interned frame, and bind
-        the endomorphic composite ends from one ``space=``. The role
-        subclasses' ``from_solver_data`` extract the channel and call
-        this.
+        the endomorphic composite ends from one ``space=``.
+        :meth:`from_solver_data` extracts the role's channel and calls this.
 
         ``space`` is the composite
         :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`
@@ -478,7 +513,7 @@ class TransferOperator(BoundOperator["FullField"]):
         )
         if interior is None:
             raise TypeError(
-                f"{cls.__name__}.from_solver_data requires the posed "
+                f"{cls.__name__}.from_field requires the posed "
                 f"composite FullFieldSpace (its interior is the angular "
                 f"space the faces bind); got "
                 f"{type(space).__name__}."
@@ -501,12 +536,14 @@ class TransferOperator(BoundOperator["FullField"]):
         return True
 
     @property
-    def scattering_order(self) -> int:
-        r"""Maximum Legendre order :math:`L` retained — DERIVED from the
+    def legendre_order(self) -> int:
+        r"""The binding's Legendre order :math:`L` — DERIVED from the
         bound field (the order IS the field's; single source). ``0``
-        means P0 only. The solve's ``scattering_order`` for both terms:
-        the :math:`(n,2n)` stack is brought to the scattering stack's
-        order (ruling O-1), so the two bindings share one frame."""
+        means P0 only. It is the SOLVE's ``scattering_order`` for BOTH
+        terms: the clamp reads the scattering stack alone (ruling O-1),
+        and the :math:`(n,2n)` stack is brought to that order — so the
+        (n,2n) binding's Legendre order is the elastic channel's clamp,
+        which is why this property is not named after either channel."""
         return self.transfer.order
 
     @property
@@ -515,7 +552,7 @@ class TransferOperator(BoundOperator["FullField"]):
         zero operator — order 0, or every moment above :math:`\ell = 0`
         exactly zero (an absent section, an ``NL = 1`` evaluation, a stack
         padded to the solve's order). The anisotropic arms then emit
-        nothing and are skipped: the same statement ``scattering_order ==
+        nothing and are skipped: the same statement ``legendre_order ==
         0`` used to make from the SHAPE, now made from the VALUES — the
         result is bit-identical (an all-zero :math:`\Lambda` reconstructs
         to exact zeros) and the :math:`R\Lambda M` product is not run."""
@@ -536,7 +573,7 @@ class TransferOperator(BoundOperator["FullField"]):
         endomorphic ends of the internally-minted moment factors.
 
         READ off the retained faces' frame (``frame.basis.space``), never
-        minted from :attr:`scattering_order`: which family spans the
+        minted from :attr:`legendre_order`: which family spans the
         moments is the quadrature's decision (full harmonics on a sphere
         rule, Legendre on a 1-D rule), and the frame already carries it.
         The continuum-metric space (the basis's own), not the frame's
@@ -566,11 +603,14 @@ class TransferOperator(BoundOperator["FullField"]):
 
     @property
     def frame(self) -> HarmonicFrame:
-        r"""PROVENANCE accessor (design record §2 — retirement-tracked):
-        the HUB-interned frame the retained faces were minted from,
-        riding on :attr:`flux_analysis` (zero extra state). Production
-        reads the FACES and the kernel-field datum, never this; it stays
-        for provenance and prototyping until proven removable.
+        r"""The HUB-interned frame the retained faces were minted from,
+        riding on :attr:`flux_analysis` (zero extra state). OPERATIVE for
+        the three conjugation properties (:attr:`kernel`,
+        :attr:`full_transfer_kernel`, the windowed arm's
+        :meth:`_aniso_source_from_moment_values`), which read it to
+        conjugate the moment factor; the fast-path arms read the FACES and
+        the kernel-field datum. Retirement-tracked (design record §2): the
+        accessor goes the day those three read the faces instead.
         """
         return self.flux_analysis.frame
 
@@ -593,6 +633,19 @@ class TransferOperator(BoundOperator["FullField"]):
             )
         return domain.interior_space
 
+    @property
+    def _scalar_interior_space(self) -> "FunctionSpace":
+        r"""The interior's scalar ``(ng, *spatial)`` sub-space — the P0
+        half's end (the energy binding's domain and the windowed arm's
+        scalar-flux space are the SAME object, minted here once)."""
+        interior = self._interior_space
+        if interior.axes is None:
+            raise TypeError(
+                f"{type(self).__name__}: the composite interior must be "
+                f"axis-built to name the scalar sub-space."
+            )
+        return FunctionSpace.of_axes(*interior.axes[1:])
+
     @cached_property
     def isotropic_energy(self) -> IsotropicTransfer:
         r"""The P0 ENERGY binding of this operator's own datum — the
@@ -611,14 +664,7 @@ class TransferOperator(BoundOperator["FullField"]):
         richer; :math:`y` travels in the kernels). Cached at
         construction-time semantics (the kernel field is immutable).
         """
-        interior = self._interior_space
-        if interior.axes is None:
-            raise TypeError(
-                f"{type(self).__name__}.isotropic_energy: the composite "
-                f"interior must be axis-built to name the scalar "
-                f"sub-space."
-            )
-        scalar_space = FunctionSpace.of_axes(*interior.axes[1:])
+        scalar_space = self._scalar_interior_space
         return type(self).isotropic_binding(
             self.transfer.at_order(0),
             domain=scalar_space,
@@ -698,21 +744,24 @@ class TransferOperator(BoundOperator["FullField"]):
         Raises
         ------
         ValueError
-            If ``scattering_order == 0`` — a P0-only operator has no anisotropic
-            kernel (the :math:`\ell\ge 1` redistribution is empty); the P0
-            emission is the LOCAL component handled by :meth:`add_iso_source`.
+            If the binding :attr:`is_isotropic` — order 0, or every moment
+            above :math:`\ell = 0` exactly zero — so :math:`R\Lambda M` would
+            be the zero operator; the P0 emission is the LOCAL component
+            handled by :meth:`add_iso_source`.
 
         Returns
         -------
         LinearOperator
             The typed ``R∘Λ∘M`` anisotropic redistribution.
         """
-        if self.scattering_order == 0:
+        if self.is_isotropic:
             raise ValueError(
-                f"{type(self).__name__}.kernel requires scattering_order >= 1: "
-                f"an isotropic (P0-only) operator has no anisotropic integral "
-                f"kernel (the R∘Λ∘M angular redistribution is empty). The P0 "
-                f"emission is the LOCAL component, handled by add_iso_source."
+                f"{type(self).__name__}.kernel requires an anisotropic binding: "
+                f"this one is order {self.legendre_order} with every moment "
+                f"above l=0 exactly zero (order 0, an absent section, an NL=1 "
+                f"evaluation, or a padded stack), so R∘Λ∘M is the zero "
+                f"operator. The P0 emission is the LOCAL component, handled by "
+                f"add_iso_source."
             )
         # R ∘ Λ ∘ M as ONE typed operator: the frame conjugates Λ (per-ℓ
         # moment-space transfer) between its analysis (M) and reconstruction (R)
@@ -1007,7 +1056,7 @@ class TransferOperator(BoundOperator["FullField"]):
         :meth:`foldable_part` of some parent :math:`T` — order 0 with
         every material's P0 diagonal.
         """
-        if self.scattering_order != 0:
+        if self.legendre_order != 0:
             return False
         return all(
             np.allclose(k.p0, np.diag(np.diag(k.p0)))
@@ -1187,11 +1236,8 @@ class TransferOperator(BoundOperator["FullField"]):
             ) / self.total_weight
         # ℓ=0 moment IS the scalar flux (Y_0^0 = 1) — the typed accessor
         # carries that convention (== integrate_angular bit-exactly).
-        assert angular_target.axes is not None  # type-narrowing (axis-built)
         return self._assemble_per_ordinate_source(
-            phi_moments.scalar_flux(
-                space=FunctionSpace.of_axes(*angular_target.axes[1:]),
-            ),
+            phi_moments.scalar_flux(space=self._scalar_interior_space),
             aniso,
             angular_target,
         )

@@ -10,7 +10,7 @@ well as via the underscore-prefixed delegators.
 The load-bearing test is the **bit-identical extraction** suite: a
 synthetic ``(psi, phi, Q)`` triple is fed through both the new
 :meth:`ScatteringOperator.apply` (and the in-place helpers
-:meth:`add_iso_source` / :meth:`add_n2n_source` / :meth:`build_aniso_source`)
+:meth:`add_iso_source` / the solver's ``_add_n2n_source`` delegator (the operator-level ``add_n2n_source`` retired at §14.1; the verb is the (n,2n) field's ``add_p0_source``) / :meth:`build_aniso_source`)
 and the explicit per-cell reference implementations from
 ``test_solver_components.py``. The two paths must agree to round-off,
 because the operator is a structural extraction, not a re-derivation.
@@ -219,7 +219,7 @@ class TestBitIdenticalExtractionP0:
         asymmetric ``Sig2`` in the fuel) rather than the library
         ``solver_2g_p0`` (``Sig2 = 0``), so the ``2·Σ_2n`` term is
         genuinely constrained — a sign/factor mutation in
-        ``add_n2n_source`` reddens this test (see the in-process
+        the solver's ``_add_n2n_source`` delegator or the (n,2n) field's ``add_p0_source`` reddens this test (see the in-process
         monkeypatch proof in #269 closeout).  The reference
         :func:`_ref_n2n_inplace` is a structurally-independent per-cell
         loop (explicit ``2·Σ_2nᵀ@φ``), not the SUT's reduction.
@@ -765,7 +765,7 @@ class TestFoldablePart:
     def test_scattering_order_is_zero(self, solver_2g_p0):
         """Mechanism criterion 2 — no Pℓ structure in foldable."""
         S = solver_2g_p0.scattering_op
-        assert S.foldable_part().scattering_order == 0
+        assert S.foldable_part().legendre_order == 0
 
     def test_faces_are_order_zero(self, solver_2g_p0):
         """Mechanism criterion 3 — the ℓ=0 sibling's faces are minted at
@@ -860,10 +860,10 @@ class TestResidualPart:
     def test_pl_ge_1_carried_verbatim(self, solver_2g_p1_n2n):
         """Mechanism criterion 5c — Pℓ≥1 blocks unchanged."""
         S = solver_2g_p1_n2n.scattering_op
-        assert S.scattering_order >= 1, "fixture must carry P1+ data"
+        assert S.legendre_order >= 1, "fixture must carry P1+ data"
         S_res = S.residual_part()
         for mid in S.transfer.per_material:
-            for l in range(1, S.scattering_order + 1):
+            for l in range(1, S.legendre_order + 1):
                 np.testing.assert_array_equal(
                     S_res.transfer.per_material[mid].moments[l], S.transfer.per_material[mid].moments[l]
                 )
@@ -875,7 +875,7 @@ class TestResidualPart:
     def test_scattering_order_preserved(self, solver_2g_p1_n2n):
         """Mechanism criterion 5e — Pℓ structure preserved."""
         S = solver_2g_p1_n2n.scattering_op
-        assert S.residual_part().scattering_order == S.scattering_order
+        assert S.residual_part().legendre_order == S.legendre_order
 
     def test_residual_shares_the_interned_frame(self, solver_2g_p1_n2n):
         """Mechanism criterion 5f — precomputed harmonics reusable: the
@@ -969,7 +969,7 @@ class TestAlgebraicIdentity:
         D-I.2: typed AngularFlux carrier.
         """
         op = solver_2g_p0.scattering_op
-        assert op.scattering_order == 0
+        assert op.legendre_order == 0
         N = solver_2g_p0.sn_mesh.quad.N
         np.random.seed(42)
         psi_values = np.random.rand(N, solver_2g_p0.ng, *solver_2g_p0.sn_mesh.spatial_shape) + 0.1
@@ -987,7 +987,7 @@ class TestAlgebraicIdentity:
     def test_identity_with_pl_ge_1(self, solver_2g_p1_n2n):
         """Case 2 — scattering_order >= 1 (with non-zero P1 block)."""
         op = solver_2g_p1_n2n.scattering_op
-        assert op.scattering_order >= 1
+        assert op.legendre_order >= 1
         N = solver_2g_p1_n2n.sn_mesh.quad.N
         np.random.seed(101)
         psi_values = np.random.rand(N, solver_2g_p1_n2n.ng, *solver_2g_p1_n2n.sn_mesh.spatial_shape) + 0.1
@@ -1069,7 +1069,7 @@ class TestPurity:
     def test_foldable_part_pure(self, solver_2g_p1_n2n):
         S = solver_2g_p1_n2n.scattering_op
         a, b = S.foldable_part(), S.foldable_part()
-        assert a.scattering_order == b.scattering_order == 0
+        assert a.legendre_order == b.legendre_order == 0
         for mid in S.transfer.per_material:
             np.testing.assert_array_equal(a.transfer.per_material[mid].moments[0], b.transfer.per_material[mid].moments[0])
             np.testing.assert_array_equal(a.transfer.per_material[mid].p0, b.transfer.per_material[mid].p0)
@@ -1077,9 +1077,9 @@ class TestPurity:
     def test_residual_part_pure(self, solver_2g_p1_n2n):
         S = solver_2g_p1_n2n.scattering_op
         a, b = S.residual_part(), S.residual_part()
-        assert a.scattering_order == b.scattering_order
+        assert a.legendre_order == b.legendre_order
         for mid in S.transfer.per_material:
-            for l in range(S.scattering_order + 1):
+            for l in range(S.legendre_order + 1):
                 np.testing.assert_array_equal(
                     a.transfer.per_material[mid].moments[l], b.transfer.per_material[mid].moments[l]
                 )
@@ -1144,7 +1144,7 @@ class TestIsFoldableIntoSigmaR:
         sig2 → NOT foldable."""
         S = solver_2g_p1_n2n.scattering_op
         # Sanity: the fixture's S has all three non-foldable channels.
-        assert S.scattering_order >= 1
+        assert S.legendre_order >= 1
         assert S.is_foldable_into_sigma_r() is False
 
     def test_foldable_part_roundtrip_is_true(self, solver_2g_p1_n2n):
@@ -1297,7 +1297,7 @@ class TestAnisoMomentSourcePath:
         # (the SAME frame the operator uses), then the moment arm.
         moments = op.frame.analysis.apply(psi.values)
         phi_field = HarmonicMomentFlux.from_mesh_and_L(
-            moments, solver_2g_p1_n2n.sn_mesh, op.scattering_order,
+            moments, solver_2g_p1_n2n.sn_mesh, op.legendre_order,
         )
         src_moments = op.apply(phi_field)
 
@@ -1306,7 +1306,7 @@ class TestAnisoMomentSourcePath:
         np.testing.assert_array_equal(src_moments.values, src_angular.values)
         # Non-degeneracy: ℓ≥1 genuinely carries signal (else the moment
         # arm collapses to the P0-only arm and the guard is vacuous).
-        assert op.scattering_order >= 1
+        assert op.legendre_order >= 1
         assert np.any(moments[1:] != 0.0)
 
     def test_windowed_arm_executes_typed_role_changing_edge(
@@ -1348,11 +1348,11 @@ class TestAnisoMomentSourcePath:
         psi = self._reproduce_psi(solver_2g_p1_n2n, seed=7)
         moments = op.frame.analysis.apply(psi.values)
         phi_field = HarmonicMomentFlux.from_mesh_and_L(
-            moments, solver_2g_p1_n2n.sn_mesh, op.scattering_order,
+            moments, solver_2g_p1_n2n.sn_mesh, op.legendre_order,
         )
         _ = op.apply(phi_field)
 
-        assert op.scattering_order >= 1
+        assert op.legendre_order >= 1
         assert calls["n"] >= 1, (
             "windowed apply(HarmonicMomentFlux) did not construct a "
             "HarmonicMomentSourceSink — the explicit typed role-changing "
@@ -1529,7 +1529,7 @@ class TestAnisoMomentSourcePath:
         snapshots = np.load(snapshot_path)
         expected = snapshots["p1_build_aniso_source"]
 
-        nulp_bound = max(4, 4 * op.scattering_order)
+        nulp_bound = max(4, 4 * op.legendre_order)
         np.testing.assert_array_almost_equal_nulp(
             out_post_t3, expected, nulp=nulp_bound,
         )
@@ -1555,7 +1555,7 @@ class TestAnisoMomentSourcePath:
         # field; the snapshot pins the einsum leaf unchanged).
         # skip_l0=False → full block coverage; L == the operator's own
         # truncation (== 1 on this fixture, asserted below).
-        assert op_p1.scattering_order == L
+        assert op_p1.legendre_order == L
         out = op_p1.transfer.moment_source(
             moments_values, skip_l0=False, head=op_p1.frame.basis.space,
         )
@@ -1598,7 +1598,7 @@ class TestAnisoMomentSourcePath:
         psi_p3 = AngularFlux(values=rng.uniform(0.05, 1.0, size=(quad.N, 2, nx, ny)), space=solver_p3.sn_mesh.angular_bulk_space)
         L = 3
         moments_values = op_p3.frame.analysis.apply(psi_p3.values)
-        assert op_p3.scattering_order == L
+        assert op_p3.legendre_order == L
         head = op_p3.frame.basis.space
         assert isinstance(head, MomentHead)
         out = op_p3.transfer.moment_source(

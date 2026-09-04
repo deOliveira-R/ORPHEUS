@@ -231,10 +231,10 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
     assert truncated.factors[0].name == _MUTANT_NAME
 
     foreign = _ForeignTruncatedBasis.like(sn.quad.angular_frame(L).basis)
-    assert LegendreMomentTransfer.from_field(
+    assert LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(mat), foreign,
         ).domain.name == _MUTANT_NAME
-    assert LegendreMomentTransfer.from_field(
+    assert LegendreMomentTransfer.on_basis(
             TransferMaterialField.n2n(mat), foreign, skip_l0=False,
         ).codomain.name == _MUTANT_NAME
 

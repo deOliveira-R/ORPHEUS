@@ -145,13 +145,20 @@ def test_kernel_ng_matches_the_mixture(region, ng_key):
 # G1.2 — truncation is exact, the identity at L, and a REFUSAL beyond
 # ═════════════════════════════════════════════════════════════════════════
 
-def test_truncated_returns_exactly_the_requested_stack():
-    """**G1.2** — ``truncated(order)`` is exact (positive + negative, vv#11).
+def test_at_order_is_exact_below_identity_at_and_padded_above():
+    """**G1.2** — ``at_order(order)`` is exact: the sub-stack below the
+    stored order, the SAME object at it, exact zeros above it.
 
-    The negative leg is the load-bearing one: moments beyond the stored
-    order do not exist, and silent zero-padding would misreport the
-    material's anisotropy content as a measured zero (a fabricated
-    datum — the campaign's O1 tell).
+    Until #426 step 2 (2026-09-04) the third arm was a REFUSAL ("moments
+    beyond the stored order are not invented") and this docstring called
+    padding a fabricated datum. Ruling §4.3 reversed that: a stack shorter
+    than the request is COMPLETE — an absent section or an ``NL = 1``
+    evaluation — so its higher moments are the evaluation's zeros, and the
+    (n,2n) stack of an isotope with no MT=16 pads to the solve's order
+    instead of refusing it. The stack that must never be padded (one at
+    GROUPR's cap) is the CALLER's obligation (the SN clamp reads the
+    scattering stack alone, ruling O-1); the kernel cannot tell the two
+    apart and does not try.
     """
     kernel = TransferKernel.scattering(_asymmetric_fissile_2g())
     assert kernel.order == 1  # the fixture ships a P1 stack

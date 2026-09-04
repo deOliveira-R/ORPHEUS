@@ -127,8 +127,8 @@ class TestTheBindingAtTheSolveOrder:
 
         basis = S.frame.basis
         assert isinstance(basis, TruncatedBasis)
-        assert basis.L == S.scattering_order == n2n.scattering_order == _L
-        moment = LegendreMomentTransfer.from_field(
+        assert basis.L == S.legendre_order == n2n.legendre_order == _L
+        moment = LegendreMomentTransfer.on_basis(
             TransferMaterialField.n2n(solver.mat_xs), basis, skip_l0=False,
         )
         conjugated = S.frame.conjugate(moment).apply(psi.values)
@@ -237,7 +237,7 @@ class TestCarrierArms:
         psi = _psi(sn, 11)
         moments = S.frame.analysis.apply(psi.values)
         phi_field = HarmonicMomentFlux.from_mesh_and_L(
-            moments, sn, S.scattering_order,
+            moments, sn, S.legendre_order,
         )
         np.testing.assert_allclose(
             solver.n2n_op.apply(phi_field).values,
@@ -280,6 +280,21 @@ class TestAdmission:
         wrong_face = HarmonicFrame.for_space(other_interior, _L).flux_analysis_on(other_interior)
         with pytest.raises(TypeError, match="mint the faces"):
             replace(solver.n2n_op, flux_analysis=wrong_face)
+
+    def test_reconstruction_face_from_another_quadrature_refused(self):
+        """The other half of the face-binding admission (the elegance review's
+        S1, measured red-before): a source-reconstruction face minted on an
+        8-ordinate space over a 4-ordinate interior was ACCEPTED and the
+        windowed arm returned an ``(8, 2, 4)`` source — no raise, because the
+        scalar P0 half broadcasts against the wrong ordinate count inside the
+        shared combine. Both faces are admitted now."""
+        solver, _ = _solver()
+        other = SNMesh(_mesh(), Quadrature.gauss_legendre(n_ordinates=8), solver.mat_xs.materials)
+        other_interior = other.full_field_space.interior_space
+        assert other_interior is not None
+        wrong_face = HarmonicFrame.for_space(other_interior, _L).source_reconstruction_on(other_interior)
+        with pytest.raises(TypeError, match="mint the faces"):
+            replace(solver.n2n_op, source_reconstruction=wrong_face)
 
     def test_from_solver_data_refuses_a_bare_space(self):
         solver, _ = _solver()

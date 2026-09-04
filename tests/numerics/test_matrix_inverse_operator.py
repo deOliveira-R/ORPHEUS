@@ -187,7 +187,7 @@ def test_as_matrix_energy_leaves_vs_storage_oracle():
     """§28.2 ASM-ORACLE — structural independence, spelled out.
 
     ``as_matrix(basis_shape=(ng,1))`` drives ``apply`` → the
-    ``add_p0_source``/``add_emission`` einsum kernels (per-column matvec
+    ``add_p0_source`` einsum kernel of either channel (per-column matvec
     accumulation over g'); ``dense_per_material()[mid]`` reads
     ``sig_s_legendre(mid)[0].T`` — a direct storage TRANSPOSE-copy. Neither
     computes the other: they agree ONLY if the apply is faithful to the

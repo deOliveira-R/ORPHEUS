@@ -13,7 +13,7 @@ of the cross-section data leaked through every consumer:
   :meth:`~ScatteringOperator.residual_part`,
   :meth:`~ScatteringOperator.is_foldable_into_sigma_r`,
   :meth:`~ScatteringOperator.foldable_sigma`, and
-  :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer.apply`.
+  :meth:`~orpheus.transport.operators.transfer.LegendreMomentTransfer.apply`.
 * :class:`~orpheus.sn.solver.SNSolver` carried a parallel
   ``_cells_by_mat`` and seven separate XS attributes
   (``sig_t``, ``sig_a``, ``sig_p``, ``chi``, ``sig_s``, ``sig2``,
@@ -69,7 +69,6 @@ Old site    Old pattern                                   New call
 ==========  ============================================  =================================
 scattering  ``for mid in cells_by_mat: ... add ...``      the field verbs (CS4c: ``TransferMaterialField.add_p0_source`` etc.)
 scattering  ``for mid in sig_s.items(): off-diag``        :meth:`residual_sig_s` (DSA's read)
-scattering  ``for mid in sig_s.items(): np.allclose(...)``:meth:`is_p0_diagonal_with_zero_n2n`
 scattering  ``for mid in sig_s.items(): diag(...)``       :meth:`foldable_sigma`
 solver      ``for mid in _cells_by_mat: sig2 ...``        ``TransferMaterialField.add_to_group_rate`` (CS4c)
 ==========  ============================================  =================================
@@ -742,35 +741,6 @@ class MaterialXSField:
             cross_group = p0 - np.diag(np.diag(p0))
             out[mid] = [cross_group, *mats[1:]]
         return out
-
-    def is_p0_diagonal_with_zero_n2n(self) -> bool:
-        r"""Return ``True`` iff every material carries diagonal P0 +
-        zero (n,2n).
-
-        Structural predicate consumed by
-        :meth:`ScatteringOperator.is_foldable_into_sigma_r` (after
-        the ``scattering_order == 0`` check).  Uses :func:`numpy.allclose`
-        defaults so FP-rounding from ``np.diag(np.diag(...))``
-        construction does not produce a false negative.
-
-        Returns
-        -------
-        bool
-            ``True`` iff for every material, ``sig_s[mid][0]`` is
-            diagonal AND the P0 block ``Sig2[mid][0]`` is zero.
-
-        ⚠ Only the P0 block is tested (`[M]` the fold path's sole (n,2n) read).
-        A material whose (n,2n) P0 block is zero has a zero stack today; once
-        the (n,2n) term is anisotropic (#426 step 2) an ℓ ≥ 1 block must not be
-        folded into σ_r on the strength of a P0-only test — re-derive here.
-        """
-        for mid in self.materials:
-            p0 = self.sig_s_legendre(mid)[0]
-            if not np.allclose(p0, np.diag(np.diag(p0))):
-                return False
-            if not np.allclose(self.n2n_matrix(mid), 0.0):
-                return False
-        return True
 
     def foldable_sigma(self) -> dict[int, np.ndarray]:
         r"""Per-material foldable cross-section :math:`(\sigma_{s,0}^{g\to g})_g`.

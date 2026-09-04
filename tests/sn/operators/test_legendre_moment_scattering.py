@@ -59,7 +59,7 @@ def _make_simple_lambda(
         nx=nx,
         ny=ny,
     )
-    Lam = LegendreMomentTransfer.from_field(
+    Lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=L), skip_l0=skip_l0,
         )
     return Lam, sig_s, cells_by_mat
@@ -186,7 +186,7 @@ class TestEnergyContractionDirection:
             nx=1,
             ny=1,
         )
-        Lam = LegendreMomentTransfer.from_field(
+        Lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         # ℓ=1, m=0, single cell, only g_from=0 nonzero
@@ -209,7 +209,7 @@ class TestEnergyContractionDirection:
             nx=1,
             ny=1,
         )
-        Lam = LegendreMomentTransfer.from_field(
+        Lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=1), skip_l0=True,
         )
         # All groups equal 1.0 in the (ℓ=1, m=0) slot
@@ -252,7 +252,7 @@ class TestBitIdenticalToLegacyInlinedMath:
             sig_s=sig_s, cells_by_mat=cells_by_mat,
             ng=ng, nx=nx, ny=ny,
         )
-        Lam = LegendreMomentTransfer.from_field(
+        Lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         moments = rng.standard_normal((L + 1, 2 * L + 1, ng, nx, ny))

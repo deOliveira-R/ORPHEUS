@@ -53,8 +53,8 @@ outward; 99.9 % of the effect is Be-9's; the ladder converges by
 :math:`\ell = 1`) — issue #426, ``docs/theory/methods/sn/adjoint.rst``
 §sn-n2n-p0-truncation. That measurement is what retired the twin: the
 two terms are now two instances of one binding, and this module is the
-role — its extraction classmethod and its name, nothing else (an AST
-gate, ``tests/transport/test_transfer_roles.py``, keeps it so).
+role — its channel constant, its P0 binding and its name, no code (an
+AST gate, ``tests/transport/test_transfer_roles.py``, keeps it so).
 
 Carrier arms are the core's: composite ``FullField`` (bulk-only; zero
 trace), per-ordinate
@@ -69,6 +69,7 @@ directly.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar
 
 from orpheus.transport.material_field import TransferMaterialField
@@ -79,7 +80,6 @@ from orpheus.transport.operators.isotropic_scattering import (
 from orpheus.transport.operators.transfer import TransferOperator
 
 if TYPE_CHECKING:
-    from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 __all__ = ["N2NOperator"]
@@ -93,33 +93,19 @@ class N2NOperator(TransferOperator):
     angular binding of the :math:`(n,2n)` channel's field (yield 2) on
     the posed composite at the solve's ``scattering_order`` — the same
     faces, arms, kernel and transposes as :math:`S`, over a different
-    datum (module docstring). Build instances with
-    :meth:`from_solver_data`; the exact ctor is the core's, and the
-    tier-2 equivalence family pins the two spellings equal. Its P0
+    datum (module docstring). Build instances with the core's
+    :meth:`~TransferOperator.from_solver_data` — the SAME interned frame
+    :math:`S` is built on, so the two gains share one metric and the
+    (n,2n) stack meets the solve at the scattering order (ruling O-1: a
+    channel that stores fewer orders is zero above them); the exact ctor
+    is the core's too, and the tier-2 equivalence family pins the two
+    spellings equal. Its P0
     energy binding (:attr:`isotropic_energy`) is
     :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
     — the leaf the solver's K_iso and k-balance read.
     """
 
+    channel: ClassVar[Callable[["MaterialXSField"], "TransferMaterialField"]] = (
+        TransferMaterialField.n2n
+    )
     isotropic_binding: ClassVar[type[IsotropicTransfer]] = IsotropicN2N
-
-    @classmethod
-    def from_solver_data(
-        cls,
-        *,
-        mat_xs: "MaterialXSField",
-        scattering_order: int,
-        space: "FunctionSpace",
-    ) -> "N2NOperator":
-        r"""Tier-2 extract-and-mint: the :math:`(n,2n)` channel of the
-        facade, bound on the posed composite at the solve's order
-        through the core's :meth:`~TransferOperator.from_field` — the
-        SAME interned frame :math:`S` is built on, so the two gains
-        share one metric and the (n,2n) stack meets the solve at the
-        scattering order (ruling O-1: a channel that stores fewer orders
-        is zero above them)."""
-        return cls.from_field(
-            TransferMaterialField.n2n(mat_xs),
-            scattering_order=scattering_order,
-            space=space,
-        )

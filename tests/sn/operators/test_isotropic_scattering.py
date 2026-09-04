@@ -7,7 +7,7 @@ source shared across ALL transport models. These gates pin them in isolation
 the real-mesh SN integration is the P2 forward / P3 adjoint bit-identity gates):
 
 * **apply ≡ fast-path** — the OperatorSum re-expression of ``add_iso_source`` +
-  ``add_n2n_source`` is byte-identical (same ``mat_xs`` verbs, same accumulation).
+  the solver's ``_add_n2n_source`` delegator is byte-identical (the same (n,2n) field verb, ``add_p0_source``, same accumulation).
 * **transpose** — Euclidean reciprocity ``⟨Kφ,χ⟩=⟨φ,Kᵀχ⟩`` + a structurally-
   independent dense ``Σ @ vec`` per-material reference (a wrong group axis reds).
 * **as_dense ≡ apply** — the two consumption modes agree (the LHS-fold view).

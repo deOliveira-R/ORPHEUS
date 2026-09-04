@@ -23,9 +23,10 @@ ruling: *the kernel tier names the mathematical object, the operator
 tier names the TERM*). :class:`ScatteringOperator` is a thin role
 subclass of
 :class:`~orpheus.transport.operators.transfer.TransferOperator` whose
-only content is the extraction classmethod (``from_solver_data`` reads
-the facade's scattering channel) and the P0 energy binding it lifts
-(:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`).
+only content is two class constants — which channel the ONE tier-2 mint
+reads (the facade's scattering channel) and the P0 energy binding it
+lifts (:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`)
+— and no code.
 The body this module carried until 2026-09-04 — faces, arms, the
 :math:`R\Lambda M` kernel, the transposes, the fold family — is the
 core's, once, shared with the :math:`(n,2n)` term; an AST gate keeps the
@@ -56,6 +57,7 @@ The theory lives in the book — one concept, one home:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar
 
 from orpheus.transport.material_field import TransferMaterialField
@@ -66,7 +68,6 @@ from orpheus.transport.operators.isotropic_scattering import (
 from orpheus.transport.operators.transfer import TransferOperator
 
 if TYPE_CHECKING:
-    from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
@@ -80,11 +81,12 @@ class ScatteringOperator(TransferOperator):
     :class:`~orpheus.transport.operators.transfer.TransferOperator`: the
     angular binding of the scattering channel's field (yield 1) on the
     posed composite at the solve's ``scattering_order``. Build instances
-    with :meth:`from_solver_data` from a
+    with the core's :meth:`~TransferOperator.from_solver_data` from a
     :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField` +
     the posed composite space (the quadrature is reached through the
     space's angular axis — the CS5 generator channel; no ``quadrature``
-    field survives); the exact ctor is the core's.
+    field survives); the exact ctor is the core's too. This class is two
+    constants: the channel the mint reads and the P0 binding it lifts.
 
     The **(n,2n) channel is NOT here** (§14.1, ruled 2026-08-30): it is
     the sibling role
@@ -95,22 +97,7 @@ class ScatteringOperator(TransferOperator):
     — the leaf the solver's K_iso sums with the :math:`(n,2n)` term's.
     """
 
+    channel: ClassVar[Callable[["MaterialXSField"], "TransferMaterialField"]] = (
+        TransferMaterialField.scattering
+    )
     isotropic_binding: ClassVar[type[IsotropicTransfer]] = IsotropicScattering
-
-    @classmethod
-    def from_solver_data(
-        cls,
-        *,
-        mat_xs: "MaterialXSField",
-        scattering_order: int,
-        space: "FunctionSpace",
-    ) -> "ScatteringOperator":
-        r"""Tier-2 extract-and-mint (CS4c §14): the scattering channel of
-        the facade, bound on the posed composite at the solve's order
-        through the core's :meth:`~TransferOperator.from_field` (the
-        HUB-interned frame, the two faces, the endomorphic ends)."""
-        return cls.from_field(
-            TransferMaterialField.scattering(mat_xs),
-            scattering_order=scattering_order,
-            space=space,
-        )

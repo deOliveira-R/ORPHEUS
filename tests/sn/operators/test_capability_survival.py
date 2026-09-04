@@ -330,10 +330,10 @@ class TestPredicateFaithfulness:
             # posed composite, like S.
             IsotropicFission.from_material_xs(mat, space=survey_space),
             FissionOperator.from_solver_data(mat_xs=mat, space=composite),
-            LegendreMomentTransfer.from_field(
+            LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(mat), SphericalHarmonicBasis(L=1), skip_l0=True,
         ),
-            LegendreMomentTransfer.from_field(
+            LegendreMomentTransfer.on_basis(
             TransferMaterialField.n2n(mat), SphericalHarmonicBasis(L=1), skip_l0=False,
         ),
             ScatteringOperator.from_solver_data(

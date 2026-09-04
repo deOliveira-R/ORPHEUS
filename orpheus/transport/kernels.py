@@ -186,6 +186,7 @@ class TransferKernel:
         sparse ``SigS[l]``, densified, yield 1; nothing is aliased."""
         return cls(
             moments=tuple(np.asarray(s.todense()) for s in mixture.SigS),
+            multiplicity=1,  # elastic: one neutron out per event
         )
 
     @classmethod
@@ -263,12 +264,15 @@ class TransferKernel:
         invention: a stack shorter than the request is complete — an
         absent section, or an ``NL = 1`` section declaring isotropy — and
         a consumer that reads its :math:`\ell \ge 1` moments reads the
-        zeros the tape means. The one stack that must never be padded —
+        zeros the tape means. ⚠ The one stack that must never be padded —
         a channel at GROUPR's cap, asked for a moment the evaluation
-        capped away — is never asked: the solve clamps its order to the
-        SCATTERING stack (ruling O-1), so a request above a shipped
-        stack's order only ever reaches the shorter sibling channel
-        (plan §4.3, ruled 2026-09-03).
+        capped away — is a CALLER's obligation, not this method's: the
+        kernel cannot tell a complete short stack from a capped one (the
+        tape gives no such datum), and the caller that keeps the promise
+        today is the SN solve, whose clamp reads the SCATTERING stack
+        alone (ruling O-1), so a request above a shipped stack's order
+        only ever reaches the shorter sibling channel (plan §4.3, ruled
+        2026-09-03). A second caller that pads owes the same argument.
         """
         if order < 0:
             raise ValueError(

@@ -121,7 +121,7 @@ def _moment_field(op, nx, ny, seed):
 
 class TestLambdaTranspose:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
-        lam = LegendreMomentTransfer.from_field(
+        lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1),
         )
         require(lam.is_adjointable,
@@ -133,7 +133,7 @@ class TestLambdaTranspose:
         r"""``⟨Λ m, c⟩ = ⟨m, Λᵀ c⟩`` (full moment-tensor contraction, per L27)."""
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
-        lam = LegendreMomentTransfer.from_field(
+        lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 1); c = _moment_field(op, nx, ny, 2)
@@ -156,7 +156,7 @@ class TestLambdaTranspose:
         """
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
-        lam = LegendreMomentTransfer.from_field(
+        lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         c = _moment_field(op, nx, ny, 3)
@@ -182,7 +182,7 @@ class TestLambdaTranspose:
         r"""Discriminator: with asymmetric Σ_s, Λᵀ ≠ Λ (the transpose has teeth)."""
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
-        lam = LegendreMomentTransfer.from_field(
+        lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 4)
@@ -238,7 +238,7 @@ class TestKernelTranspose:
 
 class TestN2NMomentOperator:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
-        n2n = LegendreMomentTransfer.from_field(
+        n2n = LegendreMomentTransfer.on_basis(
             TransferMaterialField.n2n(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         require(n2n.is_adjointable, "N2N must advertise the adjoint axis.")
@@ -254,7 +254,7 @@ class TestN2NMomentOperator:
         """
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
-        n2n = LegendreMomentTransfer.from_field(
+        n2n = LegendreMomentTransfer.on_basis(
             TransferMaterialField.n2n(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 6)
@@ -270,7 +270,7 @@ class TestN2NMomentOperator:
     def test_moment_space_transpose_identity(self, solver_p1_het):
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
-        n2n = LegendreMomentTransfer.from_field(
+        n2n = LegendreMomentTransfer.on_basis(
             TransferMaterialField.n2n(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 7); c = _moment_field(op, nx, ny, 8)
@@ -365,7 +365,7 @@ class TestFullScatterKernel:
         np.testing.assert_allclose(
             op.apply_transpose(chi), self._full_kernel(op).apply_transpose(chi) / W,
             rtol=1e-12, atol=0.0,
-            err_msg="S.apply_transpose must route through (1/W)·full_scatter_kernel.apply_transpose.",
+            err_msg="S.apply_transpose must route through (1/W)·full_transfer_kernel.apply_transpose.",
         )
 
     def test_S_euclidean_reciprocity(self, solver_p1_het):
@@ -423,7 +423,7 @@ class TestFullScatterKernelLDTrailingAxis:
 
     @pytest.mark.parametrize("order", [0, 1])
     def test_reproduces_forward_on_ld_flux(self, order):
-        r"""``(1/W)·full_scatter_kernel.apply(ψ) == S.apply(ψ)`` on LD.
+        r"""``(1/W)·full_transfer_kernel.apply(ψ) == S.apply(ψ)`` on LD.
 
         The LD sibling of
         :meth:`TestFullScatterKernel.test_reproduces_forward_scattering_source`
@@ -438,13 +438,13 @@ class TestFullScatterKernelLDTrailingAxis:
 
         require(
             frame.shape == fast.shape,
-            f"full_scatter_kernel output shape {frame.shape} != fast-path "
+            f"full_transfer_kernel output shape {frame.shape} != fast-path "
             f"{fast.shape} on LD flux (trailing φ̂ axis dropped/misplaced).",
         )
         np.testing.assert_allclose(
             frame, fast, rtol=1e-12, atol=1e-14,
             err_msg=(
-                f"P{order}: (1/W)·full_scatter_kernel.apply(ψ) does NOT "
+                f"P{order}: (1/W)·full_transfer_kernel.apply(ψ) does NOT "
                 f"reproduce the fast-path S.apply(ψ) on an LD (spatial-moment) "
                 f"flux — the moment-scatter cell indexers mis-target the "
                 f"trailing φ̂ axis (the #276/0b3275d (Ellipsis,*idx) → "

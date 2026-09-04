@@ -917,7 +917,7 @@ def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
 
     return TimedFullField(
         interior=HarmonicMomentFlux.zeros_for_mesh_and_L(
-            sn_mesh, scattering_op.scattering_order,
+            sn_mesh, scattering_op.legendre_order,
             spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
         boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),

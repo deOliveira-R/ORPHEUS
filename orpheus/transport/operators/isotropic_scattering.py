@@ -33,8 +33,8 @@ mathematical object, the operator tier names the TERM):
   accounting, so it stays its own TERM, summed with
   :class:`IsotropicScattering` for the isotropic emission source).
 
-The roles carry NOTHING but the extraction classmethod (which ``Mixture``
-channel the tier-2 mint reads) and the role name — an AST gate
+The roles carry NOTHING but the channel constant (which ``Mixture`` channel
+the ONE tier-2 mint reads) and the role name — an AST gate
 (``tests/transport/test_transfer_roles.py``) asserts it, so the
 member-for-member twins these two classes were until 2026-09-04 cannot regrow.
 
@@ -77,9 +77,10 @@ References
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar, Self
 
 import numpy as np
 
@@ -276,8 +277,15 @@ class IsotropicTransfer(BoundOperator):
     """
 
     transfer: "TransferMaterialField"
-    # A BULK energy operator (the scalar flux is the bulk block); no boundary action.
-    # Class-level constant (unannotated so the dataclass does not treat it as a field).
+    #: The channel this term reads off the facade — the role's ONE fact
+    #: (:meth:`~orpheus.transport.material_field.TransferMaterialField.scattering`
+    #: for :math:`S`, :meth:`~orpheus.transport.material_field.TransferMaterialField.n2n`
+    #: for :math:`N_{2n}`); no default on the core, so a role that forgets it
+    #: fails at its first mint.
+    channel: ClassVar[Callable[["MaterialXSField"], "TransferMaterialField"]]
+    # A BULK energy operator (the scalar flux is the bulk block); no
+    # boundary action. A class-level default of the base's `block_role`
+    # instance attribute, deliberately unannotated (see TransferOperator).
     block_role = BlockRole.BULK
 
     def __post_init__(self) -> None:
@@ -287,6 +295,15 @@ class IsotropicTransfer(BoundOperator):
         self._assert_energy_extent_both_ends(
             self.transfer.ng, operator=type(self).__name__,
         )
+
+    @classmethod
+    def from_material_xs(
+        cls, mat_xs: "MaterialXSField", *, space: "FunctionSpace",
+    ) -> Self:
+        r"""Tier-2 extract-and-mint: the P0 head of the facade's
+        :attr:`channel`, endomorphic on one ``space=`` — ONE body for both
+        roles."""
+        return cls(cls.channel(mat_xs).at_order(0), domain=space, codomain=space)
 
     @property
     def data_ng(self) -> int:
@@ -378,24 +395,16 @@ class IsotropicScattering(IsotropicTransfer):
     r"""The P0 isotropic in-scatter energy operator :math:`\Sigma_{s,0}` — the :math:`S` term's energy binding.
 
     The scattering instance of :class:`IsotropicTransfer` (yield 1): a
-    role class carrying only its extraction classmethod and its name.
+    role class carrying only its channel constant and its name.
     Consumed directly by the diffusion, homogeneous and CP energy paths
     and minted by
     :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_energy`
     as the SN fast path's P0 half.
     """
 
-    @classmethod
-    def from_material_xs(
-        cls, mat_xs: "MaterialXSField", *, space: "FunctionSpace",
-    ) -> "IsotropicScattering":
-        r"""Tier-2 extract-and-mint: the P0 head of the facade's
-        scattering channel, endomorphic on one ``space=``."""
-        return cls(
-            TransferMaterialField.scattering(mat_xs).at_order(0),
-            domain=space,
-            codomain=space,
-        )
+    channel: ClassVar[Callable[["MaterialXSField"], "TransferMaterialField"]] = (
+        TransferMaterialField.scattering
+    )
 
 
 class IsotropicN2N(IsotropicTransfer):
@@ -403,7 +412,7 @@ class IsotropicN2N(IsotropicTransfer):
 
     The :math:`(n,2n)` instance of :class:`IsotropicTransfer` (yield
     :data:`~orpheus.transport.kernels.N2N_MULTIPLICITY`): a role class
-    carrying only its extraction classmethod and its name. A DISTINCT
+    carrying only its channel constant and its name. A DISTINCT
     *multiplication* term of the algebra (each event emits two neutrons;
     the yield also feeds the keff production accounting), summed with
     :class:`IsotropicScattering` for the isotropic emission source and
@@ -425,17 +434,9 @@ class IsotropicN2N(IsotropicTransfer):
     (``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-p0-truncation).
     """
 
-    @classmethod
-    def from_material_xs(
-        cls, mat_xs: "MaterialXSField", *, space: "FunctionSpace",
-    ) -> "IsotropicN2N":
-        r"""Tier-2 extract-and-mint: the P0 head of the facade's
-        :math:`(n,2n)` channel, endomorphic on one ``space=``."""
-        return cls(
-            TransferMaterialField.n2n(mat_xs).at_order(0),
-            domain=space,
-            codomain=space,
-        )
+    channel: ClassVar[Callable[["MaterialXSField"], "TransferMaterialField"]] = (
+        TransferMaterialField.n2n
+    )
 
 
 @dataclass(eq=False)
@@ -500,7 +501,8 @@ class IsotropicFission(BoundOperator):
 
     fission: "FissionMaterialField"
     # Fission emission is volumetric — bulk only, no face-trace action.
-    # Class-level constant (unannotated: not a dataclass field).
+    # A class-level default of the base's `block_role` instance attribute,
+    # deliberately unannotated (see TransferOperator).
     block_role = BlockRole.BULK
 
     def __post_init__(self) -> None:

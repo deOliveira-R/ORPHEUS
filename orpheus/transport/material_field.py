@@ -145,7 +145,7 @@ class MaterialField(Generic[K]):
         matrix_of,
         *,
         spec: str,
-        scale: float = 1.0,
+        scale: int = 1,
     ) -> None:
         r"""``Q[cells] += scale · einsum(spec, matrix_of(kernel), x[cells])``
         per laid-out material — the gathered per-cell ``(ng, ng)``
@@ -154,7 +154,7 @@ class MaterialField(Generic[K]):
         for kernel, idx in self._laid_out():
             cells = (slice(None), *idx)
             contracted = np.einsum(spec, matrix_of(kernel), x[cells])
-            if scale != 1.0:
+            if scale != 1:
                 contracted = scale * contracted
             Q[cells] += contracted
 
@@ -214,6 +214,20 @@ class TransferMaterialField(MaterialField[TransferKernel]):
                 f"kernel must carry the same multiplicity; got "
                 f"{sorted(yields)}"
             )
+        # ONE order across materials, by construction: a material whose
+        # stack is shorter than the widest is padded to it (exact zeros —
+        # the evaluation's own statement; the same law the isotope sum and
+        # the binding's at_order apply), so a heterogeneous library (Be-9
+        # with NL = 7 beside H-1 with NL = 1) builds a field whose order is
+        # readable and whose moment verbs need no lazy refusal.
+        widest = max(k.order for k in self.per_material.values())
+        object.__setattr__(
+            self,
+            "per_material",
+            MappingProxyType({
+                mid: k.at_order(widest) for mid, k in self.per_material.items()
+            }),
+        )
 
     @classmethod
     def scattering(cls, mat_xs: "MaterialXSField") -> "TransferMaterialField":
@@ -241,15 +255,11 @@ class TransferMaterialField(MaterialField[TransferKernel]):
 
     @property
     def order(self) -> int:
-        r"""The field's Legendre truncation :math:`L` (uniform across
-        materials by admission — :meth:`at_order` makes it so)."""
-        orders = {k.order for k in self.per_material.values()}
-        if len(orders) != 1:
-            raise ValueError(
-                f"TransferMaterialField carries mixed stored orders "
-                f"{sorted(orders)}; bring it to one order with at_order first"
-            )
-        return orders.pop()
+        r"""The field's Legendre order :math:`L` — uniform across
+        materials by CONSTRUCTION (``__post_init__`` pads every kernel to
+        the widest stored order; :meth:`at_order` moves the whole field
+        to another)."""
+        return next(iter(self.per_material.values())).order
 
     @property
     def multiplicity(self) -> int:

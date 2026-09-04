@@ -1292,9 +1292,9 @@ class RadialCharacteristicEmission(LinearOperator):
     emission coupling is only its emission kernel :math:`K` — an ``ndarray →
     ndarray`` operator (``(ng, nx) → (ng, nx)``) with ``apply`` /
     ``apply_transpose``.  The SCATTERING coupling passes the
-    solver-composed ``K_iso`` —
-    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_energy`
-    ``+`` :attr:`~orpheus.transport.operators.n2n.N2NOperator.energy`
+    solver-composed ``K_iso`` — the two transfer terms'
+    :attr:`~orpheus.transport.operators.transfer.TransferOperator.isotropic_energy`
+    summed (``S.isotropic_energy + N2N.isotropic_energy``)
     (assembled at the one within-group construction site, CS4c §14.1;
     the production consumer, a within-group lagged gain); the
     fission dyad

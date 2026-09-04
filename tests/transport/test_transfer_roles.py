@@ -6,8 +6,8 @@ names the TERM of the algebra it realises."*  Its structural half is that
 ``IsotropicN2N`` are **thin** subclasses of two shared cores
 (:class:`~orpheus.transport.operators.transfer.TransferOperator`,
 :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicTransfer`),
-whose only content is the extraction classmethod, the P0-binding ClassVar and
-the role name.  Without a gate the twin path regrows one override at a time —
+whose only content is two class constants — the channel the ONE tier-2 mint
+reads and the P0 binding the term lifts — and the role name: NO code.  Without a gate the twin path regrows one override at a time —
 exactly the shape the carve removed (`[M]` 2026-09-03, the explorer's
 ``twin_paths``: ``N2NOperator._interior_space`` ≡
 ``ScatteringOperator._interior_space`` at **0.94**, ``apply_transpose`` at
@@ -62,6 +62,12 @@ _CORES = {
 }
 
 
+def _all_subclasses(cls) -> set:
+    """Every subclass at any depth (a direct walk certifies only the first level)."""
+    direct = set(cls.__subclasses__())
+    return direct.union(*(_all_subclasses(s) for s in direct))
+
+
 def _resolve(module_path: str, name: str):
     mod = importlib.import_module(module_path)
     obj = getattr(mod, name, None)
@@ -89,7 +95,9 @@ def _class_body(cls) -> list[ast.stmt]:
 
 def _is_thin(stmt: ast.stmt) -> tuple[bool, str]:
     """A role-class body statement is thin iff it is a docstring, a ClassVar
-    annotation, a ``@classmethod``, or ``pass``."""
+    annotation, or ``pass`` — a role has NO code, not even a classmethod
+    (the mints live on the cores since the elegance review's R1: two mint
+    bodies of one recipe was the defect this family retired)."""
     if isinstance(stmt, ast.Pass):
         return True, ""
     if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant):
@@ -101,8 +109,6 @@ def _is_thin(stmt: ast.stmt) -> tuple[bool, str]:
         return False, f"dataclass FIELD `{ast.unparse(stmt.target)}: {ann}`"
     if isinstance(stmt, ast.FunctionDef):
         decos = {ast.unparse(d) for d in stmt.decorator_list}
-        if "classmethod" in decos:
-            return True, ""
         return False, f"method `{stmt.name}` (decorators: {sorted(decos) or 'none'})"
     if isinstance(stmt, ast.Assign):
         return False, f"class attribute `{ast.unparse(stmt.targets[0])}`"
@@ -114,17 +120,16 @@ def test_the_thin_predicate_positive_control():
 
     A broken predicate and a landed carve print the same thing on the
     production rows.  This row runs the predicate on a synthetic thin/fat
-    pair covering all four shapes the roles could regrow — an instance
-    method, a ``@property``, a dataclass field, a class attribute.
+    pair covering all five shapes the roles could regrow — an instance
+    method, a ``@property``, a ``@classmethod`` (a mint body of its own),
+    a dataclass field, a class attribute.
     """
     thin = ast.parse(
         "@dataclass\n"
         "class Thin(Core):\n"
         "    '''doc'''\n"
-        "    role: ClassVar[str] = 'n2n'\n"
-        "    @classmethod\n"
-        "    def from_solver_data(cls, *, mat_xs, space):\n"
-        "        return cls(...)\n"
+        "    channel: ClassVar[Callable] = Field.n2n\n"
+        "    isotropic_binding: ClassVar[type[Core]] = IsoN2N\n"
     ).body[0]
     fat = ast.parse(
         "@dataclass\n"
@@ -137,6 +142,9 @@ def test_the_thin_predicate_positive_control():
         "    @property\n"
         "    def full_n2n_kernel(self):\n"
         "        return None\n"
+        "    @classmethod\n"
+        "    def from_solver_data(cls, *, mat_xs, space):\n"
+        "        return cls(...)\n"
     ).body[0]
     assert isinstance(thin, ast.ClassDef) and isinstance(fat, ast.ClassDef)
 
@@ -146,20 +154,21 @@ def test_the_thin_predicate_positive_control():
             f"the predicate rejects a legitimately THIN role: {thin_offenders}"
         )
     fat_offenders = [w for ok, w in map(_is_thin, fat.body) if not ok]
-    if len(fat_offenders) != 4:
+    if len(fat_offenders) != 5:
         pytest.fail(
-            f"the predicate caught {len(fat_offenders)} of the 4 fat shapes "
-            f"(field, class attribute, method, property): {fat_offenders}"
+            f"the predicate caught {len(fat_offenders)} of the 5 fat shapes "
+            f"(field, class attribute, method, property, classmethod): "
+            f"{fat_offenders}"
         )
 
 
 @pytest.mark.parametrize("role", sorted(_ROLES))
 def test_the_role_class_is_a_thin_subclass_of_its_core(role):
-    r"""The role class defines NOTHING but classmethods and ``ClassVar``s.
+    r"""The role class defines NOTHING but ``ClassVar``s.
 
-    The extraction classmethod (which ``Mixture`` channel ``from_solver_data``
-    / ``from_material_xs`` reads), the P0-binding ClassVar and the role name
-    are the role's whole content; the arithmetic — ``apply``,
+    The channel constant (which ``Mixture`` channel the core's ONE mint
+    reads), the P0-binding constant and the role name are the role's whole
+    content; everything with a body — the mints, ``apply``,
     ``apply_transpose``, the faces, the kernel properties — belongs to the
     core, once.
     """
@@ -192,13 +201,15 @@ def test_the_core_has_exactly_the_declared_roles(core_name):
 
     ⚠ ``__subclasses__`` only sees classes whose module has been IMPORTED —
     every role module is imported first, so the row does not depend on
-    collection order.
+    collection order. And it is walked RECURSIVELY: a ``class FastN2N(N2NOperator)``
+    carrying an override is the cheapest way to regrow the twin one level
+    down, and a direct-only walk is blind to it (the elegance review's S6).
     """
     for module_path, _ in _ROLES.values():
         importlib.import_module(module_path)
     core = _resolve(_CORES[core_name], core_name)
     declared = {r for r, (_, c) in _ROLES.items() if c == core_name}
-    got = {c.__name__ for c in core.__subclasses__()}
+    got = {c.__name__ for c in _all_subclasses(core)}
     assert got == declared, (
         f"{core_name}'s subclasses are {sorted(got)}; the declared roles are "
         f"{sorted(declared)}.  A new role owes this list an entry AND owes the "

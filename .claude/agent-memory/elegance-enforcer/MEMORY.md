@@ -28,6 +28,11 @@ carve (steps 1–6, incl. step-6 `f4919b1`) are all in origin/main. Rulings in t
 #226 topic files below; lessons in the digest.
 
 Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
+- **#426 step 2** `feature/n2n-transfer-family` (tip `1a3b78ec`, NOT in main).
+  Elegance review DELIVERED 2026-09-04 → `scratch/_426_step2_elegance_review.md`
+  (3 violations, 9 should-fix, 8 nits). Rulings in
+  `transfer_family_carve_rulings.md`. The step-3 corpus pass was in flight in the
+  working tree while I reviewed — any `docs/` count I took is a dirty-tree reading.
 - **#236** `feature/sn-spatial-angular-product` (tip `6409328`, NOT in main). My
   Phase 1b/2/3 reviews COMPLETE + delivered; no pending work.
 - **#2 consistent-DSA** `feature/sn-dsa` (UNCOMMITTED working tree, reviewed
@@ -39,6 +44,14 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 
 ## 3. Durable reference (reusable design-review pointers)
 
+- [transfer_family_carve_rulings.md](transfer_family_carve_rulings.md) — ⭐⭐ #426 step 2
+  (two algebra TERMS collapsed onto one core with thin ROLE subclasses): a role's
+  content is DATA not methods (the `ClassVar` channel/binding shape, and why four
+  one-token-different classmethods are the retired twin's own generating mechanism);
+  a SHAPE predicate promoted to a VALUE predicate leaves stale synonyms of the word,
+  not the symbol; deriving a sub-binding beats storing it (the guard you don't need
+  is the proof); two new smells (a comment naming two guards where the body checks
+  one; a gate quoting the measurement its body ignores) + four reusable probes.
 - [symmetry_realization_carve_rulings.md](symmetry_realization_carve_rulings.md) — ⭐⭐ #434 R1+R4+R2+R3
   (R3: the ledger carve whose every violation was in the DERIVATION SURFACE — a geometry-local
   cosine convention inverted in prose while the code stayed right; a re-bound Greek letter (Γ owed→unspent,
@@ -89,7 +102,8 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 - [cs4a_kernel_binding_rulings.md](cs4a_kernel_binding_rulings.md) — CS4a "born bound":
   a re-pose can DEMOTE a named functional to a raw pairing; a doctrine's noun with no
   TYPE; "the mint closes it" closes nothing at zero consumers. ⛔ **refutes AGENT.md
-  §inst-knowledge #5's ClassVar-on-frozen-dataclass trap** (measured, Py 3.14).
+  §inst-knowledge #5's ClassVar-on-frozen-dataclass trap** (measured, Py 3.14 —
+  re-confirmed 2026-09-04 on `TransferOperator`).
 - [p6_adjoint_weighted_homogenization_rulings.md](p6_adjoint_weighted_homogenization_rulings.md)
   — P6 #281 adjoint-weighted collapse: five-morphism taxonomy; B&G Ch.6 energy convention;
   `is_same_phase_space`; transport-ScalarFlux / data-bare-array layering. For the B3 gates.

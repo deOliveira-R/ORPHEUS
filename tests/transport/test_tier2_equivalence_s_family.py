@@ -113,7 +113,7 @@ class TestSFamilyTierTwoEquivalence:
     def test_moment_pair_from_material_xs_equals_the_exact_ctor(self):
         mat_xs = _mat_xs()
         sh = SphericalHarmonicSpace.from_L(1)
-        rich = LegendreMomentTransfer.from_field(
+        rich = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         exact = LegendreMomentTransfer(
@@ -127,7 +127,7 @@ class TestSFamilyTierTwoEquivalence:
         ):
             pytest.fail("Λ datum drifted")
 
-        rich_n = LegendreMomentTransfer.from_field(
+        rich_n = LegendreMomentTransfer.on_basis(
             TransferMaterialField.n2n(mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         exact_n = LegendreMomentTransfer(
