@@ -1683,5 +1683,14 @@ as `lift_coordinates` / `lift_codomain`; `manifold.spent_group` is retired. Noth
 `orpheus/transport/` or the CS ladder's operators was touched.
 
 **Resume order unchanged** — §18.6: #426's Be-reflected with/without-ℓ≥1 measurement →
-#428's four-solver check → step 5 at §17's ▶ block. The two rulings owed from before the
+#428's four-solver check → step 5 at §17's ▶ block.
+
+✅ **2026-09-03, step 1 of §18.6 DONE and it chose the carve**: `[M]` restoring the ℓ = 1 (n,2n) moment
+moves k on a Be-reflected U-235 slab by −414 (Δk·10⁵) / −346 (Δρ·10⁵) — reproduced independently;
+#426 is a DEFECT. Its remedy has its own plan of record, **`.claude/plans/n2n_anisotropy_kept.md`**
+(three forks ruled the same day: lossless ingest for every channel; one transfer family with the yield
+a kernel datum; `Transfer*` names the kernel tier, role names stay on the operator tier). §18.6 step 2
+(#428's four-solver check) is `[M]` done the same day — all six families handle (n,2n), MC included;
+the doc split is in flight. **Step 5 waits behind the #426 carve** (its N2N/S design is exactly what
+the carve settles). The two rulings owed from before the
 review (#429 umbrella-or-close; resume Campaign 2) still stand as owed.
