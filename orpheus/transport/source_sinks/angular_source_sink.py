@@ -67,6 +67,7 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
+from orpheus.transport.fields.angular_flux import AngularFlux
 
 if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -76,7 +77,7 @@ __all__ = ["AngularSourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularSourceSink(AngularField):
+class AngularSourceSink(AngularField, flux=AngularFlux):
     r"""Per-ordinate source field :math:`Q^{\rm aniso}(\vec r, \hat\Omega_n, g)`.
 
     Parameters

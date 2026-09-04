@@ -51,13 +51,14 @@ from typing import ClassVar
 
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarBoundaryField
+from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 
 
 __all__ = ["ScalarBoundarySourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarBoundarySourceSink(ScalarBoundaryField):
+class ScalarBoundarySourceSink(ScalarBoundaryField, flux=ScalarBoundaryFlux):
     r"""Scalar boundary-trace source/sink — ``(J⁺, J⁻)``-row rate pairs
     per face per group.
 

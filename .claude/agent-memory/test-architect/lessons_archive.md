@@ -9064,3 +9064,239 @@ to a "reads" number, and the Subscript class is where the repair goes wrong.
 ⚠ Sibling: the gate that ENCODES the truncation carries the issue number in its
 `pytest.fail` MESSAGE (`test_material_field.py:328-333`) — `grep -rn "#426" tests/` is the
 only filter that finds it; a symbol grep does not.
+
+---
+
+## L77 — CS4c step 5, "each binding acts through the body its ends select" (plan DELIVERED 2026-09-04, PRE-carve; branch `refactor/cs4c-step5-construction-selected-bodies`, HEAD `86c17898` = `main f90f7914` + one plan commit)
+
+**Deliverable:** `scratch/cs4c_step5_verification_plan.md` — extends
+`scratch/cs4c_verification_plan.md` §11.6's 3-arm B-5 skeleton into 11 gate
+classes (G5.1 … G5.9 + G5.2b + G5.4b), an 18-arm battery on three measured
+scopes, per-tree deltas, and 6 open rulings. The design under verification is
+`.claude/plans/cs4c_binding_design.md` §19 (R-1…R-6 ✅ [R] user 2026-09-04).
+
+### L77a — ⛔⛔ The moment composite's interior is NOT axis-built, so the step's flagship new binding is UNCONSTRUCTIBLE as designed
+
+§19.2's whole mechanism is *"the interior body is fixed at construction by WHICH
+END of the retained flux-analysis face the domain's interior is"* — the domain's
+interior is either `flux_analysis.domain` (angular) or `flux_analysis.codomain`
+(the harmonic-moment space, the 2-D windowed SI iterate).
+
+`[M]` `Mesh2D(8×4)`, `Quadrature.level_symmetric(4)`, `mixture A` 2g, `L = 1`;
+`BulkAnalysisOperator(S.flux_analysis, sn.full_field_space).codomain`:
+
+| space | `.axes` | interior shape |
+|---|---|---|
+| angular composite interior | `[Axis(24,), EnergyAxis(2,), Axis(8,4)]` | `(24, 2, 8, 4)` |
+| **moment composite interior** | **`None`** | `(2, 3, 2, 8, 4)` |
+
+`TransferOperator._scalar_interior_space` (`transfer.py:637-647`) is
+`FunctionSpace.of_axes(*interior.axes[1:])` read off **the DOMAIN's interior** and
+raises its own *"the composite interior must be axis-built to name the scalar
+sub-space"* when `axes is None`. `isotropic_energy` is built on it
+(`transfer.py:667`) ⟹ a moment-bound sibling raises at FIRST ACCESS.
+`FissionOperator.from_solver_data` (`fission.py:309-319`) carries the same
+precondition ⟹ a moment-bound F is unconstructible by tier 2.
+
+⭐ **The repair the tree already contains:** the scalar sub-space must come from
+the CODOMAIN — which is the ANGULAR composite for BOTH siblings — equivalently
+from the retained `source_reconstruction` face. `[M]`
+`S.source_reconstruction.codomain == angular_interior` **True**,
+`== moment_interior` **False**; `S.flux_analysis.codomain == moment_interior`
+**True**. So the widened admission is genuinely TWO-SIDED:
+`domain.interior ∈ {flux_analysis.domain, flux_analysis.codomain}` (selects the
+body) and `source_reconstruction.codomain == codomain.interior` (re-keyed from
+the DOMAIN, which is where it reads today). Today BOTH `__post_init__` guards
+compare against `self._interior_space` (`transfer.py:452-464`); the second is
+present-tense correct only because every shipped binding is an endomorphism.
+
+⭐ **And the first RED falls out of the same probe, at zero cost:** constructing
+the moment-domain sibling today raises
+`"ScatteringOperator: the flux-analysis face is bound to a different angular
+space than this binding's interior — mint the faces from the SAME posed space
+(tier 2 does)."` — i.e. §19.2's widening has its §6c witness in the guard it
+widens.
+
+`[M]` `FullFieldSpace.from_blocks(S.flux_analysis.codomain, ffs.trace_space)`
+**`==`** `BulkAnalysisOperator(...).codomain` but **`is` False** — the composite
+is NOT interned, so an ends gate spelled `is` is a false red.
+
+### L77b — ⛔⛔ A "no carrier dispatch" AST gate is LEXICAL and three carrier parses live one frame out
+
+The plan's done-when (1) reads *"0 `singledispatchmethod` and 0 carrier
+`isinstance` inside any `apply`/`apply_transpose`/`solve`"*. `[M]` my AST census
+over `orpheus/transport/operators/` (positive control:
+`TransferOperator._apply_impl` found) reproduces the design's numbers exactly —
+**3 tables / 10 registered arms + 3 base bodies = 13**; **12** carrier
+`isinstance` lexically inside those verbs, at the exact lines the plan lists —
+AND finds **3 more in HELPERS those verbs call**:
+`isotropic_transfer.py:147` (`_scalar_composite_source`, the angular-vs-scalar
+family parse, one frame out of `apply`) and `transfer.py:902/:903`
+(`add_iso_source`).
+
+A lexical gate reads **0** after the carve while the family parse survives —
+§6c's mirror (a gate that goes green while its subject lives). ⚠ The
+discriminating filter is the isinstance **TARGET**: `[M]` a further **9** helper
+hits are `isinstance(space, FullFieldSpace)` — *space* parses, legitimate,
+staying. ⟹ the gate must state its predicate, carry the reachability half, and
+NAME its carve-outs (R-5's LMT moment hatch; `add_iso_source`, which §19.7
+keeps: `[M 5b]` 16 test nodes + 345 production calls).
+
+### L77c — ⭐ A 200-seed sweep PARTITIONED the gate set exactly along the base/subclass line the design proposes
+
+R-1 proposes a shared base `AngularLift` = the frame's ℓ = 0 conjugation
+`R₀ E A₀ / W`, with the ℓ ≥ 1 redistribution on the transfer subclass only.
+`[M]` 200 seeds (`default_rng(s)`, `s ∈ 0…199`), GL8 slab, `mixture A` 2g, 20
+cells, ψ standard-normal `(8,2,20)` — production fast path vs the frame form:
+
+| binding | `array_equal` | max abs Δ |
+|---|---:|---:|
+| `F` (`apply` vs `full_fission_kernel/W`) | **200 / 200** | **0.0** |
+| `S` at `L = 0` (isotropic) | **200 / 200** | **0.0** |
+| `S` at `L = 1` (anisotropic) | **0 / 200** | 2.220446e-16 |
+
+⟹ `array_equal` is legitimate AND seed-STABLE for the BASE's own law (`vv`
+anti-#31 satisfied by a sweep, not by one draw), and illegitimate for the
+subclass's ℓ ≥ 1 sum, whose draw-stable statistic is the ABSOLUTE
+`max |Δ| ≤ 2.3e-16` (a `nulp` band there pins a seed). The measurement is the
+strongest available evidence that R-1's split is the right cut — and it came from
+running the sweep the tolerance question forces, not from reading the design.
+Companion anchor: Euclidean reciprocity `⟨Fψ,χ⟩ = ⟨ψ,Fᵀχ⟩` reads rel
+**4.18e-16** (seed 5).
+
+### L77d — ⛔ `-W error::DriftWarning` is NOT a bit-identity wall on this tree; 9 of 19 cases already drift
+
+`lessons L58c` recorded the escalation as a 1-ULP wall (measured then on a
+subset). `[M]` today over `tests/sn/regression` (19 collected, 59.9 s): plain run
+**19 passed**; escalated **9 failed / 10 passed**, drifts 1–11 ULP
+(`slab_2g_homogeneous` 1 · `slab_2g_3reg` 1 · `sphere_2g_homogeneous` 2 ·
+`sphere_2g_3reg` 11 · `cyl_1g_folded_4x8` 1 · `cyl_1g_folded_2x4` 4 ·
+`cyl_2g_3reg_folded_4x8` 2/4 · `2d_1g_LS4` 3 · `2d_2g_LS4_het_si` 2).
+
+⟹ used as an absolute gate it is 9 false reds; used as a **DELTA** — *the drift
+SET is these 9 and each case's ULP count is unchanged* — it is exact and free.
+⭐ `2d_2g_p1_aniso_dd_8x4_het_si` is **NOT** in the drift set: it is bit-exact
+today AND it is the windowed case (L77e), so it is the step's single best anchor.
+
+### L77e — ⭐⭐ The whole windowed non-endomorphism has a 0.55 s frozen witness, and the first spy that looked for it read ZERO
+
+`[M]` descriptor-protocol spy over
+`tests/sn/regression/test_dd_regression.py -k 2d_2g_p1_aniso` (1 passed, **0.55 s**):
+
+```
+143  ScatteringOperator.apply  <- HarmonicMomentFlux  @ composite[24x2x8x4]
+143  N2NOperator.apply         <- HarmonicMomentFlux  @ composite[24x2x8x4]
+143  LegendreMomentTransfer.apply <- HarmonicMomentFlux @ plain[2x3]
+143  IsotropicScattering.apply <- ScalarFlux           @ plain[2x8x4]
+143  IsotropicN2N.apply        <- ScalarFlux           @ plain[2x8x4]
+```
+
+⛔ **My FIRST spy rebound `_apply_impl` and read 0 calls on this same suite.**
+`TransferOperator.apply` is an ALIAS (`apply = _apply_impl` at class-body time)
+bound to the ORIGINAL dispatcher object, so rebinding `_apply_impl` afterwards
+changes nothing the alias sees. The `vv` #29 recipe is the fix and it is
+mandatory here: wrap `cls.__dict__[verb]` and call
+`descr.__get__(self, cls)(x, …)` so `singledispatchmethod` still dispatches.
+A 0 from the wrong handle is indistinguishable from a dead path.
+
+### L77f — ⭐ The plain binding is BIT-FOR-BIT the composite binding today: the ends-select-the-carrier fence's first red is 9 of 18
+
+`[M]` the 18 cells at HEAD, 2g/6-cell diffusion binding (`mixture A`,
+`Mesh1D(0…2, 6 cells, vacuum right)`, `rng = default_rng(2026)`):
+
+| operator | binding | ndarray | FullField | ScalarFlux |
+|---|---|---|---|---|
+| `C` | composite / **plain** | ndarray / ndarray | FullField / **FullField** | raise / raise |
+| `IsoTransfer` | composite / **plain** | ndarray / ndarray | FullField / **FullField** | **ndarray / ndarray** |
+| `IsoFission` | composite / **plain** | ndarray / ndarray | FullField / **FullField** | **ndarray / ndarray** |
+
+⟹ `binding kind → outcome` is NOT a function today, on any of the three
+operators. That is the fence's §6c red-before, and it also means the fence must
+NOT ship before R-4's refusals: an expectation table equal to today's behaviour
+has no case to catch.
+
+### L77g — ⭐ Two censuses that under-count by exactly one member, and both members are the gate's own positive control
+
+* **The carrier population.** `[M]` a `__subclasses__` walk from
+  `numerics.field.Field` after importing only the three package `__init__`s reads
+  **19** concrete leaves; after importing **every module** of
+  `transport/{fields,source_sinks,residuals}` it reads **20** — the missing one is
+  `AngularBoundaryFlux`. Honest population: 7 flux / 7 source-sink / 5 residual /
+  1 `CrossSectionField`. §19.5's own enumeration names **5** pairs; the tree has
+  **7** (the two `RadialCharacteristic*` pairs are absent from the design text).
+  `[M]` `grep "SOURCE_SINK\|role_partner\|as_source"` over both packages = **0**,
+  as the design says.
+* **The role gate's scope.** `[M]` inserting a base ABOVE `TransferOperator` does
+  not change `TransferOperator.__subclasses__()`, so `test_transfer_roles.py` is
+  genuinely unchanged — **and therefore nothing gates the new base's own
+  population.** That absence is the finding: a one-row addition
+  (`_all_subclasses(AngularLift) == {TransferOperator, FissionOperator,
+  ScatteringOperator, N2NOperator}`) is owed in the same file.
+
+### L77h — ⭐ The one-level witness is a ROUTE claim with a 0-vs-5309 first red, and its value legs MUST stay green
+
+`[M]` spy over `tests/sn/solve/test_sn_adjoint_certification.py` (15 rows,
+56.7 s): `IsotropicScattering.apply_transpose` **5309**,
+`IsotropicN2N.apply_transpose` **5309**, `IsotropicFission.apply_transpose`
+**0** — D11 reproduced exactly. Both bypasses verified verbatim:
+`sn/solver.py:2951` feeds `RadialCharacteristicEmission(F.kernel, …)` and
+`fission.py:219` reads `self.energy.kernel.apply_transpose`.
+
+⚠ The two routes are NUMERICALLY IDENTICAL (`F.kernel` **is**
+`F.energy.kernel`), so no value gate can ever see the difference — `vv` anti-#26
+in its purest form. The instrument is a call counter, installed at
+`pytest_configure` (a `cached_property` warmed by an earlier solve masks a later
+patch — `L68b`), counting the SPECIFIC verb and asserting the sibling counts are
+unchanged so the row is attributable.
+
+### L77i — measured scope costs (the battery's whole budget)
+
+`[M]` serial, canonical flags, this Host `.venv`:
+
+| scope | rows | wall |
+|---|---|---|
+| **C** = transport + sn/architecture + diffusion + homogeneous + sn/operators | 2332 passed / 1 skip / 1 desel / **16 xf** | **92.75 s** |
+| **C+W** = C + sn/regression + 3 windowed files | 2381 / 1 / 1 / 16 xf | **153.77 s** |
+| **A** = `test_sn_adjoint_certification.py` (15 rows, 56.66 s) + the ERR-082 record (5 rows, 29.49 s) | 20 passed | **86.2 s** |
+| *excluded:* `tests/sn/solve` whole | 208 passed | **258.85 s** (2.8× C+W for 5 reachable rows; the windowed + gate-dispatch files extract at **2.85 s**) |
+| *excluded:* `tests/sn/eigenvalue` | 67 passed | **118.74 s** |
+
+Per-tree, `[M]`: transport **738** collected (737 + 1 skip), `sn/operators`
+**1283/1284**, `sn/solve` **208/210**, `sn/architecture` **163** (ledger 139 =
+129 passed + **10 xfailed**, `--runxfail` = 2 `R1[L,B]` + 8 `R6[B×8]`, every one
+red for its documented reason), diffusion **115**, homogeneous **50**.
+18 arms ≈ **43 min**.
+
+### L77j — declared non-changes worth WRITING DOWN, or a reviewer reads the carve as a weakening
+
+* `[M]` `FullFieldSpace.axes` is **`None`** for the angular AND the moment
+  composite, and `assert_energy_extent_conforms(space, ng=7, …)` **admits** on
+  both — so the per-END energy admission is ALREADY inert on every SN composite
+  binding, and the moment sibling adds no new inertness (consistent with `L61b`'s
+  `skipped_axesless: 578 / raised: 0`).
+* `[M]` `test_monomorphic_leaves.py`'s G1.3 asserts `TypeError` + operator name +
+  `"FullField"` in the message and its own docstring says *"no assertion here
+  reads the mechanism"* ⟹ the one-body admission satisfies all 40 rows unchanged.
+  `_leaf_set` builds through `from_solver_data`, so the ctor spellings are
+  untouched. **No ledger flip is scheduled for step 5** (§8.1) ⟹ its 10 xf carry.
+* `[M]` the homogeneous solver binds `MultiplicationOperator` on `_pose_space(mix)`
+  — a PLAIN space — and R-4 KEEPS the ndarray arm on the plain binding. ⟹ the
+  older plan's §8.3 step-5 row (*"the ndarray arm's deletion makes the Mode-11
+  sentinel vacuous"*) is **partially VOID**; only the surrogate's `# the
+  singledispatchmethod` comment re-keys.
+* `[M]` `dataclasses.fields`: F = `domain, codomain, energy, frame`;
+  T = `domain, codomain, transfer, flux_analysis, source_reconstruction`. F has
+  **no faces** and no `isotropic_energy`; `_interior_space` is a **METHOD** on F
+  and a **PROPERTY** on T (both spellings are §6b members and a grep for either
+  alone returns a confident partial); `total_weight` reads `self.frame.measure` on
+  F and `self.flux_analysis.frame.measure` on T, `[M]` both `2.0` on a GL8 slab.
+* `[M]` D3 reproduced: on `mixture A` 2g, `N2NOperator.is_isotropic` is **True at
+  `scattering_order` 0, 1 AND 2** while `S.is_isotropic` is False at L ≥ 1 ⟹ every
+  (n,2n) ℓ ≥ 1 mutation is blind on the legacy fixture, and the battery's positive
+  control MUST use the Be-reflected fixture or a synthetic ℓ = 1 `Sig2`.
+* `[M]` the diffusion anchor: `FlattenedOperator(loss, template).as_matrix()` is
+  `(20,20)`, `M[0,0] = 6.422521008403363`, `‖M‖_F = 38.663330648012135`,
+  sha256 `8009de67d27a26cd…`, `k = 0.4036481463911869`;
+  `leakage.is_assemblable` / `boundary.is_assemblable` **True**,
+  `fission.is_assemblable` **False** ⟹ the lift's `assemble()` is owed for TWO
+  leaves (the transfer iso pair), not four.

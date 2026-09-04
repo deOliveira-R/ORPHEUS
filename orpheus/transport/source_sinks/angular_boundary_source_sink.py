@@ -148,6 +148,7 @@ import numpy as np
 from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import AngularBoundaryField
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -163,7 +164,7 @@ __all__ = ["AngularBoundarySourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularBoundarySourceSink(AngularBoundaryField):
+class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
     r"""L2 boundary-trace inflow source — the *source* role leaf of
     :class:`~orpheus.transport.fields._bases.AngularBoundaryField`.
 

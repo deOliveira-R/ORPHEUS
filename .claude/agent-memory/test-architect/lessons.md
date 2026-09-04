@@ -2565,3 +2565,90 @@ canonical `-m "not slow"` reads *0 red* under the mutation; a **0.9 s** run (50 
 30 active cycles) reads 0.47 σ honest and **17 σ** mutated. ⚠ And patch EVERY rebinding
 site: `[M]` `mc/solver.py:36` captures the constant as a module float at IMPORT, so
 patching the `ClassVar` alone reports MC inert. → `L76h`
+
+## CS4c step-5 additions (2026-09-04, the ends-select-the-body carve) → `L77`
+
+- **⛔⛔ Before designing ANY gate on a new binding, CONSTRUCT it — a space the
+  design treats as an alternative END may not be axis-built, and the class's own
+  derived accessors then RAISE.** `[M]` the 2-D windowed moment composite's
+  interior has **`axes is None`** (angular: `[Axis(24,), EnergyAxis(2,),
+  Axis(8,4)]`), and `_scalar_interior_space = of_axes(*interior.axes[1:])` is read
+  off the DOMAIN ⟹ a moment-bound sibling raises at first `isotropic_energy`
+  access, and the tier-2 F mint refuses outright. The repair is already in the
+  tree: read the scalar sub-space off the **CODOMAIN** (angular for both siblings)
+  / the retained reconstruction face — `[M]` `source_reconstruction.codomain ==
+  angular_interior` True / `== moment_interior` False, `flux_analysis.codomain ==
+  moment_interior` True. ⟹ a "widen the admission to either end" design is
+  TWO-SIDED, and the second guard (today comparing the codomain-side face against
+  the DOMAIN's interior) is present-tense-correct only because every shipped
+  binding is an endomorphism. ⭐ Free bonus: the same probe yields the §6c first
+  red — the construction RAISES today with the guard's own message. And `[M]` the
+  two composites are `==` but **not `is`** (not interned) ⟹ an ends gate spelled
+  `is` is a false red. → `L77a`
+- **⛔⛔ A "no carrier dispatch" AST gate is LEXICAL; census the HELPERS the verbs
+  call, and discriminate by the isinstance TARGET.** `[M]` `orpheus/transport/
+  operators/`: **12** carrier `isinstance` lexically inside
+  `apply`/`apply_transpose`/`solve` (reproducing the design's count exactly) **+ 3
+  more in helpers those verbs call** (`_scalar_composite_source`'s family parse;
+  `add_iso_source` ×2) — a lexical gate reads 0 post-carve while the family parse
+  lives (§6c's mirror). ⚠ A further **9** helper hits are
+  `isinstance(space, FullFieldSpace)` — *space* parses, legitimate — so the
+  filter is the TARGET set, not the location. The gate must state its predicate,
+  carry the reachability half, and NAME its carve-outs. → `L77b`
+- **⭐ Run the tolerance sweep the gate forces; it can PARTITION the gate set along
+  the very seam the design proposes.** `[M]` 200 seeds, production fast path vs the
+  frame form: the ℓ = 0 lift is `array_equal` **200/200** (`max|Δ| = 0.0`) on BOTH
+  F and S-at-L=0, and **0/200** at S-L=1 (`max|Δ| = 2.220446e-16`, draw-stable).
+  ⟹ `array_equal` is legitimate and seed-STABLE for the proposed BASE's own law
+  and illegitimate for the subclass's ℓ ≥ 1 sum, whose honest band is the
+  ABSOLUTE `max|Δ|` (a `nulp` band there pins a seed). The measurement is the
+  strongest evidence available that the base/subclass cut is the right one.
+  → `L77c`
+- **⛔ Re-measure an inherited instrument before reusing it: `-W error::DriftWarning`
+  is NOT a bit-identity wall on this tree.** `[M]` `tests/sn/regression` reads
+  **19 passed** plain and **9 failed / 10 passed** escalated — nine cases already
+  drift 1–11 ULP. Used absolutely it is 9 false reds; used as a **DELTA** (the
+  drift SET and each case's ULP count unchanged) it is exact and free. ⭐ And the
+  ONE case that is bit-exact today is `2d_2g_p1_aniso_dd_8x4_het_si`, which is
+  also the windowed case — the step's single best anchor. → `L77d`
+- **⛔⛔ `apply = _apply_impl` is an ALIAS: rebinding `_apply_impl` in a spy or a
+  battery changes NOTHING the alias sees, and reads a confident ZERO.** `[M]` my
+  first spy reported 0 calls on a suite that runs **143**. The `vv` #29 recipe is
+  mandatory: wrap `cls.__dict__[verb]` and call `descr.__get__(self, cls)(x)` so
+  `singledispatchmethod` still dispatches. ⭐ With the right handle the whole
+  windowed non-endomorphism has a **0.55 s** witness on a frozen snapshot
+  (`S.apply <- HarmonicMomentFlux @ composite[24x2x8x4]`, 143×) — a §6c red-before
+  that costs half a second. → `L77e`
+- **⭐ Measure the fence's discriminating axis BEFORE writing its expectation
+  table — "the ends select the carrier" may be false on every cell today.** `[M]`
+  18 cells (3 operators × {plain, composite} × 3 carriers): **the plain row is
+  bit-for-bit the composite row for all three operators**, so `binding kind →
+  outcome` is not a function and the first red is 9 of 18. ⟹ do NOT ship such a
+  fence before the refusals it asserts: an expectation table equal to today's
+  behaviour has no case to catch. → `L77f`
+- **⭐ A `__subclasses__` census must IMPORT every module of every package first,
+  and its positive control is the member a package-`__init__`-only import drops.**
+  `[M]` 19 concrete carrier leaves with the three `__init__`s, **20** with every
+  module — the missing one is `AngularBoundaryFlux`, which is exactly the member
+  a role-partner bijection gate would silently omit. Same session: the design's own
+  enumeration named **5** partner pairs where the tree has **7**. ⭐ Companion:
+  inserting a base ABOVE a gated class leaves `X.__subclasses__()` untouched — so
+  the role gate is genuinely unchanged AND the new base's population is
+  consequently UNGATED; that absence is the finding, and the one-row fix belongs
+  in the same file. → `L77g`
+- **⭐ When two production routes are NUMERICALLY IDENTICAL, no value gate can ever
+  see the difference — the instrument is a call counter, and its first red is a
+  0-vs-N contrast on the SAME suite.** `[M]` `IsotropicFission.apply_transpose`
+  **0** calls while `IsotropicScattering.apply_transpose` and
+  `IsotropicN2N.apply_transpose` read **5309** each, in one 56.7 s adjoint suite;
+  the bypass is `F.kernel` **is** `F.energy.kernel`, so the value records MUST
+  stay green (`vv` anti-#26). Install the counter at `pytest_configure`, count the
+  SPECIFIC verb, and assert the sibling counts are unchanged so the row is
+  attributable. → `L77h`
+- **Scope costs `[M]` for this family** (serial, canonical flags): core (transport
+  + sn/architecture + diffusion + homogeneous + sn/operators) **92.75 s / 2332
+  rows / 16 xf**; + regression + 3 windowed files **153.77 s**; adjoint-cert +
+  ERR-082 **86.2 s / 20 rows**. EXCLUDED with their reasons: `tests/sn/solve`
+  whole **258.85 s** (2.8× the core scope for 5 reachable rows — the windowed +
+  gate-dispatch files extract at **2.85 s**), `tests/sn/eigenvalue` **118.74 s**.
+  Let the excluded numbers justify themselves in the plan. → `L77i`

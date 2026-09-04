@@ -36,12 +36,13 @@ from typing import ClassVar
 
 from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import RadialCharacteristicInteriorField
+from orpheus.transport.fields.radial_characteristic_interior_flux import RadialCharacteristicInteriorFlux
 
 __all__ = ["RadialCharacteristicInteriorSourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicInteriorSourceSink(RadialCharacteristicInteriorField):
+class RadialCharacteristicInteriorSourceSink(RadialCharacteristicInteriorField, flux=RadialCharacteristicInteriorFlux):
     r"""System B's interior q½ source/sink — the folded volumetric emission cells.
 
     Parameters

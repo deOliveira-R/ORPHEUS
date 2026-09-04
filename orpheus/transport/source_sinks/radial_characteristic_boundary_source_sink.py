@@ -38,12 +38,13 @@ from typing import ClassVar
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import RadialCharacteristicBoundaryField
+from orpheus.transport.fields.radial_characteristic_boundary_flux import RadialCharacteristicBoundaryFlux
 
 __all__ = ["RadialCharacteristicBoundarySourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicBoundarySourceSink(RadialCharacteristicBoundaryField):
+class RadialCharacteristicBoundarySourceSink(RadialCharacteristicBoundaryField, flux=RadialCharacteristicBoundaryFlux):
     r"""System B's boundary q½ source/sink — the r = R corner data slots.
 
     Parameters

@@ -76,6 +76,7 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.units import SCALAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarField
+from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -86,7 +87,7 @@ __all__ = ["ScalarSourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarSourceSink(ScalarField):
+class ScalarSourceSink(ScalarField, flux=ScalarFlux):
     r"""Isotropic source field :math:`Q(\vec r, g)`.
 
     Parameters

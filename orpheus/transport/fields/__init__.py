@@ -65,3 +65,14 @@ __all__ = [
     "RadialCharacteristicInteriorFlux",
     "RadialCharacteristicBoundaryFlux",
 ]
+
+# The role-pair registration (CS4c step 5, R-2): each source/sink leaf
+# declares its flux partner on its class statement, so the pair map is
+# complete only once the source/sink modules have been imported. Import
+# them here, at the tail, as a BARE module import — a named import
+# (``from orpheus.transport.source_sinks import …``) would fail on the
+# partially-initialised package when a source/sink module is what
+# triggered THIS package's init (its ``fields._bases`` import runs this
+# file first). The flux leaves import no source/sink, so the dependency
+# runs one way and this line closes it without a cycle.
+import orpheus.transport.source_sinks  # noqa: E402,F401

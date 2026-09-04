@@ -91,8 +91,9 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections.abc import Hashable
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, Mapping, Self, TypeVar, Protocol, runtime_checkable
+from dataclasses import dataclass, fields as dataclass_fields
+from enum import Enum
+from typing import TYPE_CHECKING, Generic, Mapping, Self, TypeVar, Protocol, cast, runtime_checkable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -133,6 +134,8 @@ K = TypeVar("K", bound=Hashable)
 
 
 __all__ = [
+    "FieldRole",
+    "RolePair",
     "BulkField",
     "AngularField",
     "ScalarField",
@@ -145,12 +148,157 @@ __all__ = [
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Role pairs — the flux ↔ source/sink partnership, declared ONCE per pair
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class FieldRole(Enum):
+    r"""The two roles a transport field can play on one carrier space.
+
+    A *flux* is a state; a *source/sink* is a signed rate density — the
+    same space, a different physical kind (units differ; the
+    :class:`~orpheus.numerics.field.Field` class-identity gate keeps them
+    from mixing). Every operator of the transport algebra maps one role
+    to the other (a gain ``S`` reads a flux and emits a source; an inverse
+    ``(L + C)⁻¹`` reads a source and returns a flux), so the operator
+    tier needs to name the role it EMITS without naming the leaf class —
+    the leaf is the OPERAND's business (CS4c step 5, ruling R-2: the
+    carriers declare their partners; the lift verb reads the declaration).
+    """
+
+    FLUX = "flux"
+    SOURCE_SINK = "source_sink"
+
+
+class RolePair:
+    r"""Mixin: a role leaf that knows its partner across the flux ↔
+    source/sink pair.
+
+    The pair is declared ONCE, on the source/sink leaf's class statement —
+    ``class AngularSourceSink(AngularField, flux=AngularFlux)`` — and
+    :meth:`__init_subclass__` registers BOTH directions, so the map is a
+    bijection by construction: a second source/sink naming the same flux
+    is refused at import time, and neither half can be re-pointed later
+    (``coding-elegance`` Pattern 4 — the illegal state is unspellable,
+    not validated). Why the source/sink side declares: the source/sink
+    leaves already import the flux leaves for their named compositions
+    (``from_isotropic``, ``from_balance``); the flux leaves import no
+    source/sink, so the dependency runs one way and the package init of
+    :mod:`orpheus.transport.fields` completes the registration by
+    importing :mod:`orpheus.transport.source_sinks` at its tail (a bare
+    ``import``, never a name — see that file).
+
+    Consumers:
+
+    * :meth:`role_partner` — the leaf CLASS of the other role on the same
+      carrier (``AngularFlux.role_partner(FieldRole.SOURCE_SINK) is
+      AngularSourceSink``, and back);
+    * :meth:`into_role` — the ONE spelling of *"same space, same family
+      fields, the other role's class"*: the operator tier's typed output
+      (an emission rides the operand's space; an inverse returns the
+      flux of the source it was handed) without an ``isinstance`` on the
+      operand — the carrier parse the CS4c step-5 census counted **12
+      times** across three verbs, retired by this verb;
+    * :meth:`role` — which half this leaf is.
+
+    A residual (the defect of a balance) and a coefficient field are
+    neither half of any pair; they carry no partner, and asking is a
+    ``TypeError`` naming them.
+    """
+
+    # Set by ``__init_subclass__`` on BOTH halves of a declared pair — the
+    # same mapping object, so the two directions cannot drift apart.
+    _role_partners: "Mapping[FieldRole, type[RolePair]]"
+    _field_role: FieldRole
+
+    def __init_subclass__(
+        cls, *, flux: "type[RolePair] | None" = None, **kwargs: object,
+    ) -> None:
+        super().__init_subclass__(**kwargs)
+        if flux is None:
+            return
+        if not (isinstance(flux, type) and issubclass(flux, RolePair)):
+            raise TypeError(
+                f"{cls.__name__}: flux= must name a role leaf class; got "
+                f"{flux!r}."
+            )
+        if "_role_partners" in vars(flux):
+            other = flux._role_partners[FieldRole.SOURCE_SINK].__name__
+            raise TypeError(
+                f"{flux.__name__} already has the source/sink partner "
+                f"{other}; {cls.__name__} cannot be a second one — a role "
+                f"pair is a bijection."
+            )
+        partners: dict[FieldRole, type[RolePair]] = {
+            FieldRole.FLUX: flux,
+            FieldRole.SOURCE_SINK: cls,
+        }
+        cls._role_partners = partners
+        cls._field_role = FieldRole.SOURCE_SINK
+        flux._role_partners = partners
+        flux._field_role = FieldRole.FLUX
+
+    @classmethod
+    def role(cls) -> FieldRole:
+        r"""Which half of the pair this leaf is (``TypeError`` if neither)."""
+        role = getattr(cls, "_field_role", None)
+        if role is None:
+            raise TypeError(
+                f"{cls.__name__} is not one half of a flux ↔ source/sink "
+                f"pair (a residual, a coefficient, or an abstract base) — "
+                f"it has no role."
+            )
+        return role
+
+    @classmethod
+    def role_partner(cls, role: FieldRole) -> "type[Self]":
+        r"""The leaf class playing ``role`` on this leaf's carrier.
+
+        Asking for this leaf's OWN role returns this leaf (the identity
+        half of the pair), so an operator can spell its output role
+        without branching on the operand's.
+        """
+        partners = getattr(cls, "_role_partners", None)
+        if partners is None:
+            raise TypeError(
+                f"{cls.__name__} is not one half of a flux ↔ source/sink "
+                f"pair (a residual, a coefficient, or an abstract base) — "
+                f"it has no role partner."
+            )
+        return partners[role]  # type: ignore[return-value]
+
+    def into_role(
+        self, role: FieldRole, values: NDArray, *,
+        space: "FunctionSpace | None" = None,
+    ) -> "Field":
+        r"""A field of ``role`` carrying ``values`` on this field's space
+        (or ``space=``), with this field's family fields (``L``,
+        ``spatial_moments``, …) carried across — the role transition,
+        spelled once.
+
+        The family fields ride via :func:`dataclasses.fields`, so a new
+        family field is carried without this verb learning its name.
+        """
+        target = cast("type[Field]", type(self).role_partner(role))
+        carried = {
+            f.name: getattr(self, f.name)
+            for f in dataclass_fields(cast("Field", self))
+            if f.name not in ("values", "space")
+        }
+        return target(
+            values=values,
+            space=cast("Field", self).space if space is None else space,
+            **carried,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Bulk locus
 # ═══════════════════════════════════════════════════════════════════════
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class BulkField(Field):
+class BulkField(RolePair, Field):
     r"""Bulk-locus storage base — a :class:`Field` on the grid's cell centres.
 
     Carries the machinery shared by every bulk transport field: the
@@ -793,7 +941,7 @@ class MomentField(BulkField):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class FaceField(Field, Generic[K]):
+class FaceField(RolePair, Field, Generic[K]):
     r"""Codim-1 face storage base — a mesh-bound flat-buffer :class:`Field`
     on a layout-bearing face space (method- and locus-agnostic).
 

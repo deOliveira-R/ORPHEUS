@@ -94,13 +94,14 @@ from typing import ClassVar
 
 from orpheus.numerics.units import SCALAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import MomentField
+from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 
 
 __all__ = ["HarmonicMomentSourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class HarmonicMomentSourceSink(MomentField):
+class HarmonicMomentSourceSink(MomentField, flux=HarmonicMomentFlux):
     r"""Real-spherical-harmonic moment source/sink :math:`q_\ell^m(\vec r, g)`.
 
     Parameters
