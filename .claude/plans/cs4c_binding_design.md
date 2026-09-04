@@ -1695,3 +1695,15 @@ a kernel datum; `Transfer*` names the kernel tier, role names stay on the operat
 step 2 (the transfer family) is next on a fresh branch — its design and compaction record are the plan's §4/§5.
 **Step 5 waits behind the #426 carve** (its N2N/S design is exactly what the carve settles). The two rulings owed from before the
 review (#429 umbrella-or-close; resume Campaign 2) still stand as owed.
+
+✅ **2026-09-04 — #426 steps 2 + 3 LANDED (branch `feature/n2n-transfer-family`: `7b44ee68` → `1a3b78ec` → `f52877db` →
+`9e6adf3c`, `Closes #426`; merge hash = git).** The transfer family ships: `TransferKernel(moments, multiplicity)`,
+`TransferMaterialField`, `LegendreMomentTransfer`, the cores `IsotropicTransfer` / `TransferOperator`, and the four roles as
+TWO CLASS CONSTANTS each (`channel`, `isotropic_binding`) with no code — the AST gate refuses any method. `N2NOperator` is
+minted at the solve's order on the SAME interned frame as `S`; the Be-reflected slab reads 1.0911996566537725 with the
+shipped library (ERR-082's catcher). **Step 5 is UNBLOCKED**: its N2N/S question is settled — `S` and `N₂ₙ` are one binding,
+`TransferOperator`, and the §18 ⛔ ({S, N2N} | {F}) stands realised in the tree (`FissionOperator` keeps its own shape; #450
+proposes it adopt the transfer family's derived-energy-binding form). ⚠ Step 5's design text in §17 predates the family:
+re-derive its N2N/S rows against `orpheus/transport/operators/transfer.py` at the opener (plan-authoring §7), and note the
+core's order property is `legendre_order`, the fold family lives on the core generic in the yield, and `is_isotropic` is the
+predicate the anisotropic arms branch on.

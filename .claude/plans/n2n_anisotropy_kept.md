@@ -387,6 +387,99 @@ change the design:
   and `TransferOperator` cores with the four thin role subclasses; the Be-reflected gate
   flips to its measured value (§6c: the witness IS the shipped library); the "must flip" gates re-keyed
   with an ℓ ≥ 1 fixture; the K_iso leaf and the adjoint transposes unchanged in code, re-verified.
+  ✅ CARVE COMMITTED `1a3b78ec` (2026-09-04; opener `7b44ee68` = the deferred `_legendre_order` producer fix:
+  `_extract_mf6` returns `_MF6Section(ifrom, ito, moments, n_legendre, n_sigma_zero)` and refuses a
+  non-rectangular section — `[M]` 13 of 13 tapes rectangular, elastic NZ = header n_sig0 on 13/13; the
+  sig2/sigS paths now both index the section directly inside `range(section.n_legendre)`). Gate status at
+  the commit: every affected tree green (transport 738, sn/operators 1277, sn/solve 208, analytical 62+12,
+  data 314, diffusion 117, homogeneous 50, numerics 3255, cp 141, moc 121, mc 40, architecture 152, mms 23);
+  collected **11087 → 11129**, reconciled per file against a HEAD worktree collection (+21 transfer_kernel,
+  +7 roles, +5 flagship, +3 n2n_operator, +3 material_field, +2 diffusion witness, +1 mc companion, +1 layer
+  gate for `transfer.py`, −1 the retired diagnostic's registry row); the 13-tree gate, the battery, the
+  elegance review and the corpus pass follow on the branch.
+  `[M]` the flagship's ladder (`scratch/_426_step2_ladder_record.txt`; the §0 fast/thin fixture, elastic P2
+  in every arm): the P0-only control reads **1.0953221881419453 — bit-identical** to the pre-carve record
+  (measured, not argued: the y = 1 fast path is skipped and an all-zero Λ_{ℓ≥1} is skipped by `is_isotropic`);
+  ℓ ≤ 1 **1.0911866898558749** (−413.55 / −377.56 / −346.01, the §0 table to every digit); ℓ ≤ 2
+  **1.0911996566537725** (−412.25 / −376.38 / −344.92); ℓ ≤ 6 = ℓ ≤ 2 **to the bit** (a P2 solve never reads
+  ℓ ≥ 3 — the A9 "declared null" arm confirmed by construction); k(L = 0) **1.1587120371368607** bit-identical.
+  ⚠ REALIZATION REFINEMENTS that supersede §4.1's table (edited here, not there — §4.1 is the pre-carve
+  design): (a) the angular core lives in a NEW module `operators/transfer.py` with `LegendreMomentTransfer`
+  (the test-architect's draft placed it there; a core named `TransferOperator` in `scattering.py` misfiles
+  it), the P0 core `IsotropicTransfer` stays in `isotropic_scattering.py` beside `IsotropicFission`, the roles
+  keep their modules so the 107 rst xrefs to `ScatteringOperator` and the `N2NOperator` ones stay valid;
+  (b) the tier-2 mints are `TransferOperator.from_field(transfer, *, scattering_order, space)` and
+  `LegendreMomentTransfer.from_field(transfer, basis, *, skip_l0)` on the cores, `from_solver_data` /
+  `from_material_xs` on the roles — the moment operator's `from_material_xs` (channel-ambiguous on one class)
+  retired; (c) the role→P0-binding link is a `ClassVar` `isotropic_binding` on the core (default the core
+  itself), overridden per role, so `S.isotropic_energy` IS an `IsotropicScattering` and `N2N.isotropic_energy`
+  an `IsotropicN2N` (the terms keep their names down to the K_iso leaves); (d) `at_order` (not `truncated`)
+  returns `self` at the identity, truncates below, pads exact zeros above (§4.3); (e) **`is_isotropic`** on
+  the kernel/field/operator — Λ_{ℓ≥1} exactly zero — generalises the `scattering_order == 0` early return
+  from SHAPE to VALUES: both bindings now run at the solve's order and the (n,2n) stack of an isotope with no
+  MT=16 is exact zeros padded to L, so without it every SN solve at L ≥ 1 would run a second RΛM product on
+  zeros (bit-identical either way; the skip is the "performance lazy" half of the algebra-eager lens);
+  (f) ⛔ REFUTED: F2's sentence "the two accounting verbs become `emission = y·Σ₀ᵀφ` and `net_production =
+  (y − 1)·Σ₀ᵀφ` on the field" — `net_production` has NO consumer (`compute_keff` keeps the ERR-065/R7
+  convention `absorption + leakage − emission`, F2's own "not re-posed here"), so it is not minted
+  (coding-standards defer-until-consumer); the verbs that exist are the existing set with the yield as
+  `scale`, and `add_to_group_rate` on a y = 1 field is the group in-scatter rate; (g) ⛔ REFUTED: step 1's
+  "collapse trigger" (`_gather_stack`, `_macroscopic_stack`'s pad and the stack law all become the kernel's
+  constructor and `moment(ℓ)`) — the three pads are three TIERS' data (the isotope sum over sparse stacks, the
+  σ₀-frame projection over the facade, the dense per-material kernel); one law, three data, no shared home
+  possible without one tier reaching into another; the facade docstring says so now.
+  ✅ BATTERY (`scratch/_426_step2_battery.py`, in-process monkeypatch, one subprocess per arm, bite check per
+  arm, `^ERROR` counted apart from `^FAILED`; scope = transport, diffusion, homogeneous, sn/operators,
+  sn/verification/analytical, the clamp gate, the yield-convention file; A1/A2 add cp/moc/mc; reds as
+  NEW-file / PRE-EXISTING): baseline **0**; A1 ν₂ₙ 2→1 **50** (7/43); A2 2→3 **48** (6/42); A3 the (n,2n) ℓ=1
+  block zeroed **10** (3/7); A4a the yield dropped in `_moment_blocks` **11** (2/9); A4b in `add_p0_source`
+  **39** (4/35); A4c in `add_p0_source_transpose` **3** (0/3); A4d in `add_to_group_rate` **13** (4/9);
+  A5 an `apply_transpose` override on the N2N role (via a patched `inspect.getsource`) **1** (the AST gate's
+  N2N row); A6 the N2N frame minted at L=0 — the retired defect re-introduced — **9** (3/6, the flagship's
+  value/Δ/ladder rows among them); A7 the MF=6 section's NL read as 1 **13** (0/13, the tape-threading rows;
+  the flagship reads the STORE and is blind by design); A9 ℓ=3/ℓ=4 (n,2n) moments permuted at a P2 solve
+  **0 — the declared null, confirmed**; A10 the clamp reading both stacks **2** (the B-10 witness rows);
+  A11 positive control (`add_p0_source` a no-op) **166**; A12 `is_isotropic` forced True **24** (4/20);
+  A13 `at_order` padding with the P0 block **7** (2/5); A14 the role's P0 binding ignored **1** (the tier-2
+  row). Unspellable by admission (not run): ν₂ₙ = 0, ν₂ₙ = 2.0. ⚠ harness lesson: a bite check that reads
+  `inspect.getsource` of a function exec'd from a string raises `OSError` — the four A4 arms and A10 first
+  reported INSTALL FAILED for that reason and were re-run reading the recorded mutant source.
+  ✅ ELEGANCE REVIEW (enforcer, `scratch/_426_step2_elegance_review.md`): 3 violations + 9 should-fix + 8
+  nits + 3 reshapes; taken in the same landing: V1 the kernel gate's docstring asserting the reversed ruling;
+  V2 the four extraction classmethods were a 2×2 twin of ONE recipe — the very defect this step repaired (two
+  mint bodies, one minting at L=0) — now `channel: ClassVar[...]` on each role and ONE `from_solver_data` /
+  `from_material_xs` on each core, a role being two class constants and NO code (the AST gate tightened to
+  refuse any method, its positive control gaining the classmethod shape, its population walk made
+  RECURSIVE); V3 the last production docstring naming `N2NOperator.energy`; S1 the face-binding admission
+  checks BOTH faces (`[M]` an 8-ordinate reconstruction face on a 4-ordinate interior was accepted and the
+  windowed arm returned an `(8, 2, 4)` source — gated now); S2 the mint's refusal names `from_field`; S3 one
+  `_scalar_interior_space` (the file's last bare `assert` went with it); S4 `scattering_order` →
+  **`legendre_order`** on the core (a channel name on a channel-agnostic core — the (n,2n) binding's order IS
+  the elastic clamp's; the `from_field`/`from_solver_data` kwarg keeps the solve's name; 26 test reads +
+  1 production read re-spelled); S5 `MaterialXSField.is_p0_diagonal_with_zero_n2n` RETIRED (zero callers; its
+  ⚠ note asked THIS step to re-derive — done: `rowsum(Σ₂ₙ,0) = σ₂ₙ` and `|Σ_ℓ| ≤ Σ₀` entrywise make a zero P0
+  row force every ℓ block of that row to zero, so the P0 test was sufficient and the method merely dead);
+  S7 `kernel` refuses on the ONE predicate `is_isotropic` (a P2-bound (n,2n) binding over an isotope with no
+  MT=16 used to build an all-zero product silently); S9 the two live message strings and the docstring
+  residues; R2 the field's order is uniform BY CONSTRUCTION (`__post_init__` pads every kernel to the widest
+  stored order — the pad law's fourth spelling, the lazy `order` refusal, dissolved); the `block_role` nit
+  REFUTED (`[M]` pyright: the base declares it an instance attribute, so a `ClassVar` override is a typing
+  violation — the unannotated class-level default stays, its comment now says why); `LegendreMomentTransfer.
+  from_field` → `on_basis` (two `from_field`s of different shape in one module). Deferred with a trigger:
+  S8 the module rename `isotropic_scattering.py` → `isotropic_transfer.py` (`[M]` 106 sites / 37 files, 53
+  in docs — rides the corpus pass; done right after the archivist returns so the sweep runs once); the
+  three architectural opportunities filed as issues — **#448** (the finalize's P0-only angular-flux
+  reconstruction, measurement first), **#449** (the facade fold family y-blind), **#450** (`FissionOperator`
+  adopting the derived-energy-binding shape). ✅ REVIEW ROUND COMMITTED `f52877db` (every affected tree
+  re-verified green: transport 737, sn/operators 1278, sn/solve 208, analytical 74, primitives 339,
+  architecture 152, mms 23, diffusion 115, homogeneous 50, root gates 405).
+  ⚠ SURPRISES logged (mine, process, not plan structure): (1) an edit script that asserts occurrence counts
+  SEQUENTIALLY and aborts leaves every LATER edit silently unapplied — the census and k_inf-ladder edits were
+  lost twice behind a material-field count mismatch, and only the per-file collected-count reconciliation
+  against a HEAD worktree caught it (the ladder showed +0 where +12 was owed). ⟹ a multi-file edit script
+  writes each file as it goes and reports per file, and the reconciliation is not optional; (2) the
+  name-keyed rewriter's negative set again (the 2026-09-03 row): `.n2n` field reads on `IsotropicN2N`
+  instances and a second `_moment_scattering` site were outside its rules and surfaced only in the red loop.
 - **Step 3 — the corpus**: `adjoint.rst` (`sn-n2n-p0-truncation` → dated history; `sn-n2n-isotropic-lift`
   and `sn-n2n-adjoint-source` gain their per-ℓ form — a labelled equation is an API), `slab_multigroup.rst`
   `_n2n-reactions`, `cross_section_data.rst` (the P2 statement, the h5 schema, the nnz table; #428's split
@@ -403,6 +496,10 @@ object — a Legendre transfer stack with a yield, bound to an angular frame at 
 (n,2n) term's angular distribution reaches the solve. Done-when: §1 items 2–4.
 
 ### 4.1 Class map (kernel tier `Transfer*`, operator tier role names on shared cores)
+
+⚠ This table is the PRE-CARVE design (2026-09-03). What LANDED differs in module placement, the mint
+names, the `isotropic_binding` ClassVar, `is_isotropic`, and the un-minted `net_production` — see the
+step-2 record in §3 (items a–g), which is the authority.
 
 | tier | today | step 2 | content |
 |---|---|---|---|
@@ -463,7 +560,53 @@ signature/type change across the five tiers cannot be split — §6b), the batte
 call site), the elegance review, the corpus pass (step 3 folds in: `sn-n2n-isotropic-lift` / `-adjoint-source`
 gain their per-ℓ form, the ERR entry, `Closes #426`).
 
-## 5. ⏸ COMPACTION POINT #1 (2026-09-03, written pre-compaction with full context)
+## 5b. ⏹ COMPACTION POINT #2 — THE CAMPAIGN IS COMPLETE (2026-09-04)
+
+**READ THIS SECTION FIRST on pick-up. §5 below is the step-1 checkpoint (history); §3 carries every step's
+landing record; §4.1 is the pre-carve design and §3's step-2 entry (items a–g) is the authority on what landed.**
+
+### 5b.1 What landed (all on `feature/n2n-transfer-family`, ff-merged to `main` — verify with `git merge-base --is-ancestor`)
+
+| item | commit |
+|---|---|
+| the MF=6 reader returns a named section carrying the header's NL / NZ (the deferred producer fix) | `7b44ee68` |
+| **step 2 — the transfer family; the (n,2n) gain is anisotropic** | `1a3b78ec` |
+| the elegance review round — a role is two class constants and no code; both faces admitted; `legendre_order`; `is_isotropic` the one predicate; the field at one order by construction; the dead facade predicate retired | `f52877db` |
+| **step 3 — the corpus reads the family; ERR-082; `isotropic_scattering.py` → `isotropic_transfer.py`; `Closes #426`** | `9e6adf3c` |
+| the fold-accessor routing sentinel follows the fold family's re-home | `ceba4f5d` |
+
+### 5b.2 The exit, as measured
+- **13-tree gate (`scratch/_426_step2_full_gate.log` + `_426_step2_sn_rerun.log` for sn on `ceba4f5d`): 13 of 13
+  rc=0, 11142 collected** — numerics 3255, transport 737 (+1 skip), geometry 727, data 314, homogeneous 50,
+  diffusion 115, cp 141, moc 121, mc 40, cross_method 81, sn 3415, derivations 1636 (−1 = the retired
+  diagnostic's registry row), root+harness 425 (+1 = the layer gate's `transfer.py` row); the sum of
+  passed + skipped + xfailed is 11142 exactly. `sphinx -E -W` from the repo root EXIT=0; `dead_references`
+  0 / 65; pyright 0 on `orpheus/`; the collected count reconciled per file against a HEAD-worktree collection
+  at every step.
+- **The done-when (§1), all four**: (1) the ingest is lossless for every channel (step 1); (2) the Be-reflected
+  slab reads **1.0911996566537725** with the shipped library and no probe (the P0 model's 1.0953221881419453 is
+  the flagship's P0-only control, bit-identical); (3) the retired spellings return history prose only —
+  `orpheus/` clean, `tests/` clean, `docs/` swept by the archivist; (4) ERR-082 written and caught.
+- The battery table and the review round are in §3's step-2 entry; the measured ladder in
+  `scratch/_426_step2_ladder_record.txt` (untracked — the numbers are ALSO in the flagship's docstring and
+  ERR-082, which are tracked).
+
+### 5b.3 What this campaign leaves behind (GitHub is the backlog; these are pointers, not a second list)
+#445 (`SigT` derived three times), #446 (`transport_xs` (n,2n)-blind), #447 (the roster's σ₀ column),
+**#448** (the SN finalize reconstructs the returned angular flux from a P0-only source — pre-existing,
+measurement first), **#449** (the facade's σ_r fold family y-blind), **#450** (`FissionOperator` should derive
+its energy binding as `TransferOperator` does), #60 (the clamp's honesty). The archivist's "weakest dimension":
+no `derivations/` script for the (n,2n) Legendre stack — a SymPy `derive_*()` proving
+`emission_matrix(y=2) ≡ 2·emission_matrix(y=1)` would turn `sn-n2n-transfer-binding` from a sentinel into a
+foundation edge (not filed as an issue; it is a V&V-depth wish, not a defect).
+
+### 5b.4 Resume pointer (per plan-authoring §1: the OUTCOME)
+**This plan is DONE. The next act is Campaign 2's step 5** — `.claude/plans/cs4c_binding_design.md` §18.8
+(updated 2026-09-04: step 5 UNBLOCKED, with the ⚠ that §17's N2N/S design text predates the family and must be
+re-derived against `orpheus/transport/operators/transfer.py` at the opener), then §17's ▶ block. The two rulings
+still owed: #429 umbrella-or-close; step 5's own.
+
+## 5. ⏸ COMPACTION POINT #1 (2026-09-03, written pre-compaction with full context — HISTORY; §5b supersedes)
 
 **READ THIS SECTION FIRST on pick-up; then §4 (the step-2 design, all rulings in), then §2b/§2c.**
 
@@ -510,7 +653,7 @@ re-dispatch); elegance-enforcer after; archivist for the corpus; in-process monk
 per arm; the 13-tree gate before the merge, pre-registered per tree; `sphinx -E -W` from the REPO ROOT +
 `dead_references` at exit; never `git add -A`; `git commit -F`; L37 no source edits under a running gate.
 
-### 5.5 Resume pointer (per plan-authoring §1: the OUTCOME, with existence-checks)
+### 5.5 Resume pointer (per plan-authoring §1: the OUTCOME, with existence-checks) — ⛔ SUPERSEDED by §5b.4 (step 2 landed 2026-09-04)
 **Next act: step 2 — the (n,2n) term is anisotropic, realised as two instances of one transfer family.**
 Existence-checks at resume (one grep each): `TransferKernel` (must be ABSENT — 0 hits — or step 2 has begun),
 `N2NKernel.multiplicity` (present, the ClassVar to retire into `N2N_MULTIPLICITY`), `for_space(interior, 0)` in
