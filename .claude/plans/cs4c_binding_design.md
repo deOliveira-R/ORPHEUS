@@ -1707,3 +1707,462 @@ proposes it adopt the transfer family's derived-energy-binding form). ⚠ Step 5
 re-derive its N2N/S rows against `orpheus/transport/operators/transfer.py` at the opener (plan-authoring §7), and note the
 core's order property is `legendre_order`, the fold family lives on the core generic in the yield, and `is_isotropic` is the
 predicate the anisotropic arms branch on.
+
+---
+
+## 19. Step-5 design round (2026-09-04) — each binding acts through the body its ends select
+
+**Opener (§7 reconciliation, every anchor `[M]` at `main` `f90f7914`, tree clean;
+the 13-tree baseline is #426's exit gate, `[M]` **11142 collected, 13 of 13 rc=0**,
+`scratch/_426_step2_full_gate.log` + the sn re-run).**
+
+- §17's four "until step 5" markers: `scattering.py:420` → **`transfer.py:384`**
+  (*"the carrier dispatch serves it until step 5's arm deletion"*);
+  `fission.py:378` → **`fission.py:398`** (*"carrier arms mirror N2N's, until
+  step 5"*); `n2n.py:56/:202` are **GONE** — `n2n.py` is a 112-line role since
+  #426 step 2 (`1a3b78ec`); the banners died with the carve. The k-outer seam:
+  `numerics/eigenvalue.py:374` (`power_iteration`) → `:420` →
+  `sn/solver.py:1528` (`compute_fission_source`) → `IsotropicFission` bound at
+  `sn/solver.py:1431` on `mesh.bulk_space`, bare `(ng, *spatial)` in and out.
+- §17's ruling 1 is **DONE by #426 step 2**: `IsotropicScattering` +
+  `IsotropicN2N` are thin roles of ONE `IsotropicTransfer`; `{S, N2N} | {F}`
+  is realised as two families (§18.3 ⛔ stands in the tree). What survives of
+  the item is its half (b) — *the lift energy→angular as the named object* —
+  and it is this round's R-1 (§19.3).
+- §18.8's "two rulings owed": **#429 is CLOSED** (`[M]` `gh`: 2026-09-03T17:30Z,
+  COMPLETED, with the #434 review) — the umbrella-or-close question is moot;
+  the memory index carried the stale OPEN and was corrected. ONE ruling set is
+  owed: this round's.
+- §18.2's OWED edits: A1 + A2 **LANDED** at `8707c53a` (vv-principles #29's
+  two sharpenings); A3 (a finding names ONE `file:line` ⟹ it is repaired at
+  that `file:line` only) is NOT landed — adjudicated: general, lands in this
+  step's docs commit as a report-hygiene sharpening. The qa memory delta is the
+  qa agent's own (it consolidates its memory at each dispatch; `[M]` its
+  `lessons.md` A15/L-077 slots were taken by a different lesson — the delta's
+  numbering is stale, its content is in #29).
+- ⚠ The step-5 census `scratch/cs4c_step5_feeding_census.md` (§18.2) is
+  `[M]` at `c6dc40c3` — **five carves old** (#434 R1/R4/R2/R3 + #426 steps
+  1–3), and #426 step 2 re-shaped exactly the surfaces it counts (S and N2N
+  now share ONE dispatcher; `.energy` → `.isotropic_energy`;
+  `N2NMomentOperator` retired; ~~N2N's ℓ ≥ 1 arms fire at `scattering_order ≥ 1`~~ — ⛔ REFUTED 2026-09-04 by the re-run (§19.11 D3/D3b): the ℓ ≥ 1 BODY runs iff the bound (n,2n) DATUM carries a nonzero moment above ℓ = 0; on every P0-only `Sig2` fixture the pad supplies exact zeros, `is_isotropic` reads values, and the body is skipped at `scattering_order` 1 AND 2 — a property of the datum, not of the order).
+  Its tree half is void per §2's shelf-life rule. **Re-run dispatched
+  2026-09-04 (`qa`, read-only, `scratch/cs4c_step5b_feeding_census.md`)**,
+  keeping the 13 scenarios verbatim + 3 new (P2 slab, P1 slab adjoint with a
+  live (n,2n) stack, the Be-reflected fixture if cheap). Its delta table is
+  §19.11 (appended when it lands). Nothing below is priced on the old numbers
+  except where marked *[M c6dc40c3]*.
+
+### 19.1 The goal, in the domain's terms (§5), and its done-when
+
+A bound operator is an ARROW between two declared spaces (§1); its action is a
+function of its ends. Today the action is resolved per CALL on the operand's
+Python type. `[M]` by AST over `orpheus/transport/operators/` at `f90f7914`
+(`scratch`-free, in-process; positive control: `TransferOperator._apply_impl`
+found):
+
+| surface | count | where |
+|---|---:|---|
+| `singledispatchmethod` tables | **3** (13 arms) | `transfer.py:1080` (5: object/FullField/ScalarFlux/AngularFlux/HarmonicMomentFlux — shared by S and N2N), `fission.py:401` (5), `multiplication_operator.py:410` (3) |
+| carrier `isinstance` inside `apply`/`apply_transpose`/`solve` | **12** | `isotropic_transfer.py:328/:342/:620/:637`, `fission.py:508`, `transfer.py:1306` (all `FullField`); `multiplication_operator.py:454/:463/:530/:537` (the angular/scalar FAMILY parse ×2 verbs); `transfer.py:307/:346` (`LegendreMomentTransfer`'s typed moment arm) |
+| `getattr(x, "values", x)` fall-throughs (typed in, bare out — the F10 asymmetric arrow the G2.8 matrix RECORDS as shipped) | **7 sites, 3 spellings** | `isotropic_transfer.py:120` (`_values_of`, used ×4), `fission.py:516`, `transfer.py:1318` |
+| "a BULK operator emits the zero trace" | **9 spellings** | `fission.py:421/:514`, `isotropic_transfer.py:157`, `multiplication_operator.py:461/:472/:535/:544`, `transfer.py:1145/:1316` |
+| a registered arm that RE-ENTERS the dispatcher on `psi.interior` (the census's bodies-not-arms tell) | **2** | `fission.py:416`, `transfer.py:1138` |
+
+**Goal.** An operator constructed with its ends acts through the ONE body
+those ends select: composite-bound → `FullField → FullField`; plain-bound →
+the space's array; the interior body of an angular binding is fixed at
+construction by WHICH END of its retained analysis face the domain's interior
+is. Dead arms die; the typed/bare fall-throughs die; the zero-trace emission
+is spelled once.
+
+**Done-when (checkable):**
+1. an AST gate over `orpheus/transport/operators/` finds **0**
+   `singledispatchmethod` and **0** carrier `isinstance` inside any
+   `apply`/`apply_transpose`/`solve` (first red = the tree today: 3 + 12;
+   the LMT exemption is R-5's ruling);
+2. every public verb's signature names exactly the carrier its ends name —
+   the G2.8 fence re-keyed from *"12 cells, no arm dies"* to **18 cells,
+   `(operator, binding kind, carrier) → outcome`**, where every off-binding
+   carrier is a typed refusal naming the operator (G1.3's contract kept);
+3. `grep -c "BoundarySourceSink.zeros\|BoundaryFlux.zeros"` over the package
+   reads **1** (the base's spelling);
+4. bit-identical: the 13-scenario census's headline numbers; the ERR-082
+   record (`test_be_reflected_n2n_anisotropy.py`, 1.0911996566537725 at
+   rtol 1e-8 / the two bit-identical controls); the ledger's 66 xf; the
+   adjoint records (the transpose is still ONE conjugated product).
+
+### 19.2 The mechanism — selection from the retained FACE's two ends
+
+For an angular binding the composite domain's interior is one of exactly two
+spaces, both already retained on the operator: the flux-analysis face's
+**domain** (the per-ordinate angular space — every 1-D, curvilinear, Krylov
+and un-windowed iterate) or its **codomain** (the harmonic-moment space — the
+2-D Cartesian windowed SI iterate; `[M]` `sn/solver.py:737` *"un-windowed SI,
+both Krylov paths"*: windowing is SI-only on 2-D Cartesian, minted by
+`_maybe_window` at `:874–900`). `__post_init__` today admits the interior only
+as the face's domain; it will admit EITHER end and **select the interior body
+by which one it is**:
+
+| interior is … | ℓ = 0 half | ℓ ≥ 1 half (absent when `is_isotropic`) |
+|---|---|---|
+| `flux_analysis.domain` (angular) | `integrate_angular()` — the reaction-rate fast path | `kernel = R Λ M` (unchanged) |
+| `flux_analysis.codomain` (moments) | `scalar_flux(space=…)` — the ℓ = 0 slot | `source_reconstruction ∘ Λ` — M already applied |
+
+The `is_isotropic` binding selects NO ℓ ≥ 1 summand at construction (today the
+predicate is evaluated per call at three sites: `build_aniso_source`, the
+windowed arm, `kernel`). The public verbs are `apply(FullField) → FullField`
+and `apply_transpose(FullField) → FullField`; the interior bodies are private.
+The re-entrant `FullField` arm (`transfer.py:1138`, `fission.py:416`) dies —
+the composite action IS the lifted interior body (§19.5).
+
+**The 2-D windowed path becomes a DECLARED non-endomorphism.** The census
+measured S and N2N bound `(angular, angular)` and fed a moment composite
+(*[M c6dc40c3]* §3: operand `FullFieldSpace#fb9da0f7…` ≠ bound `#c65fb053…`).
+The windowed driver already mints that operand space — `BulkAnalysisOperator`
+poses `FullFieldSpace.from_blocks(S.flux_analysis.codomain, trace)` as its
+codomain (`sn/operators/windowing.py:97–108`). Step 5 binds the windowed
+siblings on it: a tier-2 verb on the core, `on_moment_domain()` (name open),
+= `type(self)(transfer, faces, domain=<that composite>, codomain=self.codomain)`;
+`_windowed_cold_start` / `_maybe_window` hand the windowed SI its
+moment-domain `S_w`, `N2N_w`. The `A_AA` OperatorSum guard is untouched:
+`[M]` the windowed loop consumes `explicit_gains` (`numerics/iteration.py:698`),
+never `A_AA`. The moment-domain sibling's transpose is `(R Λ)ᵀ = Λᵀ Rᵀ` —
+built whole and reciprocity-gated although no 2-D adjoint exists today
+(machinery-first, §16.1).
+
+### 19.3 R-1 — the lift as the shared BASE: `{S, N2N} | {F}` without spelling 19.2 twice
+
+`[M]` at HEAD `FissionOperator` and the transfer core still share, member for
+member: `_interior_space`, `total_weight`, `frame`-via-faces vs `frame` held
+(the one asymmetry #450 names), the composite wrap, the two ℓ = 0 interior
+arms (`fission.py:424–457` ≡ `transfer.py:1174–1264` with Λ removed), the
+`apply_transpose` composite branch. Writing 19.2's selection into both is
+Cardinal Rule 2's stop sign — the census's *"8 of 14 members identical"*
+(§18.3) is STILL the shape, one class over.
+
+**Proposed [P]:** a base **`AngularLift(BoundOperator["FullField"])`** — *the
+angular binding of an energy channel: the frame's ℓ = 0 conjugation
+`R₀ E A₀ / W` on the composite, with its interior body selected by the ends* —
+retaining `(flux_analysis, source_reconstruction, ends)` and DERIVING
+`isotropic_energy` from its datum through the role's `isotropic_binding`
+(#450's shape, applied to F as well: `FissionOperator` holds
+`fission: FissionMaterialField`, derives `IsotropicFission`; its runtime shape
+guard and its held `frame` field die — the frame rides the faces, as on the
+transfer core). Then:
+
+* `FissionOperator(AngularLift)` = the lift alone (+ the `kernel` /
+  `production_rate` accessors and `full_fission_kernel`);
+* `TransferOperator(AngularLift)` = the lift + the ℓ ≥ 1 redistribution
+  (`kernel`, `full_transfer_kernel`, `build_aniso_source`, the fold family);
+  the roles `ScatteringOperator` / `N2NOperator` stay two class constants and
+  no code (the AST role gate is unchanged: `_all_subclasses(TransferOperator)`).
+
+This IS §17 item 1(b) — *"the lift functor energy→angular as the named
+object"* — realised as a base rather than a free function:
+`_per_ordinate.py`'s own *"when a third isotropic lifted channel appears, this
+is the seed of the generic lift operator"* fired at step 4 (`[M]` its
+docstring lists F as the third), and `assemble_per_ordinate_isotropic` is the
+seed it named; it folds into the base. **NOT a collapse of F with N2N**
+(§18.3 ⛔): the datum types, the moment factors (`LegendreMomentTransfer` vs
+`FissionMomentOperator`) and every ℓ ≥ 1 arithmetic stay on their own
+subclass; the base carries only what the DATA says the two share — the ℓ = 0
+conjugation. **Name [P] `AngularLift`**; alternatives: `IsotropicLift`
+(refuted — a base whose transfer subclass is anisotropic), `LiftedEnergyOperator`.
+
+**Refuted candidate — composition** (`TransferOperator` HAS a lift and a
+redistribution summand; `apply = lift + aniso`): the transpose is ONE
+conjugated product `frame.conjugate(Λ_{ℓ≥0})ᵀ` whose factor reversal the
+adjoint records pin — a sum of two transposes changes the summation order on
+the adjoint path; and both summands need the same faces and interior, so the
+sharing would be by hand-off rather than by structure.
+
+### 19.4 R-4 — the energy bindings and the multiplier: the ends select the CARRIER
+
+**Plain-bound** (a scalar `FunctionSpace`: the SN k-outer's `IsotropicFission`
+on `bulk_space`; the two `isotropic_energy` bindings K_iso sums; the
+homogeneous solver's C / IsoS / IsoN2N / IsoF on Energy ⊗ point): the carrier
+is the space's ARRAY — `apply(ndarray) → ndarray`, `apply_transpose` likewise
+— the numerics tier's contract (`as_matrix`, `OperatorSum`,
+`power_iteration`'s protocol vector, `RadialCharacteristicEmission`) and
+nothing else. A `ScalarFlux` is REFUSED there: the typed wrap is the business
+of the consumer that holds the space — the LIFT (which is exactly what
+`_assemble_per_ordinate_source` does today at its one site:
+`ScalarSourceSink(values=isotropic_energy.apply(phi), space=phi.space)`).
+
+**Composite-bound** (the diffusion solver's four on the scalar composite): see
+R-2 — under §3's tier-3 ruling the energy bindings stop binding the composite
+at all; diffusion binds them on the scalar bulk and LIFTS at the assembly.
+`[M]` `_assemble_iso_energy_operator` feeds bare interior-shaped impulses to a
+composite-bound op today (`isotropic_transfer.py:236`) — with the lift the
+assembly mode moves to where the composite layout is known (the lift embeds
+the bulk matrix). ⚠ `[M]` the assembly mode HAS production consumers at the NUMERICS tier —
+`numerics/flat_operator.py:168` (`FlattenedOperator` assembles its inner when
+`is_assemblable`: the diffusion resolvent's path), `numerics/operator.py:1135`
+(`as_matrix` takes the assembled fast path) and `coupled_system.py:1246` — a
+first census that excluded `orpheus/numerics/` read **0** and was wrong by
+exactly the tier the filter dropped (§2's FILTER clause, live); so the lift
+verb carries `assemble()` too: the plain-bound energy binding assembles its
+bulk block-diagonal, the lift embeds it into the composite layout (assembly
+composes like apply). `[M]` the diffusion resolvent IS on that path in
+production: `LeakageOperator.is_assemblable` and
+`DiffusionBoundaryOperator.is_assemblable` are both `True`
+(`diffusion/operators.py:440/:625`), so `MatrixInverseOperator(FlattenedOperator(loss))`
+assembles `L + C − (IsoS + IsoN2N) − B` at every `DiffusionSolver` construction —
+the census's DIFF bare-ndarray calls on the iso pair are the assembly's impulse
+probes. `[M]` 2 test files exercise the family's assembly directly
+(`tests/diffusion/test_operators.py`, `tests/homogeneous/test_operator_spaces.py`).
+
+This retires `_values_of` and both inline `getattr` fall-throughs, the F10
+asymmetric arrow, and every carrier `isinstance` on the four energy verbs.
+`MultiplicationOperator`: composite-bound → the lift of its engine;
+plain-bound → the engine on the array; its angular/scalar family parse
+(`:454/:463/:530/:537`) dies with R-2's role partners. Its ndarray arm is the
+#276 keep-ruling honoured structurally (the plain binding's carrier).
+
+⚠ The **refuted alternative** is typed carriers on plain spaces everywhere
+(`ScalarFlux` in, `ScalarSourceSink` out, `as_matrix` minting typed basis
+vectors through the space's zeros seam) — §5's deferral: *typing the k-outer
+iterate and every consumer reshape is the consumers campaign*. Not this step.
+
+### 19.5 R-2 — #306 item 2: BLESS the zero-trace emission, spelled ONCE as the tier-3 lift verb
+
+`[M]` 9 spellings (§19.1's table). §3 tier 3 (✅ [R] 2026-08-30): *"a
+bulk-born operator enters a full-space composition through the
+restriction/extension family — extension by zero on the trace — owned by the
+ASSEMBLY at one site, not by a FullField arm on every class."* Read with §3's
+own per-family answer — the within-group members BIND the composite — the
+honest shape is one **verb** with two placements: a bulk-space operator
+`B: V_int → W_int` lifted to the composite by `FullField(interior=B(ψ.interior),
+boundary=0)` —
+
+* INSIDE the composite-bound bulk-role bindings (S, N2N, F, SN's C): their
+  composite action IS the lift of their construction-selected interior body
+  (the base's one spelling, keyed on `block_role == BULK`);
+* AT the assembly for bulk-born operators entering a composite sum: the
+  diffusion loss `L + C − lift(IsoS + IsoN2N) − B` (three sites,
+  `diffusion/solver.py:236–250`), so the energy bindings never see a
+  `FullField` (§19.4).
+
+The zero trace's CLASS (angular vs scalar; source vs flux for `solve`) is
+today the reason for the family parse. It dissolves if the carriers name
+their role partner: each flux leaf declares its source-sink class and each
+source-sink its flux (`AngularFlux ↔ AngularSourceSink`, `ScalarFlux ↔
+ScalarSourceSink`, `HarmonicMomentFlux ↔ HarmonicMomentSourceSink`, the two
+boundary pairs) — one `ClassVar` per leaf, Pattern 4 at the carrier tier.
+`[M]` no such link exists (`grep SOURCE_SINK|role_partner|as_source` over
+`transport/fields` + `source_sinks` = 0; the pairs are already sibling
+subclasses of one family base: `AngularFlux(AngularField)`,
+`AngularSourceSink(AngularField)`, …). The "transitional shim" framing in the
+docstrings dies with the bless; #306 item 2 closes.
+
+**Refuted candidate** — retire the composite arms and lift ONLY at the
+assembly (tier 3 read literally, S/N2N/F re-bound on the bulk): the
+within-group members bind the composite by ruling (§3), `A_AA`'s OperatorSum
+lives on it, and the ledger's R1/R2 rows pin those ends.
+
+### 19.6 R-3 — #205's ScalarFlux arm on the transfer core: RETIRE
+
+*[M c6dc40c3]* 0 traffic in two censuses with an AST-closed reference set
+(the third, §19.11, pending). Its body (`transfer.py:1149–1171`) is
+`isotropic_energy.apply` wrapped in a `ScalarSourceSink` — a Pattern-2 twin
+of the energy binding at one hop. The typed scalar entry point #205 wanted
+EXISTS as the energy binding (`n2n.py:65–67` already routes a scalar consumer
+there). The C6 static pin `S.apply(phi) → ScalarSourceSink`
+(`tests/sn/operators/test_operators_apply_typed.py:410/:463`) re-keys to the
+energy binding; F's ScalarFlux REFUSAL arm dies with the dispatcher (the one
+body's admission refuses any non-`FullField` with a message naming the
+operator — G1.3's contract, `test_monomorphic_leaves.py:793`, kept).
+
+### 19.7 Declared non-changes, and one re-home the census found
+
+* SN's C stays 140/140 silent — the fused sweep reads its coefficient
+  (#29(d)); not this step's subject.
+* `LegendreMomentTransfer` / `FissionMomentOperator` keep the moment-space
+  array contract. **R-5:** LMT's typed `HarmonicMomentFlux` arm
+  (`transfer.py:307/:346`) is consumed only by the windowed body; keep it as a
+  declared exemption of done-when (1) — the minted `source_reconstruction`
+  face exists FOR that route — or retire it by routing the windowed body
+  through `frame.reconstruct_after(Λ)` on values. Lean: **keep**.
+* `_aniso_source_from_moment_values` has `[M]` **0 production callers**; its
+  docstring's *"sole caller is the windowed moment-iterate arm"* is
+  present-tense-FALSE (the windowed arm took the typed faces at F-1). It
+  survives as the 0-ULP crosscheck ORACLE
+  (`tests/sn/operators/test_scattering_kernel_crosscheck.py`) — re-described,
+  not deleted (`coding-standards`' fuller-view exception).
+* `kernel` (raises on `is_isotropic`), `full_transfer_kernel`, the fold family,
+  `is_foldable_into_sigma_r`, `foldable_sigma`: unchanged.
+* The eigenvalue protocol stays array-valued (§5).
+* **One slot, one level** (the census's §5/R10, #29's fifth way): the adjoint
+  posing feeds `RadialCharacteristicEmission` **`F.kernel`** (`sn/solver.py:2951`)
+  where the within-group site feeds the OPERATORS `S.isotropic_energy +
+  N2N.isotropic_energy` (`coupled_system.py:594`). With `isotropic_energy`
+  derived on F (R-1), the posing feeds `F.isotropic_energy` — the same level —
+  and `IsotropicFission.apply_transpose` stops being stepped over.
+
+### 19.8 The rulings — ✅ [R] user, 2026-09-04 (AskUserQuestion, all four forks ruled as recommended; R-5/R-6 by default)
+
+| id | fork | lean | ruled |
+|---|---|---|---|
+| **R-1** | the lift as a shared base `AngularLift` (F = lift; Transfer = lift + Λ≥1; #450 folded in) vs spelling 19.2 twice | base (Rule 2) | ✅ `AngularLift` base |
+| **R-2** | #306 item 2: BLESS the zero-trace emission as the tier-3 lift verb, spelled once, carriers declare their role partner | bless | ✅ bless + one verb + role partners |
+| **R-3** | #205: retire the transfer core's ScalarFlux arm | retire | ✅ retire |
+| **R-4** | plain-bound energy bindings / multiplier carry the ARRAY; `ScalarFlux` refused there; diffusion lifts at the assembly | array | ✅ array on plain; diffusion lifts |
+| **R-5** | LMT's typed moment arm: declared exemption vs retired | keep | ✅ keep (default) |
+| **R-6** | the name `AngularLift` | as proposed | ✅ `AngularLift` (default) |
+
+### 19.9 §6b set — predicate-stated; the test-side half is a RUNTIME census, not a grep
+
+Production (complete by reading, at `f90f7914`): the 3 dispatchers, the 4
+energy verbs (+ transposes), `MultiplicationOperator.apply/solve/apply_transpose`,
+`_per_ordinate.py` (absorbed into the base), `bound_operator.py` (the lift
+spelling), the windowed driver (`sn/solver.py:874–925`), the diffusion assembly
+(`diffusion/solver.py:236–250`), the adjoint posing's kernel slot
+(`sn/solver.py:2951`), the assembly mode (`isotropic_transfer.py:161–247`).
+
+Tests: `[M]` **86 files** name a family member (grep union of the 10 names);
+the members that matter are the ARM-DIRECT callers (`S.apply(psi: AngularFlux)`,
+`F.apply(moments)`, `IsoS.apply(phi: ScalarFlux)`, …) — spelled without any
+symbol a static census can key on (the operand is a variable) ⟹ **enumerate
+by running the re-keyed spy over the test trees**, per test node, after the
+production census lands. Named now: the G2.8 matrix + registry gate
+(`tests/transport/test_kernels.py:565–705` — re-keyed, not deleted), the C6
+pins + dispatch parity (`test_operators_apply_typed.py:392–475`), the ledger's
+`_leaf_set` (ctor spellings unchanged), `test_scattering_kernel_crosscheck.py`
+(the oracle), `test_fission_operator.py`, `test_isotropic_fission.py`,
+`test_tier2_equivalence_s_family.py` (F's exact-ctor row re-keys with #450),
+`test_transfer_roles.py` (unchanged: the roles stay thin over the same cores).
+Duck-typed stubs / `getattr`-string reads per the 2026-08-24/29 inventory:
+found by the red loop, listed at close-out.
+
+### 19.10 Battery B-5 — the §11.6 skeleton, re-shaped to this design
+
+| arm | mutation | must RED |
+|---|---|---|
+| B5.1 **positive control** | the selected interior body swapped (angular body on a moment-domain binding) | the cart2d headline + windowed gates |
+| B5.2 | the lift wraps `.values` without the space | typed-sink shape/space gates |
+| B5.3 | one role-partner pair swapped (`AngularFlux → ScalarSourceSink`) | C/S/F composite gates, the ledger |
+| B5.4 | the AST no-dispatch gate loosened to admit one `isinstance` | its own row |
+| B5.5 | the windowed sibling bound on the ANGULAR domain | the moment-domain admission + cart2d |
+| B5.6 | the zero-trace spelling emits a non-zero trace | within-group composition, ledger, adjoint records |
+| B5.7 | the adjoint posing fed `F.kernel` again | the one-level witness (new) |
+
+Scope: `tests/transport`, `tests/sn/operators`, `tests/sn/solve`,
+`tests/diffusion`, `tests/homogeneous` + the ERR-082 record; cost measured
+before the arm list is fixed (§11.6's ⚠). The test-architect EXTENDS §11.6
+after the rulings (plan exists; do not re-dispatch from scratch).
+
+### 19.11 The step-5b census delta — LANDED 2026-09-04
+
+`[M]` `scratch/cs4c_step5b_feeding_census.md` (qa, read-only, HEAD `f90f7914`;
+instruments `scratch/cs4c_step5b_*`; 16 scenarios = the 13 legacy verbatim + slab-P2
++ slab-P1 adjoint with a live (n,2n) stack + the **Be-reflected 421-group fixture**;
+all four controls pass; all 16 headline numbers bit-identical instrumented vs
+control; the 13 shared rows bit-identical to the 2026-08-31 census — #434 and
+#426 steps 1–3 moved no production value on them).
+
+**The denominator FORKED with the role carve, and both halves close:** **24
+distinct BODIES** (13 dispatch arms + 11 plain verbs) / **32 ROLE × surface
+rows**. `34 − 5` (S+N2N registries fused) `− 1` (their transposes) `− 2` (the
+iso pair's verbs fused onto `IsotropicTransfer`) `− 2` (`N2NMomentOperator`
+retired, `[M]` 0 AST refs over 347 files) `= 24`. **FIRED 19 / NOT-RUN 13** of
+the 32, every NOT-RUN row carrying its gating branch (both sides measured) and
+its kernel-bypass check.
+
+| row | what it means for §19 |
+|---|---|
+| ⭐ **D3 — arm-identical, body-different.** S and N2N fire the same arms with identical counts (`4687 / 4422 / 265`) and on **12 of 13** legacy scenarios `N2NOperator.is_isotropic` is `True` on 100 % of its calls (the fixtures' `Sig2` is P0-only → the pad supplies exact zeros → the ℓ ≥ 1 body is skipped). A synthetic ℓ = 1 `Sig2` flips it (k moves **−36.9 Δk·10⁵**); the Be fixture flips it (`SOURCE ×748`). | The (n,2n) anisotropic path is LIVE and load-bearing only on data that carries it — §19.2's construction-time absence of the ℓ ≥ 1 summand is keyed on exactly that datum fact, so it is right by construction. ⚠ B-5's positive control must use the Be fixture or the synthetic ℓ = 1 `Sig2`, not the 2-group legacy fixture (§19.10 amended). |
+| **D3b** — at `scattering_order = 2` on a P1-elastic fixture the clamp (O-1, `SigS` alone) runs L = 1, bit-identical to P1; the (n,2n) PAD fires (2 events, exact zeros) at every L ≥ 1. | Nothing to change; the pad + `is_isotropic` are one mechanism. |
+| **D5 REFUTED** — the 2026-08-31 *"IsoN2N typed 0 of 7, bare at 2× its sibling"* is gone: the P0 pair is fed byte-for-byte identically, **9 of 9** (`transfer.py:668` / `:842` — one shared body). | The iso-pair asymmetry §17 warned about no longer exists. |
+| **D6 REFUTED** — `N2NOperator.apply[ScalarFlux]` was a refusal and now ACTS (shared body): "2 of 2 act, F refuses". | R-3 retires the arm on the core → both roles at once. |
+| **D15** — `S.apply[ScalarFlux]` **0**, third census (row 6: a *coarse-entry surface whose arithmetic ships through the finer binding*, `isotropic_energy`, 4687 typed calls; **not** "no consumer"). | R-3's evidence: the arm is a twin at one hop, measured. |
+| **D8** — `LegendreMomentTransfer.apply/apply_transpose` are TYPED hatches (`HarmonicMomentFlux ↔ HarmonicMomentSourceSink`, `transfer.py:307/:321`), a §2 surface the old census recorded as ndarray-only. | R-5. |
+| **D11** — `IsotropicFission.apply_transpose` 0, **bypassed on TWO routes**: the posing feeds `F.kernel` (`sn/solver.py:2951`) and `FissionMomentOperator.apply_transpose` reads `energy.kernel` (`fission.py:219`). | §19.7's one-slot-one-level item covers BOTH routes: with `isotropic_energy` derived on F (R-1), the posing and the moment factor feed the OPERATOR. |
+| **D12** — `FissionOperator`'s 5 forward arms **0 of 5**, both sides of its one gating branch exercised (slab early-return ×3, sphere stack ×1). | F's forward body stays as the pencil's F (§16.1); it becomes ONE body under R-1. |
+| **D1** — SN's C **174 (174) silent**, override re-verified at identical lines. **D14** — `C.apply[ndarray]` 2 calls, one site (homogeneous). | §19.7 declared. |
+| **D16** — the 2-D non-endomorphism unchanged (`#c65fb053…` bound / `#fb9da0f7…` operand), now on ONE body serving two roles. | §19.2's windowed sibling. |
+| **D17** — ctor census 15 external / **3** internal + **11 POLYMORPHIC mints** (`cls(...)`, `type(self).isotropic_binding(...)`) a name-keyed census cannot return (`grep "ScatteringOperator("` over `orpheus/` = 0). | §19.9's §6b set uses the polymorphic predicate; the 5b OWED A2 lands in plan-authoring §6b. |
+| **D20** — `isotropic_transfer.py:3-6/:56-58`: *"CP / MoC / diffusion feed raw scalar-flux arrays; SN passes `phi.values`"* — `[M]` **0 of 4** clauses hold (CP/MoC reference 0 roster classes; diffusion feeds a `FullField`; SN passes a typed `ScalarFlux`). | Present-tense-false prose: corrected in step 5's docs pass with the measured denominator. |
+
+**§6 — construction-time selectability, measured:** `TransferOperator` (both
+roles) is **NOT a function of the bound kind today** — 3 arms on ONE bound
+kind — because (i) the `FullField` arm re-enters on `psi.interior` (an arm
+counted twice), and (ii) the windowed 2-D iterate arrives on an instance bound
+to the ANGULAR composite. Externally every feed is a `FullField` (4687 =
+4422 angular interiors + 265 moment interiors). ⟹ §19.2 answers it exactly: the
+re-entry dies (the composite action is the lifted interior body) and the
+moment-interior operand gets its own binding on the moment domain — after the
+step, bound kind → body IS a function, by construction. The `IsotropicTransfer`
+/ `IsotropicFission` hatches are NOT functions on the DIFF composite (`FullField`
+×28 from the realizer + bare ×28–30 from the assembly's impulse probes) ⟹
+§19.4/§19.5: plain-bound + lifted at the assembly, and the assembly's impulses
+ride the plain binding. `MultiplicationOperator` IS a function on the two
+kinds with traffic (`FullField` on DIFF's composite, `ndarray` on HOMO's bulk);
+its SN binding (174 instances) has no traffic at all.
+
+**§7 — the B-5 anchors moved** (`diffusion/solver.py:289 → :292`,
+`cp/solver.py:544 → :546`, `moc/core.py:108 → :110`, each now
+`compute_fission_source`), and the battery's premise was wrong: the
+`EigenvalueSolver` protocol is generic over `Carrier`, CP and MoC reference
+**0** roster classes, and diffusion's realizer is TYPED inside (it unflattens
+to a `FullField` and rides the iso hatch — the 28 composite calls). §19.10's
+arms are keyed on the operator family, not on "the sibling realizers are
+ndarray-typed".
+
+**OWED tracked-file edits from 5b** (`scratch/cs4c_step5b_OWED_skill_and_memory.md`,
+all three checked ABSENT at HEAD with a positive control): A1 → vv-principles
+#29 (*an arm counter is one frame too coarse: arm-identical, body-different*);
+A2 → plan-authoring §6b (*a core/role carve makes a name-keyed construction
+census return zero — the mint is `cls(...)` in the core*); A3 → plan-authoring
+§2 (*a shared-body carve forks the denominator; state both halves and close
+the Δ*). Adjudicated: all three general — they land, with the earlier
+report-hygiene A3, in step 5's docs commit. The qa memory delta is the agent's
+own.
+
+**§19.10 amended by the census:** B5.1's positive control uses the Be-reflected
+fixture (`SOURCE ×748`) or the synthetic ℓ = 1 `Sig2` (−36.9 Δk·10⁵), never the
+2-group legacy fixture (D3: on it every (n,2n) ℓ ≥ 1 body is a no-op, so a
+mutation there is blind by construction). B5.7 gains the second route: the
+moment factor fed `energy.kernel` again (`fission.py:219`).
+
+### 19.12 The test-side carrier census — LANDED 2026-09-04 (the §6b set is MEASURED, not grepped)
+
+`[M]` `scratch/cs4c_step5b_test_consumers.md` (explorer; pytest plugin
+`scratch/cs4c_step5b_test_spy.py`; 16 trees = `tests/transport`, `diffusion`,
+`homogeneous`, every `tests/sn` subtree + top-level files, `cross_method`;
+4447 items, 3 809 742 recorded calls, 1050 s serial under the canonical flags;
+**16 of 16 trees rc=0 at HEAD**; the `REQUIRE_ALL` gate tripped once on
+`tests/transport` because `FissionOperator.apply` has 0 calls there — re-run
+without it, 737 passed / 1 skipped).
+
+* **The re-key population:** direct off-design feeds (a)–(g) = **55 nodes in
+  14 files** (58 caller sites); with the refusal pins (h) and the helper feeds
+  (i) = **102 nodes in 15 files**. Top buckets: (a) S/N2N `.apply` fed a typed
+  flux directly **35 nodes / 8 files** (`test_scattering_operator.py` 15,
+  `test_n2n_operator.py` 8, `test_scattering_adjoint.py` 5); (h) refusal pins
+  32 / 7 (`test_monomorphic_leaves.py` 24); (i) the transfer helpers
+  (`add_iso_source`, `build_aniso_source`, `_aniso_source_from_moment_values`)
+  16 / 4; (f′) `MultiplicationOperator` fed neither ndarray nor FullField 10 / 3;
+  (e) iso fed `FullField`@plain or ndarray@composite 7 / 3.
+* **610 of 975** family-touching nodes reach it only through production —
+  the bit-identity coverage the step rides.
+* **7 monkeypatch-surrogate nodes** (3 trees) override a spied verb in the test
+  body (`MultiplicationOperator.apply`, `IsotropicFission.apply`,
+  `ScatteringOperator.apply_transpose` ×2, `FissionOperator.apply_transpose`
+  ×3) — the §6b members no symbol census returns (2026-08-24/29 inventory);
+  7 is a floor.
+* ⭐ **The largest off-design feed in the suite is PRODUCTION:**
+  `transfer.py:842` hands a `ScalarFlux` to the PLAIN-bound `isotropic_energy`
+  — 683 527 calls over 608 nodes in 11 trees. It is §19.4's one named site;
+  R-4 makes the lift wrap `.values` there.
+* **The typed-flux arms of S/N2N/F have zero external production callers**
+  (production feeds `FullField`/`TimedFullField` only; the sub-carrier arms are
+  reached re-entrantly or by tests) — R-3's evidence, from the test side.
+* ⚠ **The moment-domain sibling has NO test binding its ends today:** every
+  composite-bound S/N2N/F binding in the whole suite has an ANGULAR interior;
+  the windowed moment composite reaches 64 nodes in 20 files from exactly two
+  production sites (`iteration.py:699`, `sn/solver.py:4013`), 0 direct. §19.2's
+  `on_moment_domain()` sibling lands with its own binding + reciprocity gate
+  (§6c: the gate's first red is the current tree's angular-bound instance fed a
+  moment composite).
+* 3 trees carry zero family traffic: `cross_method` (81), `sn/mesh` (178),
+  `sn/angular` (20).
