@@ -76,7 +76,7 @@ Structural independence of the hand-references
   below the trusted-library line — see ``algebra-of-record`` §structural
   independence) but assembles the moment sum by an INDEPENDENT explicit
   Python loop, not the production frame analysis/reconstruction faces /
-  ``LegendreMomentScattering`` einsums.
+  ``LegendreMomentTransfer`` einsums.
 
 Negative control (vv-principles anti-pattern #11): a dropped-P1
 regression makes :math:`S_1 \equiv S_0` so the operator difference is
@@ -224,7 +224,7 @@ def test_cylindrical_p1_source_matches_hand_reference():
     three real :math:`Y_1^m` are active).  The hand-reference assembles
     the moment sum by an INDEPENDENT explicit loop over the
     ``spherical_harmonics`` table, NOT the production frame analysis/reconstruction
-    faces / ``LegendreMomentScattering`` einsums — so a transposed or
+    faces / ``LegendreMomentTransfer`` einsums — so a transposed or
     mis-shaped einsum in the production path is detectable.
     """
     quad = build_cylindrical_mms_case().quadrature

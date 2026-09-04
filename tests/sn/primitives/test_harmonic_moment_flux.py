@@ -28,6 +28,7 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.spaces.moment_head import MomentHead
+from orpheus.transport.material_field import TransferMaterialField
 
 pytestmark = pytest.mark.foundation
 
@@ -596,13 +597,13 @@ class TestRLambdaMRoundTrip:
         np.testing.assert_allclose(out.values, 0.0, atol=1e-12)
 
     def test_lambda_apply_flux_in_source_out(self) -> None:
-        """``LegendreMomentScattering.apply(HarmonicMomentFlux)`` is the
+        """``LegendreMomentTransfer.apply(HarmonicMomentFlux)`` is the
         **role-changing** edge of the carrier grid: a flux moment scatters
         into the in-scatter SOURCE moment it emits, so the typed return is a
         :class:`HarmonicMomentSourceSink` (NOT a flux) with matching mesh + L.
         """
         from orpheus.derivations.common.xs_library import get_mixture
-        from orpheus.transport.operators.scattering import LegendreMomentScattering
+        from orpheus.transport.operators.transfer import LegendreMomentTransfer
         from orpheus.sn.solver import SNSolver
         from orpheus.transport.source_sinks import HarmonicMomentSourceSink
         mix = get_mixture("A", "2g")
@@ -627,8 +628,8 @@ class TestRLambdaMRoundTrip:
         )
         moments = HarmonicMomentFlux.from_mesh_and_L(moments_values, sn_mesh, L)
 
-        Lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver.mat_xs, basis=SphericalHarmonicBasis(L=L), skip_l0=True,
+        Lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         out = Lam.apply(moments)
         # flux moment IN → source moment OUT (the explicit role change).
@@ -645,7 +646,7 @@ class TestRLambdaMRoundTrip:
     def test_lambda_bare_in_bare_out_legacy_path(self) -> None:
         """Bare-ndarray path is preserved for legacy probe tests."""
         from orpheus.derivations.common.xs_library import get_mixture
-        from orpheus.transport.operators.scattering import LegendreMomentScattering
+        from orpheus.transport.operators.transfer import LegendreMomentTransfer
         from orpheus.sn.solver import SNSolver
         mix = get_mixture("A", "2g")
         if len(mix.SigS) < 2:
@@ -666,8 +667,8 @@ class TestRLambdaMRoundTrip:
         moments_values = np.zeros(
             (*_head_shape(sn_mesh, L), mix.ng, nx, ny),
         )
-        Lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver.mat_xs, basis=SphericalHarmonicBasis(L=L), skip_l0=True,
+        Lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         out = Lam.apply(moments_values)
         assert isinstance(out, np.ndarray)
@@ -686,9 +687,10 @@ class TestZerosForMeshAndL:
         assert phi.L == 0
         # ⛔ RE-KEYED 2026-09-02 (#429): ``(1, 1, ...)`` is the RECTANGULAR
         # head at L = 0. The slab's Legendre head is FLAT, ``(1,)``.
-        # ⭐ And L = 0 is not a corner case here: ``fission.py`` and
-        # ``n2n.py`` mint ``for_space(interior, 0)`` on EVERY solve,
-        # isotropic included — this is the shape the whole tree sees most.
+        # ⭐ And L = 0 is not a corner case here: ``fission.py`` mints
+        # ``for_space(interior, 0)`` on EVERY solve, and both transfer
+        # bindings do on every P0 solve — this is the shape the whole tree
+        # sees most.
         assert phi.values.shape == (*_head_shape(m, 0), m.ng, *m.spatial_shape)
         assert phi.values.shape == (1, m.ng, *m.spatial_shape)
 
@@ -733,8 +735,9 @@ class TestRankOneAngularHead:
     layout reads would have returned something rather than raising.
 
     ⭐ **The** :math:`L = 0` **chain is where this lands hardest.**
-    ``fission.py`` and ``n2n.py`` mint ``for_space(interior, 0)`` on EVERY
-    solve, isotropic included — so a flat head at :math:`L = 0` is the single
+    ``fission.py`` mints ``for_space(interior, 0)`` on EVERY solve, and both
+    transfer bindings (S and N₂ₙ, since #426 step 2 at the same order) do on
+    every P0 solve — so a flat head at :math:`L = 0` is the single
     most-travelled shape in the tree, not a corner case.
     """
 

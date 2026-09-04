@@ -1498,10 +1498,10 @@ def _fissile_sphere(nx: int = 5, ng: int = 2, sigma: float = 1.0, c: float = 0.4
 
 
 def _k_iso(solver):
-    """The solver-composed K_iso (§14.1): ``S.isotropic_energy + N2N.energy``
+    """The solver-composed K_iso (§14.1): ``S.isotropic_energy + N2N.isotropic_energy``
     — the SAME two cached leaf objects the production emission block
     consumes (build_within_group_system composes them at the one site)."""
-    return solver.scattering_op.isotropic_energy + solver.n2n_op.energy
+    return solver.scattering_op.isotropic_energy + solver.n2n_op.isotropic_energy
 
 
 def _s_emission(solver, psi: FullField) -> NDArray:
@@ -2453,10 +2453,10 @@ class TestCoupledLift:
         kernel = getattr(emission_block, "emission_kernel", None)
         if not (isinstance(emission_block, RadialCharacteristicEmission)
                 and getattr(kernel, "_a", None) is S.isotropic_energy
-                and getattr(kernel, "_b", None) is snf_solver.n2n_op.energy):
+                and getattr(kernel, "_b", None) is snf_solver.n2n_op.isotropic_energy):
             pytest.fail("the gain grid's (B,A) block is not EXACTLY the scatter "
                         "A_BA over the solver-composed K_iso "
-                        "(S.isotropic_energy + N2N.energy, leaf identity) — the "
+                        "(S.isotropic_energy + N2N.isotropic_energy, leaf identity) — the "
                         "F fold must be the OUTER q_ext seam, never a "
                         "within-group gain (HAZARD 5).")
 

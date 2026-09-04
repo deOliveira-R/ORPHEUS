@@ -10,7 +10,7 @@ Three tiers, deliberately separated:
   shared dispatch code): the arms' arithmetic pinned by a structurally
   independent realization (`vv` L11).  The (n,2n) multiplicity is spelled
   as a hand-authored literal ``2.0`` here — the external written-down pin
-  that keeps ``N2NKernel.multiplicity`` anchored after XD-2 removes every
+  that keeps ``N2N_MULTIPLICITY`` anchored after XD-2 removes every
   production literal (`coding-standards`, single-sourcing clause).
 * The transitional facade battery (each verb bit-identical to the
   ``MaterialXSField.apply_*`` arm it replaced) RETIRED WITH THE ARMS at
@@ -25,12 +25,8 @@ import numpy as np
 import pytest
 
 from tests.sn._test_helpers import material_xs_from_raw
-from orpheus.transport.kernels import N2NKernel, ScatteringKernel
-from orpheus.transport.material_field import (
-    MaterialField,
-    N2NMaterialField,
-    ScatteringMaterialField,
-)
+from orpheus.transport.kernels import N2N_MULTIPLICITY, TransferKernel
+from orpheus.transport.material_field import MaterialField, TransferMaterialField
 
 pytestmark = pytest.mark.foundation
 
@@ -47,8 +43,19 @@ _SIGS_B = [
     np.array([[0.15, 0.05], [-0.03, 0.22]]),
     np.array([[0.04, -0.02], [0.02, 0.05]]),
 ]
-_SIG2_A = np.array([[0.00, 0.03], [0.01, 0.00]])
-_SIG2_B = np.array([[0.02, 0.00], [0.00, 0.04]])
+#: The (n,2n) stacks at the fixture's order (#426 step 2): an ℓ ≥ 1 content
+#: that is NOT a scaled copy of ℓ = 0 (a moments-off-by-one is detectable),
+#: entrywise |Σ_ℓ| ≤ Σ_0 (the tape's physics), zero where Σ_0 is zero.
+_SIG2_A = [
+    np.array([[0.00, 0.03], [0.01, 0.00]]),      # ℓ=0
+    np.array([[0.00, 0.012], [-0.004, 0.00]]),   # ℓ=1
+    np.array([[0.00, 0.003], [0.001, 0.00]]),    # ℓ=2
+]
+_SIG2_B = [
+    np.array([[0.02, 0.00], [0.00, 0.04]]),
+    np.array([[0.007, 0.00], [0.00, -0.011]]),
+    np.array([[0.002, 0.00], [0.00, 0.005]]),
+]
 _NX, _NG, _L = 6, 2, 2
 
 
@@ -66,8 +73,8 @@ def _mat_xs(nx=_NX):
 def _fields(mat_xs=None):
     mat_xs = mat_xs if mat_xs is not None else _mat_xs()
     return (
-        ScatteringMaterialField.from_material_xs(mat_xs),
-        N2NMaterialField.from_material_xs(mat_xs),
+        TransferMaterialField.scattering(mat_xs),
+        TransferMaterialField.n2n(mat_xs),
         mat_xs,
     )
 
@@ -145,7 +152,7 @@ class TestAdmission:
             MaterialField(per_material={}, cells_by_material={})
 
     def test_layout_naming_kernel_less_material_refuses(self):
-        k = ScatteringKernel(moments=(np.eye(_NG),))
+        k = TransferKernel(moments=(np.eye(_NG),))
         with pytest.raises(ValueError, match="carry no kernel"):
             MaterialField(
                 per_material={0: k},
@@ -158,8 +165,8 @@ class TestAdmission:
         with pytest.raises(ValueError, match="uniform group structure"):
             MaterialField(
                 per_material={
-                    0: ScatteringKernel(moments=(np.eye(2),)),
-                    1: ScatteringKernel(moments=(np.eye(3),)),
+                    0: TransferKernel(moments=(np.eye(2),)),
+                    1: TransferKernel(moments=(np.eye(3),)),
                 },
                 cells_by_material={0: (np.array([0]),)},
             )
@@ -167,16 +174,16 @@ class TestAdmission:
     def test_mixed_order_refuses_on_order_read(self):
         f = MaterialField(  # base admits it — order is scattering-tier
             per_material={
-                0: ScatteringKernel(moments=(np.eye(2),)),
-                1: ScatteringKernel(moments=(np.eye(2), np.zeros((2, 2)))),
+                0: TransferKernel(moments=(np.eye(2),)),
+                1: TransferKernel(moments=(np.eye(2), np.zeros((2, 2)))),
             },
             cells_by_material={0: (np.array([0]),)},
         )
-        sf = ScatteringMaterialField(
+        sf = TransferMaterialField(
             per_material=dict(f.per_material),
             cells_by_material=dict(f.cells_by_material),
         )
-        with pytest.raises(ValueError, match="mixed truncation orders"):
+        with pytest.raises(ValueError, match="mixed stored orders"):
             _ = sf.order
 
     def test_mappings_are_read_only(self):
@@ -189,7 +196,7 @@ class TestAdmission:
     def test_moment_verb_refuses_order_mismatch(self):
         sf, _, _ = _fields()
         bad = np.zeros((_L + 2, 2 * (_L + 1) + 1, _NG, _NX, 1))
-        with pytest.raises(ValueError, match="truncate the field"):
+        with pytest.raises(ValueError, match="bring the field"):
             sf.moment_source(bad, skip_l0=True, head=_head())
 
 
@@ -201,7 +208,7 @@ class TestAdmission:
 class TestTruncationAndSharing:
     def test_truncated_is_the_sub_stack_and_shares_the_layout(self):
         sf, _, _ = _fields()
-        p0 = sf.truncated(0)
+        p0 = sf.at_order(0)
         if p0.order != 0:
             pytest.fail("truncated(0) must carry order 0")
         for mid in sf.per_material:
@@ -213,15 +220,27 @@ class TestTruncationAndSharing:
                     "truncation must SHARE the layout index arrays, not copy"
                 )
 
-    def test_truncated_above_stored_order_refuses(self):
+    def test_at_order_above_the_stored_order_pads_with_exact_zeros(self):
+        r"""Ruling §4.3 (#426 step 2): a stack shorter than the request is
+        COMPLETE — its higher moments are the evaluation's zeros, not an
+        invention — so ``at_order`` pads; until 2026-09-04 it refused."""
         sf, _, _ = _fields()
-        with pytest.raises(ValueError, match="not invented"):
-            sf.truncated(_L + 1)
+        wide = sf.at_order(_L + 2)
+        if wide.order != _L + 2:
+            pytest.fail("at_order above the stored order must widen the field")
+        for mid, k in sf.per_material.items():
+            padded = wide.per_material[mid]
+            for l in range(_L + 1):
+                np.testing.assert_array_equal(padded.moments[l], k.moments[l])
+            for l in range(_L + 1, _L + 3):
+                np.testing.assert_array_equal(padded.moments[l], 0.0)
+                if padded.moments[l].flags.writeable:
+                    pytest.fail("a padded moment must be read-only like the rest")
 
     def test_two_fields_share_the_mesh_layout_object(self):
         mat_xs = _mat_xs()
-        sf = ScatteringMaterialField.from_material_xs(mat_xs)
-        nf = N2NMaterialField.from_material_xs(mat_xs)
+        sf = TransferMaterialField.scattering(mat_xs)
+        nf = TransferMaterialField.n2n(mat_xs)
         for mid in sf.cells_by_material:
             if sf.cells_by_material[mid] is not nf.cells_by_material[mid]:
                 pytest.fail(
@@ -301,10 +320,10 @@ class TestIndependentReference:
         _, nf, _ = _fields()
         phi = _phi(sm)
         Q = np.zeros_like(phi)
-        nf.add_emission(Q, phi)
+        nf.add_p0_source(Q, phi)
         ref = np.zeros_like(phi)
         for ix in range(_NX):
-            sig2 = _sig_of(_mid_of_cell(ix))[1]
+            sig2 = _sig_of(_mid_of_cell(ix))[1][0]
             # 2.0 = the hand-authored multiplicity pin (see module docstring)
             ref[:, ix, 0] += 2.0 * np.tensordot(sig2.T, phi[:, ix, 0], axes=1)
         np.testing.assert_allclose(Q, ref, rtol=0, atol=1e-15)
@@ -313,40 +332,93 @@ class TestIndependentReference:
         _, nf, _ = _fields()
         chi = _phi(seed=7)
         Q = np.zeros_like(chi)
-        nf.add_emission_transpose(Q, chi)
+        nf.add_p0_source_transpose(Q, chi)
         ref = np.zeros_like(chi)
         for ix in range(_NX):
-            sig2 = _sig_of(_mid_of_cell(ix))[1]
+            sig2 = _sig_of(_mid_of_cell(ix))[1][0]
             ref[:, ix, 0] += 2.0 * np.tensordot(sig2, chi[:, ix, 0], axes=1)
         np.testing.assert_allclose(Q, ref, rtol=0, atol=1e-15)
 
-    def test_n2n_moment_emission_touches_only_l0(self):
+    @pytest.mark.parametrize("rank", [2, 1], ids=["harmonic-head", "legendre-head"])
+    def test_n2n_moment_source_scales_every_block_by_the_yield(self, rank):
+        r"""#426 step 2 (the must-flip row): the (n,2n) moment verb writes
+        EVERY ℓ block, each the yield times the channel's ℓ-th transfer —
+        until 2026-09-04 it wrote the ℓ = 0 block alone (ORPHEUS's P0 model
+        of the channel, never a property of the reaction). The ACTIVATION
+        leg comes first (vv #19): the ℓ ≥ 1 output must be non-zero, or the
+        row is the P0 tautology it replaced. Both head ranks (R9): the
+        per-degree contraction spec is the head's, and every incumbent
+        (n,2n) fixture in the tree is a 1-D rule."""
         _, nf, _ = _fields()
-        mom = _moments(seed=9)
-        out = nf.moment_emission(mom, head=_head())
-        if not np.array_equal(out[1:], np.zeros_like(out[1:])):
-            pytest.fail(
-                "the (n,2n) field carries ONE matrix (ORPHEUS's P0 model of the "
-                "channel — NOT a property of the reaction, see #426), so every "
-                "ℓ≥1 block must be zero"
-            )
-        if not np.array_equal(out[0, 1:], np.zeros_like(out[0, 1:])):
-            pytest.fail("(n,2n) writes only the (ℓ=0, m=0) slot")
-        ref = np.zeros_like(mom[0, 0])
+        mom = _moments(seed=9) if rank == 2 else _flat_moments(seed=9)
+        out = nf.moment_source(mom, skip_l0=False, head=_head(rank))
+        if not np.any(out[1:] != 0.0):
+            pytest.fail("the ℓ ≥ 1 (n,2n) blocks did not activate — P0 model")
+        ref = np.zeros_like(mom)
         for ix in range(_NX):
-            sig2 = _sig_of(_mid_of_cell(ix))[1]
-            ref[:, ix, 0] = 2.0 * np.tensordot(sig2.T, mom[0, 0, :, ix, 0], axes=1)
-        np.testing.assert_allclose(out[0, 0], ref, rtol=0, atol=1e-15)
+            stack = _sig_of(_mid_of_cell(ix))[1]
+            for l in range(_L + 1):
+                if rank == 2:
+                    for m in range(2 * l + 1):
+                        ref[l, m, :, ix, 0] = 2.0 * np.tensordot(
+                            stack[l].T, mom[l, m, :, ix, 0], axes=1,
+                        )
+                else:
+                    ref[l, :, ix, 0] = 2.0 * np.tensordot(
+                        stack[l].T, mom[l, :, ix, 0], axes=1,
+                    )
+        np.testing.assert_allclose(out, ref, rtol=0, atol=1e-15)
 
-    def test_n2n_moment_emission_transpose(self):
+    @pytest.mark.parametrize("rank", [2, 1], ids=["harmonic-head", "legendre-head"])
+    def test_n2n_moment_source_transpose_scales_every_block(self, rank):
         _, nf, _ = _fields()
-        mom = _moments(seed=11)
-        out = nf.moment_emission_transpose(mom, head=_head())
-        ref = np.zeros_like(mom[0, 0])
+        mom = _moments(seed=11) if rank == 2 else _flat_moments(seed=11)
+        out = nf.moment_source_transpose(mom, skip_l0=False, head=_head(rank))
+        if not np.any(out[1:] != 0.0):
+            pytest.fail("the ℓ ≥ 1 (n,2n) transpose blocks did not activate")
+        ref = np.zeros_like(mom)
         for ix in range(_NX):
-            sig2 = _sig_of(_mid_of_cell(ix))[1]
-            ref[:, ix, 0] = 2.0 * np.tensordot(sig2, mom[0, 0, :, ix, 0], axes=1)
-        np.testing.assert_allclose(out[0, 0], ref, rtol=0, atol=1e-15)
+            stack = _sig_of(_mid_of_cell(ix))[1]
+            for l in range(_L + 1):
+                if rank == 2:
+                    for m in range(2 * l + 1):
+                        ref[l, m, :, ix, 0] = 2.0 * np.tensordot(
+                            stack[l], mom[l, m, :, ix, 0], axes=1,
+                        )
+                else:
+                    ref[l, :, ix, 0] = 2.0 * np.tensordot(
+                        stack[l], mom[l, :, ix, 0], axes=1,
+                    )
+        np.testing.assert_allclose(out, ref, rtol=0, atol=1e-15)
+
+    def test_the_two_channels_differ_by_the_yield_alone(self):
+        r"""The F2 ruling, as arithmetic: a scattering field over the (n,2n)
+        STACK emits exactly half of what the (n,2n) field emits — every verb,
+        every block. Scaling by 2 is exact in binary floating point, so the
+        law is bit-exact (``array_equal``), not a tolerance."""
+        _, nf, _ = _fields()
+        as_scattering = TransferMaterialField(
+            per_material={
+                mid: TransferKernel(moments=k.moments, multiplicity=1)
+                for mid, k in nf.per_material.items()
+            },
+            cells_by_material=nf.cells_by_material,
+        )
+        phi = _phi(seed=13)
+        Q_n2n, Q_s = np.zeros_like(phi), np.zeros_like(phi)
+        nf.add_p0_source(Q_n2n, phi)
+        as_scattering.add_p0_source(Q_s, phi)
+        np.testing.assert_array_equal(Q_n2n, 2 * Q_s)
+        mom = _moments(seed=15)
+        np.testing.assert_array_equal(
+            nf.moment_source(mom, skip_l0=False, head=_head()),
+            2 * as_scattering.moment_source(mom, skip_l0=False, head=_head()),
+        )
+        rate_n2n, rate_s = np.zeros(_NG), np.zeros(_NG)
+        volume = np.linspace(1.0, 2.0, _NX).reshape(_NX, 1)  # the layout is (nx, ny)
+        nf.add_to_group_rate(rate_n2n, phi, volume)
+        as_scattering.add_to_group_rate(rate_s, phi, volume)
+        np.testing.assert_array_equal(rate_n2n, 2 * rate_s)
 
     def test_group_rate(self):
         _, nf, _ = _fields()
@@ -356,7 +428,7 @@ class TestIndependentReference:
         nf.add_to_group_rate(rate, phi, vol)
         ref = np.zeros(_NG)
         for ix in range(_NX):
-            sig2 = _sig_of(_mid_of_cell(ix))[1]
+            sig2 = _sig_of(_mid_of_cell(ix))[1][0]
             for g in range(_NG):
                 for gp in range(_NG):
                     ref[g] += vol[ix, 0] * 2.0 * phi[gp, ix, 0] * sig2[gp, g]
@@ -393,7 +465,7 @@ _NU_SIG_F = {0: np.array([0.013, 0.26]), 1: np.array([0.002, 0.11]),
 
 
 def _fission_field(nx=_NX):
-    from orpheus.transport.kernels import FissionKernel
+    from orpheus.transport.kernels import N2N_MULTIPLICITY, FissionKernel
     from orpheus.transport.material_field import FissionMaterialField
 
     third = nx // 3
@@ -422,7 +494,7 @@ class TestFissionAdmission:
         field — the law fires in :class:`FissionKernel`'s ctor, which is
         the ONLY door (Pattern 4: the field holds validated kernels, so
         an invalid spectrum is not a value a field can carry)."""
-        from orpheus.transport.kernels import FissionKernel
+        from orpheus.transport.kernels import N2N_MULTIPLICITY, FissionKernel
         from orpheus.transport.material_field import FissionMaterialField
 
         with pytest.raises(ValueError):

@@ -730,7 +730,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             Q = np.zeros_like(phi)
             S.add_iso_source(Q, phi)
             # §14.1: the (n,2n) verb lives on the solver-held N2N binding.
-            solver.n2n_op.energy.n2n.add_emission(Q, phi)
+            solver.n2n_op.isotropic_energy.transfer.add_p0_source(Q, phi)
             return Q
 
     class F_scalar_adapter(LinearOperator):

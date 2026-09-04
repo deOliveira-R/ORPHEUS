@@ -195,7 +195,7 @@ class _EmissionKernel(Protocol):
     ``apply_transpose`` — that is a runtime capability of *adjointable* operators
     only (#276 P3). ``A_BA`` needs BOTH directions, so it types its
     kernel by the capability it consumes. Satisfied by the solver-composed
-    ``K_iso`` (``S.isotropic_energy + N2N.energy`` — an ``OperatorSum``
+    ``K_iso`` (``S.isotropic_energy + N2N.isotropic_energy`` — an ``OperatorSum``
     of the two cached energy bindings, CS4c §14.1) and the fission
     ``kernel`` (the rank-1 ``χ ⊗ νΣf`` dyad).
     """
@@ -1347,7 +1347,7 @@ class RadialCharacteristicEmission(LinearOperator):
         The operator's isotropic :math:`\ell = 0` emission kernel :math:`K`,
         an ``ndarray → ndarray`` map ``(ng, nx) → (ng, nx)`` with
         ``apply``/``apply_transpose``. In production pass the
-        solver-composed ``K_iso`` (``S.isotropic_energy + N2N.energy``,
+        solver-composed ``K_iso`` (``S.isotropic_energy + N2N.isotropic_energy``,
         CS4c §14.1) — sharing the two cached energy-binding LEAVES the
         bulk gains consume, so the emission is single-sourced per channel
         (one shared kernel object each, not a twin). ``fission_op.kernel`` is accepted (the machinery is

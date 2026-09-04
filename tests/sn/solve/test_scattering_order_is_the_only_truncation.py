@@ -13,8 +13,11 @@ Two claims, both on the real 421-group library (`[M]` 2026-09-03):
 * **The library now serves the orders it stores.** Until step 1 the ingest cut every
   scattering channel to P2 and the clamp silently served P2 to a ``scattering_order = 3``
   request; the Be-reflected fast slab now reads a different k at P3 than at P2. The P2 value
-  itself is the pre-carve record (`scratch/_426_pre_step1.json`, `main` ``1e02f6b1``):
-  ``k(L=2) = 1.0953221881419453`` — lossless ingest moves no stored P0..P2 value.
+  is a RECORD: at step 1 it was the pre-carve ``1.0953221881419453`` (`main` ``1e02f6b1``;
+  lossless ingest moved no stored P0..P2 value), and since #426 step 2 (2026-09-04) the
+  (n,2n) stack enters the solve at the scattering order, so the SAME fixture reads
+  ``k(L=2) = 1.0911996566537725`` (`[M]` the flagship's ℓ ≤ 2 arm; the pre-step-2 value
+  survives as that gate's P0-only control, where the (n,2n) ℓ ≥ 1 moments are zeroed).
 
 Cost: four 421-group slab solves, `[M]` ≈ 3 + 3 + 7 + 8 s. Not ``slow`` (anti-pattern #36).
 """
@@ -39,7 +42,9 @@ from orpheus.sn.solver import solve_sn
 pytestmark = pytest.mark.l1
 
 _TOL = dict(keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10, max_outer=3000)
-_K_P2_RECORD = 1.0953221881419453  # pre-#426-step-1 record, same fixture, same tolerances
+#: #426 step-2 record (2026-09-04), same fixture, same tolerances: the (n,2n) anisotropy
+#: in the solve. Step 1's record was 1.0953221881419453 (now the flagship's P0-only control).
+_K_P2_RECORD = 1.0911996566537725
 
 
 def _mixture(name: str, density: float):
@@ -90,7 +95,7 @@ class TestTheLibraryServesTheOrdersItStores:
     def fixture(self):
         return {0: _mixture("U_235", 0.04894), 1: _mixture("BE009", 0.1236)}, _slab(3.0, 4.0, 12, 16)
 
-    def test_p2_reproduces_the_pre_carve_record(self, fixture):
+    def test_p2_reproduces_the_record(self, fixture):
         materials, mesh = fixture
         assert _solve(materials, mesh, 2, **_TOL) == _K_P2_RECORD
 

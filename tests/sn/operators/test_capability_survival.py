@@ -55,11 +55,8 @@ from orpheus.transport.operators.isotropic_scattering import (
     IsotropicScattering,
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-from orpheus.transport.operators.scattering import (
-    LegendreMomentScattering,
-    N2NMomentOperator,
-    ScatteringOperator,
-)
+from orpheus.transport.operators.scattering import ScatteringOperator
+from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from tests._harness.predicates import (
     INVERTIBLE,
     STRUCTURAL_ABSENT,
@@ -73,6 +70,7 @@ from tests.sn._test_helpers import (
     placeholder_materials,
 )
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.transport.material_field import TransferMaterialField
 
 pytestmark = [pytest.mark.foundation]
 
@@ -332,8 +330,12 @@ class TestPredicateFaithfulness:
             # posed composite, like S.
             IsotropicFission.from_material_xs(mat, space=survey_space),
             FissionOperator.from_solver_data(mat_xs=mat, space=composite),
-            LegendreMomentScattering.from_material_xs(mat_xs=mat, basis=SphericalHarmonicBasis(L=1), skip_l0=True),
-            N2NMomentOperator.from_material_xs(mat_xs=mat, basis=SphericalHarmonicBasis(L=1)),
+            LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(mat), SphericalHarmonicBasis(L=1), skip_l0=True,
+        ),
+            LegendreMomentTransfer.from_field(
+            TransferMaterialField.n2n(mat), SphericalHarmonicBasis(L=1), skip_l0=False,
+        ),
             ScatteringOperator.from_solver_data(
                 mat_xs=mat,
                 scattering_order=0,

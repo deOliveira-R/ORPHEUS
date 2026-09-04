@@ -27,13 +27,13 @@ from typing import Protocol, runtime_checkable
 
 import numpy as np
 
-from orpheus.transport.kernels import N2NKernel
+from orpheus.transport.kernels import N2N_MULTIPLICITY
 
 #: The (n,2n) emission multiplicity, read once from its ONE home
 #: (XD-2, CS4c step 3): a float so the walker's weight arithmetic
 #: keeps its dtype path exactly (the ruled MC hoist — a bare literal
 #: here would be the thirteenth home again).
-_N2N_MULTIPLICITY = float(N2NKernel.multiplicity)
+_N2N_MULTIPLICITY = float(N2N_MULTIPLICITY)
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D

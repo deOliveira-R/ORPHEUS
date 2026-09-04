@@ -1419,6 +1419,7 @@ class SNSolver:
         # within-group algebra spells (L+C) − S − N₂ₙ − B explicitly.
         self.n2n_op = N2NOperator.from_solver_data(
             mat_xs=self.mat_xs,
+            scattering_order=self.scattering_order,
             space=sn_mesh.full_field_space,
         )
         # The fission ENERGY binding on the scalar bulk space (CS4c
@@ -1596,9 +1597,9 @@ class SNSolver:
         rate = self.sn_mesh.integrate_per_group(per_cell_per_group)
 
         # (n,2n) contribution — Issue #197 PR-TYPED-1: the per-material
-        # dispatch loop lives ONLY inside
-        # :meth:`N2NMaterialField.add_to_group_rate` (§14.1).
-        self.n2n_op.energy.n2n.add_to_group_rate(
+        # dispatch loop (and the yield) lives ONLY inside
+        # :meth:`TransferMaterialField.add_to_group_rate` (§14.1).
+        self.n2n_op.isotropic_energy.transfer.add_to_group_rate(
             rate, flux_distribution, self.volume,
         )
 
@@ -1635,7 +1636,7 @@ class SNSolver:
         over :math:`\nu\Sigma_f` — ``∫_V ⟨νΣf, φ⟩ dV`` — the single source of the
         ``Σx·φ`` contraction and its volume integral. The :math:`(n,2n)` channel
         is an **explicit additive term** (a second neutron-multiplying reaction,
-        NOT a ``⟨Σx,φ⟩`` rate); it reuses the single ``N2NMaterialField.add_to_group_rate``
+        NOT a ``⟨Σx,φ⟩`` rate); it reuses the single ``TransferMaterialField.add_to_group_rate``
         machinery and is exactly zero on a no-(n,2n) mixture.
 
         This is the canonical scale anchor for the SN eigenmode:
@@ -1652,7 +1653,9 @@ class SNSolver:
             self.mat_xs.fission_production_field
         ).evaluate(flux_distribution)
         n2n_rate = np.zeros(self.ng)
-        self.n2n_op.energy.n2n.add_to_group_rate(n2n_rate, flux_distribution, self.volume)
+        self.n2n_op.isotropic_energy.transfer.add_to_group_rate(
+            n2n_rate, flux_distribution, self.volume,
+        )
         return float(fission + n2n_rate.sum())
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
@@ -1706,7 +1709,7 @@ class SNSolver:
             self.mat_xs.absorption_cross_section_field
         ).evaluate(flux_distribution)
         emission_n2n = np.zeros(self.ng)
-        self.n2n_op.energy.n2n.add_to_group_rate(
+        self.n2n_op.isotropic_energy.transfer.add_to_group_rate(
             emission_n2n, flux_distribution, self.volume,
         )
         leakage = self._boundary_leakage_rate(production)
@@ -2336,14 +2339,14 @@ class SNSolver:
         return result.values
 
     def _add_n2n_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        """Add (n,2n) source to Q in-place (delegates to the first-class
-        N2NOperator's energy binding — §14.1; the field verb carries the
-        per-material dispatch and the multiplicity).
+        """Add the P0 (n,2n) source to Q in-place (delegates to the
+        first-class N2NOperator's energy binding — §14.1; the field verb
+        carries the per-material dispatch and the multiplicity).
 
         Issue #196 PR-INDEX-5: both arguments are principled
         ``(ng, nx, ny)``.
         """
-        self.n2n_op.energy.n2n.add_emission(Q, phi)
+        self.n2n_op.isotropic_energy.transfer.add_p0_source(Q, phi)
 
 
 # ═══════════════════════════════════════════════════════════════════════

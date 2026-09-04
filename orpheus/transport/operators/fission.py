@@ -151,9 +151,8 @@ class FissionMomentOperator(BoundOperator):
     ``[0, 0]`` harmonic block.
 
     The fission sibling of
-    :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`
-    (:math:`\Lambda`) and
-    :class:`~orpheus.transport.operators.scattering.N2NMomentOperator`:
+    :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`
+    (:math:`\Lambda`, the per-ℓ factor both transfer terms share):
     endomorphic on the :math:`L=0` spherical-harmonic coefficient space,
     applying the energy dyad to the single :math:`Y_0^0` block (fission
     emission is isotropic by construction — every :math:`\ell\ge 1`
@@ -364,8 +363,8 @@ class FissionOperator(BoundOperator["FullField"]):
     @cached_property
     def full_fission_kernel(self) -> "OperatorProduct":
         r"""The frame form :math:`R_0\,F_0\,M_0` — fission's whole action
-        as ONE conjugated product (the S
-        :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`
+        as ONE conjugated product (the transfer family's
+        :attr:`~orpheus.transport.operators.transfer.TransferOperator.full_transfer_kernel`
         sibling at :math:`\ell=0`). The per-ordinate source is
         ``(1/W)·full_fission_kernel.apply(ψ)``; its
         :meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose`

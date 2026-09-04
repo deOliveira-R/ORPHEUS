@@ -2,7 +2,7 @@ r"""The model-independent isotropic energy operators on the scalar flux.
 
 Every transport model — discrete ordinates (SN), collision probability (CP),
 method of characteristics (MoC), diffusion, the homogeneous 0-D solver, Monte
-Carlo — builds the **isotropic** (:math:`\ell=0`) in-scatter source by the SAME
+Carlo — builds the **isotropic** (:math:`\ell=0`) emission source by the SAME
 per-cell energy operation on the **scalar flux** :math:`\phi`:
 
 .. math::
@@ -17,28 +17,35 @@ and how the scalar source is embedded back (SN: :math:`/W` isotropic broadcast;
 diffusion / homogeneous: fold :math:`-\Sigma_{s,0}^{T}` into the loss matrix
 :math:`A`; CP / MoC: through the transport kernel). The **energy operation is
 model-independent** (cross-domain-attacker + explorer, 2026-06-28: the same
-``einsum("fg,f->g")`` is re-implemented 6× across the solver families — a
+``einsum("fg,f->g")`` was re-implemented 6× across the solver families — a
 Cardinal-Rule-2 single-concept-many-places situation).
 
-This module owns that shared energy operation as two
-:class:`~orpheus.numerics.operator.LinearOperator`\ s on the scalar flux:
+This module owns that shared energy operation as ONE
+:class:`~orpheus.numerics.operator.LinearOperator` on the scalar flux —
+:class:`IsotropicTransfer`, the P0 energy binding of a transfer channel
+:math:`y\,\Sigma_{c,0}^{T}` — with the two terms of the algebra as its role
+subclasses (#426 step 2, 2026-09-04; the F3 ruling: the kernel tier names the
+mathematical object, the operator tier names the TERM):
 
-* :class:`IsotropicScattering` — :math:`\Sigma_{s,0}` (P0 in-scatter);
-* :class:`IsotropicN2N` — :math:`2\,\Sigma_{2n}` (the (n,2n) doubling, a DISTINCT
-  *multiplication* channel — physics-faithful, and it also feeds the keff
-  *production* numerator, not the loss — so it stays its own operator, summed with
-  :class:`IsotropicScattering` for the in-scatter source).
+* :class:`IsotropicScattering` — :math:`\Sigma_{s,0}` (P0 in-scatter, yield 1);
+* :class:`IsotropicN2N` — :math:`2\,\Sigma_{2n}` (the (n,2n) doubling — a
+  *multiplication* channel whose yield also feeds the keff production
+  accounting, so it stays its own TERM, summed with
+  :class:`IsotropicScattering` for the isotropic emission source).
 
-Both are the **scalar (:math:`\ell=0`) realization** of the moment-space operators
-:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering` (at
-:math:`\ell=0`) and
-:class:`~orpheus.transport.operators.scattering.N2NMomentOperator`: they route
-through the SAME per-material kernel-field verbs
-(:meth:`~orpheus.transport.material_field.ScatteringMaterialField.add_p0_source` /
-:meth:`~orpheus.transport.material_field.N2NMaterialField.add_emission` + the
-``…_transpose`` twins — CS4c step 3, the O-6 landing), so the cross-section
-DATA and the per-material dispatch live ONCE (``coding-elegance`` Pattern 2). The harmonic-moment
-:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`
+The roles carry NOTHING but the extraction classmethod (which ``Mixture``
+channel the tier-2 mint reads) and the role name — an AST gate
+(``tests/transport/test_transfer_roles.py``) asserts it, so the
+member-for-member twins these two classes were until 2026-09-04 cannot regrow.
+
+Both are the **scalar (:math:`\ell=0`) realization** of the moment-space operator
+:class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer` (at
+:math:`\ell=0`): they route through the SAME per-material kernel-field verb
+(:meth:`~orpheus.transport.material_field.TransferMaterialField.add_p0_source`
++ its ``…_transpose`` twin — CS4c step 3, the O-6 landing), so the cross-section
+DATA, the per-material dispatch and the yield live ONCE (``coding-elegance``
+Pattern 2). The harmonic-moment
+:attr:`~orpheus.transport.operators.transfer.TransferOperator.full_transfer_kernel`
 is the permanent verification oracle for this scalar form.
 
 Layout & carriers
@@ -48,7 +55,7 @@ Bare ``np.ndarray`` in / out — the model-portable contract (CP / MoC / diffusi
 feed raw scalar-flux arrays; SN passes ``phi.values`` and re-wraps). The action is
 **spatial-moment-axis-agnostic** (the trailing ``…`` rides an LD ``2^d`` spectator
 axis through, #240 D5b-S3), so a φ̂-carrying scalar flux scatters every spatial
-moment by the same :math:`\Sigma_s`.
+moment by the same :math:`\Sigma_c`.
 
 Capabilities
 ============
@@ -56,8 +63,8 @@ Capabilities
 apply + a working ``apply_transpose``. No inverse — the per-cell group-transfer
 matrix is generally singular (a thermal group with no up-scatter source has a zero
 row); it is *applied*, never inverted. The transpose IS advertised (campaign #276):
-:math:`\Sigma_{s,0}^{T}` / :math:`2\Sigma_{2n}^{T}` (the group-axis flip) is the
-group-asymmetric factor of the adjoint isotropic scattering source.
+:math:`y\,\Sigma_{c,0}^{T}` (the group-axis flip) is the group-asymmetric factor of
+the adjoint isotropic emission source.
 
 References
 ----------
@@ -70,7 +77,7 @@ References
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -82,8 +89,7 @@ from orpheus.numerics.operator import (
 )
 from orpheus.transport.material_field import (
     FissionMaterialField,
-    N2NMaterialField,
-    ScatteringMaterialField,
+    TransferMaterialField,
 )
 from orpheus.transport.operators.bound_operator import BoundOperator
 # Runtime import for the composite-arm isinstance parse (mirrors
@@ -100,7 +106,12 @@ if TYPE_CHECKING:
     from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
 
 
-__all__ = ["IsotropicScattering", "IsotropicN2N", "IsotropicFission"]
+__all__ = [
+    "IsotropicTransfer",
+    "IsotropicScattering",
+    "IsotropicN2N",
+    "IsotropicFission",
+]
 
 
 def _values_of(phi: "np.ndarray | object") -> np.ndarray:
@@ -109,11 +120,11 @@ def _values_of(phi: "np.ndarray | object") -> np.ndarray:
 
 
 def _scalar_composite_source(op: "LinearOperator", psi: FullField) -> FullField:
-    r"""The shared scalar-composite arm of the two iso energy operators (#290 P4).
+    r"""The shared scalar-composite arm of the iso energy operators (#290 P4).
 
     Parses the composite's bulk as the SCALAR family (the iso operators
     are scalar-flux operators — an angular composite routes through
-    :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
+    :class:`~orpheus.transport.operators.transfer.TransferOperator`,
     never here), runs the operator's own bare-ndarray kernel on the bulk
     values (single source of truth — the SAME per-cell energy matmul),
     and wraps the result as the closed scalar source composite:
@@ -121,10 +132,9 @@ def _scalar_composite_source(op: "LinearOperator", psi: FullField) -> FullField:
     bulk ⊕ implicit-zero
     :class:`~orpheus.transport.source_sinks.scalar_boundary_source_sink.ScalarBoundarySourceSink`
     boundary (an energy-transfer operator has no face-trace action —
-    the in-scatter term is a CELL quantity). Shared by
-    :class:`IsotropicScattering`, :class:`IsotropicN2N`, and
-    :class:`IsotropicFission` (Pattern 2: one arm body, three kernels
-    through ``op.apply``).
+    the emission term is a CELL quantity). Shared by
+    :class:`IsotropicTransfer` and :class:`IsotropicFission` (Pattern 2:
+    one arm body, two kernels through ``op.apply``).
     """
     from orpheus.transport.fields._bases import ScalarField
     from orpheus.transport.source_sinks import (
@@ -137,8 +147,8 @@ def _scalar_composite_source(op: "LinearOperator", psi: FullField) -> FullField:
         raise TypeError(
             f"{type(op).__name__} composite apply: scalar-family bulk "
             f"required (the iso energy operators act on the scalar flux; "
-            f"an angular composite's in-scatter routes through "
-            f"ScatteringOperator); got {type(bulk).__name__}."
+            f"an angular composite's emission routes through "
+            f"TransferOperator); got {type(bulk).__name__}."
         )
     # CS4b S4 — the space route: output blocks ride the operand's blocks.
     return FullField(
@@ -147,8 +157,8 @@ def _scalar_composite_source(op: "LinearOperator", psi: FullField) -> FullField:
     )
 
 
-def _iso_is_assemblable(op: "IsotropicScattering | IsotropicN2N") -> bool:
-    r"""Shared assembly-axis predicate of the two iso energy operators.
+def _iso_is_assemblable(op: "IsotropicTransfer") -> bool:
+    r"""The assembly-axis predicate of the iso energy operator.
 
     Emittable iff the composite flat layout is known AND the declared
     bulk is the SCALAR family's ``(ng, *cells)`` energy-first tensor —
@@ -170,21 +180,20 @@ def _iso_is_assemblable(op: "IsotropicScattering | IsotropicN2N") -> bool:
 
 
 def _assemble_iso_energy_operator(
-    op: "IsotropicScattering | IsotropicN2N",
+    op: "IsotropicTransfer",
 ) -> "SparseAssembledOperator":
-    r"""Shared assembly arm of the two iso energy operators (Pattern 2 —
-    one body, two kernels through ``op.apply``, the
+    r"""The assembly arm of the iso energy operator (the
     :func:`_scalar_composite_source` sibling).
 
     **Group-impulse extraction — one source with the production
     kernel.** The per-cell energy blocks are read THROUGH the
-    operator's own bare-ndarray ``apply`` (the einsum kernels
-    ``add_p0_source`` / ``add_emission``): impulse ``g'`` is the
-    field ``e_{g'} ⊗ 1_cells``, whose image column IS every cell's
-    block column ``M_cell[:, g']`` exactly (unit inputs make the
-    kernel's products coefficient reads — no summation error). ng
-    kernel calls emit the whole cell-block-diagonal bulk. Deliberately
-    NOT ``dense_per_material()`` — that is the storage-side
+    operator's own bare-ndarray ``apply`` (the einsum kernel
+    ``add_p0_source``): impulse ``g'`` is the field ``e_{g'} ⊗
+    1_cells``, whose image column IS every cell's block column
+    ``M_cell[:, g']`` exactly (unit inputs make the kernel's products
+    coefficient reads — no summation error). ng kernel calls emit the
+    whole cell-block-diagonal bulk. Deliberately NOT
+    ``dense_per_material()`` — that is the storage-side
     transpose-convention ORACLE (vv L11) and must stay
     realization-independent of production consumption.
 
@@ -237,33 +246,36 @@ def _assemble_iso_energy_operator(
 
 
 @dataclass(eq=False)
-class IsotropicScattering(BoundOperator):
-    r"""The P0 isotropic in-scatter energy operator :math:`\Sigma_{s,0}` on the scalar flux.
+class IsotropicTransfer(BoundOperator):
+    r"""The P0 energy binding of a transfer channel: :math:`y\,\Sigma_{c,0}^{T}` on the scalar flux.
 
-    Per cell of material :math:`m`, :math:`(\Sigma_{s,0}^{T}\phi)_g =
-    \sum_{g'}\Sigma_{s,0}^m(g'\to g)\,\phi_{g'}` — the per-material group-transfer
-    matmul, vectorised over cells. The model-independent half of the isotropic
-    in-scatter source (the other half is :class:`IsotropicN2N`); both route through
-    :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField` so the
-    per-material dispatch lives once.
+    Per cell of material :math:`m`, :math:`(y\,\Sigma_{c,0}^{T}\phi)_g =
+    y\sum_{g'}\Sigma_{c,0}^m(g'\to g)\,\phi_{g'}` — the per-material
+    group-transfer matmul, vectorised over cells, scaled by the channel's
+    yield. The model-independent isotropic emission of ONE channel; the
+    two terms of the algebra are the role subclasses
+    :class:`IsotropicScattering` (:math:`y = 1`) and :class:`IsotropicN2N`
+    (:math:`y = 2`), which add nothing but which channel they read. The
+    per-material dispatch and the yield live on the field's verbs
+    (:meth:`~orpheus.transport.material_field.TransferMaterialField.add_p0_source`).
 
     Parameters
     ----------
-    scattering : ScatteringMaterialField
-        The scattering channel's kernel field — the per-material Legendre
-        stacks over the mesh layout (only the ``p0`` head is consumed;
-        the tier-2 mint truncates to order 0 so the instance retains
-        exactly what it reads).
+    transfer : TransferMaterialField
+        The channel's kernel field — the per-material Legendre stacks with
+        their yield over the mesh layout (only the ``p0`` head is consumed;
+        the tier-2 mints bring the field to order 0 so the instance
+        retains exactly what it reads).
     domain, codomain : FunctionSpace
         The two mandatory ends (kw-only, write-once —
         :class:`~orpheus.transport.operators.bound_operator.BoundOperator`,
         CS4c step 3): the scalar-flux space, both — the endomorphism
-        sugar lives on :meth:`from_material_xs`. The OperatorSum
+        sugar lives on the roles' ``from_material_xs``. The OperatorSum
         composition guard and the per-END ng-conformity admission both
         read them; the pre-CS4c ``space=None`` anonymity is retired.
     """
 
-    scattering: "ScatteringMaterialField"
+    transfer: "TransferMaterialField"
     # A BULK energy operator (the scalar flux is the bulk block); no boundary action.
     # Class-level constant (unannotated so the dataclass does not treat it as a field).
     block_role = BlockRole.BULK
@@ -273,34 +285,22 @@ class IsotropicScattering(BoundOperator):
         # contradicts the data's ng (reach + declared inertness:
         # _energy_conformity docstring).
         self._assert_energy_extent_both_ends(
-            self.scattering.ng, operator="IsotropicScattering",
-        )
-
-    @classmethod
-    def from_material_xs(
-        cls, mat_xs: "MaterialXSField", *, space: "FunctionSpace",
-    ) -> "IsotropicScattering":
-        r"""Tier-2 extract-and-mint: the P0 truncation of the facade's
-        scattering channel, endomorphic on one ``space=``."""
-        return cls(
-            ScatteringMaterialField.from_material_xs(mat_xs).truncated(0),
-            domain=space,
-            codomain=space,
+            self.transfer.ng, operator=type(self).__name__,
         )
 
     @property
     def data_ng(self) -> int:
         """The bound data's group count (the assembly helpers' read)."""
-        return self.scattering.ng
+        return self.transfer.ng
 
     @property
     def is_adjointable(self) -> bool:
-        # apply_transpose realises Σ_{s,0}χ (the group-flip A^T); caps ⊇
+        # apply_transpose realises y·Σ_{c,0}χ (the group-flip A^T); caps ⊇
         # apply_transpose. is_invertible inherits base False.
         return True
 
     def apply(self, phi: "np.ndarray | FullField | object") -> "np.ndarray | FullField":
-        r""":math:`\Sigma_{s,0}^{T}\phi` — the per-cell P0 in-scatter source.
+        r""":math:`y\,\Sigma_{c,0}^{T}\phi` — the per-cell P0 emission.
 
         Bare ndarray / flux-carrier in → bare ndarray out (the
         model-portable contract). A scalar :class:`FullField` composite
@@ -312,11 +312,11 @@ class IsotropicScattering(BoundOperator):
             return _scalar_composite_source(self, phi)
         arr = _values_of(phi)
         out = np.zeros_like(arr)
-        self.scattering.add_p0_source(out, arr)
+        self.transfer.add_p0_source(out, arr)
         return out
 
     def apply_transpose(self, chi: "np.ndarray | object") -> np.ndarray:
-        r""":math:`\Sigma_{s,0}\chi` — the group-flip transpose (the bare Euclidean :math:`A^{T}`).
+        r""":math:`y\,\Sigma_{c,0}\chi` — the group-flip transpose (the bare Euclidean :math:`A^{T}`).
 
         Bare-ndarray surface only: the composite transpose arm lands
         with its first consumer (the adjoint diffusion chain, #281) —
@@ -331,7 +331,7 @@ class IsotropicScattering(BoundOperator):
             )
         arr = _values_of(chi)
         out = np.zeros_like(arr)
-        self.scattering.add_p0_source_transpose(out, arr)
+        self.transfer.add_p0_source_transpose(out, arr)
         return out
 
     # ── The assembly mode (stencil-assembly 2b) ────────────────────────
@@ -342,18 +342,20 @@ class IsotropicScattering(BoundOperator):
         return _iso_is_assemblable(self)
 
     def assemble(self) -> "SparseAssembledOperator":
-        r""":math:`[\Sigma_{s,0}^{T}]` — cell-block-diagonal bulk emission
+        r""":math:`[y\,\Sigma_{c,0}^{T}]` — cell-block-diagonal bulk emission
         through the production kernel (:func:`_assemble_iso_energy_operator`)."""
         return _assemble_iso_energy_operator(self)
 
     def dense_per_material(self) -> dict[int, np.ndarray]:
-        r"""Per-material operator matrix :math:`\Sigma_{s,0}^{T}` (``[g_to, g_from]``)
+        r"""Per-material operator matrix :math:`y\,\Sigma_{c,0}^{T}` (``[g_to, g_from]``)
         — the STORAGE-SIDE oracle view, not a production consumption mode.
 
         Returns ``{mid: M}`` with ``M @ φ_cell == apply(φ)_cell``, i.e.
-        ``M = sig_s0.T`` (``sig_s0`` is stored ``[g_from, g_to]``), read
-        DIRECTLY off the stored cross sections — structurally independent
-        of the :meth:`~orpheus.transport.material_field.ScatteringMaterialField.add_p0_source`
+        ``M = y · p0.T`` (``p0`` is stored ``[g_from, g_to]``), read
+        DIRECTLY off the stored cross sections through the kernel's own
+        :meth:`~orpheus.transport.kernels.TransferKernel.emission_matrix`
+        — structurally independent of the
+        :meth:`~orpheus.transport.material_field.TransferMaterialField.add_p0_source`
         einsum that realizes :meth:`apply`.  That independence is this
         method's job: the verification gates use it as the
         transpose-convention oracle for ``apply``/``apply_transpose``
@@ -367,144 +369,74 @@ class IsotropicScattering(BoundOperator):
         method — they never did).  Each entry is a fresh copy.
         """
         return {
-            mid: np.ascontiguousarray(kernel.p0.T)
-            for mid, kernel in self.scattering.per_material.items()
+            mid: kernel.emission_matrix()
+            for mid, kernel in self.transfer.per_material.items()
         }
 
 
-@dataclass(eq=False)
-class IsotropicN2N(BoundOperator):
-    r"""The (n,2n) isotropic energy operator :math:`2\,\Sigma_{2n}` on the scalar flux.
+class IsotropicScattering(IsotropicTransfer):
+    r"""The P0 isotropic in-scatter energy operator :math:`\Sigma_{s,0}` — the :math:`S` term's energy binding.
 
-    Per cell, :math:`(2\Sigma_{2n}^{T}\phi)_g = 2\sum_{g'}\Sigma_{2n}^m(g'\to g)\,
-    \phi_{g'}`. A DISTINCT *multiplication* channel (each event emits two neutrons),
-    NOT scattering — kept its own operator (physics-faithful; it also feeds the keff
-    *production* numerator) and summed with :class:`IsotropicScattering` for the
-    isotropic in-scatter source. Routes through
-    :meth:`~orpheus.transport.material_field.N2NMaterialField.add_emission`
-    (Pattern 2).
-
-    **On the name.** Here the prefix IS a contrast, and it records a
-    TRUNCATION rather than a property — the opposite of
-    :class:`IsotropicFission`, whose isotropy is by construction. The
-    :math:`(n,2n)` reaction carries real anisotropy: [M] 2026-08-31, the
-    GENDF files ORPHEUS ships store NL = 7 Legendre moments for MT=16 (the
-    same order as elastic), so this class's scalar-flux domain is a
-    consequence of a :math:`P_0` MODEL, not of the physics.
-
-    ⚠ [M] 2026-09-03 (#426 step 1) that model moved DOWN-tier: the reader
-    no longer keeps :math:`\ell = 0` alone — ``Mixture.Sig2`` is a list
-    over :math:`\ell` carrying every stored order — and the truncation is
-    now imposed by
-    :meth:`~orpheus.transport.kernels.N2NKernel.from_mixture`, which
-    selects ``Sig2[0]``. This sentence said "the reader keeps
-    :math:`\ell = 0` alone" until then. See
-    ``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-p0-truncation and issue
-    #426; the anisotropic sibling this name implies does not exist yet, and
-    when it does it wants
-    :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`'s
-    shape.
-
-    Parameters
-    ----------
-    n2n : N2NMaterialField
-        The :math:`(n,2n)` channel's kernel field (per-material reaction
-        matrices over the mesh layout; the multiplicity enters from
-        :attr:`~orpheus.transport.kernels.N2NKernel.multiplicity` inside
-        the field's verbs).
-    domain, codomain : FunctionSpace
-        The two mandatory ends — see :class:`IsotropicScattering`.
+    The scattering instance of :class:`IsotropicTransfer` (yield 1): a
+    role class carrying only its extraction classmethod and its name.
+    Consumed directly by the diffusion, homogeneous and CP energy paths
+    and minted by
+    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_energy`
+    as the SN fast path's P0 half.
     """
 
-    n2n: "N2NMaterialField"
-    block_role = BlockRole.BULK
-
-    def __post_init__(self) -> None:
-        # CS4a K2 → CS4c per-END form (one shared guard, per end).
-        self._assert_energy_extent_both_ends(
-            self.n2n.ng, operator="IsotropicN2N",
+    @classmethod
+    def from_material_xs(
+        cls, mat_xs: "MaterialXSField", *, space: "FunctionSpace",
+    ) -> "IsotropicScattering":
+        r"""Tier-2 extract-and-mint: the P0 head of the facade's
+        scattering channel, endomorphic on one ``space=``."""
+        return cls(
+            TransferMaterialField.scattering(mat_xs).at_order(0),
+            domain=space,
+            codomain=space,
         )
+
+
+class IsotropicN2N(IsotropicTransfer):
+    r"""The :math:`(n,2n)` isotropic energy operator :math:`2\,\Sigma_{2n}` — the :math:`N_{2n}` term's energy binding.
+
+    The :math:`(n,2n)` instance of :class:`IsotropicTransfer` (yield
+    :data:`~orpheus.transport.kernels.N2N_MULTIPLICITY`): a role class
+    carrying only its extraction classmethod and its name. A DISTINCT
+    *multiplication* term of the algebra (each event emits two neutrons;
+    the yield also feeds the keff production accounting), summed with
+    :class:`IsotropicScattering` for the isotropic emission source and
+    minted by
+    :attr:`~orpheus.transport.operators.n2n.N2NOperator.isotropic_energy`
+    as the SN fast path's P0 half.
+
+    **On the name.** The prefix names this class's ROLE — the
+    :math:`\ell = 0` energy binding the scalar consumers (diffusion,
+    homogeneous, CP, the SN k-balance and the ray seed's K_iso leaf)
+    want — not a property of the reaction. `[M]` 2026-08-31 the GENDF
+    files ORPHEUS ships store NL = 7 Legendre moments for MT=16, the
+    same order as elastic; since #426 step 2 (2026-09-04) those moments
+    reach the solve through the ANGULAR binding
+    :class:`~orpheus.transport.operators.n2n.N2NOperator`, exactly as
+    the elastic ones do through its scattering sibling. Until then this
+    class's scalar domain was the whole model — a :math:`P_0`
+    truncation the theory page records as history
+    (``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-p0-truncation).
+    """
 
     @classmethod
     def from_material_xs(
         cls, mat_xs: "MaterialXSField", *, space: "FunctionSpace",
     ) -> "IsotropicN2N":
-        r"""Tier-2 extract-and-mint: the facade's :math:`(n,2n)` channel,
-        endomorphic on one ``space=``."""
+        r"""Tier-2 extract-and-mint: the P0 head of the facade's
+        :math:`(n,2n)` channel, endomorphic on one ``space=``."""
         return cls(
-            N2NMaterialField.from_material_xs(mat_xs),
+            TransferMaterialField.n2n(mat_xs).at_order(0),
             domain=space,
             codomain=space,
         )
 
-    @property
-    def data_ng(self) -> int:
-        """The bound data's group count (the assembly helpers' read)."""
-        return self.n2n.ng
-
-    @property
-    def is_adjointable(self) -> bool:
-        # apply_transpose realises 2Σ_{2n}χ (the group-flip A^T); caps ⊇
-        # apply_transpose. is_invertible inherits base False.
-        return True
-
-    def apply(self, phi: "np.ndarray | FullField | object") -> "np.ndarray | FullField":
-        r""":math:`2\Sigma_{2n}^{T}\phi` — the per-cell (n,2n) source.
-
-        Bare ndarray / flux-carrier in → bare ndarray out; a scalar
-        :class:`FullField` composite in → the closed scalar source
-        composite out (#290 P4 — the shared
-        :func:`_scalar_composite_source` arm over this kernel).
-        """
-        if isinstance(phi, FullField):
-            return _scalar_composite_source(self, phi)
-        arr = _values_of(phi)
-        out = np.zeros_like(arr)
-        self.n2n.add_emission(out, arr)
-        return out
-
-    def apply_transpose(self, chi: "np.ndarray | object") -> np.ndarray:
-        r""":math:`2\Sigma_{2n}\chi` — the group-flip transpose.
-
-        Bare-ndarray surface only (composite transpose lands with #281 —
-        see :meth:`IsotropicScattering.apply_transpose`).
-        """
-        if isinstance(chi, FullField):
-            raise TypeError(
-                f"{type(self).__name__}.apply_transpose: composite "
-                f"FullField transpose is not yet wired (lands with the "
-                f"adjoint diffusion consumer, #281); pass the bulk "
-                f"values."
-            )
-        arr = _values_of(chi)
-        out = np.zeros_like(arr)
-        self.n2n.add_emission_transpose(out, arr)
-        return out
-
-    # ── The assembly mode (stencil-assembly 2b) ────────────────────────
-
-    @property
-    def is_assemblable(self) -> bool:
-        # Shared predicate — see :func:`_iso_is_assemblable`.
-        return _iso_is_assemblable(self)
-
-    def assemble(self) -> "SparseAssembledOperator":
-        r""":math:`[2\,\Sigma_{2n}^{T}]` — cell-block-diagonal bulk emission
-        through the production kernel (:func:`_assemble_iso_energy_operator`)."""
-        return _assemble_iso_energy_operator(self)
-
-    def dense_per_material(self) -> dict[int, np.ndarray]:
-        r"""Per-material operator matrix :math:`2\Sigma_{2n}^{T}` — ``M @ φ == apply(φ)``.
-
-        The storage-side oracle view, read directly off the stored
-        :math:`\Sigma_{2n}` — see
-        :meth:`IsotropicScattering.dense_per_material` for the oracle-pair
-        rationale (production materialization goes through ``as_matrix``).
-        """
-        return {
-            mid: kernel.emission_matrix()
-            for mid, kernel in self.n2n.per_material.items()
-        }
 
 @dataclass(eq=False)
 class IsotropicFission(BoundOperator):
@@ -519,8 +451,8 @@ class IsotropicFission(BoundOperator):
     (the frame's :math:`\ell=0` conjugation of this dyad) is
     :class:`~orpheus.transport.operators.fission.FissionOperator`,
     which retains an instance of THIS class as its energy factor —
-    exactly the :class:`IsotropicN2N` /
-    :class:`~orpheus.transport.operators.n2n.N2NOperator` relation.
+    the relation the transfer family spells as
+    :attr:`~orpheus.transport.operators.transfer.TransferOperator.isotropic_energy`.
 
     **On the name.** Fission emission is isotropic BY CONSTRUCTION
     (:math:`\chi` carries no angular dependence — there is no
@@ -546,8 +478,8 @@ class IsotropicFission(BoundOperator):
     data.
 
     **No assembly mode** — deliberate omission, not an oversight: the
-    two loss-side siblings assemble because the within-group stencil
-    folds them into :math:`A`; fission is the eigenvalue OUTER source
+    loss-side sibling assembles because the within-group stencil
+    folds it into :math:`A`; fission is the eigenvalue OUTER source
     (within-group fission is zero) and no stencil consumer exists.
     Landing :meth:`assemble` here would be a gate-less capability
     (``coding-standards`` defer-until-consumer).
@@ -620,7 +552,7 @@ class IsotropicFission(BoundOperator):
     @property
     def data_ng(self) -> int:
         """The bound data's group count (family symmetry with the
-        loss-side siblings' assembly read)."""
+        loss-side sibling's assembly read)."""
         return self.fission.ng
 
     @property

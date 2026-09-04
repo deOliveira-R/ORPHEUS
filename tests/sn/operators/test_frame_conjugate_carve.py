@@ -1,5 +1,5 @@
 r"""P2 operator-algebra carve — new-convention catchers for ``frame.conjugate`` /
-``frame.reconstruct_after`` and the ``LegendreMomentScattering`` real-space leaf.
+``frame.reconstruct_after`` and the ``LegendreMomentTransfer`` real-space leaf.
 
 Born as SPECS written BEFORE the production carve (main-agent-direct, branch
 ``refactor/operator-inverse-algebra``, plan ``frame_projection_machinery.md`` P2);
@@ -12,7 +12,7 @@ What P2 does (the SUT this file gates)
 1. Two ``FrameBase`` methods:
      ``frame.conjugate(A)         -> R ∘ A ∘ M``   (OperatorProduct(R, OperatorProduct(A, M)))
      ``frame.reconstruct_after(A) -> R ∘ A``        (OperatorProduct(R, A))
-2. ``LegendreMomentScattering`` gets REAL spaces
+2. ``LegendreMomentTransfer`` gets REAL spaces
      (``domain == codomain == frame.basis_space``), retiring the
      ``cast(LinearOperator, …)`` at ``scattering.py:663``.
 3. Production ``apply`` arms call the composed operator:
@@ -55,12 +55,13 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.transport.operators.scattering import LegendreMomentScattering
+from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 
 from tests.transport._integral_kernel_helpers import require
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.transport.material_field import TransferMaterialField
 
 pytestmark = pytest.mark.foundation
 
@@ -132,7 +133,7 @@ def _aniso_psi(solver, seed=20260624):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# (b)(i) — LegendreMomentScattering advertises REAL spaces == basis_space,
+# (b)(i) — LegendreMomentTransfer advertises REAL spaces == basis_space,
 #          and the kernel composes WITHOUT the cast.
 # ═════════════════════════════════════════════════════════════════════════════
 
@@ -147,13 +148,13 @@ class TestLegendreMomentScatteringHasRealSpaces:
     def test_lambda_domain_is_codomain_is_basis_space(self, solver_p1_het):
         op = solver_p1_het.scattering_op
         frame = op.frame
-        lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
+        lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         # Λ is endomorphic on coefficient (basis) space.
         require(
             getattr(lam, "domain", None) is not None,
-            "P2: LegendreMomentScattering.domain must be a real FunctionSpace "
+            "P2: LegendreMomentTransfer.domain must be a real FunctionSpace "
             "(== frame.basis_space), not None — the cast at scattering.py:663 "
             "papered over None spaces; the carve gives Λ real spaces.",
         )
@@ -174,8 +175,8 @@ class TestLegendreMomentScatteringHasRealSpaces:
         ``(R∘Λ∘M)ᵀ`` falls out for free).
         """
         op = solver_p1_het.scattering_op
-        lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
+        lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         require(
             lam.is_adjointable and not lam.is_invertible,
@@ -208,8 +209,8 @@ class TestLegendreMomentScatteringHasRealSpaces:
         """
         op = solver_p1_het.scattering_op
         frame = op.frame
-        lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
+        lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         inner = OperatorProduct(lam, frame.analysis)
         require(
@@ -256,8 +257,8 @@ class TestFrameConjugateEqualsRLambdaM:
         op = solver_p1_het.scattering_op
         frame = op.frame
         conjugate = _require_conjugate(frame)
-        lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
+        lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
 
@@ -300,8 +301,8 @@ class TestFrameReconstructAfterEqualsRLambda:
         op = solver_p1_het.scattering_op
         frame = op.frame
         reconstruct_after = _require_reconstruct_after(frame)
-        lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
+        lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         moments = frame.analysis.apply(psi.values)  # φ = M·ψ (the windowed bulk)
@@ -332,8 +333,8 @@ class TestFrameReconstructAfterEqualsRLambda:
         frame = op.frame
         conjugate = _require_conjugate(frame)
         reconstruct_after = _require_reconstruct_after(frame)
-        lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
+        lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         moments = frame.analysis.apply(psi.values)  # φ = M·ψ (the windowed bulk)
@@ -371,8 +372,8 @@ class TestProductionApplyEqualsComposedOperator:
         op = solver_p1_het.scattering_op
         frame = op.frame
         conjugate = _require_conjugate(frame)
-        lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
+        lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=op.scattering_order), skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         np.testing.assert_array_equal(

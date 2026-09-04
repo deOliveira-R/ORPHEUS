@@ -2,7 +2,7 @@
 
 Captures the numerical output of `ScatteringOperator.apply` (each
 dispatch arm), `ScatteringOperator.build_aniso_source`, and
-`ScatteringMaterialField.moment_source` (né the facade arm) on deterministic
+`TransferMaterialField.moment_source` (né the facade arm) on deterministic
 fixtures, BEFORE the T.3 lift rewires `build_aniso_source` to use the
 `SumOfTensorProductsOperator` kernel.  The captured arrays are loaded
 back by the L1-1..L1-4 and L6-1..L6-2 tests in
@@ -69,6 +69,7 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.transport.material_field import TransferMaterialField
 
 OUT_FILE = Path(__file__).parent / "pre_t3_snapshots.npz"
 
@@ -212,21 +213,21 @@ def _capture_legendre_moments(
     solver: SNSolver, psi: AngularFlux, L: int,
 ) -> np.ndarray:
     """Apply the per-ℓ moment verb at order L (CS4c 3c: the arm moved to
-    ScatteringMaterialField.moment_source — same einsum leaf; the FROZEN
+    TransferMaterialField.moment_source — same einsum leaf; the FROZEN
     snapshot is the anchor, this script only documents provenance)."""
     from orpheus.transport.fields.harmonic_moment_flux import (
         HarmonicMomentFlux,
     )
-    from orpheus.transport.operators.scattering import LegendreMomentScattering
+    from orpheus.transport.operators.transfer import LegendreMomentTransfer
 
     quad = solver.quad
     moments_values = quad.angular_frame(L).analysis.apply(psi.values)
     moments = HarmonicMomentFlux.from_mesh_and_L(
         moments_values, solver.sn_mesh, L,
     )
-    Lam = LegendreMomentScattering.from_material_xs(
-        mat_xs=solver.mat_xs, basis=SphericalHarmonicBasis(L=L), skip_l0=False,
-    )
+    Lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=False,
+        )
     scattered = Lam.apply(moments)
     return scattered.values.copy()
 

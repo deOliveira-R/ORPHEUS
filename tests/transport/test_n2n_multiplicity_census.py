@@ -3,7 +3,7 @@ r"""XD-2 — the (n,2n) multiplicity's ONE home (CS4c step 3; design record
 
 The multiplicity :math:`\nu_{2n} = 2` is a physics constant of the
 channel with exactly one production spelling —
-:attr:`orpheus.transport.kernels.N2NKernel.multiplicity`. Every solver
+:attr:`orpheus.transport.kernels.N2N_MULTIPLICITY`. Every solver
 family consumes THAT (datum consumption — recycling the vocabulary per
 the sharpening-order law), so a thirteenth literal home is unspellable
 without reddening this census.
@@ -27,7 +27,7 @@ import pytest
 pytestmark = pytest.mark.foundation
 
 _ROOT = pathlib.Path(__file__).resolve().parents[2]
-_NAME_NET = ("n2n", "sig2", "sig_2n", "_2n")
+_NAME_NET = ("n2n", "sig2", "sig_2n", "_2n", "sig_2")  # ``sig_2``: #428 F-5
 
 #: Named false-positive exclusions, each with its measured reason.
 _EXCLUDED: set[tuple[str, int]] = set()
@@ -37,6 +37,17 @@ _EXCLUDED: set[tuple[str, int]] = set()
 # tree-wide (plan §6.1). Registered by (file, function) rather than a
 # brittle line number:
 _EXCLUDED_BY_FUNCTION = {("orpheus/mc/solver.py", "_random_walk", "pi")}
+#: The analytic REFERENCES spell the multiplicity as their own literal ON
+#: PURPOSE: a reference that read production's constant would move with
+#: it, and the diffusion / k_inf witnesses (``tests/diffusion/test_n2n_witness.py``,
+#: the ``2eg_n2n`` ladder rows) would be tautologies under a mutation of
+#: ``N2N_MULTIPLICITY``. Named per (file, function) so the exclusion
+#: cannot silently widen (#428 F-5: until 2026-09-04 these two escaped the
+#: net entirely because ``sig_2`` was not a spelling it knew).
+_REFERENCE_LITERALS = {
+    ("orpheus/derivations/common/eigenvalue.py", "_infinite_medium_matrices"),
+    ("orpheus/derivations/common/eigenvalue.py", "kinf_from_cp"),
+}
 
 
 def _census(tree: ast.AST, rel: str):
@@ -46,6 +57,8 @@ def _census(tree: ast.AST, rel: str):
             continue
         body_text = ast.unparse(func).lower()
         if not any(tok in body_text for tok in _NAME_NET):
+            continue
+        if (rel, func.name) in _REFERENCE_LITERALS:
             continue
         for node in ast.walk(func):
             twos = []
@@ -77,14 +90,14 @@ def test_multiplicity_literal_census_is_empty_outside_kernels():
     for f in sorted((_ROOT / "orpheus").rglob("*.py")):
         rel = str(f.relative_to(_ROOT))
         if rel == "orpheus/transport/kernels.py":
-            continue  # the ONE home (the ClassVar's own docstring row)
+            continue  # the ONE home (the constant's own definition)
         tree = ast.parse(f.read_text())
         hits.extend(h for h in _census(tree, rel) if (h[0], h[1]) not in _EXCLUDED)
     if hits:
         listing = "\n".join(f"  {r}:{ln} in {fn}(): {src}" for r, ln, fn, src in hits)
         pytest.fail(
             f"{len(hits)} production multiplicity literal(s) outside "
-            f"N2NKernel.multiplicity (XD-2, ruled option (i)):\n{listing}"
+            f"N2N_MULTIPLICITY (XD-2, ruled option (i)):\n{listing}"
         )
 
 
@@ -99,11 +112,18 @@ def n2n_source_assembly(sigma, w, phi):
     w *= 2.0                 # the AugAssign spelling (mc/solver.py:447 class)
     c = sigma * 2.0          # the reversed operand
     return a + b + c + w
+
+def reference_kinf(sig_t, sig_s, sig_2):
+    # the ``sig_2`` spelling (#428 F-5): the function NAME carries no net
+    # token, so this body is caught by the ``sig_2`` entry alone
+    return sig_s + 2.0 * sig_2
 '''
     hits = _census(ast.parse(src), "synthetic.py")
     lines = sorted(h[1] for h in hits)
-    if len(hits) != 4:
+    if len(hits) != 5:
         pytest.fail(
-            f"positive control: expected 4 synthetic hits "
+            f"positive control: expected 5 synthetic hits "
             f"(got {len(hits)} at lines {lines}) — the census filter is broken"
         )
+    if not any(fn == "reference_kinf" for _, _, fn, _ in hits):
+        pytest.fail("the ``sig_2`` spelling escaped the net (#428 F-5)")

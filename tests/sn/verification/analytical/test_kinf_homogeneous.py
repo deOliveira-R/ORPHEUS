@@ -82,6 +82,7 @@ import pytest
 from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_1g_continuous,
     derive_2g_continuous,
+    derive_2g_n2n_continuous,
     derive_4g_continuous,
 )
 from orpheus.geometry import (
@@ -107,6 +108,12 @@ _GEOMETRY_TAG = {"slab": "SLB", "sphere": "SPH", "cylinder": "CYL"}
 _CASE_BUILDERS = {
     "1eg": derive_1g_continuous,
     "2eg": derive_2g_continuous,
+    # #428 F-3 / #426 step 2: the (n,2n) medium — the ν₂ₙ VALUE pinned
+    # end-to-end on three charts and two inner solvers ([M] both functionals
+    # redden 20.2 % / 10.5 % under ν₂ₙ 2 → 1). Its SigS is P0 only, so the
+    # clamp runs it at scattering_order = 0: it does NOT reach the ℓ ≥ 1
+    # (n,2n) path — that witness is the Be-reflected flagship.
+    "2eg_n2n": derive_2g_n2n_continuous,
     "4eg": derive_4g_continuous,
 }
 
@@ -185,7 +192,7 @@ _TIGHT_KW = dict(
 
 @pytest.mark.verifies("matrix-eigenvalue", "fission-matrix", "removal-matrix")
 @pytest.mark.parametrize("inner_solver", ["source_iteration", "krylov"])
-@pytest.mark.parametrize("ng_key", ["1eg", "2eg", "4eg"])
+@pytest.mark.parametrize("ng_key", ["1eg", "2eg", "2eg_n2n", "4eg"])
 @pytest.mark.parametrize("coord", ["slab", "sphere", "cylinder"])
 def test_kinf_homogeneous(ng_key: str, coord: str, inner_solver: str) -> None:
     """SN reproduces analytical k_inf on homogeneous medium, every coord × ng.
@@ -241,7 +248,7 @@ def test_sentinel_kinf_slab_2g_krylov() -> None:
 
 @pytest.mark.verifies("matrix-eigenvalue", "fission-matrix", "removal-matrix")
 @pytest.mark.parametrize("inner_solver", ["source_iteration", "krylov"])
-@pytest.mark.parametrize("ng_key", ["2eg", "4eg"])
+@pytest.mark.parametrize("ng_key", ["2eg", "2eg_n2n", "4eg"])
 @pytest.mark.parametrize("coord", ["slab", "sphere", "cylinder"])
 def test_kinf_homogeneous_spectrum(ng_key: str, coord: str, inner_solver: str) -> None:
     """SN reproduces the dominant ``A^{-1}F`` eigenvector (multi-group only).

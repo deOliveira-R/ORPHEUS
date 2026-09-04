@@ -715,23 +715,20 @@ def test_mcmesh_vs_concentric_keff():
 # L1-MC-013: (n,2n) keff matches analytical k_inf (issue #23)
 # =====================================================================
 
-@pytest.mark.slow
-@pytest.mark.l1
-@pytest.mark.catches("ERR-023")
-def test_mc_n2n_keff_matches_analytical():
-    """L1-MC-013: MC with nonzero Sig2 must match analytical k_inf.
-
-    Region A 2G is augmented with Sig2[0,0] = 0.01 (same fixture as
-    TestN2N in tests/cp/test_verification.py). Before the #23 fix the
-    MC ignored Sig2 entirely and undercounted neutron production; k_mc
-    was stuck at the Sig2=0 value even though the mixture's SigT had
-    already been raised by the n2n reaction. The gap was invisible
-    because every pre-existing test material had Sig2 = 0 (Meta-Lesson
-    6: zero cross sections hide bugs).
+def _n2n_infinite_medium():
+    """The L1-MC-013 fixture: region A 2G augmented with Sig2[0,0] = 0.01
+    (the same fixture as TestN2N in tests/cp/test_verification.py), its
+    analytic k_inf, and the Sig2 = 0 baseline k. Shared by the slow
+    precision gate and its not-slow companion below — one fixture, two
+    statistical budgets.
 
     Reference: scipy generalised eigenvalue problem on the 2G infinite
     medium with effective scattering SigS_eff = SigS + 2*Sig2 (the
-    double-counting matches the weight-doubling analog convention).
+    double-counting matches the weight-doubling analog convention). The
+    ``2.0`` is this reference's OWN literal, on purpose (the multiplicity
+    census names the derivations' reference literals as exclusions for
+    the same reason): a reference reading production's constant would
+    move with it under the ERR-023 mutation this gate exists to catch.
     """
     import scipy.linalg as la
     from scipy.sparse import csr_matrix
@@ -769,12 +766,31 @@ def test_mc_n2n_keff_matches_analytical():
     assert k_ref > k_no + 1e-3, (
         f"(n,2n) should raise k_inf: k_ref={k_ref:.6f} k_no={k_no:.6f}"
     )
+    return mat_n2n, k_ref, k_no
 
+
+def _n2n_infinite_medium_geometry():
     # MC: single homogeneous region, no boundaries -> infinite medium.
-    geom = SlabPinCell(boundaries=[], mat_ids=[0], pitch=3.6)
+    return SlabPinCell(boundaries=[], mat_ids=[0], pitch=3.6)
+
+
+@pytest.mark.slow
+@pytest.mark.l1
+@pytest.mark.catches("ERR-023")
+def test_mc_n2n_keff_matches_analytical():
+    """L1-MC-013: MC with nonzero Sig2 must match analytical k_inf — the
+    PRECISION gate (5σ band on 400 active batches).
+
+    Before the #23 fix the MC ignored Sig2 entirely and undercounted
+    neutron production; k_mc was stuck at the Sig2=0 value even though the
+    mixture's SigT had already been raised by the n2n reaction. The gap was
+    invisible because every pre-existing test material had Sig2 = 0
+    (Meta-Lesson 6: zero cross sections hide bugs).
+    """
+    mat_n2n, k_ref, k_no = _n2n_infinite_medium()
     params = MCParams(
         n_neutrons=200, n_inactive=50, n_active=400,
-        seed=42, geometry=geom,
+        seed=42, geometry=_n2n_infinite_medium_geometry(),
     )
     result = solve_monte_carlo({0: mat_n2n}, params)
 
@@ -786,6 +802,40 @@ def test_mc_n2n_keff_matches_analytical():
     )
     # Also: the MC keff must differ from the Sig2=0 baseline (otherwise
     # Sig2 would still be silently dropped somewhere).
+    assert abs(result.keff - k_no) > abs(k_ref - k_no) / 2.0, (
+        f"MC keff={result.keff:.6f} has not moved from baseline "
+        f"k_no={k_no:.6f} toward k_ref={k_ref:.6f}"
+    )
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-023")
+def test_mc_n2n_keff_fast_companion():
+    """The NOT-``slow`` catcher of the (n,2n) multiplicity in MC (#428 F-4,
+    landed with #426 step 2).
+
+    `[M]` 2026-09-03: under the canonical ``-m "not slow"`` gate the MC tree
+    read *39 passed / 0 red* with the multiplicity mutated ν₂ₙ 2 → 1, because
+    its ONLY catcher (the precision gate above) is ``slow``-marked — a real
+    catcher the gate that matters cannot see. This row is the cheap witness:
+    `[M]` 0.9 s, ``k = 2.04087`` against the analytic ``2.045454545454546``
+    (−0.224 %, 0.47 σ with σ = 0.00973), and under ν₂ₙ 2 → 1 it reads
+    ``1.87606`` (−8.28 %, ≈ 17 σ). A band of ``rel < 3 %`` is 13× the honest
+    deviation and 2.8× below the mutation — loose enough that a different
+    seed cannot red it, tight enough that the channel's yield cannot slip.
+    The precision claim stays with the slow gate.
+    """
+    mat_n2n, k_ref, k_no = _n2n_infinite_medium()
+    params = MCParams(
+        n_neutrons=50, n_inactive=10, n_active=30,
+        seed=42, geometry=_n2n_infinite_medium_geometry(),
+    )
+    result = solve_monte_carlo({0: mat_n2n}, params)
+    rel = abs(result.keff - k_ref) / k_ref
+    assert rel < 0.03, (
+        f"MC n2n fast companion: k_mc={result.keff:.5f} vs k_ref={k_ref:.5f} "
+        f"({rel:.2%}); a multiplicity slip reads ≈ 8 % here"
+    )
     assert abs(result.keff - k_no) > abs(k_ref - k_no) / 2.0, (
         f"MC keff={result.keff:.6f} has not moved from baseline "
         f"k_no={k_no:.6f} toward k_ref={k_ref:.6f}"

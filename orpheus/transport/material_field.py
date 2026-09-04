@@ -11,12 +11,16 @@ ONE gathered per-cell ``(ng, ng)`` contraction primitive every channel
 verb rides.
 
 This is CS4c step 3's landing for the posing-filtration **O-6** ruling
-(R13): the eight ``MaterialXSField.apply_*`` arms move here as the
+(R13): the eight ``MaterialXSField.apply_*`` arms moved here as the
 kernels' *array verbs* — the per-material dispatch loop written once, the
-einsums ported **verbatim** (bit-identity is gated per arm), and the
-:math:`(n,2n)` multiplicity read from its one home
-(:attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`) instead of an
-inline literal (XD-2).
+einsums ported **verbatim** (bit-identity is gated per arm). Since #426
+step 2 (2026-09-04) the scattering and :math:`(n,2n)` channels are two
+instances of ONE field, :class:`TransferMaterialField`, and the
+multiplicity is read from the kernels' own datum
+(:attr:`~orpheus.transport.kernels.TransferKernel.multiplicity`) into
+every verb as its ``scale`` — the P0 verbs, the per-ℓ moment verbs and the
+group-rate verb alike; a yield of 1 leaves each verb's arithmetic exactly
+as it was (the ``scale != 1`` fast path is skipped).
 
 Design notes
 ------------
@@ -27,10 +31,9 @@ Design notes
   with a two-line dict.
 * **Channel verbs live on channel subclasses.** The base owns the
   pairing, the admission, and the contraction primitive; what an
-  interaction *means* (P0 in-scatter, Legendre moment redistribution,
-  multiplicity-weighted emission) is the subclass's vocabulary —
-  :class:`ScatteringMaterialField`, :class:`N2NMaterialField`, and
-  :class:`FissionMaterialField` (step 4).
+  interaction *means* (a yield-weighted transfer stack, a rank-1
+  emission) is the subclass's vocabulary —
+  :class:`TransferMaterialField` and :class:`FissionMaterialField`.
 * **Accumulation semantics.** The scalar-carrier verbs ADD into a caller
   accumulator in place (``Q[cells] += …``), exactly like the arms they
   replace — materials partition the cells, so per-material accumulation
@@ -49,11 +52,7 @@ from typing import TYPE_CHECKING, Generic, Iterator, Mapping, TypeVar
 
 import numpy as np
 
-from orpheus.transport.kernels import (
-    FissionKernel,
-    N2NKernel,
-    ScatteringKernel,
-)
+from orpheus.transport.kernels import FissionKernel, TransferKernel
 
 if TYPE_CHECKING:
     from orpheus.numerics.spaces.moment_head import MomentHead
@@ -62,8 +61,7 @@ if TYPE_CHECKING:
 __all__ = [
     "FissionMaterialField",
     "MaterialField",
-    "N2NMaterialField",
-    "ScatteringMaterialField",
+    "TransferMaterialField",
 ]
 
 K = TypeVar("K")
@@ -189,28 +187,53 @@ def _block_contraction(head: "MomentHead", *, transposed: bool) -> str:
 
 
 @dataclass(frozen=True)
-class ScatteringMaterialField(MaterialField[ScatteringKernel]):
-    r"""The scattering channel's field: Legendre transfer stacks over the layout.
+class TransferMaterialField(MaterialField[TransferKernel]):
+    r"""A transfer channel's field: yield-carrying Legendre stacks over the layout.
 
-    The array-verb home of the P0 in-scatter and the per-ℓ moment
-    redistribution (the former ``MaterialXSField.apply_p0_in_scatter`` /
-    ``…_transpose`` / ``apply_legendre_scattering_moments`` /
-    ``…_transpose`` arms, einsums verbatim). The field's own
-    :attr:`order` IS the binding's truncation — a consumer that wants
-    :math:`P_L` holds a field :meth:`truncated` to :math:`L`, so the verb
-    signatures carry no ``L`` parameter (single source; the moments
-    tensor must agree, and the moment verbs refuse a mismatch).
+    ONE channel per field — every kernel carries the same
+    :attr:`multiplicity` (admission), so a field IS the scattering channel
+    (:meth:`scattering`, yield 1) or the :math:`(n,2n)` channel
+    (:meth:`n2n`, yield :data:`~orpheus.transport.kernels.N2N_MULTIPLICITY`)
+    of a facade, and the two differ in that datum alone. The array-verb
+    home of the P0 in-transfer and the per-ℓ moment redistribution (the
+    former ``MaterialXSField.apply_p0_in_scatter`` / ``apply_n2n`` /
+    ``apply_legendre_scattering_moments`` arms and their transposes,
+    einsums verbatim) — every verb scales its contraction by the yield.
+    The field's own :attr:`order` IS the binding's truncation — a consumer
+    that wants :math:`P_L` holds a field :meth:`at_order` :math:`L`, so
+    the verb signatures carry no ``L`` parameter (single source; the
+    moments tensor must agree, and the moment verbs refuse a mismatch).
     """
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        yields = {k.multiplicity for k in self.per_material.values()}
+        if len(yields) != 1:
+            raise ValueError(
+                f"TransferMaterialField is ONE channel: every material's "
+                f"kernel must carry the same multiplicity; got "
+                f"{sorted(yields)}"
+            )
+
     @classmethod
-    def from_material_xs(
-        cls, mat_xs: "MaterialXSField",
-    ) -> "ScatteringMaterialField":
-        """Extract the scattering channel of a :class:`MaterialXSField`
-        facade — fresh densified kernels, the mesh's own layout object."""
+    def scattering(cls, mat_xs: "MaterialXSField") -> "TransferMaterialField":
+        """The scattering channel of a :class:`MaterialXSField` facade —
+        fresh densified kernels (yield 1), the mesh's own layout object."""
         return cls(
             per_material={
-                mid: ScatteringKernel.from_mixture(mat_xs.materials[mid])
+                mid: TransferKernel.scattering(mat_xs.materials[mid])
+                for mid in mat_xs.materials
+            },
+            cells_by_material=mat_xs.mesh.cells_by_material,
+        )
+
+    @classmethod
+    def n2n(cls, mat_xs: "MaterialXSField") -> "TransferMaterialField":
+        r"""The :math:`(n,2n)` channel of a :class:`MaterialXSField` facade
+        — fresh densified kernels (yield 2), the mesh's own layout object."""
+        return cls(
+            per_material={
+                mid: TransferKernel.n2n(mat_xs.materials[mid])
                 for mid in mat_xs.materials
             },
             cells_by_material=mat_xs.mesh.cells_by_material,
@@ -219,25 +242,38 @@ class ScatteringMaterialField(MaterialField[ScatteringKernel]):
     @property
     def order(self) -> int:
         r"""The field's Legendre truncation :math:`L` (uniform across
-        materials by admission)."""
+        materials by admission — :meth:`at_order` makes it so)."""
         orders = {k.order for k in self.per_material.values()}
         if len(orders) != 1:
             raise ValueError(
-                f"ScatteringMaterialField carries mixed truncation orders "
-                f"{sorted(orders)}; truncate to a uniform order first"
+                f"TransferMaterialField carries mixed stored orders "
+                f"{sorted(orders)}; bring it to one order with at_order first"
             )
         return orders.pop()
 
-    def truncated(self, order: int) -> "ScatteringMaterialField":
-        r"""The P\ :sub:`order` sub-field — every kernel truncated
-        (:meth:`ScatteringKernel.truncated
-        <orpheus.transport.kernels.ScatteringKernel.truncated>` semantics:
-        identity at the stored order, refusal above it). The layout object
-        is shared, not copied."""
+    @property
+    def multiplicity(self) -> int:
+        r"""The channel's yield :math:`y` (uniform across materials by
+        admission) — the ``scale`` of every verb below."""
+        return next(iter(self.per_material.values())).multiplicity
+
+    @property
+    def is_isotropic(self) -> bool:
+        r"""``True`` iff every material's kernel is exactly isotropic
+        (:attr:`TransferKernel.is_isotropic
+        <orpheus.transport.kernels.TransferKernel.is_isotropic>`) — the
+        field's :math:`\Lambda_{\ell\ge 1}` is the zero operator."""
+        return all(k.is_isotropic for k in self.per_material.values())
+
+    def at_order(self, order: int) -> "TransferMaterialField":
+        r"""The P\ :sub:`order` sub-field — every kernel :meth:`at_order
+        <orpheus.transport.kernels.TransferKernel.at_order>` (identity at
+        the stored order, truncation below it, exact zeros above it). The
+        layout object is shared, not copied."""
         return replace(
             self,
             per_material={
-                mid: k.truncated(order)
+                mid: k.at_order(order)
                 for mid, k in self.per_material.items()
             },
         )
@@ -245,26 +281,26 @@ class ScatteringMaterialField(MaterialField[ScatteringKernel]):
     # ── scalar-carrier verbs (the P0 reaction-rate fast path) ─────────
 
     def add_p0_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        r"""Add the P0 in-scatter source :math:`\Sigma_{s,0}^{T}\phi` to
-        ``Q`` in place (the former ``apply_p0_in_scatter`` arm).
+        r"""Add the P0 emission :math:`y\,\Sigma_{c,0}^{T}\phi` to ``Q``
+        in place (the former ``apply_p0_in_scatter`` / ``apply_n2n`` arms).
 
-        Per cell of material ``m``: ``Q[:, c] += p0[m].T @ phi[:, c]``,
+        Per cell of material ``m``: ``Q[:, c] += y · p0[m].T @ phi[:, c]``,
         spelled as the source-group contraction of the ``[g_from, g_to]``
         stack head. Shapes ``(ng, *spatial)`` (+ an optional trailing
         spatial-moment spectator axis on both).
         """
         self._accumulate_contracted(
-            Q, phi, lambda k: k.p0, spec=_FORWARD,
+            Q, phi, lambda k: k.p0, spec=_FORWARD, scale=self.multiplicity,
         )
 
     def add_p0_source_transpose(self, Q: np.ndarray, chi: np.ndarray) -> None:
-        r"""Add :math:`\Sigma_{s,0}\,\chi` to ``Q`` in place — the bare
+        r"""Add :math:`y\,\Sigma_{c,0}\,\chi` to ``Q`` in place — the bare
         Euclidean transpose of :meth:`add_p0_source` (sink-group
         contraction; the group-asymmetric factor of the adjoint isotropic
-        in-scatter, #276). The metric Hilbert adjoint stays the
-        ``.H`` wrapper's job."""
+        emission, #276). The metric Hilbert adjoint stays the ``.H``
+        wrapper's job."""
         self._accumulate_contracted(
-            Q, chi, lambda k: k.p0, spec=_TRANSPOSE,
+            Q, chi, lambda k: k.p0, spec=_TRANSPOSE, scale=self.multiplicity,
         )
 
     # ── moment-carrier verbs (the frame-conjugated Λ) ─────────────────
@@ -275,7 +311,8 @@ class ScatteringMaterialField(MaterialField[ScatteringKernel]):
         r"""The per-ℓ block-diagonal group contraction shared by the two
         moment verbs (the former ``apply_legendre_scattering_moments``
         loop — trailing-contiguous indexing kept so numpy never
-        rearranges axes under the fancy index).
+        rearranges axes under the fancy index), every block scaled by the
+        channel's yield.
 
         The moments tensor's leading axes are the angular HEAD's
         (:class:`~orpheus.numerics.spaces.moment_head.MomentHead`): the
@@ -289,21 +326,22 @@ class ScatteringMaterialField(MaterialField[ScatteringKernel]):
         """
         L = self.order
         rank = len(head.shape)
-        ng = next(iter(self.per_material.values())).ng
+        ng = self.ng
         if (
             moments.ndim < rank + 1
             or moments.shape[:rank] != tuple(head.shape)
             or moments.shape[rank] != ng
         ):
             raise ValueError(
-                f"ScatteringMaterialField moment verb: the moments tensor "
+                f"TransferMaterialField moment verb: the moments tensor "
                 f"{moments.shape} must lead with the angular head "
                 f"{tuple(head.shape)} of {head.name!r} followed by the "
-                f"{ng}-group axis (this field is truncated to order {L}); "
-                f"truncate the field to the operator's order and hand the "
-                f"operator's own head — a rectangular tensor offered with a "
-                f"flat head would otherwise read its m-axis as the groups."
+                f"{ng}-group axis (this field is at order {L}); bring the "
+                f"field to the operator's order and hand the operator's own "
+                f"head — a rectangular tensor offered with a flat head would "
+                f"otherwise read its m-axis as the groups."
             )
+        scale = self.multiplicity
         out = np.zeros_like(moments)
         l_start = 1 if skip_l0 else 0
         for kernel, idx in self._laid_out():
@@ -312,6 +350,8 @@ class ScatteringMaterialField(MaterialField[ScatteringKernel]):
                 block = head.degree_block(l)
                 moments_view = moments[block][cells]
                 out_block = np.einsum(spec, moments_view, kernel.moments[l])
+                if scale != 1:
+                    out_block = scale * out_block
                 out[block][cells] = out_block + out[block][cells]
         return out
 
@@ -319,10 +359,10 @@ class ScatteringMaterialField(MaterialField[ScatteringKernel]):
         self, moments: np.ndarray, *, skip_l0: bool, head: "MomentHead",
     ) -> np.ndarray:
         r"""Apply the per-ℓ block-diagonal redistribution :math:`\Lambda`
-        to a moment field (the former
-        ``apply_legendre_scattering_moments`` arm):
-        :math:`(\Lambda\phi)_\ell^m|_g = \sum_{g'}
-        \Sigma_{s,\ell}^{m(\vec r)}(g'\to g)\,\phi_\ell^m|_{g'}`.
+        to a moment field (the former ``apply_legendre_scattering_moments``
+        / ``apply_n2n_moments`` arms):
+        :math:`(\Lambda\phi)_\ell^m|_g = y \sum_{g'}
+        \Sigma_{c,\ell}^{m(\vec r)}(g'\to g)\,\phi_\ell^m|_{g'}`.
         ``skip_l0=True`` leaves the :math:`\ell=0` block zero (the P0
         fast path owns it). ``head`` is the operator's angular head (its
         domain), which fixes the layout the contraction reads."""
@@ -341,99 +381,7 @@ class ScatteringMaterialField(MaterialField[ScatteringKernel]):
             spec=_block_contraction(head, transposed=True),
         )
 
-
-@dataclass(frozen=True)
-class N2NMaterialField(MaterialField[N2NKernel]):
-    r"""The :math:`(n,2n)` channel's field: reaction matrices over the layout.
-
-    The array-verb home of the multiplicity-weighted emission (the former
-    ``MaterialXSField.apply_n2n`` / ``…_transpose`` /
-    ``apply_n2n_moments`` / ``…_transpose`` /
-    ``add_n2n_to_group_rate`` arms, einsums verbatim). The multiplicity
-    enters every emission verb from its ONE home —
-    :attr:`N2NKernel.multiplicity
-    <orpheus.transport.kernels.N2NKernel.multiplicity>` — never as an
-    inline literal (XD-2): the kernel stores the raw reaction matrix
-    :math:`\Sigma_{2n}` and the verbs weight it, exactly as the
-    loss/emission channel ruling requires.
-    """
-
-    @classmethod
-    def from_material_xs(cls, mat_xs: "MaterialXSField") -> "N2NMaterialField":
-        """Extract the :math:`(n,2n)` channel of a :class:`MaterialXSField`
-        facade — fresh densified kernels, the mesh's own layout object."""
-        return cls(
-            per_material={
-                mid: N2NKernel.from_mixture(mat_xs.materials[mid])
-                for mid in mat_xs.materials
-            },
-            cells_by_material=mat_xs.mesh.cells_by_material,
-        )
-
-    def add_emission(self, Q: np.ndarray, phi: np.ndarray) -> None:
-        r"""Add the :math:`(n,2n)` source
-        :math:`\nu_{2n}\,\Sigma_{2n}^{T}\phi` to ``Q`` in place (the
-        former ``apply_n2n`` arm; :math:`\nu_{2n}` =
-        :attr:`N2NKernel.multiplicity
-        <orpheus.transport.kernels.N2NKernel.multiplicity>`)."""
-        self._accumulate_contracted(
-            Q, phi, lambda k: k.matrix,
-            spec=_FORWARD, scale=float(N2NKernel.multiplicity),
-        )
-
-    def add_emission_transpose(self, Q: np.ndarray, chi: np.ndarray) -> None:
-        r"""Add :math:`\nu_{2n}\,\Sigma_{2n}\,\chi` to ``Q`` in place —
-        the bare Euclidean transpose of :meth:`add_emission`."""
-        self._accumulate_contracted(
-            Q, chi, lambda k: k.matrix,
-            spec=_TRANSPOSE, scale=float(N2NKernel.multiplicity),
-        )
-
-    def moment_emission(self, moments: np.ndarray, *, head: "MomentHead") -> np.ndarray:
-        r"""Apply the :math:`\ell=0` moment operator
-        :math:`\nu_{2n}\,\Sigma_{2n}` (the former ``apply_n2n_moments``
-        arm): only the ``[0, 0]`` block is read and written; every
-        :math:`\ell\ge 1` block stays zero — because this field's
-        kernels carry ONE matrix
-        (:meth:`~orpheus.transport.kernels.N2NKernel.from_mixture`
-        selects ``Sig2[0]``), ORPHEUS modelling the :math:`(n,2n)`
-        emission at :math:`P_0`.  ⚠ That is a modelling choice, NOT a
-        property of the reaction — and since #426 step 1 it is an
-        OPERATOR-layer choice, not a data-layer loss: ``Mixture.Sig2``
-        carries every Legendre order the tape stores, so the moments
-        this verb leaves at zero are available one call upstream
-        (``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-p0-truncation,
-        issue #426 step 2)."""
-        return self._moment_l0(
-            moments, head=head, spec=_block_contraction(head, transposed=False),
-        )
-
-    def moment_emission_transpose(
-        self, moments: np.ndarray, *, head: "MomentHead",
-    ) -> np.ndarray:
-        r"""Apply :math:`(\nu_{2n}\,\Sigma_{2n})^{T}` — the ℓ=0
-        group-transpose twin of :meth:`moment_emission`."""
-        return self._moment_l0(
-            moments, head=head, spec=_block_contraction(head, transposed=True),
-        )
-
-    def _moment_l0(
-        self, moments: np.ndarray, *, head: "MomentHead", spec: str,
-    ) -> np.ndarray:
-        # Only the l = 0 block is read and written; its index tuple and the
-        # number of axes before the group axis are the HEAD's to say
-        # (rectangular harmonics or the flat Legendre head — #429).
-        mult = float(N2NKernel.multiplicity)
-        rank = len(head.shape)
-        block = head.degree_block(0)
-        out = np.zeros_like(moments)
-        for kernel, idx in self._laid_out():
-            cells = (slice(None),) * rank + tuple(idx)
-            mv = moments[block][cells]  # the l = 0 moment over these cells
-            out[block][cells] = (
-                mult * np.einsum(spec, mv, kernel.matrix) + out[block][cells]
-            )
-        return out
+    # ── the group-rate verb (the k-balance accounting) ────────────────
 
     def add_to_group_rate(
         self,
@@ -441,16 +389,21 @@ class N2NMaterialField(MaterialField[N2NKernel]):
         flux_distribution: np.ndarray,
         volume: np.ndarray,
     ) -> None:
-        r"""Add the :math:`(n,2n)` contribution to a per-group production
+        r"""Add the channel's volume-integrated P0 emission to a per-group
         rate (the former ``add_n2n_to_group_rate`` arm): per material,
-        :math:`\nu_{2n}\int_V \Sigma_{2n}^{g'\to g}\,\phi_{g'}\,dV`
-        accumulated into ``rate`` (shape ``(ng,)``, in place)."""
-        mult = float(N2NKernel.multiplicity)
+        :math:`y\int_V \Sigma_{c,0}^{g'\to g}\,\phi_{g'}\,dV` accumulated
+        into ``rate`` (shape ``(ng,)``, in place). For :math:`(n,2n)` this
+        is the emission the k-balance's net removal subtracts and the
+        ERR-052 scale anchor adds; for scattering it is the group
+        in-scatter rate."""
+        scale = self.multiplicity
         for kernel, idx in self._laid_out():
             cells = (slice(None), *idx)
             phi_cells_g = flux_distribution[cells].T  # (n_cells, ng)
-            n2n_cell_g = mult * (phi_cells_g @ kernel.matrix)
-            rate += np.einsum("c,cg->g", volume[idx], n2n_cell_g)
+            cell_g = phi_cells_g @ kernel.p0
+            if scale != 1:
+                cell_g = scale * cell_g
+            rate += np.einsum("c,cg->g", volume[idx], cell_g)
 
 
 @dataclass(frozen=True)
@@ -463,14 +416,13 @@ class FissionMaterialField(MaterialField[FissionKernel]):
     χ simplex/null law runs per material by construction (Pattern 4 —
     a field holding an invalid spectrum is not a value that exists).
 
-    Unlike its scattering/(n,2n) siblings this field carries **gather
-    verbs, not accumulation verbs**: fission's arithmetic home is the
-    rank-1 dyad :math:`|\chi\rangle\langle\nu\Sigma_f|` realized once on
-    the CELLWISE factors (the
-    :class:`~orpheus.numerics.operator.RankOneOperator` route the bound
-    operators cache at construction), so what the binding needs from the
-    datum is the densified factor — bit-identical to the facade's
-    per-cell views, being the same pure index gather of the same
+    Unlike its transfer sibling this field carries **gather verbs, not
+    accumulation verbs**: fission's arithmetic home is the rank-1 dyad
+    :math:`|\chi\rangle\langle\nu\Sigma_f|` realized once on the CELLWISE
+    factors (the :class:`~orpheus.numerics.operator.RankOneOperator`
+    route the bound operators cache at construction), so what the binding
+    needs from the datum is the densified factor — bit-identical to the
+    facade's per-cell views, being the same pure index gather of the same
     per-material vectors. A per-material contraction verb here would be
     a SECOND spelling of the dyad arithmetic (Pattern 2).
     """

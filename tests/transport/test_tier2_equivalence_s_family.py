@@ -4,11 +4,11 @@ three-tier discipline §3 — EVERY extract-and-mint classmethod owes
 simple-ctor-vs-composite-factory blindness for this family).
 
 Rows: ``ScatteringOperator.from_solver_data``,
-``LegendreMomentScattering.from_material_xs``,
-``N2NMomentOperator.from_material_xs``, the iso pair's
-``from_material_xs``, ``N2NOperator.from_solver_data``, and one
-parametrized row over the three kernel ``from_mixture``s (the datum
-tier — proportionate to its one-``todense()`` exposure; the existing
+``LegendreMomentTransfer.from_field`` (both channels), the iso pair's
+``from_material_xs``, ``N2NOperator.from_solver_data`` (since #426 step 2
+at the solve's order — the SAME interned frame as S), and one parametrized
+row over the three kernel channel constructors (the datum tier —
+proportionate to its one-``todense()`` exposure; the existing
 ``test_kernels.py`` value pins are cross-source gates, not this shape).
 """
 from __future__ import annotations
@@ -21,21 +21,15 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import SphericalHarmonicSpace
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
-from orpheus.transport.kernels import FissionKernel, N2NKernel, ScatteringKernel
-from orpheus.transport.material_field import (
-    N2NMaterialField,
-    ScatteringMaterialField,
-)
+from orpheus.transport.kernels import N2N_MULTIPLICITY, FissionKernel, TransferKernel
+from orpheus.transport.material_field import TransferMaterialField
 from orpheus.transport.operators.isotropic_scattering import (
     IsotropicN2N,
     IsotropicScattering,
 )
 from orpheus.transport.operators.n2n import N2NOperator
-from orpheus.transport.operators.scattering import (
-    LegendreMomentScattering,
-    N2NMomentOperator,
-    ScatteringOperator,
-)
+from orpheus.transport.operators.scattering import ScatteringOperator
+from orpheus.transport.operators.transfer import LegendreMomentTransfer
 
 from tests.sn._test_helpers import material_xs_from_raw
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
@@ -75,12 +69,10 @@ def _fields_equal(a, b):
     for mid in a.per_material:
         ka, kb = a.per_material[mid], b.per_material[mid]
         def _arrs(k):
-            # per-channel datum arrays: Legendre stack (S), reaction
-            # matrix (N2N), or the factor pair (Fission).
+            # per-channel datum arrays: the Legendre stack + yield (a
+            # transfer channel) or the factor pair (fission).
             if hasattr(k, "moments"):
-                return tuple(k.moments)
-            if hasattr(k, "matrix"):
-                return (k.matrix,)
+                return (*k.moments, np.asarray(k.multiplicity))
             return (k.chi, k.nu_sig_f)
 
         arrs_a = _arrs(ka)
@@ -102,9 +94,10 @@ class TestSFamilyTierTwoEquivalence:
             mat_xs=mat_xs, scattering_order=1, space=space,
         )
         interior = space.interior_space
+        assert interior is not None
         frame = HarmonicFrame.for_space(interior, 1)
         exact = ScatteringOperator(
-            ScatteringMaterialField.from_material_xs(mat_xs).truncated(1),
+            TransferMaterialField.scattering(mat_xs).at_order(1),
             flux_analysis=frame.flux_analysis_on(interior),
             source_reconstruction=frame.source_reconstruction_on(interior),
             domain=space,
@@ -114,31 +107,37 @@ class TestSFamilyTierTwoEquivalence:
             pytest.fail("ends must be the SAME space object")
         if rich.flux_analysis.frame is not exact.flux_analysis.frame:
             pytest.fail("both routes must land on the ONE interned frame")
-        if not _fields_equal(rich.scattering, exact.scattering):
+        if not _fields_equal(rich.transfer, exact.transfer):
             pytest.fail("the extracted kernel field drifted from the ctor's")
 
     def test_moment_pair_from_material_xs_equals_the_exact_ctor(self):
         mat_xs = _mat_xs()
         sh = SphericalHarmonicSpace.from_L(1)
-        rich = LegendreMomentScattering.from_material_xs(mat_xs, SphericalHarmonicBasis(L=1), skip_l0=False)
-        exact = LegendreMomentScattering(
-            ScatteringMaterialField.from_material_xs(mat_xs).truncated(1),
+        rich = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+        )
+        exact = LegendreMomentTransfer(
+            TransferMaterialField.scattering(mat_xs).at_order(1),
             skip_l0=False, domain=sh, codomain=sh,
         )
         if not (rich.domain == exact.domain and rich.codomain == exact.codomain):
             pytest.fail("Λ ends drifted")
         if rich.skip_l0 != exact.skip_l0 or not _fields_equal(
-            rich.scattering, exact.scattering,
+            rich.transfer, exact.transfer,
         ):
             pytest.fail("Λ datum drifted")
 
-        rich_n = N2NMomentOperator.from_material_xs(mat_xs, SphericalHarmonicBasis(L=1))
-        exact_n = N2NMomentOperator(
-            N2NMaterialField.from_material_xs(mat_xs), domain=sh, codomain=sh,
+        rich_n = LegendreMomentTransfer.from_field(
+            TransferMaterialField.n2n(mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+        )
+        exact_n = LegendreMomentTransfer(
+            TransferMaterialField.n2n(mat_xs).at_order(1),
+            skip_l0=False, domain=sh, codomain=sh,
         )
         if not (
             rich_n.domain == exact_n.domain
-            and _fields_equal(rich_n.n2n, exact_n.n2n)
+            and rich_n.skip_l0 == exact_n.skip_l0
+            and _fields_equal(rich_n.transfer, exact_n.transfer)
         ):
             pytest.fail("N2N moment datum/ends drifted")
 
@@ -147,74 +146,87 @@ class TestSFamilyTierTwoEquivalence:
         space = mat_xs.mesh.bulk_space
         rich = IsotropicScattering.from_material_xs(mat_xs, space=space)
         exact = IsotropicScattering(
-            ScatteringMaterialField.from_material_xs(mat_xs).truncated(0),
+            TransferMaterialField.scattering(mat_xs).at_order(0),
             domain=space, codomain=space,
         )
         if not (
             rich.domain is exact.domain
-            and _fields_equal(rich.scattering, exact.scattering)
+            and _fields_equal(rich.transfer, exact.transfer)
         ):
             pytest.fail("IsoS classmethod drifted from the ctor")
         rich_n = IsotropicN2N.from_material_xs(mat_xs, space=space)
         exact_n = IsotropicN2N(
-            N2NMaterialField.from_material_xs(mat_xs),
+            TransferMaterialField.n2n(mat_xs).at_order(0),
             domain=space, codomain=space,
         )
         if not (
             rich_n.domain is exact_n.domain
-            and _fields_equal(rich_n.n2n, exact_n.n2n)
+            and _fields_equal(rich_n.transfer, exact_n.transfer)
         ):
             pytest.fail("IsoN2N classmethod drifted from the ctor")
 
     def test_n2n_operator_from_solver_data_equals_the_exact_ctor(self):
-        from orpheus.numerics.space import FunctionSpace
-
+        r"""#426 step 2: the (n,2n) binding is minted at the SOLVE's order on
+        the SAME interned frame S is — the exact ctor is the core's (a field
+        at that order + the two faces), and the P0 energy binding is DERIVED
+        (``isotropic_energy``), of the role's own class."""
         mat_xs = _mat_xs()
         sn = _sn(mat_xs)
         space = sn.full_field_space
-        rich = N2NOperator.from_solver_data(mat_xs=mat_xs, space=space)
+        rich = N2NOperator.from_solver_data(
+            mat_xs=mat_xs, scattering_order=1, space=space,
+        )
         interior = space.interior_space
-        assert interior is not None and interior.axes is not None
-        scalar = FunctionSpace.of_axes(*interior.axes[1:])
-        # CS4c step-4 harmonization: the retained state is the L=0 frame
-        # (hub-interned — the exact ctor reaches the SAME object, so the
-        # equivalence is an identity, stronger than the old array_equal
-        # on a weights copy).
-        from orpheus.transport.frames.harmonic_frame import HarmonicFrame
-
+        assert interior is not None
+        frame = HarmonicFrame.for_space(interior, 1)
         exact = N2NOperator(
-            IsotropicN2N(
-                N2NMaterialField.from_material_xs(mat_xs),
-                domain=scalar, codomain=scalar,
-            ),
-            frame=HarmonicFrame.for_space(interior, 0),
-            domain=space, codomain=space,
+            TransferMaterialField.n2n(mat_xs).at_order(1),
+            flux_analysis=frame.flux_analysis_on(interior),
+            source_reconstruction=frame.source_reconstruction_on(interior),
+            domain=space,
+            codomain=space,
         )
         if not (rich.domain is exact.domain and rich.codomain is exact.codomain):
             pytest.fail("N2N ends drifted")
         if rich.frame is not exact.frame:
             pytest.fail("N2N frame drifted from the interned hub route")
+        S = ScatteringOperator.from_solver_data(
+            mat_xs=mat_xs, scattering_order=1, space=space,
+        )
+        if rich.frame is not S.frame:
+            pytest.fail("the two transfer terms must share ONE interned frame")
         np.testing.assert_array_equal(
             np.asarray(rich.frame.measure.weights), np.asarray(sn.quad.weights),
         )
+        if not _fields_equal(rich.transfer, exact.transfer):
+            pytest.fail("the extracted (n,2n) kernel field drifted from the ctor's")
         if not (
-            rich.energy.domain == exact.energy.domain
-            and _fields_equal(rich.energy.n2n, exact.energy.n2n)
+            isinstance(rich.isotropic_energy, IsotropicN2N)
+            and rich.isotropic_energy.transfer.order == 0
+            and _fields_equal(
+                rich.isotropic_energy.transfer, exact.transfer.at_order(0),
+            )
         ):
-            pytest.fail("N2N energy binding drifted from the ctor route")
+            pytest.fail("the (n,2n) P0 energy binding drifted from the role's")
 
-    @pytest.mark.parametrize("cls,fields", [
-        (ScatteringKernel, lambda mix: {"moments": tuple(
-            np.asarray(s.todense()) for s in mix.SigS)}),
-        (N2NKernel, lambda mix: {"matrix": np.asarray(mix.Sig2[0].todense())}),
-        (FissionKernel, lambda mix: {"chi": mix.chi, "nu_sig_f": mix.SigP}),
+    @pytest.mark.parametrize("cls,ctor,fields", [
+        (TransferKernel, TransferKernel.scattering, lambda mix: {
+            "moments": tuple(np.asarray(s.todense()) for s in mix.SigS),
+            "multiplicity": 1,
+        }),
+        (TransferKernel, TransferKernel.n2n, lambda mix: {
+            "moments": tuple(np.asarray(s.todense()) for s in mix.Sig2),
+            "multiplicity": N2N_MULTIPLICITY,
+        }),
+        (FissionKernel, FissionKernel.from_mixture,
+         lambda mix: {"chi": mix.chi, "nu_sig_f": mix.SigP}),
     ], ids=["scattering", "n2n", "fission"])
-    def test_kernel_from_mixture_equals_the_exact_ctor(self, cls, fields):
+    def test_kernel_from_mixture_equals_the_exact_ctor(self, cls, ctor, fields):
         """The datum tier's single parametrized row (plan §4: the
-        extraction is one ``todense()``; the existing value pins are
-        cross-source gates, not this shape)."""
+        extraction is one ``todense()`` per order plus the channel's yield;
+        the existing value pins are cross-source gates, not this shape)."""
         mix = _mat_xs().materials[0]
-        rich = cls.from_mixture(mix)
+        rich = ctor(mix)
         exact = cls(**fields(mix))
         for name in fields(mix):
             a, b = getattr(rich, name), getattr(exact, name)

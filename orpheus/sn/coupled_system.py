@@ -248,7 +248,7 @@ def build_coupled_system(
         typed field object — the mesh-identity invariant holds by
         construction), the scattering table feeds ``S``; the emission
         block consumes the solver-composed ``K_iso =
-        S.isotropic_energy + N2N.energy`` (§14.1 — single-sourced per
+        S.isotropic_energy + N2N.isotropic_energy`` (§14.1 — single-sourced per
         channel LEAF).
     scattering_order : int
         Legendre truncation for ``S`` (0 = P0 — the
@@ -491,7 +491,7 @@ def build_within_group_system(
       so the schedule path always receives the plain operator).
     * System B's blocks (carrying meshes only — R12a): ``Seeding``
       (A,B), ``Emission`` (B,A — consuming the K_iso composed at this
-      site: ``S.isotropic_energy + N2N.energy``, the §14.1 grouping), ``A_BB`` (the radial straight-characteristic
+      site: ``S.isotropic_energy + N2N.isotropic_energy``, the §14.1 grouping), ``A_BB`` (the radial straight-characteristic
       march), ``B_b`` (the ray corner). Their constructors refuse seedless
       meshes, so presence is structural (P2).
 
@@ -542,7 +542,9 @@ def build_within_group_system(
         n2n_op
         if n2n_op is not None
         else N2NOperator.from_solver_data(
-            mat_xs=mat_xs, space=full_field_space,
+            mat_xs=mat_xs,
+            scattering_order=scattering_order,
+            space=full_field_space,
         )
     )
     # L = pure σ-free streaming; C = M[σ_t] — the ONE LC spelling.
@@ -589,7 +591,7 @@ def build_within_group_system(
     # S's own datum + the (n,2n) energy binding — the solver-side sum
     # that replaced ``S.isotropic_kernel``.
     emission = RadialCharacteristicEmission(
-        S.isotropic_energy + N2N.energy,
+        S.isotropic_energy + N2N.isotropic_energy,
         field_space=member_space,
         full_field_space=full_field_space,
         angular_bulk_space=sn_mesh.angular_bulk_space,

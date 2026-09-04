@@ -4,7 +4,7 @@ S6 adds a ``kernel`` property to :class:`ScatteringOperator` → a typed
 ``OperatorProduct(R, OperatorProduct(Λ, M))`` reproducing the EXISTING
 ``_aniso_source_from_moment_values`` chain ``R(Λ(M·ψ))`` (M = the
 :attr:`frame`'s analysis face, R = its reconstruction face, Λ =
-``LegendreMomentScattering``; ``OperatorProduct.apply(x) = a.apply(b.apply(x))``,
+``LegendreMomentTransfer``; ``OperatorProduct.apply(x) = a.apply(b.apply(x))``,
 ``operator.py:826``). With ``kernel`` the operator becomes an
 ``IntegralKernelOperator``. The 5 ``@singledispatchmethod`` arms are
 UNCHANGED.

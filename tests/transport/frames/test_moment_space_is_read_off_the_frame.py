@@ -63,11 +63,9 @@ from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.frames import HarmonicFrame
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.n2n import N2NOperator
-from orpheus.transport.operators.scattering import (
-    LegendreMomentScattering,
-    N2NMomentOperator,
-    ScatteringOperator,
-)
+from orpheus.transport.operators.scattering import ScatteringOperator
+from orpheus.transport.operators.transfer import LegendreMomentTransfer
+from orpheus.transport.material_field import TransferMaterialField
 from tests.sn._test_helpers import material_xs_from_raw, placeholder_materials
 
 pytestmark = pytest.mark.foundation
@@ -202,21 +200,21 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
     sn = _slab()
     L = 1
     _bind_foreign(sn, L)
-    _bind_foreign(sn, 0)          # fission and (n,2n) mint at ℓ = 0 on every solve
+    _bind_foreign(sn, 0)          # fission mints at ℓ = 0 on every solve
     mat = _mat_xs()
     composite = sn.full_field_space
 
     S = ScatteringOperator.from_solver_data(mat_xs=mat, space=composite, scattering_order=L)
-    lam = S._moment_scattering(skip_l0=False)
+    lam = S._moment_transfer(skip_l0=False)
     assert lam.domain.name == _MUTANT_NAME and lam.codomain.name == _MUTANT_NAME
-    assert S.full_scatter_kernel is not None      # R∘Λ∘M composes on the foreign ends
+    assert S.full_transfer_kernel is not None      # R∘Λ∘M composes on the foreign ends
     assert S.kernel is not None
 
     F = FissionOperator.from_solver_data(mat_xs=mat, space=composite)
     assert _inner_factor_domain_name(F.full_fission_kernel) == _MUTANT_NAME   # R∘(F₀∘M)
 
-    N = N2NOperator.from_solver_data(mat_xs=mat, space=composite)
-    assert _inner_factor_domain_name(N.full_n2n_kernel) == _MUTANT_NAME
+    N = N2NOperator.from_solver_data(mat_xs=mat, space=composite, scattering_order=L)
+    assert _inner_factor_domain_name(N.full_transfer_kernel) == _MUTANT_NAME
 
     field = HarmonicMomentFlux.zeros_for_mesh_and_L(sn, L)
     assert isinstance(field.space, TensorProductSpace)
@@ -233,14 +231,18 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
     assert truncated.factors[0].name == _MUTANT_NAME
 
     foreign = _ForeignTruncatedBasis.like(sn.quad.angular_frame(L).basis)
-    assert LegendreMomentScattering.from_material_xs(mat, foreign).domain.name == _MUTANT_NAME
-    assert N2NMomentOperator.from_material_xs(mat, foreign).codomain.name == _MUTANT_NAME
+    assert LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(mat), foreign,
+        ).domain.name == _MUTANT_NAME
+    assert LegendreMomentTransfer.from_field(
+            TransferMaterialField.n2n(mat), foreign, skip_l0=False,
+        ).codomain.name == _MUTANT_NAME
 
     # the negative leg: an end minted from L alone does NOT compose with the
     # foreign frame — this is the red every reverted producer produces
     minted = SphericalHarmonicSpace.from_L(L)
-    stale = LegendreMomentScattering(
-        S.scattering, skip_l0=False, domain=minted, codomain=minted,
+    stale = LegendreMomentTransfer(
+        S.transfer, skip_l0=False, domain=minted, codomain=minted,
     )
     with pytest.raises(IncompatibleOperatorComposition, match=r"A\.domain == B\.codomain"):
         S.flux_analysis.frame.conjugate(stale)
@@ -306,7 +308,7 @@ def test_the_operator_ends_carry_the_continuum_metric_not_the_dressed_one() -> N
     sn = _slab()
     L = 1                      # the synthetic data carries P0 and P1
     S = ScatteringOperator.from_solver_data(mat_xs=_mat_xs(), space=sn.full_field_space, scattering_order=L)
-    ends = S._moment_scattering(skip_l0=False).domain
+    ends = S._moment_transfer(skip_l0=False).domain
     # the mint the ends must equal is the FRAME's basis space — on this slab
     # fixture the flat Legendre head, on a sphere rule the harmonics'. ⭐ Both
     # families carry the SAME per-degree continuum Gram 4pi/(2l+1) (the

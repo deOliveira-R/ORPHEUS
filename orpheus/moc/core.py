@@ -16,7 +16,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from orpheus.transport.kernels import N2NKernel
+from orpheus.transport.kernels import N2N_MULTIPLICITY
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.numerics.convergence import (
@@ -183,7 +183,7 @@ class MOCSolver:
             Q = np.empty((nr, ng))
             for i in range(nr):
                 scatter = self.sig_s0[i].T @ phi[i, :]
-                n2n = N2NKernel.multiplicity * self.sig2[i].T @ phi[i, :]
+                n2n = N2N_MULTIPLICITY * self.sig2[i].T @ phi[i, :]
                 Q[i, :] = (fission_source[i, :] + scatter + n2n) / (4.0 * np.pi)
 
             # Q / sig_t (asymptotic angular flux per region)
@@ -315,7 +315,7 @@ class MOCSolver:
         for i in range(nr):
             sig2_out = np.array(self.sig2[i].sum(axis=1)).ravel()
             total_prod += (
-                (self.sig_p[i, :] + N2NKernel.multiplicity * sig2_out)
+                (self.sig_p[i, :] + N2N_MULTIPLICITY * sig2_out)
                 @ phi[i, :] * geom.region_areas[i]
             )
         if total_prod > 0:
@@ -367,7 +367,7 @@ class MOCSolver:
             sig2_out = np.array(self.sig2[i].sum(axis=1)).ravel()
             p_rate += self.sig_p[i, :] @ phi_i * A_i
             removal_rate += (
-                self.sig_a[i, :] - N2NKernel.multiplicity * sig2_out
+                self.sig_a[i, :] - N2N_MULTIPLICITY * sig2_out
             ) @ phi_i * A_i
         return p_rate / removal_rate if removal_rate > 0 else 1.0
 

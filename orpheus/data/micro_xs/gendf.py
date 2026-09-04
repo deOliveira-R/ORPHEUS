@@ -237,7 +237,7 @@ def _strip_transfer_yield(
     Scaling each row onto ``reaction_xs`` divides the yield out **without
     naming its value**, which is the point: the multiplicity is a physics
     constant owned once, by
-    :attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`, in a package
+    :data:`~orpheus.transport.kernels.N2N_MULTIPLICITY`, in a package
     this one may not import. It also makes the channel's reaction rate
     exactly consistent with the MF=3 tabulation every other channel's cross
     section is read from, rather than merely consistent to the file's
@@ -405,13 +405,13 @@ def _build_isotope(
     #
     # Every consumer downstream reads `sig2[l]` as the REACTION stack with no
     # multiplicity folded in — `SigT`/`absorption_xs` add the P0 row sum ONCE
-    # (one neutron absorbed per event) and `N2NKernel.emission_matrix`
+    # (one neutron absorbed per event) and `TransferKernel.emission_matrix`
     # applies the factor itself (two neutrons emitted). So the yield is
     # divided out HERE, at the definition site, rather than at each of them.
     #
     # The division is spelled as a RENORMALISATION ONTO MF=3, not as a
     # literal `/ 2`: the multiplicity is a physics constant with exactly one
-    # home in this tree (`N2NKernel.multiplicity`), which the data layer must
+    # home in this tree (`N2N_MULTIPLICITY`), which the data layer must
     # not import (it sits a layer up) and must not duplicate. Normalising to
     # the tabulated cross section removes whatever yield the file carries
     # without this module ever naming its value — and it makes the (n,2n)

@@ -78,7 +78,7 @@ class TestApplyEqualsFastPath:
         phi = _phi(spatial_moments=sm)
         op = IsotropicScattering.from_material_xs(mat, space=mat.mesh.bulk_space)
         ref = np.zeros_like(phi)
-        op.scattering.add_p0_source(ref, phi)
+        op.transfer.add_p0_source(ref, phi)
         np.testing.assert_array_equal(
             op.apply(phi), ref,
             err_msg="IsotropicScattering.apply must route through the field's add_p0_source (0-ULP).",
@@ -90,10 +90,10 @@ class TestApplyEqualsFastPath:
         phi = _phi(spatial_moments=sm)
         op = IsotropicN2N.from_material_xs(mat, space=mat.mesh.bulk_space)
         ref = np.zeros_like(phi)
-        op.n2n.add_emission(ref, phi)
+        op.transfer.add_p0_source(ref, phi)
         np.testing.assert_array_equal(
             op.apply(phi), ref,
-            err_msg="IsotropicN2N.apply must route through the field's add_emission (0-ULP).",
+            err_msg="IsotropicN2N.apply must route through the field's add_p0_source (0-ULP).",
         )
 
     def test_sum_equals_inplace_iso_then_n2n(self):
@@ -105,8 +105,8 @@ class TestApplyEqualsFastPath:
         n2n_op = IsotropicN2N.from_material_xs(mat, space=mat.mesh.bulk_space)
         combined = iso_op.apply(phi) + n2n_op.apply(phi)
         inplace = np.zeros_like(phi)
-        iso_op.scattering.add_p0_source(inplace, phi)
-        n2n_op.n2n.add_emission(inplace, phi)
+        iso_op.transfer.add_p0_source(inplace, phi)
+        n2n_op.transfer.add_p0_source(inplace, phi)
         np.testing.assert_array_equal(
             combined, inplace,
             err_msg="The OperatorSum order (P0 + n2n) must match the in-place accumulation.",

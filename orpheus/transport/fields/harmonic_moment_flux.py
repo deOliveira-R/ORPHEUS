@@ -215,7 +215,7 @@ class HarmonicMomentFlux(MomentField):
         bit-exactly.
 
         Mirrors the ``skip_l0`` pattern in
-        :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`.
+        :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`.
         """
         out = self.values.copy()
         out[self.head.isotropic_slot] = 0.0

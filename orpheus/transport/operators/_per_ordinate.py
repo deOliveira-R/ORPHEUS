@@ -10,19 +10,20 @@ from an isotropic scalar source routes HERE — the :math:`/W` convention
 lives once (its normalisation chain:
 ``docs/theory/methods/sn/slab_multigroup.rst``):
 
-* :class:`~orpheus.transport.operators.scattering.ScatteringOperator`'s
-  P0 half (combined with its :math:`\ell\ge 1` anisotropic part);
-* :class:`~orpheus.transport.operators.n2n.N2NOperator`'s whole action
-  (the §14.1 extraction — ORPHEUS MODELS :math:`(n,2n)` emission as
-  isotropic, a :math:`P_0` truncation of the evaluated data rather than
-  a property of the reaction; ``docs/theory/methods/sn/adjoint.rst``
-  §sn-n2n-p0-truncation, issue #426).
+* :class:`~orpheus.transport.operators.transfer.TransferOperator`'s P0
+  half (combined with its :math:`\ell\ge 1` anisotropic part) — under
+  both of its roles, :math:`S` and :math:`N_{2n}` (until #426 step 2,
+  2026-09-04, the :math:`(n,2n)` operator's WHOLE action was this combine
+  with ``aniso = None``: ORPHEUS modelled its emission as isotropic, a
+  :math:`P_0` truncation of the evaluated data rather than a property of
+  the reaction; ``docs/theory/methods/sn/adjoint.rst``
+  §sn-n2n-p0-truncation);
+* :class:`~orpheus.transport.operators.fission.FissionOperator`'s whole
+  action (isotropic by construction — :math:`\chi` carries no angle).
 
 Shared as a free function (the CS4c §14.1 landing): the two consumers
 are different OPERATORS of one composite algebra, and the combine is the
-piece of arithmetic they must never spell twice. When a third isotropic
-lifted channel appears, this is the seed of the generic lift operator
-(defer-until-2 — recorded, not minted).
+piece of arithmetic they must never spell twice.
 """
 
 from __future__ import annotations

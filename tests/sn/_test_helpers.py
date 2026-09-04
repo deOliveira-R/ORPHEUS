@@ -181,10 +181,15 @@ def placeholder_materials(
     }
 
 
+def _as_stack(channel) -> "list":
+    """A single matrix is the P0 stack; a list/tuple is the stack as given."""
+    return list(channel) if isinstance(channel, (list, tuple)) else [channel]
+
+
 def material_xs_from_raw(
     *,
     sig_s: "dict[int, list[np.ndarray]]",
-    sig2: "dict[int, np.ndarray] | None" = None,
+    sig2: "dict[int, np.ndarray | list[np.ndarray]] | None" = None,
     cells_by_mat: "dict[int, tuple[np.ndarray, np.ndarray]]",
     ng: int,
     nx: int,
@@ -195,7 +200,8 @@ def material_xs_from_raw(
     The production-path replacement for the retired
     ``MaterialXSField._synthetic_for_tests`` (campaign 1 CS4b, Q7 ruling —
     option 3): real :class:`Mixture` objects carry the given Legendre
-    lists and (n,2n) matrices, a real ``Mesh2D`` paints ``cells_by_mat``
+    lists and (n,2n) matrices — or (n,2n) Legendre STACKS, a list per
+    material, since #426 step 2 — a real ``Mesh2D`` paints ``cells_by_mat``
     into its ``mat_map``, and the field is built by the production
     ``MaterialXSField.from_mesh`` — so the per-material dispatch tests
     exercise the true admission + lazy dense-cache path (including the
@@ -233,11 +239,13 @@ def material_xs_from_raw(
             SigP=z.copy(),
             SigT=np.ones(ng),
             SigS=[csr_matrix(np.asarray(s)) for s in mats],
-            Sig2=[csr_matrix(
-                np.asarray(sig2[mid])
-                if sig2 is not None and mid in sig2
-                else np.zeros((ng, ng))
-            )],
+            Sig2=[
+                csr_matrix(np.asarray(block))
+                for block in _as_stack(
+                    sig2[mid] if sig2 is not None and mid in sig2
+                    else np.zeros((ng, ng))
+                )
+            ],
             chi=z.copy(),
         )
         for mid, mats in sig_s.items()

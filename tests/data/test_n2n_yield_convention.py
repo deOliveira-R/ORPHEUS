@@ -10,7 +10,7 @@ reads ``sig2`` as the **reaction** matrix with no multiplicity folded in:
 :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigT` and
 :attr:`~orpheus.data.macro_xs.mixture.Mixture.absorption_xs` add its row sum
 ONCE (one neutron absorbed per event), and
-:meth:`~orpheus.transport.kernels.N2NKernel.emission_matrix` applies the
+:meth:`~orpheus.transport.kernels.TransferKernel.emission_matrix` applies the
 factor itself (two emitted). Until #427 the ingest handed those consumers
 ``2*Sigma_2n``, so removal was doubled and the emission quadrupled — a
 defect masked because every synthetic library mixture has ``Sig2 = 0`` and
@@ -47,7 +47,7 @@ from orpheus.data.micro_xs.gendf import (
     convert_gxs,
 )
 from orpheus.data.micro_xs.isotope import NG
-from orpheus.transport.kernels import N2NKernel
+from orpheus.transport.kernels import N2N_MULTIPLICITY, TransferKernel
 
 # The tape-fact leg is an L0 term verification against the primary data
 # (it reads the GENDF records, not our code) and carries the equation label;
@@ -163,11 +163,11 @@ class TestEmissionIsTwiceTheReaction:
         self, be9_mixture, be9_tape,
     ) -> None:
         sigma = np.asarray(_extract_mf3(16, 1, be9_tape))[0][::-1] * 0.1235
-        emission = N2NKernel.from_mixture(be9_mixture).emission_matrix()
+        emission = TransferKernel.n2n(be9_mixture).emission_matrix()
         live = sigma > 0.0
         np.testing.assert_allclose(
             emission[:, live].sum(axis=0),
-            N2NKernel.multiplicity * sigma[live],
+            N2N_MULTIPLICITY * sigma[live],
             rtol=1e-12, atol=0.0,
             err_msg="the (n,2n) emission must be exactly 2*Sigma_2n.",
         )
@@ -177,7 +177,7 @@ class TestEmissionIsTwiceTheReaction:
     ) -> None:
         r"""emission - removal == :math:`\Sigma_{2n}`: two out, one in."""
         sigma = np.asarray(_extract_mf3(16, 1, be9_tape))[0][::-1] * 0.1235
-        emission = N2NKernel.from_mixture(be9_mixture).emission_matrix()
+        emission = TransferKernel.n2n(be9_mixture).emission_matrix()
         removal = np.asarray(be9_mixture.Sig2[0].sum(axis=1)).ravel()
         live = sigma > 0.0
         np.testing.assert_allclose(

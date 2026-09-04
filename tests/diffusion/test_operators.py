@@ -345,11 +345,11 @@ class TestStencilGate:
         facade to the kernel field (this sentinel caught the re-route —
         a mutation of the retired arm reddened nothing).
         """
-        from orpheus.transport.material_field import ScatteringMaterialField
+        from orpheus.transport.material_field import TransferMaterialField
 
         monkeypatch.setattr(
-            ScatteringMaterialField, "add_p0_source",
-            ScatteringMaterialField.add_p0_source_transpose,
+            TransferMaterialField, "add_p0_source",
+            TransferMaterialField.add_p0_source_transpose,
         )
         assert self._stencil_delta() > 1e-3
 

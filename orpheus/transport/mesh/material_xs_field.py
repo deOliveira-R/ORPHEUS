@@ -13,7 +13,7 @@ of the cross-section data leaked through every consumer:
   :meth:`~ScatteringOperator.residual_part`,
   :meth:`~ScatteringOperator.is_foldable_into_sigma_r`,
   :meth:`~ScatteringOperator.foldable_sigma`, and
-  :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering.apply`.
+  :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer.apply`.
 * :class:`~orpheus.sn.solver.SNSolver` carried a parallel
   ``_cells_by_mat`` and seven separate XS attributes
   (``sig_t``, ``sig_a``, ``sig_p``, ``chi``, ``sig_s``, ``sig2``,
@@ -67,11 +67,11 @@ Capability matrix (which sites collapsed):
 ==========  ============================================  =================================
 Old site    Old pattern                                   New call
 ==========  ============================================  =================================
-scattering  ``for mid in cells_by_mat: ... add ...``      the field verbs (CS4c: ``ScatteringMaterialField.add_p0_source`` etc.)
+scattering  ``for mid in cells_by_mat: ... add ...``      the field verbs (CS4c: ``TransferMaterialField.add_p0_source`` etc.)
 scattering  ``for mid in sig_s.items(): off-diag``        :meth:`residual_sig_s` (DSA's read)
 scattering  ``for mid in sig_s.items(): np.allclose(...)``:meth:`is_p0_diagonal_with_zero_n2n`
 scattering  ``for mid in sig_s.items(): diag(...)``       :meth:`foldable_sigma`
-solver      ``for mid in _cells_by_mat: sig2 ...``        ``N2NMaterialField.add_to_group_rate`` (CS4c)
+solver      ``for mid in _cells_by_mat: sig2 ...``        ``TransferMaterialField.add_to_group_rate`` (CS4c)
 ==========  ============================================  =================================
 
 Units (the discipline that physics code make units explicit, per
@@ -430,8 +430,10 @@ class MaterialXSField:
 
         An order a material's stack lacks is exactly zero (the evaluation's
         own statement) — the same padding ``Mixture._macroscopic_stack`` applies
-        when it sums isotopes; both collapse into the transfer kernel at #426
-        step 2. One gather for both channels (the ``_gather_vector`` idiom).
+        when it sums isotopes and ``TransferKernel.at_order`` applies at the
+        binding. Three spellings of one law on three tiers (isotope sum,
+        sigma-zero projection, kernel); each tier's datum is its own. One
+        gather for both channels (the ``_gather_vector`` idiom).
         """
         materials, ng = self.materials, self.ng
         return np.array([
@@ -604,7 +606,7 @@ class MaterialXSField:
         This is the single index map the formerly-leaked per-material
         dispatch loops keyed on.  Most consumers should NOT use this
         directly — call one of the typed verbs
-        (the kernel fields' ``add_p0_source`` / ``add_emission``
+        (the kernel fields' ``add_p0_source`` / ``moment_source``
         family since CS4c step 3) that
         encapsulates the loop.
 
@@ -677,7 +679,7 @@ class MaterialXSField:
             sig_s_dense[mid] = [
                 _frozen(np.asarray(s.todense())) for s in mix.SigS
             ]
-            n2n_dense[mid] = _frozen(np.asarray(mix.Sig2[0].todense()))  # P0 block until #426 step 2
+            n2n_dense[mid] = _frozen(np.asarray(mix.Sig2[0].todense()))  # the P0 REACTION block (removal / the fold predicate)
         self._sig_s_dense = sig_s_dense
         self._n2n_dense = n2n_dense
 
@@ -702,7 +704,8 @@ class MaterialXSField:
     # (O-6/R13): the eight per-material dispatch arms + add_n2n_to_group_rate
     # moved to the kernel fields (orpheus/transport/material_field.py — the
     # per-material loop written once, einsums verbatim, the (n,2n)
-    # multiplicity read from N2NKernel.multiplicity). The dense per-material
+    # multiplicity read from the kernel's own datum,
+    # TransferKernel.multiplicity, since #426 step 2). The dense per-material
     # accessors below survive for the foldable family's DSA consumer until
     # F-1 dissolves the facade.
 

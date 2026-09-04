@@ -1,4 +1,4 @@
-r"""Tests for :class:`LegendreMomentScattering`.
+r"""Tests for :class:`LegendreMomentTransfer`.
 
 The §15.2 / §10 sum-of-tensor-products form
 :math:`\Lambda = \sum_\ell \mathbf{P}_\ell \otimes \Sigma_{s,\ell}` on
@@ -23,8 +23,9 @@ import numpy as np
 import pytest
 
 from tests.sn._test_helpers import material_xs_from_raw
-from orpheus.transport.operators.scattering import LegendreMomentScattering
+from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.transport.material_field import TransferMaterialField
 
 
 def _make_simple_lambda(
@@ -35,8 +36,8 @@ def _make_simple_lambda(
     n_materials: int = 2,
     seed: int = 0,
     skip_l0: bool = True,
-) -> tuple[LegendreMomentScattering, dict, dict]:
-    """Build a small LegendreMomentScattering instance for tests."""
+) -> tuple[LegendreMomentTransfer, dict, dict]:
+    """Build a small LegendreMomentTransfer instance for tests."""
     rng = np.random.default_rng(seed)
     # Per-material per-ℓ cross sections
     sig_s: dict[int, list[np.ndarray]] = {}
@@ -58,11 +59,9 @@ def _make_simple_lambda(
         nx=nx,
         ny=ny,
     )
-    Lam = LegendreMomentScattering.from_material_xs(
-        mat_xs=mat_xs,
-        basis=SphericalHarmonicBasis(L=L),
-        skip_l0=skip_l0,
-    )
+    Lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=L), skip_l0=skip_l0,
+        )
     return Lam, sig_s, cells_by_mat
 
 
@@ -187,10 +186,8 @@ class TestEnergyContractionDirection:
             nx=1,
             ny=1,
         )
-        Lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=mat_xs,
-            basis=SphericalHarmonicBasis(L=L),
-            skip_l0=True,
+        Lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         # ℓ=1, m=0, single cell, only g_from=0 nonzero
         moments = np.zeros((L + 1, 2 * L + 1, ng, 1, 1))
@@ -212,10 +209,8 @@ class TestEnergyContractionDirection:
             nx=1,
             ny=1,
         )
-        Lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=mat_xs,
-            basis=SphericalHarmonicBasis(L=1),
-            skip_l0=True,
+        Lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=1), skip_l0=True,
         )
         # All groups equal 1.0 in the (ℓ=1, m=0) slot
         moments = np.zeros((2, 3, ng, 1, 1))
@@ -257,8 +252,8 @@ class TestBitIdenticalToLegacyInlinedMath:
             sig_s=sig_s, cells_by_mat=cells_by_mat,
             ng=ng, nx=nx, ny=ny,
         )
-        Lam = LegendreMomentScattering.from_material_xs(
-            mat_xs=mat_xs, basis=SphericalHarmonicBasis(L=L), skip_l0=True,
+        Lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         moments = rng.standard_normal((L + 1, 2 * L + 1, ng, nx, ny))
 

@@ -35,7 +35,7 @@ from orpheus.data.energy_grid import EnergyGrid
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.numerics.axis import EnergyAxis
-from orpheus.transport.kernels import FissionKernel, N2NKernel, ScatteringKernel
+from orpheus.transport.kernels import FissionKernel, TransferKernel
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
@@ -136,8 +136,8 @@ def test_kernel_ng_matches_the_mixture(region, ng_key):
     plumbing.
     """
     mixture = get_mixture(region, ng_key)
-    assert ScatteringKernel.from_mixture(mixture).ng == mixture.ng
-    assert N2NKernel.from_mixture(mixture).ng == mixture.ng
+    assert TransferKernel.scattering(mixture).ng == mixture.ng
+    assert TransferKernel.n2n(mixture).ng == mixture.ng
     assert FissionKernel.from_mixture(mixture).ng == mixture.ng
 
 
@@ -153,23 +153,27 @@ def test_truncated_returns_exactly_the_requested_stack():
     material's anisotropy content as a measured zero (a fabricated
     datum — the campaign's O1 tell).
     """
-    kernel = ScatteringKernel.from_mixture(_asymmetric_fissile_2g())
+    kernel = TransferKernel.scattering(_asymmetric_fissile_2g())
     assert kernel.order == 1  # the fixture ships a P1 stack
 
-    p0_only = kernel.truncated(0)
+    p0_only = kernel.at_order(0)
     assert p0_only.order == 0
     assert len(p0_only.moments) == 1
     np.testing.assert_array_equal(p0_only.p0, kernel.p0)
 
-    identity = kernel.truncated(kernel.order)
+    identity = kernel.at_order(kernel.order)
     assert identity.order == kernel.order
     for ours, theirs in zip(identity.moments, kernel.moments, strict=True):
         np.testing.assert_array_equal(ours, theirs)
 
-    with pytest.raises(ValueError, match="not invented"):
-        kernel.truncated(kernel.order + 1)
-    with pytest.raises(ValueError, match="not invented"):
-        kernel.truncated(-1)
+    # §4.3 (#426 step 2): above the stored order the stack PADS exact zeros
+    # (a shorter stack is complete — the evaluation's zeros); until
+    # 2026-09-04 this refused with "not invented".
+    wide = kernel.at_order(kernel.order + 1)
+    assert wide.order == kernel.order + 1
+    np.testing.assert_array_equal(wide.moments[-1], 0.0)
+    with pytest.raises(ValueError, match="order >= 0"):
+        kernel.at_order(-1)
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -211,14 +215,14 @@ def test_kernel_equals_carrier_cache_bit_identical(build_mixture):
     mat_xs = MaterialMesh.from_materials(mixtures).material_xs_field()
 
     for mid, mixture in mixtures.items():
-        scattering = ScatteringKernel.from_mixture(mixture)
+        scattering = TransferKernel.scattering(mixture)
         cached = mat_xs.sig_s_legendre(mid)
         assert len(scattering.moments) == len(cached)
         for l, cache_matrix in enumerate(cached):
             np.testing.assert_array_equal(scattering.moments[l], cache_matrix)
 
         np.testing.assert_array_equal(
-            N2NKernel.from_mixture(mixture).matrix, mat_xs.n2n_matrix(mid)
+            TransferKernel.n2n(mixture).p0, mat_xs.n2n_matrix(mid)
         )
 
         fission = FissionKernel.from_mixture(mixture)
@@ -260,10 +264,10 @@ def test_p0_and_emission_are_what_the_iso_pair_consumes():
 
     for mid, mixture in mixtures.items():
         np.testing.assert_array_equal(
-            ScatteringKernel.from_mixture(mixture).p0, iso_scatter[mid].T
+            TransferKernel.scattering(mixture).p0, iso_scatter[mid].T
         )
         np.testing.assert_array_equal(
-            N2NKernel.from_mixture(mixture).emission_matrix(), iso_n2n[mid]
+            TransferKernel.n2n(mixture).emission_matrix(), iso_n2n[mid]
         )
 
 
@@ -278,7 +282,7 @@ def test_p0_convention_pinned_against_a_hand_authored_literal():
     never computed — so no shared code path can move both sides of THIS
     comparison. Deliberately asymmetric so the transpose is observable.
     """
-    kernel = ScatteringKernel.from_mixture(_asymmetric_fissile_2g())
+    kernel = TransferKernel.scattering(_asymmetric_fissile_2g())
     hand_authored_p0 = np.array([[0.38, 0.10], [0.05, 0.90]])  # [g_from, g_to]
     np.testing.assert_array_equal(kernel.p0, hand_authored_p0)
 
@@ -307,7 +311,7 @@ def test_kernel_does_not_alias_the_carrier_cache():
        ``SigP``) does not reach the kernel — construction copies.
     """
     mat_xs, mixtures = _two_material_carrier()
-    kernel = ScatteringKernel.from_mixture(mixtures[0])
+    kernel = TransferKernel.scattering(mixtures[0])
     cache = mat_xs.sig_s_legendre(0)
 
     # Identity legs FIRST (an aliasing mutation fails HERE; a
@@ -328,7 +332,7 @@ def test_kernel_does_not_alias_the_carrier_cache():
 
     for array in (
         *kernel.moments,
-        N2NKernel.from_mixture(mixtures[0]).matrix,
+        TransferKernel.n2n(mixtures[0]).p0,
         fission.chi,
         fission.nu_sig_f,
     ):
@@ -465,8 +469,8 @@ def test_kernels_are_frozen_and_replace_revalidates():
     ``__post_init__``, re-establishing shape coherence, the read-only
     buffers, and the χ law.
     """
-    scattering = ScatteringKernel.from_mixture(_asymmetric_fissile_2g())
-    n2n = N2NKernel.from_mixture(_asymmetric_fissile_2g())
+    scattering = TransferKernel.scattering(_asymmetric_fissile_2g())
+    n2n = TransferKernel.n2n(_asymmetric_fissile_2g())
     fission = FissionKernel.from_mixture(_asymmetric_fissile_2g())
 
     for kernel, field_name in (
@@ -494,7 +498,7 @@ def test_kernels_are_frozen_and_replace_revalidates():
 
     # QA-F10 completion: replace() re-establishes the read-only buffers
     # (the claim the class docstring makes; asserted nowhere until now).
-    assert scattering.truncated(0).moments[0].flags.writeable is False
+    assert scattering.at_order(0).moments[0].flags.writeable is False
 
 
 def test_kernel_constructor_refusals_have_negative_witnesses():
@@ -505,11 +509,13 @@ def test_kernel_constructor_refusals_have_negative_witnesses():
     One row per arm, ``match=`` on the shortest distinctive fragment.
     """
     with pytest.raises(ValueError, match="empty"):
-        ScatteringKernel(moments=())
+        TransferKernel(moments=())
     with pytest.raises(ValueError, match="square"):
-        N2NKernel(matrix=np.zeros((2, 3)))
+        TransferKernel(moments=(np.zeros((2, 3)),))
     with pytest.raises(ValueError, match="rank"):
-        N2NKernel(matrix=np.zeros(2))
+        TransferKernel(moments=(np.zeros(2),))
+    with pytest.raises(ValueError, match="positive integer"):
+        TransferKernel(moments=(np.zeros((2, 2)),), multiplicity=0)
     with pytest.raises(ValueError, match="two \\(ng,\\) vectors"):
         FissionKernel(chi=np.array([1.0, 0.0]), nu_sig_f=np.array([0.1, 0.2, 0.3]))
 
@@ -522,7 +528,7 @@ def test_module_imports_nothing_from_scattering_or_frames():
     """**G1.9** — ``kernels.py`` never imports scattering/frame machinery.
 
     The fence's direction is the doctrine: ``ScatteringOperator``
-    re-points at :class:`ScatteringKernel` (CS4c), never the reverse.
+    re-points at :class:`TransferKernel` (CS4c), never the reverse.
     The walk covers EVERY import statement in the module — late
     function-body imports included — so the fence cannot be tunneled
     under.

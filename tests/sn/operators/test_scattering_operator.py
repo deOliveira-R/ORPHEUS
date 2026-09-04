@@ -233,7 +233,7 @@ class TestBitIdenticalExtractionP0:
         expected = _ref_n2n_inplace(solver, Q, phi)
 
         Q_actual = Q.copy()
-        solver.n2n_op.energy.n2n.add_emission(Q_actual, phi)
+        solver.n2n_op.isotropic_energy.transfer.add_p0_source(Q_actual, phi)
 
         np.testing.assert_allclose(Q_actual, expected, rtol=1e-13)
 
@@ -267,13 +267,13 @@ class TestBitIdenticalExtractionP0:
         # Production path: the SOLVER-composed K_iso (§14.1 — the sum
         # build_within_group_system assembles from the two cached energy
         # bindings).
-        k_iso = op.isotropic_energy + solver_2g_p0_n2n.n2n_op.energy
+        k_iso = op.isotropic_energy + solver_2g_p0_n2n.n2n_op.isotropic_energy
         got = k_iso.apply(phi)
 
         # Legacy path: zeros → the two in-place channel verbs.
         ref = np.zeros_like(phi)
         op.add_iso_source(ref, phi)
-        solver_2g_p0_n2n.n2n_op.energy.n2n.add_emission(ref, phi)
+        solver_2g_p0_n2n.n2n_op.isotropic_energy.transfer.add_p0_source(ref, phi)
 
         np.testing.assert_array_equal(
             got, ref,
@@ -329,7 +329,7 @@ class TestBitIdenticalExtractionP0:
         solver._add_n2n_source(Q_via_delegator, phi)
 
         Q_via_operator = Q_init.copy()
-        solver.n2n_op.energy.n2n.add_emission(Q_via_operator, phi)
+        solver.n2n_op.isotropic_energy.transfer.add_p0_source(Q_via_operator, phi)
 
         np.testing.assert_array_equal(Q_via_delegator, Q_via_operator)
 
@@ -711,7 +711,7 @@ class TestP0AlgebraicIdentities:
         np.testing.assert_allclose(Q, 0, atol=1e-15)
 
         # (n,2n) contribution — the solver-held N2N binding's verb (§14.1)
-        solver.n2n_op.energy.n2n.add_emission(Q, phi)
+        solver.n2n_op.isotropic_energy.transfer.add_p0_source(Q, phi)
         # Hand-computed: Q[g, ix, iy] = 2 · sum_g' phi[g', ix, iy] · sig2[g'->g]
         for ix in range(nx):
             for iy in range(ny):
@@ -785,9 +785,9 @@ class TestFoldablePart:
         """Mechanism criterion 4a — sig_s[mid][0] is diagonal-only."""
         S = solver_2g_p1_n2n.scattering_op
         S_fold = S.foldable_part()
-        for mid in S.scattering.per_material:
-            mat = S_fold.scattering.per_material[mid].moments[0]
-            expected = np.diag(np.diag(S.scattering.per_material[mid].moments[0]))
+        for mid in S.transfer.per_material:
+            mat = S_fold.transfer.per_material[mid].moments[0]
+            expected = np.diag(np.diag(S.transfer.per_material[mid].moments[0]))
             np.testing.assert_array_equal(mat, expected)
             # Off-diagonal is literally zero, not just small.
             off_diag = mat - np.diag(np.diag(mat))
@@ -797,17 +797,17 @@ class TestFoldablePart:
         """Mechanism criterion 4b — sig_s0 == sig_s[mid][0]."""
         S = solver_2g_p1_n2n.scattering_op
         S_fold = S.foldable_part()
-        for mid in S.scattering.per_material:
+        for mid in S.transfer.per_material:
             np.testing.assert_array_equal(
-                S_fold.scattering.per_material[mid].p0, S_fold.scattering.per_material[mid].moments[0]
+                S_fold.transfer.per_material[mid].p0, S_fold.transfer.per_material[mid].moments[0]
             )
 
     def test_sig_s_has_length_one(self, solver_2g_p1_n2n):
         """Mechanism criterion 4c — no Pℓ≥1 entries in foldable."""
         S = solver_2g_p1_n2n.scattering_op
         S_fold = S.foldable_part()
-        for mid in S.scattering.per_material:
-            assert len(S_fold.scattering.per_material[mid].moments) == 1
+        for mid in S.transfer.per_material:
+            assert len(S_fold.transfer.per_material[mid].moments) == 1
 
     # (Mechanism criterion 4d — "foldable's (n,2n) is zero" — DISSOLVED
     # with the §14.1 extraction: S carries no (n,2n) channel, so the
@@ -819,13 +819,13 @@ class TestFoldablePart:
         S = solver_2g_p1_n2n.scattering_op
         # Snapshot every parent array (frozen kernels — belt+braces).
         before = {
-            mid: [m.copy() for m in S.scattering.per_material[mid].moments]
-            for mid in S.scattering.per_material
+            mid: [m.copy() for m in S.transfer.per_material[mid].moments]
+            for mid in S.transfer.per_material
         }
         _ = S.foldable_part()
         # Parent unchanged.
-        for mid in S.scattering.per_material:
-            for l, m in enumerate(S.scattering.per_material[mid].moments):
+        for mid in S.transfer.per_material:
+            for l, m in enumerate(S.transfer.per_material[mid].moments):
                 np.testing.assert_array_equal(m, before[mid][l])
 
 
@@ -841,20 +841,20 @@ class TestResidualPart:
         """Mechanism criterion 5a — cross-group only on P0."""
         S = solver_2g_p1_n2n.scattering_op
         S_res = S.residual_part()
-        for mid in S.scattering.per_material:
-            expected = S.scattering.per_material[mid].moments[0] - np.diag(np.diag(S.scattering.per_material[mid].moments[0]))
-            np.testing.assert_array_equal(S_res.scattering.per_material[mid].moments[0], expected)
+        for mid in S.transfer.per_material:
+            expected = S.transfer.per_material[mid].moments[0] - np.diag(np.diag(S.transfer.per_material[mid].moments[0]))
+            np.testing.assert_array_equal(S_res.transfer.per_material[mid].moments[0], expected)
             # The diagonal IS zero, not just close.
-            diag = np.diag(S_res.scattering.per_material[mid].moments[0])
+            diag = np.diag(S_res.transfer.per_material[mid].moments[0])
             assert np.all(diag == 0.0)
 
     def test_sig_s0_matches_diagonal_zeroed(self, solver_2g_p1_n2n):
         """Mechanism criterion 5b — sig_s0 alias of sig_s[mid][0]."""
         S = solver_2g_p1_n2n.scattering_op
         S_res = S.residual_part()
-        for mid in S.scattering.per_material:
+        for mid in S.transfer.per_material:
             np.testing.assert_array_equal(
-                S_res.scattering.per_material[mid].p0, S_res.scattering.per_material[mid].moments[0]
+                S_res.transfer.per_material[mid].p0, S_res.transfer.per_material[mid].moments[0]
             )
 
     def test_pl_ge_1_carried_verbatim(self, solver_2g_p1_n2n):
@@ -862,10 +862,10 @@ class TestResidualPart:
         S = solver_2g_p1_n2n.scattering_op
         assert S.scattering_order >= 1, "fixture must carry P1+ data"
         S_res = S.residual_part()
-        for mid in S.scattering.per_material:
+        for mid in S.transfer.per_material:
             for l in range(1, S.scattering_order + 1):
                 np.testing.assert_array_equal(
-                    S_res.scattering.per_material[mid].moments[l], S.scattering.per_material[mid].moments[l]
+                    S_res.transfer.per_material[mid].moments[l], S.transfer.per_material[mid].moments[l]
                 )
 
     # (Mechanism criterion 5d — "(n,2n) unconditionally residual" —
@@ -896,12 +896,12 @@ class TestResidualPart:
         """Anti-rec 4 — split returns new arrays; parent unchanged."""
         S = solver_2g_p1_n2n.scattering_op
         before = {
-            mid: [m.copy() for m in S.scattering.per_material[mid].moments]
-            for mid in S.scattering.per_material
+            mid: [m.copy() for m in S.transfer.per_material[mid].moments]
+            for mid in S.transfer.per_material
         }
         _ = S.residual_part()
-        for mid in S.scattering.per_material:
-            for l, m in enumerate(S.scattering.per_material[mid].moments):
+        for mid in S.transfer.per_material:
+            for l, m in enumerate(S.transfer.per_material[mid].moments):
                 np.testing.assert_array_equal(m, before[mid][l])
 
 
@@ -929,21 +929,21 @@ class TestFoldableSigma:
         S = solver_2g_p1_n2n.scattering_op
         result = S.foldable_sigma()
         for mid, arr in result.items():
-            np.testing.assert_array_equal(arr, np.diag(S.scattering.per_material[mid].moments[0]))
+            np.testing.assert_array_equal(arr, np.diag(S.transfer.per_material[mid].moments[0]))
 
     def test_returned_arrays_are_copies(self, solver_2g_p1_n2n):
         """Mutating the returned dict's values must not affect ``self``."""
         S = solver_2g_p1_n2n.scattering_op
         result = S.foldable_sigma()
         # Snapshot parent diagonal.
-        before = {mid: np.diag(S.scattering.per_material[mid].moments[0]).copy() for mid in S.scattering.per_material}
+        before = {mid: np.diag(S.transfer.per_material[mid].moments[0]).copy() for mid in S.transfer.per_material}
         # Mutate the returned arrays.
         for arr in result.values():
             arr[:] = -999.0
         # Parent unchanged.
-        for mid in S.scattering.per_material:
+        for mid in S.transfer.per_material:
             np.testing.assert_array_equal(
-                np.diag(S.scattering.per_material[mid].moments[0]), before[mid]
+                np.diag(S.transfer.per_material[mid].moments[0]), before[mid]
             )
 
 
@@ -1001,9 +1001,9 @@ class TestAlgebraicIdentity:
         # the solver-held N2N field (§14.1: S carries no (n,2n) channel;
         # the identity below is about S alone, with n2n live in the
         # WORLD as the extraction demands).
-        n2n_field = solver_2g_p1_n2n.n2n_op.energy.n2n
+        n2n_field = solver_2g_p1_n2n.n2n_op.isotropic_energy.transfer
         any_nonzero_n2n = any(
-            np.any(k.matrix != 0.0) for k in n2n_field.per_material.values()
+            np.any(k.p0 != 0.0) for k in n2n_field.per_material.values()
         )
         assert any_nonzero_n2n, "fixture must carry non-zero (n,2n)"
         N = solver_2g_p1_n2n.sn_mesh.quad.N
@@ -1016,8 +1016,8 @@ class TestAlgebraicIdentity:
         """Case 4 — non-trivial cross-group P0 + diagonal coupling."""
         op = solver_2g_p1_n2n.scattering_op
         # Fixture's P0 matrix has both diagonal AND off-diagonal entries.
-        for mid in op.scattering.per_material:
-            p0 = op.scattering.per_material[mid].moments[0]
+        for mid in op.transfer.per_material:
+            p0 = op.transfer.per_material[mid].moments[0]
             diag = np.diag(p0)
             off = p0 - np.diag(diag)
             assert np.any(diag != 0.0)
@@ -1070,18 +1070,18 @@ class TestPurity:
         S = solver_2g_p1_n2n.scattering_op
         a, b = S.foldable_part(), S.foldable_part()
         assert a.scattering_order == b.scattering_order == 0
-        for mid in S.scattering.per_material:
-            np.testing.assert_array_equal(a.scattering.per_material[mid].moments[0], b.scattering.per_material[mid].moments[0])
-            np.testing.assert_array_equal(a.scattering.per_material[mid].p0, b.scattering.per_material[mid].p0)
+        for mid in S.transfer.per_material:
+            np.testing.assert_array_equal(a.transfer.per_material[mid].moments[0], b.transfer.per_material[mid].moments[0])
+            np.testing.assert_array_equal(a.transfer.per_material[mid].p0, b.transfer.per_material[mid].p0)
 
     def test_residual_part_pure(self, solver_2g_p1_n2n):
         S = solver_2g_p1_n2n.scattering_op
         a, b = S.residual_part(), S.residual_part()
         assert a.scattering_order == b.scattering_order
-        for mid in S.scattering.per_material:
+        for mid in S.transfer.per_material:
             for l in range(S.scattering_order + 1):
                 np.testing.assert_array_equal(
-                    a.scattering.per_material[mid].moments[l], b.scattering.per_material[mid].moments[l]
+                    a.transfer.per_material[mid].moments[l], b.transfer.per_material[mid].moments[l]
                 )
 
     def test_foldable_sigma_pure(self, solver_2g_p1_n2n):
@@ -1105,8 +1105,8 @@ def _synthetic_p0(self_base, p0, extra_moments=()):
     same faces/ends, every admission re-run)."""
     import dataclasses
 
-    from orpheus.transport.kernels import ScatteringKernel
-    from orpheus.transport.material_field import ScatteringMaterialField
+    from orpheus.transport.kernels import TransferKernel
+    from orpheus.transport.material_field import TransferMaterialField
 
     from tests.sn._test_helpers import material_xs_from_raw
 
@@ -1438,7 +1438,7 @@ class TestAnisoMomentSourcePath:
         # old accumulator (P0 then n2n) ⟹ bit-equality survives.
         out_post_t3 = (
             op_p1.apply(phi).values
-            + solver_2g_p1_n2n.n2n_op.energy.apply(phi.values)
+            + solver_2g_p1_n2n.n2n_op.isotropic_energy.apply(phi.values)
         )
         expected = self._load_snapshot()["p1_apply_scalar_flux"]
         np.testing.assert_array_equal(out_post_t3, expected)
@@ -1556,7 +1556,7 @@ class TestAnisoMomentSourcePath:
         # skip_l0=False → full block coverage; L == the operator's own
         # truncation (== 1 on this fixture, asserted below).
         assert op_p1.scattering_order == L
-        out = op_p1.scattering.moment_source(
+        out = op_p1.transfer.moment_source(
             moments_values, skip_l0=False, head=op_p1.frame.basis.space,
         )
         expected = self._load_snapshot()["p1_apply_legendre_scattering_moments"]
@@ -1601,7 +1601,7 @@ class TestAnisoMomentSourcePath:
         assert op_p3.scattering_order == L
         head = op_p3.frame.basis.space
         assert isinstance(head, MomentHead)
-        out = op_p3.scattering.moment_source(
+        out = op_p3.transfer.moment_source(
             moments_values, skip_l0=False, head=head,
         )
         expected = self._load_snapshot()["p3_apply_legendre_scattering_moments"]

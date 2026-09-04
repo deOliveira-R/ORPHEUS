@@ -2,20 +2,39 @@ r"""Interaction kernels — representation-free per-material physics data.
 
 **The kernel/binding doctrine (Campaign 1, ruling 2 — "operators are born
 bound").** An interaction *kernel* is the physics of ONE material's channel —
-the Legendre transfer stack :math:`\{\Sigma_{s\ell}\}`, the :math:`(n,2n)`
-matrix, the fission factor pair :math:`(\chi, \nu\Sigma_f)` — with **no
+a Legendre transfer stack :math:`\{\Sigma_{c,\ell}\}` with its yield
+:math:`y_c`, the fission factor pair :math:`(\chi, \nu\Sigma_f)` — with **no
 representation attached**: no space, no mesh, no ``apply``. A *binding*
 (a constructor: kernel × space [× assignment]) realizes the kernel as a
 fully-bound operator with one domain, one codomain, one ``apply``. The
 kernel is therefore the datum that survives re-realization: the same
-``ScatteringKernel`` binds to an energy-only quotient space (the
+``TransferKernel`` binds to an energy-only quotient space (the
 homogeneous solver), to a discrete-ordinates composite (SN), or to a
 moment space (a P\ :sub:`N`/moment solver) — polymorphism moves from
 apply-time dispatch to construction time.
 
+**One transfer family, the yield a datum (#426 step 2, ruled 2026-09-03).**
+The tape stores, for EVERY channel, the same object — GENDF MF=6 holds
+:math:`\sigma_{c,\ell}(g'\!\to\!g) = \sigma_c\,y_c\,f_{c,\ell}` (ENDF-102
+Eq. 6.1/6.3, NJOY Eq. 242): a Legendre transfer stack carrying the
+reaction's yield. Elastic has :math:`y = 1`, :math:`(n,2n)` has
+:math:`y = 2`, and the two differ in **nothing else** — same record, same
+convention, same non-separable :math:`g'\!\to\!g` structure. ORPHEUS keeps
+the REACTION stack (the ingest divides the yield out, #427) and carries
+:math:`y` beside it as :attr:`TransferKernel.multiplicity`: the loss side
+counts :math:`\Sigma_c` once (one neutron absorbed per event —
+``Mixture.absorption_xs``) while every emission verb scales by :math:`y`.
+Scattering and :math:`(n,2n)` are two INSTANCES of this one kernel type,
+not two types (`coding-standards` type-vs-property: isomorphic
+realizations under one morphism — scale by :math:`y`); the production
+accounting a :math:`y > 1` channel adds, :math:`(y-1)\,\Sigma_{c,0}^T\phi`,
+vanishes for scattering by arithmetic, so no branch anywhere names the
+channel. The channel constant :math:`y_{2n}` has ONE home,
+:data:`N2N_MULTIPLICITY`.
+
 **Why kernels view a** :class:`~orpheus.data.macro_xs.mixture.Mixture`.
 The mixture is the honest provenance of every channel datum (its ``SigS``
-/ ``Sig2`` sparse matrices and ``chi`` / ``SigP`` vectors are the
+/ ``Sig2`` sparse Legendre stacks and ``chi`` / ``SigP`` vectors are the
 upstream nuclear-data reduction). The kernels copy that data **once, at
 construction, into read-only arrays** — deliberately *not* aliasing any
 carrier cache: measured 2026-08-20 (CS4a fact F4), the shipped
@@ -31,20 +50,20 @@ carrier rework.
 **Storage conventions** (one home — this docstring; every array in this
 module follows it):
 
-* Matrix channels (:attr:`ScatteringKernel.moments`,
-  :attr:`N2NKernel.matrix`) are indexed ``[g_from, g_to]`` — the
-  :attr:`Mixture.SigS` storage convention. The *action* on a flux is the
-  transpose contraction :math:`(\Sigma^T\phi)_g = \sum_{g'}
-  \Sigma(g'\!\to\!g)\,\phi_{g'}`; emission-side views
-  (:meth:`N2NKernel.emission_matrix`, :meth:`FissionKernel.dyad`) return
-  ``[g_to, g_from]`` operator matrices with ``M @ phi == action``.
+* Matrix channels (:attr:`TransferKernel.moments`) are indexed
+  ``[g_from, g_to]`` — the :attr:`Mixture.SigS` storage convention. The
+  *action* on a flux is the transpose contraction :math:`(\Sigma^T\phi)_g
+  = \sum_{g'} \Sigma(g'\!\to\!g)\,\phi_{g'}`; emission-side views
+  (:meth:`TransferKernel.emission_matrix`, :meth:`FissionKernel.dyad`)
+  return ``[g_to, g_from]`` operator matrices with ``M @ phi == action``.
 * The Legendre index :math:`\ell` **is the Funk–Hecke eigenbasis index**:
   on the sphere, a rotationally-invariant transfer kernel is diagonal in
-  spherical harmonics with eigenvalue :math:`\Sigma_{s\ell}` on the whole
+  spherical harmonics with eigenvalue :math:`\Sigma_{c,\ell}` on the whole
   degree-:math:`\ell` eigenspace. The stack is therefore the kernel's
   *spectral* representation, and CS2's frame-at-binding mints the angular
   frame from exactly this eigenbasis structure × the space's angular
-  measure.
+  measure. The :math:`(2\ell+1)` of the addition theorem lives on the
+  basis's reconstruction, never in a stored moment.
 * The fission kernel stores the **factors** :math:`(\chi, \nu\Sigma_f)`,
   never the outer product: the dyad :math:`F = |\chi\rangle\langle
   \nu\Sigma_f|` is rank-1, its transpose is the factor swap *by theorem*
@@ -54,20 +73,15 @@ module follows it):
 
 **What does NOT live here.** No mesh, no assignment (cell → material) —
 that is the CS4b/CS1.5′ Medium layer's; no frames (CS2); no import from
-``scattering.py`` or the frame machinery (the C8 fence —
-``ScatteringOperator`` re-points to :class:`ScatteringKernel` at CS4c,
-not the other way around). The :math:`(n,2n)` channel keeps its own
-kernel rather than folding into scattering: it enters the **loss** side
-asymmetrically (one neutron absorbed, two emitted — ``absorption_xs``
-counts :math:`\Sigma_{2n}` once while emission carries the factor
-:attr:`N2NKernel.multiplicity`), a twice-ruled physics decision
-(``isotropic_scattering.py`` header).
+the operator modules or the frame machinery (the C8 fence — the operator
+tier points at the kernel tier, never the other way around).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, ClassVar
+from functools import cached_property
+from typing import TYPE_CHECKING, Final
 
 import numpy as np
 
@@ -76,7 +90,15 @@ from orpheus.data.emission_spectrum import enforce_emission_spectrum
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
 
-__all__ = ["ScatteringKernel", "N2NKernel", "FissionKernel"]
+__all__ = ["N2N_MULTIPLICITY", "TransferKernel", "FissionKernel"]
+
+#: Neutrons emitted per :math:`(n,2n)` reaction — definitionally 2, a physics
+#: constant of the channel, and its ONE home in the tree (XD-2): the solver
+#: families read it from here, the transfer kernel of the channel carries it
+#: as :attr:`TransferKernel.multiplicity`, and the data layer divides the
+#: tape's yield out without ever naming it
+#: (:func:`~orpheus.data.micro_xs.gendf._strip_transfer_yield`).
+N2N_MULTIPLICITY: Final[int] = 2
 
 
 def _read_only_copy(values: np.ndarray, *, name: str, ndim: int) -> np.ndarray:
@@ -98,16 +120,21 @@ def _read_only_copy(values: np.ndarray, *, name: str, ndim: int) -> np.ndarray:
 
 
 @dataclass(frozen=True)
-class ScatteringKernel:
-    r"""The Legendre transfer stack :math:`\{\Sigma_{s\ell}\}_{\ell=0}^{L}` of one material.
+class TransferKernel:
+    r"""The Legendre transfer stack :math:`\{\Sigma_{c,\ell}\}_{\ell=0}^{L}` of one material's channel, with its yield.
 
     ``moments[l]`` is the dense ``(ng, ng)`` group-transfer matrix of
     Legendre order :math:`\ell`, indexed ``[g_from, g_to]`` (module
-    convention). The stack length is the truncation order plus one
-    (:attr:`order` = :math:`L` of the P\ :sub:`L` expansion), and the
+    convention) — the REACTION stack :math:`\sigma_c f_{c,\ell}`, no
+    yield folded in. :attr:`multiplicity` is the channel's yield
+    :math:`y_c`, the number of neutrons one reaction emits: ``1`` for
+    scattering (the identity — every scattering verb is unchanged by it)
+    and :data:`N2N_MULTIPLICITY` for :math:`(n,2n)`. The stack length is
+    the stored order plus one (:attr:`order` = :math:`L`), and the
     :math:`\ell`-index is the Funk–Hecke eigenbasis index (module
-    docstring) — which is why *truncation* is the kernel's one
-    representation-free morphism: dropping trailing eigenvalues is
+    docstring) — which is why *re-ordering* is the kernel's one
+    representation-free morphism (:meth:`at_order`): dropping trailing
+    eigenvalues, or reading zeros where the evaluation stored none, is
     meaningful before any space is in the room, while any rotation-,
     mesh- or ordinate-dependent operation is the *binding's*.
 
@@ -115,18 +142,29 @@ class ScatteringKernel:
     is a read-only fresh copy (``__post_init__``), so no consumer can
     reach production data through a kernel — the writable-cache-alias
     hazard this class exists to close. ``dataclasses.replace`` re-runs
-    the validation (:meth:`truncated` routes through it); ``ng`` and
+    the validation (:meth:`at_order` routes through it); ``ng`` and
     ``order`` are derived properties, not fields, so
     ``replace(kernel, ng=...)`` raises ``TypeError`` by construction.
     """
 
     moments: tuple[np.ndarray, ...]
+    multiplicity: int = 1
 
     def __post_init__(self) -> None:
         if len(self.moments) == 0:
             raise ValueError(
-                "ScatteringKernel needs at least the l=0 moment; got an "
+                "TransferKernel needs at least the l=0 moment; got an "
                 "empty stack"
+            )
+        if (
+            isinstance(self.multiplicity, bool)
+            or not isinstance(self.multiplicity, int)
+            or self.multiplicity < 1
+        ):
+            raise ValueError(
+                f"TransferKernel.multiplicity is the number of neutrons one "
+                f"reaction emits — a positive integer (1 for scattering, "
+                f"{N2N_MULTIPLICITY} for (n,2n)); got {self.multiplicity!r}"
             )
         frozen = tuple(
             _read_only_copy(m, name=f"moments[{l}]", ndim=2)
@@ -143,11 +181,22 @@ class ScatteringKernel:
         object.__setattr__(self, "moments", frozen)
 
     @classmethod
-    def from_mixture(cls, mixture: "Mixture") -> "ScatteringKernel":
-        """The kernel of ``mixture``'s scattering channel — a fresh copy of
-        every sparse ``SigS[l]``, densified; nothing is aliased."""
+    def scattering(cls, mixture: "Mixture") -> "TransferKernel":
+        """The scattering channel of ``mixture`` — a fresh copy of every
+        sparse ``SigS[l]``, densified, yield 1; nothing is aliased."""
         return cls(
-            moments=tuple(np.asarray(s.todense()) for s in mixture.SigS)
+            moments=tuple(np.asarray(s.todense()) for s in mixture.SigS),
+        )
+
+    @classmethod
+    def n2n(cls, mixture: "Mixture") -> "TransferKernel":
+        r"""The :math:`(n,2n)` channel of ``mixture`` — a fresh copy of
+        every sparse ``Sig2[l]`` (the whole stack the tape stores, kept
+        by the ingest since #426 step 1), densified, yield
+        :data:`N2N_MULTIPLICITY`; nothing is aliased."""
+        return cls(
+            moments=tuple(np.asarray(s.todense()) for s in mixture.Sig2),
+            multiplicity=N2N_MULTIPLICITY,
         )
 
     @property
@@ -157,105 +206,83 @@ class ScatteringKernel:
 
     @property
     def order(self) -> int:
-        r"""The Legendre truncation order :math:`L` (the stack holds :math:`L+1` moments)."""
+        r"""The stored Legendre order :math:`L` (the stack holds :math:`L+1` moments)."""
         return len(self.moments) - 1
 
     @property
     def p0(self) -> np.ndarray:
-        r"""The isotropic transfer matrix :math:`\Sigma_{s0}` — ``moments[0]``, ``[g_from, g_to]``.
+        r"""The isotropic transfer matrix :math:`\Sigma_{c,0}` — ``moments[0]``, ``[g_from, g_to]``.
 
-        The slice the isotropic in-scatter pair consumes: the operator
+        The slice the isotropic energy binding consumes: the operator
         matrix of
-        :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering.dense_per_material`
-        is exactly ``p0.T``.
+        :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicTransfer.dense_per_material`
+        is exactly :math:`y\,\mathtt{p0}^T` (:meth:`emission_matrix`).
 
         Aliasing semantics (CS4a-R EE-9c): this property returns the
         STORED read-only array itself (``p0 is moments[0]``) — unlike
-        :meth:`N2NKernel.emission_matrix` and :meth:`FissionKernel.dyad`,
-        which mint a fresh WRITABLE copy per call. Do not cache one
-        expecting the other's semantics.
+        :meth:`emission_matrix` and :meth:`FissionKernel.dyad`, which
+        mint a fresh WRITABLE copy per call. Do not cache one expecting
+        the other's semantics.
         """
         return self.moments[0]
 
-    def truncated(self, order: int) -> "ScatteringKernel":
-        r"""The P\ :sub:`order` sub-kernel — the first ``order + 1`` moments.
+    @cached_property
+    def is_isotropic(self) -> bool:
+        r"""``True`` iff every moment above :math:`\ell = 0` is exactly zero —
+        the channel's :math:`\Lambda_{\ell\ge 1}` is the zero operator.
 
-        The identity at ``order == self.order``. **Refuses**
-        ``order > self.order``: the data carries no moments beyond
-        :math:`L`, and inventing zero moments would silently misreport
-        the material's anisotropy content as a measured zero (a fabricated
-        datum — the campaign's O1 tell).
+        A structural fact of the datum, not a tolerance: an absent
+        section, an ``NL = 1`` evaluation, or a stack padded by
+        :meth:`at_order` are exactly zero above :math:`\ell = 0`, and the
+        angular binding uses this to skip the :math:`R\Lambda M` product
+        that would return exact zeros. Cached (the stack is immutable).
         """
-        if not 0 <= order <= self.order:
-            raise ValueError(
-                f"ScatteringKernel.truncated requires 0 <= order <= "
-                f"{self.order} (the data's own truncation); got {order}. "
-                f"Moments beyond the stored order do not exist and are "
-                f"not invented."
-            )
-        return replace(self, moments=self.moments[: order + 1])
-
-
-@dataclass(frozen=True)
-class N2NKernel:
-    r"""The :math:`(n,2n)` channel of one material: :math:`\Sigma_{2n}` + the multiplicity.
-
-    :attr:`matrix` is the dense ``(ng, ng)`` *reaction* matrix
-    :math:`\Sigma_{2n}`, indexed ``[g_from, g_to]`` (module convention) —
-    the raw cross section, with **no** multiplicity folded in. The factor
-    lives once *in this module*, in :attr:`multiplicity` (`[M]` CS4a-R
-    XD-2: the wider tree still spells the constant as a literal ``2`` at
-    12 production sites across the solver families — their consolidation
-    onto this one home is CS4c's rebind obligation), and the
-    emission-side operator matrix :math:`2\,\Sigma_{2n}^{T}` is minted
-    by :meth:`emission_matrix`. Keeping reaction and emission distinct is
-    the loss-side channel ruling made structural: absorption counts
-    :math:`\Sigma_{2n}` once (one neutron absorbed) while emission
-    carries the 2 (two emitted) — a kernel that stored
-    :math:`2\Sigma_{2n}` could not serve the loss side without dividing
-    the physics constant back out.
-    """
-
-    matrix: np.ndarray
-
-    #: Neutrons emitted per (n,2n) reaction — definitionally 2, a physics
-    #: constant of the channel (a ClassVar, not a field: there is no
-    #: legal (n,2n) kernel with another value, so it is unrepresentable).
-    multiplicity: ClassVar[int] = 2
-
-    def __post_init__(self) -> None:
-        frozen = _read_only_copy(self.matrix, name="matrix", ndim=2)
-        if frozen.shape[0] != frozen.shape[1]:
-            raise ValueError(
-                f"the (n,2n) matrix is a square (ng, ng) group-transfer "
-                f"matrix; got shape {frozen.shape}"
-            )
-        object.__setattr__(self, "matrix", frozen)
-
-    @classmethod
-    def from_mixture(cls, mixture: "Mixture") -> "N2NKernel":
-        """The kernel of ``mixture``'s :math:`(n,2n)` channel — a fresh
-        densified copy of the P0 block of the sparse ``Sig2`` Legendre stack;
-        nothing is aliased. The stack's higher orders (the emission's
-        anisotropy, kept by the ingest since #426 step 1) do not reach this
-        kernel until step 2 gives it a Legendre stack of its own."""
-        return cls(matrix=np.asarray(mixture.Sig2[0].todense()))
-
-    @property
-    def ng(self) -> int:
-        """Number of energy groups (derived from the matrix; not a field)."""
-        return self.matrix.shape[0]
+        return not any(m.any() for m in self.moments[1:])
 
     def emission_matrix(self) -> np.ndarray:
-        r"""The emission-side operator matrix :math:`2\,\Sigma_{2n}^{T}` — ``[g_to, g_from]``.
+        r"""The emission-side operator matrix :math:`y\,\Sigma_{c,0}^{T}` — ``[g_to, g_from]``.
 
-        ``M @ phi`` is the per-cell (n,2n) source. A fresh copy per call
-        (the storage-side-view convention of
-        :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N.dense_per_material`,
-        which this equals entry for entry). The multiplicity enters HERE
-        and only here — :attr:`matrix` stays the raw reaction XS.
+        ``M @ phi`` is the per-cell isotropic emission of the channel:
+        the P0 in-scatter for :math:`y = 1`, the :math:`(n,2n)` source for
+        :math:`y = 2`. A fresh copy per call (the storage-side-view
+        convention of
+        :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicTransfer.dense_per_material`,
+        which this equals entry for entry). The multiplicity enters the
+        emission HERE and in the field's verbs — never the stored stack.
         """
-        return np.ascontiguousarray(self.multiplicity * self.matrix.T)
+        return np.ascontiguousarray(self.multiplicity * self.p0.T)
+
+    def at_order(self, order: int) -> "TransferKernel":
+        r"""The P\ :sub:`order` view of the stack — the first ``order + 1``
+        moments, with **zero moments above the stored order**.
+
+        The identity at ``order == self.order`` (returns ``self``; the
+        kernel is immutable). Below it, the trailing eigenvalues are
+        dropped — the binding's truncation. Above it, the missing moments
+        are exactly zero, which is the EVALUATION's statement, not an
+        invention: a stack shorter than the request is complete — an
+        absent section, or an ``NL = 1`` section declaring isotropy — and
+        a consumer that reads its :math:`\ell \ge 1` moments reads the
+        zeros the tape means. The one stack that must never be padded —
+        a channel at GROUPR's cap, asked for a moment the evaluation
+        capped away — is never asked: the solve clamps its order to the
+        SCATTERING stack (ruling O-1), so a request above a shipped
+        stack's order only ever reaches the shorter sibling channel
+        (plan §4.3, ruled 2026-09-03).
+        """
+        if order < 0:
+            raise ValueError(
+                f"TransferKernel.at_order requires order >= 0; got {order}"
+            )
+        if order == self.order:
+            return self
+        if order < self.order:
+            return replace(self, moments=self.moments[: order + 1])
+        zero = np.zeros((self.ng, self.ng))
+        return replace(
+            self,
+            moments=(*self.moments, *((zero,) * (order - self.order))),
+        )
 
 
 @dataclass(frozen=True)
@@ -295,6 +322,11 @@ class FissionKernel:
     :class:`~orpheus.transport.operators.fission.FissionOperator` (the
     frame's :math:`\ell=0` conjugation). The χ↔νΣf-coupled condensation
     is gated (G-F1, ``tests/transport/test_kernels.py``).
+
+    Fission stays its own kernel type under the type-vs-property rule the
+    transfer family was ruled by: its realization is a separable rank-1
+    dyad (not isomorphic to a Legendre stack) under a different morphism
+    (the eigenvalue's :math:`1/k`).
     """
 
     chi: np.ndarray

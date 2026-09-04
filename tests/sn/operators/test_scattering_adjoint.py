@@ -41,11 +41,9 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.operators.scattering import (
-    LegendreMomentScattering,
-    N2NMomentOperator,
-)
+from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.transport.material_field import TransferMaterialField
 
 pytestmark = pytest.mark.foundation
 
@@ -113,7 +111,7 @@ def _ld_flux(solver: SNSolver, seed: int = 123) -> AngularFlux:
 
 
 def _moment_field(op, nx, ny, seed):
-    return np.random.default_rng(seed).uniform(0.05, 1.0, size=(2, 3, op.scattering.ng, nx, ny))
+    return np.random.default_rng(seed).uniform(0.05, 1.0, size=(2, 3, op.transfer.ng, nx, ny))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -123,7 +121,9 @@ def _moment_field(op, nx, ny, seed):
 
 class TestLambdaTranspose:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
-        lam = LegendreMomentScattering.from_material_xs(mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=1))
+        lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1),
+        )
         require(lam.is_adjointable,
                 "Λ must advertise the adjoint axis (campaign #276).")
         require(not lam.is_invertible,
@@ -133,7 +133,9 @@ class TestLambdaTranspose:
         r"""``⟨Λ m, c⟩ = ⟨m, Λᵀ c⟩`` (full moment-tensor contraction, per L27)."""
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
-        lam = LegendreMomentScattering.from_material_xs(mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=1), skip_l0=False)
+        lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+        )
         m = _moment_field(op, nx, ny, 1); c = _moment_field(op, nx, ny, 2)
         lhs = float((lam.apply(m) * c).sum())            # ⟨Λ m, c⟩
         rhs = float((m * lam.apply_transpose(c)).sum())  # ⟨m, Λᵀ c⟩
@@ -154,7 +156,9 @@ class TestLambdaTranspose:
         """
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
-        lam = LegendreMomentScattering.from_material_xs(mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=1), skip_l0=False)
+        lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+        )
         c = _moment_field(op, nx, ny, 3)
         got = lam.apply_transpose(c)
 
@@ -178,7 +182,9 @@ class TestLambdaTranspose:
         r"""Discriminator: with asymmetric Σ_s, Λᵀ ≠ Λ (the transpose has teeth)."""
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
-        lam = LegendreMomentScattering.from_material_xs(mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=1), skip_l0=False)
+        lam = LegendreMomentTransfer.from_field(
+            TransferMaterialField.scattering(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+        )
         m = _moment_field(op, nx, ny, 4)
         require(
             not np.allclose(lam.apply(m), lam.apply_transpose(m)),
@@ -232,7 +238,9 @@ class TestKernelTranspose:
 
 class TestN2NMomentOperator:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
-        n2n = N2NMomentOperator.from_material_xs(mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=1))
+        n2n = LegendreMomentTransfer.from_field(
+            TransferMaterialField.n2n(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+        )
         require(n2n.is_adjointable, "N2N must advertise the adjoint axis.")
         require(not n2n.is_invertible, "N2N must NOT be invertible.")
 
@@ -246,7 +254,9 @@ class TestN2NMomentOperator:
         """
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
-        n2n = N2NMomentOperator.from_material_xs(mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=1))
+        n2n = LegendreMomentTransfer.from_field(
+            TransferMaterialField.n2n(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+        )
         m = _moment_field(op, nx, ny, 6)
         out = n2n.apply(m)
         np.testing.assert_array_equal(
@@ -260,7 +270,9 @@ class TestN2NMomentOperator:
     def test_moment_space_transpose_identity(self, solver_p1_het):
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
-        n2n = N2NMomentOperator.from_material_xs(mat_xs=solver_p1_het.mat_xs, basis=SphericalHarmonicBasis(L=1))
+        n2n = LegendreMomentTransfer.from_field(
+            TransferMaterialField.n2n(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+        )
         m = _moment_field(op, nx, ny, 7); c = _moment_field(op, nx, ny, 8)
         lhs = float((n2n.apply(m) * c).sum())
         rhs = float((m * n2n.apply_transpose(c)).sum())
@@ -283,7 +295,7 @@ class TestFullScatterKernel:
         # The forward apply does NOT use this (it keeps the fast-path for perf,
         # campaign #276 A2a finding); it is the validated frame form for the
         # adjoint transpose (A2b) + the Option-2 forward-unification reference.
-        return op.full_scatter_kernel
+        return op.full_transfer_kernel
 
     def test_reproduces_forward_scattering_source(self, solver_p1_het):
         r"""``(1/W)·frame.conjugate(Λ_{ℓ≥0}).apply(ψ) == S.apply(ψ)`` (principled-equiv).
@@ -422,7 +434,7 @@ class TestFullScatterKernelLDTrailingAxis:
         W = op.total_weight
 
         fast = op.apply(psi).values
-        frame = np.asarray(op.full_scatter_kernel.apply(psi.values)) / W
+        frame = np.asarray(op.full_transfer_kernel.apply(psi.values)) / W
 
         require(
             frame.shape == fast.shape,
@@ -451,16 +463,14 @@ class TestFullScatterKernelLDTrailingAxis:
         hazard, process-discipline rule).
 
         CS4c 3b-A re-point: the moment verbs moved from the
-        ``MaterialXSField`` facade arms to the kernel fields
-        (``ScatteringMaterialField.moment_source`` /
-        ``N2NMaterialField.moment_emission``) — THIS sentinel is what
-        caught the re-route (a mutation of the retired arms reddened
-        nothing), so the surrogates now patch the field verbs.
+        ``MaterialXSField`` facade arms to the kernel fields — THIS sentinel
+        is what caught the re-route (a mutation of the retired arms reddened
+        nothing), so the surrogate patches the field verb. Since #426 step 2
+        both channels ride the ONE verb ``TransferMaterialField.moment_source``
+        (the (n,2n) twin ``moment_emission`` retired with the transfer
+        family), so one surrogate covers the whole moment path.
         """
-        from orpheus.transport.material_field import (
-            N2NMaterialField,
-            ScatteringMaterialField,
-        )
+        from orpheus.transport.material_field import TransferMaterialField
 
         def _old_leg(self, moments, *, skip_l0, head=None):
             # ``head=`` arrived with #429 (the angular head is a parameter of
@@ -483,19 +493,6 @@ class TestFullScatterKernelLDTrailingAxis:
                     )
             return out
 
-        def _old_n2n(self, moments, *, head=None):
-            del head
-            out = np.zeros_like(moments)
-            for mid, idx in self.cells_by_material.items():
-                kern = self.per_material[mid]
-                cells = (Ellipsis, *idx)  # PRE-FIX (buggy under LD)
-                mv = moments[0, :1][cells]
-                out[0, :1][cells] = (
-                    2.0 * np.einsum("mfc...,fg->mgc...", mv, kern.matrix)
-                    + out[0, :1][cells]
-                )
-            return out
-
         solver = _ld_solver_het(order=0)  # rectangular nx=4, ny=3
         op = solver.scattering_op
         psi = _ld_flux(solver)
@@ -503,19 +500,18 @@ class TestFullScatterKernelLDTrailingAxis:
 
         # Sanity: the FIXED code is clean before the mutation.
         np.testing.assert_allclose(
-            np.asarray(op.full_scatter_kernel.apply(psi.values)) / W,
+            np.asarray(op.full_transfer_kernel.apply(psi.values)) / W,
             op.apply(psi).values, rtol=1e-12, atol=1e-14,
             err_msg="precondition: fixed code must reproduce the fast-path on LD.",
         )
 
         monkeypatch.setattr(
-            ScatteringMaterialField, "moment_source", _old_leg,
+            TransferMaterialField, "moment_source", _old_leg,
         )
-        monkeypatch.setattr(N2NMaterialField, "moment_emission", _old_n2n)
 
         reddened = False
         try:
-            mutated = np.asarray(op.full_scatter_kernel.apply(psi.values)) / W
+            mutated = np.asarray(op.full_transfer_kernel.apply(psi.values)) / W
             if not np.allclose(
                 mutated, op.apply(psi).values, rtol=1e-9, atol=1e-12,
             ):
