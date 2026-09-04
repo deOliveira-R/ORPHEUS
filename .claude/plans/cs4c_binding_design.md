@@ -2166,3 +2166,246 @@ without it, 737 passed / 1 skipped).
   moment composite).
 * 3 trees carry zero family traffic: `cross_method` (81), `sn/mesh` (178),
   `sn/angular` (20).
+
+---
+
+## 20. ⏸ COMPACTION POINT #5 (2026-09-04, written pre-compaction with full context; step 5 RULED, execution NOT started)
+
+**Where the tree is.** Branch **`refactor/cs4c-step5-construction-selected-bodies`** =
+`main` `f90f7914` (the #426 exit; tree clean; 13-tree baseline `[M]` **11142 collected,
+13 of 13 rc=0**) + `86c17898` (§19, the design round) + this record's commit. `main ==
+origin/main == f90f7914`. **No production file has been edited.** The HDF5 store is
+format 2 (regenerated here; every other checkout regenerates).
+
+**What this session did (all read-only on `orpheus/`/`tests/`/`docs/`):** the §7
+reconciliation (§19 opener); the production census re-run at HEAD (§19.11,
+`scratch/cs4c_step5b_feeding_census.md`, 16 scenarios, 24 bodies / 32 role rows, 19
+fired / 13 not-run — D3 is the finding to carry: S and N2N are arm-identical and
+BODY-different; the (n,2n) ℓ ≥ 1 body runs only on data with a moment above ℓ = 0);
+the test-side carrier census (§19.12, `scratch/cs4c_step5b_test_consumers.md`, 55
+direct-feed nodes / 14 files; 102/15 with refusal pins + helper feeds; 7 monkeypatch
+surrogates; the moment-domain sibling has NO test binding its ends); the design round
+(§19.1–§19.7) and its **six rulings — ✅ [R] user 2026-09-04, all as recommended**
+(§19.8: R-1 `AngularLift` base; R-2 bless the zero trace as ONE tier-3 lift verb +
+carriers declare role partners; R-3 retire the transfer core's ScalarFlux arm; R-4
+plain-bound energy bindings carry the ARRAY, diffusion lifts at the assembly; R-5 keep
+LMT's typed moment arm; R-6 the name `AngularLift`). #429 is CLOSED (the umbrella
+ruling is moot; the memory index corrected).
+
+**⏳ IN FLIGHT at compaction: the test-architect** (dispatched 2026-09-04, brief =
+§19 + both censuses + `scratch/cs4c_verification_plan.md` §11.6/§8) writing
+**`scratch/cs4c_step5_verification_plan.md`** — gates G5.1–G5.9 (below), battery B-5
+re-shaped with its measured scope cost, predicted per-tree deltas vs 11142, and any
+§19 claim it refutes at the TOP of its memo. ▶ At resume: if the file exists, READ IT
+FIRST and fold its refutations into §19 in place (§3); if it does not, check `/tasks`
+(the agent may still be running) and only then re-dispatch with the same brief. Its
+report is not shown to the user — relay what matters.
+
+### 20.1 The execution shape — file by file (settled this session after reading every implementing class; `[R]` where ruled, `[P]` the mechanism)
+
+One merge unit; commit order (i)→(v); every `file:line` at `f90f7914`.
+
+1. **Carriers declare their role partner** (`[R]` R-2) — `orpheus/transport/fields/_bases.py`:
+   a `FieldRole` enum (`FLUX`, `SOURCE_SINK`) + a role-pair mixin on `BulkField` and
+   `FaceField` whose `__init_subclass__(cls, *, flux=None, **kw)` registers BOTH
+   directions once (`cls.FLUX = flux; cls.SOURCE_SINK = cls; flux.FLUX = flux;
+   flux.SOURCE_SINK = cls`; a second declaration for one flux refuses), plus
+   `role_partner(role) -> type` and `into_role(role, values)` (same space and family
+   fields, new class — via `dataclasses.fields`, so `L`/`spatial_moments` ride). Each
+   SOURCE-SINK leaf declares `flux=<its flux>` in its class statement (`Angular`,
+   `Scalar`, `HarmonicMoment` bulk; `AngularBoundary`, `ScalarBoundary`; the two
+   radial-characteristic pairs). ⚠ Import direction: sinks import flux LEAVES
+   (`[M]` today sinks import only `fields._bases`; flux leaves import no sink) — legal,
+   cycle-free; `fields/__init__.py` ends with a bare `import
+   orpheus.transport.source_sinks` so the registration completes whenever `fields`
+   loads (a NAMED import there would cycle on the partially-initialised package).
+2. **`orpheus/transport/operators/lift.py` (NEW; `_per_ordinate.py` folds in and
+   retires):** `admit_composite(op, x, *, space) -> FullField` and
+   `admit_array(op, x) -> ndarray` — the family's ONLY two carrier parses (typed
+   refusals naming the operator; G5.1 exempts these two by name);
+   `lift_bulk_action(psi, interior_action, *, trace_role)` — THE one spelling of
+   "a bulk action enters the composite by extension-by-zero on the trace" (`[M]` 9
+   spellings today, §19.1); `embed_bulk_assembly(bulk_assembled, composite_space)`
+   (the flat layout is `[bulk C-ravel | trace]`, so the embedding is index-identity
+   on the bulk block); `BulkLift(inner, *, domain, codomain)` — a bulk-born operator on
+   the composite (`apply`/`apply_transpose` through the verb with `into_role`;
+   `assemble` = the embed; `is_assemblable`/`is_adjointable` = the inner's;
+   `block_role = BULK`; the inner's ends must content-equal the composite's interior).
+3. **`orpheus/transport/operators/angular_lift.py` (NEW):** `AngularLift(BoundOperator["FullField"])`
+   with kw-only `flux_analysis`, `source_reconstruction` + ends; `block_role = BULK`;
+   abstract `data_ng`, `_bind_energy()`, `_frame_form()`; `__post_init__` = energy
+   extent, face admission against the **codomain** interior (the analysis face is
+   minted on the angular space the binding EMITS on), then the SELECTION: domain
+   interior `== flux_analysis.domain` → angular (`_scalar_flux_of = integrate_angular`,
+   `_conjugate = frame.conjugate`, domain cotangent = `AngularSourceSink`); `==
+   flux_analysis.codomain` → moment (`scalar_flux(space=scalar_interior)`,
+   `frame.reconstruct_after`, cotangent = `HarmonicMomentSourceSink(values, space,
+   L=frame.truncation_order, spatial_moments=BulkField._spatial_moments_per_axis_of(dom))`);
+   anything else refused. `isotropic_energy` = cached `_bind_energy()` (ONE cache home);
+   `total_weight`, `frame` (off the faces), `_moment_space`, `_domain_interior`,
+   `_codomain_interior`, `_scalar_interior_space` as today. `apply(FullField)` =
+   `lift_bulk_action(admit_composite(…), self._interior_action, trace_role=SOURCE_SINK)`;
+   `_interior_action(bulk)` = `_combine(_isotropic_source(bulk), None)`;
+   `_isotropic_source` = `ScalarSourceSink(values=isotropic_energy.apply(phi.values),
+   space=phi.space)`; `_combine(iso, aniso)` = `(iso / W) + (aniso or
+   AngularSourceSink.zeros(codomain_interior))` — the former
+   `assemble_per_ordinate_isotropic`, bit-identical (it allocated the zeros too).
+   `apply_transpose(FullField)` = the same verb with `domain_cotangent(
+   _frame_form().apply_transpose(bulk.values) / W)`. `is_adjointable = True`.
+4. **`transfer.py`:** `TransferOperator(AngularLift)` — field `transfer`; ClassVars
+   `isotropic_binding` (default the core), `channel` (no default); `_bind_energy` =
+   `type(self).isotropic_binding(self.transfer.at_order(0), domain=s, codomain=s)`;
+   `__post_init__` → `super()` then `_redistribution` selected at CONSTRUCTION: `None`
+   iff `is_isotropic` (the per-call predicate at three sites dies); angular →
+   `AngularSourceSink(values=kernel.apply(bulk.values) / W, space=codomain_interior)`;
+   moment → `source_reconstruction.apply(_moment_transfer(skip_l0=True).apply(bulk)) / W`
+   (`[R]` R-5: the typed faces route keeps LMT's typed arm live); `_interior_action`
+   override = `_combine(iso, self._redistribution(bulk))`; `kernel` =
+   `self._conjugate(Λ_{ℓ≥1})` on THIS binding's domain (raises on isotropic, as
+   ruled at #426); `full_transfer_kernel` = `self._conjugate(Λ_{ℓ≥0})`, `_frame_form`
+   returns it (the term-named products STAY — `[M]` 32 + 11 sites; the base calls the
+   abstract); NEW tier-2 verb **`on_moment_domain()`** → `type(self)(transfer, faces,
+   domain=FullFieldSpace.from_blocks(flux_analysis.codomain, self.domain.trace_space),
+   codomain=self.codomain)`; the ScalarFlux arm RETIRED (`[R]` R-3); `add_iso_source`
+   becomes ndarray-only (its typed arm has `[M]` 1 test consumer, 0 production);
+   `build_aniso_source(AngularFlux | None)` kept (production `sn/solver.py:2336`);
+   `_aniso_source_from_moment_values` RETIRED (`[M]` 0 production callers, its
+   docstring false — the crosscheck oracle becomes `S.on_moment_domain().kernel` fed
+   `M·ψ` against the typed route, 0 ULP); `_sibling`/fold family require an angular
+   endomorphism (refuse otherwise; production-dead anyway); the `singledispatchmethod`,
+   the `@overload` surface and the FullField re-entry die.
+5. **`fission.py`:** `FissionOperator(AngularLift)` — field `fission:
+   FissionMaterialField` (REPLACES `energy` + `frame`; #450); `_bind_energy` =
+   `IsotropicFission(self.fission, domain=s, codomain=s)`; `kernel` /
+   `production_rate` delegate to `isotropic_energy`; `full_fission_kernel` =
+   `self._conjugate(FissionMomentOperator(self.isotropic_energy, ends))`;
+   `from_solver_data` mints the L = 0 faces through `HarmonicFrame.for_space(interior,
+   0)`; the five arms and the runtime shape guard die. `FissionMomentOperator.apply /
+   apply_transpose` call `self.energy.apply(…)` / `.apply_transpose(…)` — the energy
+   OPERATOR, not `energy.kernel` (D11's second bypass route).
+6. **`isotropic_transfer.py`:** `IsotropicTransfer` / `IsotropicFission` are
+   plain-bound ONLY (`[R]` R-4; a `FullFieldSpace` domain refused with a message naming
+   `BulkLift`); `apply(ndarray) -> ndarray` via `admit_array`, `apply_transpose`
+   likewise (the composite refusal + its "#281" note die — `[M]`
+   `tests/diffusion/test_operators.py::test_k_iso_composite_refuses_angular_bulk_and_transpose`
+   pins `match="#281"`, re-key); `_values_of`, `_scalar_composite_source`,
+   `_iso_is_assemblable`, `_assemble_iso_energy_operator` retire; `assemble()` emits
+   the BULK cell-block-diagonal on the plain ends (ng impulses through `apply`),
+   `is_assemblable = True` on the transfer binding (⚠ §8: `as_matrix` BRANCHES on it —
+   the homogeneous `C − K_iso` then takes the assembly path instead of probing; the
+   entries are the same `apply` columns, so k∞ should be bit-identical — MEASURE, the
+   homogeneous records + `tests/homogeneous/test_operator_spaces.py` are the pins);
+   `IsotropicFission` keeps NO assembly (its docstring's deliberate omission stands);
+   the module header's D20 falsehoods corrected with the measured denominators.
+7. **`multiplication_operator.py`:** the body selected in `__post_init__` from the
+   DOMAIN (a `FullFieldSpace` parse at construction is legal — it is the space, not
+   the carrier): composite → `lift_bulk_action` with `bulk.into_role(SOURCE_SINK,
+   engine(values))`, the scalar-interior degenerate `[None]…[0]` lift chosen by
+   `len(interior.shape) == coefficient.values.ndim` (`[M]` `DiagonalOperator._check_shape`
+   pins the rank under `broadcast_axes`), never by carrier class; plain → the engine on
+   `admit_array`; `solve` the same with `FLUX`; the dispatcher and the four family
+   parses die; `assemble` composite = `embed_bulk_assembly(bulk diagonal)`, plain =
+   the bulk diagonal (new: a plain binding is assemblable).
+8. **`diffusion/solver.py:236–250`:** `bulk = mesh.bulk_space`; `scattering =
+   BulkLift(IsotropicScattering.from_material_xs(mat_xs, space=bulk) +
+   IsotropicN2N.from_material_xs(mat_xs, space=bulk), domain=space, codomain=space)`;
+   `self.fission = BulkLift(IsotropicFission.from_material_xs(mat_xs, space=bulk), …)`;
+   `compute_fission_source` unchanged (feeds a `FullField`). `[M]` the resolvent is on
+   the assembly path (§19.4) — G5.6 pins the assembled loss bit-identical.
+9. **`sn/solver.py`:** `_within_group_si` (`:1174–1237`) — when `windowed`, the gains
+   become `S.on_moment_domain()`, `n2n.on_moment_domain()` (`B_a` unchanged; the
+   Krylov paths never window, `:737`); `_adjoint_posing_parts` (`:2951`) feeds
+   `RadialCharacteristicEmission(F.isotropic_energy, …)` — was `F.kernel` (D11's first
+   route; `coupled_system.py:594` already feeds the operators). `sn/coupled_system.py`
+   unchanged.
+10. **Tests** — the re-key set is `scratch/cs4c_step5b_test_consumers.md` §2 (buckets
+    (a)–(i), listed per node); the gates from the verification plan (G5.1 the AST
+    no-dispatch gate with a synthetic positive control; G5.2 the 18-cell ends→body
+    fence replacing G2.8's 12 cells + the registry gate inverted; G5.3 the
+    moment-domain sibling: ends, bit-identity vs the angular-bound instance fed the
+    moment composite, transpose reciprocity, third-interior refusal; G5.4 the
+    role-partner bijection over `__subclasses__`; G5.5 the one zero-trace spelling;
+    G5.6 the diffusion assembly bit-identity; G5.7 the one-level witness
+    (`IsotropicFission.apply_transpose` REACHED on the sphere adjoint); G5.8
+    `AngularLift`'s own laws; G5.9 the production headlines bit-identical: the 16
+    census values, the ERR-082 record, the diffusion witness, the adjoint records);
+    `test_transfer_roles.py` gains the row `AngularLift.__subclasses__ == {TransferOperator,
+    FissionOperator}` (the roles' gate is untouched: `AngularLift` sits ABOVE the cores);
+    the tier-2 F row re-keys to the exact ctor `FissionOperator(field, flux_analysis=,
+    source_reconstruction=, domain=, codomain=)`; the C6 pins collapse to
+    `apply(FullField) -> FullField` (+ `S.isotropic_energy.apply(ndarray)`); the 7
+    monkeypatch surrogates re-key (`grep "monkeypatch.setattr(.*(Operator|Transfer|Fission)"`
+    for the ceiling); battery B-5 per the verification plan (positive control on the
+    Be fixture or the synthetic ℓ = 1 `Sig2`, NEVER the 2-group legacy fixture — D3).
+11. **Docs (archivist pass; a step that moves an equation-level claim):**
+    `isotropic_transfer.py` header (D20); every page naming
+    `assemble_per_ordinate_isotropic` / `_per_ordinate` (`[M]` `operator_algebra.rst`,
+    `error_catalog.rst`, `sn/history.rst`, `sn/index.rst`, `curvilinear_*.rst`),
+    `_aniso_source_from_moment_values` (`operator_algebra.rst`, `cartesian_multid.rst`),
+    `F.energy` (`coupled_block_operator.rst`, `operator_algebra.rst`, `adjoint.rst`,
+    `sn/history.rst`, `api/numerics.rst`), the "transitional shim" framing (#306 item 2
+    BLESSED), `api/transport.rst` (two new modules), `operator_algebra.rst
+    §integral-kernel-category` (the windowed route = the moment-domain binding),
+    `adjoint.rst` (the transposes' `FullField`-only surface). Issues: `Closes #450`;
+    #306 item 2 closed by comment (items 1/3/5 stay); #205 comment (the typed scalar
+    entry is the energy binding). Plan-authoring surprise-log row OWED: a consumer
+    census that EXCLUDES a tier (`orpheus/numerics/`) read **0** and was wrong by
+    exactly that tier (§19.4's correction) — the 2026-09-02 file-exclusion row's
+    sibling. The 5b OWED edits (A1/A2/A3 in `scratch/cs4c_step5b_OWED_skill_and_memory.md`)
+    and the earlier report-hygiene A3 land in the docs commit.
+12. **Exit:** the 13-tree driver (model `scratch/_426_step2_gate_driver.sh`) against
+    11142 with the verification plan's predicted per-tree deltas, reconciled per file
+    against a HEAD worktree collect-only; `sphinx -E -W -q docs docs/_build/html` from
+    the repo root; `mcp__nexus__dead_references` (the retirements: `_per_ordinate`,
+    `assemble_per_ordinate_isotropic`, `_aniso_source_from_moment_values`,
+    `_scalar_composite_source`, `_values_of`, `FissionOperator.energy/.frame`); `npx
+    pyright` 0 on `orpheus/`; elegance-enforcer review after the carve; ff-merge; branch
+    deleted; §20.x close-out + the compaction protocol.
+
+**Landing order (§6b — the interface change is one commit):** (i) item 1 + item 2
+(additive, bit-identical, green alone) · (ii) items 3–9 + the test re-keys (item 10's
+re-keys) in ONE commit — the tree does not compile between them · (iii) the new gates +
+the battery · (iv) docs · (v) plans/memory. Predicted-then-measured per tree; the 66 xf
+carry through (§8.1 schedules no flip rows).
+
+### 20.2 Corrections that supersede older text (read these over anything above them)
+
+* §17's *"S's arm docstring at `scattering.py:1120`"* → `transfer.py:1157–1170`
+  (moved with the body at #426 step 2); §17's `n2n.py:56/:202` banners are GONE.
+* §18.2's *"Do not re-run either. Read them."* is SUPERSEDED by §19.11/§19.12 — the
+  2026-08-31 census's tree half is void (five carves old); read the 5b memos.
+* §18.8's *"two rulings owed"* → ONE (#429 CLOSED 2026-09-03); step 5's own is now
+  RULED (§19.8).
+* §19's opener sentence *"N2N's ℓ ≥ 1 arms fire at `scattering_order ≥ 1`"* is
+  ⛔ REFUTED in place (D3/D3b): the ℓ ≥ 1 body runs iff the DATUM carries a moment
+  above ℓ = 0.
+* §19.4's first draft claimed the assembly mode had 0 production consumers — corrected
+  in place: `numerics/flat_operator.py:168` (the diffusion resolvent), `operator.py:1135`,
+  `coupled_system.py:1246`.
+* §19.10's positive control moves off the 2-group legacy fixture (D3).
+
+### 20.3 Standing constraints (unchanged)
+
+Host → `.venv/bin/python`; canonical runner `-O -m pytest -p no:randomly -m "not slow"
+-q` SERIAL; `main` always green; branch + `git merge --ff-only`, never squash; never `git
+add -A` (stage by path; read `git status --porcelain` first — `scratch/` is untracked
+and large); never `git stash`; never `git checkout`/`restore` on a tracked path; no
+source edits under a running gate (L37); no production edit while a sub-agent holds the
+tree (L38 — the test-architect is in flight); long gates detached + LOG + the 13-tree
+driver + Monitor; batteries as subprocess-scoped pytest plugins, crash-safe, one
+process per arm; `sphinx -E -W` + `dead_references` at every exit; a bare `assert` in
+`orpheus/` is inert under `-O`; commit via `git commit -F <file>` with the two trailers;
+streamed `<new-diagnostics>` are the advisory LSP artefact — trust `npx pyright`; main
+agent writes production, sub-agents review/design (test-architect before — in flight;
+elegance-enforcer after; archivist for docs); agent memories and the generated
+`matrix.rst` / `error_index.md` are committed with the carve.
+
+### ▶ RESUMES AT — step 5 EXECUTION, item (i) of §20.1's landing order
+
+Open with §7: `git log --oneline -3` (expect `86c17898` + this record on the branch);
+read `scratch/cs4c_step5_verification_plan.md` (or `/tasks`); re-read
+`orpheus/transport/operators/transfer.py:360–560` and `fission.py:224–300` before the
+first edit (a scope read from THIS record gets refuted by the realization — §7.2); then
+write `lift.py` and the role-pair mixin first (green alone), then the one-commit
+interface change. The user steers at the AskUserQuestion checkpoints the surgical
+posture prescribes; every ruling this step needed is already taken (§19.8).
