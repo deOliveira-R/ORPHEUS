@@ -1691,6 +1691,7 @@ moves k on a Be-reflected U-235 slab by −414 (Δk·10⁵) / −346 (Δρ·10�
 (three forks ruled the same day: lossless ingest for every channel; one transfer family with the yield
 a kernel datum; `Transfer*` names the kernel tier, role names stay on the operator tier). §18.6 step 2
 (#428's four-solver check) is `[M]` done the same day — all six families handle (n,2n), MC included;
-the doc split is in flight. **Step 5 waits behind the #426 carve** (its N2N/S design is exactly what
-the carve settles). The two rulings owed from before the
+#428 CLOSED @ `f1422f24`. **#426 step 1 (the lossless data layer) LANDED @ `f96de34c`** and merged;
+step 2 (the transfer family) is next on a fresh branch — its design and compaction record are the plan's §4/§5.
+**Step 5 waits behind the #426 carve** (its N2N/S design is exactly what the carve settles). The two rulings owed from before the
 review (#429 umbrella-or-close; resume Campaign 2) still stand as owed.
