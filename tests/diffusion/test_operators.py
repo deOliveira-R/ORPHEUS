@@ -64,7 +64,7 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.fission import FissionOperator
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicFission,
     IsotropicN2N,
     IsotropicScattering,

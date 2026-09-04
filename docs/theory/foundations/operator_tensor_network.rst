@@ -220,14 +220,18 @@ shape choice.
        :math:`R \circ \Lambda_{\ell\ge 1} \circ M`
      - the moment-space integral kernel
        ``frame.conjugate(Λ)``
-       (:attr:`ScatteringOperator.kernel`), projecting to harmonic
+       (:attr:`TransferOperator.kernel
+       <orpheus.transport.operators.transfer.TransferOperator.kernel>`),
+       projecting to harmonic
        moments, applying per-ℓ transfer, reconstructing per-ordinate
      - **MA-Q1 fallback**: the per-material per-ℓ
        einsum
-       :meth:`ScatteringMaterialField.moment_source
-       <orpheus.transport.material_field.ScatteringMaterialField.moment_source>`
-       (``MaterialXSField.apply_legendre_scattering_moments``
-       until the CS4c step-3 O-6 move)
+       :meth:`TransferMaterialField.moment_source
+       <orpheus.transport.material_field.TransferMaterialField.moment_source>`
+       (``MaterialXSField.apply_legendre_scattering_moments`` until the
+       CS4c step-3 O-6 move, then ``ScatteringMaterialField.moment_source``
+       until #426 step 2 collapsed the two transfer channels' fields
+       into one)
        couples the group axis (matrix multiply on
        :math:`\Sigma_{s,\ell}[g'\to g]`) with the
        spatial axis (via
@@ -1057,8 +1061,8 @@ targeted this SOTP form for the scattering kernel.
 The design fork (T.3 spec Q6) surfaced that the per-material per-ℓ
 einsum — then ``MaterialXSField.apply_legendre_scattering_moments``,
 since the CS4c step-3 O-6 move
-:meth:`ScatteringMaterialField.moment_source
-<orpheus.transport.material_field.ScatteringMaterialField.moment_source>`
+:meth:`TransferMaterialField.moment_source
+<orpheus.transport.material_field.TransferMaterialField.moment_source>`
 —
 **couples the group axis with the spatial axis** — the per-cell
 material id ``cells_by_material[mid]`` selects the per-material
@@ -1120,9 +1124,9 @@ Cross-references
     :class:`orpheus.numerics.operator.ZeroOperator`.
   - :class:`orpheus.sn.boundary.realizer.SNBoundaryRealizer` —
     the BC realizer dispatching the T.1 lifts.
-  - :class:`orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+  - :class:`orpheus.transport.operators.isotropic_transfer.IsotropicFission`
     and its
-    :attr:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission.kernel`
+    :attr:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission.kernel`
     property (the dyad's arithmetic home since CS4c step 4);
     :class:`orpheus.transport.operators.fission.FissionOperator`, whose
     same-named property delegates to it.

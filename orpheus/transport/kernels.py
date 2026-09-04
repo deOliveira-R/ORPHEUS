@@ -216,7 +216,7 @@ class TransferKernel:
 
         The slice the isotropic energy binding consumes: the operator
         matrix of
-        :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicTransfer.dense_per_material`
+        :meth:`~orpheus.transport.operators.isotropic_transfer.IsotropicTransfer.dense_per_material`
         is exactly :math:`y\,\mathtt{p0}^T` (:meth:`emission_matrix`).
 
         Aliasing semantics (CS4a-R EE-9c): this property returns the
@@ -247,7 +247,7 @@ class TransferKernel:
         the P0 in-scatter for :math:`y = 1`, the :math:`(n,2n)` source for
         :math:`y = 2`. A fresh copy per call (the storage-side-view
         convention of
-        :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicTransfer.dense_per_material`,
+        :meth:`~orpheus.transport.operators.isotropic_transfer.IsotropicTransfer.dense_per_material`,
         which this equals entry for entry). The multiplicity enters the
         emission HERE and in the field's verbs — never the stored stack.
         """
@@ -320,7 +320,7 @@ class FissionKernel:
     :class:`~orpheus.transport.material_field.FissionMaterialField`
     (validated per material by THIS constructor), whose gathered factors
     feed the energy binding
-    :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+    :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
     (the k-outer / homogeneous / diffusion realization) and, through it,
     the angular composite
     :class:`~orpheus.transport.operators.fission.FissionOperator` (the

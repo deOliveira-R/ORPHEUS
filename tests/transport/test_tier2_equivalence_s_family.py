@@ -23,7 +23,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
 from orpheus.transport.kernels import N2N_MULTIPLICITY, FissionKernel, TransferKernel
 from orpheus.transport.material_field import TransferMaterialField
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicN2N,
     IsotropicScattering,
 )
@@ -246,7 +246,7 @@ def test_fission_operator_from_solver_data_equals_the_exact_ctor():
     from orpheus.transport.frames.harmonic_frame import HarmonicFrame
     from orpheus.transport.material_field import FissionMaterialField
     from orpheus.transport.operators.fission import FissionOperator
-    from orpheus.transport.operators.isotropic_scattering import (
+    from orpheus.transport.operators.isotropic_transfer import (
         IsotropicFission,
     )
 

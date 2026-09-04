@@ -59,8 +59,8 @@ Key Facts
   is now a reference, not the production source). With
   :math:`C = \text{diag}(\Sigma_t)` and
   :math:`K_\mathrm{iso} = \Sigma_{s0}^T + 2\Sigma_2^T` supplied by
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
-  and :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`.
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
+  and :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`.
   Streaming :math:`L` is identically zero in an infinite medium and is dropped,
   so the whole spectrum runs through the SAME operator algebra the meshed SN
   solver uses (cross-model single source, Cardinal Rule 2; campaign #276)
@@ -277,6 +277,19 @@ gives the **multi-group neutron balance** for group :math:`g`:
    declaring a single site would refute the tests that exercise the
    others.
 
+   Four of the twelve were re-pointed on 2026-09-04 (#426 step 2), when
+   the two collision-gain channels collapsed onto one family: the
+   per-material P\ :sub:`0` verb and the scalar energy binding's
+   ``apply`` moved to the shared
+   :class:`~orpheus.transport.material_field.TransferMaterialField` /
+   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicTransfer`
+   cores, ``LegendreMomentScattering`` became
+   :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`
+   — the ONE :math:`\Lambda` both channels use — and the retired
+   ``N2NMomentOperator`` row is now the :math:`(n,2n)` term itself,
+   :class:`~orpheus.transport.operators.n2n.N2NOperator`, since its
+   moment factor is no longer a class of its own.
+
 .. implements:: mg-balance
    :by: orpheus.homogeneous.solver._assemble_loss_operator
 
@@ -287,19 +300,19 @@ gives the **multi-group neutron balance** for group :math:`g`:
    :by: orpheus.moc.core.MOCSolver.solve_fixed_source
 
 .. implements:: mg-balance
-   :by: orpheus.transport.material_field.ScatteringMaterialField.add_p0_source
+   :by: orpheus.transport.material_field.TransferMaterialField.add_p0_source
 
 .. implements:: mg-balance
-   :by: orpheus.transport.operators.isotropic_scattering.IsotropicFission.apply
+   :by: orpheus.transport.operators.isotropic_transfer.IsotropicFission.apply
 
 .. implements:: mg-balance
-   :by: orpheus.transport.operators.isotropic_scattering.IsotropicScattering.apply
+   :by: orpheus.transport.operators.isotropic_transfer.IsotropicTransfer.apply
 
 .. implements:: mg-balance
-   :by: orpheus.transport.operators.scattering.LegendreMomentScattering
+   :by: orpheus.transport.operators.transfer.LegendreMomentTransfer
 
 .. implements:: mg-balance
-   :by: orpheus.transport.operators.scattering.N2NMomentOperator
+   :by: orpheus.transport.operators.n2n.N2NOperator
 
 .. implements:: mg-balance
    :by: orpheus.transport.operators.scattering.ScatteringOperator
@@ -346,7 +359,7 @@ scattering transfer matrix (:math:`P_0` component) and
 production matrix :math:`\mathbf{F}` is the **rank-1 dyad**
 :math:`\boldsymbol{\chi} \otimes \nu\boldsymbol{\Sigma}_\mathrm{f}`
 embodied by
-:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
 — a group contraction onto the production rate followed by a broadcast
 across the emission spectrum :math:`\boldsymbol{\chi}`.
 
@@ -387,11 +400,11 @@ across the emission spectrum :math:`\boldsymbol{\chi}`.
 
    The loss matrix :math:`\mathbf{A} = C - K_\mathrm{iso}` is assembled
    from the transport operators
-   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
    (:math:`\Sigma_{s0}^T`) and
-   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
    (:math:`2\Sigma_2^T`); the production dyad :math:`\mathbf{F}` is the
-   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
    rank-1 form (materialised densely as
    :math:`\chi \otimes \nu\Sigma_f`).  See
    :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`.
@@ -549,7 +562,7 @@ matrices are:
 
 
 .. implements:: two-group-F
-   :by: orpheus.transport.operators.isotropic_scattering.IsotropicFission
+   :by: orpheus.transport.operators.isotropic_transfer.IsotropicFission
 
    **Implemented by** 3 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
@@ -1182,10 +1195,10 @@ space; the carrier only supplies data**:
       \;+\;
       \underbrace{2\,\Sigma_2^{T}}_{\text{\scriptsize :class:`IsotropicN2N`}}
 
-   where :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+   where :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
    realises :math:`\Sigma_{s0}^T` (the in-scatter source matrix, the stored
    ``[g_from, g_to]`` transfer transposed) and
-   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
    realises :math:`2\Sigma_2^T` (the loss-side multiplicity-2 transfer).
    The composed loss operator :math:`\mathbf A = C - K_\mathrm{iso}` is
    returned **un-materialized** (an
@@ -1204,7 +1217,7 @@ space; the carrier only supplies data**:
    :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
    **constructor** (one eager materialization + LU factorization; see
    :ref:`direct-eigensolve-solve`). (The operators'
-   :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering.dense_per_material`
+   :meth:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering.dense_per_material`
    accessor — the transpose read straight off the stored cross sections — is
    a storage-side *oracle* used by the verification gates as a
    structurally-independent cross-check, **not** a production assembly path.)
@@ -1312,7 +1325,7 @@ space to derive it from.)
    :class:`~orpheus.transport.operators.fission.FissionOperator` until
    step 4 rebound the channel as **two bindings of one datum**
    (:ref:`fission-as-dyad`): the *energy* binding
-   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
    — the rank-1 dyad on the scalar flux, and the one this solver, the
    S\ :sub:`N` k-outer and the 1-D diffusion solver all consume — and
    the *angular* binding ``FissionOperator``, the frame's

@@ -33,7 +33,7 @@ channel's representation-free datum is the per-material factor pair
 bound at exactly two space kinds:
 
 * the **ENERGY binding**
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
   — the rank-1 dyad :math:`|\chi\rangle\langle\nu\Sigma_f|` on the scalar
   flux; what the k-eigenvalue outer iteration, the homogeneous
   :math:`K = A^{-1}F`, and the diffusion scalar composite consume;
@@ -41,7 +41,7 @@ bound at exactly two space kinds:
   frame's :math:`\ell=0` conjugation of that dyad on the posed angular
   composite. It retains the energy binding as its middle factor (the
   :class:`~orpheus.transport.operators.n2n.N2NOperator` /
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
   relation, at rank 1).
 
 **Fission is the** :math:`\ell=0` **rank-1 degenerate of the scattering
@@ -135,7 +135,7 @@ if TYPE_CHECKING:
     )
     from orpheus.transport.frames.harmonic_frame import HarmonicFrame
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
-    from orpheus.transport.operators.isotropic_scattering import (
+    from orpheus.transport.operators.isotropic_transfer import (
         IsotropicFission,
     )
     from orpheus.transport.reaction_rate_functional import (
@@ -167,7 +167,7 @@ class FissionMomentOperator(BoundOperator):
     (defer-until-consumer).
 
     The arithmetic routes through the retained energy binding's cached
-    :attr:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission.kernel`
+    :attr:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission.kernel`
     — ONE dyad home; this class is pure moment-layout plumbing.
     """
 
@@ -231,7 +231,7 @@ class FissionOperator(BoundOperator["FullField"]):
     energy : IsotropicFission
         The scalar-space energy binding of the same kernel datum — the
         ONE arithmetic home of the dyad (its cached
-        :attr:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission.kernel`
+        :attr:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission.kernel`
         serves every arm and the moment factor).
     frame : HarmonicFrame
         The :math:`L=0` hub-interned frame of the posed angular space —
@@ -298,7 +298,7 @@ class FissionOperator(BoundOperator["FullField"]):
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
         from orpheus.transport.frames.harmonic_frame import HarmonicFrame
         from orpheus.transport.material_field import FissionMaterialField
-        from orpheus.transport.operators.isotropic_scattering import (
+        from orpheus.transport.operators.isotropic_transfer import (
             IsotropicFission,
         )
 
@@ -357,7 +357,7 @@ class FissionOperator(BoundOperator["FullField"]):
         r"""The production-rate co-vector — delegated to the energy
         binding (the Pattern-3 criticality diagnostic; see
         :attr:`IsotropicFission.production_rate
-        <orpheus.transport.operators.isotropic_scattering.IsotropicFission.production_rate>`)."""
+        <orpheus.transport.operators.isotropic_transfer.IsotropicFission.production_rate>`)."""
         return self.energy.production_rate
 
     @cached_property

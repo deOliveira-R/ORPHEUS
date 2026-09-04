@@ -195,7 +195,7 @@ def test_as_matrix_energy_leaves_vs_storage_oracle():
     ASYMMETRIC SigS/Sig2 (Mode-6: symmetric would null the transpose
     mutation).
     """
-    from orpheus.transport.operators.isotropic_scattering import (
+    from orpheus.transport.operators.isotropic_transfer import (
         IsotropicN2N,
         IsotropicScattering,
     )
@@ -274,7 +274,7 @@ def test_as_matrix_equals_retired_as_dense_loop():
     """
     from orpheus.derivations import get
     from orpheus.transport.mesh.material_mesh import MaterialMesh
-    from orpheus.transport.operators.isotropic_scattering import (
+    from orpheus.transport.operators.isotropic_transfer import (
         IsotropicN2N,
         IsotropicScattering,
     )

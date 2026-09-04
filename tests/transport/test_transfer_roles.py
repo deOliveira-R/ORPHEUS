@@ -5,7 +5,7 @@ names the TERM of the algebra it realises."*  Its structural half is that
 ``ScatteringOperator`` / ``N2NOperator`` / ``IsotropicScattering`` /
 ``IsotropicN2N`` are **thin** subclasses of two shared cores
 (:class:`~orpheus.transport.operators.transfer.TransferOperator`,
-:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicTransfer`),
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicTransfer`),
 whose only content is two class constants — the channel the ONE tier-2 mint
 reads and the P0 binding the term lifts — and the role name: NO code.  Without a gate the twin path regrows one override at a time —
 exactly the shape the carve removed (`[M]` 2026-09-03, the explorer's
@@ -48,17 +48,17 @@ _ROLES = {
     "ScatteringOperator": ("orpheus.transport.operators.scattering", "TransferOperator"),
     "N2NOperator": ("orpheus.transport.operators.n2n", "TransferOperator"),
     "IsotropicScattering": (
-        "orpheus.transport.operators.isotropic_scattering", "IsotropicTransfer",
+        "orpheus.transport.operators.isotropic_transfer", "IsotropicTransfer",
     ),
     "IsotropicN2N": (
-        "orpheus.transport.operators.isotropic_scattering", "IsotropicTransfer",
+        "orpheus.transport.operators.isotropic_transfer", "IsotropicTransfer",
     ),
 }
 
 #: The two cores, and where they live.
 _CORES = {
     "TransferOperator": "orpheus.transport.operators.transfer",
-    "IsotropicTransfer": "orpheus.transport.operators.isotropic_scattering",
+    "IsotropicTransfer": "orpheus.transport.operators.isotropic_transfer",
 }
 
 

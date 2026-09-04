@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**81 entries · 287 catching tests · 0 uncaught.**
+**82 entries · 293 catching tests · 0 uncaught.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-082` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-082")`.
+Append a `.. error-entry:: ERR-083` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-083")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -55,7 +55,7 @@ None — every catalogued defect has at least one catching test.
 | ERR-020 | 2 | ULP-noisy cell volumes from cbrt → **3 round trip |
 | ERR-021 | 2 | Degenerate ray tangent to pin-cell corner raises IndexError |
 | ERR-022 | 1 | Negative lethargy bin width flips flux-per-lethargy sign |
-| ERR-023 | 1 | MC solver silently ignores Sig2 (n,2n) reactions |
+| ERR-023 | 2 | MC solver silently ignores Sig2 (n,2n) reactions |
 | ERR-024 | 1 | MC flux tally: scattering estimator instead of collision estimator |
 | ERR-025 | 5 | Diamond-difference cumprod recurrence: missing −Σ_t in numerator and missing 1/W source normali… |
 | ERR-026 | 27 | Curvilinear sweep WDD angular closure converges to wrong fixed-source solution |
@@ -114,3 +114,4 @@ None — every catalogued defect has at least one catching test.
 | ERR-079 | 10 | IterationRecord.exhausted_budget compared a scipy GMRES restart-cycle budget against an Arnoldi… |
 | ERR-080 | 16 | A 1-D quadrature supplies mu_y = mu_z = 0 meaning "there is no azimuthal information" and the r… |
 | ERR-081 | 5 | The quadrature registry recorded ONE finite group per geometry — the reflection closure a refle… |
+| ERR-082 | 5 | The (n,2n) emission was truncated to P0 at the OPERATOR tier while the tape and (since #426 ste… |

@@ -62,7 +62,7 @@ histories.** The operator algebra is powerful precisely because the
 fact, not an analogy: the collision operator
 :class:`~orpheus.transport.operators.MultiplicationOperator` and the
 fission energy binding
-:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
 are the *same Python classes* instantiated by S\ :sub:`N`, diffusion and
 the infinite-medium solver, and all three draw their scattering from the
 same :mod:`orpheus.transport.operators` package —
@@ -361,7 +361,7 @@ and the methods consume them as follows:
 - :class:`~orpheus.transport.operators.MultiplicationOperator` — the
   collision diagonal :math:`C = M[\Sigma_t]` — and the fission energy
   binding
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
   are the **same classes** instantiated by all three deterministic
   consumers (S\ :sub:`N` in ``orpheus/sn``, diffusion in
   ``orpheus/diffusion/solver.py``, the infinite-medium solver in
@@ -376,12 +376,19 @@ and the methods consume them as follows:
   :class:`~orpheus.transport.operators.IsotropicN2N` and
   ``IsotropicFission``; S\ :sub:`N`, which resolves angle, routes the
   *same package's* angular bindings — the anisotropic
-  :class:`~orpheus.transport.operators.ScatteringOperator` kernel,
-  :class:`~orpheus.transport.operators.n2n.N2NOperator`, and
+  :class:`~orpheus.transport.operators.ScatteringOperator` and
+  :class:`~orpheus.transport.operators.n2n.N2NOperator` (two roles of
+  ONE :class:`~orpheus.transport.operators.transfer.TransferOperator`
+  since #426 step 2, differing in the yield alone), and
   :class:`~orpheus.transport.operators.fission.FissionOperator` — each
   of which is the harmonic frame's :math:`\ell`-conjugation of the
   corresponding energy binding and *retains it as its middle factor*
-  (:ref:`sn-fission-binding-adjoint`).  One package owns the reaction
+  (:ref:`sn-fission-binding-adjoint`).  ⚠ The :math:`\ell` range
+  differs by channel and by *reason*: the two transfer gains conjugate
+  at the solve's ``scattering_order``, fission at :math:`\ell = 0`
+  because a fission spectrum IS isotropic.  Until 2026-09-04
+  :math:`N_{2n}` conjugated at :math:`\ell = 0` too, and that was a
+  model rather than a physical fact (ERR-082).  One package owns the reaction
   mathematics; each method takes the face matched to its angular
   representation, and the two faces of a channel cannot drift because
   one is built from the other.

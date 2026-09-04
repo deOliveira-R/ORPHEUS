@@ -11,7 +11,7 @@ Protocol they satisfy.
 here, not from the submodule that happens to define one
 (``from orpheus.transport.operators import ScatteringOperator``). The split
 across ``transfer`` / ``scattering`` / ``n2n`` / ``fission`` /
-``isotropic_scattering`` / ``multiplication_operator`` is file organisation,
+``isotropic_transfer`` / ``multiplication_operator`` is file organisation,
 not API: which file a member lives in has moved before (#261 relocated the
 whole family out of ``orpheus.sn``; #426 step 2 moved the transfer bindings'
 shared body into ``transfer``) and may move again, whereas the algebra's
@@ -31,7 +31,7 @@ are a distinct abstraction (flux→scalar) and deliberately stay at the
 
 from .fission import FissionOperator
 from .integral_kernel_operator import IntegralKernelOperator
-from .isotropic_scattering import (
+from .isotropic_transfer import (
     IsotropicFission,
     IsotropicN2N,
     IsotropicScattering,

@@ -46,7 +46,7 @@ from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicFission,
     IsotropicN2N,
     IsotropicScattering,
@@ -162,8 +162,8 @@ def _assemble_loss_operator(
     (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
     minus the isotropic energy transfer :math:`K_\mathrm{iso} = \Sigma_{s0}^T
     + 2\Sigma_2^T`
-    (:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
-    + :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`).
+    (:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
+    + :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`).
     Streaming :math:`L` is identically zero in an infinite medium and dropped.
 
     Returned UN-materialized (an

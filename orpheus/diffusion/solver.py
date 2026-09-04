@@ -73,8 +73,8 @@ contributes nothing to the bulk block, and the trace rows of
 solver (:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`):
 ``S`` is the full K_iso pair
 :math:`\Sigma_{s0}^T + 2\Sigma_2^T`
-(:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
-+ :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`),
+(:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
++ :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`),
 and the production ``F`` (and :meth:`compute_production_rate`, the
 ERR-052 renormalization anchor) is :math:`\nu\Sigma_f` ONLY. (SN poses
 (n,2n) production-side instead — both are consistent posings of the
@@ -158,7 +158,7 @@ from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.mesh.material_mesh import MaterialMesh
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicFission,
     IsotropicN2N,
     IsotropicScattering,

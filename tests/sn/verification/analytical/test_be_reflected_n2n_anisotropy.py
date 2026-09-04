@@ -106,7 +106,7 @@ from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
-pytestmark = pytest.mark.l2
+pytestmark = [pytest.mark.l2, pytest.mark.catches("ERR-082")]
 
 # ── the §0 fixture, verbatim ──────────────────────────────────────────
 _N_U_METAL = 0.04894  # /b·cm, 19.1 g/cc

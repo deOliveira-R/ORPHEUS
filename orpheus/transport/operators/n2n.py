@@ -29,7 +29,7 @@ interned frame as :math:`S` — the :math:`(n,2n)` stack is brought to the
 scattering stack's order (a shorter stack is exactly zero above its own
 ``NL``, the evaluation's statement; ruling O-1/§4.3). The :math:`\ell = 0`
 half rides the reaction-rate fast path through the P0 energy binding
-:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
 (:attr:`~orpheus.transport.operators.transfer.TransferOperator.isotropic_energy`
 — the K_iso leaf the ray seed's emission sums with :math:`S`'s, ℓ = 0 by
 physics); the :math:`\ell \ge 1` half is the frame-conjugated
@@ -63,7 +63,7 @@ trace), per-ordinate
 (whose :math:`\ell=0` moment IS the scalar flux), and the P0-only
 :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` arm in iso
 scalar magnitude. A scalar consumer that wants the ENERGY binding alone
-builds :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+builds :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
 directly.
 """
 
@@ -73,7 +73,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar
 
 from orpheus.transport.material_field import TransferMaterialField
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicN2N,
     IsotropicTransfer,
 )
@@ -101,7 +101,7 @@ class N2NOperator(TransferOperator):
     is the core's too, and the tier-2 equivalence family pins the two
     spellings equal. Its P0
     energy binding (:attr:`isotropic_energy`) is
-    :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+    :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
     — the leaf the solver's K_iso and k-balance read.
     """
 

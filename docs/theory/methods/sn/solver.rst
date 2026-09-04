@@ -30,7 +30,7 @@ therefore survive a rebind untouched:
   legacy ``_add_n2n_source`` delegator) routes through its energy
   binding's field.
 * :attr:`SNSolver.fission_op` —
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
   carrying the rank-1-in-energy fission emission (Wave D Issue 13).
   It held the ANGULAR binding
   :class:`~orpheus.transport.operators.fission.FissionOperator` on the

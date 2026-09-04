@@ -236,7 +236,7 @@ class TestKernelTranspose:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestN2NMomentOperator:
+class TestN2NMomentTransfer:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
         n2n = LegendreMomentTransfer.on_basis(
             TransferMaterialField.n2n(solver_p1_het.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
@@ -245,12 +245,15 @@ class TestN2NMomentOperator:
         require(not n2n.is_invertible, "N2N must NOT be invertible.")
 
     def test_acts_only_on_ell0(self, solver_p1_het):
-        r"""ORPHEUS's (n,2n) kernel is ℓ=0-only — it touches ONLY that block.
+        r"""This FIXTURE's (n,2n) stack is P0-only, so Λ₂ₙ touches only that block.
 
-        ⚠ The single-ℓ shape is the data layer's P0 TRUNCATION of the evaluated
-        angular data (the GENDF files ship NL=7 for MT=16), not a property of
-        the reaction — #426.  The assertion below is the correct contract for
-        the operator ORPHEUS ships and stays until the moments are restored.
+        ⚠ Not a property of the channel: since #426 step 2 (2026-09-04) the
+        (n,2n) binding reads the tape's whole stack at the solve's order
+        (ERR-082). What this row pins is that a P0-only stack produces exactly
+        zero above ℓ = 0 — the padding rule (O-1), not a truncation. Until
+        2026-09-04 this docstring called the single block the data layer's
+        P0 truncation; it stopped being the data layer's at step 1 and
+        stopped being a truncation at step 2.
         """
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
@@ -355,7 +358,7 @@ class TestFullScatterKernel:
     def test_S_apply_transpose_is_kernel_transpose_over_W(self, solver_p1_het):
         r"""WIRING (R4 near-tautology — the cheap catch for a missing ``1/W`` or a
         ``.apply``-not-``.apply_transpose`` typo):
-        ``S.apply_transpose(χ) == (1/W)·full_scatter_kernel.apply_transpose(χ)``.
+        ``S.apply_transpose(χ) == (1/W)·full_transfer_kernel.apply_transpose(χ)``.
         """
         op = solver_p1_het.scattering_op
         nx, ny = solver_p1_het.mat_xs.spatial_shape
@@ -371,7 +374,7 @@ class TestFullScatterKernel:
     def test_S_euclidean_reciprocity(self, solver_p1_het):
         r"""**[LOAD-BEARING]** ``⟨S ψ, χ⟩ = ⟨ψ, Sᵀ χ⟩`` — the production FORWARD
         (scalar fast-path: ``isotropic_kernel`` + ``build_aniso_source``) vs the
-        production ADJOINT (frame form: ``full_scatter_kernelᵀ``).
+        production ADJOINT (frame form: ``full_transfer_kernelᵀ``).
 
         Two structurally-DIFFERENT representations of the same operator (spec R4),
         so reciprocity genuinely cross-checks the transpose against an INDEPENDENT

@@ -112,32 +112,52 @@ sweep — is a consequence of that one choice.
      adjoint side — and left because its bundling (with :math:`S` for
      anisotropy, with :math:`F` for production accounting) is
      **context-dependent and must not be decided at the operator
-     level**.  Its transpose is the isotropic lift run backwards,
-     :math:`(N_{2n}^{\mathsf T}\chi)_m = \tfrac{w_m}{W}\,
-     K^{\mathsf T}\sum_n\chi_n` (:eq:`sn-n2n-adjoint-source`) — note
-     the :math:`w_m`, which an equal-weight fixture is structurally
-     blind to.
-   * ⚠ **"Isotropic" here is a MODEL, not the reaction — and since
-     2026-09-03 it is an OPERATOR-layer model, not a data-layer loss.**
-     The :math:`(n,2n)` lift and its transpose are
-     single-:math:`\ell` because
-     :meth:`~orpheus.transport.kernels.N2NKernel.from_mixture` reads
-     ``Sig2[0]`` alone and
-     :class:`~orpheus.transport.operators.n2n.N2NOperator` mints its
-     frame at order 0; the **data layer no longer truncates** (#426
-     step 1 — ``Mixture.Sig2`` is a list over :math:`\ell`, the way
-     ``SigS`` always was).  The shipped GENDF files store seven
-     Legendre moments for MT=16, the same order as elastic, and on
-     Be-9 the unused :math:`\ell\ge1` part is a median 45 % of the
-     :math:`P_1` emission source.  ``[M]`` restoring it moves
-     :math:`k` by :math:`-414` to :math:`-529` in
-     :math:`\Delta k\cdot10^{5}` on a Be-reflected fast slab
-     (:math:`-346` to :math:`-228` in :math:`\Delta\rho\cdot10^{5}` —
+     level**.
+   * ⭐ **Both collision gains are one binding at one order since #426
+     step 2 (2026-09-04), so the** :math:`(n,2n)` **transpose is a
+     product reversal, not a special case.**  :math:`S` and
+     :math:`N_{2n}` are the two roles of
+     :class:`~orpheus.transport.operators.transfer.TransferOperator`,
+     differing in the **yield** :math:`y` carried inside :math:`\Lambda`
+     and in nothing else:
+
+     .. math::
+
+        T_c \;=\; \tfrac1W\,R\,\Lambda_c\,M ,
+        \qquad
+        \Lambda_c \;=\; y_c \sum_{\ell=0}^{L}
+                        \mathbf{P}_\ell \otimes \Sigma_{c,\ell} ,
+        \qquad
+        y_S = 1,\; y_{2n} = 2 ,
+
+     so :math:`N_{2n}^{\mathsf T} = \tfrac1W\,M^{\mathsf T}
+     \Lambda_{2n}^{\mathsf T} R^{\mathsf T}` by the SAME factor
+     reversal as :math:`S`'s (:eq:`sn-n2n-adjoint-source`), over
+     :math:`L{+}1` blocks rather than one.  The :math:`\ell = 0`
+     half is still the isotropic lift run backwards —
+     :math:`\tfrac{w_m}{W}\,K^{\mathsf T}\sum_n\chi_n`
+     (:eq:`sn-n2n-isotropic-lift`) — note the :math:`w_m`, which an
+     equal-weight fixture is structurally blind to.
+   * ⛔ **Until 2026-09-04 the** :math:`(n,2n)` **lift and its transpose
+     were single-**:math:`\ell`\ **, and that was a MODEL imposed at the
+     operator tier — a defect, catalogued as ERR-082**
+     (:ref:`the L0 error catalogue
+     <theory-verification-error-catalog>`).  The kernel held
+     ``Sig2[0]`` alone and the
+     binding minted its frame at order 0, while the shipped GENDF files
+     store seven Legendre moments for MT=16 — the same order as elastic
+     — and (since #426 step 1) ``Mixture.Sig2`` carried all of them.
+     ``[M]`` restoring them moves :math:`k` by :math:`-413.55` in
+     :math:`\Delta k\cdot10^{5}` on the Be-reflected fast slab
+     (:math:`-346.01` in :math:`\Delta\rho\cdot10^{5}`;
      :ref:`the measured block <sn-n2n-p0-truncation-measured>` carries
-     all three conventions and the controls).  Nothing on this page is
-     evidence about the reaction's angular distribution
-     (:ref:`the truncation record <sn-n2n-p0-truncation>`,
-     `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_).
+     all three conventions, three fixtures and the controls).  The
+     shipped library now reads that value with no probe —
+     ``tests/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``.
+     The history, and what is still :math:`P_0` **by physics** and must
+     not be "fixed", are at
+     :ref:`the truncation record <sn-n2n-p0-truncation>`
+     (`#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_).
 
 The continuous adjoint problem and importance
 =============================================
@@ -188,7 +208,7 @@ realise:
 * **The streaming term flips sign**,
   :math:`\hat\Omega\cdot\nabla \to -\hat\Omega\cdot\nabla` (equivalently
   :math:`\mu\to-\mu`): the adjoint particle propagates *against* the
-  physical flow.  This is the **:math:`\mu`-reversal**.
+  physical flow.  This is the :math:`\mu`\ **-reversal**.
 * **The scattering kernel transposes** its energy transfer,
   :math:`\Sigma_{s,\,g'\to g}\to\Sigma_{s,\,g\to g'}`: the adjoint
   particle downscatters where the forward particle upscattered.  With
@@ -478,7 +498,7 @@ alike.
 
 The adjoint of the *continuous* transport operator
 (:eq:`sn-adjoint-continuous`), whose discrete signature is
-**:math:`\mu`-reversal** (reflecting the angular quadrature) plus the
+:math:`\mu`\ **-reversal** (reflecting the angular quadrature) plus the
 continuous kernel transpose.  This is what the discretise-then-adjoint
 route (1) would build.  ORPHEUS does **not** use it in production — it
 survives only as the slab oracle.  The loss-representation warning's
@@ -541,12 +561,12 @@ operator :math:`S` is the counterexample: campaign **#276 P3** (commit
 a harmonic-frame conjugation.
 
 The modernised in-scatter source is ONE frame-conjugated operator
-(:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`):
+(:attr:`~orpheus.transport.operators.transfer.TransferOperator.full_transfer_kernel`):
 
 .. math::
    :label: sn-scattering-adjoint-kernel
 
-   \mathrm{full\_scatter\_kernel}
+   \mathrm{full\_transfer\_kernel}
    \;=\; R \circ \Lambda_{\ell\ge 0} \circ M ,
 
 .. (vv-status rationale) Representational identity: the frame-conjugation
@@ -562,10 +582,23 @@ The modernised in-scatter source is ONE frame-conjugated operator
 where :math:`M` / :math:`R` are the angular frame's analysis /
 reconstruction faces and :math:`\Lambda_{\ell\ge 0}` is the
 per-:math:`\ell` moment-space group transfer
-(:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`),
+(:class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`),
 carrying **both** the :math:`\ell = 0` in-scatter and the
 :math:`\ell\ge1` redistribution so one analysis and one reconstruction
 serve the whole scattering source.
+
+⚠ **Two names in this equation moved on 2026-09-04 (#426 step 2), and a
+memo may still carry either.**  The attribute is now
+:attr:`~orpheus.transport.operators.transfer.TransferOperator.full_transfer_kernel`
+(it was ``full_scatter_kernel``) and the middle factor's class is
+:class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`
+(it was ``LegendreMomentScattering``).  Both renames have the same
+cause and it is not cosmetic: this composite is no longer
+:math:`S`'s — it is the **transfer family's**, built identically for
+:math:`S` and for :math:`N_{2n}`, which differ only in the yield
+:math:`y_c` inside :math:`\Lambda_c` (:eq:`sn-n2n-transfer-binding`).
+Nothing in the equations of this section changed; what changed is how
+many operators they describe.
 
 .. note::
 
@@ -590,7 +623,7 @@ Its transpose is therefore the product transpose
 .. math::
    :label: sn-scattering-adjoint-kernel-transpose
 
-   \mathrm{full\_scatter\_kernel}^{T}
+   \mathrm{full\_transfer\_kernel}^{T}
    \;=\; M^{T} \circ \Lambda^{T} \circ R^{T},
 
 .. (vv-status rationale) Structural / representational identity: the product
@@ -624,25 +657,34 @@ is why the whole product transpose is one expression.
    operator level**.  CS4c step 3 (design record §14.1) reversed it:
    :math:`(n,2n)` is now the first-class
    :class:`~orpheus.transport.operators.n2n.N2NOperator` and carries
-   its own transpose (:ref:`sn-n2n-adjoint`), so
-   :math:`\mathrm{full\_scatter\_kernel}` is scattering *only*.  The
-   moment-space channel object survives — the
-   :math:`\ell = 0` transfer
-   :class:`~orpheus.transport.operators.scattering.N2NMomentOperator`
-   is still built and still tested; what it no longer does is ride
-   inside :math:`S`'s composite.  Its remaining production-facing role
-   is as the *algebra of record* for the fast path: the gate
-   ``tests/sn/operators/test_n2n_operator.py::TestLiftIsTheConjugation::test_apply_equals_l0_conjugation``
-   pins ``N2N.apply(ψ)`` against
-   ``(1/W)·frame.conjugate(N2NMomentOperator).apply(ψ)``, i.e. against
-   the very conjugation these equations used to spell.
+   its own transpose (:ref:`sn-n2n-adjoint`), so the composite became
+   scattering *only*.  The moment-space channel object survived that
+   step — the :math:`\ell = 0` transfer ``N2NMomentOperator`` was still
+   built and still tested; what it no longer did was ride inside
+   :math:`S`'s composite.  Its remaining production-facing role was as
+   the *algebra of record* for the fast path, pinning ``N2N.apply(ψ)``
+   against ``(1/W)·frame.conjugate(N2NMomentOperator).apply(ψ)`` — the
+   very conjugation these equations used to spell.
+
+   ⭐ **And #426 step 2 (2026-09-04) closed the loop the other way.**
+   Not by putting :math:`N_{2n}` back inside :math:`S`'s composite —
+   the CS4c ruling stands, and the two terms remain two objects in two
+   slots — but by making them two INSTANCES of this composite.  Each
+   builds its own :math:`R\,\Lambda_c\,M` over its own channel's
+   stack; ``N2NMomentOperator`` retired into
+   :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`,
+   which is the :math:`\Lambda` of these very equations.  So the object
+   the note above kept as an *oracle for a one-block special case* is
+   now the general factor, and the gate that consumed it exercises
+   :math:`L+1` blocks
+   (``tests/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder::test_apply_equals_the_frame_conjugation_at_the_solve_order``).
 
 The :term:`per-ordinate <ordinate>` adjoint scattering source is then
 
 .. math::
    :label: sn-scattering-adjoint-source
 
-   S^{T}\chi \;=\; \tfrac{1}{W}\,\mathrm{full\_scatter\_kernel}^{T}\,\chi ,
+   S^{T}\chi \;=\; \tfrac{1}{W}\,\mathrm{full\_transfer\_kernel}^{T}\,\chi ,
 
 .. (vv-status rationale) Definitional identity: the per-ordinate adjoint
    scattering source (the producer-side 1/W transposing as the scalar it is).
@@ -679,7 +721,7 @@ Euclidean reciprocity
 ``TestFullScatterKernel::test_S_euclidean_reciprocity``) pins the frame-form
 :math:`S^{T}` against the *independent* scalar fast-path :math:`S`, and the
 forward equivalence
-:math:`(1/W)\,\mathrm{full\_scatter\_kernel}.\mathrm{apply} \equiv
+:math:`(1/W)\,\mathrm{full\_transfer\_kernel}.\mathrm{apply} \equiv
 S.\mathrm{apply}` holds to :math:`\sim 10^{-12}`.
 
 .. note::
@@ -698,9 +740,9 @@ adjoint-weighted homogenisation, perturbation theory, and detector
 sensitivity all need :math:`S^{T}`.  Its companion forward step (campaign
 **#276 P2**, commit ``dcea43a``) routes the SN forward *isotropic* source
 through the same model-shared
-:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
 (:math:`\Sigma_{s0}`) and
-:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
 (:math:`\nu_{2n}\Sigma_{2n}`) operators (0-ULP bit-identical), so the
 :math:`K_\mathrm{iso}` energy operator — which also assembles the
 infinite-medium loss matrix (:ref:`direct-eigensolve-assembly`) — is one
@@ -709,10 +751,17 @@ cross-model source.  These model-shared operators live in
 composed **by the solver**, at the one within-group construction site
 (:func:`~orpheus.sn.coupled_system.build_within_group_system`), as
 :attr:`S.isotropic_energy
-<orpheus.transport.operators.scattering.ScatteringOperator.isotropic_energy>`
-``+`` :attr:`N2N.energy
-<orpheus.transport.operators.n2n.N2NOperator.energy>` rather than being
-read off a bundling accessor on :math:`S` — the subsection below is why.
+<orpheus.transport.operators.transfer.TransferOperator.isotropic_energy>`
+``+`` ``N2N.isotropic_energy`` rather than being read off a bundling
+accessor on :math:`S` — the subsection below is why.  Both halves are
+now spelled the same way, because both are the SAME accessor on the
+shared transfer core (#426 step 2, 2026-09-04); the :math:`(n,2n)` side
+read ``N2N.energy`` until that date, when the channel still had a class
+of its own to hang a differently-named accessor on.  Note what the
+accessor is and is not: it is the :math:`\ell = 0` **energy** binding of
+each gain, which is what the ray seed's emission needs (:math:`\ell = 0`
+by physics, not by truncation), and it is unaffected by the operator's
+Legendre order.
 
 .. _sn-n2n-adjoint:
 
@@ -738,16 +787,25 @@ it generalises past this channel:
    level**, because an operator that hard-codes one grouping makes the
    other unspellable.
 
-The ruling's *"in principle"* was a hedge when it was written and is a
-**measurement** now: the evaluated data ORPHEUS itself ships carries
-seven Legendre moments for this channel, and since 2026-09-03 the data
-layer carries all seven through to ``Mixture.Sig2`` — it is the
-operator tier that still uses one
-(:ref:`the truncation record below <sn-n2n-p0-truncation>`,
-`#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_).  The
-ruling is *strengthened* by that — the anisotropy axis it declined to
-foreclose is real, not hypothetical — and the quote stays verbatim
-because it is the record of what was argued on 2026-08-30.
+The ruling's *"in principle"* was a hedge when it was written, became a
+**measurement** on 2026-09-03, and is **what ships** since 2026-09-04.
+The evaluated data ORPHEUS itself ships carries seven Legendre moments
+for this channel; #426 step 1 carried all seven through to
+``Mixture.Sig2``; #426 step 2 made the binding read them at the solve's
+order.  The ruling is *strengthened* by that — the anisotropy axis it
+declined to foreclose is not merely real, it is the axis that carries a
+few hundred :math:`10^{-5}` of :math:`k` on a Be-reflected fast system
+(:ref:`the measured block <sn-n2n-p0-truncation-measured>`) — and the
+quote stays verbatim because it is the record of what was argued on
+2026-08-30.
+
+⭐ And the ruling's own logic is what made the repair small.  Because
+the bundling was NOT decided at the operator level, restoring the
+anisotropy did not have to unpick a fused source: the two terms were
+already two objects in two slots, so the change is that they became two
+**instances of one binding** rather than two classes with parallel
+arithmetic.  :math:`\Lambda` gained a yield, the frame gained an order,
+and every equation below kept its shape.
 
 So the within-group algebra spells the channel out,
 
@@ -771,9 +829,9 @@ So the within-group algebra spells the channel out,
 and any bundling is a solver-side
 :class:`~orpheus.numerics.operator.OperatorSum` grouping — which is
 exactly what the 1-D diffusion solver does, summing
-:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
 with
-:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
 into the one :math:`S` its :math:`A = L + C - S - B` needs.  The two
 solvers now disagree about the grouping *in the composition*, where a
 disagreement is legible, instead of agreeing inside an operator that had
@@ -783,81 +841,125 @@ chosen for both.
 
 .. warning::
 
-   **ORPHEUS models** :math:`(n,2n)` **emission as isotropic.  The
-   reaction is not.**  Every operator and every equation in this
-   subsection inherits that :math:`P_0` model; none of them is evidence
-   about the reaction's angular distribution.
+   **HISTORY (2026-04 – 2026-09-04): ORPHEUS modelled** :math:`(n,2n)`
+   **emission as isotropic.  The reaction is not.**  Read this whole
+   block in the past tense: since #426 step 2 (2026-09-04) the
+   :math:`(n,2n)` binding reads the tape's Legendre stack at the solve's
+   order, exactly as :math:`S` does, and every equation in this
+   subsection is stated per-:math:`\ell` below.  The block is kept —
+   rather than deleted — for three reasons: the **tape facts** it
+   measures are unchanged and are the evidence that the model was wrong;
+   the ``Sig2[0]`` reads it enumerates as :math:`\ell = 0` **by
+   physics** are still there and must **not** be "fixed"; and a reader
+   may still meet the model in an older checkout or a quoted memo.  The
+   defect is catalogued as ERR-082 (:ref:`the L0 error catalogue
+   <theory-verification-error-catalog>`).
 
-   **Where the truncation lives — as of 2026-09-03, TWO LINES of the
-   transport layer.**  It used to be a data-layer loss, and it is not
-   any more.  #426 step 1 made the ingest lossless in :math:`\ell`:
-   ``Isotope.sig2`` and
-   :attr:`~orpheus.data.macro_xs.mixture.Mixture.Sig2` now carry every
+   **Where the truncation lived, and how it moved TIERS before it
+   died.**  It began as a data-layer loss.  #426 step 1 (2026-09-03)
+   made the ingest lossless in :math:`\ell`: ``Isotope.sig2`` and
+   :attr:`~orpheus.data.macro_xs.mixture.Mixture.Sig2` carry every
    Legendre order the tape stores, exactly as
    :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigS` does
-   (:ref:`the ingest stack note <n2n-legendre-stack-at-ingest>`).  What
-   still truncates, and the whole of what still truncates, is:
+   (:ref:`the ingest stack note <n2n-legendre-stack-at-ingest>`).  That
+   left **three** operator-tier sites, and #426 step 2 closed two of
+   them and re-read the third:
 
-   .. list-table::
+   .. list-table:: The three sites of the operator-tier model, and their fate
       :header-rows: 1
-      :widths: 44 56
+      :widths: 34 40 26
 
-      * - site
-        - what it does
-      * - :meth:`~orpheus.transport.kernels.N2NKernel.from_mixture`
+      * - site (as of 2026-09-03)
+        - what it did
+        - fate at step 2
+      * - ``N2NKernel.from_mixture``
           (``orpheus/transport/kernels.py``)
-        - densifies ``mixture.Sig2[0]`` and stores it as a single
-          ``matrix`` — the kernel has no :math:`\ell` stack, where
-          :class:`~orpheus.transport.kernels.ScatteringKernel` does
-      * - :meth:`~orpheus.transport.operators.n2n.N2NOperator.from_solver_data`
+        - densified ``mixture.Sig2[0]`` and stored it as a single
+          ``matrix`` — the kernel had no :math:`\ell` stack, where
+          ``ScatteringKernel`` did
+        - **retired.**  Both channels are now
+          :class:`~orpheus.transport.kernels.TransferKernel` — one
+          Legendre stack plus a yield; the constructor is
+          :meth:`~orpheus.transport.kernels.TransferKernel.n2n`
+      * - ``N2NOperator.from_solver_data``
           (``orpheus/transport/operators/n2n.py``)
-        - mints the binding frame at
+        - minted the binding frame at
           ``HarmonicFrame.for_space(interior, 0)`` — order 0, where
-          :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
-          passes the solve's ``scattering_order``
+          ``ScatteringOperator`` passed the solve's ``scattering_order``
+        - **retired.**  The tier-2 mint is now the shared core's
+          (:meth:`~orpheus.transport.operators.transfer.TransferOperator.from_solver_data`);
+          it takes ``scattering_order`` and mints the SAME interned
+          frame for both terms, the role supplying only which
+          ``Mixture`` channel to read
       * - ``MaterialXSField._build_dense_caches``
           (``orpheus/transport/mesh/material_xs_field.py``)
-        - caches ``mix.Sig2[0]`` dense for
+        - cached ``mix.Sig2[0]`` dense for
           :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.n2n_matrix`,
           beside a scattering cache that keeps **every** order of
-          ``mix.SigS`` — the asymmetry is the model, and that method's
-          own docstring already dates its removal to step 2
+          ``mix.SigS``
+        - **kept, and it is not a truncation.**
+          :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.n2n_matrix`
+          feeds the removal / fold predicate, which is a reaction rate:
+          :math:`\ell = 0` by physics.  The gain no longer reads it
 
-   ⛔ **This block asserted the opposite until 2026-09-03**, and the
-   sentence is worth preserving because a reader may still meet it in
-   an older checkout or a quoted memo.  It read, verbatim, that the
-   truncation was "taken at ingest and unrecoverable downstream: the
-   GENDF reader parses the whole Legendre stack of the MF=6/MT=16
-   section and then keeps ``sig2_data[(0, 0)]`` alone", so that
-   "``Isotope.sig2`` and ``Mixture.Sig2`` are ONE matrix where
-   ``Mixture.SigS`` is a list over :math:`\ell`".  Both halves were
-   true when written and both are now false: that subscript no longer
-   exists, and the moments are recoverable — any consumer can read
-   ``Mixture.Sig2[1]`` today.  Restoring them **through** the operator
-   is step 2 of `#426
-   <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.
+   ⛔ **This block asserted TWO superseded things, and the sentences are
+   worth preserving because a reader may still meet either.**  (i) Until
+   2026-09-03 it read, verbatim, that the truncation was "taken at
+   ingest and unrecoverable downstream: the GENDF reader parses the
+   whole Legendre stack of the MF=6/MT=16 section and then keeps
+   ``sig2_data[(0, 0)]`` alone", so that "``Isotope.sig2`` and
+   ``Mixture.Sig2`` are ONE matrix where ``Mixture.SigS`` is a list over
+   :math:`\ell`".  Step 1 repealed both halves: that subscript no longer
+   exists and any consumer can read ``Mixture.Sig2[1]``.  (ii) From
+   2026-09-03 to 2026-09-04 it read that the model lived at "TWO LINES
+   of the transport layer" and that restoring the moments **through**
+   the operator was "step 2 of #426".  Step 2 landed on 2026-09-04
+   (``1a3b78ec``); the two lines are gone.
 
-   ⚠ **The other** ``Sig2[0]`` **reads are NOT this truncation and must
-   not be "fixed" with it.**  ``[M]`` 2026-09-03 by AST over
-   ``orpheus/`` (subscript-``0`` reads of a ``Sig2``/``sig2``
-   attribute or name, docstrings excluded): **9** sites.  Two are model
-   sites from the table above — the kernel and the dense cache; the
-   third model site, the frame's order, is not a ``Sig2[0]`` read at all
-   and this census structurally cannot see it.  The remaining **7** are
-   :math:`\ell = 0` *by physics* —
+   ⚠ **Every surviving** ``Sig2[0]`` **read is** :math:`\ell = 0` **BY
+   PHYSICS and must not be "fixed" with the gain.**  This is the block
+   that stays LIVE.  ``[M]`` 2026-09-04, re-censused on the post-carve
+   tree by AST over ``orpheus/`` (subscript-``0`` reads of a
+   ``Sig2``/``sig2`` attribute or name; docstrings and comments are not
+   AST nodes and so cannot be counted): **7 sites, and all 7 are
+   correct** —
 
-   * ``mixture.py`` (:attr:`~orpheus.data.macro_xs.mixture.Mixture.n2n_out_xs`
-     and ``compute_macro_xs``'s :eq:`sigT-computed`) and ``gendf.py``'s
-     ``sigT`` accumulation, ×3: a **reaction rate** is the :math:`P_0`
-     row sum, and a higher Legendre moment integrates to zero over
-     angle, so it contributes exactly nothing there;
-   * ``cp/solver.py``, ``moc/core.py``, ``mc/solver.py``, ×3: those
-     families' emission sources are isotropic **by construction** —
-     a property of the *method*, not of this channel.  Each already
-     carries an inline comment saying so.
-   * ``gendf.py``'s ``if sig2[0].nnz > 0`` guard, ×1: a presence test.
+   * a **reaction rate** is the :math:`P_0` row sum, and every higher
+     Legendre moment integrates to zero over angle, so it contributes
+     exactly nothing: ``mixture.py:169``
+     (:attr:`~orpheus.data.macro_xs.mixture.Mixture.n2n_out_xs`),
+     ``mixture.py:703`` (``compute_macro_xs``'s
+     :eq:`sigT-computed`) and ``gendf.py:472`` (the isotope-level
+     :math:`\Sigma_{\rm t}` accumulation) — ×3;
+   * those families' emission sources are isotropic **by
+     construction** — a property of the *method*, not of this channel,
+     and each site carries an inline comment saying so:
+     ``cp/solver.py:514``, ``moc/core.py:96``, ``mc/solver.py:378`` —
+     ×3;
+   * ``material_xs_field.py:682``, the dense cache behind
+     :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.n2n_matrix`
+     — ×1.  ⭐ **This one changed COLUMN without changing line.**  It was
+     the third model site while the gain read it; since #426 step 2 the
+     gain reads a
+     :class:`~orpheus.transport.kernels.TransferKernel` instead, and the
+     only consumers left are the removal term and the :math:`\sigma_r`
+     fold predicate — both reaction rates.  The same expression is now
+     right for a different reason.
 
-   Reading the :math:`P_0` block is the *right* thing at all seven.
+   ⛔ **Two corrections to the census this block carried until
+   2026-09-04**, both found by re-running it rather than by reading it.
+   (i) It reported **9** sites — 2 model + 7 physics — and named the
+   third model site (the frame's order) as one the predicate
+   *structurally cannot see*, which was true and remains the right
+   caution: a census keyed on a subscript cannot return a site that
+   passes an ORDER.  (ii) It listed, among the seven, a
+   ``gendf.py`` guard spelled ``if sig2[0].nnz > 0``.  ``[M]`` **no such
+   guard exists**, at HEAD or at either parent of the two #426 steps —
+   ``grep -rn nnz orpheus/`` returns only a docstring, a ``repr`` and
+   the HDF5 schema.  The seventh physics site was, and is, the dense
+   cache above.  The bullet's *count* was right and one of its
+   *members* was not, which is what a re-run separates and a re-read
+   does not.
 
    **What is truncated is not small.**  Measured over the 13
    NJOY-GROUPR GENDF files ORPHEUS ships
@@ -878,7 +980,18 @@ chosen for both.
    complete fast emission source and the share is exact rather than a
    subset: :math:`(n,2n)` supplies a **median 62 %** of the
    :math:`P_0` emission source and a **median 45 %** of the
-   :math:`P_1` source — and it is the second that ORPHEUS drops.
+   :math:`P_1` source — and it was the second that ORPHEUS dropped.
+   ``[M]`` re-measured 2026-09-04 on the post-carve tree with
+   ``load_isotope("BE009", 294)``: the numbers above are unchanged
+   (``NL = 7``; ``nnz`` **8195 at every one of the seven** orders;
+   :math:`\lVert P_1\rVert_\infty/\lVert P_0\rVert_\infty =
+   0.68969`; :math:`\bar\mu = +0.27825` over 50 live incident groups;
+   rank 50, best rank-1 relative error 0.5818).  They are properties of
+   the TAPE and no ORPHEUS change can move them, which is exactly why
+   they are the evidence that the model was wrong.  ⚠ The equal-``nnz``
+   reading is an **isotope** property, not an ingest property: on U-235
+   the same census reads ``6067 / 6067 / 5834 / 5334 / 3165 / 2773 /
+   1887``, i.e. genuine exact zeros the evaluation carries.
 
    **It is not fission-like either, and that is the reason** :math:`F`
    **and** :math:`N_{2n}` **must not be collapsed.**  There is no
@@ -888,8 +1001,17 @@ chosen for both.
    :math:`\chi \otimes \nu\Sigma_f` faithful — while MT=16 carries none,
    and Be-9's :math:`\ell = 0` matrix has numerical rank **50** (every
    live incident group) with a best rank-1 relative error of **58 %**.
-   The two operators' present code similarity is a coincidence of THIS
-   truncation, not of the physics.
+   ⛔ The last sentence of this paragraph read, until 2026-09-04, *"the
+   two operators' present code similarity is a coincidence of THIS
+   truncation, not of the physics"* — and the prediction was exactly
+   right, in a way the sentence could not have anticipated: #426 step 2
+   dissolved the similarity, but **not** by collapsing :math:`N_{2n}`
+   into :math:`F`.  It collapsed :math:`N_{2n}` into :math:`S`, where
+   the shared structure is real — one non-separable Legendre transfer
+   stack with a yield — and left :math:`F` a type of its own, because a
+   rank-1 dyad under a :math:`1/k` morphism is a different object.  The
+   split the tape argues for is :math:`\{S, N_{2n}\} \mid \{F\}`, and
+   that is what ships.
 
    *Instrument control.*  Elastic :math:`\sigma_1/\sigma_0` at low
    energy reproduces the analytic s-wave :math:`\bar\mu = 2/(3A) =
@@ -901,25 +1023,26 @@ chosen for both.
    ⚠ **The 62 % / 45 % figures are cross-section shares, not an error
    in any flux or eigenvalue.**  That distinction was, until
    2026-09-03, the whole honest scope of this warning — no transport
-   solve had been run.  One has now; it is the next block, and it is a
+   solve had been run.  One was; it is the next block, and it is a
    different and stronger kind of claim.  The full data-layer taxonomy
-   and the restoration path are at `#426
-   <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.
+   is at `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.
 
 .. _sn-n2n-p0-truncation-measured:
 
 .. important::
 
-   **What the** :math:`P_0` **model is worth, measured in** :math:`k`.
-   ``[M]`` 2026-09-03 on ``main`` ``1e02f6b1``.  The
-   :math:`\ell = 1\ldots6` MT=16 moments are read off the tape with the
-   production parser, yield-stripped with the same per-row diagonal
+   **What the** :math:`P_0` **model was worth, measured in** :math:`k`.
+   ``[M]`` 2026-09-03 on ``main`` ``1e02f6b1`` — the PRE-carve tree.
+   The :math:`\ell = 1\ldots6` MT=16 moments are read off the tape with
+   the production parser, yield-stripped with the same per-row diagonal
    production applies at :math:`\ell = 0`, and injected as **scattering**
    moments with multiplicity 2 —
    :math:`\Sigma_{s,\ell} \mathrel{+}= 2\,\Sigma_{2n,\ell}` for
-   :math:`\ell \ge 1` only, so the :math:`\ell = 0` channel stays on
-   :math:`N_{2n}` and nothing is double-counted.  This is a *probe* of
-   what step 2 will change, not the shipped path.
+   :math:`\ell \ge 1` only, so the :math:`\ell = 0` channel stayed on
+   :math:`N_{2n}` and nothing was double-counted.  This was a *probe* of
+   what step 2 would change; the shipped path reproduces its first row
+   with no probe at all — :ref:`the shipped ladder
+   <sn-n2n-anisotropy-shipped-ladder>` below.
 
    .. list-table::
       :header-rows: 1
@@ -1008,26 +1131,209 @@ chosen for both.
    problem class.  A beryllium reflector is close to the worst case in
    this library.
 
-**The forward action, and why it has no moment tensor.**  ORPHEUS
-**models** :math:`(n,2n)` emission as isotropic — see
-:ref:`the truncation record above <sn-n2n-p0-truncation>` — so the
-kernel it carries is a single :math:`\ell = 0` transfer matrix
-:math:`K = \nu_{2n}\,\Sigma_{2n}^{\mathsf T}` per cell.  That is still
-exactly true **of the kernel**, and it stopped being true of the data
-behind it on 2026-09-03: the mixture the kernel is built from now
-carries the tape's whole stack, and
-:meth:`~orpheus.transport.kernels.N2NKernel.from_mixture` selects
-``Sig2[0]`` from it.  The single :math:`\ell` is therefore a *choice
-the kernel makes*, no longer the only thing on offer — which is what
-step 2 changes.  Very little below has to be re-derived when it does,
-and the reason is structural rather than lucky: the transpose here is
-not hand-written arithmetic but the **factor reversal of a frame
-conjugation**, and a product reversal does not care how many
-:math:`\ell`-blocks the middle factor has.  What is written below as a
-one-block conjugation becomes the :math:`L`-block one that
-:math:`S` already uses (:eq:`sn-scattering-adjoint-kernel-transpose`),
-with the same derivation.  Under the current model the composite
-action is the **isotropic lift** of an energy operator,
+.. _sn-n2n-anisotropy-shipped-ladder:
+
+.. important::
+
+   **The shipped ladder — what the LIBRARY now returns, with no probe.**
+   ``[M]`` 2026-09-04 on ``1a3b78ec``, ONE fixture (the §0 fast/thin
+   row above: Be 3 cm | U-235 metal 4 cm | Be 3 cm, 12/16/12 cells,
+   ``gauss_legendre(8)``, 421 groups, ``keff_tol = 1e-9``,
+   ``flux_tol = 1e-8``, ``inner_tol = 1e-10``, every arm
+   ``fully_converged``).  The arms differ ONLY in how many
+   :math:`(n,2n)` Legendre orders the mixture carries; the **elastic**
+   stacks are at :math:`P_2` in every arm, which is what makes the
+   ladder the :math:`(n,2n)` anisotropy alone.
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 26 30 15 15 14
+
+      * - arm
+        - :math:`k`
+        - :math:`\Delta k\cdot10^{5}`
+        - :math:`\frac{\Delta k}{k_0}\cdot10^{5}`
+        - :math:`\Delta\rho\cdot10^{5}`
+      * - :math:`(n,2n)` at :math:`P_0` (the retired model)
+        - ``1.0953221881419453``
+        - —
+        - —
+        - —
+      * - :math:`(n,2n)` at :math:`\ell \le 1`
+        - ``1.0911866898558749``
+        - **−413.55**
+        - **−377.56**
+        - **−346.01**
+      * - :math:`(n,2n)` at :math:`\ell \le 2`
+        - ``1.0911996566537725``
+        - **−412.25**
+        - **−376.38**
+        - **−344.92**
+      * - :math:`(n,2n)` at :math:`\ell \le 6`
+        - ``1.0911996566537725``
+        - **−412.25**
+        - **−376.38**
+        - **−344.92**
+      * - :math:`L = 0` solve (isotropic control)
+        - ``1.1587120371368607``
+        - **0.00**
+        - **0.00**
+        - **0.00**
+
+   Three readings, and the third is the one that is easiest to
+   mis-state:
+
+   1. **The** :math:`P_0` **row is bit-identical to the pre-carve
+      record**, digit for digit
+      (``1.0953221881419453``), as is the :math:`L = 0` solve
+      (``1.1587120371368607``).  The carve moved the :math:`(n,2n)`
+      answer and nothing else.
+   2. **The ladder has converged by** :math:`\ell = 1`: :math:`\ell\le2`
+      differs from :math:`\ell\le1` by :math:`1.30\cdot10^{-5}` in
+      :math:`\Delta k`, which is the dipole carrying essentially all of
+      a forward-peaked emission's effect.
+   3. ⚠ **The** :math:`\ell\le6` **row equals** :math:`\ell\le2` **to
+      the BIT, and that is not convergence** — it is the solve's own
+      order.  Every arm runs at ``scattering_order = 2``, so
+      :math:`\Lambda` has three blocks and a :math:`\ell \ge 3` moment
+      is never read.  A reader who quotes the :math:`\ell\le6` row as
+      *"and higher orders add nothing"* has quoted the truncation, not
+      the physics.  (What the :math:`\ell\le1 \to \ell\le2` step
+      shows is real, because :math:`\ell = 2` IS inside the solve's
+      order.)
+
+   ⭐ **The number is a RECORD, and it is pinned as one.**  There is no
+   structurally-independent eigenvalue reference for a 421-group
+   heterogeneous reflected slab — the only physics-sourced claim in the
+   gate is the **sign**: :math:`\bar\mu` of Be-9's MT=16 is positive on
+   50 of 50 live groups, so the emitted pair continues outward, less
+   returns to the fuel, and :math:`k` must FALL.  The gate is
+   ``tests/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``
+   (``@pytest.mark.l2``, deliberately **not** ``slow`` — 25 s inside a
+   ≥90-minute gate), and it is the catcher for ERR-082.
+
+   ⛔ **What this ladder is blind to, stated so nobody over-reads it.**
+   Every arm holds the solve at ``scattering_order = 2``, and #426
+   step 1 made the ingest carry the elastic :math:`P_3\ldots P_6` the
+   tape stores.  ``[M]`` 2026-09-04, this page's own re-measurement on
+   the post-carve tree (same fixture, same tolerances, all seven arms
+   ``converged``), :math:`k` against the :math:`L = 2` row:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 10 34 28 28
+
+      * - :math:`L`
+        - :math:`k`
+        - :math:`\Delta k\cdot10^{5}`
+        - :math:`\frac{\Delta k}{k_2}\cdot10^{5}`
+      * - 0
+        - ``1.1587120371368607``
+        - +6751.24
+        - +6186.99
+      * - 1
+        - ``1.0771093258323200``
+        - −1409.03
+        - −1291.27
+      * - 2
+        - ``1.0911996566537725``
+        - —
+        - —
+      * - 3
+        - ``1.0888490194116345``
+        - −235.06
+        - −215.42
+      * - 4
+        - ``1.0895262273204490``
+        - −167.34
+        - −153.36
+      * - 5
+        - ``1.0894040682370552``
+        - −179.56
+        - −164.55
+      * - 6
+        - ``1.0894248749300022``
+        - −177.48
+        - −162.65
+
+   So the rows above are the :math:`(n,2n)` anisotropy **at**
+   :math:`P_2`, never "the converged anisotropy answer": the elastic
+   :math:`\ell \ge 3` moments are worth more than the :math:`(n,2n)`
+   :math:`\ell \ge 1` ones on this fixture, and the two are not
+   separable at a common order.  Whether the solve's order should be
+   raised is a different question, tracked separately; that
+   ``scattering_order`` is the ONLY remaining truncation is what
+   ``tests/sn/solve/test_scattering_order_is_the_only_truncation.py``
+   pins.
+
+   ⚠ **Do not quote step 1's version of this ladder here.**  It read
+   :math:`-229 / -163 / -175 / -173` at :math:`L = 3\ldots6` and was
+   correct **on the pre-step-2 tree**, where the :math:`L = 2` baseline
+   was ``1.0953221881419453`` and the :math:`(n,2n)` moments never
+   entered at any order.  Both legs of that ratio moved on 2026-09-04,
+   so the numbers above are a different measurement of a different
+   tree, not a re-rounding of the same one.
+
+**The forward action, per** :math:`\ell`.  The :math:`(n,2n)` gain is
+the angular binding of its channel's Legendre stack at the solve's
+order — the SAME product :math:`S` has always been, over a middle
+factor that carries the channel's yield:
+
+.. math::
+   :label: sn-n2n-transfer-binding
+
+   N_{2n} \;=\; \tfrac1W\,R\,\Lambda_{2n}\,M ,
+   \qquad
+   \Lambda_{2n} \;=\; \nu_{2n} \sum_{\ell=0}^{L}
+                     \mathbf{P}_\ell \otimes \Sigma_{2n,\ell} ,
+   \qquad \nu_{2n} = 2 ,
+
+.. (vv-status rationale) Structural identity: the (n,2n) gain written on
+   the ONE transfer-binding shape #426 step 2 installed — a
+   composition-site fact about how the binding is built (which stack,
+   which yield, which order), not a solver claim.  Its verifiable
+   content is threefold and all three are ``@pytest.mark.foundation`` in
+   ``tests/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder``:
+   the realized operator reproduces its own conjugated product at the
+   solve's order (``test_apply_equals_the_frame_conjugation_at_the_solve_order``),
+   the ℓ = 1 moment REACHES the action (``test_the_first_moment_reaches_the_action``
+   — the activation leg a P0 twin would leave at exactly 0.0), and the
+   two terms differ by the yield ALONE, bit-exactly
+   (``test_the_two_terms_differ_by_the_yield_alone``: ``N2N.apply(ψ) ==
+   2·S'.apply(ψ)`` over the same stack — exact because scaling by 2 is
+   exact in binary floating point).  The EIGENVALUE consequence is
+   ``@pytest.mark.l2`` in
+   ``tests/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``.
+.. vv-status: sn-n2n-transfer-binding documented
+
+with :math:`\mathbf{P}_\ell` the projector onto the degree-:math:`\ell`
+harmonic block and :math:`\Sigma_{2n,\ell}` the per-material
+group-to-group matrix of that order.  Setting :math:`\nu_{2n} \to 1`
+and :math:`\Sigma_{2n,\ell} \to \Sigma_{s,\ell}` gives :math:`S`
+exactly; there is no third form on this page, and no
+:math:`(n,2n)`-specific arithmetic anywhere below it.
+
+⛔ **Until 2026-09-04 this section read that the kernel was a single**
+:math:`\ell = 0` **transfer matrix** :math:`K = \nu_{2n}
+\Sigma_{2n}^{\mathsf T}` **per cell**, that the single :math:`\ell` was
+"a *choice the kernel makes*", and that restoring the moments was "what
+step 2 changes".  All three were true when written; step 2 landed.  The
+prediction the old text made about itself was also right, and is worth
+keeping because it is the reason this section barely moved: *"very
+little below has to be re-derived, and the reason is structural rather
+than lucky — the transpose here is not hand-written arithmetic but the
+factor reversal of a frame conjugation, and a product reversal does not
+care how many* :math:`\ell`\ *-blocks the middle factor has."*  What
+was written as a one-block conjugation is now the :math:`L`-block one
+:math:`S` already used
+(:eq:`sn-scattering-adjoint-kernel-transpose`), with the same
+derivation and not one new line of algebra.
+
+**The** :math:`\ell = 0` **half is still the isotropic lift, and it is
+still the fast path.**  Write :math:`K = \nu_{2n}\Sigma_{2n,0}^{\mathsf
+T}` for the :math:`\ell = 0` block's per-cell emission matrix.  That
+block's composite action is the **isotropic lift** of an energy
+operator,
 
 .. math::
    :label: sn-n2n-isotropic-lift
@@ -1037,27 +1343,52 @@ action is the **isotropic lift** of an energy operator,
          \underbrace{\sum_{m} w_m\,\psi_{m,g'}}_{\textstyle \phi_{g'}} ,
    \qquad W \;=\; \sum_m w_m ,
 
-.. (vv-status rationale) Definitional identity: the (n,2n) composite
-   action as the isotropic lift of its energy binding (the ℓ=0 frame
-   conjugation realized on the reaction-rate fast path).  Its verifiable
-   content is the identity with the conjugation it realizes,
-   ``N2N.apply(ψ) == (1/W)·frame.conjugate(N2NMomentOperator).apply(ψ)``,
-   pinned by the ``@pytest.mark.foundation`` gate
-   ``tests/sn/operators/test_n2n_operator.py::TestLiftIsTheConjugation::test_apply_equals_l0_conjugation``.
+.. (vv-status rationale) Definitional identity: the ℓ = 0 BLOCK of the
+   (n,2n) composite action, written as the isotropic lift of its energy
+   binding (the ℓ=0 frame conjugation realized on the reaction-rate fast
+   path).  It is the P0 half of :eq:`sn-n2n-transfer-binding`, which is
+   the operator's full statement; this equation is a block of that one
+   and is stated separately because it is the block the FAST PATH
+   evaluates.  Its verifiable content is the identity with the
+   conjugation it realizes at the solve's order,
+   ``N2N.apply(ψ) == (1/W)·frame.conjugate(Λ₂ₙ).apply(ψ)``, pinned by
+   the ``@pytest.mark.foundation`` gate
+   ``tests/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder::test_apply_equals_the_frame_conjugation_at_the_solve_order``.
+   ⚠ Scope, stated so the row is not over-read: that gate's fixture runs
+   at L = 1, so it pins the FULL conjugation, of which this equation is
+   the ℓ = 0 block — it is a necessary condition on this equation and
+   not a gate written for it, and no shipped gate isolates the ℓ = 0
+   block alone.  The block's own arithmetic (the P0 verb, yield applied
+   once) is pinned at the term tier by
+   ``tests/transport/test_material_field.py``.
 .. vv-status: sn-n2n-isotropic-lift documented
 
 which is *literally* the frame's :math:`\ell = 0` conjugation
-:math:`\tfrac{1}{W}\,R\,K\,M` — measured on the shipped faces, the
+:math:`\tfrac{1}{W}\,R_0\,K\,M_0` — measured on the shipped faces, the
 analysis face's :math:`\ell = 0` row **is** the weight vector
 :math:`w_n` (the no-prefactor :math:`Y_0^0 = 1` convention,
 :doc:`/theory/foundations/spherical_harmonics`) and the reconstruction
 face's :math:`\ell = 0` column **is** the all-ones broadcast.  The
-operator evaluates it on the reaction-rate fast path instead (one
-``einsum`` over groups, no :math:`(L+1)\times(2L+1)` moment tensor
-allocated), which is the *algebra eager, performance lazy* ruling:
-the algebra is stated and gated as the conjugation, the evaluation
-takes the cheap route, and the gate above is what keeps the two from
-drifting.
+operator evaluates this block on the reaction-rate fast path (one
+``einsum`` over groups, through the P0 energy binding
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`,
+with no moment tensor allocated) and reconstructs the
+:math:`\ell \ge 1` blocks through the frame, combining the two in the
+one producer-side :math:`(\text{iso}/W) + \text{aniso}` verb.  That is
+the *algebra eager, performance lazy* ruling: the algebra is stated and
+gated as the conjugation of :eq:`sn-n2n-transfer-binding`, the
+:math:`\ell = 0` evaluation takes the cheap route, and the gate above is
+what keeps the two from drifting.
+
+⚠ **Ranking the two equations.**  :eq:`sn-n2n-transfer-binding` is the
+operator's statement; this one states its :math:`\ell = 0` block.  They
+coincide exactly when the binding is isotropic — order 0, an ``NL = 1``
+evaluation, or an absent MT=16 section — which is a **property of the
+datum**, exposed as
+:attr:`~orpheus.transport.operators.transfer.TransferOperator.is_isotropic`
+and used to skip the :math:`R\Lambda M` product rather than to select a
+different formula.  Citing this equation for the operator as a whole was
+correct until 2026-09-04 and is not correct now.
 
 **The transpose falls out of the lift by differentiation** — no new
 derivation, and no per-geometry work.  From :eq:`sn-n2n-isotropic-lift`,
@@ -1073,26 +1404,63 @@ derivation, and no per-geometry work.  From :eq:`sn-n2n-isotropic-lift`,
    \;=\; \frac{w_m}{W}\,\bigl(K^{\mathsf T}\textstyle\sum_n \chi_n\bigr)_{g'} ,
 
 .. (vv-status rationale) Definitional identity: the Euclidean transpose
-   of the isotropic lift, obtained by differentiating
+   of the ℓ = 0 block, obtained by differentiating
    :eq:`sn-n2n-isotropic-lift` (the forward's constant embedding
    transposes to a sum over ordinates; the forward's w-weighted
-   integration transposes to the w-weighted embedding).  Its verifiable
-   content is the per-group Euclidean reciprocity ⟨N₂ₙψ,χ⟩ = ⟨ψ,N₂ₙᵀχ⟩
-   and its group-flip mutation leg, both ``@pytest.mark.foundation`` in
-   ``tests/sn/operators/test_n2n_operator.py::TestLiftIsTheConjugation``.
+   integration transposes to the w-weighted embedding).  The OPERATOR's
+   transpose is the per-ℓ product reversal below, of which this is the
+   ℓ = 0 block.  Its verifiable content is the per-group Euclidean
+   reciprocity ⟨N₂ₙψ,χ⟩ = ⟨ψ,N₂ₙᵀχ⟩ and its group-flip mutation leg,
+   both ``@pytest.mark.foundation`` in
+   ``tests/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder``
+   (``test_euclidean_reciprocity``, ``test_transpose_reds_on_group_flip``)
+   — and since #426 step 2 that reciprocity is measured on an ℓ ≥ 1
+   fixture, so it now pins the per-ℓ chain and not only this block.
 .. vv-status: sn-n2n-adjoint-source documented
 
 i.e. the lift run backwards: the forward **broadcasts** one scalar
 emission onto every ordinate and the transpose **sums** the per-ordinate
 cotangent back; the forward **integrates** :math:`\psi` against
 :math:`w`, the transpose **embeds** with :math:`w`.  Read against the
-frame, this is :math:`\tfrac{1}{W}M^{T}K^{T}R^{T}` — :math:`R^{T}` the
-plain ordinate sum, :math:`M^{T}` the :math:`w`-weighted embedding — the
-same product-transpose shape :eq:`sn-scattering-adjoint-kernel-transpose`
-has, one :math:`\ell`-block wide.  The reciprocity is a real
-cross-check rather than a tautology for the same reason :math:`S`'s is:
-the forward is evaluated on the reaction-rate fast path and the
-transpose on the frame form, two different float programs.
+frame, this is :math:`\tfrac{1}{W}M_0^{T}K^{T}R_0^{T}` — :math:`R_0^{T}`
+the plain ordinate sum, :math:`M_0^{T}` the :math:`w`-weighted embedding.
+
+**And the operator's transpose is the same expression with every
+block in it.**  From :eq:`sn-n2n-transfer-binding`, and by exactly the
+argument :math:`S` uses (:eq:`sn-scattering-adjoint-kernel-transpose`),
+
+.. math::
+   :label: sn-n2n-adjoint-per-ell
+
+   N_{2n}^{\mathsf T} \;=\; \tfrac1W\,M^{\mathsf T}\,
+   \Lambda_{2n}^{\mathsf T}\,R^{\mathsf T} ,
+   \qquad
+   \Lambda_{2n}^{\mathsf T} \;=\; \nu_{2n} \sum_{\ell=0}^{L}
+   \mathbf{P}_\ell \otimes \Sigma_{2n,\ell}^{\mathsf T} ,
+
+.. (vv-status rationale) Structural identity: the (n,2n) Euclidean
+   transpose as the reversal of the product :eq:`sn-n2n-transfer-binding`
+   — a statement about how the transpose is COMPOSED, not a new
+   derivation (Λ is the only group-asymmetric factor, so the whole
+   reversal is one expression).  Its verifiable content is the per-group
+   Euclidean reciprocity on an ℓ ≥ 1 fixture plus the group-flip
+   mutation leg, both ``@pytest.mark.foundation`` in
+   ``tests/sn/operators/test_n2n_operator.py::TestTheBindingAtTheSolveOrder``.
+.. vv-status: sn-n2n-adjoint-per-ell documented
+
+:math:`\Lambda_{2n}` being block-diagonal on the harmonic axis and the
+ONLY group-asymmetric factor, exactly as for :math:`S` — which is why
+the whole product transpose is one expression and no per-:math:`\ell`
+case analysis appears anywhere.  ⛔ The paragraph above ended, until
+2026-09-04, with *"the same product-transpose shape*
+:eq:`sn-scattering-adjoint-kernel-transpose` *has, one* :math:`\ell`
+*-block wide"*.  The shape claim was right and the width was the
+model: it is :math:`L+1` blocks wide now.
+
+The reciprocity is a real cross-check rather than a tautology for the
+same reason :math:`S`'s is: the forward evaluates the :math:`\ell = 0`
+block on the reaction-rate fast path and the transpose rides the frame
+form, two different float programs.
 
 .. note::
 
@@ -1103,17 +1471,28 @@ transpose on the frame form, two different float programs.
    :math:`w`-broadcast followed by a division by :math:`W`.  It now
    retains the :math:`L = 0` **frame** instead and spells the transpose
    as factor reversal of the cached conjugated product
-   :attr:`~orpheus.transport.operators.n2n.N2NOperator.full_n2n_kernel`
-   ``= frame.conjugate(N2NMomentOperator)``, followed by the
-   producer-side :math:`/W` — exactly the shape :math:`S` and
-   :math:`F` use (:ref:`sn-fission-binding-adjoint`).  So the equation
-   above is now the **product chain's** identity rather than this
-   module's transcription, and the last hand-rolled :math:`w`
-   arithmetic on any adjoint path is gone.
+   ``N2NOperator.full_n2n_kernel = frame.conjugate(N2NMomentOperator)``,
+   followed by the producer-side :math:`/W` — exactly the shape
+   :math:`S` and :math:`F` use (:ref:`sn-fission-binding-adjoint`).  So
+   the equation above became the **product chain's** identity rather
+   than this module's transcription, and the last hand-rolled
+   :math:`w` arithmetic on any adjoint path went with it.
    ``N2NOperator.weights`` no longer exists;
-   :attr:`~orpheus.transport.operators.n2n.N2NOperator.total_weight`
+   :attr:`~orpheus.transport.operators.transfer.TransferOperator.total_weight`
    derives :math:`W` from the retained frame's measure, as :math:`S`
    does.
+
+   ⛔ Both names in that sentence are themselves history now.  #426
+   step 2 (2026-09-04) collapsed the two channels onto one binding, so
+   the product is
+   :attr:`~orpheus.transport.operators.transfer.TransferOperator.full_transfer_kernel`
+   ``= frame.conjugate(Λ_c)`` for either channel and
+   ``N2NMomentOperator`` — the :math:`\ell = 0`-only moment factor —
+   retired into
+   :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`.
+   The step-4 *claim* is unaffected and is the reason step 2 was cheap:
+   once the transpose is a product reversal, widening the middle factor
+   costs nothing on this page.
 
    **The re-spelling costs nothing, and that is a theorem of**
    :math:`\ell = 0` **rather than a lucky fixture** — measured, and
@@ -1165,18 +1544,29 @@ transpose on the frame form, two different float programs.
    pinned as well.
 
 **What survives, and what it is for.**  The moment-space channel object
-:class:`~orpheus.transport.operators.scattering.N2NMomentOperator` was
-NOT retired with the extraction, and the distinction matters for a
-future reader who greps it and finds no production caller: it is the
-**algebra of record** for the fast path.  Its ``apply`` is
-:math:`\nu_{2n}\Sigma_{2n}` on the :math:`\ell = 0` moment and its
-``apply_transpose`` the group transpose of that, so
-``frame.conjugate(N2NMomentOperator)`` reconstructs
+survived the CS4c extraction and was retired by #426 step 2 — into its
+sibling, not into nothing, and the distinction is what a future reader
+greping ``N2NMomentOperator`` needs.  It was the **algebra of record**
+for the fast path: its ``apply`` was :math:`\nu_{2n}\Sigma_{2n}` on the
+:math:`\ell = 0` moment and its ``apply_transpose`` the group transpose
+of that, so ``frame.conjugate(N2NMomentOperator)`` reconstructed
 :eq:`sn-n2n-isotropic-lift` as a literal
-:class:`~orpheus.numerics.operator.OperatorProduct` — which is precisely
-the reference the lift is gated against.  Retiring it would retire the
-oracle, not dead weight (the ``coding-standards`` *fuller-view oracle*
+:class:`~orpheus.numerics.operator.OperatorProduct` — precisely the
+reference the lift was gated against.  Retiring it as dead weight would
+have retired the oracle (the ``coding-standards`` *fuller-view oracle*
 exception).
+
+That is not what happened.  The class was a one-block special case of
+:class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`,
+which now carries both channels — so the oracle is **stronger**, not
+gone: ``frame.conjugate(LegendreMomentTransfer(n2n_field, skip_l0=False))``
+reconstructs :eq:`sn-n2n-transfer-binding` at the solve's order, and the
+gate that consumes it
+(``test_apply_equals_the_frame_conjugation_at_the_solve_order``) now
+exercises :math:`L+1` blocks where its predecessor exercised one.  A
+retirement that *widens* the reference it removes is the case
+``coding-standards`` calls the silent **promotion**, and it is recorded
+here because nothing in a green suite would say so.
 
 .. _sn-fission-binding-adjoint:
 
@@ -1280,7 +1670,7 @@ either.
    the daggered-posing bullets needs the distinction.**  Since step 4
    the fission channel is *two bindings of one datum*
    (:ref:`fission-as-dyad`): the **energy** binding
-   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`,
    whose ``apply_transpose`` is exactly the bare dual dyad
    :math:`F^{\mathsf T}\psi^{*} = \nu\Sigma_f\,(\chi\cdot\psi^{*})` on
    the scalar flux, and the **angular** binding
@@ -1415,7 +1805,7 @@ each term daggers independently:
   (:class:`~orpheus.transport.operators.fission.FissionOperator`; the
   bare role swap alone, without the two angular factors, is the
   **energy** binding's transpose —
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`,
   see :ref:`sn-fission-binding-adjoint`).
 
 Because :math:`k^{\dagger} = k` is exact, the entry returns

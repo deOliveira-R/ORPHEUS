@@ -41,6 +41,18 @@ stage + gate.
 never in this list; the evidence is in the lesson.** Branch `fix/n2n-anisotropy`, docs
 UNCOMMITTED (I stage + gate; the main agent commits).
 
+- **#426 step 3 — the corpus pass for a carve that landed WITHOUT one, so the gate was
+  EXIT=0 and not count-unchanged** (2026-09-04, HEAD `1a3b78ec` → `f52877db`; 21 `.rst`,
+  0 `orpheus/`/`tests/` edits). `[M]` baseline **EXIT=1 / 13 WARNINGs**, every one a
+  `.. implements::` `:by:` the carve retired. Landed: `adjoint.rst`'s truncation warning
+  → dated HISTORY with a 3-site `fate at step 2` table + a new `sn-n2n-anisotropy-shipped-ladder`
+  SSOT block; `sn-n2n-isotropic-lift`/`-adjoint-source`/`n2n-source` all KEPT and re-scoped
+  to their ℓ=0 block (the third is a live `verifies()` target — read the test BODY);
+  3 new sentinel labels (matrix 594→**597**, predicted); **ERR-082**; the SN changelog entry.
+  Exits: `-E -W` **0-byte**, `dead_references` 9→**0/65**, own probe **0/1355**, 45 retired-spelling
+  survivors all adjudicated ``literal``-history (0 roles), adjoint+slab HTML **0 backticks**.
+  ⚠ The elegance pass COMMITTED mid-task and falsified 4 sentences I had already built clean
+  → [[lessons-L94]]
 - **#426 step 1 — a P0 truncation that MOVES TIERS (data → operator), not one that dies**
   (2026-09-03; 4 `.rst` + 4 `orpheus/` docstrings. `cross_section_data.rst`: ingest note
   relabelled `n2n-p0-truncation-at-ingest` → `n2n-legendre-stack-at-ingest` with its 3

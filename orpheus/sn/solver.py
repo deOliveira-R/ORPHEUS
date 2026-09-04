@@ -54,7 +54,7 @@ from orpheus.numerics.convergence import (
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.face_layout import face_normal
 from orpheus.sn.operators.loss_kernel_gauge import warn_if_gauge_freedom
-from orpheus.transport.operators.isotropic_scattering import IsotropicFission
+from orpheus.transport.operators.isotropic_transfer import IsotropicFission
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
     WithinGroupSystem,
@@ -1531,7 +1531,7 @@ class SNSolver:
         """Fission source: χ · (νΣ_f · φ) / k.
 
         Thin delegator to the fission ENERGY binding's ``apply``
-        (:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+        (:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
         — CS4c step 4: the scalar dyad bound at the mesh's bulk space).
         The :math:`1/k` division stays at this level — the fission
         operator is a *linear* operator; the binding returns

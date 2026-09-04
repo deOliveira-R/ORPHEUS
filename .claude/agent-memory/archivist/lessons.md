@@ -19,6 +19,55 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 retirement shim, scanner finding, plan line and "MEASURED" block are point-in-time snapshots.
 Verify, then write, then FLAG every scope-expansion the verification forced.
 
+- **⛔⛔ A CORPUS PASS FOR A CARVE THAT LANDED WITHOUT ONE IS A BUILD REPAIR FIRST —
+  measure the baseline before believing the brief's framing.** `[M]` #426 step 3 opened at
+  **EXIT=1, 13 WARNINGs**, all `[nexus.directive]`: a `.. implements::` `:by:` resolves
+  against the GRAPH, so a carve's renames break DECLARATIONS loudly and `:class:` refs
+  silently. "Count unchanged" would have licensed shipping 13 errors ⟹ when the red is the
+  carve's own, the gate becomes **EXIT=0**, stated in §0 of the report. → L-094
+- **⭐⭐ AN INHERITED MEMBER REF IS NOT DEAD — `dead_references` RESCUES it (`[M]` 66 of
+  75), and that decides the sweep's width.** After a body moves onto a shared CORE: a
+  RENAMED/RETIRED member is dead and must re-point; a member that merely MOVED resolves, so
+  re-point only where the SENTENCE claims it is defined there; a `:by:` target must name
+  the DEFINING node (inheritance never rescues a graph edge). `[M]` 33 refs, 20 "moved", 5
+  actually dead — re-pointing all 33 is churn AND loses the chapter's own vocabulary. → L-094
+- **⛔⛔ THE ELEGANCE PASS LANDS INSIDE YOUR TASK AND MOVES THE THING YOU JUST WROTE
+  ABOUT.** `[M]` 25 `orpheus/` files + a commit mid-task: `scattering_order` →
+  `legendre_order` (the ONE real dead role, which did not exist when I started),
+  `from_field` → `on_basis`, and `from_solver_data` moving to the core while `channel`
+  became a **ClassVar, not a classmethod** — so one sentence of mine went true → false →
+  false-again, at EXIT=0 every build. Run `git log --oneline -3` and
+  `git status --porcelain -- orpheus/` **at the END**: a clean `orpheus/` late means the
+  pass COMMITTED, and its message is the diff of your premises. ⭐ The correction was
+  sharper prose ("a role is two class constants and no code"). → L-094, L-089
+- **⭐⭐ RE-RUN a published census: its COUNT can be right and a MEMBER invented.** `[M]` a
+  `9 Sig2[0] sites` census re-ran to **7, all correct** — and one of its seven enumerated
+  members, a `if sig2[0].nnz > 0` guard, **does not exist at HEAD or either parent**. A
+  re-read cannot find that. ⭐ Sibling: a site can change COLUMN without changing LINE (the
+  dense cache went model → reaction-rate), so the repair is a `fate` COLUMN on the old
+  table, never a deletion. → L-094
+- **⭐⭐ A `verifies()` MARKER DECIDES WHICH BODY A LABEL KEEPS — read the TEST BODY.** When
+  generalising a labelled equation the natural move (broaden the old label, mint a new one
+  for the special case) is BACKWARDS if the old label is a marker target: `[M]`
+  `n2n-source`'s claiming test asserts `_add_n2n_source`, a **P0** body. Order: grep
+  `tests/` for the label → read the body → the existing label keeps what its marker
+  asserts → mint the NEW label for the generalisation → state the RANKING in prose. → L-094
+- **⚠ An `.. error-entry::` has NO `id` — `:ref:`ERR-NNN <err-nnn>`` is silent death.**
+  `[M]` the directive emits `container` + `rubric` only; cross-doc dangling `:ref:` renders
+  plain-text unwarned. Cite plain `ERR-NNN` + `:ref:`the L0 error catalogue
+  <theory-verification-error-catalog>``. ⭐ Sibling `-W` DOES catch: a `:ref:` to a label on
+  an `.. important::`/`.. warning::` needs explicit text, cross-doc as well as intra-doc.
+  → L-094, L-092
+- **⭐⭐ A LADDER MEASURED PRE-CARVE IS A DIFFERENT TREE — check BOTH legs of the ratio.**
+  `[M]` step 1's elastic ladder could not be quoted post-step-2: the baseline moved AND the
+  other channel's moments started entering. Re-measured mine (7 arms, 45 s). ⭐ And the row
+  that is NOT evidence: an `ℓ ≤ 6` arm equal to `ℓ ≤ 2` **to the bit** is the SOLVE's order
+  (`Λ` has 3 blocks), not convergence — say so at the table. → L-094
+- **⭐ `**:math:`` with NO separator is the one nesting that breaks** — `[M]` the corpus's
+  `**word** :math:`x`` idiom is fine at ~60 sites; a role opening *immediately* after `**`
+  renders the backslash-eaten role as text on a 0-warning build (4 pre-existing sites, 2
+  pages → **0** backticks). Discriminate MINE-vs-pre by testing each hit line against
+  `git show <carve-hash>:<file>`. → L-094, L-074
 - **⭐⭐ A TRUNCATION THAT MOVES TIERS needs a TIER TABLE, not a tense flip — sort every
   site by TIER, never by tense.** *"ORPHEUS models (n,2n) emission as isotropic"* stayed
   TRUE while *"…because the data layer truncates"* went FALSE, in the same sentence. `[M]`

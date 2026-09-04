@@ -432,7 +432,7 @@ the bare / test constructor).
    **k-outer** no longer holds that operator: it feeds bare
    :math:`(n_g, *\text{spatial})` scalar arrays, so ``SNSolver`` binds
    the fission **energy** binding
-   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
    on the mesh's *scalar bulk* space instead.  That is the binding-arity
    table made honest rather than a weakening: an operator's ends now
    name the space its consumer actually feeds it, and reading "every
@@ -513,7 +513,9 @@ the *forward* composition guard).
    non-adjointable operand blocked the composite. **That mechanism is
    retired.** The #112 fission dyad-swap :math:`F^{\mathsf T}` and the
    #118 / #276 scattering Euclidean transpose :math:`S^{\mathsf T}`
-   (via :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`)
+   (via
+   :attr:`~orpheus.transport.operators.transfer.TransferOperator.full_transfer_kernel`,
+   named ``ScatteringOperator.full_scatter_kernel`` until #426 step 2)
    gave both leaves a working ``apply_transpose``, so
    :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
    and :class:`~orpheus.transport.operators.fission.FissionOperator` now

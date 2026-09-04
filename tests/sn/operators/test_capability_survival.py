@@ -49,7 +49,7 @@ from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.operators.fission import FissionOperator
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicFission,
     IsotropicN2N,
     IsotropicScattering,

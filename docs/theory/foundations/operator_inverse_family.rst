@@ -1209,7 +1209,7 @@ Verification
 asserted at **machine·cond** grain against a **closed-form** dense reference
 (hand-built ``Diagonal`` / ``Permutation`` matrices; the
 structurally-independent
-:meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering.dense_per_material`
+:meth:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering.dense_per_material`
 *storage* transpose for the energy leaves), never at a driver tolerance. It
 shares Green's honest framing in one respect: it is not an eigenvalue solver
 and is not source-driven, so **no gate here makes an eigenvalue claim on an

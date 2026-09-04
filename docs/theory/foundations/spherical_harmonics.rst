@@ -200,7 +200,7 @@ depends on :math:`\ell` only:
    zonal scattering kernel (Müller 1966), the same identity as frame.rst
    :eq:`funk-hecke-eigenvalue`. The eigenvalues realised in code are the per-ℓ
    Legendre moments Σ_{s,ℓ}, the diagonal of
-   :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`.
+   :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`.
    A classical transcription, not a solver claim.
 .. vv-status: sh-funk-hecke-eigenvalue documented
 
@@ -208,7 +208,7 @@ and those eigenvalues are exactly the **Legendre moments of the
 differential scattering cross section** —
 :math:`\Sigma_{s,\ell}` — which are the per-:math:`\ell` block of the
 diagonal scattering operator :math:`\Lambda` =
-:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`. The
+:class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`. The
 :math:`m`-independence of the eigenvalue is forced by **Schur's
 lemma**: the scattering operator commutes with every rotation, so on
 each :math:`SO(3)`-irreducible block

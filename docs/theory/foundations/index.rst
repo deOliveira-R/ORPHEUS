@@ -10,7 +10,7 @@ method's chapter carries only *its realization* plus a link back.
 This part exists because the shared content is genuinely shared **in code,
 not by analogy**: :class:`~orpheus.transport.operators.MultiplicationOperator`
 and the fission energy binding
-:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
 are the *same Python classes* instantiated by S\ :sub:`N`, diffusion and the
 infinite-medium solver, and all three draw their scattering from the same
 :mod:`orpheus.transport.operators` package

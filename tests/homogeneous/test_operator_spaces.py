@@ -31,10 +31,10 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.mesh.material_mesh import MaterialMesh
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicFission,
 )
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicN2N,
     IsotropicScattering,
 )

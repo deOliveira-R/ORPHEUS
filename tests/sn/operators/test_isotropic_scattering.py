@@ -24,7 +24,7 @@ import numpy as np
 import pytest
 
 from tests.sn._test_helpers import material_xs_from_raw
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicScattering,
     IsotropicN2N,
 )

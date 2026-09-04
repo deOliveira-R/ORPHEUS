@@ -453,7 +453,9 @@ The six PRs
      - Operator-leaf ``apply`` PUBLIC contracts flipped to principled:
        :meth:`FissionOperator.apply` returns ``(ng, nx, ny)``;
        :meth:`ScatteringOperator.apply` returns ``(N, ng, nx, ny)``;
-       :class:`LegendreMomentScattering` consumes/returns the
+       ``LegendreMomentScattering`` (today
+       :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`)
+       consumes/returns the
        principled moment layout
        ``(L+1, 2L+1, ng, nx, ny)``;
        ``DiamondDifference.update_batch`` (the batched DD kernel of the
@@ -832,12 +834,23 @@ resolvent ``solve``) consumes both, and the
 internal P₀ accumulation in
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` emits the first
 while the P\ :sub:`ℓ≥1` accumulation emits the second.  The
-:math:`(n,2n)` emission is likewise scalar-driven, and since CS4c
-step 3 it is emitted by its own
-:class:`~orpheus.transport.operators.n2n.N2NOperator` rather than
-accumulated inside :math:`S` (:ref:`n2n-reactions`); both isotropic
-producers reach the per-ordinate carrier through the ONE shared
-``(iso / W) + aniso`` combine.
+:math:`(n,2n)` gain has the SAME two halves and has had since #426
+step 2 (2026-09-04): its :math:`P_0` emission is scalar-driven and its
+:math:`P_{\ell\ge1}` emission is per-ordinate, emitted by its own
+:class:`~orpheus.transport.operators.n2n.N2NOperator` — a role of the
+same :class:`~orpheus.transport.operators.transfer.TransferOperator`
+core as :math:`S` (:ref:`n2n-reactions`).  Both gains reach the
+per-ordinate carrier through the ONE shared ``(iso / W) + aniso``
+combine, which is now single-sourced on that core rather than once per
+channel.
+
+⛔ This paragraph read *"both isotropic producers"* until 2026-09-04,
+which was true of the tree and not of the physics: the :math:`(n,2n)`
+producer was isotropic because the operator tier truncated it to
+:math:`P_0`, not because the reaction is (ERR-082;
+:ref:`the truncation record <sn-n2n-p0-truncation>`).  The
+:math:`\ell = 0` half of each gain is still scalar-driven, and that is
+what the shared combine's ``iso`` slot carries.
 
 .. list-table:: Source / RHS field types
    :header-rows: 1
@@ -1082,7 +1095,7 @@ scale through the same algebra.
    * - :math:`F`
      - :class:`~orpheus.transport.operators.fission.FissionOperator`
        (angular binding) /
-       :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+       :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
        (energy binding)
      - Fission :math:`\chi_g \sum_{g'} \nu\Sigma_{f,g'}\,\phi_{g'}`;
        rank-1 in energy, rank-0 in angle.  The energy binding IS that
@@ -1233,7 +1246,7 @@ lives in scattered docstrings.
    * - :class:`IsotropicFission`.\ ``apply`` in/out
        (the fission ENERGY binding)
      - ``(ng, nx, ny)``
-     - :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission.apply`
+     - :meth:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission.apply`
    * - :class:`FissionOperator`.\ ``apply`` in/out
        (the fission ANGULAR binding; a scalar carrier is REFUSED)
      - ``(N, ng, nx, ny)``
@@ -1245,9 +1258,10 @@ lives in scattered docstrings.
        the collision multiplier :math:`C = M[\Sigma_t]`)
      - ``(N, ng, nx, ny)``
      - :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
-   * - ``LegendreMomentScattering`` moment field
+   * - :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`
+       moment field (either channel)
      - ``(<angular head>, ng, nx, ny)`` — see the note below
-     - :mod:`orpheus.transport.operators.scattering`
+     - :mod:`orpheus.transport.operators.transfer`
 
 .. note::
 
@@ -1791,12 +1805,13 @@ the operator-free ``transport_sweep`` entry at step 6, R-6.1.)
 ScatteringOperator typed action
 -------------------------------
 
-:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.add_iso_source`
+:meth:`~orpheus.transport.operators.transfer.TransferOperator.add_iso_source`
 gains return-new semantics under typed input (its former (n,2n) sibling
 ``add_n2n_source`` retired with the CS4c §14.1 extraction — the channel's
 verbs live on
-:class:`~orpheus.transport.material_field.N2NMaterialField`, raw-array
-in-place):
+:class:`~orpheus.transport.material_field.TransferMaterialField`, raw-array
+in-place, and since #426 step 2 they are the SAME verbs for both
+channels, scaled by the yield):
 
 * Raw ``np.ndarray`` in → mutates in place, returns ``None`` (legacy
   contract preserved).
@@ -1805,11 +1820,12 @@ in-place):
   (Pattern 4 — frozen typed inputs stay immutable; the caller spells
   the algebra as ``Q = scattering.add_iso_source(Q, phi)``).
 
-:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.build_aniso_source`
+:meth:`~orpheus.transport.operators.transfer.TransferOperator.build_aniso_source`
 returns :class:`~orpheus.transport.source_sinks.AngularSourceSink` when
 its angular-flux input is
 :class:`~orpheus.transport.fields.angular_flux.AngularFlux`, preserving
-the type chain through the scattering composition.
+the type chain through the transfer composition — for :math:`N_{2n}` as
+much as for :math:`S`, since #426 step 2.
 
 Cross-references
 ----------------

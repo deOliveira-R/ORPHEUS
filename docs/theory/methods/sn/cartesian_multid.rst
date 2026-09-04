@@ -1915,15 +1915,21 @@ the three scattering producers in
    * - Producer
      - Subscript (pre-S3 :math:`\to` S3)
      - What it scatters
-   * - :meth:`~orpheus.transport.material_field.ScatteringMaterialField.add_p0_source`
+   * - :meth:`~orpheus.transport.material_field.TransferMaterialField.add_p0_source`
        (né ``MaterialXSField.apply_p0_in_scatter`` until CS4c step 3's O-6 move)
      - ``"fg,fc->gc"`` :math:`\to` ``"fg,fc...->gc..."``
      - the P0 in-scatter :math:`\Sigma_{s,0}^{\mathsf T}\phi`
-   * - :meth:`~orpheus.transport.material_field.N2NMaterialField.add_emission`
-       (né ``apply_n2n``)
+   * - the SAME
+       :meth:`~orpheus.transport.material_field.TransferMaterialField.add_p0_source`
+       over the :math:`(n,2n)` field (né ``apply_n2n``, then
+       ``N2NMaterialField.add_emission`` until #426 step 2)
      - ``"fg,fc->gc"`` :math:`\to` ``"fg,fc...->gc..."``
-     - the :math:`(n,2n)` source :math:`\nu_{2n}\Sigma_{2n}^{\mathsf T}\phi`
-   * - :meth:`~orpheus.transport.material_field.ScatteringMaterialField.moment_source`
+     - the :math:`(n,2n)` :math:`P_0` source
+       :math:`\nu_{2n}\Sigma_{2n,0}^{\mathsf T}\phi` — the SAME einsum
+       with ``scale = y``; its :math:`\ell \ge 1` half rides the
+       ``moment_source`` row below, which is what made the two verbs
+       one
+   * - :meth:`~orpheus.transport.material_field.TransferMaterialField.moment_source`
        (né ``apply_legendre_scattering_moments``)
      - ``"mfc,fg->mgc"`` :math:`\to` ``"mfc...,fg->mgc..."``
      - the per-:math:`\ell` block-diagonal :math:`\Lambda\phi`. ⚠ Since
@@ -2842,7 +2848,7 @@ where (reading right to left):
   (the SH frame's analysis face ``frame.analysis``);
 * :math:`\Lambda` is the per-:math:`\ell` block-diagonal scattering on
   moment space :math:`\Lambda = \sum_\ell P_\ell \otimes \Sigma_{s,\ell}`
-  (:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`);
+  (:class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`);
 * :math:`R` is the addition-theorem **reconstruction** with the
   :math:`(2\ell+1)` factor
   (the SH frame's reconstruction face ``frame.reconstruction``);

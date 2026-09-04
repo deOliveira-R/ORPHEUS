@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **11314**
+Total tests collected: **11369**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1304, 11.5%
-   L1, 1647, 14.6%
-   L2, 64, 0.6%
+   L1, 1662, 14.6%
+   L2, 69, 0.6%
    L3, 0, 0.0%
-   foundation, 8273, 73.1%
+   foundation, 8308, 73.1%
    unmarked, 26, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 11209
+   explicit, 11264
    class-name, 46
    func-name, 0
    case, 33
@@ -51,8 +51,9 @@ Module × level grid
    acceleration/test_dsa_low_order, 0, 0, 0, 0, 14, 0
    acceleration/test_dsa_rate, 0, 63, 2, 0, 6, 0
    analytical/test_angular_diffusion_limit_consistency, 0, 3, 0, 0, 0, 0
+   analytical/test_be_reflected_n2n_anisotropy, 0, 0, 5, 0, 0, 0
    analytical/test_cp_standoff_curvilinear, 0, 2, 1, 0, 0, 0
-   analytical/test_kinf_homogeneous, 0, 31, 0, 0, 0, 0
+   analytical/test_kinf_homogeneous, 0, 43, 0, 0, 0, 0
    analytical/test_kinf_homogeneous_tolerance, 0, 8, 0, 0, 0, 0
    analytical/test_l1_standoff_slab_cylinder, 0, 10, 0, 0, 0, 0
    analytical/test_mms_declared_inflow, 0, 9, 0, 0, 0, 0
@@ -163,7 +164,7 @@ Module × level grid
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
-   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 31, 0
+   derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 30, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
    derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
@@ -255,6 +256,7 @@ Module × level grid
    diffusion/test_boundary_realizer, 4, 0, 0, 0, 28, 0
    diffusion/test_continuous_reference, 0, 7, 0, 0, 0, 0
    diffusion/test_mms, 0, 2, 0, 0, 0, 0
+   diffusion/test_n2n_witness, 0, 2, 0, 0, 0, 0
    diffusion/test_operators, 17, 0, 0, 0, 22, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    diffusion/test_solver, 0, 0, 3, 0, 15, 0
@@ -298,7 +300,7 @@ Module × level grid
    homogeneous/test_operator_spaces, 0, 0, 0, 0, 19, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
-   mc/test_gaps, 7, 9, 0, 0, 0, 0
+   mc/test_gaps, 7, 10, 0, 0, 0, 0
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
    mesh/test_angular_bulk_space, 0, 0, 0, 0, 24, 0
@@ -430,7 +432,7 @@ Module × level grid
    operators/test_loss_kernel_gauge, 0, 0, 0, 0, 57, 0
    operators/test_loss_nullspace_reflective_box, 0, 0, 0, 0, 12, 0
    operators/test_loss_transpose_solve, 0, 0, 0, 0, 16, 0
-   operators/test_n2n_operator, 0, 0, 0, 0, 10, 0
+   operators/test_n2n_operator, 0, 0, 0, 0, 14, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
@@ -524,7 +526,7 @@ Module × level grid
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 358, 0
+   test_layer_imports, 0, 0, 0, 0, 359, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -536,7 +538,7 @@ Module × level grid
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
    transport/test_kernels, 0, 0, 0, 0, 60, 0
-   transport/test_material_field, 0, 0, 0, 0, 43, 0
+   transport/test_material_field, 0, 0, 0, 0, 46, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_material_mesh_admission, 0, 0, 0, 0, 6, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
@@ -546,6 +548,8 @@ Module × level grid
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_tier2_equivalence_s_family, 0, 0, 0, 0, 8, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
+   transport/test_transfer_kernel, 0, 0, 0, 0, 21, 0
+   transport/test_transfer_roles, 0, 0, 0, 0, 7, 0
 
 Equation coverage
 -----------------
@@ -556,7 +560,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``matrix-eigenvalue``, 227
+   ``matrix-eigenvalue``, 240
    ``mg-balance``, 182
    ``peierls-unified``, 158
    ``one-group-kinf``, 146
@@ -568,10 +572,10 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``alpha-cylindrical``, 95
    ``collision-rate``, 94
    ``multigroup``, 82
+   ``fission-matrix``, 76
+   ``removal-matrix``, 76
    ``mm-weights``, 75
    ``ki3-def``, 64
-   ``fission-matrix``, 63
-   ``removal-matrix``, 63
    ``e3-def``, 61
    ``transport-cartesian``, 60
    ``blelloch-1990-eq-1-5``, 57
@@ -595,6 +599,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``flat-source``, 35
    ``cp-keff-update``, 34
    ``first-flight-kernel``, 34
+   ``keff-mean``, 34
    ``matrix-A-def``, 34
    ``matrix-B-def``, 34
    ``neutron-balance``, 34
@@ -605,20 +610,19 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``rcp-slab-total``, 34
    ``s-integral``, 34
    ``self-double-integral``, 34
+   ``sigma-keff``, 34
    ``surface-to-region``, 34
    ``surface-to-surface``, 34
    ``transport-spherical``, 34
    ``bc-response-factored-adjoint``, 33
    ``dd-slab``, 33
-   ``keff-mean``, 33
    ``peierls-equation``, 33
-   ``sigma-keff``, 33
-   ``free-flight``, 31
+   ``free-flight``, 32
    ``angular-cell-partition``, 30
+   ``chi-sampling``, 29
+   ``decompose``, 29
+   ``scattering-cdf``, 29
    ``transport-cylindrical``, 29
-   ``chi-sampling``, 28
-   ``decompose``, 28
-   ``scattering-cdf``, 28
    ``cp-flat-source-derivation``, 27
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
@@ -645,13 +649,13 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``dd-cartesian-1d``, 19
    ``dd-curvilinear-scalar``, 19
    ``dd-null-counting-law``, 18
+   ``direction-sampling``, 17
    ``energy-condensation-rate-preservation``, 17
-   ``direction-sampling``, 16
+   ``fission-weight``, 17
+   ``keff-cycle``, 17
+   ``roulette-conservation``, 17
+   ``roulette-prob``, 17
    ``discrete-measure-integrate``, 16
-   ``fission-weight``, 16
-   ``keff-cycle``, 16
-   ``roulette-conservation``, 16
-   ``roulette-prob``, 16
    ``transport-cartesian-2d``, 16
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
@@ -914,7 +918,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **594** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **597** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1206,6 +1210,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``morel-montry-folded-arc``
 - ``multiplication-operator-action``
 - ``multiplication-operator-embedding``
+- ``n2n-source-per-ell``
 - ``nm1980-eq16-tau-zero``
 - ``octant-direct-sum-tensor-product``
 - ``octant-sign-predicate``
@@ -1420,8 +1425,10 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-mg-eigenvalue-posing-eq``
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``
+- ``sn-n2n-adjoint-per-ell``
 - ``sn-n2n-adjoint-source``
 - ``sn-n2n-isotropic-lift``
+- ``sn-n2n-transfer-binding``
 - ``sn-one-measure-down``
 - ``sn-p49a-march-forms``
 - ``sn-pole-cell-shell-average``

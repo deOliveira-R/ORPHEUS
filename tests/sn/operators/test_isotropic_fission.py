@@ -37,7 +37,7 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import Mesh2D
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
-from orpheus.transport.operators.isotropic_scattering import IsotropicFission
+from orpheus.transport.operators.isotropic_transfer import IsotropicFission
 
 pytestmark = pytest.mark.foundation
 

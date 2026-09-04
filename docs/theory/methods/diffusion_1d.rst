@@ -308,13 +308,13 @@ algebra, given scalar-composite arms at #290 P4 — *not* re-implemented:
   :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
   over :math:`\Sigma_t`;
 - :math:`S` — the isotropic scattering **K_iso** kernels
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
   and
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
   (the single source of :math:`\Sigma_{s0}^{\mathsf T}\phi` across every
   solver — never a diffusion-local reimplementation);
 - :math:`F` — the shared rank-1 dyad
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`,
   :math:`\chi \otimes \nu\Sigma_f` (the fission **energy** binding; the
   angular binding
   :class:`~orpheus.transport.operators.fission.FissionOperator` is

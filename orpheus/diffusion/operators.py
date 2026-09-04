@@ -13,8 +13,8 @@ boundary=ScalarBoundaryFlux)`` (user ruling 1). Everything else is the
 SHARED algebra: ``C`` is
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
 over :math:`\sigma_t`, ``S`` the K_iso kernels
-(:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
-[+ :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`]),
+(:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
+[+ :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`]),
 ``F`` the shared rank-1
 :class:`~orpheus.transport.operators.fission.FissionOperator` — all of
 which gained their scalar-composite arms at P4. The in-group

@@ -10978,3 +10978,168 @@ written from the pre-edit strings, so a pattern that finds nothing would be indi
 — L-085's leak pattern, authored by the agent who records it. Rewritten to plain quotes +
 `, verbatim,`; the rendered-HTML slice then read **0 backticks / 0 leaked roles** on all six
 new anchors (slices 752–12542 chars, each asserted to contain a known phrase).
+
+---
+
+## L-094 — #426 step 2: a truncation DIES, and the corpus pass is a BUILD repair first
+
+**Task.** #426 step 3, the corpus pass for the landed carve `1a3b78ec`
+("one transfer family — the (n,2n) gain is anisotropic"). Brief: 4 named page groups, a
+retired-spelling sweep, a new ERR entry, and the SN changelog. Scope: `docs/**/*.rst` only
+(a mutation battery was running in-process against `orpheus/`/`tests/`).
+
+### (a) ⛔ The `-E -W` BASELINE WAS ALREADY RED, and every warning was the carve's own
+
+`[M]` EXIT=1, **13 WARNINGs**, all `[nexus.directive]`: `.. implements::` blocks whose
+`:by:` the carve had retired or moved (`ScatteringOperator._assemble_per_ordinate_source`,
+`ScatteringMaterialField.add_p0_source`, `IsotropicScattering.apply`,
+`LegendreMomentScattering`, `N2NMomentOperator`, `ScatteringOperator.{kernel,_apply_impl,
+build_aniso_source}`). AGENT.md says the acceptance gate is *count-unchanged from a freshly
+measured baseline* — and here that rule would have licensed shipping 13 errors.
+
+⟹ **When a carve lands WITHOUT its docs pass, the baseline IS the deliverable's first
+item.** Measure it; if it is red and the red is the carve's, the gate becomes EXIT=0, not
+count-unchanged. State which it is in the report's §0, before any prose.
+
+⭐ And the shape of what breaks: a `.. implements::` `:by:` is the ONE doc surface that
+resolves against the GRAPH rather than by import, so it warns where a `:class:` role sits
+silent. A carve that renames a method breaks the declarations loudly and the cross-refs
+quietly — expect both, and do not read the loud ones as the whole radius.
+
+### (b) ⭐⭐ AN INHERITED MEMBER REF IS NOT DEAD — `dead_references` rescues it, and that
+### decides how wide the mechanical sweep should be
+
+When a body moves onto a new shared CORE and the old class becomes a thin subclass, every
+`:attr:`OldClass.member`` still resolves — by inheritance, in Python AND in nexus (`[M]`
+`rescued: 66` of 75 checked). So the sweep is NOT "re-point every member ref"; it is:
+
+| the ref | fate |
+|---|---|
+| a member that was RENAMED or RETIRED (`full_scatter_kernel`, `.energy`, `scattering_order`) | **DEAD — must re-point** |
+| a member that MOVED to the core and is inherited (`.kernel`, `.apply`, `.frame`) | resolves; re-point only where the SENTENCE claims it is defined there |
+| a `:by:` target | **must name the DEFINING node** — inheritance does not rescue a graph edge |
+
+`[M]` 33 `ScatteringOperator.<member>` / `N2NOperator.<member>` refs corpus-wide; 20
+"MOVED", and only the 5 genuinely renamed ones were dead. Re-pointing all 33 would have
+been churn AND would have lost information (a reader of S's chapter wants S's name).
+
+### (c) ⛔⛔ ON A LIVE BRANCH THE ELEGANCE PASS LANDS INSIDE YOUR TASK — re-read the surface
+### after EVERY build, and the thing it moves is the thing you just wrote about
+
+L-089's loop, at full force. `[M]` between my first `vars(TransferOperator)` dump and my
+last, `orpheus/` gained 25 modified files and then a commit (`f52877db`, *"a transfer role
+is two class constants and no code"*):
+
+* `TransferOperator.scattering_order` → **`legendre_order`** — this was the ONE real dead
+  role my probe found, and it did not exist when I started;
+* `LegendreMomentTransfer.from_field` → **`on_basis`**;
+* **`from_solver_data` MOVED from the role subclasses to the CORE**, the roles keeping
+  `channel`; then `channel` became a **`ClassVar` holding a bound constructor**, not a
+  classmethod — so *"each carries only its extraction classmethod"* went from true to
+  false to false-in-a-second-way, and I wrote it TWICE before re-reading.
+
+⭐ **The correction was strictly better prose**: "a role is two class constants and no
+code" is sharper than "only its extraction classmethod", and the AST gate's own tightening
+("refuse ANY method on a role") is the sentence's evidence. `sphinx -E -W` was **EXIT=0 with
+the false text in it, in every build**.
+
+⟹ Read `git log --oneline -3` and `git status --porcelain -- orpheus/` **at the end**, not
+only at the start; a clean `orpheus/` late in a task means the pass COMMITTED, and the
+commit message is the diff of your own prose's premises.
+
+### (d) ⭐⭐ RE-RUN A PUBLISHED CENSUS; ITS COUNT CAN BE RIGHT AND ITS MEMBERS INVENTED
+
+`adjoint.rst` carried `[M] 9 Sig2[0] sites = 2 model + 7 physics`, with the seven
+enumerated. Re-run by AST on the post-carve tree: **7 sites, all 7 correct**. Two findings,
+and the second is the transferable one:
+
+1. the two model sites are gone, and `material_xs_field.py:682` **changed COLUMN without
+   changing line** — it was a model site while the gain read it, and is now a reaction-rate
+   site (removal + the σ_r fold predicate). The same expression, right for a different
+   reason ⟹ a `fate at step 2` COLUMN on the old table, not a deletion.
+2. ⛔ one of the seven enumerated members — *"``gendf.py``'s `if sig2[0].nnz > 0` guard,
+   ×1"* — **does not exist and never did**: `grep -rn nnz orpheus/` at HEAD and at both
+   parents returns a docstring, a `repr` and the HDF5 schema. The COUNT was right; a
+   MEMBER was invented. A re-read cannot find that; only a re-run can.
+
+### (e) ⭐⭐ A `verifies()` MARKER DECIDES WHICH BODY A LABEL KEEPS — read the TEST BODY,
+### not the label's name
+
+Generalising an equation, the natural move is to broaden the existing label and mint a new
+one for the special case. That is **backwards** when the existing label is a `verifies()`
+target: `n2n-source` is targeted by `test_solver_components.py:175` on
+`SNSolver._add_n2n_source`, whose live body is
+`self.n2n_op.isotropic_energy.transfer.add_p0_source(Q, phi)` — a **P0** claim. I had
+already broadened it before reading the body.
+
+⟹ **Order of operations for generalising a labelled equation:** grep `tests/` for the
+label → read the claiming test's BODY (not its name, not its docstring) → the existing
+label KEEPS the body its marker asserts → mint the NEW label for the generalisation. Same
+for `sn-n2n-isotropic-lift` / `sn-n2n-adjoint-source`: both stayed, re-scoped to the ℓ = 0
+block, with the RANKING against the new per-ℓ labels stated in prose so a future citer
+picks the right one.
+
+### (f) ⚠ An `.. error-entry::` HAS NO ANCHOR — `:ref:`ERR-NNN <err-nnn>`` is silent death
+
+`[M]` the directive (`sphinxcontrib/nexus/directives.py:ErrorEntryDirective`) emits a
+`container` + `rubric` with **no `id`**. A cross-doc dangling `:ref:` renders as plain text
+with no warning at any severity, so the citation would have looked fine forever. The corpus
+convention is plain-text `ERR-NNN` + `:ref:`the L0 error catalogue
+<theory-verification-error-catalog>``. Check the DIRECTIVE's `run()` before inventing an
+anchor scheme.
+
+⭐ Sibling, caught by `-W` this time: a `:ref:` to a label sitting on an `.. important::`
+(not a section title) MUST carry explicit text — bare `:ref:`x`` is `ref.ref` *"A title or
+caption not found"*, and it fires **cross-doc** as well as intra-doc.
+
+### (g) ⭐⭐ A LADDER MEASURED BEFORE THE CARVE IS A DIFFERENT MEASUREMENT OF A DIFFERENT
+### TREE — both legs of the ratio moved
+
+The flagship gate's docstring relays step 1's elastic ladder (`−229/−163/−175/−173 Δk·1e5`
+at `L = 3…6`). Post-carve **both legs moved**: the `L = 2` baseline went
+`1.0953221881419453` → `1.0911996566537725`, and the (n,2n) moments now enter at every
+order. I re-measured (7 arms, ~45 s, `scratch/_426_step3_order_ladder.py`) and published
+**mine**: `−235.06/−167.34/−179.56/−177.48`, with a ⚠ naming why step 1's is not a
+re-rounding of the same thing.
+
+⭐ **And the row that is NOT evidence:** the shipped ladder's `ℓ ≤ 6` arm equals `ℓ ≤ 2`
+**to the bit** — because every arm runs at `scattering_order = 2`, so `Λ` has three blocks
+and `ℓ ≥ 3` is never read. Quoted as *"higher orders add nothing"* that row quotes the
+truncation, not the physics. Say so at the table, or the next reader banks it.
+
+### (h) ⭐ `**:math:` WITH NO SEPARATOR IS THE ONE NESTING THAT BREAKS
+
+`[M]` the corpus's normal `**word** :math:`x`` idiom is fine at ~60 sites; only
+`**:math:`\mu`-reversal**` — a role opening *immediately* after a `**` start-string —
+fails, rendering `` :math:`mu`-reversal `` as literal text with the backslash eaten, on a
+**0-warning** build. Two such sites were pre-existing in `adjoint.rst` and two more
+(`**Scattering (:math:`S`)**`) in `slab_multigroup.rst`; both pages went to **0 visible
+backticks**. Fix by `:math:`\mu`\ **-reversal**` or by moving the bold onto a word.
+
+⟹ The MINE-vs-pre discriminator that made this cheap: scan for `(\*\*|\*)"?``` and
+`\*\*[^*]*:math:`` and test each hit line against `git show <carve-hash>:<file>` — one
+pass separates *your* nesting bug from the page's.
+
+### (i) The gate battery that ended this task, and why four instruments not one
+
+| instrument | reads | verdict |
+|---|---|---|
+| `sphinx -E -W -q` from REPO ROOT | directives + labels + intra/cross-doc `:ref:` | 13 → **0**, 0-byte log |
+| `mcp__nexus__dead_references` | RENDERED targets, with inheritance/re-export rescue | 9/16 sites → **0/65** |
+| `tools/check_docstring_xrefs.py` | fully-qualified roles, by IMPORT | 0 both sides (role-blind, L-062/L-067 — proves nothing alone) |
+| own import probe over `docs/` roles | every `orpheus.*` role, 3 fallbacks | 1 → **0 of 1355** |
+
+⚠ **The own-probe needs THREE fallbacks or it cries wolf 26 times**: `hasattr` →
+`dataclasses.fields` → `typing.get_type_hints`/`__annotations__` → a regex for
+`self.<name>` in the class source. Without them, every dataclass field (`Mixture.Sig2`) and
+every `__init__`-assigned attribute reads dead. `[M]` 26 → 3 → and the last two
+(`SNMesh.axes`, `SNMesh.axis_widths`) needed L-093's CONSTRUCT-the-object step to clear.
+
+### (j) The retired-spelling census: the COUNT is not the gate, the ADJUDICATION is
+
+`[M]` before/after over `docs/` source with `_build` excluded (⚠ include it and
+`ScatteringKernel` reads **1704** instead of 4 — the built HTML is in the tree). Three
+counts ROSE (`N2NMomentOperator` 8 → 11, `add_emission` 3 → 4, `moment_emission` 0 → 3),
+which is **correct**: a retirement that is narrated costs more words than one deleted.
+⟹ the acceptance evidence is a regex classifying every survivor **role-vs-literal**:
+`[M]` 45 survivors, **0 roles**, all ``literal`` in dated past-tense prose.

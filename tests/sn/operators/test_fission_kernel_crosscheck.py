@@ -314,7 +314,7 @@ class TestFissionNdarrayArmIsKEigenvalueLive:
     :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`, which calls
     ``self.fission_op.apply(flux_distribution) / keff`` — and since CS4c
     step 4 ``fission_op`` IS the energy binding
-    (:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+    (:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`,
     the scalar dyad on the mesh's bulk space). Its bare-array leg is the
     LIVE arm at the outer-iteration boundary, NOT dead weight.
 
@@ -347,7 +347,7 @@ class TestFissionNdarrayArmIsKEigenvalueLive:
         # surgery: monkeypatch wraps it, and a re-route around it (a
         # typed-carrier k-loop, a second fission home) reddens here.
         from orpheus.numerics.eigenvalue import power_iteration
-        from orpheus.transport.operators.isotropic_scattering import (
+        from orpheus.transport.operators.isotropic_transfer import (
             IsotropicFission,
         )
 

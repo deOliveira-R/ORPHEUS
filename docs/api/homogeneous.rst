@@ -78,9 +78,9 @@ then takes the dominant eigenpair directly:
   2\Sigma_2^{\mathsf T}`, with :math:`C = \operatorname{diag}(\Sigma_t)`
   the collision diagonal and :math:`K_\mathrm{iso}` the sum of the
   model-shared
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
   (:math:`\Sigma_{s0}^{\mathsf T}`) and
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
   (:math:`2\Sigma_2^{\mathsf T}`) operators. The composed operator
   :math:`C - K_\mathrm{iso}` is materialised densely via its own
   :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`
@@ -92,7 +92,7 @@ then takes the dominant eigenpair directly:
   Streaming :math:`L \equiv 0` in an infinite medium and is dropped.
 * **Production dyad** :math:`\mathbf{F} = \chi \otimes \nu\Sigma_f`,
   the rank-1 form of the fission energy binding
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
   (CS4c step 4 — the same class diffusion and the S\ :sub:`N` k-outer
   consume; the angular binding ``FissionOperator`` has no role in an
   infinite medium), likewise materialised densely via its own

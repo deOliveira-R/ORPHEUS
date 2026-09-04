@@ -26,9 +26,9 @@ Discrete Ordinates Method (S\ :sub:`N`)
       operators:
         L: streaming, BULK only (Ω·∇) — the boundary law is the sibling B, NOT folded into L
         C: collision / removal (Σ_t)
-        S: scattering in-scatter gain (Σ_s0ᵀ φ + anisotropic moments)
+        S: scattering in-scatter gain (Σ_s0ᵀ φ + anisotropic moments); a ROLE of TransferOperator since #426 step 2, yield y = 1
         B: boundary law as a first-class SIBLING operator (reflective / vacuum / white trace), every geometry
-        N2n: (n,2n) emission — first-class since CS4c step 3, no longer a passenger inside S; its ℓ=0-only kernel is a MODEL, never a property of the reaction (the evaluated GENDF data stores 7 Legendre moments for MT=16; since #426 step 1 the DATA layer keeps every one of them and the P0 model is imposed at the kernel/operator tier — N2NKernel.from_mixture reads Sig2[0], N2NOperator mints its frame at order 0; #426 step 2 removes it)
+        N2n: (n,2n) emission — first-class since CS4c step 3 (not a passenger inside S), and ANISOTROPIC since #426 step 2 (2026-09-04): the SAME TransferOperator binding as S over the channel's own Legendre stack at the solve's scattering_order, yield y = 2. Until then its ℓ=0-only kernel was a MODEL imposed at the operator tier and never a property of the reaction — a defect worth −413.55 Δk·1e5 on a Be-reflected fast slab, catalogued as ERR-082
         F: fission production (χ ⊗ νΣ_f, rank-1 dyad); TWO bindings of one datum since CS4c step 4 — IsotropicFission (energy, the k-outer's) and FissionOperator (angular, the eigen-M posing's)
       composites:
         A: "L + C - S - N2n - B — the within-group loss operator; the Krylov driver applies it. Most pages of this chapter still spell the pedagogical A = L+C-S-B (Σ_2n ≡ 0 on their fixtures); the shipped member list is eq sn-within-group-with-n2n"
@@ -94,7 +94,12 @@ fission dyad :math:`F`.  They compose the within-group loss operator
    :math:`N_{2n}` rather than an unnamed passenger inside :math:`S`, so
    the composite the S\ :sub:`N` builder actually composes is
    :math:`A = L + C - S - N_{2n} - B`
-   (:eq:`sn-within-group-with-n2n`).  The five-operator spelling above
+   (:eq:`sn-within-group-with-n2n`).  Since #426 step 2 (2026-09-04)
+   :math:`S` and :math:`N_{2n}` are also two **instances of one
+   binding** — same faces, same arms, same transposes, differing in the
+   yield :math:`y` inside :math:`\Lambda_c` alone — so anything this
+   chapter derives for :math:`S` holds for :math:`N_{2n}` with
+   :math:`y = 2` and the channel's own stack.  The five-operator spelling above
    is kept throughout this chapter because :math:`\Sigma_{2n} \equiv 0`
    on every fixture the chapter derives against, and the extra term
    would obscure the pedagogy; it is a **deliberate simplification, not
@@ -1984,7 +1989,7 @@ Solver-coordination traps
   :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`, so the
   bare-``np.ndarray`` dispatch arm of
   :meth:`IsotropicFission.apply
-  <orpheus.transport.operators.isotropic_scattering.IsotropicFission.apply>`
+  <orpheus.transport.operators.isotropic_transfer.IsotropicFission.apply>`
   — the fission **energy** binding the k-outer has held since CS4c step 4
   — is the *live production arm* (the sentinel wraps that leaf in-process
   and asserts the counter advances).  The *angular* binding

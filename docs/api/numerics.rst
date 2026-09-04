@@ -237,9 +237,14 @@ master condition that decides between :class:`TensorProductOperator`,
        ``OperatorSum``.  It is also where the *context-dependent*
        groupings live: diffusion's ``S`` IS
        ``IsotropicScattering + IsotropicN2N``, and the S\ :sub:`N`
-       builder's ``K_iso`` IS ``S.isotropic_energy + N2N.energy`` —
-       two different bundlings of one pair of leaves, each written at
-       its own composition site rather than fixed inside an operator.
+       builder's ``K_iso`` IS
+       ``S.isotropic_energy + N2N.isotropic_energy`` — two different
+       bundlings of one pair of leaves, each written at its own
+       composition site rather than fixed inside an operator.  (The
+       :math:`N_{2n}` accessor was ``.energy`` until #426 step 2,
+       2026-09-04, when the two gains became roles of ONE binding and
+       the P0 energy leaf became a member of the shared core; the
+       spelling is now the same on both.)
        The T.4 streaming per-direction split
        (``M_spatial`` as an :class:`OperatorSum` of two per-direction
        summands) was retired in #238 — it had no production consumer;
@@ -269,9 +274,11 @@ master condition that decides between :class:`TensorProductOperator`,
    ``93807aa7``, which factored the anisotropic path onto the shared
    :math:`R\circ\Lambda` moment→source primitive.  Today the kernel is a
    single :class:`~orpheus.numerics.operator.OperatorProduct` —
-   ``frame.conjugate(LegendreMomentScattering(..., skip_l0=True))``, i.e.
+   ``frame.conjugate(LegendreMomentTransfer(..., skip_l0=True))``, i.e.
    :math:`R \circ \Lambda_{\ell\ge1} \circ M` with **one** shared
-   :math:`\Lambda` rather than a per-ℓ summand family.
+   :math:`\Lambda` rather than a per-ℓ summand family.  (The class was
+   ``LegendreMomentScattering`` until #426 step 2, 2026-09-04; it is now
+   the transfer family's, over either channel's field.)
 
 .. note::
 
@@ -290,10 +297,11 @@ master condition that decides between :class:`TensorProductOperator`,
 
 The leading-underscore primitives are intentionally private (the
 public surface is via the
-:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel`
+:attr:`~orpheus.transport.operators.transfer.TransferOperator.kernel`
 and
-:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`
-properties on the operator classes). Wave O (`Issue #208
+:attr:`~orpheus.transport.operators.transfer.TransferOperator.full_transfer_kernel`
+properties on the operator classes — since #426 step 2 on the shared
+transfer core, so :math:`S` and :math:`N_{2n}` expose one surface). Wave O (`Issue #208
 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_) will introduce
 ``BulkOperator`` / ``FullOperator`` / ``BoundaryOperator`` Protocols
 that may promote some of these to public status if a downstream

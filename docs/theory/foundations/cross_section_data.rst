@@ -576,11 +576,32 @@ The data layout per source group is:
    code rather than the prose.  The measured cost of that cut is at
    :ref:`the elastic-order ladder <elastic-legendre-order-ladder>`.
 
-   ⚠ A :math:`P_0` truncation of the :math:`(n,2n)` emission **still
-   ships**, and it has moved: it is no longer a data-layer loss but a
-   single operator-layer choice — see
-   :ref:`the (n,2n) P0-truncation record <sn-n2n-p0-truncation>` for
-   where it now lives and what remains to be done.
+   ⛔ **And this note's own closing** ⚠ **is history too.**  It read,
+   until 2026-09-04, that "a :math:`P_0` truncation of the
+   :math:`(n,2n)` emission **still ships**, and it has moved: it is no
+   longer a data-layer loss but a single operator-layer choice".  That
+   was true for exactly one day.  #426 step 2 (2026-09-04) retired the
+   operator-layer choice as well: the :math:`(n,2n)` binding now reads
+   this stack at the solve's ``scattering_order``, so the sentence
+   "*the truncation is the solve's decision, spelled once as*
+   ``scattering_order``" above is true of **both** transfer channels
+   and not only of scattering.  The defect is catalogued as ERR-082;
+   the history and the surviving :math:`\ell = 0`-by-physics reads are
+   at :ref:`the (n,2n) P0-truncation record <sn-n2n-p0-truncation>`,
+   and what it was worth in :math:`k` is at
+   :ref:`the shipped ladder <sn-n2n-anisotropy-shipped-ladder>`.
+
+   ⭐ Worth noticing, because it is the reason step 2 was one commit:
+   this block's own sentence about the ingest — *"a short stack
+   zero-pads to whatever order the solve asks for rather than clamping
+   the solve"* — is exactly the rule the operator needed.  The
+   :math:`(n,2n)` stack that is 1 order deep on NA023 and a single zero
+   block on B-10 / H-1 meets an :math:`L = 2` solve as exact zeros
+   above its own ``NL``, which is the *evaluation's* statement and not
+   an invention; and because the solver's order clamp reads the
+   **scattering** stack alone, a short :math:`(n,2n)` channel can never
+   lower the solve's order.  Both halves of that were settled at step 1
+   and step 2 spent them unchanged.
 
 
 .. _mf6-yield-convention:
@@ -627,10 +648,13 @@ must not both carry the factor:
        :attr:`~orpheus.data.macro_xs.mixture.Mixture.absorption_xs`
      - :math:`\Sigma_{2n}` — **one** neutron is removed per event, so the
        row sum is added ONCE
-   * - :meth:`~orpheus.transport.kernels.N2NKernel.emission_matrix`
-     - :math:`2\,\Sigma_{2n}^{\mathsf T}` — **two** are emitted; the factor
-       is applied here, from
-       :attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`
+   * - :meth:`~orpheus.transport.kernels.TransferKernel.emission_matrix`
+       and every emission verb of
+       :class:`~orpheus.transport.material_field.TransferMaterialField`
+     - :math:`y\,\Sigma_{c,\ell}^{\mathsf T}` at **every** :math:`\ell` —
+       for :math:`(n,2n)`, :math:`y = 2`; the factor is applied here,
+       from :attr:`TransferKernel.multiplicity
+       <orpheus.transport.kernels.TransferKernel.multiplicity>`
 
 so the net production is :math:`+\Sigma_{2n}`, one neutron per reaction.
 
@@ -638,8 +662,14 @@ so the net production is :math:`+\Sigma_{2n}`, one neutron per reaction.
 
    The division is spelled as a **renormalisation onto MF=3**, never as a
    literal ``/ 2``.  The multiplicity is a physics constant with exactly one
-   home in this tree — ``N2NKernel.multiplicity`` — which sits a layer above
-   ``orpheus.data`` and must be neither imported nor duplicated here.
+   home in this tree — :data:`~orpheus.transport.kernels.N2N_MULTIPLICITY`
+   — which sits a layer above ``orpheus.data`` and must be neither
+   imported nor duplicated here.  (It was ``N2NKernel.multiplicity``, a
+   ``ClassVar``, until #426 step 2 on 2026-09-04; when scattering and
+   :math:`(n,2n)` became two instances of one
+   :class:`~orpheus.transport.kernels.TransferKernel` the yield had to
+   become a per-instance **field**, so the channel constant moved out to
+   a module-level ``Final`` beside the type.)
    Scaling the rows onto the tabulated cross section removes whatever yield
    the record carries without this module ever naming its value, and it
    makes the channel's reaction rate exactly consistent with the MF=3
@@ -984,11 +1014,18 @@ of these three:
      - ``balance_residual`` is ``[0. 0.]`` exactly on the reference
        fixture below
    * - **emission carries ×2**, minted at exactly ONE site
-     - ``orpheus/transport/kernels.py:224``
-       (:attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`, a
-       ``ClassVar``), applied at ``:255`` in
-       :meth:`~orpheus.transport.kernels.N2NKernel.emission_matrix`
-     - ``emission_matrix() == 2·Σ₂ᵀ`` → ``True``
+     - ``orpheus/transport/kernels.py``
+       (:data:`~orpheus.transport.kernels.N2N_MULTIPLICITY`, a module
+       ``Final``), carried per instance as
+       :attr:`TransferKernel.multiplicity
+       <orpheus.transport.kernels.TransferKernel.multiplicity>` and
+       applied by
+       :meth:`~orpheus.transport.kernels.TransferKernel.emission_matrix`
+       and by every emission verb of
+       :class:`~orpheus.transport.material_field.TransferMaterialField`
+     - ``emission_matrix() == 2·Σ₂ᵀ`` → ``True``; and the two channels
+       differ by the yield ALONE, bit-exactly
+       (``test_n2n_operator.py::TestTheBindingAtTheSolveOrder::test_the_two_terms_differ_by_the_yield_alone``)
 
 So the *net* production is :math:`+\Sigma_{2n}` — one neutron per
 reaction — assembled as a removal of one and an emission of two, never
@@ -1000,7 +1037,7 @@ the eigenvalue posing can decide where to group.
 
    The multiplicity has **one** home in the tree.  Every family below
    reaches it through
-   :attr:`~orpheus.transport.kernels.N2NKernel.multiplicity` rather than
+   :data:`~orpheus.transport.kernels.N2N_MULTIPLICITY` rather than
    through a literal ``2`` — including the Monte Carlo walk, whose
    module-level ``_N2N_MULTIPLICITY`` (``orpheus/mc/solver.py:36``) is a
    ``float()`` of that same ``ClassVar``, hoisted only to keep the
@@ -1044,9 +1081,9 @@ are visible from the data side:
   :meth:`~orpheus.data.macro_xs.mixture.Mixture.assert_balanced`;
 - a solver that *wants* the bundle can still form it, as a
   composition — the 1-D diffusion solver sums
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
   with
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
   at ``orpheus/diffusion/solver.py:241-246``.  The grouping is legible
   at the composition site instead of being pre-decided inside an
   operator.
@@ -1061,7 +1098,8 @@ Every row below was read off the tree, ``[M]`` 2026-09-03 at
 :attr:`~orpheus.data.macro_xs.mixture.Mixture.absorption_xs` (which
 already carry :math:`\sum_{g'}\Sigma_{2n,g\to g'}` once, and must
 therefore not add it again); "emission ×2" names the site that applies
-:attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`.
+the channel's yield (:attr:`TransferKernel.multiplicity
+<orpheus.transport.kernels.TransferKernel.multiplicity>`).
 
 .. list-table::
    :header-rows: 1
@@ -1080,7 +1118,9 @@ therefore not add it again); "emission ×2" names the site that applies
        ``MaterialXSField.absorption_cross_section``
        (``material_xs_field.py:597`` ← ``CellXS.sig_a`` ←
        :attr:`~orpheus.data.macro_xs.mixture.Mixture.absorption_xs`);
-       emission ×2 via ``kernels.py:255``
+       emission ×\ :math:`y` inside
+       :class:`~orpheus.transport.kernels.TransferKernel`, at **every**
+       :math:`\ell` since #426 step 2
      - ``orpheus/sn/solver.py:1713`` —
        ``production / (absorption + leakage − emission_n2n.sum())``,
        the ERR-065 estimator-consistency spelling
@@ -1092,8 +1132,9 @@ therefore not add it again); "emission ×2" names the site that applies
        ``N_AA = S + N2N + B_a`` on a carrying one (``:636``).  Both arms
        — slab (early-return) and sphere/cylinder (System-B) — carry it
      - :math:`k_{\rm adj} \equiv k_{\rm fwd}` by construction; the
-       daggered emission is
-       :math:`(\nu_{2n}\Sigma_{2n}^{\mathsf T})^{\mathsf T}`
+       daggered emission is the product reversal
+       :math:`\tfrac1W M^{\mathsf T}\Lambda_{2n}^{\mathsf T}R^{\mathsf T}`,
+       per :math:`\ell` since #426 step 2
    * - **CP** (:func:`~orpheus.cp.solver.solve_cp`)
      - matrices cached at ``orpheus/cp/solver.py:514``; the multiplicity
        is applied at **all three** source-assembly sites — ``:570``
@@ -1253,14 +1294,16 @@ Measured this session on that reference, with the configuration stated:
    move the mean.  Nothing in this pipeline biases MC's
    :math:`(n,2n)`.
 
-The modelling caveat: :math:`P_0` truncation (half closed)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The :math:`P_0` truncation: closed, in two steps
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Everything above concerns *accounting* — that the channel is read, that
 removal is counted once and emission twice, that every family agrees on
 the eigenvalue.  It says nothing about the emission's **angular**
-distribution, and there ORPHEUS still truncates — but as of 2026-09-03
-the truncation is no longer this page's.
+distribution, and there ORPHEUS truncated to :math:`P_0` for two and a
+half years.  It no longer does, and the two-tier table below is kept
+because the repair took two steps at two different tiers and a reader
+who meets either intermediate state needs to place it:
 
 .. list-table::
    :header-rows: 1
@@ -1275,34 +1318,55 @@ the truncation is no longer this page's.
        tape stores; nothing is discarded, nothing is invented
      - :ref:`the ingest stack note <n2n-legendre-stack-at-ingest>`
    * - **operator**
-     - ⚠ **still** :math:`P_0`.  ``N2NKernel.from_mixture`` densifies
-       ``Sig2[0]`` alone and ``N2NOperator`` mints its frame at
-       ``HarmonicFrame.for_space(interior, 0)``, so the emission
-       remains modelled isotropic in every solve
+     - ✅ **spends them since 2026-09-04** (#426 step 2).  The
+       :math:`(n,2n)` gain is a
+       :class:`~orpheus.transport.kernels.TransferKernel` bound at the
+       solve's ``scattering_order``, through the same interned frame as
+       :math:`S`; the two collision gains are two instances of one
+       binding differing in the yield :math:`y` alone
      - :ref:`the (n,2n) P0-truncation record <sn-n2n-p0-truncation>`
+       (history + the surviving :math:`\ell = 0`-by-physics reads) and
+       :ref:`the shipped ladder <sn-n2n-anisotropy-shipped-ladder>`
+       (what it was worth in :math:`k`)
 
-That split is what a reader has to carry away, because the two halves
-now fail differently.  A statement of the form *"the anisotropy is lost
-at ingest and unrecoverable downstream"* is **false**: the moments are
-in ``Mixture.Sig2`` and any consumer can read them today.  A statement
-of the form *"ORPHEUS models* :math:`(n,2n)` *emission as isotropic"*
-is still **true**, and it is now a claim about exactly two lines of the
-transport layer rather than about the data pipeline.
+Three statements a reader may meet, and their status:
+
+* *"the anisotropy is lost at ingest and unrecoverable downstream"* —
+  **false since 2026-09-03**; the moments are in ``Mixture.Sig2`` and
+  any consumer can read them.
+* *"ORPHEUS models* :math:`(n,2n)` *emission as isotropic"* — **false
+  since 2026-09-04**.  It was true, it was a defect and not a
+  documentable approximation, and it is catalogued as ERR-082.
+* *"the* :math:`(n,2n)` *reaction rate is a* :math:`P_0` *quantity"* —
+  **true, permanently, and unaffected by either step.**  This is the
+  one that matters for this page.
 
 The consequence for the reader of this page is narrow and worth saying
 plainly: every :math:`(n,2n)` number above — the reaction rates, the
 balance identity, the cross-family eigenvalue agreement — is a
-:math:`P_0` quantity and is **unaffected** by the restored moments,
-because a higher Legendre moment integrates to zero over angle and
-contributes nothing to a reaction rate.  What the restored moments
-change is the angular *shape* of the emission source, which is a
-transport-solve question, not a data question.
+:math:`P_0` quantity and was **unaffected** by both steps, because a
+higher Legendre moment integrates to zero over angle and contributes
+nothing to a reaction rate.  What the restored moments changed is the
+angular *shape* of the emission source, which is a transport-solve
+question, not a data question — ``[M]`` worth :math:`-413.55` in
+:math:`\Delta k\cdot10^{5}` on a Be-reflected fast slab.
+
+⚠ **So the three isotropic families in the per-solver table above are
+NOT stale.**  CP, MoC and Monte Carlo read ``Sig2[0]`` and will go on
+reading it: their emission sources are isotropic **by construction**, a
+property of each method rather than of this channel, and each site
+carries an inline comment saying so.  Reading the :math:`P_0` block is
+the *right* thing there, and "fixing" it with the S\ :sub:`N` repair
+would be a category error.
 
 The measured size of that change — on which fixtures, in which
 convention, and what it does and does not license — is stated **once**,
-at :ref:`the (n,2n) P0-truncation record <sn-n2n-p0-truncation>`.  This
-section deliberately does not restate it; restoring the operator half is
-step 2 of `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.
+at :ref:`the shipped ladder <sn-n2n-anisotropy-shipped-ladder>`, with
+the history and the surviving :math:`\ell = 0`-by-physics reads at
+:ref:`the (n,2n) P0-truncation record <sn-n2n-p0-truncation>`.  This
+section deliberately does not restate it.  ⛔ It closed, until
+2026-09-04, with *"restoring the operator half is step 2 of #426"*;
+step 2 landed that day (``1a3b78ec``).
 
 
 .. _n2n-excluded-channels:
@@ -1430,8 +1494,13 @@ would touch:
    ONCE, not a multiplicity-scaled fold into ``SigS``.
 
 4. **The multiplicity constant** — :math:`(n,2n)`'s lives in exactly one
-   place (:attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`) and
-   the higher channels would each want the same treatment.  Note that
+   place (:data:`~orpheus.transport.kernels.N2N_MULTIPLICITY`, carried
+   per kernel as :attr:`TransferKernel.multiplicity
+   <orpheus.transport.kernels.TransferKernel.multiplicity>`) and
+   the higher channels would each want the same treatment — and since
+   #426 step 2 the *type* is already generic in the yield, so
+   :math:`\nu = 3` / :math:`\nu = 4` need a constant and a constructor,
+   not a class.  Note that
    this step is **not** the open item it used to be for the transport
    solvers: every family listed in the per-solver table
    :ref:`above <n2n-handled>` already accounts for a channel

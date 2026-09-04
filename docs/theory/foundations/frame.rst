@@ -3887,7 +3887,7 @@ f(\hat\Omega')\,d\hat\Omega'`, with an eigenvalue that depends on
    §"Funk-Hecke"); transcribed here as the structural ground for the
    ownership ruling. The eigenvalues realised in code (the per-ℓ
    Legendre moments Σ_{s,ℓ}) are the diagonal of
-   :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering` Λ.
+   :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer` Λ.
 
 Applied to the scattering kernel
 :math:`k = \Sigma_s(\hat\Omega\cdot\hat\Omega')`, the eigenvalues are
@@ -3895,7 +3895,7 @@ exactly the **Legendre moments of the differential scattering cross
 section**, :math:`\lambda_\ell = \Sigma_{s,\ell}` — which are
 precisely the per-:math:`\ell` block entries of the diagonal operator
 :math:`\Lambda` =
-:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`
+:class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`
 (:eq:`scattering-as-tensor-product-sum`, :doc:`/theory/foundations/operator_algebra`). The
 spherical harmonics are therefore not *a* convenient basis for
 scattering — they are *the* eigenbasis, forced by the rotational
@@ -3932,7 +3932,7 @@ with
   :math:`U^*` — the change of basis *into* the eigenbasis (project the
   flux onto its harmonic moments :math:`\phi_\ell^m`);
 * :math:`\Lambda` (=
-  :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`) =
+  :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`) =
   :math:`\Sigma` — the diagonal multiply by the spectrum
   :math:`\Sigma_{s,\ell}`, one scalar per :math:`\ell`-block;
 * :math:`R` (the frame's **reconstruction** face,
@@ -5182,7 +5182,7 @@ measure** — the two minted faces are mandatory fields, so an
 :math:`S^2`-less method still cannot build *this* binding.  What the
 step did buy for `#261` is the separation the cross-method question
 actually needs: the **representation-free datum** (the per-material
-:class:`~orpheus.transport.kernels.ScatteringKernel` map paired with a
+:class:`~orpheus.transport.kernels.TransferKernel` map paired with a
 material layout) is now a first-class object of its own, held by the
 binding rather than derived inside it.  A CP or MoC binding of the
 same physics shares that datum and mints whatever

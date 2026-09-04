@@ -171,7 +171,7 @@ class TestProtocolCompliance:
 
     def test_predicates_adjointable_not_invertible(self, solver_2g_p0):
         """``is_adjointable`` True, ``is_invertible`` False — the adjoint S† is free
-        via full_scatter_kernel (#276 A2b / #118); still no useful inverse."""
+        via full_transfer_kernel (#276 A2b / #118); still no useful inverse."""
         op = solver_2g_p0.scattering_op
         assert op.is_adjointable and not op.is_invertible
 

@@ -38,10 +38,10 @@ from orpheus.numerics.axis import EnergyAxis
 from orpheus.transport.kernels import FissionKernel, TransferKernel
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.operators.fission import FissionOperator
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicFission,
 )
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicN2N,
     IsotropicScattering,
 )
@@ -251,8 +251,9 @@ def test_p0_and_emission_are_what_the_iso_pair_consumes():
     iso[mid].T`` cancels to an identity under a SHARED convention
     inversion, so orientation-BETWEEN-views and the multiplicity are
     what these rows genuinely pin — the multiplicity leg IS independent:
-    ``ClassVar = 2`` in kernels.py vs a literal ``2.0`` in
-    ``isotropic_scattering.py:444``, two hand-written homes). The
+    ``N2N_MULTIPLICITY = 2`` in kernels.py vs the hand-authored literal
+    ``2.0`` in the reference rows of ``tests/transport/test_material_field.py``,
+    two hand-written homes). The
     absolute storage convention is pinned by G1.4b's hand-authored
     literal and by ``tests/homogeneous`` (M1.5's two-tier separation
     from G1.3).
@@ -1033,7 +1034,7 @@ def test_g_f2_operator_dyad_is_the_kernel_datum_per_material():
     references in ``test_isotropic_fission.py`` (which red on a factor
     swap through an INDEPENDENT route — the B4.6 catcher).
     """
-    from orpheus.transport.operators.isotropic_scattering import (
+    from orpheus.transport.operators.isotropic_transfer import (
         IsotropicFission,
     )
 

@@ -7115,3 +7115,229 @@ older entries classify against.
    also produced #34 (a "brute-force control" credited on its name —
    check independence by α-normalised AST, because a copied body is a
    tautology wearing two names).
+
+.. error-entry:: ERR-082
+   :title: The (n,2n) emission was truncated to P0 at the OPERATOR tier while the tape and (since #426 step 1) the data layer carried seven Legendre moments, so the whole anisotropy of a neutron-multiplying transfer channel was discarded — worth -413.55 dk*1e5 on a Be-reflected fast slab, with the theory page calling the truncation physics
+
+
+   **Status:** ✅ **FIXED 2026-09-04 — #426 step 2** (``1a3b78ec``, the
+   transfer family).  The two collision gains of
+   :math:`A = L + C - S - N_{2n} - B` are now two instances of ONE
+   binding — a Legendre transfer stack with a yield, bound to the frame
+   at the solve's ``scattering_order`` — so :math:`N_{2n}` reads what
+   :math:`S` reads and by the same code.
+
+   **Failure mode:** **#6 (convention drift)**, in its widest form: the
+   DATA site and the CONSUMING site disagreed about how many Legendre
+   orders the :math:`(n,2n)` channel has.  It is also the catalogue's
+   first instance of a **model imposed at one tier on data another tier
+   carries** — a defect class with no code smell, because every line
+   involved is individually correct.
+
+   **Module:** ``orpheus/transport/kernels.py`` (``N2NKernel``, retired)
+   and ``orpheus/transport/operators/n2n.py``
+   (``N2NOperator.from_solver_data``, re-signatured).
+
+   **Mechanism.**  GENDF MF=6 stores, for every channel, the same
+   object: :math:`\sigma_{c,\ell}(g'\!\to\!g) = \sigma_c(g')\,y_c(g')\,
+   f_{c,\ell}(g'\!\to\!g)` — ENDF-102 Eqs. (6.1)/(6.3) with NJOY
+   Eq. (242) — a Legendre transfer stack carrying the reaction's yield.
+   Elastic scattering has :math:`y = 1`; :math:`(n,2n)` has
+   :math:`y = 2`.  **They differ in the yield and in nothing else**:
+   same record type, same parser loop, same
+   :math:`(2\ell+1)`-on-reconstruction convention, same non-separable
+   :math:`g'\!\to\!g` structure.
+
+   ORPHEUS read only :math:`\ell = 0` of the :math:`(n,2n)` stack.  Two
+   lines did it, and neither looked like a truncation:
+
+   * ``N2NKernel.from_mixture`` densified ``mixture.Sig2[0]`` into a
+     single ``matrix``, where its ``ScatteringKernel`` sibling held a
+     list over :math:`\ell`;
+   * ``N2NOperator.from_solver_data`` minted the binding frame at
+     ``HarmonicFrame.for_space(interior, 0)``, where
+     ``ScatteringOperator`` passed the solve's ``scattering_order``.
+
+   Every downstream verb then behaved correctly on the one block it was
+   given.  The operator's ``apply`` returned an isotropic lift; its
+   transpose was that lift's exact reversal; the reciprocity gate
+   passed; the frame conjugation it was pinned against was the
+   :math:`\ell = 0` one.  Nothing was inconsistent — the model was
+   consistent, and wrong.
+
+   **How it hid.  Five ways, and the fifth is the general lesson.**
+
+   1. **A truncation is not a bug at any single line.**  Both lines
+      above are correct code with correct docstrings.  There is no sign
+      flip, no index drift, no dropped factor — the defect is a
+      *modelling* decision, expressible only as a comparison between a
+      tier and its data.
+   2. **The theory page called it physics, and then called it a model,
+      and both readings were available.**  ``adjoint.rst`` carried the
+      sentence *"ORPHEUS models* :math:`(n,2n)` *emission as isotropic.
+      The reaction is not"* — an honest warning — beside equations that
+      derived the :math:`\ell = 0` lift as though it were the operator's
+      definition.  A reader wanting the operator's algebra found the
+      equations; a reader wanting the caveat found the warning; nothing
+      forced the two together.
+   3. **Every gate was on the** :math:`\ell = 0` **object.**  The lift's
+      catcher pinned ``N2N.apply(ψ)`` against
+      ``(1/W)·frame.conjugate(N2NMomentOperator).apply(ψ)`` — a
+      genuinely independent float program, and a genuinely correct
+      cross-check *of the P0 model*.  ``vv-principles`` Mode 12 at the
+      fixture: no tolerance, refinement or regime change could have
+      exposed a moment the SUT and its oracle both declined to read.
+   4. **The tree's own** :math:`(n,2n)` **corpus was P0-only.**  Every
+      shipped fixture with a non-zero ``Sig2`` carried one block, so a
+      per-\ :math:`\ell` regression had nothing to regress against and
+      an activation leg would have read exactly ``0.0``.
+   5. ⭐ **The two operators' CODE SIMILARITY read as evidence for the
+      model rather than against it.**  ``N2NOperator`` was
+      ``ScatteringOperator``'s arms with ``aniso = None``; ``[M]`` AST
+      similarity 0.85–1.0 member for member.  That looked like a small,
+      well-factored special case.  It was the *truncation itself*
+      wearing a class: the two classes were similar **because** one had
+      been cut down to the other's :math:`\ell = 0` block, and the right
+      reading of the similarity was that they should be one object with
+      a yield.
+
+   **Symptom, measured.**  ``[M]`` 2026-09-03 on ``main`` ``1e02f6b1``
+   (pre-carve probe) and reproduced by the shipped library on
+   ``1a3b78ec``.  Fixture: 1-D slab, Be 3 cm | U-235 metal 4 cm
+   (:math:`N = 0.04894`) | Be 3 cm, 12/16/12 cells, vacuum both sides,
+   ``gauss_legendre(8)``, 421 groups, ``keff_tol = 1e-9``,
+   ``flux_tol = 1e-8``, ``inner_tol = 1e-10``, every arm
+   ``fully_converged``; the ELASTIC stacks held at :math:`P_2` in every
+   arm, so the ladder isolates the :math:`(n,2n)` anisotropy alone.
+
+   .. list-table:: ERR-082 — what the P0 model was worth
+      :header-rows: 1
+      :widths: 26 30 15 15 14
+
+      * - arm
+        - :math:`k`
+        - :math:`\Delta k\cdot10^{5}`
+        - :math:`\frac{\Delta k}{k_0}\cdot10^{5}`
+        - :math:`\Delta\rho\cdot10^{5}`
+      * - :math:`(n,2n)` at :math:`P_0` (the defect)
+        - ``1.0953221881419453``
+        - —
+        - —
+        - —
+      * - :math:`\ell \le 1`
+        - ``1.0911866898558749``
+        - **−413.55**
+        - **−377.56**
+        - **−346.01**
+      * - :math:`\ell \le 2`
+        - ``1.0911996566537725``
+        - **−412.25**
+        - **−376.38**
+        - **−344.92**
+
+   ⚠ **Three conventions, because** ``pcm`` **is** :math:`10^{-5}` **and
+   says nothing about what was divided by what** (``vv-principles``
+   #35).  On the wider fixture set the choice inverts a comparison: a
+   10 cm reflector reads :math:`-529.26` in :math:`\Delta k` (worse than
+   the 3 cm's :math:`-413.55`) and :math:`-228.00` in
+   :math:`\Delta\rho` (better than :math:`-346.01`).
+
+   **Reading.**  The ladder converges by :math:`\ell = 1` —
+   :math:`\ell\le2` adds :math:`1.30\cdot10^{-5}` — which is what a
+   forward-peaked emission should do.  The SIGN is the physics and is
+   the only part of the claim with a reference: ``[M]``
+   :math:`\bar\mu = \mathrm{rowsum}(\Sigma_1)/\mathrm{rowsum}(\Sigma_0)`
+   for Be-9's MT=16 is **positive on 50 of 50 live incident groups**
+   (:math:`+0.2524 \ldots +0.4348`, mean :math:`+0.3031`), so the
+   emitted pair continues OUTWARD; the P0 model emitted isotropically
+   and therefore over-estimated the reflector's return current, so
+   restoring the peak must LOWER :math:`k`.  ``[M]`` **99.93 %** of the
+   effect is the Be-9 reflector's (Be-only :math:`-377.30` vs U-only
+   :math:`-0.26` in :math:`\Delta k/k_0\cdot10^{5}` on the
+   :math:`\ell = 1` arm, summing to that arm's :math:`-377.56`
+   exactly).
+
+   **Controls, all as designed.**  The pre-carve probe's :math:`\ell = 0`
+   product equals the shipped ``Mixture.Sig2`` **bit-exactly**
+   (``0.000e+00``) on every material of every fixture; zero-padding the
+   shipped mixtures to :math:`L = 6` without adding moments moves
+   :math:`k` by **0.00**; flipping the sign of the injected moments
+   moves :math:`k` the other way by a comparable magnitude — linear, as
+   a first-order perturbation must be — reading :math:`+409.77` against
+   the :math:`-412.25` of the SAME (:math:`\ell \le 2`) arm, ⚠ which is
+   the arm to compare it with and not the :math:`\ell = 1` row of the
+   table above; and the whole effect was independently
+   reproduced by a second agent on its own instrument and own pipeline,
+   to every published digit, with the two conventions the two probes
+   SHARE closed against **physics** rather than against either probe —
+   strict upper-triangularity of the energy-losing transfer matrix
+   (8195 of 8195 entries) and the entrywise bound
+   :math:`|\Sigma_\ell|/\Sigma_0 = |\langle P_\ell\rangle| \le 1`, where
+   a stray :math:`(2\ell+1)` on :math:`\ell = 1` would read 2.9.
+
+   **What is truncated is not small, and it is a property of the TAPE.**
+   ``[M]`` over the 13 shipped GENDF files, MF=6/MT=16 stores
+   **NL = 7** Legendre moments — the same order as elastic, which
+   stores 7 in 13 of 13 — on 10 of the 11 files that carry the section.
+   On Be-9 all 8195 transfer entries are non-zero at **every**
+   :math:`\ell = 1\ldots6`, with
+   :math:`\lVert P_1\rVert_\infty/\lVert P_0\rVert_\infty = 0.690` and
+   :math:`\bar\mu = +0.278` summed over the 50 live groups.  Be-9
+   carries no inelastic MF=6 section at all, so ``elastic + 2·(n,2n)``
+   is its complete fast emission source and the share is exact:
+   :math:`(n,2n)` supplies a **median 62 %** of the :math:`P_0` emission
+   source and a **median 45 %** of the :math:`P_1` source.
+
+   **Which test catches it.**
+   ``tests/sn/verification/analytical/test_be_reflected_n2n_anisotropy.py``
+   (``@pytest.mark.l2``) — five rows: the :math:`P_0` control against
+   the frozen pre-carve :math:`k`, the post-carve value against the
+   measured record with a band, the sign of :math:`\Delta` against the
+   physics, the ladder's convergence by :math:`\ell = 1`, and the
+   :math:`L = 0` bit-identity leg.  ⛔ It is deliberately **NOT**
+   ``slow`` (25 s inside a ≥90-minute gate): ``vv-principles`` #36, and
+   ERR-023 is the measured precedent — its only catcher carries
+   ``@pytest.mark.slow``, so under the canonical ``-m "not slow"``
+   invocation the MC tree reads *39 passed / 0 red* with the
+   multiplicity mutated.  The FAST companions, so a future session
+   cannot demote this file and lose the whole claim: the term tier is
+   pinned by ``tests/transport/test_transfer_kernel.py`` and
+   ``tests/transport/test_material_field.py`` (ms), the binding by
+   ``tests/sn/operators/test_n2n_operator.py`` (the activation leg and
+   the yield law), and the role-thinness by an AST gate,
+   ``tests/transport/test_transfer_roles.py``.
+
+   ⛔ **The marker is a REQUIRED companion edit.** A
+   ``@pytest.mark.catches("ERR-082")`` on the flagship gate is what
+   turns the prose above into a graph edge; until it lands,
+   ``tests/test_error_catalogue_reconciles.py::test_every_declared_entry_has_a_catching_test``
+   is RED and the generated index lists ERR-082 under **Uncaught** — by
+   design, on both counts.
+
+   **Related entries.**  **ERR-065** is the same channel's *k*-convention
+   defect (the :math:`(n,2n)` emission in the :math:`k` numerator while
+   every inner solve scales only fission by :math:`1/k`) and is
+   unaffected: a reaction rate is a :math:`P_0` quantity.  **ERR-023**
+   is Monte Carlo ignoring ``Sig2`` outright, and its fix is complete —
+   MC's emission is isotropic **by construction**, so its ``Sig2[0]``
+   read is correct and must not be "fixed" with this one.  **ERR-080**
+   is the prerequisite rather than a relative: until a 1-D rule's frame
+   bound the basis its own orbit space admits, :math:`P_L` scattering at
+   :math:`L \ge 2` returned a wrong answer on exactly the quadrature
+   family this fixture uses, so no per-\ :math:`\ell` :math:`(n,2n)`
+   result would have been trustworthy before it landed.
+
+   **Lesson.**  A truncation that is *stated* is not thereby *assessed*.
+   This one was documented, warned about, dated and cross-referenced for
+   four months, and none of that measured it — the honest scope note
+   (*"the 62 % / 45 % figures are cross-section shares, not an error in
+   any flux or eigenvalue"*) was true, and it was also the reason nobody
+   ran the solve.  ⟹ when a doc says *"X is a model, not the physics"*,
+   the owed next step is a NUMBER: one converged solve on a fixture where
+   the modelled term is active, in three conventions.  Here it took 25
+   seconds and turned a documentable approximation into a defect.
+   ⭐ And the structural half: when two operators are *suspiciously
+   similar*, ask which direction the similarity points.  A special case
+   that is a strict truncation of its sibling is not a well-factored
+   special case — it is the truncation, and the repair is to make them
+   one object with the datum that actually differs.

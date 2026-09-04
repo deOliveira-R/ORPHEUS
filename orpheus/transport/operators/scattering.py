@@ -25,7 +25,7 @@ subclass of
 :class:`~orpheus.transport.operators.transfer.TransferOperator` whose
 only content is two class constants — which channel the ONE tier-2 mint
 reads (the facade's scattering channel) and the P0 energy binding it
-lifts (:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`)
+lifts (:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`)
 — and no code.
 The body this module carried until 2026-09-04 — faces, arms, the
 :math:`R\Lambda M` kernel, the transposes, the fold family — is the
@@ -61,7 +61,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar
 
 from orpheus.transport.material_field import TransferMaterialField
-from orpheus.transport.operators.isotropic_scattering import (
+from orpheus.transport.operators.isotropic_transfer import (
     IsotropicScattering,
     IsotropicTransfer,
 )
@@ -93,7 +93,7 @@ class ScatteringOperator(TransferOperator):
     :class:`~orpheus.transport.operators.n2n.N2NOperator`, and the
     within-group algebra spells ``− S − N₂ₙ`` explicitly. Its P0 energy
     binding (:attr:`isotropic_energy`) is
-    :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+    :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
     — the leaf the solver's K_iso sums with the :math:`(n,2n)` term's.
     """
 

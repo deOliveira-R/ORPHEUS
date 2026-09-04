@@ -279,7 +279,7 @@ def test_kinf_matches_direct_eigenvalue_engine_of_the_assembled_pair():
     """
     from orpheus.homogeneous.solver import _assemble_loss_operator, _pose_space
     from orpheus.transport.mesh.material_mesh import MaterialMesh
-    from orpheus.transport.operators.isotropic_scattering import (
+    from orpheus.transport.operators.isotropic_transfer import (
         IsotropicFission,
     )
 
@@ -354,7 +354,7 @@ def test_K_operator_as_matrix_is_the_resolvent():
     from orpheus.homogeneous.solver import _assemble_loss_operator, _pose_space
     from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
     from orpheus.transport.mesh.material_mesh import MaterialMesh
-    from orpheus.transport.operators.isotropic_scattering import (
+    from orpheus.transport.operators.isotropic_transfer import (
         IsotropicFission,
     )
 

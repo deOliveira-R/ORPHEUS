@@ -35,6 +35,78 @@ them.  Trust ``git``, not this column.
      - Issue
      - Where
    * - in dev
+       (2026-09-04)
+     - **One transfer family — the two collision gains become two
+       instances of ONE binding, and the** :math:`(n,2n)` **emission
+       stops being modelled isotropic** (#426 step 2).
+       **(1) The kernel tier names the object; the operator tier names
+       the term.**  GENDF MF=6 stores, for every channel, the same
+       object — :math:`\sigma_{c,\ell}(g'\!\to\!g) = \sigma_c\,y_c\,
+       f_{c,\ell}` (ENDF-102 Eq. 6.1/6.3, NJOY Eq. 242): a Legendre
+       transfer stack carrying the reaction's yield.  Elastic has
+       :math:`y = 1`, :math:`(n,2n)` has :math:`y = 2`, and they differ
+       in nothing else.  So ``ScatteringKernel`` + ``N2NKernel`` become
+       :class:`~orpheus.transport.kernels.TransferKernel`
+       ``(moments, multiplicity)``; ``ScatteringMaterialField`` +
+       ``N2NMaterialField`` become
+       :class:`~orpheus.transport.material_field.TransferMaterialField`
+       (every verb scaled by the yield, the :math:`\ell = 0`-only
+       ``add_emission`` / ``moment_emission`` twins retired);
+       ``LegendreMomentScattering`` + ``N2NMomentOperator`` become
+       :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`;
+       and ``ScatteringOperator``'s body becomes the shared
+       :class:`~orpheus.transport.operators.transfer.TransferOperator`
+       core, with
+       :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
+       and :class:`~orpheus.transport.operators.n2n.N2NOperator` as thin
+       ROLE subclasses carrying **two class constants and no code** —
+       ``channel`` (which
+       :class:`~orpheus.transport.material_field.TransferMaterialField`
+       constructor to call) and ``isotropic_binding`` (which P0 energy
+       binding to lift) — with the tier-2 mint and the exact constructor
+       both on the core.  An AST gate
+       (``tests/transport/test_transfer_roles.py``, two filters plus a
+       validated positive control) keeps a twin from regrowing one
+       override at a time.  The channel constant :math:`\nu_{2n}` moves
+       from a ``ClassVar`` to
+       :data:`~orpheus.transport.kernels.N2N_MULTIPLICITY`, because two
+       instances of one type cannot share a class-level yield.
+       **(2) The defect that forced it (ERR-082).**  Until this step
+       :class:`~orpheus.transport.operators.n2n.N2NOperator` re-spelled
+       :math:`S`'s arms with ``aniso = None`` and minted its frame at
+       :math:`L = 0` — a :math:`P_0` MODEL imposed at the OPERATOR tier
+       on a channel whose tape stores the same seven Legendre moments as
+       elastic, and which #426 step 1 had already carried through to
+       ``Mixture.Sig2``.  ``[M]`` on a Be-reflected fast slab (Be 3 cm |
+       U-235 metal 4 cm | Be 3 cm, 12/16/12 cells, GL S8, 421 groups,
+       ``keff_tol = 1e-9``, every arm converged): restoring the
+       :math:`\ell = 1` moment moves :math:`k` from
+       ``1.0953221881419453`` to ``1.0911866898558749`` —
+       :math:`-413.55` / :math:`-377.56` / :math:`-346.01` in
+       :math:`\Delta k\cdot10^{5}` / :math:`\Delta k/k_0\cdot10^{5}` /
+       :math:`\Delta\rho\cdot10^{5}` (three conventions, because
+       ``pcm`` alone is ambiguous — ``vv-principles`` #35).  The ladder
+       converges by :math:`\ell = 1` (:math:`\ell\le2` adds
+       :math:`1.30\cdot10^{-5}`), 99.93 % of the effect is the Be-9
+       reflector's, and the SIGN is the physics: a forward-peaked
+       emission sends the pair outward, so less returns and :math:`k`
+       must fall.
+       **(3) What did NOT move, by physics.**  The :math:`P_0` reads
+       that remain are all reaction rates or method properties — the
+       :math:`k` balance, ``SigT``/``absorption_xs``, the
+       :math:`K_{\rm iso}` ray seed, and CP / MoC / Monte Carlo, whose
+       emission is isotropic by construction.  ``[M]`` re-censused by
+       AST: **7** ``Sig2[0]`` sites, all 7 correct.  The
+       :math:`L = 0` solve and the :math:`(n,2n)`-at-\ :math:`P_0` arm
+       both reproduce their pre-carve values to the bit.
+       Full account: :ref:`sn-n2n-adjoint`,
+       :ref:`the shipped ladder <sn-n2n-anisotropy-shipped-ladder>`,
+       :ref:`n2n-reactions`.
+     - `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_
+     - ``1a3b78ec`` on
+       ``feature/n2n-transfer-family``
+       (unmerged at the time of writing — trust ``git``)
+   * - in dev
        (2026-08-30)
      - **The fission channel becomes TWO bindings of one datum, and the
        three gain operators collapse onto one shape** (campaign 2, phase
@@ -46,7 +118,7 @@ them.  Trust ``git``, not this column.
        (validated per-material kernels — the :math:`\chi` simplex holds
        by construction — × the mesh layout, with cellwise gather verbs).
        It is bound twice: the **energy** binding
-       :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+       :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`,
        the rank-1 dyad on the scalar flux and now the ONE arithmetic
        home of :math:`\chi(\nu\Sigma_f\cdot\phi)`; and the **angular**
        binding
@@ -135,17 +207,23 @@ them.  Trust ``git``, not this column.
        **context-dependent and must not be fixed at the operator
        level**.  The within-group algebra now spells
        :math:`A = L + C - S - N_{2n} - B`
-       (:eq:`sn-within-group-with-n2n`), :math:`K_{\rm iso}` is composed
+       (:eq:`sn-within-group-with-n2n`), :math:`K_{\rm iso}` was composed
        at the ONE construction site as ``S.isotropic_energy +
        N2N.energy``, and the two shipped solvers legibly DISAGREE about
        the grouping — S\ :sub:`N` keeps the terms apart, 1-D diffusion
-       sums them into its own :math:`S`.  The new operator's action is
+       sums them into its own :math:`S`.  The new operator's action was
        the isotropic lift :math:`\tfrac{1}{W}EK\!\int\!d\Omega`, gated
        against the :math:`\ell = 0` frame conjugation it realizes
-       (*algebra eager, performance lazy*), and its transpose is the
+       (*algebra eager, performance lazy*), and its transpose the
        lift reversed, :math:`\tfrac{w_n}{W}K^{\mathsf T}\sum_m\chi_m` —
        whose :math:`w_n` an equal-weight fixture is structurally blind
-       to.  Full account: :ref:`sn-n2n-adjoint` and the rewritten
+       to.  ⛔ Both halves of that last sentence are dated: #426 step 2
+       (2026-09-04, the entry at the head of this table) made the action
+       the full per-:math:`\ell` conjugation and the accessor
+       ``N2N.isotropic_energy``.  The :math:`\ell = 0` lift survives as
+       the P0 half — it is what the fast path evaluates and what
+       :math:`K_{\rm iso}` still needs — and the extraction ruling
+       recorded here is what made that step small.  Full account: :ref:`sn-n2n-adjoint` and the rewritten
        :ref:`n2n-reactions`.
        **(3) The frame is handed in, and interned on the hub.**
        ``HarmonicFrame.for_space(angular_space, L)`` is the one blessed
@@ -166,9 +244,9 @@ them.  Trust ``git``, not this column.
        channel subclasses, einsums ported verbatim with per-arm
        bit-identity gates); ``cells_by_material`` re-homes to
        ``MaterialMesh`` (mesh owns machinery); and the multiplicity
-       :math:`\nu_{2n}` gains ONE home,
-       :attr:`N2NKernel.multiplicity
-       <orpheus.transport.kernels.N2NKernel.multiplicity>`, with a
+       :math:`\nu_{2n}` gains ONE home, ``N2NKernel.multiplicity``
+       (:data:`~orpheus.transport.kernels.N2N_MULTIPLICITY` since #426
+       step 2), with a
        census gate asserting no production literal survives outside the
        kernel module at the full 14-site denominator (cp ×4, moc ×3
        including an integer spelling, mc ×1 hoisted to a module
@@ -531,16 +609,23 @@ them.  Trust ``git``, not this column.
        operators carrying them are born BOUND** (campaign 1, phase CS4a,
        with its clear-context adversarial review).  A cross-section
        *datum* and the *operator* that acts with it had been one object.
-       A new :mod:`orpheus.transport.kernels` mints
-       :class:`~orpheus.transport.kernels.ScatteringKernel`,
-       :class:`~orpheus.transport.kernels.N2NKernel` and
+       A new :mod:`orpheus.transport.kernels` mints ``ScatteringKernel``,
+       ``N2NKernel`` and
        :class:`~orpheus.transport.kernels.FissionKernel` — frozen,
        read-only views over ONE
        :class:`~orpheus.data.macro_xs.mixture.Mixture`, with the emission
        spectrum applied at the single place it belongs
        (:func:`~orpheus.data.emission_spectrum.enforce_emission_spectrum`)
        and a truncation that **refuses** beyond the carried order rather
-       than silently padding.  The energy arm gets ONE rule,
+       than silently padding.  (The first two collapsed into one
+       :class:`~orpheus.transport.kernels.TransferKernel` at #426 step 2,
+       2026-09-04, and the refusal became a **pad** there — ruling O-1:
+       a channel that stores fewer orders than the solve asks for is
+       exactly zero above them, which is the evaluation's own statement.
+       The refusal was right about a 7-deep stack and wrong about a
+       1-deep one, and the kernel cannot tell them apart; the solver's
+       clamp, which reads the scattering stack alone, is what makes the
+       pad honest.)  The energy arm gets ONE rule,
        :meth:`EnergyAxis.from_materials
        <orpheus.numerics.axis.EnergyAxis.from_materials>`, which
        :attr:`MaterialMesh.bulk_space

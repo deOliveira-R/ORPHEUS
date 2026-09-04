@@ -22,7 +22,7 @@ solve's Legendre order. This module owns the bindings' shared arithmetic
 * :class:`TransferOperator` — the angular binding :math:`T = R\,\Lambda\,M
   / W` on the posed composite, realized on the reaction-rate fast path
   for :math:`\ell = 0` (the scalar energy binding
-  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicTransfer`,
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicTransfer`,
   lifted through the shared producer-side combine) plus the
   frame-conjugated :math:`\ell \ge 1` redistribution.
 
@@ -119,7 +119,7 @@ from orpheus.transport.operators._per_ordinate import (
     assemble_per_ordinate_isotropic,
 )
 from orpheus.transport.operators.bound_operator import BoundOperator
-from orpheus.transport.operators.isotropic_scattering import IsotropicTransfer
+from orpheus.transport.operators.isotropic_transfer import IsotropicTransfer
 
 if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
@@ -418,7 +418,7 @@ class TransferOperator(BoundOperator["FullField"]):
     #: The P0 ENERGY binding this term lifts — the role subclass names its
     #: own (``IsotropicScattering`` for :math:`S`, ``IsotropicN2N`` for
     #: :math:`N_{2n}`); the core mints the shared
-    #: :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicTransfer`.
+    #: :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicTransfer`.
     #: A ClassVar, not a field: it is the role's identity, not a datum.
     isotropic_binding: ClassVar[type[IsotropicTransfer]] = IsotropicTransfer
     #: The channel this term reads off the facade — the role's other fact
@@ -650,9 +650,9 @@ class TransferOperator(BoundOperator["FullField"]):
     def isotropic_energy(self) -> IsotropicTransfer:
         r"""The P0 ENERGY binding of this operator's own datum — the
         scalar-space :attr:`isotropic_binding` (the role's own:
-        :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+        :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
         under :math:`S`,
-        :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+        :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
         under :math:`N_{2n}`) the per-ordinate fast path lifts — and the
         solver's K_iso assembly consumes: ``K_iso = S.isotropic_energy +
         N2N.isotropic_energy``, composed at the ONE within-group

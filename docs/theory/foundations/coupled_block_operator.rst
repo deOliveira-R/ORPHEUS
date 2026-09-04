@@ -255,10 +255,11 @@ injection**: :math:`A_{BA}` is generic over any ``ndarray → ndarray``
 emitter carrying ``apply``/``apply_transpose``. The production
 instantiation passes the solver-composed :math:`K_{\rm iso} =
 \Sigma_{s0} + \nu_{2n}\Sigma_{2n}` — assembled at the ONE within-group
-construction site as
-:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_energy`
-``+`` :attr:`~orpheus.transport.operators.n2n.N2NOperator.energy` (CS4c
-§14.1: the two cached energy bindings the bulk gains also consume), so
+construction site as ``S.isotropic_energy + N2N.isotropic_energy``
+(:attr:`TransferOperator.isotropic_energy
+<orpheus.transport.operators.transfer.TransferOperator.isotropic_energy>`
+on each — CS4c §14.1: the two cached energy bindings the bulk gains
+also consume), so
 the emission is single-sourced per LEAF (one shared kernel object per
 channel, never a twin re-implementation of
 :math:`\Sigma_{s0}^{\mathsf T}\phi`).
@@ -276,12 +277,28 @@ channel, never a twin re-implementation of
    with scattering.  It retired with the extraction, and the sum is now
    written where the grouping is a legitimate local choice: the
    builder, at the one construction site, composes
-   ``S.isotropic_energy + N2N.energy`` and hands the resulting
-   :class:`~orpheus.numerics.operator.OperatorSum` to the emission.
-   Single-sourcing is preserved per LEAF — the two energy bindings are
-   the same objects the bulk gains hold — and what is gained is that a
-   consumer wanting :math:`\Sigma_{s0}` *without* the multiplicity can
-   now spell it.
+   ``S.isotropic_energy + N2N.isotropic_energy`` and hands the
+   resulting :class:`~orpheus.numerics.operator.OperatorSum` to the
+   emission.  Single-sourcing is preserved per LEAF — the two energy
+   bindings are the same objects the bulk gains hold — and what is
+   gained is that a consumer wanting :math:`\Sigma_{s0}` *without* the
+   multiplicity can now spell it.
+
+   ⚠ The :math:`(n,2n)` half was spelled ``N2N.energy`` until #426 step
+   2 (2026-09-04); it is ``N2N.isotropic_energy`` now, because both
+   gains are roles of one
+   :class:`~orpheus.transport.operators.transfer.TransferOperator` and
+   that accessor is the core's.  ⭐ **And this** :math:`K_{\rm iso}`
+   **is** :math:`\ell = 0` **by PHYSICS, so step 2 did not touch it.**
+   The ray seed is driven by the scalar flux; what the emission needs
+   is each gain's :math:`P_0` energy binding, and it would need exactly
+   that even if the solve ran at :math:`L = 6`.  The step-2 change —
+   the :math:`(n,2n)` gain reading its Legendre stack at the solve's
+   order — lives on the BULK arm, where the angular shape of the source
+   is a real degree of freedom.  A reader who reads
+   :ref:`the (n,2n) P0-truncation record <sn-n2n-p0-truncation>` and
+   comes here looking for a second truncation to fix will not find
+   one.
 
 .. vv-status: coupled-ba-emission documented
 

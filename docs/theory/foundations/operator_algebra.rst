@@ -2903,7 +2903,7 @@ direction cosine — a *zonal* kernel — so by the Funk–Hecke theorem the
 spherical harmonics are its eigenfunctions, with eigenvalues the
 Legendre moments :math:`\Sigma_{s,\ell}` (the diagonal of
 :math:`\Lambda` =
-:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`). Reading
+:class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`). Reading
 :math:`M` = :math:`U^*` (change of basis *into* the eigenbasis),
 :math:`\Lambda` = :math:`\Sigma` (the diagonal spectrum), and
 :math:`R` = :math:`U` (synthesis *out of* it) is what makes the
@@ -3034,7 +3034,7 @@ read right-to-left as the dyad action :math:`F\,\phi = \chi \cdot
 \langle\nu\Sigma_f,\phi\rangle`: the row co-vector
 :math:`\langle\nu\Sigma_f|` contracts the flux over groups to the scalar
 emission **density** (the S5 :eq:`production-rate-functional`, exposed as
-:attr:`IsotropicFission.production_rate <orpheus.transport.operators.isotropic_scattering.IsotropicFission.production_rate>`),
+:attr:`IsotropicFission.production_rate <orpheus.transport.operators.isotropic_transfer.IsotropicFission.production_rate>`),
 and the column :math:`\chi` broadcasts it back across the emission groups.
 The realization is literally that dyad — ``outer(chi,
 self.production_rate) & IdentityOperator()`` — and the matvec **routes
@@ -3051,7 +3051,7 @@ closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)` oracle.
    **Where the dyad lives, since CS4c step 4 (2026-08-30).**  The
    arithmetic home of this equation moved from the angular operator to
    the **energy binding**
-   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicFission`,
+   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`,
    which is one half of the step's ruling that the fission channel is
    **two bindings of one datum**: a representation-free
    :class:`~orpheus.transport.kernels.FissionKernel` pair
@@ -3078,7 +3078,7 @@ closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)` oracle.
      ``FissionOperator.chi`` / ``.sig_p`` / ``.mat_xs`` are **retired**.
 
 .. implements:: fission-as-dyad
-   :by: orpheus.transport.operators.isotropic_scattering.IsotropicFission.kernel
+   :by: orpheus.transport.operators.isotropic_transfer.IsotropicFission.kernel
 
    **Implemented by** the equation transcribed, in its one arithmetic
    home: ``chi = self.fission.gather_chi(tuple(bulk.shape[1:]))`` then
@@ -3089,7 +3089,7 @@ closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)` oracle.
    a fused realization sitting beside a named one.
 
 .. implements:: fission-as-dyad
-   :by: orpheus.transport.operators.isotropic_scattering.IsotropicFission.production_rate
+   :by: orpheus.transport.operators.isotropic_transfer.IsotropicFission.production_rate
 
    **Implemented by** the dyad's row co-vector
    :math:`\langle\nu\Sigma_f|`, exposed as the binding's own member:
@@ -3139,33 +3139,44 @@ closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)` oracle.
    through the row functional, with no intermediate operator stages to
    materialise.
 
-Scattering as the nonlocal-in-angle kernel
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Transfer as the nonlocal-in-angle kernel
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The scattering :attr:`kernel <orpheus.transport.operators.scattering.ScatteringOperator.kernel>`
+The transfer :attr:`kernel <orpheus.transport.operators.transfer.TransferOperator.kernel>`
 is the :class:`~orpheus.numerics.operator.OperatorProduct`
 :math:`R \circ \Lambda \circ M` built from the SH frame's analysis
 face ``frame.analysis`` (:math:`M`),
-:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering` (:math:`\Lambda`),
+:class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer` (:math:`\Lambda`),
 and the frame's reconstruction face ``frame.reconstruction``
 (:math:`R`). It is the strictly-anisotropic :math:`\ell \ge 1` part of the
-full scattering ``apply``: the isotropic :math:`P_0` in-scatter and the
+full ``apply``: the isotropic :math:`P_0` in-transfer and the
 per-ordinate :math:`1/W` normalisation
 are the **local / separate** components that live *outside* the kernel
-(a strict sub-component, pinned).  The :math:`(n,2n)` doubling stood in
-that list too until 2026-08-30, when it left the operator altogether
-(:ref:`scattering-binding-cs4c`). The kernel reproduces the existing
+(a strict sub-component, pinned). The kernel reproduces the existing
 anisotropic moment path :math:`R(\Lambda(M\psi))` byte-for-byte (0 ULP);
 its physics L1 backing is the existing anisotropic MMS gate
 ``tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py``,
 not a new reference.
+
+**Both collision gains are this kernel, since #426 step 2** (2026-09-04).
+The :math:`(n,2n)` doubling was an entry in the *local / separate* list
+above until 2026-08-30, when the extraction gave the channel its own
+operator (:ref:`scattering-binding-cs4c`) — and that operator then
+carried a :math:`\Lambda` of one block, because its kernel held one
+matrix and its frame was minted at :math:`L = 0`.  It now holds the
+channel's whole Legendre stack at the solve's order, so
+:math:`N_{2n} = \tfrac1W R\,\Lambda_{2n}\,M` is the same product as
+:math:`S` over a different middle factor.  What distinguishes the two is
+the yield inside :math:`\Lambda` — :math:`\Lambda_c = y_c \sum_\ell
+P_\ell \otimes \Sigma_{c,\ell}` with :math:`y_S = 1`,
+:math:`y_{2n} = 2` — and nothing else in this section.
 
 .. note::
 
    The moment-space :math:`\ell`-sum :math:`\Lambda = \sum_\ell
    P_\ell \otimes \Sigma_{s,\ell}`
    (:eq:`scattering-as-tensor-product-sum`) is real and realized — it is
-   what :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`
+   what :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`
    *is*. ⚠ Since 2026-09-02 (#429 / ERR-080) its per-:math:`\ell` block
    contraction is selected by the RANK of the operator's angular head
    (:class:`~orpheus.numerics.spaces.moment_head.MomentHead`), because a
@@ -3208,17 +3219,25 @@ which object is allowed to know what.
    * - Field
      - What it is
      - Why the operator retains it
-   * - ``scattering``
+   * - ``transfer``
        (positional, first)
-     - a ``ScatteringMaterialField`` — the frozen per-material
-       :class:`~orpheus.transport.kernels.ScatteringKernel` map paired
-       with the mesh's own material layout — **already truncated** to
-       this binding's Legendre order
+     - a :class:`~orpheus.transport.material_field.TransferMaterialField`
+       — the frozen per-material
+       :class:`~orpheus.transport.kernels.TransferKernel` map (a Legendre
+       stack **and its yield**) paired with the mesh's own material
+       layout — **already brought to** this binding's Legendre order
      - the representation-free datum: what each material does, and
-       where each material sits.  The truncation **is** the order:
-       :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.scattering_order`
-       is a derived read (``self.scattering.order``), so there is no
-       second place an order could be stored and disagree.
+       where each material sits.  The order **is** the field's:
+       :attr:`~orpheus.transport.operators.transfer.TransferOperator.legendre_order`
+       is a derived read (``self.transfer.order``), so there is no
+       second place an order could be stored and disagree.  (The
+       accessor was ``scattering_order`` until #426 step 2 — a channel
+       name on a channel-generic core; the solver *parameter* keeps that
+       name, because it is the SCATTERING stack the clamp reads.)  Since #426
+       step 2 (2026-09-04) the field is also what makes the operator
+       channel-generic: the same constructor takes the scattering
+       channel (:math:`y = 1`) or the :math:`(n,2n)` channel
+       (:math:`y = 2`), and nothing else in the class knows which.
    * - ``flux_analysis``
        (kw-only)
      - the minted :math:`M\otimes I` face,
@@ -3254,10 +3273,13 @@ guard came to be inert on the majority path elsewhere in this algebra.
 
 **The frame is constructed outside and handed in.**  The tier-2
 classmethod
-:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.from_solver_data`
-takes ``(mat_xs, scattering_order, space)``, extracts the scattering
+:meth:`~orpheus.transport.operators.transfer.TransferOperator.from_solver_data`
+takes ``(mat_xs, scattering_order, space)``, extracts **its role's**
 channel, reaches the frame, mints the two faces, and **forgets the
-frame**.  The blessed chain is one spelling, used by every consumer:
+frame**.  Since #426 step 2 that classmethod lives on the shared core
+and the ROLE supplies only ``channel`` — the one-line answer to *which*
+``Mixture`` channel to read — so :math:`S` and :math:`N_{2n}` mint
+through one body, at one order, into one interned frame.  The blessed chain is one spelling, used by every consumer:
 
 .. code-block:: text
 
@@ -3311,9 +3333,9 @@ factory populates a field the *composite* factory forgets, and the
 test-side fixture then exercises a guard production never reaches.
 
 **The fused composites are now built once per operator, not once per
-apply.**  :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel`
+apply.**  :attr:`~orpheus.transport.operators.transfer.TransferOperator.kernel`
 and
-:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`
+:attr:`~orpheus.transport.operators.transfer.TransferOperator.full_transfer_kernel`
 are ``cached_property``: the bound field is immutable, so the cache
 cannot go stale.  The step-0 execution census measured the pre-rebind
 rate at up to **911** satellite :math:`\Lambda` instances minted inside
@@ -3324,21 +3346,43 @@ before the rebind the operator held a facade and re-derived the moment
 operator from it on every call, because there was no immutable datum it
 could have cached against.
 
-**The datum's shape (the O-6 landing).**  ``ScatteringMaterialField``
-and its ``N2NMaterialField`` sibling specialise one generic base,
-``MaterialField[K]``, which owns the pairing (per-material kernel map ×
-mesh layout), the single per-material dispatch loop, and the ONE
-gathered ``(ng, ng)`` contraction primitive — with the trailing ``...``
-subscript that lets a linear-discontinuous :math:`2^d` spatial-moment
-axis ride through as a broadcast spectator.  The subclasses add the
-*domain* vocabulary (``add_p0_source``, ``moment_source``,
-``add_emission``), and the cell-index partition itself belongs to
+**The datum's shape (the O-6 landing, and what #426 step 2 did to
+it).**  :class:`~orpheus.transport.material_field.TransferMaterialField`
+and its :class:`~orpheus.transport.material_field.FissionMaterialField`
+sibling specialise one generic base, ``MaterialField[K]``, which owns
+the pairing (per-material kernel map × mesh layout), the single
+per-material dispatch loop, and the ONE gathered ``(ng, ng)``
+contraction primitive — with the trailing ``...`` subscript that lets a
+linear-discontinuous :math:`2^d` spatial-moment axis ride through as a
+broadcast spectator.  The subclasses add the *domain* vocabulary
+(:meth:`~orpheus.transport.material_field.TransferMaterialField.add_p0_source`,
+:meth:`~orpheus.transport.material_field.TransferMaterialField.moment_source`,
+:meth:`~orpheus.transport.material_field.TransferMaterialField.add_to_group_rate`),
+and the cell-index partition itself belongs to
 :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` — mesh owns
 machinery, so every field over one mesh shares one ``np.where``.  This
 is where the eight ``apply_*`` arms of the old cross-section facade
 went: not onto the operators (which would have re-scattered them) and
 not onto the kernels (which know no layout), but onto the *pairing* of
 kernel and layout, which is the only object that has both.
+
+O-6 landed **three** transfer-side subclasses where there are now one.
+``ScatteringMaterialField`` and ``N2NMaterialField`` were member-for-member
+twins whose only difference was that the :math:`(n,2n)` verbs multiplied
+their contraction by 2 and existed for :math:`\ell = 0` alone
+(``add_emission`` / ``moment_emission``).  #426 step 2 read that
+difference for what it is — a **datum**, the channel's yield :math:`y`,
+which the tape itself stores folded into every Legendre order
+(ENDF-102 Eq. 6.1/6.3) — and collapsed both onto
+:class:`~orpheus.transport.material_field.TransferMaterialField`, whose
+every verb carries ``scale = self.multiplicity``.  The
+:math:`y = 1` path is bit-identical by construction (the scale branch is
+skipped), and the arithmetic a :math:`y > 1` channel adds on top —
+production accounting :math:`(y-1)\,\Sigma_{c,0}^{T}\phi` — vanishes
+for scattering by arithmetic rather than by a branch, so no verb names a
+channel.  This is the type-vs-property rule applied to a *pair of
+fields*: two isomorphic realizations under one morphism (scale by
+:math:`y`) are one type with a property, not two types.
 
 The tightness gate — what makes the faces the RIGHT faces
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3586,7 +3630,7 @@ edges that map between them.
    representation changed.
 
 .. implements:: scattering-carrier-grid
-   :by: orpheus.transport.operators.scattering.LegendreMomentScattering.apply
+   :by: orpheus.transport.operators.transfer.LegendreMomentTransfer.apply
 
    **Implemented by** the diagram's vertical edge :math:`\Lambda` — and
    the only role-**changing** one:
@@ -3664,7 +3708,7 @@ moment) and the role (flux ↔ source). The four leaves and three edges:
        the Galerkin frame's analysis — the canonical pure-Galerkin
        :math:`\Pi`).
    * - :math:`\Lambda` (right edge)
-     - :meth:`LegendreMomentScattering.apply <orpheus.transport.operators.scattering.LegendreMomentScattering.apply>`
+     - :meth:`LegendreMomentTransfer.apply <orpheus.transport.operators.transfer.LegendreMomentTransfer.apply>`
      - **Role-changing, axis-preserving.** The *sole* role-changing edge:
        the per-:math:`\ell` group-transfer :math:`\Sigma_{s,\ell}` maps a
        :class:`HarmonicMomentFlux` to the
@@ -3707,7 +3751,7 @@ The frame verbs are role-polymorphic by
 the source leg used by the windowed in-scatter migration below.
 
 .. implements:: scattering-aniso-composite
-   :by: orpheus.transport.operators.scattering.ScatteringOperator.build_aniso_source
+   :by: orpheus.transport.operators.transfer.TransferOperator.build_aniso_source
 
    **Implemented by** literally ``self.kernel.apply(angular_flux.values)
    / self.total_weight`` — i.e.
@@ -3719,7 +3763,7 @@ the source leg used by the windowed in-scatter migration below.
    come from (:ref:`scattering-binding-cs4c`).
 
 .. implements:: scattering-aniso-composite
-   :by: orpheus.transport.operators.scattering.ScatteringOperator.kernel
+   :by: orpheus.transport.operators.transfer.TransferOperator.kernel
 
    **Implemented by** the ``frame.conjugate(Λ)`` composite — the
    :math:`R\circ\Lambda\circ M` product **before** the :math:`1/W`, because
@@ -3727,12 +3771,12 @@ the source leg used by the windowed in-scatter migration below.
    lives outside it by design.
 
 .. implements:: scattering-aniso-composite
-   :by: orpheus.transport.operators.scattering.ScatteringOperator._apply_impl
+   :by: orpheus.transport.operators.transfer.TransferOperator._apply_impl
 
    **Implemented by** the second, deliberately-kept realization: the
    :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
    arm spells the composite explicitly on the typed carriers —
-   ``self._moment_scattering(skip_l0=True).apply(phi_moments)`` and then
+   ``self._moment_transfer(skip_l0=True).apply(phi_moments)`` and then
    ``self.source_reconstruction.apply(scattered) / self.total_weight``.
    Both factors are the operator's own retained objects since the CS4c
    rebind: :math:`\Lambda` is minted on the bound kernel field, and
@@ -4177,7 +4221,7 @@ the carrier verbs.
    verb. A frame's faces are role-*preserving* changes of representation
    (flux↔flux, source↔source); the flux→source role change is *physics*
    (scattering emits a source), so it lives on the scattering operator
-   (:meth:`LegendreMomentScattering.apply <orpheus.transport.operators.scattering.LegendreMomentScattering.apply>`),
+   (:meth:`LegendreMomentTransfer.apply <orpheus.transport.operators.transfer.LegendreMomentTransfer.apply>`),
    where the cross sections are. Putting :math:`\Lambda` on the frame would
    conflate "change of basis" with "change of physical kind".
 
@@ -4557,9 +4601,9 @@ router-over-shared-primitives shape falls out of the sharing.
    **Source map.** Category Protocol:
    :class:`orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
    (L2). Named kernels:
-   :attr:`orpheus.transport.operators.isotropic_scattering.IsotropicFission.kernel`
+   :attr:`orpheus.transport.operators.isotropic_transfer.IsotropicFission.kernel`
    +
-   :attr:`orpheus.transport.operators.isotropic_scattering.IsotropicFission.production_rate`
+   :attr:`orpheus.transport.operators.isotropic_transfer.IsotropicFission.production_rate`
    (the arithmetic home since CS4c step 4; the angular binding's
    :attr:`FissionOperator.kernel
    <orpheus.transport.operators.fission.FissionOperator.kernel>` /
@@ -4622,8 +4666,27 @@ factor naturally as a **tensor product** of per-axis operators:
   harmonic-coefficient axis and :math:`\Sigma_{s,\ell}` is the
   per-:math:`\ell` group-to-group transfer matrix.
 
+  ⭐ **Since #426 step 2 (2026-09-04) this** :math:`\Lambda` **is the
+  TRANSFER FAMILY's, not scattering's**, and the generalisation is one
+  scalar: the class carries the channel's **yield** :math:`y_c`, so the
+  shipped form is
+
+  .. math::
+
+     \Lambda_c \;=\; y_c \sum_{\ell} P_\ell \otimes \Sigma_{c,\ell} ,
+     \qquad y_S = 1, \quad y_{2n} = 2 ,
+
+  and the :math:`(n,2n)` gain is the SAME
+  :math:`\tfrac1W R\,\Lambda_c\,M` conjugation as :math:`S`
+  (:eq:`sn-n2n-transfer-binding`).  The tensor-product structure is
+  untouched — a scalar multiple of a sum of tensor products is a sum of
+  tensor products — which is why the label, the equation and both
+  declarations below survived the collapse unchanged.  The label keeps
+  its ``scattering-`` prefix because it is a citation target with
+  citers; the object it names is wider than the name.
+
   .. implements:: scattering-as-tensor-product-sum
-     :by: orpheus.transport.operators.scattering.LegendreMomentScattering
+     :by: orpheus.transport.operators.transfer.LegendreMomentTransfer
 
      **Implemented by** the class — whose own docstring cites this label
      for itself. It is block-diagonal on the harmonic-coefficient axis by
@@ -4633,15 +4696,15 @@ factor naturally as a **tensor product** of per-axis operators:
      tensor products.
 
   .. implements:: scattering-as-tensor-product-sum
-     :by: orpheus.transport.operators.scattering.LegendreMomentScattering.apply
+     :by: orpheus.transport.operators.transfer.LegendreMomentTransfer.apply
 
      **Implemented by** the action — per-:math:`\ell` block, per-group
      transfer, :math:`(\Lambda\phi)_\ell^m\big|_g = \sum_{g'}
      \Sigma_{s,\ell}(g'\!\to\!g)\,\phi_\ell^m\big|_{g'}`, dispatched
      per-material through the cell axis. Production's default
      ``skip_l0=True`` omits the :math:`\ell = 0` block, which the separate
-     :math:`P_0` in-scatter fast path
-     (:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.add_iso_source`)
+     :math:`P_0` in-transfer fast path
+     (:meth:`~orpheus.transport.operators.transfer.TransferOperator.add_iso_source`)
      carries; ``skip_l0=False`` restores the full sum for the
      :math:`R\Lambda M\psi` composition.
 
@@ -4663,7 +4726,7 @@ factor naturally as a **tensor product** of per-axis operators:
      this very label while writing :math:`\Lambda`),
      :doc:`/theory/methods/sn/slab_multigroup` and
      :doc:`/theory/methods/sn/cartesian_multid` — as does
-     :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`'s
+     :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`'s
      own docstring.
 
 .. vv-status: streaming-as-tensor-product-sum documented
@@ -6025,7 +6088,7 @@ other direction, three symbols legitimately implement **two** equations
 each
 (:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients`
 assembles the balance diagonal *and* divides by it;
-:meth:`LegendreMomentScattering.apply <orpheus.transport.operators.scattering.LegendreMomentScattering.apply>`
+:meth:`LegendreMomentTransfer.apply <orpheus.transport.operators.transfer.LegendreMomentTransfer.apply>`
 is both the :math:`\ell`-sum and the carrier grid's role-changing edge;
 :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`
 is both the :math:`\Gamma_-` half and the inflow predicate) — so the

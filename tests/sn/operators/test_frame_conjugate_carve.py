@@ -138,7 +138,7 @@ def _aniso_psi(solver, seed=20260624):
 # ═════════════════════════════════════════════════════════════════════════════
 
 
-class TestLegendreMomentScatteringHasRealSpaces:
+class TestLegendreMomentTransferHasRealSpaces:
     """Λ is an endomorphism on the SH coefficient space (``= frame.basis_space``).
 
     Catches: the cast at ``scattering.py:663`` is gone because Λ now carries

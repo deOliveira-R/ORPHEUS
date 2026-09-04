@@ -287,7 +287,7 @@ All :math:`g' \to g` mixing lives in the two operators
 * **Scattering** is the conjugation :math:`S = R \circ \Lambda \circ M`
   — project to moments, transfer on the group axis, reconstruct.  The
   group-asymmetric factor is *exactly one*:
-  :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`,
+  :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`,
   the per-:math:`\ell` cross-section matmul on the energy axis.  The
   projection and reconstruction faces are quadrature objects —
   group-blind.
