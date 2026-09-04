@@ -367,6 +367,25 @@ any other review work.
     outside THAT — here a rotation about another axis. Same session, same battery, the harness's other lie: the
     driver's inline `$(...)` capture returned EMPTY summaries for the four
     widest arms; read arm output from a FILE.
+
+    ⭐ **And the FILTER form of the positive-control rule: a two-stage census
+    (a name-net THEN a literal pattern) needs a control per STAGE — a synthetic
+    fixture you author passes stage 1 by its own NAME and certifies only
+    stage 2.** When a census first selects candidate functions by a token net
+    and then scans their bodies, a control whose function is named with one of
+    the net's tokens clears stage 1 for free, so every arm validates the
+    literal patterns and none validates the net. ⟹ name the control fixture
+    with the spelling you are LEAST sure the net catches, or add a member that
+    is only reachable through a token you did not think of.
+
+    > `[M]` 2026-09-03, ORPHEUS #428 census. `test_n2n_multiplicity_census`'s
+    > net `("n2n", "sig2", "sig_2n", "_2n")` misses `sig_2` — the spelling
+    > `derivations/` uses — so its claim *"a thirteenth literal home is
+    > unspellable"* was false: widening the net by that ONE token finds 2
+    > literals (`derivations/common/eigenvalue.py:61, :290`, correct by design
+    > there — the reference tree must not read the SUT's constant — but
+    > escaping by a filter gap, not a named exclusion). Its control names its
+    > synthetic function `n2n_source_assembly`, so it never exercised the net.
 18. **NEVER credit a mutation's reds as coverage of a property when the
     mutation also breaks a STRUCTURAL law the object obeys** (linearity,
     symmetry, positivity, conservation, a shape/type contract) —
@@ -1176,6 +1195,50 @@ any other review work.
     > became REQUIRED and the second body was deleted), and the structural
     > claim is now GATED — `_orbit_closure` has exactly one call site,
     > asserted by AST in `tests/numerics/test_invariance.py`.
+35. **NEVER report a derived COMPARISON quantity by its unit name alone when
+    that name is overloaded — instead write its definition beside it, and check
+    whether the choice survives your own fixture set.** `pcm` = 10⁻⁵ and says
+    nothing about what was divided by what: `Δk·10⁵`, `Δk/k₀·10⁵` and
+    `Δρ·10⁵ = (1/k₀ − 1/k)·10⁵` are three different numbers differing by `k₀`.
+    Below `k ≈ 1.01` they are indistinguishable, which is why the habit never
+    forms; above it they diverge without limit. ⟹ the tell that this is
+    load-bearing rather than pedantic is a **fixture set spanning a range of
+    the normalising quantity** — when one exists, emit all three columns. Same
+    family as #24's ranking instruments: a number adopted to *compare* owes more
+    than a number reported to *record*.
+
+    > `[M]` 2026-09-03, ORPHEUS #426. A study reported `−413.55 pcm` (absolute)
+    > for a `k₀ = 1.0953` fixture and `−529.26 pcm` for a `k₀ = 1.5262` one. In
+    > reactivity those are `−346.01` and `−228.00` — so *"the thicker reflector
+    > makes the truncation worse"* is **TRUE** in one convention and **FALSE**
+    > in the other, a 2.3× spread, with no statement anywhere of which was
+    > meant. Caught by the `qa` reproduction, whose own convention (relative)
+    > disagreed with the claim's on the SAME k pair — the disagreement was the
+    > finding. ⭐ The companion lesson from the same review: **two probes over
+    > the same production code cannot see a SHARED convention** — a
+    > reproduction certifies the arithmetic, not the premises both instruments
+    > inherit. Test those against PHYSICS instead: here, strict
+    > upper-triangularity of an energy-losing transfer matrix (8195 of 8195
+    > entries) and the hard entrywise bound `|Σ_ℓ|/Σ_0 = |⟨P_ℓ(μ)⟩| ≤ 1` (a
+    > stray `(2ℓ+1)` on ℓ = 1 would have read 2.9), each one `.todense()` and a
+    > comparison.
+36. **NEVER read a `catches("ERR-NNN")` / `verifies(...)` marker as coverage
+    without reading the test's OTHER markers — a catcher deselected by the
+    canonical invocation is a gate that cannot RUN.** Mode 8's nine classes are
+    all about a gate that cannot *fail*; this is its dual. The catalogue counts
+    the ERR as caught, the test genuinely reds when the defect is re-introduced,
+    and `-m "not slow"` — the project's canonical gate — deselects it, so the
+    regression lands green in every run that decides a merge, and `nexus
+    errors` reports the entry covered. ⟹ when auditing an ERR's coverage, read
+    the catcher's marker SET, and say plainly when an ERR's not-slow coverage is
+    **zero**; a `slow`-only catcher is an ERR that needs a second, fast witness
+    or an honest catalogue note.
+
+    > `[M]` 2026-09-03, ORPHEUS #428 census. ERR-023's ONLY catcher is
+    > `tests/mc/test_gaps.py:718` (`slow` + `catches("ERR-023")`). Under the
+    > mutation ν₂ₙ: 2 → 1 the MC tree reads **39 passed / 0 red** at
+    > `-m "not slow"`; the same test **FAILS in 84 s** run alone. Real teeth,
+    > never engaged by the gate that matters.
 
 ---
 
