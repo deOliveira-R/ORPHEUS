@@ -598,7 +598,8 @@ measurement first), **#449** (the facade's σ_r fold family y-blind), **#450** (
 its energy binding as `TransferOperator` does), #60 (the clamp's honesty). The archivist's "weakest dimension":
 no `derivations/` script for the (n,2n) Legendre stack — a SymPy `derive_*()` proving
 `emission_matrix(y=2) ≡ 2·emission_matrix(y=1)` would turn `sn-n2n-transfer-binding` from a sentinel into a
-foundation edge (not filed as an issue; it is a V&V-depth wish, not a defect).
+foundation edge — **#451** (filed 2026-09-04; the eigenvalue-tier route is an anisotropic extension of
+`derive_2g_n2n`, not an MMS).
 
 ### 5b.4 Resume pointer (per plan-authoring §1: the OUTCOME)
 **This plan is DONE. The next act is Campaign 2's step 5** — `.claude/plans/cs4c_binding_design.md` §18.8
