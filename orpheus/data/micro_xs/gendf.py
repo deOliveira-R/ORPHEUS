@@ -19,7 +19,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import cast
+from typing import NamedTuple, cast
 
 import numpy as np
 from scipy.sparse import coo_matrix, csr_matrix, diags
@@ -125,22 +125,38 @@ def _extract_mf3(mt: int, temp_idx: int, m: np.ndarray) -> np.ndarray | None:
     return sig
 
 
-def _extract_mf6(
-    mt: int, temp_idx: int, m: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, dict[tuple[int, int], np.ndarray]] | None:
-    """Extract MF=6 transfer matrix for reaction *mt* at temperature index *temp_idx*.
+class _MF6Section(NamedTuple):
+    """One MF=6 transfer section at one temperature — the parser's named product.
 
-    Returns (ifrom, ito, sig_dict) where sig_dict[(legendre, sig0_idx)] is
-    a 1-D array of non-zero values.  ifrom/ito are 1-based group indices
-    (matching MATLAB convention for later sparse matrix construction).
-    Returns None if the reaction is absent.
+    ``ifrom`` / ``ito`` are the 1-based (source, sink) group pairs the section
+    stores, shared by every Legendre order and every sigma-zero column;
+    ``moments[(l, i_sig0)]`` holds one value per pair. ``n_legendre`` is the
+    section header's ``NL`` and ``n_sigma_zero`` its ``NZ`` — carried from the
+    header rather than re-derived from the keys (the producer knew them), and
+    the key set is exactly their rectangle (:func:`_extract_mf6` refuses
+    otherwise), so a consumer indexes ``moments`` directly inside
+    ``range(n_legendre)``: an absent key is a malformed tape, never a silent
+    zero. `[M]` 2026-09-04, 13 of 13 shipped tapes: every section rectangular;
+    elastic ``NZ`` equals the isotope's sigma-zero count on 13 of 13; the
+    inelastic, thermal and MT=16 sections carry one column.
+    """
 
-    Every Legendre order the section stores is returned — ``NL`` keys per
-    sigma-zero column — and nothing is padded: a section with ``NL = 1`` is
-    the evaluation declaring isotropy, and its higher moments are exactly
-    zero for every consumer, which pads (#426 step 1; until then ``NL = 1``
-    was padded to three zero keys here and every channel was cut to three
-    orders downstream).
+    ifrom: np.ndarray
+    ito: np.ndarray
+    moments: dict[tuple[int, int], np.ndarray]
+    n_legendre: int
+    n_sigma_zero: int
+
+
+def _extract_mf6(mt: int, temp_idx: int, m: np.ndarray) -> _MF6Section | None:
+    """Extract the MF=6 transfer section of reaction *mt* at temperature index *temp_idx*.
+
+    ``None`` if the reaction is absent. Every Legendre order the section
+    stores is returned — ``NL`` keys per sigma-zero column — and nothing is
+    padded: a section with ``NL = 1`` is the evaluation declaring isotropy,
+    and its higher moments are exactly zero for every consumer, which pads
+    (#426 step 1; until then ``NL = 1`` was padded to three zero keys here and
+    every channel was cut to three orders downstream).
     """
     n_row = m.shape[0]
     i = 0
@@ -189,15 +205,20 @@ def _extract_mf6(
     if n_temp == 0:
         return None
 
-    ifrom = np.array(ifrom_list)
-    ito = np.array(ito_list)
-    sig_arrays = {key: np.array(vals) for key, vals in sig.items()}
-    return ifrom, ito, sig_arrays
-
-
-def _legendre_order(data: dict[tuple[int, int], np.ndarray]) -> int:
-    """The number of Legendre orders a MF=6 section stores (its ``NL``)."""
-    return 1 + max(legendre for legendre, _ in data)
+    rectangle = {(l, z) for l in range(n_lgn) for z in range(n_sig0)}
+    if set(sig) != rectangle:
+        raise ValueError(
+            f"MF=6/MT={mt}: the section header declares NL = {n_lgn}, "
+            f"NZ = {n_sig0} but the records fill {sorted(sig)} — a malformed "
+            f"section; the reader stores every (order, sigma-zero) cell or none"
+        )
+    return _MF6Section(
+        ifrom=np.array(ifrom_list),
+        ito=np.array(ito_list),
+        moments={key: np.array(vals) for key, vals in sig.items()},
+        n_legendre=n_lgn,
+        n_sigma_zero=n_sig0,
+    )
 
 
 def _strip_transfer_yield(
@@ -401,7 +422,6 @@ def _build_isotope(
     n2n = _extract_mf6(16, i_temp, m)
     sig2: list[csr_matrix]
     if n2n is not None:
-        ifrom2, ito2, sig2_data = n2n
         # The whole Legendre stack the section stores (NL = 7 on 10 of the 11
         # shipped files carrying MT=16, NL = 1 on NA023), one sigma-zero column:
         # a threshold channel is not self-shielded. Until #426 step 1 only
@@ -412,10 +432,11 @@ def _build_isotope(
             cast(
                 csr_matrix,
                 coo_matrix(
-                    (sig2_data[(i_lgn, 0)], (ifrom2 - 1, ito2 - 1)), shape=(NG, NG)
+                    (n2n.moments[(i_lgn, 0)], (n2n.ifrom - 1, n2n.ito - 1)),
+                    shape=(NG, NG),
                 ).tocsr(),
             )
-            for i_lgn in range(_legendre_order(sig2_data))
+            for i_lgn in range(n2n.n_legendre)
         ]
         sig2 = _strip_transfer_yield(sig2, _extract_mf3(16, i_temp, m), mt=16)
     else:
@@ -434,7 +455,7 @@ def _build_isotope(
     thermal_mt = 222 if name.startswith("H_001") else 221      # H-in-water / free gas
     thermal = _extract_mf6(thermal_mt, i_temp, m)
     sections = [s for s in (elastic, *inelastic, thermal) if s is not None]
-    n_legendre = max((_legendre_order(s[2]) for s in sections), default=1)
+    n_legendre = max((s.n_legendre for s in sections), default=1)
 
     sigS = _init_scattering(elastic, n_sig0, n_legendre)
     for section in inelastic:
@@ -544,13 +565,15 @@ def _extract_chi(i_temp: int, m: np.ndarray) -> np.ndarray:
 
 
 def _init_scattering(
-    elastic: tuple | None, n_sig0: int, n_legendre: int
+    elastic: _MF6Section | None, n_sig0: int, n_legendre: int
 ) -> list[list[csr_matrix]]:
     """Initialize the ``n_legendre`` × ``n_sig0`` scattering matrix list from elastic data.
 
     ``n_legendre`` is the widest order any scattering section of the isotope
     stores; the ingest invents nothing and discards nothing — the solve's
-    ``scattering_order`` is the only truncation (#426).
+    ``scattering_order`` is the only truncation (#426). A section narrower
+    than the widest contributes exactly zero above its own ``NL``: the loops
+    run over the SECTION's orders, and the orders it lacks are never visited.
     """
     sigS: list[list[csr_matrix]] = [
         [csr_matrix((NG, NG)) for _ in range(n_sig0)] for _ in range(n_legendre)
@@ -559,45 +582,38 @@ def _init_scattering(
     if elastic is None:
         return sigS
 
-    ifrom, ito, data = elastic
-
     # Zero out thermal groups for elastic (they're handled by thermal scattering)
-    thermal_mask = ifrom <= _IG_THRESH
+    thermal_mask = elastic.ifrom <= _IG_THRESH
 
-    for j_lgn in range(len(sigS)):
+    for j_lgn in range(elastic.n_legendre):
         for i_sig0 in range(n_sig0):
-            key = (j_lgn, i_sig0)
-            if key in data:
-                vals = data[key].copy()
-                vals[thermal_mask] = 0.0
-                vals += _SPARSITY_EPSILON
-                # .tocsr() yields a csr_matrix at runtime; cast past the
-                # csr_array inference of the untyped tocsr() body.
-                sigS[j_lgn][i_sig0] = cast(
-                    csr_matrix,
-                    coo_matrix(
-                        (vals, (ifrom - 1, ito - 1)), shape=(NG, NG)
-                    ).tocsr(),
-                )
+            vals = elastic.moments[(j_lgn, i_sig0)].copy()
+            vals[thermal_mask] = 0.0
+            vals += _SPARSITY_EPSILON
+            # .tocsr() yields a csr_matrix at runtime; cast past the
+            # csr_array inference of the untyped tocsr() body.
+            sigS[j_lgn][i_sig0] = cast(
+                csr_matrix,
+                coo_matrix(
+                    (vals, (elastic.ifrom - 1, elastic.ito - 1)), shape=(NG, NG)
+                ).tocsr(),
+            )
     return sigS
 
 
 def _accumulate_scattering(
     sigS: list[list[csr_matrix]],
-    reaction: tuple,
+    reaction: _MF6Section,
     n_sig0: int,
     sigma_zero_independent: bool = False,
 ) -> None:
     """Add a scattering reaction (inelastic or thermal) into sigS, order by order."""
-    ifrom, ito, data = reaction
-
-    for j_lgn in range(len(sigS)):
+    for j_lgn in range(reaction.n_legendre):
         for i_sig0 in range(n_sig0):
             # Inelastic/thermal: same for all sigma-zeros (use sig0=0 data)
             src_key = (j_lgn, 0) if sigma_zero_independent else (j_lgn, i_sig0)
-            if src_key in data:
-                vals = data[src_key] + _SPARSITY_EPSILON
-                addition = coo_matrix(
-                    (vals, (ifrom - 1, ito - 1)), shape=(NG, NG)
-                ).tocsr()
-                sigS[j_lgn][i_sig0] = sigS[j_lgn][i_sig0] + addition
+            vals = reaction.moments[src_key] + _SPARSITY_EPSILON
+            addition = coo_matrix(
+                (vals, (reaction.ifrom - 1, reaction.ito - 1)), shape=(NG, NG)
+            ).tocsr()
+            sigS[j_lgn][i_sig0] = sigS[j_lgn][i_sig0] + addition

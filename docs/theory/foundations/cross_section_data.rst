@@ -520,14 +520,16 @@ The data layout per source group is:
 .. important::
 
    **Every Legendre order the tape stores is kept — for every channel.**
-   ``_extract_mf6`` returns the whole stack as
-   ``sig_dict[(legendre, sig0_idx)]`` for every section it reads, and
-   since **2026-09-03** (`#426
+   ``_extract_mf6`` returns the whole stack as a named section —
+   ``moments[(legendre, sig0_idx)]`` together with the header's ``NL``
+   (``n_legendre``) and ``NZ`` (``n_sigma_zero``), the key set being
+   exactly their rectangle or the reader refuses — and since
+   **2026-09-03** (`#426
    <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_ step 1) both
    consumers keep all of it: the MT=16 branch builds one
-   ``csr_matrix`` per order over ``range(_legendre_order(sig2_data))``,
-   and the scattering assembly sizes itself from the widest section it
-   is given (``n_legendre = max(_legendre_order(...) for ...)``).  So
+   ``csr_matrix`` per order over ``range(section.n_legendre)``, and the
+   scattering assembly sizes itself from the widest section it is given
+   (``n_legendre = max(s.n_legendre for s in sections)``).  So
    ``Isotope.sig2`` and
    :attr:`~orpheus.data.macro_xs.mixture.Mixture.Sig2` are a **list
    over** :math:`\ell`, exactly as
@@ -808,9 +810,12 @@ The scattering matrix is built in four stages:
 4. The final scattering matrix structure is a list of lists:
    ``sigS[legendre_order][sig0_index]``, each a ``csr_matrix(NG, NG)``.
    The number of Legendre orders is **the widest any of the three
-   sections declares** — ``n_legendre = max(_legendre_order(section))``
-   — and a section that stores fewer contributes exactly zero above its
-   own ``NL``.  ``[M]`` on the shipped library that width is **7 on all
+   sections declares** — ``n_legendre = max(s.n_legendre for s in
+   sections)``, the header's ``NL`` carried on the parsed section — and a
+   section that stores fewer contributes exactly zero above its own
+   ``NL`` (the accumulators loop over the SECTION's orders and index its
+   moments directly; an absent cell is a malformed tape, never a silent
+   zero).  ``[M]`` on the shipped library that width is **7 on all
    13 tapes**.
 
 .. important::

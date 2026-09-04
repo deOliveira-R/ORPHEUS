@@ -82,10 +82,10 @@ def _mf6_l0_rowsum(m: np.ndarray) -> np.ndarray:
 
     section = _extract_mf6(16, 1, m)
     assert section is not None, "BE009 carries a MF=6/MT=16 section"
-    ifrom, ito, sig = section
     return np.asarray(
         csr_matrix(
-            (sig[(0, 0)], (ifrom - 1, ito - 1)), shape=(NG, NG)
+            (section.moments[(0, 0)], (section.ifrom - 1, section.ito - 1)),
+            shape=(NG, NG),
         ).sum(axis=1)
     ).ravel()
 
@@ -299,7 +299,7 @@ class TestTapePhysics:
         """
         got = _extract_mf6(mt, _TEMP_IDX, tapes[name])
         assert got is not None, f"{name} carries no MF=6/MT={mt} section"
-        _, _, sig = got
+        sig = got.moments
         v0 = np.asarray(sig[(0, 0)])
         live = np.abs(v0) > 0.0
         assert live.sum() > 0, "no live ℓ=0 entries — the bound is vacuous"
@@ -327,7 +327,7 @@ class TestTapePhysics:
         """
         got = _extract_mf6(16, _TEMP_IDX, tapes[name])
         assert got is not None
-        ifrom, ito, sig = got
+        ifrom, ito, sig = got.ifrom, got.ito, got.moments
         for l in range(_L_TAPE + 1):
             if (l, 0) not in sig:
                 continue
@@ -354,7 +354,7 @@ def _reference_stack(m: np.ndarray) -> list[csr_matrix]:
     """
     section = _extract_mf6(16, _TEMP_IDX, m)
     assert section is not None, "BE009 carries no MF=6/MT=16 section"
-    ifrom, ito, sig = section
+    ifrom, ito, sig = section.ifrom, section.ito, section.moments
     raw = [
         csr_matrix(coo_matrix(
             (np.asarray(sig[(l, 0)]), (ifrom - 1, ito - 1)), shape=(NG, NG),
@@ -403,14 +403,14 @@ class TestThreading:
         stack = be9_isotope.sig2
         section = _extract_mf6(16, _TEMP_IDX, be9_tape)
         assert section is not None
-        ifrom, ito, sig = section
+        sig = section.moments
         raw0 = np.asarray(sig[(0, 0)])
         rawl = np.asarray(sig[(l, 0)])
         live = np.abs(raw0) > 0.0
         want = rawl[live] / raw0[live]
         # _reverse_groups_2d flips BOTH axes: 1-based (ifrom, ito) → (NG - ifrom, NG - ito)
-        rev_rows = NG - ifrom[live]
-        rev_cols = NG - ito[live]
+        rev_rows = NG - section.ifrom[live]
+        rev_cols = NG - section.ito[live]
         s0 = np.asarray(stack[0].todense())[rev_rows, rev_cols]
         sl = np.asarray(stack[l].todense())[rev_rows, rev_cols]
         # rtol 1e-14, not array_equal: (s·a)/(s·b) and a/b differ by an ulp
