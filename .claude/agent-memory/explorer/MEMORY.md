@@ -102,6 +102,10 @@ quantity carries the units it does.
   group-blindness; NO group loop ("within-group" = fission-external); τ/c are ANGULAR
   closure weights, not optical thicknesses; `_within_group_triple` →
   `build_within_group_system` (coupled_system.py).
+- [GENDF ingest truncation + (n,2n) probe traps](gendf_ingest_truncation_and_n2n_probe.md) — EVERY channel is
+  Legendre-truncated at ingest (elastic P2, (n,2n) P0); `load_isotope` reads the .h5, tape moments need
+  `_parse_gendf`/`_extract_mf6`; the solver's min-over-materials L clamp; never re-strip yield on ℓ≥1;
+  `[M]` 421g 1-D k-solve ≈ 0.3 s/outer — no condensation needed.
 - [HarmonicMomentField UNITS](harmonic_moment_field_units_convention.md) — why a stored
   SH moment carries SCALAR-flux units (no-prefactor SH, Y₀⁰=1, Σw=4π ⟹ sr cancels);
   R≠M*; the ERR-039/ERR-051 history.

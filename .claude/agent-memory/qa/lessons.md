@@ -165,6 +165,21 @@ identical**, and the test's element list is production's own
 ⟹ for every gate whose docstring says "control" / "brute force" /
 "independent", run the two-line AST diff before crediting it. → L-077
 
+**A17. A TWO-STAGE census filter (name-net THEN pattern) needs a positive
+control per STAGE — a synthetic fixture you author passes stage 1 by its own
+NAME and certifies only stage 2.** [skill: #17's positive-control clause, one
+level finer] `[M]` #428: `test_n2n_multiplicity_census`'s net
+`("n2n","sig2","sig_2n","_2n")` misses `sig_2` — the spelling `derivations/`
+uses — so its claim *"a thirteenth literal home is unspellable"* is false;
+widening the net by that ONE token finds 2 literals (`derivations/common/
+eigenvalue.py:61,:290`). Its control (`:91`) is a synthetic source whose
+FUNCTION is named `n2n_source_assembly`, so every arm clears the net for free
+and the control validates the four literal spellings, never the net.
+⟹ when a census filters in two stages, the control must include a member that
+passes stage 2 and is only reachable through a stage-1 token you did **not**
+think of — i.e. name the fixture with the spelling you are least sure about.
+→ L-079
+
 ---
 
 ## B. Where a gate is structurally blind (ORPHEUS shapes)
@@ -479,6 +494,19 @@ needs only the label; ~25 % of orphans). `matrix.rst` LAGS a label rename — re
 `python -O -m tests._harness.audit --gaps` for live spelling. `vv-status`
 rationale comments use (parens), never [brackets] (docutils reads citations). → L-002, L-003, L-004
 
+**E7. A `catches("ERR-NNN")` marker on a `@pytest.mark.slow` test is a coverage
+claim the CANONICAL gate never adjudicates.** [NOT in the skill — Mode 8's nine
+classes are all about a gate that cannot FAIL; this is a gate that cannot RUN]
+The catalogue counts the ERR as caught, the test genuinely reds when the defect
+is re-introduced, and `-m "not slow"` — the project's canonical invocation —
+deselects it, so a regression lands green in every gate that decides a merge.
+`[M]` #428: ERR-023's ONLY catcher is `tests/mc/test_gaps.py:718`
+(`slow` + `catches("ERR-023")`); under ν₂ₙ: 2→1 the MC tree reads **39 passed /
+0 red** at `-m "not slow"` and the same test **FAILS in 84 s** run alone.
+⟹ when auditing an ERR's coverage, read the catcher's MARKERS, not just its
+existence; a `slow`-only catcher is an ERR whose real not-slow coverage is
+**zero** and should be said so in the audit. → L-079
+
 ---
 
 ## F. Claim-scope — the claim is broader than the evidence
@@ -604,6 +632,40 @@ triage one hop UP before a grep-driven sweep.** `[M]` 7 hardcoded
 producers where `True` is honest. A "fix every hardcode" pass mints **false
 honesty** at those. The lies and the facts are grep-identical — which is how the
 lies hid. (Same shape for any `success`/`valid`/`exact` flag.) → L-066
+
+**F21. A reproduction can agree to EVERY PUBLISHED DIGIT and still "disagree" —
+check the UNIT before the number, because an overloaded unit name can invert the
+study's own conclusion.** `pcm` = 10⁻⁵ and says NOTHING about what was divided by
+what: `Δk·1e5` / `Δk/k₀·1e5` / `Δρ·1e5` are three different numbers, differing by
+`k₀`. `[M]` #426: my −377.56 vs the claim's −413.55 was purely this, with all
+three k's bit-equal to 9 dp. The bite is the fixture SET — at k₀ = 1.0953 vs
+1.5262 the effect ranks 414 < 529 in absolute and 346 > 228 in reactivity, so
+*"a thicker reflector makes the truncation worse"* is TRUE in one convention and
+FALSE in the other (2.3× spread). ⟹ a derived comparison quantity carries its
+DEFINITION, not its unit name; the tell that it matters is a fixture set
+spanning a range of the normalising quantity. → L-078
+
+**F22. Two probes over the same production code cannot see a SHARED convention —
+test the shared premises against PHYSICS, not against each other.** [skill: #7,
+one layer down: shared *code* rather than shared *identity*] The two cheap ones
+that closed #426: an energy-losing channel's transfer matrix must be strictly
+upper-triangular in canonical order (`[M]` 8195/8195 and 6067/6067 nonzeros,
+lower-triangle mass 0.0 — closes the (from,to) convention); and a single
+transfer's `Σ_ℓ/Σ_0 = ⟨P_ℓ(μ)⟩ ∈ [−1,1]` is a HARD entrywise bound (`[M]` max
+0.9603, **0** entries > 1 — a stray `(2ℓ+1)=3` would have read ≈2.9). Both are one
+`.todense()` and a comparison. Then STATE the premises you did not close. → L-078
+
+**F23. A CALIBRATION of your cross-check is itself a ratio and needs the
+share-a-population test — an uncalibrated corroboration beats a mis-calibrated
+refutation.** `[M]` #426: a transport-correction second route read 1.5× the direct
+answer; calibrating it on the elastic channel gave `ΔTR/ΔP1 = 0.60`, which would
+have "shown" the direct route 2.6× too small — but `[M]` **327 of 421** groups run
+a negative corrected diagonal in the elastic leg against **6** in the (n,2n) leg,
+so the factor is not transferable. ⟹ report the corroboration at its measured
+accuracy class ("sign decisive, magnitude within a factor the approximation is
+itself measured to span; cannot adjudicate a factor of 2") and say so. And when a
+second route's convention risk exceeds the claim's, DON'T run it — a wrong
+reproduction of yours impeaches a correct result. → L-078
 
 ---
 

@@ -2980,21 +2980,24 @@ def solve_sn_adjoint(
     .. math::
 
         A_{\rm loss}^\dagger\,\psi^* \;=\; \frac{1}{k}\,F^\dagger\,\psi^*
-        \qquad (A_{\rm loss} = L+C-S-B)
+        \qquad (A_{\rm loss} = L + C - S - N_{2n} - B)
 
     posed purely by DAGGER-ing the forward operator triple — the
     :class:`~orpheus.numerics.iteration.KEigenvalue` triple becomes
-    ``((L+C).H, (S+B).H, F.H)`` — the daggered RESOLVENT, gain, and
+    ``((L+C).H, (S+N2N+B).H, F.H)`` — the daggered RESOLVENT, gain, and
     fission (the loss dagger :math:`A_{\rm loss}^\dagger =
-    (L{+}C).\mathtt{H} - (S{+}B).\mathtt{H}` is formed inside the
-    posing) — and runs through the UNCHANGED canonical
+    (L{+}C).\mathtt{H} - (S{+}N_{2n}{+}B).\mathtt{H}` is formed inside
+    the posing) — and runs through the UNCHANGED canonical
     :func:`~orpheus.numerics.eigenvalue.power_iteration` (the adjoint row
     of the eigenvalue-posing table, live since #276 A4).  There is no
     adjoint-specific loop or sweep code anywhere: ``.H`` is the exact
     discrete Hilbert (G-metric) adjoint of every leaf — the reverse-scan
     transpose sweeps of #280/#310 behind ``A.H.inverse()``, the
-    group-transpose scattering :math:`S^T` (#118), the χ↔νΣf fission
-    role swap :math:`F^T` — so ``k_{\rm adj} = k_{\rm fwd}`` is an exact
+    group-transpose scattering :math:`S^T` (#118), the group-transpose
+    :math:`(n,2n)` emission :math:`(\nu_{2n}\Sigma_{2n}^{T})^{T} =
+    \nu_{2n}\Sigma_{2n}` (the multiplicity is a scalar and rides the
+    dagger unchanged — CS4c step 3), the χ↔νΣf fission role swap
+    :math:`F^T` — so ``k_{\rm adj} = k_{\rm fwd}`` is an exact
     algebraic identity and :math:`\psi^*` is the true discrete adjoint
     (importance) flux, verified against the closed-form
     :math:`(\mathbf{A}^T)^{-1}\mathbf{F}^T` spectrum (NOT

@@ -24,6 +24,31 @@ meta-lesson once, list its instances); never truncate.
 
 ## 2. Active / in-flight state
 
+**#428 four-solver (n,2n) census — 2026-09-03.** ⏹ **DELIVERED** (HEAD
+`8707c53a`, branch `fix/n2n-anisotropy`; READ-ONLY — `git status --porcelain
+-- orpheus/ tests/ docs/` empty throughout, revert proven by gate-green-again
+163/163). Memo `scratch/_428_four_solver_check.md`.
+**Verdict: all SIX families HANDLE MT=16** (removal ×1 in `Σt`/`Σa`, emission
+`2Σ₂ᵀ` from the one home `N2NKernel.multiplicity`, channel in the k balance);
+**ERR-023 is FIXED** and MC is unbiased (`1.63 σ`). The doc's *"every transport
+solver assumes 1-in-1-out"* is present-tense-false for all six. Instrument = a
+ONE-ATTRIBUTE mutation (`multiplicity` 2→1 and 2→0) as an in-process plugin,
+reds read per tree. Five findings: **F-2 diffusion HANDLES it with 0 of 113
+witnesses** (625 mixtures in that tree, 1 with Σ₂≠0 and it never reaches a
+solve); **F-4 ERR-023's only catcher is `@slow`**, so `-m "not slow"` never
+adjudicates it (39 passed/0 red at the gate; FAILS in 84 s run alone);
+**F-3** SN's ν₂ₙ pinned at the operator tier only (8 reds) — `homo_2eg_n2n`
+absent from the SN k_inf ladder, and the ERR-065 gate is correctly
+self-consistent (2 claims, 1 marker); **F-5** the multiplicity census's
+name-net misses `sig_2`; **F-1** `solve_sn_adjoint`'s docstring omits N₂ₙ
+(the code is right — both arms measured). Lesson **L-079**, digest **E7** /
+**A17**.
+⚠ **TWO skill items OWED and NOT landed** (the brief forbade tracked-file
+edits): **E7** (a `catches` marker on a `slow` test is coverage the canonical
+gate never RUNS — a new class beside Mode 8's nine, all of which are about a
+gate that cannot FAIL) and **A17** (a two-stage census filter needs a positive
+control per STAGE). Drop-in text is in the digest rules and L-079 §findings 2/4.
+
 **#429 symmetry/quotient carve — TERM-LEVEL REVIEW, 2026-09-02.** ⏹
 **DELIVERED** (HEAD `c1fca8bd`, branch `fix/angular-phantom-support`;
 READ-ONLY — no tracked file edited, revert proven by `diff -q` vs pristine
@@ -59,6 +84,18 @@ live in digest **A11** only). N2 (the Mode-8 DECODER dual) ✅ landed.
 items from L-077 (Γ-reuse; the α-AST control check).
 
 ### ⏹ Complete — one line each; the evidence is the lesson, the tense is git
+
+- **#426 (n,2n) anisotropy — INDEPENDENT REPRODUCTION** (2026-09-03, branch
+  `fix/n2n-anisotropy`, READ-ONLY) → **REPRODUCED**: all three k to 9 dp
+  (`1.095322188 / 1.091186690 / 1.091199657`), C0 exactly 0.0. The claim's
+  "−413.55 pcm" vs my "−377.56" was a **UNIT**, and the convention **inverts**
+  the study's thin-vs-thick conclusion (D1). Both probes' shared conventions
+  closed against PHYSICS (upper-triangularity 8195/8195; entrywise
+  `|Σ_ℓ|/Σ_0 ≤ 0.96`, 0 > 1 ⟹ no stray `(2ℓ+1)`). 6 findings D1–D6, 3 attacks
+  withdrawn. L-078 / **F21–F23**. Memo `scratch/_426_repro.md`.
+  ⚠ **ONE skill item OWED** (brief forbade tracked-file edits): the
+  overloaded-unit-name rationale for `vv-principles` §Anti-patterns —
+  drop-in text in the review's final message and L-078.
 
 - **CS4c step 0 feeding census** (2026-08-30) → above. L-076 / **A14**.
 - **SN specialization audit** (2026-08-26) → `scratch/specialization_audit.md`;

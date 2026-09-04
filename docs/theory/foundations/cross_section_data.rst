@@ -22,7 +22,10 @@ Key Facts
 - ``Isotope`` dataclass: sig_t, sig_c, sig_f, sig_el, sig_inel, nu, chi (421 groups)
 - Sigma-zero iteration: ``orpheus/data/macro_xs/sigma_zeros.py`` — self-shielding
 - ``Mixture`` dataclass: macroscopic XS with ``SigS[l][g_from, g_to]`` convention
-- Consistency: :math:`\Sigma_t = \Sigma_c + \Sigma_f + \sum_{g'} \Sigma_{s,g \to g'}`
+- Consistency: :math:`\Sigma_t = \Sigma_c + \Sigma_f + \Sigma_\alpha +
+  \sum_{g'} \Sigma_{s0,g \to g'} + \sum_{g'} \Sigma_{2n,g \to g'}` —
+  the :math:`(n,2n)` row sum is in there ONCE (one neutron removed per
+  event); see :eq:`sigT-computed` and :ref:`n2n-handled`
 - ``load_isotope()`` auto-selects HDF5 or fallback .m parser
 - Verification uses synthetic XS from ``orpheus/derivations/common/xs_library.py`` (regions A/B/C/D), NOT this pipeline
 
@@ -31,7 +34,7 @@ Overview
 ========
 
 Every solver in ORPHEUS relies on multi-group microscopic cross sections
-for the 12 nuclides in the 421-energy-group JEFF-3.1 library.  This
+for the 13 nuclides in the 421-energy-group JEFF-3.1 library.  This
 chapter documents the complete data pipeline from the authoritative IAEA
 source files to the internal ``Isotope`` dataclass:
 
@@ -48,7 +51,7 @@ source files to the internal ``Isotope`` dataclass:
 5. **Loading** — ``load_isotope()`` provides a uniform API that
    auto-selects the HDF5 backend when available.
 
-The 12 nuclides in the library are:
+The 13 nuclides in the library are:
 
 .. list-table::
    :header-rows: 1
@@ -62,6 +65,10 @@ The 12 nuclides in the library are:
      - ``H_001.GXS``
      - 294, 350, 400, 450, 500, 550, 600, 650
      - 1
+   * - Be-9
+     - ``BE009.GXS``
+     - 294, 600, 900, 1200
+     - 6
    * - O-16
      - ``O_016.GXS``
      - 294, 600, 900, 1200, 1500, 1800
@@ -495,6 +502,8 @@ The data layout per source group is:
               for i_lgn = 1 to N_lgn:
                   sigma_s(IG → i_to, Legendre=i_lgn, sig0=i_sig0)
 
+.. _n2n-p0-truncation-at-ingest:
+
 .. warning::
 
    **The** :math:`(n,2n)` **channel keeps only** ``i_lgn = 0``.
@@ -690,26 +699,364 @@ The scattering matrix is built in four stages:
    sigma-zero-independent thermal kernel.
 
 
-Reactions Not Included: :math:`(n,2n)`, :math:`(n,3n)`, :math:`(n,4n)`
------------------------------------------------------------------------
+.. _n2n-handled:
 
-The GENDF files for heavy isotopes (U-235, U-238, Pu-239, ...) contain
-MF=6 scattering entries for three multiplicity-changing reactions that
-ORPHEUS **does not extract** into the scattering matrix:
+:math:`(n,2n)` — extracted, and carried by every solver
+--------------------------------------------------------
+
+:math:`(n,2n)` (MT=16) **is** extracted at ingest and **is** in the
+balance of every solver family ORPHEUS ships.  What it is *not* is part
+of the scattering matrix :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigS`
+— and that is a deliberate ruling, not an omission.  Reading "not in
+``SigS``" as "not modelled" is the mistake this section exists to
+prevent.  The channels that genuinely *are* excluded are MT=17 and
+MT=37, and they have :ref:`their own section below <n2n-excluded-channels>`.
+
+``[M]`` over the 13 GENDF tapes in ``orpheus/data/micro_xs/``, MF=6/MT=16
+is present on **11 of 13** — BE009, B_011, NA023, O_016, U_235, U_238,
+ZR090, ZR091, ZR092, ZR094, ZR096; absent only on B_010 and H_001 — and
+``_build_isotope`` reads it at ``orpheus/data/micro_xs/gendf.py:369``
+into ``Isotope.sig2``.
+
+The three facts every consumer rests on
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The channel is spread across exactly three sites, one per fact.  Each is
+single-sourced, and the whole per-solver account below is an application
+of these three:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 40 34
+
+   * - fact
+     - site
+     - ``[M]`` this session
+   * - :attr:`~orpheus.data.macro_xs.mixture.Mixture.Sig2` is the RAW
+       reaction matrix :math:`\Sigma_{2n}` — **no** multiplicity folded in
+     - ``orpheus/data/micro_xs/gendf.py:381`` → ``_strip_transfer_yield``
+       (see :ref:`mf6-yield-convention` — the MF=6 record carries
+       :math:`y \equiv 2` and the yield is divided out here)
+     - the gate is ``tests/data/test_n2n_yield_convention.py``
+   * - **removal is counted ONCE**, on the absorption side
+     - ``orpheus/data/macro_xs/mixture.py:658`` for
+       :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigT`
+       (:eq:`sigT-computed`) and ``:109-111`` for
+       :attr:`~orpheus.data.macro_xs.mixture.Mixture.absorption_xs`
+     - ``balance_residual`` is ``[0. 0.]`` exactly on the reference
+       fixture below
+   * - **emission carries ×2**, minted at exactly ONE site
+     - ``orpheus/transport/kernels.py:224``
+       (:attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`, a
+       ``ClassVar``), applied at ``:255`` in
+       :meth:`~orpheus.transport.kernels.N2NKernel.emission_matrix`
+     - ``emission_matrix() == 2·Σ₂ᵀ`` → ``True``
+
+So the *net* production is :math:`+\Sigma_{2n}` — one neutron per
+reaction — assembled as a removal of one and an emission of two, never
+as a single net number.  Splitting it that way is what lets the removal
+ride the ordinary absorption path while the emission stays a source term
+the eigenvalue posing can decide where to group.
+
+.. note::
+
+   The multiplicity has **one** home in the tree.  Every family below
+   reaches it through
+   :attr:`~orpheus.transport.kernels.N2NKernel.multiplicity` rather than
+   through a literal ``2`` — including the Monte Carlo walk, whose
+   module-level ``_N2N_MULTIPLICITY`` (``orpheus/mc/solver.py:36``) is a
+   ``float()`` of that same ``ClassVar``, hoisted only to keep the
+   walk's dtype path unbroken.  A census test
+   (``tests/transport/test_n2n_multiplicity_census.py``) walks the tree's
+   AST and refuses a further literal spelling of it.
+
+Why it is its own channel and not folded into ``SigS``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Folding :math:`2\Sigma_{2n}` into the scattering matrix is the classic
+shortcut, and ORPHEUS declines it.  The reason is a ruling about *where
+a bundling decision may be taken* (the CS4c design record §14.1),
+paraphrased here and quoted verbatim at :ref:`sn-n2n-adjoint`:
+:math:`(n,2n)` is **scattering-like** — a group-to-group transfer
+carrying its own anisotropy — **and production-like** — it carries a
+multiplicity :math:`\nu_{2n}` — so which of the two it should be grouped
+with depends on the question being asked, and an operator that
+hard-codes one grouping makes the other unspellable.
+
+The ruling as written hedged the anisotropy as *"in principle"*.  It is
+no longer a hedge: MF=6/MT=16 stores ``NL = 7`` Legendre moments on 10
+of the 11 shipped tapes that carry the section, and this pipeline keeps
+one of them, so the axis the ruling declined to foreclose is real and
+merely truncated — see
+:ref:`the ingest-truncation warning <n2n-p0-truncation-at-ingest>`, and
+the *modelling caveat* subsection at the end of this section for what
+that does and does not license a reader to claim.
+
+The full ruling, the operator algebra it produced
+(:math:`A = L + C - S - N_{2n} - B`, :eq:`sn-within-group-with-n2n`) and
+the adjoint of the lift are at :ref:`sn-n2n-adjoint`.  Two consequences
+are visible from the data side:
+
+- the shortcut would break the total-cross-section identity
+  :eq:`sigT-computed` unless :math:`\Sigma_c` were adjusted to
+  compensate, whereas the shipped split leaves that identity exactly as
+  written and machine-checkable by
+  :meth:`~orpheus.data.macro_xs.mixture.Mixture.assert_balanced`;
+- a solver that *wants* the bundle can still form it, as a
+  composition — the 1-D diffusion solver sums
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+  with
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+  at ``orpheus/diffusion/solver.py:241-246``.  The grouping is legible
+  at the composition site instead of being pre-decided inside an
+  operator.
+
+Per solver: where the channel enters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every row below was read off the tree, ``[M]`` 2026-09-03 at
+``8707c53a``; line numbers drift, the ``file`` + symbol names do not.
+"removal ×1" means the family's total/absorption cross section is
+:attr:`~orpheus.data.macro_xs.mixture.Mixture.SigT` /
+:attr:`~orpheus.data.macro_xs.mixture.Mixture.absorption_xs` (which
+already carry :math:`\sum_{g'}\Sigma_{2n,g\to g'}` once, and must
+therefore not add it again); "emission ×2" names the site that applies
+:attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 16 44 40
+
+   * - family
+     - where the channel enters
+     - the :math:`k` balance
+   * - **S**\ :sub:`N` forward
+       (:func:`~orpheus.sn.solver.solve_sn`)
+     - :class:`~orpheus.transport.operators.n2n.N2NOperator` minted at
+       ``orpheus/sn/solver.py:1420``; the within-group loss is
+       ``A_AA = LC − S − N2N − B_a``
+       (``orpheus/sn/coupled_system.py:551``), fixed-source term at
+       ``solver.py:2346``.  Removal ×1 via
+       ``MaterialXSField.absorption_cross_section``
+       (``material_xs_field.py:597`` ← ``CellXS.sig_a`` ←
+       :attr:`~orpheus.data.macro_xs.mixture.Mixture.absorption_xs`);
+       emission ×2 via ``kernels.py:255``
+     - ``orpheus/sn/solver.py:1713`` —
+       ``production / (absorption + leakage − emission_n2n.sum())``,
+       the ERR-065 estimator-consistency spelling
+   * - **S**\ :sub:`N` adjoint
+       (:func:`~orpheus.sn.solver.solve_sn_adjoint`)
+     - the same channel, daggered: the gain the entry sums is
+       ``(S, N2N, B_a)`` on a non-carrying mesh
+       (``orpheus/sn/coupled_system.py:577``) and the coupled gain grid
+       ``N_AA = S + N2N + B_a`` on a carrying one (``:636``).  Both arms
+       — slab (early-return) and sphere/cylinder (System-B) — carry it
+     - :math:`k_{\rm adj} \equiv k_{\rm fwd}` by construction; the
+       daggered emission is
+       :math:`(\nu_{2n}\Sigma_{2n}^{\mathsf T})^{\mathsf T}`
+   * - **CP** (:func:`~orpheus.cp.solver.solve_cp`)
+     - matrices cached at ``orpheus/cp/solver.py:514``; the multiplicity
+       is applied at **all three** source-assembly sites — ``:570``
+       (Jacobi), ``:633`` (Gauss–Seidel), ``:701`` (the balance-residual
+       source).  Removal ×1 via ``CellXS`` (``cell_xs.py:64-65``)
+     - ``cp/solver.py:790`` —
+       ``net_removal = total − scatter − 2·n2n``
+   * - **Diffusion**
+       (:func:`~orpheus.diffusion.solver.solve_diffusion_1d`)
+     - inside the loss operator, not as a separate source:
+       ``scattering = IsotropicScattering + IsotropicN2N`` and
+       ``loss = leakage + collision − scattering − boundary``
+       (``orpheus/diffusion/solver.py:241-246``)
+     - implicit — the channel is a member of ``loss``, and
+       :math:`k = \lambda_{\max}(\mathrm{loss}^{-1}F)`
+   * - **MoC** (:func:`~orpheus.moc.solver.solve_moc`)
+     - matrices at ``orpheus/moc/core.py:96``; multiplicity at ``:186``
+       (sweep source) and ``:318`` (flux normalisation).  Removal ×1 via
+       ``sig_a = Mixture.absorption_xs`` (``:92``)
+     - ``moc/core.py:367-370`` —
+       ``removal = (sig_a − 2·sig2_out)·φ·A``
+   * - **MC**
+       (:func:`~orpheus.mc.solver.solve_monte_carlo`)
+     - a **third collision branch** (``orpheus/mc/solver.py:451-458``):
+       the per-group total is rebuilt as
+       ``sig_t = sig_a + sig_s_sum + sig_2n_sum`` (``:437``), so the
+       :math:`\Sigma_{2n}` share of the majorant is sampled rather than
+       free-flighted past; on selection the weight is doubled
+       (``:455``) and the exit group drawn from the ``Sig2[ig, :]`` row
+     - the doubled weight rides the cycle's
+       :math:`\sum w_{\rm end} / \sum w_{\rm start}` estimator
+   * - **Homogeneous / k**\ :sub:`∞`
+       (:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`)
+     - ``collision − (IsotropicScattering + IsotropicN2N)``
+       (``orpheus/homogeneous/solver.py:194-202``)
+     - :math:`k_\infty = \lambda_{\max}\big((C - K_{\rm iso})^{-1}F\big)`
+
+.. warning::
+
+   **ERR-023 is a past-tense record, not a present-tense claim.**  Its
+   title — *"MC solver silently ignores Sig2 (n,2n) reactions"* — is how
+   every entry in :doc:`/theory/verification/error_catalog` is titled:
+   by the defect, not by the state.  The defect was fixed at #23, the
+   catcher is
+   ``tests/mc/test_gaps.py::test_mc_n2n_keff_matches_analytical``, and
+   that catcher still has teeth.  It is, however,
+   ``@pytest.mark.slow``, so the project's canonical ``-m "not slow"``
+   gate does not run it (`#405
+   <https://github.com/deOliveira-R/ORPHEUS/issues/405>`_ tracks the
+   slow tier) — the MC arm of this channel is pinned by a test that has
+   to be asked for by name.
+
+Cross-family numerical evidence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The reference is a homogeneous **2-group** mixture with a deliberately
+asymmetric :math:`\Sigma_{2n}` (row sum :math:`\neq` column sum, so both
+the transfer and the removal conventions are exercised), registered as
+``homo_2eg_n2n`` at
+``orpheus/derivations/continuous/analytical/homogeneous.py:463``:
+
+.. math::
+
+   \Sigma_c = \begin{pmatrix} 0.03 \\ 0.06 \end{pmatrix},\;
+   \Sigma_f = \begin{pmatrix} 0.012 \\ 0.10 \end{pmatrix},\;
+   \nu = \begin{pmatrix} 2.50 \\ 2.45 \end{pmatrix},\;
+   \chi = \begin{pmatrix} 1 \\ 0 \end{pmatrix},
+
+.. math::
+
+   \Sigma_{s0} = \begin{pmatrix} 0.45 & 0.10 \\ 0 & 0.82 \end{pmatrix},
+   \quad
+   \Sigma_{2n} = \begin{pmatrix} 0.010 & 0.020 \\ 0 & 0.005 \end{pmatrix},
+   \quad
+   \Sigma_t = \Sigma_c + \Sigma_f + \textstyle\sum_{g'}\Sigma_{s0} +
+   \textstyle\sum_{g'}\Sigma_{2n}.
+
+The closed-form infinite-medium eigenvalue is
+:math:`\lambda_{\max}` of :math:`A^{-1}F` with
+:math:`A = \mathrm{diag}(\Sigma_t) - (\Sigma_{s0} + 2\Sigma_{2n})^{\mathsf T}`
+and :math:`F = \chi \otimes \nu\Sigma_f`
+(:func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`,
+``orpheus/derivations/common/eigenvalue.py:59-63`` — a
+structurally-independent reference: it is assembled from the tabulated
+cross sections, not from any solver's operators).  ``[M]``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 46 27 27
+
+   * - reading
+     - :math:`\Sigma_{2n}` ON
+     - :math:`\Sigma_{2n}` OFF (control)
+   * - closed-form :math:`k_\infty`
+     - ``1.6532258064516119``
+     - ``1.2896126760563373``
+
+The "OFF" column deletes the channel and rebalances :math:`\Sigma_t`; the
+separation is **+28.20 %**, which is what makes the fixture a usable
+activation control rather than a fixture the channel happens to be inert
+on.
+
+Measured this session on that reference, with the configuration stated:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 44 30 26
+
+   * - family (configuration)
+     - :math:`k`
+     - relative to the closed form
+   * - closed-form reference
+     - ``1.6532258064516119``
+     - —
+   * - homogeneous (no geometry)
+     - ``1.6532258064516119``
+     - ``0`` — bit-identical
+   * - diffusion, 10-cell reflective slab, width 10
+     - ``1.6532258064516114``
+     - ``2.7e-16``
+   * - S\ :sub:`N` forward, same mesh, ``gauss_legendre(8)``,
+       source iteration, ``keff_tol=1e-7``
+     - ``1.6532258059510017``
+     - ``3.0e-10``
+   * - S\ :sub:`N` adjoint, same mesh and quadrature
+     - ``1.6532258064255398``
+     - ``1.6e-11``
+
+.. note::
+
+   **A residual in that last column is a property of the run, not of the
+   channel.**  It is set by the family's mesh, quadrature order and
+   convergence tolerances — change any of them and the digits move — so
+   the claim these rows support is *agreement to the family's own solver
+   tolerance*, never a pinned digit.  The four rows above are the ones
+   whose configuration this page can state; the same reference has been
+   driven through CP (both solver modes), MoC, the 2-D Cartesian and the
+   curvilinear S\ :sub:`N` arms, and Monte Carlo, with every
+   deterministic family inside ``3e-9`` relative.
+
+   Monte Carlo is the one stochastic row and it is **unbiased**:
+   ``1.655710 ± 0.001525`` against the closed form is **1.63 σ**, and
+   the :math:`\Sigma_{2n}`-off control reads ``1.289380 ± 0.000749``,
+   **0.31 σ**.  The analog treatment — one reaction sampled per
+   :math:`\Sigma_{2n}`, weight doubled, one exit group drawn from the
+   row whose normalisation *is* the emission spectrum — is
+   expectation-preserving: a single weight-2 particle whose exit group is
+   drawn from :math:`\Sigma_{2n}[g,\cdot]/\sum_{g'}\Sigma_{2n}[g,g']`
+   carries, in expectation, exactly the group-wise emission of two
+   neutrons drawn from that same distribution.
+
+   ⚠ What it does *not* reproduce is the **correlation** between the two
+   emitted neutrons: the analog scheme makes them share one group by
+   construction, where the physics draws them independently.  That is a
+   variance property, not a bias — it can widen the reported
+   :math:`\sigma` on a :math:`(n,2n)`-dominated tally, and it cannot
+   move the mean.  Nothing in this pipeline biases MC's
+   :math:`(n,2n)`.
+
+The modelling caveat: :math:`P_0` truncation (open)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Everything above concerns *accounting* — that the channel is read, that
+removal is counted once and emission twice, that every family agrees on
+the eigenvalue.  It says nothing about the emission's **angular**
+distribution, and there ORPHEUS does truncate: the MF=6/MT=16 Legendre
+stack is parsed and only :math:`\ell = 0` is kept.  That is a modelling
+choice, not a property of the reaction, and it is documented — with the
+measured size of what is discarded and its instrument control — in
+:ref:`the ingest-truncation warning above <n2n-p0-truncation-at-ingest>`
+and, for the consequences on the S\ :sub:`N` operator algebra, at
+:ref:`the (n,2n) P0-truncation warning <sn-n2n-p0-truncation>`.
+
+Restoring the :math:`\ell \geq 1` moments is in flight under `#426
+<https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.  Its measurements
+land with that issue's own documentation pass; this section deliberately
+does not restate them.
+
+
+.. _n2n-excluded-channels:
+
+:math:`(n,3n)` and :math:`(n,4n)` — the excluded channels
+----------------------------------------------------------
+
+MT=17 and MT=37 **are** on the shipped tapes and **are** genuinely
+unread: they appear in no call to ``_extract_mf6``, which is invoked for
+MT=16 (``gendf.py:369``), MT=2 (``:387``), MT=51…91 (``:391-392``) and
+the thermal MT (``:397-398``) and for nothing else.
 
 .. csv-table::
-   :header: MT, Reaction, Threshold, ENDF name
-   :widths: 8, 15, 15, 62
+   :header: MT, Reaction, Threshold, ENDF name, on the shipped tapes
+   :widths: 6, 13, 12, 45, 24
 
-   16, ":math:`(n,2n)`", ~6–8 MeV, neutron-induced two-neutron emission
-   17, ":math:`(n,3n)`", ~11–14 MeV, neutron-induced three-neutron emission
-   37, ":math:`(n,4n)`", ~20 MeV+, neutron-induced four-neutron emission
+   17, ":math:`(n,3n)`", ~11–14 MeV, neutron-induced three-neutron emission, "``[M]`` **6 of 13** — U_235, U_238, ZR091, ZR092, ZR094, ZR096"
+   37, ":math:`(n,4n)`", ~20 MeV+, neutron-induced four-neutron emission, "``[M]`` **2 of 13** — U_235, U_238"
 
-The current scattering-matrix assembly loop at
-``orpheus/data/micro_xs/gendf.py:301`` only iterates over
-MT=51..91 (discrete inelastic levels plus continuum inelastic at
-MT=91), matching the original MATLAB ``convertCSVtoM.m`` that ORPHEUS
-was ported from.
+.. note::
+
+   The two carriers of MT=37 are the only heavy nuclides in the library
+   — there is **no plutonium** among the 13 tapes.  MT=17, by contrast,
+   is carried by four **zirconium** isotopes as well, so "the heavy
+   isotopes have it" is not an accurate scoping of these channels;
+   "U-235, U-238 and four of the five zirconiums" is.
 
 Why this is (currently) acceptable
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -718,91 +1065,119 @@ Two reasons, physical and pragmatic:
 
 1. **Threshold energies are far above the thermal and epithermal
    regime.** A thermal-spectrum reactor has almost no flux above
-   6 MeV (the fission spectrum rolls off as :math:`\chi(E) \propto
+   11 MeV (the fission spectrum rolls off as :math:`\chi(E) \propto
    e^{-E/a}\sinh\sqrt{bE}`, effectively dead by 10 MeV). The rate
-   density for :math:`(n,xn)` at x≥2 is
+   density for :math:`(n,xn)` at :math:`x \geq 3` is
    :math:`\int_{E_{\mathrm{th}}}^\infty \phi(E)\,\sigma_{(n,xn)}(E)\,dE`
    and both the flux and the cross section are negligible in the
-   integration window. Quantitatively, for a PWR-like spectrum, the
-   :math:`(n,2n)` rate on U-238 is below :math:`10^{-6}` of the
-   absorption rate — below the truncation noise of the 421-group
-   multi-group flux itself.
+   integration window — a strictly stronger statement than the one that
+   applied to :math:`(n,2n)` at ~6–8 MeV, which ORPHEUS nonetheless
+   carries.
 
-2. **Neutron-multiplication accounting would need to change
-   consistently.** Including :math:`(n,xn)` correctly requires more
-   than adding an MF=6 block to the scattering matrix. Because these
+2. **The retrofit is a data-pipeline-wide change, not a localized
+   extension.** Including :math:`(n,xn)` correctly requires more than
+   adding an MF=6 block to the scattering matrix: because these
    reactions change neutron multiplicity, they must be accounted for
    separately from fission in the balance equation (they are *not*
-   fission, so they do not carry :math:`\chi` or :math:`\nu`, but
-   they *do* produce excess neutrons). ORPHEUS's current balance
-   equation assumes a 1-in-1-out scattering model; retrofitting
-   :math:`(n,xn)` cleanly means either
-
-   - treating them as sources with a separate multiplicity factor
-     (the "``nu_n_xn``" convention in MCNP/Serpent/OpenMC), or
-   - folding them into the scattering matrix with an effective
-     :math:`\Sigma_{\mathrm{s}}^{(n,xn)}` that scales by the
-     multiplicity — which breaks the :math:`\Sigma_t`
-     consistency relation :math:`\Sigma_t = \Sigma_c + \Sigma_f +
-     \sum_{g'} \Sigma_{s,g\to g'}` unless :math:`\Sigma_c` is
-     simultaneously adjusted.
-
-   Doing either correctly is a data-pipeline-wide change, not a
-   localized extension.
+   fission, so they do not carry :math:`\chi` or :math:`\nu`, but they
+   *do* produce excess neutrons).  This argument is not hypothetical —
+   it is exactly the work that :math:`(n,2n)` required, and the shape
+   of the answer is now known: its own channel, its own multiplicity
+   constant, removal counted once in :eq:`sigT-computed` and emission
+   applied at one site.  What made it a pipeline-wide change is the
+   breadth: the GENDF reader, the isotope record, the mixture, six
+   solver families and their V&V, and it took a sequence of corrections
+   to get there — ERR-015 (the CP estimator, 2026-04), ERR-023 (the MC
+   collision branch, 2026-04), ERR-065 / `#259
+   <https://github.com/deOliveira-R/ORPHEUS/issues/259>`_ (SN and MoC
+   putting the emission in the k *numerator*, 2026-07), the CS4c step-3
+   extraction into its own operator (2026-08), and `#427
+   <https://github.com/deOliveira-R/ORPHEUS/issues/427>`_ (the ingest
+   yield convention, 2026-08).  Every one of those was a place where
+   "count the multiplicity" had been got wrong in a locally plausible
+   way — which is the concrete content of the claim that a new
+   :math:`(n,xn)` channel is not a localized extension.
 
 When this exclusion would matter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Three application regimes **do** need :math:`(n,xn)`:
+Three application regimes need :math:`(n,3n)` / :math:`(n,4n)`:
 
-- **Fast reactors** (SFR, LFR, GFR): fission spectrum is harder,
-  5–15 % of flux above 1 MeV, :math:`(n,2n)` on U-238 and Pu-240
-  contributes measurably to the fast-group balance.
-- **Fusion blankets**: 14 MeV D-T source neutrons sit directly in
-  the peak of the :math:`(n,2n)`/:math:`(n,3n)` cross section for
-  Li, Be, and Pb — these reactions are the *whole point* of a
-  breeding blanket.
+- **Fast reactors** (SFR, LFR, GFR): the fission spectrum is harder,
+  with 5–15 % of the flux above 1 MeV; the :math:`(n,3n)` threshold is
+  still well above that, so this regime pressures the higher channels
+  far less than it pressures :math:`(n,2n)` — which ORPHEUS already
+  carries.
+- **Fusion blankets**: 14 MeV D-T source neutrons sit directly in the
+  peak of the :math:`(n,2n)` / :math:`(n,3n)` cross sections for Li, Be
+  and Pb — these reactions are the *whole point* of a breeding blanket.
+  Only part of that is missing here, and the split matters: Be-9 ships
+  in this library (``BE009.GXS``) and its :math:`(n,2n)` **is**
+  extracted and carried, so what a Be blanket would lack is its
+  :math:`(n,3n)` — for which ``[M]`` Be-9's tape carries no MF=6 section
+  in any case — and, more importantly, the :math:`\ell \geq 1` emission
+  anisotropy dropped by the :math:`P_0` truncation above.  Li and Pb
+  ship no tape at all.
 - **High-energy shielding / accelerator-driven systems**: spallation
-  neutron sources produce a significant population above 20 MeV,
-  where :math:`(n,4n)` on heavy targets is non-negligible.
+  neutron sources produce a significant population above 20 MeV, where
+  :math:`(n,4n)` on heavy targets is non-negligible.
 
 None of these are current ORPHEUS use cases. The V&V suite
 (:doc:`/theory/verification/index`) exclusively verifies thermal-spectrum
-analytical benchmarks; synthetic cross sections in
-``orpheus/derivations/common/xs_library.py`` do not include an
-:math:`(n,xn)` term.
+analytical benchmarks; ``[M]`` **0 of the 12** synthetic
+``(region, group-count)`` mixtures in
+``orpheus/derivations/common/xs_library.py`` carries a nonzero
+:math:`\Sigma_{2n}`, and none carries an :math:`(n,xn)` term of any
+order — although
+:func:`~orpheus.derivations.common.xs_library.make_mixture` does accept
+a ``sig_2=`` argument, which is how the :math:`(n,2n)` fixtures in
+``tests/`` are built.
 
 Implementation sketch (deferred)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If / when ORPHEUS expands to fast or fusion applications, the
-retrofit would touch:
+If / when ORPHEUS expands to fast or fusion applications, the retrofit
+would touch:
 
-1. **``orpheus/data/micro_xs/gendf.py``** — extend the scattering
-   loop at line 281 to also iterate MT in ``(16, 17, 37)`` and stash
-   the extracted block with a ``multiplicity`` attribute (``2``,
-   ``3``, ``4`` respectively).
+1. ``orpheus/data/micro_xs/gendf.py`` — extend ``_build_isotope``
+   (the MT=16 read is at ``:369``; the inelastic loop at ``:391``) to
+   also read MT ∈ ``(17, 37)`` and stash each block with its own
+   multiplicity (``3``, ``4``).  The yield division at ``:381`` already
+   generalises: an MF=6 record's yield is whatever the evaluation says,
+   and ``_strip_transfer_yield`` renormalises onto MF=3 without naming a
+   value.
 
-2. **``orpheus/data/micro_xs/isotope.py``** — add a
-   ``sig_n_xn: dict[int, np.ndarray]`` field to ``Isotope``.
+2. ``orpheus/data/micro_xs/isotope.py`` — a ``sig_n_xn: dict[int,
+   np.ndarray]`` field on ``Isotope``, keyed by MT.
 
-3. **``orpheus/data/macro_xs/mixture.py``** — decide whether
-   :math:`(n,xn)` enters the ``SigS`` matrix (with a multiplicity
-   factor baked in, losing the :math:`\Sigma_t` check) or lives as
-   an explicit source term in the balance equation.
+3. ``orpheus/data/macro_xs/mixture.py`` — the same decision
+   :math:`(n,2n)` already made, and it should be made the same way: a
+   separate channel, with the row sum entering :eq:`sigT-computed`
+   ONCE, not a multiplicity-scaled fold into ``SigS``.
 
-4. **Every transport solver** (``cp``, ``sn``, ``moc``, ``mc``,
-   ``diffusion``) — the balance residual at the cell level must
-   account for the multiplicity.
+4. **The multiplicity constant** — :math:`(n,2n)`'s lives in exactly one
+   place (:attr:`~orpheus.transport.kernels.N2NKernel.multiplicity`) and
+   the higher channels would each want the same treatment.  Note that
+   this step is **not** the open item it used to be for the transport
+   solvers: every family listed in the per-solver table
+   :ref:`above <n2n-handled>` already accounts for a channel
+   multiplicity, so MT=17/37 would reuse that machinery with
+   :math:`\nu = 3` and :math:`\nu = 4` rather than introduce it.  That
+   is the one step of this sketch that the :math:`(n,2n)` work has
+   already retired.
 
-5. **V&V** — add an L2 benchmark against a published fast-reactor
-   eigenvalue (e.g., the GODIVA or Jezebel ICSBEP criticals) where
-   :math:`(n,xn)` measurably shifts :math:`k_{\mathrm{eff}}`.
+5. **V&V** — an L2 benchmark against a published fast-reactor eigenvalue
+   (e.g. the GODIVA or Jezebel ICSBEP criticals) where :math:`(n,xn)`
+   measurably shifts :math:`k_{\mathrm{eff}}`.  The :math:`(n,2n)`
+   precedent is the analytic 2-group reference above plus per-family
+   catchers; the same two tiers would be owed here.
 
-Tracked in GitHub issue `#63
-<https://github.com/deOliveira-R/ORPHEUS/issues/63>`_ as a
-"status: impl, intentional exclusion, documentation complete"
-line item.
+The rationale for excluding these two channels was recorded under
+`#63 <https://github.com/deOliveira-R/ORPHEUS/issues/63>`_ (*"Data:
+Document (n,3n) and (n,4n) exclusion rationale"*), **closed** with the
+``status:impl`` label — the issue's own title already scopes it to
+MT=17/37.  It is the record of the decision, not an open work item; this
+section is where the decision now lives.
 
 
 Total Cross Section

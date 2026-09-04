@@ -4883,3 +4883,278 @@ Scope: 6 files, 670 tests, ~50 s/arm. Positive control **111 reds**.
    it because `C_1.orbit_stabiliser == C_1`.
 
 Deliverable: `scratch/_rev_qa_*.py` (9 probes) + `scratch/_rev_qa_arm_*.log`.
+
+---
+
+## L-078 — a reproduction that agrees to 9 decimals can still "disagree": the discrepancy was a UNIT, and the unit inverts the study's own conclusion
+
+**Task** (2026-09-03, branch `fix/n2n-anisotropy`, HEAD `8707c53a`). Independently
+reproduce a `#426` claim: restoring the ℓ=1 (n,2n) emission moment on a
+Be-reflected U-235 slab moves k by "−413.55 pcm". Brief mandated structural
+independence — write my own probe before reading the originating one.
+
+**Outcome: REPRODUCED.** All three k values match to every published digit
+(`A0 1.095322188`, `A1 1.091186690`, `A2 1.091199657`); C0 (my tape pipeline's
+ℓ=0 product vs the shipped `Mixture.Sig2`) = **exactly 0.0** on both isotopes.
+
+### The finding — three numbers, all called "pcm", and the ordering INVERTS
+
+My Δk read **−377.56**, the claim **−413.55**. Neither is wrong:
+
+```
+Δk × 1e5     = -413.55   ABSOLUTE      <- the originating probe's `1e5*(k-k0)`
+Δk/k0 × 1e5  = -377.56   RELATIVE      <- mine
+Δρ × 1e5     = -346.01   REACTIVITY    <- (1/k0 - 1/k1)·1e5
+```
+
+They differ by exactly `k0 = 1.0953`. So far a nit. The bite is that the study
+had **two fixtures at different k**, and the conventions do not preserve the
+ORDERING between them:
+
+| fixture | k0 | Δk·1e5 | Δk/k0·1e5 | Δρ·1e5 |
+|---|---|---|---|---|
+| fast_thin | 1.0953 | **−413.55** | −377.56 | −346.01 |
+| fast_thick | 1.5262 | **−529.26** | −346.78 | **−228.00** |
+
+*"A thicker Be reflector makes the P0 truncation worse"* is **TRUE** in the
+absolute convention (529 > 414) and **FALSE** in reactivity (228 < 346) — a
+**2.3×** spread at k = 1.53. The number was headed for a GitHub issue where the
+natural physics reading is reactivity.
+
+⟹ **A derived comparison quantity must carry its DEFINITION, not just its unit
+name, whenever the unit name is overloaded** — and the tell that it matters is a
+fixture set spanning a range of the normalising quantity. `pcm` = 10⁻⁵ and says
+nothing about what was divided by what.
+
+### What made the reproduction worth its cost (both probes used production code)
+
+Probe-vs-probe agreement is blind to a SHARED convention, so I tested the two
+shared premises **against physics** instead of against the other probe
+(`scratch/_426_shared_premise_check.py`):
+
+* **index convention** — (n,2n) can only lose energy, so the canonical
+  fast-first matrix must be strictly upper-triangular. `[M]` **8195/8195** (Be)
+  and **6067/6067** (U) nonzeros with `g_to ≥ g_from`; lower-triangle mass
+  **0.000e+00**. A row/col swap would have put all of it below the diagonal.
+* **Legendre normalisation** — for one `g→g'` transfer `Σ_ℓ/Σ_0 = ⟨P_ℓ(μ)⟩ ∈
+  [−1,1]` is a HARD bound. `[M]` entrywise max **0.9603 / 0.8977** at ℓ=1,
+  **0 entries > 1** at every ℓ ≤ 6. **A stray `(2ℓ+1)=3` would have shown as
+  ratios up to ≈2.9.** Corroborated structurally: `gendf.py:518/545` writes raw
+  MF=6 into `sigS[ℓ]` with no factor; the `(2ℓ+1)` is on
+  `LegendreBasis.reconstruct` (`legendre_basis.py:228-232`).
+
+Both closed. The residual shared premise, stated rather than closed: that
+`_strip_transfer_yield`'s per-row scale is the right strip for ℓ≥1.
+
+### Controls that earned their keep
+
+* **no-op plumbing** (mine, not briefed): inject `0.0 × ℓ=1` → k **bit-identical**
+  to A0. Proves the `replace(mix, SigS=…)` rebuild is inert, so Δk is the values.
+* **linearity**: `Δk(+1)/Δk(+0.5) = 2.0031` ⟹ a factor-*n* convention slip shows
+  as a factor *n* in Δk. This is what converts "the sign flipped" into a bound.
+* **material attribution**: Be-only −377.30, U-only −0.26, **sum = A1 exactly**.
+  99.93 % is the reflector — and the tape says why: μ̄ = rowsum(Σ₁)/rowsum(Σ₀) is
+  **+0.303 mean** for Be (positive on 50/50 live groups) vs **+0.023** for U.
+  Mechanism and magnitude agree, which no single k comparison could show.
+
+### ⭐ The stretch leg FAILED to calibrate, and diagnosing whose failure it was is the lesson
+
+Second route: the extended-transport ("outflow") correction reaches the same
+physics through `SigT` + `SigS[0]` only, so it does NOT share the `(2ℓ+1)`
+reconstruction convention. `[M]` −639.10 (unclamped) / −622.23 (clamped) vs the
+direct −413.55: same sign, ratio 1.50–1.55.
+
+I then tried to CALIBRATE that 1.5× by running the same correction on the
+**elastic** ℓ=1 channel, where the P1 answer is what the tree ships. `[M]`
+`ΔTR/ΔP1 = 0.6042`. Tempting conclusion: −639/0.60 = −1058, so the direct route
+is 2.6× too small. **Wrong** — `[M]` **327 of 421** Be groups get a negative
+corrected P0 diagonal in the elastic leg against **6** in the (n,2n) leg. The
+two applications are in different regimes and the ratio is not transferable;
+dividing by it is exactly the do-these-legs-share-a-population error.
+⟹ honest verdict: corroborates SIGN decisively and order of magnitude within a
+factor the approximation is itself *measured* to span (~1.7×); **cannot
+adjudicate a factor of 2**. Corroboration, not verification.
+
+I did NOT run the adjoint perturbation leg: the moment/`/W` convention risk was
+high enough that a wrong reproduction of mine would have impeached a correct
+result (the §4 VERIFY trap).
+
+### Findings in the originating probe (`scratch/_426_be_reflected_probe.py`)
+
+* **D1 ⛔** `dk_pcm = 1e5*(k-k0)` labelled "pcm" (`:244`, `:247`, `:261`, md
+  header `:257`) — the inversion above.
+* **D2 ⚠** C0, the LICENSING control, is a bare `assert` (`:228`), as are the NL
+  (`:92`), `lmax ≤ L_solve` (`:134`) and padding (`:237`) checks. A script, not a
+  collected module, so pytest's rewriter does not cover it — Mode 8's measured
+  domain exactly. Promotion into `tests/` silently voids its own licence.
+* **D3 ⚠** the `.md` deliverable is written only after ALL fixtures (`:264`) —
+  and **it never was**: the run died inside `thermal`, the JSON holds 2 of 3
+  fixtures, and nothing announces the truncation but a missing `DONE`.
+* **D4 ⚠** `warnings.simplefilter("ignore", RuntimeWarning)` wraps the whole
+  `compute_macro_xs` (`:118-120`) — would swallow a genuine σ₀-convergence
+  warning on the very fixture (`thermal`) most likely to raise one.
+* **D5 ⚠** reporting scope: A4/A6 raise `L_solve` while ELASTIC stays P2 (ingest
+  keeps `range(3)`), and elastic anisotropy is ~15× the (n,2n) effect on this
+  fixture — so "A6 = the converged anisotropy answer" is a mis-read waiting.
+
+### ⭐ Two attacks WITHDRAWN at Phase 2 — recorded so they are not re-attacked
+
+* *"`A0_shipped_L2` is not a clean baseline, it runs through
+  `with_n2n_moments(lmax=0)`"* — **wrong, it is the BETTER design**: baseline and
+  arms share the rebuild, so the delta is purely the injected values. My separate
+  no-op control and my raw-mixture A0 both confirm it.
+* *"A2→A4 conflates more moments with higher solver order"* — **closed by the
+  probe's own `C_pad_L6_shipped`**: padding to L=6 with zero moments reproduces
+  A0 bit-identically on both fixtures, so raising `L_solve` is provably inert.
+
+**Artifacts**: `scratch/_426_repro_probe.py` (stages `tape|c0|solve|controls|pt|
+pt2|cal|cal2`), `scratch/_426_shared_premise_check.py`, `scratch/_426_repro.md`.
+No tracked project file edited; ≈240 s of compute.
+
+---
+
+## L-079 — the #428 four-solver (n,2n) census: a family HANDLED with zero witnesses, an ERR whose only catcher the canonical gate deselects, and a census whose control validated the wrong stage
+
+**Date** 2026-09-03. **Brief:** establish, `[M]` with `file:line`, how each of
+six solver families treats (n,2n) at HEAD, so an archivist can split
+`docs/theory/foundations/cross_section_data.rst` §"Reactions Not Included".
+READ-ONLY (no tracked file edited; `git status --porcelain -- orpheus/ tests/
+docs/` empty throughout). Memo: `scratch/_428_four_solver_check.md`.
+
+### The verdict, in one line
+
+**All six families HANDLE MT=16** — removal counted once in `Σ_t`/`Σ_a`,
+emission `2Σ₂ᵀ` from the one home `N2NKernel.multiplicity`, and the channel in
+the k balance. The doc's *"every transport solver assumes a 1-in-1-out
+scattering model"* is present-tense-false for every one of them. **ERR-023 (MC
+ignores Sig2) is FIXED**, and MC is unbiased (`1.63 σ`).
+
+### The method that made it decisive, and it is reusable verbatim
+
+A *reading* census answers "does the code touch `Sig2`" — the wrong question,
+because a family can touch it and be untested, or be right and read as wrong.
+The instrument that answered the real question was **one mutation at the datum's
+single home**, applied by an in-process throwaway pytest plugin:
+
+```python
+def pytest_configure(config):
+    from orpheus.transport.kernels import N2NKernel
+    N2NKernel.multiplicity = 1          # or 0 for the stronger arm
+    import orpheus.mc.solver as mc
+    mc._N2N_MULTIPLICITY = 1.0          # ⚠ a module-level float()'d COPY
+```
+
+Three mechanics generalise:
+1. **The mutation home is one attribute, so every family sees it** — which is
+   only true because CS4c step 3 single-sourced it. A datum with one home is a
+   free cross-family battery.
+2. ⚠ **A `float(CONST)` taken at import is a SECOND home for the mutation** —
+   `mc/solver.py:36` copies the ClassVar at import, so patching the class alone
+   leaves MC unmutated and reports MC as blind. Grep the constant's name for
+   module-scope assignments before believing any zero.
+3. **The reds are read as a TABLE, per tree**, not as a count — and the
+   composition is the finding (A13).
+
+### Finding 1 — diffusion HANDLES the channel and has ZERO witnesses
+
+`[M]` `tests/diffusion` = **113 passed / 0 red** under ν₂ₙ: 2→1 **and** under
+the stronger 2→0, while `tests/homogeneous` reddens 7 in the same process (the
+positive control). Cause, measured by instrumenting `Mixture.__post_init__` for
+the run: **625 mixtures constructed, 1 with nonzero `Sig2`** — and that one is
+`homo_2eg_n2n`, built as a side effect of the derivations registry, never handed
+to a diffusion solve. `_fixture_materials()`
+(`tests/diffusion/test_operators.py:103`) calls `make_mixture(...)` with no
+`sig_2=`.
+
+⭐ The shape worth carrying: `IsotropicN2N` appears in **4** diffusion tests, so
+a grep-based coverage read says "covered". Every one of them applies it to a
+**zero kernel** — carrier arms, assembly refusal, composite-vs-bare matching —
+i.e. Mode-10 *exercised-but-unconstrained* at FAMILY scale. ⟹ **for a coverage
+question about a DATUM, census the fixture's VALUE, not the operator's
+appearances**; a `Mixture.__post_init__` (or any producer `__post_init__`) spy
+answers it in ten lines and cannot be fooled by a name.
+
+Second-order tell found in the same file: the test-side `_loss()`
+(`:169`) assembles `A = L + C − S − B` **without** the N2N arm while production
+assembles `L + C − (S + N2N) − B`. Bit-identical on `Sig2 = 0` — a twin the day
+a Σ₂≠0 fixture lands.
+
+### Finding 2 — an ERR whose only catcher the canonical gate deselects
+
+ERR-023's sole catcher is `tests/mc/test_gaps.py:718`, carrying
+`@pytest.mark.slow` **and** `@pytest.mark.catches("ERR-023")`. `[M]` at
+`-m "not slow"` the MC tree is 39 passed / 0 red under the mutation; run alone
+the same test FAILS in 84 s. So the test has real teeth and the gate that
+decides "green" never runs it.
+
+⭐ This is a NEW class beside Mode 8's nine. All nine describe a gate that
+cannot **fail**; this is a gate that cannot **run**, and it is invisible to
+every existing check — `nexus errors` counts the catcher, a mutation run scoped
+to that file reddens it, and only the marker set says otherwise. → digest **E7**.
+
+### Finding 3 — SN's ν₂ₙ is pinned at the operator tier, not end-to-end
+
+`[M]` `tests/sn/operators` = 8 red; `tests/sn/verification/analytical` = 57
+passed / **0** red; `tests/sn/eigenvalue` = 67 passed / **0** red. Two unrelated
+causes:
+* `test_kinf_homogeneous` parametrizes `{"1eg","2eg","4eg"}` — the shipped
+  derivation registry HAS a Σ₂≠0 member (`homo_2eg_n2n`) and the SN ladder skips
+  it (#13's finite-roster corollary: probe every member of a shipped roster).
+* `test_reflective_n2n_convention` (`catches("ERR-065")`) compares the reported
+  `keff` against `_map_ratio_kstar(solver, phi)` — a ratio built from the
+  **solver's own operators**, so both sides move together under a multiplicity
+  mutation. ⭐ That is **correct for what it claims** (it gates *estimator ≡
+  posed problem*, ERR-065's actual defect class) and structurally blind to a
+  wrong ν₂ₙ VALUE. ⟹ two different claims can wear one `catches` marker; when a
+  mutation leaves an ERR's catcher green, ask whether the marker names the
+  defect class the gate sees, before calling the gate blind.
+
+### Finding 4 — the census whose control validated the wrong stage → digest A17
+
+`tests/transport/test_n2n_multiplicity_census.py` claims *"a thirteenth literal
+home is unspellable without reddening this census"*. Its filter is two-stage:
+a **name-net** over the function body, then a **literal pattern**. `[M]` the net
+`("n2n","sig2","sig_2n","_2n")` misses `sig_2` — `derivations/`'s spelling — so
+widening it by that one token yields 2 hits
+(`derivations/common/eigenvalue.py:61, :290`). Those two literals are correct by
+design (the reference tree must not read the SUT's constant — and that
+independence is precisely why the CP and homogeneous mutations reddened), but
+they are excluded by a **filter gap**, not a named exclusion, so a *production*
+literal spelled `sig_2` escapes identically. Its positive control (`:91`) is a
+synthetic source whose function is named `n2n_source_assembly` — every arm
+clears stage 1 for free.
+
+### Refuted candidates (recorded so nobody re-attacks them)
+
+* *"the SN adjoint drops (n,2n)"* — plausible from `solve_sn_adjoint`'s own
+  docstring (`sn/solver.py:2983` writes `A_loss = L+C-S-B`). **Refuted**:
+  `_adjoint_posing_parts` calls `build_within_group_system` without `n2n_op`,
+  which **defaults to minting one**, and folds `gain = S + N2N + B_a`. `[M]`
+  k_adj matches `k_inf(Σ₂≠0)` to 1.7e-14 on **both** arms (slab =
+  non-carrying, sphere/cyl = carrying / System B). The docstring is the defect.
+* *"MC is biased on (n,2n)"* — **refuted**: `1.655710 ± 0.001525` vs
+  `1.653226` = **1.63 σ**. The `w *= 2` + one-exit-group-from-the-row treatment
+  is expectation-preserving because the row's normalisation IS the emission
+  spectrum.
+* *"`xs_library` mixtures might carry Σ₂"* — `[M]` **0 of 12** do, so the doc's
+  sentence about the synthetic library is TRUE (the factory does take `sig_2=`).
+
+### Two probe bugs of MY OWN, both caught by the §4 VERIFY move
+
+* I printed `k.emission_matrix` (a METHOD, not a property) and read `False` for
+  `== 2Σ₂ᵀ`. It is `True`. ⟹ a bound-method repr in a comparison is the tell.
+* I transcribed the CP `jacobi` row as identical to `gauss_seidel` because a
+  `tail` had clipped it. Re-measured: `1.6532258064618464` vs
+  `1.6532258064612666` — different. ⟹ never transcribe a row a viewport clipped.
+
+### Denominator facts worth reusing
+
+`[M]` over the 13 shipped `.GXS` tapes: **MF=6 MT=16 in 11**, **MT=17 in 6**,
+**MT=37 in 2** — so 17/37 are on the tapes and genuinely unread. The library
+carries **no Pu**, and MT=17 rides four **zirconium** isotopes, so "heavy
+isotopes (U-235, U-238, Pu-239, …)" is not an accurate scoping sentence.
+
+### ⚠ TWO skill items OWED and NOT landed (the brief forbade tracked-file edits)
+
+Both belong in `vv-principles` §Anti-patterns; drop-in text is digest **E7** and
+**A17** above. Neither rationale is currently in the skill (`[M]` grepped).

@@ -1404,7 +1404,13 @@ Limitations and Future Work
    * - MT-20260403-006
      - Per-region majorant for efficiency
    * - MT-20260406-005
-     - Solver ignores Sig2 (n,2n) reactions
+     - ⛔ **RESOLVED** (#23) — "Solver ignores Sig2 (n,2n) reactions" was
+       true until the third collision branch landed; the row is kept so
+       the tracking ID resolves.  The walk samples the channel and
+       doubles the weight (see the collision-sampling section above),
+       the defect record is **ERR-023**, and the treatment is measured
+       unbiased against the closed-form 2-group :math:`k_\infty` at
+       :ref:`n2n-handled`.
    * - MT-20260406-006
      - Direction sampling not isotropic (ERR-018)
    * - MT-20260406-007

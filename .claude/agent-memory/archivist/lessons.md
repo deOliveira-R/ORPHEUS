@@ -19,6 +19,58 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 retirement shim, scanner finding, plan line and "MEASURED" block are point-in-time snapshots.
 Verify, then write, then FLAG every scope-expansion the verification forced.
 
+- **⭐⭐ A SECTION HEADER can be a class-level falsehood, and the page usually already
+  carries the true account — split by FACT, never re-word.** A §*"Reactions Not Included:
+  (n,2n), (n,3n), (n,4n)"* asserted one predicate over three MTs; `[M]` true of 17/37,
+  false of 16, and the correct MT=16 account sat **200 lines above** on the same page (vv
+  #21's aggravator at page scale). Repair: two H2 sections each opening by naming what the
+  OTHER covers; every 17/37-only sentence survives with its quantifier narrowed; the
+  deferred sketch's DONE steps get RE-AIMED (*"not the open item it used to be — 17/37
+  would reuse that machinery at ν = 3/4"*), which turns a stale to-do into the section's
+  strongest argument. → L-092
+- **⭐⭐ Reproduce a census's REFERENCE; expect its per-row RESIDUALS not to reproduce.**
+  `[M]` the closed-form `k_inf` came back BIT-IDENTICAL (and all three datum identities),
+  while diffusion/SN-fwd/SN-adjoint residuals differed by orders (`2.7e-16 / 3.0e-10 /
+  1.6e-11` vs a memo's `8.1e-16 / 5.2e-14 / 1.0e-13`) — a residual is a property of MESH ×
+  QUADRATURE × TOLERANCE, and the memo stated none per row. ⟹ publish the reference with
+  its full inputs (so the page regenerates it), YOUR rows with the configuration IN the
+  table's first column, and the relayed sweep as a BOUND under a `.. note::` saying the
+  digits move. ⭐ The one relayed number safe verbatim is the STOCHASTIC one — a σ makes it
+  self-describing (`1.655710 ± 0.001525` = **1.63 σ** ⟹ unbiased). → L-092, L-057, L-050
+- **⭐⭐ A "Limitations and Future Work" table is a PRESENT-TENSE claim surface — and the
+  page that documents the FIX is the likeliest home of the stale row.** `[M]`
+  `monte_carlo.rst` listed *"Solver ignores Sig2 (n,2n)"* as a limitation 650 lines below
+  its own account of the fix. Found by grepping the CLAIM (`does not extract|1-in-1-out|
+  ignores.*sig2`), never the section under edit. Repair: retire the ROW (keep the tracking
+  ID so it resolves, mark `⛔ RESOLVED (#NN)`, point at the record) — do not delete it.
+  ⭐ Sibling: a catalogue TITLE is a DEFECT NAME, not a state — ERR-023's *"MC solver
+  silently ignores Sig2"* reads present-tense to every quoter; ship a `.. warning::`
+  saying fixed / by which issue / which catcher (and that it is `slow`-marked, so the
+  canonical gate never runs it). → L-092
+- **⭐⭐ A pre-existing `**``literal``**` NESTING bug travels forward when you rewrite a
+  section verbatim, and only the RENDERED HTML sees it.** I carried three forward from the
+  section I was replacing; `-W` silent, L-074's HTML gate read **6 visible backtick runs**.
+  Grep `\*\*``` on the source AND run the HTML gate on every page you touch. ⭐ And its
+  cheap sibling: a `:ref:` to a label on a `.. warning::` (not a section title) MUST carry
+  explicit text — bare `:ref:` is `ref.ref` *"A title or caption not found"*, a real `-W`
+  failure (twice in one session). → L-092, L-074
+- **⭐⭐ Naming a nuclide / fixture / member in a NEW section obliges you to check that
+  page's own ROSTER.** `[M]` my split cited Be-9; the page's nuclide table listed **12**
+  and omitted it, while the converter globs `*.GXS` (**13**) and the page's own truncation
+  warning already says "the 13 shipped files". ⚠ The near-miss: a sibling page's *"12
+  isotopes"* is CORRECT — it counts a PWR-cell mixture, not the library. **Read what a
+  number COUNTS before fixing it.** → L-092, L-091
+- **⭐ The docstring fix a brief names usually has a SECOND false clause one paragraph
+  down.** Briefed one `A_loss = L+C-S-B`; `[M]` the same docstring spelled the daggered
+  triple and the loss dagger the same wrong way twice more, in the sentence explaining the
+  equation. ⚠ And the other hits in the file were a DIFFERENT issue's (a tracked
+  pedagogical spelling with its own machine-header key) — resolve each hit by whether it
+  is the adjoint's claim or the chapter's convention. → L-092
+- **⭐ Before paraphrasing a RULING, find where the corpus quotes it VERBATIM and read what
+  has since been said ABOUT it.** `adjoint.rst` carries the ruling word-for-word plus a
+  dated note retiring its *"in principle"* hedge; a bare paraphrase would have re-imported
+  the hedge onto the data page. Say it is a paraphrase, point at the verbatim copy, carry
+  the strengthening. → L-092, L-081
 - **⭐⭐ A `[M]` COUNT with no MEMBER SET stated is not reproducible — and the spread
   over plausible sets is the finding.** A production docstring's *"197 such triples
   over the expressible members"* would not reproduce: `[M]` on a natural 21-member

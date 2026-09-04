@@ -41,6 +41,14 @@ stage + gate.
 (`git status --porcelain -- docs/`), never in this list. All are branch
 `fix/angular-phantom-support`, docs UNCOMMITTED (I stage + gate; the main agent commits).**
 
+- **#428 — a "Reactions Not Included" header naming a HANDLED channel; split by fact**
+  (2026-09-03; 3 files +478/−94 — `cross_section_data.rst` split into `n2n-handled` /
+  `n2n-excluded-channels`, `monte_carlo.rst`'s stale Limitations row retired,
+  `solve_sn_adjoint`'s docstring re-spelled to `A = L+C−S−N₂ₙ−B`; `-E -W` EXIT=0 with a
+  **0-byte** log both sides; `dead_references` 0/52; my xref gate 159 roles / 0 dead. The
+  census's closed-form reference reproduced BIT-IDENTICALLY and its per-row residuals did
+  NOT — they are run properties. Scope grew by 3: an inherited `**``lit``**` nesting bug,
+  a 12-vs-13 nuclide roster, and a sibling page's stale limitation) → [[lessons-L92]]
 - **#434 R3 — a slot SPLITS in two and the retired name's LETTER follows the wrong survivor**
   (2026-09-03; the campaign's LAST carve, its commit `Closes #434`; 4 pages +1115/−325;
   sentinels **593→593** — both `:eq:` APIs re-worded, labels kept; `-E -W` EXIT=0 with a

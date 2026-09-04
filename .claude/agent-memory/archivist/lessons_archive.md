@@ -10703,3 +10703,156 @@ MANDATORY. ⟹ after minting any `.. error-entry::`, run that module (0.2 s, no 
 beyond pytest) and report the `@pytest.mark.catches("ERR-NNN")` as a BLOCKING companion
 edit. A docs-only pass with an "I do not edit `tests/`" constraint can still put the
 tree red, and the `-W` build is silent about it.
+
+---
+
+## L-092 — #428: splitting a "Reactions Not Included" section when one of the three named channels IS handled
+
+**Task.** `docs/theory/foundations/cross_section_data.rst` §"Reactions Not Included:
+(n,2n), (n,3n), (n,4n)" (:693-806 at HEAD `8707c53a`) was present-tense-FALSE for
+MT=16: the channel is extracted, carried by six solver families, and in the k balance
+of all of them. A `qa` census (`scratch/_428_four_solver_check.md`) supplied a
+per-solver fact table + a 16-row cross-family k table. Deliverable: split the section,
+fix four stale `file:line` refs, correct the `solve_sn_adjoint` docstring's
+`A_loss = L+C-S-B`. Result: 3 files, +478/−94, `-E -W` EXIT=0 with a **0-byte log both
+sides**, `dead_references` 0 dead / 52 checked, my own xref gate 159 roles / 0 dead.
+
+### (a) ⭐⭐ A SECTION HEADER can be a class-level falsehood, and the page usually already
+### carries the true account — the repair is a SPLIT BY FACT, never a re-word
+
+The header named three MTs and asserted one predicate ("not extracted") over all
+three. `[M]` it is true of MT=17/37 and false of MT=16 — and the SAME page carried the
+correct MT=16 account **~200 lines above** (the extracted-MT list-table, the P0
+truncation warning, the `mf6-yield-convention` section, the pre-#427 defect record).
+So a reader could cite one file for either version (vv #21's aggravator at page scale).
+
+⟹ the shape that worked: **two H2 sections, `n2n-handled` and `n2n-excluded-channels`,
+each opening by naming what the OTHER one covers.** The handled one carries the datum
+facts + the ruling + the per-solver table + the evidence; the excluded one keeps the
+threshold rationale, the regimes and the deferred sketch, re-scoped. Every sentence the
+census marked MT=17/37-only survived verbatim or with its quantifier narrowed; nothing
+was deleted.
+
+⚠ And the two steps that made the split *usable* rather than merely correct:
+- **the sketch's steps 4–5 had to be RE-AIMED, not dropped.** Step 4 read *"every
+  transport solver must account for the multiplicity"* — a to-do that is DONE. Rewritten
+  as *"this step is not the open item it used to be … MT=17/37 would reuse that
+  machinery with ν = 3 and ν = 4 rather than introduce it"*, it becomes the strongest
+  argument in the section: the precedent exists and is measured.
+- **the `#63` line said "tracked in", and #63 is CLOSED** — titled *"Data: Document
+  (n,3n) and (n,4n) exclusion rationale"*, i.e. the issue's own title already scoped
+  itself to the split being proposed. Re-framed as *the record of the decision, not an
+  open work item* (plan-authoring §9(b)).
+
+### (b) ⭐⭐ REPRODUCE the census's REFERENCE, and expect its per-row RESIDUALS not to
+### reproduce — publish the reference + your own rows + the relayed figure as a BOUND
+
+The census's 16-row table gave `k` to 16 digits per family. `[M]` mine:
+- the **closed-form reference reproduces BIT-IDENTICALLY** — `1.6532258064516119`
+  (Σ₂ on) and `1.2896126760563373` (off, +28.20 %) — as do all three datum-layer
+  identities (`balance_residual == [0. 0.]`, `emission_matrix() == 2Σ₂ᵀ`,
+  `absorption_xs = [0.072 0.165]`);
+- the **homogeneous solver** is bit-identical to the reference;
+- **diffusion / SN-fwd-SI / SN-adjoint did NOT reproduce the memo's residuals**
+  (mine `2.7e-16` / `3.0e-10` / `1.6e-11` vs the memo's `8.1e-16` / `5.2e-14` /
+  `1.0e-13`) — because a residual is a property of the MESH, QUADRATURE and
+  TOLERANCES, and the memo stated none of them per row.
+
+⟹ **a per-solver agreement residual is a run property, not a channel property.** The
+publishable shape is: the reference (bit-identical, with its full input matrices so the
+page regenerates it), YOUR rows with their configuration written into the table's own
+first column (*"diffusion, 10-cell reflective slab, width 10"*), and the relayed sweep
+as a BOUND with a `.. note::` saying the digits move. Never a 16-digit table whose
+fixture you cannot state (L-057, L-050).
+
+⭐ The one relayed number worth publishing verbatim is the **stochastic** one, because
+its σ makes it self-describing: MC `1.655710 ± 0.001525` is **1.63 σ** from the closed
+form, control `0.31 σ` — i.e. UNBIASED, which is the claim that had to be made because
+ERR-023's *title* reads present-tense.
+
+### (c) ⭐ A catalogue TITLE is a defect name, not a state — say so where a reader will
+### quote it
+
+ERR-023 is titled *"MC solver silently ignores Sig2 (n,2n) reactions"*. #428's own body
+quoted that title as evidence MC might still be broken. `[M]` the defect was fixed at
+#23, the catcher (`tests/mc/test_gaps.py::test_mc_n2n_keff_matches_analytical`) still
+has teeth — and it is `@pytest.mark.slow`, so the canonical `-m "not slow"` gate never
+runs it (#405). Shipped as a `.. warning::` naming all three facts.
+
+### (d) ⭐⭐ A "Limitations and Future Work" table is a PRESENT-TENSE claim surface, and
+### the fixing page is the likeliest place to find the stale row
+
+`docs/theory/methods/monte_carlo.rst:1407` listed *"Solver ignores Sig2 (n,2n)
+reactions"* under Limitations — while the SAME page documents the fix at `:755-764`
+(the weight-doubling convention, ERR-023, the catcher by name). 650 lines apart, one
+page, two tenses. Not in my brief; found by grepping the corpus for the CLAIM
+(`does not extract|1-in-1-out|ignores.*sig2|silently ignor`) rather than for the
+section I was editing. ⟹ **repair by retiring the ROW, not deleting it** — keep the
+tracking ID so it still resolves, mark it `⛔ RESOLVED (#23)`, and point at the record
+and the new section.
+
+### (e) ⭐⭐ A pre-existing `**``literal``**` NESTING BUG travels forward when you rewrite
+### a section, and only the RENDERED HTML sees it
+
+The old sketch spelled its file names `**``orpheus/data/micro_xs/gendf.py``**` — an
+inline literal inside strong emphasis, which RST cannot nest: the backticks render
+LITERALLY. I carried all three forward verbatim. `-W` is silent; the source grep
+`grep -n '\*\*``'` finds them, and so does L-074's HTML gate (`re.finditer(r"\`{2,}")`
+over tag-stripped, unescaped HTML → **6 visible runs**, 3 sites × 2). ⟹ run the HTML
+gate on every page you touch, and grep `\*\*``` before shipping a rewritten section.
+
+### (f) ⭐ A `:ref:` to a label sitting on a `.. warning::` (not a section title) MUST
+### carry explicit text — bare `:ref:` is a `-W` FAILURE, twice in one session
+
+`WARNING: Failed to create a cross reference. A title or caption not found: 'X'
+[ref.ref]`. A directive has no title to borrow. Spell it
+`:ref:`the truncation warning <sn-n2n-p0-truncation>``. Both of my new anchors on
+warnings (`n2n-p0-truncation-at-ingest`, and the existing `sn-n2n-p0-truncation`) hit
+this. Note this IS caught by `-W` — unlike a dead code-xref — so it is cheap.
+
+### (g) ⭐⭐ CITING a nuclide in a new section obliges you to check the page's own ROSTER
+
+My split names Be-9 as a shipped MT=16 carrier. `[M]` the page's own nuclide table
+listed **12** and Be-9 was absent — while `convert_gxs_to_hdf5.py` globs `*.GXS` (13
+files) and the page's OWN P0-truncation warning already says *"the 13 shipped GENDF
+files"* and cites Be-9 heavily. The tape landed `ea06fbbd` (2026-08-31) with no roster
+update. Fixed on internal-consistency grounds (12 → 13 + the Be-9 row, temps/σ₀
+`[M]` from `BE009.GXS`'s own MF=1/MT=451 header: 4 temps, 6 σ₀).
+⚠ The near-miss: `infinite_medium.rst:1863` also says *"12 isotopes"* — and it is
+CORRECT, because it counts a PWR-cell mixture, not the library. **Read what a number
+counts before "fixing" it.**
+
+### (h) ⭐ A MEASURED tape census beats a relayed one, and the MEMBER SET is the payload
+
+`[M]` mine, by ENDF-6 column layout (cols 71-72 = MF, 73-75 = MT) over the 13 `.GXS`:
+MT=16 **11 of 13** (BE009, B_011, NA023, O_016, U_235, U_238, ZR090…ZR096; absent
+B_010, H_001), MT=17 **6 of 13** (U_235, U_238, ZR091, ZR092, ZR094, ZR096), MT=37
+**2 of 13** (U_235, U_238), MT=2 13 of 13. Reproduces the census member-for-member.
+The member set is what refutes the old prose's *"heavy isotopes (U-235, U-238,
+Pu-239, …)"*: there is **no Pu on the tapes**, and MT=17 is carried by four
+**zirconiums** (L-091's enumerate-the-members rule, paying again).
+
+### (i) ⭐ The DOCSTRING fix that motivated the task had a SECOND false clause one
+### paragraph down
+
+Briefed: `solve_sn_adjoint`'s `(A_loss = L+C-S-B)` at `:2983`. `[M]` the same docstring
+ALSO spells the daggered triple `((L+C).H, (S+B).H, F.H)` and the loss dagger
+`(L{+}C).H - (S{+}B).H` at `:2987`/`:2989` — the same falsehood, twice more, in the
+sentence the equation is explaining. Both fixed to the canonical
+`A = L + C − S − N₂ₙ − B` that `n2n.py:17` and `coupled_system.py:104` carry, plus one
+new clause naming the daggered emission `(ν₂ₙΣ₂ₙᵀ)ᵀ = ν₂ₙΣ₂ₙ` (verified against
+`n2n.py:336-356`'s own transpose docstring). ⚠ `#425` tracks **37** `L+C-S-B` sites in
+the SN chapter and `sn/index.rst:34` already carries a machine-header key explaining
+the pedagogical spelling — so the two other solver.py hits (`:267`
+`_evaluate_arm_residual`, `:657` `_exit_gauge_trace`) are #425's, NOT adjoint
+docstrings, and were correctly left.
+
+### (j) ⭐ A verbatim-quoted RULING elsewhere in the corpus constrains your PARAPHRASE
+
+`adjoint.rst:706` quotes the CS4c §14.1 ruling verbatim, including its *"in principle
+carries its own anisotropy"* hedge AND a dated note saying the hedge is now a
+MEASUREMENT. My paraphrase had to (1) say it is a paraphrase and point at the verbatim
+copy, and (2) carry the strengthening — otherwise the data page would re-import a hedge
+the corpus has already retired. ⟹ **before paraphrasing a ruling, find where it is
+quoted verbatim and read what the corpus has since said ABOUT it** (L-081's
+quotation rule, in the other direction).
