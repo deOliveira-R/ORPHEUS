@@ -48,7 +48,7 @@ def test_transport_xs_p0_only_equals_total_exactly():
     mix_p0 = Mixture(
         SigC=xs["sig_c"], SigL=np.zeros(2), SigF=xs["sig_f"],
         SigP=xs["nu"] * xs["sig_f"], SigT=xs["sig_t"],
-        SigS=[csr_matrix(xs["sig_s"])], Sig2=csr_matrix((2, 2)),
+        SigS=[csr_matrix(xs["sig_s"])], Sig2=[csr_matrix((2, 2))],
         chi=xs["chi"],
     )
     np.testing.assert_array_equal(mix_p0.transport_xs, mix_p0.SigT)
@@ -86,7 +86,7 @@ def test_diffusion_coefficient_legacy_core1d_bridge():
         SigC=np.array([0.0096, 0.0959]),    # legacy "absorption" as capture
         SigL=np.zeros(2), SigF=np.zeros(2), SigP=np.zeros(2),
         SigT=transport,
-        SigS=[csr_matrix((2, 2))], Sig2=csr_matrix((2, 2)),
+        SigS=[csr_matrix((2, 2))], Sig2=[csr_matrix((2, 2))],
         chi=np.zeros(2),
     )
     np.testing.assert_array_equal(mix.transport_xs, transport)
@@ -104,7 +104,7 @@ def test_diffusion_coefficient_rejects_nonpositive_transport():
         SigC=np.array([0.1]), SigL=np.zeros(1), SigF=np.zeros(1),
         SigP=np.zeros(1), SigT=np.array([1.0]),
         SigS=[csr_matrix(np.array([[0.9]])), csr_matrix(np.array([[1.2]]))],
-        Sig2=csr_matrix((1, 1)), chi=np.zeros(1),
+        Sig2=[csr_matrix((1, 1))], chi=np.zeros(1),
     )
     np.testing.assert_array_less(mix.transport_xs, 0.0)
     with pytest.raises(ValueError, match="transport_xs"):

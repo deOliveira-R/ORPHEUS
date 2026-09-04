@@ -55,7 +55,7 @@ def _homogeneous_slab_solver(c: float, *, sigma_t: float = 1.0,
         SigL=z.copy(), SigF=z.copy(), SigP=z.copy(),
         SigT=np.array([sig_t]),
         SigS=[csr_matrix(np.array([[sig_s]]))],  # P0 within-group scatter
-        Sig2=csr_matrix((1, 1)), chi=z.copy(),
+        Sig2=[csr_matrix((1, 1))], chi=z.copy(),
     )
     mesh = Mesh1D(
         edges=np.linspace(0.0, width, nx + 1), mat_ids=np.zeros(nx, dtype=int),

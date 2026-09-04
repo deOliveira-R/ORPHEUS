@@ -94,7 +94,7 @@ def build_p1_solver() -> SNSolver:
         sig_s=p0,
     )
     mix.SigS = [csr_matrix(p0), csr_matrix(p1)]
-    mix.Sig2 = csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))
+    mix.Sig2 = [csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))]
 
     nx, ny = 3, 2
     mesh = Mesh2D(
@@ -123,7 +123,7 @@ def build_p3_solver() -> SNSolver:
         sig_s=p0,
     )
     mix.SigS = [csr_matrix(p0), csr_matrix(p1), csr_matrix(p2), csr_matrix(p3)]
-    mix.Sig2 = csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))
+    mix.Sig2 = [csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))]
 
     nx, ny = 3, 2
     mesh = Mesh2D(

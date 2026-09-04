@@ -151,7 +151,7 @@ def _mixture(sig_t, s00, s01, s11) -> Mixture:
     return Mixture(
         SigC=sig_t - scatter.sum(axis=1),   # no fission ⟹ Σ_t = Σ_c + Σ_s
         SigL=zero.copy(), SigF=zero.copy(), SigP=zero.copy(), SigT=sig_t,
-        SigS=[csr_matrix(scatter)], Sig2=csr_matrix((2, 2)), chi=zero.copy(),
+        SigS=[csr_matrix(scatter)], Sig2=[csr_matrix((2, 2))], chi=zero.copy(),
     )
 
 

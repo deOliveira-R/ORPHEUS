@@ -81,7 +81,7 @@ def _make_mixture(
         SigC=sig_c.copy(), SigL=np.zeros(ng),
         SigF=sig_f.copy(), SigP=(nu * sig_f).copy(),
         SigT=sig_t.copy(), SigS=[csr_matrix(sig_s)],
-        Sig2=csr_matrix(sig_2) if sig_2 is not None else csr_matrix((ng, ng)),
+        Sig2=[csr_matrix(sig_2) if sig_2 is not None else csr_matrix((ng, ng))],
         chi=chi.copy(),
     )
 

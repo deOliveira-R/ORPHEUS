@@ -174,7 +174,7 @@ def placeholder_materials(
             SigP=z.copy(),
             SigT=np.ones(ng),
             SigS=[z_mat],
-            Sig2=z_mat,
+            Sig2=[z_mat],
             chi=z.copy(),
         )
         for mid in mat_ids
@@ -233,11 +233,11 @@ def material_xs_from_raw(
             SigP=z.copy(),
             SigT=np.ones(ng),
             SigS=[csr_matrix(np.asarray(s)) for s in mats],
-            Sig2=csr_matrix(
+            Sig2=[csr_matrix(
                 np.asarray(sig2[mid])
                 if sig2 is not None and mid in sig2
                 else np.zeros((ng, ng))
-            ),
+            )],
             chi=z.copy(),
         )
         for mid, mats in sig_s.items()

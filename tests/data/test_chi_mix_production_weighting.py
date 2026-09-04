@@ -96,14 +96,14 @@ def _require(condition: bool, message: str) -> None:
 # (S10a) enforces the simplex/null law on construction, so a fissile
 # synthetic isotope MUST carry a valid (NG,) simplex χ.
 #
-# ⚠ LOAD-BEARING: these synthetic isotopes carry a single Legendre
-# scattering order (``sigS=[[csr_matrix]]``), so EVERY ``compute_macro_xs``
-# drive MUST pass ``n_legendre=1`` (the default 3 would index
-# ``iso.sigS[1]`` → IndexError). PROVEN: with ``n_legendre=1`` the drive
-# succeeds and the pre-S10b HEAD returns χ_mix == χ_0 (the legacy
-# shortcut), distinct from both the S10b weighted answer and the
-# unweighted mean — so gate 2 is RED pre-S10b and goes GREEN exactly when
-# the production-weighting lands.
+# These synthetic isotopes carry a single Legendre scattering order
+# (``sigS=[[csr_matrix]]``). Until #426 step 1 every ``compute_macro_xs``
+# drive had to pass ``n_legendre=1`` (the default 3 indexed ``iso.sigS[1]``
+# → IndexError); the mixture's order is now derived from its isotopes and an
+# order an isotope does not store is zero, so the drives take no order
+# argument. History: the pre-S10b HEAD returned χ_mix == χ_0 (the legacy
+# shortcut), distinct from both the S10b weighted answer and the unweighted
+# mean — gate 2 was RED pre-S10b and went GREEN when production-weighting landed.
 
 
 def _chi_simplex(*groups_and_mass: tuple[int, float]) -> np.ndarray:
@@ -147,7 +147,7 @@ def _fissile_isotope(
         nubar=nubar,
         chi=np.asarray(chi, dtype=float),
         sigS=[[csr_matrix((NG, NG))]],
-        sig2=csr_matrix((NG, NG)),
+        sig2=[csr_matrix((NG, NG))],
     )
 
 
@@ -166,7 +166,7 @@ def _inert_isotope() -> Isotope:
         nubar=np.zeros(NG),
         chi=np.zeros(NG),
         sigS=[[csr_matrix((NG, NG))]],
-        sig2=csr_matrix((NG, NG)),
+        sig2=[csr_matrix((NG, NG))],
     )
 
 
@@ -203,8 +203,7 @@ class TestChiMixIsSimplex:
             chi=_chi_simplex((2, 0.4), (3, 0.6)),
         )
         mix = compute_macro_xs(
-            [iso0, iso1, _inert_isotope()], aden,
-            n_legendre=1, fissile_indices=[0, 1],
+            [iso0, iso1, _inert_isotope()], aden, fissile_indices=[0, 1],
         )
         chi_mix = np.asarray(mix.chi)
         np.testing.assert_allclose(chi_mix.sum(), 1.0, atol=1e-12, rtol=0)
@@ -220,8 +219,7 @@ class TestChiMixIsSimplex:
             chi=_chi_simplex((2, 0.4), (3, 0.6)),
         )
         mix = compute_macro_xs(
-            [iso0, iso1, _inert_isotope()], np.array([3.0, 1.0, 1.0]),
-            n_legendre=1, fissile_indices=[0, 1],
+            [iso0, iso1, _inert_isotope()], np.array([3.0, 1.0, 1.0]), fissile_indices=[0, 1],
         )
         # The same guard Mixture.__post_init__ runs (enforce_emission_spectrum):
         # asserted explicitly here so the gate-1↔S10a interlock is a named,
@@ -251,7 +249,7 @@ class TestChiMixHandReference:
         chi1 = _chi_simplex((5, 0.3), (6, 0.7))
         iso0 = _fissile_isotope(nubar_val=nubar0, sigf_val=sigf0, sigf_group=g0, chi=chi0)
         iso1 = _fissile_isotope(nubar_val=nubar1, sigf_val=sigf1, sigf_group=g1, chi=chi1)
-        mix = compute_macro_xs([iso0, iso1], aden, n_legendre=1, fissile_indices=[0, 1])
+        mix = compute_macro_xs([iso0, iso1], aden, fissile_indices=[0, 1])
 
         # INDEPENDENT reference — explicit scalars laid out term-by-term, NOT a
         # loop re-spelling the code's sum(w_i * χ_i). Shares only numpy
@@ -291,8 +289,7 @@ class TestSingleFissileByteIdentity:
         chi0 = _chi_simplex((0, 0.6), (1, 0.4))
         iso0 = _fissile_isotope(nubar_val=2.4, sigf_val=0.10, sigf_group=0, chi=chi0)
         mix = compute_macro_xs(
-            [iso0, _inert_isotope()], np.array([1.0, 1.0]),
-            n_legendre=1, fissile_indices=[0],
+            [iso0, _inert_isotope()], np.array([1.0, 1.0]), fissile_indices=[0],
         )
         # np.asarray on RHS: iso0.chi is an EmissionSpectrum (S10a); compare values.
         np.testing.assert_array_equal(np.asarray(mix.chi), np.asarray(iso0.chi))
@@ -301,8 +298,7 @@ class TestSingleFissileByteIdentity:
         # 3b — the fissile_indices=[] / no-fissile default branch
         # (borated_water / zircaloy_clad shape) is unchanged by S10b.
         mix = compute_macro_xs(
-            [_inert_isotope(), _inert_isotope()], np.array([1.0, 1.0]),
-            n_legendre=1, fissile_indices=[],
+            [_inert_isotope(), _inert_isotope()], np.array([1.0, 1.0]), fissile_indices=[],
         )
         np.testing.assert_array_equal(np.asarray(mix.chi), np.zeros(NG))
 

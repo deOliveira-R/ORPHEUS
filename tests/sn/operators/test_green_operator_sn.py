@@ -90,7 +90,7 @@ def _mix(sig_t, p0):
         chi=np.zeros(2), sig_s=np.array(p0),
     )
     m.SigS = [csr_matrix(np.array(p0))]
-    m.Sig2 = csr_matrix(np.zeros((2, 2)))
+    m.Sig2 = [csr_matrix(np.zeros((2, 2)))]
     return m
 
 

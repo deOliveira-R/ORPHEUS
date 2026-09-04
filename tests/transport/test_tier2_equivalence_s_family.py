@@ -206,7 +206,7 @@ class TestSFamilyTierTwoEquivalence:
     @pytest.mark.parametrize("cls,fields", [
         (ScatteringKernel, lambda mix: {"moments": tuple(
             np.asarray(s.todense()) for s in mix.SigS)}),
-        (N2NKernel, lambda mix: {"matrix": np.asarray(mix.Sig2.todense())}),
+        (N2NKernel, lambda mix: {"matrix": np.asarray(mix.Sig2[0].todense())}),
         (FissionKernel, lambda mix: {"chi": mix.chi, "nu_sig_f": mix.SigP}),
     ], ids=["scattering", "n2n", "fission"])
     def test_kernel_from_mixture_equals_the_exact_ctor(self, cls, fields):

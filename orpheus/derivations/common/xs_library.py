@@ -56,7 +56,7 @@ def make_mixture(
         SigC=sig_c.copy(), SigL=np.zeros(ng),
         SigF=sig_f.copy(), SigP=(nu * sig_f).copy(),
         SigT=sig_t.copy(), SigS=sig_s_list,
-        Sig2=sig_2_sparse, chi=chi.copy(),
+        Sig2=[sig_2_sparse], chi=chi.copy(),
         eg=eg.copy() if eg is not None else None,
     )
 

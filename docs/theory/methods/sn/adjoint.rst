@@ -117,15 +117,26 @@ sweep — is a consequence of that one choice.
      K^{\mathsf T}\sum_n\chi_n` (:eq:`sn-n2n-adjoint-source`) — note
      the :math:`w_m`, which an equal-weight fixture is structurally
      blind to.
-   * ⚠ **"Isotropic" here is a MODEL, not the reaction.**  The
-     :math:`(n,2n)` lift and its transpose are single-:math:`\ell`
-     because ORPHEUS truncates the evaluated angular data at
-     :math:`P_0` **at ingest** — the shipped GENDF files store seven
+   * ⚠ **"Isotropic" here is a MODEL, not the reaction — and since
+     2026-09-03 it is an OPERATOR-layer model, not a data-layer loss.**
+     The :math:`(n,2n)` lift and its transpose are
+     single-:math:`\ell` because
+     :meth:`~orpheus.transport.kernels.N2NKernel.from_mixture` reads
+     ``Sig2[0]`` alone and
+     :class:`~orpheus.transport.operators.n2n.N2NOperator` mints its
+     frame at order 0; the **data layer no longer truncates** (#426
+     step 1 — ``Mixture.Sig2`` is a list over :math:`\ell`, the way
+     ``SigS`` always was).  The shipped GENDF files store seven
      Legendre moments for MT=16, the same order as elastic, and on
-     Be-9 the discarded :math:`\ell\ge1` part is a median 45 % of the
-     :math:`P_1` emission source.  Nothing on this page is evidence
-     about the reaction's angular distribution
-     (:ref:`the truncation warning <sn-n2n-p0-truncation>`,
+     Be-9 the unused :math:`\ell\ge1` part is a median 45 % of the
+     :math:`P_1` emission source.  ``[M]`` restoring it moves
+     :math:`k` by :math:`-414` to :math:`-529` in
+     :math:`\Delta k\cdot10^{5}` on a Be-reflected fast slab
+     (:math:`-346` to :math:`-228` in :math:`\Delta\rho\cdot10^{5}` —
+     :ref:`the measured block <sn-n2n-p0-truncation-measured>` carries
+     all three conventions and the controls).  Nothing on this page is
+     evidence about the reaction's angular distribution
+     (:ref:`the truncation record <sn-n2n-p0-truncation>`,
      `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_).
 
 The continuous adjoint problem and importance
@@ -729,8 +740,10 @@ it generalises past this channel:
 
 The ruling's *"in principle"* was a hedge when it was written and is a
 **measurement** now: the evaluated data ORPHEUS itself ships carries
-seven Legendre moments for this channel, and the data layer keeps one
-of them (:ref:`the truncation warning below <sn-n2n-p0-truncation>`,
+seven Legendre moments for this channel, and since 2026-09-03 the data
+layer carries all seven through to ``Mixture.Sig2`` — it is the
+operator tier that still uses one
+(:ref:`the truncation record below <sn-n2n-p0-truncation>`,
 `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_).  The
 ruling is *strengthened* by that — the anisotropy axis it declined to
 foreclose is real, not hypothetical — and the quote stays verbatim
@@ -771,18 +784,82 @@ chosen for both.
 .. warning::
 
    **ORPHEUS models** :math:`(n,2n)` **emission as isotropic.  The
-   reaction is not.**  This is a truncation of the evaluated data at
-   :math:`P_0`, taken at ingest and unrecoverable downstream: the GENDF
-   reader parses the whole Legendre stack of the MF=6/MT=16 section and
-   then keeps ``sig2_data[(0, 0)]`` alone
-   (``orpheus/data/micro_xs/gendf.py``), so ``Isotope.sig2`` and
-   :attr:`~orpheus.data.macro_xs.mixture.Mixture.Sig2` are ONE matrix
-   where :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigS` is a list
-   over :math:`\ell`.  Every operator and every equation in this
-   subsection inherits that truncation; none of them is evidence about
-   the reaction's angular distribution.
+   reaction is not.**  Every operator and every equation in this
+   subsection inherits that :math:`P_0` model; none of them is evidence
+   about the reaction's angular distribution.
 
-   **What is discarded is not small.**  Measured over the 13
+   **Where the truncation lives — as of 2026-09-03, TWO LINES of the
+   transport layer.**  It used to be a data-layer loss, and it is not
+   any more.  #426 step 1 made the ingest lossless in :math:`\ell`:
+   ``Isotope.sig2`` and
+   :attr:`~orpheus.data.macro_xs.mixture.Mixture.Sig2` now carry every
+   Legendre order the tape stores, exactly as
+   :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigS` does
+   (:ref:`the ingest stack note <n2n-legendre-stack-at-ingest>`).  What
+   still truncates, and the whole of what still truncates, is:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 44 56
+
+      * - site
+        - what it does
+      * - :meth:`~orpheus.transport.kernels.N2NKernel.from_mixture`
+          (``orpheus/transport/kernels.py``)
+        - densifies ``mixture.Sig2[0]`` and stores it as a single
+          ``matrix`` — the kernel has no :math:`\ell` stack, where
+          :class:`~orpheus.transport.kernels.ScatteringKernel` does
+      * - :meth:`~orpheus.transport.operators.n2n.N2NOperator.from_solver_data`
+          (``orpheus/transport/operators/n2n.py``)
+        - mints the binding frame at
+          ``HarmonicFrame.for_space(interior, 0)`` — order 0, where
+          :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
+          passes the solve's ``scattering_order``
+      * - ``MaterialXSField._build_dense_caches``
+          (``orpheus/transport/mesh/material_xs_field.py``)
+        - caches ``mix.Sig2[0]`` dense for
+          :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.n2n_matrix`,
+          beside a scattering cache that keeps **every** order of
+          ``mix.SigS`` — the asymmetry is the model, and that method's
+          own docstring already dates its removal to step 2
+
+   ⛔ **This block asserted the opposite until 2026-09-03**, and the
+   sentence is worth preserving because a reader may still meet it in
+   an older checkout or a quoted memo.  It read, verbatim, that the
+   truncation was "taken at ingest and unrecoverable downstream: the
+   GENDF reader parses the whole Legendre stack of the MF=6/MT=16
+   section and then keeps ``sig2_data[(0, 0)]`` alone", so that
+   "``Isotope.sig2`` and ``Mixture.Sig2`` are ONE matrix where
+   ``Mixture.SigS`` is a list over :math:`\ell`".  Both halves were
+   true when written and both are now false: that subscript no longer
+   exists, and the moments are recoverable — any consumer can read
+   ``Mixture.Sig2[1]`` today.  Restoring them **through** the operator
+   is step 2 of `#426
+   <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.
+
+   ⚠ **The other** ``Sig2[0]`` **reads are NOT this truncation and must
+   not be "fixed" with it.**  ``[M]`` 2026-09-03 by AST over
+   ``orpheus/`` (subscript-``0`` reads of a ``Sig2``/``sig2``
+   attribute or name, docstrings excluded): **9** sites.  Two are model
+   sites from the table above — the kernel and the dense cache; the
+   third model site, the frame's order, is not a ``Sig2[0]`` read at all
+   and this census structurally cannot see it.  The remaining **7** are
+   :math:`\ell = 0` *by physics* —
+
+   * ``mixture.py`` (:attr:`~orpheus.data.macro_xs.mixture.Mixture.n2n_out_xs`
+     and ``compute_macro_xs``'s :eq:`sigT-computed`) and ``gendf.py``'s
+     ``sigT`` accumulation, ×3: a **reaction rate** is the :math:`P_0`
+     row sum, and a higher Legendre moment integrates to zero over
+     angle, so it contributes exactly nothing there;
+   * ``cp/solver.py``, ``moc/core.py``, ``mc/solver.py``, ×3: those
+     families' emission sources are isotropic **by construction** —
+     a property of the *method*, not of this channel.  Each already
+     carries an inline comment saying so.
+   * ``gendf.py``'s ``if sig2[0].nnz > 0`` guard, ×1: a presence test.
+
+   Reading the :math:`P_0` block is the *right* thing at all seven.
+
+   **What is truncated is not small.**  Measured over the 13
    NJOY-GROUPR GENDF files ORPHEUS ships
    (``orpheus/data/micro_xs/*.GXS``, 421 groups, T = 293.6 K, read with
    the project's own parser): MF=6/MT=16 stores **NL = 7** Legendre
@@ -819,19 +896,138 @@ chosen for both.
    0.074615` (Be-9, ``AWR = 8.93478``) to six significant figures,
    which validates the extraction and pins the GENDF convention —
    stored moments carry no :math:`(2\ell+1)` factor, so
-   :math:`\sigma_1/\sigma_0` IS the mean lab cosine.  ⚠ No transport
-   solve has been run: the 62 % / 45 % figures are cross-section
-   shares, **not** a measured error in any flux or eigenvalue.  Full
-   measurement set, the data-layer taxonomy, and the restoration path:
-   `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.
+   :math:`\sigma_1/\sigma_0` IS the mean lab cosine.
+
+   ⚠ **The 62 % / 45 % figures are cross-section shares, not an error
+   in any flux or eigenvalue.**  That distinction was, until
+   2026-09-03, the whole honest scope of this warning — no transport
+   solve had been run.  One has now; it is the next block, and it is a
+   different and stronger kind of claim.  The full data-layer taxonomy
+   and the restoration path are at `#426
+   <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.
+
+.. _sn-n2n-p0-truncation-measured:
+
+.. important::
+
+   **What the** :math:`P_0` **model is worth, measured in** :math:`k`.
+   ``[M]`` 2026-09-03 on ``main`` ``1e02f6b1``.  The
+   :math:`\ell = 1\ldots6` MT=16 moments are read off the tape with the
+   production parser, yield-stripped with the same per-row diagonal
+   production applies at :math:`\ell = 0`, and injected as **scattering**
+   moments with multiplicity 2 —
+   :math:`\Sigma_{s,\ell} \mathrel{+}= 2\,\Sigma_{2n,\ell}` for
+   :math:`\ell \ge 1` only, so the :math:`\ell = 0` channel stays on
+   :math:`N_{2n}` and nothing is double-counted.  This is a *probe* of
+   what step 2 will change, not the shipped path.
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 30 20 17 17 16
+
+      * - fixture (Be-9 reflector \| core \| Be-9)
+        - :math:`k` shipped
+        - :math:`\Delta k\cdot10^{5}`
+        - :math:`\frac{\Delta k}{k_0}\cdot10^{5}`
+        - :math:`\Delta\rho\cdot10^{5}`
+      * - fast, **3 cm** reflectors: U-235 metal 4 cm
+          (:math:`N = 0.04894`); 12/16/12 cells
+        - ``1.095322188``
+        - **−413.55**
+        - **−377.56**
+        - **−346.01**
+      * - fast, **10 cm** reflectors; same core; 40/16/40
+        - ``1.526231521``
+        - **−529.26**
+        - **−346.78**
+        - **−228.00**
+      * - thermal, 10 cm reflectors: U-235 :math:`5\!\times\!10^{-4}`
+          + H 0.0669 + O 0.0334, 30 cm; 40/60/40
+        - ``1.745071904``
+        - **−155.61**
+        - **−89.17**
+        - **−51.15**
+
+   Configuration: 1-D slab, vacuum both sides, ``gauss_legendre(8)``,
+   421 groups, ``keff_tol = 1e-9``, ``flux_tol = 1e-8``,
+   ``inner_tol = 1e-10``, every arm ``fully_converged``; pure-isotope
+   mixtures at 294 K; the scattering stacks held at :math:`P_2` in both
+   arms, so the ladder isolates the :math:`(n,2n)` anisotropy alone.
+   Rows are the :math:`\ell = 1` arm; :math:`\ell = 2\ldots6` add under
+   :math:`2\cdot10^{-5}` in :math:`\Delta k` on every fixture — **the
+   dipole carries essentially all of it**, which is what a
+   forward-peaked emission should do.
+
+   *Sign, and why it is the physics.*  Adding the true forward peak
+   makes :math:`k` **fall**: the emitted pair leaves the reflector
+   outward rather than isotropically, so less returns to the core.  The
+   controls agree.  Flipping the sign of the injected moments moves
+   :math:`k` the other way by a comparable magnitude
+   (``+409.77`` / ``+520.83`` / ``+152.43`` in :math:`\Delta k\cdot10^5`
+   — linear, as a first-order perturbation must be); zero-padding the
+   shipped mixtures to :math:`L = 6` without adding moments moves
+   :math:`k` by **0.00**; and restricting the injection to the
+   *reflector alone* reproduces the effect to
+   :math:`0.20\cdot10^{-5}` (``−412.05`` against the same arm's
+   ``−412.25``, both at :math:`\ell \le 2`), so **99.95 % of it is the
+   reflector's**.  That is where the channel does its work: the
+   :math:`(n,2n)` neutrons that matter are the ones a reflector would
+   otherwise send *back*, and Be-9's MT=16 is open over ``[M]`` **50**
+   incident groups against U-235's **22**.  Flux changes are of the
+   same order: relative :math:`L_2` of the normalised 421-group flux
+   :math:`1.8`/:math:`3.4`/:math:`2.2 \times 10^{-3}`, concentrated in
+   the reflector.
+
+   ⚠ **Quote the convention with the number.**  ``pcm`` is
+   :math:`10^{-5}` and says nothing about what was divided by what.
+   The three columns differ by :math:`k_0`, and on this fixture set the
+   choice is not cosmetic: **in** :math:`\Delta k` **the thick
+   reflector looks worse than the thin one (−529 vs −414), and in**
+   :math:`\Delta\rho` **it looks better (−228 vs −346)** — the
+   comparison inverts.  Any sentence ranking these fixtures against one
+   another is a statement about a convention as much as about the
+   physics.
+
+   *Provenance.*  Every derived column above was re-computed for this
+   page from the recorded :math:`k` values and reproduces the source
+   table exactly, in all three conventions, on all three fixtures.  The
+   effect itself was independently reproduced by a second agent on its
+   own instrument and own pipeline, to every published digit, with the
+   two shared conventions closed against **physics** rather than
+   against the probe: strict upper-triangularity of the energy-losing
+   transfer matrix (8195 of 8195 entries) and the entrywise bound
+   :math:`|\Sigma_\ell|/\Sigma_0 = |\langle P_\ell\rangle| \le 1`,
+   where a stray :math:`(2\ell+1)` on :math:`\ell = 1` would read 2.9.
+
+   ⛔ **What this does not license.**  Three fixtures, one geometry,
+   one quadrature, one library.  It establishes that the :math:`P_0`
+   model is a **defect and not a documentable approximation** on
+   systems ORPHEUS is meant to solve — a few hundred :math:`10^{-5}` on
+   a Be-reflected fast system, still 50–150 behind a water-moderated
+   core — and it does **not** establish a magnitude for any other
+   problem class.  A beryllium reflector is close to the worst case in
+   this library.
 
 **The forward action, and why it has no moment tensor.**  ORPHEUS
 **models** :math:`(n,2n)` emission as isotropic — see
-:ref:`the truncation warning above <sn-n2n-p0-truncation>` — so the
+:ref:`the truncation record above <sn-n2n-p0-truncation>` — so the
 kernel it carries is a single :math:`\ell = 0` transfer matrix
-:math:`K = \nu_{2n}\,\Sigma_{2n}^{\mathsf T}` per cell.  Under that
-model the composite action is the **isotropic lift** of an energy
-operator,
+:math:`K = \nu_{2n}\,\Sigma_{2n}^{\mathsf T}` per cell.  That is still
+exactly true **of the kernel**, and it stopped being true of the data
+behind it on 2026-09-03: the mixture the kernel is built from now
+carries the tape's whole stack, and
+:meth:`~orpheus.transport.kernels.N2NKernel.from_mixture` selects
+``Sig2[0]`` from it.  The single :math:`\ell` is therefore a *choice
+the kernel makes*, no longer the only thing on offer — which is what
+step 2 changes.  Very little below has to be re-derived when it does,
+and the reason is structural rather than lucky: the transpose here is
+not hand-written arithmetic but the **factor reversal of a frame
+conjugation**, and a product reversal does not care how many
+:math:`\ell`-blocks the middle factor has.  What is written below as a
+one-block conjugation becomes the :math:`L`-block one that
+:math:`S` already uses (:eq:`sn-scattering-adjoint-kernel-transpose`),
+with the same derivation.  Under the current model the composite
+action is the **isotropic lift** of an energy operator,
 
 .. math::
    :label: sn-n2n-isotropic-lift

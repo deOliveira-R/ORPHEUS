@@ -150,7 +150,7 @@ def _asymmetric_2g_mat_xs():
         chi=np.zeros(2), sig_s=sig_s0,
     )
     m.SigS = [csr_matrix(sig_s0)]
-    m.Sig2 = csr_matrix(sig_2)
+    m.Sig2 = [csr_matrix(sig_2)]
     mat_xs = MaterialMesh.from_materials({0: m}).material_xs_field()
     return mat_xs, sig_s0, sig_2, np.array([1.0, 1.5])
 

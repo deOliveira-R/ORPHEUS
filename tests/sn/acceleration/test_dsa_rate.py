@@ -619,7 +619,7 @@ def _mix_1g_p1(c0: float, eta: float) -> Mixture:
         SigT=np.array([1.0]),
         SigS=[csr_matrix(np.array([[s0]])),
               csr_matrix(np.array([[eta * s0]]))],
-        Sig2=csr_matrix((1, 1)),
+        Sig2=[csr_matrix((1, 1))],
         chi=np.array([0.0]),
     )
 

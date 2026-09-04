@@ -58,7 +58,7 @@ def _mix() -> Mixture:
         SigL=z.copy(), SigF=z.copy(), SigP=z.copy(),
         SigT=np.array([_SIG_T]),
         SigS=[csr_matrix(np.array([[_C * _SIG_T]]))],
-        Sig2=csr_matrix((1, 1)), chi=z.copy(),
+        Sig2=[csr_matrix((1, 1))], chi=z.copy(),
     )
 
 

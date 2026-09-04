@@ -59,7 +59,7 @@ def _trivial_materials(ng: int = 1) -> dict:
     return {0: Mixture(
         SigC=z.copy(), SigL=z.copy(), SigF=z.copy(),
         SigP=z.copy(), SigT=np.ones(ng),
-        SigS=[z_mat], Sig2=z_mat, chi=z.copy(),
+        SigS=[z_mat], Sig2=[z_mat], chi=z.copy(),
     )}
 
 
@@ -327,7 +327,7 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
         SigF=np.array([0.0]),
         SigP=np.array([0.0]),
         SigS=[csr_matrix(np.array([[0.5]]))],
-        Sig2=csr_matrix(np.array([[0.0]])),
+        Sig2=[csr_matrix(np.array([[0.0]]))],
         chi=np.zeros(1),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
     )
     materials = {0: mix}
@@ -696,7 +696,7 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
         SigF=np.array([0.0]),
         SigP=np.array([0.0]),
         SigS=[csr_matrix(np.array([[0.0]]))],
-        Sig2=csr_matrix(np.array([[0.0]])),
+        Sig2=[csr_matrix(np.array([[0.0]]))],
         chi=np.zeros(1),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
     )
     materials = {0: mix}

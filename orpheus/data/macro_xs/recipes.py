@@ -153,8 +153,11 @@ def uo2_fuel(temp_K: int = 900, enrichment: float = 0.03, porosity: float = 0.05
     densities = np.array([enrichment * rho, (1 - enrichment) * rho, 2 * rho])
 
     escape_xs = 1.0 / (2 * _FUEL_R_OUT_CM)
+    # MATLAB's createUO2_03 built this mixture at P1; the truncation is the
+    # SOLVE's ``scattering_order`` now (#426 step 1) — the mixture carries every
+    # order the library stores and the stored P0/P1 values are unchanged.
     return compute_macro_xs(isotopes, densities, escape_xs=escape_xs,
-                            n_legendre=2, fissile_indices=[0, 1])
+                            fissile_indices=[0, 1])
 
 
 def zircaloy_clad(temp_K: int = 600) -> Mixture:
@@ -176,7 +179,7 @@ def zircaloy_clad(temp_K: int = 600) -> Mixture:
 
     escape_xs = 1.0 / (2 * _CLAD_R_OUT_CM)
     return compute_macro_xs(Zr_isos, densities, escape_xs=escape_xs,
-                            n_legendre=3, fissile_indices=[])
+                            fissile_indices=[])
 
 
 def borated_water(
@@ -210,4 +213,4 @@ def borated_water(
     ])
 
     return compute_macro_xs(isotopes, densities, escape_xs=0.0,
-                            n_legendre=3, fissile_indices=[])
+                            fissile_indices=[])

@@ -511,7 +511,7 @@ class CPSolver:
 
         # Cache scattering and (n,2n) matrices per material
         self._scat_mats = {mid: materials[mid].SigS[0] for mid in materials}
-        self._n2n_mats = {mid: materials[mid].Sig2 for mid in materials}
+        self._n2n_mats = {mid: materials[mid].Sig2[0] for mid in materials}  # P0 block: CP's source is isotropic
 
         # Convergence diagnostics (populated during iteration)
         self.residual_history: list[float] = []

@@ -10856,3 +10856,125 @@ copy, and (2) carry the strengthening — otherwise the data page would re-impor
 the corpus has already retired. ⟹ **before paraphrasing a ruling, find where it is
 quoted verbatim and read what the corpus has since said ABOUT it** (L-081's
 quotation rule, in the other direction).
+
+## L-093 — #426 step 1: a truncation that MOVES tiers, and the artefact-shaped staleness no symbol grep sees
+
+Branch `fix/n2n-anisotropy`, 2026-09-03. Step 1 of #426 made the data layer lossless in ℓ
+(`Isotope.sig2` / `Mixture.Sig2` → `list[csr_matrix]`; every scattering channel keeps the
+tape's 7 orders where a hard-coded `range(3)` had cut P3..P6; HDF5 store format 2). My pass:
+the sentences step 1 makes present-tense-false, plus the measurement into the corpus.
+4 `.rst` + 4 `orpheus/` docstrings; `-E -W` EXIT=0 with a **0-byte log both sides**;
+`dead_references` 0/52; stock xref gate 0/14821; my own import probe 258 roles / 0 real dead;
+sentinels **593 → 594** (exactly my one new label).
+
+### (a) The load-bearing shape: a truncation that MOVES needs a TIER TABLE, not a tense flip
+
+The natural reading of "step 1 fixes #426" is *the P0 claim is now false*. It is not. Two
+sentences that had always travelled together came apart:
+
+- *"ORPHEUS models (n,2n) emission as isotropic"* — **still TRUE**;
+- *"…because the data layer truncates at P0, unrecoverably"* — **now FALSE**.
+
+So every site needed sorting by TIER, not by tense, and the residue is only adjudicable once
+you know where the model now lives. `[M]` by AST over `orpheus/` (subscript-0 reads of a
+`Sig2`/`sig2` attribute or name, docstrings excluded): **9** sites — **2** are the model
+(`N2NKernel.from_mixture`, `MaterialXSField._build_dense_caches`) and **7** are ℓ=0 *by
+physics* (a reaction rate IS the P0 row sum; CP/MoC/MC sources are isotropic by construction,
+each already carrying an inline comment saying so). ⭐ And the census's own blind spot is the
+finding's third site: `N2NOperator`'s `HarmonicFrame.for_space(interior, 0)` is **not a
+`Sig2[0]` read at all**, so a predicate over the subscript structurally cannot return it. Say
+that in the page — a reader who greps `Sig2[0]` to find "the truncation" will find 9 sites,
+2 of them right, and miss the frame.
+
+⟹ the publishable output is a two-column **tier table** (data ✅ lossless / operator ⚠ still
+P0) plus the explicit warning that the 7 by-physics reads must **not** be "fixed" with it.
+
+### (b) A regenerated LOCAL CACHE is a documentation surface, and nothing greps it
+
+The page's **File Sizes** table (H-1 12.3 MB, U-235 50.0, U-238 37.8, O-16 10.8, Zr ~11) and
+its *"processes all **12** `.GXS` files"* were both falsified by step 1, and **neither
+contains a symbol**. `[M]` on the regenerated store: **13** tapes, U-235 **99.0**, U-238
+**80.3**, H-1 **29.3**, O-16 **25.1**, Zr 20.0–25.8, **total 438.5 MB**, growth ×1.98–2.38,
+7–8 min to rebuild. The `.h5` store is untracked and gitignored — so it is invisible to
+`git status`, to `-W`, to the xref gate and to `dead_references`, and the only instrument is
+`ls -l` after the regeneration finishes.
+⟹ **after any change to a serialization format, re-measure the artefact table by listing the
+artefacts**, and treat a file-count in prose as a claim about a glob (`ls *.GXS | wc -l`).
+
+### (c) A format VERSION catches a LAYOUT change and is structurally blind to a VALUES change
+
+Step 1 added `H5_FORMAT = 2` and a loud loader refusal, which invites *"the stale-store
+warning can go now."* It cannot. `H5_FORMAT` is a hand-set constant: a change that moves only
+the **values** (which is exactly what #427's yield fix was) leaves the layout identical, so
+nothing can distinguish the old numbers from the new. ⟹ the two kinds of stale store need
+**opposite prose** in the same paragraph — refused loudly / still silent — and the second is
+the reason the old warning survives.
+
+### (d) A relayed physical EXPLANATION can fail while its measurement stands
+
+The brief's *"99.9 % is the reflector's — U-235's MT=16 is 13× weaker"*: the effect
+reproduced exactly, the gloss did not. `[M]` U-235's peak (n,2n) reaction XS is **larger**
+than Be-9's (0.813 b vs 0.559 b, ratio **0.69**) — the 13× must be a density- or
+spectrum-weighted quantity nobody stated. Replaced with what I could measure: the
+reflector-only control reproduces the full arm to **0.20·10⁻⁵** (`−412.05` vs `−412.25`,
+same ℓ≤2 arm), and Be-9's MT=16 is open over **50** incident groups against U-235's **22**.
+⚠ I also caught myself comparing the control against the **wrong arm** (`−413.55`, the ℓ=1
+row) — a 1.50 discrepancy that would have read as agreement inside a "within 2·10⁻⁵" claim.
+⟹ **a control and its subject must be the same arm**; state the arm in the sentence.
+
+### (e) "Same nnz across ℓ" is an ISOTOPE property, and one isotope taught me the wrong universal
+
+I wrote *"every higher order has the same 6067 non-zeros, since the yield strip is a row
+diagonal and cannot change a sparsity pattern"*. The mechanism clause is right and the
+conclusion is **false**: `[M]` U-235 294 K reads **6067, 6067, 5834, 5334, 3165, 2773, 1887**
+for ℓ=0..6, while Be-9's (n,2n) stack is **8195 at all seven**. Sparsity is a property of the
+**tape** (the evaluation stores genuine exact zeros in the higher moments), not of the ingest.
+⟹ a gate assuming a shared sparsity pattern across ℓ is right on Be-9 and wrong on U-235;
+publish the ladder, not the universal. (vv #13's finite-roster corollary, on the isotope axis.)
+
+### (f) Two roundings of ONE source number read as a discrepancy between two surfaces
+
+The plan said the thermal fixture's Δρ is `−51.1`; the mid-task brief said `−51.2`. Neither
+is wrong — the source table says **−51.15**. ⟹ when two trusted surfaces disagree in the last
+digit, go to the artefact and publish **its** precision; do not adjudicate between roundings.
+⭐ And the free control while you are there: I re-derived all **24** derived columns
+(Δk / Δk/k₀ / Δρ) from the recorded k values and they reproduce the source table exactly —
+which is what licenses publishing the table as the corpus SSOT.
+
+### (g) ⛔ The tree moved under me INSIDE a paragraph I had already built clean
+
+An elegance pass landed on `hdf5_io.py` mid-task: `_REGENERATE` → `_REGENERATE_HINT`, and the
+loader's two inline order-count expressions were single-sourced into `_n_orders` / `_order_key`.
+My HDF5 section had already published the retired spelling verbatim —
+`` `max(int(k[1:]) for k in sig2_grp) + 1` `` — on a **0-warning EXIT=0** build. L-089 again,
+with a sharpening worth carrying: **a paragraph that QUOTES a code EXPRESSION is a higher-decay
+class than one that names a HELPER**, because a refactor that preserves behaviour re-spells the
+expression and leaves the name. ⟹ prefer *"one helper, `_n_orders`, serves both stacks"* over
+transcribing its body; the sentence then survives the elegance pass that is coming for it.
+
+### (h) A doc `.. code-block::` is the one staleness you can PROVE, so prove it
+
+`docs/theory/methods/sn/index.rst` built a `Mixture(..., Sig2=csr_matrix(np.zeros((2,2))), ...)`
+and ran `solve_sn` on it. Post-retype that is not merely stale — executed, it raises
+`ValueError: the (n,2n) matrix is a square (ng, ng) group-transfer matrix; got shape (1, 2)`.
+Running the old spelling and the new one costs four lines and converts "this looks stale" into
+a demonstrated Cardinal-Rule-1 bug. (L-077's highest-severity-staleness rule, with the receipt.)
+
+### (i) My own role probe's single DEAD was L-053(c), not a defect
+
+258 `orpheus.*` roles on the touched files, 1 flagged: `SNMesh.axes`. `[M]` `hasattr(SNMesh,
+'axes')` is **False** and `SNMesh` is **not a dataclass**, so both my class-level probe and its
+`dataclasses.fields` fallback (L-076) miss it — `axes` is assigned in `__init__`. Constructing
+an `SNMesh` gives `hasattr(sn, 'axes') → True, tuple, len 1`. Pre-existing, not mine.
+⟹ a role probe needs a **third** fallback after `hasattr` and `fields`: construct the object.
+
+### (j) Residual-sweep hygiene that worked
+
+Every remaining hit of the retired spellings (`sig2_data[(0, 0)]`, "ONE matrix", "keeps only
+ℓ=0", "unrecoverable downstream") is now inside a **dated ⛔ tombstone quoting it as history**
+— 0 present-tense survivors, and the sweep's own patterns are the positive controls (each was
+written from the pre-edit strings, so a pattern that finds nothing would be indicting itself).
+⚠ Two of my tombstones were first written as `*"…"*` wrapping a `**bold**` / ``` ``literal`` ```
+— L-085's leak pattern, authored by the agent who records it. Rewritten to plain quotes +
+`, verbatim,`; the rendered-HTML slice then read **0 backticks / 0 leaked roles** on all six
+new anchors (slices 752–12542 chars, each asserted to contain a known phrase).

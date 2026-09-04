@@ -8932,3 +8932,135 @@ sites outside `orpheus/numerics/` + `tests/numerics/`. That table is what licens
 scoping to `tests/numerics` (**3255 collected / ~26 s per arm**, 16 arms ≈ 7 min)
 and excluding `tests/sn` (~80 min, the pre-merge gate's business). An excluded
 directory with no number beside it reads as an oversight.
+
+## L76 — #426, the (n,2n) anisotropy carve (plan + 5 drafts DELIVERED 2026-09-03, PRE-carve; branch `fix/n2n-anisotropy`, HEAD `72aa4a59` → `ef915e2d` mid-dispatch)
+
+Deliverables: `scratch/_426_verification_plan.md` + `scratch/_426_draft_test_{be_reflected,
+tape_pin,h5_roundtrip,role_ast,diffusion_n2n}.py`. All five dry-run, `pyright` **0 errors**;
+`[M]` 41 rows total — **22 RED today** (the §6c red-before), 19 pass. Predicted delta
++89 → **11096** (54 MEASURED, 34 design, 1 corpus-coupled). The carve is a two-step
+data→operator un-truncation: `Isotope.sig2` / `Mixture.Sig2` become Legendre STACKS,
+and the (n,2n) operator gains an anisotropic arm on a shared `Transfer*` core.
+
+### L76a — a two-list clamp can delete a THIRD channel, and 2 of 13 isotopes are the witness
+
+`[M]` `load_isotope(n, 294).sig2.nnz` — **H_001 = 0, B_010 = 0** (no MF=6/MT=16
+section at all); BE009 8195, U_235 6067, NA023 1451, O_016 372. The solver clamps
+`L = min(scattering_order, min(len(m.SigS)−1))` (`sn/solver.py:1359-1363`) and `[M]` it
+is SILENT: with one material at `len(SigS)=1`, requests 0/1/2/5 all return **0**.
+If a retype makes `Sig2` a list and the clamp joins it into the same `min`, then **any
+mixture containing H-1 or B-10 forces the whole solve to P0** — silently deleting the
+ELASTIC P1/P2, `[M]` worth **+5787 pcm-relative** on the campaign's own fixture (14× the
+effect the campaign exists to add). ⟹ **when a carve turns a scalar datum into a per-ℓ
+LIST, census which shipped members have an EMPTY channel before letting the new length
+join any `min`** — the empty ones are exactly the members nobody thinks about, and the
+regression is 14× the feature. Companion: the same hazard makes the *control arm* of the
+flagship gate wrong if it is built by SHORTENING the list (it would then measure the
+elastic anisotropy under the (n,2n) name); zero the VALUES at the same length.
+
+### L76b — a "bit-identical by design" step has a DENOMINATOR, and its new capability had 0 witnesses
+
+The plan's step 1 is "bit-identical: no operator reads ℓ≥1 yet, and `scattering_order ≤ 2`
+truncates the wider elastic stack to today's". True — and its denominator is the
+`scattering_order` the tree actually requests. `[M]` census over `tests/ orpheus/
+derivations/ examples/`: **130 × `=0`, 54 × `=1`, 3 × `=3`, 1 × `=2`** — the `=2` is an
+`err_msg` STRING, and all three `=3` sites build SYNTHETIC mixtures by hand. ⟹ **no
+shipped GENDF-library solve runs above P2**, so the un-clamping the step creates lands
+with ZERO witnesses (§6c) — and `[M]` the data it un-clamps is not noise: BE009 elastic
+`max|·|` per ℓ = 4.84e+1, 3.61e+0, 1.70e+0, **6.64e-1, 4.54e-1, 3.70e-1, 2.86e-1**, i.e.
+ℓ=3 is 18 % of ℓ=1. ⟹ **when a step widens a truncation, the denominator of "bit-identical"
+is the set of ORDERS the tree requests, not the set of files it touches** — census the
+literal, and if nothing requests the new range, the step owes a witness for the capability
+AND an explicit note that its physical consequence is unmeasured.
+
+### L76c — a PHYSICS bound gate is one-sided, and the paired mutation is what proves it
+
+`|Σ_ℓ| ≤ Σ_0` entrywise (`Σ_ℓ/Σ_0 = ⟨P_ℓ(μ)⟩`, `|P_ℓ| ≤ 1`) is a genuine REFERENCE-class
+gate needing no solver. `[M]` 0 violations on `{BE009, U_235} × {MT16, MT2}`, ℓ=1…6;
+max ratios BE009/MT16 0.9603→0.3190, BE009/**MT2 0.9997**→0.9980. Two consequences:
+**(a)** the threshold must be `1 + 1e-9`, never tighter — the elastic ℓ=1 margin is 3e-4;
+**(b)** it catches only INFLATION (a stray `(2ℓ+1)` reads ≈2.9, a stray ×2 ≈1.9) and is
+blind to DEFLATION. The two-sided catcher is a RATIO-INVARIANCE row: the yield strip is a
+row-DIAGONAL, so it cancels in `Σ_ℓ/Σ_0` and the stored ratio must equal the RAW tape
+ratio exactly. ⭐ And the way to PROVE the pair rather than assert it is a battery arm that
+must be GREEN on one gate and RED on the other: `scale**ℓ` with `scale ≈ 0.5` SHRINKS the
+ratio ⟹ the bound stays green ⟹ only the ratio row reds. **A declared one-sidedness needs
+its own arm, or it is an unmeasured claim wearing a docstring.**
+
+### L76d — do NOT assert monotone Legendre decay: the thermal channel is not monotone
+
+`[M]` BE009 MT=221 max|·| per ℓ = 1.32e+1, 9.23e-1, 4.78e-1, 3.53e-1, 2.60e-1,
+**1.38e-1, 3.10e-1** — ℓ=6 exceeds ℓ=5. MT=16 IS monotone (1.09e-1 → 7.17e-3, 7 of 7) and
+MT=2 is. The "smooth forward-peaked kernel" reading is a property of the (n,2n) channel,
+not of the ingest; a monotonicity leg written from it would false-red the day the thermal
+channel is widened. ⟹ **before promoting an observed regularity to an assertion, run it on
+every channel the same code path serves.**
+
+### L76e — the flagship's cost was 10× a naive layout, and the fix REDUCED the tree's cost
+
+First layout of the ingest pin called `convert_gxs("BE009")` inside each parametrized row:
+`[M]` **247.57 s** for 19 rows. `[M]` `convert_gxs("BE009")` = **17.80 s** (it builds all
+4 temperatures); `convert_gxs("U_235")` = **71.58 s**; the raw parse is 1.96 s / 5.42 s.
+Hoisted to one module fixture: **26.98 s**, same verdict. ⭐ And then the sharper move: the
+rows belong INSIDE `tests/data/test_n2n_yield_convention.py`, which `[M]` costs **38.43 s
+for 10 rows** because it calls `convert_gxs` **twice**. Merged behind one fixture the file
+becomes ≈27 s for 29 rows — **the 19 new rows land at NEGATIVE marginal cost**. ⟹ **before
+minting a new test file, price the EXISTING file that already pays your fixture's cost**;
+the Pattern-2 answer and the cost answer coincide.
+
+### L76f — the moment path crosses a HEAD-RANK split that every candidate fixture is on one side of
+
+`_block_contraction` (`transport/material_field.py:186-199`) dispatches on
+`len(head.shape)`: **rank 2** for the real harmonics, **rank 1** for the flat Legendre
+basis a 1-D rule binds (#429/ERR-080). `[M]` every fixture in reach is rank-1 or clamped:
+the campaign's flagship is a slab under `gauss_legendre(8)`; the existing
+`test_n2n_operator.py` fixture is `gauss_legendre(4)`; and the analytic k_inf ladder rows
+this plan adds run at `scattering_order = 0` because `[M]` `homo_2eg_n2n` has
+`len(SigS) == 1` and the clamp reads it. ⟹ the ℓ≥1 moment path would have landed gated on
+ONE of two dispatch arms. **When a carve moves code through a rank/branch dispatch, list
+the fixtures per ARM before believing any of them covers it** — and remember a fixture can
+be on the right chart and still never reach the arm because a CLAMP took it out.
+
+### L76g — the cheapest end-to-end catcher was 5 ms and the family had ZERO
+
+`[M]` `solve_diffusion_1d({0: get("homo_2eg_n2n").materials[0]}, 4-cell reflective slab,
+keff_tol=1e-13)` → `k = 1.6532258064516114`, rel **2.686e-16** vs the analytic
+`1.6532258064516119`, in **0.005 s**; under ν₂ₙ 2→1 / 2→0 / 2→3 it reads 20.2 % / 37.2 % /
+24.1 % off. The family had `[M]` **0 of 113** catchers because `[M]` 625 mixtures are built
+in that tree and **one** has a non-zero `Sig2` — never handed to a solve. ⟹ **when a
+census says a whole family is blind, look for an EXISTING registry case before designing
+machinery**: the fixture, the analytic reference and the independence (the derivations tree
+spells its own `2.0 *` literal) were all already shipped. Same shape closed the SN analytic
+tier: adding `2eg_n2n` to the k_inf ladder is 3 lines, `[M]` **+12 rows / +2.4 s**, all
+passing today at k rel ≤ 3.2e-14 and spectrum rel ≤ 4.5e-13, and BOTH functionals redden
+20.2 % / 10.5 % under the mutation.
+
+### L76h — a `slow`-only catcher is zero coverage, and the not-slow replacement was 0.9 s
+
+`[M]` (inherited from the #428 census, re-priced here) MC's only ERR-023 catcher carries
+`@pytest.mark.slow`, so under the canonical `-m "not slow"` the MC tree reads *39 passed /
+0 red* with the multiplicity mutated; run alone the same test FAILS in 84 s. The fast
+replacement: `solve_monte_carlo(mats, MCParams(n_neutrons=50, n_inactive=10, n_active=30,
+seed=42))` = **0.9 s**, `k = 2.04087` vs the analytic `2.045454545454546` (**−0.224 %,
+0.47 σ**), and ν₂ₙ 2→1 reads `1.87606` (**−8.28 %, ≈17 σ**). ⟹ **a stochastic method's
+"too slow to gate" is usually a statement about the PRECISION target, not about the
+catcher** — a 3 % band on a 1 500-history run separates a 20 % defect at 17 σ.
+⚠ And the rebinding trap that goes with it: `[M]` `orpheus/mc/solver.py:36` binds
+`_N2N_MULTIPLICITY = float(N2NKernel.multiplicity)` at IMPORT, so a battery patching only
+the `ClassVar` reports MC inert. Patch every rebinding site (`vv` #17), measured.
+
+### L76i — the §6b census classes a "38 attribute reads" number does not contain
+
+`[M]` my AST pass over `orpheus/ tests/ derivations/ examples/` for `Sig2`/`sig2`:
+**39 attribute LOADS**, **18 attribute STORES** (`x.Sig2 = …` — 16 in `tests/`, 1
+production, 1 stale diagnostic), **72 kwargs**, **3 subscripts**. A prior census reported
+"38 attribute reads"; a STORE is a different member and every one of the 16 test sites
+hands a bare `csr_matrix` to a NON-frozen `Mixture`. ⭐ And the subscripts are the sharp
+ones: all 3 are `orpheus/moc/core.py`, where `self.sig2[i]` indexes a per-REGION list —
+so after the carve `mix.Sig2[0]` and `self.sig2[i]` are two different `[0]`s one line
+apart and a mechanical replace conflates them. ⟹ **for a scalar→list retype, split the
+census by ast CONTEXT (Load / Store / keyword / Subscript)**; the Store class is invisible
+to a "reads" number, and the Subscript class is where the repair goes wrong.
+⚠ Sibling: the gate that ENCODES the truncation carries the issue number in its
+`pytest.fail` MESSAGE (`test_material_field.py:328-333`) — `grep -rn "#426" tests/` is the
+only filter that finds it; a symbol grep does not.

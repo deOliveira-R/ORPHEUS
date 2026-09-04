@@ -16,6 +16,7 @@ e.g. ``1.001000+3`` means ``1.001E+3``.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 from typing import cast
@@ -133,6 +134,13 @@ def _extract_mf6(
     a 1-D array of non-zero values.  ifrom/ito are 1-based group indices
     (matching MATLAB convention for later sparse matrix construction).
     Returns None if the reaction is absent.
+
+    Every Legendre order the section stores is returned — ``NL`` keys per
+    sigma-zero column — and nothing is padded: a section with ``NL = 1`` is
+    the evaluation declaring isotropy, and its higher moments are exactly
+    zero for every consumer, which pads (#426 step 1; until then ``NL = 1``
+    was padded to three zero keys here and every channel was cut to three
+    orders downstream).
     """
     n_row = m.shape[0]
     i = 0
@@ -176,9 +184,6 @@ def _extract_mf6(
                         for i_lgn in range(n_lgn):
                             k += 1
                             sig.setdefault((i_lgn, i_sig0), []).append(a[k - 1])
-                        if n_lgn == 1:
-                            sig.setdefault((1, i_sig0), []).append(0.0)
-                            sig.setdefault((2, i_sig0), []).append(0.0)
         i += 1
 
     if n_temp == 0:
@@ -190,10 +195,15 @@ def _extract_mf6(
     return ifrom, ito, sig_arrays
 
 
+def _legendre_order(data: dict[tuple[int, int], np.ndarray]) -> int:
+    """The number of Legendre orders a MF=6 section stores (its ``NL``)."""
+    return 1 + max(legendre for legendre, _ in data)
+
+
 def _strip_transfer_yield(
-    transfer: csr_matrix, reaction_xs: np.ndarray | None, *, mt: int
-) -> csr_matrix:
-    r"""Renormalise a MF=6 transfer matrix onto its MF=3 reaction XS.
+    transfer_stack: Sequence[csr_matrix], reaction_xs: np.ndarray | None, *, mt: int
+) -> list[csr_matrix]:
+    r"""Renormalise a MF=6 transfer STACK onto its MF=3 reaction XS.
 
     GENDF's MF=6 records hold :math:`\sigma(E)\,y(E)\,f(E\to E')` — the
     transfer matrix carries the reaction's **yield** — while MF=3 holds the
@@ -212,6 +222,15 @@ def _strip_transfer_yield(
     section is read from, rather than merely consistent to the file's
     six-digit rounding.
 
+    The stack carries ONE yield. GENDF stores :math:`\sigma_\ell =
+    \sigma(E)\,y(E)\,f_\ell(E\to E')` for every :math:`\ell` (ENDF-102
+    Eq. (6.1)/(6.3) with NJOY Eq. (242)): the per-row scale is derived from
+    :math:`\ell = 0` — whose row sum is :math:`y\,\sigma` — and applied to
+    every order. An :math:`\ell \ge 1` row sums to :math:`y\,\sigma\,
+    \langle P_\ell \rangle` and could not be normalised on its own; the
+    integer-yield admission below is therefore a statement about the P0
+    block alone.
+
     Raises
     ------
     ValueError
@@ -225,10 +244,11 @@ def _strip_transfer_yield(
         A real ``raise`` rather than an ``assert`` — the canonical runner
         is ``python -O``, which strips ``assert`` at compile time.
     """
-    rows = np.asarray(transfer.sum(axis=1)).ravel()
+    p0 = transfer_stack[0]
+    rows = np.asarray(p0.sum(axis=1)).ravel()
     live = rows > 0.0
     if not live.any():
-        return transfer
+        return list(transfer_stack)
     if reaction_xs is None:
         raise ValueError(
             f"GENDF MT={mt}: a MF=6 transfer matrix is present but its "
@@ -253,7 +273,8 @@ def _strip_transfer_yield(
         )
     scale = np.ones(NG)
     scale[live] = sigma[live] / rows[live]
-    return cast(csr_matrix, diags(scale) @ transfer)
+    yield_inverse = diags(scale)
+    return [cast(csr_matrix, yield_inverse @ moment) for moment in transfer_stack]
 
 
 # ---------------------------------------------------------------------------
@@ -261,6 +282,17 @@ def _strip_transfer_yield(
 # ---------------------------------------------------------------------------
 
 _IG_THRESH = 95  # last group of thermal energy (E ≈ 4 eV)
+
+#: Added to every stored MF=6 scattering value so an exactly-zero entry survives
+#: coo→csr canonicalisation. This is what makes all ``n_sig0`` columns of ONE
+#: Legendre order share one sparsity pattern — the assumption ``interp_sig_s``
+#: reads positions under (it takes ``sigS[l][0]``'s coordinates and interpolates
+#: every column at those positions). Load-bearing at every ℓ, not only P0: the
+#: higher orders have genuine exact zeros. ⚠ It does NOT make the orders agree
+#: with each other — `[M]` NA023's MT=91 section stores NL = 1, so its L0 carries
+#: 16809 nnz against 13196 at ℓ ≥ 1; the other 12 isotopes agree only because
+#: every scattering section on their tapes stores NL = 7. (MATLAB's value.)
+_SPARSITY_EPSILON = 1e-30
 
 
 def convert_gxs(name: str) -> list[Isotope]:
@@ -342,7 +374,7 @@ def _build_isotope(
     nubar_raw = _extract_mf3(452, i_temp, m)  # nubar
     nubar = nubar_raw[0] if nubar_raw is not None else np.zeros(NG)
 
-    # --- (n,2n) matrix: MF=6, MT=16 ---
+    # --- (n,2n) Legendre stack: MF=6, MT=16 ---
     # GENDF's MF=6 stores sigma(E)*y(E)*f(E->E'), i.e. the transfer matrix
     # carries the reaction's YIELD; MF=3 stores the un-multiplied reaction
     # cross section. For MT=16 that yield is 2, and `[M]` on all 11 shipped
@@ -350,8 +382,8 @@ def _build_isotope(
     # 2.000000 (worst per-group departure 2.8e-2, in a threshold group where
     # sigma is ~1e-4 and the file's 6-digit fields round hardest).
     #
-    # Every consumer downstream reads `sig2` as the REACTION matrix with no
-    # multiplicity folded in — `SigT`/`absorption_xs` add its row sum ONCE
+    # Every consumer downstream reads `sig2[l]` as the REACTION stack with no
+    # multiplicity folded in — `SigT`/`absorption_xs` add the P0 row sum ONCE
     # (one neutron absorbed per event) and `N2NKernel.emission_matrix`
     # applies the factor itself (two neutrons emitted). So the yield is
     # divided out HERE, at the definition site, rather than at each of them.
@@ -367,35 +399,46 @@ def _build_isotope(
     # `2*Sigma_16` to a consumer set expecting `Sigma_16`, so removal was
     # doubled and the emission quadrupled.)
     n2n = _extract_mf6(16, i_temp, m)
-    sig2: csr_matrix
+    sig2: list[csr_matrix]
     if n2n is not None:
         ifrom2, ito2, sig2_data = n2n
+        # The whole Legendre stack the section stores (NL = 7 on 10 of the 11
+        # shipped files carrying MT=16, NL = 1 on NA023), one sigma-zero column:
+        # a threshold channel is not self-shielded. Until #426 step 1 only
+        # `(0, 0)` was kept and the emission's anisotropy was discarded here.
         # coo_matrix(...).tocsr() is a csr_matrix at runtime (matrix lineage);
         # the untyped tocsr() body makes pyright infer csr_array, so cast.
-        sig2 = cast(
-            csr_matrix,
-            coo_matrix(
-                (sig2_data[(0, 0)], (ifrom2 - 1, ito2 - 1)), shape=(NG, NG)
-            ).tocsr(),
-        )
+        sig2 = [
+            cast(
+                csr_matrix,
+                coo_matrix(
+                    (sig2_data[(i_lgn, 0)], (ifrom2 - 1, ito2 - 1)), shape=(NG, NG)
+                ).tocsr(),
+            )
+            for i_lgn in range(_legendre_order(sig2_data))
+        ]
         sig2 = _strip_transfer_yield(sig2, _extract_mf3(16, i_temp, m), mt=16)
     else:
-        sig2 = csr_matrix((NG, NG))
+        sig2 = [csr_matrix((NG, NG))]
 
     # --- Scattering matrices: elastic + inelastic + thermal ---
-    # Elastic: MF=6, MT=2
-    elastic = _extract_mf6(2, i_temp, m)
-    sigS = _init_scattering(elastic, n_sig0)
-
-    # Inelastic: MF=6, MT=51..91
-    for mt in range(51, 92):
-        inel = _extract_mf6(mt, i_temp, m)
-        if inel is not None:
-            _accumulate_scattering(sigS, inel, n_sig0, sigma_zero_independent=True)
-
-    # Thermal: MT=222 for H-in-water, MT=221 for free gas
-    thermal_mt = 222 if name.startswith("H_001") else 221
+    # Every Legendre order any scattering section stores is kept (#426 step 1;
+    # a hard-coded three cut elastic P3..P6 here until then). A section with
+    # fewer orders than the widest contributes exactly zero above its own NL.
+    elastic = _extract_mf6(2, i_temp, m)                       # MF=6, MT=2
+    inelastic = [
+        section
+        for mt in range(51, 92)                                # MF=6, MT=51..91
+        if (section := _extract_mf6(mt, i_temp, m)) is not None
+    ]
+    thermal_mt = 222 if name.startswith("H_001") else 221      # H-in-water / free gas
     thermal = _extract_mf6(thermal_mt, i_temp, m)
+    sections = [s for s in (elastic, *inelastic, thermal) if s is not None]
+    n_legendre = max((_legendre_order(s[2]) for s in sections), default=1)
+
+    sigS = _init_scattering(elastic, n_sig0, n_legendre)
+    for section in inelastic:
+        _accumulate_scattering(sigS, section, n_sig0, sigma_zero_independent=True)
     if thermal is not None:
         _accumulate_scattering(sigS, thermal, n_sig0, sigma_zero_independent=True)
 
@@ -403,12 +446,13 @@ def _build_isotope(
     chi = _extract_chi(i_temp, m)
 
     # --- Total cross section (computed from components) ---
+    # The P0 row sum IS the (n,2n) reaction XS (one neutron absorbed per event);
+    # the ℓ ≥ 1 moments integrate to zero over angle and never enter a removal.
+    n2n_reaction_xs = np.array(sig2[0].sum(axis=1)).ravel()
     sigT = np.zeros((n_sig0, NG))
     for i_sig0 in range(n_sig0):
-        row_sums = np.array(sigS[0][i_sig0].sum(axis=1)).ravel()
-        sigT[i_sig0] = sigC[i_sig0] + sigF[i_sig0] + sigL[i_sig0] + row_sums
-        if sig2.nnz > 0:
-            sigT[i_sig0] += np.array(sig2.sum(axis=1)).ravel()
+        scattering_xs = np.array(sigS[0][i_sig0].sum(axis=1)).ravel()
+        sigT[i_sig0] = sigC[i_sig0] + sigF[i_sig0] + sigL[i_sig0] + scattering_xs + n2n_reaction_xs
 
     temp_K = int(round(temp))
     return Isotope(
@@ -469,7 +513,7 @@ def _to_canonical_group_order(iso: Isotope) -> Isotope:
         nubar=np.ascontiguousarray(np.asarray(iso.nubar)[rev]),
         chi=np.ascontiguousarray(np.asarray(iso.chi)[rev]),
         sigS=[[_reverse_groups_2d(s) for s in order] for order in iso.sigS],
-        sig2=_reverse_groups_2d(iso.sig2),
+        sig2=[_reverse_groups_2d(s) for s in iso.sig2],
     )
 
 
@@ -500,11 +544,16 @@ def _extract_chi(i_temp: int, m: np.ndarray) -> np.ndarray:
 
 
 def _init_scattering(
-    elastic: tuple | None, n_sig0: int
+    elastic: tuple | None, n_sig0: int, n_legendre: int
 ) -> list[list[csr_matrix]]:
-    """Initialize the 3-Legendre × n_sig0 scattering matrix list from elastic data."""
+    """Initialize the ``n_legendre`` × ``n_sig0`` scattering matrix list from elastic data.
+
+    ``n_legendre`` is the widest order any scattering section of the isotope
+    stores; the ingest invents nothing and discards nothing — the solve's
+    ``scattering_order`` is the only truncation (#426).
+    """
     sigS: list[list[csr_matrix]] = [
-        [csr_matrix((NG, NG)) for _ in range(n_sig0)] for _ in range(3)
+        [csr_matrix((NG, NG)) for _ in range(n_sig0)] for _ in range(n_legendre)
     ]
 
     if elastic is None:
@@ -515,13 +564,13 @@ def _init_scattering(
     # Zero out thermal groups for elastic (they're handled by thermal scattering)
     thermal_mask = ifrom <= _IG_THRESH
 
-    for j_lgn in range(3):
+    for j_lgn in range(len(sigS)):
         for i_sig0 in range(n_sig0):
             key = (j_lgn, i_sig0)
             if key in data:
                 vals = data[key].copy()
                 vals[thermal_mask] = 0.0
-                vals += 1e-30  # match MATLAB's +1e-30 to avoid exact zeros
+                vals += _SPARSITY_EPSILON
                 # .tocsr() yields a csr_matrix at runtime; cast past the
                 # csr_array inference of the untyped tocsr() body.
                 sigS[j_lgn][i_sig0] = cast(
@@ -539,15 +588,15 @@ def _accumulate_scattering(
     n_sig0: int,
     sigma_zero_independent: bool = False,
 ) -> None:
-    """Add a scattering reaction (inelastic or thermal) into sigS."""
+    """Add a scattering reaction (inelastic or thermal) into sigS, order by order."""
     ifrom, ito, data = reaction
 
-    for j_lgn in range(3):
+    for j_lgn in range(len(sigS)):
         for i_sig0 in range(n_sig0):
             # Inelastic/thermal: same for all sigma-zeros (use sig0=0 data)
             src_key = (j_lgn, 0) if sigma_zero_independent else (j_lgn, i_sig0)
             if src_key in data:
-                vals = data[src_key] + 1e-30
+                vals = data[src_key] + _SPARSITY_EPSILON
                 addition = coo_matrix(
                     (vals, (ifrom - 1, ito - 1)), shape=(NG, NG)
                 ).tocsr()

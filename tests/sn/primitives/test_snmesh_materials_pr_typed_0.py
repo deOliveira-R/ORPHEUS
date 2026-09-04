@@ -29,7 +29,7 @@ def _mix(ng: int) -> Mixture:
     return Mixture(
         SigC=z.copy(), SigL=z.copy(), SigF=z.copy(),
         SigP=z.copy(), SigT=np.ones(ng),
-        SigS=[z_mat], Sig2=z_mat, chi=z.copy(),
+        SigS=[z_mat], Sig2=[z_mat], chi=z.copy(),
     )
 
 

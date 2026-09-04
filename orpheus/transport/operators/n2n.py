@@ -4,8 +4,9 @@ r"""The :math:`(n,2n)` source operator on the angular composite — first-class.
 :math:`(n,2n)` channel is scattering-like (a group transfer which
 DOES carry its own anisotropy — the ruling said "in principle"; [M]
 2026-08-31 the evaluated GENDF data ORPHEUS ships stores NL = 7
-Legendre moments for MT=16, the same order as elastic, and ORPHEUS
-keeps one — issue #426) AND production-like (it carries the multiplicity
+Legendre moments for MT=16, the same order as elastic, and since #426
+step 1 ``Mixture.Sig2`` carries all of them — this operator uses one)
+AND production-like (it carries the multiplicity
 :math:`\nu_{2n}`): its bundling is CONTEXT-dependent — with :math:`S` when
 scattering anisotropy is the interesting axis, with :math:`F` when
 production accounting is — and a context-dependent bundling must not be
@@ -23,11 +24,16 @@ accumulator — the operator-level commitment this module retires.)
 
 **What it is, algebraically.** ORPHEUS MODELS :math:`(n,2n)` emission as
 isotropic — the kernel it carries is a single :math:`\ell=0` transfer
-matrix, because the data layer truncates the evaluated angular data at
-:math:`P_0` (⚠ a modelling choice, NOT a property of the reaction; the
-measured size of what is discarded, its instrument control and the
-restoration path are at ``docs/theory/methods/sn/adjoint.rst``
-§sn-n2n-p0-truncation and issue #426). Under that model the composite
+matrix. ⚠ That is a modelling choice, NOT a property of the reaction,
+and since #426 step 1 (2026-09-03) it is THIS LAYER's choice: the data
+layer no longer truncates. ``Mixture.Sig2`` is a list over :math:`\ell`
+carrying every order the tape stores, and the :math:`P_0` model is
+imposed here — :meth:`~orpheus.transport.kernels.N2NKernel.from_mixture`
+selects ``Sig2[0]``, and ``from_solver_data`` below mints the frame at
+``for_space(interior, 0)``. The measured size of what is left unused,
+its controls and the restoration path are at
+``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-p0-truncation and issue
+#426. Under that model the composite
 action is the isotropic lift of the energy operator: with
 :math:`K = \nu_{2n}\,\Sigma_{2n}^{T}` per cell and :math:`W` the angular
 measure's total weight,
@@ -60,13 +66,19 @@ ULP, gated at tolerance. See
 
 Restoring the anisotropy is the KERNEL's growth (an ℓ-stack on
 :class:`~orpheus.transport.kernels.N2NKernel`, mirroring the shape
-``Mixture.SigS`` already has), never an S entanglement. The moments are
-already in the files and already parsed — the drop is a single subscript
-(``sig2_data[(0, 0)]``) in ``orpheus/data/micro_xs/gendf.py`` — but
-restoring them is a DATA-LAYER change first (``Isotope.sig2`` and
-``Mixture.Sig2`` become per-:math:`\ell`, the way ``Mixture.SigS``
-already is), with an operator-layer consequence. No new physics: see
-issue #426 for the measured size and the ordering of the work.
+``Mixture.SigS`` already has), never an S entanglement. **The
+data-layer half is DONE** — #426 step 1 made ``Isotope.sig2`` and
+``Mixture.Sig2`` per-:math:`\ell`, the way ``Mixture.SigS`` always was,
+so the moments are no longer merely "in the files": they are in the
+mixture this operator is built from, and ``Mixture.Sig2[1]`` is a live
+read today. What remains is the operator half — the kernel's stack and
+a frame minted at the solve's ``scattering_order`` instead of 0 — which
+is #426 step 2. No new physics.
+
+(This paragraph read, verbatim, "the drop is a single subscript
+(``sig2_data[(0, 0)]``) in ``orpheus/data/micro_xs/gendf.py``" until
+2026-09-03. That subscript no longer exists; the parser builds one
+matrix per order the MT=16 section declares.)
 
 Carrier arms mirror :class:`ScatteringOperator`'s until step 5's arm
 deletion: composite ``FullField`` (bulk-only; zero trace), per-ordinate

@@ -19,6 +19,43 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 retirement shim, scanner finding, plan line and "MEASURED" block are point-in-time snapshots.
 Verify, then write, then FLAG every scope-expansion the verification forced.
 
+- **⭐⭐ A TRUNCATION THAT MOVES TIERS needs a TIER TABLE, not a tense flip — sort every
+  site by TIER, never by tense.** *"ORPHEUS models (n,2n) emission as isotropic"* stayed
+  TRUE while *"…because the data layer truncates"* went FALSE, in the same sentence. `[M]`
+  by AST, 9 `Sig2[0]` reads = **2 model + 7 ℓ=0-BY-PHYSICS** (a reaction rate IS the P0 row
+  sum; CP/MoC/MC are isotropic by construction) ⟹ publish a two-column data/operator table
+  AND warn that the 7 must not be "fixed" with it. ⭐ The census's blind spot IS the third
+  model site: the frame's `for_space(interior, 0)` is not a `Sig2[0]` read, so the predicate
+  structurally cannot return it — say so, or a reader greps and misses it. → L-093
+- **⭐⭐ A regenerated LOCAL CACHE is a doc surface with NO SYMBOL in it — `ls -l` is the only
+  instrument.** A store-size table and *"processes all **12** `.GXS` files"* were both
+  falsified by a serialization change; the `.h5` store is untracked, so `git status`, `-W`,
+  the xref gate and `dead_references` are ALL blind. `[M]` 13 tapes, 438.5 MB, ×1.98–2.38,
+  7–8 min. ⭐ Sibling: a format-VERSION bump catches a LAYOUT change and is **structurally
+  blind to a VALUES change** (a hand-set constant) — the two stale-store kinds need OPPOSITE
+  prose in one paragraph, and the second is why the old warning survives. → L-093
+- **⭐⭐ A relayed physical EXPLANATION can fail while its measurement stands.** *"99.9 % is
+  the reflector's — U-235's MT=16 is 13× weaker"*: effect exact, gloss refuted (`[M]`
+  U-235's peak (n,2n) XS is **larger**, ratio 0.69). Replace with a measured control + a
+  checkable structural fact (50 vs 22 live incident groups). ⚠ And a control must be the
+  **same ARM** as its subject — I compared an ℓ≤2 control to an ℓ=1 row (1.50 apart) inside
+  a "within 2·10⁻⁵" claim. ⭐ Free control: re-derive every derived column from the recorded
+  raw values (24 of 24 reproduced) — that is what licenses publishing a table as SSOT. And
+  when two surfaces disagree in the last digit (−51.1 vs −51.2), the artefact says −51.15:
+  publish ITS precision, never adjudicate between roundings. → L-093
+- **⭐ "Same nnz across ℓ" is an ISOTOPE property — one isotope taught me the wrong
+  universal.** `[M]` U-235 6067/6067/5834/5334/3165/2773/1887 vs Be-9 **8195 at all 7**;
+  sparsity is the TAPE's (genuine exact zeros), not the ingest's, so a right mechanism clause
+  ("a row diagonal cannot change sparsity") carried a false conclusion. → L-093
+- **⛔ A paragraph QUOTING a code EXPRESSION is higher-decay than one naming a HELPER** — an
+  elegance pass single-sourced two inline expressions into `_n_orders`/`_order_key` mid-task
+  and falsified a paragraph I had already built clean at EXIT=0. Name the helper. (L-089's
+  loop, sharpened.) ⭐ And a doc `.. code-block::` is the one staleness you can PROVE: run the
+  old spelling (`ValueError … got shape (1, 2)`) and publish the receipt. → L-093, L-089
+- **⭐ A role probe needs a THIRD fallback after `hasattr` and `dataclasses.fields`:
+  CONSTRUCT the object.** My single DEAD of 258 was `SNMesh.axes` — not a dataclass, assigned
+  in `__init__`; live on the instance. (L-053(c), which my L-076 fallback does not cover.)
+  → L-093
 - **⭐⭐ A SECTION HEADER can be a class-level falsehood, and the page usually already
   carries the true account — split by FACT, never re-word.** A §*"Reactions Not Included:
   (n,2n), (n,3n), (n,4n)"* asserted one predicate over three MTs; `[M]` true of 17/37,

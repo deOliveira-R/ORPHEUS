@@ -176,7 +176,7 @@ def _err052_fixture():
     # The fixture mixture is (n,2n)-free, so total production IS fission
     # production — asserted here so the hand formula below stays honest
     # if the reference case ever gains a Σ₂ channel.
-    assert mix.Sig2.nnz == 0, (
+    assert mix.Sig2[0].nnz == 0, (
         "the hand-computed production rate below omits the (n,2n) "
         "emission term; the fixture mixture has grown a Σ₂ channel"
     )

@@ -75,7 +75,7 @@ def solver_2g_n2n():
     fuel = get_mixture("A", "2g")
     mod = get_mixture("B", "2g")
     sig2 = np.array([[0.0, 0.03], [0.01, 0.0]])
-    fuel.Sig2 = csr_matrix(sig2)
+    fuel.Sig2 = [csr_matrix(sig2)]
     fuel.SigT = np.asarray(fuel.SigT) + sig2.sum(axis=1)
     materials = {2: fuel, 0: mod}
 
@@ -480,7 +480,7 @@ class TestAbsorptionXS:
         mix = get_mixture("A", "2g")
         sig_a = mix.absorption_xs
         expected = np.array(mix.SigF) + np.array(mix.SigC) + np.array(mix.SigL) \
-            + np.asarray(mix.Sig2.sum(axis=1)).ravel()
+            + np.asarray(mix.Sig2[0].sum(axis=1)).ravel()
         np.testing.assert_array_equal(sig_a, expected)
 
     def test_absorption_equals_removal(self):

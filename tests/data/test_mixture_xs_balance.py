@@ -95,7 +95,7 @@ def _mixture(
         SigP=sig_p.copy(),
         SigT=sig_t.copy(),
         SigS=[csr_matrix(sig_s0)],
-        Sig2=csr_matrix(sig_2),
+        Sig2=[csr_matrix(sig_2)],
         chi=chi.copy(),
     )
 
@@ -217,7 +217,7 @@ class TestAssertBalancedIntrinsic:
             err_msg="SigL leg must be NON-zero to exercise the +SigL term",
         )
         np.testing.assert_array_less(
-            0.0, float(np.array(mix.Sig2.sum(axis=1)).ravel().max()),
+            0.0, float(np.array(mix.Sig2[0].sum(axis=1)).ravel().max()),
             err_msg="Sig2 leg must be NON-zero to exercise the +rowsum(Sig2) term",
         )
         mix.assert_balanced(atol=_ATOL)  # MUST NOT raise
@@ -385,7 +385,7 @@ class TestExemptionIntegrity:
 
         mix = _mix_iso_at_c(1.30)  # MUST NOT raise on construction
         rowsum_s0 = np.array(mix.SigS[0].sum(axis=1)).ravel()
-        rowsum_2 = np.array(mix.Sig2.sum(axis=1)).ravel()
+        rowsum_2 = np.array(mix.Sig2[0].sum(axis=1)).ravel()
         derived = mix.SigC + mix.SigL + mix.SigF + rowsum_s0 + rowsum_2
         residual = float(np.max(np.abs(mix.SigT - derived)))
         # It is INTENTIONALLY imbalanced (the c>1 criticality encoding).
@@ -423,7 +423,7 @@ class TestAtolBand:
     @staticmethod
     def _residual(mix: Mixture) -> float:
         rowsum_s0 = np.array(mix.SigS[0].sum(axis=1)).ravel()
-        rowsum_2 = np.array(mix.Sig2.sum(axis=1)).ravel()
+        rowsum_2 = np.array(mix.Sig2[0].sum(axis=1)).ravel()
         derived = mix.SigC + mix.SigL + mix.SigF + rowsum_s0 + rowsum_2
         return float(np.max(np.abs(mix.SigT - derived)))
 

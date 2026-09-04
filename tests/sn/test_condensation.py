@@ -551,7 +551,7 @@ class TestC4BilinearCondensation:
                 np.asarray(out.SigC, float) + np.asarray(out.SigL, float)
                 + np.asarray(out.SigF, float)
                 + np.asarray(out.SigS[0].sum(axis=1)).ravel()
-                + np.asarray(out.Sig2.sum(axis=1)).ravel()
+                + np.asarray(out.Sig2[0].sum(axis=1)).ravel()
             )
         ).max()
         assert resid > 1e-9, (

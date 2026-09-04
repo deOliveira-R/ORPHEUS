@@ -53,7 +53,9 @@ def interp_sig_s(
     iso : Isotope
         Source isotope with tabulated scattering matrices.
     legendre : int
-        Legendre order index (0, 1, or 2).
+        Legendre order index; must be ``< len(iso.sigS)`` (an order the isotope
+        does not store is exactly zero and is the SUMMER's business — see
+        ``_macroscopic_stack`` in ``mixture.py``; asking here for one raises).
     sig0_row : (NG,) array
         Target sigma-zero for this isotope in each energy group.
 

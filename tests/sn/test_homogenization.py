@@ -153,7 +153,7 @@ def test_rate_preservation_scattering_and_n2n(solution, materials):
 
     # (n,2n) channel (all zero here, but the path + weighting must hold).
     for R, sel in enumerate(regions):
-        sig2 = np.asarray(mm.materials[R].Sig2.todense())
+        sig2 = np.asarray(mm.materials[R].Sig2[0].todense())
         np.testing.assert_allclose(sig2, 0.0, atol=1e-14)
 
 
@@ -564,7 +564,7 @@ class TestC1AdjointWeightedDiscriminator:
                 m.SigT - (
                     m.SigC + m.SigL + m.SigF
                     + np.array(m.SigS[0].sum(axis=1)).ravel()
-                    + np.array(m.Sig2.sum(axis=1)).ravel()
+                    + np.array(m.Sig2[0].sum(axis=1)).ravel()
                 )
             ).max()
             assert resid > 1e-9, (

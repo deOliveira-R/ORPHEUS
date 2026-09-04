@@ -389,9 +389,16 @@ class IsotropicN2N(BoundOperator):
     :class:`IsotropicFission`, whose isotropy is by construction. The
     :math:`(n,2n)` reaction carries real anisotropy: [M] 2026-08-31, the
     GENDF files ORPHEUS ships store NL = 7 Legendre moments for MT=16 (the
-    same order as elastic), and the reader keeps :math:`\ell = 0` alone, so
-    this class's scalar-flux domain is a consequence of the data layer's
-    :math:`P_0` truncation, not of the physics. See
+    same order as elastic), so this class's scalar-flux domain is a
+    consequence of a :math:`P_0` MODEL, not of the physics.
+
+    ⚠ [M] 2026-09-03 (#426 step 1) that model moved DOWN-tier: the reader
+    no longer keeps :math:`\ell = 0` alone — ``Mixture.Sig2`` is a list
+    over :math:`\ell` carrying every stored order — and the truncation is
+    now imposed by
+    :meth:`~orpheus.transport.kernels.N2NKernel.from_mixture`, which
+    selects ``Sig2[0]``. This sentence said "the reader keeps
+    :math:`\ell = 0` alone" until then. See
     ``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-p0-truncation and issue
     #426; the anisotropic sibling this name implies does not exist yet, and
     when it does it wants

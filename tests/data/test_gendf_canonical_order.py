@@ -77,3 +77,21 @@ class TestLoadedIsotopeIsCanonical:
         assert np.triu(sig_s0, 1).sum() > np.tril(sig_s0, -1).sum(), (
             "downscatter must dominate the UPPER triangle (g_to > g_from) in fast-first order"
         )
+
+    def test_the_n2n_stack_is_reversed_at_every_order(self) -> None:
+        """Both axes of EVERY (n,2n) Legendre order are reversed (#426 step 1).
+
+        A threshold reaction cannot up-scatter, so in fast-first order every
+        ``sig2[l]`` is strictly upper-triangular — and the reversal used one
+        ``(ifrom, ito)`` pair for the whole stack, so a single un-reversed order
+        would put its whole mass below the diagonal. `[M]` BE009: 7 orders,
+        8195 entries each.
+        """
+        iso = load_isotope("BE009", 294)
+        assert len(iso.sig2) == 7
+        for l, block in enumerate(iso.sig2):
+            coo = block.tocoo()
+            assert coo.nnz > 0, f"sig2[{l}] is empty"
+            assert int((coo.col < coo.row).sum()) == 0, (
+                f"sig2[{l}] has mass below the diagonal — this order was not reversed"
+            )

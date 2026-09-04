@@ -102,7 +102,7 @@ def solver_p1_het():
             sig_s=p0,
         )
         m.SigS = [csr_matrix(p0), csr_matrix(p1)]
-        m.Sig2 = csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))
+        m.Sig2 = [csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))]
         return m
 
     nx, ny = 4, 3

@@ -107,7 +107,7 @@ def _mixture_from_xs(
         SigP=nu_sf_arr.copy(),
         SigT=sig_t_arr.copy(),
         SigS=[csr_matrix(sig_s_arr.copy())],
-        Sig2=csr_matrix((ng, ng)),
+        Sig2=[csr_matrix((ng, ng))],
         chi=chi_arr,
     )
 

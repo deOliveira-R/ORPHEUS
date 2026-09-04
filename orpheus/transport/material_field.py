@@ -393,12 +393,17 @@ class N2NMaterialField(MaterialField[N2NKernel]):
         r"""Apply the :math:`\ell=0` moment operator
         :math:`\nu_{2n}\,\Sigma_{2n}` (the former ``apply_n2n_moments``
         arm): only the ``[0, 0]`` block is read and written; every
-        :math:`\ell\ge 1` block stays zero — because the field carries
-        ONE matrix, ORPHEUS having truncated the evaluated
-        :math:`(n,2n)` angular data at :math:`P_0` at ingest.  ⚠ That
-        is a modelling choice, NOT a property of the reaction
+        :math:`\ell\ge 1` block stays zero — because this field's
+        kernels carry ONE matrix
+        (:meth:`~orpheus.transport.kernels.N2NKernel.from_mixture`
+        selects ``Sig2[0]``), ORPHEUS modelling the :math:`(n,2n)`
+        emission at :math:`P_0`.  ⚠ That is a modelling choice, NOT a
+        property of the reaction — and since #426 step 1 it is an
+        OPERATOR-layer choice, not a data-layer loss: ``Mixture.Sig2``
+        carries every Legendre order the tape stores, so the moments
+        this verb leaves at zero are available one call upstream
         (``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-p0-truncation,
-        issue #426)."""
+        issue #426 step 2)."""
         return self._moment_l0(
             moments, head=head, spec=_block_contraction(head, transposed=False),
         )

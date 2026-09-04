@@ -487,7 +487,7 @@ class TestFissionIndependentReference:
                 SigF=_NU_SIG_F[mid] / 2.4, SigP=_NU_SIG_F[mid].copy(),
                 SigT=np.ones(_NG),
                 SigS=[csr_matrix(np.zeros((_NG, _NG)))],
-                Sig2=csr_matrix(np.zeros((_NG, _NG))),
+                Sig2=[csr_matrix(np.zeros((_NG, _NG)))],
                 chi=_CHI[mid].copy(),
             )
             for mid in _CHI

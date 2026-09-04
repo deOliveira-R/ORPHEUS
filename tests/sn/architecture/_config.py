@@ -144,7 +144,7 @@ def anisotropic_mixture(
         SigF=fission,
         SigP=nu * fission,
         SigT=np.asarray(sig_t, dtype=float),
-        SigS=legendre, Sig2=n2n,
+        SigS=legendre, Sig2=[n2n],
         chi=zero.copy() if chi is None else np.asarray(chi, dtype=float),
     )
 

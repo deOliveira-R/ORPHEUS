@@ -84,7 +84,7 @@ unchanged.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import Literal, TYPE_CHECKING
 
 import numpy as np
 
@@ -209,47 +209,6 @@ class MaterialXSField:
         """
         return cls(materials=mesh.materials, mesh=mesh)
 
-    def with_overridden_sig_s_and_n2n(
-        self,
-        sig_s_dense: dict[int, list[np.ndarray]],
-        n2n_dense: dict[int, np.ndarray],
-    ) -> "MaterialXSField":
-        r"""Return a sibling carrying overridden scattering / (n,2n) data.
-
-        Used by :meth:`ScatteringOperator.foldable_part` and
-        :meth:`ScatteringOperator.residual_part` to build derived
-        scattering operators where the per-material P0 / Pℓ / (n,2n)
-        matrices are modified (diagonal-only / off-diagonal split)
-        without rebuilding the full :class:`Mixture` dict.
-
-        The sibling shares :attr:`mesh` and the cell-grid views
-        (:attr:`total_cross_section`, ``etc.``) with ``self`` — the
-        derived scattering data only affects per-material accessors
-        and the typed verbs that consume them.
-
-        Parameters
-        ----------
-        sig_s_dense : dict[int, list[np.ndarray]]
-            New per-material Legendre scattering list (one ``(ng, ng)``
-            matrix per Legendre order).  Keys must match
-            :attr:`materials`.
-        n2n_dense : dict[int, np.ndarray]
-            New per-material ``(n,2n)`` matrix.  Keys must match
-            :attr:`materials`.
-
-        Returns
-        -------
-        MaterialXSField
-            Sibling with overridden caches populated.
-        """
-        sibling = MaterialXSField(materials=self.materials, mesh=self.mesh)
-        # Pre-populate the dense caches with the overrides; the
-        # per-cell views and cells_by_material will be lazily
-        # populated on first access (identical to self's by design).
-        sibling._sig_s_dense = sig_s_dense
-        sibling._n2n_dense = n2n_dense
-        return sibling
-
     # ── Homogenisation: project the whole field through coarse frames ──
 
     def project_through(
@@ -299,14 +258,14 @@ class MaterialXSField:
         # Rate-bearing channels → the flux-weighted frame. ``project`` IS the
         # rate-preserving collapse G⁻¹M (the per-channel inline gather/collapse the
         # method body used to carry now lives here, projected as ONE field).
-        n_legendre = self._n_legendre()
+        n_legendre = self._n_legendre("SigS")
         sig_t = sigma_frame.project(self._gather_vector("SigT"))
         sig_c = sigma_frame.project(self._gather_vector("SigC"))
         sig_l = sigma_frame.project(self._gather_vector("SigL"))
         sig_f = sigma_frame.project(self._gather_vector("SigF"))
         sig_p = sigma_frame.project(self._gather_vector("SigP"))
-        sig_s = [sigma_frame.project(self._gather_legendre(l)) for l in range(n_legendre)]
-        sig2 = sigma_frame.project(self._gather_sig2())
+        sig_s = [sigma_frame.project(self._gather_stack("SigS", l)) for l in range(n_legendre)]
+        sig2 = [sigma_frame.project(self._gather_stack("Sig2", l)) for l in range(self._n_legendre("Sig2"))]
 
         # χ → the production-weighted frame (a different conserved rate).
         chi = emission_frame.project(self._gather_vector("chi"))
@@ -442,9 +401,9 @@ class MaterialXSField:
             den = np.einsum("Rn,n,nf,nt->Rft", membership, volumes, phi, phi_star)
             return np.divide(num, den, out=np.zeros_like(num), where=den != 0.0)
 
-        n_legendre = self._n_legendre()
-        sig_s = [_per_pair(self._gather_legendre(l)) for l in range(n_legendre)]
-        sig2 = _per_pair(self._gather_sig2())
+        n_legendre = self._n_legendre("SigS")
+        sig_s = [_per_pair(self._gather_stack("SigS", l)) for l in range(n_legendre)]
+        sig2 = [_per_pair(self._gather_stack("Sig2", l)) for l in range(self._n_legendre("Sig2"))]
 
         return self._assemble_mixtures(
             sig_t=sig_t, sig_c=sig_c, sig_l=sig_l, sig_f=sig_f, sig_p=sig_p,
@@ -462,23 +421,23 @@ class MaterialXSField:
         materials = self.materials
         return np.array([getattr(materials[m], attr) for m in self._mat_of_fine()])
 
-    def _n_legendre(self) -> int:
-        return max(len(self.materials[m].SigS) for m in self.materials)
+    def _n_legendre(self, channel: Literal["SigS", "Sig2"]) -> int:
+        """The widest Legendre stack of ``channel`` over the materials."""
+        return max(len(getattr(self.materials[m], channel)) for m in self.materials)
 
-    def _gather_legendre(self, order: int) -> np.ndarray:
-        """Per-fine-cell dense ``Σ_{s,ℓ}`` — ``(n_fine, ng, ng)``; zero-pad short lists."""
+    def _gather_stack(self, channel: Literal["SigS", "Sig2"], order: int) -> np.ndarray:
+        """Per-fine-cell dense ``Σ_{·,ℓ}`` of ``channel`` — ``(n_fine, ng, ng)``.
+
+        An order a material's stack lacks is exactly zero (the evaluation's
+        own statement) — the same padding ``Mixture._macroscopic_stack`` applies
+        when it sums isotopes; both collapse into the transfer kernel at #426
+        step 2. One gather for both channels (the ``_gather_vector`` idiom).
+        """
         materials, ng = self.materials, self.ng
         return np.array([
-            np.asarray(materials[m].SigS[order].todense())
-            if order < len(materials[m].SigS) else np.zeros((ng, ng))
+            np.asarray(getattr(materials[m], channel)[order].todense())
+            if order < len(getattr(materials[m], channel)) else np.zeros((ng, ng))
             for m in self._mat_of_fine()
-        ])
-
-    def _gather_sig2(self) -> np.ndarray:
-        """Per-fine-cell dense ``Σ_{2n}`` — ``(n_fine, ng, ng)``."""
-        materials = self.materials
-        return np.array([
-            np.asarray(materials[m].Sig2.todense()) for m in self._mat_of_fine()
         ])
 
     def _assemble_mixtures(
@@ -500,7 +459,8 @@ class MaterialXSField:
                 SigC=sig_c[region], SigL=sig_l[region], SigF=sig_f[region],
                 SigP=sig_p[region], SigT=sig_t[region],
                 SigS=[sig_s[l][region] for l in range(n_legendre)],
-                Sig2=sig2[region], chi=chi[region], eg=eg,
+                Sig2=[sig2[l][region] for l in range(len(sig2))],
+                chi=chi[region], eg=eg,
             )
             for region in range(n_coarse)
         }
@@ -675,9 +635,11 @@ class MaterialXSField:
         return self._sig_s_dense[material_id]  # type: ignore[index]
 
     def n2n_matrix(self, material_id: int) -> np.ndarray:
-        r""":math:`\Sigma_{2n}` dense ``(ng, ng)`` matrix for one material.
+        r""":math:`\Sigma_{2n}` dense ``(ng, ng)`` P0 matrix for one material.
 
-        Cached dense expansion of :attr:`Mixture.Sig2` (sparse upstream).
+        Cached dense expansion of ``Mixture.Sig2[0]`` (sparse upstream) — the
+        reaction matrix the P0 verbs and the fold test read; the stack's
+        higher orders reach the operator layer at #426 step 2.
         """
         if self._n2n_dense is None:
             self._build_dense_caches()
@@ -715,7 +677,7 @@ class MaterialXSField:
             sig_s_dense[mid] = [
                 _frozen(np.asarray(s.todense())) for s in mix.SigS
             ]
-            n2n_dense[mid] = _frozen(np.asarray(mix.Sig2.todense()))
+            n2n_dense[mid] = _frozen(np.asarray(mix.Sig2[0].todense()))  # P0 block until #426 step 2
         self._sig_s_dense = sig_s_dense
         self._n2n_dense = n2n_dense
 
@@ -792,7 +754,12 @@ class MaterialXSField:
         -------
         bool
             ``True`` iff for every material, ``sig_s[mid][0]`` is
-            diagonal AND ``sig2[mid]`` is zero.
+            diagonal AND the P0 block ``Sig2[mid][0]`` is zero.
+
+        ⚠ Only the P0 block is tested (`[M]` the fold path's sole (n,2n) read).
+        A material whose (n,2n) P0 block is zero has a zero stack today; once
+        the (n,2n) term is anisotropic (#426 step 2) an ℓ ≥ 1 block must not be
+        folded into σ_r on the strength of a P0-only test — re-derive here.
         """
         for mid in self.materials:
             p0 = self.sig_s_legendre(mid)[0]

@@ -581,7 +581,7 @@ def _one_group_mixture(sigma_t: float = 1.0, sigma_s: float = 0.5) -> Mixture:
         SigC=np.array([sigma_t - sigma_s]), SigL=zero.copy(), SigF=zero.copy(),
         SigP=zero.copy(), SigT=np.array([sigma_t]),
         SigS=[csr_matrix(np.array([[sigma_s]]))],
-        Sig2=csr_matrix(np.zeros((1, 1))), chi=zero.copy(),
+        Sig2=[csr_matrix(np.zeros((1, 1)))], chi=zero.copy(),
     )
 
 

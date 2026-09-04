@@ -154,7 +154,7 @@ def reverse_mixture(mix: Mixture) -> Mixture:
         SigP=_rev_vec(mix.SigP),
         SigT=_rev_vec(mix.SigT),
         SigS=[_rev_mat(s) for s in mix.SigS],
-        Sig2=_rev_mat(mix.Sig2),
+        Sig2=[_rev_mat(mix.Sig2[0])],
         chi=_rev_vec(np.asarray(mix.chi)),
         eg=(_rev_vec(mix.eg) if mix.eg is not None else None),
     )
@@ -370,7 +370,7 @@ class TestHomogeneousPermutation:
         """
         mix = get_mixture("A", ng_key)
         sigS0 = np.asarray(mix.SigS[0].todense())
-        sig2 = np.asarray(mix.Sig2.todense())
+        sig2 = np.asarray(mix.Sig2[0].todense())
         chi = np.asarray(mix.chi)
 
         k_cf, phi_cf = kinf_and_spectrum_homogeneous(

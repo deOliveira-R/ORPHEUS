@@ -19,9 +19,22 @@ Key Facts
   (highest energy), ``eg`` strictly **descending**, ``SigS[g_from, g_to]``
   downscatter in the **upper triangle**. Enforced once at the GENDF ingest
   (NJOY is the opposite); see :ref:`canonical-group-convention`.
-- ``Isotope`` dataclass: sig_t, sig_c, sig_f, sig_el, sig_inel, nu, chi (421 groups)
+- **The ingest is LOSSLESS in** :math:`\ell`, **for every channel**
+  (#426 step 1, 2026-09-03): ``sigS`` and ``sig2`` carry every Legendre
+  order the tape stores — ``[M]`` 7 on all 13 tapes for scattering — and
+  the only truncation is the solve's ``scattering_order``.  A hard-coded
+  three lived here until then; what it cost is at
+  :ref:`the elastic-order ladder <elastic-legendre-order-ladder>`.
+- ``Isotope`` dataclass (``[M]`` ``dataclasses.fields``): ``name``,
+  ``aw``, ``temp``, ``eg``, ``sig0``, ``sigC``, ``sigL``, ``sigF``,
+  ``sigT``, ``nubar``, ``chi``, ``sigS``, ``sig2`` — 421 groups;
+  ``sigS`` is ``[legendre][sig0]``, ``sig2`` is ``[legendre]`` (no
+  sigma-zero axis)
 - Sigma-zero iteration: ``orpheus/data/macro_xs/sigma_zeros.py`` — self-shielding
-- ``Mixture`` dataclass: macroscopic XS with ``SigS[l][g_from, g_to]`` convention
+- ``Mixture`` dataclass (``[M]``): ``SigC``, ``SigL``, ``SigF``,
+  ``SigP``, ``SigT``, ``SigS``, ``Sig2``, ``chi``, ``eg`` — macroscopic
+  XS; ``SigS`` and ``Sig2`` are both **lists over Legendre order**, each
+  entry carrying the ``[g_from, g_to]`` convention
 - Consistency: :math:`\Sigma_t = \Sigma_c + \Sigma_f + \Sigma_\alpha +
   \sum_{g'} \Sigma_{s0,g \to g'} + \sum_{g'} \Sigma_{2n,g \to g'}` —
   the :math:`(n,2n)` row sum is in there ONCE (one neutron removed per
@@ -502,31 +515,70 @@ The data layout per source group is:
               for i_lgn = 1 to N_lgn:
                   sigma_s(IG → i_to, Legendre=i_lgn, sig0=i_sig0)
 
-.. _n2n-p0-truncation-at-ingest:
+.. _n2n-legendre-stack-at-ingest:
 
-.. warning::
+.. important::
 
-   **The** :math:`(n,2n)` **channel keeps only** ``i_lgn = 0``.
-   ``_extract_mf6`` returns the whole Legendre stack as
+   **Every Legendre order the tape stores is kept — for every channel.**
+   ``_extract_mf6`` returns the whole stack as
    ``sig_dict[(legendre, sig0_idx)]`` for every section it reads, and
-   the scattering assembly keeps all of it — but the MT=16 branch
-   stores ``sig2_data[(0, 0)]`` alone, so ``Isotope.sig2`` and
-   :attr:`~orpheus.data.macro_xs.mixture.Mixture.Sig2` are ONE matrix
-   where :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigS` is a list
-   over :math:`\ell`.  The anisotropy is parsed and then dropped, and
-   it is unrecoverable downstream of this module.
+   since **2026-09-03** (`#426
+   <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_ step 1) both
+   consumers keep all of it: the MT=16 branch builds one
+   ``csr_matrix`` per order over ``range(_legendre_order(sig2_data))``,
+   and the scattering assembly sizes itself from the widest section it
+   is given (``n_legendre = max(_legendre_order(...) for ...)``).  So
+   ``Isotope.sig2`` and
+   :attr:`~orpheus.data.macro_xs.mixture.Mixture.Sig2` are a **list
+   over** :math:`\ell`, exactly as
+   :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigS` is, and the
+   truncation is the **solve's** decision, spelled once as
+   ``scattering_order``.
 
-   This is a **modelling truncation, not a property of the reaction**:
-   measured over the 13 shipped GENDF files, MF=6/MT=16 stores
-   **NL = 7** Legendre moments — the same order as elastic — on 10 of
-   the 11 files that carry the section, and on Be-9 every one of the
-   8195 transfer entries is non-zero at every :math:`\ell = 1\ldots6`.
-   Any downstream page that calls :math:`(n,2n)` emission "isotropic"
-   is describing this truncation.  Full measurement set and the
-   restoration path:
-   `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_; the
-   consequences for the S\ :sub:`N` operator algebra are at
-   :ref:`the (n,2n) P0-truncation warning <sn-n2n-p0-truncation>`.
+   The ingest invents nothing to get there.  A channel the tape does
+   not carry, or declares isotropic, is the zero block at every higher
+   :math:`\ell` — that is the evaluation's own statement, not an
+   approximation — so a short stack **zero-pads** to whatever order the
+   solve asks for rather than clamping the solve.  ``[M]`` on the
+   regenerated store: the :math:`(n,2n)` stack is 7 orders deep on the
+   10 tapes whose MT=16 section declares ``NL = 7``, **1** on NA023
+   (whose MT=16 declares ``NL = 1``), and the single zero block on
+   B-10 and H-1, which carry no MT=16 at all; the scattering stack is
+   **7 orders deep on all 13**.
+
+   What is kept is not small.  ``[M]`` over the 13 shipped GENDF files,
+   MF=6/MT=16 stores **NL = 7** Legendre moments — the same order as
+   elastic — on 10 of the 11 files that carry the section, and on Be-9
+   every one of the 8195 transfer entries is non-zero at every
+   :math:`\ell = 1\ldots6`.
+
+.. note::
+
+   **⛔ Until 2026-09-03 this block was a** ``.. warning::`` **headed**
+   "The (n,2n) channel keeps only ``i_lgn = 0``", **and it was labelled**
+   ``n2n-p0-truncation-at-ingest``.  It read, verbatim, that the MT=16
+   branch "stores ``sig2_data[(0, 0)]`` alone, so ``Isotope.sig2`` and
+   ``Mixture.Sig2`` are ONE matrix where ``Mixture.SigS`` is a list over
+   :math:`\ell`", and that "the anisotropy is parsed and then dropped,
+   and it is unrecoverable downstream of this module."  #426 step 1
+   repealed both halves.  It is kept here because the *measurement* it
+   carried is the evidence for what the ingest now keeps, and because a
+   reader arriving from an older pointer needs to be told the claim died
+   rather than to find nothing.
+
+   The same block also said "the scattering assembly keeps all of it".
+   That was **already false when written** — ``_init_scattering`` and
+   ``_accumulate_scattering`` hard-coded three orders, so elastic
+   :math:`P_3\ldots P_6` was cut at the same site, one channel over, and
+   nothing named it.  #426 step 1 made the sentence true by fixing the
+   code rather than the prose.  The measured cost of that cut is at
+   :ref:`the elastic-order ladder <elastic-legendre-order-ladder>`.
+
+   ⚠ A :math:`P_0` truncation of the :math:`(n,2n)` emission **still
+   ships**, and it has moved: it is no longer a data-layer loss but a
+   single operator-layer choice — see
+   :ref:`the (n,2n) P0-truncation record <sn-n2n-p0-truncation>` for
+   where it now lives and what remains to be done.
 
 
 .. _mf6-yield-convention:
@@ -558,9 +610,10 @@ which is why the aggregate, not the per-group value, is what the ingest
 guard tests.
 
 **ORPHEUS divides the yield out at ingest**, in
-``_strip_transfer_yield``, so that ``Isotope.sig2`` is the REACTION matrix.
-That is the convention every consumer downstream requires, and they are
-split across two roles that must not both carry the factor:
+``_strip_transfer_yield``, so that ``Isotope.sig2`` is the REACTION
+**stack** — every :math:`\ell` of it.  That is the convention every
+consumer downstream requires, and they are split across two roles that
+must not both carry the factor:
 
 .. list-table::
    :header-rows: 1
@@ -590,6 +643,62 @@ so the net production is :math:`+\Sigma_{2n}`, one neutron per reaction.
    makes the channel's reaction rate exactly consistent with the MF=3
    tabulation that every other channel's cross section is read from.
 
+.. _mf6-one-yield-per-stack:
+
+.. important::
+
+   **The stack carries ONE yield, so the strip is ONE diagonal applied
+   to every order.**  :eq:`gendf-mf6-yield` is not a statement about
+   :math:`\ell = 0`; the format spells it per moment.  ENDF-102
+   Eq. (6.3) expands the transfer probability as :math:`f = \sum_\ell
+   \tfrac{2\ell+1}{2} f_\ell P_\ell` and Eq. (6.1) multiplies the whole
+   expansion by one :math:`\sigma(E)\,y(E)`, which is NJOY's Eq. (242)
+   for the GROUPR transfer matrix:
+
+   .. math::
+      :label: gendf-mf6-yield-per-order
+
+      \sigma_\ell(E \to E') \;=\; \sigma(E)\, y(E)\, f_\ell(E \to E')
+      \qquad \text{for every } \ell .
+
+   .. (vv-status rationale) Literature-transcribed definition: the
+      per-order form of the GENDF MF=6 record, ENDF-102 Eq. (6.1)/(6.3)
+      with NJOY Eq. (242).  It states the format, not a solver claim, so
+      there is nothing here for a solver test to falsify; its verifiable
+      content is the ratio-invariance property named in the paragraph
+      below, whose gate is ``tests/data/test_n2n_yield_convention.py``.
+   .. vv-status: gendf-mf6-yield-per-order documented
+
+   One yield per **incident** energy multiplies the entire emission
+   distribution, so the per-row scale derived at :math:`\ell = 0` is the
+   scale for every order.  :math:`\ell = 0` is the only order that can
+   supply it: :math:`\sum_{E'} f_0 = 1` by normalisation, so the
+   :math:`P_0` row sum is exactly :math:`y\,\sigma`, whereas an
+   :math:`\ell \ge 1` row sums to :math:`y\,\sigma\,\langle P_\ell
+   \rangle` — the yield and the angular moment are not separable from
+   that one number.  ``_strip_transfer_yield`` therefore takes
+   the **stack**, builds ``diags(sigma/rowsum)`` from its :math:`P_0`
+   block, and left-multiplies every moment by it.  An :math:`\ell \ge 1`
+   moment could not be normalised on its own, and must not be: doing so
+   would destroy the ratio :math:`\sigma_\ell/\sigma_0`, which *is* the
+   emission's angular shape.
+
+   Two consequences worth stating, because each is a place a plausible
+   change would be wrong.  The integer-yield admission guard (a positive
+   integer to within :math:`10^{-3}`) is a statement about the
+   :math:`P_0` block **alone** — an :math:`\ell \ge 1` block has no
+   yield to check.  And the two-sided catcher for this whole convention
+   is not a magnitude bound but the **ratio invariance**: a strip that
+   is genuinely one diagonal leaves
+   :math:`\sigma_\ell/\sigma_0` untouched entrywise, whereas a stray
+   :math:`(2\ell+1)`, a per-order renormalisation, or a second factor of
+   two all move it.  ``[M]`` on Be-9 at 294 K the post-strip entrywise
+   :math:`\max|\sigma_\ell|/\sigma_0` over the 8195 live entries reads
+   0.960, 0.883, 0.773, 0.637, 0.483, 0.319 for
+   :math:`\ell = 1\ldots6` — every one below 1, as
+   :math:`|\langle P_\ell\rangle| \le 1` requires, where a stray
+   :math:`(2\ell+1)` on :math:`\ell = 1` would read 2.9.
+
 .. warning::
 
    **Until** `#427 <https://github.com/deOliveira-R/ORPHEUS/issues/427>`_
@@ -610,10 +719,20 @@ so the net production is :math:`+\Sigma_{2n}`, one neutron per reaction.
    ``load_isotope`` reads ``.h5``, not ``.GXS``, and the ``.h5`` files are
    **gitignored** (``.gitignore``: ``*.h5``) — a locally generated,
    never-committed artefact.  So a fix here reaches a given checkout only
-   when ``orpheus/data/micro_xs/convert_gxs_to_hdf5.py`` is re-run there,
-   and a checkout whose store predates the fix keeps serving the old
-   convention with no signal that it is stale.  A fresh clone is safe
-   (it must build the store anyway); an existing one is not.
+   when ``orpheus/data/micro_xs/convert_gxs_to_hdf5.py`` is re-run there.
+   A fresh clone is safe (it must build the store anyway); an existing
+   one is not.
+
+   Since #426 step 1 the store carries a **format version**, and the two
+   kinds of stale store are no longer alike — read
+   :ref:`the format-version refusal <h5-store-format-refusal>` before
+   assuming either way.  A change
+   that moves the *layout* now bumps ``H5_FORMAT`` and a pre-change file
+   is **refused loudly**, with the regeneration command in the message.
+   A change that moves only the *values* — which is what #427's yield
+   fix was — does not, and cannot: the layout is identical, so nothing
+   distinguishes the old numbers from the new ones.  That case is still
+   silent, and it is the case this paragraph exists for.
 
 
 Scattering Matrix Assembly
@@ -688,7 +807,11 @@ The scattering matrix is built in four stages:
 
 4. The final scattering matrix structure is a list of lists:
    ``sigS[legendre_order][sig0_index]``, each a ``csr_matrix(NG, NG)``.
-   Three Legendre orders (P0, P1, P2) are always stored.
+   The number of Legendre orders is **the widest any of the three
+   sections declares** — ``n_legendre = max(_legendre_order(section))``
+   — and a section that stores fewer contributes exactly zero above its
+   own ``NL``.  ``[M]`` on the shipped library that width is **7 on all
+   13 tapes**.
 
 .. important::
 
@@ -697,6 +820,111 @@ The scattering matrix is built in four stages:
    sigma-zero variant has different elastic values at these groups.  For
    groups :math:`g \le 95`, the elastic is zeroed and replaced by the
    sigma-zero-independent thermal kernel.
+
+
+.. _elastic-legendre-order-ladder:
+
+The retired :math:`P_2` cut, and what it cost
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Until 2026-09-03 this assembly stored **three** Legendre orders and no
+more: ``_init_scattering`` and ``_accumulate_scattering`` looped over a
+hard-coded ``range(3)``, so elastic :math:`P_3\ldots P_6` was discarded
+at ingest, and the downstream copies of that three —
+``compute_macro_xs``'s ``n_legendre`` parameter and ``interp_sig_s``'s
+"0, 1, or 2" — repeated it.  The cut was invisible from the solve: a
+caller asking for ``scattering_order = 3`` was silently served
+:math:`P_2`, because the solver's order clamp reads the *stored* depth
+and takes the minimum over materials.  A data layer that quietly
+truncates is the lossy-return-type root cause — the consumer cannot
+tell an absent moment from a zero one — and #426 step 1 removed it:
+the library now serves every order it stores, and ``scattering_order``
+is the only truncation.
+
+**What that cut was worth**, ``[M]`` 2026-09-03 on the regenerated
+store, with the :math:`(n,2n)` channel still held at :math:`P_0` (the
+operator layer is unchanged by step 1, so this ladder isolates the
+*scattering* orders):
+
+.. list-table:: ``scattering_order`` ladder on the Be-reflected fast slab
+   :header-rows: 1
+   :widths: 14 30 18 19 19
+
+   * - ``scattering_order``
+     - :math:`k`
+     - :math:`\Delta k\cdot 10^{5}`
+     - :math:`(\Delta k/k_{P_2})\cdot 10^{5}`
+     - :math:`\Delta\rho\cdot 10^{5}`
+   * - 0
+     - ``1.1587120371368607``
+     - :math:`+6339`
+     - :math:`+5787`
+     - :math:`+4995`
+   * - 1
+     - ``1.0814636136982583``
+     - :math:`-1386`
+     - :math:`-1265`
+     - :math:`-1170`
+   * - **2** (what shipped)
+     - ``1.0953221881419453``
+     - —
+     - —
+     - —
+   * - 3
+     - ``1.0930284426239356``
+     - :math:`-229.4`
+     - :math:`-209.4`
+     - :math:`-191.6`
+   * - 4
+     - ``1.0936923910519523``
+     - :math:`-163.0`
+     - :math:`-148.8`
+     - :math:`-136.0`
+   * - 5
+     - ``1.0935721390104081``
+     - :math:`-175.0`
+     - :math:`-159.8`
+     - :math:`-146.1`
+   * - 6
+     - ``1.0935924251448430``
+     - :math:`-173.0`
+     - :math:`-157.9`
+     - :math:`-144.4`
+
+Configuration, and it is the whole claim: Be-9 3 cm | U-235 metal 4 cm
+(:math:`N = 0.04894`) | Be-9 3 cm, 12/16/12 cells, 1-D slab, vacuum both
+sides, ``gauss_legendre(8)``, 421 groups, ``keff_tol = 1e-9``, every arm
+``fully_converged``; both materials store 7 scattering orders.  Deltas
+are taken against the :math:`P_2` row.
+
+.. warning::
+
+   **This is one fixture.**  A Be-reflected fast metal system is about
+   as anisotropy-sensitive as the shipped library gets; nothing here
+   licenses "the :math:`P_2` cut was worth 200 pcm" as a statement about
+   *every* problem, and a thermal, scattering-dominated lattice will
+   read far less.  What the row set does establish is that the discarded
+   orders were **not noise** on a system ORPHEUS is meant to solve —
+   :math:`P_3` alone moves :math:`k` by the same order of magnitude as
+   the :math:`(n,2n)` anisotropy that #426 exists to restore.
+
+   ⚠ **Quote the convention with every number.**  ``pcm`` is
+   :math:`10^{-5}` and says nothing about what was divided by what; the
+   three columns above are :math:`\Delta k`, :math:`\Delta k/k`, and
+   :math:`\Delta\rho = (1/k_{P_2} - 1/k)`, and they differ by
+   :math:`k_{P_2}`.  On this fixture they spread by a factor 1.2; on a
+   :math:`k_0 = 1.53` fixture the same three can invert a thin-vs-thick
+   comparison.
+
+Two readings the ladder does **not** support.  It is not monotone —
+:math:`P_1` overshoots downward and the sequence settles from *below* —
+so "higher order is closer to the truth" is only safe once the sequence
+has converged, which here it has by :math:`P_4` to within
+:math:`12\cdot10^{-5}` in :math:`\Delta k`.  And the :math:`P_2` row is
+**bit-identical to the pre-carve record** (``1.0953221881419453``, both
+sides), which is what makes step 1 a lossless data change rather than a
+model change: at the order the library used to cap, the answer did not
+move at all.
 
 
 .. _n2n-handled:
@@ -715,8 +943,9 @@ MT=37, and they have :ref:`their own section below <n2n-excluded-channels>`.
 ``[M]`` over the 13 GENDF tapes in ``orpheus/data/micro_xs/``, MF=6/MT=16
 is present on **11 of 13** — BE009, B_011, NA023, O_016, U_235, U_238,
 ZR090, ZR091, ZR092, ZR094, ZR096; absent only on B_010 and H_001 — and
-``_build_isotope`` reads it at ``orpheus/data/micro_xs/gendf.py:369``
-into ``Isotope.sig2``.
+``_build_isotope`` reads it — ``_extract_mf6(16, ...)`` in
+``orpheus/data/micro_xs/gendf.py`` — into ``Isotope.sig2``, one
+``csr_matrix`` per Legendre order the section declares.
 
 The three facts every consumer rests on
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -733,10 +962,14 @@ of these three:
      - site
      - ``[M]`` this session
    * - :attr:`~orpheus.data.macro_xs.mixture.Mixture.Sig2` is the RAW
-       reaction matrix :math:`\Sigma_{2n}` — **no** multiplicity folded in
-     - ``orpheus/data/micro_xs/gendf.py:381`` → ``_strip_transfer_yield``
+       reaction **stack** :math:`\Sigma_{2n,\ell}` — **no** multiplicity
+       folded in, at any :math:`\ell`; ``Sig2[0]`` is the block every
+       reaction-rate consumer below reads
+     - ``orpheus/data/micro_xs/gendf.py`` → ``_strip_transfer_yield``
        (see :ref:`mf6-yield-convention` — the MF=6 record carries
-       :math:`y \equiv 2` and the yield is divided out here)
+       :math:`y \equiv 2`, and
+       :ref:`the one-yield-per-stack rule <mf6-one-yield-per-stack>` —
+       that one yield is divided out of every order by one diagonal)
      - the gate is ``tests/data/test_n2n_yield_convention.py``
    * - **removal is counted ONCE**, on the absorption side
      - ``orpheus/data/macro_xs/mixture.py:658`` for
@@ -785,12 +1018,14 @@ hard-codes one grouping makes the other unspellable.
 
 The ruling as written hedged the anisotropy as *"in principle"*.  It is
 no longer a hedge: MF=6/MT=16 stores ``NL = 7`` Legendre moments on 10
-of the 11 shipped tapes that carry the section, and this pipeline keeps
-one of them, so the axis the ruling declined to foreclose is real and
-merely truncated — see
-:ref:`the ingest-truncation warning <n2n-p0-truncation-at-ingest>`, and
-the *modelling caveat* subsection at the end of this section for what
-that does and does not license a reader to claim.
+of the 11 shipped tapes that carry the section, and **since #426 step 1
+this pipeline keeps all of them** — see
+:ref:`the ingest stack note <n2n-legendre-stack-at-ingest>`.  So the
+axis the ruling declined to foreclose is not merely real, it is now
+*carried* as far as the data layer goes; what still truncates it is a
+single operator-layer choice one tier up, and the *modelling caveat*
+subsection at the end of this section says exactly what that does and
+does not license a reader to claim.
 
 The full ruling, the operator algebra it produced
 (:math:`A = L + C - S - N_{2n} - B`, :eq:`sn-within-group-with-n2n`) and
@@ -1013,24 +1248,56 @@ Measured this session on that reference, with the configuration stated:
    move the mean.  Nothing in this pipeline biases MC's
    :math:`(n,2n)`.
 
-The modelling caveat: :math:`P_0` truncation (open)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The modelling caveat: :math:`P_0` truncation (half closed)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Everything above concerns *accounting* — that the channel is read, that
 removal is counted once and emission twice, that every family agrees on
 the eigenvalue.  It says nothing about the emission's **angular**
-distribution, and there ORPHEUS does truncate: the MF=6/MT=16 Legendre
-stack is parsed and only :math:`\ell = 0` is kept.  That is a modelling
-choice, not a property of the reaction, and it is documented — with the
-measured size of what is discarded and its instrument control — in
-:ref:`the ingest-truncation warning above <n2n-p0-truncation-at-ingest>`
-and, for the consequences on the S\ :sub:`N` operator algebra, at
-:ref:`the (n,2n) P0-truncation warning <sn-n2n-p0-truncation>`.
+distribution, and there ORPHEUS still truncates — but as of 2026-09-03
+the truncation is no longer this page's.
 
-Restoring the :math:`\ell \geq 1` moments is in flight under `#426
-<https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.  Its measurements
-land with that issue's own documentation pass; this section deliberately
-does not restate them.
+.. list-table::
+   :header-rows: 1
+   :widths: 16 42 42
+
+   * - tier
+     - state
+     - where
+   * - **data** (this page)
+     - ✅ **lossless in** :math:`\ell` **since 2026-09-03** (#426 step
+       1).  ``Isotope.sig2`` / ``Mixture.Sig2`` carry every order the
+       tape stores; nothing is discarded, nothing is invented
+     - :ref:`the ingest stack note <n2n-legendre-stack-at-ingest>`
+   * - **operator**
+     - ⚠ **still** :math:`P_0`.  ``N2NKernel.from_mixture`` densifies
+       ``Sig2[0]`` alone and ``N2NOperator`` mints its frame at
+       ``HarmonicFrame.for_space(interior, 0)``, so the emission
+       remains modelled isotropic in every solve
+     - :ref:`the (n,2n) P0-truncation record <sn-n2n-p0-truncation>`
+
+That split is what a reader has to carry away, because the two halves
+now fail differently.  A statement of the form *"the anisotropy is lost
+at ingest and unrecoverable downstream"* is **false**: the moments are
+in ``Mixture.Sig2`` and any consumer can read them today.  A statement
+of the form *"ORPHEUS models* :math:`(n,2n)` *emission as isotropic"*
+is still **true**, and it is now a claim about exactly two lines of the
+transport layer rather than about the data pipeline.
+
+The consequence for the reader of this page is narrow and worth saying
+plainly: every :math:`(n,2n)` number above — the reaction rates, the
+balance identity, the cross-family eigenvalue agreement — is a
+:math:`P_0` quantity and is **unaffected** by the restored moments,
+because a higher Legendre moment integrates to zero over angle and
+contributes nothing to a reaction rate.  What the restored moments
+change is the angular *shape* of the emission source, which is a
+transport-solve question, not a data question.
+
+The measured size of that change — on which fixtures, in which
+convention, and what it does and does not license — is stated **once**,
+at :ref:`the (n,2n) P0-truncation record <sn-n2n-p0-truncation>`.  This
+section deliberately does not restate it; restoring the operator half is
+step 2 of `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.
 
 
 .. _n2n-excluded-channels:
@@ -1039,9 +1306,11 @@ does not restate them.
 ----------------------------------------------------------
 
 MT=17 and MT=37 **are** on the shipped tapes and **are** genuinely
-unread: they appear in no call to ``_extract_mf6``, which is invoked for
-MT=16 (``gendf.py:369``), MT=2 (``:387``), MT=51…91 (``:391-392``) and
-the thermal MT (``:397-398``) and for nothing else.
+unread: they appear in no call to ``_extract_mf6``, which
+``_build_isotope`` invokes for MT=16, MT=2, MT=51…91 and the thermal MT
+(222 for H-1, 221 otherwise) and for nothing else.  ``[M]``
+``grep -n "_extract_mf6(" orpheus/data/micro_xs/gendf.py`` returns
+**five** lines — the ``def``, plus **four** call sites, exactly those.
 
 .. csv-table::
    :header: MT, Reaction, Threshold, ENDF name, on the shipped tapes
@@ -1294,10 +1563,13 @@ HDF5 Storage Format
 =====================
 
 Each element is stored in a single HDF5 file (e.g., ``U_235.h5``) with
-one group per temperature:
+one group per temperature.  The file carries a **format version** at its
+root, ``attrs["orpheus_h5_format"]``; the layout below is **format 2**,
+in force since 2026-09-03 (#426 step 1):
 
 .. code-block:: text
 
+   @orpheus_h5_format : 2          — file-root attribute (H5_FORMAT)
    /{temp_K}K/
        @aw          : scalar (atomic weight in amu)
        @temp        : scalar (temperature in K)
@@ -1310,9 +1582,10 @@ one group per temperature:
        nubar        : (NG,) — average neutrons per fission
        chi          : (NG,) — fission spectrum (normalised to 1)
        sig2/
-           row      : (nnz,) int32  — COO row indices
-           col      : (nnz,) int32  — COO column indices
-           data     : (nnz,) float64 — COO values
+           L{j}/               — Legendre order j; NO sigma-zero axis,
+               row  : (nnz,)      a threshold channel is not self-shielded
+               col  : (nnz,)
+               data : (nnz,)
        sigS/
            L{j}_S{k}/          — Legendre order j, sigma-zero k
                row  : (nnz,)
@@ -1322,32 +1595,112 @@ one group per temperature:
 Dense arrays use gzip compression (level 4).  Sparse matrices are stored
 as COO triplets to avoid scipy-specific formats.
 
+**Neither stack states its own depth.**  The loader recovers the number
+of Legendre orders by reading the group's own keys — one helper,
+``_n_orders``, serves both stacks, and one more, ``_order_key``, spells
+``L{j}`` and ``L{j}_S{k}`` for both the writer and the reader.  So a
+tape's order count is carried by the data rather than by a header field
+that could disagree with it, and the key format has a single home
+rather than four transcriptions that could drift apart.
+
+.. _h5-store-format-refusal:
+
+.. important::
+
+   **A stale-layout store is REFUSED, never skipped and never read.**
+   :func:`~orpheus.data.micro_xs.hdf5_io.load_isotope_h5` compares the
+   file's ``orpheus_h5_format`` against the reader's ``H5_FORMAT`` and,
+   on any mismatch, raises with the regeneration command in the message
+   (a file predating the attribute reads as format 1).  The refusal is
+   the point: the store is **untracked** (``.gitignore``: ``*.h5``), so
+   every checkout builds its own, and a format-1 file — one ``sig2``
+   triplet, three ``sigS`` orders — has the *shape* the pre-#426 reader
+   expected.  Silently reading it would serve a :math:`P_0`-only
+   :math:`(n,2n)` channel and a :math:`P_2`-capped scattering stack to
+   code that has stopped truncating, with correct-looking numbers.
+
+   ⚠ **A format bump catches a LAYOUT change and nothing else.**
+   ``H5_FORMAT`` is a hand-set constant; a change that alters only the
+   *values* leaves it where it is, by design and unavoidably — see the
+   regeneration warning under :ref:`mf6-yield-convention`, which is that
+   case.
+
+.. warning::
+
+   **Regenerating is not optional after #426 step 1, and it is not
+   free.**  ``[M]`` 2026-09-03, one laptop, all 13 tapes: **7–8
+   minutes** wall clock (first to last output file, 7 min, plus the
+   leading parse of the first tape) and **438.5 MB** on disk.  Both
+   roughly doubled at step 1 — the store now holds seven Legendre
+   orders per
+   scattering section where it held three, and a
+   :math:`(n,2n)` stack where it held one matrix.  That cost was
+   priced before the change and accepted: the alternative is a data
+   layer that decides the solve's angular truncation for it.
+
 
 File Sizes
 -----------
 
+``[M]`` 2026-09-03, the format-2 store, all 13 files (``ls -l`` on the
+regenerated ``orpheus/data/micro_xs/*.h5``).  The "was" column is the
+format-1 store this table carried until #426 step 1, for the four
+elements it listed:
+
 .. list-table::
    :header-rows: 1
-   :widths: 15 15 15
+   :widths: 20 16 22 22
 
    * - Element
      - Temperatures
-     - HDF5 Size (MB)
+     - HDF5 size (MB)
+     - was (format 1)
    * - H-1
      - 8
+     - 29.3
      - 12.3
+   * - Be-9
+     - 4
+     - 17.2
+     - —
+   * - B-10
+     - 4
+     - 26.1
+     - —
+   * - B-11
+     - 4
+     - 20.1
+     - —
+   * - Na-23
+     - 4
+     - 21.4
+     - —
+   * - O-16
+     - 6
+     - 25.1
+     - 10.8
    * - U-235
      - 6
+     - 99.0
      - 50.0
    * - U-238
      - 6
+     - 80.3
      - 37.8
-   * - O-16
-     - 6
-     - 10.8
-   * - Zr isotopes (×5)
+   * - Zr-90 / 91 / 92 / 94 / 96
      - 4 each
+     - 20.0 / 25.8 / 24.9 / 25.2 / 24.1
      - ~11 each
+   * - **total**
+     - —
+     - **438.5**
+     - —
+
+The growth is ``[M]`` ×2.0–2.4 per element, which is what a stack of
+seven orders costs against three plus a single :math:`(n,2n)` block; it
+is close to the ×1.98 (U-235) – ×2.33 (Be, H, O) predicted from raw COO
+byte counts before the change.  Size is not a design constraint here:
+the store is a regenerated local cache, never a committed artefact.
 
 
 Data Loading API
@@ -1362,9 +1715,15 @@ The ``load_isotope`` function provides a uniform API:
    iso = load_isotope("U_235", 600)
    # iso.sigC — shape (10, 421), capture XS for 10 sigma-zeros
    # iso.sigS[0][0] — csr_matrix(421, 421), P0 scattering at sig0=0
+   # len(iso.sigS) — 7, every Legendre order the tape stores
+   # iso.sig2[1] — csr_matrix(421, 421), the (n,2n) P1 moment
+   #               (no sigma-zero axis); len(iso.sig2) is 7 here,
+   #               and 1 for a tape with no MT=16 section
    # iso.eg — shape (422,), energy group boundaries in eV
 
-The loader reads from the HDF5 files in ``data/micro_xs/{name}.h5``.
+The loader reads from the HDF5 files in ``data/micro_xs/{name}.h5``,
+and refuses one written by an older layout
+(:ref:`the format-version refusal <h5-store-format-refusal>`).
 
 
 Conversion Script
@@ -1374,12 +1733,14 @@ To regenerate the HDF5 files from the GENDF sources:
 
 .. code-block:: bash
 
-   cd orpheus/data/micro_xs
-   python convert_gxs_to_hdf5.py
+   .venv/bin/python orpheus/data/micro_xs/convert_gxs_to_hdf5.py
 
-This processes all 12 ``.GXS`` files and writes the corresponding
-``.h5`` files.  Runtime is approximately 2–3 minutes on a modern
-laptop.
+This globs ``*.GXS`` in ``orpheus/data/micro_xs/`` — ``[M]`` **13**
+files — and writes the corresponding ``.h5`` files.  ``[M]`` 2026-09-03
+the run takes **7–8 minutes** and produces **438.5 MB**; before #426
+step 1 it was roughly half of each.  The command above is the one the
+loader's own refusal message prints, so a stale-store failure can be
+copied straight from the traceback.
 
 
 Validation
@@ -1460,9 +1821,41 @@ Per-component validation for U-235 at 294K (10 sigma-zeros):
    * - ``sigS[0][0]`` (row sums)
      - :math:`9.6 \times 10^{-7}`
      - Negligible
-   * - ``sig2`` (nnz)
+   * - ``sig2[0]`` (nnz)
      - 6,067 = 6,067
      - Exact
+
+.. note::
+
+   **Both matrix rows above compare** :math:`P_0` **blocks, and after
+   #426 step 1 they say so in the cell.**  The MATLAB ``.m`` reference
+   these columns are measured against carries a single :math:`(n,2n)`
+   matrix and three scattering orders, so it can only witness
+   :math:`\ell = 0` (and, for scattering, :math:`\ell \le 2`); the row
+   was spelled ``sig2`` when ``Isotope.sig2`` *was* one matrix, and the
+   subscript is what keeps it meaning the same thing now that it is a
+   stack.  ``[M]`` re-read off the regenerated format-2 store,
+   ``sig2[0].nnz`` for U-235 at 294 K is still **6067**.
+
+   ⚠ **Do not read that number as the stack's.**  Sparsity is
+   per-order, and it is a property of the *tape*, not of the ingest —
+   the yield strip is a row diagonal and can neither add nor remove a
+   non-zero.  ``[M]`` U-235 at 294 K reads **6067, 6067, 5834, 5334,
+   3165, 2773, 1887** for :math:`\ell = 0\ldots6`, the evaluation
+   genuinely storing exact zeros in the higher moments, while Be-9's
+   :math:`(n,2n)` stack is **8195 at every one of its seven orders**.
+   A gate that assumes a shared sparsity pattern across :math:`\ell`
+   would be right on Be-9 and wrong on U-235.
+
+   The :math:`\ell \ge 1` moments have **no** ``.m`` counterpart and are
+   outside this table's reach by construction.  What pins them instead
+   landed with the schema: ``tests/data/test_hdf5_store.py`` (the
+   round-trip ``load ∘ save = id``, ``array_equal`` on every field,
+   plus the stale-layout refusal) and
+   ``tests/data/test_ingest_ledger.py`` (a pre-step-1 digest of all 13
+   isotopes, pinning that the change *appended* orders and moved no
+   stored value) — together with the physics bound in
+   :ref:`the one-yield-per-stack rule <mf6-one-yield-per-stack>`.
 
 
 .. _emission-spectrum-simplex-law:

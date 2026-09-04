@@ -373,7 +373,7 @@ def test_2g_flux_ratio_homogeneous():
     import scipy.linalg as la
     SigT = np.asarray(mix.SigT)
     SigS_mat = np.array(mix.SigS[0].todense())
-    Sig2_mat = np.array(mix.Sig2.todense())
+    Sig2_mat = np.array(mix.Sig2[0].todense())
     chi = np.asarray(mix.chi)
     nu_SigF = np.asarray(mix.SigP)
     M = np.diag(SigT) - SigS_mat.T - 2.0 * Sig2_mat.T
@@ -751,7 +751,7 @@ def test_mc_n2n_keff_matches_analytical():
         SigP=(xs["nu"] * xs["sig_f"]).copy(),
         SigT=sig_t,
         SigS=[csr_matrix(sig_s)],
-        Sig2=csr_matrix(sig2),
+        Sig2=[csr_matrix(sig2)],
         chi=xs["chi"].copy(),
     )
 

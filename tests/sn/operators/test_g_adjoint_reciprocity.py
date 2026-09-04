@@ -691,7 +691,7 @@ def _mix_2g(p0: np.ndarray, p1: np.ndarray, sig2: np.ndarray):
         chi=np.zeros(2), sig_s=p0,
     )
     m.SigS = [csr_matrix(p0), csr_matrix(p1)]
-    m.Sig2 = csr_matrix(sig2)
+    m.Sig2 = [csr_matrix(sig2)]
     return m
 
 

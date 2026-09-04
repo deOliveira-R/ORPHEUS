@@ -6,6 +6,7 @@ macroscopic cross sections used by reactor solvers.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
@@ -21,6 +22,30 @@ if TYPE_CHECKING:
     from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum
 
 
+def _assert_legendre_stacks(owner: str, ng: int, **stacks: Sequence[csr_matrix]) -> None:
+    """A Legendre stack has at least its P0 block, and every block is the owner's ``(ng, ng)``.
+
+    The law both channels obey (Pattern 4): a channel the evaluation does not
+    carry is the ZERO P0 block, never an absent stack — every P0 consumer reads
+    ``stack[0]`` unconditionally — and a ragged or non-square block would reach
+    the moment verbs as a shape error with no channel named. A real ``raise``:
+    the canonical runner is ``python -O``, which strips ``assert``.
+    """
+    for name, stack in stacks.items():
+        if len(stack) == 0:
+            raise ValueError(
+                f"{owner}.{name} is an empty Legendre stack; a channel the "
+                f"evaluation does not carry is the zero P0 block "
+                f"([csr_matrix(({ng}, {ng}))]), not an absent stack."
+            )
+        for order, block in enumerate(stack):
+            if block.shape != (ng, ng):
+                raise ValueError(
+                    f"{owner}.{name}[{order}] has shape {block.shape}; every "
+                    f"Legendre block is ({ng}, {ng}), the owner's own group count."
+                )
+
+
 @dataclass
 class Mixture:
     """Macroscopic cross sections for a homogeneous mixture.
@@ -29,8 +54,12 @@ class Mixture:
     ----------
     SigC, SigL, SigF, SigP, SigT : (NG,) arrays
         Macroscopic capture, (n,alpha), fission, production, total XS in 1/cm.
-    SigS : list of (NG, NG) sparse matrices, one per Legendre order.
-    Sig2 : (NG, NG) sparse — macroscopic (n,2n) matrix.
+    SigS : list of (NG, NG) sparse matrices, one per Legendre order — every
+        order the library stores (the solve's ``scattering_order`` truncates).
+    Sig2 : list of (NG, NG) sparse — macroscopic (n,2n) REACTION matrix per
+        Legendre order. ``Sig2[0]`` is the reaction rate's matrix (removal,
+        the balance, the k denominator); the higher orders are the emission's
+        anisotropy, kept by the ingest since #426 step 1.
     chi  : (NG,) — fission spectrum of the mixture.
     eg   : (NG+1,) energy group boundaries in eV, *or* ``None``.
 
@@ -60,7 +89,7 @@ class Mixture:
     SigP: np.ndarray
     SigT: np.ndarray
     SigS: list[csr_matrix]
-    Sig2: csr_matrix
+    Sig2: list[csr_matrix]
     chi: np.ndarray
     eg: np.ndarray | None = None
 
@@ -72,6 +101,9 @@ class Mixture:
         # a probability simplex; a non-producing mixture emits no fission
         # neutrons, so its spectrum is null.
         self.chi = enforce_emission_spectrum(self.chi, is_producing=self.is_producing)
+        _assert_legendre_stacks(
+            type(self).__name__, len(self.SigT), SigS=self.SigS, Sig2=self.Sig2,
+        )
 
     @property
     def is_producing(self) -> bool:
@@ -108,7 +140,7 @@ class Mixture:
     @property
     def absorption_xs(self) -> np.ndarray:
         """(NG,) absorption XS: fission + capture + (n,alpha) + (n,2n) out."""
-        return self.SigF + self.SigC + self.SigL + np.array(self.Sig2.sum(axis=1)).ravel()
+        return self.SigF + self.SigC + self.SigL + self.n2n_out_xs
 
     @property
     def out_scattering_xs(self) -> np.ndarray:
@@ -127,13 +159,14 @@ class Mixture:
 
     @property
     def n2n_out_xs(self) -> np.ndarray:
-        """(NG,) total (n,2n) out-scattering XS (Sig2 row sum).
+        """(NG,) total (n,2n) reaction XS (the P0 row sum of ``Sig2``).
 
         Mirrors :attr:`total_scattering_xs` for the (n,2n) channel so the
         balance identity reads like the conservation law it encodes (see
-        :meth:`balance_residual`).
+        :meth:`balance_residual`). Only the P0 block is a reaction rate; the
+        higher orders integrate to zero over angle.
         """
-        return np.array(self.Sig2.sum(axis=1)).ravel()
+        return np.array(self.Sig2[0].sum(axis=1)).ravel()
 
     @property
     def transport_xs(self) -> np.ndarray:
@@ -247,7 +280,7 @@ class Mixture:
             bad_group = int(np.argmax(residual))
             raise ValueError(
                 f"Mixture XS imbalance: max |SigT - (SigC+SigL+SigF"
-                f"+rowsum(SigS0)+rowsum(Sig2))| = {max_residual:g} > atol={atol:g} "
+                f"+rowsum(SigS[0])+rowsum(Sig2[0]))| = {max_residual:g} > atol={atol:g} "
                 f"in group {bad_group}"
             )
 
@@ -290,14 +323,14 @@ class Mixture:
         SigP: np.ndarray,
         SigT: np.ndarray,
         SigS: list[np.ndarray],
-        Sig2: np.ndarray,
+        Sig2: list[np.ndarray],
         chi: np.ndarray,
         eg: np.ndarray | None,
     ) -> "Mixture":
         r"""Assemble a :class:`Mixture` from DENSE collapsed channels — the shared assembler.
 
         The single home for "build a Mixture from coarsened dense channel arrays": wraps
-        the matrix channels (``SigS[ℓ]``, ``Sig2``) in :class:`~scipy.sparse.csr_matrix`
+        the matrix channels (``SigS[ℓ]``, ``Sig2[ℓ]``) in :class:`~scipy.sparse.csr_matrix`
         and threads ``eg``. BOTH coarsening verbs — :meth:`condense` (energy) and
         :meth:`orpheus.transport.mesh.material_xs_field.MaterialXSField.project_through`
         (space) — call this, so the channel-assembly taxonomy lives once (Cardinal Rule 2)
@@ -306,7 +339,7 @@ class Mixture:
         return cls(
             SigC=SigC, SigL=SigL, SigF=SigF, SigP=SigP, SigT=SigT,
             SigS=[csr_matrix(s) for s in SigS],
-            Sig2=csr_matrix(Sig2),
+            Sig2=[csr_matrix(s) for s in Sig2],
             chi=chi, eg=eg,
         )
 
@@ -442,7 +475,7 @@ class Mixture:
                 SigP=average(self.SigP),
                 SigT=average(self.SigT),
                 SigS=[collapse_matrix(s) for s in self.SigS],
-                Sig2=collapse_matrix(self.Sig2),
+                Sig2=[collapse_matrix(s) for s in self.Sig2],
                 # χ → MARGINALIZE (bare @ table): a probability over birth groups, mass-
                 # preserving (Σχ=1 via the partition-of-unity rows), NOT a flux-average.
                 chi=np.asarray(self.chi) @ table,
@@ -503,7 +536,7 @@ class Mixture:
             SigP=sig_p,
             SigT=bilinear(self.SigT),
             SigS=[collapse_matrix_bilinear(m) for m in self.SigS],
-            Sig2=collapse_matrix_bilinear(self.Sig2),
+            Sig2=[collapse_matrix_bilinear(m) for m in self.Sig2],
             chi=chi_c,
             eg=target.edges,
         )
@@ -575,11 +608,33 @@ def production_weighted_chi(
     return weights @ fissile_spectra
 
 
+def _macroscopic_stack(
+    stacks: Sequence[Sequence[csr_matrix]], number_densities: np.ndarray
+) -> list[csr_matrix]:
+    r"""Sum microscopic Legendre stacks to a macroscopic one: :math:`\sum_i N_i\,\sigma_{i,\ell}`.
+
+    Order by order, over every isotope; an isotope whose stack stops short of
+    the widest contributes exactly zero above its own order (its evaluation
+    declared no anisotropy there). The one spelling in THIS module for ``SigS``
+    and ``Sig2``; the per-cell gather in ``MaterialXSField._gather_stack`` pads
+    the same way, and both collapse into the transfer kernel at #426 step 2.
+    """
+    n_legendre = max(len(stack) for stack in stacks)
+    shape = stacks[0][0].shape
+    return [
+        sum(
+            (stack[ell] * density for stack, density in zip(stacks, number_densities)
+             if ell < len(stack)),
+            start=csr_matrix(shape),
+        )
+        for ell in range(n_legendre)
+    ]
+
+
 def compute_macro_xs(
     isotopes: list[Isotope],
     number_densities: np.ndarray,
     escape_xs: float = 0.0,
-    n_legendre: int = 3,
     fissile_indices: Optional[list[int]] = None,
 ) -> Mixture:
     """Compute macroscopic cross sections for a mixture of isotopes.
@@ -592,16 +647,16 @@ def compute_macro_xs(
         Number densities in 1/(barn*cm).
     escape_xs : float
         Escape cross section in 1/cm (0 for infinite medium).
-    n_legendre : int
-        Number of Legendre scattering components (default 3).
     fissile_indices : list[int] or None
         Indices into `isotopes` for fissile nuclides.  If None, auto-detected.
 
     Returns
     -------
-    Mixture with all macroscopic cross sections.
+    Mixture with all macroscopic cross sections. The scattering and (n,2n)
+    Legendre stacks carry every order the library stores for any of the
+    isotopes (a ``n_legendre`` cap lived here until #426 step 1; the solve's
+    ``scattering_order`` is the only truncation).
     """
-    n_iso = len(isotopes)
     aDen = np.asarray(number_densities)
     eg = isotopes[0].eg
 
@@ -617,10 +672,11 @@ def compute_macro_xs(
     sigL = np.array([interp_xs_field(iso.sigL, iso, sig0[i]) for i, iso in enumerate(isotopes)])
     sigF = np.array([interp_xs_field(iso.sigF, iso, sig0[i]) for i, iso in enumerate(isotopes)])
 
-    sigS_list: list[list[csr_matrix]] = []
-    for j in range(n_legendre):
-        sigS_j = [interp_sig_s(iso, j, sig0[i]) for i, iso in enumerate(isotopes)]
-        sigS_list.append(sigS_j)
+    # Per isotope, its own stack at its own converged sigma-zeros.
+    sigS_stacks = [
+        [interp_sig_s(iso, j, sig0[i]) for j in range(len(iso.sigS))]
+        for i, iso in enumerate(isotopes)
+    ]
 
     print("done.")
 
@@ -639,23 +695,12 @@ def compute_macro_xs(
         start=np.zeros(NG),
     )
 
-    # Scattering matrices
-    SigS = [
-        sum(
-            (sigS_list[j][i] * aDen[i] for i in range(n_iso)),
-            start=csr_matrix((NG, NG)),
-        )
-        for j in range(n_legendre)
-    ]
+    # Scattering and (n,2n) Legendre stacks — the same sum, the same padding
+    SigS = _macroscopic_stack(sigS_stacks, aDen)
+    Sig2 = _macroscopic_stack([iso.sig2 for iso in isotopes], aDen)
 
-    # (n,2n) matrix
-    Sig2 = sum(
-        (iso.sig2 * aDen[i] for i, iso in enumerate(isotopes)),
-        start=csr_matrix((NG, NG)),
-    )
-
-    # Total XS
-    SigT = SigC + SigL + SigF + np.array(SigS[0].sum(axis=1)).ravel() + np.array(Sig2.sum(axis=1)).ravel()
+    # Total XS: every removal channel once (the P0 row sums)
+    SigT = SigC + SigL + SigF + np.array(SigS[0].sum(axis=1)).ravel() + np.array(Sig2[0].sum(axis=1)).ravel()
 
     # Fission spectrum — production-weighted convex average over ALL fissile
     # isotopes (flat-flux representative weighting; see

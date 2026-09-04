@@ -37,57 +37,37 @@ history" changelog at `docs/theory/methods/sn/history.rst` (⚠ NOT the pre-spli
 grep must `test -f` the SOURCE). Active track = **#231** (§3); main agent commits, I
 stage + gate.
 
-**In flight — ONE line each. The evidence is in the lesson; the STATE is in git
-(`git status --porcelain -- docs/`), never in this list. All are branch
-`fix/angular-phantom-support`, docs UNCOMMITTED (I stage + gate; the main agent commits).**
+**In flight — ONE line each. The STATE is in git (`git status --porcelain -- docs/`),
+never in this list; the evidence is in the lesson.** Branch `fix/n2n-anisotropy`, docs
+UNCOMMITTED (I stage + gate; the main agent commits).
 
-- **#428 — a "Reactions Not Included" header naming a HANDLED channel; split by fact**
-  (2026-09-03; 3 files +478/−94 — `cross_section_data.rst` split into `n2n-handled` /
-  `n2n-excluded-channels`, `monte_carlo.rst`'s stale Limitations row retired,
-  `solve_sn_adjoint`'s docstring re-spelled to `A = L+C−S−N₂ₙ−B`; `-E -W` EXIT=0 with a
-  **0-byte** log both sides; `dead_references` 0/52; my xref gate 159 roles / 0 dead. The
-  census's closed-form reference reproduced BIT-IDENTICALLY and its per-row residuals did
-  NOT — they are run properties. Scope grew by 3: an inherited `**``lit``**` nesting bug,
-  a 12-vs-13 nuclide roster, and a sibling page's stale limitation) → [[lessons-L92]]
-- **#434 R3 — a slot SPLITS in two and the retired name's LETTER follows the wrong survivor**
-  (2026-09-03; the campaign's LAST carve, its commit `Closes #434`; 4 pages +1115/−325;
-  sentinels **593→593** — both `:eq:` APIs re-worded, labels kept; `-E -W` EXIT=0 with a
-  **0-byte** log both sides; `dead_references` 0/52; xref gate 0 dead; my own import probe
-  923 roles / 0 dead. New: ERR-081 — the catalogue's first `vv` #33 instance — shipped
-  UNCAUGHT by design, `error_index.md` regenerated 80/0 → 81/1. Two production `[M]`s did
-  not reproduce: a triple COUNT with no member set (197 vs my **217** on a stated 21-member
-  set) and a test docstring's "the coverage leg is INERT at the selector tier") → [[lessons-L91]]
-- **#434 R2 — invariance is the MEASURE's question; groups import geometry only**
-  (2026-09-03; 4 pages +839/−368; sentinels **593→593** — no eq-label, as the plan predicted;
-  `-E -W` EXIT=0 with a **0-byte** log both sides; `dead_references` 0 in `docs/`, 2/3 sites
-  in `tests/`; a `[M]`'s denominator moved 150→144 while its finding did not; the plan's TWO
-  intended moves were THREE) → [[lessons-L90]]
-- **#434 R4 — the lift is a derivation OUTPUT and an orbit space's dimension is a THEOREM**
-  (2026-09-03; 4 pages +1127/−196; sentinels 591→**593**; `-E -W` EXIT=0 with a **0-byte**
-  log; the live tree moved UNDER me twice — 3 clauses → 4, a generic point → a probe SET,
-  `lift_codomain` → COMPARED) → [[lessons-L89]]
-- **#434 R1 — every question about a group is COMPUTED from its realization** (2026-09-03;
-  3 pages +832/−85; sentinels 587→**591**; all gates green; a concurrent rename + a
-  thrice-moving test count) → [[lessons-L88]]
-- **#429 2.2b — the Γ-slot: a symmetry is asked ON the orbit space** (2026-09-02; 4 pages
-  +1318/−107; sentinels 584→587) → [[lessons-L87]]
-- **#432 — an orbit space is named by its STABILISER** (2026-09-02; 9 pages +1144/−355;
-  sentinels 582→584; one dead xref BY INSTRUCTION) → [[lessons-L86]]
-- **#429 fused commit — a 1-D rule's frame binds the basis its ORBIT SPACE admits; ERR-080
-  CLOSED** (2026-09-02; 12 pages +1756/−240; sentinels 579→582) → [[lessons-L85]]
-- **#429 2.5 — the angular moment space is READ off the frame** (2026-09-02; sentinels
-  578→579) → [[lessons-L84]]
-- **#429 3.1 — a catalogue entry carries its own ARROW and the measure it pushes forward**
-  (2026-09-02; sentinels 577→578) → [[lessons-L83]]
-- **#429 2.3 — a map carries its two point sets, so a codomain cannot be forged**
-  (2026-09-02; sentinels 576→577) → [[lessons-L82]]
-- **#429 2.1b — a basis declares its symmetry by naming what it EATS** (2026-09-01;
-  sentinels 576→576) → [[lessons-L81]]
-- **#429 2.0a — a quotient carries TWO coordinate systems, the chart and the section**
-  (2026-08-31; code landed `b55bba56` mid-session) → [[lessons-L80]]
-- ⛔ **ERR-026 history block** — branch `docs/err026-history-is-not-a-crossref`, 2026-08-18,
-  still OPEN and re-confirmed unlanded 2026-08-24 (the `head_role` one-liner; 40 of 100 stale
-  raw file paths in the catalogue) → [[lessons-L62]]
+- **#426 step 1 — a P0 truncation that MOVES TIERS (data → operator), not one that dies**
+  (2026-09-03; 4 `.rst` + 4 `orpheus/` docstrings. `cross_section_data.rst`: ingest note
+  relabelled `n2n-p0-truncation-at-ingest` → `n2n-legendre-stack-at-ingest` with its 3
+  intra-file citers, new `elastic-legendre-order-ladder` / `mf6-one-yield-per-stack` /
+  `h5-store-format-refusal` anchors + 1 new eq-label. `adjoint.rst`: `sn-n2n-p0-truncation`
+  rewritten + new `sn-n2n-p0-truncation-measured` SSOT block (3 fixtures × 3 conventions).
+  Also `slab_multigroup.rst`, `sn/index.rst` (machine header + a doc code-block that RAISED
+  post-retype). `-E -W` EXIT=0, **0-byte** log both sides; `dead_references` 0/52; stock xref
+  gate 0/14821; my import probe 258 roles / 0 real dead; sentinels **593→594**. `matrix.rst`
+  regenerated +80 TESTS — the main agent's gates, not mine. Three brief claims refuted)
+  → [[lessons-L93]]
+
+⏹ **MERGED 2026-09-03 — branch `fix/angular-phantom-support` is gone (`[M]` its commits are
+ancestors of HEAD); every entry that used to sit here is landed.** #428, #434 R1–R4, #432 and
+#429 (2.5 / 3.1 / 2.3 / 2.1b / 2.0a / the fused commit) are archived as
+[[lessons-L80]]…[[lessons-L92]], each naming its own commits. `git log --oneline -- docs/` is
+the index. ⚠ This list had frozen "in flight" on landed work **seven** times before this
+collapse — reconcile with git BEFORE reading it, every time.
+
+⚠ **ERR-026 history block — status CHANGED, not confirmed.** Its branch
+`docs/err026-history-is-not-a-crossref` no longer exists locally or on the remote, so the
+2026-08-24 "still OPEN, unlanded" claim is void. `[M]` the gate's guard now reads
+`bare_module_guess = "." not in target and role != "mod" and …`
+(`tools/check_docstring_xrefs.py:549`), i.e. it keys on the TARGET being undotted — so the
+L-062/L-067 dotted-target blindness **appears repaired**. NOT directly re-probed (a standalone
+import of the gate module raises inside `dataclasses`); corroborating evidence only: the stock
+gate and my own import probe, two independently-vocabularied instruments, both read 0 dead.
 
 ⚠ **Every entry above is a snapshot.** Reconcile with git FIRST — this list has frozen
 "in flight" on landed work SIX times. `git merge-base --is-ancestor <hash> HEAD`, and

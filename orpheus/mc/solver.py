@@ -375,7 +375,7 @@ def _precompute_xs(materials: dict[int, Mixture]) -> _PrecomputedXS:
     sig_2n_dense = {}
     for mat_id, mix in materials.items():
         sig_s_dense[mat_id] = np.array(mix.SigS[0].todense())
-        sig_2n_dense[mat_id] = np.array(mix.Sig2.todense())
+        sig_2n_dense[mat_id] = np.array(mix.Sig2[0].todense())  # P0 block: the exit direction is sampled isotropically
 
     chi_cum = np.cumsum(_any_mat.chi)
 
@@ -451,7 +451,7 @@ def _random_walk(
             elif r < sig_s_sum + sig_2n_sum:
                 # Analog (n,2n): one reaction sampled per Σ_2n, weight
                 # doubled to represent two emitted neutrons. Exit group
-                # sampled from the Sig2[ig, :] row (convention [from,to]).
+                # sampled from the Sig2[0][ig, :] row — the P0 block (convention [from,to]).
                 w *= _N2N_MULTIPLICITY
                 cum_2 = np.cumsum(sig_2n_row)
                 ig = np.searchsorted(cum_2, rng.random() * sig_2n_sum)

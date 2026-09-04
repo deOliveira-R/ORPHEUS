@@ -56,6 +56,12 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
   does not move with the mathematics** (new value types carrying the theorem shipped with no
   `__post_init__`; `dim` spelled `len` where the math means RANK); a `dim ∈ {0,1,3}` branch is
   ESSENTIAL; a dispatch→computation carve silently WIDENS the old refusals; reusable probes.
+- [scalar_to_stack_retype_rulings.md](scalar_to_stack_retype_rulings.md) — ⭐⭐ #426 step 1
+  (one matrix → a Legendre STACK): the pad rule spelled once per layer with one spelling
+  UNREACHABLE (count witnesses, don't read); the retype makes the EMPTY stack representable
+  where a scalar could not be absent; ⭐⭐ a rationale comment naming a structural invariant
+  that is FALSE on the one shipped input that motivated it; the twin a retype CREATES by
+  parameterising an already-padded gather; five in-process probes.
 - [orbit_space_invariance_rulings.md](orbit_space_invariance_rulings.md) — ⭐⭐ #429 2.2b
   (the Γ-slot): the ambient-vs-orbit-space TWO-CAMPS pattern (census the shared EMBEDDING
   helper, not the migrated method); the per-arm `ManifoldMap.domain/codomain` honesty tell;

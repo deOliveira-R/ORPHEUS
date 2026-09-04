@@ -43,7 +43,7 @@ def _mix(sig_t, *, ng):
     return Mixture(
         SigC=0.5 * sig_t, SigL=np.zeros(ng), SigF=np.zeros(ng),
         SigP=np.zeros(ng), SigT=sig_t,
-        SigS=[csr_matrix(np.diag(0.5 * sig_t))], Sig2=csr_matrix((ng, ng)),
+        SigS=[csr_matrix(np.diag(0.5 * sig_t))], Sig2=[csr_matrix((ng, ng))],
         chi=np.zeros(ng), eg=None,
     )
 

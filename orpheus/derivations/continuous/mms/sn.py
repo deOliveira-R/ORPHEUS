@@ -204,7 +204,7 @@ def _make_1g_mixture(sigma_t: float, sigma_s: float) -> Mixture:
         SigP=np.zeros(ng),
         SigT=np.array([sigma_t]),
         SigS=[SigS0],
-        Sig2=Sig2,
+        Sig2=[Sig2],
         chi=np.zeros(ng),
     )
 
@@ -457,7 +457,7 @@ class SNSlab2GHeterogeneousMMSCase:
                 SigP=np.zeros(2),                  # no production
                 SigT=sig_t,
                 SigS=[csr_matrix(sig_s_row)],      # P0 only
-                Sig2=csr_matrix(np.zeros((2, 2))),  # no (n,2n)
+                Sig2=[csr_matrix(np.zeros((2, 2)))],  # no (n,2n)
                 chi=np.zeros(2),
             )
         return materials
@@ -1027,7 +1027,7 @@ def _build_per_cell_hetero_materials(
                 SigP=np.zeros(n_groups),
                 SigT=sig_t,
                 SigS=[csr_matrix(sig_s_row)],
-                Sig2=csr_matrix(np.zeros((n_groups, n_groups))),
+                Sig2=[csr_matrix(np.zeros((n_groups, n_groups)))],
                 chi=np.zeros(n_groups),
             )
     return materials
@@ -1895,7 +1895,7 @@ def _make_1g_p1_mixture(
         SigP=np.zeros(ng),
         SigT=np.array([sigma_t]),
         SigS=[SigS0, SigS1],   # P0 and P1 scattering matrices
-        Sig2=Sig2,
+        Sig2=[Sig2],
         chi=np.zeros(ng),
     )
 
@@ -3451,7 +3451,7 @@ def _make_2g_asymmetric_mixture(
         SigP=np.zeros(ng),
         SigT=sigma_t_g,
         SigS=[csr_matrix(sigma_s_matrix)],   # P0 only
-        Sig2=csr_matrix(np.zeros((ng, ng))),
+        Sig2=[csr_matrix(np.zeros((ng, ng)))],
         chi=np.zeros(ng),
     )
 

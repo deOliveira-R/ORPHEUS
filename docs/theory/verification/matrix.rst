@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **11234**
+Total tests collected: **11314**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1298, 11.6%
-   L1, 1644, 14.6%
+   L0, 1304, 11.5%
+   L1, 1647, 14.6%
    L2, 64, 0.6%
    L3, 0, 0.0%
-   foundation, 8202, 73.0%
+   foundation, 8273, 73.1%
    unmarked, 26, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 11129
+   explicit, 11209
    class-name, 46
    func-name, 0
    case, 33
@@ -136,15 +136,17 @@ Module × level grid
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_emission_spectrum, 0, 0, 0, 0, 15, 0
    data/test_energy_grid, 0, 0, 0, 0, 28, 0
-   data/test_gendf_canonical_order, 0, 0, 0, 0, 6, 0
+   data/test_gendf_canonical_order, 0, 0, 0, 0, 7, 0
    data/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
+   data/test_hdf5_store, 0, 0, 0, 0, 12, 0
+   data/test_ingest_ledger, 0, 0, 0, 0, 43, 0
    data/test_materials, 0, 0, 0, 0, 10, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
-   data/test_mixture_condense, 0, 0, 0, 0, 41, 0
+   data/test_mixture_condense, 0, 0, 0, 0, 42, 0
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
    data/test_mixture_transport_xs, 0, 1, 0, 0, 4, 0
    data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
-   data/test_n2n_yield_convention, 1, 0, 0, 0, 9, 0
+   data/test_n2n_yield_convention, 7, 0, 0, 0, 23, 0
    derivations/test_adjoint_spectrum_reference, 0, 0, 0, 0, 6, 0
    derivations/test_atkinson_product_nystrom, 0, 6, 0, 0, 5, 0
    derivations/test_capability_matrices, 0, 0, 0, 0, 10, 0
@@ -499,6 +501,7 @@ Module × level grid
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_pl_order_does_not_move_the_infinite_medium_flux, 0, 5, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
+   solve/test_scattering_order_is_the_only_truncation, 0, 3, 0, 0, 0, 0
    solve/test_si_convergence_diagnostics, 0, 4, 0, 0, 0, 0
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
@@ -684,6 +687,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``singular-eigenfunction-eq42``, 10
    ``sn-direct-seed-r12a-predicate``, 10
    ``dd-recurrence``, 9
+   ``energy-condensation-scattering-collapse``, 9
    ``p-transpose-flux-balance``, 9
    ``pole-mm-recurrence``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
@@ -691,7 +695,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``tau-p``, 9
    ``cp-inner-integral-antiderivative``, 8
    ``diffusion-coefficient``, 8
-   ``energy-condensation-scattering-collapse``, 8
    ``hilbert-adjoint-equals-metric-times-S0``, 8
    ``sn-adjoint-eigenproblem``, 8
    ``bare-slab-buckling``, 7
@@ -911,7 +914,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **593** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **594** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1121,6 +1124,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``gap-closure-event``
 - ``gap-conductance``
 - ``gas-pressure``
+- ``gendf-mf6-yield-per-order``
 - ``green-neumann-series``
 - ``green-scattering-ratio-bound``
 - ``green-splitting-iteration``

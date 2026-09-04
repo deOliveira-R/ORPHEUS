@@ -2500,3 +2500,68 @@ frozen record including MESSAGE strings will RED — `[M]` 96 of 96 rejection
 strings moved while 0 of 48 choices did; the repair is to split the value half
 (keep the frozen table) from the wording half (pin at the STAGE), never to
 re-freeze prose. → `L75`, `L75e`
+
+## #426 additions (2026-09-03, the (n,2n) anisotropy carve) → `L76`
+
+**§3 (config blindness).** ⛔⛔ **When a carve turns a scalar datum into a per-ℓ LIST,
+census which shipped members have an EMPTY channel BEFORE letting the new length join any
+`min`.** `[M]` 2 of 13 isotopes carry no (n,2n) at all (`H_001`, `B_010`: `sig2.nnz = 0`),
+and the solver's silent clamp `L = min(scattering_order, min(len(SigS)−1))` returns **0**
+for requests 0/1/2/5 when one material is 1-long. A two-list clamp would therefore force
+P0 on every water-bearing solve, deleting the ELASTIC P1/P2 — `[M]` **+5787 pcm-relative**,
+14× the effect the campaign exists to add. Sibling: the flagship's CONTROL arm must zero
+the ℓ≥1 VALUES at the same length, never SHORTEN the list, or the Δ measures the elastic
+anisotropy under the (n,2n) name. → `L76a`
+⛔ **A carve that moves code through a rank/branch DISPATCH owes a fixture list PER ARM —
+and a fixture can be on the right chart and still never reach the arm because a CLAMP took
+it out.** `[M]` `_block_contraction` dispatches on head RANK (2 = harmonics, 1 = the flat
+Legendre basis a 1-D rule binds); the flagship is a slab, the incumbent operator fixture is
+`gauss_legendre(4)`, and the analytic-ladder rows run at `scattering_order = 0` because the
+case has `len(SigS) == 1`. All three are rank-1-or-clamped ⟹ the new moment path would have
+landed gated on one of two arms. → `L76f`
+⛔ **Before promoting an observed regularity to an assertion, run it on every channel the
+same code path serves.** `[M]` the (n,2n) Legendre moments decay monotonically (7 of 7) and
+elastic does; **thermal does NOT** (BE009 MT=221 ℓ=6 `3.10e-1` > ℓ=5 `1.38e-1`). A
+monotonicity leg written from the first two is a latent false red. → `L76d`
+
+**§1 (gates that cannot red).** ⭐⭐ **A declared ONE-SIDEDNESS needs its own battery arm —
+one that must be GREEN on the blind gate and RED on its two-sided partner.** `[M]` the
+physics bound `|Σ_ℓ| ≤ Σ_0` (`⟨P_ℓ⟩ ∈ [−1,1]`, 0 violations over 4 isotope×channel rows)
+catches an inflation (a stray `(2ℓ+1)` reads ≈2.9) and is blind to a deflation; the
+two-sided catcher is a RATIO-INVARIANCE row (a row-diagonal yield strip cancels in
+`Σ_ℓ/Σ_0`, so the stored ratio must equal the raw tape ratio exactly). The arm that proves
+the pair is `scale**ℓ`: `scale ≈ 0.5` SHRINKS the ratio ⟹ bound green, ratio row red.
+⚠ Threshold `1 + 1e-9`, never tighter — `[M]` the elastic ℓ=1 margin is 3e-4. → `L76c`
+⛔ **A "bit-identical by design" step's denominator is the set of PARAMETER VALUES the tree
+requests, not the set of files it touches.** `[M]` `scattering_order` census: 130 × `=0`,
+54 × `=1`, 3 × `=3` (all SYNTHETIC mixtures), 1 × `=2` (an `err_msg` string) ⟹ no shipped
+library solve runs above P2, so the un-clamping the step creates lands with ZERO witnesses,
+over data that is not noise (`[M]` elastic ℓ=3 is 18 % of ℓ=1). → `L76b`
+
+**§2 (harness discipline).** ⭐⭐ **Before minting a new test file, price the EXISTING file
+that already pays your fixture's cost — the Pattern-2 answer and the cost answer coincide.**
+`[M]` the ingest pin cost **247.57 s** with the builder called per row, **26.98 s** hoisted
+to a module fixture, and **negative marginal cost** merged into
+`tests/data/test_n2n_yield_convention.py`, which `[M]` pays **38.43 s for 10 rows** because
+it calls the same 17.80 s builder TWICE (→ ≈27 s for 29 rows). → `L76e`
+⛔ **For a scalar→list retype, split the §6b census by ast CONTEXT (Load / Store / keyword /
+Subscript).** `[M]` an inherited "38 attribute reads" number contains **39 loads** and none
+of the **18 STORES** (`mix.Sig2 = …` — legal because `Mixture` is not frozen); and all 3
+SUBSCRIPT sites index a per-REGION list, so after the carve two different `[0]`s sit one
+line apart and a mechanical replace conflates them. ⚠ Sibling: the gate that ENCODES the
+truncation carries the issue number in its `pytest.fail` MESSAGE — only
+`grep -rn "#426" tests/` finds it. → `L76i`
+
+**§4 (reference & claim layer).** ⭐ **When a census says a whole FAMILY is blind, look for
+an existing REGISTRY case before designing machinery.** `[M]` diffusion had 0 of 113
+catchers for a live channel (625 mixtures built, one with a non-zero datum, never solved);
+the closure is one shipped case — `0.005 s`, rel `2.7e-16` vs the closed form, mutations at
+20.2 % / 37.2 % / 24.1 %. Same move closed the SN analytic tier (+12 rows / +2.4 s, both k
+and eigenVECTOR reddening 20.2 % / 10.5 %). The independence is real because the
+derivations tree spells its own constant. → `L76g`
+⭐ **A stochastic method's "too slow to gate" is usually a statement about the PRECISION
+target, not about the catcher.** `[M]` MC's only catcher is `slow`-marked (84 s) so the
+canonical `-m "not slow"` reads *0 red* under the mutation; a **0.9 s** run (50 neutrons ×
+30 active cycles) reads 0.47 σ honest and **17 σ** mutated. ⚠ And patch EVERY rebinding
+site: `[M]` `mc/solver.py:36` captures the constant as a module float at IMPORT, so
+patching the `ClassVar` alone reports MC inert. → `L76h`

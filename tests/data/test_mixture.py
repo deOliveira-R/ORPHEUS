@@ -156,7 +156,7 @@ def test_macro_sum_mixture_roundtrip_preserves_values():
         SigP=SigP,
         SigT=SigT,
         SigS=[SigS],
-        Sig2=csr_matrix((ng, ng)),
+        Sig2=[csr_matrix((ng, ng))],
         chi=np.array([1.0, 0.0]),
     )
 

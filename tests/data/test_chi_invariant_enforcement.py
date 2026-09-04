@@ -73,7 +73,7 @@ def _mixture(*, sig_p: np.ndarray, chi: np.ndarray) -> Mixture:
         SigP=np.asarray(sig_p, dtype=float),
         SigT=np.full(ng, 1.0),
         SigS=[csr_matrix((ng, ng))],
-        Sig2=csr_matrix((ng, ng)),
+        Sig2=[csr_matrix((ng, ng))],
         chi=np.asarray(chi, dtype=float),
         eg=None,
     )
@@ -103,7 +103,7 @@ def _isotope(*, sig_f_row: np.ndarray, nubar: np.ndarray, chi: np.ndarray) -> Is
         nubar=np.asarray(nubar, dtype=float),
         chi=np.asarray(chi, dtype=float),
         sigS=[[csr_matrix((NG, NG))]],
-        sig2=csr_matrix((NG, NG)),
+        sig2=[csr_matrix((NG, NG))],
     )
 
 

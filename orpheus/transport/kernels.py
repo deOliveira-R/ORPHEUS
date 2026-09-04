@@ -235,8 +235,11 @@ class N2NKernel:
     @classmethod
     def from_mixture(cls, mixture: "Mixture") -> "N2NKernel":
         """The kernel of ``mixture``'s :math:`(n,2n)` channel — a fresh
-        densified copy of the sparse ``Sig2``; nothing is aliased."""
-        return cls(matrix=np.asarray(mixture.Sig2.todense()))
+        densified copy of the P0 block of the sparse ``Sig2`` Legendre stack;
+        nothing is aliased. The stack's higher orders (the emission's
+        anisotropy, kept by the ingest since #426 step 1) do not reach this
+        kernel until step 2 gives it a Legendre stack of its own."""
+        return cls(matrix=np.asarray(mixture.Sig2[0].todense()))
 
     @property
     def ng(self) -> int:

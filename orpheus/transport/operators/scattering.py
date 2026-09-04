@@ -375,12 +375,19 @@ class N2NMomentOperator(BoundOperator):
 
     ⚠ **The single-ℓ shape is a MODEL, not the reaction.**
     Unlike :class:`LegendreMomentScattering`, which carries an :math:`\ell`
-    stack, this operator has one block because the data layer truncates the
-    evaluated :math:`(n,2n)` angular data at :math:`P_0` — the shipped GENDF
-    files store NL = 7 Legendre moments for MT=16, the same order as elastic
-    ([M] 2026-08-31; ``docs/theory/methods/sn/adjoint.rst``
-    §sn-n2n-p0-truncation, issue #426). Restoring them makes this operator's
-    shape converge on :math:`\Lambda`'s.
+    stack, this operator has one block — the shipped GENDF files store
+    NL = 7 Legendre moments for MT=16, the same order as elastic ([M]
+    2026-08-31), and nothing above the kernel uses more than one of them.
+
+    ⚠ [M] 2026-09-03 (#426 step 1): this clause read "because the data
+    layer truncates the evaluated :math:`(n,2n)` angular data at
+    :math:`P_0`", and that is no longer where it happens. ``Mixture.Sig2``
+    is now a list over :math:`\ell` carrying every stored order; the one
+    block comes from
+    :meth:`~orpheus.transport.kernels.N2NKernel.from_mixture` selecting
+    ``Sig2[0]``. Growing the kernel into a stack makes this operator's
+    shape converge on :math:`\Lambda`'s — #426 step 2
+    (``docs/theory/methods/sn/adjoint.rst`` §sn-n2n-p0-truncation).
 
     Parameters
     ----------

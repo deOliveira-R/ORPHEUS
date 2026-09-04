@@ -198,7 +198,7 @@ def _one_group_mixture(n_moments: int) -> Mixture:
         SigP=zero.copy(),
         SigT=np.array([_SIG_T]),
         SigS=[csr_matrix(np.array([[v]])) for v in _MOMENTS[:n_moments]],
-        Sig2=csr_matrix((1, 1)),
+        Sig2=[csr_matrix((1, 1))],
         chi=zero.copy(),
         eg=None,
     )

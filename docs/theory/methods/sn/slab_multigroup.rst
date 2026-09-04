@@ -415,24 +415,40 @@ consumed, two are produced).
 
 The :math:`(n,2n)` cross section is stored as a group-to-group transfer
 matrix ``Mixture.Sig2`` with the same ``[g_from, g_to]`` convention as
-the scattering matrix — but, unlike ``Mixture.SigS``, as **one** matrix
-rather than a list over Legendre order.  That is a modelling
-truncation, and it is worth naming before any of the algebra below is
-read:
+the scattering matrix — and, like ``Mixture.SigS``, as a **list over
+Legendre order** (#426 step 1, 2026-09-03).  What the algebra below
+consumes is ``Sig2[0]`` alone, and that is worth naming before any of
+it is read:
 
 .. important::
 
-   **The emission is treated as isotropic; the reaction is not.**  The
-   evaluated data ORPHEUS ships carries seven Legendre moments for the
+   **The emission is treated as isotropic; the reaction is not** — and
+   the treatment is the **operator's**, not the data's.  The evaluated
+   data ORPHEUS ships carries seven Legendre moments for the
    :math:`(n,2n)` channel — the same order as elastic scattering — and
-   the GENDF reader keeps the :math:`\ell = 0` one.  Everything on this
-   page, and everything in
-   :ref:`the (n,2n) adjoint section <sn-n2n-adjoint>`, therefore
-   describes a :math:`P_0` **model** of the channel, never a property of
-   the reaction.  The
-   measured size of the truncation, its instrument control and the
+   since 2026-09-03 the GENDF reader keeps **all** of them
+   (:ref:`the ingest stack note <n2n-legendre-stack-at-ingest>`).  The
+   :math:`P_0` model now lives at exactly two sites one layer up:
+   :meth:`~orpheus.transport.kernels.N2NKernel.from_mixture`, which
+   densifies ``Sig2[0]`` alone, and
+   :class:`~orpheus.transport.operators.n2n.N2NOperator`, which mints
+   its frame at order 0.
+
+   ⛔ This block said, verbatim, "as **one** matrix rather than a list
+   over Legendre order" and "the GENDF reader keeps the :math:`\ell = 0`
+   one" until 2026-09-03.  Both were true when written; #426 step 1
+   repealed both, and the paragraph above is the replacement.  Nothing
+   about the **model** changed — everything on this page, and
+   everything in
+   :ref:`the (n,2n) adjoint section <sn-n2n-adjoint>`, still describes
+   a :math:`P_0` model of the channel and never a property of the
+   reaction.  What changed is *where the model is imposed*, and hence
+   what a fix has to touch.
+
+   The measured size of the truncation — now including a transport
+   solve, not only cross-section shares — its controls, and the
    restoration path are at
-   :ref:`the (n,2n) P0-truncation warning <sn-n2n-p0-truncation>` and
+   :ref:`the (n,2n) P0-truncation record <sn-n2n-p0-truncation>` and
    `#426 <https://github.com/deOliveira-R/ORPHEUS/issues/426>`_.
 
 The source contribution is:
@@ -463,8 +479,11 @@ a census of your own filter, not of the tree.
 This source is added to the isotropic source before the transport
 sweep, on the same footing as the P\ :sub:`0` scattering source.  The
 :math:`(n,2n)` contribution also enters the :math:`\keff` production
-term in :meth:`SNSolver.compute_keff`, where row sums of ``Sig2``
-(total :math:`(n,2n)` removal rate) are used.
+term in :meth:`SNSolver.compute_keff`, where row sums of ``Sig2[0]``
+(total :math:`(n,2n)` removal rate) are used — the :math:`P_0` block
+specifically, and correctly so: a reaction rate is a :math:`P_0`
+quantity, and every higher Legendre moment integrates to zero over
+angle.  That read is unaffected by the restored stack, and by step 2.
 
 **Where the arithmetic lives, and why that is not where the grouping
 is decided.**  The per-material dispatch — the loop over materials, the
@@ -525,13 +544,22 @@ it is two lines at two composition sites.
 The forward action of :math:`N_{2n}` on the angular composite, its
 transpose, and the fixture blindness that transpose hides are derived
 at :ref:`sn-n2n-adjoint`.  Note also what the extraction did **not**
-touch: the emission is *modelled* isotropic (the :math:`P_0` truncation
-above), so the operator keeps the reaction-rate fast path (no moment
-tensor) exactly as the fused version did, and the producer-side
+touch: the emission is still *modelled* isotropic (the :math:`P_0`
+model above), so the operator keeps the reaction-rate fast path (no
+moment tensor) exactly as the fused version did, and the producer-side
 :math:`1/W` combine it shares with
 :math:`S`'s :math:`P_0` half is single-sourced in one free function —
 the algebra is stated as the frame's :math:`\ell = 0` conjugation and
 gated against it, while the evaluation stays cheap.
+
+Nor did #426 step 1 touch it.  That change was confined to the data
+layer — ``Mixture.Sig2`` grew from one matrix to a stack — and it is
+**bit-identical** through this page's arithmetic by construction,
+because every consumer named above reads ``Sig2[0]``, which is the
+matrix that used to be the whole of it.  The fast path, the
+:math:`1/W` combine, the :math:`\keff` term and the sweep source are
+all unchanged.  What step 1 bought is that the moments the operator
+does not yet use are now *reachable*; spending them is step 2.
 
 The normalization chain
 -----------------------

@@ -189,7 +189,7 @@ def _make_mixture_with_n2n(ng_key: str = "2g") -> Mixture:
         SigP=(xs["nu"] * xs["sig_f"]).copy(),
         SigT=sig_t,
         SigS=sig_s_list,
-        Sig2=csr_matrix(sig2),
+        Sig2=[csr_matrix(sig2)],
         chi=xs["chi"].copy(),
     )
 
@@ -272,7 +272,7 @@ def _compute_analytical_kinf_slab_with_n2n(
         m = materials[mid]
         sig_t_all[i] = m.SigT
         sig_s_mats.append(np.array(m.SigS[0].todense()))
-        sig_2_mats.append(np.array(m.Sig2.todense()))
+        sig_2_mats.append(np.array(m.Sig2[0].todense()))
         nu_sig_f_mats.append(m.SigP)
         chi_mats.append(m.chi)
 
@@ -615,7 +615,7 @@ class TestN2N:
         # The scattering source includes 2*Sig2, so the extra neutron
         # production from (n,2n) is sum(Sig2)*phi*V (one extra per reaction).
         sig2_production = np.sum(
-            np.array(mat.Sig2.todense()) @ phi[0] * V[0]
+            np.array(mat.Sig2[0].todense()) @ phi[0] * V[0]
         )
 
         # Correct keff should account for this
@@ -711,7 +711,7 @@ class TestComputeGroupRates:
         phi_g = flux.mean(axis=0)
         sig_p = np.asarray(mat.SigP)
         sig_a = np.asarray(mat.absorption_xs)
-        sig_2_dense = np.array(mat.Sig2.todense())
+        sig_2_dense = np.array(mat.Sig2[0].todense())
         # Mixture A has Σ_2 = 0, so k_inf reduces to fission/absorption.
         prod_per_g = sig_p * phi_g + 2.0 * (sig_2_dense.sum(axis=1) * phi_g)
         loss_per_g = sig_a * phi_g - 2.0 * (sig_2_dense.sum(axis=1) * phi_g)

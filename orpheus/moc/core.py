@@ -93,7 +93,7 @@ class MOCSolver:
             self.sig_p[k, :] = mix.SigP
             self.chi[k, :] = mix.chi
             self.sig_s0.append(mix.SigS[0].toarray())
-            self.sig2.append(mix.Sig2.toarray())
+            self.sig2.append(mix.Sig2[0].toarray())  # P0 block: MoC's Q_g is isotropic
 
         # Persistent boundary angular fluxes (survive between outer iters)
         n_tracks = len(moc_mesh.tracks)

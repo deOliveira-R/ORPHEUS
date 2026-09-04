@@ -96,7 +96,7 @@ def _balanced_fissile_4g() -> Mixture:
         SigC=sig_c.copy(), SigL=sig_l.copy(), SigF=sig_f.copy(),
         SigP=(nu * sig_f).copy(), SigT=sig_t.copy(),
         SigS=[csr_matrix(sig_s0), csr_matrix(sig_s1)],
-        Sig2=csr_matrix(sig_2), chi=chi.copy(), eg=_EG_FINE.copy(),
+        Sig2=[csr_matrix(sig_2)], chi=chi.copy(), eg=_EG_FINE.copy(),
     )
     mix.assert_balanced()
     return mix
@@ -295,8 +295,8 @@ class TestG3ScatteringTwoAxisCollapse:
     def test_n2n_two_axis_collapse(self, fine_mix: Mixture) -> None:
         """The (n,2n) matrix collapses by the SAME 2-axis rule as scattering."""
         coarse_mix = _condense(fine_mix)
-        sig2_fine = np.asarray(fine_mix.Sig2.todense(), dtype=float)
-        sig2_coarse = np.asarray(coarse_mix.Sig2.todense(), dtype=float)
+        sig2_fine = np.asarray(fine_mix.Sig2[0].todense(), dtype=float)
+        sig2_coarse = np.asarray(coarse_mix.Sig2[0].todense(), dtype=float)
         R_oracle = _scatter_rate_oracle(sig2_fine)
         phi_R = _phi_R()
         for Gi in range(_NG_COARSE):
@@ -306,6 +306,29 @@ class TestG3ScatteringTwoAxisCollapse:
                     rtol=1e-12, atol=1e-12,
                     err_msg=f"Sig2[{Gi},{Gj}] (n,2n) rate not preserved",
                 )
+
+    def test_n2n_stack_collapses_order_by_order(self, fine_mix: Mixture) -> None:
+        """Every (n,2n) Legendre order is collapsed by the same rule as ``Sig2[0]`` (#426 step 1).
+
+        The collapse is linear in the fine matrix, so a stack whose ℓ=1 block is
+        ``0.3 × ℓ=0`` must condense to a stack with the same ratio, and the
+        stack's length must survive (``from_dense_channels`` wraps every order).
+        """
+        from dataclasses import replace
+
+        p0 = fine_mix.Sig2[0]
+        stacked = replace(fine_mix, Sig2=[p0, p0 * 0.3])
+        coarse = _condense(stacked)
+        assert len(coarse.Sig2) == 2, "the condensed (n,2n) stack lost an order"
+        c0 = np.asarray(coarse.Sig2[0].todense(), dtype=float)
+        c1 = np.asarray(coarse.Sig2[1].todense(), dtype=float)
+        assert c0.any(), "the fixture's (n,2n) channel is zero — the row would be vacuous"
+        np.testing.assert_allclose(c1, 0.3 * c0, rtol=1e-12, atol=0.0,
+                                   err_msg="Sig2[1] was not collapsed by the same rule as Sig2[0]")
+        np.testing.assert_array_equal(
+            c0, np.asarray(_condense(fine_mix).Sig2[0].todense(), dtype=float),
+            err_msg="adding an order changed the P0 block's collapse",
+        )
 
     # ── The mutation oracles: each must DIFFER from the design collapse ──
     # These run UNCONDITIONALLY (they exercise the membership table + the
@@ -510,7 +533,7 @@ class TestG4BalanceRegression:
             SigP=np.asarray(coarse_mix.SigP).copy(),
             SigT=broken_sigt,
             SigS=[csr_matrix(m.todense()) for m in coarse_mix.SigS],
-            Sig2=csr_matrix(coarse_mix.Sig2.todense()),
+            Sig2=[csr_matrix(coarse_mix.Sig2[0].todense())],
             chi=np.asarray(coarse_mix.chi).copy(),
             eg=coarse_mix.eg,
         )
@@ -748,7 +771,7 @@ def _straddle_mixture_4g() -> Mixture:
         SigC=sig_c.copy(), SigL=sig_l.copy(), SigF=sig_f.copy(),
         SigP=(nu * sig_f).copy(), SigT=sig_t.copy(),
         SigS=[csr_matrix(sig_s0), csr_matrix(sig_s1)],
-        Sig2=csr_matrix(sig_2), chi=chi.copy(), eg=_FINE_STRADDLE.copy(),
+        Sig2=[csr_matrix(sig_2)], chi=chi.copy(), eg=_FINE_STRADDLE.copy(),
     )
     mix.assert_balanced()
     return mix
