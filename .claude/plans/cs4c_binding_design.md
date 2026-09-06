@@ -2456,3 +2456,43 @@ No blocker; 11 should-fix (S1–S11), 8 nits; approval conditions S1–S6, S10, 
 ### 21.5 Standing constraints (unchanged) + two learned this step
 
 Everything in §20.3, plus: **one Sphinx build at a time** (L63 — two builds on one `_build`/graph DB deadlocked; a 22 h 47 min hung build); **a sub-agent stall is a wait** — read the tree, not the transcript (the test-architect and archivist both stalled; their partial work was complete enough to finish by hand); **a foreground pytest over more than ~2 000 rows must run in the background** (the 2-min Bash cap killed one measurement).
+
+---
+
+## 22. ⏸ COMPACTION POINT #7 (2026-09-05, written after the step-5 merge, tree clean, no gate running) — the ladder's next acts, in the RULED order
+
+**State `[M]`:** `main` @ `950f7c9b` = `origin/main`; the step-5 branch deleted; #450 CLOSED; #306 item 2 and #205 commented; working tree clean (only `scratch/` untracked + the foreign `.claude/plans/harness_context_budget.md`). Step 5's whole record is §21 (commit table §21.1, the exit on the final tree in §21.4's ✅ blocks — 13 of 13 rc=0, 11 182 / 19 sk / 66 xf, battery 16 of 16 bite, sphinx `-W` rc=0, `dead_references` 0/66). The Nexus graph was built on `772af012`; `950f7c9b` touched no indexed source.
+
+**[R] (user, 2026-09-05): "tackle those steps in order"** — the order is the one proposed in the same turn, recorded here as the ruling. Each act opens with the standing protocol (reground against the TREE per plan-authoring §7 — never this file's tense; explorer re-census; design round with the user; **test-architect BEFORE any carve** that moves a production path; surgical main-agent writes; branch + ff-merge; 13-tree gate + battery + ONE sphinx build + `dead_references` at exit).
+
+### 22.1 ▶ NEXT ACT — #448: the eigenvalue finalize returns a flux reconstructed from a P0-only source at every `scattering_order`
+
+**Goal (domain terms):** the angular flux `solve_sn` returns is the converged solve's OWN flux — reconstructed from the source the converged iteration actually used, at every scattering order — never from a weaker source than the one the eigenvalue was computed with.
+
+**Ground facts `[M]` 2026-09-05 at `950f7c9b`:**
+* The finalize (`orpheus/sn/solver.py:2577-2579`) builds `Q_final = compute_fission_source(φ, k)`, then `solver._add_scattering_source(Q_final, φ)` and `solver._add_n2n_source(Q_final, φ)` — P0 in both channels, lifted by `AngularSourceSink.from_isotropic`; the ℓ ≥ 1 part of BOTH channels is dropped whenever `scattering_order ≥ 1`. `_build_aniso_scattering` (`:2328`) has **0** production callers tree-wide (tests only). Pre-existing (filed 2026-09-04 by the #426 elegance review; not a regression of any carve), widened by #426 to two channels.
+* **Step 5 made the fix a RETIREMENT, not a patch.** The three helpers (`_add_scattering_source :2320`, `_build_aniso_scattering :2328`, `_add_n2n_source :2357`) are now twin paths of what the bound `ScatteringOperator` / `N2NOperator` (`AngularLift`s, one body each, every order) already do on every inner solve. Proposed means (hypothesis, not yet designed): the finalize applies the record's bound `S` and `N₂ₙ` to the converged angular iterate (or their `isotropic_energy` bindings to `φ` where the solve was isotropic) and the three helpers retire with their tests migrated — `coding-standards` "retire as you go"; the test migration set is `[M]` **6 direct call sites** in `tests/sn/operators/test_solver_components.py` (`:159`, `:170`, `:191`, `:630`, `:694`, `:701`; the two at 694/701 are a timing harness). Open design question for the round: the finalize's operand — the converged solve holds the ANGULAR iterate (`solver._psi_typed`, System-A member on a carrying mesh), so the ℓ ≥ 1 source can be formed from it directly, which is the honest fix; the P0 legs of S/N2N on `φ` alone reproduce today's (wrong) source exactly and are the natural bit-identity CONTROL for the carve.
+* **Behaviour change, by design:** `Solution.angular_flux` MOVES for every `scattering_order ≥ 1` case (a correctness fix ⟹ principled re-baseline per `vv-principles`' three criteria, never a tolerance relax). Snapshot artefacts that may pin it (`[R]` — check which KEYS each pins before the carve; `test_dd_regression.py` names `angular` once at `:34`, the octant generator `_generate_2d_octant_snapshots.py` writes an `angular_flux` key): `2d_2g_p1_aniso_dd_8x4_het_si.npz`, `slab_2g_p1_aniso_dd_n20.npz`, `sphere_2g_p1_aniso_dd_n20.npz`, `2d_octant_equivalence_05_qaniso_mixedBC_2g_het_LS4.npz`. `k_eff` and `φ` must NOT move (they come from the converged iteration, which this block does not touch) — that invariance is the carve's first gate; the second is that the returned ψ's own angular moments reproduce the converged φ (today they cannot at L ≥ 1); the third is an L ≥ 1 MMS/closed-form case whose returned ψ is currently wrong.
+* This is an operator-algebra carve crossing solver ↔ operator (the MUST test-architect trigger). Test-architect first, then a `numerics-investigator`-free carve (the defect is structural, not a wrong number).
+
+**Done when:** the three helpers are gone, `test_solver_components.py`'s six sites are re-keyed to the bound operators, and a gate at the solve tier shows the returned ψ at `scattering_order = 1` agreeing with an independently-reconstructed ψ from the converged iterate (the pre-fix value being the gate's first red). `Closes #448`.
+
+### 22.2 Then — #425: 37 SN-chapter sites still spell `A = L + C − S − B` (pre-§14.1)
+
+A docs pass, per-page numerics adjudication (which pages state the GENERAL algebra vs a Σ₂ₙ-free special case) — an **archivist** task with the issue's census (`[M]` 2026-08-31 regex over `docs/theory/methods/sn/*.rst`, 37 sites) re-run FIRST at HEAD with a positive control (the count is 5 days and one merged step old). A present-tense-false algebra is a bug (the articulation lens's enforcement half); it stays a separate act so its adjudication is not smuggled into #448's carve. ONE sphinx build; `dead_references` after.
+
+### 22.3 Then — step 6 of the ladder (§8): the CS2 residue
+
+S3 bridge retirement + densifier-native (§7.2/§7.3); the L/B minimal annotation flips; the R6 carrier guard at `boundary.py:714`; ledger rows R1-L, R1-B, R6 flip in `tests/sn/architecture/test_monomorphic_leaves.py`. ⚠ from §8's own row: three boundary classes carry Optional; O-3's 4-tuple and R18's B reshape are NOT pre-empted. Opens with a design round (the F-F lean "late, step 6" is now due) and the explorer's re-census of the boundary leaf surfaces — every count in the CS2 charter dates 2026-08-20/21.
+
+### 22.4 Then — the coda (§8): the homogeneous path re-points last (F5), the `from_materials` consumer dissolves, O1 completes; `InfiniteMedium` (R23) stays post-ladder.
+
+### 22.5 Then — the consumers / solution-path campaign (§5, deferred by the user's 2026-08-30 ruling): typing the k-outer iterate, the solver-seam adapters, every consumer reshape; the §5b fork + the O-3 split at the pencil boundary. Chartered AFTER the ladder closes; not before.
+
+### 22.6 Standing constraints (all of §20.3 + §21.5), plus three learned at step 5's close
+
+* **A patch script's self-check is a CENSUS and owes its population** — `count == 2 in solver.py` is not `count == 2 in the tree` (the exclusion family's third member, plan-authoring row 2026-09-05).
+* **A battery arm whose mutation breaks a solve's convergence needs a per-test cap** — the driver carries `pytest-timeout --timeout=240`; uncapped, B5.6 and B5.9 crawled to `max_inner` (30+ min at one row); capped, they finished (167 and 108 reds, 8 timeouts counted as reds).
+* **`pgrep -fl sphinx-build` before ANY Sphinx build** (L63), and the 13-tree driver TRUNCATES its log — copy a gate log aside before re-running the driver if its numbers are still owed anywhere.
+* Residue issues from step 5 stay open and are NOT in this order: #452 (C6 static pins adjudicated by nothing), #451 ((n,2n) Legendre closed form), #449, #446, #444.
+
