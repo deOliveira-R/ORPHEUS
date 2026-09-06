@@ -526,40 +526,80 @@ them at composition time (:ref:`capability-set-semantics`).
 
 .. _heteromorphic-apply-typing:
 
-Typing the heteromorphic ``apply`` — Pattern M
-----------------------------------------------
+Typing the heteromorphic ``apply`` — the ends select the body
+--------------------------------------------------------------
 
 The :eq:`operator-apply` contract is nominally an **endomorphism**
 ``apply(x: V) -> V`` — flux in, flux of the same type out. That is the
-honest signature for the streaming, collision, and boundary leaves. But
-two operators are **heteromorphic multi-carrier**: their ``apply``
-maps *each input carrier to a distinct output carrier*. The fission and
-scattering operators (:ref:`integral-kernel-category`) dispatch on the
-*input* carrier type via :func:`functools.singledispatchmethod` and map,
-for example,
-:class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` to
-:class:`~orpheus.transport.source_sinks.ScalarSourceSink`, the timeless
-composite :class:`~orpheus.transport.full_field.FullField` to a
-(source-role) :class:`~orpheus.transport.full_field.FullField`, and
-(scattering)
-:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-to :class:`~orpheus.transport.source_sinks.AngularSourceSink`. The
-composite arm registers on (and the ``@overload`` surface names) the
-**timeless** :class:`~orpheus.transport.full_field.FullField` — the
-history-blind operator carrier (P4.5 W-C/W-F); a driver's history-bearing
-:class:`~orpheus.transport.timed_full_field.TimedFullField` iterate reaches
-it via MRO (it *is* a ``FullField``). The output
-type is **not** ``V`` — it is a function of the input carrier (the §B.5.2
-truth that an operator output is a *source/sink*, not a flux). Naming
-these maps honestly to the type checker is the first use of
-:func:`typing.overload` anywhere in ``orpheus/`` (#257 S8c), and it
-required a small idiom worth documenting because it will recur.
+honest signature for the streaming, collision, and boundary leaves. The
+collision gains are not endomorphisms: a gain reads a flux and emits a
+*source/sink* (the §B.5.2 truth), and until 2026-09-04 it could be handed
+several different carriers for the same physics — a per-ordinate flux, a
+harmonic-moment iterate, a scalar flux, the composite — so its ``apply``
+mapped *each input carrier to a distinct output carrier*.
 
-Why the obvious spellings fail
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**The current answer is that the question does not arise: the carrier is
+a consequence of the binding, decided once at construction.** A bound
+operator is an arrow between two declared spaces (:eq:`operator-apply`),
+and those two ends already say what its operand is — so an operator
+constructed with composite ends admits exactly the
+:class:`~orpheus.transport.full_field.FullField` riding its bound
+interior, one bound on plain spaces admits exactly the bare array of its
+end's shape, and *which body runs* is fixed at construction rather than
+re-decided per call. The two admissions are the family's ONLY carrier
+parses (:func:`!orpheus.transport.operators.lift.admit_composite` /
+:func:`!admit_array`); everything else is a typed refusal naming the
+operator and both spaces.
+
+For the angular gains the selection has a second, sharper coordinate:
+the retained flux-analysis face :math:`M \otimes I` has **two ends**, and
+the binding's domain interior is one of them — the per-ordinate angular
+space it reads, or the harmonic-moment space it writes. Which one it is
+selects the interior body (:math:`\phi` by angular integration vs
+:math:`\phi` as the :math:`\ell = 0` slot; ``frame.conjugate`` vs
+``frame.reconstruct_after``; a per-ordinate cotangent vs a moment one).
+A third interior is refused. The base that owns this is
+:class:`!orpheus.transport.operators.angular_lift.AngularLift`, and the
+re-binding verb is ``on_moment_domain()`` — see
+:ref:`cs4c-ends-select-the-body`.
+
+`[M]` 2026-09-04, by AST over ``orpheus/transport/operators/``: **0**
+``singledispatchmethod`` decorators (was 3, 13 arms), **0** occurrences of
+``_apply_impl`` anywhere in ``orpheus/``, and **2** carrier ``isinstance``
+tests inside an ``apply`` / ``apply_transpose`` / ``solve`` body (was 12) —
+both of them
+:meth:`LegendreMomentTransfer.apply <orpheus.transport.operators.transfer.LegendreMomentTransfer.apply>`
+and its transpose, the **declared exemption** of ruling R-5 (the typed
+moment hatch the minted source-reconstruction face exists for).
+
+``@overload`` survives, and it is now honest
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+What retired is the *dispatcher*, not the typed surface. Three verbs on
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+(``apply`` / ``solve`` / ``apply_transpose``) still carry
+:func:`typing.overload` stubs, and so does
+:meth:`LegendreMomentTransfer.apply <orpheus.transport.operators.transfer.LegendreMomentTransfer.apply>`.
+The difference is what sits underneath them: a **real method with a real
+body**, not a ``TYPE_CHECKING`` alias of a dispatcher. The multiplier's
+overloads name its two *bindings* — ``FullField -> FullField`` on a
+composite binding, ``ndarray -> ndarray`` on a plain one — and the body
+branches on a flag frozen in ``__post_init__`` from the DOMAIN, never on
+the operand's class. That is the same information the overloads promise,
+made a property of the object instead of a property of the call.
+
+.. _pattern-m-history:
+
+⛔ Pattern M — retired 2026-09-04 (CS4c step 5), kept as the record
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Everything below describes the shape the collision gains carried from
+#257 S8c until CS4c step 5. It is preserved because the *reasons* the two
+obvious spellings fail are still true of any future multi-carrier verb,
+and because the question this section parked is now answered.
 
 Python has no native multiple dispatch, and the two stdlib tools each
-fall short alone:
+fell short alone:
 
 * **A raising endomorphism base poisons the type.** The natural
   ``@singledispatchmethod`` shape has a *base* method that raises
@@ -576,73 +616,315 @@ fall short alone:
   signature is *only* a signature, so it can never hold the
   source-assembly math (≈150 lines for scattering). And
   ``@singledispatchmethod`` *does* carry per-carrier bodies with
-  automatic routing — its only failing is the homomorphic
+  automatic routing — its only failing was the homomorphic
   ``singledispatchmethod[_T]`` typing.
 
-Pattern M — the overload surface over the renamed dispatcher
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**Pattern M** kept ``@singledispatchmethod`` for its routing and bodies
+and bolted a typed surface on top: (1) rename the dispatcher ``apply`` →
+``_apply_impl`` with an ``-> Any`` base, so each ``@_apply_impl.register``
+arm is a bodied, *real-typed* function (e.g. ``def _(self, phi:
+ScalarFlux) -> ScalarSourceSink``) that ``.register`` accepts at its
+natural indentation; (2) add the typed surface only for the type checker:
 
-The fix (**Pattern M**) keeps ``@singledispatchmethod`` for its routing
-and bodies, and bolts a typed surface on top:
+.. code-block:: python
 
-1. **Rename the dispatcher** ``apply`` → ``_apply_impl`` with a
-   ``-> Any`` base, so each ``@_apply_impl.register`` arm is a bodied,
-   *real-typed* function (e.g. ``def _(self, phi: ScalarFlux) ->
-   ScalarSourceSink``) that ``.register`` accepts at its natural
-   indentation.
+   # RETIRED 2026-09-04 — the shape until CS4c step 5.
+   if TYPE_CHECKING:
+       @overload
+       def apply(self, phi: ScalarFlux, /) -> ScalarSourceSink: ...
+       @overload
+       def apply(self, psi: FullField, /) -> FullField: ...
+       # ... one overload per carrier ...
+       def apply(self, x: Any, /) -> Any: ...
+   else:
+       apply = _apply_impl
 
-2. **Add the typed surface only for the type checker:**
+At runtime the ``else`` branch made the public ``apply`` the **same
+object** as the dispatcher — ``Type.__dict__['apply'] is
+Type.__dict__['_apply_impl']`` was ``True`` — so runtime was
+byte-identical to the untyped version while pyright saw the per-carrier
+overloads. Pattern M was chosen over a ``TYPE_CHECKING`` / ``else``
+*split* of the whole method (Pattern C — a fully-typed ``apply`` under
+``if TYPE_CHECKING`` and the dispatcher under ``else``) on the
+master-standard rule ordering: "code reveals intention" (Beck rule 2)
+outranks "fewest elements" (rule 4), and Pattern C buried the bulk of the
+source-assembly math inside an ``else:`` block.
 
-   .. code-block:: python
+✅ **The parked question is answered, and neither candidate won.** This
+section used to close by parking the deeper *spelling* question — Pattern
+M versus a thin ``@overload`` + :keyword:`match` router over shared
+primitives — on #261, "to be settled together with the C / F / S core
+relocation, because the sharing should dictate the form". The relocation
+happened (CS4c steps 3–5: the transfer core, the two role subclasses, the
+shared lift base), and it dictated a **third** form. A ``match`` router
+is still a per-call parse of the operand; what the sharing actually
+revealed is that the operand's kind is not free — it is *implied by the
+ends the operator was constructed with*. So the router was not written
+thinner; it was deleted, and its decision moved to ``__post_init__``.
+The ``psi.bulk`` cast #262 tracked goes with it: the interior is reached
+through the admission, which has already proved the space.
 
-      if TYPE_CHECKING:
-          @overload
-          def apply(self, phi: ScalarFlux, /) -> ScalarSourceSink: ...
-          @overload
-          def apply(self, psi: FullField, /) -> FullField: ...
-          # ... one overload per carrier ...
-          def apply(self, x: Any, /) -> Any: ...
-      else:
-          apply = _apply_impl
+⚠ **What this cost, honestly.** The C6 gate
+(``tests/sn/operators/test_operators_apply_typed.py``) pinned the alias
+identity and a runtime dispatch-parity check on the public ``apply``;
+those rows pin a mechanism that no longer exists. Their successor is the
+AST no-dispatch census (``tests/transport/test_no_carrier_dispatch.py``,
+which states its predicate and declares its carve-outs) plus the
+ends-to-body fence in ``tests/transport/test_kernels.py`` — a
+per-``(operator, binding kind, carrier)`` matrix whose off-binding cells
+are typed refusals. The lexical AST census cannot see a carrier parse one
+frame out in a helper; that limitation is stated in the gate itself
+rather than left to the reader.
 
-   At runtime the ``else`` branch makes the public ``apply`` the **same
-   object** as the dispatcher — ``Type.__dict__['apply'] is
-   Type.__dict__['_apply_impl']`` is ``True``. The public ``apply`` *is*
-   the ``singledispatchmethod``, merely aliased: **runtime is
-   byte-identical** to the untyped version, while pyright sees the
-   per-carrier overloads and reports the exact output type for each
-   input.
 
-Why Pattern M over the alternatives
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. _cs4c-ends-select-the-body:
 
-Pattern M was chosen over a ``TYPE_CHECKING`` / ``else`` *split* of the
-whole method (call it Pattern C — defining a fully-typed ``apply`` under
-``if TYPE_CHECKING`` and the dispatcher under ``else``). The decision is
-the master-standard rule ordering: "code reveals intention" (Beck rule 2)
-outranks "fewest elements" (rule 4). Pattern C buries the bulk of the
-source-assembly math inside an ``else:`` block (a visual demotion of the
-operator's actual work); Pattern M extends the mixin's *existing*
-``if TYPE_CHECKING: def apply(self, x: V) -> V`` idiom (an
-internally-consistent precedent), keeping the dispatch arms and their
-bodies at natural indentation where a reader expects to find them.
+Each binding acts through the body its ends select
+----------------------------------------------------
 
-The deeper *spelling* question — Pattern M (``@singledispatchmethod`` +
-overload alias) versus a thin ``@overload`` + :keyword:`match` router
-over shared primitives — is deliberately **parked on #261**, to be
-settled *together* with the C / F / S core relocation
-(:ref:`integral-kernel-category`). Once the iso / :math:`(n,2n)`
-group-transfer, the :math:`R\circ\Lambda\circ M` reconstruction, and the
-rank-1 production core move to shared ``transport/`` primitives, the
-natural shape becomes a thin typed router over named single-sourced
-primitives, and the ``match``-based form reads best (it also narrows away
-the ``psi.bulk`` cast that #262 tracks). Deciding the spelling before the
-cores move would be premature; the sharing should dictate the form. Until
-then, Pattern M is correct, runtime-untouched, and pinned by the C6 gate
-(``tests/sn/operators/test_operators_apply_typed.py`` — static
-``assert_type`` pins with mutation-verified teeth, plus a runtime
-dispatch-parity check on the aliased public ``apply``).
+The section above says the carrier follows from the binding. This one
+says what that buys, because the payoff is larger than a tidier
+signature: **a per-call parse of the operand is a decision the operator
+is entitled to have already made**, and making it at construction turns a
+class of silent mis-feeds into a construction-time refusal.
 
+The two admissions, and what they refuse
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table:: The transport family's two carrier parses
+   :header-rows: 1
+   :widths: 20 32 48
+
+   * - Binding
+     - Carrier
+     - What is refused, naming the operator
+   * - **composite** — both ends are
+       :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+     - the :class:`~orpheus.transport.full_field.FullField` whose
+       interior rides the bound end's interior space (content equality,
+       never object identity)
+     - a bare array (*"a bare array is the PLAIN binding's carrier"*); a
+       typed bulk field outside its composite (*"a typed bulk field
+       rides inside a FullField"*); a composite on **another** interior
+       — the moment iterate handed to an angular-bound gain, with the
+       message naming ``on_moment_domain()``
+   * - **plain** — the ends are ordinary
+       :class:`~orpheus.numerics.space.FunctionSpace`\ s
+     - the bare :class:`numpy.ndarray` of the end's shape (the
+       model-portable contract every solver family already feeds)
+     - a composite (*"lift the binding onto the composite with
+       BulkLift(...)"*); a typed field (*"pass ``.values``"*); a wrong
+       shape, with both shapes printed
+
+The plain binding is the energy operators' and the multiplier's
+(:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`,
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`,
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`,
+and a mesh-free
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`);
+the composite binding is the angular gains' and of the composite
+multiplier. A consumer that holds a composite and wants an energy
+binding's action does not get a ``FullField`` arm on the energy binding —
+it *lifts* (next subsection). That is ruling **R-4** of the step-5 design
+round, and it is what keeps the array carriers where the numerics tier
+(:func:`~orpheus.numerics.operator.as_matrix`,
+:class:`~orpheus.numerics.operator.OperatorSum`, ``power_iteration``'s
+protocol vector) can reach them without a typed wrapper.
+
+The angular gains' second coordinate: which END of the analysis face
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An angular gain retains the minted flux-analysis face :math:`M \otimes I`
+(:class:`~orpheus.transport.frames.harmonic_frame.HarmonicAnalysisOperator`).
+That face is an arrow, so it has two ends, and the binding's domain
+interior is required to be one of them:
+
+.. list-table:: Domain interior → interior body, fixed in ``__post_init__``
+   :header-rows: 1
+   :widths: 22 30 24 24
+
+   * - Domain interior is …
+     - the operand IS
+     - :math:`\ell = 0` half
+     - :math:`\ell \ge 1` half
+   * - ``flux_analysis.domain`` — the **angular** end
+     - the per-ordinate flux :math:`\psi`
+     - :math:`\phi = \int \psi\,d\Omega` (the reaction-rate fast path)
+     - the cached kernel :math:`R\,\Lambda_{\ell\ge1}\,M`
+   * - ``flux_analysis.codomain`` — the **moment** end
+     - already :math:`M\psi` (the 2-D Cartesian windowed iterate)
+     - :math:`\phi` = the :math:`\ell = 0` slot (:math:`Y_0^0 = 1`)
+     - :math:`R\,\Lambda_{\ell\ge1}` on the typed grid path
+       (:math:`M` skipped — re-projecting would double-project)
+   * - anything else
+     - —
+     - :class:`TypeError` at construction
+     - :class:`TypeError` at construction
+
+The transposes' cotangents follow the same selection: on the angular end
+the cotangent is an
+:class:`~orpheus.transport.source_sinks.AngularSourceSink`, on the moment
+end a
+:class:`~orpheus.transport.source_sinks.HarmonicMomentSourceSink`.
+
+**Why this is not a refactor of a working thing.** Before the step the
+windowed SI driver handed a *moment* composite to an operator bound
+``(angular, angular)``, which then dispatched on the carrier's class per
+call — `[M]` **143 such feeds per windowed solve** on a bit-exact frozen
+snapshot. That is a shipped non-endomorphism: the operator's declared
+domain and the operand's actual space disagreed, and nothing could say
+so, because the arm that handled it was registered on the operator that
+did not own that domain. The driver now binds its gains where the
+iterate lives (``S.on_moment_domain()``, ``N2N.on_moment_domain()``,
+built through :func:`dataclasses.replace` so every admission re-runs),
+and the mismatch it used to absorb is a refusal with both spaces in the
+message.
+
+⚠ The moment binding is deliberately **not** an endomorphism — its
+domain is the moment composite and its codomain the angular composite —
+and that is legal here because the windowed loop consumes the gains one
+by one; the ``OperatorSum`` ends guard on the within-group
+:math:`(L + C) - S - N_{2n} - B` never sees it (that composition is built
+from the angular-bound siblings, which are endomorphic on the posed
+composite).
+
+`[M]` on a GL8 slab, 2 groups, 20 cells, :math:`P_1` scattering,
+200 seeds (``default_rng(s)``, ``s ∈ 0…199``, standard-normal
+:math:`\psi`): the angular-bound gain's ``apply`` and its
+``on_moment_domain()`` sibling's ``apply`` on :math:`M\psi` agree
+**200 / 200 under** ``np.array_equal``, ``max |Δ| = 0.0`` — the two
+routes genuinely share :math:`\Lambda` and the frame's :math:`R`. The
+committed gate is
+``tests/sn/operators/test_scattering_kernel_crosscheck.py``, which runs
+the same comparison on a 2-D :math:`P_1` heterogeneous multigroup
+fixture and records its own 200-seed sweep.
+
+A bulk action enters the composite by extension by zero
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every volumetric operator of the algebra — the gains :math:`S`,
+:math:`N_{2n}`, :math:`F`, the multiplier :math:`M[f]`, a diffusion
+energy binding on its scalar composite — acts on the bulk block alone and
+emits **nothing** on the trace. `[M]` that one fact was spelled **nine
+times** across four modules before this step (``transfer.py`` 2,
+``fission.py`` 2, ``isotropic_transfer.py`` 1,
+``multiplication_operator.py`` 4), once per operator per carrier family,
+each spelling naming the trace's zero class by hand.
+
+It is now one verb,
+:func:`!orpheus.transport.operators.lift.lift_bulk_action`: run the
+interior body, emit the zero field of *the operand's own boundary class*
+in the requested ROLE. The verb names a role, never a leaf; the leaf
+comes from the operand (next subsection). Its assembly twin,
+:func:`!embed_bulk_assembly`, embeds a bulk operator's sparse emission in
+the composite flat layout ``[bulk C-ravel | trace]`` — index-identity on
+the leading block, zero on every trace row and column, entries carried
+verbatim — so ``assemble`` composes exactly the way ``apply`` does. The
+operator that packages both is
+:class:`!orpheus.transport.operators.lift.BulkLift`, and the 1-D
+diffusion solver is its consumer: `[M]` **2** production construction
+sites, both in ``orpheus/diffusion/solver.py``, lifting
+``IsotropicScattering + IsotropicN2N`` and ``IsotropicFission`` from the
+mesh's scalar bulk onto the scalar composite so the loss
+:math:`L + C - \mathrm{lift}(K_{\rm iso}) - B` composes under the
+``OperatorSum`` ends guard and assembles for the exact LU resolvent.
+
+⭐ This was #306 item 2, and the ruling (**R-2**) is that the zero-trace
+emission is **blessed**, not transitional. It is the honest composite
+action of a bulk-role operator — the extension-by-zero half of the
+restriction/extension pair — and the reason it looked like a shim was
+that it had nine spellings, not that the mathematics was provisional.
+Single-sourcing it is what closed the item.
+
+`[M]` by AST over ``orpheus/transport/operators/``: **0** occurrences of
+``AngularBoundarySourceSink.zeros`` / ``…BoundaryFlux.zeros`` — the
+boundary leaf is not named in the package at all any more; it is read off
+the operand's declaration.
+
+.. _role-partner-declaration:
+
+The carriers declare their role partners — the grid's vertical edge, once
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The verb above says *"emit the zero of the operand's family in the SOURCE
+role"* and needs no ``isinstance`` to do it, because the leaves know their
+own partner. On the :ref:`(Representation × Role) grid <carrier-grid-census>`
+this is the **vertical edge** — flux :math:`\leftrightarrow` source/sink on
+one carrier — declared once per pair rather than re-parsed at each operator
+that crosses it.
+
+The declaration is a class-statement keyword on the *source/sink* half::
+
+    class AngularSourceSink(AngularField, flux=AngularFlux): ...
+
+and :meth:`!__init_subclass__` registers **both** directions into one
+shared mapping, so the map is a bijection *by construction*
+(``coding-elegance`` Pattern 4 — the illegal state is unspellable, not
+validated): a second source/sink naming an already-partnered flux is a
+:class:`TypeError` at **import** time, and neither half can be re-pointed
+afterwards. The source/sink side declares because the dependency already
+runs that way — the source/sink leaves import the flux leaves for their
+named compositions (``from_isotropic``, ``from_balance``) and the flux
+leaves import no source/sink — and :mod:`orpheus.transport.fields`
+completes the registration with a bare ``import`` of
+:mod:`orpheus.transport.source_sinks` at its tail.
+
+Three consumers, and the third is the one that removes the parses:
+
+* ``role_partner(role)`` — the leaf CLASS playing ``role`` on this leaf's
+  carrier. Asking for a leaf's **own** role returns that leaf (the identity
+  half), so an operator can name its output role without branching on its
+  input's.
+* ``role()`` — which half a leaf is.
+* ``into_role(role, values, space=…)`` — *"same space, same family fields,
+  the other role's class"*, spelled once. The family fields (``L``,
+  ``spatial_moments``, …) ride across via :func:`dataclasses.fields`, so a
+  new family field is carried without this verb learning its name. `[M]`
+  this is the parse the step-5 census counted **12 times** across three
+  verbs.
+
+`[M]` 2026-09-04, measured at runtime over the loaded
+:mod:`orpheus.transport.fields` + :mod:`orpheus.transport.source_sinks` +
+:mod:`orpheus.transport.residuals` (30 classes on the mixin): **7 declared
+pairs**, and **16** carriers with no partner.
+
+.. list-table:: The 7 role pairs (flux ↔ source/sink), enumerated
+   :header-rows: 1
+   :widths: 50 50
+
+   * - Flux leaf
+     - Source/sink leaf
+   * - ``AngularFlux``
+     - ``AngularSourceSink``
+   * - ``ScalarFlux``
+     - ``ScalarSourceSink``
+   * - ``HarmonicMomentFlux``
+     - ``HarmonicMomentSourceSink``
+   * - ``AngularBoundaryFlux``
+     - ``AngularBoundarySourceSink``
+   * - ``ScalarBoundaryFlux``
+     - ``ScalarBoundarySourceSink``
+   * - ``RadialCharacteristicInteriorFlux``
+     - ``RadialCharacteristicInteriorSourceSink``
+   * - ``RadialCharacteristicBoundaryFlux``
+     - ``RadialCharacteristicBoundarySourceSink``
+
+⚠ **Seven, not five.** The design round enumerated the pairs the operator
+tier was known to cross and counted **five**; the roster is a property of
+the *carrier* package, not of the operators that traverse it, and the two
+ψ½ (radial-characteristic) pairs are real members that no operator in this
+step touches. This is the finite-roster rule (``vv-principles`` #31): when
+the population is an enumerable shipped set, enumerate it — a ladder or a
+"the ones we use" list is a sample wearing a roster's clothes.
+
+The **16 unpaired** carriers are exactly the classes for which a partner
+is meaningless, and asking raises a :class:`TypeError` naming them:
+the 10 family/locus ABCs (``BulkField``, ``FaceField``, ``AngularField``,
+``ScalarField``, ``MomentField``, ``BoundaryField``, and the four typed
+boundary/interior bases), the **5 residual leaves** (a residual is the
+*defect of a balance* — it is neither half of the flux/source pair, which
+is the same argument the grid's ``(Moment, Residual)`` hole rests on), and
+``CrossSectionField`` (a coefficient, not a state).
 
 Pure-L streaming + the affine collision split
 ==============================================
@@ -2147,7 +2429,7 @@ sub-algebra, the kernels are everything off-diagonal.
 
    The division of labour with the next equation is deliberate and the two
    declarations are disjoint: the **class** realizes the embedding, its
-   ``_apply_impl`` realizes the discrete **action**
+   ``apply`` realizes the discrete **action**
    (:eq:`multiplication-operator-action`).
 
 For the leading-ordinate broadcast on the SN per-ordinate carrier
@@ -2171,25 +2453,30 @@ group-and-space-indexed broadcast over the ordinate axis:
    (M[f]\,\psi)_{n,g,\vec r} \;=\; f_{g,\vec r}\,\psi_{n,g,\vec r}.
 
 .. implements:: multiplication-operator-action
-   :by: orpheus.transport.operators.multiplication_operator.MultiplicationOperator._apply_impl
+   :by: orpheus.transport.operators.multiplication_operator.MultiplicationOperator.apply
 
-   **Implemented by** both registered dispatch arms, which compute
-   :math:`f_{g,\vec r}\,\psi_{n,g,\vec r}`: the composite
-   :class:`~orpheus.transport.full_field.FullField` arm through the
+   **Implemented by** the public verb, through the ONE multiply
+   ``_run`` — :math:`f_{g,\vec r}\,\psi_{n,g,\vec r}` evaluated by the
    :class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine
-   built once over the immutable coefficient, and the meshless bare-``ndarray``
-   arm as the same per-block multiply over ``self.coefficient.values``
-   (single source of truth — the two arms agree by construction, not by a
-   copied predicate).
+   built once over the immutable coefficient, on either bulk rank. What
+   the binding selects is only *how the result is packaged*: a composite
+   binding lifts (the multiply on the bulk block, the implicit zero
+   source/sink on the trace), a plain binding returns the bare array.
+   The arithmetic is single-sourced, so the two bindings agree by
+   construction and not by a copied predicate.
 
-   ⚠ The declaration names ``_apply_impl`` and **not** ``apply``. The public
-   ``apply`` exists only under ``TYPE_CHECKING``; at runtime it is an alias
-   of the :func:`functools.singledispatchmethod` dispatcher and has no
-   symbol of its own, and the per-carrier ``@_apply_impl.register`` arms are
-   anonymous ``_`` functions. ``_apply_impl`` is therefore the finest
-   addressable grain — the same holds for
-   :class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
-   :class:`~orpheus.transport.operators.fission.FissionOperator`.
+   ⚠ **This declaration named** ``_apply_impl`` **until CS4c step 5
+   (2026-09-04)**, because the public ``apply`` then existed only under
+   ``TYPE_CHECKING`` — at runtime it was an alias of a
+   :func:`functools.singledispatchmethod` dispatcher with no symbol of
+   its own, and the per-carrier ``.register`` arms were anonymous ``_``
+   functions, so the private dispatcher was the finest **addressable**
+   grain (the same held for the scattering and fission operators). That
+   shape is retired: ``apply`` is a real method with a real body again,
+   its :func:`typing.overload` stubs name the two *bindings* rather than
+   a carrier zoo, and the retired dispatcher's rationale is preserved at
+   :ref:`pattern-m-history`. The equation's finest grain is now the
+   verb the caller actually names.
 
 The action is delegated to the N-D
 :class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine
@@ -3100,7 +3387,8 @@ closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)` oracle.
    :by: orpheus.transport.operators.fission.FissionOperator.kernel
 
    **Implemented by** the angular binding's *delegation* — ``return
-   self.energy.kernel``. It is declared because the §5.6 integral-kernel
+   self.isotropic_energy.kernel``. It is declared because the §5.6
+   integral-kernel
    Protocol and
    :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
    reach the dyad through this name; the arithmetic is the energy
@@ -3110,7 +3398,7 @@ closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)` oracle.
    :by: orpheus.transport.operators.fission.FissionOperator.production_rate
 
    **Implemented by** the same delegation on the row factor — ``return
-   self.energy.production_rate``.
+   self.isotropic_energy.production_rate``.
 
 .. note::
 
@@ -3745,10 +4033,11 @@ a flux at the top-left mapped all the way round the grid to the source
 at the bottom-left. The role only ever changes **once**, at :math:`\Lambda`
 — that is the physical content of "scattering turns flux into source", now
 visible in the type signatures rather than buried inside an ndarray chain.
-The frame verbs are role-polymorphic by
-:func:`~functools.singledispatchmethod`, so the *same* :math:`M` and
-:math:`R` carry both the flux leg (top edge / bottom edge, flux side) and
-the source leg used by the windowed in-scatter migration below.
+The *same* :math:`M` and :math:`R` carry both the flux leg (top edge /
+bottom edge, flux side) and the source leg the moment-end binding uses
+below: the faces are minted per role from one interned frame, and the
+role transition itself is the carriers' declared partnership
+(:ref:`role-partner-declaration`) rather than a polymorphic verb.
 
 .. implements:: scattering-aniso-composite
    :by: orpheus.transport.operators.transfer.TransferOperator.build_aniso_source
@@ -3771,22 +4060,40 @@ the source leg used by the windowed in-scatter migration below.
    lives outside it by design.
 
 .. implements:: scattering-aniso-composite
-   :by: orpheus.transport.operators.transfer.TransferOperator._apply_impl
+   :by: orpheus.transport.operators.transfer.TransferOperator._redistribute_moments
 
-   **Implemented by** the second, deliberately-kept realization: the
-   :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-   arm spells the composite explicitly on the typed carriers —
-   ``self._moment_transfer(skip_l0=True).apply(phi_moments)`` and then
-   ``self.source_reconstruction.apply(scattered) / self.total_weight``.
+   **Implemented by** the second, deliberately-kept realization — the
+   **moment-end** binding's interior body, selected at construction
+   (:ref:`cs4c-ends-select-the-body`). It spells the composite explicitly
+   on the typed carriers: ``self._moment_transfer(skip_l0=True).apply(...)``
+   maps flux moments to a typed
+   :class:`~orpheus.transport.source_sinks.HarmonicMomentSourceSink` (the
+   role-changing edge, in the signature), then
+   ``self.source_reconstruction.apply(emitted) / self.total_weight``
+   synthesises the per-ordinate source on the face's own bound codomain.
    Both factors are the operator's own retained objects since the CS4c
    rebind: :math:`\Lambda` is minted on the bound kernel field, and
    :math:`R` is the **retained face**, applied on its own bound
-   codomain rather than through a frame verb.
+   codomain rather than through a frame verb. Its angular-end sibling
+   ``_redistribute_ordinates`` runs the fused
+   :attr:`kernel <orpheus.transport.operators.transfer.TransferOperator.kernel>`
+   declared above; which one exists on a given operator is fixed in
+   ``__post_init__``, and neither is spelled when the binding
+   :attr:`~orpheus.transport.operators.transfer.TransferOperator.is_isotropic`.
 
-   Both arms are production **by design** — the windowed moment path and the
-   fused-kernel path — and their 0-ULP agreement is the interchange-law
-   coherence witness of :ref:`carrier-grid-double-category`, not a
-   redundancy waiting to be retired.
+   ⛔ **This declaration named** ``TransferOperator._apply_impl`` **until
+   CS4c step 5 (2026-09-04)** — the same body, then reached as a
+   registered ``singledispatchmethod`` arm on the *angular*-bound
+   operator when a caller happened to hand it a moment carrier. It is now
+   the production body of an operator BOUND on the moment end, which is
+   why the declaration can name a method instead of a dispatcher
+   (:ref:`pattern-m-history`).
+
+   Both routes are production **by design** — the moment-end binding and
+   the angular-end fused kernel — and their 0-ULP agreement is the
+   interchange-law coherence witness of
+   :ref:`carrier-grid-double-category`, not a redundancy waiting to be
+   retired.
 
 This 2×2 scattering square is one face of a larger structure. The next
 three subsections lift it to the full :math:`(\text{Representation} \times
@@ -4225,47 +4532,57 @@ the carrier verbs.
    where the cross sections are. Putting :math:`\Lambda` on the frame would
    conflate "change of basis" with "change of physical kind".
 
-Explicit typed path vs the fused composed kernel — the windowed arm
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Explicit typed path vs the fused composed kernel — one per END
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-P4 deliberately keeps **two** realisations of the same :math:`R\Lambda M`
-math, each chosen for what its consumer needs to see:
+The algebra deliberately keeps **two** realisations of the same
+:math:`R\Lambda M` math, each chosen for what its consumer needs to see.
+Since CS4c step 5 they are not two arms of one operator — they are the
+interior bodies of the **two bindings**, selected at construction from
+which end of the retained analysis face the domain's interior is
+(:ref:`cs4c-ends-select-the-body`):
 
-* The hot **full-angular** path (:ref:`sn-angular-windowing-factoring`,
-  :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.build_aniso_source`)
-  consumes the §5.6 :attr:`kernel <orpheus.transport.operators.scattering.ScatteringOperator.kernel>`
+* The **angular-end** binding (every 1-D, curvilinear, Krylov and
+  un-windowed iterate; :ref:`sn-angular-windowing-factoring`,
+  :meth:`~orpheus.transport.operators.transfer.TransferOperator.build_aniso_source`)
+  consumes the §5.6 :attr:`kernel <orpheus.transport.operators.transfer.TransferOperator.kernel>`
   ``= frame.conjugate(Λ)`` — the **single composed** ``np.ndarray``
-  operator. This is P2's win and the 0-ULP canary: one composition, one
-  reduction tree, pinned bit-for-bit by
-  ``tests/sn/operators/test_scattering_kernel_crosscheck.py``. The role
-  change is *implicit* inside the ndarray chain; that is correct here,
-  because the consumer is a tight numerical loop that never names the
-  intermediate moment source.
-* The **windowed** in-scatter arm (the
-  :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-  arm of
-  :meth:`ScatteringOperator.apply <orpheus.transport.operators.scattering.ScatteringOperator.apply>`)
-  takes the **explicit typed** edges: :math:`\Lambda` scatters the flux
-  moments to a typed :class:`HarmonicMomentSourceSink` (the role-changing
-  edge made visible in the signature), then the MINTED
-  source-reconstruction face
+  operator. This is the 0-ULP canary: one composition, one reduction
+  tree. The role change is *implicit* inside the ndarray chain; that is
+  correct here, because the consumer is a tight numerical loop that never
+  names the intermediate moment source.
+* The **moment-end** binding (the 2-D Cartesian windowed SI driver's
+  gain, built by ``S.on_moment_domain()``) takes the **explicit typed**
+  edges: :math:`\Lambda` scatters the flux moments to a typed
+  :class:`HarmonicMomentSourceSink` (the role-changing edge made visible
+  in the signature), then the MINTED source-reconstruction face
   (:class:`~orpheus.transport.frames.harmonic_frame.HarmonicReconstructionOperator`,
   bound to the posed interior) synthesises the per-ordinate
-  :class:`AngularSourceSink`, then the producer-side :math:`1/W`. The
-  realisation is ``S._source_reconstruction.apply(Λ.apply(φ)) / W`` — the
-  explicit, role-typed counterpart of the fused kernel.
+  :class:`AngularSourceSink`, then the producer-side :math:`1/W`. Here
+  :math:`M` is *already done*, so conjugating would double-project.
 
-Both arms route through the *same* :math:`\Lambda` kernel and the *same*
+Both routes go through the *same* :math:`\Lambda` kernel and the *same*
 frame :math:`R` face, so they agree numerically. The choice is one of
-**legibility at the call site**, not of math: the windowed consumer holds
-the moments as a typed iterate and the explicit edges make the
-flux→source→angular role flow read off the signatures; the hot consumer
-holds a raw ndarray and the fused operator keeps the reduction tree single
-and the 0-ULP canary meaningful. The ndarray ``reconstruct_after(Λ)``
-reference
-(:meth:`~orpheus.transport.operators.scattering.ScatteringOperator._aniso_source_from_moment_values`)
-is retained as the crosscheck's oracle — the structurally-independent
-``np.ndarray`` evaluation the typed arm is pinned against.
+**legibility at the call site**, not of math (ruling **R-5** keeps both):
+the windowed consumer holds the moments as a typed iterate and the
+explicit edges make the flux→source→angular role flow read off the
+signatures; the angular consumer holds a raw ndarray and the fused
+operator keeps the reduction tree single and the 0-ULP canary meaningful.
+
+⛔ **The crosscheck's second side moved UP a tier, and the private oracle
+is gone.** Until CS4c step 5 the comparison was against
+``ScatteringOperator._aniso_source_from_moment_values``, a private
+``frame.reconstruct_after(Λ)`` chain reached by handing a moment iterate
+to the ANGULAR-bound operator (`[M]` 143 such feeds per windowed solve).
+That helper is **retired**: the moment operand now rides an operator
+bound on the moment end, so the two sides of the crosscheck are the two
+BOUND operators' own public actions rather than a private helper against
+a private chain. The claim did not weaken — the second side is now the
+production route instead of a fragment of it. The gate is
+``tests/sn/operators/test_scattering_kernel_crosscheck.py``; it records
+its own 200-seed ``array_equal`` sweep, and an independent reproduction
+on a 1-D GL8 :math:`P_1` slab (2 groups, 20 cells, seeds 0…199) reads
+**200 / 200, max |Δ| = 0.0**.
 
 
 .. _carrier-grid-census:
@@ -4310,6 +4627,12 @@ as load-bearing as a populated one). The census below is the live state of
      - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
      - :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
      - :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
+
+⭐ **The flux → source/sink edge of each row is now DECLARED, once, on the
+row's source/sink leaf** — the bijection the operator tier reads instead of
+parsing carriers (:ref:`role-partner-declaration`, CS4c step 5). `[M]` 7
+such pairs ship; the residual column is deliberately outside the
+partnership, for the same reason its ``(Moment, Residual)`` cell is empty.
 
 Reading the columns confirms the two-axis structure of
 :ref:`cone-typed-field-algebra`: every column is a *plain vector role*
@@ -4408,19 +4731,27 @@ Two cells are deliberately empty, and both absences are designed.
   for the iso/aniso combine. It is documented here as a recognised,
   deliberate exception so a future reader does not "tidy it away".
 
-  Since CS4c step 3 the production ``iso + aniso`` combine has ONE
-  home — the free function ``assemble_per_ordinate_isotropic`` in
-  :mod:`!orpheus.transport.operators._per_ordinate`, which performs
-  ``(iso / W) + aniso`` through this injection and is where the
-  producer-side :math:`1/W` convention lives.  Both
-  isotropically-lifted producers route through it: :math:`S`'s
-  :math:`P_0` half (combined with its :math:`\ell\ge1`
-  part) and the whole action of the extracted
-  :class:`~orpheus.transport.operators.n2n.N2NOperator`.  It was hoisted
-  out of :math:`S` at the moment the second consumer appeared — the
-  defer-until-two rule taken at its word — and its docstring records
-  that a *third* lifted channel is the trigger to promote it from a
-  shared function to a generic lift operator, not before.
+  Since CS4c step 5 the production ``iso + aniso`` combine has ONE
+  home — ``AngularLift._combine``, the shared lift base's producer-side
+  method, which performs ``(iso / W) + aniso`` through this injection and
+  is where the producer-side :math:`1/W` convention lives.  Every
+  isotropically-lifted producer routes through it: :math:`S`'s
+  :math:`P_0` half (combined with its :math:`\ell\ge1` part), the
+  :math:`(n,2n)` gain's, and fission's whole action
+  (:ref:`cs4c-ends-select-the-body`).
+
+  ⛔ **It was a free function until 2026-09-04.**  ``(iso / W) + aniso``
+  was hoisted out of :math:`S` as ``assemble_per_ordinate_isotropic`` in
+  ``orpheus/transport/operators/_per_ordinate.py`` at the moment the
+  second consumer appeared — the defer-until-two rule taken at its word —
+  and that module's own docstring named its retirement trigger: *"when a
+  third isotropic lifted channel appears, this is the seed of the generic
+  lift operator"*.  The third channel is fission (CS4c step 4), so the
+  trigger fired, the seed grew into the ``AngularLift`` base, and the
+  module was deleted into it.  ⭐ The record is worth keeping precisely
+  because the prediction was *written down with its trigger* and then
+  honoured: the function did not drift into a utility module, it was
+  promoted on the condition it had declared.
 
   ⚠ **This dunder is the PULLBACK, not the section — and this bullet
   said otherwise until 2026-08-24.** It read *"it is single-sourced
@@ -4590,11 +4921,14 @@ fast paths) are the natural residents of the shared ``transport/`` layer
 staying in ``sn/`` (L3). That relocation — together with the CP / MoC
 carrier unification that would let those solvers *consume* the shared
 cores instead of reimplementing C / F / S inline on bare scalar arrays —
-is tracked on #261. The dispatch-spelling decision for the heteromorphic
-``apply`` (Pattern M vs an ``@overload`` + ``match`` router over the
-relocated primitives, see :ref:`heteromorphic-apply-typing`) is parked on
-the same issue, to be settled *with* the relocation, because the
-router-over-shared-primitives shape falls out of the sharing.
+is tracked on #261. ✅ **The dispatch-spelling half of #261 was settled on
+2026-09-04** (CS4c step 5): the relocation it waited on landed, and the
+answer was neither Pattern M nor an ``@overload`` + ``match`` router — the
+per-call parse is gone entirely, because the operand's kind is implied by
+the ends the operator was constructed with
+(:ref:`cs4c-ends-select-the-body`; the retired shape and why the two
+obvious spellings failed are at :ref:`pattern-m-history`). What #261 still
+tracks is the *relocation* itself and the CP / MoC carrier unification.
 
 .. note::
 
@@ -6441,6 +6775,20 @@ for merge status.
        ``ndarray`` arm is K-eigenvalue-live. The deeper *secondary-carrier-arm*
        collapse couples to the C/F/S core relocation and CP / MoC carrier
        unification (#261).
+
+       ⛔ **Both "kept" verdicts were overturned on 2026-09-04 (CS4c step
+       5), and the #261 spelling question was answered by neither
+       candidate.** The relocation those verdicts waited on happened, and
+       what it revealed is that the operand's kind is *implied by the ends
+       the operator was constructed with* — so the router was not written
+       thinner, it was deleted, and its decision moved to
+       ``__post_init__`` (:ref:`cs4c-ends-select-the-body`). The
+       ``ScalarFlux`` arm retired with it (ruling **R-3**): the typed
+       scalar entry point #205 asked for already exists as the **energy
+       binding** ``S.isotropic_energy``, so the arm was a Pattern-2 twin
+       of it at one hop. The ``@overload`` confessions survive, but over
+       real methods naming the two *bindings* rather than a carrier zoo
+       (:ref:`pattern-m-history`).
      - #65 / #268 / #261
      - merged ``574cff81`` (branch ``refactor/operator-inverse-algebra`` —
        ``[M]`` 2026-08-19 an ancestor of ``main``)

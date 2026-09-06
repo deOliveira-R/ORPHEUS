@@ -112,6 +112,13 @@ transport equation becomes a coupled system with scattering transfer
    states, at the same Legendre order, where until that date it
    executed only the :math:`\ell = 0` block of it.
 
+   The :math:`1/W` combine moved once more the same day (CS4c step 5),
+   from the transfer core down onto the shared lift base
+   ``AngularLift._combine`` — so the fission gain divides by the same
+   :math:`W`, on the same line, as the two transfer gains. The site
+   COUNT is unchanged; one member of the list is now the base's method
+   rather than the core's (:ref:`cs4c-ends-select-the-body`).
+
 .. implements:: multigroup
    :by: orpheus.sn.coupled_system.build_within_group_system
 
@@ -146,7 +153,7 @@ transport equation becomes a coupled system with scattering transfer
    :by: orpheus.transport.operators.n2n.N2NOperator
 
 .. implements:: multigroup
-   :by: orpheus.transport.operators.transfer.TransferOperator._assemble_per_ordinate_source
+   :by: orpheus.transport.operators.angular_lift.AngularLift._combine
 
 where the streaming operator depends on the coordinate system (for
 the slab, :math:`\mu\,\partial_x` as in :eq:`transport-cartesian`)
@@ -785,9 +792,15 @@ adjointable — ``is_adjointable = True`` — since each gained a working
   :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source` delegates
   to.  :meth:`FissionOperator.apply
   <orpheus.transport.operators.fission.FissionOperator.apply>` is the
-  *angular* lift of the same dyad and **refuses** a scalar carrier with
-  a message pointing at the energy binding
-  (:ref:`sn-fission-binding-adjoint`).  Both bindings are non-invertible
+  *angular* lift of the same dyad, whose operand is the composite
+  :class:`~orpheus.transport.full_field.FullField` its ends declare: a
+  scalar carrier is **refused** by the admission, naming the operator
+  and saying that a typed bulk field rides inside a composite while a
+  bare array is the plain binding's carrier
+  (:ref:`cs4c-ends-select-the-body`). The message that points a scalar
+  consumer explicitly at the energy binding is the tier-2 mint's
+  (``FissionOperator.from_solver_data`` refuses a scalar composite by
+  name — :ref:`sn-fission-binding-adjoint`).  Both bindings are non-invertible
   and adjointable, so the "``apply``-only" reading above holds for each.
 
 Pℓ Galerkin projection on :math:`Y_\ell^m`

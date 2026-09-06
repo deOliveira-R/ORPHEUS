@@ -514,6 +514,25 @@ any other review work.
     a present-tense claim is a MUST-FIX) — and check the corrected file
     itself first, since it is the likeliest place for a survivor.
 
+    ⚠ **The file-granularity twin: a finding that names ONE `file:line` will
+    be repaired at that `file:line` only.** A review report's site list
+    silently becomes the repair's denominator, so a finding about a CLAIM
+    owes the claim's full site census (every spelling, every file), not the
+    site where it was noticed — or the same sentence survives one module
+    over, present-tense false, and the report that "closed" it reads as
+    evidence it is gone.
+
+    > `[M]` 2026-08-31, ORPHEUS CS4c step 0/3. F9 reported the multi-model
+    > sharing sentence on `ScatteringOperator.isotropic_kernel`; commit
+    > `0ed9dca2` corrected exactly that docstring (its message even quotes
+    > the measured denominator), step 3 then retired `isotropic_kernel`
+    > outright — and the identical claim in the iso energy module's header
+    > (*"CP / MoC / diffusion feed raw scalar-flux arrays"*) survived,
+    > present-tense-false: `[M]` cp/moc/mc reference 0 of the 10 roster
+    > classes and 0 of the array verbs; 1 of the 3 named models fed it.
+    > Landed as a rule 2026-09-04 (CS4c step 5), when the SAME sentence was
+    > about to be re-published in the module's rewritten header.
+
 22. **NEVER** read "neither side calls the other" as "the two sides are
     independent" when the test CONSTRUCTS one input object and hands the SAME
     object to both — **instead** ask independence **per axis**: the
@@ -1065,6 +1084,47 @@ any other review work.
     > side (**0**), whose whole body is
     > `return self.kernel.apply_transpose(_values_of(chi))`. One
     > abstraction-level inconsistency, two opposite census verdicts.
+    > ✅ REMEDIED 2026-09-04 by CS4c step 5: the posing feeds
+    > `F.isotropic_energy` (the operator) and `FissionMomentOperator` calls
+    > the operator's verbs — one level, both routes.
+
+    ⭐ **An ARM counter is one frame too coarse: two operators can be
+    ARM-IDENTICAL and BODY-DIFFERENT, and the identity reads as
+    interchangeability.** Every clause above assumes the ARM is the unit of
+    observation — (a) wrong arm, (b) non-determination, (c) asymmetric
+    arrow, (d) no arm at all, the re-dispatch and the kernel-bypass. This is
+    the remaining case: **the right arm fires, the counter is correct, and
+    the body takes an early return the counter cannot see.** ⟹ **NEVER**
+    report two bindings as "fed alike" from equal arm counts — **instead**
+    instrument the BRANCHES inside the arm (the `is_X` predicate, the
+    `if … is None`, the short-circuit) and report, per role, how many of
+    those calls reached the body the arm is named for. The failure points
+    the flattering way: equal counts read as *"one operator, two roles,
+    nothing to decide"*, which is exactly the conclusion a role-unification
+    carve invites. And the discriminating datum is usually a property of the
+    bound **DATUM**, not of the space, the role, or the arm — so no amount
+    of construction-time space analysis can recover it.
+
+    > `[M]` 2026-09-04, ORPHEUS CS4c step 5b (HEAD `f90f7914`, 16 scenarios,
+    > all 16 headline numbers bit-identical instrumented vs control). After
+    > #426 step 2 made `ScatteringOperator` and `N2NOperator` thin roles of
+    > one `TransferOperator`, the census read `apply[FullField] ×4687`,
+    > `apply[AngularFlux] ×4422`, `apply[HarmonicMomentFlux] ×265` —
+    > **byte-for-byte equal on both roles, in all 9 SN forward scenarios**.
+    > Instrumenting the arm's own branch: on **12 of the 13** legacy
+    > scenarios `N2NOperator.is_isotropic` is **True on 100 %** of those
+    > calls and `build_aniso_source` returns `None`, while
+    > `ScatteringOperator`'s returns a source every time. The cause is the
+    > PAD: the fixture's `Sig2` is a length-1 stack, `TransferKernel.at_order`
+    > appends exact zeros to reach the solve's `L`, and `is_isotropic` reads
+    > the padded VALUES — so the (n,2n) role is *shaped* anisotropic and
+    > *valued* isotropic. A positive control (a synthetic ℓ=1 `Sig2`) flips
+    > it and moves k by **−36.9 Δk·10⁵**; the 421-group Be-reflected
+    > production fixture flips it too (`build_aniso_source = SOURCE ×748`).
+    > ⭐ The aggravator: without that ONE production-data scenario, every
+    > (n,2n) anisotropic body in the census reads 0 **three days after #426
+    > landed the anisotropy**, and a design round reading a correct arm table
+    > would have concluded the path has no traffic.
 30. **NEVER credit an "X is not data of this operation" claim from the
     ARITHMETIC — check the CODOMAIN constructor.** Purity / locality /
     diagonality tell you X is not needed to COMPUTE the action; they say

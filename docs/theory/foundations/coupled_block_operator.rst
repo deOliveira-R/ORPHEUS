@@ -288,7 +288,22 @@ channel, never a twin re-implementation of
    2 (2026-09-04); it is ``N2N.isotropic_energy`` now, because both
    gains are roles of one
    :class:`~orpheus.transport.operators.transfer.TransferOperator` and
-   that accessor is the core's.  ⭐ **And this** :math:`K_{\rm iso}`
+   that accessor is the core's.
+
+   ⭐ **And the same day (CS4c step 5) the SIBLING slot came up to this
+   level.**  This within-group site had always passed the *operators*;
+   the daggered eigen-posing's own :math:`(B,A)` fission fold passed
+   ``F.kernel`` — the rank-1 tensor product *inside* the energy binding —
+   so one dependency-injection slot was fed two different levels of one
+   abstraction.  It now takes ``F.isotropic_energy``, the operator, and
+   :meth:`IsotropicFission.apply_transpose
+   <orpheus.transport.operators.isotropic_transfer.IsotropicFission.apply_transpose>`
+   is reached instead of stepped over on the adjoint path
+   (:ref:`sn-adjoint-coupled-posing` in
+   :doc:`/theory/methods/sn/adjoint`).  Both spellings computed identical
+   numbers, which is why no value record could have flagged it — a claim
+   about the ROUTE needs an instrument on the route
+   (``vv-principles`` #26).  ⭐ **And this** :math:`K_{\rm iso}`
    **is** :math:`\ell = 0` **by PHYSICS, so step 2 did not touch it.**
    The ray seed is driven by the scalar flux; what the emission needs
    is each gain's :math:`P_0` energy binding, and it would need exactly

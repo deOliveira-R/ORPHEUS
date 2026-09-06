@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **11369**
+Total tests collected: **11483**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1304, 11.5%
-   L1, 1662, 14.6%
+   L0, 1304, 11.4%
+   L1, 1662, 14.5%
    L2, 69, 0.6%
    L3, 0, 0.0%
-   foundation, 8308, 73.1%
+   foundation, 8422, 73.3%
    unmarked, 26, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 11264
+   explicit, 11378
    class-name, 46
    func-name, 0
    case, 33
@@ -273,6 +273,7 @@ Module × level grid
    fields/test_field_space_identity, 0, 0, 0, 0, 9, 0
    fields/test_harmonic_moment_flux, 0, 0, 0, 0, 26, 0
    fields/test_meshless_construction, 0, 0, 0, 0, 8, 0
+   fields/test_role_partners, 0, 0, 0, 0, 22, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
    frames/test_binding_tightness, 0, 0, 0, 0, 20, 0
    frames/test_harmonic_frame, 0, 0, 0, 0, 29, 0
@@ -415,6 +416,7 @@ Module × level grid
    operators/test_deck_kernel, 0, 60, 0, 0, 0, 0
    operators/test_declared_law_is_linear, 0, 0, 0, 0, 15, 0
    operators/test_fission_adjoint, 0, 0, 0, 0, 13, 0
+   operators/test_fission_adjoint_route, 0, 0, 0, 0, 4, 0
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
@@ -432,6 +434,7 @@ Module × level grid
    operators/test_loss_kernel_gauge, 0, 0, 0, 0, 57, 0
    operators/test_loss_nullspace_reflective_box, 0, 0, 0, 0, 12, 0
    operators/test_loss_transpose_solve, 0, 0, 0, 0, 16, 0
+   operators/test_moment_domain_binding, 0, 0, 0, 0, 14, 0
    operators/test_n2n_operator, 0, 0, 0, 0, 14, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
@@ -446,7 +449,7 @@ Module × level grid
    operators/test_ray_operator, 0, 6, 0, 0, 0, 0
    operators/test_removal_form_matvec_sweep, 0, 0, 0, 0, 21, 0
    operators/test_scattering_adjoint, 0, 0, 0, 0, 18, 0
-   operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
+   operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 66, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 55, 0
    operators/test_sn_boundary_realizer, 10, 45, 0, 0, 0, 5
@@ -526,30 +529,33 @@ Module × level grid
    test_convergence, 0, 0, 1, 0, 0, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 359, 0
+   test_layer_imports, 0, 0, 0, 0, 360, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
+   transport/test_angular_lift, 0, 0, 0, 0, 13, 0
    transport/test_boundary_source_from_specs, 0, 12, 0, 0, 0, 0
+   transport/test_bulk_lift, 0, 0, 0, 0, 20, 0
    transport/test_composite, 0, 0, 0, 0, 15, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
    transport/test_full_field, 0, 0, 0, 0, 17, 0
    transport/test_functional_category, 0, 0, 0, 0, 11, 0
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
-   transport/test_kernels, 0, 0, 0, 0, 60, 0
+   transport/test_kernels, 0, 0, 0, 0, 82, 0
    transport/test_material_field, 0, 0, 0, 0, 46, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_material_mesh_admission, 0, 0, 0, 0, 6, 0
    transport/test_method, 0, 0, 0, 0, 4, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 25, 0
    transport/test_n2n_multiplicity_census, 0, 0, 0, 0, 2, 0
+   transport/test_no_carrier_dispatch, 0, 0, 0, 0, 15, 0
    transport/test_radial_characteristic_field, 0, 0, 0, 0, 21, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_tier2_equivalence_s_family, 0, 0, 0, 0, 8, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
    transport/test_transfer_kernel, 0, 0, 0, 0, 21, 0
-   transport/test_transfer_roles, 0, 0, 0, 0, 7, 0
+   transport/test_transfer_roles, 0, 0, 0, 0, 8, 0
 
 Equation coverage
 -----------------

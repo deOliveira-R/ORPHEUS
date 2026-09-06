@@ -35,6 +35,74 @@ them.  Trust ``git``, not this column.
      - Issue
      - Where
    * - in dev
+       (2026-09-05)
+     - **Each binding acts through the body its ends select — the
+       carrier dispatch of the transport operator family is retired**
+       (campaign 2, phase CS4c, step 5).
+       **(1) The outcome.**  Every operator of the family — :math:`S`,
+       :math:`N_{2n}`, :math:`F`, :math:`M[f]`, the energy bindings —
+       has ONE body per binding, chosen at construction from its two
+       ends; ``apply`` admits exactly the carrier those ends name and
+       refuses every other one by type, naming the operator.  Until
+       this step the bindings dispatched on the operand's CLASS per
+       call: `[M]` at ``f90f7914`` three ``singledispatchmethod``
+       tables / 13 arms / 12 ``isinstance`` carrier parses in the verbs
+       + 3 in their helpers, and the zero-trace emission of a bulk
+       operator spelled by hand **9 times** in four modules.
+       **(2) The mechanism.**  The retained analysis face
+       :math:`M \otimes I` has two ends — the per-ordinate space it
+       reads and the moment space it writes — and a lift's DOMAIN
+       interior is one of them: the angular end (:math:`\phi = \int\psi`,
+       ``frame.conjugate``, a per-ordinate cotangent) or the moment end
+       (:math:`\phi` = the :math:`\ell=0` slot of :math:`M\psi`,
+       ``frame.reconstruct_after``, a moment cotangent); a third
+       interior is refused.  The shared base
+       :class:`~orpheus.transport.operators.angular_lift.AngularLift`
+       (ruling **R-1**: :math:`\{S, N_{2n}\} \mid \{F\}` share the
+       :math:`\ell = 0` lift and differ by datum, derived energy binding
+       and whether an :math:`\ell \ge 1` part exists) holds the
+       selection, the reaction-rate fast path, the producer :math:`/W`
+       combine and the transpose as factor reversal — once.  The
+       windowed 2-D SI driver binds its gains on the moment composite
+       (``S.on_moment_domain()``): `[M]` 143 moment feeds per windowed
+       solve were being dispatched on by the angular-bound operator; now
+       each operand rides its operator's own domain.  The carriers
+       declare their flux ↔ source/sink partners
+       (:class:`~orpheus.transport.fields._bases.RolePair`, ruling
+       **R-2**), so the ONE lift verb
+       (:func:`~orpheus.transport.operators.lift.lift_bulk_action`)
+       names the output ROLE and the operand's class supplies the leaf;
+       the energy bindings are PLAIN-bound and lifted by
+       :class:`~orpheus.transport.operators.lift.BulkLift` (**R-4**;
+       diffusion's loss and fission); the transfer core's ``ScalarFlux``
+       arm retired (**R-3** — the typed scalar entry IS
+       ``isotropic_energy``); :class:`~orpheus.transport.operators.fission.FissionOperator`
+       carries the datum field and DERIVES its energy binding (#450).
+       **(3) What the verification plan refuted before a line was
+       written (F-1).**  The design read the moment sibling's scalar
+       sub-space off the DOMAIN — the moment composite's interior has no
+       axes to name it; it is read off the CODOMAIN (axis-built for both
+       ends), and the energy binding is bound EAGERLY so its plain-scalar
+       admission is the effective :math:`n_g` guard (the composite legs
+       are declaredly inert).  **(4) Considered and not done.**  The
+       fused ``R∘Λ`` kernel route on the moment end is bit-identical to
+       the typed route and was kept OUT: the typed route is the
+       legibility choice :ref:`integral-kernel-category` records
+       (**R-5**).  **(5) Evidence.**  The windowed snapshot
+       ``2d_2g_p1_aniso_dd_8x4_het_si`` is bit-exact through the moment
+       sibling; the :math:`\ell = 0` lift agrees with its frame form
+       bit-for-bit (200/200 seeds) while the :math:`\ell \ge 1` sum does
+       not (max :math:`|\Delta|` 2.2e-16 — the split falls exactly on the
+       base/subclass line); diffusion :math:`k_\infty` at 1e-11 through
+       the lift; 33-cell ends→body fence, AST no-dispatch census, the
+       moment-domain sibling's four legs, the one-level adjoint route
+       witness.  Full account: :ref:`cs4c-ends-select-the-body`.
+     - `#450 <https://github.com/deOliveira-R/ORPHEUS/issues/450>`_,
+       #306 (item 2), #205
+     - ``b915cb90`` + the carve on
+       ``refactor/cs4c-step5-construction-selected-bodies``
+       (unmerged at the time of writing — trust ``git``)
+   * - in dev
        (2026-09-04)
      - **One transfer family — the two collision gains become two
        instances of ONE binding, and the** :math:`(n,2n)` **emission

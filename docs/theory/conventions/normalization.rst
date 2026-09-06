@@ -61,17 +61,28 @@ path's precomputed recurrence needed
 
 
 .. implements:: normalization-dd-source-coefficient
-   :by: orpheus.transport.operators.transfer.TransferOperator._assemble_per_ordinate_source
+   :by: orpheus.transport.operators.angular_lift.AngularLift._combine
 
    **Implemented by** 5 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
-   others. (The producer-side :math:`1/W` combine moved from
-   ``ScatteringOperator`` onto the shared
-   :class:`~orpheus.transport.operators.transfer.TransferOperator` core
-   at #426 step 2, 2026-09-04 — one home for both collision gains, not
-   one per channel.)
+   others.
+
+   ⭐ **The** :math:`Q/W` **half has moved twice, and the second move
+   made it channel-agnostic.** It was ``ScatteringOperator``'s own
+   per-ordinate source assembly until #426 step 2 (2026-09-04), which
+   put it on the shared transfer core — one home for *both* collision
+   gains instead of one per channel. CS4c step 5 (the same day) moved it
+   once more, onto ``AngularLift._combine``: the producer-side
+   :math:`(\text{iso}/W) + \text{aniso}` of the shared **lift base**,
+   so fission's :math:`\ell = 0` emission divides by the same
+   :math:`W`, through the same line, as scattering's and
+   :math:`(n,2n)`'s. :math:`W` is read off the binding's frame MEASURE
+   (``frame.measure.weights.sum()``), never a stored weight vector — the
+   measure IS the normalisation carrier this page is about, so there is
+   exactly one place the divisor can come from
+   (:ref:`cs4c-ends-select-the-body`).
 
 .. implements:: normalization-dd-source-coefficient
    :by: orpheus.transport.spatial.diamond.DiamondDifference.affine_scan_coefficients

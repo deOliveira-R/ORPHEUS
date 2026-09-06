@@ -69,11 +69,16 @@ are accessible via the standard import path.
 * :class:`~orpheus.transport.operators.fission.FissionOperator` — the
   same datum's **angular** binding: the harmonic frame's
   :math:`\ell = 0` conjugation of that dyad on a posed angular
-  composite, retaining the energy binding as its middle factor exactly
-  as ``N2NOperator`` retains ``IsotropicN2N``.  Since CS4c step 4 its
-  Euclidean transpose is factor reversal of the cached conjugated
-  product, with no fission-side :math:`w`-arithmetic
-  (:ref:`sn-fission-binding-adjoint`).
+  composite, built on the shared ``AngularLift`` base below.  Since CS4c
+  step 4 its Euclidean transpose is factor reversal of the cached
+  conjugated product, with no fission-side :math:`w`-arithmetic
+  (:ref:`sn-fission-binding-adjoint`).  Since CS4c step 5 (#450) its
+  exact constructor holds the
+  :class:`~orpheus.transport.material_field.FissionMaterialField`, the
+  two minted :math:`L = 0` faces and its two ends — and **derives** the
+  energy binding (``F.isotropic_energy``) from that one datum rather
+  than being handed it, so the two bindings cannot be wired
+  inconsistently.
 * :class:`~orpheus.transport.operators.transfer.TransferOperator` — the
   **collision-gain core**, and since #426 step 2 (2026-09-04) the one
   home of both gains' arithmetic: the angular binding
@@ -84,7 +89,12 @@ are accessible via the standard import path.
   fast path.  Since CS4c step 3 its exact constructor retains a
   per-material kernel FIELD, the two minted frame faces, and its two
   mandatory ends — no cross-section facade and no quadrature
-  (:ref:`scattering-binding-cs4c`).
+  (:ref:`scattering-binding-cs4c`).  Since CS4c step 5 the
+  :math:`\ell \ge 1` body is selected ONCE, at construction, from which
+  end of the retained analysis face the domain's interior is: none when
+  the bound datum carries no moment above :math:`\ell = 0`, the fused
+  :math:`R\,\Lambda\,M` kernel on the angular end, the explicit typed
+  grid path on the moment end (:ref:`cs4c-ends-select-the-body`).
 * :class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
   :class:`~orpheus.transport.operators.n2n.N2NOperator` — the two
   **terms** of the within-group algebra
@@ -118,3 +128,66 @@ are accessible via the standard import path.
 * :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
   — the §5.7 collision operator :math:`C = M[\sigma_t]`, diagonal
   (pointwise) in every axis (:eq:`multiplication-operator-action`).
+
+The lift — how a binding meets its carrier
+------------------------------------------
+
+Two modules landed at CS4c step 5 (2026-09-04) carrying the machinery
+that makes *"each binding acts through the body its ends select"* a
+structural fact rather than a convention.  Neither is
+``automodule``-rendered here (the operator convention above); the theory
+is at :ref:`cs4c-ends-select-the-body`.
+
+* ``orpheus.transport.operators.lift`` — the family's ONLY two carrier
+  parses and the composite-entry verb.  ``admit_composite(op, x,
+  end=...)`` admits the :class:`~orpheus.transport.full_field.FullField`
+  riding the bound end's interior space; ``admit_array`` admits the bare
+  :class:`numpy.ndarray` of a plain end's shape; every other operand is a
+  typed refusal naming the operator, both spaces, and the way out
+  (``on_moment_domain()`` for a moment iterate, ``BulkLift`` for a
+  composite fed to a plain binding).  ``lift_bulk_action`` is *a bulk
+  action enters the composite by extension by zero on the trace*, spelled
+  once for the whole family; ``embed_bulk_assembly`` is its assembly twin
+  (index-identity on the bulk block of the flat ``[bulk C-ravel | trace]``
+  layout, zero trace rows and columns).  ``BulkLift`` packages both as an
+  operator, and is what the 1-D diffusion solver builds over its
+  plain-bound energy bindings.
+* ``orpheus.transport.operators.angular_lift`` — ``AngularLift``, the
+  :math:`\ell = 0` lift :math:`R_0\,E\,M_0/W` of an ENERGY binding onto
+  the angular composite, and the shared base of ``TransferOperator``
+  (→ :math:`S`, :math:`N_{2n}`) and ``FissionOperator`` (ruling R-1:
+  ``{S, N₂ₙ} | {F}`` share the base and differ by the datum, the energy
+  binding they derive, and whether an :math:`\ell \ge 1` part exists).
+  Its subclass contract is three members and no verbs — ``data_ng``,
+  ``_bind_energy``, ``_frame_form`` — and its public surface is
+  ``apply(FullField) -> FullField``, ``apply_transpose`` likewise, plus
+  ``isotropic_energy`` (the derived middle factor every scalar consumer
+  reads) and ``on_moment_domain()`` (the same datum and faces re-bound to
+  consume the moment composite).
+
+The role pair — flux ↔ source/sink, declared once
+-------------------------------------------------
+
+``orpheus.transport.fields._bases`` gained two names at the same step,
+and they are what let the lift verb above name a ROLE instead of a leaf:
+
+* ``FieldRole`` — the two roles a transport field can play on one carrier
+  space (``FLUX``, ``SOURCE_SINK``).  A flux is a state; a source/sink is
+  a signed rate density.
+* ``RolePair`` — the mixin that carries the partnership.  It is declared
+  once per pair, on the source/sink leaf's class statement
+  (``class AngularSourceSink(AngularField, flux=AngularFlux)``), and
+  ``__init_subclass__`` registers BOTH directions into one shared
+  mapping — so the map is a bijection by construction and a second
+  source/sink naming an already-partnered flux is a :class:`TypeError` at
+  import time.  Consumers: ``role_partner(role)`` (the leaf class playing
+  a role on this carrier; asking for a leaf's own role returns that leaf),
+  ``role()``, and ``into_role(role, values, space=...)`` — *"same space,
+  same family fields, the other role's class"*, with the family fields
+  carried across via :func:`dataclasses.fields`.
+
+`[M]` 2026-09-04: **7** declared pairs; **16** carriers with no partner
+(the 10 family/locus ABCs, the 5 residual leaves, and
+``CrossSectionField``), for which asking raises a :class:`TypeError`
+naming them.  The full roster and the reason the residual column is
+outside the partnership are at :ref:`role-partner-declaration`.

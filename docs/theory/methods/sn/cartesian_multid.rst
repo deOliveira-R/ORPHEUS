@@ -2858,42 +2858,65 @@ where (reading right to left):
 The associativity :math:`(R\,\Lambda)\,M` is the whole trick. The
 **full-angular** path evaluates the composition as written —
 :math:`R\cdot\Lambda\cdot M(\psi)`: project, scatter, reconstruct,
-consuming the §5.6 :attr:`kernel <orpheus.transport.operators.scattering.ScatteringOperator.kernel>`
+consuming the §5.6 :attr:`kernel <orpheus.transport.operators.transfer.TransferOperator.kernel>`
 ``= frame.conjugate(Λ)`` as a single composed ``np.ndarray`` operator. The
 **windowed** path's iterate bulk **is** the moments :math:`\phi = M\psi`,
 so :math:`M` is *already done* and only the **moment → source** map
-:math:`R\,\Lambda` remains: :math:`R\cdot\Lambda(\phi)`. The dispatch is on
-the iterate type: the
-:class:`~orpheus.transport.fields.angular_flux.AngularFlux` arm of
-:meth:`ScatteringOperator.apply <orpheus.transport.operators.scattering.ScatteringOperator.apply>`
-does the :math:`M` projection first; the
-:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-arm skips it.
+:math:`R\,\Lambda` remains: :math:`R\cdot\Lambda(\phi)`.
+
+Which of the two runs is a property of the **binding**, not of the
+iterate. The gain retains its flux-analysis face :math:`M \otimes I`, and
+that face has two ends; the binding's domain interior is required to be
+one of them, and *which one it is* selects the interior body once, in
+``__post_init__`` (:ref:`cs4c-ends-select-the-body`). The windowed driver
+therefore binds its gains where its iterate lives —
+``S.on_moment_domain()``, ``N2N.on_moment_domain()`` — and every operand
+rides its own operator's domain.
+
+⛔ **Until 2026-09-04 (CS4c step 5) this read "the dispatch is on the
+iterate type".** It was accurate, and it described a shipped
+non-endomorphism: the windowed driver handed a *moment* composite to a
+gain bound ``(angular, angular)``, which then chose an arm from the
+carrier's Python class per call — `[M]` **143 such feeds per windowed
+solve** on a bit-exact frozen snapshot. Nothing could report the
+mismatch, because the arm that absorbed it was registered on the operator
+that did not own that domain. The same feed today is a
+:class:`TypeError` naming both spaces and the re-binding verb; the
+windowed snapshot ``2d_2g_p1_aniso_dd_8x4_het_si`` is bit-exact across
+the change.
 
 .. note::
 
-   **P4 — the windowed arm now takes the explicit typed edges.** Earlier
-   the two arms shared the single ``np.ndarray`` primitive
-   :meth:`~orpheus.transport.operators.scattering.ScatteringOperator._aniso_source_from_moment_values`
-   (``frame.reconstruct_after(Λ)``). The Frame campaign's P4 phase
-   re-expressed the windowed arm's :math:`R\,\Lambda` as the **explicit
-   typed** carrier path — today
-   ``self.source_reconstruction.apply(Λ.apply(φ)) / self.total_weight``
-   (it read ``frame.reconstruct(…)`` until the F-1 carve moved the
-   binding from frame VERBS onto the minted FACES, and
-   ``float(self.weights.sum())`` until the CS4c rebind retired the
-   stored weight vector in favour of the faces' own frame measure —
-   :ref:`scattering-binding-cs4c`).  :math:`\Lambda` materialises a
-   typed :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+   **The moment-end route takes the explicit typed edges.** Its body is
+   ``self.source_reconstruction.apply(Λ.apply(φ)) / self.total_weight``:
+   :math:`\Lambda` materialises a typed
+   :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
    (the role-changing edge of the carrier grid,
-   :ref:`scattering-carrier-grid`), which the retained :math:`R` face then
-   reconstructs to an :class:`AngularSourceSink` on its own bound
-   codomain. It threads the *same*
-   :math:`\Lambda` kernel and the *same* frame :math:`R` face as the fused
-   path, so the two agree numerically; the ndarray
-   ``reconstruct_after(Λ)`` primitive is **retained as the 0-ULP
-   crosscheck oracle** the typed arm is pinned against, not deleted. See
-   :ref:`scattering-carrier-grid` for the explicit-vs-fused design choice.
+   :ref:`scattering-carrier-grid`), which the retained :math:`R` face
+   then reconstructs to an :class:`AngularSourceSink` on its own bound
+   codomain. It threads the *same* :math:`\Lambda` kernel and the *same*
+   frame :math:`R` face as the fused angular route, so the two agree
+   numerically — `[M]` 200/200 ``array_equal`` on a 1-D GL8 :math:`P_1`
+   slab and on the gate's own 2-D heterogeneous fixture
+   (``tests/sn/operators/test_scattering_kernel_crosscheck.py``).
+
+   The spelling reached this shape in three moves, each recorded: it read
+   ``frame.reconstruct(…)`` until the F-1 carve moved the binding from
+   frame VERBS onto the minted FACES; it read
+   ``float(self.weights.sum())`` until the CS4c rebind retired the stored
+   weight vector in favour of the faces' own frame measure
+   (:ref:`scattering-binding-cs4c`); and it was a registered
+   ``HarmonicMomentFlux`` **arm** of the angular operator until CS4c step
+   5 made it the moment binding's own body.
+
+   ⛔ The ndarray ``reconstruct_after(Λ)`` primitive
+   ``_aniso_source_from_moment_values`` — described here until 2026-09-04
+   as "retained as the 0-ULP crosscheck oracle" — is **retired**. The
+   crosscheck's second side is no longer a private chain but the
+   moment-bound operator's own public action, so the comparison moved up
+   a tier and now pins two production routes against each other. See
+   :ref:`scattering-carrier-grid` for the explicit-vs-fused design
+   choice.
 
 This factoring **retired** the per-:math:`\ell`
 ``_PerLegendreOrderScattering`` kernel, which recomputed :math:`M\psi`

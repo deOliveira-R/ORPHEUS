@@ -2473,3 +2473,33 @@ Cross-reference: [[lessons-L61]] (an unvalidated filter and a clean tree print
 the same thing — this is its boundary case, where the filter IS validated and
 the validation is vacuous); [[lessons-L55]] (a census is only as wide as its
 spelling); `vv-principles` #17.
+
+## L63 — Two Sphinx builds on ONE `docs/_build` + one Nexus graph DB deadlock each other, and the symptom is a sub-agent "stall" (2026-09-05)
+
+`[M]` CS4c step 5, 2026-09-04/05. An `archivist` was dispatched for the docs pass
+(its brief ends "finish with `sphinx -E -W` clean") while the main agent launched
+its own `sphinx -E -W` in the background to measure the same docs state. Both
+builds write `docs/_build/html` and rebuild `.nexus/graph.db`. The archivist
+reported *"Agent stalled: no progress for 600s"* twice; the main agent's
+background build sat for **22 h 47 min** with an EMPTY `-q` log until it was
+killed the next day (`ps -o etime` said so; the log's mtime said 18:48 the day
+before). A `test-architect` dispatched in the same window — which never ran
+sphinx — stalled too, on the same 600 s watchdog, so the watchdog is a symptom
+with more than one cause; the sphinx pair is the one this session could prove.
+
+1. **One Sphinx build at a time, per checkout.** Before launching a build, `ps`
+   for `sphinx` and read the brief of every live sub-agent for a build step; if
+   a sub-agent owns the build, do NOT run a parallel one — read ITS result.
+2. **A background build gets a `timeout`** (`timeout 1500 …`) and a status line
+   at exit; a build whose log is still empty after 10 min is hung, not slow —
+   `[M]` a clean `-E -W` build of this doc set is 3–5 min on this host.
+3. **A sub-agent stall is a WAIT, not a failure, until you know what it waited
+   on.** Resuming a stalled agent that is blocked on a lock re-stalls it (the
+   archivist did, immediately); kill the lock holder first, then resume — or
+   finish its step yourself from the state on disk, which is what the
+   re-key/docs work here needed.
+
+Cross-reference: `.claude/rules/nexus-tools.md` (the graph rebuilds on every
+`sphinx-build`, the server auto-reloads — two writers on one DB is the hazard
+this row measures); [[lessons-L37]] (no source edits under a running gate — the
+same exclusivity, for the build).

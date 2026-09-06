@@ -1682,6 +1682,55 @@ either.
    meant drops those two factors.  The daggered eigen-pencil below poses
    on the composite, so it is the angular one.
 
+   ⭐ **Since CS4c step 5 (2026-09-04) the angular binding no longer
+   *holds* the energy one — it DERIVES it.**
+   :class:`~orpheus.transport.operators.fission.FissionOperator`'s exact
+   constructor retains the representation-free
+   :class:`~orpheus.transport.material_field.FissionMaterialField`, the
+   two minted :math:`L = 0` faces and its two ends, and nothing else
+   (#450); ``F.isotropic_energy`` is
+   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
+   built from *that* datum on the emitted interior's scalar sub-space,
+   cached once at construction.  So "which binding" is no longer a
+   question about two objects a caller might have wired inconsistently —
+   there is one datum, and the second binding is a theorem of the first.
+   `[M]` ``F.isotropic_energy.fission is F.fission`` and its domain is
+   the ``(ng, *spatial)`` sub-space of the CODOMAIN's interior (read off
+   the codomain because the moment-end sibling's domain interior is a
+   tensor-product space with no axes to name it — F-1 of the step-5
+   verification plan).
+
+.. admonition:: The transposes' surface, per binding
+   :class: note
+
+   The angular lifts (:math:`S`, :math:`N_{2n}`, :math:`F`) expose
+   exactly ``apply_transpose(FullField) -> FullField`` — there is **no**
+   bare-``ndarray`` transpose arm on them, and no per-carrier family of
+   transposes.  The cotangent lands on the **domain's** interior in that
+   end's own source/sink class: an
+   :class:`~orpheus.transport.source_sinks.AngularSourceSink` for an
+   angular-end binding, a
+   :class:`~orpheus.transport.source_sinks.HarmonicMomentSourceSink` for
+   a moment-end one; the trace is the implicit zero (a volumetric gain's
+   transpose is volumetric), emitted in the SOURCE role through the one
+   lift verb.  `[M]` on a GL8 slab: ``F.apply_transpose(FullField)``
+   returns interior ``AngularSourceSink`` + boundary
+   ``AngularBoundarySourceSink``, the latter all-zero.
+
+   The arithmetic is unchanged and stays factor reversal — the
+   :class:`~orpheus.numerics.operator.OperatorProduct` chain reverses the
+   cached conjugated product, then the producer :math:`1/W`.  What moved
+   is only *who names the output carrier*: the operand's own class
+   declares its source/sink partner
+   (:ref:`role-partner-declaration`), so the transpose spells a ROLE and
+   never a leaf.  The **bare-array** transposes live one tier down, on
+   the ENERGY bindings, which are plain-bound by ruling R-4 —
+   :meth:`IsotropicFission.apply_transpose
+   <orpheus.transport.operators.isotropic_transfer.IsotropicFission.apply_transpose>`
+   is the bare dual dyad on ``(ng, *spatial)`` arrays, and that is the
+   object every scalar consumer (the k-outer, the ray seed, diffusion)
+   reaches.
+
 .. note::
 
    **Why the** :math:`F` **re-spelling moved values and the**
@@ -1815,6 +1864,8 @@ its ``angular_flux`` is the true discrete adjoint (importance) flux
 :math:`(A^{\mathsf T})^{-1}F^{\mathsf T}` spectrum
 (:ref:`sn-adjoint-verification`).
 
+.. _sn-adjoint-coupled-posing:
+
 The coupled (sphere) posing
 ---------------------------
 
@@ -1835,8 +1886,43 @@ grid :math:`N`; the fission operator is lifted to the coupled grid:
 where the :math:`(B,A)` block :math:`A_{BA}^{\rm fis}` is the **fission
 ray fold** — the kernel-generic
 :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
-carrying the fission kernel (the operator spelling of the coupled
-fission seed's :math:`q_{1/2}` assembly).  On the eigen-:math:`M`
+carrying the fission channel's **energy binding**
+``F.isotropic_energy`` (the operator spelling of the coupled fission
+seed's :math:`q_{1/2}` assembly).
+
+.. note::
+
+   **One slot, one level — and it closed two adjoint bypasses (CS4c step
+   5, 2026-09-04).**  The emission's ``emission_kernel`` slot is a
+   dependency injection over *any* ``ndarray → ndarray`` emitter, and
+   until this step the daggered posing filled it with ``F.kernel`` — the
+   rank-1 :class:`~orpheus.numerics.operator.TensorProductOperator`
+   *inside* the energy binding — while the within-group site filled the
+   same slot with the **operators** ``S.isotropic_energy +
+   N2N.isotropic_energy``.  Two levels of one abstraction in one slot.
+
+   The consequence was invisible in every value: `[M]` the census
+   recorded
+   :meth:`IsotropicFission.apply_transpose
+   <orpheus.transport.operators.isotropic_transfer.IsotropicFission.apply_transpose>`
+   at **zero** calls, bypassed on **two** routes — the posing reaching
+   past it into ``F.kernel``, and the moment factor
+   ``FissionMomentOperator`` reading ``energy.kernel`` rather than
+   calling the operator.  Both routes computed the *same numbers*, which
+   is exactly why neither could be caught by an adjoint value record: a
+   route claim is a claim about the PATH, and only an instrument on the
+   path can see it (``vv-principles`` #26).  Both now call the operator's
+   own verb, one level of delegation, and the energy binding's transpose
+   is REACHED on the production adjoint path rather than stepped over.
+
+   ⚠ Fission still does **not** flow through :math:`A_{BA}` in the
+   *within-group* gain (HAZARD 5 in
+   :doc:`/theory/foundations/coupled_block_operator` — routing it there
+   would double-apply :math:`K \circ \int d\mu`).  This note is about
+   the eigen-:math:`M` posing's own :math:`(B, A)` block, where the fold
+   belongs.
+
+On the eigen-:math:`M`
 operator that fold **belongs** in the posing; the within-group gain
 keeps it out (HAZARD 5), not the eigenproblem.  The :math:`(B,B)` block
 is the genuine **zero map** ray-flux → ray-source: the :math:`w = 0`

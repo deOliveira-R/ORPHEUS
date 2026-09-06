@@ -126,6 +126,10 @@ surprises cost to hit.
 | 2026-09-03 | ⭐ **A §6b spelling with no symbol at all: a LITERAL whose KEY SET is a producer's output.** R2 of #434 changed how a candidate set is derived (barycentres, not the stored width). The migration memo's re-key list was built from the symbols the carve touched and named the pins it could see; `[M]` the red loop found FOUR more — verdict dicts (`_SLAB_GL8`, `_POLAR_Z`, `_FOLD_AFTER`) and a count floor (`checked >= 10`) keyed on `candidate_groups(m)` — whose keys ARE the producer's output, so a change to the producer changes the dict's key set with no symbol in the diff matching any symbol in the pin. All four moved in the intended direction (new keys all `True`, no shared key moved), so the cost was one red-loop cycle; the same shape with a value flip would have been a silent re-key. ⟹ **when a step changes what a producer RETURNS, census the literals that are keyed on it** — grep the producer's name in `tests/` and read whether each hit builds a dict/set FROM it. And the sibling instance the same day, in the other direction: the elegance pass found 18 stale docstring cross-references spelled with the family's OTHER name (`orbit_certificate` vs `certificate_under`) — a per-symbol census misses the members a naming asymmetry spells differently, which is why the free functions took the verbs' names. | §6b (two more spellings for the inventory: a literal keyed on a producer's output; a family with two word orders) |
 | 2026-09-03 | ⚠ **A rename keyed on a NAME rewrites every HOMONYM — the negative set of a tree-wide rewrite is the parameters that merely share the datum's spelling.** Retyping `Mixture.Sig2` to a Legendre stack, an AST rewriter wrapped every `Sig2=`/`sig2=` keyword in a list; `[M]` six call sites of a TEST HELPER whose `sig2=` parameter is a per-material DICT were wrapped too, and the helper then read `mid in sig2` on a list → every (n,2n) fixture silently became zero → 9 reds in three trees, one loop. The rewriter had a positive AND negative control set (9 cases) — all on the datum's own constructors; nothing in its validation named a homonym. ⟹ **before applying a name-keyed rewrite, census the PARAMETERS that share the spelling** (`grep -rn 'def .*\bsig2\b'`), and treat each as a member of the negative set. Same family as L25 (a file-internal `replace_all` is safe only if every occurrence is the concept) at the AST tier: an AST filter is exact about SYNTAX and blind to MEANING. | §6b (no new clause — the row is the measurement; a name-keyed AST rule is a validated filter over the wrong predicate, the 2026-08-26 row's shape) |
 | 2026-09-03 | ⭐ **A TRACKED gate that reads an UNTRACKED artefact is green on exactly one checkout.** R2 landed two frozen pre-carve tables — the ordinate permutations and the selection verdicts — as `scratch/_r2_*.{npz,json}` and two gates in `tests/numerics/test_invariance.py` read them by path; the 13-tree gate ran green because this working directory has `scratch/`. On any other clone the two gates are `FileNotFoundError`. `[M]` found at R3's opener when a re-worded message reddened the selection gate and the path was read. §10's question — *if the campaign fully succeeded on a fresh checkout, what would this gate print?* — answers it; nothing in `git status` does, because an untracked INPUT looks exactly like scratch. ⟹ **a gate's inputs are part of the commit**: any path a test opens must resolve inside the tracked tree (`tests/<tree>/data/` is the convention here), and the landing script's staged-set review reads the TESTS' file reads, not only their file list. | §10 (the acceptance-artifact widening: an artifact the gate READS, not only one it asserts) |
+| 2026-09-04 | ⭐ **A SHARED-BODY role carve makes a name-keyed construction census return ZERO for every class born through `cls(...)` — the mint becomes polymorphic by INHERITANCE.** CS4c step 5's Name-keyed census read *15 external / 7 internal* construction sites; at HEAD the same predicate read **15 / 3**, and the missing four had not retired: `ScatteringOperator` and `N2NOperator` are both minted by `cls(...)` inside the core's `from_field`, both P0 energy bindings by `type(self).isotropic_binding(...)`. `[M]` `grep "ScatteringOperator("` over `orpheus/` returns **0** call sites for a class constructed on every SN solve; a scan for the polymorphic spellings finds **11** further mint sites. The 2026-08-29 row named *calls through a VARIABLE* over a registry; this is the sibling with no registry — the roles inherit `__init__` and every classmethod, so their NAME appears at no call site at all. | §6b (a twelfth spelling: the polymorphic mint inside the CORE's own module) |
+| 2026-09-04 | ⭐ **A carve that makes N classes share one body FORKS the denominator, and reporting either half alone is wrong in a stated direction.** A census denominator like *"34 surfaces"* silently assumes class == body owner. CS4c step 5's **34** → **24 bodies / 32 role rows**, closing as `34 − 5 − 1 − 2 − 2 = 24` (S+N2N registries fused, their transposes fused, the iso pair's two verbs fused, `N2NMomentOperator` retired); the BODY count is what a mutation battery must cover (one mutation reddens every role), the ROLE × surface count is what a design decision is taken on and the only one row-comparable to the prior census. Reporting only the body count UNDER-states the decision surface; only the role count OVER-states the code to mutate. | §2 (the quantifier clause: a forked denominator is stated twice, each half with its predicate, with the Δ arithmetic closing) |
+| 2026-09-04 | ⚠ **REPEAT of the 2026-09-02 file-exclusion row, one tier up: a consumer census that EXCLUDES a PACKAGE cannot see that package's consumers, and reads "0 production consumers".** CS4c step 5's design round claimed the assembly mode (`is_assemblable`/`assemble()`) had *0 production consumers* — the census was run over `orpheus/` MINUS `orpheus/numerics/`, and every consumer is in numerics (`flat_operator.py:168` the diffusion resolvent, `operator.py:1135` `as_matrix`'s delegation, `coupled_system.py:1246`). Wrong by exactly the excluded tier; a design that believed it would have dropped the lift's `assemble()` and broken the diffusion resolvent. Caught by re-running the census unfiltered before the ruling. ⟹ a census's EXCLUSION list is part of its predicate — state it in the claim (*"0 consumers outside `numerics/`"*), or do not exclude. | §2 (FILTER — no new clause; the row is the measurement that the 2026-09-02 lesson did not transfer from a FILE to a PACKAGE) |
+| 2026-09-04 | ⭐ **A plan's mechanism table can assume, of the object it is designed FOR, a property only the object it was designed AGAINST has.** CS4c step 5's §19.2 mechanism read the moment-domain binding's scalar sub-space off the DOMAIN's interior (`of_axes(*interior.axes[1:])`) — true of the angular interior every shipped binding has, and `[M]` FALSE of the moment interior the step exists to admit (`axes is None`; the derivation raises). The flagship new binding was unconstructible as designed. Caught at verification-plan time by the test-architect (F-1), at zero implementation cost; the repair — read it off the CODOMAIN, axis-built for both ends — is what shipped. ⟹ when a plan admits a NEW member to a family, re-run every derivation in its mechanism on that member specifically; the shipped members are where the derivation was validated and therefore where it cannot fail. | §1 (a means proposed before the investigation is a hypothesis — no new clause; the row is the measurement that the verification-plan dispatch is where such a hypothesis gets cheaply refuted) |
 
 
 Companion to CLAUDE.md **Cardinal Rule 4** (issues are the cross-session log) and
@@ -449,6 +453,27 @@ the exact inverse of the goal phrased against the concept ("its link becomes a
 typed arrow like every other law's"), and only the second one tells you what to
 build.
 
+⭐ **And the denominator a CARVE forks: when N classes come to share one
+body, "N surfaces" is two different counts, and reporting either alone is
+wrong in a stated direction.** A census denominator like *"34 surfaces"*
+silently assumes class == body owner. After a core/role carve the two
+successors answer different questions: the **BODY** count is what a mutation
+battery must cover (one mutation reddens every role at once); the **ROLE ×
+surface** count is what a design decision is taken on (*retire THIS
+operator's arm*) and the only one row-comparable to the prior census. Only
+the body count UNDER-states the decision surface; only the role count
+OVER-states the code to be mutated. ⟹ **state both, each with its
+predicate, and write the arithmetic that connects them** — a carve's Δ
+should close exactly, and if it does not, a surface joined or left that
+nobody named.
+
+> `[M]` 2026-09-04, CS4c step 5b: **34** → **24 bodies / 32 role rows**,
+> closing as `34 − 5 (S+N2N registries fused) − 1 (their transposes fused)
+> − 2 (the iso pair's two verbs fused) − 2 (N2NMomentOperator retired) =
+> 24`, the role count losing only the 2 retired rows. The retirement half is
+> measured, not assumed: an AST scope closure over 347 files returns **0**
+> refs for both `N2NMomentOperator` and `LegendreMomentScattering`.
+
 ## 3. A refuted premise is EDITED IN PLACE, never silently dropped
 
 When investigation refutes something the plan asserted, leave the original text
@@ -655,6 +680,27 @@ tree does not compile (or worse, compiles and fails at runtime) between them.
 Corollary for the plan text: when steps ARE fused this way, say so where the
 step is defined, not only in the commit. The next reader is planning against
 the plan, not against your commit history.
+
+⭐ **And the spelling no NAME-keyed census can return: the polymorphic mint
+inside a CORE's own module.** When a class is re-shaped into a core plus thin
+role subclasses, the roles inherit `__init__` and every classmethod, so they
+are constructed by `cls(...)` / `cls.<factory>(...)` / `type(self)(...)` /
+`type(self).<ClassVar>(...)` **inside the core**, and the role's name appears
+at no call site at all. A census keyed on the class name reports the roles as
+never constructed internally — a confident zero that reads as *"this class
+has no internal mints"*. ⟹ **when a step introduces or consumes a core/role
+split, the §6b construction set is `Name(` sites ∪ every polymorphic spelling
+inside the core's module, and the census must say which predicate produced
+each count.**
+
+> `[M]` 2026-09-04, CS4c step 5b. The Name-keyed census read **15 external /
+> 7 internal** construction sites at the design round and **15 / 3** at HEAD
+> — the four "retired" ones were `ScatteringOperator` and `N2NOperator`
+> minted by `cls(...)` inside `TransferOperator.from_field`, and both P0
+> energy bindings by `type(self).isotropic_binding(...)`. `[M]`
+> `grep "ScatteringOperator("` over `orpheus/` returns **0** call sites for a
+> class constructed on every SN solve; the polymorphic scan finds **11**
+> further mint sites.
 
 ### 6c. A step that adds a GATE must land with the case the gate CATCHES
 
