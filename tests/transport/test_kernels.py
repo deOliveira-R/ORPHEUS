@@ -565,18 +565,6 @@ def test_module_imports_nothing_from_scattering_or_frames():
 # CS4a K2 — the binding fences (G2.8, G2.9, G2.10)
 # ═════════════════════════════════════════════════════════════════════════
 
-def _registry_type_names(cls) -> set[str]:
-    """The ``singledispatchmethod`` registry of ``cls._apply_impl``, by type
-    NAME — the empty set when the class dispatches without one (the iso
-    pair's ``isinstance`` branches, which is exactly why the behavioural
-    matrix below exists)."""
-    attr = inspect.getattr_static(cls, "_apply_impl", None)
-    dispatcher = getattr(attr, "dispatcher", None)
-    if dispatcher is None:
-        return set()
-    return {t.__name__ for t in dispatcher.registry}
-
-
 def _diffusion_binding():
     """The 2g / 6-cell diffusion binding the arm matrix is measured on."""
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
@@ -590,68 +578,109 @@ def _diffusion_binding():
     return dm, dm.material_xs_field(), dm.full_field_space
 
 
-_ARM_MATRIX = {
-    # (operator, carrier) -> expected outcome type name, or "TypeError".
-    # [M] 2026-08-20 (verification plan §2(g.1)) on the diffusion binding.
-    ("C", "FullField"): "FullField",
-    ("C", "ndarray"): "ndarray",
-    ("C", "ScalarFlux"): "TypeError",
-    ("IsoS", "FullField"): "FullField",
-    ("IsoS", "ndarray"): "ndarray",
-    ("IsoS", "ScalarFlux"): "ndarray",  # F10: untyped fall-through, recorded
-    ("IsoN2N", "FullField"): "FullField",
-    ("IsoN2N", "ndarray"): "ndarray",
-    ("IsoN2N", "ScalarFlux"): "ndarray",  # F10
-    ("F", "FullField"): "FullField",
-    ("F", "ndarray"): "ndarray",
-    ("F", "ScalarFlux"): "ndarray",  # F10 (iso-family unwrap, CS4c step 4)
+#: (operator, binding, carrier) → the outcome the ENDS select: an output
+#: class name, "TypeError" (a typed refusal from the verb), or
+#: "ctor:TypeError" (the binding itself is refused at construction).
+#: `[M]` 2026-09-04 (CS4c step 5, G5.2) on the 2g/6-cell diffusion binding.
+_ENDS_SELECT_THE_BODY = {
+    # ── the multiplier: composite → the lifted body; plain → the bare array
+    ("C", "composite", "ndarray"): "TypeError",
+    ("C", "composite", "FullField"): "FullField",
+    ("C", "composite", "ScalarFlux"): "TypeError",
+    ("C", "plain", "ndarray"): "ndarray",
+    ("C", "plain", "FullField"): "TypeError",
+    ("C", "plain", "ScalarFlux"): "TypeError",
+    # ── the energy bindings: PLAIN-bound only (R-4); a composite END is
+    #    refused at construction naming the lift (R-2, O-2)
+    ("IsoS", "composite", "ndarray"): "ctor:TypeError",
+    ("IsoS", "composite", "FullField"): "ctor:TypeError",
+    ("IsoS", "composite", "ScalarFlux"): "ctor:TypeError",
+    ("IsoS", "plain", "ndarray"): "ndarray",
+    ("IsoS", "plain", "FullField"): "TypeError",
+    ("IsoS", "plain", "ScalarFlux"): "TypeError",
+    ("IsoN2N", "composite", "ndarray"): "ctor:TypeError",
+    ("IsoN2N", "composite", "FullField"): "ctor:TypeError",
+    ("IsoN2N", "composite", "ScalarFlux"): "ctor:TypeError",
+    ("IsoN2N", "plain", "ndarray"): "ndarray",
+    ("IsoN2N", "plain", "FullField"): "TypeError",
+    ("IsoN2N", "plain", "ScalarFlux"): "TypeError",
+    ("F", "composite", "ndarray"): "ctor:TypeError",
+    ("F", "composite", "FullField"): "ctor:TypeError",
+    ("F", "composite", "ScalarFlux"): "ctor:TypeError",
+    ("F", "plain", "ndarray"): "ndarray",
+    ("F", "plain", "FullField"): "TypeError",
+    ("F", "plain", "ScalarFlux"): "TypeError",
+    # ── the lift of a plain energy binding: the composite action's ONE home
+    ("lift(IsoS)", "composite", "ndarray"): "TypeError",
+    ("lift(IsoS)", "composite", "FullField"): "FullField",
+    ("lift(IsoS)", "composite", "ScalarFlux"): "TypeError",
+    ("lift(IsoN2N)", "composite", "ndarray"): "TypeError",
+    ("lift(IsoN2N)", "composite", "FullField"): "FullField",
+    ("lift(IsoN2N)", "composite", "ScalarFlux"): "TypeError",
+    ("lift(F)", "composite", "ndarray"): "TypeError",
+    ("lift(F)", "composite", "FullField"): "FullField",
+    ("lift(F)", "composite", "ScalarFlux"): "TypeError",
 }
 
 
-@pytest.mark.parametrize(
-    ("operator_key", "carrier_key"),
-    sorted(_ARM_MATRIX),
-    ids=[f"{o}-{c}" for o, c in sorted(_ARM_MATRIX)],
-)
-def test_apply_arm_survival_matrix(operator_key, carrier_key):
-    r"""**G2.8** ⭐⭐ — the R-A fence, executable: NO apply arm is deleted.
+def _bind(operator_key: str, binding: str):
+    """Construct ``operator_key`` on the named binding of the diffusion
+    fixture — the composite ``full_field_space`` or the plain ``bulk_space``."""
+    from orpheus.transport.operators.lift import BulkLift
 
-    Twelve cells, each with a distinct MEASURED outcome including the
-    refusal (``C × ScalarFlux → TypeError``) — so the gate is never
-    merely "does it not crash", and it survives reformatting and any
-    later ``singledispatchmethod`` → explicit-dispatch rewrite, which a
-    source grep would not. The DENOMINATOR (CS4a-R QA-F12, re-keyed at
-    CS4c step 4): 4 dispatchers × 3 carriers, on the 2g/6-cell
-    diffusion binding — the F entry is the ENERGY binding
-    (``IsotropicFission``, what diffusion actually consumes since the
-    step-4 split; its ScalarFlux cell joins the iso family's F10
-    fall-through, and the retired typed ``ScalarSourceSink`` cell's
-    coverage moved to ``test_isotropic_fission.py``). The ANGULAR
-    ``FissionOperator``'s arms are gated in ``test_fission_operator.py``
-    —
-    ``ScatteringOperator``'s 5 arms have no behavioural cell here (they
-    are covered by the registry-keyset gate only, which catches an ADDED
-    arm where this matrix catches a MOVED one: the two gates are
-    complementary by design), and `[M]` the F-FullField / F-ScalarFlux
-    cells are coupled (one reroute reds both). The two ``IsoS/IsoN2N × ScalarFlux →
-    ndarray`` cells are F10's untyped fall-through (typed in, bare out —
-    vv#29's asymmetric arrow), RECORDED here as the shipped behaviour;
-    CS4a deletes no arm and repairs none (the dispatch collapse is
-    CS4c's, after the per-instance feeding census).
+    dm, mat_xs, ffs = _diffusion_binding()
+    space = ffs if binding == "composite" else dm.bulk_space
+    energy = {
+        "IsoS": IsotropicScattering, "IsoN2N": IsotropicN2N, "F": IsotropicFission,
+    }
+    if operator_key == "C":
+        return MultiplicationOperator(
+            coefficient=mat_xs.total_cross_section_field, domain=space, codomain=space,
+        )
+    if operator_key in energy:
+        return energy[operator_key].from_material_xs(mat_xs, space=space)
+    inner_key = operator_key[len("lift("):-1]
+    inner = energy[inner_key].from_material_xs(mat_xs, space=dm.bulk_space)
+    return BulkLift(inner, domain=ffs, codomain=ffs)
+
+
+@pytest.mark.parametrize(
+    ("operator_key", "binding", "carrier_key"),
+    sorted(_ENDS_SELECT_THE_BODY),
+    ids=[f"{o}-{b}-{c}" for o, b, c in sorted(_ENDS_SELECT_THE_BODY)],
+)
+def test_the_ends_select_the_body(operator_key, binding, carrier_key):
+    r"""**G5.2** ⭐⭐ — the ends→body fence, executable (CS4c step 5).
+
+    *Each binding acts through the body its ends select*: a composite-bound
+    operator admits exactly the ``FullField`` of its bound interior; a
+    plain-bound one exactly the bare array of its bound shape; every
+    other carrier is a typed refusal naming the operator; and the energy
+    bindings do not bind on a composite at all — the composite action of
+    an energy binding is :class:`~orpheus.transport.operators.lift.BulkLift`'s,
+    once. 33 cells, each with a distinct MEASURED outcome, on the 2g/6-cell
+    diffusion binding.
+
+    Replaces G2.8's 12-cell survival matrix, whose discriminating claim —
+    the ends select the carrier — was FALSE on 9 of its 12 cells at
+    ``f90f7914`` (`[M]` the plain row was bit-for-bit the composite row
+    for all three operators: F10's untyped fall-through, the ``FullField``
+    arm on the plain binding, the bare array on the composite one). The
+    §6c first red is those 9 cells; 6 further cells are construction
+    refusals that did not exist. Neither the singledispatch registry nor
+    a source grep can see a MOVED body — this fence can.
     """
     from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.full_field import FullField
 
-    dm, mat_xs, ffs = _diffusion_binding()
-    operators = {
-        "C": MultiplicationOperator(
-            coefficient=mat_xs.total_cross_section_field, domain=ffs, codomain=ffs,
-        ),
-        "IsoS": IsotropicScattering.from_material_xs(mat_xs, space=ffs),
-        "IsoN2N": IsotropicN2N.from_material_xs(mat_xs, space=ffs),
-        "F": IsotropicFission.from_material_xs(mat_xs, space=ffs),
-    }
+    expected = _ENDS_SELECT_THE_BODY[(operator_key, binding, carrier_key)]
+    if expected == "ctor:TypeError":
+        with pytest.raises(TypeError, match="BulkLift"):
+            _bind(operator_key, binding)
+        return
+    op = _bind(operator_key, binding)
+    dm, _mat_xs, _ffs = _diffusion_binding()
     rng = np.random.default_rng(2026)
     interior_values = rng.random((2, 6)) + 0.5
     carriers = {
@@ -662,45 +691,71 @@ def test_apply_arm_survival_matrix(operator_key, carrier_key):
         "ndarray": lambda: interior_values.copy(),
         "ScalarFlux": lambda: ScalarFlux(values=interior_values, space=dm.bulk_space),
     }
-
-    expected = _ARM_MATRIX[(operator_key, carrier_key)]
-    op = operators[operator_key]
     probe = carriers[carrier_key]()
     if expected == "TypeError":
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError, match=type(op).__name__):
             op.apply(probe)
     else:
         assert type(op.apply(probe)).__name__ == expected, (
-            f"{operator_key} × {carrier_key}: the arm's outcome type "
-            f"changed — an apply arm moved or died (the R-A fence)"
+            f"{operator_key} × {binding} × {carrier_key}: the outcome "
+            f"changed — a body moved (the ends→body fence)"
         )
 
 
-def test_apply_dispatch_registries_are_verbatim():
-    r"""**G2.8 companion** — the five ``singledispatchmethod`` keysets, verbatim.
+def test_the_plain_row_and_the_lift_row_agree_on_the_values():
+    r"""**G5.2 companion** — the two admitted bodies of one energy binding
+    compute the SAME numbers: ``lift(E).apply(FullField).interior.values``
+    is ``array_equal`` to ``E.apply(bulk.values)`` (the lift performs no
+    arithmetic), for all three energy bindings and the multiplier."""
+    from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
+    from orpheus.transport.full_field import FullField
 
-    ⚠ The iso pair's EMPTY sets are the point, not a gap: their arms are
-    ``isinstance`` branches, structurally invisible to any registry
-    introspection — which is why the behavioural matrix above is the
-    stronger instrument and this row is only the cheap source-tier tell.
+    dm, _mat_xs, _ffs = _diffusion_binding()
+    rng = np.random.default_rng(7)
+    psi = FullField(
+        interior=ScalarFlux(values=rng.random((2, 6)) + 0.5, space=dm.bulk_space),
+        boundary=ScalarBoundaryFlux(values=rng.random(dm.scalar_trace.shape[0]), space=dm.scalar_trace),
+    )
+    for key in ("IsoS", "IsoN2N", "F"):
+        plain = _bind(key, "plain")
+        lifted = _bind(f"lift({key})", "composite")
+        np.testing.assert_array_equal(
+            lifted.apply(psi).interior.values, plain.apply(psi.interior.values),
+        )
+    np.testing.assert_array_equal(
+        _bind("C", "composite").apply(psi).interior.values,
+        _bind("C", "plain").apply(psi.interior.values),
+    )
+
+
+def test_no_operator_of_the_family_dispatches_on_the_carrier():
+    r"""**G5.2's registry companion, INVERTED (CS4c step 5).** Until step 5
+    this row pinned the five ``singledispatchmethod`` keysets verbatim; the
+    carve retired every dispatch table, so the surviving claim is their
+    ABSENCE: no operator of the family carries a ``_apply_impl`` dispatcher,
+    and ``apply`` is a plain function on each. The lexical half (no
+    ``isinstance`` carrier arm in any verb) is
+    ``tests/transport/test_no_carrier_dispatch.py``.
     """
+    from orpheus.transport.operators.lift import BulkLift
+    from orpheus.transport.operators.n2n import N2NOperator
     from orpheus.transport.operators.scattering import ScatteringOperator
+    from orpheus.transport.operators.transfer import TransferOperator
 
-    assert _registry_type_names(MultiplicationOperator) == {
-        "FullField", "ndarray", "object",
-    }
-    assert _registry_type_names(FissionOperator) == {
-        "AngularFlux", "FullField", "HarmonicMomentFlux", "ScalarFlux",
-        "object",
-    }  # CS4c step 4: the angular binding mirrors N2NOperator's arms
-    #    (ScalarFlux is the typed refusal toward the energy binding).
-    assert _registry_type_names(IsotropicScattering) == set()
-    assert _registry_type_names(IsotropicN2N) == set()
-    assert _registry_type_names(IsotropicFission) == set()
-    assert _registry_type_names(ScatteringOperator) == {
-        "AngularFlux", "FullField", "HarmonicMomentFlux", "ScalarFlux",
-        "object",
-    }
+    for cls in (
+        MultiplicationOperator, FissionOperator, TransferOperator,
+        ScatteringOperator, N2NOperator, IsotropicScattering, IsotropicN2N,
+        IsotropicFission, BulkLift,
+    ):
+        assert inspect.getattr_static(cls, "_apply_impl", None) is None, (
+            f"{cls.__name__} regrew a dispatch table"
+        )
+        apply = inspect.getattr_static(cls, "apply")
+        assert inspect.isfunction(apply), (
+            f"{cls.__name__}.apply is {type(apply).__name__}, not a plain "
+            f"function — a carrier dispatcher regrew"
+        )
 
 
 def test_isotropic_energy_inherits_the_parent_binding_space():

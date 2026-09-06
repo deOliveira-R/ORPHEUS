@@ -290,21 +290,30 @@ def test_bulk_space_energy_arm_distinguishes_from_grid_from_synthetic() -> None:
     )
 
 
-def test_assemble_refusal_names_the_real_reason() -> None:
-    """D8 — the homogeneous C is now space-BEARING, so the assemble
-    refusal may no longer claim it is "space-anonymous"; it must name the
-    real reason (no composite flat layout on a plain bulk space)."""
+def test_plain_multiplier_assembles_its_own_diagonal() -> None:
+    """D8, INVERTED at CS4c step 5. Until then this row pinned the plain
+    multiplier's assemble REFUSAL ("no composite flat layout on a plain
+    bulk space"). The plain binding now emits the bulk diagonal on its
+    OWN ends — the same diagonal the engine multiplies, in the domain's
+    C-ravel — so the surviving claim is the emission itself:
+    ``assemble().as_matrix() == diag(Σ_t)`` exactly, and its matvec IS
+    ``apply`` on a bare array of the bound shape."""
     mat_xs = _mat_xs("2g")
     collision = MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section_field, mat_xs.mesh,
     )
     _require(collision.domain is not None, "precondition lost: C is unbound")
-    with pytest.raises(MissingAssembly, match="composite flat layout") as exc:
-        collision.assemble()
+    _require(collision.is_assemblable, "the plain multiplier must be assemblable")
+    sigma_t = np.asarray(mat_xs.total_cross_section_field.values)
+    emitted = collision.assemble()
     _require(
-        "space-anonymous" not in str(exc.value),
-        f"the refusal still claims space-anonymity of a space-bearing "
-        f"multiplier: {exc.value}",
+        bool(np.array_equal(emitted.as_matrix(), np.diag(sigma_t.ravel()))),
+        "the plain emission is not diag(Σ_t) in the domain's C-ravel",
+    )
+    x = np.arange(1.0, 1.0 + sigma_t.size).reshape(sigma_t.shape)
+    _require(
+        bool(np.array_equal(emitted.apply(x.ravel()), collision.apply(x).ravel())),
+        "the plain emission's matvec is not the plain apply",
     )
 
 

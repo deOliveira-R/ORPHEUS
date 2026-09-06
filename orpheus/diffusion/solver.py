@@ -158,6 +158,7 @@ from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.operators.lift import BulkLift
 from orpheus.transport.operators.isotropic_transfer import (
     IsotropicFission,
     IsotropicN2N,
@@ -237,18 +238,28 @@ class DiffusionSolver:
             self.mat_xs.total_cross_section_field, domain=space, codomain=space,
         )
         # The full K_iso pair (loss-side (n,2n) — module docstring);
-        # IsotropicN2N contributes exactly zero on a Σ₂-free mixture.
-        scattering = (
-            IsotropicScattering.from_material_xs(self.mat_xs, space=space)
-            + IsotropicN2N.from_material_xs(self.mat_xs, space=space)
+        # IsotropicN2N contributes exactly zero on a Σ₂-free mixture. The
+        # energy bindings are PLAIN-bound on the mesh's scalar bulk (CS4c
+        # step 5, R-4: the array carriers are theirs) and LIFTED onto the
+        # scalar composite here, once, so the loss composes under the
+        # OperatorSum ends guard and assembles for the exact resolvent
+        # (the lift embeds the bulk block-diagonal in the composite flat
+        # layout — index-identity, bit-for-bit).
+        bulk = mesh.bulk_space
+        scattering = BulkLift(
+            IsotropicScattering.from_material_xs(self.mat_xs, space=bulk)
+            + IsotropicN2N.from_material_xs(self.mat_xs, space=bulk),
+            domain=space, codomain=space,
         )
         self.boundary = DiffusionBoundaryOperator(mesh)
         self.loss = self.leakage + collision - scattering - self.boundary
-        # The fission ENERGY binding (CS4c step 4): diffusion consumes
-        # the scalar dyad on its scalar-bulk composite — the angular
-        # composite binding (FissionOperator) is the SN eigen-posing's.
-        self.fission = IsotropicFission.from_material_xs(
-            self.mat_xs, space=space,
+        # The fission ENERGY binding (CS4c step 4), lifted the same way:
+        # diffusion consumes the scalar dyad on its scalar-bulk composite
+        # — the angular composite binding (FissionOperator) is the SN
+        # eigen-posing's.
+        self.fission = BulkLift(
+            IsotropicFission.from_material_xs(self.mat_xs, space=bulk),
+            domain=space, codomain=space,
         )
 
         #: The zero composite freezing the flat layout.

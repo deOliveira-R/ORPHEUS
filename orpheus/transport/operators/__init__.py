@@ -29,8 +29,10 @@ are a distinct abstraction (flux→scalar) and deliberately stay at the
 ``transport`` top level.
 """
 
+from .angular_lift import AngularLift
 from .fission import FissionOperator
 from .integral_kernel_operator import IntegralKernelOperator
+from .lift import BulkLift
 from .isotropic_transfer import (
     IsotropicFission,
     IsotropicN2N,
@@ -43,6 +45,8 @@ from .scattering import ScatteringOperator
 from .transfer import LegendreMomentTransfer, TransferOperator
 
 __all__ = [
+    "AngularLift",
+    "BulkLift",
     "FissionOperator",
     "IntegralKernelOperator",
     "IsotropicFission",

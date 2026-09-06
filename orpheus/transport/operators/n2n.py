@@ -56,15 +56,15 @@ two terms are now two instances of one binding, and this module is the
 role — its channel constant, its P0 binding and its name, no code (an
 AST gate, ``tests/transport/test_transfer_roles.py``, keeps it so).
 
-Carrier arms are the core's: composite ``FullField`` (bulk-only; zero
-trace), per-ordinate
-:class:`~orpheus.transport.fields.angular_flux.AngularFlux`, the windowed
-:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-(whose :math:`\ell=0` moment IS the scalar flux), and the P0-only
-:class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` arm in iso
-scalar magnitude. A scalar consumer that wants the ENERGY binding alone
-builds :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
-directly.
+The action is the core's, on the composite ``FullField`` of the
+binding's own domain (bulk emission; zero trace), through the body the
+binding's ENDS select at construction (CS4c step 5): the per-ordinate
+body on the angular composite, the moment body on the moment composite
+the windowed driver binds via ``on_moment_domain()`` (whose
+:math:`\ell=0` moment IS the scalar flux). A scalar consumer that wants
+the ENERGY binding alone builds
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
+directly (or reads ``N2NOperator.isotropic_energy``).
 """
 
 from __future__ import annotations

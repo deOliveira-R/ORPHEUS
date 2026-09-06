@@ -20,18 +20,21 @@ solve's Legendre order. This module owns the bindings' shared arithmetic
   factor :math:`\Lambda = y \sum_\ell \mathbf{P}_\ell \otimes
   \Sigma_{c,\ell}` on the frame's coefficient space;
 * :class:`TransferOperator` — the angular binding :math:`T = R\,\Lambda\,M
-  / W` on the posed composite, realized on the reaction-rate fast path
-  for :math:`\ell = 0` (the scalar energy binding
-  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicTransfer`,
-  lifted through the shared producer-side combine) plus the
-  frame-conjugated :math:`\ell \ge 1` redistribution.
+  / W` on the posed composite: the shared :math:`\ell = 0` lift
+  (:class:`~orpheus.transport.operators.angular_lift.AngularLift` — the
+  scalar energy binding
+  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicTransfer`
+  on the reaction-rate fast path, the producer-side combine, the
+  transpose as factor reversal, and the SELECTION of the body from the
+  binding's ends) plus this module's :math:`\ell \ge 1` redistribution.
 
 **The kernel tier names the mathematical object; the operator tier names
 the TERM.** The two terms of the algebra are thin role subclasses —
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
 :class:`~orpheus.transport.operators.n2n.N2NOperator` — whose only
-content is the extraction classmethod (which ``Mixture`` channel the
-tier-2 mint reads) and the role name; every verb lives HERE, once. An AST
+content is two class constants (which ``Mixture`` channel the tier-2
+mint reads, and which P0 energy binding the lift derives) and the role
+name; every verb lives HERE or on the lift base, once. An AST
 gate (``tests/transport/test_transfer_roles.py``) asserts the roles define
 nothing else, so the twin path the carve removed cannot regrow one
 override at a time.
@@ -78,15 +81,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from functools import cached_property, singledispatchmethod
-from typing import TYPE_CHECKING, Any, ClassVar, Self, cast, overload
+from functools import cached_property
+from typing import TYPE_CHECKING, ClassVar, Self, cast, overload
 
 import numpy as np
 
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.basis.base import TruncatedBasis
 from orpheus.numerics.spaces.moment_head import MomentHead
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.frames import (
     HarmonicAnalysisOperator,
     HarmonicFrame,
@@ -98,28 +100,23 @@ from orpheus.numerics.operator import (
     OperatorProduct,
 )
 
-# Runtime imports of the flux / source types — required at module load
-# time because :func:`singledispatchmethod.register` dispatches on the
-# runtime class.  These modules form a leaf in the transport package
-# dependency graph (they do not import the operators), so the imports
-# are circular-import-safe.
-from orpheus.transport.fields.scalar_flux import ScalarFlux
+# Runtime imports of the field leaves — the moment factor's typed arms
+# and the lift's per-end bodies construct them at call time. These
+# modules form a leaf in the transport package dependency graph (they do
+# not import the operators), so the imports are circular-import-safe.
+from orpheus.transport.fields._bases import BulkField
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.source_sinks import (
-    ScalarSourceSink,
     AngularSourceSink,
-    AngularBoundarySourceSink,
     HarmonicMomentSourceSink,
 )
-from orpheus.transport.full_field import FullField
 from orpheus.transport.kernels import TransferKernel
 from orpheus.transport.material_field import TransferMaterialField
-from orpheus.transport.operators._per_ordinate import (
-    assemble_per_ordinate_isotropic,
-)
+from orpheus.transport.operators.angular_lift import AngularLift
 from orpheus.transport.operators.bound_operator import BoundOperator
 from orpheus.transport.operators.isotropic_transfer import IsotropicTransfer
+from orpheus.transport.operators.lift import interior_space_of
 
 if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
@@ -357,12 +354,12 @@ class LegendreMomentTransfer(BoundOperator):
 
 
 @dataclass(eq=False)
-class TransferOperator(BoundOperator["FullField"]):
+class TransferOperator(AngularLift[IsotropicTransfer]):
     r"""The angular binding of a transfer channel: :math:`T = R\,\Lambda\,M/W` (P0 + Pℓ).
 
-    **The CS4c step-3 binding (design record §14), generic in the channel
-    (#426 step 2):** the exact ctor retains the representation-free datum
-    and the minted products, and nothing richer —
+    **The CS4c binding (design record §14, step 5), generic in the channel
+    (#426 step 2):** the exact ctor retains the representation-free datum,
+    the minted faces, and the two ends — nothing richer —
 
     * :attr:`transfer` — the
       :class:`~orpheus.transport.material_field.TransferMaterialField`
@@ -372,16 +369,19 @@ class TransferOperator(BoundOperator["FullField"]):
     * :attr:`flux_analysis` / :attr:`source_reconstruction` — the two
       typed faces minted from the HUB-interned
       :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`
-      (tier 2 mints them and forgets the frame; the :attr:`frame`
-      accessor is PROVENANCE, riding on the faces);
+      on the angular space this binding EMITS on (tier 2 mints them and
+      forgets the frame; the :attr:`frame` accessor is PROVENANCE, riding
+      on the faces);
     * the two mandatory ends (kw-only, write-once —
       :class:`~orpheus.transport.operators.bound_operator.BoundOperator`):
-      the composite full-field space, both — the SAME instance
-      ``L``/``C``/``B`` carry, so the within-group
-      ``(L + C) − S − N₂ₙ − B`` OperatorSum guard validates each gain arm
-      natively. (⚠ the 2-D windowed operand carries a MOMENT interior —
-      the shipped non-endomorphism the step-0 census measured; the
-      carrier dispatch serves it until step 5's arm deletion.)
+      the composite full-field spaces. The angular binding tier 2 mints is
+      an endomorphism on the posed composite — the SAME instance
+      ``L``/``C``/``B`` carry, so the within-group ``(L + C) − S − N₂ₙ − B``
+      OperatorSum guard validates each gain arm natively. The windowed
+      driver's gain is the sibling :meth:`on_moment_domain` returns — the
+      same datum and faces, the domain's interior the moment composite —
+      and the body it acts through is SELECTED by that end at construction
+      (:class:`~orpheus.transport.operators.angular_lift.AngularLift`).
 
     **Two terms, one binding.** The scattering gain and the
     :math:`(n,2n)` gain are the role subclasses
@@ -395,25 +395,26 @@ class TransferOperator(BoundOperator["FullField"]):
     datum, and the production accounting a :math:`y > 1` channel adds is
     arithmetic that vanishes for :math:`y = 1`.
 
+    **The action, per end (selected once at construction).** The
+    :math:`\ell = 0` half is the base's lift of :attr:`isotropic_energy`
+    (this role's :attr:`isotropic_binding` of the datum's P0 head). The
+    :math:`\ell \ge 1` half — absent when the binding
+    :attr:`is_isotropic`, so an all-zero :math:`\Lambda_{\ell\ge1}` is
+    never run — is the cached §5.6 :attr:`kernel` :math:`R\,\Lambda\,M`
+    on the angular end, and the explicit typed grid path
+    (:math:`\Lambda` then the minted source-reconstruction face) on the
+    moment end; both end at the base's producer-side combine. The two
+    routes share :math:`\Lambda` and the frame's :math:`R` and agree
+    bit-for-bit (``tests/sn/operators/test_scattering_kernel_crosscheck.py``;
+    the choice is legibility at the call site —
+    ``docs/theory/foundations/operator_algebra.rst §integral-kernel-category``).
+
     Capability surface: ``{apply, apply_transpose}`` — no efficient
     ``solve``; the adjoint :math:`T^{T}` is free via the harmonic-frame
-    :attr:`full_transfer_kernel` (see :meth:`apply_transpose`).
+    :attr:`full_transfer_kernel` (see the base's ``apply_transpose``).
     """
 
     transfer: "TransferMaterialField"
-    #: The minted FLUX analysis face :math:`M \otimes I` on the posed
-    #: interior (``AngularFlux → HarmonicMomentFlux``) — bound at tier 2,
-    #: retained. Consumers: the windowed bulk projection and the S6
-    #: adjoint gates.
-    flux_analysis: "HarmonicAnalysisOperator[AngularFlux, HarmonicMomentFlux]" = field(
-        kw_only=True,
-    )
-    #: The minted SOURCE reconstruction face :math:`R \otimes I` landing
-    #: on the posed interior (``HarmonicMomentSourceSink →
-    #: AngularSourceSink``) — the windowed arm's typed R.
-    source_reconstruction: "HarmonicReconstructionOperator[HarmonicMomentSourceSink, AngularSourceSink]" = field(
-        kw_only=True,
-    )
 
     #: The P0 ENERGY binding this term lifts — the role subclass names its
     #: own (``IsotropicScattering`` for :math:`S`, ``IsotropicN2N`` for
@@ -431,37 +432,34 @@ class TransferOperator(BoundOperator["FullField"]):
     #: ruled, and what makes the AST role gate airtight.
     channel: ClassVar[Callable[["MaterialXSField"], "TransferMaterialField"]]
 
-    # A transfer gain is a BULK operator — the moment-folding
-    # Σ_c·⟨P_ℓ, ψ⟩ reads and writes the bulk flux only (A_bb), no boundary
-    # action. A class-level DEFAULT of the base's `block_role` instance
-    # attribute, deliberately unannotated: a `ClassVar` annotation would
-    # override the base's instance variable (pyright refuses it) and a
-    # plain annotation would make it a dataclass field.
-    block_role = BlockRole.BULK
-
     def __post_init__(self) -> None:
-        # Per-END energy admission (CS4c §1).
-        self._assert_energy_extent_both_ends(
-            self.transfer.ng, operator=type(self).__name__,
+        super().__post_init__()
+        # The ℓ ≥ 1 body, selected ONCE: none when the datum carries no
+        # moment above ℓ = 0 (the R Λ M product would return exact zeros),
+        # else the route the selected end reads.
+        if self.is_isotropic:
+            self._redistribution = None
+        elif self._end.__name__ == "_MomentEnd":
+            self._redistribution = self._redistribute_moments
+        else:
+            self._redistribution = self._redistribute_ordinates
+
+    # ── the lift's subclass contract ─────────────────────────────────
+
+    @property
+    def data_ng(self) -> int:
+        return self.transfer.ng
+
+    def _bind_energy(self, scalar_space: FunctionSpace) -> IsotropicTransfer:
+        # The role's own P0 binding of the datum's head — the field at
+        # order 0 (the datum it reads and nothing richer; y travels in the
+        # kernels).
+        return type(self).isotropic_binding(
+            self.transfer.at_order(0), domain=scalar_space, codomain=scalar_space,
         )
-        # Face-binding agreement: both minted faces must be bound to THIS
-        # binding's interior — a face bound elsewhere would make the
-        # windowed arm and the per-ordinate combine silently inconsistent.
-        # (The XD-1 wrong-EMBEDDING controls stay spellable: a doctored
-        # face carries the RIGHT spaces with the WRONG measure.)
-        interior = self._interior_space
-        if self.flux_analysis.domain != interior:
-            raise TypeError(
-                f"{type(self).__name__}: the flux-analysis face is bound to "
-                f"a different angular space than this binding's interior "
-                f"— mint the faces from the SAME posed space (tier 2 does)."
-            )
-        if self.source_reconstruction.codomain != interior:
-            raise TypeError(
-                f"{type(self).__name__}: the source-reconstruction face lands "
-                f"on a different angular space than this binding's interior "
-                f"— mint the faces from the SAME posed space (tier 2 does)."
-            )
+
+    def _frame_form(self) -> OperatorProduct:
+        return self.full_transfer_kernel
 
     @classmethod
     def from_solver_data(
@@ -506,18 +504,7 @@ class TransferOperator(BoundOperator["FullField"]):
         mismatch is unspellable. Both terms of the algebra mint at the
         SAME ``(rule, L)`` and therefore share ONE interned frame.
         """
-        interior = (
-            space.interior_space
-            if isinstance(space, FullFieldSpace)
-            else None
-        )
-        if interior is None:
-            raise TypeError(
-                f"{cls.__name__}.from_field requires the posed "
-                f"composite FullFieldSpace (its interior is the angular "
-                f"space the faces bind); got "
-                f"{type(space).__name__}."
-            )
+        interior = interior_space_of(space, owner=f"{cls.__name__}.from_field")
         frame = HarmonicFrame.for_space(interior, scattering_order)
         return cls(
             transfer.at_order(scattering_order),
@@ -526,14 +513,6 @@ class TransferOperator(BoundOperator["FullField"]):
             domain=space,
             codomain=space,
         )
-
-    @property
-    def is_adjointable(self) -> bool:
-        # T = R∘Λ∘M exposes its Euclidean transpose T^T via
-        # :attr:`full_transfer_kernel` (the OperatorProduct adjoint chain);
-        # is_invertible inherits base False —
-        # an emission source operator is not invertible.
-        return True
 
     @property
     def legendre_order(self) -> int:
@@ -551,176 +530,33 @@ class TransferOperator(BoundOperator["FullField"]):
         r"""``True`` iff this binding's :math:`\Lambda_{\ell\ge 1}` is the
         zero operator — order 0, or every moment above :math:`\ell = 0`
         exactly zero (an absent section, an ``NL = 1`` evaluation, a stack
-        padded to the solve's order). The anisotropic arms then emit
-        nothing and are skipped: the same statement ``legendre_order ==
+        padded to the solve's order). The anisotropic body is then not
+        selected at construction: the same statement ``legendre_order ==
         0`` used to make from the SHAPE, now made from the VALUES — the
         result is bit-identical (an all-zero :math:`\Lambda` reconstructs
         to exact zeros) and the :math:`R\Lambda M` product is not run."""
         return self.transfer.is_isotropic
 
-    @property
-    def total_weight(self) -> float:
-        r""":math:`W = \int_{S^2} d\Omega` — the binding measure's total
-        angular weight (the producer-side :math:`/W`). Read off the
-        retained faces' frame MEASURE: the measure is the binding's
-        metric (operative data — unlike the :attr:`frame` accessor,
-        which is provenance)."""
-        return float(self.flux_analysis.frame.measure.weights.sum())
-
-    @property
-    def _moment_space(self) -> "FunctionSpace":
-        r"""The coefficient space of the bound frame's BASIS — the
-        endomorphic ends of the internally-minted moment factors.
-
-        READ off the retained faces' frame (``frame.basis.space``), never
-        minted from :attr:`legendre_order`: which family spans the
-        moments is the quadrature's decision (full harmonics on a sphere
-        rule, Legendre on a 1-D rule), and the frame already carries it.
-        The continuum-metric space (the basis's own), not the frame's
-        Parseval-dressed ``basis_space``: `[M]` #429 tracker 2.5 the two are
-        ``(name, shape)``-equal and metric-DIFFERENT on 33 of 33 shipped
-        (rule, L) rows (the per-:math:`\ell` ratio is exactly
-        :math:`[(2\ell+1)/4\pi]^2`), and under the continuum end the
-        factor's Hilbert adjoint is its transpose EXACTLY
-        (:math:`\Lambda^* = \Lambda^{\mathsf T}`, 0.0 on 33/33) while the
-        dressed end would move it on 10 of 33 rows (every 1-D and folded
-        rule at :math:`\ell \ge 1`) — binding the basis's own space is what
-        keeps every number and every ``.H`` bit-identical to the
-        ``from_L(L)`` mint it replaces. (Equality is ``(name, shape)`` and
-        cannot see the fork; the gate asserts the metric ARRAY.)"""
-        return self.flux_analysis.frame.basis.space
-
     def _moment_transfer(self, *, skip_l0: bool) -> LegendreMomentTransfer:
         r"""Mint the moment-space :math:`\Lambda` factor on this binding's
         datum + moment ends — the ONE internal spelling (three consumers:
-        the §5.6 kernel, the full conjugation, and the aniso moment
-        route; the windowed arm consumes the cached :attr:`kernel`
-        factors)."""
+        the §5.6 kernel, the full conjugation, and the moment end's typed
+        route)."""
         ends = self._moment_space
         return LegendreMomentTransfer(
             self.transfer, skip_l0=skip_l0, domain=ends, codomain=ends,
         )
 
-    @property
-    def frame(self) -> HarmonicFrame:
-        r"""The HUB-interned frame the retained faces were minted from,
-        riding on :attr:`flux_analysis` (zero extra state). OPERATIVE for
-        the three conjugation properties (:attr:`kernel`,
-        :attr:`full_transfer_kernel`, the windowed arm's
-        :meth:`_aniso_source_from_moment_values`), which read it to
-        conjugate the moment factor; the fast-path arms read the FACES and
-        the kernel-field datum. Retirement-tracked (design record §2): the
-        accessor goes the day those three read the faces instead.
-        """
-        return self.flux_analysis.frame
-
-    @property
-    def _interior_space(self) -> "FunctionSpace":
-        r"""The posed composite's interior — the angular field space of
-        the binding (the mints' input at tier 2; the per-ordinate target
-        of the windowed arm). Mandatory since the CS4c flip: the ends
-        always carry it, and a non-composite binding refuses loudly.
-        """
-        domain = self.domain
-        if (
-            not isinstance(domain, FullFieldSpace)
-            or domain.interior_space is None
-        ):
-            raise TypeError(
-                f"{type(self).__name__} binds the composite full-field "
-                f"space — this instance's domain carries no interior to "
-                f"size the angular arms."
-            )
-        return domain.interior_space
-
-    @property
-    def _scalar_interior_space(self) -> "FunctionSpace":
-        r"""The interior's scalar ``(ng, *spatial)`` sub-space — the P0
-        half's end (the energy binding's domain and the windowed arm's
-        scalar-flux space are the SAME object, minted here once)."""
-        interior = self._interior_space
-        if interior.axes is None:
-            raise TypeError(
-                f"{type(self).__name__}: the composite interior must be "
-                f"axis-built to name the scalar sub-space."
-            )
-        return FunctionSpace.of_axes(*interior.axes[1:])
-
-    @cached_property
-    def isotropic_energy(self) -> IsotropicTransfer:
-        r"""The P0 ENERGY binding of this operator's own datum — the
-        scalar-space :attr:`isotropic_binding` (the role's own:
-        :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
-        under :math:`S`,
-        :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicN2N`
-        under :math:`N_{2n}`) the per-ordinate fast path lifts — and the
-        solver's K_iso assembly consumes: ``K_iso = S.isotropic_energy +
-        N2N.isotropic_energy``, composed at the ONE within-group
-        construction site (§14.1; :math:`\ell = 0` by physics — the ray
-        seed is the scalar flux's).
-
-        Bound to the composite interior's scalar sub-space; holds the
-        field at order 0 (the P0 head — the datum it reads and nothing
-        richer; :math:`y` travels in the kernels). Cached at
-        construction-time semantics (the kernel field is immutable).
-        """
-        scalar_space = self._scalar_interior_space
-        return type(self).isotropic_binding(
-            self.transfer.at_order(0),
-            domain=scalar_space,
-            codomain=scalar_space,
-        )
-
-    # ── Anisotropic emission: the moment→source map R·Λ_{ℓ≥1} ──────────
-
-    def _aniso_source_from_moment_values(
-        self, moment_values: np.ndarray,
-    ) -> np.ndarray:
-        r"""Reconstruct the per-ordinate :math:`\ell\ge 1` emission from a
-        flux-moment tensor — the **moment → source** half
-        :math:`R\,\Lambda_{\ell\ge 1}` of the anisotropic composition
-        :math:`T_{\rm aniso} = \tfrac{1}{W}\,R\,\Lambda\,M`.
-
-        Built as ``frame.reconstruct_after(Λ)`` — the §5.6 :attr:`kernel`
-        sub-operator for inputs ALREADY in moment space, with
-        :math:`\Lambda_{\ell\ge 1}` = :class:`LegendreMomentTransfer`
-        (``skip_l0=True``) and :math:`R` the :attr:`frame`'s
-        :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face. The
-        trailing :math:`1/W` is **not** applied here — it is the producer-side
-        normalisation at the :meth:`apply` boundary. Its sole caller is the
-        windowed moment-iterate :meth:`apply` arm (:math:`M` already done). The
-        two aniso realisations (this :math:`R\Lambda` vs the full-angular
-        :attr:`kernel` :math:`R\Lambda M`) share the frame's :math:`R` and
-        :math:`\Lambda` and are pinned at 0 ULP by
-        ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` — see
-        ``docs/theory/foundations/operator_algebra.rst §integral-kernel-category``.
-
-        Parameters
-        ----------
-        moment_values : np.ndarray
-            Flux-moment tensor (head axes, ``ng``, spatial) — typically
-            ``M.apply(psi)`` or the windowed iterate's
-            :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-            ``.values``.
-
-        Returns
-        -------
-        np.ndarray
-            ``(N, ng, *spatial)`` per-ordinate :math:`\ell\ge 1` emission,
-            **pre** :math:`1/W`.
-        """
-        redistribution = self._moment_transfer(skip_l0=True)
-        # R∘Λ as ONE typed operator (M already applied — the moments ARE M·ψ).
-        return self.frame.reconstruct_after(redistribution).apply(moment_values)
-
     @cached_property
     def kernel(self) -> LinearOperator:
-        r"""The §5.6 integral kernel :math:`R \circ \Lambda_{\ell\ge 1} \circ M`.
+        r"""The §5.6 integral kernel — the :math:`\ell\ge 1` redistribution
+        on THIS binding's domain.
 
-        The anisotropic Legendre redistribution as a typed
-        :class:`~orpheus.numerics.operator.OperatorProduct`
-        ``frame.conjugate(Λ)`` ``= OperatorProduct(R, OperatorProduct(Λ, M))``,
-        so ``kernel.apply(ψ.values) = R(Λ(M ψ))``. The factors:
+        On the angular end :math:`R \circ \Lambda_{\ell\ge 1} \circ M` — the
+        frame conjugation ``frame.conjugate(Λ)`` ``= OperatorProduct(R,
+        OperatorProduct(Λ, M))``, so ``kernel.apply(ψ.values) = R(Λ(M ψ))``;
+        on the moment end :math:`R \circ \Lambda_{\ell\ge 1}` (the operand
+        is already :math:`M\psi`). The factors:
 
         * :math:`M` = ``frame.analysis`` (the :attr:`frame`'s
           :attr:`~orpheus.numerics.frame.FrameBase.analysis` face);
@@ -729,15 +565,16 @@ class TransferOperator(BoundOperator["FullField"]):
         * :math:`R` = ``frame.reconstruction`` (the :attr:`frame`'s
           :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face).
 
-        This is the production :math:`\ell\ge 1` map (not a parallel semantic
-        reading): :meth:`build_aniso_source` is ``(1/W)·kernel`` and the windowed
-        arm consumes the sub-operator ``frame.reconstruct_after(Λ)``. The
-        producer-side :math:`1/W` lives OUTSIDE the kernel (at the :meth:`apply`
-        boundary), so ``kernel.apply`` returns the source **pre**-:math:`1/W`.
-        With it, :class:`TransferOperator` satisfies the
+        This is the production :math:`\ell\ge 1` map on the angular end
+        (:meth:`build_aniso_source` is ``(1/W)·kernel``) and the moment
+        end's 0-ULP crosscheck oracle (the typed route is production
+        there). The producer-side :math:`1/W` lives OUTSIDE the kernel
+        (at the ``apply`` boundary), so ``kernel.apply`` returns the
+        source **pre**-:math:`1/W`. With it, :class:`TransferOperator`
+        satisfies the
         :class:`~orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
-        Protocol — the theory (why scattering IS a nonlocal integral kernel,
-        why P0 is the local component) is in
+        Protocol — the theory (why scattering IS a nonlocal integral
+        kernel, why P0 is the local component) is in
         ``docs/theory/foundations/operator_algebra.rst §integral-kernel-category``.
         CACHED at first access (the kernel field is immutable).
 
@@ -747,12 +584,7 @@ class TransferOperator(BoundOperator["FullField"]):
             If the binding :attr:`is_isotropic` — order 0, or every moment
             above :math:`\ell = 0` exactly zero — so :math:`R\Lambda M` would
             be the zero operator; the P0 emission is the LOCAL component
-            handled by :meth:`add_iso_source`.
-
-        Returns
-        -------
-        LinearOperator
-            The typed ``R∘Λ∘M`` anisotropic redistribution.
+            handled by the lift's :math:`\ell = 0` half.
         """
         if self.is_isotropic:
             raise ValueError(
@@ -763,17 +595,14 @@ class TransferOperator(BoundOperator["FullField"]):
                 f"operator. The P0 emission is the LOCAL component, handled by "
                 f"add_iso_source."
             )
-        # R ∘ Λ ∘ M as ONE typed operator: the frame conjugates Λ (per-ℓ
-        # moment-space transfer) between its analysis (M) and reconstruction (R)
-        # faces. Λ carries real spaces (== frame.basis_space), so the
-        # OperatorProduct composability guard validates R∘Λ∘M natively — NO cast.
-        return self.frame.conjugate(
-            self._moment_transfer(skip_l0=True)
-        )
+        # Λ carries real spaces (== frame.basis_space), so the OperatorProduct
+        # composability guard validates the composition natively — NO cast.
+        return self._end.conjugate(self, self._moment_transfer(skip_l0=True))
 
     @cached_property
     def full_transfer_kernel(self) -> OperatorProduct:
-        r"""The FULL emission kernel :math:`R\circ\Lambda_{\ell\ge 0}\circ M`.
+        r"""The FULL emission kernel :math:`R\circ\Lambda_{\ell\ge 0}\circ M`
+        (:math:`R\circ\Lambda_{\ell\ge 0}` on the moment end).
 
         The COMPLETE P0 + anisotropic emission as ONE frame-conjugated
         operator: the isotropic ℓ=0 transfer and the anisotropic ℓ≥1
@@ -781,134 +610,68 @@ class TransferOperator(BoundOperator["FullField"]):
         ``skip_l0=False``) conjugated by the frame. The per-ordinate
         source is ``(1/W)·full_transfer_kernel.apply(ψ)``; its transpose
         ``(1/W)·full_transfer_kernel.apply_transpose(ψ*)`` is the adjoint
-        :math:`T^{T}` (:meth:`apply_transpose`). Riding the same frame
-        conjugation for iso and aniso is what lets the whole transpose
-        fall out for free —
-        ``docs/theory/methods/sn/adjoint.rst §sn-scattering-adjoint-source``.
-        Under :math:`N_{2n}` this is the product whose reversal the
-        §sn-n2n-adjoint-source equation states (its :math:`\ell = 0`
-        block is the lift's reversal; the :math:`\ell \ge 1` blocks are
-        the anisotropy's, since #426 step 2).
+        :math:`T^{T}` (the lift base's ``apply_transpose`` reads it
+        through :meth:`_frame_form`). Riding the same frame conjugation
+        for iso and aniso is what lets the whole transpose fall out for
+        free — ``docs/theory/methods/sn/adjoint.rst
+        §sn-scattering-adjoint-source``. Under :math:`N_{2n}` this is the
+        product whose reversal the §sn-n2n-adjoint-source equation states
+        (its :math:`\ell = 0` block is the lift's reversal; the
+        :math:`\ell \ge 1` blocks are the anisotropy's, since #426 step 2).
 
-        Distinct from :attr:`kernel` (the §5.6 ℓ≥1 ANISOTROPIC subcomponent + the
-        0-ULP crosscheck oracle): this is the FULL ℓ≥0 emission.
-        CACHED at first access (CS4c §14.7 — the satellite mint drops
-        from once-per-apply to once-per-construction; the kernel field is
-        immutable, so the cache cannot go stale).
+        Distinct from :attr:`kernel` (the §5.6 ℓ≥1 ANISOTROPIC
+        subcomponent): this is the FULL ℓ≥0 emission. CACHED at first
+        access (CS4c §14.7 — the satellite mint drops from once-per-apply
+        to once-per-construction; the kernel field is immutable, so the
+        cache cannot go stale).
         """
-        return self.frame.conjugate(
-            self._moment_transfer(skip_l0=False)
+        return self._end.conjugate(self, self._moment_transfer(skip_l0=False))
+
+    # ── the ℓ ≥ 1 half, per end ──────────────────────────────────────
+
+    def _interior_action(self, bulk: BulkField) -> AngularSourceSink:
+        redistribution = self._redistribution
+        return self._combine(
+            self._isotropic_source(bulk),
+            None if redistribution is None else redistribution(bulk),
         )
 
-    def _assemble_per_ordinate_source(
-        self,
-        phi: "ScalarFlux",
-        aniso_or_none: "AngularSourceSink | None",
-        angular_space: "FunctionSpace",
-    ) -> "AngularSourceSink":
-        r"""Combine the P0 emission (from the scalar flux :math:`\phi_0`)
-        with the pre-:math:`/W` :math:`\ell\ge 1` aniso emission into the
-        per-ordinate source :math:`(\text{iso}/W) + \text{aniso}`.
-
-        The **single source of truth for the producer-side** :math:`1/W`
-        **combine**: every ``apply`` arm that emits a per-ordinate
-        :class:`~orpheus.transport.source_sinks.AngularSourceSink` (the
-        full-angular :class:`AngularFlux` arm and the windowed
-        :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-        arm) routes here — the :math:`/W` convention lives HERE, once. The
-        normalisation chain is in ``docs/theory/methods/sn/slab_multigroup.rst``
-        (the normalization-chain section).
-
-        Parameters
-        ----------
-        phi : ScalarFlux
-            Scalar flux :math:`\phi_0` (iso magnitude) driving the P0 emission.
-        aniso_or_none : AngularSourceSink or None
-            Per-ordinate :math:`\ell\ge 1` source ALREADY in per-ordinate
-            magnitude (post-:math:`/W`), or ``None`` for an isotropic binding.
-        angular_space : FunctionSpace
-            The per-ordinate target space (CS4b S4 — sizes the zero
-            accumulator; the caller holding the pose supplies it: the
-            operand's own space on the full-angular arm, the posed
-            composite's interior on the windowed moment arm).
-        """
-        # The isotropic P0 energy emission through this binding's own
-        # scalar-space energy operator; the iso rides the driving flux's
-        # own space (width travels in it), and the producer-side /W
-        # combine is the ONE shared home
-        # (:func:`~orpheus.transport.operators._per_ordinate.assemble_per_ordinate_isotropic`
-        # — FissionOperator rides the same primitive).
-        iso: ScalarSourceSink = ScalarSourceSink(
-            values=cast(np.ndarray, self.isotropic_energy.apply(phi)),
-            space=phi.space,
-        )
-        return assemble_per_ordinate_isotropic(
-            iso, aniso_or_none, angular_space, self.total_weight,
+    def _redistribute_ordinates(self, bulk: BulkField) -> AngularSourceSink:
+        r"""The angular end: :math:`(1/W)\,R\,\Lambda_{\ell\ge1}\,M\,\psi`
+        through the cached :attr:`kernel` — one composition, one
+        reduction tree (the 0-ULP canary's spelling)."""
+        return AngularSourceSink(
+            values=self.kernel.apply(bulk.values) / self.total_weight,
+            space=self._codomain_interior,
         )
 
-    # ── In-place helpers (preserve bit-identity vs SNSolver pre-Wave-D) ─
+    def _redistribute_moments(self, bulk: BulkField) -> AngularSourceSink:
+        r"""The moment end: the explicit typed grid path — :math:`\Lambda`
+        maps flux moments to source moments (the role-changing edge, in
+        the signature), the minted source-reconstruction FACE synthesises
+        the per-ordinate source on its bound angular codomain, then the
+        producer-side :math:`1/W`. Numerically equals the kernel's
+        ``reconstruct_after(Λ)`` reference."""
+        emitted = self._moment_transfer(skip_l0=True).apply(
+            cast(HarmonicMomentFlux, bulk),
+        )
+        return self.source_reconstruction.apply(emitted) / self.total_weight
 
-    @overload
-    def add_iso_source(
-        self, Q: "ScalarSourceSink", phi: "np.ndarray | ScalarFlux",
-    ) -> "ScalarSourceSink": ...
+    # ── In-place helpers (the SI driver's bare-array seams) ──────────
 
-    @overload
-    def add_iso_source(
-        self, Q: np.ndarray, phi: "np.ndarray | ScalarFlux",
-    ) -> None: ...
-
-    def add_iso_source(
-        self,
-        Q: "np.ndarray | ScalarSourceSink",
-        phi: "np.ndarray | ScalarFlux",
-    ) -> "ScalarSourceSink | None":
-        r"""Add the P0 emission :math:`y\,\Sigma_{c,0}^T\phi` to :math:`Q`.
+    def add_iso_source(self, Q: np.ndarray, phi: np.ndarray) -> None:
+        r"""Add the P0 emission :math:`y\,\Sigma_{c,0}^T\phi` to ``Q`` in place.
 
         Vectorised by material: per cell ``c`` of material ``mid``,
         ``Q[:, ic, jc] += y · p0[mid].T @ phi[:, ic, jc]`` where
-        ``p0[mid]`` is ``(ng, ng)`` indexed ``[g_from, g_to]``.
-
-        Typed-action overload:
-
-        * **Raw-in (legacy)** — ``Q: np.ndarray`` is mutated in place and
-          ``None`` is returned.
-        * **Typed-in (return-new)** — a frozen ``Q: ScalarSourceSink`` stays
-          immutable; a NEW :class:`ScalarSourceSink` carrying
-          ``Q.values + emission`` is returned (the caller spells the algebra
-          ``Q = transfer.add_iso_source(Q, phi)``).
-
-        Parameters
-        ----------
-        Q : np.ndarray or ScalarSourceSink
-            Isotropic source carrier.  Raw ``(ng, nx, ny)`` ndarray is
-            mutated in place; typed :class:`ScalarSourceSink` returns a
-            new instance.
-        phi : np.ndarray or ScalarFlux
-            Scalar flux.  Either form is accepted; the underlying
-            values are unwrapped before the per-material dispatch.
-
-        Returns
-        -------
-        np.ndarray or ScalarSourceSink or None
-            Raw-in returns ``None`` (legacy in-place); typed-in returns
-            a fresh :class:`ScalarSourceSink`.
-
-        Notes
-        -----
-        The per-material dispatch lives inside
+        ``p0[mid]`` is ``(ng, ng)`` indexed ``[g_from, g_to]``. Bare
+        arrays in, ``None`` out — the legacy in-place seam the SI driver
+        feeds (`[M]` 345 production calls from ``sn/solver.py``); the
+        typed emission is :meth:`apply`. The per-material dispatch lives
+        inside
         :meth:`~orpheus.transport.material_field.TransferMaterialField.add_p0_source`.
         """
-        phi_values = phi.values if isinstance(phi, ScalarFlux) else phi
-        if isinstance(Q, ScalarSourceSink):
-            Q_values = Q.values.copy()
-            self.transfer.add_p0_source(Q_values, phi_values)
-            # Preserve Q's spatial-moment width (#240 D5b-S3 — the φ̂ accumulator
-            # carries the trailing 2^d axis; re-wrapping without it would lose
-            # the typed factor and raise on the shape).
-            return ScalarSourceSink(values=Q_values, space=Q.space)
-        self.transfer.add_p0_source(Q, phi_values)
-        return None
+        self.transfer.add_p0_source(Q, phi)
 
     def build_aniso_source(
         self,
@@ -932,8 +695,8 @@ class TransferOperator(BoundOperator["FullField"]):
         angular_flux : AngularFlux or None
             Angular flux shape ``(N, ng, nx, ny)`` from the most recent sweep,
             or ``None`` on the first source iteration before any sweep has run.
-            Only the typed :class:`AngularFlux` is accepted (it carries the mesh
-            the output :class:`AngularSourceSink` requires).
+            Only the typed :class:`AngularFlux` on this binding's own
+            (angular) domain interior is accepted.
 
         Returns
         -------
@@ -945,13 +708,20 @@ class TransferOperator(BoundOperator["FullField"]):
         """
         if self.is_isotropic or angular_flux is None:
             return None
+        if angular_flux.space != self._domain_interior:
+            raise TypeError(
+                f"{type(self).__name__}.build_aniso_source: the angular flux "
+                f"rides {angular_flux.space!r} but this binding's domain "
+                f"interior is {self._domain_interior!r} — the per-ordinate "
+                f"route is the ANGULAR binding's; a moment iterate is the "
+                f"moment binding's apply."
+            )
         # T_aniso = (1/W)·kernel: the §5.6 :attr:`kernel` is the R∘Λ∘M
         # redistribution; the producer-side /W lives OUTSIDE it (applied here).
-        out_values = self.kernel.apply(angular_flux.values) / self.total_weight
         # RΛM is spatial-moment-axis-agnostic (#240 D5b-S3): the source
         # rides the iterate's own space (CS4b S4 — same space, new role),
         # so the moment factor travels with it.
-        return AngularSourceSink(values=out_values, space=angular_flux.space)
+        return self._redistribute_ordinates(angular_flux)
 
     # ── Foldable / residual split ─────────────────────────────────────
     #
@@ -982,9 +752,11 @@ class TransferOperator(BoundOperator["FullField"]):
         r"""A sibling binding of ``field_`` on the SAME ends and of the SAME
         role — faces re-minted from the HUB at the sibling field's own
         order (the interned frame chain, so an order-0 sibling gets
-        order-0 faces).
+        order-0 faces). An ANGULAR endomorphism's sibling: on a moment
+        binding the re-minted faces' moment end no longer matches the
+        domain's interior, and the lift's selection refuses loudly.
         """
-        interior = self._interior_space
+        interior = self._codomain_interior
         frame = HarmonicFrame.for_space(interior, field_.order)
         return type(self)(
             field_,
@@ -1073,250 +845,3 @@ class TransferOperator(BoundOperator["FullField"]):
             mid: k.multiplicity * np.diag(k.p0)
             for mid, k in self.transfer.per_material.items()
         }
-
-    # ── LinearOperator surface ─────────────────────────────────────────
-
-    @singledispatchmethod
-    def _apply_impl(self, psi) -> "Any":
-        r"""Runtime dispatch for :meth:`apply` — see the typed overloads.
-
-        Applies the full emission :math:`T\,\psi`, dispatched on the
-        input *carrier* type via :func:`functools.singledispatchmethod`. The
-        public :meth:`apply` aliases this dispatcher and carries the per-carrier
-        ``@overload`` surface, so callers statically see the output type per
-        input carrier:
-
-        * :class:`~orpheus.transport.timed_full_field.TimedFullField` /
-          :class:`~orpheus.transport.full_field.FullField`
-          → :class:`~orpheus.transport.full_field.FullField` — composite bulk +
-          boundary variant. Bulk = the full :math:`P_\ell` path; boundary =
-          implicit-zero (a transfer gain is volumetric, ``block_role = BULK``).
-        * :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
-          → :class:`~orpheus.transport.source_sinks.ScalarSourceSink` —
-          :math:`P_0` only, in **iso scalar magnitude** (no
-          :math:`P_\ell`; no :math:`1/W`).
-        * :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-          → :class:`~orpheus.transport.source_sinks.AngularSourceSink` —
-          full :math:`P_\ell` Galerkin in **per-ordinate magnitude** (the
-          trailing :math:`1/W` lives at this producer boundary).
-        * :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-          → :class:`~orpheus.transport.source_sinks.AngularSourceSink` — the
-          angular-windowing path: :math:`T` consumes flux MOMENTS (already
-          :math:`M\psi`, so :math:`M` is skipped), bit-identical to the
-          :class:`AngularFlux` arm for :math:`\phi = M\psi`.
-
-        The internal helpers :meth:`add_iso_source` and
-        :meth:`build_aniso_source` remain available for callers that need
-        the iso / aniso pieces separately.
-        """
-        raise TypeError(
-            f"{type(self).__name__}.apply: unsupported input type "
-            f"{type(psi).__name__}; expected TimedFullField, ScalarFlux, "
-            f"AngularFlux, or HarmonicMomentFlux.  Dispatch table is "
-            f"registered via @singledispatchmethod."
-        )
-
-    @_apply_impl.register
-    def _(self, psi: FullField) -> "FullField":
-        r"""Composite :class:`FullField` variant — bulk-only emission.
-
-        Registered on the timeless :class:`FullField`: a
-        :class:`TimedFullField` iterate dispatches here via MRO (it IS a
-        ``FullField``), and a bare ``FullField`` dispatches correctly; the arm
-        reads only ``psi.interior`` (history-blind). Bulk follows the same math
-        as the :class:`AngularFlux` arm; the boundary is the **implicit-zero**
-        :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink` —
-        a transfer gain is volumetric (``block_role = BlockRole.BULK``), no
-        face-trace contribution, so ``(L + C - S - N₂ₙ - B)`` composes under
-        :meth:`TimedFullField.__sub__`.
-        """
-        # Delegate the bulk source to the bulk-type dispatch arm and wrap with
-        # the implicit-zero boundary. ``psi.interior`` is either the full-angular
-        # AngularFlux or the windowed HarmonicMomentFlux (both return an
-        # AngularSourceSink); the cast names that runtime truth so the typed
-        # ``apply`` overloads resolve.
-        combined = self.apply(cast("AngularFlux | HarmonicMomentFlux", psi.interior))
-        # T is PURE BULK (#282 route (a)): the (ray, bulk) closed-μ emission
-        # lives on the SN coupling operator
-        # :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`,
-        # not here — see docs/theory/foundations/coupled_block_operator.rst.
-        return FullField(
-            interior=combined,
-            boundary=AngularBoundarySourceSink.zeros(psi.boundary.space),
-        )
-
-    @_apply_impl.register
-    def _(self, phi: ScalarFlux) -> "ScalarSourceSink":
-        r"""Typed ScalarFlux variant — iso scalar magnitude output (P0 only).
-
-        :math:`Q_g = y\,\Sigma_{c,0}(g'\to g)\,\phi_{g'}`. No :math:`P_\ell`
-        (scalar flux lacks angular info); no :math:`1/W` (scalar
-        consumers — diffusion / CP / kinetics — do not project to
-        per-ordinate).
-
-        **Deliberately retained — a named-future-consumer surface, NOT dead
-        weight.** This arm has no current production caller (the within-group
-        SI/Krylov path feeds the composite / :class:`AngularFlux` /
-        :class:`HarmonicMomentFlux` arms, never a bare :class:`ScalarFlux`, and
-        no sibling arm delegates here). It is kept as the typed entry-point for
-        the scalar-carrier cross-method consumers the cross-method field
-        architecture (`#205
-        <https://github.com/deOliveira-R/ORPHEUS/issues/205>`_) will wire;
-        the keep-vs-retire call is recorded here rather than left a silent
-        orphan.
-        """
-        # CS4b S4 — the accumulator rides the operand's space (role-blind
-        # shared mint; role is class identity).
-        iso: ScalarSourceSink = ScalarSourceSink.zeros(phi.space)
-        iso = self.add_iso_source(iso, phi)
-        return iso
-
-    @_apply_impl.register
-    def _(self, psi: AngularFlux) -> "AngularSourceSink":
-        r"""Typed :class:`AngularFlux` variant — per-ordinate magnitude output.
-
-        Reduce ``psi`` angular → scalar, build the iso :math:`P_0`
-        emission and the per-ordinate :math:`P_\ell\ge 1` Galerkin contribution
-        (:meth:`build_aniso_source`), then combine via the producer-side
-        :math:`1/W` in :meth:`_assemble_per_ordinate_source`.
-        """
-        # φ = ∫ψ dΩ (scalar), aniso = (1/W) RΛM ψ (per-ordinate), then the
-        # shared producer-side assembly. The iso P0 keeps the cheap
-        # reaction-rate fast path (NO moment tensor) — a load-bearing PERF
-        # optimisation on the SI-sweep hot path; routing it through the frame
-        # regresses LD/P0 badly. The frame form lives on as
-        # :attr:`full_transfer_kernel` for the (non-hot-path) adjoint transpose
-        # only — see docs/theory/methods/sn/adjoint.rst §sn-scattering-adjoint-source.
-        return self._assemble_per_ordinate_source(
-            psi.integrate_angular(), self.build_aniso_source(psi), psi.space,
-        )
-
-    @_apply_impl.register
-    def _(self, phi_moments: HarmonicMomentFlux) -> "AngularSourceSink":
-        r"""Windowed moment-iterate variant — :math:`T` consumes flux MOMENTS.
-
-        The angular-windowing path: when the within-group SI iterate is stored
-        as harmonic moments :math:`\phi_\ell^m` (the 2-D Cartesian windowed
-        iterate) instead of the full per-ordinate :class:`AngularFlux`,
-        :math:`T` consumes the moments WITHOUT the :math:`M` projection — the
-        moments ARE :math:`M\psi`, so projecting again is redundant.
-
-        Structurally parallel to the :class:`AngularFlux` arm and bit-identical
-        to it for :math:`\phi = M\psi`: the :math:`\ell=0` moment IS the scalar
-        flux (:math:`Y_0^0 = 1`, so :meth:`HarmonicMomentFlux.scalar_flux`
-        equals :meth:`AngularFlux.integrate_angular`), feeding the identical
-        P0 fast path; the :math:`\ell\ge 1` aniso takes the explicit
-        typed grid path (:math:`\Lambda` then the frame's :math:`R`), equal to
-        the full-angular path's :math:`R\Lambda` after its :math:`M`. Both arms
-        end at the shared :meth:`_assemble_per_ordinate_source` (per-ordinate
-        :class:`AngularSourceSink`, producer-side :math:`1/W`). The
-        explicit-typed vs fused-kernel choice is in
-        ``docs/theory/foundations/operator_algebra.rst §integral-kernel-category``.
-        """
-        # F-1: the per-ordinate target is the posed composite's interior —
-        # the same space the minted faces are bound to (their codomain /
-        # domain read). Reading it refuses loudly on a space-less operator
-        # (the A1 refusal, relocated to the mint seam), so no local guard
-        # remains here.
-        angular_target = self._interior_space
-        if self.is_isotropic:
-            aniso = None
-        else:
-            # Explicit typed grid path: Λ maps flux moments → source moments
-            # (HarmonicMomentFlux → HarmonicMomentSourceSink, the role-changing
-            # edge), the minted source-reconstruction FACE synthesises the
-            # per-ordinate AngularSourceSink (riding its bound angular
-            # codomain), then the producer-side 1/W. Numerically equals the
-            # kernel's ndarray reconstruct_after(Λ) reference.
-            emitted = self._moment_transfer(skip_l0=True).apply(
-                phi_moments,
-            )
-            aniso = self.source_reconstruction.apply(
-                emitted,
-            ) / self.total_weight
-        # ℓ=0 moment IS the scalar flux (Y_0^0 = 1) — the typed accessor
-        # carries that convention (== integrate_angular bit-exactly).
-        return self._assemble_per_ordinate_source(
-            phi_moments.scalar_flux(space=self._scalar_interior_space),
-            aniso,
-            angular_target,
-        )
-
-    if TYPE_CHECKING:
-        # Honest per-carrier typing surface (#257 S8c).  ``TransferOperator``
-        # is NOT an endomorphism ``V -> V`` (the mixin's nominal contract):
-        # it maps each input carrier to a DISTINCT output carrier.  These
-        # ``@overload`` stubs exist only for the type checker; the public
-        # ``apply`` IS the runtime dispatcher (``apply = _apply_impl`` below),
-        # so callers statically see e.g. ``T.apply(ScalarFlux) ->
-        # ScalarSourceSink`` instead of the dispatcher's untyped fallback.
-        @overload
-        def apply(self, psi: FullField, /) -> "FullField": ...
-        @overload
-        def apply(self, phi: ScalarFlux, /) -> "ScalarSourceSink": ...
-        @overload
-        def apply(self, psi: AngularFlux, /) -> "AngularSourceSink": ...
-        @overload
-        def apply(
-            self, phi_moments: HarmonicMomentFlux, /,
-        ) -> "AngularSourceSink": ...
-        def apply(self, x: Any, /) -> Any: ...
-    else:
-        apply = _apply_impl
-
-    @overload
-    def apply_transpose(self, chi: "FullField", /) -> "FullField": ...
-    @overload
-    def apply_transpose(self, chi: np.ndarray, /) -> np.ndarray: ...
-    def apply_transpose(self, chi: "Any") -> "Any":
-        r"""The adjoint emission :math:`T^{T}\chi =
-        (1/W)\,\mathrm{full\_transfer\_kernel}^{T}\chi` (closes
-        `#118 <https://github.com/deOliveira-R/ORPHEUS/issues/118>`_).
-
-        :math:`T^{T}` is the group-and-angle transpose the adjoint transport
-        equation :math:`(L+C-S-N_{2n})^{T}\psi^{*}=q^{*}` needs. The production
-        FORWARD keeps the scalar fast-path (:attr:`isotropic_energy` +
-        :meth:`build_aniso_source`) for SI-sweep performance, so the adjoint —
-        NOT the hot path — rides the validated harmonic-frame
-        :attr:`full_transfer_kernel`, whose transpose falls out of
-        :meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose` in
-        ONE expression (iso :math:`\ell=0` + aniso :math:`\ell\ge1`).
-
-        This is the **Euclidean** transpose (L12) — NOT the metric Hilbert
-        adjoint ``.H`` (which would carry the angular Gram). The
-        forward/adjoint structural asymmetry (which makes the reciprocity
-        :math:`\langle T\psi,\chi\rangle=\langle\psi,T^{T}\chi\rangle` a genuine
-        cross-check, not a tautology) and the proof are in
-        ``docs/theory/methods/sn/adjoint.rst §sn-scattering-adjoint-source``.
-
-        The COMPOSITE (``FullField``) arm mirrors the forward lift: a transfer
-        gain is volumetric, so :math:`T^{T}` reads ONLY the bulk cotangent
-        (``chi.interior``) and emits the implicit-zero trace, letting the full
-        within-group loss ``(L + C - S - N₂ₙ - B).H`` compose through
-        ``OperatorSum.apply_transpose``.
-
-        Parameters
-        ----------
-        chi : np.ndarray, carrier, or FullField
-            The daggered per-ordinate field :math:`\chi` of shape
-            ``(N, ng, *spatial)`` — a typed carrier's ``.values`` are unwrapped
-            and a bare ``ndarray`` returns; or the composite ``FullField``,
-            returning a composite with bulk-only content.
-        """
-        if isinstance(chi, FullField):
-            bulk_bar = self.apply_transpose(np.asarray(chi.interior.values))
-            # T is PURE BULK, so T^T is too (#282 route (a)): the seed-cotangent
-            # pullback lives on RadialCharacteristicEmission.apply_transpose —
-            # see docs/theory/foundations/coupled_block_operator.rst.
-            # CS4b S4 — the space route: output blocks ride the operand's.
-            return FullField(
-                interior=AngularSourceSink(
-                    values=bulk_bar, space=chi.interior.space,
-                ),
-                boundary=AngularBoundarySourceSink.zeros(chi.boundary.space),
-            )
-        chi_values = np.asarray(getattr(chi, "values", chi))
-        return (
-            self.full_transfer_kernel.apply_transpose(chi_values)
-            / self.total_weight
-        )

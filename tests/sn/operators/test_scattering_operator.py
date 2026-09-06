@@ -34,6 +34,17 @@ from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.spaces.moment_head import MomentHead
+from orpheus.numerics.axis import Axis, BasisKind
+from orpheus.numerics.space import FunctionSpace
+from orpheus.transport.operators.isotropic_transfer import (
+    IsotropicN2N,
+    IsotropicScattering,
+)
+from orpheus.transport.full_field import FullField
+from tests.sn.operators._composite_operand import (
+    bulk_apply,
+    zero_trace_composite,
+)
 
 pytestmark = pytest.mark.foundation  # software-invariant tier
 
@@ -56,6 +67,34 @@ class _StubQuad:
         # Only called when scattering_order > 0; synthetic tests
         # below pass scattering_order=0 or =1 with anisotropy unused.
         return np.zeros((self.N, L + 1, 2 * L + 1))
+
+
+def _widened_scalar_space(sn_mesh, trailing):
+    r"""The PLAIN scalar end an LD iterate rides — the moment tail in the SPACE.
+
+    CS4c step 5 (R-4): an energy binding admits exactly the bare array of its
+    bound end's SHAPE (``lift.admit_array``), so a ``(ng, nx, ny, 2^d)`` LD
+    iterate is the operand of a binding bound on the ``2^d``-widened scalar
+    space — never of the ``(ng, nx, ny)`` one. Before the carve the shape was
+    unchecked and both fed the same instance.
+    """
+    bulk = sn_mesh.bulk_space
+    if not trailing:
+        return bulk
+    return FunctionSpace.of_axes(
+        *bulk.axes,
+        Axis("spatial_moments", tuple(trailing), kind=BasisKind.NODAL),
+    )
+
+
+def _energy_pair_on(solver, trailing):
+    r""":math:`K_{\rm iso} = \Sigma_{s,0} + 2\Sigma_{2n}` bound on the (possibly
+    widened) scalar space — the solver's own composition, re-bound."""
+    space = _widened_scalar_space(solver.sn_mesh, trailing)
+    return (
+        IsotropicScattering.from_material_xs(solver.mat_xs, space=space)
+        + IsotropicN2N.from_material_xs(solver.mat_xs, space=space)
+    )
 
 
 def _uniform_2d(nx, ny, delta, mat_map):
@@ -181,7 +220,9 @@ class TestProtocolCompliance:
         N = solver_2g_p0.sn_mesh.quad.N
         psi_values = np.ones((N, solver_2g_p0.ng, *solver_2g_p0.sn_mesh.spatial_shape))
         psi = AngularFlux(values=psi_values, space=solver_2g_p0.sn_mesh.angular_bulk_space)
-        out = op.apply(psi)
+        # CS4c step 5: the gain is composite-bound; the bulk action rides a
+        # zero-trace composite (the trace the lift itself emits back).
+        out = bulk_apply(op, psi)
         assert out.values.shape == psi.values.shape
 
 
@@ -243,9 +284,11 @@ class TestBitIdenticalExtractionP0:
         self, solver_2g_p0_n2n, trailing,
     ):
         r"""#276 P2 — the production ``isotropic_kernel`` (:math:`\Sigma_{s,0} +
-        2\Sigma_{2n}`, the :class:`~orpheus.numerics.operator.OperatorSum` that
-        :meth:`~orpheus.transport.operators.scattering.ScatteringOperator._assemble_per_ordinate_source`
-        now routes the SN forward isotropic source through) is **bit-identical**
+        2\Sigma_{2n}`, the :class:`~orpheus.numerics.operator.OperatorSum` of
+        the two energy bindings the lift's :math:`\ell = 0` half
+        (:meth:`~orpheus.transport.operators.angular_lift.AngularLift._isotropic_source`,
+        since CS4c step 5) routes the SN forward isotropic source through) is
+        **bit-identical**
         (0-ULP) to the legacy ``add_iso_source`` then ``add_n2n_source`` in-place
         accumulation.
 
@@ -266,11 +309,17 @@ class TestBitIdenticalExtractionP0:
 
         # Production path: the SOLVER-composed K_iso (§14.1 — the sum
         # build_within_group_system assembles from the two cached energy
-        # bindings).
-        k_iso = op.isotropic_energy + solver_2g_p0_n2n.n2n_op.isotropic_energy
+        # bindings). CS4c step 5 (R-4): an energy binding admits exactly the
+        # bare array of its bound end's SHAPE, so the LD row binds the pair on
+        # the 2^d-WIDENED scalar space the iterate lives on — the moment tail
+        # rides in the SPACE, not in an array fed to a narrower binding.
+        k_iso = _energy_pair_on(solver_2g_p0_n2n, trailing)
         got = k_iso.apply(phi)
 
-        # Legacy path: zeros → the two in-place channel verbs.
+        # Legacy path: zeros → the two in-place channel verbs (the FIELD's
+        # einsum is spatial-moment-agnostic, #240 D5b-S3, so it needs no
+        # re-binding — which is exactly why the widened SPACE is the honest
+        # spelling of what this row was always exercising).
         ref = np.zeros_like(phi)
         op.add_iso_source(ref, phi)
         solver_2g_p0_n2n.n2n_op.isotropic_energy.transfer.add_p0_source(ref, phi)
@@ -452,7 +501,7 @@ class TestApplySemantics:
             (Q_iso / sum_w)[None, :, :, :], psi_values.shape,
         )
 
-        actual = op.apply(psi)
+        actual = bulk_apply(op, psi)
         np.testing.assert_allclose(actual.values, expected, rtol=1e-13)
 
     def test_apply_zero_psi_returns_zero(self, solver_2g_p0):
@@ -461,7 +510,7 @@ class TestApplySemantics:
         N = solver_2g_p0.sn_mesh.quad.N
         psi_values = np.zeros((N, solver_2g_p0.ng, *solver_2g_p0.sn_mesh.spatial_shape))
         psi = AngularFlux(values=psi_values, space=solver_2g_p0.sn_mesh.angular_bulk_space)
-        out = op.apply(psi)
+        out = bulk_apply(op, psi)
         np.testing.assert_array_equal(out.values, np.zeros_like(psi_values))
 
     def test_apply_linearity(self, solver_2g_p0):
@@ -486,11 +535,11 @@ class TestApplySemantics:
         c = 2.5
 
         np.testing.assert_allclose(
-            op.apply(c * psi1).values, (c * op.apply(psi1)).values,
+            bulk_apply(op, c * psi1).values, (c * bulk_apply(op, psi1)).values,
             rtol=1e-12, atol=1e-13,
         )
-        lhs = op.apply(psi1 + psi2)
-        rhs = op.apply(psi1) + op.apply(psi2)
+        lhs = bulk_apply(op, psi1 + psi2)
+        rhs = bulk_apply(op, psi1) + bulk_apply(op, psi2)
         np.testing.assert_allclose(lhs.values, rhs.values, rtol=1e-12, atol=1e-13)
 
 
@@ -554,7 +603,7 @@ class TestProducerSideNormalisation:
                 col_sum = (sig_s0.T + 2.0 * sig_2n.T) @ np.ones(ng)
                 expected[:, :, ix, iy] = c * col_sum[None, :]
 
-        actual = op.apply(psi)
+        actual = bulk_apply(op, psi)
         np.testing.assert_allclose(actual.values, expected, rtol=1e-13, atol=1e-13)
 
 
@@ -959,8 +1008,10 @@ class TestAlgebraicIdentity:
     def _check_identity(self, op, psi):
         """``psi`` is a typed :class:`AngularFlux`; ``apply`` returns
         :class:`AngularSourceSink`.  Compare via ``.values``."""
-        full = op.apply(psi)
-        split_sum = op.foldable_part().apply(psi) + op.residual_part().apply(psi)
+        full = bulk_apply(op, psi)
+        split_sum = (
+            bulk_apply(op.foldable_part(), psi) + bulk_apply(op.residual_part(), psi)
+        )
         np.testing.assert_allclose(full.values, split_sum.values, rtol=1e-14, atol=1e-15)
 
     def test_identity_p0_only_random_psi(self, solver_2g_p0):
@@ -1053,11 +1104,11 @@ class TestAlgebraicIdentity:
         # D-I.2: typed AngularFlux carrier.
         psi_values = np.random.rand(N, solver.ng, nx, ny) + 0.1
         psi = AngularFlux(values=psi_values, space=solver.sn_mesh.angular_bulk_space)
-        full = op.apply(psi)
-        residual_part = op.residual_part().apply(psi)
+        full = bulk_apply(op, psi)
+        residual_part = bulk_apply(op.residual_part(), psi)
         np.testing.assert_allclose(residual_part.values, 0.0, atol=1e-15)
         # And full ≡ foldable up to FP-non-associativity.
-        foldable_part = op.foldable_part().apply(psi)
+        foldable_part = bulk_apply(op.foldable_part(), psi)
         np.testing.assert_allclose(full.values, foldable_part.values, rtol=1e-14, atol=1e-15)
 
 
@@ -1233,21 +1284,26 @@ class TestAnisoMomentSourcePath:
     every Legendre order — in favour of the shared ``R·Λ`` reconstruction.
     The two aniso paths are:
 
-    * :meth:`ScatteringOperator.build_aniso_source` — the full-angular path,
-      ``(1/W)·kernel`` where ``kernel = frame.conjugate(Λ) = R∘Λ∘M``;
-    * the windowed moment-iterate ``apply`` arm — whose iterate bulk IS
-      ``φ`` (the 2-D Cartesian angular-windowing SI iterate), so ``M`` is
-      already done; the P4 carve made it the EXPLICIT typed grid path
-      ``Λ : HarmonicMomentFlux → HarmonicMomentSourceSink`` then the
-      minted ``source_reconstruction`` face (``HarmonicMomentSourceSink →
-      AngularSourceSink``; the frame-level ``reconstruct`` verb retired at F-1)
-      (the role-changing edge materialised as a typed carrier).
+    * the ANGULAR binding — the full-angular path, ``(1/W)·kernel`` where
+      ``kernel = frame.conjugate(Λ) = R∘Λ∘M`` (``build_aniso_source`` is the
+      SI driver's bare-array spelling of the same map);
+    * the MOMENT-DOMAIN sibling ``S.on_moment_domain()`` — the windowed SI
+      driver's binding, whose operand IS ``φ = Mψ`` (the 2-D Cartesian
+      angular-windowing iterate), so ``M`` is already done; its body is the
+      EXPLICIT typed grid path ``Λ : HarmonicMomentFlux →
+      HarmonicMomentSourceSink`` then the minted ``source_reconstruction``
+      face (``HarmonicMomentSourceSink → AngularSourceSink``) — the
+      role-changing edge materialised as a typed carrier.
 
-    The ndarray ``R∘Λ`` reference
-    :meth:`ScatteringOperator._aniso_source_from_moment_values`
-    (= ``frame.reconstruct_after(Λ)``) remains the 0-ULP scattering-kernel
-    crosscheck's oracle — same ``Λ`` kernel + ``R`` face as both production
-    paths. ``build_aniso_source``'s numerical correctness is pinned by the
+    ⛔ Until CS4c step 5 the second bullet was an ARM of the first operator,
+    reached by handing the moment iterate to the angular-bound instance
+    (`[M]` 143 such feeds per windowed solve). It is now a separate BOUND
+    operator whose body is selected at construction, and the ndarray
+    ``R∘Λ`` oracle it used to be compared against
+    (``_aniso_source_from_moment_values``) is RETIRED — the crosscheck moved
+    up a tier to the two operators' own actions
+    (``test_scattering_kernel_crosscheck.py``).
+    ``build_aniso_source``'s numerical correctness is pinned by the
     pre-T.3 bit-identical snapshot below (a structurally-independent
     reference captured BEFORE the kernel ever existed).  This class adds
     the load-bearing Phase-5a guard: the moment ``apply`` arm reproduces
@@ -1268,53 +1324,56 @@ class TestAnisoMomentSourcePath:
     def test_moment_apply_arm_bit_identical_to_angular_arm(
         self, op_p1, solver_2g_p1_n2n,
     ):
-        """Phase 5a load-bearing guard: ``S.apply(HarmonicMomentFlux)``
-        reproduces ``S.apply(AngularFlux)`` BIT-FOR-BIT when the moments
-        are ``φ = Mψ``.
+        r"""**G5.3b (S)** — the MOMENT-domain sibling reproduces the ANGULAR
+        binding BIT-FOR-BIT when the moments are :math:`\phi = M\psi`.
 
-        This is the angular-windowing carve's correctness core —
-        windowing the within-group SI iterate from a full per-ordinate
+        This is the angular-windowing carve's correctness core — windowing
+        the within-group SI iterate from a full per-ordinate
         :class:`AngularFlux` down to :class:`HarmonicMomentFlux` moments
-        loses NO scattering-source information (``S`` is a pure function
-        of the moments).  The P1 asymmetric-``SigS`` + (n,2n) fixture
-        activates the ℓ=0 (iso + cross-group + n2n) AND ℓ≥1 (aniso)
-        paths, so a windowing that dropped a moment, swapped an index, or
-        drifted a convention would fail here (vv-principles: ≥2 groups,
-        anisotropic, asymmetric scatter — Modes 2/6 + the dropped-moment
-        trap).
-        """
-        from orpheus.transport.fields.harmonic_moment_flux import (
-            HarmonicMomentFlux,
-        )
+        loses NO scattering-source information (``S`` is a pure function of
+        the moments). The P1 asymmetric-``SigS`` fixture activates the ℓ=0
+        (iso + cross-group) AND ℓ≥1 (aniso) paths, so a windowing that
+        dropped a moment, swapped an index, or drifted a convention would
+        fail here (`vv`: ≥2 groups, anisotropic, asymmetric scatter — Modes
+        2/6 + the dropped-moment trap).
 
+        ⛔ RE-KEYED (CS4c step 5). The moment iterate is no longer handed to
+        the ANGULAR-bound operator (the shipped non-endomorphism, `[M]` 143
+        such feeds per windowed solve): it goes to the SIBLING bound on the
+        moment end, whose body — :math:`\Lambda` then the minted
+        source-reconstruction face, with :math:`M` skipped — is selected at
+        construction. So the two sides are now two BOUND OPERATORS, and
+        neither calls the other (``coding-standards`` rewire-demotion check).
+
+        `[M]` 2026-09-04, this fixture, 200 seeds: **200/200
+        ``array_equal``, max |Δ| = 0.0** — bit-identity is a property of the
+        FIXTURE, not of one draw (`vv` anti-#31).
+        """
         op = op_p1
         psi = self._reproduce_psi(solver_2g_p1_n2n, seed=7)
 
-        # The full-angular arm S consumes today.
-        src_angular = op.apply(psi)
+        # The full-angular binding.
+        src_angular = bulk_apply(op, psi)
 
-        # The windowed path: project φ = Mψ via the frame analysis face
-        # (the SAME frame the operator uses), then the moment arm.
-        moments = op.frame.analysis.apply(psi.values)
-        phi_field = HarmonicMomentFlux.from_mesh_and_L(
-            moments, solver_2g_p1_n2n.sn_mesh, op.legendre_order,
-        )
-        src_moments = op.apply(phi_field)
+        # The windowed path: project φ = Mψ through the operator's own
+        # minted analysis FACE (typed), then the moment-domain sibling.
+        moments = op.flux_analysis.apply(psi)
+        op_w = op.on_moment_domain()
+        src_moments = op_w.apply(
+            zero_trace_composite(moments, op_w.domain.trace_space),
+        ).interior
 
-        # Bit-for-bit (de-risk proven: same M, Y_0^0 = 1 ⇒ ℓ=0 IS the
-        # scalar flux, shared R·Λ map for ℓ≥1).
         np.testing.assert_array_equal(src_moments.values, src_angular.values)
         # Non-degeneracy: ℓ≥1 genuinely carries signal (else the moment
-        # arm collapses to the P0-only arm and the guard is vacuous).
+        # sibling collapses to the P0-only body and the guard is vacuous).
         assert op.legendre_order >= 1
-        assert np.any(moments[1:] != 0.0)
+        assert np.any(np.asarray(moments.values)[1:] != 0.0)
 
     def test_windowed_arm_executes_typed_role_changing_edge(
         self, op_p1, solver_2g_p1_n2n, monkeypatch,
     ):
-        """Mode-11 sentinel (vv-principles): the windowed
-        ``apply(HarmonicMomentFlux)`` arm actually executes the EXPLICIT typed
-        grid path — ``Λ`` constructs a
+        """Mode-11 sentinel (vv-principles): the MOMENT-DOMAIN SIBLING
+        actually executes the EXPLICIT typed grid path — ``Λ`` constructs a
         :class:`HarmonicMomentSourceSink` (the role-changing edge) which the
         minted source-reconstruction FACE then synthesises. The Phase-5a value guard above proves
         the NUMBERS are right but cannot tell whether the rewired typed line
@@ -1328,9 +1387,6 @@ class TestAnisoMomentSourcePath:
         exactly it). A bypass to the ndarray ``reconstruct_after`` reference
         would never enter this seam.
         """
-        from orpheus.transport.fields.harmonic_moment_flux import (
-            HarmonicMomentFlux,
-        )
         from orpheus.transport.frames import HarmonicReconstructionOperator
         from orpheus.transport.source_sinks import HarmonicMomentSourceSink
 
@@ -1346,17 +1402,26 @@ class TestAnisoMomentSourcePath:
 
         op = op_p1
         psi = self._reproduce_psi(solver_2g_p1_n2n, seed=7)
-        moments = op.frame.analysis.apply(psi.values)
-        phi_field = HarmonicMomentFlux.from_mesh_and_L(
-            moments, solver_2g_p1_n2n.sn_mesh, op.legendre_order,
-        )
-        _ = op.apply(phi_field)
+        moments = op.flux_analysis.apply(psi)
+        op_w = op.on_moment_domain()
+        _ = op_w.apply(zero_trace_composite(moments, op_w.domain.trace_space))
 
         assert op.legendre_order >= 1
         assert calls["n"] >= 1, (
-            "windowed apply(HarmonicMomentFlux) did not construct a "
+            "the moment-domain sibling did not construct a "
             "HarmonicMomentSourceSink — the explicit typed role-changing "
             "edge (Λ: flux → source) was bypassed."
+        )
+
+        # NEGATIVE control (`vv` #19): the ANGULAR binding's body is the
+        # fused frame conjugation and must NOT enter this seam — so a green
+        # reading above genuinely discriminates the moment end's body.
+        calls["n"] = 0
+        _ = bulk_apply(op, psi)
+        assert calls["n"] == 0, (
+            "the ANGULAR binding entered the typed reconstruction face — the "
+            "two ends are supposed to run DIFFERENT bodies, so this sentinel "
+            "would not discriminate them."
         )
 
     def _load_snapshot(self):
@@ -1412,8 +1477,8 @@ class TestAnisoMomentSourcePath:
         # allclose at 1e-14 relative bounds the reassociation drift
         # (principled-equivalence, vv three-criteria).
         out_post_t3 = (
-            op_p1.apply(psi).values
-            + solver_2g_p1_n2n.n2n_op.apply(psi).values
+            bulk_apply(op_p1, psi).values
+            + bulk_apply(solver_2g_p1_n2n.n2n_op, psi).values
         )
         expected = self._load_snapshot()["p1_apply_angular_flux"]
         np.testing.assert_allclose(
@@ -1423,13 +1488,20 @@ class TestAnisoMomentSourcePath:
     def test_apply_scalar_flux_bit_identical_to_pre_t3_snapshot(
         self, op_p1, solver_2g_p1_n2n,
     ):
-        """L1-2 per spec §3 — `apply(ScalarFlux)` iso scalar output
-        matches the pre-T.3 captured snapshot **bit-identically**.
+        r"""L1-2 per spec §3 — the ℓ=0 iso scalar output matches the pre-T.3
+        captured snapshot **bit-identically**.
 
-        The ScalarFlux arm is P0 + (n,2n) only — it does NOT call
-        `build_aniso_source` and therefore NOT the kernel.  T.3
-        leaves this path untouched; `np.array_equal` is the
-        appropriate gate (no FP reduction reorder).
+        ⛔ RE-KEYED (CS4c step 5, R-3). The frozen array is the value the
+        retired ``S.apply(ScalarFlux)`` arm returned: P0 + (n,2n) in iso
+        scalar magnitude, no :math:`1/W`, no aniso (the arm never called
+        ``build_aniso_source`` and therefore never the kernel). That arm is
+        gone — a scalar operand is the ENERGY binding's, and the ENERGY
+        binding is exactly what the arm delegated to — so the snapshot is
+        now read against ``S.isotropic_energy.apply(φ.values) +
+        N2N.isotropic_energy.apply(φ.values)``. The claim is UNCHANGED (the
+        same numbers, from the same code, reached by its own name);
+        ``np.array_equal`` stays the gate, and the arm's REFUSAL is pinned
+        separately in ``test_n2n_operator.py``.
         """
         phi = self._reproduce_phi(solver_2g_p1_n2n, seed=20260530 + 1)
         # §14.1 composition (see the angular row): the scalar snapshot is
@@ -1437,7 +1509,7 @@ class TestAnisoMomentSourcePath:
         # binding (no /W on the scalar arm). Addition order matches the
         # old accumulator (P0 then n2n) ⟹ bit-equality survives.
         out_post_t3 = (
-            op_p1.apply(phi).values
+            np.asarray(op_p1.isotropic_energy.apply(phi.values))
             + solver_2g_p1_n2n.n2n_op.isotropic_energy.apply(phi.values)
         )
         expected = self._load_snapshot()["p1_apply_scalar_flux"]

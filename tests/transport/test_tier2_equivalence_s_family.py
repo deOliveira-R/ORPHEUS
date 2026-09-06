@@ -239,9 +239,12 @@ class TestSFamilyTierTwoEquivalence:
 
 
 def test_fission_operator_from_solver_data_equals_the_exact_ctor():
-    """G-C1 row for the ANGULAR fission binding (CS4c step 4): tier-2 ≡
-    the exact ctor on the same inputs — energy binding, hub-interned L=0
-    frame (an IDENTITY, the interning theorem), and both ends."""
+    """G-C1 row for the ANGULAR fission binding (CS4c step 4, re-keyed at
+    step 5 / #450): tier-2 ≡ the exact ctor on the same inputs — the datum
+    field, the two hub-interned L=0 faces (the frame an IDENTITY, the
+    interning theorem), and both ends. The energy binding is DERIVED by
+    the lift on the codomain's scalar sub-space, so the row asserts it on
+    both routes rather than passing it in."""
     from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.frames.harmonic_frame import HarmonicFrame
     from orpheus.transport.material_field import FissionMaterialField
@@ -257,17 +260,23 @@ def test_fission_operator_from_solver_data_equals_the_exact_ctor():
     interior = space.interior_space
     assert interior is not None and interior.axes is not None
     scalar = FunctionSpace.of_axes(*interior.axes[1:])
+    frame = HarmonicFrame.for_space(interior, 0)
     exact = FissionOperator(
-        IsotropicFission(
-            FissionMaterialField.from_material_xs(mat_xs),
-            domain=scalar, codomain=scalar,
-        ),
-        frame=HarmonicFrame.for_space(interior, 0),
+        FissionMaterialField.from_material_xs(mat_xs),
+        flux_analysis=frame.flux_analysis_on(interior),
+        source_reconstruction=frame.source_reconstruction_on(interior),
         domain=space, codomain=space,
     )
     if not (rich.domain is exact.domain and rich.codomain is exact.codomain):
         pytest.fail("F ends drifted")
     if rich.frame is not exact.frame:
         pytest.fail("F frame drifted from the interned hub route")
-    if not _fields_equal(rich.energy.fission, exact.energy.fission):
-        pytest.fail("F energy binding drifted from the ctor route")
+    if not _fields_equal(rich.fission, exact.fission):
+        pytest.fail("F datum field drifted from the ctor route")
+    for op in (rich, exact):
+        if not isinstance(op.isotropic_energy, IsotropicFission):
+            pytest.fail("F's derived energy binding is not the IsotropicFission")
+        if op.isotropic_energy.domain != scalar:
+            pytest.fail(
+                "F's energy binding is not on the codomain's scalar sub-space"
+            )

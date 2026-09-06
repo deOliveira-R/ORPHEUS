@@ -51,11 +51,27 @@ is the permanent verification oracle for this scalar form.
 Layout & carriers
 =================
 
-Bare ``np.ndarray`` in / out — the model-portable contract (CP / MoC / diffusion
-feed raw scalar-flux arrays; SN passes ``phi.values`` and re-wraps). The action is
-**spatial-moment-axis-agnostic** (the trailing ``…`` rides an LD ``2^d`` spectator
-axis through, #240 D5b-S3), so a φ̂-carrying scalar flux scatters every spatial
-moment by the same :math:`\Sigma_c`.
+Bare ``np.ndarray`` in / out, on the PLAIN scalar space the binding's ends
+name — the model-portable contract. Who feeds it today (`[M]` 2026-08-31,
+the step-0/5b censuses): SN, through the angular lift's fast path
+(``phi.values``, ~683 000 calls per suite run); the homogeneous solver
+(``K = A⁻¹F`` on the mixture's posed space); diffusion, THROUGH the lift
+(:class:`~orpheus.transport.operators.lift.BulkLift` hands it the bulk
+values). CP / MoC / MC do NOT reach it yet — they still carry their own
+``einsum("fg,f->g")`` spellings (0 of the roster classes referenced), the
+duplication this module exists to absorb when those families are brought
+onto the machinery.
+The ends select the carrier (CS4c step 5, R-4): an array of the bound
+space's shape is admitted, a typed field or a composite is refused naming
+the carrier it wanted (``.values``; :class:`~orpheus.transport.operators.lift.BulkLift`),
+and a composite ``FullFieldSpace`` END is refused at construction — the
+composite action of an energy binding is the lift's
+(``BulkLift(IsotropicScattering(...), domain=composite, codomain=composite)``,
+what the diffusion solver builds), never a second arm here. The einsum
+verb itself is **spatial-moment-axis-agnostic** (the trailing ``…`` rides
+an LD ``2^d`` spectator axis through, #240 D5b-S3), so a binding whose
+space carries the moment tail scatters every spatial moment by the same
+:math:`\Sigma_c`.
 
 Capabilities
 ============
@@ -84,20 +100,14 @@ from typing import TYPE_CHECKING, ClassVar, Self
 
 import numpy as np
 
-from orpheus.numerics.operator import (
-    BlockRole,
-    LinearOperator,
-)
+from orpheus.numerics.operator import BlockRole
+from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.material_field import (
     FissionMaterialField,
     TransferMaterialField,
 )
 from orpheus.transport.operators.bound_operator import BoundOperator
-# Runtime import for the composite-arm isinstance parse (mirrors
-# fission.py / multiplication_operator.py): ``FullField`` is a leaf in
-# the transport dependency graph (it imports no operators), so this
-# module-level import is cycle-free.
-from orpheus.transport.full_field import FullField
+from orpheus.transport.operators.lift import admit_array
 
 if TYPE_CHECKING:
     from orpheus.numerics.assembled_operator import SparseAssembledOperator
@@ -115,135 +125,36 @@ __all__ = [
 ]
 
 
-def _values_of(phi: "np.ndarray | object") -> np.ndarray:
-    """Read the bare ``(ng, *spatial[, 2^d])`` array off a flux carrier or ndarray."""
-    return np.asarray(getattr(phi, "values", phi))
+def _admit_plain_scalar_ends(op: "BoundOperator", ng: int) -> None:
+    r"""The energy family's construction admission: PLAIN scalar ends
+    whose leading axis is the group axis.
 
-
-def _scalar_composite_source(op: "LinearOperator", psi: FullField) -> FullField:
-    r"""The shared scalar-composite arm of the iso energy operators (#290 P4).
-
-    Parses the composite's bulk as the SCALAR family (the iso operators
-    are scalar-flux operators — an angular composite routes through
-    :class:`~orpheus.transport.operators.transfer.TransferOperator`,
-    never here), runs the operator's own bare-ndarray kernel on the bulk
-    values (single source of truth — the SAME per-cell energy matmul),
-    and wraps the result as the closed scalar source composite:
-    :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
-    bulk ⊕ implicit-zero
-    :class:`~orpheus.transport.source_sinks.scalar_boundary_source_sink.ScalarBoundarySourceSink`
-    boundary (an energy-transfer operator has no face-trace action —
-    the emission term is a CELL quantity). Shared by
-    :class:`IsotropicTransfer` and :class:`IsotropicFission` (Pattern 2:
-    one arm body, two kernels through ``op.apply``).
+    A composite ``FullFieldSpace`` end is refused naming the lift — the
+    composite action belongs to
+    :class:`~orpheus.transport.operators.lift.BulkLift`, once, not to an
+    arm on each energy operator (CS4c step 5, R-2/R-4). The gather and
+    the einsum both size the group axis from the data, so a bulk whose
+    LEADING axis is not the group axis (an angular composite's, an
+    ordinate-first array) refuses here, loudly.
     """
-    from orpheus.transport.fields._bases import ScalarField
-    from orpheus.transport.source_sinks import (
-        ScalarBoundarySourceSink,
-        ScalarSourceSink,
-    )
-
-    bulk = psi.interior
-    if not isinstance(bulk, ScalarField):
-        raise TypeError(
-            f"{type(op).__name__} composite apply: scalar-family bulk "
-            f"required (the iso energy operators act on the scalar flux; "
-            f"an angular composite's emission routes through "
-            f"TransferOperator); got {type(bulk).__name__}."
-        )
-    # CS4b S4 — the space route: output blocks ride the operand's blocks.
-    return FullField(
-        interior=ScalarSourceSink(values=op.apply(bulk.values), space=bulk.space),
-        boundary=ScalarBoundarySourceSink.zeros(psi.boundary.space),
-    )
-
-
-def _iso_is_assemblable(op: "IsotropicTransfer") -> bool:
-    r"""The assembly-axis predicate of the iso energy operator.
-
-    Emittable iff the composite flat layout is known AND the declared
-    bulk is the SCALAR family's ``(ng, *cells)`` energy-first tensor —
-    the same contract the bare-ndarray kernel arm assumes (a
-    block-bearing :class:`FullFieldSpace` whose bulk leading axis is
-    the group axis). A scalar-space binding (the diffusion / SN
-    internal consumers — ends mandatory since CS4c step 3) honestly
-    refuses: no composite flat layout to emit into.
-    """
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-
-    space = op.domain
-    return (
-        isinstance(space, FullFieldSpace)
-        and space.interior_space is not None
-        and len(space.interior_space.shape) >= 1
-        and int(space.interior_space.shape[0]) == int(op.data_ng)
-    )
-
-
-def _assemble_iso_energy_operator(
-    op: "IsotropicTransfer",
-) -> "SparseAssembledOperator":
-    r"""The assembly arm of the iso energy operator (the
-    :func:`_scalar_composite_source` sibling).
-
-    **Group-impulse extraction — one source with the production
-    kernel.** The per-cell energy blocks are read THROUGH the
-    operator's own bare-ndarray ``apply`` (the einsum kernel
-    ``add_p0_source``): impulse ``g'`` is the field ``e_{g'} ⊗
-    1_cells``, whose image column IS every cell's block column
-    ``M_cell[:, g']`` exactly (unit inputs make the kernel's products
-    coefficient reads — no summation error). ng kernel calls emit the
-    whole cell-block-diagonal bulk. Deliberately NOT
-    ``dense_per_material()`` — that is the storage-side
-    transpose-convention ORACLE (vv L11) and must stay
-    realization-independent of production consumption.
-
-    The emission is bulk-only (an energy-transfer operator has no
-    face-trace action — the same zero-boundary fact the composite arm
-    encodes), scattered into the composite flat layout ``[bulk C-ravel
-    | trace]``.
-    """
-    from scipy import sparse
-
-    from orpheus.numerics.assembled_operator import SparseAssembledOperator
-    from orpheus.numerics.operator import MissingAssembly
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-
-    space = op.domain
-    if not _iso_is_assemblable(op):
-        raise MissingAssembly(
-            f"{type(op).__name__}.assemble requires a block-bearing "
-            f"FullFieldSpace with the scalar (ng, *cells) energy-first "
-            f"bulk; this instance is space-anonymous or its bulk leading "
-            f"axis is not the group axis."
-        )
-    assert isinstance(space, FullFieldSpace)  # narrowed by the predicate
-    assert space.interior_space is not None
-    interior_shape = tuple(space.interior_space.shape)
-    ng = interior_shape[0]
-    n_cells = int(np.prod(interior_shape[1:])) if len(interior_shape) > 1 else 1
-    n_interior = ng * n_cells
-    n_total = int(space.shape[0])
-
-    bulk_rows = np.arange(n_interior)
-    cell_of_row = bulk_rows % n_cells
-    rows: list[np.ndarray] = []
-    cols: list[np.ndarray] = []
-    vals: list[np.ndarray] = []
-    for g_from in range(ng):
-        impulse = np.zeros(interior_shape)
-        impulse[g_from] = 1.0
-        image = np.asarray(op.apply(impulse)).ravel()   # (n_interior,) g-major
-        nonzero = image != 0.0
-        rows.append(bulk_rows[nonzero])
-        cols.append((g_from * n_cells + cell_of_row)[nonzero])
-        vals.append(image[nonzero])
-
-    matrix = sparse.coo_array(
-        (np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))),
-        shape=(n_total, n_total),
-    )
-    return SparseAssembledOperator(matrix, domain=space, codomain=space)
+    owner = type(op).__name__
+    for name in ("domain", "codomain"):
+        space = getattr(op, name)
+        if isinstance(space, FullFieldSpace):
+            raise TypeError(
+                f"{owner} binds the plain scalar space; its {name} is the "
+                f"composite {space!r}. The composite action of an energy "
+                f"binding is the lift's — build "
+                f"BulkLift({owner}(..., domain=bulk, codomain=bulk), "
+                f"domain=composite, codomain=composite)."
+            )
+        if len(space.shape) < 1 or int(space.shape[0]) != int(ng):
+            raise TypeError(
+                f"{owner} requires a scalar (ng, *spatial) space (leading "
+                f"axis = the group axis, ng={ng}); got {name} shape "
+                f"{tuple(space.shape)}. An angular composite wants the "
+                f"ANGULAR binding."
+            )
 
 
 @dataclass(eq=False)
@@ -270,10 +181,11 @@ class IsotropicTransfer(BoundOperator):
     domain, codomain : FunctionSpace
         The two mandatory ends (kw-only, write-once —
         :class:`~orpheus.transport.operators.bound_operator.BoundOperator`,
-        CS4c step 3): the scalar-flux space, both — the endomorphism
-        sugar lives on the roles' ``from_material_xs``. The OperatorSum
-        composition guard and the per-END ng-conformity admission both
-        read them; the pre-CS4c ``space=None`` anonymity is retired.
+        CS4c step 3): the PLAIN scalar-flux space, both — the endomorphism
+        sugar lives on the roles' ``from_material_xs``. A composite end is
+        refused at construction (the lift's job — module docstring); the
+        OperatorSum composition guard and the per-END ng-conformity
+        admission both read the ends.
     """
 
     transfer: "TransferMaterialField"
@@ -291,10 +203,11 @@ class IsotropicTransfer(BoundOperator):
     def __post_init__(self) -> None:
         # CS4a K2 → CS4c per-END form: refuse ends whose EnergyAxis
         # contradicts the data's ng (reach + declared inertness:
-        # _energy_conformity docstring).
+        # _energy_conformity docstring); then the plain-scalar admission.
         self._assert_energy_extent_both_ends(
             self.transfer.ng, operator=type(self).__name__,
         )
+        _admit_plain_scalar_ends(self, self.transfer.ng)
 
     @classmethod
     def from_material_xs(
@@ -307,7 +220,7 @@ class IsotropicTransfer(BoundOperator):
 
     @property
     def data_ng(self) -> int:
-        """The bound data's group count (the assembly helpers' read)."""
+        """The bound data's group count (the assembly's read)."""
         return self.transfer.ng
 
     @property
@@ -316,37 +229,22 @@ class IsotropicTransfer(BoundOperator):
         # apply_transpose. is_invertible inherits base False.
         return True
 
-    def apply(self, phi: "np.ndarray | FullField | object") -> "np.ndarray | FullField":
+    def apply(self, phi: np.ndarray, /) -> np.ndarray:
         r""":math:`y\,\Sigma_{c,0}^{T}\phi` — the per-cell P0 emission.
 
-        Bare ndarray / flux-carrier in → bare ndarray out (the
-        model-portable contract). A scalar :class:`FullField` composite
-        in → the closed scalar source composite out (#290 P4 — see
-        :func:`_scalar_composite_source`; the kernel is the SAME bare
-        arm either way).
+        Bare ndarray of the domain's shape in → bare ndarray out (the
+        model-portable contract; :func:`~orpheus.transport.operators.lift.admit_array`
+        is the admission).
         """
-        if isinstance(phi, FullField):
-            return _scalar_composite_source(self, phi)
-        arr = _values_of(phi)
+        arr = admit_array(self, phi, end="domain")
         out = np.zeros_like(arr)
         self.transfer.add_p0_source(out, arr)
         return out
 
-    def apply_transpose(self, chi: "np.ndarray | object") -> np.ndarray:
-        r""":math:`y\,\Sigma_{c,0}\chi` — the group-flip transpose (the bare Euclidean :math:`A^{T}`).
-
-        Bare-ndarray surface only: the composite transpose arm lands
-        with its first consumer (the adjoint diffusion chain, #281) —
-        refuse a composite loudly rather than mis-reading it.
-        """
-        if isinstance(chi, FullField):
-            raise TypeError(
-                f"{type(self).__name__}.apply_transpose: composite "
-                f"FullField transpose is not yet wired (lands with the "
-                f"adjoint diffusion consumer, #281); pass the bulk "
-                f"values."
-            )
-        arr = _values_of(chi)
+    def apply_transpose(self, chi: np.ndarray, /) -> np.ndarray:
+        r""":math:`y\,\Sigma_{c,0}\chi` — the group-flip transpose (the bare
+        Euclidean :math:`A^{T}`), on the codomain's shape in."""
+        arr = admit_array(self, chi, end="codomain")
         out = np.zeros_like(arr)
         self.transfer.add_p0_source_transpose(out, arr)
         return out
@@ -355,13 +253,59 @@ class IsotropicTransfer(BoundOperator):
 
     @property
     def is_assemblable(self) -> bool:
-        # Shared predicate — see :func:`_iso_is_assemblable`.
-        return _iso_is_assemblable(self)
+        # The plain binding always emits: the ends carry the (ng, *cells)
+        # layout the cell-block-diagonal is indexed by. The COMPOSITE flat
+        # layout is the lift's (BulkLift.assemble embeds this emission).
+        return True
 
     def assemble(self) -> "SparseAssembledOperator":
-        r""":math:`[y\,\Sigma_{c,0}^{T}]` — cell-block-diagonal bulk emission
-        through the production kernel (:func:`_assemble_iso_energy_operator`)."""
-        return _assemble_iso_energy_operator(self)
+        r""":math:`[y\,\Sigma_{c,0}^{T}]` — the cell-block-diagonal emission
+        on the plain ends, through the production kernel.
+
+        **Group-impulse extraction — one source with the production
+        kernel.** The per-cell energy blocks are read THROUGH the
+        operator's own ``apply`` (the einsum kernel ``add_p0_source``):
+        impulse ``g'`` is the field ``e_{g'} ⊗ 1_cells``, whose image
+        column IS every cell's block column ``M_cell[:, g']`` exactly
+        (unit inputs make the kernel's products coefficient reads — no
+        summation error). ``ng`` kernel calls emit the whole
+        cell-block-diagonal. Deliberately NOT :meth:`dense_per_material`
+        — that is the storage-side transpose-convention ORACLE (vv L11)
+        and must stay realization-independent of production consumption.
+        The flat layout is the domain's C-ravel (group-major); the
+        composite embedding (zero trace rows/columns) is
+        :func:`~orpheus.transport.operators.lift.embed_bulk_assembly`'s.
+        """
+        from scipy import sparse
+
+        from orpheus.numerics.assembled_operator import SparseAssembledOperator
+
+        shape = tuple(self.domain.shape)
+        ng = shape[0]
+        n_cells = int(np.prod(shape[1:])) if len(shape) > 1 else 1
+        n = ng * n_cells
+
+        rows_all = np.arange(n)
+        cell_of_row = rows_all % n_cells
+        rows: list[np.ndarray] = []
+        cols: list[np.ndarray] = []
+        vals: list[np.ndarray] = []
+        for g_from in range(ng):
+            impulse = np.zeros(shape)
+            impulse[g_from] = 1.0
+            image = np.asarray(self.apply(impulse)).ravel()   # (n,) g-major
+            nonzero = image != 0.0
+            rows.append(rows_all[nonzero])
+            cols.append((g_from * n_cells + cell_of_row)[nonzero])
+            vals.append(image[nonzero])
+
+        matrix = sparse.coo_array(
+            (np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))),
+            shape=(n, n),
+        )
+        return SparseAssembledOperator(
+            matrix, domain=self.domain, codomain=self.codomain,
+        )
 
     def dense_per_material(self) -> dict[int, np.ndarray]:
         r"""Per-material operator matrix :math:`y\,\Sigma_{c,0}^{T}` (``[g_to, g_from]``)
@@ -381,9 +325,8 @@ class IsotropicTransfer(BoundOperator):
         ``A = C − K_iso`` the homogeneous solver densifies — goes through
         the operator's own
         :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`
-        apply-to-basis instead (taxonomy §12 step 5, which retired this
-        docstring's earlier claim that the fold consumers read THIS
-        method — they never did).  Each entry is a fresh copy.
+        (since CS4c step 5 through :meth:`assemble`, the same
+        ``apply`` columns).  Each entry is a fresh copy.
         """
         return {
             mid: kernel.emission_matrix()
@@ -396,8 +339,8 @@ class IsotropicScattering(IsotropicTransfer):
 
     The scattering instance of :class:`IsotropicTransfer` (yield 1): a
     role class carrying only its channel constant and its name.
-    Consumed directly by the diffusion, homogeneous and CP energy paths
-    and minted by
+    Consumed directly by the diffusion (through the lift), homogeneous
+    and CP energy paths and derived by
     :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_energy`
     as the SN fast path's P0 half.
     """
@@ -416,7 +359,7 @@ class IsotropicN2N(IsotropicTransfer):
     *multiplication* term of the algebra (each event emits two neutrons;
     the yield also feeds the keff production accounting), summed with
     :class:`IsotropicScattering` for the isotropic emission source and
-    minted by
+    derived by
     :attr:`~orpheus.transport.operators.n2n.N2NOperator.isotropic_energy`
     as the SN fast path's P0 half.
 
@@ -447,13 +390,13 @@ class IsotropicFission(BoundOperator):
     \phi_{g'}` — the rank-1 dyad: contraction against the production
     co-vector, emission along the spectrum. The ENERGY binding of the
     fission channel — what the k-eigenvalue outer iteration, the
-    homogeneous :math:`K = A^{-1}F` composition, and the diffusion
-    scalar composite consume. The ANGULAR binding of the same datum
-    (the frame's :math:`\ell=0` conjugation of this dyad) is
+    homogeneous :math:`K = A^{-1}F` composition, and (through the lift)
+    the diffusion scalar composite consume. The ANGULAR binding of the
+    same datum (the frame's :math:`\ell=0` conjugation of this dyad) is
     :class:`~orpheus.transport.operators.fission.FissionOperator`,
-    which retains an instance of THIS class as its energy factor —
+    which DERIVES an instance of THIS class as its energy factor —
     the relation the transfer family spells as
-    :attr:`~orpheus.transport.operators.transfer.TransferOperator.isotropic_energy`.
+    :attr:`~orpheus.transport.operators.angular_lift.AngularLift.isotropic_energy`.
 
     **On the name.** Fission emission is isotropic BY CONSTRUCTION
     (:math:`\chi` carries no angular dependence — there is no
@@ -468,11 +411,9 @@ class IsotropicFission(BoundOperator):
     is the :class:`~orpheus.numerics.operator.RankOneOperator` dyad on
     CELLWISE factors, cached once via :attr:`kernel` (the CS4c step-3
     satellite ruling: composites are minted once per binding, not per
-    apply — the read-through/depletion semantics of the pre-step-4
-    ``FissionOperator.kernel`` are deliberately dropped; a depletion
-    update re-binds the operator, as :math:`C` already does for
-    :math:`\sigma_t`). The factors come from the retained
-    :class:`~orpheus.transport.material_field.FissionMaterialField`
+    apply; a depletion update re-binds the operator, as :math:`C`
+    already does for :math:`\sigma_t`). The factors come from the
+    retained :class:`~orpheus.transport.material_field.FissionMaterialField`
     (validated per-material :class:`~orpheus.transport.kernels.FissionKernel`
     pairs — the χ simplex/null law holds by construction), gathered
     over the binding's own bulk shape: SPACE FIRST, the ends size the
@@ -491,12 +432,13 @@ class IsotropicFission(BoundOperator):
         The fission channel's kernel field — validated
         :math:`(\chi, \nu\Sigma_f)` pairs over the mesh layout.
     domain, codomain : FunctionSpace
-        The two mandatory ends (kw-only, write-once): the scalar-flux
-        space — plain ``(ng, *spatial)`` (SN k-outer, homogeneous) or
-        the scalar-bulk composite ``FullFieldSpace`` (diffusion; the
-        gather reads the interior). An ANGULAR composite is refused at
-        construction — that consumer wants the angular binding,
-        :class:`~orpheus.transport.operators.fission.FissionOperator`.
+        The two mandatory ends (kw-only, write-once): the PLAIN
+        scalar-flux space ``(ng, *spatial)`` (SN k-outer, homogeneous,
+        diffusion's bulk — lifted onto its composite by
+        :class:`~orpheus.transport.operators.lift.BulkLift`). A composite
+        end is refused at construction; an angular space (leading axis
+        not the group axis) likewise — that consumer wants the ANGULAR
+        binding, :class:`~orpheus.transport.operators.fission.FissionOperator`.
     """
 
     fission: "FissionMaterialField"
@@ -506,38 +448,13 @@ class IsotropicFission(BoundOperator):
     block_role = BlockRole.BULK
 
     def __post_init__(self) -> None:
-        # CS4a K2 → CS4c per-END form (one shared guard, per end).
+        # CS4a K2 → CS4c per-END form (one shared guard, per end), then the
+        # plain-scalar admission: the gather sizes the factors from the
+        # domain's shape, so its LEADING axis must be the group axis.
         self._assert_energy_extent_both_ends(
             self.fission.ng, operator="IsotropicFission",
         )
-        # The scalar-bulk admission: the gather below sizes the factors
-        # from the bulk shape, so a bulk whose LEADING axis is not the
-        # group axis (an angular composite) must refuse here, loudly.
-        bulk = self._bulk_scalar_space()
-        if int(bulk.shape[0]) != int(self.fission.ng):
-            raise TypeError(
-                f"IsotropicFission requires a scalar (ng, *spatial) bulk "
-                f"(leading axis = the group axis, ng="
-                f"{self.fission.ng}); got bulk shape {tuple(bulk.shape)}. "
-                f"An angular composite wants the ANGULAR binding — "
-                f"FissionOperator."
-            )
-
-    def _bulk_scalar_space(self) -> "FunctionSpace":
-        """The scalar (ng, *spatial) space the gathered factors ride —
-        the composite's interior, or the plain scalar domain itself."""
-        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-
-        domain = self.domain
-        if isinstance(domain, FullFieldSpace):
-            interior = domain.interior_space
-            if interior is None:
-                raise TypeError(
-                    "IsotropicFission: the bound composite domain carries "
-                    "no interior space to size the gathered factors."
-                )
-            return interior
-        return domain
+        _admit_plain_scalar_ends(self, self.fission.ng)
 
     @classmethod
     def from_material_xs(
@@ -581,7 +498,7 @@ class IsotropicFission(BoundOperator):
             ReactionRateFunctional,
         )
 
-        bulk = self._bulk_scalar_space()
+        bulk = self.domain
         nu_sig_f = self.fission.gather_nu_sig_f(tuple(bulk.shape[1:]))
         return ReactionRateFunctional(
             CrossSectionField(values=nu_sig_f, space=bulk),
@@ -590,38 +507,34 @@ class IsotropicFission(BoundOperator):
     @cached_property
     def kernel(self) -> "TensorProductOperator":
         r"""The rank-1 TP kernel — the §5.6 integral structure and the ONE
-        arithmetic home of every arm.
+        arithmetic home of every route.
 
         ``outer(χ, production_rate) & IdentityOperator()``: the rank-1
         dyad on the gathered cellwise factors tensored with the
-        spatial-axis broadcast, exactly the pre-step-4
-        ``FissionOperator.kernel`` composition (the
+        spatial-axis broadcast (the
         :meth:`~orpheus.numerics.operator.RankOneOperator.apply`
-        reduction order is unchanged — bit-identity is gated). Its
-        transpose IS the dual dyad :math:`|\nu\Sigma_f\rangle\langle\chi|`
-        by the factor-swap theorem — no fission-specific transpose
-        arithmetic exists anywhere."""
+        reduction order is unchanged since CS4c step 4 — bit-identity is
+        gated). Its transpose IS the dual dyad
+        :math:`|\nu\Sigma_f\rangle\langle\chi|` by the factor-swap
+        theorem — no fission-specific transpose arithmetic exists
+        anywhere."""
         from orpheus.numerics.operator import IdentityOperator, outer
 
-        bulk = self._bulk_scalar_space()
+        bulk = self.domain
         chi = self.fission.gather_chi(tuple(bulk.shape[1:]))
         return outer(chi, self.production_rate) & IdentityOperator()
 
-    def apply(self, phi: "np.ndarray | FullField | object") -> "np.ndarray | FullField":
+    def apply(self, phi: np.ndarray, /) -> np.ndarray:
         r""":math:`\chi\,(\nu\Sigma_f\cdot\phi)` — the per-cell fission source (no :math:`1/k`).
 
-        Bare ndarray / flux-carrier in → bare ndarray out (the
-        model-portable contract). A scalar :class:`FullField` composite
-        in → the closed scalar source composite out (the shared
-        :func:`_scalar_composite_source`; the kernel is the SAME dyad
-        either way). The :math:`1/k` division stays at the eigenvalue
-        layer — this is a *linear* operator.
+        Bare ndarray of the domain's shape in → bare ndarray out (the
+        model-portable contract; :func:`~orpheus.transport.operators.lift.admit_array`
+        is the admission). The :math:`1/k` division stays at the
+        eigenvalue layer — this is a *linear* operator.
         """
-        if isinstance(phi, FullField):
-            return _scalar_composite_source(self, phi)
-        return self.kernel.apply(_values_of(phi))
+        return self.kernel.apply(admit_array(self, phi, end="domain"))
 
-    def apply_transpose(self, chi: "np.ndarray | object") -> np.ndarray:
+    def apply_transpose(self, chi: np.ndarray, /) -> np.ndarray:
         r"""The dual dyad :math:`F^{T}\psi^* = \nu\Sigma_f\,(\chi\cdot\psi^*)`
         — the χ↔νΣf factor swap, routed through :attr:`kernel`'s
         :class:`~orpheus.numerics.operator.TensorProductOperator`
@@ -629,16 +542,5 @@ class IsotropicFission(BoundOperator):
         the bare Euclidean :math:`F^{T}`; the metric Hilbert adjoint is
         the ``.H`` wrapper's job, composed from the spaces' own Riesz
         legs (CS4c step-4 §16.2 — nothing hand-rolled here).
-
-        Bare-ndarray surface only, mirroring the family: the composite
-        transpose belongs to the ANGULAR binding
-        (:meth:`FissionOperator.apply_transpose`).
         """
-        if isinstance(chi, FullField):
-            raise TypeError(
-                "IsotropicFission.apply_transpose: composite FullField "
-                "transpose is not wired here — the composite adjoint "
-                "belongs to the angular binding (FissionOperator); pass "
-                "the bulk values."
-            )
-        return self.kernel.apply_transpose(_values_of(chi))
+        return self.kernel.apply_transpose(admit_array(self, chi, end="codomain"))

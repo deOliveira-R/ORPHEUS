@@ -98,6 +98,33 @@ _R7_XFAIL = pytest.mark.xfail(
 # ═════════════════════════════════════════════════════════════════════════
 
 
+def _is_the_records_gain_rebound_on_the_iterate(driver_gain, record_gain) -> bool:
+    """On a windowed (2-D Cartesian) mesh the driver's gain is the record's
+    gain RE-BOUND to consume the moment iterate (CS4c step 5:
+    ``on_moment_domain()`` — the same datum, the same faces, the same
+    codomain; the domain's interior is the analysis face's codomain). Not a
+    second splitting: nothing but the end the operand arrives on differs."""
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.transport.operators.angular_lift import AngularLift
+
+    if not isinstance(record_gain, AngularLift) or type(driver_gain) is not type(record_gain):
+        return False
+    same_datum = all(
+        getattr(driver_gain, f) is getattr(record_gain, f)
+        for f in ("transfer", "flux_analysis", "source_reconstruction")
+        if hasattr(record_gain, f)
+    )
+    trace = record_gain.domain.trace_space if isinstance(record_gain.domain, FullFieldSpace) else None
+    return (
+        same_datum
+        and driver_gain.codomain is record_gain.codomain
+        and trace is not None
+        and driver_gain.domain == FullFieldSpace.from_blocks(
+            record_gain.flux_analysis.codomain, trace,
+        )
+    )
+
+
 @pytest.mark.parametrize(
     ("build_mesh", "inner_schedule"),
     [
@@ -121,10 +148,18 @@ def test_driver_consumes_the_records_own_splitting(build_mesh, inner_schedule):
     Object identity (``is``), not value equality: two operators that happen
     to agree numerically today are still two operators, and the second one
     is where the drift lives.  This is the campaign's acceptance leg AC-b.
+
+    ⚠ The ONE sanctioned exception (CS4c step 5): on a WINDOWED mesh the
+    iterate is the moment composite, and the record's angular-bound gains
+    cannot read it — each binding acts through the body its ends select
+    — so the driver consumes the record's own gains RE-BOUND on that end
+    (``on_moment_domain()``): same datum, same faces, same codomain,
+    checked field by field. The boundary gain is unchanged (it reads the
+    trace) and stays the record's object.
     """
     sn_mesh = build_mesh()
     record = record_for(sn_mesh)
-    _si, driver_implicit, driver_gains, _windowed = _within_group_si(
+    _si, driver_implicit, driver_gains, windowed = _within_group_si(
         record, sn_mesh, inner_schedule=inner_schedule,
         max_iter=2, tol=1e-10,
     )
@@ -137,6 +172,19 @@ def test_driver_consumes_the_records_own_splitting(build_mesh, inner_schedule):
             f"posed record's splitting claim is stale (R7)."
         )
     advertised = tuple(map(id, record.explicit_gains))
+    if windowed:
+        if len(driver_gains) != len(record.explicit_gains) or not all(
+            d is r or _is_the_records_gain_rebound_on_the_iterate(d, r)
+            for d, r in zip(driver_gains, record.explicit_gains)
+        ):
+            pytest.fail(
+                f"[{inner_schedule}] windowed: the driver's gains are neither "
+                f"the record's nor the record's re-bound on the moment "
+                f"iterate: driver ran {[type(g).__name__ for g in driver_gains]}, "
+                f"record advertises "
+                f"{[type(g).__name__ for g in record.explicit_gains]} (R7)."
+            )
+        return
     if tuple(map(id, driver_gains)) != advertised:
         pytest.fail(
             f"[{inner_schedule}] the driver's gains are NOT the record's: "

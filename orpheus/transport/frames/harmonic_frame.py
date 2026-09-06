@@ -518,9 +518,12 @@ class HarmonicFrame(GalerkinFrame):
         r"""Mint the SOURCE reconstruction face :math:`R \otimes I` landing in
         ``angular_space`` (``HarmonicMomentSourceSink → AngularSourceSink``).
 
-        Consumer: the windowed moment-iterate arm of
-        :class:`~orpheus.transport.operators.scattering.ScatteringOperator`'s
-        ``apply`` dispatch (the explicit typed grid path). The flux-reconstruction sibling
+        Consumer: the MOMENT end of the transfer lift
+        (:class:`~orpheus.transport.operators.transfer.TransferOperator`'s
+        typed :math:`\ell \ge 1` route, selected at construction when the
+        binding's domain is the moment composite — the explicit typed
+        grid path); every lift admits the face against the angular space
+        it emits on. The flux-reconstruction sibling
         (``HarmonicMomentFlux → AngularFlux``) is mint-ready, unminted.
         """
         return HarmonicReconstructionOperator(

@@ -37,7 +37,7 @@ composite).
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import assert_type, cast
+from typing import Any, assert_type, cast
 
 import numpy as np
 import pytest
@@ -49,8 +49,7 @@ from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
-from orpheus.transport.source_sinks import AngularSourceSink, ScalarSourceSink
+from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
@@ -176,7 +175,7 @@ def test_F_typed_lift_equivalent_to_scalar(name, builder) -> None:
     phi = cast(
         ScalarFlux, cast(AngularFlux, state.interior).integrate_angular(),
     )
-    F_phi = np.asarray(F.energy.apply(phi.values))
+    F_phi = np.asarray(F.isotropic_energy.apply(phi.values))
     expected_values = np.broadcast_to(
         (F_phi / F.total_weight)[None], Fpsi_typed.interior.values.shape,
     )
@@ -389,27 +388,41 @@ def _c6_static_typing_pins(
     F: FissionOperator,
     S: ScatteringOperator,
     state: TimedFullField,
-    phi: ScalarFlux,
-    psi: AngularFlux,
-    moments: HarmonicMomentFlux,
     arr: np.ndarray,
 ) -> None:
-    """Static typing pins for the ``apply`` fibration (pyright-only, never run).
+    r"""Static typing pins for the ``apply`` surface (pyright-only, never run).
 
-    ``assert_type`` is the STATIC half of gate C6 — each call forces pyright to
-    confirm the per-carrier ``@overload`` resolves to the right output type.
+    ``assert_type`` is the STATIC half of gate C6. It used to force pyright to
+    confirm that a per-carrier ``@overload`` resolved to the right output type,
+    one row per carrier per operator.
+
+    ⛔ COLLAPSED (CS4c step 5, R-1/R-3/R-4): there is no per-carrier surface
+    left to resolve. A composite binding has ONE verb, and the four operands
+    the old rows enumerated (``ScalarFlux``, ``AngularFlux``,
+    ``HarmonicMomentFlux``, a bare array) are now pyright ERRORS at the call
+    site — the illegal states became unspellable statically as well as at run
+    time. What survives as a static claim is the pair of signatures the two
+    tiers actually carry: ``FullField -> FullField`` on the composite binding,
+    ``ndarray -> ndarray`` on the plain energy binding it derives.
+
     No ``test_`` prefix → pytest never collects this; only the type checker
     reads it.
     """
+    # ⛔ COLLAPSED (CS4c step 5, R-1/R-3): the per-carrier ``@overload``
+    # surface is GONE because the runtime dispatch is gone. A composite
+    # binding has ONE verb, ``apply(FullField) -> FullField``, and its body
+    # is selected from its ENDS at construction — so the static surface that
+    # used to enumerate four carriers per operator is now one signature, and
+    # the pins that named ``ScalarFlux`` / ``AngularFlux`` /
+    # ``HarmonicMomentFlux`` outputs pin nothing (those calls no longer
+    # type-check at all, which is the point).
     assert_type(F.apply(state), FullField)
-    assert_type(F.apply(psi), AngularSourceSink)
-    assert_type(F.apply(moments), AngularSourceSink)
-    # (The ScalarFlux / bare-ndarray pins moved to the ENERGY binding at
-    # CS4c step 4 — the angular F refuses both toward IsotropicFission.)
     assert_type(S.apply(state), FullField)
-    assert_type(S.apply(phi), ScalarSourceSink)
-    assert_type(S.apply(psi), AngularSourceSink)
-    assert_type(S.apply(moments), AngularSourceSink)
+    # The bare-array carriers moved DOWN to the plain-bound ENERGY bindings
+    # (R-4: the array carriers are theirs), so the family's ndarray contract
+    # is pinned where it now lives.
+    assert_type(S.isotropic_energy.apply(arr), np.ndarray)
+    assert_type(F.isotropic_energy.apply(arr), np.ndarray)
 
 
 def _windowed_product_static_typing_pins(
@@ -455,13 +468,15 @@ def test_c6_apply_dispatch_parity() -> None:
     psi = cast(AngularFlux, state.interior)
     phi = ScalarFlux(values=np.ones((sn.ng, *sn.spatial_shape)), space=sn.bulk_space)
 
+    # The COMPOSITE bindings: one verb, one carrier, one output type.
     cases = [
         ("F(TimedFullField)", F.apply(state), FullField),
-        ("F(AngularFlux)", F.apply(psi), AngularSourceSink),
-        ("F.energy(ndarray)", F.energy.apply(phi.values), np.ndarray),
         ("S(TimedFullField)", S.apply(state), FullField),
-        ("S(ScalarFlux)", S.apply(phi), ScalarSourceSink),
-        ("S(AngularFlux)", S.apply(psi), AngularSourceSink),
+        # The bare-array contract, on the bindings it now belongs to (R-4).
+        ("F.isotropic_energy(ndarray)",
+         F.isotropic_energy.apply(phi.values), np.ndarray),
+        ("S.isotropic_energy(ndarray)",
+         S.isotropic_energy.apply(phi.values), np.ndarray),
     ]
     for label, out, expected in cases:
         if not isinstance(out, expected):
@@ -469,18 +484,37 @@ def test_c6_apply_dispatch_parity() -> None:
                 f"{label}: dispatch returned {type(out).__name__}, "
                 f"expected {expected.__name__}"
             )
-    # CS4c step 4: the angular F REFUSES scalar carriers and bare
-    # arrays — both belong to the energy binding (typed redirects).
-    for label, call in [
-        ("F(ScalarFlux)", lambda: F.apply(phi)),
-        ("F(ndarray)", lambda: F.apply(phi.values)),
-    ]:
+    # ⛔ THE REFUSAL SET WIDENED (CS4c step 5, R-3/R-4). At step 4 only the
+    # angular F refused a scalar carrier and a bare array; now EVERY bulk
+    # carrier is refused by BOTH composite bindings (the ends select the
+    # carrier), and the plain energy bindings refuse the typed field and the
+    # composite in the other direction. These rows are the ones that used to
+    # be dispatch arms — they are the §6c red-before of the one-body carve.
+    #
+    # ⭐ Every operand below is ALSO a pyright error at the call site — the
+    # carve made these illegal states unspellable STATICALLY, not just at
+    # run time. ``cast(Any, ...)`` is what lets the runtime guard be probed
+    # at all; it is the deliberate defeat of a check this row exists to
+    # complement, not a suppression (``coding-elegance`` #19).
+    refused: list[tuple[str, object, object]] = [
+        ("F(ScalarFlux)", F, phi),
+        ("F(AngularFlux)", F, psi),
+        ("F(ndarray)", F, phi.values),
+        ("S(ScalarFlux)", S, phi),
+        ("S(AngularFlux)", S, psi),
+        ("S(ndarray)", S, psi.values),
+        ("F.isotropic_energy(ScalarFlux)", F.isotropic_energy, phi),
+        ("S.isotropic_energy(ScalarFlux)", S.isotropic_energy, phi),
+        ("F.isotropic_energy(TimedFullField)", F.isotropic_energy, state),
+        ("S.isotropic_energy(TimedFullField)", S.isotropic_energy, state),
+    ]
+    for label, op, operand in refused:
         try:
-            call()
+            cast(Any, op).apply(cast(Any, operand))
         except TypeError:
             continue
-        pytest.fail(f"{label}: expected the typed refusal toward the "
-                    f"energy binding")
+        pytest.fail(f"{label}: expected the typed refusal — each binding "
+                    f"acts through the body its ends select")
 
 
 # ───────────────────────────────────────────────────────────────────────

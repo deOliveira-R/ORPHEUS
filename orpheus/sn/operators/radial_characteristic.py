@@ -1297,10 +1297,12 @@ class RadialCharacteristicEmission(LinearOperator):
     summed (``S.isotropic_energy + N2N.isotropic_energy``)
     (assembled at the one within-group construction site, CS4c §14.1;
     the production consumer, a within-group lagged gain); the
-    fission dyad
-    :attr:`~orpheus.transport.operators.fission.FissionOperator.kernel`
-    (``χ ⊗ νΣf``) is a smoke-verified SECOND kernel that exercises the same
-    machinery.
+    fission ENERGY binding
+    :attr:`FissionOperator.isotropic_energy
+    <orpheus.transport.operators.angular_lift.AngularLift.isotropic_energy>`
+    (the dyad ``χ ⊗ νΣf`` as an operator) is the SECOND kernel that
+    exercises the same machinery — the eigen-posing's ray row feeds it
+    (``sn/solver._adjoint_posing_parts``).
 
     .. warning::
 
@@ -1308,7 +1310,7 @@ class RadialCharacteristicEmission(LinearOperator):
        Fission is the eigenvalue OUTER source: its ``K ∘ integrate`` is
        pre-computed as the fission source, so the ray seed is a DIRECT
        :class:`RadialCharacteristicReconstruction` fold at the ``q_ext`` seam.
-       Routing ``F.kernel`` through this operator's full
+       Routing ``F.isotropic_energy`` through this operator's full
        ``Fold ∘ K ∘ integrate`` would DOUBLE-apply ``K ∘ integrate``.  S is a
        within-group gain, F the outer source — different seams.  The
        kernel-genericity is a clean dependency injection, NOT a claim that
@@ -1350,7 +1352,7 @@ class RadialCharacteristicEmission(LinearOperator):
         solver-composed ``K_iso`` (``S.isotropic_energy + N2N.isotropic_energy``,
         CS4c §14.1) — sharing the two cached energy-binding LEAVES the
         bulk gains consume, so the emission is single-sourced per channel
-        (one shared kernel object each, not a twin). ``fission_op.kernel`` is accepted (the machinery is
+        (one shared kernel object each, not a twin). ``fission_op.isotropic_energy`` is accepted (the machinery is
         kernel-generic) but fission's production ray seed rides the outer
         ``q_ext`` seam as a direct ``Fold``, NOT through this operator (see
         the class docstring — routing it here would double-apply

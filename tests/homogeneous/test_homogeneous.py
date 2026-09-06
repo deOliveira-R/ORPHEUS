@@ -148,38 +148,43 @@ def test_assemble_loss_operator_matches_fused_oracle():
     np.testing.assert_allclose(A, A_fused, atol=1e-12, rtol=0)
 
 
-def test_kinf_gate_executes_the_bare_multiplication_arm(monkeypatch):
-    """Mode-11: the homogeneous k∞ gate actually EXECUTES the new
-    ``MultiplicationOperator`` bare-ndarray arm.
+def test_kinf_gate_executes_the_plain_multiplier_assembly(monkeypatch):
+    """Mode-11: the homogeneous k∞ gate actually EXECUTES the PLAIN-bound
+    ``MultiplicationOperator``'s emission.
 
-    The apply-to-basis A-assembly routes the collision diagonal C = M[Σ_t]
-    through the bare arm. Perturbing ONLY that arm (×1.5 on ndarray input)
-    moves k_inf O(1) — proving the arm is on the gate's call graph and
-    load-bearing, not a vacuous green. (``-O``-safe: the monkeypatch is an
-    in-process attribute swap, reverted by the fixture; never a
-    ``git checkout``.)
+    The loss matrix ``A = C − K_iso`` is materialised through
+    ``as_matrix``, which delegates to ``assemble()`` on an assemblable
+    operator — and since CS4c step 5 the plain binding IS assemblable
+    (the bulk diagonal on its own ends), so the collision diagonal reaches
+    the k∞ gate through ``_bulk_assembly``, not through ``apply``
+    (`[M]` 2026-09-04: perturbing ``apply`` alone left k_inf unmoved —
+    this row's pre-step-5 spelling had gone vacuous-green). Perturbing
+    ONLY the emission (×1.5 on the diagonal) moves k_inf O(1) — proving
+    that path is on the gate's call graph and load-bearing.
+    (``-O``-safe: the monkeypatch is an in-process attribute swap,
+    reverted by the fixture; never a ``git checkout``.)
     """
     from orpheus.transport.operators.multiplication_operator import (
         MultiplicationOperator,
     )
 
-    raw = MultiplicationOperator.__dict__["apply"]  # the singledispatchmethod
+    raw = MultiplicationOperator.__dict__["_bulk_assembly"]
 
-    def perturbed(self, x):
-        out = raw.__get__(self, type(self))(x)
-        if isinstance(x, np.ndarray):  # corrupt ONLY the meshless collision arm
-            return out * 1.5
-        return out
+    def perturbed(self, bulk_space):
+        emitted = raw.__get__(self, type(self))(bulk_space)
+        return type(emitted)(
+            emitted.matrix * 1.5, domain=emitted.domain, codomain=emitted.codomain,
+        )
 
-    monkeypatch.setattr(MultiplicationOperator, "apply", perturbed)
+    monkeypatch.setattr(MultiplicationOperator, "_bulk_assembly", perturbed)
 
     case = get("homo_2eg_n2n")
     mix = next(iter(case.materials.values()))
     result = solve_homogeneous_infinite(mix)
     assert abs(result.k_inf - case.k_inf) > 1e-3, (
-        f"perturbing the bare M[Σ_t] arm left k_inf at {result.k_inf:.6f} "
+        f"perturbing the plain M[Σ_t] emission left k_inf at {result.k_inf:.6f} "
         f"(oracle {case.k_inf:.6f}) — the homogeneous gate does NOT execute "
-        f"the bare arm (Mode-11 vacuous-green)"
+        f"the multiplier's assembly (Mode-11 vacuous-green)"
     )
 
 

@@ -99,6 +99,10 @@ from orpheus.geometry import CoordSystem
 from orpheus.sn.solver import SNSolver, _as_sn_mesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from tests.sn._test_helpers import curvilinear_homogeneous_mesh
+# The ONE spelling of the zero-trace composite operand (CS4c step 5). It lives
+# under ``tests/sn/operators/`` because that is where the ~40 step-5 re-key
+# sites are; ``tests/sn/_test_helpers.py`` is its natural long-term home.
+from tests.sn.operators._composite_operand import bulk_apply
 
 
 # ── shared builders ─────────────────────────────────────────────────────
@@ -158,7 +162,13 @@ def _isolated_p1(coord: CoordSystem, quad):
     S1, sn_mesh, centers = _scattering_op(coord, quad, scattering_order=1)
     S0, _, _ = _scattering_op(coord, quad, scattering_order=0)
     psi, A, B, W = _anisotropic_flux(sn_mesh, centers)
-    P1 = S1.apply(psi).values - S0.apply(psi).values
+    # CS4c step 5: a gain is composite-bound and admits its composite alone
+    # (``lift.admit_composite``), so the bulk action rides a zero-trace
+    # composite — the trace the lift itself emits back. ⚠ The two operators
+    # are bound on DIFFERENT meshes (one per scattering order), so each wrap
+    # reads its own operator's trace block; ``bulk_apply`` does that by
+    # construction (it reads the bound end, never a mesh handed in beside it).
+    P1 = bulk_apply(S1, psi).values - bulk_apply(S0, psi).values
     return P1, psi, sn_mesh, A, B, W
 
 

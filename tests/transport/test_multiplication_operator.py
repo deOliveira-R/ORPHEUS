@@ -150,10 +150,15 @@ def _positive_sigma(sn_mesh: SNMesh, ng: int = 2, seed: int = 11) -> np.ndarray:
     return 0.3 + 0.5 * rng.random((ng, *sn_mesh.spatial_shape))
 
 
-def _multiplier(sn_mesh: SNMesh, sigma: np.ndarray) -> MultiplicationOperator:
+def _multiplier(
+    sn_mesh: SNMesh, sigma: np.ndarray, *, plain: bool = False,
+) -> MultiplicationOperator:
     """``M[σ]`` from a raw ndarray (wrapped into a CrossSectionField),
-    bound as production binds it (the mesh's composite, both ends)."""
-    space = sn_mesh.full_field_space
+    bound as production binds it — the mesh's composite, both ends — or,
+    with ``plain=True``, on the scalar ``bulk_space`` (the bare-array
+    binding the homogeneous / diffusion outer loops feed; CS4c step 5:
+    the ends select the body, so the bare arm is the PLAIN binding's)."""
+    space = sn_mesh.bulk_space if plain else sn_mesh.full_field_space
     return MultiplicationOperator(
         coefficient=CrossSectionField(values=sigma, space=sn_mesh.bulk_space),
         domain=space, codomain=space,
@@ -613,7 +618,9 @@ class TestMeshlessBareArm:
         ) * 0.1
 
     def test_bare_arm_is_sigma_times_x(self):
-        r""":math:`M[\sigma]\,\phi = \sigma \odot \phi` on a bare ``(ng,*spatial)``.
+        r""":math:`M[\sigma]\,\phi = \sigma \odot \phi` on a bare ``(ng,*spatial)``
+        — the PLAIN binding's body (CS4c step 5: a composite-bound multiplier
+        refuses the bare array; the bare arm is the plain binding's).
 
         The explicit ``out.shape == sigma.shape`` is load-bearing:
         ``assert_array_equal`` BROADCASTS, so a spurious leading axis (the
@@ -623,7 +630,7 @@ class TestMeshlessBareArm:
         sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
         sigma = self._asym_sigma(2, 5, 3)
         x = np.random.default_rng(0).uniform(0.1, 1.0, size=(2, 5, 3))
-        C = _multiplier(sn, sigma)
+        C = _multiplier(sn, sigma, plain=True)
 
         out = C.apply(x)
         _require(
@@ -646,6 +653,9 @@ class TestMeshlessBareArm:
         sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
         sigma = self._asym_sigma(2, 5, 3)
         x = np.random.default_rng(1).uniform(0.1, 1.0, size=(2, 5, 3))
+        # Two BINDINGS of one coefficient (CS4c step 5): the plain one runs
+        # the bare body, the composite one the lifted body — the same engine.
+        C_plain = _multiplier(sn, sigma, plain=True)
         C = _multiplier(sn, sigma)
 
         N = sn.quad.N
@@ -655,7 +665,7 @@ class TestMeshlessBareArm:
         )
         psi_bcast = replace(state, interior=replace(state.interior, values=bulk_vals))
 
-        bare_out = C.apply(x)
+        bare_out = C_plain.apply(x)
         ff_out = C.apply(psi_bcast).interior.values
         _require(
             bare_out.shape == (2, 5, 3),
@@ -667,24 +677,32 @@ class TestMeshlessBareArm:
     def test_bare_arm_is_self_adjoint(self):
         r""":math:`M[\sigma]^* = M[\sigma]` on a bare block (real coefficient)."""
         sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
-        C = _multiplier(sn, self._asym_sigma(2, 5, 3))
+        C = _multiplier(sn, self._asym_sigma(2, 5, 3), plain=True)
         x = np.random.default_rng(2).uniform(0.1, 1.0, size=(2, 5, 3))
         np.testing.assert_array_equal(C.apply_transpose(x), C.apply(x))
 
     def test_dispatch_raises_on_unsupported_type(self):
-        """ndarray-only scope: an unregistered carrier raises ``TypeError``.
-
-        Pins that the bare arm is ndarray-ONLY — a typed :class:`ScalarFlux`
-        is NOT silently accepted (false symmetry with ``FissionOperator``'s
-        ScalarFlux arm, deferred until a real scalar-flux collision consumer
-        exists; ``coding-elegance`` Pattern 6).
+        """The ends select the carrier (CS4c step 5): on BOTH bindings an
+        alien object and a typed :class:`ScalarFlux` are ``TypeError``s
+        naming the operator; the composite binding also refuses the bare
+        array and the plain binding the composite.
         """
         sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
-        C = _multiplier(sn, self._asym_sigma(2, 5, 3))
-        with pytest.raises(TypeError):
-            C.apply(object())
-        with pytest.raises(TypeError):
-            C.apply(ScalarFlux(values=self._asym_sigma(2, 5, 3), space=sn.bulk_space))
+        sigma = self._asym_sigma(2, 5, 3)
+        for C in (_multiplier(sn, sigma), _multiplier(sn, sigma, plain=True)):
+            with pytest.raises(TypeError, match="MultiplicationOperator"):
+                C.apply(object())
+            with pytest.raises(TypeError, match="MultiplicationOperator"):
+                C.apply(ScalarFlux(values=sigma, space=sn.bulk_space))
+        with pytest.raises(TypeError, match="FullField"):
+            _multiplier(sn, sigma).apply(sigma.copy())
+        with pytest.raises(TypeError, match="BulkLift"):
+            _multiplier(sn, sigma, plain=True).apply(
+                TimedFullField.zeros(
+                    interior=AngularFlux, boundary=AngularBoundaryFlux,
+                    space=sn.full_field_space,
+                ),
+            )
 
 
 class TestInverseOperatorFace:

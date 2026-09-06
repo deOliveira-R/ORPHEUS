@@ -59,6 +59,7 @@ from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 
+from tests.sn.operators._composite_operand import bulk_apply
 from tests.transport._integral_kernel_helpers import require
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.transport.material_field import TransferMaterialField
@@ -398,7 +399,9 @@ class TestProductionApplyEqualsComposedOperator:
         op = solver_p1_het.scattering_op
         sn_mesh = solver_p1_het.sn_mesh
         psi = _aniso_psi(solver_p1_het)
-        full = op.apply(psi).values
+        # CS4c step 5: the gain is composite-bound — the bulk action rides a
+        # zero-trace composite (the trace the lift itself emits).
+        full = bulk_apply(op, psi).values
 
         # Reference: aniso = (1/W)·kernel(ψ); P0 via the scalar fast path.
         sum_w = op.total_weight
@@ -408,7 +411,9 @@ class TestProductionApplyEqualsComposedOperator:
         nx, ny = sn_mesh.spatial_shape
         N = sn_mesh.quad.N
         iso = np.zeros((ng, nx, ny))
-        op.add_iso_source(iso, phi)
+        # ``add_iso_source`` is the SI driver's bare-array seam (R-3 retired
+        # its typed arm): ndarray Q, ndarray φ.
+        op.add_iso_source(iso, phi.values)
         expected = np.broadcast_to(
             (iso / sum_w)[None, :, :, :], (N, ng, nx, ny),
         ) + aniso

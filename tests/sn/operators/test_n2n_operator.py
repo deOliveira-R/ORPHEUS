@@ -21,10 +21,14 @@ The claims, each with its own witness:
   ``⟨N2N ψ, χ⟩ = ⟨ψ, N2Nᵀ χ⟩`` on the ℓ ≥ 1 fixture (G2.10 — the
   transpose is the product chain's reversal, now with a per-ℓ middle
   factor);
-* the carrier arms are the core's (composite bulk-only; moment arm ≡
-  angular arm on ``φ = Mψ``; ``ScalarFlux`` → the P0 emission in iso
-  scalar magnitude, the arm ``S`` keeps as a named-future-consumer
-  surface);
+* the carriers are the core's, PER END (CS4c step 5): this binding
+  admits its composite ``FullField`` and nothing else; the trace never
+  reaches the bulk emission and the emitted trace is exactly zero; the
+  moment iterate is the SIBLING's operand (``on_moment_domain()``, whose
+  action is bit-identical to this one fed the corresponding angular
+  field); the scalar magnitude is the ENERGY binding's
+  (``isotropic_energy``, bare arrays) — the ``ScalarFlux`` arm on the
+  angular binding is RETIRED (R-3) and its refusal is pinned;
 * admission: a face minted on another quadrature's space is refused; a
   bare space is refused; the two terms share ONE interned frame.
 
@@ -57,6 +61,11 @@ from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.operators.transfer import LegendreMomentTransfer
 
 from tests.sn._test_helpers import material_xs_from_raw
+from tests.sn.operators._composite_operand import (
+    bulk_apply,
+    transpose_values,
+    zero_trace_composite,
+)
 
 pytestmark = pytest.mark.foundation
 
@@ -123,7 +132,9 @@ class TestTheBindingAtTheSolveOrder:
         n2n = solver.n2n_op
         S = solver.scattering_op
         psi = _psi(sn)
-        got = n2n.apply(psi).values
+        # CS4c step 5: the gain is composite-bound; the bulk action rides a
+        # zero-trace composite (the trace the lift itself emits back).
+        got = bulk_apply(n2n, psi).values
 
         basis = S.frame.basis
         assert isinstance(basis, TruncatedBasis)
@@ -145,10 +156,10 @@ class TestTheBindingAtTheSolveOrder:
         P0 twin of this operator (every arm with ``aniso = None``, the
         shipped model until 2026-09-04) reads exactly 0.0 here."""
         solver, sn = _solver()
-        control, _ = _solver(sig2=_SIG2_P0_ONLY)
+        control, control_sn = _solver(sig2=_SIG2_P0_ONLY)
         psi = _psi(sn, 7)
-        full = solver.n2n_op.apply(psi).values
-        p0 = control.n2n_op.apply(psi).values
+        full = bulk_apply(solver.n2n_op, psi).values
+        p0 = bulk_apply(control.n2n_op, _psi(control_sn, 7)).values
         moved = float(np.max(np.abs(full - p0)))
         if moved == 0.0:
             pytest.fail(
@@ -177,10 +188,12 @@ class TestTheBindingAtTheSolveOrder:
         n2n = solver.n2n_op
         psi, chi = _psi(sn, 21), _psi(sn, 22)
         np.testing.assert_array_equal(
-            n2n.apply(psi).values, 2 * S_prime.apply(psi).values,
+            bulk_apply(n2n, psi).values,
+            2 * bulk_apply(S_prime, psi).values,
         )
         np.testing.assert_array_equal(
-            n2n.apply_transpose(chi.values), 2 * S_prime.apply_transpose(chi.values),
+            transpose_values(n2n, chi.values),
+            2 * transpose_values(S_prime, chi.values),
         )
         assert n2n.transfer.multiplicity == 2 and S_prime.transfer.multiplicity == 1
 
@@ -191,8 +204,8 @@ class TestTheBindingAtTheSolveOrder:
         solver, sn = _solver()
         n2n = solver.n2n_op
         psi, chi = _psi(sn, 5), _psi(sn, 6)
-        lhs = float(np.sum(n2n.apply(psi).values * chi.values))
-        rhs = float(np.sum(psi.values * n2n.apply_transpose(chi.values)))
+        lhs = float(np.sum(bulk_apply(n2n, psi).values * chi.values))
+        rhs = float(np.sum(psi.values * transpose_values(n2n, chi.values)))
         np.testing.assert_allclose(lhs, rhs, rtol=1e-12)
 
     def test_transpose_reds_on_group_flip(self):
@@ -201,9 +214,9 @@ class TestTheBindingAtTheSolveOrder:
         solver, sn = _solver()
         n2n = solver.n2n_op
         psi, chi = _psi(sn, 5), _psi(sn, 6)
-        lhs = float(np.sum(n2n.apply(psi).values * chi.values))
+        lhs = float(np.sum(bulk_apply(n2n, psi).values * chi.values))
         # The WRONG transpose: forward applied to χ (un-transposed K).
-        wrong = float(np.sum(psi.values * n2n.apply(chi).values))
+        wrong = float(np.sum(psi.values * bulk_apply(n2n, chi).values))
         if abs(lhs - wrong) <= 1e-10 * abs(lhs):
             pytest.fail(
                 "group-flip control did not move reciprocity — the "
@@ -212,58 +225,141 @@ class TestTheBindingAtTheSolveOrder:
 
 
 class TestCarrierArms:
-    def test_composite_arm_is_bulk_only(self):
-        solver, sn = _solver()
-        state = FullField(
-            interior=_psi(sn, 9),
-            boundary=__import__(
-                "orpheus.transport.fields.angular_boundary_flux",
-                fromlist=["AngularBoundaryFlux"],
-            ).AngularBoundaryFlux.zeros(sn.angular_trace),
+    r"""Which carrier each BINDING admits — the step-5 outcome, per end.
+
+    Until 2026-09-04 one angular-bound instance dispatched on the operand's
+    class per call (``AngularFlux`` / ``HarmonicMomentFlux`` / ``ScalarFlux``
+    / ``FullField`` arms). Now *each binding acts through the body its ends
+    select*: this binding admits its composite ``FullField`` and nothing
+    else, the moment iterate is the moment SIBLING's operand
+    (``on_moment_domain()``), and the scalar magnitude is the ENERGY
+    binding's (``isotropic_energy``, plain-bound, bare arrays).
+    """
+
+    def test_the_trace_does_not_reach_the_bulk_emission(self):
+        r"""⛔ RE-KEYED (CS4c step 5) — was ``test_composite_arm_is_bulk_only``.
+
+        The claim is unchanged (*a collision gain is volumetric*) but its
+        spelling had to move: the old row compared the composite arm against
+        ``N2N.apply(bulk)``, and a bare bulk field is now refused. The
+        equivalent — and strictly stronger, because the old row fed a ZERO
+        trace on both sides — is trace-INDEPENDENCE on a NON-ZERO trace:
+
+        * the emitted trace is exactly zero (extension-by-zero), and
+        * the emitted interior is bit-identical to the zero-trace composite's,
+          i.e. no part of the trace reaches the bulk body.
+
+        A body that read the trace reddens the second leg; the old row could
+        not have seen it.
+        """
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
         )
-        out = solver.n2n_op.apply(state)
+
+        solver, sn = _solver()
+        rng = np.random.default_rng(9)
+        trace = AngularBoundaryFlux.zeros(sn.angular_trace)
+        loud = type(trace)(
+            values=rng.uniform(0.5, 1.5, size=np.asarray(trace.values).shape),
+            space=trace.space,
+        )
+        if not float(np.max(np.abs(np.asarray(loud.values)))) > 0.0:
+            pytest.fail("the trace probe is zero — the independence leg is vacuous")
+
+        psi = _psi(sn, 9)
+        out = solver.n2n_op.apply(FullField(interior=psi, boundary=loud))
         assert isinstance(out, FullField)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
         np.testing.assert_array_equal(
-            out.interior.values,
-            solver.n2n_op.apply(cast(AngularFlux, state.interior)).values,
+            out.interior.values, bulk_apply(solver.n2n_op, psi).values,
+            err_msg="the (n,2n) bulk emission moved with the TRACE — a "
+                    "volumetric gain must not read the boundary block.",
         )
 
     def test_moment_arm_equals_angular_arm_on_projected_flux(self):
-        r"""``N2N.apply(Mψ) ≡ N2N.apply(ψ)`` — the moments ARE ``Mψ``, so
-        windowing loses nothing (the core's guard, now with a live ℓ = 1)."""
+        r"""**G5.3b (N2N)** — ``N2N_w.apply(Mψ ⊕ 0) == N2N.apply(ψ ⊕ 0)``, 0 ULP.
+
+        ⛔ RE-KEYED (CS4c step 5). The claim is the one this row always made
+        — *the moments ARE* :math:`M\psi`, *so windowing loses nothing* — but
+        the moment iterate is no longer handed to the ANGULAR binding (the
+        shipped non-endomorphism, `[M]` 143 feeds per windowed solve). It goes
+        to the SIBLING bound on the moment end, whose body is selected at
+        construction: :math:`\Lambda` then the source-reconstruction FACE,
+        with :math:`M` skipped because the operand already carries it.
+
+        The tolerance TIGHTENS: `[M]` 2026-09-04, this fixture, 200 seeds —
+        **200/200 ``array_equal``, max |Δ| = 0.0**. Both ends share
+        :math:`\Lambda` and the frame's :math:`R`, and their ℓ = 0 halves are
+        the same scalar flux, so bit-identity is a property of the FIXTURE,
+        not of one draw (`vv` anti-#31).
+        """
         solver, sn = _solver()
-        S = solver.scattering_op
+        n2n = solver.n2n_op
         psi = _psi(sn, 11)
-        moments = S.frame.analysis.apply(psi.values)
-        phi_field = HarmonicMomentFlux.from_mesh_and_L(
-            moments, sn, S.legendre_order,
-        )
-        np.testing.assert_allclose(
-            solver.n2n_op.apply(phi_field).values,
-            solver.n2n_op.apply(psi).values,
-            rtol=1e-13, atol=1e-16,
+        moments = n2n.flux_analysis.apply(psi)          # M·ψ, TYPED
+        assert isinstance(moments, HarmonicMomentFlux)
+        np.testing.assert_array_equal(
+            n2n.on_moment_domain().apply(
+                zero_trace_composite(moments, n2n.domain.trace_space),
+            ).interior.values,
+            bulk_apply(n2n, psi).values,
+            err_msg="the moment-domain sibling drifted from the angular "
+                    "binding fed the corresponding angular field.",
         )
 
-    def test_scalar_flux_arm_is_the_p0_emission_in_iso_magnitude(self):
-        r"""The core's ``ScalarFlux`` arm: P0 only, iso scalar magnitude —
-        exactly the energy binding's action (until 2026-09-04 the (n,2n)
-        operator REFUSED scalar carriers; the role now inherits the arm
-        ``S`` keeps as the named-future-consumer surface)."""
+    def test_the_scalar_magnitude_is_the_energy_bindings_and_it_is_refused_here(self):
+        r"""⛔ **THE ARM IS RETIRED** (CS4c step 5, R-3) — was
+        ``test_scalar_flux_arm_is_the_p0_emission_in_iso_magnitude``.
+
+        The old row pinned a ``ScalarFlux`` arm on the ANGULAR binding that
+        returned the P0 emission in iso scalar magnitude. That arm is gone:
+        the scalar magnitude is the ENERGY binding's action
+        (``N2N.isotropic_energy``, plain-bound, bare arrays in and out), and
+        the angular binding admits its composite alone. Re-pointing the old
+        row to ``isotropic_energy.apply(phi.values)`` on both sides would
+        make it a tautology, so it is split into the two claims that survive:
+
+        * the angular binding REFUSES the scalar carrier, naming itself;
+        * the energy binding's emission IS the lift's ℓ = 0 half — checked on
+          an ISOTROPIC ψ, where the (n,2n) stack's ℓ ≥ 1 block contributes
+          exactly nothing, so the whole composite emission must be the
+          broadcast ``E φ / W``. `[M]` bit-exact on this fixture.
+        """
         solver, sn = _solver()
         rng = np.random.default_rng(31)
         phi = ScalarFlux(
             values=rng.uniform(0.1, 1.0, size=sn.bulk_space.shape),
             space=sn.bulk_space,
         )
-        out = solver.n2n_op.apply(phi)
+        with pytest.raises(TypeError, match="N2NOperator: this binding acts"):
+            solver.n2n_op.apply(phi)
+
+        # The ℓ=0 half, isolated: an isotropic ψ has no ℓ ≥ 1 moments, so the
+        # aniso route emits exactly zero and the lift is E φ / W broadcast.
+        flat = np.empty(sn.angular_bulk_space.shape)
+        flat[:] = rng.uniform(0.1, 1.0, size=flat.shape[1:])[None]
+        psi_iso = AngularFlux(values=flat, space=sn.angular_bulk_space)
+        emitted = bulk_apply(solver.n2n_op, psi_iso).values
+        iso = (
+            np.asarray(
+                solver.n2n_op.isotropic_energy.apply(
+                    psi_iso.integrate_angular().values,
+                ),
+            )
+            / solver.n2n_op.total_weight
+        )
         np.testing.assert_array_equal(
-            out.values, solver.n2n_op.isotropic_energy.apply(phi.values),
+            emitted, np.broadcast_to(iso[None], np.shape(emitted)),
+            err_msg="on an isotropic flux the (n,2n) lift must be exactly the "
+                    "energy binding's emission per ordinate (E φ / W).",
         )
 
     def test_unknown_carrier_refused_with_named_operator(self):
+        """A carrier that is neither the composite nor anything else the
+        binding knows: refused, naming THIS operator and the carrier it
+        wants (the one-body admission's message, ``lift.admit_composite``)."""
         solver, _ = _solver()
-        with pytest.raises(TypeError, match="N2NOperator.apply"):
+        with pytest.raises(TypeError, match="N2NOperator: this binding acts"):
             solver.n2n_op.apply(cast(Any, object()))
 
 

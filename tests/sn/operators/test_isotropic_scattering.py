@@ -24,6 +24,8 @@ import numpy as np
 import pytest
 
 from tests.sn._test_helpers import material_xs_from_raw
+from orpheus.numerics.axis import Axis, BasisKind
+from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.operators.isotropic_transfer import (
     IsotropicScattering,
     IsotropicN2N,
@@ -64,6 +66,27 @@ def _phi(nx=6, spatial_moments=0, seed=1):
     return rng.uniform(0.1, 1.0, size=shape)
 
 
+def _space(mat, spatial_moments=0):
+    r"""The PLAIN scalar end the operand rides — the LD moment tail is in the
+    SPACE, not a widened array fed to a narrow binding.
+
+    CS4c step 5 (R-4): an energy binding admits exactly the bare array of its
+    bound end's SHAPE (``lift.admit_array``), so a ``(ng, nx, ny, 2^d)`` LD
+    iterate is the operand of a binding bound on the ``2^d``-widened scalar
+    space — never of the ``(ng, nx, ny)`` one. Before the carve the shape was
+    unchecked and both fed the same instance; the widened space is the honest
+    spelling of what the LD rows were always exercising (the per-material
+    einsum is spatial-moment-agnostic, #240 D5b-S3).
+    """
+    bulk = mat.mesh.bulk_space
+    if spatial_moments == 0:
+        return bulk
+    return FunctionSpace.of_axes(
+        *bulk.axes,
+        Axis("spatial_moments", (spatial_moments,), kind=BasisKind.NODAL),
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Gate #1 — apply ≡ legacy fast-path (the bit-identity-inheritance anchor).
 # ═══════════════════════════════════════════════════════════════════════
@@ -76,7 +99,7 @@ class TestApplyEqualsFastPath:
         dispatch home is the kernel field's verb)."""
         mat = _mat_xs()
         phi = _phi(spatial_moments=sm)
-        op = IsotropicScattering.from_material_xs(mat, space=mat.mesh.bulk_space)
+        op = IsotropicScattering.from_material_xs(mat, space=_space(mat, sm))
         ref = np.zeros_like(phi)
         op.transfer.add_p0_source(ref, phi)
         np.testing.assert_array_equal(
@@ -88,7 +111,7 @@ class TestApplyEqualsFastPath:
     def test_n2n_apply_is_the_field_verb(self, sm):
         mat = _mat_xs()
         phi = _phi(spatial_moments=sm)
-        op = IsotropicN2N.from_material_xs(mat, space=mat.mesh.bulk_space)
+        op = IsotropicN2N.from_material_xs(mat, space=_space(mat, sm))
         ref = np.zeros_like(phi)
         op.transfer.add_p0_source(ref, phi)
         np.testing.assert_array_equal(
@@ -127,7 +150,7 @@ class TestTranspose:
         r"""``⟨Kφ, χ⟩ = ⟨φ, Kᵀχ⟩`` (full Euclidean contraction — K_iso has no
         angular axis to telescope, so the full inner product is honest)."""
         mat = _mat_xs()
-        op = factory.from_material_xs(mat, space=mat.mesh.bulk_space)
+        op = factory.from_material_xs(mat, space=_space(mat, sm))
         phi, chi = _phi(spatial_moments=sm, seed=1), _phi(spatial_moments=sm, seed=2)
         lhs = float((op.apply(phi) * chi).sum())
         rhs = float((phi * op.apply_transpose(chi)).sum())

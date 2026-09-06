@@ -69,6 +69,7 @@ from orpheus.transport.operators.isotropic_transfer import (
     IsotropicN2N,
     IsotropicScattering,
 )
+from orpheus.transport.operators.lift import BulkLift
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
@@ -172,7 +173,12 @@ def _loss(mesh, mat_xs):
     ffs = mesh.full_field_space
     L = LeakageOperator(mesh)
     C = MultiplicationOperator(mat_xs.total_cross_section_field, domain=ffs, codomain=ffs)
-    S = IsotropicScattering.from_material_xs(mat_xs, space=ffs)
+    # The energy binding is PLAIN-bound on the scalar bulk and LIFTED onto
+    # the composite (CS4c step 5, R-4) — the diffusion solver's own spelling.
+    S = BulkLift(
+        IsotropicScattering.from_material_xs(mat_xs, space=mesh.bulk_space),
+        domain=ffs, codomain=ffs,
+    )
     B = DiffusionBoundaryOperator(mesh)
     return L + C - S - B
 
@@ -330,7 +336,10 @@ class TestStencilGate:
         )
         A = (
             LeakageOperator(mesh) + wrong_C
-            - IsotropicScattering.from_material_xs(mat_xs, space=ffs)
+            - BulkLift(
+                IsotropicScattering.from_material_xs(mat_xs, space=mesh.bulk_space),
+                domain=ffs, codomain=ffs,
+            )
             - DiffusionBoundaryOperator(mesh)
         )
         produced = FlattenedOperator(A, template).as_matrix()
@@ -378,7 +387,10 @@ class TestFamilyLaws:
         ffs = mesh.full_field_space
         CS = (
             MultiplicationOperator(mat_xs.total_cross_section_field, domain=ffs, codomain=ffs)
-            - IsotropicScattering.from_material_xs(mat_xs, space=ffs)
+            - BulkLift(
+                IsotropicScattering.from_material_xs(mat_xs, space=mesh.bulk_space),
+                domain=ffs, codomain=ffs,
+            )
         )
         M = FlattenedOperator(CS, template).as_matrix()
         bulk = M[:_N_BULK, :_N_BULK]
@@ -668,12 +680,13 @@ class TestSharedOperatorScalarArms:
         self, mesh, mat_xs, flux,
     ):
         # CS4c step 4: diffusion consumes the fission ENERGY binding
-        # (IsotropicFission) — the composite arm is the shared iso-family
-        # scalar-composite route; the bare arm is the same dyad.
-        F = IsotropicFission.from_material_xs(
-            mat_xs, space=mesh.full_field_space,
-        )
-        composite = F.apply(flux)
+        # (IsotropicFission); since step 5 (R-4) that binding is PLAIN-bound
+        # on the scalar bulk and its composite action is the LIFT's — the
+        # bare arm is the same dyad, the lift performs no arithmetic.
+        F = IsotropicFission.from_material_xs(mat_xs, space=mesh.bulk_space)
+        composite = BulkLift(
+            F, domain=mesh.full_field_space, codomain=mesh.full_field_space,
+        ).apply(flux)
         direct = np.asarray(F.apply(flux.interior.values))
         assert isinstance(composite.interior, ScalarSourceSink)
         np.testing.assert_array_equal(composite.interior.values, direct)
@@ -681,6 +694,7 @@ class TestSharedOperatorScalarArms:
         assert isinstance(composite.boundary, ScalarBoundarySourceSink)
 
     def test_k_iso_composite_arm_matches_bare_kernel(self, mesh, mat_xs, flux):
+        ffs = mesh.full_field_space
         for op in (
             IsotropicScattering.from_material_xs(
                 mat_xs, space=mat_xs.mesh.bulk_space,
@@ -689,20 +703,36 @@ class TestSharedOperatorScalarArms:
                 mat_xs, space=mat_xs.mesh.bulk_space,
             ),
         ):
-            composite = op.apply(flux)
+            composite = BulkLift(op, domain=ffs, codomain=ffs).apply(flux)
             bare = op.apply(flux.interior.values)
             assert isinstance(composite.interior, ScalarSourceSink)
             np.testing.assert_array_equal(composite.interior.values, bare)
             np.testing.assert_array_equal(composite.boundary.values, 0.0)
 
-    def test_k_iso_composite_refuses_angular_bulk_and_transpose(
+    def test_plain_binding_refuses_the_composite_and_the_lift_transposes_it(
         self, mesh, mat_xs, flux,
     ):
+        """INVERTED at CS4c step 5. Until then this row pinned the iso
+        binding's own composite-transpose REFUSAL (the `#281` note: "lands
+        with the adjoint diffusion consumer"). R-4 makes the plain binding
+        refuse EVERY composite — apply and transpose alike, naming the lift
+        — and the lift's transpose is the plain transpose extended by zero
+        on the trace, so the composite adjoint the note deferred now exists
+        with no fission-, scatter- or diffusion-specific arithmetic."""
+        ffs = mesh.full_field_space
         S = IsotropicScattering.from_material_xs(
             mat_xs, space=mat_xs.mesh.bulk_space,
         )
-        with pytest.raises(TypeError, match="#281"):
+        with pytest.raises(TypeError, match="BulkLift"):
             S.apply_transpose(flux)
+        with pytest.raises(TypeError, match="BulkLift"):
+            S.apply(flux)
+        lifted = BulkLift(S, domain=ffs, codomain=ffs).apply_transpose(flux)
+        assert isinstance(lifted.interior, ScalarSourceSink)
+        np.testing.assert_array_equal(
+            lifted.interior.values, S.apply_transpose(flux.interior.values),
+        )
+        np.testing.assert_array_equal(lifted.boundary.values, 0.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -755,8 +785,17 @@ class TestAssemblyMode:
             "C": MultiplicationOperator(
                 mat_xs.total_cross_section_field, domain=ffs, codomain=ffs,
             ),
-            "S": IsotropicScattering.from_material_xs(mat_xs, space=ffs),
-            "N2N": IsotropicN2N.from_material_xs(mat_xs, space=ffs),
+            # the energy bindings assemble on their plain ends; the lift
+            # embeds the emission in the composite layout (G5.6 — owed for
+            # exactly these two leaves: IsotropicFission has no assembly)
+            "S": BulkLift(
+                IsotropicScattering.from_material_xs(mat_xs, space=mesh.bulk_space),
+                domain=ffs, codomain=ffs,
+            ),
+            "N2N": BulkLift(
+                IsotropicN2N.from_material_xs(mat_xs, space=mesh.bulk_space),
+                domain=ffs, codomain=ffs,
+            ),
         }
         for name, leaf in leaves.items():
             np.testing.assert_allclose(
@@ -878,27 +917,27 @@ class TestAssemblyMode:
         assert asm_delta > 1e-2, "assembly blind to the closure flip"
         assert apply_delta > 1e-2, "apply blind to the closure flip"
 
-    def test_space_anonymous_leaves_refuse(self, mat_xs):
-        """A layout-less operator has no flat layout to emit into —
-        honest refusal, not a guessed numbering.
-
-        Since CS4c step 2 a space-ANONYMOUS multiplier is unspellable
-        (mandatory ends), so C's row asserts the surviving case: a
-        multiplier bound to a plain BULK space (no bulk ⊕ trace
-        composite) still refuses. The iso pair stays anonymous-capable
-        until its own flip (step 3)."""
-        from orpheus.numerics.operator import MissingAssembly
-
+    def test_plain_bulk_leaves_assemble_on_their_own_layout(self, mat_xs):
+        """INVERTED at CS4c step 5. Until then this row pinned the plain
+        bulk bindings' assemble REFUSAL ("no composite flat layout to emit
+        into"). The plain binding now emits on its OWN layout — the
+        domain's C-ravel, ``n_bulk × n_bulk`` — and the composite
+        embedding is the lift's job. Surviving claim: each plain leaf is
+        assemblable and its emission's matvec reproduces its ``apply`` on
+        a bare array of the bound shape (0 ULP for the diagonal, the L16
+        CSR band for the block-diagonal energy pair)."""
         coef = mat_xs.total_cross_section_field
-        for op in (
-            MultiplicationOperator(coef, domain=coef.space, codomain=coef.space),
-            IsotropicScattering.from_material_xs(
-                mat_xs, space=mat_xs.mesh.bulk_space,
-            ),
-            IsotropicN2N.from_material_xs(
-                mat_xs, space=mat_xs.mesh.bulk_space,
-            ),
+        x = np.random.default_rng(3).random(coef.values.shape) + 0.5
+        n = x.size
+        for op, rtol in (
+            (MultiplicationOperator(coef, domain=coef.space, codomain=coef.space), 0.0),
+            (IsotropicScattering.from_material_xs(mat_xs, space=mat_xs.mesh.bulk_space), 1e-11),
+            (IsotropicN2N.from_material_xs(mat_xs, space=mat_xs.mesh.bulk_space), 1e-11),
         ):
-            assert not op.is_assemblable
-            with pytest.raises(MissingAssembly):
-                op.assemble()
+            assert op.is_assemblable
+            emitted = op.assemble()
+            assert emitted.shape == (n, n)
+            np.testing.assert_allclose(
+                emitted.apply(x.ravel()), np.asarray(op.apply(x)).ravel(),
+                rtol=rtol, atol=0.0,
+            )

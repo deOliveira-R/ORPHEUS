@@ -251,6 +251,22 @@ class _ShapedDiagonal(BoundOperator):
         )
 
 
+@dataclass(eq=False)
+class _NoAssembly(BoundOperator):
+    """A bulk operator with no assembly mode (the identity) — the lift's
+    capability delegation has something to refuse."""
+
+    def apply(self, x, /):
+        return x
+
+    def apply_transpose(self, x, /):
+        return x
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True
+
+
 class TestAssemblyEmbed:
     def test_embed_is_index_identity_on_the_bulk_block(self, mesh):
         rng = np.random.default_rng(12)
@@ -284,7 +300,20 @@ class TestAssemblyEmbed:
             lift.assemble().apply(psi.to_flat()), lift.apply(psi).to_flat(),
         )
 
-    def test_a_non_assemblable_inner_refuses_naming_the_lift(self, lift):
-        assert not lift.is_assemblable  # the plain energy binding has no assembly yet (step 5 lands it)
+    def test_the_diffusion_binding_assembles_through_the_lift(self, mesh, inner, lift):
+        """The plain energy pair assembles on its own ends (CS4c step 5) and
+        the lift embeds it: the composite emission's bulk block IS the
+        plain emission (``array_equal``), the trace rows/columns are zero."""
+        assert inner.is_assemblable and lift.is_assemblable
+        n = int(np.prod(mesh.bulk_space.shape))
+        embedded = lift.assemble().as_matrix()
+        np.testing.assert_array_equal(embedded[:n, :n], inner.assemble().as_matrix())
+        assert not embedded[n:, :].any() and not embedded[:, n:].any()
+
+    def test_a_non_assemblable_inner_refuses_naming_the_lift(self, mesh):
+        inner = _NoAssembly(domain=mesh.bulk_space, codomain=mesh.bulk_space)
+        space = mesh.full_field_space
+        lift = BulkLift(inner, domain=space, codomain=space)
+        assert not lift.is_assemblable
         with pytest.raises(MissingAssembly, match="BulkLift.assemble"):
             lift.assemble()

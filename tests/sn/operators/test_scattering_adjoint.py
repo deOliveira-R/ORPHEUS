@@ -44,6 +44,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.transport.material_field import TransferMaterialField
+from tests.sn.operators._composite_operand import bulk_apply, transpose_values
 
 pytestmark = pytest.mark.foundation
 
@@ -315,7 +316,9 @@ class TestFullScatterKernel:
         W = op.total_weight
         psi = AngularFlux(values=np.random.default_rng(10).uniform(0.05, 1.0, size=(solver_p1_het.sn_mesh.quad.N, solver_p1_het.ng, nx, ny)), space=solver_p1_het.sn_mesh.angular_bulk_space)
         candidate = self._full_kernel(op).apply(psi.values) / W
-        forward = op.apply(psi).values
+        # CS4c step 5: the gain is composite-bound; the bulk action rides a
+        # zero-trace composite (the trace the lift itself emits back).
+        forward = bulk_apply(op, psi).values
         np.testing.assert_allclose(
             candidate, forward, rtol=1e-12, atol=0.0,
             err_msg="frame.conjugate(Λ_{ℓ≥0})/W does NOT reproduce the forward "
@@ -366,7 +369,8 @@ class TestFullScatterKernel:
         W = op.total_weight
         chi = np.random.default_rng(13).uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))
         np.testing.assert_allclose(
-            op.apply_transpose(chi), self._full_kernel(op).apply_transpose(chi) / W,
+            transpose_values(op, chi),
+            self._full_kernel(op).apply_transpose(chi) / W,
             rtol=1e-12, atol=0.0,
             err_msg="S.apply_transpose must route through (1/W)·full_transfer_kernel.apply_transpose.",
         )
@@ -391,8 +395,9 @@ class TestFullScatterKernel:
         rng = np.random.default_rng(12)
         psi = AngularFlux(values=rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny)), space=solver_p1_het.sn_mesh.angular_bulk_space)
         chi = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))
-        lhs = float((op.apply(psi).values * chi).sum())            # ⟨S ψ, χ⟩
-        rhs = float((psi.values * op.apply_transpose(chi)).sum())  # ⟨ψ, Sᵀ χ⟩
+        sn_mesh = solver_p1_het.sn_mesh
+        lhs = float((bulk_apply(op, psi).values * chi).sum())      # ⟨S ψ, χ⟩
+        rhs = float((psi.values * transpose_values(op, chi)).sum())  # ⟨ψ, Sᵀ χ⟩
         np.testing.assert_allclose(
             lhs, rhs, rtol=1e-12,
             err_msg="S Euclidean reciprocity ⟨Sψ,χ⟩=⟨ψ,Sᵀχ⟩ violated (production "
@@ -436,7 +441,7 @@ class TestFullScatterKernelLDTrailingAxis:
         psi = _ld_flux(solver)
         W = op.total_weight
 
-        fast = op.apply(psi).values
+        fast = bulk_apply(op, psi).values
         frame = np.asarray(op.full_transfer_kernel.apply(psi.values)) / W
 
         require(
@@ -504,7 +509,7 @@ class TestFullScatterKernelLDTrailingAxis:
         # Sanity: the FIXED code is clean before the mutation.
         np.testing.assert_allclose(
             np.asarray(op.full_transfer_kernel.apply(psi.values)) / W,
-            op.apply(psi).values, rtol=1e-12, atol=1e-14,
+            bulk_apply(op, psi).values, rtol=1e-12, atol=1e-14,
             err_msg="precondition: fixed code must reproduce the fast-path on LD.",
         )
 
@@ -516,7 +521,8 @@ class TestFullScatterKernelLDTrailingAxis:
         try:
             mutated = np.asarray(op.full_transfer_kernel.apply(psi.values)) / W
             if not np.allclose(
-                mutated, op.apply(psi).values, rtol=1e-9, atol=1e-12,
+                mutated, bulk_apply(op, psi).values,
+                rtol=1e-9, atol=1e-12,
             ):
                 reddened = True
         except (IndexError, ValueError):

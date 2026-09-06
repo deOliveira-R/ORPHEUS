@@ -155,6 +155,7 @@ from orpheus.transport.source_sinks.radial_characteristic_interior_source_sink i
 )
 from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
 from orpheus.derivations.common.xs_library import make_mixture
+from tests.sn.operators._composite_operand import bulk_apply
 
 pytestmark = pytest.mark.foundation
 
@@ -1521,8 +1522,10 @@ def _f_emission(F, psi: FullField) -> NDArray:
     only needs the FOLD of this emission (``A_BA_fission = Fold ∘ F.kernel``,
     factored)."""
     # CS4c step 4: F here is the ENERGY binding (solver-held fission_op);
-    # its iso-family apply unwraps the carrier and returns the bare array.
-    return np.asarray(F.apply(psi.interior.integrate_angular()))
+    # step 5 (R-4): a plain binding admits the bare array of its bound shape,
+    # so the scalar flux's ``.values`` is the operand (the untyped carrier
+    # fall-through is retired).
+    return np.asarray(F.apply(psi.interior.integrate_angular().values))
 
 
 def _ba_oldloop_reference(emission: NDArray, sn) -> NDArray:
@@ -1931,10 +1934,19 @@ class TestCoupledLift:
         if type(s_out) is not FullField:
             pytest.fail(f"S.apply emitted {type(s_out).__name__}, not the "
                         f"2-block FullField.")
+        # CS4c step 5: ``S.apply(bulk)`` is unspellable (a composite-bound gain
+        # admits its composite alone), so the SAME claim — the lift touches ONLY
+        # the bulk — is now spelled as trace-INDEPENDENCE: re-run on a composite
+        # carrying the same interior and a ZERO trace, and require the emitted
+        # interior to be bit-identical. A body that read the trace reddens here.
         np.testing.assert_array_equal(
-            s_out.interior.values, S.apply(psi.interior).values,
-            err_msg="S.apply(FullField).interior ≠ S.apply(bulk) — the LIFT altered the "
-                    "model-generic scatter bulk (it must touch ONLY the bulk).")
+            s_out.interior.values,
+            bulk_apply(S, psi.interior).values,
+            err_msg="S.apply's bulk emission moved with the TRACE — the LIFT must "
+                    "touch ONLY the bulk (extension-by-zero on the trace).")
+        np.testing.assert_array_equal(
+            s_out.boundary.values, 0.0,
+            err_msg="S is volumetric: its composite emission's trace must be exactly zero.")
         # F pure bulk (fissile sphere; the F-fwd ray arm is dead — the fission
         # emission rides from_angular_source / commit 2, not F.apply).
         # CS4c step 4: the composite arm lives on the ANGULAR binding
@@ -2145,9 +2157,11 @@ class TestCoupledLift:
         # ray" (2-block codomain) and A_BA's "no bulk" (composite codomain)
         # are unspellable (Pattern 4), so the surviving value claim is the
         # bulk fidelity + the exact ray placement below.
+        # CS4c step 5: trace-independence is the spelling of "pure bulk" now
+        # (``S.apply(bulk)`` is refused — the ends select the carrier).
         np.testing.assert_array_equal(
-            s_out.interior.values, S.apply(psi.interior).values,
-            err_msg="the lifted S's bulk drifted from the model-generic scatter.")
+            s_out.interior.values, bulk_apply(S, psi.interior).values,
+            err_msg="the lifted S's bulk drifted with the trace — it must be pure bulk.")
         # The reconstructed monolith ray == the documented fold loop (exact placement).
         monolith_ray = _ba_oldloop_reference(emission, sn)
         if not np.max(np.abs(monolith_ray)) > 1e-6:

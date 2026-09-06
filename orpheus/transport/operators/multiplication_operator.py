@@ -75,14 +75,27 @@ coefficient over the leading ordinate axis, so
 This operator owns only the *typed codomain* (the field wrapping); the
 arithmetic lives once, in the engine (``coding-elegance`` Pattern 2).
 
-Mesh-free (the carrier carries the mesh)
-========================================
+The ends select the body (CS4c step 5)
+======================================
 
-:class:`MultiplicationOperator` stores ONLY the coefficient field; the
-output spaces are read off the operand's blocks at apply time,
-faithful to the structure the legacy collision operator used. The
-coefficient field is an element of the carrier's bulk space, so
-the operator's domain is implicit in the field it carries.
+:class:`MultiplicationOperator` stores ONLY the coefficient field and its
+two ends. Which body ``apply`` / ``solve`` run is decided ONCE, at
+construction, from the DOMAIN: a composite ``FullFieldSpace`` selects the
+lifted body (:func:`~orpheus.transport.operators.lift.lift_bulk_action` —
+the multiply on the bulk block, the zero source/sink — or, for ``solve``,
+the zero flux — on the trace; the output leaf is the operand's role
+partner, so one body serves the angular and the scalar families without
+a carrier parse), a plain bulk space selects the bare-array body (the
+cross-model escape hatch: the homogeneous / diffusion / depletion outer
+loops feed bare arrays of the bound shape). Every off-binding carrier is
+a typed refusal naming the operator
+(:func:`~orpheus.transport.operators.lift.admit_composite` /
+:func:`~orpheus.transport.operators.lift.admit_array`); the
+``singledispatchmethod`` table and its per-family ``isinstance`` arms
+retired with the selection. Both bodies run the ONE engine: a scalar
+operand whose rank equals the coefficient's rides the engine's degenerate
+one-ordinate lift (bit-identical to the direct multiply), an angular
+operand the engine's leading-axis broadcast.
 
 References
 ----------
@@ -100,14 +113,16 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from functools import singledispatchmethod
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Callable, overload
 
 import numpy as np
 
 from orpheus.transport.operators.bound_operator import BoundOperator
-from orpheus.transport.operators._energy_conformity import (
-    assert_energy_extent_conforms,
+from orpheus.transport.operators.lift import (
+    admit_array,
+    admit_composite,
+    embed_bulk_assembly,
+    lift_bulk_action,
 )
 from orpheus.numerics.operator import (
     BlockRole,
@@ -116,28 +131,32 @@ from orpheus.numerics.operator import (
     LinearOperator,
     NotInvertible,
 )
-# Runtime import for ``singledispatchmethod.register`` (mirrors fission.py):
-# ``FullField`` is a leaf in the SN dependency graph (it imports no operators),
-# so this module-level import is cycle-free.
+from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.transport.fields._bases import BulkField, FieldRole
 from orpheus.transport.full_field import FullField
 
 if TYPE_CHECKING:
     from orpheus.numerics.assembled_operator import SparseAssembledOperator
+    from orpheus.numerics.field import Field
     from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 
 __all__ = ["MultiplicationOperator"]
 
+#: The engine verb a body runs — ``engine.apply`` or ``engine.solve``.
+_EngineVerb = Callable[[np.ndarray], np.ndarray]
+
 
 @dataclass(eq=False)
-class MultiplicationOperator(BoundOperator["FullField"]):
+class MultiplicationOperator(BoundOperator):
     r"""The promotion :math:`M[f]` of a coefficient field to a diagonal operator.
 
-    Stores ONLY the coefficient; the mesh is read off the carrier at
-    apply time. The raw pointwise multiply is delegated to the N-D
-    :class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine
-    on ``psi.interior.values``; this operator owns the typed codomain.
+    Stores ONLY the coefficient and its ends; the raw pointwise multiply
+    is delegated to the N-D
+    :class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine,
+    and the body (composite vs bare array) is selected from the domain
+    at construction (module docstring).
 
     See the module docstring for the multiplier-algebra law-suite
     (:math:`M[1]=I`, :math:`M[0]=0`, linearity, homomorphism,
@@ -161,7 +180,9 @@ class MultiplicationOperator(BoundOperator["FullField"]):
     NaN on a zero entry — :class:`MultiplicationOperator` refuses
     eagerly (:class:`~orpheus.numerics.operator.NotInvertible` from
     ``inverse()``/``solve``) instead, so a downstream composer never
-    hits a broken inverse at call time.
+    hits a broken inverse at call time. Always assemblable: the bulk
+    diagonal on the plain ends, embedded in the composite flat layout on
+    composite ends.
     """
 
     coefficient: "CrossSectionField"
@@ -171,10 +192,9 @@ class MultiplicationOperator(BoundOperator["FullField"]):
     # CS4c step 2): the multiplier is space-endomorphic — flux block →
     # source block, same shape — so every binding passes the SAME space
     # to both, and the tier-2 :meth:`from_mesh` sugar spells exactly
-    # that. The pre-CS4c optional ``space`` field (the space-anonymous
-    # mint the R2 ledger row gated) is retired: with the ends mandatory,
-    # the OperatorSum/OperatorProduct composition guard validates every
-    # build, and ``.H``'s Riesz legs can never see a ``None``.
+    # that. With the ends mandatory, the OperatorSum/OperatorProduct
+    # composition guard validates every build, and ``.H``'s Riesz legs
+    # can never see a ``None``.
 
     #: The N-D broadcast engine (#257 S3a) the multiply delegates to,
     #: built ONCE in :meth:`__post_init__` over the immutable
@@ -183,8 +203,6 @@ class MultiplicationOperator(BoundOperator["FullField"]):
     #: both the capability freeze and the action read; the coefficient is
     #: immutable, so the stored engine cannot go stale).
     engine: "DiagonalOperator" = field(init=False, repr=False)
-
-    #: Inherited from the engine's spectrum gate in :meth:`__post_init__`.
 
     # Multiplication by a per-cell per-group coefficient is a BULK
     # operator — diagonal in (cell, group, ordinate), no boundary action
@@ -219,6 +237,41 @@ class MultiplicationOperator(BoundOperator["FullField"]):
             self.coefficient.values.shape[0],
             operator="MultiplicationOperator",
         )
+        # The SELECTION (CS4c step 5): the domain names the body. This is
+        # a parse of the SPACE at construction, not of a carrier per call.
+        domain = self.domain
+        bulk_shape = (
+            tuple(domain.interior_space.shape)
+            if isinstance(domain, FullFieldSpace) and domain.interior_space is not None
+            else tuple(domain.shape)
+        )
+        self._composite = isinstance(domain, FullFieldSpace)
+        # A bulk whose rank equals the coefficient's has NO ordinate axis
+        # (the scalar families): the ONE engine (and its frozen spectrum
+        # gate) serves it through a degenerate one-ordinate lift, dropped
+        # after — bit-identical to the direct ``coefficient.values * x``.
+        # An angular bulk rides the engine's leading-axis broadcast.
+        self._degenerate_lift = len(bulk_shape) == self.coefficient.values.ndim
+
+    # ── the ONE multiply, on either bulk rank ───────────────────────
+
+    def _run(self, verb: _EngineVerb, values: np.ndarray) -> np.ndarray:
+        if self._degenerate_lift:
+            return verb(values[None])[0]
+        return verb(values)
+
+    def _lift(
+        self, x: object, verb: _EngineVerb, *, role: FieldRole,
+    ) -> FullField:
+        r"""The composite body: the engine on the bulk block, the zero
+        field of ``role`` on the trace, the output leaf the operand's
+        role partner (one body for the angular and the scalar families)."""
+        psi = admit_composite(self, x, end="domain")
+
+        def act(bulk: BulkField) -> "Field":
+            return bulk.into_role(role, self._run(verb, bulk.values))
+
+        return lift_bulk_action(psi, act, trace_role=role)
 
     @property
     def is_invertible(self) -> bool:
@@ -270,62 +323,48 @@ class MultiplicationOperator(BoundOperator["FullField"]):
 
     @property
     def is_assemblable(self) -> bool:
-        r"""``True`` iff the composite flat layout is known — a block-bearing
-        :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
-        was threaded at construction. A multiplier without one honestly
-        refuses: a plain bulk space (e.g. the carrier's axis-built
-        ``bulk_space``, CS1, or the homogeneous posed space) carries no
-        bulk ⊕ trace composite flat layout — there is no global DOF
-        numbering to emit into. (The pre-CS4c space-LESS case is now
-        unspellable — the ends are mandatory.)"""
-        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+        r"""``True`` — the bulk diagonal :math:`\mathrm{diag}(f)` is
+        emittable on either binding: on the plain bulk space directly, on
+        a composite end embedded in the ``[bulk C-ravel | trace]`` flat
+        layout (zero trace rows — a multiplier has no face action)."""
+        return True
 
-        return (
-            isinstance(self.domain, FullFieldSpace)
-            and self.domain.interior_space is not None
-        )
-
-    def assemble(self) -> "SparseAssembledOperator":
-        r"""Emit the bulk diagonal :math:`\mathrm{diag}(f)` in the composite
-        flat layout (zero trace rows — a multiplier has no face action).
-
-        One-source discipline: the diagonal IS
-        ``self.coefficient.values`` broadcast over the bulk shape — the
-        SAME array (and the same prepend-broadcast semantics) the
-        engine multiplies at apply time, with NO arithmetic performed
-        on it, so ``assembled @ x`` reproduces ``apply``'s per-entry
-        multiply bit-for-bit. Family-blind: the scalar ``(ng, nx)``
-        bulk broadcasts identically and an angular ``(N, ng, …)`` bulk
-        gains the leading ordinate axis, exactly as the engine's
-        ``broadcast_axes=(0,)``.
-        """
-        from orpheus.numerics.assembled_operator import SparseAssembledOperator
-        from orpheus.numerics.operator import MissingAssembly
-        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    def _bulk_assembly(self, bulk_space: "FunctionSpace") -> "SparseAssembledOperator":
         from scipy import sparse
 
-        space = self.domain
-        if not isinstance(space, FullFieldSpace) or space.interior_space is None:
-            raise MissingAssembly(
-                f"MultiplicationOperator.assemble requires a block-bearing "
-                f"FullFieldSpace (the composite flat layout); this "
-                f"multiplier's space is "
-                f"{'None' if space is None else type(space).__name__}, "
-                f"which carries no composite flat layout to emit into."
-            )
-        interior_shape = tuple(space.interior_space.shape)
-        n_interior = int(np.prod(interior_shape))
-        n_total = int(space.shape[0])
+        from orpheus.numerics.assembled_operator import SparseAssembledOperator
+
+        bulk_shape = tuple(bulk_space.shape)
+        n_bulk = int(np.prod(bulk_shape))
+        # One-source discipline: the diagonal IS ``self.coefficient.values``
+        # broadcast over the bulk shape — the SAME array (and the same
+        # prepend-broadcast semantics) the engine multiplies at apply
+        # time, with NO arithmetic performed on it, so ``assembled @ x``
+        # reproduces ``apply``'s per-entry multiply bit-for-bit.
+        # Family-blind: the scalar ``(ng, nx)`` bulk broadcasts identically
+        # and an angular ``(N, ng, …)`` bulk gains the leading ordinate
+        # axis, exactly as the engine's ``broadcast_axes=(0,)``.
         diagonal = np.ascontiguousarray(
-            np.broadcast_to(self.coefficient.values, interior_shape)
+            np.broadcast_to(self.coefficient.values, bulk_shape)
         ).ravel()
         nonzero = diagonal != 0.0
-        indices = np.arange(n_interior)[nonzero]
+        indices = np.arange(n_bulk)[nonzero]
         matrix = sparse.coo_array(
-            (diagonal[nonzero], (indices, indices)),
-            shape=(n_total, n_total),
+            (diagonal[nonzero], (indices, indices)), shape=(n_bulk, n_bulk),
         )
-        return SparseAssembledOperator(matrix, domain=space, codomain=space)
+        return SparseAssembledOperator(matrix, domain=bulk_space, codomain=bulk_space)
+
+    def assemble(self) -> "SparseAssembledOperator":
+        r"""Emit the bulk diagonal :math:`\mathrm{diag}(f)` — on the plain
+        ends directly, on composite ends in the composite flat layout
+        (:func:`~orpheus.transport.operators.lift.embed_bulk_assembly`)."""
+        domain = self.domain
+        if isinstance(domain, FullFieldSpace) and domain.interior_space is not None:
+            return embed_bulk_assembly(
+                self._bulk_assembly(domain.interior_space),
+                domain=domain, codomain=self.codomain,
+            )
+        return self._bulk_assembly(domain)
 
     @classmethod
     def from_mesh(
@@ -385,179 +424,56 @@ class MultiplicationOperator(BoundOperator["FullField"]):
             )
         return cls(coefficient=coefficient, domain=space, codomain=space)
 
-    # ── Operator-algebra space metadata ──────────────────────────────────
-    # ``domain`` / ``codomain`` are the inherited BoundOperator fields —
-    # write-once, non-Optional, validated by the composition guard on
-    # every ``L + C`` build (W-D / #261 history: these were properties
-    # over an optional ``space`` field until CS4c step 2).
+    # ── The §5.7 promotion: f ↦ M[f], through the body the ends select ──
 
-    # ── The §5.7 promotion: f ↦ M[f], dispatched on the input carrier ────
-    #
-    # Mirrors :class:`~orpheus.transport.operators.fission.FissionOperator`:
-    # ``_apply_impl`` is the runtime ``singledispatchmethod``; the public
-    # ``apply`` name aliases it (below) with the per-carrier ``@overload``
-    # typing surface. Two arms, ONE multiply (``self.coefficient.values``):
-    #
-    # * :class:`FullField` — the SN per-ordinate carrier (the ~206-caller
-    #   path): the engine's leading-axis broadcast, repackaged as a source
-    #   composite (flux → collision-rate source).
-    # * bare :class:`numpy.ndarray` — the MESHLESS ``(ng, *spatial)`` scalar/
-    #   group block (the cross-model escape hatch: homogeneous / diffusion /
-    #   depletion outer loops feed bare arrays). The pointwise multiply needs
-    #   no mesh, so ``M[σ]`` composes on a mesh-free ``MaterialMesh`` (#276).
+    @overload
+    def apply(self, psi: FullField, /) -> FullField: ...
+    @overload
+    def apply(self, psi: np.ndarray, /) -> np.ndarray: ...
+    def apply(self, psi: "FullField | np.ndarray", /) -> "FullField | np.ndarray":
+        r"""Forward action :math:`M[f]\,\psi = f \cdot \psi`.
 
-    @singledispatchmethod
-    def _apply_impl(self, psi) -> "Any":
-        raise TypeError(
-            f"MultiplicationOperator.apply: unsupported input type "
-            f"{type(psi).__name__}; expected FullField or numpy.ndarray. "
-            f"Dispatch table is registered via @singledispatchmethod."
-        )
-
-    @_apply_impl.register
-    def _(self, psi: FullField) -> "FullField":
-        r"""Forward action :math:`M[f]\,\psi = f \cdot \psi` on the composite.
-
-        The pointwise multiply :math:`f\,\psi` is per-cell per-group.
-        The codomain is a *source* — multiplying a flux by a cross
-        section yields a collision-rate density — and the boundary is
-        the implicit-zero source/sink of the input's family (a
-        multiplier has no face-trace action — the cell-balance
-        :math:`f\,\psi` term is a CELL quantity). Two family arms
-        (parsed loudly at the seam, #289 discipline):
-
-        * **angular** bulk (SN, the ~206-caller path) — the engine's
-          leading-ordinate-axis broadcast; out =
-          :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
-          ⊕ zero
-          :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`.
-        * **scalar** bulk (diffusion / CP, #290 P4) — the direct
-          per-cell-per-group multiply (no ordinate axis; the engine's
-          broadcast axis is degenerate over the leading ``ng`` axis, so
-          the coefficient is applied directly); out =
-          :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
-          ⊕ zero
-          :class:`~orpheus.transport.source_sinks.scalar_boundary_source_sink.ScalarBoundarySourceSink`.
+        On a composite binding: the pointwise multiply on the bulk block
+        (per cell, per group, broadcast over any leading ordinate axis)
+        repackaged as a SOURCE composite — multiplying a flux by a cross
+        section yields a collision-rate density — with the implicit-zero
+        source/sink of the operand's family on the trace (a multiplier
+        has no face-trace action; the cell-balance :math:`f\,\psi` term
+        is a CELL quantity). On a plain binding: the bare
+        ``(ng, *spatial)`` multiply, mesh-free (the cross-model escape
+        hatch, #276).
         """
-        from orpheus.transport.fields._bases import AngularField, ScalarField
-        from orpheus.transport.source_sinks import (
-            AngularSourceSink,
-            AngularBoundarySourceSink,
-            ScalarSourceSink,
-            ScalarBoundarySourceSink,
-        )
+        if self._composite:
+            return self._lift(psi, self.engine.apply, role=FieldRole.SOURCE_SINK)
+        return self._run(self.engine.apply, admit_array(self, psi, end="domain"))
 
-        # Parse the family loudly at the seam (#289 discipline). The mesh
-        # is read off the PARSED bulk, whose family declaration carries
-        # the mesh type the widened composite surfaces erase (#290 P2).
-        bulk = psi.interior
-        if isinstance(bulk, AngularField):
-            # CS4b S4 — the space route: every output block rides its
-            # OPERAND block's space (role transition = new class, same
-            # space; the zero trace block rides the input's trace space).
-            out_bulk = self.engine.apply(bulk.values)
-            return FullField(
-                interior=AngularSourceSink(values=out_bulk, space=bulk.space),
-                boundary=AngularBoundarySourceSink.zeros(psi.boundary.space),
-            )
-        if isinstance(bulk, ScalarField):
-            # Scalar arm (#290 P4): the (ng, *spatial) bulk has NO
-            # ordinate axis — lift it onto a degenerate 1-ordinate
-            # leading axis so the ONE broadcast engine (and its frozen
-            # spectrum gate) serves both families, then drop the axis.
-            # Bit-identical to the direct ``coefficient.values * values``.
-            out_bulk = self.engine.apply(bulk.values[None])[0]
-            return FullField(
-                interior=ScalarSourceSink(values=out_bulk, space=bulk.space),
-                boundary=ScalarBoundarySourceSink.zeros(psi.boundary.space),
-            )
-        raise TypeError(
-            f"MultiplicationOperator composite apply: angular- or "
-            f"scalar-family bulk required; got {type(bulk).__name__}."
-        )
-
-    @_apply_impl.register
-    def _(self, phi: np.ndarray) -> np.ndarray:
-        r"""Meshless bare-:class:`numpy.ndarray` arm — the pointwise multiply.
-
-        :math:`(M[f]\,\phi)_g(\vec r) = f_g(\vec r)\,\phi_g(\vec r)` on a bare
-        ``(ng, *spatial)`` scalar/group block — the diagonal action with NO
-        ordinate axis and NO mesh. This is the SAME per-block multiply the
-        :class:`FullField` arm broadcasts over ordinates (single source of
-        truth: ``self.coefficient.values``), so the two arms agree on every
-        ordinate (pinned by the cross-arm consistency gate). Preserved for the
-        cross-model outer-iteration consumers (homogeneous / diffusion /
-        depletion) that feed bare arrays.
-        """
-        return self.coefficient.values * np.asarray(phi)
-
-    if TYPE_CHECKING:
-        # Honest per-carrier typing surface (mirrors FissionOperator, #257 S8c):
-        # the public ``apply`` IS the runtime dispatcher (``apply = _apply_impl``
-        # below), so callers statically see the exact output type per carrier.
-        @overload
-        def apply(self, psi: FullField, /) -> "FullField": ...
-        @overload
-        def apply(self, phi: np.ndarray, /) -> np.ndarray: ...
-        def apply(self, psi: Any, /) -> Any: ...
-    else:
-        apply = _apply_impl
-
-    def solve(self, q: "FullField") -> "FullField":
+    @overload
+    def solve(self, q: FullField, /) -> FullField: ...
+    @overload
+    def solve(self, q: np.ndarray, /) -> np.ndarray: ...
+    def solve(self, q: "FullField | np.ndarray", /) -> "FullField | np.ndarray":
         r"""Inverse action :math:`M[f]^{-1}\,q = q / f = M[1/f]\,q`.
 
         Requires invertibility (the spectrum law: :math:`\min|f| > 0`);
         the engine raises
         :class:`~orpheus.numerics.operator.NotInvertible` otherwise.
         The codomain returns to a flux (the inverse of "flux → source" is
-        "source → flux") in the input's family (the same two-arm parse as
-        :meth:`apply`): an angular bulk returns
-        :class:`~orpheus.transport.fields.angular_flux.AngularFlux` ⊕ zero
-        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`;
-        a scalar bulk (#290 P4) returns
-        :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` ⊕ zero
-        :class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`.
+        "source → flux") in the operand's family — the same body as
+        :meth:`apply` with the FLUX role on the output leaf and the trace.
         """
-        from orpheus.transport.fields._bases import AngularField, ScalarField
-        from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-        from orpheus.transport.fields.scalar_flux import ScalarFlux
-        from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
-
-        # Same #289 seam parse as :meth:`apply`; the mesh comes off the
-        # parsed bulk's family-typed declaration.
-        bulk = q.interior
-        if isinstance(bulk, AngularField):
-            # CS4b S4 — the space route (see apply).
-            out_bulk = self.engine.solve(bulk.values)
-            return FullField(
-                interior=AngularFlux(values=out_bulk, space=bulk.space),
-                boundary=AngularBoundaryFlux.zeros(q.boundary.space),
-            )
-        if isinstance(bulk, ScalarField):
-            # Scalar arm (#290 P4): the typed division q/f through the
-            # ONE engine (degenerate 1-ordinate lift — see apply), which
-            # gates the spectrum law exactly as on the angular arm.
-            out_bulk = self.engine.solve(bulk.values[None])[0]
-            return FullField(
-                interior=ScalarFlux(values=out_bulk, space=bulk.space),
-                boundary=ScalarBoundaryFlux.zeros(q.boundary.space),
-            )
-        raise TypeError(
-            f"MultiplicationOperator composite solve: angular- or "
-            f"scalar-family bulk required; got {type(bulk).__name__}."
-        )
+        if self._composite:
+            return self._lift(q, self.engine.solve, role=FieldRole.FLUX)
+        return self._run(self.engine.solve, admit_array(self, q, end="codomain"))
 
     @overload
-    def apply_transpose(self, psi: FullField, /) -> "FullField": ...
+    def apply_transpose(self, psi: FullField, /) -> FullField: ...
     @overload
-    def apply_transpose(self, phi: np.ndarray, /) -> np.ndarray: ...
-    def apply_transpose(self, psi: "Any") -> "Any":
+    def apply_transpose(self, psi: np.ndarray, /) -> np.ndarray: ...
+    def apply_transpose(self, psi: "FullField | np.ndarray", /) -> "FullField | np.ndarray":
         r"""Adjoint action :math:`M[f]^{*}\,\psi = M[\bar f]\,\psi = M[f]\,\psi`.
 
         Equal to :meth:`apply` — a real-valued multiplier is self-adjoint
         (:math:`M[f]^{*} = M[\bar f] = M[f]`), so ``M.H == M`` (the
-        metric-blind Euclidean transpose; domain ``None``). Dispatches on the
-        carrier exactly like :meth:`apply` (:class:`FullField` or bare ndarray).
+        metric-blind Euclidean transpose).
         """
         return self.apply(psi)

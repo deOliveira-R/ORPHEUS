@@ -984,11 +984,12 @@ def _radial_characteristic_fission_seed(
     fission_source: "np.ndarray", sn_mesh,
 ) -> "RadialCharacteristicField | None":
     r"""The ψ½ FISSION ray seed — the direct ℓ=0 moments-fold of the fission
-    emission (``A_BA_fission = Fold ∘ F.kernel``, factored).
+    emission (``A_BA_fission = Fold ∘ F.isotropic_energy``, factored).
 
     The eigenvalue outer loop computes ``fission_source = χνΣf·φ/k`` from the
-    SCALAR flux (:meth:`SNSolver.compute_fission_source`), so ``F.kernel ∘
-    integrate`` is already applied and only the fold remains: the isotropic ℓ=0
+    SCALAR flux (:meth:`SNSolver.compute_fission_source`), so
+    ``F.isotropic_energy ∘ integrate`` is already applied and only the fold
+    remains: the isotropic ℓ=0
     emission is reconstructed at the closed :math:`\mu=\pm 1` rays through the
     migrated
     :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicReconstruction`
@@ -1224,6 +1225,15 @@ def _within_group_si(
         system.implicit_operator, S, n2n, B, sn_mesh, inner_schedule,
     )
     step, windowed = _maybe_window(base_implicit.inverse(), S, sn_mesh)
+    if windowed:
+        # The windowed iterate is the MOMENT composite, so the gains that
+        # read it are bound on it (CS4c step 5): the same datum and faces
+        # as the record's angular bindings, the domain's interior the
+        # analysis face's codomain — each binding acts through the body
+        # its ends select, and the moment operand is admitted by ITS
+        # operator instead of being dispatched on by the angular one.
+        # ``B`` (or its G-S upper part) reads the trace and stays.
+        gains = (S.on_moment_domain(), n2n.on_moment_domain(), *gains[2:])
     if corrector is not None and windowed:
         raise NotImplementedError(
             "_within_group_si: the DSA corrector consumes the full-"
@@ -2926,7 +2936,7 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
     # ``F_posed = [[F], [E]] ∘ r_bulk``: the SystemRestrictionOperator
     # projects onto the bulk member, then the rectangular stack emits
     # both rows — ``F`` (bulk → bulk) and the FISSION ray fold
-    # ``A_BA_fission = Fold ∘ F.kernel ∘ integrate``, the kernel-generic
+    # ``A_BA_fission = Fold ∘ F.isotropic_energy ∘ integrate``, the kernel-generic
     # :class:`RadialCharacteristicEmission` (the operator spelling of
     # :func:`_radial_characteristic_fission_seed`'s q-assembly math; on
     # the eigen-M operator this row BELONGS in the posing — HAZARD 5
@@ -2948,7 +2958,7 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
         [
             [F],
             [RadialCharacteristicEmission(
-                F.kernel,
+                F.isotropic_energy,
                 field_space=sn_mesh.radial_characteristic_field_space,
                 full_field_space=sn_mesh.full_field_space,
                 angular_bulk_space=sn_mesh.angular_bulk_space,

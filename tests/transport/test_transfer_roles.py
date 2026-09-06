@@ -215,3 +215,53 @@ def test_the_core_has_exactly_the_declared_roles(core_name):
         f"{sorted(declared)}.  A new role owes this list an entry AND owes the "
         f"thin-body row above; a retired one owes its removal."
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# G5.4b (CS4c step 5) — the LIFT base's own subclass population.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_the_angular_lift_has_exactly_the_declared_subclasses():
+    r"""**G5.4b** — ``AngularLift``'s population is exactly
+    ``{TransferOperator, FissionOperator, ScatteringOperator, N2NOperator}``.
+
+    Step 5's ruling R-1 put a shared base UNDER the transfer core: the
+    :math:`\ell = 0` lift :math:`R_0\,E\,M_0/W` is ONE body, and
+    ``{S, N₂ₙ} | {F}`` differ by the datum, the energy binding they derive,
+    and whether an :math:`\ell \ge 1` part exists — never by a second
+    spelling of the lift.
+
+    `[M]` inserting ``AngularLift`` ABOVE ``TransferOperator`` leaves every
+    row above UNTOUCHED (the two cores' own populations are unchanged), so
+    without this row **nothing** asserts the base's population and a fifth
+    lift — a hand-rolled ``AlphaResolventLift``, say — would land ungated.
+    That is the same blind spot ``test_the_core_has_exactly_the_declared_roles``
+    closes one level down, and it is closed here with the same two-filter
+    rationale: the AST rows cannot see a class they do not name, so the
+    RUNTIME walk is the filter that carries the completeness claim.
+
+    ⚠ Set EQUALITY, and walked RECURSIVELY — a retired member is as much a
+    red as a new one, and a ``class FastFission(FissionOperator)`` one level
+    down is exactly the cheapest way to regrow a twin.
+    """
+    import importlib as _importlib
+
+    for module_path in (
+        "orpheus.transport.operators.transfer",
+        "orpheus.transport.operators.fission",
+        "orpheus.transport.operators.scattering",
+        "orpheus.transport.operators.n2n",
+    ):
+        _importlib.import_module(module_path)
+    lift = _resolve("orpheus.transport.operators.angular_lift", "AngularLift")
+    declared = {
+        "TransferOperator", "FissionOperator", "ScatteringOperator", "N2NOperator",
+    }
+    got = {c.__name__ for c in _all_subclasses(lift)}
+    assert got == declared, (
+        f"AngularLift's subclasses are {sorted(got)}; the declared population "
+        f"is {sorted(declared)}.  A new lift owes this list an entry (and owes "
+        f"the base's laws a witness in tests/transport/test_angular_lift.py); "
+        f"a retired one owes its removal."
+    )

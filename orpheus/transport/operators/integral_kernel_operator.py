@@ -104,10 +104,12 @@ The same reasoning that makes
 :class:`~orpheus.numerics.functional.Functional` structural Protocols
 applies here. The two named Kernels (``FissionOperator`` /
 ``ScatteringOperator``) are
-:class:`~orpheus.numerics.operator.LinearOperator` subclasses built
-with :func:`functools.singledispatchmethod` dispatch arms and
-``@dataclass`` ; a nominal ABC base would collide with that MRO and
-force a redundant inheritance edge. A structural Protocol lets each
+:class:`~orpheus.numerics.operator.LinearOperator` subclasses built as
+``@dataclass`` bindings on the shared
+:class:`~orpheus.transport.operators.angular_lift.AngularLift` base
+(until CS4c step 5, with :func:`functools.singledispatchmethod` carrier
+arms); a nominal ABC base would collide with that MRO and force a
+redundant inheritance edge. A structural Protocol lets each
 operator participate simply by exposing ``kernel`` — and
 ``@runtime_checkable`` lets ``isinstance(op, IntegralKernelOperator)``
 discriminate the category at runtime, checking the full LinearOperator
