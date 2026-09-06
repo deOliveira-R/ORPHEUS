@@ -918,19 +918,21 @@ def test_ld_2d_external_slope_source_sign_mutation_reddens(slot, name):
 
 @pytest.mark.l1
 @pytest.mark.verifies("ld-cartesian-2d")
-def test_ld_2d_scattering_slope_source_sign_mutation_reddens():
+def test_ld_2d_scattering_slope_source_sign_mutation_reddens(monkeypatch):
     r"""#247 Deliverable 2 (M4) — flipping the SCATTERING :math:`\Sigma_s\cdot
     \hat\phi` slope-row sign CHANGES the converged flux.
 
     Distinct from M1–M3: this verifies the EXISTING (S3) scattering consumption
     was never sign-blind, whereas M1–M3 verify the NEW external consumption.
-    Monkeypatch the per-ordinate scattering-source assembler
-    (:meth:`ScatteringOperator._assemble_per_ordinate_source` — the ``Σ_s⊗I``
-    over every spatial moment, the moment-carrying source that joins the external
-    :math:`\hat Q`) to negate the iso slope rows (slots 1:), reverted in
-    ``finally``.  TEETH = the consumption proof (probed |Δφ|/|φ| ≈ 2.6e-3 at
-    nc=24, ≫ ``_CONSUMPTION_TOL``).  ``-O``-safe."""
-    import orpheus.transport.operators.scattering as scat_mod
+    Monkeypatch the per-ordinate scattering-source combine
+    (:meth:`AngularLift._combine <orpheus.transport.operators.angular_lift.AngularLift._combine>`
+    — the producer-side ``(iso/W) + aniso`` over every spatial moment, the
+    moment-carrying source that joins the external :math:`\hat Q`; until CS4c
+    step 5 spelled ``ScatteringOperator._assemble_per_ordinate_source``) to
+    negate the iso slope rows (slots 1:), reverted by the fixture.  TEETH =
+    the consumption proof (probed |Δφ|/|φ| ≈ 2.6e-3 at nc=24, ≫
+    ``_CONSUMPTION_TOL``).  ``-O``-safe."""
+    from orpheus.transport.operators.angular_lift import AngularLift
 
     case = build_2d_cartesian_ld_stress_mms_case()
     nc = 24
@@ -944,22 +946,20 @@ def test_ld_2d_scattering_slope_source_sign_mutation_reddens():
         materials, mesh, case.quadrature, rhs, **kw,
     ).scalar_flux.values
 
-    orig = scat_mod.ScatteringOperator._assemble_per_ordinate_source
+    orig = AngularLift._combine
 
-    def _flip_iso_slopes(self, phi, aniso_or_none, mesh_):
-        out = orig(self, phi, aniso_or_none, mesh_)
+    def _flip_iso_slopes(self, iso, aniso):
+        out = orig(self, iso, aniso)
         # Moment-valued per-ordinate source → flip every slope row (slots 1:).
         if out.values.ndim >= 5 and out.values.shape[-1] > 1:
             out.values[..., 1:] *= -1.0
         return out
 
-    scat_mod.ScatteringOperator._assemble_per_ordinate_source = _flip_iso_slopes
-    try:
-        phi_flip = solve_sn_fixed_source(
-            materials, mesh, case.quadrature, rhs, **kw,
-        ).scalar_flux.values
-    finally:
-        scat_mod.ScatteringOperator._assemble_per_ordinate_source = orig
+    monkeypatch.setattr(AngularLift, "_combine", _flip_iso_slopes)
+    phi_flip = solve_sn_fixed_source(
+        materials, mesh, case.quadrature, rhs, **kw,
+    ).scalar_flux.values
+    monkeypatch.undo()
 
     change = np.abs(phi_flip - phi_ok).max() / np.abs(phi_ok).max()
     if not (change > _CONSUMPTION_TOL):

@@ -1558,9 +1558,11 @@ class TestAnisoMomentSourcePath:
         pre-T.3 captured snapshot within `nulp ≤ 4·scattering_order`.
 
         Pre-T.3 the body inlined `R(Λ(M(psi))) / sum_w`.  Post-Phase-5a
-        the body projects `φ = M(psi)` once, then applies the shared
+        the body projected `φ = M(psi)` once, then applied the shared
         moment→source map `_aniso_source_from_moment_values` (= `R·Λ`)
-        and the `/ sum_w` boundary normalisation — the SAME composition,
+        and the `/ sum_w` boundary normalisation; since CS4c step 5
+        (2026-09-04) the angular end runs the cached `kernel` (`R∘Λ∘M`)
+        directly and the moment sibling the typed route — the SAME composition,
         with the per-ℓ `_PerLegendreOrderScattering` kernel (which rebuilt
         `M`/`R` per ℓ) retired.  The reduction tree may differ from the
         capture at the `Σ_ℓ` outer sum; drift bounded by `(L+1) × ULP`

@@ -2623,13 +2623,17 @@ feedback, Eq. :eq:`ld-ubld-scattering-moment-lift`) has been consumed since S3,
 but the OLD value-band MMS was empirically blind to its sign — a slope-source-row
 sign flip left both the :math:`O(h^2)` order and the scalar-flux value band
 unchanged, because :math:`\Sigma_s\hat\phi` is an :math:`O(h)`-small DG-internal
-forcing whose error enters above :math:`O(h^2)`.  M4 monkeypatches
-``ScatteringOperator._assemble_per_ordinate_source`` (the :math:`\Sigma_s
-\otimes I` over every spatial moment) to negate the iso slope rows and confirms
-the converged flux moves :math:`\sim 2.6\times10^{-3}` — the consumption proof
-replaces the value-band the old gate relied on.
+forcing whose error enters above :math:`O(h^2)`.  M4 monkeypatches the
+per-ordinate source combine — since CS4c step 5 (2026-09-04)
+:meth:`AngularLift._combine <orpheus.transport.operators.angular_lift.AngularLift._combine>`,
+the producer-side ``(iso/W) + aniso`` over every spatial moment (until then
+spelled ``ScatteringOperator._assemble_per_ordinate_source``) — to negate the
+iso slope rows and confirms the converged flux moves
+:math:`\sim 2.6\times10^{-3}` — the consumption proof replaces the value-band
+the old gate relied on.
 
-Each mutation is reverted in a ``finally`` block, and all #247 gates are
+Each mutation is reverted (a ``finally`` block, or the ``monkeypatch`` fixture
+for M4), and all #247 gates are
 ``-O``-safe (``np.testing.*`` / ``pytest.fail`` / ``pytest.raises`` only, no
 bare ``assert`` that ``python -O`` would strip — vv Mode 8).
 

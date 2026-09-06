@@ -28,11 +28,16 @@ carve (steps 1–6, incl. step-6 `f4919b1`) are all in origin/main. Rulings in t
 #226 topic files below; lessons in the digest.
 
 Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
-- **#426 step 2** `feature/n2n-transfer-family` (tip `1a3b78ec`, NOT in main).
-  Elegance review DELIVERED 2026-09-04 → `scratch/_426_step2_elegance_review.md`
-  (3 violations, 9 should-fix, 8 nits). Rulings in
-  `transfer_family_carve_rulings.md`. The step-3 corpus pass was in flight in the
-  working tree while I reviewed — any `docs/` count I took is a dirty-tree reading.
+- **CS4c step 5** `refactor/cs4c-step5-construction-selected-bodies` (UNCOMMITTED
+  production tree, reviewed 2026-09-05). Report → `scratch/cs4c_step5_elegance_report.md`
+  (0 blocking, 11 should-fix, 8 nits; 8 approval conditions). Rulings + the four
+  reusable probes in `ends_select_the_body_rulings.md`.
+- **#426 step 2** `feature/n2n-transfer-family` — review DELIVERED 2026-09-04 →
+  `scratch/_426_step2_elegance_review.md` (3 violations, 9 should-fix, 8 nits);
+  rulings in `transfer_family_carve_rulings.md`. ⚠ The branch has since ff-merged
+  (user memory: `7f889694`, #426 CLOSED 2026-09-04) — reconcile with git, this
+  entry's old "NOT in main" was the stale-snapshot failure the box below warns about.
+  The step-3 corpus pass was in flight while I reviewed — any `docs/` count is dirty-tree.
 - **#236** `feature/sn-spatial-angular-product` (tip `6409328`, NOT in main). My
   Phase 1b/2/3 reviews COMPLETE + delivered; no pending work.
 - **#2 consistent-DSA** `feature/sn-dsa` (UNCOMMITTED working tree, reviewed
@@ -44,6 +49,15 @@ Genuinely OPEN branches (reconcile against git before trusting a frozen claim):
 
 ## 3. Durable reference (reusable design-review pointers)
 
+- [ends_select_the_body_rulings.md](ends_select_the_body_rulings.md) — ⭐⭐ CS4c step 5
+  (per-call carrier dispatch → ONE construction-selected body): the **four probes** any
+  dispatch→admission carve owes — does the new admission see the ROLE (space is SHARED
+  across a flux/source pair, so it does not); does a COMPOSITE admission admit both
+  blocks; is the declared guard LIVE (positive control, `[M]` inert on all shipped);
+  does the carve hand-roll a structure the tree already memoises. ⭐ **A string-keyed
+  branch whose two arms are provably EQUAL is the worst kind — its miscompilation is
+  numerically invisible and kills a deliberately-kept surface.** A hoist to a new base
+  is when a pre-existing half-admission must be completed.
 - [transfer_family_carve_rulings.md](transfer_family_carve_rulings.md) — ⭐⭐ #426 step 2
   (two algebra TERMS collapsed onto one core with thin ROLE subclasses): a role's
   content is DATA not methods (the `ClassVar` channel/binding shape, and why four

@@ -31,9 +31,11 @@ required member is a ``kernel`` property returning a :class:`LinearOperator`.
   Protocol (it already exposes ``kernel`` since Wave T). The matvec arms
   are UNCHANGED.
 * ``ScatteringOperator`` gains a ``kernel`` property → the typed
-  ``OperatorProduct(R, OperatorProduct(Λ, M))`` reproducing the existing
+  ``OperatorProduct(R, OperatorProduct(Λ, M))`` reproducing the then-existing
   ``_aniso_source_from_moment_values(M·ψ)`` chain. The 5 dispatch arms
-  are UNCHANGED.
+  were UNCHANGED by that step. (Dated: at CS4c step 5, 2026-09-04, the chain
+  and the arms retired — the ``kernel`` IS the angular end's production
+  :math:`\ell \ge 1` map, and the moment end runs the typed route.)
 
 vv claim layer (1.5 gate)
 -------------------------
