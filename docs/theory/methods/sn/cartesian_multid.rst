@@ -3914,23 +3914,32 @@ not on fluxes, sources, or iteration state — so it is built once and
 reused across every SI iterate (the same lifetime contract as
 :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`).
 
-The selection lives in :func:`~orpheus.sn.solver._select_si_splitting`:
+The selection lives in :func:`~orpheus.sn.solver._select_si_splitting`,
+which decides the **boundary** half of the splitting and nothing else:
 ``"gauss_seidel"`` on a multi-D Cartesian mesh returns
-``((L+C) - parts.lower, (S, parts.upper))`` — the splitting
+``((L+C) - parts.lower, parts.upper)`` — the implicit operator and the
+boundary GAIN — realizing the splitting
 :math:`(L+C-B) = M - B_{\rm upper}` (a splitting, **not** a *regular*
 splitting — :ref:`sn-boundary-gs-not-regular`): the strictly-lower half
 :math:`B_{\rm lower}` folds *into* the reified forward :math:`M`
 (:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`,
 whose ``solve`` is the octant-group forward substitution) while the
-complement :math:`B_{\rm upper}` **lags as an ordinary external gain** —
-structurally congruent with the Jacobi arm's ``(S, B)``, so the
+complement :math:`B_{\rm upper}` **lags as an ordinary external gain**.
+``"jacobi"`` (and any 1-D mesh) returns ``(L+C, B)`` — the whole boundary
+lagged (the degenerate :math:`B_{\rm lower}=0`).  The collision gains are
+not the selector's business: the SI driver names the gain triple
+``(S, N₂ₙ, boundary_gain)`` itself — §14.1's order, :math:`B` LAST — the
+same way in both arms, so the
 :class:`~orpheus.numerics.iteration.SourceIteration` driver needs **no**
 case split (the dissolved ``_GaussSeidelResolvent`` needed a bespoke
 ``(…, (S,))`` gain shape; the reification made the two arms uniform).
-``"jacobi"`` (and any 1-D mesh) returns ``(L+C, (S, B))`` — both
-:math:`S` and :math:`B` lagged (the degenerate :math:`B_{\rm lower}=0`).
-In **both** cases :math:`S` is a lagged gain: the sweep never re-scatters
-mid-sweep.  Only the boundary coupling gets the Gauss-Seidel treatment.
+In **both** cases :math:`S` and :math:`N_{2n}` are lagged gains: the sweep
+never re-scatters mid-sweep.  Only the boundary coupling gets the
+Gauss-Seidel treatment.  (Until the CS4c step-5 review round, 2026-09-05,
+the selector passed :math:`S` and :math:`N_{2n}` through its return tuple
+and the windowed driver rebuilt two of the three slots by index — the
+smell the round removed; this paragraph had meanwhile drifted to a
+two-gain ``(S, parts.upper)`` that the tree never shipped after §14.1.)
 
 .. _si-gauss-seidel-reification:
 

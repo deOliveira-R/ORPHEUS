@@ -149,21 +149,32 @@ is at :ref:`cs4c-ends-select-the-body`.
   action enters the composite by extension by zero on the trace*, spelled
   once for the whole family; ``embed_bulk_assembly`` is its assembly twin
   (index-identity on the bulk block of the flat ``[bulk C-ravel | trace]``
-  layout, zero trace rows and columns).  ``BulkLift`` packages both as an
-  operator, and is what the 1-D diffusion solver builds over its
-  plain-bound energy bindings.
+  layout, zero trace rows and columns).  ``lift_pointwise`` is the ONE
+  spelling of *admit the composite on an end, act on its bulk block,
+  extend by zero on the trace, emit the operand's role partner* that the
+  multiplication operator and the angular lift both call (the elegance
+  round of 2026-09-05; before it each spelled the four steps itself), and
+  ``CompositeBound`` is the shared base of every operator bound on the
+  composite.  ``BulkLift`` packages the lift as an operator, and is what
+  the 1-D diffusion solver builds over its plain-bound energy bindings.
 * ``orpheus.transport.operators.angular_lift`` — ``AngularLift``, the
   :math:`\ell = 0` lift :math:`R_0\,E\,M_0/W` of an ENERGY binding onto
   the angular composite, and the shared base of ``TransferOperator``
   (→ :math:`S`, :math:`N_{2n}`) and ``FissionOperator`` (ruling R-1:
   ``{S, N₂ₙ} | {F}`` share the base and differ by the datum, the energy
   binding they derive, and whether an :math:`\ell \ge 1` part exists).
-  Its subclass contract is three members and no verbs — ``data_ng``,
-  ``_bind_energy``, ``_frame_form`` — and its public surface is
+  Its subclass contract is two members and no verbs — ``_bind_energy``,
+  ``_frame_form`` (the ``data_ng`` accessor of the first landing retired
+  with the review round: the eager ``isotropic_energy`` binding IS the
+  energy-extent admission) — and its public surface is
   ``apply(FullField) -> FullField``, ``apply_transpose`` likewise, plus
   ``isotropic_energy`` (the derived middle factor every scalar consumer
   reads) and ``on_moment_domain()`` (the same datum and faces re-bound to
-  consume the moment composite).
+  consume the moment composite).  Its two END classes, ``AngularEnd`` and
+  ``MomentEnd``, are exported beside it: *which end of the retained
+  analysis face the domain interior is* — the construction-time selection
+  of the body — and the ℓ ≥ 1 route map of ``TransferOperator`` is keyed
+  on the end CLASS, never on a name.
 
 The role pair — flux ↔ source/sink, declared once
 -------------------------------------------------

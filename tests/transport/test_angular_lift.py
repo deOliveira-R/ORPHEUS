@@ -44,7 +44,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
 from orpheus.transport.full_field import FullField
 from orpheus.transport.mesh.material_mesh import MaterialMesh
-from orpheus.transport.operators.angular_lift import AngularLift
+from orpheus.transport.operators.angular_lift import AngularEnd, AngularLift, MomentEnd
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_transfer import (
     IsotropicFission,
@@ -231,3 +231,104 @@ def test_the_lift_population_is_the_two_cores_and_their_roles():
 
     names = {c.__name__ for c in walk(AngularLift)}
     assert names == {"TransferOperator", "FissionOperator", "ScatteringOperator", "N2NOperator"}, names
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The elegance review round (2026-09-05) — witnesses for S1/S2/S3/S4/S6
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_the_route_map_is_keyed_on_the_exported_end_classes():
+    r"""**S1** — the ℓ ≥ 1 route is selected by the END CLASS (a dict keyed
+    on ``AngularEnd`` / ``MomentEnd``), never by a string: on the angular
+    end the cached-kernel route, on the moment sibling the typed route, and
+    the two ends are the package's public vocabulary. (`[M]` the first
+    spelling compared ``_end.__name__`` to a literal — a rename would have
+    routed the moment sibling through the angular body, bit-identically,
+    and silently zeroed the R-5 typed route's traffic.)"""
+    from orpheus.transport.operators import AngularEnd as A2, MomentEnd as M2
+
+    assert A2 is AngularEnd and M2 is MomentEnd
+    sn = _sn()
+    S = _lifts(sn)["S_L1"]
+    assert S._end is AngularEnd
+    assert S._redistribution == S._redistribute_ordinates
+    S_w = S.on_moment_domain()
+    assert S_w._end is MomentEnd
+    assert S_w._redistribution == S_w._redistribute_moments
+    assert _lifts(sn)["S_L0"]._redistribution is None
+
+
+def test_the_operand_role_is_admitted_not_cast():
+    r"""**S4** — space does not determine role: a source/sink on the SAME
+    interior space as the flux is refused by the verb, naming the operator
+    and the leaf the body reads (not an ``AttributeError`` from inside the
+    body)."""
+    sn = _sn()
+    S = _lifts(sn)["S_L1"]
+    interior = sn.full_field_space.interior_space
+    assert interior is not None
+    wrong_role = FullField(
+        interior=AngularSourceSink(values=np.ones(interior.shape), space=interior),
+        boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
+    )
+    with pytest.raises(TypeError, match=r"ScatteringOperator.*AngularFlux interior"):
+        S.apply(wrong_role)
+    # the transpose reads VALUES: any angular-family cotangent is admitted
+    assert not S.apply_transpose(wrong_role).boundary.values.any()
+
+
+def test_a_composite_with_a_foreign_trace_is_refused():
+    r"""**S2** — the admission reads BOTH blocks: an operator whose bound
+    end carries a different trace refuses the mesh's own composite, naming
+    the trace, instead of echoing the operand's trace back as its own."""
+    from dataclasses import replace
+
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+
+    sn = _sn()
+    S = _lifts(sn)["S_L0"]
+    interior = sn.full_field_space.interior_space
+    assert interior is not None
+    foreign = FullFieldSpace.from_blocks(
+        interior, FunctionSpace(name="foreign-trace", shape=tuple(sn.angular_trace.shape)),
+    )
+    S_foreign = replace(S, domain=foreign, codomain=foreign)
+    with pytest.raises(TypeError, match="trace"):
+        S_foreign.apply(_state(sn, 21))
+
+
+def test_mixed_frame_faces_are_refused_at_construction():
+    r"""**S3** — the two faces must MEET in the middle: an analysis face at
+    ``L = 1`` with a reconstruction face at ``L = 0`` (two mints of one
+    recipe at two orders — the defect #426 step 2 repaired) is a
+    construction refusal, not a binding whose moment route dies later."""
+    from orpheus.transport.material_field import FissionMaterialField
+
+    sn = _sn()
+    interior = sn.full_field_space.interior_space
+    assert interior is not None
+    space = sn.full_field_space
+    with pytest.raises(TypeError, match="do not meet"):
+        FissionOperator(
+            FissionMaterialField.from_material_xs(_mat_xs(sn)),
+            flux_analysis=HarmonicFrame.for_space(interior, 1).flux_analysis_on(interior),
+            source_reconstruction=HarmonicFrame.for_space(interior, 0).source_reconstruction_on(interior),
+            domain=space, codomain=space,
+        )
+
+
+def test_the_scalar_subspace_is_the_codomains_memoised_angular_marginal():
+    r"""**S6** — the energy binding lives on the SAME object the angular
+    integral rides: ``retraction("angular").codomain`` (memoised on the
+    space), so the ℓ = 0 emission's space and the energy binding's domain
+    agree by identity, not by content."""
+    sn = _sn()
+    S = _lifts(sn)["S_L0"]
+    interior = sn.full_field_space.interior_space
+    assert interior is not None
+    marginal = interior.retraction("angular").codomain
+    assert S._scalar_interior_space is marginal
+    assert S.isotropic_energy.domain is marginal
+    phi = _state(sn, 3).interior.integrate_angular()
+    assert phi.space is marginal

@@ -1055,34 +1055,37 @@ def _coupled_source_state(
 
 
 def _select_si_splitting(
-    LC: "StreamingCollisionOperator", S: "ScatteringOperator",
-    n2n: "N2NOperator",
+    LC: "StreamingCollisionOperator",
     B: "LinearOperator[FullField, FullField]",
     sn_mesh: "SNMesh", inner_schedule: str,
-) -> "tuple[StreamingCollisionOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...]]":
-    r"""Pick the ``(implicit_operator, explicit_gains)`` for the SEEDLESS within-group SI
+) -> "tuple[StreamingCollisionOperator | ScheduledInvertibleOperator, LinearOperator[FullField, FullField]]":
+    r"""Pick the ``(implicit_operator, boundary_gain)`` for the SEEDLESS within-group SI
     driver per ``inner_schedule`` — the single source of truth for the
-    Jacobi/G-S choice.
+    Jacobi/G-S choice, which is a choice about the BOUNDARY coupling only.
 
     Seedless-only since B.2d: a seed-carrying mesh takes the coupled
     block-native arm in :func:`_within_group_si` and never reaches this
     selector (its M/N splitting is fixed by
     :func:`~orpheus.sn.coupled_system.build_within_group_system`).
 
-    * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, (S, N₂ₙ, B_a))``: the
-      boundary lagged as an external gain (inter-sweep Jacobi — every
-      geometry; ``N₂ₙ`` a lagged gain like ``S`` since §14.1).
+    * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, B_a)``: the whole boundary
+      lagged as an external gain (inter-sweep Jacobi — every geometry).
     * ``"gauss_seidel"`` on a multi-D Cartesian mesh →
-      ``((L+C) - B_lower, (S, N₂ₙ, B_upper))``: the splitting
+      ``((L+C) - B_lower, B_upper)``: the splitting
       ``(L+C−B) = M − B_upper`` (#226 §17 W2).  ``B`` splits under the
       octant-group schedule (:meth:`SNBoundaryOperator.split`); the
       strictly-lower half folds into the REIFIED forward
       :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
       (whose ``solve`` is the octant-group forward substitution), and the
       complement lags as an ordinary external gain — structurally congruent
-      with the Jacobi arm, so the driver needs no case split.  ``S`` stays a
-      lagged gain in BOTH (only the boundary coupling gets G-S; the sweep
-      never re-scatters mid-sweep).
+      with the Jacobi arm, so the driver needs no case split.  The collision
+      gains are NOT this selector's business: ``S`` and ``N₂ₙ`` lag in BOTH
+      arms (only the boundary coupling gets G-S; the sweep never re-scatters
+      mid-sweep), so the caller names the gain triple
+      ``(S, N₂ₙ, boundary_gain)`` — §14.1's order, ``B`` LAST — itself.
+      (Until the CS4c step-5 review round the selector passed ``S`` and
+      ``N₂ₙ`` through its return tuple, and the windowed driver rebuilt two
+      of the three slots by index; that is the smell the round removed.)
 
     1-D falls back to Jacobi: boundary G-S is a no-op on the scattering-
     dominated 1-D regime AND the 1-D scan is not a wavefront.  The converged
@@ -1128,8 +1131,8 @@ def _select_si_splitting(
         parts = B.split(SweepSchedule.gauss_seidel(
             sn_mesh.ndim, sn_mesh.quad.octants, reflective_faces(sn_mesh),
         ))
-        return LC - parts.lower, (S, n2n, parts.upper)
-    return LC, (S, n2n, B)
+        return LC - parts.lower, parts.upper
+    return LC, B
 
 
 def _within_group_si(
@@ -1221,19 +1224,22 @@ def _within_group_si(
             f"(S, N2N, B_a) convention; got "
             f"({type(S).__name__}, {type(n2n).__name__})."
         )
-    base_implicit, gains = _select_si_splitting(
-        system.implicit_operator, S, n2n, B, sn_mesh, inner_schedule,
+    base_implicit, boundary_gain = _select_si_splitting(
+        system.implicit_operator, B, sn_mesh, inner_schedule,
     )
     step, windowed = _maybe_window(base_implicit.inverse(), S, sn_mesh)
-    if windowed:
-        # The windowed iterate is the MOMENT composite, so the gains that
-        # read it are bound on it (CS4c step 5): the same datum and faces
-        # as the record's angular bindings, the domain's interior the
-        # analysis face's codomain — each binding acts through the body
-        # its ends select, and the moment operand is admitted by ITS
-        # operator instead of being dispatched on by the angular one.
-        # ``B`` (or its G-S upper part) reads the trace and stays.
-        gains = (S.on_moment_domain(), n2n.on_moment_domain(), *gains[2:])
+    # The gains, by NAME (S, N₂ₙ, the boundary gain — §14.1's order). When
+    # windowed the iterate is the MOMENT composite, so the two collision
+    # gains that read it are bound on it (CS4c step 5): the same datum and
+    # faces as the record's angular bindings, the domain's interior the
+    # analysis face's codomain — each binding acts through the body its
+    # ends select, and the moment operand is admitted by ITS operator
+    # instead of being dispatched on by the angular one. The boundary
+    # gain (or its G-S upper part) reads the trace and stays.
+    gains = (
+        (S.on_moment_domain(), n2n.on_moment_domain(), boundary_gain)
+        if windowed else (S, n2n, boundary_gain)
+    )
     if corrector is not None and windowed:
         raise NotImplementedError(
             "_within_group_si: the DSA corrector consumes the full-"

@@ -81,8 +81,8 @@ The ends select the body (CS4c step 5)
 :class:`MultiplicationOperator` stores ONLY the coefficient field and its
 two ends. Which body ``apply`` / ``solve`` run is decided ONCE, at
 construction, from the DOMAIN: a composite ``FullFieldSpace`` selects the
-lifted body (:func:`~orpheus.transport.operators.lift.lift_bulk_action` —
-the multiply on the bulk block, the zero source/sink — or, for ``solve``,
+lifted body (:func:`~orpheus.transport.operators.lift.lift_pointwise`, the
+family's ONE pointwise spelling — the multiply on the bulk block, the zero source/sink — or, for ``solve``,
 the zero flux — on the trace; the output leaf is the operand's role
 partner, so one body serves the angular and the scalar families without
 a carrier parse), a plain bulk space selects the bare-array body (the
@@ -120,9 +120,8 @@ import numpy as np
 from orpheus.transport.operators.bound_operator import BoundOperator
 from orpheus.transport.operators.lift import (
     admit_array,
-    admit_composite,
     embed_bulk_assembly,
-    lift_bulk_action,
+    lift_pointwise,
 )
 from orpheus.numerics.operator import (
     BlockRole,
@@ -132,12 +131,11 @@ from orpheus.numerics.operator import (
     NotInvertible,
 )
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-from orpheus.transport.fields._bases import BulkField, FieldRole
+from orpheus.transport.fields._bases import FieldRole
 from orpheus.transport.full_field import FullField
 
 if TYPE_CHECKING:
     from orpheus.numerics.assembled_operator import SparseAssembledOperator
-    from orpheus.numerics.field import Field
     from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.fields.cross_section_field import CrossSectionField
 
@@ -238,40 +236,37 @@ class MultiplicationOperator(BoundOperator):
             operator="MultiplicationOperator",
         )
         # The SELECTION (CS4c step 5): the domain names the body. This is
-        # a parse of the SPACE at construction, not of a carrier per call.
+        # a parse of the SPACE at construction, not of a carrier per call —
+        # derived ONCE and read by apply / solve / assemble alike.
         domain = self.domain
-        bulk_shape = (
-            tuple(domain.interior_space.shape)
-            if isinstance(domain, FullFieldSpace) and domain.interior_space is not None
-            else tuple(domain.shape)
+        self._interior = (
+            domain.interior_space if isinstance(domain, FullFieldSpace) else None
         )
-        self._composite = isinstance(domain, FullFieldSpace)
+        bulk_shape = tuple((self._interior if self._interior is not None else domain).shape)
         # A bulk whose rank equals the coefficient's has NO ordinate axis
         # (the scalar families): the ONE engine (and its frozen spectrum
-        # gate) serves it through a degenerate one-ordinate lift, dropped
-        # after — bit-identical to the direct ``coefficient.values * x``.
-        # An angular bulk rides the engine's leading-axis broadcast.
-        self._degenerate_lift = len(bulk_shape) == self.coefficient.values.ndim
+        # gate) serves it through a one-ordinate broadcast, dropped after
+        # — bit-identical to the direct ``coefficient.values * x``. An
+        # angular bulk rides the engine's leading-axis broadcast.
+        self._scalar_operand = len(bulk_shape) == self.coefficient.values.ndim
 
     # ── the ONE multiply, on either bulk rank ───────────────────────
 
     def _run(self, verb: _EngineVerb, values: np.ndarray) -> np.ndarray:
-        if self._degenerate_lift:
+        if self._scalar_operand:
             return verb(values[None])[0]
         return verb(values)
 
-    def _lift(
-        self, x: object, verb: _EngineVerb, *, role: FieldRole,
-    ) -> FullField:
-        r"""The composite body: the engine on the bulk block, the zero
-        field of ``role`` on the trace, the output leaf the operand's
-        role partner (one body for the angular and the scalar families)."""
-        psi = admit_composite(self, x, end="domain")
-
-        def act(bulk: BulkField) -> "Field":
-            return bulk.into_role(role, self._run(verb, bulk.values))
-
-        return lift_bulk_action(psi, act, trace_role=role)
+    def _lift(self, x: object, verb: _EngineVerb, *, role: FieldRole) -> FullField:
+        r"""The composite body: the engine on the bulk block, the zero field
+        of ``role`` on the trace, the output leaf the operand's role partner
+        (one body for the angular and the scalar families) — through the
+        lift module's ONE pointwise spelling."""
+        assert self._interior is not None  # narrowing: only called when composite
+        return lift_pointwise(
+            self, x, lambda v: self._run(verb, v), end="domain", role=role,
+            out_space=self._interior,
+        )
 
     @property
     def is_invertible(self) -> bool:
@@ -358,13 +353,12 @@ class MultiplicationOperator(BoundOperator):
         r"""Emit the bulk diagonal :math:`\mathrm{diag}(f)` — on the plain
         ends directly, on composite ends in the composite flat layout
         (:func:`~orpheus.transport.operators.lift.embed_bulk_assembly`)."""
-        domain = self.domain
-        if isinstance(domain, FullFieldSpace) and domain.interior_space is not None:
+        if self._interior is not None:
             return embed_bulk_assembly(
-                self._bulk_assembly(domain.interior_space),
-                domain=domain, codomain=self.codomain,
+                self._bulk_assembly(self._interior),
+                domain=self.domain, codomain=self.codomain,
             )
-        return self._bulk_assembly(domain)
+        return self._bulk_assembly(self.domain)
 
     @classmethod
     def from_mesh(
@@ -443,7 +437,7 @@ class MultiplicationOperator(BoundOperator):
         ``(ng, *spatial)`` multiply, mesh-free (the cross-model escape
         hatch, #276).
         """
-        if self._composite:
+        if self._interior is not None:
             return self._lift(psi, self.engine.apply, role=FieldRole.SOURCE_SINK)
         return self._run(self.engine.apply, admit_array(self, psi, end="domain"))
 
@@ -461,7 +455,7 @@ class MultiplicationOperator(BoundOperator):
         "source → flux") in the operand's family — the same body as
         :meth:`apply` with the FLUX role on the output leaf and the trace.
         """
-        if self._composite:
+        if self._interior is not None:
             return self._lift(q, self.engine.solve, role=FieldRole.FLUX)
         return self._run(self.engine.solve, admit_array(self, q, end="codomain"))
 

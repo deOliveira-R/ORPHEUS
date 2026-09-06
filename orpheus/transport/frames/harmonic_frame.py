@@ -178,7 +178,7 @@ class HarmonicAnalysisOperator(
         self.codomain_carrier = codomain_carrier
         # The wrap parameters, read once at mint time (moment = f(angular, L)).
         self._L = frame.truncation_order
-        self._spatial_moments = BulkField._spatial_moments_per_axis_of(domain)
+        self._spatial_moments = BulkField.spatial_moments_per_axis_of(domain)
 
     @property
     def domain(self) -> "FunctionSpace":
@@ -249,7 +249,7 @@ class HarmonicReconstructionOperator(
         self.domain_carrier = domain_carrier
         self.codomain_carrier = codomain_carrier
         self._L = frame.truncation_order
-        self._spatial_moments = BulkField._spatial_moments_per_axis_of(codomain)
+        self._spatial_moments = BulkField.spatial_moments_per_axis_of(codomain)
 
     @property
     def is_adjointable(self) -> bool:
@@ -482,7 +482,7 @@ class HarmonicFrame(GalerkinFrame):
             ax for ax in axes[1:] if ax.label != SPATIAL_MOMENT_AXIS_LABEL
         ]
         base = self.basis_space * FunctionSpace.of_axes(*cell_axes)
-        per_axis = BulkField._spatial_moments_per_axis_of(angular_space)
+        per_axis = BulkField.spatial_moments_per_axis_of(angular_space)
         if per_axis == 1:
             return base
         ndim = next(

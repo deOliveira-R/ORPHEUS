@@ -329,20 +329,16 @@ def test_d3_real_mesh_window_passthrough_and_gs_admissible() -> None:
 
     sig_t = np.full((sn.ng, *sn.spatial_shape), 1.3)
     LC = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
-    sentinel_S = object()
-    sentinel_n2n = object()
-    resolvent, gains = _select_si_splitting(
-        LC, sentinel_S, sentinel_n2n, SNBoundaryOperator(sn), sn,
-        "gauss_seidel",
+    resolvent, boundary_gain = _select_si_splitting(
+        LC, SNBoundaryOperator(sn), sn, "gauss_seidel",
     )
     np.testing.assert_equal(
         isinstance(resolvent, ScheduledInvertibleOperator), True,
     )
-    np.testing.assert_equal(len(gains), 3)  # (S, N2N, B_upper) — §14.1
-    np.testing.assert_equal(gains[0] is sentinel_S, True)
-    np.testing.assert_equal(gains[1] is sentinel_n2n, True)
+    # The selector decides the BOUNDARY splitting only; the collision gains
+    # are the driver's to name (S, N₂ₙ, boundary gain — §14.1, B LAST).
     np.testing.assert_equal(
-        isinstance(gains[2], SNMaskedBoundaryOperator), True,
+        isinstance(boundary_gain, SNMaskedBoundaryOperator), True,
     )
 
 

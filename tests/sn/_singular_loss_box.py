@@ -333,8 +333,11 @@ def select_splitting(system, sn_mesh, schedule: str):
             f"(the builder's (S, N2N, B_a) convention); got "
             f"{type(scattering).__name__}"
         )
-    return _select_si_splitting(
-        implicit, scattering, n2n, boundary, sn_mesh, schedule)
+    implicit, boundary_gain = _select_si_splitting(
+        implicit, boundary, sn_mesh, schedule)
+    # The selector decides the BOUNDARY half only; the gains are named here
+    # the way the driver names them (S, N₂ₙ, boundary gain — §14.1, B LAST).
+    return implicit, (scattering, n2n, boundary_gain)
 
 
 def drive_recorded(system, sn_mesh, template, source, schedule: str,

@@ -219,11 +219,6 @@ class IsotropicTransfer(BoundOperator):
         return cls(cls.channel(mat_xs).at_order(0), domain=space, codomain=space)
 
     @property
-    def data_ng(self) -> int:
-        """The bound data's group count (the assembly's read)."""
-        return self.transfer.ng
-
-    @property
     def is_adjointable(self) -> bool:
         # apply_transpose realises y·Σ_{c,0}χ (the group-flip A^T); caps ⊇
         # apply_transpose. is_invertible inherits base False.
@@ -467,12 +462,6 @@ class IsotropicFission(BoundOperator):
             domain=space,
             codomain=space,
         )
-
-    @property
-    def data_ng(self) -> int:
-        """The bound data's group count (family symmetry with the
-        loss-side sibling's assembly read)."""
-        return self.fission.ng
 
     @property
     def is_adjointable(self) -> bool:

@@ -209,10 +209,11 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
         "prescribed inflow slot is empty — q.boundary degenerated to vacuum",
     )
 
-    # SI-Jacobi: forward (L+C), gains (S, B); the driver applies the
-    # INVERSE operator (#226 step 3).
-    rJ, gJ = _select_si_splitting(LC, S, N2N, B, sn, "jacobi")
-    psi_j, _ = SourceIteration(rJ.inverse(), *gJ, max_iter=500, tol=1e-13).solve(
+    # SI-Jacobi: forward (L+C), gains (S, N2N, B) — the selector decides the
+    # boundary half only and the caller names the triple; the driver applies
+    # the INVERSE operator (#226 step 3).
+    rJ, bJ = _select_si_splitting(LC, B, sn, "jacobi")
+    psi_j, _ = SourceIteration(rJ.inverse(), S, N2N, bJ, max_iter=500, tol=1e-13).solve(
         q_ext, initial_guess=_flux_zero(sn),
     )
 
@@ -235,7 +236,7 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     )
 
     if run_gs:
-        rG, gG = _select_si_splitting(LC, S, N2N, B, sn, "gauss_seidel")
+        rG, bG = _select_si_splitting(LC, B, sn, "gauss_seidel")
         # PRECONDITION 3 — the G-S path is the reified B-folding M, not a
         # silent Jacobi fall-back (guards the _select_si_splitting dispatch).
         _require(
@@ -252,7 +253,7 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
         )
 
         psi_g, _ = SourceIteration(
-            rG.inverse(), *gG, max_iter=500, tol=1e-13,
+            rG.inverse(), S, N2N, bG, max_iter=500, tol=1e-13,
         ).solve(
             q_ext, initial_guess=_flux_zero(sn),
         )

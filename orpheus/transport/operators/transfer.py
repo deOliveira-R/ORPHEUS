@@ -113,7 +113,7 @@ from orpheus.transport.source_sinks import (
 )
 from orpheus.transport.kernels import TransferKernel
 from orpheus.transport.material_field import TransferMaterialField
-from orpheus.transport.operators.angular_lift import AngularLift
+from orpheus.transport.operators.angular_lift import AngularEnd, AngularLift, MomentEnd
 from orpheus.transport.operators.bound_operator import BoundOperator
 from orpheus.transport.operators.isotropic_transfer import IsotropicTransfer
 from orpheus.transport.operators.lift import interior_space_of
@@ -432,23 +432,25 @@ class TransferOperator(AngularLift[IsotropicTransfer]):
     #: ruled, and what makes the AST role gate airtight.
     channel: ClassVar[Callable[["MaterialXSField"], "TransferMaterialField"]]
 
+    #: The ℓ ≥ 1 body, selected ONCE in :meth:`__post_init__` — ``None`` when
+    #: the datum carries no moment above ℓ = 0, else the route the selected
+    #: END reads (keyed on the end CLASS: a new end is a KeyError at
+    #: construction, never a silent fallback).
+    _redistribution: "Callable[[BulkField], AngularSourceSink] | None" = field(
+        init=False, repr=False,
+    )
+
     def __post_init__(self) -> None:
         super().__post_init__()
-        # The ℓ ≥ 1 body, selected ONCE: none when the datum carries no
-        # moment above ℓ = 0 (the R Λ M product would return exact zeros),
-        # else the route the selected end reads.
-        if self.is_isotropic:
-            self._redistribution = None
-        elif self._end.__name__ == "_MomentEnd":
-            self._redistribution = self._redistribute_moments
-        else:
-            self._redistribution = self._redistribute_ordinates
+        self._redistribution = (
+            None if self.is_isotropic
+            else {
+                AngularEnd: self._redistribute_ordinates,
+                MomentEnd: self._redistribute_moments,
+            }[self._end]
+        )
 
     # ── the lift's subclass contract ─────────────────────────────────
-
-    @property
-    def data_ng(self) -> int:
-        return self.transfer.ng
 
     def _bind_energy(self, scalar_space: FunctionSpace) -> IsotropicTransfer:
         # The role's own P0 binding of the datum's head — the field at

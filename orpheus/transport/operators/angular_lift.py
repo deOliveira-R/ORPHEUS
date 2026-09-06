@@ -26,70 +26,83 @@ outcome). The retained analysis face :math:`M \otimes I` has two ends —
 the per-ordinate space it reads and the moment space it writes — and the
 binding's DOMAIN interior is one of them:
 
-* ``domain.interior == flux_analysis.domain`` — the **angular** end: the
-  operand is the per-ordinate flux; :math:`\phi` is its angular
-  integral; a coefficient-space operator acts through
-  ``frame.conjugate`` (:math:`R\,\Lambda\,M`); the transpose's cotangent
-  is a per-ordinate source/sink;
-* ``domain.interior == flux_analysis.codomain`` — the **moment** end:
-  the operand is ALREADY :math:`M\psi` (the 2-D Cartesian windowed
-  iterate, which never materialises the per-ordinate flux between
-  sweeps); :math:`\phi` is its :math:`\ell = 0` slot; a coefficient-space
-  operator acts through ``frame.reconstruct_after`` (:math:`R\,\Lambda`,
-  :math:`M` skipped — re-projecting would double-project); the cotangent
-  is a moment source/sink.
+* ``domain.interior == flux_analysis.domain`` — the **angular** end
+  (:class:`AngularEnd`): the operand is the per-ordinate flux
+  :class:`~orpheus.transport.fields.angular_flux.AngularFlux`;
+  :math:`\phi` is its angular integral; a coefficient-space operator acts
+  through ``frame.conjugate`` (:math:`R\,\Lambda\,M`); the transpose's
+  cotangent is a per-ordinate source/sink;
+* ``domain.interior == flux_analysis.codomain`` — the **moment** end
+  (:class:`MomentEnd`): the operand is ALREADY :math:`M\psi`
+  (:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
+  — the 2-D Cartesian windowed iterate, which never materialises the
+  per-ordinate flux between sweeps); :math:`\phi` is its :math:`\ell = 0`
+  slot; a coefficient-space operator acts through ``frame.reconstruct_after``
+  (:math:`R\,\Lambda`, :math:`M` skipped — re-projecting would
+  double-project); the cotangent is a moment source/sink.
 
-The selection happens ONCE, at construction; a third interior is refused.
-Until step 5 the moment operand was handed to the ANGULAR-bound operator,
-which dispatched on the carrier's class per call (`[M]` 2026-09-04: 143
-such feeds per windowed solve, on a bit-exact frozen snapshot) — the
-shipped non-endomorphism the step-0 census measured. Now the windowed
-driver binds the gains on the moment composite (:meth:`on_moment_domain`)
-and every operand rides its operator's own domain
-(:func:`~orpheus.transport.operators.lift.admit_composite`).
+The selection happens ONCE, at construction; a third interior is refused,
+and so is an operand of the right space but the wrong ROLE (space does
+not determine role — a flux and a source/sink of one family share a
+space). Until step 5 the moment operand was handed to the ANGULAR-bound
+operator, which dispatched on the carrier's class per call (`[M]`
+2026-09-04: 143 such feeds per windowed solve, on a bit-exact frozen
+snapshot) — the shipped non-endomorphism the step-0 census measured. Now
+the windowed driver binds the gains on the moment composite
+(:meth:`on_moment_domain`) and every operand rides its operator's own
+domain (:func:`~orpheus.transport.operators.lift.admit_composite`).
 
-Why the scalar sub-space is read off the CODOMAIN (F-1 of the step-5
-verification plan): the moment composite's interior is a tensor-product
-space with no axes, so it cannot name its own energy ⊗ spatial factor;
-the codomain is the angular composite for BOTH ends and its interior is
-axis-built. The energy binding therefore lives on the codomain's scalar
-sub-space — which is also where the emission lands.
+Why the scalar sub-space is the CODOMAIN's angular marginal (F-1 of the
+step-5 verification plan): the moment composite's interior is a
+tensor-product space with no axes, so it cannot name its own energy ⊗
+spatial factor; the codomain is the angular composite for BOTH ends, and
+its memoised ``retraction("angular").codomain`` is exactly the space
+``AngularFlux.integrate_angular()`` returns — so the energy binding lives
+on the space its operand rides, by identity, and there is ONE spelling of
+the angular marginal on the operator tier.
 
-The subclass contract is three members and no verbs:
+Why the energy binding is bound at CONSTRUCTION (a declared field, not a
+lazy cache): its plain-scalar admission on that axis-built sub-space is
+the effective group-count guard — the composite ends carry no axes, so
+the per-end energy admission is declaredly inert on them — and it is
+where F-1 is checked. A lazy bind would defer both to the first apply.
 
-* :attr:`data_ng` — the bound datum's group count (the per-end energy
-  admission's operand);
+The subclass contract is two members and one optional verb:
+
 * :meth:`_bind_energy` — the datum's ENERGY binding on a given scalar
-  space (the ℓ = 0 middle factor; cached once as :attr:`isotropic_energy`);
+  space (the ℓ = 0 middle factor; bound once as :attr:`isotropic_energy`);
 * :meth:`_frame_form` — the WHOLE action as one frame-conjugated product
-  (the transpose's spelling: factor reversal, no arithmetic of its own).
-
-A subclass with an :math:`\ell \ge 1` part overrides
-:meth:`_interior_action` to add it (the transfer core does; fission does
-not — :math:`\chi` carries no angle).
+  (the transpose's spelling: factor reversal, no arithmetic of its own);
+* :meth:`_interior_action` — overridden by a subclass with an
+  :math:`\ell \ge 1` part (the transfer core does; fission does not —
+  :math:`\chi` carries no angle).
 """
 
 from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass, field, replace
-from functools import cached_property
-from typing import TYPE_CHECKING, Generic, Self, TypeVar, cast
+from typing import TYPE_CHECKING, ClassVar, Generic, Self, TypeVar, cast
 
 import numpy as np
 
 from orpheus.numerics.operator import BlockRole
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-from orpheus.transport.fields._bases import BulkField, FieldRole
+from orpheus.transport.fields._bases import (
+    AngularField,
+    BulkField,
+    FieldRole,
+    spatial_moments_per_axis_of,
+)
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.bound_operator import BoundOperator
 from orpheus.transport.operators.lift import (
+    CompositeBound,
     admit_composite,
-    interior_space_of,
     lift_bulk_action,
 )
 from orpheus.transport.source_sinks import (
@@ -106,7 +119,7 @@ if TYPE_CHECKING:
         HarmonicReconstructionOperator,
     )
 
-__all__ = ["AngularLift"]
+__all__ = ["AngularEnd", "AngularLift", "MomentEnd"]
 
 #: The ENERGY binding a lift derives from its datum (the ℓ = 0 middle factor).
 EnergyT = TypeVar("EnergyT", bound=BoundOperator)
@@ -117,9 +130,12 @@ EnergyT = TypeVar("EnergyT", bound=BoundOperator)
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class _AngularEnd:
+class AngularEnd:
     r"""The domain's interior is the analysis face's DOMAIN: the operand is
     the per-ordinate flux :math:`\psi`."""
+
+    #: The role leaf the body reads — admitted by class, once, at the verb.
+    operand: ClassVar[type[BulkField]] = AngularFlux
 
     @staticmethod
     def scalar_flux(lift: "AngularLift", bulk: BulkField) -> ScalarFlux:
@@ -137,9 +153,11 @@ class _AngularEnd:
         return AngularSourceSink(values=values, space=lift._domain_interior)
 
 
-class _MomentEnd:
+class MomentEnd:
     r"""The domain's interior is the analysis face's CODOMAIN: the operand
     is already :math:`M\psi` (the windowed moment iterate)."""
+
+    operand: ClassVar[type[BulkField]] = HarmonicMomentFlux
 
     @staticmethod
     def scalar_flux(lift: "AngularLift", bulk: BulkField) -> ScalarFlux:
@@ -162,7 +180,7 @@ class _MomentEnd:
             values=values,
             space=domain_interior,
             L=lift.frame.truncation_order,
-            spatial_moments=BulkField._spatial_moments_per_axis_of(domain_interior),
+            spatial_moments=spatial_moments_per_axis_of(domain_interior),
         )
 
 
@@ -172,7 +190,7 @@ class _MomentEnd:
 
 
 @dataclass(eq=False)
-class AngularLift(BoundOperator["FullField", "FullField"], Generic[EnergyT]):
+class AngularLift(CompositeBound, Generic[EnergyT]):
     r"""An energy binding lifted onto the angular composite — see the module
     docstring.
 
@@ -187,8 +205,9 @@ class AngularLift(BoundOperator["FullField", "FullField"], Generic[EnergyT]):
     source_reconstruction : HarmonicReconstructionOperator
         The minted SOURCE reconstruction face :math:`R \otimes I`
         (``HarmonicMomentSourceSink → AngularSourceSink``) landing on the
-        same angular space — the typed :math:`R` of the moment end's
-        :math:`\ell \ge 1` route (the transfer core's).
+        same angular space, from the SAME frame (the two faces must meet
+        in the middle — admitted) — the typed :math:`R` of the moment
+        end's :math:`\ell \ge 1` route (the transfer core's).
     domain, codomain : FunctionSpace
         The two mandatory ends (kw-only, write-once —
         :class:`~orpheus.transport.operators.bound_operator.BoundOperator`):
@@ -211,16 +230,19 @@ class AngularLift(BoundOperator["FullField", "FullField"], Generic[EnergyT]):
     # base's instance variable; a plain annotation would make it a field).
     block_role = BlockRole.BULK
 
-    #: The selected end — set once in :meth:`__post_init__` (not a ctor
-    #: argument: it is DERIVED from the ends, never declared).
-    _end: "type[_AngularEnd] | type[_MomentEnd]" = field(init=False, repr=False)
+    #: The selected end — DERIVED from the ends in :meth:`__post_init__`,
+    #: never a ctor argument.
+    _end: "type[AngularEnd] | type[MomentEnd]" = field(init=False, repr=False)
+    #: The :math:`\ell = 0` ENERGY binding of this operator's own datum, on
+    #: the emitted interior's scalar sub-space — the middle factor the fast
+    #: path lifts, and what the scalar consumers read (the solver's
+    #: ``K_iso = S.isotropic_energy + N2N.isotropic_energy`` at the ONE
+    #: within-group construction site; the eigen-posing's ray seed). Bound
+    #: at construction (module docstring: it IS the group-count admission);
+    #: ``dataclasses.replace`` re-derives it exactly as it re-derives the end.
+    isotropic_energy: EnergyT = field(init=False, repr=False)
 
     # ── the subclass contract ────────────────────────────────────────
-
-    @property
-    @abstractmethod
-    def data_ng(self) -> int:
-        """The bound datum's group count (the per-end energy admission's operand)."""
 
     @abstractmethod
     def _bind_energy(self, scalar_space: FunctionSpace) -> EnergyT:
@@ -235,13 +257,11 @@ class AngularLift(BoundOperator["FullField", "FullField"], Generic[EnergyT]):
 
     def __post_init__(self) -> None:
         owner = type(self).__name__
-        # Per-END energy admission (CS4c §1). On an axes-less composite
-        # the guard is declaredly inert (its own docstring) — the moment
-        # composite's domain leg is one such, exactly as every shipped
-        # composite binding's already is.
-        self._assert_energy_extent_both_ends(self.data_ng, operator=owner)
         # Face admission against the angular space this binding EMITS on:
-        # both faces are minted on the codomain's interior.
+        # both faces are minted on the codomain's interior, and they must
+        # MEET in the middle (one frame — the defect #426 step 2 repaired
+        # was two mints of one recipe at two orders; the admission can see
+        # exactly that).
         emitted = self._codomain_interior
         if self.flux_analysis.domain != emitted:
             raise TypeError(
@@ -255,13 +275,19 @@ class AngularLift(BoundOperator["FullField", "FullField"], Generic[EnergyT]):
                 f"different angular space than this binding's interior — "
                 f"mint the faces from the SAME posed space (tier 2 does)."
             )
+        if self.source_reconstruction.domain != self.flux_analysis.codomain:
+            raise TypeError(
+                f"{owner}: the two faces do not meet — R's moment domain "
+                f"{self.source_reconstruction.domain!r} is not M's codomain "
+                f"{self.flux_analysis.codomain!r}; mint both from ONE frame."
+            )
         # The selection: which END of the analysis face the domain's
         # interior is decides the body, once.
         consumed = self._domain_interior
         if consumed == self.flux_analysis.domain:
-            self._end = _AngularEnd
+            self._end = AngularEnd
         elif consumed == self.flux_analysis.codomain:
-            self._end = _MomentEnd
+            self._end = MomentEnd
         else:
             raise TypeError(
                 f"{owner}: the domain's interior {consumed!r} is neither "
@@ -270,20 +296,21 @@ class AngularLift(BoundOperator["FullField", "FullField"], Generic[EnergyT]):
                 f"{self.flux_analysis.codomain!r}) — a binding acts through "
                 f"the body its ends select, and no body reads this space."
             )
-        # Bind the energy operator EAGERLY: its plain-scalar admission on
-        # the axis-built scalar sub-space is the effective ng guard (the
-        # composite legs above are declaredly inert on an axes-less end),
-        # and the F-1 requirement — the emitted interior names a scalar
-        # sub-space — is checked at construction, not at first apply.
-        self.isotropic_energy
+        # The energy binding, bound NOW: its plain-scalar admission on the
+        # axis-built scalar sub-space is the effective group-count guard
+        # (the composite ends carry no axes), and F-1 — the emitted
+        # interior names a scalar sub-space — is checked here, not at the
+        # first apply.
+        self.isotropic_energy = self._bind_energy(self._scalar_interior_space)
 
     # ── derived structure (single sources) ───────────────────────────
 
     @property
     def frame(self) -> "HarmonicFrame":
         r"""The HUB-interned frame the faces were minted from, riding on
-        :attr:`flux_analysis` (provenance, zero extra state) — the
-        conjugation properties read it to compose the frame forms."""
+        :attr:`flux_analysis` (provenance, zero extra state; the admission
+        proves :attr:`source_reconstruction` meets it) — the conjugation
+        properties read it to compose the frame forms."""
         return self.flux_analysis.frame
 
     @property
@@ -292,16 +319,6 @@ class AngularLift(BoundOperator["FullField", "FullField"], Generic[EnergyT]):
         angular weight (the producer-side :math:`/W`), read off the
         frame's MEASURE (operative data)."""
         return float(np.asarray(self.frame.measure.weights).sum())
-
-    @property
-    def _domain_interior(self) -> FunctionSpace:
-        """The domain's bulk block — the operand's space."""
-        return interior_space_of(self.domain, owner=type(self).__name__)
-
-    @property
-    def _codomain_interior(self) -> FunctionSpace:
-        """The codomain's bulk block — the angular space the lift emits on."""
-        return interior_space_of(self.codomain, owner=type(self).__name__)
 
     @property
     def _moment_space(self) -> FunctionSpace:
@@ -322,27 +339,16 @@ class AngularLift(BoundOperator["FullField", "FullField"], Generic[EnergyT]):
     @property
     def _scalar_interior_space(self) -> FunctionSpace:
         r"""The emitted interior's scalar ``(ng, *spatial)`` sub-space —
-        the energy binding's ends and the moment end's scalar-flux target,
-        minted here once. Read off the CODOMAIN (axis-built for both
-        ends — see the module docstring)."""
-        interior = self._codomain_interior
-        if interior.axes is None:
-            raise TypeError(
-                f"{type(self).__name__}: the composite interior must be "
-                f"axis-built to name the scalar sub-space."
-            )
-        return FunctionSpace.of_axes(*interior.axes[1:])
+        the energy binding's ends and the moment end's scalar-flux target.
 
-    @cached_property
-    def isotropic_energy(self) -> EnergyT:
-        r"""The :math:`\ell = 0` ENERGY binding of this operator's own
-        datum, on the emitted interior's scalar sub-space — the middle
-        factor the fast path lifts, and what the scalar consumers read
-        (the solver's ``K_iso = S.isotropic_energy + N2N.isotropic_energy``
-        at the ONE within-group construction site; the eigen-posing's
-        ray seed). Cached at construction-time semantics (the datum is
-        immutable)."""
-        return self._bind_energy(self._scalar_interior_space)
+        The CODOMAIN's memoised angular marginal (F-1; the module
+        docstring): the same object
+        :meth:`~orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular`
+        rides, so the ℓ = 0 emission's space and the energy binding's
+        domain agree by IDENTITY, and the angular marginal has one
+        spelling on this tier (the elegance review's S6 — a positional
+        ``of_axes(*axes[1:])`` was a second one, 39× dearer per read)."""
+        return self._codomain_interior.retraction("angular").codomain
 
     @property
     def is_adjointable(self) -> bool:
@@ -386,8 +392,10 @@ class AngularLift(BoundOperator["FullField", "FullField"], Generic[EnergyT]):
     def apply(self, x: FullField, /) -> FullField:
         r"""The lifted emission :math:`T\psi` on the composite — the
         interior body selected at construction, the zero source/sink on
-        the trace (a collision gain is volumetric)."""
-        psi = admit_composite(self, x, end="domain")
+        the trace (a collision gain is volumetric). The operand is the
+        end's FLUX leaf on the bound domain (both blocks); anything else is
+        a typed refusal naming this operator."""
+        psi = admit_composite(self, x, end="domain", carrier=self._end.operand)
         return lift_bulk_action(
             psi, self._interior_action, trace_role=FieldRole.SOURCE_SINK,
         )
@@ -431,12 +439,14 @@ class AngularLift(BoundOperator["FullField", "FullField"], Generic[EnergyT]):
         :class:`~orpheus.numerics.operator.OperatorProduct` chain, then
         the producer :math:`/W`; the cotangent lands on the DOMAIN's
         interior in the end's own source/sink class; the trace is the
-        implicit zero (a volumetric gain's transpose is volumetric).
+        implicit zero (a volumetric gain's transpose is volumetric). The
+        operand is any ANGULAR-family cotangent on the codomain (the
+        daggered flux or a source/sink — the transpose reads values only).
 
         This is the Euclidean transpose (L12), not the metric Hilbert
         adjoint ``.H`` (which composes the spaces' Riesz legs around it).
         """
-        chi = admit_composite(self, x, end="codomain")
+        chi = admit_composite(self, x, end="codomain", carrier=AngularField)
         return lift_bulk_action(
             chi, self._interior_transpose, trace_role=FieldRole.SOURCE_SINK,
         )

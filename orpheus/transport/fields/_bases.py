@@ -136,6 +136,7 @@ K = TypeVar("K", bound=Hashable)
 __all__ = [
     "FieldRole",
     "RolePair",
+    "spatial_moments_per_axis_of",
     "BulkField",
     "AngularField",
     "ScalarField",
@@ -291,6 +292,15 @@ class RolePair:
             **carried,
         )
 
+
+
+def spatial_moments_per_axis_of(space: FunctionSpace) -> int:
+    r"""The per-axis spatial-moment width a SPACE carries (``1`` if none) —
+    the module-level name of :meth:`BulkField.spatial_moments_per_axis_of`,
+    for the operator and frame tiers that hold only a space (`[M]` 4 of its
+    5 call sites are outside ``fields/``; a leading underscore misdescribed
+    its audience — the elegance review's N1)."""
+    return BulkField.spatial_moments_per_axis_of(space)
 
 # ═══════════════════════════════════════════════════════════════════════
 # Bulk locus
@@ -476,10 +486,10 @@ class BulkField(RolePair, Field):
         :meth:`HarmonicMomentFlux.scalar_flux`) pass this as the child's
         ``spatial_moments`` so the moment axis is propagated as a TYPED factor,
         not an opaque widened ndarray."""
-        return type(self)._spatial_moments_per_axis_of(self.space)
+        return type(self).spatial_moments_per_axis_of(self.space)
 
     @staticmethod
-    def _spatial_moments_per_axis_of(space: FunctionSpace) -> int:
+    def spatial_moments_per_axis_of(space: FunctionSpace) -> int:
         r"""The per-axis spatial-moment width a SPACE carries (``1`` if none).
 
         The static body of :attr:`spatial_moments_per_axis`, hoisted so a

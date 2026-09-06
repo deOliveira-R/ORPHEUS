@@ -282,7 +282,7 @@ def _windowed_product_and_oracle_operands(
     )
     LC, (S, N2N, B) = system.implicit_operator, system.explicit_gains  # seedless 2-D record shape (§14.1: S, N2N, B_a)
     sn_mesh = solver.sn_mesh
-    base, _gains = _select_si_splitting(LC, S, N2N, B, sn_mesh, inner_schedule)
+    base, _boundary_gain = _select_si_splitting(LC, B, sn_mesh, inner_schedule)
 
     # THE production windowed object (#226 steps 2–3, §17 W1): the typed
     # composition ``P @ A.inverse()`` — the scattering operator's MINTED

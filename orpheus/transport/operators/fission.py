@@ -244,10 +244,6 @@ class FissionOperator(AngularLift[IsotropicFission]):
 
     # ── the lift's subclass contract ─────────────────────────────────
 
-    @property
-    def data_ng(self) -> int:
-        return self.fission.ng
-
     def _bind_energy(self, scalar_space: FunctionSpace) -> IsotropicFission:
         return IsotropicFission(
             self.fission, domain=scalar_space, codomain=scalar_space,

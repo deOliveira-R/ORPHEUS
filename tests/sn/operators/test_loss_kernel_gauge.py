@@ -541,14 +541,14 @@ def _solve(system, mesh, template, source, schedule):
     from orpheus.numerics.iteration import SourceIteration
     from orpheus.sn.solver import _select_si_splitting
 
-    # Named, not splatted: the selector takes exactly (L+C, S, B, mesh,
-    # schedule), so a splat would silently mis-bind if the splitting ever grew
-    # a third gain — and hides from the type checker which is which.
+    # Named, not splatted: the selector decides the BOUNDARY half of the
+    # splitting only, and the gains are named here the way the driver names
+    # them (S, N₂ₙ, boundary gain — §14.1, B LAST), so nothing can mis-bind.
     scattering, n2n, boundary = system.explicit_gains
-    base, gains = _select_si_splitting(
-        system.implicit_operator, scattering, n2n, boundary, mesh, schedule,
+    base, boundary_gain = _select_si_splitting(
+        system.implicit_operator, boundary, mesh, schedule,
     )
-    iteration = SourceIteration(base.inverse(), *gains,
+    iteration = SourceIteration(base.inverse(), scattering, n2n, boundary_gain,
                                 max_iter=400_000, tol=1e-13)
     zero = type(template).from_flat(
         np.zeros(template.to_flat().size), template)

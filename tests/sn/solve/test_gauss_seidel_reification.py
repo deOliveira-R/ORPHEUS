@@ -209,32 +209,24 @@ def test_off_domain_outflow_rhs_is_not_completed_yet():
 
 def test_factory_returns_reified_pair():
     r"""``_select_si_splitting(gauss_seidel)`` returns the splitting pair
-    ``(M, (S, N2N, B_upper))`` — congruent with the Jacobi arm
-    ``(LC, (S, N2N, B))`` (§14.1: the n2n gain rides both arms
-    unchanged, B LAST)."""
+    ``(M, B_upper)`` — congruent with the Jacobi arm ``(LC, B)``. The
+    selector decides the BOUNDARY half only; the SI driver names the gain
+    triple ``(S, N2N, boundary_gain)`` itself (§14.1: the collision gains
+    ride both arms unchanged, B LAST)."""
     sn, LC, B, _sched, _parts, _M = _reified()
-    sentinel_S = object()
-    sentinel_n2n = object()
-    resolvent, gains = _select_si_splitting(
-        LC, sentinel_S, sentinel_n2n, B, sn, "gauss_seidel",
-    )
+    resolvent, boundary_gain = _select_si_splitting(LC, B, sn, "gauss_seidel")
     if not isinstance(resolvent, ScheduledInvertibleOperator):
         pytest.fail(f"G-S arm returned {type(resolvent).__name__}")
-    np.testing.assert_equal(len(gains), 3)
-    if gains[0] is not sentinel_S:
-        pytest.fail("gains[0] must be the scattering gain, passed through")
-    if gains[1] is not sentinel_n2n:
-        pytest.fail("gains[1] must be the n2n gain, passed through")
     from orpheus.sn.operators.boundary import SNMaskedBoundaryOperator
 
-    if not isinstance(gains[2], SNMaskedBoundaryOperator):
-        pytest.fail(f"gains[2] must be B_upper; got {type(gains[2]).__name__}")
-    # Jacobi arm unchanged: (LC, (S, N2N, B)).
-    resolvent_j, gains_j = _select_si_splitting(
-        LC, sentinel_S, sentinel_n2n, B, sn, "jacobi",
-    )
-    if resolvent_j is not LC or gains_j != (sentinel_S, sentinel_n2n, B):
-        pytest.fail("the Jacobi arm must stay (LC, (S, N2N, B))")
+    if not isinstance(boundary_gain, SNMaskedBoundaryOperator):
+        pytest.fail(
+            f"the G-S boundary gain must be B_upper; got {type(boundary_gain).__name__}"
+        )
+    # Jacobi arm unchanged: (LC, B).
+    resolvent_j, boundary_j = _select_si_splitting(LC, B, sn, "jacobi")
+    if resolvent_j is not LC or boundary_j is not B:
+        pytest.fail("the Jacobi arm must stay (LC, B)")
 
 
 # ─────────────────────────────────────────────────────────────────────────
