@@ -407,6 +407,14 @@ def _c6_static_typing_pins(
 
     No ``test_`` prefix → pytest never collects this; only the type checker
     reads it.
+
+    ⚠ **Adjudicated by hand, not by any gate** (#452): the project's pyright
+    ratchet analyses ``orpheus/`` only, so nothing runs this file's pins.
+    `[M]` 2026-09-05, ``npx pyright tests/sn/operators/test_operators_apply_typed.py``:
+    the four rows below are clean; **1 pre-existing error** elsewhere in this
+    file (the ``scaled.inverse()`` pin — a ``ScaledOperator`` third-parameter
+    inference mismatch, untouched by CS4c step 5) is tracked in #452 with the
+    remedy (a ratchet over the typing-pin files).
     """
     # ⛔ COLLAPSED (CS4c step 5, R-1/R-3): the per-carrier ``@overload``
     # surface is GONE because the runtime dispatch is gone. A composite

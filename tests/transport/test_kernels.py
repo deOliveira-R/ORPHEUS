@@ -703,10 +703,14 @@ def test_the_ends_select_the_body(operator_key, binding, carrier_key):
 
 
 def test_the_plain_row_and_the_lift_row_agree_on_the_values():
-    r"""**G5.2 companion** — the two admitted bodies of one energy binding
-    compute the SAME numbers: ``lift(E).apply(FullField).interior.values``
-    is ``array_equal`` to ``E.apply(bulk.values)`` (the lift performs no
-    arithmetic), for all three energy bindings and the multiplier."""
+    r"""**G5.2 companion — a STRUCTURAL claim, not cross-validation.** The
+    two admitted bodies of one energy binding compute the SAME numbers:
+    ``lift(E).apply(FullField).interior.values`` is ``array_equal`` to
+    ``E.apply(bulk.values)`` for all three energy bindings and the
+    multiplier. ``BulkLift.apply`` CALLS ``inner.apply``, so this is one
+    implementation seen through the lift — it pins that the lift performs no
+    arithmetic (`[M]` scaling the lifted interior ×2 reds it), not that two
+    independent routes agree (the qa review's F-10)."""
     from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.full_field import FullField
@@ -727,6 +731,32 @@ def test_the_plain_row_and_the_lift_row_agree_on_the_values():
         _bind("C", "composite").apply(psi).interior.values,
         _bind("C", "plain").apply(psi.interior.values),
     )
+
+
+@pytest.mark.parametrize(
+    "energy_cls", [IsotropicScattering, IsotropicN2N, IsotropicFission],
+    ids=["IsoS", "IsoN2N", "F"],
+)
+@pytest.mark.parametrize("shape", [(4, 2), (3, 4)], ids=["spatial-first", "wrong-ng"])
+def test_a_plain_space_whose_leading_axis_is_not_the_group_axis_is_refused(energy_cls, shape):
+    r"""**The plain-scalar admission's SECOND arm, pinned at its own predicate.**
+
+    ``_admit_plain_scalar_ends`` has two arms: (1) a composite end → the
+    refusal naming ``BulkLift``; (2) a plain space whose leading extent is
+    not the group count → *"… wants the ANGULAR binding"*. Until CS4c step 5
+    the ONE arm's witness fed a composite; the step's arm 1 now intercepts
+    that operand first, and the re-key re-pointed the pin — leaving arm 2
+    with `[M]` **zero** ``match=`` pins tree-wide while still reachable
+    (`vv` #17's new-guard-preempts clause; the qa review's F-4). This row
+    reaches arm 2 directly: no composite, no mesh — a plain space of the
+    wrong leading extent on 2-group data.
+    """
+    from orpheus.numerics.space import FunctionSpace
+
+    _dm, mat_xs, _ffs = _diffusion_binding()
+    space = FunctionSpace(name="plain-wrong-leading-axis", shape=shape)
+    with pytest.raises(TypeError, match="ANGULAR binding"):
+        energy_cls.from_material_xs(mat_xs, space=space)
 
 
 def test_no_operator_of_the_family_dispatches_on_the_carrier():

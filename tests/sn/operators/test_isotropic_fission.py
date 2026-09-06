@@ -227,11 +227,16 @@ class TestTranspose:
         r"""The plain binding refuses the composite cotangent — and the
         refusal NAMES a remedy, so this row also checks the remedy is live.
 
-        Post-carve (R-2/R-4) the message no longer says *"that consumer wants
-        the angular binding"*: an energy binding does not bind on a composite
-        at all, and the composite action of one is
-        :class:`~orpheus.transport.operators.lift.BulkLift`'s — which is what
-        the message now names. A refusal that redirects is a claim about the
+        Post-carve (R-2/R-4) the COMPOSITE operand no longer reaches the
+        *"that consumer wants the ANGULAR binding"* arm: an energy binding
+        does not bind on a composite at all, so the plain-scalar admission's
+        FIRST arm intercepts it and names the composite action's home,
+        :class:`~orpheus.transport.operators.lift.BulkLift`. The second arm
+        (a plain space whose leading axis is not the group axis) survives
+        verbatim and is pinned at its own predicate in
+        ``tests/transport/test_kernels.py``
+        (``test_a_plain_space_whose_leading_axis_is_not_the_group_axis_is_refused``)
+        — the qa review's F-4: a displaced arm must keep a direct witness. A refusal that redirects is a claim about the
         redirect (`vv` anti-#26: the message is part of the contract), so the
         positive leg runs the named route and requires it to WORK.
 

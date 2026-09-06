@@ -568,6 +568,30 @@ any other review work.
     check that some other gate still sees it, by mutating the shared
     resolution and confirming *something* reds.
 
+    ⭐ **The shared object need not be BUILT by the test — a cached
+    production PROPERTY of the SUT, reached by both sides, is the same
+    defect.** Everything above assumes the test constructs one input and
+    hands it to both sides. When the reference is a production composite
+    (a frame form, a conjugated product) whose middle factor is the SUT's
+    own cached `isotropic_energy`, both routes read the SAME instance and
+    "neither side calls the other, and the test builds nothing shared" does
+    NOT establish independence. ⟹ enumerate the objects each side READS,
+    cached properties included, and expect the answer to differ per
+    parametrised row — two ids that read as equally strong may not be.
+
+    > `[M]` 2026-09-05, ORPHEUS CS4c step 5 (qa review F-3).
+    > `test_the_l0_conjugation_identity_is_bit_exact_on_the_base[F]`
+    > compares `F.apply(ψ)` against `F.full_fission_kernel.apply(ψ)/W`, and
+    > `full_fission_kernel = conjugate(FissionMomentOperator(self.isotropic_energy))`
+    > — the SAME `IsotropicFission` the fast path applies. Perturbing
+    > `IsotropicFission.apply` by 1e-7: the `[S_L0]` row reds (its reference
+    > builds `LegendreMomentTransfer` from the DATUM), the `[F]` row stays
+    > green. The row still pins `M₀` against `∫ψ dΩ` and `R₀` against the
+    > `/W` broadcast — a real claim — and F's energy binding IS pinned by the
+    > sibling reciprocity row; the defect was the PLAN's pillar ("built by
+    > hand in the test, `frame.conjugate` is NOT called"), which over-claimed
+    > independence the shipped reference does not have.
+
 23. **NEVER** size an A-vs-B **invariance** gate ("the answer is bit-identical
     when knob K is varied") by the breadth of what it computes — **instead**
     enumerate the production lines that **READ K**, and prove the fixture makes
@@ -1293,6 +1317,14 @@ any other review work.
     the catcher's marker SET, and say plainly when an ERR's not-slow coverage is
     **zero**; a `slow`-only catcher is an ERR that needs a second, fast witness
     or an honest catalogue note.
+
+    > `[M]` 2026-09-05, ORPHEUS CS4c step 5 (qa review F-5) — the SAME class
+    > with a TYPE CHECKER as the absent enforcer: the C6 gate's static half
+    > (`_c6_static_typing_pins`, `assert_type` rows "pyright-checked, never
+    > run") is enforced by nothing, because the only pyright gate runs
+    > `pyright orpheus/` and the pins live under `tests/`. `[M]` running
+    > pyright on the file by hand: 1 pre-existing error in a pin nobody had
+    > run (#452). A gate that never RUNS is not only a `slow`-marker shape.
 
     > `[M]` 2026-09-03, ORPHEUS #428 census. ERR-023's ONLY catcher is
     > `tests/mc/test_gaps.py:718` (`slow` + `catches("ERR-023")`). Under the

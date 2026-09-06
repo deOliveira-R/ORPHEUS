@@ -24,7 +24,10 @@ package, not the verbs alone):
   construction under the package is inside
   :func:`~orpheus.transport.operators.lift.lift_bulk_action` (`[M]` 9
   hand spellings of the zero-trace emission before the carve), and no
-  boundary leaf's ``.zeros(`` is spelled by name anywhere under it.
+  boundary leaf's ``.zeros(`` is spelled by name anywhere under it;
+* **no ``getattr(x, "values", …)`` fall-through** — the untyped carrier
+  parse that fails in the DEFAULT's direction (`[M]` 1 helper + 4 uses + 2
+  inline spellings at ``f90f7914``; 0 after R-4).
 
 ⚠ Two filters, validated: the census runs on a SYNTHETIC module carrying
 each shape it must catch (a dispatcher, a lexical carrier arm, a helper
@@ -40,7 +43,9 @@ import pytest
 
 pytestmark = pytest.mark.foundation
 
-_PACKAGE = Path("orpheus/transport/operators")
+#: Anchored on this file, not the CWD — a census whose input resolves to an
+#: empty directory collects 0 rows and reads green (the qa review's F-9).
+_PACKAGE = Path(__file__).resolve().parents[2] / "orpheus" / "transport" / "operators"
 
 #: The carrier vocabulary an ``isinstance`` may not parse (the 20 leaves,
 #: the family bases, the ABC, the composite, the bare array).
@@ -100,7 +105,7 @@ def _census(source: str, module: str) -> dict[str, list[tuple[str, int]]]:
     tree = ast.parse(source)
     found: dict[str, list[tuple[str, int]]] = {
         "dispatcher": [], "carrier_isinstance": [], "full_field_ctor": [],
-        "hand_zero_trace": [],
+        "hand_zero_trace": [], "values_fallthrough": [],
     }
     for func in [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]:
         for deco in func.decorator_list:
@@ -142,6 +147,13 @@ def _census(source: str, module: str) -> dict[str, list[tuple[str, int]]]:
                  or _name_of(node.func.value).endswith("BoundaryFlux"))
         ):
             found["hand_zero_trace"].append((label, node.lineno))
+        # the untyped fall-through `getattr(x, "values", x)` — a carrier parse
+        # that fails in the DEFAULT's direction (coding-standards): 0 allowed.
+        if (
+            _name_of(node.func) == "getattr" and len(node.args) >= 2
+            and isinstance(node.args[1], ast.Constant) and node.args[1].value == "values"
+        ):
+            found["values_fallthrough"].append((label, node.lineno))
     return found
 
 
@@ -157,6 +169,8 @@ class Op:
 def helper(op, psi):
     if isinstance(psi, (ScalarField, np.ndarray)):
         return psi
+def _values_of(phi):
+    return np.asarray(getattr(phi, "values", phi))
 '''
 
 
@@ -167,6 +181,7 @@ def test_the_census_catches_every_shape_it_exists_for():
     assert sorted(f for f, _ in found["carrier_isinstance"]) == ["Op._", "helper"], found
     assert len(found["full_field_ctor"]) == 1, found
     assert len(found["hand_zero_trace"]) == 1, found
+    assert [f for f, _ in found["values_fallthrough"]] == ["_values_of"], found
 
 
 def test_the_carve_outs_are_exempt_only_where_declared():
@@ -200,6 +215,11 @@ def test_no_carrier_dispatch_in(module):
     assert found["hand_zero_trace"] == [], (
         f"{module}: a boundary leaf's .zeros( spelled by name — the trace's "
         f"zero rides the operand's role partner: {found['hand_zero_trace']}"
+    )
+    assert found["values_fallthrough"] == [], (
+        f"{module}: a getattr(x, 'values', …) fall-through regrew — the "
+        f"untyped carrier parse R-4 retired (`[M]` 7 sites at f90f7914): "
+        f"{found['values_fallthrough']}"
     )
 
 

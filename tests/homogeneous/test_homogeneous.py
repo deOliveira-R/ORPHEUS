@@ -163,6 +163,14 @@ def test_kinf_gate_executes_the_plain_multiplier_assembly(monkeypatch):
     that path is on the gate's call graph and load-bearing.
     (``-O``-safe: the monkeypatch is an in-process attribute swap,
     reverted by the fixture; never a ``git checkout``.)
+
+    ⚠ Coverage shift, stated: ``test_kinf_exact`` no longer witnesses
+    ``MultiplicationOperator.apply`` at all (`[M]` 2026-09-05, perturbing
+    ``apply`` ×1.5 over this tree reds two STRUCTURAL rows in
+    ``test_operator_spaces.py`` and no k∞ value gate). The plain binding's
+    ``apply`` is pinned by the 33-cell ends→body fence
+    (``tests/transport/test_kernels.py``) and by those two rows — do not read
+    the k∞ anchor as covering it.
     """
     from orpheus.transport.operators.multiplication_operator import (
         MultiplicationOperator,

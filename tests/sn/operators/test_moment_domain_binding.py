@@ -347,36 +347,38 @@ class TestTransposeReciprocity:
         )
 
     def test_the_reciprocity_row_has_teeth(self, solver, sn_mesh):
-        r"""NEGATIVE leg (`vv` #11 / #19): the FORWARD applied to χ breaks it.
+        r"""NEGATIVE leg (`vv` #11 / #19): a WRONG transpose of the SAME shape
+        breaks the pairing by O(1).
 
         A positive reading of reciprocity is compatible with a transpose that
-        is blind to the group axis; the discriminating reading is the one under
-        a deliberately wrong operator. Here the wrong operator is the forward
-        itself — but the forward does not even accept the angular cotangent's
-        composite (the ends select the carrier), so the honest control is the
-        ANGULAR binding's transpose fed the same χ: it is a different map, and
-        pairing against the moment operand must move.
+        is blind to the group axis, so the discriminating reading is the one
+        under a deliberately wrong operator. The wrong operator here is the
+        moment sibling's own transpose with its GROUP axis reversed — the
+        same shape, the same cotangent, one convention flipped. The fixture's
+        ``SigS`` is asymmetric per material (`[M]` mixture A
+        ``[[0.38, 0.10], [0.05, 0.90]]``) and the two materials differ, so the
+        flip must move the pairing far outside the reciprocity tolerance.
+        (Re-keyed 2026-09-05: the first spelling compared a signed pairing
+        against a squared NORM — two quantities that cannot coincide, so the
+        row was green under every mutation of the transpose; the qa review's
+        F-1.)
         """
-        S = solver.scattering_op
-        moments, chi_values, forward, _ = self._pairing(solver, sn_mesh, 7)
-        chi = AngularSourceSink(
-            values=chi_values, space=S.codomain.interior_space,
-        )
-        wrong = S.apply_transpose(
-            zero_trace_composite(chi, S.codomain.trace_space),
-        )
+        moments, chi_values, forward, back = self._pairing(solver, sn_mesh, 7)
         lhs = float(np.sum(np.asarray(forward.interior.values) * chi_values))
-        # ⟨m, Sᵀχ⟩ with the ANGULAR transpose: the shapes differ (per-ordinate
-        # vs moment), so the honest contrast is the pairing that CAN be formed
-        # — against the angular operand the moments came from.
-        wrong_pairing = float(
-            np.sum(np.asarray(wrong.interior.values) ** 2),
+        back_values = np.asarray(back.interior.values)
+        group_axis = len(back.interior.head.shape)  # the head's axes lead; then ng
+        wrong_back = np.flip(back_values, axis=group_axis)
+        rhs_wrong = float(np.sum(np.asarray(moments.values) * wrong_back))
+        require(
+            abs(lhs) > 1e-6,
+            "the pairing is ≈ 0 — the negative leg carries no information.",
         )
         require(
-            abs(lhs - wrong_pairing) > 1e-6 * abs(lhs),
-            "the angular transpose's pullback is indistinguishable from the "
-            "moment sibling's pairing — the fixture cannot see which end a "
-            "transpose came from.",
+            abs(lhs - rhs_wrong) > 1e-3 * abs(lhs),
+            f"a group-flipped transpose still closes the pairing (lhs {lhs:.6e}, "
+            f"flipped rhs {rhs_wrong:.6e}) — the fixture cannot see the group "
+            f"convention of the transpose, and the reciprocity row above is "
+            f"blind to a flipped Σ_{{s,0}}ᵀ.",
         )
 
     def test_the_cotangent_lands_on_the_domains_own_end(self, solver, sn_mesh):
@@ -523,17 +525,58 @@ class TestAdmission:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+def _sn_mesh_with_n2n() -> SNMesh:
+    r"""The fixture's geometry over a 2-group mixture that CARRIES an (n,2n)
+    channel (``sig_2`` non-zero) — mixture A/B have none, so on the module
+    fixture ``N2N`` is honestly the zero morphism (`[M]` ``is_isotropic``
+    True, emission ``max|·| = 0.0``) and a row comparing its two ends
+    compares 0.0 with 0.0 (the qa review's F-2)."""
+    from orpheus.derivations.common.xs_library import make_mixture
+
+    sig_s = np.array([[0.38, 0.10], [0.05, 0.90]])
+    sig_2 = np.array([[0.02, 0.01], [0.0, 0.03]])       # asymmetric, non-zero
+    sig_t = np.array([0.90, 1.40])
+    mix = make_mixture(
+        sig_t=sig_t, sig_c=sig_t - sig_s.sum(axis=1) - sig_2.sum(axis=1),
+        sig_f=np.zeros(2), nu=np.zeros(2), chi=np.zeros(2),
+        sig_s=sig_s, sig_2=sig_2,
+    )
+    mat = np.zeros((_NX, _NY), dtype=int)
+    mesh = Mesh2D(
+        edges_x=np.linspace(0.0, 2.0, _NX + 1),
+        edges_y=np.linspace(0.0, 1.0, _NY + 1),
+        mat_map=mat,
+        bc_xmin=BC.vacuum, bc_xmax=BC.vacuum,
+        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+    )
+    return SNMesh(mesh, Quadrature.level_symmetric(sn_order=4), {0: mix})
+
+
 class TestTheOtherLifts:
-    def test_the_n2n_sibling_constructs_and_agrees_across_the_ends(
-        self, solver, sn_mesh,
-    ):
+    def test_the_n2n_sibling_constructs_and_agrees_across_the_ends(self):
         r""":math:`N_{2n}` has a live windowed consumer — the driver hands the
         windowed SI BOTH gains (``S.on_moment_domain()``,
-        ``N2N.on_moment_domain()``), so this row carries the same weight as
-        ``S``'s."""
-        N = solver.n2n_op
+        ``N2N.on_moment_domain()``) — so its two ends must agree like ``S``'s.
+
+        On a datum that CARRIES the channel (see :func:`_sn_mesh_with_n2n`;
+        the module fixture's mixtures have none). The (n,2n) stack here is
+        :math:`P_0` only, so the :math:`\ell \ge 1` body is honestly absent
+        on both ends (``is_isotropic`` True — the D3 finding: the body runs
+        iff the DATUM carries a moment above :math:`\ell = 0`); the row pins
+        the :math:`\ell = 0` lift across the ends, with an ACTIVATION leg so
+        a zero morphism cannot pass it.
+        """
+        sn = _sn_mesh_with_n2n()
+        N = SNSolver(sn, scattering_order=_L).n2n_op
         N_w = N.on_moment_domain()
-        psi = _psi(sn_mesh, seed=31)
+        psi = _psi(sn, seed=31)
+        angular = np.asarray(bulk_apply(N, psi).values)
+        require(
+            float(np.abs(angular).max()) > 0.0,
+            "the (n,2n) lift emitted nothing on a datum that carries the "
+            "channel — the row would compare 0.0 with 0.0.",
+        )
+        require(N.is_isotropic, "the fixture's (n,2n) stack is P0 — declared")
         moments = N.flux_analysis.apply(psi)
         np.testing.assert_array_equal(
             np.asarray(
@@ -541,7 +584,7 @@ class TestTheOtherLifts:
                     zero_trace_composite(moments, N_w.domain.trace_space),
                 ).interior.values,
             ),
-            np.asarray(bulk_apply(N, psi).values),
+            angular,
             err_msg="the (n,2n) moment sibling drifted from its angular "
                     "binding.",
         )

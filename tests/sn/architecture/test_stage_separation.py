@@ -109,10 +109,18 @@ def _is_the_records_gain_rebound_on_the_iterate(driver_gain, record_gain) -> boo
 
     if not isinstance(record_gain, AngularLift) or type(driver_gain) is not type(record_gain):
         return False
+    # The datum + the two faces, by NAME — a rename must red this gate, not
+    # degrade it (an `if hasattr` here would let `all([])` read True).
+    datum_fields = ("transfer", "flux_analysis", "source_reconstruction")
+    missing = [f for f in datum_fields if not hasattr(record_gain, f)]
+    if missing:
+        pytest.fail(
+            f"the record's gain {type(record_gain).__name__} lacks "
+            f"{missing} — the re-binding predicate names fields that no "
+            f"longer exist; re-key it, do not weaken it."
+        )
     same_datum = all(
-        getattr(driver_gain, f) is getattr(record_gain, f)
-        for f in ("transfer", "flux_analysis", "source_reconstruction")
-        if hasattr(record_gain, f)
+        getattr(driver_gain, f) is getattr(record_gain, f) for f in datum_fields
     )
     trace = record_gain.domain.trace_space if isinstance(record_gain.domain, FullFieldSpace) else None
     return (
