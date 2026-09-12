@@ -1558,3 +1558,48 @@ or `compare`, find the predicate's `is` comparisons, list which operands are
 `Optional`, and run it on the `None` arm AND on a same-data rebuild. Sibling of
 L-010 (a signed selector has a third bucket) — here the third bucket is `None`.
 Report both results as `[M]` with the fixture (d, quadrature, edges).
+
+---
+
+## L-042 -- Dataclass introspection LIES about hashability/equality of array-bearing records — only `hash(x)` / `x == y` at runtime answer; and a 1-element array makes the generated `__eq__` pass silently
+
+`[M]` 2026-09-12 (identity-step census, `scratch/_consumers/explorer_identity_step_census.md` §4).
+Introspecting `__dataclass_params__` + `'__hash__' in cls.__dict__` reported `own __hash__ = fn`
+for `Mesh1D`, `AxisMesh`, `DiscreteMeasure`, `LevelStructure`, `BC` — every one a
+`frozen=True, eq=True` dataclass whose GENERATED hash tuples the fields and RAISES
+(`unhashable type: 'numpy.ndarray'` / `'list'` / `'dict'`), and whose generated `__eq__` raises
+`ValueError: truth value of an array` on any ≥2-element array field. A flag table built from
+introspection would have read "hashable, comparable" for 5 of 9 generating data types; the
+runtime probe read RAISES for all 5. Second trap in the same probe: `Mixture(ng=1) == Mixture(ng=1)`
+returns `True` (every array has one element, so `bool(arr == arr)` is legal) while ng ≥ 2 raises —
+a 1-group fixture is a FALSE GREEN for any equality gate.
+
+How to apply: on any "does X have content equality / is X hashable" question, construct two
+same-data instances and run `a == b`, `a == a`, `hash(a)` — three lines per type — and put the
+RAISES verdicts in the table beside the flags. Use an ng ≥ 2 / n ≥ 2 fixture. Report the flag
+reading only as "what introspection says", never as the verdict. Companion to L-041 (probe the
+predicate on the `None` arm and a same-data rebuild): together they say identity is a RUNTIME
+question at every tier — the predicate's arms AND each constituent's dunders.
+
+## L-043 -- A kwarg's census for a "where does it LIVE / does the entry keep it" fork is a RECEIVER split of AST keyword call sites, not a line count — and the clamp of a value is a per-ENTRY fact (L-024's rule, applied to a clamp)
+
+`[M]` 2026-09-12, `scattering_order`. Line-grep read 183 "kwarg" lines in `tests/`; the AST keyword
+census read **148** call sites — the 35 extra lines were prose (`scattering_order = 1` in docstrings)
+and multi-line signature echoes. What the design fork actually consumes is the split BY RECEIVER
+(`SNSolver` 44/25 files, `solve_sn_fixed_source` 24, `solve_sn` 21, `from_solver_data` 18+4,
+`dict(...)` forwards 16, test helpers 14, adjoint entries 3): each row answers "if THIS signature
+drops the kwarg, how many sites move". A homonym surfaced only through the receiver column — 54
+`La13511Case(scattering_order=…)` sites are a derivations RECORD FIELD, not the solver kwarg (L-037's
+same-name field/method split, here field/kwarg). And the value's CLAMP (`min(L, min len(SigS)-1)`)
+sits on `SNSolver.__init__` only: the two ADJOINT entries route through `_adjoint_posing_parts` →
+`build_within_group_system` → `TransferKernel.at_order`, which PADS with zeros above the stored
+order — so the "same" request is clamped on one entry and padded on another, and DSA receives the
+RAW request before the solver clamps. Three spellings of "the retained order" found only by tracing
+each entry to the consumer of the value.
+
+How to apply: for any "move knob X onto object Y" brief, (1) AST keyword census → receiver table
+with file counts; (2) for each receiver, trace the VALUE to the site that transforms it (clamp /
+pad / gate) and report per entry whether the transform is applied — a knob "lives" wherever it is
+last transformed, and if that differs per entry the move is also a twin-path repair; (3) grep the
+string class (`"X"` in dicts/`cfg.get`) separately — the regression cfg table and a kwargs-dict
+forward are the members a keyword census cannot see.

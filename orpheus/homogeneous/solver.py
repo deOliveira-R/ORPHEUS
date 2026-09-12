@@ -18,8 +18,10 @@ operators built on them — as cached, per-instance state the solver reads
 off. The loss operator ``A = C − K_iso`` is the collision diagonal
 C = diag(Σ_t) minus the model-shared isotropic energy operators
 ``IsotropicScattering`` (Σ_s0ᵀ) and ``IsotropicN2N`` (2·Σ₂ᵀ); streaming L
-is identically zero in an infinite medium and is dropped — and the
-multiplication operator is the composition
+is identically zero in an infinite medium and is dropped. The problem's
+TERMINAL OBJECT is the pencil ``(A, F)`` (R-cc2/R-cc5, 2026-09-12: a
+Problem builds its pencil as its last step; how the pencil is inverted
+is the Strategy's). The solver composes the resolvent
 ``K = MatrixInverseOperator(A) @ F`` (one eager LU factorization at
 construction; the first production consumer of the dense direct inverse),
 whose materialization feeds the shared Perron–Frobenius extraction
@@ -193,9 +195,11 @@ class HomogeneousProblem:
       space nothing checks is unspellable here;
     * the bound operators on the pose — :attr:`collision`,
       :attr:`isotropic_transfer` (``IsoS + IsoN2N``), :attr:`loss`
-      (``C − K_iso``), :attr:`production` (the fission dyad) and the
-      multiplication operator :attr:`multiplication` (``A⁻¹F``, one eager
-      LU at construction) — and the typed reaction-rate co-vectors
+      (``C − K_iso``) and :attr:`production` (the fission dyad) — the
+      PENCIL ``(A, F)``, the problem's terminal object; the resolvent
+      ``A⁻¹F`` is the SOLVER's composition, a Strategy choice, and lives
+      on no hub (R-cc5, 2026-09-12 — until then a ``multiplication``
+      property held it here) — and the typed reaction-rate co-vectors
       :attr:`production_rate` / :attr:`absorption_rate`.
 
     **State.** Every consumed object is a ``cached_property`` — minted once
@@ -314,7 +318,7 @@ class HomogeneousProblem:
         Streaming :math:`L` is identically zero in an infinite medium and
         dropped. Returned UN-materialized (an
         :class:`~orpheus.numerics.operator.OperatorSum`) — the consumer
-        chooses the realization: :attr:`multiplication` hands it to
+        chooses the realization: the solver hands it to
         :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`,
         whose constructor materializes it through the operator's own
         :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` (the
@@ -328,18 +332,6 @@ class HomogeneousProblem:
     def production(self) -> IsotropicFission:
         r"""The fission production dyad :math:`F = \chi \otimes \nu\Sigma_f` on the pose."""
         return IsotropicFission(self.fission, domain=self.space, codomain=self.space)
-
-    @cached_property
-    def multiplication(self) -> "OperatorProduct":
-        r"""The multiplication operator :math:`K = A^{-1} F`, spelled in the algebra.
-
-        ``MatrixInverseOperator(loss) @ production`` — one eager LU
-        factorization at construction, the realization the exactly-solvable
-        0-D problem earns (the structure-keyed ``loss.inverse()`` would
-        return the ITERATIVE splitting; constructing the matrix inverse
-        explicitly IS the strategy choice) — composed with the fission dyad.
-        """
-        return MatrixInverseOperator(self.loss) @ self.production
 
     # ── the reaction-rate co-vectors ───────────────────────────────────
     @cached_property
@@ -356,9 +348,10 @@ class HomogeneousProblem:
 def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     r"""Solve the infinite-medium eigenvalue problem for a homogeneous mixture.
 
-    Spells the multiplication operator :math:`\mathbf{K} =
+    Composes the multiplication operator :math:`\mathbf{K} =
     \mathbf{A}^{-1}\mathbf{F}` in the operator algebra itself —
-    ``K = MatrixInverseOperator(loss) @ production`` — from the loss
+    ``K = MatrixInverseOperator(problem.loss) @ problem.production``, the
+    Strategy's act on the problem's pencil (R-cc5) — from the loss
     operator :math:`\mathbf{A} = C - K_\mathrm{iso} =
     \operatorname{diag}(\Sigma_t) - \Sigma_{s0}^{T} - 2\Sigma_2^{T}`
     (model-shared transport operators on the problem's own hub,
@@ -397,7 +390,13 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # of the complex-rejection + sign convention).  The 0-D infinite-medium
     # spectrum is exactly solvable, so the dense direct engine is the right
     # tool, not an iterative approximation.
-    k_inf, phi = dominant_eigenpair(problem.multiplication.as_matrix())
+    # The STRATEGY: invert the pencil by an explicit dense inverse — one eager
+    # LU factorization at construction, the realization the exactly-solvable
+    # 0-D problem earns (the structure-keyed ``loss.inverse()`` would return
+    # the ITERATIVE splitting; constructing the matrix inverse explicitly IS
+    # the strategy choice, which is why it lives here and not on the hub).
+    multiplication = MatrixInverseOperator(problem.loss) @ problem.production
+    k_inf, phi = dominant_eigenpair(multiplication.as_matrix())
 
     # The reaction rates are the typed integrated co-vectors ⟨Σx, ·⟩
     # (IntegratedReactionRate — EE-1, landed CS4b S7): production (νΣf)

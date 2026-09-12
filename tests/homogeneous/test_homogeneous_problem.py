@@ -55,7 +55,7 @@ _CONSUMED = (
     "space", "layout", "scattering", "n2n", "fission",
     "total_cross_section_field", "absorption_cross_section_field", "fission_production_field",
     "collision", "isotropic_scattering", "isotropic_n2n", "isotropic_transfer",
-    "loss", "production", "multiplication", "production_rate", "absorption_rate",
+    "loss", "production", "production_rate", "absorption_rate",
 )
 
 
@@ -106,7 +106,7 @@ def test_H3_every_field_is_born_on_the_pose_and_every_operator_ends_on_it(groups
         _require(isinstance(field, CrossSectionField), f"{name} is a CrossSectionField")
         _require(field.space is pose, f"{name} was not born on the pose (space is not the hub's)")
         _require(field.values.shape == pose.shape, f"{name} shape {field.values.shape} != pose {pose.shape}")
-    for name in ("collision", "isotropic_scattering", "isotropic_n2n", "isotropic_transfer", "loss", "production", "multiplication"):
+    for name in ("collision", "isotropic_scattering", "isotropic_n2n", "isotropic_transfer", "loss", "production"):
         op = getattr(problem, name)
         _require(op.domain is pose and op.codomain is pose, f"{name}'s ends are not the hub's pose (by identity)")
     # the values are the mixture's, verbatim
@@ -158,8 +158,25 @@ def test_H5_the_hub_constructs_no_material_mesh(monkeypatch: pytest.MonkeyPatch)
     problem = HomogeneousProblem(get_mixture("A", "2g"))
     for name in _CONSUMED:
         getattr(problem, name)
-    problem.multiplication.as_matrix()
+    problem.loss.as_matrix()
+    problem.production.as_matrix()
     _require(len(calls) == 0, f"the hub constructed {len(calls)} MaterialMesh objects — O1's honest pose fabricates nothing")
+
+
+def test_R5_the_hub_owns_the_pencil_and_no_inverse_of_it() -> None:
+    """R-cc5 (2026-09-12): the problem's terminal object is the PENCIL
+    ``(loss, production)``; how it is inverted is the Strategy's, so no
+    resolvent lives on the hub. Unspellable, not merely unused: the name
+    ``multiplication`` is absent from the class (re-adding it reddens this),
+    and the solver's answer is reproduced from the pair alone."""
+    from orpheus.numerics.eigenvalue import dominant_eigenpair
+    from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+
+    mix = get_mixture("A", "2g")
+    problem = HomogeneousProblem(mix)
+    _require(not hasattr(HomogeneousProblem, "multiplication"), "the hub carries a resolvent — a Strategy object on the Problem")
+    k_from_pair, _ = dominant_eigenpair((MatrixInverseOperator(problem.loss) @ problem.production).as_matrix())
+    _require(k_from_pair == solve_homogeneous_infinite(mix).k_inf, "the solver's k_inf is not the pencil's dominant eigenvalue")
 
 
 def test_the_hub_is_exported_and_is_a_function_space_owner() -> None:

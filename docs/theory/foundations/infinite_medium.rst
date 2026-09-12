@@ -1375,16 +1375,18 @@ is sign-normalised to non-negative components.
 
 Both steps are spelled in the **operator algebra** rather than posed as a
 dense ``(A, F)`` pair, and since the CS4c coda the spelling lives on the
-hub.  The solver's own body is then two lines — build the problem, take
-the eigenpair:
+hub.  The solver's own body is then three lines — build the problem,
+compose the resolvent of its pencil, take the eigenpair:
 
 .. code-block:: python
 
    problem = HomogeneousProblem(mix)
-   k_inf, phi = dominant_eigenpair(problem.multiplication.as_matrix())
+   multiplication = MatrixInverseOperator(problem.loss) @ problem.production   # the Strategy
+   k_inf, phi = dominant_eigenpair(multiplication.as_matrix())
 
-with the algebra itself held as cached properties of the problem, each
-posed on the one space
+with the PENCIL — the problem's terminal object, the pair
+:math:`(\mathbf{A}, \mathbf{F})` — held as cached properties of the
+problem, each posed on the one space
 :attr:`~orpheus.homogeneous.solver.HomogeneousProblem.space`:
 
 .. code-block:: python
@@ -1392,7 +1394,14 @@ posed on the one space
    # orpheus/homogeneous/solver.py — HomogeneousProblem
    loss           = collision - (isotropic_scattering + isotropic_n2n)   # A = C − K_iso
    production     = IsotropicFission(fission, domain=space, codomain=space)   # F = χ ⊗ νΣ_f
-   multiplication = MatrixInverseOperator(loss) @ production             # K = A⁻¹F
+
+The resolvent :math:`\mathbf{K} = \mathbf{A}^{-1}\mathbf{F}` is NOT a
+property of the problem: *how* the pencil is inverted is a Strategy
+choice (the consumers campaign's ruling R-cc2/R-cc5, 2026-09-12 — a
+Problem builds its pencil as its last step; a resolvent picks an
+inversion of it), so the composition lives in the solver. (Until
+2026-09-12 the hub carried it as a ``multiplication`` property — its own
+docstring already called the explicit inverse "the strategy choice".)
 
 (The operators pose on the MIXTURE-MINTED Energy ⊗ point space — the
 problem's own physics names its space, :doc:`spaces` — and since the coda
@@ -1426,7 +1435,7 @@ space to derive it from.)
 :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
 materializes and LU-factors the loss operator **once** at construction; the
 ``@`` composes it with the fission dyad into the multiplication operator
-:math:`\mathbf{K}`.  Its
+:math:`\mathbf{K}` — in the solver, on the problem's pencil.  Its
 :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` then walks the
 :math:`G` basis columns — each column is one dyad apply
 :math:`\mathbf{F}\mathbf{e}_j` followed by one LU backsolve
@@ -2202,7 +2211,9 @@ hash, and ``git`` outranks this column.
        the two isotropic transfers and their sum,
        :attr:`~orpheus.homogeneous.solver.HomogeneousProblem.loss`,
        :attr:`~orpheus.homogeneous.solver.HomogeneousProblem.production`,
-       :attr:`~orpheus.homogeneous.solver.HomogeneousProblem.multiplication`);
+       and — until 2026-09-12 — a ``multiplication`` resolvent, moved to
+       the solver by the consumers campaign's R-cc5: a resolvent is a
+       Strategy object, the hub owns the PENCIL);
        and the two typed rate co-vectors.
        :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`
        became a thin reader.  Three things retired in the same commit:
