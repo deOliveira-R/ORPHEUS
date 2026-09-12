@@ -1,6 +1,6 @@
 r"""Consumers campaign step 1 — the PRE-CARVE anchors for ``Mixture``'s identity.
 
-Landed on the UNMODIFIED tree, before the first production edit of the
+Landed on the UNMODIFIED tree (`31b632c3`), before the first production edit of the
 identity step (plan ``.claude/plans/cs4c_binding_design.md`` §27, rulings
 **R-cc3** / **R-cc8** / **R-cc9**; GitHub **#459**), so every row here is a
 measurement of the tree the carve starts from.
@@ -13,16 +13,14 @@ three (§27's "one definition, three fixes").
 **Two claim kinds live here and they have OPPOSITE fates — read the class
 docstring before touching a row.**
 
-* :class:`TestTodaysMixtureEqualityIsNotContentEquality` — **RECORD** of a
-  state the carve DELETES. Green today, designed to RED at the carve; the
-  carve's commit deletes the class. Its value is that it makes the API
-  change LOUD: without it, the ``xfail`` rows below could silently stay
-  ``xfail`` if the new ``__eq__`` lands wrong (``vv`` Mode 8, the
-  misattributed-strict-xfail class).
+* ``TestTodaysMixtureEqualityIsNotContentEquality`` — the **RECORD** of the
+  state the carve deleted (the raising default equality, the ng = 1 false
+  green, unhashability, mutability). It was green on the pre-carve tree
+  and DELETED in the S1a commit with its subject, as its docstring asked.
 * :class:`TestContentIdentity` and :class:`TestMutabilityIsTheHashHazard`
-  — the RULED post-carve gates, shipped as ``xfail(strict=True)`` so the
-  marker set is a self-retiring todo list. Their XPASS is a FAILURE, which
-  is what forces the marker's deletion in the carve's own commit.
+  — the RULED post-carve gates, shipped PRE-carve as ``xfail(strict=True)``
+  (a self-retiring todo list) and turned GREEN in S1a, which deleted the
+  markers; O-4 was ruled FROZEN, so the hazard row asserts the freeze.
 
 ⚠ **The ng = 1 trap, measured.** ``[M]`` ``Mixture(ng=1) == Mixture(ng=1)``
 returns ``True`` TODAY — every field array holds one element, so
@@ -120,76 +118,6 @@ _PERTURBABLE = (
 
 
 # ════════════════════════════════════════════════════════════════════
-# RECORD — today's state, which the carve DELETES
-# ════════════════════════════════════════════════════════════════════
-
-
-class TestTodaysMixtureEqualityIsNotContentEquality:
-    """RECORD of the defect #459 removes. Designed to RED at the carve.
-
-    Delete this class in the commit that gives ``Mixture`` a content
-    ``__eq__``/``__hash__``; do not "repair" it. Its whole job is to make
-    the API change impossible to land quietly — the ``xfail`` rows below
-    are silent if the new equality lands wrong, and these are not.
-    """
-
-    def test_equal_data_RAISES_at_two_groups_and_above(self) -> None:
-        r"""``[M]`` 2026-09-12: ``ValueError: truth value of an array …`` at ng = 2 and 4.
-
-        The generated ``__eq__`` compares the field TUPLE; the first ndarray
-        field reaches ``bool(array)`` and raises. This is the defect: a
-        comparison that cannot even RETURN, hidden behind a 1-group arm that
-        accidentally works.
-        """
-        for groups, ng in (("2g", 2), ("4g", 4)):
-            a, b = _fresh(groups=groups), _fresh(groups=groups)
-            _require(a.ng == ng, f"activation: the {groups} fixture must have ng == {ng}")
-            with pytest.raises(ValueError, match="truth value of an array"):
-                a == b  # noqa: B015  # pyright: ignore[reportUnusedExpression]
-
-    def test_the_one_group_arm_is_the_trap_not_the_contract(self) -> None:
-        r"""``[M]`` ng = 1 returns ``True`` — accidentally, not by design.
-
-        Every field array holds ONE element, so ``bool(array)`` succeeds and
-        the dataclass default behaves like a content comparison. A gate
-        written here would be green before AND after #459 and would prove
-        nothing (``vv`` #19 — the reading that cannot change).
-        """
-        a, b = _fresh(groups="1g"), _fresh(groups="1g")
-        _require(a.ng == 1, "activation: this row is ABOUT the degenerate group count")
-        _require(a is not b, "the two mixtures must be distinct objects")
-        _require(a == b, "today's ng = 1 arm returns True for equal data")
-        _require(not (a == _fresh("C", "1g")), "and False for different data")
-
-    def test_mixture_is_unhashable(self) -> None:
-        r"""``[M]`` ``TypeError: unhashable type: 'Mixture'`` at every group count.
-
-        ``@dataclass`` with the default ``eq=True`` sets ``__hash__ = None``.
-        So a ``Mixture`` cannot be a dict key, a set member, or part of any
-        other object's hash — which is why ``HomogeneousProblem.__hash__``
-        currently hashes ``id(self.mixture)``.
-        """
-        for groups in ("1g", "2g", "4g"):
-            with pytest.raises(TypeError, match="unhashable type"):
-                hash(_fresh(groups=groups))
-
-    def test_mixture_is_mutable_today(self) -> None:
-        r"""``[M]`` a ``Mixture`` accepts post-construction assignment.
-
-        Not a defect on its own — but it is the reason a CACHED content key
-        is unsound without a freeze, and the reason
-        :class:`TestMutabilityIsTheHashHazard` exists. ``[M]`` 33 sites in
-        14 test files assign ``mix.SigS`` / ``.Sig2`` / ``.SigT`` after
-        construction; 0 in ``orpheus/``.
-        """
-        mix = _fresh()
-        before = float(mix.SigT[0])
-        mix.SigT = np.asarray(mix.SigT, dtype=float).copy()
-        mix.SigT[0] = before + 1.0
-        _require(float(mix.SigT[0]) == before + 1.0, "Mixture is not frozen today")
-
-
-# ════════════════════════════════════════════════════════════════════
 # The RULED post-carve gates — strict xfail, a self-retiring todo list
 # ════════════════════════════════════════════════════════════════════
 
@@ -203,7 +131,6 @@ class TestContentIdentity:
     can fail and it is the documented one (``vv`` Mode 8, fourth class).
     """
 
-    @pytest.mark.xfail(strict=True, reason=_RULING)
     @pytest.mark.parametrize("groups,ng", [("2g", 2), ("4g", 4)])
     def test_equal_data_compares_equal_and_hashes_equal(self, groups: str, ng: int) -> None:
         """The POSITIVE control — two independent builds of one mixture."""
@@ -216,7 +143,6 @@ class TestContentIdentity:
         pair = {a, b}  # pyright: ignore[reportUnhashable]
         _require(len(pair) == 1, "a set of two equal mixtures holds one member")
 
-    @pytest.mark.xfail(strict=True, reason=_RULING)
     @pytest.mark.parametrize("field", _PERTURBABLE)
     def test_one_moved_datum_reads_unequal(self, field: str) -> None:
         """The per-datum NEGATIVE legs — one flip per generating datum.
@@ -231,7 +157,6 @@ class TestContentIdentity:
         _require(base.ng == 2, "activation: the raise-arm group count")
         _require(not (base == moved), f"moving {field} must make the mixtures unequal")
 
-    @pytest.mark.xfail(strict=True, reason=_RULING)
     def test_the_p1_block_is_in_the_key(self) -> None:
         """``SigS[1]`` alone moved — the row a ``stack[0]``-only key fails.
 
@@ -246,7 +171,6 @@ class TestContentIdentity:
             "a key that hashes only the P0 block cannot see a P1 change",
         )
 
-    @pytest.mark.xfail(strict=True, reason=_RULING)
     def test_the_energy_grid_is_in_the_key(self) -> None:
         """``eg`` — the field ``[M]`` ``None`` on all 12 abstract fixtures.
 
@@ -305,18 +229,22 @@ class TestMutabilityIsTheHashHazard:
     which is the state that must not ship.
     """
 
-    @pytest.mark.xfail(strict=True, reason=f"{_RULING}; open ruling O-4 (freeze vs live key)")
     def test_the_hash_cannot_go_stale(self) -> None:
+        """O-4 RULED (2026-09-12): FROZEN. A field write and an in-place array
+        write are both refused, so the cached key can never be stale."""
+        import dataclasses
+
         mix = _fresh(groups="2g")
         before = hash(mix)
-        try:
-            moved = np.asarray(mix.SigT, dtype=float).copy()
-            moved[0] = moved[0] + 0.125
-            mix.SigT = moved
-        except Exception:
-            return  # frozen — the other honest outcome
-        _require(
-            hash(mix) != before,
-            "a cached content hash over a mutable Mixture is stale after a field write; "
-            "freeze the datum (O-4) or derive the hash live",
-        )
+        moved = np.asarray(mix.SigT, dtype=float).copy()
+        moved[0] = moved[0] + 0.125
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            mix.SigT = moved  # type: ignore[misc]
+        with pytest.raises(ValueError, match="read-only"):
+            mix.SigT[0] = moved[0]
+        with pytest.raises(ValueError, match="read-only"):
+            mix.SigS[0].data[0] = 999.0
+        _require(hash(mix) == before, "the key moved without the data moving")
+        # the honest way to a variant: replace re-runs the laws and mints a NEW value
+        twin = replace(mix, SigT=moved)
+        _require(twin != mix and hash(twin) != before, "replace must mint a different value")

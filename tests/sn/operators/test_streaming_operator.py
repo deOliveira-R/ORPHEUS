@@ -62,6 +62,7 @@ from tests.sn._test_helpers import placeholder_materials, radial_characteristic_
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
+from dataclasses import replace
 
 pytestmark = pytest.mark.foundation
 
@@ -638,7 +639,7 @@ def _slab_for_snapshot_arm(*, ng: int, bc_left: BC, bc_right: BC) -> SNMesh:
             chi=np.array([1.0, 0.0]),
             sig_s=p0,
         )
-        mix.SigS = [csr_matrix(p0), csr_matrix(p1)]
+        mix = replace(mix, SigS=[csr_matrix(p0), csr_matrix(p1)])
 
     mesh = Mesh1D(
         edges=np.linspace(0.0, 4.0, 21),

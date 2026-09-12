@@ -53,6 +53,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver, _as_sn_mesh
 from orpheus.transport.mesh.axis import AxisMesh
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
+from dataclasses import replace
 
 pytestmark = pytest.mark.foundation
 
@@ -114,8 +115,7 @@ def _mixture_with_n2n():
 
     fuel = copy.deepcopy(get_mixture("A", "2g"))
     sig2 = np.array([[0.0, 0.03], [0.01, 0.0]])
-    fuel.Sig2 = [csr_matrix(sig2)]
-    fuel.SigT = np.asarray(fuel.SigT) + sig2.sum(axis=1)
+    fuel = replace(fuel, Sig2=[csr_matrix(sig2)], SigT=np.asarray(fuel.SigT) + sig2.sum(axis=1))
     return fuel
 
 

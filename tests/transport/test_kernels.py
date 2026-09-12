@@ -352,12 +352,18 @@ def test_kernel_does_not_alias_the_carrier_cache():
     with pytest.raises(ValueError):
         cache[0][0, 0] += 999.0  # the F4 reach, now REFUSED at the producer
 
+    # Since S1a (2026-09-12) the SOURCE is a VALUE: a Mixture stores read-only
+    # copies of its arrays, so the mutation this row used to make ("the kernel
+    # copied at construction") is REFUSED at the source; leg 1 above (a
+    # different object) is what proves the kernel is not a view of the mixture.
     before = kernel.p0[0, 0]
-    mixtures[0].SigS[0].data[:] += 999.0  # mutate the sparse SOURCE instead
-    assert kernel.p0[0, 0] == before  # ...the kernel copied at construction
+    with pytest.raises(ValueError, match="read-only"):
+        mixtures[0].SigS[0].data[:] += 999.0  # the sparse SOURCE is read-only
+    assert kernel.p0[0, 0] == before  # ...and the kernel's own (write-protected) copy did not move
 
     sig_p_before = fission.nu_sig_f[0]
-    mixture.SigP[0] += 999.0  # mutate the SOURCE — must not reach the kernel
+    with pytest.raises(ValueError, match="read-only"):
+        mixture.SigP[0] += 999.0  # the dense SOURCE is read-only
     assert fission.nu_sig_f[0] == sig_p_before
 
 

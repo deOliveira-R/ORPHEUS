@@ -84,6 +84,7 @@ from tests.sn._test_helpers import (
     g_trace_cosine_weight,
     placeholder_materials,
 )
+from dataclasses import replace
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -690,8 +691,7 @@ def _mix_2g(p0: np.ndarray, p1: np.ndarray, sig2: np.ndarray):
         sig_f=np.array([0.0, 0.0]), nu=np.array([0.0, 0.0]),
         chi=np.zeros(2), sig_s=p0,
     )
-    m.SigS = [csr_matrix(p0), csr_matrix(p1)]
-    m.Sig2 = [csr_matrix(sig2)]
+    m = replace(m, SigS=[csr_matrix(p0), csr_matrix(p1)], Sig2=[csr_matrix(sig2)])
     return m
 
 

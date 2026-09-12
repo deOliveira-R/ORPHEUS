@@ -49,6 +49,7 @@ from tests.sn.operators._composite_operand import (
     bulk_apply,
     zero_trace_composite,
 )
+from dataclasses import replace
 
 pytestmark = pytest.mark.foundation  # software-invariant tier
 
@@ -150,8 +151,7 @@ def solver_2g_p0_n2n():
     # Inject a non-zero, asymmetric (n,2n) matrix into the fuel mixture.
     # SigT must absorb the (n,2n) reaction XS so the mixture stays balanced.
     sig2 = np.array([[0.0, 0.03], [0.01, 0.0]])
-    fuel.Sig2 = [csr_matrix(sig2)]
-    fuel.SigT = np.asarray(fuel.SigT) + sig2.sum(axis=1)
+    fuel = replace(fuel, Sig2=[csr_matrix(sig2)], SigT=np.asarray(fuel.SigT) + sig2.sum(axis=1))
     materials = {2: fuel, 0: mod}
 
     nx, ny = 6, 4
@@ -678,7 +678,7 @@ class TestP0AlgebraicIdentities:
         # Inject a non-zero (n,2n) matrix manually after construction.
         from scipy.sparse import csr_matrix
         sig2_test = np.array([[0.0, 0.05], [0.0, 0.0]])
-        mix.Sig2 = [csr_matrix(sig2_test)]
+        mix = replace(mix, Sig2=[csr_matrix(sig2_test)])
 
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
@@ -727,10 +727,10 @@ def solver_2g_p1_n2n():
     )
     # Append a P1 block manually; ORPHEUS's SigS is a list[csr_matrix]
     # indexed by Legendre order.
-    mix.SigS = [csr_matrix(p0), csr_matrix(p1)]
+    mix = replace(mix, SigS=[csr_matrix(p0), csr_matrix(p1)])
     # Inject (n,2n) — non-zero on a cross-group entry only (the brief
     # explicitly notes diagonal sig2 entries are rare but legal).
-    mix.Sig2 = [csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))]
+    mix = replace(mix, Sig2=[csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))])
 
     nx, ny = 3, 2
     mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
@@ -1027,7 +1027,7 @@ class TestAlgebraicIdentity:
             chi=np.zeros(2),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
             sig_s=np.diag([0.3, 0.8]),
         )
-        mix.Sig2 = [csr_matrix(np.zeros((2, 2)))]
+        mix = replace(mix, Sig2=[csr_matrix(np.zeros((2, 2)))])
         nx, ny = 2, 2
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
@@ -1596,8 +1596,7 @@ class TestAnisoMomentSourcePath:
             chi=np.array([1.0, 0.0]),
             sig_s=p0,
         )
-        mix.SigS = [csr_matrix(p0), csr_matrix(p1), csr_matrix(p2), csr_matrix(p3)]
-        mix.Sig2 = [csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))]
+        mix = replace(mix, SigS=[csr_matrix(p0), csr_matrix(p1), csr_matrix(p2), csr_matrix(p3)], Sig2=[csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))])
 
         nx, ny = 3, 2
         mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))

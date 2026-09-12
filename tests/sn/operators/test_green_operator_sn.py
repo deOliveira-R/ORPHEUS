@@ -74,6 +74,7 @@ from orpheus.transport.operators.multiplication_operator import (
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn.operators.test_removal_form_matvec_sweep import _random_state
+from dataclasses import replace
 
 pytestmark = pytest.mark.foundation
 
@@ -89,8 +90,7 @@ def _mix(sig_t, p0):
         sig_f=np.array([0.0, 0.0]), nu=np.array([0.0, 0.0]),
         chi=np.zeros(2), sig_s=np.array(p0),
     )
-    m.SigS = [csr_matrix(np.array(p0))]
-    m.Sig2 = [csr_matrix(np.zeros((2, 2)))]
+    m = replace(m, SigS=[csr_matrix(np.array(p0))], Sig2=[csr_matrix(np.zeros((2, 2)))])
     return m
 
 

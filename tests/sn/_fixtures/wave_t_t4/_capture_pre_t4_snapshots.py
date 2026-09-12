@@ -75,6 +75,7 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from dataclasses import replace
 
 OUT_NPZ = Path(__file__).parent / "pre_t4_snapshots.npz"
 OUT_JSON = Path(__file__).parent / "pre_t4_walltime.json"
@@ -120,7 +121,7 @@ def _mix_2g_p1_asymmetric() -> "make_mixture":
         chi=np.array([1.0, 0.0]),
         sig_s=p0,
     )
-    mix.SigS = [csr_matrix(p0), csr_matrix(p1)]
+    mix = replace(mix, SigS=[csr_matrix(p0), csr_matrix(p1)])
     return mix
 
 

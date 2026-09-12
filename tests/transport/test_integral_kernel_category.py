@@ -80,6 +80,7 @@ from tests.transport._functional_helpers import (
     cartesian_2d_mesh,
     cross_section_field,
 )
+from dataclasses import replace
 
 pytestmark = pytest.mark.foundation
 
@@ -130,8 +131,7 @@ def scattering_op():
         chi=np.array([1.0, 0.0]),
         sig_s=p0,
     )
-    mix.SigS = [csr_matrix(p0), csr_matrix(p1)]
-    mix.Sig2 = [csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))]
+    mix = replace(mix, SigS=[csr_matrix(p0), csr_matrix(p1)], Sig2=[csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))])
     nx, ny = 3, 2
     mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
     quad = Quadrature.lebedev(order=17)

@@ -26,6 +26,7 @@ from tests.sn._test_helpers import reflect_outflow_into_inflow, sweep_once
 from tests.sn._test_helpers import SN_TESTS_ROOT
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
+from dataclasses import replace
 
 pytestmark = pytest.mark.l0  # SN solver method-in-isolation component checks
 
@@ -76,8 +77,7 @@ def solver_2g_n2n():
     fuel = get_mixture("A", "2g")
     mod = get_mixture("B", "2g")
     sig2 = np.array([[0.0, 0.03], [0.01, 0.0]])
-    fuel.Sig2 = [csr_matrix(sig2)]
-    fuel.SigT = np.asarray(fuel.SigT) + sig2.sum(axis=1)
+    fuel = replace(fuel, Sig2=[csr_matrix(sig2)], SigT=np.asarray(fuel.SigT) + sig2.sum(axis=1))
     materials = {2: fuel, 0: mod}
 
     nx, ny = 6, 4

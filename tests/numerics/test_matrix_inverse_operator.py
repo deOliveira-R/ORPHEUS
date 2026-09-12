@@ -40,6 +40,7 @@ from orpheus.numerics.operator import (
     ScaledOperator,
 )
 from orpheus.numerics.space import FunctionSpace
+from dataclasses import replace
 
 pytestmark = pytest.mark.foundation
 
@@ -149,8 +150,7 @@ def _asymmetric_2g_mat_xs():
         sig_f=np.array([0.0, 0.0]), nu=np.array([0.0, 0.0]),
         chi=np.zeros(2), sig_s=sig_s0,
     )
-    m.SigS = [csr_matrix(sig_s0)]
-    m.Sig2 = [csr_matrix(sig_2)]
+    m = replace(m, SigS=[csr_matrix(sig_s0)], Sig2=[csr_matrix(sig_2)])
     mat_xs = unit_cell_carrier({0: m}).material_xs_field()
     return mat_xs, sig_s0, sig_2, np.array([1.0, 1.5])
 

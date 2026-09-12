@@ -45,6 +45,7 @@ from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.transport.material_field import TransferMaterialField
 from tests.sn.operators._composite_operand import bulk_apply, transpose_values
+from dataclasses import replace
 
 pytestmark = pytest.mark.foundation
 
@@ -68,8 +69,7 @@ def _mix(p0, p1):
         sig_f=np.array([0.0, 0.0]), nu=np.array([0.0, 0.0]),
         chi=np.zeros(2), sig_s=p0,
     )
-    m.SigS = [csr_matrix(p0), csr_matrix(p1)]
-    m.Sig2 = [csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))]
+    m = replace(m, SigS=[csr_matrix(p0), csr_matrix(p1)], Sig2=[csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))])
     return m
 
 

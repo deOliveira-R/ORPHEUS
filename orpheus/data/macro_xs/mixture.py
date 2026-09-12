@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
@@ -20,6 +21,35 @@ from .sigma_zeros import solve_sigma_zeros
 
 if TYPE_CHECKING:
     from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum
+
+
+def _read_only_dense(values) -> np.ndarray:
+    """A read-only float COPY of ``values`` — a Mixture field is a value, not a view."""
+    arr = np.array(values, dtype=float, copy=True)
+    arr.setflags(write=False)
+    return arr
+
+
+def _read_only_csr(block) -> csr_matrix:
+    """A canonical (duplicates summed, indices sorted) read-only CSR COPY of ``block``."""
+    out = csr_matrix(block, copy=True)
+    out.sum_duplicates()
+    out.sort_indices()
+    for arr in (out.data, out.indices, out.indptr):
+        arr.setflags(write=False)
+    return out
+
+
+def _dense_key(arr: np.ndarray) -> tuple:
+    a = np.ascontiguousarray(arr)
+    return (a.shape, a.dtype.str, a.tobytes())
+
+
+def _csr_key(block: csr_matrix) -> tuple:
+    return (
+        block.shape, block.data.dtype.str,
+        block.data.tobytes(), block.indices.tobytes(), block.indptr.tobytes(),
+    )
 
 
 def _assert_legendre_stacks(owner: str, ng: int, **stacks: Sequence[csr_matrix]) -> None:
@@ -46,9 +76,30 @@ def _assert_legendre_stacks(owner: str, ng: int, **stacks: Sequence[csr_matrix])
                 )
 
 
-@dataclass
+@dataclass(frozen=True, eq=False)
 class Mixture:
-    """Macroscopic cross sections for a homogeneous mixture.
+    """Macroscopic cross sections for a homogeneous mixture — a VALUE.
+
+    Frozen, with read-only data and CONTENT identity (consumers campaign
+    step 1, ruling R-cc3 / O-4, 2026-09-12; GitHub #459): two mixtures
+    carrying equal arrays compare ``==`` and hash equal, whatever objects
+    they are, so a Problem generated from a saved-and-reloaded mixture is
+    the SAME problem. The identity key is the content of every field
+    (each dense array's bytes; each sparse Legendre block's canonical CSR
+    triple; the energy grid's bytes or ``None``), computed ONCE on first
+    use and cached — `[M]` building it costs ~1 ms on 421-group data and
+    the SN geometry cache reads a problem's hash 6–10× per solve, so a
+    live key would be a measurable regression that no 2-group gate sees.
+    A cached key is sound only because nothing can move the data: the
+    dataclass is frozen and ``__post_init__`` stores READ-ONLY copies of
+    every array (dense fields, and each sparse block's ``data`` /
+    ``indices`` / ``indptr``) — an in-place write raises. Derive a
+    variant with :func:`dataclasses.replace`, which re-runs the laws.
+
+    ⚠ Until 2026-09-12 the dataclass default equality compared ndarray
+    fields and RAISED at ng ≥ 2 (``Mixture(ng=1) == Mixture(ng=1)`` read
+    ``True`` — a one-element array is a bool, a false green for 1-group
+    fixtures), and the class was unhashable and mutable.
 
     Attributes
     ----------
@@ -88,22 +139,67 @@ class Mixture:
     SigF: np.ndarray
     SigP: np.ndarray
     SigT: np.ndarray
-    SigS: list[csr_matrix]
-    Sig2: list[csr_matrix]
+    SigS: Sequence[csr_matrix]  # stored as a tuple of read-only canonical CSR blocks
+    Sig2: Sequence[csr_matrix]  # idem
     chi: np.ndarray
     eg: np.ndarray | None = None
 
+    _DENSE = ("SigC", "SigL", "SigF", "SigP", "SigT")
+    _STACKS = ("SigS", "Sig2")
+
     def __post_init__(self) -> None:
+        # A VALUE: every array is stored as a read-only COPY (the caller's
+        # arrays stay theirs; nothing can move this object's data after
+        # construction, which is what makes the cached identity key sound).
+        # The dataclass is frozen, so the laws write through the frozen
+        # guard exactly once, here.
+        for name in self._DENSE:
+            object.__setattr__(self, name, _read_only_dense(getattr(self, name)))
+        for name in self._STACKS:
+            object.__setattr__(
+                self, name, tuple(_read_only_csr(block) for block in getattr(self, name)),
+            )
+        object.__setattr__(
+            self, "eg", None if self.eg is None else _read_only_dense(self.eg),
+        )
         # Coerce chi to the validated value-object and enforce the simplex
         # / null law at the data source (mirrors Isotope.__post_init__). χ
         # is consumed only as a fission SOURCE (χ·νΣ_f·φ), so the law keys
         # on PRODUCTION (SigP = νΣ_f > 0): a producing mixture's spectrum is
         # a probability simplex; a non-producing mixture emits no fission
         # neutrons, so its spectrum is null.
-        self.chi = enforce_emission_spectrum(self.chi, is_producing=self.is_producing)
+        chi = enforce_emission_spectrum(self.chi, is_producing=self.is_producing)
+        chi.setflags(write=False)
+        object.__setattr__(self, "chi", chi)
         _assert_legendre_stacks(
             type(self).__name__, len(self.SigT), SigS=self.SigS, Sig2=self.Sig2,
         )
+
+    # ── identity: CONTENT (R-cc3; the precedent is Axis._identity_key) ──
+    @cached_property
+    def _identity_key(self) -> tuple:
+        """The content of every generating datum, as hashable bytes.
+
+        Dense fields by ``(shape, dtype, bytes)``; each sparse Legendre
+        block by its canonical CSR triple (duplicates summed, indices
+        sorted at construction) so two spellings of one matrix agree; the
+        energy grid by its bytes or ``None``. Computed once (the object is
+        immutable) — ``cached_property`` writes the instance ``__dict__``
+        directly, which the frozen guard permits.
+        """
+        dense = tuple(_dense_key(getattr(self, name)) for name in (*self._DENSE, "chi"))
+        stacks = tuple(
+            tuple(_csr_key(block) for block in getattr(self, name)) for name in self._STACKS
+        )
+        return (dense, stacks, None if self.eg is None else _dense_key(self.eg))
+
+    def __eq__(self, other: object) -> bool:
+        if type(other) is not type(self):
+            return NotImplemented
+        return self._identity_key == other._identity_key  # type: ignore[attr-defined]
+
+    def __hash__(self) -> int:
+        return hash((type(self), self._identity_key))
 
     @property
     def is_producing(self) -> bool:

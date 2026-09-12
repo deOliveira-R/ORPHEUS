@@ -62,6 +62,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from tests.sn.operators._composite_operand import bulk_apply
 from tests.transport._integral_kernel_helpers import require
 from orpheus.transport.material_field import TransferMaterialField
+from dataclasses import replace
 
 pytestmark = pytest.mark.foundation
 
@@ -112,8 +113,7 @@ def solver_p1_het():
             chi=np.zeros(2),
             sig_s=p0,
         )
-        m.SigS = [csr_matrix(p0), csr_matrix(p1)]
-        m.Sig2 = [csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))]
+        m = replace(m, SigS=[csr_matrix(p0), csr_matrix(p1)], Sig2=[csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))])
         return m
 
     nx, ny = 4, 3

@@ -73,6 +73,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.transport.material_field import TransferMaterialField
+from dataclasses import replace
 
 OUT_FILE = Path(__file__).parent / "pre_t3_snapshots.npz"
 
@@ -97,8 +98,7 @@ def build_p1_solver() -> SNSolver:
         chi=np.array([1.0, 0.0]),
         sig_s=p0,
     )
-    mix.SigS = [csr_matrix(p0), csr_matrix(p1)]
-    mix.Sig2 = [csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))]
+    mix = replace(mix, SigS=[csr_matrix(p0), csr_matrix(p1)], Sig2=[csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))])
 
     nx, ny = 3, 2
     mesh = Mesh2D(
@@ -126,8 +126,7 @@ def build_p3_solver() -> SNSolver:
         chi=np.array([1.0, 0.0]),
         sig_s=p0,
     )
-    mix.SigS = [csr_matrix(p0), csr_matrix(p1), csr_matrix(p2), csr_matrix(p3)]
-    mix.Sig2 = [csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))]
+    mix = replace(mix, SigS=[csr_matrix(p0), csr_matrix(p1), csr_matrix(p2), csr_matrix(p3)], Sig2=[csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))])
 
     nx, ny = 3, 2
     mesh = Mesh2D(

@@ -49,6 +49,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
+from dataclasses import replace
 
 pytestmark = pytest.mark.foundation
 
@@ -230,7 +231,7 @@ class TestAssertBalancedIntrinsic:
         assert_balanced erroneously included SigP, this would red.
         """
         mix = _balanced_2g_with_sig2_and_sigl()
-        mix.SigP = mix.SigP * 1000.0  # production has no removal meaning here
+        mix = replace(mix, SigP=mix.SigP * 1000.0)  # production has no removal meaning here
         mix.assert_balanced(atol=_ATOL)  # MUST still pass — SigP not in identity
         np.testing.assert_array_less(
             np.asarray(mix.balance_residual), 1e-12,
