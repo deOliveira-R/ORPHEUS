@@ -42,7 +42,7 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.xs_library import get_mixture
 
-pytestmark = pytest.mark.foundation
+pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-084")]
 
 #: The ruling this module's xfail rows retire with.
 _RULING = "#459 / R-cc3 — ONE content-identity definition; Mixture is its leaf"

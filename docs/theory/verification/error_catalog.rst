@@ -7785,3 +7785,81 @@ older entries classify against.
    own source is a twin of the iteration's, with no gate on the seam; a
    reconstruction that **re-evaluates the iteration's own map** cannot
    drift, because there is one source assembly and one map.
+
+.. error-entry:: ERR-084
+   :title: One pairing predicate answered two questions with a constituent-identity comparison, so a sentinel ``None is None`` made every pair of 3-D problems equal while every same-data ``from_axes`` pair compared unequal — and the retained Legendre order had three disagreeing spellings, one of them unclamped
+
+   **Status:** ✅ **FIXED 2026-09-12 — consumers campaign step 1, #459**
+   (``deacd897`` / ``2c1667b0`` / ``7b4d2b78``).  A Problem's identity is
+   the CONTENT of its generating data — one definition at
+   :meth:`MaterialMesh._identity_key
+   <orpheus.transport.mesh.material_mesh.MaterialMesh>` extended by
+   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` — and the pairing
+   question is a SEPARATE predicate,
+   :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.same_phase_space`
+   (contractibility by content); the retained scattering order is a
+   constructor datum of the hub, clamped once, read by every consumer.
+
+   **Failure mode:** **#6 (convention drift)**, twice in one object.
+   (a) ``SNMesh.is_same_phase_space`` compared CONSTITUENTS by ``is`` —
+   ``mesh is other.mesh``, ``quad is other.quad``, per-mixture ``is`` — so
+   at :math:`d \ge 3`, where the legacy mesh adapter is ``None`` on every
+   hub, the spatial leg read ``None is None`` and two 3-D problems with
+   different cells and extents compared as ONE phase space; at
+   :math:`d \le 2` every same-data pair built by two ``from_axes`` calls
+   compared as DIFFERENT (each call minted a fresh adapter).  ``[M]``
+   ``tests/sn/mesh/test_problem_identity_anchors.py`` recorded both on the
+   pre-carve tree.  (b) The retained Legendre order lived on the SOLVER
+   (``SNSolver.__init__`` clamped ``min(L, len(SigS) − 1)``), while the two
+   adjoint entries bypassed the solver and zero-padded above the stored
+   order, and the fixed-source entry handed DSA the raw request:
+   ``[M]`` ``solve_sn(3)`` served ``at_order {0, 1}`` while
+   ``solve_sn_adjoint(3)`` served ``{0, 1, 3}`` on identical data, with
+   :math:`k` agreeing to 1.1e-11 because the padding is exact zeros.
+   (c) The leaf datum, :class:`~orpheus.data.macro_xs.mixture.Mixture`,
+   had a dataclass-generated ``__eq__`` that RAISED over its arrays at
+   :math:`n_g \ge 2` and read ``True`` at :math:`n_g = 1` (a one-element
+   array is a bool — a false green on every 1-group fixture), and was
+   unhashable and mutable.
+
+   **Hiding mechanism.**  The vacuous leg is reachable only at
+   :math:`d \ge 3` (the adapter slot is ``None`` nowhere else), the order
+   divergence moves :math:`k` by 1.1e-11 (a value gate is a provable
+   non-catcher — only a ROUTE spy on ``TransferKernel.at_order`` can see
+   it), and the 1-group false green made the natural first fixture prove
+   nothing.  ``[M]`` every generating datum — ``Mixture``, ``Quadrature``,
+   ``DiscreteMeasure``, ``AxisMesh``, ``Mesh1D`` — raised on ``==`` and
+   ``hash``, so a content key could not have been written without first
+   making the data VALUES (frozen, read-only arrays, cached keys).
+
+   **Module:** ``orpheus/sn/mesh/augmented_mesh.py`` (the predicate; the
+   order's new home), ``orpheus/transport/mesh/material_mesh.py`` (the ONE
+   definition), ``orpheus/data/macro_xs/mixture.py`` (the leaf),
+   ``orpheus/numerics/quadrature/directional.py``, ``orpheus/sn/solver.py``
+   (``SNSolver.__init__`` and the four entries), ``orpheus/sn/coupled_system.py``,
+   ``orpheus/sn/acceleration/dsa.py``, ``orpheus/sn/loss_representation/__init__.py``
+   (the interned geometry cache, re-keyed on content and validated on the
+   closure CLASS — an instance validation would have rebuilt the σ-free
+   table 2 → 6 times per content-equal pair).
+
+   **Caught by:** ``tests/sn/mesh/test_problem_identity_anchors.py`` —
+   the positive control at :math:`d = 1, 2, 3` over hubs sharing NOTHING by
+   ``is``; per-datum negative legs for both predicates; the closure pair
+   that pairs but is not one problem (identity strictly finer than
+   contractibility, with a non-vacuity guard); the clamp table
+   ``(0, 1, 3, 5) → (0, 1, 1, 1)`` with the P1-library premise asserted so
+   the table cannot decay into a ``1 != 1`` false green; the Mode-11 route
+   spy on the adjoint entry; the interned cache's ONE-table row — and
+   ``tests/data/test_mixture_identity_anchors.py`` (content equality per
+   field with an :math:`n_g = 1` negative control; the freeze).
+
+   **Lesson.**  ⭐ **Two questions were hiding under one predicate — *may
+   these fields be paired* and *is this the same problem* — and a
+   predicate that answers one with the other's evidence is wrong in BOTH
+   directions at once.**  Constituent identity (``is``) is the tier that
+   lets a save-and-reload never be "the same" and a sentinel be "always
+   the same".  ⟹ identity is CONTENT, computed once over immutable data
+   (a cached key over a mutable datum is a silent lie the first time a
+   test mutates one — ``[M]`` 33 test sites did), and a datum with three
+   spellings is a datum with no owner: give it ONE home on the Problem
+   and make every consumer READ it.

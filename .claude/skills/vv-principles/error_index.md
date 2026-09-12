@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**83 entries · 297 catching tests · 0 uncaught.**
+**84 entries · 317 catching tests · 0 uncaught.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-084` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-084")`.
+Append a `.. error-entry:: ERR-085` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-085")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -116,3 +116,4 @@ None — every catalogued defect has at least one catching test.
 | ERR-081 | 5 | The quadrature registry recorded ONE finite group per geometry — the reflection closure a refle… |
 | ERR-082 | 5 | The (n,2n) emission was truncated to P0 at the OPERATOR tier while the tape and (since #426 ste… |
 | ERR-083 | 4 | The SN eigenvalue finalize reconstructed Solution.angular_flux from a P0-only source it built b… |
+| ERR-084 | 20 | One pairing predicate answered two questions with a constituent-identity comparison, so a senti… |

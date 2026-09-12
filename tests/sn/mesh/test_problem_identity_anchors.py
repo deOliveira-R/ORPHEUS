@@ -64,7 +64,7 @@ from orpheus.sn.solution import Solution, SolutionBase
 from orpheus.transport.mesh.axis import AxisMesh
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 
-pytestmark = pytest.mark.foundation
+pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-084")]
 
 _RULING_ID = "#459 / R-cc8 — same_phase_space (contractibility) and __eq__ (identity)"
 _RULING_ORDER = "#459 / R-cc9 — the clamped truncation order is a hub constructor datum"
