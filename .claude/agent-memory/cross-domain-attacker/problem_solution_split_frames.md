@@ -1,6 +1,6 @@
 ---
 name: problem-solution-split-frames
-description: The SNProblem → Solution split (CS4c §22.5) — a posed discrete problem is a point in a parameter space determining (V,G,K,A,F); a Solution is a point in a NON-singleton fiber; the split's boundary runs through SNSolver (12/6/2), not between mesh and Solution.
+description: The SNProblem → Solution split (CS4c §22.5/§27) — the Problem determines a PENCIL over a parameter domain Λ; a Strategy picks a point/path in Λ and an inversion; the boundary runs through SNSolver (12/6/2). Includes the user's refutation of the solution-set rule.
 metadata:
   type: project
 ---
@@ -38,7 +38,7 @@ right (`LossKernelGauge` on the hub with a MEASURED σ-independence argument,
 "None means not measured" discipline, `sn/solution.py:181-214`); the RAY half is not
 (`homogeneous/solver.py:397` applies `phi * 100/rate` and records nothing).
 
-## R2 — ⭐ the plan's discriminating rule INVERTS on splittings; re-phrase it on the solution SET
+## R2 — ⭐ the plan's discriminating rule INVERTS on splittings; re-phrase it on the solution SET ⛔ (SUPERSEDED BY R5 — read R5 first)
 
 The chartered rule ("changes the OPERATOR ⟹ Problem; changes only HOW it is inverted ⟹
 Solution") classifies by *what the code constructs*, and a splitting manufactures operator
@@ -53,7 +53,66 @@ OBJECTS without moving `A`. Replace with:
 (constructs nothing at solve time, yet deletes the redistribution term ⟹ different `A`).
 
 The acceptance gate falls out: per Solution-side coordinate, solve one Problem at two values and
-assert the limits agree to a tolerance that SHRINKS with the tolerances.
+assert the limits agree to a tolerance that SHRINKS with the tolerances. **The GATE survives R5;
+only the classifying clause above is superseded.**
+
+⛔ **REFUTED 2026-09-08 by the user for the PARAMETERIZED case** (R-cc2, plan §27): a resolvent
+`(A − sT)⁻¹` moves `{ψ : (A−sT)ψ = q}` as `s` moves, so this clause puts the resolvent's parameter
+Problem-side — and a 200-frequency noise sweep becomes 200 Problems. The clause never says what
+the solution set is a set OF. Correct on 11 of the 12 straddlers; superseded by R5.
+
+## R5 — ⭐⭐ the TERMINAL OBJECT: the Problem determines a PENCIL over a parameter domain Λ
+
+Memo: `scratch/_consumers/attacker_terminal_object.md` (2026-09-08).
+
+> `Terminal(p) = (V, G, K, 𝒜 : Λ → Hom(V,V), 𝑞 : Λ → V)`
+> **P** — Problem-side iff it moves `V`, `G`, `K`, the FAMILY `𝒜`, `𝑞`, or `Λ`.
+> **S** — Strategy-side iff it picks a POINT/PATH in `Λ` or a way to invert `𝒜(λ)` there
+> (resolvent, splitting, Krylov, representation, schedule, tolerances, which spectral point).
+> **Sol** — records the path, the point, and the GAUGE that picked a representative.
+
+The resolvent is Strategy-side *and* changes the answer fundamentally — no contradiction: **the
+Problem already contains every `s`.** Decisive test the old rule failed: α-eigenvalue and neutron
+noise are ONE terminal object (`𝒜(s) = A + sT`), two Strategies.
+
+**The 2×2, all four cells occupied here.** `(M present?) × (q present?)`: `ker A` (⭐ the shipped
+`LossKernelGauge` — the kind nobody had counted) / affine `Aψ=q` / spectrum (k, α) / transfer
+(noise). `Λ` and the solution-set kind are DERIVED, not fields. ⟹ ONE `Pencil` type, kind-typed
+SOLUTIONS (`[M]` `keff: float|None` discriminated at `sn/solution.py:543-549` under a
+`# ── Discrimination ──` header is the missing type).
+
+**Generating data has TWO halves** — a DISCRETIZATION half (shared by every kind) and a POSING
+half (`q`, and which `M`). `[M]` the tree already wrote this fork one tier up:
+`derivations/common/continuous_reference.py:129-171` `ProblemSpec` = 4 data fields +
+`external_source` + `is_eigenvalue` (⚠ a redundant pair — `(is_eigenvalue=True,
+external_source=fn)` is spellable; 22 construction sites in 9 files). That half is why `q` was
+homeless: the campaign's model of the generating data had no seat for it.
+
+**Build the pencil as the Problem's LAST step** (the user's tendency; 5 arguments in the memo
+§4.1), lazily, per kind — ⚠ but split `WithinGroupSystem` = `(Terminal, Inversion)` FIRST, or the
+move drags `inner_schedule` onto the Problem.
+
+**⭐⭐ `Pencil.at(σ)` is ALREADY CHARTERED and its primitive already exists in mutating form.**
+`[M]` `.claude/plans/posing_filtration_charter.md:217` names `GeneralizedEigenPencil`; `:625`
+rules the verb — *"`Pencil.at(σ)` rebinds the diagonal → τ re-evaluates → closure coefficients
+rebuild"* — and locates the α-admissibility guard (τ ≤ 0 at closure evaluation,
+`StreamingCollisionOperator.__init__`). `[T]` in the multiplier algebra `M[Σ_t] + αM[1/v] =
+M[Σ_t + α/v]`, so **the α family is a COEFFICIENT-FIELD family over an unchanged operator sum —
+no `TimeMassOperator` summand is owed, only the `1/v` field.** `[M]`
+`SNSolver.rebind_cross_sections` (`sn/solver.py:1591-1633`) IS `.at(σ)`, mutating, on the solver;
+three consumers (α/noise, depletion, the no-mutation charter) want the one non-mutating version.
+
+**The highest-value measured finding, and it blocks the pencil:** `[M]` SN's `F` has TWO spellings
+on TWO spaces — `IsotropicFission` on `bulk_space` forward (`sn/solver.py:1545-1548`) vs
+`stack @ restrict_bulk` on the composite for the adjoint (`:2805-2821`). ⟹ the ruling "the adjoint
+is a free view" is **false in code today**. `[M]` diffusion (`diffusion/solver.py:255-263`) and
+homogeneous (`homogeneous/solver.py:311, 328`) both already hold the pencil pair on ONE space —
+**SN is the outlier; adopt the adjoint spelling forward.**
+
+**Placements ruled** (memo §3.2): `WithinGroupSystem` → SPLIT; `MatrixInverseOperator` /
+`ScheduledInvertibleOperator` → Strategy (both docstrings already say *"the type IS the strategy
+choice"*); `HomogeneousProblem.multiplication = A⁻¹F` → ⛔ **Strategy — on the wrong type today**;
+the hub keeps the pencil PAIR `(loss, production)`, both already cached.
 
 ## R3 — ⭐⭐ the carve cuts THROUGH `SNSolver`, not between mesh and Solution — 12 / 6 / 2
 

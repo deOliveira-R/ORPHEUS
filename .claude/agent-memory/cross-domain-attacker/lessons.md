@@ -1173,6 +1173,15 @@ acceptance gate (solve one problem at two values of each Solution-side
 coordinate; the limits must agree to a tolerance that SHRINKS with the
 tolerances).
 
+⛔ **REFUTED 2026-09-08 for one case, by the user, and the refutation is
+correct — read L-024 before using the solution-set clause.** It is right on 11 of
+the 12 straddlers and wrong on a PARAMETERIZED family: a resolvent `(A − sT)⁻¹`
+moves `{ψ : (A−sT)ψ = q}` as `s` moves, so the rule puts the resolvent's
+parameter Problem-side and a 200-frequency noise sweep becomes 200 Problems. The
+defect is that the clause never says what the solution set is a set OF. The
+acceptance GATE above survives unchanged; only the classifying clause is
+superseded (by L-024's family rule, which agrees on the other 11 rows).
+
 ⭐ **The corollary that pays on its own: report the row you got WRONG.** My first
 pass ruled `inner_schedule` Problem-side by following the chartered rule
 literally, and the tree's own measurement inverted it. A rule that a careful
@@ -1200,3 +1209,74 @@ identity direction and the mutation sites. Only then reach for frames. Pairs wit
 L-013 and L-017 (the true deliverable is usually smaller than the proposal and
 sits somewhere else) and with L-022 (the fiber count — here the fiber is the
 STRATEGY, and a non-singleton fiber means the campaign owes a third type).
+
+---
+
+## L-024 -- A placement rule phrased on the SOLUTION SET breaks on a parameterized family; name the PARAMETER DOMAIN in the terminal object, and grep the PROSE corpus before recommending the object's name
+
+Sequel to L-023(b), written after the user refuted its clause. Two lessons, one
+session, both cheap and both transferable
+([[problem-solution-split-frames]]; memo `scratch/_consumers/attacker_terminal_object.md`).
+
+**(a) When a split brief asks "what is Problem and what is Solution", the answer
+is a TERMINAL OBJECT, and the terminal object must carry its own PARAMETER
+DOMAIN.** Any rule of the form *"Problem-side iff changing it moves the answer"*
+is defeated by a one-parameter family, because moving along the family moves the
+answer while changing nothing about the problem. The repair is structural, not
+verbal:
+
+> **The Problem determines the FAMILY** `(V, G, K, 𝒜 : Λ → Hom(V,V), 𝑞 : Λ → V)`
+> — the pencil, its rhs, and the parameter domain `Λ`.
+> **A Strategy chooses a POINT or a PATH in `Λ` and a way to invert `𝒜(λ)` there**
+> — resolvent, splitting, Krylov space, representation, schedule, tolerances,
+> which spectral point.
+> **A Solution records the path, the point reached, and the GAUGE** that picked a
+> representative out of the set the Problem determined.
+
+⭐ The decisive test that this beats the solution-set phrasing: two "problem
+kinds" the domain expert names as different collapse to ONE terminal object. `[M]`
+the α-eigenvalue problem and the neutron-noise problem are both `𝒜(s) = A + sT`
+on `Λ = ℂ`; α seeks where the family is singular, noise evaluates the resolvent
+along a contour. One pencil, two Strategies — where the old rule demanded two
+Problems. **If a candidate rule does not collapse two named kinds onto one
+object, it is still classifying by mechanism.**
+
+Two riders that generalize past this project:
+- **Enumerate the family's DEGENERATE cells and check the tree for each.** With
+  `(M present?) × (q present?)` the four cells are kernel / affine / spectrum /
+  transfer. `[M]` all four were occupied — and the *kernel* cell was a shipped
+  object (a gauge projector) nobody had counted as a problem kind. A unification
+  that ABSORBS an existing object deletes content; one that only adds cells is
+  speculation.
+- **`Λ` is not the whole complex plane — it has an ADMISSIBILITY predicate, and
+  it is usually already guarded somewhere.** `[M]` an inadmissible shift here
+  shows up as a negative optical depth at closure evaluation, guarded in an
+  operator constructor. Find that guard before minting a new one.
+
+**(b) Before recommending ANY new object's name, grep the PROSE corpus — it can
+return a charter that has already ruled the object's REALIZATION, not just its
+name.** `plan-authoring` §1 says to grep prose because a free name may be free
+*because it was rejected*. The complementary payoff is bigger and is what fired
+here: `[M]` the name was already the campaign's, in a charter that had ruled the
+verb (`Pencil.at(σ)` — a diagonal REBIND) and located its admissibility guard. My
+draft was about to recommend a new operator summand; the charter plus one algebra
+line (`M[Σ_t] + αM[1/v] = M[Σ_t + α/v]` in the multiplier algebra) showed the
+parameter enters through the COEFFICIENT FIELD, leaving the operator sum
+unchanged. **A one-parameter operator family whose parameter multiplies a
+DIAGONAL is a coefficient family, not a new summand** — check the multiplier
+algebra before adding a term.
+
+⭐ And the loop it closed, which is the shape to look for: the rebind primitive
+the new family needs ALREADY EXISTED as a mutating method on the wrong type
+(a solver method for depletion). Three consumers — the parameter family, the
+depletion trajectory, and the campaign's own "solving must not mutate" charter —
+all want one non-mutating `.at(σ)`. **When a proposed primitive turns out to
+exist in mutating form elsewhere, that is the strongest possible argument for the
+carve, and it is found by grepping for the VERB, not the noun.**
+
+How to apply: on any "what is Problem vs Solution / model vs run / static vs
+traced" brief — (1) write the terminal object with its parameter domain before
+proposing any rule; (2) list the domain's degenerate cells and check each against
+the tree; (3) grep the prose corpus for the object's name AND its verb before
+recommending either. Supersedes L-023(b)'s classifying clause; L-023(a) and (c)
+stand.

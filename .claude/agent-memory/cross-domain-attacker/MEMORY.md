@@ -7,7 +7,7 @@ AGENT.md kernel. Fire from those — never re-derive or re-copy them into memory
 
 ## 1. Lessons — read `lessons.md` FIRST, every dispatch
 
-- [lessons.md](lessons.md) — 23 detection lessons. Spine: an attack's value is a concrete
+- [lessons.md](lessons.md) — 24 detection lessons. Spine: an attack's value is a concrete
   reformulation with a FAIL-ABLE first test, OR a crisp refutation carrying its structural
   reason. A named-but-payoff-free frame is rejected output. ⭐ L-021: on a cross-method
   "who consumes X" brief, find the GENERAL-CASE derivation first — one equation decides
@@ -17,7 +17,10 @@ AGENT.md kernel. Fire from those — never re-derive or re-copy them into memory
   vs convention), and shipped machinery with ZERO callers reframes the whole brief.
   ⭐ L-023: on a SPLIT brief, sort the FUSED object's attributes (the boundary is never
   where the brief names it) and run the chartered rule over the straddlers counting
-  INVERSIONS — then re-phrase it on the SOLUTION SET, not on the operator.
+  INVERSIONS. ⛔ its solution-set re-phrasing is SUPERSEDED by ⭐ L-024: a placement rule
+  breaks on a parameterized family — name the PARAMETER DOMAIN in the terminal object
+  (the test: does it collapse two named "kinds" onto one object?), and grep the PROSE
+  corpus for the object's NAME **and its VERB** before recommending either.
 
 ## 2. Active / in-flight state
 
@@ -31,7 +34,7 @@ one whose campaign was still in flight at last curation.
 Open the file for the verdict; the hook only tells you whether to open it.
 
 ### Problem → Solution (the consumers campaign's opening)
-- [Problem/Solution split](problem_solution_split_frames.md) — ⭐⭐ the carve cuts through `SNSolver` (12/6/2), the campaign owes THREE types, the chartered rule inverts on 3 of 12 straddlers, and `scattering_order` is homeless.
+- [Problem/Solution split + the TERMINAL OBJECT](problem_solution_split_frames.md) — ⭐⭐ R5: the Problem determines a PENCIL over Λ (α ≡ noise); `Pencil.at(σ)` is chartered and ships mutating; SN's `F` has two spellings; carve cuts through `SNSolver` (12/6/2).
 
 ### Operator algebra (the SN/transport spine)
 - [#208 operator algebra](issue_208_operator_algebra_frames.md) — dagger inverse biproduct category + metric G (†=G⁻¹AᵀG); adjoint-for-free = theorem.
