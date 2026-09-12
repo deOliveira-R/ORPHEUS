@@ -3111,3 +3111,99 @@ patching the `ClassVar` alone reports MC inert. → `L76h`
   It is load-bearing because a frozen `Solution`'s GENERATED `__eq__` walks a field
   tuple containing the mesh: a hub whose `__eq__` raises surfaces at a call site that
   never mentions the hub. `L74c` at row scale. → `L82j`
+
+## Consumers campaign step 2 additions (2026-09-12, the terminal object — pre-carve) → `L83`
+
+**§4 (reference & claim layer).**
+
+- **⛔⛔ The bit-identity tier of a "re-home the operator" step is a property of
+  WHICH FACE the consumer reads — probe every face before accepting a brief's
+  spelling.** `[M]` 200 seeds: the forward reading `FissionOperator
+  .isotropic_energy` is `array_equal` **200/200** (`max|Δ| = 0.0`); the forward
+  applying `F` on the COMPOSITE is `array_equal` **0/200** at
+  `max|Δ| = 2.775558e-17` (≤1 nulp, draw-stable — a `/W` ordering
+  re-association). So the brief's *"ONE F on ONE space, the composite"* names
+  the 1-nulp route and the bit-identical carve is *"one F; the forward reads
+  its DERIVED binding"*. ⚠ The composite route also changes the k-outer's
+  CARRIER (`power_iteration` iterates a bare `(ng,*spatial)` scalar flux), so
+  the bare-array hatch is a design constraint, not a wart. → `L83a`
+- **⛔ "Adopt X's spelling" — check X on EVERY chart first.** `[M]` the adjoint's
+  posed `F` is THREE objects: `FissionOperator`/`FullFieldSpace` (seedless — the
+  `stack @ restrict_bulk` branch is never reached), `OperatorProduct`/`CoupledSpace`
+  (carrying), against the forward's `IsotropicFission`/`bulk_space`. A gate
+  phrased "the forward F is the adjoint's F_posed" is a false red on every slab
+  and every 2-D Cartesian row. → `L83b`
+- **⛔⛔ A field partition can hold on one ARM of the producer's branch and not the
+  other.** `[M]` `WithinGroupSystem`: on the CARRYING arm `implicit_operator`/
+  `explicit_gains` ARE a chosen splitting; on the SEEDLESS arm they are the bare
+  `L+C` and the LEAF TRIPLE — Problem-side objects that *happen to form* Jacobi,
+  with the G-S choice made downstream. And the composite `loss` does NOT expose
+  its factors (nested `OperatorSum`, only `.a`/`.b`). ⟹ the split is not a field
+  partition; the Problem must EXPOSE the factors. → `L83c`
+
+**§1 (gates that cannot red).**
+
+- **⭐⭐ When the §6c red-before ALREADY SHIPS as an inherited strict xfail, the
+  carve DEMOTES it — the plan owes the SUCCESSOR, not a re-derivation.** `[M]`
+  `test_stage_separation[cart2d-gauss_seidel]` is `xfail(strict=True)` (R7) and
+  flips at the split — after which "the driver runs the objects the record
+  advertises" is true BY CONSTRUCTION (single-sourcing demotion). The successor
+  is the law `A = M − N` asserted **per Strategy VALUE** (today it is
+  parametrized over the RECORD, schedule-free, because the choice is
+  downstream): `[M]` `array_equal` `0.000000e+00` on both schedules, in-class
+  ERR-056 mutation **`3.595068e+00`**. → `L83d`
+- **⛔⛔ The splitting choice is a TRACE-only fact — every bulk functional is a
+  provable non-catcher.** `[M]` `|M_jacobi·x − M_gs·x|` = **`0.0` bulk** /
+  **`9.970929e-01` trace**. Ship the activation leg as `array_equal` on the
+  bulk + `> 1e-2` on the trace, so a lost blindness names WHICH claim died.
+  → `L83e`
+- **⭐ A ROUTE claim is about the CALL, not the callee — and the battery proves
+  it from both sides.** `[M]` memoizing the FUNCTION reds the count rows **0**
+  (the call still happens); making the SOLVER cache the record and skip the call
+  reds both RECORD rows and XPASSes the ruled xfail. That pair IS the brief's
+  "a naive method, not a `cached_property`, still reads n_outer". Assert
+  `count == len(history.keff_history)` — the MECHANISM — and note that `[M]` the
+  fixed-source (1) and ADJOINT (1) paths are ALREADY once-per-Problem, so the
+  blast radius is the forward eigen path alone. → `L83f`
+- **⛔ A bit-identity row comparing two BINDINGS OF THE SAME CLASS cannot see a
+  defect inside that class — `vv` anti-#22's third manifestation (no shared
+  object, no caller relation, just a shared implementation).** `[M]` scaling
+  `IsotropicFission.apply` reds **0 of 47**; the one-sided mutation on the
+  DERIVING method (`FissionOperator._bind_energy`) reds **12**. For any "two
+  mints agree" row, mutate what makes them DIFFER. → `L83g`
+- **⭐ A declared NULL that reds can be a SECOND catcher, not a broken control.**
+  `[M]` scaling `SNBoundaryOperator.apply` reds the G-S law row and the Mode-9
+  row (on `jacobi` the scaling moves BOTH sides of `A = M−N`, so that row stays
+  correctly green; on G-S the masked halves are a different class). → `L83h`
+- **⛔ Two production guards in the step's blast radius have ZERO witnesses** —
+  `[M]` the distinctive fragments of `evaluate_residual`'s type door and
+  `_select_si_splitting`'s G-S composite refusal each return exactly ONE site
+  tree-wide (the `raise`). Re-homing them is NET-NEW teeth. → `L83j`
+
+**§6 (carve archetypes) — MAKING A PER-STEP BUILD A PER-PROBLEM ONE.**
+
+- **⛔⛔ The obvious Problem morphism may be UNWRITABLE over the generating
+  data.** `[M]` a cached pencil + the mutating `rebind_cross_sections` is a
+  silent stale-σ answer (reused system `array_equal` to its pre-rebind self;
+  fresh moves `max rel = 0.1619`; a solve after a ×3 rebind moves
+  `k 1.215962 → 1.203264`). And `with_cross_sections(σ)` — the morphism beside
+  the shipped `with_scattering_order` — cannot be written: the rebind overrides
+  a per-CELL `_sig_t_cell` not derivable from `materials`/`mat_map`, so it needs
+  a NEW datum that must also enter `_identity_key`. ⟹ "make X a morphism like
+  Y" owes the check that X's datum IS generating data. → `L83i`
+
+**§3 (config blindness) — new ORPHEUS fixture facts.**
+
+- **⛔ Every `tests/sn/architecture/_config` mesh is NON-FISSILE** —
+  `solve_sn(slab_seedless())` raises *"leakage scale bridge is degenerate"*.
+  Structure fixtures; anything that SOLVES builds its own `xs_library` mesh.
+- **⛔ The SN regression corpus pins NO full-solve `angular_flux`** — the 14 DD
+  cases pin `keff`+`scalar_flux`; `2d_octant_equivalence_*` pins angular but
+  per-SWEEP. The only full-solve angular wall is #448's 32 anchors.
+- **⭐ The DriftWarning DELTA table at `b0fd3e7e`** (`sn/regression` 19 p plain,
+  **9 failed / 10 passed** escalated): the nine drifting cases and their ULP are
+  in `L83k`; the five BIT-EXACT are all four fixed-source cases (both P1-aniso
+  and the windowed 2-D) plus `cyl_2g_3reg_folded_4x6` — the anisotropic and
+  windowed paths are the strongest free anchors in the tree. → `L83k`
+- `material_xs_field()` is a FRESH MINT per call, minted once per solve;
+  `geometry_cache_for` fires **1182×** per 1-D eigen solve (intern-absorbed).

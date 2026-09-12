@@ -10119,3 +10119,195 @@ Anchors: `tests/data/test_mixture_identity_anchors.py` (20 rows),
 **239 passed / 23 xfailed / 3.92 s**; `tests/data` **319 passed / 15 xfailed /
 31.56 s**. Eight open rulings O-1…O-8; O-2 (does `SNSolver` keep its kwarg?),
 O-3 (the intern key) and O-4 (freeze `Mixture`?) are blocking.
+
+---
+
+## L83 — the consumers campaign, step 2: the Problem builds its TERMINAL OBJECT (2026-09-12, PRE-carve)
+
+Dispatched on R-cc6 (`.claude/plans/cs4c_binding_design.md` §27.2): (i) split
+`WithinGroupSystem`; (ii) adopt the adjoint's posed `F` forward; (iii) the
+pencil onto the hub. `main` @ `b0fd3e7e`, tree clean at start AND at end (no
+carve landed mid-dispatch). Memo `scratch/_consumers/test_architect_step2.md`
+(1032 lines); anchors `tests/sn/architecture/test_step2_terminal_object_anchors.py`
+(14 rows) + `tests/sn/operators/test_step2_posed_fission_anchors.py` (18 rows) —
+`[M]` **29 passed / 3 xfailed / 7.83 s**, pyright 0/0; battery
+`scratch/_consumers/probes2/{mut_step2.py,battery_step2.sh}` 10 arms.
+
+### L83a — the bit-identity of a "re-home the operator" step is a property of WHICH FACE the consumer reads, and only ONE face is exact
+
+`[M]` 200 seeds on a fuel|moderator 2G slab. `FissionOperator` is an
+`AngularLift[IsotropicFission]` and DERIVES the energy binding it carries:
+
+* forward reads `F.isotropic_energy` — `array_equal` **200/200**,
+  `max|Δ| = 0.000000e+00`, and `F.isotropic_energy is F.isotropic_energy`
+  (cached);
+* forward applies `F` on the composite — `array_equal` **0/200**,
+  `max|Δ| = 2.775558e-17`, `max rel = 2.214908e-16` (≤ 1 nulp, draw-STABLE).
+  Mechanism: the `/W` ordering (`from_isotropic` normalises before the
+  broadcast, the lift after).
+
+So a brief saying *"ONE `F` on ONE space, the composite"* names the 1-nulp
+route while the bit-identical carve is *"one `F`; the forward reads its
+DERIVED binding"*. ⟹ before accepting any "adopt X's spelling" brief, probe
+EVERY face the consumer could read and report the per-face tier; the answer
+picks the design.
+
+⚠ And the composite route additionally changes the k-outer's CARRIER —
+`power_iteration` iterates on a bare `(ng, *spatial)` scalar flux, so
+`compute_fission_source`'s bare-array hatch is a design constraint, not a wart.
+
+### L83b — "the adjoint's posed spelling" was THREE spellings
+
+`[M]` `_adjoint_posing_parts` returns a plain `FissionOperator` on
+`FullFieldSpace` for a SEEDLESS mesh (the `stack @ restrict_bulk` branch is
+never reached) and an `OperatorProduct` on `CoupledSpace` for a CARRYING one;
+the forward is an `IsotropicFission` on `bulk_space`. A gate phrased *"the
+forward `F` is the adjoint's `F_posed`"* is a false red on every slab and every
+2-D Cartesian row. ⟹ when a plan cites a code path as "the good spelling",
+evaluate it on EVERY chart before quoting it.
+
+### L83c — ⛔⛔ a field partition that holds on one arm and not the other
+
+`[M]` `WithinGroupSystem`'s four fields: on the CARRYING arm
+`implicit_operator`/`explicit_gains` really are a chosen splitting
+(`CoupledOperator [[LC, Seeding],[None, march]]` + one gain grid); on the
+SEEDLESS arm they are the bare `L+C` factor and the LEAF TRIPLE
+`(ScatteringOperator, N2NOperator, SNBoundaryOperator)` — four Problem-side
+objects that *happen to form* the Jacobi splitting, with the G-S one made
+downstream by `_select_si_splitting`. And `[M]` the composed `loss` does NOT
+expose its factors (`loss.blocks[0][0]` is a nested `OperatorSum` with only
+`.a`/`.b`). ⟹ the split cannot be a field partition; the Problem must EXPOSE
+the factors. Check a proposed partition on EVERY arm of the producer's branch.
+
+### L83d — ⭐⭐ the §6c red-before ALREADY SHIPPED, and the carve DEMOTES it
+
+`[M]` `tests/sn/architecture/test_stage_separation.py::test_driver_consumes_the_records_own_splitting[cart2d-gauss_seidel]`
+is `xfail(strict=True)` (R7) and its module says *"the strict-xfail set IS the
+campaign's todo list"*. Sub-step (i) flips it — and makes it true BY
+CONSTRUCTION, because afterwards the driver consumes exactly the record the
+selector produced (`coding-standards`' single-sourcing demotion). ⟹ two
+obligations a plan owes when it flips an inherited xfail: (a) do not re-derive
+the red-before (L40a); (b) **write the successor that keeps the teeth.** Here:
+`A = M − N` asserted **per Strategy value** — today the law row is
+parametrized over the RECORD (schedule-free) because the choice is downstream.
+`[M]` the law is `array_equal` (`0.000000e+00`) for BOTH schedules; the
+in-class ERR-056-family mutation reads **`3.595068e+00`**.
+
+### L83e — ⭐⭐ the splitting choice is a TRACE-only fact: every bulk functional is a provable non-catcher
+
+`[M]` `|M_jacobi·x − M_gs·x|` on `cart2d_seedless` = **`0.000000e+00` on the
+BULK** and **`9.970929e-01` on the TRACE**. Shipped as an explicit activation
+leg that asserts `array_equal` on the bulk and `> 1e-2` on the trace, so if the
+declared blindness ever stops holding the suite says WHICH claim it lost
+(L61a's premise-gating shape).
+
+### L83f — ⭐ the ROUTE claim is about the CALL, not the object — and the battery proved it from BOTH sides
+
+`[M]` the counting spy (rebound in every module, self-asserting, L46e):
+eigen SI 4 builds / 4 outers, Krylov 4/4, sphere 5/5, 2-D 3/3 — the count is
+exactly `n_outer`, so the row asserts `count == len(history.keff_history)`, the
+MECHANISM, not a fixture number. **And the fixed-source (1) and ADJOINT (1)
+paths are ALREADY once-per-Problem**, so (iii)'s blast radius is the forward
+eigen path alone and those two counts are a must-stay-green pin.
+
+Battery: arm **A5** (memoize the FUNCTION `build_within_group_system`) reds the
+count rows **0** — the call still happens; arm **A10** (the solver caches the
+record and skips the call) reds both RECORD rows and XPASSes the ruled xfail.
+That pair IS the brief's *"a naive method, not a `cached_property`, still reads
+`n_outer` and FAILS"*, measured. ⟹ when a claim is "this stops being called",
+the arm must remove the CALL; memoizing the callee is a different claim.
+
+### L83g — ⛔ a bit-identity row comparing two bindings of the SAME class cannot see a defect INSIDE that class
+
+`[M]` arm A3 (`IsotropicFission.apply × (1+1e-12)`) reds **0 of 47** — both
+sides of the derived-binding row are `IsotropicFission` instances, so a class
+mutation moves them together (`vv` anti-#22, shared implementation, with no
+shared OBJECT and no caller relation — the third way that anti-pattern
+manifests). The one-sided mutation is on the DERIVING method:
+`FissionOperator._bind_energy` scaled only on the derived path reds **12**
+(the 8 bit-identity rows + the 4 band rows). ⟹ for any "two mints agree" row,
+ask which CLASS both sides instantiate, and mutate the thing that makes them
+differ, not the thing they share.
+
+### L83h — ⭐ a DECLARED NULL arm that reds can be a SECOND catcher rather than a broken control
+
+`[M]` arm A8 (`SNBoundaryOperator.apply × 1.5`), shipped as a predicted
+non-discriminator, reds the same 2 rows as the ERR-056 arm. Reason: on
+`jacobi` the scaling moves BOTH sides of `A = M − N` (the gain, and `A`'s own
+`B_a` term) so the row correctly stays green; on `gauss_seidel` the masked
+halves are a different class and no longer reconstruct `B`. ⟹ the arm is an
+independent in-class catcher of the same defect, and the `[jacobi]` row's green
+is the proof it is not green by accident. (L81g/L82g again: run the null.)
+
+### L83i — ⛔⛔ H1's repair is not expressible in the generating data
+
+`[M]` a within-group system built before `SNSolver.rebind_cross_sections` and
+applied after is **`array_equal` to its pre-rebind self** while a freshly built
+one moves `max|Δ| = 3.7797926845799177`, `max rel = 0.1619`. Today the defect
+is unspellable only because the builder runs per outer (`[M]` a solve after a
+×3 σ rebind moves `k 1.215962032148 → 1.203263813757`). ⚠ And
+`with_cross_sections(σ)` — the obvious Problem morphism beside the shipped
+`with_scattering_order` — **cannot be written over today's generating data**:
+the rebind overrides `mat_xs._sig_t_cell`, a per-CELL array not derivable from
+`materials`/`mat_map`, so the morphism needs a new datum that must ALSO enter
+`_identity_key` (ERR-084's class, one step later). ⟹ when a plan proposes "make
+X a morphism like Y", check that X's datum is IN the generating data; if it is
+not, the morphism is a new identity datum wearing a refactor.
+
+### L83j — ⛔ TWO production guards in the step's blast radius have ZERO witnesses
+
+`[M]` the distinctive fragments of `evaluate_residual`'s type door
+(`solver.py:388`, *"the pose travels with the call"*) and of
+`_select_si_splitting`'s G-S composite refusal (`solver.py:1223`, *"boundary
+Gauss-Seidel split requires"*) each return **exactly one** site tree-wide — the
+production `raise`. ⟹ re-homing them at the split is NET-NEW teeth, not a
+migration; the negative tests belong in the same commit.
+
+### L83k — the fixture facts, added to the ORPHEUS inventory
+
+* ⛔ **Every `tests/sn/architecture/_config` mesh is NON-FISSILE.** They are
+  built from `_two_region_materials` (`anisotropic_mixture`), and `solve_sn`
+  on one raises *"leakage scale bridge is degenerate: the last inner solve's
+  flux carries non-positive fission production"*. Three of my own rows failed
+  on it before I measured. They are STRUCTURE fixtures; anything that SOLVES
+  needs its own `xs_library` mesh (L26/L7, one tree over).
+* ⭐ **The SN regression corpus pins NO full-solve `angular_flux`.** `[M]` the
+  14 DD cases pin `keff` + `scalar_flux` only; the `2d_octant_equivalence_*`
+  cases pin angular but are per-SWEEP. The only full-solve angular wall is
+  #448's 32 anchors. A brief asking for "bit-identity of keff, scalar_flux AND
+  angular_flux on the frozen fixtures" cannot be run on that corpus.
+* ⭐ **The DriftWarning delta table at `b0fd3e7e`** (re-measured, confirming
+  L77d that the escalation is a DELTA): `tests/sn/regression` = 19 passed /
+  59.13 s plain, **9 failed / 10 passed** escalated. The nine, with their ULP:
+  `2d_1g_LS4` k 3 · `2d_2g_LS4_het_si` φ 2 · `cyl_1g_2x4` k 4 · `cyl_1g_4x8`
+  k 1 · `cyl_2g_4x8` k 2 · `slab_2g_3reg` k 1 · `slab_2g_homog` φ 1 ·
+  `sphere_2g_3reg` φ 11 · `sphere_2g_homog` k 2. The five BIT-EXACT are all
+  four fixed-source cases (incl. both P1-anisotropic and the windowed 2-D) plus
+  `cyl_2g_3reg_folded_4x6` — i.e. the anisotropic and windowed paths are the
+  strongest free anchors the tree has.
+* ⭐ `material_xs_field()` is a FRESH MINT per call (`is` False), and `[M]`
+  production mints it exactly once per solve (`solver.py:1461`).
+* ⭐ `geometry_cache_for` fires **1182×** per 1-D eigen solve, absorbed by
+  `_GEOM_CACHE_INTERN`.
+
+### L83l — scope costs for this family `[M]` at `b0fd3e7e`
+
+`sn/operators` 1327 p **72.21 s** · `sn/architecture` 162 p **2.87 s** ·
+`numerics/{test_iteration,test_si_diagnostic_trajectory}` 36 p **2.51 s** ·
+`sn/solve` (the 9 reachable files) 70 p **155.86 s** · `sn/regression` 19 p
+**61.81 s** · `transport` 950 p **23.39 s** · `sn/sweep/core/test_cache.py`
+31 p **1.74 s** · `homogeneous` 89 p **3.16 s** · `diffusion` 114 p **3.51 s**
+⟹ scope ≈ 2798 rows / **≈ 327 s**. EXCLUDED with their cost: `sn/solve` WHOLE
+**316.72 s** / 309 rows (the 9 reachable files extract at 155.86 s);
+`sn/eigenvalue` WHOLE **120.35 s** / 67 rows (zero occurrences of the step's
+symbols).
+
+### L83m — the anchors' exit arithmetic closed EXACTLY
+
+`[M]` `sn/architecture` 162 p / 1 xf → **174 p / 3 xf** (+12 p / +2 xf, +6.47 s,
+of which the Mode-9 solve pair is 6.50 s); `sn/operators` 1327 p / 5 xf →
+**1344 p / 6 xf** (+17 p / +1 xf, cost unchanged). Total +29 p / +3 xf = the
+32 rows written. `dead_references` 0 dead / 68 checked; pyright 0/0 on both
+modules (first pass had **23** errors — all `object`-typed fixture returns, an
+un-narrowed `SystemField`, an Optional `history`, and a `BulkField` lacking
+`integrate_angular`; all four fixed principledly per L44k, zero `# type: ignore`).
