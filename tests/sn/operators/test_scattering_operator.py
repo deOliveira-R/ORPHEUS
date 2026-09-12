@@ -367,7 +367,7 @@ class TestAnisotropicScatteringExtraction:
 
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = Quadrature.lebedev(order=17)
-        return SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=1)
+        return SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=1))
 
     def test_l0_binding_is_isotropic_and_selects_no_redistribution(self, solver_2g_p0):
         """L=0 ⟹ the binding is isotropic and no ℓ ≥ 1 body is selected —
@@ -735,7 +735,7 @@ def solver_2g_p1_n2n():
     nx, ny = 3, 2
     mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
     quad = Quadrature.lebedev(order=17)
-    return SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=1)
+    return SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=1))
 
 
 class TestFoldablePart:
@@ -1601,7 +1601,7 @@ class TestAnisoMomentSourcePath:
         nx, ny = 3, 2
         mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
-        solver_p3 = SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=3)
+        solver_p3 = SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=3))
         op_p3 = solver_p3.scattering_op
 
         rng = np.random.default_rng(20260530 + 2)

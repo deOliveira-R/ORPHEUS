@@ -239,7 +239,7 @@ class TestAnisotropicScatteringKeff:
             phi /= np.linalg.norm(phi)
         keff_p0 = keff
 
-        solver_explicit = SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=0, max_inner=500, inner_tol=1e-10)
+        solver_explicit = SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=0), max_inner=500, inner_tol=1e-10)
         phi = solver_explicit.initial_flux_distribution()
         keff = 1.0
         for _ in range(50):
@@ -278,7 +278,7 @@ class TestAnisotropicScatteringKeff:
 
         keffs = {}
         for L in [0, 1]:
-            solver = SNSolver(SNMesh(mesh, quad, materials), scattering_order=L, max_inner=500, inner_tol=1e-10)
+            solver = SNSolver(SNMesh(mesh, quad, materials, scattering_order=L), max_inner=500, inner_tol=1e-10)
             phi = solver.initial_flux_distribution()
             keff = 1.0
             for _ in range(50):
@@ -314,7 +314,7 @@ class TestBicgstabPnScattering:
 
         keffs = {}
         for label, solver_type in [("SI", "source_iteration"), ("BC", "krylov")]:
-            solver = SNSolver(SNMesh(mesh, quad, {0: mix}), inner_solver=solver_type, scattering_order=0, max_inner=500 if solver_type == "source_iteration" else 2000, inner_tol=1e-10 if solver_type == "source_iteration" else 1e-6)
+            solver = SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=0), inner_solver=solver_type, max_inner=500 if solver_type == "source_iteration" else 2000, inner_tol=1e-10 if solver_type == "source_iteration" else 1e-6)
             phi = solver.initial_flux_distribution()
             keff = 1.0
             for _ in range(50):
@@ -341,7 +341,7 @@ class TestBicgstabPnScattering:
 
         keffs = {}
         for L in [0, 1]:
-            solver = SNSolver(SNMesh(mesh, quad, {0: mix}), inner_solver="krylov", scattering_order=L, max_inner=2000, inner_tol=1e-6)
+            solver = SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=L), inner_solver="krylov", max_inner=2000, inner_tol=1e-6)
             phi = solver.initial_flux_distribution()
             keff = 1.0
             for _ in range(50):
@@ -369,7 +369,7 @@ class TestBicgstabPnScattering:
 
         keffs = {}
         for label, solver_type in [("SI", "source_iteration"), ("BC", "krylov")]:
-            solver = SNSolver(SNMesh(mesh, quad, {0: mix}), inner_solver=solver_type, scattering_order=1, max_inner=500 if solver_type == "source_iteration" else 2000, inner_tol=1e-10 if solver_type == "source_iteration" else 1e-6)
+            solver = SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=1), inner_solver=solver_type, max_inner=500 if solver_type == "source_iteration" else 2000, inner_tol=1e-10 if solver_type == "source_iteration" else 1e-6)
             phi = solver.initial_flux_distribution()
             keff = 1.0
             for _ in range(50):

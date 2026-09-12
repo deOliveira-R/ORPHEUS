@@ -328,8 +328,8 @@ def _full_matvec(sn: SNMesh):
     sum locally. On a seedless slab the loss grid is the 1×1 ``[[A_AA]]``, i.e.
     exactly ``(L+C) − S − B_a``.
     """
-    solver = SNSolver(sn, inner_solver="source_iteration", scattering_order=0)
-    system = build_within_group_system(sn, solver.mat_xs, scattering_order=0)
+    solver = SNSolver(sn, inner_solver="source_iteration")
+    system = build_within_group_system(sn, solver.mat_xs)  # the order is the hub's
     return system.loss, system.space
 
 

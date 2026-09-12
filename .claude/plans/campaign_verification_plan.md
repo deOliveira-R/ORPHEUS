@@ -26,7 +26,14 @@ Three measurements.
 build_within_group_system(sn_mesh, mat_xs, *, scattering_op, scattering_order)
 ```
 
-**MEASURED** — `inspect.signature` returns
+✅ **SIGNATURE MOVED 2026-09-12** (consumers campaign S1c, ruling R-cc9 / #459): it is now
+`build_within_group_system(sn_mesh, mat_xs, *, scattering_op, n2n_op)` — `scattering_order`
+retired from this surface and is read off `sn_mesh.scattering_order`, and `n2n_op` joined at
+CS4c §14.1. **The measurement below and its conclusion are unchanged**: the poser still takes
+no strategy parameter, so the Mode-8 SIGNATURE-tautology finding stands; only the argument
+list it is stated over moved.
+
+**MEASURED (on the tree of this plan's date)** — `inspect.signature` returns
 `['sn_mesh', 'mat_xs', 'scattering_op', 'scattering_order']`. Neither
 `inner_schedule` nor `inner_solver` is reachable. `scattering_op` is a
 cache seam and `scattering_order` is physics (Legendre truncation), not

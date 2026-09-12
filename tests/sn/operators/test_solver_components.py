@@ -528,7 +528,7 @@ class TestAnisotropicScattering:
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = Quadrature.lebedev(order=17)
 
-        solver = SNSolver(SNMesh(mesh, quad, {0: mix_p0_only}), scattering_order=1)
+        solver = SNSolver(SNMesh(mesh, quad, {0: mix_p0_only}, scattering_order=1))
         assert solver.scattering_order == 0, (
             f"Expected L=0 (clamped), got L={solver.scattering_order}"
         )
@@ -623,7 +623,7 @@ class TestAnisotropicScattering:
 
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
         quad = Quadrature.lebedev(order=17)
-        solver = SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=1)
+        solver = SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=1))
 
         N = quad.N
         angular = AngularFlux(

@@ -61,9 +61,8 @@ def _operator_residual_with_seed(case, nc, seed_mode):
     """
     mesh = case.build_mesh(nc)
     Q = case.external_source(mesh)
-    sn_mesh = _as_sn_mesh(mesh, case.quadrature, case.materials, "vacuum", mat_map=None)
-    solver = SNSolver(sn_mesh, inner_solver="source_iteration",
-                      scattering_order=0, max_inner=2000, inner_tol=1e-13)
+    sn_mesh = _as_sn_mesh(mesh, case.quadrature, case.materials, "vacuum", mat_map=None, scattering_order=0)
+    solver = SNSolver(sn_mesh, inner_solver="source_iteration", max_inner=2000, inner_tol=1e-13)
     q_ext = _build_fixed_source_rhs(Q, sn_mesh)
     # B.2d: the triple retired into build_within_group_system; this fused
     # 3-block probe reads the production surfaces directly. B = B_a alone is

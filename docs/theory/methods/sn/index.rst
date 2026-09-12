@@ -845,29 +845,209 @@ What moved, concretely
    **revised by ruling**, not deferred, so a future reader who finds
    that row in an archived plan should read this section instead.
 
-   The mesh's pairing predicate became TWO predicates at the consumers
-   campaign's step 1 (2026-09-12, ruling R-cc8; GitHub #459).
-   :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.same_phase_space`
-   answers *may two solutions' fields be paired* — contractibility by
-   CONTENT: the geometry, the material assignment, the materials'
-   content, and on an ``SNMesh`` the quadrature's content and the scheme
-   **by type** — while deliberately EXCLUDING the angular closure (a
-   solve-time sweep strategy changes neither the field layout nor the
-   quadrature two solutions contract over, so fields from two closures
-   stay contractible) and the retained scattering order.  Do not
-   "strengthen" that predicate by adding either.  ``SNMesh.__eq__`` /
-   ``__hash__`` answer the OTHER question — *is this the same problem* —
-   over every generating datum by content, the closure class included,
-   so a saved-and-reloaded problem compares equal and a problem can key
-   a registry.  (Until 2026-09-12 one predicate, ``is_same_phase_space``,
-   compared CONSTITUENT identity — ``mesh is``, ``quad is``, per-mixture
-   ``is`` — vacuous at d≥3 and false for every same-data pair built by
-   two ``from_axes`` calls; ``__eq__`` was ``object.__eq__``.)
+   What *did* change, at the consumers campaign's step 1 (2026-09-12,
+   rulings R-cc8 / R-cc9; GitHub #459), is what "save state" costs the
+   hub to mean.  A save state must be able to answer *am I the same
+   problem you saved?* from its own CONTENT, and a hub that answers it
+   from constituent object identity cannot: two runs of the same deck
+   are two object graphs.  Two consequences, one section each below —
+   the predicate split, and the retained scattering order joining the
+   hub as generating data.
 
-   The remaining misnomer is the *name*
-   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` itself, which is
-   tracked as its own rename issue; the object's role as save state and
-   data hub is settled.
+.. _sn-hub-identity-two-predicates:
+
+Two predicates, because there were two questions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Until 2026-09-12 the hub spelled ONE predicate, ``is_same_phase_space``,
+over CONSTITUENT identity (``mesh is``, ``quad is``, per-mixture ``is``,
+scheme type).  It was answering two different questions at once, and
+answering both badly:
+
+* **vacuous at** :math:`d \ge 3` — an axis-native hub keeps
+  :attr:`SNMesh.mesh <orpheus.sn.mesh.augmented_mesh.SNMesh.mesh>`
+  ``= None`` as its legacy-adapter slot, so ``a.mesh is b.mesh``
+  reduced to ``None is None`` and two 3-D problems with different cell
+  counts *and* different extents compared **equal**;
+* **false for every same-data pair built by two**
+  :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.from_axes` **calls** at
+  :math:`d \le 2`, because that surface synthesizes a fresh legacy
+  adapter per call.  ``SNMesh`` itself had no ``__eq__`` at all
+  (``object.__eq__``, i.e. identity), and every generating datum it
+  holds — :class:`~orpheus.data.macro_xs.mixture.Mixture`,
+  :class:`~orpheus.numerics.quadrature.Quadrature`,
+  :class:`~orpheus.transport.mesh.axis.AxisMesh` — **raised** on ``==``
+  or ``hash`` (a dataclass-generated ``__eq__`` over ndarray fields).
+
+The repair is not a better predicate but the recognition that the two
+questions are different, and that only one of them is what the three
+:class:`~orpheus.sn.solution.Solution` consumers ask:
+
+:meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.same_phase_space`
+   **Contractibility.**  *May two solutions' FIELDS be paired?*  Serves
+   :meth:`SolutionBase.compare <orpheus.sn.solution.SolutionBase.compare>`,
+   :meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`
+   and :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>`
+   (the adjoint-weighted arms).  Compared by CONTENT: the geometry, the
+   material assignment, the materials' content, and on an ``SNMesh`` the
+   quadrature's content and the scheme **by type**.
+
+:meth:`SNMesh.__eq__ <orpheus.sn.mesh.augmented_mesh.SNMesh>` / ``__hash__``
+   **Identity.**  *Is this the same PROBLEM?*  Serves save state and
+   :class:`~orpheus.sn.solution.Solution` provenance, and lets a problem
+   key a registry.  Every generating datum by content — the
+   contractibility key **plus** the angular-closure class **plus** the
+   retained scattering order.
+
+Identity is strictly finer than contractibility
+(``a == b`` :math:`\Rightarrow` ``a.same_phase_space(b)``), and the gap
+between them is exactly the two members the weaker predicate excludes.
+A :math:`P_0` forward and a :math:`P_3` adjoint over one deck **share a
+phase space** — their fields pair, so ``compare`` and the
+adjoint-weighted homogenization are legal — and are **different
+problems**, which is what a ``Solution`` records.  ⚠ Do not
+"strengthen" ``same_phase_space`` by folding either member in; the
+exclusion is measured, not conceded.  `[M]` 2026-09-12 the returned
+:attr:`Solution.angular_flux <orpheus.sn.solution.Solution.angular_flux>`
+is the ORDINATE carrier at every order on both arms — 1-D
+``TimedFullField(4, 2, 8)`` at :math:`L = 0` and :math:`L = 1`, 2-D
+windowed ``TimedFullField(24, 2, 4, 4)`` at both — so no field layout
+moves with the truncation order.  And `[M]` 2026-09-12 an explicit
+``angular_closure=`` override is passed at **three** construction sites
+outside the hub's own forwarding plumbing — two single-mesh sweep gates
+and the identity anchors' sphere pair — and **no** site anywhere pairs
+two ``Solution``\ s built over different closures, so a closure-aware
+pairing predicate would have no witness at all
+(``plan-authoring`` §6c).  ``tests/sn/mesh/test_problem_identity_anchors.py``
+``::TestTheClosureExclusionSurvives`` is the red that catches the
+"strengthening".
+
+The member list, once, so no second copy can drift:
+
+* **Contractibility key** — per spatial axis: the axis CLASS, the edge
+  array's bytes, both boundary laws' tags (a
+  :class:`~orpheus.geometry.mesh.BC` by kind and sorted parameters; a
+  frozen trace law by itself; a callable-bearing law by type and object,
+  because a callable has no content), both face labels, and a radial
+  axis's chart.  Then the ``mat_map``'s shape and bytes, and the
+  materials as ``(id, Mixture._identity_key)`` over sorted ids.  An
+  ``SNMesh`` appends the quadrature's own content key — nodes, weights,
+  support, invariance group, exactness claim, level structure, folding —
+  and ``type(scheme).__qualname__``.
+* **Identity key** — the contractibility key, then
+  ``type(angular_closure).__qualname__`` (the closure deletes a term
+  from :math:`L`; it is generating data), then the **clamped**
+  ``scattering_order``.
+
+Both are :func:`~functools.cached_property`: the generating data is set
+in the constructor and never reassigned, and every array the key reaches
+is a frozen axis's read-only edges, a ``Mixture``'s read-only field, or
+the ``mat_map`` no consumer writes.  That is not an optimization — it is
+a design constraint.  `[M]` building the key live costs ≈ 1.02 ms per
+call on 421-group data, and the SN geometry cache reads a problem's hash
+6–10 times per solve, so an uncached content ``__hash__`` would be a
+6–10 ms per-solve regression **that no 2-group fixture can see** (the
+same build on a 2-group mixture is 1.60 µs, 640× cheaper).  A cached key
+is sound only because nothing can move the data underneath it, which is
+why :class:`~orpheus.data.macro_xs.mixture.Mixture` became frozen with
+read-only arrays in the same step.
+
+`[M]` 2026-09-12, a :math:`d = 3` hub over ``level_symmetric(4)`` and the
+2-group A/B library: two ``from_axes`` builds sharing **no** constituent
+object by ``is`` compare ``==`` and hash equal; the same pair under the
+old predicate read ``False``.
+
+.. _sn-hub-retained-order:
+
+The retained scattering order is the hub's datum, clamped once
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A datum with three spellings is a datum with no owner.  Until
+2026-09-12 the retained Legendre order had three, and they **disagreed
+on a live solve**:
+
+#. :class:`~orpheus.sn.solver.SNSolver` took its own ``scattering_order``
+   argument and clamped it to ``min(L, min_materials(len(SigS) − 1))``;
+#. the adjoint entries passed the caller's raw request straight into the
+   posing, **unclamped**, where a short Legendre stack zero-pads;
+#. the fixed-source entry handed its raw request to DSA.
+
+`[M]` 2026-09-12, a counting spy on ``TransferKernel.at_order`` over a
+two-region 2-group slab (``gauss_legendre(4)``, ``nx = 8``,
+``keff_tol = 1e-9``): ``solve_sn(scattering_order=3)`` served orders
+:math:`\{0, 1\}` — clamped to 1 — while
+``solve_sn_adjoint(scattering_order=3)`` served :math:`\{0, 1, 3\}`,
+two of them zero-padded moments.  A :math:`P_3` forward and a
+:math:`P_3` adjoint over identical data ran at **different internal**
+:math:`L`, and the zero padding made the two :math:`k` agree to
+:math:`1.1\times10^{-11}` — which is exactly why nothing noticed.
+
+So the order is now a **constructor datum of the hub**, clamped once at
+construction and read by everyone (ruling R-cc9):
+
+.. code-block:: python
+
+   sn_mesh = SNMesh.from_axes(axes, quad, materials, scattering_order=3)
+   sn_mesh.scattering_order          # the CLAMPED value
+
+:class:`~orpheus.sn.solver.SNSolver` reads ``sn_mesh.scattering_order``
+and no longer takes the argument;
+:meth:`DSACorrection.from_sn_mesh
+<orpheus.sn.acceleration.dsa.DSACorrection.from_sn_mesh>` and
+:meth:`DSALowOrderSystem.from_sn_mesh
+<orpheus.sn.acceleration.dsa.DSALowOrderSystem.from_sn_mesh>` read it
+off the hub they are already handed;
+:func:`~orpheus.sn.coupled_system.build_within_group_system` reads it
+when it constructs a fresh :math:`S` or :math:`N_{2n}`; and the adjoint
+posing takes the hub alone.  The four entry points
+(:func:`~orpheus.sn.solver.solve_sn`,
+:func:`~orpheus.sn.solver.solve_sn_adjoint`,
+:func:`~orpheus.sn.solver.solve_sn_fixed_source`,
+:func:`~orpheus.sn.solver.solve_sn_adjoint_fixed_source`) keep their
+``scattering_order=`` keyword as **sugar** that forwards into the hub's
+constructor — the user-facing spelling is unchanged, and there is no
+longer a second place an order could disagree.
+
+.. warning::
+
+   **CLAMPED means requests collapse.**  The clamp is
+   ``min(L, min_materials(len(SigS) − 1))``, and it reads the
+   **scattering** stack alone — a short :math:`(n,2n)` channel can never
+   lower the solve's order.  `[M]` all twelve
+   :mod:`~orpheus.derivations.common.xs_library` mixtures ship
+   ``len(SigS) == 2``, so on the abstract library requests **1, 2, 3 and
+   5 are the same problem** (retained 1) and only :math:`(0, \ge 1)`
+   separates.  A discrimination row spelled "``P2`` vs ``P3``" therefore
+   asserts ``1 != 1`` and is a **false green**; the non-vacuous abstract
+   pair is :math:`(0, \ge 1)`, and a genuine ``(1, 3)`` distinction needs
+   the 421-group library, where `[M]` ``len(SigS) == 7``.  The key holds
+   the CLAMPED value precisely so that two hubs a solver cannot tell
+   apart are not recorded as different problems.
+
+   A negative request is refused at construction
+   (``ValueError: SNMesh: scattering_order must be >= 0``) rather than
+   silently clamped up — ``coding-standards``' real-``raise`` rule, so
+   the contract survives the canonical ``python -O`` runner.
+
+Re-posing an existing hub at another order is a Problem **morphism**,
+not a mutation — the hub is a save state, so it is never edited in
+place:
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.with_scattering_order`
+returns a NEW hub over the same generating data (geometry, material
+assignment, materials, quadrature, scheme and closure class shared by
+content), clamped exactly as at construction.  `[M]` 2026-09-12 on the
+:math:`d = 3` hub above: ``a.with_scattering_order(3)`` retains 1,
+compares ``==`` to the hub built directly at 1, compares **unequal** to
+the :math:`L = 0` hub, and ``same_phase_space`` is ``True`` against all
+of them.
+
+.. note:: **The remaining misnomer.**
+
+   The *name*
+   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` is still tracked as
+   its own rename issue (``SNProblem``); the object's role as save state
+   and data hub is settled, and step 1 is what made "save state"
+   checkable rather than aspirational.
 
 
 Quadrature Dispatch

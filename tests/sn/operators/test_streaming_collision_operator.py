@@ -772,9 +772,9 @@ class TestStreamingCollisionSolveBridgeRegression:
             coord=coord, n_cells=n_cells, length=2.0, mat_id=mat_id,
         )
         quad = _quadrature_for(coord)
-        sn_mesh = SNMesh(mesh, quad, case.problem.materials)
+        sn_mesh = SNMesh(mesh, quad, case.problem.materials, scattering_order=0)
         solver = SNSolver(
-            sn_mesh=sn_mesh, scattering_order=0,
+            sn_mesh=sn_mesh,
             max_inner=300, inner_tol=1e-12,
             inner_solver="source_iteration",
         )

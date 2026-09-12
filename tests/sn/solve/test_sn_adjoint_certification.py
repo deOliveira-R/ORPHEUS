@@ -403,7 +403,7 @@ def _sphere_daggered_run(sn_mesh):
     from orpheus.numerics.coupled_system import CoupledField
     from orpheus.numerics.iteration import KEigenvalue
 
-    parts: tuple[Any, Any, Any, Any] = _adjoint_posing_parts(sn_mesh, 0)
+    parts: tuple[Any, Any, Any, Any] = _adjoint_posing_parts(sn_mesh)
     implicit_operator, gain, F_posed, template = parts
     if not isinstance(template, CoupledField):
         pytest.fail(
@@ -439,7 +439,7 @@ def _sphere_dense_reference():
 
     mats, mesh = _het_sphere()
     sn = _as_sn_mesh(mesh, _quad(), mats)
-    parts: tuple[Any, Any, Any, Any] = _adjoint_posing_parts(sn, 0)
+    parts: tuple[Any, Any, Any, Any] = _adjoint_posing_parts(sn)
     implicit_operator, gain, F_posed, template = parts
     if not isinstance(template, CoupledField):
         pytest.fail(

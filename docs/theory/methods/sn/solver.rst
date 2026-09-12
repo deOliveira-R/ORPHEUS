@@ -45,6 +45,25 @@ therefore survive a rebind untouched:
   once, at the eigen-:math:`M` posing site, where a composite operator
   is what the pencil needs (:ref:`sn-fission-binding-adjoint`).
 
+.. note:: **The retained Legendre order is NOT a solver argument — it is
+   the hub's datum.**
+
+   Until 2026-09-12 :class:`~orpheus.sn.solver.SNSolver` took its own
+   ``scattering_order`` keyword and clamped it; the adjoint entries and
+   the fixed-source entry each had their own, and the three disagreed on
+   a live solve.  Since the consumers campaign's step 1 (ruling R-cc9;
+   GitHub #459) the order is clamped ONCE on
+   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` at construction, and
+   ``SNSolver.__init__`` reads :attr:`sn_mesh.scattering_order
+   <orpheus.sn.mesh.augmented_mesh.SNMesh.scattering_order>`.  The
+   attribute ``SNSolver.scattering_order`` still exists and still means
+   the same thing — it is now a **read**, not a second spelling.  The
+   four entry
+   points keep their ``scattering_order=`` keyword as sugar that
+   forwards into the hub's constructor, so no user-facing call changed.
+   The argument and the clamp are documented at
+   :ref:`sn-hub-retained-order`.
+
 The loss composite :math:`L+C` is deliberately **not** cached on the
 solver.  Its one spelling is
 :func:`~orpheus.sn.coupled_system.build_streaming_collision`, reached

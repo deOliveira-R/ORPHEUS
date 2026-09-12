@@ -4,6 +4,33 @@ Data Package (``data``)
 Mixture
 -------
 
+.. warning::
+
+   **A** :class:`~orpheus.data.macro_xs.mixture.Mixture` **is a VALUE,
+   and has been since 2026-09-12** (the consumers campaign's step 1,
+   ruling O-4; GitHub #459).  It is a ``frozen`` dataclass; every array
+   it holds is a read-only defensive copy taken at construction (the
+   dense fields, the energy grid, :math:`\chi` after the emission law,
+   and each sparse Legendre block as a canonical CSR), and the two
+   Legendre stacks are tuples.  Two consequences for any caller:
+
+   * ``mix.SigT = ...`` (or ``.SigS`` / ``.Sig2`` / ``.SigP``) now
+     raises :exc:`dataclasses.FrozenInstanceError`, and writing into a
+     returned array raises ``ValueError: assignment destination is
+     read-only``.  Build a variant with :func:`dataclasses.replace`,
+     which re-runs the construction laws rather than bypassing them.
+   * ``==`` and ``hash`` are by **content**, not identity: two mixtures
+     built from equal data compare equal and hash equal.  Before this
+     change ``==`` raised ``ValueError`` at :math:`n_g \ge 2` (a
+     dataclass-generated comparison over ndarray fields) and returned a
+     **false** ``True`` at :math:`n_g = 1`, and the class was
+     unhashable.
+
+   The reason is the S\ :sub:`N` phase-space hub: a problem's identity
+   is the content of its generating data, and a content key is sound
+   only over data nothing can move.  See
+   :ref:`sn-hub-identity-two-predicates`.
+
 .. automodule:: orpheus.data.macro_xs.mixture
    :members:
    :undoc-members:

@@ -2,7 +2,11 @@ r"""``scattering_order`` is the ONLY truncation — the data layer is lossless i
 
 Two claims, both on the real 421-group library (`[M]` 2026-09-03):
 
-* **The solver's order clamp reads the SCATTERING stack alone.** The (n,2n) stack of an
+* **The order clamp reads the SCATTERING stack alone.** (The clamp was the SOLVER's when
+  this was written; since 2026-09-12 it is the PROBLEM's — ``SNMesh`` clamps once at
+  construction and every consumer reads ``sn_mesh.scattering_order``, ruling R-cc9 /
+  GitHub #459. WHICH stack it reads is unchanged, which is what this claim is about.)
+  The (n,2n) stack of an
   isotope whose tape carries no MT=16 (H-1, B-10) is the zero P0 block — length 1 — and a
   clamp that read it would drop every mixture containing such an isotope to P0, deleting
   the elastic P1/P2 (`[M]` worth +5787 pcm-relative on the Be-reflected fixture, 14× the

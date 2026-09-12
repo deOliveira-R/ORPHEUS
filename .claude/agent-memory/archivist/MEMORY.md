@@ -41,6 +41,13 @@ means merged). **No owed Sphinx pass on merged work.** Landed SN milestones live
 
 **One line per pass. The evidence is in the lesson; `git log --oneline -- docs/` is the index.**
 
+- **Consumers campaign step 1** — a Problem's identity is the CONTENT of its generating data
+  (2026-09-12; 11 `.rst` + 5 plans + 1 test docstring, +541/−100 on `docs/`; S1a `deacd897`,
+  S1b `2c1667b0` on `main`, S1c uncommitted). The carve INVERTED one leg of a page's own
+  argument while its conclusion stood; a digest LENGTH I drafted was an artefact of my
+  throwaway class's name; the changelog contract has no clause for an uncommitted-on-`main`
+  last unit (its own table does); the ERR-084 entry is BLOCKED on a `catches` decorator
+  → L-103
 - **CS4c coda C3** — a HUB replaces a fabricated carrier (2026-09-08; 4 `.rst`, 3 plans, 2 test
   docstrings, +513/−130). The brief's named staleness target measured **0** and the file's rot was a
   different predicate; a docstring QUOTING a sibling's was false; prose summarising a gate kept its

@@ -580,8 +580,8 @@ class TestRLambdaMRoundTrip:
             mat_map=np.zeros((nx, ny), dtype=int),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNMesh(mesh, quad, {0: mix})
-        solver = SNSolver(sn_mesh, scattering_order=1)
+        sn_mesh = SNMesh(mesh, quad, {0: mix}, scattering_order=1)
+        solver = SNSolver(sn_mesh)
         op = solver.scattering_op
 
         # Build a typed AngularFlux with isotropic content.
@@ -617,8 +617,8 @@ class TestRLambdaMRoundTrip:
             mat_map=np.zeros((nx, ny), dtype=int),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNMesh(mesh, quad, {0: mix})
-        solver = SNSolver(sn_mesh, scattering_order=1)
+        sn_mesh = SNMesh(mesh, quad, {0: mix}, scattering_order=1)
+        solver = SNSolver(sn_mesh)
         op = solver.scattering_op
 
         L = 1
@@ -659,8 +659,8 @@ class TestRLambdaMRoundTrip:
             mat_map=np.zeros((nx, ny), dtype=int),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNMesh(mesh, quad, {0: mix})
-        solver = SNSolver(sn_mesh, scattering_order=1)
+        sn_mesh = SNMesh(mesh, quad, {0: mix}, scattering_order=1)
+        solver = SNSolver(sn_mesh)
         op = solver.scattering_op
 
         L = 1

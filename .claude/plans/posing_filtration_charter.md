@@ -176,7 +176,13 @@ never-on-Mixture half is unchanged.)
   `c6964299` (Phase A item 5 — annotations widened at `5c64c78f`;
   `MaterialMesh` parses at the boundary via `Materials.of`, guard 2
   discharges through `restrict()`, `is_same_phase_space` moved to
-  per-mixture identity):** `Materials` lives at
+  per-mixture identity — ✅ **that last clause was REMEDIED 2026-09-12**
+  by the consumers campaign's S1a/S1b (`deacd897`, `2c1667b0`; ruling
+  R-cc8, GitHub #459): per-mixture `is` was the defect, not the fix, so
+  `is_same_phase_space` RETIRED into `MaterialMesh.same_phase_space`
+  (contractibility by CONTENT) plus `__eq__`/`__hash__` (Problem
+  identity); `Mixture` is a frozen VALUE with a content key):**
+  `Materials` lives at
   **`orpheus/data/materials.py`** — the
   incumbent `data/materials/` property-correlation package (h2o/matpro
   thermophysics) renames to **`data/material_properties/`** ("long

@@ -265,9 +265,7 @@ def build_coupled_system(
         ride — production solves stay the splitting iteration on the
         record's ``implicit_operator``/``explicit_gains``.
     """
-    system = build_within_group_system(
-        sn_mesh, mat_xs, scattering_order=scattering_order,
-    )
+    system = build_within_group_system(sn_mesh, mat_xs)
     return (system.loss, system.space)
 
 
@@ -459,7 +457,6 @@ def build_within_group_system(
     *,
     scattering_op: "ScatteringOperator | None" = None,
     n2n_op: "N2NOperator | None" = None,
-    scattering_order: int = 0,
 ) -> "WithinGroupSystem":
     r"""Build the within-group system — loss grid + splitting — from ONE
     piece-construction pass.
@@ -479,8 +476,8 @@ def build_within_group_system(
     * ``S`` — the bulk scattering gain (producer-side ``/W`` normalisation
       inside ``S.apply``; no consumer-side rescale). The solver's cached
       instance injects through ``scattering_op`` (a cache seam, NOT a
-      configuration flag — ``scattering_order`` is consulted only when
-      constructing fresh).
+      configuration flag — the hub's ``scattering_order`` is consulted only
+      when constructing fresh).
     * ``B_a`` — the System-A trace boundary
       (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`),
       a SEPARATE first-class gain (Wave O #208 O.2a): it lives on the
@@ -519,14 +516,18 @@ def build_within_group_system(
     scattering_op : ScatteringOperator, optional
         The already-constructed scattering operator (the solver's cached
         instance). ``None`` constructs fresh from ``mat_xs`` at
-        ``scattering_order``.
+        the hub's ``scattering_order``.
     n2n_op : N2NOperator, optional
         The already-constructed :math:`(n,2n)` source operator (§14.1 —
         first-class since CS4c step 3; the within-group algebra spells
         ``− S − N₂ₙ`` explicitly). ``None`` constructs fresh.
-    scattering_order : int
-        Legendre truncation for a fresh ``S`` (0 = P0 — the solver
-        default). Ignored when ``scattering_op`` is injected.
+
+    The Legendre truncation for a fresh ``S`` is the HUB's retained order
+    (``sn_mesh.scattering_order`` — a generating datum since the consumers
+    campaign's S1c, 2026-09-12, clamped once at the hub's construction);
+    until then this function took its own ``scattering_order`` parameter,
+    one of three disagreeing spellings. Ignored when ``scattering_op`` is
+    injected.
     """
     full_field_space = sn_mesh.full_field_space
     S = (
@@ -534,7 +535,7 @@ def build_within_group_system(
         if scattering_op is not None
         else ScatteringOperator.from_solver_data(
             mat_xs=mat_xs,
-            scattering_order=scattering_order,
+            scattering_order=sn_mesh.scattering_order,
             space=full_field_space,
         )
     )
@@ -543,7 +544,7 @@ def build_within_group_system(
         if n2n_op is not None
         else N2NOperator.from_solver_data(
             mat_xs=mat_xs,
-            scattering_order=scattering_order,
+            scattering_order=sn_mesh.scattering_order,
             space=full_field_space,
         )
     )

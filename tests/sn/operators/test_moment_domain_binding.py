@@ -102,12 +102,13 @@ def sn_mesh() -> SNMesh:
         mesh,
         Quadrature.level_symmetric(sn_order=4),
         {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")},
+        scattering_order=_L,  # the retained order is the hub's datum (R-cc9)
     )
 
 
 @pytest.fixture(scope="module")
 def solver(sn_mesh) -> SNSolver:
-    return SNSolver(sn_mesh, scattering_order=_L)
+    return SNSolver(sn_mesh)
 
 
 def _psi(sn_mesh, seed: int) -> AngularFlux:
@@ -549,7 +550,7 @@ def _sn_mesh_with_n2n() -> SNMesh:
         bc_xmin=BC.vacuum, bc_xmax=BC.vacuum,
         bc_ymin=BC.reflective, bc_ymax=BC.reflective,
     )
-    return SNMesh(mesh, Quadrature.level_symmetric(sn_order=4), {0: mix})
+    return SNMesh(mesh, Quadrature.level_symmetric(sn_order=4), {0: mix}, scattering_order=_L)
 
 
 class TestTheOtherLifts:
@@ -567,7 +568,7 @@ class TestTheOtherLifts:
         a zero morphism cannot pass it.
         """
         sn = _sn_mesh_with_n2n()
-        N = SNSolver(sn, scattering_order=_L).n2n_op
+        N = SNSolver(sn).n2n_op
         N_w = N.on_moment_domain()
         psi = _psi(sn, seed=31)
         angular = np.asarray(bulk_apply(N, psi).values)

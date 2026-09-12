@@ -254,12 +254,17 @@ def isotropic_slab(*, c: float = 0.9, sig_t: float = 1.0, n: int = 40) -> SNMesh
 
 # ── the posed record ─────────────────────────────────────────────────────
 
-def record_for(sn_mesh: SNMesh, *, scattering_order: int = 1) -> "WithinGroupSystem":
-    """The posed within-group record — the ONE construction site."""
-    return build_within_group_system(
-        sn_mesh, sn_mesh.material_xs_field(),
-        scattering_order=scattering_order,
-    )
+def record_for(sn_mesh: SNMesh, *, scattering_order: int | None = None) -> "WithinGroupSystem":
+    """The posed within-group record — the ONE construction site.
+
+    The retained order is the HUB's datum (R-cc9, 2026-09-12): ``None`` poses
+    the record on ``sn_mesh`` at its own order; an explicit order poses it
+    on the derived Problem ``sn_mesh.with_scattering_order(order)`` — a
+    different hub (same generating data, another order), so a row that
+    compares the record's spaces by identity against ``sn_mesh``'s must
+    build its hub at that order instead."""
+    hub = sn_mesh if scattering_order is None else sn_mesh.with_scattering_order(scattering_order)
+    return build_within_group_system(hub, hub.material_xs_field())
 
 
 # ── probe states ─────────────────────────────────────────────────────────

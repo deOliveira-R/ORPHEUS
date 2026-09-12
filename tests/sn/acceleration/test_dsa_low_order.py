@@ -98,7 +98,7 @@ class TestProductionTie:
         exercise the (23c) transport-corrected D, not the bare-P0
         coincidence."""
         sn_mesh = _slab(*bc)
-        system = DSALowOrderSystem.from_sn_mesh(sn_mesh, scattering_order=1)
+        system = DSALowOrderSystem.from_sn_mesh(sn_mesh.with_scattering_order(1))
         h, sigma_t, sigma_s0, sigma_s1, mu, w = _reference_inputs(sn_mesh)
         for g in range(sigma_t.shape[0]):
             a_ref, g_ref = dsa_reference.build_consistent_dd_system(
@@ -117,7 +117,7 @@ class TestProductionTie:
         """f0 = A⁻¹(G d) and the (28a) cell average, against a direct
         dense solve of the reference system."""
         sn_mesh = _slab()
-        system = DSALowOrderSystem.from_sn_mesh(sn_mesh, scattering_order=1)
+        system = DSALowOrderSystem.from_sn_mesh(sn_mesh.with_scattering_order(1))
         h, sigma_t, sigma_s0, sigma_s1, mu, w = _reference_inputs(sn_mesh)
         rng = np.random.default_rng(7)
         d0 = rng.standard_normal((sigma_t.shape[0], h.shape[0]))

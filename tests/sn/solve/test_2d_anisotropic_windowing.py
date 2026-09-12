@@ -272,7 +272,7 @@ def _windowed_product_and_oracle_operands(
         if scattering_order is None
         else scattering_order
     )
-    solver = SNSolver(SNMesh(mesh, quad, materials), scattering_order=L)
+    solver = SNSolver(SNMesh(mesh, quad, materials, scattering_order=L))
 
     # The within-group forward + the scattering operator — the SAME
     # operators (and the SAME schedule dispatch) the windowed SI driver

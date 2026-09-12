@@ -146,6 +146,7 @@ def _as_sn_mesh(
     mat_map: "np.ndarray | None" = None,
     *,
     scheme: "DiscretizationSchemeBase | None" = None,
+    scattering_order: int = 0,
 ) -> "SNMesh":
     r"""Normalize the entry-surface geometry declaration into an SNMesh.
 
@@ -172,9 +173,13 @@ def _as_sn_mesh(
                 "Mesh1D/Mesh2D carries its own mat_ids/mat_map — "
                 "declare the assignment on the mesh."
             )
-        return SNMesh(geometry, quadrature, materials, scheme=scheme)
+        return SNMesh(
+            geometry, quadrature, materials, scheme=scheme,
+            scattering_order=scattering_order,
+        )
     return SNMesh.from_axes(
         geometry, quadrature, materials, mat_map=mat_map, scheme=scheme,
+        scattering_order=scattering_order,
     )
 
 
@@ -1393,7 +1398,6 @@ class SNSolver:
         self,
         sn_mesh: SNMesh,
         inner_solver: str = "source_iteration",
-        scattering_order: int = 0,
         keff_tol: float = 1e-7,
         flux_tol: float = 1e-6,
         max_inner: int | None = None,
@@ -1429,7 +1433,10 @@ class SNSolver:
         # ``"gauss_seidel"`` is opt-in (2-D Cartesian; ``_select_si_splitting``
         # auto-falls-back to Jacobi on 1-D / curvilinear).
         self.inner_schedule = inner_schedule
-        self.scattering_order = scattering_order
+        # The retained Legendre order is the HUB's datum (R-cc9, 2026-09-12):
+        # clamped once at the hub's construction and read here — never a
+        # second spelling on the solver (O-2 retired the kwarg).
+        self.scattering_order = sn_mesh.scattering_order
         self.keff_tol = keff_tol
         self.flux_tol = flux_tol
         # Resolved ONCE, here, so `self.max_inner` is always a live int: every
@@ -1463,14 +1470,6 @@ class SNSolver:
                 _sig_t_old,
                 np.moveaxis(self.mat_xs.total_cross_section, 0, -1),
             ), "PR-INDEX-3 cell-flattening invariant broke"
-
-        # Scattering order — clamp to the minimum Legendre count
-        # available across all materials.
-        L = min(
-            scattering_order,
-            min(len(m.SigS) - 1 for m in materials.values()),
-        )
-        self.scattering_order = L
 
         # Weight normalization (1/sum(w) — works for both GL and Lebedev)
         self.weight_norm = 1.0 / sn_mesh.quad.weights.sum()
@@ -2439,12 +2438,14 @@ def solve_sn(
     # phase-space-as-such object. C5.5 (#225): the declaration may be a
     # legacy mesh or an axis tuple (the only 3-D entry); unset faces
     # resolve to the SNMesh reflective default (eigenvalue convention).
-    sn_mesh = _as_sn_mesh(mesh, quadrature, materials, mat_map=mat_map)
+    sn_mesh = _as_sn_mesh(
+        mesh, quadrature, materials, mat_map=mat_map,
+        scattering_order=scattering_order,
+    )
 
     solver = SNSolver(
         sn_mesh,
         inner_solver=inner_solver,
-        scattering_order=scattering_order,
         keff_tol=keff_tol, flux_tol=flux_tol,
         max_inner=max_inner, inner_tol=inner_tol,
         inner_schedule=inner_schedule,
@@ -2733,7 +2734,7 @@ def _package_solution(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
+def _adjoint_posing_parts(sn_mesh: SNMesh):
     r"""Shared build for the adjoint entries: the daggerable parts.
 
     Returns ``(implicit_operator, gain, F_posed, template)`` — the invertible
@@ -2763,7 +2764,7 @@ def _adjoint_posing_parts(sn_mesh: SNMesh, scattering_order: int):
 
     mat_xs = sn_mesh.material_xs_field()
     system = build_within_group_system(
-        sn_mesh, mat_xs, scattering_order=scattering_order,
+        sn_mesh, mat_xs,
     )
     gain = system.explicit_gains[0]
     for extra in system.explicit_gains[1:]:
@@ -2886,10 +2887,11 @@ def solve_sn_adjoint(
         (the importance map — also readable as
         :attr:`~orpheus.sn.solution.AdjointSolution.importance`).
     """
-    sn_mesh = _as_sn_mesh(mesh, quadrature, materials, mat_map=mat_map)
-    implicit_operator, gain, F_posed, template = _adjoint_posing_parts(
-        sn_mesh, scattering_order,
+    sn_mesh = _as_sn_mesh(
+        mesh, quadrature, materials, mat_map=mat_map,
+        scattering_order=scattering_order,
     )
+    implicit_operator, gain, F_posed, template = _adjoint_posing_parts(sn_mesh)
 
     from orpheus.numerics.iteration import KEigenvalue
 
@@ -3038,7 +3040,7 @@ def solve_sn_adjoint_fixed_source(
     max_inner = resolve_iteration_budget(max_inner, inner_tol)
     sn_mesh = _as_sn_mesh(
         mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
-        scheme=scheme,
+        scheme=scheme, scattering_order=scattering_order,
     )
     if sn_mesh.radial_characteristic_field_space is not None:
         raise NotImplementedError(
@@ -3048,9 +3050,7 @@ def solve_sn_adjoint_fixed_source(
             "(#276 A4 scope note); the eigenvalue entry solve_sn_adjoint "
             "covers carrying meshes."
         )
-    implicit_operator, gain, _F, template = _adjoint_posing_parts(
-        sn_mesh, scattering_order,
-    )
+    implicit_operator, gain, _F, template = _adjoint_posing_parts(sn_mesh)
 
     from orpheus.numerics.iteration import SourceIteration, seeded_inverse
     from orpheus.transport.source_sinks import (
@@ -3604,7 +3604,7 @@ def solve_sn_fixed_source(
     # no explicit BC.
     sn_mesh = _as_sn_mesh(
         mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
-        scheme=scheme,
+        scheme=scheme, scattering_order=scattering_order,
     )
 
     # All geometries default to ``"source_iteration"`` — the unified
@@ -3625,14 +3625,11 @@ def solve_sn_fixed_source(
     if acceleration == "dsa":
         from orpheus.sn.acceleration import DSACorrection
 
-        corrector = DSACorrection.from_sn_mesh(
-            sn_mesh, scattering_order=scattering_order,
-        )
+        corrector = DSACorrection.from_sn_mesh(sn_mesh)
 
     solver = SNSolver(
         sn_mesh,
         inner_solver=inner_solver,
-        scattering_order=scattering_order,
         max_inner=max_inner, inner_tol=inner_tol,
     )
 

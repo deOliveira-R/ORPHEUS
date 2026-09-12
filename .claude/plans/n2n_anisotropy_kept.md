@@ -19,7 +19,11 @@ moments `SigS[ℓ] += 2·Σ₂ₙ,ℓ` (the 2 is `N2NKernel.multiplicity`; the `
 `LegendreBasis.reconstruct`, so a stored moment enters `SigS[ℓ]` exactly as the shipped elastic
 P1/P2 do — same MF=6 record type, same parser loop). `SigS[0]`, `Sig2`, `SigT` untouched: the ℓ = 0
 channel stays on `N2NOperator`, nothing is double counted. Every material's `SigS` is zero-padded
-to `L_solve + 1` so the solver's silent min-over-materials clamp cannot lower the order. 1-D slab,
+to `L_solve + 1` so the silent min-over-materials clamp cannot lower the order (it was the
+SOLVER's when this was measured; ✅ **re-homed 2026-09-12** by the consumers campaign's S1c —
+`SNMesh` clamps ONCE at construction and every consumer reads `sn_mesh.scattering_order`,
+ruling R-cc9 / #459. The arithmetic and the stack it reads are unchanged, so the padding
+recipe above stands verbatim). 1-D slab,
 vacuum both sides, GL S8, **421 groups**, `keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10`, every
 arm `fully_converged`.
 
@@ -284,8 +288,12 @@ sn +21, diffusion +2, mc +1, root+harness +1 (the layer gate is parametrized ove
 production module) ⟹ **11007 → 11096** if every design row lands as drafted. Its refutations that
 change the design:
 
-- **R1 ⛔⛔ the solver's silent order clamp** `L = min(scattering_order, min(len(m.SigS) − 1))`
-  (`sn/solver.py:1359`) must NOT read the (n,2n) stack: `[M]` H-1 and B-10 carry no MT=16, so a
+- **R1 ⛔⛔ the silent order clamp** `L = min(scattering_order, min(len(m.SigS) − 1))`
+  (`sn/solver.py:1359` when this was written; ✅ **RE-HOMED 2026-09-12** to
+  `SNMesh._init_core` by the consumers campaign's S1c — one clamp, applied once at
+  construction, read by the solver / DSA / the adjoint posing / the within-group assembly,
+  ruling R-cc9 / #459. The expression and the ruling below are unchanged; only its owner
+  moved) must NOT read the (n,2n) stack: `[M]` H-1 and B-10 carry no MT=16, so a
   two-list `min` would drop every mixture containing them to P0 — deleting the elastic P1/P2, worth
   +5787 pcm-relative on the §0 fixture. **O-1 RULED (main agent): (a) — the clamp reads `SigS` alone;
   a channel that stores fewer orders than requested is ZERO there, by the evaluation's own statement

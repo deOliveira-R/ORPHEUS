@@ -217,8 +217,8 @@ def _build_solver() -> SNSolver:
     sn_mesh = SNMesh(
         mesh, Quadrature.gauss_legendre(n_ordinates=_N_ORD),
         {0: _FUEL, 1: _MODERATOR},
-    )
-    return SNSolver(sn_mesh, inner_solver="source_iteration", scattering_order=0)
+     scattering_order=0)
+    return SNSolver(sn_mesh, inner_solver="source_iteration")
 
 
 def _run_si():

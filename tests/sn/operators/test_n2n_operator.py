@@ -103,10 +103,10 @@ def _mat_xs(sig_s=_SIGS, sig2=_SIG2):
 
 def _solver(sig_s=_SIGS, sig2=_SIG2, order=_L):
     mat_xs = _mat_xs(sig_s=sig_s, sig2=sig2)
-    sn = SNMesh(_mesh(), Quadrature.gauss_legendre(n_ordinates=4), mat_xs.materials)
+    sn = SNMesh(_mesh(), Quadrature.gauss_legendre(n_ordinates=4), mat_xs.materials, scattering_order=order)
     # SNMesh re-derives its own mat_xs field; use the SOLVER path so the
     # operator pair is the production mint (injection-consistent).
-    return SNSolver(sn, scattering_order=order), sn
+    return SNSolver(sn), sn
 
 
 def _psi(sn, seed=3):

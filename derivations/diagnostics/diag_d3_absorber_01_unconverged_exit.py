@@ -182,8 +182,7 @@ def test_d3_absorber_exact_uniform_field_is_the_discrete_solution() -> None:
         boundary_condition="reflective", inner_tol=1e-13, max_inner=1,
     )
     sn = sol.mesh
-    solver = SNSolver(sn, inner_solver="source_iteration",
-                      scattering_order=0, max_inner=1, inner_tol=1e-13)
+    solver = SNSolver(sn, inner_solver="source_iteration", max_inner=1, inner_tol=1e-13)  # the order is the hub's (0)
     system = build_within_group_system(
         sn, solver.mat_xs, scattering_op=solver.scattering_op,
     )

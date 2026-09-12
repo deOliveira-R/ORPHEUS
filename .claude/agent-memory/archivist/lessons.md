@@ -104,6 +104,40 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
   `#448` was a different piece of work, and `—` is the convention when nothing tracks the row.
   → L-100, L-099
 
+- **⭐⭐ A PAGE THAT SAYS "THE NICE REASON IS NOT THE LOAD-BEARING ONE" IS ONE CARVE
+  AWAY FROM HAVING ONLY THE NICE REASON — and the nice reason is usually the right
+  one.** `[M]` `spaces.rst` argued the generator exclusion is *structurally
+  MANDATORY* over a 4-row table where every reading raises; S1b gave `Quadrature`
+  content identity and the page's own simulation now reads `==` **True**, `hash`
+  **equal**, digest **byte-EQUAL** — while the `DiscreteMeasure` leg still raises, so
+  the CONCLUSION is untouched and the argument inverts *necessity → ruling*. ⟹ after
+  any carve that gives a type content identity, grep every page arguing FROM its
+  un-comparability (`un-``==``-able|unhashable` found all 5 in one run) and expect a
+  DIFFERENT edit per site: rewrite the Key-Facts bullet · italicise a changelog row's
+  reason as true-on-that-date · re-describe which gate sub-case pins what · and where
+  the refutation makes the reason BETTER, say so. → L-103, L-100
+- **⛔ A PUBLISHED DIGEST/HASH **LENGTH** IS AN ARTEFACT OF WHAT YOU NAMED YOUR
+  THROWAWAY CLASS — publish the SCALE-FREE statistic.** `[M]` I drafted "281 bytes,
+  EQUAL"; re-running the recipe AS PUBLISHED read **292** (Δ = the class-name length —
+  `_structural_bytes` opens with `type(self).__qualname__`). Ship *byte-EQUAL* plus a
+  ⚠ saying the length must not be quoted. ⟹ **run the recipe verbatim and diff its
+  OUTPUT against your prose**; a number no rename can move is the only one worth
+  printing. → L-103
+- **⭐ A TOMBSTONE IS PROSE YOU ARE AUTHORING NOW — it owes evidence like any claim.**
+  My first repair of a refuted clause asserted an unmeasured counterfactual about the
+  pre-carve tree ("two equal rules encoded differently"); reading the encoder showed it
+  uses `repr(part)`, so it was probably false too. Replaced with what I measured plus
+  an honest *"asserted, never measured"*. → L-103
+- **⭐ THE CHANGELOG CONTRACT HAS A THIRD CASE: a step whose LAST unit is uncommitted
+  on `main`.** Not the "unmerged BRANCH" exception. The page's own precedent solves it
+  — grep the table for *"C1–C4 merged @ X; C5 = this entry's own merge"* and copy that
+  shape. ⚠ And run `git rev-parse --abbrev-ref HEAD`: the session's git-status snapshot
+  named a branch that was not checked out. → L-103, L-100
+- **⭐ AN `.. error-entry::` YOU CANNOT MARK IS BLOCKED, and saying so IS the
+  deliverable.** Minting one reddens `test_every_declared_entry_has_a_catching_test`
+  (needs a `catches()` DECORATOR = code) *and* `test_the_generated_index_matches_the_
+  corpus` (the index regenerates only at `builder-inited`). Ship it ready-to-paste in
+  the report with both marker lines and the build order. → L-103, L-091
 - **⭐⭐ A BRIEF'S NAMED STALENESS TARGET CAN MEASURE **0**, AND THE REAL ROT ON THAT
   FILE IS A DIFFERENT PREDICATE — census the named file on YOUR OWN vocabulary before
   reporting "nothing to do".** `[M]` briefed *"D5's module docstring describes the

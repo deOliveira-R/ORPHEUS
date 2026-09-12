@@ -136,7 +136,7 @@ def scattering_op():
     mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
     quad = Quadrature.lebedev(order=17)
     return SNSolver(
-        SNMesh(mesh, quad, {0: mix}), scattering_order=1,
+        SNMesh(mesh, quad, {0: mix}, scattering_order=1),
     ).scattering_op
 
 

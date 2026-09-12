@@ -83,8 +83,8 @@ def solver_p1_het():
     nx, ny = 4, 3
     mat = np.zeros((nx, ny), dtype=int); mat[:2, :] = 0; mat[2:, :] = 1
     sn_mesh = SNMesh(_uniform_2d(nx, ny, 0.4, mat), Quadrature.lebedev(order=17),
-                     {0: _mix(_P0_A, _P1_A), 1: _mix(_P0_B, _P1_B)})
-    return SNSolver(sn_mesh, scattering_order=1)
+                     {0: _mix(_P0_A, _P1_A), 1: _mix(_P0_B, _P1_B)}, scattering_order=1)
+    return SNSolver(sn_mesh)
 
 
 def _ld_solver_het(order: int, nx: int = 4, ny: int = 3) -> SNSolver:
@@ -97,8 +97,8 @@ def _ld_solver_het(order: int, nx: int = 4, ny: int = 3) -> SNSolver:
         _uniform_2d(nx, ny, 0.1, mat), Quadrature.product(n_mu=4, n_phi=4),
         {0: _mix(_P0_A, _P1_A), 1: _mix(_P0_B, _P1_B)},
         scheme=LinearDiscontinuous(),
-    )
-    return SNSolver(sn_mesh, scattering_order=order)
+     scattering_order=order)
+    return SNSolver(sn_mesh)
 
 
 def _ld_flux(solver: SNSolver, seed: int = 123) -> AngularFlux:

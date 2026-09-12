@@ -62,8 +62,8 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod})
-    solver = SNSolver(sn_mesh, inner_solver="source_iteration", scattering_order=1)
+    sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
+    solver = SNSolver(sn_mesh, inner_solver="source_iteration")
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
@@ -205,9 +205,9 @@ def _slab_2g_het_triple(nx: int = 12, n_ord: int = 8):
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod})
+    sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
     solver = SNSolver(
-        sn_mesh, inner_solver="source_iteration", scattering_order=1,
+        sn_mesh, inner_solver="source_iteration",
     )
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,

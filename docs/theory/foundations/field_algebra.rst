@@ -979,12 +979,24 @@ Three readings, and each is a design decision made visible:
    carries its own :class:`~orpheus.numerics.quadrature.directional.Quadrature`
    as an :attr:`~orpheus.numerics.axis.Axis.generator`, and two twin
    carriers hold **different rule instances** (`[M]` ``a.quad is not
-   b.quad``). Had provenance been admitted to the axis identity key,
-   the top row would have flipped from ``True`` to — literally — a
-   ``ValueError``, since the generator objects are un-``==``-able. The
-   exclusion is what keeps the row true, and it is the F2 doctrine
-   above enforced one layer down: *compare space CONTENT, never
-   provenance*. `[M]` re-measured after CS5 on the same fixture, the
+   b.quad``). *(Written 2026-08-29, and preserved:)* "Had provenance
+   been admitted to the axis identity key, the top row would have
+   flipped from ``True`` to — literally — a ``ValueError``, since the
+   generator objects are un-``==``-able."
+
+   ⛔ **REFUTED 2026-09-12** (the consumers campaign's S1b, ruling
+   R-cc3; GitHub #459): a
+   :class:`~orpheus.numerics.quadrature.directional.Quadrature` now has
+   CONTENT identity, so `[M]` with the generator ADMITTED to the key the
+   top row still reads ``True`` and the hashes still agree — the
+   admission would not flip it. **The row's verdict is unchanged and
+   the reason got better**: it is true because the two rules are the
+   same *by content*, which is the F2 doctrine above enforced one layer
+   down — *compare space CONTENT, never provenance* — rather than
+   because an alternative would have crashed. The exclusion itself
+   survives as a ruling, and its one surviving structural leg is a
+   :class:`~orpheus.numerics.measure.DiscreteMeasure` generator, which
+   still raises. `[M]` re-measured after CS5 on the same fixture, the
    twin row still reads ``True`` on both space columns with equal
    hashes, and the moved-edge row still reads ``False``. See
    :ref:`spaces-generator-identity-exclusion`.

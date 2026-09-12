@@ -148,105 +148,6 @@ def _sphere(closure=None) -> SNMesh:
     return SNMesh(_SPHERE_MESH, _SPHERE_QUAD, _SHARED_MATS, angular_closure=closure)
 
 
-class TestTodaysTruncationOrderIsHomeless:
-    """RECORD of R-cc9's defect: the order is on the SOLVER, spelled three ways."""
-
-    @pytest.mark.parametrize(
-        "ctor", ["__init__", "from_axes", "from_material_mesh"],
-    )
-    def test_the_hub_constructor_does_not_take_the_order(self, ctor: str) -> None:
-        r"""``[M]`` 0 occurrences of ``scattering_order`` under ``orpheus/sn/mesh/``.
-
-        The §6c red-before for R-cc9, at the signature tier — the tier a
-        VALUE gate cannot reach, because there is no value to read.
-        """
-        sig = inspect.signature(getattr(SNMesh, ctor))
-        _require(
-            "scattering_order" not in sig.parameters,
-            f"RECORD: SNMesh.{ctor} does not accept the truncation order today",
-        )
-
-    def test_the_hub_has_no_order_attribute(self) -> None:
-        a = _hub(1)
-        _require(
-            not hasattr(a, "scattering_order"),
-            "RECORD: the hub carries no retained order today",
-        )
-
-    def test_the_three_spellings_disagree_on_a_live_solve(self) -> None:
-        r"""⛔⛔ The load-bearing §6c witness — a FORWARD and an ADJOINT solve of
-        identical data run at DIFFERENT internal ``L``.
-
-        ``[M]`` 2026-09-12, a counting spy on ``TransferKernel.at_order``,
-        two-region 2-group slab, ``gauss_legendre(4)``, ``keff_tol = 1e-9``:
-
-        =========================  ===========================  ==================
-        entry                      orders reaching at_order()   keff
-        =========================  ===========================  ==================
-        ``solve_sn(0)``            ``{0, 1}``                   1.2122522010124397
-        ``solve_sn(3)``            ``{0, 1}``  — CLAMPED        1.2180192347287149
-        ``solve_sn_adjoint(0)``    ``{0, 1}``                   1.2122522010262708
-        ``solve_sn_adjoint(3)``    ``{0, 1, 3}`` — UNCLAMPED    1.2180192347393897
-        =========================  ===========================  ==================
-
-        The adjoint path never passes through ``SNSolver``'s clamp
-        (``solver.py:2891`` → ``_adjoint_posing_parts`` →
-        ``TransferKernel.at_order``), so it is served TWO zero-padded
-        moments. The two ``k`` agree to ``1.1e-11`` — which is exactly why
-        nothing notices. R-cc9 collapses the three spellings to one; this
-        row reds when it does.
-        """
-        import orpheus.transport.kernels as kernels
-        from orpheus.sn.solver import solve_sn, solve_sn_adjoint
-
-        mats, mesh, quad = _slab_two_region()
-        _require(
-            all(len(m.SigS) == 2 for m in mats.values()),
-            "activation: the abstract library clamps every request >= 1 to L = 1",
-        )
-        seen: dict[str, set[int]] = {}
-        original = kernels.TransferKernel.at_order
-
-        def _spy(self, order):  # noqa: ANN001, ANN202
-            seen.setdefault(_label[0], set()).add(int(order))
-            return original(self, order)
-
-        _label = ["?"]
-        kernels.TransferKernel.at_order = _spy
-        try:
-            for label, entry in (("fwd", solve_sn), ("adj", solve_sn_adjoint)):
-                _label[0] = label
-                entry(mats, mesh, quad, scattering_order=3,
-                      keff_tol=1e-9, inner_tol=1e-10, max_outer=400)
-        finally:
-            kernels.TransferKernel.at_order = original
-
-        _require(3 not in seen["fwd"], "RECORD: the forward entry clamps 3 -> 1")
-        _require(
-            3 in seen["adj"],
-            "RECORD: the adjoint entry serves at_order(3) UNCLAMPED on a P1 library",
-        )
-
-    def test_no_solution_records_the_order(self) -> None:
-        r"""``[M]`` 0 occurrences of ``scattering_order`` in ``orpheus/sn/solution.py``.
-
-        A saved ``Solution`` cannot say at which ``L`` it was solved — the
-        reason R-cc8's "a Solution records which problem it solved" needs
-        the datum to exist on the Problem first.
-        """
-        for cls in (SolutionBase, Solution):
-            names = {f.name for f in cls.__dataclass_fields__.values()}  # type: ignore[attr-defined]
-            _require(
-                "scattering_order" not in names,
-                f"RECORD: {cls.__name__} carries no truncation order today",
-            )
-
-
-# ════════════════════════════════════════════════════════════════════
-# MUST STAY GREEN — what R-cc8 deliberately PRESERVES
-# ════════════════════════════════════════════════════════════════════
-
-
 class TestTheClosureExclusionSurvives:
     r"""R-cc8 keeps the contractibility ruling FOR ``same_phase_space``.
 
@@ -313,7 +214,7 @@ class TestSamePhaseSpaceIsContractibilityByContent:
         """POSITIVE CONTROL at every rank, over INDEPENDENT constituents."""
         a, b = _hub_independent(d), _hub_independent(d)
         _require(a is not b, "activation: two distinct hubs")
-        _require(a.same_phase_space(b), "equal generating data ⟹ one phase space")  # type: ignore[attr-defined]
+        _require(a.same_phase_space(b), "equal generating data ⟹ one phase space")
 
     @pytest.mark.parametrize(
         "label,other",
@@ -331,7 +232,7 @@ class TestSamePhaseSpaceIsContractibilityByContent:
         a = _hub(3)
         b = _hub(3, **other)
         _require(
-            not a.same_phase_space(b),  # type: ignore[attr-defined]
+            not a.same_phase_space(b),
             f"moving {label} must make the two phase spaces different",
         )
 
@@ -347,9 +248,8 @@ class TestSamePhaseSpaceIsContractibilityByContent:
         other[0, 0, 0] = 1
         a = _hub(3, mat_map=flat)
         b = _hub(3, mat_map=other)
-        _require(not a.same_phase_space(b), "a different material assignment is a different space")  # type: ignore[attr-defined]
+        _require(not a.same_phase_space(b), "a different material assignment is a different space")
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ID + " — the ORDER datum lands at S1c")
     def test_the_truncation_order_is_NOT_a_contractibility_datum(self) -> None:
         r"""R-cc8's insensitivity leg — the one the fields' shapes license.
 
@@ -359,11 +259,11 @@ class TestSamePhaseSpaceIsContractibilityByContent:
         and ``condense(adjoint=…)`` must proceed.
         """
         mats, mesh, quad = _slab_two_region()
-        a = SNMesh(mesh, quad, mats, scattering_order=0)   # type: ignore[call-arg]
-        b = SNMesh(mesh, quad, mats, scattering_order=3)   # type: ignore[call-arg]
-        _require(a.scattering_order != b.scattering_order,  # type: ignore[attr-defined]
+        a = SNMesh(mesh, quad, mats, scattering_order=0) 
+        b = SNMesh(mesh, quad, mats, scattering_order=3) 
+        _require(a.scattering_order != b.scattering_order,
                  "activation: the two hubs must retain DIFFERENT orders")
-        _require(a.same_phase_space(b), "R-cc8: the order does not move the field layout")  # type: ignore[attr-defined]
+        _require(a.same_phase_space(b), "R-cc8: the order does not move the field layout")
 
 
 class TestProblemIdentityIsEveryGeneratingDatum:
@@ -390,10 +290,9 @@ class TestProblemIdentityIsEveryGeneratingDatum:
             type(default.angular_closure) is not type(overridden.angular_closure),
             "activation: the two hubs must carry DIFFERENT closure classes",
         )
-        _require(default.same_phase_space(overridden), "they still contract (R-cc8)")  # type: ignore[attr-defined]
+        _require(default.same_phase_space(overridden), "they still contract (R-cc8)")
         _require(not (default == overridden), "R-cc8: the closure is generating data")
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ID + " — the ORDER datum lands at S1c")
     def test_the_truncation_order_IS_an_identity_datum(self) -> None:
         r"""R-cc4's headline: a P0 forward and a P3 adjoint are DIFFERENT problems.
 
@@ -404,16 +303,16 @@ class TestProblemIdentityIsEveryGeneratingDatum:
         the row cannot decay into one.
         """
         mats, mesh, quad = _slab_two_region()
-        a = SNMesh(mesh, quad, mats, scattering_order=0)   # type: ignore[call-arg]
-        b = SNMesh(mesh, quad, mats, scattering_order=3)   # type: ignore[call-arg]
-        _require(a.scattering_order == 0, "activation: the P0 hub retains 0")   # type: ignore[attr-defined]
-        _require(b.scattering_order == 1, "activation: P3 CLAMPS to 1 on this library")  # type: ignore[attr-defined]
+        a = SNMesh(mesh, quad, mats, scattering_order=0) 
+        b = SNMesh(mesh, quad, mats, scattering_order=3) 
+        _require(a.scattering_order == 0, "activation: the P0 hub retains 0") 
+        _require(b.scattering_order == 1, "activation: P3 CLAMPS to 1 on this library")
         _require(not (a == b), "R-cc4: two retained orders are two problems")
 
     def test_identity_is_strictly_finer_than_contractibility(self) -> None:
         """The law relating the two ruled predicates (``vv`` #15).
 
-        ``a == b`` ⟹ ``a.same_phase_space(b)``, and the containment is  # type: ignore[attr-defined]
+        ``a == b`` ⟹ ``a.same_phase_space(b)``, and the containment is
         STRICT — the closure pair witnesses a contractible pair that is not
         one problem. A carve that got the containment backwards passes both
         per-datum tables and fails here.
@@ -436,12 +335,12 @@ class TestProblemIdentityIsEveryGeneratingDatum:
         for a, b in equal_pairs + strict_pairs:
             if a == b:
                 _require(
-                    a.same_phase_space(b),  # type: ignore[attr-defined]
+                    a.same_phase_space(b),
                     "identity must imply contractibility on every pair",
                 )
         for a, b in strict_pairs:
             _require(
-                a.same_phase_space(b) and not (a == b),  # type: ignore[attr-defined]
+                a.same_phase_space(b) and not (a == b),
                 "STRICTNESS: a contractible pair that is not one problem must exist",
             )
 
@@ -450,7 +349,6 @@ class TestProblemIdentityIsEveryGeneratingDatum:
 class TestTheHubOwnsTheClampedOrder:
     """R-cc9 — one clamp, at construction, read by every entry."""
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ORDER)
     @pytest.mark.parametrize("requested,retained", [(0, 0), (1, 1), (3, 1), (5, 1)])
     def test_the_clamp_runs_once_at_construction(self, requested: int, retained: int) -> None:
         r"""``min(L, len(SigS) − 1)``, evaluated on the hub.
@@ -466,11 +364,10 @@ class TestTheHubOwnsTheClampedOrder:
             min(len(m.SigS) for m in mats.values()) - 1 == 1,
             "activation: this expectation table assumes a P1 library",
         )
-        hub = SNMesh(mesh, quad, mats, scattering_order=requested)  # type: ignore[call-arg]
-        _require(hub.scattering_order == retained,  # type: ignore[attr-defined]
+        hub = SNMesh(mesh, quad, mats, scattering_order=requested)
+        _require(hub.scattering_order == retained,
                  f"request {requested} must retain {retained}")
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ORDER)
     def test_the_adjoint_entry_never_exceeds_the_hubs_order(self) -> None:
         r"""The ROUTE claim (Mode 11), and the row that measures R-cc9's whole point.
 

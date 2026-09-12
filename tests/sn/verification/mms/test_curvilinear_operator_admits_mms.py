@@ -66,10 +66,9 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     Q = case.external_source(mesh)
     sn_mesh = _as_sn_mesh(
         mesh, case.quadrature, case.materials, "vacuum", mat_map=None,
-    )
+     scattering_order=0)
     solver = SNSolver(
-        sn_mesh, inner_solver="source_iteration",
-        scattering_order=0, max_inner=10, inner_tol=1e-13,
+        sn_mesh, inner_solver="source_iteration", max_inner=10, inner_tol=1e-13,
     )
     q_ext = _build_fixed_source_rhs(Q, sn_mesh)
     # B.2d: on a carrying mesh the rhs builder returns the coupled pair —

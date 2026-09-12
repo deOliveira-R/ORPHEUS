@@ -770,8 +770,8 @@ def _full_loss_case(
     else:
         mixtures = {0: _mix_4g(_P0_4G_A), 1: _mix_4g(_P0_4G_B)}
         order = 0
-    sn = SNMesh(mesh, quad, mixtures)
-    S = SNSolver(sn, scattering_order=order).scattering_op
+    sn = SNMesh(mesh, quad, mixtures, scattering_order=order)
+    S = SNSolver(sn).scattering_op
     sig_t = np.asarray(
         sn.material_xs_field().total_cross_section_field.values, dtype=float
     )
@@ -812,8 +812,8 @@ def _full_loss_case_cart2d():
         0: _mix_2g(_P0_2G_A, _P1_2G_A, np.array([[0.0, 0.03], [0.01, 0.0]])),
         1: _mix_2g(_P0_2G_B, _P1_2G_B, np.array([[0.0, 0.02], [0.02, 0.0]])),
     }
-    sn = SNMesh(mesh, Quadrature.level_symmetric(4), mixtures)
-    S = SNSolver(sn, scattering_order=0).scattering_op
+    sn = SNMesh(mesh, Quadrature.level_symmetric(4), mixtures, scattering_order=0)
+    S = SNSolver(sn).scattering_op
     sig_t = np.asarray(
         sn.material_xs_field().total_cross_section_field.values, dtype=float
     )

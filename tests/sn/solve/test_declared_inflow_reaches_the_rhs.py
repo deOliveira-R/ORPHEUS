@@ -301,7 +301,7 @@ def _solve(sn: SNMesh, inner: str, **kw):
 
     q = _build_fixed_source_rhs(_composite(sn, **kw), sn)
     solver = SNSolver(
-        sn, inner_solver=inner, scattering_order=0,
+        sn, inner_solver=inner,
         max_inner=2000, inner_tol=1e-13,
     )
     driver = (

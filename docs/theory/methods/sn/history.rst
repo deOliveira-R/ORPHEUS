@@ -42,6 +42,98 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-09-12
+     - **A Problem's identity is the CONTENT of its generating data, and
+       the retained scattering order is the hub's datum** (the consumers
+       campaign, step 1; rulings R-cc3 / R-cc8 / R-cc9 / O-2 / O-3 / O-4
+       / O-6).
+       **(1) The defect.**  The hub is the solve's **save state**, and it
+       could not answer *am I the same problem you saved?*  Every
+       generating datum it holds RAISED on ``==`` or ``hash``:
+       :class:`~orpheus.data.macro_xs.mixture.Mixture` compared its
+       ndarray fields (``ValueError: the truth value of an array …`` at
+       :math:`n_g \ge 2`, and a **false green** ``True`` at
+       :math:`n_g = 1`, where a one-element array *is* a bool), was
+       unhashable, and was MUTABLE — ``[M]`` 33 test sites in 14 files
+       assigned ``.SigS`` / ``.Sig2`` / ``.SigT`` / ``.SigP`` after
+       construction;
+       :class:`~orpheus.numerics.quadrature.Quadrature` raised the same
+       way; ``SNMesh`` had no ``__eq__`` at all.  The one predicate that
+       existed, ``is_same_phase_space``, compared CONSTITUENT identity
+       (``mesh is``, ``quad is``, per-mixture ``is``): ``[M]`` at
+       :math:`d \ge 3` the legacy-adapter slot is ``None``, so
+       ``None is None`` made two 3-D problems with different cell counts
+       *and* different extents compare **equal**, while at
+       :math:`d \le 2` every same-data pair built by two
+       :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.from_axes` calls
+       compared **unequal** (a fresh adapter per call) — vacuous on one
+       side, false on the other.  And the retained Legendre order had
+       **three disagreeing spellings**: the solver's clamp, the adjoint
+       entries' unclamped raw hand-off, and the fixed-source entry's raw
+       hand-off to DSA.  ``[M]`` a counting spy on
+       ``TransferKernel.at_order`` over a two-region 2-group slab:
+       ``solve_sn(scattering_order=3)`` served orders :math:`\{0, 1\}`
+       and ``solve_sn_adjoint(scattering_order=3)`` served
+       :math:`\{0, 1, 3\}` — a :math:`P_3` forward and a :math:`P_3`
+       adjoint over identical data ran at different internal :math:`L`,
+       agreeing in :math:`k` to :math:`1.1\times10^{-11}` because the
+       short stack zero-pads, which is exactly why nothing noticed.
+       **(2) The datum is a VALUE (S1a).**
+       :class:`~orpheus.data.macro_xs.mixture.Mixture` is ``frozen``,
+       ``eq=False``; ``__post_init__`` stores a READ-ONLY copy of every
+       array through the frozen guard exactly once (dense fields, the
+       energy grid, :math:`\chi` after the emission law, and each sparse
+       Legendre block as a canonical CSR — duplicates summed, indices
+       sorted), and the two stacks become tuples.  Identity is CONTENT: a
+       :func:`~functools.cached_property` key over every dense field's
+       ``(shape, dtype, bytes)``, every block's canonical CSR triple and
+       the grid's bytes.  A variant is minted with
+       :func:`dataclasses.replace`, which re-runs the laws.
+       **(3) ONE identity definition, extended (S1b).**  It lives at
+       ``MaterialMesh._contractibility_key`` /
+       ``_identity_key`` — exactly as ``EnergyAxis`` / ``LegendreAxis``
+       extend ``Axis._identity_key`` — and ``SNMesh`` extends it.  Two
+       predicates, because there were two questions:
+       :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.same_phase_space`
+       asks *may two solutions' FIELDS be paired* (contractibility by
+       content; the closure and the order EXCLUDED, because ``[M]`` the
+       returned carrier's shape is order-invariant on both arms) and
+       serves the three
+       :class:`~orpheus.sn.solution.Solution` consumers, while ``__eq__``
+       / ``__hash__`` ask *is this the same problem* over every
+       generating datum.  A :math:`P_0` forward and a :math:`P_3` adjoint
+       share a phase space and are different problems.
+       :class:`~orpheus.numerics.quadrature.Quadrature` and
+       ``HomogeneousProblem`` gain content identity in the same unit, and
+       the interned geometry cache re-keys its validation from the
+       closure INSTANCE to the closure CLASS (``[M]`` the table's eight
+       fields are bare :math:`\sigma`-free arrays with no mesh or closure
+       reference, so content-equal problems may share ONE table: 2 → 1
+       builds, where a content hash over an instance-validated cache
+       would have ping-ponged 2 → 6).
+       **(4) The order becomes generating data (S1c).**
+       ``SNMesh(..., scattering_order=L)`` stores
+       ``min(L, min_materials(len(SigS) − 1))`` — clamped ONCE, at
+       construction, refusing a negative request with a real ``raise`` —
+       and it joins the identity key.
+       :class:`~orpheus.sn.solver.SNSolver` reads it and no longer takes
+       the argument; DSA, the adjoint posing and the within-group
+       assembly read it off the hub; the four entry points keep their
+       ``scattering_order=`` keyword as sugar that forwards into the
+       hub's constructor.  The migration is ONE keyword moved one
+       constructor up at every call site: ``[M]`` by AST over
+       ``orpheus/`` + ``tests/``, **zero** ``SNSolver(…)`` /
+       ``DSACorrection.from_sn_mesh(…)`` /
+       ``build_within_group_system(…)`` calls still pass
+       ``scattering_order`` afterwards.
+       :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.with_scattering_order`
+       is the Problem morphism that re-poses an existing hub without
+       mutating it.
+       Full account: :ref:`sn-hub-identity-two-predicates`,
+       :ref:`sn-hub-retained-order`.
+     - `#459 <https://github.com/deOliveira-R/ORPHEUS/issues/459>`_
+     - ``deacd897`` (S1a) · ``2c1667b0`` (S1b) on ``main``;
+       S1c = this entry's own commit
    * - 2026-09-08
      - **The spatial-moment tail is the discretization scheme's own axis —
        ONE spelling of the factor on every side** (campaign 1 residue,
@@ -1449,9 +1541,11 @@ them.  Trust ``git``, not this column.
        a channel that stores fewer orders than the solve asks for is
        exactly zero above them, which is the evaluation's own statement.
        The refusal was right about a 7-deep stack and wrong about a
-       1-deep one, and the kernel cannot tell them apart; the solver's
+       1-deep one, and the kernel cannot tell them apart; the order
        clamp, which reads the scattering stack alone, is what makes the
-       pad honest.)  The energy arm gets ONE rule,
+       pad honest — the *solver's* clamp on this row's date, the
+       PROBLEM's since 2026-09-12, applied once at construction.)  The
+       energy arm gets ONE rule,
        :meth:`EnergyAxis.from_materials
        <orpheus.numerics.axis.EnergyAxis.from_materials>`, which
        :attr:`MaterialMesh.bulk_space

@@ -840,17 +840,33 @@ with :math:`R\circ P = I` on the moment pair by the :math:`W_2`
 quadrature exactness (moment-0 of the :math:`\mu`-arm vanishes and
 moment-1 recovers :math:`d_1` exactly).
 
-The arm is **gated on** ``scattering_order >= 1`` — the *same*
-consistency-with-the-iterated-operator rule that gates the
+The arm is **gated on** the PROBLEM's retained order,
+:attr:`sn_mesh.scattering_order
+<orpheus.sn.mesh.augmented_mesh.SNMesh.scattering_order>` ``>= 1`` — the
+*same* consistency-with-the-iterated-operator rule that gates the
 :math:`\sigma_{s1}` data row: consistency is with the discrete system
 being iterated, so the :math:`\ell = 1` gain enters the low-order
 correction only when the sweep itself retains :math:`\ell \ge 1`.  At
-``scattering_order = 0`` the d₁ arm is byte-identical to the P0 path.
+retained order 0 the d₁ arm is byte-identical to the P0 path.
 The **trace arm stays** :math:`\ell = 0` **by theorem** even when the
 interior :math:`\ell = 1` arm is live: the reflecting row (39) forces
 the wall-edge :math:`f_1 = 0`, and a vacuum wall's trace is read by
 nothing — so an :math:`\ell = 1` trace component is identically zero
 where it would matter.
+
+.. note::
+
+   Until 2026-09-12 both DSA builders took their own
+   ``scattering_order`` keyword and the fixed-source entry handed them
+   its caller's **raw**, unclamped request — one of three disagreeing
+   spellings of one datum.  Since the consumers campaign's step 1
+   (ruling R-cc9; GitHub #459)
+   :meth:`~orpheus.sn.acceleration.dsa.DSALowOrderSystem.from_sn_mesh`
+   and
+   :meth:`~orpheus.sn.acceleration.dsa.DSACorrection.from_sn_mesh` take
+   the hub alone and read the **clamped** order off it, so the low-order
+   operator cannot be built consistent with an order the sweep does not
+   actually retain.  See :ref:`sn-hub-retained-order`.
 
 **Measured payoff.**  The moment-pair arm restores the flat
 Adams–Larsen rate — the anisotropy ladder's worst rung returns from 86

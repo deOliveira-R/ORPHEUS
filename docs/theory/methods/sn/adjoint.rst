@@ -1813,7 +1813,11 @@ within-group system off the single construction site
 :func:`~orpheus.sn.coupled_system.build_within_group_system` and returns
 its daggerable parts — the invertible resolvent :math:`(L+C)`, the
 summed coupling gain :math:`(S + N_{2n} + B)`, and the fission operator
-:math:`F`.  It does not enumerate those gain members: it folds the
+:math:`F`.  Its ONLY argument is the hub: the retained Legendre order
+comes off :attr:`sn_mesh.scattering_order
+<orpheus.sn.mesh.augmented_mesh.SNMesh.scattering_order>`, so the
+adjoint is posed at exactly the order the forward problem retains.  It
+does not enumerate those gain members: it folds the
 builder's own ``explicit_gains`` tuple with ``+``, so a member added to
 the within-group algebra (as :math:`N_{2n}` was, CS4c §14.1) reaches the
 adjoint posing without an edit here — the summation is over whatever the
@@ -1868,6 +1872,32 @@ its ``angular_flux`` is the true discrete adjoint (importance) flux
 :math:`\psi^*` — verified against the closed-form
 :math:`(A^{\mathsf T})^{-1}F^{\mathsf T}` spectrum
 (:ref:`sn-adjoint-verification`).
+
+.. warning::
+
+   ⛔ **Until 2026-09-12 the adjoint entries ran at a DIFFERENT internal
+   order from the forward ones over identical data.**  The forward
+   solver clamped its ``scattering_order`` to the shallowest Legendre
+   stack the materials carry; the adjoint entries passed the caller's
+   request **raw** into ``_adjoint_posing_parts``, where a short stack
+   zero-pads.  `[M]` 2026-09-12, a counting spy on
+   ``TransferKernel.at_order`` over a two-region 2-group slab
+   (``gauss_legendre(4)``, ``nx = 8``, ``keff_tol = 1e-9``):
+   ``solve_sn(scattering_order=3)`` served orders :math:`\{0, 1\}`
+   while ``solve_sn_adjoint(scattering_order=3)`` served
+   :math:`\{0, 1, 3\}` — the extra two being zero-padded moments.
+
+   The two :math:`k` agreed to :math:`1.1\times10^{-11}`, which is
+   exactly why nothing noticed: the padding contributes zero, so the
+   defect was a **provenance** defect, not a value defect — an adjoint
+   Solution that recorded a problem the forward solve had never posed.
+   Nothing in the two pages of :math:`k^{\dagger} = k` machinery above
+   could see it, because :math:`k` is blind to it by construction
+   (``vv-principles`` Mode 12: the error class sits inside the measured
+   functional's invariance group).  What sees it is the ORDER reaching
+   the kernel — hence the spy — and, since the consumers campaign's
+   step 1, the type system: the order is the hub's datum, clamped once,
+   read by the posing (:ref:`sn-hub-retained-order`; GitHub #459).
 
 .. _sn-adjoint-coupled-posing:
 

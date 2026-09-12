@@ -599,10 +599,13 @@ The data layout per source group is:
    :math:`(n,2n)` stack that is 1 order deep on NA023 and a single zero
    block on B-10 / H-1 meets an :math:`L = 2` solve as exact zeros
    above its own ``NL``, which is the *evaluation's* statement and not
-   an invention; and because the solver's order clamp reads the
-   **scattering** stack alone, a short :math:`(n,2n)` channel can never
-   lower the solve's order.  Both halves of that were settled at step 1
-   and step 2 spent them unchanged.
+   an invention; and because the order clamp reads the **scattering**
+   stack alone, a short :math:`(n,2n)` channel can never lower the
+   solve's order.  Both halves of that were settled at step 1 and step 2
+   spent them unchanged.  (⚠ The clamp was the *solver's* until
+   2026-09-12; it is now the PROBLEM's, applied once when
+   :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` is constructed —
+   :ref:`sn-hub-retained-order`.  Which stack it reads is unchanged.)
 
 
 .. _mf6-yield-convention:
@@ -870,8 +873,10 @@ at ingest, and the downstream copies of that three —
 ``compute_macro_xs``'s ``n_legendre`` parameter and ``interp_sig_s``'s
 "0, 1, or 2" — repeated it.  The cut was invisible from the solve: a
 caller asking for ``scattering_order = 3`` was silently served
-:math:`P_2`, because the solver's order clamp reads the *stored* depth
-and takes the minimum over materials.  A data layer that quietly
+:math:`P_2`, because the order clamp reads the *stored* depth and takes
+the minimum over materials (the clamp lived on the solver then; since
+2026-09-12 it is the Problem's and is applied once at construction —
+:ref:`sn-hub-retained-order`).  A data layer that quietly
 truncates is the lossy-return-type root cause — the consumer cannot
 tell an absent moment from a zero one — and #426 step 1 removed it:
 the library now serves every order it stores, and ``scattering_order``

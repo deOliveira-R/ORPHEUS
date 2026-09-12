@@ -64,11 +64,11 @@ def _manual_outer(
     from orpheus.sn.solver import SNSolver
 
     materials, mesh, quad = _build_problem()
-    sn_mesh = SNMesh(mesh, quad, materials)
+    sn_mesh = SNMesh(mesh, quad, materials, scattering_order=0)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         solver = SNSolver(
-            sn_mesh=sn_mesh, scattering_order=0,
+            sn_mesh=sn_mesh,
             inner_solver=inner_solver,
             keff_tol=keff_tol, flux_tol=1e-10,
             max_inner=300, inner_tol=inner_tol,

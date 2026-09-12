@@ -178,7 +178,7 @@ class DSALowOrderSystem:
 
     @classmethod
     def from_sn_mesh(
-        cls, sn_mesh: "SNMesh", *, scattering_order: int = 0,
+        cls, sn_mesh: "SNMesh",
     ) -> "DSALowOrderSystem":
         r"""Build the per-group systems from the SN phase space.
 
@@ -189,7 +189,8 @@ class DSALowOrderSystem:
         (23) coefficients through :math:`\rho = L_1[\alpha] \ne 0` — the
         R5 seam), and vacuum/reflective walls.
 
-        ``scattering_order`` is the SOLVER's retained Legendre order —
+        The retained Legendre order is the HUB's (``sn_mesh.scattering_order``,
+        a generating datum since 2026-09-12; until then a parameter here) —
         consistency is with the discrete system BEING ITERATED, so the
         (23c) :math:`\sigma_{s1}^{g\to g}` enters the low-order D and
         the :math:`g_1` weight only when the sweep itself retains
@@ -262,7 +263,7 @@ class DSALowOrderSystem:
         mat_ids = np.asarray(sn_mesh.mat_map, dtype=int).ravel()
         fold = mat_xs.foldable_sigma()  # {mid: (ng,)} — σ_s0^{g→g}
         sigma_s0 = np.stack([fold[int(m)] for m in mat_ids], axis=1)
-        if scattering_order >= 1:
+        if sn_mesh.scattering_order >= 1:
             residual = mat_xs.residual_sig_s()  # {mid: [cross_P0, Σ_s1, …]}
             s1_diag = {
                 mid: (
@@ -607,7 +608,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
 
     @classmethod
     def from_sn_mesh(
-        cls, sn_mesh: "SNMesh", *, scattering_order: int = 0,
+        cls, sn_mesh: "SNMesh",
     ) -> "DSACorrection":
         r"""Build the correction operator for an admitted SN phase space
         (admission — geometry, scheme, walls — and the
@@ -618,13 +619,13 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         the data row)."""
         return cls(
             DSALowOrderSystem.from_sn_mesh(
-                sn_mesh, scattering_order=scattering_order,
+                sn_mesh,
             ),
             sn_mesh.quad,
             full_field_space=sn_mesh.full_field_space,
             angular_bulk_space=sn_mesh.angular_bulk_space,
             angular_trace=sn_mesh.angular_trace,
-            scattering_order=scattering_order,
+            scattering_order=sn_mesh.scattering_order,
         )
 
     @property

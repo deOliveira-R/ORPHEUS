@@ -12317,3 +12317,128 @@ bug becomes unspellable — is the page's new load-bearing argument) · Cross-re
 the one-producer closure) · Failed approaches 5 (three retired guards documented
 as *input-less* with the closure that makes it durable; the pre-XD-6 gate
 reading named as superseded) · Code traceability 5 · Derivation source n/a.
+
+---
+
+## L-103 — the consumers campaign step 1: a RETIRED REASON can be a SURVIVING RULING, and a digest LENGTH is a transcription artefact
+
+**Task (2026-09-12).** Document the consumers campaign's step 1 — `Mixture` becomes a
+VALUE (S1a `deacd897`), the ONE identity definition at `MaterialMesh` extended by `SNMesh`
+(S1b `2c1667b0`), the clamped `scattering_order` as a hub datum (S1c, uncommitted). 11
+`.rst` + 5 plan `.md` + 1 test docstring; +541/−100 on `docs/`. No Sphinx build, no pytest
+(a 13-tree gate was running).
+
+### (a) ⭐⭐ The load-bearing finding: a carve INVERTED one leg of a page's argument while its CONCLUSION stood
+
+`spaces.rst` argued the `Axis.generator` exclusion from `_identity_key` is **structurally
+mandatory** — *"the doctrinal reason is not the load-bearing one"* — on a measured table of
+four readings, all of which raise. S1b gave `Quadrature` content identity. `[M]` re-running
+the page's own four-line simulation on this tree: `a1 == a2` → **`True`** (was `ValueError`),
+`hash(a1) == hash(a2)` → **`True`** (was `TypeError`), and the `of_axes` digest is
+**byte-EQUAL** (was asserted to "split one space into as many spaces as there are rule
+instances" — that half had never been measured at all, and it is false). The
+`DiscreteMeasure` leg still raises, so the conclusion is untouched and the argument INVERTS
+from *necessity* to *ruling*.
+
+The shape, and it recurs: **a page that says "the nice reason is not the load-bearing one"
+is one carve away from having only the nice reason left** — and the nice reason is usually
+the right one. The repair is L-100's: `.. important::` under a retitled section, the original
+text preserved verbatim under *(Written <date>, and preserved:)*, then `⛔ REFUTED` with a
+per-leg table. Four further sites carried the same reason and each needed a DIFFERENT edit:
+the Key-Facts bullet (rewrite to the ruling), the CS5 changelog row (italicise the reason as
+what was true *on that row's date*), the gate-claim table cell (re-describe which sub-case
+pins what), and `field_algebra.rst`'s twin-carrier paragraph — where the refutation makes the
+row's reason **better** (*true because the two rules are the same by content*, not because
+the alternative would have crashed).
+
+⟹ **after a carve that gives a type content identity, grep every page that argues FROM that
+type's un-comparability.** `grep "un-\`\`==\`\`-able|unhashable"` found all of them in one run.
+
+### (b) ⛔ A DIGEST LENGTH is determined by how you NAME your throwaway class
+
+I drafted *"281 bytes, EQUAL"* / *"223 bytes"* into a published table. Re-running the recipe
+**as published** (the class renamed `_WithGen` → `_WithGeneratorInKey`) read **292** and
+**234** — Δ = 11 = `len("_WithGeneratorInKey") − len("_WithGen")`, because
+`Axis._structural_bytes` opens with `b"T" + type(self).__qualname__.encode()`. The number
+that read as the hardest evidence was wholly an artefact of my own typing (the `plan-authoring`
+§4 transcription sharpening, at doc scale). Published the **scale-free** statistic instead —
+*byte-EQUAL* — with a ⚠ saying why the length must not be quoted.
+⟹ **run a published recipe verbatim and compare its OUTPUT to what you wrote**, and prefer a
+statistic no rename can move.
+
+### (c) ⭐ A refuted-claim repair must not itself assert an unmeasured counterfactual
+
+Repairing the "would split one space" clause I first wrote *"true of the tree as it then was:
+a `Quadrature` had no content identity until 2026-09-12, so two equal rules encoded
+differently"* — plausible, and **unmeasured**. Reading `_structural_bytes` shows it encodes a
+non-`bytes` key part as `repr(part)`, and a dataclass `repr` over small arrays is equal for
+equal content, so the pre-S1b digest very likely did NOT split either. Replaced with what I
+could measure plus an honest *"asserted, never measured"* tombstone. **A tombstone is prose
+you are authoring now and owes the same evidence as any other claim.**
+
+### (d) ⭐ The changelog contract has a THIRD case: a step whose last unit is uncommitted
+
+`history.rst` contracts *"an entry lands with its merge hash, and the only exception is an
+entry whose Where names an unmerged BRANCH"*. S1a/S1b are ancestors of `main`; S1c is
+uncommitted **on `main`** — not covered (L-100's case). The page's own precedent solves it:
+`:1761` reads *"C1–C4 merged @ `59830618`; C5 = this entry's own merge"*. Used
+``deacd897`` (S1a) · ``2c1667b0`` (S1b) on ``main``; S1c = this entry's own commit``.
+⟹ **before inventing a hatch, grep the table for a row whose last unit was the commit that
+landed the row**. And `git rev-parse --abbrev-ref HEAD` first — the session's git-status
+snapshot said `fix/angular-phantom-support` and the tree was on `main`.
+
+### (e) ⛔ L-101's mid-paragraph directive swallow, AGAIN — and it was caught only by the differential parse
+
+Replacing a sentence that ENDED mid-paragraph and inserting a `.. note::` after it glued the
+paragraph's tail into the note body: the pass's one new docutils diagnostic
+(*"Explicit markup ends without a blank line; unexpected unindent"*). The fix was to move the
+note BELOW the whole paragraph. `-W` would have caught it; I had no build, and the
+HEAD-vs-now docutils error-SET diff did. ⟹ the differential parse is not a nicety when the
+build is unavailable — it is the only instrument that sees this class.
+
+### (f) ⭐ The ERR entry was BLOCKED, and saying so is the deliverable
+
+The identity defect class deserves ERR-084. Minting it reddens TWO gates I may not repair:
+`test_every_declared_entry_has_a_catching_test` (needs `@pytest.mark.catches("ERR-084")` — a
+DECORATOR, i.e. code) and `test_the_generated_index_matches_the_corpus` (the index regenerates
+only at `builder-inited`). ⟹ ship the entry **ready-to-paste in the report** with the two
+marker lines and the build order, never half-landed. (L-091's rule, met by deferring.)
+
+### (g) The censuses
+
+The brief's census A regex (`scattering_order|Legendre order|retained order|clamp`) read
+**233 lines / 31 files** and is ~85 % the unrelated **τ-clamp** — a one-word collision, the
+`coding-standards` "triage by MEANING" case. Census B (`SNSolver\(|solver.*order|order.*solver`)
+read **18 / 11** and contained **zero** relevant sites: `[M]` `grep -rn "SNSolver(" docs/` is
+**0**, so no page ever spelled the constructor. The useful instrument was a third,
+meaning-triaged regex (**33 lines / 17 files**), of which **7 were real repairs**. ⟹ report
+the brief's census AND the triaged one; a census whose dominant hit is a homonym is not a
+site list.
+
+### Verification (no build, no pytest — both forbidden)
+
+* HEAD-vs-now **docutils error-SET diff** on all 11 `.rst`: every file back to its HEAD count
+  (2/0/0/0/1/2/2/2/3/0/0) after the (e) repair.
+* **markup gates** with a validated positive control each (`**``` / ```**` / `**:role:`` /
+  3+ backticks / trailing-space-before-closing-role): **0** new; the one hit
+  (`adjoint.rst:142`) proven pre-existing by `git show HEAD:`.
+* **xref**: my import-resolving gate over the 11 files, `git archive HEAD` tree vs working
+  tree — **0 NEW dead**; the project gate `tools/check_docstring_xrefs.py docs orpheus tests`
+  → `DEAD TARGETS: 0 across 0 sites` (1052 files / 18 003 roles); nexus `dead_references`
+  → 0/68. Three independently-vocabularied instruments.
+* every new `:ref:` resolved against an 887-label corpus harvest; table column counts
+  (72 of 72 rows × 4 cells in `history.rst`) and both changelogs' chronology asserted.
+* the `tests/` edit proven **docstring-only** by AST-with-docstrings-stubbed AND a
+  string-dropped token stream, both identical to HEAD.
+* `git status --porcelain -- orpheus/` identical at start and end (4 files, the S1c carve);
+  `git log --oneline -3` unchanged — no concurrent landing this session.
+
+### Quality self-assessment
+
+Derivation depth 4 (no new math; the WHY — *two questions under one predicate*, *a cached key
+is sound only over immutable data*, *a datum with three spellings has no owner* — is the new
+load-bearing content) · Cross-refs 5 · Numerical evidence 5 (the clamp ladder, the
+independent-`from_axes` equality, the two-leg generator table, the 1.02 ms / 1.60 µs key cost,
+the `{0,1}` vs `{0,1,3}` spy) · Failed approaches 5 (the inverted exclusion argument preserved
+verbatim with its refutation; the never-measured "would split" clause tombstoned) · Code
+traceability 5 · Derivation source n/a.

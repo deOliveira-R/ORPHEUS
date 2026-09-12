@@ -107,7 +107,7 @@ def build_p1_solver() -> SNSolver:
         mat_map=np.zeros((nx, ny), dtype=int),
     )
     quad = Quadrature.lebedev(order=17)
-    return SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=1)
+    return SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=1))
 
 
 def build_p3_solver() -> SNSolver:
@@ -135,7 +135,7 @@ def build_p3_solver() -> SNSolver:
         mat_map=np.zeros((nx, ny), dtype=int),
     )
     quad = Quadrature.lebedev(order=17)
-    return SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=3)
+    return SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=3))
 
 
 # ─────────────────────────────────────────────────────────────────────

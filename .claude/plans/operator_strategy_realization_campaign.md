@@ -295,7 +295,10 @@ where nothing could gate it — and it shipped 46–56 % silent errors.
 > It proposed *"changing a solve strategy must not touch operator construction"*, asserted
 > as RED. **It is GREEN — at exactly 0.0 — and it cannot be made red**, because
 > `build_within_group_system(sn_mesh, mat_xs, *, scattering_op, scattering_order)` takes
-> **no strategy parameter at all** (verified by `inspect.signature`). The invariance is a
+> **no strategy parameter at all** (verified by `inspect.signature`; ✅ the signature is
+> `(sn_mesh, mat_xs, *, scattering_op, n2n_op)` since 2026-09-12 — `scattering_order` is
+> read off the hub, consumers campaign S1c / #459 — and the finding is unchanged: still no
+> strategy parameter). The invariance is a
 > SIGNATURE fact, not a behavioural one: the knob cannot physically reach the object, so
 > the gate is green in every possible run. A hand-injected falsifier *does* move it
 > (5.15e-02 when `B` is dropped), which is exactly what makes this trap dangerous —

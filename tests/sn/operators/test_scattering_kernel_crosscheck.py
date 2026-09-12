@@ -119,8 +119,8 @@ def solver_p1_het():
     mat[2:, :] = 1
     mesh = _uniform_2d(nx, ny, 0.4, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNMesh(mesh, quad, {0: _mix(p0_a, p1_a), 1: _mix(p0_b, p1_b)})
-    return SNSolver(sn_mesh, scattering_order=1)
+    sn_mesh = SNMesh(mesh, quad, {0: _mix(p0_a, p1_a), 1: _mix(p0_b, p1_b)}, scattering_order=1)
+    return SNSolver(sn_mesh)
 
 
 def _aniso_psi(solver, seed=20260620):

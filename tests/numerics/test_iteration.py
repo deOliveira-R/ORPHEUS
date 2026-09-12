@@ -649,8 +649,8 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # :class:`StreamingCollisionOperator` (= ``L + C``) on the SNSolver is
     # unused here.  Solver instance retained to provide
     # ``solver.scattering_op`` / ``solver.fission_op`` / ``solver.mat_xs``.
-    sn_mesh = SNMesh(mesh, quad, materials)
-    solver = SNSolver(sn_mesh, scattering_order=0)
+    sn_mesh = SNMesh(mesh, quad, materials, scattering_order=0)
+    solver = SNSolver(sn_mesh)
     # The canonical S, F operators built directly from solver state.
     S = solver.scattering_op
     F = solver.fission_op
@@ -822,8 +822,8 @@ def _sn_composite_triple():
     if ref.keff is None:  # explicit narrow — fires under -O (Mode 8)
         pytest.fail("solve_sn returned no eigenvalue — the reference leg "
                     "of the A4 activation fixture is broken.")
-    sn = SNMesh(mesh, quad, materials)
-    solver = SNSolver(sn, scattering_order=0)
+    sn = SNMesh(mesh, quad, materials, scattering_order=0)
+    solver = SNSolver(sn)
     system = build_within_group_system(
         sn, solver.mat_xs, scattering_op=solver.scattering_op,
     )

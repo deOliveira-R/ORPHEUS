@@ -1312,11 +1312,14 @@ lives in scattered docstrings.
    *shapes* were and remain correct; only the carrier moved, to the
    typed fields now shown. The first row, ``SNSolver.sig_t, sig_a,
    sig_p, chi`` at ``(ng, nx, ny)`` defined by ``SNSolver.__init__``,
-   is **NOT yet reconciled**: measured 2026-08-09,
-   :meth:`SNSolver.__init__` takes ``(sn_mesh, inner_solver,
-   scattering_order, keff_tol, flux_tol, max_inner, inner_tol,
-   inner_schedule)`` and the solver carries no ``sig_*`` / ``chi``
-   attribute at all; the per-cell cross sections live on
+   is **NOT yet reconciled**: `[M]` re-measured 2026-09-12 (the
+   2026-08-09 reading additionally listed ``scattering_order``, which
+   the consumers campaign's step 1 retired from this signature — the
+   order is now the hub's datum, :ref:`sn-hub-retained-order`),
+   :meth:`SNSolver.__init__` takes ``(sn_mesh, inner_solver, keff_tol,
+   flux_tol, max_inner, inner_tol, inner_schedule)`` and the solver
+   carries no ``sig_*`` / ``chi`` attribute at all; the per-cell cross
+   sections live on
    :class:`~orpheus.data.macro_xs.cell_xs.CellXS`, whose arrays are
    **cell-major** ``(nc, ng)`` — a different priority order from the
    row's claim. Reconciling that row needs a trace of how the SN path

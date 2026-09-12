@@ -47,11 +47,9 @@ def _build_solver_and_mesh(case, nc, inner_solver="source_iteration"):
     Q = case.external_source(mesh)
     sn_mesh = _as_sn_mesh(
         mesh, case.quadrature, case.materials,
-        "vacuum", mat_map=None,
-    )
+        "vacuum", mat_map=None, scattering_order=0)
     solver = SNSolver(
-        sn_mesh, inner_solver=inner_solver,
-        scattering_order=0, max_inner=2000, inner_tol=1e-13,
+        sn_mesh, inner_solver=inner_solver, max_inner=2000, inner_tol=1e-13,
     )
     q_ext = _build_fixed_source_rhs(Q, sn_mesh)
     return mesh, sn_mesh, solver, q_ext

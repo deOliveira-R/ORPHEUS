@@ -210,6 +210,7 @@ class SNMesh(MaterialMesh):
         materials: "Materials | Mapping[int, Mixture]",
         scheme: DiscretizationSchemeBase | None = None,
         angular_closure: "type[AngularClosureBase] | None" = None,
+        scattering_order: int = 0,
     ) -> None:
         # The legacy inbound surface: convert the Mesh1D / Mesh2D declaration
         # to the canonical axis tuple ONCE at the boundary, extract the one
@@ -227,6 +228,7 @@ class SNMesh(MaterialMesh):
             materials=materials,
             scheme=scheme,
             angular_closure=angular_closure,
+            scattering_order=scattering_order,
         )
 
     def _init_core(
@@ -239,6 +241,7 @@ class SNMesh(MaterialMesh):
         materials: "Materials | Mapping[int, Mixture]",
         scheme: DiscretizationSchemeBase | None,
         angular_closure: "type[AngularClosureBase] | None",
+        scattering_order: int = 0,
     ) -> None:
         # The ONE construction body both surfaces funnel into (C5.1).
         #
@@ -287,6 +290,21 @@ class SNMesh(MaterialMesh):
         # constructor arguments (Pattern 4 — an unbound / foreign-bound closure
         # is now unspellable).
         self._user_supplied_closure = angular_closure
+        # ── the retained scattering order — a GENERATING datum (R-cc9) ──
+        # Clamped ONCE, here, to the Legendre count every material carries:
+        # every consumer (the solver's transfer bindings, the adjoint posing,
+        # the within-group assembly, DSA) READS this value, so the three
+        # spellings that disagreed until 2026-09-12 (the solver's clamp, the
+        # adjoint entries' unclamped zero-padding, the fixed-source entry's
+        # raw hand-off to DSA) are one. ⚠ CLAMPED means: on a P1 library a
+        # request of 1, 2, 3 or 5 is the SAME problem (retained 1); only
+        # (0, ≥1) separates. It enters the identity key (`_identity_key`).
+        requested = int(scattering_order)
+        if requested < 0:
+            raise ValueError(f"SNMesh: scattering_order must be >= 0; got {requested}")
+        self.scattering_order: int = min(
+            requested, min(len(m.SigS) - 1 for m in self.materials.values()),
+        )
 
         # (``self.axes`` / ``self.axis_widths`` / ``self.mat_map`` /
         # ``self._volumes`` / ``self._areas`` / ``self.nx`` /
@@ -548,8 +566,8 @@ class SNMesh(MaterialMesh):
     # TYPE; identity adds the angular-closure CLASS (the closure deletes a
     # term from L — it is generating data — while fields from two closures
     # still pair, which is why it is in one key and not the other). The
-    # retained scattering order joins the identity key when it becomes a
-    # hub datum (R-cc9, step S1c).
+    # retained scattering order is the third identity datum (R-cc9, S1c) —
+    # and NOT a contractibility datum (R-cc8: fields pair across orders).
     #
     # ⚠ Until 2026-09-12 this class spelled ONE predicate,
     # ``is_same_phase_space``, over CONSTITUENT identity (``mesh is``,
@@ -566,7 +584,11 @@ class SNMesh(MaterialMesh):
 
     @cached_property
     def _identity_key(self) -> tuple:
-        return (self._contractibility_key, type(self.angular_closure).__qualname__)
+        return (
+            self._contractibility_key,
+            type(self.angular_closure).__qualname__,
+            self.scattering_order,
+        )
 
     __hash__ = MaterialMesh.__hash__
 
@@ -676,6 +698,7 @@ class SNMesh(MaterialMesh):
         mat_map: np.ndarray | None = None,
         scheme: DiscretizationSchemeBase | None = None,
         angular_closure: "type[AngularClosureBase] | None" = None,
+        scattering_order: int = 0,
     ) -> "SNMesh":
         r"""Build an :class:`SNMesh` from an axis tuple — the axis-native surface.
 
@@ -740,6 +763,7 @@ class SNMesh(MaterialMesh):
             materials=materials,
             scheme=scheme,
             angular_closure=angular_closure,
+            scattering_order=scattering_order,
         )
         return obj
 
@@ -751,6 +775,7 @@ class SNMesh(MaterialMesh):
         *,
         scheme: DiscretizationSchemeBase | None = None,
         angular_closure: "type[AngularClosureBase] | None" = None,
+        scattering_order: int = 0,
     ) -> "SNMesh":
         r"""Promote a :class:`MaterialMesh` to a solvable SN phase space.
 
@@ -801,8 +826,30 @@ class SNMesh(MaterialMesh):
             materials=material_mesh.materials,
             scheme=scheme,
             angular_closure=angular_closure,
+            scattering_order=scattering_order,
         )
         return obj
+
+    def with_scattering_order(self, scattering_order: int) -> "SNMesh":
+        r"""A NEW problem over the same generating data with another retained order.
+
+        A Problem morphism, not a mutation (the hub is a save state): the
+        geometry, material assignment, materials, quadrature, scheme and
+        closure CLASS are shared by content; only the order changes, and it
+        is clamped exactly as at construction. The result compares ``==`` to
+        this hub iff the two clamped orders coincide.
+        """
+        closure_cls = type(self.angular_closure)
+        if self.mesh is not None:
+            return type(self)(
+                self.mesh, self.quad, self.materials, scheme=self.scheme,
+                angular_closure=closure_cls, scattering_order=scattering_order,
+            )
+        return type(self).from_axes(
+            self.axes, self.quad, self.materials, mat_map=self.mat_map,
+            scheme=self.scheme, angular_closure=closure_cls,
+            scattering_order=scattering_order,
+        )
 
     @property
     def angular_trace(self) -> "AngularTraceSpace":

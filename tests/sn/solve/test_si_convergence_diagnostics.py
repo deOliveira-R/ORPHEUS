@@ -62,8 +62,8 @@ def _homogeneous_slab_solver(c: float, *, sigma_t: float = 1.0,
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    sn_mesh = SNMesh(mesh, quad, {0: mat})
-    return SNSolver(sn_mesh, inner_solver="source_iteration", scattering_order=0)
+    sn_mesh = SNMesh(mesh, quad, {0: mat}, scattering_order=0)
+    return SNSolver(sn_mesh, inner_solver="source_iteration")
 
 
 def _run_si(c: float, **kw):

@@ -79,10 +79,9 @@ def _mesh(regions, bc, coord):
 
 def _solve(materials, mesh, scattering_order=0):
     """Converged eigenpair via the production driver, solver retained."""
-    sn_mesh = _as_sn_mesh(mesh, Quadrature.gauss_legendre(8), materials)
+    sn_mesh = _as_sn_mesh(mesh, Quadrature.gauss_legendre(8), materials, scattering_order=scattering_order)
     solver = SNSolver(
         sn_mesh,
-        scattering_order=scattering_order,
         keff_tol=1e-9, flux_tol=1e-8, max_inner=2000, inner_tol=1e-11,
     )
     _o = power_iteration(solver, max_iter=2000)

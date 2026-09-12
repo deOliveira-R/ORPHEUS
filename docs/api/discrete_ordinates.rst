@@ -82,6 +82,21 @@ package carries rich ``.. math:: :label:`` docstrings, so it is
 cross-referenced here rather than ``automodule``-rendered, to avoid
 duplicate-label collisions with the theory pages.)
 
+Since 2026-09-12 a :class:`~orpheus.numerics.quadrature.Quadrature` has
+**content identity** (the consumers campaign's step 1, ruling R-cc3;
+GitHub #459): two rules built from equal inputs compare ``==`` and hash
+equal, over nodes, weights, support, invariance group, exactness claim,
+level structure and folding — the derived angular-frame cache is
+excluded, because it is derived rather than generating.  Before that the
+generated comparison raised ``ValueError`` over its arrays and the type
+was unhashable.  A quadrature is a generating datum of every S\ :sub:`N`
+problem, so it must be comparable by content for
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` to be a save state
+(:ref:`sn-hub-identity-two-predicates`); it remains a **mutable**
+dataclass, so ``axis.generator``'s arrays are a live reference and the
+factor measure of record is the axis's own read-only ``weights`` copy
+(:ref:`spaces-axis-generator`).
+
 Transport Sweep — the loss representations
 ------------------------------------------
 

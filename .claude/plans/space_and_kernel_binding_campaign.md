@@ -600,6 +600,17 @@ best-designed part of the layer — memo A praise table — churn only with caus
   `materials is` — problem-identity conflated with space-identity (the
   measure-vs-measurable-function frame's red witness) — re-scope it when
   the axis-built composite lands.
+  ✅ **REMEDIED 2026-09-12 by the consumers campaign's S1a/S1b**
+  (`deacd897`, `2c1667b0`; ruling R-cc8, GitHub #459) — and the diagnosis
+  in this row is exactly what the ruling names. `is_same_phase_space`
+  RETIRED; the conflation was resolved by SPLITTING it, not by re-scoping
+  one predicate: `MaterialMesh.same_phase_space` is contractibility by
+  CONTENT (space identity — *may these fields pair?*) and `__eq__` /
+  `__hash__` are Problem identity (content of every generating datum,
+  closure class and clamped truncation order included). `materials is`
+  is gone on both sides: `Mixture` is a frozen VALUE with a content key.
+  Record: `docs/theory/methods/sn/index.rst`
+  `:ref:sn-hub-identity-two-predicates`.
 * **XD-7 — reserve `_agreed_space`'s stated expiry.** `operator.py:363-374`
   says in its own words that per-leg bindings make agreement the wrong law
   and "a product-space constructor is what has to be built" — CS2's
@@ -2209,6 +2220,16 @@ that point, and the MODAL half (item 3) can follow.
   ✅ **MET** (G1a/b/c + G2; and [M] the exclusion is structurally MANDATORY —
   an inclusion makes `Axis.__eq__`/`hash` RAISE, since `Quadrature` is
   unhashable and `DiscreteMeasure` un-`==`-able — verification plan §1.1);
+  ⛔ **the QUADRATURE half of that reason INVERTED 2026-09-12** (consumers
+  campaign S1b, `2c1667b0`; ruling R-cc3, GitHub #459): a `Quadrature` now
+  has CONTENT identity, so `[M]` a key holding one compares `True`, hashes
+  equal, and produces a byte-EQUAL `_structural_bytes` digest — an
+  inclusion neither raises nor splits. **The done-when is still MET and the
+  exclusion still stands**, now as a RULING carried by the doctrine
+  (*provenance is not identity*), with the `DiscreteMeasure` leg as the
+  surviving structural argument. G1c was re-posed in the landing commit to
+  assert both halves. Record:
+  `docs/theory/foundations/spaces.rst` `:ref:spaces-generator-identity-exclusion`;
 * ⚠ §6c: the gate lands with a case it CATCHES — an axis whose generator is
   absent must be refusable, and today every axis would have one, so the witness
   is the MODAL moment axis (item 3 not yet done) or a deliberately generator-less

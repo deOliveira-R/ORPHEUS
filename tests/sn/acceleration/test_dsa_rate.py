@@ -332,8 +332,8 @@ class TestD12ReflectiveStability:
 
         original = DSALowOrderSystem.from_sn_mesh.__func__
 
-        def lumped_from_sn_mesh(cls, sn_mesh, *, scattering_order=0):
-            system = original(cls, sn_mesh, scattering_order=scattering_order)
+        def lumped_from_sn_mesh(cls, sn_mesh):
+            system = original(cls, sn_mesh)
             # Rebuild the (1, K+1, K+1) operator with the removal mass
             # lumped onto the wall/diagonal nodes; SAME leakage, SAME G,
             # SAME discrete Marshak — the mutation isolates the
@@ -701,9 +701,11 @@ class TestP1DSAArm:
         S2 exactness anchor)."""
         original = DSACorrection.from_sn_mesh.__func__
 
-        def p0_forced(cls, sn_mesh, *, scattering_order=0):
-            del scattering_order  # the mutation: the P0 arm regardless
-            return original(cls, sn_mesh, scattering_order=0)
+        def p0_forced(cls, sn_mesh):
+            # the mutation: the P0 arm regardless of the sweep's order — the
+            # corrector is built on the P0 Problem derived from the same data
+            # (since S1c the order is the hub's datum, read by from_sn_mesh)
+            return original(cls, sn_mesh.with_scattering_order(0))
 
         monkeypatch.setattr(
             DSACorrection, "from_sn_mesh", classmethod(p0_forced)
