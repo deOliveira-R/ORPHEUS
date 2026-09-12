@@ -3009,3 +3009,105 @@ patching the `ClassVar` alone reports MC inert. → `L76h`
   blindness (`as_matrix` is in the counting basis), and publishing that zero is what stops a
   later reader crediting those anchors for a measure claim. The sibling declared null
   (`volumes ×2`) reddened 21 and was NOT a null — that refutation produced `L81g`. → `L81h`
+
+## Consumers campaign step 1 additions (2026-09-12, the Problem-identity step — pre-carve) → `L82`
+
+**§3 (config blindness) — a new ORPHEUS fixture fact.**
+
+- **⛔⛔ A gate discriminating two TRUNCATION-ORDER requests is VACUOUS wherever the
+  LIBRARY saturates the clamp — census `len(SigS)` before writing the pair.** `[M]`
+  **all twelve** `xs_library` mixtures (A/B/C/D × 1g/2g/4g) ship `len(SigS) == 2`, so
+  `min(L, len(SigS)−1)` maps **every** request ≥ 1 to **1**: a row spelled "P2 vs P3"
+  asserts `1 != 1`. The only non-vacuous abstract-library pair is `(0, ≥1)`; the
+  421-group library (`[M]` `U_235`: `len(SigS) = len(Sig2) = 7`) is the other option.
+  ⭐ And the channel IS live at `(0,1)` — `[M]` `k = 1.2122522010124397` vs
+  `1.2180192347287149` on a two-region 2-group slab, 476 pcm — so the pair is a real
+  discrimination and not merely a legal one. Assert the premise
+  (`min(len(SigS))−1 == 1`) IN the row, or a library change silently empties the table.
+  → `L82a`
+- **⛔⛔ A CONTENT-HASH's cost is a property of PRODUCTION data, and the abstract
+  fixtures are ~640× too cheap to show it.** `[M]` building a `Mixture` content key
+  (`tobytes()` over 7 dense arrays + 14 CSR triples) costs **1022 µs** on a 421-group
+  mixture (key = 3 214 496 B) and **1.60 µs** on a 2-group one; hashing an
+  ALREADY-BUILT key costs **0.57 µs**; `blake2b` over the same bytes **4603 µs**.
+  A hash-keyed consumer read 6–10× per solve therefore costs ≈ 6–10 ms/solve/material
+  un-cached — invisible to every small-group gate. ⟹ price a content key on the
+  REAL library at plan time; and the two spellings are two OBJECTS (a tuple key for
+  `__hash__`, a digest for cross-process determinism, as `Axis` already ships).
+  → `L82b`
+
+**§1 (gates that cannot red).**
+
+- **⛔⛔ A ROUTE SPY on a shared verb observes the CALL ARGUMENT, not the value the
+  verb SERVES — and that is the right instrument only when the claim is about the
+  CALLER.** `[M]` a battery arm clamping INSIDE `TransferKernel.at_order` (bite
+  confirmed: honest `at_order(3)` → order 3, mutant → 1) left both the RECORD row and
+  the route gate at **0 reds**, because the spy wraps the same symbol the mutant
+  replaced and records the argument before delegating. Read the null correctly: here
+  the refusal is CORRECT (a clamp inside the kernel would be a FOURTH spelling of the
+  retained order, the defect the ruling removes), so the finding goes in the GATE'S
+  DOCSTRING — *"this measures which order the caller passes"* — or a later reader
+  credits the green for the wrong claim. → `L82c`
+- **⛔ An IMPLICATION row (`A ⟹ B`) passes VACUOUSLY when nothing satisfies `A`, and
+  a pre-carve tree is exactly where nothing does.** `[M]` `a == b ⟹
+  a.same_phase_space(b)` shipped as `xfail(strict=True)` and came back
+  **`XPASS(strict)`**: `SNMesh.__eq__` is `object.__eq__`, no pair is ever `==`, and
+  the implication held over the empty set. Every such row owes a **non-vacuity guard**
+  (`all(a == b for …)` over a declared equal set) and, when the containment is meant
+  to be STRICT, a strictness leg exhibiting a `B`-without-`A` pair. → `L82d`
+- **⭐ Ship a RECORD row beside every `xfail` that states an unlanded API — the xfail
+  is SILENT when the API lands WRONG.** A strict xfail only flips on XPASS, so a carve
+  that lands the constructor and gets the semantics wrong leaves the row `xfail` and
+  the suite green (`vv` Mode-8's fourth class). The RECORD row (green today, designed
+  to RED at the carve, DELETED not repaired) is what makes the API change loud. Pairing
+  them is the coda's shape; state the pairing in the module docstring so neither is
+  "cleaned up". → `L82e`
+
+**§2 (harness discipline).**
+
+- **⛔ MY OWN fixture defeated two of my own RECORD rows: a helper that re-derives its
+  constituents per call breaks an `is`-tier predicate for a reason the row is not
+  about.** `[M]` `_mats()` called per hub ⟹ fresh `Mixture` objects ⟹ today's
+  per-mixture `is` leg refuses the pair, and the d≥3 VACUITY row read `False` — the
+  opposite of the defect it exists to record. ⟹ when a row isolates ONE leg of a
+  conjunctive predicate, hold every OTHER leg fixed by `is` (module-level shared
+  constituents) and write the reason into the constant's own comment. Sibling: a
+  CONTENT positive control must do the opposite (share NOTHING by `is`), so the two
+  fixtures are two helpers, never one. → `L82f`
+- **⭐ Two arms of a pre-carve battery were DECLARED NULLS and both HELD — publish
+  them with their bites.** `[M]` (a) dropping the interned cache's closure validation
+  reds **0** because no two hubs are content-equal TODAY, so the check is never the
+  discriminator — it goes live exactly when `__hash__` does; (b) the clamp-inside-the-
+  kernel arm, `L82c`. Each carries a bite (`alien closure → honest rebuilds, mutant
+  reuses`; `at_order(3) → 3 vs 1`), so neither zero is ambiguous between *blind gate*
+  and *insufficient mutation* (`L68c`). → `L82g`
+
+**§6 (carve archetypes) — GIVING A TYPE CONTENT `__eq__`/`__hash__`.**
+
+- **⛔⛔ The blast radius is the HASH-KEYED consumers, and there is usually exactly
+  one — find it before designing anything.** `[M]` `_GEOM_CACHE_INTERN:
+  WeakKeyDictionary[SNMesh, (closure, cache)]` is the ONE hash-keyed consumer of the
+  hub; under a simulated content `__eq__`/`__hash__` two content-equal live meshes
+  collapse to ONE entry and **PING-PONG**: builds **2 → 6** over 6 calls, because the
+  entry validates `entry[0] is angular_closure` and each mesh binds its own closure
+  instance. Both committed cache gates are blind (one counts a DIFFERENT stratum, the
+  other uses ONE mesh). ⭐ The repair is a WIN, not a patch — the cached table's fields
+  are bare arrays with no mesh and no closure reference and it is σ-free, so re-keying
+  the validation to the closure CLASS makes the two meshes SHARE one entry (2 → 1).
+  ⚠ And the `WeakKeyDictionary` lifetime changes too: when the first of two equal keys
+  dies, the second loses its entry. → `L82h`
+- **⭐ A frozen dataclass whose `__post_init__` MUTATES a field cannot simply gain
+  `frozen=True`** — `[M]` `Mixture.__post_init__` assigns `self.chi` (the emission-
+  spectrum law), so the freeze must write through `object.__setattr__`. And the freeze
+  is not optional when the hash is cached: `[M]` 33 test sites / 14 files assign
+  `.SigS`/`.Sig2`/`.SigT` post-construction (0 in `orpheus/`), every one of which
+  makes a cached key silently stale. Ship ONE row satisfied by EITHER honest outcome
+  (frozen ⟹ the write raises; live key ⟹ the hash moves) so it cannot be satisfied by
+  the state that must not ship. → `L82i`
+- **⭐ `NotImplemented`-across-classes is usually ALREADY TRUE and is a
+  MUST-STAY-GREEN pin, not a gap.** `[M]` both `Mixture` (generated `__eq__` opens
+  with a class check) and `SNMesh` (`object.__eq__`) return `False` for a foreign
+  operand today; I shipped BOTH as xfail and the harness `XPASS(strict)`-ed both.
+  It is load-bearing because a frozen `Solution`'s GENERATED `__eq__` walks a field
+  tuple containing the mesh: a hub whose `__eq__` raises surfaces at a call site that
+  never mentions the hub. `L74c` at row scale. → `L82j`

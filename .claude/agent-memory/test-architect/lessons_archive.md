@@ -9995,3 +9995,127 @@ carve reaches — EXCLUDED, with the number); wide
 (`homogeneous+transport+numerics+diffusion`) **4526 p / 3 s / 2 xf / 50.8 s**; the ROOT tree
 (`tests/ --ignore=<the 12 trees>`) **429 p / 5 xf / 39.5 s** (⚠ the plan's §25.2 records
 427/5 at `3cb468d7`; re-measure, do not inherit). `dead_references` **0 dead / 68 checked**.
+
+---
+
+## L82 — the consumers campaign, step 1: a Problem's identity is the CONTENT of its generating data (2026-09-12, PRE-carve)
+
+**Dispatch.** Verification plan BEFORE the carve for plan §27's step 1
+(R-cc3/R-cc4, sharpened mid-dispatch to R-cc8/R-cc9 by a user ruling that landed
+at `2087af39`). Three fixes from ONE definition: `SNMesh.is_same_phase_space`,
+`HomogeneousProblem.__eq__/__hash__`, `Mixture.__eq__`. GitHub #459.
+Deliverables: `scratch/_consumers/test_architect_identity_step.md` (651 lines) +
+two landed anchor files + a 5-arm battery.
+HEAD moved twice during the dispatch (`4207c1d6` → `22ec2c67` → `2087af39`);
+`[M]` `git diff --name-only 22ec2c67..2087af39` touches 0 files under `orpheus/`
+or `tests/`, so every measurement stood.
+
+### L82a — the clamp-saturated library
+
+`[M]` `scratchpad/p3.py`: all twelve `xs_library` mixtures
+(A/B/C/D × 1g/2g/4g) ship `len(SigS) == 2`, `len(Sig2) == 1`, `Sig2[0].nnz == 0`.
+The SN clamp `min(scattering_order, min_materials(len(SigS) − 1))` therefore maps
+requests 2, 3, 5, … all to **1**. A P2-vs-P3 identity row asserts `1 != 1`.
+`[M]` the `(0, 1)` pair IS a real discrimination: a two-region 2-group slab
+(`A`/`B`, GL4, nx=8, `keff_tol=1e-9`) reads `k = 1.2122522010124397` at L=0 and
+`1.2180192347287149` at L≥1. The 421-group alternative: `U_235` at 294 K has
+`ng = 421`, `len(SigS) = len(Sig2) = 7`, `SigS[0].nnz = 33 259`.
+
+### L82b — the content-key cost, measured on production data
+
+`[M]` `scratchpad/p5.py`, `U_235` 421-group: BUILD+hash the key **1022.2 µs**
+(3 214 496 bytes); hash an already-built key **0.57 µs**; `blake2b` over the same
+bytes **4602.8 µs**. `[M]` the same build on `A/2g` and `A/4g` is **1.60 µs**.
+`_GEOM_CACHE_INTERN.get(mesh)` runs on every operator construction and `L64b`
+prices `StreamingOperator` at 6 (slab) / 10 (sphere) per eigenvalue solve.
+
+### L82c — the route spy reads the ARGUMENT
+
+Battery arm A5 simulated the post-carve semantics by clamping INSIDE
+`TransferKernel.at_order`. Bite confirmed (`at_order(3)` honest → order 3, mutant
+→ 1). Reds: **0** on both the RECORD row and the xfail route gate, because the
+spy wraps the same symbol and records the argument before delegating. The
+refusal is correct — a clamp inside the kernel would be a FOURTH spelling of
+"the retained order" — so the finding went into the gate's docstring.
+
+### L82d / L82e — the two rows the harness refuted
+
+(a) `test_identity_is_strictly_finer_than_contractibility` (`a == b ⟹
+a.same_phase_space(b)`) shipped as `xfail(strict=True)`, came back
+**`XPASS(strict)`**: `SNMesh.__eq__` is `object.__eq__`, so no pair is `==` and
+the implication ranged over the empty set. Repaired with a non-vacuity guard
+plus a strictness leg (the closure pair witnesses `B` without `A`).
+(b) `test_comparison_across_classes_never_raises`, in BOTH files, also
+`XPASS(strict)` — already true today. Re-classed as MUST-STAY-GREEN.
+
+### L82f — my own fixture defeated my own rows
+
+`_mats()` re-derived mixtures per call, so two hubs never shared a `Mixture`
+object and today's per-mixture `is` leg refused every pair. The d≥3 VACUITY
+RECORD read `False` — the opposite of the defect. Repaired with module-level
+`_SHARED_QUAD` / `_SHARED_MATS`, and a SECOND helper `_hub_independent` that
+shares nothing (the honest CONTENT positive control).
+
+### L82g — the battery
+
+`scratch/_consumers/probes/{mut_identity.py,battery.sh}`, monkeypatch-only,
+scope = the two anchor files. Baseline `[M]` **19 passed / 38 xfailed / 2.96 s**.
+
+| arm | reds | note |
+|---|---|---|
+| A1 predicate drops the materials leg | 1 | `test_d3_the_QUADRATURE_and_MATERIALS_legs_still_bite` |
+| A2 predicate drops the spatial leg | 2 | both `…read_FALSE_at_d1_and_d2` rows; the d=3 vacuity row correctly stays green |
+| A3 the `SNSolver` clamp → identity | 1 | `test_the_three_spellings_disagree_on_a_live_solve` |
+| A4 intern drops the closure check | **0** | DECLARED NULL; bite: alien closure → honest rebuilds (reuse=False), mutant reuses (reuse=True) |
+| A5 clamp inside `at_order` | **0** | DECLARED NULL; bite: order 3 vs 1 — see L82c |
+
+### L82h — the `_GEOM_CACHE_INTERN` ping-pong
+
+`[M]` `scratchpad/p6.py`, two content-equal distinct live `SNMesh`es, 6
+alternating `geometry_cache_for` calls, spy on
+`StreamingCoefficientCache.from_mesh_and_quad`: identity keys → **2 builds / 2
+entries**; simulated content `__eq__`/`__hash__` → **6 builds / 1 entry**.
+`a.angular_closure is b.angular_closure` is `False` (each mesh binds `cls(...)`).
+`StreamingCoefficientCache`'s fields (`cache.py:236-243`) are eight bare arrays —
+`chain_idx`, `chain_idx_inv`, `abs_mu`, `face_area_downstream`,
+`face_area_total`, `delta_A_over_w`, `volume`, `is_degenerate` — no mesh, no
+closure, σ-free, so content sharing is CORRECT and re-keying the validation to
+the closure CLASS takes the count 2 → 1.
+Blind gates: `tests/sn/sweep/core/test_cache.py:303` counts
+`CollisionCache._build_count` (Stratum 2); `:361-369` uses ONE mesh.
+
+### L82i — the three-spellings measurement (the step's headline §6c witness)
+
+`[M]` `scratchpad/p7.py`, counting spy on `TransferKernel.at_order`:
+
+| entry | orders reaching `at_order` | keff |
+|---|---|---|
+| `solve_sn(0)` | `{0, 1}` | 1.2122522010124397 |
+| `solve_sn(3)` | `{0, 1}` (clamped) | 1.2180192347287149 |
+| `solve_sn_adjoint(0)` | `{0, 1}` | 1.2122522010262708 |
+| `solve_sn_adjoint(3)` | `{0, 1, 3}` UNCLAMPED | 1.2180192347393897 |
+
+The two `k` agree to 1.1e-11 (zero padding), so no value gate can see it.
+
+### L82j — the §6b sets, re-measured at HEAD
+
+AST with an in-script positive control; reproduces the explorer census exactly:
+`scattering_order` keyword call sites **148 `tests/` · 12 `orpheus/` · 54
+`orpheus/derivations/` (the `La13511Case` HOMONYM) · 6 top-level `derivations/`**.
+`SNSolver(scattering_order=)` alone: **51 sites / 31 files** (44/25 tests, 5/5
+derivations, 2/1 orpheus) — the migration O-2 forces.
+Non-call spellings: 13 `def`-params in `orpheus/` (incl. `_adjoint_posing_parts`,
+which the entry table does not list as a def), 2 attribute STOREs, 2+3 LOADs,
+1 `AnnAssign` (the homonym), 84 string constants, **0** `getattr`/`setattr`/
+`monkeypatch` spellings tree-wide. The polymorphic mints `cls(...)` /
+`cls.from_field(...)` in `transport/operators/transfer.py` are the 2 `orpheus/`
+sites no NAME-keyed census returns.
+
+### Exit state
+
+Anchors: `tests/data/test_mixture_identity_anchors.py` (20 rows),
+`tests/sn/mesh/test_problem_identity_anchors.py` (37 rows) — `[M]` **19 passed /
+38 xfailed / 2.93 s**, pyright **0/0**. Scope gates `[M]` `tests/sn/mesh`
+**239 passed / 23 xfailed / 3.92 s**; `tests/data` **319 passed / 15 xfailed /
+31.56 s**. Eight open rulings O-1…O-8; O-2 (does `SNSolver` keep its kwarg?),
+O-3 (the intern key) and O-4 (freeze `Mixture`?) are blocking.
