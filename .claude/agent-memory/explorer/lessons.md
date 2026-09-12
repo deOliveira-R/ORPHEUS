@@ -1603,3 +1603,31 @@ pad / gate) and report per entry whether the transform is applied — a knob "li
 last transformed, and if that differs per entry the move is also a twin-path repair; (3) grep the
 string class (`"X"` in dicts/`cfg.get`) separately — the regression cfg table and a kwargs-dict
 forward are the members a keyword census cannot see.
+
+## L-044 -- A "bit-identical" verdict on an operator RE-SPELLING is decided by a ULP probe on a random operand plus the WALLS' PREDICATE — never by the list of fixtures that would run; and a construction spy is keyed on BUILDS at the CALLER's module binding
+
+`[M]` 2026-09-12, step 2 (R-cc6) of the consumers campaign. The brief asked which frozen fixtures wall
+"adopt the adjoint's posed `F` forward". Reading the fixture LIST (18 regression `.npz` + 32
+finalize `.npy` + 6 affine-carve `.npy`) reads as ample coverage; reading their PREDICATE — every
+eigen fixture asserts `assert_regression(kind="iterative")` = `allclose(SAFETY × conv_tol)` — shows
+none can see ULP drift. The operator-level probe then read the two `F` spellings as
+**2–5 ULP apart on a random φ** (the lift's `/W` then `Σw·` round trip), so the carve is
+principled-equivalent and NOT bit-identical, and the only `nulp=1` walls in the tree cover `L + C`
+(`walk_matvec_*`, `affine_carve_baseline`), not `F`/`S`/the loss grid. A carve declared
+"bit-identical" against those walls would have landed green and false.
+
+Two instrument pitfalls from the same session, both silent in the flattering direction:
+(a) `solver.py` holds its OWN `from .coupled_system import build_within_group_system` binding —
+a spy (or a `monkeypatch.setattr`) on `coupled_system.build_within_group_system` reads **0** for
+every production driver; wrap/patch the CALLER module's binding (`orpheus.sn.solver.…`), and note
+that moving the call site to another module (a hub `cached_property`) silently un-hooks every
+existing patch on the old binding. (b) an intern's LOOKUP function (`geometry_cache_for`: 207 calls
+per 6-outer solve) is not its BUILD (`StreamingCoefficientCache()`: 1) — key the spy on the
+constructor or the count is 200× wrong.
+
+How to apply: for any "is sub-step X bit-identical?" question, (1) `grep` the consuming tests'
+assert helper and state the predicate class beside each wall (band vs `nulp`/`array_equal`);
+(2) probe the two spellings at the OPERATOR level with a random operand and report `max_ulp`
++ `max_rel` with the fixture and seed; (3) name the pre-carve `nulp` anchor that must be CAPTURED
+if bit-identity is to be claimed. For a counting spy: wrap every module binding the callers use,
+key on constructors, and assert the EXACT count.
