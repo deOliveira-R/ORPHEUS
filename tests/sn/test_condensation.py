@@ -71,7 +71,7 @@ def materials():
 def problem(materials):
     """The SHARED (mesh, quad) constituents — the two-entry pairing pattern:
     forward and adjoint solves must be built from the SAME objects for
-    ``SNMesh.is_same_phase_space`` to accept the pair (P6 B2)."""
+    ``same_phase_space`` to accept the pair (P6 B2; by CONTENT since 2026-09-12)."""
     fine = Mesh1D(
         edges=np.linspace(0.0, 4.0, 9), mat_ids=np.zeros(8, dtype=int),
         coord=CoordSystem.CARTESIAN,
@@ -432,7 +432,7 @@ def test_real_pwr_421_to_wims69_condensation_succeeds():
 @pytest.fixture(scope="module")
 def adjoint_solution(materials, problem):
     """The adjoint solve over the SAME constituents as ``solution`` — the
-    two-entry pattern ``is_same_phase_space`` exists to accept."""
+    two-entry pattern ``same_phase_space`` exists to accept."""
     from orpheus.sn.solver import solve_sn_adjoint
 
     fine, quad = problem

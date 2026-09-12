@@ -148,80 +148,6 @@ def _sphere(closure=None) -> SNMesh:
     return SNMesh(_SPHERE_MESH, _SPHERE_QUAD, _SHARED_MATS, angular_closure=closure)
 
 
-# ════════════════════════════════════════════════════════════════════
-# RECORD — the predicate's state today, which the carve REPLACES
-# ════════════════════════════════════════════════════════════════════
-
-
-class TestTodaysPhaseSpacePredicateIsConstituentIdentity:
-    """RECORD of the defect #459 removes. Designed to RED at the carve.
-
-    ``is_same_phase_space`` compares ``self.mesh is other.mesh`` — the
-    LEGACY ``Mesh1D``/``Mesh2D`` adapter — plus ``quad``/``materials`` by
-    ``is`` and the scheme by TYPE. That spatial leg is the whole defect and
-    it fails in BOTH directions at once.
-    """
-
-    def test_d3_the_spatial_leg_is_VACUOUS(self) -> None:
-        r"""⛔ The headline: two MAXIMALLY different d = 3 hubs read ``True``.
-
-        ``[M]`` 2026-09-12 — cells ``(3,4,5)`` vs ``(2,2,2)``, extents
-        ``(1,2,3)`` vs ``(9,9,9)``. At d ≥ 3 ``SNMesh.from_axes`` synthesizes
-        NO legacy adapter (``augmented_mesh.py:756-759``), so ``self.mesh``
-        is ``None`` on both and ``None is None`` carries the leg.
-        """
-        a = _hub(3, cells=(3, 4, 5), extents=(1.0, 2.0, 3.0))
-        b = _hub(3, cells=(2, 2, 2), extents=(9.0, 9.0, 9.0))
-        _require(a.mesh is None and b.mesh is None, "activation: d >= 3 carries no adapter")
-        _require(a.spatial_shape != b.spatial_shape, "activation: the two hubs differ in SHAPE")
-        _require(
-            a.is_same_phase_space(b),
-            "RECORD: today the d >= 3 spatial leg cannot distinguish any two hubs",
-        )
-
-    def test_d3_the_QUADRATURE_and_MATERIALS_legs_still_bite(self) -> None:
-        r"""The vacuity is SPATIAL ONLY — so a d = 3 negative leg that varies
-        the quadrature is a provable NON-CATCHER for it.
-
-        Written because the obvious witness for "the predicate is broken at
-        d = 3" is to vary something — and two of the three things one would
-        vary still discriminate today, which would make the gate green for
-        the wrong reason (``vv`` #19).
-        """
-        a = _hub(3)
-        _require(
-            not a.is_same_phase_space(_hub(3, quad=Quadrature.level_symmetric(sn_order=6))),
-            "RECORD: the quadrature leg (is-identity) still refuses at d = 3",
-        )
-        _require(
-            not a.is_same_phase_space(_hub(3, mats=_mats("C"))),
-            "RECORD: the materials leg (per-mixture is-identity) still refuses at d = 3",
-        )
-
-    @pytest.mark.parametrize("d", [1, 2])
-    def test_same_data_two_constructions_read_FALSE_at_d1_and_d2(self, d: int) -> None:
-        r"""The other direction: IDENTICAL generating data reads ``False``.
-
-        ``[M]`` every ``from_axes`` call synthesizes a FRESH ``Mesh1D`` /
-        ``Mesh2D`` adapter, so ``a.mesh is b.mesh`` is ``False`` for every
-        such pair — not "sometimes". The predicate reads ``True`` only when
-        the caller hands the SAME legacy object to both constructions.
-        """
-        a, b = _hub(d), _hub(d)
-        _require(a.mesh is not b.mesh, "activation: from_axes mints a fresh adapter per call")
-        _require(
-            not a.is_same_phase_space(b),
-            "RECORD: today two same-data hubs are different phase spaces at d <= 2",
-        )
-
-    def test_the_same_legacy_object_is_what_makes_it_true_today(self) -> None:
-        """The positive control for the RECORD above — the constituent tier."""
-        mats, mesh, quad = _slab_two_region()
-        a, b = SNMesh(mesh, quad, mats), SNMesh(mesh, quad, mats)
-        _require(a is not b, "two distinct wrappers")
-        _require(a.is_same_phase_space(b), "shared constituent OBJECTS pass today")
-
-
 class TestTodaysTruncationOrderIsHomeless:
     """RECORD of R-cc9's defect: the order is on the SOLVER, spelled three ways."""
 
@@ -345,7 +271,7 @@ class TestTheClosureExclusionSurvives:
             "activation: the two hubs must carry DIFFERENT closure classes",
         )
         _require(
-            default.is_same_phase_space(overridden),
+            default.same_phase_space(overridden),
             "R-cc8: two closures over one geometry remain contractible",
         )
 
@@ -382,7 +308,6 @@ class TestCrossClassComparisonIsAlreadySafe:
 class TestSamePhaseSpaceIsContractibilityByContent:
     """R-cc8, predicate 1 — ``same_phase_space`` over CONTENT."""
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ID)
     @pytest.mark.parametrize("d", [1, 2, 3])
     def test_same_data_two_constructions_pair(self, d: int) -> None:
         """POSITIVE CONTROL at every rank, over INDEPENDENT constituents."""
@@ -390,7 +315,6 @@ class TestSamePhaseSpaceIsContractibilityByContent:
         _require(a is not b, "activation: two distinct hubs")
         _require(a.same_phase_space(b), "equal generating data ⟹ one phase space")  # type: ignore[attr-defined]
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ID)
     @pytest.mark.parametrize(
         "label,other",
         [
@@ -411,7 +335,6 @@ class TestSamePhaseSpaceIsContractibilityByContent:
             f"moving {label} must make the two phase spaces different",
         )
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ID)
     def test_the_material_MAP_is_a_contractibility_datum(self) -> None:
         """``mat_map`` — the datum with no home on an ``AxisMesh``.
 
@@ -426,7 +349,7 @@ class TestSamePhaseSpaceIsContractibilityByContent:
         b = _hub(3, mat_map=other)
         _require(not a.same_phase_space(b), "a different material assignment is a different space")  # type: ignore[attr-defined]
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ID)
+    @pytest.mark.xfail(strict=True, reason=_RULING_ID + " — the ORDER datum lands at S1c")
     def test_the_truncation_order_is_NOT_a_contractibility_datum(self) -> None:
         r"""R-cc8's insensitivity leg — the one the fields' shapes license.
 
@@ -446,7 +369,6 @@ class TestSamePhaseSpaceIsContractibilityByContent:
 class TestProblemIdentityIsEveryGeneratingDatum:
     """R-cc8, predicate 2 — ``__eq__`` / ``__hash__`` over the FULL data."""
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ID)
     @pytest.mark.parametrize("d", [1, 2, 3])
     def test_same_data_compares_equal_and_hashes_equal(self, d: int) -> None:
         """POSITIVE CONTROL over INDEPENDENT constituents — nothing shared by ``is``."""
@@ -456,7 +378,6 @@ class TestProblemIdentityIsEveryGeneratingDatum:
         _require(hash(a) == hash(b), "equal problems must hash equal")
         _require(len({a, b}) == 1, "a set of two equal problems holds one member")
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ID)
     def test_the_closure_class_IS_an_identity_datum(self) -> None:
         r"""The fork's discriminating row — ``same_phase_space`` True, ``==`` False.
 
@@ -472,7 +393,7 @@ class TestProblemIdentityIsEveryGeneratingDatum:
         _require(default.same_phase_space(overridden), "they still contract (R-cc8)")  # type: ignore[attr-defined]
         _require(not (default == overridden), "R-cc8: the closure is generating data")
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ID)
+    @pytest.mark.xfail(strict=True, reason=_RULING_ID + " — the ORDER datum lands at S1c")
     def test_the_truncation_order_IS_an_identity_datum(self) -> None:
         r"""R-cc4's headline: a P0 forward and a P3 adjoint are DIFFERENT problems.
 
@@ -489,7 +410,6 @@ class TestProblemIdentityIsEveryGeneratingDatum:
         _require(b.scattering_order == 1, "activation: P3 CLAMPS to 1 on this library")  # type: ignore[attr-defined]
         _require(not (a == b), "R-cc4: two retained orders are two problems")
 
-    @pytest.mark.xfail(strict=True, reason=_RULING_ID)
     def test_identity_is_strictly_finer_than_contractibility(self) -> None:
         """The law relating the two ruled predicates (``vv`` #15).
 
@@ -647,17 +567,19 @@ class TestTheInternedGeometryCacheUnderContentIdentity:
         _require(builds, "POSITIVE CONTROL: the spy must observe at least one build")
         return len(builds)
 
-    def test_RECORD_today_two_hubs_build_two_tables(self) -> None:
-        """RECORD — the pre-carve reading the ruled number is compared against."""
+    def test_content_equal_hubs_share_ONE_table(self) -> None:
+        """O-3 RULED (2026-09-12): a content key + closure-CLASS validation ⟹ two
+        content-equal live hubs share ONE Stratum-1 table. (The pre-carve RECORD
+        read 2 — one table per hub under identity keys; the rejected instance
+        validation would have read 6, the ping-pong.)"""
         mats, mesh, quad = _slab_two_region()
         a, b = SNMesh(mesh, quad, mats), SNMesh(mesh, quad, mats)
-        _require(a is not b, "activation: two distinct, simultaneously-live hubs")
+        _require(a is not b and a == b, "activation: two distinct, content-equal, live hubs")
         _require(
-            self._count_builds(a, b) == 2,
-            "RECORD: identity keys give exactly one Stratum-1 build per hub",
+            self._count_builds(a, b) == 1,
+            "content-equal hubs must share one Stratum-1 table (2 was the identity-key reading; 6 the ping-pong)",
         )
 
-    @pytest.mark.xfail(strict=True, reason=f"{_RULING_ID}; open ruling O-3 (intern key)")
     def test_content_equal_hubs_do_not_pingpong(self) -> None:
         """Whichever way O-3 is ruled, the ping-pong must not ship.
 

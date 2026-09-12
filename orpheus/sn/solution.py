@@ -631,12 +631,12 @@ class SolutionBase:
                 "same-role comparison only (the Self-typed contract, "
                 "enforced at runtime for untyped callers)."
             )
-        if not self.mesh.is_same_phase_space(other.mesh):
+        if not self.mesh.same_phase_space(other.mesh):
             raise ValueError(
                 f"{type(self).__name__}.compare: the solutions realize "
                 "different discrete phase spaces — comparison is defined "
                 "only across solves sharing the same constituents (see "
-                "SNMesh.is_same_phase_space)."
+                "MaterialMesh.same_phase_space)."
             )
 
         if self.keff is not None and other.keff is not None:
@@ -914,13 +914,13 @@ class Solution(SolutionBase):
                     f"(the importance is the test weight, never a forward flux); "
                     f"got {type(adjoint).__name__}."
                 )
-            if not fine.is_same_phase_space(adjoint.mesh):
+            if not fine.same_phase_space(adjoint.mesh):
                 raise ValueError(
                     "Solution.homogenize: adjoint solves a different discrete "
                     "phase space — the importance must come from an adjoint "
                     "solve sharing this solution's constituents (same geometry "
                     "mesh, quadrature, and materials OBJECTS, same scheme; see "
-                    "SNMesh.is_same_phase_space)."
+                    "MaterialMesh.same_phase_space)."
                 )
             phi_star = np.asarray(
                 adjoint.scalar_flux.values, dtype=float,
@@ -984,7 +984,7 @@ class Solution(SolutionBase):
             The importance solution from
             :func:`~orpheus.sn.solver.solve_sn_adjoint` on the same discrete
             phase space (guarded via
-            :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.is_same_phase_space`).
+            :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.same_phase_space`).
             ``None`` (default) keeps the flux-weighted collapse, bit-identical.
             Given, each material condenses with its representative SPECTRUM
             PAIR :math:`(\varphi^{(m)}, \varphi^{*(m)})` (the same flux·volume
@@ -1042,12 +1042,12 @@ class Solution(SolutionBase):
                     f"(the importance is the test weight, never a forward "
                     f"flux); got {type(adjoint).__name__}."
                 )
-            if not fine.is_same_phase_space(adjoint.mesh):
+            if not fine.same_phase_space(adjoint.mesh):
                 raise ValueError(
                     "Solution.condense: adjoint solves a different discrete "
                     "phase space — the importance must come from an adjoint "
                     "solve sharing this solution's constituents (see "
-                    "SNMesh.is_same_phase_space)."
+                    "MaterialMesh.same_phase_space)."
                 )
             phi_star = np.asarray(
                 adjoint.scalar_flux.values, dtype=float,

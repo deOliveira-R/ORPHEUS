@@ -462,8 +462,9 @@ class LossRepresentation(Protocol):
 
 
 #: P4.9b Q1 ruling — the strategy layer OWNS the interned Stratum-1 table.
-#: Keyed weakly on the hub (one entry per mesh), VALIDATED against the
-#: angular-closure identity (a doctored pair handed at pose gets its own
+#: Keyed weakly on the hub — by the hub's CONTENT identity since 2026-09-12,
+#: so content-equal live problems share an entry — VALIDATED against the
+#: angular-closure CLASS (a doctored closure handed at pose gets its own
 #: build — the keystone's surviving-cache trap dissolves).  The mechanism
 #: lives in THIS retirement-bound layer deliberately: when Campaign 2
 #: replaces the consumer side with a lazy solution strategy, the interim
@@ -490,8 +491,14 @@ def geometry_cache_for(
     sweep) and the solver's σ-stratum posing (which needs Stratum 1 to
     build :class:`CollisionCache`).
     """
+    # O-3 (2026-09-12): the hub keys this dictionary by CONTENT now, so two
+    # content-equal live problems SHARE one entry (the table is σ-free and
+    # holds no mesh or closure reference — sharing is correct, and the count
+    # goes 2 → 1 per equal pair); the validation is on the closure CLASS, not
+    # the instance, or the two problems' distinct closure objects would
+    # rebuild each other's table on every alternate call (`[M]` 2 → 6).
     entry = _GEOM_CACHE_INTERN.get(mesh)
-    if entry is not None and entry[0] is angular_closure:
+    if entry is not None and type(entry[0]) is type(angular_closure):
         return entry[1]
     cache = StreamingCoefficientCache.from_mesh_and_quad(mesh)
     _GEOM_CACHE_INTERN[mesh] = (angular_closure, cache)

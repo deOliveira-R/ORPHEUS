@@ -65,7 +65,7 @@ _RULES = [
 
 
 class TestG1GeneratorIsProvenanceNotIdentity:
-    """G1 — the exclusion from ``_identity_key``, and WHY it is mandatory.
+    """G1 — the exclusion from ``_identity_key``: a RULING (provenance is not identity).
 
     The negative legs (a DIFFERENT weights/kind is still unequal) already
     ship as ``test_axis.py::test_weights_are_part_of_identity`` and
@@ -104,21 +104,25 @@ class TestG1GeneratorIsProvenanceNotIdentity:
         )
         _require(len({minted, bare}) == 1, "one axis, one set member")
 
-    def test_the_exclusion_is_MANDATORY_not_a_taste_ruling(self):
-        """G1c ⭐ — WHY the generator may never enter the key.
+    def test_the_exclusion_is_a_RULING_and_the_measure_leg_still_bites(self):
+        """G1c ⭐ — WHY the generator stays out of the key, restated 2026-09-12.
 
-        A ``Quadrature`` is unhashable (``frozen=False`` dataclass with
-        ``eq=True`` sets ``__hash__ = None``) and a ``DiscreteMeasure``
-        is un-``==``-able (frozen ``eq=True`` over ndarrays raises the
-        truth-value ambiguity); an identity key containing either would
-        make ``Axis.__eq__`` RAISE and ``hash(Axis)`` RAISE, not merely
-        disagree. This gate pins the two properties the exclusion rests
-        on, so a future "tidy the field into the key" is refuted by a
-        red rather than discovered by a traceback.
+        Until the consumers campaign's S1b a ``Quadrature`` was UNHASHABLE
+        (``frozen=False`` dataclass with ``eq=True``), so an identity key
+        containing the generator would have made ``hash(Axis)`` RAISE — the
+        exclusion was a necessity. S1b gave ``Quadrature`` CONTENT identity
+        (R-cc3: it is a generating datum of every SN problem), so that leg
+        INVERTED: two rules of equal content now hash equal. The exclusion
+        survives as a RULING — provenance is not identity (G1a/G1b above
+        are its gates: an axis re-weighted through one generator equals
+        the same weights minted through another) — and the second leg
+        still bites: a ``DiscreteMeasure`` (frozen ``eq=True`` over ndarrays)
+        raises the truth-value ambiguity on ``==``, so a key holding the
+        MEASURE rather than its bytes would still make ``Axis.__eq__`` raise.
         """
         q1, q2 = Quadrature.gauss_legendre(4), Quadrature.gauss_legendre(4)
-        with pytest.raises(TypeError, match="unhashable"):
-            hash(q1)
+        _require(q1 is not q2 and q1 == q2 and hash(q1) == hash(q2),
+                 "S1b: two rules of equal content are one quadrature (content identity)")
         with pytest.raises(ValueError, match="ambiguous"):
             _ = q1.measure == q2.measure
 

@@ -52,7 +52,7 @@ from collections.abc import Mapping
 import numpy as np
 
 from orpheus.data.materials import Materials
-from orpheus.geometry import Mesh1D, Mesh2D
+from orpheus.geometry import BC, Mesh1D, Mesh2D
 # The SPACE-FACTOR axis vocabulary (campaign 1, CS1) — aliased because this
 # module's own ``Axis1D``/``self.axes`` are GEOMETRIC axes (a different
 # concept; the naming coordination is the Q3 rename issue).
@@ -61,6 +61,7 @@ from orpheus.numerics.axis import Axis as SpaceFactorAxis
 from orpheus.numerics.axis import BasisKind, EnergyAxis
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.mesh.axis import (
+    RadialAxisMesh,
     Axis1D,
     AxisMesh,
     axes_from_legacy_mesh,
@@ -88,6 +89,34 @@ class InconsistentMaterialsError(ValueError):
     construction if the input materials carry different group
     structures.
     """
+
+
+def _law_key(law) -> object:
+    """A boundary-law tag's content: a :class:`~orpheus.geometry.mesh.BC` by
+    kind + sorted params; a frozen trace law by itself (its own content
+    equality); ``None`` as ``None``. A law with no content identity (a
+    callable-bearing inflow) keys by type and object — honest: a callable
+    has no content to compare."""
+    if law is None:
+        return None
+    if isinstance(law, BC):
+        return ("BC", law.kind, tuple(sorted(law.params.items())))
+    try:
+        hash(law)
+    except TypeError:
+        return (type(law).__qualname__, id(law))
+    return law
+
+
+def _axis_key(ax) -> tuple:
+    """One axis's content: its type, edges, boundary-law tags, labels and chart."""
+    edges = np.ascontiguousarray(ax.edges)
+    if isinstance(ax, RadialAxisMesh):
+        return ("RadialAxisMesh", edges.tobytes(), ax.coord, _law_key(ax.bc_outer), ax.label_outer)
+    return (
+        type(ax).__qualname__, edges.tobytes(),
+        _law_key(ax.bc_low), _law_key(ax.bc_high), ax.label_low, ax.label_high,
+    )
 
 
 class MaterialMesh:
@@ -259,6 +288,79 @@ class MaterialMesh:
     # retired 2026-09-08). ``.homogenize`` still builds via the legacy
     # ``MaterialMesh(coarse_mesh, materials)`` ctor. Defer the general
     # form until a real N-cell consumer exists (defer-until-≥2-instances).
+
+    # ── identity (consumers campaign step 1 — R-cc3 / R-cc8 / O-6) ────────
+    #
+    # ONE definition, at the data tier, EXTENDED by the method meshes exactly
+    # as ``EnergyAxis``/``LegendreAxis`` extend ``Axis._identity_key``:
+    #
+    # * ``_contractibility_key`` — may two solutions' FIELDS be paired? The
+    #   geometry (every axis: edges, boundary-law tags, labels, chart), the
+    #   material assignment and the materials' CONTENT. ``SNMesh`` extends it
+    #   with the quadrature and the scheme TYPE; ``same_phase_space`` compares
+    #   it. This is what ``Solution.compare`` / ``homogenize`` / ``condense``
+    #   ask, and it deliberately EXCLUDES the angular closure and the
+    #   truncation order (R-cc8: fields from two closures or two retained
+    #   orders stay contractible — do not "strengthen" it by adding them).
+    # * ``_identity_key`` — is this the SAME PROBLEM? Every generating datum
+    #   by content: the contractibility key plus whatever the method mesh
+    #   adds (the closure class, the clamped order). ``__eq__``/``__hash__``
+    #   compare it, so a saved-and-reloaded problem compares equal and a
+    #   problem can key a registry. Identity is strictly finer than
+    #   contractibility (``a == b ⟹ a.same_phase_space(b)``).
+    #
+    # Both keys are computed ONCE (the generating data is set in
+    # ``_init_data``/``_init_core`` and never reassigned; every array it holds
+    # is a frozen axis's read-only edges, a Mixture's read-only fields or the
+    # ``mat_map`` no consumer writes). `[M]` a live key costs ~1 ms per call on
+    # 421-group data and the SN geometry cache reads a problem's hash 6–10×
+    # per solve, which is why caching is a design constraint, not a nicety.
+    # ⚠ Until 2026-09-12 ``SNMesh.is_same_phase_space`` compared CONSTITUENT
+    # identity (``mesh is``, ``quad is``, per-Mixture ``is``): vacuous at d≥3
+    # (``None is None`` — different 3-D problems compared equal) and false for
+    # every same-data pair built by two ``from_axes`` calls (GitHub #459).
+
+    @cached_property
+    def _contractibility_key(self) -> tuple:
+        return (
+            tuple(_axis_key(ax) for ax in self.axes),
+            (self.mat_map.shape, np.ascontiguousarray(self.mat_map).tobytes()),
+            tuple((int(i), self.materials[i]._identity_key) for i in sorted(self.materials.ids)),
+        )
+
+    @cached_property
+    def _identity_key(self) -> tuple:
+        return (self._contractibility_key,)
+
+    def same_phase_space(self, other: "MaterialMesh") -> bool:
+        r"""True iff ``other`` realizes the SAME discrete phase space — the
+        pairing guard for consumers that combine FIELDS from two solutions
+        (:meth:`SolutionBase.compare <orpheus.sn.solution.SolutionBase.compare>`,
+        the adjoint-weighted ``homogenize`` / ``condense``).
+
+        Contractibility by CONTENT (R-cc8, 2026-09-12): the geometry, the
+        material assignment and the materials' content — and, on an
+        :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`, the quadrature and
+        the scheme TYPE. Two hubs built from equal data pair whatever objects
+        they were built from. It deliberately EXCLUDES the angular closure
+        (a solve-time sweep strategy near the pole changes neither the field
+        layout nor the quadrature the pairings contract over) and the
+        retained scattering order (`[M]` the returned carrier's shape is
+        order-invariant), so a forward and an adjoint solve over the same
+        phase space pair even when they are DIFFERENT problems — that
+        distinction is ``==``'s (the full identity), not this method's.
+        """
+        if type(other) is not type(self):
+            return False
+        return self._contractibility_key == other._contractibility_key
+
+    def __eq__(self, other: object) -> bool:
+        if type(other) is not type(self):
+            return NotImplemented
+        return self._identity_key == other._identity_key  # type: ignore[attr-defined]
+
+    def __hash__(self) -> int:
+        return hash((type(self), self._identity_key))
 
     # ── Materials validation ──────────────────────────────────────────
 

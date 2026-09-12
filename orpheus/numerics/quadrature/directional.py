@@ -166,7 +166,7 @@ _REFLECTION_ATOL = 1e-13
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@dataclass
+@dataclass(eq=False)
 class Quadrature:
     r"""Directional quadrature: a :class:`DiscreteMeasure` on the
     sphere or polar interval, with cached SN-derived data.
@@ -219,6 +219,40 @@ class Quadrature:
     #: the generator channel (S, F, the windowing method) shares ONE
     #: object and its cached table.  ``compare=False``: a cache is
     #: provenance, never identity.  Lazy — ``None`` until first mint.
+    # ── identity: CONTENT (consumers campaign step 1, R-cc3, 2026-09-12) ──
+    # A quadrature is a generating datum of every SN Problem, so two rules
+    # carrying the same nodes, weights, support, invariance group, exactness
+    # claim, level structure and folding compare ``==`` and hash equal
+    # whatever objects they are. ⚠ There is no rule NAME to fall back on —
+    # the content IS the identity. The frame cache below is DERIVED and is
+    # excluded (provenance is not identity — the Axis precedent). Computed
+    # once: the measure and the level structure are frozen dataclasses, so
+    # nothing can move the data after construction.
+    @cached_property
+    def _identity_key(self) -> tuple:
+        m = self.measure
+        ls = self.level_structure
+        level_key = None if ls is None else (
+            int(ls.n_levels),
+            tuple(np.ascontiguousarray(ix).tobytes() for ix in ls.level_indices),
+            np.ascontiguousarray(ls.level_mu).tobytes(),
+            ls.polar_invariant,
+        )
+        return (
+            m.nodes.shape, np.ascontiguousarray(m.nodes).tobytes(),
+            np.ascontiguousarray(m.weights).tobytes(),
+            m.support, m.invariance_group, m.exactness,
+            level_key, self.folded_by,
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if type(other) is not type(self):
+            return NotImplemented
+        return self._identity_key == other._identity_key  # type: ignore[attr-defined]
+
+    def __hash__(self) -> int:
+        return hash((type(self), self._identity_key))
+
     _angular_frames: "dict[int, GalerkinFrame] | None" = dataclasses.field(
         default=None, init=False, repr=False, compare=False,
     )

@@ -542,59 +542,33 @@ class SNMesh(MaterialMesh):
         """
         return self.coord is CoordSystem.CARTESIAN
 
-    def is_same_phase_space(self, other: "SNMesh") -> bool:
-        r"""True iff ``other`` realizes the SAME discrete SN phase space.
-
-        Two :class:`SNMesh` instances pose identical discrete problems when
-        they were built from the same CONSTITUENT OBJECTS — the geometry
-        mesh and quadrature by ``is`` identity, the materials by
-        per-entry MIXTURE identity (same id-set, same ``Mixture`` object
-        per id — the tier that guarantees bit-identical re-derivation of
-        the data block, per :meth:`from_material_mesh`'s contract; the
-        declaration wrapper itself is parsed per carrier since the
-        un-weld arc, so wrapper identity is not the constituent) — with
-        the same discretization-scheme TYPE.  This is the pairing guard for
-        consumers that combine fields from TWO solutions (the P6 #281
-        adjoint-weighted collapse, :meth:`SolutionBase.compare
-        <orpheus.sn.solution.SolutionBase.compare>`): a forward and an
-        adjoint solve share the constituents when the caller passes the
-        same ``(materials, mesh, quadrature)`` to both entries, even though
-        each entry constructs its own ``SNMesh`` wrapper.
-
-        Deliberately CONSTITUENT-identity, not value-equality: two
-        equal-shaped meshes built from different edge arrays are different
-        problems as far as this predicate can prove — the L29 discipline
-        (never relax an invariant to a weaker downstream check) keeps the
-        strong tier; callers wanting cross-problem comparisons must
-        construct shared constituents.
-
-        The angular closure is deliberately EXCLUDED: it is a
-        solve-time sweep strategy (how ψ is computed near the pole), not a
-        phase-space constituent — it changes neither the field layout nor
-        the quadrature the pairings contract, so fields from two closures
-        remain contractible (do not "strengthen" the guard by adding it).
-        The scheme is compared by TYPE (not ``is``) because schemes are
-        parameter-free strategy singletons constructed per solve; a future
-        LAYOUT-parametrized scheme would need a stronger comparison here.
-        """
-        return self is other or (
-            self.mesh is other.mesh
-            and self.quad is other.quad
-            # Constituent identity at the MIXTURE tier: the declaration
-            # wrapper is parsed per carrier (un-weld arc R20/R21 — a
-            # ``Materials`` per mesh), so "same materials dict object"
-            # is no longer spellable; what the old ``is`` was a proxy
-            # FOR is that the data block re-derives bit-identically,
-            # and the mixtures ARE that data. Same id-set + same
-            # Mixture object per id keeps every previously-true case
-            # true (same dict ⟹ same entries) at the honest tier.
-            and self.materials.ids == other.materials.ids
-            and all(
-                self.materials[i] is other.materials[i]
-                for i in self.materials
-            )
-            and type(self.scheme) is type(other.scheme)
+    # ── identity: the SN extension of MaterialMesh's ONE definition ──────
+    # (consumers campaign step 1, R-cc3 / R-cc8 / O-6, 2026-09-12 — GitHub
+    # #459). Contractibility adds the quadrature's CONTENT and the scheme
+    # TYPE; identity adds the angular-closure CLASS (the closure deletes a
+    # term from L — it is generating data — while fields from two closures
+    # still pair, which is why it is in one key and not the other). The
+    # retained scattering order joins the identity key when it becomes a
+    # hub datum (R-cc9, step S1c).
+    #
+    # ⚠ Until 2026-09-12 this class spelled ONE predicate,
+    # ``is_same_phase_space``, over CONSTITUENT identity (``mesh is``,
+    # ``quad is``, per-Mixture ``is``, scheme type): `[M]` vacuous at d≥3
+    # (``None is None`` made every pair of 3-D problems "identical") and
+    # false for every same-data pair built by two ``from_axes`` calls.
+    @cached_property
+    def _contractibility_key(self) -> tuple:
+        return (
+            *MaterialMesh._contractibility_key.func(self),
+            self.quad._identity_key,
+            type(self.scheme).__qualname__,
         )
+
+    @cached_property
+    def _identity_key(self) -> tuple:
+        return (self._contractibility_key, type(self.angular_closure).__qualname__)
+
+    __hash__ = MaterialMesh.__hash__
 
     def streaming(self, axis: int) -> np.ndarray:
         r"""Per-axis RAW down-face streaming ``g = |μ_axis|·face_area_downstream/V = |μ_axis|/Δ_axis``, ``(N, n_axis)``.

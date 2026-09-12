@@ -223,25 +223,23 @@ class HomogeneousProblem:
         """The group count — the mixture's."""
         return self.mixture.ng
 
-    # ── identity (INTERIM — the constituent tier; #459 rules the content tier) ──
+    # ── identity: CONTENT of the generating datum (R-cc3, 2026-09-12) ──
     def __eq__(self, other: object) -> bool:
-        """Two hubs pose the SAME problem iff they are generated from the same
-        :class:`~orpheus.data.macro_xs.mixture.Mixture` OBJECT — constituent
-        identity, the tier :meth:`SNMesh.is_same_phase_space
-        <orpheus.sn.mesh.augmented_mesh.SNMesh.is_same_phase_space>` uses for
-        its materials. Deliberately NOT the dataclass default: ``Mixture``'s
-        generated ``__eq__`` compares ndarray fields and RAISES
-        (``ValueError: truth value of an array``), and a frozen dataclass over
-        an unhashable datum is itself unhashable — `[M]` 2026-09-08 both
-        raised on the first hub. The honest CONTENT identity (equal generating
-        data ⟹ the same problem, so a saved-and-reloaded problem compares
-        equal) is the consumers campaign's first ruling — GitHub #459 — and
-        replaces this method together with the ``SNMesh`` predicate and
-        ``Mixture``'s equality, from ONE definition."""
-        return type(other) is type(self) and self.mixture is other.mixture  # type: ignore[attr-defined]
+        """Two hubs pose the SAME problem iff their mixtures carry the same
+        CONTENT — the one generating datum, compared by
+        :class:`~orpheus.data.macro_xs.mixture.Mixture`'s own content
+        identity — so a problem over a saved-and-reloaded mixture compares
+        equal and can key a registry. The SN hub's identity is the same
+        definition over its generating data (`MaterialMesh._identity_key`,
+        extended by `SNMesh`); GitHub #459. (Until 2026-09-12 an interim tier
+        compared the mixture OBJECT, because ``Mixture`` had no content
+        equality and the dataclass default raised.)"""
+        if type(other) is not type(self):
+            return NotImplemented
+        return self.mixture == other.mixture  # type: ignore[attr-defined]
 
     def __hash__(self) -> int:
-        return hash((type(self), id(self.mixture)))
+        return hash((type(self), self.mixture))
 
     @cached_property
     def space(self) -> FunctionSpace:

@@ -845,15 +845,24 @@ What moved, concretely
    **revised by ruling**, not deferred, so a future reader who finds
    that row in an archived plan should read this section instead.
 
-   The mesh's pairing predicate is likewise unchanged.  `[M]`
-   ``SNMesh.__eq__`` is ``object.__eq__`` — identity, not value — so
-   nothing about equality moved; what compares constituents is
-   :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.is_same_phase_space`,
-   and it compares the scheme **by type** while deliberately EXCLUDING
-   the angular closure (a solve-time sweep strategy changes neither the
-   field layout nor the quadrature two solutions contract over, so
-   fields from two closures stay contractible).  Do not "strengthen"
-   that predicate by adding the closure to it.
+   The mesh's pairing predicate became TWO predicates at the consumers
+   campaign's step 1 (2026-09-12, ruling R-cc8; GitHub #459).
+   :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.same_phase_space`
+   answers *may two solutions' fields be paired* — contractibility by
+   CONTENT: the geometry, the material assignment, the materials'
+   content, and on an ``SNMesh`` the quadrature's content and the scheme
+   **by type** — while deliberately EXCLUDING the angular closure (a
+   solve-time sweep strategy changes neither the field layout nor the
+   quadrature two solutions contract over, so fields from two closures
+   stay contractible) and the retained scattering order.  Do not
+   "strengthen" that predicate by adding either.  ``SNMesh.__eq__`` /
+   ``__hash__`` answer the OTHER question — *is this the same problem* —
+   over every generating datum by content, the closure class included,
+   so a saved-and-reloaded problem compares equal and a problem can key
+   a registry.  (Until 2026-09-12 one predicate, ``is_same_phase_space``,
+   compared CONSTITUENT identity — ``mesh is``, ``quad is``, per-mixture
+   ``is`` — vacuous at d≥3 and false for every same-data pair built by
+   two ``from_axes`` calls; ``__eq__`` was ``object.__eq__``.)
 
    The remaining misnomer is the *name*
    :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` itself, which is
