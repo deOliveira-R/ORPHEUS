@@ -111,7 +111,7 @@ them.  Trust ``git``, not this column.
        each face reads.
        Full account: :ref:`sn-one-fission-per-problem`.
      - —
-     - branch ``refactor/consumers-step2``, **not yet merged**
+     - ``1ce64371`` (ff-merged to ``main`` 2026-09-13)
    * - 2026-09-13
      - **The splitting** :math:`A = M - N` **leaves the posed record and
        becomes a Strategy VALUE, labelled once from the Problem's own
