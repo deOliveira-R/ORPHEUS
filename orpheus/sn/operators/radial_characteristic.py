@@ -1352,7 +1352,7 @@ class RadialCharacteristicEmission(LinearOperator):
         solver-composed ``K_iso`` (``S.isotropic_energy + N2N.isotropic_energy``,
         CS4c §14.1) — sharing the two cached energy-binding LEAVES the
         bulk gains consume, so the emission is single-sourced per channel
-        (one shared kernel object each, not a twin). ``fission_op.isotropic_energy`` is accepted (the machinery is
+        (one shared kernel object each, not a twin). ``hub.fission.isotropic_energy`` is accepted (the machinery is
         kernel-generic) but fission's production ray seed rides the outer
         ``q_ext`` seam as a direct ``Fold``, NOT through this operator (see
         the class docstring — routing it here would double-apply

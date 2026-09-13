@@ -126,7 +126,7 @@ class TestFissionApplyCorrectness:
         per-group Python double-loop. A νΣf↔φ swap, a wrong contraction
         axis, or a dropped χ broadcast disagrees with it.
         """
-        op = solver_4g.fission_op
+        op = solver_4g.sn_mesh.fission.isotropic_energy
         ng = solver_4g.ng
         nx, ny = solver_4g.sn_mesh.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
@@ -155,7 +155,7 @@ class TestFissionApplyCorrectness:
         this row shows equality, the fixture lost its asymmetry and B.1 is
         blind to the role swap.
         """
-        op = solver_4g.fission_op
+        op = solver_4g.sn_mesh.fission.isotropic_energy
         ng = solver_4g.ng
         nx, ny = solver_4g.sn_mesh.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
@@ -197,7 +197,7 @@ class TestProductionRateReproducesApply:
         NEW property) and compares against the live ``F.apply`` — mutating
         the property reddens this gate.
         """
-        op = solver_4g.fission_op
+        op = solver_4g.sn_mesh.fission.isotropic_energy
         ng = solver_4g.ng
         nx, ny = solver_4g.sn_mesh.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
@@ -226,7 +226,7 @@ class TestProductionRateReproducesApply:
         NOT some other cross section — pins that S6 wired the
         ``mat_xs.fission_production_field`` accessor into the property.
         """
-        op = solver_4g.fission_op
+        op = solver_4g.sn_mesh.fission.isotropic_energy
         ng = solver_4g.ng
         nx, ny = solver_4g.sn_mesh.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
@@ -272,7 +272,7 @@ class TestFissionApplyRoutesThroughFunctional:
 
         monkeypatch.setattr(ReactionRateFunctional, "evaluate", counting_evaluate)
 
-        op = solver_4g.fission_op
+        op = solver_4g.sn_mesh.fission.isotropic_energy
         ng = solver_4g.ng
         nx, ny = solver_4g.sn_mesh.spatial_shape
         op.apply(_asymmetric_phi(ng, nx, ny))
@@ -312,8 +312,9 @@ class TestFissionNdarrayArmIsKEigenvalueLive:
     :func:`orpheus.numerics.eigenvalue.power_iteration` feeds a bare
     :class:`numpy.ndarray` flux to
     :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`, which calls
-    ``self.fission_op.apply(flux_distribution) / keff`` — and since CS4c
-    step 4 ``fission_op`` IS the energy binding
+    ``self.sn_mesh.fission.isotropic_energy.apply(flux_distribution) / keff`` — and
+    since the consumers campaign's step 2 (C2) that face is the HUB's one
+    ``F``'s energy binding
     (:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`,
     the scalar dyad on the mesh's bulk space). Its bare-array leg is the
     LIVE arm at the outer-iteration boundary, NOT dead weight.

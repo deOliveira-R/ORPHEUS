@@ -333,10 +333,25 @@ Key Facts
      **Implemented by** the :math:`\tfrac{1}{k}F\psi` right-hand side —
      which is the *only* thing distinguishing this equation from
      :eq:`operator-fixed-source` ("they differ only in what sits on the
-     right"). The body is literally ``self.fission_op.apply(φ) / keff``: the
+     right"). The body is literally
+     ``self.sn_mesh.fission.isotropic_energy.apply(φ) / keff``: the
      :math:`1/k` division stays at the solver level precisely because
      :math:`F` is a **linear** operator and the eigenvalue scaling is not part
      of it.
+
+     ⭐ **The operand is the Problem's, not the solver's** (since
+     2026-09-13 — the consumers campaign's step 2). It reads
+     :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`,
+     the ONE composite :math:`F` the hub mints, at its derived energy
+     face; the adjoint entry daggers the *same* object. Until then the
+     forward solver held its own ``fission_op`` — an
+     :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
+     minted in ``__init__`` — while the adjoint minted a second
+     :math:`F` on a different space, so the two sides of one pencil were
+     two objects and :math:`F_{\rm adjoint} = F^{\dagger}` was not
+     statable. The re-homing is bit-identical (``[M]`` ``array_equal``
+     on 200/200 seeds); the full account is
+     :ref:`sn-one-fission-per-problem`.
 
   .. implements:: operator-eigenvalue
      :by: orpheus.numerics.iteration.KEigenvalue.compute_fission_source
@@ -379,7 +394,7 @@ Key Facts
   (partial-current surface measure, pseudo-inverted on the singular
   tangential ordinates). The carrier is
   :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`;
-  ``L``/``C``/``S``/``F``/``B`` all carry it so the
+  ``L``/``C``/``S``/``N2n``/``F``/``B`` all carry it so the
   within-group :class:`~orpheus.numerics.operator.OperatorSum` guard
   VALIDATES the composition, and — because every loss leaf carries the
   composite metric — the adjoint is applied **once at the op level**
@@ -6000,7 +6015,7 @@ The four layers
    * - 1
      - Operator leaves
      - method-specific
-     - :math:`L, C, S, F, B` (+ future :math:`T = 1/v`). The
+     - :math:`L, C, S, N_{2n}, F, B` (+ future :math:`T = 1/v`). The
        block-diagonal :math:`G`-metric (codomain inner product of
        :math:`L`'s composite :math:`V_{\rm bulk}\oplus V_{\rm trace}`
        space: bulk :math:`V\,w_n` :math:`\oplus` trace

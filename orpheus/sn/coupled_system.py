@@ -179,7 +179,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from orpheus.numerics.coupled_system import CoupledField, CoupledOperator, CoupledSpace
+from orpheus.numerics.coupled_system import (
+    CoupledField,
+    CoupledOperator,
+    CoupledSpace,
+    SystemRestrictionOperator,
+)
 from orpheus.numerics.operator import LinearOperator, SystemRole
 from orpheus.sn.operators.boundary import (
     RadialCharacteristicBoundaryOperator,
@@ -204,6 +209,7 @@ from orpheus.transport.radial_characteristic_field import (
 
 if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.transport.operators.fission import FissionOperator
     from orpheus.sn.operators.streaming import StreamingCollisionOperator
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
@@ -383,15 +389,18 @@ class SNLossFactors:
     at the hub's retained order, ``boundary`` the System-A trace boundary
     :math:`B_a` — the ONE operator the boundary-Gauss-Seidel schedule
     splits (RULING P1: gradings live on :math:`B_a`).
-    ``radial_characteristic`` is System B's quartet on a carrying mesh and
-    ``None`` where System B does not exist (R12a — presence is the
-    Problem's arity, read through :attr:`is_coupled`).
+    ``fission`` is the hub's ONE composite ``F`` (:attr:`SNMesh.fission` —
+    a reference, never a second mint; R-cc6 (ii)), the leaf the pencil's
+    right-hand side is posed from.  ``radial_characteristic`` is System B's
+    quartet on a carrying mesh and ``None`` where System B does not exist
+    (R12a — presence is the Problem's arity, read through :attr:`is_coupled`).
     """
 
     streaming_collision: "StreamingCollisionOperator"
     scattering: "ScatteringOperator"
     n2n: "N2NOperator"
     boundary: "SNBoundaryOperator"
+    fission: "FissionOperator"
     radial_characteristic: "RadialCharacteristicFactors | None" = None
 
     @property
@@ -441,11 +450,27 @@ class WithinGroupSystem:
     factors : SNLossFactors
         The bound leaves ``loss`` is the signed sum of — the Problem's
         ORIGINAL operators, which every Strategy value reads by ROLE.
+    production : LinearOperator[CoupledField, CoupledField]
+        ``F`` posed on ``space`` — the pencil's right-hand side on the same
+        carrier as ``loss`` (R-cc6 (ii)): ``[[F]]`` on a seedless mesh; on a
+        carrying mesh the composition ``[[F], [E_F]] ∘ r_bulk`` — the
+        :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`
+        onto the bulk member, then the rectangular stack emitting both rows
+        (``F`` bulk → bulk and the FISSION ray fold
+        ``A_BA,fission = Fold ∘ F.isotropic_energy ∘ integrate``, the
+        kernel-generic
+        :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`).
+        Fission annihilates the ray system (the ``w = 0`` closed rays carry
+        no quadrature weight), so the lift's ray INPUT column is the
+        restriction's, not a zero block.  Until step 2 this posing lived in
+        the adjoint entry only (``_adjoint_posing_parts``) as one of THREE
+        spellings of ``F``; it is the ONE site now.
     """
 
     loss: "CoupledOperator"
     space: "CoupledSpace"
     factors: "SNLossFactors"
+    production: "LinearOperator[CoupledField, CoupledField]"
 
     @property
     def is_coupled(self) -> bool:
@@ -626,6 +651,8 @@ def build_within_group_system(
     # L = pure σ-free streaming; C = M[σ_t] — the ONE LC spelling.
     LC = build_streaming_collision(sn_mesh, mat_xs)
     B_a = SNBoundaryOperator(sn_mesh)
+    # The ONE fission operator — the hub's, never minted here (R-cc6 (ii)).
+    F = sn_mesh.fission
     A_AA = LC - S - N2N - B_a
     # C-fwd explicit stamp: System membership is the composition context's
     # fact — the model-generic members' honest None would poison the join.
@@ -653,7 +680,9 @@ def build_within_group_system(
             space=space,
             factors=SNLossFactors(
                 streaming_collision=LC, scattering=S, n2n=N2N, boundary=B_a,
+                fission=F,
             ),
+            production=CoupledOperator([[F]], domain=space, codomain=space),
         )
 
     # System B's pieces, constructed ONCE and shared between the loss
@@ -710,13 +739,36 @@ def build_within_group_system(
     loss = CoupledOperator(
         [[A_AA, A_AB], [-emission, A_BB]], domain=space, codomain=space,
     )
+    # F posed on the coupled space: (prolongation stack) ∘ (bulk restriction)
+    # — fission annihilates the ray system, and the honest spelling is the
+    # composition ``[[F], [E_F]] ∘ r_bulk`` (moved here from the adjoint
+    # entry at step 2 — the ONE site).
+    restrict_bulk = SystemRestrictionOperator(space, system=0)
+    production = CoupledOperator(
+        [
+            [F],
+            [RadialCharacteristicEmission(
+                F.isotropic_energy,
+                field_space=member_space,
+                full_field_space=full_field_space,
+                angular_bulk_space=sn_mesh.angular_bulk_space,
+                angular_trace=sn_mesh.angular_trace,
+                quadrature=sn_mesh.quad,
+                coord=sn_mesh.coord,
+            )],
+        ],
+        domain=restrict_bulk.codomain,
+        codomain=space,
+    ) @ restrict_bulk
     return WithinGroupSystem(
         loss=loss,
         space=space,
         factors=SNLossFactors(
             streaming_collision=LC, scattering=S, n2n=N2N, boundary=B_a,
+            fission=F,
             radial_characteristic=RadialCharacteristicFactors(
                 seeding=A_AB, emission=emission, march=march, boundary=B_b,
             ),
         ),
+        production=production,
     )

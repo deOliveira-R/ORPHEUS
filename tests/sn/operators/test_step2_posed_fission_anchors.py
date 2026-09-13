@@ -137,68 +137,6 @@ def _random_composite(hub: SNMesh, seed: int) -> "tuple[FullField, AngularFlux]"
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestRecordTwoFissionObjects:
-    """The forward and the adjoint do not share an ``F``."""
-
-    def test_record_the_forward_and_adjoint_F_are_different_types_on_different_spaces(
-        self,
-    ) -> None:
-        """RECORD — ⛔ DELETE at sub-step (ii); do not repair.
-
-        This row is what makes the API change LOUD.  Its ruled successor is
-        :meth:`TestRuledOneFissionPerProblem.test_ruled_one_F_mint_per_problem`,
-        and a ``strict`` xfail alone would stay silent if the carve landed one
-        ``F`` with the wrong semantics (``vv`` Mode-8, fourth class).
-        """
-        hub = _slab_hub()
-        mat_xs = hub.material_xs_field()
-        forward = IsotropicFission.from_material_xs(
-            mat_xs, space=mat_xs.mesh.bulk_space,
-        )
-        _implicit, _gain, adjoint_F, _template = _adjoint_posing_parts(hub)
-
-        assert type(forward) is IsotropicFission
-        assert type(adjoint_F) is FissionOperator
-        assert forward.domain is hub.bulk_space
-        assert adjoint_F.domain is hub.full_field_space
-        assert forward.domain != adjoint_F.domain, (
-            "the forward and adjoint F now share a domain — if this reds, "
-            "sub-step (ii) has landed and this RECORD row must be DELETED."
-        )
-
-    def test_record_the_carrying_adjoint_is_a_THIRD_spelling(self) -> None:
-        r"""RECORD — ``stack @ restrict_bulk`` is the CARRYING spelling only.
-
-        ``[M]`` on a sphere the adjoint's ``F`` is an ``OperatorProduct`` on
-        the ``CoupledSpace``; on the slab above it is a plain
-        ``FissionOperator`` on the ``FullFieldSpace``.  Any step-2 gate that
-        says "the adjoint's ``F_posed``" without naming the arm is a false
-        red on 2 of 3 charts.
-        """
-        from orpheus.numerics.operator import OperatorProduct
-
-        hub = _sphere_hub()
-        _implicit, _gain, adjoint_F, _template = _adjoint_posing_parts(hub)
-        assert isinstance(adjoint_F, OperatorProduct), (
-            f"the carrying adjoint's F is {type(adjoint_F).__name__}, not the "
-            f"rectangular lift the campaign's §27.1 table describes."
-        )
-        assert adjoint_F.domain is not hub.full_field_space
-
-    def test_record_two_F_mints_per_problem(self) -> None:
-        """RECORD — one hub, a forward solver and an adjoint posing: TWO mints.
-
-        ``[M]`` ``probes2`` — ``IsotropicFission.from_material_xs`` fires once
-        (``solver.py:1544``, ``SNSolver.__init__``) and
-        ``FissionOperator.from_solver_data`` once (``solver.py:2772``,
-        ``_adjoint_posing_parts``).  ⛔ DELETE at sub-step (ii).
-        """
-        counts = _count_fission_mints(_slab_hub())
-        assert counts == {"energy": 1, "angular": 1}, (
-            f"expected one mint of each binding per Problem, saw {counts}."
-        )
-
-
 def _count_fission_mints(hub: SNMesh) -> dict[str, int]:
     """Mint census over ONE hub: build the forward solver, then pose the adjoint.
 
@@ -375,19 +313,18 @@ class TestLawTheCompositeRouteIsOneNulpAwayNotBitIdentical:
 
 
 class TestRuledOneFissionPerProblem:
-    """R-cc6 (ii) — ONE ``F``, minted once, read by both faces."""
+    """R-cc6 (ii) — ONE ``F``, minted once, read by both faces.
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "R-cc6 (ii) NOT LANDED — the forward k-outer mints its own "
-            "IsotropicFission (solver.py:1544) while the adjoint mints a "
-            "FissionOperator (solver.py:2772): two objects, two spaces, so "
-            "F_adjoint cannot be F.H. WHEN THIS XPASSES: the Problem owns one "
-            "F — delete this marker AND "
-            "TestRecordTwoFissionObjects.test_record_two_F_mints_per_problem."
-        ),
-    )
+    ✅ LANDED 2026-09-13 (the consumers campaign's step 2, C2): the strict
+    xfail this row carried XPASSed and was deleted; the row stays as the
+    permanent gate on the COUNT — a second mint (the forward re-growing its
+    own ``IsotropicFission``, the adjoint re-growing its own
+    ``FissionOperator``) is the weld this step removed.  The hub's
+    :attr:`SNMesh.fission` is the one object; the forward reads its energy
+    face, the adjoint daggers the composite (or the record's ``production``
+    on a carrying mesh).
+    """
+
     def test_ruled_one_F_mint_per_problem(self) -> None:
         """Counted, not named.
 
@@ -402,4 +339,43 @@ class TestRuledOneFissionPerProblem:
         assert total == 1, (
             f"one Problem minted {total} fission bindings ({counts}); the "
             f"pencil's F is one object or the adjoint is a re-derivation."
+        )
+
+
+class TestLawTheHubsFissionIsWhatBothFacesRead:
+    """The identity behind the count: one object, two faces, no re-mint."""
+
+    def test_the_forward_reads_the_hubs_energy_face(self) -> None:
+        hub = _slab_hub()
+        solver = SNSolver(hub)
+        assert solver.sn_mesh.fission is hub.fission
+        assert hub.fission.isotropic_energy is hub.fission.isotropic_energy
+        phi = np.random.default_rng(3).random(hub.bulk_space.shape)
+        np.testing.assert_array_equal(
+            solver.compute_fission_source(phi, 1.25),
+            np.asarray(hub.fission.isotropic_energy.apply(phi)) / 1.25,
+        )
+
+    def test_the_seedless_adjoint_daggers_the_hubs_composite(self) -> None:
+        hub = _slab_hub()
+        _implicit, _gain, adjoint_F, _template = _adjoint_posing_parts(hub)
+        assert adjoint_F is hub.fission
+
+    def test_the_carrying_adjoint_poses_the_records_production(self) -> None:
+        """On a carrying mesh the adjoint's ``F`` is the record's
+        ``production`` — the composition ``[[F], [E_F]] ∘ r_bulk`` lifted from
+        the hub's one ``F`` (its ray fold reads ``hub.fission.isotropic_energy``)."""
+        from orpheus.sn.coupled_system import build_within_group_system
+
+        hub = _sphere_hub()
+        _implicit, _gain, adjoint_F, _template = _adjoint_posing_parts(hub)
+        record = build_within_group_system(hub, hub.material_xs_field())
+        assert record.factors.fission is hub.fission
+        assert type(adjoint_F) is type(record.production)
+        state = _random_composite(hub, 11)[0]
+        from orpheus.numerics.coupled_system import CoupledField
+
+        x = CoupledField(systems=(state, _template.systems[1]))
+        np.testing.assert_array_equal(
+            adjoint_F.apply(x).to_flat(), record.production.apply(x).to_flat(),
         )

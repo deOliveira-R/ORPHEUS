@@ -15,6 +15,36 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 
 ## 1. Ground truth is the LIVE tree — every other surface lies eventually
 
+- **⭐⭐ A BRIEF'S "DOCS FALSIFIED" LIST IS SCOPED TO THE CURRENT CARVE — grep the named
+  page for the state the brief SAYS it describes, and read a 0 as "it describes something
+  OLDER".** `[M]` briefed *"`adjoint.rst` describes `F_posed = stack @ restrict_bulk`"*;
+  `grep "F_posed|restrict_bulk|stack @"` = **0**. The page carried the *pre-2026-08-22*
+  spelling — a `2×2` grid with `0_{BB}` and hand-written `codomain_zero`/`transpose_zero`
+  hooks — three weeks dead (`6fc247fb`, ANCESTOR), while `history.rst` recorded the un-weld
+  correctly in its own row. Date the older thing with `git log -S`; that date IS the finding.
+  → L-105
+- **⭐⭐ WHEN A REPAIR RETIRES A NAME FROM YOUR PAGE, GREP IT CORPUS-WIDE AND SORT BY TENSE
+  — a retired MECHANISM survives as live-looking API in a doc `code-block` chapters away.**
+  `[M]` `grep -rn codomain_zero orpheus/` = **4 hits, all past-tense prose** ⟹ retired; yet
+  `boundary_conditions.rst` still taught `ZeroOperator(codomain_zero=…, transpose_zero=…)`
+  inside a `.. code-block:: python` + a list-table row. No build, no `dead_references` (a
+  kwarg is not a symbol), no carve-vocabulary grep can see it. ⭐ The repair is nearly free:
+  the successor's docstring usually keeps the ARGUMENT verbatim (only the spelling moved),
+  so quote it. → L-105, L-099
+- **⭐ A CHANGELOG'S "not yet merged" EXCEPTION EXPIRES — re-run the ancestor check on every
+  unstamped row above yours, INCLUDING your own from this morning.** `[M]` three stale rows
+  in one table: my own C1 row (`628997b1` is on `main`) and two CS4c rows whose branches are
+  GONE. Two different jobs: one merge hash was written verbatim in its plan (§14.8 "merged @
+  `600c5c80`" — zero risk), the other DERIVED (`git log --first-parent`, no merge commits ⟹
+  ff-only ⟹ the branch tip is the landing point). Say which is which in the report. → L-105,
+  L-099, L-100
+- **⭐ A MACHINE-HEADER BLOCK MINTED FOR ONE HALF OF AN AXIS OBLIGES ITS SIBLING — and the
+  brief's fallback target may not exist.** The briefed "page that lists the hub's cached
+  members" measured **0** (no such list in `docs/theory`); the right repair was to mint the
+  `problem:` sibling of the `strategy:` block I minted last time, not to hunt. ⚠ **`yaml.safe_load`
+  the extracted code-block pre-and-post** — an unquoted value containing `: ` breaks it, and
+  mine did twice; HEAD parsing is the control that proves the break is yours. → L-105
+
 - **⭐⭐ WHEN A CARVE AXIS-IFIES A FACTOR, RE-DERIVE WHICH *ARM* OF THE PRODUCT RULE EACH
   SURVIVING SITE TAKES — re-counting the census is the easy half and misses the
   inversion.** `[M]` a rule read *"`*` is for a product whose factors are NOT all
@@ -1861,6 +1891,13 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 
 ## 4. Retirement & staleness: three greps, and the unit is the THESIS
 
+- **⭐ A MEMBER-LIST CLAIM HAS TWO SHAPES — the composite's ALGEBRA and the leaf ROSTER —
+  and a validated predicate over one is BLIND to the other.** `[M]` #425's chartered regex
+  (`L + C − S − B`, positive-control validated, run corpus-wide by me) cannot return
+  `:math:`L, C, S, F, B`` or ```L``/``C``/``S``/``F``/``B```; two such cells survived on
+  `operator_algebra.rst`, both omitting `N_{2n}`, both the same defect wearing a comma
+  instead of a minus sign. Charter BOTH predicates. → L-105
+
 - **⭐⭐ When a residue census is LARGE and the residue is a SIMPLIFICATION, DECLARE it — do
   not sweep it, do not stay silent.** `[M]` **37** SN-chapter sites still spelled the
   pre-extraction algebra `A = L+C−S−B`. Sweeping all 37 is a numerics adjudication riding
@@ -2700,6 +2737,15 @@ never paraphrase a level definition. → L-010
 ---
 
 ## 9. Gates, generated artefacts, tooling
+
+- **⭐ `:label:` ON `.. math::` IS SPHINX-ONLY — subtract it before reading a
+  standalone-docutils math-directive delta.** `[M]` HEAD `solver.rst`: 10 errors / 10
+  `:label:`; mine 11 / 11. Drop the `Unknown interpreted text role` class wholesale too (it
+  scales with the roles you add). What survived both filters was real and would have
+  shipped: `Bullet list ends without a blank line` — a paragraph abutting the bullet above
+  it. ⭐ And a dataclass FIELD is not `hasattr`-visible: the python-xref probe needs the
+  `dataclasses.fields` + `__annotations__`-across-MRO fallback or it reports live fields
+  (`SNLossFactors.fission`, `WithinGroupSystem.production`) as dead. → L-105, L-096, L-076
 
 - **Generated artefacts are NEVER hand-edited** (V&V matrix, capability tables,
   `_generated/*.inc.rst`) — fix the registry-side metadata and report the REAL post-regen number. A

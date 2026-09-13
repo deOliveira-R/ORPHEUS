@@ -442,15 +442,14 @@ the bare / test constructor).
    **Precision on the** :math:`F` **row since CS4c step 4
    (2026-08-30).**  The sentence above is about the operators the
    *composite* posings compose, and it remains exactly true of them:
-   :class:`~orpheus.transport.operators.fission.FissionOperator` is
-   still minted from ``sn_mesh.full_field_space`` at the eigen-:math:`M`
-   posing site, so the daggered pencil's ends validate natively — and
-   :math:`N_{2n}`
+   :class:`~orpheus.transport.operators.fission.FissionOperator` carries
+   ``sn_mesh.full_field_space`` on both ends, so the daggered pencil's
+   ends validate natively — and :math:`N_{2n}`
    (:class:`~orpheus.transport.operators.n2n.N2NOperator`) joined the
    list at step 3 on the same space.  What changed is that the
-   **k-outer** no longer holds that operator: it feeds bare
-   :math:`(n_g, *\text{spatial})` scalar arrays, so ``SNSolver`` binds
-   the fission **energy** binding
+   **k-outer** does not apply that operator: it feeds bare
+   :math:`(n_g, *\text{spatial})` scalar arrays, so it consumes the
+   fission **energy** binding
    :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
    on the mesh's *scalar bulk* space instead.  That is the binding-arity
    table made honest rather than a weakening: an operator's ends now
@@ -458,6 +457,19 @@ the bare / test constructor).
    fission operator in the tree carries ``full_field_space``" off this
    paragraph would be wrong for that one.  See
    :ref:`sn-fission-binding-adjoint`.
+
+   ⭐ **Where it is MINTED moved again at the consumers campaign's step
+   2 (2026-09-13), and the two halves above are now one object.**  The
+   composite is minted ONCE per Problem, on the hub
+   (:attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`),
+   and the eigen-:math:`M` posing *reads* it rather than building its
+   own; the energy binding the k-outer consumes is that composite's own
+   derived ``isotropic_energy`` face, not a separate mint.  So the two
+   spaces in this note are still two spaces — that part is the arity
+   table and it stands — but they are now two **faces of one operator**
+   rather than two operators, which is what makes
+   :math:`F_{\rm adjoint} = F^{\dagger}` statable at all
+   (:ref:`sn-one-fission-per-problem`).
 
 The architecturally interesting fact is
 that this domain plumbing does **not** change where the metric is

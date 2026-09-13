@@ -1543,7 +1543,7 @@ def _f_emission(F, psi: FullField) -> NDArray:
     the migrated F seed :func:`~orpheus.sn.solver._radial_characteristic_fission_seed`
     only needs the FOLD of this emission (``A_BA_fission = Fold ∘ F.kernel``,
     factored)."""
-    # CS4c step 4: F here is the ENERGY binding (solver-held fission_op);
+    # CS4c step 4: F here is the ENERGY binding (the hub's fission.isotropic_energy);
     # step 5 (R-4): a plain binding admits the bare array of its bound shape,
     # so the scalar flux's ``.values`` is the operand (the untyped carrier
     # fall-through is retired).
@@ -2377,7 +2377,7 @@ class TestCoupledLift:
             _radial_characteristic_source_from_per_ordinate,
         )
         snf = _fissile_sphere()
-        F = SNSolver(snf).fission_op
+        F = SNSolver(snf).sn_mesh.fission.isotropic_energy
         psi = _random_composite(snf, np.random.default_rng(140))
         emission = _f_emission(F, psi)
         if not np.max(np.abs(emission)) > 1e-6:
@@ -2405,7 +2405,7 @@ class TestCoupledLift:
         dropped/wrong ½ coefficient in the migrated fold is caught)."""
         from orpheus.sn.solver import _radial_characteristic_fission_seed
         snf = _fissile_sphere()
-        F = SNSolver(snf).fission_op
+        F = SNSolver(snf).sn_mesh.fission.isotropic_energy
         psi = _random_composite(snf, np.random.default_rng(141))
         emission = _f_emission(F, psi)
         monkeypatch.setattr(

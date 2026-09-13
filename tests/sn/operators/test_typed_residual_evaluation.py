@@ -240,7 +240,7 @@ def test_within_group_operands_share_the_composite_space():
     # record (the operand the sweep actually inverts) — its very existence
     # proves the ``L + C`` guard PASSED at construction with ``C``'s real
     # space (a mismatch would have raised there).
-    # CS4c step 4: the solver-held ``fission_op`` is the ENERGY binding
+    # CS4c step 4: the hub's ``fission.isotropic_energy`` is the ENERGY binding
     # (deliberately SCALAR ends — the k-outer feeds bare arrays); the
     # composite peer the pencil pairs is the ANGULAR binding, minted as
     # the eigen-M posing mints it.

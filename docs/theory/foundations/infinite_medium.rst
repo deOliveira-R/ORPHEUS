@@ -1424,7 +1424,13 @@ space to derive it from.)
    S\ :sub:`N` k-outer and the 1-D diffusion solver all consume — and
    the *angular* binding ``FissionOperator``, the frame's
    :math:`\ell = 0` conjugation of the same dyad on a posed angular
-   composite, which only S\ :sub:`N`'s eigen-:math:`M` posing needs.
+   composite, which only a solver with an angular axis can pose.
+   (⚠ Since the consumers campaign's step 2, 2026-09-13, the instance
+   S\ :sub:`N`'s k-outer consumes is the ``isotropic_energy`` face
+   *derived from* its hub's one angular :math:`F`, not a separate mint —
+   :ref:`sn-one-fission-per-problem`.  This solver and diffusion still
+   bind the energy operator directly, because neither has an angular
+   composite to derive it from.)
    The infinite-medium problem has no angular axis, so the energy
    binding is not merely sufficient here — it is the honest one, and
    the angular binding now **refuses** a scalar carrier at construction

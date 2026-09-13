@@ -113,7 +113,7 @@ def fission_op():
     mesh = _uniform_2d(nx, ny, 0.2, mat)
     quad = Quadrature.lebedev(order=17)
     sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod})
-    return SNSolver(sn_mesh).fission_op
+    return SNSolver(sn_mesh).sn_mesh.fission.isotropic_energy
 
 
 @pytest.fixture

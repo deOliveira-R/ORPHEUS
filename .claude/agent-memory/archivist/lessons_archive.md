@@ -12625,3 +12625,139 @@ tabulates) · Failed approaches 5 (seven refuted candidates, each with its
 structural reason, incl. the one the design review itself recommended) · Code
 traceability 5 · Derivation source n/a (no `derivations/` script — the algebra
 is the operator algebra's, not SymPy's).
+
+---
+
+## L-105 — Consumers campaign step 2, unit C2: ONE `F` per Problem (2026-09-13)
+
+**The pass.** 9 `.rst`, +642/−73, uncommitted on `refactor/consumers-step2`.
+`SNMesh.fission` (a `cached_property` composite `FissionOperator` on the full
+field), `SNLossFactors.fission` (a REFERENCE), `WithinGroupSystem.production`
+(`F` posed on the loss's carrier), `SNSolver.fission_op` DELETED. New H2 section
+`sn-one-fission-per-problem` in `solver.rst` (320 lines) + one new eq-label
+`sn-posed-production-carrying` (`vv-status: documented`).
+
+### (a) ⭐⭐ A brief's "docs falsified" list is scoped to the CURRENT carve — the page it names can be stale by an EARLIER one, and THAT rot is older and worse
+
+The brief said `adjoint.rst` "describes `F_posed = stack @ restrict_bulk` as the
+adjoint's spelling". `[M]` `grep -n "F_posed\|restrict_bulk\|stack @" adjoint.rst`
+= **0**. What the page actually carried was the **pre-2026-08-22** spelling: a
+literal `2×2` grid with an explicit `0_{BB}`, plus a paragraph asserting the
+`(B,B)` block is "spelled with the space-typed `ZeroOperator` (``codomain_zero``
+and its dual ``transpose_zero`` hook)". `6fc247fb` (the S4-amendment A2 un-weld,
+`git merge-base --is-ancestor` ⟹ ANCESTOR, dated **2026-08-22**) replaced both
+with `[[F],[E_F]] ∘ r_bulk` — and `history.rst:1583` records that un-weld
+correctly, in its own row, while the page that TEACHES the posing never learned.
+vv #21's aggravator at corpus scale: the page documenting the FIX is not the
+page carrying the claim.
+⟹ **When a brief says "page P describes X", grep P for X FIRST. A `0` does not
+mean "nothing to do" — it means P describes something OLDER, and dating that
+older thing (`git log -S`) is the finding.** Same family as L-102's
+"briefed-target-measures-0", one tier up: there the PREDICATE was wrong, here the
+brief's predicate names a state the page never reached.
+
+### (b) ⭐⭐ A retired MECHANISM leaves live-looking API in a doc `code-block` chapters away; `grep <name> orpheus/` sorted by TENSE is the only instrument
+
+Repairing (a) put `codomain_zero` in front of me, so I greped it.
+`[M]` `grep -rn "codomain_zero" orpheus/` = **4 hits, every one past-tense prose**
+(`numerics/vector.py:139`, `numerics/operator.py:2429/:2478`,
+`sn/boundary/realizer.py:320`) ⟹ the hook RETIRED at the S4-amendment. Yet
+`boundary_conditions.rst` still taught it as **live API**: a
+`.. code-block:: python` constructing `ZeroOperator(codomain_zero=…,
+transpose_zero=…)` (the highest-decay line — the one prose surface that must
+COMPILE, L-099) and a `list-table` row describing "the symmetric space hooks".
+No build at any severity sees it; `dead_references` cannot (a kwarg is not a
+symbol); a grep of the CARVE's vocabulary cannot (the carve was 3 weeks earlier).
+The repair was nearly free because the successor's production docstring
+(`_narrowed_zero_operator`) states the argument **verbatim** — "relying on the
+endomorphic `0.0 * x` echo would be wrong in principle and merely lucky in
+practice" — so only the SPELLING moved and the reasoning was quotable.
+⟹ **When a repair retires a NAME from the page you are on, grep that name
+corpus-wide and sort the hits by tense.** And read the successor's docstring
+before rewriting the argument: a retirement that kept its reason gives you the
+new prose for free.
+
+### (c) ⭐ A changelog's "not yet merged" EXCEPTION EXPIRES, and your own row from this morning is not exempt
+
+The preamble's clause ("the only exception is an entry whose Where names an
+*unmerged branch explicitly*") is a condition with a shelf life, and the branch's
+disappearance is the proof. `[M]` three rows were stale:
+* the **C1 row I wrote myself earlier the same day** — `branch
+  refactor/consumers-step2, not yet merged` while
+  `git merge-base --is-ancestor 628997b1 main` is **TRUE** (the branch was
+  ff-merged and re-cut); stamped `628997b1`;
+* CS4c step 4 (`refactor/cs4c-step4-fission-binding`) and step 3
+  (`refactor/cs4c-s-rebind`) — both branches **gone** (`git branch -a --list` = 0)
+  and every listed commit an ancestor of HEAD.
+Getting the hash right is two different jobs: step 3's was written **verbatim in
+its own plan** (`cs4c_binding_design.md` §14.8 "merged @ `600c5c80`") — zero risk;
+step 4's had to be DERIVED (`git log --first-parent`, no merge commits in the
+range ⟹ ff-only ⟹ the branch tip is the landing point = `b68e0f56`, the last
+non-plan commit before the close-out).
+⟹ **Before adding a row, re-run the ancestor check on every unstamped row above
+it — your own included.** And prefer a hash the plan states to one you derive;
+say which is which in the report.
+
+### (d) ⭐ A machine-header block minted for ONE half of an axis obliges its SIBLING — and the brief's fallback target may not exist
+
+C1 minted `strategy:` ("solver-owned; NOT members of the posed record"). C2's
+deliverable is a **Problem**-owned member, and the brief's fallback ("the SN page
+that documents the hub's cached members beside `loss_kernel_gauge`") measured
+**0** — `[M]` no such list exists anywhere in `docs/theory`; `loss_kernel_gauge`
+appears only per-member (`cartesian_multid.rst:5113/:5616`). The right repair was
+to mint the `problem:` sibling of `strategy:` (keys `fission`, `retained_order`),
+not to hunt for a list. `[M]` `grep '^      problem:\|^      strategy:'` over the
+corpus: `strategy:` 1, `problem:` 0 — so the "no precedent" check is one grep, and
+here the precedent is the block YOU minted last time.
+⚠ **Validate the YAML.** An unquoted value containing `: ` breaks the block, and
+mine did **twice** (`ONE of them: the hub's`, then `Canonical: ref …`). The gate is
+four lines: slice the `.. code-block:: yaml` body, `yaml.safe_load` it, and diff
+HEAD-vs-new (HEAD parsed, so a break is MINE). The block's own conventions
+already answer it — `operators:` values are bare scalars, `composites:`/`strategy:`
+are quoted *because* they end with `Canonical: …`.
+
+### (e) ⭐ `:label:` on `.. math::` is SPHINX-ONLY — subtract it from the standalone-docutils error-set diff
+
+My substitute gate (L-096: pre-vs-post docutils error-SET diff, since Sphinx is
+forbidden) reported `+1 Error in "math" directive:` and I nearly chased it.
+`[M]` HEAD's `solver.rst` has **10** such errors and **10** `:label:` occurrences;
+mine has **11** and **11**. The option is unknown to bare docutils, so every
+labelled equation is one permanent parse error in this gate.
+⟹ **Count `:label:` pre/post and subtract before reading a math-directive delta.**
+Also drop the `Unknown interpreted text role` class wholesale — it scales with the
+number of roles you add and carries no information. What DID survive both filters
+was real and would have shipped: `Bullet list ends without a blank line` — my
+`⛔ **Not cached here…**` paragraph abutting the bullet it followed (L-101's
+swallowed-tail, in the other direction: a paragraph swallowed INTO a list).
+
+### (f) ⭐ A member-list claim has TWO shapes, and a predicate over one is blind to the other
+
+#425's chartered predicate was the A-**composite** spelling (validated regex
+`L\s*\+\s*C\s*[-−–]\s*S\s*[-−–]\s*B` + a 5-term positive control), and I ran it
+over the whole corpus. `[M]` it is structurally blind to a **leaf ROSTER**, and
+two survived on `operator_algebra.rst` — the four-tier table's Layer-1 cell
+(`:math:`L, C, S, F, B``) and the G-adjoint bullet
+(```L``/``C``/``S``/``F``/``B`` all carry it`). Both omit `N_{2n}`, which has been
+a first-class leaf since 2026-08-30, and both are the same #425 defect wearing a
+comma instead of a minus sign.
+⟹ **When chartering a member-list sweep, write BOTH predicates**: the composite's
+algebra (`A = …`) and the roster (`L, C, S, …` / `` ``L``/``C``/… ``). A validated
+filter over one is a confident partial answer about the other — the 2026-08-26
+"validated filter over the wrong predicate" row, inside one campaign's own scope.
+
+### Quality self-assessment (Directive 3)
+
+Derivation depth 4 (the defect derived from the pencil's one-space requirement;
+the restriction-vs-zero-block argument derived from the annihilation; no SymPy
+content to derive — this is an architecture section) · Cross-refs 5 (every python
+role import-resolved with a dataclass-field fallback, 0 dead; every `:ref:`/`:doc:`
+checked against the corpus label set / filesystem; `dead_references` 0/68) ·
+Numerical evidence 4 (the 200-seed sweep both ways with the draw-stability caveat
+and the 1-nulp price tag; the DD-drift denominator relayed WITH its artefact —
+but the drift figure is the anchors module's, not re-measured here) · Failed
+approaches 4 (the route not taken is priced rather than merely named; the
+pre-amendment zero-block spelling preserved with its reason) · Code traceability 5
+(every claim probed against the live tree: mint identity, space `==`-not-`is`,
+cached, `production` types per arity, `compute_fission_source` equality, and
+σ_t-freedom derived STRUCTURALLY from `FissionKernel.from_mixture` rather than
+measured) · Derivation source n/a.

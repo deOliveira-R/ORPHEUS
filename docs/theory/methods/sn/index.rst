@@ -29,10 +29,13 @@ Discrete Ordinates Method (S\ :sub:`N`)
         S: scattering in-scatter gain (Σ_s0ᵀ φ + anisotropic moments); a ROLE of TransferOperator since #426 step 2, yield y = 1
         B: boundary law as a first-class SIBLING operator (reflective / vacuum / white trace), every geometry
         N2n: (n,2n) emission — first-class since CS4c step 3 (not a passenger inside S), and ANISOTROPIC since #426 step 2 (2026-09-04): the SAME TransferOperator binding as S over the channel's own Legendre stack at the solve's scattering_order, yield y = 2. Until then its ℓ=0-only kernel was a MODEL imposed at the operator tier and never a property of the reaction — a defect worth −413.55 Δk·1e5 on a Be-reflected fast slab, catalogued as ERR-082
-        F: fission production (χ ⊗ νΣ_f, rank-1 dyad); TWO bindings of one datum since CS4c step 4 — IsotropicFission (energy, the k-outer's) and FissionOperator (angular, the eigen-M posing's)
+        F: "fission production (χ ⊗ νΣ_f, rank-1 dyad); TWO bindings of one datum since CS4c step 4 — the ANGULAR FissionOperator on the composite full_field_space and the ENERGY IsotropicFission on the scalar bulk_space. Since the consumers campaign's step 2 (2026-09-13) SN mints only ONE of them — the hub's composite (see problem.fission below), whose DERIVED .isotropic_energy face is what the k-outer applies. Before that the forward and the adjoint minted two F's on two spaces, so F_adjoint could not be F.H. Canonical: ref sn-one-fission-per-problem"
       composites:
         A: "L + C - S - N2n - B — the within-group loss operator; the Krylov driver applies it. Every page of this chapter states this member list (issue #425, 2026-09-07); the four-term A = L+C-S-B survives only where it is DECLARED at the site — the 1-D diffusion solver's own composition (its S IS S+N2n), the dated rows of history.rst, and one measured MMS residual table whose fixture is (n,2n)-free by construction. Canonical: eq sn-within-group-with-n2n"
         (L+C): "lower-triangular under the upwind cell ordering; (L+C)⁻¹ IS the transport sweep"
+      problem:                         # hub-owned (SNMesh); determined by the Problem's generating data, minted ONCE per hub
+        fission: "SNMesh.fission — the ONE F of the Problem: the composite χ ⊗ νΣ_f bound on full_field_space, a cached_property minted through FissionOperator.from_solver_data. σ_t-FREE (its datum is the FissionKernel pair (χ, νΣ_f)), so it is a Problem datum independent of the σ merge unit. The forward k-outer reads the DERIVED .isotropic_energy face — [M] array_equal to the retired solver-side mint on 200/200 seeds, so the re-homing carries no arithmetic; the adjoint daggers the composite; the posed record carries WithinGroupSystem.production, the same F posed on the loss's own carrier. The mint is through the FACTORY deliberately: the anchors' census patches that classmethod by name, and a direct constructor would make it read zero. Canonical: ref sn-one-fission-per-problem"
+        retained_order: "SNMesh.scattering_order — the retained Legendre order, clamped ONCE at construction (min over the materials' SigS stacks) and read by the solver, the adjoint posing, the within-group assembly and DSA. Canonical: ref sn-hub-retained-order"
       strategy:                        # solver-owned; NOT members of the posed record
         splitting: "A = M − N is a Strategy VALUE (orpheus.sn.splitting.Splitting), never a member of the posed WithinGroupSystem record. The primitive is the LABELLING of A's terms (LossTerm = an operator together with the ±1 coefficient it carries in A); M and N are DERIVED from it, so they cannot disagree with it. Two labellings ship: jacobi (every geometry, and the only one admitted on a seed-carrying mesh) and gauss_seidel (multi-D Cartesian, seedless — splits B_a into B_lower implicit + B_upper explicit on disjoint rows). The law M − N = A is checkable per value (Splitting.law_residual): bit-exact seedless, round-off on the carrying block grid. Until 2026-09-13 the record carried the pair as implicit_operator/explicit_gains, while the Gauss-Seidel driver re-derived a second one behind it. Canonical: ref sn-splitting-is-a-strategy-value"
         schedule: "the inner_schedule string becomes a SweepSchedule at ONE site, orpheus.sn.splitting.resolve_schedule, which carries the geometry gate (is_cartesian and not is_1d); nothing downstream of it reads the string"
@@ -856,6 +859,20 @@ What moved, concretely
    are two object graphs.  Two consequences, one section each below —
    the predicate split, and the retained scattering order joining the
    hub as generating data.
+
+   ⭐ **And one the day after (step 2, 2026-09-13): the hub gained its
+   first derived OPERATOR member.**  Everything it had cached until then
+   was a *space* or a geometry-only projector
+   (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`,
+   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trial_space`,
+   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.loss_kernel_gauge`);
+   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.fission` is the ONE
+   fission operator of the problem, minted once and read by the forward
+   k-outer and by the adjoint alike.  That is the Problem side of the
+   step whose Strategy side is the splitting: *a Problem determines the
+   consumed objects from its generating data*, so an operator every
+   consumer of the problem must agree on belongs to the problem.  Full
+   account: :ref:`sn-one-fission-per-problem`.
 
 .. _sn-hub-identity-two-predicates:
 

@@ -648,12 +648,12 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # below) wraps ``sweep_once`` directly; the
     # :class:`StreamingCollisionOperator` (= ``L + C``) on the SNSolver is
     # unused here.  Solver instance retained to provide
-    # ``solver.scattering_op`` / ``solver.fission_op`` / ``solver.mat_xs``.
+    # ``solver.scattering_op`` / ``solver.sn_mesh.fission.isotropic_energy`` / ``solver.mat_xs``.
     sn_mesh = SNMesh(mesh, quad, materials, scattering_order=0)
     solver = SNSolver(sn_mesh)
     # The canonical S, F operators built directly from solver state.
     S = solver.scattering_op
-    F = solver.fission_op
+    F = solver.sn_mesh.fission.isotropic_energy
 
     # ── Adapter shims to keep the iteration primitive scalar-flux-only.
     #
@@ -841,9 +841,9 @@ def _sn_composite_triple():
     # CS4c step 4: the composite triple's F is the ANGULAR binding — the
     # frame-conjugated FissionOperator on the SAME composite space the
     # loss members ride (the pencil peer; its .H composes the Riesz legs
-    # around the reversed full_fission_kernel product). The solver-held
-    # fission_op is the scalar ENERGY binding the bare-array k-outer
-    # feeds — a different, deliberate binding of the same datum.
+    # around the reversed full_fission_kernel product). The hub's
+    # ``fission.isotropic_energy`` is the scalar ENERGY binding the
+    # bare-array k-outer feeds — the same datum's other face.
     from orpheus.transport.operators.fission import FissionOperator
 
     F_composite = FissionOperator.from_solver_data(

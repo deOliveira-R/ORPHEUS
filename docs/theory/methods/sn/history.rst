@@ -43,6 +43,76 @@ them.  Trust ``git``, not this column.
      - Issue
      - Where
    * - 2026-09-13
+     - **There is ONE** :math:`F` **per Problem, and the hub owns it**
+       (the consumers campaign, step 2, unit C2; ruling R-cc6 (ii) and
+       the open ruling O-1).
+       **(1) The defect.**  A pencil is a pair :math:`(A, F)` **on one
+       space**, and S\ :sub:`N` had no single :math:`F` to pair with
+       :math:`A`.  ``[M]`` a counting spy on both fission factories over
+       ONE hub found **three** spellings and **two** mints per solve: the
+       forward k-outer's
+       :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
+       on :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.bulk_space`, the
+       seedless adjoint's own
+       :class:`~orpheus.transport.operators.fission.FissionOperator` on
+       :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`,
+       and the carrying adjoint's
+       :class:`~orpheus.numerics.operator.OperatorProduct` on the
+       :class:`~orpheus.numerics.coupled_system.CoupledSpace`.  So
+       :math:`F_{\rm adjoint} = F^{\dagger}` was not unasserted but
+       **unstatable** — the :math:`F` on the right existed nowhere the
+       forward solve could name.  ⚠ No value gate could see it: both
+       mints read the same
+       :class:`~orpheus.transport.kernels.FissionKernel` pair and
+       produced identical numbers, so the catcher had to be a mint
+       COUNT.
+       **(2) The ruling (O-1).**  The **composite** is the primary
+       binding and the scalar dyad a Strategy-side reduction of it — the
+       argument is the pencil, not the channel: :math:`A` is posed on the
+       full field, so a member posed on the bulk alone is not on its
+       partner's space and cannot be paired with it by any object.
+       **(3) What landed.**
+       :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
+       is a :func:`~functools.cached_property` minted once through
+       :meth:`FissionOperator.from_solver_data
+       <orpheus.transport.operators.fission.FissionOperator.from_solver_data>`;
+       ``SNSolver.fission_op`` is **deleted** and
+       :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source` applies
+       the hub's derived ``F.isotropic_energy``;
+       ``_adjoint_posing_parts`` mints nothing — the seedless arm returns
+       the hub's composite, the carrying arm the record's new
+       :attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`
+       (:math:`F` posed on the loss's own carrier:
+       :math:`[\,[F],[E_F]\,]\circ r_{\rm bulk}`,
+       :eq:`sn-posed-production-carrying`), **moved into the forward
+       builder** — the only site that knows how to place an operator on
+       that carrier, so a posing written anywhere else was a twin by
+       construction.
+       **(4) The measurement, and the price of the half NOT taken.**
+       ``[M]`` 200 seeds: reading the composite's energy face is
+       ``array_equal`` **200/200** against the retired mint
+       (:math:`\max|\Delta| = 0`), so the re-homing carries no
+       arithmetic; applying the **composite** on the forward carrier is
+       ``array_equal`` **0/200** at :math:`\le 1` nulp
+       (:math:`\max|\Delta| = 2.776\times10^{-17}`, draw-stable) — an
+       IEEE re-association from the :math:`1/W` ordering.  That second
+       route is what O-1 rules for eventually and is deferred as a
+       **principled re-baseline**, because nine of the fourteen
+       diamond-difference regression cases already drift 1–11 ULP, so a
+       1-nulp shift would move the drift SET rather than vanish into it.
+       **(5) The gate is a COUNT, not a name.**
+       ``TestRuledOneFissionPerProblem`` wraps both ``classmethod``
+       factories with a spy and asserts the total is ``1`` over a forward
+       construction plus an adjoint posing — which is why the hub mints
+       through the factory rather than the constructor: a direct
+       constructor would be invisible to the census and the counter would
+       read zero.  The helper raises on an empty count rather than
+       returning it.  Three identity rows beside it pin *which* object
+       each face reads.
+       Full account: :ref:`sn-one-fission-per-problem`.
+     - —
+     - branch ``refactor/consumers-step2``, **not yet merged**
+   * - 2026-09-13
      - **The splitting** :math:`A = M - N` **leaves the posed record and
        becomes a Strategy VALUE, labelled once from the Problem's own
        leaves** (the consumers campaign, step 2; ruling R-cc6 (i), the
@@ -117,7 +187,7 @@ them.  Trust ``git``, not this column.
        The R7 strict-xfail XPASSed and was deleted.
        Full account: :ref:`sn-splitting-is-a-strategy-value`.
      - —
-     - branch ``refactor/consumers-step2``, **not yet merged**
+     - ``628997b1``
    * - 2026-09-12
      - **A Problem's identity is the CONTENT of its generating data, and
        the retained scattering order is the hub's datum** (the consumers
@@ -1160,8 +1230,7 @@ them.  Trust ``git``, not this column.
      - ``f4caf04a`` (the material field + the energy binding),
        ``75500cd9`` (the rebind; every consumer binds honestly),
        ``9061637b`` (:math:`N_{2n}` harmonized), ``fadad026``
-       (the G-F1 condensation gate) — branch
-       ``refactor/cs4c-step4-fission-binding``, **not yet merged**
+       (the G-F1 condensation gate) — merged @ ``b25f9006`` (the step-4 close-out the plan stamps at ``b91246e8``)
    * - in dev
        (2026-08-30)
      - **The scattering binding speaks kernel and frame, and the**
@@ -1253,8 +1322,7 @@ them.  Trust ``git``, not this column.
      - ``c0e904ea`` (the kernel fields, the frame hub, the space verb),
        ``8f376135`` / ``b435431c`` (the rebind and the :math:`(n,2n)`
        extraction), ``81e9e7e1`` (the arms retire; the multiplicity's
-       one home), ``92dcc30f`` (battery B-3) — branch
-       ``refactor/cs4c-s-rebind``, **not yet merged**
+       one home), ``92dcc30f`` (battery B-3) — merged @ ``600c5c80``
    * - 2026-08-30
      - **Every bound transport operator carries its two mandatory ends,
        and the dagger becomes a first-class arrow** (campaign 2, phase

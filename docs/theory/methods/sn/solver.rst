@@ -10,9 +10,12 @@ coordinated into the production eigenvalue solve, and, from the
 converged flux, the frame projections (homogenisation, condensation)
 that hand a coarse problem back to the same solver.
 
-At construction time :class:`~orpheus.sn.solver.SNSolver` caches exactly
-**three** operators — the ones that are cross-section read-through, and
-therefore survive a rebind untouched:
+At construction time :class:`~orpheus.sn.solver.SNSolver` caches
+**two** operators — the ones that are cross-section read-through, and
+therefore survive a rebind untouched.  It cached **three** until
+2026-09-13: the fission binding left for the Problem hub at the
+consumers campaign's step 2, and the remaining two follow it when the
+hub gains its posed record (:ref:`sn-one-fission-per-problem`).
 
 * :attr:`SNSolver.scattering_op` —
   :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
@@ -30,20 +33,31 @@ therefore survive a rebind untouched:
   accumulations alone; the ``_add_n2n_source`` delegator retired with
   the hand-built finalize source that was its only caller — routes
   through its energy binding's field.
-* :attr:`SNSolver.fission_op` —
-  :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
-  carrying the rank-1-in-energy fission emission (Wave D Issue 13).
-  It held the ANGULAR binding
-  :class:`~orpheus.transport.operators.fission.FissionOperator` on the
-  composite ``full_field_space`` until CS4c step 4 (2026-08-30), when
-  the fission channel became two bindings of one datum and every
-  consumer was re-pointed at the one it actually feeds: the k-outer
-  hands this operator bare :math:`(n_g, *\text{spatial})` scalar arrays,
-  so it binds the mesh's **bulk** space and
-  :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source` is a thin
-  delegator to its ``apply``.  The angular binding is still minted —
-  once, at the eigen-:math:`M` posing site, where a composite operator
-  is what the pencil needs (:ref:`sn-fission-binding-adjoint`).
+
+⛔ **Not cached here since 2026-09-13:** the fission operator.  Until
+the consumers campaign's step 2 the solver carried a third slot,
+``SNSolver.fission_op``, holding an
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
+minted in ``__init__``.  That attribute is **deleted**.  The one
+:math:`F` of the problem is now the hub's
+:attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>` —
+the *composite* :class:`~orpheus.transport.operators.fission.FissionOperator`
+on the full field — and
+:meth:`~orpheus.sn.solver.SNSolver.compute_fission_source` applies its
+derived energy face ``sn_mesh.fission.isotropic_energy``, bit-identically
+to the retired mint.  The full account, including why the composite is
+the primary and the bulk face the reduction, is
+:ref:`sn-one-fission-per-problem`.
+
+The story that section closes began at CS4c step 4 (2026-08-30), when
+the fission channel became *two bindings of one datum*
+(:ref:`sn-fission-binding-adjoint`) and every consumer was re-pointed at
+the one it actually feeds — the k-outer hands bare
+:math:`(n_g, *\text{spatial})` scalar arrays, so it wants the energy
+binding on the mesh's **bulk** space, while the eigen-:math:`M` posing
+wants the composite.  Step 4 gave each consumer the right *binding* and
+left each minting its own *object*; step 2 of the consumers campaign
+made it one object with two faces.
 
 .. note:: **The retained Legendre order is NOT a solver argument — it is
    the hub's datum.**
@@ -93,12 +107,20 @@ conforming so the iteration primitives in
 plumbing.  The within-group inner solve is built once from a single
 source of truth — the :func:`~orpheus.sn.coupled_system.build_within_group_system`
 builder assembles the :class:`~orpheus.sn.coupled_system.WithinGroupSystem`
-record: the posed loss :math:`A` on its carrier space, and the bound
+record: the posed loss :math:`A` on its carrier space, the bound
 LEAVES it is the signed sum of
 (:class:`~orpheus.sn.coupled_system.SNLossFactors` — :math:`L+C`,
 :math:`S`, :math:`N_{2n}`, :math:`B_a`, plus System B's quartet on a
-carrying mesh; zero within-group fission, which enters as the
-:math:`1/k`-scaled outer source).  Which of those leaves is inverted and
+carrying mesh), and — since 2026-09-13 — the pencil's right-hand side
+:attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`, which
+is :math:`F` posed on that same carrier.  :math:`F` is **not** a summand
+of :math:`A`: within-group fission is zero, and the production enters as
+the :math:`1/k`-scaled outer source.  It rides the record because a
+pencil is a *pair* :math:`(A, F)` on one space, and because the factors'
+:attr:`~orpheus.sn.coupled_system.SNLossFactors.fission` entry is a
+**reference** to the hub's one :math:`F`, never a second mint
+(:ref:`sn-one-fission-per-problem`).  Which of the loss leaves is
+inverted and
 which is lagged is **not** the record's choice: it is a
 :class:`~orpheus.sn.splitting.Splitting` — a Strategy VALUE minted from
 the record's factors by the one labelling site
@@ -124,10 +146,22 @@ each of which mints the splitting VALUE its own schedule calls for.
 
    * The within-group system is built ONCE, from a single source of
      truth (:func:`~orpheus.sn.coupled_system.build_within_group_system`):
-     the posed loss :math:`A` plus the bound leaves it is the signed sum
-     of (:class:`~orpheus.sn.coupled_system.SNLossFactors`).  Fission is
-     never inside the swept operator; it enters as the
+     the posed loss :math:`A`, the bound leaves it is the signed sum
+     of (:class:`~orpheus.sn.coupled_system.SNLossFactors`), and the
+     posed production
+     :attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`.
+     Fission is never inside the swept operator; it enters as the
      :math:`1/k`-scaled outer source.
+   * **There is ONE** :math:`F` **per Problem, and it lives on the hub**
+     (since 2026-09-13 — the consumers campaign's step 2).
+     :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
+     is the composite :math:`F = \chi\otimes\nu\Sigma_f` on the full
+     field; the forward k-outer applies its derived energy face
+     ``F.isotropic_energy`` and the adjoint daggers the composite, so
+     the two faces cannot disagree.  Before it, the forward and the
+     adjoint minted two :math:`F`\ s on two spaces and
+     :math:`F_{\rm adjoint}` could not be :math:`F^{\dagger}`
+     (:ref:`sn-one-fission-per-problem`).
    * **The splitting** :math:`A = M - N` **is a Strategy VALUE, not a
      member of the posed record** (since 2026-09-13 — the consumers
      campaign's step 2).  Its primitive is the LABELLED TERM SET —
@@ -205,8 +239,10 @@ Beyond driving the within-group inner solve, the :math:`(L+C,\ S,\ F)`
 framing organises the solver's outer API surface:
 
 * :meth:`SNSolver.compute_fission_source` returns
-  :math:`F\,\phi/k` — a thin delegator to ``F.apply`` with the
-  :math:`1/k` outer-loop scaling applied at the solver level.
+  :math:`F\,\phi/k` — a thin delegator to
+  ``sn_mesh.fission.isotropic_energy.apply`` (the hub's one :math:`F`,
+  read at its scalar face) with the :math:`1/k` outer-loop scaling
+  applied at the solver level.
 * :meth:`SNSolver.solve_fixed_source` solves
   :math:`(L+C-S-N_{2n}-B)\,\psi = q_{\rm ext}`
   (:eq:`sn-within-group-with-n2n`; with :math:`q_{\rm ext}` the
@@ -1241,6 +1277,326 @@ each fails for a reason that will still be there next time.
        missing type.  It is now resolved **once**, at solver
        construction, into a schedule object; the string survives on the
        entry-point signatures as sugar and nothing downstream reads it.
+
+.. _sn-one-fission-per-problem:
+
+ONE :math:`F` per Problem
+--------------------------
+
+The splitting section above is one half of the consumers campaign's step
+2: *what the Strategy owns*.  This is the other half — *what the Problem
+owns* — and it is the smaller change with the longer reach, because the
+object it makes single is one of the two members of the k-eigenvalue
+**pencil** :math:`(A, F)`.
+
+A pencil is a pair of operators **on one space**.  Until 2026-09-13 the
+S\ :sub:`N` forward solve and its adjoint did not have one :math:`F` to
+pair with :math:`A`: they built different objects, on different spaces,
+from the same data.
+
+The defect: two mints, two spaces
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``[M]`` 2026-09-12, a counting spy on both fission factories over a
+single hub (a two-region 2-group slab, ``gauss_legendre(8)``):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 40 36
+
+   * - route
+     - the object it minted
+     - the space it lived on
+   * - forward k-outer
+     - :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
+       (``SNSolver.__init__``)
+     - :attr:`SNMesh.bulk_space <orpheus.sn.mesh.augmented_mesh.SNMesh.bulk_space>`,
+       :math:`(n_g, *\text{spatial})`
+   * - adjoint, **seedless** mesh
+     - :class:`~orpheus.transport.operators.fission.FissionOperator`
+       (``_adjoint_posing_parts``)
+     - :attr:`SNMesh.full_field_space <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>`
+   * - adjoint, **carrying** mesh
+     - an :class:`~orpheus.numerics.operator.OperatorProduct`
+       (``_adjoint_posing_parts``, again)
+     - the :class:`~orpheus.numerics.coupled_system.CoupledSpace`
+
+Three spellings, two mints per solve, and — the part that matters —
+**no object that both faces read**.  So
+:math:`F_{\rm adjoint} = F^{\dagger}` was not merely unasserted: it was
+*unstatable*, because the :math:`F` on the right of the sentence did not
+exist anywhere the forward solve could name.  That is the same shape as
+the retained-Legendre-order defect step 1 closed
+(:ref:`sn-hub-retained-order`) — **a datum with three spellings is a
+datum with no owner** — and it is worse here, because a spelling that
+lives on a different *space* cannot even be compared to its sibling by
+``==``.
+
+⚠ Nothing in any value could see it.  Both mints read the same
+:class:`~orpheus.transport.kernels.FissionKernel` pair
+:math:`(\chi, \nu\Sigma_f)` and produced the same numbers; the adjoint's
+:math:`k^{\dagger}` agreed with the forward :math:`k` exactly as it
+should.  A duplicated *derivation* that agrees is invisible to every
+value gate by construction, which is why the catcher is a **mint
+count** and not a residual.
+
+The ruling: the composite is primary
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Both objects are legitimate bindings of one datum
+(:ref:`sn-fission-binding-adjoint`), so "which one is *the* :math:`F`?"
+is a real question with two defensible answers.  It was ruled — open
+ruling **O-1** of the step-2 design record — in favour of the
+**composite**:
+
+   :math:`F` is the angular binding
+   :class:`~orpheus.transport.operators.fission.FissionOperator` on the
+   full field; the scalar dyad
+   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
+   is a **Strategy-side reduction** of it, not a peer.
+
+The reason is the pencil, not the fission channel.  :math:`A` is posed
+on the full field (bulk :math:`\oplus` trace) because the boundary law
+is a first-class sibling operator; a pencil member posed on the *bulk
+alone* is not on the same space as its partner and cannot be paired with
+it by any object.  The composite is therefore the member that can be
+held; the scalar face is what a particular *strategy* — the k-outer's
+scalar power iteration — reduces it to.
+
+⭐ That ruling is about the long-term shape and was taken with the
+re-baseline cost declared irrelevant.  What step 2 **landed** is the
+bit-identical half of it (next section); moving the forward k-outer
+itself onto the composite carrier is a later, principled re-baseline.
+
+The mechanism: one cached member, two faces
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
+is a :func:`~functools.cached_property` on the Problem hub, minted once
+through the tier-2 factory
+:meth:`FissionOperator.from_solver_data
+<orpheus.transport.operators.fission.FissionOperator.from_solver_data>`
+with ``space=self.full_field_space``.  Everything else is a *view* of
+that one object:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - consumer
+     - what it reads
+     - why that face
+   * - forward k-outer
+       (:meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`)
+     - ``sn_mesh.fission.isotropic_energy``
+     - the outer iterates a **scalar** flux, so it wants the rank-1
+       energy dyad on :math:`(n_g, *\text{spatial})` arrays.  The face is
+       a declared field of
+       :class:`~orpheus.transport.operators.angular_lift.AngularLift`,
+       bound at construction from the composite's own datum — a
+       *theorem* of the composite, not a second binding
+       (:ref:`sn-fission-binding-adjoint`)
+   * - adjoint, seedless
+     - ``system.factors.fission`` — *is* ``sn_mesh.fission``
+     - the entry daggers it as ``F.H``; the composite is what carries
+       the two metrics the Hilbert adjoint needs
+   * - adjoint, carrying
+     - :attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`
+     - the same :math:`F`, **posed** on the coupled carrier (below)
+
+The hub is the right home rather than the posed record because the
+forward eigenvalue path still rebuilds that record **once per outer
+step** until the hub gains its own ``system`` (the campaign's next
+unit).  A record-resident :math:`F` would therefore be re-minted every
+outer, and the count gate below would read the outer count rather than
+one.  ⚠ The adjoint and fixed-source paths already build once per
+Problem, so the distinction is invisible on those arms — which is
+exactly why a record-resident :math:`F` would have looked correct from
+two of the three entry points.
+
+The posed production, on either arity
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:func:`~orpheus.sn.coupled_system.build_within_group_system` now poses
+:math:`F` on the same carrier it poses :math:`A` on, and stores it as
+:attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`.  On a
+**seedless** mesh that is the :math:`1\times1` grid
+:math:`[\,[F]\,]`.  On a **carrying** mesh it is a composition, not a
+block matrix with holes:
+
+.. math::
+   :label: sn-posed-production-carrying
+
+   F_{\rm posed}
+   \;=\;
+   \begin{bmatrix} F \\[2pt] E_F \end{bmatrix}
+   \circ\;
+   r_{\rm bulk} ,
+   \qquad
+   E_F \;=\; \mathrm{Fold}\circ F_{\text{iso}}\circ\!\int\! d\mu ,
+
+.. (vv-status rationale) Representational identity: it states how the
+   shipped builder spells the posed production on a seed-carrying mesh —
+   a restriction onto the bulk member followed by a rectangular
+   prolongation stack — which is a construction-site fact, not a solver
+   claim.  Its verifiable content is that the posed object agrees with
+   the adjoint entry's own on a random coupled state, gated by the
+   ``@pytest.mark.foundation`` row
+   ``tests/sn/operators/test_step2_posed_fission_anchors.py::TestLawTheHubsFissionIsWhatBothFacesRead::test_the_carrying_adjoint_poses_the_records_production``.
+.. vv-status: sn-posed-production-carrying documented
+
+where :math:`r_{\rm bulk}` is the
+:class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator` onto
+System A and :math:`E_F` is the **fission ray fold** — the
+kernel-generic
+:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
+carrying ``F.isotropic_energy``.
+
+The composition is the honest spelling of a physical fact: **fission
+annihilates the ray system.**  The :math:`w = 0` closed rays carry no
+quadrature weight, so nothing sources fission from them — and an
+annihilated *input* column is a restriction, not a zero block.  Writing
+it as a :math:`2\times2` grid with an explicit :math:`0_{BB}` was the
+pre-2026-08-22 spelling, and it existed only because a
+:class:`~orpheus.numerics.coupled_system.CoupledOperator` refuses an
+all-``None`` column; the zero the dagger needs now falls out of the
+restriction's extension-by-zero through the space's own materialization
+seam (:ref:`sn-adjoint-coupled-posing`).
+
+⭐ **This posing used to live in the adjoint entry, and now lives at the
+builder.**  That is the Cardinal-Rule-2 half of the step: the forward
+builder is the *only* site that knows how to put an operator on this
+carrier, so a posing written anywhere else is a twin by construction —
+and this one was, for as long as only the adjoint needed it.
+
+What it cost, and what it did not
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two routes were available for the forward k-outer, and they are not
+equivalent in floating point.  Both were measured over **200 seeds**
+before the ruling, on the seedless slab hub:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 18 20 22
+
+   * - route
+     - ``array_equal``
+     - :math:`\max\lvert\Delta\rvert`
+     - verdict
+   * - read the composite's **energy face**
+       (``F.isotropic_energy.apply(φ)``) — *what shipped*
+     - **200 / 200**
+     - ``0.000000e+00``
+     - bit-identical; a pure re-homing
+   * - apply the **composite** on the forward carrier
+       (``F.apply(ψ)`` vs today's lift of the scalar dyad)
+     - **0 / 200**
+     - :math:`2.776\times10^{-17}`
+       (:math:`\max` rel :math:`2.215\times10^{-16}`)
+     - :math:`\le 1` nulp, draw-stable — **deferred**
+
+The second row is not a defect; it is the *price tag* on the carrier
+change O-1 rules for eventually.  The gap is an IEEE re-association and
+nothing else — the lift normalises by :math:`W` before the broadcast and
+the angular binding after — so it meets every criterion for a
+principled-equivalent change (a named intermediate, a
+structurally-independent anchor, a drift bounded by one reduction's
+depth).  What makes it a *decision* rather than a formality is that the
+S\ :sub:`N` regression set is already at the ULP frontier: ``[M]``
+recorded at
+``tests/sn/operators/test_step2_posed_fission_anchors.py``, nine of the
+fourteen diamond-difference regression cases already drift 1–11 ULP
+against their frozen references, so a 1-nulp shift on *every* eigen
+solve would move the drift **set** rather than disappear into it.  A
+re-baseline is therefore an act, not a side effect, and it is scheduled
+as one.
+
+⚠ Both figures are properties of the **fixture**, not of one draw: the
+``array_equal`` claim is a 200-seed sweep, which is what licenses
+pinning it at ``array_equal`` rather than at a tolerance.  A single
+green reading would have licensed neither.
+
+The gate is a COUNT, not a name
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The permanent catcher is
+``tests/sn/operators/test_step2_posed_fission_anchors.py::TestRuledOneFissionPerProblem``:
+it builds a forward :class:`~orpheus.sn.solver.SNSolver` **and** poses
+the adjoint over one hub with both fission factories wrapped by a
+counting spy, and asserts the total is ``1``.  Three properties of that
+design are deliberate.
+
+* **It counts, it does not name.**  What the hub's member is *called*
+  was an open ruling when the anchor was written, so an assertion
+  naming ``SNMesh.fission`` would have been a guess wearing a contract.
+  The invariant is *one mint per Problem*; the attribute name is not.
+* **The spy is keyed on the two ``classmethod`` factories**
+  (``IsotropicFission.from_material_xs`` and
+  ``FissionOperator.from_solver_data``), patched on the class so every
+  module-level binding resolves through it.  This is why the hub mints
+  through ``from_solver_data`` rather than calling the dataclass
+  constructor directly: **a direct constructor would be invisible to the
+  census**, the counter would read zero, and a gate whose instrument
+  reads zero is not a gate that passed.
+* **It refuses its own empty reading.**  If the counter is empty the
+  helper raises rather than returning ``{}``, because an instrument that
+  counted nothing carries no information about what it was pointed at —
+  the positive-control discipline, spelled inside the harness.
+
+The row is tagged ``@pytest.mark.foundation``: it is a software /
+architecture invariant of the fission binding, with no theory equation
+label behind it and therefore no ``verifies(...)`` marker.
+
+Beside it sit three identity rows
+(``TestLawTheHubsFissionIsWhatBothFacesRead``) that pin *which* object
+each face reads — the forward's operand ``is`` the hub's energy face,
+the seedless adjoint's :math:`F` ``is`` the hub's composite, and the
+carrying adjoint's posing agrees with the record's ``production`` on a
+random coupled state.  The count says *one was minted*; these say *the
+one is the one everybody reads*.
+
+What is deferred, and why
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 32 68
+
+   * - deferred
+     - the structural reason
+   * - the k-outer's **carrier change** — the forward applying the
+       composite :math:`F` on the full field
+     - Ruled (O-1) as the long-term shape and measured at
+       :math:`\le 1` nulp (above).  It is a principled re-baseline of
+       the frozen S\ :sub:`N` references, and re-baselining is an act
+       with its own three-criterion justification; bundling it into a
+       re-homing would have hidden a value change inside a commit whose
+       claim is that nothing moved.
+   * - the :math:`1/k` **division moving off the solver**
+     - :math:`1/k` is the pencil's spectral parameter, not a property
+       of :math:`F` — :math:`F` is linear and the scaling is the
+       *algorithm's*.  It moves when the pencil object lands and can
+       carry it (``pencil.at(σ)``), not before: parking it on the
+       operator now would re-create exactly the welded scaling the
+       four-tier separation exists to prevent
+       (:ref:`eigenvalue-posing`).
+   * - stating :math:`F_{\rm adjoint} = F^{\dagger}` **as a theorem**
+     - Step 2 made it *true* — both faces read one object — but the
+       sentence is a claim about the **pencil**, and the pencil is not
+       yet an object.  Once
+       :class:`~orpheus.sn.coupled_system.WithinGroupSystem`'s pair is
+       reified, the adjoint posing becomes ``pencil.H`` and the
+       equality is a property of that type rather than a coincidence
+       two entry points maintain.  Until then, the identity rows above
+       pin it empirically.
+   * - the record's ``production`` being **shared** between two builds
+     - Two ``build_within_group_system`` calls over one hub produce two
+       ``production`` objects (each composes its own restriction and
+       stack) that agree by value, not by ``is``.  The leaves are
+       shared — ``factors.fission`` is the hub's :math:`F` on both —
+       and object identity of the *posing* arrives when the hub caches
+       the record itself.
 
 .. _sn-finalize-one-step:
 

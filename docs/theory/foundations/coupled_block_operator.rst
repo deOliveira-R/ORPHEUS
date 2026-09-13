@@ -375,6 +375,23 @@ structurally-different representations of one operator, not a tautology.
    genericity keeps the emission a clean dependency injection, not a claim
    that fission wires through it.
 
+   ⚠ **Two grids, one builder** (since 2026-09-13).
+   :func:`~orpheus.sn.coupled_system.build_within_group_system` now poses
+   the **production** :math:`F` on the same carrier as the loss and
+   stores it as
+   :attr:`WithinGroupSystem.production
+   <orpheus.sn.coupled_system.WithinGroupSystem.production>`, and *that*
+   grid's :math:`(B,A)` row **is** the fission ray fold — the
+   kernel-generic emission carrying ``F.isotropic_energy``.  HAZARD 5 is
+   unchanged and is about which grid the fold belongs in: out of the
+   within-group **gain** :math:`N` (where it would double-apply
+   :math:`K\circ\int`), into the eigen-:math:`M` **posing** (where it
+   belongs).  The forward path is likewise unchanged — its ray seed is
+   still the direct :math:`\mathrm{Fold}` of the already-assembled
+   fission source (``_radial_characteristic_fission_seed``).  What moved
+   is only that the posing is built at this one site instead of inside
+   the adjoint entry (:ref:`sn-one-fission-per-problem`).
+
 The N-general block machinery
 -----------------------------
 

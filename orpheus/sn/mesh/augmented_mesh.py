@@ -67,6 +67,7 @@ from ..angular.closure import (
 )
 
 if TYPE_CHECKING:
+    from orpheus.transport.operators.fission import FissionOperator
     from collections.abc import Mapping
 
     from orpheus.data.materials import Materials
@@ -1091,6 +1092,38 @@ class SNMesh(MaterialMesh):
         from orpheus.sn.operators.loss_kernel_gauge import LossKernelGauge
 
         return LossKernelGauge.for_mesh(self)
+
+    @cached_property
+    def fission(self) -> "FissionOperator":
+        r"""The ONE fission operator of this Problem — the composite lift
+        :math:`F = \chi \otimes \nu\Sigma_f` bound on the full field
+        (bulk ⊕ trace), minted ONCE per hub (R-cc6 (ii), the consumers
+        campaign's step 2, 2026-09-13).
+
+        Its energy face :attr:`~orpheus.transport.operators.angular_lift.AngularLift.isotropic_energy`
+        (the scalar dyad on the bulk space) is what the forward k-outer
+        applies to the scalar flux — ``[M]`` bit-identical to the former
+        solver-side ``IsotropicFission.from_material_xs`` mint on 200/200
+        seeds, so the re-homing carries no arithmetic; the composite is what
+        the adjoint poses (``F.H`` on the full field) and what the posed
+        record's ``production`` lifts onto the coupled space.  One object,
+        two faces, read by both solvers — until this step the forward and
+        the adjoint minted two ``F``'s on two spaces, so ``F_adjoint`` could
+        not be ``F.H`` (§27.5 F-4).
+
+        Minted through :meth:`~orpheus.transport.operators.fission.FissionOperator.from_solver_data`
+        deliberately — the ONE factory the mint census patches by name; a
+        direct constructor here would make that census read zero.  σ_t-FREE
+        (``[M]`` ``array_equal`` under a ×3 σ_t rebind), so it is a Problem
+        datum independent of the σ merge unit; the cross sections are read
+        through :meth:`material_xs_field` (the σ override rides that
+        accessor when it lands).
+        """
+        from orpheus.transport.operators.fission import FissionOperator
+
+        return FissionOperator.from_solver_data(
+            mat_xs=self.material_xs_field(), space=self.full_field_space,
+        )
 
     @cached_property
     def radial_characteristic_field_space(self) -> "FullFieldSpace | None":

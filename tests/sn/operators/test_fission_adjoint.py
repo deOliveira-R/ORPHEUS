@@ -36,7 +36,7 @@ discrimination).
 
 Since CS4c step 4 the fission channel is TWO bindings of one datum: the
 scalar rows below gate the ENERGY binding (``IsotropicFission`` — the
-solver-held ``fission_op`` the k-outer feeds), and the composite rows
+hub's ``fission.isotropic_energy`` the k-outer feeds), and the composite rows
 gate the ANGULAR binding (``FissionOperator``, the frame's ℓ=0
 conjugation, minted here exactly as the eigen-M posing mints it — its
 transpose is the reversed ``full_fission_kernel`` product, so these rows
@@ -133,7 +133,7 @@ class TestAdjointFissionCorrectness:
         broadcast, or a χ/νΣf role error disagrees with it.
         """
         solver = _solver(groups)
-        op = solver.fission_op  # the ENERGY binding (CS4c step 4)
+        op = solver.sn_mesh.fission.isotropic_energy  # the ENERGY binding (CS4c step 4)
         ng, nx, ny = _shape(solver)
         psi_star = _asymmetric_field(ng, nx, ny, seed)
 
@@ -165,7 +165,7 @@ class TestForwardAdjointReciprocity:
         transpose of F breaks this identity.
         """
         solver = _solver(groups)
-        op = solver.fission_op  # the ENERGY binding (CS4c step 4)
+        op = solver.sn_mesh.fission.isotropic_energy  # the ENERGY binding (CS4c step 4)
         ng, nx, ny = _shape(solver)
         phi = _asymmetric_field(ng, nx, ny, 11)
         psi_star = _asymmetric_field(ng, nx, ny, 12)
@@ -197,7 +197,7 @@ class TestRoleSwapDiscriminator:
         swap.
         """
         solver = _solver(groups)
-        op = solver.fission_op  # the ENERGY binding (CS4c step 4)
+        op = solver.sn_mesh.fission.isotropic_energy  # the ENERGY binding (CS4c step 4)
         ng, nx, ny = _shape(solver)
         psi_star = _asymmetric_field(ng, nx, ny, 13)
         chi = solver.mat_xs.emission_spectrum
@@ -221,7 +221,7 @@ class TestRoleSwapDiscriminator:
 
 class TestAdjointFissionCapabilityAndRouting:
     def test_fission_advertises_apply_transpose(self):
-        op = _solver("4g").fission_op
+        op = _solver("4g").sn_mesh.fission.isotropic_energy
         require(
             op.is_adjointable,
             "the fission energy binding must advertise the adjoint axis "
@@ -247,7 +247,7 @@ class TestAdjointFissionCapabilityAndRouting:
         monkeypatch.setattr(TensorProductOperator, "apply_transpose", counting)
 
         solver = _solver("4g")
-        op = solver.fission_op
+        op = solver.sn_mesh.fission.isotropic_energy
         ng, nx, ny = _shape(solver)
         op.apply_transpose(_asymmetric_field(ng, nx, ny, 14))
 

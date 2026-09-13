@@ -146,8 +146,8 @@ def test_c5a_matvec_leaves_emit_timeless_full_field(coord: str) -> None:
     C = MultiplicationOperator.from_mesh(solver.mat_xs.total_cross_section_field, sn_mesh)
     S = solver.scattering_op
     # CS4c step 4: the composite (FullField) arm lives on the ANGULAR
-    # fission binding; the solver-held fission_op is the scalar energy
-    # binding the k-outer feeds.
+    # fission binding; the hub's fission.isotropic_energy is the scalar
+    # energy binding the k-outer feeds.
     from orpheus.transport.operators.fission import FissionOperator
 
     F = FissionOperator.from_solver_data(

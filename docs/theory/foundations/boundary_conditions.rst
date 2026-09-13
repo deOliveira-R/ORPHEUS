@@ -4738,10 +4738,12 @@ The Wave 5 SN dispatch table is the documented standard — the §15.2
      - Realized representation (α ∉ {0, 1})
    * - :class:`VacuumInflow` — **narrowed**
      - the **zero map** :math:`\Gamma_+ \to \Gamma_-`: a
-       :class:`~orpheus.numerics.operator.ZeroOperator` whose
-       ``codomain_zero`` hook emits :math:`|\Gamma_-|` rows and whose
-       ``transpose_zero`` hook emits :math:`|\Gamma_+|` rows. The
-       symmetric space hooks are load-bearing: relying on the
+       :class:`~orpheus.numerics.operator.ZeroMorphism` bound to the two
+       half-traces, which derives the forward's :math:`|\Gamma_-|` rows
+       and the transpose's :math:`|\Gamma_+|` rows from its **declared
+       pair** (the 2026-08-22 S4-amendment; before it, two per-site
+       ``codomain_zero`` / ``transpose_zero`` closures carried those
+       shapes).  Both spaces are load-bearing: relying on the
        endomorphic ``0.0 * x`` echo would be right only by accident
        (:math:`|\Gamma_+| = |\Gamma_-|` on every reachable fixture — a
        coincidence, not a contract).
@@ -5219,16 +5221,16 @@ projection the face NAME alone implies:
    # Inside SNBoundaryRealizer.realize, VacuumInflow arm (B3.2):
    gamma_out = _outflow_restriction(method_space, "vacuum")   # γ₊
    return stamp_boundary_role(
-       ZeroOperator(
-           codomain_zero=_zero_rows(method_space.inflow_indices.size),
-           transpose_zero=_zero_rows(gamma_out.n_restricted),
-       )
+       _narrowed_zero_operator(method_space, gamma_out, law_key="vacuum"),
    )
+   # … and that helper's whole body, once the two spaces are checked:
+   #     return ZeroMorphism(domain=gamma_out.codomain,   # γ₊
+   #                         codomain=trace.inflow_space(face))  # γ₋
 
 The returned ``realized`` is the **zero map**
 :math:`\Gamma_+ \to \Gamma_-`: a
-:class:`~orpheus.numerics.operator.ZeroOperator` carrying **both**
-space hooks, so the forward emits the zero of :math:`\Gamma_-` and the
+:class:`~orpheus.numerics.operator.ZeroMorphism` carrying **both
+spaces**, so the forward emits the zero of :math:`\Gamma_-` and the
 transpose the zero of :math:`\Gamma_+`. It reports
 ``is_adjointable = True`` and ``is_invertible = False``. Vacuum's whole
 content is :math:`R = 0`; with the domain narrowed there is nothing
@@ -5246,13 +5248,28 @@ else to represent.
    narrowing does not answer that question, it **removes** it: those
    rows are no longer in the operator's domain.
 
-   The two space hooks are load-bearing, not ceremony. A
-   :class:`~orpheus.numerics.operator.ZeroOperator` with no hooks
-   returns ``0.0 * x`` — an *endomorphic echo* of its input's shape.
-   That would be right here only by accident, because
+   The two spaces are load-bearing, not ceremony. A
+   :class:`~orpheus.numerics.operator.ZeroOperator` — the endomorphic
+   member of the family — returns ``0.0 * x``, an *echo* of its input's
+   shape.  That would be right here only by accident, because
    :math:`|\Gamma_+| = |\Gamma_-|` on every reachable fixture; the
-   hooks make the map between two genuinely different spaces
+   declared pair makes the map between two genuinely different spaces
    structural rather than lucky.
+
+   ⛔ **The mechanism was re-spelled on 2026-08-22 (the S4-amendment),
+   and this paragraph described the retired one until 2026-09-13.**
+   Until then the shapes were carried by two per-site closures on
+   ``ZeroOperator``, ``codomain_zero`` and ``transpose_zero``, passed by
+   each caller.  They duplicated what the bound spaces already knew, so
+   the amendment split the zero in two — the stateless endomorphic
+   :class:`~orpheus.numerics.operator.ZeroOperator` and the born-bound
+   :class:`~orpheus.numerics.operator.ZeroMorphism`, which derives both
+   zeros from its **declared pair** — and the hooks retired with it
+   (``[M]`` ``grep -rn "codomain_zero" orpheus/`` returns four hits,
+   every one of them past-tense prose).  The *argument* above is
+   unchanged and is quoted almost verbatim by
+   ``_narrowed_zero_operator``'s own docstring; only the spelling that
+   realizes it moved.
 
 .. _bc-step5-pair-with-law:
 

@@ -56,8 +56,8 @@ def solver_2g():
 
 
 def _composite_F(solver):
-    """The ANGULAR composite binding (CS4c step 4): the solver holds the
-    ENERGY binding (``fission_op``, what the k-outer feeds); the
+    """The ANGULAR composite binding (CS4c step 4): the hub's one ``F`` carries
+    the ENERGY binding (``fission.isotropic_energy``, what the k-outer feeds); the
     composite arms live on the frame-conjugated ``FissionOperator``,
     minted here exactly as the eigen-M posing mints it."""
     return FissionOperator.from_solver_data(
@@ -74,7 +74,7 @@ class TestProtocolCompliance:
     """FissionOperator must satisfy the LinearOperator Protocol."""
 
     def test_implements_linear_operator(self, solver_2g):
-        assert isinstance(solver_2g.fission_op, LinearOperator)
+        assert isinstance(solver_2g.sn_mesh.fission.isotropic_energy, LinearOperator)
 
     def test_predicates_adjointable_not_invertible(self, solver_2g):
         """``is_adjointable`` True, ``is_invertible`` False — rank-1 in energy.
@@ -83,7 +83,7 @@ class TestProtocolCompliance:
         HAS a transpose: the adjoint fission F† = |νΣf⟩⟨χ| (campaign #276),
         the χ↔νΣf dyad swap.
         """
-        op = solver_2g.fission_op
+        op = solver_2g.sn_mesh.fission.isotropic_energy
         assert op.is_adjointable and not op.is_invertible
 
 
@@ -130,7 +130,7 @@ class TestBitIdenticalExtraction:
         # (ng, nx, ny).  Use that shape directly.
         phi = np.random.rand(ng, nx, ny) + 0.1
 
-        out_op = solver_2g.fission_op.apply(phi)
+        out_op = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi)
         # Reference: hand-coded version of the legacy method (no division by k).
         # All operands principled (ng, nx, ny).
         fission_rate = np.einsum("gxy,gxy->xy", solver_2g.mat_xs.fission_production, phi)
@@ -140,7 +140,7 @@ class TestBitIdenticalExtraction:
         np.testing.assert_array_almost_equal_nulp(out_op, expected, nulp=4)
 
     def test_delegator_matches_apply_with_k(self, solver_2g):
-        """SNSolver.compute_fission_source(φ, k) = fission_op.apply(φ) / k.
+        """SNSolver.compute_fission_source(φ, k) = hub.fission.isotropic_energy.apply(φ) / k.
 
         Issue #196 PR-INDEX-5: both the delegator and the operator
         consume / return principled ``(ng, nx, ny)``.  No bridges.
@@ -157,7 +157,7 @@ class TestBitIdenticalExtraction:
 
         for k in [1.0, 0.93, 1.27, 0.5]:
             out_via_delegator = solver_2g.compute_fission_source(phi, k)
-            out_via_operator = solver_2g.fission_op.apply(phi) / k
+            out_via_operator = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi) / k
             np.testing.assert_array_equal(out_via_delegator, out_via_operator)
 
 
@@ -173,7 +173,7 @@ class TestRank1EnergyStructure:
         """φ = 0 => F·φ = 0 (linearity guard)."""
         (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
         phi = np.zeros((ng, nx, ny))
-        out = solver_2g.fission_op.apply(phi)
+        out = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi)
         np.testing.assert_array_equal(out, np.zeros_like(phi))
 
     def test_apply_linearity(self, solver_2g):
@@ -184,9 +184,9 @@ class TestRank1EnergyStructure:
         phi2 = np.random.rand(ng, nx, ny) + 0.1
         alpha, beta = 2.5, -1.7
 
-        lhs = solver_2g.fission_op.apply(alpha * phi1 + beta * phi2)
-        rhs = (alpha * solver_2g.fission_op.apply(phi1)
-               + beta * solver_2g.fission_op.apply(phi2))
+        lhs = solver_2g.sn_mesh.fission.isotropic_energy.apply(alpha * phi1 + beta * phi2)
+        rhs = (alpha * solver_2g.sn_mesh.fission.isotropic_energy.apply(phi1)
+               + beta * solver_2g.sn_mesh.fission.isotropic_energy.apply(phi2))
         np.testing.assert_allclose(lhs, rhs, rtol=1e-12, atol=1e-13)
 
     def test_constant_flux_uniform_material(self):
@@ -208,7 +208,7 @@ class TestRank1EnergyStructure:
         c = 1.5
         # PR-INDEX-4: principled (ng, nx, ny).
         phi = c * np.ones((solver.ng, nx, ny))
-        out = solver.fission_op.apply(phi)
+        out = solver.sn_mesh.fission.isotropic_energy.apply(phi)
 
         # Hand-computed: per-cell fission rate = c · Σ_g νΣ_f[g] = c · Σ_g SigP[g].
         # (SigP is the production cross-section νΣ_f on the Mixture.)
@@ -247,8 +247,8 @@ class TestKDivisionConvention:
 
         # Construct the operator twice with no k handed in — apply
         # should not depend on any external state.
-        out1 = solver_2g.fission_op.apply(phi)
-        out2 = solver_2g.fission_op.apply(phi.copy())
+        out1 = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi)
+        out2 = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi.copy())
         np.testing.assert_array_equal(out1, out2)
 
     def test_compute_fission_source_does_divide_by_k(self, solver_2g):
@@ -366,7 +366,7 @@ class TestRankOneTensorProductKernel:
     """
 
     def test_kernel_is_2_factor_tensor_product(self, solver_2g):
-        """``fission_op.kernel`` returns ``RankOneOperator & IdentityOperator``.
+        """``fission.isotropic_energy.kernel`` returns ``RankOneOperator & IdentityOperator``.
 
         The 2-factor TP shape mirrors D-B+1's specular BC pattern and
         T.1's vacuum / white / albedo / periodic lifts: a leading
@@ -381,7 +381,7 @@ class TestRankOneTensorProductKernel:
             TensorProductOperator,
         )
 
-        kernel = solver_2g.fission_op.kernel
+        kernel = solver_2g.sn_mesh.fission.isotropic_energy.kernel
         assert isinstance(kernel, TensorProductOperator)
         assert len(kernel.ops) == 2
         assert isinstance(kernel.ops[0], RankOneOperator)
@@ -397,7 +397,7 @@ class TestRankOneTensorProductKernel:
         production-rate ``ReactionRateFunctional`` (the §5.6 contraction,
         ``axis=0`` over groups, ``weight == νΣ_f``).
         """
-        kernel = solver_2g.fission_op.kernel
+        kernel = solver_2g.sn_mesh.fission.isotropic_energy.kernel
         rank_one = kernel.ops[0]
         # CS4c step 4 (the G-F2 collapse): the χ column comes from the
         # VALIDATED FissionMaterialField gather — same values as the
@@ -418,7 +418,7 @@ class TestRankOneTensorProductKernel:
         )
 
     def test_kernel_apply_matches_apply_dispatch(self, solver_2g):
-        """``kernel.apply(phi.values)`` equals ``fission_op.apply(phi).values``
+        """``kernel.apply(phi.values)`` equals ``fission.isotropic_energy.apply(phi).values``
         for the bare-ndarray and ScalarFlux dispatch arms — both go
         through the same kernel.  Single source of truth for the
         rank-1 outer-product math.
@@ -431,8 +431,8 @@ class TestRankOneTensorProductKernel:
         )
         phi_arr = np.random.rand(ng, nx, ny) + 0.1
 
-        out_via_apply = solver_2g.fission_op.apply(phi_arr)
-        out_via_kernel = solver_2g.fission_op.kernel.apply(phi_arr)
+        out_via_apply = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi_arr)
+        out_via_kernel = solver_2g.sn_mesh.fission.isotropic_energy.kernel.apply(phi_arr)
         # Same code path — bit-identical.
         np.testing.assert_array_equal(out_via_apply, out_via_kernel)
 
@@ -447,5 +447,5 @@ class TestRankOneTensorProductKernel:
         Identity has it) — the §15 rank-1 fission structure has no useful
         inverse, but it DOES transpose (F† = |νΣf⟩⟨χ|).
         """
-        kernel = solver_2g.fission_op.kernel
+        kernel = solver_2g.sn_mesh.fission.isotropic_energy.kernel
         assert kernel.is_adjointable and not kernel.is_invertible

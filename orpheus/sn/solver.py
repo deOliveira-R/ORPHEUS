@@ -54,7 +54,6 @@ from orpheus.numerics.convergence import (
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.face_layout import face_normal
 from orpheus.sn.operators.loss_kernel_gauge import warn_if_gauge_freedom
-from orpheus.transport.operators.isotropic_transfer import IsotropicFission
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
     WithinGroupSystem,
@@ -1457,11 +1456,6 @@ class SNSolver:
         # binding now says so. The ANGULAR composite binding
         # (FissionOperator, the frame's ℓ=0 conjugation) is minted
         # where it is consumed — the eigen-M posing below.
-        self.fission_op = IsotropicFission.from_material_xs(
-            self.mat_xs,
-            space=self.mat_xs.mesh.bulk_space,
-        )
-
         # ── Sweep cache (Issue #196 Phase G Step 2.5c) ───────────────
         # Two-stratum cache: StreamingCoefficientCache built once at __init__
         # (geometry × quadrature only); CollisionCache built once after
@@ -1572,7 +1566,9 @@ class SNSolver:
         """
         # The bare-ndarray leg returns bare (the union carries the
         # composite arm's type; asarray is the zero-cost narrowing).
-        return np.asarray(self.fission_op.apply(flux_distribution)) / keff
+        return np.asarray(
+            self.sn_mesh.fission.isotropic_energy.apply(flux_distribution),
+        ) / keff
 
     def solve_fixed_source(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
@@ -2684,7 +2680,6 @@ def _adjoint_posing_parts(sn_mesh: SNMesh):
         AngularBoundaryFlux,
     )
     from orpheus.transport.fields.angular_flux import AngularFlux as _AF
-    from orpheus.transport.operators.fission import FissionOperator
 
     mat_xs = sn_mesh.material_xs_field()
     system = build_within_group_system(
@@ -2700,58 +2695,17 @@ def _adjoint_posing_parts(sn_mesh: SNMesh):
     gain = splitting.explicit[0]
     for extra in splitting.explicit[1:]:
         gain = gain + extra
-    F = FissionOperator.from_solver_data(
-        mat_xs=mat_xs, space=sn_mesh.full_field_space,
-    )
+    # The ONE F — the hub's (R-cc6 (ii)): the seedless adjoint daggers the
+    # composite on the full field, the carrying adjoint the record's
+    # ``production`` (F posed on the coupled space).
+    F = system.factors.fission
     full_field_zero = FullField(
         interior=_AF.zeros(sn_mesh.angular_trial_space),
         boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
     )
     if sn_mesh.radial_characteristic_field_space is None:
         return splitting.implicit, gain, F, full_field_zero
-    # Carrying mesh: pose F as (prolongation stack) ∘ (bulk restriction) —
-    # the S4-amendment un-weld.  Fission annihilates the ray system (the
-    # w = 0 closed rays carry no quadrature weight, so they never source
-    # fission), and the honest spelling of that fact is the composition
-    # ``F_posed = [[F], [E]] ∘ r_bulk``: the SystemRestrictionOperator
-    # projects onto the bulk member, then the rectangular stack emits
-    # both rows — ``F`` (bulk → bulk) and the FISSION ray fold
-    # ``A_BA_fission = Fold ∘ F.isotropic_energy ∘ integrate``, the kernel-generic
-    # :class:`RadialCharacteristicEmission` (the operator spelling of
-    # :func:`_radial_characteristic_fission_seed`'s q-assembly math; on
-    # the eigen-M operator this row BELONGS in the posing — HAZARD 5
-    # keeps it out of the WITHIN-GROUP gain, not out of M).  No zero
-    # blocks anywhere: the pre-amendment (B, B) hook-carrying
-    # ``ZeroOperator`` existed only because an annihilated column cannot
-    # be spelled ``None`` on a standalone grid, and its dagger's ray zero
-    # now falls out of the restriction's extension-by-zero (minted
-    # through the space's own zeros seam — #276 A4's SOURCE-classed
-    # closure retired with the hooks).
-    from orpheus.numerics.coupled_system import SystemRestrictionOperator
-    from orpheus.sn.operators.radial_characteristic import (
-        RadialCharacteristicEmission,
-    )
-
-    space = system.space
-    restrict_bulk = SystemRestrictionOperator(space, system=0)
-    stack = CoupledOperator(
-        [
-            [F],
-            [RadialCharacteristicEmission(
-                F.isotropic_energy,
-                field_space=sn_mesh.radial_characteristic_field_space,
-                full_field_space=sn_mesh.full_field_space,
-                angular_bulk_space=sn_mesh.angular_bulk_space,
-                angular_trace=sn_mesh.angular_trace,
-                quadrature=sn_mesh.quad,
-                coord=sn_mesh.coord,
-            )],
-        ],
-        domain=restrict_bulk.codomain,
-        codomain=space,
-    )
-    F_posed = stack @ restrict_bulk
-    return splitting.implicit, gain, F_posed, space.zeros()
+    return splitting.implicit, gain, system.production, system.space.zeros()
 
 
 def solve_sn_adjoint(

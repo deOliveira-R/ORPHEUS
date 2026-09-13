@@ -1738,6 +1738,19 @@ either.
    object every scalar consumer (the k-outer, the ray seed, diffusion)
    reaches.
 
+   ⭐ **Which INSTANCE each reaches is a separate question, and since
+   2026-09-13 it has one answer inside** S\ :sub:`N`.  The SN k-outer and
+   the fission ray fold both read ``sn_mesh.fission.isotropic_energy`` —
+   the derived face of the hub's single composite :math:`F` — so the
+   scalar tier and the angular tier of the SN fission channel are two
+   views of one object rather than two mints of one datum
+   (:ref:`sn-one-fission-per-problem`).  Diffusion still mints its own
+   energy binding directly, and must: it has no angular composite to
+   conjugate, and
+   :meth:`HarmonicFrame.for_space
+   <orpheus.transport.frames.harmonic_frame.HarmonicFrame.for_space>`
+   refuses a scalar one by design, naming this sibling in the refusal.
+
 .. note::
 
    **Why the** :math:`F` **re-spelling moved values and the**
@@ -1815,7 +1828,21 @@ within-group system off the single construction site
 :func:`~orpheus.sn.coupled_system.build_within_group_system` and returns
 its daggerable parts — the invertible resolvent :math:`(L+C)`, the
 summed coupling gain :math:`(S + N_{2n} + B)`, and the fission operator
-:math:`F`.  Its ONLY argument is the hub: the retained Legendre order
+:math:`F`.  ⭐ Since 2026-09-13 it **mints nothing**: :math:`F` is the
+record's :attr:`factors.fission
+<orpheus.sn.coupled_system.SNLossFactors.fission>`, which *is* the hub's
+one :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
+by identity, and on a carrying mesh it is that same operator **posed**
+on the coupled carrier by the builder
+(:attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`; the
+coupled section below).  Until then this function built its own
+:class:`~orpheus.transport.operators.fission.FissionOperator` while the
+forward solver built its own
+:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
+on a *different* space, so the :math:`F^{\dagger}` below was the dagger
+of an operator the forward solve had never held
+(:ref:`sn-one-fission-per-problem`).
+Its ONLY argument is the hub: the retained Legendre order
 comes off :attr:`sn_mesh.scattering_order
 <orpheus.sn.mesh.augmented_mesh.SNMesh.scattering_order>`, so the
 adjoint is posed at exactly the order the forward problem retains.  It
@@ -1929,22 +1956,56 @@ On a carrying mesh — the sphere, whose half-angle starting-direction
 seed is first-class System-B state — the posing is a 2×2 block operator
 over System A (the transport bulk ⊕ trace) and System B (the
 radial-characteristic ray).  The gain is the builder's own coupled gain
-grid :math:`N`; the fission operator is lifted to the coupled grid:
+grid :math:`N`; the fission operator is lifted to the coupled carrier as
+a **composition**, not as a grid with holes:
 
 .. math::
 
    F_{\rm posed} \;=\;
-   \begin{pmatrix}
-     F & 0 \\[2pt]
-     A_{BA}^{\rm fis} & 0_{BB}
-   \end{pmatrix},
+   \begin{bmatrix} F \\[2pt] A_{BA}^{\rm fis} \end{bmatrix}
+   \circ\; r_{\rm bulk} ,
 
-where the :math:`(B,A)` block :math:`A_{BA}^{\rm fis}` is the **fission
-ray fold** — the kernel-generic
+where :math:`r_{\rm bulk}` is the
+:class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator` onto
+the System-A member and the :math:`(B,A)` block
+:math:`A_{BA}^{\rm fis}` is the **fission ray fold** — the
+kernel-generic
 :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicEmission`
 carrying the fission channel's **energy binding**
 ``F.isotropic_energy`` (the operator spelling of the coupled fission
 seed's :math:`q_{1/2}` assembly).
+
+⭐ **Two things about that expression are recent, and both are
+corrections of a spelling rather than of a value.**
+
+*The restriction replaced a hooked zero* (S4-amendment A2, 2026-08-22,
+``6fc247fb``).  The pre-amendment form was the literal :math:`2\times2`
+grid :math:`\bigl(\begin{smallmatrix} F & 0 \\ A_{BA}^{\rm fis} &
+0_{BB}\end{smallmatrix}\bigr)`, whose right-hand column existed only
+because a :class:`~orpheus.numerics.coupled_system.CoupledOperator`
+refuses an all-``None`` column — so a *physical annihilation* was being
+spelled as two zero blocks carrying hand-written ``codomain_zero`` /
+``transpose_zero`` closures.  The honest reading is that **the missing
+operator was the restriction**: fission annihilates the ray system (the
+:math:`w = 0` closed rays carry no quadrature weight, so nothing sources
+fission from them), and an annihilated *input* is a restriction, not a
+zero block.  The dagger's ray zero now falls out of the restriction's
+extension-by-zero through the space's own materialization seam, minted
+in the member's own class — and that class is load-bearing, not
+incidental: ``[M]`` a *flux*-classed ray zero fed into the daggered
+chain is refused by the cross-class gate.
+
+*The posing moved to the forward builder* (the consumers campaign's
+step 2, 2026-09-13).  It is now
+:attr:`WithinGroupSystem.production
+<orpheus.sn.coupled_system.WithinGroupSystem.production>`, built by
+:func:`~orpheus.sn.coupled_system.build_within_group_system` from the
+hub's one :math:`F`, and the adjoint entry *reads* it.  The builder is
+the only site that knows how to place an operator on this carrier, so a
+posing written in the adjoint entry was a twin by construction — it was
+simply the only consumer until the pencil needed a forward-side
+:math:`F` as well (:ref:`sn-one-fission-per-problem`,
+:eq:`sn-posed-production-carrying`).
 
 .. note::
 
@@ -1980,13 +2041,13 @@ seed's :math:`q_{1/2}` assembly).
 
 On the eigen-:math:`M`
 operator that fold **belongs** in the posing; the within-group gain
-keeps it out (HAZARD 5), not the eigenproblem.  The :math:`(B,B)` block
-is the genuine **zero map** ray-flux → ray-source: the :math:`w = 0`
-closed rays carry no quadrature weight, so they never source fission —
-spelled with the space-typed
-:class:`~orpheus.numerics.operator.ZeroOperator` (``codomain_zero`` and
-its dual ``transpose_zero`` hook) so both the forward grid and its
-dagger emit the source-classed ray zero.  The ray-leg's
+keeps it out (HAZARD 5), not the eigenproblem.  There is no
+:math:`(B,B)` **block**: the ray column the pre-2026-08-22 grid spelled
+as a hooked :class:`~orpheus.numerics.operator.ZeroOperator` is now the
+column the restriction :math:`r_{\rm bulk}` simply does not have, and
+the source-classed ray zero the dagger emits is the restriction's
+extension-by-zero rather than a closure anyone wrote (above).  The
+ray-leg's
 ``solve_transpose`` output is duality-typed to the adjoint FLUX (the
 dual of a source under the G-pairing is the adjoint flux), the exact
 sibling of the within-group ``StreamingCollisionOperator.solve_transpose``

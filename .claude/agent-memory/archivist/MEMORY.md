@@ -39,56 +39,30 @@ means merged). **No owed Sphinx pass on merged work.** Landed SN milestones live
 `discrete_ordinates.rst`; orphaned July HTML survives in `_build`, so a stale-ref grep must
 `test -f` the SOURCE). Active track = **#231** (§3); main agent commits, I stage + gate.
 
-**One line per pass. The evidence is in the lesson; `git log --oneline -- docs/` is the index.**
+**ONE LINE per pass — outcome, date, scale, git-state, `→ L-NNN`. NOTHING else.** The lesson is
+in the digest the pointer names; re-summarising it here is a THIRD copy and is what bloats this
+file. `git log --oneline -- docs/` is the real index.
 
-- **Consumers campaign step 2** — the splitting is a Strategy VALUE, not a member of the posed
-  record (2026-09-13; 13 `.rst`, +907 added lines, 0 new docutils diagnostics; uncommitted on
-  `refactor/consumers-step2`). The brief's `automodule` ANCHOR existed only in four generations
-  of stale `_build` HTML (source = **0**); its changelog home was `index.rst`, the table is in
-  `history.rst`; ONE mutation's magnitude is published four ways across four honest surfaces
-  because it is `|B_lower·x|` on four draws; a page's own ⚠ caveat turned out to BE the
-  diagnosis the carve landed; and a "four-tier" table is extended by sub-lettering (2c), never
-  renumbered — **37** corpus lines cite `Layer-N` → L-104
-- **Consumers campaign step 1** — a Problem's identity is the CONTENT of its generating data
-  (2026-09-12; 11 `.rst` + 5 plans + 1 test docstring, +541/−100 on `docs/`; S1a `deacd897`,
-  S1b `2c1667b0` on `main`, S1c uncommitted). The carve INVERTED one leg of a page's own
-  argument while its conclusion stood; a digest LENGTH I drafted was an artefact of my
-  throwaway class's name; the changelog contract has no clause for an uncommitted-on-`main`
-  last unit (its own table does); the ERR-084 entry is BLOCKED on a `catches` decorator
-  → L-103
-- **CS4c coda C3** — a HUB replaces a fabricated carrier (2026-09-08; 4 `.rst`, 3 plans, 2 test
-  docstrings, +513/−130). The brief's named staleness target measured **0** and the file's rot was a
-  different predicate; a docstring QUOTING a sibling's was false; prose summarising a gate kept its
-  PRE-inversion reading (the gate's own docstring dates the flip); my markup gate was eaten by an
-  unquoted heredoc's backticks and printed 120 false hits → L-102
-- **CS4c step 6 item 6.2c-iii** — a class retires into an AXIS (2026-09-08; 7 `.rst`, +499/−145).
-  Re-counting a neighbouring rule's census missed that the rule INVERTED; a stand-in for the retired
-  object measures the pre-carve state without a worktree, and the equal-SHAPE control is the finding
-  → [[lessons-L101]]
-- **CS4c step 6 items 6.2c-i/-ii** — a ruling OVERTURNED a landed one (2026-09-08; 7 `.rst`,
-  +1144/−152). Banner the section TITLE, not just the errata; two honest `[M]` can disagree by
-  STATISTIC; a `==` gate's blindness belongs to the identity relation → [[lessons-L100]]
-- **CS4c step 6 items 6.3/6.4/6.5** — a promoted helper's old name lives in a doc `code-block`
-  (2026-09-07; 5 `.rst`). A retirement's brief listed the two dead VERBS and missed the helper that
-  MOVED; a published control band was one draw (40 seeds refuted it) → [[lessons-L99]]
-- **CS4c step 6 item 6.2b** — the hub owns the moment space (2026-09-07; 3 `.rst`, +179/−14). A
-  table's CAPTION owned the column the brief told me to edit; a "retired" Protocol was
-  RE-SURFACED → [[lessons-L98]]
-- **CS4c step 6 item 6.2a** — `*` stops densifying (2026-09-07; 3 `.rst`, +282/−51). The carve
-  landed BETWEEN two of my reads; the surplus finding was a paragraph **CS4b** falsified, found
-  by proximity → [[lessons-L97]]
-- **CS4c step 6.1** — the identity flip stated, not promised (2026-09-07; 6 `.rst`). A class list
-  the brief and the landing code's own docstring got wrong TOGETHER → [[lessons-L96]]
-- **#425** — the SN chapter states the algebra the tree COMPOSES (2026-09-07; 13 `.rst`). A
-  spelling census is a POPULATION FLOOR → [[425-sn-chapter-within-group-algebra]]
-- **#425** — the corpus OUTSIDE the SN chapter, same law (2026-09-07; 17 `.rst`, +352/−157).
-  A standalone `docutils` parse IS a usable `-W` substitute → [[425-outside-chapter]]
-- **#448** — a solver's RETURN is a claim; ERR-083 minted (2026-09-06; 16 `.rst`, MERGED
-  `6379e9ab`) → [[lessons-L95]]
-- **Everything older** — #428, #434 R1–R4, #432, #429, and every pass from 2026-08 back to the
-  Boundary/DSA work — is archived as [[lessons-L39]]…[[lessons-L94]], one `## L-0NN` section
-  each, naming its own commits. Their CODE-side reports are GitHub's; the corpus-wide
-  RST-nested-markup finding lives on **#379**.
+- **Consumers step 2 C2** — ONE `F` per Problem, hub-owned (2026-09-13; 9 `.rst`, +642/−73;
+  uncommitted on `refactor/consumers-step2`) → L-105
+- **Consumers step 2 C1** — the splitting is a Strategy VALUE (2026-09-13; 13 `.rst`, +907;
+  ✅ `628997b1` on `main`) → L-104
+- **Consumers step 1** — a Problem's identity is its generating data's CONTENT (2026-09-12;
+  11 `.rst` + 5 plans, +541/−100; `deacd897`/`2c1667b0`/`7b4d2b78`) → L-103
+- **CS4c coda C3** — a HUB replaces a fabricated carrier (2026-09-08; 4 `.rst`, +513/−130) → L-102
+- **CS4c 6.2c-iii** — a class retires into an AXIS (2026-09-08; 7 `.rst`, +499/−145) → L-101
+- **CS4c 6.2c-i/-ii** — a ruling OVERTURNS a landed one (2026-09-08; 7 `.rst`, +1144/−152) → L-100
+- **CS4c 6.3/6.4/6.5** — a promoted helper's old name lives in a `code-block` (2026-09-07; 5 `.rst`) → L-99
+- **CS4c 6.2b** — the hub owns the moment space (2026-09-07; 3 `.rst`, +179/−14) → L-98
+- **CS4c 6.2a** — `*` stops densifying (2026-09-07; 3 `.rst`, +282/−51) → L-97
+- **CS4c 6.1** — the identity flip stated, not promised (2026-09-07; 6 `.rst`) → L-96
+- **#425** — the SN chapter, then the corpus outside it, state the algebra the tree COMPOSES
+  (2026-09-07; 13 + 17 `.rst`, +352/−157) → [[425-sn-chapter-within-group-algebra]],
+  [[425-outside-chapter]]
+- **#448** — a solver's RETURN is a claim; ERR-083 minted (2026-09-06; 16 `.rst`, `6379e9ab`) → L-95
+- **Everything older** — #428, #434, #432, #429 and every 2026-08-and-earlier pass back to the
+  Boundary/DSA work: [[lessons-L39]]…[[lessons-L94]], one `## L-0NN` section each, naming its own
+  commits. CODE-side reports are GitHub's; the corpus-wide RST-nested-markup finding is on **#379**.
 
 ⚠ **ERR-026 history block — status CHANGED, not confirmed.** Its branch
 `docs/err026-history-is-not-a-crossref` is gone locally and remotely, so the 2026-08-24
