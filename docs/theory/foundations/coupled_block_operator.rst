@@ -469,11 +469,19 @@ The one production spelling — ``build_within_group_system``
 The joint system has exactly ONE construction site:
 :func:`~orpheus.sn.coupled_system.build_within_group_system`, which
 returns the frozen :class:`~orpheus.sn.coupled_system.WithinGroupSystem`
-record — the loss grid together with its **named splitting**
-:math:`A = M - N` (Hackbusch 2016 §11 — block partitionings; a
-*splitting*, **not** a *regular* splitting in Varga's sense, see
-:ref:`sn-boundary-gs-not-regular`), all four members built from the
-SAME piece objects (one ``L+C``, one ``S``, one ``B_a``, one ``B_b``, …).
+record — three members: the loss grid, the
+:class:`~orpheus.numerics.coupled_system.CoupledSpace` it is typed
+against, and the bound LEAVES the grid is the signed sum of
+(:class:`~orpheus.sn.coupled_system.SNLossFactors`, by role) — all built
+from the SAME piece objects (one ``L+C``, one ``S``, one ``B_a``, one
+``B_b``, …).  The **splitting** :math:`A = M - N` (Hackbusch 2016 §11 —
+block partitionings; a *splitting*, **not** a *regular* splitting in
+Varga's sense, see :ref:`sn-boundary-gs-not-regular`) is *not* one of
+those members: a posing does not choose which leaf is inverted, so since
+2026-09-13 it is a Strategy VALUE labelled from the leaves
+(:class:`~orpheus.sn.splitting.Splitting`,
+:ref:`sn-splitting-is-a-strategy-value`), and the grids below are what
+that value derives on a carrying mesh.
 This builder is what retired the former ``_within_group_triple`` /
 ``_lagged_gains`` construction pair. The grid and its
 :class:`CoupledSpace` are emitted **together**, aligned by construction
@@ -584,8 +592,9 @@ LU-factors it via
 splitting-iteration — the matrix reduction tree differs — and a naive
 extraction returns O(1) garbage (the sweep treats inflow/seed rows as
 *given data*, so the row-contract must be preserved). It is the oracle the
-swap-law gates ride; production solves stay the splitting iteration on the
-record's ``implicit_operator``/``explicit_gains``. The **iterative** splitting solve
+swap-law gates ride; production solves stay the splitting iteration on a
+:class:`~orpheus.sn.splitting.Splitting` value minted from the record's
+factors. The **iterative** splitting solve
 (block-Jacobi / block-Gauss-Seidel over :math:`A = M - N`) deliberately
 stays with the drivers — convergence is spectral
 (:math:`\rho(M^{-1}N) < 1`), never a structural capability.
@@ -706,11 +715,22 @@ explicit grid block). The eigenvalue finalize re-routes through the SAME
 driver consumes — and since #448 it does not even rebuild it: it reads the
 :class:`~orpheus.sn.solver.InnerSolve` record the last inner solve left
 behind, so it holds the driver's own operator instance and the driver's own
-gains (:ref:`sn-finalize-one-step`).  ⚠ On the SI arm that operator is the
-**un-windowed** forward :math:`M`, which is not always
-``.implicit_operator`` — the boundary-Gauss-Seidel schedule splits it — so
-the precise statement is *the splitting the inner solve drove*, not a named
-attribute. The mesh remains the single authority on presence;
+gains (:ref:`sn-finalize-one-step`).  On the SI arm that operator is the
+**un-windowed** forward :math:`M`, and it now *is* a named attribute:
+``inner.splitting.implicit``.
+
+⭐ That sentence read *"which is not always* ``.implicit_operator`` *— the
+boundary-Gauss-Seidel schedule splits it — so the precise statement is the
+splitting the inner solve drove, not a named attribute"* until 2026-09-13,
+and the caveat was the whole diagnosis: the record's named attribute could
+disagree with what the driver ran, because the Gauss-Seidel arm re-derived
+a second splitting behind it.  The consumers campaign's step 2 removed the
+disagreement at the source — the splitting the inner solve drove is a
+value the inner solve *carries*
+(:ref:`sn-splitting-is-a-strategy-value`) — so the precise statement and
+the named attribute are now the same thing.
+
+The mesh remains the single authority on presence;
 what changed is that nothing *checks* against it anymore — the type system
 carries the biconditional. The narrative of the walk's own view of this
 collapse lives in :doc:`/theory/methods/sn/loss_representation`.

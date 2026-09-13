@@ -174,13 +174,16 @@ def _krylov_power_iteration_kinf(
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    coupled = isinstance(system.implicit_operator, CoupledOperator)
+    from orpheus.sn.splitting import Splitting, resolve_schedule
+
+    splitting = Splitting.from_schedule(system, resolve_schedule(sn_mesh, "jacobi"))
+    coupled = system.is_coupled
     zero = TimedFullField.zeros(
         interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
     )
     cold = _coupled_flux_state(zero, sn_mesh) if coupled else zero
     krylov = KrylovAcceleration(
-        system.implicit_operator, *system.explicit_gains,
+        splitting.implicit, *splitting.explicit,
         preconditioner=precond,
         tol=1e-12, max_iter=300,
         restart=int(cold.to_flat().size),

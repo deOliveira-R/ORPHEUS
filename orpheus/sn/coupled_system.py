@@ -25,8 +25,9 @@ The blocks (loss-sign convention IN the grid)
 =============================================
 
 The block matvec ``grid.apply([ψ_A, ψ_B])`` IS the within-group loss action
-— the object the SI/Krylov drivers realize as ``M·ψ − N·ψ`` through the
-record's splitting (since B.2d; the fused flat spelling
+— the object the SI/Krylov drivers realize as ``M·ψ − N·ψ`` through a
+Strategy's splitting of its factors (since the consumers campaign's step 2,
+2026-09-13 — :class:`~orpheus.sn.splitting.Splitting`; the fused flat spelling
 ``(L+C)·ψ − S·ψ − A_BA·ψ − B·ψ`` of the retired triple/gain-seam pair was
 the same action on the pre-eviction 3-block carrier). Signs live IN the
 block slots, and they
@@ -76,18 +77,21 @@ explicit ``A_AB``/``A_BA`` blocks carry ALL the coupling. The coupled flat
 dimension is the honest two-system sum (no dead padding — the ERR-053
 ``restart`` sizing reads the true count).
 
-The named splitting ``A = M − N`` (B.2d — the driver's system record)
-=====================================================================
+The splitting ``A = M − N`` is a STRATEGY value (step 2 of the consumers campaign)
+==================================================================================
 
-The SI/Krylov drivers do not consume the loss grid raw: they consume its
+The SI/Krylov drivers do not consume the loss grid raw: they consume a
 **splitting** ``A = M − N`` (Hackbusch 2016 §11) — ``M`` the
-sweepable part inverted every step, ``N`` the lagged coupling gains. Both
-are constructed HERE, from the SAME piece objects as the grid, and shipped
-together as the frozen :class:`WithinGroupSystem` record
-(:func:`build_within_group_system` — since B.2d the ONE construction site
-of the within-group decomposition; the former
-``orpheus.sn.solver._within_group_triple`` / ``_lagged_gains`` pair retired
-into it, which is what dissolved this module's tracked construction twin):
+sweepable part inverted every step, ``N`` the lagged coupling gains.  Since
+B.2d both were constructed HERE and shipped inside the frozen
+:class:`WithinGroupSystem` record; since the consumers campaign's step 2
+(R-cc6 (i), 2026-09-13) the record carries the **factors** — the bound
+leaves, by role, in :class:`SNLossFactors` — and the splitting is minted
+FROM them by :meth:`orpheus.sn.splitting.Splitting.from_schedule`, the one
+labelling site, as a value the driver consumes and the law ``M − N = A``
+is gated on PER VALUE.  The grids below are what that value derives on a
+carrying mesh (the same piece objects as the loss grid — single-sourced
+objects, several compositions):
 
 * ``M = [[L+C, +Seeding], [None, march]]`` — since step 5 an HONEST
   upper-triangular :class:`~orpheus.numerics.coupled_system.CoupledOperator`
@@ -108,11 +112,12 @@ into it, which is what dissolved this module's tracked construction twin):
   ``−Emission``/``−B_b`` minus signs are the ``M − N`` complement, not a
   contradiction.
 
-On a seedless mesh the record degrades structurally: ``M`` is the plain
-``(L+C)`` and ``N`` the ``(S, N2N, B_a)`` triple (§14.1) — the seedless driver paths
-(multi-D G-S split, 2-D windowing) consume those bare pieces ZERO-TOUCH
-(the B.2d DP-seedless ruling: the coupled carrier appears exactly where
-System B exists).
+On a seedless mesh the value degrades structurally: ``M`` is the plain
+``(L+C)`` (or ``(L+C) − B_lower`` under the boundary-Gauss-Seidel schedule)
+and ``N`` the ``(S, N2N, B_a)`` pieces (§14.1; ``B_upper`` in place of
+``B_a`` under Gauss-Seidel) — the seedless driver paths (2-D windowing)
+consume those bare pieces ZERO-TOUCH (the B.2d DP-seedless ruling: the
+coupled carrier appears exactly where System B exists).
 
 .. warning::
 
@@ -203,6 +208,8 @@ if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 __all__ = [
+    "RadialCharacteristicFactors",
+    "SNLossFactors",
     "WithinGroupSystem",
     "build_coupled_system",
     "build_streaming_collision",
@@ -223,7 +230,8 @@ def build_coupled_system(
     surface ``A`` will take this pair — the PLANNED such consumers are the
     d2 ``evaluate_residual`` re-type, the assembly arm, and the DSA
     substrate (#2); today the campaign gates are the callers. The drivers
-    take the full :class:`WithinGroupSystem` record (loss + splitting).
+    take the full :class:`WithinGroupSystem` record (loss + factors) and
+    mint their splitting from it.
 
     The co-producing mechanism (P1): the typed grid and the
     :class:`~orpheus.numerics.coupled_system.CoupledSpace` it is typed
@@ -262,8 +270,9 @@ def build_coupled_system(
         metrics) and, since step 5, the DIRECT solve surface: the full
         2×2 is ``is_invertible`` via the materialize/LU route (the space's
         zero exemplar is wired), the EXTRACT the R5/R11 swap-law gates
-        ride — production solves stay the splitting iteration on the
-        record's ``implicit_operator``/``explicit_gains``.
+        ride — production solves stay the splitting iteration on a
+        :class:`~orpheus.sn.splitting.Splitting` value minted from the
+        record's factors.
     """
     system = build_within_group_system(sn_mesh, mat_xs)
     return (system.loss, system.space)
@@ -325,24 +334,97 @@ def _system_b_member(
 
 
 # ───────────────────────────────────────────────────────────────────────
-# The system record — the loss and its splitting, from ONE construction
+# The posed record — the loss and its factors, from ONE construction
 # ───────────────────────────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
+class RadialCharacteristicFactors:
+    r"""System B's four bound leaves on a seed-CARRYING mesh (R12a) — the
+    ψ½ radial-characteristic quartet, by ROLE.
+
+    ``seeding`` is the (A, B) coupling :math:`A_{AB}` (the ray member seeds
+    the bulk sweep — a LOSS-signed term, ``+`` in the loss grid),
+    ``emission`` the (B, A) coupling (the isotropic emission
+    :math:`K_{\rm iso}` folded onto the rays — a GAIN, ``−`` in the loss
+    grid), ``march`` the (B, B) radial straight-characteristic march
+    :math:`A_{BB}` (loss-signed) and ``boundary`` the ray corner
+    :math:`B_b` (a gain).  Constructed ONCE by
+    :func:`build_within_group_system` and shared by every composition that
+    consumes them (the loss grid here, the Strategy's ``M``/``N`` grids in
+    :mod:`orpheus.sn.splitting`) — single-sourced objects, several
+    compositions.
+    """
+
+    seeding: "RadialCharacteristicSeeding"
+    emission: "RadialCharacteristicEmission"
+    march: "RadialCharacteristicOperator"
+    boundary: "RadialCharacteristicBoundaryOperator"
+
+
+@dataclass(frozen=True)
+class SNLossFactors:
+    r"""The bound LEAVES of the within-group loss :math:`A = L + C - S -
+    N_{2n} - B` (+ System B's quartet on a carrying mesh), by ROLE — the
+    Problem's factors, ORIGINAL and unmodified (the consumers campaign's
+    step 2, R-cc6 (i), 2026-09-13).
+
+    Every within-group solve reads its operators from here, and every
+    Strategy value (:class:`~orpheus.sn.splitting.Splitting`) is minted
+    FROM here: the labelling of these terms into an implicit part ``M`` and
+    a lagged part ``N`` is a choice the Problem never makes.  The O-3 query
+    contract: the Problem answers with the leaves as POSED; the Strategy
+    answers with the operators as it USES them (split, re-bound, lowered).
+
+    ``streaming_collision`` is the fused sweepable composite :math:`L + C`
+    (:func:`build_streaming_collision` — the one LC spelling; its legs
+    ``.a`` = the σ-free streaming leaf, ``.b`` = the collision diagonal),
+    ``scattering``/``n2n`` the two transfer gains bound on the full field
+    at the hub's retained order, ``boundary`` the System-A trace boundary
+    :math:`B_a` — the ONE operator the boundary-Gauss-Seidel schedule
+    splits (RULING P1: gradings live on :math:`B_a`).
+    ``radial_characteristic`` is System B's quartet on a carrying mesh and
+    ``None`` where System B does not exist (R12a — presence is the
+    Problem's arity, read through :attr:`is_coupled`).
+    """
+
+    streaming_collision: "StreamingCollisionOperator"
+    scattering: "ScatteringOperator"
+    n2n: "N2NOperator"
+    boundary: "SNBoundaryOperator"
+    radial_characteristic: "RadialCharacteristicFactors | None" = None
+
+    @property
+    def is_coupled(self) -> bool:
+        """Whether System B exists (a seed-carrying 1-D curvilinear mesh)."""
+        return self.radial_characteristic is not None
+
+
+@dataclass(frozen=True)
 class WithinGroupSystem:
-    r"""The POSED within-group system: the loss ``A`` and its named
-    splitting ``A = M − N``, constructed together.
+    r"""The POSED within-group record — the loss ``A``, the space it is typed
+    against, and the FACTORS it was composed from.
 
     The record every within-group solve consumes (eigenvalue SI/Krylov,
     fixed-source SI/Krylov — they differ ONLY in the driver and the
-    ``q_ext``, never in this decomposition): ``loss`` is the typed block
-    grid (the equation), ``implicit_operator``/``explicit_gains`` its splitting
-    (Hackbusch 2016 §11 — the drivers iterate ``ψ ← M⁻¹(q + N·ψ)`` / GMRES
-    on ``(M − N)·ψ = q``). All four members share the SAME piece objects
-    (one ``L+C``, one ``S``, one ``B_a``, one ``B_b``, …) — the single
-    construction site :func:`build_within_group_system` is what retired
-    the ``_within_group_triple``/``_lagged_gains`` construction twin.
+    ``q_ext``, never in this record): ``loss`` is the typed block grid (the
+    equation, on the loss-sign convention), ``factors`` the bound leaves it
+    is the signed sum of, ``space`` the coupled carrier.  All members share
+    the SAME piece objects (one ``L+C``, one ``S``, one ``B_a``, one
+    ``B_b``, …) — the single construction site
+    :func:`build_within_group_system`.
+
+    **What the record no longer carries (R-cc6 (i), 2026-09-13):** its
+    splitting.  Until the consumers campaign's step 2 the record welded the
+    posing to a chosen splitting (``implicit_operator``/``explicit_gains``,
+    Hackbusch 2016 §11) — and because the seedless driver re-derived a
+    second splitting behind it (the boundary-Gauss-Seidel fold, R7 of the
+    operator/strategy campaign), the record's claim was false for one of
+    the two schedules.  The splitting is a STRATEGY value now —
+    :class:`~orpheus.sn.splitting.Splitting`, minted from this record's
+    factors by :meth:`~orpheus.sn.splitting.Splitting.from_schedule` — and
+    the drivers iterate ``ψ ← M⁻¹(q + N·ψ)`` / GMRES on ``(M − N)·ψ = q``
+    over the VALUE, whose law ``M − N = A`` is gated per value.
 
     Parameters
     ----------
@@ -356,28 +438,19 @@ class WithinGroupSystem:
         The coupled carrier space ``loss`` is typed against (P1
         co-production), carrying the zero-exemplar factory (step 5 —
         the typed-carrier materialization seam).
-    implicit_operator : CoupledOperator | StreamingCollisionOperator
-        ``M`` — **the sweepable part**, solved IMPLICITLY (inverted) each
-        step: on a carrying mesh the HONEST upper-triangular grid
-        ``[[LC, Seeding], [None, march]]`` whose
-        ``solve`` is the numerics block back-substitution and whose
-        ``inverse()`` the
-        :class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`
-        (step 5 — the fused ``CoupledInvertibleOperator`` bridge
-        dissolved at 5b, deleted at 5d); the plain ``(L+C)`` seedless.
-    explicit_gains : tuple[LinearOperator, ...]
-        ``N`` — the lagged couplings, evaluated EXPLICITLY from the previous
-        iterate, that the driver applies each step: ONE
-        :class:`~orpheus.numerics.coupled_system.CoupledOperator` gain grid
-        ``[[S+N2N+B_a, ∅], [Emission, B_b]]`` on a carrying mesh; the
-        ``(S, N2N, B_a)`` triple seedless (§14.1; ``B_a`` LAST — the boundary-gain
-        convention the G-S schedule arm parses).
+    factors : SNLossFactors
+        The bound leaves ``loss`` is the signed sum of — the Problem's
+        ORIGINAL operators, which every Strategy value reads by ROLE.
     """
 
     loss: "CoupledOperator"
     space: "CoupledSpace"
-    implicit_operator: "CoupledOperator | StreamingCollisionOperator"
-    explicit_gains: "tuple[LinearOperator, ...]"
+    factors: "SNLossFactors"
+
+    @property
+    def is_coupled(self) -> bool:
+        """Whether the record carries System B (the ψ½ coupled arm)."""
+        return self.factors.is_coupled
 
 
 def _zero_full_field(sn_mesh: "SNMesh") -> "FullField":
@@ -458,8 +531,8 @@ def build_within_group_system(
     scattering_op: "ScatteringOperator | None" = None,
     n2n_op: "N2NOperator | None" = None,
 ) -> "WithinGroupSystem":
-    r"""Build the within-group system — loss grid + splitting — from ONE
-    piece-construction pass.
+    r"""Build the within-group system — the loss grid and the factors it
+    is the signed sum of — from ONE piece-construction pass.
 
     The single source of truth (Cardinal Rule 2) for the within-group
     decomposition every solve consumes. The pieces and their composition
@@ -498,11 +571,13 @@ def build_within_group_system(
 
     The sign table: the LOSS grid carries ``A_AA = L+C−S−B_a``,
     ``+Seeding``, ``−Emission``, ``A_BB−B_b`` (the loss-sign convention,
-    B.2c); the GAIN grid ``N = M − A`` carries everything POSITIVE
-    (``[[S+N2N+B_a, ∅], [Emission, B_b]]`` — gains on the rhs). Both grids'
-    (A,A) entries are stamped ``SystemRole.A`` explicitly (the C-fwd
-    ruling: the model-generic members' honest ``None`` would poison the
-    join).
+    B.2c).  The GAIN grid ``N = M − A`` — everything POSITIVE,
+    ``[[S+N2N+B_a, ∅], [Emission, B_b]]``, gains on the rhs — is no longer
+    built here: it is the Strategy's derivation from the factors
+    (:attr:`~orpheus.sn.splitting.Splitting.explicit`).  The loss grid's
+    (A,A) entry is stamped ``SystemRole.A`` explicitly (the C-fwd ruling:
+    the model-generic members' honest ``None`` would poison the join); the
+    Strategy stamps its own.
 
     Parameters
     ----------
@@ -562,8 +637,8 @@ def build_within_group_system(
     member_space = sn_mesh.radial_characteristic_field_space
     if member_space is None:
         # The non-carrying degenerate: System B does not exist — the loss
-        # is the 1-system grid and the splitting the bare (L+C, (S, N2N, B_a))
-        # the seedless driver paths consume zero-touch (DP-seedless).
+        # is the 1-system grid and the factors the bare (L+C, S, N2N, B_a)
+        # the seedless Strategy labels zero-touch (DP-seedless).
         space = CoupledSpace.from_systems(
             (full_field_space,),
             zeros=lambda: CoupledField(
@@ -576,12 +651,13 @@ def build_within_group_system(
         return WithinGroupSystem(
             loss=CoupledOperator([[A_AA]], domain=space, codomain=space),
             space=space,
-            implicit_operator=LC,
-            explicit_gains=(S, N2N, B_a),
+            factors=SNLossFactors(
+                streaming_collision=LC, scattering=S, n2n=N2N, boundary=B_a,
+            ),
         )
 
     # System B's pieces, constructed ONCE and shared between the loss
-    # grid, the gain grid, AND the implicit-operator grid (single-sourced objects,
+    # grid here and the Strategy's M/N grids (single-sourced objects,
     # three compositions — the step-5 construction-seam collapse: the
     # walk's in-solve engine constructions retired with the fused
     # delegation, so THIS is the one march-construction site).
@@ -634,26 +710,13 @@ def build_within_group_system(
     loss = CoupledOperator(
         [[A_AA, A_AB], [-emission, A_BB]], domain=space, codomain=space,
     )
-    # The GAIN grid N = M − A: all POSITIVE (rhs gains); the (A,B) slot is
-    # STRUCTURALLY zero — Seeding lives in M (the (A,B) block below).
-    N_AA = S + N2N + B_a
-    N_AA.system_role = SystemRole.A  # C-fwd stamp, as on A_AA
-    N = CoupledOperator(
-        [[N_AA, None], [emission, B_b]], domain=space, codomain=space,
-    )
-    # M — the sweepable part, an HONEST upper-triangular grid (step 5):
-    # ``[[LC, Seeding], [None, march]]``.  Its ``solve`` is the numerics
-    # block back-substitution (System B's march first, then the bulk
-    # sweep on ``q_A − Seeding·ψ_B`` — the ray-DECOUPLED (L+C) leg), its
-    # ``apply`` the block matvec — the fused joint delegation
-    # (``CoupledInvertibleOperator``, deleted at 5d) dissolved
-    # (R-5.1/R-5.4).
-    implicit_operator = CoupledOperator(
-        [[LC, A_AB], [None, march]], domain=space, codomain=space,
-    )
     return WithinGroupSystem(
         loss=loss,
         space=space,
-        implicit_operator=implicit_operator,
-        explicit_gains=(N,),
+        factors=SNLossFactors(
+            streaming_collision=LC, scattering=S, n2n=N2N, boundary=B_a,
+            radial_characteristic=RadialCharacteristicFactors(
+                seeding=A_AB, emission=emission, march=march, boundary=B_b,
+            ),
+        ),
     )

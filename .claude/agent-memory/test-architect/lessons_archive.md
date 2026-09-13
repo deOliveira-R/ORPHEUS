@@ -10311,3 +10311,157 @@ of which the Mode-9 solve pair is 6.50 s); `sn/operators` 1327 p / 5 xf →
 modules (first pass had **23** errors — all `object`-typed fixture returns, an
 un-narrowed `SystemField`, an Optional `history`, and a `BulkField` lacking
 `integrate_angular`; all four fixed principledly per L44k, zero `# type: ignore`).
+
+## L84 — the consumers campaign, step 2: the DELTA dispatch after the design was ruled and reshaped (2026-09-13; `main` @ `290e4747`, the C1 carve landing MID-DISPATCH)
+
+Deliverable: `scratch/_consumers/planning/test_architect_step2_delta.md` (466 lines), a
+DELTA against `scratch/_consumers/test_architect_step2.md` (L83). Probes copied to
+`scratch/_consumers/planning/probes_delta/pr1..pr19.py`. Inputs: the approved plan
+`.claude/plans/consumers_step2_design.md`, the adversarial review
+`planning/design_review_step2.md`, the structural pass `planning/attacker_pencil_articulation.md`,
+the execution census `planning/execution_census_step2.md`.
+
+### L84a — the carve landed MID-DISPATCH, for the third time in this campaign family
+`[M]` I probed `record.implicit_operator` and got `AttributeError`. `git status` then read
+`M orpheus/sn/{__init__,coupled_system,solver}.py`, `M …/sweep_schedule.py`,
+`?? orpheus/sn/splitting.py` (445 lines) with `tests/` **untouched** — i.e. C1 was live on
+disk and the anchors + `test_stage_separation.py` were RED. Twenty minutes later `tests/`
+was modified too. The pytest baseline I had taken (`444 passed / 3 xfailed / 12.77 s` over
+architecture + 2 numerics files + test_cache + homogeneous + diffusion) predates the landing,
+and I could PROVE it: `test_stage_separation.py` carries 16 `implicit_operator` reads, which
+C1 makes impossible, so a green run is a timestamp. ⟹ **when a shared tree may be written
+mid-dispatch, pick a baseline whose greenness is itself a proof of the tree state** — a
+passing row that the pending carve makes unspellable is a free clock.
+
+### L84b — a DIFFERENCE-of-affine-family law is NOT bit-identical; the MATRIX form is
+The plan's flagship layer-1 law was *"`at(σ+τ) − at(σ) == −τ·M` **bit-identically** on the
+0-D fixture"*. `[M]` (`pr3.py`) **144 of 200** random `(σ, τ, x)` draws are not `array_equal`
+(max abs `2.220e-16`, max **rel `2.152e-14`**); at σ = τ = 1, **79 of 200** still differ.
+`at(σ)` is `OperatorSum(lhs, ScaledOperator(−σ, rhs))` whose apply is
+`lhs.apply(x) + (−σ)·rhs.apply(x)`, so the difference of two of them is a floating-point
+CANCELLATION: `fl(a − fl((σ+τ)r)) − fl(a − fl(σr)) ≠ fl(−τ r)`.
+⭐ `[M]` (`pr4.py`) the **matrix** form IS exact — `at(σ).as_matrix() == A − σ·F`
+`array_equal` at σ ∈ {0.5, 1.0, 1.875, 2.0}. And if the difference form is kept, its
+DRAW-STABLE statistic is `max|d − ref| / max(|lhs·x|, |σ·rhs·x|) ≤ 9.470e-16` over 300 draws
+(≈ 4.3 ε) — the absolute number and any nulp band are draw-fragile because the cancellation
+is catastrophic when `a ≈ σr`.
+
+### L84c — `ScaledOperator(0.0, ·)` RAISES, so `at(0) is lhs` is forced and its mutation has no teeth
+`[M]` `operator.py:2198-2207`: `ValueError("ScaledOperator with zero scalar is degenerate;
+use ZeroOperator explicitly")`. So the plan's *"`at(0) → lhs`, a documented exact shortcut"*
+is the ONLY legal spelling, and the mutation *"delete the σ == 0 branch"* reds by **raising**
+— which attributes nothing. Pair the identity row with a value row at small σ.
+
+### L84d — every fissile mixture in the shipped 0-D library is SUPERCRITICAL
+`[M]` (`pr1.py`, `pr2.py`) over all **12** `{A,B,C,D} × {1g,2g,4g}`: only the **A** family is
+fissile, and `k_inf = 1.500000000000 / 1.875000000000 / 1.487761904762`. B/C/D give
+`rank(A⁻¹F) = 0`, `k = 0`. ⟹ `(A − F)⁻¹·1` is componentwise **negative** (`[−4]`,
+`[−28.6, −18.6]`, `[−55.5, −37.6, −17.5, −36.0]`) and the plan's 0-D subcritical closed form
+`φ = q/(Σ_a − νΣ_f)` is unreachable as written. Repair, measured:
+`dataclasses.replace(mix, SigP=0.4·SigP, SigF=0.4·SigF)` → `k_inf = 0.750000000` EXACTLY
+(k is linear in the SigP scale because `F` is rank-1), `φ = [60., 70.] > 0`; at scale 0.6,
+`k = 1.125` and φ SIGN-FLIPS to `[−146.7, −136.7]` — the refusal leg's 0-D control.
+⭐ And the closed-form reference for the whole `(M, q)` cell is Sherman–Morrison on the rank-1
+`F = χ ⊗ νΣ_f`: `(A−F)⁻¹q = A⁻¹q + (A⁻¹χ)(νΣ_f·A⁻¹q)/(1 − k_∞)`, `k_∞ = νΣ_f·A⁻¹χ` —
+`[M]` `max|Δ| = 0.000000e+00`, structurally independent (it never inverts `A − F`), and the
+`1/(1−k)` factor is the algebraic reason the supercritical refusal must exist.
+
+### L84e — `A − F` is NEVER positive-stable on the SN composite, at any k
+The plan's admissibility criterion was *"`k_eff < 1` ⟺ `A − F` positive-stable on the cone"*.
+`[M]` (`pr9.py`, `pr10.py`) on a `k = 0.435195` slab, `eig(A − F)` carries **8 eigenvalues at
+exactly `−1.0`** — and so does `eig(A)`. They are TRACE rows (dim 160 = 128 bulk ⊕ 32 trace);
+the BULK block is positive-stable (`min Re eig((A−F)[:128,:128]) = +0.2783080096`). So a
+positive-stability predicate refuses EVERY SN problem. The honest one is `ρ(A⁻¹F) = k_eff < 1`.
+⭐ Free companion, measured: the dense `ρ(A⁻¹F)` reproduces the production `solve_sn` keff to
+**9 significant figures** on three slabs (`0.435195211/214`, `0.907457574/573`,
+`1.374234005/987`) at `[M]` **0.23 s for three 160×160 assemblies + eigvals** — a REFERENCE-class
+cross-check of the whole pencil framing that the plan did not have.
+
+### L84f — subcritical SN slabs are abundant and the anchors already own one
+`[M]` (`pr5.py`) 2-group fuel|moderator, GL-8, 4+4 cells: `L=2.0` reflective|vacuum (the
+anchors' OWN `_slab_hub()`) → `k = 0.435195214`, 5 outers; `L=4.0` → `k = 0.907457573`,
+`1/(1−k) = 10.806` (the strong discriminator); `L=8.0` reflective|reflective → `k = 1.374233987`
+(the refusal witness). `[M]` three `solve_sn` = **1.17 s**. Cone monotonicity
+(`ψ_mult > ψ_pure` cellwise, from `(A−F)⁻¹ = A⁻¹Σ Kⁿ` with `K ≥ 0`, `ρ(K) = k < 1`) holds with
+ratios **[1.574, 4.036]** at k=0.435 and **[6.308, 32.549]** at k=0.907, and FLIPS at k=1.374
+(`[−10.153, 0.044]`, `min ψ_bulk = −79.8`).
+
+### L84g — a `WeakKeyDictionary` cannot be re-keyed on a TUPLE; the re-key is a LIFETIME change
+The plan ruled `_GEOM_CACHE_INTERN` re-keyed on `(hub._contractibility_key, closure class)`.
+`[M]` (`pr13.py`) `WeakKeyDictionary()[(1,2,3)] = "x"` → `TypeError: cannot create weak
+reference to 'tuple' object`. The container must become a plain `dict`, and `[M]` (`pr14.py`)
+today a dead hub's entry EVICTS (`len 1 → 0` after `del` + `gc.collect()`); under a tuple key
+it never does. Mitigation measured: the stored `(closure, cache)` pair retains **no** `SNMesh`,
+so the retention is bounded by the number of distinct phase spaces — but that boundedness is
+now a CLAIM owing a gate (`len(intern) == 1` after an N-σ sweep). Also `[M]` content-equal
+hubs already share ONE entry today.
+
+### L84h — the cache re-homing's ORDERING is already gated for free
+`[M]` `tests/sn/sweep/core/test_cache.py:303` pins `CollisionCache._build_count == 1` over a
+≥5-outer `solve_sn`. Moving the cache onto the `StreamingCollisionOperator` INSTANCE while
+`LC` is still built per OUTER gives `_build_count == n_outer` — `[M]` **4 / 4 / 5 / 3** by
+chart. ⟹ the plan's fusion of the re-homing with `hub.system` as a `cached_property` is forced,
+and the existing gate is its §6c red-before. **Look for an existing COUNT gate before writing
+an ordering argument.**
+
+### L84i — the ends law's sharpest witness has EQUAL SHAPES; and `as_matrix` is carrier-asymmetric
+`[M]` (`pr7.py`, `pr8.py`) `loss.domain` is `CoupledSpace('coupled(full_field#…)', (160,))`
+and the hub's `FissionOperator.domain` is `FullFieldSpace('full_field#…', (160,))` — **shapes
+EQUAL**, spaces `!=`, and `OperatorSum(loss, −F)` raises `IncompatibleOperatorComposition`.
+The plan's named negative witness (`IsotropicFission` on `bulk_space`, shape `(2,8)`) is caught
+by a SHAPE check too, so it cannot discriminate a shape-keyed ends law from a space-keyed one.
+⟹ **choose the negative witness whose shapes AGREE.** ⛔ Companion: `loss.as_matrix()` works
+(160×160) and `CoupledOperator([[F]], domain=…, codomain=…).as_matrix()` works (rank **4** =
+the fissile cell count), but **`at(1).as_matrix()` RAISES** — `OperatorSum.as_matrix` probes
+with bare `ndarray`s and `CoupledOperator.apply` refuses them. Any dense pencil law is 0-D-only.
+⭐ And `rhs_rank` is two-sided for free: **1** on the three fissile 0-D mixtures, **0** on the
+nine non-fissile ones, **4** on the SN slab; while `k_∞ == trace(A⁻¹F)` is exact at 1g/2g and
+**`2.220e-16`** at 4g — not `array_equal`.
+
+### L84j — two defect classes with the IDENTICAL law residual need a STRUCTURAL leg
+`[M]` (`pr12.py`, `pr17.py`, `cart2d_seedless`, seed 7) on the splitting law
+`implicit − Σ explicit == loss`: a piece labelled **BOTH** implicit and explicit reads
+`2.778702e+00`, and a piece **DROPPED** from implicit reads **the same `2.778702e+00`** (both
+shift the residual by exactly `lower`). The law catches both and can attribute neither. ⟹ the
+discriminator is a PARTITION leg with TWO separately-messaged assertions —
+`set(implicit_pieces).isdisjoint(explicit_pieces)` (the double-label) and the multiset union
+`==` the factor set (the drop). Other measured magnitudes: drop `upper` `2.614597e+00`, drop
+`S` `6.746694e-01`, flip a `LossTerm.sign` `1.349339e+00` (= 2·|S·x|), no gains at all
+(the positive control) `2.778702e+00` / `2.614597e+00` / `8.557495e-01` by fixture.
+⛔ And `|N2N·x| = 0.000000e+00` on every `_config` fixture (`get_mixture("A","2g").Sig2`
+nnz `[0]`, `SigL = [0,0]`), so a "drop the n2n piece" arm is a provable non-catcher and any
+law leg credited with covering that piece is vacuous.
+
+### L84k — the splitting law's BIT-EXACTNESS is ARM-DEPENDENT
+`[M]` (`pr17.py`, `pr18.py`, against the landed `Splitting.law_residual`) over 40 draws:
+cart2d/jacobi, cart2d/gauss_seidel and slab/jacobi read **exactly `0.000000e+00`** (the G-S
+split writes disjoint rows), while sphere/**carrying** reads `3.552714e-15` at one draw and
+`2.842171e-14` at 40 — the grid assembly re-associates. The draw-stable statistic there is
+`max|r|∞ / ‖A·x‖∞ ≤ 2.087e-16` (≈ 0.94 ε). ⟹ `np.array_equal(law_residual, 0)` is a **FALSE
+RED on the carrying arm**; gate `array_equal` seedless + a relative band carrying.
+⭐ And the landed `LossTerm(operator, sign: ±1)` design makes a piece TRANSFER
+(implicit → explicit) **law-invariant exactly** — `[M]` `0.000000e+00` — which pre-validates
+P6's `transfer` and dissolves the sign-convention hazard a positional tuple would have had.
+⛔ The positive control "no gains at all" is **UNINSTALLABLE on the carrying arm**
+(`CoupledOperator.__init__` refuses an empty grid, `coupled_system.py:747`); the effective
+control there is "drop the first explicit piece" (`2.980426e-01`).
+
+### L84l — the hub's `F` is σ-FREE, which is what licenses the commit ORDER
+`[M]` (`pr15.py`) mint `F`, run `solver.rebind_cross_sections(3·σ_t)`, re-mint from the rebound
+`mat_xs`, apply both to one `FullField`: **`array_equal` True, `max|Δ| = 0.0`** (`F = χ ⊗ νΣ_f`
+reads no total cross section). So a hub-`cached_property` `fission` landing one commit BEFORE
+`rebind_cross_sections` retires cannot go stale — the ordering argument becomes a measurement.
+`[M]` `FissionOperator.from_solver_data(mat_xs, space=hub.full_field_space)` builds on both the
+slab (`(160,)`) and the sphere (`(144,)`), `F.domain is hub.full_field_space` on both.
+⭐ Companion correction to the plan's own battery: predicting that a `(1+1e-12)` value scaling
+reds "the forward's operand" row is wrong — that row is an **IDENTITY** (`is`) assertion and a
+value perturbation cannot move it.
+
+### L84m — `MaterialMesh._identity_key` is a 1-tuple, so a σ override placed only on `SNMesh` leaves a hole
+`[M]` `material_mesh.py:324-333`: `_contractibility_key` = (axes, mat_map bytes, materials'
+CONTENT); `_identity_key = (_contractibility_key,)`. `augmented_mesh.py:578-591`: `SNMesh`
+extends both. Since the ruling puts `mat_xs` and `with_cross_sections` on **`MaterialMesh`**,
+the σ-override datum must enter `MaterialMesh._identity_key` — otherwise a bare `MaterialMesh`
+pair with two different σ's compares `==`, which is ERR-084's defect class one class down.
+`same_phase_space` reads `_contractibility_key`, so σ-variant hubs still pair — assert that,
+because it is a consequence nobody would notice breaking.

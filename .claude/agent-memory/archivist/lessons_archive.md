@@ -12442,3 +12442,186 @@ independent-`from_axes` equality, the two-leg generator table, the 1.02 ms / 1.6
 the `{0,1}` vs `{0,1,3}` spy) · Failed approaches 5 (the inverted exclusion argument preserved
 verbatim with its refutation; the never-measured "would split" clause tombstoned) · Code
 traceability 5 · Derivation source n/a.
+
+---
+
+## L-104 — Consumers campaign step 2: the splitting becomes a Strategy VALUE (2026-09-13)
+
+**Task.** `refactor/consumers-step2`, uncommitted. `WithinGroupSystem` lost
+`implicit_operator`/`explicit_gains`; new `orpheus/sn/splitting.py`
+(`LossTerm`, `Splitting`, `resolve_schedule`); `_select_si_splitting` deleted;
+`InnerSolve` became `(system, splitting, driven_gains, iterate)`. Deliverable:
+sweep every present-tense-false doc site + a NEW theory section for the value.
+13 `.rst` edited, +907 added lines, 0 new docutils diagnostics.
+
+### (a) ⛔⛔ The brief's ANCHOR for an `automodule` did not exist — and the grep that
+### finds it returns stale `_build` HTML
+
+Briefed: *"if `orpheus/sn/splitting.py` needs an `automodule` entry to render, add
+it where `orpheus.sn.coupled_system` is automodule'd (grep
+`automodule:: orpheus.sn.coupled_system`)."* `[M]` that grep over the SOURCE
+returns **0**: `orpheus.sn.coupled_system` is automodule'd **nowhere**
+(`orpheus.numerics.coupled_system` IS, at `docs/api/numerics.rst:530` — a
+different module one package over, which is exactly why the brief's author
+believed it). The raw grep *looks* like it succeeds: it returns 20 hits, **all
+under `docs/_build/`**, i.e. four generations of stale HTML
+(`html_271_verify`, `html_test`, `html_qa_review`, `html_fresh`) whose
+`_sources/api/discrete_ordinates.rst.txt` still carries `automodule::
+orpheus.sn.solver`, `orpheus.sn.geometry`, `orpheus.sn.quadrature` — modules
+that no longer exist at those paths.
+
+⟹ the ruling: no `automodule` for `orpheus.sn.splitting`. Its `:class:`/`:mod:`
+roles render plain text **by page convention**, exactly as its sibling
+`orpheus.sn.coupled_system`'s do; surfacing the pair is its own architectural
+docs task. `[M]` the live source carries **49** `automodule` directives, **7**
+for `orpheus.sn.*` (`solver`, `mesh.augmented_mesh`, `loss_representation`,
+`operators.{streaming,boundary,radial_characteristic,loss_kernel_gauge}`).
+
+⟹ **every corpus grep in this repo is `grep … | grep -v _build` until proven
+otherwise**, and a brief instructing you to "add X where Y is" owes a check that
+Y is there. The failure is silent and flattering: following it would have
+half-surfaced one leaf of an un-surfaced package.
+
+### (b) ⭐⭐ A mutation MAGNITUDE is a draw — two honest memos disagreed, and the
+### publishable object is the MECHANISM
+
+The ERR-056-family mutation's effect on the splitting law is recorded three
+ways in three live surfaces, all honest, all different:
+
+| surface | number |
+|---|---|
+| `orpheus/sn/splitting.py` module docstring | `3.6e+00` |
+| `design_review_step2.md` A11(c) | `3.595e+00` |
+| `test_architect_step2_delta.md` §B1-bis (landed API) | `2.778702e+00` |
+| the LIVE gate `test_stage_separation.py` docstrings | `1.00e-01` / `3.32e-02` seedless |
+
+The delta memo's own §158 says it outright: *"both are `|lower·x|` on their
+respective draws"*. So the quantity is **the norm of the absorbed piece applied
+to the probe state** — a property of the fixture and the seed, not of the
+mutation. And the fourth row is a *different mutation on a different fixture*
+again.
+
+⟹ what I published is the **mechanism** (*"the double-label and the drop shift
+the residual by exactly `|B_lower·x|`, which is why the law cannot tell them
+apart"*) plus an explicit `.. warning::` saying every magnitude in the section
+is one fixture's draw and that the gate docstrings re-measure themselves — the
+`plan-authoring` §9 rule (do not copy what the tree re-measures) applied to a
+mutation ladder. The ONE draw-stable statistic on the carrying arm is the
+RELATIVE residual (`2.087e-16 ≈ 0.94 ε` over 40 draws); the absolute reads
+`3.55e-15` at one draw and `2.84e-14` at forty, and the shipped gate pins
+`nulp=8` (fails at 4) for that reason.
+
+⚠ Residual to report, not fix: the production docstring's bare `3.6e+00` is one
+draw with no fixture named, and it sits beside the phrase *"measured `0.0` on
+every gated configuration"* (true, and seedless-only).
+
+### (c) ⭐⭐ A page's own CAVEAT can BE the diagnosis the carve landed — repairing
+### it is not a tense flip, it is a vindication
+
+`coupled_block_operator.rst` carried: *"⚠ On the SI arm that operator is the
+un-windowed forward M, which is **not always** `.implicit_operator` — the
+boundary-Gauss-Seidel schedule splits it — so the precise statement is **the
+splitting the inner solve drove**, not a named attribute."*
+
+That caveat is the R7 twin, stated correctly, months before the fix. The naive
+repair is to delete it and write `inner.splitting.implicit`. The right repair
+keeps it **verbatim under a ⭐**, says it was the whole diagnosis, and states
+what the carve did to it: *"the precise statement and the named attribute are
+now the same thing."*
+
+⟹ the tell for this class: a sentence of the form *"X is not always Y, so the
+precise statement is Z, not a named attribute"*. It is a page telling you where
+its own subject is welded. When a carve un-welds it, the sentence becomes the
+best available account of WHY — and deleting it destroys the only prose in the
+corpus that stated the defect before anyone fixed it.
+
+### (d) ⭐⭐ Do NOT renumber a layer table to insert a tier — use the page's own
+### sub-lettering, and say the count is unchanged
+
+The brief asked for *"the STRATEGY layer between posing and resolvent"* in
+`operator_algebra.rst`'s **four-tier eigenvalue architecture**. Inserting a new
+layer 3 and renumbering 3→4, 4→5 is the obvious move and it is wrong: `[M]`
+**37** corpus lines cite `Layer-1…Layer-4` / *four-tier* / *four layers*, across
+`solver.rst`, `slab_multigroup.rst`, `operator_algebra.rst` itself and
+`monte_carlo.rst` (whose "Layer 3: NeutronBank" is a *different* numbering
+entirely — a homonym a blanket rewrite would corrupt).
+
+⟹ the honest framing was already on the page: layer 2 had **bifurcated once
+before** into 2a/2b, and 2b's own text read *"how the method assembles **and
+inverts** the concrete A_loss object"* — a conjunction welding two decisions.
+So the new tier is **2c**, the second bifurcation of the same layer, and the
+prose says so in the page's own vocabulary (*"a decision that varies while its
+neighbour is fixed does not belong in its neighbour's layer"*). Added a ⚠ line
+stating the architecture is **still four layers** and every existing `Layer-3` /
+`Layer-4` reference still means what it did.
+
+⟹ generalise: **before inserting a row into a NUMBERED table, grep the corpus
+for the numbering.** If the count is cited elsewhere, find the page's own
+sub-division idiom; if there is none, the insertion is a corpus-wide edit and
+belongs in its own task.
+
+### (e) ⭐ Three different `R7`s live in this corpus — disambiguate by CAMPAIGN
+
+`grep -rn "R7\b" docs/` returns the MoC/#259 `(n,2n)` derivation R7, the #310 R7
+schedule-reverse transpose, the `sn-keff-estimator` R7 convention fork — and the
+operator/strategy campaign's R7 (the splitting twin), which is the one this
+carve closed. Writing a bare "R7" into a changelog row would have been
+`plan-authoring` §9(b)'s bare-`#N` defect wearing a letter.
+⟹ every use spelled **"R7 of the operator/strategy campaign"**, and the new
+theory section carries a parenthetical naming the two it is NOT.
+
+### (f) ⭐ A design review's VERDICT is a recommendation; the code is the outcome
+
+`design_review_step2.md`'s A1 verdict reads *"`Splitting.from_schedule(factors:
+SNLossFactors, schedule)` — the value binds the **factors**, not the record."*
+`[M]` the shipped `Splitting` has `system: WithinGroupSystem` as its first
+field. Not a regression — a *widening* forced by two of the value's three uses:
+`law_residual` certifies against `system.loss` (an operator the POSING composed,
+which is exactly what makes the check non-tautological — a factors-only value
+would have had to re-assemble `A` from the same pieces it splits), and `_grid`
+reads `system.space` as its block address book.
+⟹ published as a refuted-candidate row *with that structural reason*, which is
+worth more than either the memo's verdict or the code alone. And the rule
+restated: `dataclasses.fields` on the shipped class, before quoting any memo's
+field list.
+
+### (g) ⭐ The changelog home is `history.rst`, NOT `index.rst` — my own memory
+### caught the brief
+
+Briefed *"`docs/theory/methods/sn/index.rst` — the SN chapter's 'Development
+history' changelog"*. `[M]` `grep "Development history" docs/theory/methods/sn/index.rst`
+= **0**; the table lives at `history.rst:3` (`.. _sn-development-history:`), 39
+rows, reverse-chronological. The memory index's §3 line already said so. What
+`index.rst` DOES own is the **machine header**, which had no splitting key at
+all — so the pass owed BOTH pages: a changelog row at `history.rst` and a new
+`strategy:` block (`splitting`, `schedule`) in the YAML header, validated by
+`yaml.safe_load` on the extracted code-block.
+
+Bonus, from the page's own contract: the exception clause *"an entry lands with
+its merge hash, the only exception being a Where naming an unmerged branch
+explicitly"* **applies** here (uncommitted on `refactor/consumers-step2`), and
+the precedent format is at `history.rst:1305`
+(``branch ``<name>``, **not yet merged**``). Issue column `—` (no issue tracks
+step 2; `gh issue list --search` over "splitting"/"_select_si_splitting"
+returns #373 and #341, neither of which is it).
+
+Also: the row this carve supersedes is **2026-07-11** (*"the within-group solve
+became block-native — one `WithinGroupSystem` record carrying the named
+A = M − N splitting"*). It gets a ⛔ tombstone naming which half survived (the
+ONE construction site, the block-native carrier, the grids' shape, the
+structurally-zero `(A,B)` slot) and which did not (*which object owns the
+choice*) — not a rewrite.
+
+### Quality self-assessment (Directive 3)
+
+Derivation depth 5 (the labelled-term primitive derived to `M − N = A` with the
+intermediate sum written out; the three design consequences each derived from
+sign-on-the-term) · Cross-refs 5 (23 python roles, all import-resolved with a
+positive control; every `:ref:`/`:eq:`/`:doc:` verified against the corpus) ·
+Numerical evidence 4 (the bit-exactness mechanism + its 6-configuration
+exhaustive assembly, the draw-stable relative band, the mutation ladder — but
+every magnitude is a relayed draw, which is why the section warns rather than
+tabulates) · Failed approaches 5 (seven refuted candidates, each with its
+structural reason, incl. the one the design review itself recommended) · Code
+traceability 5 · Derivation source n/a (no `derivations/` script — the algebra
+is the operator algebra's, not SymPy's).

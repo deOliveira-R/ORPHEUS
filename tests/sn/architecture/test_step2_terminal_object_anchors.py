@@ -25,35 +25,39 @@ bit-identical-gated sub-steps:
 The three row kinds in this module, and why each exists
 =======================================================
 
-**RECORD** (``TestRecord*``) — green TODAY, describing the pre-carve tree
-exactly.  Each is *designed to RED at the carve* and is then **DELETED, never
-repaired**: its job is to make the API change LOUD, because a ``strict``
-xfail only flips on XPASS and is therefore SILENT when the carve lands the
-API with the wrong semantics (``vv-principles`` Mode-8, fourth class; the
-coda's pairing shape, ``lessons`` L82e).
+**RECORD** (``TestRecord*``) — green at the time of writing, describing the
+pre-carve tree exactly.  Each is *designed to RED at the carve* and is then
+**DELETED, never repaired**: its job is to make the API change LOUD, because
+a ``strict`` xfail only flips on XPASS and is therefore SILENT when the carve
+lands the API with the wrong semantics (``vv-principles`` Mode-8, fourth
+class; the coda's pairing shape, ``lessons`` L82e).  ✅ Sub-step (i) landed
+2026-09-13: ``TestRecordTheRecordsShape`` (three rows) is deleted, its
+subject — the record's field set — now asserted by the ex-xfail row
+:class:`TestRuledTheRecordSplits` as a permanent negative gate.
 
 **THEOREM** (``TestLaw*``) — green before AND after.  These are the laws the
-split makes load-bearing.  ``A = M − N`` is today asserted once per RECORD
+split makes load-bearing.  ``A = M − N`` was asserted once per RECORD
 (``test_stage_separation.py`` :func:`test_reconstruction_identity_A_equals_M_minus_N`,
-schedule-free); after the split the Strategy record is produced *per schedule*,
-so the law must be asserted **per Strategy value** — that is this module's
-:class:`TestLawTheSplittingLawHoldsPerStrategy`, and it is the successor to
-the strict xfail the split will flip (see the next paragraph).
+schedule-free); since the split the Strategy value is produced *per schedule*
+(:meth:`~orpheus.sn.splitting.Splitting.from_schedule`), so the law is
+asserted **per Strategy value** — this module's
+:class:`TestLawTheSplittingLawHoldsPerStrategy`, the successor to the strict
+xfail the split flipped (see the next paragraph).
 
-**XFAIL(strict)** (``TestRuled*``) — the ruled post-carve behaviour, RED today
-for the reason it names.  Each is paired with the RECORD row that states
-today's answer.
+**XFAIL(strict)** (``TestRuled*``) — the ruled post-carve behaviour, RED
+until its sub-step lands; each is paired with the RECORD row that states the
+pre-carve answer.  (i)'s marker is gone (XPASSed); (ii) and (iii) stand.
 
-⭐ The row the split FLIPS already ships, and the split DEMOTES it
-=================================================================
+⭐ The row the split FLIPPED already shipped, and the split DEMOTED it
+====================================================================
 
 ``test_stage_separation.py::test_driver_consumes_the_records_own_splitting[cart2d-gauss_seidel]``
-is ``xfail(strict=True)`` with reason R7 and its module says *"the strict-xfail
-set IS the campaign's todo list"*.  Sub-step (i) makes it XPASS — and makes it
-a **tautology**, because after the split the driver consumes exactly the record
-the selector produced (``coding-standards``' single-sourcing demotion).  Its
-honest successor is :class:`TestLawTheSplittingLawHoldsPerStrategy` below.  Do
-not delete that gate when the marker goes: re-scope its docstring.
+was ``xfail(strict=True)`` with reason R7 and its module said *"the strict-xfail
+set IS the campaign's todo list"*.  Sub-step (i) made it XPASS — and made it
+a **tautology**, because after the split the driver consumes exactly the value
+it is handed (``coding-standards``' single-sourcing demotion).  Its honest
+successor is :class:`TestLawTheSplittingLawHoldsPerStrategy` below; the gate
+was kept and its docstring re-scoped when the marker went.
 
 ⚠ Mode-12, MEASURED, and it decides where every (i) row reads
 =============================================================
@@ -88,14 +92,10 @@ from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import (
     WithinGroupSystem,
-    build_streaming_collision,
     build_within_group_system,
 )
-from orpheus.sn.operators.boundary import SNBoundaryOperator
-from orpheus.transport.operators.n2n import N2NOperator
-from orpheus.transport.operators.scattering import ScatteringOperator
-from orpheus.sn.operators.streaming import StreamingCollisionOperator
-from orpheus.sn.solver import _select_si_splitting, solve_sn, solve_sn_adjoint
+from orpheus.sn.solver import solve_sn, solve_sn_adjoint
+from orpheus.sn.splitting import Splitting, resolve_schedule
 from tests.sn.architecture._config import (
     cart2d_seedless,
     record_for,
@@ -110,14 +110,8 @@ _SEED = 20260912
 
 _SCHEDULES = ("jacobi", "gauss_seidel")
 
-#: The four field names the pre-carve record carries.  ``[M]`` 2026-09-12 at
-#: ``b0fd3e7e``.  The RECORD row below pins the SET, so both a removal and an
-#: addition red it.
-_PRE_CARVE_FIELDS = frozenset(
-    {"loss", "space", "implicit_operator", "explicit_gains"},
-)
-
-#: The two fields R-cc6 (i) moves OFF the Problem's record onto the Strategy's.
+#: The two fields R-cc6 (i) moved OFF the Problem's record onto the
+#: Strategy's value (:class:`~orpheus.sn.splitting.Splitting`, 2026-09-13).
 _STRATEGY_FIELDS = frozenset({"implicit_operator", "explicit_gains"})
 
 
@@ -240,85 +234,6 @@ class _BuildSpy:
 # ═══════════════════════════════════════════════════════════════════════
 # RECORD — today's tree, stated exactly.  DELETE these at the carve.
 # ═══════════════════════════════════════════════════════════════════════
-
-
-class TestRecordTheRecordsShape:
-    """What :class:`WithinGroupSystem` IS before the split."""
-
-    def test_record_the_four_fields(self) -> None:
-        """RECORD — the record carries exactly four fields, named.
-
-        ⛔ DELETE at sub-step (i); do not repair.  Its whole job is to red
-        loudly the moment the record's field set changes, which the ruled
-        ``strict`` xfail below cannot do (an xfail is silent while the API is
-        wrong).
-        """
-        names = frozenset(f.name for f in dataclasses.fields(WithinGroupSystem))
-        assert names == _PRE_CARVE_FIELDS, (
-            f"the pre-carve record's field set moved: {sorted(names)} vs "
-            f"{sorted(_PRE_CARVE_FIELDS)}. If sub-step (i) landed, DELETE "
-            f"this RECORD row (it is not a contract, it is a description of "
-            f"the tree it was written against)."
-        )
-
-    def test_record_the_seedless_arm_holds_problem_side_LEAVES(self) -> None:
-        r"""RECORD — ⛔⛔ the brief's field partition does NOT hold on the
-        seedless arm.
-
-        ``[M]`` ``probes2/p7_split_refutation.py`` / ``p8_factors.py``: on a
-        seedless mesh ``implicit_operator`` is ``build_streaming_collision``'s
-        ``L + C`` and ``explicit_gains`` is the LEAF TRIPLE
-        ``(ScatteringOperator, N2NOperator, SNBoundaryOperator)`` — four
-        objects each of which is a function of the generating data alone.
-        They *happen to form* the Jacobi splitting; the G-S splitting is made
-        downstream by ``_select_si_splitting``.
-
-        ⟹ the split is not a field partition: the Problem must EXPOSE the
-        factors (they are not recoverable from ``loss`` — ``[M]``
-        ``loss.blocks[0][0]`` is a nested ``OperatorSum`` carrying only
-        ``.a``/``.b``, with no ``.terms``/``.operators`` accessor), and the
-        Strategy record is what ``Splitting.select(problem, strategy)``
-        RETURNS.  Open ruling O-2 of the plan.
-        """
-        sn_mesh = cart2d_seedless()
-        record = record_for(sn_mesh)
-        assert isinstance(record.implicit_operator, StreamingCollisionOperator)
-        # It is the L+C factor, not a splitting: an independently built L+C
-        # over the same hub agrees on every entry.
-        independent_lc = build_streaming_collision(
-            sn_mesh, sn_mesh.material_xs_field(),
-        )
-        state = system_a(random_state(record, seed=_SEED))
-        np.testing.assert_array_equal(
-            np.asarray(record.implicit_operator.apply(state).interior.values),
-            np.asarray(independent_lc.apply(state).interior.values),
-            err_msg=(
-                "the seedless record's implicit_operator is no longer the "
-                "bare L+C factor — re-read the split's premise (plan F-2)."
-            ),
-        )
-        assert tuple(type(g).__name__ for g in record.explicit_gains) == (
-            "ScatteringOperator", "N2NOperator", "SNBoundaryOperator",
-        )
-        assert isinstance(record.explicit_gains[0], ScatteringOperator)
-        assert isinstance(record.explicit_gains[1], N2NOperator)
-        assert isinstance(record.explicit_gains[2], SNBoundaryOperator)
-
-    def test_record_the_carrying_arm_really_is_a_chosen_splitting(self) -> None:
-        """RECORD — the CARRYING arm is the case the brief describes.
-
-        ``[M]`` on a sphere the record's ``implicit_operator`` is the block
-        grid ``[[LC, Seeding], [None, march]]`` (a ``CoupledOperator``) and
-        ``explicit_gains`` is the single composed gain grid — a genuine
-        chosen splitting.  The two arms therefore migrate DIFFERENTLY, which
-        is why the plan's O-2 asks for a ruling rather than a mechanism.
-        """
-        from orpheus.numerics.coupled_system import CoupledOperator
-
-        record = record_for(sphere_carrying())
-        assert isinstance(record.implicit_operator, CoupledOperator)
-        assert len(record.explicit_gains) == 1
-        assert isinstance(record.explicit_gains[0], CoupledOperator)
 
 
 class TestRecordTheBuildRoute:
@@ -487,25 +402,24 @@ class TestRecordTheStaleSigmaExposure:
 def _splitting_image(
     record: WithinGroupSystem, schedule: str, sn_mesh: object, state: CoupledField,
 ) -> np.ndarray:
-    """``(M − ΣN_i)·x`` for the splitting ``schedule`` selects.
+    """``(M − ΣN_i)·x`` for the Strategy value ``schedule`` labels.
 
-    Stated on the ANGULAR bindings (``_select_si_splitting`` directly, not
-    ``_within_group_si``): the law is about the OPERATORS, and the 2-D
-    driver's moment re-binding is a separate claim that
+    Stated on the ANGULAR bindings (the value's ``implicit``/``explicit``
+    directly, not ``_within_group_si``): the law is about the OPERATORS, and
+    the 2-D driver's moment re-binding is a separate claim that
     ``test_stage_separation.py`` already owns.
     """
-    scattering, n2n, boundary = record.explicit_gains
-    implicit, boundary_gain = _select_si_splitting(
-        record.implicit_operator, boundary, sn_mesh, schedule,  # type: ignore[arg-type]
+    splitting = Splitting.from_schedule(
+        record, resolve_schedule(sn_mesh, schedule),  # type: ignore[arg-type]
     )
     interior = system_a(state)
     accumulated = None
-    for gain in (scattering, n2n, boundary_gain):
+    for gain in splitting.explicit:
         image = gain.apply(interior)
         accumulated = image if accumulated is None else accumulated + image
     assert accumulated is not None
     return (
-        CoupledField(systems=(implicit.apply(interior),)).to_flat()
+        CoupledField(systems=(splitting.implicit.apply(interior),)).to_flat()
         - CoupledField(systems=(accumulated,)).to_flat()
     )
 
@@ -514,13 +428,16 @@ class TestLawTheSplittingLawHoldsPerStrategy:
     r"""``A = M − N`` **for every Strategy value** — the successor to the R7
     strict xfail that sub-step (i) flips.
 
-    Today ``test_stage_separation.py``'s law row is parametrized over the
-    RECORD, which is schedule-free; the choice lives downstream in
-    ``_select_si_splitting``.  After the split the Strategy record is produced
-    per schedule, so the law's denominator becomes the Strategy's value set —
-    and the gate that flips (*"the driver runs the objects the record
-    advertises"*) becomes true BY CONSTRUCTION.  This is the row that keeps
-    teeth.
+    Before the split ``test_stage_separation.py``'s law row was parametrized
+    over the RECORD, which is schedule-free; the choice lived downstream in
+    ``_select_si_splitting``.  Since the split the Strategy value is produced
+    per schedule, so the law's denominator is the Strategy's value set — and
+    the gate that flipped (*"the driver runs the objects the record
+    advertises"*) is true BY CONSTRUCTION.  This is the row that keeps
+    teeth; the value's own :meth:`~orpheus.sn.splitting.Splitting.law_residual`
+    is the same statement as a method, asserted at ``0.0`` alongside (exact
+    on the seedless arm — one flat operator sum; the carrying arm's block
+    grid re-associates and is gated at nulp in ``test_stage_separation.py``).
 
     ``[M]`` ``probes2/p9_gs_law.py`` on :func:`cart2d_seedless`: the law is
     ``array_equal`` (``max|A − (M − N)| = 0.000000e+00``) for **both**
@@ -536,6 +453,11 @@ class TestLawTheSplittingLawHoldsPerStrategy:
         record = record_for(sn_mesh)
         state = random_state(record, seed=_SEED)
         loss_image = record.loss.apply(state).to_flat()
+        splitting = Splitting.from_schedule(record, resolve_schedule(sn_mesh, schedule))
+        np.testing.assert_array_equal(
+            splitting.law_residual(state), np.zeros_like(loss_image),
+            err_msg=f"Splitting.law_residual is not exactly zero for {schedule!r}",
+        )
         np.testing.assert_array_equal(
             loss_image, _splitting_image(record, schedule, sn_mesh, state),
             err_msg=(
@@ -560,12 +482,11 @@ class TestLawTheSplittingLawHoldsPerStrategy:
         sn_mesh = cart2d_seedless()
         record = record_for(sn_mesh)
         state = system_a(random_state(record, seed=_SEED))
-        _, boundary = record.explicit_gains[1], record.explicit_gains[2]
         images = {}
         for schedule in _SCHEDULES:
-            implicit, _gain = _select_si_splitting(
-                record.implicit_operator, boundary, sn_mesh, schedule,  # type: ignore[arg-type]
-            )
+            implicit = Splitting.from_schedule(
+                record, resolve_schedule(sn_mesh, schedule),
+            ).implicit
             out = implicit.apply(state)
             images[schedule] = (
                 np.asarray(out.interior.values).copy(),
@@ -678,36 +599,36 @@ class TestLawTheGaugeIsSigmaFree:
 
 
 class TestRuledTheRecordSplits:
-    """R-cc6 (i) — the Problem's record carries no splitting."""
+    """R-cc6 (i) — the Problem's record carries no splitting.
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "R-cc6 (i) NOT LANDED — the posed record still carries "
-            "implicit_operator/explicit_gains, so the Problem's record and "
-            "the Strategy's chosen splitting are one object. WHEN THIS "
-            "XPASSES: sub-step (i) has landed — delete this marker AND the "
-            "TestRecordTheRecordsShape rows it replaces."
-        ),
-    )
+    ✅ LANDED 2026-09-13 (the consumers campaign's step 2, C1): the strict
+    xfail this row carried XPASSed and was deleted; the row stays as the
+    PERMANENT negative gate — a Strategy field re-appearing on the posed
+    record is the weld this step removed.
+    """
+
     def test_ruled_the_posed_record_carries_no_strategy_field(self) -> None:
-        """The record ``build_within_group_system`` returns holds only the
-        terminal object.
+        """The record ``build_within_group_system`` returns holds the loss,
+        its space and its factors — never a splitting.
 
         Expressed over the FIELD SET rather than over a guessed class name:
-        the plan does not rule what the two records are called (open ruling
-        O-2), and a row that named them would be a guess wearing an
-        assertion.
+        a row that named the value's class would be a guess wearing an
+        assertion; the value is :class:`~orpheus.sn.splitting.Splitting`,
+        and it is minted FROM this record, not stored on it.
         """
         record = build_within_group_system(
             cart2d_seedless(), cart2d_seedless().material_xs_field(),
         )
         names = frozenset(f.name for f in dataclasses.fields(record))
         assert names.isdisjoint(_STRATEGY_FIELDS), (
-            f"the posed record still carries {sorted(names & _STRATEGY_FIELDS)} "
-            f"— the splitting is Strategy-side (the record's own invariance "
-            f"docstring, coupled_system.py:340-341, is refuted by "
-            f"_select_si_splitting; measured trace gap 9.97e-01)."
+            f"the posed record carries {sorted(names & _STRATEGY_FIELDS)} "
+            f"— the splitting is Strategy-side (a value minted from the "
+            f"record's factors, never a field on the Problem's record)."
+        )
+        assert "factors" in names, (
+            f"the posed record exposes no factors ({sorted(names)}) — the "
+            f"Strategy value is minted from them (the split is not a field "
+            f"partition: the factors are not recoverable from `loss`)."
         )
 
 

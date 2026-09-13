@@ -1,8 +1,11 @@
 from .coupled_system import (
+    RadialCharacteristicFactors,
+    SNLossFactors,
     WithinGroupSystem,
     build_coupled_system,
     build_within_group_system,
 )
+from .splitting import LossTerm, Splitting, resolve_schedule
 from .solution import (
     AdjointSolution,
     IterationHistory,

@@ -3180,16 +3180,22 @@ loss decomposition is the honest
 assembled once by the single-source-of-truth builder
 :func:`~orpheus.sn.coupled_system.build_within_group_system`, which returns
 the frozen :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record —
-the loss grid together with its **named splitting**
+the loss grid together with the bound leaves it is the signed sum of
+(:class:`~orpheus.sn.coupled_system.SNLossFactors`).  The **splitting**
 :math:`A = M - N` (Hackbusch 2016 §11 — block partitionings; a
 *splitting*, **not** a *regular* splitting in Varga's sense, so the
 comparison theorem does **not** bound the boundary Gauss-Seidel rate
-against Jacobi's — :ref:`sn-boundary-gs-not-regular`). On a seedless
+against Jacobi's — :ref:`sn-boundary-gs-not-regular`) is not on that
+record: since 2026-09-13 it is a Strategy VALUE labelled from those
+leaves, :class:`~orpheus.sn.splitting.Splitting`
+(:ref:`sn-splitting-is-a-strategy-value`). On a seedless
 (slab / cylinder /
-Cartesian) mesh the record degrades to exactly this triple: its ``implicit_operator``
+Cartesian) mesh the Jacobi value degrades to exactly this triple: its
+:attr:`~orpheus.sn.splitting.Splitting.implicit`
 is :math:`M = (L+C)` — the invertible resolvent
 (:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`, ``.solve`` = the WDD
-sweep) — and its ``explicit_gains`` are :math:`N = (S,\ N_{2n},\ B_a)`,
+sweep) — and its :attr:`~orpheus.sn.splitting.Splitting.explicit`
+pieces are :math:`N = (S,\ N_{2n},\ B_a)`,
 the three lagged
 couplings the driver applies: the bulk scattering gain
 (:class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
@@ -7805,8 +7811,11 @@ gates inside the SN source-iteration driver keyed on
 * the **moment-windowing** gate (:meth:`_maybe_window
   <orpheus.sn.solver>`), which decides whether the SI iterate is held
   as compact harmonic moments rather than the full angular flux; and
-* the **Gauss–Seidel splitting** selector
-  (:func:`~orpheus.sn.solver._select_si_splitting`),
+* the **Gauss–Seidel splitting** selector — then the solver-private
+  ``_select_si_splitting``, since 2026-09-13 the schedule resolution
+  :func:`~orpheus.sn.splitting.resolve_schedule` that the
+  :class:`~orpheus.sn.splitting.Splitting` value is labelled by
+  (:ref:`sn-splitting-is-a-strategy-value`) —
   which decides whether the boundary-G-S accelerator is used.
 
 ``reduced is None`` is a **coincidence proxy**: it is ``None`` for
@@ -7836,9 +7845,12 @@ C5.4 retargets both gates to the **genuine** dimensionality predicate:
      - ``is_cartesian and ndim == 2`` — the genuine
        windowing-eligibility condition (the 2-D moment kernel's exact
        domain).
-   * - Boundary-G-S (``_select_si_splitting``)
+   * - Boundary-G-S (then ``_select_si_splitting``; now
+       :func:`~orpheus.sn.splitting.resolve_schedule`)
      - ``reduced is None``
-     - ``is_cartesian and not is_1d`` — multi-D Cartesian.
+     - ``is_cartesian and not is_1d`` — multi-D Cartesian.  The
+       retargeted predicate moved verbatim with the gate when the
+       splitting became a value.
 
 The G-S resolvent's old ``"2-D Cartesian ONLY"`` docstring was **stale
 Phase-3 narration**: :attr:`SweepSchedule.gauss_seidel

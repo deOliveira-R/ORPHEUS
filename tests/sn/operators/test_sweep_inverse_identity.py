@@ -36,6 +36,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.radial_characteristic_field import (
     RadialCharacteristicField,
 )
+from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -143,7 +144,7 @@ def _lc_pair(geom: str):
     system = build_within_group_system(
         sn_mesh, sn_mesh.material_xs_field(),
     )
-    lc = system.implicit_operator
+    lc = Splitting.from_schedule(system, resolve_schedule(sn_mesh, "jacobi")).implicit
     if geom in ("cyl_folded", "sphere_gl"):
         if not isinstance(lc, CoupledOperator):
             pytest.fail(

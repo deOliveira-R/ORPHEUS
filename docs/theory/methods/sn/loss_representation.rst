@@ -2390,8 +2390,13 @@ consume the operator's one instance.
    **Deliberate scope boundary.** The operator-free ``transport_sweep``
    entry RETIRED at step 6 (R-6.1) with its one production caller: the
    ``solve_sn`` post-convergence reconstruction re-routed onto the
-   within-group implicit operator ``M`` (``build_within_group_system(...).implicit_operator`` —
-   6a), so every remaining sweep runs through an operator's ONE
+   within-group implicit operator ``M`` — then the posed record's
+   ``build_within_group_system(...).implicit_operator`` field (6a), since
+   2026-09-13 the splitting VALUE's
+   :attr:`~orpheus.sn.splitting.Splitting.implicit` read off the
+   :class:`~orpheus.sn.solver.InnerSolve` record
+   (:ref:`sn-splitting-is-a-strategy-value`) — so every remaining sweep
+   runs through an operator's ONE
    representation instance and the one-instance theorem now covers all
    doors.
 

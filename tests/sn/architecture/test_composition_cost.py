@@ -743,7 +743,7 @@ def test_p1_slab_solve_call_count_is_mesh_invariant() -> None:
     counts: dict[int, int] = {}
     for nx in _LADDER_SLAB_NX:
         record = record_for(_slab(nx), scattering_order=1)
-        implicit = record.implicit_operator
+        implicit = record.factors.streaming_collision
         if not isinstance(implicit, StreamingCollisionOperator):
             pytest.fail(
                 f"fixture bug: a seedless slab must carry the bare (L+C) as "

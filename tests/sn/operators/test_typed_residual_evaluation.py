@@ -34,6 +34,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.sn.coupled_system import build_within_group_system
+from orpheus.sn.splitting import Splitting
 from orpheus.sn.solver import (
     SNSolver,
     _within_group_si,
@@ -68,7 +69,7 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
     si, _base, _gains, windowed = _within_group_si(
-        system, sn_mesh, inner_schedule=solver.inner_schedule,
+        Splitting.from_schedule(system, solver.schedule), sn_mesh,
         max_iter=600, tol=1e-12,
     )
     if windowed:
@@ -212,7 +213,10 @@ def _slab_2g_het_triple(nx: int = 12, n_ord: int = 8):
     system = build_within_group_system(
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    LC, (S, N2N, B) = system.implicit_operator, system.explicit_gains  # seedless slab record shape (§14.1)
+    LC, S, N2N, B = (
+        system.factors.streaming_collision, system.factors.scattering,
+        system.factors.n2n, system.factors.boundary,
+    )  # the record's factors, by role
     return solver, LC, S, B
 
 

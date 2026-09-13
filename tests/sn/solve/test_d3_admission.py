@@ -48,7 +48,6 @@ from orpheus.transport.mesh.axis import AxisMesh
 from orpheus.sn.solver import (
     _apply_default_bcs,
     _maybe_window,
-    _select_si_splitting,
     solve_sn,
     solve_sn_fixed_source,
 )
@@ -312,33 +311,28 @@ def test_d3_real_mesh_window_passthrough_and_gs_admissible() -> None:
     np.testing.assert_equal(windowed, False)
     np.testing.assert_equal(wrapped is base, True)
 
-    # The G-S arm now REIFIES the splitting (#226 step 2): it splits the
-    # real boundary law and fuses ``(L+C) - B_lower``, so real operators
-    # replace the pre-carve namespace/string stubs.
-    from orpheus.sn.operators.boundary import (
-        SNBoundaryOperator,
-        SNMaskedBoundaryOperator,
-    )
+    # The G-S labelling REIFIES the splitting (#226 step 2; a Strategy VALUE
+    # since the consumers campaign's step 2): it splits the real boundary law
+    # and fuses ``(L+C) - B_lower``, so real operators replace the pre-carve
+    # namespace/string stubs — on a 3-D Cartesian mesh exactly as on 2-D.
+    from orpheus.sn.coupled_system import build_within_group_system
+    from orpheus.sn.operators.boundary import SNMaskedBoundaryOperator
     from orpheus.sn.operators.scheduled_invertible import (
         ScheduledInvertibleOperator,
     )
-    from orpheus.sn.operators.streaming import StreamingOperator
-    from orpheus.transport.operators.multiplication_operator import (
-        MultiplicationOperator,
-    )
+    from orpheus.sn.splitting import Splitting, resolve_schedule
 
-    sig_t = np.full((sn.ng, *sn.spatial_shape), 1.3)
-    LC = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
-    resolvent, boundary_gain = _select_si_splitting(
-        LC, SNBoundaryOperator(sn), sn, "gauss_seidel",
+    record = build_within_group_system(sn, sn.material_xs_field())
+    splitting = Splitting.from_schedule(
+        record, resolve_schedule(sn, "gauss_seidel"),
     )
     np.testing.assert_equal(
-        isinstance(resolvent, ScheduledInvertibleOperator), True,
+        isinstance(splitting.implicit, ScheduledInvertibleOperator), True,
     )
-    # The selector decides the BOUNDARY splitting only; the collision gains
-    # are the driver's to name (S, N₂ₙ, boundary gain — §14.1, B LAST).
+    # The labelling moves the BOUNDARY's lower half only; the collision gains
+    # ride both labellings unchanged (S, N₂ₙ, then the boundary piece).
     np.testing.assert_equal(
-        isinstance(boundary_gain, SNMaskedBoundaryOperator), True,
+        isinstance(splitting.explicit[-1], SNMaskedBoundaryOperator), True,
     )
 
 

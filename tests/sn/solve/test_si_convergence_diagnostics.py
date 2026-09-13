@@ -30,6 +30,7 @@ from orpheus.geometry import BC, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.coupled_system import build_within_group_system
+from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.solver import SNSolver, _within_group_si
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -75,7 +76,7 @@ def _run_si(c: float, **kw):
         sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
     si, _base, _gains, windowed = _within_group_si(
-        system, sn_mesh, inner_schedule=solver.inner_schedule,
+        Splitting.from_schedule(system, solver.schedule), sn_mesh,
         max_iter=600, tol=1e-12,
     )
     # 1-D slab never windows (windowing is 2-D Cartesian) → interior=AngularFlux.

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **11987**
+Total tests collected: **12031**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1304, 10.9%
+   L0, 1304, 10.8%
    L1, 1755, 14.6%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 8831, 73.7%
+   foundation, 8875, 73.8%
    unmarked, 26, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 11882
+   explicit, 11926
    class-name, 46
    func-name, 0
    case, 33
@@ -64,7 +64,9 @@ Module × level grid
    angular/test_redistribution, 0, 0, 0, 0, 19, 1
    architecture/test_composition_cost, 0, 0, 0, 0, 9, 0
    architecture/test_monomorphic_leaves, 0, 0, 0, 0, 139, 0
+   architecture/test_splitting_value, 0, 0, 0, 0, 13, 0
    architecture/test_stage_separation, 0, 0, 0, 0, 15, 0
+   architecture/test_step2_terminal_object_anchors, 0, 0, 0, 0, 11, 0
    cartesian_2d/test_2d_full_field_oracle, 0, 0, 0, 0, 8, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
    cartesian_2d/test_2d_l2_matvec_correctness, 0, 2, 0, 0, 2, 0
@@ -473,6 +475,7 @@ Module × level grid
    operators/test_solver_components, 28, 0, 0, 0, 0, 0
    operators/test_space_content_witnesses, 0, 0, 0, 0, 9, 0
    operators/test_specular_deck_chain, 0, 80, 0, 0, 0, 0
+   operators/test_step2_posed_fission_anchors, 0, 0, 0, 0, 18, 0
    operators/test_streaming_cell_transpose_relocation, 0, 0, 0, 0, 11, 0
    operators/test_streaming_collision_operator, 1, 10, 0, 0, 21, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 57, 0
@@ -548,7 +551,7 @@ Module × level grid
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 2, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 359, 0
+   test_layer_imports, 0, 0, 0, 0, 361, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -944,7 +947,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **598** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **600** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1467,6 +1470,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-scattering-adjoint-kernel``
 - ``sn-scattering-adjoint-kernel-transpose``
 - ``sn-scattering-adjoint-source``
+- ``sn-splitting-labelled-terms``
+- ``sn-splitting-law``
 - ``sn-streaming-reciprocity``
 - ``sn-tau-mm-raw``
 - ``sn-within-group-system``

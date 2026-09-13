@@ -41,7 +41,7 @@ mesh would override).
 
 See:
 - ``.claude/skills/vv-principles/SKILL.md`` (Mode 9 — splitting invariance).
-- :func:`orpheus.sn.coupled_system.build_within_group_system` / ``_select_si_splitting``
+- :func:`orpheus.sn.coupled_system.build_within_group_system` / ``Splitting.from_schedule``
   / ``_within_group_krylov`` — the operator triple + splittings under test.
 """
 from __future__ import annotations
@@ -56,9 +56,9 @@ from orpheus.numerics.iteration import SourceIteration
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.coupled_system import build_within_group_system
+from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.solver import (
     SNSolver,
-    _select_si_splitting,
     _within_group_krylov,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -194,7 +194,10 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     system = build_within_group_system(
         sn, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    LC, (S, N2N, B) = system.implicit_operator, system.explicit_gains  # seedless record shape (§14.1)
+    LC, S, N2N, B = (
+        system.factors.streaming_collision, system.factors.scattering,
+        system.factors.n2n, system.factors.boundary,
+    )  # the record's factors, by role
     n_dof = quad.N * sn.ng * int(np.prod(sn.spatial_shape)) + int(sn.angular_trace.layout.total_size)
 
     face = "xmin"
@@ -209,10 +212,10 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
         "prescribed inflow slot is empty — q.boundary degenerated to vacuum",
     )
 
-    # SI-Jacobi: forward (L+C), gains (S, N2N, B) — the selector decides the
-    # boundary half only and the caller names the triple; the driver applies
-    # the INVERSE operator (#226 step 3).
-    rJ, bJ = _select_si_splitting(LC, B, sn, "jacobi")
+    # SI-Jacobi: the Strategy value's forward (L+C) and its lagged boundary
+    # piece (B_a whole); the driver applies the INVERSE operator (#226 step 3).
+    sJ = Splitting.from_schedule(system, resolve_schedule(sn, "jacobi"))
+    rJ, bJ = sJ.implicit, sJ.explicit[-1]
     psi_j, _ = SourceIteration(rJ.inverse(), S, N2N, bJ, max_iter=500, tol=1e-13).solve(
         q_ext, initial_guess=_flux_zero(sn),
     )
@@ -236,9 +239,10 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     )
 
     if run_gs:
-        rG, bG = _select_si_splitting(LC, B, sn, "gauss_seidel")
-        # PRECONDITION 3 — the G-S path is the reified B-folding M, not a
-        # silent Jacobi fall-back (guards the _select_si_splitting dispatch).
+        sG = Splitting.from_schedule(system, resolve_schedule(sn, "gauss_seidel"))
+        rG, bG = sG.implicit, sG.explicit[-1]
+        # PRECONDITION 3 — the G-S value's M is the reified B-folding composite,
+        # not a silent Jacobi fall-back (guards resolve_schedule's dispatch).
         _require(
             type(rG).__name__ == "ScheduledInvertibleOperator",
             f"gauss_seidel did not select the reified B-folding M: got "

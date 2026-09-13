@@ -94,8 +94,8 @@ def test_both_schedules_are_splittings_of_the_SAME_A(
 
     The pieces of this are pinned elsewhere and the conjunction is not.
     ``test_w2_split_exactness`` gives ``B == B_lower + B_upper`` per face,
-    ``test_factory_returns_reified_pair`` gives the shape of what
-    :func:`~orpheus.sn.solver._select_si_splitting` returns, and
+    ``test_factory_returns_reified_pair`` gives the shape of what the
+    Gauss-Seidel :class:`~orpheus.sn.splitting.Splitting` value derives, and
     ``test_w2_round_trip_machine_precision`` pins ``M.apply`` against
     ``M.inverse()``. This asserts the resulting identity **at the level of the
     whole operator**, exhaustively — one unit probe per degree of freedom, so
@@ -119,7 +119,9 @@ def test_both_schedules_are_splittings_of_the_SAME_A(
     """
     sn_mesh, system, template = build(cells, bcs, mixture)
     dense_a = assemble(loss_matvec(system), template)
-    scattering, n2n, boundary = system.explicit_gains
+    scattering, n2n, boundary = (
+        system.factors.scattering, system.factors.n2n, system.factors.boundary,
+    )
 
     probe = np.random.default_rng(0).standard_normal(template.to_flat().size)
     activation = float(np.linalg.norm(scattering.apply(

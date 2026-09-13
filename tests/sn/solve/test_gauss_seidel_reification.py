@@ -55,7 +55,9 @@ from orpheus.sn.operators.scheduled_invertible import (
 )
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
-from orpheus.sn.solver import _select_si_splitting, solve_sn_fixed_source
+from orpheus.sn.coupled_system import build_within_group_system
+from orpheus.sn.solver import solve_sn_fixed_source
+from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
@@ -208,25 +210,30 @@ def test_off_domain_outflow_rhs_is_not_completed_yet():
 
 
 def test_factory_returns_reified_pair():
-    r"""``_select_si_splitting(gauss_seidel)`` returns the splitting pair
-    ``(M, B_upper)`` — congruent with the Jacobi arm ``(LC, B)``. The
-    selector decides the BOUNDARY half only; the SI driver names the gain
-    triple ``(S, N2N, boundary_gain)`` itself (§14.1: the collision gains
-    ride both arms unchanged, B LAST)."""
-    sn, LC, B, _sched, _parts, _M = _reified()
-    resolvent, boundary_gain = _select_si_splitting(LC, B, sn, "gauss_seidel")
-    if not isinstance(resolvent, ScheduledInvertibleOperator):
-        pytest.fail(f"G-S arm returned {type(resolvent).__name__}")
+    r"""The Gauss-Seidel Strategy value derives the pair ``(M, B_upper)`` —
+    congruent with the Jacobi value's ``(LC, B)``.  The labelling moves the
+    BOUNDARY's lower half only; the collision gains ride both labellings
+    unchanged (§14.1: S, N2N, then the boundary piece).  Since the consumers
+    campaign's step 2 the labelling is :meth:`Splitting.from_schedule` on the
+    posed record's factors, not a selector re-deriving behind the record."""
+    sn, _LC, _B, _sched, _parts, _M = _reified()
+    record = build_within_group_system(sn, sn.material_xs_field())
+    gs = Splitting.from_schedule(record, resolve_schedule(sn, "gauss_seidel"))
+    if not isinstance(gs.implicit, ScheduledInvertibleOperator):
+        pytest.fail(f"G-S labelling derived {type(gs.implicit).__name__}")
     from orpheus.sn.operators.boundary import SNMaskedBoundaryOperator
 
-    if not isinstance(boundary_gain, SNMaskedBoundaryOperator):
+    if not isinstance(gs.explicit[-1], SNMaskedBoundaryOperator):
         pytest.fail(
-            f"the G-S boundary gain must be B_upper; got {type(boundary_gain).__name__}"
+            f"the G-S boundary gain must be B_upper; got {type(gs.explicit[-1]).__name__}"
         )
-    # Jacobi arm unchanged: (LC, B).
-    resolvent_j, boundary_j = _select_si_splitting(LC, B, sn, "jacobi")
-    if resolvent_j is not LC or boundary_j is not B:
-        pytest.fail("the Jacobi arm must stay (LC, B)")
+    # Jacobi labelling unchanged: (LC, B) — the record's own factors, by identity.
+    jacobi = Splitting.from_schedule(record, resolve_schedule(sn, "jacobi"))
+    if (
+        jacobi.implicit is not record.factors.streaming_collision
+        or jacobi.explicit[-1] is not record.factors.boundary
+    ):
+        pytest.fail("the Jacobi labelling must stay (LC, B)")
 
 
 # ─────────────────────────────────────────────────────────────────────────

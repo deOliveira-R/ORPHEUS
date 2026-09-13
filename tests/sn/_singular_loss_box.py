@@ -16,16 +16,17 @@ real domain is exactly non-collected helpers like this one). It therefore
 contains **no assertions at all**: it constructs, and every claim is made in a
 collected test module.
 
-The operator is assembled from the **production** splitting — ``A =
-system.implicit_operator - sum(system.explicit_gains)`` — so the object these
-tests characterise is the one the SI driver iterates, not a re-derivation of it
+The operator is assembled from the **production** record's factors — ``A =
+(L+C) − S − N₂ₙ − B_a``, the loss-sign sum the Jacobi Strategy value's
+``M − ΣN`` spells — so the object these tests characterise is the one the SI
+driver iterates, not a re-derivation of it
 (`vv` §structural independence: the independent oracle is LAPACK's SVD, not a
 second hand-written matvec).
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -34,11 +35,13 @@ from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
+
+if TYPE_CHECKING:
+    from orpheus.numerics.iteration import SupportsSeededApply
 from orpheus.sn.solver import (
     SNSolver,
     _as_sn_mesh,
     _build_fixed_source_rhs,
-    _select_si_splitting,
     _unwindowed_cold_start,
 )
 from orpheus.transport.mesh.axis import AxisMesh
@@ -114,11 +117,12 @@ def build(cells, bcs, mixture, quad=LS4, scheme=None):
 
 
 def loss_matvec(system) -> Callable[[Any], Any]:
-    r""":math:`A x = (\text{implicit} - \sum \text{gains})\,x` — the PRODUCTION
-    composition the SI driver iterates (:math:`M - N`)."""
-
-    implicit = system.implicit_operator
-    gains = list(system.explicit_gains)
+    r""":math:`A x = (L + C - S - N_{2n} - B_a)\,x` — the record's factors in
+    the loss-sign order, the PRODUCTION composition the Jacobi Strategy value
+    iterates as :math:`M - N`."""
+    f = system.factors
+    implicit = f.streaming_collision
+    gains = [f.scattering, f.n2n, f.boundary]
 
     def apply(x):
         out = implicit.apply(x)
@@ -305,39 +309,27 @@ def isotropic_source(sn_mesh, template):
 
 
 def select_splitting(system, sn_mesh, schedule: str):
-    r"""``(M, (N_i,))`` for one schedule — the production selector, narrowed.
+    r"""``(M, (N_i,))`` for one schedule — the Strategy VALUE, unpacked.
 
-    :func:`~orpheus.sn.solver._select_si_splitting` is typed for the SEEDLESS
-    record, and ``build_within_group_system`` returns the union that also covers
-    the seed-carrying (coupled) arm. Production narrows the same way, with an
-    explicit guard and a loud ``TypeError``
-    (``orpheus/sn/solver.py``, ``_within_group_si``) — mirrored here rather
-    than suppressed, so a record that ever arrives in the other shape says so
-    instead of mis-binding.
+    Since the consumers campaign's step 2 the splitting is a value minted
+    from the posed record by the ONE labelling site
+    (:meth:`~orpheus.sn.splitting.Splitting.from_schedule`); this helper
+    returns its derived members in the shape the box's drivers consume —
+    ``M`` and the lagged gains named the way the driver names them
+    (S, N₂ₙ, the boundary gain — §14.1's order, ``B`` LAST).  These fixtures
+    are all SEEDLESS, so ``M`` is the bare ``L+C`` (Jacobi) or the scheduled
+    composite ``(L+C) − B_lower`` (Gauss-Seidel).
     """
-    from orpheus.sn.operators.streaming import StreamingCollisionOperator
-    from orpheus.transport.operators.scattering import ScatteringOperator
+    from orpheus.sn.splitting import Splitting, resolve_schedule
 
-    implicit = system.implicit_operator
-    if not isinstance(implicit, StreamingCollisionOperator):
+    if system.is_coupled:
         raise TypeError(
-            f"these fixtures are all SEEDLESS, so the record's implicit "
-            f"operator must be the StreamingCollisionOperator; got "
-            f"{type(implicit).__name__} — a seed-carrying mesh never reaches "
-            f"_select_si_splitting at all"
+            "these fixtures are all SEEDLESS, so the record must carry no "
+            "System B; got a carrying record — a seed-carrying mesh labels "
+            "Jacobi only and never reaches the schedule split"
         )
-    scattering, n2n, boundary = system.explicit_gains
-    if not isinstance(scattering, ScatteringOperator):
-        raise TypeError(
-            f"the seedless record's first gain must be the ScatteringOperator "
-            f"(the builder's (S, N2N, B_a) convention); got "
-            f"{type(scattering).__name__}"
-        )
-    implicit, boundary_gain = _select_si_splitting(
-        implicit, boundary, sn_mesh, schedule)
-    # The selector decides the BOUNDARY half only; the gains are named here
-    # the way the driver names them (S, N₂ₙ, boundary gain — §14.1, B LAST).
-    return implicit, (scattering, n2n, boundary_gain)
+    value = Splitting.from_schedule(system, resolve_schedule(sn_mesh, schedule))
+    return value.implicit, value.explicit
 
 
 def drive_recorded(system, sn_mesh, template, source, schedule: str,
@@ -352,8 +344,10 @@ def drive_recorded(system, sn_mesh, template, source, schedule: str,
 
     n_dof = template.to_flat().size
     base, gains = select_splitting(system, sn_mesh, schedule)
-    iteration = SourceIteration(base.inverse(), *gains,
-                                max_iter=400_000, tol=tol)
+    iteration = SourceIteration(
+        cast("SupportsSeededApply[Any]", base.inverse()), *gains,
+        max_iter=400_000, tol=tol,
+    )
     start = np.zeros(n_dof) if initial is None else initial
     solution, record = iteration.solve(
         source, initial_guess=type(template).from_flat(start, template),

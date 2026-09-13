@@ -3776,9 +3776,11 @@ Honest scope — what 5c does and does NOT do
    * **Both** ``Solution.angular_flux`` **reconstructions stay full
      sweeps.** The eigenvalue final reconstruction and the fixed-source
      windowed one-shot reconstruction each re-run a *separate*
-     full-angular sweep — the within-group resolvent ``solve``
-     (:func:`~orpheus.sn.coupled_system.build_within_group_system`,
-     applying its ``.implicit_operator``) — to return the user-facing
+     full-angular sweep — the within-group resolvent ``solve`` (the
+     splitting value's
+     :attr:`~orpheus.sn.splitting.Splitting.implicit`; the posed
+     record's ``.implicit_operator`` field until 2026-09-13) — to
+     return the user-facing
      :math:`(N, n_g, n_x, n_y)` field. They are **untouched** by 5c — the
      user-facing angular flux is bit-identical across *this* carve (the
      :math:`\Sigma w\psi = \phi` self-consistency gate and the step-3
@@ -4126,10 +4128,18 @@ not on fluxes, sources, or iteration state — so it is built once and
 reused across every SI iterate (the same lifetime contract as
 :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`).
 
-The selection lives in :func:`~orpheus.sn.solver._select_si_splitting`,
-which decides the **boundary** half of the splitting and nothing else:
-``"gauss_seidel"`` on a multi-D Cartesian mesh returns
-``((L+C) - parts.lower, parts.upper)`` — the implicit operator and the
+The selection lives in
+:meth:`~orpheus.sn.splitting.Splitting.from_schedule`, the one site at
+which the loss's leaves are labelled implicit or explicit.  It decides
+the **boundary** half of the labelling and nothing else: under a
+*sequenced* schedule (more than one octant group — the boundary-G-S
+order, which :func:`~orpheus.sn.splitting.resolve_schedule` produces
+only on a multi-D Cartesian mesh) it labels ``parts.lower`` implicit
+beside :math:`L+C` and ``parts.upper`` explicit beside :math:`S` and
+:math:`N_{2n}`, from which
+:attr:`~orpheus.sn.splitting.Splitting.implicit` derives
+``(L+C) - parts.lower`` and
+:attr:`~orpheus.sn.splitting.Splitting.explicit` carries the
 boundary GAIN — realizing the splitting
 :math:`(L+C-B) = M - B_{\rm upper}` (a splitting, **not** a *regular*
 splitting — :ref:`sn-boundary-gs-not-regular`): the strictly-lower half
@@ -4613,10 +4623,11 @@ not read this section as "boundary G-S is bad at d=3" — read it as
 "nothing bounds it either way, so the schedule is a question for
 measurement, not for a theorem."
 
-The construction site carries the same warning in prose:
+The construction sites carry the same warning in prose:
 :func:`~orpheus.sn.coupled_system.build_within_group_system` (the one
-builder of the production :math:`A = M - N` record), with the selector
-:func:`~orpheus.sn.solver._select_si_splitting` and
+builder of the posed record the loss :math:`A` is read from) and
+:mod:`orpheus.sn.splitting` (the one labelling site the pair
+:math:`M`, :math:`N` is derived at), with
 :class:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule`
 pointing back to this section.
 
@@ -4872,7 +4883,9 @@ go stale).
      - 655
      - 1.00×
      - **No-op** by design — the 1-D scan is not a wavefront;
-       ``_select_si_splitting`` falls back to Jacobi.
+       :func:`~orpheus.sn.splitting.resolve_schedule` falls back to
+       Jacobi (the fallback lived in the retired selector
+       ``_select_si_splitting`` until 2026-09-13).
    * - B-2g **vacuum** slab (G-4 negative control)
      - 128
      - 128

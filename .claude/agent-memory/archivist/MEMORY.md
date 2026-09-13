@@ -41,6 +41,14 @@ means merged). **No owed Sphinx pass on merged work.** Landed SN milestones live
 
 **One line per pass. The evidence is in the lesson; `git log --oneline -- docs/` is the index.**
 
+- **Consumers campaign step 2** — the splitting is a Strategy VALUE, not a member of the posed
+  record (2026-09-13; 13 `.rst`, +907 added lines, 0 new docutils diagnostics; uncommitted on
+  `refactor/consumers-step2`). The brief's `automodule` ANCHOR existed only in four generations
+  of stale `_build` HTML (source = **0**); its changelog home was `index.rst`, the table is in
+  `history.rst`; ONE mutation's magnitude is published four ways across four honest surfaces
+  because it is `|B_lower·x|` on four draws; a page's own ⚠ caveat turned out to BE the
+  diagnosis the carve landed; and a "four-tier" table is extended by sub-lettering (2c), never
+  renumbered — **37** corpus lines cite `Layer-N` → L-104
 - **Consumers campaign step 1** — a Problem's identity is the CONTENT of its generating data
   (2026-09-12; 11 `.rst` + 5 plans + 1 test docstring, +541/−100 on `docs/`; S1a `deacd897`,
   S1b `2c1667b0` on `main`, S1c uncommitted). The carve INVERTED one leg of a page's own

@@ -89,10 +89,13 @@ diffusion's, or a page whose fixtures carry
    first-class
    sibling rather than something folded into :math:`L`. The same function
    returns the :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record
-   carrying the named splitting :math:`A = M - N`
-   (:ref:`coupled-block-operator`), so every SN within-group solve — SI and
-   Krylov, fixed-source and eigenvalue — reads :math:`A` from here and there
-   is no second assembly to drift against.
+   carrying that loss together with the bound leaves it is the signed sum
+   of (:ref:`coupled-block-operator`), so every SN within-group solve — SI
+   and Krylov, fixed-source and eigenvalue — reads :math:`A` from here and
+   there is no second assembly to drift against.  The splitting
+   :math:`A = M - N` each driver runs is a Strategy value labelled from
+   those leaves, not a member of the record
+   (:ref:`sn-splitting-is-a-strategy-value`).
 
 The :mod:`orpheus.numerics.operator` module installs these as a uniform
 *matrix-free* algebra, so the eigenvalue, fixed-source, and
@@ -457,7 +460,11 @@ Key Facts
   one production spelling is
   :func:`~orpheus.sn.coupled_system.build_within_group_system`, which
   returns the :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record
-  carrying the named splitting :math:`A = M - N`: the resolvent
+  carrying that loss and its leaves; the splitting :math:`A = M - N` the
+  drivers run is derived from them by a
+  :class:`~orpheus.sn.splitting.Splitting` value
+  (:ref:`sn-splitting-is-a-strategy-value`), which on this arm places each
+  labelled term into the block grid by its own ends: the resolvent
   :math:`M = \bigl[\begin{smallmatrix} L+C & \text{Seeding} \\ \mathbf 0
   & A_{BB}\end{smallmatrix}\bigr]` solves block-triangular (System B
   first), the emission gain rides :math:`N` (lagged). Presence is
@@ -6005,8 +6012,25 @@ The four layers
      - **2a** (method-agnostic): role assignment + the :math:`\mu \to`
        physical-eigenvalue map — which leaves play :math:`A_{\rm loss}`
        vs :math:`M`, and how :math:`\mu` maps to :math:`k` / :math:`\alpha`.
-       **2b** (method-specific): how the method assembles and inverts
-       the concrete :math:`A_{\rm loss}` object.
+       **2b** (method-specific): how the method **assembles** the
+       concrete :math:`A_{\rm loss}` object — and *only* assembles it
+       (see 2c).
+   * - 2c
+     - Strategic partitioning
+     - method-specific, **Strategy-owned**
+     - How the assembled :math:`A_{\rm loss}` is decomposed for the
+       solve — the stage the pipeline calls *strategic partitioning*: a
+       carrier partition induces a block grid, an assignment labels each
+       block (or a **piece** of one) implicit or explicit, and the
+       schedule follows from that assignment.  This is where a
+       :class:`~orpheus.sn.splitting.Splitting` value lives
+       (:ref:`sn-splitting-is-a-strategy-value`): SN's Jacobi and
+       boundary-Gauss-Seidel labellings are two values at this tier over
+       one layer-2b object, and each certifies itself against that
+       object by :math:`M - N = A`.  Methods with no separable
+       decomposition — CP's monolithic matrix, diffusion's fused direct
+       :math:`A` — occupy this tier **trivially**, with the whole
+       operator implicit and no explicit part.
    * - 3
      - Resolvent :math:`A_{\rm loss}^{-1}`
      - method-specific
@@ -6051,6 +6075,29 @@ family. The key consequence:
 operator-triple **2b realization** — NOT a problem-type layer. Treating
 the operator triple as a "problem type" was the conflation the
 bifurcation removes.
+
+**And why 2b bifurcated again (2b vs 2c), 2026-09-13.** The row above
+read *"how the method assembles **and inverts** the concrete*
+:math:`A_{\rm loss}` *object"* until the consumers campaign's step 2,
+and that conjunction was two decisions welded into one clause.
+*Assembling* :math:`A_{\rm loss}` is fixed by the problem: the leaves,
+their signs, the carrier.  *Deciding which part of it to invert* is
+fixed by the solver, and the same assembled object is legitimately
+decomposed two ways — SN poses one :math:`A` and splits it either
+Jacobi or boundary-Gauss-Seidel, which are not two posings but two
+strategies.  Welded, the split showed up as a defect with a name: the
+posed record advertised one :math:`M`/:math:`N` pair while the
+Gauss-Seidel driver ran another, derived behind it
+(:ref:`sn-splitting-is-a-strategy-value`).  Un-welding gives 2c its own
+object — a value, with a law certifying it against the 2b object it was
+minted from — and it is the same move, one level down, that separating
+2a from 2b was: *a decision that varies while its neighbour is fixed
+does not belong in its neighbour's layer*.
+
+⚠ The architecture is still **four layers**, and every "Layer-3" /
+"Layer-4" reference in this corpus still means what it did: 2c is a
+sub-tier of the posing layer in exactly the sense 2a and 2b are, not a
+renumbering.
 
 **The variadic driver IS the posing/resolvent boundary made explicit.**
 The Layer-3 SN resolvent

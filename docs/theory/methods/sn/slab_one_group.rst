@@ -585,13 +585,18 @@ iterations-to-tolerance estimate the rate implies. (The multi-D
 boundary Gauss-Seidel schedule, its honest scope, and the
 diagonal-cubature shared-face rule ERR-056 are documented with the
 multi-D machinery in :doc:`cartesian_multid`; the reified splitting matrix is
-:ref:`si-gauss-seidel-reification`.)
+:ref:`si-gauss-seidel-reification`.)  The splitting is an *object* — a
+Strategy value labelled once from the loss's own leaves, with its own
+law — and that object, its two shipped labellings and what is deferred
+from it are :ref:`sn-splitting-is-a-strategy-value`; this section is
+about the **rate** the Jacobi labelling implies.
 
 .. admonition:: Key Facts (SI rate)
    :class: tip
 
    * The within-group SI iteration matrix is
-     :math:`(L+C)^{-1}(S+N_{2n}+B)` — the builder's ``explicit_gains``
+     :math:`(L+C)^{-1}(S+N_{2n}+B)` — the Jacobi splitting value's
+     :attr:`explicit <orpheus.sn.splitting.Splitting.explicit>`
      triple; its spectral radius is the scattering
      ratio :math:`\rho_J = c = \max_g \Sigma_{s,g}/\Sigma_{t,g}`
      (:eq:`si-spectral-rate`) **on a medium with**
@@ -713,8 +718,10 @@ iterate :math:`\psi_n`:
 
 .. (vv-status rationale) Governing iteration: the source-iteration splitting of
    the within-group operator (lag S, N_2n and B, invert L+C exactly) — the
-   ``explicit_gains`` triple ``(S, N2N, B_a)`` the shipped
-   ``build_within_group_system`` returns.  A definitional
+   explicit triple ``(S, N2N, B_a)`` the Jacobi ``Splitting`` value
+   derives from the leaves the shipped ``build_within_group_system``
+   returns (until 2026-09-13, that record's own ``explicit_gains``
+   field).  A definitional
    iteration, not a per-term solver claim.  Its convergence to the correct
    fixed point and rate ρ_J=c are pinned by the L1 closed-form anchor
    ``tests/sn/verification/analytical/test_si_convergence_rate.py``.

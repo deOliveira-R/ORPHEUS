@@ -42,7 +42,7 @@ Krylov is splitting-invariant and ignores the schedule entirely.
    *"(``ρ_J = c`` Jacobi vs ``ρ_GS ≈ c²`` for the symmetric reflective model
    problem)"*.  That is the textbook result for **scattering** Gauss-Seidel,
    and this schedule folds **B**, not **S** — the sweep never re-scatters
-   mid-sweep (see :func:`~orpheus.sn.solver._select_si_splitting`).  Quoting a
+   mid-sweep (see :meth:`~orpheus.sn.splitting.Splitting.from_schedule`).  Quoting a
    scattering-splitting rate for a boundary splitting imported a law from the
    wrong operator.
 
@@ -128,6 +128,16 @@ class SweepSchedule:
 
     groups: tuple[OctantSweepGroup, ...]
     kind: str  # "jacobi" | "gauss_seidel" — diagnostic / introspection only
+
+    @property
+    def is_sequenced(self) -> bool:
+        """Whether the schedule sweeps its octants in MORE than one group —
+        the boundary-Gauss-Seidel order (each group's reflected outflow
+        seeds the next), as opposed to the bare all-octants Jacobi sweep
+        (one group, the whole ``B·ψₙ`` seed frozen for the sweep).  This is
+        the STRUCTURAL fact a :class:`~orpheus.sn.splitting.Splitting`
+        labels the boundary by; ``kind`` stays diagnostic."""
+        return len(self.groups) > 1
 
     @classmethod
     def jacobi(

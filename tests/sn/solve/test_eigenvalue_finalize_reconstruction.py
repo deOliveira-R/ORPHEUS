@@ -1266,27 +1266,27 @@ class TestTheGaussSeidelArmPosesItsOwnSplitting:
     ):
         """G-S poses a DIFFERENT ``M`` and a DIFFERENT ``B`` gain than Jacobi.
 
-        The finalize applies ``inner.implicit.inverse()`` with
-        ``inner.gains`` — so the *object* the reconstruction runs through is
+        The finalize applies ``inner.splitting.implicit.inverse()`` with
+        ``inner.driven_gains`` — so the *object* the reconstruction runs through is
         what this row pins.  `[M]` Jacobi gives
         ``StreamingCollisionOperator`` + ``SNBoundaryOperator``; G-S gives
         ``ScheduledInvertibleOperator`` + ``SNMaskedBoundaryOperator``.
         """
         jacobi = _inner_of("cart2d", order)
         gs = _inner_of("cart2d_gs", order)
-        assert type(gs.implicit).__name__ == "ScheduledInvertibleOperator", (
+        assert type(gs.splitting.implicit).__name__ == "ScheduledInvertibleOperator", (
             f"cart2d_gs[L={order}] posed a "
-            f"{type(gs.implicit).__name__} — the boundary-Gauss-Seidel "
+            f"{type(gs.splitting.implicit).__name__} — the boundary-Gauss-Seidel "
             f"splitting did not reach the finalize, so this arm is a "
             f"duplicate of cart2d and the scheduled reconstruction arm is "
             f"un-witnessed (qa F-1)."
         )
-        assert type(jacobi.implicit).__name__ != type(gs.implicit).__name__, (
+        assert type(jacobi.splitting.implicit).__name__ != type(gs.splitting.implicit).__name__, (
             "cart2d and cart2d_gs pose the SAME implicit operator — the "
             "schedule knob stopped selecting, so the pair is inflation."
         )
-        gs_gains = [type(g).__name__ for g in gs.gains]
-        jac_gains = [type(g).__name__ for g in jacobi.gains]
+        gs_gains = [type(g).__name__ for g in gs.driven_gains]
+        jac_gains = [type(g).__name__ for g in jacobi.driven_gains]
         assert gs_gains != jac_gains, (
             f"cart2d and cart2d_gs drive the SAME gains ({gs_gains}) — the "
             f"G-S split of B did not happen."

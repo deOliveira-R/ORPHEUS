@@ -249,6 +249,10 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         "orpheus.geometry",
         "orpheus.geometry.transformation",
         "orpheus.sn.solver",
+        # step 2 of the consumers campaign (2026-09-13): the Strategy value
+        # module — solver -> splitting -> operators/loss_representation, no
+        # runtime edge back to the hub (plan-authoring §6d).
+        "orpheus.sn.splitting",
     ],
 )
 def test_entry_point_imports_in_a_fresh_interpreter(entry: str) -> None:

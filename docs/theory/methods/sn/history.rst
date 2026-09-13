@@ -42,6 +42,82 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-09-13
+     - **The splitting** :math:`A = M - N` **leaves the posed record and
+       becomes a Strategy VALUE, labelled once from the Problem's own
+       leaves** (the consumers campaign, step 2; ruling R-cc6 (i), the
+       operator/strategy campaign's P5 exit criterion, and the O-3 query
+       contract).
+       **(1) The defect.**  The posed record
+       :class:`~orpheus.sn.coupled_system.WithinGroupSystem` carried
+       ``implicit_operator`` and ``explicit_gains`` — one chosen
+       splitting — while the seedless source-iteration driver, under
+       ``inner_schedule="gauss_seidel"``, called a solver-private
+       ``_select_si_splitting`` that re-derived a **second** splitting
+       behind it (:math:`B_a` split by the octant schedule, its lower
+       half folded into :math:`M`).  So the record's own claim was false
+       for one of the two shipped schedules — a twin in the Cardinal
+       Rule 2 sense, tracked as **R7 of the operator/strategy campaign**
+       and pinned by an ``xfail(strict=True)`` row in
+       ``tests/sn/architecture/test_stage_separation.py``.  The
+       principled half of the defect is prior to the measurement: a
+       *posing* has no schedule, so a record naming one :math:`M` is
+       answering a question it was never asked.
+       **(2) The primitive is the LABELLING, not the products.**  The
+       new value :class:`~orpheus.sn.splitting.Splitting` holds two
+       tuples of :class:`~orpheus.sn.splitting.LossTerm` — an operator
+       together with the coefficient :math:`\pm1` it carries in
+       :math:`A` — labelled implicit or explicit;
+       :attr:`~orpheus.sn.splitting.Splitting.implicit` (:math:`M`) and
+       :attr:`~orpheus.sn.splitting.Splitting.explicit` (:math:`N`) are
+       **derived** (:eq:`sn-splitting-labelled-terms`), so they cannot
+       disagree with the labelling that produced them.  Carrying the
+       sign on the TERM is what makes a later label transfer
+       law-invariant by construction (``[M]`` moving
+       :math:`B_{\rm lower}` implicit → explicit leaves the law residual
+       at exactly ``0.0``; a positional sign convention would have moved
+       it by :math:`2\lvert T_k x\rvert`) and what lets the fold spell
+       :math:`(L+C) - B_{\rm lower}` as a *subtraction*, which dispatches
+       to the sweep-invertible scheduled composite.
+       **(3) Derivation, per arm.**  Seedless: a signed fold through the
+       operator algebra — a single-term implicit set folds to *that
+       operator itself*, identity preserved, which is what lets the
+       stage gates assert the driver inverted the record's own
+       :math:`L+C` by ``is``.  Carrying: every term is placed into the
+       :math:`2\times2` block grid **by its own ends** (codomain → row,
+       domain → column, against the coupled space's members), giving the
+       honest upper-triangular
+       :math:`M = [[L{+}C, \text{Seeding}], [\varnothing, A_{BB}]]` and
+       the gain grid
+       :math:`N = [[S{+}N_{2n}{+}B_a, \varnothing], [E, B_b]]` — the
+       first constructor of the mechanism a later partition phase
+       generalises to :math:`A_{ij} = R_i A J_j`.
+       **(4) The law is per value.**
+       :meth:`~orpheus.sn.splitting.Splitting.law_residual` certifies
+       :math:`M - N = A` against the loss the *posing* built (never
+       re-assembled from the splitting's own pieces).  ``[M]``
+       **bit-exact** on the seedless arm under both schedules — the
+       Gauss-Seidel split writes **disjoint rows**, so no addition is
+       reordered — over an exhaustive dense assembly, one unit probe per
+       degree of freedom, on 6 configurations; round-off on the carrying
+       arm, where the block grid re-associates (``[M]`` the draw-stable
+       figure is the RELATIVE one,
+       :math:`2.087\times10^{-16} \approx 0.94\,\varepsilon` over 40
+       draws; the gate pins ``nulp=8`` and fails at 4).
+       **(5) What else moved.**  ``inner_schedule`` is resolved from a
+       string ONCE, by :func:`~orpheus.sn.splitting.resolve_schedule`,
+       which carries the geometry gate; the second discrimination inside
+       the driver retired.  The schedule datum the labelling reads is
+       just
+       :attr:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule.is_sequenced`.
+       :class:`~orpheus.sn.solver.InnerSolve` became
+       ``(system, splitting, driven_gains, iterate)`` — the O-3 query
+       contract in one record: ``system`` answers with the Problem's
+       operators as POSED, ``splitting`` with the Strategy's as USED.
+       The R7 strict-xfail XPASSed and was deleted.
+       Full account: :ref:`sn-splitting-is-a-strategy-value`.
+     - —
+     - branch ``refactor/consumers-step2``, **not yet merged**
    * - 2026-09-12
      - **A Problem's identity is the CONTENT of its generating data, and
        the retained scattering order is the hub's datum** (the consumers
@@ -2029,6 +2105,14 @@ them.  Trust ``git``, not this column.
        Gauss-Seidel / windowing paths consume zero-touch. The four
        within-group solve sites consume the one record. See
        :ref:`bc-extraction-variadic-driver` in :doc:`/theory/foundations/boundary_conditions`.
+       ⛔ **The splitting half of this row was superseded on 2026-09-13**
+       (the row for that date, above): the record keeps the loss, the
+       space and the leaves, and the :math:`M`/:math:`N` pair moved onto
+       a Strategy value.  What this row landed — the ONE construction
+       site, the block-native carrier, the grids' shape and the
+       structurally-zero :math:`(A,B)` slot — is unchanged; what it got
+       wrong is only *which object owns the choice*
+       (:ref:`sn-splitting-is-a-strategy-value`).
      - #280
      - ``c0f23f6`` (merged @ ``3f0b8c74``)
    * - 2026-07-05

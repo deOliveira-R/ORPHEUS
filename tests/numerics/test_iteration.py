@@ -834,7 +834,10 @@ def _sn_composite_triple():
     # (S, N2N, B_a) since §14.1; a positional pair-sum here silently
     # dropped B_a when the tuple grew (caught by the A4 smoke's own
     # eig(A†)=eig(A) gate).
-    S_total = reduce(add, system.explicit_gains)
+    from orpheus.sn.splitting import Splitting, resolve_schedule
+
+    splitting = Splitting.from_schedule(system, resolve_schedule(sn, "jacobi"))
+    S_total = reduce(add, splitting.explicit)
     # CS4c step 4: the composite triple's F is the ANGULAR binding — the
     # frame-conjugated FissionOperator on the SAME composite space the
     # loss members ride (the pencil peer; its .H composes the Riesz legs
@@ -850,7 +853,7 @@ def _sn_composite_triple():
         interior=AngularFlux(values=np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space),
         boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
     )
-    return float(ref.keff), system.implicit_operator, S_total, F_composite, guess, mix
+    return float(ref.keff), splitting.implicit, S_total, F_composite, guess, mix
 
 
 @pytest.mark.l1

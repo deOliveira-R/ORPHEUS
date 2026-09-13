@@ -161,10 +161,13 @@ def _loss_system(sn_mesh):
 
 
 def _apply_loss(system, template, flat: np.ndarray) -> np.ndarray:
-    r""":math:`A x = (\text{implicit} - \sum \text{gains})\,x`."""
+    r""":math:`A x = (L + C - S - N_{2n} - B_a)\,x` — the record's factors,
+    by role, in the loss-sign order (the same arithmetic the Jacobi value's
+    ``M − ΣN`` spells)."""
+    f = system.factors
     x = type(template).from_flat(flat, template)
-    out = system.implicit_operator.apply(x)
-    for gain in system.explicit_gains:
+    out = f.streaming_collision.apply(x)
+    for gain in (f.scattering, f.n2n, f.boundary):
         out = out - gain.apply(x)
     return out.to_flat()
 
@@ -539,16 +542,12 @@ def _uniform_source_fixture(cells, ng=2):
 
 def _solve(system, mesh, template, source, schedule):
     from orpheus.numerics.iteration import SourceIteration
-    from orpheus.sn.solver import _select_si_splitting
+    from orpheus.sn.splitting import Splitting, resolve_schedule
 
-    # Named, not splatted: the selector decides the BOUNDARY half of the
-    # splitting only, and the gains are named here the way the driver names
-    # them (S, N₂ₙ, boundary gain — §14.1, B LAST), so nothing can mis-bind.
-    scattering, n2n, boundary = system.explicit_gains
-    base, boundary_gain = _select_si_splitting(
-        system.implicit_operator, boundary, mesh, schedule,
-    )
-    iteration = SourceIteration(base.inverse(), scattering, n2n, boundary_gain,
+    # The Strategy VALUE for ``schedule`` (step 2 of the consumers campaign):
+    # its derived ``M`` and lagged pieces, exactly as the driver runs them.
+    value = Splitting.from_schedule(system, resolve_schedule(mesh, schedule))
+    iteration = SourceIteration(value.implicit.inverse(), *value.explicit,
                                 max_iter=400_000, tol=1e-13)
     zero = type(template).from_flat(
         np.zeros(template.to_flat().size), template)

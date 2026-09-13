@@ -84,6 +84,28 @@ import orpheus.numerics.spaces.radial_characteristic_space as _rcs_mod
 import orpheus.sn.operators.radial_characteristic as _rcr_mod
 
 
+
+# ── the Strategy value a record's pre-step-2 "advertised splitting" became ──
+_LABELLED: dict[int, tuple[object, object]] = {}
+
+
+def _labelled(system):
+    """The JACOBI :class:`~orpheus.sn.splitting.Splitting` of ``system`` —
+    what the record's own ``implicit_operator``/``explicit_gains`` used to
+    advertise before the consumers campaign's step 2 moved the splitting
+    onto a Strategy value (memoised per record so identity comparisons
+    across two reads of one record hold)."""
+    from orpheus.sn.splitting import Splitting, resolve_schedule
+
+    hit = _LABELLED.get(id(system))
+    if hit is not None and hit[0] is system:
+        return hit[1]
+    value = Splitting.from_schedule(
+        system, resolve_schedule(system.factors.streaming_collision.sn_mesh, "jacobi"),
+    )
+    _LABELLED[id(system)] = (system, value)
+    return value
+
 def _rc_fold(sn, n_moments: int = 1):
     """The fold (Reconstruction) from a carrying mesh — the un-weld
     assembly read, spelled once for this module (through ``_rcr_mod`` so
@@ -320,7 +342,7 @@ class TestRegressionFloor:
         b, _, s, _ = _blocks(sn)
         tpl_a = _template(sn)
         Sd = _dense(S.apply, tpl_a)              # 2-block: NO ray rows exist
-        Ad = _dense(system.explicit_gains[0].apply, _coupled_template(sn))
+        Ad = _dense(_labelled(system).explicit[0].apply, _coupled_template(sn))
         s_sb, s_bs = 0.0, 0.0                    # structural (no block to read)
         if Sd.shape[0] != tpl_a.to_flat().size:
             pytest.fail("S's dense is not the 2-block System-A square.")
@@ -352,8 +374,8 @@ class TestRegressionFloor:
         system = build_within_group_system(
             sn, solver.mat_xs, scattering_op=solver.scattering_op)
         tpl = _coupled_template(sn)
-        M = _dense(system.implicit_operator.apply, tpl)
-        N = _dense(system.explicit_gains[0].apply, tpl)
+        M = _dense(_labelled(system).implicit.apply, tpl)
+        N = _dense(_labelled(system).explicit[0].apply, tpl)
         rho = float(np.max(np.abs(np.linalg.eigvals(np.linalg.solve(M, N)))))
         print(f"  ρ(M⁻¹N) = {rho:.4f}   (c={c}; below c for vacuum leakage)")
         if not (0.0 < rho < c + 1e-6):
@@ -573,7 +595,7 @@ class TestBoundaryUnweld:
         solver = SNSolver(sn)
         system = build_within_group_system(
             sn, solver.mat_xs, scattering_op=solver.scattering_op)
-        n_grid = system.explicit_gains[0]
+        n_grid = _labelled(system).explicit[0]
         coupled = _random_pair(sn, np.random.default_rng(3))
         out = n_grid.apply(coupled)
         B_a = SNBoundaryOperator(sn)
@@ -605,7 +627,7 @@ class TestBoundaryUnweld:
         slab_solver = SNSolver(slab)
         slab_system = build_within_group_system(
             slab, slab_solver.mat_xs, scattering_op=slab_solver.scattering_op)
-        B = slab_system.explicit_gains[-1]
+        B = _labelled(slab_system).explicit[-1]
         if not isinstance(B, SNBoundaryOperator):
             pytest.fail(f"seedless record boundary gain is "
                         f"{type(B).__name__} — must be B_a alone (no B_b arm).")
@@ -2232,7 +2254,7 @@ class TestCoupledLift:
         system = build_within_group_system(
             sn, solver.mat_xs, scattering_op=solver.scattering_op)
         # B.2d: the gain grid's (B,A) slot carries the BLOCK natively.
-        n_grid = system.explicit_gains[0]
+        n_grid = _labelled(system).explicit[0]
         if not (isinstance(n_grid, CoupledOperator)
                 and isinstance(n_grid.blocks[1][0], RadialCharacteristicEmission)):
             pytest.fail("the carrying record's gain grid carries no "
@@ -2246,7 +2268,7 @@ class TestCoupledLift:
         slab_solver = SNSolver(slab)
         slab_system = build_within_group_system(
             slab, slab_solver.mat_xs, scattering_op=slab_solver.scattering_op)
-        if any(isinstance(g, CoupledOperator) for g in slab_system.explicit_gains):
+        if any(isinstance(g, CoupledOperator) for g in _labelled(slab_system).explicit):
             pytest.fail("the seedless record carries a coupled gain grid — a "
                         "seedless mesh has no bulk→ray coupling.")
         # Mode-11 sentinel: a REAL within-group sphere solve APPLIES A_BA.
@@ -2274,18 +2296,23 @@ class TestCoupledLift:
         the structural half). Proves the unwired-driver shape cannot ship
         silently."""
         sn = _sphere()
-        real_build = _solver_mod.build_within_group_system
+        # The crippled STRATEGY value: the emission term dropped from the
+        # lagged pieces, so the derived gain grid has no (B,A) block — the
+        # Mode-11 shape the sentinel family exists to catch (since step 2 of
+        # the consumers campaign the splitting is the value the driver is
+        # handed, so the cripple is spelled on its labelling site).
+        from orpheus.sn.splitting import Splitting
+        real_label = Splitting.from_schedule.__func__
 
-        def _no_emission(sn_mesh, mat_xs, **kw):
-            system = real_build(sn_mesh, mat_xs, **kw)
-            n = system.explicit_gains[0]
-            crippled = CoupledOperator(
-                [[n.blocks[0][0], None], [None, n.blocks[1][1]]],
-                domain=n.domain, codomain=n.codomain)
-            return replace(system, explicit_gains=(crippled,))
+        def _no_emission(cls, system, schedule):
+            value = real_label(cls, system, schedule)
+            return replace(value, explicit_pieces=tuple(
+                t for t in value.explicit_pieces
+                if not isinstance(t.operator, RadialCharacteristicEmission)
+            ))
 
         monkeypatch.setattr(
-            _solver_mod, "build_within_group_system", _no_emission)
+            Splitting, "from_schedule", classmethod(_no_emission))
         counter = {"n": 0}
         real = RadialCharacteristicEmission.apply
 
@@ -2315,7 +2342,7 @@ class TestCoupledLift:
         # the driver).
         monkeypatch.undo()
         monkeypatch.setattr(
-            _solver_mod, "build_within_group_system", _no_emission)
+            Splitting, "from_schedule", classmethod(_no_emission))
         monkeypatch.setattr(RadialCharacteristicEmission, "apply", spy)
         counter["n"] = 0
         with pytest.raises(ConvergenceCertificateError, match="lag-death"):
@@ -2463,7 +2490,7 @@ class TestCoupledLift:
             snf, snf_solver.mat_xs, scattering_op=snf_solver.scattering_op,
             n2n_op=snf_solver.n2n_op)
         S = snf_solver.scattering_op
-        emission_block = snf_system.explicit_gains[0].blocks[1][0]
+        emission_block = _labelled(snf_system).explicit[0].blocks[1][0]
         kernel = getattr(emission_block, "emission_kernel", None)
         if not (isinstance(emission_block, RadialCharacteristicEmission)
                 and getattr(kernel, "_a", None) is S.isotropic_energy
@@ -2964,8 +2991,8 @@ def _m_minus_n_reference(sn, mat_xs, coupled):
         mat_xs=mat_xs, scattering_order=0,
         space=sn.full_field_space)
     system = build_within_group_system(sn, mat_xs, scattering_op=solver_S)
-    y_m = system.implicit_operator.apply(coupled)
-    y_n = system.explicit_gains[0].apply(coupled)
+    y_m = _labelled(system).implicit.apply(coupled)
+    y_n = _labelled(system).explicit[0].apply(coupled)
     return CoupledField(systems=(
         y_m.systems[0] - y_n.systems[0],
         y_m.systems[1] - y_n.systems[1],
@@ -3336,7 +3363,7 @@ class TestWithinGroupSystem:
         # Step 5: M is the HONEST upper-triangular grid over the same piece
         # objects — [[LC, Seeding], [None, march]] (the fused facade
         # dissolved; R-5.4).
-        M_grid = system.implicit_operator
+        M_grid = _labelled(system).implicit
         if not isinstance(M_grid, CoupledOperator):
             pytest.fail(f"carrying resolvent is {type(M_grid).__name__}")
         if M_grid._triangular_orientation() != "upper":
@@ -3352,9 +3379,9 @@ class TestWithinGroupSystem:
                         "to N)")
         if M_grid.domain is not system.space:
             pytest.fail("M not typed against THE record space (identity)")
-        if len(system.explicit_gains) != 1 or not isinstance(system.explicit_gains[0], CoupledOperator):
-            pytest.fail(f"carrying gains are {system.explicit_gains!r} — expected (N,)")
-        n_grid = system.explicit_gains[0]
+        if len(_labelled(system).explicit) != 1 or not isinstance(_labelled(system).explicit[0], CoupledOperator):
+            pytest.fail(f"carrying gains are {_labelled(system).explicit!r} — expected (N,)")
+        n_grid = _labelled(system).explicit[0]
         if n_grid.domain is not system.space or n_grid.codomain is not system.space:
             pytest.fail("N not typed against THE record space (identity)")
         if n_grid.blocks[0][1] is not None:
@@ -3378,13 +3405,11 @@ class TestWithinGroupSystem:
         slab_solver = SNSolver(slab)
         s_system = build_within_group_system(
             slab, slab_solver.mat_xs, scattering_op=slab_solver.scattering_op)
-        if isinstance(s_system.implicit_operator, CoupledOperator):
-            pytest.fail("seedless resolvent is coupled — DP-seedless violated")
-        if not isinstance(s_system.implicit_operator, StreamingCollisionOperator):
-            pytest.fail(f"seedless resolvent is {type(s_system.implicit_operator).__name__}")
-        if len(s_system.explicit_gains) != 3:
-            pytest.fail(f"seedless gains are {s_system.explicit_gains!r} — expected (S, N2N, B_a)")
-        S_g, _n2n_g, B_g = s_system.explicit_gains
+        if s_system.is_coupled:
+            pytest.fail("seedless record is coupled — DP-seedless violated")
+        if not isinstance(s_system.factors.streaming_collision, StreamingCollisionOperator):
+            pytest.fail(f"seedless L+C is {type(s_system.factors.streaming_collision).__name__}")
+        S_g, B_g = s_system.factors.scattering, s_system.factors.boundary
         if S_g is not slab_solver.scattering_op:
             pytest.fail("the injected scattering operator did not ride the "
                         "record by IDENTITY (the cache seam broke)")
@@ -3534,7 +3559,7 @@ class TestWithinGroupSystem:
         solver = SNSolver(sn)
         system = build_within_group_system(
             sn, solver.mat_xs, scattering_op=solver.scattering_op)
-        M_op = system.implicit_operator
+        M_op = _labelled(system).implicit
         rng = np.random.default_rng(150)
         psi_a = _random_composite(sn, rng)
         ns = sn.radial_characteristic_field_space.shape[0]
@@ -3595,7 +3620,7 @@ class TestWithinGroupSystem:
         solver = SNSolver(sn)
         system = build_within_group_system(
             sn, solver.mat_xs, scattering_op=solver.scattering_op)
-        n_grid = system.explicit_gains[0]
+        n_grid = _labelled(system).explicit[0]
         coupled = _random_pair(sn, np.random.default_rng(151))
         out = n_grid.apply(coupled)
         emission = n_grid.blocks[1][0]
@@ -3706,7 +3731,7 @@ class TestWithinGroupSystem:
             slab, solver.mat_xs, scattering_op=solver.scattering_op)
         q3 = _build_fixed_source_rhs(q_np, slab)
         si = SourceIteration(
-            system.implicit_operator.inverse(), *system.explicit_gains, max_iter=mi, tol=tol)
+            _labelled(system).implicit.inverse(), *_labelled(system).explicit, max_iter=mi, tol=tol)
         psi_ref, _ = si.solve(
             q3, initial_guess=_unwindowed_cold_start(
                 slab, history_depth=q3.history_depth))
@@ -3728,7 +3753,7 @@ class TestWithinGroupSystem:
         system = build_within_group_system(
             sn, solver.mat_xs, scattering_op=solver.scattering_op)
         si, *_ = _within_group_si(
-            system, sn, inner_schedule="jacobi", max_iter=60, tol=1e-10)
+            _labelled(system), sn, max_iter=60, tol=1e-10)
         q_pair = _build_fixed_source_rhs(
             np.ones((sn.quad.N, sn.ng, sn.nx)), sn)  # coupled on carrying
         if not isinstance(q_pair, CoupledField):
@@ -3775,7 +3800,7 @@ class TestWithinGroupSystem:
             pytest.fail(f"Δ(padded − honest) = {padded_d1 - n_dof} ≠ n_seed = "
                         f"{n_seed} — the dead padding did not dissolve exactly")
         krylov = _within_group_krylov(
-            system.implicit_operator, *system.explicit_gains,
+            _labelled(system).implicit, *_labelled(system).explicit,
             n_dof=n_dof, max_iter=5, tol=1e-3)
         if krylov.restart != n_dof:
             pytest.fail(f"restart = {krylov.restart} ≠ n_dof = {n_dof} — "
@@ -4056,7 +4081,7 @@ class TestCoupledSolve:
 
     def test_r1_substitution_corner_dataflow_vs_dense_lu(self):
         sn, system = self._system(bc="reflective")
-        M_grid = system.implicit_operator
+        M_grid = _labelled(system).implicit
         tpl, psi0 = self._carried_state(sn, 51)
         q = M_grid.apply(CoupledField.from_flat(psi0, tpl))
         x = M_grid.solve(q).to_flat()
@@ -4080,7 +4105,7 @@ class TestCoupledSolve:
 
     def test_b3_transpose_substitution_vs_dense_mt(self):
         sn, system = self._system(bc="reflective")
-        M_grid = system.implicit_operator
+        M_grid = _labelled(system).implicit
         tpl, x0 = self._carried_state(sn, 53)
         dense = _dense(M_grid.apply, tpl)
         if np.allclose(dense, dense.T):

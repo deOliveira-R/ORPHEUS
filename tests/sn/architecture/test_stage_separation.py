@@ -5,41 +5,55 @@ Campaign: ``.claude/plans/operator_strategy_realization_campaign.md``.
 Normative gate spec: ``.claude/plans/campaign_verification_plan.md`` §1.
 Phase **P0** — gates only, no production change.
 
-Why this file exists (the motivating defect, R7)
-================================================
-
-:class:`~orpheus.sn.coupled_system.WithinGroupSystem` welds two independent
+Why this file exists (the motivating defect, R7 — RESOLVED 2026-09-13)
+======================================================================
+Until the consumers campaign's step 2,
+:class:`~orpheus.sn.coupled_system.WithinGroupSystem` welded two independent
 stages into one record: the **posing** (``loss`` — what the physics *is*) and
 the **splitting** (``implicit_operator`` / ``explicit_gains`` — which part is
-solved implicitly).  Because the two share a record, there is no named
-boundary at which "strategy may enter" can be asserted — and because there is
-no boundary, **a second splitting grew beside the first and the first went
+solved implicitly).  Because the two shared a record, there was no named
+boundary at which "strategy may enter" could be asserted — and because there
+was no boundary, **a second splitting grew beside the first and the first went
 silently stale**:
 
 .. code-block:: text
 
-   inner_schedule    driver actually runs                record advertises
+   inner_schedule    driver actually ran                 record advertised
    ---------------   ---------------------------------   -----------------------------
    jacobi            StreamingCollisionOperator + SNBoundaryOperator   ← the same objects
    gauss_seidel      ScheduledInvertibleOperator + SNMaskedBoundaryOperator
                                                           StreamingCollisionOperator
                                                           + SNBoundaryOperator
 
-``_select_si_splitting`` (``sn/solver.py:706``) re-derives a splitting the
-record never hears about.  Nothing is *numerically* wrong today — both
-splittings are consistent — but the record's claim is false, and a consumer
-that trusts ``record.implicit_operator`` (the spectral gate, an admission
-check, a preconditioner) reads an operator the solver does not run.
+``_select_si_splitting`` re-derived a splitting the record never heard
+about.  Nothing was *numerically* wrong — both splittings were consistent —
+but the record's claim was false, and a consumer that trusted
+``record.implicit_operator`` (the spectral gate, an admission check, a
+preconditioner) read an operator the solver did not run.
 
-Ordering constraint **O-1**, binding
-====================================
+**The resolution (R-cc6 (i), 2026-09-13):** the record carries the loss and
+its FACTORS (:class:`~orpheus.sn.coupled_system.SNLossFactors`, by role) and
+no splitting; the splitting is the Strategy VALUE
+:class:`~orpheus.sn.splitting.Splitting`, minted from the factors by the ONE
+labelling site (:meth:`~orpheus.sn.splitting.Splitting.from_schedule`) and
+consumed by the drivers AS IT IS — so "the driver runs the objects the value
+advertises" holds by construction on every arm, and the strict-xfail marker
+this file carried for R7 is gone (it XPASSed).  What keeps teeth is the LAW
+``A = M − N`` per VALUE (AC-b′ below; the value's own
+:meth:`~orpheus.sn.splitting.Splitting.law_residual`), and the pair of
+schedules that must differ on the trace while agreeing on the limit
+(``tests/sn/architecture/test_step2_terminal_object_anchors.py``).
 
-This gate is written **RED, before anything touches**
-``WithinGroupSystem`` or ``_select_si_splitting``.  Fix R7 first and the fix
-is unprovable — and a future re-split has no catcher.  The red row ships as
-``xfail(strict=True)``: when P3/P5 lands, it XPASSes, which is a hard failure
-that forces the marker's removal.  **The strict-xfail set IS the campaign's
-todo list.**
+
+Ordering constraint **O-1**, discharged
+======================================
+This gate was written **RED, before anything touched**
+``WithinGroupSystem`` or ``_select_si_splitting`` (P0, ``9a546640``), and its
+red row shipped as ``xfail(strict=True)`` so the fix could not land
+unnoticed: it XPASSed at the step-2 split and the marker was deleted in the
+same commit.  The AC-b rows below are now TAUTOLOGICAL by construction (the
+driver is handed the value and runs it) — kept as the wiring claim
+("the driver consumes the value it is handed"), with the teeth in AC-b′.
 
 Why the ``jacobi`` row must ship too
 ====================================
@@ -67,11 +81,10 @@ from tests.sn.architecture._config import (
     random_state,
     reconstruction_residual,
     record_for,
-    scattering_gain,
-    seedless_implicit,
     sigma_s0_times_identity,
     slab_seedless,
     sphere_carrying,
+    splitting_for,
     split_image,
     system_a,
 )
@@ -79,18 +92,6 @@ from tests.sn.architecture._config import (
 pytestmark = pytest.mark.foundation
 
 _SEED = 20260729
-
-_R7_XFAIL = pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "R7 — the splitting is a TWIN: _select_si_splitting re-derives "
-        "(ScheduledInvertibleOperator, SNMaskedBoundaryOperator) and the "
-        "record still advertises (StreamingCollisionOperator, "
-        "SNBoundaryOperator). Flipped by campaign P3/P5 (the partition "
-        "becomes a value and the driver stops re-splitting). WHEN THIS "
-        "XPASSES: P3/P5 has landed — delete this marker."
-    ),
-)
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -138,24 +139,26 @@ def _is_the_records_gain_rebound_on_the_iterate(driver_gain, record_gain) -> boo
     [
         # CONTROL LEG: same geometry, same record, the other schedule.
         pytest.param(cart2d_seedless, "jacobi", id="cart2d-jacobi"),
-        # THE RED: multi-D Cartesian + G-S is the only arm that re-splits.
-        pytest.param(
-            cart2d_seedless, "gauss_seidel",
-            id="cart2d-gauss_seidel", marks=_R7_XFAIL,
-        ),
-        # The carrying arm returns the record's own splitting on BOTH rows —
-        # inner_schedule is structurally inert there (G-S is multi-D
-        # Cartesian ⟹ seedless, so it never reaches the selector).
+        # The ex-RED: multi-D Cartesian + G-S was the only arm that re-split
+        # (R7); since step 2 the value carries the G-S labelling itself.
+        pytest.param(cart2d_seedless, "gauss_seidel", id="cart2d-gauss_seidel"),
+        # The carrying arm labels Jacobi on BOTH rows — inner_schedule is
+        # structurally inert there (G-S is multi-D Cartesian ⟹ seedless;
+        # resolve_schedule falls back to Jacobi).
         pytest.param(sphere_carrying, "jacobi", id="sphere-jacobi"),
         pytest.param(sphere_carrying, "gauss_seidel", id="sphere-gauss_seidel"),
     ],
 )
 def test_driver_consumes_the_records_own_splitting(build_mesh, inner_schedule):
-    r"""The SI driver iterates the **same objects** the record advertises.
+    r"""The SI driver iterates the **same objects** the Strategy value carries.
 
     Object identity (``is``), not value equality: two operators that happen
     to agree numerically today are still two operators, and the second one
-    is where the drift lives.  This is the campaign's acceptance leg AC-b.
+    is where the drift lives.  This is the campaign's acceptance leg AC-b —
+    since the step-2 split TRUE BY CONSTRUCTION (the driver is handed the
+    value and runs its ``implicit``/``explicit``), so this row is the wiring
+    claim, not the catcher; the catcher is AC-b′ (the law per value) and
+    the two-schedules-differ row in the step-2 anchors.
 
     ⚠ The ONE sanctioned exception (CS4c step 5): on a WINDOWED mesh the
     iterate is the moment composite, and the record's angular-bound gains
@@ -166,39 +169,38 @@ def test_driver_consumes_the_records_own_splitting(build_mesh, inner_schedule):
     trace) and stays the record's object.
     """
     sn_mesh = build_mesh()
-    record = record_for(sn_mesh)
+    splitting = splitting_for(sn_mesh, inner_schedule)
     _si, driver_implicit, driver_gains, windowed = _within_group_si(
-        record, sn_mesh, inner_schedule=inner_schedule,
-        max_iter=2, tol=1e-10,
+        splitting, sn_mesh, max_iter=2, tol=1e-10,
     )
 
-    if driver_implicit is not record.implicit_operator:
+    if driver_implicit is not splitting.implicit:
         pytest.fail(
             f"[{inner_schedule}] the driver's implicit operator is NOT the "
-            f"record's: driver ran {type(driver_implicit).__name__}, record "
-            f"advertises {type(record.implicit_operator).__name__} — the "
-            f"posed record's splitting claim is stale (R7)."
+            f"value's: driver ran {type(driver_implicit).__name__}, the value "
+            f"carries {type(splitting.implicit).__name__} — a splitting is "
+            f"being re-derived behind the Strategy value (R7 again)."
         )
-    advertised = tuple(map(id, record.explicit_gains))
+    advertised = tuple(map(id, splitting.explicit))
     if windowed:
-        if len(driver_gains) != len(record.explicit_gains) or not all(
+        if len(driver_gains) != len(splitting.explicit) or not all(
             d is r or _is_the_records_gain_rebound_on_the_iterate(d, r)
-            for d, r in zip(driver_gains, record.explicit_gains)
+            for d, r in zip(driver_gains, splitting.explicit)
         ):
             pytest.fail(
                 f"[{inner_schedule}] windowed: the driver's gains are neither "
-                f"the record's nor the record's re-bound on the moment "
+                f"the value's nor the value's re-bound on the moment "
                 f"iterate: driver ran {[type(g).__name__ for g in driver_gains]}, "
-                f"record advertises "
-                f"{[type(g).__name__ for g in record.explicit_gains]} (R7)."
+                f"the value carries "
+                f"{[type(g).__name__ for g in splitting.explicit]} (R7)."
             )
         return
     if tuple(map(id, driver_gains)) != advertised:
         pytest.fail(
-            f"[{inner_schedule}] the driver's gains are NOT the record's: "
-            f"driver ran {[type(g).__name__ for g in driver_gains]}, record "
-            f"advertises {[type(g).__name__ for g in record.explicit_gains]} "
-            f"— a second splitting exists beside the advertised one (R7)."
+            f"[{inner_schedule}] the driver's gains are NOT the value's: "
+            f"driver ran {[type(g).__name__ for g in driver_gains]}, the value "
+            f"carries {[type(g).__name__ for g in splitting.explicit]} "
+            f"— a second splitting exists beside the value (R7 again)."
         )
 
 
@@ -210,24 +212,25 @@ def test_krylov_driver_consumes_the_records_own_splitting(build_mesh):
     r"""The Krylov driver is **green on both arms** — the twin is SI-specific.
 
     This is the second control leg, and it carries a positive architectural
-    claim: ``_within_group_krylov`` is handed ``(record.implicit_operator,
-    *record.explicit_gains)`` and stores them verbatim, so R7 is not a
-    property of "within-group solves" but specifically of the SI schedule
-    path.  If this row ever REDs, the defect has spread.
+    claim: ``_within_group_krylov`` is handed ``(splitting.implicit,
+    *splitting.explicit)`` — the Jacobi value's members — and stores them
+    verbatim, so R7 was never a property of "within-group solves" but
+    specifically of the SI schedule path.  If this row ever REDs, the defect
+    has spread.
     """
     sn_mesh = build_mesh()
-    record = record_for(sn_mesh)
-    state = random_state(record, seed=_SEED)
+    splitting = splitting_for(sn_mesh, "jacobi")
+    state = random_state(splitting.system, seed=_SEED)
     krylov = _within_group_krylov(
-        record.implicit_operator, *record.explicit_gains,
+        splitting.implicit, *splitting.explicit,
         n_dof=int(state.to_flat().size), max_iter=2, tol=1e-10,
     )
-    if krylov.A is not record.implicit_operator:
+    if krylov.A is not splitting.implicit:
         pytest.fail(
-            "the Krylov driver's operator is not the record's implicit "
+            "the Krylov driver's operator is not the value's implicit "
             "operator — R7 has spread to the Krylov path."
         )
-    if tuple(map(id, krylov.gains)) != tuple(map(id, record.explicit_gains)):
+    if tuple(map(id, krylov.gains)) != tuple(map(id, splitting.explicit)):
         pytest.fail(
             "the Krylov driver's gains are not the record's — R7 has spread "
             "to the Krylov path."
@@ -235,12 +238,12 @@ def test_krylov_driver_consumes_the_records_own_splitting(build_mesh):
 
 
 def test_a_slab_hides_r7_the_documented_trap():
-    r"""A 1-D slab reports GREEN on ``gauss_seidel`` — and that is a TRAP.
+    r"""A 1-D slab labels JACOBI under ``gauss_seidel`` — and that is a TRAP.
 
-    ``_select_si_splitting`` falls back to Jacobi unless ``is_cartesian and
-    not is_1d``, so a slab exercises the *control* arm under the *red* arm's
-    name.  The campaign's first probe of R7 used a slab, measured ``True`` on
-    both rows, and concluded there was no twin.
+    :func:`~orpheus.sn.splitting.resolve_schedule` falls back to Jacobi unless
+    ``is_cartesian and not is_1d``, so a slab exercises the *control* arm
+    under the *other* arm's name.  The campaign's first probe of R7 used a
+    slab, measured ``True`` on both rows, and concluded there was no twin.
 
     Committing the trap as a named row makes that mistake unrepeatable: this
     test asserts the slab is green **and** says why, so a future reader who
@@ -249,17 +252,14 @@ def test_a_slab_hides_r7_the_documented_trap():
     told exactly which invariant moved.
     """
     sn_mesh = slab_seedless()
-    record = record_for(sn_mesh)
-    _si, implicit, gains, _w = _within_group_si(
-        record, sn_mesh, inner_schedule="gauss_seidel", max_iter=2, tol=1e-10,
-    )
-    if implicit is not record.implicit_operator or tuple(map(id, gains)) != tuple(
-        map(id, record.explicit_gains),
-    ):
+    splitting = splitting_for(sn_mesh, "gauss_seidel")
+    if splitting.schedule.is_sequenced or (
+        splitting.implicit is not splitting.system.factors.streaming_collision
+    ) or splitting.explicit[-1] is not splitting.system.factors.boundary:
         pytest.fail(
             "the 1-D slab no longer falls back to Jacobi under "
             "inner_schedule='gauss_seidel' — the R7 observability precondition "
-            "changed; re-read _select_si_splitting's geometry gate."
+            "changed; re-read resolve_schedule's geometry gate."
         )
 
 
@@ -292,10 +292,10 @@ def test_reconstruction_identity_A_equals_M_minus_N(build_mesh, exact):
     block grid re-associates and lands at ≤ 8 ULP (it fails at 4).
     """
     sn_mesh = build_mesh()
-    record = record_for(sn_mesh)
-    state = random_state(record, seed=_SEED)
-    loss_image = record.loss.apply(state).to_flat()
-    split = split_image(record, state)
+    splitting = splitting_for(sn_mesh, "jacobi")
+    state = random_state(splitting.system, seed=_SEED)
+    loss_image = splitting.system.loss.apply(state).to_flat()
+    split = split_image(splitting, state)
 
     if exact:
         np.testing.assert_array_equal(
@@ -323,9 +323,9 @@ def test_mutation_dropping_the_gains_reddens_the_splitting_law(build_mesh):
     8-nulp contracts the law is gated at.
     """
     sn_mesh = build_mesh()
-    record = record_for(sn_mesh)
-    state = random_state(record, seed=_SEED)
-    defect = reconstruction_residual(record, state, gains=())
+    splitting = splitting_for(sn_mesh, "jacobi")
+    state = random_state(splitting.system, seed=_SEED)
+    defect = reconstruction_residual(splitting, state, gains=())
     if defect < 1e-3:
         pytest.fail(
             f"dropping every explicit gain moved the splitting law by only "
@@ -348,10 +348,10 @@ def test_mutation_sign_flipped_gain_reddens_the_splitting_law(build_mesh):
     3.32e-02 seedless, 3.66e-02 carrying.
     """
     sn_mesh = build_mesh()
-    record = record_for(sn_mesh)
-    state = random_state(record, seed=_SEED)
-    flipped = (-record.explicit_gains[0], *record.explicit_gains[1:])
-    defect = reconstruction_residual(record, state, gains=flipped)
+    splitting = splitting_for(sn_mesh, "jacobi")
+    state = random_state(splitting.system, seed=_SEED)
+    flipped = (-splitting.explicit[0], *splitting.explicit[1:])
+    defect = reconstruction_residual(splitting, state, gains=flipped)
     if defect < 1e-3:
         pytest.fail(
             f"flipping the first gain's sign moved the splitting law by only "
@@ -418,18 +418,18 @@ def test_the_sigma_r_fold_is_a_splitting_only_with_its_anisotropic_remainder():
     nothing else.
     """
     sn_mesh = isotropic_slab(c=0.9)
-    record = record_for(sn_mesh, scattering_order=0)
-    scattering = scattering_gain(record)
-    boundary = record.explicit_gains[-1]  # B_a LAST (§14.1: gains are (S, N2N, B_a))
+    splitting = splitting_for(sn_mesh, "jacobi", scattering_order=0)
+    factors = splitting.system.factors
+    scattering, boundary = factors.scattering, factors.boundary
     sigma_s0 = sigma_s0_times_identity(sn_mesh, scattering)
-    folded_implicit = seedless_implicit(record) - sigma_s0
+    folded_implicit = factors.streaming_collision - sigma_s0
     honest_gains = (scattering, boundary, -sigma_s0)
 
-    anisotropic = random_state(record, seed=4242)
-    flat = random_state(record, seed=4242, angularly_flat=True)
+    anisotropic = random_state(splitting.system, seed=4242)
+    flat = random_state(splitting.system, seed=4242, angularly_flat=True)
 
     honest = reconstruction_residual(
-        record, anisotropic, implicit=folded_implicit, gains=honest_gains,
+        splitting, anisotropic, implicit=folded_implicit, gains=honest_gains,
     )
     if honest > 1e-13:
         pytest.fail(
@@ -439,7 +439,7 @@ def test_the_sigma_r_fold_is_a_splitting_only_with_its_anisotropic_remainder():
         )
 
     caught = reconstruction_residual(
-        record, anisotropic, implicit=folded_implicit, gains=(),
+        splitting, anisotropic, implicit=folded_implicit, gains=(),
     )
     if caught < 1e-4:
         pytest.fail(
@@ -449,7 +449,7 @@ def test_the_sigma_r_fold_is_a_splitting_only_with_its_anisotropic_remainder():
         )
 
     hidden = reconstruction_residual(
-        record, flat, implicit=folded_implicit, gains=(),
+        splitting, flat, implicit=folded_implicit, gains=(),
     )
     if hidden > 1e-12:
         pytest.fail(
@@ -480,7 +480,7 @@ def test_the_two_sigma_s0_operators_are_indistinguishable_on_a_flat_flux():
     """
     sn_mesh = isotropic_slab(c=0.9)
     record = record_for(sn_mesh, scattering_order=0)
-    scattering = scattering_gain(record)
+    scattering = record.factors.scattering
     sigma_s0 = sigma_s0_times_identity(sn_mesh, scattering)
 
     flat = system_a(random_state(record, seed=4242, angularly_flat=True))

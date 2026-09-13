@@ -93,31 +93,53 @@ conforming so the iteration primitives in
 plumbing.  The within-group inner solve is built once from a single
 source of truth — the :func:`~orpheus.sn.coupled_system.build_within_group_system`
 builder assembles the :class:`~orpheus.sn.coupled_system.WithinGroupSystem`
-record, the honest within-group decomposition :math:`(L+C,\ S,\ B)` as a
-named splitting :math:`A = M - N`: the invertible resolvent
-:math:`M = (L+C)` plus its two lagged coupling gains :math:`N = (S,\ B_a)`
-(the bulk scattering :math:`S` and the trace boundary reflection :math:`B`;
-zero within-group fission), handed to the **variadic** driver
-:math:`\text{Driver}(L_{\rm resolvent},\,*\text{gains})` (Wave O step
+record: the posed loss :math:`A` on its carrier space, and the bound
+LEAVES it is the signed sum of
+(:class:`~orpheus.sn.coupled_system.SNLossFactors` — :math:`L+C`,
+:math:`S`, :math:`N_{2n}`, :math:`B_a`, plus System B's quartet on a
+carrying mesh; zero within-group fission, which enters as the
+:math:`1/k`-scaled outer source).  Which of those leaves is inverted and
+which is lagged is **not** the record's choice: it is a
+:class:`~orpheus.sn.splitting.Splitting` — a Strategy VALUE minted from
+the record's factors by the one labelling site
+:meth:`~orpheus.sn.splitting.Splitting.from_schedule`, whose derived
+members :math:`M` (:attr:`~orpheus.sn.splitting.Splitting.implicit`) and
+:math:`N` (:attr:`~orpheus.sn.splitting.Splitting.explicit`) the drivers
+consume, and whose law :math:`M - N = A` is certifiable per value
+against the record it was minted from
+(:ref:`sn-splitting-is-a-strategy-value`).  The pieces are handed to the
+**variadic** driver
+:math:`\text{Driver}(M^{-1},\,*\text{gains})` (Wave O step
 O.2a — the transitional :math:`S + B` fold is retired; see
 :ref:`bc-extraction-variadic-driver` in :doc:`/theory/foundations/boundary_conditions`).
 :func:`_within_group_krylov` wraps the matching
-:class:`~orpheus.numerics.iteration.KrylovAcceleration` — and the
-decomposition is shared verbatim across the eigenvalue source-iteration
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` — and the posed
+record is shared verbatim across the eigenvalue source-iteration
 inner (:meth:`SNSolver._solve_source_iteration`), the eigenvalue Krylov
-inner (:meth:`SNSolver._solve_krylov`), and both fixed-source paths.
+inner (:meth:`SNSolver._solve_krylov`), and both fixed-source paths,
+each of which mints the splitting VALUE its own schedule calls for.
 
 .. admonition:: Key Facts
    :class: tip
 
    * The within-group system is built ONCE, from a single source of
      truth (:func:`~orpheus.sn.coupled_system.build_within_group_system`):
-     the named splitting :math:`A = M - N` — the invertible resolvent
-     :math:`M = (L+C)` plus the lagged gains :math:`N = (S,\ B)`.
-     Fission is never inside the swept operator; it enters as the
+     the posed loss :math:`A` plus the bound leaves it is the signed sum
+     of (:class:`~orpheus.sn.coupled_system.SNLossFactors`).  Fission is
+     never inside the swept operator; it enters as the
      :math:`1/k`-scaled outer source.
+   * **The splitting** :math:`A = M - N` **is a Strategy VALUE, not a
+     member of the posed record** (since 2026-09-13 — the consumers
+     campaign's step 2).  Its primitive is the LABELLED TERM SET —
+     each leaf carries the sign it has in :math:`A` and exactly one
+     label, implicit or explicit — and :math:`M`, :math:`N` are
+     *derived* from the labelling, never stored beside it
+     (:ref:`sn-splitting-is-a-strategy-value`).  Two labellings ship:
+     Jacobi (every geometry) and boundary Gauss-Seidel (multi-D
+     Cartesian, seedless), and a value certifies itself against the
+     Problem by :meth:`~orpheus.sn.splitting.Splitting.law_residual`.
    * Both inner paths — source iteration and Krylov — consume that SAME
-     decomposition over the SAME one-walk discretization (matvec ≡
+     posed record over the SAME one-walk discretization (matvec ≡
      :term:`sweep`, #206 Phase C): the same solution **set**, different
      rate and memory.  On a closed reflective diamond box that set is a
      *manifold*, not a point — :math:`A` is exactly singular there — so
@@ -606,8 +628,9 @@ Two Inner Solvers
 - Operator: :math:`(L+C)^{-1}` (the one-walk WDD sweep)
 - Iterate: the typed field composite (angular bulk + boundary trace)
 - Fixed-point: :math:`\psi^{(k+1)} = (L+C)^{-1}(S\,\psi^{(k)} +
-  N_{2n}\,\psi^{(k)} + B\,\psi^{(k)} + q_{\rm ext})` — the
-  ``explicit_gains`` triple ``(S, N2N, B_a)``
+  N_{2n}\,\psi^{(k)} + B\,\psi^{(k)} + q_{\rm ext})` — the Jacobi
+  value's :attr:`~orpheus.sn.splitting.Splitting.explicit` triple
+  ``(S, N2N, B_a)``
 - Convergence rate: spectral radius of
   :math:`(L+C)^{-1}(S+N_{2n}+B)` — the
   :term:`scattering ratio` :math:`c` (:doc:`slab_one_group`)
@@ -658,6 +681,567 @@ they carried different spatial closures — and disagreed on coarse-mesh
    sentence is true again of what a caller receives.  Derivation:
    :ref:`sn-loss-kernel-gauge`; exit behaviour: :ref:`sn-exit-gauge`.
 
+.. _sn-splitting-is-a-strategy-value:
+
+The splitting ``A = M - N`` is a Strategy VALUE
+-----------------------------------------------
+
+The two inner solvers above do not consume the posed loss :math:`A`
+raw.  They consume a **splitting** of it — a decomposition
+:math:`A = M - N` in which :math:`M` is inverted every step and
+:math:`N` is evaluated on the previous iterate (Hackbusch 2016, §11).
+Source iteration *is* that decomposition
+(:math:`\psi \leftarrow M^{-1}(q + \sum_i N_i\psi)`); Krylov uses
+:math:`M^{-1}` as its preconditioner and applies :math:`M - N`
+matrix-free.
+
+Choosing which leaf is inverted and which is lagged is a **solver**
+decision, not a property of the equation.  Since 2026-09-13 (the
+consumers campaign's step 2) the codebase says so structurally: the
+Problem's posed record
+:class:`~orpheus.sn.coupled_system.WithinGroupSystem` carries the loss,
+its carrier space, and the bound leaves
+(:class:`~orpheus.sn.coupled_system.SNLossFactors`) — and *nothing
+else*.  The splitting is a separate frozen value,
+:class:`~orpheus.sn.splitting.Splitting`, minted from those leaves by
+one labelling site,
+:meth:`~orpheus.sn.splitting.Splitting.from_schedule`.
+
+.. admonition:: Key facts for this section
+   :class: tip
+
+   * The **primitive is the labelling**, not the products.  A
+     :class:`~orpheus.sn.splitting.LossTerm` is an operator together
+     with the coefficient :math:`\pm 1` it carries in :math:`A`; a
+     splitting assigns each term exactly one label, implicit or
+     explicit, and :math:`M` and :math:`N` are *derived*
+     (:eq:`sn-splitting-labelled-terms`).  Nothing stores :math:`M`
+     and :math:`N` beside the labelling, so they cannot disagree with
+     it.
+   * **Two labellings ship**: Jacobi (every geometry, and the only one
+     admitted on a seed-carrying mesh) and boundary Gauss-Seidel
+     (multi-D Cartesian, seedless).  They are two splittings of the
+     *same* :math:`A`, so they share a fixed-point *set* and differ
+     only in rate — the pair is what a Mode-9 invariance gate needs.
+   * The law :math:`M - N = A` is a property of the value and is
+     checkable per value:
+     :meth:`~orpheus.sn.splitting.Splitting.law_residual`.  It is
+     **bit-exact** on the seedless arm (the Gauss-Seidel split writes
+     disjoint rows, so no addition is reordered) and round-off-close on
+     the carrying arm (the block grid re-associates).
+   * ⚠ It is a splitting, **not a regular splitting** in Varga's sense,
+     so no comparison theorem bounds its rate and boundary
+     Gauss-Seidel is measurably slower than Jacobi on some meshes:
+     :ref:`sn-boundary-gs-not-regular`.
+
+The defect this retired: a posing that advertised a splitting it did not use
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+From 2026-07-28 until 2026-09-13 the posed record carried two further
+members, ``implicit_operator`` (:math:`M`) and ``explicit_gains``
+(:math:`N`), assembled by the builder.  That was wrong twice over.
+
+It was wrong **in principle** because a posing has no schedule: the same
+:math:`A` is posed once and then solved by whichever strategy the caller
+selected, so a record that names one :math:`M` is answering a question
+it was never asked.
+
+It was wrong **in fact**, and that is the part a gate could see.  The
+seedless source-iteration driver did *not* run the record's pair.  On a
+multi-D Cartesian mesh with ``inner_schedule="gauss_seidel"`` it called a
+solver-private helper, ``_select_si_splitting``, which re-derived a
+*second* splitting behind the record's back: it split :math:`B_a` under
+the octant-group schedule and folded the strictly-lower half into the
+implicit operator.  So the record advertised
+:math:`M = (L+C)`, :math:`N = (S, N_{2n}, B_a)` while the driver ran
+:math:`M = (L+C) - B_{\rm lower}`, :math:`N = (S, N_{2n}, B_{\rm upper})`
+— a twin, in exactly the Cardinal-Rule-2 sense, and the record's claim
+was simply false for one of the two shipped schedules.
+
+That twin was tracked as **R7 of the operator/strategy campaign** (not
+to be confused with the ``(n,2n)`` R7 of :ref:`sn-keff-estimator`, nor
+with the #310 R7 schedule-reverse transpose).  It was pinned by a
+``xfail(strict=True)`` row in
+``tests/sn/architecture/test_stage_separation.py`` so the fix could not
+land silently; step 2 made the row XPASS, and the marker was deleted the
+same day.  What keeps teeth now is the law itself, below, plus the
+positive rows that assert the driver consumes the value's own operators
+by identity.
+
+.. note::
+
+   The record's ``implicit_operator`` field had an earlier name,
+   ``resolvent``, retired 2026-07-28 as a misnomer — it held the
+   *un-inverted forward* :math:`M`, whereas a resolvent is
+   inverse-like.  The two renames are one story: first the field was
+   named honestly, then it was found not to belong on that object at
+   all.  See the crosswalk row in
+   :doc:`/theory/conventions/notation`.
+
+The labelled term is the primitive
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The within-group loss on the loss-sign convention is the signed sum
+:eq:`sn-within-group-with-n2n`, plus System B's quartet on a
+seed-carrying mesh (:ref:`coupled-block-operator`):
+
+.. math::
+
+   A \;=\; \underbrace{(L+C)}_{+1} \;-\; S \;-\; N_{2n} \;-\; B_a
+   \qquad \bigl(
+   +\,A_{AB}\ \text{(seeding)},\;
+   -\,E\ \text{(emission)},\;
+   +\,A_{BB}\ \text{(march)},\;
+   -\,B_b
+   \bigr).
+
+A **term** is therefore an operator together with the coefficient it
+carries here, and that pair is the object
+:class:`~orpheus.sn.splitting.LossTerm` reifies: ``LossTerm(operator,
+sign)`` with ``sign`` in :math:`\{+1, -1\}` (the constructor refuses
+anything else, so a corrupt coefficient is unspellable).  A splitting is
+then a **partition of the term set into two labels**, implicit
+:math:`\mathcal I` and explicit :math:`\mathcal E`, and its two members
+are derived from that partition:
+
+.. math::
+   :label: sn-splitting-labelled-terms
+
+   A \;=\; \sum_{k} s_k\,T_k ,
+   \qquad
+   M \;=\; \sum_{k \in \mathcal I} s_k\,T_k ,
+   \qquad
+   N \;=\; -\!\!\sum_{k \in \mathcal E} s_k\,T_k ,
+   \qquad
+   \mathcal I \sqcup \mathcal E = \{k\} .
+
+.. (vv-status rationale) Representational identity: it states how the
+   shipped ``Splitting`` value derives its two members from the labelling
+   it holds, which is a definition rather than a solver claim.  The
+   verifiable content is the law :eq:`sn-splitting-law` it makes
+   immediate, gated by
+   ``tests/sn/solve/test_boundary_gs_is_a_coherent_splitting.py::test_both_schedules_are_splittings_of_the_SAME_A``
+   (exhaustive dense assembly, both schedules) and
+   ``tests/sn/architecture/test_stage_separation.py::test_reconstruction_identity_A_equals_M_minus_N``
+   (both arms), with their mutation rows.
+.. vv-status: sn-splitting-labelled-terms documented
+
+The minus sign on :math:`N` is what makes the lagged terms **gains**.  A
+gain carries :math:`s_k = -1` in :math:`A`; flipping it puts the term on
+the right-hand side with a plus, which is what the driver's update
+:math:`\psi \leftarrow M^{-1}(q + \sum_i N_i \psi)` needs.  The law then
+holds by construction rather than by convention — write it out:
+
+.. math::
+   :label: sn-splitting-law
+
+   M - N
+   \;=\; \sum_{k \in \mathcal I} s_k T_k
+       \;+\; \sum_{k \in \mathcal E} s_k T_k
+   \;=\; \sum_{k} s_k T_k
+   \;=\; A .
+
+.. (vv-status rationale) Structural identity: ``A = M - N`` is immediate
+   from :eq:`sn-splitting-labelled-terms` once the labels partition the
+   term set, so the equation states a property of the shipped
+   construction, not a claim about a solve.  Its verifiable content —
+   that the objects the value actually derives satisfy it on real
+   operands — is what
+   :meth:`~orpheus.sn.splitting.Splitting.law_residual` computes and
+   what the two gate modules named above assert, bit-exactly on the
+   seedless arm and at ``nulp=8`` on the carrying one.
+.. vv-status: sn-splitting-law documented
+
+Three design consequences follow from carrying the sign on the **term**
+rather than on the label, and each is the reason a plausible-looking
+alternative was rejected.
+
+*The sign survives a label move.*  Moving a term from
+:math:`\mathcal I` to :math:`\mathcal E` changes which sum it appears
+in, not its coefficient — so a *transfer* is law-invariant by
+construction.  ``[M]`` transferring :math:`B_{\rm lower}` from implicit
+to explicit leaves the law residual at exactly ``0.0``.  Had the sign
+been positional (implicit terms added, explicit terms subtracted), the
+same transfer would have moved the residual by :math:`2\lvert T_k x
+\rvert` — i.e. the operation that a later ρ-policy phase needs as its
+elementary move would have been unsafe by default.
+
+*The derivation stays on the domain's own algebra.*  A term is stored as
+``(operator, sign)`` rather than pre-wrapped in a
+:class:`~orpheus.numerics.operator.ScaledOperator` with coefficient
+:math:`-1`, because the fold must be able to spell
+:math:`(L+C) - B_{\rm lower}` as a *subtraction*.  That expression
+dispatches, through
+:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`'s
+own ``__sub__``, to the sweep-invertible scheduled composite whose
+``solve`` is the octant-group forward substitution.  An equivalent
+``+ (-B_lower)`` would compose a generic
+:class:`~orpheus.numerics.operator.OperatorSum` instead, and the result
+would not be invertible by a sweep.
+
+*Shape symmetry holds where it must.*  The design rule "a block cannot
+move from :math:`M` to :math:`N` if :math:`M` and :math:`N` have
+different shapes" is false of the *products* — :math:`M` is one operator
+and :math:`N` is a tuple of pieces on the seedless arm — and true of the
+*terms*, which is the level the rule was always about.  Because the
+primitive is the term set, a transfer has an operand.
+
+The two shipped labellings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 16 30 30 24
+
+   * - labelling
+     - implicit :math:`\mathcal I`
+     - explicit :math:`\mathcal E`
+     - admitted on
+   * - **Jacobi**
+     - :math:`L+C` (and, carrying, :math:`A_{AB}` seeding and
+       :math:`A_{BB}` march)
+     - :math:`S`, :math:`N_{2n}`, :math:`B_a` (and, carrying,
+       :math:`E` emission and :math:`B_b`)
+     - every geometry; the **only** labelling on a seed-carrying mesh
+   * - **Boundary Gauss-Seidel**
+     - :math:`L+C`, :math:`B_{\rm lower}`
+     - :math:`S`, :math:`N_{2n}`, :math:`B_{\rm upper}`
+     - multi-D Cartesian, seedless
+
+Under boundary Gauss-Seidel the *only* operator that splits is
+:math:`B_a`.  The octant-group schedule induces a partition of its rows
+into a strictly-lower half (inflow rows whose reflected source is
+already available within the sweep) and an upper half, via
+:meth:`~orpheus.sn.operators.boundary.SNBoundaryOperator.split`, which
+returns the named pair :math:`B_{\rm lower} + B_{\rm upper} = B_a` on
+**disjoint** rows.  The lower half then moves across the :math:`M/N`
+boundary and is absorbed into the implicit part; the collision gains
+:math:`S` and :math:`N_{2n}` are lagged under *both* labellings,
+because the sweep never re-scatters mid-sweep.
+
+Two refusals make the restriction structural rather than conventional:
+
+* The schedule string becomes a schedule object at exactly one site,
+  :func:`~orpheus.sn.splitting.resolve_schedule`, and that site carries
+  the geometry gate.  ``"gauss_seidel"`` yields a sequenced schedule
+  only when the mesh ``is_cartesian and not is_1d``; on 1-D or
+  curvilinear meshes it falls back to Jacobi.  The gate reads the
+  genuine condition: before #225 C5.4 it read the proxy ``reduced is
+  None``, which happened to be equivalent on 2-D Cartesian and was not
+  the property being tested.
+* Handing a sequenced schedule to a carrying system
+  :meth:`~orpheus.sn.splitting.Splitting.from_schedule` **raises** rather
+  than silently re-labelling.  A carrying mesh's boundary is the
+  :math:`B_a + B_b` composite, and the ruling that the octant grading
+  lives on :math:`B_a` and only there would be violated by splitting it.
+  ``resolve_schedule`` never produces that combination, so the refusal
+  exists for a direct caller that bypasses it.
+
+Where :math:`M` and :math:`N` come from
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The derivation has two arms, and they differ in *mechanism*, not in the
+definition above.
+
+**Seedless — a signed fold.**  The implicit terms are folded left to
+right through the operator algebra: the first term *starts* the sum, and
+every further term is added or subtracted according to its sign.  Three
+properties of that choice matter:
+
+* A single-term implicit set folds to **that operator itself**, not to a
+  one-element sum wrapping it.  Identity is preserved, which is what lets
+  the stage-separation gates assert that the driver inverted the record's
+  own :math:`L+C` object by ``is``, rather than by value.
+* A two-term implicit set :math:`\{L+C,\; -B_{\rm lower}\}` folds
+  through the subtraction dispatch described above and lands on the
+  scheduled composite, so :math:`M^{-1}` is the octant-group forward
+  substitution with no branch anywhere in the driver.
+* The fold refuses an empty implicit set, and refuses to *open* with a
+  gain — the first term must be a :math:`+` term, because the sweepable
+  structure is what makes :math:`M` invertible at all.
+
+**Carrying — placement by ends.**  On a seed-carrying mesh every term is
+placed into the :math:`2\times2` System-A :math:`\oplus` System-B block
+grid **by its own ends**: a term's codomain names its block row and its
+domain names its block column, resolved against the members of the
+coupled carrier space.  No term carries a block index; the coupled
+space's members *are* the addresses.  Terms landing in the same slot are
+summed in labelling order, and a term whose end matches zero members —
+or more than one — raises, so an unbound end is caught as the posing
+defect it is rather than becoming a placement choice.
+
+That yields the honest upper-triangular implicit grid and the gain grid
+
+.. math::
+
+   M \;=\;
+   \begin{bmatrix} L+C & A_{AB} \\ \varnothing & A_{BB} \end{bmatrix} ,
+   \qquad
+   N \;=\;
+   \begin{bmatrix} S + N_{2n} + B_a & \varnothing \\ E & B_b
+   \end{bmatrix} ,
+
+in which the :math:`(A,B)` slot of :math:`N` is **structurally** zero
+because the seeding term lives in :math:`M` — there is no block to
+suppress, no branch to take.  :math:`M`'s ``solve`` is the block
+back-substitution: System B's march first (exactly the curvilinear sweep
+order), then the bulk sweep on :math:`q_A - A_{AB}\,\psi_B`.
+
+⭐ Placement by ends is the mechanism a later partition phase
+generalises to :math:`A_{ij} = R_i\,A\,J_j` for an arbitrary carrier
+partition; the labelling above is its first constructor, and the
+:class:`~orpheus.numerics.coupled_system.CoupledOperator` constructor's
+own block type-check is what makes a mis-placed coupling
+*unconstructable* rather than merely wrong.
+
+The law, and what it is measured at
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:meth:`~orpheus.sn.splitting.Splitting.law_residual` evaluates
+:math:`\bigl(M - \sum_i N_i - A\bigr)x` on a state and returns it flat,
+aligned with :math:`A x`.  It is the value's **certificate against the
+Problem it was minted from**: :math:`A` is read off
+``system.loss``, i.e. the operator the *posing* built, never
+re-assembled from the same pieces the splitting used — so the two sides
+of the comparison do not share a construction.
+
+.. list-table:: What the law reads, and why
+   :header-rows: 1
+   :widths: 22 26 52
+
+   * - arm
+     - residual
+     - why
+   * - seedless, both schedules
+     - exactly ``0.0``
+     - the terms are the loss's own objects and the Gauss-Seidel split
+       writes **disjoint rows** — on any row carrying a boundary value
+       exactly one of :math:`B_{\rm lower}`, :math:`B_{\rm upper}` is
+       non-zero, so no addition is reordered.  ``[M]`` bit-exact on 6
+       configurations (absorber, :math:`c = 0.5`, :math:`c = 0.9`,
+       x-vacuum, at two mesh sizes) under an *exhaustive* dense
+       assembly — one unit probe per degree of freedom, so every entry
+       of :math:`M - N - A` is checked rather than a random subspace.
+   * - carrying
+     - round-off, **not** zero
+     - the block-grid assembly re-associates the sums, so bit-exactness
+       is not available and is not asserted.  The draw-stable statistic
+       is the **relative** one: ``[M]`` :math:`\max\lvert r
+       \rvert_\infty / \lVert A x \rVert_\infty = 2.087\times10^{-16}`
+       (:math:`\approx 0.94\,\varepsilon`) over 40 random draws.  The
+       shipped gate pins ``nulp=8`` and ``[M]`` fails at 4.
+
+.. warning::
+
+   ⚠ **Do not pin the carrying arm's absolute residual.**  It is a
+   property of the draw, not of the splitting: ``[M]`` the same fixture
+   reads :math:`3.55\times10^{-15}` at one draw and
+   :math:`2.84\times10^{-14}` over forty.  Only the relative figure
+   above is stable, and the gate is written against a nulp band for
+   that reason.  The same caution applies to every mutation magnitude
+   in this section — each is the norm of *some operator applied to some
+   probe state*, so it moves with the fixture and the seed.  The gate
+   docstrings carry the current numbers and re-measure them; quote
+   those, not these.
+
+The law's teeth are its mutations, and the ladder is instructive because
+it shows what the law can and cannot attribute:
+
+* **Drop every gain** (claim :math:`A = M`) — this is the historical
+  σ_r-fold defect in its purest form, ERR-070, which shipped 46–56 %
+  silent flux errors gated by nothing.  ``[M]`` it moves the law by
+  ``1.00e-01`` seedless and ``1.83e-02`` carrying, fifteen or more
+  orders above the contract.
+* **Flip one gain's sign** — distinct from the drop, because the gain is
+  still *present* (an arity or ``None``-block check still passes) and
+  only its value moves, so this is the catcher for a convention drift.
+  ``[M]`` ``3.32e-02`` seedless, ``3.66e-02`` carrying.
+* **Re-introduce the ERR-056 boundary-Gauss-Seidel defect** — keep
+  :math:`B_{\rm lower}` implicit *and* lag the whole :math:`B_a`.  This
+  reddens the law on the Gauss-Seidel arm; the per-face partition gate
+  stays green, because :math:`B_a` itself is untouched.
+
+⛔ **The law alone cannot tell a double-label from a dropped term.**
+Labelling :math:`B_{\rm lower}` *both* implicit and explicit, and
+*removing* it from the implicit set, shift the residual by exactly the
+same quantity — :math:`\lvert B_{\rm lower}\,x\rvert` — so the two
+defects are indistinguishable by magnitude.  Separating them needs a
+**structural** assertion instead: that the two label sets are disjoint
+(catches the double-label) and that their multiset union is the record's
+own term set (catches the drop).  That check is exact, costs nothing,
+and is the only thing that discriminates.
+
+⚠ One leg of the design has **no production home** and is a test-side
+obligation: the *realization* law, that :math:`M` as derived equals the
+sum of its own implicit terms.  ``law_residual`` cannot see it, because
+:math:`M` is derived *from* those terms — every piece-labelling mutation
+leaves it green.  Its only catcher is a perturbation of the scheduled
+composite's ``apply``; without that arm the realization claim ships
+unwitnessed, and the honest thing is to say so here rather than let the
+law's name imply coverage it does not have.
+
+Finally, the two labellings together are what a Mode-9 gate needs.  A
+splitting must not move the fixed point, only the rate, and the honest
+way to check that is to compare two *different* splittings of the same
+:math:`A` on a configuration where the degeneracy that would hide an
+error is broken.  ⚠ On a closed reflective diamond box :math:`A` is
+exactly singular, so the two arms legitimately return different
+*members* of a solution manifold and the comparison must be made on a
+gauged trace or on a functional orthogonal to :math:`\ker A` — see
+:ref:`sn-loss-kernel-gauge` and :ref:`sn-exit-gauge`.
+
+The query contract: POSED operators versus USED operators
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The split above is one instance of a general rule this campaign adopted,
+and it is worth stating in its own words because it decides where every
+future strategy object lives:
+
+   The Problem answers with the operators as **POSED** — original,
+   unmodified, once per Problem.  The Strategy answers with the
+   operators as it **USES** them — labelled, split, re-bound, lowered —
+   and every Strategy value certifies itself against the Problem by an
+   algebraic law.
+
+:class:`~orpheus.sn.splitting.Splitting` is the first such value, and
+the law it certifies itself by is :eq:`sn-splitting-law`.  The pattern
+generalises: the boundary split certifies itself by :math:`B_{\rm
+lower} + B_{\rm upper} = B_a`; a windowed gain certifies itself against
+the original's own projection; a shifted factor set will certify itself
+against the pencil's :math:`\mathcal A(\sigma)`.
+
+The record the inner solve leaves behind carries **both faces in one
+object**, which is why it can answer either question without a caller
+guessing: :class:`~orpheus.sn.solver.InnerSolve` holds ``system`` (the
+Problem's posed record), ``splitting`` (the Strategy value that ran),
+``driven_gains`` (those of the value's explicit pieces that were
+actually applied — the angular lifts re-bound onto the moment iterate
+when the 2-D arm was windowed), and ``iterate``.  The finalize
+(:ref:`sn-finalize-one-step`) reads :math:`M` and the driven gains from
+it and applies the map once; because nothing re-selects a splitting the
+inner already chose, the reconstruction cannot drift from the iteration
+it is reconstructing.
+
+What is deferred, and why
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Several things the value's shape anticipates are deliberately *not*
+built.  Each is deferred for a stated structural reason, not for
+effort.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - deferred
+     - the structural reason
+   * - a **gain grid on both arms** (one fused :math:`N` operator
+       seedless as well as carrying)
+     - The 2-D windowed driver re-binds the lagged angular lifts onto
+       the moment domain *one by one*, and only
+       :class:`~orpheus.transport.operators.angular_lift.AngularLift`
+       carries an ``on_moment_domain`` re-binding.  The boundary
+       operators carry none, and
+       :class:`~orpheus.numerics.operator.OperatorSum` validates its
+       members' domains at construction, so a fused
+       ``S.on_moment_domain() + B_a`` **raises**.  Landing the grid now
+       would mean a distributing ``on_moment_domain`` on
+       ``OperatorSum`` and ``CoupledOperator`` plus a domain re-bind on
+       two boundary classes — a new arm on four classes for one
+       consumer.  Keeping the explicit part addressable *as pieces* is
+       what lets the window work at all, and the grid is a derivation
+       from the same primitive whenever it is wanted.
+   * - a **second constructor** from a carrier partition
+     - Placement by ends already generalises to
+       :math:`A_{ij} = R_i A J_j`; what is missing is the partition
+       object, not the mechanism.  One interface, two constructors.
+   * - retiring
+       :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+     - It is the reified :math:`(L+C) - B_{\rm lower}` composite, and it
+       is ruled to *retire*, not to be renamed, when the partition
+       constructor lands.  This is why
+       :attr:`~orpheus.sn.splitting.Splitting.implicit` is annotated by
+       the **capability** it must carry — an invertible operator — and
+       never by that class: the retirement then touches no signature
+       here.
+   * - a **policy** that chooses among splittings
+     - Choosing *between* values (by spectral radius, by measured rate)
+       is a different object from constructing one, and it needs at
+       least two values to choose from before it can be written.  The
+       transfer move it will be built on is already law-invariant
+       (above).
+   * - the **shift** :math:`\sigma` — an α-eigenvalue or a
+       shift-invert point
+     - The absorbed shift :math:`M[\Sigma_t - \sigma/v]` is a Strategy
+       *lowering* of the pencil evaluated at :math:`\sigma`, not a
+       property of the splitting: a shifted factor set is minted and
+       then labelled exactly like this one, and its own law certifies
+       it against :math:`\mathcal A(\sigma)`.
+   * - the Wielandt shift :math:`-(1/k)F` as an explicit term
+     - It is a term like any other once the pencil's point is chosen;
+       it consumes the assignment this value carries.
+   * - a schedule derived from the sweep graph's strongly-connected
+       components
+     - It arrives behind the same
+       :class:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule`
+       call, so the labelling site does not change — the schedule is
+       what the labelling *reads*, not what it *is*.
+
+Designs that were considered and refuted
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Recording these is the point of the section: each looked reasonable, and
+each fails for a reason that will still be there next time.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - candidate
+     - why it fails
+   * - Store :math:`M` and :math:`N` **as fields** (the products), as
+       the posed record used to
+     - Then the assignment exists nowhere as data, a transfer between
+       labels has no operand, and the two members are free to disagree
+       with the labelling that supposedly produced them.  Deriving them
+       is what makes the disagreement unspellable.
+   * - Put ``Splitting`` in ``orpheus/numerics/``
+     - Its one constructor's body is SN fusion — the
+       ``StreamingCollisionOperator`` subtraction dispatch and the
+       carrying quartet.  A numerics-layer type whose only constructor
+       is method-specific is premature generalisation; the abstraction
+       is earned when a second method needs it.
+   * - Bind the value to the **factors alone**, not to the posed record
+     - This was the adversarial review's own recommendation, and what
+       shipped is wider, because two of the value's three uses need
+       record members rather than leaves: the law certifies against
+       ``system.loss`` (an independently-composed operator, which is
+       exactly what makes the check non-tautological), and block
+       placement reads ``system.space`` as its address book.  A
+       factors-only value would have had to re-assemble :math:`A` from
+       the same pieces it splits — comparing a construction with
+       itself.
+   * - Make :class:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule`
+       *the* assignment datum
+     - It is an octant **order** plus a set of reflecting faces.  The
+       carrying arm's assignment is not in it at all, and putting two
+       rules under one name would leave the second legal carrying
+       splitting (block-Jacobi, with the seeding term lagged)
+       unspellable.  The schedule is an input to the labelling; the
+       structural fact the labelling reads off it is just
+       :attr:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule.is_sequenced`
+       — more than one octant group — with ``kind`` left diagnostic.
+   * - Annotate ``Splitting.implicit`` as
+       ``ScheduledInvertibleOperator``
+     - "Retire, don't rename": that class is scheduled for retirement,
+       and a signature naming it would have to be edited when it goes.
+       The annotation names the capability instead.
+   * - Discriminate the ``inner_schedule`` string where it is used
+     - It was checked in two places — a repeated conditional is a
+       missing type.  It is now resolved **once**, at solver
+       construction, into a schedule object; the string survives on the
+       entry-point signatures as sugar and nothing downstream reads it.
+
 .. _sn-finalize-one-step:
 
 The returned angular flux — one step of the map the iteration drove
@@ -705,8 +1289,13 @@ converged iterate returns that iterate — and that is the whole
 reconstruction.  Nothing is re-solved, nothing is re-selected: the
 finalize reads :math:`M`, :math:`\{N_i\}` and :math:`\psi_{\rm conv}` off
 the :class:`~orpheus.sn.solver.InnerSolve` record the last within-group
-solve left behind, and evaluates
-:func:`~orpheus.numerics.iteration.fixed_point_step` on them.
+solve left behind — ``splitting.implicit`` and the ``driven_gains`` the
+driver actually applied — and evaluates
+:func:`~orpheus.numerics.iteration.fixed_point_step` on them.  That
+record carries **both faces of the O-3 query contract** in one object:
+``system`` answers with the Problem's operators as POSED, ``splitting``
+with the Strategy's operators as USED
+(:ref:`sn-splitting-is-a-strategy-value`).
 
 Two things the identity :math:`G(\psi^\star) = \psi^\star` buys are worth
 spelling out, because they are what makes ONE step enough rather than a
@@ -742,9 +1331,11 @@ difference between a diagnostic that tracks the truncation and one that
 does not.
 
 **Everything else in the composite arrives as a gain, not as hand-staged
-data.**  The lagged couplings are the record's own —
-:math:`(S, N_{2n}, B)` on the Jacobi arm, :math:`(S, N_{2n}, B_{\rm upper})`
-when the inner ran under the boundary Gauss-Seidel schedule, and the
+data.**  The lagged couplings are the *value's* own — the
+:attr:`~orpheus.sn.splitting.Splitting.explicit` pieces of the
+:class:`~orpheus.sn.splitting.Splitting` the inner ran:
+:math:`(S, N_{2n}, B_a)` on the Jacobi arm, :math:`(S, N_{2n}, B_{\rm upper})`
+when the inner ran under the boundary Gauss-Seidel schedule, and the one
 coupled gain grid on a carrying (curvilinear) mesh.  Three consequences:
 
 * **The reflective boundary is** :math:`B\,\psi_{\rm conv}`, delivered

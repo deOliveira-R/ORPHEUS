@@ -324,26 +324,38 @@ from each other, or from itself.
        Fission is **never** a gain in the eigenvalue posing — it
        stays on the right-hand side under :math:`1/k`.
 
-       **The bridge, both ends (2026-07-28).** The solver-layer record
-       :class:`~orpheus.sn.coupled_system.WithinGroupSystem` names the
-       splitting by its *role*:
-       :attr:`~orpheus.sn.coupled_system.WithinGroupSystem.implicit_operator`
+       **The bridge, both ends.** The splitting is named by its *role*
+       on the Strategy value
+       :class:`~orpheus.sn.splitting.Splitting`:
+       :attr:`~orpheus.sn.splitting.Splitting.implicit`
        is :math:`M` (solved implicitly — inverted — each step) and
-       :attr:`~orpheus.sn.coupled_system.WithinGroupSystem.explicit_gains`
+       :attr:`~orpheus.sn.splitting.Splitting.explicit`
        is :math:`N` (evaluated explicitly from the lagged iterate). The
        numerics layer keeps its own vocabulary — ``A`` / ``*gains`` on
        :class:`~orpheus.numerics.iteration.SourceIteration` and
        :class:`~orpheus.numerics.iteration.KrylovAcceleration` —
        deliberately, because that layer's ``A`` is the *resolvent
        operand* of the row above. So the crosswalk is
-       ``implicit_operator`` :math:`\leftrightarrow` ``A`` and
-       ``explicit_gains`` :math:`\leftrightarrow` ``*gains``.
+       ``Splitting.implicit`` :math:`\leftrightarrow` ``A`` and
+       ``Splitting.explicit`` :math:`\leftrightarrow` ``*gains``.
 
-       The record's field was called ``resolvent`` until 2026-07-28.
-       That was a **misnomer**: it holds :math:`M`, the *un-inverted
-       forward* operator, whereas a resolvent is inverse-like. The word
-       is now reserved for its two honest uses — the corpus
-       :math:`K_{\rm pm} = A_{\rm loss}^{-1}M` of
+       ⚠ **Which object holds the splitting changed on 2026-09-13.**
+       From 2026-07-28 until the consumers campaign's step 2 the
+       *Problem's* posed record
+       :class:`~orpheus.sn.coupled_system.WithinGroupSystem` carried the
+       two members, named ``implicit_operator`` and ``explicit_gains``;
+       a posing does not choose a splitting, so both retired onto the
+       Strategy value above. The record now carries the bound leaves by
+       role instead —
+       :class:`~orpheus.sn.coupled_system.SNLossFactors` — and every
+       ``M``/``N`` is derived from a labelling of those leaves. See
+       :ref:`sn-splitting-is-a-strategy-value`.
+
+       The pre-step-2 record's field was called ``resolvent`` until
+       2026-07-28. That was a **misnomer**: it held :math:`M`, the
+       *un-inverted forward* operator, whereas a resolvent is
+       inverse-like. The word is reserved for its two honest uses — the
+       corpus :math:`K_{\rm pm} = A_{\rm loss}^{-1}M` of
        :ref:`eigenvalue-posing`, and the future
        ``A.resolvent(z) = (A - zI).inverse()`` factory.
    * - 9 — the term *multiplication operator*

@@ -104,6 +104,23 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
   `#448` was a different piece of work, and `—` is the convention when nothing tracks the row.
   → L-100, L-099
 
+- **⭐⭐ A PAGE'S OWN ⚠ CAVEAT CAN *BE* THE DIAGNOSIS A CARVE LANDS — keep it verbatim
+  under a ⭐, never tense-flip it.** `[M]` `coupled_block_operator.rst` read *"that
+  operator is not always `.implicit_operator` — the G-S schedule splits it — so the
+  precise statement is **the splitting the inner solve drove**, not a named attribute"*.
+  That IS the R7 twin, stated correctly months before the fix; the carve made the precise
+  statement and the named attribute the same object. Deleting it destroys the only prose in
+  the corpus that named the defect pre-fix. ⟹ tell: *"X is not always Y, so the precise
+  statement is Z, not a named attribute"* = a page telling you where its subject is welded.
+  → L-104
+- **⭐⭐ A DESIGN REVIEW'S VERDICT IS A RECOMMENDATION — `dataclasses.fields` the shipped
+  class before quoting its field list.** `[M]` the review ruled *"the value binds the
+  FACTORS, not the record"*; the shipped `Splitting` binds `system: WithinGroupSystem`.
+  Not a regression — a widening the review could not see: `law_residual` certifies against
+  `system.loss` (an operator the POSING composed, which is what makes the check
+  non-tautological) and block placement reads `system.space` as its address book. ⟹ publish
+  it as a refuted-candidate row WITH that reason; worth more than memo or code alone.
+  → L-104
 - **⭐⭐ A PAGE THAT SAYS "THE NICE REASON IS NOT THE LOAD-BEARING ONE" IS ONE CARVE
   AWAY FROM HAVING ONLY THE NICE REASON — and the nice reason is usually the right
   one.** `[M]` `spaces.rst` argued the generator exclusion is *structurally
@@ -1277,6 +1294,25 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
 **Meta-rule: `-W` proves only "I added no NEW warning". The acceptance evidence for a correctness
 sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 
+- **⛔⛔ EVERY CORPUS GREP OWES `| grep -v _build` — four generations of stale HTML
+  answer for the source, and a brief's ANCHOR can be pure `_build`.** `[M]` briefed *"add an
+  `automodule` where `orpheus.sn.coupled_system` is automodule'd (grep it)"*: the raw grep
+  returns **20 hits, all under `docs/_build/`** (`html_271_verify`, `html_test`,
+  `html_qa_review`, `html_fresh` — `_sources/*.rst.txt` naming modules that no longer exist);
+  the SOURCE count is **0**. The sibling `orpheus.numerics.coupled_system` IS automodule'd,
+  one package over, which is why the brief believed it. ⟹ the ruling was *no* automodule
+  (plain-text roles by page convention, as its un-surfaced sibling has), and the general
+  rule: a brief saying "add X where Y is" owes a check that Y is there. `[M]` live source =
+  **49** automodules, **7** under `orpheus.sn.*`. → L-104
+- **⭐⭐ BEFORE INSERTING A ROW INTO A *NUMBERED* TABLE, GREP THE CORPUS FOR THE NUMBERING —
+  and prefer the page's own sub-lettering to a renumber.** Asked to add a tier "between
+  posing and resolvent" to the **four-tier** architecture, `[M]` **37** corpus lines cite
+  `Layer-1…Layer-4` / *four-tier* / *four layers* — including `monte_carlo.rst`'s own
+  unrelated "Layer 3", a homonym a blanket rewrite corrupts. The page had bifurcated layer 2
+  once already (2a/2b), and 2b's text read *"assembles **and inverts**"* — a conjunction
+  welding two decisions. ⟹ the new tier is **2c**, argued in the page's own vocabulary, plus
+  a ⚠ line saying the architecture is STILL four layers and every existing `Layer-N`
+  reference is untouched. → L-104
 - **⛔ An AST IMPORT CENSUS needs TWO resolutions, not one — and the second hid the
   load-bearing edge.** Relative imports (`level > 0`, unqualified `.module`) is the known
   trap. The new one: `from orpheus.numerics import invariance as _invariance` has
@@ -1835,6 +1871,21 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
   only the sites genuinely describing the SHIPPED object, and report the census with its
   denominator as a scoped follow-up. → L-077
 
+- **⭐⭐ A MUTATION MAGNITUDE IS A DRAW — publish the MECHANISM, `.. warning::` the
+  numbers, and point at the gate that re-measures itself.** `[M]` ONE mutation
+  (the ERR-056-family relabel) is recorded as `3.6e+00` (production docstring),
+  `3.595e+00` (design review), `2.778702e+00` (the delta memo on the landed API) and
+  `1.00e-01`/`3.32e-02` (the live gate, different fixture) — and the delta memo says why:
+  *"both are `|lower·x|` on their respective draws"*. The quantity is the absorbed piece
+  applied to the probe state, a property of fixture × seed. ⟹ publish *"the double-label and
+  the drop shift the residual by exactly `|B_lower·x|`, which is why the law cannot tell
+  them apart"*; the ONE draw-stable figure on a re-associating arm is the RELATIVE residual
+  (`2.087e-16 ≈ 0.94 ε` over 40 draws vs `3.55e-15`@1 / `2.84e-14`@40 absolute).
+  `plan-authoring` §9 in the corpus. → L-104
+- **⭐ A plan-internal STEP LABEL collides like a bare `#N` — disambiguate by CAMPAIGN at
+  every use.** `[M]` this corpus carries FOUR `R7`s (MoC/#259 (n,2n); #310 schedule-reverse
+  transpose; the `sn-keff-estimator` convention fork; the operator/strategy campaign's
+  splitting twin). Spell the campaign, and name the ones you are NOT. → L-104, L-067
 - **⭐⭐ DISCHARGING A SEAM is an edit to FOUR surfaces, and the one nobody edits is the
   section's own CARDINAL NUMBER.** `spaces.rst` stated CS5's third seam in the seams
   bullet, the fences row, a *different* forward promise in the sibling section

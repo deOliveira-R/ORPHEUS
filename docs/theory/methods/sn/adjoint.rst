@@ -54,7 +54,9 @@ sweep — is a consequence of that one choice.
      ``KEigenvalue((L+C).H, (S+N2N+B).H, F.H)`` (the daggered resolvent,
      gain, and fission; the loss :math:`A_{\rm loss}^{\dagger} =
      (L{+}C).\mathtt{H} - (S{+}N_{2n}{+}B).\mathtt{H}` is formed inside,
-     the gain being the FOLD of the builder's ``explicit_gains`` rather
+     the gain being the FOLD of the Jacobi
+     :class:`~orpheus.sn.splitting.Splitting` value's
+     :attr:`~orpheus.sn.splitting.Splitting.explicit` pieces rather
      than a hand-written member list) fed to
      the UNCHANGED
      :func:`~orpheus.numerics.eigenvalue.power_iteration`.  There is
@@ -1817,11 +1819,30 @@ summed coupling gain :math:`(S + N_{2n} + B)`, and the fission operator
 comes off :attr:`sn_mesh.scattering_order
 <orpheus.sn.mesh.augmented_mesh.SNMesh.scattering_order>`, so the
 adjoint is posed at exactly the order the forward problem retains.  It
-does not enumerate those gain members: it folds the
-builder's own ``explicit_gains`` tuple with ``+``, so a member added to
+does not enumerate those gain members: it mints a
+:class:`~orpheus.sn.splitting.Splitting` from the record's factors and
+folds that value's
+:attr:`~orpheus.sn.splitting.Splitting.explicit` pieces with ``+``, so a
+member added to
 the within-group algebra (as :math:`N_{2n}` was, CS4c §14.1) reaches the
 adjoint posing without an edit here — the summation is over whatever the
-one construction site composed.  The CALLER daggers each with ``.H`` and
+one construction site composed.
+
+⭐ Which labelling it mints is now **stated rather than inherited**: the
+adjoint posing asks
+:func:`~orpheus.sn.splitting.resolve_schedule` for ``"jacobi"``
+explicitly, so the whole boundary :math:`B_a` is one lagged gain and
+``gain.H`` daggers it entire — there is no octant fold to transpose.
+Before the consumers campaign's step 2 that was true only *incidentally*
+(the builder happened to store the Jacobi pair on its record, while the
+seedless driver re-derived a Gauss-Seidel one behind it), and the
+property had no site to be read off.  It matters because the
+Gauss-Seidel **schedule-reverse** transpose is precisely the deferral
+recorded below; posing the adjoint on the Jacobi value is what keeps
+that deferral out of this chapter's way
+(:ref:`sn-splitting-is-a-strategy-value`).
+
+The CALLER daggers each with ``.H`` and
 poses
 
 .. math::
@@ -2308,10 +2329,17 @@ Development history
   chapter: :math:`\mathrm{full\_scatter\_kernel}` loses its
   :math:`N_{2n}` summand and is scattering-only
   (:eq:`sn-scattering-adjoint-kernel`), and the daggered gain the
-  posing folds is :math:`(S + N_{2n} + B)` — read off the builder's
-  ``explicit_gains``, so the A4 bullet's ``(S+B)`` above is the
+  posing folds is :math:`(S + N_{2n} + B)` — read off the splitting
+  value's explicit pieces (the builder's own ``explicit_gains`` field
+  until 2026-09-13), so the A4 bullet's ``(S+B)`` above is the
   spelling of its own day, not a member list this chapter maintains by
   hand.
+* **Consumers campaign, step 2** (2026-09-13) — the splitting leaves
+  the posed record and becomes a Strategy value
+  (:ref:`sn-splitting-is-a-strategy-value`).  The adjoint posing is
+  unchanged in value and sharper in statement: it mints the **Jacobi**
+  labelling explicitly, so what ``gain.H`` daggers is the whole
+  :math:`B_a`, by construction rather than by coincidence.
 
 References
 ==========

@@ -56,9 +56,9 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.coupled_system import build_within_group_system
+from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.solver import (
     SNSolver,
-    _select_si_splitting,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -261,7 +261,7 @@ def _windowed_product_and_oracle_operands(
     ``(quad, base, product, rhs, oracle_fn)`` on the production config.
 
     ``inner_schedule`` selects the base forward through the production
-    dispatch (:func:`_select_si_splitting`): ``"jacobi"`` → the plain
+    dispatch (:func:`~orpheus.sn.splitting.resolve_schedule` + :meth:`~orpheus.sn.splitting.Splitting.from_schedule`): ``"jacobi"`` → the plain
     ``(L+C)``; ``"gauss_seidel"`` → the reified splitting
     ``M = (L+C) − B_lower`` (#226 §17 W2) — the windowed×G-S corner the
     step-3 pin exercises.
@@ -280,9 +280,14 @@ def _windowed_product_and_oracle_operands(
     system = build_within_group_system(
         solver.sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
     )
-    LC, (S, N2N, B) = system.implicit_operator, system.explicit_gains  # seedless 2-D record shape (§14.1: S, N2N, B_a)
+    LC, S, N2N, B = (
+        system.factors.streaming_collision, system.factors.scattering,
+        system.factors.n2n, system.factors.boundary,
+    )  # the record's factors, by role
     sn_mesh = solver.sn_mesh
-    base, _boundary_gain = _select_si_splitting(LC, B, sn_mesh, inner_schedule)
+    base = Splitting.from_schedule(
+        system, resolve_schedule(sn_mesh, inner_schedule),
+    ).implicit
 
     # THE production windowed object (#226 steps 2–3, §17 W1): the typed
     # composition ``P @ A.inverse()`` — the scattering operator's MINTED

@@ -3207,3 +3207,132 @@ patching the `ClassVar` alone reports MC inert. → `L76h`
   windowed paths are the strongest free anchors in the tree. → `L83k`
 - `material_xs_field()` is a FRESH MINT per call, minted once per solve;
   `geometry_cache_for` fires **1182×** per 1-D eigen solve (intern-absorbed).
+
+## Consumers campaign step 2 DELTA additions (2026-09-13, after the design was ruled + reshaped) → `L84`
+
+**Gates that cannot red (§1)**
+
+- **⛔⛔ A DIFFERENCE of two members of an affine operator family is NOT bit-identical —
+  the MATRIX form is. Never write `at(σ+τ) − at(σ) == −τ·M` as `array_equal`.** `[M]`
+  **144 of 200** random `(σ, τ, x)` draws differ (max rel `2.152e-14`); **79 of 200** even at
+  σ = τ = 1. `at(σ)` is `OperatorSum(lhs, ScaledOperator(−σ, rhs))`, so the difference is a
+  catastrophic CANCELLATION, not an identity. ⭐ `at(σ).as_matrix() == A − σ·F` IS
+  `array_equal` (4 σ values). If the applied form is kept, its only draw-stable statistic is
+  `max|d − ref| / max(|lhs·x|, |σ·rhs·x|) ≤ 9.470e-16` over 300 draws (≈ 4.3 ε) — a nulp band
+  pins a draw. → `L84b`
+- **⛔ `ScaledOperator(0.0, ·)` RAISES, so an `at(0) is lhs` row's mutation reds by RAISING
+  and attributes nothing.** `[M]` `operator.py:2198-2207`. The "documented exact shortcut" is
+  the only legal spelling. Pair the identity row with a value row at small σ. → `L84c`
+- **⛔ Two defect classes with the IDENTICAL law residual need a STRUCTURAL leg.** `[M]` on the
+  splitting law `implicit − Σ explicit == loss`, a piece labelled BOTH implicit and explicit
+  and a piece DROPPED from implicit both read `2.778702e+00` (each shifts the residual by
+  exactly the piece). The law catches both and attributes neither. Ship the PARTITION leg as
+  two separately-messaged assertions: `isdisjoint` (the double-label) and multiset-union ==
+  the factor set (the drop). → `L84j`
+- **⛔ A law's BIT-EXACTNESS can be ARM-DEPENDENT — measure it per arm before writing
+  `array_equal`.** `[M]` `Splitting.law_residual` is exactly `0.000000e+00` over 40 draws on
+  every SEEDLESS arm (disjoint rows) and `3.55e-15 … 2.84e-14` on the CARRYING arm (the grid
+  re-associates); the draw-stable statistic there is `max|r|∞/‖A·x‖∞ ≤ 2.087e-16`.
+  `array_equal` on the carrying arm is a FALSE RED. ⛔ And the natural positive control ("no
+  gains at all") is UNINSTALLABLE there — `CoupledOperator` refuses an empty grid — so name
+  the ordinary arm ("drop the first explicit piece", `2.980426e-01`) as the effective control.
+  → `L84k`
+- **⭐ Choose a negative ends-witness whose SHAPES AGREE, or the row cannot tell a shape check
+  from a space check.** `[M]` `loss.domain = CoupledSpace(…,(160,))` vs the hub's
+  `FissionOperator.domain = FullFieldSpace(…,(160,))` — equal shape, `==` False, and the sum
+  RAISES; the plan's named witness (`IsotropicFission` on `bulk_space`, `(2,8)`) is caught by
+  a shape check too. Ship the equal-shape pair as the §6c witness and the other as a labelled
+  coarse control, then MUTATE the ends law onto `.shape` and require only the sharp row to go
+  green. → `L84i`
+- **⭐ A `(1+ε)` VALUE mutation cannot red an `is` row.** A battery predicting that a value
+  perturbation reds an IDENTITY assertion is predicting the impossible — `[M]` the measured red
+  set was exactly the 8 bit-identity + 4 band rows, no identity row among them. → `L84l`
+
+**Harness discipline (§2)**
+
+- **⭐ When a shared tree may be written mid-dispatch, pick a baseline whose GREENNESS proves
+  the tree state.** `[M]` the C1 carve landed between two of my probes; the pytest baseline I
+  had taken was provably pre-carve because `test_stage_separation.py` carries 16
+  `implicit_operator` reads that C1 makes unspellable — a passing row is a timestamp. Then
+  re-`git status` before every later claim, and import-check the campaign's own mutation
+  harness at the landing tree (a battery written against the retired API has stale arms).
+  → `L84a`
+- **⭐ Mutate a frozen VALUE with `dataclasses.replace`, not production.** Every splitting-law
+  magnitude above was taken by rebuilding the `Splitting` value with different piece tuples —
+  crash-safe by construction, no copy-aside, no `git checkout` hazard. → `L84j`
+- **⭐ Look for an existing COUNT gate before writing an ordering argument.** `[M]`
+  `test_cache.py:303` already pins `CollisionCache._build_count == 1`; re-homing a cache onto
+  an operator built per OUTER reads `n_outer` (**4 / 4 / 5 / 3** by chart), so the ordering
+  constraint is gated for free and needs no new row. → `L84h`
+
+**Config blindness (§3) — new ORPHEUS fixture facts**
+
+- **⛔⛔ EVERY fissile mixture in the shipped 0-D XS library is SUPERCRITICAL.** `[M]` all 12
+  `{A,B,C,D}×{1g,2g,4g}`: only **A** is fissile, `k_inf = 1.5 / 1.875 / 1.4878`; B/C/D give
+  `rank(A⁻¹F) = 0`. So `(A − F)⁻¹q` is componentwise NEGATIVE and any "subcritical infinite
+  medium" row is unreachable as shipped. Manufacture it:
+  `replace(mix, SigP=0.4·SigP, SigF=0.4·SigF)` → `k = 0.750000000` EXACTLY (k is linear in the
+  scale because `F` is rank-1), `φ = [60., 70.] > 0`; at 0.6 the sign FLIPS — the refusal
+  control. → `L84d`
+- **⛔⛔ `A − F` is NEVER positive-stable on the SN composite** — `[M]` **8 eigenvalues at
+  exactly `−1.0`** (TRACE rows) at `k = 0.435` and at `k = 1.374` alike, while the BULK block
+  is positive-stable (`+0.2783`). An admissibility predicate spelled "positive-stable" refuses
+  every SN problem; the honest one is `ρ(A⁻¹F) = k_eff < 1`. → `L84e`
+- **⛔ `|N2N·x| = 0.000000e+00` on every `tests/sn/architecture/_config` fixture** —
+  `get_mixture("A","2g").Sig2` nnz `[0]`, `SigL = [0,0]`. Any gate leg credited with covering
+  the (n,2n) piece there is vacuous, and the "a polluted rhs raises the rank to 2" witness
+  needs a manufactured `Sig2`. → `L84j`
+- **⭐ Subcritical SN slabs are cheap and the anchors already own one.** `[M]` 2g
+  fuel|moderator GL-8 4+4: `L=2.0` refl|vac → `k = 0.435195214`; `L=4.0` → `0.907457573`
+  (`1/(1−k) = 10.8`, the strong discriminator); `L=8.0` refl|refl → `1.374233987` (the refusal
+  witness). Three solves **1.17 s**; three dense 160×160 pencil assemblies **0.23 s**. Cone
+  monotonicity margins `[1.574, 4.036]` and `[6.308, 32.549]`, FLIPPING to `[−10.153, 0.044]`
+  supercritically. → `L84f`
+
+**Reference and claim layer (§4)**
+
+- **⭐⭐ The DENSE pencil spectrum is a free REFERENCE-class cross-check of a production
+  eigenvalue solve.** `[M]` `ρ(A⁻¹F)` from `loss.as_matrix()` and the posed `[[F]].as_matrix()`
+  reproduces `solve_sn(...).keff` to **9 significant figures** on three slabs, in 0.23 s. No
+  iteration, no quadrature re-derivation — gate it at the solve's own `keff_tol`. → `L84e`
+- **⭐ Sherman–Morrison is the closed-form oracle for a rank-1-multiplying source problem:**
+  `(A−F)⁻¹q = A⁻¹q + (A⁻¹χ)(νΣ_f·A⁻¹q)/(1 − k_∞)`, `k_∞ = νΣ_f·A⁻¹χ`. `[M]` `max|Δ| = 0.0`.
+  Structurally independent (it never inverts `A − F`), and the `1/(1−k)` factor is the
+  algebraic reason the supercritical refusal exists. → `L84d`
+- **⭐ `rhs_rank` is two-sided for free and physically meaningful:** `[M]` **1** on the three
+  fissile 0-D mixtures, **0** on the nine non-fissile ones, **4** on the SN slab (= the fissile
+  CELL count). ⛔ And `k_∞ == trace(A⁻¹F)` is exact at 1g/2g but `2.220e-16` at 4g — not
+  `array_equal`. → `L84i`
+- **⛔ A `.H` law on a 0-D (point-axis) pose is METRIC-BLIND** — every weight is a scalar and a
+  scalar `G` commutes with everything (`vv` #12's space-side dual, `L59a`). `[M]`
+  `at(1).H.as_matrix() == (A−F).T` `array_equal` True; that row cannot see a metric error.
+  Name the metric-loaded partner (the SN composite reciprocity suite) in its docstring. → `L84i`
+
+**Carve archetypes (§6)**
+
+- **⛔ A `WeakKeyDictionary` cannot be re-keyed on a TUPLE, and the repair changes LIFETIME.**
+  `[M]` `TypeError: cannot create weak reference to 'tuple' object`. Moving to a plain `dict`
+  means a dead hub's entry is never evicted (`[M]` today `len 1 → 0` after `del` +
+  `gc.collect()`). Check whether the stored VALUE retains the key's object (`[M]` here it does
+  not, so the retention is bounded by the number of distinct phase spaces) and gate the bound
+  (`len(intern) == 1` after an N-σ sweep). → `L84g`
+- **⛔ `as_matrix` is CARRIER-ASYMMETRIC: a composite's parts can each assemble while their SUM
+  cannot.** `[M]` `loss.as_matrix()` ✓ (160×160) and `CoupledOperator([[F]], …).as_matrix()` ✓,
+  but `(loss − [[F]]).as_matrix()` RAISES — `OperatorSum.as_matrix` probes with bare `ndarray`s
+  and `CoupledOperator.apply` refuses them. Any dense law over the composite is 0-D-only; on
+  the meshed arm the reference must be `lhs.as_matrix() − σ·rhs.as_matrix()` compared against
+  `at(σ).apply` on a TYPED probe. → `L84i`
+- **⭐ A `(operator, sign)` piece record makes a piece TRANSFER law-invariant EXACTLY** — `[M]`
+  `0.000000e+00` — where a positional sign convention would have read `2×|piece·x|`. When a
+  plan says "sum the pieces through the domain's own `−` dispatch", ask where the SIGN lives
+  before designing the transfer arm. → `L84k`
+- **⛔ When an identity key is a 1-tuple wrapping a contractibility key, a new datum placed only
+  on the DERIVED class leaves the base class's `==` blind.** `[M]`
+  `MaterialMesh._identity_key == (_contractibility_key,)` while `SNMesh` extends both; a σ
+  override on `SNMesh` alone lets two bare `MaterialMesh`es with different σ compare `==`
+  (ERR-084's class, one class down). Ship the row on the class that OWNS the new datum. → `L84m`
+- **⭐ An operator's σ-INDEPENDENCE can license a commit ORDER.** `[M]` the hub's
+  `F = χ ⊗ νΣ_f` is `array_equal` before and after a ×3 σ_t rebind, so caching it one commit
+  before the mutating rebind retires cannot go stale — the ordering argument becomes a
+  measurement, and it earns its own THEOREM row (with a mutation that makes `F` read σ_t, or
+  the row is unwitnessed). → `L84l`

@@ -66,7 +66,7 @@ if TYPE_CHECKING:
 
     from orpheus.numerics.operator import LinearOperator
     from orpheus.sn.coupled_system import WithinGroupSystem
-    from orpheus.sn.operators.streaming import StreamingCollisionOperator
+    from orpheus.sn.splitting import Splitting
     from orpheus.transport.operators.scattering import ScatteringOperator
 
 
@@ -169,8 +169,8 @@ def cart2d_seedless() -> SNMesh:
     r"""2-D Cartesian, NON-SQUARE, heterogeneous 2G, P1, MIXED BC, S4 LS.
 
     **This is the only geometry on which R7 is observable.**  The boundary
-    Gauss-Seidel arm of :func:`~orpheus.sn.solver._select_si_splitting` fires
-    only on ``is_cartesian and not is_1d``; on a slab it falls back to Jacobi
+    Gauss-Seidel labelling (:func:`~orpheus.sn.splitting.resolve_schedule`)
+    fires only on ``is_cartesian and not is_1d``; on a slab it falls back to Jacobi
     and the twin is *invisible*.  (The campaign's first probe of R7 used a
     slab and got the wrong answer — see
     :func:`test_a_slab_hides_r7_the_documented_trap`.)
@@ -294,54 +294,6 @@ def random_state(
     return state
 
 
-def seedless_implicit(
-    record: "WithinGroupSystem",
-) -> "StreamingCollisionOperator":
-    r"""``record.implicit_operator``, narrowed to the seedless arm's type.
-
-    **This helper exists because of a defect, and it retires with that
-    defect.**  ``implicit_operator`` is typed ``CoupledOperator |
-    StreamingCollisionOperator`` — the union IS the shape asymmetry P3
-    removes (the seedless arm is a bare operator where the carrying arm is a
-    1-block grid), and it is why ``record.implicit_operator - anything``
-    does not type-check.  When P3 makes both arms a ``CoupledOperator``, the
-    union collapses and every call here becomes unnecessary.
-    """
-    from orpheus.sn.operators.streaming import StreamingCollisionOperator
-
-    implicit = record.implicit_operator
-    if not isinstance(implicit, StreamingCollisionOperator):
-        pytest.fail(
-            f"expected the SEEDLESS arm's bare (L+C); got "
-            f"{type(implicit).__name__} — this fixture is carrying, or the "
-            f"seedless arm's shape changed (P3 landing?)."
-        )
-    return implicit
-
-
-def scattering_gain(record: "WithinGroupSystem") -> "ScatteringOperator":
-    r"""``record.explicit_gains[0]``, narrowed to the scattering operator.
-
-    **Also a defect marker.**  ``explicit_gains: tuple[LinearOperator, ...]``
-    erases every role: the ``(S, N2N, B_a)`` convention with ``B_a`` LAST is a
-    *positional* claim the type system cannot state, which is why the driver
-    re-asserts it at runtime (``sn/solver.py:856`` raises a ``TypeError`` if
-    gain 0 is not a ``ScatteringOperator``).  A tuple of roles is the thing
-    P3 replaces with a gain GRID, after which the role is the slot.
-    """
-    from orpheus.transport.operators.scattering import ScatteringOperator
-
-    gain = record.explicit_gains[0]
-    if not isinstance(gain, ScatteringOperator):
-        pytest.fail(
-            f"the seedless record's FIRST gain must be the ScatteringOperator "
-            f"(the builder's positional (S, N2N, B_a) convention); got "
-            f"{type(gain).__name__} — the gain order changed and every "
-            f"positional consumer of explicit_gains is now wrong."
-        )
-    return gain
-
-
 def system_a(state: CoupledField) -> FullField:
     """The System-A member of a coupled state, narrowed to its real type.
 
@@ -362,14 +314,30 @@ def system_a(state: CoupledField) -> FullField:
 
 # ── the splitting law ────────────────────────────────────────────────────
 
+def splitting_for(
+    sn_mesh: SNMesh, schedule: str = "jacobi", *,
+    scattering_order: int | None = None,
+) -> "Splitting":
+    """The Strategy VALUE for ``sn_mesh`` under ``schedule`` — the record
+    from :func:`record_for`, labelled by the ONE labelling site
+    (:meth:`~orpheus.sn.splitting.Splitting.from_schedule`; the string is
+    resolved by :func:`~orpheus.sn.splitting.resolve_schedule`, which falls
+    back to Jacobi on 1-D / curvilinear meshes exactly as the entries do)."""
+    from orpheus.sn.splitting import Splitting, resolve_schedule
+
+    record = record_for(sn_mesh, scattering_order=scattering_order)
+    return Splitting.from_schedule(record, resolve_schedule(sn_mesh, schedule))
+
+
 def split_image(
-    record: "WithinGroupSystem",
+    splitting: "Splitting",
     state: CoupledField,
     *,
     implicit: "LinearOperator | None" = None,
     gains: "tuple[LinearOperator, ...] | None" = None,
 ) -> "NDArray":
-    r"""``(M − Σ Nᵢ) x``, flattened and aligned with ``A x``.
+    r"""``(M − Σ Nᵢ) x``, flattened and aligned with ``A x`` — the VALUE's
+    derived ``M`` and ``N`` unless a mutated operand is handed in.
 
     The carrier bridge lives here and nowhere else: on the carrying arm
     ``M`` and every gain are ``CoupledOperator``\ s that consume the coupled
@@ -377,8 +345,8 @@ def split_image(
     state's single member is unwrapped.  **That asymmetry IS the shape
     defect P3 removes** — when it goes, this branch goes with it.
     """
-    implicit = record.implicit_operator if implicit is None else implicit
-    gains = record.explicit_gains if gains is None else gains
+    implicit = splitting.implicit if implicit is None else implicit
+    gains = splitting.explicit if gains is None else gains
     if isinstance(implicit, CoupledOperator):
         image = implicit.apply(state).to_flat()
         for gain in gains:
@@ -392,16 +360,17 @@ def split_image(
 
 
 def reconstruction_residual(
-    record: "WithinGroupSystem",
+    splitting: "Splitting",
     state: CoupledField,
     *,
     implicit: "LinearOperator | None" = None,
     gains: "tuple[LinearOperator, ...] | None" = None,
 ) -> float:
-    r"""``‖A x − (M − ΣN) x‖∞ / ‖A x‖∞`` — the splitting law's defect."""
-    loss_image = record.loss.apply(state).to_flat()
+    r"""``‖A x − (M − ΣN) x‖∞ / ‖A x‖∞`` — the splitting law's defect, the
+    VALUE's ``M``/``N`` against the Problem's ``A`` it was minted from."""
+    loss_image = splitting.system.loss.apply(state).to_flat()
     defect = loss_image - split_image(
-        record, state, implicit=implicit, gains=gains,
+        splitting, state, implicit=implicit, gains=gains,
     )
     denominator = float(np.max(np.abs(loss_image)))
     if denominator == 0.0:

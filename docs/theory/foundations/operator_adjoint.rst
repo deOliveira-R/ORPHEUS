@@ -546,10 +546,12 @@ the *forward* composition guard).
    within-group loss is never fused into a single
    :math:`(L + C - S - N_{2n} - F - B)` operator —
    :func:`~orpheus.sn.coupled_system.build_within_group_system` returns the
-   :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record whose
-   ``implicit_operator`` ``(L+C)`` and ``explicit_gains`` ``(S, N2N, B_a)``
-   keep ``S`` / :math:`N_{2n}` /
-   ``B`` as **lagged gains** and
+   :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record, from whose
+   leaves the Jacobi
+   :class:`~orpheus.sn.splitting.Splitting` labels
+   :math:`M = (L+C)` and :math:`N = (S, N_{2n}, B_a)`
+   (:ref:`sn-splitting-is-a-strategy-value`), keeping ``S`` /
+   :math:`N_{2n}` / ``B`` as **lagged gains** and
    ``F`` handled at the eigenvalue / DSA **outer** layer (where the
    adjoint posing row daggers :math:`M = F` as :math:`M^{\dagger}`; see
    :ref:`eigenvalue-posing`), not via a within-group composite adjoint.
