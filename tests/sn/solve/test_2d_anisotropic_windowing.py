@@ -278,7 +278,7 @@ def _windowed_product_and_oracle_operands(
     # operators (and the SAME schedule dispatch) the windowed SI driver
     # consumes (single source of truth).
     system = build_within_group_system(
-        solver.sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        solver.sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
     )
     LC, S, N2N, B = (
         system.factors.streaming_collision, system.factors.scattering,

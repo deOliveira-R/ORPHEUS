@@ -237,7 +237,7 @@ def _run_si():
     solver = _build_solver()
     sn_mesh = solver.sn_mesh
     system = build_within_group_system(
-        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
     )
     si, _base, _gains, windowed = _within_group_si(
         Splitting.from_schedule(system, solver.schedule), sn_mesh,
@@ -420,7 +420,7 @@ def _replay_final_increment():
     solver = _build_solver()
     sn_mesh = solver.sn_mesh
     system = build_within_group_system(
-        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
     )
     si, _base, _gains, _windowed = _within_group_si(
         Splitting.from_schedule(system, solver.schedule), sn_mesh,

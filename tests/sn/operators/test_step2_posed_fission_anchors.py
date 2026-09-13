@@ -199,7 +199,7 @@ class TestLawTheDerivedEnergyBindingIsBitIdentical:
         self, seed: int,
     ) -> None:
         hub = _slab_hub()
-        mat_xs = hub.material_xs_field()
+        mat_xs = hub.mat_xs
         forward = IsotropicFission.from_material_xs(
             mat_xs, space=mat_xs.mesh.bulk_space,
         )
@@ -230,7 +230,7 @@ class TestLawTheDerivedEnergyBindingIsBitIdentical:
         """
         hub = _slab_hub()
         angular = FissionOperator.from_solver_data(
-            mat_xs=hub.material_xs_field(), space=hub.full_field_space,
+            mat_xs=hub.mat_xs, space=hub.full_field_space,
         )
         assert angular.isotropic_energy.domain == hub.bulk_space
         assert angular.isotropic_energy.codomain == hub.bulk_space
@@ -259,7 +259,7 @@ class TestLawTheCompositeRouteIsOneNulpAwayNotBitIdentical:
     @pytest.mark.parametrize("seed", [1000, 1001, 1002, 1007])
     def test_law_the_two_routes_agree_to_one_nulp(self, seed: int) -> None:
         hub = _slab_hub()
-        mat_xs = hub.material_xs_field()
+        mat_xs = hub.mat_xs
         forward = IsotropicFission.from_material_xs(
             mat_xs, space=mat_xs.mesh.bulk_space,
         )
@@ -292,7 +292,7 @@ class TestLawTheCompositeRouteIsOneNulpAwayNotBitIdentical:
         """
         hub = _slab_hub()
         angular = FissionOperator.from_solver_data(
-            mat_xs=hub.material_xs_field(), space=hub.full_field_space,
+            mat_xs=hub.mat_xs, space=hub.full_field_space,
         )
         out = angular.apply(_random_composite(hub, 42)[0])
         bulk = np.asarray(out.interior.values)
@@ -369,7 +369,7 @@ class TestLawTheHubsFissionIsWhatBothFacesRead:
 
         hub = _sphere_hub()
         _implicit, _gain, adjoint_F, _template = _adjoint_posing_parts(hub)
-        record = build_within_group_system(hub, hub.material_xs_field())
+        record = build_within_group_system(hub, hub.mat_xs)
         assert record.factors.fission is hub.fission
         assert type(adjoint_F) is type(record.production)
         state = _random_composite(hub, 11)[0]

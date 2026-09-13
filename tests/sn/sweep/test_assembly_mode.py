@@ -121,7 +121,7 @@ _MESH_BUILDERS = {"slab": _slab_mesh, "cartesian_2d": _cartesian_2d_mesh}
 def _loss(sn_mesh: SNMesh):
     """The production within-group resolvent ``L + C`` (the solver's own
     spelling — StreamingOperator + M[σ_t] on the composite space)."""
-    mat_xs = sn_mesh.material_xs_field()
+    mat_xs = sn_mesh.mat_xs
     return StreamingOperator.pose(sn_mesh) + MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
         domain=sn_mesh.full_field_space, codomain=sn_mesh.full_field_space,
@@ -271,7 +271,7 @@ def test_streaming_only_block_differs_by_the_collision_diagonal():
     fold rounding — the two denominators are separate left folds)."""
     sn_mesh = _slab_mesh()
     sigma_t = np.asarray(
-        sn_mesh.material_xs_field().total_cross_section_field.values
+        sn_mesh.mat_xs.total_cross_section_field.values
     )
     for n in (0, 3):
         with_c = assemble_ordinate_blocks(sn_mesh, n)

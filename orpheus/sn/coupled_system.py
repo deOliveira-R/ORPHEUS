@@ -257,8 +257,8 @@ def build_coupled_system(
         quadrature, and the R12a presence predicate
         (``radial_characteristic_field_space is not None``).
     mat_xs : MaterialXSField
-        The mesh-materialized macroscopic cross sections (the solver's
-        ``sn_mesh.material_xs_field()``): σ_t feeds ``C`` AND ``A_BB`` (one
+        The mesh-materialized macroscopic cross sections (the hub's
+        ``sn_mesh.mat_xs``, one field per Problem): σ_t feeds ``C`` AND ``A_BB`` (one
         typed field object — the mesh-identity invariant holds by
         construction), the scattering table feeds ``S``; the emission
         block consumes the solver-composed ``K_iso =
@@ -539,8 +539,9 @@ def build_streaming_collision(
     and both :class:`~orpheus.sn.solver.SNSolver` binding legs (``__init__`` +
     ``rebind_cross_sections``) previously spelled this composition
     independently — the third spelling was the L-002 collapse trigger
-    (B.2d d3 estate). A σ_t rebind flows through by RE-CALLING this builder
-    with the mutated ``mat_xs`` (the field accessor is the live read).
+    (B.2d d3 estate). Since 2026-09-13 σ_t is a DATUM of the Problem: a
+    σ-variant hub (``with_cross_sections``) owns its own ``mat_xs`` and calls
+    this builder afresh — nothing is rebound in place.
     """
     return StreamingOperator.pose(sn_mesh) + MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,

@@ -36,6 +36,7 @@ Discrete Ordinates Method (S\ :sub:`N`)
       problem:                         # hub-owned (SNMesh); determined by the Problem's generating data, minted ONCE per hub
         fission: "SNMesh.fission — the ONE F of the Problem: the composite χ ⊗ νΣ_f bound on full_field_space, a cached_property minted through FissionOperator.from_solver_data. σ_t-FREE (its datum is the FissionKernel pair (χ, νΣ_f)), so it is a Problem datum independent of the σ merge unit. The forward k-outer reads the DERIVED .isotropic_energy face — [M] array_equal to the retired solver-side mint on 200/200 seeds, so the re-homing carries no arithmetic; the adjoint daggers the composite; the posed record carries WithinGroupSystem.production, the same F posed on the loss's own carrier. The mint is through the FACTORY deliberately: the anchors' census patches that classmethod by name, and a direct constructor would make it read zero. Canonical: ref sn-one-fission-per-problem"
         retained_order: "SNMesh.scattering_order — the retained Legendre order, clamped ONCE at construction (min over the materials' SigS stacks) and read by the solver, the adjoint posing, the within-group assembly and DSA. Canonical: ref sn-hub-retained-order"
+        total_cross_section: "MaterialMesh.sigma_t_cell — the per-cell sigma_t in the principled (ng, *spatial) layout, a DATUM of the Problem since the consumers campaign's step 2 (2026-09-13, rulings O-5/O-6). Derived at construction from the materials through assemble_cell_xs (the same .T.reshape spelling eq sn-cell-flatten-roundtrip states) and REPLACED by with_cross_sections, which returns a NEW Problem — there is no override flag, no None, and no rebind on a live solver (SNSolver.rebind_cross_sections is DELETED). It enters _identity_key and NOT _contractibility_key, so a depletion or thermal-feedback step is another Problem over the SAME phase space: the fields pair, and the sigma-free geometry table is shared by identity. The hub's mat_xs is the ONE MaterialXSField per Problem (O-6) and its total_cross_section view READS this datum; the other three per-cell views still gather from the materials. Canonical: ref sn-sigma-is-a-problem-datum"
       strategy:                        # solver-owned; NOT members of the posed record
         splitting: "A = M − N is a Strategy VALUE (orpheus.sn.splitting.Splitting), never a member of the posed WithinGroupSystem record. The primitive is the LABELLING of A's terms (LossTerm = an operator together with the ±1 coefficient it carries in A); M and N are DERIVED from it, so they cannot disagree with it. Two labellings ship: jacobi (every geometry, and the only one admitted on a seed-carrying mesh) and gauss_seidel (multi-D Cartesian, seedless — splits B_a into B_lower implicit + B_upper explicit on disjoint rows). The law M − N = A is checkable per value (Splitting.law_residual): bit-exact seedless, round-off on the carrying block grid. Until 2026-09-13 the record carried the pair as implicit_operator/explicit_gains, while the Gauss-Seidel driver re-derived a second one behind it. Canonical: ref sn-splitting-is-a-strategy-value"
         schedule: "the inner_schedule string becomes a SweepSchedule at ONE site, orpheus.sn.splitting.resolve_schedule, which carries the geometry gate (is_cartesian and not is_1d); nothing downstream of it reads the string"
@@ -769,20 +770,54 @@ iteration count*, which is why the stable claim is the ratio's sign and
 the build cost, not the percentage.)
 
 The ruled home is therefore **the strategy layer**, and specifically
-:func:`~orpheus.sn.loss_representation.geometry_cache_for`: a
-module-level ``WeakKeyDictionary`` keyed on the hub, **validated against
-the handed angular closure's identity** so that a doctored pair gets its
-own build rather than silently inheriting a table built for a different
-closure.  Three properties follow, and each was a criterion:
+:func:`~orpheus.sn.loss_representation.geometry_cache_for`, a
+module-level intern.  Its key has been sharpened twice since the phase
+that minted it, and it is worth stating what it is **today**: the table
+is shared by **content** — the hub's ``_contractibility_key`` crossed
+with the angular-closure **class** — and **held** by the hubs that used
+it.  Concretely, two maps: a ``WeakValueDictionary`` on that content key
+(the sharing half, so content-equal Problems read one table) and a
+``WeakKeyDictionary`` from hub to the tables that hub used (the holding
+half, so a table lives as long as a Problem that needs it).
+
+.. note:: The paragraph above read *"a module-level*
+   ``WeakKeyDictionary`` *keyed on the hub,* **validated against the
+   handed angular closure's identity** *so that a doctored pair gets its
+   own build"* until 2026-09-13.  Both halves moved, in two steps.
+   Consumers step 1 (O-3) replaced the *instance* validation with the
+   closure **class** as part of the key — two content-equal Problems
+   carry distinct closure objects, so instance validation made them
+   rebuild each other's table on every alternate call (``[M]`` 2 → 6
+   builds).  Consumers step 2 C3a then keyed on **contractibility**, so
+   that a σ-variant Problem — another Problem over the same phase space,
+   :ref:`sn-sigma-is-a-problem-datum` — shares the σ-free table by
+   ``is`` rather than paying for a bit-identical rebuild.  The doctored
+   pair still gets its own build; the discriminator is the class, not the
+   object.
+
+Three properties follow, and each was a criterion:
 
 #. **The operator stays pure algebra** — nothing is parked on it, so its
    equality and its lifetime stay simple.
 #. **The hub stops accumulating computation** — the ``_geom_cache``
    mesh-attribute memo is retired, so a save state is not also a cache.
+   The hub does *hold* what it used (it is a weak KEY in the intern's
+   second map, not a carrier of a table), which is the distinction that
+   keeps the count at one: ``[M]`` a weak-valued intern with **nothing**
+   holding the table rebuilds it once per ``_ensure_geom_cache`` —
+   **550 builds** against **1 build / 549 hits** with a holder, and no
+   value gate can see the difference (:math:`k` is bit-identical at
+   ``0.435195214258``).  ⚠ That reading is a *different, 8-cell*
+   fixture from the ``8.84 ms`` / ``546.6 ms`` figures above; the two
+   sets of numbers are not comparable, only their sign is.
    (Two sibling memos, ``_coll_cache`` and ``_pole_mirror_cache``,
-   deliberately remain: the :math:`\sigma` stratum's re-posing is the
-   consumer-side campaign's territory, and moving one of three memos for
-   symmetry alone would be churn.)
+   remain mesh attributes for now.  The :math:`\sigma` **rebind** that
+   made the first of them a staleness hazard is gone — σ became a
+   Problem datum at C3a, so a stash cannot serve one Problem's table to
+   another — but the memo itself still sits on a save state, and it
+   re-homes onto the
+   :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
+   instance when the hub gains its posed record.)
 #. **The mechanism dies with the layer it serves.**  The strategy layer
    is retirement-bound: when the lazy solution strategy it exists to
    serve is built, the interning goes with it, rather than being stranded
@@ -798,6 +833,16 @@ timing assertion would be a flaky proxy for the same question; the count
 is exact, and it is the only instrument that can see a memo-scoping
 regression — which is otherwise a silent tens-of-percent, not a wrong
 answer.
+
+Since C3a the count legs clear the intern first, and the reason is a
+property of the objects rather than of the gate: sharing is by
+**content**, so a content-equal hub from an earlier test can still be
+serving its table; and a dead hub is not collected at refcount zero,
+because the hub caches ``mat_xs`` while the
+:class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField` holds
+``self.mesh`` — a reference cycle that survives until the next cyclic
+collection.  A count taken without clearing measures the test session's
+history, not the solve's.
 
 What moved, concretely
 ~~~~~~~~~~~~~~~~~~~~~~~

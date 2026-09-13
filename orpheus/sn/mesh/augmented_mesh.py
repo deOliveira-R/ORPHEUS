@@ -212,6 +212,7 @@ class SNMesh(MaterialMesh):
         scheme: DiscretizationSchemeBase | None = None,
         angular_closure: "type[AngularClosureBase] | None" = None,
         scattering_order: int = 0,
+        sigma_t_cell: np.ndarray | None = None,
     ) -> None:
         # The legacy inbound surface: convert the Mesh1D / Mesh2D declaration
         # to the canonical axis tuple ONCE at the boundary, extract the one
@@ -230,6 +231,7 @@ class SNMesh(MaterialMesh):
             scheme=scheme,
             angular_closure=angular_closure,
             scattering_order=scattering_order,
+            sigma_t_cell=sigma_t_cell,
         )
 
     def _init_core(
@@ -243,6 +245,7 @@ class SNMesh(MaterialMesh):
         scheme: DiscretizationSchemeBase | None,
         angular_closure: "type[AngularClosureBase] | None",
         scattering_order: int = 0,
+        sigma_t_cell: np.ndarray | None = None,
     ) -> None:
         # The ONE construction body both surfaces funnel into (C5.1).
         #
@@ -260,6 +263,7 @@ class SNMesh(MaterialMesh):
             mesh=mesh,
             mat_map=mat_map,
             materials=materials,
+            sigma_t_cell=sigma_t_cell,
         )
 
         # ── SN method layer (BEHAVIOR atop the MaterialMesh data) ──
@@ -513,7 +517,7 @@ class SNMesh(MaterialMesh):
     #
     # ``_validate_materials`` and the data properties ``ng`` / ``volumes``
     # / ``volume_measure`` / ``areas`` / ``ndim`` / ``spatial_shape`` —
-    # plus the ``material_xs_field()`` builder — are inherited from
+    # plus the ``mat_xs`` cached field and the ``sigma_t_cell`` datum — are inherited from
     # :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (the
     # method-agnostic data carrier).  SNMesh adds only the SN-method
     # behavior (quadrature / streaming stencil / boundary trace / closures)
@@ -589,6 +593,7 @@ class SNMesh(MaterialMesh):
             self._contractibility_key,
             type(self.angular_closure).__qualname__,
             self.scattering_order,
+            self.sigma_t_cell.tobytes(),
         )
 
     __hash__ = MaterialMesh.__hash__
@@ -700,6 +705,7 @@ class SNMesh(MaterialMesh):
         scheme: DiscretizationSchemeBase | None = None,
         angular_closure: "type[AngularClosureBase] | None" = None,
         scattering_order: int = 0,
+        sigma_t_cell: np.ndarray | None = None,
     ) -> "SNMesh":
         r"""Build an :class:`SNMesh` from an axis tuple — the axis-native surface.
 
@@ -823,6 +829,7 @@ class SNMesh(MaterialMesh):
             axes=material_mesh.axes,
             mesh=material_mesh.mesh,
             mat_map=material_mesh.mat_map,
+            sigma_t_cell=material_mesh.sigma_t_cell,
             quadrature=quadrature,
             materials=material_mesh.materials,
             scheme=scheme,
@@ -840,16 +847,28 @@ class SNMesh(MaterialMesh):
         is clamped exactly as at construction. The result compares ``==`` to
         this hub iff the two clamped orders coincide.
         """
+        return self._respelled(scattering_order=scattering_order, sigma_t_cell=self.sigma_t_cell)
+
+    def with_cross_sections(self, sigma_t_cell: np.ndarray) -> "SNMesh":
+        """A NEW Problem over the same phase space with the per-cell
+        :math:`\\sigma_t` datum replaced (O-5, 2026-09-13) — the same
+        generating data at the same retained order, another identity.
+        """
+        return self._respelled(scattering_order=self.scattering_order, sigma_t_cell=sigma_t_cell)
+
+    def _respelled(self, *, scattering_order: int, sigma_t_cell: np.ndarray) -> "SNMesh":
+        """The ONE re-spelling body behind the two morphisms."""
         closure_cls = type(self.angular_closure)
         if self.mesh is not None:
             return type(self)(
                 self.mesh, self.quad, self.materials, scheme=self.scheme,
                 angular_closure=closure_cls, scattering_order=scattering_order,
+                sigma_t_cell=sigma_t_cell,
             )
         return type(self).from_axes(
             self.axes, self.quad, self.materials, mat_map=self.mat_map,
             scheme=self.scheme, angular_closure=closure_cls,
-            scattering_order=scattering_order,
+            scattering_order=scattering_order, sigma_t_cell=sigma_t_cell,
         )
 
     @property
@@ -1114,15 +1133,15 @@ class SNMesh(MaterialMesh):
         Minted through :meth:`~orpheus.transport.operators.fission.FissionOperator.from_solver_data`
         deliberately — the ONE factory the mint census patches by name; a
         direct constructor here would make that census read zero.  σ_t-FREE
-        (``[M]`` ``array_equal`` under a ×3 σ_t rebind), so it is a Problem
-        datum independent of the σ merge unit; the cross sections are read
-        through :meth:`material_xs_field` (the σ override rides that
-        accessor when it lands).
+        (``[M]`` ``array_equal`` under a ×3 σ_t change), so it is a Problem
+        datum independent of the σ datum; the cross sections are read
+        through :attr:`mat_xs` (the hub's ONE field, which carries the
+        σ-variant datum of a ``with_cross_sections`` Problem).
         """
         from orpheus.transport.operators.fission import FissionOperator
 
         return FissionOperator.from_solver_data(
-            mat_xs=self.material_xs_field(), space=self.full_field_space,
+            mat_xs=self.mat_xs, space=self.full_field_space,
         )
 
     @cached_property

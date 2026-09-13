@@ -87,7 +87,7 @@ def mesh() -> DiffusionMesh:
 
 @pytest.fixture
 def inner(mesh):
-    mat_xs = mesh.material_xs_field()
+    mat_xs = mesh.mat_xs
     return (
         IsotropicScattering.from_material_xs(mat_xs, space=mesh.bulk_space)
         + IsotropicN2N.from_material_xs(mat_xs, space=mesh.bulk_space)
@@ -161,7 +161,7 @@ class TestAdmission:
     def test_inner_bound_off_the_interiors_is_refused(self, mesh):
         other = _mesh(5)
         wrong = IsotropicScattering.from_material_xs(
-            other.material_xs_field(), space=other.bulk_space,
+            other.mat_xs, space=other.bulk_space,
         )
         space = mesh.full_field_space
         with pytest.raises(TypeError, match="bind the inner operator on the composite's interior"):
@@ -184,7 +184,7 @@ class TestAdmission:
 
     def test_admit_array_refusals_name_the_lift_and_the_values(self, mesh, inner):
         plain = IsotropicScattering.from_material_xs(
-            mesh.material_xs_field(), space=mesh.bulk_space,
+            mesh.mat_xs, space=mesh.bulk_space,
         )
         psi = _flux(mesh, 9)
         with pytest.raises(TypeError, match="BulkLift"):

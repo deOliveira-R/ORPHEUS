@@ -337,68 +337,6 @@ class TestRecordTheBuildRoute:
         )
 
 
-class TestRecordTheStaleSigmaExposure:
-    r"""HAZARD H1, stated as a measurement rather than a warning.
-
-    ``[M]`` ``probes2/p5_hazard_H1.py``: a within-group system built BEFORE
-    ``SNSolver.rebind_cross_sections`` and applied AFTER it is **bit-identical
-    to its pre-rebind self** (``array_equal = True``), while a freshly built
-    one moves ``max|Δ| = 3.7797926845799177``, ``max rel = 0.1619``.  Today
-    the defect is unspellable only because ``build_within_group_system`` runs
-    per outer step; sub-step (iii) removes exactly that protection.
-
-    ⟹ the cached pencil and a non-mutating ``.at(σ)`` are ONE merge unit
-    (plan F-5 / open ruling O-5).  This row is the CHARACTERIZATION that says
-    what must become unspellable; it carries no ``verifies`` and asserts a
-    one-sided fact about today's tree.
-    """
-
-    def test_record_a_reused_system_goes_stale_under_a_sigma_rebind(self) -> None:
-        """RECORD — a reused system is stale after a σ rebind, silently."""
-        from orpheus.sn.solver import SNSolver
-        from tests.sn.architecture._config import slab_seedless
-
-        sn_mesh = slab_seedless()
-        solver = SNSolver(sn_mesh)
-        reused = build_within_group_system(
-            sn_mesh, solver.mat_xs,
-            scattering_op=solver.scattering_op, n2n_op=solver.n2n_op,
-        )
-        state = random_state(reused, seed=_SEED)
-        before = reused.loss.apply(state).to_flat().copy()
-
-        solver.rebind_cross_sections(
-            np.asarray(solver.mat_xs.total_cross_section) * 3.0,
-        )
-        after_reused = reused.loss.apply(state).to_flat()
-        rebuilt = build_within_group_system(
-            sn_mesh, solver.mat_xs,
-            scattering_op=solver.scattering_op, n2n_op=solver.n2n_op,
-        )
-        after_fresh = rebuilt.loss.apply(state).to_flat()
-
-        np.testing.assert_array_equal(
-            before, after_reused,
-            err_msg=(
-                "the reused system MOVED under a σ rebind — if this reds, "
-                "the rebind stopped being a silent staleness source and the "
-                "H1 merge-unit ruling can be revisited."
-            ),
-        )
-        defect = float(np.max(np.abs(after_reused - after_fresh)))
-        scale = float(np.max(np.abs(after_fresh)))
-        assert defect / scale > 1e-2, (
-            f"the stale/fresh gap is only {defect / scale:.3e} relative — "
-            f"the fixture no longer activates the σ_t path, so this "
-            f"characterization has lost its subject."
-        )
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# THEOREM — green before AND after.  These are the step's real contracts.
-# ═══════════════════════════════════════════════════════════════════════
-
-
 def _splitting_image(
     record: WithinGroupSystem, schedule: str, sn_mesh: object, state: CoupledField,
 ) -> np.ndarray:
@@ -565,31 +503,46 @@ class TestLawTheStrategyPredicate:
 class TestLawTheGaugeIsSigmaFree:
     r"""HAZARD H3 — ``loss_kernel_gauge`` is σ-FREE while ``loss`` is not.
 
-    ``[M]`` ``probes2/p4_spaces_and_seeds.py``: after a ×3 σ_t rebind the hub
-    returns the SAME ``LossKernelGauge`` object (it is a ``cached_property``
-    over σ-free data, ``sn/mesh/augmented_mesh.py`` :1062), while a freshly
-    built ``loss`` moves by ``max rel = 0.1619``.
+    History: ``[M]`` ``probes2/p4_spaces_and_seeds.py`` (pre-C3a) — after a
+    ×3 σ_t rebind on a live solver the hub returned the SAME
+    ``LossKernelGauge`` object (a ``cached_property`` over σ-free data),
+    while a freshly built ``loss`` moved by ``max rel = 0.1619``.  Since
+    C3a (2026-09-13) σ_t is a Problem DATUM: "the σ changes" is another hub
+    (``with_cross_sections``), so the σ-freedom is stated across TWO hubs
+    by VALUE — ``[M]`` (test-architect C3 delta §A.4) ``array_equal`` of the
+    two gauges' ``as_matrix()`` is EARNED (``max|Δ| = 0.0``, and
+    ``LossKernelGauge.__eq__`` is object identity, so ``==`` would be a
+    false red) — and the per-hub IDENTITY half stays on ONE hub.
 
     ⟹ deriving the gauge from the pencil would make it rebuild on every
     ``.at(σ)`` — invisible to every value test, because the rebuilt gauge has
-    the same values.  This row pins the σ-freedom so that a later "derive it
-    from the pencil" simplification reds on a COUNT, not on a value.
+    the same values.  The identity row pins the σ-freedom so that a later
+    "derive it from the pencil" simplification reds on a COUNT, not on a
+    value.
     """
 
-    def test_law_the_gauge_survives_a_sigma_rebind_by_identity(self) -> None:
-        from orpheus.sn.solver import SNSolver
+    def test_law_the_gauge_is_cached_per_hub_by_identity(self) -> None:
         from tests.sn.architecture._config import slab_seedless
 
         sn_mesh = slab_seedless()
-        solver = SNSolver(sn_mesh)
-        gauge_before = sn_mesh.loss_kernel_gauge
-        solver.rebind_cross_sections(
-            np.asarray(solver.mat_xs.total_cross_section) * 3.0,
+        assert sn_mesh.loss_kernel_gauge is sn_mesh.loss_kernel_gauge, (
+            "the loss-kernel gauge is a cached_property of the hub — if this "
+            "reds it was demoted to a method or derived from the pencil (H3)."
         )
-        assert sn_mesh.loss_kernel_gauge is gauge_before, (
-            "the loss-kernel gauge was rebuilt by a σ rebind — it is "
-            "documented σ-free; if this reds, either the gauge gained a σ "
-            "read or it was derived from the pencil (HAZARD H3)."
+
+    def test_law_a_sigma_variant_hub_has_an_EQUAL_gauge(self) -> None:
+        from tests.sn.architecture._config import slab_seedless
+
+        sn_mesh = slab_seedless()
+        hub_b = sn_mesh.with_cross_sections(
+            np.asarray(sn_mesh.mat_xs.total_cross_section) * 3.0,
+        )
+        g1, g2 = sn_mesh.loss_kernel_gauge, hub_b.loss_kernel_gauge
+        assert g2 is not g1, "two hubs, two cached objects (the identity half is per hub)"
+        assert np.array_equal(g1.as_matrix(), g2.as_matrix()), (
+            "the loss-kernel gauge is documented σ-free; a ×3 σ-variant hub "
+            "must read the SAME matrix — if this reds the gauge gained a σ read "
+            "(HAZARD H3)."
         )
 
 
@@ -617,7 +570,7 @@ class TestRuledTheRecordSplits:
         and it is minted FROM this record, not stored on it.
         """
         record = build_within_group_system(
-            cart2d_seedless(), cart2d_seedless().material_xs_field(),
+            cart2d_seedless(), cart2d_seedless().mat_xs,
         )
         names = frozenset(f.name for f in dataclasses.fields(record))
         assert names.isdisjoint(_STRATEGY_FIELDS), (

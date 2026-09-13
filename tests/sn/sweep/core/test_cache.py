@@ -310,11 +310,21 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
 
 @pytest.mark.l0
 def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
-    """Test #5 — :class:`StreamingCoefficientCache` survives ``rebind_cross_sections``.
+    """Test #5 — :class:`StreamingCoefficientCache` is the PHASE SPACE's, not
+    the σ's: a σ-variant Problem shares it by identity; only
+    :class:`CollisionCache` is per Problem.
 
-    After ``solver.rebind_cross_sections(new_sig_t)``, the geometry cache
-    is the SAME object (identity check).  Only :class:`CollisionCache`
-    rebuilds.
+    Re-posed at the consumers campaign's step 2 C3a (2026-09-13): σ_t is a
+    DATUM of the Problem (``MaterialMesh.sigma_t_cell``), so "the σ changes"
+    is spelled ``hub.with_cross_sections(σ')`` — a NEW hub over the SAME
+    phase space — and the retired ``SNSolver.rebind_cross_sections`` (which
+    mutated a live solver in place) has no successor by design.  The
+    geometry intern keys on the hub's contractibility, so both hubs read
+    ONE Stratum-1 table (the identity leg); each solver poses its own
+    σ stratum (the staleness leg).  ⚠ The ``_coll_cache`` mesh-memo leg
+    below flips to ``not hasattr`` at C3b, when the σ stratum re-homes onto
+    the ``StreamingCollisionOperator`` instance — this file changes in BOTH
+    commits.
     """
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.sn.solver import SNSolver
@@ -341,42 +351,50 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
     sn_mesh = SNMesh(mesh, quad, materials)
     solver = SNSolver(sn_mesh=sn_mesh)
 
-    geom_before = solver.geom_cache
-    coll_before = solver.coll_cache
-    new_sig_t = solver.mat_xs.total_cross_section * 2.0
-    solver.rebind_cross_sections(new_sig_t)
-    geom_after = solver.geom_cache
-    coll_after = solver.coll_cache
+    hub_b = sn_mesh.with_cross_sections(sn_mesh.mat_xs.total_cross_section * 2.0)
+    assert hub_b != sn_mesh and hub_b.same_phase_space(sn_mesh), (
+        "a σ-variant is ANOTHER Problem over the SAME phase space (O-5)"
+    )
+    from orpheus.sn.loss_representation import _GEOM_CACHE_INTERN, geometry_cache_for
+
+    n_live = len(_GEOM_CACHE_INTERN)  # process-global: other live hubs hold tables too
+    solver_b = SNSolver(sn_mesh=hub_b)
+
+    geom_before, coll_before = solver.geom_cache, solver.coll_cache
+    geom_after, coll_after = solver_b.geom_cache, solver_b.coll_cache
 
     assert geom_after is geom_before, (
-        "StreamingCoefficientCache should be invariant under σ_t rebinds; "
-        "rebind_cross_sections accidentally invalidated Stratum 1."
+        "StreamingCoefficientCache should be shared BY IDENTITY across σ-variant "
+        "Problems; the geometry intern must key on the contractibility key, not "
+        "the identity key (which carries the σ datum)."
     )
     assert coll_after is not coll_before, (
-        "CollisionCache should be rebuilt on σ_t rebind."
+        "CollisionCache is per Problem — a σ-variant poses its own."
     )
     # P4.9b step 2c — the re-posed halves of the two-stratum contract:
-    # (1) Stratum 1 now lives in the strategy layer's INTERN; the mesh-attr
+    # (1) Stratum 1 lives in the strategy layer's INTERN; the mesh-attr
     #     memo is RETIRED (the walk resolves through geometry_cache_for).
-    from orpheus.sn.loss_representation import geometry_cache_for
-
-    assert not hasattr(sn_mesh, "_geom_cache"), (
-        "the mesh-attr _geom_cache memo was retired at P4.9b step 2c — "
-        "the strategy layer's intern is the one home (Q1 ruling)"
+    for hub in (sn_mesh, hub_b):
+        assert not hasattr(hub, "_geom_cache"), (
+            "the mesh-attr _geom_cache memo was retired at P4.9b step 2c — "
+            "the strategy layer's intern is the one home (Q1 ruling)"
+        )
+        assert geometry_cache_for(hub, hub.angular_closure) is geom_before, (
+            "each solver's Stratum 1 IS the interned instance"
+        )
+    assert len(_GEOM_CACHE_INTERN) == n_live, (
+        "the intern is BOUNDED by the number of distinct (phase space × closure "
+        "class) pairs — a σ-variant adds NO entry"
     )
-    assert geometry_cache_for(
-        sn_mesh, sn_mesh.angular_closure,
-    ) is geom_before, "the solver's Stratum 1 IS the interned instance"
-    # (2) STALENESS — the σ stratum the WALK sees is the fresh one: the
-    #     rebind re-stamped the mesh memo, and its values carry the NEW σ
-    #     (pre-carve this was structural; post-carve it is asserted).
-    #     _coll_cache / _pole_mirror_cache deliberately SURVIVE as mesh
-    #     memos — the σ-stratum posing is Campaign 2's consumer-side
-    #     territory (the design memo §9 records the ruling).
-    assert sn_mesh._coll_cache is coll_after
+    # (2) STALENESS — the σ stratum the WALK sees is each Problem's own: the
+    #     mesh memo is re-stamped per hub and its values carry that hub's σ.
+    #     _coll_cache / _pole_mirror_cache SURVIVE as mesh memos until C3b
+    #     re-homes the σ stratum onto the operator instance.
+    assert hub_b._coll_cache is coll_after
+    assert sn_mesh._coll_cache is coll_before
     assert not np.array_equal(
         coll_after.inverse_denom, coll_before.inverse_denom,
-    ), "the rebuilt σ stratum must carry the NEW σ_t (the staleness leg)"
+    ), "the σ-variant's stratum must carry ITS σ_t (the staleness leg)"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -897,14 +915,24 @@ def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
         StreamingCoefficientCache.from_mesh_and_quad = classmethod(counting)
         # Leg 1 — one FULL solve builds exactly once (the entry builds its
         # own hub from the raw geometry; [M] 6-10 operators live inside).
+        # C3a (2026-09-13): the intern shares tables by CONTENT and a dead
+        # hub lives until the cyclic GC (the hub ↔ mat_xs field cycle), so a
+        # content-equal hub from an EARLIER solve could serve this one — the
+        # count is only meaningful from an empty intern.
+        from orpheus.sn.loss_representation import _GEOM_CACHE_INTERN
+
+        _GEOM_CACHE_INTERN.clear()
         solve_sn_fixed_source(materials, mesh, quad, q_ext)
         assert counts["builds"] == 1, (
             f"Stratum 1 built {counts['builds']}x in one solve — the "
             "interned lazy resolve must build exactly once (F2: a "
             "per-operator memo costs up to 24.65 % of a slab solve)"
         )
-        # Leg 2 — the intern's LIFETIME is the hub's: two independently
-        # posed operators over ONE hub share one build.
+        # Leg 2 — the intern's LIFETIME is its holders' (the hubs that used
+        # the table): two independently posed operators over ONE hub share
+        # one build — counted from an empty intern (leg 1's hub is dead but
+        # may not yet be collected).
+        _GEOM_CACHE_INTERN.clear()
         counts["builds"] = 0
         from orpheus.sn.operators.streaming import StreamingOperator
         from orpheus.transport.operators.multiplication_operator import (

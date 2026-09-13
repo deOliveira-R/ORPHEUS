@@ -69,7 +69,7 @@ def _mat_xs(groups: str, edges: np.ndarray | None = None):
     exercise the carrier path (``from_mesh``, ``mesh.bulk_space``). The solver
     itself builds no carrier since the CS4c coda; until then this helper
     mirrored its fabricated ``from_materials`` carrier."""
-    return unit_cell_carrier({0: _mix(groups, edges)}).material_xs_field()
+    return unit_cell_carrier({0: _mix(groups, edges)}).mat_xs
 
 
 def _fused_loss_matrix(mat_xs) -> np.ndarray:
@@ -96,7 +96,7 @@ def test_every_homogeneous_operator_reports_the_same_space(
     """
     edges = {False: None, True: {"2g": _EDGES_2G, "4g": _EDGES_4G}[groups]}[with_eg]
     mix = _mix(groups, edges)
-    mat_xs = unit_cell_carrier({0: mix}).material_xs_field()
+    mat_xs = unit_cell_carrier({0: mix}).mat_xs
     ng = mat_xs.mesh.ng
     space = _pose_space(mix)
 
@@ -560,7 +560,7 @@ def test_adjoint_equals_transpose_on_the_minted_space() -> None:
     promoted sole witness) and by nothing else.
     """
     mix = _mix("2g")
-    mat_xs = unit_cell_carrier({0: mix}).material_xs_field()
+    mat_xs = unit_cell_carrier({0: mix}).mat_xs
     space = _pose_space(mix)
     operators = {
         "C": MultiplicationOperator(

@@ -12761,3 +12761,142 @@ pre-amendment zero-block spelling preserved with its reason) · Code traceabilit
 cached, `production` types per arity, `compute_fission_source` equality, and
 σ_t-freedom derived STRUCTURALLY from `FissionKernel.from_mixture` rather than
 measured) · Derivation source n/a.
+
+---
+
+## L-106 — Consumers campaign step 2, unit C3a: σ_t becomes a Problem DATUM (2026-09-13)
+
+**Scope.** 6 `.rst` files, +698/−54. `docs/theory/methods/sn/solver.rst` (new ~390-line
+`.. _sn-sigma-is-a-problem-datum:` H2 section + a head correction), `history.rst` (a C3a row +
+two stale-row repairs), `index.rst` (machine-header `problem:` key + the intern's re-key),
+`conventions/{cross_section_conventions,indexing_and_layout}.rst`,
+`methods/sn/curvilinear_multigroup.rst`. Branch `refactor/consumers-step2`, carve APPLIED and
+UNCOMMITTED; main agent owned the ONE Sphinx build, so every gate below is a standalone
+substitute. Gates: added-lines xref probe **0 DEAD**, repo `check_docstring_xrefs.py`
+**0 dead / 15 592 decidable**, docutils error-SET **identical** on all six files
+(3/0/11/6/1/0 → same), markup **0**, label uniqueness clean, vv-scan **0 violations**.
+
+### 1. ⛔⛔ The brief instructed a HARD AUDIT ERROR: `vv-status … verified` does not exist
+
+The brief said *"the equation's `vv-status` … moves from `documented` to `verified`"*.
+`[M]` `tests/_harness/audit.py:452-456`: **`documented` is the ONLY status**; anything else
+is a violation string and violations are **exit 2**, the same failure class as a collection
+error. The docstring at `:374-378` says why: *"``tested`` / ``verified`` are DERIVED facts
+(from ``@pytest.mark.verifies``) — a hand-written coverage claim would be a second source of
+truth that can silently lie."*
+
+The correct move (and lessons §3 already had the rule, without the measured consequence): a
+label that gains a `verifies` marker is **UN-SENTINELED** — delete the directive, rewrite the
+rationale comment as a plain note naming the gates so a future auditor does not re-add it.
+`[M]` `_scan_theory_equations`: documented **601 → 600**, `all_labels` 934 unchanged,
+violations `[]`, and the label stays in `matrix.rst` (which regenerates at `builder-inited`
+— never hand-edited; report the predicted delta instead).
+
+### 2. ⭐⭐ "The retired assert was the pin" — check whether a REAL successor already existed
+
+The section said *"implemented at `SNSolver.__init__`"* + a quoted `if __debug__:` block, and
+its `(vv-status rationale)` named that assert as the pin. Retiring it, the natural sentence is
+*"its only pin was an `assert` the `-O` runner strips."* **Both halves needed care:**
+
+* `[M]` `tests/sn/primitives/test_cell_flattening_invariant.py` **already existed** — its own
+  docstring says *"Promoted from the ``__debug__`` block in ``SNSolver.__init__`` (PR-INDEX-3
+  era)"*, `@pytest.mark.foundation`, three synthetic shapes, and **no `verifies` marker by
+  design** (*"no L0/L1/L2 theory-page label is needed"*). So the invariant had a real gate for
+  months.
+* the old rationale itself named **two** pins (the assert **and** an 11-snapshot
+  bit-identity-via-transpose regression gate), so "only pin" contradicts the very comment
+  being replaced.
+
+⟹ before writing *"the retired X was the only pin of Y"*, grep `tests/` for a module NAMED
+after Y and read the old rationale's own list. The honest sentence is *"the sentinel was right
+while nothing carried a `verifies` marker; one now does"* — and the repair ships **both**
+successors with their scopes (the new one pins the *Problem's datum*; the old one pins the
+*two reshapes* for any C-ordered input).
+
+### 3. ⭐⭐ The adjacency markup gate is BLIND to a literal in the MIDDLE of a bold run
+
+My four validated adjacency patterns (`**``` / ```**` / `**:role:`` / 3+ backticks) reported
+**0**; a second pass found **3** real nestings — two admonition titles
+(`**Two gates, and why the ``assert`` was …**`, `**It was ``SNSolver.mat_xs`` until …**`) and
+one multi-line (`**``SNSolver.geom_cache`` outlives …**`, which the adjacency gate DID catch
+because the literal opens the run). RST inline markup cannot nest, so a literal or role
+anywhere inside `**…**` renders its delimiters visibly, at EXIT=0.
+
+The working source-side gate, and it must be scoped to ADDED lines (over the corpus it floods
+— L-074's 119 false positives):
+
+```python
+BOLD  = re.compile(r"\*\*(?!\s)(.+?)(?<!\s)\*\*", re.S)   # over CONTIGUOUS added blocks
+INNER = re.compile(chr(96) + r"|:[a-z]+:")                # backtick OR role
+```
+
+Run it per contiguous added block (so a bold run spanning a line break is visible) with a
+length cap (`< 300`) to drop runaway pairings, plus the four adjacency patterns. Fix by
+taking the literal OUT of the title, not by re-splitting the bold.
+
+### 4. ⭐⭐ A relayed "zero readers" can be right about the wrong SCOPE — and the finding is a `.. warning::`
+
+The test-architect delta said `solver.geom_cache` is *"written at `solver.py:1487` and READ at
+exactly one site — `rebind_cross_sections` `:1536-1542`"*, which C3a deletes ⟹ zero readers.
+`[M]` `grep -rn geom_cache orpheus/ tests/`: the attribute is **also read at `:1489`**, three
+lines below its assignment, to pose `CollisionCache` in the same `__init__` block — plus 2
+reads in `test_cache.py`. The memo's scope was *reads AFTER construction*; the sentence I was
+about to publish was *reads*.
+
+⭐ The correction made the section stronger, because the real point is not the count: the
+attribute is now the **only strong holder** of the weak-valued intern's table, so deleting it
+as dead costs `[M]` **550 builds / 0 hits** per solve against **1 / 549** — silently, with `k`
+bit-identical at `0.435195214258` and every value gate green. That is `coding-standards`'
+"retiring a duplicate promotes the mechanism that kept the copies equal to sole guarantor",
+and it earned its own `.. warning::` naming the retirement trigger (the σ stratum re-homing
+onto the operator at C3b).
+
+### 5. ⭐ An xref that IMPORT-resolves can still render as PLAIN TEXT — grep `automodule`
+
+My python-xref probe resolves by importing, so
+`:func:`~orpheus.data.macro_xs.assemble_cell_xs`` passes (the package re-exports it). `[M]`
+`docs/api/data.rst` automodules `orpheus.data.macro_xs.mixture` and `…cell_xs` and **not the
+package**, so only `orpheus.data.macro_xs.cell_xs.assemble_cell_xs` is a rendered target.
+Corpus split before the pass: 1 un-qualified (silently plain text) vs 4 module-qualified.
+⟹ when two spellings of one target coexist, the discriminator is
+`grep "automodule:: <exact module>"`, not the import probe. Surplus fix: repointed the one
+survivor (a PR-INDEX-3 history row).
+
+### 6. ⭐ Three-line probes beat three memo sentences
+
+* `LossKernelGauge.__eq__ is object.__eq__` → **True** (defined nowhere in the MRO). The design
+  memo's *"two gauges, EQUAL by value"* would have shipped a `==` row that is a permanent false
+  red; the shipped gate asserts `array_equal(g1.as_matrix(), g2.as_matrix())` and `g2 is not g1`.
+* `diffusion/operators.py` has **no** `total_cross_section` read; the removal term is
+  `MultiplicationOperator(self.mat_xs.total_cross_section_field, …)` at `diffusion/solver.py:237`
+  while `LeakageOperator` reads `mesh.mat_xs.diffusion_coefficient` — a per-material gather. That
+  two-line trace is what makes the `[F]` open question publishable as a *mechanism* rather than a
+  pair of numbers.
+* `MaterialXSField.from_mesh` stores `mesh=mesh` while the hub caches the field ⟹ the hub ↔ field
+  **reference cycle** the count gates' `_GEOM_CACHE_INTERN.clear()` exists for. The shipped test
+  comment states it; confirming it in the source is what licensed publishing it as the reason.
+
+### 7. ⭐ Changelog hygiene, three separate jobs
+
+* **A new row's Where.** The page's preamble's exception is *"an entry whose Where names an
+  unmerged BRANCH explicitly"*, and the table's own spelling for it is
+  ``branch ``<name>``, **not yet merged**`` (NOT `*(in development)*`, which is
+  `operator_algebra.rst`'s). Copy the page's precedent, never the sibling's.
+* **A stale `not yet merged` row.** `[M]` the P4.9b row's `b253732f`…`d14dd545` are both
+  ancestors of `main` and the branch is gone. Repaired to *"merged (this cell read … until
+  2026-09-13)"* — the page's own trust-git rule demonstrating itself.
+* **A repealed CONSEQUENCE clause inside a dated row.** The CS4c-step-4 row ends *"so a
+  depletion update re-binds rather than reading through"* — true on its date, repealed by C3a.
+  The preamble's "keeps the spelling current on its date" covers SPELLING, not a consequence
+  claim about the tree. Tombstoned in place with `⛔ … the row above`, explicitly saying the
+  caching ruling it states is unaffected.
+
+### 8. ⭐ A new eq-label is usually the WRONG output for a typing claim
+
+I drafted `.. math:: :label: sn-sigma-problem-datum` for
+`sigma_t_cell |default = assemble_cell_xs(…).sig_t.T.reshape(…)`. That RHS **is**
+`sn-cell-flatten-roundtrip`, which already carries the `verifies` witness — a second label
+would be a twin API for one law, and with no marker of its own it would have moved the
+generated matrix's orphan count 2 → 3. Shipped as an **unlabelled** `.. math::` with an RST
+comment saying why, because what is new is the SLOT (a stored datum, not a derived view) and
+that is a typing claim, not an equation.

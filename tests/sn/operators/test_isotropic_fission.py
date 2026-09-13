@@ -257,7 +257,7 @@ class TestTranspose:
 
         mesh, chi = _scalar_composite_cotangent()
         plain = IsotropicFission.from_material_xs(
-            mesh.material_xs_field(), space=mesh.bulk_space,
+            mesh.mat_xs, space=mesh.bulk_space,
         )
         lifted = BulkLift(
             plain, domain=mesh.full_field_space, codomain=mesh.full_field_space,

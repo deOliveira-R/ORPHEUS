@@ -143,7 +143,7 @@ def test_c5a_matvec_leaves_emit_timeless_full_field(coord: str) -> None:
     sn_mesh = solver.sn_mesh
 
     L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(solver.mat_xs.total_cross_section_field, sn_mesh)
+    C = MultiplicationOperator.from_mesh(solver.sn_mesh.mat_xs.total_cross_section_field, sn_mesh)
     S = solver.scattering_op
     # CS4c step 4: the composite (FullField) arm lives on the ANGULAR
     # fission binding; the hub's fission.isotropic_energy is the scalar
@@ -151,7 +151,7 @@ def test_c5a_matvec_leaves_emit_timeless_full_field(coord: str) -> None:
     from orpheus.transport.operators.fission import FissionOperator
 
     F = FissionOperator.from_solver_data(
-        mat_xs=solver.mat_xs, space=sn_mesh.full_field_space,
+        mat_xs=solver.sn_mesh.mat_xs, space=sn_mesh.full_field_space,
     )
     B = SNBoundaryOperator(sn_mesh)
 
@@ -181,7 +181,7 @@ def test_c5a_apply_transpose_emits_timeless_full_field(coord: str) -> None:
     sn_mesh = solver.sn_mesh
 
     L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(solver.mat_xs.total_cross_section_field, sn_mesh)
+    C = MultiplicationOperator.from_mesh(solver.sn_mesh.mat_xs.total_cross_section_field, sn_mesh)
     B = SNBoundaryOperator(sn_mesh)
 
     state = _timed_random_state(sn_mesh, history_depth=3, seed=23)
@@ -298,7 +298,7 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
     solver, _case = _solver_for("slab", "2eg")
     sn_mesh = solver.sn_mesh
     system = build_within_group_system(
-        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
     )
     LC, S, N2N, B = (
         system.factors.streaming_collision, system.factors.scattering,

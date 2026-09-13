@@ -43,8 +43,11 @@ means merged). **No owed Sphinx pass on merged work.** Landed SN milestones live
 in the digest the pointer names; re-summarising it here is a THIRD copy and is what bloats this
 file. `git log --oneline -- docs/` is the real index.
 
+- **Consumers step 2 C3a** — σ_t is a Problem DATUM; the brief's `vv-status: verified` would
+  have been a HARD audit error (2026-09-13; 6 `.rst`, +698/−54; uncommitted on
+  `refactor/consumers-step2`) → L-106
 - **Consumers step 2 C2** — ONE `F` per Problem, hub-owned (2026-09-13; 9 `.rst`, +642/−73;
-  uncommitted on `refactor/consumers-step2`) → L-105
+  ✅ `1ce64371` ff-merged to `main`) → L-105
 - **Consumers step 2 C1** — the splitting is a Strategy VALUE (2026-09-13; 13 `.rst`, +907;
   ✅ `628997b1` on `main`) → L-104
 - **Consumers step 1** — a Problem's identity is its generating data's CONTENT (2026-09-12;

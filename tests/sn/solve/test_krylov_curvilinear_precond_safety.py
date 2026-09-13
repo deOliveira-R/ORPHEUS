@@ -172,7 +172,7 @@ def _krylov_power_iteration_kinf(
     # duplicated exactly this composition; omitting B drops the reflective
     # coupling → the WRONG eigenmode, k ≈ 1.67 not 1.875).
     system = build_within_group_system(
-        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
     )
     from orpheus.sn.splitting import Splitting, resolve_schedule
 

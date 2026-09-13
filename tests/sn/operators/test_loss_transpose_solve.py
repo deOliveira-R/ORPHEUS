@@ -140,7 +140,7 @@ _MESHES = {
 
 
 def _loss(sn_mesh: SNMesh):
-    mat_xs = sn_mesh.material_xs_field()
+    mat_xs = sn_mesh.mat_xs
     return StreamingOperator.pose(sn_mesh) + MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
         domain=sn_mesh.full_field_space, codomain=sn_mesh.full_field_space,

@@ -1367,27 +1367,18 @@ class SNSolver:
         materials = sn_mesh.materials
         self.ng = sn_mesh.ng
 
-        # The canonical XS state is ONE attribute — ``self.mat_xs``, a
+        # The canonical XS state is ONE attribute — ``self.sn_mesh.mat_xs``, a
         # :class:`MaterialXSField` wrapping both the per-material
         # :class:`Mixture` data and the per-cell typed views.  Every operator
         # (L, C, S, F) reads cross sections through this single source of
-        # truth via ``self.mat_xs.*`` accessors (``total_cross_section`` /
+        # truth via ``self.sn_mesh.mat_xs.*`` accessors (``total_cross_section`` /
         # ``absorption_cross_section`` / …).
-        self.mat_xs = sn_mesh.material_xs_field()
 
         # __debug__ cell-flattening invariant pinning (formerly at
         # construction of self.sig_t — now exercised through the
         # mat_xs.total_cross_section accessor, populated lazily).
-        if __debug__:
-            xs_check = assemble_cell_xs(materials, sn_mesh.mat_map)
-            _sig_t_old = xs_check.sig_t.reshape(*sn_mesh.spatial_shape, self.ng)
-            assert np.array_equal(
-                _sig_t_old,
-                np.moveaxis(self.mat_xs.total_cross_section, 0, -1),
-            ), "PR-INDEX-3 cell-flattening invariant broke"
 
         # Weight normalization (1/sum(w) — works for both GL and Lebedev)
-        self.weight_norm = 1.0 / sn_mesh.quad.weights.sum()
 
         #: The last within-group solve — its posed system, the splitting it
         #: drove and its converged iterate (:class:`InnerSolve`); ``None``
@@ -1421,7 +1412,7 @@ class SNSolver:
 
         # ── The two cached reaction operators ────────────────────────────
         # S and F are the only operators worth caching on the solver: they
-        # are σ-read-through (both consume the single ``self.mat_xs``; the
+        # are σ-read-through (both consume the single ``self.sn_mesh.mat_xs``; the
         # per-material dispatch lives inside :class:`MaterialXSField`'s typed
         # verbs, not on the operators — #197 PR-TYPED-1), so they survive a
         # cross-section rebind untouched and are shared BY IDENTITY into
@@ -1439,14 +1430,14 @@ class SNSolver:
         # the σ-free streaming leaf).  Consumers needing the composite call
         # ``build_streaming_collision(sn_mesh, mat_xs)`` directly.
         self.scattering_op = ScatteringOperator.from_solver_data(
-            mat_xs=self.mat_xs,
+            mat_xs=self.sn_mesh.mat_xs,
             scattering_order=self.scattering_order,
             space=sn_mesh.full_field_space,
         )
         # §14.1 — the (n,2n) channel is its own first-class operator; the
         # within-group algebra spells (L+C) − S − N₂ₙ − B explicitly.
         self.n2n_op = N2NOperator.from_solver_data(
-            mat_xs=self.mat_xs,
+            mat_xs=self.sn_mesh.mat_xs,
             scattering_order=self.scattering_order,
             space=sn_mesh.full_field_space,
         )
@@ -1479,9 +1470,12 @@ class SNSolver:
             # — one build per mesh × closure pair, however many operators
             # a solve constructs; the retired eager build + the mesh-attr
             # ``_geom_cache`` stash both lived here).  The σ-stratum below
-            # needs it NOW to pose CollisionCache — that eager σ posing
-            # (and its ``_coll_cache`` stash the walk reads) is Campaign
-            # 2's consumer-side territory, deliberately untouched.
+            # needs it NOW to pose CollisionCache; ``self.geom_cache`` is also
+            # the table's strong HOLDER (the intern is weak on the value since
+            # C3a — without a holder the walk rebuilds it per sweep) — the eager σ posing
+            # (and its ``_coll_cache`` stash the walk reads) re-homes onto
+            # the StreamingCollisionOperator instance at step 2's C3b; the
+            # σ it poses is the Problem's datum (``sn_mesh.mat_xs``).
             from orpheus.sn.loss_representation import geometry_cache_for
 
             self.geom_cache = geometry_cache_for(
@@ -1490,56 +1484,12 @@ class SNSolver:
             # No bridge needed: ``mat_xs.total_cross_section`` is the
             # principled ``(ng, nx)`` 1-D layout the cache expects
             # (rank-d (N, ng, *spatial); no phantom ny axis to drop).
-            sig_t_1d = self.mat_xs.total_cross_section  # (ng, nx)
+            sig_t_1d = self.sn_mesh.mat_xs.total_cross_section  # (ng, nx)
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d, sn_mesh.scheme,
                 sn_mesh.angular_closure,
             )
             sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
-
-    def rebind_cross_sections(self, new_sig_t: np.ndarray) -> None:
-        """Rebind the total cross-section and rebuild only :class:`CollisionCache`.
-
-        :class:`StreamingCoefficientCache` survives — Stratum 1 is geometry-only.
-        Only the σ_t-dependent Stratum 2 rebuilds.  Used by depletion /
-        thermal-feedback consumers.
-
-        Parameters
-        ----------
-        new_sig_t
-            New total cross-section in the principled ``(ng, nx, ny)``
-            layout (Issue #196 PR-INDEX-3).
-
-        Notes
-        -----
-        Issue #197 PR-TYPED-1 — ``rebind_cross_sections`` overrides
-        ``self.mat_xs._sig_t_cell`` directly (without re-deriving from
-        materials) because the depletion / thermal-feedback consumer
-        adjusts σ_t per-cell without revisiting the per-material data.
-        """
-        # Override the lazy cache on mat_xs.  Force the dense
-        # per-cell view to be populated first so the other cell views
-        # (sig_a, sig_p, chi) match the rebind contract.
-        _ = self.mat_xs.absorption_cross_section
-        self.mat_xs._sig_t_cell = new_sig_t
-        # No operator rebuild is needed for the rebound σ_t to take effect.
-        # ``L`` is σ-free (#257 S8b), and the collision diagonal ``C =
-        # M[σ_t]`` is constructed FRESH on every solve by
-        # :func:`build_within_group_system` from the read-through
-        # ``mat_xs.total_cross_section_field`` property — so the composite
-        # that is actually inverted is built after this rebind and carries
-        # the new σ_t.  (A ``MultiplicationOperator`` holds its coefficient
-        # as a snapshot, which is exactly why caching one here would go
-        # stale — hence no solver-held copy; see ``__init__``.)  Only the
-        # materialised σ_t stratum of the sweep cache, which likewise
-        # snapshots values, has to be rebuilt.
-        if self.geom_cache is not None:
-            sig_t_1d = self.mat_xs.total_cross_section
-            self.coll_cache = CollisionCache.from_geometry(
-                self.geom_cache, sig_t_1d, self.sn_mesh.scheme,
-                self.sn_mesh.angular_closure,
-            )
-            self.sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
     def initial_flux_distribution(self) -> np.ndarray:
         """Initial scalar flux guess: ones(ng, nx, ny).
@@ -1617,7 +1567,7 @@ class SNSolver:
         # :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.integrate_per_group`
         # owns the volume integral and the flat-view reshape it needs.
         per_cell_per_group = np.einsum(
-            "g...,g...->g...", self.mat_xs.fission_production, flux_distribution,
+            "g...,g...->g...", self.sn_mesh.mat_xs.fission_production, flux_distribution,
         )
         rate = self.sn_mesh.integrate_per_group(per_cell_per_group)
 
@@ -1646,7 +1596,7 @@ class SNSolver:
         ``(ng, nx, ny)``.
         """
         per_cell_per_group = np.einsum(
-            "g...,g...->g...", self.mat_xs.absorption_cross_section, flux_distribution,
+            "g...,g...->g...", self.sn_mesh.mat_xs.absorption_cross_section, flux_distribution,
         )
         return self.sn_mesh.integrate_per_group(per_cell_per_group)
 
@@ -1675,7 +1625,7 @@ class SNSolver:
         :math:`1/k`; the (n,2n) gain sits on the net-removal side there.
         """
         fission = IntegratedReactionRate(
-            self.mat_xs.fission_production_field
+            self.sn_mesh.mat_xs.fission_production_field
         ).evaluate(flux_distribution)
         n2n_rate = np.zeros(self.ng)
         self.n2n_op.isotropic_energy.transfer.add_to_group_rate(
@@ -1728,10 +1678,10 @@ class SNSolver:
         spectral diagnostics (not on the keff path).
         """
         production = IntegratedReactionRate(
-            self.mat_xs.fission_production_field
+            self.sn_mesh.mat_xs.fission_production_field
         ).evaluate(flux_distribution)
         absorption = IntegratedReactionRate(
-            self.mat_xs.absorption_cross_section_field
+            self.sn_mesh.mat_xs.absorption_cross_section_field
         ).evaluate(flux_distribution)
         emission_n2n = np.zeros(self.ng)
         self.n2n_op.isotropic_energy.transfer.add_to_group_rate(
@@ -1848,7 +1798,7 @@ class SNSolver:
                 )
             rate += float(np.sum(net_current * face_area))
         reference = IntegratedReactionRate(
-            self.mat_xs.fission_production_field
+            self.sn_mesh.mat_xs.fission_production_field
         ).evaluate(phi_of_trace)
         if reference <= 0.0:
             raise RuntimeError(
@@ -2003,7 +1953,7 @@ class SNSolver:
         # fall to Jacobi structurally).  Phase-5a angular-windowing folds
         # in via :func:`_maybe_window` inside the SI builder. ──────────
         system = build_within_group_system(
-            self.sn_mesh, self.mat_xs, scattering_op=self.scattering_op,
+            self.sn_mesh, self.sn_mesh.mat_xs, scattering_op=self.scattering_op,
             n2n_op=self.n2n_op,
         )
         splitting = Splitting.from_schedule(system, self.schedule)
@@ -2164,7 +2114,7 @@ class SNSolver:
         # paths; the cached scattering operator injects through the cache
         # seam). ──────────────────────────────────────────────────────
         system = build_within_group_system(
-            self.sn_mesh, self.mat_xs, scattering_op=self.scattering_op,
+            self.sn_mesh, self.sn_mesh.mat_xs, scattering_op=self.scattering_op,
             n2n_op=self.n2n_op,
         )
         # GMRES iterates on the Jacobi labelling whatever ``self.schedule``
@@ -2681,7 +2631,7 @@ def _adjoint_posing_parts(sn_mesh: SNMesh):
     )
     from orpheus.transport.fields.angular_flux import AngularFlux as _AF
 
-    mat_xs = sn_mesh.material_xs_field()
+    mat_xs = sn_mesh.mat_xs
     system = build_within_group_system(
         sn_mesh, mat_xs,
     )
@@ -3667,7 +3617,7 @@ def _solve_fixed_source_si(
     # (un-wrapped) + ``gains`` are kept for the final full-angular
     # reconstruction below. ────────────────────────────────────────────
     system = build_within_group_system(
-        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
         n2n_op=solver.n2n_op,
     )
     splitting = Splitting.from_schedule(
@@ -3927,7 +3877,7 @@ def _solve_fixed_source_krylov(
     # DOFs.  Size it from the state the driver ravels (the multi-moment φ̂
     # axis + the trace + the ψ½ state all track automatically).
     system = build_within_group_system(
-        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
         n2n_op=solver.n2n_op,
     )
     splitting = Splitting.from_schedule(

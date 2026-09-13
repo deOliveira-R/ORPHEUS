@@ -329,7 +329,7 @@ def assemble_ordinate_blocks(
 
     # ── The raw data every mode shares ────────────────────────────────
     sigma_t = np.asarray(
-        sn_mesh.material_xs_field().total_cross_section_field.values, float,
+        sn_mesh.mat_xs.total_cross_section_field.values, float,
     )                                                   # (ng, *spatial)
     ng = sigma_t.shape[0]
     reaction_flat = (

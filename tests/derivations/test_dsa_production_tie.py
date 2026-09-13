@@ -97,7 +97,7 @@ class TestParentTie:
     def test_edge_eliminated_parent_matches_assembled_blocks(self, slab):
         h = np.diff(np.asarray(slab.mesh.edges, float))
         sigma_t = np.asarray(
-            slab.material_xs_field().total_cross_section_field.values, float
+            slab.mat_xs.total_cross_section_field.values, float
         )  # (ng, K)
         mu = np.asarray(slab.quad.mu_x, float)
 
@@ -127,7 +127,7 @@ class TestRealizedLowOrderSystem:
     @pytest.fixture(scope="class")
     def data(self, slab):
         h = np.diff(np.asarray(slab.mesh.edges, float))
-        xs = slab.material_xs_field()
+        xs = slab.mat_xs
         sigma_t = np.asarray(xs.total_cross_section_field.values, float)
         fold = xs.foldable_sigma()  # {mid: (ng,)}
         mat_ids = np.asarray(slab.mesh.mat_ids, int).ravel()

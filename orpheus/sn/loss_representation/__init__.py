@@ -104,7 +104,7 @@ See also
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from weakref import WeakKeyDictionary
+from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
@@ -472,9 +472,39 @@ class LossRepresentation(Protocol):
 #: survives-the-lazy-strategy criterion; `scratch/p4_9b_design.md` §9).
 #: The COUNT gate (`tests/sn/sweep/core/test_cache.py`) pins builds-per-
 #: solve == 1 — the F2-measured hazard (6-10 operators/solve × 8.78 ms).
-_GEOM_CACHE_INTERN: "WeakKeyDictionary[SNMesh, tuple[AngularClosureBase, StreamingCoefficientCache]]" = (
-    WeakKeyDictionary()
-)
+#: Consumers campaign step 2 C3a (2026-09-13): the table is SHARED by
+#: CONTENT — the hub's ``_contractibility_key`` × the closure CLASS, so a
+#: σ-variant Problem (``with_cross_sections``) reads the same object — and
+#: HELD by every hub that used it (a weak-key map, the lifetime the shipped
+#: intern always had).  A content index alone would be weak on the value and
+#: evict between two poses with no holder (``[M]`` one rebuild per
+#: ``_ensure_geom_cache``, 550 per slab eigen solve, +55 %); the per-hub
+#: map is what keeps the count at 1 until C3b's operator-owned stratum
+#: holds the table itself.
+class _GeometryIntern:
+    """Stratum-1 tables shared by content, held by the hubs that use them."""
+
+    def __init__(self) -> None:
+        self._by_content: "WeakValueDictionary[tuple[tuple, type[AngularClosureBase]], StreamingCoefficientCache]" = WeakValueDictionary()
+        self._by_hub: "WeakKeyDictionary[SNMesh, dict[type[AngularClosureBase], StreamingCoefficientCache]]" = WeakKeyDictionary()
+
+    def lookup(self, mesh: "SNMesh", closure_cls: "type[AngularClosureBase]") -> "StreamingCoefficientCache | None":
+        return self._by_content.get((mesh._contractibility_key, closure_cls))
+
+    def hold(self, mesh: "SNMesh", closure_cls: "type[AngularClosureBase]", cache: StreamingCoefficientCache) -> None:
+        self._by_content[(mesh._contractibility_key, closure_cls)] = cache
+        self._by_hub.setdefault(mesh, {})[closure_cls] = cache
+
+    def clear(self) -> None:
+        self._by_content.clear()
+        self._by_hub.clear()
+
+    def __len__(self) -> int:
+        """The number of LIVE distinct tables (content keys with a holder)."""
+        return len(self._by_content)
+
+
+_GEOM_CACHE_INTERN = _GeometryIntern()
 
 
 def geometry_cache_for(
@@ -483,7 +513,7 @@ def geometry_cache_for(
     """The lazily-resolved, hub-interned geometry table (Stratum 1).
 
     σ-free (geometry × quadrature — since P4b the table carries no
-    closure algebra at all), so its lifetime is the hub's; the
+    closure algebra at all), so its lifetime is its HOLDERS' (weak value); the
     closure-identity validation rebuilds for a different handed closure
     (post-P4b the rebuilt table is bit-identical — the validation is
     retained as the intern's declared key, and it dissolves with this
@@ -491,17 +521,19 @@ def geometry_cache_for(
     sweep) and the solver's σ-stratum posing (which needs Stratum 1 to
     build :class:`CollisionCache`).
     """
-    # O-3 (2026-09-12): the hub keys this dictionary by CONTENT now, so two
-    # content-equal live problems SHARE one entry (the table is σ-free and
-    # holds no mesh or closure reference — sharing is correct, and the count
-    # goes 2 → 1 per equal pair); the validation is on the closure CLASS, not
-    # the instance, or the two problems' distinct closure objects would
-    # rebuild each other's table on every alternate call (`[M]` 2 → 6).
-    entry = _GEOM_CACHE_INTERN.get(mesh)
-    if entry is not None and type(entry[0]) is type(angular_closure):
-        return entry[1]
-    cache = StreamingCoefficientCache.from_mesh_and_quad(mesh)
-    _GEOM_CACHE_INTERN[mesh] = (angular_closure, cache)
+    # O-3 (2026-09-12): keyed by CONTENT, so two content-equal live problems
+    # SHARE one entry (the table is σ-free and holds no mesh or closure
+    # reference — sharing is correct, and the count goes 2 → 1 per equal
+    # pair); the closure CLASS is part of the key, not the instance, or two
+    # problems' distinct closure objects would rebuild each other's table on
+    # every alternate call (`[M]` 2 → 6).  C3a (2026-09-13): the key is the
+    # CONTRACTIBILITY key — the σ datum lives in `_identity_key` only, so a
+    # σ-variant Problem shares the table by identity (`test_cache.py` #5).
+    closure_cls = type(angular_closure)
+    cache = _GEOM_CACHE_INTERN.lookup(mesh, closure_cls)
+    if cache is None:
+        cache = StreamingCoefficientCache.from_mesh_and_quad(mesh)
+    _GEOM_CACHE_INTERN.hold(mesh, closure_cls, cache)  # this hub holds what it uses
     return cache
 
 
@@ -3106,9 +3138,10 @@ class _OneDimScanWalk:
         ----------------
 
         The cache is interned in the strategy layer
-        (:func:`geometry_cache_for`'s ``WeakKeyDictionary``) — keyed weakly
-        BY ``self.mesh`` and validated against the handed closure's
-        identity, never stashed ON the mesh (only the σ stratum
+        (:func:`geometry_cache_for`'s ``WeakValueDictionary``) — keyed by
+        the hub's contractibility × the handed closure's CLASS, weak on
+        the table (alive while a holder lives), never stashed ON the mesh
+        (only the σ stratum
         ``_coll_cache`` and ``_pole_mirror_cache`` remain mesh attributes).
         :class:`SNSolver.__init__` resolves it eagerly; a sweep invoked
         outside the solver (e.g. ad-hoc tests) resolves it lazily through

@@ -267,8 +267,8 @@ class TestCylinderMultiGroupMultiRegion:
             keff = solver.compute_keff(phi)
 
         vol = solver.volume[None, :]
-        production = np.sum(solver.mat_xs.fission_production * phi * vol)
-        absorption = np.sum(solver.mat_xs.absorption_cross_section * phi * vol)
+        production = np.sum(solver.sn_mesh.mat_xs.fission_production * phi * vol)
+        absorption = np.sum(solver.sn_mesh.mat_xs.absorption_cross_section * phi * vol)
         k_balance = production / absorption
 
         np.testing.assert_allclose(
@@ -509,8 +509,8 @@ class TestMultiGroupMultiRegionSpherical:
             keff = solver.compute_keff(phi)
 
         vol = solver.volume[None, :]
-        production = np.sum(solver.mat_xs.fission_production * phi * vol)
-        absorption = np.sum(solver.mat_xs.absorption_cross_section * phi * vol)
+        production = np.sum(solver.sn_mesh.mat_xs.fission_production * phi * vol)
+        absorption = np.sum(solver.sn_mesh.mat_xs.absorption_cross_section * phi * vol)
         k_balance = production / absorption
 
         np.testing.assert_allclose(

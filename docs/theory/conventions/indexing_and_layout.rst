@@ -41,8 +41,11 @@ this page, this page is correct.
 - **Cell-flattening invariant**: the principled storage round-trips
   with the legacy one under transpose:
   ``xs.sig_t.T.reshape(ng, nx, ny)[g, i, j] ==
-  xs.sig_t.reshape(nx, ny, ng)[i, j, g]``.  Asserted in ``__debug__``
-  at :class:`~orpheus.sn.solver.SNSolver` construction.
+  xs.sig_t.reshape(nx, ny, ng)[i, j, g]``.  Gated by two ``foundation``
+  tests since 2026-09-13; it was an ``assert`` inside
+  ``if __debug__:`` at :class:`~orpheus.sn.solver.SNSolver` construction
+  until then, which the canonical ``python -O`` runner strips (see
+  :ref:`sn-cell-flattening-invariant`).
 - **The six-operator algebra** — the within-group loss composite
   :math:`A = L + C - S - N_{2n} - B`, posed as
   :math:`A\,\psi = \tfrac{1}{k}\,F\,\psi` (eigenvalue) or
@@ -328,31 +331,81 @@ pure-transpose round-trip.  The check is
    \texttt{sig\_t}_{\text{legacy}}[i, j, g]
    \qquad \forall (g, i, j)\,,
 
-.. (vv-status rationale) representational: the pure-transpose bit-identity
-.. invariant between the principled and legacy cell-flattened layouts. Its
-.. verifiable content is a bit-identity contract, pinned by the in-``__init__``
-.. ``np.array_equal`` transpose assert (PR-INDEX-3) and the 11-snapshot
-.. bit-identity-via-transpose regression gate — a foundation/bit-identity
-.. check, not a physics ``verifies`` claim.
-.. vv-status: sn-cell-flatten-roundtrip documented
+.. (former vv-status rationale — the sentinel was REMOVED 2026-09-13.)  The
+.. identity is representational (a pure-transpose bit-identity contract, not
+.. a physics claim), and the sentinel was right while nothing carried a
+.. ``verifies`` marker for it.  One now does — see the prose below for the
+.. two gates — so keeping it would hide a genuine coverage edge.  Do NOT
+.. re-add it.  (``documented`` is the ONLY legal sentinel word: ``tested`` /
+.. ``verified`` are DERIVED from ``@pytest.mark.verifies`` and are rejected
+.. as a hard audit error by ``tests/_harness/audit.py``.)  The old rationale
+.. named "the in-``__init__`` ``np.array_equal`` transpose assert
+.. (PR-INDEX-3) and the 11-snapshot bit-identity-via-transpose regression
+.. gate" as the pins; the first of those is retired and the prose below
+.. names what replaced it.
 
-implemented at :meth:`SNSolver.__init__`:
+The datum it constrains is the Problem's, not the solver's.  Since the
+consumers campaign's step 2 (2026-09-13) the per-cell :math:`\sigma_t`
+is :attr:`MaterialMesh.sigma_t_cell
+<orpheus.transport.mesh.material_mesh.MaterialMesh.sigma_t_cell>` — derived
+once at construction from the materials through the ONE per-cell assembler
+:func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`, in exactly the
+``.T.reshape`` spelling :eq:`sn-cell-flatten-roundtrip` states:
 
 .. code-block:: python
 
-   xs = assemble_cell_xs(materials, sn_mesh.mat_map)
-   self.sig_t = xs.sig_t.T.reshape(self.ng, nx, ny)
-   if __debug__:
-       _sig_t_old = xs.sig_t.reshape(nx, ny, self.ng)
-       assert np.array_equal(
-           _sig_t_old, self.sig_t.transpose(1, 2, 0)
-       ), "PR-INDEX-3 cell-flattening invariant broke"
+   # orpheus/transport/mesh/material_mesh.py — MaterialMesh._admit_sigma_t_cell
+   shape = (self.ng, *self.spatial_shape)
+   if sigma_t_cell is None:
+       xs = assemble_cell_xs(self.materials, self.mat_map)
+       sigma_t_cell = xs.sig_t.T.reshape(shape)
+
+and :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`'s
+``_ensure_cell_views`` reads that datum for its ``total_cross_section``
+view rather than re-deriving it, so the layout has exactly one producer.
+
+.. note:: **Two gates, and why the assert statement was not one of them.**
+
+   Until 2026-09-13 this section read *"implemented at
+   ``SNSolver.__init__``"* and quoted an ``if __debug__:`` block whose
+   ``assert np.array_equal(…), "PR-INDEX-3 cell-flattening invariant
+   broke"`` was named, in this page's own ``vv-status`` rationale, as the
+   pin.  It was not a pin: ORPHEUS's canonical invocation is ``python -O
+   -m pytest``, and ``-O`` removes every ``assert`` **statement** at
+   compile time in code pytest does not collect — production code
+   emphatically included (``vv-principles`` failure Mode 8).  The
+   assertion could not fail in the suite that decides a merge.  It was
+   retired with the σ rebind it lived beside; its successors are
+
+   * ``tests/sn/mesh/test_sigma_datum.py``
+     ``::TestLawTheRoundTrip::test_law_the_datum_is_the_assembled_cell_sigma_t``
+     — the ``@pytest.mark.verifies("sn-cell-flatten-roundtrip")`` witness,
+     parametrised over both carrier tiers
+     (:class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` and
+     :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`).  It asserts the
+     stored datum is ``array_equal`` to
+     ``assemble_cell_xs(materials, mat_map).sig_t.T.reshape(ng, *spatial)``
+     **and** that the field's ``total_cross_section`` view reads it;
+   * ``tests/sn/primitives/test_cell_flattening_invariant.py``
+     ``::test_cell_flattening_invariant_xs_storage_round_trips`` — the
+     pure-storage form on synthetic ``(N_cells, ng)`` arrays over three
+     shapes (``1×1×2``, ``5×1×2``, ``3×4×3``).  It was promoted out of the
+     same ``__debug__`` block at PR-CLEANUP-CODE §E and carries no
+     ``verifies`` marker by design (its own docstring: *"no L0/L1/L2
+     theory-page label is needed, this is a software invariant about array
+     storage"*).  Both are ``@pytest.mark.foundation``.
+
+   Neither is a physics claim.  The first pins that the **Problem's**
+   datum is the assembler's output in the principled layout; the second
+   pins that the two reshapes are transposes of each other for any
+   C-ordered ``(N_cells, ng)`` input.  Together they are what the
+   ``assert`` was supposed to be.
 
 The invariant is load-bearing: it detects accidental mat-ids ravel
 order changes (Fortran vs C order) that would silently corrupt the
-spatial-to-group mapping.  An assertion failure here would surface as
-a clean test failure rather than a flux distribution that looks
-plausible but is wrong by a permutation of cells.
+spatial-to-group mapping.  A failure here surfaces as a clean test
+failure rather than a flux distribution that looks plausible but is
+wrong by a permutation of cells.
 
 
 .. _sn-index-convention-history:
@@ -445,7 +498,7 @@ The six PRs
        ``sig_t / sig_a / sig_p / chi`` from ``(nx, ny, ng)`` to
        ``(ng, nx, ny)`` via
        ``xs.<field>.T.reshape(ng, nx, ny)`` at ``__init__``.
-       Producer :func:`~orpheus.data.macro_xs.assemble_cell_xs`
+       Producer :func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`
        **unchanged** (CP no-regression guaranteed by construction).
        PR-INDEX-2 transient bridges removed; new transients added at
        :meth:`FissionOperator.apply` legacy return contract and

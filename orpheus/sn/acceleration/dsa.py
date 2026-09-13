@@ -254,7 +254,7 @@ class DSALowOrderSystem:
         # tuple is the canonical ground truth and np.diff(edges) is
         # bitwise identical to it by the C5.1 conversion contract.
         h = np.asarray(sn_mesh.axis_widths[0], dtype=float)
-        mat_xs = sn_mesh.material_xs_field()
+        mat_xs = sn_mesh.mat_xs
         sigma_t = np.asarray(
             mat_xs.total_cross_section_field.values, dtype=float
         )  # (ng, K)

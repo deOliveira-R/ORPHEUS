@@ -88,7 +88,7 @@ def test_material_mesh_volume_measure_matches_mesh():
 def test_material_mesh_builds_xs_field():
     mesh, mats = _two_material_mesh()
     mm = MaterialMesh(mesh, mats)
-    field = mm.material_xs_field()
+    field = mm.mat_xs
     assert isinstance(field, MaterialXSField)
     # per-cell SigT view follows the mat_map (cell 2 is material 1).
     sig_t = field.total_cross_section  # (ng, nx)
@@ -140,7 +140,7 @@ def test_snmesh_data_block_bit_identical_to_standalone_carrier():
         snm.volume_measure.weights, mm.volume_measure.weights,
     )
     # Every carrier accessor is callable on the SNMesh (substitutability).
-    assert isinstance(snm.material_xs_field(), MaterialXSField)
+    assert isinstance(snm.mat_xs, MaterialXSField)
 
 
 # ── from_material_mesh promotion (the data/behavior join) ─────────────

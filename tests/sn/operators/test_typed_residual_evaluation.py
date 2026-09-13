@@ -66,7 +66,7 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
     sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
     solver = SNSolver(sn_mesh, inner_solver="source_iteration")
     system = build_within_group_system(
-        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
     )
     si, _base, _gains, windowed = _within_group_si(
         Splitting.from_schedule(system, solver.schedule), sn_mesh,
@@ -211,7 +211,7 @@ def _slab_2g_het_triple(nx: int = 12, n_ord: int = 8):
         sn_mesh, inner_solver="source_iteration",
     )
     system = build_within_group_system(
-        sn_mesh, solver.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
     )
     LC, S, N2N, B = (
         system.factors.streaming_collision, system.factors.scattering,
@@ -247,7 +247,7 @@ def test_within_group_operands_share_the_composite_space():
     from orpheus.transport.operators.fission import FissionOperator
 
     F_composite = FissionOperator.from_solver_data(
-        mat_xs=solver.mat_xs, space=ffs,
+        mat_xs=solver.sn_mesh.mat_xs, space=ffs,
     )
     for op, nm in [
         (LC, "L+C"), (S, "S"), (B, "B"), (F_composite, "F"),
@@ -331,7 +331,7 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
     ffs = sn_mesh.full_field_space
     wrong = FullFieldSpace(name="full_field_TYPO", shape=ffs.shape)
     L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(solver.mat_xs.total_cross_section_field, sn_mesh)
+    C = MultiplicationOperator.from_mesh(solver.sn_mesh.mat_xs.total_cross_section_field, sn_mesh)
     _ = L + C  # POSITIVE control — correctly-spaced L + C composes
     with mock.patch.object(type(C), "domain", property(lambda self: wrong)), \
          mock.patch.object(type(C), "codomain", property(lambda self: wrong)):
@@ -455,7 +455,7 @@ class TestSplitRayResidualMint:
         sn_sol = sol.mesh
         solver = SNSolver(sn_sol)
         system = build_within_group_system(
-            sn_sol, solver.mat_xs, scattering_op=solver.scattering_op,
+            sn_sol, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
         )
         q_pair = _build_fixed_source_rhs(q_np, sn_sol)
         if not isinstance(q_pair, CoupledField):
@@ -508,7 +508,7 @@ class TestSplitRayResidualMint:
         sn = _tiny_sphere_2g()
         solver = SNSolver(sn)
         system = build_within_group_system(
-            sn, solver.mat_xs, scattering_op=solver.scattering_op,
+            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
         )
         q_pair = _build_fixed_source_rhs(
             np.ones((sn.quad.N, sn.ng, sn.nx)), sn,

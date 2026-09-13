@@ -930,7 +930,7 @@ def test_p4_fixture_fingerprint_matches_the_baseline() -> None:
         # index map), not as the raw ``mat_map`` declares them — a region
         # that no cell carries is not heterogeneity, and this accessor is
         # mesh-dimension-agnostic where ``mat_map`` is 2-D-only.
-        "n_regions": len(sn_mesh.material_xs_field().cells_by_material),
+        "n_regions": len(sn_mesh.mat_xs.cells_by_material),
         "n_dof": _n_dof(x),
     }
     if measured != _COST_FINGERPRINT:

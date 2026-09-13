@@ -10465,3 +10465,253 @@ the σ-override datum must enter `MaterialMesh._identity_key` — otherwise a ba
 pair with two different σ's compares `==`, which is ERR-084's defect class one class down.
 `same_phase_space` reads `_contractibility_key`, so σ-variant hubs still pair — assert that,
 because it is a consequence nobody would notice breaking.
+
+## L85 — the consumers campaign, C3a + C3b: the σ datum, the intern re-key, the walk seam (2026-09-13, PRE-carve; `main` @ `93225c65`, tree clean throughout)
+
+Dispatch: design the verification for the C3 merge unit (`scratch/_consumers/c3/draft.md`).
+Deliverable: `scratch/_consumers/planning/test_architect_c3_delta.md` (684 lines).
+Probes: `scratch/_consumers/probes3/p1…p13`, all monkeypatch-only.
+Scope baseline `[M]`: `python -O -m pytest -p no:randomly -m "not slow" -q --timeout=240` over
+8 C3-relevant files → **487 passed / 2 deselected / 1 xfailed / 12.99 s**.
+
+### L85a — the cache-lifetime regression no value gate can see
+
+The memo proposed re-keying `_GEOM_CACHE_INTERN` from
+`WeakKeyDictionary[SNMesh]` to `WeakValueDictionary[(contractibility_key,
+closure class)]` with `weakref_slot=True`, with "the operator holds the stratum"
+as a *recommendation*.
+
+`[M]` over ONE 5-outer fissile-slab eigen solve (`p5_no_holder.py`):
+
+| scenario | geom builds | hits | coll builds | keff |
+|---|---|---|---|---|
+| weak intern **+** `solver.geom_cache` (today's holder) | **1** | 549 | 1 | 0.435195214258 |
+| weak intern, solver holds NOTHING (post-C3b) | **550** | 0 | 1 | **0.435195214258** |
+| plain `dict` intern, no holder | **1** | 549 | 1 | 0.435195214258 |
+
+⟹ the value is **bit-identical in all three**. Cost `[M]`:
+`StreamingCoefficientCache.from_mesh_and_quad` = **0.169 ms** (min of 15
+interleaved) on an 8-cell slab; one solve = **167.8 ms** (min of 3) ⟹ **+55.4 %**
+here, and ≈4.8 s at the phase's own 8.78 ms/build production figure.
+
+⭐ The holder is `SNSolver.geom_cache` — `[M]` written at `solver.py:1487`, READ at
+exactly one site (`rebind_cross_sections` `:1536-1542`) which **C3a deletes**. So
+between C3a and C3b the attribute is a strong reference with **zero readers**:
+load-bearing, and invisible to any "who reads this?" census. `[M]`
+`gc.get_referrers` on a live table outside a solve returns 2 — the intern's value
+tuple and the probe's own local.
+
+Also `[M]`: the memo's stated instrument does not exist —
+`hasattr(StreamingCoefficientCache, "_build_count")` is **False**; `cache.py:441/
+:450/:515` are `CollisionCache`'s (classes at `:130` and `:398`). The only shipped
+geometry-build instrument is the `from_mesh_and_quad` spy in step 1's
+`tests/sn/mesh/test_problem_identity_anchors.py:445-463`.
+
+Per-solve seam counts `[M]`: `sweep` **1098** (base → walk ⟹ 549 real sweeps),
+`_ensure_geom_cache` **549**, `_ensure_coll_cache` **549**, `_run` **549**.
+
+### L85b — the refcount accident in a "does it rebuild?" probe
+
+`[M]` the landed sharing anchor's helper (`_count_builds`, `:442-464`) DISCARDS
+the returned table. Under the weak-valued re-key it still reads **1** — because
+the previous round's local (`r1`) is alive across the next lookup. The same loop
+with an explicit `del` + `gc.collect()` between calls reads **6 of 6 rebuilds**
+(shipped intern: 1; strong-dict re-key: 1).
+
+⟹ two obligations: re-pose the helper to HOLD the tables (else the anchor's green
+is an artefact), and add a separate row stating the LIFETIME claim (build, drop
+every reference, `gc.collect()`, assert empty, re-request, assert a rebuild).
+
+`[M]` the weakref mechanics themselves are fine on this venv (Python **3.14.3**):
+`@dataclass(frozen=True, slots=True, weakref_slot=True)` constructs, `__slots__`
+gains `'__weakref__'`, `weakref.ref` works, a `WeakValueDictionary` takes a TUPLE
+key, and `del` + `gc.collect()` evicts. The prior memo's D-5 refutation was about
+a `WeakKey`Dictionary and does not transfer. `[M]` the shipped class is NOT
+weak-referenceable (`__slots__` = its 8 fields; `weakref.ref` → `TypeError`).
+
+`[M]` a σ datum on `_identity_key` WITHOUT the re-key: two σ-variant hubs give
+**2 builds / intern len 2**; after the re-key, **1**. So the re-key is forced by
+C3a, and that is the §6c red-before for it.
+
+### L85c — `==` on a non-dataclass is identity
+
+`[M]` `LossKernelGauge` (`sn/mesh/augmented_mesh.py`'s `cached_property`): for two
+content-equal hubs `g1 is g2` **False** and `g1 == g2` **False**. So the memo's
+re-key of `TestLawTheGaugeIsSigmaFree` to "two hubs, EQUAL by value" is not
+spellable as `==`.
+
+`[M]` the honest value leg: `np.array_equal(g1.as_matrix(), g2.as_matrix())` →
+**True, `max|Δ| = 0.000e+00`**, shape `(32, 32)` — and the SAME reading across a
+×3 σ-variant hub, so `array_equal` is earned. ⚠ `apply` is not a route: the
+gauge's domain is an `AngularTraceSpace`, which has **no `.zeros()`**. Keep the
+per-hub `is` half on ONE hub (the prior memo's A7 arm reds exactly that row).
+
+### L85d — the `__debug__` assert that refuses the capability
+
+`[M]` `solver.py:1379-1387` re-derives `assemble_cell_xs(materials, mat_map)` and
+compares it against `mat_xs.total_cross_section`. Constructing an `SNSolver` over
+a σ-variant hub:
+
+* plain `python` → `AssertionError: PR-INDEX-3 cell-flattening invariant broke`;
+* `python -O` (the canonical runner) → the assert is stripped and the solve
+  completes, `k = 0.6627172096` for a ×3 override.
+
+⟹ retiring it is not cleanup: leaving it makes every C3a fixture green under `-O`
+and red under plain `python`. Run new-capability fixtures under BOTH.
+
+### L85e — "single-source these two bodies" is a functional-identity CLAIM
+
+`[M]` six `compute_keff` definitions live in `orpheus/` (cp, diffusion, moc,
+`numerics/eigenvalue.py:165` the boundary, `numerics/iteration.py:1473`
+KEigenvalue, `sn/solver.py:1686`). `SNSolver.compute_keff` =
+`R_{νΣf}(φ)/(R_{Σa}(φ) + L − E_2n)` through `IntegratedReactionRate` **plus** a
+leakage term read from `self._inner.iterate.boundary` — `[M]` it `raise`s
+`RuntimeError` without a prior inner solve, so it is not a pure functional of
+`(pencil, ψ)`.
+
+`[M]` the Rayleigh quotient on the converged COUPLED iterate, `w = 1`:
+
+| keff_tol / flux_tol / inner_tol | n_outer | compute_keff | `Σ(prod·ψ*)/Σ(loss·ψ*)` | rel |
+|---|---|---|---|---|
+| 1e-6 / 1e-5 / 1e-8 | 4 | 0.43519519071326 | 0.43519519101477 | 6.928e-10 |
+| 1e-7 / 1e-6 / 1e-8 | 5 | 0.43519521425809 | 0.43519521456990 | 7.165e-10 |
+| 1e-9 / 1e-8 / 1e-10 | 6 | 0.43519521135511 | 0.43519521135817 | 7.014e-12 |
+| 1e-11 / 1e-10 / 1e-12 | 8 | 0.43519521134471 | 0.43519521134474 | 6.569e-14 |
+
+The count moves on every row (`vv` #13(d)) and the gap falls four decades ⟹ it is
+the convergence residual. Activation `[M]`: random states give `−0.01027749`,
+`+0.01522889`, `+0.00939045` against `k = 0.43519521` — the sign flips.
+
+⚠ The ratio is not the RATES: `[M]` `Σ(prod·ψ*) = 16.0000011` vs
+`IntegratedReactionRate = 1.0`; on the scalar carrier the weight is the VOLUME
+(`sum(νΣ_f φ V) == IRR` `array_equal` **True**, rel `0.000e+00`; `sum(νΣ_f φ)` off
+by rel **3.000e+00** = 4×, `V = 0.25`). So `compute_production_rate` (the ERR-052
+scale anchor) must not be folded onto the numerator.
+
+### L85f — folding two operands changes the estimator's arithmetic
+
+`[M]` `Σ(Aψ) − Σ(Sψ)` vs `Σ((A−S)ψ)`:
+
+| fixture | bit-identical | worst relative gap |
+|---|---|---|
+| the shipped `_synthetic_triple` (`k = 6.0/39.6`) | **True** | 0 |
+| 2000 random 12-dim diagonal triples | 836 / 2000 | 5.330e-16 |
+| the SN composite, 40 seeded coupled states | **1 / 40** | **9.524e-15** (≈43 ε) |
+
+⟹ `test_estimators_as_functionals.py::test_keff_bit_identical` (`got == ref`,
+`:125-136`) survives a `KEigenvalue` re-signature only because its hand values are
+exactly representable. `[M]` its sibling `test_injection_kwargs_are_gone`
+(`:151-163`) goes **green for the wrong reason** under a positional re-signature —
+the `TypeError` then comes from the arity, not the kwarg — so a positive control
+(`KEigenvalue(posing, implicit, explicit)` constructs) must land beside it.
+
+`[M]` the `KEigenvalue` §6b set: **21 hits / 8 files** (production 1 at
+`sn/solver.py:2783`; 12 executable test calls; 3 test prose; 4 docs).
+
+### L85g — which side of the normalisation the mutation lands on
+
+`[M]` under `python -O`, a σ_t override reaching a real solve (base
+`k = 0.4351952142580926`):
+
+| arm | k | rel | `Δk·10⁵` (absolute convention) |
+|---|---|---|---|
+| ×3 uniform SCALAR | 0.6627172095523044 | 5.228e-01 | +22752.20 |
+| ×1.01 uniform SCALAR | 0.428039364169411 | 1.644e-02 | −715.59 |
+| cell 0 only ×1.01 (SHAPE) | 0.4324496619351158 | 6.309e-03 | −274.56 |
+| group 0 only ×1.01 (SHAPE) | 0.4370399389745441 | 4.239e-03 | +184.47 |
+
+⟹ C2's "a scalar fission mutation is a Mode-12 null on a normalized eigen path"
+does NOT transfer to the loss side: σ_t moves the flux SHAPE, so `R_Σa(φ)` and the
+leakage move with it. Name the family in each battery row.
+
+### L85h — a prose deferral hiding a live silent wrong answer
+
+`[M]` four lines, no solver, on the shipped public strategy surface:
+
+```
+rep = default_for(hub, hub.scheme, hub.angular_closure)      # CumprodScan
+a1, _ = rep.sweep(Q, sigma=1.0, zeros_bf)
+a2, _ = rep.sweep(Q, sigma=5.0, zeros_bf)     # SAME hub, DIFFERENT sigma
+  array_equal(a1, a2) = True      max|d| = 0.000000e+00
+a3 = fresh-hub sweep at sigma=5.0
+  max|a3 - a2| = 8.032727e-01     rel = 3.573e+00
+```
+
+`_ensure_coll_cache` reads `getattr(self.mesh, "_coll_cache", None)` and never
+validates the handed σ. `[M]` nothing states it: the only repeated-sweep test site
+(`test_wavefront_cumprod_equivalence.py:242/:247`) passes the SAME σ twice; no ERR
+entry; the deferral is prose at `docs/theory/methods/sn/index.rst:776-786`.
+⟹ ship the two-σ row as a strict xfail at C3a (flipping at C3b) and mint an ERR
+entry with it as the catcher.
+
+### L85i — "the strategy" naming two objects
+
+`[M]` `sweep` is defined on **7** classes (`LossRepresentation` — a
+`@runtime_checkable` Protocol with 1 annotation site and **0** `isinstance`
+doors — `_LossRepresentation`, `CumprodScan`, `MovingFrontierWindow`,
+`FullFieldWavefront`, `ScanMarch`, `_OneDimScanWalk`); `sweep_transpose` on 4;
+`_ensure_geom_cache`/`_ensure_coll_cache`/`_run` on `_OneDimScanWalk` ONLY.
+`[M]` `_OneDimScanWalk` is private with **0** external call sites; the publicly
+reachable scan strategy is `CumprodScan`, and `[M]` `CumprodScan` is the strategy
+on **all four** 1-D charts (slab, cylinder `n_phi=6`, cylinder `n_phi=8`, sphere),
+all four reaching `_run`.
+
+`[M]` the external `.sweep(` set: **17 executable test sites / 6 files** + 2
+derivations + **1 DOCSTRING** (`test_unified_sweep_dispatch.py:26`) — the memo's
+"18 / 7" counts the prose line. `.sweep_transpose(`: 1 external site.
+
+### L85j — the spy census that returns zero
+
+`[M]` a `setattr`-style census over `tests/` + `derivations/` for
+`sweep`/`_run`/`_ensure_coll_cache`/`_ensure_geom_cache`/`from_geometry` returns
+**3 hits, none of them on the seam verbs**:
+`test_problem_identity_anchors.py:457/:463` (`StreamingCoefficientCache
+.from_mesh_and_quad`) and `test_step2_terminal_object_anchors.py:216` (the builder
+spy — the census's own positive control, FOUND). ⟹ neither fork option has a spy
+to migrate, AND no route claim about the walk is gated today.
+
+### L85k — the diffusion consumer's split read-set
+
+`[M]` a ×3 σ override modelled at `_sig_t_cell`, `DiffusionMesh` on an 8-cell
+2-group slab: `solve_diffusion_1d` keff **0.26290298301976867 → 0.018027327271779307**
+(rel **9.314e-01**) — the removal term (`solver.py:238`, `total_cross_section_field`)
+carries it. `[M]` `diffusion_coefficient` is **`array_equal` to the base** — the
+leakage term (`operators.py:319`) gathers `Mixture.diffusion_coefficient`
+per-material (`D = 1/(3Σ_tr)`, `Σ_tr = Σ_t − Σ_s1`; `[M]` `D = [0.700, 0.349]`
+vs `1/(3σ_t) = [0.667, 0.333]`). ⟹ a σ-variant hub yields a physically
+inconsistent diffusion problem, silently. Same shape one tier out:
+`_gather_vector("SigT")` (`material_xs_field.py:264/:364`, the homogenization
+projections) also reads materials.
+
+### L85l — other C3 ground facts worth not re-measuring
+
+* `[M]` `material_xs_field()` returns a FRESH object per call (`a is b` False,
+  `a == b` **True**) ⟹ the `cached_property` is invisible to every value gate.
+  Mints per entry: **2**, 2 distinct objects, on all four entries, at
+  `solver.py:1376` and `augmented_mesh.py:1125` (`SNMesh.fission` — **C2's own**).
+* `[M]` `SNMesh.__init__` fires exactly **1** time per entry on all four entries.
+* `[M]` the anchors' `sys.modules` builder spy binds **3** modules and DOES
+  intercept a lazily-imported `cached_property`: 3 property reads → **1** call.
+  ⟹ `TestRuledTheBuildIsOncePerProblem` flips at C3b with no edit. ⚠ a hub warmed
+  before the spy installs reads 0, not 1 — new rows must warm-check.
+* `[M]` poisoning `_sig_t_cell` moves `total_cross_section` ONLY; `absorption`,
+  `fission_production`, `emission_spectrum`, `diffusion_coefficient` all unmoved.
+* `[M]` the identity key already reads two WRITEABLE arrays (`mat_map`,
+  `axis.edges`); only the `Mixture` fields are read-only. `_identity_key` is a
+  `cached_property`, so an in-place mutation makes two hubs compare `==` forever.
+* `[M]` byte-keying edges: `−0.0` vs `+0.0` → `array_equal` True / `tobytes`
+  False (canonicalised by `+ 0.0`); `nan` vs `nan` → `array_equal` False /
+  `tobytes` True; `float32` vs `float64` of one value → `tobytes` False; a
+  Fortran-ordered array's bare `.tobytes()` DOES match C order (numpy defaults to
+  `order='C'`). `total_cross_section` is `(ng, *spatial)` float64, **not
+  C-contiguous, not owning, WRITEABLE**.
+* `[M]` `_MEMO_SLOTS` after one drive: `_geom_cache` absent on all 4 charts;
+  `_coll_cache` present on all 4; `_pole_mirror_cache` present on the 3
+  curvilinear charts, absent on slab ⟹ after C3b the tuple names 1 live slot of 3
+  and `_drop_memos` is VACUOUS on the slab row.
+* `[M]` `HomogeneousProblem` is a one-field dataclass (`mixture`); `loss` /
+  `production` are properties; no `pencil`, no `multiplication`. `grep -rn
+  "pencel"` over the tree → **0 hits** (the brief's spelling is a typo).
+* `[M]` the builder signatures the carve drops:
+  `build_within_group_system(sn_mesh, mat_xs, *, scattering_op=None, n2n_op=None)`
+  and `build_coupled_system(sn_mesh, mat_xs, *, scattering_order=0)`.

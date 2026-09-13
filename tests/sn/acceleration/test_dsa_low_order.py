@@ -65,7 +65,7 @@ def _reference_inputs(sn_mesh: SNMesh):
     the production build gathers them (data path shared; the FORMULAS
     are what the tie discriminates)."""
     h = np.diff(np.asarray(getattr(sn_mesh.mesh, "edges"), float))
-    xs = sn_mesh.material_xs_field()
+    xs = sn_mesh.mat_xs
     sigma_t = np.asarray(xs.total_cross_section_field.values, float)
     ng = sigma_t.shape[0]
     mat_ids = np.asarray(sn_mesh.mat_map, int).ravel()

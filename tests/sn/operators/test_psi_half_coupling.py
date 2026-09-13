@@ -337,7 +337,7 @@ class TestRegressionFloor:
         sn = _sphere()
         solver = SNSolver(sn)
         system = build_within_group_system(
-            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op)
         S = solver.scattering_op
         b, _, s, _ = _blocks(sn)
         tpl_a = _template(sn)
@@ -372,7 +372,7 @@ class TestRegressionFloor:
         solver = SNSolver(sn)
         # The record's OWN splitting, densified over the coupled pair (B.2d).
         system = build_within_group_system(
-            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op)
         tpl = _coupled_template(sn)
         M = _dense(_labelled(system).implicit.apply, tpl)
         N = _dense(_labelled(system).explicit[0].apply, tpl)
@@ -594,7 +594,7 @@ class TestBoundaryUnweld:
         sn = _sphere(bc="reflective")
         solver = SNSolver(sn)
         system = build_within_group_system(
-            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op)
         n_grid = _labelled(system).explicit[0]
         coupled = _random_pair(sn, np.random.default_rng(3))
         out = n_grid.apply(coupled)
@@ -626,7 +626,7 @@ class TestBoundaryUnweld:
         # The production boundary on a seedless mesh is B_a alone.
         slab_solver = SNSolver(slab)
         slab_system = build_within_group_system(
-            slab, slab_solver.mat_xs, scattering_op=slab_solver.scattering_op)
+            slab, slab_solver.sn_mesh.mat_xs, scattering_op=slab_solver.scattering_op)
         B = _labelled(slab_system).explicit[-1]
         if not isinstance(B, SNBoundaryOperator):
             pytest.fail(f"seedless record boundary gain is "
@@ -1976,7 +1976,7 @@ class TestCoupledLift:
         snf = _fissile_sphere()
         f_solver = SNSolver(snf)
         f_out = FissionOperator.from_solver_data(
-            mat_xs=f_solver.mat_xs, space=snf.full_field_space,
+            mat_xs=f_solver.sn_mesh.mat_xs, space=snf.full_field_space,
         ).apply(_random_composite(snf, np.random.default_rng(101)))
         if type(f_out) is not FullField:
             pytest.fail(f"F.apply emitted {type(f_out).__name__}, not the "
@@ -2252,7 +2252,7 @@ class TestCoupledLift:
         sn = _sphere()
         solver = SNSolver(sn)
         system = build_within_group_system(
-            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op)
         # B.2d: the gain grid's (B,A) slot carries the BLOCK natively.
         n_grid = _labelled(system).explicit[0]
         if not (isinstance(n_grid, CoupledOperator)
@@ -2267,7 +2267,7 @@ class TestCoupledLift:
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         slab_solver = SNSolver(slab)
         slab_system = build_within_group_system(
-            slab, slab_solver.mat_xs, scattering_op=slab_solver.scattering_op)
+            slab, slab_solver.sn_mesh.mat_xs, scattering_op=slab_solver.scattering_op)
         if any(isinstance(g, CoupledOperator) for g in _labelled(slab_system).explicit):
             pytest.fail("the seedless record carries a coupled gain grid — a "
                         "seedless mesh has no bulk→ray coupling.")
@@ -2487,7 +2487,7 @@ class TestCoupledLift:
         # leaves are the solver-cached energy bindings.
         snf_solver = SNSolver(snf)
         snf_system = build_within_group_system(
-            snf, snf_solver.mat_xs, scattering_op=snf_solver.scattering_op,
+            snf, snf_solver.sn_mesh.mat_xs, scattering_op=snf_solver.scattering_op,
             n2n_op=snf_solver.n2n_op)
         S = snf_solver.scattering_op
         emission_block = _labelled(snf_system).explicit[0].blocks[1][0]
@@ -3025,7 +3025,7 @@ class TestCoupledBuilder:
         SUFFICIENT runtime proof that every block speaks its typed carrier
         (construction alone is Mode-12-blind, F2)."""
         sn = _sphere()
-        grid, space = build_coupled_system(sn, sn.material_xs_field())
+        grid, space = build_coupled_system(sn, sn.mat_xs)
         if type(space) is not CoupledSpace:
             pytest.fail(f"space is {type(space).__name__}, not CoupledSpace.")
         if grid.domain is not space or grid.codomain is not space:
@@ -3073,7 +3073,7 @@ class TestCoupledBuilder:
         bypassed could not construct System B (Pattern 4: the illegal grid
         is unrepresentable, not merely un-built)."""
         sn = _sphere()
-        grid, space = build_coupled_system(sn, sn.material_xs_field())
+        grid, space = build_coupled_system(sn, sn.mat_xs)
         if not (grid.n_rows == grid.n_cols == 2):
             pytest.fail(f"carrying sphere built {grid.n_rows}×{grid.n_cols}, "
                         f"expected 2×2.")
@@ -3091,12 +3091,12 @@ class TestCoupledBuilder:
             Quadrature.folded_product(n_mu=4, n_phi=8),
             {0: _mixture(1.0, 0.4, 2)})
         op_cyl, _space_cyl = build_coupled_system(
-            cyl_folded, cyl_folded.material_xs_field())
+            cyl_folded, cyl_folded.mat_xs)
         if not (op_cyl.n_rows == op_cyl.n_cols == 2):
             pytest.fail(f"carrying folded cylinder built "
                         f"{op_cyl.n_rows}×{op_cyl.n_cols}, expected 2×2.")
         for mesh, label in ((slab, "slab"),):
-            op1, space1 = build_coupled_system(mesh, mesh.material_xs_field())
+            op1, space1 = build_coupled_system(mesh, mesh.mat_xs)
             if not (op1.n_rows == op1.n_cols == 1):
                 pytest.fail(f"non-carrying {label} built "
                             f"{op1.n_rows}×{op1.n_cols}, expected 1×1.")
@@ -3146,7 +3146,7 @@ class TestCoupledBuilder:
         REFLECTIVE sphere so ``B_b`` is non-null (memo F1 — vacuum masks a
         dropped B_b); ≥2G; the live-ray + live-corner non-vacuity asserted."""
         sn = _sphere(bc="reflective")
-        mat_xs = sn.material_xs_field()
+        mat_xs = sn.mat_xs
         grid, _ = build_coupled_system(sn, mat_xs)
         for seed in (21, 22):
             rng = np.random.default_rng(seed)
@@ -3184,7 +3184,7 @@ class TestCoupledBuilder:
         (b) dropping ``− B_b`` from (B,B) moves the ray rows on the
         REFLECTIVE sphere (on vacuum B_b ≡ 0 would mask the drop — F1)."""
         sn = _sphere(bc="reflective")
-        mat_xs = sn.material_xs_field()
+        mat_xs = sn.mat_xs
         grid, space = build_coupled_system(sn, mat_xs)
         with pytest.raises(IncompatibleOperatorComposition):
             CoupledOperator(
@@ -3220,7 +3220,7 @@ class TestCoupledBuilder:
         sees deferral, not a bug. Tooth: a slice table that drops System B
         reds the coverage pin."""
         sn = _sphere()
-        grid, space = build_coupled_system(sn, sn.material_xs_field())
+        grid, space = build_coupled_system(sn, sn.mat_xs)
         coupled = _random_pair(sn, np.random.default_rng(24))
         flat = coupled.to_flat()
         slices = space.system_slices
@@ -3272,7 +3272,7 @@ class TestCoupledBuilder:
         composite bulk⊕trace⊕seed metric is non-trivial on every geometry
         (the step-4 memo's burned 'slab stays green' lesson)."""
         sn = _sphere(bc="reflective")
-        grid, space = build_coupled_system(sn, sn.material_xs_field())
+        grid, space = build_coupled_system(sn, sn.mat_xs)
         rng = np.random.default_rng(25)
         psi = _random_pair(sn, rng)
         x = _random_pair(sn, rng)
@@ -3352,7 +3352,7 @@ class TestWithinGroupSystem:
         sn = _sphere()
         solver = SNSolver(sn)
         system = build_within_group_system(
-            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op)
         if type(system) is not WithinGroupSystem:
             pytest.fail(f"builder returned {type(system).__name__}")
         if not isinstance(system.loss, CoupledOperator):
@@ -3404,7 +3404,7 @@ class TestWithinGroupSystem:
             Quadrature.gauss_legendre(4), {0: _mixture(1.0, 0.4, 2)})
         slab_solver = SNSolver(slab)
         s_system = build_within_group_system(
-            slab, slab_solver.mat_xs, scattering_op=slab_solver.scattering_op)
+            slab, slab_solver.sn_mesh.mat_xs, scattering_op=slab_solver.scattering_op)
         if s_system.is_coupled:
             pytest.fail("seedless record is coupled — DP-seedless violated")
         if not isinstance(s_system.factors.streaming_collision, StreamingCollisionOperator):
@@ -3558,7 +3558,7 @@ class TestWithinGroupSystem:
         sn = _sphere()
         solver = SNSolver(sn)
         system = build_within_group_system(
-            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op)
         M_op = _labelled(system).implicit
         rng = np.random.default_rng(150)
         psi_a = _random_composite(sn, rng)
@@ -3619,7 +3619,7 @@ class TestWithinGroupSystem:
         sn = _sphere(bc="reflective")
         solver = SNSolver(sn)
         system = build_within_group_system(
-            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op)
         n_grid = _labelled(system).explicit[0]
         coupled = _random_pair(sn, np.random.default_rng(151))
         out = n_grid.apply(coupled)
@@ -3728,7 +3728,7 @@ class TestWithinGroupSystem:
             max_inner=mi, inner_tol=tol)
         solver = SNSolver(slab)
         system = build_within_group_system(
-            slab, solver.mat_xs, scattering_op=solver.scattering_op)
+            slab, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op)
         q3 = _build_fixed_source_rhs(q_np, slab)
         si = SourceIteration(
             _labelled(system).implicit.inverse(), *_labelled(system).explicit, max_iter=mi, tol=tol)
@@ -3751,7 +3751,7 @@ class TestWithinGroupSystem:
         sn = _sphere(c=0.6)
         solver = SNSolver(sn)
         system = build_within_group_system(
-            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op)
         si, *_ = _within_group_si(
             _labelled(system), sn, max_iter=60, tol=1e-10)
         q_pair = _build_fixed_source_rhs(
@@ -3780,7 +3780,7 @@ class TestWithinGroupSystem:
         sn = _sphere()
         solver = SNSolver(sn)
         system = build_within_group_system(
-            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op)
         cold_a = _unwindowed_cold_start(sn, history_depth=2)
         cold = _coupled_flux_state(cold_a, sn)
         n_dof = int(cold.to_flat().size)
@@ -4065,7 +4065,7 @@ class TestCoupledSolve:
         sn = _sphere(bc=bc)
         solver = SNSolver(sn)
         return sn, build_within_group_system(
-            sn, solver.mat_xs, scattering_op=solver.scattering_op)
+            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op)
 
     @staticmethod
     def _carried_state(sn, seed: int):

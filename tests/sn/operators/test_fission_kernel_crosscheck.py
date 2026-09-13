@@ -133,7 +133,7 @@ class TestFissionApplyCorrectness:
 
         out = op.apply(phi)  # bare-ndarray arm → (ng, nx, ny)
         expected = hand_derived_fission_emission(
-            solver_4g.mat_xs.emission_spectrum, solver_4g.mat_xs.fission_production, phi,
+            solver_4g.sn_mesh.mat_xs.emission_spectrum, solver_4g.sn_mesh.mat_xs.fission_production, phi,
         )
         np.testing.assert_allclose(
             out, expected, rtol=1e-13, atol=0.0,
@@ -159,8 +159,8 @@ class TestFissionApplyCorrectness:
         ng = solver_4g.ng
         nx, ny = solver_4g.sn_mesh.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
-        chi = solver_4g.mat_xs.emission_spectrum
-        nu_sf = solver_4g.mat_xs.fission_production
+        chi = solver_4g.sn_mesh.mat_xs.emission_spectrum
+        nu_sf = solver_4g.sn_mesh.mat_xs.fission_production
 
         straight = hand_derived_fission_emission(chi, nu_sf, phi)
         # ROLE swap: broadcast by νΣf, contract χ·φ. χ ≠ νΣf per group →
@@ -205,7 +205,7 @@ class TestProductionRateReproducesApply:
         pr = require_production_rate_property(op)  # NEW S6 member; skip if PRE-IMPL
         density = np.asarray(pr.evaluate(phi))  # (1, nx, ny) keepdims
         # χ broadcast reproduces RankOneOperator's `left * inner`.
-        chi = solver_4g.mat_xs.emission_spectrum  # (ng, nx, ny)
+        chi = solver_4g.sn_mesh.mat_xs.emission_spectrum  # (ng, nx, ny)
         composed = chi * density  # (ng, nx, ny)
 
         fused = op.apply(phi)  # the unchanged matvec arm → (ng, nx, ny)
@@ -233,7 +233,7 @@ class TestProductionRateReproducesApply:
 
         pr = require_production_rate_property(op)
         density = np.asarray(pr.evaluate(phi)).reshape(nx, ny)
-        expected = (solver_4g.mat_xs.fission_production * phi).sum(axis=0)
+        expected = (solver_4g.sn_mesh.mat_xs.fission_production * phi).sum(axis=0)
         np.testing.assert_array_equal(
             density, expected,
             err_msg="production_rate.evaluate must contract νΣf against φ "

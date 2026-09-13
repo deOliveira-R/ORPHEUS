@@ -264,7 +264,7 @@ def record_for(sn_mesh: SNMesh, *, scattering_order: int | None = None) -> "With
     compares the record's spaces by identity against ``sn_mesh``'s must
     build its hub at that order instead."""
     hub = sn_mesh if scattering_order is None else sn_mesh.with_scattering_order(scattering_order)
-    return build_within_group_system(hub, hub.material_xs_field())
+    return build_within_group_system(hub, hub.mat_xs)
 
 
 # ── probe states ─────────────────────────────────────────────────────────

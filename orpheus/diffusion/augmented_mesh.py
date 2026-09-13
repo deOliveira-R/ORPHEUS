@@ -168,6 +168,7 @@ class DiffusionMesh(MaterialMesh):
         self,
         mesh: Mesh1D | Mesh2D,
         materials: "Materials | Mapping[int, Mixture]",
+        sigma_t_cell: np.ndarray | None = None,
     ) -> None:
         # The legacy inbound surface (MaterialMesh parity): convert the
         # mesh declaration to the canonical axis tuple ONCE, extract the
@@ -178,6 +179,7 @@ class DiffusionMesh(MaterialMesh):
             mesh=mesh,
             mat_map=mesh.mat_ids if isinstance(mesh, Mesh1D) else mesh.mat_map,
             materials=materials,
+            sigma_t_cell=sigma_t_cell,
         )
 
     def _init_core(
@@ -187,6 +189,7 @@ class DiffusionMesh(MaterialMesh):
         mesh: Mesh1D | Mesh2D | None,
         mat_map: np.ndarray | None,
         materials: "Materials | Mapping[int, Mixture]",
+        sigma_t_cell: np.ndarray | None = None,
     ) -> None:
         r"""The ONE construction body both surfaces funnel into
         (``SNMesh._init_core`` parity).
@@ -197,6 +200,7 @@ class DiffusionMesh(MaterialMesh):
         # ── Method-agnostic DATA block → MaterialMesh base ──
         MaterialMesh._init_data(
             self, axes=axes, mesh=mesh, mat_map=mat_map, materials=materials,
+            sigma_t_cell=sigma_t_cell,
         )
 
         # ── Diffusion method layer (BEHAVIOR atop the data) ──
@@ -276,6 +280,7 @@ class DiffusionMesh(MaterialMesh):
             mesh=material_mesh.mesh,
             mat_map=material_mesh.mat_map,
             materials=material_mesh.materials,
+            sigma_t_cell=material_mesh.sigma_t_cell,
         )
         return obj
 

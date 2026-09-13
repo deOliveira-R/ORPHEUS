@@ -232,10 +232,10 @@ class TestReportedKeffIsThePosedEigenvalue:
             _mesh([(0, 8.0, 40)], BC.reflective, CoordSystem.CARTESIAN),
         )
         production = IntegratedReactionRate(
-            solver.mat_xs.fission_production_field
+            solver.sn_mesh.mat_xs.fission_production_field
         ).evaluate(phi)
         absorption = IntegratedReactionRate(
-            solver.mat_xs.absorption_cross_section_field
+            solver.sn_mesh.mat_xs.absorption_cross_section_field
         ).evaluate(phi)
         assert keff == production / absorption, (
             f"reflective Σ₂=0 reported k={keff!r} must be BITWISE the "
@@ -426,7 +426,7 @@ class TestGateTeeth:
         def old_convention_keff(self, flux_distribution):
             production = self.compute_production_rate(flux_distribution)
             absorption = IntegratedReactionRate(
-                self.mat_xs.absorption_cross_section_field
+                self.sn_mesh.mat_xs.absorption_cross_section_field
             ).evaluate(flux_distribution)
             return production / absorption
 

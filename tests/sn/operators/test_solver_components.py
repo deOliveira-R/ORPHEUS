@@ -105,7 +105,7 @@ def _ref_add_scattering(solver, Q, phi):
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
-            out[:, ix, iy] += {mid: solver.mat_xs.sig_s_legendre(mid)[0] for mid in solver.mat_xs.materials}[mid].T @ phi[:, ix, iy]
+            out[:, ix, iy] += {mid: solver.sn_mesh.mat_xs.sig_s_legendre(mid)[0] for mid in solver.sn_mesh.mat_xs.materials}[mid].T @ phi[:, ix, iy]
     return out
 
 
@@ -116,7 +116,7 @@ def _ref_add_n2n(solver, Q, phi):
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
-            out[:, ix, iy] += 2.0 * ({mid: solver.mat_xs.n2n_matrix(mid) for mid in solver.mat_xs.materials}[mid].T @ phi[:, ix, iy])
+            out[:, ix, iy] += 2.0 * ({mid: solver.sn_mesh.mat_xs.n2n_matrix(mid) for mid in solver.sn_mesh.mat_xs.materials}[mid].T @ phi[:, ix, iy])
     return out
 
 
@@ -133,14 +133,14 @@ def _ref_compute_keff(solver, flux):
     principled ``(ng, nx, ny)``.
     """
     vol = solver.volume  # (nx, ny)
-    production = float(np.einsum("gxy,gxy,xy->", solver.mat_xs.fission_production, flux, vol))
+    production = float(np.einsum("gxy,gxy,xy->", solver.sn_mesh.mat_xs.fission_production, flux, vol))
     emission = 0.0
     for ix in range(solver.sn_mesh.nx):
         for iy in range(solver.sn_mesh.spatial_shape[1]):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
-            sig2_sum = np.array({mid: solver.mat_xs.n2n_matrix(mid) for mid in solver.mat_xs.materials}[mid].sum(axis=1)).ravel()
+            sig2_sum = np.array({mid: solver.sn_mesh.mat_xs.n2n_matrix(mid) for mid in solver.sn_mesh.mat_xs.materials}[mid].sum(axis=1)).ravel()
             emission += 2.0 * np.dot(sig2_sum, flux[:, ix, iy]) * solver.volume[ix, iy]
-    absorption = float(np.einsum("gxy,gxy,xy->", solver.mat_xs.absorption_cross_section, flux, vol))
+    absorption = float(np.einsum("gxy,gxy,xy->", solver.sn_mesh.mat_xs.absorption_cross_section, flux, vol))
     return float(production / (absorption - emission))
 
 
@@ -220,11 +220,11 @@ class TestComputeGroupRates:
         assert rate_g.shape == (solver.ng,), "per-group rate must be (ng,)"
 
         vol = solver.volume  # (nx, ny)
-        ref_production = float(np.einsum("gxy,gxy,xy->", solver.mat_xs.fission_production, flux, vol))
+        ref_production = float(np.einsum("gxy,gxy,xy->", solver.sn_mesh.mat_xs.fission_production, flux, vol))
         for ix in range(solver.sn_mesh.nx):
             for iy in range(solver.sn_mesh.spatial_shape[1]):
                 mid = int(solver.sn_mesh.mat_map[ix, iy])
-                sig2_sum = np.array({mid: solver.mat_xs.n2n_matrix(mid) for mid in solver.mat_xs.materials}[mid].sum(axis=1)).ravel()
+                sig2_sum = np.array({mid: solver.sn_mesh.mat_xs.n2n_matrix(mid) for mid in solver.sn_mesh.mat_xs.materials}[mid].sum(axis=1)).ravel()
                 ref_production += 2.0 * np.dot(sig2_sum, flux[:, ix, iy]) * solver.volume[ix, iy]
 
         np.testing.assert_allclose(float(rate_g.sum()), ref_production,
@@ -240,7 +240,7 @@ class TestComputeGroupRates:
         assert rate_g.shape == (solver.ng,)
 
         vol = solver.volume  # (nx, ny)
-        ref_absorption = float(np.einsum("gxy,gxy,xy->", solver.mat_xs.absorption_cross_section, flux, vol))
+        ref_absorption = float(np.einsum("gxy,gxy,xy->", solver.sn_mesh.mat_xs.absorption_cross_section, flux, vol))
         np.testing.assert_allclose(float(rate_g.sum()), ref_absorption,
                                    rtol=1e-13,
                                    err_msg="group absorption rate sum")
@@ -352,8 +352,8 @@ class TestTransportSweep:
         boundary_flux1 = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
         boundary_flux2 = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
         src = AngularSourceSink.from_isotropic(Q, sn_mesh)
-        ang1, phi1 = sweep_once(src, solver.mat_xs.total_cross_section, sn_mesh, boundary_flux1)
-        ang2, phi2 = sweep_once(src, solver.mat_xs.total_cross_section, sn_mesh, boundary_flux2)
+        ang1, phi1 = sweep_once(src, solver.sn_mesh.mat_xs.total_cross_section, sn_mesh, boundary_flux1)
+        ang2, phi2 = sweep_once(src, solver.sn_mesh.mat_xs.total_cross_section, sn_mesh, boundary_flux2)
 
         np.testing.assert_array_equal(phi1, phi2,
                                       err_msg="Sweep not deterministic")
@@ -379,7 +379,7 @@ class TestTransportSweep:
         np.random.seed(7)
         Q = np.random.rand(solver.ng, *sn_mesh.spatial_shape) + 0.01
 
-        _, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
+        _, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.sn_mesh.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
         ref = np.load(SN_TESTS_ROOT / "sweep_ref_2g.npy")
 
         np.testing.assert_allclose(phi, ref, rtol=1e-14,
@@ -390,7 +390,7 @@ class TestTransportSweep:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, *sn_mesh.spatial_shape))
 
-        _, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
+        _, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.sn_mesh.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
 
         assert np.all(phi >= 0), "Negative flux from positive source"
 
@@ -399,7 +399,7 @@ class TestTransportSweep:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, *sn_mesh.spatial_shape))
 
-        ang, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
+        ang, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.sn_mesh.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
 
         assert ang.shape == (quad.N, solver.ng, *sn_mesh.spatial_shape)
         assert phi.shape == (solver.ng, *sn_mesh.spatial_shape)
@@ -414,7 +414,7 @@ class TestQuadratureWeightConservation:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, *sn_mesh.spatial_shape))
 
-        ang, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
+        ang, phi = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.sn_mesh.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
 
         phi_manual = np.zeros_like(phi)
         for n in range(quad.N):
@@ -428,7 +428,7 @@ class TestQuadratureWeightConservation:
         solver, _, sn_mesh, quad = solver_2g
         Q = np.ones((solver.ng, *sn_mesh.spatial_shape))
 
-        ang, _ = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
+        ang, _ = sweep_once(AngularSourceSink.from_isotropic(Q, solver.sn_mesh), solver.sn_mesh.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
 
         for n in range(quad.N):
             if abs(quad.mu_x[n]) < 1e-15 and abs(quad.mu_y[n]) < 1e-15:
@@ -465,9 +465,9 @@ class TestQuadratureWeightConservation:
         # infinite-medium φ = Q/Σ_t.  Converges to machine precision here.
         for _ in range(200):
             reflect_outflow_into_inflow(boundary_flux, local_sn_mesh)
-            _, phi = sweep_once(src, solver.mat_xs.total_cross_section, local_sn_mesh, boundary_flux)
+            _, phi = sweep_once(src, solver.sn_mesh.mat_xs.total_cross_section, local_sn_mesh, boundary_flux)
 
-        expected = Q / solver.mat_xs.total_cross_section
+        expected = Q / solver.sn_mesh.mat_xs.total_cross_section
         np.testing.assert_allclose(phi, expected, rtol=1e-6,
                                    err_msg="Converged φ ≠ Q/Σ_t for uniform source")
 
@@ -651,8 +651,8 @@ class TestFissionSource:
         phi = solver.initial_flux_distribution()
         fission_src = solver.compute_fission_source(phi, 1.0)
 
-        fission_rate = np.einsum("gxy,gxy->xy", solver.mat_xs.fission_production, phi)
-        expected = solver.mat_xs.emission_spectrum * fission_rate[None, :, :]
+        fission_rate = np.einsum("gxy,gxy->xy", solver.sn_mesh.mat_xs.fission_production, phi)
+        expected = solver.sn_mesh.mat_xs.emission_spectrum * fission_rate[None, :, :]
         np.testing.assert_allclose(fission_src, expected, rtol=1e-14,
                                    err_msg="Fission source has unexpected normalization")
 
@@ -662,8 +662,8 @@ class TestFissionSource:
         phi = solver.initial_flux_distribution()
         keff = solver.compute_keff(phi)
         vol = solver.volume  # (nx, ny)
-        prod = float(np.einsum("gxy,gxy,xy->", solver.mat_xs.fission_production, phi, vol))
-        absorp = float(np.einsum("gxy,gxy,xy->", solver.mat_xs.absorption_cross_section, phi, vol))
+        prod = float(np.einsum("gxy,gxy,xy->", solver.sn_mesh.mat_xs.fission_production, phi, vol))
+        absorp = float(np.einsum("gxy,gxy,xy->", solver.sn_mesh.mat_xs.absorption_cross_section, phi, vol))
         expected = prod / absorp
         assert np.isfinite(keff) and keff > 0
 
@@ -721,7 +721,7 @@ class TestPerformanceBaseline:
         src = AngularSourceSink.from_isotropic(Q, solver.sn_mesh)
         t0 = time.perf_counter()
         for _ in range(n_sweep):
-            sweep_once(src, solver.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
+            sweep_once(src, solver.sn_mesh.mat_xs.total_cross_section, solver.sn_mesh, AngularBoundaryFlux.zeros(solver.sn_mesh.angular_trace))
         t_sweep = (time.perf_counter() - t0) / n_sweep * 1000
         print(f"  sweep_once: {t_sweep:.1f} ms")
 

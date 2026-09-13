@@ -120,7 +120,7 @@ def _two_material_carrier():
     per-``mid`` accessor surface for both ids.
     """
     mixtures = {0: _asymmetric_fissile_2g(), 1: _second_fissile_2g()}
-    return unit_cell_carrier(mixtures).material_xs_field(), mixtures
+    return unit_cell_carrier(mixtures).mat_xs, mixtures
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -219,7 +219,7 @@ def test_kernel_equals_carrier_cache_bit_identical(build_mixture):
         mixtures = {0: _symmetric_2g()}
     else:
         mixtures = {0: build_mixture(), 1: _second_fissile_2g()}
-    mat_xs = unit_cell_carrier(mixtures).material_xs_field()
+    mat_xs = unit_cell_carrier(mixtures).mat_xs
 
     for mid, mixture in mixtures.items():
         scattering = TransferKernel.scattering(mixture)
@@ -581,7 +581,7 @@ def _diffusion_binding():
         coord=CoordSystem.CARTESIAN, bc_right=BC("vacuum"),
     )
     dm = DiffusionMesh(mesh, {0: get_mixture("A", "2g")})
-    return dm, dm.material_xs_field(), dm.full_field_space
+    return dm, dm.mat_xs, dm.full_field_space
 
 
 #: (operator, binding, carrier) → the outcome the ENDS select: an output
@@ -823,7 +823,7 @@ def test_isotropic_energy_inherits_the_parent_binding_space():
     )
     space = sn_mesh.full_field_space
     scattering = ScatteringOperator.from_solver_data(
-        mat_xs=carrier.material_xs_field(),
+        mat_xs=carrier.mat_xs,
         scattering_order=0,
         space=space,
     )
@@ -874,7 +874,7 @@ def test_energy_conformity_guard_three_rows():
 
     carrier_2g = unit_cell_carrier({0: get_mixture("A", "2g")})
     carrier_4g = unit_cell_carrier({0: get_mixture("A", "4g")})
-    mat_2g = carrier_2g.material_xs_field()
+    mat_2g = carrier_2g.mat_xs
 
     # Row 1 — axis-built positive (the fission ENERGY binding — the
     # k-outer / homogeneous / diffusion production site since step 4).
@@ -935,7 +935,7 @@ def test_energy_conformity_guard_three_rows():
     )
     composite = sn_2g.full_field_space
     assert composite.axes is None  # still true — the reach is the interior's
-    mat_4g = carrier_4g.material_xs_field()
+    mat_4g = carrier_4g.mat_xs
     with pytest.raises(ValueError, match="energy extent"):
         FissionOperator.from_solver_data(mat_xs=mat_4g, space=composite)
 
@@ -953,7 +953,7 @@ def test_fission_space_is_mandatory():
     ``test_leaf_without_a_space_refuses_construction[F]`` — this row
     pins the two constructor surfaces directly.
     """
-    mat_xs = unit_cell_carrier({0: get_mixture("A", "2g")}).material_xs_field()
+    mat_xs = unit_cell_carrier({0: get_mixture("A", "2g")}).mat_xs
     with pytest.raises(TypeError):
         FissionOperator.from_solver_data(mat_xs=mat_xs)  # type: ignore[call-arg]
     with pytest.raises(TypeError):

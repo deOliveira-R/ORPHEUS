@@ -142,7 +142,7 @@ def _lc_pair(geom: str):
     ``inverse()`` is the block back-substitution."""
     sn_mesh = _MESHES[geom]()
     system = build_within_group_system(
-        sn_mesh, sn_mesh.material_xs_field(),
+        sn_mesh, sn_mesh.mat_xs,
     )
     lc = Splitting.from_schedule(system, resolve_schedule(sn_mesh, "jacobi")).implicit
     if geom in ("cyl_folded", "sphere_gl"):

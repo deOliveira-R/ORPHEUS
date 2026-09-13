@@ -140,7 +140,7 @@ class TestTheBindingAtTheSolveOrder:
         assert isinstance(basis, TruncatedBasis)
         assert basis.L == S.legendre_order == n2n.legendre_order == _L
         moment = LegendreMomentTransfer.on_frame(
-            TransferMaterialField.n2n(solver.mat_xs), S.frame, skip_l0=False,
+            TransferMaterialField.n2n(solver.sn_mesh.mat_xs), S.frame, skip_l0=False,
         )
         conjugated = S.frame.conjugate(moment).apply(psi.values)
         np.testing.assert_allclose(
@@ -370,7 +370,7 @@ class TestAdmission:
         refused at construction — the CS4c step-4 harmonization kept the
         frame's ordinates as OPERATIVE state, and this is what enforces it."""
         solver, _ = _solver()
-        other = SNMesh(_mesh(), Quadrature.gauss_legendre(n_ordinates=2), solver.mat_xs.materials)
+        other = SNMesh(_mesh(), Quadrature.gauss_legendre(n_ordinates=2), solver.sn_mesh.mat_xs.materials)
         other_interior = other.full_field_space.interior_space
         assert other_interior is not None
         wrong_face = HarmonicFrame.for_space(other_interior, _L).flux_analysis_on(other_interior)
@@ -385,7 +385,7 @@ class TestAdmission:
         scalar P0 half broadcasts against the wrong ordinate count inside the
         shared combine. Both faces are admitted now."""
         solver, _ = _solver()
-        other = SNMesh(_mesh(), Quadrature.gauss_legendre(n_ordinates=8), solver.mat_xs.materials)
+        other = SNMesh(_mesh(), Quadrature.gauss_legendre(n_ordinates=8), solver.sn_mesh.mat_xs.materials)
         other_interior = other.full_field_space.interior_space
         assert other_interior is not None
         wrong_face = HarmonicFrame.for_space(other_interior, _L).source_reconstruction_on(other_interior)
@@ -398,7 +398,7 @@ class TestAdmission:
 
         with pytest.raises(TypeError, match="composite FullFieldSpace"):
             N2NOperator.from_solver_data(
-                mat_xs=solver.mat_xs,
+                mat_xs=solver.sn_mesh.mat_xs,
                 scattering_order=_L,
                 space=FunctionSpace("bare", (2, 4, 1)),
             )

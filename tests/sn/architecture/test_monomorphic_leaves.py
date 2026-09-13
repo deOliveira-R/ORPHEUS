@@ -474,7 +474,7 @@ def _leaf_set(sn_mesh: SNMesh) -> "dict[str, LinearOperator]":
     VALUE rows are green on this ladder while the model-generic construction
     is not.
     """
-    mat_xs = sn_mesh.material_xs_field()
+    mat_xs = sn_mesh.mat_xs
     return {
         "L": StreamingOperator.pose(sn_mesh),
         "C": MultiplicationOperator(
@@ -1167,7 +1167,7 @@ def test_leaf_without_a_space_refuses_construction(leaf):
     hard failure that forces the marker's removal.
     """
     mixture = get_mixture("A", "2g")
-    mat_xs = unit_cell_carrier({0: mixture}).material_xs_field()
+    mat_xs = unit_cell_carrier({0: mixture}).mat_xs
     builders = {
         "C": lambda: MultiplicationOperator(  # type: ignore[call-arg]
             coefficient=mat_xs.total_cross_section_field,  # deliberate:

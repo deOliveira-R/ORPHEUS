@@ -102,7 +102,7 @@ def _angular_F(solver):
     from orpheus.transport.operators.fission import FissionOperator
 
     return FissionOperator.from_solver_data(
-        mat_xs=solver.mat_xs, space=solver.sn_mesh.full_field_space,
+        mat_xs=solver.sn_mesh.mat_xs, space=solver.sn_mesh.full_field_space,
     )
 
 
@@ -139,8 +139,8 @@ class TestAdjointFissionCorrectness:
 
         out = op.apply_transpose(psi_star)  # bare-ndarray arm → (ng, nx, ny)
         expected = hand_derived_fission_emission(
-            solver.mat_xs.fission_production,  # νΣf as the reconstruction column
-            solver.mat_xs.emission_spectrum,  # χ as the contracted row
+            solver.sn_mesh.mat_xs.fission_production,  # νΣf as the reconstruction column
+            solver.sn_mesh.mat_xs.emission_spectrum,  # χ as the contracted row
             psi_star,
         )
         np.testing.assert_allclose(
@@ -200,8 +200,8 @@ class TestRoleSwapDiscriminator:
         op = solver.sn_mesh.fission.isotropic_energy  # the ENERGY binding (CS4c step 4)
         ng, nx, ny = _shape(solver)
         psi_star = _asymmetric_field(ng, nx, ny, 13)
-        chi = solver.mat_xs.emission_spectrum
-        nu_sf = solver.mat_xs.fission_production
+        chi = solver.sn_mesh.mat_xs.emission_spectrum
+        nu_sf = solver.sn_mesh.mat_xs.fission_production
 
         correct = hand_derived_fission_emission(nu_sf, chi, psi_star)   # F† = |νΣf⟩⟨χ|
         role_swapped = hand_derived_fission_emission(chi, nu_sf, psi_star)  # the forward F
@@ -338,8 +338,8 @@ class TestCompositeTransposeArm:
         expected_bulk = np.multiply.outer(
             w,
             hand_derived_fission_emission(
-                solver.mat_xs.fission_production,
-                solver.mat_xs.emission_spectrum,
+                solver.sn_mesh.mat_xs.fission_production,
+                solver.sn_mesh.mat_xs.emission_spectrum,
                 iso_star,
             ),
         )

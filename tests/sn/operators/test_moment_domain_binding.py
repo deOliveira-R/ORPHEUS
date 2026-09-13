@@ -601,7 +601,7 @@ class TestTheOtherLifts:
         the ends and the ℓ = 0 agreement, not a production path.
         """
         F = FissionOperator.from_solver_data(
-            mat_xs=sn_mesh.material_xs_field(), space=sn_mesh.full_field_space,
+            mat_xs=sn_mesh.mat_xs, space=sn_mesh.full_field_space,
         )
         F_w = F.on_moment_domain()
         require(

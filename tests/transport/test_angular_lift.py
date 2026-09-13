@@ -69,7 +69,7 @@ def _sn() -> SNMesh:
 
 
 def _mat_xs(sn: SNMesh):
-    return sn.material_xs_field()
+    return sn.mat_xs
 
 
 def _state(sn: SNMesh, seed: int) -> FullField:

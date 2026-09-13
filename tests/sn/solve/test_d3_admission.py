@@ -322,7 +322,7 @@ def test_d3_real_mesh_window_passthrough_and_gs_admissible() -> None:
     )
     from orpheus.sn.splitting import Splitting, resolve_schedule
 
-    record = build_within_group_system(sn, sn.material_xs_field())
+    record = build_within_group_system(sn, sn.mat_xs)
     splitting = Splitting.from_schedule(
         record, resolve_schedule(sn, "gauss_seidel"),
     )

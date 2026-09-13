@@ -100,7 +100,7 @@ def build_fixture() -> tuple[SNMesh, np.ndarray, np.ndarray]:
     from orpheus.sn.solver import SNSolver
 
     solver = SNSolver(sn_mesh)
-    sig_t = solver.mat_xs.total_cross_section
+    sig_t = solver.sn_mesh.mat_xs.total_cross_section
     ng = sig_t.shape[0]
 
     np.random.seed(7)

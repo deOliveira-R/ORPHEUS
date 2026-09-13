@@ -97,8 +97,8 @@ def _energy_pair_on(solver, trailing):
     widened) scalar space — the solver's own composition, re-bound."""
     space = _widened_scalar_space(solver.sn_mesh, trailing)
     return (
-        IsotropicScattering.from_material_xs(solver.mat_xs, space=space)
-        + IsotropicN2N.from_material_xs(solver.mat_xs, space=space)
+        IsotropicScattering.from_material_xs(solver.sn_mesh.mat_xs, space=space)
+        + IsotropicN2N.from_material_xs(solver.sn_mesh.mat_xs, space=space)
     )
 
 
@@ -181,7 +181,7 @@ def _ref_iso_scatter_inplace(solver, Q, phi):
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
-            out[:, ix, iy] += {mid: solver.mat_xs.sig_s_legendre(mid)[0] for mid in solver.mat_xs.materials}[mid].T @ phi[:, ix, iy]
+            out[:, ix, iy] += {mid: solver.sn_mesh.mat_xs.sig_s_legendre(mid)[0] for mid in solver.sn_mesh.mat_xs.materials}[mid].T @ phi[:, ix, iy]
     return out
 
 
@@ -196,7 +196,7 @@ def _ref_n2n_inplace(solver, Q, phi):
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
-            out[:, ix, iy] += 2.0 * ({mid: solver.mat_xs.n2n_matrix(mid) for mid in solver.mat_xs.materials}[mid].T @ phi[:, ix, iy])
+            out[:, ix, iy] += 2.0 * ({mid: solver.sn_mesh.mat_xs.n2n_matrix(mid) for mid in solver.sn_mesh.mat_xs.materials}[mid].T @ phi[:, ix, iy])
     return out
 
 
@@ -531,8 +531,8 @@ class TestProducerSideNormalisation:
         for ix in range(nx):
             for iy in range(ny):
                 mid = int(solver.sn_mesh.mat_map[ix, iy])
-                sig_s0 = solver.mat_xs.sig_s_legendre(mid)[0]   # (ng, ng) — [g'→g]
-                sig_2n = solver.mat_xs.n2n_matrix(mid)          # (ng, ng) — [g'→g]
+                sig_s0 = solver.sn_mesh.mat_xs.sig_s_legendre(mid)[0]   # (ng, ng) — [g'→g]
+                sig_2n = solver.sn_mesh.mat_xs.n2n_matrix(mid)          # (ng, ng) — [g'→g]
                 # Σ_{g'} (Σ_s0[g'→g] + 2·Σ_2n[g'→g]) per target group.
                 # sig_s0.T @ ones gives column sums (over g') indexed by g.
                 col_sum = (sig_s0.T + 2.0 * sig_2n.T) @ np.ones(ng)

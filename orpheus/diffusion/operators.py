@@ -316,7 +316,7 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
 
     def __init__(self, mesh: "DiffusionMesh") -> None:
         self.mesh = mesh
-        D = np.asarray(mesh.material_xs_field().diffusion_coefficient, float)
+        D = np.asarray(mesh.mat_xs.diffusion_coefficient, float)
         h = np.asarray(mesh.axis_widths[0], float)
         areas = np.asarray(mesh.areas, float)
         #: (ng, nx-1) interior-face conductances (the condensed currents).

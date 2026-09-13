@@ -43,6 +43,89 @@ them.  Trust ``git``, not this column.
      - Issue
      - Where
    * - 2026-09-13
+     - **The total cross section is a DATUM of the Problem, and a
+       depletion step is another Problem** (the consumers campaign,
+       step 2, unit C3a; rulings O-5 and O-6).
+       **(1) The defect.**  :math:`\sigma_t` was solver state:
+       ``SNSolver.mat_xs``, built in ``__init__``, mutable through
+       ``SNSolver.rebind_cross_sections(new_sig_t)`` — which wrote
+       straight onto the field's private ``_sig_t_cell`` slot.  Three
+       consequences.  A composite posed **before** the call kept
+       snapshotted values, so ``[M]`` a
+       :class:`~orpheus.sn.coupled_system.WithinGroupSystem` built
+       before a :math:`\times 3` rebind and applied after it was
+       ``array_equal`` to its pre-rebind self while a freshly built one
+       moved :math:`\max|\Delta| \approx 3.78` (the seedless slab
+       anchor, one seeded state) — silent staleness, unspellable only
+       because the builder happened to run once per outer step.
+       The hub — the solve's *save state* — compared ``==`` to its
+       pre-rebind self while representing a different problem.  And the
+       one guard on the path, an ``if __debug__:`` assert re-deriving
+       :math:`\sigma_t` from the materials, ``[M]`` **fires** under plain
+       ``python`` on any overridden hub and is **stripped** under the
+       canonical ``python -O`` runner (the solve then completes
+       silently) — a live refusal of the capability and a no-op in the
+       suite that decides a merge.
+       **(2) The ruling.**  O-6: a Problem owns **one**
+       :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
+       (``mat_xs`` is a :func:`~functools.cached_property` of
+       :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`;
+       ``MaterialMesh.material_xs_field()``, a *builder* that minted a
+       fresh field per call, retires into it).  O-5:
+       :math:`\sigma_t` is that Problem's **datum** —
+       ``MaterialMesh.sigma_t_cell``, always present, derived at
+       construction through
+       :func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs` and
+       replaced by
+       :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.with_cross_sections`,
+       which returns a **new Problem**.  No override flag, no ``None``,
+       no rebind.
+       **(3) Identity, but not contractibility.**  The datum enters
+       ``_identity_key`` and **not** ``_contractibility_key``, so a
+       σ-variant is ``!=`` its parent and
+       ``same_phase_space`` **holds**: a depletion or thermal-feedback
+       trajectory is a *sequence of Problems* whose fields pair, whose
+       flux from step :math:`i` is a legitimate guess for step
+       :math:`i{+}1`, and across which nothing posed over one can
+       silently answer for another.  The bytes are normalised on the way
+       in (C-contiguous ``float64``, :math:`-0.0 \to +0.0`, read-only)
+       because the identity key hashes them — re-declaring the same
+       :math:`\sigma_t` must be the same Problem.
+       **(4) The cache follows the keys.**  The σ-free geometry table is
+       interned on ``_contractibility_key`` × the closure **class**, so
+       two σ-variants share it by ``is`` and the intern's live-table
+       count is unchanged (``[M]`` six σ-variants of one phase space
+       read ``len == 1``);
+       the σ-bound ``CollisionCache`` is per Problem.  ⛔ The intern's
+       value is weak, and the **holder** is a precondition rather than an
+       optimisation: ``[M]`` over one 5-outer slab eigenvalue solve,
+       weak value **with** a strong holder reads **1 build / 549 hits**
+       and weak value with **none** reads **550 builds / 0 hits** (one
+       rebuild per ``_ensure_geom_cache``; ``+55.4 %`` on that 8-cell
+       fixture, seconds on a production mesh) — while :math:`k` is
+       bit-identical at ``0.435195214258`` either way, so only a COUNT
+       gate can see it.
+       **(5) What retired, and what carries the claims now.**
+       ``rebind_cross_sections`` (no successor, by design),
+       ``SNSolver.mat_xs``, ``SNSolver.weight_norm`` (``[M]`` zero
+       readers), ``MaterialMesh.material_xs_field()`` and the
+       ``if __debug__`` assert — whose invariant
+       (:eq:`sn-cell-flatten-roundtrip`) got a **real**
+       ``@pytest.mark.verifies`` witness in the same commit, over both
+       carrier tiers, and whose theory page stopped carrying a
+       ``vv-status: … documented`` sentinel that had been hiding the
+       absence of one.  ``TestRecordTheStaleSigmaExposure`` was deleted
+       because its subject is no longer constructible.
+       ⚠ One inconsistency is **recorded, not ruled**: an overridden
+       :math:`\sigma_t` reaches the diffusion *removal* term (``[M]``
+       keff ``0.26290298 → 0.01802733`` under :math:`\times 3`) and not
+       the *leakage* term, because :math:`D = 1/(3\Sigma_{\rm tr})` is
+       gathered per-material.  ``tests/diffusion/test_sigma_variant_reach.py``
+       pins reachability only.
+       Full account: :ref:`sn-sigma-is-a-problem-datum`.
+     - —
+     - branch ``refactor/consumers-step2``, **not yet merged**
+   * - 2026-09-13
      - **There is ONE** :math:`F` **per Problem, and the hub owns it**
        (the consumers campaign, step 2, unit C2; ruling R-cc6 (ii) and
        the open ruling O-1).
@@ -1223,7 +1306,11 @@ them.  Trust ``git``, not this column.
        Retired with the rebind: ``MaterialXSField.foldable_sig_s``
        (0 consumers) and :math:`F`'s ``chi`` / ``sig_p`` read-through
        properties; the composites are now cached at construction, so a
-       depletion update re-binds rather than reading through.
+       depletion update re-binds rather than reading through.  (⛔ That
+       last clause was repealed on 2026-09-13 by unit C3a of the
+       consumers campaign — the row above: a depletion update is now
+       **another Problem**, not a re-bind.  The caching ruling it states
+       is unaffected.)
        Design record: ``.claude/plans/cs4c_binding_design.md`` §16.
      - campaign 2
        (CS4c step 4)
@@ -1446,8 +1533,11 @@ them.  Trust ``git``, not this column.
      - un-weld arc;
        spun off #412 / #413 / #414
      - ``b253732f`` … ``d14dd545`` (the ten code commits) + the docs pass
-       — branch ``refactor/p4-9b-streaming-operator-poses``, **not yet
-       merged**
+       — merged (this cell read *"branch
+       ``refactor/p4-9b-streaming-operator-poses``, not yet merged"*
+       until 2026-09-13; ``[M]`` both end commits are ancestors of
+       ``main`` and the branch no longer exists — the page's own
+       trust-``git`` rule, demonstrating itself)
    * - 2026-08-24
      - **A field is an element of a SPACE — the mesh binding retires from
        the field layer, construction goes space-primary, and the space's

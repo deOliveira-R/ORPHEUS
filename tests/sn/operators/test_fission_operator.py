@@ -61,7 +61,7 @@ def _composite_F(solver):
     composite arms live on the frame-conjugated ``FissionOperator``,
     minted here exactly as the eigen-M posing mints it."""
     return FissionOperator.from_solver_data(
-        mat_xs=solver.mat_xs, space=solver.sn_mesh.full_field_space,
+        mat_xs=solver.sn_mesh.mat_xs, space=solver.sn_mesh.full_field_space,
     )
 
 
@@ -133,8 +133,8 @@ class TestBitIdenticalExtraction:
         out_op = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi)
         # Reference: hand-coded version of the legacy method (no division by k).
         # All operands principled (ng, nx, ny).
-        fission_rate = np.einsum("gxy,gxy->xy", solver_2g.mat_xs.fission_production, phi)
-        expected = solver_2g.mat_xs.emission_spectrum * fission_rate[None, :, :]
+        fission_rate = np.einsum("gxy,gxy->xy", solver_2g.sn_mesh.mat_xs.fission_production, phi)
+        expected = solver_2g.sn_mesh.mat_xs.emission_spectrum * fission_rate[None, :, :]
 
         # Wave T step T.2: nulp=4 relaxation (see docstring).
         np.testing.assert_array_almost_equal_nulp(out_op, expected, nulp=4)
@@ -228,10 +228,10 @@ class TestRank1EnergyStructure:
         # the cells whose mixture has nonzero νΣ_f.
         nx, ny = solver_2g.sn_mesh.spatial_shape
         # PR-INDEX-3: solver.mat_xs.emission_spectrum / solver.mat_xs.fission_production are (ng, nx, ny).
-        for mid, (ix_arr, iy_arr) in solver_2g.mat_xs.cells_by_material.items():
+        for mid, (ix_arr, iy_arr) in solver_2g.sn_mesh.mat_xs.cells_by_material.items():
             for ix, iy in zip(ix_arr, iy_arr):
-                chi_cell = solver_2g.mat_xs.emission_spectrum[:, ix, iy]
-                if np.sum(solver_2g.mat_xs.fission_production[:, ix, iy]) > 1e-15:
+                chi_cell = solver_2g.sn_mesh.mat_xs.emission_spectrum[:, ix, iy]
+                if np.sum(solver_2g.sn_mesh.mat_xs.fission_production[:, ix, iy]) > 1e-15:
                     np.testing.assert_allclose(chi_cell.sum(), 1.0, rtol=1e-12)
 
 
@@ -407,14 +407,14 @@ class TestRankOneTensorProductKernel:
         # semantics were deliberately dropped with the step-3 satellite
         # ruling; a depletion update re-binds the operator).
         np.testing.assert_array_equal(
-            rank_one.reconstruction, solver_2g.mat_xs.emission_spectrum,
+            rank_one.reconstruction, solver_2g.sn_mesh.mat_xs.emission_spectrum,
         )
         # The row co-vector is the production-rate reaction-rate functional.
         assert isinstance(rank_one.functional, ReactionRateFunctional)
         assert rank_one.functional.axis == 0
         np.testing.assert_array_equal(
             np.asarray(rank_one.functional.weight),
-            solver_2g.mat_xs.fission_production,
+            solver_2g.sn_mesh.mat_xs.fission_production,
         )
 
     def test_kernel_apply_matches_apply_dispatch(self, solver_2g):

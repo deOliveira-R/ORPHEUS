@@ -318,7 +318,7 @@ class TestBalanceAndOrdering:
         result = _solve_tight(materials, mesh)
 
         material_mesh = result.mesh
-        mat_xs = material_mesh.material_xs_field()
+        mat_xs = material_mesh.mat_xs
         phi = result.flux.interior.values
         production = IntegratedReactionRate(
             mat_xs.fission_production_field

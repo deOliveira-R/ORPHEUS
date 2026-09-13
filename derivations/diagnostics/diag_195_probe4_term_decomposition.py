@@ -116,7 +116,7 @@ def _decompose(case, nc):
     # zero, and B_a pads the ray slot present-zero like the retired composite.
     from orpheus.sn.coupled_system import build_streaming_collision
     from orpheus.sn.operators.boundary import SNBoundaryOperator
-    LC = build_streaming_collision(solver.sn_mesh, solver.mat_xs)
+    LC = build_streaming_collision(solver.sn_mesh, solver.sn_mesh.mat_xs)
     S = solver.scattering_op
     B = SNBoundaryOperator(solver.sn_mesh)
     # The StreamingOperator carries sigma_t; reach it via M_spatial.

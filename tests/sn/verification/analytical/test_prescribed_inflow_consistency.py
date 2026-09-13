@@ -192,7 +192,7 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     sn = SNMesh(mesh, quad, {0: _make_1g_mixture(sigma_t, sigma_s)})
     solver = SNSolver(sn, max_inner=500, inner_tol=1e-13)
     system = build_within_group_system(
-        sn, solver.mat_xs, scattering_op=solver.scattering_op,
+        sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
     )
     LC, S, N2N, B = (
         system.factors.streaming_collision, system.factors.scattering,

@@ -15,6 +15,46 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 
 ## 1. Ground truth is the LIVE tree — every other surface lies eventually
 
+- **⛔⛔ A BRIEF CAN INSTRUCT A HARD AUDIT ERROR — read the scanner before obeying a
+  `vv-status` instruction.** Briefed *"move the sentinel from `documented` to `verified`"*;
+  `[M]` `tests/_harness/audit.py:452-456` — **`documented` is the ONLY status**, anything
+  else is a violation and violations are **exit 2**. Its own docstring says why (`tested`/
+  `verified` are DERIVED from `verifies()`; a hand-written coverage claim is a second source
+  of truth that can silently lie). The move a new `verifies` marker earns is
+  **UN-SENTINELING**: delete the directive, rewrite the rationale to a plain note naming the
+  gates. `[M]` documented 601 → 600, labels 934 unchanged, 0 violations. → L-106
+- **⭐⭐ "THE RETIRED X WAS THE PIN OF Y" — grep `tests/` FOR A MODULE NAMED AFTER Y, AND READ
+  THE OLD RATIONALE'S OWN LIST.** Retiring an `if __debug__` assert, I nearly shipped *"its
+  only pin"*: `[M]` `test_cell_flattening_invariant.py` had been promoted out of that very
+  block at PR-CLEANUP-CODE §E (foundation, 3 shapes, **no** `verifies` by design), and the
+  rationale I was replacing named **two** pins. Honest form: *"the sentinel was right while
+  nothing carried a `verifies` marker; one now does"* + BOTH successors with their scopes.
+  → L-106
+- **⭐⭐ A RELAYED "ZERO READERS" CAN BE RIGHT ABOUT THE WRONG SCOPE — and the correction is
+  a `.. warning::`.** Memo: *"read at exactly one site, `rebind_cross_sections`"* (deleted ⟹
+  zero). `[M]` grep: also read 3 lines below its own assignment, plus 2 test reads — the
+  memo's scope was *reads AFTER construction*. ⭐ The real point was never the count: the
+  attribute is now the weak intern's **only strong holder**, so deleting it as dead costs
+  `[M]` 550 builds/solve vs 1, silently, with every value gate green
+  (`coding-standards`' sole-guarantor promotion). → L-106
+- **⭐ AN XREF THAT IMPORT-RESOLVES CAN STILL RENDER AS PLAIN TEXT — `grep automodule:: <exact
+  module>`.** `orpheus.data.macro_xs.assemble_cell_xs` imports fine (package re-export) and is
+  **not** a rendered target: `[M]` only `…macro_xs.cell_xs` is automodule'd. When two spellings
+  of one target coexist in the corpus (here 1 vs 4), the automodule grep is the discriminator,
+  not the import probe. → L-106
+- **⭐ A NEW EQ-LABEL IS USUALLY THE WRONG OUTPUT FOR A TYPING CLAIM.** My drafted
+  `:label:` restated an existing label's law (a twin API) and, marker-less, would have moved
+  the generated matrix's orphan count 2 → 3. Shipped **unlabelled** with an RST comment: what
+  was new is the SLOT (stored datum vs derived view), which is a typing claim. → L-106
+- **⭐ CHANGELOG HYGIENE IS THREE SEPARATE JOBS.** (a) a new row's *Where* copies **the page's
+  own** precedent for the unmerged-branch exception (`` branch ``X``, **not yet merged** ``
+  here; `*(in development)*` is `operator_algebra.rst`'s); (b) `git merge-base --is-ancestor`
+  every unstamped row — `[M]` one P4.9b row still said "not yet merged" with both end commits
+  on `main` and the branch gone; (c) a **CONSEQUENCE clause inside a dated row** can be
+  repealed by a later row — the preamble's "keeps the spelling current on its date" covers
+  SPELLING, not a claim about the tree; tombstone in place naming which half survives.
+  → L-106, L-105
+
 - **⭐⭐ A BRIEF'S "DOCS FALSIFIED" LIST IS SCOPED TO THE CURRENT CARVE — grep the named
   page for the state the brief SAYS it describes, and read a 0 as "it describes something
   OLDER".** `[M]` briefed *"`adjoint.rst` describes `F_posed = stack @ restrict_bulk`"*;
@@ -341,6 +381,14 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
   resolvent"* onto a verb with **0 Call sites and 0 attribute refs** tree-wide, four lines
   above its own ⚠ paragraph naming the DIFFERENT verb that really is bound. A retirement
   answers *"who called what I removed?"* and nobody asks the dual. → L-095
+- **⭐⭐ THE ADJACENCY GATE IS BLIND TO A LITERAL IN THE **MIDDLE** OF A BOLD RUN — add a
+  BOLD-RUN scan over ADDED BLOCKS.** `[M]` my four validated adjacency patterns read **0**;
+  a second pass found **3** real nestings (two admonition titles, one multi-line). RST cannot
+  nest inline markup, so a backtick or a role anywhere inside `**…**` renders its delimiters
+  visibly at EXIT=0. The gate: `BOLD = r"\*\*(?!\s)(.+?)(?<!\s)\*\*"` with `re.S` over each
+  CONTIGUOUS added block (so a run spanning a line break is visible), `INNER = backtick|:role:`,
+  length-capped `< 300`. Scope to ADDED lines — corpus-wide it floods (L-074's 119). Fix by
+  taking the literal OUT of the title, never by re-splitting the bold. → L-106, L-095, L-074
 - **⭐⭐ THE HTML SLICE CATCHES A ROLE SEVERAL LINES INSIDE AN OPEN `**bold**` RUN; an
   ADJACENCY regex does not, and `-W` is EXIT=0 either way.** `[M]` mine rendered
   `:doc:`…`` as literal text on a clean build. ⟹ source-side, pair `\*\*(.+?)\*\*` with

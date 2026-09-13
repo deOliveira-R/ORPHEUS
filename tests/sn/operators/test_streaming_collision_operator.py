@@ -860,7 +860,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         N = solver.quad.N
         ng = solver.ng
 
-        sigma_t = solver.mat_xs.total_cross_section
+        sigma_t = solver.sn_mesh.mat_xs.total_cross_section
         L_leaf = StreamingOperator.pose(sn_mesh)
         C_t = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
         LC = L_leaf + C_t
@@ -949,7 +949,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         ng = solver.ng
         sum_w = float(quad.weights.sum())
 
-        sigma_t = solver.mat_xs.total_cross_section
+        sigma_t = solver.sn_mesh.mat_xs.total_cross_section
         L_leaf = StreamingOperator.pose(sn_mesh)
         C_t = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
         LC = L_leaf + C_t

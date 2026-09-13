@@ -167,6 +167,7 @@ class MaterialMesh:
         self,
         mesh: Mesh1D | Mesh2D,
         materials: "Materials | Mapping[int, Mixture]",
+        sigma_t_cell: np.ndarray | None = None,
     ) -> None:
         # Legacy inbound surface (C5.1 axis-primary inversion, #225):
         # convert the Mesh1D / Mesh2D declaration to the canonical axis
@@ -179,6 +180,7 @@ class MaterialMesh:
             mesh=mesh,
             mat_map=mesh.mat_ids if isinstance(mesh, Mesh1D) else mesh.mat_map,
             materials=materials,
+            sigma_t_cell=sigma_t_cell,
         )
 
     def _init_data(
@@ -188,6 +190,7 @@ class MaterialMesh:
         mesh: Mesh1D | Mesh2D | None,
         mat_map: np.ndarray | None,
         materials: "Materials | Mapping[int, Mixture]",
+        sigma_t_cell: np.ndarray | None = None,
     ) -> None:
         r"""The ONE data-construction body both surfaces funnel into.
 
@@ -271,6 +274,15 @@ class MaterialMesh:
         # (operators built on a bad mesh) is action-at-a-distance
         # otherwise.
         self._validate_materials()
+        # The per-cell total cross section is a DATUM of the Problem
+        # (consumers campaign step 2, O-5/O-6, 2026-09-13): derived from the
+        # materials by default, REPLACED by :meth:`with_cross_sections` — one
+        # field, always present (no ``None``-valued override a consumer could
+        # branch on).  It enters :attr:`_identity_key` and NOT
+        # :attr:`_contractibility_key`: a depletion step is another Problem
+        # on the SAME phase space.  Layout: the principled ``(ng, *spatial)``
+        # every per-cell view uses (#196 PR-INDEX-3).
+        self.sigma_t_cell: np.ndarray = self._admit_sigma_t_cell(sigma_t_cell)
         # Trigger ``ng`` property's consistency check eagerly so
         # mismatched-ng materials raise at construction time.
         _ = self.ng
@@ -320,6 +332,69 @@ class MaterialMesh:
     # (``None is None`` — different 3-D problems compared equal) and false for
     # every same-data pair built by two ``from_axes`` calls (GitHub #459).
 
+    def _admit_sigma_t_cell(self, sigma_t_cell: np.ndarray | None) -> np.ndarray:
+        """The Problem's per-cell :math:`\\sigma_t` datum, ``(ng, *spatial)``.
+
+        ``None`` derives it from the materials through the ONE per-cell
+        assembler (:func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`);
+        an explicit array is the replaced datum of a σ-variant Problem
+        (:meth:`with_cross_sections`) and must carry the same layout.
+        """
+        from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
+
+        shape = (self.ng, *self.spatial_shape)
+        if sigma_t_cell is None:
+            xs = assemble_cell_xs(self.materials, self.mat_map)
+            sigma_t_cell = xs.sig_t.T.reshape(shape)
+        # NORMALISED so that re-declaring the same σ_t is the SAME Problem
+        # (the identity key hashes the bytes): C-contiguous float64, -0.0
+        # canonicalised to +0.0 by the ``+ 0.0`` (which also copies), and
+        # READ-ONLY — the key is cached from these bytes, so an in-place
+        # write would desynchronise identity from content.
+        arr = np.ascontiguousarray(sigma_t_cell, dtype=np.float64) + 0.0
+        if arr.shape != shape:
+            raise ValueError(
+                f"sigma_t_cell must be the per-cell (ng, *spatial) datum "
+                f"{shape}; got {arr.shape}."
+            )
+        arr.setflags(write=False)
+        return arr
+
+    @cached_property
+    def mat_xs(self) -> "MaterialXSField":
+        """The macroscopic XS field of THIS Problem — minted once per hub.
+
+        A :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
+        wrapping the per-material :class:`Mixture` data plus this mesh's
+        ``mat_map`` and its :attr:`sigma_t_cell` datum — the single source of
+        truth for both per-cell and per-material XS access used by every
+        transport operator.  Cached on the hub (consumers campaign step 2,
+        O-6): every consumer of one Problem shares one field; a σ-variant
+        Problem (:meth:`with_cross_sections`) owns another.  Lazy import of
+        :mod:`.material_xs_field` to avoid a circular dependency at module
+        import time.
+        """
+        from orpheus.transport.mesh.material_xs_field import MaterialXSField
+
+        return MaterialXSField.from_mesh(self)
+
+    def with_cross_sections(self, sigma_t_cell: np.ndarray) -> "MaterialMesh":
+        """A NEW Problem over the same phase space with the per-cell
+        :math:`\\sigma_t` datum replaced (O-5, 2026-09-13).
+
+        Same generating geometry, material assignment and materials — so
+        :meth:`same_phase_space` holds and fields pair — with another
+        identity (the datum enters :attr:`_identity_key`).  The base spelling
+        covers a legacy-mesh-built hub; subclasses re-spell it through their
+        own constructors (:meth:`SNMesh.with_cross_sections`).
+        """
+        if self.mesh is None:
+            raise NotImplementedError(
+                f"{type(self).__name__}.with_cross_sections needs the legacy "
+                f"mesh surface or a subclass re-spelling."
+            )
+        return type(self)(self.mesh, self.materials, sigma_t_cell=sigma_t_cell)
+
     @cached_property
     def _contractibility_key(self) -> tuple:
         return (
@@ -330,7 +405,7 @@ class MaterialMesh:
 
     @cached_property
     def _identity_key(self) -> tuple:
-        return (self._contractibility_key,)
+        return (self._contractibility_key, self.sigma_t_cell.tobytes())
 
     def same_phase_space(self, other: "MaterialMesh") -> bool:
         r"""True iff ``other`` realizes the SAME discrete phase space — the
@@ -655,17 +730,3 @@ class MaterialMesh:
 
     # ── Macroscopic XS field ──────────────────────────────────────────
 
-    def material_xs_field(self) -> "MaterialXSField":
-        """Build the macroscopic XS field from this mesh's materials.
-
-        Returns a
-        :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
-        wrapping the per-material :class:`Mixture` data plus this mesh's
-        ``mat_map`` — the single source of truth for both per-cell and
-        per-material XS access used by every transport operator.
-
-        Lazy import of :mod:`.material_xs_field` to avoid a circular
-        dependency at module import time.
-        """
-        from orpheus.transport.mesh.material_xs_field import MaterialXSField
-        return MaterialXSField.from_mesh(self)

@@ -217,7 +217,7 @@ def test_factory_returns_reified_pair():
     campaign's step 2 the labelling is :meth:`Splitting.from_schedule` on the
     posed record's factors, not a selector re-deriving behind the record."""
     sn, _LC, _B, _sched, _parts, _M = _reified()
-    record = build_within_group_system(sn, sn.material_xs_field())
+    record = build_within_group_system(sn, sn.mat_xs)
     gs = Splitting.from_schedule(record, resolve_schedule(sn, "gauss_seidel"))
     if not isinstance(gs.implicit, ScheduledInvertibleOperator):
         pytest.fail(f"G-S labelling derived {type(gs.implicit).__name__}")

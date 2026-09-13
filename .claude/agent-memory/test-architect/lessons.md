@@ -3336,3 +3336,81 @@ patching the `ClassVar` alone reports MC inert. → `L76h`
   before the mutating rebind retires cannot go stale — the ordering argument becomes a
   measurement, and it earns its own THEOREM row (with a mutation that makes `F` read σ_t, or
   the row is unwitnessed). → `L84l`
+
+**C3 additions (§1 gates that cannot red · §2 harness · §6 carve archetypes)**
+
+- **⛔⛔ A CACHE-LIFETIME change is invisible to every VALUE gate — the COUNT row is the only
+  instrument, and the HOLDER is the precondition, not a garnish.** `[M]` a weak-valued intern
+  over one 5-outer solve: **1 build / 549 hits** while a strong holder lives, **550 builds /
+  0 hits** without one, **1** with a plain `dict` — and `keff` is **bit-identical
+  (`0.435195214258`) in all three**. So a "re-key the intern" step whose only acceptance is a
+  value gate ships a 550× regression green. Before designing, run `gc.get_referrers` on the
+  cached object during the workload and NAME the holder; then check whether the same campaign
+  RETIRES it (here `solver.geom_cache`'s only reader was the method the previous sub-step
+  deletes, leaving a strong reference with zero readers — load-bearing and invisible to a
+  reader census). → `L85a`
+- **⛔ A "does the cache rebuild?" probe can read 1 by CPython REFCOUNT ACCIDENT.** `[M]` the
+  landed sharing anchor discards the returned table and still reads **1** under a weak-valued
+  intern, because the previous loop iteration's local survives into the next lookup; the same
+  loop with `del` + `gc.collect()` between calls reads **6 of 6 rebuilds**. ⟹ any lifetime
+  measurement inserts an explicit `del` + `gc.collect()`, and any SHARING gate must HOLD the
+  returned objects so it is not silently measuring lifetime instead. → `L85b`
+- **⛔ `==` on a production object that is NOT a dataclass is object IDENTITY — a plan's "two
+  hubs, EQUAL by value" re-key is then a permanent FALSE RED.** `[M]` `LossKernelGauge`:
+  `g1 == g2` **False** for two content-equal hubs, while `array_equal(g1.as_matrix(),
+  g2.as_matrix())` is **True / `0.000e+00`** (and stays true across a ×3 σ variant, so
+  `array_equal` is EARNED). Check `dataclasses.is_dataclass` / `__eq__` before writing any
+  value-equality row, and check the probe route exists — `[M]` `apply` was unusable here
+  because the domain (`AngularTraceSpace`) has no `.zeros()`. → `L85c`
+- **⛔⛔ A `if __debug__: assert` that RE-DERIVES a datum is a live REFUSAL of the capability a
+  step adds — and it is stripped by the canonical runner, so the step's own gates go green
+  under `-O` and red under plain `python`.** `[M]` `solver.py:1384` re-derives σ_t from
+  `materials` and raises `AssertionError: PR-INDEX-3 cell-flattening invariant broke` on a
+  σ-variant hub under plain `python`, while `python -O` completes the solve
+  (`k = 0.6627172096`). Run every new-capability fixture under BOTH invocations before calling
+  an assert "dead cleanup". → `L85d`
+- **⭐⭐ A "single-source these two bodies" plan row is a FUNCTIONAL-IDENTITY claim: measure it
+  before believing it, and a near-miss is usually a better gate than the merge.** `[M]`
+  `SNSolver.compute_keff` (reaction rates off `mat_xs` + a leakage term read off the last
+  inner TRACE — `[M]` it `raise`s without one) vs `Σ(production·ψ*)/Σ(loss·ψ*)`: **rel
+  7.165e-10** at default tolerances, **6.569e-14** at `keff_tol=1e-11`, with `n_outer` moving
+  **4→5→6→8** (so `vv` #13(d) is satisfied — four measurements, not one). The gap is the
+  CONVERGENCE RESIDUAL ⟹ they are two structurally independent functionals and the honest
+  gate is a REFERENCE-class band (`≤ 10·keff_tol`), never `array_equal`. Activation is free:
+  the same ratio on random states reads `−0.0103 / +0.0152 / +0.0094` against `k = 0.4352` —
+  **the sign flips**. ⚠ And the ratio is not the RATES: `[M]` `w = 1` gives
+  `Σ(prod·ψ*) = 16.0` against `IntegratedReactionRate = 1.0`; on the scalar carrier the weight
+  is the VOLUME (`sum(νΣ_f φ V) == IRR` bit-exact, `sum(νΣ_f φ)` off by rel 3.000e+00). → `L85e`
+- **⛔ `Σ(Aψ) − Σ(Sψ)` is NOT `Σ((A−S)ψ)` — a re-signature that folds two operands into one
+  changes an estimator's arithmetic.** `[M]` bit-identical on **836 of 2000** random diagonal
+  triples (worst rel 5.330e-16) and on **1 of 40** SN-composite draws (worst **9.524e-15**) —
+  but **exactly** on the shipped synthetic fixture, whose hand values are representable. So the
+  committed `got == ref` row survives the carve for a reason that does not generalise: re-spell
+  its reference with the signature and gate the general claim as a band. Same family as the
+  applied-difference refutation (`L84`, D-1). → `L85f`
+- **⛔ A scalar mutation is a Mode-12 null on the FISSION side of a normalized eigen path and is
+  NOT on the LOSS side — say which family each battery arm is in.** `[M]` C2: `_bind_energy ×
+  1.01` left every eigen snapshot green. `[M]` C3: a uniform ×1.01 on σ_t moves `k` by rel
+  **1.644e-02** (`Δk·10⁵ = −715.59`, absolute convention), because σ_t moves the flux SHAPE and
+  the estimator's `R_Σa(φ)` + leakage move with it. Shape-breaking variants for completeness:
+  cell-0-only `−274.56`, group-0-only `+184.47`. ⟹ "break the shape, not the scale" is a rule
+  about the NORMALISED factor, not about mutations in general. → `L85g`
+- **⭐⭐ A deferral recorded in PROSE can be a live, silent WRONG ANSWER with no gate — grep the
+  deferral's own mechanism and RUN it before treating the step as hygiene.** `[M]` four lines,
+  no solver: `rep.sweep(Q, σ=1, bf)` then `rep.sweep(Q, σ=5, bf)` on one hub returns
+  `array_equal=True`, `max|Δ| = 0.000000e+00`, while the honest answer differs by **rel
+  3.573e+00**. `[M]` the only repeated-sweep test site passes the SAME σ twice, no ERR entry
+  exists, and the deferral lives in a theory page. ⟹ the §6c witness was free, it is RED
+  today, and it earns an ERR entry rather than a design note. → `L85h`
+- **⛔ "the strategy" can name TWO objects, and the private one has zero external call sites —
+  a minimal-diff option keyed on it is a NO-OP.** `[M]` `_OneDimScanWalk` is private with 0
+  external callers (2 internal delegations); the publicly reachable scan strategy is
+  `CumprodScan`, and `[M]` `CumprodScan` is what **all four** 1-D charts select (slab, cyl 6,
+  cyl 8, sphere) — the "1-D scan special case" is the entire 1-D arm. Resolve which class a
+  fork's option names by posing each shipped chart and printing `type(rep).__name__`. → `L85i`
+- **⭐ Before designing a seam migration, run the Mode-11 SPY census — the answer can be ZERO,
+  and that is a finding.** `[M]` a `setattr`-style census over `tests/` + `derivations/` for
+  `sweep`/`_run`/`_ensure_*`/`from_geometry` returned **3 hits, none on those verbs** (the two
+  real ones being a build spy and the census's own positive control). Zero spies ⟹ nothing to
+  migrate AND no route claim about that path is gated today — which is what makes the new
+  route gate net-new coverage rather than a re-point. → `L85j`

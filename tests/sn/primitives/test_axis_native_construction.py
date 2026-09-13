@@ -341,7 +341,7 @@ def test_c52_retired_shims_fail_loud() -> None:
     for retired in ("ny", "dx", "dy"):
         with pytest.raises(AttributeError):
             getattr(sn, retired)
-    mat_xs = sn.material_xs_field()
+    mat_xs = sn.mat_xs
     np.testing.assert_equal(mat_xs.spatial_shape, sn.spatial_shape)
     for retired in ("nx", "ny"):
         with pytest.raises(AttributeError):

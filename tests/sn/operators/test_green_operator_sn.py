@@ -117,7 +117,7 @@ def _het_scattering_slab() -> SNMesh:
 def _operators():
     """``(sn, L+C fused, S, A_loss = (L+C) − S)`` on the het slab."""
     sn = _het_scattering_slab()
-    mat_xs = sn.material_xs_field()
+    mat_xs = sn.mat_xs
     lc = StreamingOperator.pose(sn) + MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section, sn,
     )
@@ -241,7 +241,7 @@ def test_c_plus_l_trap_constructs_then_fails_loudly():
     collision-preconditioned Richardson fails LOUDLY at apply.  Never a
     silent wrong answer — the ruling's whole point."""
     sn, lc, S, a_loss = _operators()
-    mat_xs = sn.material_xs_field()
+    mat_xs = sn.mat_xs
     C = MultiplicationOperator.from_mesh(mat_xs.total_cross_section, sn)
     L = StreamingOperator.pose(sn)
     cl = C + L

@@ -228,7 +228,7 @@ def _capture_legendre_moments(
         moments_values, solver.sn_mesh, L,
     )
     Lam = LegendreMomentTransfer.on_basis(
-            TransferMaterialField.scattering(solver.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=False,
+            TransferMaterialField.scattering(solver.sn_mesh.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=False,
         )
     scattered = Lam.apply(moments)
     return scattered.values.copy()

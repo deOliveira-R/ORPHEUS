@@ -139,7 +139,7 @@ def mesh() -> DiffusionMesh:
 
 @pytest.fixture
 def mat_xs(mesh) -> MaterialXSField:
-    return mesh.material_xs_field()
+    return mesh.mat_xs
 
 
 @pytest.fixture
@@ -274,7 +274,7 @@ def _config_setup(config: str):
     template = FullField.zeros(
         interior=ScalarFlux, boundary=ScalarBoundaryFlux, space=mesh.full_field_space,
     )
-    return mesh, mesh.material_xs_field(), template, albedos
+    return mesh, mesh.mat_xs, template, albedos
 
 
 # ═══════════════════════════════════════════════════════════════════════

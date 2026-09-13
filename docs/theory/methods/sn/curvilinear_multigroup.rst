@@ -217,13 +217,22 @@ construction:
 * **The geometry stratum of the sweep cache.**
   :class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache` documents the
   boundary explicitly: *no* ``ng`` *axis — no cross-section
-  dependence*.  It is built once per (mesh, quadrature, angular closure)
-  and survives every cross-section rebind.  Since P4.9b the "once" is
-  enforced rather than hoped for: the table is resolved **lazily**, on
-  first need, through the strategy layer's hub-keyed intern
+  dependence*.  It is built once per (phase space, angular-closure
+  class) — the geometry, the quadrature and the scheme, but **not**
+  :math:`\Sigma_t`.  Since P4.9b the "once" is enforced rather than
+  hoped for: the table is resolved **lazily**, on first need, through the
+  strategy layer's intern
   :func:`~orpheus.sn.loss_representation.geometry_cache_for`, and a
-  ``foundation`` gate pins the build count at exactly one per hub across
-  a whole solve (:ref:`sn-p49b-operator-poses-with-closures`).
+  ``foundation`` gate pins the build count at exactly one across a whole
+  solve (:ref:`sn-p49b-operator-poses-with-closures`).  Since the
+  consumers campaign's step 2 (2026-09-13) that independence is
+  **observable** rather than merely asserted: :math:`\sigma_t` is a
+  datum of the Problem, so a σ-variant is another Problem, and the intern
+  — keyed on contractibility, which the σ datum does not enter — hands
+  both of them the *same table object*
+  (:ref:`sn-sigma-is-a-problem-datum`).  Until then the property was
+  spelled against ``SNSolver.rebind_cross_sections``, which mutated a
+  live solver and is now retired.
 
 .. note:: **The τ/c vocabulary trap.**  A reader arriving from the
    general transport literature will want to read :math:`\tau` as an
@@ -282,10 +291,10 @@ of that door:
 
 * the **cross-section stratum** of the sweep cache (``CollisionCache``:
   inverse denominators, attenuation factors, their cumulative
-  products) is shaped ``(N, ng, nx)`` and is rebuilt on every
-  cross-section rebind while the geometry stratum survives — the
-  cache's two-strata split *is* the code's own statement of this
-  tier boundary;
+  products) is shaped ``(N, ng, nx)`` and is posed **per Problem**,
+  while the geometry stratum is shared across every Problem on one
+  phase space that hands the same angular-closure class — the cache's
+  two-strata split *is* the code's own statement of this tier boundary;
 * the **starting-direction state** :math:`\psi_{1/2,g}` is per-group
   data produced by group-blind machinery:
   :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`

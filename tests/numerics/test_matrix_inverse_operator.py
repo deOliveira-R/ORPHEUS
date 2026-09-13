@@ -151,7 +151,7 @@ def _asymmetric_2g_mat_xs():
         chi=np.zeros(2), sig_s=sig_s0,
     )
     m = replace(m, SigS=[csr_matrix(sig_s0)], Sig2=[csr_matrix(sig_2)])
-    mat_xs = unit_cell_carrier({0: m}).material_xs_field()
+    mat_xs = unit_cell_carrier({0: m}).mat_xs
     return mat_xs, sig_s0, sig_2, np.array([1.0, 1.5])
 
 
@@ -284,7 +284,7 @@ def test_as_matrix_equals_retired_as_dense_loop():
 
     case = get("homo_2eg_n2n")  # asymmetric SigS + non-zero Sig2 (Mode-6)
     mix = next(iter(case.materials.values()))
-    mat_xs = unit_cell_carrier({0: mix}).material_xs_field()
+    mat_xs = unit_cell_carrier({0: mix}).mat_xs
     ng = mix.ng
     loss = MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section_field, mat_xs.mesh,

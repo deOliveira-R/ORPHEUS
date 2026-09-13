@@ -142,7 +142,7 @@ def test_F_apply_timed_full_field_returns_composite(name, builder) -> None:
     sn = builder()
     state = _random_state(sn, seed=1)
     F = FissionOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(), space=sn.full_field_space,
+        mat_xs=sn.mat_xs, space=sn.full_field_space,
     )
 
     Fpsi = F.apply(state)
@@ -160,7 +160,7 @@ def test_F_typed_lift_equivalent_to_scalar(name, builder) -> None:
     sn = builder()
     state = _random_state(sn, seed=2)
     F = FissionOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(), space=sn.full_field_space,
+        mat_xs=sn.mat_xs, space=sn.full_field_space,
     )
 
     # Composite path: F(state) — TimedFullField
@@ -195,7 +195,7 @@ def test_S_apply_timed_full_field_zero_boundary(name, builder) -> None:
     sn = builder()
     state = _random_state(sn, seed=3)
     S = ScatteringOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(),
+        mat_xs=sn.mat_xs,
         scattering_order=0,
         space=sn.full_field_space,
     )
@@ -294,12 +294,12 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
     L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sigma_t * 0.5, sn)
     S = ScatteringOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(),
+        mat_xs=sn.mat_xs,
         scattering_order=0,
         space=sn.full_field_space,
     )
     F = FissionOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(), space=sn.full_field_space,
+        mat_xs=sn.mat_xs, space=sn.full_field_space,
     )
 
     A = L + C - S - F  # full operator-algebra composition
@@ -332,12 +332,12 @@ def test_full_algebra_linearity(name, builder) -> None:
     L = StreamingOperator.pose(sn)
     C = MultiplicationOperator.from_mesh(sigma_t * 0.5, sn)
     S = ScatteringOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(),
+        mat_xs=sn.mat_xs,
         scattering_order=0,
         space=sn.full_field_space,
     )
     F = FissionOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(), space=sn.full_field_space,
+        mat_xs=sn.mat_xs, space=sn.full_field_space,
     )
     A = L + C - S - F
     # Linearity, stated directly (campaign 1 CS3 — flux lives in V):
@@ -466,10 +466,10 @@ def test_c6_apply_dispatch_parity() -> None:
     sn = _slab_mesh()
     state = _random_state(sn, seed=57)
     F = FissionOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(), space=sn.full_field_space,
+        mat_xs=sn.mat_xs, space=sn.full_field_space,
     )
     S = ScatteringOperator.from_solver_data(
-        mat_xs=sn.material_xs_field(), scattering_order=0,
+        mat_xs=sn.mat_xs, scattering_order=0,
         space=sn.full_field_space,
     )
     # Carriers built directly (independent of the under-typed integrate_angular).

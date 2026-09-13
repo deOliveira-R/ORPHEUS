@@ -543,7 +543,8 @@ class MaterialXSField:
         return self._diffusion_cell
 
     def _ensure_cell_views(self) -> None:
-        """Populate the four per-cell views via :func:`assemble_cell_xs`.
+        """Populate the four per-cell views — σ_t from the mesh's datum, the
+        rest via :func:`assemble_cell_xs`.
 
         Single producer of the principled-layout per-cell arrays.
         Run-once: subsequent accesses hit the cache.  This is the
@@ -557,7 +558,10 @@ class MaterialXSField:
         # .T.reshape: producer emits (N_cells, ng); flip to (ng, N_cells)
         # then split N_cells back into (*spatial) — the principled
         # (ng, *spatial) layout (rank == ndim; no phantom ny=1 on 1-D).
-        self._sig_t_cell = xs.sig_t.T.reshape(ng, *spatial)
+        # σ_t is the Problem's DATUM (``MaterialMesh.sigma_t_cell`` — derived
+        # from the materials by default, replaced on a σ-variant Problem);
+        # the three other views are assembled from the materials here.
+        self._sig_t_cell = self.mesh.sigma_t_cell
         self._sig_a_cell = xs.sig_a.T.reshape(ng, *spatial)
         self._sig_p_cell = xs.sig_p.T.reshape(ng, *spatial)
         self._chi_cell = xs.chi.T.reshape(ng, *spatial)

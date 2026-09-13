@@ -612,7 +612,7 @@ def test_coupled_gate4_reverse_scan_executes(monkeypatch):
 def _within_group_grid(sn):
     from orpheus.sn.coupled_system import build_within_group_system
 
-    system = build_within_group_system(sn, sn.material_xs_field())
+    system = build_within_group_system(sn, sn.mat_xs)
     return system.loss, system.space
 
 

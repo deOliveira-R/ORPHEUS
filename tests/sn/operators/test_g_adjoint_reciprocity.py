@@ -773,7 +773,7 @@ def _full_loss_case(
     sn = SNMesh(mesh, quad, mixtures, scattering_order=order)
     S = SNSolver(sn).scattering_op
     sig_t = np.asarray(
-        sn.material_xs_field().total_cross_section_field.values, dtype=float
+        sn.mat_xs.total_cross_section_field.values, dtype=float
     )
     # B.2d: this is System A's (A,A) block ``L + C − S − B_a`` on the honest
     # 2-block composite — the coupling blocks (A_AB/A_BA/B_b) live on the
@@ -815,7 +815,7 @@ def _full_loss_case_cart2d():
     sn = SNMesh(mesh, Quadrature.level_symmetric(4), mixtures, scattering_order=0)
     S = SNSolver(sn).scattering_op
     sig_t = np.asarray(
-        sn.material_xs_field().total_cross_section_field.values, dtype=float
+        sn.mat_xs.total_cross_section_field.values, dtype=float
     )
     A = (
         StreamingOperator.pose(sn)

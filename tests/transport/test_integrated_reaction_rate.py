@@ -273,7 +273,7 @@ class TestN2NActivationInProductionRate:
         flux = np.random.default_rng(3).uniform(0.1, 1.0, size=(ng, nx, ny))
 
         fission_only = IntegratedReactionRate(
-            solver.mat_xs.fission_production_field
+            solver.sn_mesh.mat_xs.fission_production_field
         ).evaluate(flux)
         total = solver.compute_production_rate(flux)
         require(

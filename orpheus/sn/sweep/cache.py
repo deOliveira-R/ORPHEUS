@@ -13,7 +13,11 @@ from the hot path:
 * :class:`CollisionCache` — Stratum 2, geometry × :math:`\Sigma_t`.  Built
   when :math:`\Sigma_t` is bound.  Lifetime = constant-:math:`\Sigma_t` epoch
   (one fixed-source solve, one eigenvalue solve, one depletion micro-step).
-  Rebuilt by :meth:`~orpheus.sn.solver.SNSolver.rebind_cross_sections`.
+  Since the consumers campaign's step 2 (2026-09-13) :math:`\\Sigma_t` is a
+  DATUM of the Problem (``MaterialMesh.sigma_t_cell``): a depletion step is
+  another Problem (``with_cross_sections``), never a rebind on a live
+  solver — the retired ``SNSolver.rebind_cross_sections`` rebuilt this
+  stratum in place until then.
 
 The strata are deliberately separate (cross-domain-attacker Smell #16): mixing
 geometry-only and :math:`\Sigma_t`-dependent fields into one tensor ties the
@@ -127,7 +131,7 @@ if TYPE_CHECKING:  # pragma: no cover
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class StreamingCoefficientCache:
     r"""The Σ\ :sub:`t`\ -free half of the DD scan coefficients, built ONCE per
     ``SNMesh`` × ``Quadrature``.

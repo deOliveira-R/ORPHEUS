@@ -709,7 +709,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             # (the drivers deliver it as the ``B`` gain; #448).
             reflect_outflow_into_inflow(boundary_flux, sn_mesh)
             _angular, scalar = sweep_once(
-                source, solver.mat_xs.total_cross_section, sn_mesh,
+                source, solver.sn_mesh.mat_xs.total_cross_section, sn_mesh,
                 boundary_flux,
             )
             return scalar
@@ -825,7 +825,7 @@ def _sn_composite_triple():
     sn = SNMesh(mesh, quad, materials, scattering_order=0)
     solver = SNSolver(sn)
     system = build_within_group_system(
-        sn, solver.mat_xs, scattering_op=solver.scattering_op,
+        sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
     )
     from functools import reduce
     from operator import add
@@ -847,7 +847,7 @@ def _sn_composite_triple():
     from orpheus.transport.operators.fission import FissionOperator
 
     F_composite = FissionOperator.from_solver_data(
-        mat_xs=solver.mat_xs, space=sn.full_field_space,
+        mat_xs=solver.sn_mesh.mat_xs, space=sn.full_field_space,
     )
     guess = FullField(
         interior=AngularFlux(values=np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space),

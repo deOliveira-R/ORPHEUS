@@ -11,11 +11,19 @@ converged flux, the frame projections (homogenisation, condensation)
 that hand a coarse problem back to the same solver.
 
 At construction time :class:`~orpheus.sn.solver.SNSolver` caches
-**two** operators — the ones that are cross-section read-through, and
-therefore survive a rebind untouched.  It cached **three** until
+**two** operators — the ones that read their cross sections *through*
+the hub's one :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
+rather than snapshotting values.  It cached **three** until
 2026-09-13: the fission binding left for the Problem hub at the
 consumers campaign's step 2, and the remaining two follow it when the
 hub gains its posed record (:ref:`sn-one-fission-per-problem`).
+
+.. note:: That sentence read *"and therefore survive a rebind
+   untouched"* until 2026-09-13.  There is no rebind any more:
+   :math:`\sigma_t` is a **datum of the Problem** and a σ-variant is
+   another Problem, so nothing on a live solver is mutated and the
+   read-through property is about *sharing one field*, not about
+   surviving a mutation (:ref:`sn-sigma-is-a-problem-datum`).
 
 * :attr:`SNSolver.scattering_op` —
   :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
@@ -1597,6 +1605,413 @@ What is deferred, and why
        shared — ``factors.fission`` is the hub's :math:`F` on both —
        and object identity of the *posing* arrives when the hub caches
        the record itself.
+
+.. _sn-sigma-is-a-problem-datum:
+
+:math:`\sigma_t` is a datum of the Problem
+-------------------------------------------
+
+The third act of the consumers campaign's step 2, and the one that
+retires the most code.  It answers a question the two sections above
+leave open: the pencil :math:`(A, F)` is a pair of operators built from
+a Problem's data — so **what is the data?**  For :math:`F` the answer
+was already a Problem datum (the fission kernel pair
+:math:`(\chi, \nu\Sigma_f)`).  For :math:`A` it was not: the total cross
+section that forms the collision diagonal :math:`C = M[\sigma_t]` could
+be *rebound on a live solver*, which is a different thing entirely.
+
+The defect: a solver you could mutate underneath its own operators
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Until 2026-09-13 the cross-section state was a solver attribute,
+``SNSolver.mat_xs``, built in ``__init__``; and ``SNSolver`` carried a
+method, ``rebind_cross_sections(new_sig_t)``, whose docstring named
+depletion and thermal feedback as its consumers.  It wrote a new array
+straight onto the field's private ``_sig_t_cell`` slot and rebuilt the
+:math:`\sigma`-dependent half of the sweep cache.
+
+Three things were wrong with it, in increasing order of reach.
+
+#. **It mutated an object other objects already held.**  The rebind
+   *re-bound* ``mat_xs._sig_t_cell`` to a new array, so an operator that
+   reads through the field on every ``apply`` (:math:`S`, :math:`F`) saw
+   the new :math:`\sigma_t`, while one holding a
+   :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
+   built *before* the call — the collision diagonal
+   :math:`C = M[\sigma_t]` — still pointed at the old array.  The
+   campaign's own characterisation row measured
+   this on the seedless slab anchor fixture, one seeded coupled state: a
+   :class:`~orpheus.sn.coupled_system.WithinGroupSystem` built **before**
+   a :math:`\times 3` rebind and applied **after** it was ``array_equal``
+   to its pre-rebind self, while a freshly built one moved by
+   :math:`\max|\Delta| = 3.7798`, :math:`\max\text{rel} = 0.1619`.  The
+   reused system was silently stale.  The defect was unspellable only
+   because
+   :func:`~orpheus.sn.coupled_system.build_within_group_system` happened
+   to run once per outer step.
+#. **The identity question had no answer.**  The hub is the solve's save
+   state (:ref:`sn-hub-retained-order`), and after a rebind it compared
+   ``==`` to its pre-rebind self while representing a different problem.
+   A registry keyed on the hub, a cache keyed on the hub, a
+   ``same_phase_space`` pairing check — all of them would have agreed the
+   two were one problem.
+#. **It was guarded by an assertion that could not fire.**  ``__init__``
+   carried an ``if __debug__:`` block re-deriving :math:`\sigma_t` from
+   the materials and asserting it matched ``mat_xs.total_cross_section``
+   — which is **false for every** :math:`\sigma_t` **that differs from
+   the material derivation**.  ``[M]``
+   under plain ``python``, constructing a solver over a σ-variant hub
+   raises ``AssertionError: PR-INDEX-3 cell-flattening invariant broke``;
+   under ``python -O`` — ORPHEUS's canonical runner — the statement is
+   stripped at compile time and the same solve completes silently.  So
+   the one guard on the path was simultaneously a live refusal of the
+   capability C3a exists to add and a
+   no-op in the suite that decides a merge: ``vv-principles`` failure
+   Mode 8, and the ``coding-standards`` rule that *a bare* ``assert`` *in*
+   ``orpheus/`` *is not a contract*.
+
+The ruling (O-5 / O-6): the datum moves to the hub
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two rulings, one shape.  **O-6** — a Problem owns **one**
+:class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`:
+``mat_xs`` is a :func:`~functools.cached_property` of
+:class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, so every
+consumer of one Problem shares one field and there is nothing to keep in
+sync.  ``MaterialMesh.material_xs_field()`` — a *builder*, which minted a
+fresh field on every call — retired into it, and ``SNSolver.mat_xs`` was
+deleted.
+
+**O-5** — :math:`\sigma_t` is that Problem's **datum**, not a derived
+view:
+
+.. math::
+
+   \texttt{MaterialMesh.sigma\_t\_cell} \;\in\; \mathbb{R}^{n_g \times
+   n_x \times n_y}
+   \qquad\text{with}\qquad
+   \texttt{sigma\_t\_cell}\Big|_{\text{default}}
+   \;=\; \texttt{assemble\_cell\_xs}(\text{materials},\,
+   \texttt{mat\_map}).\texttt{sig\_t}^{\mathsf T}\!\cdot\!
+   \text{reshape}(n_g, *\text{spatial})
+
+.. (Deliberately UNLABELLED.  The default derivation on the right is
+   exactly :eq:`sn-cell-flatten-roundtrip`, which already carries the
+   ``verifies`` witness; a second eq-label would be a twin API stating one
+   law twice.  What is new here is the SLOT — that the left-hand side is a
+   stored datum rather than a derived view — and that is a typing claim,
+   not an equation.)
+
+— one field, **always present**, with no ``None``-valued override and no
+``is_overridden`` flag for a consumer to branch on.
+:meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.with_cross_sections`
+returns a **new Problem** whose datum is replaced; ``SNMesh`` re-spells it
+through the same private body that serves
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.with_scattering_order`, so
+the two Problem morphisms cannot drift apart.
+
+The datum is **normalised on the way in** — ``np.ascontiguousarray(…,
+float64) + 0.0`` (which copies, and canonicalises :math:`-0.0` to
+:math:`+0.0`), shape-checked against :math:`(n_g, *\text{spatial})`, and
+set read-only.  That is not fastidiousness: the identity key hashes these
+bytes, so re-declaring the same :math:`\sigma_t` must be the *same*
+Problem, and an in-place write would desynchronise identity from content.
+
+Identity, but not contractibility
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Where the datum lands in the two keys is the whole design:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 20 54
+
+   * - key
+     - carries σ?
+     - what it answers, and what follows
+   * - ``_contractibility_key``
+     - **no**
+     - *May two solutions' FIELDS be paired?*  The geometry, the material
+       assignment, the materials' content — and, on ``SNMesh``, the
+       quadrature and the scheme type.  A σ-variant leaves it untouched,
+       so
+       :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.same_phase_space`
+       **holds** across a depletion step: the fields pair, and
+       ``Solution.compare`` / ``homogenize`` / ``condense`` keep working
+       between the steps of a trajectory.
+   * - ``_identity_key``
+     - **yes**
+     - *Is this the SAME PROBLEM?*  The contractibility key plus
+       ``sigma_t_cell.tobytes()`` (and, on ``SNMesh``, the closure class
+       and the clamped order).  A σ-variant compares ``!=`` and hashes
+       differently, so a cache or a registry keyed on the Problem cannot
+       serve one hub's table to the other by mistake.
+
+Identity is strictly finer than contractibility
+(:math:`a = b \Rightarrow a.\texttt{same\_phase\_space}(b)`), and the σ
+datum is exactly the axis that separates them.
+
+**A depletion trajectory is therefore a sequence of Problems**, not a
+sequence of mutations of one.  Distinct :math:`\sigma_t^{(0)},
+\sigma_t^{(1)}, \dots` give hubs :math:`P_0, P_1, \dots` with
+:math:`P_i \neq P_j` for :math:`i \neq j`, and
+:math:`P_i.\texttt{same\_phase\_space}(P_j)` for **every** pair
+(including :math:`i = j`, and including a step that happens to leave
+:math:`\sigma_t` unchanged — which is then the *same* Problem, by
+construction) — the burnup step is a **morphism of Problems**, the flux of
+step :math:`i` is a legitimate initial guess for step :math:`i+1` because
+the fields pair, and nothing that was posed over :math:`P_i` can silently
+start answering for :math:`P_{i+1}`.  That is the property the rebind
+could not have: staleness is not *detected*, it is **unspellable**.
+
+What the override reaches, and what it does not
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``mat_xs`` has four per-cell views, and after O-5 they are no longer
+symmetric: ``total_cross_section`` **reads the hub's datum**, while
+:math:`\sigma_a`, :math:`\nu\Sigma_f` and :math:`\chi` are still gathered
+lazily from the materials through
+:func:`~orpheus.data.macro_xs.cell_xs.assemble_cell_xs`.  ``[M]`` on a
+:math:`\times 3` variant the first moves and the other three are
+``array_equal`` to the base — which is the gate
+``test_law_the_override_moves_sigma_t_and_NOTHING_else``.
+
+.. warning:: **An OPEN question, not a settled contract: the diffusion
+   coefficient does not follow.**
+
+   :attr:`MaterialXSField.diffusion_coefficient
+   <orpheus.transport.mesh.material_xs_field.MaterialXSField.diffusion_coefficient>`
+   is a per-cell *gather* of
+   :attr:`Mixture.diffusion_coefficient
+   <orpheus.data.macro_xs.mixture.Mixture.diffusion_coefficient>`, i.e.
+   :math:`D = 1/(3\Sigma_{\rm tr})` with :math:`\Sigma_{\rm tr} =
+   \Sigma_t - \sum_{g'}\Sigma_{s,1}(g\!\to\!g')` formed from **the
+   material's own** :math:`\Sigma_t`.  It never reads the hub's datum.
+
+   ``[M]`` (8-cell 2-group slab, :math:`\times 3` override): the 1-D
+   diffusion eigenvalue moves ``0.26290298 → 0.01802733`` (relative
+   :math:`9.314\times10^{-1}`) through the **removal** term
+   :math:`\Sigma_r = \sigma_t - \sigma_{s,gg}`, while
+   ``diffusion_coefficient`` is ``array_equal`` to the base — so the
+   **leakage** term does not move.  A σ-variant
+   :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` therefore
+   poses a diffusion problem whose two terms disagree about what
+   :math:`\Sigma_t` is.
+
+   This is **not ruled**.  The two candidate answers are (i) *declare the
+   limit* — ``with_cross_sections`` overrides the total cross section and
+   nothing derived from it, with the inconsistency pinned by a record
+   test and tagged as debt — and (ii) *close it* — the datum enters the
+   :math:`D` gather too, which is not a one-line substitution
+   (``[M]`` on that fixture :math:`D = [0.700, 0.349]` against
+   :math:`1/(3\sigma_t) = [0.667, 0.333]`: the difference is the
+   transport correction, so "use the override" has to decide what
+   :math:`\Sigma_{s,1}` the corrected :math:`\Sigma_{\rm tr}` is built
+   from) and re-opens the wider question of *which* of :math:`\Sigma_t`'s
+   derived quantities an override owns: ``[M]`` two further sites read
+   the material's :math:`\Sigma_t` directly — the ``_gather_vector("SigT")``
+   calls inside ``MaterialXSField``'s homogenisation and condensation
+   projections — so :math:`D` is not the only reader that would have to
+   be decided.
+
+   Until it is ruled, ``tests/diffusion/test_sigma_variant_reach.py``
+   pins **reachability only** — that a σ-variant hub's datum reaches the
+   diffusion removal term at all — and says so in its own docstring.  Do
+   not read it as certifying the inconsistency.
+
+The geometry table: shared by CONTENT, held by its consumers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The sweep cache is deliberately two strata (the tier boundary is derived
+in :ref:`sn-curvilinear-multigroup`): a
+:math:`\sigma`-free geometry table
+(:class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache`, Stratum 1)
+and a :math:`\sigma`-bound one
+(:class:`~orpheus.sn.sweep.cache.CollisionCache`, Stratum 2).  O-5 makes
+that split *observable*: two σ-variant Problems are two Problems, and the
+question "do they share the geometry table?" becomes answerable rather
+than moot.
+
+They do — **by construction**, because the intern
+:func:`~orpheus.sn.loss_representation.geometry_cache_for` keys on the
+``_contractibility_key`` (which the σ datum does not enter) crossed with
+the angular-closure **class**.  The container that landed with C3a is a
+small two-map object:
+
+* a ``WeakValueDictionary`` keyed by ``(contractibility, closure class)``
+  — the **sharing** half, so content-equal Problems read one table;
+* a ``WeakKeyDictionary`` from hub to the tables that hub used — the
+  **holding** half, so a table lives as long as a Problem that needs it.
+
+Its ``len`` is the first map's: the number of **live distinct tables**.
+So a σ-variant costs no table — ``[M]`` six σ-variants of one phase
+space read ``len(_GEOM_CACHE_INTERN) == 1`` and all six get the same
+object — while still taking a (weak) row in the second map, which is what
+makes it a holder rather than a free rider.
+
+⛔ **The holding half is a precondition, not an optimisation, and it was
+measured.**  ``[M]`` over one 5-outer slab eigenvalue solve (8 cells,
+2 groups): a weak-valued intern **with** a strong holder reads **1 build
+/ 549 hits**; the same intern with **nothing** holding the value reads
+**550 builds / 0 hits** — one rebuild per ``_ensure_geom_cache`` call,
+because the only reference between two sweeps was the weak one.  On that
+fixture a build is ``0.169 ms`` (minimum of 15) against a ``167.8 ms``
+solve (minimum of 3), i.e. **+55.4 %** wall-clock.  On a production mesh
+a build costs two orders more — the P4.9b cost table in
+:ref:`sn-p49b-operator-poses-with-closures` re-measures it, and 549 of
+them is seconds, not milliseconds.
+
+⚠ And **no value gate can see it**: ``[M]`` :math:`k` is bit-identical at
+``0.435195214258`` under 1 build and under 550.  The instrument has to be
+a **count**, and two carry it: ``test_geometry_cache_builds_exactly_once_per_mesh``
+(``tests/sn/sweep/core/test_cache.py``), whose two legs pin one build
+across a whole solve and across two independently posed operators over
+one hub; and
+``tests/sn/mesh/test_sigma_datum.py::…::test_law_the_table_is_built_ONCE_per_solve``,
+which adds an explicit positive control (*the spy must observe at least
+one build*) so a silently-inert spy cannot read as a clean pass.  Both
+spy on ``StreamingCoefficientCache.from_mesh_and_quad``.  This is
+``vv-principles`` #26 in its purest form: a route claim needs a route
+instrument, because a function that redoes the work and throws it away is
+indistinguishable, in its return value, from one that skipped it.
+
+.. note:: **A count gate over the intern must start from an empty
+   intern.**
+
+   Two mechanics make a naive count unreliable, and both are properties
+   of the objects rather than of the gate.  First, the intern shares by
+   **content**, so a content-equal hub built by an *earlier* test can
+   still be serving its table when a later one starts counting.  Second,
+   a dead hub is not collected at refcount zero: the hub caches
+   ``mat_xs`` and the
+   :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
+   holds ``self.mesh``, so hub and field form a **reference cycle** and
+   both survive until the next cyclic collection.  The count legs
+   therefore call ``_GEOM_CACHE_INTERN.clear()`` first, and the lifetime
+   leg drops every reference and calls :func:`gc.collect` before asserting
+   the entry is gone.
+
+The gauge is σ-free, and that is now stated across two Problems
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:attr:`SNMesh.loss_kernel_gauge
+<orpheus.sn.mesh.augmented_mesh.SNMesh.loss_kernel_gauge>` is a
+:func:`~functools.cached_property` over :math:`\sigma`-free data, and
+the campaign pins that it stays so — otherwise a later "derive the gauge
+from the pencil" simplification would rebuild it on every
+:math:`\texttt{at}(\sigma)` with no value test able to notice.
+
+Before O-5 the claim was spelled *on one solver*: rebind, then check the
+hub returned the **same object**.  With :math:`\sigma` a Problem datum it
+is spelled across **two hubs**, and the honest comparison is a
+measurement rather than an obvious one: ``[M]``
+:class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge` defines
+no ``__eq__`` anywhere in its MRO, so ``==`` **is object identity** —
+two content-equal hubs give ``g1 == g2`` → ``False``, and a ``==`` row
+would be a permanent false red.  (``apply`` is not a route either: the
+gauge's domain is an
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`,
+which has no ``zeros()``.)  What is true, and what the re-posed gate
+asserts on the seedless slab anchor, is
+``np.array_equal(g1.as_matrix(), g2.as_matrix())`` → ``True``
+(:math:`\max|\Delta| = 0.0`) across a :math:`\times 3` σ-variant.  The
+per-hub **identity** half (one hub, one gauge object, asserted by ``is``)
+stays where it was.
+
+What retired, and what the gates are
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - retired
+     - and what carries the claim now
+   * - ``SNSolver.rebind_cross_sections``
+     - :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.with_cross_sections`
+       — a morphism of Problems, with **no successor** on the solver by
+       design.  ``test_cache.py`` #5, which used to assert the geometry
+       table survived a rebind, now asserts two σ-variant hubs **share**
+       it by ``is`` while each poses its own collision stratum.
+   * - ``SNSolver.mat_xs``
+     - the hub's ``mat_xs`` :func:`~functools.cached_property`
+       (O-6).  ``TestLawOneFieldPerProblem`` counts
+       ``MaterialXSField.from_mesh`` over one :math:`k`-solve and reads
+       **1** — it read 2 before.
+   * - ``MaterialMesh.material_xs_field()``
+     - the same property.  It was a *builder*: every call minted a
+       field, so "the solver's" and "the adjoint posing's" were different
+       objects over one Problem.
+   * - ``SNSolver.weight_norm``
+     - nothing — ``[M]`` the attribute had zero readers tree-wide (the
+       surviving ``weight_norm`` occurrences under ``tests/`` are
+       same-named *local* variables).  The quadrature normalisation that
+       matters lives in the sweep and on
+       :class:`~orpheus.numerics.quadrature.Quadrature`.
+   * - the ``if __debug__`` PR-INDEX-3 assert
+     - ``tests/sn/mesh/test_sigma_datum.py``
+       ``::TestLawTheRoundTrip`` — a real
+       ``@pytest.mark.verifies("sn-cell-flatten-roundtrip")`` witness over
+       both carrier tiers (:ref:`sn-cell-flattening-invariant`), plus the
+       pure-storage gate promoted out of the same block at
+       PR-CLEANUP-CODE §E.
+   * - ``TestRecordTheStaleSigmaExposure``
+     - deleted, because the exposure it characterised is now
+       **unspellable**: there is no rebind for a system to go stale
+       across.  A record row whose subject cannot be constructed is not a
+       gate, it is a fossil.
+
+The step's own laws land in ``tests/sn/mesh/test_sigma_datum.py``, a
+``foundation`` module.  Its two *identity* classes are parametrised over
+**both carrier tiers** — a bare
+:class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` and an
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`, because the datum is
+declared at the data tier and the method mesh only extends the key: a
+σ-variant is a different Problem; it shares the phase space;
+re-declaring the same :math:`\sigma_t` is the *same* Problem; the stored
+datum is read-only; a wrong shape is refused; and the round-trip law
+above.  The field and intern classes are single-tier (SN, because they
+need a quadrature and a solve): one field per Problem; a σ-variant owns
+its own field; the override moves :math:`\sigma_t` and nothing else; the
+operators posed over the variant move; and the intern shares across
+σ-variants, is built once per solve, retains no hub in its value, dies
+with its last holder, and is bounded by the number of distinct phase
+spaces.
+
+What is still deferred
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The :math:`\sigma`-bound stratum is still memoised **on the hub**
+(``sn_mesh._coll_cache``), read back by a ``getattr`` with no
+:math:`\sigma` validation.  That is safe today only because a σ-variant
+is a different hub — the stash cannot serve one Problem's table to
+another — but the memo does not belong on a save state.  It re-homes onto
+the :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
+instance, together with the sibling ``_pole_mirror_cache``, when the hub
+gains its posed record.
+
+.. warning:: **The solver's geom_cache slot outlives its last consumer
+   on purpose.  Do not retire it as dead.**
+
+   ``[M]`` in production the attribute is now read at exactly **one**
+   place — three lines below where it is assigned, to pose the
+   :class:`~orpheus.sn.sweep.cache.CollisionCache` in the same
+   ``__init__`` block.  Its only reader *after* construction was
+   ``rebind_cross_sections``, which C3a deleted (two reads survive in
+   ``tests/sn/sweep/core/test_cache.py``).  A local variable would carry
+   the construction-time use, so the attribute looks like a leftover.
+
+   It is not.  What it does now is **hold**: it is the strong reference
+   that keeps the weak-valued intern's table alive between two sweeps,
+   and dropping it costs the 550-builds-per-solve regression measured
+   above — silently, with every value gate green.  It stops being the
+   tree's only holder when the :math:`\sigma` stratum re-homes onto the
+   operator (which then holds the geometry table through its own
+   stratum), and it retires *in that commit*, not before.  This is the
+   shape ``coding-standards`` warns about after any retirement: the
+   mechanism that made a thing redundant gets promoted to sole
+   guarantor, with no change to its own code and nothing prompting a
+   re-look.
 
 .. _sn-finalize-one-step:
 

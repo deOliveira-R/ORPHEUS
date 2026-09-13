@@ -224,7 +224,7 @@ class DiffusionSolver:
         flux_tol: float = 1e-9,
     ) -> None:
         self.mesh = mesh
-        self.mat_xs: "MaterialXSField" = mesh.material_xs_field()
+        self.mat_xs: "MaterialXSField" = mesh.mat_xs  # the hub's ONE field (C3a)
         self.keff_tol = float(keff_tol)
         self.flux_tol = float(flux_tol)
 

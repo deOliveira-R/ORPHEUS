@@ -455,10 +455,11 @@ class TestTheInternedGeometryCacheUnderContentIdentity:
         # the wrapper is what every caller resolves. A monkeypatch-only battery
         # is crash-safe by construction (L63h) — nothing on disk to restore.
         setattr(cache_cls, "from_mesh_and_quad", _spy)
+        held: list[object] = []  # HOLD the tables: a refcount artefact must not certify sharing (C3a, 2026-09-13)
         try:
             for _ in range(rounds):
-                loss_representation.geometry_cache_for(a, a.angular_closure)
-                loss_representation.geometry_cache_for(b, b.angular_closure)
+                held.append(loss_representation.geometry_cache_for(a, a.angular_closure))
+                held.append(loss_representation.geometry_cache_for(b, b.angular_closure))
         finally:
             setattr(cache_cls, "from_mesh_and_quad", original)
         _require(builds, "POSITIVE CONTROL: the spy must observe at least one build")
