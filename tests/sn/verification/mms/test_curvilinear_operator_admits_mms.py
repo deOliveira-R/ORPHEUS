@@ -82,7 +82,7 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     from orpheus.sn.coupled_system import build_streaming_collision
     from orpheus.sn.operators.boundary import SNBoundaryOperator
     LC = build_streaming_collision(solver.sn_mesh, solver.sn_mesh.mat_xs)
-    S = solver.scattering_op
+    S = solver.sn_mesh.system.factors.scattering
     B = SNBoundaryOperator(solver.sn_mesh)
 
     # ψ_ref,n = A(r)/W — isotropic per ordinate, zero boundary (vacuum).

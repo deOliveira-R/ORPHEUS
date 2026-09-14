@@ -157,7 +157,7 @@ class TestP0ScatteringEmission:
         expected = _ref_add_scattering(solver, Q, phi)
 
         Q_actual = Q.copy()
-        solver.scattering_op.transfer.add_p0_source(Q_actual, phi)
+        solver.sn_mesh.system.factors.scattering.transfer.add_p0_source(Q_actual, phi)
 
         np.testing.assert_allclose(Q_actual, expected, rtol=1e-13,
                                    err_msg="Scattering source mismatch")
@@ -168,7 +168,7 @@ class TestP0ScatteringEmission:
         phi = np.zeros_like(Q)
 
         Q_before = Q.copy()
-        solver.scattering_op.transfer.add_p0_source(Q, phi)
+        solver.sn_mesh.system.factors.scattering.transfer.add_p0_source(Q, phi)
         np.testing.assert_array_equal(Q, Q_before)
 
 
@@ -189,7 +189,7 @@ class TestP0N2NEmission:
         expected = _ref_add_n2n(solver, Q, phi)
 
         Q_actual = Q.copy()
-        solver.n2n_op.isotropic_energy.transfer.add_p0_source(Q_actual, phi)
+        solver.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_p0_source(Q_actual, phi)
 
         np.testing.assert_allclose(Q_actual, expected, rtol=1e-13,
                                    err_msg="N2N source mismatch")
@@ -635,7 +635,7 @@ class TestAnisotropicScattering:
         # ``build_aniso_source`` verb wrapping it retired at #448).  The
         # fixture is P1 by construction, so the activation is ASSERTED, not
         # branched on — a branch would pass asserting nothing if it flipped.
-        op = solver.scattering_op
+        op = solver.sn_mesh.system.factors.scattering
         assert not op.is_isotropic
         aniso = op._redistribute_ordinates(angular)
         np.testing.assert_allclose(aniso.values, 0, atol=1e-12,
@@ -700,14 +700,14 @@ class TestPerformanceBaseline:
         t0 = time.perf_counter()
         for _ in range(n_reps):
             Q_tmp = Q.copy()
-            solver.scattering_op.transfer.add_p0_source(Q_tmp, phi)
+            solver.sn_mesh.system.factors.scattering.transfer.add_p0_source(Q_tmp, phi)
         t_scat = (time.perf_counter() - t0) / n_reps * 1000
         print(f"\n  P0 scattering (transfer.add_p0_source): {t_scat:.3f} ms")
 
         t0 = time.perf_counter()
         for _ in range(n_reps):
             Q_tmp = Q.copy()
-            solver.n2n_op.isotropic_energy.transfer.add_p0_source(Q_tmp, phi)
+            solver.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_p0_source(Q_tmp, phi)
         t_n2n = (time.perf_counter() - t0) / n_reps * 1000
         print(f"  P0 (n,2n) (transfer.add_p0_source): {t_n2n:.3f} ms")
 
@@ -749,6 +749,6 @@ class TestPerformanceBaseline:
         t0 = time.perf_counter()
         for _ in range(n_reps):
             Q_tmp = Q.copy()
-            solver.scattering_op.transfer.add_p0_source(Q_tmp, phi)
+            solver.sn_mesh.system.factors.scattering.transfer.add_p0_source(Q_tmp, phi)
         t_scat = (time.perf_counter() - t0) / n_reps * 1000
         print(f"\n  [421g] P0 scattering (transfer.add_p0_source): {t_scat:.2f} ms")

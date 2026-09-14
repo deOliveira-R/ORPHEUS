@@ -150,7 +150,7 @@ def test_certificate_is_a_noop_without_a_convergence_claim():
     sn = _sphere()
     solver = SNSolver(sn)
     system = build_within_group_system(
-        sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
+        sn, solver.sn_mesh.mat_xs,
     )
     # Both no-op arms, now stated as RECORDS (#340 N2a — the certificate
     # reads the driver's own record rather than re-deriving the claim from

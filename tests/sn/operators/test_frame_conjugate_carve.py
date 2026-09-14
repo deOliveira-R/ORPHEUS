@@ -146,7 +146,7 @@ class TestLegendreMomentTransferHasRealSpaces:
     """
 
     def test_lambda_domain_is_codomain_is_basis_space(self, solver_p1_het):
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         frame = op.frame
         lam = LegendreMomentTransfer.on_frame(
             TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), op.frame, skip_l0=True,
@@ -174,7 +174,7 @@ class TestLegendreMomentTransferHasRealSpaces:
         asymmetric factor of the frame-conjugated kernel ``R∘Λ∘M`` (so
         ``(R∘Λ∘M)ᵀ`` falls out for free).
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         lam = LegendreMomentTransfer.on_frame(
             TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), op.frame, skip_l0=True,
         )
@@ -207,7 +207,7 @@ class TestLegendreMomentTransferHasRealSpaces:
         until Λ gets spaces. Build the inner product explicitly (mirrors the
         kernel's construction) and read its codomain.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         frame = op.frame
         lam = LegendreMomentTransfer.on_frame(
             TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), op.frame, skip_l0=True,
@@ -229,7 +229,7 @@ class TestLegendreMomentTransferHasRealSpaces:
     def test_kernel_remains_typed_operator_product(self, solver_p1_het):
         """``S.kernel`` stays a typed OperatorProduct (R∘Λ∘M) post-carve —
         an invariant the carve must preserve (not gate)."""
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         require(
             isinstance(op.kernel, OperatorProduct),
             f"P2: S.kernel must remain a typed OperatorProduct (R∘Λ∘M); got "
@@ -254,7 +254,7 @@ class TestFrameConjugateEqualsRLambdaM:
         probe d-i) reddens, while the physics-correctness reference stays the
         aniso MMS gate.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         frame = op.frame
         conjugate = _require_conjugate(frame)
         lam = LegendreMomentTransfer.on_frame(
@@ -277,7 +277,7 @@ class TestFrameConjugateEqualsRLambdaM:
 
     def test_conjugate_is_non_degenerate(self, solver_p1_het):
         """The reference ψ genuinely activates ℓ≥1 (else the leg is vacuous)."""
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         moments = op.frame.analysis.apply(psi.values)
         require(
@@ -298,7 +298,7 @@ class TestFrameReconstructAfterEqualsRLambda:
         the reference shares NO M projection with the SUT (independence on the
         input side).
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         frame = op.frame
         reconstruct_after = _require_reconstruct_after(frame)
         lam = LegendreMomentTransfer.on_frame(
@@ -329,7 +329,7 @@ class TestFrameReconstructAfterEqualsRLambda:
         moments to reconstruct_after reproduces the full-arm result, so
         reconstruct_after is exactly "conjugate with M already done".
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         frame = op.frame
         conjugate = _require_conjugate(frame)
         reconstruct_after = _require_reconstruct_after(frame)
@@ -369,7 +369,7 @@ class TestProductionApplyEqualsComposedOperator:
         production kernel property to the new composed operator. Reads
         ``S.kernel`` OFF the live operator (Mode-11: no routing around).
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         frame = op.frame
         conjugate = _require_conjugate(frame)
         lam = LegendreMomentTransfer.on_frame(
@@ -395,7 +395,7 @@ class TestProductionApplyEqualsComposedOperator:
         ``S`` with the §14.1 extraction — its lift is N2NOperator's own
         gate; ``S.apply`` is P0 + aniso.)
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         sn_mesh = solver_p1_het.sn_mesh
         psi = _aniso_psi(solver_p1_het)
         # CS4c step 5: the gain is composite-bound — the bulk action rides a
@@ -439,7 +439,7 @@ class TestProductionExecutesFrameConjugate:
     def test_kernel_property_actually_calls_frame_conjugate(
         self, solver_p1_het, monkeypatch,
     ):
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         frame = op.frame
         _require_conjugate(frame)  # skip PRE-IMPL
 

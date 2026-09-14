@@ -37,6 +37,9 @@ Discrete Ordinates Method (S\ :sub:`N`)
         fission: "SNMesh.fission — the ONE F of the Problem: the composite χ ⊗ νΣ_f bound on full_field_space, a cached_property minted through FissionOperator.from_solver_data. σ_t-FREE (its datum is the FissionKernel pair (χ, νΣ_f)), so it is a Problem datum independent of the σ merge unit. The forward k-outer reads the DERIVED .isotropic_energy face — [M] array_equal to the retired solver-side mint on 200/200 seeds, so the re-homing carries no arithmetic; the adjoint daggers the composite; the posed record carries WithinGroupSystem.production, the same F posed on the loss's own carrier. The mint is through the FACTORY deliberately: the anchors' census patches that classmethod by name, and a direct constructor would make it read zero. Canonical: ref sn-one-fission-per-problem"
         retained_order: "SNMesh.scattering_order — the retained Legendre order, clamped ONCE at construction (min over the materials' SigS stacks) and read by the solver, the adjoint posing, the within-group assembly and DSA. Canonical: ref sn-hub-retained-order"
         total_cross_section: "MaterialMesh.sigma_t_cell — the per-cell sigma_t in the principled (ng, *spatial) layout, a DATUM of the Problem since the consumers campaign's step 2 (2026-09-13, rulings O-5/O-6). Derived at construction from the materials through assemble_cell_xs (the same .T.reshape spelling eq sn-cell-flatten-roundtrip states) and REPLACED by with_cross_sections, which returns a NEW Problem — there is no override flag, no None, and no rebind on a live solver (SNSolver.rebind_cross_sections is DELETED). It enters _identity_key and NOT _contractibility_key, so a depletion or thermal-feedback step is another Problem over the SAME phase space: the fields pair, and the sigma-free geometry table is shared by identity. The hub's mat_xs is the ONE MaterialXSField per Problem (O-6) and its total_cross_section view READS this datum; the other three per-cell views still gather from the materials. Canonical: ref sn-sigma-is-a-problem-datum"
+        system: "SNMesh.system — the POSED within-group record (space, factors, loss, production), a cached_property and the ONE call site of build_within_group_system, so a Problem's joint system is built ONCE (consumers campaign step 2 unit C3b, ruling R-cc6 (iii), 2026-09-13). [M] a counting spy over one forward eigenvalue solve read n_outer builds before this and reads 1 after it; the adjoint and fixed-source paths already read 1, which is why the defect was invisible from two of the three entry points. The builder's scattering_op=/n2n_op= injection keywords are DELETED with it — the Problem's A is a function of the Problem's data alone. Canonical: ref sn-the-problem-poses-its-pencil"
+        pencil: "SNMesh.pencil — the Problem's LAST step: OperatorPencil(system.loss, system.production), the pair (A, F) on ONE space, with the ends law refusing a pair posed on two spaces (the pre-step-2 defect: F lived on bulk_space while A lived on the coupled space, EQUAL shapes, so a shape-keyed check would have admitted it). Carries at(sigma) = A - sigma*F (affine; at(0) IS the lhs object), .H, is_regular, rhs_rank (the Weierstrass-Kronecker count of finite eigenvalues; [M] 4 on the two-region slab anchor = its four fissile cells) — and NO inverse and NO resolvent, because how the pencil is inverted is the Strategy's. Canonical: ref the-operator-pencil"
+        eigen_posing: "SNMesh.eigen_posing — the QUESTION asked of the pencil: EigenPosing(pencil, K_MAP), the k-eigenvalue posing A psi = F psi / k with the spectral map mu -> 1/k. Its verbs are residual(psi, lam), rayleigh(psi, w) (SNSolver.compute_keff is the measure-weighted member — a REFERENCE-class agreement, [M] the gap IS the convergence residual, rel 7.2e-10 at default tolerances and 6.6e-14 with more outers), balance(psi, lam, w) and a NULLARY H() (k-dagger = k). The source-driven sibling SourcePosing(operator, source) ships in orpheus.numerics.posing but has no production consumer yet; source_posing(q) on this hub and KEigenvalue's adoption of the posing are the NEXT commit. Canonical: ref the-operator-pencil"
       strategy:                        # solver-owned; NOT members of the posed record
         splitting: "A = M − N is a Strategy VALUE (orpheus.sn.splitting.Splitting), never a member of the posed WithinGroupSystem record. The primitive is the LABELLING of A's terms (LossTerm = an operator together with the ±1 coefficient it carries in A); M and N are DERIVED from it, so they cannot disagree with it. Two labellings ship: jacobi (every geometry, and the only one admitted on a seed-carrying mesh) and gauss_seidel (multi-D Cartesian, seedless — splits B_a into B_lower implicit + B_upper explicit on disjoint rows). The law M − N = A is checkable per value (Splitting.law_residual): bit-exact seedless, round-off on the carrying block grid. Until 2026-09-13 the record carried the pair as implicit_operator/explicit_gains, while the Gauss-Seidel driver re-derived a second one behind it. Canonical: ref sn-splitting-is-a-strategy-value"
         schedule: "the inner_schedule string becomes a SweepSchedule at ONE site, orpheus.sn.splitting.resolve_schedule, which carries the geometry gate (is_cartesian and not is_1d); nothing downstream of it reads the string"
@@ -814,10 +817,15 @@ Three properties follow, and each was a criterion:
    remain mesh attributes for now.  The :math:`\sigma` **rebind** that
    made the first of them a staleness hazard is gone — σ became a
    Problem datum at C3a, so a stash cannot serve one Problem's table to
-   another — but the memo itself still sits on a save state, and it
-   re-homes onto the
+   another — but the memo itself still sits on a save state.  ⚠ That
+   sentence used to end *"and it re-homes onto the*
    :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
-   instance when the hub gains its posed record.)
+   *instance when the hub gains its posed record"*.  The hub gained its
+   posed record on 2026-09-13
+   (:ref:`sn-the-problem-poses-its-pencil`) and the memo did **not**
+   move with it: the re-homing is the next commit of that unit, and
+   ``SNSolver.coll_cache`` remains the tree's only strong holder of the
+   geometry table until it lands.)
 #. **The mechanism dies with the layer it serves.**  The strategy layer
    is retirement-bound: when the lazy solution strategy it exists to
    serve is built, the interning goes with it, rather than being stranded
@@ -1063,7 +1071,10 @@ and no longer takes the argument;
 <orpheus.sn.acceleration.dsa.DSALowOrderSystem.from_sn_mesh>` read it
 off the hub they are already handed;
 :func:`~orpheus.sn.coupled_system.build_within_group_system` reads it
-when it constructs a fresh :math:`S` or :math:`N_{2n}`; and the adjoint
+when it constructs :math:`S` and :math:`N_{2n}` — which, since
+2026-09-13, is **always**, because the ``scattering_op=`` / ``n2n_op=``
+injection keywords that let a caller supply them instead are deleted
+(:ref:`sn-the-problem-poses-its-pencil`); and the adjoint
 posing takes the hub alone.  The four entry points
 (:func:`~orpheus.sn.solver.solve_sn`,
 :func:`~orpheus.sn.solver.solve_sn_adjoint`,

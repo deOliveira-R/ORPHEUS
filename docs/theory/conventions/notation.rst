@@ -165,6 +165,45 @@ The six leaves and their composites
        operator whose dominant eigenvalue it is.
    * - :math:`q_{\mathrm{ext}}`
      - External (inhomogeneous) source.
+   * - :math:`M`
+     - The **pencil's right-hand operator** — the *eigen-operator*.
+       :math:`M = F` for the :math:`k` problem, :math:`M = T = 1/v`
+       for :math:`\alpha`.  ⚠ Do **not** read this :math:`M` as the
+       splitting's implicit part: that one is
+       :attr:`Splitting.implicit <orpheus.sn.splitting.Splitting.implicit>`
+       and is a *Strategy* value, spelled :math:`M` in
+       :math:`A = M - N` (crosswalk row 8).  Two tiers, one letter —
+       always say which.
+   * - :math:`\mathcal{A}(\sigma) = A - \sigma M`
+     - The **pencil**: the degree-1 operator FAMILY the pair
+       :math:`(A, M)` generates, realized as
+       :class:`~orpheus.numerics.pencil.OperatorPencil` since
+       2026-09-13.  :math:`\mathcal{A}(0)` **is** :math:`A` (by
+       identity, not by value).  A Problem's last step is this object;
+       how it is inverted is the Strategy's
+       (:ref:`the-operator-pencil`).
+   * - :math:`\Lambda`, :math:`\sigma`, :math:`\mu`, :math:`\lambda`
+     - The pencil's parameter set, a point in it, the **pencil
+       eigenvalue**, and the **physical** eigenvalue the spectral map
+       carries it to (:math:`k = 1/\mu`, :math:`\alpha = -1/\mu`).
+       :math:`\sigma` is an INPUT for a source-driven problem and
+       :math:`\mu` an OUTPUT for an eigenproblem — which is the axis
+       that separates the two kinds.  ⚠ Two collisions here, both live:
+       :math:`\mu` is also the direction **cosine** everywhere else in
+       this book, and :math:`\sigma` is also a **cross section**
+       (:math:`\Sigma` is the macroscopic one, :math:`\sigma` the
+       microscopic).  Read the tier from the context, and prefer
+       spelling the physical eigenvalue :math:`k` or :math:`\alpha`
+       outright.
+   * - :math:`\beta(\psi, \lambda)`
+     - The **balance functional**
+       :math:`\langle w,\, \mathcal{A}(\mu(\lambda))\psi - q\rangle`,
+       shared by both posing kinds: the eigenvalue kind SOLVES
+       :math:`\beta = 0` for :math:`\lambda` (that is what a Rayleigh
+       quotient is), the source-driven kind EVALUATES it (that is the
+       exit balance defect).  ⚠ Unrelated to the closure
+       parametrization :math:`\beta` of the discretization table below
+       — crosswalk row 7's family.
 
 Discretization factors
 ----------------------
@@ -296,6 +335,20 @@ from each other, or from itself.
        parametrization; :math:`\tau` = closure weight
        (S\ :sub:`N`) vs optical path (CP / MoC); :math:`\mu` = a
        **cosine**; Fourier :math:`\lambda` carries length units.
+
+       ⚠ **Four of these gained a second, ORPHEUS-internal meaning when
+       the pencil became a type** (2026-09-13,
+       :ref:`the-operator-pencil`).  On the posing tier :math:`\mu` is
+       the **pencil eigenvalue**, :math:`\lambda` the physical one it
+       maps to, :math:`\alpha` the **time** eigenvalue (not the
+       redistribution coefficient — a collision that has already cost a
+       campaign one cycle: the two differ in what they index and what
+       they pair with, a single scalar against a mass operator versus a
+       per-level per-ordinate coefficient against the angular measure),
+       and :math:`\beta` the **balance functional**.  The tier is
+       usually clear from the neighbours; when it is not, spell the
+       physical eigenvalue :math:`k` or :math:`\alpha_{\rm time}` and
+       say so.
      - The Larsen–Morel review :cite:`LarsenMorel2010` writes the sphere
        redistribution coefficient as :math:`\beta` (their
        Eq. (1.23b) — identical to :cite:`BaileyMorelChang2010`'s
@@ -338,6 +391,18 @@ from each other, or from itself.
        operand* of the row above. So the crosswalk is
        ``Splitting.implicit`` :math:`\leftrightarrow` ``A`` and
        ``Splitting.explicit`` :math:`\leftrightarrow` ``*gains``.
+
+       ⛔ **And a THIRD** :math:`M` **joined on 2026-09-13** — the
+       pencil's eigen-operator
+       :attr:`OperatorPencil.rhs <orpheus.numerics.pencil.OperatorPencil.rhs>`,
+       which for the :math:`k` problem is :math:`F`.  So the letter now
+       names the splitting's implicit part on the Strategy tier and the
+       production operator on the Problem tier, and the two are *never*
+       the same object: :math:`M_{\rm splitting}` is a summand-side
+       decomposition of :math:`A`, while :math:`M_{\rm pencil}` is
+       explicitly **not** a summand of :math:`A` (within-group fission is
+       zero).  When both tiers appear in one paragraph, name the object
+       rather than the letter (:ref:`the-operator-pencil`).
 
        ⚠ **Which object holds the splitting changed on 2026-09-13.**
        From 2026-07-28 until the consumers campaign's step 2 the

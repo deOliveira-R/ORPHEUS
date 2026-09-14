@@ -12900,3 +12900,147 @@ would be a twin API for one law, and with no marker of its own it would have mov
 generated matrix's orphan count 2 → 3. Shipped as an **unlabelled** `.. math::` with an RST
 comment saying why, because what is new is the SLOT (a stored datum, not a derived view) and
 that is a typing claim, not an equation.
+
+---
+
+## L-107 — Consumers campaign step 2, unit C3b-1: the pencil and the posings become OBJECTS (2026-09-13)
+
+**Pass:** 7 `.rst`, +1259/−91. A NEW general-theory section
+(`operator_algebra.rst` `.. _the-operator-pencil:`, ~430 lines), a NEW SN-side section
+(`solver.rst` `.. _sn-the-problem-poses-its-pencil:`, ~190 lines), a `history.rst` row,
+the `index.rst` machine header's `problem:` block ×3, plus repairs on
+`coupled_block_operator.rst`, `infinite_medium.rst`, `notation.rst`. Working tree
+uncommitted; no Sphinx build by me (main agent builds once).
+
+### 1. ⭐⭐ WHERE a new cross-method TYPE is documented is decided by the TYPE's package, not by the brief's default
+
+The brief offered "the SN solver page (or `operator_algebra.rst` if the general algebra is
+the better home — decide and say why)". The discriminator is not prose taste: `[M]`
+`OperatorPencil`/`EigenPosing`/`SourcePosing` live in `orpheus/numerics/`, and **two** hubs
+pose them (`SNMesh` and `HomogeneousProblem`). Putting the general theory on an SN chapter
+page would force `infinite_medium.rst` — a foundations page — to `:ref:` up into a METHOD
+chapter for the definition of a numerics type, which inverts the corpus's own layering.
+
+⟹ **ask which package the type lives in, and count the hubs that pose it.** ≥2 methods ⟹
+foundations; the method page gets a SHORT section carrying only its own half (what its hub
+carries, what its solver stopped carrying, its own measured counts) and cross-refs the
+general one. That split also survives the next adopter: a third hub adds a row to the
+foundations table and touches no method page.
+
+### 2. ⭐⭐ TWO honest `[M]` counts of "the same thing" differ by the PREDICATE — publish BOTH with their predicates, and the reconciliation is the finding
+
+Two relayed counts from the carve's own landing log did not reproduce under the obvious
+predicate, and in both cases *both* numbers were right:
+
+* *"199 attribute reads / 31 files"* — my AST census of every `Attribute` node named
+  `scattering_op`/`n2n_op` reads **216 / 33**. The carve's predicate was "receiver is
+  `SNSolver`-derived"; the extra 17 are locals, parameters and the retiring keywords.
+* *"34 keyword injections / 14 files"* — my whole-tree AST census reads **43 / 16**, and it
+  **closes exactly**: 43 − 8 (`orpheus/sn/solver.py`'s own forwarding calls) − 1 (an
+  untracked `scratch/` probe) = 34, and 16 − 2 files = 14.
+
+⟹ when a relayed count does not reproduce, **do not adjudicate** — find the predicate that
+makes both true and print the arithmetic. An exact reconciliation is stronger evidence than
+either number: it proves the carve's census was complete AND names what it excluded. Both
+sites now carry both counts with their predicates. (`plan-authoring` §2's FILTER clause,
+from the consuming side.)
+
+### 3. ⭐⭐ A page's "what is DEFERRED, and why" table is where a LANDING silently rots — audit each row for which of its THREE parts moved
+
+C2's fission section carried a 4-row deferral table. C3b-1 landed the same day and moved
+**three different things** in it, each needing a different edit:
+
+| row | what moved | the edit |
+|---|---|---|
+| the `1/k` division | its **precondition** ("when the pencil object lands and can carry it") — discharged; the row itself still open | ⚠ *precondition discharged, row still open* |
+| `F_adjoint = F†` as a theorem | **half** — the pair is reified so the equality is STATABLE, but `_adjoint_posing_parts` still hand-daggers, so it is not SPELLED | ⚠ *half discharged*, naming which half |
+| `production` shared between two builds | **fully** — the hub caches the record and is the builder's only caller | ✅ *DISCHARGED*, plus "the literal sentence stays true and stops mattering" |
+
+⟹ a deferral row has three separable parts — its **claim**, its **precondition**, and its
+**mechanism** — and a landing can move any one. Flipping a tense loses which. Annotate in
+place under the row (`plan-authoring` §3) and say explicitly which part survived.
+
+### 4. ⭐ A forward-pointer of the form "X re-homes when Y happens" goes false the moment Y happens — grep the CONDITION, not the subject
+
+`index.rst` ended a paragraph *"…and it re-homes onto the `StreamingCollisionOperator`
+instance **when the hub gains its posed record**"*. The hub gained it in this very commit and
+the memo did **not** move (`[M]` `_coll_cache` still poked at `solver.py:1474`). No build, no
+`dead_references`, no symbol grep sees it: every symbol it names is alive and the sentence is
+grammatical. Same shape in `solver.rst` (*"until the hub gains its own `system` (the
+campaign's next unit)"*).
+
+⟹ after any landing, **grep the corpus for the landing's own event-phrases** — *"when the hub
+gains"*, *"the campaign's next unit"*, *"until X lands"*, *"is deferred to"* — and read each
+hit against what just shipped. A conditional forward-pointer is a dated claim wearing a
+subordinate clause.
+
+### 5. ⭐⭐ A changelog's own staleness MARKER rots, and the cheapest tell is a row that CONTRADICTS ITSELF ACROSS TWO COLUMNS
+
+`operator_algebra.rst`'s sibling changelog had **three** rows marked `in dev`. `[M]`
+**all three had merged**: two of them said `merged to ``main``` in their own *Where* cell
+while the *When* cell still read `in dev`, and the third named
+`refactor/unweld-p49a-closure-owns-march`, a branch that no longer exists (its landing record
+`6b111493` is an ancestor of `main`). Found not by the brief but by running my standing
+"re-run the ancestor check on every unstamped row" habit on a page I was already editing.
+
+⭐ Two residues worth keeping: (a) de-staling the three exposed that the table is **not**
+strictly reverse-chronological — the `in dev` rows had been floated to the top and a
+2026-08-19 row sits among the June entries; re-ordering a 7600-line file's table is real risk,
+so the honest repair is a preamble clause *"read the When column, not the position"* + name the
+four offenders, and DEFER the sort. (b) The preamble's *(in development)* convention now has
+zero occupants — keep the convention (future rows need it) and add a dated `⚠` saying it rots
+and how it was caught. A convention with no live instance is not dead, it is unexercised.
+
+### 6. ⭐ A relayed measurement that no gate asserts must SAY it is not gated
+
+The brief's `rayleigh(ψ, w=1)` vs `compute_keff` figures (`rel 7.2e-10 → 6.6e-14`) are
+recorded in a test module's docstring and asserted by **nothing** — and a residual is a
+property of mesh × quadrature × tolerance. Publishing them bare would have minted a number
+future sessions quote as a constant.
+
+⟹ publish the figure, then in the SAME admonition name what IS gated (here: the Rayleigh
+quotient at the **exact** eigenpair equals the eigenvalue for *any* weight — a theorem at the
+solution, tolerance-free) and tell the reader to re-measure rather than quote. The pairing is
+what makes the number safe: the theorem is the durable claim, the residual is the anecdote.
+
+### 7. ⭐ Re-derive a relayed `[M]` on the SHIPPED fixtures; the extra rows you get are free evidence
+
+Re-running the pencil's own queries took two probes and produced three things the brief did
+not carry: `rhs_rank` = 1 / 0 / 0 / 0 on the A/B/C/D families at **all three** group counts
+(so the "12 mixtures" denominator is enumerable, not a summary); `k_inf` vs `trace(A⁻¹F)` at
+4g differs by **exactly one ulp** — and the brief's `2.2e-16` is the **absolute** difference
+while the relative one is `1.5e-16`, *both honest, different statistics*; and on the meshed SN
+slab `rhs_rank == 4`, which is the count of **fissile cells** (4 of 8 are mixture `A`) —
+Weierstrass–Kronecker made concrete on a 160-dof problem, a fact no memo carried.
+
+⟹ the statistic, not the number, is what a relayed figure most often loses (L-100's rule, in a
+new dress). Print both and say which is which.
+
+### 8. ⭐ The four "NOT landed" claims are the pass's highest-risk sentences — re-verify them at the END, against the tree
+
+A section that says *"this did not ship"* is a negative claim about a tree that is being edited
+by someone else. I verified `source_posing` (0 in `orpheus/`), `KEigenvalue` ← `EigenPosing`
+(0), `pencil.H` in `solver.py` (0), `SourcePosing` production consumers (0) and the surviving
+`_coll_cache` poke (2) **twice** — once while drafting and once after the last edit, with
+`git log --oneline -1` and `git status --porcelain -- orpheus/ tests/ | wc -l` unchanged (38)
+across both. Cheap, and the only thing that distinguishes a correct deferral list from a
+snapshot of a tree that has moved.
+
+### 9. ⭐ Gate mechanics that worked, with their positive controls
+
+* **docutils error-SET diff per file, by KIND**, pre-vs-post (`git show HEAD:<f>` as the
+  baseline). The message format is `<string>:N: (WARNING/2) text` — my first regex matched
+  `WARNING/2 (<string>, line N)` and read **0 → 0 on everything**, i.e. a dead harness reading
+  as a clean tree. A 3-line control fixture (short underline + directive-without-blank-line)
+  exposed it in one command. Final reading: 7 files, **zero new diagnostic KINDS**; every count
+  delta is `Unknown interpreted text role` (Sphinx-only roles docutils cannot know) plus
+  `Error in "math" directive:` +3, exactly my three `:label:`-ed blocks.
+* **Emphasis-parity over ADDED lines flags list-table bullets** (`* - `) as odd asterisks —
+  all five hits were false positives, and one more was an artefact of diffing a PARTIAL
+  paragraph (added lines only, pre-existing neighbours absent). Verify a parity hit on the
+  WHOLE paragraph from the file before believing it.
+* **`yaml.safe_load` the machine header pre AND post** — HEAD parsed (3 `problem:` keys), post
+  parsed (6). The pre-parse is the control that proves a break is yours.
+* **vv-status schema check**, mirroring `tests/_harness/audit.py`: 0 violations tree-wide, and
+  my three new sentinels each resolve to a `:label:` in their own file. `documented` remains
+  the only legal status (L-106).

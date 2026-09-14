@@ -43,6 +43,9 @@ means merged). **No owed Sphinx pass on merged work.** Landed SN milestones live
 in the digest the pointer names; re-summarising it here is a THIRD copy and is what bloats this
 file. `git log --oneline -- docs/` is the real index.
 
+- **Consumers step 2 C3b-1** — a cross-method TYPE is documented where its PACKAGE lives, not
+  where the brief defaults (2026-09-13; 7 `.rst`, +1259/−91; uncommitted on
+  `refactor/consumers-step2`) → L-107
 - **Consumers step 2 C3a** — σ_t is a Problem DATUM; the brief's `vv-status: verified` would
   have been a HARD audit error (2026-09-13; 6 `.rst`, +698/−54; uncommitted on
   `refactor/consumers-step2`) → L-106

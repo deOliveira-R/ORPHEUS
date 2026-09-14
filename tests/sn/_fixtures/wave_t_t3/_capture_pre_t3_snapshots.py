@@ -165,7 +165,7 @@ def main() -> None:
 
     # ── P1 fixture (the highest-leverage carve target) ────────────────
     p1_solver = build_p1_solver()
-    p1_op = p1_solver.scattering_op
+    p1_op = p1_solver.sn_mesh.system.factors.scattering
 
     psi = _make_psi(p1_solver, seed=20260530)
     phi = _make_phi(p1_solver, seed=20260530 + 1)

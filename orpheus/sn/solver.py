@@ -59,7 +59,6 @@ from .coupled_system import (
     WithinGroupSystem,
     _system_a_member,
     _system_b_member,
-    build_within_group_system,
 )
 from .splitting import Splitting, resolve_schedule
 from orpheus.transport.operators.angular_lift import AngularLift
@@ -1410,37 +1409,20 @@ class SNSolver:
         # Volume array for keff computation
         self.volume = sn_mesh.volumes
 
-        # ── The two cached reaction operators ────────────────────────────
-        # S and F are the only operators worth caching on the solver: they
-        # are σ-read-through (both consume the single ``self.sn_mesh.mat_xs``; the
-        # per-material dispatch lives inside :class:`MaterialXSField`'s typed
-        # verbs, not on the operators — #197 PR-TYPED-1), so they survive a
-        # cross-section rebind untouched and are shared BY IDENTITY into
-        # every within-group build (``scattering_op=`` on
-        # :func:`build_within_group_system`).
+        # The scattering / (n,2n) leaves are the Problem's (``sn_mesh.system.factors``,
+        # step 2 C3b) — the solver mints no operator copy and injects nothing.
         #
-        # The loss composite ``L + C`` is deliberately NOT cached here.  The
-        # ONE LC spelling is :func:`build_streaming_collision`, and every
-        # production solve reaches it through
-        # :func:`build_within_group_system`, which builds the composite it
-        # actually inverts.  A second, solver-held copy would be a twin that
-        # can silently drift from the one the sweep uses (it did: the former
-        # ``self.L``/``self.S``/``self.F`` triple was production-dead and
-        # misnamed — ``self.L`` held ``L + C`` while the codebase's ``L`` is
-        # the σ-free streaming leaf).  Consumers needing the composite call
-        # ``build_streaming_collision(sn_mesh, mat_xs)`` directly.
-        self.scattering_op = ScatteringOperator.from_solver_data(
-            mat_xs=self.sn_mesh.mat_xs,
-            scattering_order=self.scattering_order,
-            space=sn_mesh.full_field_space,
-        )
-        # §14.1 — the (n,2n) channel is its own first-class operator; the
-        # within-group algebra spells (L+C) − S − N₂ₙ − B explicitly.
-        self.n2n_op = N2NOperator.from_solver_data(
-            mat_xs=self.sn_mesh.mat_xs,
-            scattering_order=self.scattering_order,
-            space=sn_mesh.full_field_space,
-        )
+        # The loss composite ``L + C`` is the PROBLEM's (``sn_mesh.system.factors
+        # .streaming_collision``, step 2 C3b): built ONCE per hub through the
+        # ONE LC spelling :func:`build_streaming_collision`, and it is the object
+        # every Strategy value inverts.  The solver holds no copy — the pre-C3b
+        # ruling that a solver-held ``L + C`` would be a drifting twin (the
+        # former ``self.L``/``self.S``/``self.F`` triple was production-dead and
+        # misnamed) is honoured by the stronger move: the hub's record is the
+        # only copy, and σ_t cannot be rebound under it (σ is a Problem datum).
+        # The scattering / (n,2n) leaves live on the Problem's posed record
+        # (``sn_mesh.system.factors``) since step 2 C3b — the solver holds no
+        # operator copy (the seam that let a test inject a foreign S retired).
         # The fission ENERGY binding on the scalar bulk space (CS4c
         # step 4 — the binding-arity table's F row made true): the
         # k-outer feeds bare (ng, *spatial) scalar arrays, and the
@@ -1453,6 +1435,12 @@ class SNSolver:
         # σ_t binding.  Hot path consumes (geom, coll) without per-cell
         # StreamingTerms allocation.  Only applicable to 1-D meshes with
         # ReducedStreamingOperator — 2-D Cartesian uses the wavefront path.
+        # Bind the Strategy to a POSED Problem at construction (step 2 C3b):
+        # the hub's record is cached, so this costs nothing on the solve path,
+        # and a Problem that cannot be posed refuses HERE — the moment-mass
+        # guard on an LD curvilinear space fires before any Strategy machinery
+        # (the scan-closure guard below), which is the deeper cause.
+        self.sn_mesh.system
         self.geom_cache: StreamingCoefficientCache | None = None
         self.coll_cache: CollisionCache | None = None
         # The two-stratum scan cache feeds the DAG-FREE scan strategies
@@ -1474,7 +1462,7 @@ class SNSolver:
             # the table's strong HOLDER (the intern is weak on the value since
             # C3a — without a holder the walk rebuilds it per sweep) — the eager σ posing
             # (and its ``_coll_cache`` stash the walk reads) re-homes onto
-            # the StreamingCollisionOperator instance at step 2's C3b; the
+            # the StreamingCollisionOperator instance at step 2's C3b-2; the
             # σ it poses is the Problem's datum (``sn_mesh.mat_xs``).
             from orpheus.sn.loss_representation import geometry_cache_for
 
@@ -1574,7 +1562,7 @@ class SNSolver:
         # (n,2n) contribution — Issue #197 PR-TYPED-1: the per-material
         # dispatch loop (and the yield) lives ONLY inside
         # :meth:`TransferMaterialField.add_to_group_rate` (§14.1).
-        self.n2n_op.isotropic_energy.transfer.add_to_group_rate(
+        self.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
             rate, flux_distribution, self.volume,
         )
 
@@ -1628,7 +1616,7 @@ class SNSolver:
             self.sn_mesh.mat_xs.fission_production_field
         ).evaluate(flux_distribution)
         n2n_rate = np.zeros(self.ng)
-        self.n2n_op.isotropic_energy.transfer.add_to_group_rate(
+        self.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
             n2n_rate, flux_distribution, self.volume,
         )
         return float(fission + n2n_rate.sum())
@@ -1684,7 +1672,7 @@ class SNSolver:
             self.sn_mesh.mat_xs.absorption_cross_section_field
         ).evaluate(flux_distribution)
         emission_n2n = np.zeros(self.ng)
-        self.n2n_op.isotropic_energy.transfer.add_to_group_rate(
+        self.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
             emission_n2n, flux_distribution, self.volume,
         )
         leakage = self._boundary_leakage_rate(production)
@@ -1952,10 +1940,7 @@ class SNSolver:
         # (default boundary-G-S on 2-D Cartesian; the coupled arm and 1-D
         # fall to Jacobi structurally).  Phase-5a angular-windowing folds
         # in via :func:`_maybe_window` inside the SI builder. ──────────
-        system = build_within_group_system(
-            self.sn_mesh, self.sn_mesh.mat_xs, scattering_op=self.scattering_op,
-            n2n_op=self.n2n_op,
-        )
+        system = self.sn_mesh.system  # the Problem's posed record, built ONCE per hub (R-cc6 (iii))
         splitting = Splitting.from_schedule(system, self.schedule)
         si, _base, _gains, windowed = _within_group_si(
             splitting, self.sn_mesh,
@@ -1984,7 +1969,7 @@ class SNSolver:
             # paired NATIVE with a zero ψ_B on a carrying mesh (B.2d).
             if windowed:
                 initial_guess = _windowed_cold_start(
-                    self.scattering_op, self.sn_mesh, history_depth=2,
+                    self.sn_mesh.system.factors.scattering, self.sn_mesh, history_depth=2,
                 )
             else:
                 cold = _unwindowed_cold_start(self.sn_mesh, history_depth=2)
@@ -2113,10 +2098,7 @@ class SNSolver:
         # ``_within_group_krylov``; shared with the SI and fixed-source
         # paths; the cached scattering operator injects through the cache
         # seam). ──────────────────────────────────────────────────────
-        system = build_within_group_system(
-            self.sn_mesh, self.sn_mesh.mat_xs, scattering_op=self.scattering_op,
-            n2n_op=self.n2n_op,
-        )
+        system = self.sn_mesh.system  # the Problem's posed record, built ONCE per hub (R-cc6 (iii))
         # GMRES iterates on the Jacobi labelling whatever ``self.schedule``
         # says: the boundary-G-S fold is an SI rate device (the Krylov
         # operator is the whole ``A``; only the preconditioner is a
@@ -2631,10 +2613,7 @@ def _adjoint_posing_parts(sn_mesh: SNMesh):
     )
     from orpheus.transport.fields.angular_flux import AngularFlux as _AF
 
-    mat_xs = sn_mesh.mat_xs
-    system = build_within_group_system(
-        sn_mesh, mat_xs,
-    )
+    system = sn_mesh.system  # the Problem's posed record (R-cc6 (iii))
     # The adjoint poses on the JACOBI labelling — the whole boundary a
     # lagged gain, so ``gain.H`` daggers B_a entire (no octant fold to
     # transpose).  The value is minted from the record's factors, never
@@ -3616,10 +3595,7 @@ def _solve_fixed_source_si(
     # builder folds in the Phase-5a angular-windowing.  ``base_implicit``
     # (un-wrapped) + ``gains`` are kept for the final full-angular
     # reconstruction below. ────────────────────────────────────────────
-    system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
-        n2n_op=solver.n2n_op,
-    )
+    system = sn_mesh.system  # the Problem's posed record (R-cc6 (iii))
     splitting = Splitting.from_schedule(
         system, resolve_schedule(sn_mesh, inner_schedule),
     )
@@ -3644,7 +3620,7 @@ def _solve_fixed_source_si(
         )
     if windowed:
         initial_guess = _windowed_cold_start(
-            solver.scattering_op, sn_mesh,
+            solver.sn_mesh.system.factors.scattering, sn_mesh,
             history_depth=q_a_ext.history_depth,
         )
     else:
@@ -3876,10 +3852,7 @@ def _solve_fixed_source_krylov(
     # closure).  A bulk-sized restart re-truncates GMRES on the trace+seed
     # DOFs.  Size it from the state the driver ravels (the multi-moment φ̂
     # axis + the trace + the ψ½ state all track automatically).
-    system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
-        n2n_op=solver.n2n_op,
-    )
+    system = sn_mesh.system  # the Problem's posed record (R-cc6 (iii))
     splitting = Splitting.from_schedule(
         system, resolve_schedule(sn_mesh, "jacobi"),
     )

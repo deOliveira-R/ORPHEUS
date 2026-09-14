@@ -10,52 +10,74 @@ coordinated into the production eigenvalue solve, and, from the
 converged flux, the frame projections (homogenisation, condensation)
 that hand a coarse problem back to the same solver.
 
-At construction time :class:`~orpheus.sn.solver.SNSolver` caches
-**two** operators — the ones that read their cross sections *through*
-the hub's one :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
-rather than snapshotting values.  It cached **three** until
-2026-09-13: the fission binding left for the Problem hub at the
-consumers campaign's step 2, and the remaining two follow it when the
-hub gains its posed record (:ref:`sn-one-fission-per-problem`).
+⛔ **Since 2026-09-13,** :class:`~orpheus.sn.solver.SNSolver` **caches no
+operator at all.**  It held three until that day, and lost all three to
+the consumers campaign's step 2 in the order the campaign's own units
+landed:
 
-.. note:: That sentence read *"and therefore survive a rebind
-   untouched"* until 2026-09-13.  There is no rebind any more:
-   :math:`\sigma_t` is a **datum of the Problem** and a σ-variant is
-   another Problem, so nothing on a live solver is mutated and the
-   read-through property is about *sharing one field*, not about
-   surviving a mutation (:ref:`sn-sigma-is-a-problem-datum`).
+.. list-table::
+   :header-rows: 1
+   :widths: 26 20 54
 
-* :attr:`SNSolver.scattering_op` —
-  :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
-  carrying the P0 in-scatter + the Pℓ Galerkin reconstruction (Wave D
-  Issue 13).
-* :attr:`!SNSolver.n2n_op` —
-  :class:`~orpheus.transport.operators.n2n.N2NOperator`, the
-  :math:`(n,2n)` emission.  It was a **passenger inside**
-  ``scattering_op`` until CS4c step 3 (2026-08-30), when the channel
-  became first-class because its bundling — scattering-like or
-  production-like — is context-dependent and must not be decided at
-  the operator level (:ref:`n2n-reactions`, :ref:`sn-n2n-adjoint`).
-  Both within-group builds are threaded the pair, and every
-  ``(n,2n)`` verb on the solver — since #448 that is the group-rate
-  accumulations alone; the ``_add_n2n_source`` delegator retired with
-  the hand-built finalize source that was its only caller — routes
-  through its energy binding's field.
+   * - retired slot
+     - went where
+     - what reads it now
+   * - ``SNSolver.fission_op``
+     - the Problem hub (unit C2)
+     - :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
+       — the *composite*
+       :class:`~orpheus.transport.operators.fission.FissionOperator` on
+       the full field.
+       :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source` applies
+       its derived energy face ``sn_mesh.fission.isotropic_energy``,
+       bit-identically to the retired mint
+       (:ref:`sn-one-fission-per-problem`)
+   * - ``SNSolver.scattering_op``
+     - the Problem's posed record (unit C3b)
+     - ``sn_mesh.system.factors.scattering`` — the
+       :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
+       carrying the P0 in-scatter + the P\ :sub:`ℓ` Galerkin
+       reconstruction (Wave D Issue 13), minted ONCE per Problem at the
+       hub's retained Legendre order
+   * - ``SNSolver.n2n_op``
+     - the Problem's posed record (unit C3b)
+     - ``sn_mesh.system.factors.n2n`` — the
+       :class:`~orpheus.transport.operators.n2n.N2NOperator`.  It was a
+       **passenger inside** ``scattering_op`` until CS4c step 3
+       (2026-08-30), when the channel became first-class because its
+       bundling — scattering-like or production-like — is
+       context-dependent and must not be decided at the operator level
+       (:ref:`n2n-reactions`, :ref:`sn-n2n-adjoint`).  Every
+       ``(n,2n)`` verb on the solver — since #448 that is the group-rate
+       accumulations alone; the ``_add_n2n_source`` delegator retired
+       with the hand-built finalize source that was its only caller —
+       routes through its energy binding's field
 
-⛔ **Not cached here since 2026-09-13:** the fission operator.  Until
-the consumers campaign's step 2 the solver carried a third slot,
-``SNSolver.fission_op``, holding an
-:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`
-minted in ``__init__``.  That attribute is **deleted**.  The one
-:math:`F` of the problem is now the hub's
-:attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>` —
-the *composite* :class:`~orpheus.transport.operators.fission.FissionOperator`
-on the full field — and
-:meth:`~orpheus.sn.solver.SNSolver.compute_fission_source` applies its
-derived energy face ``sn_mesh.fission.isotropic_energy``, bit-identically
-to the retired mint.  The full account, including why the composite is
-the primary and the bulk face the reduction, is
-:ref:`sn-one-fission-per-problem`.
+.. note:: **What the head of this chapter used to say, and why every
+   version of it was a description of a seam.**
+
+   Until 2026-09-13 it read *"the solver caches two operators … which
+   read their cross sections through the hub's one*
+   :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
+   *rather than snapshotting values, and therefore survive a rebind
+   untouched"*.  The trailing clause went first: there **is** no rebind
+   any more — :math:`\sigma_t` is a datum of the Problem and a σ-variant
+   is another Problem (:ref:`sn-sigma-is-a-problem-datum`).  Then the
+   subject went too, because a solver-held copy of a Problem's leaf is
+   the thing the campaign exists to remove.
+
+   Read-through was never the property that mattered; it was the
+   *mitigation* for holding a copy of something that was not the
+   solver's.  The copies were also an injection **seam**: the builder
+   took ``scattering_op=`` / ``n2n_op=`` keyword arguments so a caller
+   could hand it a foreign :math:`S`, which meant the Problem's
+   :math:`A` was not a function of the Problem's data.  ``[M]`` 34
+   keyword injections across 14 files, of which **33** handed back the
+   hub's own operator (the seam being paid for and not used) and **one**
+   genuinely minted a foreign P0 :math:`S`.  Both keywords are
+   **deleted**, and that one call site now poses on
+   ``sn.system`` like everything else
+   (:ref:`sn-the-problem-poses-its-pencil`).
 
 The story that section closes began at CS4c step 4 (2026-08-30), when
 the fission channel became *two bindings of one datum*
@@ -86,12 +108,32 @@ made it one object with two faces.
    The argument and the clamp are documented at
    :ref:`sn-hub-retained-order`.
 
-The loss composite :math:`L+C` is deliberately **not** cached on the
-solver.  Its one spelling is
-:func:`~orpheus.sn.coupled_system.build_streaming_collision`, reached
-through :func:`~orpheus.sn.coupled_system.build_within_group_system`,
-which builds the composite it actually inverts — so a solver-held second
-copy would be a twin free to drift from the operand the sweep uses.
+The loss composite :math:`L+C` is the **Problem's**, and there is exactly
+one of it: ``sn_mesh.system.factors.streaming_collision``, built through
+the one spelling
+:func:`~orpheus.sn.coupled_system.build_streaming_collision` inside the
+one builder call, and it *is* the object every Strategy value inverts.
+
+.. note:: **The in-code ruling this paragraph mirrors was rewritten on
+   2026-09-13, and the rewrite is a strengthening rather than a
+   reversal.**
+
+   It used to read: :math:`L+C` is deliberately **not** cached on the
+   solver, because a solver-held second copy would be a twin free to
+   drift from the operand the sweep uses — and the twin hazard was not
+   hypothetical, it had already happened (the retired
+   ``SNSolver.L``/``.S``/``.F`` triple below).  A second clause made the
+   drift concrete: a
+   :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+   holds its coefficient as a **snapshot**, so a cached :math:`C` would
+   go stale the moment :math:`\sigma_t` was rebound underneath it.
+
+   Both halves are now discharged by a stronger move rather than by a
+   prohibition.  The staleness half **dissolved**: there is no rebind,
+   because :math:`\sigma_t` is a Problem datum
+   (:ref:`sn-sigma-is-a-problem-datum`).  The twin half is **honoured**:
+   the hub's record is the only copy, the solver holds none, and "do not
+   cache it here" became "there is nothing here to cache".
 
 .. note::
 
@@ -101,11 +143,12 @@ copy would be a twin free to drift from the operand the sweep uses.
    misnomer — it held the *composite* :math:`L+C`, whereas :math:`L`
    throughout this book is the :math:`\sigma`-free streaming leaf
    (:ref:`the affine collision split <operator-algebra>`).  Consumers
-   needing the composite call
-   :func:`~orpheus.sn.coupled_system.build_streaming_collision`
-   directly.
+   needing the composite read it off the Problem's factors; the
+   free-function spelling
+   :func:`~orpheus.sn.coupled_system.build_streaming_collision` is the
+   builder's, not a consumer entry point.
 
-Each of the cached operators is a
+Every leaf on the Problem's record is a
 :class:`~orpheus.numerics.operator.LinearOperator`
 in the Wave A operator-algebra sense: predicate-typed, composable
 under :class:`~orpheus.numerics.operator.OperatorSum` and
@@ -152,14 +195,32 @@ each of which mints the splitting VALUE its own schedule calls for.
 .. admonition:: Key Facts
    :class: tip
 
-   * The within-group system is built ONCE, from a single source of
-     truth (:func:`~orpheus.sn.coupled_system.build_within_group_system`):
-     the posed loss :math:`A`, the bound leaves it is the signed sum
-     of (:class:`~orpheus.sn.coupled_system.SNLossFactors`), and the
-     posed production
+   * The within-group system is built ONCE **per Problem** — it is the
+     :func:`~functools.cached_property`
+     :attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`,
+     and that property is the only call site of
+     :func:`~orpheus.sn.coupled_system.build_within_group_system`.  It
+     carries the posed loss :math:`A`, the bound leaves it is the signed
+     sum of (:class:`~orpheus.sn.coupled_system.SNLossFactors`), the
+     carrier space, and the posed production
      :attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`.
      Fission is never inside the swept operator; it enters as the
-     :math:`1/k`-scaled outer source.
+     :math:`1/k`-scaled outer source.  ``[M]`` the forward eigenvalue
+     path built this record once per **outer step** until 2026-09-13 and
+     builds it **once** now (:ref:`sn-the-problem-poses-its-pencil`).
+   * **The Problem's LAST step is its pencil** (since 2026-09-13 — the
+     consumers campaign's step 2, unit C3b).
+     :attr:`SNMesh.pencil <orpheus.sn.mesh.augmented_mesh.SNMesh.pencil>`
+     is the :class:`~orpheus.numerics.pencil.OperatorPencil`
+     :math:`(A, F)` on one space, and
+     :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.eigen_posing` is the
+     :class:`~orpheus.numerics.posing.EigenPosing` over it with the
+     :math:`k` map.  The pencil carries **no** inverse and **no**
+     resolvent: how it is inverted is the Strategy's
+     (:ref:`the-operator-pencil`).  ⚠ The solver does not consume the
+     posing yet — :class:`~orpheus.numerics.iteration.KEigenvalue` still
+     takes the operator triple, and its re-signature is a deferred,
+     measured re-baseline (same section).
    * **There is ONE** :math:`F` **per Problem, and it lives on the hub**
      (since 2026-09-13 — the consumers campaign's step 2).
      :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
@@ -1412,15 +1473,27 @@ that one object:
      - :attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`
      - the same :math:`F`, **posed** on the coupled carrier (below)
 
-The hub is the right home rather than the posed record because the
-forward eigenvalue path still rebuilds that record **once per outer
-step** until the hub gains its own ``system`` (the campaign's next
-unit).  A record-resident :math:`F` would therefore be re-minted every
-outer, and the count gate below would read the outer count rather than
-one.  ⚠ The adjoint and fixed-source paths already build once per
-Problem, so the distinction is invisible on those arms — which is
-exactly why a record-resident :math:`F` would have looked correct from
-two of the three entry points.
+The hub was the right home rather than the posed record because, **when
+this unit landed**, the forward eigenvalue path still rebuilt that record
+once per outer step.  A record-resident :math:`F` would therefore have
+been re-minted every outer, and the count gate below would have read the
+outer count rather than one.  ⚠ The adjoint and fixed-source paths
+already built once per Problem, so the distinction was invisible on those
+arms — which is exactly why a record-resident :math:`F` would have looked
+correct from two of the three entry points.
+
+⭐ **The constraint is gone, and the choice it forced was the right one
+anyway.**  The campaign's next unit (C3b, the same day) made the record a
+:func:`~functools.cached_property` of the hub, so it is now built ONCE per
+Problem and a record-resident :math:`F` would no longer be re-minted
+(:ref:`sn-the-problem-poses-its-pencil`).  The hub remains :math:`F`'s
+home regardless, for a reason that does not depend on the build count:
+:math:`F` is a **datum of the Problem**, not a member of the within-group
+*posing* — within-group fission is zero, and the record carries the
+posed :attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`
+precisely as a *reference* to the hub's leaf rather than as a second
+mint.  What the timing constraint bought was that the right answer was
+also the only landable one.
 
 The posed production, on either arity
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1589,6 +1662,14 @@ What is deferred, and why
        operator now would re-create exactly the welded scaling the
        four-tier separation exists to prevent
        (:ref:`eigenvalue-posing`).
+
+       ⚠ **Precondition discharged 2026-09-13, the row still open.**  The
+       pencil landed later that day and *does* carry ``at(σ)``
+       (:ref:`sn-the-problem-poses-its-pencil`) — but
+       :class:`~orpheus.numerics.iteration.KEigenvalue` does not consume
+       a posing yet, so the division is still on the solver.  What the
+       row now records is a *scheduled* move with a measured price, not a
+       structural blocker.
    * - stating :math:`F_{\rm adjoint} = F^{\dagger}` **as a theorem**
      - Step 2 made it *true* — both faces read one object — but the
        sentence is a claim about the **pencil**, and the pencil is not
@@ -1598,6 +1679,16 @@ What is deferred, and why
        equality is a property of that type rather than a coincidence
        two entry points maintain.  Until then, the identity rows above
        pin it empirically.
+
+       ⚠ **Half discharged 2026-09-13.**  The pair IS reified —
+       :attr:`SNMesh.pencil <orpheus.sn.mesh.augmented_mesh.SNMesh.pencil>`
+       is an :class:`~orpheus.numerics.pencil.OperatorPencil` whose
+       :attr:`~orpheus.numerics.pencil.OperatorPencil.H` daggers both
+       ends — so the equality is **statable** as a property of the type.
+       It is not yet **spelled** that way: ``_adjoint_posing_parts``
+       still hand-daggers the triple, because
+       :class:`~orpheus.numerics.iteration.KEigenvalue` has not adopted
+       the posing.  The identity rows above remain the empirical pin.
    * - the record's ``production`` being **shared** between two builds
      - Two ``build_within_group_system`` calls over one hub produce two
        ``production`` objects (each composes its own restriction and
@@ -1605,6 +1696,13 @@ What is deferred, and why
        shared — ``factors.fission`` is the hub's :math:`F` on both —
        and object identity of the *posing* arrives when the hub caches
        the record itself.
+
+       ✅ **DISCHARGED 2026-09-13** — the hub caches the record
+       (:attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`)
+       and is the builder's only caller, so every production consumer
+       reads ONE ``production`` object by identity.  The literal sentence
+       above stays true and stops mattering: two *direct* builder calls
+       still mint two, but no production path makes them.
 
 .. _sn-sigma-is-a-problem-datum:
 
@@ -2012,6 +2110,220 @@ gains its posed record.
    mechanism that made a thing redundant gets promoted to sole
    guarantor, with no change to its own code and nothing prompting a
    re-look.
+
+.. _sn-the-problem-poses-its-pencil:
+
+The Problem poses its pencil, and the solver holds nothing
+-----------------------------------------------------------
+
+The fourth act of the consumers campaign's step 2, and the one the other
+three were clearing the way for.  :math:`F` became a Problem datum
+(:ref:`sn-one-fission-per-problem`); :math:`\sigma_t` became a Problem
+datum (:ref:`sn-sigma-is-a-problem-datum`); the splitting left the posed
+record for a Strategy value
+(:ref:`sn-splitting-is-a-strategy-value`).  What was left was the step
+the whole chain exists for: **a Problem's last step is its pencil**, and
+nothing before this one could hold it, because a pencil is a pair
+:math:`(A, M)` on ONE space and S\ :sub:`N` had no single object to pair
+with :math:`A`.
+
+The general theory of the object — what a source-driven and an
+eigenvalue system each ARE as pencils, the four :math:`(M?, q?)` cells,
+the degree contract, why the shape with ``Optional`` fields lost — is
+:ref:`the-operator-pencil` on the operator-algebra page, because the type
+is method-agnostic and the infinite-medium solver poses the same one.
+This section is the S\ :sub:`N` half: what the hub now carries, what the
+solver stopped carrying, and what the change did and did not move.
+
+The chain, and where it stops
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   hub          = SNMesh.from_material_mesh(...)       # the Problem
+   record       = hub.system                           # posed: space, factors, loss, production
+   pencil       = hub.pencil                           # OperatorPencil(record.loss, record.production)
+   question     = hub.eigen_posing                     # EigenPosing(pencil, K_MAP)
+
+Each of the three is a :func:`~functools.cached_property` over immutable
+data, so ``hub.system is hub.system`` and the pencil is over the hub's
+OWN record, not a fresh build: ``[M]``
+``hub.pencil.lhs is hub.system.loss`` and ``hub.pencil.rhs is
+hub.system.production``, both by identity.
+
+The chain stops at the question.  It does **not** continue into a
+resolvent, an inverse, a splitting, a schedule or a tolerance — and that
+is gated rather than merely stated.
+``tests/sn/architecture/test_posing.py`` walks every callable on
+``SNMesh(...) → .system → .pencil → .eigen_posing`` and asserts that none
+of them accepts a Strategy token (``inner_solver``, ``inner_schedule``,
+``max_iter``, ``max_inner``, ``tol``, ``inner_tol``, ``restart``,
+``corrector``, ``preconditioner``, ``n_dof``, ``initial_guess``).  The
+gate is non-tautological in the way that matters: it holds the chain as
+an explicit LIST of nine callables, so a renamed member empties the loop
+loudly instead of silently, and the mutation that reds it is adding
+``inner_schedule: str = "jacobi"`` to
+:func:`~orpheus.sn.coupled_system.build_within_group_system`.
+
+Its sibling row asserts the other half of what "determined by the
+generating data" means: two content-equal hubs pose **equal** records,
+and each hub's pencil is its own.
+
+What the seam was, and what deleting it bought
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Until this unit, :func:`~orpheus.sn.coupled_system.build_within_group_system`
+took two keyword arguments, ``scattering_op=`` and ``n2n_op=``, whose
+purpose was to let the *solver* hand its own cached :math:`S` and
+:math:`N_{2n}` into the build so that the two copies would not be minted
+twice.  That is a caching seam wearing an injection interface, and it has
+a consequence nobody wanted to state: while it existed, the Problem's
+:math:`A` was **not a function of the Problem's data** — it was a
+function of the data *and of whatever the caller passed*.
+
+``[M]`` the census, with its predicate stated because the number depends
+on it: **34** keyword injections across **14** files counting *consumer*
+call sites (AST ``keyword`` nodes named ``scattering_op`` / ``n2n_op`` on
+any ``Call``, over the tracked tree, excluding the solver's own 8
+forwarding calls); **43** across **16** counting every such node,
+untracked probes included.  The interesting split is inside the 34: **33**
+passed back the hub's own operator — the seam was paid for and not used —
+and exactly **one** minted a foreign P0 :math:`S`, a reference
+construction inside ``tests/sn/operators/test_psi_half_coupling.py``,
+which now poses on ``sn.system`` like every other consumer.  Both keywords
+are deleted, together with ``build_coupled_system``'s long-dead
+``scattering_order`` parameter.
+
+The solver's two matching slots went with them.  ``SNSolver.scattering_op``
+and ``SNSolver.n2n_op`` are **deleted**, and every read migrated to
+``sn_mesh.system.factors.scattering`` / ``.n2n``.  Two censuses, because
+the predicate matters: ``[M]`` **199** reads across **31** files under the
+carve's own predicate (AST ``Attribute`` nodes whose *receiver* is
+``SNSolver``-derived), and ``[M]`` **216** across **33** for every
+``Attribute`` node of either name whatever the receiver — the extra 17
+being locals, parameters and the injection keywords that retired with the
+builder's signature.  With ``fission_op`` already gone at unit C2, the
+solver now caches **no operator at all** — the head of this chapter says
+what each slot became.
+
+The build count, and the anchor that flipped
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The measurable claim of this unit is a **count**, not a value.
+
+Before it, the forward eigenvalue path called the builder inside the
+outer loop, so it re-posed the whole within-group system — the streaming
+composite, the scattering leaf, the boundary operator, the fission
+production — on **every outer step**.  The adjoint and fixed-source
+paths already built once per solve, which is exactly why the defect was
+invisible from two of the three entry points: any gate written on those
+arms reads 1 either way.
+
+``[M]``, from the campaign's pre-carve anchor (a counting spy bound in
+both modules that call the builder, on a fissile slab that takes more
+than one outer step so that "once per outer" and "once per Problem" are
+different numbers):
+
+.. list-table:: Builder calls per solve — the pre-carve anchor's own rows
+   :header-rows: 1
+   :widths: 40 14 23 23
+
+   * - solve
+     - ``n_outer``
+     - builds, before
+     - builds, after
+   * - 1-D slab eigenvalue, source iteration
+     - 4
+     - 4
+     - **1**
+   * - 1-D slab eigenvalue, Krylov
+     - 4
+     - 4
+     - **1**
+   * - 1-D sphere eigenvalue (carrying), SI
+     - 5
+     - 5
+     - **1**
+   * - 2-D Cartesian eigenvalue, SI
+     - 3
+     - 3
+     - **1**
+   * - 1-D slab fixed source
+     - n/a
+     - 1
+     - 1
+   * - 1-D slab adjoint eigenvalue
+     - 4
+     - 1
+     - 1
+
+The "before" column is a **fixture** reading (those ``n_outer`` values
+belong to the anchor's specific problems); the "after" column is a
+**law**, and the row that asserts it re-measures both halves itself —
+``tests/sn/architecture/test_step2_terminal_object_anchors.py``, whose
+docstring carries the table above and is the thing to re-run rather than
+this page.
+
+The anchor that recorded the *pre-carve* behaviour asserted ``spy.calls
+== n_outer`` — deliberately the MECHANISM rather than a fixture number,
+so that a naive "move the call into a method" would still read
+``n_outer`` and still red.  It was deleted with the carve, and its ruled
+successor
+(``TestRuledTheBuildIsOncePerProblem.test_ruled_eigen_builds_once``) lost
+its ``xfail(strict=True)`` marker in the same commit — the marker's own
+reason named the event that would retire it, and the event happened.
+
+⭐ **No value moved.**  The forward :math:`k` path is bit-identical
+across the change: ``[M]`` the anchors' slab reads
+:math:`k = 0.4351952142580926` before and after, and the escalated
+regression set is unchanged.  That is the whole design intent of building
+the same operators once instead of :math:`n_{\rm outer}` times — the
+operators were already functions of Problem data, so re-minting them was
+pure waste, not a different answer.
+
+What is NOT in this commit
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Four pieces of the design are **written and not shipped**; a reader
+should not go looking for them, and a future session should not assume
+they landed with the pencil.
+
+#. :class:`~orpheus.numerics.iteration.KEigenvalue` does not consume an
+   :class:`~orpheus.numerics.posing.EigenPosing` yet.  It still takes the
+   operator triple, and ``_adjoint_posing_parts`` still hand-daggers that
+   triple rather than spelling ``pencil.H``.  The re-signature is
+   deferred **for a measured reason**: ``[M]`` it changes the estimator's
+   arithmetic, because :math:`\sum(A\psi) - \sum(S\psi) \neq
+   \sum((A-S)\psi)` in floating point (1 of 40 draws bit-identical), so
+   it is a principled ULP-level re-baseline on the adjoint :math:`k` path
+   and must land with its own measurement rather than inside a commit
+   whose claim is that nothing moved.
+#. ``SNMesh.source_posing(q)`` is not a member yet.
+   :class:`~orpheus.numerics.posing.SourcePosing` ships and is gated, but
+   no production path poses one — the fixed-source entries still build
+   their own operands.
+#. The **subcritical multiplying source** — the shipped witness for the
+   :math:`(M, q)` cell, ``SourcePosing(hub.pencil.at(1), q)`` handed to
+   the existing fixed-source driver — is not built.  Until it is, that
+   cell has no production witness anywhere in the tree.  ⚠ It is also a
+   *capability*, not just a gate: a fixed source in a multiplying medium
+   is one line of posing away from shipped machinery, and today
+   :func:`~orpheus.sn.solver.solve_sn_fixed_source` solves the **pure
+   transport** operator even on a fissile hub — its own docstring says so
+   (*"the fission source is zero — this is the pure transport
+   operator"*).  Whether the entry's default should change on a fissile
+   hub is a step-3 decision, taken when the Solution carries its posing;
+   the multiplying question would be reached explicitly, never through a
+   boolean flag.
+#. The :math:`\sigma`-bound sweep memo still stashes itself on the hub as
+   ``_coll_cache`` rather than living on the
+   :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
+   instance.  The staleness hazard that made the stash dangerous is
+   already gone (:ref:`sn-sigma-is-a-problem-datum`), but the memo is
+   still parked on a save state, and ``SNSolver.coll_cache`` is still the
+   tree's only strong holder of the geometry table — see the
+   sole-guarantor warning at the end of the previous section.
+
 
 .. _sn-finalize-one-step:
 

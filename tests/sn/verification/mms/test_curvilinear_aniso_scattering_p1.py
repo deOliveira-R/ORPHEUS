@@ -129,7 +129,7 @@ def _scattering_op(coord: CoordSystem, quad, scattering_order: int):
         max_inner=5,
         inner_tol=1e-12,
     )
-    return solver.scattering_op, sn_mesh, mesh.centers
+    return solver.sn_mesh.system.factors.scattering, sn_mesh, mesh.centers
 
 
 def _anisotropic_flux(sn_mesh, centers):

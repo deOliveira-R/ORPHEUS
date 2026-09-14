@@ -87,7 +87,7 @@ def _residual_profile(case, nc):
     from orpheus.sn.coupled_system import build_streaming_collision
     from orpheus.sn.operators.boundary import SNBoundaryOperator
     LC = build_streaming_collision(solver.sn_mesh, solver.sn_mesh.mat_xs)
-    S = solver.scattering_op
+    S = solver.sn_mesh.system.factors.scattering
     B = SNBoundaryOperator(solver.sn_mesh)
     psi_ref = _reference_angular_flux(case, sn_mesh)
     rhs = TimedFullField.zeros(

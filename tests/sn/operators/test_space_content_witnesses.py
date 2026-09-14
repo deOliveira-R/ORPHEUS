@@ -228,7 +228,7 @@ class TestF5ResidualPoseGuard:
         assert sn.radial_characteristic_field_space is not None
         solver = SNSolver(sn, inner_solver="source_iteration")
         system = build_within_group_system(
-            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
+            sn, solver.sn_mesh.mat_xs,
         )
         assert system.loss.n_cols == 2  # the carrying pose IS the arity
         psi = _composite(sn)

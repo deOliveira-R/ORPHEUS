@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12052**
+Total tests collected: **12088**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1304, 10.8%
-   L1, 1755, 14.6%
+   L1, 1755, 14.5%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 8896, 73.8%
+   foundation, 8932, 73.9%
    unmarked, 26, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 11947
+   explicit, 11983
    class-name, 46
    func-name, 0
    case, 33
@@ -64,9 +64,10 @@ Module × level grid
    angular/test_redistribution, 0, 0, 0, 0, 19, 1
    architecture/test_composition_cost, 0, 0, 0, 0, 9, 0
    architecture/test_monomorphic_leaves, 0, 0, 0, 0, 139, 0
+   architecture/test_posing, 0, 0, 0, 0, 2, 0
    architecture/test_splitting_value, 0, 0, 0, 0, 13, 0
    architecture/test_stage_separation, 0, 0, 0, 0, 15, 0
-   architecture/test_step2_terminal_object_anchors, 0, 0, 0, 0, 11, 0
+   architecture/test_step2_terminal_object_anchors, 0, 0, 0, 0, 9, 0
    cartesian_2d/test_2d_full_field_oracle, 0, 0, 0, 0, 8, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
    cartesian_2d/test_2d_l2_matvec_correctness, 0, 2, 0, 0, 2, 0
@@ -395,7 +396,9 @@ Module × level grid
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 26, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
+   numerics/test_pencil, 0, 0, 0, 0, 26, 0
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
+   numerics/test_posing, 0, 0, 0, 0, 6, 0
    numerics/test_power_iteration_record, 0, 0, 0, 0, 30, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 78, 0
    numerics/test_registry, 0, 0, 0, 0, 107, 0
@@ -553,7 +556,7 @@ Module × level grid
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 2, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 361, 0
+   test_layer_imports, 0, 0, 0, 0, 365, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -950,7 +953,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **600** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **603** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1362,6 +1365,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-tensor-P-definition``
 - ``peierls-transport-equation-3d``
 - ``peierls-unified-row-sum-identity``
+- ``pencil-affine-increment``
+- ``pencil-family``
 - ``per-face-inflow-mask``
 - ``petrov-galerkin-construction``
 - ``phase-c-cell-update``
@@ -1372,6 +1377,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``phase-f-source-eq-sigt-phi0``
 - ``pin-cell-volume-fractions``
 - ``pn-scatter-rlm``
+- ``posing-balance-functional``
 - ``positive-cone-definition``
 - ``power-equation``
 - ``power-iteration-flux-update``

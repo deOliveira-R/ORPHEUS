@@ -144,7 +144,7 @@ def test_c5a_matvec_leaves_emit_timeless_full_field(coord: str) -> None:
 
     L = StreamingOperator.pose(sn_mesh)
     C = MultiplicationOperator.from_mesh(solver.sn_mesh.mat_xs.total_cross_section_field, sn_mesh)
-    S = solver.scattering_op
+    S = solver.sn_mesh.system.factors.scattering
     # CS4c step 4: the composite (FullField) arm lives on the ANGULAR
     # fission binding; the hub's fission.isotropic_energy is the scalar
     # energy binding the k-outer feeds.
@@ -298,7 +298,7 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
     solver, _case = _solver_for("slab", "2eg")
     sn_mesh = solver.sn_mesh
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs,
     )
     LC, S, N2N, B = (
         system.factors.streaming_collision, system.factors.scattering,

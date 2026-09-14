@@ -90,9 +90,17 @@ diffusion's, or a page whose fixtures carry
    sibling rather than something folded into :math:`L`. The same function
    returns the :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record
    carrying that loss together with the bound leaves it is the signed sum
-   of (:ref:`coupled-block-operator`), so every SN within-group solve — SI
+   of and the posed production :math:`F`
+   (:ref:`coupled-block-operator`), so every SN within-group solve — SI
    and Krylov, fixed-source and eigenvalue — reads :math:`A` from here and
-   there is no second assembly to drift against.  The splitting
+   there is no second assembly to drift against.  Since 2026-09-13 the
+   claim is stronger than "one spelling": the builder has exactly ONE
+   call site, the :func:`~functools.cached_property`
+   :attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`,
+   so there is no second *build* either — ``[M]`` a counting spy over one
+   forward eigenvalue solve read the outer-iteration count before that
+   change and reads **1** after it
+   (:ref:`sn-the-problem-poses-its-pencil`).  The splitting
    :math:`A = M - N` each driver runs is a Strategy value labelled from
    those leaves, not a member of the record
    (:ref:`sn-splitting-is-a-strategy-value`).
@@ -6030,6 +6038,25 @@ The four layers
        **2b** (method-specific): how the method **assembles** the
        concrete :math:`A_{\rm loss}` object — and *only* assembles it
        (see 2c).
+
+       ⭐ Since 2026-09-13 this layer is an **object**, not a discipline
+       (:ref:`the-operator-pencil`).  2a is
+       :class:`~orpheus.numerics.posing.EigenPosing` over an
+       :class:`~orpheus.numerics.pencil.OperatorPencil` — the pair
+       :math:`(A_{\rm loss}, M)` on one space, plus the
+       :class:`~orpheus.numerics.posing.SpectralMap` that carries
+       :math:`\mu \to k` / :math:`\alpha`; the source-driven sibling is
+       :class:`~orpheus.numerics.posing.SourcePosing`.  2b is the hub
+       member that mints it —
+       :attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`
+       → :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pencil` →
+       :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.eigen_posing` for
+       S\ :sub:`N`, and
+       :attr:`HomogeneousProblem.pencil <orpheus.homogeneous.solver.HomogeneousProblem.pencil>`
+       → :attr:`~orpheus.homogeneous.solver.HomogeneousProblem.eigen_posing`
+       for the infinite medium.  The bifurcation survives the reification
+       unchanged: the pencil TYPE is method-agnostic, and only its
+       operands are method-specific.
    * - 2c
      - Strategic partitioning
      - method-specific, **Strategy-owned**
@@ -6140,6 +6167,603 @@ test convergence. It never sees SN sweeps, CP matrices,
 or angular state — those live at Layers 1–3, *below* the boundary. This
 is the abstraction that makes a new problem type a posing-row addition
 rather than an engine rewrite.
+
+
+.. _the-operator-pencil:
+
+The pencil and the posings — layers 1 and 2 as objects
+-------------------------------------------------------
+
+The four-tier table above is an *architecture*: until 2026-09-13 layers 1
+and 2 were a **discipline** that call sites followed, not objects a type
+could hold.  A Problem's leaves were assembled into a loss operator, a
+fission operator was minted somewhere else, and the fact that the two
+form a **pair** — that this is what an eigenvalue problem *is* — lived
+only in the prose of this page and in the argument order of
+:class:`~orpheus.numerics.iteration.KEigenvalue`.
+
+The consumers campaign's step 2 reified them, in two layers and three
+types, with **zero** ``Optional`` fields:
+
+* **Layer 1 — the pencil.**  :class:`~orpheus.numerics.pencil.OperatorPencil`
+  (:mod:`orpheus.numerics.pencil`) is the pair :math:`(A, M)` on ONE
+  space, and nothing else: no physics, no inverse, no resolvent method.
+* **Layer 2 — the posing.**  :class:`~orpheus.numerics.posing.EigenPosing`
+  and :class:`~orpheus.numerics.posing.SourcePosing`
+  (:mod:`orpheus.numerics.posing`) are the two **questions** one can ask —
+  *find the spectrum* and *solve for this source*.
+
+A Problem's LAST step is its layer-1 object, and its layer-2 members are
+the questions its own generating data fixes.  The S\ :sub:`N` hub poses
+:attr:`SNMesh.pencil <orpheus.sn.mesh.augmented_mesh.SNMesh.pencil>` over
+its own record and
+:attr:`SNMesh.eigen_posing <orpheus.sn.mesh.augmented_mesh.SNMesh.eigen_posing>`
+over that pencil; the infinite-medium hub poses
+:attr:`HomogeneousProblem.pencil <orpheus.homogeneous.solver.HomogeneousProblem.pencil>`
+and
+:attr:`HomogeneousProblem.eigen_posing <orpheus.homogeneous.solver.HomogeneousProblem.eigen_posing>`
+over its two dense operators — **two hubs, one type**, which is the
+whole point of putting the type in :mod:`orpheus.numerics` rather than in
+either method's package.
+
+What a source-driven system IS, as a pencil
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The affine system :math:`A\,\psi = q`, with :math:`A \in
+\operatorname{Hom}(V,V)` and :math:`q \in V`.  Read as a pencil it is the
+**zero-parameter** case: the family is the constant map
+:math:`\mathcal{A} \equiv A`, and the parameter set is a single point.
+
+Its unknown is a **coset**, not a ray: if :math:`\psi_0` solves the
+system then so does every member of :math:`\psi_0 + \ker A`, and
+well-posedness is the **Fredholm alternative**, whose two kernels govern
+two different halves.
+
+* :math:`\ker A` governs **uniqueness** — the gauge.  ORPHEUS computes
+  it, because this kernel is not hypothetical: the all-reflective
+  diamond-difference box is exactly singular, ``[M]``
+  :math:`\dim\ker A = 12` at :math:`d = 2` on a level-symmetric
+  :math:`S_4` with two groups.  The gauge ships
+  (:ref:`sn-loss-kernel-gauge`) and the solver applies it to the
+  returned iterate.
+* :math:`\ker A^{\dagger}` governs **solvability** — a solution exists
+  only when :math:`q \in \operatorname{range} A = (\ker
+  A^{\dagger})^{\perp}`.  This half is **absent**: nothing in the tree
+  computes :math:`\ker A^{\dagger}` and nothing tests :math:`q` against
+  it.  On an all-reflective box with :math:`\Sigma_a = 0` and
+  :math:`\Sigma_{2n} = 0` the condition collapses to :math:`\langle 1_g,
+  q\rangle = 0` — so a net source with no sink has **no** steady
+  solution, and a Problem could refuse it at posing time instead of
+  exhausting an iteration budget.  ``admits(q)`` is a named follow-up,
+  not a shipped verb.
+
+Two further properties are the source kind's alone.  The equation is
+inhomogeneous, so solutions **superpose in** :math:`q`.  And its adjoint
+is **unary**: :math:`A^{\dagger}\psi^{\dagger} = R` needs a **detector**
+:math:`R`, which is extra data the generating data does not carry —
+which is why
+:meth:`SourcePosing.H <orpheus.numerics.posing.SourcePosing.H>` takes an
+argument and
+:func:`~orpheus.sn.solver.solve_sn_adjoint_fixed_source` takes its own
+:math:`q^{*}`.
+
+What an eigenvalue system IS, as a pencil
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The homogeneous system :math:`A\,\psi = \mu\,M\,\psi`.  The object here
+is genuinely the **pair** :math:`(A, M)` — neither operator alone is the
+problem — and the family it generates is the **degree-1 operator
+pencil**
+
+.. (vv-status rationale) The definition of the pencil family — what the
+   OperatorPencil type IS.  Structural / representational: a definitional
+   identity of a numerics type, not a solver claim.  Its verifiable
+   content is the type's own foundation suite
+   (tests/numerics/test_pencil.py: at(0) is the lhs object, at(σ) is the
+   affine combination bit-identically in matrix form, .H is the pair of
+   adjoints, rhs_rank counts the finite spectrum), plus the closed-form
+   reference row k_inf == trace(A⁻¹F) against
+   kinf_and_spectrum_homogeneous.
+.. vv-status: pencil-family documented
+
+.. math::
+   :label: pencil-family
+
+   \mathcal{A}(\sigma) \;=\; A \;-\; \sigma\,M ,
+   \qquad \sigma \in \Lambda .
+
+:eq:`pencil-family` is a **map**, where :eq:`eigen-standard-form` is an
+**equation**: the eigenproblem is the question *for which* :math:`\mu` is
+:math:`\mathcal{A}(\mu)` singular, and the spectrum is exactly the set of
+**poles of the resolvent** :math:`R(\sigma) =
+\mathcal{A}(\sigma)^{-1}`.  The pencil is **regular** iff
+:math:`\det(A - \mu M) \not\equiv 0`; the transport pencils are, because
+:math:`\mathcal{A}(0) = A` is the very operator the sweep inverts, which
+is the sufficient condition
+:attr:`~orpheus.numerics.pencil.OperatorPencil.is_regular` certifies.
+
+The consequence that matters numerically is **Weierstrass–Kronecker**:
+when :math:`M` is rank-deficient the pencil has exactly
+:math:`\operatorname{rank} M` **finite** eigenvalues, the rest being
+infinite.  So the k-problem is not an :math:`n`-dimensional eigenproblem
+at all — it is an :math:`r`-dimensional one on :math:`\operatorname{range}
+F`, and :attr:`~orpheus.numerics.pencil.OperatorPencil.rhs_rank` reports
+:math:`r`.  Measured on the shipped 0-D fixtures: :math:`r = 1` for every
+group count of the fissile ``A`` family (the energy dyad :math:`|\chi\rangle
+\langle\nu\Sigma_f|` is rank one) and :math:`r = 0` for ``B``/``C``/``D``,
+which carry no :math:`\nu\Sigma_f` — 12 mixtures, a two-sided reading.
+The rank-one case has a closed form,
+
+.. math::
+
+   k_\infty \;=\; \operatorname{tr}\!\bigl(A^{-1}F\bigr)
+   \;=\; \langle \nu\Sigma_f,\; A^{-1}\chi\rangle ,
+
+which the pencil's own gate uses as its structurally-independent
+reference (``[M]`` bit-exact against
+:func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
+at 1g and 2g; at 4g the two differ by **one ulp** — absolute
+:math:`2.2\times10^{-16}` on :math:`k_\infty = 1.4878`, i.e. relative
+:math:`1.5\times10^{-16}` — so the row is pinned at ``rtol=1e-13``, never
+``array_equal``).  On a meshed S\ :sub:`N` Problem the same query is the
+count of **fissile cells**: ``[M]`` the seedless two-region slab anchor
+(four fuel cells of mixture ``A``, four of the non-fissile ``B``, 160
+degrees of freedom) reads ``pencil.rhs_rank == 4``.
+
+The eigenvalue kind's remaining properties mirror the source kind's point
+for point.  Its unknown is a **ray** — Krein–Rutman gives a unique
+eigenvector in the positive cone, up to scale — plus a scalar, so the
+problem is scale-invariant and a **normalization gauge** is a choice
+somebody has to record.  And its adjoint is **nullary**: the adjoint
+pencil :math:`(A^{\dagger}, M^{\dagger})` shares the spectrum, so
+:math:`k^{\dagger} = k` and
+:meth:`EigenPosing.H <orpheus.numerics.posing.EigenPosing.H>` takes no
+argument at all.
+
+What the two share, and where they part
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+They share more than the difference suggests, which is why one layer-1
+type serves both: one carrier space :math:`V` with one metric :math:`G`
+and one positive cone :math:`K`; one factor set; a family
+:math:`\mathcal{A}(\sigma)` **affine** in :math:`\sigma`; an adjoint
+determined by :math:`(\mathcal{A}, G)` alone; a residual; and **one**
+balance functional.  One resolvent consumes both.
+
+.. list-table:: The two kinds, axis by axis
+   :header-rows: 1
+   :widths: 22 39 39
+
+   * - axis
+     - source-driven
+     - eigenvalue
+   * - the unknown
+     - a coset :math:`\psi_0 + \ker A`
+     - a ray in :math:`\mathbb{P}(K)`, plus a scalar
+   * - the second datum
+     - a **vector** :math:`q \in V`
+     - an **operator** :math:`M \in \operatorname{Hom}(V,V)`
+   * - the parameter's role
+     - :math:`\sigma` is an INPUT (chosen)
+     - :math:`\mu` is an OUTPUT (sought)
+   * - the equation
+     - inhomogeneous — superposition in :math:`q`
+     - homogeneous — scale-invariant
+   * - well-posedness
+     - :math:`q \perp \ker A^{\dagger}`, plus :math:`\dim \ker A`
+     - regularity, plus Krein–Rutman
+   * - the adjoint
+     - UNARY — needs a detector
+     - NULLARY — :math:`k^{\dagger} = k`
+   * - conditioning
+     - :math:`\kappa(A)`
+     - the dominance ratio
+   * - normalization
+     - none — fixed by :math:`q`
+     - a GAUGE, which somebody must record
+   * - what a Solution carries
+     - :math:`\psi`, a residual, a gauge if :math:`\ker A \neq 0`
+     - a ray, :math:`\lambda`, a gauge, a trajectory
+   * - does :math:`\operatorname{rank} M` matter
+     - no
+     - yes — it IS the finite-spectrum count
+
+The four cells, and why :math:`(M, q)` is a composition
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Presence of the second operator :math:`M` and presence of the source
+:math:`q` are independent, so there are four cells — and they are **not**
+exclusive, which is the fact the type shape has to survive.
+
+.. list-table:: The :math:`(M?,\,q?)` cells
+   :header-rows: 1
+   :widths: 12 52 36
+
+   * - cell
+     - the object
+     - what type
+   * - (no, no)
+     - :math:`A` alone — a
+       :class:`~orpheus.numerics.operator.LinearOperator`, which already
+       ships.  :math:`\ker A` is a **property** of that operator, not a
+       problem kind
+     - none needed
+   * - (no, yes)
+     - :math:`A\psi = q` —
+       :class:`~orpheus.numerics.posing.SourcePosing`
+     - layer 2
+   * - (yes, no)
+     - :math:`A\psi = \mu M\psi` —
+       :class:`~orpheus.numerics.posing.EigenPosing` over an
+       :class:`~orpheus.numerics.pencil.OperatorPencil`
+     - layers 1 + 2
+   * - (yes, yes)
+     - ``SourcePosing(pencil.at(σ), q(σ))`` — the subcritical multiplying
+       source at the physical :math:`\sigma = 1`; a Laplace/noise family
+       is a PATH of such posings over ONE pencil
+     - **a composition**, no new type
+
+The fourth cell is the load-bearing one.  A subcritical multiplying
+medium driven by a fixed source solves :math:`(A - F)\psi = q`, which is
+:math:`\mathcal{A}(1)` handed to a source posing; the Laplace form
+:math:`(A + sT)\hat\psi = \hat{q}(s) + T\psi_0` has both **and couples
+them**, because its source is built out of :math:`M`.  A shape with three
+independent fields :math:`(A, M, q)` cannot state that coupling.  A
+composition over a **family** can.
+
+Which cells the generating data occupies is the **Problem's** to decide;
+which functional of the resolvent is computed within a cell — find the
+poles, evaluate at a point, integrate on a contour — is the
+**Strategy's**.  That boundary is what makes :math:`\alpha` and noise one
+Problem with two Strategies (same cells) while :math:`k` and fixed-source
+are two Problems (different cells).  ⛔ The tree derives the kind from the
+ANSWER today (``keff is not None`` on the returned Solution), which is one
+tier too late; the Solution carrying its posing is step 3 of the
+campaign.
+
+Why the two alternative shapes lost
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Shape (A) — one type with Optionals**, ``Pencil(lhs, rhs=None,
+source=None)``, kind derived from presence.  ⛔ REFUTED: at least four
+verbs change meaning or arity per cell.  ``at(σ)`` is a lie when there is
+no ``rhs``; ``residual`` is unary for a source and binary for an
+eigenproblem; the solution-set TYPE is a coset in one cell and a ray in
+another; and ``.H`` is nullary in one and unary in the other.  That is
+stringly-typed dispatch wearing ``None`` — and the tree carries a
+**measured instance of exactly this defect** to learn from
+(``ProblemSpec(external_source: … | None, is_eigenvalue: bool)`` in
+:mod:`orpheus.derivations.common.continuous_reference`, inconsistently
+spellable at 22 sites across 9 files).  Its two degenerate cells also
+re-mint types that already exist: with ``rhs=None`` it is a
+:class:`~orpheus.numerics.operator.LinearOperator`, and with
+``source=None`` it is the pencil.
+
+**Shape (C) — two unrelated types**, one per kind, no shared layer.
+⛔ REFUTED: it cannot express the :math:`(M, q)` cell without a third
+hand-rolled type, because it has no family to evaluate at
+:math:`\sigma`.  Shape (B)'s fourth cell is a composition precisely
+because layer 1 exists.
+
+**And the near miss — one layer-2 type per kind holding the pair
+directly, with no layer 1.**  ⛔ REFUTED by the subcritical source and by
+noise: both need :math:`\mathcal{A}(\sigma)` without being
+eigenproblems.
+
+.. note:: **Retraction in place — the R-cc7 realization is WITHDRAWN
+   (2026-09-13).**
+
+   An earlier ruling of this campaign (R-cc7, adopted from an attack
+   memo) said *one Problem class per method, one terminal-object TYPE*,
+   and **realized** that as shape (A): ``LinearPencil(A, M=None, q=None)``
+   with :math:`\Lambda` and the kind derived from presence.  The
+   realization is withdrawn on two grounds.  Its supporting evidence —
+   *"all four cells are occupied, so one type must hold all four"* —
+   mis-classified :math:`\ker A` as a problem KIND when it is a property
+   of an operator, so the (no, no) cell was never a fourth object; and
+   its verbs change meaning per cell, as above.
+
+   The ruling's **intent survives intact** in shape (B): one Problem
+   class per method, the pencil as the Problem's last step, and
+   kind-typed Solutions.  What changed is only the realization — from
+   one type with two ``Optional``\ s to three types with none.  The
+   earlier text is kept rather than deleted, because a future session
+   reading *"one terminal-object type"* needs to find out **why** the
+   obvious realization of it was a trap.
+
+   A second naming ruling is reconciled the same way: the 2026-08-19
+   ``GeneralizedEigenPencil`` name over-commits to the eigen kind for an
+   object the source and noise cells also use, so it maps onto the PAIR
+   :class:`~orpheus.numerics.pencil.OperatorPencil` +
+   :class:`~orpheus.numerics.posing.EigenPosing` rather than being
+   dropped.
+
+The degree contract
+~~~~~~~~~~~~~~~~~~~~
+
+:eq:`pencil-family` is **affine** in :math:`\sigma`, and the type says so
+in its own docstring rather than leaving it as an assumption a later
+problem silently breaks.  Three checkable consequences:
+
+* :meth:`at(0) <orpheus.numerics.pencil.OperatorPencil.at>` returns the
+  ``lhs`` **object itself**, by identity — not a scaled copy.  This is
+  not a micro-optimisation: ``[M]`` the algebra REFUSES a zero scaling
+  outright (``ValueError: ScaledOperator with zero scalar is degenerate;
+  use ZeroOperator explicitly``), so the :math:`\sigma = 0` member cannot
+  be spelled as a scaling at all, and the gate that pins the identity
+  reds by *raising* rather than by comparing.
+* :math:`\mathcal{A}(\sigma)` is the affine combination
+  :math:`A - \sigma M` — ``[M]`` ``array_equal``, :math:`\max|\Delta| =
+  0` in matrix form at :math:`\sigma \in \{0.5,\, 1,\, 1.875,\, 2\}`.
+* The increment is the **whole** of the parameter dependence:
+
+  .. (vv-status rationale) The affine-increment identity — the degree-1
+     contract's checkable form.  Structural: a definitional property of
+     the OperatorPencil type.  Its verifiable content is the foundation
+     row tests/numerics/test_pencil.py::TestLawTheAffineFamily::
+     test_law_the_increment_is_minus_tau_M (300 random draws, gated at
+     8·eps·scale) plus the matrix-form bit-identity row beside it.
+  .. vv-status: pencil-affine-increment documented
+
+  .. math::
+     :label: pencil-affine-increment
+
+     \mathcal{A}(\sigma + \tau) \;-\; \mathcal{A}(\sigma)
+     \;=\; -\,\tau\,M
+     \qquad\text{for all }\sigma,\tau .
+
+  ⚠ In **matrix** form this is bit-identical; in **applied** form it is
+  not, and the gate says so rather than pretending otherwise.  ``[M]``
+  144 of 200 random draws differ in the last bits — the two sides
+  associate their sums differently — with a draw-stable bound of
+  :math:`9.470\times10^{-16}` over 300 draws, about :math:`4.3\,\epsilon`.
+  The row is therefore gated at :math:`8\,\epsilon\cdot\text{scale}`, not
+  at ``array_equal``: a bit claim there would be a property of the seed,
+  not of the identity.
+
+**Where the contract ends.**  A delayed-neutron :math:`\alpha`
+eigenproblem is **rational** in :math:`\alpha`, not affine — the
+precursor groups contribute terms :math:`\propto \lambda_i/(\alpha +
+\lambda_i)`.  It is therefore NOT a degree-1 pencil, and the honest
+answer is a ``linearize()`` seam (a companion pencil on an enlarged
+space carrying the precursor concentrations), never a silent assumption
+that :meth:`~orpheus.numerics.pencil.OperatorPencil.at` is enough.  The
+prompt-:math:`\alpha` problem, by contrast, IS degree 1: it is
+:math:`(A, T)` with :math:`T = 1/v` and the map :math:`\alpha = -1/\mu`,
+which is exactly the α-row of the posing table below and is why
+:data:`~orpheus.numerics.posing.ALPHA_MAP` is already written even though
+no solver consumes it yet.
+
+No inverse: the resolvent is the Strategy's composition
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:class:`~orpheus.numerics.pencil.OperatorPencil` has **no** ``inverse``
+and **no** ``resolvent`` method, deliberately.  Inverting is Layer 3 of
+the table above, and *how* it is done is the most method-specific choice
+in the codebase:
+
+* S\ :sub:`N` never forms :math:`A^{-1}`.  It splits the Problem's
+  factors into a :class:`~orpheus.sn.splitting.Splitting` and iterates
+  :math:`M^{-1}` — the transport sweep — against the lagged gains
+  (:ref:`sn-splitting-is-a-strategy-value`).
+* Diffusion and the infinite medium form
+  ``MatrixInverseOperator(pencil.at(σ))``: one eager LU at construction,
+  materialized through the operator's own ``as_matrix``.  ⛔ Never
+  ``A.inverse()`` — and note that **every** ``at(σ)`` invalidates a
+  factorization the Strategy is holding, which is precisely the kind of
+  staleness a Problem-side ``resolvent`` property would hide.
+* CP inverts its monolithic matrix directly; its pencil is the pair
+  :math:`(I - K,\, F)` over two **opaque** operators, which the
+  constructor admits because it reaches for no ``.factors`` and compares
+  only the ends an operand actually declares.
+
+⚠ **And one method is exempt.**  Monte Carlo cannot consume a pencil at
+all: it samples the Neumann series of the transport kernel and holds no
+operator pair to pose.  This is stated rather than papered over — "the
+problem expressed as a pencil" is a claim with a scope, and MC is outside
+it.
+
+⛔ A limit of the SN arm worth knowing before writing a gate: ``[M]``
+:meth:`at(σ) <orpheus.numerics.pencil.OperatorPencil.at>`\ ``.as_matrix()``
+**raises** on the S\ :sub:`N` composite —
+``TypeError: CoupledOperator.apply: the block matvec is the only spelling
+— expected a CoupledField …``, because ``OperatorSum.as_matrix`` probes
+with bare arrays and the block operator refuses them.  The matrix-form
+laws of :eq:`pencil-affine-increment` are therefore **0-D-only**; the
+S\ :sub:`N` arm is gated by the ends law, the architectural chain gate,
+and the reciprocity suite instead.
+
+The ends law, and what it refuses
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A pencil is a pair of operators **on one space**, so the constructor
+compares domain and codomain and refuses a mismatched pair.  Ends an
+operator does not declare (``None``) are not compared — that is the
+opaque-pair admission above, granted on the caller's word and said in the
+docstring rather than spelled as a flag.
+
+The witness is the defect the campaign removed.  Before step 2, S\
+:sub:`N`'s forward :math:`F` lived on the mesh's bulk space while the
+loss lived on the coupled space, so there was no pair to construct:
+``[M]`` ``OperatorPencil(record.loss, hub.fission)`` raises the ends law,
+and the two spaces have **equal shape** (both ``(160,)`` on the slab
+anchor) — a shape-keyed check would have admitted it.  The posed pair
+``(loss, production)`` is admitted, because
+:attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production` is the
+same :math:`F` posed on the loss's own carrier
+(:ref:`sn-one-fission-per-problem`).
+
+One balance functional
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Both kinds evaluate the same thing.  Write
+
+.. (vv-status rationale) The balance functional shared by both posing
+   kinds.  Structural / representational: it names which functional the
+   two layer-2 types single-source, not a solver claim.  Its verifiable
+   content is the foundation row
+   tests/numerics/test_posing.py::TestLawTheEigenPosing::
+   test_law_the_balance_functional_is_ONE_functional (the eigen and
+   source spellings agree bit-identically) together with the
+   Rayleigh-at-the-exact-eigenpair row; the physical k claim itself is
+   anchored by the homogeneous closed form, not here.
+.. vv-status: posing-balance-functional documented
+
+.. math::
+   :label: posing-balance-functional
+
+   \beta(\psi, \lambda) \;=\;
+   \bigl\langle w,\; \mathcal{A}(\mu(\lambda))\,\psi - q \bigr\rangle .
+
+The **eigen** kind SOLVES :math:`\beta = 0` for :math:`\lambda` — that is
+what a Rayleigh quotient is, and
+:meth:`~orpheus.numerics.posing.EigenPosing.rayleigh` with the constant
+weight :math:`w = 1` is exactly that member.  The **source** kind
+EVALUATES it, and the number is the exit balance defect.  Until step 2
+those were two bodies in two files; they are one functional now, and the
+gate that says so compares the eigen spelling against the source spelling
+on the same input and requires them **bit-identical**.
+
+.. important:: The numerics primitives take the weight **explicitly**.
+   A method's volume-weighted member — S\ :sub:`N`'s
+   :meth:`~orpheus.sn.solver.SNSolver.compute_keff`, which pairs with the
+   space's own measure — is that same quotient with a different :math:`w`,
+   and the relationship between them is a **reference-class agreement**,
+   not one body called twice.
+
+   ``[M]`` on a converged S\ :sub:`N` slab solve, ``rayleigh(ψ, w=1)`` and
+   :meth:`~orpheus.sn.solver.SNSolver.compute_keff` differ by
+   :math:`7.2\times10^{-10}` relative at the default tolerances and by
+   :math:`6.6\times10^{-14}` when the outer count is raised — i.e. **the
+   gap IS the convergence residual**.  They are one functional *at the
+   solution*; on an un-converged iterate they are two different estimates
+   and neither is wrong.  Reading that :math:`7.2\times10^{-10}` as a
+   discrepancy would be a category error.
+
+   ⚠ Those two figures are a **recorded** measurement, not a gated one —
+   they come from the C3b verification design and are restated in the
+   module docstring of ``tests/numerics/test_posing.py``.  No row asserts
+   them, precisely because a residual is a property of mesh × quadrature ×
+   tolerance; what IS gated is the theorem underneath, that the Rayleigh
+   quotient at the **exact** eigenpair equals the eigenvalue for *any*
+   weight.  If you need the numbers, re-measure them with your own
+   tolerances rather than quoting these.
+
+Where the objects live, and what is gated
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The layer-1 and layer-2 types sit **below** the
+:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` protocol boundary,
+so adopting them costs that boundary nothing.  ``[M]`` the protocol
+declares five members, and **three of them are meaningless without an**
+``rhs`` — ``compute_fission_source``, ``compute_keff`` and
+``measure_stopping_criteria`` all presuppose a production operator, while
+only ``initial_flux_distribution`` and ``solve_fixed_source`` do not.
+That is, incidentally, one more argument against shape (A): a
+``rhs=None`` object would hand the boundary an operand for which most of
+the protocol is undefined.
+
+.. list-table:: The Problem-side members, per hub
+   :header-rows: 1
+   :widths: 30 32 38
+
+   * - hub
+     - member
+     - what it holds
+   * - :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`
+     - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.system`
+     - the posed record — ``(space, factors, loss, production)`` — built
+       ONCE per hub through
+       :func:`~orpheus.sn.coupled_system.build_within_group_system`, the
+       builder's one call site
+   * -
+     - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pencil`
+     - ``OperatorPencil(system.loss, system.production)``
+   * -
+     - :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.eigen_posing`
+     - ``EigenPosing(pencil, K_MAP)``
+   * - :class:`~orpheus.homogeneous.solver.HomogeneousProblem`
+     - :attr:`~orpheus.homogeneous.solver.HomogeneousProblem.pencil`
+     - ``OperatorPencil(loss, production)`` over the dense 0-D pair
+   * -
+     - :attr:`~orpheus.homogeneous.solver.HomogeneousProblem.eigen_posing`
+     - ``EigenPosing(pencil, K_MAP)`` — the same type, the same map
+
+The build-count claim is the one that moved.  ``[M]`` a counting spy on
+:func:`~orpheus.sn.coupled_system.build_within_group_system` over one
+forward eigenvalue solve read **the outer-iteration count** before this
+step and reads **1** after it, on both inner solvers; the adjoint and
+fixed-source paths already read 1, which is why the defect was invisible
+from two of the three entry points.  The forward :math:`k` path is
+**bit-identical** across the change — the escalated regression set is
+unchanged, and ``[M]`` the anchors' slab reads
+:math:`k = 0.4351952142580926` before and after.
+
+The gates, and what each one can see:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - gate
+     - what it pins
+   * - ``tests/numerics/test_pencil.py``
+     - the ends law (both the coarse and the **sharp** equal-shape pair),
+       ``at(0) is lhs``, the affine combination, the affine increment,
+       ``.H`` as the pair of adjoints, ``rhs_rank`` over 12 mixtures, the
+       closed-form :math:`k_\infty = \operatorname{tr}(A^{-1}F)`
+       reference, and the opaque (CP-shaped) pair
+   * - ``tests/numerics/test_posing.py``
+     - the Rayleigh quotient at the **exact** eigenpair with two weights
+       (a theorem at the solution, not a tolerance), the vanishing
+       residual, ONE balance functional spelled two ways bit-identically,
+       and the adjoint **arity** pair (nullary vs unary)
+   * - ``tests/sn/architecture/test_posing.py``
+     - AC-a — no Strategy token (``inner_solver``, ``inner_schedule``,
+       ``max_iter``, ``tol``, …) appears on any callable of the chain
+       ``SNMesh(...) → .system → .pencil → .eigen_posing``, over a chain
+       held as an explicit LIST of nine callables so a rename cannot
+       silently empty the loop; plus the identity half — two content-equal
+       hubs pose equal records, and each hub's members are its own
+
+⚠ Two declared blindnesses travel with these rows, both worth reading
+before trusting a green.  The 0-D pose is a rank-1 (point) spatial axis,
+so every metric weight is a **scalar** and a scalar Gram commutes with
+everything — the ``.H`` row there **cannot** see a metric error, and the
+metric-loaded partner is the S\ :sub:`N` composite's reciprocity suite
+(:ref:`g-adjoint`).  And the adjoint row is an **arity** gate, not an
+adjoint-correctness gate: :math:`k^{\dagger} = k` puts the whole
+factor-order family inside the shared spectrum's stabiliser
+(``vv-principles`` Mode 12), so a value row there could not catch it.
+
+.. note:: **What this commit did NOT land.**  Four pieces of the design
+   above are written here as design, not as shipped behaviour, and a
+   reader should not go looking for them in the tree yet.
+
+   * :class:`~orpheus.numerics.iteration.KEigenvalue` does **not** yet
+     consume an :class:`~orpheus.numerics.posing.EigenPosing`; it still
+     takes the operator triple, and the adjoint entry still hand-daggers
+     that triple.  The re-signature is deferred because ``[M]`` it
+     changes the estimator's arithmetic — :math:`\sum(A\psi) -
+     \sum(S\psi) \neq \sum((A-S)\psi)`, with 1 of 40 draws bit-identical
+     — so it is a principled ULP-level re-baseline on the adjoint
+     :math:`k` path that must land with its own measurement rather than
+     inside a commit whose claim is that nothing moved.
+   * ``source_posing(q)`` on the hub is **not** a member yet;
+     :class:`~orpheus.numerics.posing.SourcePosing` ships and is gated,
+     but nothing in production poses one.
+   * The subcritical multiplying source — the shipped witness for the
+     :math:`(M, q)` cell, ``SourcePosing(pencil.at(1), q)`` handed to the
+     existing fixed-source driver — is **not** built.  Until it is, that
+     cell has no production witness anywhere in the tree; the honest
+     reading of the four-cell table is that three cells ship and the
+     fourth is argued.
+   * The collision cache still stashes itself on the hub
+     (``_coll_cache``) rather than living on the
+     :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
+     instance.  The σ staleness that made the stash a hazard is already
+     gone (:ref:`sn-sigma-is-a-problem-datum`), but the memo is still on
+     a save state.
 
 
 The posing table
@@ -6762,9 +7386,19 @@ This is a reverse-chronological (latest first) changelog of the major
 **architectural** milestones in the operator algebra. Iteration-rate
 work, gate counts, and intermediate replans are deliberately omitted —
 see the GitHub issues and the per-phase plan files for that granularity.
+⚠ **Read the** *When* **column, not the position.**  Four rows sit out of
+date order: the three that were floated to the top while marked *in
+development* (now dated — see below) and the 2026-08-19 cone entry, which
+was appended where its subject belongs rather than where its date does.
 Entries marked *(in development)* live on an unmerged feature branch and
 have no landed merge-to-``main`` hash yet; trust ``git`` over this table
-for merge status.
+for merge status.  ⚠ **That marker is a snapshot and it rots.**  ``[M]``
+2026-09-13: all **three** rows still carrying it had merged — two of them
+said so in their own *Where* column while the *When* column still read
+*in dev*, and the third named a branch that no longer exists.  All three
+are now dated.  Re-run ``git merge-base --is-ancestor`` on every such row
+before quoting it; a row that contradicts itself across two columns is
+the cheapest tell.
 
 .. list-table::
    :header-rows: 1
@@ -6774,8 +7408,7 @@ for merge status.
      - Architectural milestone
      - Issue
      - Where
-   * - in dev
-       (2026-08-28)
+   * - 2026-08-28
      - **A discretization scheme closes ONE axis — the angular closure
        owns its march, and the operator composes the two** (un-weld
        campaign, phase P4.9a).  The Morel--Montry angular march had a
@@ -6822,7 +7455,10 @@ for merge status.
        the mesh's.  See :ref:`sn-p49b-operator-poses-with-closures` and
        the S\ :sub:`N` :doc:`/theory/methods/sn/history` entry.
      - #407
-     - branch ``refactor/unweld-p49a-closure-owns-march``
+     - merged to ``main`` (branch
+       ``refactor/unweld-p49a-closure-owns-march``, deleted post-merge;
+       ``[M]`` 2026-09-13 the landing record ``6b111493`` is an ancestor
+       of ``main``)
    * - 2026-07-12
      - **The curvilinear ψ½ ray is System B of a 2×2 coupled block
        operator** — the augmented S\ :sub:`N` within-group problem is
@@ -6839,8 +7475,7 @@ for merge status.
        :ref:`coupled-block-operator`.
      - #280 / #282
      - ``main`` (``6732778a``)
-   * - in dev
-       (2026-07-04)
+   * - 2026-07-04
      - **The assembly axis — structural sparse emission as the third
        Mat-functor realization** (stencil-assembly campaign, Phase 2b).
        ``as_matrix`` gains a second realization beside apply-to-basis
@@ -6870,8 +7505,7 @@ for merge status.
      - #272
      - merged to ``main`` (branch ``refactor/spatial-promotion-assembly``,
        deleted post-merge; first assembly commit ``83a0db7b``)
-   * - in dev
-       (2026-06-25)
+   * - 2026-06-25
      - **The carrier grid recognised as a double category, and the
        operator type made two-parameter** (Frame-projection campaign,
        P4.5). The transport carriers are identified as the cells of a

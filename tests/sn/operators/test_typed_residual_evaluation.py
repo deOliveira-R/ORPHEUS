@@ -66,7 +66,7 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
     sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
     solver = SNSolver(sn_mesh, inner_solver="source_iteration")
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs,
     )
     si, _base, _gains, windowed = _within_group_si(
         Splitting.from_schedule(system, solver.schedule), sn_mesh,
@@ -211,7 +211,7 @@ def _slab_2g_het_triple(nx: int = 12, n_ord: int = 8):
         sn_mesh, inner_solver="source_iteration",
     )
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs,
     )
     LC, S, N2N, B = (
         system.factors.streaming_collision, system.factors.scattering,
@@ -455,7 +455,7 @@ class TestSplitRayResidualMint:
         sn_sol = sol.mesh
         solver = SNSolver(sn_sol)
         system = build_within_group_system(
-            sn_sol, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
+            sn_sol, solver.sn_mesh.mat_xs,
         )
         q_pair = _build_fixed_source_rhs(q_np, sn_sol)
         if not isinstance(q_pair, CoupledField):
@@ -508,7 +508,7 @@ class TestSplitRayResidualMint:
         sn = _tiny_sphere_2g()
         solver = SNSolver(sn)
         system = build_within_group_system(
-            sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
+            sn, solver.sn_mesh.mat_xs,
         )
         q_pair = _build_fixed_source_rhs(
             np.ones((sn.quad.N, sn.ng, sn.nx)), sn,

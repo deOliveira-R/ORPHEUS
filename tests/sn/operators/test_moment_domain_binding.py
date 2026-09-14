@@ -145,7 +145,7 @@ class TestEnds:
         An identity assertion would be a false red the first time
         ``from_blocks`` stops interning.
         """
-        S = solver.scattering_op
+        S = solver.sn_mesh.system.factors.scattering
         S_w = S.on_moment_domain()
 
         expected_domain = FullFieldSpace.from_blocks(
@@ -179,7 +179,7 @@ class TestEnds:
         """Its domain and codomain are DIFFERENT spaces — stated, because the
         ``OperatorSum`` guard would refuse it and the windowed driver
         deliberately consumes the gains one by one rather than summing them."""
-        S_w = solver.scattering_op.on_moment_domain()
+        S_w = solver.sn_mesh.system.factors.scattering.on_moment_domain()
         require(
             S_w.domain != S_w.codomain,
             "the moment sibling came out endomorphic — then it is not "
@@ -215,7 +215,7 @@ class TestBitIdentity:
         scalar flux (pinned below), which is why the equality is exact rather
         than ULP-banded.
         """
-        S = solver.scattering_op
+        S = solver.sn_mesh.system.factors.scattering
         S_w = S.on_moment_domain()
         psi = _psi(sn_mesh, seed=2026)
         moments = S.flux_analysis.apply(psi)
@@ -242,7 +242,7 @@ class TestBitIdentity:
         data, `[M]` bit-equal — which is what makes the row above an
         :math:`\ell \ge 1` statement.
         """
-        S = solver.scattering_op
+        S = solver.sn_mesh.system.factors.scattering
         S_w = S.on_moment_domain()
         psi = _psi(sn_mesh, seed=2026)
         moments = S.flux_analysis.apply(psi)
@@ -266,7 +266,7 @@ class TestBitIdentity:
         row pins the three preconditions: order ≥ 1, the operand's ℓ ≥ 1
         moments non-zero, and the emitted source non-zero.
         """
-        S = solver.scattering_op
+        S = solver.sn_mesh.system.factors.scattering
         psi = _psi(sn_mesh, seed=2026)
         moments = np.asarray(S.flux_analysis.apply(psi).values)
         require(S.legendre_order >= 1, "the fixture is P0 — ℓ≥1 is not exercised")
@@ -308,7 +308,7 @@ class TestTransposeReciprocity:
     """
 
     def _pairing(self, solver, sn_mesh, seed):
-        S = solver.scattering_op
+        S = solver.sn_mesh.system.factors.scattering
         S_w = S.on_moment_domain()
         psi = _psi(sn_mesh, seed)
         moments = S.flux_analysis.apply(psi)
@@ -390,7 +390,7 @@ class TestTransposeReciprocity:
         a per-ordinate cotangent would still close SOME pairing, but not the
         one the moment end's operand lives in.
         """
-        S_w = solver.scattering_op.on_moment_domain()
+        S_w = solver.sn_mesh.system.factors.scattering.on_moment_domain()
         _m, _chi, _fwd, back = self._pairing(solver, sn_mesh, 7)
         require(
             isinstance(back.interior, HarmonicMomentSourceSink),
@@ -427,7 +427,7 @@ class TestAdmission:
         the mesh's SCALAR bulk: a real space of the right family and the wrong
         end.
         """
-        S = solver.scattering_op
+        S = solver.sn_mesh.system.factors.scattering
         third = FunctionSpace.of_axes(*sn_mesh.bulk_space.axes)
         require(
             third != S.flux_analysis.domain and third != S.flux_analysis.codomain,
@@ -462,7 +462,7 @@ class TestAdmission:
         Both legs, because either one alone passes under one of the two wrong
         repairs.
         """
-        S = solver.scattering_op
+        S = solver.sn_mesh.system.factors.scattering
         S_w = S.on_moment_domain()          # positive leg: it constructs
 
         require(
@@ -499,7 +499,7 @@ class TestAdmission:
         the carve removed, and it is now a loud refusal instead of a silent
         second body.
         """
-        S_w = solver.scattering_op.on_moment_domain()
+        S_w = solver.sn_mesh.system.factors.scattering.on_moment_domain()
         psi = _psi(sn_mesh, seed=11)
         with pytest.raises(TypeError, match="body its ends select"):
             S_w.apply(zero_trace_composite(psi, S_w.domain.trace_space))
@@ -514,7 +514,7 @@ class TestAdmission:
         the carve's whole subject could regress to a class-dispatch arm and
         nothing would notice.
         """
-        S = solver.scattering_op
+        S = solver.sn_mesh.system.factors.scattering
         moments = S.flux_analysis.apply(_psi(sn_mesh, seed=11))
         assert isinstance(moments, HarmonicMomentFlux)
         with pytest.raises(TypeError, match="body its ends select"):
@@ -568,7 +568,7 @@ class TestTheOtherLifts:
         a zero morphism cannot pass it.
         """
         sn = _sn_mesh_with_n2n()
-        N = SNSolver(sn).n2n_op
+        N = SNSolver(sn).sn_mesh.system.factors.n2n
         N_w = N.on_moment_domain()
         psi = _psi(sn, seed=31)
         angular = np.asarray(bulk_apply(N, psi).values)

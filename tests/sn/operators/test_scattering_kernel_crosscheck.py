@@ -164,7 +164,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         Replaces ``test_kernel_apply_equals_existing_R_Lambda_M_chain``,
         whose second side (``_aniso_source_from_moment_values``) is retired.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         sn_mesh = solver_p1_het.sn_mesh
         psi = _aniso_psi(solver_p1_het)
         moments = op.flux_analysis.apply(psi)          # M·ψ, TYPED
@@ -195,7 +195,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         already projected; re-projecting would double-project). Fed the
         corresponding operands the two must coincide.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         kernel = require_scattering_kernel_property(op)
         moments = op.flux_analysis.apply(psi)
@@ -219,7 +219,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         and `[M]` they agree bit-for-bit — which is what makes the row above
         an :math:`\ell\ge1` statement.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         moments = op.flux_analysis.apply(psi)
         scalar_space = op.on_moment_domain().isotropic_energy.domain
@@ -240,7 +240,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         lives OUTSIDE it (lesson L18). A shape mismatch signals the kernel
         composed the wrong factor order.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         kernel = require_scattering_kernel_property(op)
         out = np.asarray(kernel.apply(psi.values))
@@ -264,7 +264,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         EMISSION itself is non-zero on both ends (a zero morphism satisfies
         every equality row above with both sides structurally zero).
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         moments = op.flux_analysis.apply(psi)
         require(
@@ -321,7 +321,7 @@ class TestScatteringKernelIsAnisoSubcomponent:
         and the full per-ordinate source differ substantially. ``require``
         (Mode-8 ``-O``-safe) asserts they do NOT coincide.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         kernel = require_scattering_kernel_property(op)
 

@@ -71,7 +71,7 @@ def _operator_residual_with_seed(case, nc, seed_mode):
     from orpheus.sn.coupled_system import build_streaming_collision
     from orpheus.sn.operators.boundary import SNBoundaryOperator
     LC = build_streaming_collision(solver.sn_mesh, solver.sn_mesh.mat_xs)
-    S = solver.scattering_op
+    S = solver.sn_mesh.system.factors.scattering
     B = SNBoundaryOperator(solver.sn_mesh)
 
     A_obj = case.phi_exact(mesh.centers)

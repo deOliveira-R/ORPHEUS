@@ -226,8 +226,6 @@ __all__ = [
 def build_coupled_system(
     sn_mesh: "SNMesh",
     mat_xs: "MaterialXSField",
-    *,
-    scattering_order: int = 0,
 ) -> "tuple[CoupledOperator, CoupledSpace]":
     r"""Build the ψ½ coupled block operator and its space, aligned by construction.
 
@@ -553,9 +551,6 @@ def build_streaming_collision(
 def build_within_group_system(
     sn_mesh: "SNMesh",
     mat_xs: "MaterialXSField",
-    *,
-    scattering_op: "ScatteringOperator | None" = None,
-    n2n_op: "N2NOperator | None" = None,
 ) -> "WithinGroupSystem":
     r"""Build the within-group system — the loss grid and the factors it
     is the signed sum of — from ONE piece-construction pass.
@@ -573,10 +568,9 @@ def build_within_group_system(
       :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` — the
       invertible composite whose ``solve`` is the WDD sweep.
     * ``S`` — the bulk scattering gain (producer-side ``/W`` normalisation
-      inside ``S.apply``; no consumer-side rescale). The solver's cached
-      instance injects through ``scattering_op`` (a cache seam, NOT a
-      configuration flag — the hub's ``scattering_order`` is consulted only
-      when constructing fresh).
+      inside ``S.apply``; no consumer-side rescale), minted here at the
+      hub's retained ``scattering_order`` — the ONE mint since step 2 C3b
+      (the solver's cache-seam injection retired with its operator copies).
     * ``B_a`` — the System-A trace boundary
       (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`),
       a SEPARATE first-class gain (Wave O #208 O.2a): it lives on the
@@ -614,40 +608,27 @@ def build_within_group_system(
         The mesh-materialized macroscopic cross sections: σ_t feeds ``C``
         AND ``A_BB`` (one typed field object — mesh-identity by
         construction); the scattering table feeds ``S``.
-    scattering_op : ScatteringOperator, optional
-        The already-constructed scattering operator (the solver's cached
-        instance). ``None`` constructs fresh from ``mat_xs`` at
-        the hub's ``scattering_order``.
-    n2n_op : N2NOperator, optional
-        The already-constructed :math:`(n,2n)` source operator (§14.1 —
-        first-class since CS4c step 3; the within-group algebra spells
-        ``− S − N₂ₙ`` explicitly). ``None`` constructs fresh.
 
     The Legendre truncation for a fresh ``S`` is the HUB's retained order
     (``sn_mesh.scattering_order`` — a generating datum since the consumers
     campaign's S1c, 2026-09-12, clamped once at the hub's construction);
     until then this function took its own ``scattering_order`` parameter,
-    one of three disagreeing spellings. Ignored when ``scattering_op`` is
-    injected.
+    one of three disagreeing spellings.  The ``scattering_op=``/``n2n_op=``
+    cache-seam keywords (a solver-held copy injected into every build) were
+    retired at step 2 C3b: the hub builds this record ONCE
+    (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.system`) and there is
+    nothing to inject.
     """
     full_field_space = sn_mesh.full_field_space
-    S = (
-        scattering_op
-        if scattering_op is not None
-        else ScatteringOperator.from_solver_data(
-            mat_xs=mat_xs,
-            scattering_order=sn_mesh.scattering_order,
-            space=full_field_space,
-        )
+    S = ScatteringOperator.from_solver_data(
+        mat_xs=mat_xs,
+        scattering_order=sn_mesh.scattering_order,
+        space=full_field_space,
     )
-    N2N = (
-        n2n_op
-        if n2n_op is not None
-        else N2NOperator.from_solver_data(
-            mat_xs=mat_xs,
-            scattering_order=sn_mesh.scattering_order,
-            space=full_field_space,
-        )
+    N2N = N2NOperator.from_solver_data(
+        mat_xs=mat_xs,
+        scattering_order=sn_mesh.scattering_order,
+        space=full_field_space,
     )
     # L = pure σ-free streaming; C = M[σ_t] — the ONE LC spelling.
     LC = build_streaming_collision(sn_mesh, mat_xs)

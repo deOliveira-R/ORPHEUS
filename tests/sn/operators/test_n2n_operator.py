@@ -129,8 +129,8 @@ class TestTheBindingAtTheSolveOrder:
         ``X``'s ends are the frame's own coefficient space.
         """
         solver, sn = _solver()
-        n2n = solver.n2n_op
-        S = solver.scattering_op
+        n2n = solver.sn_mesh.system.factors.n2n
+        S = solver.sn_mesh.system.factors.scattering
         psi = _psi(sn)
         # CS4c step 5: the gain is composite-bound; the bulk action rides a
         # zero-trace composite (the trace the lift itself emits back).
@@ -158,8 +158,8 @@ class TestTheBindingAtTheSolveOrder:
         solver, sn = _solver()
         control, control_sn = _solver(sig2=_SIG2_P0_ONLY)
         psi = _psi(sn, 7)
-        full = bulk_apply(solver.n2n_op, psi).values
-        p0 = bulk_apply(control.n2n_op, _psi(control_sn, 7)).values
+        full = bulk_apply(solver.sn_mesh.system.factors.n2n, psi).values
+        p0 = bulk_apply(control.sn_mesh.system.factors.n2n, _psi(control_sn, 7)).values
         moved = float(np.max(np.abs(full - p0)))
         if moved == 0.0:
             pytest.fail(
@@ -169,8 +169,8 @@ class TestTheBindingAtTheSolveOrder:
         # and the P0 halves agree: the ℓ = 0 lift is untouched by the ℓ = 1 block
         phi = psi.integrate_angular().values
         np.testing.assert_array_equal(
-            np.asarray(solver.n2n_op.isotropic_energy.apply(phi)),
-            np.asarray(control.n2n_op.isotropic_energy.apply(phi)),
+            np.asarray(solver.sn_mesh.system.factors.n2n.isotropic_energy.apply(phi)),
+            np.asarray(control.sn_mesh.system.factors.n2n.isotropic_energy.apply(phi)),
         )
 
     def test_the_two_terms_differ_by_the_yield_alone(self):
@@ -183,9 +183,9 @@ class TestTheBindingAtTheSolveOrder:
         solver, sn = _solver()
         # the SAME stack as the SCATTERING channel of an otherwise-equal solve
         twin, _ = _solver(sig_s=_SIG2, sig2=None)
-        S_prime = twin.scattering_op
+        S_prime = twin.sn_mesh.system.factors.scattering
         assert isinstance(S_prime, ScatteringOperator)
-        n2n = solver.n2n_op
+        n2n = solver.sn_mesh.system.factors.n2n
         psi, chi = _psi(sn, 21), _psi(sn, 22)
         np.testing.assert_array_equal(
             bulk_apply(n2n, psi).values,
@@ -202,7 +202,7 @@ class TestTheBindingAtTheSolveOrder:
         the ℓ ≥ 1 fixture — the transpose is the product chain's reversal
         with the per-ℓ middle factor (G2.10)."""
         solver, sn = _solver()
-        n2n = solver.n2n_op
+        n2n = solver.sn_mesh.system.factors.n2n
         psi, chi = _psi(sn, 5), _psi(sn, 6)
         lhs = float(np.sum(bulk_apply(n2n, psi).values * chi.values))
         rhs = float(np.sum(psi.values * transpose_values(n2n, chi.values)))
@@ -212,7 +212,7 @@ class TestTheBindingAtTheSolveOrder:
         r"""Negative leg (vv #11): a hand-flipped transpose breaks
         reciprocity on the asymmetric fixture — the identity has teeth."""
         solver, sn = _solver()
-        n2n = solver.n2n_op
+        n2n = solver.sn_mesh.system.factors.n2n
         psi, chi = _psi(sn, 5), _psi(sn, 6)
         lhs = float(np.sum(bulk_apply(n2n, psi).values * chi.values))
         # The WRONG transpose: forward applied to χ (un-transposed K).
@@ -267,11 +267,11 @@ class TestCarrierArms:
             pytest.fail("the trace probe is zero — the independence leg is vacuous")
 
         psi = _psi(sn, 9)
-        out = solver.n2n_op.apply(FullField(interior=psi, boundary=loud))
+        out = solver.sn_mesh.system.factors.n2n.apply(FullField(interior=psi, boundary=loud))
         assert isinstance(out, FullField)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
         np.testing.assert_array_equal(
-            out.interior.values, bulk_apply(solver.n2n_op, psi).values,
+            out.interior.values, bulk_apply(solver.sn_mesh.system.factors.n2n, psi).values,
             err_msg="the (n,2n) bulk emission moved with the TRACE — a "
                     "volumetric gain must not read the boundary block.",
         )
@@ -294,7 +294,7 @@ class TestCarrierArms:
         not of one draw (`vv` anti-#31).
         """
         solver, sn = _solver()
-        n2n = solver.n2n_op
+        n2n = solver.sn_mesh.system.factors.n2n
         psi = _psi(sn, 11)
         moments = n2n.flux_analysis.apply(psi)          # M·ψ, TYPED
         assert isinstance(moments, HarmonicMomentFlux)
@@ -332,21 +332,21 @@ class TestCarrierArms:
             space=sn.bulk_space,
         )
         with pytest.raises(TypeError, match="N2NOperator: this binding acts"):
-            solver.n2n_op.apply(phi)
+            solver.sn_mesh.system.factors.n2n.apply(phi)
 
         # The ℓ=0 half, isolated: an isotropic ψ has no ℓ ≥ 1 moments, so the
         # aniso route emits exactly zero and the lift is E φ / W broadcast.
         flat = np.empty(sn.angular_bulk_space.shape)
         flat[:] = rng.uniform(0.1, 1.0, size=flat.shape[1:])[None]
         psi_iso = AngularFlux(values=flat, space=sn.angular_bulk_space)
-        emitted = bulk_apply(solver.n2n_op, psi_iso).values
+        emitted = bulk_apply(solver.sn_mesh.system.factors.n2n, psi_iso).values
         iso = (
             np.asarray(
-                solver.n2n_op.isotropic_energy.apply(
+                solver.sn_mesh.system.factors.n2n.isotropic_energy.apply(
                     psi_iso.integrate_angular().values,
                 ),
             )
-            / solver.n2n_op.total_weight
+            / solver.sn_mesh.system.factors.n2n.total_weight
         )
         np.testing.assert_array_equal(
             emitted, np.broadcast_to(iso[None], np.shape(emitted)),
@@ -360,7 +360,7 @@ class TestCarrierArms:
         wants (the one-body admission's message, ``lift.admit_composite``)."""
         solver, _ = _solver()
         with pytest.raises(TypeError, match="N2NOperator: this binding acts"):
-            solver.n2n_op.apply(cast(Any, object()))
+            solver.sn_mesh.system.factors.n2n.apply(cast(Any, object()))
 
 
 class TestAdmission:
@@ -375,7 +375,7 @@ class TestAdmission:
         assert other_interior is not None
         wrong_face = HarmonicFrame.for_space(other_interior, _L).flux_analysis_on(other_interior)
         with pytest.raises(TypeError, match="mint the faces"):
-            replace(solver.n2n_op, flux_analysis=wrong_face)
+            replace(solver.sn_mesh.system.factors.n2n, flux_analysis=wrong_face)
 
     def test_reconstruction_face_from_another_quadrature_refused(self):
         """The other half of the face-binding admission (the elegance review's
@@ -390,7 +390,7 @@ class TestAdmission:
         assert other_interior is not None
         wrong_face = HarmonicFrame.for_space(other_interior, _L).source_reconstruction_on(other_interior)
         with pytest.raises(TypeError, match="mint the faces"):
-            replace(solver.n2n_op, source_reconstruction=wrong_face)
+            replace(solver.sn_mesh.system.factors.n2n, source_reconstruction=wrong_face)
 
     def test_from_solver_data_refuses_a_bare_space(self):
         solver, _ = _solver()
@@ -407,11 +407,11 @@ class TestAdmission:
         r"""Both gains mint at the same ``(rule, L)`` through the hub, so
         they carry ONE frame object — one metric for ``− S − N₂ₙ``."""
         solver, _ = _solver()
-        if solver.n2n_op.frame is not solver.scattering_op.frame:
+        if solver.sn_mesh.system.factors.n2n.frame is not solver.sn_mesh.system.factors.scattering.frame:
             pytest.fail("S and N2N must share the interned frame at the solve's order")
 
     def test_total_weight_is_the_measure_mass(self):
         solver, sn = _solver()
         np.testing.assert_allclose(
-            solver.n2n_op.total_weight, float(sn.quad.weights.sum()),
+            solver.sn_mesh.system.factors.n2n.total_weight, float(sn.quad.weights.sum()),
         )

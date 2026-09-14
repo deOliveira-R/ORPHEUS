@@ -666,14 +666,14 @@ class TestTheLGe1TermIsLive:
         """
         sn_mesh = _solve(arm_id, _L_ANISO).mesh
         solver = SNSolver(sn_mesh)  # the hub retained _L_ANISO at the solve
-        assert not solver.scattering_op.is_isotropic, (
+        assert not solver.sn_mesh.system.factors.scattering.is_isotropic, (
             f"{arm_id}: the scattering binding reads ISOTROPIC at "
             f"scattering_order={_L_ANISO}, so no ℓ ≥ 1 emission exists to "
             f"drop and every subject row on this arm is designed-green."
         )
         # and the control's own precondition: at L = 0 it MUST read isotropic
         control = SNSolver(sn_mesh.with_scattering_order(0))  # a P0 Problem over the same data
-        assert control.scattering_op.is_isotropic, (
+        assert control.sn_mesh.system.factors.scattering.is_isotropic, (
             f"{arm_id}: the L = 0 control is NOT isotropic — the control and "
             f"the subject differ by something other than the ℓ ≥ 1 term."
         )
@@ -689,7 +689,7 @@ class TestTheLGe1TermIsLive:
         """
         sn_mesh = _solve("slab_vac_n2n", _L_ANISO).mesh
         solver = SNSolver(sn_mesh)
-        assert not solver.n2n_op.is_isotropic, (
+        assert not solver.sn_mesh.system.factors.n2n.is_isotropic, (
             "the manufactured two-moment Sig2 stack reads ISOTROPIC at the "
             "binding — the ℓ ≥ 1 (n,2n) leg is not activated and this arm "
             "has become a duplicate of slab_vac."
@@ -698,7 +698,7 @@ class TestTheLGe1TermIsLive:
         # which is the measurement that justifies this arm's existence.
         lib_mesh = _solve("slab_vac", _L_ANISO).mesh
         lib_solver = SNSolver(lib_mesh)
-        assert lib_solver.n2n_op.is_isotropic, (
+        assert lib_solver.sn_mesh.system.factors.n2n.is_isotropic, (
             "an xs_library arm now carries an anisotropic (n,2n) binding — "
             "the library gained Sig2 data, so this file's claim that only "
             "slab_vac_n2n witnesses the (n,2n) leg is stale."

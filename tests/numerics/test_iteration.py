@@ -652,7 +652,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     sn_mesh = SNMesh(mesh, quad, materials, scattering_order=0)
     solver = SNSolver(sn_mesh)
     # The canonical S, F operators built directly from solver state.
-    S = solver.scattering_op
+    S = solver.sn_mesh.system.factors.scattering
     F = solver.sn_mesh.fission.isotropic_energy
 
     # ── Adapter shims to keep the iteration primitive scalar-flux-only.
@@ -729,7 +729,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             Q = np.zeros_like(phi)
             S.transfer.add_p0_source(Q, phi)
             # §14.1: the (n,2n) verb lives on the solver-held N2N binding.
-            solver.n2n_op.isotropic_energy.transfer.add_p0_source(Q, phi)
+            solver.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_p0_source(Q, phi)
             return Q
 
     class F_scalar_adapter(LinearOperator):
@@ -825,7 +825,7 @@ def _sn_composite_triple():
     sn = SNMesh(mesh, quad, materials, scattering_order=0)
     solver = SNSolver(sn)
     system = build_within_group_system(
-        sn, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
+        sn, solver.sn_mesh.mat_xs,
     )
     from functools import reduce
     from operator import add

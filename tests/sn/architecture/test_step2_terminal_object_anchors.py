@@ -253,47 +253,12 @@ class TestRecordTheBuildRoute:
     1-D slab ADJOINT eigenvalue                4    1  (``solver.py:2766``)
     ==================================  =========  ==========================
 
-    ⭐ Two readings the plan turns into design constraints: the eigen count is
-    exactly ``n_outer`` (so the row asserts the MECHANISM, not a fixture
-    number — a naive "move the call into a method" still reads ``n_outer``
-    and this row still reds), and the ADJOINT and FIXED-SOURCE paths are
-    ALREADY once-per-Problem, so sub-step (iii) changes the forward
-    eigenvalue path only.
+    History: pre-C3b the eigen count was exactly ``n_outer`` (the RECORD row
+    that measured it was deleted with the carve, 2026-09-13 — its ruled
+    successor is :meth:`TestRuledTheBuildIsOncePerProblem.test_ruled_eigen_builds_once`);
+    the ADJOINT and FIXED-SOURCE paths were already once-per-Problem, so
+    sub-step (iii) changed the forward eigenvalue path only.
     """
-
-    @pytest.mark.parametrize("inner_solver", ["source_iteration", "krylov"])
-    def test_record_eigen_builds_once_per_OUTER_step(
-        self, monkeypatch: pytest.MonkeyPatch, inner_solver: str,
-    ) -> None:
-        """RECORD — the forward eigenvalue path builds once per outer step.
-
-        ⛔ DELETE at sub-step (iii).  The ruled successor is
-        :meth:`TestRuledTheBuildIsOncePerProblem.test_ruled_eigen_builds_once`.
-        """
-        materials, mesh, quadrature, order = _fissile_slab()
-        spy = _BuildSpy(monkeypatch)
-        assert spy.bound_modules >= 2, (
-            f"the spy bound only {spy.bound_modules} module(s); production "
-            f"calls live in BOTH orpheus.sn.solver and "
-            f"orpheus.sn.coupled_system."
-        )
-        spy.reset()
-        solution = solve_sn(
-            materials, mesh, quadrature, scattering_order=order,
-            max_outer=200, inner_solver=inner_solver,
-        )
-        history = solution.history
-        assert history is not None
-        n_outer = len(history.keff_history)
-        assert n_outer > 1, (
-            f"non-vacuity: the fixture converged in {n_outer} outer step(s), "
-            f"so 'once per outer' and 'once per Problem' are the same number "
-            f"and this row cannot discriminate."
-        )
-        assert spy.calls == n_outer, (
-            f"pre-carve the within-group system is built once per OUTER step: "
-            f"expected {n_outer}, saw {spy.calls} at {spy.sites}."
-        )
 
     def test_record_fixed_source_and_adjoint_already_build_once(
         self, monkeypatch: pytest.MonkeyPatch,
@@ -588,16 +553,6 @@ class TestRuledTheRecordSplits:
 class TestRuledTheBuildIsOncePerProblem:
     """R-cc6 (iii) — the terminal object is built once per Problem."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "R-cc6 (iii) NOT LANDED — the forward eigenvalue path builds the "
-            "within-group system once per OUTER step (measured: count == "
-            "n_outer on slab/sphere/2-D). WHEN THIS XPASSES: the pencil is "
-            "on the hub — delete this marker AND "
-            "TestRecordTheBuildRoute.test_record_eigen_builds_once_per_OUTER_step."
-        ),
-    )
     def test_ruled_eigen_builds_once(
         self, monkeypatch: pytest.MonkeyPatch,
     ) -> None:

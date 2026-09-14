@@ -111,7 +111,7 @@ def build(cells, bcs, mixture, quad=LS4, scheme=None):
     sn_mesh = _as_sn_mesh(axes(cells, bcs), quad, {0: mixture}, scheme=scheme)
     solver = SNSolver(sn_mesh, inner_solver="source_iteration")
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs,
     )
     return sn_mesh, system, _unwindowed_cold_start(sn_mesh, history_depth=0)
 

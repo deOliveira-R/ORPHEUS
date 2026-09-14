@@ -1385,8 +1385,7 @@ compose the resolvent of its pencil, take the eigenpair:
    k_inf, phi = dominant_eigenpair(multiplication.as_matrix())
 
 with the PENCIL — the problem's terminal object, the pair
-:math:`(\mathbf{A}, \mathbf{F})` — held as cached properties of the
-problem, each posed on the one space
+:math:`(\mathbf{A}, \mathbf{F})` — posed on the one space
 :attr:`~orpheus.homogeneous.solver.HomogeneousProblem.space`:
 
 .. code-block:: python
@@ -1394,6 +1393,41 @@ problem, each posed on the one space
    # orpheus/homogeneous/solver.py — HomogeneousProblem
    loss           = collision - (isotropic_scattering + isotropic_n2n)   # A = C − K_iso
    production     = IsotropicFission(fission, domain=space, codomain=space)   # F = χ ⊗ νΣ_f
+   pencil         = OperatorPencil(loss, production)                     # the terminal object
+   eigen_posing   = EigenPosing(pencil, K_MAP)                           # the QUESTION
+
+⭐ **Since 2026-09-13 the pencil is a TYPE, not a manner of speaking.**
+The last two lines are new: :attr:`HomogeneousProblem.pencil
+<orpheus.homogeneous.solver.HomogeneousProblem.pencil>` is an
+:class:`~orpheus.numerics.pencil.OperatorPencil` and
+:attr:`~orpheus.homogeneous.solver.HomogeneousProblem.eigen_posing` an
+:class:`~orpheus.numerics.posing.EigenPosing` — and they are **the same
+two types** the S\ :sub:`N` hub poses over its own operators
+(:ref:`sn-the-problem-poses-its-pencil`), which is why they live in
+:mod:`orpheus.numerics` and not in either method's package.  The
+addition is purely additive: the solver body below still composes the
+resolvent from ``problem.loss`` and ``problem.production``, so nothing
+about :math:`k_\infty` moved.  The full articulation — what a pencil IS,
+its degree contract, and why it carries no inverse — is
+:ref:`the-operator-pencil`.
+
+This hub is also where the type is cheapest to *interrogate*, because
+its operators are dense enough to materialise.  ``[M]`` over the four
+shipped mixture families at 1, 2 and 4 groups,
+:attr:`~orpheus.numerics.pencil.OperatorPencil.rhs_rank` reads **1** for
+the fissile ``A`` family and **0** for ``B``/``C``/``D`` — the
+Weierstrass–Kronecker count of *finite* eigenvalues, which for a rank-1
+:math:`\mathbf{F}` — the dyad :eq:`fission-matrix` — says the whole
+k-problem is **one-dimensional**, on
+:math:`\operatorname{range}\mathbf{F}`.  The closed form that follows,
+:math:`k_\infty = \operatorname{tr}(\mathbf{A}^{-1}\mathbf{F}) = \langle
+\nu\Sigma_f,\, \mathbf{A}^{-1}\chi\rangle`, is what the pencil's own gate
+uses as its structurally-independent reference against
+:func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
+(``[M]`` bit-exact at 1g and 2g; **one ulp** apart at 4g — absolute
+:math:`2.2\times10^{-16}` on :math:`k_\infty = 1.4878`, relative
+:math:`1.5\times10^{-16}` — so it is pinned at ``rtol=1e-13``, never
+``array_equal``).
 
 The resolvent :math:`\mathbf{K} = \mathbf{A}^{-1}\mathbf{F}` is NOT a
 property of the problem: *how* the pencil is inverted is a Strategy
@@ -1402,6 +1436,9 @@ Problem builds its pencil as its last step; a resolvent picks an
 inversion of it), so the composition lives in the solver. (Until
 2026-09-12 the hub carried it as a ``multiplication`` property — its own
 docstring already called the explicit inverse "the strategy choice".)
+⚠ And the pencil landing did **not** change that: it deliberately
+carries no ``inverse`` and no ``resolvent`` method, precisely so that
+this separation cannot be undone by a convenience property.
 
 (The operators pose on the MIXTURE-MINTED Energy ⊗ point space — the
 problem's own physics names its space, :doc:`spaces` — and since the coda

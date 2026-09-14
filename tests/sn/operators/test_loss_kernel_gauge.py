@@ -155,7 +155,7 @@ def _loss_system(sn_mesh):
     """``(system, template)`` — the PRODUCTION splitting the SI driver iterates."""
     solver = SNSolver(sn_mesh, inner_solver="source_iteration")
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs, scattering_op=solver.scattering_op,
+        sn_mesh, solver.sn_mesh.mat_xs,
     )
     return system, _unwindowed_cold_start(sn_mesh, history_depth=0)
 

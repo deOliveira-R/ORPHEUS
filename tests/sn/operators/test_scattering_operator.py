@@ -210,17 +210,17 @@ class TestProtocolCompliance:
 
     def test_implements_linear_operator(self, solver_2g_p0):
         """isinstance LinearOperator (runtime-checkable Protocol)."""
-        assert isinstance(solver_2g_p0.scattering_op, LinearOperator)
+        assert isinstance(solver_2g_p0.sn_mesh.system.factors.scattering, LinearOperator)
 
     def test_predicates_adjointable_not_invertible(self, solver_2g_p0):
         """``is_adjointable`` True, ``is_invertible`` False — the adjoint S† is free
         via full_transfer_kernel (#276 A2b / #118); still no useful inverse."""
-        op = solver_2g_p0.scattering_op
+        op = solver_2g_p0.sn_mesh.system.factors.scattering
         assert op.is_adjointable and not op.is_invertible
 
     def test_apply_accepts_psi_shape(self, solver_2g_p0):
         """apply(psi) must accept typed AngularFlux ``(N, ng, nx, ny)`` (D-I.2)."""
-        op = solver_2g_p0.scattering_op
+        op = solver_2g_p0.sn_mesh.system.factors.scattering
         N = solver_2g_p0.sn_mesh.quad.N
         psi_values = np.ones((N, solver_2g_p0.ng, *solver_2g_p0.sn_mesh.spatial_shape))
         psi = AngularFlux(values=psi_values, space=solver_2g_p0.sn_mesh.angular_bulk_space)
@@ -252,7 +252,7 @@ class TestBitIdenticalExtractionP0:
         expected = _ref_iso_scatter_inplace(solver_2g_p0, Q, phi)
 
         Q_actual = Q.copy()
-        solver_2g_p0.scattering_op.transfer.add_p0_source(Q_actual, phi)
+        solver_2g_p0.sn_mesh.system.factors.scattering.transfer.add_p0_source(Q_actual, phi)
 
         np.testing.assert_allclose(Q_actual, expected, rtol=1e-13)
 
@@ -278,7 +278,7 @@ class TestBitIdenticalExtractionP0:
         expected = _ref_n2n_inplace(solver, Q, phi)
 
         Q_actual = Q.copy()
-        solver.n2n_op.isotropic_energy.transfer.add_p0_source(Q_actual, phi)
+        solver.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_p0_source(Q_actual, phi)
 
         np.testing.assert_allclose(Q_actual, expected, rtol=1e-13)
 
@@ -306,7 +306,7 @@ class TestBitIdenticalExtractionP0:
         (trailing :math:`2^d` spectator axis, #240 D5b-S3).  ``-O``-safe
         (``np.testing``).
         """
-        op = solver_2g_p0_n2n.scattering_op
+        op = solver_2g_p0_n2n.sn_mesh.system.factors.scattering
         rng = np.random.default_rng(0)
         (nx, ny), ng = solver_2g_p0_n2n.sn_mesh.spatial_shape, solver_2g_p0_n2n.ng
         phi = rng.uniform(0.1, 1.0, size=(ng, nx, ny, *trailing))
@@ -326,7 +326,7 @@ class TestBitIdenticalExtractionP0:
         # spelling of what this row was always exercising).
         ref = np.zeros_like(phi)
         op.transfer.add_p0_source(ref, phi)
-        solver_2g_p0_n2n.n2n_op.isotropic_energy.transfer.add_p0_source(ref, phi)
+        solver_2g_p0_n2n.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_p0_source(ref, phi)
 
         np.testing.assert_array_equal(
             got, ref,
@@ -340,7 +340,7 @@ class TestBitIdenticalExtractionP0:
         Q = np.ones((ng, nx, ny))
         phi = np.zeros_like(Q)
         Q_before = Q.copy()
-        solver_2g_p0.scattering_op.transfer.add_p0_source(Q, phi)
+        solver_2g_p0.sn_mesh.system.factors.scattering.transfer.add_p0_source(Q, phi)
         np.testing.assert_array_equal(Q, Q_before)
 
 
@@ -374,12 +374,12 @@ class TestAnisotropicScatteringExtraction:
         the predicate the retired ``build_aniso_source``'s ``None`` return
         used to encode (#448: the sentinel was the predicate wearing a
         return value)."""
-        op = solver_2g_p0.scattering_op
+        op = solver_2g_p0.sn_mesh.system.factors.scattering
         assert op.is_isotropic  # ``_redistribution is None`` is DERIVED from this in __post_init__
 
     def test_isotropic_flux_zero_aniso_source(self, solver_2g_p1):
         """Isotropic ψ_n = const for every ordinate => P1+ Galerkin moments = 0."""
-        op = solver_2g_p1.scattering_op
+        op = solver_2g_p1.sn_mesh.system.factors.scattering
         N = solver_2g_p1.sn_mesh.quad.N
         psi_iso_values = np.ones((N, solver_2g_p1.ng, *solver_2g_p1.sn_mesh.spatial_shape))
         psi_iso = AngularFlux(values=psi_iso_values, space=solver_2g_p1.sn_mesh.angular_bulk_space)
@@ -416,7 +416,7 @@ class TestApplySemantics:
 
         D-I.2: typed AngularFlux carrier → AngularSourceSink output.
         """
-        op = solver_2g_p0.scattering_op
+        op = solver_2g_p0.sn_mesh.system.factors.scattering
         N = solver_2g_p0.sn_mesh.quad.N
         (nx, ny), ng = solver_2g_p0.sn_mesh.spatial_shape, solver_2g_p0.ng
 
@@ -441,7 +441,7 @@ class TestApplySemantics:
 
     def test_apply_zero_psi_returns_zero(self, solver_2g_p0):
         """ψ = 0 => S·ψ = 0 (linearity guard)."""
-        op = solver_2g_p0.scattering_op
+        op = solver_2g_p0.sn_mesh.system.factors.scattering
         N = solver_2g_p0.sn_mesh.quad.N
         psi_values = np.zeros((N, solver_2g_p0.ng, *solver_2g_p0.sn_mesh.spatial_shape))
         psi = AngularFlux(values=psi_values, space=solver_2g_p0.sn_mesh.angular_bulk_space)
@@ -459,7 +459,7 @@ class TestApplySemantics:
         preserve affine combinations; the sharpness argument is in
         ``test_declared_law_is_linear.py``). ``op.apply`` stays on flux
         states (its domain — S guards it, rejecting a non-flux input)."""
-        op = solver_2g_p0.scattering_op
+        op = solver_2g_p0.sn_mesh.system.factors.scattering
         N = solver_2g_p0.sn_mesh.quad.N
         (nx, ny), ng = solver_2g_p0.sn_mesh.spatial_shape, solver_2g_p0.ng
         m = solver_2g_p0.sn_mesh
@@ -516,7 +516,7 @@ class TestProducerSideNormalisation:
         load-bearing producer-side identity that Pattern 7 introduces.
         """
         solver = solver_2g_p0
-        op = solver.scattering_op
+        op = solver.sn_mesh.system.factors.scattering
         N = solver.sn_mesh.quad.N
         (nx, ny), ng = solver.sn_mesh.spatial_shape, solver.ng
 
@@ -575,7 +575,7 @@ class TestCompositeInvariants:
         bulk_values = np.random.rand(*state.interior.values.shape) + 0.1
         state = replace(state, interior=replace(state.interior, values=bulk_values))
 
-        out = solver_2g_p0.scattering_op.apply(state)
+        out = solver_2g_p0.sn_mesh.system.factors.scattering.apply(state)
 
         # #257 S8a — the matvec leaf is a base arrow ``FullField -> FullField``,
         # so the output is the TIMELESS FullField (history-free).
@@ -594,7 +594,7 @@ class TestCompositeInvariants:
         bulk_values = np.random.rand(*state.interior.values.shape) + 0.1
         state = replace(state, interior=replace(state.interior, values=bulk_values))
 
-        out = solver_2g_p0.scattering_op.apply(state)
+        out = solver_2g_p0.sn_mesh.system.factors.scattering.apply(state)
 
         # Implicit-zero boundary (Option β3 / Wave O #208).
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -602,7 +602,7 @@ class TestCompositeInvariants:
     def test_zero_bulk_zero_output(self, solver_2g_p0):
         """ψ = 0 ⇒ S·ψ = 0 (linearity guard at composite layer)."""
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=solver_2g_p0.sn_mesh.full_field_space)
-        out = solver_2g_p0.scattering_op.apply(state)
+        out = solver_2g_p0.sn_mesh.system.factors.scattering.apply(state)
         np.testing.assert_array_equal(out.interior.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
 
@@ -619,7 +619,7 @@ class TestCompositeInvariants:
         sn_mesh = solver_2g_p0.sn_mesh
         for depth in (0, 1, 2, 4):
             state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=depth)
-            out = solver_2g_p0.scattering_op.apply(state)
+            out = solver_2g_p0.sn_mesh.system.factors.scattering.apply(state)
             assert isinstance(out, FullField)
             assert not isinstance(out, TimedFullField)
 
@@ -649,7 +649,7 @@ class TestP0AlgebraicIdentities:
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
         solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
-        op = solver.scattering_op
+        op = solver.sn_mesh.system.factors.scattering
 
         phi = np.ones((solver.ng, nx, ny))
         Q = np.zeros_like(phi)
@@ -684,7 +684,7 @@ class TestP0AlgebraicIdentities:
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
         solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
-        op = solver.scattering_op
+        op = solver.sn_mesh.system.factors.scattering
 
         np.random.seed(31)
         # Issue #196 PR-INDEX-4: principled (ng, nx, ny).
@@ -695,7 +695,7 @@ class TestP0AlgebraicIdentities:
         np.testing.assert_allclose(Q, 0, atol=1e-15)
 
         # (n,2n) contribution — the solver-held N2N binding's verb (§14.1)
-        solver.n2n_op.isotropic_energy.transfer.add_p0_source(Q, phi)
+        solver.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_p0_source(Q, phi)
         # Hand-computed: Q[g, ix, iy] = 2 · sum_g' phi[g', ix, iy] · sig2[g'->g]
         for ix in range(nx):
             for iy in range(ny):
@@ -743,12 +743,12 @@ class TestFoldablePart:
 
     def test_returns_scattering_operator_instance(self, solver_2g_p0):
         """Mechanism criterion 1 — sibling class, not a new class."""
-        S = solver_2g_p0.scattering_op
+        S = solver_2g_p0.sn_mesh.system.factors.scattering
         assert isinstance(S.foldable_part(), ScatteringOperator)
 
     def test_scattering_order_is_zero(self, solver_2g_p0):
         """Mechanism criterion 2 — no Pℓ structure in foldable."""
-        S = solver_2g_p0.scattering_op
+        S = solver_2g_p0.sn_mesh.system.factors.scattering
         assert S.foldable_part().legendre_order == 0
 
     def test_faces_are_order_zero(self, solver_2g_p0):
@@ -756,18 +756,18 @@ class TestFoldablePart:
         order 0 (the retired ``Y is None`` claim, re-spelled on the
         rebound surface: the harmonics live on the faces' interned
         frame, and the sibling's frame is the L=0 mint)."""
-        S = solver_2g_p0.scattering_op
+        S = solver_2g_p0.sn_mesh.system.factors.scattering
         assert S.foldable_part().frame.basis.L == 0
 
     def test_faces_are_order_zero_even_for_p1_source(self, solver_2g_p1_n2n):
         """Even when S carries P1+ data, the foldable sibling's faces are
         the L=0 mint (re-minted from the SAME interned hub chain)."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         assert S.foldable_part().frame.basis.L == 0
 
     def test_sig_s_is_diagonal_only(self, solver_2g_p1_n2n):
         """Mechanism criterion 4a — sig_s[mid][0] is diagonal-only."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         S_fold = S.foldable_part()
         for mid in S.transfer.per_material:
             mat = S_fold.transfer.per_material[mid].moments[0]
@@ -779,7 +779,7 @@ class TestFoldablePart:
 
     def test_sig_s0_matches_sig_s_l0(self, solver_2g_p1_n2n):
         """Mechanism criterion 4b — sig_s0 == sig_s[mid][0]."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         S_fold = S.foldable_part()
         for mid in S.transfer.per_material:
             np.testing.assert_array_equal(
@@ -788,7 +788,7 @@ class TestFoldablePart:
 
     def test_sig_s_has_length_one(self, solver_2g_p1_n2n):
         """Mechanism criterion 4c — no Pℓ≥1 entries in foldable."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         S_fold = S.foldable_part()
         for mid in S.transfer.per_material:
             assert len(S_fold.transfer.per_material[mid].moments) == 1
@@ -800,7 +800,7 @@ class TestFoldablePart:
 
     def test_does_not_mutate_parent_sig_s(self, solver_2g_p1_n2n):
         """Anti-rec 4 — split returns new arrays; parent unchanged."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         # Snapshot every parent array (frozen kernels — belt+braces).
         before = {
             mid: [m.copy() for m in S.transfer.per_material[mid].moments]
@@ -818,12 +818,12 @@ class TestResidualPart:
 
     def test_returns_scattering_operator_instance(self, solver_2g_p0):
         """Mechanism criterion 1 — sibling class."""
-        S = solver_2g_p0.scattering_op
+        S = solver_2g_p0.sn_mesh.system.factors.scattering
         assert isinstance(S.residual_part(), ScatteringOperator)
 
     def test_sig_s_l0_diagonal_zeroed(self, solver_2g_p1_n2n):
         """Mechanism criterion 5a — cross-group only on P0."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         S_res = S.residual_part()
         for mid in S.transfer.per_material:
             expected = S.transfer.per_material[mid].moments[0] - np.diag(np.diag(S.transfer.per_material[mid].moments[0]))
@@ -834,7 +834,7 @@ class TestResidualPart:
 
     def test_sig_s0_matches_diagonal_zeroed(self, solver_2g_p1_n2n):
         """Mechanism criterion 5b — sig_s0 alias of sig_s[mid][0]."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         S_res = S.residual_part()
         for mid in S.transfer.per_material:
             np.testing.assert_array_equal(
@@ -843,7 +843,7 @@ class TestResidualPart:
 
     def test_pl_ge_1_carried_verbatim(self, solver_2g_p1_n2n):
         """Mechanism criterion 5c — Pℓ≥1 blocks unchanged."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         assert S.legendre_order >= 1, "fixture must carry P1+ data"
         S_res = S.residual_part()
         for mid in S.transfer.per_material:
@@ -858,7 +858,7 @@ class TestResidualPart:
 
     def test_scattering_order_preserved(self, solver_2g_p1_n2n):
         """Mechanism criterion 5e — Pℓ structure preserved."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         assert S.residual_part().legendre_order == S.legendre_order
 
     def test_residual_shares_the_interned_frame(self, solver_2g_p1_n2n):
@@ -866,19 +866,19 @@ class TestResidualPart:
         residual sibling keeps the SAME order, so its re-minted faces
         land on the SAME hub-interned frame OBJECT (one table, shared —
         strictly stronger than the retired ``Y is Y`` claim)."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         S_res = S.residual_part()
         assert S_res.frame is S.frame
 
     def test_residual_frame_is_order_zero_for_p0_solver(self, solver_2g_p0):
         """If S has no harmonics (L=0), the residual's frame is the L=0
         mint too (the retired ``Y is None`` claim, on the faces)."""
-        S = solver_2g_p0.scattering_op
+        S = solver_2g_p0.sn_mesh.system.factors.scattering
         assert S.residual_part().frame.basis.L == 0
 
     def test_does_not_mutate_parent_sig_s(self, solver_2g_p1_n2n):
         """Anti-rec 4 — split returns new arrays; parent unchanged."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         before = {
             mid: [m.copy() for m in S.transfer.per_material[mid].moments]
             for mid in S.transfer.per_material
@@ -894,7 +894,7 @@ class TestFoldableSigma:
 
     def test_returns_dict_of_ndarrays(self, solver_2g_p1_n2n):
         """Mechanism criterion 6a — dict[int, ndarray]."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         result = S.foldable_sigma()
         assert isinstance(result, dict)
         for mid, arr in result.items():
@@ -903,21 +903,21 @@ class TestFoldableSigma:
 
     def test_shape_is_ng(self, solver_2g_p1_n2n):
         """Mechanism criterion 6b — each value is (ng,)."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         result = S.foldable_sigma()
         for arr in result.values():
             assert arr.shape == (solver_2g_p1_n2n.ng,)
 
     def test_values_are_diagonal_of_sig_s0(self, solver_2g_p1_n2n):
         """Mechanism criterion 6c — equals np.diag(sig_s[mid][0])."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         result = S.foldable_sigma()
         for mid, arr in result.items():
             np.testing.assert_array_equal(arr, np.diag(S.transfer.per_material[mid].moments[0]))
 
     def test_returned_arrays_are_copies(self, solver_2g_p1_n2n):
         """Mutating the returned dict's values must not affect ``self``."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         result = S.foldable_sigma()
         # Snapshot parent diagonal.
         before = {mid: np.diag(S.transfer.per_material[mid].moments[0]).copy() for mid in S.transfer.per_material}
@@ -954,7 +954,7 @@ class TestAlgebraicIdentity:
 
         D-I.2: typed AngularFlux carrier.
         """
-        op = solver_2g_p0.scattering_op
+        op = solver_2g_p0.sn_mesh.system.factors.scattering
         assert op.legendre_order == 0
         N = solver_2g_p0.sn_mesh.quad.N
         np.random.seed(42)
@@ -964,7 +964,7 @@ class TestAlgebraicIdentity:
 
     def test_identity_p0_only_uniform_psi(self, solver_2g_p0):
         """Case 1b — uniform ψ probes the diagonal isolation path."""
-        op = solver_2g_p0.scattering_op
+        op = solver_2g_p0.sn_mesh.system.factors.scattering
         N = solver_2g_p0.sn_mesh.quad.N
         psi_values = np.ones((N, solver_2g_p0.ng, *solver_2g_p0.sn_mesh.spatial_shape))
         psi = AngularFlux(values=psi_values, space=solver_2g_p0.sn_mesh.angular_bulk_space)
@@ -972,7 +972,7 @@ class TestAlgebraicIdentity:
 
     def test_identity_with_pl_ge_1(self, solver_2g_p1_n2n):
         """Case 2 — scattering_order >= 1 (with non-zero P1 block)."""
-        op = solver_2g_p1_n2n.scattering_op
+        op = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         assert op.legendre_order >= 1
         N = solver_2g_p1_n2n.sn_mesh.quad.N
         np.random.seed(101)
@@ -982,12 +982,12 @@ class TestAlgebraicIdentity:
 
     def test_identity_with_nonzero_n2n(self, solver_2g_p1_n2n):
         """Case 3 — non-zero (n,2n) coupling."""
-        op = solver_2g_p1_n2n.scattering_op
+        op = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         # Fixture explicitly sets (n,2n) cross-group entries — read off
         # the solver-held N2N field (§14.1: S carries no (n,2n) channel;
         # the identity below is about S alone, with n2n live in the
         # WORLD as the extraction demands).
-        n2n_field = solver_2g_p1_n2n.n2n_op.isotropic_energy.transfer
+        n2n_field = solver_2g_p1_n2n.sn_mesh.system.factors.n2n.isotropic_energy.transfer
         any_nonzero_n2n = any(
             np.any(k.p0 != 0.0) for k in n2n_field.per_material.values()
         )
@@ -1000,7 +1000,7 @@ class TestAlgebraicIdentity:
 
     def test_identity_multigroup_cross_group_plus_diagonal(self, solver_2g_p1_n2n):
         """Case 4 — non-trivial cross-group P0 + diagonal coupling."""
-        op = solver_2g_p1_n2n.scattering_op
+        op = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         # Fixture's P0 matrix has both diagonal AND off-diagonal entries.
         for mid in op.transfer.per_material:
             p0 = op.transfer.per_material[mid].moments[0]
@@ -1032,7 +1032,7 @@ class TestAlgebraicIdentity:
         mesh = _uniform_2d(nx, ny, 0.5, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
         solver = SNSolver(SNMesh(mesh, quad, {0: mix}))
-        op = solver.scattering_op
+        op = solver.sn_mesh.system.factors.scattering
 
         N = solver.sn_mesh.quad.N
         np.random.seed(404)
@@ -1053,7 +1053,7 @@ class TestPurity:
     (mechanism criterion 8)."""
 
     def test_foldable_part_pure(self, solver_2g_p1_n2n):
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         a, b = S.foldable_part(), S.foldable_part()
         assert a.legendre_order == b.legendre_order == 0
         for mid in S.transfer.per_material:
@@ -1061,7 +1061,7 @@ class TestPurity:
             np.testing.assert_array_equal(a.transfer.per_material[mid].p0, b.transfer.per_material[mid].p0)
 
     def test_residual_part_pure(self, solver_2g_p1_n2n):
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         a, b = S.residual_part(), S.residual_part()
         assert a.legendre_order == b.legendre_order
         for mid in S.transfer.per_material:
@@ -1071,7 +1071,7 @@ class TestPurity:
                 )
 
     def test_foldable_sigma_pure(self, solver_2g_p1_n2n):
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         a, b = S.foldable_sigma(), S.foldable_sigma()
         assert set(a.keys()) == set(b.keys())
         for mid in a:
@@ -1128,7 +1128,7 @@ class TestIsFoldableIntoSigmaR:
     def test_full_scattering_returns_false(self, solver_2g_p1_n2n):
         """Full S with non-zero off-diagonal P0 + non-zero P1 + non-zero
         sig2 → NOT foldable."""
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         # Sanity: the fixture's S has all three non-foldable channels.
         assert S.legendre_order >= 1
         assert S.is_foldable_into_sigma_r() is False
@@ -1140,7 +1140,7 @@ class TestIsFoldableIntoSigmaR:
         ``foldable_part()`` IS, by definition, the foldable part of
         itself.
         """
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         foldable = S.foldable_part()
         assert foldable.is_foldable_into_sigma_r() is True
 
@@ -1151,7 +1151,7 @@ class TestIsFoldableIntoSigmaR:
         unconditionally (every multi-group system has at least one
         cross-group entry) — so the diagonal-only check fails.
         """
-        S = solver_2g_p1_n2n.scattering_op
+        S = solver_2g_p1_n2n.sn_mesh.system.factors.scattering
         residual = S.residual_part()
         assert residual.is_foldable_into_sigma_r() is False
 
@@ -1249,12 +1249,12 @@ class TestAnisoMomentSourcePath:
     @pytest.fixture
     def op_p1(self, solver_2g_p1_n2n):
         """ScatteringOperator with P1 aniso (asymmetric SigS + n2n)."""
-        return solver_2g_p1_n2n.scattering_op
+        return solver_2g_p1_n2n.sn_mesh.system.factors.scattering
 
     @pytest.fixture
     def op_p0(self, solver_2g_p0):
         """ScatteringOperator with scattering_order=0 (P0 only)."""
-        return solver_2g_p0.scattering_op
+        return solver_2g_p0.sn_mesh.system.factors.scattering
 
     def test_moment_apply_arm_bit_identical_to_angular_arm(
         self, op_p1, solver_2g_p1_n2n,
@@ -1413,7 +1413,7 @@ class TestAnisoMomentSourcePath:
         # (principled-equivalence, vv three-criteria).
         out_post_t3 = (
             bulk_apply(op_p1, psi).values
-            + bulk_apply(solver_2g_p1_n2n.n2n_op, psi).values
+            + bulk_apply(solver_2g_p1_n2n.sn_mesh.system.factors.n2n, psi).values
         )
         expected = self._load_snapshot()["p1_apply_angular_flux"]
         np.testing.assert_allclose(
@@ -1445,7 +1445,7 @@ class TestAnisoMomentSourcePath:
         # old accumulator (P0 then n2n) ⟹ bit-equality survives.
         out_post_t3 = (
             np.asarray(op_p1.isotropic_energy.apply(phi.values))
-            + solver_2g_p1_n2n.n2n_op.isotropic_energy.apply(phi.values)
+            + solver_2g_p1_n2n.sn_mesh.system.factors.n2n.isotropic_energy.apply(phi.values)
         )
         expected = self._load_snapshot()["p1_apply_scalar_flux"]
         np.testing.assert_array_equal(out_post_t3, expected)
@@ -1471,7 +1471,7 @@ class TestAnisoMomentSourcePath:
         # PRE-extraction fused source; ``S + N2N`` on the composite must
         # reproduce it (reassociation-bounded).
         s_out = op_p1.apply(state)
-        n_out = solver_2g_p1_n2n.n2n_op.apply(state)
+        n_out = solver_2g_p1_n2n.sn_mesh.system.factors.n2n.apply(state)
         out_post_t3 = s_out
         snapshots = self._load_snapshot()
 
@@ -1602,7 +1602,7 @@ class TestAnisoMomentSourcePath:
         mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
         quad = Quadrature.lebedev(order=17)
         solver_p3 = SNSolver(SNMesh(mesh, quad, {0: mix}, scattering_order=3))
-        op_p3 = solver_p3.scattering_op
+        op_p3 = solver_p3.sn_mesh.system.factors.scattering
 
         rng = np.random.default_rng(20260530 + 2)
         psi_p3 = AngularFlux(values=rng.uniform(0.05, 1.0, size=(quad.N, 2, nx, ny)), space=solver_p3.sn_mesh.angular_bulk_space)

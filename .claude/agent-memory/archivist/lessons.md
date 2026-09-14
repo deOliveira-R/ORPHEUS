@@ -15,6 +15,55 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 
 ## 1. Ground truth is the LIVE tree — every other surface lies eventually
 
+- **⭐⭐ WHERE a new cross-method TYPE is documented is a PACKAGE question — count the hubs
+  that pose it.** Briefed *"the SN solver page, or the general algebra page — decide"*; the
+  discriminator is not taste: `[M]` the type lives in `orpheus/numerics/` and **two** hubs
+  pose it, so an SN home would force a FOUNDATIONS page to `:ref:` up into a METHOD chapter
+  for a numerics definition. ⟹ ≥2 methods ⟹ foundations gets the general theory; the method
+  page gets a SHORT section with only its own half (what its hub carries, what its solver
+  stopped carrying, its own counts) + a cross-ref. A third adopter then adds a table row and
+  touches no method page. → L-107
+- **⭐⭐ TWO honest `[M]` counts of "the same thing" differ by the PREDICATE — publish BOTH,
+  and the RECONCILIATION is the finding.** Two relayed counts failed to reproduce and both
+  were right: *"199 reads / 31 files"* (receiver `SNSolver`-derived) vs my **216 / 33** (every
+  `Attribute` node of the name); *"34 injections / 14 files"* vs my whole-tree **43 / 16**,
+  which **closes exactly** — 43 − 8 (the solver's own forwards) − 1 (an untracked probe) = 34.
+  ⟹ never adjudicate: find the predicate making both true and PRINT the arithmetic. An exact
+  reconciliation proves the census was complete AND names what it excluded. → L-107
+- **⭐⭐ A "what is DEFERRED, and why" table is where a same-day LANDING silently rots — audit
+  each row for which of its THREE parts moved.** A row has a **claim**, a **precondition** and
+  a **mechanism**, and a landing can move any one: `[M]` one row's precondition discharged
+  (row still open), one HALF discharged (statable, not yet spelled), one fully (✅, plus *"the
+  literal sentence stays true and stops mattering"*). Flipping a tense loses which. Annotate
+  under the row; say which part survived. → L-107
+- **⭐ "X re-homes WHEN Y happens" goes false the moment Y happens — grep the CONDITION, not
+  the subject.** `[M]` two pages promised a memo would re-home *"when the hub gains its posed
+  record"*; the hub gained it in the same commit and the memo did not move. Every symbol named
+  is alive and the sentence is grammatical, so no build, `dead_references` or symbol grep sees
+  it. ⟹ after any landing grep the corpus for its own EVENT-phrases — *"when the hub gains"*,
+  *"the campaign's next unit"*, *"until X lands"*, *"deferred to"*. → L-107
+- **⭐⭐ A CHANGELOG'S STALENESS MARKER ROTS, and the cheap tell is a row CONTRADICTING ITSELF
+  ACROSS TWO COLUMNS.** `[M]` all **three** `in dev` rows on a sibling changelog had merged —
+  two said `merged to main` in their own *Where* cell, the third named a vanished branch.
+  ⭐ De-staling then exposed that the table is not reverse-chronological (the markers had
+  floated those rows to the top): re-sorting a 7600-line file is real risk, so the honest
+  repair is a preamble *"read the When column, not the position"* naming the offenders, and
+  DEFER the sort. And a convention with zero live instances is unexercised, not dead — keep
+  it, date the `⚠`. → L-107
+- **⭐ A relayed measurement NO GATE asserts must say so, paired with what IS gated.** A
+  residual is a property of mesh × quadrature × tolerance; publishing it bare mints a constant
+  future sessions quote. ⟹ same admonition: the figure, then the THEOREM beside it (here the
+  Rayleigh quotient at the *exact* eigenpair, tolerance-free), then *re-measure, don't quote*.
+  ⭐ And re-deriving the relayed `[M]` on the shipped fixtures is nearly free evidence: it gave
+  an enumerable denominator, an **exactly-one-ulp** reading whose absolute and relative forms
+  are the brief's number and mine (both honest — the STATISTIC differs), and a meshed
+  `rank = #fissile cells` fact no memo carried. → L-107
+- **⭐ The "NOT landed" sentences are a pass's highest-risk claims — re-verify at the END.**
+  They are negative claims about a tree someone else is editing. `[M]` all four re-checked
+  twice, with `git log --oneline -1` + `git status --porcelain -- orpheus/ tests/ | wc -l`
+  unchanged across both. ⚠ And the docutils error-SET harness needs its own control: my first
+  regex read **0 → 0 on every file** (dead harness ≡ clean tree) until a 3-line bad fixture
+  exposed the message format. → L-107
 - **⛔⛔ A BRIEF CAN INSTRUCT A HARD AUDIT ERROR — read the scanner before obeying a
   `vv-status` instruction.** Briefed *"move the sentinel from `documented` to `verified`"*;
   `[M]` `tests/_harness/audit.py:452-456` — **`documented` is the ONLY status**, anything

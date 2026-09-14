@@ -486,12 +486,31 @@ The one production spelling — ``build_within_group_system``
 The joint system has exactly ONE construction site:
 :func:`~orpheus.sn.coupled_system.build_within_group_system`, which
 returns the frozen :class:`~orpheus.sn.coupled_system.WithinGroupSystem`
-record — three members: the loss grid, the
+record — **four** members: the loss grid, the
 :class:`~orpheus.numerics.coupled_system.CoupledSpace` it is typed
-against, and the bound LEAVES the grid is the signed sum of
-(:class:`~orpheus.sn.coupled_system.SNLossFactors`, by role) — all built
+against, the bound LEAVES the grid is the signed sum of
+(:class:`~orpheus.sn.coupled_system.SNLossFactors`, by role), and — since
+2026-09-13 — the posed production
+:attr:`~orpheus.sn.coupled_system.WithinGroupSystem.production`, which is
+:math:`F` on that same carrier so that the pair :math:`(A, F)` is a
+**pencil** on one space (:ref:`the-operator-pencil`).  All four are built
 from the SAME piece objects (one ``L+C``, one ``S``, one ``B_a``, one
-``B_b``, …).  The **splitting** :math:`A = M - N` (Hackbusch 2016 §11 —
+``B_b``, …).
+
+⭐ **And that builder now has exactly one CALLER**, which is a stronger
+statement than "one construction site".  Since 2026-09-13 it is invoked
+only by the :func:`~functools.cached_property`
+:attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`, so
+a Problem's joint system is built once and every consumer reads THAT
+object: ``[M]`` a counting spy over one forward eigenvalue solve read the
+outer-iteration count before the change and reads **1** after it
+(:ref:`sn-the-problem-poses-its-pencil`).  The two ``scattering_op=`` /
+``n2n_op=`` keyword arguments that let a caller inject its own leaves —
+the seam through which the Problem's :math:`A` was a function of
+something other than the Problem's data — are **deleted** in the same
+change.
+
+The **splitting** :math:`A = M - N` (Hackbusch 2016 §11 —
 block partitionings; a *splitting*, **not** a *regular* splitting in
 Varga's sense, see :ref:`sn-boundary-gs-not-regular`) is *not* one of
 those members: a posing does not choose which leaf is inverted, so since

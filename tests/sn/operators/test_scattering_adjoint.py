@@ -132,7 +132,7 @@ class TestLambdaTranspose:
 
     def test_moment_space_transpose_identity(self, solver_p1_het):
         r"""``⟨Λ m, c⟩ = ⟨m, Λᵀ c⟩`` (full moment-tensor contraction, per L27)."""
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
         lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
@@ -155,7 +155,7 @@ class TestLambdaTranspose:
         per-(material, ℓ, cell) ``sig @ vec`` Python loop (no einsum). A wrong group
         axis in the production transpose verb disagrees with it.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
         lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
@@ -181,7 +181,7 @@ class TestLambdaTranspose:
 
     def test_group_flip_is_nontrivial(self, solver_p1_het):
         r"""Discriminator: with asymmetric Σ_s, Λᵀ ≠ Λ (the transpose has teeth)."""
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
         lam = LegendreMomentTransfer.on_basis(
             TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
@@ -201,7 +201,7 @@ class TestLambdaTranspose:
 
 class TestKernelTranspose:
     def test_kernel_advertises_apply_transpose(self, solver_p1_het):
-        kernel = solver_p1_het.scattering_op.kernel
+        kernel = solver_p1_het.sn_mesh.system.factors.scattering.kernel
         require(
             kernel.is_adjointable,
             "kernel (R∘Λ∘M) must propagate adjointability once Λ has it "
@@ -215,7 +215,7 @@ class TestKernelTranspose:
         ``OperatorProduct.apply_transpose`` with the Phase-D M/R face transposes.
         Full per-ordinate/per-group contraction (NOT weight-summed — L27).
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
         N = solver_p1_het.sn_mesh.quad.N
         kernel = op.kernel
@@ -256,7 +256,7 @@ class TestN2NMomentTransfer:
         P0 truncation; it stopped being the data layer's at step 1 and
         stopped being a truncation at step 2.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
         n2n = LegendreMomentTransfer.on_basis(
             TransferMaterialField.n2n(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
@@ -272,7 +272,7 @@ class TestN2NMomentTransfer:
         )
 
     def test_moment_space_transpose_identity(self, solver_p1_het):
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
         n2n = LegendreMomentTransfer.on_basis(
             TransferMaterialField.n2n(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
@@ -311,7 +311,7 @@ class TestFullScatterKernel:
         extraction; its lift ≡ conjugation gate lives in
         ``test_n2n_operator.py``.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
         W = op.total_weight
         psi = AngularFlux(values=np.random.default_rng(10).uniform(0.05, 1.0, size=(solver_p1_het.sn_mesh.quad.N, solver_p1_het.ng, nx, ny)), space=solver_p1_het.sn_mesh.angular_bulk_space)
@@ -333,7 +333,7 @@ class TestFullScatterKernel:
         Scalar AND LD (trailing :math:`2^d` spectator, #240 D5b-S3): the transpose
         must thread the spatial-moment axis the same way the forward does (#276 P2).
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
         N = solver_p1_het.sn_mesh.quad.N
         fk = self._full_kernel(op)
@@ -352,7 +352,7 @@ class TestFullScatterKernel:
     def test_S_advertises_apply_transpose(self, solver_p1_het):
         r"""``ScatteringOperator`` is adjointable (the #118 flip) but still NOT
         invertible (rank-deficient :math:`\ell=0` block)."""
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         require(op.is_adjointable,
                 "S must advertise the adjoint axis (#276 A2b / #118).")
         require(not op.is_invertible,
@@ -363,7 +363,7 @@ class TestFullScatterKernel:
         ``.apply``-not-``.apply_transpose`` typo):
         ``S.apply_transpose(χ) == (1/W)·full_transfer_kernel.apply_transpose(χ)``.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
         N = solver_p1_het.sn_mesh.quad.N
         W = op.total_weight
@@ -389,7 +389,7 @@ class TestFullScatterKernel:
         (:meth:`test_reproduces_forward_scattering_source`); a group-flip / dropped
         n2n / missing ``1/W`` in Sᵀ breaks it O(1).  ``-O``-safe.
         """
-        op = solver_p1_het.scattering_op
+        op = solver_p1_het.sn_mesh.system.factors.scattering
         nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
         N = solver_p1_het.sn_mesh.quad.N
         rng = np.random.default_rng(12)
@@ -437,7 +437,7 @@ class TestFullScatterKernelLDTrailingAxis:
         :meth:`TestFullScatterKernel.test_reproduces_forward_scattering_source`
         (principled-equiv: same math, reduction order differs ⟹ ~1e-15)."""
         solver = _ld_solver_het(order)
-        op = solver.scattering_op
+        op = solver.sn_mesh.system.factors.scattering
         psi = _ld_flux(solver)
         W = op.total_weight
 
@@ -502,7 +502,7 @@ class TestFullScatterKernelLDTrailingAxis:
             return out
 
         solver = _ld_solver_het(order=0)  # rectangular nx=4, ny=3
-        op = solver.scattering_op
+        op = solver.sn_mesh.system.factors.scattering
         psi = _ld_flux(solver)
         W = op.total_weight
 

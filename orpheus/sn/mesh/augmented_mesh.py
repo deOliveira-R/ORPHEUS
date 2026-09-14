@@ -68,6 +68,10 @@ from ..angular.closure import (
 
 if TYPE_CHECKING:
     from orpheus.transport.operators.fission import FissionOperator
+    from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.numerics.pencil import OperatorPencil
+    from orpheus.numerics.posing import EigenPosing
+    from orpheus.sn.coupled_system import WithinGroupSystem
     from collections.abc import Mapping
 
     from orpheus.data.materials import Materials
@@ -1111,6 +1115,38 @@ class SNMesh(MaterialMesh):
         from orpheus.sn.operators.loss_kernel_gauge import LossKernelGauge
 
         return LossKernelGauge.for_mesh(self)
+
+    @cached_property
+    def system(self) -> "WithinGroupSystem":
+        """The Problem's POSED within-group record — built ONCE per hub.
+
+        ``(space, factors, loss, production)`` from the generating data
+        (consumers campaign step 2, R-cc6 (iii), 2026-09-13): the leaves by
+        role, the loss composite and the fission production posed on the
+        coupled space.  Every solver entry reads THIS object — the two
+        k-outer sites that rebuilt it per outer step now read it once — and
+        every Strategy value (``Splitting.from_schedule``) is minted from it.
+        The chain ``SNMesh(...) → .system → .pencil`` admits no Strategy
+        token (the AC-a gate).  Lazy import: ``coupled_system`` imports this
+        module at module scope.
+        """
+        from orpheus.sn.coupled_system import build_within_group_system
+
+        return build_within_group_system(self, self.mat_xs)
+
+    @cached_property
+    def pencil(self) -> "OperatorPencil[CoupledField]":
+        r"""The Problem's LAST step — the pencil :math:`(A, F)` on the coupled space (R-cc2)."""
+        from orpheus.numerics.pencil import OperatorPencil
+
+        return OperatorPencil(self.system.loss, self.system.production)
+
+    @cached_property
+    def eigen_posing(self) -> "EigenPosing[CoupledField]":
+        r"""The k-eigenvalue question :math:`A\psi = F\psi/k` — the pencil with the k map."""
+        from orpheus.numerics.posing import K_MAP, EigenPosing
+
+        return EigenPosing(self.pencil, K_MAP)
 
     @cached_property
     def fission(self) -> "FissionOperator":

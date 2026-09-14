@@ -62,6 +62,8 @@ from orpheus.transport.operators.isotropic_transfer import (
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
 if TYPE_CHECKING:
+    from orpheus.numerics.pencil import OperatorPencil
+    from orpheus.numerics.posing import EigenPosing
     from orpheus.numerics.operator import OperatorProduct, OperatorSum
 
 
@@ -308,6 +310,26 @@ class HomogeneousProblem:
     def isotropic_transfer(self) -> "OperatorSum":
         r""":math:`K_\mathrm{iso} = \Sigma_{s0}^T + 2\Sigma_2^T`."""
         return self.isotropic_scattering + self.isotropic_n2n
+
+    @cached_property
+    def pencil(self) -> "OperatorPencil":
+        r"""The Problem's LAST step — the pencil :math:`(A, F)` on the hub's space.
+
+        ``OperatorPencil(loss, production)`` (consumers campaign step 2, R-cc2 /
+        shape (B), 2026-09-13): the same TYPE the SN hub poses, over this
+        hub's two operators; the Strategy composes the resolvent
+        (``MatrixInverseOperator(pencil.at(σ))``) — the hub holds no inverse.
+        """
+        from orpheus.numerics.pencil import OperatorPencil
+
+        return OperatorPencil(self.loss, self.production)
+
+    @cached_property
+    def eigen_posing(self) -> "EigenPosing":
+        r"""The k-eigenvalue question :math:`A\phi = F\phi/k` — the pencil with the k map."""
+        from orpheus.numerics.posing import K_MAP, EigenPosing
+
+        return EigenPosing(self.pencil, K_MAP)
 
     @cached_property
     def loss(self) -> "OperatorSum":

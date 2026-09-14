@@ -43,6 +43,101 @@ them.  Trust ``git``, not this column.
      - Issue
      - Where
    * - 2026-09-13
+     - **A Problem's LAST step is its pencil, and the solver holds
+       nothing** (the consumers campaign, step 2, unit C3b, first
+       commit; ruling R-cc6 (iii) and the second-checkpoint shape
+       ruling).
+       **(1) The defect.**  The four-tier eigenvalue architecture
+       (:ref:`eigenvalue-posing`) had layers 1 and 2 as a *discipline*
+       call sites followed, not as objects.  Concretely: the forward
+       eigenvalue path called
+       :func:`~orpheus.sn.coupled_system.build_within_group_system`
+       **inside the outer loop**, so it re-posed the whole within-group
+       system — streaming composite, scattering leaf, boundary operator,
+       posed production — on every outer step (``[M]`` builder calls
+       equal to ``n_outer``: 4 on the slab at SI and at Krylov, 5 on the
+       carrying sphere, 3 on 2-D Cartesian; the adjoint and
+       fixed-source paths already built once, which is why the defect
+       was invisible from two of the three entry points).  The builder
+       also took ``scattering_op=`` / ``n2n_op=`` keyword arguments so
+       the *solver* could inject its own cached leaves — which meant the
+       Problem's :math:`A` was not a function of the Problem's data.
+       ``[M]`` 34 injections across 14 files at *consumer* call sites
+       (43 / 16 counting the solver's own forwards and an untracked
+       probe), of which **33** handed back the hub's own operator and
+       exactly **one** minted a foreign P0 :math:`S`.
+       **(2) The shape ruled, and the two that lost.**  Two layers,
+       three types, ZERO ``Optional`` fields.  Layer 1 is
+       :class:`~orpheus.numerics.pencil.OperatorPencil` ``(lhs, rhs)`` —
+       the pair :math:`(A, M)` on ONE space, with an ends law at
+       construction, ``at(σ) = A − σM`` (``at(0)`` returning the ``lhs``
+       object itself, because the algebra refuses
+       ``ScaledOperator(0.0, ·)``), ``.H``, ``is_regular``, ``rhs_rank``
+       — and deliberately NO inverse and NO resolvent.  Layer 2 is the
+       kind-typed question:
+       :class:`~orpheus.numerics.posing.EigenPosing` ``(pencil,
+       spectral_map)`` and
+       :class:`~orpheus.numerics.posing.SourcePosing` ``(operator,
+       source)``; the fourth :math:`(M, q)` cell is a **composition**,
+       ``SourcePosing(pencil.at(σ), q(σ))``, not a third type.
+       ⛔ Shape (A) — one type with ``rhs=None``/``source=None`` and the
+       kind derived from presence — was REFUTED because at least four
+       verbs change meaning or arity per cell, and because its
+       degenerate cells re-mint types that already exist; with it,
+       R-cc7's ``LinearPencil(A, M=None, q=None)`` realization is
+       **withdrawn in place**, its intent surviving intact.  ⛔ Shape (C)
+       — two unrelated types — was REFUTED because it cannot express the
+       :math:`(M, q)` cell at all.
+       **(3) What landed.**  ``orpheus/numerics/pencil.py`` and
+       ``orpheus/numerics/posing.py``;
+       :attr:`SNMesh.system <orpheus.sn.mesh.augmented_mesh.SNMesh.system>`
+       / :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pencil` /
+       :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.eigen_posing` as
+       cached properties, with ``system`` the builder's ONE call site;
+       :attr:`HomogeneousProblem.pencil
+       <orpheus.homogeneous.solver.HomogeneousProblem.pencil>` and
+       ``eigen_posing`` adopting the same types (two hubs, one type —
+       which is why they live in :mod:`orpheus.numerics`); the five
+       solver build sites reading ``sn_mesh.system``;
+       ``SNSolver.scattering_op`` and ``SNSolver.n2n_op`` **deleted**
+       (``[M]`` 199 reads across 31 files under the carve's predicate —
+       AST ``Attribute`` nodes on an ``SNSolver``-derived receiver; 216
+       across 33 counting every ``Attribute`` node of either name —
+       migrated to ``sn_mesh.system.factors.*``), so the solver now
+       caches **no operator at all**; both injection keywords and
+       ``build_coupled_system``'s long-dead ``scattering_order``
+       **deleted**; and the in-code "the loss composite ``L+C`` is
+       deliberately NOT cached" ruling **rewritten** — its staleness
+       half dissolved by σ becoming a Problem datum at C3a, its twin
+       half honoured by the stronger move that there is now nothing on
+       the solver to cache.
+       **(4) The count moved; no value did.**  ``[M]`` the forward
+       eigenvalue builder count is **1** on both inner solvers after the
+       change, and the forward :math:`k` path is **bit-identical** — the
+       anchors' slab reads :math:`k = 0.4351952142580926` before and
+       after, with the escalated regression set unchanged.  The pre-carve
+       anchor that asserted ``count == n_outer`` was deleted and its
+       ruled successor lost its ``xfail(strict=True)`` marker in the same
+       commit.
+       **(5) What did NOT land, stated so it is not assumed.**
+       :class:`~orpheus.numerics.iteration.KEigenvalue` does not consume
+       a posing yet — deferred *with a measurement*, since the
+       re-signature changes the estimator's arithmetic
+       (:math:`\sum(A\psi) - \sum(S\psi) \neq \sum((A-S)\psi)`; 1 of 40
+       draws bit-identical), so it is a principled ULP-level re-baseline
+       on the adjoint :math:`k` path.  ``source_posing(q)``, the
+       subcritical-multiplying-source witness for the :math:`(M, q)`
+       cell, and the collision cache's re-homing off the hub all wait for
+       the unit's second commit.
+       New gates: ``tests/numerics/test_pencil.py``,
+       ``tests/numerics/test_posing.py``,
+       ``tests/sn/architecture/test_posing.py`` (AC-a — no Strategy token
+       on the Problem chain).
+       Full account: :ref:`the-operator-pencil` (the general theory) and
+       :ref:`sn-the-problem-poses-its-pencil` (the S\ :sub:`N` half).
+     - —
+     - branch ``refactor/consumers-step2``, **not yet merged**
+   * - 2026-09-13
      - **The total cross section is a DATUM of the Problem, and a
        depletion step is another Problem** (the consumers campaign,
        step 2, unit C3a; rulings O-5 and O-6).

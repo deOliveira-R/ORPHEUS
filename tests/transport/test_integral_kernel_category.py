@@ -137,7 +137,7 @@ def scattering_op():
     quad = Quadrature.lebedev(order=17)
     return SNSolver(
         SNMesh(mesh, quad, {0: mix}, scattering_order=1),
-    ).scattering_op
+    ).sn_mesh.system.factors.scattering
 
 
 @pytest.fixture
