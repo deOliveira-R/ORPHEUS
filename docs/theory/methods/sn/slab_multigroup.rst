@@ -1066,16 +1066,20 @@ outer loop.
 Power iteration: the outer loop
 ===============================
 
-:class:`~orpheus.numerics.iteration.KEigenvalue` poses the
-k-eigenvalue problem from its operator triple and **delegates** the
-outer loop to the canonical
+:class:`~orpheus.numerics.iteration.KEigenvalue` is **handed** the
+k-eigenvalue question and **delegates** the outer loop to the canonical
 :func:`~orpheus.numerics.eigenvalue.power_iteration` (one loop engine;
-see :ref:`eigenvalue-posing`).  The triple it consumes is
-:math:`(L{+}C,\; S,\; F)` — its first operand is the *invertible
-loss composite* the sweep inverts (the constructor parameter is named
-``A`` after this operand), and the lagged gains are subtracted
-explicitly by the iteration, exactly the within-group splitting of
-:doc:`slab_one_group`.  Each outer step (run by ``power_iteration``)
+see :ref:`eigenvalue-posing`).  Since 2026-09-14 its operands are
+``(posing, implicit, explicit)``: an
+:class:`~orpheus.numerics.posing.EigenPosing` over the pencil
+:math:`(A_{\rm loss}, F)` — which is *the problem* — together with the
+two operators the inner solve splits with, the *invertible loss
+composite* :math:`L{+}C` the sweep inverts and the lagged gain
+:math:`S` the iteration subtracts explicitly, exactly the within-group
+splitting of :doc:`slab_one_group`.  ⚠ Until then the constructor took
+an operator **triple** :math:`(A, S, F)` and the question had to be
+inferred from the argument order; that is the conflation
+:ref:`the-operator-pencil` names.  Each outer step (run by ``power_iteration``)
 is classical power iteration on the :math:`k`-update, with
 :class:`SourceIteration` driving the inner fixed-source solve:
 
@@ -1096,8 +1100,7 @@ is classical power iteration on the :math:`k`-update, with
     :label: power-iteration-keff-update
 
     k_{n+1} \;=\; \frac{\sum (F\,\psi_{n+1})}
-                       {\sum \bigl((L{+}C)\,\psi_{n+1}\bigr)
-                        - \sum (S\,\psi_{n+1})}
+                       {\sum \bigl(\bigl[(L{+}C) - S\bigr]\,\psi_{n+1}\bigr)}
 
 .. (vv-status rationale) Governing iteration: the hardwired operator-form
    Rayleigh k-update, fission production over net removal.  Definitional (the
@@ -1129,8 +1132,20 @@ quotient (:meth:`KEigenvalue.compute_keff
 <orpheus.numerics.iteration.KEigenvalue.compute_keff>`) — the
 operator-level spelling of the unified :math:`k` discipline,
 fission production over net removal (see :ref:`sn-keff-estimator`).
+Since 2026-09-14 it is literally
+:meth:`EigenPosing.rayleigh <orpheus.numerics.posing.EigenPosing.rayleigh>`
+with the constant weight over the pencil the posing SOLVES, so the
+denominator applies the loss **once**.  ⚠ Until then
+:eq:`power-iteration-keff-update` read
+:math:`\sum((L{+}C)\psi) - \sum(S\psi)` — two contractions subtracted
+rather than one contraction of the difference.  They are the same number
+in exact arithmetic and a **re-association** in IEEE-754: ``[M]`` 1 of 40
+random draws bit-identical, with the rate governed by how much
+cancellation the subtraction does (:ref:`sn-the-pencil-reaches-production`
+carries the measured curve and the end-to-end adjoint drift).  The
+equation above states the shipped spelling.
 Because the first operand carries streaming + collision,
-:math:`\sum((L{+}C)\psi) - \sum(S\psi)` is absorption + leakage − the
+:math:`\sum\bigl([(L{+}C) - S]\psi\bigr)` is absorption + leakage − the
 neutron-multiplying :math:`(n,2n)` emission (the in- and out-group
 scatter cancel into :math:`\Sigma_a` via :math:`\Sigma_t - \Sigma_s`),
 term-for-term the method-layer functional :eq:`sn-keff-update` with
@@ -1148,7 +1163,12 @@ the #291 omission.
    functions are **gone**: the estimators are now hardwired methods
    (:meth:`~orpheus.numerics.iteration.KEigenvalue.compute_keff` /
    :meth:`~orpheus.numerics.iteration.KEigenvalue.compute_production_rate`),
-   arithmetic bit-identical to the retired defaults.
+   arithmetic bit-identical to the retired defaults *at that fold*.  ⚠ The
+   :math:`k` estimator's arithmetic did move later, at the 2026-09-14
+   re-posing onto :meth:`EigenPosing.rayleigh
+   <orpheus.numerics.posing.EigenPosing.rayleigh>` — a deliberate,
+   measured ULP-level re-baseline, not a drift; the production-rate
+   estimator is unchanged.
 
    The seam was **dead by design, not dead by being unwired.**  The
    five method-layer solver families (SN / CP / diffusion / MoC /
@@ -1166,9 +1186,12 @@ the #291 omission.
    :math:`\bigl((L{+}C)-S\bigr)\,\psi^\star = F\psi^\star/k^\star`.
    Applying the all-ones covector :math:`\mathbf 1^\top` (the
    ``\sum``) to both sides gives
-   :math:`\sum((L{+}C)\psi^\star) - \sum(S\psi^\star)
+   :math:`\sum\bigl([(L{+}C)-S]\psi^\star\bigr)
    = \sum(F\psi^\star)/k^\star`, so the hardwired ratio returns
-   **exactly** :math:`k^\star`.  Every functional that agrees with the
+   **exactly** :math:`k^\star`.  (Linearity of :math:`\mathbf 1^\top`
+   makes that identical, in exact arithmetic, to the two-contraction
+   spelling the estimator used before 2026-09-14; the theorem is
+   indifferent to which, and IEEE-754 is not.)  Every functional that agrees with the
    posed balance at the fixed point returns the same number; the
    "freedom" the injection seam advertised was illusory — all
    *consistent* choices collapse to one value, and any *different*

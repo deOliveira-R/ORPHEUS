@@ -294,7 +294,14 @@ of that door:
   products) is shaped ``(N, ng, nx)`` and is posed **per Problem**,
   while the geometry stratum is shared across every Problem on one
   phase space that hands the same angular-closure class — the cache's
-  two-strata split *is* the code's own statement of this tier boundary;
+  two-strata split *is* the code's own statement of this tier boundary.
+  Since 2026-09-14 the two strata are also bound together into ONE
+  object per :math:`\sigma`, a
+  :class:`~orpheus.sn.loss_representation.ScanStratum` held by the
+  operator that owns :math:`\sigma`, and the walk consumes that object
+  instead of looking either table up
+  (:ref:`sn-sigma-bound-once-at-the-operator`) — so "posed per Problem"
+  is now enforced by the type rather than by the caller;
 * the **starting-direction state** :math:`\psi_{1/2,g}` is per-group
   data produced by group-blind machinery:
   :func:`~orpheus.sn.sweep.psi_half_angle_seed.carlson_inward_sweep_from_source`

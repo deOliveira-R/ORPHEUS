@@ -662,6 +662,9 @@ class TestSweepEntryDelegatesToStrategy:
         spatial = sn_mesh.spatial_shape
 
         class _SpyStrategy:
+            def bind_sigma(self, sig_t):  # the operator binds σ once (C3b-2)
+                return sig_t
+
             def sweep(self, *args, **kwargs):
                 calls["sweep"] += 1
                 return (np.zeros((N, ng, *spatial)), np.zeros((ng, *spatial)))

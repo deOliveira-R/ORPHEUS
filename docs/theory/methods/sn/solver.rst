@@ -217,10 +217,16 @@ each of which mints the splitting VALUE its own schedule calls for.
      :class:`~orpheus.numerics.posing.EigenPosing` over it with the
      :math:`k` map.  The pencil carries **no** inverse and **no**
      resolvent: how it is inverted is the Strategy's
-     (:ref:`the-operator-pencil`).  ⚠ The solver does not consume the
-     posing yet — :class:`~orpheus.numerics.iteration.KEigenvalue` still
-     takes the operator triple, and its re-signature is a deferred,
-     measured re-baseline (same section).
+     (:ref:`the-operator-pencil`).  Since 2026-09-14 the solver
+     **consumes** the posing:
+     :class:`~orpheus.numerics.iteration.KEigenvalue` takes
+     ``(posing, implicit, explicit)`` and its three estimators read the
+     pencil the posing carries — a principled ULP-level re-baseline of
+     the :math:`k` estimator, measured at
+     :ref:`sn-the-pencil-reaches-production`.  ⚠ Until 2026-09-14 that
+     bullet read *"the solver does not consume the posing yet —
+     KEigenvalue still takes the operator triple"*; it was true for one
+     commit.
    * **There is ONE** :math:`F` **per Problem, and it lives on the hub**
      (since 2026-09-13 — the consumers campaign's step 2).
      :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
@@ -1874,48 +1880,153 @@ lazily from the materials through
 ``array_equal`` to the base — which is the gate
 ``test_law_the_override_moves_sigma_t_and_NOTHING_else``.
 
-.. warning:: **An OPEN question, not a settled contract: the diffusion
-   coefficient does not follow.**
+A **fifth** per-cell member is neither of those two things: the
+diffusion coefficient
+:attr:`MaterialXSField.diffusion_coefficient
+<orpheus.transport.mesh.material_xs_field.MaterialXSField.diffusion_coefficient>`
+is **derived**, and since C3b-2 it is derived *from the datum* — the
+subsection below is the ruling that settled it.
 
-   :attr:`MaterialXSField.diffusion_coefficient
-   <orpheus.transport.mesh.material_xs_field.MaterialXSField.diffusion_coefficient>`
-   is a per-cell *gather* of
-   :attr:`Mixture.diffusion_coefficient
-   <orpheus.data.macro_xs.mixture.Mixture.diffusion_coefficient>`, i.e.
-   :math:`D = 1/(3\Sigma_{\rm tr})` with :math:`\Sigma_{\rm tr} =
-   \Sigma_t - \sum_{g'}\Sigma_{s,1}(g\!\to\!g')` formed from **the
-   material's own** :math:`\Sigma_t`.  It never reads the hub's datum.
+.. _sn-sigma-datum-diffusion-d:
 
-   ``[M]`` (8-cell 2-group slab, :math:`\times 3` override): the 1-D
-   diffusion eigenvalue moves ``0.26290298 → 0.01802733`` (relative
-   :math:`9.314\times10^{-1}`) through the **removal** term
-   :math:`\Sigma_r = \sigma_t - \sigma_{s,gg}`, while
-   ``diffusion_coefficient`` is ``array_equal`` to the base — so the
-   **leakage** term does not move.  A σ-variant
-   :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` therefore
-   poses a diffusion problem whose two terms disagree about what
-   :math:`\Sigma_t` is.
+The diffusion coefficient follows the datum — RULED
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   This is **not ruled**.  The two candidate answers are (i) *declare the
-   limit* — ``with_cross_sections`` overrides the total cross section and
-   nothing derived from it, with the inconsistency pinned by a record
-   test and tagged as debt — and (ii) *close it* — the datum enters the
-   :math:`D` gather too, which is not a one-line substitution
-   (``[M]`` on that fixture :math:`D = [0.700, 0.349]` against
-   :math:`1/(3\sigma_t) = [0.667, 0.333]`: the difference is the
-   transport correction, so "use the override" has to decide what
-   :math:`\Sigma_{s,1}` the corrected :math:`\Sigma_{\rm tr}` is built
-   from) and re-opens the wider question of *which* of :math:`\Sigma_t`'s
-   derived quantities an override owns: ``[M]`` two further sites read
-   the material's :math:`\Sigma_t` directly — the ``_gather_vector("SigT")``
-   calls inside ``MaterialXSField``'s homogenisation and condensation
-   projections — so :math:`D` is not the only reader that would have to
-   be decided.
+.. important:: **Answered.**  This subsection was a ``.. warning::``
+   headed *"An OPEN question, not a settled contract: the diffusion
+   coefficient does not follow"* from 2026-09-13 (unit C3a) until
+   2026-09-14.  **RULED at the C3b checkpoint, fork 4 (a), and landed in
+   C3b-2:** where :math:`D` is DERIVED it follows the Problem's
+   :math:`\sigma_t`; where it is TABULATED it stays where it is
+   tabulated.  The argument that produced the fork is preserved below,
+   because it is what makes the ruling readable.
 
-   Until it is ruled, ``tests/diffusion/test_sigma_variant_reach.py``
-   pins **reachability only** — that a σ-variant hub's datum reaches the
-   diffusion removal term at all — and says so in its own docstring.  Do
-   not read it as certifying the inconsistency.
+**What the open question was** (written 2026-09-13, and preserved).
+:attr:`MaterialXSField.diffusion_coefficient
+<orpheus.transport.mesh.material_xs_field.MaterialXSField.diffusion_coefficient>`
+was a per-cell *gather* of
+:attr:`Mixture.diffusion_coefficient
+<orpheus.data.macro_xs.mixture.Mixture.diffusion_coefficient>`, i.e.
+:math:`D = 1/(3\Sigma_{\rm tr})` with :math:`\Sigma_{\rm tr} = \Sigma_t -
+\sum_{g'}\Sigma_{s,1}(g\!\to\!g')` formed from **the material's own**
+:math:`\Sigma_t`.  It never read the hub's datum, so a σ-variant
+:class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` posed a
+diffusion problem whose **removal** term :math:`\Sigma_r = \sigma_t -
+\sigma_{s,gg}` moved with the override while its **leakage** term did
+not — two terms disagreeing about what :math:`\Sigma_t` is.  The two
+candidate answers were (i) *declare the limit* — the override owns
+:math:`\sigma_t` and nothing derived from it, the inconsistency pinned as
+debt — and (ii) *close it*, which is not a one-line substitution,
+because :math:`D` is **not** :math:`1/(3\sigma_t)`: the gap is the
+transport correction, and "use the override" has to say what
+:math:`\Sigma_{s,1}` the corrected :math:`\Sigma_{\rm tr}` is built from.
+
+**The ruling, and why (ii) and not (i).**  :math:`D` is not an
+independent datum of the problem — it is a *reading* of
+:math:`\Sigma_{\rm tr}`, and :math:`\Sigma_{\rm tr}` is a reading of
+:math:`\Sigma_t`.  A Problem whose :math:`\sigma_t` is stated and whose
+:math:`D` is derived from a *different* :math:`\sigma_t` is not a
+declared limitation, it is two Problems' data inside one hub.  The
+question the fork had to answer is the one option (ii) names — *which*
+:math:`\Sigma_{s,1}` — and it has a principled answer: the P1
+out-scatter row sum is a property of the **material's scattering
+kernel**, which the σ_t override does not touch, so it stays
+per-material and only the total moves.  That splits the derivation's two
+inputs cleanly, and the carve is exactly that split:
+
+* :attr:`Mixture.p1_outflow
+  <orpheus.data.macro_xs.mixture.Mixture.p1_outflow>` — new, the
+  per-material :math:`\sum_{g'}\Sigma_{s,1}(g\!\to\!g')` (identically
+  zero on a P0-only mixture), split out of
+  :attr:`~orpheus.data.macro_xs.mixture.Mixture.transport_xs` so it can
+  be consumed without the material's :math:`\Sigma_t` riding along;
+* :attr:`MaterialXSField.diffusion_coefficient
+  <orpheus.transport.mesh.material_xs_field.MaterialXSField.diffusion_coefficient>`
+  — now **derived per cell**, :math:`D_{i,g} = 1/\bigl(3(\sigma_{t,i,g} -
+  p_{1,g}[\mathrm{mat}(i)])\bigr)`, from the hub's datum
+  (``mesh.sigma_t_cell``) and that per-material outflow, with a typed
+  refusal when the override drives :math:`\Sigma_{\rm tr} \le 0` in any
+  cell and group (*"a* :math:`\sigma_t` *override below the P1 outflow is
+  not a diffusion medium"*).
+
+``[M]`` on the reach gate's own fixture — 8 cells, 2 groups, mixture
+``A``, reflective | vacuum on :math:`[0, 4]` cm, solved with
+``DiffusionSolver(keff_tol=1e-10, flux_tol=1e-9)``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - quantity
+     - base Problem
+     - :math:`\times 3` σ-variant
+   * - :math:`\sigma_t` (per cell, per group)
+     - ``[0.5, 1.0]``
+     - ``[1.5, 3.0]``
+   * - :math:`p_1` outflow (per material)
+     - ``[0.024, 0.045]``
+     - ``[0.024, 0.045]`` — unchanged, by the ruling
+   * - :math:`D = 1/(3\Sigma_{\rm tr})`
+     - ``[0.70028011, 0.34904014]``
+     - ``[0.22583559, 0.11280316]``
+   * - :math:`1/(3\sigma_t)` (the *uncorrected* reading, for contrast)
+     - ``[0.66666667, 0.33333333]``
+     - ``[0.22222222, 0.11111111]``
+   * - diffusion :math:`k`
+     - ``0.930946184``
+     - ``0.030008461``  (rel. :math:`9.678\times10^{-1}`)
+
+Two properties of that table are the ruling's acceptance criteria, and
+both are gated by
+``tests/diffusion/test_sigma_variant_reach.py::test_a_sigma_variant_hub_reaches_the_diffusion_removal_term``:
+
+#. **Bit-identical on a non-overridden hub.**  ``[M]``
+   ``array_equal(mat_xs.diffusion_coefficient, gather of
+   Mixture.diffusion_coefficient)`` is ``True`` — the same floats through
+   the same operations, because on a hub whose datum was assembled from
+   the materials :math:`\sigma_{t,i,g}` *is* the material's
+   :math:`\Sigma_{t,g}`.  The re-derivation carries no arithmetic.
+#. **Consistent on a σ-variant.**  Both terms now read one
+   :math:`\sigma_t`.  ``[M]`` the variant's :math:`k` moves from
+   ``0.029084534`` (the pre-carve, :math:`D`-frozen reading on the same
+   fixture) to ``0.030008461`` — a leakage term that now shrinks with the
+   override, which is the whole content of the change.
+
+.. note:: **Two honesty notes on the numbers above, and one on the
+   ruling's second clause.**
+
+   The pre-C3b-2 text of this warning quoted ``0.26290298 →
+   0.01802733`` for "an 8-cell 2-group slab, :math:`\times 3` override",
+   relayed from the C3 verification delta's probe ``p11``.  ``[M]`` that
+   pair does **not** reproduce on the gate's fixture — which is an 8-cell
+   2-group slab with a :math:`\times 3` override — so the probe's mesh,
+   mixture or boundary pair differed in a way the memo did not record.
+   The rows above are re-measured here, with the fixture stated, and the
+   old pair is retired rather than carried forward.  A diffusion
+   eigenvalue is a property of mesh × materials × boundary; re-measure
+   rather than quote.
+
+   And the ruling has **two** clauses, of which only the first has an
+   occupant.  ``[M]`` ORPHEUS ships **no tabulated** :math:`D`: every
+   :math:`D` in the tree is derived from :math:`\Sigma_{\rm tr}`, and
+   the legacy ``CORE1D`` ``transport`` vector is mapped onto the
+   canonical ``Mixture.SigT`` / P1 moment upstream of this seam
+   rather than arriving as a coefficient.  So *"stays where tabulated"*
+   is a **declared future case**, not a live branch — there is no
+   provenance discriminator on
+   :class:`~orpheus.data.macro_xs.mixture.Mixture` and, with no tabulated
+   inbound path, nothing for one to discriminate.  The clause is recorded
+   so that a future tabulated-\ :math:`D` library lands as an addition
+   rather than as a contradiction.
+
+⚠ What the ruling did **not** settle is the wider question it names:
+*which* of :math:`\sigma_t`'s derived quantities an override owns.
+``[M]`` two further sites still read the material's :math:`\Sigma_t`
+directly — the ``_gather_vector("SigT")`` calls at
+``material_xs_field.py:264`` and ``:364``, inside ``MaterialXSField``'s
+homogenisation and condensation projections — so a σ-variant hub's
+*condensed* cross sections are still built from the materials.  That is a
+separate seam with its own consumers, and it is untouched here.
 
 The geometry table: shared by CONTENT, held by its consumers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1951,7 +2062,9 @@ makes it a holder rather than a free rider.
 measured.**  ``[M]`` over one 5-outer slab eigenvalue solve (8 cells,
 2 groups): a weak-valued intern **with** a strong holder reads **1 build
 / 549 hits**; the same intern with **nothing** holding the value reads
-**550 builds / 0 hits** — one rebuild per ``_ensure_geom_cache`` call,
+**550 builds / 0 hits** — one rebuild per geometry-table resolve (then
+the walk's own ``_ensure_geom_cache``, deleted at C3b-2 in favour of the
+bound stratum, :ref:`sn-sigma-bound-once-at-the-operator`),
 because the only reference between two sweeps was the weak one.  On that
 fixture a build is ``0.169 ms`` (minimum of 15) against a ``167.8 ms``
 solve (minimum of 3), i.e. **+55.4 %** wall-clock.  On a production mesh
@@ -2076,40 +2189,147 @@ operators posed over the variant move; and the intern shares across
 with its last holder, and is bounded by the number of distinct phase
 spaces.
 
-What is still deferred
-~~~~~~~~~~~~~~~~~~~~~~~
+.. _sn-sigma-bound-once-at-the-operator:
 
-The :math:`\sigma`-bound stratum is still memoised **on the hub**
-(``sn_mesh._coll_cache``), read back by a ``getattr`` with no
-:math:`\sigma` validation.  That is safe today only because a σ-variant
-is a different hub — the stash cannot serve one Problem's table to
-another — but the memo does not belong on a save state.  It re-homes onto
-the :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
-instance, together with the sibling ``_pole_mirror_cache``, when the hub
-gains its posed record.
+:math:`\sigma` is bound ONCE, at the operator that owns it
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. warning:: **The solver's geom_cache slot outlives its last consumer
-   on purpose.  Do not retire it as dead.**
+.. important:: **Landed 2026-09-14 (C3b-2, fork 1 option (ii)).**  This
+   subsection was headed *"What is still deferred"* and said that the
+   :math:`\sigma`-bound stratum *"is still memoised on the hub
+   (*\ ``sn_mesh._coll_cache``\ *), read back by a* ``getattr`` *with no*
+   :math:`\sigma` *validation … it re-homes onto the
+   StreamingCollisionOperator instance when the hub gains its posed
+   record"*.  The hub gained its posed record in C3b's **first** commit
+   and the memo did **not** move with it; it moves here — and not by
+   re-homing the memo, which is the part the deferral got wrong.
 
-   ``[M]`` in production the attribute is now read at exactly **one**
-   place — three lines below where it is assigned, to pose the
-   :class:`~orpheus.sn.sweep.cache.CollisionCache` in the same
-   ``__init__`` block.  Its only reader *after* construction was
-   ``rebind_cross_sections``, which C3a deleted (two reads survive in
-   ``tests/sn/sweep/core/test_cache.py``).  A local variable would carry
-   the construction-time use, so the attribute looks like a leftover.
+**The defect, and why re-homing the memo would not have fixed it.**  The
+1-D scan's :math:`\sigma`-bound collision table
+(:class:`~orpheus.sn.sweep.cache.CollisionCache`, Stratum 2) was
+memoised on the **hub** and read back with ``getattr(self.mesh,
+"_coll_cache", None)`` — no :math:`\sigma` validation anywhere on the
+path.  A walk handed a *second* :math:`\sigma` therefore kept marching
+the **first** one's table.
 
-   It is not.  What it does now is **hold**: it is the strong reference
-   that keeps the weak-valued intern's table alive between two sweeps,
-   and dropping it costs the 550-builds-per-solve regression measured
-   above — silently, with every value gate green.  It stops being the
-   tree's only holder when the :math:`\sigma` stratum re-homes onto the
-   operator (which then holds the geometry table through its own
-   stratum), and it retires *in that commit*, not before.  This is the
-   shape ``coding-standards`` warns about after any retirement: the
-   mechanism that made a thing redundant gets promoted to sole
-   guarantor, with no change to its own code and nothing prompting a
-   re-look.
+``[M]`` on the witness's own fixture — a 4-cell 2-group vacuum slab at
+``gauss_legendre(4)``, unit source — two sweeps at :math:`\sigma_t = 1.0`
+and :math:`\sigma_t = 5.0` on ONE strategy returned ``array_equal``
+results.  The statistic-free half of that reading is the one to carry:
+the second answer is **identically** the first's, not merely close to it.
+How *wrong* it is depends on the norm you pick, so state it: ``[M]``
+against a freshly posed strategy's :math:`\sigma_t = 5` answer the
+max-entrywise relative error is :math:`3.597`, the
+:math:`\|\cdot\|_\infty` ratio :math:`3.288`, the :math:`L_2` ratio
+:math:`2.378`.  (The verification delta's recorded ``3.573e+00`` is the
+first of those three — a max-entrywise reading — which is why the other
+two do not reproduce it.)  That is not a performance defect; it is a
+silently wrong flux, and no value gate in the tree looked at it because
+every production path happened to pose a fresh strategy per
+:math:`\sigma`.
+
+Moving that memo from the hub to the operator relocates the stash; it
+does not make the stale answer **unspellable**, because the operator is
+still a thing a caller can hand two :math:`\sigma`'s to.  What does is
+inverting the dependency: :math:`\sigma` stops being an *argument of the
+walk* and becomes a **bound stratum the walk consumes**.
+
+**The seam.**  A walk no longer takes :math:`\sigma_t`; it takes what
+:math:`\sigma` has already been bound INTO.
+
+.. code-block:: python
+
+   stratum = representation.bind_sigma(sig_t)        # bind ONCE
+   psi, phi = representation.sweep(Q, stratum, boundary_flux)
+
+:class:`~orpheus.sn.loss_representation.SigmaStratum` is the protocol
+(one member, ``sig_t``), with exactly two realizations — one per **walk
+kind**, which is the reason the protocol is not a single dataclass:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 30 44
+
+   * - realization
+     - carries
+     - who binds it, and why that shape
+   * - :class:`~orpheus.sn.loss_representation.RawSigmaStratum`
+     - :math:`\sigma_t`
+     - the base ``_LossRepresentation.bind_sigma``, and
+       :meth:`ScanMarch.bind_sigma
+       <orpheus.sn.loss_representation.ScanMarch.bind_sigma>` on a
+       multi-D mesh.  The wavefront walks read :math:`\sigma` **inside
+       the cell update**, so there is nothing to precompute
+   * - :class:`~orpheus.sn.loss_representation.ScanStratum`
+     - ``(geom, coll, sig_t)``
+     - :meth:`CumprodScan.bind_sigma
+       <orpheus.sn.loss_representation.CumprodScan.bind_sigma>` and
+       ``ScanMarch.bind_sigma``'s 1-D branch.  The Blelloch closed form
+       marches a **precomputed** chain, so binding σ means building
+       Stratum 2 against the interned Stratum 1
+
+Three consequences follow, and each is a deletion rather than an
+addition:
+
+#. **The walk's own ensure-path is gone.**  ``_OneDimScanWalk`` reads
+   ``stratum.geom`` / ``stratum.coll`` directly; its
+   ``_ensure_geom_cache`` and ``_ensure_coll_cache`` methods are
+   **deleted**, and with them the ``getattr`` that made the staleness
+   spellable.
+#. **Handing a raw stratum to the scan is a typed refusal**, not a
+   miscompute: the private ``_scan_stratum`` narrow raises
+   ``TypeError: the 1-D scan needs a ScanStratum (geometry + collision
+   tables bound for one σ) — bind σ through the scan strategy's
+   bind_sigma``.  A wavefront stratum has no tables to scan with, and
+   the type says so.
+#. **The solver's cache block is retired.**  ``SNSolver.geom_cache`` and
+   ``SNSolver.coll_cache`` are **deleted**, together with the
+   ``sn_mesh._coll_cache = …`` stash in ``SNSolver.__init__``.
+
+**Who holds the geometry table now.**  The operator does, through the
+stratum:
+:attr:`StreamingCollisionOperator.sigma_stratum
+<orpheus.sn.operators.streaming.StreamingCollisionOperator.sigma_stratum>`
+is a :func:`~functools.cached_property` returning
+``self.loss_representation.bind_sigma(self.sigma)`` — so on a 1-D mesh
+the operator holds a ``ScanStratum``, which holds the interned Stratum-1
+table strongly.  Every ``solve`` / ``solve_transpose`` on that operator
+passes the SAME stratum, which is the count claim of
+:ref:`the geometry-table section <sn-sigma-is-a-problem-datum>` restated
+at its new owner: one table per Problem, one binding per operator.
+
+.. note:: **The sole-guarantor warning that stood here is discharged.**
+
+   Between C3a and this commit, ``SNSolver.geom_cache`` looked like dead
+   state — ``[M]`` read at exactly one place, three lines below its own
+   assignment — and this page carried a ``.. warning::`` saying *"do not
+   retire it as dead"*, because it had been silently promoted to the
+   **only strong holder** of the weak-valued intern's table, and dropping
+   it costs the 550-builds-per-solve regression measured above with every
+   value gate green (``coding-standards``' sole-guarantor shape).  The
+   warning named the event that would retire it — *"it stops being the
+   tree's only holder when the σ stratum re-homes onto the operator"* —
+   and that event is this commit.  The slot is now deleted; the holder is
+   ``sigma_stratum``.
+
+The §6c witness lands with the seam:
+``tests/sn/sweep/core/test_cache.py::test_two_sigmas_on_one_strategy_give_two_answers``
+sweeps one strategy at two :math:`\sigma` and asserts (a) the two answers
+**differ** and (b) the second equals a freshly posed strategy's, ``[M]``
+bit-identically.  Leg (a) is the one that was red pre-carve; leg (b) is
+what makes it a *correctness* gate rather than a "something changed"
+gate.  ``test_cache.py``'s intern row additionally asserts ``not
+hasattr(hub, "_coll_cache")`` — the retired memo cannot come back by
+accident.
+
+⚠ **One sibling memo survives, and it is not the same object.**
+``_pole_mirror_cache`` — the :math:`r = 0` coupled-pole mirror pairing —
+is still a mesh attribute.  It is :math:`\sigma`-**free** (it is derived
+from the quadrature's mirror motion), so it carries none of the
+staleness this seam removes, and it is out of this unit's scope.  The
+route gate's ``_MEMO_SLOTS`` tuple in
+``tests/sn/operators/test_operator_feeds_the_walk.py`` now lists it and
+``_geom_cache`` alone.
 
 .. _sn-the-problem-poses-its-pencil:
 
@@ -2281,48 +2501,347 @@ the same operators once instead of :math:`n_{\rm outer}` times — the
 operators were already functions of Problem data, so re-minting them was
 pure waste, not a different answer.
 
-What is NOT in this commit
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. _sn-the-pencil-reaches-production:
 
-Four pieces of the design are **written and not shipped**; a reader
-should not go looking for them, and a future session should not assume
-they landed with the pencil.
+What the unit's SECOND commit landed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-#. :class:`~orpheus.numerics.iteration.KEigenvalue` does not consume an
-   :class:`~orpheus.numerics.posing.EigenPosing` yet.  It still takes the
-   operator triple, and ``_adjoint_posing_parts`` still hand-daggers that
-   triple rather than spelling ``pencil.H``.  The re-signature is
-   deferred **for a measured reason**: ``[M]`` it changes the estimator's
-   arithmetic, because :math:`\sum(A\psi) - \sum(S\psi) \neq
-   \sum((A-S)\psi)` in floating point (1 of 40 draws bit-identical), so
-   it is a principled ULP-level re-baseline on the adjoint :math:`k` path
-   and must land with its own measurement rather than inside a commit
-   whose claim is that nothing moved.
-#. ``SNMesh.source_posing(q)`` is not a member yet.
-   :class:`~orpheus.numerics.posing.SourcePosing` ships and is gated, but
-   no production path poses one — the fixed-source entries still build
-   their own operands.
-#. The **subcritical multiplying source** — the shipped witness for the
-   :math:`(M, q)` cell, ``SourcePosing(hub.pencil.at(1), q)`` handed to
-   the existing fixed-source driver — is not built.  Until it is, that
-   cell has no production witness anywhere in the tree.  ⚠ It is also a
-   *capability*, not just a gate: a fixed source in a multiplying medium
-   is one line of posing away from shipped machinery, and today
-   :func:`~orpheus.sn.solver.solve_sn_fixed_source` solves the **pure
-   transport** operator even on a fissile hub — its own docstring says so
-   (*"the fission source is zero — this is the pure transport
-   operator"*).  Whether the entry's default should change on a fissile
-   hub is a step-3 decision, taken when the Solution carries its posing;
-   the multiplying question would be reached explicitly, never through a
-   boolean flag.
-#. The :math:`\sigma`-bound sweep memo still stashes itself on the hub as
-   ``_coll_cache`` rather than living on the
-   :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
-   instance.  The staleness hazard that made the stash dangerous is
-   already gone (:ref:`sn-sigma-is-a-problem-datum`), but the memo is
-   still parked on a save state, and ``SNSolver.coll_cache`` is still the
-   tree's only strong holder of the geometry table — see the
-   sole-guarantor warning at the end of the previous section.
+.. important:: **Answered.**  This subsection was headed *"What is NOT in
+   this commit"* and listed four pieces of the design as *written and not
+   shipped*, so a reader would not go looking for them.  All four landed
+   on 2026-09-14 in the unit's second commit (C3b-2); the list below is
+   the same four, in the same order, with what each one turned out to
+   be.  The fourth — the :math:`\sigma`-bound sweep memo — is
+   :ref:`sn-sigma-bound-once-at-the-operator`, and is not repeated here.
+
+**1 —** :class:`~orpheus.numerics.iteration.KEigenvalue` **consumes the
+posing.**  The signature is now ``KEigenvalue(posing, implicit,
+explicit, …)``: the *question* and the *Strategy's* two operators, where
+it used to take an operator triple ``(A, S, F)`` and re-derive the
+question from the argument order.  The three estimators read the pencil
+the posing carries —
+:meth:`~orpheus.numerics.iteration.KEigenvalue.compute_fission_source`
+and
+:meth:`~orpheus.numerics.iteration.KEigenvalue.compute_production_rate`
+read ``posing.pencil.rhs``, and
+:meth:`~orpheus.numerics.iteration.KEigenvalue.compute_keff` is
+``posing.rayleigh(ψ, w=1)``, the one Rayleigh body of
+:ref:`the-operator-pencil`.
+
+That re-signature is the ULP-level re-baseline the deferral was written
+for, and it lands with its measurement:
+
+.. math::
+
+   k \;=\; \frac{\sum (F\psi)}{\sum\bigl((A-S)\psi\bigr)}
+   \qquad\text{replaces}\qquad
+   k \;=\; \frac{\sum (F\psi)}{\sum (A\psi) - \sum (S\psi)} .
+
+The **only** change is that the loss is applied **once**.  Mathematically
+they are the same number; in IEEE-754 they are a re-association, and
+``[M]`` 1 of 40 random draws is bit-identical (the C3 verification
+delta's §D.3 reading, on its own fixture).  The rate is not a universal
+— it is governed by how much cancellation the subtraction does, i.e. by
+the scattering ratio :math:`c = \sum(S\psi)/\sum(A\psi)`.  ``[M]`` an
+independent numpy re-derivation over 400 draws per row (:math:`n = 64`,
+dense random :math:`A`, :math:`S = c\,A` jittered :math:`\pm 10\,\%`):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - :math:`c \approx \sum(S\psi)/\sum(A\psi)`
+     - draws where the two spellings are bit-identical
+   * - :math:`0` (the ``ZeroOperator`` posture)
+     - **400 / 400** — structurally, there is nothing to re-associate
+   * - :math:`0.5`
+     - 145 / 400
+   * - :math:`0.9`
+     - 43 / 400
+   * - :math:`0.99`
+     - **3 / 400**
+
+So "1 of 40" is exactly where a scattering-dominated transport fixture
+belongs on that curve, and the ``S = ZeroOperator`` row of
+``tests/numerics/test_estimators_as_functionals.py`` is bit-identical
+**by construction**, not by luck.
+
+``[M]`` the end-to-end drift on the path the deferral named — the
+adjoint :math:`k`.  On the anchors' two-region 2-group slab
+(``gauss_legendre(8)``, 4 + 4 cells, ``keff_tol = 1e-10``,
+``inner_tol = 1e-11``), driving :func:`~orpheus.sn.solver.solve_sn_adjoint`
+with the new estimator against the retired association *in the same
+process*:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 46 54
+
+   * - reading
+     - value
+   * - forward :math:`k`
+     - ``0.4351952113470525``
+   * - adjoint :math:`k`, new — :math:`\sum(F\psi)/\sum((A-S)\psi)`
+     - ``0.4351952113428993``
+   * - adjoint :math:`k`, retired — :math:`\sum(F\psi)/(\sum(A\psi)-\sum(S\psi))`
+     - ``0.4351952113428981``
+   * - drift
+     - :math:`1.22\times10^{-15}` absolute, :math:`2.81\times10^{-15}`
+       relative — about 5 ulp
+   * - :math:`|k^\dagger - k|`
+     - ``4.153e-12`` new against ``4.154e-12`` retired — the
+       forward/adjoint agreement is **unmoved**
+
+That last row is the one that matters: the re-baseline is four orders
+below the convergence residual it sits inside, so every adjoint
+certification row stays green under its own tolerance, and the
+:math:`k^\dagger = k` identity is not degraded.  The adjoint chapter
+carries the posing's new spelling (:ref:`sn-adjoint-daggered-posing`).
+
+⭐ **Two numerical facts the single-sourcing exposed**, both of which
+had to be *designed in* rather than discovered afterwards, because
+either one silently breaks the bit-identity the gate asserts:
+
+* the pairing must reduce with :func:`numpy.sum`, not a BLAS dot.
+  ``[M]`` on a 4096-entry vector ``np.vdot(1, y)`` and ``np.sum(1 * y)``
+  differ in the last digit (``2047.5331122904424`` vs
+  ``2047.5331122904417``) — pairwise summation is not the dot product's
+  accumulation order, and the method-tier estimators take the coordinate
+  sum.  :func:`orpheus.numerics.posing` therefore spells the pairing
+  ``float(np.sum(w * y))``;
+* the spectral map must state :math:`\lambda` as **one** division.
+  ``[M]`` ``1/(41/6)`` is ``0.14634146341463417`` and ``6/41`` is
+  ``0.14634146341463414`` — two divisions are not one.  Hence
+  :attr:`SpectralMap.of_quotient
+  <orpheus.numerics.posing.SpectralMap.of_quotient>` beside
+  ``forward``: ``K_MAP.of_quotient(a, m) = m / a`` is the ratio
+  *directly*, where ``forward(a / m)`` would round twice.  (``41`` and
+  ``6`` are that gate's own :math:`\sum(A\psi)` and :math:`\sum(F\psi)`
+  — the fact is not abstract, it is the row.)
+
+**2 —** :meth:`SNMesh.source_posing(q)
+<orpheus.sn.mesh.augmented_mesh.SNMesh.source_posing>` **is a member.**
+It returns ``SourcePosing(self.pencil.at(1.0), q)`` — **always**
+``at(1)``, with no discrimination on the datum (RULED 2026-09-13, fork 2
+(a)).  On a non-fissile hub the production is the zero dyad, so the
+member *is* the pure transport operator in value; a branch on "does this
+hub carry :math:`\nu\Sigma_f`?" would be a second spelling of a fact the
+algebra already states.
+
+One thing the implementation had to learn, and it is worth carrying: the
+posing's **ends law** refused the first attempt.  ``[M]`` at the probe, a
+bare fixed-source right-hand side is a ``TimedFullField`` on the
+``FullFieldSpace`` while ``pencil.at(1)``'s ends are the ONE-system
+``CoupledSpace`` — equal in content, different as spaces — so
+:class:`~orpheus.numerics.posing.SourcePosing`'s ``__post_init__``
+rejected the pair.  That is the guard working, not a nuisance: the fix is
+to **lift**, not to loosen.  ``source_posing`` wraps a bare member as
+``CoupledField(systems=(source,))``; a rhs that is already coupled passes
+through.
+
+**3 — the subcritical multiplying source ships**, as
+:func:`~orpheus.sn.solver.solve_sn_multiplying_source`, and it is the
+:math:`(M, q)` cell's production witness.  It has its own subsection
+below, because it is a capability and not only a gate.
+
+.. _sn-subcritical-multiplying-source:
+
+The subcritical multiplying source — the :math:`(M, q)` cell, in production
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A **fixed source in a multiplying medium** — an accelerator-driven
+system, a subcritical start-up source, a source-driven experiment — is
+the fourth cell of the :math:`(M?, q?)` table
+(:ref:`the-operator-pencil`), and until this commit that cell was argued
+and not shipped.  The physics is
+
+.. math::
+   :label: sn-multiplying-source
+
+   \bigl(L + C - S - N_{2n} - B - F\bigr)\,\psi \;=\; q ,
+
+.. (vv-status rationale) The equation the (M, q) cell poses — the
+   within-group loss MINUS the fission production, driven by an external
+   source.  A posing identity rather than a solver claim: it states which
+   operator the composition ``SourcePosing(pencil.at(1), q)`` builds.  Its
+   verifiable content is the composition law row
+   tests/sn/solve/test_subcritical_multiplying_source.py::
+   test_the_composition_is_the_loss_minus_the_production (bit-identical
+   against ``loss.apply(x) − production.apply(x)`` on a seeded coupled
+   state, with a non-triviality positive control) together with the 0-D
+   closed-form row; the physical content of a multiplying solve is
+   anchored by the closed form, not here.
+.. vv-status: sn-multiplying-source documented
+
+i.e. exactly :math:`\mathcal{A}(1)\,\psi = q` — the pencil evaluated at
+the physical :math:`\sigma = 1`, handed to a source posing.  In code that
+is one line, and it is the hub's:
+
+.. code-block:: python
+
+   posing = sn_mesh.source_posing(q)        # SourcePosing(pencil.at(1), q)
+
+**Admissibility is spectral, and the DRIVER certifies it.**  The problem
+is well posed iff the medium is subcritical,
+
+.. math::
+
+   \rho\bigl(A^{-1}F\bigr) \;=\; k_{\rm eff} \;<\; 1 ,
+
+because :math:`(A - F)^{-1} = A^{-1}\sum_{n\ge0}(FA^{-1})^n` converges
+exactly on that condition — the Neumann series *is* the fission-chain
+sum, and at :math:`k \ge 1` the chain does not terminate and no positive
+steady solution exists.  That is a property of the resolvent, so nothing
+on the Problem side can answer it: a posing constructs freely, and
+:func:`~orpheus.sn.solver.solve_sn_multiplying_source` runs the hub's own
+k-solve **first** and refuses with a typed
+:class:`~orpheus.sn.solver.SupercriticalSourceProblem` naming the
+measured :math:`k`.  It costs one extra eigen solve per multiplying
+solve, and it is **exact** rather than a bound.
+
+⚠ **The predicate is** :math:`\rho(A^{-1}F) < 1`, **not positive-stability
+of** :math:`A - F`.  Those coincide for an M-matrix and they do not
+coincide here: ``[M]`` positive-stability never holds on the S\ :sub:`N`
+composite, because the trace block contributes eigenvalues :math:`-1`
+(the same structure :ref:`sn-loss-kernel-gauge` analyses).  A guard
+written on the "obvious" criterion would refuse every well-posed
+multiplying problem in the tree.
+
+**The lowering: the production is ONE MORE explicit gain, lagged.**  The
+Strategy does not invert :math:`A - F`.  It keeps the same splitting the
+pure fixed-source path uses and adds :math:`F` to the lagged side:
+
+.. math::
+
+   M\,\psi_{n+1} \;=\; N\,\psi_n \;+\; F\,\psi_n \;+\; q ,
+
+which is
+:func:`~orpheus.sn.solver._within_group_si`'s ``extra_gains=`` channel —
+the same door the eigenvalue finalize's gain list uses, so no new
+iteration body exists.  ``[M]`` the gain is posed on the **arm's own
+carrier**: ``system.production`` on a carrying (curvilinear, seed-bearing)
+mesh, ``system.factors.fission`` on a seedless one.  Source iteration
+only: the Krylov arm's preconditioner is the *pure transport* resolvent,
+and composing it with the fission lag is a later step.
+
+Because the entry *is* that lowering, it inherits the fixed-source path's
+exits wholesale — the same :ref:`exit gauge <sn-loss-kernel-gauge>`, the
+same convergence certificate, the same
+:class:`~orpheus.sn.solution.Solution` contract.
+``tests/sn/solve/test_every_entry_gauges_its_trace.py``'s entry ledger
+records it as *not separately exercised* for exactly that reason, naming
+the shared path the fixed-source rows already cover — a **declared
+inheritance**, not a coverage gap.
+
+**The exit certificate is posed on the equation that was SOLVED.**  This
+is the subtlety the lag creates.  The driver's certificate evaluates
+:math:`r = A\psi - q_{\rm certified}`, and a lagged gain is part of the
+operator, so the gain must re-enter the certified right-hand side at the
+converged iterate:
+
+.. math::
+
+   q_{\rm certified} \;=\; q \;+\; \sum_i G_i\,\psi_{\rm conv}
+   \quad\Longrightarrow\quad
+   r \;=\; A\psi - \Bigl(q + \sum_i G_i\psi\Bigr)
+     \;=\; \Bigl(A - \sum_i G_i\Bigr)\psi - q ,
+
+which is :eq:`sn-multiplying-source`'s residual.  Certifying against the
+bare :math:`q` would have measured the *pure transport* residual of a
+multiplying solution and raised
+:class:`~orpheus.sn.solver.ConvergenceCertificateError` on
+every converged run.
+
+**Convergence rate, and a budget that is not a refusal.**  The lagged
+iteration's contraction is governed by :math:`k`, so the amplification
+:math:`1/(1-k)` is also the iteration-count scale.  ``[M]`` on the
+witness's near-critical fixture (:math:`L = 4` cm, :math:`k =
+0.907457573`, so :math:`1/(1-k) = 10.81`) the solve needs **4300** inner
+iterations at ``inner_tol = 1e-12``, where the budget derived from the
+tolerance alone is **1961**.
+
+.. warning:: A starved inner is a **budget**, not a refusal.  The default
+   :func:`~orpheus.numerics.convergence.default_iteration_budget` is
+   derived from the *tolerance*, and it does not know :math:`k`; near
+   criticality it under-counts by the dominance factor.  The witness
+   passes ``max_inner=6000`` on that row deliberately, and a user solving
+   a near-critical driven system should do the same rather than read the
+   truncation as a physics refusal (#340's convergence contract makes it
+   audible either way — the exit warns and
+   :meth:`Solution.converged <orpheus.sn.solution.Solution.converged>`
+   reads ``False``).
+
+**The witness** is ``tests/sn/solve/test_subcritical_multiplying_source.py``
+(``l1``), six rows over a two-region 2-group slab
+(mixture ``A`` | mixture ``B``, 4 + 4 cells, ``gauss_legendre(8)``):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - leg
+     - what it pins
+   * - convergence ×2
+     - :math:`L = 2` (:math:`k = 0.435195214`) and :math:`L = 4`
+       (:math:`k = 0.907457573`) both converge; the production exit
+       CERTIFICATE (above) is what asserts the balance closes, and it
+       **raises** rather than reporting
+   * - cone monotonicity
+     - :math:`\psi_{\rm mult} > \psi_{\rm pure}` cell-wise against
+       :func:`~orpheus.sn.solver.solve_sn_fixed_source` on the same
+       :math:`q` — fission adds neutrons (Krein–Rutman / the Neumann
+       series' positivity), and the peak ratio exceeds 3 on the
+       near-critical row
+   * - the refusal
+     - :math:`L = 8` reflective|reflective, ``[M]`` :math:`k =
+       1.374233987`, raises
+       :class:`~orpheus.sn.solver.SupercriticalSourceProblem` with the
+       measured :math:`k` in the message
+   * - the composition law
+     - ``SourcePosing(pencil.at(1), q).operator.apply(x)`` equals
+       ``loss.apply(x) − production.apply(x)`` **bit-identically** on a
+       randomly seeded coupled state, with a positive control asserting
+       the state is non-trivial
+   * - the 0-D closed form
+     - the L0 oracle, below
+
+``[M]`` **the 0-D closed form.**  On the infinite-medium pencil built
+from mixture ``A`` with :math:`\nu\Sigma_f` and :math:`\Sigma_f` scaled
+to make the medium subcritical, :math:`(A - F)^{-1}\mathbf{1}` has an
+exact rational value and the sign flip at criticality is the refusal
+leg's 0-D control:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 20 60
+
+   * - scale
+     - :math:`k_\infty`
+     - :math:`(A-F)^{-1}\mathbf{1}`
+   * - :math:`0.4`
+     - ``0.75``
+     - ``[60, 70]`` — strictly positive, the physical solution
+   * - :math:`0.6`
+     - ``1.125``
+     - ``[-146.667, -136.667]`` — **negative**: the operator is still
+       invertible, and its solution is not a flux
+
+The second row is the whole argument for the driver's refusal in
+miniature.  :math:`A - F` does not become *singular* the moment
+:math:`k` crosses 1 — it becomes **indefinite**, so a linear solve
+happily returns a vector, and that vector is not a neutron flux.  A guard
+keyed on invertibility would pass; only the spectral predicate refuses.
+
+.. note:: :func:`~orpheus.sn.solver.solve_sn_fixed_source` is
+   **unchanged**.  On a fissile hub it still poses the *pure transport*
+   operator — its own docstring says so — so every existing caller is
+   bit-identical.  Whether the plain fixed-source entry's default should
+   change on a fissile hub is a step-3 decision, taken when the
+   :class:`~orpheus.sn.solution.Solution` carries its posing; the
+   multiplying question is reached by **its own entry**, never through a
+   boolean flag on the other one (``coding-elegance``: a flag parameter
+   that selects between two operators is a missing type, and here the
+   type already exists — it is the posing).
 
 
 .. _sn-finalize-one-step:

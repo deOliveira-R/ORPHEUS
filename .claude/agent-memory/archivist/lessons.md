@@ -15,6 +15,62 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 
 ## 1. Ground truth is the LIVE tree — every other surface lies eventually
 
+- **⭐⭐ WHEN A RELAYED `[M]` WILL NOT REPRODUCE, COMPUTE THE NORM LADDER — one of them IS
+  the memo's number, and the reconciliation is the finding.** `[M]` briefed *"rel 3.573e+00
+  wrong"*; my emulation of the retired path read max-entrywise **3.597**, `‖·‖∞` **3.288**,
+  `L₂` **2.378** — the brief's figure is the FIRST. Lead with the statistic-FREE half
+  (`array_equal(stale, first) → True`: the stale answer is *identically* the first's), which
+  no norm choice can move. ⚠ Sibling that did NOT reconcile: a `keff 0.2629 → 0.0180` pair
+  whose stated fixture (*8-cell 2-group slab, ×3*) IS the gate's, which reads **0.9309** —
+  description matches, number does not ⟹ the fixture differed in something unrecorded;
+  RETIRE the pair and re-measure with the fixture in the table's caption. → L-108
+- **⭐⭐ A RE-ASSOCIATION'S BIT-IDENTITY RATE IS A CURVE, NOT A CONSTANT — find the parameter
+  and publish it.** `Σ(Aψ)−Σ(Sψ)` → `Σ((A−S)ψ)` was relayed as *"1 of 40 draws"*; my generic
+  probe read **48.5 %**, which looks like a refutation and is not — the rate is governed by
+  the cancellation `c = Σ(Sψ)/Σ(Aψ)`: `[M]` 400/400 at c=0 · 145/400 at 0.5 · 43/400 at 0.9
+  · **3/400 at 0.99**. And measure the END-TO-END consequence by patching the retired form
+  back in-process: adjoint `k` drift **1.22e-15** (~5 ulp), `|k†−k|` unmoved at `4.15e-12`.
+  → L-108
+- **⭐⭐ A LABELLED EQUATION STATING A CALL SIGNATURE IS A TIME BOMB — move the signature to
+  prose, and let the MARKERS decide what the label keeps.** Two labels stated code shapes and
+  both went false. `grep -rn "<label>" tests/`: 8 `verifies()` markers, **all** asserting the
+  mathematics (`k†=k`, reciprocity), **none** an argument list ⟹ the equation states the
+  daggered PENCIL, the call spelling goes in a note. The sibling label whose ARITHMETIC really
+  changed gets the new spelling — and its consistency-theorem paragraph needs the same edit
+  plus *"`1ᵀ` is linear so the theorem is indifferent; IEEE-754 is not"*. → L-108
+- **⭐⭐ "IT LOOKS LIKE IT SHOULD BE ABLE TO" IS THE PARAGRAPH AN ARM-ASYMMETRY SECTION IS
+  FOR.** The adjoint site cannot read `hub.eigen_posing.H()` — nullary, so asking the hub is
+  the obvious spelling, and `[M]` it reddens 15 rows: the posing parts are arm-asymmetric
+  (seedless → full field, carrying → coupled) while the hub's pencil is coupled on BOTH.
+  Verify by CONSTRUCTION (`system.space` is a one-system `CoupledSpace` even seedless), write
+  the section as *why the natural spelling fails*, and classify the residue as a DEFERRAL —
+  the chain table's "hub's pencil on the system's space" describes the HUB and not every
+  carrier a Strategy reduces to. → L-108
+- **⭐ A TWO-CLAUSE RULING MAY HAVE AN OCCUPANT FOR ONLY ONE — census the second clause's
+  inbound path.** *"`D` follows where DERIVED, stays where TABULATED"*: `[M]` no tabulated-`D`
+  path exists and no provenance discriminator shipped, so clause 2 is a **declared future
+  case**. Publish clause 1 as the ruling, clause 2 with the census showing it empty, and say
+  the mechanism the ruling NAMED is not the one that shipped. → L-108
+- **⭐⭐ RETIRING A DERIVATION'S OLD HOME CAN ZERO ITS CONSUMERS — AST-census, then write the
+  KEEP reason into the corpus.** `[M]` exactly two reads of `transport_xs`/`diffusion_coefficient`
+  in `orpheus/`: the live per-cell one and the definition's own body ⟹ the per-material pair
+  has **zero** production consumers and survives as the formula's per-material statement + the
+  gate's bit-identity reference. Ship a `.. note::`: *do not read the empty census as dead
+  code, do not add a second live read path.* → L-108
+- **⭐ KEEP A REFUTED "RE-HOMES WHEN X HAPPENS" PREDICTION — the refuted MECHANISM is the
+  interesting half.** Three surfaces predicted a memo would re-home onto an operator; σ became
+  a BOUND STRATUM instead, so the stale read is unspellable rather than relocated. ✅ the
+  prediction verbatim + *"the defect was correctly identified and the mechanism was not"*;
+  tense-flipping destroys the only record that relocating a stash ≠ inverting a dependency.
+  → L-108
+- **⛔ MY OWN GATES FAILED SILENTLY AND FLATTERINGLY, TWICE.** (1) An unsplit shell `$FILES`
+  made the xref and markup gates read ONE nonexistent path and print a clean `0` — a gate that
+  can print 0 on an empty input list must echo the input COUNT. (2) A line-based role regex
+  cannot see `:meth:`X <target>`` split across two lines, which is exactly where my wrong
+  target was ⟹ scan CONTIGUOUS ADDED BLOCKS with `re.S`, and validate the resolver on RETIRED
+  symbols as positive controls. ⭐ Bonus sweep that paid: a `:func:` role on a CLASS renders
+  plain text at every severity — 3 sites found, census now 0. → L-108
+
 - **⭐⭐ WHERE a new cross-method TYPE is documented is a PACKAGE question — count the hubs
   that pose it.** Briefed *"the SN solver page, or the general algebra page — decide"*; the
   discriminator is not taste: `[M]` the type lives in `orpheus/numerics/` and **two** hubs

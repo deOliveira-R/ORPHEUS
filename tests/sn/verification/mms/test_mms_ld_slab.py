@@ -184,11 +184,12 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx))          # het, ≥2G
     Q = rng.standard_normal((N, ng, nx))                  # non-flat per-ordinate
 
-    _, phi_scan = CumprodScan.pose(ld_mesh).sweep(
-        Q, sig_t, AngularBoundaryFlux.zeros(ld_mesh.angular_trace),
+    scan, dag = CumprodScan.pose(ld_mesh), FullFieldWavefront.pose(ld_mesh)
+    _, phi_scan = scan.sweep(
+        Q, scan.bind_sigma(sig_t), AngularBoundaryFlux.zeros(ld_mesh.angular_trace),
     )
-    _, phi_dag = FullFieldWavefront.pose(ld_mesh).sweep(
-        Q, sig_t, AngularBoundaryFlux.zeros(ld_mesh.angular_trace),
+    _, phi_dag = dag.sweep(
+        Q, dag.bind_sigma(sig_t), AngularBoundaryFlux.zeros(ld_mesh.angular_trace),
     )
     # Principled-equivalent (×V scan vs ÷V kernel): tight nULP-scale band, well
     # below any algorithmic-difference signature (a sign-trap would be O(1)).

@@ -151,8 +151,9 @@ def test_cumprod_1d_equals_full_field_spine(bc):
     bf_cumprod = _seeded_inflow(sn_mesh, rng)
     bf_spine = AngularBoundaryFlux(values=bf_cumprod.values.copy(), space=sn_mesh.angular_trace)
 
-    ang_c, scal_c = CumprodScan.pose(sn_mesh).sweep(Q_arr, sig_t, bf_cumprod)
-    ang_s, scal_s = FullFieldWavefront.pose(sn_mesh).sweep(Q_arr, sig_t, bf_spine)
+    scan, spine = CumprodScan.pose(sn_mesh), FullFieldWavefront.pose(sn_mesh)
+    ang_c, scal_c = scan.sweep(Q_arr, scan.bind_sigma(sig_t), bf_cumprod)
+    ang_s, scal_s = spine.sweep(Q_arr, spine.bind_sigma(sig_t), bf_spine)
 
     np.testing.assert_array_almost_equal_nulp(ang_s, ang_c, nulp=_NULP_BOUND)
     np.testing.assert_array_almost_equal_nulp(scal_s, scal_c, nulp=_NULP_BOUND)
@@ -239,12 +240,13 @@ def test_cumprod_faster_than_full_field_spine_d1():
 
     def _time(strategy, repeats=5):
         bf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
-        strategy.sweep(Q_arr, sig_t, bf)        # warm up (cache build)
+        stratum = strategy.bind_sigma(sig_t)    # σ bound ONCE (C3b-2) — the tables built here
+        strategy.sweep(Q_arr, stratum, bf)      # warm up
         best = float("inf")
         for _ in range(repeats):
             bf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
             t0 = time.perf_counter()
-            strategy.sweep(Q_arr, sig_t, bf)
+            strategy.sweep(Q_arr, stratum, bf)
             best = min(best, time.perf_counter() - t0)
         return best
 

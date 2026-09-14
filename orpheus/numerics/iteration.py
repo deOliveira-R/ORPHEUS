@@ -159,6 +159,7 @@ if TYPE_CHECKING:
     # the "eigenvalue.py does not import iteration.py" acyclicity note there
     # keeps holding in both directions.
     from .eigenvalue import PowerIterationOutcome
+    from orpheus.numerics.posing import EigenPosing
 
 from .convergence import (
     ConvergenceWarning,
@@ -1197,10 +1198,12 @@ class KrylovAcceleration(Generic[V]):
 
 
 class KEigenvalue(Generic[V]):
-    r"""The k-eigenvalue problem :math:`(A - S)\,\psi = F\psi/k`, posed from an
-    operator triple and solved by the canonical ``power_iteration`` loop.
+    r"""The k-eigenvalue problem :math:`(A - S)\,\psi = F\psi/k` — an
+    :class:`~orpheus.numerics.posing.EigenPosing` over the pencil
+    :math:`(A - S,\; F)` plus the Strategy's ``(implicit, explicit)`` pair for
+    the inner iteration — solved by the canonical ``power_iteration`` loop.
 
-    ``KEigenvalue`` is the **operator-triple realization** of the
+    ``KEigenvalue`` is the **posing-consuming realization** of the
     method-agnostic
     :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary (the
     Layer-2 k-posing :math:`A_{\rm loss} = A - S`, :math:`M = F`,
@@ -1237,16 +1240,20 @@ class KEigenvalue(Generic[V]):
 
     Parameters
     ----------
-    A, S, F : LinearOperator
-        Operator triple.  ``A`` (the FORWARD invertible loss operator)
-        MUST be invertible
-        (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`)
-        — this posing layer builds ``A.inverse()`` once and hands it to
-        the inner :class:`SourceIteration`, which only APPLIES it (#226
-        taxonomy step 3).  ``S`` and ``F`` must expose
-        ``apply``.  ``F`` is non-trivial for an eigenvalue
-        solve (no degenerate zero-fission case — without fission the
-        spectrum is empty).
+    posing : EigenPosing
+        The QUESTION: the pencil ``(lhs = A − S, rhs = F)`` with its spectral
+        map (``K_MAP``).  ``compute_fission_source`` / ``compute_production_rate``
+        read ``posing.pencil.rhs``; ``compute_keff`` is ``posing.rayleigh(ψ, w=1)``
+        — the pencil's own balance functional (step 2 C3b-2).  ``rhs`` is
+        non-trivial for an eigenvalue solve (without fission the spectrum is
+        empty).
+    implicit, explicit : LinearOperator
+        The Strategy's splitting of the loss for the inner iteration:
+        ``implicit`` (the FORWARD invertible part) MUST be invertible
+        (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`) —
+        this layer builds its inverse once and hands it to the inner
+        :class:`SourceIteration`, which only APPLIES it (#226 taxonomy step
+        3); ``explicit`` (the lagged gain) must expose ``apply``.
     max_outer : int, optional
         Maximum outer (power) iterations.  Default ``500``.
     keff_tol, flux_tol : float, optional
@@ -1295,9 +1302,9 @@ class KEigenvalue(Generic[V]):
 
     def __init__(
         self,
-        A: LinearOperator,
-        S: LinearOperator,
-        F: LinearOperator,
+        posing: "EigenPosing[V]",
+        implicit: LinearOperator,
+        explicit: LinearOperator,
         *,
         max_outer: int = 500,
         keff_tol: float = 1e-7,
@@ -1319,16 +1326,16 @@ class KEigenvalue(Generic[V]):
         # fail with a domain message, not an AttributeError from a
         # missing ``.inverse``.  S's apply-guard stays deferred to
         # the inner SourceIteration (one source of truth).
-        if not A.is_invertible:
+        if not implicit.is_invertible:
             raise NotInvertible(
                 f"KEigenvalue requires an INVERTIBLE A — the inner "
                 f"SourceIteration applies A.inverse() each step; "
-                f"{type(A).__name__}.is_invertible is False."
+                f"{type(implicit).__name__}.is_invertible is False."
             )
 
-        self.A = A
-        self.S = S
-        self.F = F
+        self.posing = posing
+        self.implicit = implicit
+        self.explicit = explicit
         self.max_outer = int(max_outer)
         self.keff_tol = float(keff_tol)
         self.flux_tol = float(flux_tol)
@@ -1360,15 +1367,15 @@ class KEigenvalue(Generic[V]):
         # :func:`seeded_inverse`; the ``is_invertible`` guard above is
         # its runtime precondition.
         self._inner = SourceIteration(
-            seeded_inverse(self.A), self.S,
+            seeded_inverse(self.implicit), self.explicit,
             max_iter=self.max_inner, tol=self.inner_tol,
             budget_name="max_inner",
         )
         # F (the outer eigen-operator F·ψ) needs apply.
-        if not callable(getattr(self.F, "apply", None)):
+        if not callable(getattr(self.posing.pencil.rhs, "apply", None)):
             raise TypeError(
                 f"KEigenvalue requires 'apply' on F (the outer fission "
-                f"source F·ψ); {type(self.F).__name__} has none."
+                f"source F·ψ); {type(self.posing.pencil.rhs).__name__} has none."
             )
         # The initial flux guess is supplied to .solve() and stashed for the
         # EigenvalueSolver.initial_flux_distribution boundary method.
@@ -1411,7 +1418,7 @@ class KEigenvalue(Generic[V]):
         self, flux_distribution: V, keff: float,
     ) -> V:
         """Outer eigen-source ``F·ψ / k`` (the k-posing's eigen-operator M = F)."""
-        return self.F.apply(flux_distribution) / keff
+        return self.posing.pencil.rhs.apply(flux_distribution) / keff
 
     def solve_fixed_source(
         self, fission_source: V, flux_distribution: V,
@@ -1468,7 +1475,7 @@ class KEigenvalue(Generic[V]):
         the same protocol the inner drivers use (:func:`_ravel`); a bare
         ndarray reduces identically to the pre-A4 ``np.sum``.
         """
-        return float(_ravel(self.F.apply(flux_distribution)).sum())
+        return float(_ravel(self.posing.pencil.rhs.apply(flux_distribution)).sum())
 
     def compute_keff(self, flux_distribution: V) -> float:
         r"""Operator-form Rayleigh :math:`k` estimator (hardwired; #259 P1 / R8).
@@ -1503,12 +1510,12 @@ class KEigenvalue(Generic[V]):
         recovers the SAME ``k`` as the forward problem
         (:math:`\text{eig}(A^\dagger) = \text{eig}(A)`).
         """
-        num = _ravel(self.F.apply(flux_distribution)).sum()
-        den = (
-            _ravel(self.A.apply(flux_distribution)).sum()
-            - _ravel(self.S.apply(flux_distribution)).sum()
-        )
-        return float(num / den)
+        # ONE body with the pencil's balance functional (step 2 C3b-2): the
+        # Rayleigh quotient with the constant weight over the pencil this
+        # posing SOLVES — Σ(Fψ)/Σ((A−S)ψ) through the loss's own apply.
+        # ``[M]`` a principled ULP-level re-baseline against the retired
+        # Σ(Aψ) − Σ(Sψ) spelling (1 of 40 draws bit-identical).
+        return self.posing.rayleigh(flux_distribution, w=1.0)
 
     def measure_stopping_criteria(
         self, keff: float, keff_old: float,

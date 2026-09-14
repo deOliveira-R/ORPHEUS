@@ -42,6 +42,94 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-09-14
+     - **The pencil reaches production, and** :math:`\sigma` **is bound
+       ONCE at the operator that owns it** (the consumers campaign,
+       step 2, unit C3b, second commit — the σ merge unit's last; the
+       four C3b-checkpoint rulings of 2026-09-13).
+       **(1) The walk seam (fork 1, option (ii)).**  The 1-D scan's
+       :math:`\sigma`-bound collision table was memoised on the **mesh**
+       and read back with an unvalidated ``getattr``, so one strategy
+       handed two :math:`\sigma` marched the FIRST one's tables: ``[M]``
+       the two sweeps returned ``array_equal`` arrays, max-entrywise
+       :math:`3.597` relative wrong against a fresh strategy's
+       (**ERR-085**).  :math:`\sigma` is now bound ONCE into a
+       :class:`~orpheus.sn.loss_representation.SigmaStratum` —
+       ``RawSigmaStratum`` for the multi-D wavefronts, ``ScanStratum``
+       (geometry table ⊕ collision table ⊕ :math:`\sigma`) for the 1-D
+       scans — which every ``sweep`` / ``sweep_transpose`` consumes;
+       ``bind_sigma`` is the polymorphic door that says which.
+       ``StreamingCollisionOperator.sigma_stratum`` holds the binding
+       (and is therefore the geometry table's strong holder), the walk's
+       ``_ensure_geom_cache`` / ``_ensure_coll_cache``, the hub memo
+       ``_coll_cache`` and ``SNSolver.geom_cache`` / ``coll_cache`` are
+       all **deleted**, and the sole-guarantor warning that stood over
+       the solver's slot is discharged.  ⭐ Not by re-homing the memo,
+       which is what the previous commit predicted: relocating a stash
+       does not make a stale read *unspellable*; inverting the dependency
+       does.
+       **(2) The Problem poses its source question.**
+       :meth:`SNMesh.source_posing(q)
+       <orpheus.sn.mesh.augmented_mesh.SNMesh.source_posing>` returns
+       ``SourcePosing(pencil.at(1), q)`` **always** (fork 2 (a)) — on a
+       non-fissile hub the production is the zero dyad, so that member IS
+       the pure transport operator in value and no datum is
+       discriminated.  A bare full-field source is LIFTED into the
+       one-system coupled state; ``[M]`` the posing's ends law refused
+       the unlifted pair, which is the guard working.
+       **(3) The** :math:`(M, q)` **cell ships**
+       (:func:`~orpheus.sn.solver.solve_sn_multiplying_source`, fork 3
+       (a)): a fixed source in a subcritical multiplying medium,
+       :math:`(A - F)\psi = q`, lowered with the production as ONE MORE
+       lagged explicit gain and certified on the equation it SOLVED
+       (:math:`q + \sum_i G_i\psi` at the converged iterate).
+       Admissibility is the SPECTRAL fact :math:`\rho(A^{-1}F) < 1` —
+       the driver runs the hub's own k-solve and refuses with a typed
+       ``SupercriticalSourceProblem`` naming the measured :math:`k`;
+       positive-stability of :math:`A - F` is **not** the predicate and
+       never holds on the S\ :sub:`N` composite.  ``[M]`` witness
+       fixtures :math:`k = 0.435195214` / :math:`0.907457573` /
+       :math:`1.374233987` (the last refused), the near-critical row
+       needing **4300** inner iterations where the tolerance-derived
+       budget is **1961** (a starved inner is a budget, not a refusal),
+       and the 0-D closed form :math:`(A-F)^{-1}\mathbf{1} = [60, 70]` at
+       :math:`k_\infty = 0.75` with the sign flipping at
+       :math:`k_\infty = 1.125`.
+       **(4)** :class:`~orpheus.numerics.iteration.KEigenvalue`
+       **consumes the posing**: ``KEigenvalue(posing, implicit,
+       explicit, …)``, ``compute_keff = posing.rayleigh(ψ, w=1)``, the
+       other two estimators reading ``posing.pencil.rhs``.  This is the
+       ULP-level re-baseline the previous commit deferred *with* its
+       measurement: the only change is that the loss is applied ONCE,
+       :math:`\sum(F\psi)/\sum((A-S)\psi)` for
+       :math:`\sum(F\psi)/(\sum(A\psi)-\sum(S\psi))`, and ``[M]`` the
+       adjoint :math:`k` on the anchors' slab drifts
+       :math:`1.22\times10^{-15}` absolute (~5 ulp) with
+       :math:`|k^\dagger - k|` unmoved at ``4.15e-12``.  Two numerical
+       facts had to be designed in: the pairing reduces with
+       :func:`numpy.sum` (a BLAS ``vdot`` differs in the last digit) and
+       the spectral map states :math:`\lambda` as ONE division
+       (``1/(41/6) ≠ 6/41``) — hence ``SpectralMap.of_quotient``.
+       **(5) The diffusion** :math:`D` **follows the datum** (fork 4
+       (a)): :attr:`Mixture.p1_outflow
+       <orpheus.data.macro_xs.mixture.Mixture.p1_outflow>` is split out
+       and ``MaterialXSField.diffusion_coefficient`` derives
+       :math:`1/(3(\sigma_{t,\rm cell} - p_1))` per cell — ``[M]``
+       ``array_equal`` to the per-material gather on a non-overridden
+       hub, and consistent on a :math:`\sigma`-variant, whose removal
+       term already read the datum.  This RULES the "recorded, not ruled"
+       inconsistency of unit C3a.
+       New gates: ``tests/sn/solve/test_subcritical_multiplying_source.py``
+       (6 rows), ``test_cache.py::test_two_sigmas_on_one_strategy_give_two_answers``
+       (the §6c witness, **ERR-085**'s catcher), plus the ``D`` legs on
+       the diffusion reach gate and the datum's read-set row.
+       Full account: :ref:`sn-sigma-bound-once-at-the-operator`,
+       :ref:`sn-the-pencil-reaches-production`,
+       :ref:`sn-subcritical-multiplying-source`,
+       :ref:`sn-sigma-datum-diffusion-d`,
+       :ref:`sn-adjoint-poses-a-pencil`.
+     - —
+     - branch ``refactor/consumers-step2``, **not yet merged**
    * - 2026-09-13
      - **A Problem's LAST step is its pencil, and the solver holds
        nothing** (the consumers campaign, step 2, unit C3b, first
@@ -129,6 +217,12 @@ them.  Trust ``git``, not this column.
        subcritical-multiplying-source witness for the :math:`(M, q)`
        cell, and the collision cache's re-homing off the hub all wait for
        the unit's second commit.
+       ✅ **All four landed 2026-09-14** in that second commit — the row
+       above.  Three as predicted; the fourth was resolved by a different
+       mechanism than this row names (:math:`\sigma` became a bound
+       stratum the walk consumes, rather than the memo re-homing onto the
+       operator), which is why the prediction is kept rather than
+       tense-flipped.
        New gates: ``tests/numerics/test_pencil.py``,
        ``tests/numerics/test_posing.py``,
        ``tests/sn/architecture/test_posing.py`` (AC-a — no Strategy token
@@ -217,6 +311,18 @@ them.  Trust ``git``, not this column.
        the *leakage* term, because :math:`D = 1/(3\Sigma_{\rm tr})` is
        gathered per-material.  ``tests/diffusion/test_sigma_variant_reach.py``
        pins reachability only.
+       ✅ **REMEDIED 2026-09-14** by unit C3b-2 (the row above): the
+       per-cell :math:`D` is derived from the hub's datum and the
+       material's P1 outflow, so removal and leakage read one
+       :math:`\sigma_t`, and the reach gate pins the ruling rather than
+       reachability alone.  ⚠ Two things about the ``[M]`` pair in this
+       row, both worth knowing before quoting it.  Its *interpretation*
+       (the leakage term does not move) is void.  And the pair itself
+       does **not** reproduce on the reach gate's own 8-cell 2-group
+       slab, which reads ``0.930946184`` at base — the probe it came from
+       differed in a way its memo did not record, so re-measure rather
+       than quote (the fixture-stated table is at
+       :ref:`sn-sigma-datum-diffusion-d`).
        Full account: :ref:`sn-sigma-is-a-problem-datum`.
      - —
      - branch ``refactor/consumers-step2``, **not yet merged**

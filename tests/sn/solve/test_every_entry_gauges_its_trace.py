@@ -161,6 +161,13 @@ _ENTRY_LEDGER = {
         "never present on any configuration this entry can run"
     ),
     "solve_sn_adjoint_fixed_source": "wired but structurally inert — as above",
+    "solve_sn_multiplying_source": (
+        "not separately exercised here — it IS solve_sn_fixed_source's SI "
+        "lowering with the production LAGGED as one more gain (step 2 C3b-2, "
+        "`_within_group_si(extra_gains=…)`) and gauges its trace on that same "
+        "exit path, which the fixed-source rows above exercise; its own "
+        "witness is tests/sn/solve/test_subcritical_multiplying_source.py"
+    ),
 }
 
 

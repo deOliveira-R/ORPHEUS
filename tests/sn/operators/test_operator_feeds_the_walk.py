@@ -54,7 +54,7 @@ pytestmark = [pytest.mark.foundation]
 
 _NG = 2
 _NX = 8
-_MEMO_SLOTS = ("_geom_cache", "_coll_cache", "_pole_mirror_cache")
+_MEMO_SLOTS = ("_geom_cache", "_pole_mirror_cache")  # _coll_cache retired at C3b-2 (σ is bound at the operator)
 
 
 # ═══════════════════════════════════════════════════════════════════════

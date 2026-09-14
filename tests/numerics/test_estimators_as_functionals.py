@@ -40,6 +40,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.iteration import KEigenvalue
+from orpheus.numerics.pencil import OperatorPencil
+from orpheus.numerics.posing import K_MAP, EigenPosing
 from orpheus.numerics.operator import (
     LinearOperator,
     ZeroOperator,
@@ -115,7 +117,7 @@ class TestHardwiredEstimatorArithmetic:
         inline. 0 ULP expected — same ``np.sum`` over the same array.
         """
         A, S, F, psi = _synthetic_triple()
-        ke = KEigenvalue(A, S, F)
+        ke = KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S)
         got = ke.compute_production_rate(psi)
         ref = float(np.sum(F.apply(psi)))  # F = diag(2,1,0.5); ψ=(1,2,4)
         # = 2·1 + 1·2 + 0.5·4 = 6.0
@@ -123,16 +125,23 @@ class TestHardwiredEstimatorArithmetic:
         _require(got == 6.0, f"production rate {got} != hand value 6.0.")
 
     def test_keff_bit_identical(self):
-        """``compute_keff(ψ)`` == ``Σ(Fψ)/(Σ(Aψ)−Σ(Sψ))``.
+        """``compute_keff(ψ)`` == ``Σ(Fψ)/Σ((A−S)ψ)`` — the pencil's own spelling.
+
+        RE-POSED at the consumers campaign's step 2 C3b-2 (2026-09-14): the
+        estimator is the posing's Rayleigh quotient with the constant weight
+        over the pencil it SOLVES, so the loss is applied ONCE (``(A−S)ψ``) —
+        ``[M]`` a ULP-level principled change from the retired
+        ``Σ(Aψ) − Σ(Sψ)`` association (1 of 40 random draws bit-identical;
+        test-architect C3 delta §D.3); the hand value below is unchanged.
 
         Hand value: Σ(Fψ)=6.0; Σ(Aψ)=3+10+28=41; Σ(Sψ)=0.5+0.5+0.4=1.4;
         k = 6.0/(41−1.4) = 6.0/39.6.
         """
         A, S, F, psi = _synthetic_triple()
-        ke = KEigenvalue(A, S, F)
+        ke = KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S)
         got = ke.compute_keff(psi)
         num = float(np.sum(F.apply(psi)))
-        den = float(np.sum(A.apply(psi))) - float(np.sum(S.apply(psi)))
+        den = float(np.sum((A - S).apply(psi)))
         ref = num / den
         _require(got == ref, f"keff estimator {got} != formula {ref}.")
         np.testing.assert_array_almost_equal_nulp(
@@ -142,7 +151,7 @@ class TestHardwiredEstimatorArithmetic:
     def test_keff_with_zero_S_unchanged(self):
         """The ``S = ZeroOperator`` path (the KEigenvalue default posture)."""
         A, _, F, psi = _synthetic_triple()
-        ke = KEigenvalue(A, ZeroOperator(), F)
+        ke = KEigenvalue(EigenPosing(OperatorPencil(A - ZeroOperator(), F), K_MAP), A, ZeroOperator())
         got = ke.compute_keff(psi)
         num = float(np.sum(F.apply(psi)))
         den = float(np.sum(A.apply(psi)))  # Σ(Sψ)=0
@@ -158,6 +167,6 @@ class TestHardwiredEstimatorArithmetic:
         """
         A, S, F, _ = _synthetic_triple()
         with pytest.raises(TypeError):
-            KEigenvalue(A, S, F, keff_estimator=lambda a, s, f, p: 1.0)
+            KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S, keff_estimator=lambda a, s, f, p: 1.0)
         with pytest.raises(TypeError):
-            KEigenvalue(A, S, F, production_estimator=lambda a, s, f, p: 1.0)
+            KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S, production_estimator=lambda a, s, f, p: 1.0)

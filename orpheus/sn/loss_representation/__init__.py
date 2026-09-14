@@ -265,10 +265,15 @@ class LossRepresentation(Protocol):
     * :meth:`supports` — the (classmethod) selection predicate.
     """
 
+    def bind_sigma(self, sig_t: "np.ndarray") -> "SigmaStratum":
+        """Bind σ_t ONCE for this strategy's walks — the σ-bound stratum every
+        ``sweep``/``sweep_transpose`` consumes (C3b-2, fork 1 (ii))."""
+        ...
+
     def sweep(
         self,
         Q: "np.ndarray",
-        sig_t: "np.ndarray",
+        stratum: "SigmaStratum",
         boundary_flux: "AngularBoundaryFlux",
         *,
         moment_frame: "FrameBase | None" = None,
@@ -300,7 +305,7 @@ class LossRepresentation(Protocol):
     def sweep_transpose(
         self,
         bulk_cot: "np.ndarray",
-        sigma: "np.ndarray",
+        stratum: "SigmaStratum",
         boundary_cot: "BoundaryField",
     ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""The transpose-solve :math:`(L+C)^{-\mathsf T}` — the REVERSE-SCAN.
@@ -537,6 +542,49 @@ def geometry_cache_for(
     return cache
 
 
+@runtime_checkable
+class SigmaStratum(Protocol):
+    """What a walk consumes for σ: the σ-BOUND stratum (consumers campaign step 2
+    C3b-2, 2026-09-14, fork 1 (ii)).  Bound ONCE by the operator that owns σ
+    (:attr:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.sigma_stratum`)
+    and handed to every ``sweep``/``sweep_transpose`` — so a walk can never serve a
+    stale σ (the retired hub memo ``_coll_cache`` did: ``[M]`` two σ on one strategy
+    read ONE answer, rel 3.573e+00 wrong).  Two realizations, one per walk kind."""
+
+    @property
+    def sig_t(self) -> "np.ndarray": ...
+
+
+@dataclass(frozen=True)
+class RawSigmaStratum:
+    """The multi-D walks' stratum: σ_t per cell, read inside the cell update."""
+
+    sig_t: "np.ndarray"
+
+
+@dataclass(frozen=True)
+class ScanStratum:
+    """The 1-D scan's stratum: the σ-free geometry table (Stratum 1, shared by
+    content through the intern — this object is its strong HOLDER) and the
+    σ-bound collision table (Stratum 2) bound together for one σ."""
+
+    geom: StreamingCoefficientCache
+    coll: CollisionCache
+    sig_t: "np.ndarray"
+
+
+def _scan_stratum(stratum: "SigmaStratum") -> ScanStratum:
+    """The 1-D scan consumes a :class:`ScanStratum` — σ bound through THIS
+    strategy's ``bind_sigma`` (a raw stratum has no tables to scan with)."""
+    if not isinstance(stratum, ScanStratum):
+        raise TypeError(
+            f"the 1-D scan needs a ScanStratum (geometry + collision tables bound "
+            f"for one σ) — bind σ through the scan strategy's bind_sigma; got "
+            f"{type(stratum).__name__}."
+        )
+    return stratum
+
+
 @dataclass(frozen=True)
 class _LossRepresentation:
     """Base for every concrete strategy: the mesh + the two closures + the guard.
@@ -552,6 +600,11 @@ class _LossRepresentation:
     mesh: "SNMesh"
     spatial_closure: "DiscretizationSchemeBase"
     angular_closure: "AngularClosureBase"
+
+    def bind_sigma(self, sig_t: "np.ndarray") -> SigmaStratum:
+        """Bind σ_t ONCE for this strategy's walks (the base: the raw stratum —
+        the multi-D walks read σ per cell; the 1-D scans override)."""
+        return RawSigmaStratum(np.asarray(sig_t))
 
     @classmethod
     def pose(cls, mesh: "SNMesh") -> "_LossRepresentation":
@@ -622,7 +675,7 @@ class _LossRepresentation:
     def sweep_transpose(
         self,
         bulk_cot: "np.ndarray",
-        sigma: "np.ndarray",
+        stratum: "SigmaStratum",
         boundary_cot: "BoundaryField",
     ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""Reverse-scan default — DEFERRED (the #280 2.5b kernel-pair contract).
@@ -754,7 +807,7 @@ class _LossRepresentation:
     def sweep(
         self,
         Q: "np.ndarray",
-        sig_t: "np.ndarray",
+        stratum: "SigmaStratum",
         boundary_flux: "AngularBoundaryFlux",
         *,
         moment_frame: "FrameBase | None" = None,
@@ -1478,6 +1531,18 @@ class CumprodScan(_LossRepresentation):
     The default production path for every 1-D mesh.
     """
 
+    def bind_sigma(self, sig_t: "np.ndarray") -> ScanStratum:
+        """The 1-D scan's σ-bound stratum: the interned geometry table (held
+        here — the operator that owns this stratum is the intern's strong
+        holder) and the collision table posed for THIS σ."""
+        geom = geometry_cache_for(self.mesh, self.angular_closure)
+        sig_t = np.asarray(sig_t)
+        return ScanStratum(
+            geom,
+            CollisionCache.from_geometry(geom, sig_t, self.spatial_closure, self.angular_closure),
+            sig_t,
+        )
+
     @classmethod
     def supports(
         cls, mesh: "SNMesh", spatial_closure: "DiscretizationSchemeBase",
@@ -1498,7 +1563,7 @@ class CumprodScan(_LossRepresentation):
     def sweep(
         self,
         Q: "np.ndarray",
-        sig_t: "np.ndarray",
+        stratum: "SigmaStratum",
         boundary_flux: "AngularBoundaryFlux",
         *,
         moment_frame: "FrameBase | None" = None,
@@ -1522,12 +1587,12 @@ class CumprodScan(_LossRepresentation):
                 "CumprodScan.sweep: a sweep schedule is multi-D only — "
                 "the 1-D scan is not a wavefront."
             )
-        return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).sweep(Q, sig_t, boundary_flux)
+        return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).sweep(Q, _scan_stratum(stratum), boundary_flux)
 
     def sweep_transpose(
         self,
         bulk_cot: "np.ndarray",
-        sigma: "np.ndarray",
+        stratum: "SigmaStratum",
         boundary_cot: "BoundaryField",
     ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""The transpose-solve ``(L+C)⁻ᵀ`` — the REVERSE-SCAN (#280 2.5b).
@@ -1540,7 +1605,7 @@ class CumprodScan(_LossRepresentation):
         :func:`~orpheus.sn.sweep.scan.ordinate_scan_transpose`.
         """
         return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).sweep_transpose(
-            bulk_cot, sigma, boundary_cot,
+            bulk_cot, _scan_stratum(stratum), boundary_cot,
         )
 
     def loss_action(
@@ -1679,13 +1744,14 @@ class MovingFrontierWindow(_DAGWavefront):
     def sweep(
         self,
         Q: "np.ndarray",
-        sig_t: "np.ndarray",
+        stratum: "SigmaStratum",
         boundary_flux: "AngularBoundaryFlux",
         *,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
+        sig_t = stratum.sig_t
         if schedule is None:
             return _sweep_jacobi(
                 Q, sig_t, self.mesh, boundary_flux,
@@ -2071,13 +2137,14 @@ class FullFieldWavefront(_DAGWavefront):
     def sweep(
         self,
         Q: "np.ndarray",
-        sig_t: "np.ndarray",
+        stratum: "SigmaStratum",
         boundary_flux: "AngularBoundaryFlux",
         *,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
+        sig_t = stratum.sig_t
         if moment_frame is not None:
             raise ValueError(
                 "FullFieldWavefront.sweep: the full-field oracle does not "
@@ -2409,16 +2476,30 @@ class ScanMarch(_LossRepresentation):
             "full-field spine serves d≥3)",
         )
 
+    def bind_sigma(self, sig_t: "np.ndarray") -> SigmaStratum:
+        """1-D: the scan stratum (this strategy's 1-D branch IS the scan walk);
+        multi-D: the raw σ the row-march reads per cell."""
+        if not self.mesh.is_1d:
+            return RawSigmaStratum(np.asarray(sig_t))
+        geom = geometry_cache_for(self.mesh, self.angular_closure)
+        sig_t = np.asarray(sig_t)
+        return ScanStratum(
+            geom,
+            CollisionCache.from_geometry(geom, sig_t, self.spatial_closure, self.angular_closure),
+            sig_t,
+        )
+
     def sweep(
         self,
         Q: "np.ndarray",
-        sig_t: "np.ndarray",
+        stratum: "SigmaStratum",
         boundary_flux: "AngularBoundaryFlux",
         *,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
         reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
+        sig_t = stratum.sig_t
         if self.mesh.is_1d:
             # d=1 ⇒ ``scan(x)`` with no transverse march: the unified 1-D body
             # (slab + curvilinear via the two-stratum cache; the Morel–Montry
@@ -2436,7 +2517,7 @@ class ScanMarch(_LossRepresentation):
                     "ScanMarch.sweep: a sweep schedule is multi-D only — "
                     "the 1-D scan is not a wavefront."
                 )
-            return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).sweep(Q, sig_t, boundary_flux)
+            return _OneDimScanWalk(self.mesh, self.spatial_closure, self.angular_closure).sweep(Q, _scan_stratum(stratum), boundary_flux)
         # multi-D ⇒ the row-march sweep = the schedule × the scan-march
         # interior kernel on the SAME schedule loop the window uses (S6.4(b):
         # the former private ``_sweep_2d_scanmarch`` frame dissolved into the
@@ -3107,7 +3188,7 @@ class _OneDimScanWalk:
     def sweep(
         self,
         Q: np.ndarray,
-        sig_t: np.ndarray,
+        stratum: "ScanStratum",
         boundary_flux: "AngularBoundaryFlux",
     ) -> tuple[np.ndarray, np.ndarray]:
         r"""Geometry-blind 1-D SN sweep — three numpy tensor ops per ordinate.
@@ -3141,11 +3222,12 @@ class _OneDimScanWalk:
         (:func:`geometry_cache_for`'s ``WeakValueDictionary``) — keyed by
         the hub's contractibility × the handed closure's CLASS, weak on
         the table (alive while a holder lives), never stashed ON the mesh
-        (only the σ stratum
-        ``_coll_cache`` and ``_pole_mirror_cache`` remain mesh attributes).
-        :class:`SNSolver.__init__` resolves it eagerly; a sweep invoked
-        outside the solver (e.g. ad-hoc tests) resolves it lazily through
-        the same intern on first call.
+        (since step 2 C3b-2 only the σ-free ``_pole_mirror_cache`` remains a
+        mesh attribute; the σ stratum is bound ONCE at the operator —
+        :attr:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.sigma_stratum`
+        — and handed to every sweep as its :class:`ScanStratum`).  The
+        operator's stratum is the intern's strong holder; a sweep invoked
+        outside an operator (e.g. ad-hoc tests) binds through ``bind_sigma``.
 
         Bit-identity contract
         ---------------------
@@ -3158,14 +3240,12 @@ class _OneDimScanWalk:
         ``rtol=1e-13`` across the parametrised geometry × ng × source grid;
         slab regression snapshots stay bit-identical at ``rtol=1e-12``.
         """
-        geom = self._ensure_geom_cache()
-        coll = self._ensure_coll_cache(sig_t, geom)
-        return self._run(Q, sig_t, boundary_flux, geom, coll)
+        return self._run(Q, stratum.sig_t, boundary_flux, stratum.geom, stratum.coll)
 
     def sweep_transpose(
         self,
         bulk_cot: np.ndarray,
-        sigma: np.ndarray,
+        stratum: "ScanStratum",
         boundary_cot: "BoundaryField",
     ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""The transpose-solve :math:`(L+C)^{-\mathsf T}` — the REVERSE-SCAN.
@@ -3178,8 +3258,7 @@ class _OneDimScanWalk:
         ``ordinate_scan`` substrate (via :func:`ordinate_scan_transpose`) rather
         than duplicating a reverse loop.
         """
-        geom = self._ensure_geom_cache()
-        coll = self._ensure_coll_cache(sigma, geom)
+        geom, coll, sigma = stratum.geom, stratum.coll, stratum.sig_t
         return self._run_transpose(bulk_cot, sigma, boundary_cot, geom, coll)
 
     def loss_action(
@@ -3929,16 +4008,6 @@ class _OneDimScanWalk:
             boundary=m_boundary,
         )
 
-    def _ensure_geom_cache(self) -> StreamingCoefficientCache:
-        """The interned Stratum-1 table for THIS walk's handed closure.
-
-        Lazily resolved on first need through the strategy layer's
-        intern (:func:`geometry_cache_for`) — the retired mesh-attr
-        ``_geom_cache`` memo's successor (P4.9b step 2c; the memo-
-        retirement gate pins its absence).
-        """
-        return geometry_cache_for(self.mesh, self.angular_closure)
-
     def _ensure_pole_mirror(self) -> np.ndarray:
         r"""The r = 0 coupled-pole mirror pairing, derived on first use.
 
@@ -3949,8 +4018,9 @@ class _OneDimScanWalk:
         (:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`,
         G6.3 step 7d — until then these sites read the precomputed
         ``reflection_index`` table, a second path for the same concept).
-        Derived ONCE and stashed on the mesh, the same idiom as
-        :meth:`_ensure_geom_cache`: the sweep bodies consume it
+        Derived ONCE and stashed on the mesh (the last mesh memo — its
+        principled home is the geometry stratum, a C4 follow-up): the sweep
+        bodies consume it
         10²–10⁴ times per solve, and the O(N²) match is a
         construction-time cost, not a per-iteration one.
 
@@ -3982,33 +4052,6 @@ class _OneDimScanWalk:
             mirror = pi.indices
             self.mesh._pole_mirror_cache = mirror  # type: ignore[attr-defined]
         return mirror
-
-    def _ensure_coll_cache(
-        self,
-        sig_t: np.ndarray,
-        geom: StreamingCoefficientCache,
-    ) -> CollisionCache:
-        """Return the collision cache, building it on first use if absent.
-
-        The expected invariant (per cache-invariance test #4) is that the
-        cache is constructed by :class:`SNSolver.__init__` and consumed by
-        every sweep without rebuild.  Ad-hoc test callers may bypass the
-        solver — in that case the cache is built lazily here.
-
-        No bridge needed under PR-INDEX-3: ``sig_t`` arrives as principled
-        ``(ng, nx, ny=1)`` and the cache consumes ``(ng, nx)`` — a single
-        slice on the degenerate ``ny`` axis suffices.
-        """
-        cache = getattr(self.mesh, "_coll_cache", None)
-        if cache is None:
-            # 1-D meshes: sig_t is the principled (ng, nx) layout the cache
-            # expects natively (rank-d (N, ng, *spatial); no phantom ny axis).
-            sig_t_1d = sig_t  # (ng, nx)
-            cache = CollisionCache.from_geometry(
-                geom, sig_t_1d, self.spatial_closure, self.angular_closure
-            )
-            self.mesh._coll_cache = cache  # type: ignore[attr-defined]
-        return cache
 
     def _run(
         self,

@@ -43,27 +43,44 @@ V = TypeVar("V", bound=Vector)  # the operator algebra's own carrier bound
 def _pair(w: Any, y: Any) -> float:
     """The explicit-weight pairing ⟨w, y⟩ over flattened arrays (``w = 1`` → the plain sum;
     a scalar or lower-rank ``w`` broadcasts to ``y``'s shape)."""
-    y_arr = np.asarray(y, dtype=float)
-    w_arr = np.broadcast_to(np.asarray(w, dtype=float), y_arr.shape)
-    return float(np.vdot(w_arr.ravel(), y_arr.ravel()))
+    y_arr = _flat(y)
+    w_arr = np.broadcast_to(np.asarray(w, dtype=float).ravel() if np.ndim(w) else np.asarray(w, dtype=float), y_arr.shape)
+    # ``np.sum`` (pairwise) rather than a BLAS dot: with ``w = 1`` this IS the
+    # coordinate sum the method-tier estimators take (bit-identical to them).
+    return float(np.sum(w_arr * y_arr))
+
+
+def _flat(y: Any) -> np.ndarray:
+    """A carrier-honest flatten: typed composites (``FullField``/``CoupledField``)
+    expose ``to_flat``; bare arrays ravel."""
+    flat = getattr(y, "to_flat", None)
+    return np.asarray(flat() if callable(flat) else y, dtype=float).ravel()
 
 
 @dataclass(frozen=True)
 class SpectralMap:
-    r"""The bijection between the pencil's eigenvalue μ and the physical eigenvalue λ."""
+    r"""The bijection between the pencil's eigenvalue μ and the physical eigenvalue λ.
+
+    ``of_quotient(a, m)`` states λ as ONE division of the two pairings
+    :math:`a = \langle w, A\psi\rangle`, :math:`m = \langle w, M\psi\rangle`
+    — ``forward(a / m)`` is the same number mathematically and NOT numerically
+    (``[M]`` ``1/(41/6)`` vs ``6/41`` differ in the last digit): the Rayleigh
+    estimator must be the method-tier ratio bit-for-bit.
+    """
 
     forward: Callable[[float], float]  # μ ↦ λ
     inverse: Callable[[float], float]  # λ ↦ μ
+    of_quotient: Callable[[float, float], float]  # (⟨w,Aψ⟩, ⟨w,Mψ⟩) ↦ λ, one division
     name: str
 
     def __call__(self, mu: float) -> float:
         return float(self.forward(mu))
 
 
-K_MAP = SpectralMap(forward=lambda mu: 1.0 / mu, inverse=lambda k: 1.0 / k, name="k")
-r"""k-eigenvalue: :math:`A\psi = F\psi/k` ⟺ :math:`\mu = 1/k`."""
+K_MAP = SpectralMap(forward=lambda mu: 1.0 / mu, inverse=lambda k: 1.0 / k, of_quotient=lambda a, m: m / a, name="k")
+r"""k-eigenvalue: :math:`A\psi = F\psi/k` ⟺ :math:`\mu = 1/k`; :math:`k = \langle w,F\psi\rangle/\langle w,A\psi\rangle`."""
 
-ALPHA_MAP = SpectralMap(forward=lambda mu: -1.0 / mu, inverse=lambda a: -1.0 / a, name="alpha")
+ALPHA_MAP = SpectralMap(forward=lambda mu: -1.0 / mu, inverse=lambda a: -1.0 / a, of_quotient=lambda a, m: -m / a, name="alpha")
 r"""α-eigenvalue: :math:`(L+C-S-F)\psi = -\alpha T\psi` ⟺ :math:`\mu = -1/\alpha` (a later posing; the map is stated now)."""
 
 
@@ -84,9 +101,9 @@ class EigenPosing(Generic[V]):
         ``w = 1`` is the balance-functional member (the eigen kind SOLVING
         β = 0); ``w = ψ†`` the stationary (adjoint-weighted) one.
         """
-        num = _pair(w, self.pencil.lhs.apply(psi))
-        den = _pair(w, self.pencil.rhs.apply(psi))
-        return self.spectral_map(num / den)
+        a = _pair(w, self.pencil.lhs.apply(psi))
+        m = _pair(w, self.pencil.rhs.apply(psi))
+        return float(self.spectral_map.of_quotient(a, m))
 
     def balance(self, psi: Any, lam: float, w: Any = 1.0) -> float:
         r"""β(ψ, λ) = ⟨w, 𝒜(μ(λ))ψ⟩ — zero at the solution."""

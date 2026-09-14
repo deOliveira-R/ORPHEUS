@@ -3136,11 +3136,13 @@ The criticality eigenvalue and production-rate **estimators**
 :meth:`~orpheus.numerics.iteration.KEigenvalue.compute_production_rate`)
 are the obvious candidates to wrap as ``Functional`` objects — and they
 are deliberately **not**. The eigenvalue estimator is a **ratio** of two
-triple-dependent contractions,
-:math:`\sum(F\psi)\,/\,(\sum(A\psi) - \sum(S\psi))` — it consumes the
-whole operator triple :math:`(A, S, F)` (carried on the ``KEigenvalue``
-instance) together with the iterate :math:`\psi`, not a lone field acted
-on by a single co-vector. That ratio-of-triple-contractions shape is not
+pencil-dependent contractions,
+:math:`\sum(F\psi)\,/\,\sum\bigl((A-S)\psi\bigr)` — it consumes the
+whole pencil :math:`(A - S,\; F)` (carried on the ``KEigenvalue``
+instance's posing since 2026-09-14; before then, an operator triple
+:math:`(A, S, F)` and a subtraction of two contractions) together with
+the iterate :math:`\psi`, not a lone field acted
+on by a single co-vector. That ratio-of-pencil-contractions shape is not
 the ``evaluate(x) -> R`` shape of a
 :class:`~orpheus.numerics.functional.Functional` (a linear co-vector on
 one vector space). The category simply now *names* what their
@@ -3150,7 +3152,12 @@ would misrepresent their arity. They stay bare (hardwired) methods,
 arithmetic bit-identical to the pre-R8 module-level defaults they
 replaced (pinned by ``tests/numerics/test_estimators_as_functionals.py``),
 and the honesty of *not* wrapping them is itself a category-correctness
-claim.
+claim.  ⚠ The :math:`k` estimator's arithmetic did move once afterwards,
+at the 2026-09-14 re-posing onto
+:meth:`EigenPosing.rayleigh <orpheus.numerics.posing.EigenPosing.rayleigh>`
+— a deliberate ULP-level re-baseline (the loss applied once), measured
+and recorded; the production-rate estimator is unchanged, and the pin
+above is the gate that states the new spelling.
 
 .. note:: **Injection seam retired (R8, #259 P1, 2026-07-03).** Before
    this, these estimators were injectable *callables* — the
@@ -6411,6 +6418,37 @@ them**, because its source is built out of :math:`M`.  A shape with three
 independent fields :math:`(A, M, q)` cannot state that coupling.  A
 composition over a **family** can.
 
+⭐ **And since 2026-09-14 the fourth cell has a production witness**, so
+the argument above is no longer only an argument.  S\ :sub:`N` poses it
+through :meth:`SNMesh.source_posing
+<orpheus.sn.mesh.augmented_mesh.SNMesh.source_posing>` and solves it
+through :func:`~orpheus.sn.solver.solve_sn_multiplying_source` — a fixed
+source in a multiplying medium, lowered by lagging the production as one
+more explicit gain.  Two properties of that entry are the cell's
+argument, checked rather than asserted:
+
+* the composition **is** the difference of the two posed operators:
+  ``[M]`` ``SourcePosing(pencil.at(1), q).operator.apply(x)`` equals
+  ``loss.apply(x) − production.apply(x)`` **bit-identically** on a
+  randomly seeded coupled state (with a positive control asserting the
+  state is non-trivial);
+* its **admissibility is the pencil's spectrum**, not the operator's
+  invertibility.  :math:`\mathcal{A}(1) = A - F` stays invertible past
+  criticality and merely stops being positive: ``[M]`` on a 0-D
+  two-group medium scaled to :math:`k_\infty = 0.75`,
+  :math:`(A-F)^{-1}\mathbf{1} = [60, 70]`, and at
+  :math:`k_\infty = 1.125` the same solve returns
+  :math:`[-146.667, -136.667]` — a vector, and not a flux.  So the
+  well-posedness condition of this cell is
+  :math:`\rho(A^{-1}M) < 1`, which is a question about the *pencil*, and
+  the driver answers it by solving the (yes, no) cell first.
+
+That second property is why the cell is a composition and not a wider
+type: what makes it well posed is a fact about :math:`(A, M)`, which the
+layer-1 object already owns.  The full S\ :sub:`N` account —
+the lowering, the exit certificate's re-posing, and the witness's six
+rows — is :ref:`sn-subcritical-multiplying-source`.
+
 Which cells the generating data occupies is the **Problem's** to decide;
 which functional of the resolvent is computed within a cell — find the
 poles, evaluate at a point, integrate on a contour — is the
@@ -6624,6 +6662,31 @@ those were two bodies in two files; they are one functional now, and the
 gate that says so compares the eigen spelling against the source spelling
 on the same input and requires them **bit-identical**.
 
+Since 2026-09-14 that member is also the **operator-tier estimator**:
+:meth:`KEigenvalue.compute_keff
+<orpheus.numerics.iteration.KEigenvalue.compute_keff>` is
+``posing.rayleigh(ψ, w=1)``
+and nothing else, so the number the power iteration converges on is
+literally :eq:`posing-balance-functional`'s zero rather than a
+hand-spelled ratio that agrees with it.  Two implementation facts had to
+be designed in for that to be a *bit-identical* fold rather than an
+approximate one, and both are properties of IEEE-754 rather than of the
+algebra:
+
+* **the pairing reduces with** :func:`numpy.sum`, **not a BLAS dot.**
+  ``[M]`` on a 4096-entry vector ``np.vdot(1, y)`` = ``2047.5331122904424``
+  and ``np.sum(1 * y)`` = ``2047.5331122904417`` — pairwise summation is
+  not the dot product's accumulation order, and the coordinate sum is
+  what the method-tier estimators take;
+* **the spectral map states** :math:`\lambda` **as ONE division.**
+  :attr:`SpectralMap.of_quotient
+  <orpheus.numerics.posing.SpectralMap.of_quotient>` exists beside
+  ``forward`` for exactly this: ``[M]`` ``1/(41/6)`` =
+  ``0.14634146341463417`` while ``6/41`` = ``0.14634146341463414``, so
+  ``forward(a / m)`` rounds twice where ``of_quotient(a, m) = m / a``
+  rounds once.  A spectral map that only knew :math:`\mu \mapsto
+  \lambda` could not express the difference.
+
 .. important:: The numerics primitives take the weight **explicitly**.
    A method's volume-weighted member — S\ :sub:`N`'s
    :meth:`~orpheus.sn.solver.SNSolver.compute_keff`, which pairs with the
@@ -6725,6 +6788,20 @@ The gates, and what each one can see:
        held as an explicit LIST of nine callables so a rename cannot
        silently empty the loop; plus the identity half — two content-equal
        hubs pose equal records, and each hub's members are its own
+   * - ``tests/numerics/test_estimators_as_functionals.py``
+     - (since 2026-09-14) that
+       :meth:`~orpheus.numerics.iteration.KEigenvalue.compute_keff` **is**
+       the pencil's own spelling :math:`\sum(F\psi)/\sum((A-S)\psi)`,
+       bit-for-bit against the formula recomputed inline, plus the
+       ``S = ZeroOperator`` row — which is bit-identical to the retired
+       association **by construction**, there being nothing to
+       re-associate when :math:`\sum(S\psi) = 0`
+   * - ``tests/sn/solve/test_subcritical_multiplying_source.py``
+     - (since 2026-09-14) the :math:`(M, q)` cell in production — the
+       composition law ``SourcePosing(pencil.at(1), q).operator`` ≡
+       ``loss − production`` bit-identically on a seeded coupled state,
+       the 0-D closed form with its sign flip, the cone-monotonicity leg
+       against the pure-transport solve, and the supercritical refusal
 
 ⚠ Two declared blindnesses travel with these rows, both worth reading
 before trusting a green.  The 0-D pose is a rank-1 (point) spatial axis,
@@ -6736,34 +6813,44 @@ adjoint-correctness gate: :math:`k^{\dagger} = k` puts the whole
 factor-order family inside the shared spectrum's stabiliser
 (``vv-principles`` Mode 12), so a value row there could not catch it.
 
-.. note:: **What this commit did NOT land.**  Four pieces of the design
-   above are written here as design, not as shipped behaviour, and a
-   reader should not go looking for them in the tree yet.
+.. note:: **What the FIRST commit did not land — and what the second
+   one did.**
 
-   * :class:`~orpheus.numerics.iteration.KEigenvalue` does **not** yet
-     consume an :class:`~orpheus.numerics.posing.EigenPosing`; it still
-     takes the operator triple, and the adjoint entry still hand-daggers
-     that triple.  The re-signature is deferred because ``[M]`` it
-     changes the estimator's arithmetic — :math:`\sum(A\psi) -
-     \sum(S\psi) \neq \sum((A-S)\psi)`, with 1 of 40 draws bit-identical
-     — so it is a principled ULP-level re-baseline on the adjoint
-     :math:`k` path that must land with its own measurement rather than
-     inside a commit whose claim is that nothing moved.
-   * ``source_posing(q)`` on the hub is **not** a member yet;
-     :class:`~orpheus.numerics.posing.SourcePosing` ships and is gated,
-     but nothing in production poses one.
-   * The subcritical multiplying source — the shipped witness for the
-     :math:`(M, q)` cell, ``SourcePosing(pencil.at(1), q)`` handed to the
-     existing fixed-source driver — is **not** built.  Until it is, that
-     cell has no production witness anywhere in the tree; the honest
-     reading of the four-cell table is that three cells ship and the
-     fourth is argued.
-   * The collision cache still stashes itself on the hub
-     (``_coll_cache``) rather than living on the
-     :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`
-     instance.  The σ staleness that made the stash a hazard is already
-     gone (:ref:`sn-sigma-is-a-problem-datum`), but the memo is still on
-     a save state.
+   This note read *"What this commit did NOT land"* and listed four
+   pieces of the design as written-but-not-shipped, so a reader would not
+   go looking for them.  All four landed on 2026-09-14, in the same
+   unit's second commit.  They are kept here, in the same order, because
+   *which* of them needed its own commit and *why* is part of the design
+   record.
+
+   * :class:`~orpheus.numerics.iteration.KEigenvalue` **now consumes the
+     posing**: ``KEigenvalue(posing, implicit, explicit, …)``, with
+     :meth:`~orpheus.numerics.iteration.KEigenvalue.compute_keff` =
+     ``posing.rayleigh(ψ, w=1)`` and the other two estimators reading
+     ``posing.pencil.rhs``.  It needed its own commit for the reason the
+     deferral gave: the estimator's arithmetic changes, because
+     :math:`\sum(A\psi) - \sum(S\psi) \neq \sum((A-S)\psi)` in
+     floating point (``[M]`` 1 of 40 draws bit-identical).  ``[M]`` the
+     measured consequence on the path that carries it — the adjoint
+     :math:`k` on the anchors' two-group slab — is a drift of
+     :math:`1.22\times10^{-15}` absolute, about 5 ulp, with
+     :math:`|k^\dagger - k|` unmoved at ``4.15e-12``
+     (:ref:`sn-the-pencil-reaches-production`).
+   * ``source_posing(q)`` **is** a hub member, and it poses
+     ``pencil.at(1)`` **always** — on a non-fissile hub the production is
+     the zero dyad, so that member is the pure transport operator in
+     value and no discrimination on the datum is needed.
+   * The subcritical multiplying source **is** built
+     (:func:`~orpheus.sn.solver.solve_sn_multiplying_source`), so the
+     four-cell table now reads *four cells ship*; the composition law and
+     the 0-D closed form are quoted at the table itself.
+   * The collision cache no longer stashes itself on the hub.  The
+     resolution was **not** the re-homing this note predicted: σ became a
+     **bound stratum** the walk consumes, so a walk cannot be handed a
+     second σ at all
+     (:ref:`sn-sigma-bound-once-at-the-operator`).  ⭐ Worth keeping as
+     written: the *defect* was correctly identified here and the
+     *mechanism* was not, which is the usual split.
 
 
 The posing table
@@ -6871,8 +6958,11 @@ exists; *unify-after-two*).
 **The adjoint row (LIVE — #276 A4/A5).** The adjoint eigenproblem
 :math:`A_{\rm loss}^{\dagger}\,\psi^{\dagger} = \lambda\,M^{\dagger}\,
 \psi^{\dagger}` is **just another posing row** whose role-operators are
-the daggers of the forward leaves — and it now RUNS in production:
-``KEigenvalue((L+C).H, (S+N2N+B).H, F.H)`` through the unchanged
+the daggers of the forward leaves — and it now RUNS in production: the
+daggered pencil
+``EigenPosing(OperatorPencil((L+C).H − (S+N2N+B).H, F.H), K_MAP)``
+handed to ``KEigenvalue`` (the *operator-triple* spelling this sentence
+carried until 2026-09-14) through the unchanged
 :func:`~orpheus.numerics.eigenvalue.power_iteration`
 (:func:`~orpheus.sn.solver.solve_sn_adjoint`; the full chapter is
 :ref:`sn-adjoint`). The dagger is *free* from the
@@ -6924,8 +7014,9 @@ different layers:
   :meth:`EigenvalueSolver.solve_fixed_source <orpheus.numerics.eigenvalue.EigenvalueSolver.solve_fixed_source>`
   Protocol method — a morphism the solver owns.
 * :class:`~orpheus.numerics.iteration.KEigenvalue` binds the resolvent
-  **early**, building it as :math:`(A-S)^{-1}` from the operator triple
-  via an inner :class:`~orpheus.numerics.iteration.SourceIteration`.
+  **early**, building it as :math:`(A-S)^{-1}` from the ``implicit`` and
+  ``explicit`` operands it is handed beside the posing, via an inner
+  :class:`~orpheus.numerics.iteration.SourceIteration`.
 
 The late-bound layer is **strictly more general**: it admits *both* the
 sweep-posed operator-triple resolvent (SN, MoC — where the inner

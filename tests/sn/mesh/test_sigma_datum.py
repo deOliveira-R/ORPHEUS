@@ -179,15 +179,16 @@ class TestLawOneFieldPerProblem:
                  "…whose σ_t view differs")
 
     def test_law_the_override_moves_sigma_t_and_NOTHING_else(self) -> None:
-        """The honest read-set: σ_t moves; absorption, fission production and
-        the emission spectrum re-derive from the MATERIALS and are unmoved.
-        (``diffusion_coefficient`` is deliberately NOT listed: whether ``D``
-        should follow an overridden σ_t is an open ruling — the test-architect
-        C3 delta §A.6.)"""
+        """The honest read-set: σ_t and the DERIVED diffusion coefficient move
+        (RULED 2026-09-13 fork 4 (a): ``D = 1/(3(σ_t − Σ_s1-outflow))`` per cell
+        follows the datum, C3b-2); absorption, fission production and the
+        emission spectrum re-derive from the MATERIALS and are unmoved."""
         hub = _sn()
         hub_b = hub.with_cross_sections(3.0 * hub.sigma_t_cell)
         _require(np.array_equal(hub_b.mat_xs.total_cross_section, 3.0 * hub.mat_xs.total_cross_section),
                  "σ_t: the field reads the hub's OWN datum (a scalar multiply is bit-exact)")
+        _require(not np.array_equal(hub_b.mat_xs.diffusion_coefficient, hub.mat_xs.diffusion_coefficient),
+                 "D follows the overridden σ_t (the derived coefficient moves)")
         for view in ("absorption_cross_section", "fission_production", "emission_spectrum"):
             _require(np.array_equal(getattr(hub_b.mat_xs, view), getattr(hub.mat_xs, view)),
                      f"{view} must be unmoved by a σ_t override (it derives from the materials)")

@@ -389,7 +389,7 @@ def run_sweeps(
     for _ in range(n_sweeps):
         reflect_outflow_into_inflow(inputs.boundary_flux, inputs.sn_mesh)
         angular_flux, scalar_flux = window.sweep(
-            Q_combined, inputs.sig_t, inputs.boundary_flux,
+            Q_combined, window.bind_sigma(inputs.sig_t), inputs.boundary_flux,
         )
     return angular_flux, scalar_flux
 

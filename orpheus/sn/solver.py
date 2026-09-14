@@ -1158,6 +1158,7 @@ def _within_group_si(
     splitting: "Splitting",
     sn_mesh: "SNMesh", *, max_iter: int, tol: float,
     corrector: "LinearOperator | None" = None,
+    extra_gains: "tuple[LinearOperator, ...]" = (),
 ) -> "tuple[SourceIteration[Any], SupportsInverse[Any, Any], tuple[LinearOperator, ...], bool]":
     r"""SourceIteration driver on a splitting ``A = M − N`` of the within-group
     system — the Strategy VALUE, consumed as it is.
@@ -1234,12 +1235,13 @@ def _within_group_si(
         # The block back-substitution IS the seeded resolvent (both faces
         # written at one site — the cast states what the value's
         # capability annotation cannot: WHICH inverse the coupled grid mints).
+        gains = (*splitting.explicit, *extra_gains)
         si = SourceIteration(
             cast("SupportsSeededApply[Any]", splitting.implicit.inverse()),
-            *splitting.explicit,
+            *gains,
             max_iter=max_iter, tol=tol, budget_name="max_inner",
         )
-        return si, splitting.implicit, splitting.explicit, False
+        return si, splitting.implicit, gains, False
     # Seedless: the value's ``M`` inverts to the WDD sweep (the plain
     # composite) or the octant-group forward substitution (the scheduled
     # composite) — a SweepOperator either way, which is what the windowing
@@ -1248,12 +1250,13 @@ def _within_group_si(
         cast("SweepOperator", splitting.implicit.inverse()),
         splitting.system.factors.scattering, sn_mesh,
     )
+    all_gains = (*splitting.explicit, *extra_gains)
     gains = (
         tuple(
             gain.on_moment_domain() if isinstance(gain, AngularLift) else gain
-            for gain in splitting.explicit
+            for gain in all_gains
         )
-        if windowed else splitting.explicit
+        if windowed else all_gains
     )
     if corrector is not None and windowed:
         raise NotImplementedError(
@@ -1441,43 +1444,6 @@ class SNSolver:
         # guard on an LD curvilinear space fires before any Strategy machinery
         # (the scan-closure guard below), which is the deeper cause.
         self.sn_mesh.system
-        self.geom_cache: StreamingCoefficientCache | None = None
-        self.coll_cache: CollisionCache | None = None
-        # The two-stratum scan cache feeds the DAG-FREE scan strategies
-        # (CumprodScan / ScanMarch) ONLY — its σ_t stratum is the closed-form
-        # affine recurrence ``affine_scan_coefficients`` (the scan-family
-        # triple), which a NON-affine-scannable scheme (LinearDiscontinuous,
-        # #158) does not supply.  Such schemes run on the DAG wavefront
-        # (FullFieldWavefront), which consumes the per-cell ``cell_kernel_batch``
-        # directly — never the scan cache.  Build the cache only when the scan
-        # path can actually be selected (DD keeps its bit-identical cache).
-        # Chain scan ⟺ 1-D (the honest predicate, P4.5); ``reduced``
-        # presence is its ctor-guaranteed realization.
-        if sn_mesh.is_1d and sn_mesh.scheme.is_affine_scannable:
-            # Stratum 1 through the strategy layer's INTERN (P4.9b step 2c
-            # — one build per mesh × closure pair, however many operators
-            # a solve constructs; the retired eager build + the mesh-attr
-            # ``_geom_cache`` stash both lived here).  The σ-stratum below
-            # needs it NOW to pose CollisionCache; ``self.geom_cache`` is also
-            # the table's strong HOLDER (the intern is weak on the value since
-            # C3a — without a holder the walk rebuilds it per sweep) — the eager σ posing
-            # (and its ``_coll_cache`` stash the walk reads) re-homes onto
-            # the StreamingCollisionOperator instance at step 2's C3b-2; the
-            # σ it poses is the Problem's datum (``sn_mesh.mat_xs``).
-            from orpheus.sn.loss_representation import geometry_cache_for
-
-            self.geom_cache = geometry_cache_for(
-                sn_mesh, sn_mesh.angular_closure,
-            )
-            # No bridge needed: ``mat_xs.total_cross_section`` is the
-            # principled ``(ng, nx)`` 1-D layout the cache expects
-            # (rank-d (N, ng, *spatial); no phantom ny axis to drop).
-            sig_t_1d = self.sn_mesh.mat_xs.total_cross_section  # (ng, nx)
-            self.coll_cache = CollisionCache.from_geometry(
-                self.geom_cache, sig_t_1d, sn_mesh.scheme,
-                sn_mesh.angular_closure,
-            )
-            sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
     def initial_flux_distribution(self) -> np.ndarray:
         """Initial scalar flux guess: ones(ng, nx, ny).
@@ -2708,9 +2674,16 @@ def solve_sn_adjoint(
     implicit_operator, gain, F_posed, template = _adjoint_posing_parts(sn_mesh)
 
     from orpheus.numerics.iteration import KEigenvalue
+    from orpheus.numerics.pencil import OperatorPencil
+    from orpheus.numerics.posing import K_MAP, EigenPosing
 
+    # The daggered posing on the ARM's own carrier: the seedless adjoint iterates
+    # on the full field with `factors.fission`, the carrying one on the coupled
+    # space with `production` — `_adjoint_posing_parts` returns the pair, and the
+    # pencil is (loss†, F†) spelled through the Strategy's own implicit/gain.
     ke = KEigenvalue(
-        implicit_operator.H, gain.H, F_posed.H,
+        EigenPosing(OperatorPencil(implicit_operator.H - gain.H, F_posed.H), K_MAP),
+        implicit_operator.H, gain.H,
         max_outer=max_outer, keff_tol=keff_tol, flux_tol=flux_tol,
         max_inner=max_inner, inner_tol=inner_tol,
     )
@@ -3514,6 +3487,91 @@ def solve_sn_fixed_source(
     return solution
 
 
+def _admits_multiplying_source(k: float) -> bool:
+    r"""The admissibility predicate of the multiplying source problem: the
+    medium is SUBCRITICAL, :math:`\\rho(A^{-1}F) = k_{\\rm eff} < 1` (RULED
+    2026-09-13, fork 3 (a) — measured by the hub's own k-solve; NOT the
+    positive-stability of :math:`A - F`, which never holds on the SN composite)."""
+    return k < 1.0
+
+
+class SupercriticalSourceProblem(ValueError):
+    """The multiplying source problem ``(A − F)ψ = q`` is not well posed: the
+    medium is not subcritical (:math:`\\rho(A^{-1}F) = k_{\\rm eff} \\ge 1`)."""
+
+
+def solve_sn_multiplying_source(
+    materials: dict[int, Mixture],
+    mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
+    quadrature: Quadrature,
+    external_source: "np.ndarray | TimedFullField",
+    boundary_condition: "str | None" = "vacuum",
+    scattering_order: int = 0,
+    max_inner: int | None = None,
+    inner_tol: float = 1e-12,
+    inner_schedule: str = "gauss_seidel",
+    mat_map: "np.ndarray | None" = None,
+    scheme: "DiscretizationSchemeBase | None" = None,
+    keff_tol: float = 1e-7,
+) -> Solution:
+    r"""Solve the SUBCRITICAL MULTIPLYING fixed-source problem :math:`(A - F)\,\psi = q`.
+
+    The ``(M, q)`` cell of the pencil articulation (consumers campaign step 2,
+    plan §3.5 / §5.1, RULED 2026-09-13): the Problem poses
+    :meth:`SNMesh.source_posing` — the pencil's member at the physical
+    :math:`\sigma = 1` with the external source — and the Strategy lowers it
+    as the fixed-source iteration with the production as ONE MORE explicit
+    gain (the fission term lagged: :math:`M\psi_{n+1} = N\psi_n + F\psi_n + q`).
+
+    Admissibility is the SPECTRAL fact :math:`\rho(A^{-1}F) < 1` — equivalently
+    :math:`k_{\rm eff} < 1` — which needs the resolvent, so the DRIVER
+    certifies it by running the hub's k-solve first and REFUSES with a typed
+    :class:`SupercriticalSourceProblem` naming the measured :math:`k` (one
+    extra eigen solve per multiplying-source solve; exact).  Positive-stability
+    of :math:`A - F` is NOT the predicate (``[M]`` it never holds on the SN
+    composite — the trace eigenvalues are −1).
+
+    Source iteration only (the Krylov arm's preconditioner is the pure
+    transport resolvent; a later step composes it).  Every other argument is
+    :func:`solve_sn_fixed_source`'s.
+    """
+    t_start = time.perf_counter()
+    max_inner = resolve_iteration_budget(max_inner, inner_tol)
+    sn_mesh = _as_sn_mesh(
+        mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
+        scheme=scheme, scattering_order=scattering_order,
+    )
+    # the admissibility k-solve runs on the SAME Problem (hub) the source
+    # problem is posed on — the entry's own drive, not a raw-data rebuild
+    k = float(power_iteration(
+        SNSolver(sn_mesh, inner_solver="source_iteration", keff_tol=keff_tol),
+        max_iter=500, budget_name="max_outer",
+    ).keff)
+    if not _admits_multiplying_source(k):
+        raise SupercriticalSourceProblem(
+            f"the multiplying source problem (A − F)ψ = q needs a SUBCRITICAL "
+            f"medium (ρ(A⁻¹F) = k_eff < 1); the hub's k-solve measured k_eff = "
+            f"{k:.9f} ≥ 1 — no positive steady solution exists."
+        )
+    solver = SNSolver(
+        sn_mesh, inner_solver="source_iteration",
+        max_inner=max_inner, inner_tol=inner_tol,
+    )
+    q_ext_composite = _build_fixed_source_rhs(external_source, sn_mesh)
+    # The Problem's question, STATED (and its ends checked) before the Strategy
+    # lowers it; step 3 puts this posing on the Solution.
+    sn_mesh.source_posing(q_ext_composite)
+    system = sn_mesh.system
+    return _solve_fixed_source_si(
+        solver, sn_mesh, q_ext_composite,
+        t_start, max_inner, inner_tol, inner_schedule=inner_schedule,
+        # the production LAGGED — the (M, q) lowering — on the ARM's carrier: the
+        # seedless iteration runs on the full field (the composite F there), the
+        # carrying one on the coupled space (the posed production)
+        extra_gains=(system.production if system.is_coupled else system.factors.fission,),
+    )
+
+
 def _solve_fixed_source_si(
     solver: SNSolver,
     sn_mesh: SNMesh,
@@ -3523,6 +3581,7 @@ def _solve_fixed_source_si(
     inner_tol: float,
     inner_schedule: str = "gauss_seidel",
     corrector: "LinearOperator | None" = None,
+    extra_gains: "tuple[LinearOperator, ...]" = (),
 ) -> Solution:
     r"""Fixed-source path via the :class:`SourceIteration` primitive.
 
@@ -3600,7 +3659,7 @@ def _solve_fixed_source_si(
         system, resolve_schedule(sn_mesh, inner_schedule),
     )
     si, base_implicit, gains, windowed = _within_group_si(
-        splitting, sn_mesh, max_iter=max_inner, tol=inner_tol,
+        splitting, sn_mesh, max_iter=max_inner, tol=inner_tol, extra_gains=extra_gains,
         corrector=corrector,
     )
     coupled = system.is_coupled
@@ -3637,8 +3696,15 @@ def _solve_fixed_source_si(
     # (the windowed moment arm is structurally exempt; see
     # _certify_within_group_exit).
     if not windowed:
+        # The certificate is posed on the equation the Strategy SOLVED: a
+        # lagged gain (the multiplying source's production, C3b-2) is part of
+        # the operator, so it re-enters the certified rhs at the converged
+        # iterate — ``r = A·ψ − (q + Σ Gψ)`` is exactly ``(A − ΣG)ψ − q``.
+        q_certified = q_ext_composite
+        for gain in extra_gains:
+            q_certified = q_certified + gain.apply(psi_typed)
         _certify_within_group_exit(
-            system, psi_typed, q_ext_composite,
+            system, psi_typed, q_certified,
             sn_mesh=sn_mesh, record=record,
             where="solve_sn_fixed_source[source_iteration]",
         )

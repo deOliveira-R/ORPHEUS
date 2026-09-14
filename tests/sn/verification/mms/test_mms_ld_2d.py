@@ -165,8 +165,8 @@ def test_ld_2d_two_paths_ffw_equals_mfw():
 
     bf_win = AngularBoundaryFlux.zeros(sn.angular_trace)              # VACUUM (zero domain inflow)
     bf_full = AngularBoundaryFlux.zeros(sn.angular_trace)
-    ang_w, scal_w = mfw.sweep(Q, sig_t, bf_win)
-    ang_f, scal_f = ffw.sweep(Q, sig_t, bf_full)
+    ang_w, scal_w = mfw.sweep(Q, mfw.bind_sigma(sig_t), bf_win)
+    ang_f, scal_f = ffw.sweep(Q, ffw.bind_sigma(sig_t), bf_full)
 
     np.testing.assert_allclose(
         ang_w, ang_f, rtol=1e-9, atol=1e-12, err_msg="angular flux FFW≠MFW",
@@ -470,8 +470,8 @@ def test_ld_2d_stress_two_paths_ffw_equals_mfw():
     bf_win.values[...] = bss.values
     bf_full.values[...] = bss.values
 
-    ang_w, scal_w = mfw.sweep(Q, sig_t, bf_win)
-    ang_f, scal_f = ffw.sweep(Q, sig_t, bf_full)
+    ang_w, scal_w = mfw.sweep(Q, mfw.bind_sigma(sig_t), bf_win)
+    ang_f, scal_f = ffw.sweep(Q, ffw.bind_sigma(sig_t), bf_full)
 
     np.testing.assert_allclose(
         ang_w, ang_f, rtol=1e-9, atol=1e-12, err_msg="angular flux FFW≠MFW",

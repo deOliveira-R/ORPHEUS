@@ -13044,3 +13044,146 @@ snapshot of a tree that has moved.
 * **vv-status schema check**, mirroring `tests/_harness/audit.py`: 0 violations tree-wide, and
   my three new sentinels each resolve to a `:label:` in their own file. `documented` remains
   the only legal status (L-106).
+
+---
+
+## L-108 — Consumers campaign step 2, unit C3b-2: the σ merge unit's last commit (2026-09-14)
+
+**Scope.** 11 `.rst`, +1286/−218; branch `refactor/consumers-step2`, uncommitted
+in the working tree. Four rulings landed at once (a walk seam, a hub `source_posing`,
+a new solver entry, an estimator re-posing) plus a `D`-follows-the-datum carve.
+No Sphinx build by me (the main agent runs the one build).
+
+### (a) ⭐⭐ THE STATISTIC IS THE RECONCILIATION — when a relayed `[M]` will not
+reproduce, compute several NORMS of the same quantity and one of them IS the
+memo's number.
+
+Briefed *"`[M]` pre-carve: two σ on one strategy read ONE answer, rel
+**3.573e+00** wrong"*. I emulated the pre-carve path (`ScanStratum(geom₁, coll₁,
+sig_t=σ₂)` — the retired memo's exact behaviour, since the walk got the NEW σ and
+the OLD tables) and read: max-entrywise relative **3.597**, `‖·‖∞` ratio **3.288**,
+`L₂` ratio **2.378**. The memo's figure is the FIRST of those three. Publishing
+"it does not reproduce" would have been wrong; publishing 3.288 as "the" number
+would have been arbitrary. ⟹ **print the norm ladder and name which one the
+inherited figure is**, then lead with the *statistic-free* half —
+`array_equal(stale, first_answer) → True`, i.e. the stale answer is IDENTICALLY
+the first's, which no norm choice can move.
+
+Same session, the sibling that did NOT reconcile: the brief's diffusion pair
+`keff 0.26290298 → 0.01802733` for *"an 8-cell 2-group slab, ×3 override"*. The
+reach gate's fixture IS an 8-cell 2-group slab with a ×3 override and reads
+**0.930946184** at base — a 3.5× gap no statistic explains. ⟹ when the
+DESCRIPTION matches and the NUMBER does not, the fixture differed in something
+the memo never recorded; retire the pair, re-measure with the fixture stated in
+the table's own caption, and say so.
+
+### (b) ⭐⭐ A RE-ASSOCIATION'S BIT-IDENTITY RATE IS NOT A CONSTANT — it is a
+function of the CANCELLATION, and measuring the curve turns a bare `[M]` into a
+mechanism.
+
+The carve replaced `Σ(Aψ) − Σ(Sψ)` with `Σ((A−S)ψ)`; the relayed `[M]` was
+*"1 of 40 draws bit-identical"*. My first generic numpy probe (random dense `A`,
+`S = 0.3·random`) read **194 of 400 — 48.5 %**, which *looks* like a refutation
+and is not: the rate is governed by `c = Σ(Sψ)/Σ(Aψ)`. `[M]` 400 draws per row,
+`S = c·A` jittered ±10 %: **400/400** at `c = 0` · **145/400** at 0.5 ·
+**43/400** at 0.9 · **3/400** at 0.99. "1 of 40" is exactly where a
+scattering-dominated transport fixture sits. ⟹ **before reporting a
+re-association rate as if it were a property of the change, find the parameter it
+depends on and publish the curve** — and note the structural row (`c = 0`, the
+`ZeroOperator` posture, bit-identical *by construction*, not by luck).
+
+And the end-to-end half, measured rather than argued: patch the retired
+association back in-process and run the real entry. `[M]` adjoint `k` drift
+**1.22e-15** absolute / 2.81e-15 relative (~5 ulp) with `|k† − k|` unmoved at
+`4.15e-12` — four orders below the residual it sits inside, which is what
+licenses "every certification row stays green under its own tolerance".
+
+### (c) ⭐⭐ A LABELLED EQUATION THAT STATES A CALL SIGNATURE IS A TIME BOMB —
+and the repair is to move the signature into prose, not to update it.
+
+Two labels stated code shapes: `sn-adjoint-eigenproblem` read
+`A†ψ* = F†ψ*/k ⟺ KEigenvalue((L+C).H, (S+N2N+B).H, F.H)`, and
+`power-iteration-keff-update` read `Σ(Fψ)/(Σ((L+C)ψ) − Σ(Sψ))`. Both went false
+when the constructor stopped taking a triple / the estimator stopped subtracting
+two contractions. ⭐ The discriminator for what a label should keep is its
+MARKERS: `grep -rn "<label>" tests/` → 8 tests carry
+`verifies("sn-adjoint-eigenproblem")` and **every one asserts the mathematics**
+(`k† = k`, reciprocity, the certification rows); **none** asserts an argument
+list. ⟹ the equation now states the daggered **pencil** (math, durable) and the
+call spelling lives in a note below it. The keff label got the genuinely-changed
+arithmetic (`Σ((A−S)ψ)`), because there the code change IS a claim change — and
+its consistency-theorem paragraph needed the same edit, plus one clause saying
+`1ᵀ` is linear so the theorem is indifferent and IEEE-754 is not.
+
+### (d) ⭐⭐ "IT LOOKS LIKE IT SHOULD BE ABLE TO" IS THE MOST VALUABLE PARAGRAPH IN
+AN ARM-ASYMMETRY SECTION.
+
+Surprise (i): the production adjoint site cannot read `sn_mesh.eigen_posing.H()`.
+`EigenPosing.H` is nullary precisely because `k† = k`, so the obvious spelling is
+to ask the hub — and `[M]` it reddens 15 certification rows + 2 anchors, because
+`_adjoint_posing_parts` is arm-asymmetric (seedless → full field with
+`factors.fission`; carrying → coupled space with `production`) while the hub's
+pencil is the coupled-space object on **both** arms. I verified the shape by
+construction rather than by reading: on a seedless slab `system.space` is a
+ONE-system `CoupledSpace` and `pencil.rhs` is a `CoupledOperator`, while
+`factors.fission` is on the bare `FullFieldSpace`. ⟹ write the section as
+*why the natural spelling fails*, with the table of what each arm iterates on —
+and classify the residue honestly: this is a **deferral** (the seedless adjoint
+on the coupled space is a later step), not a workaround, and the chain table's
+"the hub's pencil on the system's space" describes the HUB correctly and does not
+describe every carrier a Strategy reduces to.
+
+### (e) ⭐ A RULING WITH TWO CLAUSES MAY HAVE AN OCCUPANT FOR ONLY ONE — census
+the second clause's inbound path before writing it as a live branch.
+
+Fork 4 (a) ruled *"`D` follows an overridden σ_t where DERIVED and stays where
+TABULATED"*, with a mechanism (*"`D`'s provenance is typed on `Mixture`"*).
+`[M]` what landed is the `p1_outflow` split and a per-cell derivation; there is
+**no** provenance discriminator on `Mixture`, and there is nothing to
+discriminate — no tabulated-`D` inbound path exists (the legacy `CORE1D`
+`transport` vector is mapped onto `SigT`/P1 upstream; the only constructor is
+`from_dense_channels`). ⟹ publish clause 1 as the ruling, clause 2 as a
+**declared future case** with the census that shows it empty, and say the
+mechanism the ruling named is not the mechanism that shipped.
+
+### (f) ⭐⭐ RETIRING A DERIVATION'S OLD HOME CAN LEAVE IT WITH ZERO PRODUCTION
+CONSUMERS — check, and write the KEEP reason into the corpus.
+
+After the per-cell derivation landed, an AST attribute census over `orpheus/`
+found **exactly two** reads of `transport_xs`/`diffusion_coefficient`: the live
+`mesh.mat_xs.diffusion_coefficient` in the diffusion leakage operator, and
+`self.transport_xs` inside `Mixture.diffusion_coefficient`'s own body. So the
+per-material `Mixture.transport_xs` and `Mixture.diffusion_coefficient` have
+**zero** production consumers and survive as (i) the per-material statement of
+the formula and (ii) the bit-identity reference the gate compares against. ⟹ a
+`.. note::` saying *do not read the empty consumer census as dead code, and do
+not add a second live read path* — otherwise the next retirement audit deletes
+the oracle (`coding-standards`' fuller-view-oracle exception, at data tier).
+
+### (g) ⭐ A "RE-HOMES WHEN X HAPPENS" PREDICTION IS WORTH KEEPING WHEN THE
+MECHANISM IS REFUTED — that is the interesting half.
+
+Three surfaces predicted the σ memo would *re-home onto the operator instance*.
+It did not: σ became a **bound stratum the walk consumes**, so the stale read is
+unspellable rather than relocated. ⟹ keep the prediction verbatim under a ✅ and
+name the split — *the defect was correctly identified and the mechanism was not*.
+Tense-flipping destroys the only record that relocating a stash is not the same
+move as inverting a dependency.
+
+### (h) ⚠ MY OWN INSTRUMENTS FAILED TWICE, BOTH SILENTLY AND FLATTERINGLY.
+
+(1) A shell `$FILES` variable passed unsplit made the xref and markup gates read
+**one nonexistent path**, and both printed a clean `0`. Caught only because the
+docutils gate (same invocation) raised `FileNotFoundError`. ⟹ a gate that can
+print 0 on an empty input list needs the input COUNT in its output, or a
+per-file line. (2) My line-based role regex could not see a `:meth:`X <target>``
+role **split across two lines**, and that is exactly where I had written a wrong
+target (`orpheus.numerics.iteration.compute_keff`). ⟹ run xref checks over
+CONTIGUOUS ADDED BLOCKS with `re.S`, never per line; and validate the resolver
+with retired symbols as positive controls (`SNSolver.coll_cache` → False).
+
+### (i) ⭐ A BONUS SWEEP THAT PAID: a role-vs-object MISMATCH renders plain text
+at every severity. `:func:`~orpheus.numerics.iteration.KEigenvalue`` (a CLASS
+under a `func` role) appeared at 3 sites; a `:func:`…KEigenvalue`` census over
+`docs/theory` now returns 0. Cheap to run whenever a chapter's subject is a
+class, and invisible to `-W`.

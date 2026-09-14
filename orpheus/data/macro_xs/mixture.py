@@ -288,11 +288,24 @@ class Mixture:
         Consumers: :attr:`diffusion_coefficient` (the diffusion data seam,
         #290); any future transport-corrected P0 treatment (CP/MoC).
         """
+        return np.asarray(self.SigT, dtype=float) - self.p1_outflow
+
+    @property
+    def p1_outflow(self) -> np.ndarray:
+        r"""The P1 out-scatter row sum :math:`\sum_{g'} \Sigma_{s1,g\to g'}` per group —
+        the per-material datum :attr:`transport_xs` subtracts from :math:`\Sigma_t`
+        (identically zero when the mixture carries no P1 moment).
+
+        Split out (consumers campaign step 2 C3b-2, 2026-09-14) so the per-cell
+        diffusion coefficient can be derived from the HUB's per-cell σ_t datum
+        (``MaterialMesh.sigma_t_cell``) and this per-material outflow: a
+        σ-variant Problem's ``D`` then follows its σ_t (fork 4 (a)).
+        """
         if len(self.SigS) > 1:
             p1_out = np.array(self.SigS[1].sum(axis=1)).ravel()
         else:
             p1_out = np.zeros(self.ng)
-        return self.SigT - p1_out
+        return np.asarray(p1_out, dtype=float)
 
     @property
     def diffusion_coefficient(self) -> np.ndarray:

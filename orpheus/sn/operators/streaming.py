@@ -91,6 +91,7 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from orpheus.sn.loss_representation import SigmaStratum
 
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -653,6 +654,18 @@ class StreamingCollisionOperator(
         """
         return self.streaming.loss_representation
 
+    @cached_property
+    def sigma_stratum(self) -> "SigmaStratum":
+        r"""σ bound ONCE for this operator's walks (consumers campaign step 2 C3b-2,
+        fork 1 (ii), 2026-09-14): the strategy's σ-bound stratum for THIS operator's
+        :attr:`sigma` — the 1-D scan's (geometry table, collision table, σ), the
+        multi-D walks' raw σ.  Every ``sweep``/``sweep_transpose`` consumes it, so
+        a walk can never serve another σ's table (the retired hub memo
+        ``_coll_cache`` could — ``[M]`` two σ on one strategy read ONE answer).
+        This member is also the geometry intern's strong holder.
+        """
+        return self.loss_representation.bind_sigma(self.sigma)
+
     @property
     def sn_mesh(self) -> "SNMesh":
         """The shared :class:`SNMesh` (validated mesh-identity at init)."""
@@ -958,7 +971,7 @@ class StreamingCollisionOperator(
         # is 2-D Cartesian only).  Only the OUTPUT WRAP differs.
         bulk_values, _scalar = self.loss_representation.sweep(
             rhs.interior.values,
-            self.sigma,
+            self.sigma_stratum,
             boundary_buf,
             moment_frame=moment_frame,
             schedule=schedule,
@@ -1082,7 +1095,7 @@ class StreamingCollisionOperator(
             )
         q_bar, m_boundary = self.loss_representation.sweep_transpose(
             b.interior.values,
-            self.sigma,
+            self.sigma_stratum,
             b.boundary,
         )
         # Duality typing (#276 A4, docstring above): dual-of-source = the

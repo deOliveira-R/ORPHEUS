@@ -7863,3 +7863,101 @@ older entries classify against.
    test mutates one — ``[M]`` 33 test sites did), and a datum with three
    spellings is a datum with no owner: give it ONE home on the Problem
    and make every consumer READ it.
+
+.. error-entry:: ERR-085
+   :title: The 1-D scan sweep memoised its σ-bound collision table on the MESH and read it back with an unvalidated ``getattr``, so a second σ handed to the same strategy was marched with the FIRST σ's tables — the answer was bit-identical to the first sweep's and max-entrywise 3.6× wrong
+
+   **Status:** ✅ **FIXED 2026-09-14 — consumers campaign step 2, unit
+   C3b-2** (fork 1, option (ii)).  :math:`\sigma` is no longer an
+   *argument of the walk*: it is bound ONCE into a
+   :class:`~orpheus.sn.loss_representation.SigmaStratum` that every
+   ``sweep`` / ``sweep_transpose`` consumes, and the operator that owns
+   :math:`\sigma` holds the binding
+   (:attr:`StreamingCollisionOperator.sigma_stratum
+   <orpheus.sn.operators.streaming.StreamingCollisionOperator.sigma_stratum>`).
+   The hub memo ``_coll_cache`` and the walk's ``_ensure_coll_cache`` /
+   ``_ensure_geom_cache`` are **deleted**.  Full account:
+   :ref:`sn-sigma-bound-once-at-the-operator`.
+
+   **Failure mode:** **#6 (convention drift)** — definition site versus
+   usage site.  The memo was *produced* under an implicit key, "this mesh
+   has one :math:`\sigma`", and *consumed* through a door whose signature
+   says the opposite, ``sweep(Q, sig_t, …)`` — :math:`\sigma` is an
+   argument, so any :math:`\sigma` may arrive.  Nothing reconciled the
+   two: ``_OneDimScanWalk._ensure_coll_cache`` read
+   ``getattr(self.mesh, "_coll_cache", None)`` and returned it with **no**
+   :math:`\sigma` comparison of any kind.  A second σ therefore marched
+   the first σ's attenuation and source chains.
+
+   **Root cause.**  The two-stratum sweep cache is a genuine and
+   well-founded split — a :math:`\sigma`-free geometry table
+   (:class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache`, Stratum 1)
+   and a :math:`\sigma`-bound one
+   (:class:`~orpheus.sn.sweep.cache.CollisionCache`, Stratum 2) — and
+   Stratum 1's memo is correct on a mesh, because the geometry *is* the
+   mesh's.  Stratum 2's was written the same way, by analogy, and its key
+   is not the mesh: it is the mesh **and** :math:`\sigma`.  The defect is
+   one stratum's lifetime borrowed from its sibling's.
+
+   **Measured, on the witness's fixture** (a 4-cell 2-group vacuum slab
+   at ``gauss_legendre(4)``, unit source): two sweeps at
+   :math:`\sigma_t = 1.0` then :math:`\sigma_t = 5.0` on ONE strategy
+   returned ``array_equal`` arrays — the second answer was *identically*
+   the first's, which is the statistic-free statement of the bug.
+   Against a freshly posed strategy's :math:`\sigma_t = 5` answer the
+   error is **3.597** max-entrywise relative, **3.288** in
+   :math:`\|\cdot\|_\infty`, **2.378** in :math:`L_2`.  (The C3
+   verification delta recorded ``3.573e+00``; that is the first of the
+   three statistics, which is why the other two do not reproduce it.)
+
+   **Hiding mechanism.**  Three layers, and the third is the instructive
+   one.  (a) No production path ever handed one strategy two
+   :math:`\sigma`: every solve poses a fresh
+   :class:`~orpheus.sn.loss_representation.LossRepresentation`, so the
+   hazard was *unreached* rather than *absent* — a latent defect one
+   caller away.  (b) The one path that would have reached it,
+   ``SNSolver.rebind_cross_sections``, was deleted at C3a when
+   :math:`\sigma_t` became a Problem datum, which **removed the
+   trigger and left the mechanism**; the theory page correctly recorded
+   the memo as "safe today only because a σ-variant is a different hub",
+   i.e. safe by an accident of the caller.  (c) ⚠ The cache gates that
+   *do* exist are **count** gates
+   (``test_geometry_cache_builds_exactly_once_per_mesh``), and a count
+   gate is structurally blind to this class: a stale hit **is** a hit, so
+   the instrument that proves the memo is working is the same instrument
+   that cannot tell whether it is working *correctly*.  No value gate
+   anywhere could see it either — the wrong table produces a wrong flux,
+   not an exception, and no shipped fixture compared two σ.
+
+   **Module:** ``orpheus/sn/loss_representation/__init__.py``
+   (``_OneDimScanWalk._ensure_coll_cache`` / ``_ensure_geom_cache``, both
+   deleted; the ``SigmaStratum`` protocol, ``RawSigmaStratum`` /
+   ``ScanStratum`` and the polymorphic ``bind_sigma`` that replace them),
+   ``orpheus/sn/operators/streaming.py``
+   (``StreamingCollisionOperator.sigma_stratum``), ``orpheus/sn/solver.py``
+   (the ``SNSolver.__init__`` cache block and the ``sn_mesh._coll_cache``
+   stash, both retired).
+
+   **Caught by:**
+   ``tests/sn/sweep/core/test_cache.py::test_two_sigmas_on_one_strategy_give_two_answers``
+   — two sweeps at two :math:`\sigma` on ONE strategy, asserting (a) the
+   two answers **differ** and (b) the second equals a freshly posed
+   strategy's, ``array_equal``.  Leg (a) is the leg that was red
+   pre-carve; leg (b) is what makes it a correctness gate rather than a
+   "something changed" gate.  The same module's intern row additionally
+   asserts ``not hasattr(hub, "_coll_cache")``, so the retired memo
+   cannot return by accident.
+
+   **Lesson.**  ⭐ **A memo whose key is IMPLICIT is a contract nobody
+   wrote down, and the door's signature is the place the contradiction
+   shows.**  ``_coll_cache`` was keyed "per mesh" while it was consumed
+   through a parameter that says "per call"; the two statements cannot
+   both be true, and no test can be written for a key that was never
+   stated.  ⟹ when a cached quantity depends on an **argument**, do not
+   validate the argument against the cache — **invert the dependency**:
+   make the caller bind the argument into an object and hand it in, so
+   the mismatch is not detected but **unspellable** (``coding-elegance``
+   Pattern 4).  The corollary for the audit is the sharper half: a
+   **count** gate over a cache proves the cache is *used* and is
+   structurally incapable of proving it is *right*; a cache whose key has
+   a datum in it owes a second gate that varies that datum.

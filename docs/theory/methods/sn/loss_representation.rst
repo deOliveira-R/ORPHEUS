@@ -391,7 +391,7 @@ The protocol signature of the two matvec actions changed: both
 :meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action_transpose`
 now take the collision diagonal :math:`\sigma` **explicitly** as their first
 argument (``loss_action(sigma, psi)``), exactly symmetric with the sweep door
-``sweep(Q, sig_t, ...)``. Before the carve the representation read
+as it then was, ``sweep(Q, sig_t, ...)``. Before the carve the representation read
 ``operator.sigma_t`` *off an operator handle* it was passed — so the leaf, not
 its caller, decided which :math:`\sigma` the matvec realised. After the carve
 the **caller single-sources** :math:`\sigma`:
@@ -416,6 +416,60 @@ extended to the diagonal: the operator already held ONE representation instance
 shared by :meth:`apply` and :meth:`solve`; now it also holds ONE
 :math:`\sigma`, supplied by the same operand whichever door is exercised. The
 removal form is what makes that single-sourcing *matter*.
+
+.. _loss-rep-sigma-stratum:
+
+The two doors are no longer symmetric — and that is the algorithm speaking
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Since 2026-09-14 (the consumers campaign's step 2, C3b-2) the **sweep**
+door does not take :math:`\sigma_t` at all.  It takes what :math:`\sigma`
+has been bound **into**:
+
+.. code-block:: python
+
+   stratum = representation.bind_sigma(sig_t)          # bind ONCE
+   psi, phi = representation.sweep(Q, stratum, boundary_flux)
+   out      = representation.loss_action(sigma, psi)   # still raw σ
+
+The asymmetry is deliberate, and it is the **difference between the two
+actions** rather than an inconsistency left behind:
+
+* the matvec is a **row action** evaluated pointwise —
+  :eq:`loss-rep-affine-cell` reads :math:`\sigma` once per cell and has
+  nothing to precompute, so a raw array is exactly the right operand;
+* the 1-D **sweep** is a Blelloch prefix scan over a chain whose
+  attenuation and source coefficients are :math:`\sigma`-bound
+  *tables* — the two-stratum cache
+  (:class:`~orpheus.sn.sweep.cache.CollisionCache` against the
+  :math:`\sigma`-free
+  :class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache`).  Handing
+  it a bare :math:`\sigma` means it has to *find* those tables, and
+  finding them is what used to go stale.
+
+:meth:`~orpheus.sn.loss_representation.LossRepresentation.bind_sigma` is
+where the algorithm states which of the two it is.  The base returns a
+:class:`~orpheus.sn.loss_representation.RawSigmaStratum` (the multi-D
+wavefronts, which read :math:`\sigma` inside the cell update); the 1-D
+scans return a :class:`~orpheus.sn.loss_representation.ScanStratum`
+carrying ``(geom, coll, sig_t)``.  ``ScanMarch`` — which is a scan at
+:math:`d = 1` and a row-march above it — overrides it to answer *both*,
+by dimensionality, which is the same selection its
+:meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep` body
+already makes.
+
+.. note:: The one-instance theorem is not weakened by the split; ``[M]``
+   it is strengthened.  The binding is held once on the operator
+   (:attr:`StreamingCollisionOperator.sigma_stratum
+   <orpheus.sn.operators.streaming.StreamingCollisionOperator.sigma_stratum>`,
+   a :func:`~functools.cached_property`), and the array inside it is the
+   operator's own :math:`\sigma` **by identity**: on a 1-D slab,
+   ``op.sigma_stratum.sig_t is op.sigma`` → ``True`` and
+   ``op.sigma_stratum is op.sigma_stratum`` → ``True``.  So both doors
+   still realise the SAME :math:`\sigma`, and the sweep additionally
+   cannot be handed a table built for a different one — the stale-σ walk
+   is now unspellable rather than merely unreached
+   (:ref:`sn-sigma-bound-once-at-the-operator`).
 
 The affine-in-:math:`\sigma` structure of the forward matvec
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

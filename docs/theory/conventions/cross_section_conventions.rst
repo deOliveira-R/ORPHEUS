@@ -96,3 +96,39 @@ the whole content of :ref:`sn-sigma-is-a-problem-datum` --- a
 :math:`\sigma_t` that is not a pure function of the materials is what
 makes a depletion or thermal-feedback step expressible as *another
 Problem* instead of a mutation of a live solver.
+
+A **fifth** per-cell member is neither stored nor gathered: it is
+**derived**.  Since 2026-09-14 the diffusion coefficient
+:attr:`MaterialXSField.diffusion_coefficient
+<orpheus.transport.mesh.material_xs_field.MaterialXSField.diffusion_coefficient>`
+is computed per cell as
+
+.. math::
+
+   D_{i,g} \;=\; \frac{1}{3\bigl(\sigma_{t,i,g} - p_{1,g}[\mathrm{mat}(i)]\bigr)} ,
+
+reading the hub's :math:`\sigma_t` datum and the **per-material** P1
+out-scatter row sum
+:attr:`Mixture.p1_outflow
+<orpheus.data.macro_xs.mixture.Mixture.p1_outflow>`.  The split is what
+makes the two halves separable: the total is the Problem's and follows an
+override; the scattering kernel's first moment is the material's and does
+not.  On a hub whose datum was assembled from the materials the result is
+``array_equal`` to the per-material
+:attr:`Mixture.diffusion_coefficient
+<orpheus.data.macro_xs.mixture.Mixture.diffusion_coefficient>` gather ---
+the re-derivation carries no arithmetic.  The ruling and its numbers are
+:ref:`sn-sigma-datum-diffusion-d`.
+
+.. note:: ``[M]`` after that change the **per-material**
+   :attr:`Mixture.transport_xs
+   <orpheus.data.macro_xs.mixture.Mixture.transport_xs>` and
+   :attr:`Mixture.diffusion_coefficient
+   <orpheus.data.macro_xs.mixture.Mixture.diffusion_coefficient>` have no
+   production consumer left --- every live read of :math:`D` goes through
+   the per-cell derivation above, and the two per-material properties are
+   exercised only by their own gates and by the bit-identity reference in
+   ``tests/diffusion/test_sigma_variant_reach.py``.  They are kept
+   deliberately, as the **per-material statement of the same formula**
+   and as that reference; do not read the empty consumer census as
+   dead code, and do not add a second live read path to them.

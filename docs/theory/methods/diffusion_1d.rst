@@ -430,15 +430,41 @@ The data seam — D from the transport cross section
 --------------------------------------------------
 
 :math:`L` reads its per-cell diffusion coefficient through the #290 P1
-data seam: :attr:`Mixture.diffusion_coefficient
-<orpheus.data.macro_xs.mixture.Mixture.diffusion_coefficient>`
-:math:`= 1/(3\,\Sigma_{\text{tr}})` built on the outflow transport cross
-section :attr:`Mixture.transport_xs
-<orpheus.data.macro_xs.mixture.Mixture.transport_xs>`
+data seam :math:`D = 1/(3\,\Sigma_{\text{tr}})`, built on the outflow
+transport cross section
 :math:`\Sigma_{\text{tr},g} = \Sigma_{t,g} - \sum_{g'}\Sigma_{s1,g\to g'}`
 (:eq:`diffusion-coefficient`). When a mixture carries no P1 moment the
 out-scatter row sum is identically zero and :math:`\Sigma_{\text{tr}} =
 \Sigma_t` **exactly** — the correct isotropic limit.
+
+⚠ **Where each half of that difference comes from changed on
+2026-09-14** (the consumers campaign's step 2, C3b-2), and the
+distinction is load-bearing for a :math:`\sigma`-variant Problem.  The
+per-cell read path
+:attr:`MaterialXSField.diffusion_coefficient
+<orpheus.transport.mesh.material_xs_field.MaterialXSField.diffusion_coefficient>`
+is no longer a *gather* of the per-material
+:attr:`Mixture.diffusion_coefficient
+<orpheus.data.macro_xs.mixture.Mixture.diffusion_coefficient>`; it is
+**derived per cell** from the hub's :math:`\sigma_t` **datum**
+(``mesh.sigma_t_cell``) and the per-material P1 out-scatter row sum
+:attr:`Mixture.p1_outflow
+<orpheus.data.macro_xs.mixture.Mixture.p1_outflow>`:
+
+.. math::
+
+   D_{i,g} \;=\;
+   \frac{1}{3\bigl(\sigma_{t,i,g} - p_{1,g}[\mathrm{mat}(i)]\bigr)} .
+
+The total is the **Problem's** and follows a ``with_cross_sections``
+override; the scattering kernel's first moment is the **material's** and
+does not.  ``[M]`` on a hub whose datum was assembled from the materials
+the two spellings are ``array_equal``, so nothing moved for an ordinary
+diffusion solve; on a :math:`\sigma`-variant the removal *and* the
+leakage terms now read one :math:`\sigma_t`.  The ruling, its
+alternatives and the measured table are
+:ref:`sn-sigma-datum-diffusion-d`; the guard is a typed refusal when an
+override drives :math:`\Sigma_{\text{tr}} \le 0` in any cell and group.
 
 Legacy diffusion tables (the MATLAB ``CORE1D`` schema — per-group
 ``transport`` / ``absorption`` / ``fission`` / ``chi`` / ``scattering``

@@ -70,9 +70,10 @@ if TYPE_CHECKING:
     from orpheus.transport.operators.fission import FissionOperator
     from orpheus.numerics.coupled_system import CoupledField
     from orpheus.numerics.pencil import OperatorPencil
-    from orpheus.numerics.posing import EigenPosing
+    from orpheus.numerics.posing import EigenPosing, SourcePosing
     from orpheus.sn.coupled_system import WithinGroupSystem
     from collections.abc import Mapping
+    from orpheus.transport.timed_full_field import TimedFullField
 
     from orpheus.data.materials import Materials
     from orpheus.data.macro_xs.mixture import Mixture
@@ -1147,6 +1148,25 @@ class SNMesh(MaterialMesh):
         from orpheus.numerics.posing import K_MAP, EigenPosing
 
         return EigenPosing(self.pencil, K_MAP)
+
+    def source_posing(self, source: "TimedFullField | CoupledField") -> "SourcePosing[CoupledField]":
+        r"""The affine question over THIS Problem: :math:`(A - F)\,\psi = q` — the
+        pencil's member at the physical :math:`\sigma = 1` posed with ``source``
+        (RULED 2026-09-13, fork 2 (a): ALWAYS ``pencil.at(1)``; on a non-fissile
+        hub the production is the zero dyad, so the member IS the pure
+        transport operator in value — no discrimination on the datum).  The
+        ``(M, q)`` cell as a COMPOSITION; ``source`` lives on the coupled space
+        (the driver's ``_build_fixed_source_rhs`` builds it).  Admissibility
+        (:math:`\rho(A^{-1}F) < 1`) is a spectral fact the DRIVER certifies
+        with the hub's k-solve — a Problem-side object never solves.
+        """
+        from orpheus.numerics.coupled_system import CoupledField
+        from orpheus.numerics.posing import SourcePosing
+
+        # The question lives on the pencil's ends — the coupled space; a bare
+        # (seedless) full-field source is the ONE-system coupled state.
+        lifted = source if isinstance(source, CoupledField) else CoupledField(systems=(source,))
+        return SourcePosing(self.pencil.at(1.0), lifted)
 
     @cached_property
     def fission(self) -> "FissionOperator":

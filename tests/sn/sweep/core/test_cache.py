@@ -357,11 +357,16 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
     )
     from orpheus.sn.loss_representation import _GEOM_CACHE_INTERN, geometry_cache_for
 
-    n_live = len(_GEOM_CACHE_INTERN)  # process-global: other live hubs hold tables too
     solver_b = SNSolver(sn_mesh=hub_b)
 
-    geom_before, coll_before = solver.geom_cache, solver.coll_cache
-    geom_after, coll_after = solver_b.geom_cache, solver_b.coll_cache
+    # C3b-2: the strata are the OPERATOR's (σ bound once at the operator that
+    # owns σ; the solver holds no cache and the hub carries no σ memo) — built
+    # lazily, so the intern's bound is measured between the two bindings.
+    stratum = sn_mesh.system.factors.streaming_collision.sigma_stratum
+    n_live = len(_GEOM_CACHE_INTERN)  # process-global: other live hubs hold tables too
+    stratum_b = hub_b.system.factors.streaming_collision.sigma_stratum
+    geom_before, coll_before = stratum.geom, stratum.coll
+    geom_after, coll_after = stratum_b.geom, stratum_b.coll
 
     assert geom_after is geom_before, (
         "StreamingCoefficientCache should be shared BY IDENTITY across σ-variant "
@@ -390,8 +395,10 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
     #     mesh memo is re-stamped per hub and its values carry that hub's σ.
     #     _coll_cache / _pole_mirror_cache SURVIVE as mesh memos until C3b
     #     re-homes the σ stratum onto the operator instance.
-    assert hub_b._coll_cache is coll_after
-    assert sn_mesh._coll_cache is coll_before
+    for hub in (sn_mesh, hub_b):
+        assert not hasattr(hub, "_coll_cache"), (
+            "the σ memo on the hub retired at C3b-2 — σ is bound ONCE at the operator"
+        )
     assert not np.array_equal(
         coll_after.inverse_denom, coll_before.inverse_denom,
     ), "the σ-variant's stratum must carry ITS σ_t (the staleness leg)"
@@ -988,3 +995,32 @@ def test_cache_builder_refuses_a_meshless_chain_under_dash_O() -> None:
     assert sn2d.reduced is None  # the witness's own premise
     with pytest.raises(TypeError, match="requires a ReducedStreamingOperator"):
         StreamingCoefficientCache.from_mesh_and_quad(sn2d)
+
+@pytest.mark.l0
+@pytest.mark.catches("ERR-085")
+def test_two_sigmas_on_one_strategy_give_two_answers() -> None:
+    """The §6c witness of C3b-2 (consumers campaign step 2): two sweeps at two σ on
+    ONE strategy give two answers, each equal to a fresh strategy's.
+
+    ``[M]`` pre-carve (test-architect C3 delta §C.4): the 1-D scan memoised its
+    σ table on the HUB and served the FIRST σ's table to the second sweep —
+    ``array_equal(a1, a2)`` True, rel 3.573e+00 wrong against a fresh-hub sweep.
+    Since C3b-2 σ is bound ONCE at the operator (``bind_sigma`` → a σ-bound
+    stratum every ``sweep`` consumes), so the stale answer is unspellable.
+    """
+    from orpheus.sn.loss_representation import default_for
+    from tests.sn._test_helpers import placeholder_materials
+
+    mesh = Mesh1D(edges=np.linspace(0.0, 1.0, 5), mat_ids=np.zeros(4, dtype=int),
+                  bc_left=BC("vacuum"), bc_right=BC("vacuum"))
+    quad = Quadrature.gauss_legendre(4)
+    hub = SNMesh(mesh, quad, placeholder_materials(ng=2))
+    rep = default_for(hub, hub.scheme, hub.angular_closure)
+    Q = np.ones((quad.N, hub.ng, *hub.spatial_shape))
+    bf = AngularBoundaryFlux.zeros(hub.angular_trace)
+    a1, _ = rep.sweep(Q, rep.bind_sigma(np.full((hub.ng, *hub.spatial_shape), 1.0)), bf)
+    a2, _ = rep.sweep(Q, rep.bind_sigma(np.full((hub.ng, *hub.spatial_shape), 5.0)), bf)
+    fresh = default_for(hub, hub.scheme, hub.angular_closure)
+    a3, _ = fresh.sweep(Q, fresh.bind_sigma(np.full((hub.ng, *hub.spatial_shape), 5.0)), bf)
+    assert not np.array_equal(a1, a2), "two σ on one strategy must give two answers"
+    assert np.array_equal(a2, a3), "the second σ's answer is the fresh strategy's"

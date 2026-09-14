@@ -108,9 +108,10 @@ def bench_kernels():
         for name, cls in REPS.items():
             rep = cls(sn)
             bf = AngularBoundaryFlux.zeros_on(sn)
-            t_sweep = median_time(lambda: rep.sweep(Q, sig_t, bf))
+            stratum = rep.bind_sigma(sig_t)  # σ bound once (C3b-2), outside the timed call
+            t_sweep = median_time(lambda: rep.sweep(Q, stratum, bf))
             t_mv = median_time(lambda: rep.loss_action(sig_t, psi))
-            m_sweep = peak_mem(lambda: rep.sweep(Q, sig_t, AngularBoundaryFlux.zeros_on(sn)))
+            m_sweep = peak_mem(lambda: rep.sweep(Q, stratum, AngularBoundaryFlux.zeros_on(sn)))
             rows[name] = (t_sweep, t_mv, m_sweep)
             print(f"{f'{nx}x{ny} LS{lvl} {ng}g':<22}{name:<11}"
                   f"{t_sweep*1e3:>10.2f}{t_mv*1e3:>11.2f}{m_sweep/1e6:>14.2f}")

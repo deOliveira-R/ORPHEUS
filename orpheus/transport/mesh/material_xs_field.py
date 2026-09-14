@@ -531,15 +531,27 @@ class MaterialXSField:
         if self._diffusion_cell is None:
             ng = self.mesh.ng
             spatial = self.mesh.spatial_shape
+            # D = 1/(3 Σ_tr) per CELL from the hub's σ_t DATUM and the material's
+            # P1 outflow (C3b-2, 2026-09-14): bit-identical to the per-material
+            # ``Mixture.diffusion_coefficient`` gather on a non-overridden hub
+            # (the same floats through the same operations) and consistent on a
+            # σ-variant Problem, whose removal term already reads the datum.
             per_material = {
-                mid: np.asarray(mix.diffusion_coefficient, dtype=float)
+                mid: np.asarray(mix.p1_outflow, dtype=float)
                 for mid, mix in self.materials.items()
             }
             flat_ids = np.asarray(self.mesh.mat_map, dtype=int).ravel()
             # (N_cells, ng) gather → the principled (ng, *spatial) layout
             # (the ``_ensure_cell_views`` .T.reshape convention).
-            gathered = np.array([per_material[int(m)] for m in flat_ids])
-            self._diffusion_cell = gathered.T.reshape(ng, *spatial)
+            p1_outflow = np.array([per_material[int(m)] for m in flat_ids]).T.reshape(ng, *spatial)
+            sig_tr = self.total_cross_section - p1_outflow
+            if np.any(sig_tr <= 0.0):
+                raise ValueError(
+                    "diffusion_coefficient requires Σ_tr = σ_t − Σ_s1-outflow > 0 in "
+                    "every cell and group; a σ_t override below the P1 outflow is "
+                    "not a diffusion medium."
+                )
+            self._diffusion_cell = 1.0 / (3.0 * sig_tr)
         return self._diffusion_cell
 
     def _ensure_cell_views(self) -> None:

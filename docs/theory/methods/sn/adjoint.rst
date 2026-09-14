@@ -27,8 +27,9 @@ three layers, and **all three are now landed**:
   :math:`A_{\rm loss} = L+C-S-N_{2n}-B`,
   :eq:`sn-within-group-with-n2n`) landed at **#276 A4/A5**
   (:ref:`sn-adjoint-daggered-posing`): the whole eigenproblem is posed
-  by DAGGER-ing the forward operator triple through
-  :func:`~orpheus.numerics.iteration.KEigenvalue`, and the importance
+  by DAGGER-ing the forward operator leaves and handing the resulting
+  pencil to :class:`~orpheus.numerics.iteration.KEigenvalue`
+  (:ref:`sn-adjoint-poses-a-pencil`), and the importance
   map :math:`\varphi^*` rides a role-typed
   :class:`~orpheus.sn.solution.AdjointSolution` carrier
   (:ref:`sn-adjoint-carrier`).  The :math:`\varphi^*` consumers —
@@ -50,16 +51,22 @@ sweep — is a consequence of that one choice.
    :class: tip
 
    * **The route (the spine).**  The adjoint is the exact **discrete
-     transpose** of the forward operator triple —
-     ``KEigenvalue((L+C).H, (S+N2N+B).H, F.H)`` (the daggered resolvent,
-     gain, and fission; the loss :math:`A_{\rm loss}^{\dagger} =
-     (L{+}C).\mathtt{H} - (S{+}N_{2n}{+}B).\mathtt{H}` is formed inside,
-     the gain being the FOLD of the Jacobi
+     transpose** of the forward operator leaves — the daggered
+     **pencil**
+     ``EigenPosing(OperatorPencil((L+C).H − (S+N2N+B).H, F.H), K_MAP)``
+     handed to ``KEigenvalue`` together with the Strategy's own daggered
+     implicit and gain (the loss dagger :math:`A_{\rm loss}^{\dagger} =
+     (L{+}C).\mathtt{H} - (S{+}N_{2n}{+}B).\mathtt{H}` is formed as the
+     pencil's ``lhs``, the gain being the FOLD of the Jacobi
      :class:`~orpheus.sn.splitting.Splitting` value's
      :attr:`~orpheus.sn.splitting.Splitting.explicit` pieces rather
      than a hand-written member list) fed to
      the UNCHANGED
-     :func:`~orpheus.numerics.eigenvalue.power_iteration`.  There is
+     :func:`~orpheus.numerics.eigenvalue.power_iteration`.  ⚠ Until
+     2026-09-14 this bullet read
+     ``KEigenvalue((L+C).H, (S+N2N+B).H, F.H)`` — the *operator triple*,
+     which is what the class took before it consumed a posing
+     (:ref:`sn-adjoint-poses-a-pencil`).  There is
      **no** discretise-then-adjoint step, so duality holds EXACTLY at
      finite :math:`N` and :math:`h` and :math:`k^{\dagger} = k` is an
      exact algebraic identity, not a converged agreement
@@ -378,10 +385,13 @@ Why ORPHEUS transposes the discrete operator
 --------------------------------------------
 
 ORPHEUS takes route (2): it poses the adjoint eigenproblem by
-**DAGGER-ing the forward operator triple**, feeding
-:func:`~orpheus.numerics.iteration.KEigenvalue` the daggered triple
-``((L+C).H, (S+N2N+B).H, F.H)`` — the daggered RESOLVENT, gain, and
-fission; the loss dagger is formed inside the posing — and running
+**DAGGER-ing the forward operator leaves**, building the daggered
+:class:`~orpheus.numerics.pencil.OperatorPencil`
+:math:`\bigl((L{+}C).\mathtt{H} - (S{+}N_{2n}{+}B).\mathtt{H},\;
+F.\mathtt{H}\bigr)` — the daggered RESOLVENT, gain and fission — handing
+it to :class:`~orpheus.numerics.iteration.KEigenvalue` as an
+:class:`~orpheus.numerics.posing.EigenPosing` together with the daggered
+implicit and gain the inner solve needs, and running
 the **unchanged**
 :func:`~orpheus.numerics.eigenvalue.power_iteration`
 (:func:`~orpheus.sn.solver.solve_sn_adjoint`).  The consequences are
@@ -1816,9 +1826,11 @@ The adjoint entries are :func:`~orpheus.sn.solver.solve_sn_adjoint`
 :func:`~orpheus.sn.solver.solve_sn_adjoint_fixed_source`
 (importance / detector), module-level siblings of the forward family.
 Neither spells adjoint physics: both hand
-:func:`~orpheus.numerics.iteration.KEigenvalue` /
-:class:`~orpheus.numerics.iteration.SourceIteration` a **daggered**
-operator triple and let the operator algebra do the rest.
+:class:`~orpheus.numerics.iteration.KEigenvalue` /
+:class:`~orpheus.numerics.iteration.SourceIteration` **daggered**
+operators — the eigen entry a daggered *pencil* posed as a question
+(:ref:`sn-adjoint-poses-a-pencil`), the fixed-source entry a daggered
+operator and its detector — and let the operator algebra do the rest.
 
 The daggered eigenproblem
 -------------------------
@@ -1876,17 +1888,34 @@ poses
    :label: sn-adjoint-eigenproblem
 
    A_{\rm loss}^{\dagger}\,\psi^* \;=\; \frac1k\,F^{\dagger}\,\psi^*
-   \qquad\Longleftrightarrow\qquad
-   \mathtt{KEigenvalue}\bigl((L{+}C).\mathtt{H},\;
-   (S{+}N_{2n}{+}B).\mathtt{H},\;
+   \qquad\text{over the daggered pencil}\qquad
+   \bigl(A_{\rm loss}^{\dagger},\, F^{\dagger}\bigr)
+   \;=\;\bigl((L{+}C).\mathtt{H} - (S{+}N_{2n}{+}B).\mathtt{H},\;
    F.\mathtt{H}\bigr),
 
-with :math:`A_{\rm loss}^{\dagger} = (L+C).\mathtt{H} -
-(S+N_{2n}+B).\mathtt{H}`
 fed to the **unchanged** :func:`~orpheus.numerics.eigenvalue.power_iteration`
 (the adjoint row of the eigenvalue-posing table,
-:mod:`orpheus.numerics.eigenvalue`).  The within-group loss splits and
-each term daggers independently:
+:mod:`orpheus.numerics.eigenvalue`).
+
+.. note:: ⚠ :eq:`sn-adjoint-eigenproblem`'s right-hand side read
+   ``KEigenvalue((L+C).H, (S+N2N+B).H, F.H)`` — a **call signature** —
+   until 2026-09-14, when
+   :class:`~orpheus.numerics.iteration.KEigenvalue` stopped taking an
+   operator triple.  Eight tests carry
+   ``@pytest.mark.verifies("sn-adjoint-eigenproblem")`` and every one of
+   them asserts the *mathematics* (:math:`k^{\dagger} = k`, reciprocity,
+   the daggered certification rows) — none asserts an argument list — so
+   the equation now states the daggered **pencil**, which is what those
+   markers actually pin, and the call spelling lives in prose below where
+   it can move without touching a labelled claim.
+
+In code, that is
+:class:`~orpheus.numerics.posing.EigenPosing` over that pencil with the
+:math:`k` map, handed to ``KEigenvalue`` alongside the daggered implicit
+and gain the inner :class:`~orpheus.numerics.iteration.SourceIteration`
+resolves with — see :ref:`sn-adjoint-poses-a-pencil` for the arm
+asymmetry that decides *which* carrier the pencil is posed on.  The
+within-group loss splits and each term daggers independently:
 
 * :math:`(L+C).\mathtt{H}` is invertible **for free** by the swap law
   (:eq:`loss-rep-adjoint-inverse-swap`): ``(L+C).H.inverse()`` routes to
@@ -1946,6 +1975,76 @@ its ``angular_flux`` is the true discrete adjoint (importance) flux
    the kernel — hence the spy — and, since the consumers campaign's
    step 1, the type system: the order is the hub's datum, clamped once,
    read by the posing (:ref:`sn-hub-retained-order`; GitHub #459).
+
+.. _sn-adjoint-poses-a-pencil:
+
+The adjoint poses a PENCIL — and on the arm's own carrier
+----------------------------------------------------------
+
+Since 2026-09-14 (the consumers campaign's step 2, C3b-2)
+:class:`~orpheus.numerics.iteration.KEigenvalue` takes a **question**
+rather than a triple: ``KEigenvalue(posing, implicit, explicit, …)``,
+where ``posing`` is an :class:`~orpheus.numerics.posing.EigenPosing` over
+an :class:`~orpheus.numerics.pencil.OperatorPencil` and the two operators
+are what the inner :class:`~orpheus.numerics.iteration.SourceIteration`
+resolves with.  The adjoint entry therefore reads:
+
+.. code-block:: python
+
+   implicit, gain, F_posed, template = _adjoint_posing_parts(sn_mesh)
+   ke = KEigenvalue(
+       EigenPosing(OperatorPencil(implicit.H - gain.H, F_posed.H), K_MAP),
+       implicit.H, gain.H, ...,
+   )
+
+⛔ **It cannot read** ``sn_mesh.eigen_posing.H()``, **and the reason is
+worth stating because it looks like it should be able to.**  The hub owns
+a daggered eigen-question — :meth:`EigenPosing.H
+<orpheus.numerics.posing.EigenPosing.H>` is nullary precisely because
+:math:`k^{\dagger} = k` needs no extra datum — so the obvious spelling is
+to ask the hub for it.  ``[M]`` that is wrong on the **seedless** arm,
+and the failure is a carrier mismatch rather than a physics error.
+
+``_adjoint_posing_parts`` is **arm-asymmetric** by design:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 30 48
+
+   * - arm
+     - the adjoint iterates on
+     - the :math:`F` it daggers
+   * - **seedless** (slab, 2-D Cartesian)
+     - the FULL FIELD (bulk ⊕ trace) — the template is a
+       ``FullField`` zero
+     - ``system.factors.fission`` — the composite
+       :class:`~orpheus.transport.operators.fission.FissionOperator` on
+       ``full_field_space``
+   * - **carrying** (sphere, cylinder)
+     - the COUPLED space (System A ⊕ System B)
+     - ``system.production`` — the same :math:`F` **posed** on the
+       coupled carrier
+
+The hub's :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pencil`, by
+contrast, is the **coupled-space** object on *both* arms: ``[M]`` on a
+seedless two-region slab ``system.space`` is a ONE-system
+``CoupledSpace`` and ``pencil.rhs`` is a ``CoupledOperator`` on it, while
+``factors.fission`` lives on the bare ``FullFieldSpace``.  So handing the
+hub's daggered pencil to the seedless adjoint pairs a coupled
+:math:`F^{\dagger}` with a full-field iterate — ``[M]`` 15
+adjoint-certification rows plus 2 architecture anchors go red.
+
+The fix is the one the layering already implies: the pencil is posed on
+**the arm's carrier**, spelled through the Strategy's own ``implicit``
+and ``gain``.  ⚠ And the honest reading of that is a **deferral, not a
+workaround**: the seedless adjoint's carrier is a Strategy-side reduction
+(the bulk face) that the Problem does not pose, so "the adjoint reads the
+hub's own daggered question" is true of the carrying arm and is a step-3
+item for the seedless one — it needs the seedless adjoint to run on the
+coupled space.  The chain table's row 2 in
+:ref:`the-operator-pencil` (*"the hub's pencil, on the system's space"*)
+describes the **hub**, correctly; it does not describe every carrier a
+Strategy may reduce to.
 
 .. _sn-adjoint-coupled-posing:
 
@@ -2366,7 +2465,10 @@ Development history
   transpose residue (:ref:`loss-rep-orientation-two-frames`).
 * **#276 A4** (merged @ ``065a0e5d``) — the **daggered posing
   activation**.  ``KEigenvalue((L+C).H, (S+B).H, F.H)`` runs through the
-  unchanged ``power_iteration``; the entries
+  unchanged ``power_iteration`` (the call's SHAPE moved on 2026-09-14 —
+  it takes a daggered *pencil* posed as a question now,
+  :ref:`sn-adjoint-poses-a-pencil`; the row keeps its own date's
+  spelling); the entries
   :func:`~orpheus.sn.solver.solve_sn_adjoint` /
   :func:`~orpheus.sn.solver.solve_sn_adjoint_fixed_source` land; the
   coupled sphere posing (fission ray fold + space-typed

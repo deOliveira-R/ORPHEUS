@@ -1181,10 +1181,11 @@ def test_wavefront_solve_transpose_still_raises():
     out-of-scope R7) stays a typed raise — C3 lands the matvec transpose
     ONLY, and must not silently un-defer the solve arm."""
     sn = _cart2d_probe_mesh()
+    spine = FullFieldWavefront.pose(sn)
     with pytest.raises(NotImplementedError, match="reverse-scan"):
-        FullFieldWavefront.pose(sn).sweep_transpose(
+        spine.sweep_transpose(
             np.zeros((sn.quad.N, 2, *sn.spatial_shape)),
-            np.full((2, *sn.spatial_shape), 0.5),
+            spine.bind_sigma(np.full((2, *sn.spatial_shape), 0.5)),
             _random_composite(sn, np.random.default_rng(1)).boundary,
         )
 

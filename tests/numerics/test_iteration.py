@@ -37,6 +37,8 @@ from orpheus.numerics.iteration import (
     KrylovAcceleration,
     SourceIteration,
 )
+from orpheus.numerics.pencil import OperatorPencil
+from orpheus.numerics.posing import K_MAP, EigenPosing
 from orpheus.numerics.operator import (
     InverseOperator,
     LinearOperator,
@@ -451,7 +453,7 @@ def test_keigenvalue_recovers_dominant_eigenvalue(rng):
 
     initial = np.ones(n)
     ke = KEigenvalue(
-        A, S, F,
+        EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S,
         max_outer=500, keff_tol=1e-12, flux_tol=1e-12,
         max_inner=500, inner_tol=1e-14,
     )
@@ -552,7 +554,7 @@ def test_keigenvalue_requires_invertible_A():
     F = MatrixOperator(np.eye(2))
 
     with pytest.raises(NotInvertible, match="INVERTIBLE"):
-        KEigenvalue(A, S, F)
+        KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S)
 
 
 @pytest.mark.foundation
@@ -563,7 +565,7 @@ def test_keigenvalue_rejects_non_power_method():
     F = MatrixOperator(np.eye(2))
 
     with pytest.raises(NotImplementedError, match="FEAST"):
-        KEigenvalue(A, S, F, eigenvalue_method="feast")
+        KEigenvalue(EigenPosing(OperatorPencil(A - S, F), K_MAP), A, S, eigenvalue_method="feast")
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -755,7 +757,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     initial = np.ones((ng, *sn_mesh.spatial_shape))
 
     ke = KEigenvalue(
-        A_adapt, S_adapt, F_adapt,
+        EigenPosing(OperatorPencil(A_adapt - S_adapt, F_adapt), K_MAP), A_adapt, S_adapt,
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
     )
@@ -873,7 +875,7 @@ def test_keigenvalue_honest_composite_triple_matches_solve_sn():
     """
     ref_keff, LC, S_total, F, guess, _mix = _sn_composite_triple()
     ke = KEigenvalue(
-        LC, S_total, F,
+        EigenPosing(OperatorPencil(LC - S_total, F), K_MAP), LC, S_total,
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
     )
@@ -923,7 +925,7 @@ def test_keigenvalue_daggered_triple_adjoint_smoke():
 
     ref_keff, LC, S_total, F, guess, mix = _sn_composite_triple()
     ke_adj = KEigenvalue(
-        LC.H, S_total.H, F.H,
+        EigenPosing(OperatorPencil(LC.H - S_total.H, F.H), K_MAP), LC.H, S_total.H,
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
     )
