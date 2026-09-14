@@ -2503,3 +2503,33 @@ Cross-reference: `.claude/rules/nexus-tools.md` (the graph rebuilds on every
 `sphinx-build`, the server auto-reloads — two writers on one DB is the hazard
 this row measures); [[lessons-L37]] (no source edits under a running gate — the
 same exclusivity, for the build).
+
+## L64 — Two rewriters over ONE predicate double-wrap: the second's exclusion set is the first's OUTPUT, and every textual repair of a structural edit is followed by `ast.parse` (2026-09-14)
+
+`[M]` consumers step 2, C3b-2 (the walk seam: every `sweep(Q, sig_t, …)` call site
+gains `stratum = X.bind_sigma(sig_t)`). Two passes migrated one predicate: a HAND script
+first (it introduced locals — `scan = CumprodScan.pose(m)`; `scan.sweep(Q,
+scan.bind_sigma(sig_t), …)`), then an AST wrapper that skipped only the two FILES it had
+been told about. The wrapper saw the hand pass's new `Name` receivers as un-migrated
+sites and wrapped them again — `scan.bind_sigma(scan.bind_sigma(sig_t))`, a 0-d object
+array handed to the walk, **13 `IndexError`s**. The regex that collapsed the double
+wrap then left one unbalanced `)`, so a third pass balanced parentheses. Three passes
+for one predicate; each honest, each blind to the previous one's output.
+
+- **The second rewriter's exclusion set is the SET OF SITES the first WROTE** —
+  computed from the first pass's diff (`git diff -U0 | grep '^+'` and the AST of the
+  written lines), never a file list. A file the first pass touched still holds
+  un-migrated siblings, so excluding the FILE under-migrates and including it
+  double-migrates.
+- Better: **ONE idempotent pass** whose predicate recognises its own output as
+  already migrated (skip a call whose argument is already `<recv>.bind_sigma(...)`);
+  run it twice and assert the second run is a no-op — that assertion IS the
+  idempotence witness, and it costs one line.
+- **After any TEXTUAL repair of a structural edit (regex, `str.replace`),
+  `ast.parse` every touched file before running a single test** — a syntax error
+  reads as a collection kill (`rc=2`, `FAILED=0`), which vv-principles #17 already
+  says is the safe-looking failure. One `compile()` per file is the whole check.
+
+Same family as `plan-authoring` §6b's *"a second census keyed on the changed
+symbol cannot see what the first pass renamed"*, one tier down: at the REWRITE tier
+the first pass's output is exactly the population the second pass must not touch.
