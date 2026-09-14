@@ -242,6 +242,17 @@ any other review work.
     GREEN for every mutation): in both, the *evidence pipeline* failed
     while the code under test was fine. **Verify the instrument on a
     known-positive before trusting any negative it reports.**
+    ⭐ **And the AIM trap, which produces a false RED verdict about an
+    arm: a mutation that reddens MANY rows while the row it was designed
+    for stays GREEN hit a different object than the one it was aimed at.**
+    Read an arm's red SET against its TARGET row, never its count — collateral
+    reds certify the instrument, not the aim. (`[M]` 2026-09-14, the C3b-2
+    battery: the "no refusal" arm patched `solve_sn`, which is NOT on the
+    multiplying-source refusal path (the driver reads
+    `power_iteration(SNSolver(...))`); 25 rows reddened, the refusal leg
+    stayed green. Re-armed on the NAMED predicate `_admits_multiplying_source`
+    — a name the concept had lacked, which is why the arm had nothing to
+    mutate — it reads exactly 1 red = the refusal leg.)
     ⭐ **And the granularity trap, which produces a false GREEN verdict
     about coverage: mutating a MULTI-ARM guard as a unit certifies only
     its first reachable arm.** A guard written as a sequence of

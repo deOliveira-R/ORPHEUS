@@ -129,7 +129,8 @@ them.  Trust ``git``, not this column.
        :ref:`sn-sigma-datum-diffusion-d`,
        :ref:`sn-adjoint-poses-a-pencil`.
      - —
-     - branch ``refactor/consumers-step2``, **not yet merged**
+     - branch ``refactor/consumers-step2``, ff-merged to ``main``
+       2026-09-14 (the σ merge unit; tip ``c930c68f``)
    * - 2026-09-13
      - **A Problem's LAST step is its pencil, and the solver holds
        nothing** (the consumers campaign, step 2, unit C3b, first
@@ -230,7 +231,8 @@ them.  Trust ``git``, not this column.
        Full account: :ref:`the-operator-pencil` (the general theory) and
        :ref:`sn-the-problem-poses-its-pencil` (the S\ :sub:`N` half).
      - —
-     - branch ``refactor/consumers-step2``, **not yet merged**
+     - branch ``refactor/consumers-step2``, ff-merged to ``main``
+       2026-09-14 (the σ merge unit; tip ``c930c68f``)
    * - 2026-09-13
      - **The total cross section is a DATUM of the Problem, and a
        depletion step is another Problem** (the consumers campaign,
@@ -325,7 +327,8 @@ them.  Trust ``git``, not this column.
        :ref:`sn-sigma-datum-diffusion-d`).
        Full account: :ref:`sn-sigma-is-a-problem-datum`.
      - —
-     - branch ``refactor/consumers-step2``, **not yet merged**
+     - branch ``refactor/consumers-step2``, ff-merged to ``main``
+       2026-09-14 (the σ merge unit; tip ``c930c68f``)
    * - 2026-09-13
      - **There is ONE** :math:`F` **per Problem, and the hub owns it**
        (the consumers campaign, step 2, unit C2; ruling R-cc6 (ii) and
