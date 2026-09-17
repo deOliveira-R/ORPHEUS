@@ -2930,11 +2930,18 @@ and :attr:`~orpheus.sn.solution.SolutionBase.scalar_flux` is
 :math:`\int\psi\,d\Omega` of its cell-average moment
 (:ref:`sn-solution-carries-its-posing`), so the pair cannot disagree by
 construction.  What the derived reading costs is measurable and small:
-``[M]`` 2026-09-17, against the FROZEN #448 artefacts (unchanged — the
-re-read did not move them), ``max rel`` :math:`2.19\times10^{-11}`
-(``cart2d_L0``) and :math:`2.94\times10^{-11}` (``slab_vac_L0``), with
-:math:`k` **bit-identical** (:math:`\lvert\Delta k\rvert = 0`) on both;
-the pins' hard band is :math:`10^{-8}`, i.e. 457× and 340× of headroom.
+``[M]`` 2026-09-17, against the #448 artefacts as frozen BEFORE the step,
+``max rel`` :math:`2.19\times10^{-11}` (``cart2d_L0``) and
+:math:`2.94\times10^{-11}` (``slab_vac_L0``), with :math:`k`
+**bit-identical** (:math:`\lvert\Delta k\rvert = 0`) on both; the pins'
+hard band is :math:`10^{-8}`, i.e. 457× and 340× of headroom.  The 16
+finalize ``.npy`` and the 10 eigen regression ``.npz`` were then
+**re-baselined with their generators** on the step's own tree (U2e, the
+commit after the carve): a drift the bit-identity instrument
+(``-W error::…DriftWarning``) would carry forever masks any LATER drift on
+the same cases, so the spine was returned to a zero reading (``[M]`` 0 of 117
+rows drifting after the re-baseline; the per-case table before it is in the
+U2e commit message and the campaign memo's §9.3).
 That gap is the same quantity as the gauge displacement measured two
 sections below — the polished :math:`\psi` sits off the power
 iteration's own scalar by the outer residual — so it shrinks with the
@@ -3733,7 +3740,8 @@ the derived :math:`\phi` calls and which is the identity for DD/Step.
    of the **returned** :math:`\psi` — the one-step-polished,
    section-applied state (:ref:`sn-finalize-one-step`) — and no longer
    the power iteration's own converged scalar.  The two agree to the
-   outer residual: ``[M]`` 2026-09-17 against the FROZEN #448 artefacts,
+   outer residual: ``[M]`` 2026-09-17 against the #448 artefacts as frozen
+   BEFORE the step (re-baselined at U2e — the section above),
    ``max rel`` :math:`2.19\times10^{-11}` / :math:`2.94\times10^{-11}` on
    ``cart2d_L0`` / ``slab_vac_L0`` with :math:`k` bit-identical, against
    those gates' :math:`10^{-8}` band (457× and 340× of headroom).  Do
