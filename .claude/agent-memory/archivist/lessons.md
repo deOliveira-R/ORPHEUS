@@ -15,6 +15,31 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 
 ## 1. Ground truth is the LIVE tree — every other surface lies eventually
 
+- **⭐⭐ RE-DERIVE EVERY NUMERIC LITERAL THE PASS PUBLISHES, IN ONE SCRIPT, AT THE END.**
+  Two live catches from one run: a `1g k_inf = 0.9375` I had **invented** (`[M]` 1.5), and
+  *"the SECOND displacement reads 1.0000000000000002"* — `[M]` the second is **1.0**; that
+  figure is the displacement of the SOLVER'S OWN returned state. Both numbers were real and
+  answered different questions (§2's `[M]`-scope defect, mine). A spot check does not find
+  either; the literal SET does. → L-109
+- **⭐⭐ WHEN A DOCS PASS MAY NOT RUN THE GATE, RE-RUN THE *RETIRED EXPRESSION* FROM THE DIFF.**
+  The code comment claimed "bit-for-bit (the byte gate pins it)"; instead of quoting it I read
+  the retired line out of `git diff` and ran it beside the shipped one — `array_equal` on
+  **3 of 3** group counts — which is INDEPENDENT evidence, and it handed me the structural
+  argument (*same two operations, same order; only the SHAPE the scalar multiplies changed*)
+  that does not decay. → L-109
+- **⭐⭐ DON'T ASSERT A MECHANISM — MEASURE IT.** "A flat vector broadcasts across the spatial
+  axis" was true and useless; measured, it is an `(ng × ng)` **OUTER PRODUCT** whose sum is
+  `(ΣΣf)(Σφ)` not `ΣΣfφ` — which buys three traps the hand-wave misses (1g coincides EXACTLY
+  ⟹ every law ≥2G; the error is `2.000×` at 2g but **`4.113×`** at 4g, so "off by the group
+  count" breaks; the sibling primitive REFUSES the same input loudly). ⚠ And the identity is
+  mathematical, not bit-exact — don't claim reproduction you only got to 15 digits. → L-109
+- **⭐ A BRAND-NEW DOCSTRING CAN SHIP A CONVENTION THE CODE DOES NOT HAVE** — it documents the
+  DESIGN. `SourceOutcome.residual` says `Aψ − q`; `[M]` it returns `q − Aψ`. Document the
+  VALUE, date it, report the mismatch; never promise the planned flip. ⭐ The finding
+  underneath was better: both kinds' balance SCALARS are loss-signed while their residual
+  VECTORS are not, so the "one balance functional" claim survives and the vectors need a sign
+  check. → L-109
+
 - **⭐⭐ WHEN A RELAYED `[M]` WILL NOT REPRODUCE, COMPUTE THE NORM LADDER — one of them IS
   the memo's number, and the reconciliation is the finding.** `[M]` briefed *"rel 3.573e+00
   wrong"*; my emulation of the retired path read max-entrywise **3.597**, `‖·‖∞` **3.288**,
@@ -2567,6 +2592,27 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   `== sorted(...)`. Free, and the only thing that sees the mistake. → L-076
 
 ## 6. Match the doc SHAPE to the event class
+
+- **⭐⭐ THE ANSWER TIER IS NOT A NEW LAYER — say so where the LAYER COUNT lives.** Briefed
+  "add the SOLUTION tier to the four-tier table"; the table is TITLED *four-tier* and carries
+  its own `⚠ still four layers` guard note. Shape that works: extend the LAST layer's cell
+  with *what it RETURNS*, one Key Facts bullet, then give the objects their **own H2 section**
+  opening with *these are not a fifth layer — the table decomposes the COMPUTATION, these are
+  what it hands back*. ⟹ a doc's ARITY is an API; read the table's own arity claim and its
+  guard before adding a row. → L-109
+- **⭐ "shipped witnesses" IS A TENSE CLAIM — a design table needs its landing unit.** I copied
+  that column heading from the design memo; `[M]` at U1 the TYPE ships and no entry mints one
+  (`grep -c certificate <solver>` → 0). Re-head to *what each entry WILL produce (U2)* + a ⚠,
+  and keep the design's own acceptance criterion as the reason the column exists. → L-109
+- **⭐ DOCUMENT THE OBJECT THE CODE CALLS, then name it.** A quotient story wants the
+  **RETRACTION** `r = σ∘π` (`r∘r = r` ∧ `r(γψ) = r(ψ)`), not "a section `π∘σ = id`" —
+  `apply` IS `r`, and those two equations ARE the two shipped laws, so the derivation then
+  explains WHY idempotence is a law instead of listing it. → L-109
+- **⭐ A GENERIC PRIMITIVE EARNS AN `.. implements::` EDGE when the equation's arithmetic moves
+  into it** — settled by PRECEDENT in the same file (`keff-update` already declares the generic
+  `dominant_eigenpair`), not by taste. 2 sites → 3, body rewritten to name the
+  generic/instantiated split, and the `wrote N edges` **+1** flagged: a `:by:` that fails to
+  bind is SILENT (L-077). → L-109
 
 - **⭐⭐ A LEDGER GAINING A FIELD splits across two pages by REGISTER, not by size.**
   The point-set/group page takes the THEOREM (the new predicate derived off the page's

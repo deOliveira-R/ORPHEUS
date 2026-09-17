@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12095**
+Total tests collected: **12163**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1305, 10.8%
-   L1, 1761, 14.6%
+   L0, 1305, 10.7%
+   L1, 1761, 14.5%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 8932, 73.8%
+   foundation, 9000, 74.0%
    unmarked, 26, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 11990
+   explicit, 12058
    class-name, 46
    func-name, 0
    case, 33
@@ -68,6 +68,7 @@ Module × level grid
    architecture/test_splitting_value, 0, 0, 0, 0, 13, 0
    architecture/test_stage_separation, 0, 0, 0, 0, 15, 0
    architecture/test_step2_terminal_object_anchors, 0, 0, 0, 0, 9, 0
+   architecture/test_step3_solution_anchors, 0, 0, 0, 0, 31, 0
    cartesian_2d/test_2d_full_field_oracle, 0, 0, 0, 0, 8, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
    cartesian_2d/test_2d_l2_matvec_correctness, 0, 2, 0, 0, 2, 0
@@ -306,6 +307,7 @@ Module × level grid
    homogeneous/test_coda_anchors, 0, 0, 0, 0, 28, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 14, 0, 0, 0, 0
+   homogeneous/test_homogeneous_outcome, 0, 0, 0, 0, 3, 0
    homogeneous/test_homogeneous_problem, 0, 0, 0, 0, 12, 0
    homogeneous/test_operator_spaces, 0, 0, 0, 0, 18, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
@@ -374,6 +376,7 @@ Module × level grid
    numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0
    numerics/test_frame, 0, 15, 0, 0, 45, 5
    numerics/test_full_field_space, 0, 0, 0, 0, 7, 0
+   numerics/test_gauge, 0, 0, 0, 0, 15, 0
    numerics/test_generating_measure, 0, 78, 0, 0, 178, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
    numerics/test_harmonic_axis, 0, 0, 0, 0, 11, 0
@@ -395,6 +398,7 @@ Module × level grid
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 26, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
+   numerics/test_outcome, 0, 0, 0, 0, 15, 0
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
    numerics/test_pencil, 0, 0, 0, 0, 26, 0
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
@@ -557,7 +561,7 @@ Module × level grid
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 2, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 4, 0
-   test_layer_imports, 0, 0, 0, 0, 365, 0
+   test_layer_imports, 0, 0, 0, 0, 369, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 16, 0, 0, 0, 0, 0
@@ -954,7 +958,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **604** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **606** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1180,6 +1184,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``iterate-contraction-ratio``
 - ``iterate-true-error``
 - ``keff-as-integrated-rates``
+- ``kernel-gauge-section``
 - ``kin-definition``
 - ``kll-1974-slab-phi``
 - ``kll-1974-sphere-phi``
@@ -1397,6 +1402,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``resolvent-similarity``
 - ``richardson-diffusion``
 - ``richardson-extrapolation-formula``
+- ``scale-gauge-section``
 - ``scattering-aniso-composite``
 - ``scattering-as-tensor-product-sum``
 - ``scattering-carrier-grid``

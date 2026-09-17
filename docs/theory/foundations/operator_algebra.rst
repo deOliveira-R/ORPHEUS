@@ -5919,6 +5919,14 @@ realized in commits ``650032e`` / ``7603c8e`` (2026-06-05).
      posing (bifurcated 2a/2b) → resolvent :math:`A_{\rm loss}^{-1}`
      (method-specific) → solution algorithm (general over the standard
      form).
+   - **What the answer carries** (2026-09-17, not a fifth layer): a
+     kind-typed **outcome** fusing the posing with the state, the
+     eigenvalue and the **gauge**; plus an exit **certificate** whose
+     members are typed EVIDENCE rather than nullable floats. A ray's
+     representative is a *choice*, and the gauge is the record of which
+     choice was made — ``[M]`` the tree applied FOUR different
+     "production rate" functionals under that one name and recorded
+     none of them (:ref:`the-solution-outcome`).
    - **The invariant:** the Layer-4 algorithm sees ONLY a
      normalized-source fixed-point procedure — *apply* :math:`M`,
      *solve* :math:`A_{\rm loss}^{-1}`, *normalize*, *estimate* the
@@ -6064,6 +6072,11 @@ The four layers
        for the infinite medium.  The bifurcation survives the reification
        unchanged: the pencil TYPE is method-agnostic, and only its
        operands are method-specific.
+
+       ⭐ And since 2026-09-17 the posing is also the datum the ANSWER
+       carries: an outcome holds the question it answered, so the
+       problem's KIND is read off a Solution's type rather than inferred
+       from ``keff is not None`` (:ref:`the-solution-outcome`).
    * - 2c
      - Strategic partitioning
      - method-specific, **Strategy-owned**
@@ -6097,6 +6110,16 @@ The four layers
        Krylov–Schur | shift-invert / FEAST) over
        :math:`(A_{\rm loss}^{-1}, M)`; time-integrators (transient)
        over :math:`(A_{\rm loss}, T, q(t))`.
+
+       What this layer RETURNS is itself three objects since 2026-09-17 —
+       the kind-typed **outcome**, the **gauge** that picked the
+       representative, and the exit **certificate**
+       (:ref:`the-solution-outcome`).  They are **not a fifth tier**:
+       this table decomposes the *computation*, and those are what the
+       computation hands back.  A layer-4 algorithm still sees only a
+       normalized-source fixed point; the normalization it applies is
+       now a value it can record rather than a rescale nobody wrote
+       down.
 
 **Why posing bifurcates (2a vs 2b).** The first-draft architecture
 treated posing as wholly method-agnostic — "just arrange the leaves."
@@ -6454,10 +6477,15 @@ which functional of the resolvent is computed within a cell — find the
 poles, evaluate at a point, integrate on a contour — is the
 **Strategy's**.  That boundary is what makes :math:`\alpha` and noise one
 Problem with two Strategies (same cells) while :math:`k` and fixed-source
-are two Problems (different cells).  ⛔ The tree derives the kind from the
-ANSWER today (``keff is not None`` on the returned Solution), which is one
-tier too late; the Solution carrying its posing is step 3 of the
-campaign.
+are two Problems (different cells).  ⛔ **Until step 3 the tree derived the kind
+from the ANSWER** — ``keff is not None`` on the returned Solution — which
+is one tier too late: a multiplying-source Solution was indistinguishable
+from a pure-transport one by its data, and the eigen gauge was recorded
+nowhere.  Step 3 U1 (2026-09-17) closed that at the numerics and
+infinite-medium tiers, where the kind is now the posing's TYPE carried
+inside the answer (:ref:`the-solution-outcome`); U2 lands it on the
+S\ :sub:`N` ``Solution``, whose ``is_eigenvalue()`` still reads ``keff is
+not None`` as this is written.
 
 Why the two alternative shapes lost
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -6852,6 +6880,610 @@ factor-order family inside the shared spectrum's stabiliser
      written: the *defect* was correctly identified here and the
      *mechanism* was not, which is the usual split.
 
+
+.. _the-solution-outcome:
+
+What a solve RETURNS — the outcome, the gauge, the certificate
+----------------------------------------------------------------
+
+Everything above is about the **question**.  This section is about the
+**answer**, and it exists because an answer is not one object: a converged
+solve produces a state, a claim about that state, a *choice* nobody had
+written down, and a bundle of things that were measured on the way out.
+The consumers campaign's step 3 gives each of those a type, and the chain
+they form is
+
+.. math::
+
+   \text{Problem} \;\longrightarrow\; \text{pencil}
+   \;\longrightarrow\; \text{posing}
+   \;\xrightarrow{\ \text{Strategy}\ }\;
+   \text{outcome} \;+\; \text{certificate} \;+\; \text{record}
+   \;\longrightarrow\; \text{Solution} .
+
+⚠ **These are not a fifth architectural layer.**  The four-tier table
+decomposes the *computation*; the outcome, the gauge and the certificate
+are what the Layer-4 algorithm hands **back**.  The distinction is not
+pedantry — it is what keeps "Layer 3" and "Layer 4" meaning in this
+corpus exactly what they meant before, the same discipline the 2a/2b/2c
+split needed (the ⚠ under the table).
+
+⭐ **Landing status as this is written (2026-09-17).**  Step 3 unit U1
+landed the types and their first consumer:
+:mod:`orpheus.numerics.gauge`, :mod:`orpheus.numerics.outcome`, the
+derived ``CoupledField.space``, and
+:class:`~orpheus.homogeneous.solver.HomogeneousResult` carrying an
+:class:`~orpheus.numerics.outcome.EigenOutcome`.  The S\ :sub:`N`
+:class:`~orpheus.sn.solution.Solution`'s own reshape — the five entries,
+the one mint, the certificate evaluator — is **U2**, and until it lands
+that class still derives its kind from ``keff is not None``.  Sentences
+below that describe the S\ :sub:`N` side are therefore written as the
+design, with the tier that already carries it named.
+
+The kind is the posing's TYPE, and fusion makes the rest unspellable
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two outcomes, one per kind, each **fused** — the question, the state, the
+kind's own answer and the gauge in ONE frozen value:
+
+.. list-table:: The two outcomes (:mod:`orpheus.numerics.outcome`)
+   :header-rows: 1
+   :widths: 22 39 39
+
+   * - member
+     - :class:`~orpheus.numerics.outcome.EigenOutcome`
+     - :class:`~orpheus.numerics.outcome.SourceOutcome`
+   * - the question
+     - ``posing: EigenPosing``
+     - ``posing: SourcePosing``
+   * - the state
+     - ``state`` — the returned representative of the **ray**
+     - ``state`` — the returned representative of the **coset**
+   * - the kind's answer
+     - ``lam`` (the physical eigenvalue) and ``trajectory``
+     - — none; a source problem has no eigenvalue
+   * - the gauge
+     - ``gauge: ScaleGauge``
+     - ``gauge: KernelGauge``
+   * - the adjoint
+     - ``adjoint_posing`` — NULLARY (:math:`k^{\dagger} = k`)
+     - — absent; the dual needs a **detector**, so it stays the unary
+       :meth:`SourcePosing.H <orpheus.numerics.posing.SourcePosing.H>`
+   * - shared verbs
+     - ``residual()``, ``balance(w)``, ``rayleigh(w)``, ``keff``,
+       ``dominance_ratio()``
+     - ``residual()``, ``balance(w)``
+
+Both are ``Generic`` in the tree's deliberately **unbounded**
+:data:`~orpheus.numerics.vector.Carrier` — numpy's stubs cannot prove
+``ndarray ⊨ Vector``, and the 0-D family's state IS an ndarray column, so
+a bound would statically reject the very carrier the first consumer uses.
+
+**Why FUSED, and not a free triple.**  The obvious shape is one Solution
+holding a kind-typed ``posing`` beside a free ``gauge`` and a free
+``answer``.  ⛔ REFUTED: the cross-product is then *spellable*.  Four
+pairings have no meaning, and a free triple can express all four —
+
+* an eigen question beside a **kernel** gauge (a ray has no coset to fix);
+* a source question beside a **λ** (there is no eigenvalue to carry);
+* a source question beside a **scale** gauge (the coset is already fixed
+  by :math:`q`; rescaling changes the equation);
+* a state beside a question of the other kind.
+
+Fusing them makes every one of those **unconstructible** rather than
+merely refused, which is ``coding-elegance`` Pattern 4 in its strict
+form: the type system, not a guard, is what says no.  What remains is one
+refusal at the boundary — each outcome's ``__post_init__`` parses its
+posing's type once (*parse, don't validate*), so the untyped path raises a
+``TypeError`` naming the other outcome, and the field's annotation makes
+the same mistake a static type error.  And the kind-specific verbs exist **only on the kind that
+has them**: ``SourceOutcome.keff`` is an ``AttributeError`` — a type
+error, not a ``None``.
+
+**Why ONE generic Solution, and not two kind classes.**  The tempting
+second move is a class per kind at the Solution tier too.  ⛔ REFUTED, and
+the reason is measurable rather than aesthetic: **the verb set does not
+vary by kind — the ROLE's does.**  ``homogenize``, ``condense`` and
+``reaction_rate_density`` are the forward Solution's; ``importance`` is
+the adjoint's; *both* kinds support all of them.  So the kind belongs in a
+**type parameter** (``SolutionBase[O]``, with ``O`` the outcome) and the
+role stays what it already is — two leaves, ``Solution`` and
+``AdjointSolution`` (the #276 A5 role axis).  Two kinds × two roles would
+be four classes carrying two copies of each role's verb set — the
+duplication a type parameter costs nothing to avoid. (That reshape is U2; U1
+carries the outcome types themselves and the infinite medium's first
+consumer.)
+
+Three laws the eigen outcome enforces at construction, each closing a
+specific leak:
+
+#. **the kind parse** — the posing must be an
+   :class:`~orpheus.numerics.posing.EigenPosing`;
+#. **trajectory co-indexing** — ``trajectory[-1] == lam`` when the
+   trajectory is non-empty, so the λ a consumer reads and the λ the
+   trajectory ends on cannot disagree.  A direct solve records
+   ``(lam,)``, not an empty tuple: one point IS the trajectory of a
+   solve that took one step;
+#. **the map guard** — ``keff`` raises unless the posing's spectral map is
+   :data:`~orpheus.numerics.posing.K_MAP`.  Under
+   :data:`~orpheus.numerics.posing.ALPHA_MAP` the same field is α and
+   calling it ``keff`` would be a unit error, so the α problem lands as
+   the *same type* with a different map rather than as a new one.
+
+⚠ **A returned null that is a VALUE, not a leak.**
+:meth:`~orpheus.numerics.outcome.EigenOutcome.dominance_ratio` returns
+``None`` for a single-point trajectory.  That is not the nullable-float
+discipline the certificate below retires: the ratio
+:math:`|\lambda_n - \lambda_{n-1}|/|\lambda_{n-1}|` is **undefined** with
+one point (and with a zero predecessor), where the certificate's ``None``
+used to mean five different *unmeasured* things.  Undefined-by-arity has
+exactly one meaning, which is the test a nullable return has to pass.
+
+⚠ **The two kinds' residual VECTORS carry opposite signs — their balance
+SCALARS do not.**  The balance is the shared functional and is loss-signed
+for both kinds; the residual vector's sign is whatever its own posing
+returns, and the two posings do not agree.  ``[M]`` 2026-09-17, on the 0-D
+hub with a deliberately unconverged :math:`\psi`: ``SourcePosing.residual``
+returns :math:`q - A\psi` (``[0.5, 1.0]``) while
+``SourcePosing.balance(psi, w=1)`` returns
+:math:`\langle w, A\psi - q\rangle` (``-1.5``, equal to the loss-sign sum),
+and the eigen residual is the loss-sign :math:`A\psi - \mu M\psi`.  So the **scalar** β of
+:eq:`posing-balance-functional` really is one functional across both
+kinds, and it is the vectors that need care: never subtract or compare a
+source residual against an eigen residual without normalising the sign
+first.  Every S\ :sub:`N`-tier spelling (``evaluate_residual``, the exit
+balance projection, :ref:`sn-exit-balance-projection`) uses the loss-sign
+:math:`A\psi - q`.
+
+.. _the-gauge-section:
+
+The gauge — the section that picked the representative
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Start from what a solve actually produces.  A converged solve does not
+return *the* answer; it returns **one member of the answer's solution
+set** :math:`S`, and for both kinds that set carries a group
+:math:`\Gamma` acting **freely and transitively** on it — i.e. :math:`S`
+is a :math:`\Gamma`-**torsor**: an affine copy of :math:`\Gamma` with no
+distinguished origin.
+
+.. list-table:: The two torsors
+   :header-rows: 1
+   :widths: 18 30 30 22
+
+   * - kind
+     - the solution set :math:`S`
+     - the group :math:`\Gamma`
+     - is it ever non-trivial?
+   * - eigen
+     - the ray :math:`\{c\,\psi : c > 0\}` in the positive cone
+     - :math:`(\mathbb{R}_+, \times)`, with a :math:`\mathbb{Z}/2` sign
+       leg on the dense engines
+     - **always** — Krein–Rutman fixes the ray, never the scale
+   * - source
+     - the coset :math:`\psi_0 + \ker A`
+     - :math:`(\ker A, +)`
+     - whenever :math:`\ker A \neq 0` — ``[M]``
+       :math:`\dim \ker A = 12` on the all-reflective diamond-difference
+       :math:`d = 2` box (:ref:`sn-loss-kernel-gauge`)
+
+Choosing which member to return is therefore choosing a **section** of
+the quotient map :math:`\pi : S \to S/\Gamma` — a map
+:math:`\sigma : S/\Gamma \to S` with :math:`\pi\circ\sigma =
+\mathrm{id}`.  What a solver actually calls is the composite
+:math:`r = \sigma\circ\pi : S \to S`, which takes the member it happens to
+hold to the canonical one, and a section is *exactly* a
+:math:`\Gamma`-invariant **retraction**:
+
+.. math::
+
+   r \circ r \;=\; r
+   \qquad\text{and}\qquad
+   r(\gamma \cdot \psi) \;=\; r(\psi)
+   \quad \text{for all } \gamma \in \Gamma ,
+   \;\psi \in S .
+
+Those two equations are not commentary — they are precisely the two laws
+each realization below ships a test of (``apply`` is :math:`r`;
+``displacement`` is the group element carrying :math:`\psi` to
+:math:`r(\psi)`), and between them they characterise a section: the first
+says the answer is already canonical, the second says the answer does not
+depend on which member you started from.
+
+This is the reason a gauge is **data** rather than a step: a section is a
+*choice* made from a set with no canonical member, so two solves of one
+problem under two sections return states that differ by a group element —
+and a consumer holding only the state cannot recover which.  Until step 3
+no result type in the tree recorded it.
+
+The scale gauge, and why the functional is an OBJECT
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Fix a functional :math:`n` that is **homogeneous of degree 1** —
+:math:`n(c\,\psi) = c\,n(\psi)` for all real :math:`c` — and a target
+:math:`t`.  The section is
+
+.. (vv-status rationale) The scale gauge's section — what the ScaleGauge
+   type IS.  Structural / representational: a definitional identity of a
+   numerics type, in the family of pencil-family and
+   posing-balance-functional above, not a solver claim.  Its verifiable
+   content is the type's own foundation suite
+   (tests/numerics/test_gauge.py::TestLawTheScaleGauge — the section lands
+   on its target, idempotence to allclose, Γ-invariance over
+   c ∈ {0.1, 0.5, 2, 10}, the sign leg, the zero-reading refusal, and the
+   two-functionals negative leg), plus its first production witness, the
+   infinite medium's νΣf·φ = 100 rescale pinned byte-for-byte by
+   tests/homogeneous/test_byte_stability.py.
+.. vv-status: scale-gauge-section documented
+
+.. math::
+   :label: scale-gauge-section
+
+   \sigma(\psi) \;=\; \psi \cdot \frac{t}{n(\psi)} ,
+   \qquad
+   \text{displacement} \;=\; \frac{t}{n(\psi)} \in \Gamma .
+
+Four properties follow in one line each, and each is a shipped law rather
+than an assumption:
+
+* **it lands on the target.**  :math:`n(\sigma(\psi)) = n(\psi)\cdot
+  t/n(\psi) = t` by degree-1 homogeneity.
+* **it is** :math:`\Gamma`-**invariant.**  :math:`\sigma(c\psi) = c\psi
+  \cdot t/(c\,n(\psi)) = \psi\cdot t/n(\psi) = \sigma(\psi)` — the
+  :math:`c` cancels identically, which is why invariance is a *theorem*
+  about degree-1 functionals and not a tolerance the fixture happens to
+  meet.
+* **it is idempotent** — but only to ``allclose``, and the law says so.
+  In exact arithmetic :math:`n(\sigma(\psi)) = t` makes the next
+  displacement exactly :math:`1`; in floating point the functional reads
+  :math:`t(1\pm\varepsilon)` and the next displacement is
+  :math:`1/(1\pm\varepsilon)`.  ``[M]`` on the 4-group infinite medium the
+  functional reads ``99.99999999999999`` on the section rather than
+  ``100.0``, so re-gauging multiplies by ``1.0000000000000002`` — a real,
+  measurable departure from the identity.  That the resulting array then
+  happens to come back bit-identical on this fixture is a property of the
+  draw, not of the section (``vv-principles`` #31), which is why the
+  shipped row is ``rtol=1e-14`` and not ``np.array_equal``.
+* **the sign leg is subsumed, not a second convention.**  Degree-1
+  homogeneity holds over :math:`\mathbb{R}`, so :math:`n(-\psi) =
+  -n(\psi)`, the displacement is negative, and :math:`\sigma(-\psi) =
+  \sigma(\psi)`.  The dense engines' hand-written :math:`\mathbb{Z}/2`
+  fix (``_sign_normalised``, the ``v.sum() >= 0`` convention) is **one
+  case** of :eq:`scale-gauge-section`, which is the elegance argument for
+  the type: one object absorbs a convention that was a separate helper.
+
+⚠ **A zero reading has NO section**, and this is the one place the type
+is *stricter* than the tree it replaces.  :math:`n(\psi) = 0` means the
+state is orthogonal to the gauge functional, so no member of the ray
+satisfies :math:`n = t` and the quotient has nothing to pick;
+:meth:`ScaleGauge.displacement
+<orpheus.numerics.gauge.ScaleGauge.displacement>` raises a ``ValueError``
+naming the functional.  ``[M]`` today
+:func:`~orpheus.numerics.eigenvalue.power_iteration` guards the same
+division with ``if p > 0.0`` and **skips the rescale silently** when it
+fails — which folds together two different situations: a zero reading
+(no section exists) and a negative one (a section exists, and it flips
+the sign).
+
+**Why the functional is stored as the OBJECT that ran, never as a label.**
+This is the finding that motivated the type.  ``[M]`` the tree applies
+**four different functionals** under the single name "production rate",
+and until step 3 no result type recorded which one had been used.  All
+three iterated ones satisfy the same
+``ProductionRateSolver`` protocol, so they reach
+:func:`~orpheus.numerics.eigenvalue.power_iteration` through one branch
+and are indistinguishable there:
+
+.. list-table:: The four "production rate" functionals
+   :header-rows: 1
+   :widths: 30 34 12 24
+
+   * - where
+     - what it integrates
+     - target
+     - applied by
+   * - :meth:`SNSolver.compute_production_rate
+       <orpheus.sn.solver.SNSolver.compute_production_rate>`
+     - :math:`\int\nu\Sigma_f\varphi\,dV + 2\int\Sigma_{2}\varphi\,dV` —
+       **including** the :math:`(n,2n)` emission
+     - :math:`1`
+     - :func:`~orpheus.numerics.eigenvalue.power_iteration`, but only
+       ``if isinstance(solver, ProductionRateSolver)``
+   * - :meth:`KEigenvalue.compute_production_rate
+       <orpheus.numerics.iteration.KEigenvalue.compute_production_rate>`
+     - :math:`\sum(F\psi)` — fission ONLY.  ``[M]`` exactly ONE
+       construction site in ``orpheus/``, inside
+       :func:`~orpheus.sn.solver.solve_sn_adjoint`, so this is the
+       **daggered** path's functional
+     - :math:`1`
+     - the same call site
+   * - ``DiffusionSolver.compute_production_rate``
+     - :math:`\int\langle\nu\Sigma_f,\varphi\rangle\,dV` — fission only
+     - :math:`1`
+     - the same call site
+   * - :attr:`HomogeneousProblem.production_rate
+       <orpheus.homogeneous.solver.HomogeneousProblem.production_rate>`
+     - :math:`\langle\nu\Sigma_f, \varphi\rangle` on the 0-D pose
+     - :math:`100`
+     - the homogeneous solver directly (no power iteration)
+
+The first two differ by a **physical term**, not a spelling: SN's total
+production counts the :math:`(n,2n)` neutrons and the daggered one does
+not, so two states both described as "normalized to unit production rate"
+can differ by a factor no consumer can compute from the state alone.  A
+``gauge: str = "production_rate"`` field would therefore record a
+**falsehood**, and it would record it in the most durable form — a label
+that reads correct.  Storing the callable means the recorded value carries
+the very object that produced the number, and — because
+:class:`~orpheus.numerics.gauge.ScaleGauge` is a frozen dataclass —
+equality is decided by ``(functional, target)``, so two sections of one
+ray under two functionals are **distinguishable values** by construction.
+That is exactly the negative law the type ships
+(``test_negative_two_sections_under_two_functionals_are_distinguishable``).
+
+⚠ One constraint on the field's type is architectural, not stylistic:
+``ScaleGauge.functional`` is annotated ``Callable[[Any], float]`` and must
+stay so.  The layer contract forbids ``numerics → transport``
+(``FORBIDDEN_EDGES["numerics"] = L2 | L3`` in
+``tests/test_layer_imports.py``), so the numerics tier may **not** import
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+even though that is what the first witness passes it.
+
+The kernel gauge, and why its group element comes from the TRACE
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For the source kind the group is :math:`(\ker A, +)` and the section is
+built from the :math:`G`-orthogonal projector :math:`\Pi` onto that
+kernel:
+
+.. (vv-status rationale) The kernel gauge's section — what the KernelGauge
+   Protocol IS.  Structural / representational: a definitional identity of
+   a numerics contract, sibling to scale-gauge-section above; the
+   minimum-norm claim's own mathematical content (every kernel mode is
+   mirror-odd, so the exact solution is G-orthogonal to ker A) is the #344
+   result documented at sn-loss-kernel-gauge.  Its verifiable content here
+   is tests/numerics/test_gauge.py::TestLawTheKernelGauge — Π² = Π,
+   (I − Π)² = I − Π, Γ-invariance with the element drawn from Π's own
+   range on the trace space, residual-neutrality of the section, and the
+   negative leg showing a NON-kernel move IS visible in the residual.
+.. vv-status: kernel-gauge-section documented
+
+.. math::
+   :label: kernel-gauge-section
+
+   \sigma(\psi) \;=\; \psi - \Pi\psi ,
+   \qquad
+   \Pi = \Pi^2 , \quad
+   \operatorname{range}\Pi = \ker A ,
+   \quad \Pi = \Pi^{\dagger_G} .
+
+:math:`\Pi` is self-adjoint in :math:`G` because it projects onto a
+:math:`G`-**orthonormal** span, which also collapses the :math:`G_b^{-1}`
+factor in each block to the identity — so the shipped realization's
+``apply_transpose`` is literally ``apply``, and the Euclidean transpose
+and the :math:`G`-adjoint coincide here rather than by accident.
+
+:math:`\sigma(\psi)` is the **minimum-**:math:`G`-**norm** member of the
+coset, and that is canonical rather than conventional: the exact solution
+is itself :math:`G`-orthogonal to :math:`\ker A`, because every kernel
+mode is a mirror-odd face sawtooth (the #344 result, derived at
+:ref:`sn-loss-kernel-gauge`).  Two consequences:
+
+* **residual neutrality.**  :math:`A\sigma(\psi) = A\psi - A\Pi\psi =
+  A\psi`, since :math:`\Pi\psi \in \ker A` — so applying the gauge
+  **cannot move any convergence certificate**.  The gauge mutates the
+  answer and is still safe to apply at the exit, which is what makes it
+  an exit step rather than a reported diagnostic.
+* **the group element must be drawn from** :math:`\Pi`'s **own range, on
+  the TRACE space.**  ⛔ A first draft of the design's frame pass claimed
+  the gauge "acts on the boundary only, so interior kernel modes survive"
+  and expected the Γ-invariance leg to RED.  That was REFUTED: the kernel
+  **is** a trace object — :class:`LossKernelGauge
+  <orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge>` is an
+  endomorphism of the boundary-trace space, so gauging the trace *is*
+  gauging the state and the bulk is untouched by construction rather than
+  by a zero block.  An interior perturbation is therefore **not a group
+  element** and using one as the test's :math:`\gamma` would measure
+  nothing.  The refuted version is kept here because the mistake is the
+  natural one: "the projector only touches the boundary" and "the kernel
+  has an interior part" sound compatible, and they are not.
+
+:class:`~orpheus.numerics.gauge.KernelGauge` is a
+``runtime_checkable`` **Protocol** — ``gauge(trace)`` and ``dimension`` —
+satisfied *structurally* by the S\ :sub:`N` tier's ``LossKernelGauge``
+with no inheritance, because ``numerics`` may not import ``sn`` (the same
+forbidden edge as above) and because a projector is what the concept IS,
+whichever tier builds it.  ``dimension == 0`` is the honest answer for a
+configuration with no freedom — the zero-block projector makes ``gauge``
+the identity, so **no caller needs a null branch**, which is the same
+"a value, not an absence" move the certificate makes below.
+
+The certificate — evidence, not a nullable number
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The exit measures things about the returned state, and sometimes it
+measures nothing.  Before step 3 the "nothing" was a ``None``: ``[M]``
+``IterationHistory.balance_defect: float | None`` carries **five**
+documented meanings and ``gauge_correction`` three.  A ``None`` with five
+meanings is stringly-typed dispatch wearing an absence — the consumer has
+to re-derive which one applies, from context the type does not carry.
+
+:class:`~orpheus.numerics.outcome.ExitCertificate` replaces it with a
+closed sum, one member per reason:
+
+.. list-table:: ``Evidence = Measured | Certified | NotApplicable | NotYet``
+   :header-rows: 1
+   :widths: 22 42 36
+
+   * - member
+     - what it says
+     - carries
+   * - :class:`~orpheus.numerics.outcome.Measured`
+     - a number was measured on the returned state
+     - ``value``
+   * - :class:`~orpheus.numerics.outcome.Certified`
+     - no number was needed — the exit certificate **asserted** the
+       bound, raising on a defect beyond it
+     - ``bound``, ``by``
+   * - :class:`~orpheus.numerics.outcome.NotApplicable`
+     - the question does not arise for this posing or configuration
+     - ``reason``
+   * - :class:`~orpheus.numerics.outcome.NotYet`
+     - open work, named by issue
+     - ``issue``, ``reason``
+
+and four members, one per thing the exit can learn.  ⚠ The right-hand
+column is the S\ :sub:`N` **design**, not what ships at U1: U1 landed the
+TYPE, and the evaluator that mints a certificate lands with the S\ :sub:`N`
+entries at U2 (it needs the SN-tier balance projection and the
+residual-expressibility predicate, so it lives beside the mints rather
+than here).  The design's own acceptance criterion is that **every member
+of the sum has a reachable witness** — an ``Evidence`` member no entry can
+produce would be a branch nothing exercises:
+
+.. list-table:: ``ExitCertificate`` members
+   :header-rows: 1
+   :widths: 22 46 32
+
+   * - member
+     - what it records
+     - which ``Evidence`` each S\ :sub:`N` entry will produce (U2)
+   * - ``balance``
+     - the per-group balance-defect ratio :math:`\lVert R_g(A\psi -
+       q)\rVert / \lVert R_g(q)\rVert` (:ref:`sn-exit-balance-projection`)
+     - ``Measured`` (truncated exit); ``Certified`` (fully converged);
+       ``NotApplicable("zero source")``; ``NotYet(310)`` (the LD residual
+       mint); ``NotYet(353)`` (the daggered eigen exit)
+   * - ``gauge``
+     - the kernel-gauge displacement :math:`\lVert\Pi\psi\rVert /
+       \lVert\psi\rVert` (:ref:`sn-exit-gauge`)
+     - ``Measured``; ``NotApplicable("no kernel freedom")``; ``NotYet``
+       for an undetermined closure
+   * - ``rayleigh_gap``
+     - :math:`\lvert \lambda - \lambda_{\rm Rayleigh}(\psi)\rvert` — the
+       reference-class agreement between the method-tier estimator and
+       the posing's own quotient
+     - ``Measured``
+   * - ``admissibility``
+     - the multiplying-source problem's certificate — the hub's own
+       :math:`k_{\rm eff} < 1`, **with the tolerance it was measured at**
+     - ``Certified(k, "the hub's k-solve at keff_tol")``;
+       ``NotApplicable`` for a pure-transport or eigen posing
+
+Two deliberate absences are worth stating, because both are the kind of
+convenience that would quietly undo the type.  There is **no**
+``value_or_none()`` accessor — it would re-import exactly the leak the
+sum retires, in one line, with a name that sounds helpful.  And the sum
+is asserted **closed** by an exhaustive ``match`` under ``assert_never``,
+so adding a fifth member without handling it is a type error rather than
+a silently-skipped branch.
+
+⚠ **Why the Rayleigh gap is RECORDED and never asserted at
+construction.**  The tempting spelling is ``assert abs(lam -
+posing.rayleigh(state)) <= r`` in ``__post_init__``.  It is wrong twice
+over, for two *independent* reasons:
+
+#. **a bare assert statement is inert in the suite that matters.**  The
+   canonical invocation is ``python -O -m pytest``, and ``-O`` removes
+   ``assert`` statements at compile time, so a contract written that way
+   in production code does not run (``coding-standards``).  The honest
+   spelling of a real contract is a ``raise`` — which brings the second
+   reason.
+#. **a raise on a MAGNITUDE is the refuted #340 N5.**  An exit threshold
+   on the size of a residual-like quantity is not a correctness gate: a
+   starved inner solve degrades the *rate*, not the *limit*, so the error
+   is non-monotone in the budget and **no budget certifies a tolerance**.
+   The balance defect carries the same status for the same reason — a
+   DIAGNOSTIC, never a gate.
+
+What the gap positively *is*, though, is a reference-class agreement
+between two estimators of one quantity, and it is worth reading at both
+ends of its range.  ``[M]`` on the 0-D infinite medium (a direct dense
+solve, no iteration) the gap is **one ulp of** :math:`k` at both group
+counts — :math:`2.220446\times10^{-16}` against
+:math:`k_\infty = 1.8750000000000009` (2-group) and against
+:math:`1.4877619047619042` (4-group).  On a converged S\ :sub:`N` slab
+the same pair is the *convergence residual* instead, which is a different
+statement about the same quantity; the measurement and its
+re-measure-don't-quote caveat are in the ``.. important::`` under
+:ref:`the-operator-pencil`'s balance-functional discussion above.  A gap
+of that size is not a discrepancy to chase — reading it as one would be
+the category error that note warns about.
+
+Where the new types live, and what U1 landed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The outcome and gauge types live in :mod:`orpheus.numerics` for the same
+reason the pencil and the posings do: **they know nothing of**
+S\ :sub:`N`.  An :class:`~orpheus.numerics.outcome.EigenOutcome` is
+already what :class:`~orpheus.homogeneous.solver.HomogeneousResult`
+carries and is what the meshed k-solve will return at U2 — two hubs, one
+type — and the layer contract makes the placement checkable
+rather than stylistic: ``numerics`` may import neither ``transport`` nor
+any method package, which is why ``ScaleGauge.functional`` is a bare
+callable and why ``KernelGauge`` is a Protocol instead of a base class.
+Both new modules are in the cold-interpreter entry-point gate
+(``tests/test_layer_imports.py``), so a cycle that resolves only because
+something else was imported first fails there.
+
+⭐ **The coupled field's derived space — a member that turned an inert
+guard live.**  :class:`~orpheus.numerics.posing.SourcePosing` has carried an
+ends law since step 2: *the source lives on the operator's codomain*.
+``[M]`` it refused **nothing** on any S\ :sub:`N` source, because every
+such source is lifted into a one-system ``CoupledField`` and that class
+had no ``.space`` at all — the guard's ``getattr(source, "space", None)``
+read ``None`` and the check was skipped, on the whole of the traffic.
+This is the ``vv-principles`` #28 shape exactly: a guard that is loaded
+where fixtures are hand-built and inert where production runs.  U1 gives
+:class:`~orpheus.numerics.coupled_system.CoupledField` a **derived**
+``space`` — ``CoupledSpace.from_systems(member.space, …)`` in system
+order, computed from the members and never stored, because a coupled
+field *is* its member fields — and the law now refuses a cross-hub
+source.  The member contract
+(:class:`~orpheus.numerics.coupled_system.SystemField`) gained ``space``
+alongside it.
+
+The infinite medium is U1's first consumer and the only shipped witness
+of a **deliberately-named** gauge target:
+:class:`~orpheus.homogeneous.solver.HomogeneousResult` now carries an
+:class:`~orpheus.numerics.outcome.EigenOutcome` as its first field, and
+``k_inf`` and ``flux`` are **properties read off it** rather than stored
+twice.  The rescale that was a hand-spelled line is now
+``ScaleGauge(problem.production_rate.evaluate, 100.0).apply(phi_column)``
+— the same two operations in the same order, with the section recorded:
+``[M]`` re-running the retired expression beside the shipped one gives
+``np.array_equal`` flux on **3 of 3** group counts of the fissile ``A``
+family, with :math:`k_\infty` and both condensed rates comparing ``==``.  The
+full account, including the shape gotcha that makes the state the posed
+:math:`(n_g, 1)` column, is at
+:ref:`homogeneous-rates-and-normalisation`.
+
+.. list-table:: What U1 gated
+   :header-rows: 1
+   :widths: 36 64
+
+   * - gate
+     - what it pins
+   * - ``tests/numerics/test_gauge.py``
+     - both realizations' defining laws — lands-on-target, idempotence
+       (``allclose``, deliberately not bit-equal), Γ-invariance (for the
+       kernel gauge with the element drawn from :math:`\Pi`'s own range
+       on the trace space), residual-neutrality, the sign leg, the
+       zero-reading refusal, and the negative law that two functionals
+       give distinguishable sections
+   * - ``tests/numerics/test_outcome.py``
+     - the kind parse in both directions, the trajectory co-indexing law,
+       the absence of ``keff``/``lam``/``adjoint_posing`` on a
+       ``SourceOutcome``, the ``Evidence`` sum's closedness under
+       ``assert_never``, and ``CoupledField.space``
+   * - ``tests/homogeneous/test_homogeneous_outcome.py``
+     - the infinite medium's outcome — ``k_inf`` IS the outcome's λ, the
+       flux is a **view** of the posed column, the recorded section lands
+       on :math:`100`, and the Rayleigh quotient reproduces
+       :math:`k_\infty`.  ≥ 2 groups on purpose (see the gotcha above)
+   * - ``tests/homogeneous/test_byte_stability.py``
+     - that the rescale's arithmetic did not move — the same bit-identity
+       wall that licensed calling the CS4c coda a re-source
 
 The posing table
 -----------------

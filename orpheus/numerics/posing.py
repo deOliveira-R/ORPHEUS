@@ -130,12 +130,20 @@ class SourcePosing(Generic[V]):
             )
 
     def residual(self, psi: Any) -> Any:
-        r""":math:`q - A\psi`."""
-        return self.source - self.operator.apply(psi)
+        r""":math:`A\psi - q` — the LOSS-sign convention every SN residual uses.
+
+        ⛔ Until step 3 U1 (2026-09-17) this read :math:`q - A\psi`, the sign
+        twin of :func:`~orpheus.sn.solver.evaluate_residual` (``[M]`` bit-exactly
+        its negative on both arms) while :meth:`balance` already reported
+        :math:`\langle w, A\psi - q\rangle`; one convention now (Pattern 7),
+        so the certificate that reads this residual and the typed full-system
+        residual agree without a sign to remember.
+        """
+        return self.operator.apply(psi) - self.source
 
     def balance(self, psi: Any, w: Any = 1.0) -> float:
         r"""β(ψ) = ⟨w, Aψ − q⟩ — the exit balance defect (a signed number, zero at the solution)."""
-        return -_pair(w, self.residual(psi))
+        return _pair(w, self.residual(psi))
 
     def H(self, detector: Any) -> "SourcePosing[V]":
         r"""UNARY — the adjoint source problem :math:`A^\dagger\psi^\dagger = R` needs a DETECTOR."""

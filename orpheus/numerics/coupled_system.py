@@ -198,6 +198,9 @@ class SystemField(Protocol):
 
     def copy(self) -> "SystemField": ...
 
+    @property
+    def space(self) -> "FunctionSpace": ...
+
 
 def _member_from_flat(member: "SystemField", piece: "NDArray") -> "SystemField":
     r"""Rebuild one member from its flat slice — the ravellable-protocol pair.
@@ -288,6 +291,27 @@ class CoupledField:
     def n_systems(self) -> int:
         r"""The number of coupled systems (the block-vector arity)."""
         return len(self.systems)
+
+    @property
+    def space(self) -> "CoupledSpace":
+        r"""The direct-sum space this block vector is an element of — DERIVED
+        from the members, never stored.
+
+        ``CoupledSpace.from_systems(member.space, …)`` in system order: a
+        coupled field IS its member fields, each an element of its own
+        composite space (``Composite.space``, CS4b S4 — the F4 ruling), so
+        the coupled space is determined by theirs and compares by content
+        against the one the instance builder minted (structural identity,
+        campaign 1 step 6).  Carries no zero factory: that is builder-side
+        metadata (``compare=False``), not part of what the field IS.
+
+        Until step 3 of the consumers campaign (2026-09-17) this member did
+        not exist, so every ends check that asked a coupled STATE for its
+        space read ``None`` — ``[M]`` ``SourcePosing.__post_init__``'s
+        "source lives on the operator's codomain" law was INERT on every SN
+        source, all of which are lifted to the one-system coupled state.
+        """
+        return CoupledSpace.from_systems(tuple(member.space for member in self.systems))
 
     @property
     def principal_bulk_leaf(self) -> "Any | None":

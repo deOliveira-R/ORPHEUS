@@ -33,9 +33,9 @@ def _exact_pair(fam: str = "A", ng: str = "2g"):
     pencil = OperatorPencil(problem.loss, problem.production)
     A = np.asarray(pencil.lhs.as_matrix(), dtype=float); F = np.asarray(pencil.rhs.as_matrix(), dtype=float)
     w, V = np.linalg.eig(np.linalg.solve(A, F))
-    i = int(np.argmax(w.real)); phi = np.real(V[:, i]); phi = phi / phi.sum()
+    i = int(np.argmax(np.real(w))); phi = np.real(V[:, i]); phi = phi / phi.sum()
     # the 0-D operators are bound on the (ng, 1) energy × point-spatial carrier
-    return problem, pencil, float(w[i].real), phi.reshape(-1, 1)
+    return problem, pencil, float(np.real(w[i])), phi.reshape(-1, 1)
 
 
 class TestLawTheEigenPosing:
@@ -86,6 +86,7 @@ class TestLawTheSourcePosing:
         A = np.asarray(pencil.lhs.as_matrix(), dtype=float)
         q = np.ones((A.shape[0], 1)); psi = np.linalg.solve(A, q)
         posing = SourcePosing(pencil.lhs, q)
-        _require(np.max(np.abs(np.asarray(posing.residual(psi)))) <= 1e-12 * np.max(np.abs(q)), "q − Aψ* vanishes")
+        _require(np.max(np.abs(np.asarray(posing.residual(psi)))) <= 1e-12 * np.max(np.abs(q)), "Aψ* − q vanishes")
+        _require(np.all(np.asarray(posing.residual(2.0 * psi)) > 0), "the residual is SIGNED with the loss convention: too much flux reads Aψ − q > 0 (step 3 U1 — it read q − Aψ before)")
         _require(abs(posing.balance(psi)) <= 1e-12 * np.sum(np.abs(q)), "⟨1, Aψ* − q⟩ vanishes")
         _require(posing.balance(2.0 * psi) > 0, "the balance is SIGNED: too much flux reads positive (Aψ − q > 0)")

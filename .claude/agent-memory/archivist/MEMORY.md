@@ -43,6 +43,9 @@ means merged). **No owed Sphinx pass on merged work.** Landed SN milestones live
 in the digest the pointer names; re-summarising it here is a THIRD copy and is what bloats this
 file. `git log --oneline -- docs/` is the real index.
 
+- **Consumers step 3 U1** — the ANSWER tier is not a fifth layer, and every literal is
+  re-derived before it ships (2026-09-17; 2 `.rst`, +805/−13; uncommitted on
+  `refactor/consumers-step3`; U2 owes the SN Solution's own reshape) → L-109
 - **Consumers step 2 C3b-2** — a relayed `[M]` that will not reproduce is reconciled by its
   STATISTIC, not adjudicated (2026-09-14; 11 `.rst`, +1286/−218; uncommitted on
   `refactor/consumers-step2`; ERR-085 minted, catcher marker owed by the main agent) → L-108

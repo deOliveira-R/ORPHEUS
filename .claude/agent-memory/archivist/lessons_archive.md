@@ -13187,3 +13187,131 @@ at every severity. `:func:`~orpheus.numerics.iteration.KEigenvalue`` (a CLASS
 under a `func` role) appeared at 3 sites; a `:func:`…KEigenvalue`` census over
 `docs/theory` now returns 0. Cheap to run whenever a chapter's subject is a
 class, and invisible to `-W`.
+
+---
+
+## L-109 — Consumers campaign step 3, unit U1: the Solution carries its posing (2026-09-17)
+
+**Scope.** DOCS-ONLY pass on U1 (gauge.py + outcome.py + `CoupledField.space` +
+`HomogeneousResult.outcome`, all uncommitted on `refactor/consumers-step3`).
+2 `.rst`, +805/−13: `foundations/operator_algebra.rst` (a new H2 section
+`the-solution-outcome`, +640) and `foundations/infinite_medium.rst` (a new H3
+`the-gauge-section` consumer narrative, +178). No build run (main agent owns it).
+
+### L-109a ⭐⭐ THE ANSWER IS NOT A NEW LAYER — say so where the LAYER COUNT lives
+The brief said "add the SOLUTION tier to the four-tier table". The table is titled
+*The four-tier eigenvalue architecture* and carries its own `⚠ still four layers`
+note (added when 2b/2c split). Adding a `5` row would have falsified the title AND
+the note. The shape that works: **extend the Layer-4 cell with what it RETURNS**,
+add ONE Key Facts bullet, and give the objects their own H2 section that opens by
+saying *these are not a fifth layer — the table decomposes the COMPUTATION, these
+are what it hands back*. ⟹ before adding a row to a numbered table, read the
+table's own arity claim and its guard note; a doc's arity is an API too.
+
+### L-109b ⭐⭐ A NUMBER I "REMEMBERED" FROM A PROBE WAS THE WRONG ONE — and the
+### second probe caught it because I re-derived EVERY literal before shipping
+Two live catches, both from one `verify_numbers.py` re-derivation run at the END:
+* I published `1g k_inf = 0.9375` in a table. `[M]` it is **1.5**. I had invented
+  it (the 1g row was added late, and I filled the column from nothing).
+* I published *"the SECOND displacement reads `1.0000000000000002`"*. `[M]` the
+  second displacement is **1.0**; `1.0000000000000002` is the displacement of the
+  SOLVER'S OWN returned state (already on the section). Both numbers were real;
+  they answer different questions, and my first probe measured one while my prose
+  claimed the other (`plan-authoring` §2's `[M]`-scope defect, mine).
+⟹ **write a single script that re-derives every numeric literal the pass
+publishes, run it last, and diff against the page.** Not a spot check — the
+literal set. Cost: 2 minutes, 2 corrections, one of which was a fabricated number.
+
+### L-109c ⭐⭐ DON'T ASSERT A MECHANISM — MEASURE IT; the ratio is not the group count
+I wrote *"the flat vector broadcasts across the spatial axis instead of being
+indexed by it"* as the explanation of the `(ng,)`-vs-`(ng,1)` gotcha. True but
+useless. Measured: the XS values are `(ng, 1)`, a `(ng,)` operand broadcasts to
+the `(ng × ng)` **OUTER PRODUCT**, whose sum is `(Σ_g νΣ_f,g)(Σ_g φ_g)` instead of
+`Σ_g νΣ_f,g φ_g`. That derivation buys three publishable traps the hand-wave
+misses: 1g coincides exactly (1×1 outer) so **every law must be ≥2G**; the error
+is `2.000×` at 2g and **`4.113×`** at 4g, so *"off by the group count"* is a rule
+that holds on the 2g fixture and breaks on the 4g one; and the sibling primitive
+(`EigenPosing.rayleigh`) REFUSES the same input loudly — the asymmetry is the
+carry-away. ⚠ And the identity is mathematical, NOT bit-exact (product-of-sums vs
+sum-of-products re-associates): `[M]` `sum(S)*sum(φ)` = `199.99999999999997` where
+the functional reads `200.0`. Do not claim bit-reproduction of a mechanism you
+reproduced to 15 digits.
+
+### L-109d ⭐⭐ A BIT-IDENTITY CLAIM CAN BE EARNED BY RE-RUNNING THE RETIRED LINE
+The code comment said *"bit-for-bit (the byte-stability gate pins it)"* and I could
+not run pytest. Instead of quoting the gate I read the retired line out of
+`git diff` (`phi * (100.0 / production_rate.evaluate(phi.reshape(ng, 1)))`),
+re-ran it beside the shipped `ScaleGauge.apply`, and got `np.array_equal` on
+**3 of 3** group counts with `k` and both rates `==`. That is INDEPENDENT evidence
+in a pass that is forbidden to run the suite, and it also yielded the structural
+argument (*the same two operations in the same order; only the SHAPE the scalar
+multiplies changed, and scaling is elementwise*) — which is worth more than the
+measurement because it does not decay. ⟹ when a docs pass cannot run the gate,
+**re-run the RETIRED expression from the diff**; it is nearly always three lines.
+
+### L-109e ⭐ A NEW DOCSTRING CAN SHIP A CONVENTION THE CODE DOES NOT HAVE
+`SourceOutcome.residual`'s brand-new docstring says `Aψ − q`; it delegates to
+`SourcePosing.residual`, which `[M]` returns `q − Aψ` (probe: `[0.5, 1.0]` where
+`Aψ−q = [-0.5,-1.0]`). The plan's chain table says the flip to loss-sign is
+PLANNED — so the docstring documents the DESIGN, not the code. I documented the
+VALUE and reported the mismatch. ⚠ And the publishable finding underneath is
+better than the bug: the two kinds' **balance SCALARS agree** (both loss-signed:
+`SourcePosing.balance = −⟨w, q−Aψ⟩ = −1.5`) while their **residual VECTORS do
+not** — so `:eq:posing-balance-functional`'s "one functional" claim is intact and
+it is the vectors that need a sign check. Date the measurement; do not promise the
+flip (an "X when Y happens" sentence goes false the moment Y happens — L-107).
+
+### L-109f ⭐ A GENERIC PRIMITIVE EARNS AN `.. implements::` EDGE — the page's own
+### rule decides it, and the precedent is one grep away
+The `normalisation` equation's `implements` body transcribed *"the solver's rescale
+line (the `phi * (100 / …)` update)"* — stale the moment the division moved into
+`ScaleGauge.apply`. I hesitated to declare a GENERIC numerics method as
+implementing a specific homogeneous equation. Settled by precedent in the same
+file: `keff-update` already declares `numerics.eigenvalue.dominant_eigenpair`, a
+generic primitive. ⟹ 2 sites → **3**, body rewritten to name the generic/instantiated
+split. Predicted `directives: wrote N edges` **+1** (unverifiable without a build —
+flagged to the main agent, because a `:by:` that fails to bind is SILENT, L-077).
+
+### L-109g ⭐ THE TORSOR STORY NEEDS THE **RETRACTION**, not "a section"
+First draft wrote `π∘σ = id` and then, "equivalently", `σ(γψ) = σ(ψ)` — which
+conflates `σ : S/Γ → S` with the composite `r = σ∘π : S → S`. The code's `apply`
+IS `r`. Re-derived: a section is exactly a **Γ-invariant retraction**,
+`r∘r = r` ∧ `r(γψ) = r(ψ)` — and those two equations ARE the two shipped laws, so
+the derivation now explains WHY idempotence is a law rather than listing it.
+⟹ when documenting a quotient, write the object the CODE calls, then name it.
+
+### L-109h ⭐ "shipped witnesses" IS A TENSE CLAIM — a design table needs its unit
+I gave the `ExitCertificate` members a column headed *shipped witnesses*, copied
+from the design memo. At U1 the TYPE ships and **no entry mints a certificate**
+(`[M]` `grep -c certificate orpheus/homogeneous/solver.py` → 0). Re-headed to
+*which `Evidence` each SN entry will produce (U2)* with a ⚠ naming the split, and
+kept the design's own acceptance criterion (*every member of the sum has a
+reachable witness*) as the reason the column exists at all.
+
+### Gates run (no Sphinx build; the main agent owns it)
+* **docutils error-SET diff**, HEAD vs worktree, per file, with a positive control
+  (a short underline + an unterminated `**` injected into a copy → both DETECTED).
+  Set unchanged; growth only in Sphinx-only classes. ⚠ `:label:` on `.. math::` is
+  Sphinx-only → +2 `math` directive errors == my 2 new labelled equations exactly.
+* **added-xref resolver** over CONTIGUOUS added blocks (`re.S`), importing each
+  dotted target: **50 project xrefs, 0 dead**, with 2 negative + 2 positive controls.
+* `:ref:`/`:eq:` targets against the corpus label inventory: 0 unresolved.
+  (172 cross-document `:eq:` citations already exist — precedent confirmed.)
+* nested-inline-markup scan of the added lines (**bold containing ``literal``**):
+  5 found in draft, all rewritten; 0 at the end.
+* title-underline length in CODE POINTS, whole file: 0 short.
+* label counts, SAME instrument both sides: eq-labels **938 → 940**,
+  `documented` sentinels **582 → 584**; `audit._scan_theory_equations` **0
+  violations**. Both new labels are structural definitions of numerics TYPES
+  (siblings of `pencil-family`), sentineled with rationales naming
+  `tests/numerics/test_gauge.py`.
+* every NEGATIVE claim re-verified at the END, with HEAD + working-set unchanged.
+
+### Quality self-assessment
+Derivation depth 5 (torsor → retraction → both realizations, each property one
+line) · cross-refs 5 (50 resolved, 0 dead) · numerical evidence 5 (every literal
+re-derived this session; 2 corrections) · failed approaches 4 (the refuted
+interior-kernel leg, S1/S2 refutations, the fifth-layer trap) · code traceability
+5 · derivation source 3 — no `derivations/` script exists for the gauge algebra;
+the laws live in `tests/numerics/test_gauge.py`, which is the right home for a
+type's defining laws but is NOT a SymPy algebra-of-record.

@@ -253,6 +253,12 @@ def test_input_layer_imports_numerics_only_by_submodule(package: str) -> None:
         # module — solver -> splitting -> operators/loss_representation, no
         # runtime edge back to the hub (plan-authoring §6d).
         "orpheus.sn.splitting",
+        # step 3 U1 (2026-09-17): the Solution-tier types — the gauges (the
+        # section that picked the representative) and the kind-typed outcomes
+        # + the exit certificate; numerics-tier, importing posing/pencil/
+        # operator only (plan-authoring §6d; consumers_step3_design.md §6.3).
+        "orpheus.numerics.gauge",
+        "orpheus.numerics.outcome",
         # step 2 C3b (2026-09-13): the terminal-object types — numerics-tier,
         # importing only the operator algebra (plan §6.3: no new package edge).
         "orpheus.numerics.pencil",

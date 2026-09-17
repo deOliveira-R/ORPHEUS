@@ -1794,18 +1794,29 @@ the flux so that the **fission** production rate is 100 n/cm\ :sup:`3`/s:
 .. implements:: normalisation
    :by: orpheus.homogeneous.solver.solve_homogeneous_infinite
 
-   **Implemented by** 2 sites, each executing one half of the arithmetic:
-   the solver's rescale line (the ``phi * (100 / …)`` update) and the
-   hub's production-rate co-vector below, which computes the denominator
-   :math:`\nu\Sigma_f\cdot\boldsymbol{\phi}` as a typed pairing on the pose.
-   Every symbol that executes this equation's arithmetic is declared, not
-   only the canonical one: a test is adjudicated against the transcription
-   it actually ran. (Until the CS4c coda, 2026-09-08, both directives
-   named the solver — a duplicate from the 94-equation declaration pass
-   whose "2 sites" body counted one symbol twice.)
+   **Implemented by** 3 sites, each executing one part of the arithmetic:
+   the solver, which builds the section and applies it; the hub's
+   production-rate co-vector below, which computes the denominator
+   :math:`\nu\Sigma_f\cdot\boldsymbol{\phi}` as a typed pairing on the pose;
+   and — since step 3 U1, 2026-09-17 — the generic section
+   :meth:`ScaleGauge.apply <orpheus.numerics.gauge.ScaleGauge.apply>`,
+   which is where the division :math:`100 / (\nu\Sigma_f\cdot\phi)` now
+   lives.  Every symbol that executes this equation's arithmetic is
+   declared, not only the canonical one: a test is adjudicated against the
+   transcription it actually ran, and
+   ``tests/homogeneous/test_homogeneous.py::test_post_solve_production_rate_is_100``
+   runs all three.  (The solver's own body carried the ``phi * (100 / …)``
+   update by hand until U1; the arithmetic is unchanged — see the
+   byte-stability pin below.  And until the CS4c coda, 2026-09-08, both of
+   the then-two directives named the solver — a duplicate from the
+   94-equation declaration pass whose "2 sites" body counted one symbol
+   twice.)
 
 .. implements:: normalisation
    :by: orpheus.homogeneous.solver.HomogeneousProblem.production_rate
+
+.. implements:: normalisation
+   :by: orpheus.numerics.gauge.ScaleGauge.apply
 
 The normalisation denominator is the **fission** production rate
 :math:`\nu\Sigma_f\cdot\boldsymbol{\phi}` only — consistent with the
@@ -1815,6 +1826,155 @@ loss-side transfer folded into :math:`\mathbf{A}` as
 :math:`2\Sigma_2^T`, not a production channel (see
 :ref:`scattering-matrix-convention` and the note under the production
 matrix :eq:`fission-matrix` above).
+
+The rescale is a RECORDED section, and the answer carries it
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Equation :eq:`normalisation` is a **choice**, and until step 3 U1
+(2026-09-17) nothing recorded that it had been made.  The eigenvector is a
+ray; picking the member with :math:`\nu\Sigma_f\cdot\varphi = 100` is
+choosing a *section* of the :math:`(\mathbb{R}_+,\times)`-quotient, and a
+consumer holding only :math:`\varphi` could not tell which section had
+been applied — a live hazard, because ``[M]`` the tree applies **four
+different functionals** under the one name "production rate" and this
+page's target (:math:`100`) is the only one of the four that is not
+:math:`1` (:ref:`the-gauge-section`).
+
+So the line now names its own section:
+
+.. code-block:: python
+
+   # orpheus/homogeneous/solver.py — solve_homogeneous_infinite
+   gauge = ScaleGauge(production_rate.evaluate, 100.0)   # the SECTION, as a value
+   phi_column = gauge.apply(phi.reshape(ng, 1))          # φ · 100 / ⟨νΣf, φ⟩
+
+and the answer carries it.
+:class:`~orpheus.homogeneous.solver.HomogeneousResult` gained an
+:class:`~orpheus.numerics.outcome.EigenOutcome` as its **first field** —
+the k-eigen question over the 0-D pencil
+(:attr:`~orpheus.homogeneous.solver.HomogeneousProblem.eigen_posing`), the
+gauged representative, :math:`\lambda = k_\infty` with its one-point
+trajectory, and the :class:`~orpheus.numerics.gauge.ScaleGauge` above.
+Two consequences for readers of the result type:
+
+* :attr:`~orpheus.homogeneous.solver.HomogeneousResult.k_inf` and
+  :attr:`~orpheus.homogeneous.solver.HomogeneousResult.flux` are now
+  **properties**, not stored fields: ``k_inf`` is ``outcome.keff`` and
+  ``flux`` is a *view* of the outcome's state
+  (``outcome.state[:, 0]`` — ``[M]`` ``np.shares_memory`` is ``True``, so
+  there is one storage and the historical names survive unchanged).  No
+  reader needed editing: ``[M]`` the type has exactly ONE construction
+  site tree-wide (the solver itself) and nothing anywhere assigns to
+  either name, so turning two fields into two properties is invisible
+  outside the mint.
+* the section is interrogable after the fact: ``result.outcome.gauge``
+  reports the functional **as the object that ran** and the target it
+  landed on, so ``gauge.functional(outcome.state)`` re-reads
+  :math:`100` — ``[M]`` exactly ``100.0`` at 2 groups and
+  ``99.99999999999999`` at 4.
+
+⚠ **The state is the posed** :math:`(n_g, 1)` **column, and the shape is
+load-bearing.**  This is the gotcha the verification design surfaced, and
+it is silent in the dangerous direction:
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+**accepts a flat** :math:`(n_g,)` **vector without complaint and returns a
+different number.**  ``[M]`` on the fissile ``A`` family, with the state
+already gauged so the column reads exactly its target:
+
+.. list-table:: The same functional on the same flux, two shapes
+   :header-rows: 1
+   :widths: 14 28 28 30
+
+   * - groups
+     - posed :math:`(n_g, 1)` column
+     - flat :math:`(n_g,)` vector
+     - the solve's :math:`k_\infty` (to reproduce the row)
+   * - 1
+     - ``100.0``
+     - ``100.0``
+     - ``1.5``
+   * - 2
+     - ``100.0``
+     - ``200.0``
+     - ``1.8750000000000009``
+   * - 4
+     - ``99.99999999999999``
+     - ``411.2729251352303``
+     - ``1.4877619047619042``
+
+**The mechanism is a silent broadcast, and it is worth spelling out
+because the wrong number is not obviously wrong.**  The cross-section
+field's values carry the pose's spatial axis, so they are shaped
+:math:`(n_g, 1)`.  Pairing them with a :math:`(n_g, 1)` column is the
+elementwise product the equation means.  Pairing them with a flat
+:math:`(n_g,)` vector broadcasts instead — to the :math:`(n_g \times n_g)`
+**outer product** — whose sum is
+:math:`\bigl(\sum_g \nu\Sigma_{f,g}\bigr)\bigl(\sum_g \varphi_g\bigr)`
+rather than :math:`\sum_g \nu\Sigma_{f,g}\,\varphi_g`.  ``[M]``
+reproducing that product by hand recovers the flat column of the table to
+the last digits at every group count.
+
+Three readings follow, and each is a trap in its own right:
+
+* **at 1 group the two coincide** — the outer product is :math:`1\times 1`.
+  Every law written on this gauge is therefore stated at
+  :math:`\geq 2` groups: a 1-group fixture is green under **either**
+  shape and pins nothing.
+* **the error is not a clean factor of** :math:`n_g`.  It is
+  :math:`2.000` at two groups and :math:`4.113` at four, because the
+  wrong expression is a product of two sums and the right one is a sum of
+  products — so "the answer is off by the group count" is a rule that
+  would hold on the 2-group fixture and break on the 4-group one.
+* **the sibling primitive is strict.**  :meth:`EigenPosing.rayleigh
+  <orpheus.numerics.posing.EigenPosing.rayleigh>` refuses the flat vector
+  *loudly* on the same input.  The asymmetry — one numerics primitive
+  raises, the reaction-rate functional broadcasts — is the thing to carry
+  away; it is why the gauge's state is the posed column and why the law
+  that checks it re-reads the functional rather than trusting the shape.
+
+**Nothing about the arithmetic moved**, and that is checkable rather than
+asserted.  The retired line read
+``phi * (100.0 / production_rate.evaluate(phi.reshape(ng, 1)))``;
+:meth:`ScaleGauge.apply <orpheus.numerics.gauge.ScaleGauge.apply>` is
+``state * (target / functional(state))`` — the *same two operations in the
+same order*, with the divisor computed on the same posed column, so
+bit-identity is structural and not a coincidence of the fixture.  Only the
+SHAPE the multiplication is written on changed (the flat vector became the
+:math:`(n_g, 1)` view), and scaling by a scalar is elementwise.  ``[M]``
+re-running the retired expression beside the shipped one on the fissile
+``A`` family at 1, 2 and 4 groups: the flux is ``np.array_equal`` on
+**3 of 3**, :math:`k_\infty` compares ``==``, and both condensed rates
+compare ``==``.  The standing adjudicator is
+``tests/homogeneous/test_byte_stability.py``, which pins
+:math:`k_\infty`, the flux **bytes** and both rates against a capture
+taken at ``24a991ba`` — a capture whose whole value is that it predates
+every campaign that has since claimed to move no bytes.
+
+⚠ One aliasing consequence, deliberate and gated: ``result.flux`` is a
+**view** of ``result.outcome.state``, where before it was an independent
+array.  Writing into it in place now writes into the outcome.  The gate
+asserts the sharing (``np.shares_memory``) rather than tolerating it,
+because the alternative — a defensive copy — would reintroduce the second
+storage the outcome exists to remove.
+
+**And one property is now a theorem the answer can restate.**  Because the
+outcome carries the posing, the result can be asked for the *posing's own*
+eigenvalue estimate — the Rayleigh quotient :math:`\langle
+w, F\varphi\rangle / \langle w, A\varphi\rangle` of
+:eq:`posing-balance-functional` — beside the eigenvalue the dense engine
+returned.  ``[M]`` on this direct solve the two agree to **one ulp of**
+:math:`k` at both group counts (:math:`2.220446\times 10^{-16}` against
+:math:`k_\infty = 1.8750000000000009` and :math:`1.4877619047619042`),
+which is the tightest reading of that reference-class pair anywhere in the
+tree — there is no iteration here for a convergence residual to hide in.
+This gap is the quantity
+:class:`~orpheus.numerics.outcome.ExitCertificate`'s ``rayleigh_gap``
+member exists to record — a diagnostic, deliberately never asserted at
+construction (:ref:`the-solution-outcome` gives the two independent
+reasons).  ``[M]`` no homogeneous result carries a certificate at U1: the
+TYPE ships, the evaluator that mints one lands with the S\ :sub:`N`
+entries at U2, so the number above is obtained by asking the outcome
+directly (``result.outcome.rayleigh()``).
 
 The rate is a typed integrated co-vector
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

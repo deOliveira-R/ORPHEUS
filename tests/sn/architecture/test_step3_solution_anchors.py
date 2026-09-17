@@ -1033,9 +1033,12 @@ class TestRecordThePureTransportPosingIsTheLOSS:
     ``[M]`` ``probes/p3_typed_residual.py``: ``pencil.at(0.0)`` **is**
     ``pencil.lhs`` **is** ``system.loss`` (object identity — ``pencil.py:69``),
     so *"was fission suppressed?"* is an ``is`` test and needs no datum; and
-    ``SourcePosing(pencil.at(0), q).residual(ψ)`` is **bit-exactly**
+    ``SourcePosing(pencil.at(0), q).residual(ψ)`` was **bit-exactly**
     ``−evaluate_residual(system, ψ, q)`` on BOTH arms (``array_equal`` True,
-    ``max|Δ| = 0.000000e+00``), so the sign flip U2c lands is exact.
+    ``max|Δ| = 0.000000e+00``) — the sign twin.  ✅ U1 (2026-09-17) flipped
+    the posing's residual to the loss-sign convention ``Aψ − q``, so the row
+    below now pins the IDENTITY ``residual == evaluate_residual`` to the bit
+    (the exactness measured pre-flip is what made the flip safe).
 
     ⚠ The same claim is FALSE for ``hub.source_posing(q)`` (= ``at(1.0)``):
     ``[M]`` the two differ by :math:`|F\psi| = 2.25\mathrm{e}{-1}` on the
@@ -1061,8 +1064,10 @@ class TestRecordThePureTransportPosingIsTheLOSS:
 
     @pytest.mark.parametrize("fixture", ["slab", "carrying_sphere"])
     def test_record_the_residual_sign_twin_is_EXACT(self, fixture: str) -> None:
-        """RECORD — ``q − Aψ`` and ``Aψ − q`` agree to the bit under the
-        PURE-TRANSPORT posing (the one U2 flips the sign of)."""
+        """RECORD → LAW: the posing's ``Aψ − q`` and the typed full-system
+        ``evaluate_residual`` agree to the bit under the PURE-TRANSPORT posing
+        (pre-U1 this row pinned the sign TWIN; U1 flipped the posing to the
+        loss-sign convention and the identity is exact without a sign)."""
         from orpheus.numerics.posing import SourcePosing
         from orpheus.sn.solver import evaluate_residual
 
@@ -1104,9 +1109,10 @@ class TestRecordThePureTransportPosingIsTheLOSS:
         theirs_field = evaluate_residual(sn_mesh.system, probe, source)
         theirs = np.asarray(theirs_field.to_flat(), dtype=float)
         _require(
-            np.array_equal(-mine, theirs),
-            f"the sign twin is no longer exact: max|(-r) - er| = "
-            f"{np.max(np.abs(-mine - theirs)):.6e} (recorded 0.000000e+00).",
+            np.array_equal(mine, theirs),
+            f"the posing's residual and evaluate_residual no longer agree to "
+            f"the bit: max|r - er| = {np.max(np.abs(mine - theirs)):.6e} "
+            f"(recorded 0.000000e+00 as the sign twin pre-U1, exact identity since).",
         )
 
 

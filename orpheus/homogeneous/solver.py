@@ -60,6 +60,8 @@ from orpheus.transport.operators.isotropic_transfer import (
     IsotropicScattering,
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
+from orpheus.numerics.gauge import ScaleGauge
+from orpheus.numerics.outcome import EigenOutcome
 
 if TYPE_CHECKING:
     from orpheus.numerics.pencil import OperatorPencil
@@ -88,14 +90,33 @@ class HomogeneousResult:
     rather than re-deriving the group geometry here.
     """
 
-    k_inf: float
-    flux: np.ndarray  # (NG,) — group fluxes normalised to 100 n/cm³/s production
+    outcome: EigenOutcome
+    """The kind-typed answer (consumers campaign step 3, 2026-09-17): the
+    k-eigen question over the 0-D pencil, the gauged representative (the
+    posed ``(NG, 1)`` column), λ = k∞ with its one-point trajectory, and the
+    :class:`~orpheus.numerics.gauge.ScaleGauge` that fixed the representative
+    — the fission production rate νΣf·φ = 100 n/cm³/s, recorded as the
+    functional that ran plus its target rather than applied anonymously.
+    ``k_inf`` and ``flux`` are READ off it (one storage, the historical names)."""
     representative_energy: np.ndarray | None  # (NG,) — geometric group-centre energies (eV); None if no grid
     energy_widths: np.ndarray | None  # (NG,) — ΔE group widths (eV); None if no grid
     lethargy_widths: np.ndarray | None  # (NG,) — Δu lethargy widths; None if no grid
     sig_prod: float  # one-group production XS (1/cm)
     sig_abs: float  # one-group absorption XS (1/cm)
     mixture: Mixture
+
+    @property
+    def k_inf(self) -> float:
+        r"""The infinite-medium multiplication factor — the outcome's λ under the k map."""
+        return self.outcome.keff
+
+    @property
+    def flux(self) -> np.ndarray:
+        r"""(NG,) — the group fluxes on the gauge's section (νΣf·φ = 100 n/cm³/s).
+
+        A view of the outcome's posed ``(NG, 1)`` column: the same bytes the
+        byte-stability gate has pinned since before the outcome existed."""
+        return self.outcome.state[:, 0]
 
     @property
     def flux_per_energy(self) -> np.ndarray:
@@ -432,10 +453,20 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     production_rate = problem.production_rate
     absorption_rate = problem.absorption_rate
 
-    # Normalise the flux so the fission production rate νΣf·φ = 100 n/cm³/s.
-    phi = phi * (100.0 / production_rate.evaluate(phi.reshape(ng, 1)))
-    prod_rate = production_rate.evaluate(phi.reshape(ng, 1))
-    abs_rate = absorption_rate.evaluate(phi.reshape(ng, 1))
+    # The GAUGE (consumers campaign step 3, 2026-09-17): the eigenvector is a
+    # RAY, and returning a representative is choosing a SECTION of the scale
+    # quotient — here the deliberately-named reactor-physics target "fission
+    # production rate νΣf·φ = 100 n/cm³/s".  The section is a recorded OBJECT
+    # (the functional that ran + its target) on the outcome, not an anonymous
+    # rescale: ``apply`` IS ``φ · 100 / ⟨νΣf, φ⟩`` — the arithmetic this line
+    # spelled by hand until step 3, bit-for-bit (the byte-stability gate pins
+    # it).  ⚠ The state is the POSED (ng, 1) column: ``IntegratedReactionRate.
+    # evaluate`` silently accepts an (ng,) vector and returns the wrong
+    # number (``[M]`` 200.0 at 2g where the column reads 100.0).
+    gauge = ScaleGauge(production_rate.evaluate, 100.0)
+    phi_column = gauge.apply(phi.reshape(ng, 1))
+    prod_rate = production_rate.evaluate(phi_column)
+    abs_rate = absorption_rate.evaluate(phi_column)
     # The one-group condensed cross sections are INTENSIVE: σ̄x = ⟨Σx,φ⟩/⟨1,φ⟩.
     # The rate leg reads the XS field's space measure, the flux leg the
     # pose's own pairing — the same measure by the content-equality gate —
@@ -446,7 +477,7 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # ⟨1,φ⟩ is the pose's integration co-vector, not a reaction rate —
     # it stays the space's own pairing. Bit-identical to the pre-review
     # ``float(phi.sum())`` on the counting point (D5 pins it).
-    total_flux = space.inner_product(np.ones((ng, 1)), phi.reshape(ng, 1))
+    total_flux = space.inner_product(np.ones((ng, 1)), phi_column)
 
     if mix.eg is None:
         # Synthetic XS — no physical energy grid, so lethargy / per-energy
@@ -466,9 +497,17 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
         energy_widths = eg.energy_widths
         lethargy_widths = eg.lethargy_widths
 
+    # The kind-typed OUTCOME (step 3): the question, the gauged representative,
+    # λ = k∞ (a direct solve — a one-point trajectory) and the section that
+    # picked the representative.  ``k_inf``/``flux`` are READ off it.
     return HomogeneousResult(
-        k_inf=k_inf,
-        flux=phi,
+        outcome=EigenOutcome(
+            posing=problem.eigen_posing,
+            state=phi_column,
+            lam=k_inf,
+            trajectory=(k_inf,),
+            gauge=gauge,
+        ),
         representative_energy=representative_energy,
         energy_widths=energy_widths,
         lethargy_widths=lethargy_widths,
