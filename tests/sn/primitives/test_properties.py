@@ -127,6 +127,6 @@ def test_particle_balance():
 
     k_balance = production / absorption
     np.testing.assert_allclose(
-        k_balance, result.keff, rtol=1e-6,
-        err_msg=f"Particle balance: prod/abs={k_balance:.8f} ≠ keff={result.keff:.8f}",
+        k_balance, result.outcome.keff, rtol=1e-6,
+        err_msg=f"Particle balance: prod/abs={k_balance:.8f} ≠ keff={result.outcome.keff:.8f}",
     )

@@ -211,8 +211,8 @@ class TestSphericalBicgstab:
                           inner_solver="krylov",
                           max_inner=2000, inner_tol=1e-6)
 
-        assert abs(result.keff - case.k_inf) < 1e-4, (
-            f"BiCGSTAB keff={result.keff:.8f} vs analytical={case.k_inf:.8f}"
+        assert abs(result.outcome.keff - case.k_inf) < 1e-4, (
+            f"BiCGSTAB keff={result.outcome.keff:.8f} vs analytical={case.k_inf:.8f}"
         )
 
     def test_bicgstab_matches_source_iteration(self):
@@ -232,7 +232,7 @@ class TestSphericalBicgstab:
                 max_inner=500 if solver_type == "SI" else 2000,
                 inner_tol=1e-10 if solver_type == "SI" else 1e-6,
             )
-            keffs[label] = result.keff
+            keffs[label] = result.outcome.keff
 
         assert abs(keffs["SI"] - keffs["BC"]) < 1e-4, (
             f"SI keff={keffs['SI']:.8f} vs BC keff={keffs['BC']:.8f}"
@@ -255,5 +255,5 @@ class TestSphericalBicgstab:
                           inner_solver="krylov",
                           max_inner=2000, inner_tol=1e-6)
 
-        assert np.isfinite(result.keff), f"keff is not finite: {result.keff}"
+        assert np.isfinite(result.outcome.keff), f"keff is not finite: {result.outcome.keff}"
         assert np.all(np.isfinite(result.scalar_flux.values)), "Non-finite scalar flux"

@@ -188,10 +188,10 @@ def test_unified_slab_l1_homogeneous_kinf_2g(nx: int) -> None:
         max_inner=200, inner_tol=1e-10,
     )
 
-    rel = abs(sol.keff - k_analytical) / k_analytical
+    rel = abs(sol.outcome.keff - k_analytical) / k_analytical
     assert rel < 5e-4, (
         f"unified slab k_∞ recovery violated: "
-        f"k_analytical={k_analytical:.10f}, k_unified={sol.keff:.10f}, "
+        f"k_analytical={k_analytical:.10f}, k_unified={sol.outcome.keff:.10f}, "
         f"rel={rel:.2e}, nx={nx}"
     )
 

@@ -1,5 +1,6 @@
-r"""Consumers-campaign step 3 — PRE-carve anchors for "the Solution carries
-its posing".
+r"""Consumers-campaign step 3 — anchors for "the Solution carries its posing"
+(authored PRE-carve; since U2 landed, 2026-09-17, the RECORD rows are gone and
+the RULED rows are the carve's witnesses).
 
 Campaign: ``.claude/plans/consumers_step3_design.md`` (§3 the design, §5 the
 rulings, §6.4 the landable units U1–U7).
@@ -17,26 +18,26 @@ a ray representative, λ and the normalisation **gauge** that picked the
 representative; a source Solution carries the coset representative and the
 kernel gauge.  Never ``keff is not None``.
 
-Today the kind is a PROPERTY of a nullable field
-(:meth:`~orpheus.sn.solution.SolutionBase.is_eigenvalue` = ``keff is not
-None``), the normalisation that picked the representative is recorded
-NOWHERE, the multiplying-source entry measures its admissibility ``k`` and
-drops it, and the two adjoint arms pose two different objects.  These rows
-freeze that, exactly, so the carve is LOUD.
+⛔ Until step 3 U2 (2026-09-17) the kind was a PROPERTY of a nullable field
+(``is_eigenvalue()`` = ``keff is not None``), the normalisation that picked
+the representative was recorded NOWHERE, the multiplying-source entry measured
+its admissibility ``k`` and dropped it, and the two adjoint arms posed two
+different objects.  The RECORD rows froze that, exactly, so the carve was
+LOUD; they went RED at U2 and were deleted with it.
 
 The two row kinds, and why each exists
 ======================================
 
-**RECORD** (``TestRecord*``) — green at the time of writing, describing the
-pre-carve tree exactly.  Each is *designed to RED at the carve* and is then
-**DELETED, never repaired**: its job is to make the API change loud, because a
+**RECORD** (``TestRecord*``, none left) — green when written, describing the
+pre-carve tree exactly.  Each was *designed to RED at the carve* and was then
+**DELETED, never repaired** (``[M]`` 11 rows, 31 → 20 at U2): its job is to make the API change loud, because a
 ``strict`` xfail only flips on XPASS and is therefore SILENT when the carve
 lands the API with the wrong semantics (``vv-principles`` Mode-8, fourth
 class; the step-2 module's own pairing shape).
 
-**RULED** (``TestRuled*``, ``xfail(strict=True)``) — the ruled post-carve
-behaviour, RED until its unit lands; each is paired with the RECORD row that
-states the pre-carve answer.  Every one is asserted over
+**RULED** (``TestRuled*``) — the ruled post-carve behaviour, carried as
+``xfail(strict=True)`` until its unit landed (the markers came off at U2); each
+was paired with the RECORD row that stated the pre-carve answer.  Every one is asserted over
 ``dataclasses.fields`` / TYPES / counting spies, **never over a name the
 carve gets to choose** — step 2's O-2/O-4 lesson.
 
@@ -372,7 +373,7 @@ class TestFilterTheScannersFindAPlantedMember:
 def _hub_k() -> float:
     """``[M]`` the subcritical slab's k, through the hub's own eigen solve."""
     materials, mesh, quadrature = _slab()
-    keff = solve_sn(materials, mesh, quadrature).keff
+    keff = solve_sn(materials, mesh, quadrature).outcome.keff
     if keff is None:  # pragma: no cover - the fixture is fissile by choice
         raise RuntimeError("the anchor fixture stopped being an eigenproblem")
     return float(keff)
@@ -398,298 +399,6 @@ def _multiplying_solution_truncated() -> Solution:
 # ═══════════════════════════════════════════════════════════════════════
 # RECORD — today's tree, stated exactly.  DELETE these at the carve.
 # ═══════════════════════════════════════════════════════════════════════
-
-
-class TestRecordTheCarriersShape:
-    """The six fields, the two role leaves, and the three Optionals.
-
-    ``[M]`` ``probes/p6_anchor_facts.py`` at ``d946ba9d``::
-
-        angular_flux           'TimedFullField'
-        scalar_flux            'ScalarFlux'
-        mesh                   'SNMesh'
-        keff                   float | None
-        history                IterationHistory | None
-        radial_characteristic  'RadialCharacteristicField | None'
-
-    subclasses: ``['Solution', 'AdjointSolution']`` — ⚠ the campaign charter's
-    *"every SolutionBase subclass across the six method families"* was a wrong
-    premise; there are exactly TWO and both are SN (census §2.6).
-    """
-
-    _EXPECTED = (
-        "angular_flux", "scalar_flux", "mesh", "keff", "history",
-        "radial_characteristic",
-    )
-
-    def test_record_the_six_fields(self) -> None:
-        """RECORD — the field NAMES and their order."""
-        names = tuple(f.name for f in dataclasses.fields(SolutionBase))
-        _require(
-            names == self._EXPECTED,
-            f"the carrier's field list moved: {names} != {self._EXPECTED}. "
-            f"If step 3 landed, DELETE this row (its ruled successor is "
-            f"TestRuledTheKindIsTheOutcomesType).",
-        )
-
-    def test_record_three_fields_are_optional_by_KIND(self) -> None:
-        """RECORD — ``keff``/``history``/``radial_characteristic`` are
-        ``| None``, and that Optionality is what encodes the kind today."""
-        optional = tuple(
-            f.name for f in dataclasses.fields(SolutionBase)
-            if "None" in str(f.type)
-        )
-        _require(
-            optional == ("keff", "history", "radial_characteristic"),
-            f"the Optional-by-kind field set moved: {optional}.",
-        )
-
-    def test_record_exactly_two_role_leaves(self) -> None:
-        """RECORD — the ROLE is a type (#276 A5); the KIND is not."""
-        leaves = sorted(c.__name__ for c in SolutionBase.__subclasses__())
-        _require(
-            leaves == ["AdjointSolution", "Solution"],
-            f"the role leaves moved: {leaves} — step 3 keeps TWO leaves "
-            f"(the role axis), it does not add kind leaves (§3.2).",
-        )
-        _require(
-            issubclass(Solution, SolutionBase)
-            and issubclass(AdjointSolution, SolutionBase),
-            "the two leaves must still be SolutionBase subclasses.",
-        )
-
-    def test_record_the_kind_is_read_off_the_nullable_keff(self) -> None:
-        """RECORD — ``is_eigenvalue()`` IS ``keff is not None``, on a real
-        pair of solves rather than by reading the source."""
-        materials, mesh, quadrature = _slab()
-        eigen = solve_sn(materials, mesh, quadrature)
-        fixed = solve_sn_fixed_source(
-            materials, mesh, quadrature, _uniform_source(quadrature, 2, 8),
-        )
-        _require(
-            eigen.is_eigenvalue() and eigen.keff is not None,
-            "the eigen entry stopped reporting a keff.",
-        )
-        _require(
-            fixed.is_fixed_source() and fixed.keff is None,
-            "the fixed-source entry stopped reporting keff=None.",
-        )
-        _require(
-            type(eigen) is type(fixed) is Solution,
-            f"today BOTH kinds are the same TYPE ({type(eigen).__name__} / "
-            f"{type(fixed).__name__}) — that is exactly what step 3 ends.",
-        )
-
-
-class TestRecordTheMultiplyingEntryDropsItsK:
-    r"""``solve_sn_multiplying_source`` measures its admissibility ``k`` and
-    throws it away.
-
-    ``[M]`` ``probes/p6_anchor_facts.py``: the returned ``Solution.keff`` is
-    ``None`` and ``is_fixed_source()`` is ``True`` while the hub's own k-solve
-    — which the entry RAN, at ``solver.py:3546``, to certify
-    :math:`\rho(A^{-1}F) < 1` — reads ``0.9074575729668507``.  ⟹ the
-    ``(M, q)`` cell's Solution is indistinguishable from a pure-transport one
-    **by its own data**.
-    """
-
-    def test_record_the_admissibility_k_is_not_on_the_solution(self) -> None:
-        """RECORD — the k is measurable only by RE-RUNNING the eigen solve."""
-        solution = _multiplying_solution_truncated()
-        _require(
-            solution.keff is None,
-            f"the multiplying entry now reports keff={solution.keff!r} — if "
-            f"step 3 landed, DELETE this row.",
-        )
-        k = _hub_k()
-        _require(
-            0.0 < k < 1.0,
-            f"non-vacuity: the fixture's k = {k!r} must be SUBCRITICAL, or "
-            f"the entry refuses and this row measures a raise.",
-        )
-        _require(
-            abs(k - 0.907457573) < 1e-6,
-            f"the fixture's k moved: {k!r} vs the recorded 0.907457573.",
-        )
-
-
-class TestRecordTheMultiplyingEntryIsSilent:
-    """The fifth entry bypasses the hoisted convergence warning.
-
-    ``[M]`` ``probes/p6_anchor_facts.py`` on the SAME truncated configuration
-    (``inner_tol=1e-12``, ``max_inner=5``):
-    ``solve_sn_multiplying_source`` → ``converged=False``, **0 warnings**;
-    ``solve_sn_fixed_source`` → ``converged=False``, **1 ConvergenceWarning**.
-    The silence is gated as CORRECT today by the 7-site pin
-    (``tests/numerics/test_family_convergence_contract.py:685``).
-    """
-
-    def test_record_the_multiplying_entry_warns_on_NOTHING(self) -> None:
-        """RECORD — a truncated multiplying solve is silent; its sibling is
-        not.  The paired reading is the point: a bare "0 warnings" could be a
-        fixture that converged."""
-        materials, mesh, quadrature = _slab()
-        source = _uniform_source(quadrature, 2, 8)
-        caught_by_entry: dict[str, list[str]] = {}
-        converged: dict[str, bool] = {}
-        for label, entry in (
-            ("multiplying", solve_sn_multiplying_source),
-            ("fixed_source", solve_sn_fixed_source),
-        ):
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
-                solution = entry(
-                    materials, mesh, quadrature, source,
-                    inner_tol=1e-12, max_inner=5,
-                )
-            caught_by_entry[label] = sorted(
-                type(w.message).__name__ for w in caught
-            )
-            converged[label] = solution.converged()
-        _require(
-            converged == {"multiplying": False, "fixed_source": False},
-            f"non-vacuity: BOTH solves must be truncated, else 'no warning' "
-            f"is the correct answer; got {converged}.",
-        )
-        _require(
-            caught_by_entry["multiplying"] == [],
-            f"the multiplying entry now warns ({caught_by_entry['multiplying']}) "
-            f"— if step 3's U2 landed the hoisted warnings, DELETE this row.",
-        )
-        _require(
-            caught_by_entry["fixed_source"] == ["ConvergenceWarning"],
-            f"the SIBLING entry must warn on the same truncation, or this row "
-            f"is measuring a fixture that cannot warn; got "
-            f"{caught_by_entry['fixed_source']}.",
-        )
-
-
-class TestRecordTheMultiplyingEntryIsSilentOnAGAUGESINGULARHub:
-    r"""The sharper half of the same silence — and the §6c witness U2's new
-    ``warn_if_gauge_freedom`` row will need.
-
-    A gauge-singular SUBCRITICAL FISSILE hub is CONSTRUCTIBLE (``[M]``
-    ``probes/p7_gauge_singular_subcritical.py``: the ledger's 2-D
-    all-reflective ``(3, 4)`` box with a dilute fissile mixture reads
-    ``gauge_freedom(hub).present = True`` at every dilution and
-    ``k = 0.003 … 0.15``), so the multiplying entry both RUNS and GAUGES there:
-
-    =========================  =================  ==========
-    entry                       gauge_correction   warnings
-    =========================  =================  ==========
-    ``…_multiplying_source``    6.080482952671906e-02   **none**
-    ``…_fixed_source``          6.080482952672409e-02   ``GaugeFreedomWarning``
-    =========================  =================  ==========
-
-    ⟹ the repair FIRES on the fifth entry and nobody is told.  The paired
-    reading is what makes the row non-vacuous: a bare "0 warnings" could be a
-    hub with no kernel.
-    """
-
-    _CELLS = (3, 4)
-
-    @staticmethod
-    def _dilute_fissile(ng: int = 2):
-        """Fissile enough to be admitted, dilute enough to stay SUBCRITICAL —
-        an all-reflective box of any library mixture is supercritical
-        (``k_inf = 1.875`` for ``A``) and the entry would REFUSE."""
-        from orpheus.derivations.common.xs_library import make_mixture
-
-        sig_t = np.linspace(0.8, 1.6, ng)
-        sig_f = 0.05 * np.ones(ng)
-        return make_mixture(
-            sig_t=sig_t, sig_c=sig_t - sig_f, sig_f=sig_f,
-            nu=2.4 * np.ones(ng),
-            chi=np.array([1.0] + [0.0] * (ng - 1)),
-            sig_s=np.zeros((ng, ng)),
-        )
-
-    def _hub_and_source(self):
-        from orpheus.geometry import Mesh2D
-
-        quadrature = Quadrature.level_symmetric(sn_order=4)
-        reflective = BC("reflective")
-        mesh = Mesh2D(
-            edges_x=np.linspace(0.0, 1.0, self._CELLS[0] + 1),
-            edges_y=np.linspace(0.0, 2.0, self._CELLS[1] + 1),
-            mat_map=np.zeros(self._CELLS, dtype=int),
-            bc_xmin=reflective, bc_xmax=reflective,
-            bc_ymin=reflective, bc_ymax=reflective,
-        )
-        materials = {0: self._dilute_fissile()}
-        source = np.full(
-            (quadrature.weights.size, 2) + tuple(self._CELLS),
-            1.0 / float(quadrature.weights.sum()),
-        )
-        return materials, mesh, quadrature, source
-
-    def test_record_the_gauge_fires_and_the_entry_says_nothing(self) -> None:
-        """RECORD — the gauge repair runs on the fifth entry; the warning the
-        other four emit does not."""
-        from orpheus.sn.operators.loss_kernel_gauge import gauge_freedom
-
-        materials, mesh, quadrature, source = self._hub_and_source()
-        hub = _as_sn_mesh(mesh, quadrature, materials, None)
-        _require(
-            gauge_freedom(hub).present,
-            "non-vacuity: this hub is NOT gauge-singular, so 'no warning' is "
-            "the correct answer and the row proves nothing (an ODD first axis "
-            "and ≥2 reflective axis pairs are what excite the kernel).",
-        )
-        # ``lessons`` L44k: a ``**kwargs`` splat from an untyped dict is the
-        # anti-#4 stringly-typed shape pyright cannot read — the two entries
-        # are called EXPLICITLY, which also makes their differing signatures
-        # (the fifth entry takes no ``inner_solver``) visible.
-        def _run(is_multiplying: bool) -> tuple[list[str], float | None]:
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
-                if is_multiplying:
-                    solution: Solution = solve_sn_multiplying_source(
-                        materials, mesh, quadrature, source,
-                        boundary_condition=None,
-                        inner_schedule="gauss_seidel",
-                        inner_tol=1e-13, max_inner=400_000,
-                    )
-                else:
-                    solution = solve_sn_fixed_source(
-                        materials, mesh, quadrature, source,
-                        boundary_condition=None,
-                        inner_solver="source_iteration",
-                        inner_schedule="gauss_seidel",
-                        inner_tol=1e-13, max_inner=400_000,
-                    )
-            history = solution.history
-            return (
-                sorted(type(w.message).__name__ for w in caught),
-                None if history is None else history.gauge_correction,
-            )
-
-        mult_warnings, mult_gauge = _run(True)
-        fixed_warnings, fixed_gauge = _run(False)
-        _require(
-            mult_gauge is not None and mult_gauge > 1e-3,
-            f"non-vacuity: the multiplying entry's gauge did NOT fire "
-            f"({mult_gauge!r}) — the silence would then be correct.",
-        )
-        assert mult_gauge is not None  # narrowing for pyright
-        _require(
-            "GaugeFreedomWarning" in fixed_warnings,
-            f"the SIBLING entry did not warn on this hub ({fixed_warnings}) — "
-            f"the fixture cannot see the asymmetry this row is about.",
-        )
-        _require(
-            mult_warnings == [],
-            f"the multiplying entry now warns ({mult_warnings}) — if U2 "
-            f"hoisted the warnings onto it, DELETE this row and keep the "
-            f"fixture: it is the §6c witness for the new row.",
-        )
-        _require(
-            fixed_gauge is not None
-            and abs(mult_gauge - fixed_gauge) < 1e-9 * abs(fixed_gauge),
-            f"the two entries gauge DIFFERENT amounts ({mult_gauge!r} vs "
-            f"{fixed_gauge!r}) — they no longer share the exit path, so the "
-            f"ledger's exemption prose for the fifth entry is stale.",
-        )
 
 
 class TestRecordTheFourProductionRateFunctionals:
@@ -846,187 +555,6 @@ class TestRecordNothingRecordsWhichGaugeApplied:
         )
 
 
-class TestRecordTheAdjointArmsAreAsymmetric:
-    r"""The seedless adjoint iterates on a BARE carrier, the carrying one on
-    the coupled carrier — #467's subject.
-
-    ``[M]`` ``probes/p2_adjoint_1x1_lift.py`` and ``probes/p3_typed_residual.py``:
-    ``_adjoint_posing_parts`` returns a ``FullField`` template on the slab and
-    a ``CoupledField`` template on the carrying sphere, while the hub's own
-    ``system.space`` is a ONE-system ``CoupledSpace`` in both cases.
-    """
-
-    def test_record_the_two_arms_return_different_carrier_types(self) -> None:
-        """RECORD — the arm asymmetry, read off the shipped helper."""
-        slab_materials, slab_mesh, quadrature = _slab()
-        sphere_materials, sphere_mesh, _ = _carrying_sphere()
-        seedless = _as_sn_mesh(slab_mesh, quadrature, slab_materials)
-        carrying = _as_sn_mesh(sphere_mesh, quadrature, sphere_materials)
-        _require(
-            seedless.radial_characteristic_field_space is None,
-            "the slab hub started carrying System B — the arm split moved.",
-        )
-        _require(
-            carrying.radial_characteristic_field_space is not None,
-            "the sphere hub stopped carrying System B — this row's carrying "
-            "arm is measuring a seedless mesh.",
-        )
-        _, _, _, seedless_template = _adjoint_posing_parts(seedless)
-        _, _, _, carrying_template = _adjoint_posing_parts(carrying)
-        _require(
-            isinstance(seedless_template, FullField)
-            and not isinstance(seedless_template, CoupledField),
-            f"the seedless adjoint template is "
-            f"{type(seedless_template).__name__}, not a bare FullField — if "
-            f"U5 landed the 1×1 lift, DELETE this row.",
-        )
-        _require(
-            isinstance(carrying_template, CoupledField),
-            f"the carrying adjoint template is "
-            f"{type(carrying_template).__name__}, not a CoupledField.",
-        )
-        _require(
-            len(seedless.system.space._require_systems()) == 1,
-            "the seedless hub's own system space is a ONE-system "
-            "CoupledSpace — that is what makes the 1×1 lift spellable.",
-        )
-
-
-class TestRecordTheEigenScalarFluxIsNotTheAngularIntegral:
-    r"""The eigen exit packages the POWER ITERATION's φ, not :math:`\int\psi
-    d\Omega` of the ψ it returns.
-
-    ``[M]`` ``probes/p1_scalar_flux_vs_integral.py`` over the 16 finalize
-    cases: ``array_equal`` **0 of 16**, worst relative gap **7.4094e-11** (the
-    ``cart2d_L0`` arm), all well inside the pins' band
-    (``SAFETY(10) × flux_tol = 1e-8``) — so U4's derivation is a principled
-    re-read whose pins hold, and whose ``DriftWarning`` tripwire will fire on
-    every one of them.
-
-    This row runs TWO of the sixteen (a slab and a CARRYING sphere — the
-    marginal-axes and ray guards differ) so the record is cheap and the
-    campaign's own probe carries the full table.
-    """
-
-    @pytest.mark.parametrize(
-        "fixture", ["slab", "carrying_sphere"],
-    )
-    def test_record_the_two_flux_members_disagree(self, fixture: str) -> None:
-        """RECORD — the two members are NOT the same object, and the gap is
-        the convergence residual, not a bug."""
-        materials, mesh, quadrature = (
-            _slab() if fixture == "slab" else _carrying_sphere()
-        )
-        solution = solve_sn(
-            materials, mesh, quadrature,
-            keff_tol=1e-10, flux_tol=1e-9, inner_tol=1e-11,
-        )
-        stored = np.asarray(solution.scalar_flux.values, dtype=float)
-        interior = solution.angular_flux.interior
-        _require(
-            isinstance(interior, AngularFlux),
-            f"the eigen carrier's interior is {type(interior).__name__}, not "
-            f"an AngularFlux — ∫ψ dΩ is not spellable on it and U4's "
-            f"derivation would need a different reduction.",
-        )
-        assert isinstance(interior, AngularFlux)  # narrowing for pyright
-        derived = np.asarray(
-            interior.integrate_angular().values, dtype=float,
-        )
-        _require(
-            stored.shape == derived.shape,
-            f"the two members' shapes diverged: {stored.shape} vs "
-            f"{derived.shape} — the derivation is not a re-read.",
-        )
-        _require(
-            not np.array_equal(stored, derived),
-            "the stored φ became bit-identical to ∫ψ dΩ — if U4 landed the "
-            "derivation, DELETE this row.",
-        )
-        relative = float(
-            np.max(np.abs(stored - derived) / np.maximum(np.abs(stored), 1e-300))
-        )
-        _require(
-            relative < 1e-8,
-            f"the gap {relative:.4e} exceeds the pins' own band "
-            f"(SAFETY×flux_tol = 1e-8) — U4's 'principled re-read' claim does "
-            f"not hold on this fixture.",
-        )
-
-
-class TestRecordTheMultiplyingEntrysBalanceReadsTheLOSS:
-    r"""⛔ The certificate's number MOVES on the fifth entry — the plan's
-    *"NO reported number changes"* holds for four of five.
-
-    Today the fixed-source arms hand ``_exit_balance_defect`` the hub's LOSS
-    (``system.loss`` / its bare arm, ``solver.py:3792``), so the multiplying
-    entry — whose own equation is :math:`(A - F)\psi = q` — reports the
-    imbalance of a DIFFERENT equation.  Step 3 records
-    ``hub.source_posing(q)`` on that entry, whose operator is
-    ``pencil.at(1.0) = A − F``.
-
-    ``[M]`` ``probes/p6_anchor_facts.py`` on the truncated subcritical slab:
-
-    * today, against :math:`A`   — **0.8294593510371534** (bit-identical to
-      the number ``IterationHistory.balance_defect`` actually carries);
-    * the design, against :math:`A - F` — **0.8758249879057027** (+5.59 %).
-
-    The design's number is the HONEST one; the point of the row is that the
-    change is real, predicted, and must be gated rather than asserted away.
-    """
-
-    def test_record_the_reported_defect_is_the_loss_imbalance(self) -> None:
-        """RECORD — reproduce the reported number from ``A`` alone, and show
-        ``A − F`` gives a different one on the same iterate."""
-        solution = _multiplying_solution_truncated()
-        history = solution.history
-        _require(history is not None, "the entry stopped carrying a history.")
-        assert history is not None  # narrowing for the type checker
-        reported = history.balance_defect
-        _require(
-            reported is not None,
-            "non-vacuity: the fixture must be TRUNCATED, else the defect is "
-            "None by design and this row compares two Nones.",
-        )
-        materials, mesh, quadrature = _slab()
-        sn_mesh = _as_sn_mesh(mesh, quadrature, materials)
-        source = _build_fixed_source_rhs(
-            _uniform_source(quadrature, 2, 8), sn_mesh,
-        )
-        state = CoupledField(systems=(solution.angular_flux,))
-        source_rate = _balance_projection(source, sn_mesh=sn_mesh)
-        denominator = float(np.linalg.norm(np.asarray(source_rate)))
-        _require(denominator > 0.0, "the source rate integrates to zero.")
-
-        def defect(operator) -> float:
-            applied = operator.apply(state).systems[0]
-            per_group = (
-                _balance_projection(applied, sn_mesh=sn_mesh) - source_rate
-            )
-            return float(np.linalg.norm(np.asarray(per_group))) / denominator
-
-        against_loss = defect(sn_mesh.pencil.at(0.0))
-        against_posing = defect(sn_mesh.pencil.at(1.0))
-        _require(
-            against_loss == reported,
-            f"the reported defect {reported!r} is no longer the LOSS "
-            f"imbalance {against_loss!r} — the instrument this row reproduces "
-            f"has moved (recorded: 0.8294593510371534).",
-        )
-        _require(
-            against_posing != against_loss,
-            f"non-vacuity: the fixture's fission term vanished, so A and A−F "
-            f"agree ({against_loss!r}) and this row cannot see the change. "
-            f"Use a SUBCRITICAL fissile hub with k near 1.",
-        )
-        shift = abs(against_posing - against_loss) / against_loss
-        _require(
-            shift > 1e-3,
-            f"the A vs A−F shift collapsed to {shift:.4e}; recorded 5.59e-02 "
-            f"at k = 0.907. A near-critical hub is what makes this visible.",
-        )
-
-
 class TestRecordThePureTransportPosingIsTheLOSS:
     r"""F11's identity read, and the Pattern-2 reconciliation, both measured.
 
@@ -1125,11 +653,6 @@ class TestRecordThePureTransportPosingIsTheLOSS:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="U2 (F4): the kind becomes the OUTCOME's type; `keff` retires "
-           "from the base and a source Solution has no `.keff` at all.",
-)
 class TestRuledTheKindIsTheOutcomesType:
     """§3.1 F4 / §3.2 — asserted over ``dataclasses.fields``, never over the
     name the carve picks for the outcome member."""
@@ -1169,11 +692,6 @@ class TestRuledTheKindIsTheOutcomesType:
         )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="U2 (F5): the eigen Solution records the SECTION that picked its "
-           "representative — a functional and the target it was scaled to.",
-)
 class TestRuledTheEigenSolutionRecordsItsGauge:
     r"""§3.1 F5 — the gauge is an OBJECT (``ScaleGauge(functional, target)``,
     ``apply``/``displacement``), and the functional is *the object that ran*,
@@ -1218,11 +736,6 @@ class TestRuledTheEigenSolutionRecordsItsGauge:
         )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="U2 (§3.3): the multiplying entry records the admissibility k it "
-           "measured, as Certified(k, keff_tol).",
-)
 class TestRuledTheMultiplyingSolutionRecordsItsAdmissibility:
     """§3.1 / §3.3 — asserted by SEARCHING the answer for the number
     (:func:`_declared_numeric_data`, validated against a planted scalar), so
@@ -1243,11 +756,6 @@ class TestRuledTheMultiplyingSolutionRecordsItsAdmissibility:
         )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="U5 (#467): both adjoint arms pose ONE object — the hub's own "
-           "eigen_posing, daggered.",
-)
 class TestRuledBothAdjointArmsPoseTheHubsDaggeredQuestion:
     r"""§3.1 / §3.3 — a COUNTING SPY on
     :meth:`~orpheus.numerics.posing.EigenPosing.H`, because the claim is about
@@ -1289,7 +797,7 @@ class TestRuledBothAdjointArmsPoseTheHubsDaggeredQuestion:
             adjoint = solve_sn_adjoint(
                 materials, mesh, quadrature, keff_tol=1e-9, flux_tol=1e-8,
             )
-            evidence.append(f"k_adj={adjoint.keff!r}")
+            evidence.append(f"k_adj={adjoint.outcome.keff!r}")
         except Exception as exc:  # noqa: BLE001 — evidence, not the verdict
             evidence.append(f"the adjoint solve raised {exc!r}")
         _require(
@@ -1300,11 +808,6 @@ class TestRuledBothAdjointArmsPoseTheHubsDaggeredQuestion:
         )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="U4 (F3): the state is stored WHOLE; the flux members and the ray "
-           "member become derived, so the presence biconditional is deleted.",
-)
 class TestRuledTheStateIsStoredWhole:
     """§3.1 F3 — asserted over the FIELD set plus the descriptor type; the
     arity derivation itself is U4's own gate."""

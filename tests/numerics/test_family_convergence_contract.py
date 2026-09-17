@@ -682,12 +682,16 @@ class TestEveryEntryCallsTheHelperCorrectly:
         # (source_iteration / krylov) and ONE emission, because #340 N4.7
         # hoisted the call out of both private arms into the entry. Counting
         # arms instead of sites is how this assertion was first written wrong.
-        assert len(sites) == 7, (
-            "expected 7 emission sites — 4 SN entries (solve_sn, "
+        # step 3 U2 (2026-09-17): the FIFTH SN entry, solve_sn_multiplying_source,
+        # gained its hoisted emission — [M] until then it returned the SI arm's
+        # Solution directly and was SILENT on a truncated solve (the step-3
+        # anchors recorded the silence beside its sibling's warning).
+        assert len(sites) == 8, (
+            "expected 8 emission sites — 5 SN entries (solve_sn, "
             "solve_sn_adjoint, solve_sn_adjoint_fixed_source, "
-            "solve_sn_fixed_source) + cp + moc + diffusion. A count of 8 "
-            "usually means the fixed-source arms each warn again; a count of 6 "
-            f"means an entry went silent. Found {len(sites)}: {sites}"
+            "solve_sn_fixed_source, solve_sn_multiplying_source) + cp + moc + "
+            "diffusion. A count of 9 usually means a fixed-source arm warns "
+            f"again; a count of 7 means an entry went silent. Found {len(sites)}: {sites}"
         )
         private = [(p, f) for p, f, _ in sites if f.startswith("_")]
         assert not private, (

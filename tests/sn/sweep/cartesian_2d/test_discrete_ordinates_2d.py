@@ -76,7 +76,7 @@ def test_do_mesh_convergence(ng_key, label):
             inner_solver="source_iteration",
             max_outer=300, inner_tol=1e-6,
         )
-        keffs.append(result.keff)
+        keffs.append(result.outcome.keff)
 
     diffs = [abs(keffs[i] - keffs[i + 1]) for i in range(len(keffs) - 1)]
     assert diffs[-1] < diffs[0], (

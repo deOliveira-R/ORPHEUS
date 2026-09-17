@@ -15,6 +15,29 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 
 ## 1. Ground truth is the LIVE tree — every other surface lies eventually
 
+- **⭐⭐ A "the artefacts were RE-BASELINED" claim is a claim about the TREE — `git status` is
+  the one-command refutation, and the refutation hands you a BETTER measurement.** Brief and a
+  brand-new docstring both said the 16 finalize `.npy` were re-baselined; `[M]` **0 files
+  modified**, `git log` stops at #448's commit. Because they did NOT move, a freshly-derived
+  `sol.scalar_flux` against the stored `.npy` **is** the ratio, measured on the SHIPPED reader:
+  `[M]` max rel **2.19e-11** / **2.94e-11**, `|Δk| = 0`, vs the pins' `1e-8` — 457×/340×
+  headroom, not the memo's 135× (its 7.4094e-11 answers a different, pre-carve expression).
+  ⟹ L-109's "re-run the RETIRED expression" has a cheaper sibling: **re-run the NEW expression
+  against the UNCHANGED reference.** → L-110
+- **⭐⭐ WHEN A QUOTED FIGURE WON'T REPRODUCE, FIND THE PARAMETER AND PUBLISH THE CURVE.**
+  `"[M] 1.4e-8 at the default tolerances"` wouldn't reproduce; a 2-point sweep (monkeypatch spy
+  on `ScaleGauge.apply`, tree untouched) read **3.93e-8** at defaults and **1.07e-10** three
+  orders tighter ⟹ the displacement IS the outer residual, which is the publishable claim. A
+  single figure without its tolerances is one point on a curve wearing a constant's authority —
+  and the curve EXPLAINED the sibling artefact measurement above. → L-110
+- **⚠ THE PROJECT XREF GATE IS BLIND TO A DEAD ROLE AT A PRIVATE NAME.** `[M]`
+  `:func:`~…solver._exit_balance_defect`` for a function this carve deleted: the gate reports 2
+  dead targets and not that one. A supplement probe (2 positive controls: dead private must
+  fail, live private must pass) finds it — but its raw list is 90 % **annotation-only dataclass
+  fields** (`getattr(cls, 'mesh')` raises where `dataclasses.fields` lists it), which the
+  project tool excludes on purpose. ⟹ gate = acceptance, probe = supplement, never publish the
+  probe's raw list. → L-110
+
 - **⭐⭐ RE-DERIVE EVERY NUMERIC LITERAL THE PASS PUBLISHES, IN ONE SCRIPT, AT THE END.**
   Two live catches from one run: a `1g k_inf = 0.9375` I had **invented** (`[M]` 1.5), and
   *"the SECOND displacement reads 1.0000000000000002"* — `[M]` the second is **1.0**; that
@@ -2592,6 +2615,28 @@ each hit's ENCLOSING SECTION: "is the PREMISE still true?"**
   `== sorted(...)`. Free, and the only thing that sees the mistake. → L-076
 
 ## 6. Match the doc SHAPE to the event class
+
+- **⭐ AN ERR FOR A DEFECT OF *SILENCE* EARNS ITS ENTRY; A DEFECT OF *ABSENCE* DOES NOT — the
+  discriminator is "can it be re-introduced and reddened?"** U2 produced three candidates.
+  MINTED ERR-086: a public entry bypassed the hoisted warning site, so a truncated /
+  gauge-singular answer came back with no diagnostic while every sibling warned (ERR-053
+  audibility class, failure mode #6, measured as a sibling-pair contrast on ONE hub). NOT
+  minted: the unrecorded gauge and the dropped admissibility `k` — no wrong number shipped, so
+  a "catcher" would be an existence assertion. ⭐ The entry's best content was the hiding
+  mechanism: **a COUNT gate over an inventory pins whatever inventory it was written against**
+  (`len(sites) == 7`, comment naming "4 SN entries"), so the omission read as intentional; the
+  sibling gate that got it right compares a DISCOVERED set against a ledger. → L-110
+- **⚠ A LEDGER ROW'S "declared inheritance" is only as narrow as the PROPERTY it names** — "it
+  gauges its trace on that same exit path" was true of the mutation (in the arm) and silent
+  about the warning (hoisted to the entry). One call chain, two properties. → L-110
+- **⭐ WHEN AN "X is arm-asymmetric BY DESIGN" ARGUMENT IS DISSOLVED: keep the table, flip the
+  verbs, add the price.** Retitle *"asymmetric UNTIL U2"*, keep the ⛔ paragraph as *why the
+  obvious spelling failed*, then state what the deferral said it needed. Price it honestly:
+  `[M]` rel ≈ 1e-15 against 1e-9 gates, `array_equal` **False** — principled equivalence, never
+  bit-identity. → L-110
+- **⚠ A TABLE OF DEFERRALS is the highest-rot surface on a theory page** — every row is a
+  prediction. `[M]` two "⚠ half discharged" rows were both stale, one by TWO campaigns. Audit
+  it whenever the owning campaign lands anything; close with ✅ + date, never by deleting. → L-110
 
 - **⭐⭐ THE ANSWER TIER IS NOT A NEW LAYER — say so where the LAYER COUNT lives.** Briefed
   "add the SOLUTION tier to the four-tier table"; the table is TITLED *four-tier* and carries

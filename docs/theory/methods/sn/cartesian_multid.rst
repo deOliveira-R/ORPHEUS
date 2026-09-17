@@ -4905,10 +4905,11 @@ The analytic Jacobi anchor (:eq:`si-spectral-rate`) predicts
 measured 655 gives ratio **0.90** — the finite-slab leakage +
 multigroup correction discussed with the SI-rate derivation
 (:doc:`slab_one_group`).  The
-**eigenvalue** path surfaces the analogous measurand via
-:attr:`IterationHistory.total_inner_iterations
-<orpheus.sn.solution.IterationHistory.total_inner_iterations>`
-(the Phase 3 measurement seam): A-2g reflective :math:`n=10` gives
+**eigenvalue** path surfaces the analogous measurand by summing the
+outer :attr:`record <orpheus.sn.solution.SolutionBase.record>`'s
+children (the Phase 3 measurement seam; the flat
+``IterationHistory.total_inner_iterations`` reading survives as a view
+until step 3's unit U6): A-2g reflective :math:`n=10` gives
 SI ``total_inner`` 371, Krylov 310 (with :math:`n_{\rm outer}=3` for
 both — the **outer** count is splitting-invariant; the inner SI count
 is where the recovery shows).
@@ -5628,11 +5629,15 @@ What ships
        not be classified.  Deliberately **not** a
        :class:`~orpheus.numerics.convergence.ConvergenceWarning`: the
        solve converged perfectly and the ambiguity is in the *equation*
-   * - :attr:`IterationHistory.gauge_correction <orpheus.sn.solution.IterationHistory.gauge_correction>`
-     - the measured :math:`\lVert\Pi\psi\rVert/\lVert\psi\rVert`.
-       ``None`` means **not measured**, never *"measured and zero"* — the
-       :attr:`balance_defect <orpheus.sn.solution.IterationHistory.balance_defect>`
-       discipline
+   * - :attr:`ExitCertificate.gauge <orpheus.numerics.outcome.ExitCertificate.gauge>`
+     - the measured :math:`\lVert\Pi\psi\rVert/\lVert\psi\rVert` as typed
+       :class:`~orpheus.numerics.outcome.Evidence`.  A
+       :class:`~orpheus.numerics.outcome.Measured` zero-ish value and
+       "nothing was measured" are **different values**, and since
+       2026-09-17 so are the two REASONS nothing was: *no kernel freedom*
+       versus *the closure is unclassifiable, so the trace was NOT
+       gauged*.  ⛔ All three were one ``None`` on
+       ``IterationHistory.gauge_correction`` before
 
 The three-state predicate is not ceremony.  ``[M]``
 ``linear_discontinuous`` **damps** the face mode at :math:`d=2`

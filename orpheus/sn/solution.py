@@ -14,20 +14,23 @@ places — a twin path waiting for drift (``coding-elegance`` anti-pattern
 1: "two implementations of the same mathematical quantity").
 
 Under PR-TYPED-5, **one carrier** (:class:`SolutionBase`, through both
-role leaves) covers both problem kinds.  The kind discrimination lives
-in two methods — :meth:`SolutionBase.is_eigenvalue` and
-:meth:`SolutionBase.is_fixed_source` — that read the optional
-:attr:`keff`.  The convergence-trajectory diagnostics live on a
-separate :class:`IterationHistory`, exposed through method-style
-accessors :meth:`SolutionBase.dominance_ratio` and
-:meth:`SolutionBase.converged`.
+role leaves) covers both problem kinds.  Since step 3 of the consumers
+campaign (2026-09-17) the carrier is the pair (Problem, posing) plus the
+Strategy that produced it and the records — ``mesh``, a kind-typed
+``outcome`` (the question, the returned STATE, the answer and the gauge that
+picked the representative), ``strategy``, ``certificate`` and ``record`` —
+and the KIND is the outcome's TYPE.  ⛔ Until step 3 the kind was read off
+an optional ``keff`` through ``is_eigenvalue()`` / ``is_fixed_source()``, and
+the flux members were stored fields; they are DERIVED readers of the state
+now, and the convergence diagnostics read the :class:`IterationRecord`
+directly (:class:`IterationHistory` survives as a one-cycle view).
 
 Reads as the math (``coding-elegance`` Pattern 1 — match the algebra of
 the domain)::
 
-    sol = solve_sn(...)
-    sol.is_eigenvalue()                    # True / False
-    sol.dominance_ratio()                  # |k_n / k_{n-1}|
+    sol = solve_sn(...)                    # Solution[EigenOutcome]
+    sol.outcome.keff                       # λ under the k map
+    sol.outcome.dominance_ratio()          # |k_n / k_{n-1}|
     sol.reaction_rate_density(sig_a)       # σ · φ
     sol.compare(other, rtol=1e-12)         # SolutionDiff
 
@@ -37,13 +40,22 @@ Two discrimination axes
 The solution family discriminates along TWO independent axes, and the
 axes deliberately use DIFFERENT mechanisms:
 
-* **Problem kind** (fixed-source vs eigenvalue) is a **property** — one
-  carrier covers both kinds via the optional :attr:`SolutionBase.keff`,
-  read through :meth:`SolutionBase.is_eigenvalue` /
-  :meth:`SolutionBase.is_fixed_source`.  The two kinds share every
-  realization AND every operation (homogenizing a fixed-source flux is
-  as meaningful as homogenizing an eigenmode), so a type here would be
-  ceremony (the type-minting criterion fails on both prongs).
+* **Problem kind** (source-driven vs eigen) is a **type PARAMETER** —
+  ``SolutionBase[O]`` with ``O`` the kind-typed OUTCOME
+  (:class:`~orpheus.numerics.outcome.EigenOutcome` /
+  :class:`~orpheus.numerics.outcome.SourceOutcome`; consumers campaign
+  step 3, RULED 2026-09-14).  ⛔ Until step 3 (2026-09-17) the kind was a
+  *property*: one carrier covered both kinds via an optional ``keff``, read
+  through ``is_eigenvalue()`` / ``is_fixed_source()`` — the kind derived
+  from the ANSWER, one tier too late.  That ruling's reasoning was half
+  right and is kept here as history: the two kinds DO share every
+  operation (homogenizing a fixed-source flux is as meaningful as
+  homogenizing an eigenmode — which is why the kind is a parameter and not
+  a second pair of classes), but they do NOT share the realization: an eigen
+  answer is a RAY plus λ plus the scale section that picked the
+  representative, a source answer a COSET plus the kernel section, and their
+  adjoints differ in arity (nullary vs a detector).  A parameter carries the
+  first fact; the outcome's type carries the second; nothing is ``None``.
 
 * **Solution role** (forward vs adjoint) is a **type** —
   :class:`SolutionBase` → {:class:`Solution`, :class:`AdjointSolution`}
@@ -67,28 +79,41 @@ axes deliberately use DIFFERENT mechanisms:
   generalized perturbation / response estimation to come) its
   signature-level carrier.
 
-Mesh-binding consistency
-========================
+The state-on-domain law
+=======================
 
-:class:`SolutionBase.__post_init__` validates that every typed field
-(:attr:`angular_flux`, :attr:`scalar_flux`, :attr:`boundary_flux`)
-carries the SAME :class:`SNMesh` instance as the
-:attr:`SolutionBase.mesh`.  Mesh identity is checked via ``is`` — sharing
-a mesh by value rather than by reference is forbidden by construction
-(``coding-elegance`` Pattern 4 — illegal states unrepresentable).
+:class:`SolutionBase.__post_init__` validates ONE invariant: the outcome's
+state is an element of the Problem's coupled space (content identity —
+campaign 1 step 6), which is the space the recorded question is posed on.
+A cross-Problem pairing is refused; the flux members need no guard of their
+own because they are READ off that one state (until step 3 each stored
+field carried its own space-content check, and System B's presence was
+re-derived by a hand-written biconditional against the mesh — the state's
+ARITY answers it now, by construction).
 """
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Generic, Self, TypeVar, cast
 
 import numpy as np
 
-from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
+from orpheus.numerics.outcome import (
+    EigenOutcome,
+    Evidence,
+    ExitCertificate,
+    Measured,
+    NotApplicable,
+    SourceOutcome,
+)
 
 if TYPE_CHECKING:
     from .mesh.augmented_mesh import SNMesh
+    from .splitting import Splitting
+    from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum
     from orpheus.numerics.convergence import IterationRecord
     from orpheus.data.macro_xs.mixture import Mixture
@@ -147,8 +172,10 @@ class IterationHistory:
     balance_defect : float or None
         The returned iterate's **relative per-group neutron-balance
         defect**, :math:`\lVert R_g\rVert / \lVert Q_g\rVert` with
-        :math:`R_g = \int_V \int_{4\pi} (A\psi - q)\, d\Omega\, dV` — see
-        :func:`~orpheus.sn.solver._exit_balance_defect`.
+        :math:`R_g = \int_V \int_{4\pi} (A\psi - q)\, d\Omega\, dV` — the
+        ``Measured`` value of the certificate's ``balance`` member
+        (:func:`~orpheus.sn.solver._balance_evidence`, step 3), read back
+        into this VIEW as a float; every non-measured case reads ``None``.
 
         ``None`` in five cases, and they mean different things.  Three are
         "there is nothing to report": the tree **fully converged** (the
@@ -343,285 +370,199 @@ class IterationHistory:
         return self.flux_residuals[-1] if self.flux_residuals else None
 
 
+O = TypeVar("O", EigenOutcome, SourceOutcome)
+"""The KIND axis — a CONSTRAINED type variable with exactly the two kinds
+(consumers campaign step 3, RULED 2026-09-14): a ``Solution[EigenOutcome]``
+answers an eigen question (a ray, λ, a scale gauge), a ``Solution[SourceOutcome]``
+an affine one (a coset, a kernel gauge).  Constrained rather than bounded so a
+``Solution[Any]`` cannot smuggle a third kind in, and so pyright resolves
+``sol.outcome.keff`` to a float on the first and to an ERROR on the second."""
+
+
 @dataclass(frozen=True)
-class SolutionBase:
+class SolutionBase(Generic[O]):
     r"""Shared carrier for SN transport solutions — the role-agnostic base.
 
-    Bundles the typed flux fields + boundary state + eigenvalue (when
-    eigenvalue problem) + iteration trajectory into one frozen
-    dataclass.  Both solution ROLES share this carrier; the role is the
-    concrete type (see the module docstring's "Two discrimination
-    axes"):
+    **A Solution is the pair (Problem, posing) plus the Strategy that produced
+    it and the records** (R-cc2; step 3 of the consumers campaign, 2026-09-17):
 
-    * :class:`Solution` — the FORWARD solve (:func:`solve_sn` /
-      :func:`solve_sn_fixed_source`); :attr:`scalar_flux` is the scalar
-      flux :math:`\phi`.  Carries the forward-physics operations
-      (:meth:`~Solution.homogenize`, :meth:`~Solution.condense`,
-      :meth:`~Solution.reaction_rate_density`).
-    * :class:`AdjointSolution` — the DAGGERED solve
-      (:func:`solve_sn_adjoint` / :func:`solve_sn_adjoint_fixed_source`);
-      :attr:`scalar_flux` is the importance :math:`\varphi^*`.
+    * :attr:`mesh` — the Problem (the hub; ``SNProblem`` at #412), the base
+      point every other member is relative to;
+    * :attr:`outcome` — the kind-typed answer, FUSED with the question it
+      answered, the returned STATE and the gauge that picked the
+      representative (:class:`~orpheus.numerics.outcome.EigenOutcome` /
+      :class:`~orpheus.numerics.outcome.SourceOutcome`).  **The kind IS this
+      member's type** — never a ``keff is not None`` read off the answer, which
+      is what this class did until step 3 (see the module docstring's history);
+    * :attr:`strategy` — the Strategy VALUE the solve drove: the
+      :class:`~orpheus.sn.splitting.Splitting` (the labelled piece set, the
+      schedule); the budgets and tolerances ride the record, per level;
+    * :attr:`certificate` — what the exit MEASURED about the returned state,
+      member by member, as typed evidence
+      (:class:`~orpheus.numerics.outcome.ExitCertificate`);
+    * :attr:`record` — the Strategy's path: the
+      :class:`~orpheus.numerics.convergence.IterationRecord` tree.
 
-    ``SolutionBase`` itself is NOT instantiable: the role set is closed
-    ({forward, adjoint}) and a role-less solution is not a value that
-    exists (:meth:`__post_init__` raises ``TypeError`` on the base).
-    Role-agnostic consumers (convergence diagnostics, plotting, the
-    :meth:`compare` regression check) type against the base; consumers
-    that read the physics type against the leaf they mean.
+    Both solution ROLES share this carrier; the role is the concrete type:
+    :class:`Solution` (the FORWARD solve) carries the forward-physics
+    operations (:meth:`~Solution.homogenize`, :meth:`~Solution.condense`,
+    :meth:`~Solution.reaction_rate_density`); :class:`AdjointSolution` (the
+    DAGGERED solve) does not — the verb set differs by ROLE, which is why the
+    role is a class, and does NOT differ by KIND, which is why the kind is a
+    type PARAMETER (``coding-standards`` "Type vs property": an axis that
+    changes neither the arithmetic nor the shape may be a parameter — two
+    leaves, not four).  ``SolutionBase`` itself is NOT instantiable.
 
-    Parameters
-    ----------
-    angular_flux : TimedFullField
-        Composite iteration state — pure-Field
-        :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-        bulk paired with pure-Field
-        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-        boundary trace plus time-derivative history.
+    **The flux members are DERIVED, not stored** (RULED F3/F3b): the outcome's
+    ``state`` is the returned iterate WHOLE — the one-system coupled state on a
+    seedless mesh, the two-system one on a carrying (ray-bearing) mesh — and
+    :attr:`angular_flux`, :attr:`boundary_flux`, :attr:`radial_characteristic`
+    and :attr:`scalar_flux` are readers of it, under their historical names.
+    So the presence of the ray member is the state's ARITY (no biconditional
+    against the mesh to enforce), the scalar flux is :math:`\int\psi\,d\Omega`
+    of the cell-average moment (no marginal-axes guard to keep it honest), and
+    the one invariant left to check at construction is the STATE-ON-DOMAIN law:
+    the state lives on the Problem's coupled space, which is the space the
+    recorded question is posed on (a cross-Problem pairing is refused).
 
-        Under D-H.1b (2026-05-28), this field carries a
-        :class:`~orpheus.transport.timed_full_field.TimedFullField`
-        composite. The bulk (``angular_flux.interior``) is the
-        per-ordinate angular flux :math:`\psi(\vec r, \hat\Omega_n, g)`
-        on shape ``(N, ng, nx, ny)``; the boundary trace is exposed
-        via the :attr:`SolutionBase.boundary_flux` delegate property.
-    scalar_flux : ScalarFlux
-        Scalar flux field
-        :math:`\phi(\vec r, g) = \sum_n w_n \psi_n`,
-        shape ``(ng, nx, ny)``.
-    mesh : SNMesh
-        The phase-space mesh.  Both typed flux fields above MUST carry
-        this same :class:`SNMesh` instance (validated at construction).
-    keff : float or None
-        Multiplication eigenvalue.  ``None`` for fixed-source problems.
-    history : IterationHistory or None
-        Convergence-trajectory diagnostics.  ``None`` for paths that
-        do not surface them.
-    radial_characteristic : RadialCharacteristicField or None
-        System B's converged ψ½ state (B.2d DP-Solution — its OWN typed
-        member, never a block on :attr:`angular_flux`): the marched
-        starting-direction flux composite on a carrying mesh (R12a — the
-        sphere), ``None`` exactly when the mesh carries no seed level
-        (presence is structural — validated as a biconditional at
-        construction). Downstream System-A readers (:attr:`scalar_flux`,
-        :attr:`boundary_flux`, :class:`SolutionDiff`) are untouched; a
-        ray reader reads THIS member.
-
-    Notes
-    -----
-    Pre-D-H, :attr:`angular_flux` was the legacy
-    :class:`orpheus.transport.fields.angular_flux.AngularFlux` (a bulk Field that
-    ALSO owned the boundary face state and iteration history). Under
-    D-H.1b that conflation dissolves: the composite-state container
-    :class:`TimedFullField` holds the bulk + boundary + history trio
-    as a structured composite. The :attr:`SolutionBase.boundary_flux`
-    delegate (line below) becomes a thin read-through to
-    ``self.angular_flux.boundary`` (now a typed L2 AngularBoundaryFlux).
+    ⚠ On the eigen path the derived scalar flux is :math:`\int\psi\,d\Omega` of
+    the RETURNED ψ (one source-iteration step polished against the converged
+    fission source, #448) — ``[M]`` 7.4e-11 relative from the power iteration's
+    own converged φ that this member stored until step 3 (worst of 16 finalize
+    cases; the artefacts were re-baselined with that ratio recorded, U2e).
     """
 
-    angular_flux: "TimedFullField"
-    scalar_flux: "ScalarFlux"
     mesh: "SNMesh"
-    keff: float | None = None
-    history: IterationHistory | None = None
-    radial_characteristic: "RadialCharacteristicField | None" = None
+    outcome: O
+    strategy: "Splitting"
+    certificate: ExitCertificate
+    record: "IterationRecord"
 
     def __post_init__(self) -> None:
-        # Role closure: the role set is closed ({forward, adjoint} —
-        # Solution / AdjointSolution) and a role-less carrier is not a
-        # value that exists (Pattern 4).  The leaves inherit this
-        # __post_init__; the guard fires only on the base itself.
+        # Role closure (unchanged): the role set is closed ({forward, adjoint})
+        # and a role-less carrier is not a value that exists (Pattern 4).
         if type(self) is SolutionBase:
             raise TypeError(
                 "SolutionBase is the role-agnostic carrier base and is "
                 "not instantiable — construct Solution (forward) or "
                 "AdjointSolution (adjoint)."
             )
-        # Mesh-binding consistency: every typed field MUST share the
-        # exact SNMesh instance (Pattern 4 — illegal states
-        # unrepresentable; the typed field's invariants are leveraged
-        # at Solution construction time so consumers downstream cannot
-        # see a Solution with mismatched meshes).
-        # D-H.1b: angular_flux is now a TimedFullField composite —
-        # the mesh is on the bulk (and validated against boundary at
-        # TimedFullField construction).
-        if (
-            self.angular_flux.interior.space
-            != self.angular_flux.interior.space_on(self.mesh)
-        ):
+        # The STATE-ON-DOMAIN law: the returned state is an element of the
+        # Problem's coupled space (content identity — campaign 1 step 6), and
+        # the recorded question is posed on that space.  A same-hub cross-kind
+        # pairing is a LEGAL different solve (both kinds share the space); a
+        # cross-hub one is refused here.  ``CoupledField.space`` is derived
+        # from the members (step 3 U1).
+        state_space = self.outcome.state.space
+        if state_space != self.mesh.system.space:
             raise ValueError(
-                f"{type(self).__name__}: angular_flux.interior.space "
-                f"disagrees with the mesh's composite interior "
-                "(space-content invariant — every member must agree with "
-                "this Solution's mesh in content)."
+                f"{type(self).__name__}: the returned state lives on "
+                f"{state_space!r}, not on this Problem's coupled space "
+                f"{self.mesh.system.space!r} — a Solution's state is an element "
+                "of its own Problem's space (the state-on-domain law)."
             )
-        psi_axes = self.angular_flux.interior.space.axes
-        phi_axes = self.scalar_flux.space.axes
-        marginal = None if psi_axes is None else psi_axes[1:]
-        averaged = (
-            None
-            if marginal is None
-            else tuple(
-                a for a in marginal if a.label != SPATIAL_MOMENT_AXIS_LABEL
-            )
-        )
-        if (
-            psi_axes is None
-            or phi_axes is None
-            or phi_axes not in (marginal, averaged)
-        ):
+        posed_on = _posed_domain(self.outcome)
+        if posed_on is not None and posed_on != state_space:
             raise ValueError(
-                f"{type(self).__name__}: scalar_flux.space must be the "
-                "non-angular MARGINAL of angular_flux's interior space "
-                "(space-content invariant — φ = ∫ψ dΩ shares the energy "
-                "and spatial axes; the optional moment tail may ride or "
-                "be averaged out, and production's public φ drops it)."
-            )
-        # B.2d DP-Solution: System B's presence is STRUCTURAL — the member
-        # exists exactly when the mesh carries seed levels (R12a). A
-        # carrying-mesh Solution without its converged ψ½ state (or a
-        # seedless one carrying a ray) is a wiring error, not a variant.
-        carries = (
-            getattr(self.mesh, "radial_characteristic_field_space", None) is not None
-        )
-        if carries != (self.radial_characteristic is not None):
-            raise ValueError(
-                f"{type(self).__name__}: radial_characteristic presence "
-                f"must match the mesh's R12a predicate (mesh carries: "
-                f"{carries}, member present: "
-                f"{self.radial_characteristic is not None}) — System B's "
-                "converged state is its own typed member on a carrying "
-                "mesh, absent otherwise (B.2d)."
-            )
-        if self.radial_characteristic is not None and (
-            self.radial_characteristic.interior.space
-            != self.mesh.radial_characteristic_interior_space
-            or self.radial_characteristic.boundary.space
-            != self.mesh.radial_characteristic_boundary_space
-        ):
-            raise ValueError(
-                f"{type(self).__name__}: radial_characteristic's block "
-                "spaces disagree with the mesh's ray spaces "
-                "(space-content invariant, per block)."
+                f"{type(self).__name__}: the recorded question is posed on "
+                f"{posed_on!r} but the state lives on {state_space!r} — the "
+                "outcome's posing and its state must share one space."
             )
 
-    # ── boundary_flux as a delegate property ─────────────────────────
-    #
-    # The composite :class:`~orpheus.transport.timed_full_field.TimedFullField`
-    # owns the boundary face state via :attr:`TimedFullField.boundary`.
-    # ``Solution.boundary_flux`` is a thin read-through that delegates
-    # to the composite's owned boundary trace.
+    # ── the state, and the flux members READ off it ──────────────────
+
+    @property
+    def state(self) -> "CoupledField":
+        r"""The returned iterate WHOLE — the outcome's state (a one- or two-system coupled field)."""
+        return self.outcome.state
+
+    @property
+    def angular_flux(self) -> "TimedFullField":
+        r"""System A's composite: the per-ordinate angular flux ψ (bulk ⊕ trace).
+
+        The arm's own convention, whole: a multi-moment (LD) closure's φ̂
+        slopes ride the trailing moment axis on EVERY entry now (until step 3
+        the eigen/adjoint tail stripped them to the cell average while the
+        fixed-source arms kept them — two conventions for one member).
+        """
+        return cast("TimedFullField", self.state.systems[0])
+
+    @property
+    def radial_characteristic(self) -> "RadialCharacteristicField | None":
+        r"""System B's converged ψ½ state on a carrying (R12a) mesh — the state's
+        second member; ``None`` exactly when the state has one system.  Presence
+        is the state's ARITY: no wiring guard is needed to keep it honest."""
+        if self.state.n_systems == 1:
+            return None
+        return cast("RadialCharacteristicField", self.state.systems[1])
 
     @property
     def boundary_flux(self) -> "AngularBoundaryFlux":
-        r"""Boundary face state — delegate to :attr:`TimedFullField.boundary`.
-
-        The composite :class:`~orpheus.transport.timed_full_field.TimedFullField`
-        owns the boundary face state via :attr:`TimedFullField.boundary`.
-        This property provides the canonical ``sol.boundary_flux``
-        access path.
-
-        See :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-        for the per-geometry flat-layout contract.
-        """
+        r"""Boundary face state — the composite's owned trace (``sol.boundary_flux``)."""
         from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
-        # Role parse at the composite boundary: a Solution's composite IS a
-        # flux composite, but the ``FullField.boundary`` slot erases the
-        # role (the F2-sibling erasure — #289). A source-role trace here
-        # means the flux-composite contract broke upstream — raise loudly.
         boundary = self.angular_flux.boundary
         if not isinstance(boundary, AngularBoundaryFlux):
             raise TypeError(
-                f"Solution.boundary_flux: the solution composite carries "
-                f"{type(boundary).__name__}, not AngularBoundaryFlux — the "
-                f"flux-composite contract is broken."
+                f"{type(self).__name__}.boundary_flux: the solution composite "
+                f"carries {type(boundary).__name__}, not AngularBoundaryFlux — "
+                "the flux-composite contract is broken."
             )
         return boundary
 
-    # ── Discrimination ───────────────────────────────────────────────
+    @functools.cached_property
+    def scalar_flux(self) -> "ScalarFlux":
+        r"""The scalar flux :math:`\phi = \int\psi\,d\Omega` of the returned ψ's
+        cell-average moment — DERIVED (RULED F3b): one quantity, one
+        representation, computed once per Solution (a cached reading of a
+        frozen state, so identity reads such as ``adj.importance is
+        adj.scalar_flux`` hold).  On the eigen path this is the gauged,
+        polished ψ's marginal — the section is applied to the returned state
+        at the mint, so the derived φ sits on it too."""
+        from orpheus.transport.fields.angular_flux import AngularFlux
 
-    def is_eigenvalue(self) -> bool:
-        """Return ``True`` when this is an eigenvalue-problem solution."""
-        return self.keff is not None
+        cell_average = AngularFlux(
+            values=self.mesh.cell_average_moment(np.asarray(self.angular_flux.interior.values)),
+            space=self.mesh.angular_bulk_space,
+        )
+        return cell_average.integrate_angular()
 
-    def is_fixed_source(self) -> bool:
-        """Return ``True`` when this is a fixed-source-problem solution."""
-        return self.keff is None
-
-    # ── Convergence diagnostics (delegate to history) ────────────────
-
-    def dominance_ratio(self) -> float | None:
-        r"""Return the eigenvalue dominance ratio, or ``None`` if unavailable."""
-        return self.history.dominance_ratio() if self.history else None
+    # ── convergence (delegates to the record) ────────────────────────
 
     def converged(self) -> bool:
         """Can this answer be trusted — did EVERY level of the solve converge?
-
-        The tree-wide question (:attr:`IterationHistory.fully_converged`),
-        because that is what a caller holding a :class:`Solution` is actually
-        asking.  The narrower per-level readings stay available on
-        :attr:`history`.
-
-        ⛔ Until 2026-08-10 this delegated to
-        :attr:`IterationHistory.converged` — the TOP level only — so on an
-        eigenvalue solve standing on a starved inner it answered ``True``
-        (#340 F1).  That is the campaign's headline defect wearing the most
-        user-facing name in the package: the outer genuinely met its own
-        criteria, having met them on increments the starved inner suppressed.
-        Flipped in the same change that widened the
-        :class:`~orpheus.numerics.convergence.ConvergenceWarning` guard —
-        leaving them disagreeing would have shipped a warning that routes the
-        reader AROUND this accessor.
-
-        ⚠ A solution with **no history at all** answers ``False``.  This
-        used to answer ``True`` — the only production branch that asserted
-        convergence rather than reading it, and the same optimistic-default
-        defect as #342.  "Nobody recorded whether this converged" is not
-        evidence that it did; a caller gating on this method should treat an
-        unrecorded solve exactly as it treats a truncated one.
-        """
-        return self.history.fully_converged if self.history else False
-
-    def keff_history_list(self) -> list[float]:
-        """Return the eigenvalue trajectory as a list (for plotting)."""
-        return list(self.history.keff_history) if self.history else []
+        (``IterationRecord.fully_converged``; the tree-wide question, #340 F1.)"""
+        return self.record.fully_converged
 
     @property
-    def keff_history(self) -> list[float]:
-        """Legacy alias for :meth:`keff_history_list`.
+    def history(self) -> "IterationHistory":
+        r"""ONE-CYCLE VIEW (step 3 U2 → retired at U6): the pre-step-3
+        :class:`IterationHistory` reading of this Solution, assembled from the
+        record, the outcome's trajectory and the certificate's magnitudes so
+        the 95 readers migrate by concept rather than by a flag day.  ⚠ The
+        two magnitudes come back as ``float | None`` here — the leak the
+        certificate retires — which is why this view does not survive U6."""
+        return IterationHistory(
+            record=self.record,
+            keff_history=tuple(self.outcome.trajectory) if isinstance(self.outcome, EigenOutcome) else (),
+            balance_defect=_as_optional_float(self.certificate.balance),
+            gauge_correction=_as_optional_float(self.certificate.gauge),
+        )
 
-        The canonical access path is :attr:`history` + ``.keff_history``;
-        this property keeps existing test fixtures (``len(result.keff_history)``,
-        plotting code) working without a one-by-one migration of ~10 call
-        sites.  The trajectory is a list, not a tuple, so ``len`` and
-        slice operations behave as they did under the legacy
-        ``SNResult.keff_history: list[float]``.
-        """
-        return self.keff_history_list()
-
-    # ── Comparison (role-closed: Self vs Self) ──────────────────────
+    # ── the comparison (regression / refactor checks) ────────────────
 
     def compare(self, other: Self, *, rtol: float = 1e-12) -> "SolutionDiff":
         r"""Return a field-by-field difference summary against ``other``.
 
-        Compares :attr:`keff` (when both have it) and the
-        :math:`L^\infty`-norms of the flux deltas.  Useful for
-        regression / refactor consistency checks.
-
-        Parameters
-        ----------
-        other : Self
-            The reference solution to compare against — of the SAME
-            role (``Self``-typed: a forward flux and an importance map
-            are different physical quantities, so cross-role comparison
-            is a type error statically and a ``TypeError`` at runtime).
-        rtol : float
-            Relative tolerance for the ``within_tolerance`` flag.
-
-        Returns
-        -------
-        SolutionDiff
-            Field-by-field summary.
+        Same ROLE (``Self``-typed — a forward flux and an importance map are
+        different physical quantities), same KIND (an eigen answer and a
+        source answer are different QUESTIONS — the kind is the outcome's
+        type, so a cross-kind comparison is refused rather than silently
+        skipping the eigenvalue channel, which is what the pre-step-3
+        ``keff is not None`` branch did), same discrete phase space (the
+        layout gate on the collapses — content identity on the
+        constituents).  Compares λ (eigen kind) and the :math:`L^\infty`
+        norms of the flux deltas.
         """
         if type(other) is not type(self):
             raise TypeError(
@@ -631,6 +572,14 @@ class SolutionBase:
                 "same-role comparison only (the Self-typed contract, "
                 "enforced at runtime for untyped callers)."
             )
+        if type(other.outcome) is not type(self.outcome):
+            raise TypeError(
+                f"{type(self).__name__}.compare: kind mismatch — a "
+                f"{type(self.outcome).__name__} against a "
+                f"{type(other.outcome).__name__}.  An eigen answer (a ray and "
+                "λ) and a source answer (a coset) are different questions; "
+                "same-kind comparison only."
+            )
         if not self.mesh.same_phase_space(other.mesh):
             raise ValueError(
                 f"{type(self).__name__}.compare: the solutions realize "
@@ -638,24 +587,20 @@ class SolutionBase:
                 "only across solves sharing the same constituents (see "
                 "MaterialMesh.same_phase_space)."
             )
-
-        if self.keff is not None and other.keff is not None:
-            keff_abs = abs(self.keff - other.keff)
+        keff_abs: Evidence
+        if isinstance(self.outcome, EigenOutcome) and isinstance(other.outcome, EigenOutcome):
+            keff_abs = Measured(abs(self.outcome.lam - other.outcome.lam))
+            reference = abs(other.outcome.lam)
+            keff_ok = reference > 0.0 and keff_abs.value <= rtol * reference
         else:
-            keff_abs = None
-
+            keff_abs = NotApplicable("the source kind carries no eigenvalue")
+            keff_ok = True
         ang_diff = self.angular_flux.interior.values - other.angular_flux.interior.values
         sca_diff = self.scalar_flux.values - other.scalar_flux.values
         ang_linf = float(np.abs(ang_diff).max()) if ang_diff.size else 0.0
         sca_linf = float(np.abs(sca_diff).max()) if sca_diff.size else 0.0
-
         sca_norm = float(np.abs(other.scalar_flux.values).max())
         flux_ok = (sca_norm == 0.0) or (sca_linf <= rtol * sca_norm)
-        keff_ok = (keff_abs is None) or (
-            abs(other.keff or 1.0) > 0.0
-            and keff_abs <= rtol * abs(other.keff or 1.0)
-        )
-
         return SolutionDiff(
             keff_abs=keff_abs,
             angular_flux_linf=ang_linf,
@@ -664,8 +609,22 @@ class SolutionBase:
         )
 
 
+def _posed_domain(outcome: "EigenOutcome | SourceOutcome"):
+    """The space the recorded question is posed on (``None`` when the operator declares no ends)."""
+    if isinstance(outcome, EigenOutcome):
+        return outcome.posing.pencil.lhs.domain
+    return outcome.posing.operator.domain
+
+
+def _as_optional_float(evidence: Evidence) -> float | None:
+    """The VIEW's leak, confined to the view: a measured magnitude, else ``None``."""
+    return evidence.value if isinstance(evidence, Measured) else None
+
+
+
+
 @dataclass(frozen=True)
-class Solution(SolutionBase):
+class Solution(SolutionBase[O]):
     r"""Canonical return type for the FORWARD solvers.
 
     The forward role of the :class:`SolutionBase` carrier — what
@@ -680,10 +639,12 @@ class Solution(SolutionBase):
 
     All three interpret ``scalar_flux`` as the flux; none exists on
     :class:`AdjointSolution` (structural asymmetry — see the module
-    docstring).  One type covers both PROBLEM KINDS (fixed-source and
-    eigenvalue) via the optional :attr:`~SolutionBase.keff` /
-    :attr:`~SolutionBase.history` (#197 PR-TYPED-5; replaces the legacy
-    ``SNFixedSourceResult`` / ``SNResult`` pair).
+    docstring).  One generic type covers both PROBLEM KINDS — the kind is
+    the type parameter, ``Solution[EigenOutcome]`` /
+    ``Solution[SourceOutcome]`` (step 3 of the consumers campaign; until then
+    an optional ``keff`` / ``history`` carried the kind by value — #197
+    PR-TYPED-5, which replaced the legacy ``SNFixedSourceResult`` /
+    ``SNResult`` pair).
 
     The adjoint-weighted refinement of :meth:`homogenize` /
     :meth:`condense` is the ratified #281 (P6-B2) API, **landed**: an
@@ -699,9 +660,9 @@ class Solution(SolutionBase):
     Reads as the math:
 
     >>> sol = solve_sn(materials, mesh, quadrature)             # doctest: +SKIP
-    >>> sol.is_eigenvalue()                                     # doctest: +SKIP
+    >>> sol.outcome.keff                                        # doctest: +SKIP
     True
-    >>> sol.dominance_ratio()                                   # doctest: +SKIP
+    >>> sol.outcome.dominance_ratio()                           # doctest: +SKIP
     1.2e-08
     >>> sol.reaction_rate_density(materials[0].sig_a)           # doctest: +SKIP
     array(...)
@@ -1080,7 +1041,7 @@ class Solution(SolutionBase):
 
 
 @dataclass(frozen=True)
-class AdjointSolution(SolutionBase):
+class AdjointSolution(SolutionBase[O]):
     r"""Canonical return type for the ADJOINT solvers.
 
     The adjoint role of the :class:`SolutionBase` carrier — what
@@ -1096,7 +1057,8 @@ class AdjointSolution(SolutionBase):
       :math:`w`-reduction as the forward scalar flux (the adjoint of
       the ISO source injection, not a new functional).
       :attr:`importance` is the domain-named alias.
-    * :attr:`~SolutionBase.keff` is the eigenvalue of the daggered
+    * ``outcome.keff`` (an :class:`~orpheus.numerics.outcome.EigenOutcome`
+      over the hub's ``eigen_posing.H()``) is the eigenvalue of the daggered
       pencil :math:`(A^\dagger, F^\dagger)` — EXACTLY the forward
       :math:`k` in exact arithmetic (:math:`\operatorname{eig}(M^T) =
       \operatorname{eig}(M)`); the two power iterations agree to
@@ -1133,9 +1095,11 @@ class SolutionDiff:
 
     Parameters
     ----------
-    keff_abs : float or None
-        Absolute eigenvalue difference :math:`|k_a - k_b|`, or
-        ``None`` when at least one solution is fixed-source.
+    keff_abs : Evidence
+        :class:`~orpheus.numerics.outcome.Measured` — the absolute eigenvalue
+        difference :math:`|k_a - k_b|` — for the eigen kind;
+        :class:`~orpheus.numerics.outcome.NotApplicable` for the source kind
+        (``compare`` refuses a cross-kind pair, so the two never mix).
     angular_flux_linf : float
         :math:`L^\infty` norm of the angular-flux delta.
     scalar_flux_linf : float
@@ -1145,7 +1109,7 @@ class SolutionDiff:
         comparison rtol.
     """
 
-    keff_abs: float | None
+    keff_abs: Evidence
     angular_flux_linf: float
     scalar_flux_linf: float
     within_tolerance: bool

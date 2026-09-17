@@ -298,15 +298,15 @@ def test_homogeneous_reflective_sphere_iso_unchanged():
 
     # k_eff: unchanged from the frozen clamped reference (FP tail only) AND
     # correct against the closed-form anchor.
-    assert abs(result.keff - _ISO_SPHERE_KEFF_CLAMPED) < 1e-9, (
-        f"k_eff={result.keff:.13f} drifted from the frozen clamped reference "
+    assert abs(result.outcome.keff - _ISO_SPHERE_KEFF_CLAMPED) < 1e-9, (
+        f"k_eff={result.outcome.keff:.13f} drifted from the frozen clamped reference "
         f"{_ISO_SPHERE_KEFF_CLAMPED:.13f} by "
-        f"{abs(result.keff - _ISO_SPHERE_KEFF_CLAMPED):.2e} ≥ 1e-9 — W1 "
+        f"{abs(result.outcome.keff - _ISO_SPHERE_KEFF_CLAMPED):.2e} ≥ 1e-9 — W1 "
         f"disturbed the ISOTROPIC sphere physics beyond the FP tail "
         f"(the clamp was supposed to be silent on flat-in-μ)"
     )
-    assert abs(result.keff - _K_INF_2G_A) < 1e-6, (
-        f"k_eff={result.keff:.10f} ≠ closed-form k_inf={_K_INF_2G_A} "
+    assert abs(result.outcome.keff - _K_INF_2G_A) < 1e-6, (
+        f"k_eff={result.outcome.keff:.10f} ≠ closed-form k_inf={_K_INF_2G_A} "
         f"(structurally-independent anchor) — the reference itself is wrong"
     )
 

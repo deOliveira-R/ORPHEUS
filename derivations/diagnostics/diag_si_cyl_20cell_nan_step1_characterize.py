@@ -75,8 +75,8 @@ def test_si_cyl_20cell_ls_s8_produces_nan_keff():
         max_outer=5, max_inner=5,    # NaN appears in first inner iteration
     )
     # Bug signature: keff is NaN.  Documenting current buggy behaviour.
-    assert np.isnan(res.keff), (
-        f"keff was {res.keff}, expected NaN (bug signature).  If this "
+    assert np.isnan(res.outcome.keff), (
+        f"keff was {res.outcome.keff}, expected NaN (bug signature).  If this "
         f"assertion fires, the bug is FIXED — invert this assertion and "
         f"promote to tests/sn/test_si_cyl_20cell_nan_regression.py."
     )
@@ -91,9 +91,9 @@ def test_si_cyl_20cell_krylov_is_correct():
         keff_tol=1e-12, flux_tol=1e-10,
         max_outer=50, max_inner=50,
     )
-    assert np.isfinite(res.keff), f"Krylov should not return NaN; got {res.keff}"
-    assert abs(res.keff - 1.875) < 1e-6, (
-        f"Krylov k_eff = {res.keff}, expected k_inf = 1.875"
+    assert np.isfinite(res.outcome.keff), f"Krylov should not return NaN; got {res.outcome.keff}"
+    assert abs(res.outcome.keff - 1.875) < 1e-6, (
+        f"Krylov k_eff = {res.outcome.keff}, expected k_inf = 1.875"
     )
 
 
@@ -117,7 +117,7 @@ def test_si_cyl_nan_is_sharp_resonance_at_n_cells_20(n_cells, expected_finite):
         keff_tol=1e-12, flux_tol=1e-10,
         max_outer=3, max_inner=3,
     )
-    is_finite = np.isfinite(res.keff)
+    is_finite = np.isfinite(res.outcome.keff)
     assert is_finite == expected_finite, (
         f"n_cells={n_cells}: keff finite = {is_finite}, expected {expected_finite}"
     )

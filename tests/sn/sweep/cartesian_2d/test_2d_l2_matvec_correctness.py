@@ -158,10 +158,10 @@ def test_solve_sn_2d_krylov_homogeneous_reflective_recovers_kinf() -> None:
     )
 
     k_inf = 1.875  # νΣ_f / Σ_a for mixture A 2g
-    assert np.isfinite(res.keff), f"2-D Krylov returned non-finite keff: {res.keff}"
-    assert abs(res.keff - k_inf) < 1e-6, (
-        f"2-D Krylov keff = {res.keff:.10f}, expected k_inf = {k_inf}, "
-        f"err = {abs(res.keff - k_inf):.3e}.  Pillar: closed-form "
+    assert np.isfinite(res.outcome.keff), f"2-D Krylov returned non-finite keff: {res.outcome.keff}"
+    assert abs(res.outcome.keff - k_inf) < 1e-6, (
+        f"2-D Krylov keff = {res.outcome.keff:.10f}, expected k_inf = {k_inf}, "
+        f"err = {abs(res.outcome.keff - k_inf):.3e}.  Pillar: closed-form "
         f"homogeneous reflective."
     )
 
@@ -260,10 +260,10 @@ def test_2d_reflective_xy_keff_matches_1d_slab_reflective_analog() -> None:
         flux_tol=1e-10,
     )
 
-    assert abs(res_2d.keff - res_1d.keff) < 1e-6, (
-        f"2-D-reflective-y keff = {res_2d.keff:.10f}, "
-        f"1-D slab analog keff = {res_1d.keff:.10f}, "
-        f"diff = {res_2d.keff - res_1d.keff:.3e}.  Reflective-y "
+    assert abs(res_2d.outcome.keff - res_1d.outcome.keff) < 1e-6, (
+        f"2-D-reflective-y keff = {res_2d.outcome.keff:.10f}, "
+        f"1-D slab analog keff = {res_1d.outcome.keff:.10f}, "
+        f"diff = {res_2d.outcome.keff - res_1d.outcome.keff:.3e}.  Reflective-y "
         f"reduction broken — heterogeneous-2D path has a bug invisible "
         f"to test 2.1's homogeneous-flat-flux."
     )

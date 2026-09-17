@@ -49,7 +49,7 @@ def _solve(*, n_cells, inner_solver, **kw):
             materials={0: fuel}, mesh=mesh, quadrature=quad,
             inner_solver=inner_solver, **kw,
         )
-    return res.keff
+    return res.outcome.keff
 
 
 def test_step6_tight_tol_sweep():

@@ -60,7 +60,7 @@ def plot_do_convergence(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots()
-    ax.plot(range(1, len(result.keff_history) + 1), result.keff_history, "-or", markersize=3)
+    ax.plot(range(1, len(result.outcome.trajectory) + 1), result.outcome.trajectory, "-or", markersize=3)
     ax.set_xlabel("Iteration number")
     ax.set_ylabel("k-effective")
     ax.grid(True)

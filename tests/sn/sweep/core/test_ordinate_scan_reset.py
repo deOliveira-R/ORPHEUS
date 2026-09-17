@@ -331,7 +331,7 @@ class TestSICylinderResonance:
             materials, mesh, quad, inner_solver="krylov",
             max_inner=500, inner_tol=1e-10,
         )
-        assert np.isfinite(si.keff) and np.isfinite(kr.keff)
-        assert abs(si.keff - kr.keff) < 1e-7, (
-            f"SI keff = {si.keff:.10f} vs Krylov keff = {kr.keff:.10f}"
+        assert np.isfinite(si.outcome.keff) and np.isfinite(kr.outcome.keff)
+        assert abs(si.outcome.keff - kr.outcome.keff) < 1e-7, (
+            f"SI keff = {si.outcome.keff:.10f} vs Krylov keff = {kr.outcome.keff:.10f}"
         )

@@ -79,8 +79,8 @@ def test_cross_check_with_cp_1g():
     result_cp = solve_cp({0: mix}, mesh_cp)
 
     np.testing.assert_allclose(
-        result_sn.keff, result_cp.keff, rtol=1e-6,
-        err_msg=f"SN keff={result_sn.keff:.6f} vs CP keff={result_cp.keff:.6f}",
+        result_sn.outcome.keff, result_cp.keff, rtol=1e-6,
+        err_msg=f"SN keff={result_sn.outcome.keff:.6f} vs CP keff={result_cp.keff:.6f}",
     )
 
 
@@ -111,8 +111,8 @@ def test_heterogeneous_sn_vs_cp_cross_check():
     result_cp = solve_cp(materials, mesh_cp)
 
     np.testing.assert_allclose(
-        result_sn.keff, result_cp.keff, rtol=0.10,
-        err_msg=f"SN={result_sn.keff:.6f} vs CP={result_cp.keff:.6f}",
+        result_sn.outcome.keff, result_cp.keff, rtol=0.10,
+        err_msg=f"SN={result_sn.outcome.keff:.6f} vs CP={result_cp.keff:.6f}",
     )
 
 
@@ -144,6 +144,6 @@ def test_cross_check_with_cp_1g_sphere():
     result_cp = solve_cp({0: mix}, mesh_cp)
 
     np.testing.assert_allclose(
-        result_sn.keff, result_cp.keff, rtol=1e-6,
-        err_msg=f"SN keff={result_sn.keff:.6f} vs CP keff={result_cp.keff:.6f}",
+        result_sn.outcome.keff, result_cp.keff, rtol=1e-6,
+        err_msg=f"SN keff={result_sn.outcome.keff:.6f} vs CP keff={result_cp.keff:.6f}",
     )

@@ -147,7 +147,7 @@ def test_dd_regression(case: SnapshotCase) -> None:
     if case_kind == "eigen":
         expected_keff = float(snap["keff"])
         assert_regression(
-            result.keff, expected_keff,
+            result.outcome.keff, expected_keff,
             conv_tol=rc[EIGEN_KEFF_TOL_KEY],
             case_name=case.name, kind="iterative", quantity="k_eff",
         )

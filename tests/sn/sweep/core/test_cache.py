@@ -292,7 +292,7 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
         keff_tol=1e-6,
         flux_tol=1e-5,
     )
-    assert len(result.keff_history) >= 5, (
+    assert len(result.outcome.trajectory) >= 5, (
         "Test fixture is too trivial — converged in fewer than 5 outer "
         "iterations; the heterogeneous slab should need ~7. Raise "
         "max_outer or tighten tolerances to exercise the Picard loop."
@@ -302,7 +302,7 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
     # every inner ≥ 5 × 5 = 25 sweep calls) MUST NOT rebuild it.
     assert CollisionCache._build_count == 1, (
         f"CollisionCache rebuilt {CollisionCache._build_count} times — "
-        f"expected exactly 1 across {len(result.keff_history)} outer × "
+        f"expected exactly 1 across {len(result.outcome.trajectory)} outer × "
         f"~tens of inner iterations.  Some sweep path is re-instantiating "
         f"the cache on every iteration."
     )

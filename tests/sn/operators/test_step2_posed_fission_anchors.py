@@ -358,8 +358,12 @@ class TestLawTheHubsFissionIsWhatBothFacesRead:
 
     def test_the_seedless_adjoint_daggers_the_hubs_composite(self) -> None:
         hub = _slab_hub()
-        _implicit, _gain, adjoint_F, _template = _adjoint_posing_parts(hub)
-        assert adjoint_F is hub.fission
+        _implicit, _gain, adjoint_F, _template, _splitting = _adjoint_posing_parts(hub)
+        # step 3 U2d (#467): BOTH arms pose the record's ``production`` on the
+        # coupled carrier (the seedless one-system space IS the full field
+        # wrapped); the composite ``hub.fission`` is what that production LIFTS
+        assert adjoint_F is hub.system.production
+        assert hub.system.factors.fission is hub.fission
 
     def test_the_carrying_adjoint_poses_the_records_production(self) -> None:
         """On a carrying mesh the adjoint's ``F`` is the record's
@@ -368,7 +372,7 @@ class TestLawTheHubsFissionIsWhatBothFacesRead:
         from orpheus.sn.coupled_system import build_within_group_system
 
         hub = _sphere_hub()
-        _implicit, _gain, adjoint_F, _template = _adjoint_posing_parts(hub)
+        _implicit, _gain, adjoint_F, _template, _splitting = _adjoint_posing_parts(hub)
         record = build_within_group_system(hub, hub.mat_xs)
         assert record.factors.fission is hub.fission
         assert type(adjoint_F) is type(record.production)

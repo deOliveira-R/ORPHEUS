@@ -112,11 +112,11 @@ def test_kinf_3d_equals_2d_equals_1d_homogeneous_reflective(ng_key) -> None:
 
     for label, sol in (("3-D", sol3), ("2-D", sol2), ("1-D", sol1)):
         np.testing.assert_allclose(
-            sol.keff, case.k_inf, atol=1e-8, rtol=0,
+            sol.outcome.keff, case.k_inf, atol=1e-8, rtol=0,
             err_msg=f"{ng_key} {label}: keff vs closed-form k_inf",
         )
-    np.testing.assert_allclose(sol3.keff, sol2.keff, atol=1e-8, rtol=0)
-    np.testing.assert_allclose(sol2.keff, sol1.keff, atol=1e-8, rtol=0)
+    np.testing.assert_allclose(sol3.outcome.keff, sol2.outcome.keff, atol=1e-8, rtol=0)
+    np.testing.assert_allclose(sol2.outcome.keff, sol1.outcome.keff, atol=1e-8, rtol=0)
 
 
 # ─── (b)(i) infinite-medium flux shape — closed form ─────────────────────
@@ -272,7 +272,7 @@ def test_d3_gauss_seidel_jacobi_fixed_point_invariance() -> None:
             keff_tol=1e-10, inner_tol=1e-11, inner_schedule=schedule,
             mat_map=mat_map,
         )
-        return sol.keff, np.asarray(sol.scalar_flux.values)
+        return sol.outcome.keff, np.asarray(sol.scalar_flux.values)
 
     k_j, phi_j = _keff_flux("jacobi")
     k_gs, phi_gs = _keff_flux("gauss_seidel")

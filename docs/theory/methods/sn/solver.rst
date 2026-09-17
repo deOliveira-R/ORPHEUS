@@ -1672,10 +1672,16 @@ What is deferred, and why
        ⚠ **Precondition discharged 2026-09-13, the row still open.**  The
        pencil landed later that day and *does* carry ``at(σ)``
        (:ref:`sn-the-problem-poses-its-pencil`) — but
-       :class:`~orpheus.numerics.iteration.KEigenvalue` does not consume
-       a posing yet, so the division is still on the solver.  What the
-       row now records is a *scheduled* move with a measured price, not a
+       :class:`~orpheus.numerics.iteration.KEigenvalue` did not consume
+       a posing yet, so the division was still on the solver.  What the
+       row recorded was a *scheduled* move with a measured price, not a
        structural blocker.
+
+       ✅ **DISCHARGED 2026-09-14** — ``KEigenvalue(posing, implicit,
+       explicit, …)`` takes the question, and ``compute_keff`` is
+       ``posing.rayleigh(ψ, w=1)``.  The re-baseline was the priced one:
+       the loss is applied ONCE, and ``[M]`` the adjoint :math:`k` drifted
+       :math:`1.22\times10^{-15}` (~5 ulp).
    * - stating :math:`F_{\rm adjoint} = F^{\dagger}` **as a theorem**
      - Step 2 made it *true* — both faces read one object — but the
        sentence is a claim about the **pencil**, and the pencil is not
@@ -1690,11 +1696,24 @@ What is deferred, and why
        :attr:`SNMesh.pencil <orpheus.sn.mesh.augmented_mesh.SNMesh.pencil>`
        is an :class:`~orpheus.numerics.pencil.OperatorPencil` whose
        :attr:`~orpheus.numerics.pencil.OperatorPencil.H` daggers both
-       ends — so the equality is **statable** as a property of the type.
-       It is not yet **spelled** that way: ``_adjoint_posing_parts``
-       still hand-daggers the triple, because
-       :class:`~orpheus.numerics.iteration.KEigenvalue` has not adopted
-       the posing.  The identity rows above remain the empirical pin.
+       ends — so the equality became **statable** as a property of the
+       type.  It was not yet **spelled** that way: ``_adjoint_posing_parts``
+       still hand-daggered the triple, because
+       :class:`~orpheus.numerics.iteration.KEigenvalue` had not adopted
+       the posing.
+
+       ✅ **FULLY DISCHARGED 2026-09-17** (step 3 U2, GitHub #467).  Both
+       adjoint entries now drive ``sn_mesh.eigen_posing.H()`` — ONE
+       daggered posing per Problem, nullary because
+       :math:`k^{\dagger} = k` needs no datum — with the seedless
+       Strategy pair lifted into the :math:`1\times1` coupled grid so
+       both arms share the carrier.  The equality is a property of
+       :class:`~orpheus.numerics.pencil.OperatorPencil` and no entry
+       spells adjoint physics.  ``[M]`` a ULP-class re-baseline:
+       :math:`k_{\rm adj}` moved by rel :math:`\approx10^{-15}` against
+       :math:`10^{-9}` certification gates.  The identity rows above are
+       now corroboration rather than the only pin
+       (:ref:`sn-adjoint-poses-a-pencil`).
    * - the record's ``production`` being **shared** between two builds
      - Two ``build_within_group_system`` calls over one hub produce two
        ``production`` objects (each composes its own restriction and
@@ -2733,6 +2752,30 @@ records it as *not separately exercised* for exactly that reason, naming
 the shared path the fixed-source rows already cover — a **declared
 inheritance**, not a coverage gap.
 
+.. warning::
+
+   ⛔ **That inheritance was NOT wholesale, and the gap was silence.**
+   Until 2026-09-17 this entry returned the private SI arm's
+   :class:`~orpheus.sn.solution.Solution` **directly**, so it never
+   reached the two warnings its four siblings emit — both of which are
+   deliberately hoisted into the PUBLIC entry so ``stacklevel=3`` blames
+   the caller (#340 N4.7).  A truncated multiplying solve and a
+   gauge-singular one both came back silent while the same hub solved
+   through :func:`~orpheus.sn.solver.solve_sn_fixed_source` warned.  The
+   defect, how it was *gated as correct*, and its catcher are
+   :doc:`ERR-086 </theory/verification/error_catalog>`; the repair is one
+   more thing this entry now inherits, and the emission-site count that
+   pinned the old inventory reads **8** rather than 7.
+
+   ⭐ And the entry now records what it measured to admit itself: the
+   admissibility :math:`k` rides the Solution's certificate as
+   ``Certified(k, "the hub's k-solve at keff_tol=…")`` — **with the
+   tolerance it was measured at**, because a bare number would be a
+   measurement without its configuration.  Until step 3 the driver
+   measured that :math:`k`, used it, and threw it away, so a consumer
+   holding the Solution could not tell a certified-subcritical answer
+   from an unchecked one.
+
 **The exit certificate is posed on the equation that was SOLVED.**  This
 is the subtlety the lag creates.  The driver's certificate evaluates
 :math:`r = A\psi - q_{\rm certified}`, and a lagged gain is part of the
@@ -2833,15 +2876,28 @@ happily returns a vector, and that vector is not a neutron flux.  A guard
 keyed on invertibility would pass; only the spectral predicate refuses.
 
 .. note:: :func:`~orpheus.sn.solver.solve_sn_fixed_source` is
-   **unchanged**.  On a fissile hub it still poses the *pure transport*
-   operator — its own docstring says so — so every existing caller is
-   bit-identical.  Whether the plain fixed-source entry's default should
-   change on a fissile hub is a step-3 decision, taken when the
-   :class:`~orpheus.sn.solution.Solution` carries its posing; the
-   multiplying question is reached by **its own entry**, never through a
-   boolean flag on the other one (``coding-elegance``: a flag parameter
-   that selects between two operators is a missing type, and here the
-   type already exists — it is the posing).
+   **unchanged**, and step 3 (2026-09-17) took the decision that was open
+   here rather than leaving it open: on a fissile hub it still poses the
+   *pure transport* operator, so every existing caller is bit-identical,
+   and the multiplying question stays reachable only through **its own
+   entry** — never through a boolean flag on the other one
+   (``coding-elegance``: a flag parameter that selects between two
+   operators is a missing type, and here the type already exists — it is
+   the posing).
+
+   What step 3 added is that the choice is now **recorded**.  The plain
+   entry poses ``SourcePosing(hub.pencil.at(0.0), q)`` itself, on the
+   Strategy side, because suppressing fission on a fissile deck is that
+   entry's *modelling choice* and not a datum of the generating data
+   (RULED 2026-09-14); the hub's own
+   :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.source_posing` keeps
+   naming the physical member at :math:`\sigma = 1`.  The suppression
+   costs nothing to spell — ``[M]`` ``pencil.at(0.0) is pencil.lhs is
+   system.loss`` by **object identity**, so "was fission suppressed?" is
+   answered by the recorded posing without a second operator existing
+   anywhere.  Two Solutions over one hub are therefore distinguishable by
+   the question they answer, which they were not before
+   (:ref:`sn-solution-carries-its-posing`).
 
 
 .. _sn-finalize-one-step:
@@ -2849,11 +2905,10 @@ keyed on invertibility would pass; only the spectral predicate refuses.
 The returned angular flux — one step of the map the iteration drove
 -------------------------------------------------------------------
 
-:class:`~orpheus.sn.solution.Solution` ships **two** flux members, and only
-one of them is what the power iteration converged.
-:attr:`~orpheus.sn.solution.Solution.scalar_flux` *is* the converged
-:math:`\phi`; :attr:`~orpheus.sn.solution.Solution.angular_flux` has to be
-*reconstructed*, for two independent reasons:
+:class:`~orpheus.sn.solution.Solution` carries **one** state, and the flux
+members are readings of it — but that state is not what the power
+iteration exchanged, so it has to be *reconstructed*, for two independent
+reasons:
 
 * the outer iteration's contract is scalar — ``[M]`` all **five** members
   of :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` exchange only
@@ -2864,6 +2919,26 @@ one of them is what the power iteration converged.
   per-ordinate at all — it is the harmonic-moment composite
   (:ref:`sn-angular-windowing-honest-scope`), and the user-facing
   :math:`(N, n_g, n_x, n_y)` field has to be built from it.
+
+⛔ **Until 2026-09-17 this section opened "**\ ``Solution`` **ships TWO
+flux members, and only one of them is what the power iteration
+converged"** — ``scalar_flux`` was the outer's converged :math:`\phi`,
+stored, and ``angular_flux`` the reconstruction beside it.  Two
+representations of one quantity, each with its own space check.  Since
+the consumers campaign's step 3 the reconstructed state is stored WHOLE
+and :attr:`~orpheus.sn.solution.SolutionBase.scalar_flux` is
+:math:`\int\psi\,d\Omega` of its cell-average moment
+(:ref:`sn-solution-carries-its-posing`), so the pair cannot disagree by
+construction.  What the derived reading costs is measurable and small:
+``[M]`` 2026-09-17, against the FROZEN #448 artefacts (unchanged — the
+re-read did not move them), ``max rel`` :math:`2.19\times10^{-11}`
+(``cart2d_L0``) and :math:`2.94\times10^{-11}` (``slab_vac_L0``), with
+:math:`k` **bit-identical** (:math:`\lvert\Delta k\rvert = 0`) on both;
+the pins' hard band is :math:`10^{-8}`, i.e. 457× and 340× of headroom.
+That gap is the same quantity as the gauge displacement measured two
+sections below — the polished :math:`\psi` sits off the power
+iteration's own scalar by the outer residual — so it shrinks with the
+tolerances rather than being a floor.
 
 **The reconstruction is one application of the splitting map — not a
 solve.**  A within-group splitting writes the loss operator as
@@ -3079,11 +3154,18 @@ phantom truncations.  A record separates the two —
 :attr:`~orpheus.numerics.convergence.IterationRecord.iterated` is the
 discriminator.
 
-These surface on :attr:`Solution.history.converged
-<orpheus.sn.solution.IterationHistory.converged>`, and
-:class:`~orpheus.sn.solution.IterationHistory` is itself a **view over the
-record** — every scalar it exposes is DERIVED, so there is one source of
-truth and the flat surface cannot drift from the tree it summarises.
+These surface directly on the Solution:
+:attr:`~orpheus.sn.solution.SolutionBase.record` **is** the tree, and
+:meth:`SolutionBase.converged() <orpheus.sn.solution.SolutionBase.converged>`
+reads its
+:attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged`
+fold.  The flat
+:class:`~orpheus.sn.solution.IterationHistory` reading survives for one
+more cycle as a **view** assembled from the record, the outcome's
+trajectory and the certificate (``sol.history``; retired at step 3's unit
+U6) — every scalar it exposes is DERIVED, so there is one source of truth
+and the flat surface cannot drift from the tree it summarises.  New code
+reads the record.
 
 ⛔ Until 2026-08-09 ``converged`` was a *field*, and this paragraph argued
 its honesty from the fact that it was **required**: no default, so a
@@ -3095,8 +3177,8 @@ argument to pass, so there is nothing to get wrong.
 
 .. tip::
 
-   Read :attr:`Solution.history.record
-   <orpheus.sn.solution.IterationHistory.record>` for anything the flat
+   Read :attr:`Solution.record
+   <orpheus.sn.solution.SolutionBase.record>` for anything the flat
    readings drop — which is most of it.  ``record.report()`` prints the
    whole tree, level by level, with each criterion's last value, the
    tolerance it was judged against, the observed rate, and the budget that
@@ -3115,8 +3197,8 @@ argument to pass, so there is nothing to get wrong.
    ``False``, and passed for months because the truncated error happened to
    land inside the tolerance — until a *correct* quadrature change (#337)
    moved it out.  The one-line defence is to assert
-   ``sol.history.fully_converged`` **before** reading any value — the
-   TREE-wide predicate, because on an eigenvalue solve the flat
+   ``sol.converged()`` **before** reading any value — it reads the
+   TREE-wide predicate, because on an eigenvalue solve a LEVEL-wide
    ``converged`` reads ``True`` while an inner starves (see *Loudness*
    below).
 
@@ -3151,20 +3233,23 @@ matters because a solve is a tree: on an eigenvalue run it is usually the
 is entirely increments and the starved inner is what suppresses them.
 
 The guard is
-:attr:`~orpheus.sn.solution.IterationHistory.fully_converged` — **every**
-level, not the top one — so a converged outer standing on a starved inner is
-audible.  That case is the whole of the #340 headline defect, and it is not
+:attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged` —
+**every** level, not the top one — so a converged outer standing on a starved
+inner is audible.  That case is the whole of the #340 headline defect, and it is not
 exotic: `[M]` 2026-08-10, **20 tests in the shipped suite** sat in exactly
 that state, at observed rates :math:`\rho` between 0.889 and 0.993, every one
 of them silent.
 
 .. note::
 
-   **Ask** :attr:`~orpheus.sn.solution.IterationHistory.fully_converged`,
-   **not** ``converged``, before asserting physics against a result.  The two
-   differ precisely on the starved-inner solve: the flat ``converged`` reads
-   ``True`` there, because the outer really did meet its own criteria — it
-   just met them on increments an upstream throttle had suppressed.
+   **Ask** :meth:`sol.converged() <orpheus.sn.solution.SolutionBase.converged>`
+   — which is
+   :attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged`, the
+   FOLD — **not** the record's per-level ``converged``, before asserting
+   physics against a result.  The two differ precisely on the starved-inner
+   solve: the level-wide reading is ``True`` there, because the outer really
+   did meet its own criteria — it just met them on increments an upstream
+   throttle had suppressed.
 
 ⛔ Until 2026-08-10 the guard was ``converged``, the TOP level only, and the
 widening was scheduled to ride an *outer residual certificate* that would
@@ -3192,9 +3277,13 @@ in-test, 10 are audible on purpose and tracked with measured budgets in
    * The helper was already ~90 % family-agnostic. Every fact it reads off the
      failing level is a generic
      :class:`~orpheus.numerics.convergence.IterationRecord` member; only
-     ``balance_defect`` was SN's, and it is now an optional keyword that the
-     other three pass as ``None`` (rendering an *absent* clause, never the
-     word "unavailable").
+     ``balance_defect`` was SN's, and it is now an optional keyword —
+     typed :class:`~orpheus.numerics.outcome.Evidence` since 2026-09-17 —
+     that the other three leave at its ``NotApplicable`` default.  Only a
+     :class:`~orpheus.numerics.outcome.Measured` value renders; every
+     other member renders an *absent* clause, never the word
+     "unavailable", because an empty clause cannot be misread as a
+     measurement.
    * ⛔ Its closing advice used to name the literal string
      ``solution.history.fully_converged``.  That is a guess at the CALLER's
      local variable name — a fact no library can know — and it was outright
@@ -3211,8 +3300,9 @@ The balance projection
 
 The refutation left a real question standing — *how much did this truncation
 cost?* — and the answer the warning carries is the **per-group neutron-balance
-defect of the returned iterate**, reported on
-:attr:`~orpheus.sn.solution.IterationHistory.balance_defect`:
+defect of the returned iterate**, reported on the Solution's exit certificate
+as :attr:`ExitCertificate.balance
+<orpheus.numerics.outcome.ExitCertificate.balance>`:
 
 .. math::
    :label: sn-exit-balance-defect
@@ -3292,20 +3382,69 @@ one residual evaluation is ≈ 3 inner iterations, i.e. **0.72 %** of a
    renormalisation).  What is comparable, and what the diagnostic
    advertises, is the RATIO down the budget.
 
-Two entries report ``None`` rather than a number, and the omission is silent
-by design — an empty clause cannot be misread as a measurement:
+**When no number is reported, the certificate says WHY** — and that is
+the second thing step 3 changed here.  Until 2026-09-17 the answer was a
+``None`` carrying five documented meanings, which is stringly-typed
+dispatch wearing an absence: the consumer had to re-derive which one
+applied from context the type did not carry.  The member is now a typed
+:class:`~orpheus.numerics.outcome.Evidence` sum
+(:ref:`the-solution-outcome`), and the SN evaluator produces every branch
+of it:
 
-* **Moment-tailed (LD) schemes**, on both fixed-source arms: the residual mint
-  does not admit the trailing :math:`2^d` spatial-moment axis, so no residual
-  exists to project.  This is the same un-built widening the within-group
-  certificate already exempts (#310's deferred-out list), reached through one
-  shared predicate rather than two copies of the test.
-* **The daggered eigenvalue entry** ``solve_sn_adjoint``: the rhs
-  :math:`F^\dagger\psi^*/k` would have to be assembled for the first time
-  here, and N5's population is forward-only — so there is no reference against
-  which a plausible number could be checked.  Deferred deliberately as
-  `#353 <https://github.com/deOliveira-R/ORPHEUS/issues/353>`_ rather than
-  guessed.
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - what comes back
+     - when
+   * - :class:`~orpheus.numerics.outcome.Measured`
+     - the exit that warns — a truncated solve, the case this whole
+       section is about
+   * - :class:`~orpheus.numerics.outcome.Certified`
+     - the tree **fully converged**: the within-group exit certificate
+       already ASSERTED :math:`\lVert A\psi - q\rVert/\lVert q\rVert`
+       within its safety factor (raising otherwise), so no forward apply
+       is spent and the *bound* is reported instead of a number
+   * - :class:`~orpheus.numerics.outcome.NotApplicable`
+     - the source integrates to zero per group — the ratio is
+       **undefined**, which is a different statement from *unmeasured*
+   * - ``NotYet(310)``
+     - **moment-tailed (LD) schemes** on both fixed-source arms: the
+       residual mint does not admit the trailing :math:`2^d`
+       spatial-moment axis, so no residual exists to project.  The same
+       un-built widening the within-group certificate exempts, reached
+       through one shared predicate rather than two copies of the test
+   * - ``NotYet(353)``
+     - **the daggered eigenvalue entry** ``solve_sn_adjoint``: N5's
+       population is forward-only, so there is no reference against which
+       a plausible number could be checked.  Deferred deliberately rather
+       than guessed — assembling one from plausibility is the ERR-032
+       class
+
+⭐ **One of the two old** ``None`` **entries came back.**  The
+**carrying** (curvilinear) eigen arm used to report nothing, and the
+reason was a real refusal rather than an oversight: what
+:func:`~orpheus.sn.solver.solve_sn` assembled at its exit was a *bare*
+System-A residual against a System-A fission rhs, which on a carrying
+mesh silently omits :math:`r_B` — the ``vv-principles`` Mode-12 blindness
+the split-residual mint exists to prevent — so "no number" was more
+honest than a residual missing a block.  Since the certificate reads the
+**outcome's own** residual and rhs, and the outcome's question is the
+coupled pencil, the missing piece assembles itself: the rhs is
+:math:`\mu(\lambda)\,M\psi` on the coupled space, and
+`#354 <https://github.com/deOliveira-R/ORPHEUS/issues/354>`_ — whose gap
+*was* the un-assembled coupled rhs — is measurable.
+
+⚠ The mirror case is a **repair, not a re-baseline**, and it moves a
+published number.  :func:`~orpheus.sn.solver.solve_sn_multiplying_source`
+solves :math:`(A - F)\psi = q` and its defect was being computed against
+:math:`A` alone — the residual of a pure-transport problem that entry
+does not pose.  ``[M]`` 2026-09-17 on the witness's truncated subcritical
+slab (:math:`L = 4`, hub :math:`k = 0.907457573`, ``inner_tol = 1e-12``,
+``max_inner = 5``): :math:`0.8294593510371534` against :math:`A`
+:math:`\to` :math:`0.8758249879057027` against :math:`A - F`.  The other
+four entries pose ``pencil.at(0)``, which **is** the loss operator by
+object identity, so their numbers did not move at all.
 
 It is a warning rather than an exception by the ERR-053
 precedent (legitimate callers harvest the residual history of a
@@ -3386,8 +3525,8 @@ here is the exit behaviour.
 Every entry that returns a trace applies the :math:`G`-orthogonal
 projection :math:`\psi \mapsto \psi - \Pi\psi`
 (:eq:`sn-loss-kernel-gauge-projection`) and records the magnitude it
-removed on
-:attr:`~orpheus.sn.solution.IterationHistory.gauge_correction`.  The
+removed on :attr:`ExitCertificate.gauge
+<orpheus.numerics.outcome.ExitCertificate.gauge>`.  The
 gauge is the **sibling** of the balance projection with one sharpening
 that changes what verification it owes: :eq:`sn-exit-balance-defect`
 *reports*, and this one *mutates*.  A forgotten balance-defect site
@@ -3415,12 +3554,20 @@ asserted rather than assumed:
   :math:`\sim10^{-15}`, and the pre-gauge deviation measures
   :math:`1.0000` **out of** span.
 
-:attr:`~orpheus.sn.solution.IterationHistory.gauge_correction` follows
-the :attr:`~orpheus.sn.solution.IterationHistory.balance_defect`
-discipline exactly: ``None`` means **not measured**, never *"measured
-and zero"*.  A measured :math:`\sim10^{-15}` is the different — and
-useful — statement that the freedom is real and the solve landed on the
-canonical member anyway.
+The gauge member follows the balance member's discipline exactly, and
+since 2026-09-17 the type carries it rather than the prose: a
+:class:`~orpheus.numerics.outcome.Measured`
+:math:`\sim10^{-15}` is the statement *the freedom is real and the solve
+landed on the canonical member anyway*, and the two ways of measuring
+nothing are **two different values** —
+``NotApplicable("no kernel freedom: …")`` when the configuration has none,
+and ``NotApplicable("the closure is unclassifiable, so the trace was NOT
+gauged: …")`` when the face-mode damping could not be classified.  ⛔
+Until then both were the same ``None``, alongside a measured zero-ish
+number, on one ``float | None`` field — three states on a type that can
+express two.  The third state is the one a caller must never collapse
+into the first: an unclassified closure means the trace was **not
+repaired**, not that there was nothing to repair.
 
 .. warning::
 
@@ -3430,8 +3577,9 @@ canonical member anyway.
    distinction is not cosmetic.  That family means *"an iterative solve
    exhausted its budget; the answer is best-effort"*.  This is the
    opposite situation: ``[M]`` the configuration where it fires hardest
-   reports ``fully_converged = True`` and ``balance_defect = None``.
-   The solve is fine; the **equation** is degenerate.  Reusing the
+   reports ``fully_converged = True`` and a ``Certified`` balance member
+   (the within-group exit certificate asserted the bound, so no number
+   was owed).  The solve is fine; the **equation** is degenerate.  Reusing the
    category would also make every caller who escalates
    :data:`~orpheus.numerics.convergence.ESCALATION_FLAG` start failing
    on an unrelated condition.
@@ -3448,6 +3596,183 @@ canonical member anyway.
    **UNDETERMINED** closure — one whose face-mode damping could not be
    classified — warns loudly and is **not** gauged.  ``[M]``
    ``linear_discontinuous`` at :math:`d=3` is exactly that.
+
+.. _sn-solution-carries-its-posing:
+
+What the Solution carries — the answer fused with its question
+---------------------------------------------------------------
+
+Everything above describes things the exit *measures*.  This section is
+about the object those measurements travel on, and about a defect that
+was structural rather than numerical: until 2026-09-17 a
+:class:`~orpheus.sn.solution.Solution` recorded the **answer** and not the
+**question**, so two solves over one hub could be indistinguishable by
+their data while having solved different equations.
+
+The tier-agnostic theory — why the outcome is FUSED, what a gauge *is*
+(a section of a torsor quotient), and why the certificate is a sum rather
+than a nullable float — is
+:ref:`the-solution-outcome`, and the S\ :sub:`N`-specific realization
+table is :ref:`the-outcome-sn-realization`.  What belongs here is the
+S\ :sub:`N` shape and the consequences for a caller.
+
+Five members, and the KIND is one of their types
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:class:`~orpheus.sn.solution.SolutionBase` is generic in the outcome —
+``SolutionBase[O]``, ``O`` **constrained** to
+:class:`~orpheus.numerics.outcome.EigenOutcome` /
+:class:`~orpheus.numerics.outcome.SourceOutcome` — and carries exactly:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 78
+
+   * - member
+     - what it is
+   * - ``mesh``
+     - the **Problem** (the hub), the base point everything else is
+       relative to
+   * - ``outcome``
+     - the kind-typed **answer**, fused with the question it answered,
+       the returned STATE and the gauge that picked the representative.
+       *The kind IS this member's type*
+   * - ``strategy``
+     - the :class:`~orpheus.sn.splitting.Splitting` VALUE the solve drove
+       — the labelled piece set and the schedule.  Budgets and tolerances
+       ride the record, per level, because they are per level
+   * - ``certificate``
+     - what the exit MEASURED about the returned state, member by member,
+       as typed :class:`~orpheus.numerics.outcome.Evidence`
+   * - ``record``
+     - the Strategy's **path** — the
+       :class:`~orpheus.numerics.convergence.IterationRecord` tree
+
+The ROLE stays what #276 A5 made it — a class
+(:class:`~orpheus.sn.solution.Solution` /
+:class:`~orpheus.sn.solution.AdjointSolution`) — because the verb set
+varies by role and **not** by kind.  So the family is two leaves and one
+parameter rather than four classes, and the two axes remain what they
+always were: role = type, kind = a **type parameter** (it was a
+*property* until this step).
+
+⛔ **Until step 3 the kind was read off the ANSWER**: ``keff is not
+None``, through ``is_eigenvalue()`` / ``is_fixed_source()``.  Three
+things followed, each of which the shape retires rather than documents:
+
+* a **multiplying-source** Solution was indistinguishable from a
+  pure-transport one by its data, because both carry ``keff = None`` —
+  the two entries solve different equations over the same hub;
+* the **eigen gauge was recorded nowhere**, so a consumer holding a
+  converged flux could not determine the scale it was on, and two
+  perfectly truthful "normalized to unit production rate" states could
+  differ by the :math:`(n,2n)` channel;
+* ``compare`` branched on ``keff is not None``, so a cross-kind pair
+  silently skipped the eigenvalue channel instead of refusing.  It now
+  refuses on **three** axes — role, kind and phase space — and its
+  ``keff_abs`` channel is ``Evidence`` rather than a nullable float.
+
+``keff``, ``is_eigenvalue()``, ``is_fixed_source()``, ``keff_history``,
+``keff_history_list`` and ``dominance_ratio()`` are **retired from the
+carrier**: :math:`\lambda` is ``sol.outcome.lam`` (and ``outcome.keff``,
+which exists only under the k map — under
+:data:`~orpheus.numerics.posing.ALPHA_MAP` the same field is
+:math:`\alpha` and calling it ``keff`` would be a unit error), the
+trajectory is ``outcome.trajectory``, the ratio
+``outcome.dominance_ratio()``.  On a ``Solution[SourceOutcome]`` there is
+no ``keff`` **attribute at all** — an ``AttributeError``, not a ``None``.
+
+One state, and the flux members READ it
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``outcome.state`` is the returned iterate WHOLE — the one-system coupled
+field on a seedless mesh, the two-system one on a carrying (ray-bearing)
+mesh — and :attr:`~orpheus.sn.solution.SolutionBase.angular_flux`,
+:attr:`~orpheus.sn.solution.SolutionBase.boundary_flux`,
+:attr:`~orpheus.sn.solution.SolutionBase.radial_characteristic` and
+:attr:`~orpheus.sn.solution.SolutionBase.scalar_flux` are **readers** of
+it under their historical names.  Storing the state whole is what lets
+three separate guards retire, and each retirement is the same move —
+*make the structure say it*:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - the guard that retired
+     - what says it now
+   * - a hand-written biconditional asserting the ray member's presence
+       matches the mesh's ``R12a`` predicate
+     - the state's **ARITY**.  ``radial_characteristic`` is ``None``
+       exactly when the state has one system; there is nothing to keep
+       in sync
+   * - a marginal-axes check keeping a stored ``scalar_flux`` honest
+       against the angular one
+     - one quantity, one representation.  :math:`\phi = \int\psi\,d\Omega`
+       of the state's cell-average moment, cached once per Solution
+   * - a space-content check on *each* stored flux field
+     - the **state-on-domain law**, once: the state lives on the
+       Problem's coupled space, which is the space the recorded question
+       is posed on.  A cross-Problem pairing is refused; a same-hub
+       cross-KIND ``replace`` is a legal *different solve*, refused by the
+       type instead of by a guard
+
+⭐ **A convention divergence closed on the way.**  ``angular_flux`` used
+to mean two different things: the eigen and adjoint tails stripped a
+multi-moment (LD) closure's :math:`\hat\phi` slopes to the cell average,
+while the fixed-source arms kept the whole trailing moment axis.  One
+member, two conventions, decided by which entry you called.  Storing the
+state whole makes the arm's own convention the *only* convention, and the
+cell-average reduction moves to where the scheme lives — the hub's
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.cell_average_moment`, which
+the derived :math:`\phi` calls and which is the identity for DD/Step.
+
+.. warning::
+
+   The eigen path's :math:`\phi` is therefore :math:`\int\psi\,d\Omega`
+   of the **returned** :math:`\psi` — the one-step-polished,
+   section-applied state (:ref:`sn-finalize-one-step`) — and no longer
+   the power iteration's own converged scalar.  The two agree to the
+   outer residual: ``[M]`` 2026-09-17 against the FROZEN #448 artefacts,
+   ``max rel`` :math:`2.19\times10^{-11}` / :math:`2.94\times10^{-11}` on
+   ``cart2d_L0`` / ``slab_vac_L0`` with :math:`k` bit-identical, against
+   those gates' :math:`10^{-8}` band (457× and 340× of headroom).  Do
+   **not** read that as a floor —
+   it is the outer residual, and it falls with the tolerances.
+
+One mint, and the section applied there
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+All five public entries and both roles now construct through
+:func:`~orpheus.sn.solver._package_solution`.  ⛔ Until step 3 that tail
+served three of five while the two fixed-source arms built
+``Solution(...)`` inline to keep their DG slope structure — which is
+exactly why the convention divergence above was possible, and why no
+cross-cutting change at the tail could reach every entry.  Retired with
+it: ``_package_adjoint_solution``, ``_exit_balance_defect``,
+``_cell_average_angular`` and ``_average_moment_scalar``.
+
+The eigen entries apply the recorded **section** at that mint, so
+``gauge.functional(state) == target`` is a LAW of the returned answer
+rather than something a consumer must re-check.  It is not a formality:
+the driver rescales the SCALAR iterate each outer, and the returned
+:math:`\psi` is polished one step past it, so it lands off the section by
+the iteration's own residual.  ``[M]`` 2026-09-17, two-region 2-group
+slab, ``gauss_legendre(8)``, 8 cells, reading :math:`n(\psi)` **before**
+the section: :math:`3.93\times10^{-8}` off at ``solve_sn``'s defaults
+(``keff_tol`` 1e-7 / ``flux_tol`` 1e-6 / ``inner_tol`` 1e-8) and
+:math:`1.07\times10^{-10}` off at the finalize gates' tolerances
+(1e-10 / 1e-9 / 1e-11) — three orders down for three orders of tolerance,
+and ``1.0`` to one ulp afterwards.
+
+⚠ **The forward and adjoint eigen sections are DIFFERENT functionals, and
+that is now recorded rather than implied.**  The forward records SN's
+production rate **including** the :math:`(n,2n)` emission, as a functional
+of the STATE; the adjoint records ``KEigenvalue``'s fission-only member.
+Both are truthfully described as "unit production rate", and on a
+:math:`\Sigma_2`-carrying deck they differ by rel
+:math:`1.2\times10^{-1}` — see :ref:`the-outcome-sn-realization` for why
+the gauge stores the callable rather than a label.
 
 .. _sn-consuming-the-frame:
 

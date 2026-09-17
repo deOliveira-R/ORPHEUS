@@ -42,6 +42,84 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-09-17
+     - **The Solution carries its posing** (the consumers campaign,
+       step 3, units U1 + U2): a solve's answer is FUSED with the
+       question it answered, the section that picked its representative,
+       and what the exit measured about it.
+       **(1) The kind is a TYPE, not a value read off the answer.**
+       :class:`~orpheus.sn.solution.SolutionBase` is generic in the
+       kind-typed OUTCOME (``SolutionBase[O]``, ``O`` constrained to
+       :class:`~orpheus.numerics.outcome.EigenOutcome` /
+       :class:`~orpheus.numerics.outcome.SourceOutcome`), and its five
+       members are ``mesh, outcome, strategy, certificate, record``.
+       ⛔ Until this step the kind was ``keff is not None`` — one tier
+       too late: a multiplying-source Solution was indistinguishable
+       from a pure-transport one by its data, and the eigen gauge was
+       recorded nowhere.  ``keff``, ``is_eigenvalue()``,
+       ``is_fixed_source()``, ``keff_history``, ``keff_history_list``
+       and ``dominance_ratio()`` are **retired from the carrier** (λ is
+       ``outcome.lam`` / ``outcome.keff``, the trajectory
+       ``outcome.trajectory``);
+       :class:`~orpheus.sn.solution.IterationHistory` survives as a
+       one-cycle VIEW property, retired at U6.
+       **(2) The state is stored WHOLE and the flux members are
+       READERS of it.**  ``outcome.state`` is the returned iterate — the
+       one-system coupled field on a seedless mesh, the two-system one
+       on a carrying mesh — and ``angular_flux``, ``boundary_flux``,
+       ``radial_characteristic`` and ``scalar_flux`` read it.  So the
+       ray member's presence is the state's **arity** (no biconditional
+       against the mesh), the LD moment tail rides every entry (the
+       eigen/adjoint tail used to strip it while the fixed-source arms
+       kept it — two conventions for one member), and ``__post_init__``
+       enforces exactly ONE law: the state lives on the Problem's
+       coupled space, which is the space the recorded question is posed
+       on.
+       **(3) The section is APPLIED at the mint**, so
+       ``gauge.functional(state) == target`` is a LAW of the answer
+       rather than an approximation: ``[M]`` the polished :math:`\psi`
+       of #448 sits off it by the iteration's own residual —
+       :math:`3.9\times10^{-8}` at ``solve_sn``'s default tolerances and
+       :math:`1.1\times10^{-10}` at the finalize gates' — and reads
+       ``1.0`` to one ulp after.  The forward eigen section is a
+       functional of the STATE (SN's production rate, **including** the
+       :math:`(n,2n)` emission); the adjoint's is
+       ``KEigenvalue.compute_production_rate`` (fission only), recorded
+       as the DIFFERENT functional it is.
+       **(4) The exit certificate reads the OUTCOME's own residual and
+       rhs** — four typed
+       :class:`~orpheus.numerics.outcome.Evidence` members replacing a
+       ``float | None`` with five documented meanings.  Two repairs fall
+       out: the CARRYING eigen arm's balance is now measured (#354's gap
+       was the un-assembled coupled rhs; the posing's ``production`` on
+       the coupled space IS it), and the multiplying entry's defect
+       reads the imbalance of the equation it SOLVED — ``[M]``
+       :math:`0.8294593510371534` against :math:`A` (the wrong equation)
+       :math:`\to` :math:`0.8758249879057027` against :math:`A - F` on
+       the truncated subcritical slab.
+       **(5) ONE mint for all five entries**
+       (:func:`~orpheus.sn.solver._package_solution`, both roles); the
+       two inline ``Solution(...)`` mints, ``_package_adjoint_solution``,
+       ``_exit_balance_defect``, ``_cell_average_angular`` and
+       ``_average_moment_scalar`` are **deleted** (the moment-slot
+       reducer moved onto the hub as :meth:`SNMesh.cell_average_moment
+       <orpheus.sn.mesh.augmented_mesh.SNMesh.cell_average_moment>`).
+       **(6) Both adjoint arms pose the hub's ONE daggered question**
+       (#467): ``KEigenvalue(hub.eigen_posing.H(), implicit.H, gain.H)``
+       on the coupled carrier, the seedless Strategy pair lifted into the
+       :math:`1\times1` grid — ``[M]`` a ULP-class re-baseline,
+       :math:`k_{\rm adj}` moving by rel :math:`\approx 10^{-15}`
+       against 1e-9 certification gates.
+       **(7) The fifth entry stopped being silent** — the hoisted
+       ``warn_if_unconverged`` / ``warn_if_gauge_freedom`` reach
+       :func:`~orpheus.sn.solver.solve_sn_multiplying_source`, whose
+       admissibility :math:`k` is now RECORDED with the tolerance it was
+       measured at (**ERR-086**).
+       Full account: :ref:`the-solution-outcome`,
+       :ref:`sn-solution-carries-its-posing`,
+       :ref:`sn-adjoint-poses-a-pencil`.
+     - #461 #462 #467 (#354 measurable)
+     - branch ``refactor/consumers-step3`` (hash at the merge)
    * - 2026-09-14
      - **The pencil reaches production, and** :math:`\sigma` **is bound
        ONCE at the operator that owns it** (the consumers campaign,

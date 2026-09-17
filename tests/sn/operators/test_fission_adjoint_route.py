@@ -157,7 +157,7 @@ def test_the_carrying_adjoint_reaches_the_energy_binding(monkeypatch):
     _install_counter(monkeypatch, IsotropicFission, counter)
 
     outcome = _solve(CoordSystem.SPHERICAL)
-    if outcome.keff is None:
+    if outcome.outcome.keff is None:
         pytest.fail("the sphere adjoint returned no eigenvalue")
 
     for frame in (_EMISSION, _MOMENT):
@@ -251,10 +251,10 @@ def test_the_counted_call_is_load_bearing(monkeypatch):
         return 2.0 * np.asarray(original(self, chi))
 
     baseline = _solve(CoordSystem.SPHERICAL)
-    if baseline.keff is None:
+    if baseline.outcome.keff is None:
         pytest.fail("the sphere adjoint returned no eigenvalue")
     np.testing.assert_allclose(
-        float(baseline.keff), _SPHERE_K, rtol=0.0, atol=_SAFETY * _KEFF_TOL,
+        float(baseline.outcome.keff), _SPHERE_K, rtol=0.0, atol=_SAFETY * _KEFF_TOL,
         err_msg="the fixture's adjoint k moved — re-derive the control's "
                 "expected ratio before trusting the mutation below.",
     )
@@ -263,10 +263,10 @@ def test_the_counted_call_is_load_bearing(monkeypatch):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         mutated = _solve(CoordSystem.SPHERICAL)
-    if mutated.keff is None:
+    if mutated.outcome.keff is None:
         pytest.fail("the mutated sphere adjoint returned no eigenvalue")
     np.testing.assert_allclose(
-        float(mutated.keff), 2.0 * float(baseline.keff),
+        float(mutated.outcome.keff), 2.0 * float(baseline.outcome.keff),
         rtol=0.0, atol=2.0 * _SAFETY * _KEFF_TOL,
         err_msg="doubling IsotropicFission.apply_transpose did NOT double the "
                 "adjoint eigenvalue — the counted call's result is not the "

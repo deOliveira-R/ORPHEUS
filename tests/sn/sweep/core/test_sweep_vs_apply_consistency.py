@@ -150,7 +150,7 @@ def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
 
     # Eigenvalue agreement: homogeneous reflective is the easy case
     # (flat eigenmode, k = νΣ_f/Σ_a), so this should hold to ~1e-6.
-    assert abs(res_si.keff - res_kr.keff) < 1e-6, (
-        f"SI keff = {res_si.keff:.10f}, Krylov keff = {res_kr.keff:.10f}, "
-        f"diff = {res_si.keff - res_kr.keff:.3e}"
+    assert abs(res_si.outcome.keff - res_kr.outcome.keff) < 1e-6, (
+        f"SI keff = {res_si.outcome.keff:.10f}, Krylov keff = {res_kr.outcome.keff:.10f}, "
+        f"diff = {res_si.outcome.keff - res_kr.outcome.keff:.3e}"
     )

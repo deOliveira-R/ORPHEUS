@@ -19,5 +19,7 @@ from .solver import (
     solve_sn_adjoint,
     solve_sn_adjoint_fixed_source,
     solve_sn_fixed_source,
+    solve_sn_multiplying_source,
+    SupercriticalSourceProblem,
 )
 from orpheus.numerics.quadrature import Quadrature

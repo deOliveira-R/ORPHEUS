@@ -102,8 +102,8 @@ def test_homogeneous_exact(case_name):
     result = solve_sn(materials, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
 
-    assert abs(result.keff - case.k_inf) < 1e-8, (
-        f"keff={result.keff:.8f} vs analytical={case.k_inf:.8f}"
+    assert abs(result.outcome.keff - case.k_inf) < 1e-8, (
+        f"keff={result.outcome.keff:.8f} vs analytical={case.k_inf:.8f}"
     )
 
 
@@ -128,7 +128,7 @@ def test_spatial_convergence():
             materials, mesh, quad,
             max_outer=300, max_inner=500, inner_tol=1e-10,
         )
-        keffs.append(result.keff)
+        keffs.append(result.outcome.keff)
         dxs.append(t_fuel / n_per)
 
     # Richardson extrapolation reference
@@ -195,9 +195,9 @@ def test_heterogeneous_absolute_keff():
     # 5e-4 tolerance is loose enough to accommodate the O(h) spatial
     # truncation at material interfaces with DD on a piecewise-constant
     # Σ(x), and tight enough to catch the 1.4e-2 ERR-025 gap.
-    assert abs(result.keff - ref.k_eff) < 5e-4, (
-        f"keff={result.keff:.10f} vs Case reference={ref.k_eff:.10f} "
-        f"(Δ={result.keff - ref.k_eff:+.2e})"
+    assert abs(result.outcome.keff - ref.k_eff) < 5e-4, (
+        f"keff={result.outcome.keff:.10f} vs Case reference={ref.k_eff:.10f} "
+        f"(Δ={result.outcome.keff - ref.k_eff:+.2e})"
     )
 
 
@@ -221,7 +221,7 @@ def test_angular_convergence():
             materials, mesh, quad,
             max_outer=300, max_inner=500, inner_tol=1e-10,
         )
-        keffs.append(result.keff)
+        keffs.append(result.outcome.keff)
 
     k_ref = keffs[-1]
     orders = _convergence_order(keffs, [1 / N for N in n_ords], k_ref)

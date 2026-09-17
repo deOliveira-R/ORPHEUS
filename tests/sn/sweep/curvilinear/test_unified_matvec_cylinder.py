@@ -463,10 +463,10 @@ def test_unified_cylinder_l1_mr_2g_trajectory_resolvent() -> None:
             max_inner=200, inner_tol=1e-9,
         )
 
-    rel = abs(sol.keff - k_ref) / k_ref
+    rel = abs(sol.outcome.keff - k_ref) / k_ref
     assert rel < 3.0e-2, (
         f"unified cylinder L1 disagreement with trajectory_resolvent: "
-        f"k_unified={sol.keff:.10f}, k_ref={k_ref:.10f}, rel={rel:.3e}"
+        f"k_unified={sol.outcome.keff:.10f}, k_ref={k_ref:.10f}, rel={rel:.3e}"
     )
 
 
@@ -512,9 +512,9 @@ def test_unified_cylinder_l1_homogeneous_kinf_2g() -> None:
             max_inner=200, inner_tol=1e-10,
         )
 
-    rel = abs(sol.keff - k_analytical) / k_analytical
+    rel = abs(sol.outcome.keff - k_analytical) / k_analytical
     assert rel < 5e-4, (
         f"unified cylinder k_∞ recovery violated: "
-        f"k_analytical={k_analytical:.10f}, k_unified={sol.keff:.10f}, "
+        f"k_analytical={k_analytical:.10f}, k_unified={sol.outcome.keff:.10f}, "
         f"rel={rel:.2e}"
     )

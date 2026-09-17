@@ -89,8 +89,8 @@ def test_homogeneous_exact(case_name, quad_factory):
     result = solve_sn({0: mix}, mesh, quad,
                       max_inner=500, inner_tol=1e-10)
 
-    assert abs(result.keff - case.k_inf) < 1e-6, (
-        f"keff={result.keff:.8f} vs analytical={case.k_inf:.8f}"
+    assert abs(result.outcome.keff - case.k_inf) < 1e-6, (
+        f"keff={result.outcome.keff:.8f} vs analytical={case.k_inf:.8f}"
     )
 
 
@@ -119,8 +119,8 @@ def test_particle_balance(quad_factory):
 
     k_balance = production / absorption
     np.testing.assert_allclose(
-        k_balance, result.keff, rtol=1e-5,
-        err_msg=f"Particle balance: prod/abs={k_balance:.8f} ≠ keff={result.keff:.8f}",
+        k_balance, result.outcome.keff, rtol=1e-5,
+        err_msg=f"Particle balance: prod/abs={k_balance:.8f} ≠ keff={result.outcome.keff:.8f}",
     )
 
 
@@ -161,10 +161,10 @@ class TestCylinderMultiGroupMultiRegion:
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
-        assert np.isfinite(result.keff), "keff is NaN/Inf"
-        assert result.keff > 0, f"keff is non-positive: {result.keff}"
+        assert np.isfinite(result.outcome.keff), "keff is NaN/Inf"
+        assert result.outcome.keff > 0, f"keff is non-positive: {result.outcome.keff}"
         assert np.all(np.isfinite(result.scalar_flux.values)), "Non-finite flux"
-        assert 0.5 < result.keff < 3.0, f"keff={result.keff:.4f} out of physical range"
+        assert 0.5 < result.outcome.keff < 3.0, f"keff={result.outcome.keff:.4f} out of physical range"
 
     def test_2g_heterogeneous_product_different_resolutions(self):
         """Folded quadrature at two resolutions must give close keff."""
@@ -183,7 +183,7 @@ class TestCylinderMultiGroupMultiRegion:
             )
             result = solve_sn(materials, mesh, quad,
                               max_inner=500, inner_tol=1e-10)
-            keffs[label] = result.keff
+            keffs[label] = result.outcome.keff
 
         assert abs(keffs["4×8"] - keffs["8×8"]) < 0.05, (
             f"Product resolutions disagree: "
@@ -291,7 +291,7 @@ class TestCylinderMultiGroupMultiRegion:
             )
             result = solve_sn(materials, mesh, quad,
                               max_inner=500, inner_tol=1e-10)
-            keffs.append(result.keff)
+            keffs.append(result.outcome.keff)
 
         diff_1 = abs(keffs[1] - keffs[0])
         diff_2 = abs(keffs[2] - keffs[1])
@@ -334,9 +334,9 @@ class TestSphereEigenvalue:
         # due to angular redistribution coupling. 1G is exact (keff
         # independent of flux shape); multi-group has ~1% error on S8/20-cell.
         tol = 1e-6 if case.n_groups == 1 else 0.02
-        assert abs(result.keff - case.k_inf) < tol, (
-            f"keff={result.keff:.8f} vs analytical={case.k_inf:.8f} "
-            f"err={abs(result.keff - case.k_inf):.2e}"
+        assert abs(result.outcome.keff - case.k_inf) < tol, (
+            f"keff={result.outcome.keff:.8f} vs analytical={case.k_inf:.8f} "
+            f"err={abs(result.outcome.keff - case.k_inf):.2e}"
         )
 
     def test_particle_balance(self):
@@ -359,8 +359,8 @@ class TestSphereEigenvalue:
 
         k_balance = production / absorption
         np.testing.assert_allclose(
-            k_balance, result.keff, rtol=1e-5,
-            err_msg=f"Particle balance: prod/abs={k_balance:.8f} ≠ keff={result.keff:.8f}",
+            k_balance, result.outcome.keff, rtol=1e-5,
+            err_msg=f"Particle balance: prod/abs={k_balance:.8f} ≠ keff={result.outcome.keff:.8f}",
         )
 
     @pytest.mark.slow
@@ -382,7 +382,7 @@ class TestSphereEigenvalue:
                 materials, mesh, quad,
                 max_outer=300, max_inner=500, inner_tol=1e-10,
             )
-            keffs.append(result.keff)
+            keffs.append(result.outcome.keff)
             drs.append(0.5 / n_per)
 
         k_ref = keffs[-1] + (keffs[-1] - keffs[-2]) / 3.0
@@ -436,8 +436,8 @@ class TestMultiGroupMultiRegionSpherical:
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
-        assert np.isfinite(result.keff), "keff is NaN/Inf"
-        assert 0.1 < result.keff < 3.0, f"keff={result.keff:.4f} out of range"
+        assert np.isfinite(result.outcome.keff), "keff is NaN/Inf"
+        assert 0.1 < result.outcome.keff < 3.0, f"keff={result.outcome.keff:.4f} out of range"
         assert np.all(np.isfinite(result.scalar_flux.values)), "Non-finite flux"
 
     def test_4g_scattering_convergence(self):
@@ -562,7 +562,7 @@ class TestMultiGroupMultiRegionSpherical:
         return solve_sn(
             materials, mesh, Quadrature.gauss_legendre(n_gl),
             max_inner=500, inner_tol=1e-10,
-        ).keff
+        ).outcome.keff
 
     def test_heterogeneous_1g_spatial_convergence(self):
         """keff converges under h-refinement (spatial), from n=10.
@@ -660,7 +660,7 @@ def _assert_si_krylov_eigenvalue_equivalence(materials, mesh, quad) -> float:
         keff_tol=1e-12, flux_tol=1e-10, max_inner=4000, inner_tol=1e-10,
     )
 
-    k_si, k_kry = sol_si.keff, sol_kry.keff
+    k_si, k_kry = sol_si.outcome.keff, sol_kry.outcome.keff
     assert k_si is not None and k_kry is not None  # eigenvalue solve sets keff
     dk = abs(k_si - k_kry)
     assert dk < _SI_KRYLOV_KEFF_TOL, (
@@ -783,7 +783,7 @@ def _sphere_keff(materials, mesh, scattering_order: int) -> float:
         materials, mesh, quad,
         scattering_order=scattering_order,
         max_outer=300, max_inner=500, inner_tol=1e-10, keff_tol=1e-8,
-    ).keff
+    ).outcome.keff
 
 
 @pytest.mark.verifies("pn-scatter")
@@ -1009,14 +1009,14 @@ def _folded_cyl_keff(materials, mesh, quad, scattering_order: int) -> float:
         scattering_order=scattering_order,
         max_outer=300, max_inner=500, inner_tol=1e-10, keff_tol=1e-8,
     )
-    if result.keff is None:
+    if result.outcome.keff is None:
         raise AssertionError(
             f"the folded cylindrical solve at scattering_order="
             f"{scattering_order} returned no eigenvalue at all "
             f"(Solution.keff is None) — there is nothing for the "
             f"quotient-basis claim below to be asserted against"
         )
-    return result.keff
+    return result.outcome.keff
 
 
 @pytest.mark.verifies("pn-scatter", "discrete-measure-quotient")

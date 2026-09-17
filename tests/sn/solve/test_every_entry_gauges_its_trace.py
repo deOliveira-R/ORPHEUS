@@ -329,10 +329,10 @@ def test_the_bulk_and_keff_are_untouched():
         _QUAD, inner_solver="source_iteration", inner_schedule="gauss_seidel",
         inner_tol=1e-13,
     )
-    assert excited.keff == pytest.approx(unexcited.keff, rel=1e-12)
+    assert excited.outcome.keff == pytest.approx(unexcited.outcome.keff, rel=1e-12)
     # k_inf = nu*SigF / SigA is flux-shape independent on a homogeneous
     # all-reflective box — an INDEPENDENT anchor, not a self-comparison.
-    assert excited.keff == pytest.approx(1.875, rel=1e-9)
+    assert excited.outcome.keff == pytest.approx(1.875, rel=1e-9)
 
 
 @pytest.mark.foundation

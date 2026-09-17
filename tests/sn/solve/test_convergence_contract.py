@@ -1334,15 +1334,24 @@ class TestExitBalanceDefect:
             "fixture drift: this row needs a CARRYING mesh, or it is "
             "silently re-testing the Cartesian path"
         )
-        assert sol.history is not None
-        assert sol.history.fully_converged is False
-        assert sol.history.balance_defect is None, (
-            "a bare System-A residual on a carrying mesh would omit r_B; "
-            "the exit must report no number rather than a partial one (#354)"
+        assert sol.record.fully_converged is False
+        # step 3 (2026-09-17) DISSOLVED #354: the certificate reads the
+        # outcome's OWN residual through the hub's coupled pencil, whose
+        # ``production`` on the coupled space IS the rhs that could not be
+        # assembled here before — so the carrying arm reports a MEASURED
+        # System-A balance defect now (``[M]`` 0.264 on this fixture) and the
+        # warning carries the clause.  Until step 3 this row pinned the honest
+        # ABSENCE (``balance_defect is None``, "no number rather than a
+        # partial one"); the absence was the gap, not the doctrine.
+        from orpheus.numerics.outcome import Measured
+        assert isinstance(sol.certificate.balance, Measured), (
+            "the carrying eigen exit's balance is measurable through the "
+            "coupled posing (#354 dissolved at step 3); got "
+            f"{sol.certificate.balance!r}"
         )
-        assert "balance defect" not in str(caught[0].message), (
-            "no number ⟹ no clause — an 'unavailable' string would read as "
-            "a measurement to anyone skimming"
+        assert sol.certificate.balance.value > 0.0
+        assert "balance defect" in str(caught[0].message), (
+            "a measured number owes its clause in the warning"
         )
 
     def test_a_CONVERGED_solve_neither_WARNS_nor_PAYS(self) -> None:

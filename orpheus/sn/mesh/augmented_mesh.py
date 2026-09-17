@@ -1135,6 +1135,31 @@ class SNMesh(MaterialMesh):
 
         return build_within_group_system(self, self.mat_xs)
 
+    def cell_average_moment(self, values: np.ndarray) -> np.ndarray:
+        r"""Reduce a (possibly moment-carrying) bulk array to its cell-AVERAGE slot.
+
+        The ONE moment-slot single source (layout-generic over the trailing
+        moment axis): a multi-moment closure's field carries a trailing
+        :math:`2^d` spatial-moment axis whose slot ``AVERAGE_MOMENT`` is the
+        cell average and whose other slots are within-cell DG structure (#240
+        D5b-S3); DD/Step (``per_axis == 1``) carries no axis and the array is
+        returned unchanged.  Owned by the hub because the scheme is the hub's —
+        the Solution's derived ``scalar_flux`` reads it here (consumers
+        campaign step 3, 2026-09-17; until then this body was the solver's
+        private ``_average_moment_scalar``, which the Solution could not reach
+        without a cyclic import).
+        """
+        from orpheus.numerics.moment_layout import (
+            AVERAGE_MOMENT,
+            cell_moment_count,
+            face_moment_tail,
+        )
+
+        per_axis = self.scheme.spatial_basis_per_axis
+        if face_moment_tail(cell_moment_count(per_axis, self.ndim)) == ():
+            return values
+        return values[..., AVERAGE_MOMENT]
+
     @cached_property
     def pencil(self) -> "OperatorPencil[CoupledField]":
         r"""The Problem's LAST step — the pencil :math:`(A, F)` on the coupled space (R-cc2)."""

@@ -44,7 +44,7 @@ def _solve(inner_solver: str, inner_tol: float):
             keff_tol=1e-12, flux_tol=1e-10,
             inner_tol=inner_tol,
         )
-    return res.keff
+    return res.outcome.keff
 
 
 def _kinf_analytical() -> float:

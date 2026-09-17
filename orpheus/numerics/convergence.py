@@ -216,6 +216,8 @@ import warnings
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 
+from orpheus.numerics.outcome import Evidence, Measured, NotApplicable
+
 __all__ = [
     "ESCALATION_FLAG",
     "ConvergenceWarning",
@@ -1368,7 +1370,7 @@ def warn_if_unconverged(
     record: IterationRecord,
     *,
     where: str,
-    balance_defect: float | None = None,
+    balance_defect: Evidence = NotApplicable("no balance defect is measured at this entry"),
 ) -> None:
     r"""Make a best-effort exit AUDIBLE at a public entry, in ANY family.
 
@@ -1454,12 +1456,14 @@ def warn_if_unconverged(
         The public entry's name, for the message's subject.  The only
         caller-supplied fact left, because it is the only one the record
         cannot know.
-    balance_defect : float or None, optional
-        ``‖R_g‖/‖Q_g‖`` for the RETURNED iterate, when the family computes
-        one.  SN supplies it (see
-        :func:`~orpheus.sn.solver._exit_balance_defect`); CP, MoC and
-        diffusion do not yet, and pass ``None``.  ``None`` renders as an
-        ABSENT clause rather than the words "unavailable", because an empty
+    balance_defect : Evidence, optional
+        ``‖R_g‖/‖Q_g‖`` for the RETURNED iterate, as typed evidence
+        (:class:`~orpheus.numerics.outcome.Measured` when the family computed
+        one — SN's exit certificate; :class:`~orpheus.numerics.outcome.NotApplicable`
+        / :class:`~orpheus.numerics.outcome.NotYet` / :class:`~orpheus.numerics.outcome.Certified`
+        otherwise — CP, MoC and diffusion pass the default).  Only a MEASURED
+        value renders; every other case is an ABSENT clause rather than the
+        words "unavailable", because an empty
         clause cannot be misread as a measurement.
 
     Notes
@@ -1647,9 +1651,9 @@ def warn_if_unconverged(
     # nothing rather than "unavailable" — an empty clause cannot be misread
     # as a measurement.
     balance = (
-        "" if balance_defect is None else
+        "" if not isinstance(balance_defect, Measured) else
         f"The returned iterate leaves a per-group balance defect of "
-        f"‖R_g‖/‖Q_g‖ = {balance_defect:.3e} — a DIAGNOSTIC "
+        f"‖R_g‖/‖Q_g‖ = {balance_defect.value:.3e} — a DIAGNOSTIC "
         f"magnitude, NOT a verdict: it tracks the error in keff better than "
         f"the raw residual does, but benign and corrupting solves overlap, "
         f"so weigh it and do not threshold it. "

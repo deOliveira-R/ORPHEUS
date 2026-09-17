@@ -321,9 +321,9 @@ def test_solve_sn_accepts_registry_slab_case() -> None:
         materials, mesh, quadrature,
         max_outer=50, keff_tol=1e-4, flux_tol=1e-3,
     )
-    assert math.isfinite(result.keff), (
-        f"solve_sn(Ua-1-0-SL) returned non-finite keff: {result.keff}"
+    assert math.isfinite(result.outcome.keff), (
+        f"solve_sn(Ua-1-0-SL) returned non-finite keff: {result.outcome.keff}"
     )
-    assert result.keff > 0, (
-        f"solve_sn(Ua-1-0-SL) returned non-positive keff: {result.keff}"
+    assert result.outcome.keff > 0, (
+        f"solve_sn(Ua-1-0-SL) returned non-positive keff: {result.outcome.keff}"
     )

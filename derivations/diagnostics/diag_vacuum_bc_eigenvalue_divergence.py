@@ -62,7 +62,7 @@ def probe_si_vacuum():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         result = solve_sn(materials, mesh, quad)
-    print(f"[P_SI] vacuum keff           = {result.keff:.10f}  (expected < 1.875)")
+    print(f"[P_SI] vacuum keff           = {result.outcome.keff:.10f}  (expected < 1.875)")
     print(f"[P_SI] terminal psi max      = "
           f"{float(np.max(np.abs(result.angular_flux.values))):.3e}")
     print(f"[P_SI] terminal phi max      = "
@@ -80,7 +80,7 @@ def probe_krylov_vacuum():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         result = solve_sn(materials, mesh, quad, inner_solver="krylov")
-    print(f"[P_Kr] krylov vacuum keff    = {result.keff:.10f}  (expected < 1.875)")
+    print(f"[P_Kr] krylov vacuum keff    = {result.outcome.keff:.10f}  (expected < 1.875)")
     print(f"[P_Kr] terminal psi max      = "
           f"{float(np.max(np.abs(result.angular_flux.values))):.3e}")
     print(f"[P_Kr] terminal phi max      = "
@@ -98,7 +98,7 @@ def probe_reflective_ref():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         result = solve_sn(materials, mesh, quad)
-    print(f"[P_Re] reflective keff       = {result.keff:.10f}  (expected = 1.875)")
+    print(f"[P_Re] reflective keff       = {result.outcome.keff:.10f}  (expected = 1.875)")
     print(f"[P_Re] terminal psi max      = "
           f"{float(np.max(np.abs(result.angular_flux.values))):.3e}")
     print(f"[P_Re] n_outer               = {result.history.n_outer}")

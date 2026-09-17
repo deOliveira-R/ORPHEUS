@@ -987,6 +987,35 @@ questions are different, and that only one of them is what the three
    contractibility key **plus** the angular-closure class **plus** the
    retained scattering order.
 
+.. note:: **What a Solution records, and what it does not** (step 3 of
+   the consumers campaign, 2026-09-17).  A
+   :class:`~orpheus.sn.solution.Solution` is the pair (Problem, posing)
+   plus the Strategy that produced it and the records — five members:
+   the ``mesh`` (this hub, by reference), the kind-typed ``outcome`` (the
+   QUESTION fused with the returned state, the answer and the gauge that
+   picked the representative), the ``strategy``
+   (:class:`~orpheus.sn.splitting.Splitting`), the exit ``certificate``
+   and the ``record`` tree.
+
+   So the Problem's identity above is one of **two** provenance facts a
+   Solution now carries, and the second is what step 3 added: which
+   *question* over this Problem was answered.  ⛔ Until then only the
+   Problem travelled, and two solves over one hub could be
+   indistinguishable by their data — ``[M]`` a subcritical
+   multiplying-source answer (:math:`(A - F)\psi = q`) and a
+   pure-transport one (:math:`A\psi = q`) over the same deck both carried
+   ``keff = None``, and that is the whole reason the kind is now the
+   outcome's TYPE rather than a value read off the answer.
+
+   ⚠ Read the two facts together and neither is redundant: identity says
+   *same Problem*, the posing says *same question*, and it takes both to
+   decide whether two Solutions describe the same thing.  A
+   :math:`P_0` forward and a :math:`P_3` adjoint share a phase space,
+   are different problems, AND (since the kind is typed) may also be
+   different kinds — :meth:`SolutionBase.compare
+   <orpheus.sn.solution.SolutionBase.compare>` is closed on all three
+   axes.  The full account is :ref:`sn-solution-carries-its-posing`.
+
 Identity is strictly finer than contractibility
 (``a == b`` :math:`\Rightarrow` ``a.same_phase_space(b)``), and the gap
 between them is exactly the two members the weaker predicate excludes.

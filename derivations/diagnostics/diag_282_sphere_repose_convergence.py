@@ -48,7 +48,7 @@ def _sphere_keff(n_cells, n_gl):
     )
     return solve_sn(materials, mesh, Quadrature.gauss_legendre(n_gl),
                     max_outer=800, max_inner=500, inner_tol=1e-10,
-                    keff_tol=1e-12, flux_tol=1e-11).keff
+                    keff_tol=1e-12, flux_tol=1e-11).outcome.keff
 
 
 @pytest.mark.slow

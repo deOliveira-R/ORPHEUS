@@ -99,7 +99,7 @@ def _solve_kinf(
             keff_tol=1e-12, flux_tol=1e-10,
             inner_tol=inner_tol,
         )
-    return float(res.keff)
+    return float(res.outcome.keff)
 
 
 @pytest.mark.l1

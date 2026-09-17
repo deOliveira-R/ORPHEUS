@@ -140,9 +140,9 @@ def _sphere():
 
 
 def _k(sol) -> float:
-    if sol.keff is None:
-        pytest.fail("solve returned no eigenvalue.")
-    return float(sol.keff)
+    """λ off an eigen Solution — the kind is the outcome's TYPE (step 3), so a
+    source Solution has no ``keff`` at all rather than ``None``."""
+    return float(sol.outcome.keff)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -405,8 +405,8 @@ def _sphere_daggered_run(sn_mesh):
     from orpheus.numerics.pencil import OperatorPencil
     from orpheus.numerics.posing import K_MAP, EigenPosing
 
-    parts: tuple[Any, Any, Any, Any] = _adjoint_posing_parts(sn_mesh)
-    implicit_operator, gain, F_posed, template = parts
+    parts: tuple[Any, Any, Any, Any, Any] = _adjoint_posing_parts(sn_mesh)
+    implicit_operator, gain, F_posed, template, _splitting = parts
     if not isinstance(template, CoupledField):
         pytest.fail(
             "carrying sphere expected — this row's domain is the "
@@ -441,8 +441,8 @@ def _sphere_dense_reference():
 
     mats, mesh = _het_sphere()
     sn = _as_sn_mesh(mesh, _quad(), mats)
-    parts: tuple[Any, Any, Any, Any] = _adjoint_posing_parts(sn)
-    implicit_operator, gain, F_posed, template = parts
+    parts: tuple[Any, Any, Any, Any, Any] = _adjoint_posing_parts(sn)
+    implicit_operator, gain, F_posed, template, _splitting = parts
     if not isinstance(template, CoupledField):
         pytest.fail(
             "carrying sphere expected — the dense probe spans the "

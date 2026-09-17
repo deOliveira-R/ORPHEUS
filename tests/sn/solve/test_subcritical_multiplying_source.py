@@ -13,6 +13,8 @@ reflective|reflective k = 1.374233987 (the REFUSAL leg).
 """
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pytest
 
@@ -20,7 +22,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry.mesh import BC, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import (
-    SupercriticalSourceProblem, solve_sn, solve_sn_fixed_source, solve_sn_multiplying_source,
+    SupercriticalSourceProblem, _as_sn_mesh, solve_sn, solve_sn_fixed_source, solve_sn_multiplying_source,
 )
 
 pytestmark = pytest.mark.l1
@@ -51,7 +53,7 @@ def test_the_multiplying_solve_converges_and_its_certificate_holds(L: float, k_r
     inner is NOT a refusal, it is a budget; #340), the subcritical one fits the
     default."""
     mats, mesh, quad = _slab(L)
-    k = float(solve_sn(mats, mesh, quad).keff)
+    k = float(solve_sn(mats, mesh, quad).outcome.keff)
     _require(abs(k - k_ref) < 1e-6, f"the fixture's k moved: {k!r} vs {k_ref!r}")
     sol = solve_sn_multiplying_source(mats, mesh, quad, _uniform_source(quad, 2, 8), inner_tol=1e-12, max_inner=budget)
     _require(sol.converged(), "the multiplying source solve must converge (k < 1)")
@@ -119,3 +121,95 @@ def test_the_zero_D_multiplying_flux_matches_the_closed_form() -> None:
         _require(bool(np.all(phi > 0)) is positive, f"scale {scale}: (A − F)⁻¹·1 = {phi} — positivity {positive}")
         if positive:
             _require(np.allclose(phi, [60.0, 70.0], rtol=1e-12), f"the closed form [60, 70]; got {phi}")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# ERR-086 — the multiplying entry's SILENCE (step 3, 2026-09-17)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Until step 3 U2 `solve_sn_multiplying_source` returned the SI arm's Solution
+# directly and never reached the hoisted `warn_if_unconverged` /
+# `warn_if_gauge_freedom` its four siblings emit from their public entry: a
+# truncated solve and a gauge-fixed trace went by in silence (the step-3
+# anchors recorded both, beside the sibling's warning on the same hub), and
+# the warn-site count gate `len(sites) == 7` pinned the inventory that excluded
+# it.  The two rows below are the catchers: each pairs the fifth entry with its
+# sibling on ONE hub, so "no warning" cannot be mistaken for "nothing to warn".
+
+
+def _dilute_fissile(ng: int = 2):
+    """Fissile enough to be ADMITTED (k_eff > 0), dilute enough to stay SUBCRITICAL on
+    an all-reflective box — a library mixture there is supercritical (k∞ = 1.875 for A)
+    and the entry would refuse."""
+    from orpheus.derivations.common.xs_library import make_mixture
+    sig_t = np.linspace(0.8, 1.6, ng)
+    sig_f = 0.05 * np.ones(ng)
+    return make_mixture(
+        sig_t=sig_t, sig_c=sig_t - sig_f, sig_f=sig_f, nu=2.4 * np.ones(ng),
+        chi=np.array([1.0] + [0.0] * (ng - 1)), sig_s=np.zeros((ng, ng)),
+    )
+
+
+def _gauge_singular_box():
+    """The entry ledger's all-reflective (3, 4) box — ODD first axis, ≥ 2 reflective
+    axis pairs: the loss operator is exactly singular and a uniform isotropic source
+    EXCITES the kernel (``[M]`` the ledger gate's parity table)."""
+    from orpheus.geometry import Mesh2D
+    quadrature = Quadrature.level_symmetric(sn_order=4)
+    reflective = BC("reflective")
+    mesh = Mesh2D(
+        edges_x=np.linspace(0.0, 1.0, 4), edges_y=np.linspace(0.0, 2.0, 5),
+        mat_map=np.zeros((3, 4), dtype=int),
+        bc_xmin=reflective, bc_xmax=reflective, bc_ymin=reflective, bc_ymax=reflective,
+    )
+    source = np.full((quadrature.weights.size, 2, 3, 4), 1.0 / float(quadrature.weights.sum()))
+    return {0: _dilute_fissile()}, mesh, quadrature, source
+
+
+@pytest.mark.catches("ERR-086")
+def test_a_truncated_multiplying_solve_is_AUDIBLE_like_its_sibling() -> None:
+    """A truncated solve announces itself ONCE, from the PUBLIC entry, blaming the
+    caller — exactly as the sibling entry does on the same hub."""
+    from orpheus.numerics.convergence import ConvergenceWarning
+    mats, mesh, quad = _slab(4.0)
+    q = _uniform_source(quad, 2, 8)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        mult = solve_sn_multiplying_source(mats, mesh, quad, q, inner_tol=1e-12, max_inner=5)
+    convergence = [w for w in caught if issubclass(w.category, ConvergenceWarning)]
+    _require(len(convergence) == 1, f"the multiplying entry must warn exactly once on a truncated solve; got {len(convergence)}")
+    _require(convergence[0].filename == __file__, f"the warning must blame the CALLER, not {convergence[0].filename}")
+    _require(not mult.converged(), "non-vacuity: the solve was truncated")
+    with warnings.catch_warnings(record=True) as sibling:
+        warnings.simplefilter("always")
+        solve_sn_fixed_source(mats, mesh, quad, q, inner_tol=1e-12, max_inner=5)
+    _require(sum(issubclass(w.category, ConvergenceWarning) for w in sibling) == 1, "the sibling warns once on the same hub — the pairing that makes this row non-vacuous")
+
+
+@pytest.mark.catches("ERR-086")
+def test_a_gauge_singular_multiplying_solve_is_AUDIBLE_like_its_sibling() -> None:
+    """On a gauge-singular subcritical fissile box the repair FIRES on the fifth entry
+    and, since step 3, is SAID — the same ``GaugeFreedomWarning`` its sibling emits,
+    and the same recorded displacement (``[M]`` 6.08e-02 of the trace on both)."""
+    from orpheus.numerics.outcome import Measured
+    from orpheus.sn.operators.loss_kernel_gauge import GaugeFreedomWarning, gauge_freedom
+    mats, mesh, quad, source = _gauge_singular_box()
+    hub = _as_sn_mesh(mesh, quad, mats, None)
+    _require(gauge_freedom(hub).present, "non-vacuity: the hub must be gauge-singular")
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        mult = solve_sn_multiplying_source(
+            mats, mesh, quad, source, boundary_condition=None,
+            inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
+        )
+    with warnings.catch_warnings(record=True) as sibling_caught:
+        warnings.simplefilter("always")
+        pure = solve_sn_fixed_source(
+            mats, mesh, quad, source, boundary_condition=None, inner_solver="source_iteration",
+            inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
+        )
+    _require(any(issubclass(w.category, GaugeFreedomWarning) for w in caught), "the multiplying entry must say the trace was gauge-fixed")
+    _require(any(issubclass(w.category, GaugeFreedomWarning) for w in sibling_caught), "…as its sibling does on the same hub (the pairing)")
+    mg, pg = mult.certificate.gauge, pure.certificate.gauge
+    _require(isinstance(mg, Measured) and isinstance(pg, Measured), f"both certificates record the displacement; got {mg!r} / {pg!r}")
+    _require(mg.value > 1e-3 and abs(mg.value - pg.value) <= 1e-9, f"the same kernel component on both entries: {mg.value:.6e} vs {pg.value:.6e}")

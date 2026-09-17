@@ -308,7 +308,16 @@ def _solve(sn: SNMesh, inner: str, **kw):
         _solve_fixed_source_si if inner == "source_iteration"
         else _solve_fixed_source_krylov
     )
-    return driver(solver, sn, q, 0.0, 2000, 1e-13)
+    # step 3: the arms take the QUESTION the entry posed — pure transport at
+    # σ = 0 (``at(0.0)`` IS ``system.loss``) — and its admissibility evidence
+    from orpheus.numerics.outcome import NotApplicable
+    from orpheus.numerics.posing import SourcePosing
+    from orpheus.sn.solver import _as_coupled
+    return driver(
+        solver, sn, q, 0.0, 2000, 1e-13,
+        posing=SourcePosing(sn.pencil.at(0.0), _as_coupled(q)),
+        admissibility=NotApplicable("the pure-transport question is always admitted"),
+    )
 
 
 def _gamma_minus(sol, sn: SNMesh, face: str) -> np.ndarray:

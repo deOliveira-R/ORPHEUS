@@ -90,9 +90,9 @@ def main():
     )
 
     # 5. Report
-    print(f"\n  keff = {result.keff:.5f}")
-    print(f"  Outer iterations: {len(result.keff_history)}")
-    print(f"  Wall time: {result.elapsed_seconds:.1f}s")
+    print(f"\n  keff = {result.outcome.keff:.5f}")
+    print(f"  Outer iterations: {len(result.outcome.trajectory)}")
+    print(f"  Converged: {result.converged()} (balance: {result.certificate.balance})")
 
     # 6. Plots
     OUTPUT.mkdir(parents=True, exist_ok=True)

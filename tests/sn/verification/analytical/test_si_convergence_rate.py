@@ -362,8 +362,8 @@ def test_recovery_preserves_kinf_2g():
         max_inner=5000, inner_tol=1e-10,
     )
     np.testing.assert_allclose(
-        sol.keff, case.k_eff, rtol=1e-10,
-        err_msg=f"keff={sol.keff:.10f} vs expected={case.k_eff:.10f}",
+        sol.outcome.keff, case.k_eff, rtol=1e-10,
+        err_msg=f"keff={sol.outcome.keff:.10f} vs expected={case.k_eff:.10f}",
     )
 
 

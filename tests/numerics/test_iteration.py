@@ -641,7 +641,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         max_inner=500,
         inner_tol=1e-10,
     )
-    expected_keff = ref.keff
+    expected_keff = ref.outcome.keff
     if expected_keff is None:
         pytest.fail("solve_sn reference returned no eigenvalue.")
 
@@ -821,7 +821,7 @@ def _sn_composite_triple():
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
     )
-    if ref.keff is None:  # explicit narrow — fires under -O (Mode 8)
+    if ref.outcome.keff is None:  # explicit narrow — fires under -O (Mode 8)
         pytest.fail("solve_sn returned no eigenvalue — the reference leg "
                     "of the A4 activation fixture is broken.")
     sn = SNMesh(mesh, quad, materials, scattering_order=0)
@@ -855,7 +855,7 @@ def _sn_composite_triple():
         interior=AngularFlux(values=np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space),
         boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
     )
-    return float(ref.keff), splitting.implicit, S_total, F_composite, guess, mix
+    return float(ref.outcome.keff), splitting.implicit, S_total, F_composite, guess, mix
 
 
 @pytest.mark.l1

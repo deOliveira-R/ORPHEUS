@@ -321,10 +321,19 @@ def _system_b_member(
     no longer representable, so the bare arm simply has no System B.
     """
     if isinstance(state, CoupledField):
+        # The state's ARITY is System B's presence (consumers campaign step 3,
+        # 2026-09-17): the seedless state is the ONE-system coupled field and
+        # simply has no System B — the same answer as the bare composite,
+        # since every returned state is coupled now.  Until step 3 a 1-system
+        # coupled field was REFUSED here (the F-7 arity guard), because only
+        # carrying meshes ever produced a coupled state.
+        if state.n_systems == 1:
+            return None
         if state.n_systems != 2:
             raise ValueError(
-                f"_system_b_member: the ψ½ coupled pair has exactly 2 "
-                f"systems; got {state.n_systems}."
+                f"_system_b_member: the ψ½ coupled pair has at most 2 "
+                f"systems (System A, and System B where the mesh carries a "
+                f"seed level); got {state.n_systems}."
             )
         member = state.systems[1]
         if not isinstance(member, RadialCharacteristicField):

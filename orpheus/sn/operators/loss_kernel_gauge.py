@@ -217,6 +217,7 @@ from orpheus.numerics.face_layout import face_normal
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.manifold import IndexSet, Manifold
 from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.outcome import Evidence, Measured
 from orpheus.numerics.operator import (
     LinearOperator,
     TraceRestrictionOperator,
@@ -453,7 +454,7 @@ def _damping_alternatives(ndim: int) -> str:
 
 
 def warn_if_gauge_freedom(
-    sn_mesh: "SNMesh", correction: float | None, *, where: str,
+    sn_mesh: "SNMesh", correction: Evidence, *, where: str,
 ) -> None:
     r"""Say that the trace was repaired, or that the closure was unclassifiable.
 
@@ -476,8 +477,10 @@ def warn_if_gauge_freedom(
       trace was ALREADY the canonical member (``jacobi`` lands there;
       ``[M]`` ``~1e-15``). Nothing was done, so there is nothing to report — and
       the configuration's degeneracy is still legible in
-      :attr:`~orpheus.sn.solution.IterationHistory.gauge_correction`, which
-      carries the measured number either way.
+      the Solution's certificate (``certificate.gauge`` — step 3 of the
+      consumers campaign: :class:`~orpheus.numerics.outcome.Measured` with the
+      number, or the typed reason nothing was measured), which carries it
+      either way.
 
     The warning reports an **action taken**, not a configuration property. That
     is what keeps it off the standard ``k_inf`` lattice, which is all-reflective
@@ -502,14 +505,14 @@ def warn_if_gauge_freedom(
         )
         return
 
-    if not verdict.present or correction is None:
+    if not verdict.present or not isinstance(correction, Measured):
         return
-    if correction <= _GAUGE_AUDIBLE_FLOOR:
+    if correction.value <= _GAUGE_AUDIBLE_FLOOR:
         return
 
     warnings.warn(
         f"{where}: the returned boundary trace was GAUGE-FIXED — "
-        f"{correction:.2%} of it lay in ker(L+C-S-B), which is exactly "
+        f"{correction.value:.2%} of it lay in ker(L+C-S-B), which is exactly "
         f"singular here, so the solve had converged to an arbitrary member of "
         f"a solution manifold rather than to a point. {verdict.because}. The "
         f"trace returned is now the canonical minimum-norm member (the one the "

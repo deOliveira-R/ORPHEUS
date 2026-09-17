@@ -13315,3 +13315,123 @@ interior-kernel leg, S1/S2 refutations, the fifth-layer trap) · code traceabili
 5 · derivation source 3 — no `derivations/` script exists for the gauge algebra;
 the laws live in `tests/numerics/test_gauge.py`, which is the right home for a
 type's defining laws but is NOT a SymPy algebra-of-record.
+
+## L-110 — Consumers campaign step 3, unit U2: the SN Solution's own reshape (2026-09-17)
+
+**Task.** 8-item docs pass for U2 (the SN `Solution` reshape): the carrier section in
+`indexing_and_layout.rst`, the U1 H2 in `operator_algebra.rst`, `adjoint.rst`'s
+arm-asymmetry + "kind is a property", `solver.rst`'s N5/N6b + finalize + multiplying
+sections, `index.rst`'s provenance note, one `history.rst` row, an ERR decision, and a
+retired-symbol sweep. DOCS ONLY; no Sphinx build, no pytest (a gate was running).
+**Result:** 8 `.rst`, +1114/−241; docs xref gate `DEAD TARGETS : 0`; every `:ref:`
+resolves; 2 new section labels, 0 new eq-labels, 0 new citations.
+
+### L-110a ⭐⭐ A "the artefacts were re-baselined" claim in a BRAND-NEW code docstring is a
+claim about the TREE, and `git status` is the one-command refutation.
+
+The brief and `solution.py`'s fresh docstring both said *"`[M]` 7.4e-11 relative …
+(worst of 16 finalize cases; the artefacts were re-baselined with that ratio recorded,
+U2e)"*. `[M]` `git status --porcelain -- tests/sn/_data/ tests/sn/regression/snapshots/`
+returns **0 lines** — nothing was re-baselined; `git log -3` on the finalize dir stops at
+`6379e9ab` (#448). So the sentence described a step that had not happened.
+
+⟹ and the refutation handed me a BETTER measurement than the one I was being asked to
+relay. Because the artefacts are unchanged, comparing a freshly-derived `sol.scalar_flux`
+against the stored `.npy` **is** the ratio, measured on the shipped reader rather than on
+a pre-carve emulation: `[M]` `max rel` **2.19e-11** (`cart2d_L0`) / **2.94e-11**
+(`slab_vac_L0`), `|Δk| = 0` (bit-identical), against the pins' `1e-8` band — 457× and 340×
+headroom, not the memo's 135×. The memo's 7.4094e-11 is honest and answers a *different*
+expression (its pre-carve probe compared the stored flux against `integrate_angular()` of
+the then-cell-averaged `angular_flux`, un-gauged).
+
+⭐ The generalisable move: **a frozen-artefact directory that did NOT move is an oracle,
+not an obstacle** — `git show HEAD:<npy>` is unnecessary when the working tree still holds
+the pre-change value, so "re-run the retired expression from the diff" (L-109) has a
+cheaper sibling: *re-run the NEW expression against the UNCHANGED reference*.
+
+### L-110b ⭐⭐ When a quoted figure will not reproduce, find the PARAMETER it varies with
+and publish the curve — the discrepancy is usually two configurations, not two answers.
+
+`solver.py` claimed the polished ψ sits off the gauge section by *"`[M]` 1.4e-8 at the
+default tolerances"*. I could not reproduce 1.4e-8 on my fixture, and the honest response
+was not "unreproducible" but a two-point sweep via a `ScaleGauge.apply` monkeypatch spy
+(read-only w.r.t. the tree): `[M]` **3.93e-8** at `solve_sn` defaults (1e-7/1e-6/1e-8) and
+**1.07e-10** at the finalize gates' (1e-10/1e-9/1e-11). Three orders down for three orders
+of tolerance ⟹ the displacement IS the outer residual, which is the claim worth publishing;
+a single figure without its tolerances is one point on a curve wearing the authority of a
+constant. It also **explains** L-110a's 2e-11 (same quantity, same fixture family).
+
+### L-110c ⭐ A `float | None` retirement has THREE doc surfaces, and the third is a
+sibling page's list-table that names the field only in an xref target.
+
+Sweeping `balance_defect` / `gauge_correction`: the obvious hits were the owning page's
+prose and the `IterationHistory` xrefs. The one I nearly missed was
+`cartesian_multid.rst:5631`, a `.. list-table::` whose LEFT cell is
+``:attr:`IterationHistory.gauge_correction <…>` `` and whose right cell states the old
+``None`` discipline — a doc-side twin of the exit contract, on a page about 2-D meshes.
+⟹ after re-pointing a retired field on its owning page, grep the CONCEPT (`None` means
+not measured) as well as the symbol, and expect a table cell.
+
+### L-110d ⚠ The project xref gate is BLIND to a dead role at a PRIVATE name.
+`orpheus/sn/solution.py:176` carries ``:func:`~orpheus.sn.solver._exit_balance_defect` ``
+for a function deleted by this very carve. `[M]` `tools/check_docstring_xrefs.py` over
+`docs orpheus` reports **2** dead targets and NOT this one; `hasattr(solver,
+'_exit_balance_defect')` is `False`. My own resolver (with two positive controls: the dead
+private name must fail, a live private name must pass) finds it. ⚠ But that resolver's
+precision is poor — it also flags every **annotation-only dataclass field**
+(`SolutionBase.mesh`, `EigenOutcome.lam`: `dataclasses.fields` lists them,
+`getattr(cls, name)` raises), which is exactly the class the project tool's "decidable"
+filter excludes on purpose. ⟹ use the project gate as the ACCEPTANCE criterion and a
+private-name probe as a SUPPLEMENT; never publish the probe's raw list.
+
+### L-110e ⭐ An ERR for a defect of SILENCE earns its entry; a defect of ABSENCE does not.
+Three candidates came out of U2. **ERR-086 minted** for the fifth entry's bypassed warning
+site: a caller received a truncated / gauge-singular answer with no diagnostic while every
+sibling warned — the ERR-053 audibility class, failure mode #6 (the hoisting convention was
+authored at one site and not adopted at the next), with a measured sibling-pair contrast
+(0 warnings vs `ConvergenceWarning`; 0 warnings while gauging 6.08e-02 vs
+`GaugeFreedomWarning`). **No entry** for the unrecorded gauge or the dropped admissibility
+`k`: nothing shipped a wrong number, the information was simply absent, so there is no
+defect to *re-introduce* and a "catcher" would be an existence assertion rather than a
+correctness one. ⟹ the discriminator: **can the defect be re-introduced and reddened?**
+
+⭐ The entry's best content was its HIDING MECHANISM, and it is a reusable shape: the
+silence was **gated as correct**. `test_family_convergence_contract.py` asserted
+`len(sites) == 7` with a comment naming "4 SN entries" — *a count gate over an inventory
+pins whatever inventory it was written against*, so the fifth entry's absence read as
+intentional. Its sibling gate got it right by construction: `test_every_entry_gauges_its_trace.py`
+compares a **discovered** set against a ledger, so a new entry fails until someone writes
+its row. ⟹ a family census asserts the PROPERTY, never a literal count.
+
+### L-110f ⚠ A ledger row's "declared inheritance" is only as narrow as the property it names.
+The entry ledger said the multiplying entry "gauges its trace on that same exit path" —
+true of the **mutation** (the gauge lives in the private arm) and silent about the
+**warning** (hoisted into the public entry). One call chain, two properties, one sentence.
+⟹ when documenting an inheritance, name the property; "it shares the exit path" is not
+"it warns".
+
+### L-110g ⭐ Two "arm-asymmetric by DESIGN" paragraphs became history in one step, and the
+right shape is keep-the-table, flip-the-verbs, add-the-price.
+`adjoint.rst`'s asymmetry table and its "cannot read `eigen_posing.H()`" argument were both
+correct and both dissolved by #467. I kept the table verbatim (retitled *"arm-asymmetric
+until U2"*, verbs past-tensed), kept the ⛔ paragraph as *why the obvious spelling failed*,
+and added what the deferral said it needed: a one-system `CoupledSpace` **is** the full
+field wrapped, so lift the Strategy pair rather than reduce the question. The price rides
+with it (`[M]` rel ≈ 1e-15 against 1e-9 gates, `array_equal` **False** — principled
+equivalence, never bit-identity).
+
+### L-110h ⚠ Two open "⚠ half discharged" rows in a solver-page table were BOTH stale, and
+one was stale by TWO campaigns.
+`solver.rst`'s pencil-deferral table carried *"`KEigenvalue` does not consume a posing
+yet"* (false since step 2, 2026-09-14) and *"`_adjoint_posing_parts` still hand-daggers the
+triple"* (false since U2). ⟹ a table of DEFERRALS is the highest-rot surface on a theory
+page, because every row is a prediction; audit it whenever the campaign that owns it lands
+anything, and close rows with ✅ + date + hash-or-branch rather than deleting them.
+
+### Quality self-assessment (Directive 3)
+Derivation depth 4 · Cross-references 5 (gate 0 dead, all `:ref:` resolve) · Numerical
+evidence 5 (every published literal re-derived this session in 3 probes; two relayed
+figures corrected by measurement) · Failed approaches 5 (the arm-asymmetry deferral, the
+`keff is not None` ruling and the `q − Aψ` convention all kept as dated history) · Code
+traceability 5 · Derivation source 3 (no `derivations/` script applies — the content is
+type-architecture, not algebra).

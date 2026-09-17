@@ -221,10 +221,10 @@ def test_kinf_homogeneous(ng_key: str, coord: str, inner_solver: str) -> None:
     )
 
     np.testing.assert_allclose(
-        result.keff, case.k_eff, rtol=1e-10,
+        result.outcome.keff, case.k_eff, rtol=1e-10,
         err_msg=(
             f"SN k_inf disagrees with analytical reference: "
-            f"got {result.keff!r}, expected {case.k_eff!r} "
+            f"got {result.outcome.keff!r}, expected {case.k_eff!r} "
             f"(coord={coord}, ng={ng_key}, inner_solver={inner_solver})"
         ),
     )

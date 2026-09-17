@@ -150,11 +150,26 @@ class TestO8SolutionRayMember:
         psi = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
         )
-        phi = ScalarFlux.zeros(sn.bulk_space)
-        with pytest.raises(ValueError, match="ray spaces"):
+        # step 3 (2026-09-17): the per-block ray-space guard is gone — the
+        # Solution stores the state WHOLE and checks ONE law, that the state's
+        # DERIVED coupled space is this Problem's; a ray member on the graded
+        # sphere makes the state's space a different coupled space, refused.
+        from orpheus.numerics.convergence import IterationRecord
+        from orpheus.numerics.coupled_system import CoupledField
+        from orpheus.numerics.outcome import ExitCertificate, NotApplicable, SourceOutcome
+        from orpheus.numerics.posing import SourcePosing
+        from orpheus.sn.splitting import Splitting, resolve_schedule
+        foreign_state = CoupledField(systems=(psi, member))  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match="state-on-domain"):
             Solution(
-                angular_flux=psi, scalar_flux=phi, mesh=sn,
-                radial_characteristic=member,  # type: ignore[arg-type]
+                mesh=sn,
+                outcome=SourceOutcome(
+                    SourcePosing(sn.pencil.at(0.0), sn.system.space.zeros()),
+                    foreign_state, sn.loss_kernel_gauge,
+                ),
+                strategy=Splitting.from_schedule(sn.system, resolve_schedule(sn, "jacobi")),
+                certificate=ExitCertificate(*(NotApplicable("a witness"),) * 4),
+                record=IterationRecord(label="witness"),
             )
 
 

@@ -1002,15 +1002,16 @@ Iteration state
 ---------------
 
 These are the per-outer / per-inner diagnostic carriers that a
-solution wraps.  They live on the
-:class:`~orpheus.sn.solution.IterationHistory` dataclass (holding the
-per-outer / per-inner trajectory with named fields and method-style
-accessors such as :attr:`~orpheus.sn.solution.IterationHistory.dominance_ratio`
-/ :attr:`~orpheus.sn.solution.IterationHistory.converged`), which a
-:class:`~orpheus.sn.solution.Solution` carries as an optional field
-(populated for eigenvalue problems).  This pair (Issue #197 PR-TYPED-5)
-replaced the legacy bare-dataclass ``SNResult`` /
-``SNFixedSourceResult`` data bags.
+solution wraps.  Their one source of truth is the
+:class:`~orpheus.numerics.convergence.IterationRecord` tree a
+:class:`~orpheus.sn.solution.Solution` carries on
+:attr:`~orpheus.sn.solution.SolutionBase.record` — each level reporting
+the quantities it stopped on with the tolerances it judged them against
+— and everything flat is DERIVED from it.  The eigenvalue trajectory is
+**not** a convergence quantity and does not live there: it is a physics
+output, carried on the answer
+(:attr:`EigenOutcome.trajectory
+<orpheus.numerics.outcome.EigenOutcome.trajectory>`).
 
 .. list-table:: Iteration state
    :header-rows: 1
@@ -1023,27 +1024,50 @@ replaced the legacy bare-dataclass ``SNResult`` /
    * - ``keff``
      - Multiplication eigenvalue
      - scalar
-     - :class:`~orpheus.sn.solution.Solution`.\ ``keff: float | None``
-       (``None`` for fixed-source problems — Issue #197 PR-TYPED-5)
+     - :attr:`EigenOutcome.keff
+       <orpheus.numerics.outcome.EigenOutcome.keff>` — λ under the
+       :data:`~orpheus.numerics.posing.K_MAP` reading of
+       :attr:`~orpheus.numerics.outcome.EigenOutcome.lam`.  It exists
+       **only on the eigen kind**: ``sol.outcome.keff`` on a
+       ``Solution[SourceOutcome]`` is an ``AttributeError``, not a
+       ``None``
    * - ``keff_history``
      - Outer iteration trajectory
      - ``tuple[float, ...]``
-     - :class:`~orpheus.sn.solution.IterationHistory`.\ ``keff_history``
-       (exposed as ``list[float]`` via
-       :meth:`SolutionBase.keff_history_list`)
+     - :attr:`EigenOutcome.trajectory
+       <orpheus.numerics.outcome.EigenOutcome.trajectory>`, co-indexed
+       with ``lam`` at construction (``trajectory[-1] == lam``); a
+       direct solve records ``(lam,)``
    * - ``Eigenpair``
      - ``(value, right, left, residual_norm)`` tuple
      - varies
-     - Implicit — :class:`~orpheus.sn.solution.Solution` is a
-       degenerate Eigenpair when :meth:`is_eigenvalue` returns ``True``
+     - :class:`~orpheus.numerics.outcome.EigenOutcome` — the question,
+       the ray representative, λ, the trajectory and the scale section,
+       fused in one frozen value
    * - ``ResidualHistory``
      - Per-iter relative flux residual
      - ``tuple[float, ...]``
-     - :class:`~orpheus.sn.solution.IterationHistory`.\ ``flux_residuals``
+     - :attr:`IterationRecord.binding_criterion
+       <orpheus.numerics.convergence.IterationRecord.binding_criterion>`\
+       ``.trajectory`` on the level that bound
    * - ``DominanceRatio``
      - :math:`|k_n - k_{n-1}| / |k_{n-1}|` convergence quotient
      - scalar
-     - :meth:`~orpheus.sn.solution.SolutionBase.dominance_ratio`
+     - :meth:`EigenOutcome.dominance_ratio
+       <orpheus.numerics.outcome.EigenOutcome.dominance_ratio>`
+
+⛔ **Until 2026-09-17 this table's right-hand column named a flat
+:class:`~orpheus.sn.solution.IterationHistory` dataclass that the
+Solution carried as an optional field, "populated for eigenvalue
+problems"** (Issue #197 PR-TYPED-5, which had itself replaced the legacy
+bare-dataclass ``SNResult`` / ``SNFixedSourceResult`` data bags).  That
+type survives as a **one-cycle VIEW** — a property assembled from the
+record, the outcome's trajectory and the certificate — so the ~95
+established readers migrate by concept rather than on a flag day; it is
+retired at the consumers campaign's step 3 unit U6.  Read the record and
+the outcome directly in new code.  ``keff_history_list`` (the
+``list[float]`` alias) and ``SolutionBase.keff`` /
+``SolutionBase.dominance_ratio`` are **gone**, not deprecated.
 
 Solution-class container
 ------------------------
@@ -1059,34 +1083,75 @@ non-instantiable carrier) → :class:`~orpheus.sn.solution.Solution`
 :class:`~orpheus.sn.solution.AdjointSolution` (adjoint;
 ``solve_sn_adjoint`` / ``solve_sn_adjoint_fixed_source``, whose
 ``scalar_flux`` is the importance :math:`\varphi^*` — alias
-``importance``).  The two discrimination axes use DIFFERENT
-mechanisms: the problem KIND (fixed-source vs eigenvalue) is a
-property (optional ``keff``), the solution ROLE (forward vs adjoint)
-is the type.
+``importance``).  The consumers campaign's step 3 (2026-09-17) then made
+the **problem kind** a type PARAMETER.  So the two discrimination axes
+still use different mechanisms, and both are now typed: the KIND is
+``SolutionBase[O]``'s parameter (``O`` constrained to
+:class:`~orpheus.numerics.outcome.EigenOutcome` /
+:class:`~orpheus.numerics.outcome.SourceOutcome`), the ROLE is the
+concrete class.  A parameter rather than two more classes because the
+verb set varies by ROLE and **not** by kind — ``homogenize`` /
+``condense`` / ``reaction_rate_density`` are the forward Solution's and
+both kinds support all of them, so two kinds × two roles would be four
+classes carrying two copies of each role's verbs.
 
-The :class:`~orpheus.sn.solution.SolutionBase` carrier holds:
+The :class:`~orpheus.sn.solution.SolutionBase` carrier holds **exactly
+five members** — the pair (Problem, posing), the Strategy that produced
+it, and the records:
 
-- :class:`~orpheus.transport.fields.angular_flux.AngularFlux` +
-  :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` +
-  :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` typed fields (NOT
-  bare ndarrays);
-- :class:`~orpheus.sn.solution.IterationHistory` carrying tuple-based
-  per-outer / per-inner trajectory diagnostics (NOT list-based);
-- ``mesh`` reference shared (by identity) with every typed flux field
-  — validated at construction (``coding-elegance`` Pattern 4 —
-  illegal states unrepresentable);
-- ``keff: float | None`` — ``None`` for fixed-source problems;
-  :meth:`SolutionBase.is_eigenvalue` and
-  :meth:`SolutionBase.is_fixed_source` are the canonical
-  discriminators;
-- :meth:`SolutionBase.dominance_ratio` /
-  :meth:`SolutionBase.converged` — iteration diagnostics that read as
-  math (``coding-elegance`` Pattern 1);
-- :meth:`SolutionBase.compare` — field-by-field difference summary
-  that returns :class:`~orpheus.sn.solution.SolutionDiff`.
-  **Role-closed** (``Self``-typed + runtime guard): comparing a
-  forward flux against an importance map is a type error, not a
-  number.
+- :attr:`~orpheus.sn.solution.SolutionBase.mesh` — the Problem (the hub),
+  the base point every other member is relative to;
+- :attr:`~orpheus.sn.solution.SolutionBase.outcome` — the kind-typed
+  answer, FUSED with the question it answered, the returned STATE and the
+  gauge that picked the representative.  **The kind IS this member's
+  type**;
+- :attr:`~orpheus.sn.solution.SolutionBase.strategy` — the
+  :class:`~orpheus.sn.splitting.Splitting` VALUE the solve drove (the
+  labelled piece set and the schedule); budgets and tolerances ride the
+  record, per level;
+- :attr:`~orpheus.sn.solution.SolutionBase.certificate` — what the exit
+  MEASURED about the returned state, member by member, as typed
+  :class:`~orpheus.numerics.outcome.Evidence`
+  (:class:`~orpheus.numerics.outcome.ExitCertificate`);
+- :attr:`~orpheus.sn.solution.SolutionBase.record` — the Strategy's path,
+  the :class:`~orpheus.numerics.convergence.IterationRecord` tree.
+
+The flux members are **derived readers of the state**, not stored
+fields — :attr:`~orpheus.sn.solution.SolutionBase.angular_flux` and
+:attr:`~orpheus.sn.solution.SolutionBase.boundary_flux` off System A's
+composite, :attr:`~orpheus.sn.solution.SolutionBase.radial_characteristic`
+off System B (``None`` exactly when the state has one system), and
+:attr:`~orpheus.sn.solution.SolutionBase.scalar_flux` as
+:math:`\int\psi\,d\Omega` of the cell-average moment, cached once per
+Solution.  Three guards retired with them, each because the structure now
+says what the guard said:
+
+- the ray member's presence is the state's **arity** — no biconditional
+  against the mesh's ``R12a`` predicate to keep honest;
+- ``scalar_flux`` is one quantity in one representation — no
+  marginal-axes check to keep two copies agreeing;
+- ``__post_init__`` enforces ONE law, the **state-on-domain law**: the
+  state lives on the Problem's coupled space, which is the space the
+  recorded question is posed on.  A cross-Problem pairing is refused; a
+  same-hub cross-KIND ``replace`` is a legal *different solve* and is
+  refused by the type instead (``coding-elegance`` Pattern 4 — illegal
+  states unrepresentable, rather than a guard per field).
+
+:meth:`SolutionBase.converged
+<orpheus.sn.solution.SolutionBase.converged>` reads
+:attr:`IterationRecord.fully_converged
+<orpheus.numerics.convergence.IterationRecord.fully_converged>` — the
+TREE-wide question, so a converged outer standing on a starved inner
+reads ``False``.  :meth:`SolutionBase.compare
+<orpheus.sn.solution.SolutionBase.compare>` returns
+:class:`~orpheus.sn.solution.SolutionDiff` and is closed on **three**
+axes: ROLE (``Self``-typed plus a runtime guard — a forward flux and an
+importance map are different physical quantities), KIND (an eigen answer
+and a source answer are different *questions*, so a cross-kind pair
+raises rather than silently skipping the eigenvalue channel, which is
+what the ``keff is not None`` branch did until step 3), and the discrete
+phase space.  Its ``keff_abs`` channel is
+:class:`~orpheus.numerics.outcome.Evidence`, not a nullable float.
 
 The FORWARD leaf alone carries the reaction-rate-preserving physics —
 :meth:`Solution.homogenize`, :meth:`Solution.condense`, and
@@ -1098,9 +1163,22 @@ homogenization/condensation only as the optional Petrov–Galerkin test
 weight of the forward collapse (the #281 P6-B2 parameter).
 
 The Solution evolution is the SN-specific specialisation of the
-``Eigenpair`` concept from Grand Report v3 §21.5 (lines 4252–4269).
-For a fixed-source problem ``keff`` is ``None`` and the iteration
-history records only the relative flux-residual trajectory.
+``Eigenpair`` concept from Grand Report v3 §21.5 (lines 4252–4269) — and
+since 2026-09-17 that specialisation is literal rather than analogical:
+:class:`~orpheus.numerics.outcome.EigenOutcome` *is* the eigenpair, the
+member a ``Solution[EigenOutcome]`` carries.  A
+``Solution[SourceOutcome]`` has no eigenvalue channel at all — not a
+``None`` one — and its iteration record carries the relative
+flux-residual trajectory on the level that bound.
+
+⛔ **This paragraph read "for a fixed-source problem** ``keff`` **is**
+``None`` **" until 2026-09-17.**  It was true, and it described a kind
+derived from the ANSWER, one tier too late: a multiplying-source
+Solution was then indistinguishable from a pure-transport one by its
+data.  The full argument for the shape that replaced it — why the
+outcome is FUSED rather than a free (posing, gauge, answer) triple, and
+which four illegal pairings that makes *unconstructible* rather than
+merely refused — is :ref:`the-solution-outcome`.
 
 Operator vocabulary --- the six leaves of the algebra
 ------------------------------------------------------

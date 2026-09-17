@@ -230,7 +230,7 @@ def _solve(materials, mesh, quadrature, order: int) -> float:
             f"starved solve degrades the RATE, not the limit, so no budget "
             f"certifies this tolerance (#340 N5)"
         )
-    keff = sol.keff
+    keff = sol.outcome.keff
     if keff is None:
         pytest.fail(f"no eigenvalue returned (scattering_order={order})")
     return float(keff)

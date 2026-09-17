@@ -58,8 +58,8 @@ def test_sn_approaches_cp_reference():
         max_outer=300, max_inner=500, inner_tol=1e-10,
     )
 
-    gap = abs(result.keff - cp_ref.k_inf)
+    gap = abs(result.outcome.keff - cp_ref.k_inf)
     assert gap < 0.02, (
         f"SN-CP gap too large: {gap:.4f} "
-        f"(SN={result.keff:.8f}, CP={cp_ref.k_inf:.8f})"
+        f"(SN={result.outcome.keff:.8f}, CP={cp_ref.k_inf:.8f})"
     )

@@ -42,6 +42,8 @@ vv Mode-8: ``np.testing.*`` / :func:`require` only (fire under
 from __future__ import annotations
 
 import numpy as np
+
+from orpheus.numerics.outcome import SourceOutcome
 import pytest
 
 from orpheus.derivations.common.eigenvalue import (
@@ -108,10 +110,7 @@ class TestSolveSnAdjoint:
             materials, mesh, _quad(),
             keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10, max_inner=500,
         )
-        if adj.keff is None or fwd.keff is None:
-            pytest.fail("an entry returned no eigenvalue — the reference "
-                        "or adjoint leg is broken.")
-        k_adj, k_fwd = float(adj.keff), float(fwd.keff)
+        k_adj, k_fwd = float(adj.outcome.keff), float(fwd.outcome.keff)
 
         k_cf, phi_star_cf = kinf_and_adjoint_spectrum_homogeneous(
             np.asarray(mix.SigT),
@@ -256,9 +255,9 @@ class TestSolveSnAdjointFixedSource:
             "role-typed AdjointSolution leaf (A5 carrier ruling).",
         )
         require(
-            adj_fs.keff is None and adj_fs.is_fixed_source(),
-            "the adjoint fixed-source kind rides the SAME problem-kind "
-            "property as the forward (keff None) — the two "
+            isinstance(adj_fs.outcome, SourceOutcome) and not hasattr(adj_fs, "keff"),
+            "the adjoint fixed-source kind is the outcome's TYPE (step 3: a "
+            "SourceOutcome, no keff attribute at all) — the two "
             "discrimination axes are independent.",
         )
         fwd_k = solve_sn(materials, mesh, quad)

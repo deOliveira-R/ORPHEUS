@@ -579,7 +579,15 @@ class TestSolutionRayMember:
         )
         if sol.radial_characteristic is not None:
             pytest.fail("seedless Solution carries a System-B member")
-        # …and a carrying Solution WITHOUT it refuses (the biconditional).
+        # …and on a carrying mesh the member is the state's SECOND system.
+        # step 3 (2026-09-17): presence is the state's ARITY, read off the
+        # outcome — ``radial_characteristic`` is a derived reader, not a field
+        # (``replace`` with it is a TypeError, not a guard firing), and a
+        # one-system state on a carrying Problem is refused by the ONE law
+        # the carrier keeps: the state-on-domain law (its derived coupled
+        # space has one member, the Problem's has two).  The hand-written
+        # biconditional this row used to pin is gone by construction.
+        from orpheus.numerics.coupled_system import CoupledField
         sn = _tiny_sphere_2g()
         sol_c = solve_sn_fixed_source(
             {0: fuel}, sn.mesh, Quadrature.gauss_legendre(4),
@@ -587,5 +595,10 @@ class TestSolutionRayMember:
             inner_solver="source_iteration", inner_schedule="jacobi",
             max_inner=2000, inner_tol=1e-8,
         )
-        with pytest.raises(ValueError, match="presence must match"):
-            _replace(sol_c, radial_characteristic=None)
+        if sol_c.radial_characteristic is None or sol_c.state.n_systems != 2:
+            pytest.fail("a carrying Solution's state must carry System B as its second member")
+        with pytest.raises(TypeError):
+            _replace(sol_c, radial_characteristic=None)  # not a field — a reader of the state
+        one_system = CoupledField(systems=(sol_c.state.systems[0],))
+        with pytest.raises(ValueError, match="state-on-domain"):
+            _replace(sol_c, outcome=_replace(sol_c.outcome, state=one_system))

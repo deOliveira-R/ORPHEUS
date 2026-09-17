@@ -338,7 +338,15 @@ class TestComputeGroupRates:
             sig_p = np.diag(sig_p)
         k_inf = float((sig_p * phi_g).sum() / (sig_a * phi_g).sum())
 
-        np.testing.assert_allclose(result.keff, k_inf, rtol=1e-12,
+        # ⚠ step 3 (2026-09-17): ``scalar_flux`` is DERIVED from the returned
+        # state (∫ψ dΩ of the gauged, one-step-polished ψ, #448) — no longer
+        # the power iteration's own converged φ that ``compute_keff`` read —
+        # so the hand-rolled k∞ from it agrees with the recorded k to the
+        # ITERATION'S residual, not to the bit: ``[M]`` rel 5.77e-11 at the
+        # default tolerances (keff_tol=1e-7).  The band 1e-9 keeps 17× headroom
+        # over that and still catches the #291 leakage-omission class (1e-3)
+        # and any estimator drift (≥ 1e-6); the recorded k itself did not move.
+        np.testing.assert_allclose(result.outcome.keff, k_inf, rtol=1e-9,
                                    err_msg="homogeneous keff != k_inf")
 
 

@@ -149,7 +149,7 @@ def _solve_cyl_via_krylov_unified(nx: int) -> float:
             max_outer=200, keff_tol=1e-7, flux_tol=1e-7,
             max_inner=200, inner_tol=1e-9,
         )
-    return float(sol.keff)
+    return float(sol.outcome.keff)
 
 
 def _solve_cyl_via_sweep(nx: int) -> float:
@@ -161,7 +161,7 @@ def _solve_cyl_via_sweep(nx: int) -> float:
         max_outer=500, keff_tol=1e-7, flux_tol=1e-7,
         max_inner=500, inner_tol=1e-9,
     )
-    return float(sol.keff)
+    return float(sol.outcome.keff)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -293,7 +293,7 @@ def _solve_slab_via_krylov_unified(n_per: int) -> float:
             max_outer=500, max_inner=500,
             keff_tol=1e-12, inner_tol=1e-9,
         )
-    return float(sol.keff)
+    return float(sol.outcome.keff)
 
 
 def _solve_slab_via_sweep(n_per: int) -> float:
@@ -305,7 +305,7 @@ def _solve_slab_via_sweep(n_per: int) -> float:
         max_outer=500, max_inner=500,
         keff_tol=1e-12, inner_tol=1e-12,
     )
-    return float(sol.keff)
+    return float(sol.outcome.keff)
 
 
 # ═══════════════════════════════════════════════════════════════════════

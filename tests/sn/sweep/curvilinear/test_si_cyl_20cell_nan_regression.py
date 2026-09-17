@@ -131,8 +131,8 @@ def test_si_returns_finite_keff(homog_cyl_2g_thick2_n20):
         keff_tol=1e-10, flux_tol=1e-9,
         max_outer=3, max_inner=3,
     )
-    assert np.isfinite(res.keff), (
-        f"SI returned non-finite k_eff: {res.keff}.  Bug class: "
+    assert np.isfinite(res.outcome.keff), (
+        f"SI returned non-finite k_eff: {res.outcome.keff}.  Bug class: "
         f"ordinate_scan Blelloch-form NaN at pole-cell algebraic "
         f"resonance (ERR-054; its denormal-underflow sibling is "
         f"ERR-057).  The scan-form contract and the reachability "
@@ -160,9 +160,9 @@ def test_si_agrees_with_kinf_at_resonance(homog_cyl_2g_thick2_n20):
         keff_tol=1e-10, flux_tol=1e-9,
         max_outer=200, max_inner=200,
     )
-    assert np.isfinite(res.keff), f"keff is non-finite: {res.keff}"
-    assert abs(res.keff - 1.875) < 1e-5, (
-        f"SI k_eff = {res.keff}, expected k_inf = 1.875 "
+    assert np.isfinite(res.outcome.keff), f"keff is non-finite: {res.outcome.keff}"
+    assert abs(res.outcome.keff - 1.875) < 1e-5, (
+        f"SI k_eff = {res.outcome.keff}, expected k_inf = 1.875 "
         f"(homogeneous reflective ⇒ k = νΣ_f/Σ_a)"
     )
 
@@ -186,8 +186,8 @@ def test_krylov_unaffected(homog_cyl_2g_thick2_n20):
         keff_tol=1e-10, flux_tol=1e-9,
         max_outer=100, max_inner=100,
     )
-    assert np.isfinite(res.keff)
-    assert abs(res.keff - 1.875) < 1e-6
+    assert np.isfinite(res.outcome.keff)
+    assert abs(res.outcome.keff - 1.875) < 1e-6
 
 
 def test_ordinate_scan_at_a_zero_returns_finite_via_loop():

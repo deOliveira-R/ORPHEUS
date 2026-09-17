@@ -232,7 +232,7 @@ class TestSNBCSweepBehavior:
         result_vac = solve_sn(materials, mesh_vac, quad)
 
         # Reflective has higher keff (no leakage vs leakage)
-        assert result_refl.keff > result_vac.keff
+        assert result_refl.outcome.keff > result_vac.outcome.keff
 
     @pytest.mark.catches("ERR-052")
     @pytest.mark.parametrize("tol", [1e-7, 1e-12])

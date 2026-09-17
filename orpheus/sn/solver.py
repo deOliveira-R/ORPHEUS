@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Iterable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from functools import reduce
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast
@@ -53,7 +53,19 @@ from orpheus.numerics.convergence import (
 )
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.face_layout import face_normal
-from orpheus.sn.operators.loss_kernel_gauge import warn_if_gauge_freedom
+from orpheus.sn.operators.loss_kernel_gauge import gauge_freedom, warn_if_gauge_freedom
+from orpheus.numerics.gauge import ScaleGauge
+from orpheus.numerics.posing import SourcePosing
+from orpheus.numerics.outcome import (
+    Certified,
+    EigenOutcome,
+    Evidence,
+    ExitCertificate,
+    Measured,
+    NotApplicable,
+    NotYet,
+    SourceOutcome,
+)
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
     WithinGroupSystem,
@@ -183,7 +195,7 @@ def _as_sn_mesh(
     )
 
 
-from .solution import AdjointSolution, IterationHistory, Solution, SolutionBase
+from .solution import AdjointSolution, Solution, SolutionBase
 
 
 # The within-group decomposition every solve consumes — the loss grid AND
@@ -476,7 +488,7 @@ def _residual_is_expressible(sn_mesh: "SNMesh") -> bool:
 
     Named because TWO consumers need the same precondition and must not
     drift apart: :func:`_certify_within_group_exit` (which skips its
-    correctness assertion) and :func:`_exit_balance_defect` (which reports
+    correctness assertion) and :func:`_balance_evidence` (which reports
     no number).  Spelled inline in the first until 2026-08-10; the second
     would have been a second copy of the same `> 1` test, one rename away
     from disagreeing about which schemes are exempt.
@@ -564,15 +576,23 @@ def _balance_projection(
     return sn_mesh.integrate_per_group(_angular_moment_values(field))
 
 
-def _exit_balance_defect(
-    loss_op: "LinearOperator",
-    psi: "FullField | TimedFullField | CoupledField",
-    q: "FullField | CoupledField",
+# ═══════════════════════════════════════════════════════════════════════
+# The exit CERTIFICATE — what the exit measured about the RETURNED state
+# (consumers campaign step 3, 2026-09-17: typed evidence, never a None with
+# five meanings; the SN evaluators live here because they need the balance
+# projection and the expressibility guard, and ``solution.py`` is imported
+# by this module at runtime — the type is the numerics tier's).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _balance_evidence(
+    residual: "FullField | TimedFullField | CoupledField",
+    source: "FullField | TimedFullField | CoupledField",
     *,
     sn_mesh: "SNMesh",
     record: IterationRecord,
-) -> float | None:
-    r"""The returned iterate's RELATIVE per-group neutron-balance defect.
+) -> Evidence:
+    r"""The returned state's RELATIVE per-group balance defect, as evidence.
 
     .. math::
 
@@ -580,73 +600,155 @@ def _exit_balance_defect(
         \qquad
         R_g(x) = \int_V \int_{4\pi} x_g \, d\Omega \, dV
 
-    A dimensionless magnitude: the net per-group imbalance the returned
-    iterate leaves in its own equation, as a fraction of the per-group
-    source rate.
+    ``residual`` is the posing's own :math:`A\psi - q` (for the eigen kind
+    :math:`\mathcal{A}(\mu(\lambda))\psi = A\psi - F\psi/\lambda`) and
+    ``source`` the equation's right-hand side (:math:`q`; :math:`F\psi/\lambda`)
+    — the SAME projection the retired ``_exit_balance_defect`` took, now fed by
+    the outcome instead of a hand-rebuilt rhs, so the four pure-transport
+    entries read the same number to the bit and the MULTIPLYING entry reads the
+    imbalance of the equation it actually solved (``[M]`` ``0.8294593510371534``
+    against ``A`` → ``0.8758249879057027`` against ``A − F`` on the truncated
+    subcritical slab — a repair, the old number was the residual of the wrong
+    equation).
 
-    ⭐ **The exact complement of :func:`_certify_within_group_exit`, and
-    the pair is deliberate.**  Both take a ``record`` and one forward
-    apply; the certificate fires when the solve CLAIMED convergence and
-    *asserts* (raising on a defect beyond ``_CERTIFICATE_SAFETY × tol``),
-    this fires when it did not and *reports*.  One equation, two verbs,
-    complementary guards — so no solve pays for both, and the happy path
-    keeps exactly the cost it had before N6b.
-
-    ``None`` in three cases HERE, each meaning something different: the
-    tree fully converged (the certificate has it), the scheme cannot
-    express a residual at all (:func:`_residual_is_expressible`), or the
-    source integrates to zero so the ratio is undefined.  Two further
-    ``None`` cases live at CALL SITES rather than in this body, because
-    they are about what the caller can assemble rather than what this can
-    compute — a carrying mesh at :func:`solve_sn` (#354) and the daggered
-    eigenvalue entry (#353).  The full list is on
-    :attr:`~orpheus.sn.solution.IterationHistory.balance_defect`, which is
-    what a reader holding a ``None`` will actually be looking at.
-
-    **Why this projection and not the residual norm.**  `[M]` #340 N5: the
-    raw defect :math:`\lVert r \rVert / \lVert q \rVert` cannot tell a
-    truncation that corrupted :math:`k` from one that did not — the benign
-    and corrupting populations overlap **634×** and a threshold admitting
-    every benign case misses **15 of 16** corrupting ones.  The reason is
-    structural, not statistical: up to **99.995 %** of :math:`\lVert r
-    \rVert` is reflective-trace rows, and a reflective inflow-trace defect
-    in a zero-leakage system carries **no net current**, so a balance-based
-    :math:`k` is blind to it *by conservation*.  Projecting onto
-    :math:`R_g` — the functional :math:`k` actually reads — annihilates
-    exactly those rows, and `[M]` cuts the overlap to **4.64×**.
-
-    ⚠ **4.64× is still an overlap.  This is a DIAGNOSTIC, never a gate.**
-    Do not branch on it, do not threshold it, do not assert on its
-    magnitude in a test.  It is reported so a reader can weigh a truncation
-    they have been told about; the attempt to make it a verdict is the
-    refuted N5, and the refutation is in the plan beside the text it
-    refutes.
-
-    ⛔ And do not reach for an adjoint weight to sharpen it without solving
-    for one: `[M]` a spatially-flat 0-D adjoint makes it **worse**, 4.64× →
-    **128.95×**, because a signed projection against a wrong weight
-    manufactures near-cancellations, i.e. false negatives.  The weighting
-    machinery already exists
-    (:meth:`IntegratedReactionRate.evaluate` takes ``adjoint=``); what a
-    real gate would need is the adjoint SOLVE (#350).
-
-    The equation is whatever the calling entry solved: :math:`q` is the
-    fission source :math:`F\phi(\psi)/k` at an eigenvalue exit and the
-    given :math:`q_{\rm ext}` at a fixed-source one.  Only the eigenvalue
-    form inherits the 4.64× figure above — that is the population N5
-    measured.
+    Four outcomes, each a VALUE (the Evidence sum): :class:`Certified` when
+    the tree fully converged — the within-group exit certificate ASSERTED
+    ``‖Aψ − q‖/‖q‖ ≤ _CERTIFICATE_SAFETY × tol`` (raising otherwise), so no
+    number is owed; :class:`NotYet` (#310) when the scheme's iterate has no
+    typed residual (a moment-tailed LD interior); :class:`NotApplicable` when
+    the source integrates to zero per group (the ratio is undefined);
+    :class:`Measured` otherwise — a DIAGNOSTIC, never a gate (#340 N5:
+    the benign and corrupting populations overlap 4.64× even after this
+    projection).
     """
     if record.fully_converged:
-        return None
+        criterion = record.binding_criterion
+        tol = float(criterion.tolerance) if criterion is not None else float("nan")
+        return Certified(
+            _CERTIFICATE_SAFETY * tol,
+            "the within-group exit certificate (‖Aψ − q‖/‖q‖ asserted at the exit)",
+        )
     if not _residual_is_expressible(sn_mesh):
-        return None
-    source_rate = _balance_projection(q, sn_mesh=sn_mesh)
+        return NotYet(
+            310,
+            "the residual mint does not admit a moment-tailed (LD) interior",
+        )
+    source_rate = _balance_projection(source, sn_mesh=sn_mesh)
     denominator = float(np.linalg.norm(np.asarray(source_rate)))
     if denominator == 0.0:
-        return None
-    residual = _typed_balance(loss_op, psi, q)
+        return NotApplicable("the source integrates to zero per group — the ratio is undefined")
     defect_rate = _balance_projection(residual, sn_mesh=sn_mesh)
-    return float(np.linalg.norm(np.asarray(defect_rate))) / denominator
+    return Measured(float(np.linalg.norm(np.asarray(defect_rate))) / denominator)
+
+
+def _gauge_evidence(correction: float | None, *, sn_mesh: "SNMesh") -> Evidence:
+    r"""The kernel-gauge displacement :math:`\lVert\Pi\psi\rVert/\lVert\psi\rVert`
+    as evidence: :class:`Measured` when the trace was projected, else the REASON
+    nothing was — no kernel freedom on this configuration, or a closure the
+    freedom predicate cannot classify (not gauged, warned loudly — the ruled
+    behaviour).  ``correction`` is :func:`_exit_gauge_trace`'s second return."""
+    if correction is not None:
+        return Measured(float(correction))
+    verdict = gauge_freedom(sn_mesh)
+    if verdict.undetermined:
+        return NotApplicable(f"the closure is unclassifiable, so the trace was NOT gauged: {verdict.because}")
+    return NotApplicable(f"no kernel freedom: {verdict.because}")
+
+
+def _rayleigh_gap_evidence(outcome: "EigenOutcome | SourceOutcome") -> Evidence:
+    r"""``|λ − λ_Rayleigh(ψ)|`` on the returned state for the eigen kind — the
+    reference-class agreement between the method-tier estimator that produced
+    λ and the posing's own quotient (``[M]`` 0.26 × keff_tol worst of 16
+    finalize cases), RECORDED never asserted; :class:`NotApplicable` for a
+    source outcome (no eigenvalue)."""
+    if isinstance(outcome, EigenOutcome):
+        return Measured(abs(float(outcome.rayleigh()) - float(outcome.lam)))
+    return NotApplicable("a source outcome carries no eigenvalue")
+
+
+def _exit_certificate(
+    outcome: "EigenOutcome | SourceOutcome",
+    *,
+    sn_mesh: "SNMesh",
+    record: IterationRecord,
+    gauge_correction: float | None,
+    admissibility: Evidence,
+    balance: Evidence | None = None,
+) -> ExitCertificate:
+    r"""Assemble the returned state's certificate from the outcome.
+
+    ``balance`` defaults to :func:`_balance_evidence` on the outcome's own
+    residual and rhs; an entry that CANNOT measure it passes its reason (the
+    daggered eigen exit, #353).
+    """
+    if balance is None:
+        if isinstance(outcome, EigenOutcome):
+            # the equation's rhs at the returned pair: μ(λ)·Mψ — F ψ/k under the
+            # k map — the SAME rhs the residual 𝒜(μ)ψ = Aψ − μMψ subtracts
+            mu = float(outcome.posing.spectral_map.inverse(outcome.lam))
+            rhs = outcome.posing.pencil.rhs.apply(outcome.state) * mu
+            balance = _balance_evidence(outcome.residual(), rhs, sn_mesh=sn_mesh, record=record)
+        else:
+            balance = _balance_evidence(outcome.residual(), outcome.posing.source, sn_mesh=sn_mesh, record=record)
+    return ExitCertificate(
+        balance=balance,
+        gauge=_gauge_evidence(gauge_correction, sn_mesh=sn_mesh),
+        rayleigh_gap=_rayleigh_gap_evidence(outcome),
+        admissibility=admissibility,
+    )
+
+
+@dataclass(frozen=True)
+class _StateProductionRate:
+    r"""The SN production-rate FUNCTIONAL on the returned STATE — the section
+    ``power_iteration`` fixed the representative on, spelled as the object that
+    ran: :meth:`SNSolver.compute_production_rate` (fission **plus** the (n,2n)
+    emission) of the state's cell-average scalar flux.  Degree-1 homogeneous
+    in the state, so ``ScaleGauge(functional, 1.0)`` is a lawful section; the
+    driver normalised the SCALAR iterate to it at every outer step, and the
+    returned ψ (polished one step, #448) reads it to the iteration's own
+    residual."""
+
+    solver: "SNSolver"
+
+    def __call__(self, state: "CoupledField") -> float:
+        from orpheus.transport.fields.angular_flux import AngularFlux
+
+        member = _system_a_member(state)
+        interior = member.interior
+        if not isinstance(interior, AngularFlux):
+            raise TypeError(
+                f"the production-rate functional needs a per-ordinate System A "
+                f"interior; got {type(interior).__name__}."
+            )
+        phi = self.solver.sn_mesh.cell_average_moment(
+            np.asarray(interior.integrate_angular().values),
+        )
+        return float(self.solver.compute_production_rate(phi))
+
+
+def _returned_state(
+    system_a: "FullField | TimedFullField",
+    ray: "RadialCharacteristicField | None",
+) -> "CoupledField":
+    r"""The returned iterate WHOLE, as the coupled state the Solution stores:
+    System A's composite (wrapped into the timed carrier when the driver
+    handed back a bare ``FullField``), paired with System B's ψ½ member on a
+    carrying mesh.  ONE construction convention for every entry (step 3)."""
+    member = system_a
+    if not isinstance(member, TimedFullField):
+        member = TimedFullField(
+            interior=member.interior, boundary=member.boundary,
+            _history=(), history_depth=2,
+        )
+    return CoupledField(systems=(member,) if ray is None else (member, ray))
+
+
+def _as_coupled(field: "FullField | TimedFullField | CoupledField") -> "CoupledField":
+    r"""A source or state on the hub's coupled carrier: a bare (seedless) composite
+    is the ONE-system coupled field; a coupled one is itself.  The same lift the
+    hub's ``source_posing`` applies — a posing lives on the pencil's ends."""
+    return field if isinstance(field, CoupledField) else CoupledField(systems=(field,))
 
 
 #: Either flavour of the System-A composite — both carry a ``.boundary``.
@@ -673,10 +775,10 @@ def _exit_gauge_trace(
 
     Returns the gauged composite and
     :math:`\lVert \Pi\psi \rVert / \lVert \psi \rVert` for
-    :attr:`~orpheus.sn.solution.IterationHistory.gauge_correction` — ``None``
+    the certificate's ``gauge`` member (:func:`_gauge_evidence`) — ``None``
     when there was no freedom to measure, never *"measured and zero"*.
 
-    ⭐ **The sibling of** :func:`_exit_balance_defect` **with one sharpening:
+    ⭐ **The sibling of** :func:`_balance_evidence` **with one sharpening:
     that one REPORTS and this one MUTATES.**  A forgotten balance-defect site
     loses a diagnostic; a forgotten gauge site silently returns a
     non-physical answer.  The structural guarantee a single construction site
@@ -691,14 +793,14 @@ def _exit_gauge_trace(
     (``psi_full.boundary.values.base is psi_full.interior.values.base`` →
     ``True``), which ``psi_typed`` also references and which is still read
     after this point; on the un-windowed SI arm ``angular_out IS psi_typed``,
-    the very object :func:`_exit_balance_defect` already measured.  An in-place
+    the very object the certificate already measured.  An in-place
     write would reach backwards through both.  ``dataclasses.replace`` also
     re-runs ``__post_init__``, so the leaf's block invariants re-fire — where
     ``Composite._recombine`` would silently drop ``_history``.
 
     **Residual-neutral by construction**, so it is safe at a converged exit:
     :math:`A(\psi - \Pi\psi) = A\psi` because :math:`\Pi\psi \in \ker A`.  `[M]`
-    on a truncated SI solve ``_exit_balance_defect`` reads
+    on a truncated SI solve the balance evidence (then ``_exit_balance_defect``) read
     ``0.3111434602740818`` on both the raw and the gauged iterate while
     ``gauge_correction`` goes ``3.592e-2 → 4.91e-17``.  Call it AFTER the
     defect anyway, so the reported number describes the object the caller
@@ -797,7 +899,8 @@ def _bare_loss_arm(system: "WithinGroupSystem") -> "LinearOperator":
     The seedless system's equation, unwrapped from the arity-guarded grid
     (whose ``apply`` demands a ``CoupledField`` even at arity 1, while the
     seedless drivers carry bare composites). Consumed by the arm-level
-    ``_exit_balance_defect`` call sites that deliberately evaluate the
+    ``_exit_balance_defect`` call sites (retired at step 3 — the certificate
+    reads the posing's own residual now) that deliberately evaluated the
     System-A equation alone (the eigenvalue exit's fission-defect
     projection)."""
     arm = system.loss.blocks[0][0]
@@ -2171,7 +2274,7 @@ def solve_sn(
     inner_tol: float = 1e-8,
     inner_schedule: str = "jacobi",
     mat_map: "np.ndarray | None" = None,
-) -> Solution:
+) -> "Solution[EigenOutcome]":
     """Solve the multi-group SN eigenvalue problem.
 
     This is the **canonical entry point** for the production SN solver.
@@ -2401,52 +2504,53 @@ def solve_sn(
     # `record.converged` and returns early on exactly the truncated solves
     # this runs on.  The complement of a guard reaches the states its
     # partner never visits.
-    from orpheus.transport.source_sinks import (
-        AngularBoundarySourceSink,
-        AngularSourceSink,
-    )
-
-    balance_defect = None
-    if sn_mesh.radial_characteristic_field_space is None:
-        exit_rhs = FullField(
-            interior=AngularSourceSink.from_isotropic(
-                solver.compute_fission_source(
-                    _angular_moment_values(final_psi_a), keff,
-                ),
-                sn_mesh,
-            ),
-            boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
-        )
-        balance_defect = _exit_balance_defect(
-            _bare_loss_arm(final_system),
-            final_psi_a, exit_rhs, sn_mesh=sn_mesh, record=outcome.record,
-        )
-    # #344 — AFTER the balance defect, so the number reported describes the
-    # object the caller receives (residual-neutral either way; see the helper).
+    # #344 — the gauge projects the kernel component out of the returned TRACE
+    # (residual-neutral by construction: Πψ ∈ ker A); the outcome and its
+    # certificate are built AFTER it, so every number describes the object the
+    # caller receives.
     final_psi_a, gauge_correction = _exit_gauge_trace(
         final_psi_a, sn_mesh=sn_mesh,
     )
-    history = IterationHistory(
-        record=outcome.record, keff_history=tuple(keff_history),
-        balance_defect=balance_defect,
+    # The ANSWER (consumers campaign step 3): the hub's k-eigen question, the
+    # returned state WHOLE (System A polished one step against the converged
+    # fission source, #448; System B's ψ½ member on a carrying mesh), λ as the
+    # method-tier estimator produced it, the λ-trajectory, and the section that
+    # fixed the representative — the production-rate gauge ``power_iteration``
+    # applied at every outer step (SN's functional INCLUDES the (n,2n)
+    # emission; it is recorded as the object that ran, never as a label).
+    gauge = ScaleGauge(_StateProductionRate(solver), 1.0)
+    # The returned state is put ON the recorded section: the driver normalised
+    # the SCALAR iterate at every outer step, and the polished ψ (#448) sits
+    # off it by the iteration's own residual (``[M]`` a curve in the outer
+    # tolerance: 1e-8-class at ``solve_sn``'s defaults, 1e-10-class at the
+    # finalize gates' 1e-10 — it tracks the last outer's flux increment) — the
+    # section is applied once here so ``gauge.functional(state) == target`` is
+    # a LAW of the answer (``[M]`` |n − t| = 1.1e-16), not an approximation.
+    answer = EigenOutcome(
+        posing=sn_mesh.eigen_posing,
+        state=gauge.apply(_returned_state(final_psi_a, final_ray)),
+        lam=float(keff_history[-1]),
+        trajectory=tuple(float(k) for k in keff_history),
+        gauge=gauge,
+    )
+    # The certificate reads the outcome's OWN residual Aψ − Fψ/k and rhs — no
+    # hand-rebuilt fission source — and the carrying arm is measurable now that
+    # the posing is the coupled pencil (#354's gap was the un-assembled coupled
+    # rhs; ``production`` on the coupled space IS it).
+    certificate = _exit_certificate(
+        answer, sn_mesh=sn_mesh, record=outcome.record,
         gauge_correction=gauge_correction,
+        admissibility=NotApplicable("an eigen question has no admissibility to certify"),
     )
     warn_if_unconverged(
-        history.record, where="solve_sn",
-        balance_defect=history.balance_defect,
+        outcome.record, where="solve_sn",
+        balance_defect=certificate.balance,
     )
-    warn_if_gauge_freedom(
-        sn_mesh, history.gauge_correction, where="solve_sn",
-    )
+    warn_if_gauge_freedom(sn_mesh, certificate.gauge, where="solve_sn")
     return _package_solution(
-        _cell_average_angular(final_psi_a, sn_mesh),
-        final_psi_a.boundary,
-        final_ray,
-        sn_mesh,
-        scalar=ScalarFlux(values=scalar_flux, space=sn_mesh.bulk_space),
-        keff=float(keff_history[-1]),
-        history=history,
-        cls=Solution,
+        Solution, sn_mesh,
+        outcome=answer, strategy=inner.splitting,
+        certificate=certificate, record=outcome.record,
     )
 
 
@@ -2455,93 +2559,42 @@ def solve_sn(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _cell_average_angular(
-    field: "FullField", sn_mesh: SNMesh,
-) -> "AngularFlux":
-    r"""The :class:`Solution` angular carrier: the CELL-AVERAGE view.
-
-    A multi-moment closure's φ̂ tail is iterate-internal within-cell DG
-    structure (#240 D5b-S3) — the user-facing angular flux is the
-    ``AVERAGE_MOMENT`` slot, extracted through the one moment-slot
-    single source (:func:`_average_moment_scalar`, layout-generic over
-    the trailing moment axis) and wrapped once into the typed field.
-    """
-    from orpheus.transport.fields.angular_flux import AngularFlux
-
-    bulk = _average_moment_scalar(
-        np.asarray(field.interior.values), sn_mesh,
-    )
-    return AngularFlux(values=bulk, space=sn_mesh.angular_bulk_space)
-
-
 SolutionT = TypeVar("SolutionT", bound=SolutionBase)
 
 
 def _package_solution(
-    angular: "AngularFlux",
-    boundary,
-    ray,
+    cls: "type[SolutionT]",
     sn_mesh: SNMesh,
     *,
-    scalar: "ScalarFlux",
-    keff: "float | None",
-    history: IterationHistory,
-    cls: "type[SolutionT]",
+    outcome: "EigenOutcome | SourceOutcome",
+    strategy: "Splitting",
+    certificate: ExitCertificate,
+    record: IterationRecord,
 ) -> SolutionT:
-    r"""The CELL-AVERAGE :class:`SolutionBase` construction convention.
+    r"""The ONE :class:`SolutionBase` construction site — every entry, both roles.
 
-    Where the eigenvalue and adjoint entries turn converged iterates into the
-    typed return (#197 PR-TYPED-5): the cell-average angular view + the
-    converged boundary trace wrap into the ``TimedFullField`` composite carrier
-    (D-H.1c stage 2 — ``_history=()``, ``history_depth=2``), alongside the
-    scalar member, eigenvalue, iteration history, and System B's ray member
-    (``None`` on non-carrying meshes, B.2d).
+    A Solution is the pair (Problem, posing) plus the Strategy that produced it
+    and the records (R-cc2; consumers campaign step 3, 2026-09-17): the hub,
+    the kind-typed OUTCOME (the question, the returned state WHOLE, the answer
+    and the gauge that picked the representative), the Strategy VALUE the solve
+    drove, the exit CERTIFICATE and the iteration RECORD.  The role is the
+    ``cls`` leaf (:class:`Solution` forward, :class:`AdjointSolution` adjoint —
+    the A5 ruling made the role a TYPE); the kind is the outcome's type.
 
-    ⛔ **This docstring read "The ONE ``SolutionBase`` construction convention …
-    spelled HERE and nowhere else" until 2026-08-15. That was present-tense
-    FALSE**, and it is the kind of falsehood that costs a later change real
-    work: it invites installing a cross-cutting hook here and believing every
-    entry is covered.
-
-    `[M]` **3 of the 4 public entries route through this** —
-    :func:`solve_sn` directly, and both adjoints via
-    :func:`_package_adjoint_solution`. The **fixed-source family bypasses it
-    entirely, once per arm**, building ``Solution(...)`` inline in
-    :func:`_solve_fixed_source_si` and :func:`_solve_fixed_source_krylov`.
-
-    The bypass is **deliberate, not drift**, and unifying it would be a
-    regression: this tail routes the bulk through :func:`_cell_average_angular`,
-    which strips a multi-moment closure to its ``AVERAGE_MOMENT`` slot, whereas
-    the fixed-source arms return ``angular_out`` **whole** — a DG closure's
-    :math:`\hat\varphi` slopes are internal structure, not the scalar flux the
-    ``Solution`` reports (see the note in ``_solve_fixed_source_si``, #240
-    D5b-S3). Two conventions, because there are two different returns.
-
-    ⟹ **anything that must reach every entry belongs at the entries, not
-    here** — see :func:`_exit_balance_defect` (4 sites) and
-    :func:`_exit_gauge_trace` (5, because the fixed-source family has two
-    arms), each one named, single-sourced, and invoked per exit.
-
-    SCALAR- and ROLE-AGNOSTIC by design: the caller supplies the scalar
-    member (forward — the power iteration's converged scalar; adjoint —
-    the w-reduction of the packaged angular) AND names the role leaf
-    (``cls`` — :class:`Solution` forward, :class:`AdjointSolution`
-    adjoint; the A5 ruling made the role a TYPE), so the carrier
-    convention stays single-sourced while the role never branches
-    inside this shared tail.
+    ⛔ Until step 3 this tail was the CELL-AVERAGE convention for 3 of the 4
+    public entries while the two fixed-source arms built ``Solution(...)``
+    inline to keep their DG slope structure — two conventions for one member,
+    and the reason a cross-cutting hook here could not reach every entry.
+    The state is now stored WHOLE on every entry (the arm's own convention;
+    the flux members are derived accessors), so there is one convention, one
+    site, and nothing an entry can forget.
     """
     return cls(
-        angular_flux=TimedFullField(
-            interior=angular,
-            boundary=boundary,
-            _history=(),
-            history_depth=2,
-        ),
-        scalar_flux=scalar,
         mesh=sn_mesh,
-        keff=keff,
-        history=history,
-        radial_characteristic=ray,
+        outcome=outcome,
+        strategy=strategy,
+        certificate=certificate,
+        record=record,
     )
 
 
@@ -2553,7 +2606,7 @@ def _package_solution(
 def _adjoint_posing_parts(sn_mesh: SNMesh):
     r"""Shared build for the adjoint entries: the daggerable parts.
 
-    Returns ``(implicit_operator, gain, F_posed, template)`` — the invertible
+    Returns ``(implicit_operator, gain, production, template, splitting)`` — the invertible
     within-group implicit operator ``M``, the summed coupling gain, the fission operator
     posed on the system's carrier, and a ZERO composite of that carrier
     (the shape/mesh template for guesses via ``from_flat``).  Everything
@@ -2574,11 +2627,6 @@ def _adjoint_posing_parts(sn_mesh: SNMesh):
     ``explicit[0]``, derived from the record's factors — step 2 of the
     consumers campaign; the builder no longer assembles it).
     """
-    from orpheus.transport.fields.angular_boundary_flux import (
-        AngularBoundaryFlux,
-    )
-    from orpheus.transport.fields.angular_flux import AngularFlux as _AF
-
     system = sn_mesh.system  # the Problem's posed record (R-cc6 (iii))
     # The adjoint poses on the JACOBI labelling — the whole boundary a
     # lagged gain, so ``gain.H`` daggers B_a entire (no octant fold to
@@ -2590,17 +2638,23 @@ def _adjoint_posing_parts(sn_mesh: SNMesh):
     gain = splitting.explicit[0]
     for extra in splitting.explicit[1:]:
         gain = gain + extra
-    # The ONE F — the hub's (R-cc6 (ii)): the seedless adjoint daggers the
-    # composite on the full field, the carrying adjoint the record's
-    # ``production`` (F posed on the coupled space).
-    F = system.factors.fission
-    full_field_zero = FullField(
-        interior=_AF.zeros(sn_mesh.angular_trial_space),
-        boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
-    )
+    # BOTH arms on the COUPLED carrier (#467, step 3 U2d, 2026-09-17): the
+    # seedless record's one-system coupled space IS the full field wrapped,
+    # so the Strategy pair is lifted into the 1×1 grid there and the daggered
+    # question is the hub's ``eigen_posing.H()`` on both arms — ONE posing per
+    # Problem, k† = k, no per-arm pencil.  ``[M]`` the lift moves k_adj by
+    # rel 1.1e-15 (het slab, GL-8, keff_tol=1e-10) — a ULP-class re-baseline
+    # against 1e-9 certification gates.  Until U2d the seedless arm iterated
+    # a bare full-field pair with the composite ``factors.fission``, and the
+    # production site posed ``EigenPosing(OperatorPencil(M.H − N.H, F.H))``
+    # per arm — two adjoint posings for one Problem.
     if sn_mesh.radial_characteristic_field_space is None:
-        return splitting.implicit, gain, F, full_field_zero
-    return splitting.implicit, gain, system.production, system.space.zeros()
+        def lift(operator: "LinearOperator") -> CoupledOperator:
+            return CoupledOperator(
+                [[operator]], domain=system.space, codomain=system.space,
+            )
+        return lift(splitting.implicit), lift(gain), system.production, system.space.zeros(), splitting
+    return splitting.implicit, gain, system.production, system.space.zeros(), splitting
 
 
 def solve_sn_adjoint(
@@ -2659,11 +2713,13 @@ def solve_sn_adjoint(
     Returns
     -------
     AdjointSolution
-        The role-typed return (the A5 carrier ruling): ``keff`` = the
-        adjoint eigenvalue (== the forward eigenvalue to convergence
-        tolerance), ``angular_flux`` = the adjoint angular flux
-        :math:`\psi^*` (cell-average view), ``scalar_flux`` = the
-        adjoint scalar flux :math:`\varphi^* = \sum_n w_n \psi^*_n`
+        The role-typed return (the A5 carrier ruling), kind-typed by its
+        outcome (``AdjointSolution[EigenOutcome]``, step 3): ``outcome.keff``
+        = the adjoint eigenvalue (== the forward eigenvalue to convergence
+        tolerance; ``outcome.posing`` is the hub's ``eigen_posing.H()``),
+        ``angular_flux`` = the adjoint angular flux :math:`\psi^*` read off
+        the returned state (whole — the arm's own convention), ``scalar_flux``
+        = the adjoint scalar flux :math:`\varphi^* = \sum_n w_n \psi^*_n`
         (the importance map — also readable as
         :attr:`~orpheus.sn.solution.AdjointSolution.importance`).
     """
@@ -2671,28 +2727,20 @@ def solve_sn_adjoint(
         mesh, quadrature, materials, mat_map=mat_map,
         scattering_order=scattering_order,
     )
-    implicit_operator, gain, F_posed, template = _adjoint_posing_parts(sn_mesh)
+    implicit_operator, gain, _production, template, splitting = _adjoint_posing_parts(sn_mesh)
 
     from orpheus.numerics.iteration import KEigenvalue
-    from orpheus.numerics.pencil import OperatorPencil
-    from orpheus.numerics.posing import K_MAP, EigenPosing
-
-    # The daggered posing on the ARM's own carrier: the seedless adjoint iterates
-    # on the full field with `factors.fission`, the carrying one on the coupled
-    # space with `production` — `_adjoint_posing_parts` returns the pair, and the
-    # pencil is (loss†, F†) spelled through the Strategy's own implicit/gain.
+    # The daggered QUESTION is the hub's — ``eigen_posing.H()``, nullary, the
+    # same pencil (loss†, production†) on the coupled carrier for BOTH arms
+    # (#467); the Strategy pair ``(implicit.H, gain.H)`` is the daggered
+    # Jacobi splitting, lifted to the 1×1 grid on a seedless mesh.
     ke = KEigenvalue(
-        EigenPosing(OperatorPencil(implicit_operator.H - gain.H, F_posed.H), K_MAP),
+        sn_mesh.eigen_posing.H(),
         implicit_operator.H, gain.H,
         max_outer=max_outer, keff_tol=keff_tol, flux_tol=flux_tol,
         max_inner=max_inner, inner_tol=inner_tol,
     )
-    ones = np.ones(template.to_flat().size)
-    guess = (
-        CoupledField.from_flat(ones, template)
-        if isinstance(template, CoupledField)
-        else FullField.from_flat(ones, template)
-    )
+    guess = CoupledField.from_flat(np.ones(template.to_flat().size), template)
     outcome = ke.solve(initial_guess=guess)
     k_adj, keff_history, psi_star = (
         outcome.keff, outcome.keff_history, outcome.flux_distribution,
@@ -2735,21 +2783,40 @@ def solve_sn_adjoint(
     # gauge works — that is `inert`, not `verified`; the acceptance gate lives
     # on the forward entries.
     system_a, gauge_correction = _exit_gauge_trace(system_a, sn_mesh=sn_mesh)
-    history = IterationHistory(
-        record=outcome.record, keff_history=tuple(keff_history),
+    # The ANSWER: the hub's daggered question — NULLARY, k† = k — recorded on
+    # the coupled carrier (the seedless arm's state lifted to the one-system
+    # coupled field), λ = k_adj, and the fission-only production-rate gauge
+    # ``KEigenvalue`` applied (a DIFFERENT functional from the forward's,
+    # recorded as such).  The DRIVER iterates this same question on the
+    # coupled carrier — ``_adjoint_posing_parts`` lifts the seedless Strategy
+    # pair to the 1×1 grid (#467, U2d) — so the recorded posing IS the solved
+    # one and the certificate's ``rayleigh_gap`` is exactly zero.
+    gauge = ScaleGauge(ke.compute_production_rate, 1.0)
+    answer = EigenOutcome(
+        posing=sn_mesh.eigen_posing.H(),
+        state=gauge.apply(_returned_state(system_a, adjoint_ray)),
+        lam=float(k_adj),
+        trajectory=tuple(float(k) for k in keff_history),
+        gauge=gauge,
+    )
+    certificate = _exit_certificate(
+        answer, sn_mesh=sn_mesh, record=outcome.record,
         gauge_correction=gauge_correction,
+        admissibility=NotApplicable("an eigen question has no admissibility to certify"),
+        # #340 N6b / #353: this entry carries NO balance defect — N5 never
+        # measured the adjoint population, so there is no reference to check a
+        # number against; assembling one from plausibility is the ERR-032 class.
+        balance=NotYet(353, "the daggered eigen exit's balance defect has no measured reference population"),
     )
     warn_if_unconverged(
-        history.record, where="solve_sn_adjoint",
-        balance_defect=history.balance_defect,
+        outcome.record, where="solve_sn_adjoint",
+        balance_defect=certificate.balance,
     )
-    warn_if_gauge_freedom(
-        sn_mesh, history.gauge_correction, where="solve_sn_adjoint",
-    )
-    return _package_adjoint_solution(
-        system_a, adjoint_ray, sn_mesh,
-        keff=float(k_adj),
-        history=history,
+    warn_if_gauge_freedom(sn_mesh, certificate.gauge, where="solve_sn_adjoint")
+    return _package_solution(
+        AdjointSolution, sn_mesh,
+        outcome=answer, strategy=splitting,
+        certificate=certificate, record=outcome.record,
     )
 
 
@@ -2837,7 +2904,7 @@ def solve_sn_adjoint_fixed_source(
             "(#276 A4 scope note); the eigenvalue entry solve_sn_adjoint "
             "covers carrying meshes."
         )
-    implicit_operator, gain, _F, template = _adjoint_posing_parts(sn_mesh)
+    implicit_operator, gain, _F, template, splitting = _adjoint_posing_parts(sn_mesh)
 
     from orpheus.numerics.iteration import SourceIteration, seeded_inverse
     from orpheus.transport.source_sinks import (
@@ -2885,66 +2952,43 @@ def solve_sn_adjoint_fixed_source(
     # Flux-classed zero start (the template) — the daggered iterate is an
     # adjoint FLUX; a zeros-like-the-source start would be source-classed
     # and trip the typed cross-class guard on the first increment ψ − ψ_prev.
-    psi_star, record = si.solve(q_star, initial_guess=template)
+    psi_star_state, record = si.solve(_as_coupled(q_star), initial_guess=template)
+    psi_star = _system_a_member(psi_star_state)
+    adjoint_ray = _system_b_member(psi_star_state)
     # #340 N6b — the exit defect of the DAGGERED equation, which is the one
     # this entry solved: ``A^† ψ* − q*`` with the same operator the driver
     # was handed.  No reconstruction and no rebuilt rhs here; both are
     # already the driver's own arguments.
-    balance_defect = _exit_balance_defect(
-        implicit_operator.H - gain.H, psi_star, q_star,
-        sn_mesh=sn_mesh, record=record,
-    )
     # #344 — see the note at `solve_sn_adjoint`: structurally inert here too
     # (1-D-only transpose solve ⟹ at most one reflective axis pair), wired so
     # the seam cannot rot.
     psi_star, gauge_correction = _exit_gauge_trace(psi_star, sn_mesh=sn_mesh)
-    history = IterationHistory(
-        record=record, balance_defect=balance_defect,
+    # The ANSWER: the daggered affine question A†ψ* = q* over the hub's daggered
+    # loss (UNARY — the detector is the datum), the returned state lifted to the
+    # coupled carrier, and the hub's kernel gauge; the certificate reads the
+    # outcome's own residual A†ψ* − q*.
+    answer = SourceOutcome(
+        posing=SourcePosing(sn_mesh.pencil.H.lhs, _as_coupled(q_star)),
+        state=_returned_state(psi_star, adjoint_ray),
+        gauge=sn_mesh.loss_kernel_gauge,
+    )
+    certificate = _exit_certificate(
+        answer, sn_mesh=sn_mesh, record=record,
         gauge_correction=gauge_correction,
+        admissibility=NotApplicable("the pure-transport adjoint question has no admissibility to certify"),
     )
     warn_if_unconverged(
-        history.record, where="solve_sn_adjoint_fixed_source",
-        balance_defect=history.balance_defect,
+        record, where="solve_sn_adjoint_fixed_source",
+        balance_defect=certificate.balance,
     )
     warn_if_gauge_freedom(
-        sn_mesh, history.gauge_correction,
+        sn_mesh, certificate.gauge,
         where="solve_sn_adjoint_fixed_source",
     )
-    return _package_adjoint_solution(
-        psi_star, None, sn_mesh,
-        keff=None,
-        history=history,
-    )
-
-
-def _package_adjoint_solution(
-    system_a: "FullField",
-    adjoint_ray,
-    sn_mesh: SNMesh,
-    *,
-    keff: "float | None",
-    history: IterationHistory,
-) -> AdjointSolution:
-    r"""Wrap a converged daggered iterate into an :class:`AdjointSolution`.
-
-    The adjoint face of the shared packaging tail — routes through the
-    forward's own :func:`_cell_average_angular` + :func:`_package_solution`
-    (ONE carrier convention, zero adjoint fork; the role is the ``cls``
-    leaf, per the A5 ruling).  The scalar member is
-    :math:`\varphi^* = \sum_n w_n \psi^*_n` — the importance map, the
-    same w-reduction as the forward scalar flux (the adjoint of the ISO
-    source injection, NOT a new functional).
-    """
-    angular = _cell_average_angular(system_a, sn_mesh)
     return _package_solution(
-        angular,
-        system_a.boundary,
-        adjoint_ray,
-        sn_mesh,
-        scalar=angular.integrate_angular(),
-        keff=keff,
-        history=history,
-        cls=AdjointSolution,
+        AdjointSolution, sn_mesh,
+        outcome=answer, strategy=splitting,
+        certificate=certificate, record=record,
     )
 
 
@@ -3192,20 +3236,6 @@ def _lift_external_source_to_moments(
     return bulk_values, per_axis
 
 
-def _average_moment_scalar(phi: "np.ndarray", sn_mesh: SNMesh) -> "np.ndarray":
-    r"""Reduce a (possibly moment-carrying) scalar flux to its cell-AVERAGE.
-
-    The user-facing :class:`Solution` scalar flux is the cell-average moment
-    (slot 0); a multi-moment closure's φ̂ slopes are internal within-cell DG
-    structure (#240 D5b-S3).  ``phi`` from a multi-moment closure carries a
-    trailing ``2^d`` axis — take slot ``AVERAGE_MOMENT``; DD/Step (per_axis ==
-    1) → no axis → return unchanged."""
-    per_axis = sn_mesh.scheme.spatial_basis_per_axis
-    if face_moment_tail(cell_moment_count(per_axis, sn_mesh.ndim)) == ():
-        return phi
-    return phi[..., AVERAGE_MOMENT]
-
-
 def solve_sn_fixed_source(
     materials: dict[int, Mixture],
     mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
@@ -3425,11 +3455,21 @@ def solve_sn_fixed_source(
     # inner paths consume (Cardinal Rule 2 — one construction point; shape
     # validation lives inside the helper).
     q_ext_composite = _build_fixed_source_rhs(external_source, sn_mesh)
-
+    # The QUESTION this entry answers — the PURE-TRANSPORT affine problem
+    # Aψ = q, the pencil's member at σ = 0 (``at(0.0)`` IS ``system.loss``, by
+    # identity).  On a fissile hub that is the ENTRY's modelling choice
+    # (fission suppressed), not a datum of the generating data, so it is a
+    # Strategy-side point in Λ posed HERE (RULED F11, 2026-09-14) while the
+    # hub's own ``source_posing(q)`` names the physical multiplying member at
+    # σ = 1 (``solve_sn_multiplying_source``).  The Solution records it.
+    posing = SourcePosing(sn_mesh.pencil.at(0.0), _as_coupled(q_ext_composite))
+    admissibility = NotApplicable("the pure-transport question is always admitted: A is invertible")
     if inner_solver == "source_iteration":
         solution = _solve_fixed_source_si(
             solver, sn_mesh, q_ext_composite,
-            t_start, max_inner, inner_tol, inner_schedule=inner_schedule,
+            t_start, max_inner, inner_tol,
+            posing=posing, admissibility=admissibility,
+            inner_schedule=inner_schedule,
             corrector=corrector,
         )
     else:
@@ -3440,6 +3480,7 @@ def solve_sn_fixed_source(
         solution = _solve_fixed_source_krylov(
             solver, sn_mesh, q_ext_composite,
             t_start, max_inner, inner_tol,
+            posing=posing, admissibility=admissibility,
             corrector=corrector,
         )
 
@@ -3465,25 +3506,16 @@ def solve_sn_fixed_source(
     # object describe the same solve" a theorem rather than a convention, and
     # collapses two mirror emission points into one (Cardinal Rule 2).
     #
-    # ``history`` is Optional on :class:`~orpheus.sn.solution.Solution`
-    # because other producers build one without a solve; both arms above
-    # always construct it.  When it is genuinely absent there is nothing to
-    # say about convergence, so silence is the honest answer — the same
-    # reading :attr:`~orpheus.sn.solution.SolutionBase.converged` takes.
-    if solution.history is not None:
-        warn_if_unconverged(
-            solution.history.record, where="solve_sn_fixed_source",
-            balance_defect=solution.history.balance_defect,
-        )
-        # #344 — HOISTED here on purpose. Both arms project, but neither may
-        # warn: from inside an arm this sits two frames below the entry, so
-        # `stacklevel=3` blames `orpheus/sn/solver.py` rather than the caller
-        # (#340 N4.7, ⛔ above). The verdict needs only the mesh, and the
-        # magnitude rides `history`, so the entry can say it for either arm.
-        warn_if_gauge_freedom(
-            sn_mesh, solution.history.gauge_correction,
-            where="solve_sn_fixed_source",
-        )
+    # The certificate rides the Solution about to be RETURNED, so "the warning
+    # and the returned object describe the same solve" stays a theorem.
+    warn_if_unconverged(
+        solution.record, where="solve_sn_fixed_source",
+        balance_defect=solution.certificate.balance,
+    )
+    warn_if_gauge_freedom(
+        sn_mesh, solution.certificate.gauge,
+        where="solve_sn_fixed_source",
+    )
     return solution
 
 
@@ -3558,18 +3590,39 @@ def solve_sn_multiplying_source(
         max_inner=max_inner, inner_tol=inner_tol,
     )
     q_ext_composite = _build_fixed_source_rhs(external_source, sn_mesh)
-    # The Problem's question, STATED (and its ends checked) before the Strategy
-    # lowers it; step 3 puts this posing on the Solution.
-    sn_mesh.source_posing(q_ext_composite)
+    # The Problem's question — the pencil's member at the PHYSICAL σ = 1 posed
+    # with the source — recorded on the Solution (step 3); its ends are checked
+    # at construction.
+    posing = sn_mesh.source_posing(q_ext_composite)
     system = sn_mesh.system
-    return _solve_fixed_source_si(
+    solution = _solve_fixed_source_si(
         solver, sn_mesh, q_ext_composite,
-        t_start, max_inner, inner_tol, inner_schedule=inner_schedule,
+        t_start, max_inner, inner_tol,
+        posing=posing,
+        # the admissibility CERTIFICATE: the hub's own k-solve at keff_tol
+        # (RULED 2026-09-13, fork 3 (a)) — recorded WITH its configuration
+        admissibility=Certified(
+            k, f"the hub's k-solve at keff_tol={keff_tol:g}: k_eff = {k:.9f} < 1 (subcritical)",
+        ),
+        inner_schedule=inner_schedule,
         # the production LAGGED — the (M, q) lowering — on the ARM's carrier: the
         # seedless iteration runs on the full field (the composite F there), the
         # carrying one on the coupled space (the posed production)
         extra_gains=(system.production if system.is_coupled else system.factors.fission,),
     )
+    # The hoisted warnings (#340 N4.7 — ``stacklevel=3`` counts from the PUBLIC
+    # entry): until step 3 this entry returned the arm's Solution directly and
+    # was SILENT on a truncated AND on a gauge-singular solve while its sibling
+    # warned (``[M]`` the step-3 anchors).
+    warn_if_unconverged(
+        solution.record, where="solve_sn_multiplying_source",
+        balance_defect=solution.certificate.balance,
+    )
+    warn_if_gauge_freedom(
+        sn_mesh, solution.certificate.gauge,
+        where="solve_sn_multiplying_source",
+    )
+    return solution
 
 
 def _solve_fixed_source_si(
@@ -3579,10 +3632,13 @@ def _solve_fixed_source_si(
     t_start: float,
     max_inner: int,
     inner_tol: float,
+    *,
+    posing: "SourcePosing",
+    admissibility: Evidence,
     inner_schedule: str = "gauss_seidel",
     corrector: "LinearOperator | None" = None,
     extra_gains: "tuple[LinearOperator, ...]" = (),
-) -> Solution:
+) -> "Solution[SourceOutcome]":
     r"""Fixed-source path via the :class:`SourceIteration` primitive.
 
     Carved onto the SAME :class:`~orpheus.numerics.iteration.SourceIteration`
@@ -3766,60 +3822,35 @@ def _solve_fixed_source_si(
     # flux the Solution reports (#240 D5b-S3).  The parse reifies the
     # full-angular contract of BOTH arms (the reconstruction sweep emits
     # angular; the un-windowed iterate echoes the flux template) loudly.
-    angular_bulk = angular_out.interior
-    if not isinstance(angular_bulk, AngularFlux):
-        raise TypeError(
-            f"fixed-source SI: Solution.angular_flux must carry an "
-            f"AngularFlux bulk; got {type(angular_bulk).__name__}."
-        )
-    phi = _average_moment_scalar(
-        angular_bulk.integrate_angular().values, sn_mesh,
-    )
-    # ⛔ The warning is emitted HERE, not before the reconstruction above,
-    # and the reason is the balance defect (#340 N6b).  On the WINDOWED arm
-    # ``psi_typed.interior`` is a ``HarmonicMomentFlux`` — an angular-moment
-    # iterate, which the projection cannot integrate over angle — while
-    # ``angular_out`` is the full-angular reconstruction.  Warning before
-    # line ~3806 would have silently dropped the number on exactly one arm,
-    # and it is the arm a reader would least suspect, because the sibling
-    # Krylov path and the eigenvalue entry both work on the same 2-D mesh.
-    #
-    # Which iterate: ``angular_out`` when windowed, ``psi_typed`` otherwise.
-    # The two cases are disjoint by construction — windowing is 2-D
-    # Cartesian hence seedless, so a windowed solve is never coupled (the
-    # guard above says so) — which is why the coupled composite and the
-    # reconstruction never both apply.
-    balance_defect = _exit_balance_defect(
-        system.loss if coupled else _bare_loss_arm(system),
-        angular_out if windowed else psi_typed,
-        q_ext_composite,
-        sn_mesh=sn_mesh, record=record,
-    )
     # #344 — the PROJECTION fires here, because this is where the trace is; the
-    # WARNING must NOT. This is a private arm, two frames below the public
-    # entry, so `stacklevel=3` would blame `orpheus/sn/solver.py` instead of the
-    # caller — verbatim the defect #340 N4.7 measured and fixed by hoisting.
-    # It is emitted by `solve_sn_fixed_source` off `history.gauge_correction`.
+    # WARNINGS must NOT: this is a private arm two frames below the public
+    # entry, so `stacklevel=3` would blame `orpheus/sn/solver.py` (#340 N4.7).
+    # They are emitted by the entries off the returned certificate.
     #
     # ⛔ `_exit_gauge_trace` REBUILDS rather than writing in place: on the
-    # un-windowed path `angular_out IS psi_typed`, which `_exit_balance_defect`
-    # has already measured and `_system_b_member` is about to read.
+    # un-windowed path `angular_out` IS `psi_typed`'s System A member, which
+    # `_system_b_member` is about to read.
     angular_out, gauge_correction = _exit_gauge_trace(
         angular_out, sn_mesh=sn_mesh,
     )
-    history = IterationHistory(
-        record=record, balance_defect=balance_defect,
-        gauge_correction=gauge_correction,
+    # The ANSWER: the question the ENTRY posed (pure transport at σ = 0, or the
+    # hub's multiplying member at σ = 1), the returned state WHOLE (the arm's
+    # own convention — a multi-moment closure's tail rides), and the hub's
+    # kernel gauge; the certificate reads the outcome's own residual Aψ − q.
+    answer = SourceOutcome(
+        posing=posing,
+        state=_returned_state(angular_out, _system_b_member(psi_typed)),
+        gauge=sn_mesh.loss_kernel_gauge,
     )
-    return Solution(
-        angular_flux=angular_out,
-        scalar_flux=ScalarFlux(values=phi, space=sn_mesh.bulk_space),
-        mesh=sn_mesh,
-        keff=None,
-        history=history,
-        radial_characteristic=_system_b_member(psi_typed),
+    certificate = _exit_certificate(
+        answer, sn_mesh=sn_mesh, record=record,
+        gauge_correction=gauge_correction, admissibility=admissibility,
     )
-
+    return _package_solution(
+        Solution, sn_mesh,
+        outcome=answer, strategy=splitting,
+        certificate=certificate, record=record,
+    )
 
 def _solve_fixed_source_krylov(
     solver: SNSolver,
@@ -3828,8 +3859,11 @@ def _solve_fixed_source_krylov(
     t_start: float,
     max_inner: int,
     inner_tol: float,
+    *,
+    posing: "SourcePosing",
+    admissibility: Evidence,
     corrector: "LinearOperator | None" = None,
-) -> Solution:
+) -> "Solution[SourceOutcome]":
     r"""Curvilinear-default fixed-source path: typed :class:`KrylovAcceleration`.
 
     Carved onto :class:`~orpheus.numerics.iteration.KrylovAcceleration`
@@ -3950,74 +3984,23 @@ def _solve_fixed_source_krylov(
     # is a no-op otherwise; this measures when it did not, and reports.
     # They are not folded together because the certificate raises and this
     # returns a number — one guard, two verbs.
-    balance_defect = _exit_balance_defect(
-        system.loss if coupled else _bare_loss_arm(system),
-        psi_typed, q_ext_composite,
-        sn_mesh=sn_mesh, record=record,
-    )
-    # System A's converged member feeds the Solution contract; System B's
-    # rides ``Solution.radial_characteristic`` (B.2d DP-Solution).
     psi_full = _system_a_member(psi_typed)
-    # D-H.1c stage 2 — the Krylov ravellable protocol unravels back to the
-    # SOLUTION TEMPLATE (the flux ``initial_guess``), so the driver's static
-    # iterate type (the operators' carrier) re-narrows to the timed flux
-    # composite here. The parse reifies that template contract loudly
-    # instead of assuming it.
-    if not isinstance(psi_full, TimedFullField):
-        raise TypeError(
-            f"fixed-source Krylov: the converged iterate must echo the "
-            f"timed flux template; got {type(psi_full).__name__}."
-        )
-    bulk = psi_full.interior
-    if not isinstance(bulk, AngularFlux):
-        raise TypeError(
-            f"fixed-source Krylov: the converged iterate must carry an "
-            f"AngularFlux bulk (the flux template); got {type(bulk).__name__}."
-        )
-    # Read bulk for scalar reduction (cell-average moment).
-    phi = _average_moment_scalar(
-        bulk.integrate_angular().values, sn_mesh,
-    )
-    # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
-    # R-1 Step 4 G1 — ``psi_full`` is the Krylov-converged composite; reuse
-    # directly. (The former mesh / quadrature / materials parameters retired
-    # in C4 — Solution never consumed them.)
-    #
-    # ⛔ This comment used to read "with the matvec's B1'' face residual on its
-    # boundary". `[M]` #344, three ways: GMRES unravels into the flux
-    # `solution_template` whose boundary is a zero `AngularBoundaryFlux`;
-    # on a reflective/vacuum slab the trace reads |·|max = 5.213675 against a
-    # bulk max of 5.259936 with the VACUUM-face inflow rows exactly 0.0 and the
-    # reflective ones not (a residual block would be ≈0 on the reflective
-    # face); and `test_declared_inflow_reaches_the_rhs.py` asserts this arm's
-    # γ₋(xmin) equals the DECLARED inflow 2.5 to 18 ULP. It is a FLUX TRACE.
-    # The residual reading describes the boundary block of the matvec's OUTPUT
-    # (Aψ, which by BlockRole is a face residual) — a different object from the
-    # solution vector's. Left uncorrected it is the one sentence that would make
-    # a reader exempt this arm from the gauge below.
-    #
     # #344 — projection here, warning at the public entry (see the SI arm).
     # ⛔ Rebuild, never in-place: `[M]` this arm's bulk and trace are two VIEWS
-    # into one flat buffer that `psi_typed` also references and `:_system_b_member`
-    # still reads.
+    # into one flat buffer that `psi_typed` also references and
+    # `_system_b_member` still reads.
     psi_full, gauge_correction = _exit_gauge_trace(psi_full, sn_mesh=sn_mesh)
-    #
-    # ⛔ This site used to write ``n_inner = len(residuals) + 1`` while its
-    # SI sibling wrote ``len(residuals)`` — two conventions for one field,
-    # undocumented, and BACKWARDS: it is SI whose pass count exceeds its
-    # trajectory (it measures differences), while GMRES gets one callback
-    # per iteration.  Both now read the producer's own count (#340 F11).
-    history = IterationHistory(
-        record=record, balance_defect=balance_defect,
-        gauge_correction=gauge_correction,
+    answer = SourceOutcome(
+        posing=posing,
+        state=_returned_state(psi_full, _system_b_member(psi_typed)),
+        gauge=sn_mesh.loss_kernel_gauge,
     )
-    # D-H.1c stage 2 (2026-05-28): psi_full IS already a TimedFullField;
-    # no adapter wrap at the Solution boundary.
-    return Solution(
-        angular_flux=psi_full,
-        scalar_flux=ScalarFlux(values=phi, space=sn_mesh.bulk_space),
-        mesh=sn_mesh,
-        keff=None,
-        history=history,
-        radial_characteristic=_system_b_member(psi_typed),
+    certificate = _exit_certificate(
+        answer, sn_mesh=sn_mesh, record=record,
+        gauge_correction=gauge_correction, admissibility=admissibility,
+    )
+    return _package_solution(
+        Solution, sn_mesh,
+        outcome=answer, strategy=splitting,
+        certificate=certificate, record=record,
     )

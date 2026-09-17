@@ -723,7 +723,7 @@ class TestTheLGe1TermIsLive:
                 keff_tol=_KEFF_TOL, flux_tol=_FLUX_TOL,
                 inner_tol=_INNER_TOL, max_outer=_MAX_OUTER,
             )
-        k_sub, k_ctl = subject.keff, control.keff
+        k_sub, k_ctl = subject.outcome.keff, control.outcome.keff
         assert k_sub is not None and k_ctl is not None
         delta = abs(k_sub - k_ctl)
         assert delta > 1e-4, (
@@ -823,7 +823,7 @@ class TestKAndPhiAreNotAffected:
         tripwire) rather than minting a second mechanism.
         """
         sol = _solve(arm_id, order)
-        keff = sol.keff
+        keff = sol.outcome.keff
         assert keff is not None, f"{arm_id}[L={order}] returned no eigenvalue"
         phi = np.ascontiguousarray(
             np.asarray(sol.scalar_flux.values, dtype=np.float64),
@@ -1312,8 +1312,7 @@ class TestTheGaussSeidelArmPosesItsOwnSplitting:
         the two splittings really do share a POINT, not a manifold.
         """
         jac, gs = _solve("cart2d", order), _solve("cart2d_gs", order)
-        k_j, k_g = jac.keff, gs.keff
-        assert k_j is not None and k_g is not None
+        k_j, k_g = jac.outcome.keff, gs.outcome.keff
         np.testing.assert_allclose(
             k_g, k_j, rtol=_BAND, atol=0.0,
             err_msg=(
@@ -1365,7 +1364,7 @@ class TestAgainstAnIndependentRoute:
         mis-posed oracle.
         """
         eig = _solve("slab_vac", order)
-        keff, sn_mesh = eig.keff, eig.mesh
+        keff, sn_mesh = eig.outcome.keff, eig.mesh
         assert keff is not None
         phi_conv = np.asarray(eig.scalar_flux.values, dtype=np.float64)
 

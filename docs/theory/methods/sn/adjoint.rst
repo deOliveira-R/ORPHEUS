@@ -1839,8 +1839,12 @@ The shared build ``_adjoint_posing_parts`` takes the forward
 within-group system off the single construction site
 :func:`~orpheus.sn.coupled_system.build_within_group_system` and returns
 its daggerable parts — the invertible resolvent :math:`(L+C)`, the
-summed coupling gain :math:`(S + N_{2n} + B)`, and the fission operator
-:math:`F`.  ⭐ Since 2026-09-13 it **mints nothing**: :math:`F` is the
+summed coupling gain :math:`(S + N_{2n} + B)`, the posed production
+:math:`F`, a zero template of the carrier, and the
+:class:`~orpheus.sn.splitting.Splitting` value the Solution records.
+⭐ Since 2026-09-17 the first two come back **lifted onto the coupled
+carrier on both arms**, which is what lets the entries drive the hub's
+own daggered question (below).  ⭐ Since 2026-09-13 it **mints nothing**: :math:`F` is the
 record's :attr:`factors.fission
 <orpheus.sn.coupled_system.SNLossFactors.fission>`, which *is* the hub's
 one :attr:`SNMesh.fission <orpheus.sn.mesh.augmented_mesh.SNMesh.fission>`
@@ -1943,11 +1947,13 @@ within-group loss splits and each term daggers independently:
   :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`,
   see :ref:`sn-fission-binding-adjoint`).
 
-Because :math:`k^{\dagger} = k` is exact, the entry returns
-``keff`` equal to the forward eigenvalue to iteration tolerance, and
-its ``angular_flux`` is the true discrete adjoint (importance) flux
-:math:`\psi^*` — verified against the closed-form
-:math:`(A^{\mathsf T})^{-1}F^{\mathsf T}` spectrum
+Because :math:`k^{\dagger} = k` is exact, the entry's answer carries
+:math:`\lambda` equal to the forward eigenvalue to iteration tolerance —
+read as ``sol.outcome.keff`` since 2026-09-17, on the eigen kind only;
+it was ``sol.keff`` on the carrier before
+(:ref:`sn-solution-carries-its-posing`) — and its ``angular_flux`` is the
+true discrete adjoint (importance) flux :math:`\psi^*`, verified against
+the closed-form :math:`(A^{\mathsf T})^{-1}F^{\mathsf T}` spectrum
 (:ref:`sn-adjoint-verification`).
 
 .. warning::
@@ -1978,8 +1984,8 @@ its ``angular_flux`` is the true discrete adjoint (importance) flux
 
 .. _sn-adjoint-poses-a-pencil:
 
-The adjoint poses a PENCIL — and on the arm's own carrier
-----------------------------------------------------------
+The adjoint poses the HUB's daggered PENCIL, on one carrier
+-----------------------------------------------------------
 
 Since 2026-09-14 (the consumers campaign's step 2, C3b-2)
 :class:`~orpheus.numerics.iteration.KEigenvalue` takes a **question**
@@ -1987,35 +1993,44 @@ rather than a triple: ``KEigenvalue(posing, implicit, explicit, …)``,
 where ``posing`` is an :class:`~orpheus.numerics.posing.EigenPosing` over
 an :class:`~orpheus.numerics.pencil.OperatorPencil` and the two operators
 are what the inner :class:`~orpheus.numerics.iteration.SourceIteration`
-resolves with.  The adjoint entry therefore reads:
+resolves with.
+
+**Since 2026-09-17 (step 3, unit U2 — GitHub #467) the question it takes
+is the HUB's, on both arms**, and the adjoint entry reads:
 
 .. code-block:: python
 
-   implicit, gain, F_posed, template = _adjoint_posing_parts(sn_mesh)
+   implicit, gain, _production, template, splitting = _adjoint_posing_parts(sn_mesh)
    ke = KEigenvalue(
-       EigenPosing(OperatorPencil(implicit.H - gain.H, F_posed.H), K_MAP),
+       sn_mesh.eigen_posing.H(),          # NULLARY — k† = k needs no datum
        implicit.H, gain.H, ...,
    )
 
-⛔ **It cannot read** ``sn_mesh.eigen_posing.H()``, **and the reason is
-worth stating because it looks like it should be able to.**  The hub owns
-a daggered eigen-question — :meth:`EigenPosing.H
-<orpheus.numerics.posing.EigenPosing.H>` is nullary precisely because
-:math:`k^{\dagger} = k` needs no extra datum — so the obvious spelling is
-to ask the hub for it.  ``[M]`` that is wrong on the **seedless** arm,
-and the failure is a carrier mismatch rather than a physics error.
+One daggered posing per Problem, spelled by asking the hub for the dagger
+of the question it already owns.  ``_adjoint_posing_parts`` no longer
+builds a pencil at all: it returns the daggerable **Strategy** parts
+``(implicit, gain, production, template, splitting)``, and the two arms
+now agree on the carrier — the seedless pair is **lifted into the
+1 × 1 coupled grid**, so both arms iterate on ``system.space``.
 
-``_adjoint_posing_parts`` is **arm-asymmetric** by design:
+⛔ **Until U2 this entry could NOT read** ``sn_mesh.eigen_posing.H()``,
+**and the reason is worth keeping because it looks like it should have
+been able to.**  The hub has owned a daggered eigen-question since step 2
+— :meth:`EigenPosing.H <orpheus.numerics.posing.EigenPosing.H>` is
+nullary precisely because :math:`k^{\dagger} = k` needs no extra datum —
+so asking the hub for it was always the obvious spelling.  ``[M]`` it was
+wrong on the **seedless** arm, and the failure was a carrier mismatch
+rather than a physics error:
 
-.. list-table::
+.. list-table:: ``_adjoint_posing_parts``, **arm-asymmetric** until U2
    :header-rows: 1
    :widths: 22 30 48
 
    * - arm
-     - the adjoint iterates on
-     - the :math:`F` it daggers
+     - the adjoint iterated on
+     - the :math:`F` it daggered
    * - **seedless** (slab, 2-D Cartesian)
-     - the FULL FIELD (bulk ⊕ trace) — the template is a
+     - the FULL FIELD (bulk ⊕ trace) — the template was a
        ``FullField`` zero
      - ``system.factors.fission`` — the composite
        :class:`~orpheus.transport.operators.fission.FissionOperator` on
@@ -2030,21 +2045,28 @@ contrast, is the **coupled-space** object on *both* arms: ``[M]`` on a
 seedless two-region slab ``system.space`` is a ONE-system
 ``CoupledSpace`` and ``pencil.rhs`` is a ``CoupledOperator`` on it, while
 ``factors.fission`` lives on the bare ``FullFieldSpace``.  So handing the
-hub's daggered pencil to the seedless adjoint pairs a coupled
+hub's daggered pencil to the seedless adjoint paired a coupled
 :math:`F^{\dagger}` with a full-field iterate — ``[M]`` 15
-adjoint-certification rows plus 2 architecture anchors go red.
+adjoint-certification rows plus 2 architecture anchors went red.
 
-The fix is the one the layering already implies: the pencil is posed on
-**the arm's carrier**, spelled through the Strategy's own ``implicit``
-and ``gain``.  ⚠ And the honest reading of that is a **deferral, not a
-workaround**: the seedless adjoint's carrier is a Strategy-side reduction
-(the bulk face) that the Problem does not pose, so "the adjoint reads the
-hub's own daggered question" is true of the carrying arm and is a step-3
-item for the seedless one — it needs the seedless adjoint to run on the
-coupled space.  The chain table's row 2 in
-:ref:`the-operator-pencil` (*"the hub's pencil, on the system's space"*)
-describes the **hub**, correctly; it does not describe every carrier a
-Strategy may reduce to.
+That was recorded here as a **deferral, not a workaround**, and U2
+discharged it in the direction the deferral named.  The asymmetry was
+never in the physics: a one-system ``CoupledSpace`` **is** the full field
+wrapped, so the repair is to lift the Strategy pair into the
+:math:`1\times1` grid rather than to reduce the question.  What moves is
+arithmetic at the last digit — the pairing now reduces over the coupled
+``to_flat`` — so the change is a **ULP-class re-baseline**, priced before
+it landed: ``[M]`` on a heterogeneous slab (``gauss_legendre(8)``,
+``keff_tol = 1e-10``) :math:`k_{\rm adj}` moves by rel
+:math:`\approx 10^{-15}` and the 15 certification rows are
+:math:`10^{-9}` gates, so every route clears them by about six orders.
+``array_equal`` is **False** — the honest claim is principled equivalence
+at ULP scale, not bit-identity.
+
+⚠ The chain table's row 2 in :ref:`the-operator-pencil` (*"the hub's
+pencil, on the system's space"*) described the **hub**, correctly, and
+still does; what U2 removed is the gap between that description and what
+one of its consumers could use.
 
 .. _sn-adjoint-coupled-posing:
 
@@ -2195,21 +2217,47 @@ role-agnostic base
 {:class:`~orpheus.sn.solution.Solution`,
 :class:`~orpheus.sn.solution.AdjointSolution`}).
 
-Role is a type; problem kind is a property
-------------------------------------------
+Role is a type; problem kind is a type PARAMETER
+------------------------------------------------
 
 The solution family discriminates along **two independent axes that use
-deliberately different mechanisms**:
+deliberately different mechanisms**, and since 2026-09-17 both are
+carried by the type system:
 
-* **Problem kind** (fixed-source vs eigenvalue) is a **property** — one
-  carrier covers both via the optional ``keff``, because the two kinds
-  share every realisation *and* every operation (homogenising a
-  fixed-source flux is as meaningful as homogenising an eigenmode).  A
-  type here would be ceremony.
+* **Problem kind** (fixed-source vs eigenvalue) is a **type parameter** —
+  ``SolutionBase[O]``, with ``O`` constrained to the two kind-typed
+  outcomes.  A parameter rather than two more classes because the two
+  kinds share every operation (homogenising a fixed-source flux is as
+  meaningful as homogenising an eigenmode), so a class per kind would
+  duplicate each role's verb set.
 * **Solution role** (forward vs adjoint) is a **type**.  The roles
-  share the carrier — same fields, same packaging convention (both
-  route through the one scalar- and role-agnostic ``_package_solution``
-  tail) — but **not the operation set**.
+  share the carrier — same members, same packaging convention (both
+  route through the one role-agnostic ``_package_solution`` tail, which
+  since step 3 serves all five entries rather than three of them) — but
+  **not the operation set**.
+
+⛔ **Until step 3 the kind was a PROPERTY** — one carrier covering both
+via an optional ``keff``, read through ``is_eigenvalue()`` /
+``is_fixed_source()``.  That ruling's reasoning was half right, and the
+half that was right is why the kind is a *parameter* today rather than a
+second pair of classes: the two kinds really do share every operation.
+What it missed is that they do **not** share the *realisation*.  An eigen
+answer is a RAY plus :math:`\lambda` plus the scale section that picked
+the representative; a source answer is a COSET plus a kernel section;
+and their adjoints differ in **arity** — the eigen dual is nullary
+(:math:`k^{\dagger} = k`, which is the whole subject of the section
+above), while a source dual needs a DETECTOR.  A parameter carries the
+first fact, the outcome's type carries the second, and nothing is
+``None``.  The consequence closest to this page:
+:func:`~orpheus.sn.solver.solve_sn_adjoint` returns an
+``AdjointSolution[EigenOutcome]`` and
+:func:`~orpheus.sn.solver.solve_sn_adjoint_fixed_source` an
+``AdjointSolution[SourceOutcome]`` — the same role class at *different*
+kinds, so a type checker separates them statically and
+:meth:`~orpheus.sn.solution.SolutionBase.compare` refuses the pair at
+runtime instead of silently skipping its eigenvalue channel, which is
+what the ``keff is not None`` branch did.  See
+:ref:`sn-solution-carries-its-posing`.
 
 The base is deliberately non-instantiable (a role-less solution is not
 a value that exists); a capability-*removing* subclass

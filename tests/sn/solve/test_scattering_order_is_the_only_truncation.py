@@ -73,8 +73,8 @@ def _solve(materials, mesh, L: int, **tol):
     with contextlib.redirect_stdout(io.StringIO()):
         sol = solve_sn(materials, mesh, Quadrature.gauss_legendre(n_ordinates=8), scattering_order=L, **tol)
     assert sol.history is not None and sol.history.fully_converged
-    assert sol.keff is not None
-    return float(sol.keff)
+    assert sol.outcome.keff is not None
+    return float(sol.outcome.keff)
 
 
 class TestTheClampReadsTheScatteringStackAlone:

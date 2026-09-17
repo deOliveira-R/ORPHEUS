@@ -446,7 +446,7 @@ class TestLawTheStrategyPredicate:
                 keff_tol=1e-11, flux_tol=1e-10, inner_tol=1e-12,
             )
             results[schedule] = (
-                solution.keff, np.asarray(solution.scalar_flux.values).copy(),
+                solution.outcome.keff, np.asarray(solution.scalar_flux.values).copy(),
             )
         delta_k = abs(results["jacobi"][0] - results["gauss_seidel"][0])
         scale = float(np.max(np.abs(results["jacobi"][1])))

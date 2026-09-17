@@ -92,7 +92,7 @@ def test_sn_2region_reflective_case_eigenvalue():
             max_outer=500, max_inner=500,
             keff_tol=1e-12, inner_tol=1e-12,
         )
-        keffs.append(float(result.keff))
+        keffs.append(float(result.outcome.keff))
 
     errors = np.abs(np.array(keffs) - ref.k_eff)
 

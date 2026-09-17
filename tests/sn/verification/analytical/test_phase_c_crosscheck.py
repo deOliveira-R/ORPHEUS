@@ -134,7 +134,7 @@ def test_sn_spherical_homogeneous_kinf_recovery_2g():
         max_outer=200, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=200, inner_tol=1e-10,
     )
-    keff_sn = result.keff
+    keff_sn = result.outcome.keff
     rel = abs(keff_sn - k_analytical) / k_analytical
     print(f"k_analytical={k_analytical:.10f}, k_sn={keff_sn:.10f}, rel={rel:.2e}")
     assert rel < 5e-4, (

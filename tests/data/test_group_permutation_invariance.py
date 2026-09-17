@@ -213,17 +213,17 @@ class TestSNEigenvaluePermutation:
         sol = solve_sn(materials, mesh, quad, scattering_order=0)
         sol_rev = solve_sn(materials_rev, mesh, quad, scattering_order=0)
 
-        assert sol.keff is not None and sol_rev.keff is not None
+        assert sol.outcome.keff is not None and sol_rev.outcome.keff is not None
 
         # k-eff invariance: tolerance = the solver's own eigenvalue
         # convergence (keff_tol=1e-7 default) with safety headroom. The
         # observed drift is pure IEEE-754 non-associativity (~1e-15).
         np.testing.assert_allclose(
-            sol_rev.keff, sol.keff, rtol=1e-6, atol=0.0,
+            sol_rev.outcome.keff, sol.outcome.keff, rtol=1e-6, atol=0.0,
             err_msg=(
                 f"[{ng_key}] SN keff NOT group-permutation-invariant: "
-                f"keff={sol.keff:.12f} vs reversed-twin={sol_rev.keff:.12f} "
-                f"(diff={abs(sol.keff - sol_rev.keff):.3e}). A non-zero "
+                f"keff={sol.outcome.keff:.12f} vs reversed-twin={sol_rev.outcome.keff:.12f} "
+                f"(diff={abs(sol.outcome.keff - sol_rev.outcome.keff):.3e}). A non-zero "
                 "diff means a hidden energy-ORDER dependency — the data "
                 "flip would NOT be physics-identical."
             ),

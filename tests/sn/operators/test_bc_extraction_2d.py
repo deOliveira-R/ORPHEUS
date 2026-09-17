@@ -436,8 +436,8 @@ class TestBoundaryResidual2DDrivesToZero:
         )
         # Sanity: the eigenvalue must be k_inf (Gate K's anchor) — if the solve
         # converged to a non-uniform mode the boundary balance is meaningless.
-        assert abs(res.keff - 1.875) < 1e-6, (
-            f"precondition: 2-D reflective keff = {res.keff:.10f} ≠ k_inf "
+        assert abs(res.outcome.keff - 1.875) < 1e-6, (
+            f"precondition: 2-D reflective keff = {res.outcome.keff:.10f} ≠ k_inf "
             f"1.875 — the converged mode is non-uniform; the boundary-balance "
             f"check below would be checking the wrong fixed point."
         )

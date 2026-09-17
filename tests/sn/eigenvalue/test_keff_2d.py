@@ -490,9 +490,9 @@ class TestSIKrylov2DEquivalence:
             {0: mix}, mesh, Quadrature.level_symmetric(sn_order=4),
             keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
         )
-        assert np.isfinite(sol.keff)
-        assert abs(sol.keff - case.k_inf) < 1e-8, (
-            f"{ng_key}: default-entry SI keff={sol.keff:.10f} "
+        assert np.isfinite(sol.outcome.keff)
+        assert abs(sol.outcome.keff - case.k_inf) < 1e-8, (
+            f"{ng_key}: default-entry SI keff={sol.outcome.keff:.10f} "
             f"vs closed-form k_inf={case.k_inf:.10f}"
         )
 
@@ -544,8 +544,8 @@ class TestSIKrylov2DEquivalence:
         )
 
         # Eigenvalue twin agreement (shape-independent — necessary not enough).
-        assert abs(sol_si.keff - sol_kry.keff) < 1e-7, (
-            f"SI keff={sol_si.keff:.10f} vs Krylov keff={sol_kry.keff:.10f}"
+        assert abs(sol_si.outcome.keff - sol_kry.outcome.keff) < 1e-7, (
+            f"SI keff={sol_si.outcome.keff:.10f} vs Krylov keff={sol_kry.outcome.keff:.10f}"
         )
         # Flux SHAPE twin agreement (eigenvectors are scale-free → mean-norm).
         phi_si_n = phi_si / phi_si.mean()
@@ -609,9 +609,9 @@ class TestSIKrylov2DEquivalence:
         # Mode 9: same eigenvalue to within ~inner_tol (the schedule change
         # shifts the inner SI stopping point, NOT the fixed point — so the
         # k_eff agreement scales with inner_tol=1e-10, not keff_tol=1e-12).
-        assert abs(sol_jac.keff - sol_gs.keff) < 1e-8, (
-            f"#218: eigenvalue Jacobi keff={sol_jac.keff:.12f} vs "
-            f"boundary-G-S keff={sol_gs.keff:.12f} (Δ exceeds the inner_tol-"
+        assert abs(sol_jac.outcome.keff - sol_gs.outcome.keff) < 1e-8, (
+            f"#218: eigenvalue Jacobi keff={sol_jac.outcome.keff:.12f} vs "
+            f"boundary-G-S keff={sol_gs.outcome.keff:.12f} (Δ exceeds the inner_tol-"
             "scale schedule shift — investigate as a real FP discrepancy)"
         )
         # Same eigenmode shape (eigenvectors are scale-free → mean-norm).
@@ -654,7 +654,7 @@ class TestSIKrylov2DEquivalence:
                 materials, mesh, quad, inner_solver="source_iteration",
                 keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
             )
-            keffs.append(sol.keff)
+            keffs.append(sol.outcome.keff)
         d1 = abs(keffs[1] - keffs[0])
         d2 = abs(keffs[2] - keffs[1])
         assert d2 < d1, (

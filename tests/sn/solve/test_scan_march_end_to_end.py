@@ -286,9 +286,9 @@ def test_g6_eigenvalue_hits_kinf_window():
             keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
         )
     _require_ran(hits, "sweep_interior")
-    assert np.isfinite(sol.keff)
-    assert abs(sol.keff - case.k_inf) < 1e-8, (
-        f"window-forced SI keff={sol.keff:.10f} vs closed-form "
+    assert np.isfinite(sol.outcome.keff)
+    assert abs(sol.outcome.keff - case.k_inf) < 1e-8, (
+        f"window-forced SI keff={sol.outcome.keff:.10f} vs closed-form "
         f"k_inf={case.k_inf:.10f}"
     )
 
@@ -331,9 +331,9 @@ def test_g6_si_krylov_heterogeneous_window():
     phi_kry = np.asarray(sol_kry.scalar_flux.values, dtype=np.float64)
     _assert_nonflat(phi_si)
 
-    assert abs(sol_si.keff - sol_kry.keff) < 1e-7, (
-        f"window-forced SI keff={sol_si.keff:.10f} vs "
-        f"Krylov keff={sol_kry.keff:.10f}"
+    assert abs(sol_si.outcome.keff - sol_kry.outcome.keff) < 1e-7, (
+        f"window-forced SI keff={sol_si.outcome.keff:.10f} vs "
+        f"Krylov keff={sol_kry.outcome.keff:.10f}"
     )
     phi_si_n = phi_si / phi_si.mean()
     phi_kry_n = phi_kry / phi_kry.mean()

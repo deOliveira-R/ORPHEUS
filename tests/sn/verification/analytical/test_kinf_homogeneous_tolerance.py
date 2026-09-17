@@ -172,8 +172,8 @@ def test_inner_tol_bias_collapses_at_1e_12(coord, ng_key):
         max_inner=420, inner_tol=1e-12,
     )
 
-    drift_loose = abs(r_loose.keff - case.k_eff) / case.k_eff
-    drift_tight = abs(r_tight.keff - case.k_eff) / case.k_eff
+    drift_loose = abs(r_loose.outcome.keff - case.k_eff) / case.k_eff
+    drift_tight = abs(r_tight.outcome.keff - case.k_eff) / case.k_eff
 
     # The convergence-tolerance fingerprint: loose >> tight.
     # If a future change makes loose == tight (e.g. SI replaced by an
@@ -213,7 +213,7 @@ def test_krylov_inner_matches_tight_si(coord, ng_key):
         max_outer=200, keff_tol=1e-10, flux_tol=1e-9,
         max_inner=100, inner_tol=1e-9,
     )
-    drift_kr = abs(r_kr.keff - case.k_eff) / case.k_eff
+    drift_kr = abs(r_kr.outcome.keff - case.k_eff) / case.k_eff
     # Krylov should converge cleanly without inner-SI amplification.
     assert drift_kr < 1e-8, (
         f"Krylov inner-solver should match analytical k_inf to better "

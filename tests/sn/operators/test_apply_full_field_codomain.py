@@ -261,7 +261,7 @@ def test_c5b_driver_reattach_recovers_kinf(coord: str, inner_solver: str) -> Non
         max_outer=1000, keff_tol=1e-14, flux_tol=1e-12,
         max_inner=1000, inner_tol=1e-12,
     )
-    keff, k_ref = result.keff, case.k_eff
+    keff, k_ref = result.outcome.keff, case.k_eff
     if keff is None or k_ref is None:
         pytest.fail(
             f"[{coord}/{inner_solver}] missing keff (solve={keff!r}, "

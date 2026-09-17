@@ -694,7 +694,7 @@ def generate_one(case: SnapshotCase, *, sha: str | None = None) -> Path:
         generator_commit=np.array(sha or _git_short_sha()),
     )
     if cfg.get("kind", "eigen") == "eigen":
-        payload["keff"] = np.float64(result.keff)
+        payload["keff"] = np.float64(result.outcome.keff)
 
     np.savez_compressed(out, **payload)
     return out

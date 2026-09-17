@@ -7510,19 +7510,30 @@ older entries classify against.
       two entries' reconstructions were twin paths, and only one of them
       had drifted.
    3. **The shipped exit diagnostic is silent on exactly the exits that
-      matter.** :attr:`IterationHistory.balance_defect
-      <orpheus.sn.solution.IterationHistory.balance_defect>` — the one
-      quantity in the tree that evaluates the object the caller RECEIVES —
-      returns ``None`` on any converged solve by design (it is the
-      complement of the within-group certificate,
-      :ref:`sn-exit-balance-projection`),
-      and its partner, the certificate, fires on the converged ITERATE
-      inside the inner solves.  ``[M]`` on the 2-group slab below, at
-      ``keff_tol = flux_tol = 1e-12``: ``balance_defect = None`` and **zero**
+      matter.** The exit balance defect — the one quantity in the tree
+      that evaluates the object the caller RECEIVES — reported nothing on
+      any converged solve by design (it is the complement of the
+      within-group certificate, :ref:`sn-exit-balance-projection`), and
+      its partner, the certificate, fires on the converged ITERATE inside
+      the inner solves.  ``[M]`` on the 2-group slab below, at
+      ``keff_tol = flux_tol = 1e-12``: no defect reported and **zero**
       warnings at :math:`L = 0` and :math:`L = 1` alike, on the defective
       tree and on the fixed one.  **Between the two guards, nothing ever
       evaluated the returned flux** — which is the hole this defect lived
       in for its whole life.
+
+      ⚠ Reading note for the present tree: that "nothing" was a literal
+      ``None`` on ``IterationHistory.balance_defect`` when this entry was
+      written.  Since 2026-09-17 it is a typed
+      :class:`~orpheus.numerics.outcome.Evidence` on
+      :attr:`ExitCertificate.balance
+      <orpheus.numerics.outcome.ExitCertificate.balance>`, and the
+      converged case is :class:`~orpheus.numerics.outcome.Certified` —
+      which *says* that the within-group certificate asserted the bound,
+      rather than leaving a reader to infer it from an absence.  The
+      structural point above is unchanged: a ``Certified`` on the
+      converged exit is still a statement about the ITERATE, not about
+      the returned flux.
    4. **At** :math:`L = 0` **the reconstruction is correct, and** :math:`L = 0`
       **is the default.**  When ``scattering_order = 0`` the hand-built
       source and the driven one are the same quantity, so the defect is
@@ -7961,3 +7972,146 @@ older entries classify against.
    **count** gate over a cache proves the cache is *used* and is
    structurally incapable of proving it is *right*; a cache whose key has
    a datum in it owes a second gate that varies that datum.
+
+.. error-entry:: ERR-086
+   :title: The fifth SN public entry returned truncated and gauge-singular solves in SILENCE — it bypassed the hoisted warning site its four siblings share, and the emission-site count gate pinned the inventory that excluded it
+
+   **Status:** ✅ **FIXED 2026-09-17 — consumers campaign step 3, unit
+   U2.**  :func:`~orpheus.sn.solver.solve_sn_multiplying_source` now calls
+   :func:`~orpheus.numerics.convergence.warn_if_unconverged` and
+   :func:`~orpheus.sn.operators.loss_kernel_gauge.warn_if_gauge_freedom`
+   from its own public frame, like its four siblings, and the count gate
+   that had pinned the old inventory reads **8** emission sites rather
+   than 7.  Full account:
+   :ref:`sn-subcritical-multiplying-source`.
+
+   **Failure mode:** **#6 (convention drift)** — definition site versus
+   usage site.  The convention was authored, measured and documented at
+   #340 N4.7 (2026-08-11): *the emission lives in the PUBLIC entry, never
+   in the private arm it dispatches to*, because
+   :func:`~orpheus.numerics.convergence.warn_if_unconverged` uses
+   ``stacklevel=3`` and from inside an arm frame 3 is ``sn/solver.py``'s
+   own dispatch line — the warning would name a file the caller did not
+   write.  The fifth entry was added afterwards, and it did not adopt the
+   convention: it returned the private SI arm's
+   :class:`~orpheus.sn.solution.Solution` **directly**, so no emission
+   site existed on that path at all.
+
+   **Root cause.**  The entry is genuinely a *lowering* of
+   :func:`~orpheus.sn.solver.solve_sn_fixed_source` — same splitting,
+   same exits, the production added as one more lagged gain — and it was
+   built by calling the same private arm.  Everything that lives **in the
+   arm** was therefore inherited correctly, including the exit gauge's
+   mutation.  Everything hoisted **out of the arm into the public entry**
+   was not, and the two halves are invisible to each other: the arm's
+   correctness and the entry's audibility are separate properties of one
+   call chain, and "this entry IS that lowering" is a true sentence about
+   the first that says nothing about the second.
+
+   **Measured, on the step-3 anchors** (each row a sibling pair over ONE
+   hub, so the contrast is the measurement and not a fixture difference):
+
+   * **truncated solve** — a two-region 2-group slab (:math:`L = 4`,
+     ``gauss_legendre(8)``, 8 cells, hub :math:`k = 0.907457573`,
+     ``inner_tol = 1e-12``, ``max_inner = 5``, so ``fully_converged`` is
+     ``False``): the multiplying entry emitted **0 warnings** while
+     :func:`~orpheus.sn.solver.solve_sn_fixed_source` on the same deck
+     emitted :class:`~orpheus.numerics.convergence.ConvergenceWarning`.
+     ``[M]`` post-fix the same call emits ``ConvergenceWarning``.
+   * **gauge-singular solve** — an all-reflective :math:`(3, 4)` Cartesian
+     box at ``level_symmetric(sn_order=4)`` carrying a **dilute fissile**
+     mixture, which is the only way to satisfy both preconditions at once
+     (``gauge_freedom(hub).present`` needs :math:`\ge 2` reflective axis
+     pairs; the entry REFUSES a supercritical hub before it could warn,
+     and an all-reflective box of any library mixture is supercritical —
+     ``[M]`` :math:`k_\infty = 1.875` for mixture ``A``).  The multiplying
+     entry **gauged 6.08e-02 of its trace and emitted 0 warnings**, while
+     the fixed-source sibling on the identical hub gauged the same
+     fraction and emitted
+     :class:`~orpheus.sn.operators.loss_kernel_gauge.GaugeFreedomWarning`.
+     ``[M]`` 2026-09-17, post-fix, both entries emit ``GaugeFreedomWarning``
+     and both certificates read ``Measured`` —
+     ``6.080482952830886e-02`` (multiplying) against
+     ``6.080482952830706e-02`` (fixed-source) at ``inner_tol = 1e-11``,
+     ``inner_schedule="gauss_seidel"``.
+
+   **Hiding mechanism.**  Three layers, and the second is the instructive
+   one.
+
+   (a) **No value was wrong.**  The returned flux, :math:`k` and the
+   certificate's own numbers were all correct; what was missing was the
+   *statement that the solve had not converged*.  A defect whose symptom
+   is silence has no value gate anywhere that can fail on it.
+
+   (b) ⚠ **The silence was GATED AS CORRECT.**
+   ``tests/numerics/test_family_convergence_contract.py``'s
+   ``test_every_call_site_is_public_and_states_its_balance`` is an AST
+   census of ``warn_if_unconverged`` call sites across the four families,
+   and it asserted ``len(sites) == 7`` with the comment *"4 SN
+   entries"* — the inventory that existed when the gate was written.  A
+   **count gate over an inventory pins whatever inventory it was written
+   against**, so a new member that forgets the convention leaves the
+   count right and the tree wrong; worse, the gate's own message named
+   the four entries explicitly, so the fifth's absence read as
+   intentional to every later reader.  Its *other* assertion — that no
+   call site is private — was live and correct throughout, which is the
+   ``vv-principles`` #17 granularity shape one tier up: a gate carrying
+   two assertions is two claims, and a green reading reports the one that
+   bites.  Read the assertions separately, or the sound half vouches for
+   the stale one.
+
+   (c) **The entry ledger's declared inheritance covered the wrong
+   half.**  ``tests/sn/solve/test_every_entry_gauges_its_trace.py``
+   *does* derive its entry list from the module, so the fifth entry could
+   not hide from it — but its ledger row says the entry "gauges its trace
+   on that same exit path, which the fixed-source rows above exercise",
+   which is true of the **mutation** (the gauge lives in the arm) and
+   says nothing about the **warning** (which does not).  A declared
+   inheritance is only as narrow as the property it names.
+
+   **Module:** ``orpheus/sn/solver.py``
+   (:func:`~orpheus.sn.solver.solve_sn_multiplying_source` — the two
+   hoisted calls, reading
+   :attr:`ExitCertificate.balance
+   <orpheus.numerics.outcome.ExitCertificate.balance>` and
+   :attr:`ExitCertificate.gauge
+   <orpheus.numerics.outcome.ExitCertificate.gauge>` off the Solution
+   about to be returned, so "the warning and the returned object describe
+   the same solve" stays a theorem).
+
+   **Caught by:**
+   ``tests/sn/solve/test_subcritical_multiplying_source.py::test_a_truncated_multiplying_solve_is_AUDIBLE_like_its_sibling``
+   (``@pytest.mark.catches("ERR-086")``) — the truncated slab above,
+   asserting the multiplying entry emits ``ConvergenceWarning`` *and*
+   that the sibling does, so the row is a contrast rather than a bare
+   existence claim; and its gauge companion
+   ``::test_a_gauge_singular_multiplying_solve_is_AUDIBLE_like_its_sibling``
+   on the dilute-fissile :math:`(3,4)` box, which is the only fixture
+   where both preconditions hold at once.  The emission-site census
+   (``tests/numerics/test_family_convergence_contract.py``) is the
+   *structural* companion, and its count now reads 8.
+
+   ⚠ Neither catcher may assert on the balance defect's **magnitude**: it
+   is a diagnostic, never a threshold (#340 N5 — the benign and
+   corrupting populations overlap :math:`4.64\times`).  What is
+   assertable is that a warning was emitted, by which category, and from
+   which frame.
+
+   **Lesson.**  ⭐ **A cross-cutting concern hoisted OUT of a shared
+   helper is exactly the thing a new caller of that helper will not
+   inherit — and a COUNT gate over the emission sites certifies the
+   omission instead of catching it.**  Hoisting was the right repair for
+   #340 N4.7's ``stacklevel`` defect (a frame count asserted at a call
+   site rots the moment a helper is interposed), and it moved the
+   obligation from the arm, where it was automatic, to every public
+   entry, where it is a thing to remember.  ⟹ two corollaries, both
+   cheap.  **Assert the PROPERTY, not the count**: a census gate over a
+   family should derive its expected set from the same predicate that
+   discovers the family (as
+   ``test_every_entry_gauges_its_trace.py::test_no_public_entry_is_unaccounted_for``
+   does — it compares a *discovered* set against a ledger, so a new entry
+   fails the gate until someone writes its row), never from a literal
+   that was correct once.  And **when a ledger row declares an
+   inheritance, it must name the property inherited**: "it shares the
+   exit path" is not "it warns", and the difference is the whole of this
+   entry.

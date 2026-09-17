@@ -75,7 +75,7 @@ class TestC2ComparativeKeffOrder:
         )
         fwd = solve_sn(mats, fine, quad, scattering_order=0)
         adj = solve_sn_adjoint(mats, fine, quad, scattering_order=0)
-        k_fine = fwd.keff
+        k_fine = fwd.outcome.keff
         assert k_fine is not None
 
         P = 2
@@ -100,7 +100,7 @@ class TestC2ComparativeKeffOrder:
                 bc_left=BC("vacuum"), bc_right=BC("reflective"),
             )
             k = solve_sn(dict(mm.materials), replaced, quad,
-                         scattering_order=0).keff
+                         scattering_order=0).outcome.keff
             assert k is not None
             gaps[tag] = abs(k - k_fine)
         return gaps["adj"], gaps["fwd"]

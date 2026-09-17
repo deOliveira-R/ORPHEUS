@@ -202,9 +202,9 @@ def test_cumprod_path_hits_analytical_kinf():
         {0: mix}, mesh, quad, keff_tol=1e-9, flux_tol=1e-8,
     )
     np.testing.assert_allclose(
-        sol.keff, k_ref, rtol=1e-6, atol=0,
+        sol.outcome.keff, k_ref, rtol=1e-6, atol=0,
         err_msg=(
-            f"cumprod-path reflective slab k_eff {sol.keff} drifted from "
+            f"cumprod-path reflective slab k_eff {sol.outcome.keff} drifted from "
             f"analytical k_inf {k_ref} beyond rtol=1e-6"
         ),
     )

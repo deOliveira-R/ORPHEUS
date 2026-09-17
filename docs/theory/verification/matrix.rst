@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12163**
+Total tests collected: **12154**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1305, 10.7%
-   L1, 1761, 14.5%
+   L1, 1763, 14.5%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 9000, 74.0%
+   foundation, 8989, 74.0%
    unmarked, 26, 0.2%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12058
+   explicit, 12049
    class-name, 46
    func-name, 0
    case, 33
@@ -68,7 +68,7 @@ Module × level grid
    architecture/test_splitting_value, 0, 0, 0, 0, 13, 0
    architecture/test_stage_separation, 0, 0, 0, 0, 15, 0
    architecture/test_step2_terminal_object_anchors, 0, 0, 0, 0, 9, 0
-   architecture/test_step3_solution_anchors, 0, 0, 0, 0, 31, 0
+   architecture/test_step3_solution_anchors, 0, 0, 0, 0, 20, 0
    cartesian_2d/test_2d_full_field_oracle, 0, 0, 0, 0, 8, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
    cartesian_2d/test_2d_l2_matvec_correctness, 0, 2, 0, 0, 2, 0
@@ -541,7 +541,7 @@ Module × level grid
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    solve/test_sn_adjoint_certification, 0, 13, 0, 0, 2, 0
    solve/test_sn_adjoint_entries, 0, 6, 0, 0, 0, 0
-   solve/test_subcritical_multiplying_source, 0, 6, 0, 0, 0, 0
+   solve/test_subcritical_multiplying_source, 0, 8, 0, 0, 0, 0
    solve/test_windowed_si_diagnostic_trajectory, 0, 0, 0, 0, 6, 0
    spatial/test_affine_closure, 0, 0, 0, 0, 5, 0
    spatial/test_face_transmission_damping, 0, 0, 0, 0, 9, 0

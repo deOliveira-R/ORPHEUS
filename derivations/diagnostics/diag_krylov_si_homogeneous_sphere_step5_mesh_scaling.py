@@ -51,7 +51,7 @@ def _kinf_via(*, n_cells: int, inner_solver: str, inner_tol: float = 1e-8):
             keff_tol=1e-12, flux_tol=1e-10,
             inner_tol=inner_tol,
         )
-    return res.keff
+    return res.outcome.keff
 
 
 def test_step5_mesh_refinement_si_vs_krylov():
