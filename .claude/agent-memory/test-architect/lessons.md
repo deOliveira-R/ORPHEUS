@@ -3414,3 +3414,101 @@ patching the `ClassVar` alone reports MC inert. → `L76h`
   real ones being a build spy and the census's own positive control). Zero spies ⟹ nothing to
   migrate AND no route claim about that path is gated today — which is what makes the new
   route gate net-new coverage rather than a re-point. → `L85j`
+
+## Consumers campaign step 3 additions (2026-09-17, the Solution carries its posing — pre-carve) → `L86`
+
+### → family 1 (gates that cannot red)
+
+- **⭐⭐ A shape-keyed SCANNER used as a ruled row's predicate is a FILTER, and its
+  flip-proof must plant a DECLARED member — a stapled attribute is invisible and the row
+  reads "the marker will never flip".** Step 2's O-2/O-4 lesson bars asserting over a name
+  the carve chooses; the replacement is a scan for the SHAPE (*"a member exposing
+  `functional`, a float `target`, a callable `apply`"*). `[M]` my first flip-proof
+  `object.__setattr__`-ed `outcome` onto the returned frozen dataclass: plugin installed,
+  member present, **rows still RED** — correctly, because the scanner walks
+  `dataclasses.fields`. The working control replaces the entries' RETURN with a
+  post-carve-SHAPED dataclass that DECLARES the members (names deliberately NOT the
+  design's — `picked_by`, `admissibility_bound`) and delegates the legacy readers; `[M]`
+  both rows then XPASS. ⟹ three obligations ship with any shape-keyed gate: a
+  planted-member POSITIVE control, a NEGATIVE control on a member-less neighbouring shape
+  (else it over-matches), and the scanners HOISTED to module scope so both can reach them.
+  → `L86b`
+- **⛔ A route claim needs a route instrument, and here the value tier is provably blind
+  TWICE over.** `[M]` the three candidate adjoint posings agree on `k_adj` to `≤ 1.6e-15`,
+  and `k† = k` makes every k-equality row Mode-12 blind to an UNdaggered posing — so
+  *"which object did the entry pose?"* is only answerable by a counting spy on
+  `EigenPosing.H`. Its non-vacuity leg must be EVIDENCE, not an assertion: an xfail hides
+  any failure, so wrap the solve in `try/except`, fold the exception into the message, and
+  leave exactly one statement (`spy.calls >= 1`) able to fail. → `L86c`, `L86g`
+
+### → family 2 (harness discipline)
+
+- **⛔ A field-read census keyed on the receiver TYPE misses every read produced by an
+  UN-ANNOTATED helper — including pin loaders.** `[M]` step 3's `.keff` set was `174 / 43
+  files` (AST, type-resolved); a text census of `\.keff\b` finds **67 files**, and after
+  triaging the 24 extras BY MEANING (18 six-type homonyms on cp/moc/mc/diffusion results,
+  4 `PowerIterationOutcome.keff`, 1 my own new file) **2 genuine misses** remain — one of
+  them `tests/sn/regression/test_dd_regression.py:150`, the loader for the 12 `.npz` eigen
+  pins, whose producer `run_case(cfg: dict)` has **no return annotation**. The plan's
+  derived claim (*"0 loader edits at U2"*) inherited the gap. ⟹ cross-check any type-keyed
+  census with a TEXT census triaged by meaning: one command, and it turns a confident 43
+  into "43 + 2, and here are the 22 I excluded and why". → `L86e`
+- **⭐ Measure the per-file cost BEFORE rationing a battery, and publish the union.** `[M]`
+  step 3's reachable scope: adjoint-certification **63.4 s**, `tests/sn/regression`
+  **59.3 s**, the finalize module **50.8 s**, convergence-contract 31.6 s, the ledger
+  22.0 s, `tests/sn/architecture` 15.5 s, everything else ≤ 5.6 s — **union ≈ 268 s / 629
+  rows**. A 16-arm battery is 72 min at full scope and ≈ 15 min rationed per arm; the whole
+  `tests/sn` tree (~17 min) belongs to the merge gate, never to an arm. → `L86g`
+
+### → family 3 (config blindness)
+
+- **⛔ A functional that silently accepts the WRONG SHAPE is more dangerous than one that
+  raises, and a 1-group fixture cannot tell them apart.** `[M]` homogeneous:
+  `posing.rayleigh` REFUSES the stored `(ng,)` flux with a loud `TypeError` while
+  `IntegratedReactionRate.evaluate` ACCEPTS it and returns `200.0` / `411.27` where the
+  `(ng, 1)` column reads `100.0` — and at **1g the two spellings agree exactly**. So a
+  design handing one datum to two consumers must probe BOTH, and **≥2G is required for a
+  SHAPE reason**, independent of the 1-group-eigenvalue degeneracy. → `L86d`
+- **⛔ The SN eigen gauge's (n,2n) half is invisible on every shipped library mixture.**
+  `[M]` `SNSolver.compute_production_rate(φ)` and the fission-only `IntegratedReactionRate`
+  read `0.9999999999999999` **both** on `{A, B}` 2g (`Sig2 = 0` throughout the library) and
+  differ by **rel `1.2186e-01`** on the finalize module's manufactured `_LIBRARY_N2N`. Any
+  row pinning *which* production rate ran carries the Σ₂ fixture or is a non-catcher. → `L86g`
+- **⭐ A gauge-singular SUBCRITICAL FISSILE hub is constructible, and the dilution is
+  load-bearing.** `[M]` the entry-ledger's own 2-D all-reflective `(3, 4)` box with a dilute
+  fissile mixture reads `gauge_freedom(hub).present = True` at every dilution and
+  `k = 0.003 … 0.15`; an all-reflective box of ANY library mixture is supercritical
+  (`k_inf = 1.875` for `A`) and the multiplying entry REFUSES before it can warn. That
+  fixture is what gives the hoisted-warning rows a red-before: the entry gauges
+  `6.08e-02` of its trace **silently** while its sibling warns. → `L86g`
+
+### → family 6 (carve archetypes)
+
+- **⭐⭐ When a functional's body moves from a HAND-PASSED operand to one READ OFF a new
+  owner, "no reported number changes" is a universal over the CALL SITES — compare the old
+  argument to the new source PER SITE.** `[M]` step 3: 4 of 5 SN entries pose
+  `pencil.at(0)`, and `at(0.0) is pencil.lhs is system.loss` by OBJECT IDENTITY, so for
+  them the move is bit-exact (`SourcePosing(at(0),q).residual` is `array_equal` to
+  `−evaluate_residual` at `0.000000e+00`). The fifth poses `at(1) = A − F`, and its
+  truncated balance reads **`0.8758249879057027`** against today's
+  **`0.8294593510371534`** — **+5.59 %**. ⟹ the site where they disagree is exactly the
+  site the step exists for, so the deliverable is a battery arm partitioning
+  1-red-vs-4-green, not a repair. → `L86a`
+- **⭐ "Derived from the returned state" must be MEASURED on the returned state.** `[M]`
+  the inner iterate (`InnerSolve.iterate` — attractive, because the finalize reconstructs
+  from it) is a `HarmonicMomentFlux` on 2-D windowed arms and the pencil's operators refuse
+  it (`IndexError`) on 4 of 16 finalize cases; the RETURNED state evaluates **16 of 16**.
+  The same probe yields the `rayleigh_gap` law's band: worst rel **`2.576e-11`** at
+  `keff_tol = 1e-10` (`0.26 ×`), so band the law at `keff_tol` — `SAFETY × keff_tol` is 39×
+  slack and anything tighter is a latent false red. → `L86c`
+
+### → family 7 (snapshots and exactness)
+
+- **⛔⛔ A principled re-read can sit INSIDE the hard tolerance band and OUTSIDE bit
+  identity — name the DRIFT TRIPWIRE's new population, not just the gate's headroom.**
+  `[M]` deriving the eigen `scalar_flux` as `∫ψ dΩ`: `array_equal` **0 of 16** finalize
+  cases, worst rel **`7.4094e-11`**, hard band `SAFETY(10) × flux_tol = 1e-8` — **135×
+  headroom**, every pin holds. But `_regression_assert` warns `DriftWarning` on any non-zero
+  ULP distance, and `-W error::…DriftWarning` is a committed 1-ULP wall (L58c: today 11 of
+  13 DD cases bit-exact, 2 NAMED) ⟹ the escalated run goes **2 → ~28** reds and stays
+  there. A bit-identity claim in this tree faces TWO gates; say which one you mean. → `L86f`

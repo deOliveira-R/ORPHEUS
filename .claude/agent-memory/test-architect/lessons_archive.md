@@ -10715,3 +10715,192 @@ projections) also reads materials.
 * `[M]` the builder signatures the carve drops:
   `build_within_group_system(sn_mesh, mat_xs, *, scattering_op=None, n2n_op=None)`
   and `build_coupled_system(sn_mesh, mat_xs, *, scattering_order=0)`.
+
+## L86 — the consumers campaign, step 3: the Solution carries its POSING (2026-09-17, PRE-carve; `main` @ `d946ba9d`, `c930c68f`-identical in `*.py`, tree clean throughout)
+
+Brief: design the verification for step 3 (`.claude/plans/consumers_step3_design.md`) and
+deliver PRE-carve anchors. Delivered: `scratch/_consumers/step3/test_architect_step3.md`
+(392 lines), `tests/sn/architecture/test_step3_solution_anchors.py` (**31 rows — 23 passed /
+8 strict-xfailed in 7.2 s**, pyright 0), and 8 probes under
+`scratch/_consumers/step3/probes/`. With the two step-2 anchor files: **50 passed / 8
+xfailed / 12.86 s**.
+
+### L86a — the plan's flagship "NO reported number changes" was FALSE for exactly ONE of five entries, and the one it was false for is the one the step exists to fix
+
+The design moves `_exit_balance_defect`'s body into a certificate EVALUATOR that reads
+`outcome.posing` instead of a hand-passed `loss_op`. §3.1 row 13 asserted *"it reads
+`posing.residual` and KEEPS the SN projection — NO reported number changes."*
+
+`[M]` `probes/p6_anchor_facts.py` §5 + the hand reproduction, on a TRUNCATED subcritical
+multiplying solve (fuel|moderator slab `L = 4`, GL-8, `k = 0.907457573`, `inner_tol=1e-12`,
+`max_inner=5`):
+
+| operator the defect is computed against | value |
+|---|---|
+| `pencil.at(0) = A` — what `solver.py:3792/3953` pass TODAY | `0.8294593510371534` (bit-identical to the reported `history.balance_defect`) |
+| `pencil.at(1) = A − F` — what `hub.source_posing(q)` poses (§3.3) | `0.8758249879057027` |
+
+**+5.59 %.** The four other entries pose `pencil.at(0)`, and `[M]`
+`at(0.0) is pencil.lhs is system.loss` by OBJECT IDENTITY (`pencil.py:69-74`) on both a
+seedless slab and a carrying sphere, so for them the move IS bit-exact — measured
+independently by `probes/p3_typed_residual.py`, where `SourcePosing(at(0), q).residual(ψ)`
+is `array_equal` to `−evaluate_residual(system, ψ, q)` at `max|Δ| = 0.000000e+00`.
+
+⟹ **the rule, and it generalises past this campaign: when a functional's body moves from a
+HAND-PASSED operand to one READ OFF a new owner, compare the old argument to the new source
+PER CALL SITE.** A single "the arithmetic does not change" claim is a universal over the
+call sites (`plan-authoring` §2's quantifier clause) and the site where the two disagree is
+exactly the site the step was written for — here the `(M, q)` cell, whose whole point is
+that its equation is `(A − F)ψ = q` and whose reported imbalance was, today, the imbalance
+of a DIFFERENT equation. The new number is the HONEST one, so the deliverable is a battery
+arm (**A6′**) partitioning 1-red-vs-4-green, not a repair.
+
+### L86b — a shape-keyed SCANNER is a FILTER, and its flip-proof must plant a DECLARED member, not a stapled one
+
+Step 2's O-2/O-4 lesson says a RULED xfail must not assert over a name the carve chooses.
+The obvious replacement is a scanner over the answer's SHAPE (*"some member exposes
+`functional`, a float `target` and a callable `apply`"*). That scanner is a filter, and
+`nexus-tools`/`vv` #17 demand a positive control — *"nothing found"* is exactly what a
+BROKEN filter reports, and it reads as *"the tree does not have this"*.
+
+`[M]` my first flip-proof plugin monkeypatched the entries to `object.__setattr__` an
+`outcome` onto the returned frozen dataclass. The rows stayed RED. The plugin was installed
+(banner printed), the object carried the member, and the scanner was right: it walks
+`dataclasses.fields`, and a **stapled attribute is not a declared one**. Read carelessly
+that is *"the marker will never flip"* — the most expensive possible false verdict about a
+committed xfail.
+
+The working flip-proof replaces the entries' RETURN with a post-carve-SHAPED frozen
+dataclass that DECLARES `outcome`/`certificate` as fields and delegates every legacy reader
+through `__getattr__`; `[M]` both scanner rows then XPASS
+(`pytest --runxfail -p flipproof_step3 … -k "Ruled and (Gauge or Admissibility)"` → 2 passed).
+⭐ The planted member names are DELIBERATELY not the ones the design proposes (`picked_by`,
+`admissibility_bound`) — that is what proves the row keys on shape.
+
+⟹ three obligations travel with a shape-keyed gate, and they are cheap:
+(a) a **planted-member** positive control, (b) a **negative** control on a member-less
+object of a neighbouring shape (else the scanner over-matches), and (c) the scanners
+**hoisted to module scope** so (a) and (b) can reach them — which also makes them
+Pattern-2 single-sourced. All three shipped as the anchor's 5 permanent THEOREM rows
+(`TestFilterTheScannersFindAPlantedMember`), which also carry the `lessons` L61g
+strict-marker guard (`[M]` control: drop `strict=True` from one decorator in a copy ⟹
+exactly 1 red).
+
+### L86c — "derived from the returned state" must be measured on the RETURNED state; the INNER iterate is a different object and the pencil refuses it
+
+The design stores `outcome.state = the returned iterate WHOLE` and gives the outcome
+`residual()` / `rayleigh()` / `balance()`. `InnerSolve` (`solver.py:1066`) makes the inner
+iterate the attractive thing to reach for — it is the object the finalize reconstructs FROM.
+
+`[M]` `probes/p5_keff_vs_rayleigh.py` vs `p5b_…_on_returned_state.py`, over the 16 finalize
+cases:
+
+| state fed to `hub.eigen_posing.rayleigh(·, w=1)` | evaluates | rel gap to the reported k |
+|---|---|---|
+| `solver._inner.iterate` | **12 of 16** — `cart2d[L0,L1]`, `cart2d_gs[L0,L1]` raise `IndexError: index 8 is out of bounds for axis 0 with size 1` (the windowed iterate is a `HarmonicMomentFlux`) | `2.60e-13 … 7.78e-12` |
+| the RETURNED `Solution.angular_flux` (+ the ray member) | **16 of 16** | `4.40e-12 … 2.576e-11` |
+
+⟹ and the second table row is also the `rayleigh_gap` law's FIXTURE NUMBER: worst rel
+`2.576e-11` at `keff_tol = 1e-10`, i.e. **`0.26 × keff_tol`, a 3.9× margin**. Band the law
+at `keff_tol`; `SAFETY × keff_tol` is 39× slack, and anything below `keff_tol` is a latent
+false red. ⭐ The eigen and the source kind share ONE coupled space on one hub (`[M]`
+`pencil.at(1)` and `eigen_posing` both on `system.space`), so a same-hub cross-kind
+`replace` is a LEGAL value — the space law can only refuse a CROSS-HUB pair, and a battery
+arm aimed at the same-hub case is a declared null.
+
+### L86d — a functional that silently accepts the WRONG SHAPE is worse than one that raises, and a 1-group fixture cannot tell the two apart
+
+`[M]` `probes/p4_homogeneous_rayleigh.py`. `HomogeneousResult.flux` is `(ng,)`; the pose's
+domain is `(ng, 1)`:
+
+| call | 1g | 2g | 4g |
+|---|---|---|---|
+| `posing.rayleigh(flux)` | `TypeError` | `TypeError` | `TypeError` |
+| `posing.rayleigh(flux.reshape(ng,1))` | `1.5` (gap **0**) | gap `2.220446e-16` | gap `2.220446e-16` |
+| `production_rate.evaluate(flux)` | `100.0` | **`200.0`** | **`411.2729251352303`** |
+| `production_rate.evaluate(flux.reshape(ng,1))` | `100.0` | `100.0` | `99.99999999999999` |
+
+The `:436` rescale is `phi * (100.0 / production_rate.evaluate(phi.reshape(ng,1)))`, so the
+design's `ScaleGauge(problem.production_rate.evaluate, 100.0)` fed the STORED `(ng,)` field
+would read `200.0` and either RED its own law or silently halve an already-gauged flux.
+
+⟹ **two rules.** (i) When a design hands one datum to two consumers, probe BOTH — one may
+be shape-strict and the other shape-permissive-and-wrong, and only the permissive one is
+dangerous. (ii) **≥2G is required here for a SHAPE reason**, independent of the
+1-group-eigenvalue degeneracy: at `ng = 1` the flat and column spellings coincide, so a
+1-group gauge law is blind by construction.
+
+### L86e — a field-read census keyed on the receiver TYPE misses every read produced by an UN-ANNOTATED helper — including a pin loader
+
+The step-3 census sized the `.keff` migration at **174 reads / 43 files** (AST, receiver
+resolved by type). `[M]` a text census of `\.keff\b` over `tests/` finds **67 files**. The
+24 outside the census triage by MEANING as: **18** the six-type homonym
+(cp/moc/mc/diffusion results — correctly excluded), **4** `PowerIterationOutcome.keff`
+(`test_keff_estimator_gate.py:88/151`, `test_sigma_datum.py:214`,
+`test_fission_kernel_crosscheck.py:364` — correctly excluded), **1** my own new anchor file,
+and **2 genuine misses**:
+
+* `tests/sn/regression/test_dd_regression.py:150` — `result.keff`, where the producer
+  `run_case(cfg: dict)` (`_generate_snapshots.py:646`) carries **no return annotation**.
+  This is the **loader for the 12 `.npz` eigen pins.**
+* `tests/sn/solve/test_sn_adjoint_certification.py:143/145` — `_k(sol)`, an untyped
+  parameter (the landing memo names it; the census does not).
+
+⟹ the 2026-09-13 plan-authoring surprise, one tier out: *a field-read census keys on the
+TYPE — i.e. on the ANNOTATION of whatever produces the receiver.* An un-annotated helper
+makes every read through it invisible, and the plan's derived claim (*"0 loader edits at
+U2"*) inherits the gap. **The cheap cross-check is a text census triaged by MEANING**, which
+costs one command and turns a confident 43 into "43 + 2, and here are the 22 I excluded and
+why".
+
+### L86f — when a principled re-read lands INSIDE the hard band but OUTSIDE bit-identity, the DriftWarning consequence is the finding
+
+The design derives the eigen `scalar_flux` as `∫ψ dΩ` instead of storing the power
+iteration's converged φ. `[M]` `probes/p1_scalar_flux_vs_integral.py` over all 16 finalize
+cases: `array_equal` **0 of 16**; `max|Δ|` `3.67e-13 … 5.65e-11`; **worst rel
+`7.4094e-11`** (`cart2d_L0`). The pins' hard gate is
+`assert_regression(kind="iterative")` at `SAFETY(10) × flux_tol = 1e-8` — **135× headroom**,
+so every pin HOLDS, exactly as the plan predicted.
+
+What the plan did not carry is the second layer: `_regression_assert` warns
+`DriftWarning` whenever the ULP distance is non-zero, and `lessons` L58c already established
+`-W error::…DriftWarning` as a usable 1-ULP wall (today **11 of 13** DD cases bit-exact, the
+2 exceptions NAMED). ⟹ at U4 the escalated run goes from **2** exceptions to **~28** and
+stays there, permanently.
+
+⟹ **state the tripwire's new population in the plan, with the per-case ratio**, or the next
+session reads 28 reds as a regression in a change whose hard gate is 135× clear. General
+form: a bit-identity claim has TWO gates in this tree — the tolerance gate and the drift
+tripwire — and a principled re-read moves only the second. Name which one you mean.
+
+### L86g — the residue (measured, for the execution session)
+
+* `CoupledOperator([[op]])` is **not** constructible as the plan sketches it: `domain=` and
+  `codomain=` are REQUIRED keyword-only (`coupled_system.py:721-728`). With
+  `domain=codomain=hub.system.space` the 1×1 lift builds and solves with **no production
+  edit** — `[M]` `k_adj` today `1.216174144202823`, lifted-pair route `…8244`
+  (rel `1.095e-15`), `hub.eigen_posing.H()` route `…825` (rel `1.643e-15`), `n_outer = 5`
+  on all three. The plan's §8.2 `[H]` *"expected bit-identical"* is REFUTED; the 15
+  certification rows are 1e-9 gates, so all three clear by ~6 orders.
+* Two arity guards, not one, block a uniformly-coupled state: `evaluate_residual` refuses a
+  1-system wrapper on a seedless hub (*"this system is 1×1 (seedless) — pass the bare
+  FullField pair"*) and `_typed_balance` refuses one too (via `_system_b_member`: *"the ψ½
+  coupled pair has exactly 2 systems; got 1"*).
+* The §6c witness for U2's hoisted warnings is STRONG and constructible: `[M]`
+  `probes/p7_gauge_singular_subcritical.py` — the ledger's own 2-D all-reflective `(3, 4)`
+  box with a DILUTE fissile mixture is gauge-singular at every dilution tried
+  (`gauge_freedom(hub).present = True`) and SUBCRITICAL (`k = 0.003 … 0.15`), so the
+  multiplying entry is admitted; it then gauges **`6.080482952671906e-02`** of its trace and
+  emits **0 warnings**, while `solve_sn_fixed_source` on the identical hub gauges
+  `6.080482952672409e-02` and emits `GaugeFreedomWarning`. ⚠ the dilution is load-bearing —
+  an all-reflective box of any LIBRARY mixture is supercritical (`k_inf = 1.875` for `A`)
+  and the entry REFUSES before it can warn.
+* The SN gauge functional's (n,2n) half is invisible on every shipped library mixture:
+  `[M]` `SNSolver.compute_production_rate(φ)` and the fission-only `IntegratedReactionRate`
+  read `0.9999999999999999` **both** on `{A, B}` 2g, and differ by **rel `1.2186e-01`** on
+  the finalize module's `_LIBRARY_N2N`. Any row pinning *which* production rate ran needs
+  the Σ₂ fixture.
+* The two-convention gauge leg the brief asked for is **not constructible through
+  `solve_sn`** (that entry always builds an `SNSolver`, which IS a `ProductionRateSolver`).
+  At the `power_iteration` tier it is: `[M]` k agrees to `1.03e-09` while the flux sums
+  differ by a factor `0.408356`, and nothing on either answer records which ran.
