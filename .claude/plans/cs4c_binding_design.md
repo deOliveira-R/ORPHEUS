@@ -2944,4 +2944,51 @@ Baseline for step 3's exit prediction: **11 792 / 21 / 55** @ `c930c68f`. ⚠ Th
 
 **U6 LANDED (2026-09-17) — `IterationHistory` retires; the record's readings are the record's.** Commit `71612439` on `refactor/consumers-step3-u6`, 13-tree gate rc=0 on it (`[M]` 13 trees rc=0, **11 845 / 21 / 55** — the step-3 tip's 11 851 −13 view rows +7 new numerics rows, per tree: numerics 3448 (+7), sn 3727 (−13), every other tree ±0; `scratch/_consumers/step3/gates/u6/gate13/summary.log`), ff-merged (`main` = the branch tip after the stamp commit). `IterationRecord.trajectory` + `.leaf_iterations` (never `None`); the view's kind-keyed `None`s did NOT move onto the record — the kind is the type, `record.n_iterations` answers both (memo §9.4, with the archivist's diff census: `n_inner` 23 / `n_outer` 10 / `total_inner_iterations` 4 / `flux_residuals` 11 reads, 143 / 25 files); the certificate's typed `Evidence` replaces the `float | None` pair at every reader (the entry ledger's rows read `Measured`). Docs: `solver.rst` H3 `sn-the-record-answers-for-its-own-level`. Follow-ups filed during its gate: #471 (CW enclosure), #472 (adjoint-weighted Rayleigh), #473 (the ledger's discovery by name), #474 (the LD tail view), #475 (the docs residue + the `check_docstring_xrefs` dotted-target blindness). `nexus errors`: 86 / 320 / 0 uncaught.
 
-**Next (per the memo §6.4):** U7 (#465 minimal — the census and apply script are ready, memo §9.5) → U8 (corpus close — the issues are FILED, #471–#475; memory close; §27.9's U7 line) → then the rename #412 LAST.
+**U7 LANDED (2026-09-17) — #465 minimal.** Commit `38cc6ec7` on `refactor/consumers-step3-u7`, 13-tree gate rc=0 (`[M]` 13 trees rc=0, 11 845 / 21 / 55 — identical to U6's tip, ±0 per tree), ff-merged. `ProblemSpec.external_source` (a field `[M]` 0 of 19 writers populated; 13 explicit `None` kwargs) deleted with its docstring entry; `is_eigenvalue: bool` stays (#418's retype); `operator_algebra.rst`'s live citation of the pair re-tensed (the lesson stands as history). 0 `ProblemSpec`-typed readers of the field (the 50 `.external_source` reads are the MMS case objects').
+
+## 27.10 ⏸ COMPACTION POINT #12 (2026-09-17, written after U7's merge; tree clean, no gate running, no agent holding the tree) — STEP 3 (the Solution carries its posing) is COMPLETE; the next act is the rename `SNMesh → SNProblem` (#412), LAST
+
+### 27.10.1 Step 3 — the commit table (all ff-merged to `main`)
+| unit | commit | what |
+|---|---|---|
+| memo + anchors | `d946ba9d`, `42b90c4b` | the design memo; the PRE-carve anchors (31 rows: RECORD + RULED) |
+| U1 | `f8a838a7` | `numerics/outcome.py` (`EigenOutcome`/`SourceOutcome`, `Evidence`, `ExitCertificate`), `numerics/gauge.py` (`ScaleGauge`, `KernelGauge`), `CoupledField.space`, homogeneous adopts |
+| U2 (+U2d) | `bcd9c83c` | `SolutionBase[O]`, ONE mint, the certificate, the state WHOLE with every flux member derived, F11 entry-side posing, the multiplying entry's `Certified(k)` + warnings + export (ERR-086), both adjoint arms on the coupled carrier (#467) |
+| U2e | `b59e4a76` | the 26 eigen artefacts re-baselined (10 `.npz` + 16 `.npy`); the escalated instrument reads 0 |
+| stamp | `f071bee5` | plans (§9.3/§9.4/§9.5, §27.9) — `main` after the first ff-merge |
+| U6 | `71612439` | `IterationHistory` retired; `IterationRecord.trajectory`/`.leaf_iterations`; the certificate's Evidence at every reader |
+| stamp | `2e37d661` | plans + the two surprise-log rows + the nexus-tools note — `main` after the second ff-merge |
+| U7 | `38cc6ec7` | `ProblemSpec.external_source` deleted |
+| stamp | (this commit) | §27.9 U7 + this compaction point — `main` after the third ff-merge |
+
+### 27.10.2 The exit gate `[M]` (13 trees, canonical flags, SERIAL, detached; `scratch/_consumers/step3/gates/u7/gate13/summary.log`; tip `38cc6ec7`)
+| tree | passed / skipped / xfailed |
+|---|---|
+| numerics | 3448 / 2 / 0 |
+| transport | 950 / 1 / 0 |
+| geometry | 727 / 4 / 1 |
+| data | 330 / 0 / 0 |
+| homogeneous | 92 |
+| diffusion | 115 |
+| cp | 141 |
+| moc | 121 |
+| mc | 40 / 0 / 2 |
+| cross_method | 81 |
+| sn | 3727 / 1 / 36 |
+| derivations | 1636 / 13 / 11 |
+| root | 437 / 0 / 5 |
+| **total** | **11 845 / 21 / 55**, rc=0 on every tree, 61 min wall |
+Reconciled against the step-3 tip (11 851): U6 −13 (the view's rows) +7 (the record/outcome rows) = 11 845; U7 ±0 = 11 845 / 21 / 55.
+
+### 27.10.3 Corrections that supersede older text in this plan
+§27.8.5's counts: "12 `.npz`" → 10; "every `SolutionBase` subclass across the six method families" → exactly TWO, both SN; its ground-count list mixed populations (memo §2.6). Routine F13 as ruled ("the derived readings move to `IterationRecord`") was REFINED at U6: the Optional-by-shape names did NOT move — the kind is the type, `record.n_iterations` answers both; only `trajectory` and `leaf_iterations` were minted (memo §9.4). The memo's §4 exit prediction (11 810–11 825) under-counted U1's two numerics modules (+30).
+
+### 27.10.4 Durable lessons (promoted; listed so the next session does not re-derive them)
+1. A set MAXIMUM is read from a full comparison, never from a gate that stops at its first finding (plan-authoring surprise log 2026-09-17; the U2 message carries the partial figure, un-amendable).
+2. `git grep -E '\b'` is a silent zero (POSIX ERE); Python `re` for every completeness claim (nexus-tools).
+3. A name-keyed rewriter's alias map must be per SCOPE, and helper-RETURNED receivers are a §6b spelling no read census returns (memo §9.4 apply log).
+4. The file that documents a rename is where the old name legitimately appears — L25 caught again at U6 by the archivist (`convergence.py`'s record of the old advice string).
+5. The escalated regression instrument's category must be DOTTED (`-W "error::tests.sn.regression._regression_assert.DriftWarning"`); the bare name is refused (memory `reference_test_execution_env`).
+
+### 27.10.5 ▶ The rename `SNMesh → SNProblem` (#412) — the ruled LAST act of the consumers campaign; opener census `[M]` 2026-09-17 in the step-3 memo §9.7
+Opener obligations: (1) reconcile this section against the tree (`git merge-base --is-ancestor` on every hash above); (2) re-run the census (memo §9.7) — by SURFACE (the class identifier, the `sn_mesh` parameter/local spelling, `_as_sn_mesh`, the `augmented_mesh` module path, the Solution's `mesh` field, the `sn/mesh/` package, the `.rst` prose and xrefs) with the predicate stated per count; (3) the user rules the spellings the census exposes (the parameter name `sn_mesh` → `problem`? the module `augmented_mesh.py` → `problem.py`? the package `sn/mesh/`?) BEFORE any edit — a rename touching hundreds of files is one AST pass per surface, each bit-identical, each gated; (4) test-architect is NOT required (no operator-algebra crossing) but the entry ledger, the fresh-interpreter import list and the layer-import gate are §6b members of a module move.
