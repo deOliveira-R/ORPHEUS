@@ -43,6 +43,69 @@ them.  Trust ``git``, not this column.
      - Issue
      - Where
    * - 2026-09-17
+     - **The convergence diagnostics are asked of the object that owns
+       them** (the consumers campaign, step 3, unit U6).
+       ``IterationHistory`` — the flat, SN-facing reading of the
+       iteration tree, born at Issue #197 PR-TYPED-5 as six hand-written
+       FIELDS and made a DERIVED view at #340 N2b-ii (2026-08-09) — is
+       **deleted**, together with ``SolutionBase.history`` (the one-cycle
+       view property U2 kept) and the ``_as_optional_float`` helper.
+       Deriving the scalars had already closed the drift defect; what it
+       left was a *second surface* naming the same facts, so a reader had
+       to choose between them and no new question could be added without
+       widening the very flattening the record exists to undo.
+       **(1) Each reading moved to its owner.** ``converged`` /
+       ``fully_converged`` to the
+       :class:`~orpheus.numerics.convergence.IterationRecord` the
+       Solution already carries; ``keff_history`` and
+       ``dominance_ratio()`` to the eigen answer
+       (:attr:`~orpheus.numerics.outcome.EigenOutcome.trajectory`,
+       :meth:`~orpheus.numerics.outcome.EigenOutcome.dominance_ratio`),
+       because the :math:`k` sequence is a physics output and not a
+       stopping criterion; ``balance_defect`` and ``gauge_correction`` to
+       the exit certificate as typed
+       :class:`~orpheus.numerics.outcome.Evidence` (U2 had already made
+       the certificate the source those two were read back OUT of as
+       ``float | None``).
+       **(2) The record gained the two TREE readings the view derived**,
+       both never-``None``:
+       :attr:`~orpheus.numerics.convergence.IterationRecord.trajectory`
+       (the binding criterion's, ``()`` when nothing bound) and
+       :attr:`~orpheus.numerics.convergence.IterationRecord.leaf_iterations`
+       (the sum over the tree's LEAVES — the inner work, and the measurand
+       of the SI-rate and DSA diagnostics).  ``leaf_iterations``
+       generalises the reading it replaces, which summed the DIRECT
+       children; the two agree on the shipped S\ :sub:`N` tree because it
+       is exactly two levels deep (``[M]`` 2026-09-17, ``A-2g`` 10-cell
+       slab, GL-8: 394 / 394 under source iteration, 256 / 256 under
+       Krylov), and the deeper case is pinned on the record itself.
+       **(3) The ``None``-by-SHAPE trio did NOT move** — ``n_inner`` and
+       ``n_outer`` returned ``None`` on the "wrong" kind purely so ONE
+       name could be read on either (``total_inner_iterations`` was typed
+       ``int | None`` for symmetry with them and could return no such
+       thing), and since U2 the kind is the Solution's TYPE.  ``[M]`` by
+       site, every ``n_inner`` reader holds a fixed-source result and
+       every ``n_outer`` reader an eigenvalue one, so both were always
+       ``record.n_iterations`` of the solve's own top record; **four**
+       consumer guards against a state their own fixtures made unreachable
+       went with them, plus the two assertions in the view's own tests
+       that pinned the convention itself.
+       **(4) Scale.** ``[M]`` **143** reads of the view's members across
+       **25** files (20 under ``tests/``, 3 in
+       ``derivations/diagnostics/``, 2 production docstrings) were re-keyed
+       onto the record, the outcome or the certificate, or retired with
+       the view's own rows;
+       the entry-ledger gate
+       (``tests/sn/solve/test_every_entry_gauges_its_trace.py``; ``[M]``
+       five gate functions, 11 reads) now matches ``certificate.gauge``
+       against :class:`~orpheus.numerics.outcome.Measured`, and the view's
+       ``tests/sn/primitives/test_solution.py`` rows were replaced by
+       record rows in ``tests/numerics/test_iteration_record.py`` and
+       ``dominance_ratio`` rows in ``tests/numerics/test_outcome.py``.
+       Full account: :ref:`sn-the-record-answers-for-its-own-level`.
+     - #461
+     - branch ``refactor/consumers-step3-u6`` (hash at the merge)
+   * - 2026-09-17
      - **The Solution carries its posing** (the consumers campaign,
        step 3, units U1 + U2): a solve's answer is FUSED with the
        question it answered, the section that picked its representative,
@@ -61,8 +124,8 @@ them.  Trust ``git``, not this column.
        and ``dominance_ratio()`` are **retired from the carrier** (λ is
        ``outcome.lam`` / ``outcome.keff``, the trajectory
        ``outcome.trajectory``);
-       :class:`~orpheus.sn.solution.IterationHistory` survives as a
-       one-cycle VIEW property, retired at U6.
+       ``IterationHistory`` survived this step as a one-cycle VIEW
+       property and was retired at U6 (the row above).
        **(2) The state is stored WHOLE and the flux members are
        READERS of it.**  ``outcome.state`` is the returned iterate — the
        one-system coupled field on a seedless mesh, the two-system one
@@ -119,7 +182,8 @@ them.  Trust ``git``, not this column.
        :ref:`sn-solution-carries-its-posing`,
        :ref:`sn-adjoint-poses-a-pencil`.
      - #461 #462 #467 (#354 measurable)
-     - branch ``refactor/consumers-step3`` (hash at the merge)
+     - ``bcd9c83c`` + ``b59e4a76`` (U2e, the artefact re-baseline),
+       ff-merged to ``main``
    * - 2026-09-14
      - **The pencil reaches production, and** :math:`\sigma` **is bound
        ONCE at the operator that owns it** (the consumers campaign,
@@ -2177,8 +2241,12 @@ them.  Trust ``git``, not this column.
        and the mesh is asked how many axis pairs close
        (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.reflective_axes`), so a
        future scheme answers for itself with no edit.  The gauge fires at
-       **all four public entries**, records its magnitude on
-       :class:`~orpheus.sn.solution.IterationHistory`, and emits a
+       **all four public entries**, records its magnitude on the
+       Solution (the flat ``IterationHistory`` view on this row's date;
+       :attr:`ExitCertificate.gauge
+       <orpheus.numerics.outcome.ExitCertificate.gauge>` as typed
+       :class:`~orpheus.numerics.outcome.Evidence` since step 3 U6,
+       2026-09-17), and emits a
        ``GaugeFreedomWarning`` that names the **root** fix (switch to a damping
        closure, or break a reflective axis pair) rather than only reporting the
        projection.  Scope is the underdetermined remainder :math:`R`; the

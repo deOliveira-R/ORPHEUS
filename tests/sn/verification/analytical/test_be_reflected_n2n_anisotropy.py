@@ -223,8 +223,7 @@ def _solve(materials, mesh, quadrature, order: int) -> float:
             keff_tol=_KEFF_TOL, flux_tol=_FLUX_TOL,
             inner_tol=_INNER_TOL, max_outer=_MAX_OUTER,
         )
-    history = sol.history
-    if history is None or not history.fully_converged:
+    if not sol.record.fully_converged:
         pytest.fail(
             f"the arm did not fully converge (scattering_order={order}); a "
             f"starved solve degrades the RATE, not the limit, so no budget "

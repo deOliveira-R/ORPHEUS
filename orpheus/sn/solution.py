@@ -1,6 +1,6 @@
 r"""Typed return type for the SN transport solvers.
 
-Issue #197 PR-TYPED-5 — :class:`Solution` and :class:`IterationHistory`
+Issue #197 PR-TYPED-5 — :class:`Solution` (and, until step 3 U6, ``IterationHistory``)
 replaced the legacy bare-dataclass pair ``SNFixedSourceResult`` /
 ``SNResult`` (both formerly in ``orpheus.sn.solver``, deleted with the
 migration).
@@ -23,7 +23,10 @@ and the KIND is the outcome's TYPE.  ⛔ Until step 3 the kind was read off
 an optional ``keff`` through ``is_eigenvalue()`` / ``is_fixed_source()``, and
 the flux members were stored fields; they are DERIVED readers of the state
 now, and the convergence diagnostics read the :class:`IterationRecord`
-directly (:class:`IterationHistory` survives as a one-cycle view).
+directly (``IterationHistory``, the pre-step-3 view over it, survived as a
+one-cycle reading through U2 and retired at U6 — its tree readings are the
+record's own ``leaf_iterations`` / ``trajectory``, its magnitudes the
+certificate's typed evidence).
 
 Reads as the math (``coding-elegance`` Pattern 1 — match the algebra of
 the domain)::
@@ -129,245 +132,10 @@ if TYPE_CHECKING:
 
 __all__ = [
     "AdjointSolution",
-    "IterationHistory",
     "Solution",
     "SolutionBase",
     "SolutionDiff",
 ]
-
-
-@dataclass(frozen=True)
-class IterationHistory:
-    r"""Convergence diagnostics for an SN solve — a **view** over the record.
-
-    The solve's truth is an
-    :class:`~orpheus.numerics.convergence.IterationRecord`: a tree of
-    iteration levels, each carrying the quantities it stopped on with the
-    tolerances it judged them against.  This type is the SN-facing reading
-    of that tree — every scalar below is DERIVED, so there is exactly one
-    source of truth and the flat surface cannot drift from the tree it
-    summarises.
-
-    ⛔ Until 2026-08-09 (#340 N2b-ii) these were six independent FIELDS and
-    each producer filled them in by hand.  That is how ``n_inner`` came to
-    mean ``len(residuals)`` on one path and ``len(residuals) + 1`` on the
-    other, undocumented and exactly backwards from the truth; and how
-    ``converged`` came to be written five times, once as a literal ``True``
-    (#342).  A projection maintained by hand at N sites is N chances to
-    disagree; a projection computed from one object is none.
-
-    Parameters
-    ----------
-    record : IterationRecord
-        What the solve measured — **required**, and the only input.  For a
-        fixed-source solve this is the inner driver's own record (a leaf);
-        for an eigenvalue solve it is the power iteration's outer record,
-        whose ``children`` are the per-outer inner solves.
-    keff_history : tuple of float
-        Per-outer-iteration eigenvalue trajectory.  Empty for fixed-source
-        problems.  This is a **field, not a derived reading**, because it is
-        a physics output rather than a stopping criterion: what the outer
-        stop test reads is its per-iteration INCREMENT, which lives in the
-        record under the name the solver gave it (``dk``).
-    balance_defect : float or None
-        The returned iterate's **relative per-group neutron-balance
-        defect**, :math:`\lVert R_g\rVert / \lVert Q_g\rVert` with
-        :math:`R_g = \int_V \int_{4\pi} (A\psi - q)\, d\Omega\, dV` — the
-        ``Measured`` value of the certificate's ``balance`` member
-        (:func:`~orpheus.sn.solver._balance_evidence`, step 3), read back
-        into this VIEW as a float; every non-measured case reads ``None``.
-
-        ``None`` in five cases, and they mean different things.  Three are
-        "there is nothing to report": the tree **fully converged** (the
-        within-group certificate has already asserted the residual, so no
-        forward apply is spent here), the **source integrates to zero** so
-        the ratio is undefined, or a **moment-tailed (LD) scheme** whose
-        residual the mint cannot express at all.  Two are open work, each
-        named at its call site: a **carrying (curvilinear) mesh** at
-        :func:`~orpheus.sn.solver.solve_sn`, where a bare System-A residual
-        would omit :math:`r_B` (`#354`), and the **daggered eigenvalue
-        entry** :func:`~orpheus.sn.solver.solve_sn_adjoint` (`#353`).
-
-        ⟹ ``None`` therefore means *"not measured"*, never *"measured and
-        small"*.  Do not read it as a clean bill of health.
-
-        A **field, like** :attr:`keff_history` **and for the same reason**:
-        it is a measured physics output, not a stopping criterion, and the
-        rule this type enforces is that no convergence VERDICT may be
-        stored.  Every verdict below is still derived from
-        :attr:`record`; this is data the record never saw, because it is a
-        property of the returned ITERATE rather than of any iteration
-        level (#340 N6b).
-
-        ⚠ It is a **diagnostic magnitude, never a threshold.** `[M]` the
-        benign and corrupting populations overlap 4.64×, which is a real
-        signal and still an overlap — a gate that branches on this number
-        will be wrong in both directions.  The refuted attempt to make it
-        a gate is #340 N5.
-
-    gauge_correction : float | None
-        :math:`\lVert \Pi\psi \rVert / \lVert \psi \rVert` — the fraction of
-        the returned boundary trace that lay in :math:`\ker(L+C-S-B)` and was
-        projected out (:class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge`,
-        #344).
-
-        On an all-reflective diamond-difference box that operator is **exactly
-        singular**, so a converged solve lands on an arbitrary member of a
-        solution *manifold*.  This is how far the returned member was from the
-        canonical (minimum-:math:`G`-norm) one, which is where the exact
-        solution sits.
-
-        ``None`` means **not measured**, never *"measured and zero"* — the
-        same discipline as :attr:`balance_defect`.  Two cases produce it: the
-        configuration has no gauge freedom to measure, and the spatial closure
-        could not be classified (a warning fires for the second).  A measured
-        ``0.0``-ish value is a different statement: the freedom is there and
-        the solve happened to land on the canonical member anyway (``jacobi``
-        does; `[M]` ``~1e-15``).
-
-        ⚠ **A magnitude, not a verdict** — for the same reason
-        :attr:`balance_defect` is.  It is also NOT a convergence quantity: the
-        configuration where it is largest reports ``fully_converged = True``.
-        The solve is fine; the *equation* is degenerate.
-
-        `[M]` #344, ``solve_sn``, all-reflective LS4 2-group fissile,
-        ``gauss_seidel``, **uniform isotropic source**: ``4.1e-02 .. 7.8e-02``
-        when the first axis has an ODD cell count and ``~1e-15`` when it is
-        even. ⚠ That parity split is a property of the SOURCE's symmetry, not
-        of the operator — `[M]` ``dim ker A`` is the same at every parity, and
-        an anisotropic source excites an even-``n_x`` mesh too
-        (``1.756363e-02`` at ``(4,4)``). Either way it cannot be predicted by
-        inspection, which is why it warns.
-
-    Notes
-    -----
-    The trajectories are **tuple** rather than list — frozen dataclasses
-    with mutable fields are an anti-pattern (``coding-elegance``
-    Pattern 4: illegal states unrepresentable).  Callers that want a
-    list pass through :func:`list` at the call site.
-
-    ⭐ **Read :attr:`record` directly for anything this view flattens
-    away** — which is most of it.  The flat readings below exist for
-    established consumers; the record answers *which* criterion bound, at
-    what rate it was closing, what budget would reach it, and which nested
-    level actually failed.  Do not grow this surface: add the question to
-    :class:`~orpheus.numerics.convergence.IterationRecord`, where the tree
-    can answer it.
-    """
-
-    record: "IterationRecord"
-    keff_history: tuple[float, ...] = ()
-    balance_defect: float | None = None
-    gauge_correction: float | None = None
-
-    # ── the verdict, derived ─────────────────────────────────────────────
-
-    @property
-    def converged(self) -> bool:
-        """Did the solve's TOP level meet its own criteria?
-
-        ⛔ A field until 2026-08-09, and before 2026-08-08 a field
-        *defaulting to* ``True`` — the same defect as #342 with the
-        assertion moved into the type: a history built by a producer that
-        had not thought about convergence claimed it anyway.  Deriving it
-        removes the question of who writes it.
-
-        ⚠ Scoped to the top level, which for an eigenvalue solve is the
-        OUTER.  A converged outer standing on a starved inner reads ``True``
-        here and ``False`` at :attr:`fully_converged`; that gap is the #340
-        headline, not a wart.  **A gate asserting physics wants
-        :attr:`fully_converged`.**
-        """
-        return self.record.converged
-
-    @property
-    def fully_converged(self) -> bool:
-        """Did EVERY level converge — the honest "can I trust this number?".
-
-        New with the record (#340): the flat history had no way to express
-        it, because it had already discarded the nested levels.
-        """
-        return self.record.fully_converged
-
-    # ── the flat readings established consumers still take ───────────────
-
-    @property
-    def _is_outer(self) -> bool:
-        """Does the top level drive nested solves, or IS it the solve?
-
-        The discriminator the readings below need, taken from the tree's own
-        STRUCTURE rather than from a label — a level with children is an
-        outer over inners; a leaf is the within-group solve itself.  Reading
-        it off ``label`` would be stringly-typed dispatch on a string chosen
-        for humans.
-        """
-        return bool(self.record.children)
-
-    @property
-    def flux_residuals(self) -> tuple[float, ...]:
-        r"""Per-iteration relative-flux residual trajectory
-        :math:`\lVert\phi_n - \phi_{n-1}\rVert / \lVert\phi_n\rVert`.
-
-        Empty on the eigenvalue path, whose top level stops on ``dk`` and
-        ``dphi`` rather than on a within-group residual — read
-        ``record.criteria`` (or ``record.children``) there.  That emptiness
-        is the pre-existing behaviour, kept deliberately: widening this name
-        to mean "``dphi`` when there is no residual" would silently re-point
-        every consumer that branches on it.
-        """
-        if self._is_outer:
-            return ()
-        criterion = self.record.binding_criterion
-        return () if criterion is None else criterion.trajectory
-
-    @property
-    def n_inner(self) -> int | None:
-        """Inner (within-group) iterations consumed by THE inner solve.
-
-        ``None`` on the eigenvalue path — there is no single inner solve to
-        point at, which is why :attr:`total_inner_iterations` exists.
-        """
-        return None if self._is_outer else self.record.n_iterations
-
-    @property
-    def total_inner_iterations(self) -> int | None:
-        """Inner iterations summed across ALL outer iterations.
-
-        Populated by both paths: the eigenvalue path sums its children, the
-        fixed-source path reports its single solve.  It is the measurand for
-        the SI spectral-rate / Gauss-Seidel-recovery diagnostics.
-        """
-        if self._is_outer:
-            return sum(child.n_iterations for child in self.record.children)
-        return self.record.n_iterations
-
-    @property
-    def n_outer(self) -> int | None:
-        """Outer (power) iterations consumed.  ``None`` for fixed-source."""
-        return self.record.n_iterations if self._is_outer else None
-
-    def dominance_ratio(self) -> float | None:
-        r"""Return :math:`|k_n - k_{n-1}| / |k_{n-1}|` in the late-iteration limit.
-
-        The dominance ratio approximates the spectral gap
-        :math:`|k_1 / k_0|` that controls power-iteration convergence.
-        Returns ``None`` when fewer than 2 entries are recorded — the
-        ratio is undefined for a single-point history.
-        """
-        if len(self.keff_history) < 2:
-            return None
-        prev = self.keff_history[-2]
-        if prev == 0.0:
-            return None
-        return abs(self.keff_history[-1] - prev) / abs(prev)
-
-    def latest_keff(self) -> float | None:
-        """Return the last eigenvalue, or ``None`` for empty history."""
-        return self.keff_history[-1] if self.keff_history else None
-
-    def latest_residual(self) -> float | None:
-        """Return the last recorded flux residual, or ``None`` if absent."""
-        return self.flux_residuals[-1] if self.flux_residuals else None
 
 
 O = TypeVar("O", EigenOutcome, SourceOutcome)
@@ -534,20 +302,6 @@ class SolutionBase(Generic[O]):
         (``IterationRecord.fully_converged``; the tree-wide question, #340 F1.)"""
         return self.record.fully_converged
 
-    @property
-    def history(self) -> "IterationHistory":
-        r"""ONE-CYCLE VIEW (step 3 U2 → retired at U6): the pre-step-3
-        :class:`IterationHistory` reading of this Solution, assembled from the
-        record, the outcome's trajectory and the certificate's magnitudes so
-        the 95 readers migrate by concept rather than by a flag day.  ⚠ The
-        two magnitudes come back as ``float | None`` here — the leak the
-        certificate retires — which is why this view does not survive U6."""
-        return IterationHistory(
-            record=self.record,
-            keff_history=tuple(self.outcome.trajectory) if isinstance(self.outcome, EigenOutcome) else (),
-            balance_defect=_as_optional_float(self.certificate.balance),
-            gauge_correction=_as_optional_float(self.certificate.gauge),
-        )
 
     # ── the comparison (regression / refactor checks) ────────────────
 
@@ -614,13 +368,6 @@ def _posed_domain(outcome: "EigenOutcome | SourceOutcome"):
     if isinstance(outcome, EigenOutcome):
         return outcome.posing.pencil.lhs.domain
     return outcome.posing.operator.domain
-
-
-def _as_optional_float(evidence: Evidence) -> float | None:
-    """The VIEW's leak, confined to the view: a measured magnitude, else ``None``."""
-    return evidence.value if isinstance(evidence, Measured) else None
-
-
 
 
 @dataclass(frozen=True)

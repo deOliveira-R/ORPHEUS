@@ -197,11 +197,8 @@ class TestSolveSnAdjoint:
             "Solution space-content contract broken on the adjoint entry.",
         )
         require(
-            adj.history is not None
-            and adj.history.n_outer is not None
-            and adj.history.n_outer >= 3
-            and adj.history.converged,
-            "adjoint Solution.history must carry the outer trajectory.",
+            adj.record.n_iterations >= 3 and adj.record.converged,
+            "the adjoint Solution's record must carry the outer iteration.",
         )
         require(
             adj.radial_characteristic is None,

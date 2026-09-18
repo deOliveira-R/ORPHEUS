@@ -1047,9 +1047,13 @@ output, carried on the answer
    * - ``ResidualHistory``
      - Per-iter relative flux residual
      - ``tuple[float, ...]``
-     - :attr:`IterationRecord.binding_criterion
+     - :attr:`IterationRecord.trajectory
+       <orpheus.numerics.convergence.IterationRecord.trajectory>` — the
+       binding criterion's own trajectory, ``()`` when nothing bound (a
+       reading of the record since step 3 U6; spelled
+       :attr:`binding_criterion
        <orpheus.numerics.convergence.IterationRecord.binding_criterion>`\
-       ``.trajectory`` on the level that bound
+       ``.trajectory`` by hand before)
    * - ``DominanceRatio``
      - :math:`|k_n - k_{n-1}| / |k_{n-1}|` convergence quotient
      - scalar
@@ -1057,16 +1061,20 @@ output, carried on the answer
        <orpheus.numerics.outcome.EigenOutcome.dominance_ratio>`
 
 ⛔ **Until 2026-09-17 this table's right-hand column named a flat
-:class:`~orpheus.sn.solution.IterationHistory` dataclass that the
-Solution carried as an optional field, "populated for eigenvalue
-problems"** (Issue #197 PR-TYPED-5, which had itself replaced the legacy
-bare-dataclass ``SNResult`` / ``SNFixedSourceResult`` data bags).  That
-type survives as a **one-cycle VIEW** — a property assembled from the
-record, the outcome's trajectory and the certificate — so the ~95
-established readers migrate by concept rather than on a flag day; it is
-retired at the consumers campaign's step 3 unit U6.  Read the record and
-the outcome directly in new code.  ``keff_history_list`` (the
-``list[float]`` alias) and ``SolutionBase.keff`` /
+``IterationHistory`` dataclass that the Solution carried as an optional
+field, "populated for eigenvalue problems"** (Issue #197 PR-TYPED-5,
+which had itself replaced the legacy bare-dataclass ``SNResult`` /
+``SNFixedSourceResult`` data bags).  That type survived the consumers
+campaign's step 3 unit U2 as a **one-cycle VIEW** — a property assembled
+from the record, the outcome's trajectory and the certificate, so the
+established readers could migrate by concept rather than on a flag day —
+and was **deleted at unit U6 on the same day**, together with
+``SolutionBase.history``.  There is no flat surface: each reading is asked
+of its owner, and the argument for splitting them that way (including why
+the view's kind-keyed ``n_inner`` / ``n_outer`` did **not** reappear on
+the record) is
+:ref:`sn-the-record-answers-for-its-own-level`.  ``keff_history_list``
+(the ``list[float]`` alias) and ``SolutionBase.keff`` /
 ``SolutionBase.dominance_ratio`` are **gone**, not deprecated.
 
 Solution-class container

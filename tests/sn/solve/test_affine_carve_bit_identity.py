@@ -328,7 +328,7 @@ def test_converged_flux_matches_stored_reference(request, case: str) -> None:
     Regenerate with ``--capture-baseline``.
     """
     sol = _solve_case(case)
-    if not sol.history.converged:
+    if not sol.record.converged:
         raise AssertionError(f"{case}: solve did not converge")
     captured = [
         _capture_or_assert(

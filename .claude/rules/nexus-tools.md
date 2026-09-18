@@ -83,7 +83,12 @@ spelling — and writing it the natural way returns a confident, empty, wrong
 answer. `coding-standards`' three-search audit is built on greps like this.
 
 ⟹ **Use `\b…\b`, or `-P` with a lookbehind, or drop the anchor. Never put `^`/`$`
-inside a group.** And for any *completeness* claim — a residual check, a "no
+inside a group.** ⚠ And the mirror in `git grep -E`: there `\b` is the thing that
+does not exist (POSIX ERE has no word boundary), so `git grep -nE '\.(n_inner|n_outer)\b'`
+over a tree with nine such reads printed NOTHING (`[M]` 2026-09-17, step 3 U6) — the
+same silent-zero shape, one binary over; the countermeasure below covers both.
+
+And for any *completeness* claim — a residual check, a "no
 consumers left" verdict, a done-when — **re-run it in Python** (`re` +
 `pathlib.rglob`) rather than the shell: the pattern is then unambiguous, and it
 is the only way to state a denominator you can trust.

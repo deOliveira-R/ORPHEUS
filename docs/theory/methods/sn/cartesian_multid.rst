@@ -4905,14 +4905,25 @@ The analytic Jacobi anchor (:eq:`si-spectral-rate`) predicts
 measured 655 gives ratio **0.90** — the finite-slab leakage +
 multigroup correction discussed with the SI-rate derivation
 (:doc:`slab_one_group`).  The
-**eigenvalue** path surfaces the analogous measurand by summing the
-outer :attr:`record <orpheus.sn.solution.SolutionBase.record>`'s
-children (the Phase 3 measurement seam; the flat
-``IterationHistory.total_inner_iterations`` reading survives as a view
-until step 3's unit U6): A-2g reflective :math:`n=10` gives
-SI ``total_inner`` 371, Krylov 310 (with :math:`n_{\rm outer}=3` for
-both — the **outer** count is splitting-invariant; the inner SI count
-is where the recovery shows).
+**eigenvalue** path surfaces the analogous measurand as
+:attr:`record.leaf_iterations
+<orpheus.numerics.convergence.IterationRecord.leaf_iterations>` — the
+iterations run by the LEAVES of the solve's tree (the Phase 3
+measurement seam).  ⛔ Until step 3's unit U6 (2026-09-17) this was the
+flat ``IterationHistory.total_inner_iterations`` view reading, which
+summed the outer record's DIRECT children and was typed ``int | None``
+although neither of its branches could return one; the record's own
+reading recurses to the leaves and is honestly typed ``int``
+(:ref:`sn-the-record-answers-for-its-own-level`).  The two agree here,
+because the S\ :sub:`N` eigenvalue record is exactly two levels deep on
+the 2-D path as well — ``[M]`` 2026-09-17, A-2g reflective
+:math:`5\times5` at ``level_symmetric(4)``, ``gauss_seidel``: one
+``outer(power-iteration)`` over three LEAF inners, retired sum **430** and
+``leaf_iterations`` **430** — so the rows below are unchanged readings
+under a new name.  A-2g reflective
+:math:`n=10` gives SI ``leaf_iterations`` 371, Krylov 310 (with
+:math:`n_{\rm outer}=3` for both — the **outer** count is
+splitting-invariant; the inner SI count is where the recovery shows).
 
 For comparison, a clean 1-D textbook DSA spike (the future issue-#2
 target) gives **8–21×** :math:`c`-independent speed-up on a vacuum

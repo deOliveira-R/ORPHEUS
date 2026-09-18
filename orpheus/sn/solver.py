@@ -2344,10 +2344,11 @@ def solve_sn(
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux` +
         :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` +
         :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-        fields plus an
-        :class:`~orpheus.sn.solution.IterationHistory` carrying the
-        eigenvalue trajectory.  The unified :class:`Solution` type covers
-        both eigenvalue and fixed-source problems.
+        fields plus the :class:`~orpheus.numerics.convergence.IterationRecord`
+        and the eigen outcome's trajectory (``outcome.trajectory``; until step
+        3 U6 an ``IterationHistory`` view carried it).  The one generic
+        :class:`Solution` type covers both eigenvalue and fixed-source
+        problems, kind-typed by its outcome.
     """
     t_start = time.perf_counter()
 
@@ -3683,7 +3684,7 @@ def _solve_fixed_source_si(
     angular + boundary iterate, the same metric the verified eigenvalue inner
     uses) rather than the scalar-flux ``‖φ − φ_prev‖ / ‖φ‖``.  Converged ``φ``
     therefore agrees to ``~inner_tol`` (principled-equivalence), and
-    ``history.n_inner`` / ``flux_residuals`` reflect the composite metric.
+    ``record.n_iterations`` / ``record.trajectory`` reflect the composite metric.
     """
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,

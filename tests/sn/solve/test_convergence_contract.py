@@ -40,6 +40,7 @@ import warnings
 
 import numpy as np
 import pytest
+from orpheus.numerics.outcome import Certified, Measured
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import BC
@@ -376,14 +377,12 @@ class TestPowerIterationCarriesItsOutcome:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ConvergenceWarning)
             sol = _eigenvalue(max_outer=1, keff_tol=1e-10)
-        assert sol.history is not None
-        assert sol.history.converged is False
+        assert sol.record.converged is False
 
     def test_a_generous_budget_reports_converged(self) -> None:
         """The positive control — the flag is not simply pinned False."""
         sol = _eigenvalue(max_outer=200, keff_tol=1e-8)
-        assert sol.history is not None
-        assert sol.history.converged is True
+        assert sol.record.converged is True
 
 
 # ─── 2. The flag is honest at the fixed-source entry ─────────────────────
@@ -397,14 +396,12 @@ class TestFixedSourceFlagIsHonest:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ConvergenceWarning)
             sol = _fixed_source(max_inner=50)
-        assert sol.history is not None
-        assert sol.history.converged is False
+        assert sol.record.converged is False
 
     def test_sufficient_budget_reports_converged(self) -> None:
         """[M] 1631 sweeps needed; 4000 is ~2.5x headroom."""
         sol = _fixed_source(max_inner=4000)
-        assert sol.history is not None
-        assert sol.history.converged is True
+        assert sol.record.converged is True
 
 
 # ─── 3. A truncated exit is AUDIBLE ──────────────────────────────────────
@@ -464,10 +461,9 @@ class TestTruncationIsAudible:
             sol = _fixed_source(max_inner=50)
         msg = str(record[0].message)
 
-        assert sol.history is not None
         projected = StoppingCriterion(
             name="residual",
-            trajectory=tuple(sol.history.flux_residuals),
+            trajectory=tuple(sol.record.trajectory),
             tolerance=1e-13,
         ).projected_iterations()
         assert projected is not None
@@ -741,8 +737,7 @@ class TestTruncationIsAudible:
             sol = _fixed_source(max_inner=50)
         msg = str(caught[0].message)
 
-        assert sol.history is not None
-        record = sol.history.record
+        record = sol.record
         assert record.first_failure is record, "fixture drift: not a leaf"
         assert msg.startswith("solve_sn_fixed_source: hit "), (
             "a leaf has no level to disambiguate, so the message goes "
@@ -798,8 +793,7 @@ class TestTruncationIsAudible:
             sol = _nested_failure_eigenvalue()
         msg = str(caught[0].message)
 
-        assert sol.history is not None
-        record = sol.history.record
+        record = sol.record
         child = record.children[0]
         assert record.first_failure is child, "fixture drift: the inner must fail"
         assert record.binding_criterion is not None
@@ -846,18 +840,17 @@ class TestTruncationIsAudible:
         with pytest.warns(ConvergenceWarning) as caught:
             probe = _starved_inner_converged_outer()
 
-        assert probe.history is not None
-        assert probe.history.converged is True, (
+        assert probe.record.converged is True, (
             "fixture drift: the outer must CONVERGE, or this row stops "
             "testing the widened guard — the old one would have warned too"
         )
-        assert probe.history.fully_converged is False, (
+        assert probe.record.fully_converged is False, (
             "fixture drift: an inner must be starved, or this row "
             "degenerates into test_converged_solve_is_SILENT"
         )
 
-        failing = probe.history.record.first_failure
-        assert failing is not None and failing is not probe.history.record, (
+        failing = probe.record.first_failure
+        assert failing is not None and failing is not probe.record, (
             "fixture drift: the failure must be a CHILD, not the top level"
         )
         msg = str(caught[0].message)
@@ -1132,11 +1125,10 @@ class TestEveryEntryStampsItsCallerFacingKnob:
         import inspect
 
         solution = run()
-        assert solution.history is not None
         entry = _entry_of(row_id, declared_entry)
         knobs = set(inspect.signature(entry).parameters)
 
-        for level in solution.history.record.walk():
+        for level in solution.record.walk():
             assert level.budget.name in knobs, (
                 f"{entry.__name__} returned a level advising `set "
                 f"{level.budget.name}=...`, which is not one of its "
@@ -1161,8 +1153,7 @@ class TestEveryEntryStampsItsCallerFacingKnob:
         about); all four eigenvalue rows were caught here and nowhere else.
         """
         solution = run()
-        assert solution.history is not None
-        record = solution.history.record
+        record = solution.record
 
         assert record.budget.name == expected, (
             f"{row_id}: the top level is governed by {expected}, not "
@@ -1248,11 +1239,11 @@ class TestExitBalanceDefect:
         with pytest.warns(ConvergenceWarning) as caught:
             sol = _starved_inner_converged_outer()
 
-        assert sol.history is not None
-        defect = sol.history.balance_defect
-        assert defect is not None, (
+        balance = sol.certificate.balance
+        assert isinstance(balance, Measured), (
             "a truncated eigenvalue exit must carry the balance defect"
         )
+        defect = balance.value
         assert np.isfinite(defect) and defect >= 0.0
 
         msg = str(caught[0].message)
@@ -1278,9 +1269,10 @@ class TestExitBalanceDefect:
         """
         with pytest.warns(ConvergenceWarning) as caught:
             sol = _starved_inner_converged_outer()
-        assert sol.history is not None
+        balance = sol.certificate.balance
+        assert isinstance(balance, Measured)
         msg = str(caught[0].message)
-        defect_text = f"{sol.history.balance_defect:.3e}"
+        defect_text = f"{balance.value:.3e}"
 
         head, _, tail = msg.partition("Returning a BEST-EFFORT iterate")
         assert defect_text not in head, (
@@ -1357,8 +1349,9 @@ class TestExitBalanceDefect:
     def test_a_CONVERGED_solve_neither_WARNS_nor_PAYS(self) -> None:
         """No warning, no number — and the second half is the cost claim.
 
-        ``_exit_balance_defect`` returns ``None`` on a fully-converged tree
-        BEFORE evaluating anything, so the happy path keeps exactly the
+        ``_balance_evidence`` (until step 3 ``_exit_balance_defect``) returns
+        ``Certified`` (then: ``None``) on a fully-converged tree BEFORE
+        evaluating anything, so the happy path keeps exactly the
         cost it had before N6b.  That guard is the complement of
         ``_certify_within_group_exit``'s: the certificate fires when the
         solve claimed convergence and asserts, this fires when it did not
@@ -1372,9 +1365,8 @@ class TestExitBalanceDefect:
         with warnings.catch_warnings():
             warnings.simplefilter("error", ConvergenceWarning)
             sol = _fixed_source(max_inner=2000)
-        assert sol.history is not None
-        assert sol.history.fully_converged is True
-        assert sol.history.balance_defect is None, (
+        assert sol.record.fully_converged is True
+        assert isinstance(sol.certificate.balance, Certified), (
             "a converged exit is CERTIFIED, not diagnosed — reporting a "
             "defect here means the guard was dropped and every converged "
             "solve is now paying for a residual it does not need"

@@ -8,7 +8,6 @@ from .coupled_system import (
 from .splitting import LossTerm, Splitting, resolve_schedule
 from .solution import (
     AdjointSolution,
-    IterationHistory,
     Solution,
     SolutionBase,
     SolutionDiff,

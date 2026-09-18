@@ -3,7 +3,8 @@ r"""The gauge fires at every public entry, and here is the defect it repairs.
 Two claims, and they need different instruments.
 
 **Coverage.** :func:`~orpheus.sn.solver._exit_gauge_trace` is the sibling of
-``_exit_balance_defect`` with one sharpening: that one REPORTS and this one
+the balance evidence (``_balance_evidence``; until step 3 ``_exit_balance_defect``)
+with one sharpening: that one REPORTS and this one
 MUTATES, so a forgotten call site does not lose a diagnostic — it silently
 returns a non-physical answer. The structural guarantee a single ``Solution``
 construction site would have given is unavailable (the two fixed-source arms
@@ -66,6 +67,7 @@ import warnings
 
 import numpy as np
 import pytest
+from orpheus.numerics.outcome import Measured
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import BC, Mesh2D
@@ -208,9 +210,8 @@ def test_every_exercisable_entry_reports_a_gauge_correction():
             inner_solver="source_iteration", inner_schedule="gauss_seidel",
             inner_tol=1e-13,
         )
-    assert eigen.history is not None
-    assert eigen.history.gauge_correction is not None, "solve_sn did not gauge"
-    assert eigen.history.gauge_correction > 1e-3
+    assert isinstance(eigen.certificate.gauge, Measured), "solve_sn did not gauge"
+    assert eigen.certificate.gauge.value > 1e-3
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", GaugeFreedomWarning)
@@ -220,11 +221,10 @@ def test_every_exercisable_entry_reports_a_gauge_correction():
             boundary_condition=None, inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
-    assert fixed.history is not None
-    assert fixed.history.gauge_correction is not None, (
+    assert isinstance(fixed.certificate.gauge, Measured), (
         "solve_sn_fixed_source did not gauge"
     )
-    assert fixed.history.gauge_correction > 1e-3
+    assert fixed.certificate.gauge.value > 1e-3
 
 
 @pytest.mark.foundation
@@ -250,8 +250,7 @@ def test_BOTH_fixed_source_arms_gauge_not_just_one(schedule):
             inner_schedule="gauss_seidel",
             inner_tol=1e-12, max_inner=40_000,
         )
-    assert solution.history is not None
-    assert solution.history.gauge_correction is not None, (
+    assert isinstance(solution.certificate.gauge, Measured), (
         f"the {schedule} arm returned without gauging"
     )
 
@@ -300,11 +299,10 @@ def test_the_spurious_TANGENTIAL_current_along_a_mirror_is_gone():
         f"correct and must stay so: {normal}"
     )
     # …and the fixture still exhibits the defect it is here to catch.
-    assert solution.history is not None
-    assert solution.history.gauge_correction is not None
-    assert solution.history.gauge_correction > 1e-3, (
+    assert isinstance(solution.certificate.gauge, Measured)
+    assert solution.certificate.gauge.value > 1e-3, (
         f"fixture no longer excites the kernel "
-        f"({solution.history.gauge_correction:.3e}) — check n_x is still ODD; "
+        f"({solution.certificate.gauge.value:.3e}) — check n_x is still ODD; "
         f"an even first axis makes this gate inert while leaving it green"
     )
 
@@ -447,18 +445,17 @@ def test_an_EVEN_mesh_is_excited_too_once_the_source_stops_being_symmetric():
             boundary_condition=None, inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
-    assert skewed.history is not None and symmetric.history is not None
-    assert skewed.history.gauge_correction is not None
-    assert symmetric.history.gauge_correction is not None
+    skewed_gauge, symmetric_gauge = skewed.certificate.gauge, symmetric.certificate.gauge
+    assert isinstance(skewed_gauge, Measured) and isinstance(symmetric_gauge, Measured)
 
-    assert skewed.history.gauge_correction > 1e-3, (
+    assert skewed_gauge.value > 1e-3, (
         f"an anisotropic source on an EVEN mesh must excite the kernel; got "
-        f"{skewed.history.gauge_correction:.3e}"
+        f"{skewed_gauge.value:.3e}"
     )
-    assert symmetric.history.gauge_correction < 1e-10, (
+    assert symmetric_gauge.value < 1e-10, (
         f"…and the symmetric source on the SAME mesh must not — that contrast "
         f"is the whole content of this row; got "
-        f"{symmetric.history.gauge_correction:.3e}"
+        f"{symmetric_gauge.value:.3e}"
     )
 
 
@@ -519,12 +516,11 @@ def test_it_is_SILENT_when_the_answer_was_already_canonical():
         )
     assert not [
         w for w in caught if issubclass(w.category, GaugeFreedomWarning)]
-    assert solution.history is not None
-    assert solution.history.gauge_correction is not None, (
+    assert isinstance(solution.certificate.gauge, Measured), (
         "silence must come from the gauge having done nothing, NOT from it "
         "never having run — those are different states and only one is fine"
     )
-    assert solution.history.gauge_correction < 1e-10
+    assert solution.certificate.gauge.value < 1e-10
 
 
 @pytest.mark.foundation

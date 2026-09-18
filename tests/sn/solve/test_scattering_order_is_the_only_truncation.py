@@ -72,7 +72,7 @@ def _slab(refl_cm: float, core_cm: float, refl_cells: int, core_cells: int) -> M
 def _solve(materials, mesh, L: int, **tol):
     with contextlib.redirect_stdout(io.StringIO()):
         sol = solve_sn(materials, mesh, Quadrature.gauss_legendre(n_ordinates=8), scattering_order=L, **tol)
-    assert sol.history is not None and sol.history.fully_converged
+    assert sol.record.fully_converged
     assert sol.outcome.keff is not None
     return float(sol.outcome.keff)
 

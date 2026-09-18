@@ -93,7 +93,7 @@ def test_2d_homogeneous_reflective_krylov_hits_q_over_sigma_t() -> None:
         inner_solver="krylov",
         max_inner=300, inner_tol=1e-12,
     )
-    assert result.history.converged, "2-D fixed-source Krylov did not converge"
+    assert result.record.converged, "2-D fixed-source Krylov did not converge"
 
     # Per-ordinate ψ uniform across (N, ng, nx, ny) at the fixed point;
     # Σ_t = 1.0 ⟹ ψ_n = q_iso / W.  Exact analytic limit → only FP noise.

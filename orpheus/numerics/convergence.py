@@ -807,9 +807,9 @@ class IterationBudget:
 
         ⚠ It is NOT derivable from :attr:`IterationRecord.label`.  That
         string is chosen for humans, and reading a control decision off it is
-        the stringly-typed dispatch
-        :attr:`orpheus.sn.solution.IterationHistory._is_outer` already
-        refuses.  Nor is it derivable from depth: the same
+        stringly-typed dispatch (the retired SN view's ``_is_outer`` refused it
+        the same way, deriving the shape from ``children`` instead).  Nor is it
+        derivable from depth: the same
         :class:`~orpheus.numerics.iteration.SourceIteration` is the *inner*
         of an eigenvalue solve and the *whole* of a fixed-source one.  Only
         the site that CONSTRUCTED the level knows which of its own parameters
@@ -1281,6 +1281,38 @@ class IterationRecord:
         One ratio, :attr:`StoppingCriterion.distance`, answers both.
         """
         return max(self.criteria, key=lambda c: c.distance, default=None)
+
+    @property
+    def trajectory(self) -> tuple[float, ...]:
+        """The binding criterion's trajectory — empty when nothing bound.
+
+        The per-iteration reading of whichever criterion decided this level
+        (for a within-group solve, the relative flux increment).  A level that
+        recorded no criterion has no trajectory, and ``()`` is what a consumer
+        that asks "did it iterate on a residual?" needs to read there — the
+        DSA rate diagnostics branch on exactly that.  Until step 3 U6 of the
+        consumers campaign this was the SN view's ``flux_residuals``, which
+        also read ``()`` on an OUTER level so the name could be taken on
+        either kind; the kind is a type now, and an outer's trajectory is its
+        own binding criterion's (the eigenvalue increments).
+        """
+        binding = self.binding_criterion
+        return () if binding is None else binding.trajectory
+
+    @property
+    def leaf_iterations(self) -> int:
+        """Iterations run by the LEAVES of this tree — the inner work.
+
+        A leaf reports its own count; an outer reports the sum over every
+        leaf beneath it, which for an eigenvalue solve is the total number of
+        within-group iterations the outers spent.  This is the measurand of
+        the SI spectral-rate / Gauss-Seidel-recovery diagnostics (it, not the
+        outer count, is what a preconditioner is meant to lower) and it is
+        never ``None``: a level that never iterated reports ``0``.
+        """
+        if not self.children:
+            return self.n_iterations
+        return sum(child.leaf_iterations for child in self.children)
 
     @property
     def rate(self) -> float | None:

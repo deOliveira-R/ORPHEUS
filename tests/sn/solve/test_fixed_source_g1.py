@@ -255,7 +255,7 @@ class TestHomogeneousReflectiveFixedPoint:
 
         # SigT = 1.0; per-ord fixed point ψ_n = q_n / Σ_t = (q_iso/W) / 1.0
         expected_per_ord = q_iso / sum_w
-        assert result.history.converged, (
+        assert result.record.converged, (
             f"{coord_name}: G1 Krylov did not converge in 200 iters"
         )
         # Per-ord ψ should be uniform across (N, ng, nx, ny) at the

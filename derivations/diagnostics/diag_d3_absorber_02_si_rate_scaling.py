@@ -71,7 +71,7 @@ def _run(mesh, quad, spatial_shape, sig):
                      / (_Q_G[g] / (W * sig[g]))))
         for g in range(2)
     )
-    return sol.history, err
+    return sol.record, err
 
 
 def _axes3():
@@ -115,14 +115,14 @@ def test_reflective_absorber_iteration_count_grows_with_dimension() -> None:
         )
 
     # the ordering, with margin
-    np.testing.assert_array_less(h1.n_inner, h2.n_inner)
-    np.testing.assert_array_less(h2.n_inner, h3.n_inner)
+    np.testing.assert_array_less(h1.n_iterations, h2.n_iterations)
+    np.testing.assert_array_less(h2.n_iterations, h3.n_iterations)
     # d=1 and d=2 fit inside the entry default; d=3 does NOT.
-    np.testing.assert_array_less(h1.n_inner, 1000)
-    np.testing.assert_array_less(h2.n_inner, 1000)
-    if h3.n_inner <= 1000:
+    np.testing.assert_array_less(h1.n_iterations, 1000)
+    np.testing.assert_array_less(h2.n_iterations, 1000)
+    if h3.n_iterations <= 1000:
         pytest.fail(
-            f"d=3 now converges in {h3.n_inner} <= 1000 sweeps — the "
+            f"d=3 now converges in {h3.n_iterations} <= 1000 sweeps — the "
             f"iteration budget changed (an accelerator? a better splitting?). "
             f"Re-derive this gate and the max_inner guidance with it."
         )
@@ -147,7 +147,7 @@ def test_reflective_absorber_iteration_count_is_absorption_limited() -> None:
         h, e = _run(_axes3(), quad, (3, 4, 5), [s, 2 * s])
         np.testing.assert_equal(bool(h.converged), True)
         np.testing.assert_array_less(e, 1e-10)
-        products.append(s * h.n_inner)
+        products.append(s * h.n_iterations)
 
     products = np.asarray(products, float)
     spread = float(products.max() / products.min())

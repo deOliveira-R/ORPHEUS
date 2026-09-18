@@ -75,10 +75,7 @@ def _solve(nx: int, width: float):
     # cross-reference verbatim (min ψ = −6.399383e-01 on the thick leg).
     q[:, 0, 0] = 100.0
     sol = solve_sn_fixed_source({0: _mix()}, mesh, quad, external_source=q)
-    history = sol.history
-    if history is None:
-        raise AssertionError("the solve returned no iteration history")
-    np.testing.assert_equal(bool(history.converged), True)
+    np.testing.assert_equal(bool(sol.record.converged), True)
     return sol
 
 

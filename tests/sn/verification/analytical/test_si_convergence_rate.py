@@ -31,7 +31,7 @@ false green at d=2 and a false red at d=3.  Keep it that way.  The c-independent
 consistent DSA (#2) or Krylov (already production, splitting-invariant,
 rate-optimal on every BC).
 
-Measurand: ``solve_sn_fixed_source(...).history.n_inner`` — the SI sweep
+Measurand: ``solve_sn_fixed_source(...).record.n_iterations`` — the SI sweep
 count to reach ``inner_tol``, measured for BOTH ``inner_schedule`` values
 in-process (Jacobi is a permanent live control; no hardcoded baseline).
 
@@ -177,8 +177,8 @@ def _si_count(mats, mesh, quad, source, bc="reflective", tol=_TOL, schedule="gau
         inner_solver="source_iteration", inner_schedule=schedule,
         max_inner=20000, inner_tol=tol,
     )
-    assert sol.history.converged, "SI did not converge — count is meaningless"
-    return sol.history.n_inner
+    assert sol.record.converged, "SI did not converge — count is meaningless"
+    return sol.record.n_iterations
 
 
 # ─── section 4.1 BOUNDARY-G-S RECOVERY GATE (the honest, re-scoped gate) ──
@@ -237,7 +237,7 @@ def test_boundary_gs_recovers_reflective_2d_si():
     sol_gs = _solve("gauss_seidel")
     sol_kry = _solve("jacobi", solver_kind="krylov")  # schedule ignored by Krylov
     n_jac, n_gs, n_kry = (
-        sol_jac.history.n_inner, sol_gs.history.n_inner, sol_kry.history.n_inner,
+        sol_jac.record.n_iterations, sol_gs.record.n_iterations, sol_kry.record.n_iterations,
     )
     # (a) RATE: strict improvement over Jacobi (the recovery exists).
     assert n_gs < n_jac, (
@@ -326,7 +326,7 @@ def test_jacobi_si_far_above_krylov_lower_bound():
         mats, mesh, quad, source, boundary_condition="reflective",
         inner_solver="krylov", max_inner=20000, inner_tol=1e-10,
     )
-    n_krylov = sol_k.history.n_inner
+    n_krylov = sol_k.record.n_iterations
     assert n_si >= 1.5 * n_krylov, (
         f"Jacobi SI {n_si} not >> Krylov {n_krylov} — the splitting is "
         f"not as poor as expected (regime mischosen?)."
@@ -455,11 +455,11 @@ def test_recovery_vacuum_count_unchanged():
 @pytest.mark.foundation
 def test_eigenvalue_path_surfaces_total_inner_iterations():
     """Phase 3 sub-step 1 (measurement seam): the EIGENVALUE solve surfaces
-    the total inner-SI iteration count via
-    ``IterationHistory.total_inner_iterations``.
+    the total inner-SI iteration count via the record's ``leaf_iterations``
+    (until step 3 U6 the view's ``total_inner_iterations``).
 
     Before the seam this was invisible: ``solve_sn`` routes through
-    ``power_iteration``, whose ``IterationHistory`` carried ``n_inner=None``
+    ``power_iteration``, whose history carried ``n_inner=None``
     and only the (splitting-INVARIANT) OUTER count.  The seam accumulates
     each outer step's inner iterate count on the ``SNSolver`` and reads it
     into ``total_inner_iterations``, un-blocking the eigenvalue-path rate
@@ -486,13 +486,13 @@ def test_eigenvalue_path_surfaces_total_inner_iterations():
         case.problem.materials, mesh, quad, inner_solver="source_iteration",
         max_outer=1000, max_inner=5000, inner_tol=1e-8,
     )
-    total_inner = sol.history.total_inner_iterations
-    assert total_inner is not None, (
-        "eigenvalue IterationHistory.total_inner_iterations is None — the "
-        "Phase 3 measurement seam did not populate it."
+    total_inner = sol.record.leaf_iterations
+    assert total_inner > 0, (
+        "the eigenvalue record's leaf_iterations is 0 — the Phase 3 "
+        "measurement seam did not populate the inner records."
     )
     # At least one inner iterate per outer step (and the outer count, which
     # the eigenvalue path already surfaced, is positive).
-    assert total_inner >= sol.history.n_outer > 0, (
-        f"total_inner={total_inner} not >= n_outer={sol.history.n_outer} > 0"
+    assert total_inner >= sol.record.n_iterations > 0, (
+        f"total_inner={total_inner} not >= n_outer={sol.record.n_iterations} > 0"
     )

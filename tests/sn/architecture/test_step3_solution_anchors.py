@@ -383,10 +383,10 @@ def _hub_k() -> float:
 def _multiplying_solution_truncated() -> Solution:
     """A deliberately TRUNCATED multiplying-source solve.
 
-    Truncated because every ``None`` the certificate retires is reachable only
-    off the converged path: ``_exit_balance_defect`` returns ``None`` when
-    ``record.fully_converged`` (``solver.py:640``), so a converged fixture
-    cannot see the balance number at all.
+    Truncated because every ``None`` the certificate retired was reachable only
+    off the converged path: ``_exit_balance_defect`` returned ``None`` when
+    ``record.fully_converged`` (today ``_balance_evidence`` reads ``Certified``
+    there), so a converged fixture cannot see the balance number at all.
     """
     materials, mesh, quadrature = _slab()
     return solve_sn_multiplying_source(

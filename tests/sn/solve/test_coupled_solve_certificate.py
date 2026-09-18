@@ -101,7 +101,7 @@ def test_c3_in_m_lag_trips_the_certificate_while_the_stop_stays_green(
         dict(_MATERIALS), _mesh1d(), sn.quad, q,
         inner_solver="source_iteration",
     )
-    if not bool(solution.history.converged):
+    if not bool(solution.record.converged):
         pytest.fail("control leg did not converge — fixture drift")
 
     # ── MUTATED: the march returns a stale ZERO ψ_B (the #282 surrogate:
@@ -124,7 +124,7 @@ def test_c3_in_m_lag_trips_the_certificate_while_the_stop_stays_green(
         dict(_MATERIALS), _mesh1d(), sn.quad, q,
         inner_solver="source_iteration",
     )
-    if not bool(again.history.converged):
+    if not bool(again.record.converged):
         pytest.fail("post-revert leg did not converge — the mutation leaked")
 
 

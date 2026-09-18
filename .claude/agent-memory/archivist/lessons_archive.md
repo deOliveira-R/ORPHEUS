@@ -13435,3 +13435,122 @@ figures corrected by measurement) · Failed approaches 5 (the arm-asymmetry defe
 `keff is not None` ruling and the `q − Aψ` convention all kept as dated history) · Code
 traceability 5 · Derivation source 3 (no `derivations/` script applies — the content is
 type-architecture, not algebra).
+
+---
+
+## L-111 — Consumers campaign step 3, unit U6: `IterationHistory` retires (2026-09-17)
+
+**Task.** Docs-only pass for U6: the flat SN-facing view over the iteration record is
+deleted (with `SolutionBase.history` and `_as_optional_float`); its readings re-home onto
+`IterationRecord` (the path), `EigenOutcome` (the answer) and `ExitCertificate` (the exit
+magnitudes). Brief: find every mention, re-tense, add the design-decision paragraph, one
+changelog row, re-key carrier bullets. 5 `.rst`, +350/−42, uncommitted on
+`refactor/consumers-step3-u6`.
+
+### L-111a ⛔⛔ MEMORY REFUTED: the project xref gate is STILL blind to a dead
+`:class:`/`:attr:`/`:meth:` at a DOTTED `orpheus.*` target.
+`MEMORY.md` §2 carried *"`[M]` the gate's guard now keys on the TARGET being undotted
+(`tools/check_docstring_xrefs.py:549`), so the L-062/L-067 dotted-target blindness
+**appears repaired**"*. `[M]` this session, in-process:
+`judge('orpheus.sn.solution.IterationHistory', role='class'|'attr'|'meth')` → **DECLINED**
+on all three, while `judge('orpheus.numerics.does_not_exist', role='mod')` → **DEAD** and
+`judge('orpheus.sn.solution.Solution', role='class')` → ALIVE. And
+`check_docstring_xrefs.py docs --quiet` printed **`DEAD TARGETS: 0`** while **four** dead
+`:class:` roles to that retired class were live in `docs/`. ⟹ the "appears repaired" note
+was corroborating evidence from two instruments that share the blindness, never a probe.
+**The acceptance evidence for a page is STILL your own import probe over its roles** —
+mine read 13 dead at HEAD → 10 now, 3 fixed, **0 new**, over 6566 qualified `orpheus.*`
+roles in `docs/`. Positive AND negative control in the probe itself (`Solution` must be
+ALIVE, `IterationHistory` must be DEAD) — the negative control is what makes a `0 dead`
+readable.
+
+### L-111b ⭐⭐ A CARVE CAN CORRUPT A HISTORY CLAIM IN THE CODE, AND THE DOCS ARE THE HALF
+THAT'S RIGHT — verify the code's own history sentences with `git log -S`, never align the
+docs to them.
+`convergence.py`'s `warn_if_unconverged` docstring records what the retired advice string
+USED to be. The U6 carve rewrote it `solution.history.fully_converged` →
+`solution.record.fully_converged` — a name-keyed sweep hitting the ONE place the old name
+legitimately appears. `[M]` `git log -S 'solution.history.fully_converged'` → `28435e11`;
+`git show 28435e11:orpheus/sn/solver.py` line **594** reads
+`f"`solution.history.fully_converged` and handle it. "`. So the DOC
+(`solver.rst`, the N4.7 ⛔ bullet) is correct and the freshly-edited CODE is false.
+⟹ the reflex "the code is newer, align the prose to it" is exactly backwards for a
+*history* sentence; the tell is a past-tense verb (*"used to name"*, *"was the literal
+string"*) next to a name the carve retired. Extends `lessons` L25 / the 2026-09-01
+tree-wide-rename row (*the file most likely to hold the counterexample to a rename is the
+one that documents the rename*) from a comment to a DOCSTRING, and from my own edit to
+somebody else's. I kept the docs' spelling and cited the measurement inline
+(`` ``[M]`` orpheus/sn/solver.py:594 at 28435e11 ``) so the next reader cannot re-"fix" it.
+
+### L-111c ⭐⭐ AN "OPTIONAL-BY-SHAPE" SET IS RARELY UNIFORM — read each member's BODY, not
+its annotation, and the non-uniformity is the better story.
+Brief and memo both called `n_inner` / `n_outer` / `total_inner_iterations` the
+"Optional-by-SHAPE trio". `[M]` the third's `| None` is **unreachable**: both branches of
+the retired property return an `int`, and its own docstring said so (*"populated by both
+paths"*). Measured by lifting the retired property verbatim out of `git` and running it
+against a live record (`A-2g` 10-cell slab, GL-8, SI): on the outer it reads **394** where
+`n_inner` reads `None`; on that outer's leaf it reads **190** where `n_outer` reads `None`.
+⟹ the publishable claim is sharper than the brief's: *two* kind-keyed `None`s plus one
+piece of annotation debt that the flat surface's Optional-by-shape habit spread onto a
+total that was always a number — "a convention adopted for two members is copied onto the
+third for symmetry, and every consumer then writes a guard for a state that cannot occur."
+Same move as L-109's re-run-the-retired-expression: the refutation was one `git show` and
+one run away.
+
+### L-111d ⭐⭐ A "GENERALISATION" CLAIM NEEDS A FIXTURE THAT SEPARATES THE TWO READINGS —
+and the project's own nearest fixture usually does NOT.
+`leaf_iterations` (sum over LEAVES) replaces `total_inner_iterations` (sum over DIRECT
+children). `[M]` they agree on every shipped SN tree, which is exactly two levels deep:
+1-D SI **394/394** (`gauss_seidel` and `jacobi`), 1-D Krylov **256/256**, 2-D
+`level_symmetric(4)` SI **430/430**. And the project's OWN three-level test fixture
+(`_three_level_tree`) **also** agrees, `4 == 4`, by coincidence of its counts. Documenting
+the generalisation therefore needed a hand-built witness —
+`outer(3) → inner(5) → {gmres(11), gmres(13)}`: retired **5**, new **24**. ⟹ before writing
+*"X generalises Y"*, construct the input on which they differ; a nearest-fixture check
+returns "identical" and reads as "it is a rename". (Dual of `vv-principles` #19: a reading
+that cannot change is not evidence.)
+
+### L-111e ⭐ CENSUS THE **DIFF**, NOT THE PRE-STATE, WHEN A CARVE IS ALREADY IN THE TREE.
+The memo's parenthetical breakdown — *"7 sites: DSA ×2, SI rate ×4, d3 absorber ×5"* — does
+not sum to 7 and names a file with **zero** `history.n_inner` hits under a receiver grep:
+`diag_d3_absorber_02` reads `h1.n_inner` where `h1, e1 = _run(...)` comes back from a
+TUPLE-RETURNING HELPER, invisible to a receiver grep AND to my assignment-alias AST
+resolver (its alias positive control FAILED — which is the only reason I noticed). ⟹ when
+the carve is in the working tree, census the **removed lines of `git diff -U0`**: exact,
+re-derivable, no receiver resolution, and it yields per-member counts with a stated
+predicate (`n_inner` 23, `n_outer` 10, `total_inner_iterations` 4, `flux_residuals` 11,
+`gauge_correction` 19, `balance_defect` 10; 143 reads / 25 files with `docs/` excluded).
+⚠ Exclude `docs/` from that census — **my own edit's prose example
+(`if history is None or history.n_inner is None:`) landed in the diff and inflated the
+count by 1** before I caught it.
+
+### L-111f ⭐ A CHANGELOG PAGE'S OWN PREAMBLE CAN LICENSE LEAVING A STALE SPELLING — read
+it before adjudicating a dated row.
+`history.rst` states: *"Every row below is a **dated** milestone and keeps the spelling
+that was current on its date."* So a dated row's `` ``history.balance_defect`` `` STAYS as a
+plain literal. What must still change in such a row is (i) a **dead `:class:` xref** (plain
+text at every severity — Cardinal Rule 1) and (ii) a **present-tense verb** (*"records its
+magnitude on X"*). ⟹ the discriminator for a dated changelog row is `dead xref? present
+tense?`, NOT `stale spelling?` — and applying the retirement sweep uniformly would have
+destroyed the page's deliberate as-of-its-date record. `[M]` of the 8 surviving
+`IterationHistory` mentions in `docs/theory` (error catalogue aside), **all 8 are plain
+literals in past-tense or dated context and 0 are xrefs** — down from 4 dead xrefs.
+
+### L-111g ⭐ A MERGE-HASH CONTRACT IS DISCHARGED BY `git merge-base`, AND THE ROW YOU ARE
+WRITING BESIDE IS WHERE THE STALE CELL IS.
+Adding the U6 row I checked the neighbour: `[M]`
+`git merge-base --is-ancestor bcd9c83c main` → **YES** (ff-merge, no merge commit), so the
+U1/U2 row's *"branch ``refactor/consumers-step3`` (hash at the merge)"* was
+present-tense-false and the page's own preamble forbids it (*"an entry lands with its merge
+hash"*). Re-keyed to `` ``bcd9c83c`` + ``b59e4a76`` (U2e…), ff-merged to ``main`` ``. ⟹ the
+cheapest discharge check is the one you can run while writing the row above it — always
+reconcile the adjacent Where cell.
+
+### Quality self-assessment (Directive 3)
+Derivation depth 4 · Cross-references 5 (13→10 dead, 3 fixed, **0 new**, own import probe
+with both controls; every `:ref:` resolves; the new label is unique) · Numerical evidence 5
+(every published literal measured this session: 394/394, 256/256, 430/430, 5-vs-24, 394/190
+on the retired property, and six per-member diff counts with their predicate) · Failed
+approaches 5 (the view's two lives, the unreachable `| None`, the `_is_outer` rationale and
+the retired advice string all kept as dated history) · Code traceability 5 · Derivation
+source 3 (no `derivations/` script applies — type architecture, not algebra).

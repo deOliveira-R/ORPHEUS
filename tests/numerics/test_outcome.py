@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import assert_never
 
+import dataclasses
+
 import numpy as np
 import pytest
 
@@ -209,3 +211,27 @@ class _TrivialKernelGauge:
     @property
     def dimension(self) -> int:
         return 0
+
+
+# ── the dominance ratio is a reading of the outcome's trajectory ──────────
+#
+# Migrated from the retired SN view's rows (step 3 U6): the late-iteration
+# ratio |k_n − k_{n−1}| / |k_{n−1}| is a reading of the TRAJECTORY the eigen
+# outcome carries, so it lives on the outcome, not on a diagnostics view.
+
+
+def _with_trajectory(trajectory: tuple[float, ...]) -> EigenOutcome:
+    _, out = _eigen_outcome()
+    return dataclasses.replace(out, lam=trajectory[-1], trajectory=trajectory)
+
+
+class TestDominanceRatioIsTheOutcomes:
+    def test_a_single_entry_has_no_ratio(self) -> None:
+        assert _with_trajectory((1.0,)).dominance_ratio() is None
+
+    def test_three_iterates_read_the_last_step(self) -> None:
+        ratio = _with_trajectory((1.0, 1.05, 1.1)).dominance_ratio()
+        assert ratio == pytest.approx(abs(1.1 - 1.05) / 1.05)
+
+    def test_a_zero_previous_iterate_has_no_ratio(self) -> None:
+        assert _with_trajectory((0.0, 1.0)).dominance_ratio() is None

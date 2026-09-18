@@ -43,6 +43,9 @@ means merged). **No owed Sphinx pass on merged work.** Landed SN milestones live
 in the digest the pointer names; re-summarising it here is a THIRD copy and is what bloats this
 file. `git log --oneline -- docs/` is the real index.
 
+- **Consumers step 3 U6** — a carve can corrupt a HISTORY claim in the code, and the docs are
+  the half that's right (2026-09-17; 5 `.rst`, +350/−42; uncommitted on
+  `refactor/consumers-step3-u6`) → L-111
 - **Consumers step 3 U2** — a "the artefacts were re-baselined" claim is a `git status`
   question, and the unchanged artefact is the better oracle (2026-09-17; 8 `.rst`, +1114/−241;
   uncommitted on `refactor/consumers-step3`; **ERR-086 minted — its catcher is owed by the main
@@ -80,12 +83,14 @@ file. `git log --oneline -- docs/` is the real index.
   Boundary/DSA work: [[lessons-L39]]…[[lessons-L94]], one `## L-0NN` section each, naming its own
   commits. CODE-side reports are GitHub's; the corpus-wide RST-nested-markup finding is on **#379**.
 
-⚠ **ERR-026 history block — status CHANGED, not confirmed.** Its branch
-`docs/err026-history-is-not-a-crossref` is gone locally and remotely, so the 2026-08-24
-"still OPEN, unlanded" claim is void. `[M]` the gate's guard now keys on the TARGET being
-undotted (`tools/check_docstring_xrefs.py:549`), so the L-062/L-067 dotted-target blindness
-**appears repaired** — corroborating evidence only (two independently-vocabularied instruments
-read 0 dead); not directly re-probed.
+⚠ **ERR-026 history block — its branch `docs/err026-history-is-not-a-crossref` is gone
+locally and remotely, so the 2026-08-24 "still OPEN, unlanded" claim is void.**
+⛔⛔ **The "dotted-target blindness appears repaired" half of this note is REFUTED** (`[M]`
+2026-09-17, L-111): `judge('orpheus.sn.solution.IterationHistory', role='class'|'attr'|'meth')`
+reads **DECLINED** while a dead `mod` target reads DEAD — and the gate printed
+`DEAD TARGETS: 0` over `docs/` with FOUR dead `:class:` roles live. The old reading was two
+instruments that share the blindness agreeing, never a probe. **Acceptance evidence for a
+page is your OWN import probe, with a live AND a retired control.**
 
 ## 3. Durable reference (reusable doc-architecture)
 

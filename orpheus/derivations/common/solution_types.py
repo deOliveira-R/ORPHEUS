@@ -203,7 +203,8 @@ class CriticalSolution:
     `[M]` removing the default cost **zero** churn — all 33 construction
     sites already passed it explicitly, so the default protected nothing
     and only stood ready to hide the next producer that forgot.  Twin of
-    :attr:`orpheus.sn.solution.IterationHistory.converged`.
+    the SN record's derived ``converged`` (:attr:`~orpheus.numerics.convergence.IterationRecord.converged`
+    — until step 3 U6 read through the ``IterationHistory`` view).
     """
     metadata: dict[str, Any] = field(default_factory=dict)
 

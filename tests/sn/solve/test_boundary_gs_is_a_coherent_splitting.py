@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from orpheus.numerics.outcome import Measured
 
 from orpheus.sn.solver import _balance_projection
 from tests.sn._singular_loss_box import (
@@ -675,18 +676,17 @@ def test_the_PUBLIC_ENTRY_returns_the_SAME_trace_under_BOTH_schedules():
                 boundary_condition=None, inner_solver="source_iteration",
                 inner_schedule=schedule, inner_tol=1e-13, max_inner=400_000,
             )
-        assert solution.history is not None
+        assert isinstance(solution.certificate.gauge, Measured), (
+            "an entry returned without gauging — the comparison below would then "
+            "be about the driver, not about what a user receives"
+        )
         returned[schedule] = (
             np.asarray(solution.boundary_flux.values, dtype=float),
-            solution.history.gauge_correction,
+            solution.certificate.gauge.value,
         )
 
     gs_trace, gs_correction = returned["gauss_seidel"]
     jacobi_trace, jacobi_correction = returned["jacobi"]
-    assert gs_correction is not None and jacobi_correction is not None, (
-        "an entry returned without gauging — the comparison below would then "
-        "be about the driver, not about what a user receives"
-    )
     assert gs_correction > 1e-3, (
         f"the fixture no longer excites the kernel "
         f"({gs_correction:.3e}) — the agreement below is then free, and this "

@@ -278,9 +278,7 @@ class TestRecordTheBuildRoute:
         adjoint = solve_sn_adjoint(
             materials, mesh, quadrature, scattering_order=order, max_outer=200,
         )
-        adjoint_history = adjoint.history
-        assert adjoint_history is not None
-        n_outer_adj = len(adjoint_history.keff_history)
+        n_outer_adj = len(adjoint.outcome.trajectory)
         assert n_outer_adj > 1, (
             f"non-vacuity: the adjoint converged in {n_outer_adj} outer "
             f"step(s), so once-per-outer and once-per-Problem coincide."
@@ -570,9 +568,7 @@ class TestRuledTheBuildIsOncePerProblem:
         solution = solve_sn(
             materials, mesh, quadrature, scattering_order=order, max_outer=200,
         )
-        history = solution.history
-        assert history is not None
-        n_outer = len(history.keff_history)
+        n_outer = len(solution.outcome.trajectory)
         if n_outer <= 1:
             pytest.fail(
                 f"non-vacuity: the fixture converged in {n_outer} outer "

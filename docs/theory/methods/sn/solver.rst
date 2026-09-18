@@ -3166,13 +3166,11 @@ These surface directly on the Solution:
 :meth:`SolutionBase.converged() <orpheus.sn.solution.SolutionBase.converged>`
 reads its
 :attr:`~orpheus.numerics.convergence.IterationRecord.fully_converged`
-fold.  The flat
-:class:`~orpheus.sn.solution.IterationHistory` reading survives for one
-more cycle as a **view** assembled from the record, the outcome's
-trajectory and the certificate (``sol.history``; retired at step 3's unit
-U6) — every scalar it exposes is DERIVED, so there is one source of truth
-and the flat surface cannot drift from the tree it summarises.  New code
-reads the record.
+fold.  Nothing sits between the two.  Every diagnostic is asked of the
+object that owns it — the **record** for the path, the **outcome** for the
+answer, the **certificate** for what the exit measured about the returned
+state — and the next section says which reading moved where, and which
+one deliberately did not move at all.
 
 ⛔ Until 2026-08-09 ``converged`` was a *field*, and this paragraph argued
 its honesty from the fact that it was **required**: no default, so a
@@ -3292,13 +3290,232 @@ in-test, 10 are audible on purpose and tracked with measured budgets in
      "unavailable", because an empty clause cannot be misread as a
      measurement.
    * ⛔ Its closing advice used to name the literal string
-     ``solution.history.fully_converged``.  That is a guess at the CALLER's
-     local variable name — a fact no library can know — and it was outright
-     wrong for the three families whose entries return a ``*Result``.  It now
-     names the attribute and its type.  A per-entry spelling passed in as an
+     ``solution.history.fully_converged`` (``[M]``
+     ``orpheus/sn/solver.py:594`` at ``28435e11``; the flat ``history`` view
+     that string named is itself retired —
+     :ref:`sn-the-record-answers-for-its-own-level`).  That is a guess at the
+     CALLER's local variable name — a fact no library can know — and it was
+     outright wrong for the three families whose entries return a
+     ``*Result``.  It now names the attribute and its type.  A per-entry spelling passed in as an
      argument was considered and **rejected**: it would re-commit the exact
      defect N6a retired, a fact asserted by the call site and free to drift
      from the object it describes.
+
+.. _sn-the-record-answers-for-its-own-level:
+
+What the record answers, and what deliberately did NOT move onto it
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+⛔ **Until step 3's unit U6 (2026-09-17) a flat ``IterationHistory``
+dataclass sat between the Solution and its record**, and the two steps of
+its life are both worth keeping.  It was born as six hand-written FIELDS
+(Issue #197 PR-TYPED-5), which is how ``n_inner`` came to mean
+``len(residuals)`` on one path and ``len(residuals) + 1`` on the other —
+undocumented and exactly backwards from the truth — and how ``converged``
+came to be written five times by hand with one of the five a literal
+``True`` (#342).  A projection maintained by hand at :math:`N` sites is
+:math:`N` chances to disagree.  From 2026-08-09 (#340 N2b-ii) it became a
+**view**: every scalar DERIVED from the record, so the flat surface could
+no longer drift from the tree it summarised.  That was the right repair,
+and it left a second defect standing — a *second surface* naming the same
+facts, which a reader had to choose between, and onto which no new
+question could be added without widening the very flattening the record
+exists to undo.  Its own docstring said so — *"do not grow this surface:
+add the question to the record, where the tree can answer it"* — and U6 is
+that instruction carried out.
+
+.. list-table:: the retired view's readings, and what answers now
+   :header-rows: 1
+   :widths: 30 70
+
+   * - retired reading
+     - what answers it now
+   * - ``converged`` / ``fully_converged``
+     - :attr:`record.converged
+       <orpheus.numerics.convergence.IterationRecord.converged>` /
+       :attr:`record.fully_converged
+       <orpheus.numerics.convergence.IterationRecord.fully_converged>` —
+       the same two properties the view delegated to, one hop shorter
+   * - ``keff_history``
+     - :attr:`outcome.trajectory
+       <orpheus.numerics.outcome.EigenOutcome.trajectory>`.  It was never
+       a convergence quantity: what the outer *stops* on is the
+       per-iteration INCREMENT ``dk``, which lives in the record; the
+       :math:`k` sequence is a **physics output** and belongs on the
+       answer, co-indexed with :math:`\lambda`
+       (``trajectory[-1] == lam``)
+   * - ``dominance_ratio()`` / ``latest_keff()``
+     - :meth:`outcome.dominance_ratio()
+       <orpheus.numerics.outcome.EigenOutcome.dominance_ratio>` and
+       ``outcome.lam`` — readings of that trajectory, so they live beside
+       it.  On a ``Solution[SourceOutcome]`` neither **exists**, which is
+       the type saying what a ``None`` used to say badly
+   * - ``balance_defect`` / ``gauge_correction``
+     - :attr:`certificate.balance
+       <orpheus.numerics.outcome.ExitCertificate.balance>` /
+       :attr:`certificate.gauge
+       <orpheus.numerics.outcome.ExitCertificate.gauge>`, as typed
+       :class:`~orpheus.numerics.outcome.Evidence`.  These were the two
+       ``float | None`` members carrying five and three documented
+       meanings; the sum names the reason instead of erasing it
+       (:ref:`the-solution-outcome`)
+   * - ``flux_residuals`` / ``latest_residual()``
+     - :attr:`record.trajectory
+       <orpheus.numerics.convergence.IterationRecord.trajectory>` — NEW
+       at U6; see below
+   * - ``total_inner_iterations``
+     - :attr:`record.leaf_iterations
+       <orpheus.numerics.convergence.IterationRecord.leaf_iterations>` —
+       NEW at U6; see below
+   * - ``n_inner`` / ``n_outer``
+     - :attr:`record.n_iterations
+       <orpheus.numerics.convergence.IterationRecord.n_iterations>` of the
+       solve's own top record.  **Deliberately not two names**; the
+       argument is the subsection below
+   * - ``_is_outer``
+     - nothing.  It existed only to let one name serve two kinds, and the
+       kind is the Solution's TYPE now.  (It read ``bool(record.children)``
+       — the tree's own structure, never the level's ``label``, because
+       reading a control decision off a string chosen for humans is
+       stringly-typed dispatch.)
+
+**Two readings the record gained**, because they are questions about a
+tree and the tree is the thing that can answer them:
+
+* :attr:`~orpheus.numerics.convergence.IterationRecord.trajectory` — the
+  **binding criterion's** per-iteration trajectory, ``()`` when nothing
+  bound.  For a within-group solve that is the relative flux increment,
+  which is exactly what ``flux_residuals`` meant; ``()`` is what a
+  consumer asking *"did this level iterate on a residual?"* needs to read
+  when it did not, and the DSA rate diagnostics branch on precisely that,
+  so their ``if not …trajectory:`` guards keep their meaning verbatim.
+* :attr:`~orpheus.numerics.convergence.IterationRecord.leaf_iterations` —
+  the iterations run by the **leaves** of this tree, which is the *inner
+  work*: a leaf reports its own count, an outer reports the sum over every
+  leaf beneath it.  It is the measurand of the SI spectral-rate and
+  Gauss-Seidel-recovery diagnostics — it, not the outer count, is what a
+  preconditioner is meant to lower — and it is never ``None``: a level
+  that never iterated reports ``0``.
+
+.. note::
+
+   ``leaf_iterations`` is a **generalisation** of the reading it replaces,
+   not a re-spelling.  The retired ``total_inner_iterations`` summed
+   ``n_iterations`` over the record's DIRECT children; ``leaf_iterations``
+   recurses to the leaves.  On a tree deeper than two levels those are
+   different numbers, and the retired form reports the intermediate levels'
+   own counts while never reaching a leaf: ``[M]`` 2026-09-17, on a
+   hand-built ``outer(3) → inner(5) → {gmres(11), gmres(13)}`` record the
+   retired sum reads **5** and ``leaf_iterations`` reads **24**.
+
+   On the shipped S\ :sub:`N` path the two agree, because the eigenvalue
+   record is exactly **two** levels deep — ``[M]`` 2026-09-17, ``A-2g``
+   10-cell slab, ``gauss_legendre(8)``, at ``solve_sn``'s default
+   tolerances: ``outer(power-iteration)`` with three LEAF children, retired
+   sum **394** and ``leaf_iterations`` **394** under source iteration (both
+   ``gauss_seidel`` and ``jacobi``), and **256** / **256** under Krylov
+   (``inner(gmres)``).  So U6 is bit-identical on every reading this page
+   reports, and the generalisation is insurance against the day a third
+   level appears.  The deep case is pinned on the record itself, where it
+   belongs:
+   ``tests/numerics/test_iteration_record.py::TestTheTreeReadingsAreTheRecords``.
+
+The ``None``-by-SHAPE trio did not move, and that is the point
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Three of the view's readings were typed ``int | None`` — ``n_inner``,
+``n_outer`` and ``total_inner_iterations`` — and where the ``None`` was
+reachable it did not mean *"not measured"*.  It meant **"you asked the
+wrong kind"**: ``n_inner`` read ``None`` whenever the top level had
+children (an eigenvalue solve), ``n_outer`` whenever it did not (a
+fixed-source one).  ``flux_residuals`` carried the same convention in the
+other direction, returning ``()`` on an OUTER level so that one name could
+be taken on either kind.
+
+⚠ The third member's ``| None`` was never reachable at all — both branches
+of ``total_inner_iterations`` returned an ``int``, as its own docstring
+said (*"populated by both paths"*).  ``[M]`` 2026-09-17, the retired
+property lifted verbatim out of ``git`` and run against a live record
+(``A-2g`` 10-cell slab, GL-8, source iteration): on the outer it reads
+``394`` where ``n_inner`` reads ``None``, and on that outer's leaf inner it
+reads ``190`` where ``n_outer`` reads ``None``.  So the trio was two
+kind-keyed ``None``\ s plus one piece of annotation debt that the flat
+surface's Optional-by-shape habit had spread onto a total that was always
+a number — which is the shape of the defect, not a detail of it: a
+convention adopted for two members is copied onto the third for symmetry,
+and every consumer then writes a guard for a state that cannot occur.
+
+Those ``None``\ s existed **so that ONE name could be read on either
+problem kind**.  Since step 3 U2 the kind is the Solution's TYPE
+(``Solution[EigenOutcome]`` versus ``Solution[SourceOutcome]``), so the
+question the ``None`` answered can no longer be asked — and re-minting the
+trio on :class:`~orpheus.numerics.convergence.IterationRecord` under the
+old names would have carried a *kind* discriminator onto an object that
+has no kind.  A record is a level in a tree; ``n_inner`` and ``n_outer``
+are not two quantities it holds, they are one quantity — the iterations
+THIS level ran — wearing two names chosen by what the level happened to be
+nested inside.
+
+The census says the distinction was never load-bearing at a single call
+site.  ``[M]`` 2026-09-17, by the U6 diff (every read the carve migrated,
+alias receivers included; predicate = an attribute read of the named
+member on a ``.history`` receiver or on a local bound to one):
+
+.. list-table:: every migrated reader of the trio and of ``flux_residuals``
+   :header-rows: 1
+   :widths: 26 10 64
+
+   * - reading
+     - reads
+     - where, and what kind of solve each one holds
+   * - ``n_inner``
+     - 23
+     - ``test_dsa_acceleration`` 2, ``test_dsa_rate`` 2,
+       ``test_si_convergence_rate`` 6, ``diag_d3_absorber_01`` 1,
+       ``diag_d3_absorber_02`` 9, one ``_solve_fixed_source_si`` docstring,
+       plus 2 rows of the view's own retired tests — **every consumer holds
+       a ``solve_sn_fixed_source`` result**
+   * - ``n_outer``
+     - 10
+     - ``diag_vacuum_bc_eigenvalue_divergence`` 3,
+       ``test_sn_adjoint_entries`` 2, ``test_si_convergence_rate`` 2, plus
+       3 rows of the view's own retired tests — **every consumer holds an
+       eigenvalue (or adjoint eigenvalue) result**
+   * - ``total_inner_iterations``
+     - 4
+     - ``test_si_convergence_rate`` 1 (the eigenvalue-path measurand) plus
+       3 of the view's own retired rows
+   * - ``flux_residuals``
+     - 11
+     - ``test_dsa_acceleration`` 4, ``test_dsa_rate`` 2,
+       ``diag_d3_absorber_01`` 1, ``test_convergence_contract`` 1, plus 3
+       of the view's own retired rows — all fixed-source, all reading the
+       within-group increment
+
+So both names were always ``record.n_iterations`` of the solve's own top
+record, read by a consumer that already knew which kind it was holding —
+and the ``None`` branch those call sites carried (``if history is None or
+history.n_inner is None: pytest.fail(…)``) was guarding against a state
+its own fixture made unreachable.  ``[M]`` the carve removed **four** such
+consumer guards — two on ``n_inner`` (the DSA rate and acceleration
+diagnostics), one on ``n_outer`` (the adjoint-entries gate) and one on
+``total_inner_iterations`` (the SI-rate gate, whose failure message named
+a state that could not occur) — plus the **two** assertions in the view's
+own tests that pinned the convention itself (``h.n_inner is None`` on an
+outer, ``h.n_outer is None`` on a leaf).  Those last two are the tell: the
+only rows that ever exercised the ``None`` were the ones written to
+document it.
+
+``record.trajectory`` widens the ``flux_residuals`` reading in exactly one
+way, and it is the honest one: **an outer level now answers with its own
+binding criterion's trajectory** — the eigenvalue increments — where the
+view returned ``()`` so the name could be shared.  Nothing in the shipped
+tree read ``flux_residuals`` on an eigenvalue Solution — the table above
+is the denominator, and its only eigen-path rows are the view's own tests
+— so no consumer changed meaning; a future one asking an
+outer for its trajectory gets the answer for its own level instead of an
+empty tuple it must know to distrust.
+
 
 .. _sn-exit-balance-projection:
 

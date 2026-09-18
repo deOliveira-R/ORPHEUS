@@ -81,12 +81,9 @@ def _phi(solution: Solution) -> np.ndarray:
 
 
 def _inners(solution: Solution) -> int:
-    """The iteration count, loudly narrowed (history is Optional on the
-    Solution contract; the fixed-source paths always populate it)."""
-    history = solution.history
-    if history is None or history.n_inner is None:
-        pytest.fail("the fixed-source Solution must carry n_inner history")
-    return int(history.n_inner)
+    """The within-group iteration count of a fixed-source solve — its record
+    is the leaf, so ``n_iterations`` IS the inner count (step 3 U6)."""
+    return solution.record.n_iterations
 
 
 class TestD3FixedPointInvarianceSI:
@@ -187,10 +184,9 @@ class TestTeeth:
         monkeypatch.setattr(DSACorrection, "apply", flipped)
         mutated = _solve(("vacuum", "vacuum"), acceleration="dsa",
                          max_inner=200)
-        history = mutated.history
-        if history is None or not history.flux_residuals:
+        if not mutated.record.trajectory:
             pytest.fail("the mutated run must carry a residual history")
-        last_res = history.flux_residuals[-1]
+        last_res = mutated.record.trajectory[-1]
         # The residual VALUE is the witness (an iteration-count bar is
         # off-by-one-prone: a diverging run reports max_inner−1). The
         # healthy accelerator reaches 1e-11 in ~33 inners.
@@ -217,10 +213,9 @@ class TestTeeth:
         monkeypatch.setattr(DSACorrection, "apply", bulk_only)
         mutated = _solve(("reflective", "vacuum"), acceleration="dsa",
                          max_inner=120)
-        history = mutated.history
-        if history is None or not history.flux_residuals:
+        if not mutated.record.trajectory:
             pytest.fail("the mutated run must carry a residual history")
-        last_res = history.flux_residuals[-1]
+        last_res = mutated.record.trajectory[-1]
         # Divergence witness on the residual VALUE (measured ~1e+35 at
         # 120 inners across every reflective regime; the healthy trace
         # arm converges in ~33).

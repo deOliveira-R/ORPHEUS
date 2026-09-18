@@ -168,9 +168,7 @@ def test_every_recorded_increment_norm_is_taken_on_the_moment_space(monkeypatch)
         scattering_order=_L, inner_tol=_INNER_TOL, max_inner=_MAX_INNER,
         inner_schedule="jacobi",
     )
-    history = solution.history
-    assert history is not None, "a windowed SI solve must carry its record"
-    record = history.record
+    record = solution.record
     assert len(calls) == len(record.increment_norms) == len(_INCREMENT_NORMS)
     assert set(calls) == {(_L + 1, 2 * _L + 1, _NG, 4, 3)}, (
         "the windowed iterate's space must be the (head ⊗ energy ⊗ spatial) moment product"
@@ -221,9 +219,7 @@ def test_the_recorded_trajectory_was_taken_under_the_PARSEVAL_head_metric() -> N
 
 def test_the_windowed_increment_norm_trajectory_reproduces(solved) -> None:
     r"""The frozen ``‖Δφ‖`` trajectory, ``rtol = 1e-9`` (module docstring)."""
-    history = solved.history
-    assert history is not None
-    record = history.record
+    record = solved.record
     assert record.converged and record.iterations_run == len(_INCREMENT_NORMS) + 1
     np.testing.assert_allclose(
         np.asarray(record.increment_norms), np.asarray(_INCREMENT_NORMS),
@@ -246,9 +242,7 @@ def test_the_windowed_contraction_ratio_trajectory_reproduces(solved) -> None:
     partner.  The head-metric fork is NOT uniform (it is per-ℓ), so ρ does
     move: `[M]` 3.85 % relative.
     """
-    history = solved.history
-    assert history is not None
-    ratios = np.asarray(history.record.contraction_ratios)
+    ratios = np.asarray(solved.record.contraction_ratios)
     assert len(ratios) == len(_INCREMENT_NORMS) - 1
     np.testing.assert_allclose(
         ratios[:3], np.asarray(_RHO_HEAD), rtol=_RTOL, atol=0.0,
@@ -265,9 +259,7 @@ def test_the_stop_rides_the_residual_not_the_increment(solved) -> None:
     a future change that promotes the increment to a criterion cannot land
     quietly — it would make the moment metric a CONVERGENCE input.
     """
-    history = solved.history
-    assert history is not None
-    record = history.record
+    record = solved.record
     assert [c.name for c in record.criteria] == ["residual"]
     assert record.increment_norms  # recorded, and not among the criteria
 

@@ -1030,3 +1030,44 @@ def test_increment_norms_construction_guards() -> None:
             increment_norms=(1.0, 2.0, 3.0),
             iterations_run=2,
         )
+
+
+# ─── 3b. The two tree readings the retired SN view used to derive ────────
+#
+# Until step 3 U6 of the consumers campaign `orpheus.sn.solution.IterationHistory`
+# derived `total_inner_iterations` and `flux_residuals` from the record with an
+# Optional-by-shape convention (``None``/``()`` on the "wrong" kind) so one name
+# could be read on either problem kind.  The kind is a type now, and the two
+# readings are the RECORD's own: `leaf_iterations` (the inner work) and
+# `trajectory` (what the binding criterion recorded).
+
+
+class TestTheTreeReadingsAreTheRecords:
+    def test_leaf_iterations_sums_the_LEAVES_not_the_outer_itself(self) -> None:
+        tree = _three_level_tree(deep_last=1e-13)
+        leaves = [r for r in tree.walk() if not r.children]
+        assert [r.label for r in leaves] == ["inner(within-group g=0)", "krylov(gmres)"]
+        assert tree.leaf_iterations == sum(r.n_iterations for r in leaves) == 4
+        # the outer's own count and the non-leaf inner's are NOT inner work
+        assert tree.n_iterations == 2 and tree.leaf_iterations != tree.n_iterations + sum(
+            r.n_iterations for r in leaves
+        )
+
+    def test_a_leaf_reports_itself_and_a_level_that_never_iterated_reports_zero(self) -> None:
+        leaf = _leaf("inner", last=1e-11, tol=1e-10, budget=10)
+        assert leaf.leaf_iterations == leaf.n_iterations == 2
+        assert IterationRecord(label="direct").leaf_iterations == 0
+
+    def test_trajectory_is_the_binding_criterions_and_EMPTY_when_nothing_bound(self) -> None:
+        leaf = _leaf("inner", last=3e-11, tol=1e-10, budget=10)
+        binding = leaf.binding_criterion
+        assert binding is not None
+        assert leaf.trajectory == binding.trajectory == (1e-1, 3e-11)
+        assert IterationRecord(label="direct").trajectory == ()
+
+    def test_an_OUTER_carries_its_own_binding_trajectory_not_its_leaves(self) -> None:
+        """The retired SN view read ``()`` on an outer so the eigen and source
+        kinds could share one name; the record answers for its own level."""
+        tree = _three_level_tree(deep_last=1e-13)
+        assert tree.trajectory == (1e-1, 1e-9)          # the outer's dk criterion
+        assert tree.children[0].trajectory == (1e-1, 1e-11)

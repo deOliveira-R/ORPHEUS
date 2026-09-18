@@ -110,12 +110,11 @@ def test_d3_absorber_default_max_inner_does_not_converge() -> None:
     raised or the certificate learns to refuse a silent best-effort exit.
     """
     sol, _quad, _mix, _q, W = _solve(max_inner=1000)
-    h = sol.history
 
-    np.testing.assert_equal(bool(h.converged), False)
-    np.testing.assert_equal(h.n_inner, 999)
+    np.testing.assert_equal(bool(sol.record.converged), False)
+    np.testing.assert_equal(sol.record.n_iterations, 999)
     # The running residual is still four orders above the requested tol.
-    last = float(list(h.flux_residuals)[-1])
+    last = float(list(sol.record.trajectory)[-1])
     if not (last > 1e-10):
         pytest.fail(
             f"running residual {last:.3e} is no longer above 1e-10 — the "
@@ -142,7 +141,7 @@ def test_d3_absorber_converges_when_given_enough_iterations() -> None:
     ``diag_d3_absorber_02_si_rate_scaling``).
     """
     sol, quad, mix, _q, W = _solve(max_inner=4000)
-    np.testing.assert_equal(bool(sol.history.converged), True)
+    np.testing.assert_equal(bool(sol.record.converged), True)
 
     psi = np.asarray(sol.angular_flux.interior.values)
     sig_t = np.asarray(mix.SigT)

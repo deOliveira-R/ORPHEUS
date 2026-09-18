@@ -15,6 +15,34 @@ every retired symbol leaves no present-tense-false mention · the build's WARNIN
 
 ## 1. Ground truth is the LIVE tree — every other surface lies eventually
 
+- **⭐⭐ A CARVE CAN CORRUPT A HISTORY CLAIM IN THE **CODE**, AND THE DOCS ARE THE HALF
+  THAT'S RIGHT.** U6's name-keyed sweep rewrote `convergence.py`'s *"its closing advice was
+  the literal string ``solution.history.fully_converged``"* → `…record.…`, hitting the one
+  place the retired name legitimately appears. `[M]` `git log -S` → `28435e11`, and
+  `git show 28435e11:orpheus/sn/solver.py` line **594** ships the `history` spelling ⟹ the
+  DOC is right and the fresh CODE lies. The reflex *"the code is newer, align the prose"* is
+  backwards for a PAST-TENSE sentence; cite the `hash:file:line` inline so nobody re-"fixes"
+  it. → L-111
+- **⭐⭐ AN "OPTIONAL-BY-SHAPE" SET IS RARELY UNIFORM — read each member's BODY, not its
+  annotation.** Brief and memo both said "the Optional-by-SHAPE trio"; `[M]` the third's
+  `| None` is UNREACHABLE (both branches return `int`, as its own docstring said). Lifted the
+  retired property out of `git` and ran it: **394** where `n_inner` reads `None`, **190**
+  where `n_outer` does. The non-uniformity IS the better paragraph (*a convention copied onto
+  a third member for symmetry, and every consumer then guards a state that cannot occur*).
+  → L-111
+- **⭐⭐ A "GENERALISATION" CLAIM NEEDS A FIXTURE THAT SEPARATES THE TWO READINGS — and the
+  project's nearest one usually does NOT.** `leaf_iterations` vs the retired direct-children
+  sum agree on every shipped SN tree (two levels: **394/394**, **256/256**, 2-D **430/430**)
+  **and** on the project's own three-level test fixture (`4 == 4`, coincidence). The witness
+  had to be hand-built — `outer(3) → inner(5) → {11, 13}`: retired **5**, new **24**. Without
+  it "X generalises Y" reads as "X renames Y". → L-111
+- **⭐ CENSUS THE **DIFF**, NOT THE PRE-STATE, once the carve is in the tree.** A memo's
+  *"7 sites: DSA ×2, SI rate ×4, d3 absorber ×5"* does not sum and names a file with 0
+  receiver-grep hits (its reads come through a TUPLE-RETURNING HELPER — invisible to a
+  receiver grep and to an assignment-alias AST resolver; its positive control FAILED, which
+  is the only reason I saw it). `git diff -U0` removed-lines is exact and needs no receiver
+  resolution. ⚠ Exclude `docs/` — **my own prose example inflated the count by 1.** → L-111
+
 - **⭐⭐ A "the artefacts were RE-BASELINED" claim is a claim about the TREE — `git status` is
   the one-command refutation, and the refutation hands you a BETTER measurement.** Brief and a
   brand-new docstring both said the 16 finalize `.npy` were re-baselined; `[M]` **0 files
@@ -1525,6 +1553,16 @@ Verify, then write, then FLAG every scope-expansion the verification forced.
 **Meta-rule: `-W` proves only "I added no NEW warning". The acceptance evidence for a correctness
 sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 
+- **⛔⛔ THE PROJECT XREF GATE IS STILL BLIND TO A DEAD `:class:`/`:attr:`/`:meth:` AT A
+  DOTTED `orpheus.*` TARGET — the 2026-08-24 "appears repaired" note is REFUTED.** `[M]`
+  2026-09-17 in-process: `judge('orpheus.sn.solution.IterationHistory', role='class')` →
+  **DECLINED** (same for `attr`/`meth`), while `judge('orpheus.numerics.does_not_exist',
+  role='mod')` → DEAD and the live `Solution` → ALIVE; `check_docstring_xrefs.py docs
+  --quiet` printed **`DEAD TARGETS: 0`** with FOUR such dead roles live in `docs/`. The old
+  note rested on two instruments that share the blindness. ⟹ acceptance for a page is STILL
+  your own import probe, carrying BOTH controls (a live target must read ALIVE, the retired
+  one DEAD) — a bare `0 dead` is unreadable without the negative control. → L-111
+
 - **⛔⛔ EVERY CORPUS GREP OWES `| grep -v _build` — four generations of stale HTML
   answer for the source, and a brief's ANCHOR can be pure `_build`.** `[M]` briefed *"add an
   `automodule` where `orpheus.sn.coupled_system` is automodule'd (grep it)"*: the raw grep
@@ -2091,6 +2129,17 @@ sweep is a grep inventory with a per-hit KEEP/FIX adjudication.**
 ---
 
 ## 4. Retirement & staleness: three greps, and the unit is the THESIS
+
+- **⭐ A CHANGELOG PAGE'S OWN PREAMBLE CAN LICENSE LEAVING A STALE SPELLING.**
+  `history.rst`: *"Every row below is a dated milestone and keeps the spelling that was
+  current on its date."* ⟹ for a DATED row the discriminator is **dead xref? present
+  tense?**, never *stale spelling?* — a uniform retirement sweep would destroy the page's
+  as-of-its-date record. `[M]` all 8 surviving `IterationHistory` mentions are plain literals
+  in past-tense/dated context; the 4 dead `:class:` xrefs are what had to go. → L-111
+- **⭐ A MERGE-HASH CONTRACT IS DISCHARGED BY `git merge-base`, and the stale cell is the row
+  you are writing BESIDE.** `[M]` `--is-ancestor bcd9c83c main` → YES (ff-merge), so the
+  neighbour's *"branch `X` (hash at the merge)"* was false and the page's own preamble
+  forbade it. Always reconcile the adjacent Where cell while adding a row. → L-111
 
 - **⭐ A MEMBER-LIST CLAIM HAS TWO SHAPES — the composite's ALGEBRA and the leaf ROSTER —
   and a validated predicate over one is BLIND to the other.** `[M]` #425's chartered regex

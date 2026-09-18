@@ -44,7 +44,7 @@ row                                       claim layer     kind           truth s
 ``…_the_l_ge_1_moments_are_live``         (precondition)  ACTIVATION     the operator's own ``is_isotropic``
 ``…_keff_is_frozen…`` / ``…_phi_is_…``    eigenvalue      RECORD         pre-carve capture, this config
 ``…_equals_an_independent_fixed_source…`` flux-shape      CROSS-ROUTE    the fixed-source entry's OWN reconstruction
-``…_balance_defect_responds_to_the_bud…`` (diagnostic)    RATE           the shipped ``_exit_balance_defect``
+``…_balance_defect_responds_to_the_bud…`` (diagnostic)    RATE           the shipped ``_balance_evidence``
 ``…_be_reflected_…``                      flux-shape      IDENTITY       same identity, production 421-group data
 ========================================  ==============  =============  ===========================
 
@@ -292,9 +292,10 @@ DECLARED BLIND — what this file CANNOT see
   `[M]` the ``N1`` arm scaled the returned trace by 72 % of its own magnitude
   and reddened 0 of 45 — which is why the trace needed a class of its own
   rather than a leg on an existing row.
-* ``history.balance_defect`` on a CONVERGED solve.  `[M]` it is ``None`` by
-  construction (``_exit_balance_defect`` returns early on
-  ``record.fully_converged``), which is exactly why the shipped diagnostic
+* ``certificate.balance`` on a CONVERGED solve.  `[M]` it is ``Certified`` by
+  construction (``_balance_evidence`` — until step 3 ``_exit_balance_defect``
+  — certifies rather than measures on ``record.fully_converged``), which is
+  exactly why the shipped diagnostic
   never caught #448.  ``TestTheShippedDiagnostic`` pins that fact and then
   measures the defect where it IS live.
 * the fixed-source entries.  Their windowed reconstruction already builds
@@ -327,6 +328,8 @@ from typing import Callable
 
 import numpy as np
 import pytest
+
+from orpheus.numerics.outcome import Certified, Measured
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture, compute_macro_xs
@@ -583,8 +586,7 @@ def _solve(arm_id: str, order: int) -> Solution:
             keff_tol=_KEFF_TOL, flux_tol=_FLUX_TOL,
             inner_tol=_INNER_TOL, max_outer=_MAX_OUTER,
         )
-    history = sol.history
-    if history is None or not history.fully_converged:
+    if not sol.record.fully_converged:
         pytest.fail(
             f"{arm_id}[L={order}] did not fully converge — a starved solve "
             f"degrades the RATE, not the limit, so no budget certifies this "
@@ -1417,15 +1419,15 @@ class TestAgainstAnIndependentRoute:
 
 
 class TestTheShippedDiagnostic:
-    """``history.balance_defect`` — the instrument that SHOULD have caught
+    """``certificate.balance`` — the instrument that SHOULD have caught
     this, and the guard that keeps it asleep."""
 
     @pytest.mark.l1
     @pytest.mark.parametrize("order", [0, _L_ANISO], ids=["L0", "L1"])
     def test_the_balance_defect_is_silent_on_a_converged_solve(self, order: int):
-        """`[M]` ``None`` on every converged solve — by construction.
+        """`[M]` ``Certified`` (until step 3: ``None``) on every converged solve — by construction.
 
-        ``_exit_balance_defect`` returns early on ``record.fully_converged``
+        ``_balance_evidence`` (until step 3 ``_exit_balance_defect``) returns early on ``record.fully_converged``
         (it is the complement of ``_certify_within_group_exit``, which
         asserts on the converged side).  But the eigenvalue entry never runs
         the certificate on its RETURNED ψ — the certificate fires inside the
@@ -1437,10 +1439,9 @@ class TestTheShippedDiagnostic:
         does not spend a cycle wondering why an existing diagnostic did not
         fire, and it is the premise the budget row below depends on.
         """
-        history = _solve("slab_vac", order).history
-        assert history is not None
-        assert history.balance_defect is None, (
-            f"balance_defect = {history.balance_defect} on a fully-converged "
+        certificate = _solve("slab_vac", order).certificate
+        assert isinstance(certificate.balance, Certified), (
+            f"balance = {certificate.balance!r} on a fully-converged "
             f"solve.  The early return on record.fully_converged has moved; "
             f"the budget row below assumes the defect is only live on a "
             f"TRUNCATED exit and must be re-derived."
@@ -1453,7 +1454,7 @@ class TestTheShippedDiagnostic:
     def test_the_balance_defect_responds_to_the_outer_budget(self, order: int):
         r"""On a TRUNCATED exit the reported defect must FALL with the budget.
 
-        ``_exit_balance_defect`` evaluates the shipped loss arm
+        ``_balance_evidence`` (until step 3 ``_exit_balance_defect``) evaluates the shipped loss arm
         :math:`L+C-S-B` on the RETURNED :math:`\psi` against a fission-only
         rhs — an instrument that shares nothing with the finalize's source
         assembly.  Its docstring forbids THRESHOLDING it ("a diagnostic,
@@ -1470,7 +1471,8 @@ class TestTheShippedDiagnostic:
           set by #448 and is reading the reconstruction instead.
 
         ⚠ OPEN RULING (see ``scratch/_448_verification_plan.md`` §R3): if the
-        user reads ``_exit_balance_defect``'s prohibition as absolute — no
+        user reads the balance evidence's prohibition (``_exit_balance_defect``'s,
+        until step 3) as absolute — no
         assertion of any kind on this quantity — this row retires and the
         finding survives as prose in the error-catalogue entry.
         """
@@ -1486,21 +1488,19 @@ class TestTheShippedDiagnostic:
                         keff_tol=1e-12, flux_tol=1e-12,
                         inner_tol=_INNER_TOL, max_outer=budget,
                     )
-            history = sol.history
-            assert history is not None
-            if history.fully_converged:
+            if sol.record.fully_converged:
                 pytest.fail(
                     f"max_outer={budget} converged — the truncation this row "
                     f"needs did not happen, so balance_defect is None and the "
                     f"row measures nothing.  Lower the budget."
                 )
-            defect = history.balance_defect
-            if defect is None:
+            balance = sol.certificate.balance
+            if not isinstance(balance, Measured):
                 pytest.fail(
-                    f"balance_defect is None on a truncated exit "
+                    f"balance is {balance!r} on a truncated exit "
                     f"(max_outer={budget}); the reporting arm has moved."
                 )
-            defects[budget] = float(defect)
+            defects[budget] = float(balance.value)
 
         ratio = defects[3] / defects[12] if defects[12] > 0.0 else np.inf
         assert ratio > 100.0, (
@@ -1617,8 +1617,7 @@ class TestOnProductionData:
                 keff_tol=_BE_KEFF_TOL, flux_tol=_BE_FLUX_TOL,
                 inner_tol=_BE_INNER_TOL, max_outer=3000,
             )
-        history = sol.history
-        if history is None or not history.fully_converged:
+        if not sol.record.fully_converged:
             pytest.fail(
                 f"the Be arm did not fully converge (scattering_order={order})"
             )

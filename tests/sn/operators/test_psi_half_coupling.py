@@ -3897,7 +3897,7 @@ class TestWithinGroupSystemAnchors:
             external_source=q, inner_solver=inner_solver,
             max_inner=400, inner_tol=1e-13,
         )
-        if not sol.history.converged:
+        if not sol.record.converged:
             pytest.fail(f"[{inner_solver}] fixed-source did not converge "
                         f"on the pure-absorber sphere")
 

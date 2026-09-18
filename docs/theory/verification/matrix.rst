@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **12154**
+Total tests collected: **12148**
 
 V&V level distribution
 ----------------------
@@ -22,8 +22,8 @@ V&V level distribution
    L1, 1763, 14.5%
    L2, 71, 0.6%
    L3, 0, 0.0%
-   foundation, 8989, 74.0%
-   unmarked, 26, 0.2%
+   foundation, 8979, 73.9%
+   unmarked, 30, 0.2%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 12049
+   explicit, 12039
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 26
+   unmarked, 30
 
 Module × level grid
 -------------------
@@ -386,7 +386,7 @@ Module × level grid
    numerics/test_inverse_metric_operator, 0, 0, 0, 0, 9, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 28, 0
-   numerics/test_iteration_record, 0, 0, 0, 0, 136, 0
+   numerics/test_iteration_record, 0, 0, 0, 0, 136, 4
    numerics/test_legendre_basis, 0, 0, 0, 0, 34, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
    numerics/test_manifold, 0, 0, 0, 0, 246, 0
@@ -398,7 +398,7 @@ Module × level grid
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 26, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
-   numerics/test_outcome, 0, 0, 0, 0, 15, 0
+   numerics/test_outcome, 0, 0, 0, 0, 18, 0
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
    numerics/test_pencil, 0, 0, 0, 0, 26, 0
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
@@ -505,7 +505,7 @@ Module × level grid
    primitives/test_quadrature_fold, 0, 0, 0, 0, 14, 0
    primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
-   primitives/test_solution, 0, 0, 0, 0, 45, 0
+   primitives/test_solution, 0, 0, 0, 0, 32, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 36, 0
    regression/test_dd_regression, 0, 0, 0, 0, 14, 0
    regression/test_walk_matvec_baselines, 0, 0, 0, 0, 5, 0
@@ -1595,7 +1595,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**26 tests** have no V&V level marker.
+**30 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1610,6 +1610,7 @@ taxonomy.
    ``tests/numerics/test_riesz_legs.py``, 11
    ``tests/numerics/test_frame.py``, 5
    ``tests/sn/operators/test_sn_boundary_realizer.py``, 5
+   ``tests/numerics/test_iteration_record.py``, 4
    ``tests/numerics/test_symmetry.py``, 2
    ``tests/sn/sweep/core/test_cache.py``, 2
    ``tests/sn/angular/test_redistribution.py``, 1

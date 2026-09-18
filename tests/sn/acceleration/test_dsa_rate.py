@@ -161,17 +161,13 @@ def _no_cache_across_mutation(request):
 
 
 def _residuals(solution: Solution) -> tuple[float, ...]:
-    history = solution.history
-    if history is None or not history.flux_residuals:
-        pytest.fail("the fixed-source Solution must carry flux_residuals")
-    return tuple(history.flux_residuals)
+    if not solution.record.trajectory:
+        pytest.fail("the fixed-source Solution must carry its residual trajectory")
+    return tuple(solution.record.trajectory)
 
 
 def _inners(solution: Solution) -> int:
-    history = solution.history
-    if history is None or history.n_inner is None:
-        pytest.fail("the fixed-source Solution must carry n_inner history")
-    return int(history.n_inner)
+    return solution.record.n_iterations
 
 
 def _phi(solution: Solution) -> np.ndarray:

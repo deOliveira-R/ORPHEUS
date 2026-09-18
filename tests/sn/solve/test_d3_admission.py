@@ -182,7 +182,7 @@ def test_d3_pure_absorber_per_ordinate_psi_exact() -> None:
     )
     # Read the flag BEFORE any value: an unconverged solve returns a
     # best-effort iterate that is indistinguishable from a certified one.
-    np.testing.assert_equal(bool(sol.history.converged), True)
+    np.testing.assert_equal(bool(sol.record.converged), True)
     psi = np.asarray(sol.angular_flux.interior.values)   # (N, ng, 3, 4, 5)
     sig_t = np.asarray(mix.SigT)
     for g in range(2):
@@ -225,7 +225,7 @@ def test_d3_scattering_infinite_medium_matches_multigroup_balance() -> None:
         # what makes a truncation loud instead of silent.
         max_inner=4000,
     )
-    np.testing.assert_equal(bool(sol.history.converged), True)
+    np.testing.assert_equal(bool(sol.record.converged), True)
     phi = np.asarray(sol.scalar_flux.values)
     sig_s0 = np.asarray(mix.SigS[0].todense())
     A = np.diag(np.asarray(mix.SigT)) - sig_s0.T

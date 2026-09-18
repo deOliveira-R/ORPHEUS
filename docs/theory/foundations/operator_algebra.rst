@@ -7323,12 +7323,21 @@ documented meanings and ``gauge_correction`` three.  A ``None`` with five
 meanings is stringly-typed dispatch wearing an absence — the consumer has
 to re-derive which one applies, from context the type does not carry.
 
-⚠ That flat type survives one more cycle as a **view** over the
-Solution's record, outcome and certificate (retired at step 3's unit U6),
-so its two magnitudes still come back as ``float | None`` there — which
-is exactly the leak the sum retires, confined to the one property that
-exists to let ~95 established readers migrate by concept.  New code reads
-the certificate.
+⚠ That flat type survived ONE cycle as a **view** over the Solution's
+record, outcome and certificate — its two magnitudes still coming back as
+``float | None`` there, which is exactly the leak the sum retires,
+confined to the one property that existed to let the established readers
+migrate by concept rather than on a flag day.  It was **retired at step 3's
+unit U6 on 2026-09-17**, the leak with it: ``[M]`` **19**
+``gauge_correction`` and **10** ``balance_defect`` reads across five files
+were re-keyed onto ``certificate.gauge`` / ``certificate.balance`` — or
+retired with the view's own test rows — and now match on the
+:class:`~orpheus.numerics.outcome.Evidence` member instead of on ``is
+None``.  The largest block is the SN entry-ledger gate
+(``tests/sn/solve/test_every_entry_gauges_its_trace.py``: five gate
+functions, 11 reads), and each of them now says *which* of the
+``Measured``-versus-absent states it is asserting.  The certificate is the
+only surface.
 
 :class:`~orpheus.numerics.outcome.ExitCertificate` replaces it with a
 closed sum, one member per reason:

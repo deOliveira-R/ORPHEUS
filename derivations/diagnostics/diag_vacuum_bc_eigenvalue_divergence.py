@@ -67,9 +67,9 @@ def probe_si_vacuum():
           f"{float(np.max(np.abs(result.angular_flux.values))):.3e}")
     print(f"[P_SI] terminal phi max      = "
           f"{float(np.max(np.abs(result.scalar_flux.values))):.3e}")
-    print(f"[P_SI] n_outer               = {result.history.n_outer}")
+    print(f"[P_SI] n_outer               = {result.record.n_iterations}")
     print(f"[P_SI] keff_history last 5   = "
-          f"{[f'{k:.6e}' for k in result.history.keff_history[-5:]]}")
+          f"{[f'{k:.6e}' for k in result.outcome.trajectory[-5:]]}")
 
 
 def probe_krylov_vacuum():
@@ -85,9 +85,9 @@ def probe_krylov_vacuum():
           f"{float(np.max(np.abs(result.angular_flux.values))):.3e}")
     print(f"[P_Kr] terminal phi max      = "
           f"{float(np.max(np.abs(result.scalar_flux.values))):.3e}")
-    print(f"[P_Kr] n_outer               = {result.history.n_outer}")
+    print(f"[P_Kr] n_outer               = {result.record.n_iterations}")
     print(f"[P_Kr] keff_history last 5   = "
-          f"{[f'{k:.6e}' for k in result.history.keff_history[-5:]]}")
+          f"{[f'{k:.6e}' for k in result.outcome.trajectory[-5:]]}")
 
 
 def probe_reflective_ref():
@@ -101,7 +101,7 @@ def probe_reflective_ref():
     print(f"[P_Re] reflective keff       = {result.outcome.keff:.10f}  (expected = 1.875)")
     print(f"[P_Re] terminal psi max      = "
           f"{float(np.max(np.abs(result.angular_flux.values))):.3e}")
-    print(f"[P_Re] n_outer               = {result.history.n_outer}")
+    print(f"[P_Re] n_outer               = {result.record.n_iterations}")
 
 
 if __name__ == "__main__":
