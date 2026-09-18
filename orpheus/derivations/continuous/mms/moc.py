@@ -438,7 +438,6 @@ def _build_moc_mms_continuous_reference() -> ContinuousReferenceSolution:
                 "mms_case": mms_case,
             },
             boundary_conditions={"all": "reflective"},
-            external_source=None,
             is_eigenvalue=False,
             n_groups=1,
         ),

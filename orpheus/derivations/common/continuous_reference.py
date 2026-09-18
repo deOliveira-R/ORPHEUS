@@ -152,10 +152,6 @@ class ProblemSpec:
     boundary_conditions : dict[str, BoundaryCondition]
         Face-labelled BCs. For 1D slab, keys are ``"left"``, ``"right"``.
         For 1D radial, key is ``"outer"`` (inner is always ``r=0`` symmetry).
-    external_source : callable or None
-        Fixed external source ``Q(x, g) -> array``. None for
-        eigenvalue problems (k-eigenvalue fission source is computed
-        by the solver itself, not the reference).
     is_eigenvalue : bool
         True if the problem is k-eigenvalue, False for fixed-source.
     n_groups : int
@@ -166,7 +162,6 @@ class ProblemSpec:
     geometry_type: GeometryType
     geometry_params: dict[str, Any]
     boundary_conditions: dict[str, BoundaryCondition]
-    external_source: Callable[..., np.ndarray] | None = None
     is_eigenvalue: bool = True
     n_groups: int = 1
 

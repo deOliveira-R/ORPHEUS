@@ -6497,11 +6497,15 @@ verbs change meaning or arity per cell.  ``at(σ)`` is a lie when there is
 no ``rhs``; ``residual`` is unary for a source and binary for an
 eigenproblem; the solution-set TYPE is a coset in one cell and a ray in
 another; and ``.H`` is nullary in one and unary in the other.  That is
-stringly-typed dispatch wearing ``None`` — and the tree carries a
+stringly-typed dispatch wearing ``None`` — and the tree carried a
 **measured instance of exactly this defect** to learn from
 (``ProblemSpec(external_source: … | None, is_eigenvalue: bool)`` in
 :mod:`orpheus.derivations.common.continuous_reference`, inconsistently
-spellable at 22 sites across 9 files).  Its two degenerate cells also
+spellable at 22 sites across 9 files — until step 3 U7 of the consumers
+campaign, 2026-09-17, deleted the ``external_source`` half, which ``[M]``
+0 of its 19 writers had ever populated; ``is_eigenvalue: bool`` remains
+as the kind-by-value half, its retype to a two-record kind being #418's).
+Its two degenerate cells also
 re-mint types that already exist: with ``rhs=None`` it is a
 :class:`~orpheus.numerics.operator.LinearOperator`, and with
 ``source=None`` it is the pencil.

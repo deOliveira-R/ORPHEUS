@@ -121,7 +121,6 @@ def _build_continuous_homogeneous(
             geometry_type="homogeneous",
             geometry_params={},
             boundary_conditions={},  # infinite medium — no boundary
-            external_source=None,
             is_eigenvalue=True,
             n_groups=ng,
         ),
