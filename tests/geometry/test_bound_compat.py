@@ -14,7 +14,7 @@ it was realized from, and adds three surfaces:
   primitives.
 * :attr:`law`, and :attr:`kind` + ``__eq__`` against strings —
   :attr:`kind` preserves the legacy
-  ``sn_mesh.bc["xmin"] == "reflective"`` comparison surface, now as a
+  ``problem.bc["xmin"] == "reflective"`` comparison surface, now as a
   read-through of ``law``'s registry key.
 
 **Fixture discipline (B2.0).** Every ``(inner, law)`` pair below is one
@@ -136,7 +136,7 @@ def test_composes_with_operator_algebra():
 def test_kind_tag_supports_legacy_string_equality():
     """:attr:`kind` reads the LAW's registry key and ``__eq__`` compares
     it against strings — preserving the legacy SN-side
-    ``sn_mesh.bc["xmin"] == "reflective"`` comparison that
+    ``problem.bc["xmin"] == "reflective"`` comparison that
     test_boundary_conditions.py + the BC-resolution diagnostic rely on.
 
     B2.0 turned ``kind`` from a constructor string into a property of
@@ -192,7 +192,7 @@ def test_kind_reads_the_registry_key_not_the_law_s_kind():
 def test_shim_carries_the_law_it_was_realized_from():
     """B2.0's whole content: the descriptor survives realization.
 
-    Before B2.0 ``sn_mesh.bc[face]`` was a realized operator plus a
+    Before B2.0 ``problem.bc[face]`` was a realized operator plus a
     string, so a consumer could ask what the face was *declared* as but
     not what its law *does*. The five production string-dispatch sites
     are that gap. The law's two affine factors are reachable here.

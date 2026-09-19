@@ -82,7 +82,7 @@ def _mutated_reflect_trace(mut: str):
     def _reflect_trace(self, boundary, method, faces=None, rows=None):
         from orpheus.transport.source_sinks import AngularBoundarySourceSink
 
-        mesh = self.sn_mesh
+        mesh = self.problem
         trace = mesh.angular_trace
         out_boundary = AngularBoundarySourceSink.zeros(mesh.angular_trace)
         face_laws = self._face_laws

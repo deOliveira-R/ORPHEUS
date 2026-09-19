@@ -51,9 +51,9 @@ class TestAlphaCoefficients:
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(N)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        reduced = sn_mesh.reduced
+        reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         np.testing.assert_allclose(reduced.angular.alpha_per_level[0][0], 0.0)
         np.testing.assert_allclose(reduced.angular.alpha_per_level[0][-1], 0.0, atol=1e-14)
@@ -68,9 +68,9 @@ class TestAlphaCoefficients:
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        reduced = sn_mesh.reduced
+        reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         alpha = reduced.angular.alpha_per_level[0]
         for n in range(quad.N):
@@ -85,9 +85,9 @@ class TestAlphaCoefficients:
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        reduced = sn_mesh.reduced
+        reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         alpha = reduced.angular.alpha_per_level[0]
         N = quad.N
@@ -115,22 +115,22 @@ class TestSphericalSweepRegression:
 
         mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        sig_t = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
-        Q_iso = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
-        source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
+        sig_t = np.ones((1, *problem.spatial_shape))  # (ng, *spatial)
+        Q_iso = np.ones((1, *problem.spatial_shape))  # (ng, *spatial)
+        source = AngularSourceSink.from_isotropic(Q_iso, problem)
 
-        boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+        boundary_flux = AngularBoundaryFlux.zeros(problem.angular_trace)
         phi = None
         for _ in range(200):
             # Wave O (#208) O.4a.2 — bare sweep: drive the −B reflective
             # coupling explicitly before each sweep (the sweep no longer
             # re-applies the BC at entry).  Mirrors _solve_fixed_source_si.
-            reflect_outflow_into_inflow(boundary_flux, sn_mesh)
-            _, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
+            reflect_outflow_into_inflow(boundary_flux, problem)
+            _, phi = sweep_once(source, sig_t, problem, boundary_flux)
 
-        V = sn_mesh.volumes
+        V = problem.volumes
         phi_avg = np.sum(phi[0, :] * V) / V.sum()
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.10,
                                    err_msg="Volume-avg φ ≠ Q/Σ_t for uniform source")
@@ -146,14 +146,14 @@ class TestSphericalSweepRegression:
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        sig_t = np.full((1, *sn_mesh.spatial_shape), 0.5)  # (ng, *spatial)
-        Q_iso = np.ones((1, *sn_mesh.spatial_shape))       # (ng, *spatial)
-        source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
+        sig_t = np.full((1, *problem.spatial_shape), 0.5)  # (ng, *spatial)
+        Q_iso = np.ones((1, *problem.spatial_shape))       # (ng, *spatial)
+        source = AngularSourceSink.from_isotropic(Q_iso, problem)
 
-        boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
-        ang, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
+        boundary_flux = AngularBoundaryFlux.zeros(problem.angular_trace)
+        ang, phi = sweep_once(source, sig_t, problem, boundary_flux)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux in first sweep"
         assert np.all(np.isfinite(phi)), "Non-finite scalar flux in first sweep"
@@ -163,8 +163,8 @@ class TestSphericalSweepRegression:
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNProblem(mesh, quad, {0: mix})
-        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
+        problem = SNProblem(mesh, quad, {0: mix})
+        solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         fission = solver.compute_fission_source(phi, 1.0)

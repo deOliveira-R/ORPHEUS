@@ -247,7 +247,7 @@ class SNBoundaryOperator(LinearOperator):
     The role is :attr:`BlockRole.BOUNDARY`; the domain and codomain are the
     mesh's composite carrier
     :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
-    (``sn_mesh.full_field_space``) — the SAME space ``L``/``C``/``S``/``F``
+    (``problem.full_field_space``) — the SAME space ``L``/``C``/``S``/``F``
     report, so the :class:`~orpheus.numerics.operator.OperatorSum` composition
     guard accepts ``(L + C - S - F - B)`` (Wave O / O.2b R5). ``B`` acts on the
     composite as the ``A_ss`` block (zero bulk; non-zero only on the trace
@@ -324,7 +324,7 @@ class SNBoundaryOperator(LinearOperator):
 
     Parameters
     ----------
-    sn_mesh : SNProblem
+    problem : SNProblem
         The augmented geometry — carries the per-face boundary laws
         (the face-name-keyed ``bc`` dict) and the unified trace space (same instance the
         composite carrier is bound to; the mesh-identity invariant of
@@ -333,14 +333,14 @@ class SNBoundaryOperator(LinearOperator):
 
     block_role = BlockRole.BOUNDARY
 
-    def __init__(self, sn_mesh: "SNProblem") -> None:
-        self.sn_mesh = sn_mesh
+    def __init__(self, problem: "SNProblem") -> None:
+        self.problem = problem
 
     @property
     def _face_laws(self) -> dict[str, LinearOperator]:
         """Map each true boundary face → its per-face realized law.
 
-        Read from ``sn_mesh.bc`` for the faces the trace carries
+        Read from ``problem.bc`` for the faces the trace carries
         (slab ``xmin``/``xmax``; curvilinear ``xmax`` only; 2-D Cartesian
         all four) — the dict and the trace layout share their keys by
         construction (both derived from ``face_labels``, C4 / #220).
@@ -348,8 +348,8 @@ class SNBoundaryOperator(LinearOperator):
         the sweep consumes, so ``B`` cannot drift from the realized BCs.
         """
         return {
-            face: self.sn_mesh.bc[face]
-            for face in self.sn_mesh.angular_trace.layout.faces
+            face: self.problem.bc[face]
+            for face in self.problem.angular_trace.layout.faces
         }
 
     @property
@@ -395,9 +395,9 @@ class SNBoundaryOperator(LinearOperator):
           curvilinear mesh carries ``xmax`` alone, so a wrap installed there
           names a partner the trace has no slot for.
         """
-        faces = self.sn_mesh.angular_trace.layout.faces
+        faces = self.problem.angular_trace.layout.faces
         domains = {
-            face: self.sn_mesh.bc[face].law.geometry_map.domain_face(face)
+            face: self.problem.bc[face].law.geometry_map.domain_face(face)
             for face in faces
         }
         if sorted(domains.values()) != sorted(faces):
@@ -448,11 +448,11 @@ class SNBoundaryOperator(LinearOperator):
         # ``L``/``C``/``S``/``F`` siblings for the OperatorSum composition
         # guard, and carrying the block-diagonal G-adjoint metric ``B.H``
         # reads. Wave O / O.2b R5.
-        return self.sn_mesh.full_field_space
+        return self.problem.full_field_space
 
     @property
     def codomain(self) -> "FunctionSpace":
-        return self.sn_mesh.full_field_space
+        return self.problem.full_field_space
 
     def _reflect_trace(
         self, boundary: "AngularBoundaryFlux", method: str,
@@ -571,9 +571,9 @@ class SNBoundaryOperator(LinearOperator):
 
         # Single mesh source (mesh-identity invariant — see class docstring):
         # the output buffers, the trace selectors, and ``_face_laws`` ALL read
-        # ``self.sn_mesh``, so a mismatched input trace cannot desync the
+        # ``self.problem``, so a mismatched input trace cannot desync the
         # projection from the buffer geometry.
-        mesh = self.sn_mesh
+        mesh = self.problem
         trace = mesh.angular_trace
         out_boundary = AngularBoundarySourceSink.zeros(mesh.angular_trace)
         # ``faces=None`` reflects every boundary face (the whole-trace ``B``);
@@ -715,7 +715,7 @@ class SNBoundaryOperator(LinearOperator):
         from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
         from orpheus.transport.full_field import FullField
 
-        mesh = self.sn_mesh
+        mesh = self.problem
         # The shared System-A matvec input parse (CS4c step 6 item 6.3 — the
         # R6 row of the monomorphic-leaves ledger: ONE body, the five
         # consumers L/LC × apply/transpose + this): a foreign carrier is a
@@ -770,8 +770,8 @@ class SNBoundaryOperator(LinearOperator):
         ``B_upper = B``) — the degenerate that recovers the plain lagged-``B``
         iteration.
         """
-        lower_rows = schedule.lower_inflow_rows(self.sn_mesh)
-        trace = self.sn_mesh.angular_trace
+        lower_rows = schedule.lower_inflow_rows(self.problem)
+        trace = self.problem.angular_trace
         upper_rows = {
             face: np.setdiff1d(
                 trace.inflow_indices_for_face(face),
@@ -822,7 +822,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     2×2 coupled block operator — the ψ½ ray). A first-class sibling of
     :class:`SNBoundaryOperator` (``B_a``, System A's trace boundary), typed —
     since the B.2b re-type — on **System B's own carrier**: domain = codomain =
-    ``sn_mesh.radial_characteristic_field_space``, acting
+    ``problem.radial_characteristic_field_space``, acting
     ``RadialCharacteristicField → RadialCharacteristicField`` (reads
     the boundary member's FLUX corners, emits boundary-member SOURCE corners;
     the interior member is a zero source — "B_b touches the trace/bulk" is now
@@ -864,9 +864,9 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
 
     Parameters
     ----------
-    sn_mesh : SNProblem
+    problem : SNProblem
         The augmented geometry (seed-carrying — 1-D curvilinear). Carries the
-        outer-face law ``sn_mesh.bc["xmax"]`` and the ray space
+        outer-face law ``problem.bc["xmax"]`` and the ray space
         (the split ψ½ spaces; the mesh-identity invariant of
         :class:`SNBoundaryOperator` applies here too).
     """
@@ -1108,8 +1108,8 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
         self.schedule = schedule
 
     @property
-    def sn_mesh(self) -> "SNProblem":
-        return self.inner.sn_mesh
+    def problem(self) -> "SNProblem":
+        return self.inner.problem
 
     @property
     def domain(self) -> "FunctionSpace":

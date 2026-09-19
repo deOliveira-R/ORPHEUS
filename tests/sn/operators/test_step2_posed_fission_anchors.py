@@ -348,7 +348,7 @@ class TestLawTheHubsFissionIsWhatBothFacesRead:
     def test_the_forward_reads_the_hubs_energy_face(self) -> None:
         hub = _slab_hub()
         solver = SNSolver(hub)
-        assert solver.sn_mesh.fission is hub.fission
+        assert solver.problem.fission is hub.fission
         assert hub.fission.isotropic_energy is hub.fission.isotropic_energy
         phi = np.random.default_rng(3).random(hub.bulk_space.shape)
         np.testing.assert_array_equal(

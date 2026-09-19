@@ -269,11 +269,11 @@ class TestN2NActivationInProductionRate:
         )
         solver = SNSolver(SNProblem(mesh, Quadrature.lebedev(order=17), {0: mat}))
         ng = solver.ng
-        nx, ny = solver.sn_mesh.spatial_shape
+        nx, ny = solver.problem.spatial_shape
         flux = np.random.default_rng(3).uniform(0.1, 1.0, size=(ng, nx, ny))
 
         fission_only = IntegratedReactionRate(
-            solver.sn_mesh.mat_xs.fission_production_field
+            solver.problem.mat_xs.fission_production_field
         ).evaluate(flux)
         total = solver.compute_production_rate(flux)
         require(

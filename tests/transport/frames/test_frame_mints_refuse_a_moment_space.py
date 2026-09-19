@@ -32,15 +32,15 @@ _GEOMETRIES = {"slab": _slab, "sphere": _sphere, "cylinder": _cylinder, "cart2d"
 
 @pytest.mark.parametrize("geometry", list(_GEOMETRIES), ids=list(_GEOMETRIES))
 def test_P6_both_doors_refuse_a_moment_space_naming_the_missing_quadrature(geometry: str) -> None:
-    sn_mesh = _GEOMETRIES[geometry]()
+    problem = _GEOMETRIES[geometry]()
     L = 1
-    moment = sn_mesh.moment_space(L)
+    moment = problem.moment_space(L)
     assert moment.axes is not None, "the moment space IS axis-built — the old axes-less refusal cannot catch it"
-    frame = HarmonicFrame.for_space(sn_mesh.angular_bulk_space, L)
+    frame = HarmonicFrame.for_space(problem.angular_bulk_space, L)
     with pytest.raises(ValueError, match="HarmonicFrame.moment_space_on needs the generating Quadrature"):
         frame.moment_space_on(moment)
     with pytest.raises(ValueError, match="HarmonicFrame.for_space needs the generating Quadrature"):
         HarmonicFrame.for_space(moment, L)
     # the positive leg: the angular space passes both doors
-    assert frame.moment_space_on(sn_mesh.angular_bulk_space) == moment
-    assert HarmonicFrame.for_space(sn_mesh.angular_bulk_space, L) is frame
+    assert frame.moment_space_on(problem.angular_bulk_space) == moment
+    assert HarmonicFrame.for_space(problem.angular_bulk_space, L) is frame

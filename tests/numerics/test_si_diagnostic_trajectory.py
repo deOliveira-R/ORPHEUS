@@ -215,11 +215,11 @@ def _build_solver() -> SNSolver:
         edges=np.linspace(0.0, _WIDTH, _NX + 1), mat_ids=mat_ids,
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
-    sn_mesh = SNProblem(
+    problem = SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=_N_ORD),
         {0: _FUEL, 1: _MODERATOR},
      scattering_order=0)
-    return SNSolver(sn_mesh, inner_solver="source_iteration")
+    return SNSolver(problem, inner_solver="source_iteration")
 
 
 def _run_si():
@@ -235,12 +235,12 @@ def _run_si():
     per-entry map and the boundary-block control read the replayed field).
     """
     solver = _build_solver()
-    sn_mesh = solver.sn_mesh
+    problem = solver.problem
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs,
+        problem, solver.problem.mat_xs,
     )
     si, _base, _gains, windowed = _within_group_si(
-        Splitting.from_schedule(system, solver.schedule), sn_mesh,
+        Splitting.from_schedule(system, solver.schedule), problem,
         max_iter=_MAX_ITER, tol=_TOL,
     )
     if windowed:
@@ -250,13 +250,13 @@ def _run_si():
         )
     q_ext = TimedFullField(
         interior=AngularSourceSink.from_isotropic(
-            np.ones((sn_mesh.ng, *sn_mesh.spatial_shape)), sn_mesh,
+            np.ones((problem.ng, *problem.spatial_shape)), problem,
         ),
-        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+        boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
         _history=(), history_depth=2,
     )
     guess = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     _, record = si.solve(q_ext, initial_guess=guess)
     return record
@@ -418,23 +418,23 @@ def _replay_final_increment():
     same source, same zero guess, and the ``tol=1e-14`` stop never fires.
     """
     solver = _build_solver()
-    sn_mesh = solver.sn_mesh
+    problem = solver.problem
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs,
+        problem, solver.problem.mat_xs,
     )
     si, _base, _gains, _windowed = _within_group_si(
-        Splitting.from_schedule(system, solver.schedule), sn_mesh,
+        Splitting.from_schedule(system, solver.schedule), problem,
         max_iter=_MAX_ITER, tol=_TOL,
     )
     q_ext = TimedFullField(
         interior=AngularSourceSink.from_isotropic(
-            np.ones((sn_mesh.ng, *sn_mesh.spatial_shape)), sn_mesh,
+            np.ones((problem.ng, *problem.spatial_shape)), problem,
         ),
-        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+        boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
         _history=(), history_depth=2,
     )
     psi = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     increment = None
     for _ in range(_MAX_ITER):

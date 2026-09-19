@@ -199,8 +199,8 @@ class TestCylinderMultiGroupMultiRegion:
         mix = get_mixture("A", "4g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        sn_mesh = SNProblem(mesh, quad, {0: mix})
-        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
+        problem = SNProblem(mesh, quad, {0: mix})
+        solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         keff = 1.0
@@ -256,8 +256,8 @@ class TestCylinderMultiGroupMultiRegion:
             coord=CoordSystem.CYLINDRICAL,
         )
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        sn_mesh = SNProblem(mesh, quad, materials)
-        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
+        problem = SNProblem(mesh, quad, materials)
+        solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         keff = 1.0
@@ -267,8 +267,8 @@ class TestCylinderMultiGroupMultiRegion:
             keff = solver.compute_keff(phi)
 
         vol = solver.volume[None, :]
-        production = np.sum(solver.sn_mesh.mat_xs.fission_production * phi * vol)
-        absorption = np.sum(solver.sn_mesh.mat_xs.absorption_cross_section * phi * vol)
+        production = np.sum(solver.problem.mat_xs.fission_production * phi * vol)
+        absorption = np.sum(solver.problem.mat_xs.absorption_cross_section * phi * vol)
         k_balance = production / absorption
 
         np.testing.assert_allclose(
@@ -445,8 +445,8 @@ class TestMultiGroupMultiRegionSpherical:
         mix = get_mixture("A", "4g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNProblem(mesh, quad, {0: mix})
-        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
+        problem = SNProblem(mesh, quad, {0: mix})
+        solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         keff = 1.0
@@ -498,8 +498,8 @@ class TestMultiGroupMultiRegionSpherical:
             coord=CoordSystem.SPHERICAL,
         )
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNProblem(mesh, quad, materials)
-        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
+        problem = SNProblem(mesh, quad, materials)
+        solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         keff = 1.0
@@ -509,8 +509,8 @@ class TestMultiGroupMultiRegionSpherical:
             keff = solver.compute_keff(phi)
 
         vol = solver.volume[None, :]
-        production = np.sum(solver.sn_mesh.mat_xs.fission_production * phi * vol)
-        absorption = np.sum(solver.sn_mesh.mat_xs.absorption_cross_section * phi * vol)
+        production = np.sum(solver.problem.mat_xs.fission_production * phi * vol)
+        absorption = np.sum(solver.problem.mat_xs.absorption_cross_section * phi * vol)
         k_balance = production / absorption
 
         np.testing.assert_allclose(
@@ -530,12 +530,12 @@ class TestMultiGroupMultiRegionSpherical:
 
         mesh = _homogeneous_mesh(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        sig_t = np.ones((1, *sn_mesh.spatial_shape))    # (ng, *spatial)
-        Q_iso = np.ones((1, *sn_mesh.spatial_shape))    # (ng, *spatial)
-        source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-        boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+        sig_t = np.ones((1, *problem.spatial_shape))    # (ng, *spatial)
+        Q_iso = np.ones((1, *problem.spatial_shape))    # (ng, *spatial)
+        source = AngularSourceSink.from_isotropic(Q_iso, problem)
+        boundary_flux = AngularBoundaryFlux.zeros(problem.angular_trace)
         phi = None
         for _ in range(50):
             # Wave O (#208) O.4a.2 — the bare ``transport_sweep`` no longer
@@ -543,8 +543,8 @@ class TestMultiGroupMultiRegionSpherical:
             # explicitly (reflect the persisted outflow into the inflow slots)
             # before each sweep — the sweep-tier gates' inter-sweep −B (the
             # drivers deliver it as the ``B`` gain; #448).
-            reflect_outflow_into_inflow(boundary_flux, sn_mesh)
-            _, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
+            reflect_outflow_into_inflow(boundary_flux, problem)
+            _, phi = sweep_once(source, sig_t, problem, boundary_flux)
 
         phi_avg = np.average(phi[0, :], weights=mesh.volumes)
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.01,

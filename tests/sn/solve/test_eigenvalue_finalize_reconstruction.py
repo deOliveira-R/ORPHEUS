@@ -666,16 +666,16 @@ class TestTheLGe1TermIsLive:
         reconstruction drops a term" and "the reconstruction drops a term
         that happens to be zero here".
         """
-        sn_mesh = _solve(arm_id, _L_ANISO).mesh
-        solver = SNSolver(sn_mesh)  # the hub retained _L_ANISO at the solve
-        assert not solver.sn_mesh.system.factors.scattering.is_isotropic, (
+        problem = _solve(arm_id, _L_ANISO).mesh
+        solver = SNSolver(problem)  # the hub retained _L_ANISO at the solve
+        assert not solver.problem.system.factors.scattering.is_isotropic, (
             f"{arm_id}: the scattering binding reads ISOTROPIC at "
             f"scattering_order={_L_ANISO}, so no ℓ ≥ 1 emission exists to "
             f"drop and every subject row on this arm is designed-green."
         )
         # and the control's own precondition: at L = 0 it MUST read isotropic
-        control = SNSolver(sn_mesh.with_scattering_order(0))  # a P0 Problem over the same data
-        assert control.sn_mesh.system.factors.scattering.is_isotropic, (
+        control = SNSolver(problem.with_scattering_order(0))  # a P0 Problem over the same data
+        assert control.problem.system.factors.scattering.is_isotropic, (
             f"{arm_id}: the L = 0 control is NOT isotropic — the control and "
             f"the subject differ by something other than the ℓ ≥ 1 term."
         )
@@ -689,9 +689,9 @@ class TestTheLGe1TermIsLive:
         row is what makes ``slab_vac_n2n`` worth its 1.1 s, and its failure
         means the manufactured stack stopped reaching the binding.
         """
-        sn_mesh = _solve("slab_vac_n2n", _L_ANISO).mesh
-        solver = SNSolver(sn_mesh)
-        assert not solver.sn_mesh.system.factors.n2n.is_isotropic, (
+        problem = _solve("slab_vac_n2n", _L_ANISO).mesh
+        solver = SNSolver(problem)
+        assert not solver.problem.system.factors.n2n.is_isotropic, (
             "the manufactured two-moment Sig2 stack reads ISOTROPIC at the "
             "binding — the ℓ ≥ 1 (n,2n) leg is not activated and this arm "
             "has become a duplicate of slab_vac."
@@ -700,7 +700,7 @@ class TestTheLGe1TermIsLive:
         # which is the measurement that justifies this arm's existence.
         lib_mesh = _solve("slab_vac", _L_ANISO).mesh
         lib_solver = SNSolver(lib_mesh)
-        assert lib_solver.sn_mesh.system.factors.n2n.is_isotropic, (
+        assert lib_solver.problem.system.factors.n2n.is_isotropic, (
             "an xs_library arm now carries an anisotropic (n,2n) binding — "
             "the library gained Sig2 data, so this file's claim that only "
             "slab_vac_n2n witnesses the (n,2n) leg is stale."
@@ -1366,13 +1366,13 @@ class TestAgainstAnIndependentRoute:
         mis-posed oracle.
         """
         eig = _solve("slab_vac", order)
-        keff, sn_mesh = eig.outcome.keff, eig.mesh
+        keff, problem = eig.outcome.keff, eig.mesh
         assert keff is not None
         phi_conv = np.asarray(eig.scalar_flux.values, dtype=np.float64)
 
         # The converged fission source, as the per-ordinate q_ext the
         # fixed-source entry takes (producer-side /W, R-1 Step 4 A1).
-        probe = SNSolver(sn_mesh)  # the hub retained `order` at the solve
+        probe = SNSolver(problem)  # the hub retained `order` at the solve
         fission = probe.compute_fission_source(phi_conv, keff)
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         q_ext = np.broadcast_to(

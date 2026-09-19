@@ -91,7 +91,7 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNProblem:
 
 
 def _random_state(
-    sn_mesh: SNProblem, ng: int = 2, seed: int = 42,
+    problem: SNProblem, ng: int = 2, seed: int = 42,
 ) -> TimedFullField:
     """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, *spatial)``.
 
@@ -102,29 +102,29 @@ def _random_state(
     Issue #208).
     """
     rng = np.random.default_rng(seed)
-    N = sn_mesh.quad.N
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+    N = problem.quad.N
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     return replace(
         state,
         interior=replace(
-            state.interior, values=rng.standard_normal((N, ng, *sn_mesh.spatial_shape)),
+            state.interior, values=rng.standard_normal((N, ng, *problem.spatial_shape)),
         ),
     )
 
 
-def _sigma_total(sn_mesh: SNProblem, ng: int = 2) -> np.ndarray:
+def _sigma_total(problem: SNProblem, ng: int = 2) -> np.ndarray:
     """Random per-cell per-group cross-section, bounded away from 0.
 
     PR-INDEX-3: ``(ng, *spatial)`` principled layout.
     """
     rng = np.random.default_rng(seed=20260514)
-    return 0.3 + 0.5 * rng.random((ng, *sn_mesh.spatial_shape))
+    return 0.3 + 0.5 * rng.random((ng, *problem.spatial_shape))
 
 
-def _sigma_removal(sn_mesh: SNProblem, ng: int = 2) -> np.ndarray:
+def _sigma_removal(problem: SNProblem, ng: int = 2) -> np.ndarray:
     """Synthetic σ_r — same shape, smaller magnitude. Handled identically."""
     rng = np.random.default_rng(seed=20260515)
-    return 0.1 + 0.3 * rng.random((ng, *sn_mesh.spatial_shape))
+    return 0.1 + 0.3 * rng.random((ng, *problem.spatial_shape))
 
 
 GEOMETRIES = [
@@ -144,16 +144,16 @@ class TestPredicates:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_invertible_and_adjointable(self, name, builder):
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
         assert C.is_invertible and C.is_adjointable
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_satisfies_linear_operator_protocol(self, name, builder):
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
         assert isinstance(C, LinearOperator)
 
 
@@ -167,10 +167,10 @@ class TestApply:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_preserves_shape(self, name, builder):
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        psi = _random_state(sn_mesh)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        psi = _random_state(problem)
         out = C.apply(psi)
         assert isinstance(out, FullField)  # #257 S8a: timeless codomain (base arrow)
         assert isinstance(out.interior, AngularSourceSink)
@@ -178,21 +178,21 @@ class TestApply:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_zero_returns_zero(self, name, builder):
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        zero = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        zero = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         out = C.apply(zero)
         np.testing.assert_array_equal(out.interior.values, 0.0)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_constant_sigma_uniform(self, name, builder):
         """With σ constant scalar c, apply(ψ) == c · ψ slot-by-slot."""
-        sn_mesh = builder()
+        problem = builder()
         c = 0.4
-        sigma = c * np.ones((2, *sn_mesh.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        psi = _random_state(sn_mesh, seed=99)
+        sigma = c * np.ones((2, *problem.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        psi = _random_state(problem, seed=99)
         out = C.apply(psi)
         np.testing.assert_allclose(
             out.interior.values, c * psi.interior.values, rtol=1e-14, atol=1e-15,
@@ -200,11 +200,11 @@ class TestApply:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_is_linear(self, name, builder):
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        psi1 = _random_state(sn_mesh, seed=51)
-        psi2 = _random_state(sn_mesh, seed=52)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        psi1 = _random_state(problem, seed=51)
+        psi2 = _random_state(problem, seed=52)
         # Linearity, stated directly (campaign 1 CS3 — flux lives in V, so
         # ψ₁ + ψ₂ is legal): homogeneity op(c·ψ) = c·op(ψ) AND additivity
         # op(ψ₁+ψ₂) = op(ψ₁)+op(ψ₂). Additivity alone reds an affine op
@@ -235,11 +235,11 @@ class TestSolve:
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_solve_constant_sigma_uniform(self, name, builder):
         """With σ constant scalar c, solve(q) == q / c."""
-        sn_mesh = builder()
+        problem = builder()
         c = 0.4
-        sigma = c * np.ones((2, *sn_mesh.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        q = _random_state(sn_mesh, seed=88)
+        sigma = c * np.ones((2, *problem.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        q = _random_state(problem, seed=88)
         out = C.solve(q)
         np.testing.assert_allclose(
             out.interior.values, q.interior.values / c, rtol=1e-14, atol=1e-15,
@@ -247,10 +247,10 @@ class TestSolve:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_solve_preserves_shape(self, name, builder):
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        q = _random_state(sn_mesh)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        q = _random_state(problem)
         out = C.solve(q)
         assert isinstance(out, FullField)  # #257 S8a: timeless codomain (base arrow)
         assert isinstance(out.interior, AngularFlux)
@@ -259,10 +259,10 @@ class TestSolve:
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_solve_equals_division(self, name, builder):
         """solve(q) == q.interior.values / sigma (broadcast over ordinates)."""
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        q = _random_state(sn_mesh, seed=200)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        q = _random_state(problem, seed=200)
         out = C.solve(q)
         # σ has shape (ng, *spatial); broadcasts over the ordinate axis.
         np.testing.assert_allclose(
@@ -280,10 +280,10 @@ class TestApplySolveIdentity:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_inverts_solve(self, name, builder):
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        q = _random_state(sn_mesh, seed=77)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        q = _random_state(problem, seed=77)
         round_trip = C.apply(C.solve(q))
         np.testing.assert_allclose(
             round_trip.interior.values, q.interior.values, rtol=1e-12, atol=1e-14,
@@ -291,10 +291,10 @@ class TestApplySolveIdentity:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_solve_inverts_apply(self, name, builder):
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        psi = _random_state(sn_mesh, seed=78)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        psi = _random_state(problem, seed=78)
         round_trip = C.solve(C.apply(psi))
         np.testing.assert_allclose(
             round_trip.interior.values, psi.interior.values, rtol=1e-12, atol=1e-14,
@@ -311,10 +311,10 @@ class TestApplyTranspose:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_transpose_equals_apply(self, name, builder):
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        psi = _random_state(sn_mesh, seed=4242)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        psi = _random_state(problem, seed=4242)
         out_apply = C.apply(psi)
         out_transpose = C.apply_transpose(psi)
         # Bit-exact: apply_transpose delegates to apply.
@@ -337,19 +337,19 @@ class TestSigmaInterpretation:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_works_with_total_cross_section(self, name, builder):
-        sn_mesh = builder()
-        sigma_t = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
-        psi = _random_state(sn_mesh, seed=10)
+        problem = builder()
+        sigma_t = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma_t, problem)
+        psi = _random_state(problem, seed=10)
         out = C.apply(psi)
         assert np.any(np.abs(out.interior.values) > 0)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_works_with_removal_cross_section(self, name, builder):
-        sn_mesh = builder()
-        sigma_r = _sigma_removal(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma_r, sn_mesh)
-        psi = _random_state(sn_mesh, seed=10)
+        problem = builder()
+        sigma_r = _sigma_removal(problem)
+        C = MultiplicationOperator.from_mesh(sigma_r, problem)
+        psi = _random_state(problem, seed=10)
         out = C.apply(psi)
         assert np.any(np.abs(out.interior.values) > 0)
 
@@ -367,17 +367,17 @@ class TestSigmaLayout:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_localised_sigma_localised_output(self, name, builder):
-        sn_mesh = builder()
+        problem = builder()
         ng = 2
-        nx = sn_mesh.nx
+        nx = problem.nx
         ix_target = nx // 2
-        sigma = np.zeros((ng, *sn_mesh.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
+        sigma = np.zeros((ng, *problem.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
         sigma[:, ix_target] = 1.0
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        psi = _random_state(sn_mesh, ng=ng, seed=33)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        psi = _random_state(problem, ng=ng, seed=33)
         out = C.apply(psi)
         # Build a mask shaped (*spatial,) selecting only the target cell.
-        cell_mask = np.zeros(sn_mesh.spatial_shape, dtype=bool)
+        cell_mask = np.zeros(problem.spatial_shape, dtype=bool)
         cell_mask[ix_target] = True
         # Output at NON-target cells is zero.
         np.testing.assert_array_equal(
@@ -410,10 +410,10 @@ class TestCompositeInvariants:
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_apply_implicit_zero_boundary(self, name, builder):
         """Collision is bulk-only — boundary member is all zeros."""
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        state = _random_state(sn_mesh, seed=172)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        state = _random_state(problem, seed=172)
 
         out = C.apply(state)
 
@@ -422,10 +422,10 @@ class TestCompositeInvariants:
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_solve_implicit_zero_boundary(self, name, builder):
         """Pseudoinverse leaves the rank-deficient face block zero."""
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        state = _random_state(sn_mesh, seed=175)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
+        state = _random_state(problem, seed=175)
 
         out = C.solve(state)
 
@@ -441,11 +441,11 @@ class TestCompositeInvariants:
         lives on the iteration driver, not on the operator (was: the old
         convention stamped ``history_depth`` onto the output — re-pointed).
         """
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
+        problem = builder()
+        sigma = _sigma_total(problem)
+        C = MultiplicationOperator.from_mesh(sigma, problem)
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=depth)
+            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space, history_depth=depth)
             out_apply = C.apply(state)
             out_solve = C.solve(state)
             # base-arrow codomain: a timeless FullField, NOT the timed subclass.

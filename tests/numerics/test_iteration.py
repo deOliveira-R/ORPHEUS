@@ -650,12 +650,12 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # below) wraps ``sweep_once`` directly; the
     # :class:`StreamingCollisionOperator` (= ``L + C``) on the SNSolver is
     # unused here.  Solver instance retained to provide
-    # ``solver.scattering_op`` / ``solver.sn_mesh.fission.isotropic_energy`` / ``solver.mat_xs``.
-    sn_mesh = SNProblem(mesh, quad, materials, scattering_order=0)
-    solver = SNSolver(sn_mesh)
+    # ``solver.scattering_op`` / ``solver.problem.fission.isotropic_energy`` / ``solver.mat_xs``.
+    problem = SNProblem(mesh, quad, materials, scattering_order=0)
+    solver = SNSolver(problem)
     # The canonical S, F operators built directly from solver state.
-    S = solver.sn_mesh.system.factors.scattering
-    F = solver.sn_mesh.fission.isotropic_energy
+    S = solver.problem.system.factors.scattering
+    F = solver.problem.fission.isotropic_energy
 
     # ── Adapter shims to keep the iteration primitive scalar-flux-only.
     #
@@ -667,7 +667,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # Round 2 normalises this; for the L1 gate test we wrap each
     # operator into a thin scalar-in/scalar-out facade.
     # Issue #197 PR-TYPED-2 — typed AngularBoundaryFlux replaces psi_bc: dict.
-    boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    boundary_flux = AngularBoundaryFlux.zeros(problem.angular_trace)
 
     class A_inv_adapter(LinearOperator):
         """Adapter: rhs (ng, nx, ny) → phi via the unified sweep.
@@ -702,16 +702,16 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             # ``rhs`` is bare ndarray (ng, nx, ny) — wrap via the
             # canonical iso → per-ord factory at the adapter boundary.
             from orpheus.transport.source_sinks import AngularSourceSink
-            source = AngularSourceSink.from_isotropic(rhs, sn_mesh)
+            source = AngularSourceSink.from_isotropic(rhs, problem)
             # Wave O (#208) O.4a.2 — the bare ``transport_sweep`` no longer
             # re-applies the reflective BC at entry; drive the −B coupling
             # explicitly (reflect the persisted outflow — ``boundary_flux``
             # is the closure-scoped partner-flux carrier — into the inflow
             # slots) before each sweep — the sweep-tier gates' inter-sweep −B
             # (the drivers deliver it as the ``B`` gain; #448).
-            reflect_outflow_into_inflow(boundary_flux, sn_mesh)
+            reflect_outflow_into_inflow(boundary_flux, problem)
             _angular, scalar = sweep_once(
-                source, solver.sn_mesh.mat_xs.total_cross_section, sn_mesh,
+                source, solver.problem.mat_xs.total_cross_section, problem,
                 boundary_flux,
             )
             return scalar
@@ -731,7 +731,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             Q = np.zeros_like(phi)
             S.transfer.add_p0_source(Q, phi)
             # §14.1: the (n,2n) verb lives on the solver-held N2N binding.
-            solver.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_p0_source(Q, phi)
+            solver.problem.system.factors.n2n.isotropic_energy.transfer.add_p0_source(Q, phi)
             return Q
 
     class F_scalar_adapter(LinearOperator):
@@ -754,7 +754,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
 
     ng = solver.ng
     # Issue #196 PR-INDEX-5: principled initial guess.
-    initial = np.ones((ng, *sn_mesh.spatial_shape))
+    initial = np.ones((ng, *problem.spatial_shape))
 
     ke = KEigenvalue(
         EigenPosing(OperatorPencil(A_adapt - S_adapt, F_adapt), K_MAP), A_adapt, S_adapt,
@@ -827,7 +827,7 @@ def _sn_composite_triple():
     sn = SNProblem(mesh, quad, materials, scattering_order=0)
     solver = SNSolver(sn)
     system = build_within_group_system(
-        sn, solver.sn_mesh.mat_xs,
+        sn, solver.problem.mat_xs,
     )
     from functools import reduce
     from operator import add
@@ -849,7 +849,7 @@ def _sn_composite_triple():
     from orpheus.transport.operators.fission import FissionOperator
 
     F_composite = FissionOperator.from_solver_data(
-        mat_xs=solver.sn_mesh.mat_xs, space=sn.full_field_space,
+        mat_xs=solver.problem.mat_xs, space=sn.full_field_space,
     )
     guess = FullField(
         interior=AngularFlux(values=np.ones((sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space),

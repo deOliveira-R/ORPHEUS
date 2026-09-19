@@ -145,11 +145,11 @@ class TestExternalSourcePerOrdContract:
         self, coord_builder, coord_name,
     ) -> None:
         mesh, quad = coord_builder(nx=6)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
         # Random per-ord source.
         rng = np.random.default_rng(seed=42)
         external_source = rng.standard_normal(
-            (quad.N, sn_mesh.ng, *sn_mesh.spatial_shape),
+            (quad.N, problem.ng, *problem.spatial_shape),
         )
 
         captured: list[np.ndarray] = []
@@ -239,12 +239,12 @@ class TestHomogeneousReflectiveFixedPoint:
     ) -> None:
         mesh, quad = coord_builder(nx=8)
         materials = placeholder_materials()  # SigT = 1.0 by default
-        sn_mesh = SNProblem(mesh, quad, materials)
+        problem = SNProblem(mesh, quad, materials)
         sum_w = float(quad.weights.sum())
         # Iso scalar source -> projected per-ord density.
         q_iso = 0.5
-        Q_iso = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), q_iso)
-        src = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
+        Q_iso = np.full((problem.ng, *problem.spatial_shape), q_iso)
+        src = AngularSourceSink.from_isotropic(Q_iso, problem)
 
         result = solve_sn_fixed_source(
             materials=materials, mesh=mesh, quadrature=quad,
@@ -285,9 +285,9 @@ class TestReturnTypeContract:
     @pytest.mark.verifies("transport-cartesian")
     def test_solution_angular_flux_carries_boundary(self) -> None:
         mesh, quad = _sphere_reflective(nx=6)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
         src = AngularSourceSink.from_isotropic(
-            np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
+            np.full((problem.ng, *problem.spatial_shape), 1.0), problem,
         )
         result = solve_sn_fixed_source(
             materials=placeholder_materials(),

@@ -137,7 +137,7 @@ class SNProblem(MaterialMesh):
         in ``mesh.mat_ids`` / ``mesh.mat_map``.  Required (Issue #197
         PR-TYPED-0).  The authoritative source of truth for both
         cross sections and the group count :attr:`ng`; every operator
-        that consumes ``sn_mesh`` (L, C, S, F) reads materials from
+        that consumes ``problem`` (L, C, S, F) reads materials from
         here, not from a parallel argument.  All materials must agree
         on ``ng`` — heterogeneous group structures are a
         homogenization-step concern that must precede SNProblem
@@ -174,7 +174,7 @@ class SNProblem(MaterialMesh):
         face's law DOES (``bc[face].law.geometry_map``,
         ``bc[face].law.response_kernel``) and not only what it was
         declared as. Its ``kind`` tag reads that law's registry key,
-        keeping ``sn_mesh.bc["xmin"] == "vacuum"`` style comparisons
+        keeping ``problem.bc["xmin"] == "vacuum"`` style comparisons
         working. The face inventory IS the BC
         inventory: slab ``{"xmin", "xmax"}``; **a solid sphere /
         cylinder has only ONE entry** (``"xmax"``, the outer radius —
@@ -339,7 +339,7 @@ class SNProblem(MaterialMesh):
         # denominator precomputation) and stay local to ``_setup_cartesian``.
         #
         # ``self.reduced`` is the canonical accessor every downstream
-        # consumer should bind to: ``sn_mesh.reduced.streaming_terms(
+        # consumer should bind to: ``problem.reduced.streaming_terms(
         # cell_idx, dir_idx, mu_level_idx)`` returns the per-(cell,
         # direction) packet a sweep cell update needs (the deprecated
         # ``@property`` accessors below still preserve the legacy names).
@@ -490,7 +490,7 @@ class SNProblem(MaterialMesh):
 
         **The pairing is the point (campaign phase B2.0).** Until B2.0
         this line kept only ``kind=law.key`` and dropped the law, so
-        ``sn_mesh.bc[face]`` was a realized operator plus a *string* —
+        ``problem.bc[face]`` was a realized operator plus a *string* —
         which is why five production sites answer structural questions
         (*does my ``G`` permute ordinates? is my ``R`` zero?*) by
         comparing that string against literals: a string was the only
@@ -539,7 +539,7 @@ class SNProblem(MaterialMesh):
         genuine-dimensionality test is the phantom-axis-elimination
         invariant (R-1 Phase A). This is the single source of truth for
         the 1-D-vs-multi-D dispatch in the streaming operators
-        (``not sn_mesh.is_1d`` selects the multi-D Cartesian path).
+        (``not problem.is_1d`` selects the multi-D Cartesian path).
         """
         return self.ndim == 1
 
@@ -753,7 +753,7 @@ class SNProblem(MaterialMesh):
             (curvilinear → :class:`MorelMontryAngularSweep`,
             Cartesian → :class:`IdentityAngularClosure`).  A class, not
             an instance: closures bind to their mesh at construction
-            (``cls(sn_mesh)``), and the mesh does not exist yet.
+            (``cls(problem)``), and the mesh does not exist yet.
         """
         axes = tuple(axes)
         # C5.5 (#225): d≥3 is mesh-adapter-free from birth — every
@@ -818,7 +818,7 @@ class SNProblem(MaterialMesh):
             (curvilinear → :class:`MorelMontryAngularSweep`,
             Cartesian → :class:`IdentityAngularClosure`).  A class, not
             an instance: closures bind to their mesh at construction
-            (``cls(sn_mesh)``), and the mesh does not exist yet.
+            (``cls(problem)``), and the mesh does not exist yet.
 
         Every carrier in the hierarchy promotes: ``mesh is None`` has ONE
         meaning (the d≥3 axis-native carrier, which promotes normally —

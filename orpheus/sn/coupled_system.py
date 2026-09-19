@@ -11,9 +11,9 @@ block grid over its two systems,
     \;=\;
     \begin{bmatrix} q_A \\ q_B \end{bmatrix},
 
-with System A = the SN transport composite (``sn_mesh.full_field_space``)
+with System A = the SN transport composite (``problem.full_field_space``)
 and System B = the ψ½ radial-characteristic closure
-(``sn_mesh.radial_characteristic_field_space``). The grid and its
+(``problem.radial_characteristic_field_space``). The grid and its
 :class:`~orpheus.numerics.coupled_system.CoupledSpace` are emitted TOGETHER,
 aligned by construction (RULING P1: a mismatched operator/space pairing is
 unconstructable — this builder is the ψ½ instance's only constructor). The
@@ -224,7 +224,7 @@ __all__ = [
 
 
 def build_coupled_system(
-    sn_mesh: "SNProblem",
+    problem: "SNProblem",
     mat_xs: "MaterialXSField",
 ) -> "tuple[CoupledOperator, CoupledSpace]":
     r"""Build the ψ½ coupled block operator and its space, aligned by construction.
@@ -250,13 +250,13 @@ def build_coupled_system(
 
     Parameters
     ----------
-    sn_mesh : SNProblem
+    problem : SNProblem
         The augmented geometry — supplies both member spaces, the
         quadrature, and the R12a presence predicate
         (``radial_characteristic_field_space is not None``).
     mat_xs : MaterialXSField
         The mesh-materialized macroscopic cross sections (the hub's
-        ``sn_mesh.mat_xs``, one field per Problem): σ_t feeds ``C`` AND ``A_BB`` (one
+        ``problem.mat_xs``, one field per Problem): σ_t feeds ``C`` AND ``A_BB`` (one
         typed field object — the mesh-identity invariant holds by
         construction), the scattering table feeds ``S``; the emission
         block consumes the solver-composed ``K_iso =
@@ -278,7 +278,7 @@ def build_coupled_system(
         :class:`~orpheus.sn.splitting.Splitting` value minted from the
         record's factors.
     """
-    system = build_within_group_system(sn_mesh, mat_xs)
+    system = build_within_group_system(problem, mat_xs)
     return (system.loss, system.space)
 
 
@@ -485,7 +485,7 @@ class WithinGroupSystem:
         return self.factors.is_coupled
 
 
-def _zero_full_field(sn_mesh: "SNProblem") -> "FullField":
+def _zero_full_field(problem: "SNProblem") -> "FullField":
     r"""The zero System-A state — the coupled space's zero-exemplar member.
 
     Flux-role by construction (``AngularFlux`` bulk ⊕ ``AngularBoundaryFlux``
@@ -503,12 +503,12 @@ def _zero_full_field(sn_mesh: "SNProblem") -> "FullField":
     from orpheus.transport.fields.angular_flux import AngularFlux
 
     return FullField(
-        interior=AngularFlux.zeros(sn_mesh.angular_trial_space),
-        boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+        interior=AngularFlux.zeros(problem.angular_trial_space),
+        boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
     )
 
 
-def _zero_full_field_dual(sn_mesh: "SNProblem") -> "FullField":
+def _zero_full_field_dual(problem: "SNProblem") -> "FullField":
     r"""The zero System-A COTANGENT — the dual seam's exemplar member.
 
     Source-role by construction (``AngularSourceSink`` bulk ⊕
@@ -526,13 +526,13 @@ def _zero_full_field_dual(sn_mesh: "SNProblem") -> "FullField":
     )
 
     return FullField(
-        interior=AngularSourceSink.zeros(sn_mesh.angular_trial_space),
-        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+        interior=AngularSourceSink.zeros(problem.angular_trial_space),
+        boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
     )
 
 
 def build_streaming_collision(
-    sn_mesh: "SNProblem", mat_xs: "MaterialXSField",
+    problem: "SNProblem", mat_xs: "MaterialXSField",
 ) -> "StreamingCollisionOperator":
     r"""The fused within-group loss factor ``L + C`` — THE one LC spelling.
 
@@ -550,15 +550,15 @@ def build_streaming_collision(
     σ-variant hub (``with_cross_sections``) owns its own ``mat_xs`` and calls
     this builder afresh — nothing is rebound in place.
     """
-    return StreamingOperator.pose(sn_mesh) + MultiplicationOperator(
+    return StreamingOperator.pose(problem) + MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
-        domain=sn_mesh.full_field_space,
-        codomain=sn_mesh.full_field_space,
+        domain=problem.full_field_space,
+        codomain=problem.full_field_space,
     )
 
 
 def build_within_group_system(
-    sn_mesh: "SNProblem",
+    problem: "SNProblem",
     mat_xs: "MaterialXSField",
 ) -> "WithinGroupSystem":
     r"""Build the within-group system — the loss grid and the factors it
@@ -610,7 +610,7 @@ def build_within_group_system(
 
     Parameters
     ----------
-    sn_mesh : SNProblem
+    problem : SNProblem
         The augmented geometry — supplies both member spaces, the
         quadrature, and the R12a presence predicate.
     mat_xs : MaterialXSField
@@ -619,7 +619,7 @@ def build_within_group_system(
         construction); the scattering table feeds ``S``.
 
     The Legendre truncation for a fresh ``S`` is the HUB's retained order
-    (``sn_mesh.scattering_order`` — a generating datum since the consumers
+    (``problem.scattering_order`` — a generating datum since the consumers
     campaign's S1c, 2026-09-12, clamped once at the hub's construction);
     until then this function took its own ``scattering_order`` parameter,
     one of three disagreeing spellings.  The ``scattering_op=``/``n2n_op=``
@@ -628,22 +628,22 @@ def build_within_group_system(
     (:attr:`~orpheus.sn.problem.SNProblem.system`) and there is
     nothing to inject.
     """
-    full_field_space = sn_mesh.full_field_space
+    full_field_space = problem.full_field_space
     S = ScatteringOperator.from_solver_data(
         mat_xs=mat_xs,
-        scattering_order=sn_mesh.scattering_order,
+        scattering_order=problem.scattering_order,
         space=full_field_space,
     )
     N2N = N2NOperator.from_solver_data(
         mat_xs=mat_xs,
-        scattering_order=sn_mesh.scattering_order,
+        scattering_order=problem.scattering_order,
         space=full_field_space,
     )
     # L = pure σ-free streaming; C = M[σ_t] — the ONE LC spelling.
-    LC = build_streaming_collision(sn_mesh, mat_xs)
-    B_a = SNBoundaryOperator(sn_mesh)
+    LC = build_streaming_collision(problem, mat_xs)
+    B_a = SNBoundaryOperator(problem)
     # The ONE fission operator — the hub's, never minted here (R-cc6 (ii)).
-    F = sn_mesh.fission
+    F = problem.fission
     A_AA = LC - S - N2N - B_a
     # C-fwd explicit stamp: System membership is the composition context's
     # fact — the model-generic members' honest None would poison the join.
@@ -652,7 +652,7 @@ def build_within_group_system(
     # P2 presence predicate = System B's member space itself (the grid needs
     # exactly it; presence-coextensive with the unified engine carrier, and
     # the read doubles as the Optional narrow).
-    member_space = sn_mesh.radial_characteristic_field_space
+    member_space = problem.radial_characteristic_field_space
     if member_space is None:
         # The non-carrying degenerate: System B does not exist — the loss
         # is the 1-system grid and the factors the bare (L+C, S, N2N, B_a)
@@ -660,10 +660,10 @@ def build_within_group_system(
         space = CoupledSpace.from_systems(
             (full_field_space,),
             zeros=lambda: CoupledField(
-                systems=(_zero_full_field(sn_mesh),),
+                systems=(_zero_full_field(problem),),
             ),
             dual_zeros=lambda: CoupledField(
-                systems=(_zero_full_field_dual(sn_mesh),),
+                systems=(_zero_full_field_dual(problem),),
             ),
         )
         return WithinGroupSystem(
@@ -681,8 +681,8 @@ def build_within_group_system(
     # three compositions — the step-5 construction-seam collapse: the
     # walk's in-solve engine constructions retired with the fused
     # delegation, so THIS is the one march-construction site).
-    A_AB = RadialCharacteristicSeeding(sn_mesh)
-    reduced = sn_mesh.reduced
+    A_AB = RadialCharacteristicSeeding(problem)
+    reduced = problem.reduced
     assert reduced is not None  # carrying ⇒ 1-D ⇒ minted by the ctor; narrowing only
     # K_iso composed HERE (the §14.1 grouping): the P0 energy binding of
     # S's own datum + the (n,2n) energy binding — the solver-side sum
@@ -691,21 +691,21 @@ def build_within_group_system(
         S.isotropic_energy + N2N.isotropic_energy,
         field_space=member_space,
         full_field_space=full_field_space,
-        angular_bulk_space=sn_mesh.angular_bulk_space,
-        angular_trace=sn_mesh.angular_trace,
-        quadrature=sn_mesh.quad,
-        coord=sn_mesh.coord,
+        angular_bulk_space=problem.angular_bulk_space,
+        angular_trace=problem.angular_trace,
+        quadrature=problem.quad,
+        coord=problem.coord,
     )
     B_b = RadialCharacteristicBoundaryOperator(
-        member_space, sn_mesh.bc["xmax"].law,
+        member_space, problem.bc["xmax"].law,
     )
     march = RadialCharacteristicOperator(
         member_space,
         mat_xs.total_cross_section_field,
-        bulk_space=sn_mesh.bulk_space,
-        dr=sn_mesh.axis_widths[0],
+        bulk_space=problem.bulk_space,
+        dr=problem.axis_widths[0],
         start_cosines=march_start_cosines(
-            reduced, sn_mesh.radial_characteristic_levels,
+            reduced, problem.radial_characteristic_levels,
         ),
     )
     A_BB = march - B_b
@@ -713,14 +713,14 @@ def build_within_group_system(
         (full_field_space, member_space),
         zeros=lambda: CoupledField(
             systems=(
-                _zero_full_field(sn_mesh),
-                RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space),
+                _zero_full_field(problem),
+                RadialCharacteristicField.flux_zeros(problem.radial_characteristic_field_space),
             ),
         ),
         dual_zeros=lambda: CoupledField(
             systems=(
-                _zero_full_field_dual(sn_mesh),
-                RadialCharacteristicField.source_zeros(sn_mesh.radial_characteristic_field_space),
+                _zero_full_field_dual(problem),
+                RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space),
             ),
         ),
     )
@@ -742,10 +742,10 @@ def build_within_group_system(
                 F.isotropic_energy,
                 field_space=member_space,
                 full_field_space=full_field_space,
-                angular_bulk_space=sn_mesh.angular_bulk_space,
-                angular_trace=sn_mesh.angular_trace,
-                quadrature=sn_mesh.quad,
-                coord=sn_mesh.coord,
+                angular_bulk_space=problem.angular_bulk_space,
+                angular_trace=problem.angular_trace,
+                quadrature=problem.quad,
+                coord=problem.coord,
             )],
         ],
         domain=restrict_bulk.codomain,

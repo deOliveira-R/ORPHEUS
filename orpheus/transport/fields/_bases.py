@@ -1243,7 +1243,7 @@ class ScalarBoundaryField(BoundaryField):
     ``SNProblem`` discipline; #290 P7a), and the trace-space source
     ``mesh.scalar_trace``. A scalar trace lives on the DIFFUSION phase
     space — when DSA (#2) restricts an SN solve, the SN mesh promotes
-    (``DiffusionMesh.from_material_mesh(sn_mesh)`` — an ``SNProblem`` IS a
+    (``DiffusionMesh.from_material_mesh(problem)`` — an ``SNProblem`` IS a
     ``MaterialMesh``) and :math:`A_{\rm diff}`'s fields bind to the
     promoted mesh. The concrete role leaves are
     :class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`

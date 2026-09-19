@@ -71,7 +71,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
     ``residual = (L+C)ψ_ref − hand_continuous_q``.
     """
     mesh = case.build_mesh(nc)
-    sn_mesh = SNProblem(mesh, case.quadrature, case.materials)
+    problem = SNProblem(mesh, case.quadrature, case.materials)
 
     r = mesh.centers                                   # (nx,)
     mu = case.quadrature.mu_x                           # (N,)
@@ -91,22 +91,22 @@ def _lc_apply_on_psi_ref(case, nc: int):
 
     # zero boundary trace — the matvec's bulk action is what we probe.
     zero = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     psi_ref = TimedFullField(
-        interior=AngularFlux(values=vals, space=sn_mesh.angular_bulk_space), boundary=zero.boundary,
+        interior=AngularFlux(values=vals, space=problem.angular_bulk_space), boundary=zero.boundary,
     )
     # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed of the
     # NON-FLAT-in-μ trial (its own μ = −1 datum, A − B for the linear A + Bμ
     # ansatz) rides the walk's EXPLICIT flux leg, so (L+C).apply reproduces
     # the operator action the continuous hand reference is compared against;
     # no legs on non-carrying meshes.
-    seed_leg = radial_characteristic_edge_seed(vals, sn_mesh)
+    seed_leg = radial_characteristic_edge_seed(vals, problem)
 
     # ── Production (L+C).apply on ψ_ref ──
     sigma_t = np.full((ng, nx), case.sigma_t)
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sigma_t, problem)
     if seed_leg is None:
         lc_psi = (L + C).apply(psi_ref).interior.values     # (N, ng, nx)
     else:
@@ -115,7 +115,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
 
         from tests.sn._test_helpers import joint_m_grid
 
-        grid, _space = joint_m_grid(sn_mesh, L + C)
+        grid, _space = joint_m_grid(problem, L + C)
         lc_psi = grid.apply(
             CoupledField(systems=(psi_ref, seed_leg)),
         ).systems[0].interior.values                        # (N, ng, nx)
@@ -130,7 +130,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
     hand_q = ((stream + redist + removal) / W)[:, None, :]   # (N, ng, nx)
 
     residual = lc_psi - hand_q                          # (N, ng, nx)
-    return residual, sn_mesh.volumes
+    return residual, problem.volumes
 
 
 def _vol_weighted_per_ordinate_rms(residual: np.ndarray, V: np.ndarray) -> float:

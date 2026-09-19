@@ -87,7 +87,7 @@ def require(condition: bool, message: str) -> None:
 
 
 @pytest.fixture(scope="module")
-def sn_mesh() -> SNProblem:
+def problem() -> SNProblem:
     """The ``2d_2g_p1_aniso`` mesh — mirrors ``_cartesian_2d_p1_aniso_het_si``."""
     mat = np.zeros((_NX, _NY), dtype=int)
     mat[:4, :] = 2                       # fuel (id 2) | moderator (id 0)
@@ -107,18 +107,18 @@ def sn_mesh() -> SNProblem:
 
 
 @pytest.fixture(scope="module")
-def solver(sn_mesh) -> SNSolver:
-    return SNSolver(sn_mesh)
+def solver(problem) -> SNSolver:
+    return SNSolver(problem)
 
 
-def _psi(sn_mesh, seed: int) -> AngularFlux:
+def _psi(problem, seed: int) -> AngularFlux:
     """A standard-normal per-ordinate flux — SIGNED, so a sign-preserving
     body cannot pass by accident, and rich enough that every ℓ ≤ 1 moment
     carries signal."""
     rng = np.random.default_rng(seed)
     return AngularFlux(
-        values=rng.standard_normal(sn_mesh.angular_bulk_space.shape),
-        space=sn_mesh.angular_bulk_space,
+        values=rng.standard_normal(problem.angular_bulk_space.shape),
+        space=problem.angular_bulk_space,
     )
 
 
@@ -145,7 +145,7 @@ class TestEnds:
         An identity assertion would be a false red the first time
         ``from_blocks`` stops interning.
         """
-        S = solver.sn_mesh.system.factors.scattering
+        S = solver.problem.system.factors.scattering
         S_w = S.on_moment_domain()
 
         expected_domain = FullFieldSpace.from_blocks(
@@ -179,7 +179,7 @@ class TestEnds:
         """Its domain and codomain are DIFFERENT spaces — stated, because the
         ``OperatorSum`` guard would refuse it and the windowed driver
         deliberately consumes the gains one by one rather than summing them."""
-        S_w = solver.sn_mesh.system.factors.scattering.on_moment_domain()
+        S_w = solver.problem.system.factors.scattering.on_moment_domain()
         require(
             S_w.domain != S_w.codomain,
             "the moment sibling came out endomorphic — then it is not "
@@ -204,7 +204,7 @@ class TestBitIdentity:
     two distinct bodies; neither calls the other.
     """
 
-    def test_the_two_ends_agree_bit_for_bit(self, solver, sn_mesh):
+    def test_the_two_ends_agree_bit_for_bit(self, solver, problem):
         r"""``S_w.apply(Mψ ⊕ 0).interior == S.apply(ψ ⊕ 0).interior`` — ``array_equal``.
 
         `[M]` 2026-09-04, this fixture, 200 seeds (``default_rng(s)``,
@@ -215,9 +215,9 @@ class TestBitIdentity:
         scalar flux (pinned below), which is why the equality is exact rather
         than ULP-banded.
         """
-        S = solver.sn_mesh.system.factors.scattering
+        S = solver.problem.system.factors.scattering
         S_w = S.on_moment_domain()
-        psi = _psi(sn_mesh, seed=2026)
+        psi = _psi(problem, seed=2026)
         moments = S.flux_analysis.apply(psi)
 
         via_angular = bulk_apply(S, psi)
@@ -232,7 +232,7 @@ class TestBitIdentity:
                     "ends must compute ONE operator.",
         )
 
-    def test_the_two_ends_read_the_same_scalar_flux(self, solver, sn_mesh):
+    def test_the_two_ends_read_the_same_scalar_flux(self, solver, problem):
         r"""The DECOMPOSITION leg: the :math:`\ell = 0` halves coincide.
 
         Without it the row above is a claim about a SUM and could hold by two
@@ -242,9 +242,9 @@ class TestBitIdentity:
         data, `[M]` bit-equal — which is what makes the row above an
         :math:`\ell \ge 1` statement.
         """
-        S = solver.sn_mesh.system.factors.scattering
+        S = solver.problem.system.factors.scattering
         S_w = S.on_moment_domain()
-        psi = _psi(sn_mesh, seed=2026)
+        psi = _psi(problem, seed=2026)
         moments = S.flux_analysis.apply(psi)
         np.testing.assert_array_equal(
             np.asarray(
@@ -256,7 +256,7 @@ class TestBitIdentity:
                     "coincidence of two compensating errors.",
         )
 
-    def test_the_fixture_activates_the_l_ge_1_body(self, solver, sn_mesh):
+    def test_the_fixture_activates_the_l_ge_1_body(self, solver, problem):
         r"""ACTIVATION (`vv` #19, `lessons L40c`): the :math:`\ell \ge 1` body
         is SELECTED and its emission is non-zero.
 
@@ -266,8 +266,8 @@ class TestBitIdentity:
         row pins the three preconditions: order ≥ 1, the operand's ℓ ≥ 1
         moments non-zero, and the emitted source non-zero.
         """
-        S = solver.sn_mesh.system.factors.scattering
-        psi = _psi(sn_mesh, seed=2026)
+        S = solver.problem.system.factors.scattering
+        psi = _psi(problem, seed=2026)
         moments = np.asarray(S.flux_analysis.apply(psi).values)
         require(S.legendre_order >= 1, "the fixture is P0 — ℓ≥1 is not exercised")
         require(
@@ -307,10 +307,10 @@ class TestTransposeReciprocity:
     what the transpose is spelled from.
     """
 
-    def _pairing(self, solver, sn_mesh, seed):
-        S = solver.sn_mesh.system.factors.scattering
+    def _pairing(self, solver, problem, seed):
+        S = solver.problem.system.factors.scattering
         S_w = S.on_moment_domain()
-        psi = _psi(sn_mesh, seed)
+        psi = _psi(problem, seed)
         moments = S.flux_analysis.apply(psi)
         rng = np.random.default_rng(seed + 1)
         chi_values = rng.standard_normal(S_w.codomain.interior_space.shape)
@@ -325,7 +325,7 @@ class TestTransposeReciprocity:
         )
         return moments, chi_values, forward, back
 
-    def test_euclidean_reciprocity(self, solver, sn_mesh):
+    def test_euclidean_reciprocity(self, solver, problem):
         r"""`[M]` rel ``3.10e-16`` on seed 7 — the pairing closes.
 
         The fixture's ``SigS`` is asymmetric per material and the two
@@ -333,7 +333,7 @@ class TestTransposeReciprocity:
         away (`vv` Mode 2/6); the tolerance is the reduction-depth ULP floor,
         not a fitted band.
         """
-        moments, chi_values, forward, back = self._pairing(solver, sn_mesh, 7)
+        moments, chi_values, forward, back = self._pairing(solver, problem, 7)
         lhs = float(np.sum(np.asarray(forward.interior.values) * chi_values))
         rhs = float(np.sum(np.asarray(moments.values) * np.asarray(back.interior.values)))
         require(
@@ -347,7 +347,7 @@ class TestTransposeReciprocity:
                     "not the reversal of the body its ends select.",
         )
 
-    def test_the_reciprocity_row_has_teeth(self, solver, sn_mesh):
+    def test_the_reciprocity_row_has_teeth(self, solver, problem):
         r"""NEGATIVE leg (`vv` #11 / #19): a WRONG transpose of the SAME shape
         breaks the pairing by O(1).
 
@@ -364,7 +364,7 @@ class TestTransposeReciprocity:
         row was green under every mutation of the transpose; the qa review's
         F-1.)
         """
-        moments, chi_values, forward, back = self._pairing(solver, sn_mesh, 7)
+        moments, chi_values, forward, back = self._pairing(solver, problem, 7)
         lhs = float(np.sum(np.asarray(forward.interior.values) * chi_values))
         back_values = np.asarray(back.interior.values)
         group_axis = len(back.interior.head.shape)  # the head's axes lead; then ng
@@ -382,7 +382,7 @@ class TestTransposeReciprocity:
             f"blind to a flipped Σ_{{s,0}}ᵀ.",
         )
 
-    def test_the_cotangent_lands_on_the_domains_own_end(self, solver, sn_mesh):
+    def test_the_cotangent_lands_on_the_domains_own_end(self, solver, problem):
         r"""The transpose's output rides the DOMAIN's interior, in the end's own
         source/sink class — a moment cotangent, not a per-ordinate one.
 
@@ -390,8 +390,8 @@ class TestTransposeReciprocity:
         a per-ordinate cotangent would still close SOME pairing, but not the
         one the moment end's operand lives in.
         """
-        S_w = solver.sn_mesh.system.factors.scattering.on_moment_domain()
-        _m, _chi, _fwd, back = self._pairing(solver, sn_mesh, 7)
+        S_w = solver.problem.system.factors.scattering.on_moment_domain()
+        _m, _chi, _fwd, back = self._pairing(solver, problem, 7)
         require(
             isinstance(back.interior, HarmonicMomentSourceSink),
             f"the moment end's cotangent is a "
@@ -414,7 +414,7 @@ class TestTransposeReciprocity:
 
 
 class TestAdmission:
-    def test_a_third_interior_is_refused_naming_both_ends(self, solver, sn_mesh):
+    def test_a_third_interior_is_refused_naming_both_ends(self, solver, problem):
         r"""A domain whose interior is NEITHER end of the analysis face is
         refused at construction, with a message naming the operator and both
         admissible spaces.
@@ -427,8 +427,8 @@ class TestAdmission:
         the mesh's SCALAR bulk: a real space of the right family and the wrong
         end.
         """
-        S = solver.sn_mesh.system.factors.scattering
-        third = FunctionSpace.of_axes(*sn_mesh.bulk_space.axes)
+        S = solver.problem.system.factors.scattering
+        third = FunctionSpace.of_axes(*problem.bulk_space.axes)
         require(
             third != S.flux_analysis.domain and third != S.flux_analysis.codomain,
             "the 'third' space coincides with an admissible end — the negative "
@@ -441,7 +441,7 @@ class TestAdmission:
             )
 
     def test_the_reconstruction_face_is_admitted_against_the_CODOMAIN(
-        self, solver, sn_mesh,
+        self, solver, problem,
     ):
         r"""The codomain-side guard, on the MOMENT sibling — the F-1 repair's
         own witness.
@@ -462,7 +462,7 @@ class TestAdmission:
         Both legs, because either one alone passes under one of the two wrong
         repairs.
         """
-        S = solver.sn_mesh.system.factors.scattering
+        S = solver.problem.system.factors.scattering
         S_w = S.on_moment_domain()          # positive leg: it constructs
 
         require(
@@ -478,8 +478,8 @@ class TestAdmission:
         )
 
         other = SNProblem(
-            sn_mesh.mesh, Quadrature.level_symmetric(sn_order=6),
-            sn_mesh.materials,
+            problem.mesh, Quadrature.level_symmetric(sn_order=6),
+            problem.materials,
         )
         other_interior = other.full_field_space.interior_space
         assert other_interior is not None
@@ -490,7 +490,7 @@ class TestAdmission:
             replace(S_w, source_reconstruction=wrong)
 
     def test_the_moment_sibling_refuses_the_angular_composite(
-        self, solver, sn_mesh,
+        self, solver, problem,
     ):
         r"""``S_w.apply(ψ ⊕ 0)`` is a ``TypeError`` naming both interiors.
 
@@ -499,13 +499,13 @@ class TestAdmission:
         the carve removed, and it is now a loud refusal instead of a silent
         second body.
         """
-        S_w = solver.sn_mesh.system.factors.scattering.on_moment_domain()
-        psi = _psi(sn_mesh, seed=11)
+        S_w = solver.problem.system.factors.scattering.on_moment_domain()
+        psi = _psi(problem, seed=11)
         with pytest.raises(TypeError, match="body its ends select"):
             S_w.apply(zero_trace_composite(psi, S_w.domain.trace_space))
 
     def test_the_angular_binding_refuses_the_moment_composite(
-        self, solver, sn_mesh,
+        self, solver, problem,
     ):
         r"""The mirror: the ANGULAR binding refuses :math:`M\psi`.
 
@@ -514,8 +514,8 @@ class TestAdmission:
         the carve's whole subject could regress to a class-dispatch arm and
         nothing would notice.
         """
-        S = solver.sn_mesh.system.factors.scattering
-        moments = S.flux_analysis.apply(_psi(sn_mesh, seed=11))
+        S = solver.problem.system.factors.scattering
+        moments = S.flux_analysis.apply(_psi(problem, seed=11))
         assert isinstance(moments, HarmonicMomentFlux)
         with pytest.raises(TypeError, match="body its ends select"):
             S.apply(zero_trace_composite(moments, S.domain.trace_space))
@@ -568,7 +568,7 @@ class TestTheOtherLifts:
         a zero morphism cannot pass it.
         """
         sn = _sn_mesh_with_n2n()
-        N = SNSolver(sn).sn_mesh.system.factors.n2n
+        N = SNSolver(sn).problem.system.factors.n2n
         N_w = N.on_moment_domain()
         psi = _psi(sn, seed=31)
         angular = np.asarray(bulk_apply(N, psi).values)
@@ -590,7 +590,7 @@ class TestTheOtherLifts:
                     "binding.",
         )
 
-    def test_the_fission_sibling_constructs(self, sn_mesh):
+    def test_the_fission_sibling_constructs(self, problem):
         r"""``F.on_moment_domain()`` is admissible by the BASE — machinery-first.
 
         ⚠ **No consumer today** (§16.1): fission is the eigenvalue OUTER
@@ -601,7 +601,7 @@ class TestTheOtherLifts:
         the ends and the ℓ = 0 agreement, not a production path.
         """
         F = FissionOperator.from_solver_data(
-            mat_xs=sn_mesh.mat_xs, space=sn_mesh.full_field_space,
+            mat_xs=problem.mat_xs, space=problem.full_field_space,
         )
         F_w = F.on_moment_domain()
         require(
@@ -613,7 +613,7 @@ class TestTheOtherLifts:
             F_w.codomain == F.codomain,
             "the fission sibling changed its emission end.",
         )
-        psi = _psi(sn_mesh, seed=41)
+        psi = _psi(problem, seed=41)
         moments = F.flux_analysis.apply(psi)
         np.testing.assert_array_equal(
             np.asarray(

@@ -170,7 +170,7 @@ def march_start_cosines(
     (``reduced.angular.mu_start_per_level`` — the ONE owner since the
     2026-08-26 un-weld), never recomputed from the quadrature.
     Public since the un-weld arc (O-1): the assembly reads
-    ``(sn_mesh.reduced, sn_mesh.radial_characteristic_levels)`` and hands
+    ``(problem.reduced, problem.radial_characteristic_levels)`` and hands
     the computed map to :class:`RadialCharacteristicOperator` — the
     operator binds the VALUES; this producer owns the provenance ruling.
     """
@@ -720,9 +720,9 @@ class RadialCharacteristicSeeding(
     The off-diagonal ``(transport, ray)`` block of the 2×2 coupled block
     operator: the ψ½ starting-direction ray seeds the bulk angular recurrence.
     Domain = System B's member space
-    ``sn_mesh.radial_characteristic_field_space`` (the operator reads the
+    ``problem.radial_characteristic_field_space`` (the operator reads the
     inward :math:`\mu=-1` ``cells(p, -1)`` leg); codomain = System A's
-    ``sn_mesh.full_field_space`` — :meth:`apply` emits the seed's bulk
+    ``problem.full_field_space`` — :meth:`apply` emits the seed's bulk
     contribution as the interior member of a
     :class:`~orpheus.transport.full_field.FullField` over a zero trace.  It
     exists ONLY on a seed-carrying mesh (the sphere, R12a).
@@ -769,7 +769,7 @@ class RadialCharacteristicSeeding(
 
     Parameters
     ----------
-    sn_mesh : SNProblem
+    problem : SNProblem
         The augmented geometry — seed-carrying (1-D curvilinear, R12a). Supplies
         the ray carrier (the domain), the M-M closure ``angular_closure``
         (the single-sourced kernel), the cell volumes ``volumes``, and the
@@ -786,8 +786,8 @@ class RadialCharacteristicSeeding(
     # off-diagonal block, so it spans both systems (campaign step 4a).
     system_role = SystemRole.COUPLED
 
-    def __init__(self, sn_mesh: "SNProblem") -> None:
-        space = sn_mesh.radial_characteristic_interior_space
+    def __init__(self, problem: "SNProblem") -> None:
+        space = problem.radial_characteristic_interior_space
         if space is None:
             raise ValueError(
                 "RadialCharacteristicSeeding: the mesh carries no "
@@ -799,11 +799,11 @@ class RadialCharacteristicSeeding(
                 "sphere, the σ_y-folded cylinder (Q5.6)."
             )
         #: The augmented geometry (ray carrier + the M-M closure + volumes).
-        self.sn_mesh = sn_mesh
+        self.problem = problem
         # P4.9b: the operator BINDS the hub's closure at construction (the
         # pose pattern — one posing-time hub read); apply/apply_transpose
         # consume the bound field, never the mesh attribute.
-        self._angular_closure = sn_mesh.angular_closure
+        self._angular_closure = problem.angular_closure
         #: The ψ½ interior split space (level metadata for the gather loops).
         #: The declared DOMAIN is the member composite space (B.2c) — see
         #: :attr:`domain`.
@@ -826,13 +826,13 @@ class RadialCharacteristicSeeding(
         # System B's member space — the ψ½ seed composite (the input to
         # :meth:`apply`). Non-None by the ctor guard (presence-coextensive
         # with the unified engine carrier).
-        return self.sn_mesh.radial_characteristic_field_space
+        return self.problem.radial_characteristic_field_space
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
         # System A's composite carrier (:meth:`apply` emits the seed's bulk
         # contribution as a FullField interior member — B.2c).
-        return self.sn_mesh.full_field_space
+        return self.problem.full_field_space
 
     # ── Forward — seed → bulk angular-numerator contribution ──────────
 
@@ -876,7 +876,7 @@ class RadialCharacteristicSeeding(
             AngularSourceSink,
         )
 
-        mesh = self.sn_mesh
+        mesh = self.problem
         rc_space = mesh.radial_characteristic_field_space
         assert rc_space is not None  # ctor guard: carrying mesh; narrowing only
         comp = RadialCharacteristicField.require_member(
@@ -948,7 +948,7 @@ class RadialCharacteristicSeeding(
             RadialCharacteristicField,
         )
 
-        mesh = self.sn_mesh
+        mesh = self.problem
         if not isinstance(cotangent, FullField):
             raise TypeError(
                 f"RadialCharacteristicSeeding.apply_transpose: expected a "
@@ -986,12 +986,12 @@ class RadialCharacteristicSeeding(
         desync. Compared per BLOCK (the composite's own ``==`` is
         name+shape and cannot see blocks).
         """
-        if field.interior.space != field.interior.space_on(self.sn_mesh):
+        if field.interior.space != field.interior.space_on(self.problem):
             raise ValueError(
                 f"RadialCharacteristicSeeding.{method}: the input composite "
                 f"must agree with the operator mesh in space content "
                 f"(space-content invariant); got interior space "
-                f"{field.interior.space!r} on operator mesh {self.sn_mesh!r}."
+                f"{field.interior.space!r} on operator mesh {self.problem!r}."
             )
 
     def __repr__(self) -> str:

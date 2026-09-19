@@ -580,14 +580,14 @@ class TestRLambdaMRoundTrip:
             mat_map=np.zeros((nx, ny), dtype=int),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNProblem(mesh, quad, {0: mix}, scattering_order=1)
-        solver = SNSolver(sn_mesh)
-        op = solver.sn_mesh.system.factors.scattering
+        problem = SNProblem(mesh, quad, {0: mix}, scattering_order=1)
+        solver = SNSolver(problem)
+        op = solver.problem.system.factors.scattering
 
         # Build a typed AngularFlux with isotropic content.
         N = quad.N
         psi_values = np.ones((N, mix.ng, nx, ny))
-        psi = AngularFlux(values=psi_values, space=sn_mesh.angular_bulk_space)
+        psi = AngularFlux(values=psi_values, space=problem.angular_bulk_space)
 
         # Typed pipeline output.
         out = op._redistribute_ordinates(psi)
@@ -617,19 +617,19 @@ class TestRLambdaMRoundTrip:
             mat_map=np.zeros((nx, ny), dtype=int),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNProblem(mesh, quad, {0: mix}, scattering_order=1)
-        solver = SNSolver(sn_mesh)
-        op = solver.sn_mesh.system.factors.scattering
+        problem = SNProblem(mesh, quad, {0: mix}, scattering_order=1)
+        solver = SNSolver(problem)
+        op = solver.problem.system.factors.scattering
 
         L = 1
         rng = np.random.default_rng(seed=7)
         moments_values = rng.standard_normal(
-            (*_head_shape(sn_mesh, L), mix.ng, nx, ny),
+            (*_head_shape(problem, L), mix.ng, nx, ny),
         )
-        moments = HarmonicMomentFlux.from_mesh_and_L(moments_values, sn_mesh, L)
+        moments = HarmonicMomentFlux.from_mesh_and_L(moments_values, problem, L)
 
         Lam = LegendreMomentTransfer.on_basis(
-            TransferMaterialField.scattering(solver.sn_mesh.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
+            TransferMaterialField.scattering(solver.problem.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         out = Lam.apply(moments)
         # flux moment IN → source moment OUT (the explicit role change).
@@ -659,16 +659,16 @@ class TestRLambdaMRoundTrip:
             mat_map=np.zeros((nx, ny), dtype=int),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNProblem(mesh, quad, {0: mix}, scattering_order=1)
-        solver = SNSolver(sn_mesh)
-        op = solver.sn_mesh.system.factors.scattering
+        problem = SNProblem(mesh, quad, {0: mix}, scattering_order=1)
+        solver = SNSolver(problem)
+        op = solver.problem.system.factors.scattering
 
         L = 1
         moments_values = np.zeros(
-            (*_head_shape(sn_mesh, L), mix.ng, nx, ny),
+            (*_head_shape(problem, L), mix.ng, nx, ny),
         )
         Lam = LegendreMomentTransfer.on_basis(
-            TransferMaterialField.scattering(solver.sn_mesh.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
+            TransferMaterialField.scattering(solver.problem.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=True,
         )
         out = Lam.apply(moments_values)
         assert isinstance(out, np.ndarray)

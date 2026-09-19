@@ -183,9 +183,9 @@ def asymmetric_phi(ng: int, spatial_shape: tuple[int, ...]) -> np.ndarray:
     return np.stack(rows, axis=0)
 
 
-def cross_section_field(values: np.ndarray, sn_mesh: SNProblem) -> CrossSectionField:
+def cross_section_field(values: np.ndarray, problem: SNProblem) -> CrossSectionField:
     """Wrap raw ``(ng, *spatial)`` into a typed CrossSectionField."""
-    return CrossSectionField(values=values, space=sn_mesh.bulk_space)
+    return CrossSectionField(values=values, space=problem.bulk_space)
 
 
 def build_production_rate_functional(nu_sigma_f_field: CrossSectionField):

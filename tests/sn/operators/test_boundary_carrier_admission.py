@@ -87,7 +87,7 @@ def _bound_end_of(operator: SNBoundaryOperator) -> FullFieldSpace:
     return domain
 
 
-def _moment_composite(sn_mesh, L: int, *, seed: int = 4) -> TimedFullField:
+def _moment_composite(problem, L: int, *, seed: int = 4) -> TimedFullField:
     """A ``FullField`` whose INTERIOR is a ``HarmonicMomentFlux`` at order ``L``.
 
     Built through the production factory (``zeros_for_mesh_and_L``) so the
@@ -96,10 +96,10 @@ def _moment_composite(sn_mesh, L: int, *, seed: int = 4) -> TimedFullField:
     make the row measure a smaller operator than it names.
     """
     interior = HarmonicMomentFlux.zeros_for_mesh_and_L(
-        sn_mesh, L, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
+        problem, L, spatial_moments=problem.scheme.spatial_basis_per_axis,
     )
     interior.values[...] = np.random.default_rng(seed).standard_normal(interior.values.shape)
-    boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
     for face in boundary.layout.faces:
         view = boundary.face_view(face)
         view[...] = np.random.default_rng(seed + 5).standard_normal(view.shape)
@@ -131,12 +131,12 @@ def test_g3_1a_b_a_accepts_a_moment_interior_composite(geometry, L):
     than relaxing it — the moment iterate would then BE the bound end, which
     is R18's B reshape having landed.
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    operator = SNBoundaryOperator(sn_mesh)
-    composite = _moment_composite(sn_mesh, L)
+    problem = _GEOMETRIES[geometry]()
+    operator = SNBoundaryOperator(problem)
+    composite = _moment_composite(problem, L)
 
     interior_space = composite.interior.space
-    if interior_space != composite.interior.space_on(sn_mesh):
+    if interior_space != composite.interior.space_on(problem):
         pytest.fail(
             f"[{geometry} L={L}] PRECONDITION 1 failed: the moment interior's "
             f"space is not its own mint on this mesh — the row is exercising "
@@ -176,9 +176,9 @@ def test_g3_1b_b_a_accepts_the_angular_interior_composite(geometry):
     bound-end control leaves these 4 rows green while reddening all 8 moment
     rows.
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    operator = SNBoundaryOperator(sn_mesh)
-    composite = _random_composite(sn_mesh, seed=3)
+    problem = _GEOMETRIES[geometry]()
+    operator = SNBoundaryOperator(problem)
+    composite = _random_composite(problem, seed=3)
 
     bound_end = _bound_end_of(operator)
     if composite.interior.space != bound_end.interior_space:
@@ -218,8 +218,8 @@ def test_g3_2a_an_alien_carrier_is_refused_by_the_carrier_clause_alone(geometry)
     parse that read the content first would raise its own error, or the
     old AttributeError, before naming the carrier.
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    operator = SNBoundaryOperator(sn_mesh)
+    problem = _GEOMETRIES[geometry]()
+    operator = SNBoundaryOperator(problem)
     with pytest.raises(TypeError) as excinfo:
         operator.apply(_AlienCarrier())  # type: ignore[arg-type]
     message = str(excinfo.value)
@@ -243,9 +243,9 @@ def test_g3_2b_a_content_mismatch_is_refused_by_the_content_clause_alone():
     """
     from tests.sn.operators.test_space_content_witnesses import _composite, _slab as _slab_of_width
 
-    sn_mesh = _slab_of_width()
+    problem = _slab_of_width()
     stretched = _slab_of_width(width=2.0)
-    operator = SNBoundaryOperator(sn_mesh)
+    operator = SNBoundaryOperator(problem)
     with pytest.raises(ValueError) as excinfo:
         operator.apply(_composite(stretched))
     message = str(excinfo.value)

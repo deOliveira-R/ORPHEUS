@@ -126,18 +126,18 @@ def _uniform_source(cells, ng: int = 2):
                    1.0 / float(_QUAD.weights.sum()))
 
 
-def _currents(solution, sn_mesh) -> dict[tuple[str, str], float]:
+def _currents(solution, problem) -> dict[tuple[str, str], float]:
     r"""``{(face, "normal"|"tangential"): J}`` from the RETURNED trace.
 
     :math:`J_b = \sum_n w_n \mu_b \psi_n` summed over the face's cells — the
     signed cosine, so it is mirror-ODD in axis ``b`` and can see the kernel.
     """
     trace = np.asarray(solution.boundary_flux.values, dtype=float)
-    weights = np.asarray(sn_mesh.quad.weights, dtype=float)
-    cosines = {0: np.asarray(sn_mesh.quad.mu_x, dtype=float),
-               1: np.asarray(sn_mesh.quad.mu_y, dtype=float)}
+    weights = np.asarray(problem.quad.weights, dtype=float)
+    cosines = {0: np.asarray(problem.quad.mu_x, dtype=float),
+               1: np.asarray(problem.quad.mu_y, dtype=float)}
     out: dict[tuple[str, str], float] = {}
-    for face, slot in sn_mesh.angular_trace.layout.faces.items():
+    for face, slot in problem.angular_trace.layout.faces.items():
         axis, _ = face_normal(face)
         per_ordinate = slot.slice_view(trace).reshape(slot.shape[0], -1).sum(1)
         for component in (0, 1):
@@ -281,9 +281,9 @@ def test_the_spurious_TANGENTIAL_current_along_a_mirror_is_gone():
             boundary_condition=None, inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
-    sn_mesh = _as_sn_mesh(_reflective_axes(_EXCITED_CELLS), _QUAD,
+    problem = _as_sn_mesh(_reflective_axes(_EXCITED_CELLS), _QUAD,
                           {0: _absorber()})
-    currents = _currents(solution, sn_mesh)
+    currents = _currents(solution, problem)
 
     tangential = {k: v for k, v in currents.items() if k[1] == "tangential"}
     normal = {k: v for k, v in currents.items() if k[1] == "normal"}
@@ -353,7 +353,7 @@ def test_every_MIRROR_EVEN_functional_is_blind_to_the_gauge():
     structurally unable to fail (`plan-authoring` §6c).
     """
     axes = _reflective_axes(_EXCITED_CELLS)
-    sn_mesh = _as_sn_mesh(axes, _QUAD, {0: _absorber()})
+    problem = _as_sn_mesh(axes, _QUAD, {0: _absorber()})
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", GaugeFreedomWarning)
         solution = solve_sn_fixed_source(
@@ -363,9 +363,9 @@ def test_every_MIRROR_EVEN_functional_is_blind_to_the_gauge():
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
     gauged = np.asarray(solution.boundary_flux.values, dtype=float)
-    gauge = sn_mesh.loss_kernel_gauge
+    gauge = problem.loss_kernel_gauge
     weights = np.asarray(_QUAD.weights, dtype=float)
-    metric = np.asarray(sn_mesh.angular_trace.inner_product_weights, dtype=float)
+    metric = np.asarray(problem.angular_trace.inner_product_weights, dtype=float)
 
     # A DIFFERENT member of the same solution manifold: the returned trace plus
     # an arbitrary kernel vector. Both solve the discrete system exactly, so any
@@ -375,10 +375,10 @@ def test_every_MIRROR_EVEN_functional_is_blind_to_the_gauge():
     assert np.linalg.norm(kernel_member) > 1e-6, "degenerate: nothing in ker A"
     other_member = gauged + kernel_member
 
-    for face, slot in sn_mesh.angular_trace.layout.faces.items():
-        face_index = list(sn_mesh.angular_trace.layout.faces).index(face)
+    for face, slot in problem.angular_trace.layout.faces.items():
+        face_index = list(problem.angular_trace.layout.faces).index(face)
         normal = np.abs(
-            np.asarray(sn_mesh.angular_trace.omega_dot_n)[face_index])
+            np.asarray(problem.angular_trace.omega_dot_n)[face_index])
         before = slot.slice_view(other_member).reshape(slot.shape[0], -1).sum(1)
         after = slot.slice_view(gauged).reshape(slot.shape[0], -1).sum(1)
         for name, weighting in (("|Omega.n|^0 moment", weights),
@@ -418,10 +418,10 @@ def test_an_EVEN_mesh_is_excited_too_once_the_source_stops_being_symmetric():
     cells = _UNEXCITED_CELLS
     assert cells[0] % 2 == 0, "this row needs an EVEN first axis to mean anything"
     axes = _reflective_axes(cells)
-    sn_mesh = _as_sn_mesh(axes, _QUAD, {0: _absorber()})
+    problem = _as_sn_mesh(axes, _QUAD, {0: _absorber()})
 
     # The operator does not care about the source, and never did.
-    assert sn_mesh.loss_kernel_gauge.dimension > 0, (
+    assert problem.loss_kernel_gauge.dimension > 0, (
         "the configuration must be singular for either row below to mean "
         "anything — this is the claim the parity rule obscured"
     )

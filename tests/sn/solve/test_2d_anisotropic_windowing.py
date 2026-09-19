@@ -278,15 +278,15 @@ def _windowed_product_and_oracle_operands(
     # operators (and the SAME schedule dispatch) the windowed SI driver
     # consumes (single source of truth).
     system = build_within_group_system(
-        solver.sn_mesh, solver.sn_mesh.mat_xs,
+        solver.problem, solver.problem.mat_xs,
     )
     LC, S, N2N, B = (
         system.factors.streaming_collision, system.factors.scattering,
         system.factors.n2n, system.factors.boundary,
     )  # the record's factors, by role
-    sn_mesh = solver.sn_mesh
+    problem = solver.problem
     base = Splitting.from_schedule(
-        system, resolve_schedule(sn_mesh, inner_schedule),
+        system, resolve_schedule(problem, inner_schedule),
     ).implicit
 
     # THE production windowed object (#226 steps 2–3, §17 W1): the typed
@@ -298,14 +298,14 @@ def _windowed_product_and_oracle_operands(
     # projection, not a test-local one.
     from orpheus.sn.operators.windowing import BulkAnalysisOperator
 
-    product = BulkAnalysisOperator(S.flux_analysis, sn_mesh.full_field_space) @ base.inverse()
+    product = BulkAnalysisOperator(S.flux_analysis, problem.full_field_space) @ base.inverse()
 
     # A representative per-ordinate source (seeded random ⇒ strong, deterministic
     # ℓ≥1 content in the swept ψ; the projection-order equivalence is
     # input-independent — it is a property of the reduction tree, not of ψ).
     rng = np.random.default_rng(50301)
     rhs = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     rhs.interior.values[...] = rng.uniform(0.0, 1.0, size=rhs.interior.values.shape)
 

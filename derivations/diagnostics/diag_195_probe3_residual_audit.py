@@ -45,53 +45,53 @@ from orpheus.transport.timed_full_field import TimedFullField
 def _build_solver_and_mesh(case, nc, inner_solver="source_iteration"):
     mesh = case.build_mesh(nc)
     Q = case.external_source(mesh)
-    sn_mesh = _as_sn_mesh(
+    problem = _as_sn_mesh(
         mesh, case.quadrature, case.materials,
         "vacuum", mat_map=None, scattering_order=0)
     solver = SNSolver(
-        sn_mesh, inner_solver=inner_solver, max_inner=2000, inner_tol=1e-13,
+        problem, inner_solver=inner_solver, max_inner=2000, inner_tol=1e-13,
     )
-    q_ext = _build_fixed_source_rhs(Q, sn_mesh)
-    return mesh, sn_mesh, solver, q_ext
+    q_ext = _build_fixed_source_rhs(Q, problem)
+    return mesh, problem, solver, q_ext
 
 
-def _reference_angular_flux(case, sn_mesh) -> AngularFlux:
+def _reference_angular_flux(case, problem) -> AngularFlux:
     """ψ_ref,n(r) = A(r)/W, isotropic in ordinate (Y_0^0 = 1 convention)."""
-    r = sn_mesh.spatial_centers if hasattr(sn_mesh, "spatial_centers") else None
+    r = problem.spatial_centers if hasattr(problem, "spatial_centers") else None
     # robust: pull radial centres from the mesh the case built
-    nx = sn_mesh.spatial_shape[0]
+    nx = problem.spatial_shape[0]
     centers = case.build_mesh(nx).centers
     A = case.phi_exact(centers)                 # (nx,)
-    W = float(sn_mesh.quad.weights.sum())
-    N = sn_mesh.quad.N
-    ng = sn_mesh.ng
-    space_shape = (N, ng, *sn_mesh.spatial_shape)  # principled layout
+    W = float(problem.quad.weights.sum())
+    N = problem.quad.N
+    ng = problem.ng
+    space_shape = (N, ng, *problem.spatial_shape)  # principled layout
     vals = np.zeros(space_shape)
     # isotropic per ordinate; spatial axes broadcast A/W over the radial axis
     iso = (A / W)
     # build an index that places iso along the radial (first spatial) axis
-    bshape = [1, 1] + list(sn_mesh.spatial_shape)
+    bshape = [1, 1] + list(problem.spatial_shape)
     rad = np.ones(bshape)
-    rad_slice = [0, 0] + [slice(None)] + [0] * (len(sn_mesh.spatial_shape) - 1)
+    rad_slice = [0, 0] + [slice(None)] + [0] * (len(problem.spatial_shape) - 1)
     # Simpler: spatial_shape is (nx,) for 1-D
     vals[:, 0, :] = iso[None, :]
-    return AngularFlux.from_mesh(vals, sn_mesh)
+    return AngularFlux.from_mesh(vals, problem)
 
 
 def _residual_profile(case, nc):
-    mesh, sn_mesh, solver, q_ext = _build_solver_and_mesh(case, nc)
+    mesh, problem, solver, q_ext = _build_solver_and_mesh(case, nc)
     # B.2d: the triple retired into build_within_group_system; this fused
     # 3-block probe reads the production surfaces directly. B = B_a alone is
     # bit-identical here: on vacuum cases the ray-corner B_b term is exactly
     # zero, and B_a pads the ray slot present-zero like the retired composite.
     from orpheus.sn.coupled_system import build_streaming_collision
     from orpheus.sn.operators.boundary import SNBoundaryOperator
-    LC = build_streaming_collision(solver.sn_mesh, solver.sn_mesh.mat_xs)
-    S = solver.sn_mesh.system.factors.scattering
-    B = SNBoundaryOperator(solver.sn_mesh)
-    psi_ref = _reference_angular_flux(case, sn_mesh)
+    LC = build_streaming_collision(solver.problem, solver.problem.mat_xs)
+    S = solver.problem.system.factors.scattering
+    B = SNBoundaryOperator(solver.problem)
+    psi_ref = _reference_angular_flux(case, problem)
     rhs = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=problem,
     )
     # Wrap ψ_ref into a TimedFullField (bulk only; boundary zero for vacuum)
     psi_tff = TimedFullField(bulk=psi_ref, boundary=rhs.boundary)
@@ -105,7 +105,7 @@ def _residual_profile(case, nc):
         - q_ext.bulk.values
     )
     # scalar residual: angular-integrate (Σ_n w_n r_n)
-    w = sn_mesh.quad.weights
+    w = problem.quad.weights
     res_scalar = np.einsum("n,ng...->g...", w, res_vals)[0]  # (nx, [ny])
     res_scalar = np.asarray(res_scalar).reshape(-1)          # flatten to (nx,)
     return mesh.centers, res_scalar, res_vals

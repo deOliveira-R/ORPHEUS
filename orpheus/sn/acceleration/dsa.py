@@ -178,7 +178,7 @@ class DSALowOrderSystem:
 
     @classmethod
     def from_sn_mesh(
-        cls, sn_mesh: "SNProblem",
+        cls, problem: "SNProblem",
     ) -> "DSALowOrderSystem":
         r"""Build the per-group systems from the SN phase space.
 
@@ -189,7 +189,7 @@ class DSALowOrderSystem:
         (23) coefficients through :math:`\rho = L_1[\alpha] \ne 0` — the
         R5 seam), and vacuum/reflective walls.
 
-        The retained Legendre order is the HUB's (``sn_mesh.scattering_order``,
+        The retained Legendre order is the HUB's (``problem.scattering_order``,
         a generating datum since 2026-09-12; until then a parameter here) —
         consistency is with the discrete system BEING ITERATED, so the
         (23c) :math:`\sigma_{s1}^{g\to g}` enters the low-order D and
@@ -201,9 +201,9 @@ class DSALowOrderSystem:
         from orpheus.geometry.mesh import Mesh1D
 
         if not (
-            sn_mesh.is_cartesian
-            and sn_mesh.ndim == 1
-            and isinstance(sn_mesh.mesh, Mesh1D)
+            problem.is_cartesian
+            and problem.ndim == 1
+            and isinstance(problem.mesh, Mesh1D)
         ):
             raise NotImplementedError(
                 "DSALowOrderSystem: consistent DSA is realized for the "
@@ -212,7 +212,7 @@ class DSALowOrderSystem:
                 "Larsen p. 79); 2-D Cartesian needs the Alcouffe 9-point "
                 "corner moments (follow-up issue at Phase-3 close)."
             )
-        scheme_key = getattr(sn_mesh.scheme, "key", None)
+        scheme_key = getattr(problem.scheme, "key", None)
         if scheme_key != "diamond_difference":
             raise NotImplementedError(
                 f"DSALowOrderSystem: the low-order coefficients are "
@@ -234,7 +234,7 @@ class DSALowOrderSystem:
         # so admitting it on a zero default q would build a Marshak row and
         # silently drop the source the day one is set. (The response-factor
         # test alone would admit it — measured while writing B2.)
-        laws = (sn_mesh.bc["xmin"].law, sn_mesh.bc["xmax"].law)
+        laws = (problem.bc["xmin"].law, problem.bc["xmax"].law)
         unsupported = sorted({
             type(law).__name__ for law in laws
             if isinstance(law, PrescribedInflow)
@@ -250,20 +250,20 @@ class DSALowOrderSystem:
             )
 
         # Axis-primary widths (un-weld arc O-5): the retire-marked legacy
-        # ``sn_mesh.mesh.edges`` shim is no longer consulted — the axis
+        # ``problem.mesh.edges`` shim is no longer consulted — the axis
         # tuple is the canonical ground truth and np.diff(edges) is
         # bitwise identical to it by the C5.1 conversion contract.
-        h = np.asarray(sn_mesh.axis_widths[0], dtype=float)
-        mat_xs = sn_mesh.mat_xs
+        h = np.asarray(problem.axis_widths[0], dtype=float)
+        mat_xs = problem.mat_xs
         sigma_t = np.asarray(
             mat_xs.total_cross_section_field.values, dtype=float
         )  # (ng, K)
         ng = sigma_t.shape[0]
 
-        mat_ids = np.asarray(sn_mesh.mat_map, dtype=int).ravel()
+        mat_ids = np.asarray(problem.mat_map, dtype=int).ravel()
         fold = mat_xs.foldable_sigma()  # {mid: (ng,)} — σ_s0^{g→g}
         sigma_s0 = np.stack([fold[int(m)] for m in mat_ids], axis=1)
-        if sn_mesh.scattering_order >= 1:
+        if problem.scattering_order >= 1:
             residual = mat_xs.residual_sig_s()  # {mid: [cross_P0, Σ_s1, …]}
             s1_diag = {
                 mid: (
@@ -280,8 +280,8 @@ class DSALowOrderSystem:
             # iterated operator does not contain.
             sigma_s1 = np.zeros_like(sigma_s0)
 
-        mu = np.asarray(sn_mesh.quad.mu_x, dtype=float)
-        w = np.asarray(sn_mesh.quad.weights, dtype=float)
+        mu = np.asarray(problem.quad.mu_x, dtype=float)
+        w = np.asarray(problem.quad.weights, dtype=float)
         return cls._build(h, sigma_t, sigma_s0, sigma_s1, mu, w, laws)
 
     @classmethod
@@ -608,7 +608,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
 
     @classmethod
     def from_sn_mesh(
-        cls, sn_mesh: "SNProblem",
+        cls, problem: "SNProblem",
     ) -> "DSACorrection":
         r"""Build the correction operator for an admitted SN phase space
         (admission — geometry, scheme, walls — and the
@@ -619,13 +619,13 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         the data row)."""
         return cls(
             DSALowOrderSystem.from_sn_mesh(
-                sn_mesh,
+                problem,
             ),
-            sn_mesh.quad,
-            full_field_space=sn_mesh.full_field_space,
-            angular_bulk_space=sn_mesh.angular_bulk_space,
-            angular_trace=sn_mesh.angular_trace,
-            scattering_order=sn_mesh.scattering_order,
+            problem.quad,
+            full_field_space=problem.full_field_space,
+            angular_bulk_space=problem.angular_bulk_space,
+            angular_trace=problem.angular_trace,
+            scattering_order=problem.scattering_order,
         )
 
     @property

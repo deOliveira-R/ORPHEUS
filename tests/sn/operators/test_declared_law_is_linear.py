@@ -329,7 +329,7 @@ def _full_matvec(sn: SNProblem):
     exactly ``(L+C) − S − B_a``.
     """
     solver = SNSolver(sn, inner_solver="source_iteration")
-    system = build_within_group_system(sn, solver.sn_mesh.mat_xs)  # the order is the hub's
+    system = build_within_group_system(sn, solver.problem.mat_xs)  # the order is the hub's
     return system.loss, system.space
 
 

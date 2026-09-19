@@ -56,8 +56,8 @@ def test_ng_property_returns_uniform_ng() -> None:
     """Criterion 3: SNProblem.ng returns the materials' uniform ng."""
     mesh = _slab_mesh()
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNProblem(mesh, quad, {0: _mix(ng=2)})
-    assert sn_mesh.ng == 2
+    problem = SNProblem(mesh, quad, {0: _mix(ng=2)})
+    assert problem.ng == 2
 
     sn_mesh4 = SNProblem(mesh, quad, {0: _mix(ng=4)})
     assert sn_mesh4.ng == 4
@@ -93,12 +93,12 @@ def test_materials_attribute_is_dict_passed() -> None:
     mesh = _slab_mesh()
     quad = Quadrature.gauss_legendre(4)
     materials = {0: _mix(ng=2)}
-    sn_mesh = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials)
     # Un-weld arc (R20/R21): parsed into the stage-1 declaration at the
     # boundary — entries identical, the mapping itself no longer aliased.
     from orpheus.data.materials import Materials
-    assert isinstance(sn_mesh.materials, Materials)
-    assert all(sn_mesh.materials[k] is materials[k] for k in materials)
+    assert isinstance(problem.materials, Materials)
+    assert all(problem.materials[k] is materials[k] for k in materials)
 
 
 def test_inconsistent_materials_error_is_value_error() -> None:

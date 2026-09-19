@@ -61,37 +61,37 @@ def _operator_residual_with_seed(case, nc, seed_mode):
     """
     mesh = case.build_mesh(nc)
     Q = case.external_source(mesh)
-    sn_mesh = _as_sn_mesh(mesh, case.quadrature, case.materials, "vacuum", mat_map=None, scattering_order=0)
-    solver = SNSolver(sn_mesh, inner_solver="source_iteration", max_inner=2000, inner_tol=1e-13)
-    q_ext = _build_fixed_source_rhs(Q, sn_mesh)
+    problem = _as_sn_mesh(mesh, case.quadrature, case.materials, "vacuum", mat_map=None, scattering_order=0)
+    solver = SNSolver(problem, inner_solver="source_iteration", max_inner=2000, inner_tol=1e-13)
+    q_ext = _build_fixed_source_rhs(Q, problem)
     # B.2d: the triple retired into build_within_group_system; this fused
     # 3-block probe reads the production surfaces directly. B = B_a alone is
     # bit-identical here: on vacuum cases the ray-corner B_b term is exactly
     # zero, and B_a pads the ray slot present-zero like the retired composite.
     from orpheus.sn.coupled_system import build_streaming_collision
     from orpheus.sn.operators.boundary import SNBoundaryOperator
-    LC = build_streaming_collision(solver.sn_mesh, solver.sn_mesh.mat_xs)
-    S = solver.sn_mesh.system.factors.scattering
-    B = SNBoundaryOperator(solver.sn_mesh)
+    LC = build_streaming_collision(solver.problem, solver.problem.mat_xs)
+    S = solver.problem.system.factors.scattering
+    B = SNBoundaryOperator(solver.problem)
 
     A_obj = case.phi_exact(mesh.centers)
-    sum_w = float(sn_mesh.quad.weights.sum())
-    N, ng, nx = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx
+    sum_w = float(problem.quad.weights.sum())
+    N, ng, nx = problem.quad.N, problem.ng, problem.nx
     vals = np.zeros((N, ng, nx))
     vals[:, 0, :] = (A_obj / sum_w)[None, :]
 
-    quad = sn_mesh.quad
+    quad = problem.quad
     mu_x = quad.mu_x
     eps = 1e-15
-    pole = sn_mesh.pole_angular_closure
+    pole = problem.pole_angular_closure
     level_indices = pole.level_indices
-    A_face = sn_mesh.areas
-    V = sn_mesh.volumes
+    A_face = problem.areas
+    V = problem.volumes
     sig_t = np.array([[case.sigma_t] * nx])
 
     psi_view = vals
     psi_g_first = psi_view.swapaxes(0, 1)
-    rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=problem)
     face_outer = rhs.boundary.face_view("xmax")
     psi_state = pole.precompute_psi_state(psi_view, sigma_t=sig_t,
                                           bc_outer_inflow_estimate=face_outer)
@@ -120,7 +120,7 @@ def _operator_residual_with_seed(case, nc, seed_mode):
             gd = la[wm]
             am = np.abs(mu_x[gd])
             wp = np.where(wm)[0]
-            cells = list(sn_mesh.dag_walk_cell_indices(
+            cells = list(problem.dag_walk_cell_indices(
                 direction_sign=direction_sign, mu_level_idx=p))
             if not cells:
                 continue

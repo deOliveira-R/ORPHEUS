@@ -4,7 +4,7 @@ Round 2 of Wave D of the SN reshape campaign (Issue #161); migrated by
 the **sweep-strategy carve** (C3.4/C3.5, plan ``sn_sweep_strategy.md``).
 
 Historically ``transport_sweep`` chose the 1-D vs 2-D sweep body with a
-scattered ``sn_mesh.reduced is not None`` branch, and these tests spied
+scattered ``problem.reduced is not None`` branch, and these tests spied
 on the chosen ``_sweep_*`` function being *called* (monkeypatching the
 module-level name).  The carve replaced that branch with a first-class,
 selectable :class:`~orpheus.sn.loss_representation.LossRepresentation`:
@@ -171,10 +171,10 @@ class TestDispatchSelectsStrategy:
     @pytest.mark.foundation
     def test_slab_selects_cumprod_scan(self):
         """Slab (1-D Cartesian) → CumprodScan."""
-        sn_mesh = _slab_sn_mesh()
-        if sn_mesh.reduced is None:
+        problem = _slab_sn_mesh()
+        if problem.reduced is None:
             pytest.fail("slab fixture unexpectedly has reduced is None")
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
+        strategy = default_for(problem, problem.scheme, problem.angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"slab → {type(strategy).__name__}, expected CumprodScan"
@@ -183,10 +183,10 @@ class TestDispatchSelectsStrategy:
     @pytest.mark.foundation
     def test_spherical_selects_cumprod_scan(self):
         """Spherical (1-D curvilinear) → CumprodScan (same as slab)."""
-        sn_mesh = _spherical_sn_mesh()
-        if sn_mesh.reduced is None:
+        problem = _spherical_sn_mesh()
+        if problem.reduced is None:
             pytest.fail("spherical fixture unexpectedly has reduced is None")
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
+        strategy = default_for(problem, problem.scheme, problem.angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"sphere → {type(strategy).__name__}, expected CumprodScan"
@@ -195,10 +195,10 @@ class TestDispatchSelectsStrategy:
     @pytest.mark.foundation
     def test_cylindrical_selects_cumprod_scan(self):
         """Cylindrical (1-D curvilinear) → CumprodScan (same as slab/sphere)."""
-        sn_mesh = _cylindrical_sn_mesh()
-        if sn_mesh.reduced is None:
+        problem = _cylindrical_sn_mesh()
+        if problem.reduced is None:
             pytest.fail("cylindrical fixture unexpectedly has reduced is None")
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
+        strategy = default_for(problem, problem.scheme, problem.angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"cylinder → {type(strategy).__name__}, expected CumprodScan"
@@ -214,10 +214,10 @@ class TestDispatchSelectsStrategy:
         selectable peer (explicit construction), pinned by the window-forced
         end-to-end gates in ``test_scan_march_end_to_end.py``.
         """
-        sn_mesh = _2d_sn_mesh()
-        if sn_mesh.reduced is not None:
+        problem = _2d_sn_mesh()
+        if problem.reduced is not None:
             pytest.fail("2-D fixture unexpectedly has reduced is not None")
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
+        strategy = default_for(problem, problem.scheme, problem.angular_closure)
         if not isinstance(strategy, ScanMarch):
             pytest.fail(
                 f"2-D Cartesian → {type(strategy).__name__}, "
@@ -265,9 +265,9 @@ class TestHonestCurvilinearSchemeSelection:
     def test_curvilinear_ld_rejected_at_selection(self, coord):
         """default_for(curvilinear-LD) raises with a SPECIFIC curvilinear reason
         — not the generic 'no strategy' fall-through, not a mid-sweep raise."""
-        sn_mesh = self._curvilinear_mesh(coord, scheme=LinearDiscontinuous())
+        problem = self._curvilinear_mesh(coord, scheme=LinearDiscontinuous())
         with pytest.raises(IncompatibleRepresentation) as exc:
-            default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
+            default_for(problem, problem.scheme, problem.angular_closure)
         reason = str(exc.value).lower()
         if "curvilinear" not in reason or "no sweep strategy supports" in reason:
             pytest.fail(
@@ -282,8 +282,8 @@ class TestHonestCurvilinearSchemeSelection:
     def test_cumprod_supports_reports_curvilinear_reason(self, coord):
         """Frontend-queryable contract: ``CumprodScan.supports(curvilinear-LD)``
         is False with a gray-out reason, instead of True-then-raise-mid-sweep."""
-        sn_mesh = self._curvilinear_mesh(coord, scheme=LinearDiscontinuous())
-        compat = CumprodScan.supports(sn_mesh, sn_mesh.scheme)
+        problem = self._curvilinear_mesh(coord, scheme=LinearDiscontinuous())
+        compat = CumprodScan.supports(problem, problem.scheme)
         if compat.ok:
             pytest.fail(
                 f"CumprodScan.supports({coord.name}-LD).ok is True — the "
@@ -299,8 +299,8 @@ class TestHonestCurvilinearSchemeSelection:
     def test_curvilinear_dd_still_selects_cumprod_scan(self, coord):
         """Negative control: curvilinear-DD (the default) is UNAFFECTED — DD has
         a curvilinear closure (``supports_curvilinear=True``)."""
-        sn_mesh = self._curvilinear_mesh(coord)  # default DiamondDifference
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
+        problem = self._curvilinear_mesh(coord)  # default DiamondDifference
+        strategy = default_for(problem, problem.scheme, problem.angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"{coord.name}-DD → {type(strategy).__name__}, expected CumprodScan"
@@ -318,10 +318,10 @@ class TestHonestCurvilinearSchemeSelection:
             bc_right=BC("vacuum"),
         )
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        sn_mesh = SNProblem(
+        problem = SNProblem(
             mesh, quad, placeholder_materials(), scheme=LinearDiscontinuous(),
         )
-        strategy = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
+        strategy = default_for(problem, problem.scheme, problem.angular_closure)
         if not isinstance(strategy, CumprodScan):
             pytest.fail(
                 f"slab-LD → {type(strategy).__name__}, expected CumprodScan"
@@ -653,13 +653,13 @@ class TestSweepEntryDelegatesToStrategy:
     )
     def test_delegates_to_selected_strategy(self, monkeypatch, mesh_factory):
         """The sweep entry calls the selected strategy's ``sweep`` exactly once."""
-        sn_mesh = mesh_factory()
+        problem = mesh_factory()
         import orpheus.sn.loss_representation as loss_representation
 
-        selected = type(default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)).__name__
+        selected = type(default_for(problem, problem.scheme, problem.angular_closure)).__name__
         calls = {"sweep": 0}
-        N, ng = sn_mesh.quad.N, sn_mesh.ng
-        spatial = sn_mesh.spatial_shape
+        N, ng = problem.quad.N, problem.ng
+        spatial = problem.spatial_shape
 
         class _SpyStrategy:
             def bind_sigma(self, sig_t):  # the operator binds σ once (C3b-2)
@@ -678,8 +678,8 @@ class TestSweepEntryDelegatesToStrategy:
         # Σ_t is (ng, *spatial) at any rank — (ng, nx) for 1-D,
         # (ng, nx, ny) for 2-D Cartesian (C5.2: no phantom ny).
         sig_t = np.ones((ng, *spatial))
-        source = AngularSourceSink.zeros(sn_mesh.angular_bulk_space)
-        sweep_once(source, sig_t, sn_mesh, AngularBoundaryFlux.zeros(sn_mesh.angular_trace))
+        source = AngularSourceSink.zeros(problem.angular_bulk_space)
+        sweep_once(source, sig_t, problem, AngularBoundaryFlux.zeros(problem.angular_trace))
 
         if calls["sweep"] != 1:
             pytest.fail(
@@ -705,10 +705,10 @@ class TestDefaultDiscretizationScheme:
     @pytest.mark.foundation
     def test_default_is_diamond_difference(self):
         """No ``scheme`` argument → defaults to DD."""
-        sn_mesh = _slab_sn_mesh()
-        if not isinstance(sn_mesh.scheme, DiamondDifference):
+        problem = _slab_sn_mesh()
+        if not isinstance(problem.scheme, DiamondDifference):
             pytest.fail(
-                f"default scheme is {type(sn_mesh.scheme).__name__}, "
+                f"default scheme is {type(problem.scheme).__name__}, "
                 f"expected DiamondDifference"
             )
 
@@ -724,8 +724,8 @@ class TestDefaultDiscretizationScheme:
             bc_right=BC("vacuum"),
         )
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials(), scheme=custom)
-        if sn_mesh.scheme is not custom:
+        problem = SNProblem(mesh, quad, placeholder_materials(), scheme=custom)
+        if problem.scheme is not custom:
             pytest.fail("explicit scheme was not stored on the mesh")
 
 

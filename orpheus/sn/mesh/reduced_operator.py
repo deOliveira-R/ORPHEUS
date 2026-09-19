@@ -108,7 +108,7 @@ implementations were live.
 
    That contract is **no longer independently gated**.  The
    factory-binding tests in ``tests/geometry/test_reduced_operator.py``
-   compare this module's factory output against ``sn_mesh.reduced.*``
+   compare this module's factory output against ``problem.reduced.*``
    (and against the deprecated ``SNProblem.face_areas`` / ``delta_A``
    read-throughs, which forward to the same object) — i.e. against
    the value this module itself produced, through the mesh

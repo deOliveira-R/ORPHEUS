@@ -51,8 +51,8 @@ def solver_2g():
 
     mesh = _uniform_2d(nx, ny, delta, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNProblem(mesh, quad, materials)
-    return SNSolver(sn_mesh)
+    problem = SNProblem(mesh, quad, materials)
+    return SNSolver(problem)
 
 
 def _composite_F(solver):
@@ -61,7 +61,7 @@ def _composite_F(solver):
     composite arms live on the frame-conjugated ``FissionOperator``,
     minted here exactly as the eigen-M posing mints it."""
     return FissionOperator.from_solver_data(
-        mat_xs=solver.sn_mesh.mat_xs, space=solver.sn_mesh.full_field_space,
+        mat_xs=solver.problem.mat_xs, space=solver.problem.full_field_space,
     )
 
 
@@ -74,7 +74,7 @@ class TestProtocolCompliance:
     """FissionOperator must satisfy the LinearOperator Protocol."""
 
     def test_implements_linear_operator(self, solver_2g):
-        assert isinstance(solver_2g.sn_mesh.fission.isotropic_energy, LinearOperator)
+        assert isinstance(solver_2g.problem.fission.isotropic_energy, LinearOperator)
 
     def test_predicates_adjointable_not_invertible(self, solver_2g):
         """``is_adjointable`` True, ``is_invertible`` False — rank-1 in energy.
@@ -83,7 +83,7 @@ class TestProtocolCompliance:
         HAS a transpose: the adjoint fission F† = |νΣf⟩⟨χ| (campaign #276),
         the χ↔νΣf dyad swap.
         """
-        op = solver_2g.sn_mesh.fission.isotropic_energy
+        op = solver_2g.problem.fission.isotropic_energy
         assert op.is_adjointable and not op.is_invertible
 
 
@@ -125,16 +125,16 @@ class TestBitIdenticalExtraction:
         numpy chooses for ``(a * b).sum(axis=0)``.
         """
         np.random.seed(42)
-        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
+        (nx, ny), ng = solver_2g.problem.spatial_shape, solver_2g.ng
         # PR-INDEX-4: FissionOperator.apply consumes / returns principled
         # (ng, nx, ny).  Use that shape directly.
         phi = np.random.rand(ng, nx, ny) + 0.1
 
-        out_op = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi)
+        out_op = solver_2g.problem.fission.isotropic_energy.apply(phi)
         # Reference: hand-coded version of the legacy method (no division by k).
         # All operands principled (ng, nx, ny).
-        fission_rate = np.einsum("gxy,gxy->xy", solver_2g.sn_mesh.mat_xs.fission_production, phi)
-        expected = solver_2g.sn_mesh.mat_xs.emission_spectrum * fission_rate[None, :, :]
+        fission_rate = np.einsum("gxy,gxy->xy", solver_2g.problem.mat_xs.fission_production, phi)
+        expected = solver_2g.problem.mat_xs.emission_spectrum * fission_rate[None, :, :]
 
         # Wave T step T.2: nulp=4 relaxation (see docstring).
         np.testing.assert_array_almost_equal_nulp(out_op, expected, nulp=4)
@@ -152,12 +152,12 @@ class TestBitIdenticalExtraction:
         requires nulp relaxation.
         """
         np.random.seed(7)
-        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
+        (nx, ny), ng = solver_2g.problem.spatial_shape, solver_2g.ng
         phi = np.random.rand(ng, nx, ny) + 0.1
 
         for k in [1.0, 0.93, 1.27, 0.5]:
             out_via_delegator = solver_2g.compute_fission_source(phi, k)
-            out_via_operator = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi) / k
+            out_via_operator = solver_2g.problem.fission.isotropic_energy.apply(phi) / k
             np.testing.assert_array_equal(out_via_delegator, out_via_operator)
 
 
@@ -171,22 +171,22 @@ class TestRank1EnergyStructure:
 
     def test_zero_flux_zero_source(self, solver_2g):
         """φ = 0 => F·φ = 0 (linearity guard)."""
-        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
+        (nx, ny), ng = solver_2g.problem.spatial_shape, solver_2g.ng
         phi = np.zeros((ng, nx, ny))
-        out = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi)
+        out = solver_2g.problem.fission.isotropic_energy.apply(phi)
         np.testing.assert_array_equal(out, np.zeros_like(phi))
 
     def test_apply_linearity(self, solver_2g):
         """F·(αφ_1 + βφ_2) = αF·φ_1 + βF·φ_2."""
-        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
+        (nx, ny), ng = solver_2g.problem.spatial_shape, solver_2g.ng
         np.random.seed(13)
         phi1 = np.random.rand(ng, nx, ny) + 0.1
         phi2 = np.random.rand(ng, nx, ny) + 0.1
         alpha, beta = 2.5, -1.7
 
-        lhs = solver_2g.sn_mesh.fission.isotropic_energy.apply(alpha * phi1 + beta * phi2)
-        rhs = (alpha * solver_2g.sn_mesh.fission.isotropic_energy.apply(phi1)
-               + beta * solver_2g.sn_mesh.fission.isotropic_energy.apply(phi2))
+        lhs = solver_2g.problem.fission.isotropic_energy.apply(alpha * phi1 + beta * phi2)
+        rhs = (alpha * solver_2g.problem.fission.isotropic_energy.apply(phi1)
+               + beta * solver_2g.problem.fission.isotropic_energy.apply(phi2))
         np.testing.assert_allclose(lhs, rhs, rtol=1e-12, atol=1e-13)
 
     def test_constant_flux_uniform_material(self):
@@ -208,7 +208,7 @@ class TestRank1EnergyStructure:
         c = 1.5
         # PR-INDEX-4: principled (ng, nx, ny).
         phi = c * np.ones((solver.ng, nx, ny))
-        out = solver.sn_mesh.fission.isotropic_energy.apply(phi)
+        out = solver.problem.fission.isotropic_energy.apply(phi)
 
         # Hand-computed: per-cell fission rate = c · Σ_g νΣ_f[g] = c · Σ_g SigP[g].
         # (SigP is the production cross-section νΣ_f on the Mixture.)
@@ -226,12 +226,12 @@ class TestRank1EnergyStructure:
         """Σ_g χ_g = 1 per material (sanity check on the per-cell χ array)."""
         # Note: for materials with no fission, chi may be zero; we only check
         # the cells whose mixture has nonzero νΣ_f.
-        nx, ny = solver_2g.sn_mesh.spatial_shape
+        nx, ny = solver_2g.problem.spatial_shape
         # PR-INDEX-3: solver.mat_xs.emission_spectrum / solver.mat_xs.fission_production are (ng, nx, ny).
-        for mid, (ix_arr, iy_arr) in solver_2g.sn_mesh.mat_xs.cells_by_material.items():
+        for mid, (ix_arr, iy_arr) in solver_2g.problem.mat_xs.cells_by_material.items():
             for ix, iy in zip(ix_arr, iy_arr):
-                chi_cell = solver_2g.sn_mesh.mat_xs.emission_spectrum[:, ix, iy]
-                if np.sum(solver_2g.sn_mesh.mat_xs.fission_production[:, ix, iy]) > 1e-15:
+                chi_cell = solver_2g.problem.mat_xs.emission_spectrum[:, ix, iy]
+                if np.sum(solver_2g.problem.mat_xs.fission_production[:, ix, iy]) > 1e-15:
                     np.testing.assert_allclose(chi_cell.sum(), 1.0, rtol=1e-12)
 
 
@@ -241,14 +241,14 @@ class TestKDivisionConvention:
     def test_apply_does_not_divide_by_k(self, solver_2g):
         """apply(φ) is independent of any eigenvalue — pure linear action."""
         np.random.seed(99)
-        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
+        (nx, ny), ng = solver_2g.problem.spatial_shape, solver_2g.ng
         # PR-INDEX-4: principled (ng, nx, ny).
         phi = np.random.rand(ng, nx, ny) + 0.1
 
         # Construct the operator twice with no k handed in — apply
         # should not depend on any external state.
-        out1 = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi)
-        out2 = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi.copy())
+        out1 = solver_2g.problem.fission.isotropic_energy.apply(phi)
+        out2 = solver_2g.problem.fission.isotropic_energy.apply(phi.copy())
         np.testing.assert_array_equal(out1, out2)
 
     def test_compute_fission_source_does_divide_by_k(self, solver_2g):
@@ -257,7 +257,7 @@ class TestKDivisionConvention:
         Issue #196 PR-INDEX-5: ``phi`` principled ``(ng, nx, ny)``.
         """
         np.random.seed(101)
-        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
+        (nx, ny), ng = solver_2g.problem.spatial_shape, solver_2g.ng
         phi = np.random.rand(ng, nx, ny) + 0.1
 
         out_k_one = solver_2g.compute_fission_source(phi, 1.0)
@@ -291,8 +291,8 @@ class TestCompositeInvariants:
         from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
-        sn_mesh = solver_2g.sn_mesh
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+        problem = solver_2g.problem
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         # Seed bulk with a deterministic non-zero per-ordinate ψ.
         np.random.seed(31)
         bulk_values = np.random.rand(*state.interior.values.shape) + 0.1
@@ -305,14 +305,14 @@ class TestCompositeInvariants:
         assert isinstance(out, FullField)
         assert not isinstance(out, TimedFullField)
         assert isinstance(out.interior, AngularSourceSink)
-        assert out.interior.space is sn_mesh.angular_bulk_space
+        assert out.interior.space is problem.angular_bulk_space
 
     def test_implicit_zero_boundary(self, solver_2g):
         """Fission has no boundary action — boundary member is all zeros."""
         from dataclasses import replace
 
-        sn_mesh = solver_2g.sn_mesh
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+        problem = solver_2g.problem
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         np.random.seed(32)
         bulk_values = np.random.rand(*state.interior.values.shape) + 0.1
         state = replace(state, interior=replace(state.interior, values=bulk_values))
@@ -327,7 +327,7 @@ class TestCompositeInvariants:
 
     def test_zero_bulk_zero_output(self, solver_2g):
         """ψ = 0 ⇒ F·ψ = 0 (linearity guard at composite layer)."""
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=solver_2g.sn_mesh.full_field_space)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=solver_2g.problem.full_field_space)
         out = _composite_F(solver_2g).apply(state)
         np.testing.assert_array_equal(out.interior.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -340,9 +340,9 @@ class TestCompositeInvariants:
         driver, not the operator (was: the old convention stamped
         ``history_depth`` onto the output — re-pointed).
         """
-        sn_mesh = solver_2g.sn_mesh
+        problem = solver_2g.problem
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=depth)
+            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space, history_depth=depth)
             out = _composite_F(solver_2g).apply(state)
             assert isinstance(out, FullField)
             assert not isinstance(out, TimedFullField)
@@ -381,7 +381,7 @@ class TestRankOneTensorProductKernel:
             TensorProductOperator,
         )
 
-        kernel = solver_2g.sn_mesh.fission.isotropic_energy.kernel
+        kernel = solver_2g.problem.fission.isotropic_energy.kernel
         assert isinstance(kernel, TensorProductOperator)
         assert len(kernel.ops) == 2
         assert isinstance(kernel.ops[0], RankOneOperator)
@@ -397,7 +397,7 @@ class TestRankOneTensorProductKernel:
         production-rate ``ReactionRateFunctional`` (the §5.6 contraction,
         ``axis=0`` over groups, ``weight == νΣ_f``).
         """
-        kernel = solver_2g.sn_mesh.fission.isotropic_energy.kernel
+        kernel = solver_2g.problem.fission.isotropic_energy.kernel
         rank_one = kernel.ops[0]
         # CS4c step 4 (the G-F2 collapse): the χ column comes from the
         # VALIDATED FissionMaterialField gather — same values as the
@@ -407,14 +407,14 @@ class TestRankOneTensorProductKernel:
         # semantics were deliberately dropped with the step-3 satellite
         # ruling; a depletion update re-binds the operator).
         np.testing.assert_array_equal(
-            rank_one.reconstruction, solver_2g.sn_mesh.mat_xs.emission_spectrum,
+            rank_one.reconstruction, solver_2g.problem.mat_xs.emission_spectrum,
         )
         # The row co-vector is the production-rate reaction-rate functional.
         assert isinstance(rank_one.functional, ReactionRateFunctional)
         assert rank_one.functional.axis == 0
         np.testing.assert_array_equal(
             np.asarray(rank_one.functional.weight),
-            solver_2g.sn_mesh.mat_xs.fission_production,
+            solver_2g.problem.mat_xs.fission_production,
         )
 
     def test_kernel_apply_matches_apply_dispatch(self, solver_2g):
@@ -425,14 +425,14 @@ class TestRankOneTensorProductKernel:
         """
         np.random.seed(57)
         nx, ny, ng = (
-            solver_2g.sn_mesh.nx,
-            solver_2g.sn_mesh.spatial_shape[1],
+            solver_2g.problem.nx,
+            solver_2g.problem.spatial_shape[1],
             solver_2g.ng,
         )
         phi_arr = np.random.rand(ng, nx, ny) + 0.1
 
-        out_via_apply = solver_2g.sn_mesh.fission.isotropic_energy.apply(phi_arr)
-        out_via_kernel = solver_2g.sn_mesh.fission.isotropic_energy.kernel.apply(phi_arr)
+        out_via_apply = solver_2g.problem.fission.isotropic_energy.apply(phi_arr)
+        out_via_kernel = solver_2g.problem.fission.isotropic_energy.kernel.apply(phi_arr)
         # Same code path — bit-identical.
         np.testing.assert_array_equal(out_via_apply, out_via_kernel)
 
@@ -447,5 +447,5 @@ class TestRankOneTensorProductKernel:
         Identity has it) — the §15 rank-1 fission structure has no useful
         inverse, but it DOES transpose (F† = |νΣf⟩⟨χ|).
         """
-        kernel = solver_2g.sn_mesh.fission.isotropic_energy.kernel
+        kernel = solver_2g.problem.fission.isotropic_energy.kernel
         assert kernel.is_adjointable and not kernel.is_invertible

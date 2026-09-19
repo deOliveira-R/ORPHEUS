@@ -214,9 +214,9 @@ class StreamingOperator(LinearOperator["FullField"]):
 
     Parameters
     ----------
-    sn_mesh : SNProblem
+    problem : SNProblem
         The geometric substrate: quadrature, BCs (the face-name-keyed
-        ``sn_mesh.bc`` dict), and (for curvilinear) the precomputed
+        ``problem.bc`` dict), and (for curvilinear) the precomputed
         connection coefficients.  Transitional — the end state (rides
         O-3/CS5) is the cross-method ``(domain, codomain,
         spatial-discretization[, angular-discretization])`` constructor
@@ -232,7 +232,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         on Cartesian).  Pure :math:`L` reads no :math:`\sigma`.
     """
 
-    sn_mesh: "SNProblem"
+    problem: "SNProblem"
     spatial_closure: "DiscretizationSchemeBase"
     angular_closure: "AngularClosureBase"
 
@@ -243,7 +243,7 @@ class StreamingOperator(LinearOperator["FullField"]):
     block_role = BlockRole.FULL
 
     @classmethod
-    def pose(cls, sn_mesh: "SNProblem") -> "StreamingOperator":
+    def pose(cls, problem: "SNProblem") -> "StreamingOperator":
         r"""Pose :math:`L` from the hub's own method objects (P4.9b).
 
         The INTERMEDIATE posing surface while the operator migrates to
@@ -259,7 +259,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         angular-discretization])`` constructor with no mesh argument;
         this classmethod is that migration's lever and retires with it.
         """
-        return cls(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
+        return cls(problem, problem.scheme, problem.angular_closure)
 
     @property
     def is_adjointable(self) -> bool:
@@ -308,12 +308,12 @@ class StreamingOperator(LinearOperator["FullField"]):
         Two-factor derivation:
         ``docs/theory/methods/sn/loss_representation.rst §loss-rep-orientation-two-frames``.
         """
-        return self.sn_mesh.full_field_space
+        return self.problem.full_field_space
 
     @property
     def codomain(self) -> "FunctionSpace":
         # Endomorphism on the composite (see :meth:`domain`).
-        return self.sn_mesh.full_field_space
+        return self.problem.full_field_space
 
     def apply(self, psi: "FullField") -> "FullField":
         r"""Pure σ-free forward streaming :math:`L\,\psi = \Omega\cdot\nabla\psi`.
@@ -352,7 +352,7 @@ class StreamingOperator(LinearOperator["FullField"]):
             ``FullField -> FullField``; the comonad lives on the driver).
         """
         FullField.require_member(
-            psi, mesh=self.sn_mesh, context="StreamingOperator.apply",
+            psi, mesh=self.problem, context="StreamingOperator.apply",
         )
         return self.loss_representation.streaming_action(psi)
 
@@ -383,7 +383,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         its L11 wrong-trace-metric negative control.
         """
         FullField.require_member(
-            phi, mesh=self.sn_mesh, context="StreamingOperator.apply_transpose",
+            phi, mesh=self.problem, context="StreamingOperator.apply_transpose",
         )
         return self.loss_representation.streaming_action_transpose(phi)
 
@@ -410,7 +410,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         from ..loss_representation import default_for
 
         return default_for(
-            self.sn_mesh, self.spatial_closure, self.angular_closure,
+            self.problem, self.spatial_closure, self.angular_closure,
         )
 
     # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
@@ -596,12 +596,12 @@ class StreamingCollisionOperator(
         # the (name, shape) shape-equality the OperatorSum composition guard
         # checks. The diagonal multiplier is mesh-free; its mesh is carried by
         # its CrossSectionField coefficient.
-        if diagonal.coefficient.space != streaming.sn_mesh.bulk_space:
+        if diagonal.coefficient.space != streaming.problem.bulk_space:
             raise ValueError(
                 "StreamingCollisionOperator: the diagonal multiplier's σ "
                 "must agree with the streaming geometry's scalar bulk in "
                 "content — the space-content invariant "
-                "(diagonal.coefficient.space == streaming.sn_mesh.bulk_space): "
+                "(diagonal.coefficient.space == streaming.problem.bulk_space): "
                 "the WDD sweep pairs the diagonal's σ with the streaming "
                 "geometry."
             )
@@ -667,9 +667,9 @@ class StreamingCollisionOperator(
         return self.loss_representation.bind_sigma(self.sigma)
 
     @property
-    def sn_mesh(self) -> "SNProblem":
+    def problem(self) -> "SNProblem":
         """The shared :class:`SNProblem` (validated mesh-identity at init)."""
-        return self.streaming.sn_mesh
+        return self.streaming.problem
 
     @property
     def sigma(self) -> np.ndarray:
@@ -702,7 +702,7 @@ class StreamingCollisionOperator(
         never a kwarg channel on this surface.
         """
         FullField.require_member(
-            psi, mesh=self.sn_mesh, context="StreamingCollisionOperator.apply",
+            psi, mesh=self.problem, context="StreamingCollisionOperator.apply",
         )
         return self.loss_representation.loss_action(self.sigma, psi)
 
@@ -727,7 +727,7 @@ class StreamingCollisionOperator(
         :meth:`~orpheus.numerics.coupled_system.CoupledOperator.apply_transpose`.
         """
         FullField.require_member(
-            phi, mesh=self.sn_mesh, context="StreamingCollisionOperator.apply_transpose",
+            phi, mesh=self.problem, context="StreamingCollisionOperator.apply_transpose",
         )
         return self.loss_representation.loss_action_transpose(self.sigma, phi)
 
@@ -927,8 +927,8 @@ class StreamingCollisionOperator(
                 f"got {type(rhs).__name__}.  Legacy AngularFlux retired "
                 f"in D-H.2-C3."
             )
-        sn_mesh = self.sn_mesh
-        if rhs.interior.space != rhs.interior.space_on(sn_mesh):
+        problem = self.problem
+        if rhs.interior.space != rhs.interior.space_on(problem):
             raise ValueError(
                 "StreamingCollisionOperator.solve(FullField): rhs and "
                 "operator must agree in space content "
@@ -948,7 +948,7 @@ class StreamingCollisionOperator(
         # any iterate's outflow; the curvilinear ψ½ starting direction is the
         # sweep's OWN direct computation from the source (#282), not a threaded
         # previous-iterate seed — the WDD sweep is an exact direct inverse.
-        boundary_buf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+        boundary_buf = AngularBoundaryFlux.zeros(problem.angular_trace)
         seed_boundary = rhs.boundary
         # Per-face copy via L2 face_view — works for slab (xmin, xmax),
         # curvilinear (xmax only), and 2-D Cartesian (all 4).
@@ -997,7 +997,7 @@ class StreamingCollisionOperator(
         # residual and the exit certificate refused the claim).
         # Tangential rows (excluded from both selectors) keep their
         # seeded copy untouched — the identity-row inverse.
-        trace_space = sn_mesh.angular_trace
+        trace_space = problem.angular_trace
         for face_name in boundary_buf.layout.faces:
             if face_name not in seed_boundary.layout.faces:
                 continue
@@ -1010,16 +1010,16 @@ class StreamingCollisionOperator(
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
         # selects the scheme's spatial-moment axis so the iterate is a legal typed
         # state.  DD/Step (per_axis == 1) → no factor, byte-identical.
-        per_axis = sn_mesh.scheme.spatial_basis_per_axis
+        per_axis = problem.scheme.spatial_basis_per_axis
         if moment_frame is None:
             bulk = AngularFlux(
-                values=bulk_values, space=sn_mesh.angular_trial_space,
+                values=bulk_values, space=problem.angular_trial_space,
             )
         else:
             # In moment mode the sweep returns the (L+1, 2L+1, ...) moment
             # tensor, so its own leading axis fixes L (no basis-specific read).
             bulk = HarmonicMomentFlux.from_mesh_and_L(
-                bulk_values, sn_mesh, bulk_values.shape[0] - 1,
+                bulk_values, problem, bulk_values.shape[0] - 1,
                 spatial_moments=per_axis,
             )
 
@@ -1086,8 +1086,8 @@ class StreamingCollisionOperator(
         from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.full_field import FullField
 
-        sn_mesh = self.sn_mesh
-        if b.interior.space != b.interior.space_on(sn_mesh):
+        problem = self.problem
+        if b.interior.space != b.interior.space_on(problem):
             raise ValueError(
                 "StreamingCollisionOperator.solve_transpose(FullField): b and "
                 "operator must agree in space content "
@@ -1104,7 +1104,7 @@ class StreamingCollisionOperator(
         # is this operator boundary's decision.
         boundary_out = AngularBoundaryFlux(
             values=np.asarray(m_boundary.values),
-            space=sn_mesh.angular_trace,
+            space=problem.angular_trace,
         )
         # ── The outflow defect rows of ``b`` (ERR-071, transpose half) ──
         # The solve half establishes the EXACT inverse as ``A⁻¹ = S_old −
@@ -1119,7 +1119,7 @@ class StreamingCollisionOperator(
         # random boundaries pre-fix, and red the completion's absence.)
         # Physical adjoint paths are bit-inert here for the same reason
         # the forward is: their sources carry zero on these rows.
-        trace_space = sn_mesh.angular_trace
+        trace_space = problem.angular_trace
         for face_name in boundary_out.layout.faces:
             if face_name not in b.boundary.layout.faces:
                 continue
@@ -1130,7 +1130,7 @@ class StreamingCollisionOperator(
                 )
         return FullField(
             interior=AngularFlux(
-                values=q_bar, space=sn_mesh.angular_trial_space,
+                values=q_bar, space=problem.angular_trial_space,
             ),
             boundary=boundary_out,
         )

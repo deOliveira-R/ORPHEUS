@@ -359,9 +359,9 @@ def test_mutation_split_direction_reddens_round_trip(monkeypatch):
     (Mode-1-family: a ``>`` vs ``<`` flip)."""
     real = SweepSchedule.lower_inflow_rows
 
-    def flipped(self, sn_mesh):
-        rows = real(self, sn_mesh)
-        trace = sn_mesh.angular_trace
+    def flipped(self, problem):
+        rows = real(self, problem)
+        trace = problem.angular_trace
         return {
             face: np.setdiff1d(trace.inflow_indices_for_face(face), lo)
             for face, lo in rows.items()

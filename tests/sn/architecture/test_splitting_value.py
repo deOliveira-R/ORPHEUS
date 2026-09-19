@@ -63,9 +63,9 @@ _SCHEDULES = ("jacobi", "gauss_seidel")
 
 
 def _value(build_mesh, schedule: str) -> Splitting:
-    sn_mesh = build_mesh()
-    record = record_for(sn_mesh)
-    return Splitting.from_schedule(record, resolve_schedule(sn_mesh, schedule))
+    problem = build_mesh()
+    record = record_for(problem)
+    return Splitting.from_schedule(record, resolve_schedule(problem, schedule))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -183,10 +183,10 @@ class TestLawTheLabelling:
         assert value.explicit[1] is value.system.factors.n2n
 
     def test_a_carrying_record_refuses_a_sequenced_schedule(self) -> None:
-        sn_mesh = sphere_carrying()
-        record = record_for(sn_mesh)
+        problem = sphere_carrying()
+        record = record_for(problem)
         sequenced = SweepSchedule.gauss_seidel(
-            sn_mesh.ndim, sn_mesh.quad.octants, reflective_faces(sn_mesh),
+            problem.ndim, problem.quad.octants, reflective_faces(problem),
         )
         with pytest.raises(ValueError, match="carrying mesh"):
             Splitting.from_schedule(record, sequenced)

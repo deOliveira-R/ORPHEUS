@@ -150,7 +150,7 @@ def test_certificate_is_a_noop_without_a_convergence_claim():
     sn = _sphere()
     solver = SNSolver(sn)
     system = build_within_group_system(
-        sn, solver.sn_mesh.mat_xs,
+        sn, solver.problem.mat_xs,
     )
     # Both no-op arms, now stated as RECORDS (#340 N2a — the certificate
     # reads the driver's own record rather than re-deriving the claim from
@@ -174,10 +174,10 @@ def test_certificate_is_a_noop_without_a_convergence_claim():
     #     because the two readings differ wherever a claim IS made.
     _certify_within_group_exit(
         system.loss, None, None,  # type: ignore[arg-type]
-        sn_mesh=sn, record=_record(()), where="noop-test",
+        problem=sn, record=_record(()), where="noop-test",
     )
     # (b) a genuine truncation: measured 1.0 against tol 1e-8, no claim.
     _certify_within_group_exit(
         system.loss, None, None,  # type: ignore[arg-type]
-        sn_mesh=sn, record=_record((1.0,), iterations_run=1), where="noop-test",
+        problem=sn, record=_record((1.0,), iterations_run=1), where="noop-test",
     )

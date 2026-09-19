@@ -151,13 +151,13 @@ def _mesh(cells, bcs, *, ng=2, quad=None, c=0.0, stretch=1.0,
     )
 
 
-def _loss_system(sn_mesh):
+def _loss_system(problem):
     """``(system, template)`` — the PRODUCTION splitting the SI driver iterates."""
-    solver = SNSolver(sn_mesh, inner_solver="source_iteration")
+    solver = SNSolver(problem, inner_solver="source_iteration")
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs,
+        problem, solver.problem.mat_xs,
     )
-    return system, _unwindowed_cold_start(sn_mesh, history_depth=0)
+    return system, _unwindowed_cold_start(problem, history_depth=0)
 
 
 def _apply_loss(system, template, flat: np.ndarray) -> np.ndarray:

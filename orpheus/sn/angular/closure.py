@@ -400,7 +400,7 @@ class AngularClosureBase(RegistryMixin, ABC):
         Abstract: declares the signature only; concrete ``__init__``
         bodies do not chain here.
 
-        (Before the 2026-08-26 un-weld this read ``cls(sn_mesh)`` and every
+        (Before the 2026-08-26 un-weld this read ``cls(problem)`` and every
         member reached into the mesh for its operands.  Nothing it reached
         for was a mesh fact: measured, the whole set was
         ``(quad, coord, ΔA)`` plus values derivable from them.)
@@ -611,7 +611,7 @@ class AngularClosureBase(RegistryMixin, ABC):
     # ── Matvec strategy contract (the ABC's three abstract methods) ──
     #
     # The unified SN matvec (``loss_representation.py``) reads
-    # ``sn_mesh.angular_closure`` typed against THIS ABC and drives the
+    # ``problem.angular_closure`` typed against THIS ABC and drives the
     # angular path through these three methods; declaring them abstract makes
     # the ABC the COMPLETE strategy contract.  Return types are deliberately
     # loose (``object`` for the per-level half-grid state) so the two
@@ -1612,9 +1612,9 @@ class MorelMontryAngularSweep(
 
     Parameters
     ----------
-    sn_mesh : SNProblem
+    problem : SNProblem
         The mesh + quadrature + materials bundle this strategy binds to
-        (REQUIRED — the family's ``cls(sn_mesh)`` construction contract).
+        (REQUIRED — the family's ``cls(problem)`` construction contract).
         M-M precomputes α-dome, ΔA/w, τ, c_in, c_out, level partition,
         μ_x, weights, Δr at construction; the strategy methods read these
         from ``self`` (no M-M data through arguments).  Tests that need the
@@ -2197,7 +2197,7 @@ class IdentityAngularClosure(AngularClosureBase, key="identity_angular_closure")
 
     Parameters
     ----------
-    sn_mesh : SNProblem
+    problem : SNProblem
         Bound to the mesh so consumers have one uniform construction
         pattern.  Identity reads only the ordinate count off the angular
         factor's measure to size its zero-contribution returns; the
@@ -2315,7 +2315,7 @@ def default_angular_closure_class(coord: CoordSystem) -> "type[AngularClosureBas
     """Return the default angular-closure CLASS for a coordinate system.
 
     PR-TYPED-6.5 Phase 2.9.  The factory dispatch (instantiation with
-    ``sn_mesh``) is the caller's job — typically ``SNProblem.__init__``
+    ``problem``) is the caller's job — typically ``SNProblem.__init__``
     after the ``match mesh.coord:`` block resolves geometry data.
 
     * ``CARTESIAN``    → :class:`IdentityAngularClosure`

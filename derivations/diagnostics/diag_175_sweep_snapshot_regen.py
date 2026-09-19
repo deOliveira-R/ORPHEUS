@@ -94,33 +94,33 @@ def build_fixture() -> tuple[SNProblem, np.ndarray, np.ndarray]:
         mat_map=mat,
     )
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials)
 
     # σ_t exactly as the test consumes it (solver.mat_xs.total_cross_section).
     from orpheus.sn.solver import SNSolver
 
-    solver = SNSolver(sn_mesh)
-    sig_t = solver.sn_mesh.mat_xs.total_cross_section
+    solver = SNSolver(problem)
+    sig_t = solver.problem.mat_xs.total_cross_section
     ng = sig_t.shape[0]
 
     np.random.seed(7)
     Q = np.random.rand(ng, nx, ny) + 0.01
-    return sn_mesh, sig_t, Q
+    return problem, sig_t, Q
 
 
 def hand_sweep(
-    sn_mesh: SNProblem, sig_t: np.ndarray, Q: np.ndarray
+    problem: SNProblem, sig_t: np.ndarray, Q: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
     """Per-cell-loop 2-D DD sweep, vacuum inflow on every face.
 
     Solves (Ω·∇ + σ_t) ψ_n = Q/W per ordinate with the DD closure.
     Returns (psi (N, ng, nx, ny), phi (ng, nx, ny) = Σ_n w_n ψ_n).
     """
-    quad = sn_mesh.quad
+    quad = problem.quad
     N = quad.N
     ng, nx, ny = Q.shape
     W = float(quad.weights.sum())
-    dx, dy = (np.asarray(w) for w in sn_mesh.axis_widths)
+    dx, dy = (np.asarray(w) for w in problem.axis_widths)
 
     qn = Q / W  # per-ordinate magnitude, identical across n
     psi = np.zeros((N, ng, nx, ny))
@@ -150,15 +150,15 @@ def hand_sweep(
 
 
 def main() -> int:
-    sn_mesh, sig_t, Q = build_fixture()
+    problem, sig_t, Q = build_fixture()
 
     ang, phi_prod = sweep_once(
-        AngularSourceSink.from_isotropic(Q, sn_mesh),
+        AngularSourceSink.from_isotropic(Q, problem),
         sig_t,
-        sn_mesh,
-        AngularBoundaryFlux.zeros_on(sn_mesh),
+        problem,
+        AngularBoundaryFlux.zeros_on(problem),
     )
-    psi_hand, phi_hand = hand_sweep(sn_mesh, sig_t, Q)
+    psi_hand, phi_hand = hand_sweep(problem, sig_t, Q)
 
     psi_prod = ang if isinstance(ang, np.ndarray) else ang.values
     dpsi = np.abs(psi_prod - psi_hand).max()

@@ -103,15 +103,15 @@ def _solver_for(coord: str, ng_key: str) -> tuple[SNSolver, object]:
     mat_id = next(iter(case.problem.materials.keys()))
     mesh = _homogeneous_mesh(coord, mat_id)
     quad = _quadrature_for(coord)
-    sn_mesh = _as_sn_mesh(mesh, quad, case.problem.materials)
-    solver = SNSolver(sn_mesh)
+    problem = _as_sn_mesh(mesh, quad, case.problem.materials)
+    solver = SNSolver(problem)
     return solver, case
 
 
-def _timed_random_state(sn_mesh: SNProblem, *, history_depth: int, seed: int) -> TimedFullField:
+def _timed_random_state(problem: SNProblem, *, history_depth: int, seed: int) -> TimedFullField:
     """A timed iterate with random bulk — the comonad the driver carries."""
     state = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
         history_depth=history_depth,
     )
     from dataclasses import replace
@@ -140,22 +140,22 @@ def test_c5a_matvec_leaves_emit_timeless_full_field(coord: str) -> None:
     drops the comonad tail.
     """
     solver, _case = _solver_for(coord, "2eg")
-    sn_mesh = solver.sn_mesh
+    problem = solver.problem
 
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(solver.sn_mesh.mat_xs.total_cross_section_field, sn_mesh)
-    S = solver.sn_mesh.system.factors.scattering
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(solver.problem.mat_xs.total_cross_section_field, problem)
+    S = solver.problem.system.factors.scattering
     # CS4c step 4: the composite (FullField) arm lives on the ANGULAR
     # fission binding; the hub's fission.isotropic_energy is the scalar
     # energy binding the k-outer feeds.
     from orpheus.transport.operators.fission import FissionOperator
 
     F = FissionOperator.from_solver_data(
-        mat_xs=solver.sn_mesh.mat_xs, space=sn_mesh.full_field_space,
+        mat_xs=solver.problem.mat_xs, space=problem.full_field_space,
     )
-    B = SNBoundaryOperator(sn_mesh)
+    B = SNBoundaryOperator(problem)
 
-    state = _timed_random_state(sn_mesh, history_depth=2, seed=11)
+    state = _timed_random_state(problem, history_depth=2, seed=11)
 
     leaves = {"L": L.apply, "C": C.apply, "S": S.apply, "F": F.apply, "B": B.apply}
     for name, apply in leaves.items():
@@ -178,13 +178,13 @@ def test_c5a_matvec_leaves_emit_timeless_full_field(coord: str) -> None:
 def test_c5a_apply_transpose_emits_timeless_full_field(coord: str) -> None:
     """L / C / B ``.apply_transpose`` outputs are a TIMELESS ``FullField``."""
     solver, _case = _solver_for(coord, "2eg")
-    sn_mesh = solver.sn_mesh
+    problem = solver.problem
 
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(solver.sn_mesh.mat_xs.total_cross_section_field, sn_mesh)
-    B = SNBoundaryOperator(sn_mesh)
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(solver.problem.mat_xs.total_cross_section_field, problem)
+    B = SNBoundaryOperator(problem)
 
-    state = _timed_random_state(sn_mesh, history_depth=3, seed=23)
+    state = _timed_random_state(problem, history_depth=3, seed=23)
 
     for name, op in {"L": L, "C": C, "B": B}.items():
         out = op.apply_transpose(state)
@@ -198,11 +198,11 @@ def test_c5a_apply_transpose_emits_timeless_full_field(coord: str) -> None:
 def test_c5a_independent_of_input_history_depth() -> None:
     """The timeless codomain holds for EVERY input ``history_depth`` (0..4)."""
     solver, _case = _solver_for("slab", "2eg")
-    sn_mesh = solver.sn_mesh
-    L = StreamingOperator.pose(sn_mesh)
+    problem = solver.problem
+    L = StreamingOperator.pose(problem)
     for depth in (0, 1, 2, 4):
         state = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
             history_depth=depth,
         )
         out = L.apply(state)
@@ -296,9 +296,9 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
     )
 
     solver, _case = _solver_for("slab", "2eg")
-    sn_mesh = solver.sn_mesh
+    problem = solver.problem
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs,
+        problem, solver.problem.mat_xs,
     )
     LC, S, N2N, B = (
         system.factors.streaming_collision, system.factors.scattering,
@@ -308,9 +308,9 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
     # A timed external source (the driver's comonad-carrying rhs).
     q_ext = TimedFullField(
         interior=AngularSourceSink.from_isotropic(
-            np.ones((solver.ng, *sn_mesh.spatial_shape)), sn_mesh,
+            np.ones((solver.ng, *problem.spatial_shape)), problem,
         ),
-        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+        boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
         _history=(),
         history_depth=2,
     )
@@ -318,7 +318,7 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
     # the gains dispatch on a flux bulk, not the source-role q_ext bulk); mirror
     # that here (SNSolver._solve_source_iteration passes a flux initial_guess).
     flux_seed = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=2,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space, history_depth=2,
     )
     si = SourceIteration(LC.inverse(), S, B, max_iter=50, tol=1e-10)
     psi, _residuals = si.solve(q_ext, initial_guess=flux_seed)
@@ -343,9 +343,9 @@ def test_c5c_advance_type_guard_still_fires() -> None:
     ``new_bulk`` whose type differs from the current bulk raises ``TypeError``.
     """
     solver, _case = _solver_for("slab", "2eg")
-    sn_mesh = solver.sn_mesh
+    problem = solver.problem
     state = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=2,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space, history_depth=2,
     )
     # A bare ndarray is not an AngularFlux — the advance guard must reject it.
     with pytest.raises(TypeError, match="new_bulk type"):

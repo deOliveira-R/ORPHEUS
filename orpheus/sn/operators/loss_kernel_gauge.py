@@ -350,7 +350,7 @@ class GaugeFreedom:
             )
 
 
-def gauge_freedom(sn_mesh: "SNProblem") -> GaugeFreedom:
+def gauge_freedom(problem: "SNProblem") -> GaugeFreedom:
     r"""Does this configuration admit gauge freedom in :math:`\ker A`?
 
     .. math::
@@ -373,16 +373,16 @@ def gauge_freedom(sn_mesh: "SNProblem") -> GaugeFreedom:
     ``[M]`` at :math:`d = 2` a single vacuum face collapses ``dim ker A`` from
     12 to 0.
     """
-    spectrum = sn_mesh.scheme.face_transmission_spectrum(sn_mesh.ndim)
-    pairs = sn_mesh.reflective_axis_pairs
+    spectrum = problem.scheme.face_transmission_spectrum(problem.ndim)
+    pairs = problem.reflective_axis_pairs
 
     if spectrum.damping is FaceModeDamping.UNDETERMINED:
         return GaugeFreedom(
             present=False,
             undetermined=True,
             because=(
-                f"the {type(sn_mesh.scheme).__name__} closure could not be "
-                f"classified at ndim={sn_mesh.ndim} "
+                f"the {type(problem.scheme).__name__} closure could not be "
+                f"classified at ndim={problem.ndim} "
                 f"({spectrum.undetermined_because}), so whether it leaves a "
                 f"face mode undamped is unknown; the problem closes {pairs} "
                 f"reflective axis pair(s)"
@@ -394,8 +394,8 @@ def gauge_freedom(sn_mesh: "SNProblem") -> GaugeFreedom:
             present=False,
             undetermined=False,
             because=(
-                f"the {type(sn_mesh.scheme).__name__} closure DAMPS every face "
-                f"mode at ndim={sn_mesh.ndim} (spectral radius "
+                f"the {type(problem.scheme).__name__} closure DAMPS every face "
+                f"mode at ndim={problem.ndim} (spectral radius "
                 f"{spectrum.spectral_radius:.6f} < 1), so no trace mode can "
                 f"survive a round trip"
             ),
@@ -417,7 +417,7 @@ def gauge_freedom(sn_mesh: "SNProblem") -> GaugeFreedom:
         present=True,
         undetermined=False,
         because=(
-            f"the {type(sn_mesh.scheme).__name__} closure leaves a face mode "
+            f"the {type(problem.scheme).__name__} closure leaves a face mode "
             f"undamped (spectral radius {spectrum.spectral_radius:.6f}) and "
             f"the problem closes {pairs} reflective axis pairs"
         ),
@@ -454,7 +454,7 @@ def _damping_alternatives(ndim: int) -> str:
 
 
 def warn_if_gauge_freedom(
-    sn_mesh: "SNProblem", correction: Evidence, *, where: str,
+    problem: "SNProblem", correction: Evidence, *, where: str,
 ) -> None:
     r"""Say that the trace was repaired, or that the closure was unclassifiable.
 
@@ -486,7 +486,7 @@ def warn_if_gauge_freedom(
     is what keeps it off the standard ``k_inf`` lattice, which is all-reflective
     by default and would otherwise warn on every solve.
     """
-    verdict = gauge_freedom(sn_mesh)
+    verdict = gauge_freedom(problem)
 
     if verdict.undetermined:
         warnings.warn(
@@ -497,7 +497,7 @@ def warn_if_gauge_freedom(
             f"solution manifold: the bulk, k and every mirror-even functional "
             f"are still correct, but a mirror-odd one — a current tangential "
             f"to a reflective face — may be meaningless. To settle it, "
-            f"{_damping_alternatives(int(sn_mesh.ndim))}. "
+            f"{_damping_alternatives(int(problem.ndim))}. "
             f"Silence this per-call with warnings.catch_warnings(); make it "
             f"fatal everywhere with {GAUGE_ESCALATION_FLAG}.",
             GaugeFreedomWarning,
@@ -522,7 +522,7 @@ def warn_if_gauge_freedom(
         f"functional of the trace is blind to the kernel by symmetry, so the "
         f"error surfaces only in a current TANGENTIAL to a reflective face. "
         f"To remove the freedom at the root instead of projecting it out, "
-        f"{_damping_alternatives(int(sn_mesh.ndim))}. "
+        f"{_damping_alternatives(int(problem.ndim))}. "
         f"Silence this per-call with warnings.catch_warnings(); make it fatal "
         f"everywhere with {GAUGE_ESCALATION_FLAG}.",
         GaugeFreedomWarning,
@@ -565,7 +565,7 @@ def _anova_dimension(cells: tuple[int, ...]) -> int:
     )
 
 
-def predicted_kernel_dimension(sn_mesh: "SNProblem") -> int:
+def predicted_kernel_dimension(problem: "SNProblem") -> int:
     r"""``dim ker A`` from the counting law — **without building any vector**.
 
     The structurally independent check on :class:`LossKernelGauge`: this walks
@@ -579,33 +579,33 @@ def predicted_kernel_dimension(sn_mesh: "SNProblem") -> int:
     the tangential component ``T`` contributes one dimension per tangential
     trace DOF and is not gauged.
     """
-    if not gauge_freedom(sn_mesh).present:
+    if not gauge_freedom(problem).present:
         return 0
-    spatial = tuple(int(n) for n in sn_mesh.spatial_shape)
+    spatial = tuple(int(n) for n in problem.spatial_shape)
     total = 0
-    for _orbit, active in _reflection_orbits(sn_mesh):
+    for _orbit, active in _reflection_orbits(problem):
         if len(active) < 2:
             continue
         per_orbit = 0
         for size in range(2, len(active) + 1):
             for subset in combinations(active, size):
                 spectators = int(np.prod(
-                    [spatial[c] for c in range(sn_mesh.ndim)
+                    [spatial[c] for c in range(problem.ndim)
                      if c not in subset] or [1]
                 ))
                 per_orbit += _anova_dimension(
                     tuple(spatial[c] for c in subset)
                 ) * spectators
         total += per_orbit
-    return total * int(sn_mesh.ng)
+    return total * int(problem.ng)
 
 
 # ─────────────────────────────────────────────────────────────────────
 # The ordinate orbits under the reflection group
 # ─────────────────────────────────────────────────────────────────────
-def _direction_cosines(sn_mesh: "SNProblem") -> NDArray:
+def _direction_cosines(problem: "SNProblem") -> NDArray:
     """``(N, 3)`` direction cosines, one row per ordinate."""
-    quad = sn_mesh.quad
+    quad = problem.quad
     return np.stack(
         [np.asarray(quad.mu_x, dtype=float),
          np.asarray(quad.mu_y, dtype=float),
@@ -615,7 +615,7 @@ def _direction_cosines(sn_mesh: "SNProblem") -> NDArray:
 
 
 def _reflection_orbits(
-    sn_mesh: "SNProblem",
+    problem: "SNProblem",
 ) -> tuple[tuple[tuple[int, ...], tuple[int, ...]], ...]:
     r"""Orbits of ordinates under :math:`\langle R_a : a \text{ reflective}\rangle`.
 
@@ -630,8 +630,8 @@ def _reflection_orbits(
         realisable at all — the reflected ordinate has nowhere to land — so this
         is a genuine admission refusal, not a limitation of the construction.
     """
-    mu = _direction_cosines(sn_mesh)
-    reflective = sn_mesh.reflective_axes
+    mu = _direction_cosines(problem)
+    reflective = problem.reflective_axes
     node_of = {tuple(np.round(row, 10)): n for n, row in enumerate(mu)}
 
     partners: dict[int, NDArray] = {}
@@ -873,7 +873,7 @@ class _FacePlacement:
 
 
 def _block_support(
-    sn_mesh: "SNProblem", orbit: tuple[int, ...],
+    problem: "SNProblem", orbit: tuple[int, ...],
     group: int, active: tuple[int, ...],
 ) -> tuple[NDArray, tuple[_FacePlacement, ...]]:
     r"""The block's trace DOFs, sorted, plus where each face writes into them.
@@ -895,9 +895,9 @@ def _block_support(
     re-asserted at build time rather than trusted; see
     :func:`_build_block_table`.)
     """
-    layout = sn_mesh.angular_trace.layout
-    spatial = tuple(int(n) for n in sn_mesh.spatial_shape)
-    ndim = int(sn_mesh.ndim)
+    layout = problem.angular_trace.layout
+    spatial = tuple(int(n) for n in problem.spatial_shape)
+    ndim = int(problem.ndim)
 
     raw: list[NDArray] = []
     stubs: list[tuple[int, int, float, NDArray, tuple[int, ...]]] = []
@@ -942,7 +942,7 @@ def _block_support(
 
 
 def _transverse_factors(
-    sn_mesh: "SNProblem", axis: int,
+    problem: "SNProblem", axis: int,
 ) -> tuple[NDArray, NDArray]:
     r"""``((-1)^{sum_{c != a} i_c}, A_a(i_perp))`` on the transverse grid.
 
@@ -950,9 +950,9 @@ def _transverse_factors(
     :math:`\prod_{b \neq a} h_b(i_b)` — read from the mesh's own edges, which is
     what makes a **graded** mesh need no separate treatment.
     """
-    ndim = int(sn_mesh.ndim)
+    ndim = int(problem.ndim)
     kept = [c for c in range(ndim) if c != axis]
-    widths = [np.diff(np.asarray(sn_mesh.axes[c].edges, dtype=float))
+    widths = [np.diff(np.asarray(problem.axes[c].edges, dtype=float))
               for c in kept]
     checker = np.ones(tuple(w.size for w in widths))
     area = np.ones(tuple(w.size for w in widths))
@@ -964,7 +964,7 @@ def _transverse_factors(
 
 
 def _build_block_table(
-    sn_mesh: "SNProblem", orbit: tuple[int, ...],
+    problem: "SNProblem", orbit: tuple[int, ...],
     group: int, active: tuple[int, ...], trace_metric: NDArray,
 ) -> tuple[NDArray, NDArray]:
     r"""``(sorted DOF indices, G-orthonormal table)`` for one block.
@@ -978,14 +978,14 @@ def _build_block_table(
        generating set to its rank AND :math:`G`-orthonormalises the survivors —
        replacing both of the derivation memo's factorisations.
     """
-    indices, placements = _block_support(sn_mesh, orbit, group, active)
+    indices, placements = _block_support(problem, orbit, group, active)
     if indices.size == 0:
         return indices, np.zeros((0, 0))
 
-    mu = _direction_cosines(sn_mesh)
-    spatial = tuple(int(n) for n in sn_mesh.spatial_shape)
-    factors = {axis: _transverse_factors(sn_mesh, axis) for axis in active}
-    generators = _pair_generators(spatial, active, int(sn_mesh.ndim))
+    mu = _direction_cosines(problem)
+    spatial = tuple(int(n) for n in problem.spatial_shape)
+    factors = {axis: _transverse_factors(problem, axis) for axis in active}
+    generators = _pair_generators(spatial, active, int(problem.ndim))
 
     columns = np.zeros((indices.size, len(generators)))
     for column, generator in enumerate(generators):
@@ -1156,7 +1156,7 @@ class LossKernelGauge(LinearOperator):
 
     # ── construction ──────────────────────────────────────────────────
     @classmethod
-    def for_mesh(cls, sn_mesh: "SNProblem") -> "LossKernelGauge":
+    def for_mesh(cls, problem: "SNProblem") -> "LossKernelGauge":
         """Build the gauge for a mesh — **zero blocks when there is nothing to fix**.
 
         A zero-block gauge is the honest answer to a non-singular configuration,
@@ -1169,19 +1169,19 @@ class LossKernelGauge(LinearOperator):
         ruled behaviour — but the caller owes the user a loud warning naming the
         obstruction, which :attr:`GaugeFreedom.because` supplies.
         """
-        trace_space = sn_mesh.angular_trace
-        if not gauge_freedom(sn_mesh).present:
+        trace_space = problem.angular_trace
+        if not gauge_freedom(problem).present:
             return cls((), trace_space)
 
         metric = np.asarray(trace_space.inner_product_weights, dtype=float)
         n_trace = int(np.prod(trace_space.shape))
         blocks: list[_GaugeBlock] = []
-        for orbit, active in _reflection_orbits(sn_mesh):
+        for orbit, active in _reflection_orbits(problem):
             if len(active) < 2:
                 continue
-            for group in range(int(sn_mesh.ng)):
+            for group in range(int(problem.ng)):
                 indices, table = _build_block_table(
-                    sn_mesh, orbit, group, active, metric)
+                    problem, orbit, group, active, metric)
                 if table.size == 0 or table.shape[1] == 0:
                     continue
                 basis = LossKernelBasis(

@@ -11,7 +11,7 @@ a realized operator:
 * **The law it was realized from** (:attr:`law`, campaign phase B2.0).
   The three-layer architecture is descriptor → realizer → operator, and
   before B2.0 the descriptor was *dropped* on the way out: the shim kept
-  ``kind=law.key``, a **string**, and nothing else. So ``sn_mesh.bc[face]``
+  ``kind=law.key``, a **string**, and nothing else. So ``problem.bc[face]``
   could answer *"what were you declared as?"* but not *"what do you
   DO?"* — and every consumer needing the latter had to re-derive it
   from the tag. Carrying the law makes the structural questions
@@ -215,7 +215,7 @@ class _BoundBoundaryOperator(LinearOperator):
     @property
     def block_role(self):  # type: ignore[override]
         # Forward the realized law's block-role classification (Issue #208
-        # / Wave O) so ``isinstance(sn_mesh.bc["xmin"], BoundaryOperator)``
+        # / Wave O) so ``isinstance(problem.bc["xmin"], BoundaryOperator)``
         # reads the inner op's role. Since P3 (2026-08-05) EVERY realized
         # boundary law carries ``BlockRole.BOUNDARY``, prescribed inflow
         # included — its realization is the zero morphism (the affine

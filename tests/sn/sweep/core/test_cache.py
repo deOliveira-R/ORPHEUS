@@ -98,8 +98,8 @@ def test_geometry_coefficients_built_at_construction() -> None:
     All Stratum-1 fields present; shapes match the ``(N, nx)`` contract; the
     frozen dataclass refuses post-construction mutation.
     """
-    sn_mesh = _make_slab(nx=10, N=8)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    problem = _make_slab(nx=10, N=8)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(problem)
     N, nx = 8, 10
     assert geom.chain_idx.shape == (N, nx)
     assert geom.chain_idx_inv.shape == (N, nx)
@@ -111,7 +111,7 @@ def test_geometry_coefficients_built_at_construction() -> None:
     assert geom.is_degenerate.shape == (N,)
     # The angular-closure block is NOT on the cache (P4b) — its one durable
     # home is the closure's read-only per-ordinate cache.
-    closure = sn_mesh.angular_closure
+    closure = problem.angular_closure
     assert closure.c_in_per_ordinate.shape == (N,)
     assert closure.c_out_per_ordinate.shape == (N,)
     assert closure.tau_inv_per_ordinate.shape == (N,)
@@ -133,13 +133,13 @@ def test_collision_cache_built_at_sigma_t_bind() -> None:
 
     Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
-    sn_mesh = _make_slab(nx=4, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    problem = _make_slab(nx=4, N=4)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(problem)
     # sig_t is (ng, nx) under PR-INDEX-2.  Two groups × four cells,
     # uniform per group: group 0 has σ_t=1.0, group 1 has σ_t=2.0.
     sig_t = np.array([[1.0] * 4, [2.0] * 4])  # (ng=2, nx=4)
     coll = CollisionCache.from_geometry(
-        geom, sig_t, sn_mesh.scheme, sn_mesh.angular_closure
+        geom, sig_t, problem.scheme, problem.angular_closure
     )
 
     # (N, ng, nx) — N=4 ordinates, ng=2 groups, nx=4 cells.
@@ -149,7 +149,7 @@ def test_collision_cache_built_at_sigma_t_bind() -> None:
 
     # Hand-eval for ordinate n=0 (most-inward μ), group 0, cell 0
     # (in chain order):  |μ|=|mu_x[0]|, V=mesh width = 0.25, σ_t=1.0.
-    quad = sn_mesh.quad
+    quad = problem.quad
     mu = abs(float(quad.mu_x[0]))
     V = 0.25  # uniform mesh
     sig = 1.0
@@ -168,8 +168,8 @@ def test_two_strata_independence_by_ng_axis() -> None:
     Smell #16 instance would surface as Stratum-1 carrying an ``ng`` axis.
     Cache storage layout is ``(N, ng, nx)`` under Issue #196 PR-INDEX-2.
     """
-    sn_mesh = _make_slab(nx=5, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    problem = _make_slab(nx=5, N=4)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(problem)
     # Stratum 1 — no ng axis on ANY field.
     for name in ("face_area_downstream", "face_area_total", "delta_A_over_w", "volume"):
         field_arr = getattr(geom, name)
@@ -178,7 +178,7 @@ def test_two_strata_independence_by_ng_axis() -> None:
         field_arr = getattr(geom, name)
         assert field_arr.ndim == 1, f"{name} should be (N,); got shape {field_arr.shape}"
     # The closure block lives on the closure (P4b), same no-ng-axis contract.
-    closure = sn_mesh.angular_closure
+    closure = problem.angular_closure
     for name in (
         "c_in_per_ordinate",
         "c_out_per_ordinate",
@@ -191,7 +191,7 @@ def test_two_strata_independence_by_ng_axis() -> None:
     # Stratum 2 — every tensor has the (N, ng, nx) shape (PR-INDEX-2).
     sig_t = np.ones((3, 5))  # (ng=3, nx=5) under PR-INDEX-2
     coll = CollisionCache.from_geometry(
-        geom, sig_t, sn_mesh.scheme, sn_mesh.angular_closure
+        geom, sig_t, problem.scheme, problem.angular_closure
     )
     for name in ("inverse_denom", "a_attenuation", "cumprod_a"):
         field_arr = getattr(coll, name)
@@ -348,21 +348,21 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNProblem(mesh, quad, materials)
-    solver = SNSolver(sn_mesh=sn_mesh)
+    problem = SNProblem(mesh, quad, materials)
+    solver = SNSolver(problem=problem)
 
-    hub_b = sn_mesh.with_cross_sections(sn_mesh.mat_xs.total_cross_section * 2.0)
-    assert hub_b != sn_mesh and hub_b.same_phase_space(sn_mesh), (
+    hub_b = problem.with_cross_sections(problem.mat_xs.total_cross_section * 2.0)
+    assert hub_b != problem and hub_b.same_phase_space(problem), (
         "a σ-variant is ANOTHER Problem over the SAME phase space (O-5)"
     )
     from orpheus.sn.loss_representation import _GEOM_CACHE_INTERN, geometry_cache_for
 
-    solver_b = SNSolver(sn_mesh=hub_b)
+    solver_b = SNSolver(problem=hub_b)
 
     # C3b-2: the strata are the OPERATOR's (σ bound once at the operator that
     # owns σ; the solver holds no cache and the hub carries no σ memo) — built
     # lazily, so the intern's bound is measured between the two bindings.
-    stratum = sn_mesh.system.factors.streaming_collision.sigma_stratum
+    stratum = problem.system.factors.streaming_collision.sigma_stratum
     n_live = len(_GEOM_CACHE_INTERN)  # process-global: other live hubs hold tables too
     stratum_b = hub_b.system.factors.streaming_collision.sigma_stratum
     geom_before, coll_before = stratum.geom, stratum.coll
@@ -379,7 +379,7 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
     # P4.9b step 2c — the re-posed halves of the two-stratum contract:
     # (1) Stratum 1 lives in the strategy layer's INTERN; the mesh-attr
     #     memo is RETIRED (the walk resolves through geometry_cache_for).
-    for hub in (sn_mesh, hub_b):
+    for hub in (problem, hub_b):
         assert not hasattr(hub, "_geom_cache"), (
             "the mesh-attr _geom_cache memo was retired at P4.9b step 2c — "
             "the strategy layer's intern is the one home (Q1 ruling)"
@@ -395,7 +395,7 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
     #     mesh memo is re-stamped per hub and its values carry that hub's σ.
     #     _coll_cache / _pole_mirror_cache SURVIVE as mesh memos until C3b
     #     re-homes the σ stratum onto the operator instance.
-    for hub in (sn_mesh, hub_b):
+    for hub in (problem, hub_b):
         assert not hasattr(hub, "_coll_cache"), (
             "the σ memo on the hub retired at C3b-2 — σ is bound ONCE at the operator"
         )
@@ -434,16 +434,16 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
     nx = 8
     N = 4
     if geometry == "slab":
-        sn_mesh = _make_slab(nx=nx, N=N)
+        problem = _make_slab(nx=nx, N=N)
     else:
-        sn_mesh = _make_sphere(nx=nx, N=N)
+        problem = _make_sphere(nx=nx, N=N)
 
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(problem)
     rng = np.random.default_rng(42)
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     sig_t = 1.0 + 0.5 * rng.random((ng, nx))                  # (ng, nx)
     coll = CollisionCache.from_geometry(
-        geom, sig_t, sn_mesh.scheme, sn_mesh.angular_closure
+        geom, sig_t, problem.scheme, problem.angular_closure
     )
 
     # Build a representative source in (ng, nx) — principled layout.
@@ -456,7 +456,7 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
         Q = np.ones((ng, 1)) * np.exp(-((x - 0.5) ** 2) * 10)[None, :]
 
     # Pick the most-inward ordinate (μ<0) so chain order is reverse.
-    quad = sn_mesh.quad
+    quad = problem.quad
     mu = quad.mu_x
     n = int(np.argmin(mu))
 
@@ -475,7 +475,7 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
         # term is genuinely exercised (zeros would null delta_A_over_w·c_in·ψ_a_in).
         rng2 = np.random.default_rng(7)
         psi_a_in_chain = 0.1 * rng2.random((ng, nx))          # (ng, nx)
-        c_in_fast = sn_mesh.angular_closure.c_in_per_ordinate[n]  # P4b: closure-owned
+        c_in_fast = problem.angular_closure.c_in_per_ordinate[n]  # P4b: closure-owned
         ang_contrib = (geom.delta_A_over_w[n] * c_in_fast)[None, :] * psi_a_in_chain  # (ng, nx)
         b = 2.0 * (QV_chain + ang_contrib) * coll.inverse_denom[n]  # (ng, nx)
     else:
@@ -495,16 +495,16 @@ def test_cache_driven_sweep_matches_per_cell_scheme_update(
     psi_face_chain_ref = np.full_like(psi_face_chain_fast, np.nan)
     has_downstream = np.zeros(nx, dtype=bool)
     psi_face_in = psi_in
-    visits_full = list(sn_mesh.dag_walk(ordinate_idx=n))
+    visits_full = list(problem.dag_walk(ordinate_idx=n))
     # P4.9a: the caller assembles the closure contributions from the
     # closure's own per-ordinate constants (the walk's production idiom).
-    closure = sn_mesh.angular_closure
+    closure = problem.angular_closure
     c_in_n = closure.c_in_per_ordinate[n]
     c_out_n = closure.c_out_per_ordinate[n]
     # ΔA/w from its two factors (P4.7 — the packet no longer carries it).
-    _red = sn_mesh.reduced
+    _red = problem.reduced
     assert _red is not None  # 1-D mesh => minted by the ctor (narrowing)
-    _w_n = float(np.asarray(sn_mesh.quad.weights)[n])
+    _w_n = float(np.asarray(problem.quad.weights)[n])
     for k_chain in range(nx):
         cell_i = int(chain[k_chain])
         dAw_vc = float(np.asarray(_red.delta_A)[cell_i]) / _w_n
@@ -563,26 +563,26 @@ def test_cache_populator_matches_cell_balance_for_streaming() -> None:
     (P4.9a rewire of ``…_matches_cell_balance_terms``; the scalar twin
     retired).
     """
-    sn_mesh = _make_sphere(nx=8, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    problem = _make_sphere(nx=8, N=4)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(problem)
     ng = 2
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     # Build (nx, ng) first via outer product for readability, then transpose.
     sig_t_xg = np.linspace(0.5, 1.5, 8)[:, None] * np.array([[1.0, 2.0]])  # (8, 2)
     sig_t = sig_t_xg.T                                                     # (ng=2, nx=8)
     coll = CollisionCache.from_geometry(
-        geom, sig_t, sn_mesh.scheme, sn_mesh.angular_closure
+        geom, sig_t, problem.scheme, problem.angular_closure
     )
 
     # Sample two ordinates × two cells (chain positions).
-    quad = sn_mesh.quad
+    quad = problem.quad
     for n in (int(np.argmin(quad.mu_x)), int(np.argmax(quad.mu_x))):
-        visits = list(sn_mesh.dag_walk(ordinate_idx=n))
+        visits = list(problem.dag_walk(ordinate_idx=n))
         chain = geom.chain_idx[n]
         for k_chain in (0, 3, 7):
             visit = visits[k_chain]
             cell_i = int(chain[k_chain])
-            red_op = sn_mesh.reduced
+            red_op = problem.reduced
             assert red_op is not None  # 1-D mesh => minted (narrowing)
             # Zero upstream + zero angular-numer probe — ``denom`` is
             # independent of upstream, so this is fine.
@@ -602,8 +602,8 @@ def test_cache_populator_matches_cell_balance_for_streaming() -> None:
                 # two factors (P4.7).
                 angular_denom_term=np.array(
                     [(float(np.asarray(red_op.delta_A)[cell_i])
-                      / float(np.asarray(sn_mesh.quad.weights)[n]))
-                     * sn_mesh.angular_closure.c_out_per_ordinate[n]],
+                      / float(np.asarray(problem.quad.weights)[n]))
+                     * problem.angular_closure.c_out_per_ordinate[n]],
                 ),
                 angular_numer_upstream=np.zeros((ng, 1)),
             )
@@ -656,23 +656,23 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(16)
-    sn_mesh = SNProblem(mesh, quad, _trivial_materials(ng=4))
+    problem = SNProblem(mesh, quad, _trivial_materials(ng=4))
     # Issue #196 PR-INDEX-5: Q principled.
     # R-1 Step 4 A1: single per-ordinate source carrier.
-    Q = AngularSourceSink.from_isotropic(np.ones((4, *sn_mesh.spatial_shape)), sn_mesh)
-    sig_t = np.ones((4, *sn_mesh.spatial_shape))  # (ng, *spatial)
+    Q = AngularSourceSink.from_isotropic(np.ones((4, *problem.spatial_shape)), problem)
+    sig_t = np.ones((4, *problem.spatial_shape))  # (ng, *spatial)
     # Issue #197 PR-TYPED-2: typed boundary state replaces dict.
-    boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    boundary_flux = AngularBoundaryFlux.zeros(problem.angular_trace)
 
     # Warm-up — first call also caches inside SNProblem.
     for _ in range(3):
-        sweep_once(Q, sig_t, sn_mesh, boundary_flux)
+        sweep_once(Q, sig_t, problem, boundary_flux)
 
     # Measured wall clock over 100 sweeps.
     n_iters = 100
     t0 = time.perf_counter()
     for _ in range(n_iters):
-        sweep_once(Q, sig_t, sn_mesh, boundary_flux)
+        sweep_once(Q, sig_t, problem, boundary_flux)
     elapsed_per_sweep_ms = (time.perf_counter() - t0) / n_iters * 1000.0
     print(f"\nSlab sweep nx=160 N=16 ng=4: {elapsed_per_sweep_ms:.3f} ms/sweep")
     assert elapsed_per_sweep_ms < 2.0, (
@@ -732,11 +732,11 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
         bc_right=BC("reflective"),
     )
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials)
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density
     # (already ``/sum_w``).  Iso scalar magnitude 1 ⇒ per-ord ``1/sum_w``.
     sum_w = float(quad.weights.sum())
-    Q_external = np.full((quad.N, 1, *sn_mesh.spatial_shape), 1.0 / sum_w)
+    Q_external = np.full((quad.N, 1, *problem.spatial_shape), 1.0 / sum_w)
 
     result = solve_sn_fixed_source(
         materials=materials,
@@ -809,8 +809,8 @@ def test_scan_constant_accessors_are_stable_read_only_caches() -> None:
     would silently decouple its reads), and all five refuse writes (the
     corruption guard ``_build_per_ordinate_cache`` promises).
     """
-    sn_mesh = _make_sphere(nx=8, N=4)
-    closure = sn_mesh.angular_closure
+    problem = _make_sphere(nx=8, N=4)
+    closure = problem.angular_closure
     accessors = (
         "c_in_per_ordinate",
         "c_out_per_ordinate",
@@ -835,9 +835,9 @@ def test_closure_block_slab_neutral_element() -> None:
     block).  Without a structurally-different input the family above has
     no reading that could fail for a wrong-geometry reason.
     """
-    sn_mesh = _make_slab(nx=8, N=4)
-    closure = sn_mesh.angular_closure
-    N = sn_mesh.quad.N
+    problem = _make_slab(nx=8, N=4)
+    closure = problem.angular_closure
+    N = problem.quad.N
     np.testing.assert_array_equal(closure.tau_inv_per_ordinate, np.ones(N))
     np.testing.assert_array_equal(closure.march_a_in_coeff_per_ordinate, np.zeros(N))
     np.testing.assert_array_equal(closure.c_in_per_ordinate, np.zeros(N))
@@ -856,8 +856,8 @@ def test_interned_cache_arrays_refuse_writes() -> None:
     closure aliases inherited read-only flags; every other array was
     writable.  One leg per stratum, sampling every dtype class.
     """
-    sn_mesh = _make_sphere(nx=8, N=4)
-    geom = StreamingCoefficientCache.from_mesh_and_quad(sn_mesh)
+    problem = _make_sphere(nx=8, N=4)
+    geom = StreamingCoefficientCache.from_mesh_and_quad(problem)
     for name in (
         "chain_idx", "chain_idx_inv", "abs_mu", "face_area_downstream",
         "face_area_total", "delta_A_over_w", "volume", "is_degenerate",
@@ -871,7 +871,7 @@ def test_interned_cache_arrays_refuse_writes() -> None:
 
     sig_t = np.ones((2, 8))
     coll = CollisionCache.from_geometry(
-        geom, sig_t, sn_mesh.scheme, sn_mesh.angular_closure
+        geom, sig_t, problem.scheme, problem.angular_closure
     )
     for name in (
         "inverse_denom", "a_attenuation", "cumprod_a", "face_blend_weight",
@@ -908,7 +908,7 @@ def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
     )
     quad = Quadrature.gauss_legendre(4)
     materials = placeholder_materials(ng=2)
-    sn_mesh = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials)
 
     counts = {"builds": 0}
     real = StreamingCoefficientCache.from_mesh_and_quad.__func__
@@ -917,7 +917,7 @@ def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
         counts["builds"] += 1
         return real(cls, m)
 
-    q_ext = np.ones((quad.N, sn_mesh.ng, 4))
+    q_ext = np.ones((quad.N, problem.ng, 4))
     try:
         StreamingCoefficientCache.from_mesh_and_quad = classmethod(counting)
         # Leg 1 — one FULL solve builds exactly once (the entry builds its
@@ -951,16 +951,16 @@ def test_geometry_cache_builds_exactly_once_per_mesh() -> None:
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
-        sig = np.ones((sn_mesh.ng, *sn_mesh.spatial_shape))
+        sig = np.ones((problem.ng, *problem.spatial_shape))
         rhs = TimedFullField.zeros(
             interior=AngularFlux,
             boundary=AngularBoundaryFlux,
-            space=sn_mesh.full_field_space,
+            space=problem.full_field_space,
         )
         rhs.interior.values[...] = 1.0
         for _ in range(2):
-            L = StreamingOperator.pose(sn_mesh)
-            (L + MultiplicationOperator.from_mesh(sig, sn_mesh)).solve(rhs)
+            L = StreamingOperator.pose(problem)
+            (L + MultiplicationOperator.from_mesh(sig, problem)).solve(rhs)
         assert counts["builds"] == 1, (
             f"two posed operators over ONE hub built Stratum 1 "
             f"{counts['builds']}x — the intern's lifetime is the hub's, "

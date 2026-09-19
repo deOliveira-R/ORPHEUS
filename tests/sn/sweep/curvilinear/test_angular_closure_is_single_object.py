@@ -63,19 +63,19 @@ def _cylinder_mesh(n_phi: int) -> SNProblem:
     return SNProblem(mesh, quad, placeholder_materials(ng=_NG))
 
 
-def _run_one_sweep(sn_mesh: SNProblem) -> None:
+def _run_one_sweep(problem: SNProblem) -> None:
     rng = np.random.default_rng(20260828)
-    sig_t = rng.uniform(0.3, 3.0, size=(_NG, *sn_mesh.spatial_shape))
-    q_values = rng.standard_normal((sn_mesh.quad.N, _NG, *sn_mesh.spatial_shape))
-    source = AngularSourceSink(values=q_values, space=sn_mesh.angular_bulk_space)
-    boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
-    sweep_once(source, sig_t, sn_mesh, boundary)
+    sig_t = rng.uniform(0.3, 3.0, size=(_NG, *problem.spatial_shape))
+    q_values = rng.standard_normal((problem.quad.N, _NG, *problem.spatial_shape))
+    source = AngularSourceSink(values=q_values, space=problem.angular_bulk_space)
+    boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
+    sweep_once(source, sig_t, problem, boundary)
 
 
-def _run_one_matvec(sn_mesh: SNProblem) -> None:
-    sig_t, psi, seed = het_operands(sn_mesh)
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
+def _run_one_matvec(problem: SNProblem) -> None:
+    sig_t, psi, seed = het_operands(problem)
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sig_t, problem)
     if seed is None:
         (L + C).apply(psi)
     else:  # pragma: no cover - cylinder het_operands carries no seed
@@ -83,7 +83,7 @@ def _run_one_matvec(sn_mesh: SNProblem) -> None:
 
         from tests.sn._test_helpers import joint_m_grid
 
-        grid, _space = joint_m_grid(sn_mesh, L + C)
+        grid, _space = joint_m_grid(problem, L + C)
         grid.apply(CoupledField(systems=(psi, seed)))
 
 

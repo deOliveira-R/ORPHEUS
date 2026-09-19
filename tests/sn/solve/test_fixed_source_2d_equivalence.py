@@ -80,12 +80,12 @@ def test_2d_homogeneous_reflective_krylov_hits_q_over_sigma_t() -> None:
     # so the swap is exact. Verified: relerr 1.05e-12 ≤ rtol 1e-10.
     quad = Quadrature.level_symmetric(sn_order=4)
     materials = placeholder_materials(ng=2)  # Σ_t = 1, Σ_s = 0, ≥2G
-    sn_mesh = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials)
     sum_w = float(quad.weights.sum())
 
     q_iso = 0.5
-    Q_iso = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), q_iso)
-    src = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
+    Q_iso = np.full((problem.ng, *problem.spatial_shape), q_iso)
+    src = AngularSourceSink.from_isotropic(Q_iso, problem)
 
     result = solve_sn_fixed_source(
         materials=materials, mesh=mesh, quadrature=quad,
@@ -140,10 +140,10 @@ def test_2d_heterogeneous_si_krylov_equivalence() -> None:
     # (within rtol 1e-6 / atol 1e-8). 6.4s → ~1.4s.
     quad = Quadrature.level_symmetric(sn_order=4)
     materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
-    sn_mesh = SNProblem(mesh, quad, materials)
+    problem = SNProblem(mesh, quad, materials)
 
-    Q_iso = np.ones((sn_mesh.ng, *sn_mesh.spatial_shape))
-    src = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
+    Q_iso = np.ones((problem.ng, *problem.spatial_shape))
+    src = AngularSourceSink.from_isotropic(Q_iso, problem)
 
     common = dict(
         materials=materials, mesh=mesh, quadrature=quad,

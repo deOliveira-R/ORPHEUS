@@ -112,8 +112,8 @@ def fission_op():
     mat[3:, :] = 0
     mesh = _uniform_2d(nx, ny, 0.2, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNProblem(mesh, quad, {2: fuel, 0: mod})
-    return SNSolver(sn_mesh).sn_mesh.fission.isotropic_energy
+    problem = SNProblem(mesh, quad, {2: fuel, 0: mod})
+    return SNSolver(problem).problem.fission.isotropic_energy
 
 
 @pytest.fixture
@@ -137,7 +137,7 @@ def scattering_op():
     quad = Quadrature.lebedev(order=17)
     return SNSolver(
         SNProblem(mesh, quad, {0: mix}, scattering_order=1),
-    ).sn_mesh.system.factors.scattering
+    ).problem.system.factors.scattering
 
 
 @pytest.fixture

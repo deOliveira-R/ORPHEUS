@@ -408,9 +408,9 @@ def _slab(nx: int, *, n_ord: int = 8) -> SNProblem:
 
 
 def _posed_apply(
-    sn_mesh: SNProblem, *, seed: int = 20260728,
+    problem: SNProblem, *, seed: int = 20260728,
 ) -> "tuple[LinearOperator, CoupledField]":
-    r"""``(A, x)`` for the production posed loss on ``sn_mesh``.
+    r"""``(A, x)`` for the production posed loss on ``problem``.
 
     ``A`` is the record's own ``loss`` grid — the object stage 3 replaces
     with ``A_ij = R_i A J_j``, so it is the object whose cost must be
@@ -418,7 +418,7 @@ def _posed_apply(
     carrier (bulk AND trace populated: a flat probe nulls the streaming
     coupling and a zero trace nulls ``B``).
     """
-    record = record_for(sn_mesh, scattering_order=1)
+    record = record_for(problem, scattering_order=1)
     return record.loss, random_state(record, seed=seed)
 
 
@@ -472,14 +472,14 @@ def _count_calls(owner: Any, method_name: str) -> "Iterator[_CallCounter]":
         setattr(owner, method_name, original)
 
 
-def _leaf_calls_for_apply(sn_mesh: SNProblem, *, method: str = "residual_kernel_batch") -> int:
+def _leaf_calls_for_apply(problem: SNProblem, *, method: str = "residual_kernel_batch") -> int:
     """Entries into ``DiamondDifference.<method>`` during ONE ``A.apply(x)``.
 
     One un-counted warm-up apply first, so a lazily-built cache (the
     two-stratum sweep cache, the per-octant DAG) is not counted as sweep
     work.  The counted apply is therefore the steady-state arity.
     """
-    A, x = _posed_apply(sn_mesh)
+    A, x = _posed_apply(problem)
     A.apply(x)                                   # warm the derived caches
     with _count_calls(DiamondDifference, method) as counter:
         A.apply(x)
@@ -514,11 +514,11 @@ def test_p1_wrap_fires_and_siblings_stay_cold() -> None:
     worse, if a same-named method had survived elsewhere, counted 0
     forever.
     """
-    for label, sn_mesh in (
+    for label, problem in (
         ("slab", _slab(_LADDER_SLAB_NX[0])),
         ("cart2d", _cart2d(*_LADDER_ISOTROPIC[0])),
     ):
-        fired = _leaf_calls_for_apply(sn_mesh)
+        fired = _leaf_calls_for_apply(problem)
         if fired <= 0:
             pytest.fail(
                 f"{label}: the P-1 wrap on "
@@ -529,7 +529,7 @@ def test_p1_wrap_fires_and_siblings_stay_cold() -> None:
                 f"(vv Mode 11)."
             )
         for sibling in ("cell_kernel_batch", "residual", "update"):
-            cold = _leaf_calls_for_apply(sn_mesh, method=sibling)
+            cold = _leaf_calls_for_apply(problem, method=sibling)
             if cold != 0:
                 pytest.fail(
                     f"{label}: sibling kernel {sibling!r} fired {cold} times "
@@ -920,17 +920,17 @@ def test_p4_fixture_fingerprint_matches_the_baseline() -> None:
     direction that matters.  This gate makes that drift LOUD, with the
     remedy in the message.
     """
-    sn_mesh = _cart2d(_COST_NX, _COST_NY)
-    _, x = _posed_apply(sn_mesh)
+    problem = _cart2d(_COST_NX, _COST_NY)
+    _, x = _posed_apply(problem)
     measured = {
-        "n_cells": int(np.prod(sn_mesh.spatial_shape)),
-        "n_ordinates": int(sn_mesh.quad.N),
-        "n_groups": int(sn_mesh.ng),
+        "n_cells": int(np.prod(problem.spatial_shape)),
+        "n_ordinates": int(problem.quad.N),
+        "n_groups": int(problem.ng),
         # Materials as the OPERATORS resolve them (the typed per-material
         # index map), not as the raw ``mat_map`` declares them — a region
         # that no cell carries is not heterogeneity, and this accessor is
         # mesh-dimension-agnostic where ``mat_map`` is 2-D-only.
-        "n_regions": len(sn_mesh.mat_xs.cells_by_material),
+        "n_regions": len(problem.mat_xs.cells_by_material),
         "n_dof": _n_dof(x),
     }
     if measured != _COST_FINGERPRINT:

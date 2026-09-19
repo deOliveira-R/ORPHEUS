@@ -145,8 +145,8 @@ class SweepSchedule:
     ) -> "SweepSchedule":
         """One group, all octants, no inter-group reflect — the bare all-octants
         sweep with the whole ``B·ψₙ`` seed frozen for the entire sweep.
-        Mesh-free (un-weld arc O-1): callers pass ``(sn_mesh.ndim,
-        sn_mesh.quad.octants)``."""
+        Mesh-free (un-weld arc O-1): callers pass ``(problem.ndim,
+        problem.quad.octants)``."""
         sweeps = tuple(
             _octant_sweep(entry, ndim) for entry in octants
         )
@@ -164,8 +164,8 @@ class SweepSchedule:
     ) -> "SweepSchedule":
         """One group per in-plane octant, in quadrature sweep order; each group
         re-reflects the reflective faces its octants outflow through.
-        Mesh-free (un-weld arc O-1): callers pass ``(sn_mesh.ndim,
-        sn_mesh.quad.octants, reflective_faces(sn_mesh))``.
+        Mesh-free (un-weld arc O-1): callers pass ``(problem.ndim,
+        problem.quad.octants, reflective_faces(problem))``.
 
         Octant partition entries that share an in-plane :class:`OctantLabel`
         (they differ only in out-of-plane signs the in-plane sweep ignores —
@@ -220,7 +220,7 @@ class SweepSchedule:
         )
         return cls(groups=groups, kind="gauss_seidel")
 
-    def lower_inflow_rows(self, sn_mesh: "SNProblem") -> dict[str, np.ndarray]:
+    def lower_inflow_rows(self, problem: "SNProblem") -> dict[str, np.ndarray]:
         r"""Per-face inflow ordinate rows that read the CURRENT iterate under
         this schedule — the row support of the strictly-lower boundary part
         :math:`B_{\rm lower}` in the splitting
@@ -249,7 +249,7 @@ class SweepSchedule:
             for gi, group in enumerate(self.groups)
             for face in group.reflect_faces
         }
-        trace = sn_mesh.angular_trace
+        trace = problem.angular_trace
         rows: dict[str, np.ndarray] = {}
         for face, gi_f in reflect_gi.items():
             fresh_ordinates = np.array(
@@ -307,7 +307,7 @@ def _outgoing_faces(label: OctantLabel) -> tuple[str, ...]:
     )
 
 
-def reflective_faces(sn_mesh: "SNProblem") -> frozenset[str]:
+def reflective_faces(problem: "SNProblem") -> frozenset[str]:
     """The mesh's SPECULAR-reflective boundary faces.
 
     The question is *does this face's law RELABEL ordinates?* — a specular
@@ -318,7 +318,7 @@ def reflective_faces(sn_mesh: "SNProblem") -> frozenset[str]:
 
     That is :attr:`BoundaryGeometryMap.permutes_ordinates`, and it is what the
     law is asked directly. Until campaign phase B2 this read
-    ``sn_mesh.bc[face] == "reflective"`` — the same question spelled as a
+    ``problem.bc[face] == "reflective"`` — the same question spelled as a
     string comparison, which was all the pre-B2.0 shim could answer because it
     discarded the law at realization. The two agree on every registered law
     (``tests/geometry/test_boundary_factor_consumers.py`` compares the old
@@ -329,6 +329,6 @@ def reflective_faces(sn_mesh: "SNProblem") -> frozenset[str]:
     """
     return frozenset(
         face
-        for face in sn_mesh.angular_trace.layout.faces
-        if law_permutes_ordinates(sn_mesh.bc[face].law)
+        for face in problem.angular_trace.layout.faces
+        if law_permutes_ordinates(problem.bc[face].law)
     )

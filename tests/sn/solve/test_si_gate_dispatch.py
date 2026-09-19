@@ -1,6 +1,6 @@
 r"""C5.4 (#225) — the SI windowing / G-S gates key on GENUINE dimensionality.
 
-vv-principles Mode 9: the pre-C5.4 gates keyed on ``sn_mesh.reduced is
+vv-principles Mode 9: the pre-C5.4 gates keyed on ``problem.reduced is
 None`` — a coincidence proxy that is true for EVERY multi-D Cartesian
 mesh, not just 2-D. At d=3 that proxy would have silently
 moment-windowed the SI iterate (the in-sweep moment emission is a 2-D
@@ -51,15 +51,15 @@ class _BaseResolvent:
     :class:`SweepOperator` and — since the un-weld (O-1) re-keyed the
     ``WindowedSweep`` guard from mesh identity to space content — the
     ``domain`` the guard compares to ``P``'s (the surrogate honours the
-    contract it stands in for; the ``sn_mesh`` handle stays for the
+    contract it stands in for; the ``problem`` handle stays for the
     factory's other reads)."""
 
-    def __init__(self, sn_mesh) -> None:
-        self.sn_mesh = sn_mesh
+    def __init__(self, problem) -> None:
+        self.problem = problem
 
     @property
     def domain(self):
-        return self.sn_mesh.full_field_space
+        return self.problem.full_field_space
 
     def inverse(self) -> SweepOperator:
         return SweepOperator(self)

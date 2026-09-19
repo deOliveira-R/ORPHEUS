@@ -129,18 +129,18 @@ __all__ = [
 ]
 
 
-def _ordinate_label(sn_mesh: "SNProblem", ordinate: int) -> OctantLabel:
+def _ordinate_label(problem: "SNProblem", ordinate: int) -> OctantLabel:
     r"""The in-plane octant label of one ordinate — through the SAME
     quadrature partition + projection the sweep schedule consumes
     (:func:`~orpheus.sn.loss_representation.sweep_schedule._octant_sweep`,
     the sole in-plane projection site)."""
-    for entry in sn_mesh.quad.octants:
-        sweep = _octant_sweep(entry, sn_mesh.ndim)
+    for entry in problem.quad.octants:
+        sweep = _octant_sweep(entry, problem.ndim)
         if ordinate in sweep.indices:
             return sweep.label
     raise IndexError(
         f"ordinate {ordinate} not found in the quadrature octant "
-        f"partition (N = {sn_mesh.quad.n_ordinates})."
+        f"partition (N = {problem.quad.n_ordinates})."
     )
 
 
@@ -159,7 +159,7 @@ def _iter_cells_in_walk_order(
             yield cell, int(np.ravel_multi_index(cell, shape))
 
 
-def ordinate_walk_order(sn_mesh: "SNProblem", ordinate: int) -> np.ndarray:
+def ordinate_walk_order(problem: "SNProblem", ordinate: int) -> np.ndarray:
     r"""Flat bulk CELL indices in the ordinate's sweep (topological) order.
 
     The cell-level permutation of the walk-order triangularity claim:
@@ -172,11 +172,11 @@ def ordinate_walk_order(sn_mesh: "SNProblem", ordinate: int) -> np.ndarray:
     all-zero label (no streaming) returns the identity order (its block
     is cell-diagonal — trivially triangular in any order).
     """
-    label = _ordinate_label(sn_mesh, ordinate)
-    n_cells = int(np.prod(sn_mesh.spatial_shape))
+    label = _ordinate_label(problem, ordinate)
+    n_cells = int(np.prod(problem.spatial_shape))
     if not label.streams:
         return np.arange(n_cells)
-    graph = SweepDependencyGraph.for_shape(sn_mesh.spatial_shape)[label]
+    graph = SweepDependencyGraph.for_shape(problem.spatial_shape)[label]
     return np.fromiter(
         (flat for _, flat in _iter_cells_in_walk_order(graph)),
         dtype=np.intp,
@@ -274,7 +274,7 @@ def _probe_coefficient_blocks(
 
 
 def assemble_ordinate_blocks(
-    sn_mesh: "SNProblem",
+    problem: "SNProblem",
     ordinate: int,
     *,
     include_collision: bool = True,
@@ -283,7 +283,7 @@ def assemble_ordinate_blocks(
 
     Parameters
     ----------
-    sn_mesh :
+    problem :
         A CARTESIAN SN phase space (slab or 2-D; the
         :meth:`SNProblem.streaming` accessor is the Cartesian gate) with a
         LINEAR batched-kernel scheme (``is_linear`` — the extraction
@@ -310,10 +310,10 @@ def assemble_ordinate_blocks(
         matvec's ``(ordinate, group)`` bulk row on a bulk field that is
         zero outside that row.
     """
-    spatial_shape = tuple(int(n) for n in sn_mesh.spatial_shape)
+    spatial_shape = tuple(int(n) for n in problem.spatial_shape)
     n_cells = int(np.prod(spatial_shape))
     d = len(spatial_shape)
-    scheme = sn_mesh.scheme
+    scheme = problem.scheme
     if not type(scheme).is_linear:
         from orpheus.numerics.operator import MissingAssembly
 
@@ -329,7 +329,7 @@ def assemble_ordinate_blocks(
 
     # ── The raw data every mode shares ────────────────────────────────
     sigma_t = np.asarray(
-        sn_mesh.mat_xs.total_cross_section_field.values, float,
+        problem.mat_xs.total_cross_section_field.values, float,
     )                                                   # (ng, *spatial)
     ng = sigma_t.shape[0]
     reaction_flat = (
@@ -343,7 +343,7 @@ def assemble_ordinate_blocks(
     # closure factor, never this data).
     cell_index = np.indices(spatial_shape).reshape(d, n_cells)
     s_axes_k = tuple(
-        np.asarray(sn_mesh.streaming(a), float)[ordinate][cell_index[a]][
+        np.asarray(problem.streaming(a), float)[ordinate][cell_index[a]][
             None, None, :
         ]
         for a in range(d)
@@ -354,7 +354,7 @@ def assemble_ordinate_blocks(
     )
 
     # ── The symbolic walk (or the degenerate cell-diagonal) ───────────
-    label = _ordinate_label(sn_mesh, ordinate)
+    label = _ordinate_label(problem, ordinate)
 
     # The kernel produces/consumes moments in the per-ordinate SWEEP
     # frame; the bulk field lives in the GLOBAL frame, and the walks

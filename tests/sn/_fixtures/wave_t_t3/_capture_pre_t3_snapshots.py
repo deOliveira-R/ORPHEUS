@@ -147,17 +147,17 @@ def _make_psi(solver: SNSolver, seed: int) -> AngularFlux:
     rng = np.random.default_rng(seed)
     N = solver.quad.N
     ng = solver.ng
-    nx, ny = solver.sn_mesh.spatial_shape
+    nx, ny = solver.problem.spatial_shape
     psi_values = rng.uniform(0.05, 1.0, size=(N, ng, nx, ny))
-    return AngularFlux(values=psi_values, space=solver.sn_mesh.angular_bulk_space)
+    return AngularFlux(values=psi_values, space=solver.problem.angular_bulk_space)
 
 
 def _make_phi(solver: SNSolver, seed: int) -> ScalarFlux:
     rng = np.random.default_rng(seed)
     ng = solver.ng
-    nx, ny = solver.sn_mesh.spatial_shape
+    nx, ny = solver.problem.spatial_shape
     phi_values = rng.uniform(0.05, 1.0, size=(ng, nx, ny))
-    return ScalarFlux(values=phi_values, space=solver.sn_mesh.bulk_space)
+    return ScalarFlux(values=phi_values, space=solver.problem.bulk_space)
 
 
 def main() -> None:
@@ -165,11 +165,11 @@ def main() -> None:
 
     # ── P1 fixture (the highest-leverage carve target) ────────────────
     p1_solver = build_p1_solver()
-    p1_op = p1_solver.sn_mesh.system.factors.scattering
+    p1_op = p1_solver.problem.system.factors.scattering
 
     psi = _make_psi(p1_solver, seed=20260530)
     phi = _make_phi(p1_solver, seed=20260530 + 1)
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=p1_solver.sn_mesh.full_field_space)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=p1_solver.problem.full_field_space)
     from dataclasses import replace
 
     bulk_values = psi.values.copy()
@@ -225,10 +225,10 @@ def _capture_legendre_moments(
     quad = solver.quad
     moments_values = quad.angular_frame(L).analysis.apply(psi.values)
     moments = HarmonicMomentFlux.from_mesh_and_L(
-        moments_values, solver.sn_mesh, L,
+        moments_values, solver.problem, L,
     )
     Lam = LegendreMomentTransfer.on_basis(
-            TransferMaterialField.scattering(solver.sn_mesh.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=False,
+            TransferMaterialField.scattering(solver.problem.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=False,
         )
     scattered = Lam.apply(moments)
     return scattered.values.copy()

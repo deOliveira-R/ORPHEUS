@@ -64,13 +64,13 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     """RMS volume-weighted per-ordinate residual of ψ_ref under (L+C−S−B)."""
     mesh = case.build_mesh(nc)
     Q = case.external_source(mesh)
-    sn_mesh = _as_sn_mesh(
+    problem = _as_sn_mesh(
         mesh, case.quadrature, case.materials, "vacuum", mat_map=None,
      scattering_order=0)
     solver = SNSolver(
-        sn_mesh, inner_solver="source_iteration", max_inner=10, inner_tol=1e-13,
+        problem, inner_solver="source_iteration", max_inner=10, inner_tol=1e-13,
     )
-    q_ext = _build_fixed_source_rhs(Q, sn_mesh)
+    q_ext = _build_fixed_source_rhs(Q, problem)
     # B.2d: on a carrying mesh the rhs builder returns the coupled pair —
     # this probe reads System A's member (the q½ member is A_BB's rhs).
     if hasattr(q_ext, "systems"):
@@ -81,26 +81,26 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     # zero, and B_a pads the ray slot present-zero like the retired composite.
     from orpheus.sn.coupled_system import build_streaming_collision
     from orpheus.sn.operators.boundary import SNBoundaryOperator
-    LC = build_streaming_collision(solver.sn_mesh, solver.sn_mesh.mat_xs)
-    S = solver.sn_mesh.system.factors.scattering
-    B = SNBoundaryOperator(solver.sn_mesh)
+    LC = build_streaming_collision(solver.problem, solver.problem.mat_xs)
+    S = solver.problem.system.factors.scattering
+    B = SNBoundaryOperator(solver.problem)
 
     # ψ_ref,n = A(r)/W — isotropic per ordinate, zero boundary (vacuum).
     A = case.phi_exact(mesh.centers)
-    W = float(sn_mesh.quad.weights.sum())
-    vals = np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
+    W = float(problem.quad.weights.sum())
+    vals = np.zeros((problem.quad.N, problem.ng, *problem.spatial_shape))
     vals[:, 0, :] = (A / W)[None, :]
     zero = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     psi_ref = TimedFullField(
-        interior=AngularFlux(values=vals, space=sn_mesh.angular_bulk_space), boundary=zero.boundary,
+        interior=AngularFlux(values=vals, space=problem.angular_bulk_space), boundary=zero.boundary,
     )
     # #282 route (a) → B.2d: the CONSISTENT edge-extrapolated ψ½ seed of the
     # MMS trial (the trial's own μ = −1 starting datum) rides the walk's
     # EXPLICIT flux leg, so LC.apply reproduces the pre-route-(a) operator
     # action and the residual decays as before; no legs on non-carrying.
-    seed_leg = radial_characteristic_edge_seed(vals, sn_mesh)
+    seed_leg = radial_characteristic_edge_seed(vals, problem)
     if seed_leg is None:
         lc_out = LC.apply(psi_ref)
     else:
@@ -109,7 +109,7 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
 
         from tests.sn._test_helpers import joint_m_grid
 
-        grid, _space = joint_m_grid(sn_mesh, LC)
+        grid, _space = joint_m_grid(problem, LC)
         lc_out = grid.apply(
             CoupledField(systems=(psi_ref, seed_leg)),
         ).systems[0]
@@ -120,7 +120,7 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
         - B.apply(psi_ref).interior.values
         - q_ext.interior.values
     )
-    V = sn_mesh.volumes
+    V = problem.volumes
     return float(np.sqrt(np.einsum("x,ngx->", V, rv**2) / V.sum()))
 
 

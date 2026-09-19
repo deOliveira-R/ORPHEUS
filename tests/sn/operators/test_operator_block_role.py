@@ -29,7 +29,7 @@ white / albedo / periodic carry :attr:`BlockRole.BOUNDARY`; the rank-0
 affine ``PrescribedInflow`` source does NOT — it is the boundary
 *source* ``q.boundary``, not a linear ``B``). Pinned in
 ``TestBoundaryLeaves`` below, both on the raw realizer output and on the
-mesh-wired ``sn_mesh.bc`` entries (the ``_BoundBoundaryOperator`` shim forwards
+mesh-wired ``problem.bc`` entries (the ``_BoundBoundaryOperator`` shim forwards
 the inner op's role). The O.4a.1-γ tagging lands the role; O.4a.2 wires
 ``B`` into ``(L_full + C − S − F − B)`` as a sibling of ``L``.
 """
@@ -258,7 +258,7 @@ class TestBoundaryLeaves:
         assert sourceless.codomain is prescribed.codomain
 
     def test_mesh_bc_forwards_boundary_role(self) -> None:
-        """``sn_mesh.bc`` entries (the ``_BoundBoundaryOperator`` shim) forward
+        """``problem.bc`` entries (the ``_BoundBoundaryOperator`` shim) forward
         the realized law's role so the mesh-wired BCs are BOUNDARY ops."""
         geom = StructuredGeometry(
             geometry="SLB",

@@ -79,7 +79,7 @@ def _canonical_to_packed(
 
 
 def _bc_fill_outer(
-    psi_view: np.ndarray, sn_mesh, eq_map,
+    psi_view: np.ndarray, problem, eq_map,
 ) -> np.ndarray:
     """Make psi_view BC-consistent: BC-fill the inflow-at-outer-boundary slots.
 
@@ -91,20 +91,20 @@ def _bc_fill_outer(
     """
     # Identify BC-resolved positions: outer cell (i=nx-1) for incoming ordinates.
     # For sphere with reflective BC, these are mu_x < 0 at i=nx-1.
-    quad = sn_mesh.quad
+    quad = problem.quad
     incoming_mask = quad.mu_x < -1e-15
     if not incoming_mask.any():
         return psi_view
     # Apply BC: outgoing → incoming at the outer face.
     outer_face = psi_view[:, :, -1, 0]  # (N, ng) — current full outer face
-    inflow_full = sn_mesh.bc["xmax"].apply(outer_face)  # (N, ng)
+    inflow_full = problem.bc["xmax"].apply(outer_face)  # (N, ng)
     psi_view = psi_view.copy()
     psi_view[incoming_mask, :, -1, 0] = inflow_full[incoming_mask, :]
     return psi_view
 
 
 def _extract_at_unknown_slots(
-    field_4d: np.ndarray, sn_mesh: SNProblem,
+    field_4d: np.ndarray, problem: SNProblem,
 ) -> np.ndarray:
     """Gather field_4d at the curvilinear equation-bearing slots → (ng, n_eq).
 
@@ -116,8 +116,8 @@ def _extract_at_unknown_slots(
     ``test_native_matvec.TestQuadDerivedMaskEqualsLegacySlotMap`` pin
     which proved ``quad.mu_x > 0`` ≡ ``eq_map.face_outer_ordinate``.
     """
-    quad = sn_mesh.quad
-    nx = sn_mesh.nx
+    quad = problem.quad
+    nx = problem.nx
     ng = field_4d.shape[1]
     inflow_outer = quad.mu_x < -1e-15  # (N,)
     cols = []
@@ -149,27 +149,27 @@ class TestUnifiedMatvecSphere:
     def test_unified_constant_psi_gives_sigma_t(self) -> None:
         """At ψ = constant on homogeneous reflective sphere, unified
         matvec returns σ_t · ψ (= 2.0 for σ_t = 2.0 here). Sanity check."""
-        sn_mesh = _build_sphere(n_cells=5, n_ord=4)
+        problem = _build_sphere(n_cells=5, n_ord=4)
         ng = 1
         sigma_t_val = 2.0
-        sigma_t = np.full((ng, sn_mesh.nx), sigma_t_val)
-        psi_view = np.ones((sn_mesh.quad.N, ng, sn_mesh.nx))
+        sigma_t = np.full((ng, problem.nx), sigma_t_val)
+        psi_view = np.ones((problem.quad.N, ng, problem.nx))
 
-        m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
+        m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
         # At constant ψ = 1: (L+C)·1 ≈ σ_t · 1 = 2.0 everywhere.
-        m_at_unknowns = _extract_at_unknown_slots(m_unified, sn_mesh)
+        m_at_unknowns = _extract_at_unknown_slots(m_unified, problem)
         np.testing.assert_allclose(
             m_at_unknowns, sigma_t_val, rtol=1e-13, atol=1e-14,
         )
 
     def test_unified_zero_psi_gives_zero(self) -> None:
         """Linear operator: zero input → zero output."""
-        sn_mesh = _build_sphere(n_cells=5, n_ord=4)
+        problem = _build_sphere(n_cells=5, n_ord=4)
         ng = 1
-        sigma_t = np.full((ng, sn_mesh.nx), 2.0)
-        psi_view = np.zeros((sn_mesh.quad.N, ng, sn_mesh.nx))
+        sigma_t = np.full((ng, problem.nx), 2.0)
+        psi_view = np.zeros((problem.quad.N, ng, problem.nx))
 
-        m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
+        m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
         np.testing.assert_array_equal(
             m_unified, np.zeros_like(m_unified),
         )

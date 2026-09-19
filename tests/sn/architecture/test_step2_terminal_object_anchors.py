@@ -289,8 +289,8 @@ class TestRecordTheBuildRoute:
         )
 
         spy.reset()
-        sn_mesh = _as_sn_mesh(mesh, quadrature, materials, scattering_order=order)
-        source = np.ones(sn_mesh.angular_trial_space.shape)
+        problem = _as_sn_mesh(mesh, quadrature, materials, scattering_order=order)
+        source = np.ones(problem.angular_trial_space.shape)
         solve_sn_fixed_source(
             materials, mesh, quadrature, source, scattering_order=order,
         )
@@ -301,7 +301,7 @@ class TestRecordTheBuildRoute:
 
 
 def _splitting_image(
-    record: WithinGroupSystem, schedule: str, sn_mesh: object, state: CoupledField,
+    record: WithinGroupSystem, schedule: str, problem: object, state: CoupledField,
 ) -> np.ndarray:
     """``(M − ΣN_i)·x`` for the Strategy value ``schedule`` labels.
 
@@ -311,7 +311,7 @@ def _splitting_image(
     ``test_stage_separation.py`` already owns.
     """
     splitting = Splitting.from_schedule(
-        record, resolve_schedule(sn_mesh, schedule),  # type: ignore[arg-type]
+        record, resolve_schedule(problem, schedule),  # type: ignore[arg-type]
     )
     interior = system_a(state)
     accumulated = None
@@ -350,17 +350,17 @@ class TestLawTheSplittingLawHoldsPerStrategy:
 
     @pytest.mark.parametrize("schedule", _SCHEDULES)
     def test_law_A_equals_M_minus_N_per_schedule(self, schedule: str) -> None:
-        sn_mesh = cart2d_seedless()
-        record = record_for(sn_mesh)
+        problem = cart2d_seedless()
+        record = record_for(problem)
         state = random_state(record, seed=_SEED)
         loss_image = record.loss.apply(state).to_flat()
-        splitting = Splitting.from_schedule(record, resolve_schedule(sn_mesh, schedule))
+        splitting = Splitting.from_schedule(record, resolve_schedule(problem, schedule))
         np.testing.assert_array_equal(
             splitting.law_residual(state), np.zeros_like(loss_image),
             err_msg=f"Splitting.law_residual is not exactly zero for {schedule!r}",
         )
         np.testing.assert_array_equal(
-            loss_image, _splitting_image(record, schedule, sn_mesh, state),
+            loss_image, _splitting_image(record, schedule, problem, state),
             err_msg=(
                 f"A != M - N for inner_schedule={schedule!r}. Both sides are "
                 f"one flat operator sum over the same leaves, so a non-zero "
@@ -380,13 +380,13 @@ class TestLawTheSplittingLawHoldsPerStrategy:
         (``9.970929e-01``).  This row therefore reads the trace; a bulk
         assertion here would be a provable non-catcher.
         """
-        sn_mesh = cart2d_seedless()
-        record = record_for(sn_mesh)
+        problem = cart2d_seedless()
+        record = record_for(problem)
         state = system_a(random_state(record, seed=_SEED))
         images = {}
         for schedule in _SCHEDULES:
             implicit = Splitting.from_schedule(
-                record, resolve_schedule(sn_mesh, schedule),
+                record, resolve_schedule(problem, schedule),
             ).implicit
             out = implicit.apply(state)
             images[schedule] = (
@@ -487,8 +487,8 @@ class TestLawTheGaugeIsSigmaFree:
     def test_law_the_gauge_is_cached_per_hub_by_identity(self) -> None:
         from tests.sn.architecture._config import slab_seedless
 
-        sn_mesh = slab_seedless()
-        assert sn_mesh.loss_kernel_gauge is sn_mesh.loss_kernel_gauge, (
+        problem = slab_seedless()
+        assert problem.loss_kernel_gauge is problem.loss_kernel_gauge, (
             "the loss-kernel gauge is a cached_property of the hub — if this "
             "reds it was demoted to a method or derived from the pencil (H3)."
         )
@@ -496,11 +496,11 @@ class TestLawTheGaugeIsSigmaFree:
     def test_law_a_sigma_variant_hub_has_an_EQUAL_gauge(self) -> None:
         from tests.sn.architecture._config import slab_seedless
 
-        sn_mesh = slab_seedless()
-        hub_b = sn_mesh.with_cross_sections(
-            np.asarray(sn_mesh.mat_xs.total_cross_section) * 3.0,
+        problem = slab_seedless()
+        hub_b = problem.with_cross_sections(
+            np.asarray(problem.mat_xs.total_cross_section) * 3.0,
         )
-        g1, g2 = sn_mesh.loss_kernel_gauge, hub_b.loss_kernel_gauge
+        g1, g2 = problem.loss_kernel_gauge, hub_b.loss_kernel_gauge
         assert g2 is not g1, "two hubs, two cached objects (the identity half is per hub)"
         assert np.array_equal(g1.as_matrix(), g2.as_matrix()), (
             "the loss-kernel gauge is documented σ-free; a ×3 σ-variant hub "

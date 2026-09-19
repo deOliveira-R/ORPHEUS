@@ -110,9 +110,9 @@ def _quad8_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
 _W4 = float(np.sum(Quadrature.gauss_legendre(n_ordinates=4).weights))  # ∫ 1 dΩ on the GL-4 rule
 
 
-def _state(sn_mesh: SNProblem, fill: float = 1.0) -> CoupledField:
+def _state(problem: SNProblem, fill: float = 1.0) -> CoupledField:
     """The returned state WHOLE: the one-system coupled field over the hub's full field."""
-    member = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+    member = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     member.interior.values[:] = fill
     member.boundary.values[:] = fill
     return CoupledField(systems=(member,))
@@ -123,9 +123,9 @@ def _member(state: CoupledField) -> TimedFullField:
     return cast(TimedFullField, state.systems[0])
 
 
-def _state_with_scalar(sn_mesh: SNProblem, phi_values: np.ndarray) -> CoupledField:
+def _state_with_scalar(problem: SNProblem, phi_values: np.ndarray) -> CoupledField:
     """A state whose derived scalar flux ∫ψ dΩ reproduces ``phi_values`` (ψ uniform in angle)."""
-    state = _state(sn_mesh, 0.0)
+    state = _state(problem, 0.0)
     _member(state).interior.values[:] = (np.asarray(phi_values, dtype=float) / _W4)[None]
     return state
 
@@ -156,27 +156,27 @@ def _certificate() -> ExitCertificate:
     )
 
 
-def _strategy(sn_mesh: SNProblem) -> Splitting:
-    return Splitting.from_schedule(sn_mesh.system, resolve_schedule(sn_mesh, "jacobi"))
+def _strategy(problem: SNProblem) -> Splitting:
+    return Splitting.from_schedule(problem.system, resolve_schedule(problem, "jacobi"))
 
 
-def _eigen(sn_mesh: SNProblem, state: CoupledField | None = None, *, lam: float = 1.0, trajectory: tuple[float, ...] = ()) -> EigenOutcome:
+def _eigen(problem: SNProblem, state: CoupledField | None = None, *, lam: float = 1.0, trajectory: tuple[float, ...] = ()) -> EigenOutcome:
     return EigenOutcome(
-        posing=sn_mesh.eigen_posing, state=_state(sn_mesh) if state is None else state,
+        posing=problem.eigen_posing, state=_state(problem) if state is None else state,
         lam=lam, trajectory=trajectory or (lam,), gauge=ScaleGauge(lambda s: 1.0, 1.0),
     )
 
 
-def _source(sn_mesh: SNProblem, state: CoupledField | None = None) -> SourceOutcome:
+def _source(problem: SNProblem, state: CoupledField | None = None) -> SourceOutcome:
     return SourceOutcome(
-        posing=SourcePosing(sn_mesh.pencil.at(0.0), sn_mesh.system.space.zeros()),
-        state=_state(sn_mesh) if state is None else state, gauge=sn_mesh.loss_kernel_gauge,
+        posing=SourcePosing(problem.pencil.at(0.0), problem.system.space.zeros()),
+        state=_state(problem) if state is None else state, gauge=problem.loss_kernel_gauge,
     )
 
 
-def _solution(sn_mesh: SNProblem, outcome, *, cls: type[Any] = Solution, record: IterationRecord | None = None) -> Any:
+def _solution(problem: SNProblem, outcome, *, cls: type[Any] = Solution, record: IterationRecord | None = None) -> Any:
     return cls(
-        mesh=sn_mesh, outcome=outcome, strategy=_strategy(sn_mesh),
+        mesh=problem, outcome=outcome, strategy=_strategy(problem),
         certificate=_certificate(), record=_record() if record is None else record,
     )
 

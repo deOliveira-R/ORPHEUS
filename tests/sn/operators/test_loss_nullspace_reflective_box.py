@@ -93,7 +93,7 @@ _CELLS = (2, 3)
 
 @pytest.fixture(scope="module")
 def singular_box():
-    """``(sn_mesh, system, template, dense A, null basis, singular values)``.
+    """``(problem, system, template, dense A, null basis, singular values)``.
 
     Shared through :func:`tests.sn._singular_loss_box.diamond_singular_box`, so
     the several gates that read this dense SVD pay for it once.
@@ -159,11 +159,11 @@ def test_the_singularity_needs_TWO_closed_axis_pairs(label, bcs, expected):
     only about the gate (``vv`` #17).
     """
     if label == "all reflective":       # the shared build — assembled once
-        sn_mesh, _system, _template, _dense, basis, singular = (
+        problem, _system, _template, _dense, basis, singular = (
             diamond_singular_box(_CELLS))
     else:
         _mesh, system, template = build(_CELLS, bcs, absorber(2))
-        sn_mesh = _mesh
+        problem = _mesh
         basis, singular = null_basis(assemble(loss_matvec(system), template))
     nullity = basis.shape[1]
 
@@ -172,9 +172,9 @@ def test_the_singularity_needs_TWO_closed_axis_pairs(label, bcs, expected):
         f"(sigma_min/sigma_max = {singular[-1] / singular[0]:.3e})"
     )
     # …and the combinatorial law agrees, on BOTH sides.
-    assert predicted_kernel_dimension(sn_mesh) == expected, (
+    assert predicted_kernel_dimension(problem) == expected, (
         f"{label}: the counting law says "
-        f"{predicted_kernel_dimension(sn_mesh)}, the SVD says {nullity}"
+        f"{predicted_kernel_dimension(problem)}, the SVD says {nullity}"
     )
     if expected:
         # The rank reading is not a threshold choice — it is a cliff.
@@ -215,7 +215,7 @@ def test_the_kernel_is_PURE_TRACE_and_carries_no_tangential_mass(singular_box):
     of :math:`(-1)^{n_a}` — the modes leave :math:`\ker A`, the SVD basis
     changes, and the bulk mass rises off ``1e-29``.
     """
-    sn_mesh, _system, template, _dense, basis, _singular = singular_box
+    problem, _system, template, _dense, basis, _singular = singular_box
     assert basis.shape[1] > 0, "fixture is no longer singular — re-derive #344"
     n_bulk = template.interior.values.size
 
@@ -231,8 +231,8 @@ def test_the_kernel_is_PURE_TRACE_and_carries_no_tangential_mass(singular_box):
     assert float(null_mass[n_bulk:].sum()) == pytest.approx(
         basis.shape[1], rel=1e-9), "the null mass does not sum to the dimension"
 
-    omega_dot_n = np.asarray(sn_mesh.angular_trace.omega_dot_n)
-    assert tangential_dof_count(sn_mesh) == 0, (
+    omega_dot_n = np.asarray(problem.angular_trace.omega_dot_n)
+    assert tangential_dof_count(problem) == 0, (
         f"fixture precondition broken: level_symmetric grew a tangential "
         f"ordinate (min |Omega.n| = {np.min(np.abs(omega_dot_n)):.6e}), so "
         f"the kernel measured here is no longer pure R"
@@ -290,9 +290,9 @@ def test_the_T_plus_R_split_is_exact_per_quadrature(
     (``[M]`` 96 from the x-faces, 64 from the y-faces = 160): on a square mesh
     the two contributions are equal and a per-axis bookkeeping error cancels.
     """
-    sn_mesh, system, template = build(_CELLS, [(_R, _R)] * 2, absorber(2),
+    problem, system, template = build(_CELLS, [(_R, _R)] * 2, absorber(2),
                                       quad=quad)
-    measured_tangential = tangential_dof_count(sn_mesh)
+    measured_tangential = tangential_dof_count(problem)
     dense = assemble(loss_matvec(system), template)
     basis, singular = null_basis(dense)
     nullity = basis.shape[1]
@@ -306,13 +306,13 @@ def test_the_T_plus_R_split_is_exact_per_quadrature(
         f"R = {nullity - measured_tangential} (expected {remainder})"
     )
     # R is what the gauge scopes to, and the law must report the same.
-    assert predicted_kernel_dimension(sn_mesh) == remainder, (
+    assert predicted_kernel_dimension(problem) == remainder, (
         f"{label}: predicted_kernel_dimension = "
-        f"{predicted_kernel_dimension(sn_mesh)} but the SVD's R is {remainder} "
+        f"{predicted_kernel_dimension(problem)} but the SVD's R is {remainder} "
         f"— the law and the operator disagree on the R/T boundary"
     )
-    assert sn_mesh.loss_kernel_gauge.dimension == remainder, (
-        f"{label}: the gauge spans {sn_mesh.loss_kernel_gauge.dimension} "
+    assert problem.loss_kernel_gauge.dimension == remainder, (
+        f"{label}: the gauge spans {problem.loss_kernel_gauge.dimension} "
         f"dimensions but R is {remainder}"
     )
     gap = rank_gap(singular, nullity)
@@ -362,13 +362,13 @@ def test_a_kernel_mode_carries_metric_but_no_NET_CURRENT(singular_box):
     :func:`~orpheus.sn.operators.loss_kernel_gauge._transverse_factors` — the
     modes leave :math:`\ker A`, the SVD basis changes, and legs 2/3 red.
     """
-    sn_mesh, _system, template, _dense, basis, _singular = singular_box
+    problem, _system, template, _dense, basis, _singular = singular_box
     n_bulk = template.interior.values.size
     coefficients = np.random.default_rng(0).standard_normal(basis.shape[1])
     mode = basis @ (coefficients / np.linalg.norm(coefficients))
     field = type(template).from_flat(mode, template)
 
-    metric = np.asarray(sn_mesh.angular_trace.partial_current_metric)
+    metric = np.asarray(problem.angular_trace.partial_current_metric)
     g_norm = float(np.sqrt(np.sum(metric * mode[n_bulk:] ** 2)))
     assert g_norm > 1e-2, (
         f"the kernel is metric-annihilated after all: <v,v>_G^(1/2) = "
@@ -376,13 +376,13 @@ def test_a_kernel_mode_carries_metric_but_no_NET_CURRENT(singular_box):
         f"no minimum-G-norm representative exists and the gauge is undefined"
     )
 
-    weights = np.asarray(sn_mesh.quad.weights, dtype=float)
-    cosines = (np.asarray(sn_mesh.quad.mu_x, dtype=float),
-               np.asarray(sn_mesh.quad.mu_y, dtype=float))
-    omega_dot_n = np.asarray(sn_mesh.angular_trace.omega_dot_n)
+    weights = np.asarray(problem.quad.weights, dtype=float)
+    cosines = (np.asarray(problem.quad.mu_x, dtype=float),
+               np.asarray(problem.quad.mu_y, dtype=float))
+    omega_dot_n = np.asarray(problem.angular_trace.omega_dot_n)
     worst_tangential = 0.0
     for index, (name, slot) in enumerate(
-            sn_mesh.angular_trace.layout.faces.items()):
+            problem.angular_trace.layout.faces.items()):
         axis, _sign = face_normal(name)
         per_ordinate = slot.slice_view(
             mode[n_bulk:]).reshape(slot.shape[0], -1).sum(1)
@@ -471,7 +471,7 @@ def test_psi_exact_is_the_minimum_G_norm_member_of_the_manifold():
     on the ACTIVATION leg and the RECOVERY leg respectively, never on ``frac``.
     """
     cells = (3, 2)
-    sn_mesh, system, template, n_dof, n_bulk, source, exact = (
+    problem, system, template, n_dof, n_bulk, source, exact = (
         uniform_source_fixture(cells))
     dense = assemble(loss_matvec(system), template)
     basis, _singular = null_basis(dense)
@@ -479,14 +479,14 @@ def test_psi_exact_is_the_minimum_G_norm_member_of_the_manifold():
 
     # G on the full field: quadrature weight x cell volume in the bulk, the
     # partial-current metric on the trace — the trace space's own atoms.
-    weights = np.asarray(sn_mesh.quad.weights, dtype=float)
-    volumes = np.asarray(sn_mesh.volumes, dtype=float)
+    weights = np.asarray(problem.quad.weights, dtype=float)
+    volumes = np.asarray(problem.volumes, dtype=float)
     metric = np.empty(n_dof)
     bulk = np.zeros(template.interior.values.shape)
     bulk[...] = (weights.reshape((weights.size, 1) + (1,) * (bulk.ndim - 2))
                  * volumes.reshape((1, 1) + template.interior.values.shape[2:]))
     metric[:n_bulk] = bulk.ravel()
-    metric[n_bulk:] = np.asarray(sn_mesh.angular_trace.partial_current_metric)
+    metric[n_bulk:] = np.asarray(problem.angular_trace.partial_current_metric)
 
     root = np.sqrt(metric)
     orthonormal, _r = np.linalg.qr(root[:, None] * basis)
@@ -503,7 +503,7 @@ def test_psi_exact_is_the_minimum_G_norm_member_of_the_manifold():
         f"physical answer, and gauging would be picking one"
     )
 
-    iterate = drive(system, sn_mesh, template, source, "gauss_seidel")
+    iterate = drive(system, problem, template, source, "gauss_seidel")
     before = float(np.max(np.abs(
         (iterate[n_bulk:] - exact[n_bulk:]) / exact[n_bulk:])))
     after = float(np.max(np.abs(
@@ -551,13 +551,13 @@ def test_a_damping_closure_leaves_the_IDENTICAL_box_non_singular():
         f"{dd_basis.shape[1]}) — the contrast below then proves nothing"
     )
 
-    sn_mesh, _system, _template, _dense, basis, singular = (
+    problem, _system, _template, _dense, basis, singular = (
         ld_reflective_box(_CELLS))
-    assert isinstance(sn_mesh.scheme, LinearDiscontinuous), (
-        f"the LD fixture is closed by {type(sn_mesh.scheme).__name__} — this "
+    assert isinstance(problem.scheme, LinearDiscontinuous), (
+        f"the LD fixture is closed by {type(problem.scheme).__name__} — this "
         f"row is then comparing diamond with diamond"
     )
-    assert sn_mesh.reflective_axis_pairs == 2, (
+    assert problem.reflective_axis_pairs == 2, (
         "the geometry conjunct must still be satisfied, or this row is about "
         "the BOX and not about the CLOSURE"
     )

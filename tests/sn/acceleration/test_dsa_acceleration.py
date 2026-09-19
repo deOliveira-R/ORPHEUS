@@ -148,15 +148,15 @@ class TestD6CorrectionVanishes:
             bc_left=BC("reflective"),
             bc_right=BC("vacuum"),
         )
-        sn_mesh = SNProblem(
+        problem = SNProblem(
             mesh,
             Quadrature.gauss_legendre(n_ordinates=4),
             {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
         )
-        corrector = DSACorrection.from_sn_mesh(sn_mesh)
+        corrector = DSACorrection.from_sn_mesh(problem)
         psi = TimedFullField(
-            interior=AngularFlux.zeros(sn_mesh.angular_bulk_space),
-            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+            interior=AngularFlux.zeros(problem.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
             _history=(), history_depth=0,
         )
         correction = corrector.apply(psi - psi)

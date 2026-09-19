@@ -209,7 +209,7 @@ def _build_sn_mesh(
     return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _random_state(sn_mesh: SNProblem, seed: int, *, zero_boundary: bool = True) -> TimedFullField:
+def _random_state(problem: SNProblem, seed: int, *, zero_boundary: bool = True) -> TimedFullField:
     """A fixed-seed random bulk ψ with a chosen boundary trace.
 
     ``zero_boundary=True`` is the canonical vacuum-matvec input: the
@@ -219,24 +219,24 @@ def _random_state(sn_mesh: SNProblem, seed: int, *, zero_boundary: bool = True) 
     pre-carve defect from the post-carve raw outflow.
     """
     ng = 1
-    N = sn_mesh.quad.N
+    N = problem.quad.N
     rng = np.random.default_rng(seed)
-    boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
     if not zero_boundary:
         # Populate every face buffer with a fixed-seed random trace.
         for face in boundary.layout.faces:
             view = boundary.face_view(face)
             view[:] = rng.standard_normal(view.shape)
-    bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
+    bulk_arr = rng.standard_normal((N, ng, *problem.spatial_shape))
     return TimedFullField(
-        interior=AngularFlux(values=bulk_arr, space=sn_mesh.angular_bulk_space),
+        interior=AngularFlux(values=bulk_arr, space=problem.angular_bulk_space),
         boundary=boundary,
         _history=(),
         history_depth=2,
     )
 
 
-def _LpC_apply(sn_mesh: SNProblem, state: TimedFullField, sigma_t: np.ndarray) -> "FullField":
+def _LpC_apply(problem: SNProblem, state: TimedFullField, sigma_t: np.ndarray) -> "FullField":
     """``(L + C).apply(state)`` via the public operator-algebra path.
 
     #257 S8a — the matvec leaf is a base arrow, so ``(L + C).apply`` returns a
@@ -247,13 +247,13 @@ def _LpC_apply(sn_mesh: SNProblem, state: TimedFullField, sigma_t: np.ndarray) -
     (:func:`_LC_matvec`'s seed arm — presence structural); no seed on
     non-carrying meshes.
     """
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
-    seed_leg = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sigma_t, problem)
+    seed_leg = radial_characteristic_edge_seed(state.interior.values, problem)
     from tests.sn._test_helpers import _LC_matvec
 
     return _LC_matvec(
-        state, sigma_t, sn_mesh=sn_mesh, LC=(L + C),
+        state, sigma_t, problem=problem, LC=(L + C),
         radial_characteristic_flux=seed_leg,
     )
 
@@ -324,10 +324,10 @@ class TestVacuumMatvecBitIdentity:
         the spherical apply without refreshing this store (verified correct
         vs L0/L1 references first — not green-by-fiat).
         """
-        sn_mesh = _build_sn_mesh(geometry, bc="vacuum")
-        state = _random_state(sn_mesh, seed, zero_boundary=True)
-        sigma_t = np.full((1, *sn_mesh.spatial_shape), 2.0)
-        out = _LpC_apply(sn_mesh, state, sigma_t)
+        problem = _build_sn_mesh(geometry, bc="vacuum")
+        state = _random_state(problem, seed, zero_boundary=True)
+        sigma_t = np.full((1, *problem.spatial_shape), 2.0)
+        out = _LpC_apply(problem, state, sigma_t)
 
         key = f"vacuum_bulk_{geometry}_seed{seed}"
         path = _BASELINE_DIR / f"{key}.npy"
@@ -357,7 +357,7 @@ class TestVacuumMatvecBitIdentity:
         # verified vs L0/L1 references first.
         assert_regression(
             out.interior.values, expected,
-            conv_tol=0.0, kind="direct", reduction_depth=sn_mesh.nx,
+            conv_tol=0.0, kind="direct", reduction_depth=problem.nx,
             case_name=f"vacuum_bulk_{geometry}_seed{seed}",
             quantity="vacuum_bulk_matvec",
         )
@@ -377,10 +377,10 @@ class TestVacuumMatvecBitIdentity:
         non-zero-input case legitimately differs — see
         ``test_vacuum_boundary_slot_diverges_for_nonzero_input``.)
         """
-        sn_mesh = _build_sn_mesh(geometry, bc="vacuum")
-        state = _random_state(sn_mesh, seed, zero_boundary=True)
-        sigma_t = np.full((1, *sn_mesh.spatial_shape), 2.0)
-        out = _LpC_apply(sn_mesh, state, sigma_t)
+        problem = _build_sn_mesh(geometry, bc="vacuum")
+        state = _random_state(problem, seed, zero_boundary=True)
+        sigma_t = np.full((1, *problem.spatial_shape), 2.0)
+        out = _LpC_apply(problem, state, sigma_t)
 
         key = f"vacuum_boundary_{geometry}_seed{seed}"
         path = _BASELINE_DIR / f"{key}.npy"
@@ -418,7 +418,7 @@ class TestVacuumMatvecBitIdentity:
         B0.3 REPAIR (2026-07-30) — this row had **never executed a
         single assertion in its life**, on any of its three seeds.  It
         built a 1-D :class:`Mesh1D` and then read
-        ``sn_mesh.spatial_shape[1]``, which raises :exc:`IndexError` on
+        ``problem.spatial_shape[1]``, which raises :exc:`IndexError` on
         a 1-tuple; the surrounding ``except Exception as exc:
         pytest.skip(...)`` swallowed it, so all three parametrisations
         reported as a green skip (*"2-D mesh construction not available
@@ -462,18 +462,18 @@ class TestVacuumMatvecBitIdentity:
             bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
         # A hard assertion, NOT a skip: if the mesh ever degenerates to
         # 1-D the row must go RED, because a silently-skipped 2-D gate
         # is exactly the defect this repair removes.
-        assert len(sn_mesh.spatial_shape) == 2 and sn_mesh.spatial_shape[1] > 1, (
+        assert len(problem.spatial_shape) == 2 and problem.spatial_shape[1] > 1, (
             f"the 2-D vacuum regression floor needs an ny>1 mesh; got "
-            f"spatial_shape={sn_mesh.spatial_shape!r}"
+            f"spatial_shape={problem.spatial_shape!r}"
         )
 
-        state = _random_state(sn_mesh, seed, zero_boundary=True)
-        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
-        out = _LpC_apply(sn_mesh, state, sigma_t)
+        state = _random_state(problem, seed, zero_boundary=True)
+        sigma_t = np.full((ng, *problem.spatial_shape), 2.0)
+        out = _LpC_apply(problem, state, sigma_t)
 
         key = f"vacuum_2d_bulk_seed{seed}"
         path = _BASELINE_DIR / f"{key}.npy"
@@ -545,18 +545,18 @@ class TestStreamingEquilibriumValue:
         NO anomalous growth in cell 0 (the pole cell).  A missing ΔA/w in
         the extracted seed makes cell-0 the largest-magnitude cell.
         """
-        sn_mesh = _build_sn_mesh(geometry, bc="vacuum", n_cells=8)
-        ng, N = 1, sn_mesh.quad.N
-        nx = sn_mesh.nx
-        flat = np.ones((N, ng, *sn_mesh.spatial_shape))
+        problem = _build_sn_mesh(geometry, bc="vacuum", n_cells=8)
+        ng, N = 1, problem.quad.N
+        nx = problem.nx
+        flat = np.ones((N, ng, *problem.spatial_shape))
         state = TimedFullField(
-            interior=AngularFlux(values=flat, space=sn_mesh.angular_bulk_space),
-            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+            interior=AngularFlux(values=flat, space=problem.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
             _history=(),
             history_depth=2,
         )
-        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 1.0)
-        out = _LpC_apply(sn_mesh, state, sigma_t)
+        sigma_t = np.full((ng, *problem.spatial_shape), 1.0)
+        out = _LpC_apply(problem, state, sigma_t)
         # L action = (L+C) − C; C·ψ = σ_t·ψ = 1·1 = 1 everywhere.
         l_action = out.interior.values - sigma_t[None] * flat
         # Per-cell L2 magnitude across ordinates+groups (1-D geometries).
@@ -610,7 +610,7 @@ class TestStreamingEquilibriumValue:
 # asserted is WRONG for the block (it would also write the spurious
 # ``R·ψ.inflow`` onto the outflow slots).  The placeholder
 # ``assemble_boundary_operator`` symbol that 3(a) imported never existed; the
-# realized leaf is ``SNBoundaryOperator(sn_mesh)``.
+# realized leaf is ``SNBoundaryOperator(problem)``.
 
 
 @pytest.mark.foundation
@@ -637,28 +637,28 @@ class TestLFullReadsInflow:
         (Was xfail-strict pre-carve; the keystone deletion flipped it to
         XPASS, so the marker is removed — O.4a.2 Commit 2.)
         """
-        sn_mesh = _build_sn_mesh(geometry, bc="reflective")
-        ng, N = 1, sn_mesh.quad.N
-        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
+        problem = _build_sn_mesh(geometry, bc="reflective")
+        ng, N = 1, problem.quad.N
+        sigma_t = np.full((ng, *problem.spatial_shape), 2.0)
         rng = np.random.default_rng(3)
-        bulk = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
+        bulk = rng.standard_normal((N, ng, *problem.spatial_shape))
 
         def _state(inflow_scale: float) -> TimedFullField:
-            b = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+            b = AngularBoundaryFlux.zeros(problem.angular_trace)
             # populate the OUTER-face inflow slots with a non-zero trace.
-            trace = sn_mesh.angular_trace
+            trace = problem.angular_trace
             inflow = trace.inflow_indices_for_face("xmax")
             face = b.face_view("xmax")
             if inflow.size:
                 face[inflow, :] = inflow_scale
             return TimedFullField(
-                interior=AngularFlux(values=bulk.copy(), space=sn_mesh.angular_bulk_space),
+                interior=AngularFlux(values=bulk.copy(), space=problem.angular_bulk_space),
                 boundary=b,
                 _history=(), history_depth=2,
             )
 
-        out_zero = _LpC_apply(sn_mesh, _state(0.0), sigma_t)
-        out_one = _LpC_apply(sn_mesh, _state(1.0), sigma_t)
+        out_zero = _LpC_apply(problem, _state(0.0), sigma_t)
+        out_one = _LpC_apply(problem, _state(1.0), sigma_t)
         diff = np.linalg.norm(
             out_one.interior.values - out_zero.interior.values
         )
@@ -696,27 +696,27 @@ class TestLFullOutflowDefectKept:
         outflow slots differ by exactly the input outflow value:
         ``out_B.outflow − out_A.outflow == A.outflow``.
         """
-        sn_mesh = _build_sn_mesh(geometry, bc="reflective")
-        ng, N = 1, sn_mesh.quad.N
-        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
-        state = _random_state(sn_mesh, seed=5, zero_boundary=False)
-        out = _LpC_apply(sn_mesh, state, sigma_t)
+        problem = _build_sn_mesh(geometry, bc="reflective")
+        ng, N = 1, problem.quad.N
+        sigma_t = np.full((ng, *problem.spatial_shape), 2.0)
+        state = _random_state(problem, seed=5, zero_boundary=False)
+        out = _LpC_apply(problem, state, sigma_t)
 
         # state2: SAME bulk, SAME inflow slots, ZERO outflow slots — isolates
         # the ``−ψ.outflow`` defect term on the outflow slots.
         state2 = TimedFullField(
-            interior=AngularFlux(values=state.interior.values.copy(), space=sn_mesh.angular_bulk_space),
-            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+            interior=AngularFlux(values=state.interior.values.copy(), space=problem.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
             _history=(), history_depth=2,
         )
-        trace = sn_mesh.angular_trace
+        trace = problem.angular_trace
         for face in state.boundary.layout.faces:
             src = state.boundary.face_view(face)
             dst = state2.boundary.face_view(face)
             inflow = trace.inflow_indices_for_face(face)
             if inflow.size:
                 dst[inflow, :] = src[inflow, :]
-        out2 = _LpC_apply(sn_mesh, state2, sigma_t)
+        out2 = _LpC_apply(problem, state2, sigma_t)
 
         outer_outflow = trace.outflow_indices_for_face("xmax")
         if outer_outflow.size:
@@ -764,24 +764,24 @@ class TestVacuumBoundaryDefectKept:
         defect ``streamed − ψ.outflow``: varying ONLY the input outflow
         fill shifts the output by exactly ``−Δ`` (the ``−ψ.outflow`` term).
         """
-        sn_mesh = _build_sn_mesh(geometry, bc="vacuum")
-        ng, N = 1, sn_mesh.quad.N
-        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
+        problem = _build_sn_mesh(geometry, bc="vacuum")
+        ng, N = 1, problem.quad.N
+        sigma_t = np.full((ng, *problem.spatial_shape), 2.0)
         rng = np.random.default_rng(9)
-        bulk = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
-        trace = sn_mesh.angular_trace
+        bulk = rng.standard_normal((N, ng, *problem.spatial_shape))
+        trace = problem.angular_trace
 
         def _run(outflow_fill: float) -> np.ndarray:
-            b = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+            b = AngularBoundaryFlux.zeros(problem.angular_trace)
             outflow = trace.outflow_indices_for_face("xmax")
             if outflow.size:
                 b.face_view("xmax")[outflow, :] = outflow_fill
             st = TimedFullField(
-                interior=AngularFlux(values=bulk.copy(), space=sn_mesh.angular_bulk_space),
+                interior=AngularFlux(values=bulk.copy(), space=problem.angular_bulk_space),
                 boundary=b,
                 _history=(), history_depth=2,
             )
-            out = _LpC_apply(sn_mesh, st, sigma_t)
+            out = _LpC_apply(problem, st, sigma_t)
             outflow_idx = trace.outflow_indices_for_face("xmax")
             return out.boundary.face_view("xmax")[outflow_idx, :].copy()
 

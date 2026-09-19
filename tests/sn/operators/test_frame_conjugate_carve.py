@@ -121,15 +121,15 @@ def solver_p1_het():
     mat[2:, :] = 1
     mesh = _uniform_2d(nx, ny, 0.4, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNProblem(mesh, quad, {0: _mix(p0_a, p1_a), 1: _mix(p0_b, p1_b)}, scattering_order=1)
-    return SNSolver(sn_mesh)
+    problem = SNProblem(mesh, quad, {0: _mix(p0_a, p1_a), 1: _mix(p0_b, p1_b)}, scattering_order=1)
+    return SNSolver(problem)
 
 
 def _aniso_psi(solver, seed=20260624):
     N, ng = solver.quad.N, solver.ng
-    nx, ny = solver.sn_mesh.spatial_shape
+    nx, ny = solver.problem.spatial_shape
     rng = np.random.default_rng(seed)
-    return AngularFlux(values=rng.uniform(0.05, 1.0, size=(N, ng, nx, ny)), space=solver.sn_mesh.angular_bulk_space)
+    return AngularFlux(values=rng.uniform(0.05, 1.0, size=(N, ng, nx, ny)), space=solver.problem.angular_bulk_space)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -146,10 +146,10 @@ class TestLegendreMomentTransferHasRealSpaces:
     """
 
     def test_lambda_domain_is_codomain_is_basis_space(self, solver_p1_het):
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
         lam = LegendreMomentTransfer.on_frame(
-            TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), op.frame, skip_l0=True,
+            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         # Λ is endomorphic on coefficient (basis) space.
         require(
@@ -174,9 +174,9 @@ class TestLegendreMomentTransferHasRealSpaces:
         asymmetric factor of the frame-conjugated kernel ``R∘Λ∘M`` (so
         ``(R∘Λ∘M)ᵀ`` falls out for free).
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         lam = LegendreMomentTransfer.on_frame(
-            TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), op.frame, skip_l0=True,
+            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         require(
             lam.is_adjointable and not lam.is_invertible,
@@ -207,10 +207,10 @@ class TestLegendreMomentTransferHasRealSpaces:
         until Λ gets spaces. Build the inner product explicitly (mirrors the
         kernel's construction) and read its codomain.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
         lam = LegendreMomentTransfer.on_frame(
-            TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), op.frame, skip_l0=True,
+            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         inner = OperatorProduct(lam, frame.analysis)
         require(
@@ -229,7 +229,7 @@ class TestLegendreMomentTransferHasRealSpaces:
     def test_kernel_remains_typed_operator_product(self, solver_p1_het):
         """``S.kernel`` stays a typed OperatorProduct (R∘Λ∘M) post-carve —
         an invariant the carve must preserve (not gate)."""
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         require(
             isinstance(op.kernel, OperatorProduct),
             f"P2: S.kernel must remain a typed OperatorProduct (R∘Λ∘M); got "
@@ -254,11 +254,11 @@ class TestFrameConjugateEqualsRLambdaM:
         probe d-i) reddens, while the physics-correctness reference stays the
         aniso MMS gate.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
         conjugate = _require_conjugate(frame)
         lam = LegendreMomentTransfer.on_frame(
-            TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), op.frame, skip_l0=True,
+            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
 
@@ -277,7 +277,7 @@ class TestFrameConjugateEqualsRLambdaM:
 
     def test_conjugate_is_non_degenerate(self, solver_p1_het):
         """The reference ψ genuinely activates ℓ≥1 (else the leg is vacuous)."""
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         moments = op.frame.analysis.apply(psi.values)
         require(
@@ -298,11 +298,11 @@ class TestFrameReconstructAfterEqualsRLambda:
         the reference shares NO M projection with the SUT (independence on the
         input side).
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
         reconstruct_after = _require_reconstruct_after(frame)
         lam = LegendreMomentTransfer.on_frame(
-            TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), op.frame, skip_l0=True,
+            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         moments = frame.analysis.apply(psi.values)  # φ = M·ψ (the windowed bulk)
@@ -329,12 +329,12 @@ class TestFrameReconstructAfterEqualsRLambda:
         moments to reconstruct_after reproduces the full-arm result, so
         reconstruct_after is exactly "conjugate with M already done".
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
         conjugate = _require_conjugate(frame)
         reconstruct_after = _require_reconstruct_after(frame)
         lam = LegendreMomentTransfer.on_frame(
-            TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), op.frame, skip_l0=True,
+            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         moments = frame.analysis.apply(psi.values)  # φ = M·ψ (the windowed bulk)
@@ -369,11 +369,11 @@ class TestProductionApplyEqualsComposedOperator:
         production kernel property to the new composed operator. Reads
         ``S.kernel`` OFF the live operator (Mode-11: no routing around).
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
         conjugate = _require_conjugate(frame)
         lam = LegendreMomentTransfer.on_frame(
-            TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), op.frame, skip_l0=True,
+            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
         np.testing.assert_array_equal(
@@ -395,8 +395,8 @@ class TestProductionApplyEqualsComposedOperator:
         ``S`` with the §14.1 extraction — its lift is N2NOperator's own
         gate; ``S.apply`` is P0 + aniso.)
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        sn_mesh = solver_p1_het.sn_mesh
+        op = solver_p1_het.problem.system.factors.scattering
+        problem = solver_p1_het.problem
         psi = _aniso_psi(solver_p1_het)
         # CS4c step 5: the gain is composite-bound — the bulk action rides a
         # zero-trace composite (the trace the lift itself emits).
@@ -407,8 +407,8 @@ class TestProductionApplyEqualsComposedOperator:
         aniso = np.asarray(op.kernel.apply(psi.values)) / sum_w
         phi = psi.integrate_angular()
         ng = solver_p1_het.ng
-        nx, ny = sn_mesh.spatial_shape
-        N = sn_mesh.quad.N
+        nx, ny = problem.spatial_shape
+        N = problem.quad.N
         iso = np.zeros((ng, nx, ny))
         # The P0 emission in place through the channel FIELD's verb (the
         # operator-level seam ``add_iso_source`` retired at #448): ndarray Q,
@@ -439,7 +439,7 @@ class TestProductionExecutesFrameConjugate:
     def test_kernel_property_actually_calls_frame_conjugate(
         self, solver_p1_het, monkeypatch,
     ):
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
         _require_conjugate(frame)  # skip PRE-IMPL
 

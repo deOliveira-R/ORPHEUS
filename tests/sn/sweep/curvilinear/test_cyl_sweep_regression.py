@@ -53,14 +53,14 @@ class TestCylindricalSweepRegression:
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        sig_t = np.full((1, *sn_mesh.spatial_shape), 0.5)  # (ng, *spatial)
-        Q_iso = np.ones((1, *sn_mesh.spatial_shape))       # (ng, *spatial)
-        source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
+        sig_t = np.full((1, *problem.spatial_shape), 0.5)  # (ng, *spatial)
+        Q_iso = np.ones((1, *problem.spatial_shape))       # (ng, *spatial)
+        source = AngularSourceSink.from_isotropic(Q_iso, problem)
 
-        boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
-        ang, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
+        boundary_flux = AngularBoundaryFlux.zeros(problem.angular_trace)
+        ang, phi = sweep_once(source, sig_t, problem, boundary_flux)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux"
         assert np.all(np.isfinite(phi)), "Non-finite scalar flux"
@@ -70,8 +70,8 @@ class TestCylindricalSweepRegression:
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_mesh(20, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        sn_mesh = SNProblem(mesh, quad, {0: mix})
-        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
+        problem = SNProblem(mesh, quad, {0: mix})
+        solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
         fission = solver.compute_fission_source(phi, 1.0)
@@ -123,9 +123,9 @@ class TestAzimuthalRedistribution:
         mesh = Mesh1D(edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
                       coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        reduced = sn_mesh.reduced
+        reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         for p, alpha in enumerate(reduced.angular.alpha_per_level):
             np.testing.assert_allclose(alpha[0], 0.0,
@@ -162,15 +162,15 @@ class TestAzimuthalRedistribution:
         mix = get_mixture("A", "1g")
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        sig_t = np.full((1, *sn_mesh.spatial_shape), mix.SigT[0])  # (ng, *spatial)
-        Q_iso = np.ones((1, *sn_mesh.spatial_shape))               # (ng, *spatial)
-        source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-        boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
-        ang, _ = sweep_once(source, sig_t, sn_mesh, boundary_flux)
+        sig_t = np.full((1, *problem.spatial_shape), mix.SigT[0])  # (ng, *spatial)
+        Q_iso = np.ones((1, *problem.spatial_shape))               # (ng, *spatial)
+        source = AngularSourceSink.from_isotropic(Q_iso, problem)
+        boundary_flux = AngularBoundaryFlux.zeros(problem.angular_trace)
+        ang, _ = sweep_once(source, sig_t, problem, boundary_flux)
 
-        reduced = sn_mesh.reduced
+        reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         for p, level_idx in enumerate(quad.level_indices):
             alpha = reduced.angular.alpha_per_level[p]
@@ -192,19 +192,19 @@ class TestAzimuthalRedistribution:
 
         mesh = _homogeneous_mesh(2, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
         quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        sig_t = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
-        Q_iso = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
-        source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-        boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+        sig_t = np.ones((1, *problem.spatial_shape))  # (ng, *spatial)
+        Q_iso = np.ones((1, *problem.spatial_shape))  # (ng, *spatial)
+        source = AngularSourceSink.from_isotropic(Q_iso, problem)
+        boundary_flux = AngularBoundaryFlux.zeros(problem.angular_trace)
         phi = None
         for _ in range(100):
             # Wave O (#208) O.4a.2 — bare sweep: drive the −B reflective
             # coupling explicitly before each sweep (mirrors the production
             # _solve_fixed_source_si direct loop).
-            reflect_outflow_into_inflow(boundary_flux, sn_mesh)
-            _, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
+            reflect_outflow_into_inflow(boundary_flux, problem)
+            _, phi = sweep_once(source, sig_t, problem, boundary_flux)
 
         phi_avg = np.average(phi[0, :], weights=mesh.volumes)
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.01,

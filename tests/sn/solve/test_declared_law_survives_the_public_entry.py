@@ -23,7 +23,7 @@ and the second is the one that makes the fix worth having:
    already-resolved ``bc`` dict — and that mesh was not the one the solver used.
    ⟹ the law had to ride the **geometry**, which is what the public API already
    takes. Declaring there makes the rebuild a no-op for the declaration instead
-   of a discard, and no ``sn_mesh=`` parameter is needed anywhere.
+   of a discard, and no ``problem=`` parameter is needed anywhere.
 
 ⚠ **What this module does NOT claim.** It pins that the declaration ARRIVES and
 changes the answer — not that the delivered ``q`` is correct in detail. The

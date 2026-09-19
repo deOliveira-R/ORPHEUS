@@ -36,7 +36,7 @@ with the geometry redistribution fold ``(ΔA/w)/V·(α_{m+1/2}ψ_{m+1/2} −
 
 C5 (2026-07-03) retired the unbound ``MorelMontryAngularSweep()`` legacy
 mode — construction tests bind to the tiny-sphere SNProblem helper (the
-family's ``cls(sn_mesh)`` contract), and the hand-calc algebra tests
+family's ``cls(problem)`` contract), and the hand-calc algebra tests
 call the pure module-level surface (no instance at all).
 """
 from __future__ import annotations
@@ -62,7 +62,7 @@ pytestmark = pytest.mark.foundation
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _mm_from(sn_mesh) -> MorelMontryAngularSweep:
+def _mm_from(problem) -> MorelMontryAngularSweep:
     """Build the closure from a mesh's factors.
 
     The family's contract is ``cls(angular, pairing, angular_axis)`` (the
@@ -72,9 +72,9 @@ def _mm_from(sn_mesh) -> MorelMontryAngularSweep:
     spell the call once here rather than at each site.
     """
     return MorelMontryAngularSweep(
-        sn_mesh.reduced.angular,
-        sn_mesh.reduced.redistribution_pairing,
-        sn_mesh.reduced.angular_axis,
+        problem.reduced.angular,
+        problem.reduced.redistribution_pairing,
+        problem.reduced.angular_axis,
     )
 
 class TestProtocolConformance:
@@ -128,8 +128,8 @@ class TestRegistry:
         # arc's Phase B replaced the mesh operand with the two tensor
         # factors, and the P4-remainder added the space factor the mints
         # read through — the kwarg NAME is part of the registry surface).
-        sn_mesh = make_tiny_spherical_sn_mesh()
-        reduced = sn_mesh.reduced
+        problem = make_tiny_spherical_sn_mesh()
+        reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         instance = AngularClosureBase.create(
             "morel_montry_angular_sweep",

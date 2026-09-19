@@ -64,24 +64,24 @@ def test_g2_4a_one_object_per_key_read_by_the_factory_and_the_guard(geometry, L)
     Flips the first red-before: ``space_on(mesh) is space_on(mesh)`` was
     ``False`` on every read.
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    width = sn_mesh.scheme.spatial_basis_per_axis
-    first = sn_mesh.moment_space(L, spatial_moments=width)
-    second = sn_mesh.moment_space(L, spatial_moments=width)
+    problem = _GEOMETRIES[geometry]()
+    width = problem.scheme.spatial_basis_per_axis
+    first = problem.moment_space(L, spatial_moments=width)
+    second = problem.moment_space(L, spatial_moments=width)
     if first is not second:
         pytest.fail(f"[{geometry} L={L}] the hub minted twice for one key")
 
     field = HarmonicMomentFlux.zeros_for_mesh_and_L(
-        sn_mesh, L, spatial_moments=width,
+        problem, L, spatial_moments=width,
     )
     if field.space is not first:
         pytest.fail(f"[{geometry} L={L}] the factory minted its own space instead of reading the hub's")
-    if field.space_on(sn_mesh) is not first:
+    if field.space_on(problem) is not first:
         pytest.fail(f"[{geometry} L={L}] the admission reference `space_on` is a re-mint, not the hub's object")
     if field.values.shape != first.shape:
         pytest.fail(f"[{geometry} L={L}] the zero field's shape {field.values.shape} is not the space's {first.shape}")
 
-    other_order = sn_mesh.moment_space(L + 1, spatial_moments=width)
+    other_order = problem.moment_space(L + 1, spatial_moments=width)
     if other_order is first:
         pytest.fail(f"[{geometry} L={L}] two truncation orders share one object")
     if other_order.shape == first.shape:
@@ -144,7 +144,7 @@ def test_g2_4c_the_boundary_guard_sees_the_hubs_object_on_a_windowed_solve(monke
     original = SNBoundaryOperator._apply_faces
 
     def spy(self, psi, method, *, rows=None):
-        seen.append((self.sn_mesh, psi.interior))
+        seen.append((self.problem, psi.interior))
         return original(self, psi, method, rows=rows)
 
     monkeypatch.setattr(SNBoundaryOperator, "_apply_faces", spy)

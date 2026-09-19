@@ -186,16 +186,16 @@ def test_the_recorded_trajectory_was_taken_under_the_PARSEVAL_head_metric() -> N
     Gram's diagonal, ``(2ℓ+1)/4π`` on this degree-exact sphere rule, in the
     live slots and 0 in the ``|m| > ℓ`` padding; the frame is its generator.
     """
-    sn_mesh = SNProblem(
+    problem = SNProblem(
         _mesh(), Quadrature.level_symmetric(sn_order=_SN_ORDER), _two_region_fissile(),
     )
-    space = sn_mesh.moment_space(_L)
+    space = problem.moment_space(_L)
     assert isinstance(space, TensorProductSpace) and _is_moment_space(space)
     head = space.factors[0]
     assert isinstance(head, MomentHead)
     assert head.inner_product_weights is None and head.metric is None
     assert head.axes is not None and len(head.axes) == 1
-    frame = sn_mesh.quad.angular_frame(_L)
+    frame = problem.quad.angular_frame(_L)
     assert head.axes[0].generator is frame
     weights = head.axes[0].weights
     assert weights is not None
@@ -278,15 +278,15 @@ def test_the_pin_discriminates_the_head_metric_choice() -> None:
     a deterministic vector, so the pin's discriminating power is a measurement
     inside the test rather than a claim in its docstring (``vv`` #19).
     """
-    sn_mesh = SNProblem(
+    problem = SNProblem(
         _mesh(), Quadrature.level_symmetric(sn_order=_SN_ORDER), _two_region_fissile(),
     )
-    dressed_space = sn_mesh.moment_space(_L)
-    frame = HarmonicFrame.from_galerkin(sn_mesh.quad.angular_frame(_L))
-    assert dressed_space == frame.basis_space * sn_mesh.bulk_space, (
+    dressed_space = problem.moment_space(_L)
+    frame = HarmonicFrame.from_galerkin(problem.quad.angular_frame(_L))
+    assert dressed_space == frame.basis_space * problem.bulk_space, (
         "the hub's space IS the frame's dressed product — one space, two owners (O-5)"
     )
-    continuum_space = frame.basis.space * sn_mesh.bulk_space   # the loser, as the negative control
+    continuum_space = frame.basis.space * problem.bulk_space   # the loser, as the negative control
     assert continuum_space.shape == dressed_space.shape
     assert continuum_space != dressed_space, (
         "the two candidates are two SPACES since 6.2c-ii — the metric-blind seam is gone"

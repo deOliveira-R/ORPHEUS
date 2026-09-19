@@ -64,7 +64,7 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
     mutable dataclass FIELD here until the B0 cleanup, which meant
     ``VacuumInflow(kind="banana")`` constructed a law whose tag matched no
     registry entry; deriving it removes that state. The string-comparison
-    contract (``sn_mesh.bc["xmax"] == "vacuum"``) is unchanged.
+    contract (``problem.bc["xmax"] == "vacuum"``) is unchanged.
     """
 
     # ── The affine form's two factors (B1) ──────────────────────────────

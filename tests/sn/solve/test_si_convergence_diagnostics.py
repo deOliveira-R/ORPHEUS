@@ -63,20 +63,20 @@ def _homogeneous_slab_solver(c: float, *, sigma_t: float = 1.0,
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    sn_mesh = SNProblem(mesh, quad, {0: mat}, scattering_order=0)
-    return SNSolver(sn_mesh, inner_solver="source_iteration")
+    problem = SNProblem(mesh, quad, {0: mat}, scattering_order=0)
+    return SNSolver(problem, inner_solver="source_iteration")
 
 
 def _run_si(c: float, **kw):
     """Run the within-group SI on a homogeneous slab; return its
     :class:`IterationRecord` (with ``increment_norms`` populated)."""
     solver = _homogeneous_slab_solver(c, **kw)
-    sn_mesh = solver.sn_mesh
+    problem = solver.problem
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs,
+        problem, solver.problem.mat_xs,
     )
     si, _base, _gains, windowed = _within_group_si(
-        Splitting.from_schedule(system, solver.schedule), sn_mesh,
+        Splitting.from_schedule(system, solver.schedule), problem,
         max_iter=600, tol=1e-12,
     )
     # 1-D slab never windows (windowing is 2-D Cartesian) → interior=AngularFlux.
@@ -84,12 +84,12 @@ def _run_si(c: float, **kw):
         raise AssertionError("homogeneous slab should not window the SI iterate")
     q_ext = TimedFullField(
         interior=AngularSourceSink.from_isotropic(
-            np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
+            np.full((problem.ng, *problem.spatial_shape), 1.0), problem,
         ),
-        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+        boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
         _history=(), history_depth=2,
     )
-    ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+    ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     _, record = si.solve(q_ext, initial_guess=ig)
     return record
 

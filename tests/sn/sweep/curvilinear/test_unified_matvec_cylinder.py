@@ -78,21 +78,21 @@ def _build_cyl(n_cells: int, quad, edges=None) -> SNProblem:
     return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _bc_fill_outer(psi_view: np.ndarray, sn_mesh: SNProblem) -> np.ndarray:
+def _bc_fill_outer(psi_view: np.ndarray, problem: SNProblem) -> np.ndarray:
     """Make psi_view BC-consistent at the outer face (incoming ordinates)."""
-    quad = sn_mesh.quad
+    quad = problem.quad
     incoming_mask = quad.mu_x < -1e-15
     if not incoming_mask.any():
         return psi_view
     outer_face = psi_view[:, :, -1]
-    inflow_full = sn_mesh.bc["xmax"].apply(outer_face)
+    inflow_full = problem.bc["xmax"].apply(outer_face)
     psi_view = psi_view.copy()
     psi_view[incoming_mask, :, -1] = inflow_full[incoming_mask, :]
     return psi_view
 
 
 def _extract_at_unknown_slots(
-    field_4d: np.ndarray, sn_mesh: SNProblem,
+    field_4d: np.ndarray, problem: SNProblem,
 ) -> np.ndarray:
     """Gather field_4d at the curvilinear equation-bearing slots → (ng, n_eq).
 
@@ -101,8 +101,8 @@ def _extract_at_unknown_slots(
     EXCEPT inward ordinates at the outermost cell ``ix == nx - 1``
     (the reflective BC determines those values; they are NOT unknowns).
     """
-    quad = sn_mesh.quad
-    nx = sn_mesh.nx
+    quad = problem.quad
+    nx = problem.nx
     ng = field_4d.shape[1]
     inflow_outer = quad.mu_x < -1e-15  # (N,)
     cols = []
@@ -115,7 +115,7 @@ def _extract_at_unknown_slots(
 
 
 def _hand_reference_cyl_matvec(
-    psi_view: np.ndarray, sn_mesh: SNProblem, sigma_t: np.ndarray,
+    psi_view: np.ndarray, problem: SNProblem, sigma_t: np.ndarray,
 ) -> np.ndarray:
     r"""Per-ordinate explicit matvec — the structurally-independent L0 reference.
 
@@ -126,19 +126,19 @@ def _hand_reference_cyl_matvec(
 
     Returns shape ``(N, ng, nx)``.
     """
-    quad = sn_mesh.quad
+    quad = problem.quad
     N = quad.N
     ng = psi_view.shape[1]
-    nx = sn_mesh.nx
+    nx = problem.nx
     eps = 1e-15
 
-    reduced = sn_mesh.reduced
+    reduced = problem.reduced
     assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
     A = reduced.face_areas
-    V = sn_mesh.volumes
+    V = problem.volumes
     mu_x = quad.mu_x
 
-    bc_outer = sn_mesh.bc["xmax"]
+    bc_outer = problem.bc["xmax"]
 
     out = np.zeros((N, ng, nx))
 
@@ -165,7 +165,7 @@ def _hand_reference_cyl_matvec(
     # redistribution closure — so sharing the edge-extrapolation seed
     # convention with the proxy is consistent (independence lives in the
     # per-ordinate walk, not in the seed the two sides agree to consume).
-    closure = sn_mesh.angular_closure
+    closure = problem.angular_closure
     psi_state = closure.precompute_psi_state(psi_view)
     redist_full = np.zeros((ng, N, nx))
     for p, level_idx in enumerate(level_indices):
@@ -282,20 +282,20 @@ def test_unified_cylinder_matches_hand_reference(
     {3, 5, 10} cells × {0, 1, 2} seeds = 27 cases.
     """
     quad = quad_factory()
-    sn_mesh = _build_cyl(n_cells, quad)
+    problem = _build_cyl(n_cells, quad)
     ng = 1
     N = quad.N
 
     rng = np.random.default_rng(seed)
     psi_view = rng.standard_normal((N, ng, n_cells)).astype(np.float64)
-    psi_view = _bc_fill_outer(psi_view, sn_mesh)
+    psi_view = _bc_fill_outer(psi_view, problem)
     sigma_t = np.full((ng, n_cells), 2.0)
 
-    m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
-    m_hand = _hand_reference_cyl_matvec(psi_view, sn_mesh, sigma_t)
+    m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
+    m_hand = _hand_reference_cyl_matvec(psi_view, problem, sigma_t)
 
-    m_unified_u = _extract_at_unknown_slots(m_unified, sn_mesh)
-    m_hand_u = _extract_at_unknown_slots(m_hand, sn_mesh)
+    m_unified_u = _extract_at_unknown_slots(m_unified, problem)
+    m_hand_u = _extract_at_unknown_slots(m_hand, problem)
 
     np.testing.assert_allclose(
         m_unified_u, m_hand_u, rtol=1e-12, atol=1e-13,
@@ -310,12 +310,12 @@ def test_unified_cylinder_matches_hand_reference(
 def test_unified_cylinder_zero_psi_gives_zero() -> None:
     """Linear operator: zero input → zero output."""
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    sn_mesh = _build_cyl(n_cells=5, quad=quad)
+    problem = _build_cyl(n_cells=5, quad=quad)
     ng = 1
-    sigma_t = np.full((ng, sn_mesh.nx), 2.0)
-    psi_view = np.zeros((quad.N, ng, sn_mesh.nx))
+    sigma_t = np.full((ng, problem.nx), 2.0)
+    psi_view = np.zeros((quad.N, ng, problem.nx))
 
-    m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
+    m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
     np.testing.assert_array_equal(m_unified, np.zeros_like(m_unified))
 
 
@@ -325,14 +325,14 @@ def test_unified_cylinder_constant_psi_gives_sigma_t() -> None:
     returns σ_t · ψ. Sanity check — flat flux activates only the
     collision term in the per-cell balance."""
     quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-    sn_mesh = _build_cyl(n_cells=5, quad=quad)
+    problem = _build_cyl(n_cells=5, quad=quad)
     ng = 1
     sigma_t_val = 2.0
-    sigma_t = np.full((ng, sn_mesh.nx), sigma_t_val)
-    psi_view = np.ones((quad.N, ng, sn_mesh.nx))
+    sigma_t = np.full((ng, problem.nx), sigma_t_val)
+    psi_view = np.ones((quad.N, ng, problem.nx))
 
-    m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
-    m_at_unknowns = _extract_at_unknown_slots(m_unified, sn_mesh)
+    m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
+    m_at_unknowns = _extract_at_unknown_slots(m_unified, problem)
     np.testing.assert_allclose(
         m_at_unknowns, sigma_t_val, rtol=1e-12, atol=1e-13,
     )

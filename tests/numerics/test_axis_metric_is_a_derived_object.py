@@ -143,8 +143,8 @@ def test_the_carriers_trial_space_reads_bit_identically(geometry):
     every composite: ``V_cell × w_n`` per axis, a moment axis on LD) the
     derived object reproduces the inline loop bit-for-bit, both directions
     and the pairing."""
-    sn_mesh = _GEOMETRIES[geometry]()
-    space = sn_mesh.angular_trial_space
+    problem = _GEOMETRIES[geometry]()
+    space = problem.angular_trial_space
     axes = space.axes
     assert axes is not None
     rng = np.random.default_rng(7)

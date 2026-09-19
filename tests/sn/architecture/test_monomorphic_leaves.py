@@ -463,36 +463,36 @@ _ANONYMOUS_CAPABLE = ("C", "S", "F")
 _METRIC_CONSTRAINED = ("L", "S", "F")
 
 
-def _leaf_set(sn_mesh: SNProblem) -> "dict[str, LinearOperator]":
+def _leaf_set(problem: SNProblem) -> "dict[str, LinearOperator]":
     r"""The five production leaves, built exactly as the SN solver builds them.
 
     ``L``/``C`` mirror ``build_streaming_collision``
     (``sn/coupled_system.py:376``), ``S``/``F`` mirror ``SNSolver.__init__``
     (``sn/solver.py:1035`` / ``:1041``) and ``B`` mirrors
     ``build_within_group_system`` (``sn/coupled_system.py:464``) — each
-    threading ``sn_mesh.full_field_space``, which is precisely why the G1.1
+    threading ``problem.full_field_space``, which is precisely why the G1.1
     VALUE rows are green on this ladder while the model-generic construction
     is not.
     """
-    mat_xs = sn_mesh.mat_xs
+    mat_xs = problem.mat_xs
     return {
-        "L": StreamingOperator.pose(sn_mesh),
+        "L": StreamingOperator.pose(problem),
         "C": MultiplicationOperator(
             coefficient=mat_xs.total_cross_section_field,
-            domain=sn_mesh.full_field_space, codomain=sn_mesh.full_field_space,
+            domain=problem.full_field_space, codomain=problem.full_field_space,
         ),
         "S": ScatteringOperator.from_solver_data(
             mat_xs=mat_xs, scattering_order=1,
-            space=sn_mesh.full_field_space,
+            space=problem.full_field_space,
         ),
         "F": FissionOperator.from_solver_data(
-            mat_xs=mat_xs, space=sn_mesh.full_field_space,
+            mat_xs=mat_xs, space=problem.full_field_space,
         ),
-        "B": SNBoundaryOperator(sn_mesh),
+        "B": SNBoundaryOperator(problem),
     }
 
 
-def _random_composite(sn_mesh: SNProblem, *, seed: int) -> TimedFullField:
+def _random_composite(problem: SNProblem, *, seed: int) -> TimedFullField:
     """Fixed-seed random state, filled in BULK **and** TRACE.
 
     A flat ψ nulls the streaming coupling and a zero trace nulls ``B``; both
@@ -501,7 +501,7 @@ def _random_composite(sn_mesh: SNProblem, *, seed: int) -> TimedFullField:
     """
     rng = np.random.default_rng([seed, 7])
     state = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
     for face in state.boundary.layout.faces:
@@ -514,7 +514,7 @@ class _AlienCarrier:
     """A carrier no leaf's arrow accepts, and that is all it is."""
 
 
-def _wrong_carrier(kind: str, sn_mesh: SNProblem) -> object:
+def _wrong_carrier(kind: str, problem: SNProblem) -> object:
     """The two wrong carriers G1.3 probes.
 
     ``alien`` is a bare object — the minimal statement of "not my domain".
@@ -525,7 +525,7 @@ def _wrong_carrier(kind: str, sn_mesh: SNProblem) -> object:
     """
     if kind == "alien":
         return _AlienCarrier()
-    return CoupledField(systems=(_random_composite(sn_mesh, seed=_SEED_X),))
+    return CoupledField(systems=(_random_composite(problem, seed=_SEED_X),))
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -533,7 +533,7 @@ def _wrong_carrier(kind: str, sn_mesh: SNProblem) -> object:
 # ═════════════════════════════════════════════════════════════════════════
 
 def _reciprocity_residual(
-    op: "LinearOperator", sn_mesh: SNProblem, x: TimedFullField, y: TimedFullField,
+    op: "LinearOperator", problem: SNProblem, x: TimedFullField, y: TimedFullField,
 ) -> "tuple[float, float]":
     r"""``(relative defect, |⟨Ax,y⟩_G|)`` for the G-adjoint identity.
 
@@ -546,8 +546,8 @@ def _reciprocity_residual(
     production metric would be a false green by construction: a wrong
     internal metric ``G'`` satisfies its own reciprocity trivially.
     """
-    lhs = g_inner(op.apply(x), y, sn_mesh)
-    rhs = g_inner(x, op.H.apply(y), sn_mesh)
+    lhs = g_inner(op.apply(x), y, problem)
+    rhs = g_inner(x, op.H.apply(y), problem)
     scale = max(abs(lhs), abs(rhs), 1e-300)
     return abs(lhs - rhs) / scale, abs(lhs)
 
@@ -594,16 +594,16 @@ def _double_the_adjoint(self, y):
 _TRUE_ADJOINT_APPLY = _operator_module.AdjointOperator.apply
 
 
-def _assert_metric_is_constant(sn_mesh: SNProblem) -> float:
+def _assert_metric_is_constant(problem: SNProblem) -> float:
     """Precondition of the blindness leg: the metric IS one number.
 
     Reddens if the control fixture ever stops being flat — which would make
     :func:`test_a_globally_constant_metric_makes_reciprocity_blind` pass for
     a reason unrelated to the claim it makes.
     """
-    weights = np.asarray(sn_mesh.quad.weights, dtype=float)
-    volumes = np.asarray(sn_mesh.volumes, dtype=float)
-    cosines = np.abs(np.asarray(sn_mesh.angular_trace.omega_dot_n, dtype=float))
+    weights = np.asarray(problem.quad.weights, dtype=float)
+    volumes = np.asarray(problem.volumes, dtype=float)
+    cosines = np.abs(np.asarray(problem.angular_trace.omega_dot_n, dtype=float))
     entries = np.concatenate([
         np.outer(weights, volumes).ravel(),
         (cosines * weights[None, :]).ravel(),
@@ -630,7 +630,7 @@ def test_leaf_declares_both_function_spaces(leaf, geometry):
 
     GREEN today on the SN ladder (MEASURED: all 20 rows), so this ships as a
     **regression floor**, not a red gate: every solver-side construction
-    threads ``sn_mesh.full_field_space``. Its job is to keep it that way
+    threads ``problem.full_field_space``. Its job is to keep it that way
     while P1 moves the spaces from optional to mandatory — a phase that
     touches every leaf's constructor is exactly when a thread can be dropped.
 
@@ -639,8 +639,8 @@ def test_leaf_declares_both_function_spaces(leaf, geometry):
     model-generic construction) and
     :func:`test_leaf_space_annotation_is_not_optional` (R1's static face).
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    op = _leaf_set(sn_mesh)[leaf]
+    problem = _GEOMETRIES[geometry]()
+    op = _leaf_set(problem)[leaf]
     for role, space in (("domain", op.domain), ("codomain", op.codomain)):
         if space is None:
             pytest.fail(
@@ -737,8 +737,8 @@ def test_leaf_space_annotation_is_not_optional(leaf):
     (``MissingAdjoint``). The L/B flip was therefore typing-only, and this
     row's only runtime-observable is ``npx pyright``.
     """
-    sn_mesh = _sphere()
-    leaf_cls = type(_leaf_set(sn_mesh)[leaf])
+    problem = _sphere()
+    leaf_cls = type(_leaf_set(problem)[leaf])
     for prop_name in ("domain", "codomain"):
         owner, annotation = _domain_annotation(leaf_cls, prop_name)
         if "None" in annotation or "Optional" in annotation:
@@ -812,9 +812,9 @@ def test_wrong_carrier_refusal_is_typed_and_names_the_operator(
     **M-9**: today's state IS the mutation — this row's first run is its own
     mutation proof (§7).
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    op = _leaf_set(sn_mesh)[leaf]
-    probe = _wrong_carrier(carrier, sn_mesh)
+    problem = _GEOMETRIES[geometry]()
+    op = _leaf_set(problem)[leaf]
+    probe = _wrong_carrier(carrier, problem)
 
     try:
         op.apply(probe)  # type: ignore[arg-type]
@@ -875,12 +875,12 @@ def test_hilbert_adjoint_reciprocity(leaf, geometry):
     is the zero operator and this identity degenerates to ``0 == 0``, which
     is why this file builds a fissile mixture (module docstring).
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    op = _leaf_set(sn_mesh)[leaf]
-    x = _random_composite(sn_mesh, seed=_SEED_X)
-    y = _random_composite(sn_mesh, seed=_SEED_Y)
+    problem = _GEOMETRIES[geometry]()
+    op = _leaf_set(problem)[leaf]
+    x = _random_composite(problem, seed=_SEED_X)
+    y = _random_composite(problem, seed=_SEED_Y)
 
-    residual, magnitude = _reciprocity_residual(op, sn_mesh, x, y)
+    residual, magnitude = _reciprocity_residual(op, problem, x, y)
     if magnitude < 1e-8:
         pytest.fail(
             f"{type(op).__name__} on {geometry}: |<Ax,y>_G| = {magnitude:.3e} "
@@ -929,13 +929,13 @@ def test_reciprocity_metric_is_load_bearing(geometry, monkeypatch):
     silence would calcify. Their liveness is closed by
     :func:`test_reciprocity_row_is_non_vacuous`.
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    leaves = _leaf_set(sn_mesh)
-    x = _random_composite(sn_mesh, seed=_SEED_X)
-    y = _random_composite(sn_mesh, seed=_SEED_Y)
+    problem = _GEOMETRIES[geometry]()
+    leaves = _leaf_set(problem)
+    x = _random_composite(problem, seed=_SEED_X)
+    y = _random_composite(problem, seed=_SEED_Y)
 
     clean = {
-        name: _reciprocity_residual(leaves[name], sn_mesh, x, y)[0]
+        name: _reciprocity_residual(leaves[name], problem, x, y)[0]
         for name in _METRIC_CONSTRAINED
     }
     off_contract = {n: r for n, r in clean.items() if r > _RECIPROCITY_RTOL}
@@ -951,7 +951,7 @@ def test_reciprocity_metric_is_load_bearing(geometry, monkeypatch):
         _operator_module.AdjointOperator, "apply", _drop_the_metric,
     )
     mutated = {
-        name: _reciprocity_residual(leaves[name], sn_mesh, x, y)[0]
+        name: _reciprocity_residual(leaves[name], problem, x, y)[0]
         for name in _METRIC_CONSTRAINED
     }
     silent = {n: r for n, r in mutated.items() if r < _MUTATION_FLOOR}
@@ -1009,12 +1009,12 @@ def test_each_riesz_leg_is_individually_load_bearing(
     """
     from orpheus.numerics import operator as _op_module
 
-    sn_mesh = _GEOMETRIES[geometry]()
-    op = _leaf_set(sn_mesh)[leaf]
-    x = _random_composite(sn_mesh, seed=_SEED_X)
-    y = _random_composite(sn_mesh, seed=_SEED_Y)
+    problem = _GEOMETRIES[geometry]()
+    op = _leaf_set(problem)[leaf]
+    x = _random_composite(problem, seed=_SEED_X)
+    y = _random_composite(problem, seed=_SEED_Y)
 
-    clean, _ = _reciprocity_residual(op, sn_mesh, x, y)
+    clean, _ = _reciprocity_residual(op, problem, x, y)
     if clean > _RECIPROCITY_RTOL:
         pytest.fail(
             f"CONTROL LEG BROKEN: unmutated reciprocity for {leaf} on "
@@ -1024,7 +1024,7 @@ def test_each_riesz_leg_is_individually_load_bearing(
 
     cls_name, stub = _RIESZ_LEGS[leg]
     monkeypatch.setattr(getattr(_op_module, cls_name), "apply", stub)
-    residual, _ = _reciprocity_residual(op, sn_mesh, x, y)
+    residual, _ = _reciprocity_residual(op, problem, x, y)
     if residual < _MUTATION_FLOOR:
         pytest.fail(
             f"M-10{'a' if leg == 'lower' else 'b'} is SILENT for {leaf} on "
@@ -1063,17 +1063,17 @@ def test_a_globally_constant_metric_makes_reciprocity_blind(monkeypatch):
     which reciprocity sees), and a false red for the blindness claim,
     which is about the SIMILARITY structure only.
     """
-    sn_mesh = _flat_metric_slab()
-    constant = _assert_metric_is_constant(sn_mesh)
-    leaves = _leaf_set(sn_mesh)
-    x = _random_composite(sn_mesh, seed=_SEED_X)
-    y = _random_composite(sn_mesh, seed=_SEED_Y)
+    problem = _flat_metric_slab()
+    constant = _assert_metric_is_constant(problem)
+    leaves = _leaf_set(problem)
+    x = _random_composite(problem, seed=_SEED_X)
+    y = _random_composite(problem, seed=_SEED_Y)
 
     monkeypatch.setattr(
         _operator_module.AdjointOperator, "apply", _drop_the_metric,
     )
     for name in _LEAVES:
-        residual, _ = _reciprocity_residual(leaves[name], sn_mesh, x, y)
+        residual, _ = _reciprocity_residual(leaves[name], problem, x, y)
         if residual > _RECIPROCITY_RTOL:
             pytest.fail(
                 f"{name} on the flat-metric slab (G == {constant:.17g} "
@@ -1103,15 +1103,15 @@ def test_reciprocity_row_is_non_vacuous(leaf, monkeypatch):
     :math:`|\Omega\cdot\hat n|` from the reference metric on the composite
     ``(L + C - B)``. Not duplicated here.
     """
-    sn_mesh = _sphere()
-    op = _leaf_set(sn_mesh)[leaf]
-    x = _random_composite(sn_mesh, seed=_SEED_X)
-    y = _random_composite(sn_mesh, seed=_SEED_Y)
+    problem = _sphere()
+    op = _leaf_set(problem)[leaf]
+    x = _random_composite(problem, seed=_SEED_X)
+    y = _random_composite(problem, seed=_SEED_Y)
 
     monkeypatch.setattr(
         _operator_module.AdjointOperator, "apply", _double_the_adjoint,
     )
-    residual, _ = _reciprocity_residual(op, sn_mesh, x, y)
+    residual, _ = _reciprocity_residual(op, problem, x, y)
     if residual < _MUTATION_FLOOR:
         pytest.fail(
             f"{type(op).__name__}: doubling `.H` moved reciprocity by only "

@@ -165,9 +165,9 @@ class TestSNProblemBindsSphericalFactory:
     def pair(self):
         mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
         reduced = spherical_streaming(mesh, quad)
-        return sn_mesh, reduced
+        return problem, reduced
 
     @pytest.mark.foundation
     def test_face_areas_read_through_is_the_factory_value(self, pair):
@@ -179,16 +179,16 @@ class TestSNProblemBindsSphericalFactory:
         stronger ``is``-identity form of that claim lives at
         ``tests/sn/primitives/test_snmesh_consumes_reduced.py``.
         """
-        sn_mesh, reduced = pair
+        problem, reduced = pair
         assert reduced.face_areas is not None
-        assert np.array_equal(reduced.face_areas, sn_mesh.reduced.face_areas)
+        assert np.array_equal(reduced.face_areas, problem.reduced.face_areas)
 
     @pytest.mark.foundation
     def test_delta_A_read_through_is_the_factory_value(self, pair):
         """The deprecated ``SNProblem.delta_A`` lands on the factory array."""
-        sn_mesh, reduced = pair
+        problem, reduced = pair
         assert reduced.delta_A is not None
-        assert np.array_equal(reduced.delta_A, sn_mesh.reduced.delta_A)
+        assert np.array_equal(reduced.delta_A, problem.reduced.delta_A)
 
     @pytest.mark.foundation
     def test_angular_factor_is_the_factory_value(self, pair):
@@ -201,13 +201,13 @@ class TestSNProblemBindsSphericalFactory:
         it was the fused product ``ΔA ⊗ 1/w``, and each of its two factors
         is routed by a test of its own (``delta_A`` above; the weights ride
         the quadrature both sides receive)."""
-        sn_mesh, reduced = pair
+        problem, reduced = pair
         assert np.array_equal(
             reduced.angular.alpha_per_level[0],
-            sn_mesh.reduced.angular.alpha_per_level[0],
+            problem.reduced.angular.alpha_per_level[0],
         )
         assert (reduced.angular.mu_start_per_level
-                == sn_mesh.reduced.angular.mu_start_per_level)
+                == problem.reduced.angular.mu_start_per_level)
 
     # Issue #236 Step C: the geometry-side tau_mm producer was retired (the
     # M-M angular weight is now closure-owned).  ``test_tau_mm_bit_identical``
@@ -222,8 +222,8 @@ class TestSNProblemBindsSphericalFactory:
         """The routing claim is not an artefact of one quadrature order."""
         mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(N)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
-        snm_reduced = sn_mesh.reduced
+        problem = SNProblem(mesh, quad, placeholder_materials())
+        snm_reduced = problem.reduced
         assert snm_reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         reduced = spherical_streaming(mesh, quad)
         assert np.array_equal(
@@ -256,21 +256,21 @@ class TestSNProblemBindsCylindricalFactory:
     def pair(self):
         mesh = _cylindrical_mesh()
         quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
         reduced = cylindrical_streaming(mesh, quad)
-        return sn_mesh, reduced
+        return problem, reduced
 
     @pytest.mark.foundation
     def test_face_areas_read_through_is_the_factory_value(self, pair):
         """The deprecated ``SNProblem.face_areas`` lands on the factory array."""
-        sn_mesh, reduced = pair
-        assert np.array_equal(reduced.face_areas, sn_mesh.reduced.face_areas)
+        problem, reduced = pair
+        assert np.array_equal(reduced.face_areas, problem.reduced.face_areas)
 
     @pytest.mark.foundation
     def test_delta_A_read_through_is_the_factory_value(self, pair):
         """The deprecated ``SNProblem.delta_A`` lands on the factory array."""
-        sn_mesh, reduced = pair
-        assert np.array_equal(reduced.delta_A, sn_mesh.reduced.delta_A)
+        problem, reduced = pair
+        assert np.array_equal(reduced.delta_A, problem.reduced.delta_A)
 
     @pytest.mark.foundation
     def test_angular_factor_is_the_factory_value(self, pair):
@@ -279,16 +279,16 @@ class TestSNProblemBindsCylindricalFactory:
         Successor of the per-level α and ΔA/w routing tests (2026-08-26
         un-weld) — see the spherical twin for why ``redist_dAw_per_level``
         has no successor of its own."""
-        sn_mesh, reduced = pair
+        problem, reduced = pair
         assert (reduced.angular.n_levels
-                == sn_mesh.reduced.angular.n_levels)
+                == problem.reduced.angular.n_levels)
         for lvl, (rdc, snm) in enumerate(zip(
             reduced.angular.alpha_per_level,
-            sn_mesh.reduced.angular.alpha_per_level,
+            problem.reduced.angular.alpha_per_level,
         )):
             assert np.array_equal(rdc, snm), f"level {lvl} mismatch"
         assert (reduced.angular.mu_start_per_level
-                == sn_mesh.reduced.angular.mu_start_per_level)
+                == problem.reduced.angular.mu_start_per_level)
 
     # Issue #236 Step C: ``test_tau_mm_per_level_bit_identical`` retired —
     # the geometry-side cylinder τ producer was deleted; the closure τ
@@ -301,8 +301,8 @@ class TestSNProblemBindsCylindricalFactory:
         """The routing claim is not an artefact of one quadrature shape."""
         mesh = _cylindrical_mesh()
         quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
-        snm_reduced = sn_mesh.reduced
+        problem = SNProblem(mesh, quad, placeholder_materials())
+        snm_reduced = problem.reduced
         assert snm_reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         reduced = cylindrical_streaming(mesh, quad)
         for rdc, snm in zip(

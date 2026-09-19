@@ -29,7 +29,7 @@ were true of the original posing and are false at HEAD: since #257 S8b,
 ``apply`` delegates to ``LossRepresentation.streaming_action``, which is
 ``loss_action(zero_sigma, psi)`` — the subtraction is never performed.
 ``[M]`` :class:`StreamingOperator` is a dataclass whose only field is
-``sn_mesh``; ``hasattr(StreamingOperator, "sigma_t")`` is ``False``, so
+``problem``; ``hasattr(StreamingOperator, "sigma_t")`` is ``False``, so
 the constructor argument the old text described does not exist.
 
 The *kernel* is still rational in σ_t (Hébert §3.9.4's Carlson
@@ -137,16 +137,16 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNProble
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sig_t_uniform(sn_mesh: SNProblem, ng: int = 2,
+def _sig_t_uniform(problem: SNProblem, ng: int = 2,
                    value: float = 0.5) -> np.ndarray:
     """σ_t uniform across cells / groups (``(ng, *spatial)``)."""
-    return value * np.ones((ng, *sn_mesh.spatial_shape))
+    return value * np.ones((ng, *problem.spatial_shape))
 
 
-def _sig_t_heterogeneous(sn_mesh: SNProblem, ng: int = 2) -> np.ndarray:
+def _sig_t_heterogeneous(problem: SNProblem, ng: int = 2) -> np.ndarray:
     """σ_t heterogeneous — different value per (cell, group)."""
     rng = np.random.default_rng(seed=20260514)
-    return 0.3 + 0.5 * rng.random((ng, *sn_mesh.spatial_shape))
+    return 0.3 + 0.5 * rng.random((ng, *problem.spatial_shape))
 
 
 GEOMETRIES = [
@@ -166,12 +166,12 @@ GEOMETRIES_1D = [
 ]
 
 
-def _random_composite(sn_mesh, seed=171):
+def _random_composite(problem, seed=171):
     """Build a TimedFullField with non-zero bulk + non-zero boundary."""
     from dataclasses import replace
 
     rng = np.random.default_rng(seed)
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     bulk_values = rng.standard_normal(state.interior.values.shape)
     boundary_values = 0.1 + rng.random(state.boundary.values.shape)
     state = replace(state, interior=replace(state.interior, values=bulk_values))
@@ -200,18 +200,18 @@ class TestCapabilities:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_predicates_adjointable_not_invertible(self, name, builder):
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
         assert L.is_adjointable and not L.is_invertible
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_no_solve_verb(self, name, builder):
         # L is structurally non-invertible at the leaf: no solve verb at
         # all — the sweep-invertible solve lives on the fused (L+C) sum.
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
         assert not L.is_invertible
         assert not hasattr(L, "solve")
 
@@ -219,16 +219,16 @@ class TestCapabilities:
     def test_has_apply_transpose(self, name, builder):
         # Wave O / O.2b: L carries the analytic reverse-direction adjoint
         # matvec Lᵀ (the foundation of the G-adjoint ``L.H``).
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
         assert L.is_adjointable
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_satisfies_linear_operator_protocol(self, name, builder):
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
         assert isinstance(L, LinearOperator)
 
 
@@ -238,7 +238,7 @@ class TestCapabilities:
 
 
 class TestConstructor:
-    """StreamingOperator(sn_mesh) takes ONLY the mesh — pure L is σ-free.
+    """StreamingOperator(problem) takes ONLY the mesh — pure L is σ-free.
 
     Pattern 4 (illegal states unrepresentable), #257 S8b: pure ``L``
     computes ``Ω·∇ψ`` directly (the named ``streaming_action`` leaf) and
@@ -250,9 +250,9 @@ class TestConstructor:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_construct_with_sn_mesh_only(self, name, builder):
-        sn_mesh = builder()
-        L = StreamingOperator.pose(sn_mesh)
-        assert L.sn_mesh is sn_mesh
+        problem = builder()
+        L = StreamingOperator.pose(problem)
+        assert L.problem is problem
         # σ-free: the leaf carries no sigma_t surface (#257 S8b).  The pure-L
         # apply reads no σ — it routes to the representation's σ-free
         # streaming_action leaf; the collision diagonal lives in C.
@@ -297,21 +297,21 @@ class TestLinearity:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_apply_zero_returns_zero(self, name, builder):
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh, ng=2)
-        L = StreamingOperator.pose(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem, ng=2)
+        L = StreamingOperator.pose(problem)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         out = L.apply(state)
         np.testing.assert_allclose(out.interior.values, 0.0, atol=1e-14)
         np.testing.assert_allclose(out.boundary.values, 0.0, atol=1e-14)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_apply_is_linear(self, name, builder):
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh, ng=2)
-        L = StreamingOperator.pose(sn_mesh)
-        state1 = _random_composite(sn_mesh, seed=51)
-        state2 = _random_composite(sn_mesh, seed=52)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem, ng=2)
+        L = StreamingOperator.pose(problem)
+        state1 = _random_composite(problem, seed=51)
+        state2 = _random_composite(problem, seed=52)
         # Linearity, stated directly (campaign 1 CS3 — flux lives in V):
         # homogeneity op(c·ψ) = c·op(ψ) AND additivity op(ψ₁+ψ₂) =
         # op(ψ₁)+op(ψ₂). Additivity alone reds an affine op (the retired
@@ -357,10 +357,10 @@ class TestSumCapabilities:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_sum_exposes_apply(self, name, builder):
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
+        C = MultiplicationOperator.from_mesh(sig_t, problem)
         A = L + C
         assert callable(getattr(A, "apply", None))
 
@@ -370,10 +370,10 @@ class TestSumCapabilities:
     ):
         r"""``L + C`` dispatches to StreamingCollisionOperator and is invertible."""
         from orpheus.sn.operators.streaming import StreamingCollisionOperator
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
+        C = MultiplicationOperator.from_mesh(sig_t, problem)
         A = L + C
         assert isinstance(A, StreamingCollisionOperator)
         assert A.is_invertible
@@ -406,10 +406,10 @@ class TestCompositeInvariants:
         from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
-        state = _random_composite(sn_mesh)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
+        state = _random_composite(problem)
 
         out = L.apply(state)
 
@@ -418,7 +418,7 @@ class TestCompositeInvariants:
         assert isinstance(out, FullField)
         assert not isinstance(out, TimedFullField)
         assert isinstance(out.interior, AngularSourceSink)
-        assert out.interior.space is sn_mesh.angular_bulk_space
+        assert out.interior.space is problem.angular_bulk_space
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_boundary_carries_face_residual(self, name, builder):
@@ -430,10 +430,10 @@ class TestCompositeInvariants:
         layout-assigned slots; on random non-zero input the buffer
         must carry visibly non-zero values.
         """
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
-        state = _random_composite(sn_mesh, seed=182)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
+        state = _random_composite(problem, seed=182)
 
         out_composite = L.apply(state)
 
@@ -452,10 +452,10 @@ class TestCompositeInvariants:
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_zero_state_zero_output(self, name, builder):
         """ψ = 0 ⇒ L·ψ = 0 in both bulk AND boundary (linearity guard)."""
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         out = L.apply(state)
         np.testing.assert_array_equal(out.interior.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -473,11 +473,11 @@ class TestCompositeInvariants:
         """
         from orpheus.transport.full_field import FullField
 
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=depth)
+            state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space, history_depth=depth)
             out = L.apply(state)
             if type(out) is not FullField or isinstance(out, TimedFullField):
                 pytest.fail(
@@ -513,11 +513,11 @@ class TestCompositeInvariants:
             mat_map=np.zeros((3, 3), dtype=int),
         )
         quad = Quadrature.level_symmetric(sn_order=4)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials(ng=2))
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
+        problem = SNProblem(mesh, quad, placeholder_materials(ng=2))
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
 
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         out = L.apply(state)
 
         # base-arrow codomain: a timeless FullField, NOT the timed subclass.
@@ -527,7 +527,7 @@ class TestCompositeInvariants:
                 f"got {type(out).__name__}"
             )
         assert isinstance(out.interior, AngularSourceSink)
-        assert out.interior.space is sn_mesh.angular_bulk_space
+        assert out.interior.space is problem.angular_bulk_space
 
     def test_space_content_invariant(self):
         """CS4b S3 (F2): a twin-carrier composite applies legally; one whose
@@ -569,18 +569,18 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
         from orpheus.transport.full_field import FullField
         from orpheus.transport.timed_full_field import TimedFullField
 
-        sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
+        problem = builder()
+        sig_t = _sig_t_uniform(problem)
+        L = StreamingOperator.pose(problem)
+        C = MultiplicationOperator.from_mesh(sig_t, problem)
         A = L + C
-        state = _random_composite(sn_mesh, seed=191)
+        state = _random_composite(problem, seed=191)
 
         out = A.apply(state)
 
         assert isinstance(out, FullField)
         assert not isinstance(out, TimedFullField)
-        assert out.interior.space is sn_mesh.angular_bulk_space
+        assert out.interior.space is problem.angular_bulk_space
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -651,14 +651,14 @@ def _slab_for_snapshot_arm(*, ng: int, bc_left: BC, bc_right: BC) -> SNProblem:
     return SNProblem(mesh, quad, {0: mix})
 
 
-def _sigma_t_from_mat_map(sn_mesh: SNProblem) -> np.ndarray:
-    """Build per-(g, *cell) σ_t from sn_mesh.mat_map (matches the T.4a script)."""
-    ng = sn_mesh.ng
-    sig_t = np.empty((ng, *sn_mesh.spatial_shape), dtype=float)
-    mat_map = sn_mesh.mat_map
-    for cell in np.ndindex(*sn_mesh.spatial_shape):
+def _sigma_t_from_mat_map(problem: SNProblem) -> np.ndarray:
+    """Build per-(g, *cell) σ_t from problem.mat_map (matches the T.4a script)."""
+    ng = problem.ng
+    sig_t = np.empty((ng, *problem.spatial_shape), dtype=float)
+    mat_map = problem.mat_map
+    for cell in np.ndindex(*problem.spatial_shape):
         mid = int(mat_map[cell])
-        mat = sn_mesh.materials[mid]
+        mat = problem.materials[mid]
         for g in range(ng):
             sig_t[(g, *cell)] = float(mat.SigT[g])
     return sig_t
@@ -712,15 +712,15 @@ class TestT4bPreT4RegressionSnapshot:
         with np.load(path) as data:
             return {k: data[k] for k in data.files}
 
-    def _capture_arm(self, sn_mesh: SNProblem, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    def _capture_arm(self, problem: SNProblem, seed: int) -> tuple[np.ndarray, np.ndarray]:
         """Re-run StreamingOperator.apply on the snapshot fixture; return
         (bulk, boundary) values.
         """
         from dataclasses import replace
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
-        L = StreamingOperator.pose(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+        L = StreamingOperator.pose(problem)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
@@ -739,14 +739,14 @@ class TestT4bPreT4RegressionSnapshot:
         # byte-identical.  No seed term on non-carrying meshes — since
         # Q5.6.3 the Cartesian charts only (the ADMITTED cylinder's
         # folded rule carries on every level).
-        sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
+        sd = radial_characteristic_edge_seed(state.interior.values, problem)
         out = L.apply(state)
         if sd is not None:
             from orpheus.sn.operators.radial_characteristic import (
                 RadialCharacteristicSeeding,
             )
 
-            out = out + RadialCharacteristicSeeding(sn_mesh).apply(sd)
+            out = out + RadialCharacteristicSeeding(problem).apply(sd)
         return out.interior.values.copy(), out.boundary.values.copy()
 
     def _assert_arm(self, snapshots, *, tag: str, mesh: SNProblem, seed: int) -> None:
@@ -845,11 +845,11 @@ class TestT4bPreT4RegressionSnapshot:
         from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
             _cart2d_mesh, _make_state,
         )
-        sn_mesh = _cart2d_mesh(ng=ng, bc_kind=bc_kind)
+        problem = _cart2d_mesh(ng=ng, bc_kind=bc_kind)
         # Pure-L streaming (#257 S8b) — σ-free; the fixture σ_t is no longer
         # needed to build L.
-        L = StreamingOperator.pose(sn_mesh)
-        state = _make_state(sn_mesh, seed=seed)
+        L = StreamingOperator.pose(problem)
+        state = _make_state(problem, seed=seed)
         out = L.apply(state)
         assert_regression(
             out.interior.values, snapshots[f"{tag}_apply_bulk"],
@@ -954,12 +954,12 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         with np.load(path) as data:
             return {k: data[k] for k in data.files}
 
-    def _capture_arm(self, sn_mesh: SNProblem, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    def _capture_arm(self, problem: SNProblem, seed: int) -> tuple[np.ndarray, np.ndarray]:
         from dataclasses import replace
         # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
         # is no longer needed to build L (the snapshot pins L's matvec leaf).
-        L = StreamingOperator.pose(sn_mesh)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+        L = StreamingOperator.pose(problem)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
@@ -978,14 +978,14 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         # byte-identical.  No seed term on non-carrying meshes — since
         # Q5.6.3 the Cartesian charts only (the ADMITTED cylinder's
         # folded rule carries on every level).
-        sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
+        sd = radial_characteristic_edge_seed(state.interior.values, problem)
         out = L.apply(state)
         if sd is not None:
             from orpheus.sn.operators.radial_characteristic import (
                 RadialCharacteristicSeeding,
             )
 
-            out = out + RadialCharacteristicSeeding(sn_mesh).apply(sd)
+            out = out + RadialCharacteristicSeeding(problem).apply(sd)
         return out.interior.values.copy(), out.boundary.values.copy()
 
     def test_sphere_1g_apply_bit_identical(self, snapshots):
@@ -1058,7 +1058,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
 
 
 def test_ctor_is_unconstructable_without_both_closures():
-    """[foundation] The ctor REQUIRES (sn_mesh, spatial_closure, angular_closure).
+    """[foundation] The ctor REQUIRES (problem, spatial_closure, angular_closure).
 
     P4.9b done-when bullet 3: the illegal state (an operator with no
     closures) is unrepresentable — every un-migrated ctor site fails
@@ -1080,11 +1080,11 @@ def test_ctor_is_unconstructable_without_both_closures():
     with pytest.raises(TypeError, match="missing 1 required positional"):
         StreamingOperator(sn, sn.scheme)
     L = StreamingOperator(sn, sn.scheme, sn.angular_closure)
-    assert L.sn_mesh is sn
+    assert L.problem is sn
 
 
 def test_pose_reads_the_hub_objects_by_identity():
-    """[foundation] ``.pose(sn_mesh)`` passes the HUB's own two objects.
+    """[foundation] ``.pose(problem)`` passes the HUB's own two objects.
 
     The raw ctor carries NO guards (ruled 2026-08-28 — the no-guard
     position survived a four-attack exercise; the raw ctor is the

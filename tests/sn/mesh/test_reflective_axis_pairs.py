@@ -123,10 +123,10 @@ def test_a_BARE_mesh_is_all_reflective_and_the_predicate_sees_it():
     mesh = Mesh2D(
         edges_x=_EDGES, edges_y=_EDGES, mat_map=np.zeros((3, 3), dtype=int),
     )
-    sn_mesh = SNProblem(
+    problem = SNProblem(
         mesh, Quadrature.level_symmetric(4), {0: get_mixture("B", "2g")},
     )
-    assert sn_mesh.reflective_axis_pairs == sn_mesh.ndim == 2
+    assert problem.reflective_axis_pairs == problem.ndim == 2
 
 
 @pytest.mark.foundation
@@ -139,9 +139,9 @@ def test_it_counts_at_three_dimensions_too():
         return AxisMesh(edges=_EDGES, bc_low=low, bc_high=high)
 
     all_reflective = (_axis(_R, _R),) * 3
-    sn_mesh = _as_sn_mesh(all_reflective, quadrature, materials)
-    assert sn_mesh.ndim == 3
-    assert sn_mesh.reflective_axis_pairs == 3
+    problem = _as_sn_mesh(all_reflective, quadrature, materials)
+    assert problem.ndim == 3
+    assert problem.reflective_axis_pairs == 3
 
     one_vacuum_pair = (_axis(_V, _V),) + all_reflective[1:]
     assert _as_sn_mesh(

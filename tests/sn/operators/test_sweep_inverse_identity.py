@@ -140,11 +140,11 @@ def _lc_pair(geom: str):
     ``(L+C)``; the cylinder — carrying since the 6.3 flip — carries the
     upper-triangular coupled ``[[LC, Seeding], [None, march]]``, whose
     ``inverse()`` is the block back-substitution."""
-    sn_mesh = _MESHES[geom]()
+    problem = _MESHES[geom]()
     system = build_within_group_system(
-        sn_mesh, sn_mesh.mat_xs,
+        problem, problem.mat_xs,
     )
-    lc = Splitting.from_schedule(system, resolve_schedule(sn_mesh, "jacobi")).implicit
+    lc = Splitting.from_schedule(system, resolve_schedule(problem, "jacobi")).implicit
     if geom in ("cyl_folded", "sphere_gl"):
         if not isinstance(lc, CoupledOperator):
             pytest.fail(
@@ -155,10 +155,10 @@ def _lc_pair(geom: str):
         pytest.fail(
             f"{geom}: a non-carrying mesh must carry the bare (L+C) arm"
         )
-    return sn_mesh, lc, lc.inverse()
+    return problem, lc, lc.inverse()
 
 
-def _zero_source_composite(sn_mesh: SNProblem) -> FullField:
+def _zero_source_composite(problem: SNProblem) -> FullField:
     """A zero SOURCE-role System-A carrier for the coupled arm's rhs.
 
     Role-honest member algebra: a solve's rhs is a SOURCE, and the
@@ -171,21 +171,21 @@ def _zero_source_composite(sn_mesh: SNProblem) -> FullField:
     )
 
     return FullField(
-        interior=AngularSourceSink(values=np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)), space=sn_mesh.angular_bulk_space),
-        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+        interior=AngularSourceSink(values=np.zeros((problem.quad.N, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space),
+        boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
     )
 
 
-def _random_state(sn_mesh: SNProblem, lc, seed: int):
+def _random_state(problem: SNProblem, lc, seed: int):
     """A random rhs in ``lc``'s domain — the bare composite, or the
     coupled (bulk ⊕ ψ½) SOURCE-role state with EVERY member block
     populated (randomized through the coupled ``from_flat``, so the
     ψ½ member's interior ⊕ boundary blocks are live too)."""
     if not isinstance(lc, CoupledOperator):
-        return _random_composite(sn_mesh, seed)
+        return _random_composite(problem, seed)
     template = CoupledField(systems=(
-        _zero_source_composite(sn_mesh),
-        RadialCharacteristicField.source_zeros(sn_mesh.radial_characteristic_field_space),
+        _zero_source_composite(problem),
+        RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space),
     ))
     flat = np.asarray(template.to_flat())
     rng = np.random.default_rng(seed + 1)
@@ -197,13 +197,13 @@ def _system_a(x):
     return x.systems[0] if isinstance(x, CoupledField) else x
 
 
-def _random_composite(sn_mesh: SNProblem, seed: int) -> FullField:
+def _random_composite(problem: SNProblem, seed: int) -> FullField:
     """Every block populated — bulk, inflow-trace, AND the outflow-trace
     rows the old sweep dropped — with shapes read off the mesh (so the
     same builder serves slab and the xmax-only curvilinear layout)."""
     rng = np.random.default_rng(seed)
-    interior = AngularFlux(values=rng.normal(size=(sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)), space=sn_mesh.angular_bulk_space)
-    boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    interior = AngularFlux(values=rng.normal(size=(problem.quad.N, problem.ng, *problem.spatial_shape)), space=problem.angular_bulk_space)
+    boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
     for face in boundary.layout.faces:
         view = boundary.face_view(face)
         view[...] = rng.normal(size=view.shape)
@@ -232,9 +232,9 @@ class TestSweepInverseIdentity:
         carrying cylinder the round-trip runs the COUPLED composite —
         the identity is additionally claimed on the ψ½ System-B
         block."""
-        sn_mesh, lc, sweep = _lc_pair(geom)
-        trace = sn_mesh.angular_trace
-        rhs = _random_state(sn_mesh, lc, seed=17)
+        problem, lc, sweep = _lc_pair(geom)
+        trace = problem.angular_trace
+        rhs = _random_state(problem, lc, seed=17)
         psi = sweep.apply(rhs)
         back = lc.apply(psi)
         rhs_a, psi_a, back_a = _system_a(rhs), _system_a(psi), _system_a(back)
@@ -261,7 +261,7 @@ class TestSweepInverseIdentity:
                 trace.outflow_indices_for_face(face),
             )
             degenerate = np.setdiff1d(
-                np.arange(sn_mesh.quad.N), live,
+                np.arange(problem.quad.N), live,
             )
             n_live += live.size
             n_degenerate += degenerate.size
@@ -318,27 +318,27 @@ class TestSweepInverseIdentity:
         """The previously-singular subspace: a rhs living ONLY on the
         outflow-trace rows must round-trip exactly (the old sweep
         mapped it to ZERO — the singular preconditioner's kernel)."""
-        sn_mesh, lc, sweep = _lc_pair(geom)
-        trace = sn_mesh.angular_trace
-        boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+        problem, lc, sweep = _lc_pair(geom)
+        trace = problem.angular_trace
+        boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
         rng = np.random.default_rng(23)
         for face in boundary.layout.faces:
             out_rows = trace.outflow_indices_for_face(face)
             view = boundary.face_view(face)
             view[out_rows] = rng.normal(size=view[out_rows].shape)
         if isinstance(lc, CoupledOperator):
-            rhs_a = _zero_source_composite(sn_mesh)
+            rhs_a = _zero_source_composite(problem)
             for face in rhs_a.boundary.layout.faces:
                 out_rows = trace.outflow_indices_for_face(face)
                 rhs_a.boundary.face_view(face)[out_rows] = (
                     np.asarray(boundary.face_view(face))[out_rows]
                 )
             rhs = CoupledField(systems=(
-                rhs_a, RadialCharacteristicField.source_zeros(sn_mesh.radial_characteristic_field_space),
+                rhs_a, RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space),
             ))
         else:
             rhs_a = FullField(
-                interior=AngularFlux.zeros(sn_mesh.angular_bulk_space), boundary=boundary,
+                interior=AngularFlux.zeros(problem.angular_bulk_space), boundary=boundary,
             )
             rhs = rhs_a
         psi = sweep.apply(rhs)
@@ -387,17 +387,17 @@ class TestSweepInverseIdentity:
             "outflow_indices_for_face",
             lambda self, face: np.array([], dtype=int),
         )
-        sn_mesh, _lc, sweep = _lc_pair("slab_vacuum")
-        boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+        problem, _lc, sweep = _lc_pair("slab_vacuum")
+        boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
         # populate what WOULD be the outflow rows (computed from the
         # quadrature directly — the monkeypatched selector is the
         # production read under mutation)
-        mu = np.asarray(sn_mesh.quad.mu_x)
+        mu = np.asarray(problem.quad.mu_x)
         rows = {"xmin": np.flatnonzero(mu < 0), "xmax": np.flatnonzero(mu > 0)}
         for face, out_rows in rows.items():
             boundary.face_view(face)[out_rows] = 1.0
         rhs = FullField(
-            interior=AngularFlux.zeros(sn_mesh.angular_bulk_space), boundary=boundary,
+            interior=AngularFlux.zeros(problem.angular_bulk_space), boundary=boundary,
         )
         psi = sweep.apply(rhs)
         norm_out = float(np.abs(np.asarray(psi.boundary.values)).max())

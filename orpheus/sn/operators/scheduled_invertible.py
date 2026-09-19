@@ -50,7 +50,7 @@ The Jacobi schedule is the degenerate member (``B_lower = 0``,
 .. code-block:: python
 
     lower, upper = B.split(SweepSchedule.gauss_seidel(
-        sn_mesh.ndim, sn_mesh.quad.octants, reflective_faces(sn_mesh),
+        problem.ndim, problem.quad.octants, reflective_faces(problem),
     ))
     M = (L + C) - lower            # → ScheduledInvertibleOperator
     gains = (S, upper)             # the lagged complement, driver-side
@@ -134,7 +134,7 @@ class ScheduledInvertibleOperator(
             )
         # Mesh-identity invariant (as for StreamingCollisionOperator): the scheduled
         # walk pairs the mask's row split with the streaming geometry.
-        if invertible.sn_mesh is not lower.sn_mesh:
+        if invertible.problem is not lower.problem:
             raise ValueError(
                 "ScheduledInvertibleOperator: the invertible composite and "
                 "the boundary mask must act on the same mesh instance "
@@ -167,9 +167,9 @@ class ScheduledInvertibleOperator(
         return self.lower.inner
 
     @property
-    def sn_mesh(self) -> "SNProblem":
+    def problem(self) -> "SNProblem":
         """The shared :class:`SNProblem` (validated mesh-identity at init)."""
-        return self.invertible.sn_mesh
+        return self.invertible.problem
 
     @property
     def loss_representation(self) -> "LossRepresentation":

@@ -139,24 +139,24 @@ _MESHES = {
 }
 
 
-def _loss(sn_mesh: SNProblem):
-    mat_xs = sn_mesh.mat_xs
-    return StreamingOperator.pose(sn_mesh) + MultiplicationOperator(
+def _loss(problem: SNProblem):
+    mat_xs = problem.mat_xs
+    return StreamingOperator.pose(problem) + MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
-        domain=sn_mesh.full_field_space, codomain=sn_mesh.full_field_space,
+        domain=problem.full_field_space, codomain=problem.full_field_space,
     )
 
 
-def _fresh(sn_mesh: SNProblem) -> FullField:
+def _fresh(problem: SNProblem) -> FullField:
     # Scheme-aware bulk (LD carries the trailing 2^d moment axis; DD's
     # spatial_moments=1 is the byte-identical default).
     return FullField(
-        interior=AngularFlux.zeros(sn_mesh.angular_trial_space),
-        boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+        interior=AngularFlux.zeros(problem.angular_trial_space),
+        boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
     )
 
 
-def _seed_cot(sn_mesh: SNProblem, values=None):
+def _seed_cot(problem: SNProblem, values=None):
     """The ray cotangent member for the transposed JOINT surfaces on a
     carrying mesh (step 6: the joint spelling is the grid — the cotangent
     is a CoupledField member, never a leg kwarg) — ``None`` seedless.
@@ -166,9 +166,9 @@ def _seed_cot(sn_mesh: SNProblem, values=None):
     role leak; see ``test_inverse_adjoint_coherence._coupled_bulk_b``).
     ``values`` is a flat array of ``radial_characteristic_field_space``
     size (the split composite's ``to_flat`` layout: interior ⊕ boundary)."""
-    if sn_mesh.radial_characteristic_field_space is None:
+    if problem.radial_characteristic_field_space is None:
         return None
-    cot = RadialCharacteristicField.source_zeros(sn_mesh.radial_characteristic_field_space)
+    cot = RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space)
     if values is not None:
         cot = RadialCharacteristicField.from_flat(
             np.asarray(values, dtype=float), cot,
@@ -176,7 +176,7 @@ def _seed_cot(sn_mesh: SNProblem, values=None):
     return cot
 
 
-def _fresh_source(sn_mesh: SNProblem) -> FullField:
+def _fresh_source(problem: SNProblem) -> FullField:
     """A zero SOURCE-role composite — the codomain-side cotangent carrier
     the grid's transposed surfaces consume (role-honest member algebra)."""
     from orpheus.transport.source_sinks import (
@@ -184,20 +184,20 @@ def _fresh_source(sn_mesh: SNProblem) -> FullField:
         AngularSourceSink,
     )
 
-    per_axis = sn_mesh.scheme.spatial_basis_per_axis
-    tail = () if per_axis == 1 else (per_axis ** sn_mesh.ndim,)
+    per_axis = problem.scheme.spatial_basis_per_axis
+    tail = () if per_axis == 1 else (per_axis ** problem.ndim,)
     return FullField(
-        interior=AngularSourceSink.zeros(sn_mesh.angular_trial_space),
-        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+        interior=AngularSourceSink.zeros(problem.angular_trial_space),
+        boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
     )
 
 
-def _read_augmented(out, sn_mesh, g, ray=None) -> np.ndarray:
+def _read_augmented(out, problem, g, ray=None) -> np.ndarray:
     """The full augmented probe layout (incl. the outflow corner) — for the
     dense oracle's index bookkeeping. ``ray`` is the EXPLICIT ray-leg composite
     (B.2d / 4e — System B's split ``interior ⊕ boundary`` member)."""
     bulk = np.asarray(out.interior.values)[:, g].ravel()
-    if sn_mesh.radial_characteristic_field_space is None or ray is None:
+    if problem.radial_characteristic_field_space is None or ray is None:
         return bulk
     seed = np.concatenate([
         np.concatenate([
@@ -205,12 +205,12 @@ def _read_augmented(out, sn_mesh, g, ray=None) -> np.ndarray:
             ray.interior.cells(p, -1)[g][::-1],
             ray.interior.cells(p, +1)[g],
             [ray.boundary.corner(p, +1)[g]],
-        ]) for p in sn_mesh.radial_characteristic_levels
+        ]) for p in problem.radial_characteristic_levels
     ])
     return np.concatenate([seed, bulk])
 
 
-def _source_carried_mask(sn_mesh) -> np.ndarray:
+def _source_carried_mask(problem) -> np.ndarray:
     """Boolean mask (augmented layout) selecting source-carried slots.
 
     Since ERR-078's completion (``ψ_out = streamed − q_out`` — the
@@ -219,13 +219,13 @@ def _source_carried_mask(sn_mesh) -> np.ndarray:
     (``leg[-1] = False``, "the outflow corner (free DOF)") was masking
     exactly the dropped-rhs hole the fix closed.  The function survives
     as the named seam so a future genuinely-free slot has a home."""
-    N = sn_mesh.quad.n_ordinates
-    nx = int(np.prod(sn_mesh.spatial_shape))
-    tail = sn_mesh.scheme.spatial_basis_per_axis ** sn_mesh.ndim
-    if sn_mesh.radial_characteristic_field_space is None:
+    N = problem.quad.n_ordinates
+    nx = int(np.prod(problem.spatial_shape))
+    tail = problem.scheme.spatial_basis_per_axis ** problem.ndim
+    if problem.radial_characteristic_field_space is None:
         return np.ones(N * nx * tail, dtype=bool)
     per = 2 * nx + 2  # seed leg: corner_in, cells⁻, cells⁺, corner_out
-    n_legs = len(sn_mesh.radial_characteristic_levels)
+    n_legs = len(problem.radial_characteristic_levels)
     return np.ones(n_legs * per + N * nx, dtype=bool)
 
 

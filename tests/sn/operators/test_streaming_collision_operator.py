@@ -61,7 +61,7 @@ from orpheus.transport.radial_characteristic_field import RadialCharacteristicFi
 
 
 def _random_state(
-    sn_mesh: SNProblem, seed: int = 42, *, history_depth: int = 2,
+    problem: SNProblem, seed: int = 42, *, history_depth: int = 2,
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` with random bulk values.
 
@@ -71,25 +71,25 @@ def _random_state(
     implicit-zero L2 :class:`AngularBoundaryFlux`.
     """
     rng = np.random.default_rng(seed)
-    N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=history_depth)
+    N, ng = problem.quad.N, problem.ng
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space, history_depth=history_depth)
     return replace(
         state,
         interior=replace(
-            state.interior, values=rng.standard_normal((N, ng, *sn_mesh.spatial_shape)),
+            state.interior, values=rng.standard_normal((N, ng, *problem.spatial_shape)),
         ),
     )
 
 
 def _const_state(
-    sn_mesh: SNProblem, value: float = 1.0, *, history_depth: int = 2,
+    problem: SNProblem, value: float = 1.0, *, history_depth: int = 2,
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` whose bulk is uniformly ``value``."""
-    N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=history_depth)
+    N, ng = problem.quad.N, problem.ng
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space, history_depth=history_depth)
     return replace(
         state,
-        interior=replace(state.interior, values=np.full((N, ng, *sn_mesh.spatial_shape), value)),
+        interior=replace(state.interior, values=np.full((N, ng, *problem.spatial_shape), value)),
     )
 
 
@@ -772,9 +772,9 @@ class TestStreamingCollisionSolveBridgeRegression:
             coord=coord, n_cells=n_cells, length=2.0, mat_id=mat_id,
         )
         quad = _quadrature_for(coord)
-        sn_mesh = SNProblem(mesh, quad, case.problem.materials, scattering_order=0)
+        problem = SNProblem(mesh, quad, case.problem.materials, scattering_order=0)
         solver = SNSolver(
-            sn_mesh=sn_mesh,
+            problem=problem,
             max_inner=300, inner_tol=1e-12,
             inner_solver="source_iteration",
         )
@@ -856,22 +856,22 @@ class TestStreamingCollisionSolveBridgeRegression:
         from orpheus.transport.timed_full_field import TimedFullField
 
         solver, _case = self._homogeneous_solver("slab")
-        sn_mesh = solver.sn_mesh
+        problem = solver.problem
         N = solver.quad.N
         ng = solver.ng
 
-        sigma_t = solver.sn_mesh.mat_xs.total_cross_section
-        L_leaf = StreamingOperator.pose(sn_mesh)
-        C_t = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
+        sigma_t = solver.problem.mat_xs.total_cross_section
+        L_leaf = StreamingOperator.pose(problem)
+        C_t = MultiplicationOperator.from_mesh(sigma_t, problem)
         LC = L_leaf + C_t
 
         # Build composite ψ=1.  No need for legacy AngularFlux at all
         # on this path.
         from dataclasses import replace
-        psi_known = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+        psi_known = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
         psi_known = replace(
             psi_known,
-            interior=replace(psi_known.interior, values=np.ones((N, ng, *sn_mesh.spatial_shape))),
+            interior=replace(psi_known.interior, values=np.ones((N, ng, *problem.spatial_shape))),
         )
         # #257 S8a — the matvec leaf is a base arrow: ``LC.apply`` returns a
         # timeless FullField source.  ``StreamingCollisionOperator.solve`` consumes the
@@ -943,15 +943,15 @@ class TestStreamingCollisionSolveBridgeRegression:
         from orpheus.transport.timed_full_field import TimedFullField
 
         solver, _case = self._homogeneous_solver(coord)
-        sn_mesh = solver.sn_mesh
+        problem = solver.problem
         quad = solver.quad
         N = quad.N
         ng = solver.ng
         sum_w = float(quad.weights.sum())
 
-        sigma_t = solver.sn_mesh.mat_xs.total_cross_section
-        L_leaf = StreamingOperator.pose(sn_mesh)
-        C_t = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
+        sigma_t = solver.problem.mat_xs.total_cross_section
+        L_leaf = StreamingOperator.pose(problem)
+        C_t = MultiplicationOperator.from_mesh(sigma_t, problem)
         LC = L_leaf + C_t
 
         # Per-ordinate uniform source — 2-block carrier; on a carrying mesh
@@ -963,7 +963,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         # Q5.6.3 the Cartesian charts only (the ADMITTED cylinder's folded
         # rule carries on every level).
         q_iso = 0.225
-        q_per_ord = np.full((N, ng, *sn_mesh.spatial_shape), q_iso / sum_w)
+        q_per_ord = np.full((N, ng, *problem.spatial_shape), q_iso / sum_w)
         # SOURCE-role rhs (step 6 — the grid substitution's member algebra
         # is role-honest; the driver's rhs is source-typed too).
         from orpheus.transport.source_sinks import (
@@ -972,15 +972,15 @@ class TestStreamingCollisionSolveBridgeRegression:
         )
 
         rhs = TimedFullField(
-            interior=AngularSourceSink(values=q_per_ord, space=sn_mesh.angular_bulk_space),
-            boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+            interior=AngularSourceSink(values=q_per_ord, space=problem.angular_bulk_space),
+            boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
             _history=(),
             history_depth=2,
         )
-        carrying = sn_mesh.radial_characteristic_field_space is not None
+        carrying = problem.radial_characteristic_field_space is not None
         q_half = (
             RadialCharacteristicField.source_from_angular(
-                q_per_ord, sn_mesh,
+                q_per_ord, problem,
             )
             if carrying else None
         )
@@ -1002,11 +1002,11 @@ class TestStreamingCollisionSolveBridgeRegression:
         # unrepresentable since the eviction; production consumes both
         # blocks through the gain grid — this loop replicates that fold by
         # hand, one reflect per system).
-        B_a = SNBoundaryOperator(sn_mesh)
+        B_a = SNBoundaryOperator(problem)
         B_b = (
             RadialCharacteristicBoundaryOperator(
-                sn_mesh.radial_characteristic_field_space,
-                sn_mesh.bc["xmax"].law,
+                problem.radial_characteristic_field_space,
+                problem.bc["xmax"].law,
             )
             if carrying
             else None
@@ -1018,7 +1018,7 @@ class TestStreamingCollisionSolveBridgeRegression:
 
         from tests.sn._test_helpers import joint_m_grid
 
-        grid = joint_m_grid(sn_mesh, LC)[0] if carrying else None
+        grid = joint_m_grid(problem, LC)[0] if carrying else None
 
         def _joint_solve(rhs_a, q_seed, guess):
             if not carrying:

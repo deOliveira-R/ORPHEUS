@@ -94,7 +94,7 @@ def _make_spherical_sn_mesh(
 ) -> tuple[SNProblem, np.ndarray]:
     """Build a homogeneous-material spherical SNProblem + sig_t array.
 
-    Returns (sn_mesh, sig_t).  sig_t shape (ng=1, nx) under the rank-d layout.
+    Returns (problem, sig_t).  sig_t shape (ng=1, nx) under the rank-d layout.
     """
     if quad_name == "gl4":
         quad = Quadrature.gauss_legendre(4)
@@ -109,9 +109,9 @@ def _make_spherical_sn_mesh(
         coord=CoordSystem.SPHERICAL,
         bc_right=bc_outer or BC("reflective"),
     )
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
+    problem = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
-    return sn_mesh, sig_t
+    return problem, sig_t
 
 
 def _make_cylindrical_sn_mesh(
@@ -137,13 +137,13 @@ def _make_cylindrical_sn_mesh(
         coord=CoordSystem.CYLINDRICAL,
         bc_right=bc_outer or BC("reflective"),
     )
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
+    problem = SNProblem(mesh, quad, placeholder_materials(), angular_closure=pole_closure)
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
-    return sn_mesh, sig_t
+    return problem, sig_t
 
 
 def _build_composite(
-    sn_mesh: SNProblem,
+    problem: SNProblem,
     bulk_values: np.ndarray,
     boundary_values: np.ndarray | None = None,
     *,
@@ -153,13 +153,13 @@ def _build_composite(
 
     Parameters
     ----------
-    sn_mesh : SNProblem
+    problem : SNProblem
         The mesh defining the typed shape ``(N, ng, *spatial)`` on bulk
         and the boundary flat layout.
     bulk_values : np.ndarray
         Shape ``(N, ng, *spatial)`` — the angular flux values.
     boundary_values : np.ndarray, optional
-        Shape matching ``sn_mesh.boundary_face_layout.total_size``.  If
+        Shape matching ``problem.boundary_face_layout.total_size``.  If
         ``None``, an all-zero boundary is used (the typical migration
         target — Gate 1.1/1.4 etc. zero the boundary because they
         compute the cell-block residual only).
@@ -178,27 +178,27 @@ def _build_composite(
         carries on every level).
     """
     if boundary_values is None:
-        boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+        boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
     else:
         # A.5: the AngularBoundaryFlux space IS the mesh's unified AngularTraceSpace
         # (it carries the FaceLayout); no ad-hoc sn_boundary_flat build.
         boundary = AngularBoundaryFlux(
-            values=boundary_values, space=sn_mesh.angular_trace,
+            values=boundary_values, space=problem.angular_trace,
         )
     if radial_characteristic_values is None:
-        radial_characteristic = radial_characteristic_edge_seed(bulk_values, sn_mesh)
-    elif sn_mesh.radial_characteristic_field_space is not None:
+        radial_characteristic = radial_characteristic_edge_seed(bulk_values, problem)
+    elif problem.radial_characteristic_field_space is not None:
         from orpheus.transport.radial_characteristic_field import (
             RadialCharacteristicField,
         )
         radial_characteristic = RadialCharacteristicField.from_flat(
             radial_characteristic_values,
-            RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space),
+            RadialCharacteristicField.flux_zeros(problem.radial_characteristic_field_space),
         )
     else:
         radial_characteristic = None
     psi_a = TimedFullField(
-        interior=AngularFlux(values=bulk_values, space=sn_mesh.angular_bulk_space),
+        interior=AngularFlux(values=bulk_values, space=problem.angular_bulk_space),
         boundary=boundary,
         _history=(),
         history_depth=2,
@@ -212,21 +212,21 @@ def _build_composite(
     return CoupledField(systems=(psi_a, radial_characteristic))
 
 
-def _random_bulk(sn_mesh: SNProblem, rng: np.random.Generator) -> np.ndarray:
+def _random_bulk(problem: SNProblem, rng: np.random.Generator) -> np.ndarray:
     """Random ``(N, ng, *spatial)`` bulk values for the mesh."""
-    return rng.standard_normal((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
+    return rng.standard_normal((problem.quad.N, problem.ng, *problem.spatial_shape))
 
 
-def _joint_op(sn_mesh: SNProblem, op):
+def _joint_op(problem: SNProblem, op):
     """The JOINT operator for the mesh (step 5): the honest triangular ``M``
     grid on a carrying mesh (the numerics substitution — the fused
     ``CoupledInvertibleOperator`` bridge deleted at 5d), ``op`` itself on a
     seedless one."""
-    if sn_mesh.radial_characteristic_field_space is None:
+    if problem.radial_characteristic_field_space is None:
         return op
     from tests.sn._test_helpers import joint_m_grid
 
-    return joint_m_grid(sn_mesh, op)[0]
+    return joint_m_grid(problem, op)[0]
 
 
 def _sysA(x):
@@ -267,14 +267,14 @@ def test_apply_linearity_under_sweep_frame(geom):
     """
     rng = np.random.default_rng(seed=42)
     if geom == "sphere":
-        sn_mesh, sig_t = _make_spherical_sn_mesh()
+        problem, sig_t = _make_spherical_sn_mesh()
     else:
-        sn_mesh, sig_t = _make_cylindrical_sn_mesh()
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
-    op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
-    psi1 = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
-    psi2 = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
+        problem, sig_t = _make_cylindrical_sn_mesh()
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sig_t, problem)
+    op = _joint_op(problem, L + C)   # B.2d: the joint M on the carrying pair
+    psi1 = _build_composite(problem, _random_bulk(problem, rng))
+    psi2 = _build_composite(problem, _random_bulk(problem, rng))
     c = 1.7
     hom_lhs = op.apply(c * psi1)
     hom_rhs = c * op.apply(psi1)
@@ -302,7 +302,7 @@ def test_apply_linearity_under_sweep_frame(geom):
 
 
 def _flat_psi_composite(
-    sn_mesh: SNProblem, ng: int = 1,
+    problem: SNProblem, ng: int = 1,
 ) -> TimedFullField:
     """Build a per-ordinate flat (constant in space) ψ as a TimedFullField.
 
@@ -313,8 +313,8 @@ def _flat_psi_composite(
     Resolution A: ``(L + C).apply(flat_ψ) = M(flat_ψ; σ_t) = σ_t·ψ``
     bit-exact at the cell-centre block.
     """
-    bulk = np.ones((sn_mesh.quad.N, ng, *sn_mesh.spatial_shape))
-    return _build_composite(sn_mesh, bulk)
+    bulk = np.ones((problem.quad.N, ng, *problem.spatial_shape))
+    return _build_composite(problem, bulk)
 
 
 @pytest.mark.l0
@@ -391,14 +391,14 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
     ``Σ_t·ψ`` cell-wise.
     """
     if geom == "sphere":
-        sn_mesh, sig_t = _make_spherical_sn_mesh(pole_closure=pole_closure_cls)
+        problem, sig_t = _make_spherical_sn_mesh(pole_closure=pole_closure_cls)
     else:
-        sn_mesh, sig_t = _make_cylindrical_sn_mesh(pole_closure=pole_closure_cls)
+        problem, sig_t = _make_cylindrical_sn_mesh(pole_closure=pole_closure_cls)
     sig_t = np.full_like(sig_t, sigma_t_value)
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sig_t, problem)
     op = L + C
-    psi_state = _flat_psi_composite(sn_mesh, ng=sn_mesh.ng)
+    psi_state = _flat_psi_composite(problem, ng=problem.ng)
     result = op.apply(psi_state)
     result_bulk = result.interior.values
     expected_bulk = sigma_t_value * psi_state.interior.values
@@ -451,39 +451,39 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     """
     rng = np.random.default_rng(seed=137)
     if geom == "sphere":
-        sn_mesh, sig_t = _make_spherical_sn_mesh()
+        problem, sig_t = _make_spherical_sn_mesh()
     elif geom == "cylinder":
-        sn_mesh, sig_t = _make_cylindrical_sn_mesh()
+        problem, sig_t = _make_cylindrical_sn_mesh()
     else:
         # #310 C4: the multi-D Cartesian row — the row-march reverse on the
         # default representation, reflective nonsquare (seedless mesh, so
         # the joint wrapper degenerates to the bare composite operator).
-        sn_mesh = cart2d_2g_nonsquare()
+        problem = cart2d_2g_nonsquare()
         sig_t = np.stack(
-            [np.full(sn_mesh.spatial_shape, 0.5 * (1.0 + 0.5 * g))
+            [np.full(problem.spatial_shape, 0.5 * (1.0 + 0.5 * g))
              for g in range(2)],
             axis=0,
         )
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
-    op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
-    n_trace = int(sn_mesh.angular_trace.layout.total_size)
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sig_t, problem)
+    op = _joint_op(problem, L + C)   # B.2d: the joint M on the carrying pair
+    n_trace = int(problem.angular_trace.layout.total_size)
     # #282 route (a): a RANDOM ψ½ block (not the edge-extrap default) so the
     # augmented seed rows are independently exercised — the Euclidean
     # transpose is exact over the FULL space, so ``full_dot`` (below) MUST
     # include the seed block for reciprocity to hold (a bulk⊕trace-only dot
     # is blind to the seed↔bulk coupling — the Euclidean sibling of the
     # G-reciprocity's zero-weight blindness, vv Mode 12).
-    seed_space = sn_mesh.radial_characteristic_field_space
+    seed_space = problem.radial_characteristic_field_space
     n_seed = 0 if seed_space is None else seed_space.shape[0]
     psi_state = _build_composite(
-        sn_mesh, _random_bulk(sn_mesh, rng), rng.standard_normal(n_trace),
+        problem, _random_bulk(problem, rng), rng.standard_normal(n_trace),
         radial_characteristic_values=(
             rng.standard_normal(n_seed) if n_seed else None
         ),
     )
     phi_state = _build_composite(
-        sn_mesh, _random_bulk(sn_mesh, rng), rng.standard_normal(n_trace),
+        problem, _random_bulk(problem, rng), rng.standard_normal(n_trace),
         radial_characteristic_values=(
             rng.standard_normal(n_seed) if n_seed else None
         ),
@@ -528,15 +528,15 @@ def test_apply_face_fluxes_match_sweep_recurrence_spherical():
     both must be bit-stable across repeated calls to the composite
     ``(L + C).apply``.
     """
-    sn_mesh, sig_t = _make_spherical_sn_mesh(nx=6, R=1.0, quad_name="gl4")
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
-    op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
+    problem, sig_t = _make_spherical_sn_mesh(nx=6, R=1.0, quad_name="gl4")
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sig_t, problem)
+    op = _joint_op(problem, L + C)   # B.2d: the joint M on the carrying pair
 
     # Use a deterministic, structured input so the residual is
     # predictable.
     rng = np.random.default_rng(seed=0)
-    psi_state = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
+    psi_state = _build_composite(problem, _random_bulk(problem, rng))
 
     # Sanity check: applying L twice to the same input always yields
     # the same output — this is the bit-identity (np.array_equal)
@@ -587,10 +587,10 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
     sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sig_t, problem)
     op = L + C
 
     # Linearity is enough to characterize the BC respond-only-to-outflow
@@ -600,7 +600,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     # #282 route (a): pass the seed leaf UNIFORMLY (the R12a predicate
     # allocates it iff the mesh carries levels — here the sphere does).
     state_zero = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     result = op.apply(state_zero)
     assert np.array_equal(
@@ -631,14 +631,14 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     D-K.5 migration — composite ``(L + C).apply(0) = 0`` on both bulk
     and boundary.
     """
-    sn_mesh, sig_t = _make_spherical_sn_mesh(nx=8, R=1.0, quad_name="gl4")
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
+    problem, sig_t = _make_spherical_sn_mesh(nx=8, R=1.0, quad_name="gl4")
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sig_t, problem)
     op = L + C
     # #282 route (a): pass the seed leaf UNIFORMLY (the R12a predicate
     # allocates it iff the mesh carries levels — here the sphere does).
     state_zero = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     result = op.apply(state_zero)
     np.testing.assert_array_equal(result.interior.values, 0.0)
@@ -679,7 +679,7 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
 
 
 def _outflow_at_boundary_for_sphere_from_bulk(
-    sn_mesh: SNProblem,
+    problem: SNProblem,
     psi_bulk: np.ndarray,
 ) -> np.ndarray:
     r"""Independently reconstruct the WDD-propagated outflow face value.
@@ -697,8 +697,8 @@ def _outflow_at_boundary_for_sphere_from_bulk(
     This is the "reference" the BC apply input must bit-match in the
     capture-and-compare test below.
     """
-    quad = sn_mesh.quad
-    nx = sn_mesh.nx
+    quad = problem.quad
+    nx = problem.nx
     ng = psi_bulk.shape[1]
     eps = 1e-15
     # Mirror the matvec body's ``(ng, N, nx)`` ordering.
@@ -767,32 +767,32 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
     prevents a silent regression that re-absorbs the BC into the matvec.
     """
     from unittest.mock import patch
-    sn_mesh, sig_t = _make_spherical_sn_mesh(
+    problem, sig_t = _make_spherical_sn_mesh(
         nx=6, R=1.0, quad_name="gl4",
         bc_outer=BC(bc_kind),
     )
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
-    op = _joint_op(sn_mesh, L + C)   # B.2d: the joint M on the carrying pair
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sig_t, problem)
+    op = _joint_op(problem, L + C)   # B.2d: the joint M on the carrying pair
     rng = np.random.default_rng(seed=137)
-    psi_bulk = _random_bulk(sn_mesh, rng)
-    psi_state = _build_composite(sn_mesh, psi_bulk)  # zero boundary
+    psi_bulk = _random_bulk(problem, rng)
+    psi_state = _build_composite(problem, psi_bulk)  # zero boundary
 
     # Independent reference: rebuild outflow face via isolated WDD on
     # the bulk values (no packed-vector round-trip).
     expected_outflow = _outflow_at_boundary_for_sphere_from_bulk(
-        sn_mesh, psi_bulk,
+        problem, psi_bulk,
     )
 
     # Capture any BC apply calls during the matvec.
     captured_inputs: list[np.ndarray] = []
-    original_apply = sn_mesh.bc["xmax"].apply
+    original_apply = problem.bc["xmax"].apply
 
     def capture_apply(inp):
         captured_inputs.append(np.array(inp, copy=True))
         return original_apply(inp)
 
-    with patch.object(sn_mesh.bc["xmax"], "apply", side_effect=capture_apply):
+    with patch.object(problem.bc["xmax"], "apply", side_effect=capture_apply):
         out = op.apply(psi_state)
 
     # EXTRACTION: the post-O.4a.2 matvec does NOT apply the BC — it reads
@@ -811,7 +811,7 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
     # outflow.  Pin it bit-exact against the independent WDD chain on the
     # outflow ordinates of the outer face (the §16A.3 substance, relocated
     # to the matvec's emission).
-    trace = sn_mesh.angular_trace
+    trace = problem.angular_trace
     outflow_idx = trace.outflow_indices_for_face("xmax")
     got_outflow = _sysA(out).boundary.face_view("xmax")[outflow_idx, :]   # (M, ng)
     expected_outflow_face = expected_outflow.T[outflow_idx, :]      # (M, ng)
@@ -900,18 +900,18 @@ def test_sweep_curvilinear_per_ordinate_flat_flux_residual(
     )
 
     if geom == "sphere":
-        sn_mesh, sig_t = _make_spherical_sn_mesh(
+        problem, sig_t = _make_spherical_sn_mesh(
             pole_closure=MorelMontryAngularSweep,
         )
     else:
-        sn_mesh, sig_t = _make_cylindrical_sn_mesh(
+        problem, sig_t = _make_cylindrical_sn_mesh(
             pole_closure=MorelMontryAngularSweep,
         )
     sig_t_arr = np.full_like(sig_t, sigma_t_value)
-    nx = sn_mesh.nx
+    nx = problem.nx
     psi_const = 1.0
     sigma_t_gx = sig_t_arr  # (ng, nx) — rank-d
-    dr = sn_mesh.axis_widths[0]
+    dr = problem.axis_widths[0]
     bc_outer_value = np.full((1,), psi_const)
 
     # Flat-ψ algebraic identity of the direct solver: with the canonical

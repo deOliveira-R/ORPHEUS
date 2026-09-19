@@ -107,13 +107,13 @@ def scatterer(ng: int = 2, c: float = 0.5, sig_t=(0.8, 1.6)):
 
 
 def build(cells, bcs, mixture, quad=LS4, scheme=None):
-    """``(sn_mesh, within_group_system, cold-start template)``."""
-    sn_mesh = _as_sn_mesh(axes(cells, bcs), quad, {0: mixture}, scheme=scheme)
-    solver = SNSolver(sn_mesh, inner_solver="source_iteration")
+    """``(problem, within_group_system, cold-start template)``."""
+    problem = _as_sn_mesh(axes(cells, bcs), quad, {0: mixture}, scheme=scheme)
+    solver = SNSolver(problem, inner_solver="source_iteration")
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs,
+        problem, solver.problem.mat_xs,
     )
-    return sn_mesh, system, _unwindowed_cold_start(sn_mesh, history_depth=0)
+    return problem, system, _unwindowed_cold_start(problem, history_depth=0)
 
 
 def loss_matvec(system) -> Callable[[Any], Any]:
@@ -181,17 +181,17 @@ _ASSEMBLED: dict[str, tuple] = {}
 
 
 def assembled_loss(label: str, factory):
-    """``(sn_mesh, system, template, dense A, null basis, singular values)``.
+    """``(problem, system, template, dense A, null basis, singular values)``.
 
     ``factory`` is a zero-argument callable returning ``build(...)``'s triple;
     it runs at most once per ``label`` per session. Consumers must only READ
     the returned arrays.
     """
     if label not in _ASSEMBLED:
-        sn_mesh, system, template = factory()
+        problem, system, template = factory()
         dense = assemble(loss_matvec(system), template)
         basis, singular = null_basis(dense)
-        _ASSEMBLED[label] = (sn_mesh, system, template, dense, basis, singular)
+        _ASSEMBLED[label] = (problem, system, template, dense, basis, singular)
     return _ASSEMBLED[label]
 
 
@@ -246,7 +246,7 @@ def rank_gap(singular: NDArray, nullity: int) -> float:
     return float(singular[-nullity - 1] / singular[-nullity])
 
 
-def tangential_dof_count(sn_mesh) -> int:
+def tangential_dof_count(problem) -> int:
     r"""``#{trace DOFs on ordinates with :math:`\Omega\cdot\hat n = 0`}``.
 
     The ``T`` term of the counting law :eq:`dd-null-counting-law`. Rows and
@@ -254,8 +254,8 @@ def tangential_dof_count(sn_mesh) -> int:
     :math:`G = |\Omega\cdot\hat n|\,w_n` vanishes, so they are a *different*
     object from the component ``R`` the gauge builds.
     """
-    omega_dot_n = sn_mesh.angular_trace.omega_dot_n
-    layout = sn_mesh.angular_trace.layout
+    omega_dot_n = problem.angular_trace.omega_dot_n
+    layout = problem.angular_trace.layout
     total = 0
     for index, face in enumerate(layout.faces):
         slot = layout.faces[face]
@@ -270,45 +270,45 @@ def uniform_source_fixture(cells, ng: int = 2):
     :math:`\psi = Q / (\Sigma_t \sum w)` everywhere, bulk **and** trace — an
     analytic reference that owes nothing to any operator in this campaign.
 
-    Returns ``(sn_mesh, system, template, n_dof, n_bulk, source, exact)``.
+    Returns ``(problem, system, template, n_dof, n_bulk, source, exact)``.
     """
-    sn_mesh, system, template = build(
+    problem, system, template = build(
         cells, [(REFLECTIVE, REFLECTIVE)] * len(cells), absorber(ng),
     )
     n_dof = template.to_flat().size
     n_bulk = template.interior.values.size
-    total_weight = float(sn_mesh.quad.weights.sum())
+    total_weight = float(problem.quad.weights.sum())
     per_group = 1.0 / (total_weight * np.asarray(
-        sn_mesh.materials[0].SigT, dtype=float))
+        problem.materials[0].SigT, dtype=float))
 
     interior = np.zeros(template.interior.values.shape)
     interior[:] = 1.0 / total_weight
-    source = _build_fixed_source_rhs(np.asarray(interior, dtype=float), sn_mesh)
+    source = _build_fixed_source_rhs(np.asarray(interior, dtype=float), problem)
 
     exact = np.zeros(n_dof)
     block = np.zeros(template.interior.values.shape)
     for group in range(ng):
         block[:, group, ...] = per_group[group]
     exact[:n_bulk] = block.ravel()
-    for slot in sn_mesh.angular_trace.layout.faces.values():
+    for slot in problem.angular_trace.layout.faces.values():
         face = np.zeros(slot.shape)
         for group in range(ng):
             face[:, group, ...] = per_group[group]
         exact[n_bulk + slot.offset:
               n_bulk + slot.offset + slot.flat_size] = face.ravel()
-    return sn_mesh, system, template, n_dof, n_bulk, source, exact
+    return problem, system, template, n_dof, n_bulk, source, exact
 
 
-def isotropic_source(sn_mesh, template):
+def isotropic_source(problem, template):
     """A group-graded isotropic source — ``(1 + g)/W`` per ordinate."""
-    total_weight = float(sn_mesh.quad.weights.sum())
+    total_weight = float(problem.quad.weights.sum())
     interior = np.zeros(template.interior.values.shape)
     for group in range(template.interior.values.shape[1]):
         interior[:, group, ...] = (1.0 + group) / total_weight
-    return _build_fixed_source_rhs(np.asarray(interior, dtype=float), sn_mesh)
+    return _build_fixed_source_rhs(np.asarray(interior, dtype=float), problem)
 
 
-def select_splitting(system, sn_mesh, schedule: str):
+def select_splitting(system, problem, schedule: str):
     r"""``(M, (N_i,))`` for one schedule — the Strategy VALUE, unpacked.
 
     Since the consumers campaign's step 2 the splitting is a value minted
@@ -328,11 +328,11 @@ def select_splitting(system, sn_mesh, schedule: str):
             "System B; got a carrying record — a seed-carrying mesh labels "
             "Jacobi only and never reaches the schedule split"
         )
-    value = Splitting.from_schedule(system, resolve_schedule(sn_mesh, schedule))
+    value = Splitting.from_schedule(system, resolve_schedule(problem, schedule))
     return value.implicit, value.explicit
 
 
-def drive_recorded(system, sn_mesh, template, source, schedule: str,
+def drive_recorded(system, problem, template, source, schedule: str,
                    tol: float = 1e-13, initial: Optional[NDArray] = None):
     r"""``(flat iterate, IterationRecord)`` from the SI **driver**.
 
@@ -343,7 +343,7 @@ def drive_recorded(system, sn_mesh, template, source, schedule: str,
     from orpheus.numerics.iteration import SourceIteration
 
     n_dof = template.to_flat().size
-    base, gains = select_splitting(system, sn_mesh, schedule)
+    base, gains = select_splitting(system, problem, schedule)
     iteration = SourceIteration(
         cast("SupportsSeededApply[Any]", base.inverse()), *gains,
         max_iter=400_000, tol=tol,
@@ -360,17 +360,17 @@ def drive_recorded(system, sn_mesh, template, source, schedule: str,
     return solution.to_flat(), record
 
 
-def drive(system, sn_mesh, template, source, schedule: str,
+def drive(system, problem, template, source, schedule: str,
           tol: float = 1e-13, initial: Optional[NDArray] = None) -> NDArray:
     """The flat converged iterate — :func:`drive_recorded` without the record."""
-    return drive_recorded(system, sn_mesh, template, source, schedule,
+    return drive_recorded(system, problem, template, source, schedule,
                           tol=tol, initial=initial)[0]
 
 
-def both_drivers(sn_mesh, system, template, tol: float = 1e-13):
+def both_drivers(problem, system, template, tol: float = 1e-13):
     """``{schedule: flat iterate}`` from the SAME zero cold start."""
-    source = isotropic_source(sn_mesh, template)
+    source = isotropic_source(problem, template)
     return {
-        schedule: drive(system, sn_mesh, template, source, schedule, tol=tol)
+        schedule: drive(system, problem, template, source, schedule, tol=tol)
         for schedule in ("gauss_seidel", "jacobi")
     }

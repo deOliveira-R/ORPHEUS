@@ -352,9 +352,9 @@ def test_volume_measure_d2_delegates_byte_identical() -> None:
     """C5-G13: ``SNProblem.volume_measure`` ≡ the legacy dataclass's measure.
 
     The SN-side consumers (keff production/absorption rates) now read
-    ``sn_mesh.volume_measure``; while the mesh adapter is present the
+    ``problem.volume_measure``; while the mesh adapter is present the
     property must integrate byte-identically to
-    ``sn_mesh.mesh.volume_measure`` (same atoms, same construction).
+    ``problem.mesh.volume_measure`` (same atoms, same construction).
     """
     edges_x = np.linspace(0.0, 2.0, 5)
     edges_y = np.linspace(0.0, 3.0, 8)

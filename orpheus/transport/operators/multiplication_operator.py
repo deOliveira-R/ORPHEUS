@@ -378,9 +378,9 @@ class MultiplicationOperator(BoundOperator):
         already-typed :class:`CrossSectionField` (passed straight through).
         ``space`` is the optional composite
         :class:`~orpheus.numerics.space.FunctionSpace` for the composition
-        guard (e.g. ``sn_mesh.full_field_space``).
+        guard (e.g. ``problem.full_field_space``).
 
-        #261: folded up from the retired ``CollisionOperator(sn_mesh, sigma)``
+        #261: folded up from the retired ``CollisionOperator(problem, sigma)``
         constructor — the legacy / test-caller convenience that accepts a raw
         array. Production passes a :class:`CrossSectionField` directly to the
         dataclass; this classmethod is the bare-array entry point.
@@ -401,9 +401,9 @@ class MultiplicationOperator(BoundOperator):
         # ``_pose_space`` and constructs C directly, so the resolution
         # chain below serves bare-array/test callers only (CS4a-R CEN-2).
         # Pass ``space=`` to override. The first arm
-        # makes ``from_mesh(σ, sn_mesh)`` a faithful drop-in for the retired
-        # ``CollisionOperator(sn_mesh, σ)``, which reached the same space via
-        # ``sn_mesh.full_field_space`` (#261).
+        # makes ``from_mesh(σ, problem)`` a faithful drop-in for the retired
+        # ``CollisionOperator(problem, σ)``, which reached the same space via
+        # ``problem.full_field_space`` (#261).
         if space is None:
             space = getattr(mesh, "full_field_space", None)
         if space is None:

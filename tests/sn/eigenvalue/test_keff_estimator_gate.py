@@ -79,9 +79,9 @@ def _mesh(regions, bc, coord):
 
 def _solve(materials, mesh, scattering_order=0):
     """Converged eigenpair via the production driver, solver retained."""
-    sn_mesh = _as_sn_mesh(mesh, Quadrature.gauss_legendre(8), materials, scattering_order=scattering_order)
+    problem = _as_sn_mesh(mesh, Quadrature.gauss_legendre(8), materials, scattering_order=scattering_order)
     solver = SNSolver(
-        sn_mesh,
+        problem,
         keff_tol=1e-9, flux_tol=1e-8, max_inner=2000, inner_tol=1e-11,
     )
     _o = power_iteration(solver, max_iter=2000)
@@ -232,10 +232,10 @@ class TestReportedKeffIsThePosedEigenvalue:
             _mesh([(0, 8.0, 40)], BC.reflective, CoordSystem.CARTESIAN),
         )
         production = IntegratedReactionRate(
-            solver.sn_mesh.mat_xs.fission_production_field
+            solver.problem.mat_xs.fission_production_field
         ).evaluate(phi)
         absorption = IntegratedReactionRate(
-            solver.sn_mesh.mat_xs.absorption_cross_section_field
+            solver.problem.mat_xs.absorption_cross_section_field
         ).evaluate(phi)
         assert keff == production / absorption, (
             f"reflective Σ₂=0 reported k={keff!r} must be BITWISE the "
@@ -426,7 +426,7 @@ class TestGateTeeth:
         def old_convention_keff(self, flux_distribution):
             production = self.compute_production_rate(flux_distribution)
             absorption = IntegratedReactionRate(
-                self.sn_mesh.mat_xs.absorption_cross_section_field
+                self.problem.mat_xs.absorption_cross_section_field
             ).evaluate(flux_distribution)
             return production / absorption
 

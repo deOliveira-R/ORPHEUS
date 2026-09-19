@@ -1095,7 +1095,7 @@ class TestEquivalenceHoldsAtTheFactorReadingConsumers:
     .. note::
 
        ``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` does not admit ``albedo`` yet
-       (#189) and all four sites read ``sn_mesh.bc[face].law``, so this is a
+       (#189) and all four sites read ``problem.bc[face].law``, so this is a
        LATENT correction — it fires the day the law is registered. That is
        exactly why it needs a gate now: an unreachable predicate that is
        already false is a landmine, and nothing downstream would red.

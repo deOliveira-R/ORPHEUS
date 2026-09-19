@@ -122,45 +122,45 @@ def _scattering_op(coord: CoordSystem, quad, scattering_order: int):
     """
     mat = get_mixture("A", "1g")
     mesh = curvilinear_homogeneous_mesh(8, 2.0, mat_id=0, coord=coord)
-    sn_mesh = _as_sn_mesh(mesh, quad, {0: mat}, "vacuum", mat_map=None, scattering_order=scattering_order)
+    problem = _as_sn_mesh(mesh, quad, {0: mat}, "vacuum", mat_map=None, scattering_order=scattering_order)
     solver = SNSolver(
-        sn_mesh,
+        problem,
         inner_solver="source_iteration",
         max_inner=5,
         inner_tol=1e-12,
     )
-    return solver.sn_mesh.system.factors.scattering, sn_mesh, mesh.centers
+    return solver.problem.system.factors.scattering, problem, mesh.centers
 
 
-def _anisotropic_flux(sn_mesh, centers):
+def _anisotropic_flux(problem, centers):
     r"""ψ_ref,n = (A(r) + ζ_n B(r))/W with A,B > 0 and ζ = radial cosine.
 
     ``A(r) > 0`` and ``B(r) != 0`` are both load-bearing: ``A`` keeps the
     isotropic part non-trivial; ``B`` ACTIVATES the :math:`\ell=1` moment
     (a flat ``B = 0`` would null the very term under test).
     """
-    quad = sn_mesh.quad
+    quad = problem.quad
     W = float(quad.weights.sum())
     r = centers
     A = 1.0 + 0.5 * r
     B = 0.3 + 0.2 * r
     zeta = quad.mu_x  # radial cosine in both spherical (dim=1) and cyl
-    vals = np.zeros((quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
+    vals = np.zeros((quad.N, problem.ng, *problem.spatial_shape))
     for n in range(quad.N):
         vals[n, 0, :] = (A + zeta[n] * B) / W
-    return AngularFlux(values=vals, space=sn_mesh.angular_bulk_space), A, B, W
+    return AngularFlux(values=vals, space=problem.angular_bulk_space), A, B, W
 
 
 def _isolated_p1(coord: CoordSystem, quad):
-    """Return ``(P1, psi, sn_mesh, A, B, W)`` — the isolated ℓ=1 source.
+    """Return ``(P1, psi, problem, A, B, W)`` — the isolated ℓ=1 source.
 
     ``P1 = S_1.apply(psi) - S_0.apply(psi)`` is the operator difference
     that subtracts off the P0 in-scatter, leaving ONLY the :math:`\\ell=1`
     Galerkin reconstruction.
     """
-    S1, sn_mesh, centers = _scattering_op(coord, quad, scattering_order=1)
+    S1, problem, centers = _scattering_op(coord, quad, scattering_order=1)
     S0, _, _ = _scattering_op(coord, quad, scattering_order=0)
-    psi, A, B, W = _anisotropic_flux(sn_mesh, centers)
+    psi, A, B, W = _anisotropic_flux(problem, centers)
     # CS4c step 5: a gain is composite-bound and admits its composite alone
     # (``lift.admit_composite``), so the bulk action rides a zero-trace
     # composite — the trace the lift itself emits back. ⚠ The two operators
@@ -168,7 +168,7 @@ def _isolated_p1(coord: CoordSystem, quad):
     # reads its own operator's trace block; ``bulk_apply`` does that by
     # construction (it reads the bound end, never a mesh handed in beside it).
     P1 = bulk_apply(S1, psi).values - bulk_apply(S0, psi).values
-    return P1, psi, sn_mesh, A, B, W
+    return P1, psi, problem, A, B, W
 
 
 # ── L0 tests ────────────────────────────────────────────────────────────
@@ -237,7 +237,7 @@ def test_cylindrical_p1_source_matches_hand_reference():
     mis-shaped einsum in the production path is detectable.
     """
     quad = build_cylindrical_mms_case().quadrature
-    P1, psi, sn_mesh, _A, _B, W = _isolated_p1(CoordSystem.CYLINDRICAL, quad)
+    P1, psi, problem, _A, _B, W = _isolated_p1(CoordSystem.CYLINDRICAL, quad)
 
     peak = float(np.max(np.abs(P1)))
     assert peak > 1e-6, (
@@ -253,7 +253,7 @@ def test_cylindrical_p1_source_matches_hand_reference():
     Y = quad.angular_frame(1).table
     wts = quad.weights
     psi_vals = psi.values[:, 0, :]  # (N, nx)
-    nx = sn_mesh.spatial_shape[0]
+    nx = problem.spatial_shape[0]
     hand = np.zeros_like(P1)
     for n in range(quad.N):
         acc = np.zeros(nx)

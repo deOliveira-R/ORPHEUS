@@ -426,8 +426,8 @@ class TestRecordTheFourProductionRateFunctionals:
     ) -> None:
         """RECORD — the blindness itself, stated as a measurement."""
         materials, mesh, quadrature = _slab()
-        sn_mesh = _as_sn_mesh(mesh, quadrature, materials)
-        solver = SNSolver(sn_mesh)
+        problem = _as_sn_mesh(mesh, quadrature, materials)
+        solver = SNSolver(problem)
         phi = np.asarray(
             solve_sn(materials, mesh, quadrature).scalar_flux.values,
             dtype=float,
@@ -435,7 +435,7 @@ class TestRecordTheFourProductionRateFunctionals:
         total = solver.compute_production_rate(phi)
         fission_only = float(
             IntegratedReactionRate(
-                sn_mesh.mat_xs.fission_production_field
+                problem.mat_xs.fission_production_field
             ).evaluate(phi)
         )
         _require(
@@ -455,8 +455,8 @@ class TestRecordTheFourProductionRateFunctionals:
 
         mesh = _finalize_slab(BC.vacuum)
         quadrature = Quadrature.gauss_legendre(n_ordinates=_QUAD_N)
-        sn_mesh = _as_sn_mesh(mesh, quadrature, _LIBRARY_N2N)
-        solver = SNSolver(sn_mesh)
+        problem = _as_sn_mesh(mesh, quadrature, _LIBRARY_N2N)
+        solver = SNSolver(problem)
         phi = np.asarray(
             solve_sn(_LIBRARY_N2N, mesh, quadrature).scalar_flux.values,
             dtype=float,
@@ -464,7 +464,7 @@ class TestRecordTheFourProductionRateFunctionals:
         total = solver.compute_production_rate(phi)
         fission_only = float(
             IntegratedReactionRate(
-                sn_mesh.mat_xs.fission_production_field
+                problem.mat_xs.fission_production_field
             ).evaluate(phi)
         )
         relative = abs(total - fission_only) / abs(total)
@@ -511,12 +511,12 @@ class TestRecordNothingRecordsWhichGaugeApplied:
         """RECORD — the conventions are distinguishable by the FLUX and by
         nothing the answer carries."""
         materials, mesh, quadrature = _slab()
-        sn_mesh = _as_sn_mesh(mesh, quadrature, materials)
+        problem = _as_sn_mesh(mesh, quadrature, materials)
         kwargs = dict(
             inner_solver="source_iteration", keff_tol=1e-10, flux_tol=1e-9,
         )
-        gauged = SNSolver(sn_mesh, **kwargs)  # type: ignore[arg-type]
-        legacy = self._NoProductionRate(SNSolver(sn_mesh, **kwargs))  # type: ignore[arg-type]
+        gauged = SNSolver(problem, **kwargs)  # type: ignore[arg-type]
+        legacy = self._NoProductionRate(SNSolver(problem, **kwargs))  # type: ignore[arg-type]
         _require(
             isinstance(gauged, ProductionRateSolver),
             "the SN solver stopped conforming to ProductionRateSolver — the "
@@ -579,14 +579,14 @@ class TestRecordThePureTransportPosingIsTheLOSS:
         materials, mesh, quadrature = (
             _slab() if fixture == "slab" else _carrying_sphere()
         )
-        sn_mesh = _as_sn_mesh(mesh, quadrature, materials)
+        problem = _as_sn_mesh(mesh, quadrature, materials)
         _require(
-            sn_mesh.pencil.at(0.0) is sn_mesh.pencil.lhs,
+            problem.pencil.at(0.0) is problem.pencil.lhs,
             "pencil.at(0.0) stopped returning lhs itself — F11's identity "
             "read ('was fission suppressed?') needs a datum again.",
         )
         _require(
-            sn_mesh.pencil.lhs is sn_mesh.system.loss,
+            problem.pencil.lhs is problem.system.loss,
             "the pencil's lhs is no longer the record's loss object.",
         )
 
@@ -602,25 +602,25 @@ class TestRecordThePureTransportPosingIsTheLOSS:
         materials, mesh, quadrature = (
             _slab() if fixture == "slab" else _carrying_sphere()
         )
-        sn_mesh = _as_sn_mesh(mesh, quadrature, materials)
+        problem = _as_sn_mesh(mesh, quadrature, materials)
         ng, nx = 2, len(mesh.mat_ids)
         source = _build_fixed_source_rhs(
-            _uniform_source(quadrature, ng, nx), sn_mesh,
+            _uniform_source(quadrature, ng, nx), problem,
         )
         lifted_source = (
             source if isinstance(source, CoupledField)
             else CoupledField(systems=(source,))
         )
-        template = sn_mesh.system.space.zeros()
+        template = problem.system.space.zeros()
         state = CoupledField.from_flat(
             np.ones(template.to_flat().size), template,
         )
-        posing = SourcePosing(sn_mesh.pencil.at(0.0), lifted_source)
+        posing = SourcePosing(problem.pencil.at(0.0), lifted_source)
         mine = np.asarray(posing.residual(state).to_flat(), dtype=float)
         # ``evaluate_residual``'s arity guard: the SEEDLESS system refuses a
         # coupled wrapper (`[M]` "this system is 1×1 (seedless) — pass the
         # bare FullField pair").  That guard is a §6b member of U4.
-        carrying = sn_mesh.radial_characteristic_field_space is not None
+        carrying = problem.radial_characteristic_field_space is not None
         probe: FullField | CoupledField
         if carrying:
             probe = state
@@ -634,7 +634,7 @@ class TestRecordThePureTransportPosingIsTheLOSS:
             )
             assert isinstance(member, FullField)  # narrowing for pyright
             probe = member
-        theirs_field = evaluate_residual(sn_mesh.system, probe, source)
+        theirs_field = evaluate_residual(problem.system, probe, source)
         theirs = np.asarray(theirs_field.to_flat(), dtype=float)
         _require(
             np.array_equal(mine, theirs),

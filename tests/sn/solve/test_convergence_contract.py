@@ -1203,14 +1203,14 @@ class TestExitBalanceDefect:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ConvergenceWarning)
             sol = _starved_inner_converged_outer()
-        sn_mesh = sol.mesh
+        problem = sol.mesh
         field = sol.angular_flux
 
-        produced = _balance_projection(field, sn_mesh=sn_mesh)
+        produced = _balance_projection(field, problem=problem)
 
         values = np.asarray(field.interior.values)      # (N, ng, *spatial)
-        weights = np.asarray(sn_mesh.quad.weights)      # (N,)
-        volumes = np.asarray(sn_mesh.volumes)           # spatial
+        weights = np.asarray(problem.quad.weights)      # (N,)
+        volumes = np.asarray(problem.volumes)           # spatial
         # An explicit double loop, not a vectorised restatement: the thing
         # most likely to be wrong is an AXIS, and a loop indexed by name
         # cannot inherit production's axis convention the way a clever
@@ -1220,9 +1220,9 @@ class TestExitBalanceDefect:
                 float(weights[n]) * float(np.sum(values[n, g] * volumes))
                 for n in range(values.shape[0])
             )
-            for g in range(sn_mesh.ng)
+            for g in range(problem.ng)
         ])
-        assert produced.shape == (sn_mesh.ng,)
+        assert produced.shape == (problem.ng,)
         np.testing.assert_allclose(
             produced, reference, rtol=1e-13,
             err_msg="R_g must be Σ_n w_n Σ_i V_i x[n, g, i]",

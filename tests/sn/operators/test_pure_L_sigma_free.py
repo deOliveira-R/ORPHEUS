@@ -81,11 +81,11 @@ def _build_sn_mesh(geometry: str, *, n_cells: int = 5, n_ord: int = 4) -> SNProb
     return SNProblem(mesh, quad, placeholder_materials())
 
 
-def _random_state(sn_mesh: SNProblem, *, seed: int) -> TimedFullField:
+def _random_state(problem: SNProblem, *, seed: int) -> TimedFullField:
     from dataclasses import replace
 
     state = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space, history_depth=2,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space, history_depth=2,
     )
     rng = np.random.default_rng(seed)
     state = replace(
@@ -97,15 +97,15 @@ def _random_state(sn_mesh: SNProblem, *, seed: int) -> TimedFullField:
     return state
 
 
-def _het_sigma(sn_mesh: SNProblem, *, base: float) -> np.ndarray:
+def _het_sigma(problem: SNProblem, *, base: float) -> np.ndarray:
     """Heterogeneous ≥2G σ_t (group-scaled, spatially graded) of shape (ng, *spatial).
 
     The mesh's placeholder materials are 1G; the σ-freedom property is per-cell-
     per-group, so a 1G heterogeneous σ already exercises the Mode-2 leak.  We
     grade it in space so a σ leak couples non-trivially into the streaming walk.
     """
-    nx = sn_mesh.nx
-    return (base + np.linspace(0.5, 3.0, nx)).reshape((1, *sn_mesh.spatial_shape))
+    nx = problem.nx
+    return (base + np.linspace(0.5, 3.0, nx)).reshape((1, *problem.spatial_shape))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -117,7 +117,7 @@ def _het_sigma(sn_mesh: SNProblem, *, base: float) -> np.ndarray:
 def test_c1_pure_L_apply_is_sigma_free(geometry: str) -> None:
     r"""``L.apply(ψ)`` is BYTE-IDENTICAL whatever σ the (separate) C carries.
 
-    Build ONE pure ``L = StreamingOperator(sn_mesh)`` (no σ) and TWO collision
+    Build ONE pure ``L = StreamingOperator(problem)`` (no σ) and TWO collision
     operators ``C(σ_a)`` / ``C(σ_b)`` with wildly different heterogeneous σ.
     ``L.apply(ψ)`` must be ``np.array_equal`` across both — the streaming leaf
     reads no σ, so the C it is later summed with cannot change its action.
@@ -125,15 +125,15 @@ def test_c1_pure_L_apply_is_sigma_free(geometry: str) -> None:
     Mode-11: ``L.apply`` is called DIRECTLY (the matvec leaf has zero graph
     callers).  Per-geometry; reflective box; heterogeneous σ.
     """
-    sn_mesh = _build_sn_mesh(geometry)
-    state = _random_state(sn_mesh, seed=101)
+    problem = _build_sn_mesh(geometry)
+    state = _random_state(problem, seed=101)
 
-    L = StreamingOperator.pose(sn_mesh)
+    L = StreamingOperator.pose(problem)
     # Two very different collision diagonals (the σ that USED to live on L).
-    sigma_a = _het_sigma(sn_mesh, base=1.0)
-    sigma_b = _het_sigma(sn_mesh, base=7.0)
-    _C_a = MultiplicationOperator.from_mesh(sigma_a, sn_mesh)
-    _C_b = MultiplicationOperator.from_mesh(sigma_b, sn_mesh)
+    sigma_a = _het_sigma(problem, base=1.0)
+    sigma_b = _het_sigma(problem, base=7.0)
+    _C_a = MultiplicationOperator.from_mesh(sigma_a, problem)
+    _C_b = MultiplicationOperator.from_mesh(sigma_b, problem)
 
     out_a = L.apply(state)
     out_b = L.apply(state)
@@ -159,8 +159,8 @@ def test_c1_pure_L_has_no_sigma_surface(geometry: str) -> None:
     The structural counterpart of the value test: a σ-free operator should not
     even HAVE a σ on its surface.  ``StreamingOperator`` takes only the mesh.
     """
-    sn_mesh = _build_sn_mesh(geometry)
-    L = StreamingOperator.pose(sn_mesh)
+    problem = _build_sn_mesh(geometry)
+    L = StreamingOperator.pose(problem)
     if hasattr(L, "sigma_t"):
         pytest.fail(
             f"[{geometry}] StreamingOperator still exposes a sigma_t surface — "
@@ -185,13 +185,13 @@ def test_c1_teeth_sigma_leaking_stub_reddens(
     C1's σ-free invariant must now FAIL — confirming the gate is not a
     tautology.  Monkeypatch in-process (NEVER mutate the tree, L28).
     """
-    sn_mesh = _build_sn_mesh(geometry)
-    state = _random_state(sn_mesh, seed=101)
+    problem = _build_sn_mesh(geometry)
+    state = _random_state(problem, seed=101)
 
-    sigma_a = _het_sigma(sn_mesh, base=1.0)
-    sigma_b = _het_sigma(sn_mesh, base=7.0)
+    sigma_a = _het_sigma(problem, base=1.0)
+    sigma_b = _het_sigma(problem, base=7.0)
 
-    L = StreamingOperator.pose(sn_mesh)
+    L = StreamingOperator.pose(problem)
     rep_cls = type(L.loss_representation)
 
     # The leaking stub: instead of loss_action(0, ψ), read a σ off a mutable

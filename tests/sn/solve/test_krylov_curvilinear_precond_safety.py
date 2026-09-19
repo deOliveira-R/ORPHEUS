@@ -152,10 +152,10 @@ def _krylov_power_iteration_kinf(
         coord=coord, n_cells=n_cells, length=2.0, mat_id=mat_id,
     )
     quad = _quadrature_for(coord)
-    sn_mesh = SNProblem(mesh, quad, case.problem.materials, scattering_order=0)
+    problem = SNProblem(mesh, quad, case.problem.materials, scattering_order=0)
 
     solver = SNSolver(
-        sn_mesh=sn_mesh,
+        problem=problem,
         max_inner=300, inner_tol=1e-12, inner_solver="krylov",
     )
 
@@ -172,16 +172,16 @@ def _krylov_power_iteration_kinf(
     # duplicated exactly this composition; omitting B drops the reflective
     # coupling → the WRONG eigenmode, k ≈ 1.67 not 1.875).
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs,
+        problem, solver.problem.mat_xs,
     )
     from orpheus.sn.splitting import Splitting, resolve_schedule
 
-    splitting = Splitting.from_schedule(system, resolve_schedule(sn_mesh, "jacobi"))
+    splitting = Splitting.from_schedule(system, resolve_schedule(problem, "jacobi"))
     coupled = system.is_coupled
     zero = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
-    cold = _coupled_flux_state(zero, sn_mesh) if coupled else zero
+    cold = _coupled_flux_state(zero, problem) if coupled else zero
     krylov = KrylovAcceleration(
         splitting.implicit, *splitting.explicit,
         preconditioner=precond,
@@ -198,7 +198,7 @@ def _krylov_power_iteration_kinf(
     psi_typed_warm: "FullField | None" = None
     for n_outer in range(max_outer):
         fis = solver.compute_fission_source(phi, keff)
-        q_ext_per_ord = AngularSourceSink.from_isotropic(fis, sn_mesh)
+        q_ext_per_ord = AngularSourceSink.from_isotropic(fis, problem)
         # B.5.2: q_ext IS a source (AngularSourceSink), emitted directly — no
         # re-wrap into AngularFlux.  On a carrying mesh (sphere) the coupled
         # rhs pairs the 2-block source with the q½ fold of the (isotropic)
@@ -210,9 +210,9 @@ def _krylov_power_iteration_kinf(
             _coupled_source_state(
                 q_a,
                 _radial_characteristic_source_from_per_ordinate(
-                    q_ext_per_ord.values, sn_mesh,
+                    q_ext_per_ord.values, problem,
                 ),
-                sn_mesh, context="test_krylov_precond_safety",
+                problem, context="test_krylov_precond_safety",
             )
             if coupled else q_a
         )

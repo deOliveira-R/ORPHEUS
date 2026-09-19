@@ -87,11 +87,11 @@ def _build_mesh(nx, ny, lvl, ng, bc):
     )
 
 
-def _random_inputs(rng, sn_mesh, ng, nx, ny):
+def _random_inputs(rng, problem, ng, nx, ny):
     """Het Σ_t + per-ordinate (anisotropic) source + random non-zero inflow."""
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
-    Q = rng.uniform(0.0, 2.0, size=(sn_mesh.quad.N, ng, nx, ny))
-    bf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    Q = rng.uniform(0.0, 2.0, size=(problem.quad.N, ng, nx, ny))
+    bf = AngularBoundaryFlux.zeros(problem.angular_trace)
     for face in bf.layout.faces:
         fv = bf.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
@@ -108,11 +108,11 @@ def test_scanmarch_sweep_equals_oracle(nx, ny, lvl, ng, bc):
     (Mode-2): a square mesh would hide a scan/march-axis confusion.
     """
     rng = np.random.default_rng([nx, ny, lvl, ng])   # deterministic across runs
-    sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
-    sig_t, Q, bf_sm = _random_inputs(rng, sn_mesh, ng, nx, ny)
-    bf_or = AngularBoundaryFlux(values=bf_sm.values.copy(), space=sn_mesh.angular_trace)
+    problem = _build_mesh(nx, ny, lvl, ng, bc)
+    sig_t, Q, bf_sm = _random_inputs(rng, problem, ng, nx, ny)
+    bf_or = AngularBoundaryFlux(values=bf_sm.values.copy(), space=problem.angular_trace)
 
-    march, oracle = ScanMarch.pose(sn_mesh), FullFieldWavefront.pose(sn_mesh)
+    march, oracle = ScanMarch.pose(problem), FullFieldWavefront.pose(problem)
     ang_sm, scal_sm = march.sweep(Q, march.bind_sigma(sig_t), bf_sm)
     ang_or, scal_or = oracle.sweep(Q, oracle.bind_sigma(sig_t), bf_or)
 
@@ -139,12 +139,12 @@ def test_scanmarch_moment_equals_window(nx, ny, lvl, ng, bc):
     """
     Lm = 1   # P1 — ℓ≥1 load-bearing
     rng = np.random.default_rng([nx, ny, lvl, ng, 7])   # deterministic
-    sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
-    sig_t, Q, bf_sm = _random_inputs(rng, sn_mesh, ng, nx, ny)
-    bf_win = AngularBoundaryFlux(values=bf_sm.values.copy(), space=sn_mesh.angular_trace)
-    frame = sn_mesh.quad.angular_frame(Lm)
+    problem = _build_mesh(nx, ny, lvl, ng, bc)
+    sig_t, Q, bf_sm = _random_inputs(rng, problem, ng, nx, ny)
+    bf_win = AngularBoundaryFlux(values=bf_sm.values.copy(), space=problem.angular_trace)
+    frame = problem.quad.angular_frame(Lm)
 
-    march, win = ScanMarch.pose(sn_mesh), MovingFrontierWindow.pose(sn_mesh)
+    march, win = ScanMarch.pose(problem), MovingFrontierWindow.pose(problem)
     mom_sm, second_sm = march.sweep(
         Q, march.bind_sigma(sig_t), bf_sm, moment_frame=frame,
     )
@@ -186,19 +186,19 @@ def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
     order), so ``assert_allclose`` (not ``array_equal``) — see ``_RTOL``/``_ATOL``.
     """
     rng = np.random.default_rng([nx, ny, lvl, ng, 13])   # deterministic
-    sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
+    problem = _build_mesh(nx, ny, lvl, ng, bc)
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
 
     state = TimedFullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
     state.interior.values[...] = rng.uniform(-1.0, 1.0, size=state.interior.values.shape)
     for face in state.boundary.layout.faces:
         fv = state.boundary.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
 
-    out_sm = ScanMarch.pose(sn_mesh).loss_action(sig_t, state)
-    out_or = FullFieldWavefront.pose(sn_mesh).loss_action(sig_t, state)
+    out_sm = ScanMarch.pose(problem).loss_action(sig_t, state)
+    out_or = FullFieldWavefront.pose(problem).loss_action(sig_t, state)
 
     np.testing.assert_allclose(
         out_sm.interior.values, out_or.interior.values, rtol=_RTOL, atol=_ATOL,

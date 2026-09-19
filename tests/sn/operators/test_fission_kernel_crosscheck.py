@@ -126,14 +126,14 @@ class TestFissionApplyCorrectness:
         per-group Python double-loop. A νΣf↔φ swap, a wrong contraction
         axis, or a dropped χ broadcast disagrees with it.
         """
-        op = solver_4g.sn_mesh.fission.isotropic_energy
+        op = solver_4g.problem.fission.isotropic_energy
         ng = solver_4g.ng
-        nx, ny = solver_4g.sn_mesh.spatial_shape
+        nx, ny = solver_4g.problem.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
 
         out = op.apply(phi)  # bare-ndarray arm → (ng, nx, ny)
         expected = hand_derived_fission_emission(
-            solver_4g.sn_mesh.mat_xs.emission_spectrum, solver_4g.sn_mesh.mat_xs.fission_production, phi,
+            solver_4g.problem.mat_xs.emission_spectrum, solver_4g.problem.mat_xs.fission_production, phi,
         )
         np.testing.assert_allclose(
             out, expected, rtol=1e-13, atol=0.0,
@@ -155,12 +155,12 @@ class TestFissionApplyCorrectness:
         this row shows equality, the fixture lost its asymmetry and B.1 is
         blind to the role swap.
         """
-        op = solver_4g.sn_mesh.fission.isotropic_energy
+        op = solver_4g.problem.fission.isotropic_energy
         ng = solver_4g.ng
-        nx, ny = solver_4g.sn_mesh.spatial_shape
+        nx, ny = solver_4g.problem.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
-        chi = solver_4g.sn_mesh.mat_xs.emission_spectrum
-        nu_sf = solver_4g.sn_mesh.mat_xs.fission_production
+        chi = solver_4g.problem.mat_xs.emission_spectrum
+        nu_sf = solver_4g.problem.mat_xs.fission_production
 
         straight = hand_derived_fission_emission(chi, nu_sf, phi)
         # ROLE swap: broadcast by νΣf, contract χ·φ. χ ≠ νΣf per group →
@@ -197,15 +197,15 @@ class TestProductionRateReproducesApply:
         NEW property) and compares against the live ``F.apply`` — mutating
         the property reddens this gate.
         """
-        op = solver_4g.sn_mesh.fission.isotropic_energy
+        op = solver_4g.problem.fission.isotropic_energy
         ng = solver_4g.ng
-        nx, ny = solver_4g.sn_mesh.spatial_shape
+        nx, ny = solver_4g.problem.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
 
         pr = require_production_rate_property(op)  # NEW S6 member; skip if PRE-IMPL
         density = np.asarray(pr.evaluate(phi))  # (1, nx, ny) keepdims
         # χ broadcast reproduces RankOneOperator's `left * inner`.
-        chi = solver_4g.sn_mesh.mat_xs.emission_spectrum  # (ng, nx, ny)
+        chi = solver_4g.problem.mat_xs.emission_spectrum  # (ng, nx, ny)
         composed = chi * density  # (ng, nx, ny)
 
         fused = op.apply(phi)  # the unchanged matvec arm → (ng, nx, ny)
@@ -226,14 +226,14 @@ class TestProductionRateReproducesApply:
         NOT some other cross section — pins that S6 wired the
         ``mat_xs.fission_production_field`` accessor into the property.
         """
-        op = solver_4g.sn_mesh.fission.isotropic_energy
+        op = solver_4g.problem.fission.isotropic_energy
         ng = solver_4g.ng
-        nx, ny = solver_4g.sn_mesh.spatial_shape
+        nx, ny = solver_4g.problem.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
 
         pr = require_production_rate_property(op)
         density = np.asarray(pr.evaluate(phi)).reshape(nx, ny)
-        expected = (solver_4g.sn_mesh.mat_xs.fission_production * phi).sum(axis=0)
+        expected = (solver_4g.problem.mat_xs.fission_production * phi).sum(axis=0)
         np.testing.assert_array_equal(
             density, expected,
             err_msg="production_rate.evaluate must contract νΣf against φ "
@@ -272,9 +272,9 @@ class TestFissionApplyRoutesThroughFunctional:
 
         monkeypatch.setattr(ReactionRateFunctional, "evaluate", counting_evaluate)
 
-        op = solver_4g.sn_mesh.fission.isotropic_energy
+        op = solver_4g.problem.fission.isotropic_energy
         ng = solver_4g.ng
-        nx, ny = solver_4g.sn_mesh.spatial_shape
+        nx, ny = solver_4g.problem.spatial_shape
         op.apply(_asymmetric_phi(ng, nx, ny))
 
         require(
@@ -312,7 +312,7 @@ class TestFissionNdarrayArmIsKEigenvalueLive:
     :func:`orpheus.numerics.eigenvalue.power_iteration` feeds a bare
     :class:`numpy.ndarray` flux to
     :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`, which calls
-    ``self.sn_mesh.fission.isotropic_energy.apply(flux_distribution) / keff`` — and
+    ``self.problem.fission.isotropic_energy.apply(flux_distribution) / keff`` — and
     since the consumers campaign's step 2 (C2) that face is the HUB's one
     ``F``'s energy binding
     (:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission`,

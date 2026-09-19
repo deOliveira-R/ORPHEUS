@@ -193,17 +193,17 @@ def _cart2d_mesh(
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _make_state(sn_mesh: SNProblem, *, seed: int) -> TimedFullField:
+def _make_state(problem: SNProblem, *, seed: int) -> TimedFullField:
     """Build a TimedFullField with a deterministic random bulk ψ."""
     rng = np.random.default_rng(seed)
-    N = sn_mesh.quad.N
-    ng = sn_mesh.ng
+    N = problem.quad.N
+    ng = problem.ng
     # Rank-agnostic (C2 rank-d carve): 1-D meshes carry spatial_shape
     # (nx,), 2-D (nx, ny).
     psi_values = rng.uniform(
-        0.05, 1.0, size=(N, ng, *sn_mesh.spatial_shape),
+        0.05, 1.0, size=(N, ng, *problem.spatial_shape),
     )
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     from dataclasses import replace
     return replace(
         state,
@@ -211,29 +211,29 @@ def _make_state(sn_mesh: SNProblem, *, seed: int) -> TimedFullField:
     )
 
 
-def _make_sigma_t(sn_mesh: SNProblem) -> np.ndarray:
+def _make_sigma_t(problem: SNProblem) -> np.ndarray:
     """Per-group per-cell σ_t (the StreamingOperator constructor input).
 
     Layout ``(ng, nx, ny)`` under Issue #196 PR-INDEX-3.  Reads from
-    each cell's material σ_t via ``sn_mesh.mat_map`` (the (nx, ny)
+    each cell's material σ_t via ``problem.mat_map`` (the (nx, ny)
     material-id array reshaped from Mesh1D.mat_ids / Mesh2D.mat_map).
     """
-    ng = sn_mesh.ng
-    spatial = sn_mesh.spatial_shape
+    ng = problem.ng
+    spatial = problem.spatial_shape
     sig_t = np.empty((ng, *spatial), dtype=float)
-    mat_map = np.asarray(sn_mesh.mat_map).reshape(spatial)
+    mat_map = np.asarray(problem.mat_map).reshape(spatial)
     for idx in np.ndindex(*spatial):
-        mat = sn_mesh.materials[int(mat_map[idx])]
+        mat = problem.materials[int(mat_map[idx])]
         for g in range(ng):
             sig_t[(g, *idx)] = float(mat.SigT[g])
     return sig_t
 
 
-def _build_L_C(sn_mesh: SNProblem) -> tuple[StreamingOperator, MultiplicationOperator]:
+def _build_L_C(problem: SNProblem) -> tuple[StreamingOperator, MultiplicationOperator]:
     """Build the leaf L (StreamingOperator) and C (MultiplicationOperator)."""
-    sigma_t = _make_sigma_t(sn_mesh)
-    L = StreamingOperator.pose(sn_mesh)          # pure σ-free streaming (#257 S8b)
-    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
+    sigma_t = _make_sigma_t(problem)
+    L = StreamingOperator.pose(problem)          # pure σ-free streaming (#257 S8b)
+    C = MultiplicationOperator.from_mesh(sigma_t, problem)
     return L, C
 
 
@@ -242,7 +242,7 @@ def _build_L_C(sn_mesh: SNProblem) -> tuple[StreamingOperator, MultiplicationOpe
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _capture_apply(name: str, sn_mesh: SNProblem, *, seed: int,
+def _capture_apply(name: str, problem: SNProblem, *, seed: int,
                    snapshots: dict[str, np.ndarray]) -> None:
     """Capture the joint σ-free streaming action, bulk + boundary.
 
@@ -260,18 +260,18 @@ def _capture_apply(name: str, sn_mesh: SNProblem, *, seed: int,
     )
     from tests.sn._test_helpers import radial_characteristic_edge_seed
 
-    L, _ = _build_L_C(sn_mesh)
-    state = _make_state(sn_mesh, seed=seed)
-    sd = radial_characteristic_edge_seed(state.interior.values, sn_mesh)
+    L, _ = _build_L_C(problem)
+    state = _make_state(problem, seed=seed)
+    sd = radial_characteristic_edge_seed(state.interior.values, problem)
     out = L.apply(state)
     if sd is not None:
-        out = out + RadialCharacteristicSeeding(sn_mesh).apply(sd)
+        out = out + RadialCharacteristicSeeding(problem).apply(sd)
     snapshots[f"{name}_apply_bulk"] = out.interior.values.copy()
     snapshots[f"{name}_apply_boundary"] = out.boundary.values.copy()
     snapshots[f"seed_psi_{name}"] = state.interior.values.copy()
 
 
-def _capture_LpC_apply(name: str, sn_mesh: SNProblem, *, seed: int,
+def _capture_LpC_apply(name: str, problem: SNProblem, *, seed: int,
                        snapshots: dict[str, np.ndarray]) -> None:
     """Capture (L+C).apply(ψ) — the fused within-group matvec snapshot.
 
@@ -281,24 +281,24 @@ def _capture_LpC_apply(name: str, sn_mesh: SNProblem, *, seed: int,
     matvec ``M(σ_t)ψ`` (σ_t·ψ subtraction unwinding at the apply
     boundary per Resolution A).
     """
-    L, C = _build_L_C(sn_mesh)
+    L, C = _build_L_C(problem)
     LpC = L + C  # StreamingCollisionOperator
-    state = _make_state(sn_mesh, seed=seed)
+    state = _make_state(problem, seed=seed)
     out = LpC.apply(state)
     snapshots[f"{name}_LpC_apply_bulk"] = out.interior.values.copy()
     snapshots[f"{name}_LpC_apply_boundary"] = out.boundary.values.copy()
 
 
-def _capture_LpC_solve(name: str, sn_mesh: SNProblem, *, seed: int,
+def _capture_LpC_solve(name: str, problem: SNProblem, *, seed: int,
                        snapshots: dict[str, np.ndarray]) -> None:
     """Capture (L+C).solve(q) — verifies .solve path is UNTOUCHED by T.4.
 
     Per Q5 the .solve path is OUT OF SCOPE for T.4.  This snapshot
     pins L4-6 to detect accidental sweep-path perturbation.
     """
-    L, C = _build_L_C(sn_mesh)
+    L, C = _build_L_C(problem)
     LpC = L + C  # StreamingCollisionOperator
-    q_state = _make_state(sn_mesh, seed=seed)
+    q_state = _make_state(problem, seed=seed)
     out = LpC.solve(q_state)
     snapshots[f"{name}_LpC_solve_bulk"] = out.interior.values.copy()
     snapshots[f"{name}_LpC_solve_boundary"] = out.boundary.values.copy()
@@ -312,11 +312,11 @@ def _capture_perf_baseline(snapshots: dict[str, np.ndarray]) -> dict:
     """
     import platform
 
-    sn_mesh = _slab_mesh(ng=2, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+    problem = _slab_mesh(ng=2, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
                          nx=40, N=8)
-    L, C = _build_L_C(sn_mesh)
+    L, C = _build_L_C(problem)
     LpC = L + C
-    state = _make_state(sn_mesh, seed=SEED_BASE + 100)
+    state = _make_state(problem, seed=SEED_BASE + 100)
 
     # Warmup
     for _ in range(5):

@@ -391,7 +391,7 @@ def _het_sphere():
     return mats, mesh
 
 
-def _sphere_daggered_run(sn_mesh):
+def _sphere_daggered_run(problem):
     r"""Mirror :func:`solve_sn_adjoint`'s daggered chain, RAW.
 
     Returns ``(k_adj, psi_star)`` with ``psi_star`` the converged coupled
@@ -405,7 +405,7 @@ def _sphere_daggered_run(sn_mesh):
     from orpheus.numerics.pencil import OperatorPencil
     from orpheus.numerics.posing import K_MAP, EigenPosing
 
-    parts: tuple[Any, Any, Any, Any, Any] = _adjoint_posing_parts(sn_mesh)
+    parts: tuple[Any, Any, Any, Any, Any] = _adjoint_posing_parts(problem)
     implicit_operator, gain, F_posed, template, _splitting = parts
     if not isinstance(template, CoupledField):
         pytest.fail(

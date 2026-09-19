@@ -45,16 +45,16 @@ def test_dag_walk_spherical_outward_matches_per_ordinate():
         coord=CoordSystem.SPHERICAL,
     )
     quad = Quadrature.gauss_legendre(8)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
 
     seq_by_dir = [
-        v.cell_idx for v in sn_mesh.dag_walk(direction_sign=+1)
+        v.cell_idx for v in problem.dag_walk(direction_sign=+1)
     ]
     # Every μ ≥ 0 ordinate must produce the same cell sequence.
     for n in range(quad.N):
         if quad.mu_x[n] >= 0:
             seq_by_ord = [
-                v.cell_idx for v in sn_mesh.dag_walk(ordinate_idx=n)
+                v.cell_idx for v in problem.dag_walk(ordinate_idx=n)
             ]
             assert np.array_equal(seq_by_dir, seq_by_ord), (
                 f"Spherical +1: direction-keyed sequence != "
@@ -71,15 +71,15 @@ def test_dag_walk_spherical_inward_matches_per_ordinate():
         coord=CoordSystem.SPHERICAL,
     )
     quad = Quadrature.gauss_legendre(8)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
 
     seq_by_dir = [
-        v.cell_idx for v in sn_mesh.dag_walk(direction_sign=-1)
+        v.cell_idx for v in problem.dag_walk(direction_sign=-1)
     ]
     for n in range(quad.N):
         if quad.mu_x[n] < 0:
             seq_by_ord = [
-                v.cell_idx for v in sn_mesh.dag_walk(ordinate_idx=n)
+                v.cell_idx for v in problem.dag_walk(ordinate_idx=n)
             ]
             assert np.array_equal(seq_by_dir, seq_by_ord), (
                 f"Spherical -1: direction-keyed sequence != "
@@ -96,11 +96,11 @@ def test_dag_walk_slab_matches_per_ordinate():
         coord=CoordSystem.CARTESIAN,
     )
     quad = Quadrature.gauss_legendre(6)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
 
     for sign in (+1, -1):
         seq_by_dir = [
-            v.cell_idx for v in sn_mesh.dag_walk(direction_sign=sign)
+            v.cell_idx for v in problem.dag_walk(direction_sign=sign)
         ]
         for n in range(quad.N):
             if (sign == +1 and quad.mu_x[n] >= 0) or (
@@ -108,7 +108,7 @@ def test_dag_walk_slab_matches_per_ordinate():
             ):
                 seq_by_ord = [
                     v.cell_idx
-                    for v in sn_mesh.dag_walk(ordinate_idx=n)
+                    for v in problem.dag_walk(ordinate_idx=n)
                 ]
                 assert np.array_equal(seq_by_dir, seq_by_ord)
 
@@ -135,11 +135,11 @@ def test_dag_walk_cell_indices_matches_dag_walk_all_geometries():
             mat_ids=np.zeros(10, dtype=int),
             coord=coord,
         )
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
         for sign in (+1, -1):
-            twin = list(sn_mesh.dag_walk_cell_indices(direction_sign=sign))
+            twin = list(problem.dag_walk_cell_indices(direction_sign=sign))
             canonical = [
-                v.cell_idx for v in sn_mesh.dag_walk(direction_sign=sign)
+                v.cell_idx for v in problem.dag_walk(direction_sign=sign)
             ]
             if not np.array_equal(twin, canonical):
                 pytest.fail(
@@ -155,17 +155,17 @@ def test_dag_walk_cell_indices_matches_dag_walk_all_geometries():
         coord=CoordSystem.CYLINDRICAL,
     )
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
     for level_p in range(len(quad.level_indices)):
         for sign in (+1, -1):
             twin = list(
-                sn_mesh.dag_walk_cell_indices(
+                problem.dag_walk_cell_indices(
                     direction_sign=sign, mu_level_idx=level_p,
                 )
             )
             canonical = [
                 v.cell_idx
-                for v in sn_mesh.dag_walk(
+                for v in problem.dag_walk(
                     direction_sign=sign, mu_level_idx=level_p,
                 )
             ]
@@ -185,7 +185,7 @@ def test_dag_walk_cylindrical_per_level_matches():
         coord=CoordSystem.CYLINDRICAL,
     )
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
 
     level_indices = quad.level_indices
     for level_p in range(len(level_indices)):
@@ -205,14 +205,14 @@ def test_dag_walk_cylindrical_per_level_matches():
                 continue
             seq_by_dir = [
                 v.cell_idx
-                for v in sn_mesh.dag_walk(
+                for v in problem.dag_walk(
                     direction_sign=sign, mu_level_idx=level_p,
                 )
             ]
             for within in matches:
                 seq_by_ord = [
                     v.cell_idx
-                    for v in sn_mesh.dag_walk(
+                    for v in problem.dag_walk(
                         ordinate_idx=int(within),
                         mu_level_idx=level_p,
                     )
@@ -231,11 +231,11 @@ def test_dag_walk_invalid_sign_raises():
         coord=CoordSystem.SPHERICAL,
     )
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
     with pytest.raises(ValueError, match="direction_sign"):
-        list(sn_mesh.dag_walk(direction_sign=0))
+        list(problem.dag_walk(direction_sign=0))
     with pytest.raises(ValueError, match="direction_sign"):
-        list(sn_mesh.dag_walk(direction_sign=2))
+        list(problem.dag_walk(direction_sign=2))
 
 
 @pytest.mark.foundation
@@ -246,9 +246,9 @@ def test_dag_walk_cylindrical_requires_level():
         coord=CoordSystem.CYLINDRICAL,
     )
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
     with pytest.raises(ValueError, match="mu_level_idx"):
-        list(sn_mesh.dag_walk(direction_sign=+1))
+        list(problem.dag_walk(direction_sign=+1))
 
 
 @pytest.mark.foundation
@@ -260,10 +260,10 @@ def test_dag_walk_xor_signature_enforced():
         coord=CoordSystem.SPHERICAL,
     )
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
     # Neither supplied → ValueError.
     with pytest.raises(ValueError, match="exactly one"):
-        list(sn_mesh.dag_walk())
+        list(problem.dag_walk())
     # Both supplied → ValueError.
     with pytest.raises(ValueError, match="exactly one"):
-        list(sn_mesh.dag_walk(ordinate_idx=0, direction_sign=+1))
+        list(problem.dag_walk(ordinate_idx=0, direction_sign=+1))

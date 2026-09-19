@@ -115,11 +115,11 @@ def _vacuum_2d(nx: int = 4, ny: int = 4) -> SNProblem:
     return SNProblem(geom, quad, {0: get_mixture("A", "2g")})
 
 
-def _sigt_2g(sn_mesh: SNProblem) -> np.ndarray:
+def _sigt_2g(problem: SNProblem) -> np.ndarray:
     """Per-cell per-group total cross-section field ``(ng, nx, ny)`` for mix A 2g."""
     mix = get_mixture("A", "2g")
     ng = mix.SigT.size
-    nx, ny = sn_mesh.spatial_shape
+    nx, ny = problem.spatial_shape
     return np.broadcast_to(mix.SigT[:, None, None], (ng, nx, ny)).copy()
 
 
@@ -171,13 +171,13 @@ class TestVacuum2DBitIdentity:
         reference: the pure-L bulk must not move a single bit vs the frozen
         value for any future refactor.
         """
-        sn_mesh = _vacuum_2d(nx=4, ny=4)
-        sig_t = _sigt_2g(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
+        problem = _vacuum_2d(nx=4, ny=4)
+        sig_t = _sigt_2g(problem)
+        L = StreamingOperator.pose(problem)
 
         rng = np.random.default_rng(20260603 + seed)
         state = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
         )
         state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
         # vacuum: no incoming inflow trace (boundary stays zero).
@@ -200,7 +200,7 @@ class TestVacuum2DBitIdentity:
             # streaming_action is O(1)-relative and trips this assert long
             # before the bytes are frozen — the re-baseline is NOT
             # self-referential ("freeze whatever pure-L emits") by construction.
-            composite = (L + MultiplicationOperator.from_mesh(sig_t, sn_mesh)).apply(state)
+            composite = (L + MultiplicationOperator.from_mesh(sig_t, problem)).apply(state)
             structural_ground = (
                 composite.interior.values - sig_t[None] * state.interior.values
             )
@@ -263,21 +263,21 @@ class TestStreamingEquilibrium2D:
     """
 
     def _build_flat_state(
-        self, sn_mesh: SNProblem, phi: np.ndarray, W: float,
+        self, problem: SNProblem, phi: np.ndarray, W: float,
     ) -> TimedFullField:
         """Flat ψ_n,g = φ_g/W everywhere, with a consistent uniform trace."""
-        N = sn_mesh.quad.N
+        N = problem.quad.N
         ng = phi.size
-        nx, ny = sn_mesh.spatial_shape
+        nx, ny = problem.spatial_shape
         state = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
         )
         state.interior.values[...] = (phi / W)[None, :, None, None] * np.ones(
             (N, ng, nx, ny)
         )
         # Consistent reflective trace: every boundary face carries ψ_n,g = φ_g/W
         # (the reflection of a spatially-flat field is itself).
-        for face in sn_mesh.angular_trace.face_names:
+        for face in problem.angular_trace.face_names:
             fv = state.boundary.face_view(face)
             for g in range(ng):
                 fv[:, g, :] = phi[g] / W
@@ -293,10 +293,10 @@ class TestStreamingEquilibrium2D:
         sum).  Pure-attenuation ⇒ no scattering operator in the residual; the
         closed form ``φ = Q/Σ_t`` is exact.
         """
-        sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
-        quad = sn_mesh.quad
+        problem = _homogeneous_reflective_2d(nx=4, ny=4)
+        quad = problem.quad
         N, ng = quad.N, 2
-        nx, ny = sn_mesh.spatial_shape
+        nx, ny = problem.spatial_shape
         W = float(quad.weights.sum())
 
         # Pure attenuation: treat Σ_t as the full collision (Σ_s = 0 in the
@@ -309,11 +309,11 @@ class TestStreamingEquilibrium2D:
         Q_scalar = np.array([2.0, 3.0])
         phi = Q_scalar / np.array([0.5, 1.0])  # φ_g = Q_g/Σ_{t,g}
 
-        state = self._build_flat_state(sn_mesh, phi, W)
+        state = self._build_flat_state(problem, phi, W)
 
-        L = StreamingOperator.pose(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
-        B = SNBoundaryOperator(sn_mesh)
+        L = StreamingOperator.pose(problem)
+        C = MultiplicationOperator.from_mesh(sig_t, problem)
+        B = SNBoundaryOperator(problem)
 
         l_bulk = L.apply(state).interior.values
         c_bulk = C.apply(state).interior.values
@@ -344,10 +344,10 @@ class TestStreamingEquilibrium2D:
         ``max(residual over boundary cells) ≤ 2× median(interior-cell
         residual)`` (the 2-D analogue of the curvilinear pole-spike detector).
         """
-        sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
-        quad = sn_mesh.quad
+        problem = _homogeneous_reflective_2d(nx=4, ny=4)
+        quad = problem.quad
         N, ng = quad.N, 2
-        nx, ny = sn_mesh.spatial_shape
+        nx, ny = problem.spatial_shape
         W = float(quad.weights.sum())
 
         sig_t = np.zeros((ng, nx, ny))
@@ -356,10 +356,10 @@ class TestStreamingEquilibrium2D:
         Q_scalar = np.array([2.0, 3.0])
         phi = Q_scalar / np.array([0.5, 1.0])
 
-        state = self._build_flat_state(sn_mesh, phi, W)
-        L = StreamingOperator.pose(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
-        B = SNBoundaryOperator(sn_mesh)
+        state = self._build_flat_state(problem, phi, W)
+        L = StreamingOperator.pose(problem)
+        C = MultiplicationOperator.from_mesh(sig_t, problem)
+        B = SNBoundaryOperator(problem)
 
         Qn = (Q_scalar / W)[None, :, None, None] * np.ones((N, ng, nx, ny))
         resid = (
@@ -424,12 +424,12 @@ class TestBoundaryResidual2DDrivesToZero:
         """
         from orpheus.sn.solver import solve_sn
 
-        sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
+        problem = _homogeneous_reflective_2d(nx=4, ny=4)
         solver_tol = 1e-10
         res = solve_sn(
             materials={0: get_mixture("A", "2g")},
-            mesh=sn_mesh.mesh,
-            quadrature=sn_mesh.quad,
+            mesh=problem.mesh,
+            quadrature=problem.quad,
             inner_solver="krylov",
             keff_tol=solver_tol, flux_tol=solver_tol,
             max_outer=200, max_inner=200,
@@ -496,10 +496,10 @@ class TestBoundaryResidual2DResponds:
     ``ψ.inflow``, structurally independent of the outflow).
     """
 
-    def _perturbable_state(self, sn_mesh: SNProblem, seed: int) -> TimedFullField:
+    def _perturbable_state(self, problem: SNProblem, seed: int) -> TimedFullField:
         rng = np.random.default_rng(seed)
         state = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
         )
         state.interior.values[...] = rng.standard_normal(state.interior.values.shape)
         state.boundary.values[...] = rng.standard_normal(
@@ -507,9 +507,9 @@ class TestBoundaryResidual2DResponds:
         )
         return state
 
-    def _copy_state(self, src: TimedFullField, sn_mesh: SNProblem) -> TimedFullField:
+    def _copy_state(self, src: TimedFullField, problem: SNProblem) -> TimedFullField:
         dst = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
         )
         dst.interior.values[...] = src.interior.values
         dst.boundary.values[...] = src.boundary.values
@@ -525,13 +525,13 @@ class TestBoundaryResidual2DResponds:
           (2) the boundary-ring bulk responds (> 1e-9) — the inflow feeds the
               wavefront, so the residual is genuinely active.
         """
-        sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
-        sig_t = _sigt_2g(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
-        trace = sn_mesh.angular_trace
+        problem = _homogeneous_reflective_2d(nx=4, ny=4)
+        sig_t = _sigt_2g(problem)
+        L = StreamingOperator.pose(problem)
+        trace = problem.angular_trace
 
-        base = self._perturbable_state(sn_mesh, seed=7)
-        pert = self._copy_state(base, sn_mesh)
+        base = self._perturbable_state(problem, seed=7)
+        pert = self._copy_state(base, problem)
         delta = 0.37
         in_idx = trace.inflow_indices_for_face("xmin")
         pert.boundary.face_view("xmin")[in_idx] += delta
@@ -573,13 +573,13 @@ class TestBoundaryResidual2DResponds:
         in :meth:`test_inflow_perturbation_moves_residual` is SPECIFIC to the
         inflow (not a global "everything moves" artefact).
         """
-        sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
-        sig_t = _sigt_2g(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
-        trace = sn_mesh.angular_trace
+        problem = _homogeneous_reflective_2d(nx=4, ny=4)
+        sig_t = _sigt_2g(problem)
+        L = StreamingOperator.pose(problem)
+        trace = problem.angular_trace
 
-        base = self._perturbable_state(sn_mesh, seed=7)
-        pert = self._copy_state(base, sn_mesh)
+        base = self._perturbable_state(problem, seed=7)
+        pert = self._copy_state(base, problem)
         delta = 0.37
         in_idx = trace.inflow_indices_for_face("xmin")
         out_idx = trace.outflow_indices_for_face("xmin")

@@ -60,15 +60,15 @@ def _slab(bc_left: str = "vacuum", bc_right: str = "vacuum") -> SNProblem:
     )
 
 
-def _reference_inputs(sn_mesh: SNProblem):
+def _reference_inputs(problem: SNProblem):
     """The reference builder's per-group inputs, gathered the same way
     the production build gathers them (data path shared; the FORMULAS
     are what the tie discriminates)."""
-    h = np.diff(np.asarray(getattr(sn_mesh.mesh, "edges"), float))
-    xs = sn_mesh.mat_xs
+    h = np.diff(np.asarray(getattr(problem.mesh, "edges"), float))
+    xs = problem.mat_xs
     sigma_t = np.asarray(xs.total_cross_section_field.values, float)
     ng = sigma_t.shape[0]
-    mat_ids = np.asarray(sn_mesh.mat_map, int).ravel()
+    mat_ids = np.asarray(problem.mat_map, int).ravel()
     fold = xs.foldable_sigma()
     sigma_s0 = np.stack([fold[int(m)] for m in mat_ids], axis=1)
     residual = xs.residual_sig_s()
@@ -81,8 +81,8 @@ def _reference_inputs(sn_mesh: SNProblem):
         for mid, mats in residual.items()
     }
     sigma_s1 = np.stack([s1[int(m)] for m in mat_ids], axis=1)
-    mu = np.asarray(sn_mesh.quad.mu_x, float)
-    w = np.asarray(sn_mesh.quad.weights, float)
+    mu = np.asarray(problem.quad.mu_x, float)
+    w = np.asarray(problem.quad.weights, float)
     return h, sigma_t, sigma_s0, sigma_s1, mu, w
 
 
@@ -97,9 +97,9 @@ class TestProductionTie:
         """At ``scattering_order=1`` so the mixtures' real P1 rows
         exercise the (23c) transport-corrected D, not the bare-P0
         coincidence."""
-        sn_mesh = _slab(*bc)
-        system = DSALowOrderSystem.from_sn_mesh(sn_mesh.with_scattering_order(1))
-        h, sigma_t, sigma_s0, sigma_s1, mu, w = _reference_inputs(sn_mesh)
+        problem = _slab(*bc)
+        system = DSALowOrderSystem.from_sn_mesh(problem.with_scattering_order(1))
+        h, sigma_t, sigma_s0, sigma_s1, mu, w = _reference_inputs(problem)
         for g in range(sigma_t.shape[0]):
             a_ref, g_ref = dsa_reference.build_consistent_dd_system(
                 h, sigma_t[g], sigma_s0[g], sigma_s1[g], mu, w, bc=bc
@@ -116,9 +116,9 @@ class TestProductionTie:
     def test_solve_correction_realizes_the_reference_solve(self):
         """f0 = A⁻¹(G d) and the (28a) cell average, against a direct
         dense solve of the reference system."""
-        sn_mesh = _slab()
-        system = DSALowOrderSystem.from_sn_mesh(sn_mesh.with_scattering_order(1))
-        h, sigma_t, sigma_s0, sigma_s1, mu, w = _reference_inputs(sn_mesh)
+        problem = _slab()
+        system = DSALowOrderSystem.from_sn_mesh(problem.with_scattering_order(1))
+        h, sigma_t, sigma_s0, sigma_s1, mu, w = _reference_inputs(problem)
         rng = np.random.default_rng(7)
         d0 = rng.standard_normal((sigma_t.shape[0], h.shape[0]))
         f0 = system.solve_correction(d0)
@@ -185,18 +185,18 @@ class TestAdmissionTeeth:
             bc_left=BC("vacuum"),
             bc_right=BC("vacuum"),
         )
-        sn_mesh = SNProblem(
+        problem = SNProblem(
             mesh1d,
             Quadrature.gauss_legendre(n_ordinates=4),
             {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
             scheme=LinearDiscontinuous(),
         )
         with pytest.raises(NotImplementedError, match="diamond"):
-            DSALowOrderSystem.from_sn_mesh(sn_mesh)
+            DSALowOrderSystem.from_sn_mesh(problem)
 
     def test_quadrature_convention_guard_fires(self):
-        sn_mesh = _slab()
-        h, sigma_t, sigma_s0, sigma_s1, mu, w = _reference_inputs(sn_mesh)
+        problem = _slab()
+        h, sigma_t, sigma_s0, sigma_s1, mu, w = _reference_inputs(problem)
         with pytest.raises(ValueError, match="Σw = 2"):
             DSALowOrderSystem._build(
                 h, sigma_t, sigma_s0, sigma_s1, mu, w / 2.0,
@@ -204,8 +204,8 @@ class TestAdmissionTeeth:
             )
 
     def test_d_positivity_guard_fires(self):
-        sn_mesh = _slab()
-        h, sigma_t, sigma_s0, _sigma_s1, mu, w = _reference_inputs(sn_mesh)
+        problem = _slab()
+        h, sigma_t, sigma_s0, _sigma_s1, mu, w = _reference_inputs(problem)
         bad_s1 = np.full_like(sigma_t, 2.0) * sigma_t  # σ_s1 > σ_t
         with pytest.raises(ValueError, match="positive"):
             DSALowOrderSystem._build(
@@ -219,20 +219,20 @@ class TestRestrictionProlongation:
 
     @pytest.fixture()
     def psi(self):
-        sn_mesh = _slab()
+        problem = _slab()
         rng = np.random.default_rng(11)
         values = rng.standard_normal((4, 2, 4))
         # CS4b S4: the field no longer carries the mesh — the tests that
         # need carrier data receive the pair.
-        return sn_mesh, AngularFlux(values=values, space=sn_mesh.angular_bulk_space)
+        return problem, AngularFlux(values=values, space=problem.angular_bulk_space)
 
     @pytest.mark.verifies("sn-dsa-restriction")
     def test_d7_restriction_conserves_particles(self, psi):
         r"""⟨1, R r⟩ = ⟨1, r⟩ — hand-posed with explicit w_n and V_i
         (structurally independent of the einsum body)."""
-        sn_mesh, psi = psi
-        w = np.asarray(sn_mesh.quad.weights, float)
-        volumes = np.diff(np.asarray(sn_mesh.mesh.edges, float))
+        problem, psi = psi
+        w = np.asarray(problem.quad.weights, float)
+        volumes = np.diff(np.asarray(problem.mesh.edges, float))
         reduced = psi.integrate_angular().values  # (ng, nx)
         lhs = 0.0
         rhs = 0.0
@@ -248,11 +248,11 @@ class TestRestrictionProlongation:
         r"""``integrate_angular`` ≡ the ℓ=0 analysis row of
         ``Quadrature.angular_frame(0)`` (Y⁰₀ = 1 under the no-prefactor
         SH convention ⟹ the row IS the weight vector) — 0-ULP."""
-        sn_mesh, psi = psi
-        frame = sn_mesh.quad.angular_frame(0)
+        problem, psi = psi
+        frame = problem.quad.angular_frame(0)
         table = np.asarray(frame.table)  # (N, 1, 1); Y00 ≡ 1
         np.testing.assert_array_equal(table.ravel(), np.ones(4))
-        w = np.asarray(sn_mesh.quad.weights, float)
+        w = np.asarray(problem.quad.weights, float)
         frame_row = np.einsum("n,ng...->g...", w * table.ravel(), psi.values)
         np.testing.assert_array_equal(
             psi.integrate_angular().values, frame_row,
@@ -262,11 +262,11 @@ class TestRestrictionProlongation:
         r"""R ∘ P = I exactly: the normalized isotropic injection's
         moment-0 reproduces the input scalar values (Σ w · (x/Σw) = x
         up to one product-sum; pinned at 1-ULP-scale rtol)."""
-        sn_mesh, psi = psi
-        corr = DSACorrection.from_sn_mesh(sn_mesh)
+        problem, psi = psi
+        corr = DSACorrection.from_sn_mesh(problem)
         phi = psi.integrate_angular().values
-        sum_w = float(np.asarray(sn_mesh.quad.weights).sum())
-        injected = AngularFlux(values=np.broadcast_to(phi[None] / sum_w, psi.values.shape).copy(), space=sn_mesh.angular_bulk_space)
+        sum_w = float(np.asarray(problem.quad.weights).sum())
+        injected = AngularFlux(values=np.broadcast_to(phi[None] / sum_w, psi.values.shape).copy(), space=problem.angular_bulk_space)
         np.testing.assert_allclose(
             injected.integrate_angular().values, phi, rtol=1e-15, atol=0,
         )
@@ -283,7 +283,7 @@ class TestApplyAdmission:
     refuses a moment-windowed carrier by name.
     """
 
-    def _increment(self, sn_mesh, seed=5):
+    def _increment(self, problem, seed=5):
         from orpheus.transport.full_field import FullField
         from orpheus.transport.fields.angular_boundary_flux import (
             AngularBoundaryFlux,
@@ -292,9 +292,9 @@ class TestApplyAdmission:
         rng = np.random.default_rng(seed)
         return FullField(
             interior=AngularFlux(values=rng.standard_normal(
-                    (sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)
-                ), space=sn_mesh.angular_bulk_space),
-            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+                    (problem.quad.N, problem.ng, *problem.spatial_shape)
+                ), space=problem.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
         )
 
     def test_moment_windowed_interior_refuses(self):
@@ -308,20 +308,20 @@ class TestApplyAdmission:
             HarmonicMomentFlux,
         )
 
-        sn_mesh = _slab()
-        corrector = DSACorrection.from_sn_mesh(sn_mesh)
+        problem = _slab()
+        corrector = DSACorrection.from_sn_mesh(problem)
         L = 1
         # the angular head is READ off the frame (#429): the slab's is FLAT.
         shape = (
-            *sn_mesh.quad.angular_frame(L).basis.space.shape,
-            sn_mesh.ng,
-            *sn_mesh.spatial_shape,
+            *problem.quad.angular_frame(L).basis.space.shape,
+            problem.ng,
+            *problem.spatial_shape,
         )
         windowed = FullField(
             interior=HarmonicMomentFlux.from_mesh_and_L(
-                np.ones(shape), sn_mesh, L
+                np.ones(shape), problem, L
             ),
-            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+            boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
         )
         with pytest.raises(TypeError, match="moment-windowed"):
             corrector.apply(windowed)
@@ -342,9 +342,9 @@ class TestApplyAdmission:
         )
 
         for bcs in [("vacuum", "vacuum"), ("reflective", "vacuum")]:
-            sn_mesh = _slab(*bcs)
-            corrector = DSACorrection.from_sn_mesh(sn_mesh)
-            out = corrector.apply(self._increment(sn_mesh))
+            problem = _slab(*bcs)
+            corrector = DSACorrection.from_sn_mesh(problem)
+            out = corrector.apply(self._increment(problem))
             if type(out.interior) is not AngularFlux:
                 pytest.fail(
                     f"{bcs}: correction interior is "

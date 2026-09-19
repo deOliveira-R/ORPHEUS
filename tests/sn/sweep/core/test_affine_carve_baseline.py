@@ -265,22 +265,22 @@ class TestAffineCarveSweepBaseline:
         ``scalar_flux`` adds the ``N``-ordinate weight sum on top of the
         ``nx`` scan → ``reduction_depth = nx + N``.
         """
-        sn_mesh = _build_sn_mesh(geometry)
-        N = sn_mesh.quad.N
-        ng = sn_mesh.ng
-        nx = sn_mesh.nx
+        problem = _build_sn_mesh(geometry)
+        N = problem.quad.N
+        ng = problem.ng
+        nx = problem.nx
 
         # Heterogeneous σ_t (per-group, per-cell) and a fixed-seed random
         # per-ordinate source.  Distinct seed from the matvec leg so the
         # two legs are independent stressors.
         rng = np.random.default_rng(20260614)
-        sig_t = rng.uniform(0.3, 3.0, size=(ng, *sn_mesh.spatial_shape))
-        q_values = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
-        source = AngularSourceSink(values=q_values, space=sn_mesh.angular_bulk_space)
-        boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+        sig_t = rng.uniform(0.3, 3.0, size=(ng, *problem.spatial_shape))
+        q_values = rng.standard_normal((N, ng, *problem.spatial_shape))
+        source = AngularSourceSink(values=q_values, space=problem.angular_bulk_space)
+        boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
 
         angular_flux, scalar_flux = sweep_once(
-            source, sig_t, sn_mesh, boundary,
+            source, sig_t, problem, boundary,
         )
 
         captured = _capture_or_assert(
@@ -328,8 +328,8 @@ class TestAffineCarveMatvecBaseline:
         per-cell WDD recurrence ``psi_face_in = 2·psi_cell − psi_face_in``)
         → ``reduction_depth = nx``.
         """
-        sn_mesh = _build_sn_mesh(geometry)
-        nx = sn_mesh.nx
+        problem = _build_sn_mesh(geometry)
+        nx = problem.nx
 
         # het_operands: heterogeneous σ_t (fixed seed) + non-flat random
         # bulk AND boundary trace (every term activated).  A reflective
@@ -338,9 +338,9 @@ class TestAffineCarveMatvecBaseline:
         # the carrying sphere (the SAME rng draws as the frozen baseline,
         # so the walk sees bit-identical inputs; the F4 six-signature
         # catcher).
-        sig_t, psi, seed = het_operands(sn_mesh)
-        L = StreamingOperator.pose(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
+        sig_t, psi, seed = het_operands(problem)
+        L = StreamingOperator.pose(problem)
+        C = MultiplicationOperator.from_mesh(sig_t, problem)
         if seed is None:
             out = (L + C).apply(psi)
         else:
@@ -349,7 +349,7 @@ class TestAffineCarveMatvecBaseline:
 
             from tests.sn._test_helpers import joint_m_grid
 
-            grid, _space = joint_m_grid(sn_mesh, L + C)
+            grid, _space = joint_m_grid(problem, L + C)
             out = grid.apply(
                 CoupledField(systems=(psi, seed)),
             ).systems[0]

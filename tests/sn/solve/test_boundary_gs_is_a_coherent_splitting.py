@@ -118,7 +118,7 @@ def test_both_schedules_are_splittings_of_the_SAME_A(
     per-face partition gate over in ``test_gauss_seidel_reification.py`` stays
     green, because ``B`` itself is untouched.
     """
-    sn_mesh, system, template = build(cells, bcs, mixture)
+    problem, system, template = build(cells, bcs, mixture)
     dense_a = assemble(loss_matvec(system), template)
     scattering, n2n, boundary = (
         system.factors.scattering, system.factors.n2n, system.factors.boundary,
@@ -134,7 +134,7 @@ def test_both_schedules_are_splittings_of_the_SAME_A(
     )
 
     for schedule in ("jacobi", "gauss_seidel"):
-        base, gains = select_splitting(system, sn_mesh, schedule)
+        base, gains = select_splitting(system, problem, schedule)
         dense_m = assemble(lambda x: base.apply(x), template)
         dense_n = assemble(gains_matvec(gains), template)
         assert np.array_equal(dense_m - dense_n, dense_a), (
@@ -173,12 +173,12 @@ def test_the_gauss_seidel_inverse_is_exact_on_the_DRIVER_RHS_subspace():
     ``1.0`` — the first assertion reds, and the round-trip defect on the
     lower-coupled inflow rows rises to O(1).
     """
-    sn_mesh, system, template = build(_CELLS, [(_R, _R)] * 2, absorber(2))
+    problem, system, template = build(_CELLS, [(_R, _R)] * 2, absorber(2))
     n_dof = template.to_flat().size
     n_bulk = template.interior.values.size
 
-    omega_dot_n = np.asarray(sn_mesh.angular_trace.omega_dot_n)
-    layout = sn_mesh.angular_trace.layout
+    omega_dot_n = np.asarray(problem.angular_trace.omega_dot_n)
+    layout = problem.angular_trace.layout
     outflow = np.zeros(n_dof, dtype=bool)
     for index, face in enumerate(layout.faces):
         slot = layout.faces[face]
@@ -189,12 +189,12 @@ def test_the_gauss_seidel_inverse_is_exact_on_the_DRIVER_RHS_subspace():
                 outflow[start:start + per_ordinate] = True
     assert outflow.any(), "no outflow rows — the subspace claim is vacuous"
 
-    base, gains = select_splitting(system, sn_mesh, "gauss_seidel")
+    base, gains = select_splitting(system, problem, "gauss_seidel")
     dense_m = assemble(lambda x: base.apply(x), template)
     dense_n = assemble(gains_matvec(gains), template)
     inverse = base.inverse()
     zero = type(template).from_flat(np.zeros(n_dof), template)
-    source = isotropic_source(sn_mesh, template).to_flat()
+    source = isotropic_source(problem, template).to_flat()
 
     generator = np.random.default_rng(1)
     for draw in range(3):
@@ -233,7 +233,7 @@ _KERNEL_FREE = {
 
 
 def _kernel_free(label):
-    """``(sn_mesh, system, template, null basis)`` for one removal mechanism.
+    """``(problem, system, template, null basis)`` for one removal mechanism.
 
     The LD row routes through :func:`~tests.sn._singular_loss_box.ld_reflective_box`
     so its ``[M]`` 10.8 s assembly is shared with the operator-tier gate that
@@ -241,10 +241,10 @@ def _kernel_free(label):
     """
     cells, bcs, tag = _KERNEL_FREE[label]
     if tag == "LD":
-        sn_mesh, system, template, _dense, basis, _s = ld_reflective_box(cells)
-        return sn_mesh, system, template, basis
-    sn_mesh, system, template = build(cells, bcs, scatterer())
-    return (sn_mesh, system, template,
+        problem, system, template, _dense, basis, _s = ld_reflective_box(cells)
+        return problem, system, template, basis
+    problem, system, template = build(cells, bcs, scatterer())
+    return (problem, system, template,
             null_basis(assemble(loss_matvec(system), template))[0])
 
 
@@ -276,7 +276,7 @@ def test_kernel_free_configs_give_the_SAME_TRACE_under_both_schedules(label):
 
     Teeth: :func:`test_the_err056_first_group_reflect_mutation_reddens_this`.
     """
-    sn_mesh, system, template, basis = _kernel_free(label)
+    problem, system, template, basis = _kernel_free(label)
     assert basis.shape[1] == 0, (
         f"{label} is NOT kernel-free (dim ker A = {basis.shape[1]}) — it "
         f"cannot serve as the coherence control, because a disagreement would "
@@ -284,7 +284,7 @@ def test_kernel_free_configs_give_the_SAME_TRACE_under_both_schedules(label):
     )
 
     n_bulk = template.interior.values.size
-    iterates = both_drivers(sn_mesh, system, template)
+    iterates = both_drivers(problem, system, template)
     difference = iterates["gauss_seidel"] - iterates["jacobi"]
     reference = iterates["jacobi"]
     trace = float(np.max(np.abs(difference[n_bulk:]))
@@ -329,9 +329,9 @@ def test_the_err056_first_group_reflect_mutation_reddens_this(monkeypatch):
     from orpheus.sn.loss_representation import sweep_schedule as schedules
 
     label = "x vacuum"
-    sn_mesh, system, template, _basis = _kernel_free(label)
+    problem, system, template, _basis = _kernel_free(label)
     n_bulk = template.interior.values.size
-    baseline = both_drivers(sn_mesh, system, template)
+    baseline = both_drivers(problem, system, template)
     baseline_trace = float(
         np.max(np.abs(baseline["gauss_seidel"][n_bulk:]
                       - baseline["jacobi"][n_bulk:]))
@@ -371,11 +371,11 @@ def test_the_err056_first_group_reflect_mutation_reddens_this(monkeypatch):
 
     shipped = tuple(group.reflect_faces for group
                     in schedules.SweepSchedule.gauss_seidel(
-                        sn_mesh.ndim, sn_mesh.quad.octants,
-                        schedules.reflective_faces(sn_mesh)).groups)
+                        problem.ndim, problem.quad.octants,
+                        schedules.reflective_faces(problem)).groups)
     mutated = tuple(group.reflect_faces for group in first_group_gauss_seidel(
-        schedules.SweepSchedule, sn_mesh.ndim, sn_mesh.quad.octants,
-        schedules.reflective_faces(sn_mesh)).groups)
+        schedules.SweepSchedule, problem.ndim, problem.quad.octants,
+        schedules.reflective_faces(problem)).groups)
     assert shipped != mutated, (
         f"the ERR-056 mutation did not change the schedule ({shipped}) — the "
         f"control is inert, so it certifies nothing about the gate above"
@@ -383,7 +383,7 @@ def test_the_err056_first_group_reflect_mutation_reddens_this(monkeypatch):
 
     monkeypatch.setattr(schedules.SweepSchedule, "gauss_seidel",
                         classmethod(first_group_gauss_seidel))
-    broken = both_drivers(sn_mesh, system, template)
+    broken = both_drivers(problem, system, template)
     monkeypatch.undo()
 
     broken_trace = float(
@@ -400,7 +400,7 @@ def test_the_err056_first_group_reflect_mutation_reddens_this(monkeypatch):
         f"is a dud and every coherence green in this module is uninformative"
     )
 
-    restored = both_drivers(sn_mesh, system, template)
+    restored = both_drivers(problem, system, template)
     assert np.array_equal(restored["gauss_seidel"],
                           baseline["gauss_seidel"]), (
         "the schedule monkeypatch did not revert cleanly — every later test "
@@ -411,10 +411,10 @@ def test_the_err056_first_group_reflect_mutation_reddens_this(monkeypatch):
 # ─────────────────────────────────────────────────────────────────────
 # 3. neither convergence functional can see the kernel
 # ─────────────────────────────────────────────────────────────────────
-def _balance(flat, template, sn_mesh) -> float:
+def _balance(flat, template, problem) -> float:
     """The production balance projection's norm on a flat state."""
     return float(np.linalg.norm(np.asarray(_balance_projection(
-        type(template).from_flat(flat, template), sn_mesh=sn_mesh))))
+        type(template).from_flat(flat, template), problem=problem))))
 
 
 @pytest.mark.verifies("sn-loss-kernel-gauge-projection")
@@ -456,7 +456,7 @@ def test_two_cold_starts_a_KERNEL_APART_report_the_SAME_certificate():
     vector. The splitting's own manifold selection is a different claim, gated
     by :func:`test_the_UNGAUGED_SI_driver_returns_a_splitting_dependent_trace`.
     """
-    sn_mesh, system, template, n_dof, n_bulk, source, _exact = (
+    problem, system, template, n_dof, n_bulk, source, _exact = (
         uniform_source_fixture(_CELLS))
     basis, _singular = null_basis(assemble(loss_matvec(system), template))
     assert basis.shape[1] > 0, "fixture is no longer singular"
@@ -470,14 +470,14 @@ def test_two_cold_starts_a_KERNEL_APART_report_the_SAME_certificate():
     )
     # Scale to a trace perturbation of ~11 %, the magnitude #344 reports.
     reference = float(np.max(np.abs(
-        drive(system, sn_mesh, template, source, "jacobi")[n_bulk:])))
+        drive(system, problem, template, source, "jacobi")[n_bulk:])))
     kernel_start *= 0.1126 * reference / float(
         np.max(np.abs(kernel_start[n_bulk:])))
 
     cold, cold_record = drive_recorded(
-        system, sn_mesh, template, source, "jacobi")
+        system, problem, template, source, "jacobi")
     shifted, shifted_record = drive_recorded(
-        system, sn_mesh, template, source, "jacobi", initial=kernel_start)
+        system, problem, template, source, "jacobi", initial=kernel_start)
 
     def final_residual(record):
         criterion = record.binding_criterion
@@ -500,11 +500,11 @@ def test_two_cold_starts_a_KERNEL_APART_report_the_SAME_certificate():
         f"{final_residual(cold_record):.6e} vs "
         f"{final_residual(shifted_record):.6e}"
     )
-    assert _balance(cold, template, sn_mesh) == pytest.approx(
-        _balance(shifted, template, sn_mesh), abs=1e-11), (
+    assert _balance(cold, template, problem) == pytest.approx(
+        _balance(shifted, template, problem), abs=1e-11), (
         f"the balance projection saw the kernel shift: "
-        f"{_balance(cold, template, sn_mesh):.6e} vs "
-        f"{_balance(shifted, template, sn_mesh):.6e}"
+        f"{_balance(cold, template, problem):.6e} vs "
+        f"{_balance(shifted, template, problem):.6e}"
     )
     bulk = float(np.max(np.abs(cold[:n_bulk] - shifted[:n_bulk]))
                  / np.max(np.abs(cold[:n_bulk])))
@@ -591,13 +591,13 @@ def test_the_UNGAUGED_SI_driver_returns_a_splitting_dependent_trace(cells):
     fixed point — there is a manifold — so that guarantee is void, and this
     records the void rather than reading it as a failure.
     """
-    sn_mesh, system, template, _n, n_bulk, source, exact = (
+    problem, system, template, _n, n_bulk, source, exact = (
         uniform_source_fixture(cells))
     apply_loss = loss_matvec(system)
 
     readings = {}
     for schedule in ("gauss_seidel", "jacobi"):
-        iterate = drive(system, sn_mesh, template, source, schedule)
+        iterate = drive(system, problem, template, source, schedule)
         difference = iterate - exact
         readings[schedule] = (
             float(np.max(np.abs(difference[n_bulk:] / exact[n_bulk:]))),
@@ -740,9 +740,9 @@ def test_the_UNGAUGED_gauss_seidel_driver_trace_error_is_first_order_in_h():
     ladder = (3, 5, 7)
     products = []
     for n_cells in ladder:
-        sn_mesh, system, template, _n, n_bulk, source, exact = (
+        problem, system, template, _n, n_bulk, source, exact = (
             uniform_source_fixture((n_cells, n_cells)))
-        iterate = drive(system, sn_mesh, template, source, "gauss_seidel")
+        iterate = drive(system, problem, template, source, "gauss_seidel")
         deviation = float(np.max(np.abs(
             (iterate[n_bulk:] - exact[n_bulk:]) / exact[n_bulk:])))
         products.append(deviation * n_cells)

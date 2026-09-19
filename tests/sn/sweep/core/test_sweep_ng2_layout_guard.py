@@ -67,7 +67,7 @@ def test_sweep_ng2_layout_shapes():
     nx = 10
     mesh = _slab_1d(nx)
     quad = Quadrature.gauss_legendre(8)
-    sn_mesh = SNProblem(mesh, quad, {0: mix})
+    problem = SNProblem(mesh, quad, {0: mix})
 
     # Principled rank-d inputs: sig_t (ng, nx), isotropic scalar source
     # (ng, nx). A producer/consumer drift to the obsolete (nx, ng) layout
@@ -75,10 +75,10 @@ def test_sweep_ng2_layout_shapes():
     # CollisionCache.from_geometry and crash loudly here.
     sig_t = np.broadcast_to(mix.SigT[:, None], (ng, nx)).copy()
     Q_iso = np.ones((ng, nx))
-    source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-    boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    source = AngularSourceSink.from_isotropic(Q_iso, problem)
+    boundary_flux = AngularBoundaryFlux.zeros(problem.angular_trace)
 
-    ang, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
+    ang, phi = sweep_once(source, sig_t, problem, boundary_flux)
 
     assert ang.shape == (quad.N, ng, nx), (
         f"angular flux layout drift: got {ang.shape}, "
@@ -106,20 +106,20 @@ def test_sweep_ng2_per_group_distinct():
     nx = 4
     mesh = _slab_1d(nx)
     quad = Quadrature.gauss_legendre(8)
-    sn_mesh = SNProblem(mesh, quad, {0: mix})
+    problem = SNProblem(mesh, quad, {0: mix})
 
     sig_t = np.broadcast_to(mix.SigT[:, None], (ng, nx)).copy()
     Q_iso = np.ones((ng, nx))
-    source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-    boundary_flux = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    source = AngularSourceSink.from_isotropic(Q_iso, problem)
+    boundary_flux = AngularBoundaryFlux.zeros(problem.angular_trace)
 
     phi = None
     for _ in range(200):
         # Wave O (#208) O.4a.2 — bare sweep: drive the −B reflective coupling
         # explicitly before each sweep (the sweep no longer re-applies the BC
         # at entry; the no-leakage equilibrium φ_g = Q_g/Σ_t,g needs it).
-        reflect_outflow_into_inflow(boundary_flux, sn_mesh)
-        _, phi = sweep_once(source, sig_t, sn_mesh, boundary_flux)
+        reflect_outflow_into_inflow(boundary_flux, problem)
+        _, phi = sweep_once(source, sig_t, problem, boundary_flux)
 
     # Equilibrium per group: φ_g = Q_g / Σ_t,g (pure-streaming sweep with
     # no scatter coupling — the within-group sweep carries none).

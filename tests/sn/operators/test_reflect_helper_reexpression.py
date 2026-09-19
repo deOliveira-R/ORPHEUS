@@ -73,7 +73,7 @@ pytestmark = pytest.mark.foundation
 _GEOMETRIES = {"slab": _slab, "sphere": _sphere, "cylinder": _cylinder, "cart2d": _cart2d}
 
 
-def _random_trace(sn_mesh, *, seed: int) -> AngularBoundaryFlux:
+def _random_trace(problem, *, seed: int) -> AngularBoundaryFlux:
     """A fixed-seed random FLUX trace, filled on every face.
 
     Built directly as an ``AngularBoundaryFlux`` rather than read off a
@@ -81,7 +81,7 @@ def _random_trace(sn_mesh, *, seed: int) -> AngularBoundaryFlux:
     the flux role in their signature, and threading the erased slot would ask
     the reader (and the type checker) to take the role on trust.
     """
-    trace = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    trace = AngularBoundaryFlux.zeros(problem.angular_trace)
     rng = np.random.default_rng([seed, 7])
     for face in trace.layout.faces:
         view = trace.face_view(face)
@@ -97,7 +97,7 @@ def _full_inflow_mask(operator: SNBoundaryOperator):
     puts EVERY inflow row of EVERY ``_face_laws`` face into ``upper``.  Nothing
     new is minted here; the mask is read off the shipped split.
     """
-    mesh = operator.sn_mesh
+    mesh = operator.problem
     schedule = SweepSchedule.jacobi(mesh.ndim, mesh.quad.octants)
     return operator.split(schedule)
 
@@ -117,10 +117,10 @@ def test_g5_2_the_jacobi_split_upper_is_the_full_inflow_mask(geometry):
     empty and this row reds, which is exactly when the helper's re-expression
     would silently start dropping rows.
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    operator = SNBoundaryOperator(sn_mesh)
+    problem = _GEOMETRIES[geometry]()
+    operator = SNBoundaryOperator(problem)
     parts = _full_inflow_mask(operator)
-    trace = sn_mesh.angular_trace
+    trace = problem.angular_trace
 
     want = {face: trace.inflow_indices_for_face(face) for face in operator._face_laws}
     if not want:
@@ -176,12 +176,12 @@ def test_g5_1_zero_then_add_reproduces_the_assignment_bit_for_bit(geometry):
     NON-ZERO before the call.  On a zero-inflow buffer the two bodies are
     trivially equal and the row proves nothing.
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    operator = SNBoundaryOperator(sn_mesh)
-    trace = sn_mesh.angular_trace
+    problem = _GEOMETRIES[geometry]()
+    operator = SNBoundaryOperator(problem)
+    trace = problem.angular_trace
 
-    old = _random_trace(sn_mesh, seed=101)
-    new = _random_trace(sn_mesh, seed=101)
+    old = _random_trace(problem, seed=101)
+    new = _random_trace(problem, seed=101)
     if not np.array_equal(old.values, new.values):
         pytest.fail("the two fixed-seed buffers differ — the comparison is not old-vs-new")
 
@@ -202,15 +202,15 @@ def test_g5_1_zero_then_add_reproduces_the_assignment_bit_for_bit(geometry):
     # carrier; since item 6.5 this is the reference leg).
     probe = FullField(
         interior=AngularFlux(
-            values=np.zeros(sn_mesh.angular_trial_space.shape),
-            space=sn_mesh.angular_trial_space,
+            values=np.zeros(problem.angular_trial_space.shape),
+            space=problem.angular_trial_space,
         ),
         boundary=old,
     )
     via_apply = operator.apply(probe).boundary
 
     # The helper — zero the inflow rows, then ADD through the full-inflow mask.
-    reflect_outflow_into_inflow(new, sn_mesh)
+    reflect_outflow_into_inflow(new, problem)
 
     for face in new.layout.faces:
         rows = trace.inflow_indices_for_face(face)
@@ -239,24 +239,24 @@ def test_g5_1b_dropping_the_zeroing_is_the_positive_control(geometry):
     40/40, so the floor asserted here (1e-3) is what is draw-stable, not the
     spread.
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    operator = SNBoundaryOperator(sn_mesh)
+    problem = _GEOMETRIES[geometry]()
+    operator = SNBoundaryOperator(problem)
     mask = _full_inflow_mask(operator).upper
 
-    old = _random_trace(sn_mesh, seed=101)
-    unzeroed = _random_trace(sn_mesh, seed=101)
+    old = _random_trace(problem, seed=101)
+    unzeroed = _random_trace(problem, seed=101)
     via_apply = operator.apply(
         FullField(
             interior=AngularFlux(
-                values=np.zeros(sn_mesh.angular_trial_space.shape),
-                space=sn_mesh.angular_trial_space,
+                values=np.zeros(problem.angular_trial_space.shape),
+                space=problem.angular_trial_space,
             ),
             boundary=old,
         )
     ).boundary
     mask.reflect_rows_inplace(unzeroed, tuple(unzeroed.layout.faces))
 
-    trace = sn_mesh.angular_trace
+    trace = problem.angular_trace
     delta = max(
         float(np.abs(
             via_apply.face_view(face)[trace.inflow_indices_for_face(face)]
@@ -289,10 +289,10 @@ def test_g5_4_the_unknown_face_refusal_lives_on_the_live_verb(geometry):
     Its message vocabulary ("… are not boundary faces of this mesh") is kept
     on the live verb, and the buffer is untouched when it raises.
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    operator = SNBoundaryOperator(sn_mesh)
+    problem = _GEOMETRIES[geometry]()
+    operator = SNBoundaryOperator(problem)
     mask = _full_inflow_mask(operator).upper
-    buffer = _random_trace(sn_mesh, seed=7)
+    buffer = _random_trace(problem, seed=7)
     before = buffer.values.copy()
     with pytest.raises(ValueError, match="boundary faces"):
         mask.reflect_rows_inplace(buffer, ("bogus_face",))

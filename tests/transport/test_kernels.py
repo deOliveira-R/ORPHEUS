@@ -818,10 +818,10 @@ def test_isotropic_energy_inherits_the_parent_binding_space():
         bc_left=BC("vacuum"),
         bc_right=BC("vacuum"),
     )
-    sn_mesh = SNProblem(
+    problem = SNProblem(
         mesh, Quadrature.gauss_legendre(n_ordinates=4), carrier.materials,
     )
-    space = sn_mesh.full_field_space
+    space = problem.full_field_space
     scattering = ScatteringOperator.from_solver_data(
         mat_xs=carrier.mat_xs,
         scattering_order=0,

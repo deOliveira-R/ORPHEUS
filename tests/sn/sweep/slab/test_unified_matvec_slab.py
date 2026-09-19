@@ -79,12 +79,12 @@ def _build_slab(n_cells: int = 5, n_ord: int = 4) -> SNProblem:
 @pytest.mark.l0
 def test_unified_slab_zero_psi_gives_zero() -> None:
     """Linear operator: zero input → zero output."""
-    sn_mesh = _build_slab(n_cells=5, n_ord=4)
+    problem = _build_slab(n_cells=5, n_ord=4)
     ng = 1
-    sigma_t = np.full((ng, sn_mesh.nx), 2.0)
-    psi_view = np.zeros((sn_mesh.quad.N, ng, sn_mesh.nx))
+    sigma_t = np.full((ng, problem.nx), 2.0)
+    psi_view = np.zeros((problem.quad.N, ng, problem.nx))
 
-    m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
+    m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
     np.testing.assert_array_equal(m_unified, np.zeros_like(m_unified))
 
 
@@ -94,13 +94,13 @@ def test_unified_slab_constant_psi_gives_sigma_t() -> None:
     returns σ_t · ψ everywhere. Flat flux activates only the collision
     term (streaming cancels via WDD; M-M redistribution is identity
     on the slab-neutral data)."""
-    sn_mesh = _build_slab(n_cells=5, n_ord=4)
+    problem = _build_slab(n_cells=5, n_ord=4)
     ng = 1
     sigma_t_val = 2.0
-    sigma_t = np.full((ng, sn_mesh.nx), sigma_t_val)
-    psi_view = np.ones((sn_mesh.quad.N, ng, sn_mesh.nx))
+    sigma_t = np.full((ng, problem.nx), sigma_t_val)
+    psi_view = np.ones((problem.quad.N, ng, problem.nx))
 
-    m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
+    m_unified = legacy_proxy_matvec(psi_view, problem, sigma_t)
     np.testing.assert_allclose(
         m_unified, sigma_t_val, rtol=1e-13, atol=1e-14,
     )

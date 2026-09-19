@@ -63,25 +63,25 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    sn_mesh = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
-    solver = SNSolver(sn_mesh, inner_solver="source_iteration")
+    problem = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
+    solver = SNSolver(problem, inner_solver="source_iteration")
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs,
+        problem, solver.problem.mat_xs,
     )
     si, _base, _gains, windowed = _within_group_si(
-        Splitting.from_schedule(system, solver.schedule), sn_mesh,
+        Splitting.from_schedule(system, solver.schedule), problem,
         max_iter=600, tol=1e-12,
     )
     if windowed:
         raise AssertionError("1-D slab must not window")
     q_ext = TimedFullField(
         interior=AngularSourceSink.from_isotropic(
-            np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
+            np.full((problem.ng, *problem.spatial_shape), 1.0), problem,
         ),
-        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+        boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
         _history=(), history_depth=2,
     )
-    ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+    ig = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     psi, _ = si.solve(q_ext, initial_guess=ig)
     return solver, system, q_ext, psi
 
@@ -99,20 +99,20 @@ def test_from_balance_mints_residual_with_correct_type_units_space():
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    sn_mesh = SNProblem(mesh, quad, {0: fuel})
+    problem = SNProblem(mesh, quad, {0: fuel})
     rng = np.random.default_rng(208)
-    shape = (quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)
-    a_psi = AngularSourceSink(values=rng.standard_normal(shape), space=sn_mesh.angular_bulk_space)
-    q = AngularSourceSink(values=rng.standard_normal(shape), space=sn_mesh.angular_bulk_space)
+    shape = (quad.N, problem.ng, *problem.spatial_shape)
+    a_psi = AngularSourceSink(values=rng.standard_normal(shape), space=problem.angular_bulk_space)
+    q = AngularSourceSink(values=rng.standard_normal(shape), space=problem.angular_bulk_space)
     r = AngularResidual.from_balance(lhs=a_psi, rhs=q)  # POSITIVE
     if type(r) is not AngularResidual:
         raise AssertionError(f"from_balance returned {type(r).__name__}")
     np.testing.assert_array_equal(r.values, a_psi.values - q.values)
     # CS4b S2: role is CLASS identity; the space is the carrier's cached
     # angular bulk (shared across the family).
-    if r.space is not sn_mesh.angular_bulk_space:
+    if r.space is not problem.angular_bulk_space:
         raise AssertionError(f"residual on wrong space {r.space.name!r}")
-    flux = AngularFlux(values=rng.standard_normal(shape), space=sn_mesh.angular_bulk_space)
+    flux = AngularFlux(values=rng.standard_normal(shape), space=problem.angular_bulk_space)
     with pytest.raises(TypeError):  # NEGATIVE — flux operand (wrong units/class)
         _ = AngularResidual.from_balance(lhs=flux, rhs=q)  # type: ignore[arg-type]
 
@@ -142,7 +142,7 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
     ix = psi.interior.values.shape[2] // 2
     bad_vals[:, 0, ix] *= 1.1
     psi_bad = TimedFullField(
-        interior=AngularFlux(values=bad_vals, space=_solver.sn_mesh.angular_bulk_space),
+        interior=AngularFlux(values=bad_vals, space=_solver.problem.angular_bulk_space),
         boundary=psi.boundary, _history=(), history_depth=psi.history_depth,
     )
     r_bad = evaluate_residual(system, psi_bad, q_ext)
@@ -206,12 +206,12 @@ def _slab_2g_het_triple(nx: int = 12, n_ord: int = 8):
         bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
-    sn_mesh = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
+    problem = SNProblem(mesh, quad, {2: fuel, 0: mod}, scattering_order=1)
     solver = SNSolver(
-        sn_mesh, inner_solver="source_iteration",
+        problem, inner_solver="source_iteration",
     )
     system = build_within_group_system(
-        sn_mesh, solver.sn_mesh.mat_xs,
+        problem, solver.problem.mat_xs,
     )
     LC, S, N2N, B = (
         system.factors.streaming_collision, system.factors.scattering,
@@ -229,7 +229,7 @@ def test_within_group_operands_share_the_composite_space():
     skipping the formerly ``None``-spaced ``C`` / ``S`` / ``F``. Also pins the
     D5 de-SN-ified name (``"full_field"``, not ``"sn_full_field"``)."""
     solver, LC, S, B = _slab_2g_het_triple()
-    ffs = solver.sn_mesh.full_field_space
+    ffs = solver.problem.full_field_space
     # D5: the cross-method composite-space name is method-agnostic — the
     # family prefix, with a member-content digest suffix (CS4b S4; R4:
     # substring pins survive suffixes).
@@ -247,7 +247,7 @@ def test_within_group_operands_share_the_composite_space():
     from orpheus.transport.operators.fission import FissionOperator
 
     F_composite = FissionOperator.from_solver_data(
-        mat_xs=solver.sn_mesh.mat_xs, space=ffs,
+        mat_xs=solver.problem.mat_xs, space=ffs,
     )
     for op, nm in [
         (LC, "L+C"), (S, "S"), (B, "B"), (F_composite, "F"),
@@ -286,7 +286,7 @@ def test_mis_spaced_scattering_reds_the_residual_composition():
     helper alone could have been reached on behalf of any composite, and the
     ``owner`` prefix in the message plus the caller frame say it was the sum."""
     solver, LC, S, B = _slab_2g_het_triple()
-    ffs = solver.sn_mesh.full_field_space
+    ffs = solver.problem.full_field_space
     # Right shape, WRONG name — the discriminating mis-composition. Patch the
     # CLASS property in-process (auto-reverts; never a real edit / git checkout).
     wrong = FullFieldSpace(name="full_field_TYPO", shape=ffs.shape)
@@ -327,11 +327,11 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
     ``L + C`` build itself — the teeth on the converging path, which the
     test-only residual composition (the ``- S`` arm) cannot reach."""
     solver, _LC, _S, _B = _slab_2g_het_triple()
-    sn_mesh = solver.sn_mesh
-    ffs = sn_mesh.full_field_space
+    problem = solver.problem
+    ffs = problem.full_field_space
     wrong = FullFieldSpace(name="full_field_TYPO", shape=ffs.shape)
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(solver.sn_mesh.mat_xs.total_cross_section_field, sn_mesh)
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(solver.problem.mat_xs.total_cross_section_field, problem)
     _ = L + C  # POSITIVE control — correctly-spaced L + C composes
     with mock.patch.object(type(C), "domain", property(lambda self: wrong)), \
          mock.patch.object(type(C), "codomain", property(lambda self: wrong)):
@@ -455,7 +455,7 @@ class TestSplitRayResidualMint:
         sn_sol = sol.mesh
         solver = SNSolver(sn_sol)
         system = build_within_group_system(
-            sn_sol, solver.sn_mesh.mat_xs,
+            sn_sol, solver.problem.mat_xs,
         )
         q_pair = _build_fixed_source_rhs(q_np, sn_sol)
         if not isinstance(q_pair, CoupledField):
@@ -508,7 +508,7 @@ class TestSplitRayResidualMint:
         sn = _tiny_sphere_2g()
         solver = SNSolver(sn)
         system = build_within_group_system(
-            sn, solver.sn_mesh.mat_xs,
+            sn, solver.problem.mat_xs,
         )
         q_pair = _build_fixed_source_rhs(
             np.ones((sn.quad.N, sn.ng, sn.nx)), sn,

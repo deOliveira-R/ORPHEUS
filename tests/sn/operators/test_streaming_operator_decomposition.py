@@ -92,7 +92,7 @@ from tests.sn._test_helpers import placeholder_materials, radial_characteristic_
 pytestmark = pytest.mark.l0
 
 
-def _l_apply(L, state, seed_leg, sn_mesh):
+def _l_apply(L, state, seed_leg, problem):
     """The joint σ-free streaming action (step 6): the BLOCK SUM
     ``L·ψ + Seeding·ψ½`` (Seeding is σ-independent — its own pinned
     property); bare ``L.apply`` seedless."""
@@ -102,7 +102,7 @@ def _l_apply(L, state, seed_leg, sn_mesh):
         RadialCharacteristicSeeding,
     )
 
-    return L.apply(state) + RadialCharacteristicSeeding(sn_mesh).apply(seed_leg)
+    return L.apply(state) + RadialCharacteristicSeeding(problem).apply(seed_leg)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -168,15 +168,15 @@ class TestResolutionADecomposition:
         """(L + C).apply(ψ) ≡ M(ψ; σ_t) at rel_residual == 0.0
         on both the bulk and the boundary blocks of the typed carrier.
         """
-        sn_mesh = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
+        problem = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
-        N = sn_mesh.quad.N
+        N = problem.quad.N
 
         rng = np.random.default_rng(seed)
-        bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
+        bulk_arr = rng.standard_normal((N, ng, *problem.spatial_shape))
         state = TimedFullField(
-            interior=AngularFlux(values=bulk_arr, space=sn_mesh.angular_bulk_space),
-            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+            interior=AngularFlux(values=bulk_arr, space=problem.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
             _history=(),
             history_depth=2,
         )
@@ -188,19 +188,19 @@ class TestResolutionADecomposition:
         # decomposition identity (L+C ≡ L + C on bulk ⊕ trace) holds for ANY
         # seed since both σ-paths consume the SAME leg (the seed's bulk feed
         # is σ-independent); the ray's own σ term is A_BB's, System B.
-        seed_leg = radial_characteristic_edge_seed(bulk_arr, sn_mesh)
-        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
+        seed_leg = radial_characteristic_edge_seed(bulk_arr, problem)
+        sigma_t = np.full((ng, *problem.spatial_shape), 2.0)
 
         # Reference: the unified matvec at full σ_t.
         m_full_state = _LC_matvec(
-            state, sigma_t, sn_mesh=sn_mesh,
+            state, sigma_t, problem=problem,
             radial_characteristic_flux=seed_leg,
         )
 
         # Pure-L + C via TimedFullField arithmetic (#257 S8b): L reads no σ.
-        L = StreamingOperator.pose(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
-        sum_state = _l_apply(L, state, seed_leg, sn_mesh) + C.apply(state)
+        L = StreamingOperator.pose(problem)
+        C = MultiplicationOperator.from_mesh(sigma_t, problem)
+        sum_state = _l_apply(L, state, seed_leg, problem) + C.apply(state)
 
         # Bulk residual — (N, ng, nx, ny) ndarray.
         residual_bulk = sum_state.interior.values - m_full_state.interior.values
@@ -272,15 +272,15 @@ class TestSubtractiveDefinition:
     @pytest.mark.parametrize("geometry", ["CART", "SPH", "CYL"])
     @pytest.mark.parametrize("seed", [10, 11, 12])
     def test_L_apply_equals_subtractive_form(self, geometry, seed):
-        sn_mesh = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
+        problem = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
-        N = sn_mesh.quad.N
+        N = problem.quad.N
 
         rng = np.random.default_rng(seed)
-        bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
+        bulk_arr = rng.standard_normal((N, ng, *problem.spatial_shape))
         state = TimedFullField(
-            interior=AngularFlux(values=bulk_arr, space=sn_mesh.angular_bulk_space),
-            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+            interior=AngularFlux(values=bulk_arr, space=problem.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
             _history=(),
             history_depth=2,
         )
@@ -292,15 +292,15 @@ class TestSubtractiveDefinition:
         # decomposition identity (L+C ≡ L + C on bulk ⊕ trace) holds for ANY
         # seed since both σ-paths consume the SAME leg (the seed's bulk feed
         # is σ-independent); the ray's own σ term is A_BB's, System B.
-        seed_leg = radial_characteristic_edge_seed(bulk_arr, sn_mesh)
-        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
+        seed_leg = radial_characteristic_edge_seed(bulk_arr, problem)
+        sigma_t = np.full((ng, *problem.spatial_shape), 2.0)
 
         # Pure-L apply (σ-free, #257 S8b): L takes only the mesh.
-        L = StreamingOperator.pose(sn_mesh)
-        l_state = _l_apply(L, state, seed_leg, sn_mesh)
+        L = StreamingOperator.pose(problem)
+        l_state = _l_apply(L, state, seed_leg, problem)
 
         m_full_state = _LC_matvec(
-            state, sigma_t, sn_mesh=sn_mesh,
+            state, sigma_t, problem=problem,
             radial_characteristic_flux=seed_leg,
         )
 
@@ -353,15 +353,15 @@ class TestPureLIsLossActionAtZeroSigma:
 
     @pytest.mark.parametrize("geometry", ["CART", "SPH", "CYL"])
     def test_pure_L_is_loss_action_at_zero_sigma(self, geometry):
-        sn_mesh = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
+        problem = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
-        N = sn_mesh.quad.N
+        N = problem.quad.N
 
         rng = np.random.default_rng(0)
-        bulk_arr = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
+        bulk_arr = rng.standard_normal((N, ng, *problem.spatial_shape))
         state = TimedFullField(
-            interior=AngularFlux(values=bulk_arr, space=sn_mesh.angular_bulk_space),
-            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+            interior=AngularFlux(values=bulk_arr, space=problem.angular_bulk_space),
+            boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
             _history=(),
             history_depth=2,
         )
@@ -373,26 +373,26 @@ class TestPureLIsLossActionAtZeroSigma:
         # decomposition identity (L+C ≡ L + C on bulk ⊕ trace) holds for ANY
         # seed since both σ-paths consume the SAME leg (the seed's bulk feed
         # is σ-independent); the ray's own σ term is A_BB's, System B.
-        seed_leg = radial_characteristic_edge_seed(bulk_arr, sn_mesh)
-        sigma_zero = np.zeros((ng, *sn_mesh.spatial_shape))
+        seed_leg = radial_characteristic_edge_seed(bulk_arr, problem)
+        sigma_zero = np.zeros((ng, *problem.spatial_shape))
 
         # Pure-L apply (σ-free, #257 S8b): L takes only the mesh.
-        L = StreamingOperator.pose(sn_mesh)
-        l_state = _l_apply(L, state, seed_leg, sn_mesh)
+        L = StreamingOperator.pose(problem)
+        l_state = _l_apply(L, state, seed_leg, problem)
 
         # The single-sourced σ-free walk: loss_action at σ = 0 directly
         # (same explicit legs — the SAME call under streaming_action).
         from orpheus.sn.loss_representation import default_for
         if seed_leg is None:
-            l_action_zero = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure).loss_action(sigma_zero, state)
+            l_action_zero = default_for(problem, problem.scheme, problem.angular_closure).loss_action(sigma_zero, state)
         else:
             from orpheus.sn.operators.radial_characteristic import (
                 RadialCharacteristicSeeding,
             )
 
-            l_action_zero = default_for(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure).loss_action(
+            l_action_zero = default_for(problem, problem.scheme, problem.angular_closure).loss_action(
                 sigma_zero, state,
-            ) + RadialCharacteristicSeeding(sn_mesh).apply(seed_leg)
+            ) + RadialCharacteristicSeeding(problem).apply(seed_leg)
 
         # Byte-exact: pure-L apply IS loss_action(0) (same call under
         # streaming_action) on BOTH bulk and boundary.

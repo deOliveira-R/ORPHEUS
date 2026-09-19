@@ -4,7 +4,7 @@ Two claims, both on the real 421-group library (`[M]` 2026-09-03):
 
 * **The order clamp reads the SCATTERING stack alone.** (The clamp was the SOLVER's when
   this was written; since 2026-09-12 it is the PROBLEM's — ``SNProblem`` clamps once at
-  construction and every consumer reads ``sn_mesh.scattering_order``, ruling R-cc9 /
+  construction and every consumer reads ``problem.scattering_order``, ruling R-cc9 /
   GitHub #459. WHICH stack it reads is unchanged, which is what this claim is about.)
   The (n,2n) stack of an
   isotope whose tape carries no MT=16 (H-1, B-10) is the zero P0 block — length 1 — and a

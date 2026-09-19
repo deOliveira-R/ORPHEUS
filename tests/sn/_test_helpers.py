@@ -12,7 +12,7 @@ Issue #197 PR-TYPED-2 introduced :class:`AngularBoundaryFlux` as the typed
 replacement for the stringly-typed ``psi_bc: dict``.  Test fixtures
 that previously passed ``{}`` to :func:`transport_sweep` should now
 build a zero-initialised :class:`AngularBoundaryFlux` via
-``AngularBoundaryFlux.zeros(sn_mesh.angular_trace)`` (or :func:`make_boundary_flux_zero`
+``AngularBoundaryFlux.zeros(problem.angular_trace)`` (or :func:`make_boundary_flux_zero`
 below for non-SNProblem callers).
 
 Tests that DO need realistic cross sections continue to use
@@ -423,7 +423,7 @@ def make_tiny_spherical_sn_mesh(n_cells: int = 2, sn_order: int = 2) -> "SNProbl
     """Minimal bound-closure host: an ``n_cells``-cell reflective sphere.
 
     The cheapest SNProblem satisfying the angular-closure family's
-    ``cls(sn_mesh)`` construction contract (C5, 2026-07-03, retired the
+    ``cls(problem)`` construction contract (C5, 2026-07-03, retired the
     unbound ``MorelMontryAngularSweep()`` legacy mode) — for foundation
     tests of strategy construction, registry ``create``, repr, and seed
     wiring that need a real bound instance but never read its
@@ -531,7 +531,7 @@ def het_operands(sn: "SNProblem"):
 
 
 def legacy_proxy_matvec(
-    psi_view: "np.ndarray", sn_mesh: "SNProblem", sigma_t: "np.ndarray",
+    psi_view: "np.ndarray", problem: "SNProblem", sigma_t: "np.ndarray",
     *, bc_outer=None, angular_closure=None,
 ) -> "np.ndarray":
     """Call :func:`_transport_operator_matvec_unified` with the
@@ -581,7 +581,7 @@ def legacy_proxy_matvec(
     # `bc_outer=None, angular_closure=None`) — kept in the
     # function signature for legacy back-compat but ignored.
     del bc_outer, angular_closure  # explicitly mark unused
-    boundary = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    boundary = AngularBoundaryFlux.zeros(problem.angular_trace)
     boundary.face_view("xmax")[:] = psi_view[:, :, -1]
     if "xmin" in boundary.layout.faces:
         boundary.face_view("xmin")[:] = psi_view[:, :, 0]
@@ -596,23 +596,23 @@ def legacy_proxy_matvec(
     # meshes → None, byte-identical to the pre-2.5d helper.  Since Q5.6.3
     # the Cartesian charts are the only admitted non-carrying ones: the
     # ADMITTED cylinder's folded rule carries on every level.
-    radial_characteristic = radial_characteristic_edge_seed(psi_view, sn_mesh)
+    radial_characteristic = radial_characteristic_edge_seed(psi_view, problem)
     composite = TimedFullField(
-        interior=AngularFlux(values=psi_view, space=sn_mesh.angular_bulk_space),
+        interior=AngularFlux(values=psi_view, space=problem.angular_bulk_space),
         boundary=boundary,
         _history=(),
         history_depth=2,
     )
-    L_op = StreamingOperator.pose(sn_mesh)
-    C_op = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
+    L_op = StreamingOperator.pose(problem)
+    C_op = MultiplicationOperator.from_mesh(sigma_t, problem)
     result = _LC_matvec(
-        composite, sigma_t, sn_mesh=sn_mesh, LC=(L_op + C_op),
+        composite, sigma_t, problem=problem, LC=(L_op + C_op),
         radial_characteristic_flux=radial_characteristic,
     )
     return result.interior.values
 
 
-def radial_characteristic_edge_seed(psi_view, sn_mesh):
+def radial_characteristic_edge_seed(psi_view, problem):
     """The pre-route-(a) ψ½ seed: the input field extrapolated in μ to each
     carrying level's starting-direction edge (the retired
     ``AngularEdgeExtrapolation``-of-the-iterate convention), so an
@@ -624,16 +624,16 @@ def radial_characteristic_edge_seed(psi_view, sn_mesh):
     seed (a constant field extrapolates to the same constant, so
     ``(L+C)·const = σ_t·const`` still holds, and the augmented apply
     stays a linear operator)."""
-    if sn_mesh.radial_characteristic_field_space is None:
+    if problem.radial_characteristic_field_space is None:
         return None
     from orpheus.transport.radial_characteristic_field import (
         RadialCharacteristicField,
     )
 
-    closure = sn_mesh.angular_closure
+    closure = problem.angular_closure
     psi_g_first = psi_view[..., 0].swapaxes(0, 1) if psi_view.ndim == 4 else psi_view.swapaxes(0, 1)
-    seed = RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)
-    for p in sn_mesh.radial_characteristic_levels:
+    seed = RadialCharacteristicField.flux_zeros(problem.radial_characteristic_field_space)
+    for p in problem.radial_characteristic_levels:
         level_idx = closure.level_indices[p]
         psi_level = psi_g_first[:, level_idx, :]          # (ng, M_p, nx)
         edge = closure.edge_extrapolated_seed(psi_level, p)  # (ng, nx)
@@ -646,7 +646,7 @@ def radial_characteristic_edge_seed(psi_view, sn_mesh):
 def _LC_matvec(
     psi: "TimedFullField", sigma_t: "np.ndarray",
     *,
-    sn_mesh=None,
+    problem=None,
     LC=None,
     radial_characteristic_flux=None,
 ) -> "TimedFullField":
@@ -673,25 +673,25 @@ def _LC_matvec(
     # CS4b S4: fields no longer carry the mesh — the caller passes the
     # carrier (required unless a pre-built LC is injected AND the call is
     # seedless; the carrying arm builds the joint grid off the carrier).
-    if sn_mesh is None and (LC is None or radial_characteristic_flux is not None):
-        raise TypeError("_LC_matvec: pass sn_mesh= (or a pre-built LC=)")
+    if problem is None and (LC is None or radial_characteristic_flux is not None):
+        raise TypeError("_LC_matvec: pass problem= (or a pre-built LC=)")
     if LC is None:
-        L = StreamingOperator.pose(sn_mesh)
-        C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
+        L = StreamingOperator.pose(problem)
+        C = MultiplicationOperator.from_mesh(sigma_t, problem)
         LC = L + C
     if radial_characteristic_flux is None:
         return LC.apply(psi)
     from orpheus.numerics.coupled_system import CoupledField
 
-    grid, _space = joint_m_grid(sn_mesh, LC)
+    grid, _space = joint_m_grid(problem, LC)
     joint = grid.apply(
         CoupledField(systems=(psi, radial_characteristic_flux)),
     )
     return joint.systems[0]
 
 
-def make_boundary_flux_zero(sn_mesh: "SNProblem") -> "AngularBoundaryFlux":
-    """Build a zero-initialised :class:`AngularBoundaryFlux` for ``sn_mesh``.
+def make_boundary_flux_zero(problem: "SNProblem") -> "AngularBoundaryFlux":
+    """Build a zero-initialised :class:`AngularBoundaryFlux` for ``problem``.
 
     Issue #197 PR-TYPED-2 — typed replacement for ``psi_bc = {}``.
     Allocates only the buffers the mesh's geometry consumes (slab gets
@@ -699,14 +699,14 @@ def make_boundary_flux_zero(sn_mesh: "SNProblem") -> "AngularBoundaryFlux":
     the persistent ``(N, ng, nx+1, ny)`` / ``(N, ng, nx, ny+1)``
     buffers).  Per-geometry dispatch lives inside the mesh's cached
     ``angular_trace`` layout; this helper is a clean alias so test
-    fixtures don't have to chain through ``sn_mesh``.
+    fixtures don't have to chain through ``problem``.
     """
-    return AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    return AngularBoundaryFlux.zeros(problem.angular_trace)
 
 
-def make_scalar_flux_zero(sn_mesh: "SNProblem") -> "ScalarFlux":
-    """Build a zero-initialised :class:`ScalarFlux` for ``sn_mesh``."""
-    return ScalarFlux.zeros(sn_mesh.bulk_space)
+def make_scalar_flux_zero(problem: "SNProblem") -> "ScalarFlux":
+    """Build a zero-initialised :class:`ScalarFlux` for ``problem``."""
+    return ScalarFlux.zeros(problem.bulk_space)
 
 
 def redistribution_via_live_path(
@@ -787,7 +787,7 @@ def redistribution_via_live_path(
 # leaf-kwarg legs).
 
 
-def sweep_once(source, sig_t, sn_mesh, boundary_flux):
+def sweep_once(source, sig_t, problem, boundary_flux):
     """One full physical transport sweep — the typed successor of the
     retired operator-free ``transport_sweep`` (step 6).
 
@@ -821,13 +821,13 @@ def sweep_once(source, sig_t, sn_mesh, boundary_flux):
     from orpheus.transport.source_sinks import AngularBoundarySourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
-    LC = StreamingOperator.pose(sn_mesh) + MultiplicationOperator.from_mesh(
-        sig_t, sn_mesh,
+    LC = StreamingOperator.pose(problem) + MultiplicationOperator.from_mesh(
+        sig_t, problem,
     )
     rhs = TimedFullField(
         interior=source,
         boundary=AngularBoundarySourceSink.prescribed_inflow(
-            sn_mesh,
+            problem,
             {
                 face: boundary_flux.face_view(face)
                 for face in boundary_flux.layout.faces
@@ -836,21 +836,21 @@ def sweep_once(source, sig_t, sn_mesh, boundary_flux):
         _history=(),
         history_depth=2,
     )
-    if sn_mesh.radial_characteristic_field_space is not None:
+    if problem.radial_characteristic_field_space is not None:
         q_half = RadialCharacteristicField.source_from_angular(
-            np.asarray(source.values), sn_mesh,
+            np.asarray(source.values), problem,
         )
-        grid, _space = joint_m_grid(sn_mesh, LC)
+        grid, _space = joint_m_grid(problem, LC)
         psi_a = grid.solve(CoupledField(systems=(rhs, q_half))).systems[0]
     else:
         psi_a = LC.solve(rhs)
     boundary_flux.values[...] = psi_a.boundary.values
     values = np.asarray(psi_a.interior.values)
-    scalar = np.einsum("n,ng...->g...", sn_mesh.quad.weights, values)
+    scalar = np.einsum("n,ng...->g...", problem.quad.weights, values)
     return values, scalar
 
 
-def joint_m_grid(sn_mesh: "SNProblem", LC):
+def joint_m_grid(problem: "SNProblem", LC):
     """The step-5 joint ``M`` — the honest upper-triangular grid
     ``[[LC, Seeding], [None, march]]`` over the given (possibly variant)
     ``L + C`` — returning ``(grid, space)``.
@@ -870,11 +870,11 @@ def joint_m_grid(sn_mesh: "SNProblem", LC):
     )
 
     space = CoupledSpace.from_systems(
-        (sn_mesh.full_field_space, sn_mesh.radial_characteristic_field_space),
+        (problem.full_field_space, problem.radial_characteristic_field_space),
     )
-    march = rc_march(sn_mesh, LC.b.coefficient)
+    march = rc_march(problem, LC.b.coefficient)
     grid = CoupledOperator(
-        [[LC, RadialCharacteristicSeeding(sn_mesh)], [None, march]],
+        [[LC, RadialCharacteristicSeeding(problem)], [None, march]],
         domain=space, codomain=space,
     )
     return grid, space
@@ -1224,7 +1224,7 @@ def seam_quad(n_mu: int, n_phi: int, shift, *, folded: bool):
     )
 
 
-def rc_march(sn_mesh, total_cross_section):
+def rc_march(problem, total_cross_section):
     """Assemble A_BB from a carrying mesh — the un-weld arc's assembly read,
     spelled ONCE for tests (mirrors ``build_within_group_system``'s spelling;
     the operator itself binds spaces + values, never the mesh)."""
@@ -1233,20 +1233,20 @@ def rc_march(sn_mesh, total_cross_section):
         march_start_cosines,
     )
 
-    reduced = sn_mesh.reduced
+    reduced = problem.reduced
     assert reduced is not None  # carrying fixture; narrowing only
     return RadialCharacteristicOperator(
-        sn_mesh.radial_characteristic_field_space,
+        problem.radial_characteristic_field_space,
         total_cross_section,
-        bulk_space=sn_mesh.bulk_space,
-        dr=sn_mesh.axis_widths[0],
+        bulk_space=problem.bulk_space,
+        dr=problem.axis_widths[0],
         start_cosines=march_start_cosines(
-            reduced, sn_mesh.radial_characteristic_levels,
+            reduced, problem.radial_characteristic_levels,
         ),
     )
 
 
-def reflect_outflow_into_inflow(boundary_flux, sn_mesh: "SNProblem") -> None:
+def reflect_outflow_into_inflow(boundary_flux, problem: "SNProblem") -> None:
     r"""In-place: fill each face's inflow ordinate slots with the realized
     boundary law applied to that face's outflow trace — the ``−B`` reflective
     coupling, externalised for a BARE sweep (Wave O #208 O.4a.2).
@@ -1292,11 +1292,11 @@ def reflect_outflow_into_inflow(boundary_flux, sn_mesh: "SNProblem") -> None:
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
     from orpheus.sn.operators.boundary import SNBoundaryOperator
 
-    operator = SNBoundaryOperator(sn_mesh)
+    operator = SNBoundaryOperator(problem)
     full_inflow = operator.split(
-        SweepSchedule.jacobi(sn_mesh.ndim, sn_mesh.quad.octants),
+        SweepSchedule.jacobi(problem.ndim, problem.quad.octants),
     ).upper
-    trace = sn_mesh.angular_trace
+    trace = problem.angular_trace
     faces = tuple(boundary_flux.layout.faces)
     for face in faces:
         boundary_flux.face_view(face)[trace.inflow_indices_for_face(face)] = 0.0

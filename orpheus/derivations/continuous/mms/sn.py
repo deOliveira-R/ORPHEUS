@@ -1565,7 +1565,7 @@ class SN2DCartesianLDStressMMSCase:
         Q /= sum_w
         return Q
 
-    def prescribed_inflow(self, sn_mesh):
+    def prescribed_inflow(self, problem):
         r"""The ``q.boundary`` prescribed-inflow term (a
         :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`).
 
@@ -1598,13 +1598,13 @@ class SN2DCartesianLDStressMMSCase:
         from orpheus.transport.source_sinks import AngularBoundarySourceSink
 
         n_face_moments = face_moment_count(
-            sn_mesh.scheme.spatial_basis_per_axis, sn_mesh.ndim,
+            problem.scheme.spatial_basis_per_axis, problem.ndim,
         )
         W = float(self.quadrature.weights.sum())
         mu_x = self.quadrature.mu_x
         mu_y = self.quadrature.mu_y
         ng = self.n_groups
-        mesh = sn_mesh.mesh
+        mesh = problem.mesh
         cx = mesh.centers_x
         cy = mesh.centers_y
         ex = mesh.edges_x
@@ -1650,7 +1650,7 @@ class SN2DCartesianLDStressMMSCase:
                 face_values[face] = self._project_inflow_to_face_moments(
                     const_axis, const_val, t_edges, n_face_moments,
                 )
-        return AngularBoundarySourceSink.prescribed_inflow(sn_mesh, face_values)
+        return AngularBoundarySourceSink.prescribed_inflow(problem, face_values)
 
     def _project_inflow_to_face_moments(
         self, const_axis, const_val, t_edges, n_face_moments,
@@ -3363,7 +3363,7 @@ class SNSlabNonVacuumMMSCase:
         Q /= sum_w
         return Q
 
-    def prescribed_inflow(self, sn_mesh):
+    def prescribed_inflow(self, problem):
         r"""The ``q.boundary`` prescribed-inflow term — a
         :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`.
 
@@ -3388,7 +3388,7 @@ class SNSlabNonVacuumMMSCase:
             for g in range(ng):
                 vals[:, g] = (self.A(x_face, g) + mu * self.B(x_face, g)) / W
             face_values[face] = vals
-        return AngularBoundarySourceSink.prescribed_inflow(sn_mesh, face_values)
+        return AngularBoundarySourceSink.prescribed_inflow(problem, face_values)
 
 def build_slab_nonvacuum_mms_case(
     sigma_t: float = 1.0,
@@ -3638,7 +3638,7 @@ class SNSphericalNonVacuumMMSCase:
              + removal_iso + removal_aniso) / sum_w    # (N, nx)
         return Q[:, None, :]                     # (N, 1, nx, 1)
 
-    def prescribed_inflow(self, sn_mesh):
+    def prescribed_inflow(self, problem):
         r"""The ``q.boundary`` prescribed-inflow at r=R — a
         :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`.
 
@@ -3657,7 +3657,7 @@ class SNSphericalNonVacuumMMSCase:
         A_R = float(self.A(np.array([R]))[0])
         B_R = float(self.B(np.array([R]))[0])
         vals = ((A_R + mu * B_R) / W)[:, None]        # (N, ng=1)
-        return AngularBoundarySourceSink.prescribed_inflow(sn_mesh, {"xmax": vals})
+        return AngularBoundarySourceSink.prescribed_inflow(problem, {"xmax": vals})
 
 def build_sphere_nonvacuum_mms_case(
     sigma_t: float = 1.0,
@@ -3695,28 +3695,28 @@ def build_sphere_nonvacuum_mms_case(
     )
 
 
-def build_nonvacuum_fixed_source(case, sn_mesh) -> "TimedFullField":
+def build_nonvacuum_fixed_source(case, problem) -> "TimedFullField":
     r"""The composite fixed-source RHS :math:`q = q_{\rm bulk} \oplus q_\partial`
     for a non-vacuum MMS ``case``.
 
     Bundles the manufactured bulk source (``case.external_source(mesh)``) and
-    the prescribed-inflow boundary (``case.prescribed_inflow(sn_mesh)``) into
+    the prescribed-inflow boundary (``case.prescribed_inflow(problem)``) into
     the single :class:`~orpheus.transport.timed_full_field.TimedFullField`
     that :func:`~orpheus.sn.solver.solve_sn_fixed_source` consumes — the
     ergonomic one-call non-vacuum source (no manual operator-triple bypass).
 
-    Generic over the ``(external_source(mesh), prescribed_inflow(sn_mesh))``
+    Generic over the ``(external_source(mesh), prescribed_inflow(problem))``
     protocol: ONE definition shared by every non-vacuum case
     (:class:`SNSlabNonVacuumMMSCase`, :class:`SNSphericalNonVacuumMMSCase`),
-    rather than a per-case method twin (Cardinal Rule 2). ``sn_mesh.mesh``
+    rather than a per-case method twin (Cardinal Rule 2). ``problem.mesh``
     supplies the underlying mesh for the bulk source.
     """
     from orpheus.transport.source_sinks import AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
     return TimedFullField(
-        interior=AngularSourceSink(values=case.external_source(sn_mesh.mesh), space=sn_mesh.angular_bulk_space),
-        boundary=case.prescribed_inflow(sn_mesh),
+        interior=AngularSourceSink(values=case.external_source(problem.mesh), space=problem.angular_bulk_space),
+        boundary=case.prescribed_inflow(problem),
     )
 
 

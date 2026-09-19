@@ -130,37 +130,37 @@ def _cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNProblem:
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _random_state(sn_mesh: SNProblem, ng: int = 2, seed: int = 42) -> TimedFullField:
+def _random_state(problem: SNProblem, ng: int = 2, seed: int = 42) -> TimedFullField:
     """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, *spatial)``."""
     rng = np.random.default_rng(seed)
-    N = sn_mesh.quad.N
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+    N = problem.quad.N
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     return replace(
         state,
         interior=replace(
             state.interior,
-            values=rng.standard_normal((N, ng, *sn_mesh.spatial_shape)),
+            values=rng.standard_normal((N, ng, *problem.spatial_shape)),
         ),
     )
 
 
-def _positive_sigma(sn_mesh: SNProblem, ng: int = 2, seed: int = 11) -> np.ndarray:
+def _positive_sigma(problem: SNProblem, ng: int = 2, seed: int = 11) -> np.ndarray:
     """Heterogeneous positive σ ``(ng, *spatial)``, bounded away from 0."""
     rng = np.random.default_rng(seed)
-    return 0.3 + 0.5 * rng.random((ng, *sn_mesh.spatial_shape))
+    return 0.3 + 0.5 * rng.random((ng, *problem.spatial_shape))
 
 
 def _multiplier(
-    sn_mesh: SNProblem, sigma: np.ndarray, *, plain: bool = False,
+    problem: SNProblem, sigma: np.ndarray, *, plain: bool = False,
 ) -> MultiplicationOperator:
     """``M[σ]`` from a raw ndarray (wrapped into a CrossSectionField),
     bound as production binds it — the mesh's composite, both ends — or,
     with ``plain=True``, on the scalar ``bulk_space`` (the bare-array
     binding the homogeneous / diffusion outer loops feed; CS4c step 5:
     the ends select the body, so the bare arm is the PLAIN binding's)."""
-    space = sn_mesh.bulk_space if plain else sn_mesh.full_field_space
+    space = problem.bulk_space if plain else problem.full_field_space
     return MultiplicationOperator(
-        coefficient=CrossSectionField(values=sigma, space=sn_mesh.bulk_space),
+        coefficient=CrossSectionField(values=sigma, space=problem.bulk_space),
         domain=space, codomain=space,
     )
 
@@ -507,10 +507,10 @@ class TestSpaceMetadataAndGuardJoin:
         _require(M.codomain is space, "codomain must equal domain (endomorphic)")
 
     def test_from_mesh_defaults_space_from_mesh(self):
-        """``from_mesh(σ, sn_mesh)`` defaults ``space`` to the mesh's
+        """``from_mesh(σ, problem)`` defaults ``space`` to the mesh's
         ``full_field_space`` — the faithful drop-in for the retired
-        ``CollisionOperator(sn_mesh, σ)``, which reached the same composite
-        space through ``sn_mesh.full_field_space`` (#261)."""
+        ``CollisionOperator(problem, σ)``, which reached the same composite
+        space through ``problem.full_field_space`` (#261)."""
         sn = _slab_mesh()
         M = MultiplicationOperator.from_mesh(_positive_sigma(sn), sn)
         _require(
@@ -750,7 +750,7 @@ class TestTierTwoEquivalence:
     vv#28's simple-ctor-vs-composite-factory blindness, closed for C."""
 
     def test_from_mesh_equals_the_exact_ctor(self):
-        """``from_mesh(σ, sn_mesh)`` ≡ ``MultiplicationOperator(cf,
+        """``from_mesh(σ, problem)`` ≡ ``MultiplicationOperator(cf,
         domain=ffs, codomain=ffs)`` — same ends BY IDENTITY (the sugar
         resolves ``mesh.full_field_space``, spelled here independently),
         same coefficient array, bit-identical action on the same probe."""

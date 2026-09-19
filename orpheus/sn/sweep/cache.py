@@ -249,7 +249,7 @@ class StreamingCoefficientCache:
     @classmethod
     def from_mesh_and_quad(
         cls,
-        sn_mesh: "SNProblem",
+        problem: "SNProblem",
     ) -> "StreamingCoefficientCache":
         r"""Populate Stratum 1 from one :class:`SNProblem` + its quadrature.
 
@@ -258,7 +258,7 @@ class StreamingCoefficientCache:
         alone.  The (mesh, closure) intern key lives one layer up, in
         :func:`~orpheus.sn.loss_representation.geometry_cache_for`.
 
-        Iterates ``sn_mesh.dag_walk(ordinate_idx=...)`` (slow Python path —
+        Iterates ``problem.dag_walk(ordinate_idx=...)`` (slow Python path —
         but ONLY ONCE per solver lifetime; cost amortised across every
         subsequent sweep).  The per-cell
         :class:`~orpheus.transport.spatial.scheme.StreamingTerms`
@@ -267,10 +267,10 @@ class StreamingCoefficientCache:
         """
         from orpheus.geometry import CoordSystem  # local import: cyclic risk
 
-        quad = sn_mesh.quad
+        quad = problem.quad
         N = quad.N
-        nx = sn_mesh.nx
-        if not sn_mesh.is_1d:
+        nx = problem.nx
+        if not problem.is_1d:
             # A domain/admission contract, not type-narrowing — a bare
             # ``assert`` here is a NO-OP under the canonical ``python -O``
             # runner (coding-standards, the bare-assert clause; converted
@@ -283,8 +283,8 @@ class StreamingCoefficientCache:
                 "(1-D Cartesian / spherical / cylindrical).  2-D Cartesian "
                 "wavefront uses anti-diagonal scheduling, not the chain scan."
             )
-        coord = sn_mesh.coord
-        reduced = sn_mesh.reduced
+        coord = problem.coord
+        reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
 
         # ── Per-ordinate scalars (slab carries neutral M-M constants) ─
@@ -315,7 +315,7 @@ class StreamingCoefficientCache:
             )
 
         for mu_level_idx, ordinate_idx, global_n in level_visits_iter:
-            visits = list(sn_mesh.dag_walk(
+            visits = list(problem.dag_walk(
                 ordinate_idx=ordinate_idx,
                 mu_level_idx=mu_level_idx,
             ))
@@ -491,7 +491,7 @@ class CollisionCache:
             The Stratum 1 cache.
         sig_t : ndarray, shape ``(ng, nx)``.
             Per-group per-cell total cross section.  Shape matches the
-            principled 1-D sweep contract (``ng``, ``sn_mesh.nx``) — see
+            principled 1-D sweep contract (``ng``, ``problem.nx``) — see
             Issue #196 PR-INDEX-2 in
             ``.claude/plans/principled_index_migration.md``.
         scheme : DiscretizationSchemeBase

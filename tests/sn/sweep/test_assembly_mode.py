@@ -118,33 +118,33 @@ def _cartesian_2d_mesh() -> SNProblem:
 _MESH_BUILDERS = {"slab": _slab_mesh, "cartesian_2d": _cartesian_2d_mesh}
 
 
-def _loss(sn_mesh: SNProblem):
+def _loss(problem: SNProblem):
     """The production within-group resolvent ``L + C`` (the solver's own
     spelling — StreamingOperator + M[σ_t] on the composite space)."""
-    mat_xs = sn_mesh.mat_xs
-    return StreamingOperator.pose(sn_mesh) + MultiplicationOperator(
+    mat_xs = problem.mat_xs
+    return StreamingOperator.pose(problem) + MultiplicationOperator(
         coefficient=mat_xs.total_cross_section_field,
-        domain=sn_mesh.full_field_space, codomain=sn_mesh.full_field_space,
+        domain=problem.full_field_space, codomain=problem.full_field_space,
     )
 
 
-def _bulk_impulse_state(sn_mesh: SNProblem, n: int, g: int, x: np.ndarray):
+def _bulk_impulse_state(problem: SNProblem, n: int, g: int, x: np.ndarray):
     """A composite that is ``x`` on bulk row (n, g) and zero elsewhere."""
     state = FullField.zeros(
-        interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space,
+        interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space,
     )
-    state.interior.values[n, g] = x.reshape(sn_mesh.spatial_shape)
+    state.interior.values[n, g] = x.reshape(problem.spatial_shape)
     return state
 
 
-def _bulk_source(sn_mesh: SNProblem, n: int, g: int, q: np.ndarray):
+def _bulk_source(problem: SNProblem, n: int, g: int, q: np.ndarray):
     """A source composite with ``q`` on bulk row (n, g), zero trace —
     the #284 source subspace the sweep inverts exactly."""
     rhs = FullField(
-        interior=AngularSourceSink.zeros(sn_mesh.angular_bulk_space),
-        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+        interior=AngularSourceSink.zeros(problem.angular_bulk_space),
+        boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
     )
-    rhs.interior.values[n, g] = q.reshape(sn_mesh.spatial_shape)
+    rhs.interior.values[n, g] = q.reshape(problem.spatial_shape)
     return rhs
 
 
@@ -158,16 +158,16 @@ def test_g1_assembled_matvec_equals_apply(geometry):
     """G1: per (ordinate, group), ``M @ x`` reproduces the production
     matvec's bulk row — and the Cartesian ``L + C`` is exactly
     per-ordinate-per-group block-diagonal (other rows untouched)."""
-    sn_mesh = _MESH_BUILDERS[geometry]()
-    A = _loss(sn_mesh)
-    n_cells = int(np.prod(sn_mesh.spatial_shape))
+    problem = _MESH_BUILDERS[geometry]()
+    A = _loss(problem)
+    n_cells = int(np.prod(problem.spatial_shape))
     ng = 2
     rng = np.random.default_rng(20260704)
-    for n in range(sn_mesh.quad.n_ordinates):
-        blocks = assemble_ordinate_blocks(sn_mesh, n)
+    for n in range(problem.quad.n_ordinates):
+        blocks = assemble_ordinate_blocks(problem, n)
         for g in range(ng):
             x = rng.random(n_cells) + 0.5              # non-flat, positive
-            out = A.apply(_bulk_impulse_state(sn_mesh, n, g, x))
+            out = A.apply(_bulk_impulse_state(problem, n, g, x))
             bulk_out = np.asarray(out.interior.values)
             np.testing.assert_allclose(
                 blocks[g].apply(x), bulk_out[n, g].ravel(),
@@ -192,12 +192,12 @@ def test_g2_walk_order_triangularity_is_exact(geometry):
     """``triu(PᵀMP, 1) == 0`` EXACTLY — the walk order is a certificate
     of triangularity, structurally (no tolerance: an entry is either
     emitted above the diagonal or it is not)."""
-    sn_mesh = _MESH_BUILDERS[geometry]()
-    for n in range(sn_mesh.quad.n_ordinates):
-        order = ordinate_walk_order(sn_mesh, n)
+    problem = _MESH_BUILDERS[geometry]()
+    for n in range(problem.quad.n_ordinates):
+        order = ordinate_walk_order(problem, n)
         # A true permutation of the bulk cells…
         np.testing.assert_array_equal(np.sort(order), np.arange(order.size))
-        for g, block in enumerate(assemble_ordinate_blocks(sn_mesh, n)):
+        for g, block in enumerate(assemble_ordinate_blocks(problem, n)):
             M = block.as_matrix()
             permuted = M[np.ix_(order, order)]
             np.testing.assert_array_equal(
@@ -218,17 +218,17 @@ def test_g2_lapack_forward_substitution_equals_sweep(geometry):
     assembled walk-order-triangular matrix — verified against LAPACK's
     ``dtrtrs`` (scipy ``solve_triangular``), a structurally-independent
     realization of the same substitution (L2 cross-check status)."""
-    sn_mesh = _MESH_BUILDERS[geometry]()
-    A = _loss(sn_mesh)
-    n_cells = int(np.prod(sn_mesh.spatial_shape))
+    problem = _MESH_BUILDERS[geometry]()
+    A = _loss(problem)
+    n_cells = int(np.prod(problem.spatial_shape))
     ng = 2
     rng = np.random.default_rng(20260705)
-    for n in range(sn_mesh.quad.n_ordinates):
-        blocks = assemble_ordinate_blocks(sn_mesh, n)
-        order = ordinate_walk_order(sn_mesh, n)
+    for n in range(problem.quad.n_ordinates):
+        blocks = assemble_ordinate_blocks(problem, n)
+        order = ordinate_walk_order(problem, n)
         for g in range(ng):
             q = rng.random(n_cells) + 0.5
-            psi = A.solve(_bulk_source(sn_mesh, n, g, q))
+            psi = A.solve(_bulk_source(problem, n, g, q))
             psi_row = np.asarray(psi.interior.values)[n, g].ravel()
             permuted = blocks[g].as_matrix()[np.ix_(order, order)]
             via_lapack = solve_triangular(permuted, q[order], lower=True)
@@ -250,16 +250,16 @@ def test_g3_dd_slab_probed_column_pin():
     exhaustive object pin, kept permanently as the fuller-view oracle
     (probing goes through apply's arithmetic; emission through the
     kernel probes — structurally distinct consumptions of one kernel)."""
-    sn_mesh = _slab_mesh()
-    A = _loss(sn_mesh)
-    n_cells = int(np.prod(sn_mesh.spatial_shape))
+    problem = _slab_mesh()
+    A = _loss(problem)
+    n_cells = int(np.prod(problem.spatial_shape))
     n, g = 1, 1                                    # one block suffices
-    M = assemble_ordinate_blocks(sn_mesh, n)[g].as_matrix()
+    M = assemble_ordinate_blocks(problem, n)[g].as_matrix()
     probed = np.empty_like(M)
     for j in range(n_cells):
         basis = np.zeros(n_cells)
         basis[j] = 1.0
-        out = A.apply(_bulk_impulse_state(sn_mesh, n, g, basis))
+        out = A.apply(_bulk_impulse_state(problem, n, g, basis))
         probed[:, j] = np.asarray(out.interior.values)[n, g].ravel()
     np.testing.assert_allclose(M, probed, rtol=_RTOL, atol=1e-15)
 
@@ -269,14 +269,14 @@ def test_streaming_only_block_differs_by_the_collision_diagonal():
     """``include_collision=False`` emits the pure-L block: the L+C and
     L blocks differ by exactly the collision diagonal diag(σ_t) (to
     fold rounding — the two denominators are separate left folds)."""
-    sn_mesh = _slab_mesh()
+    problem = _slab_mesh()
     sigma_t = np.asarray(
-        sn_mesh.mat_xs.total_cross_section_field.values
+        problem.mat_xs.total_cross_section_field.values
     )
     for n in (0, 3):
-        with_c = assemble_ordinate_blocks(sn_mesh, n)
+        with_c = assemble_ordinate_blocks(problem, n)
         without_c = assemble_ordinate_blocks(
-            sn_mesh, n, include_collision=False,
+            problem, n, include_collision=False,
         )
         for g in range(2):
             delta = with_c[g].as_matrix() - without_c[g].as_matrix()
@@ -297,21 +297,21 @@ def test_teeth_shared_kernel_sign_flip_moves_all_three_modes(monkeypatch):
     coefficient spelling would exist → stop, fix, catalog (L16)."""
     from orpheus.transport.spatial.diamond import DiamondDifference
 
-    sn_mesh = _cartesian_2d_mesh()
+    problem = _cartesian_2d_mesh()
     n, g = 5, 1
-    n_cells = int(np.prod(sn_mesh.spatial_shape))
+    n_cells = int(np.prod(problem.spatial_shape))
     rng = np.random.default_rng(3)
     x = rng.random(n_cells) + 0.5
     q = rng.random(n_cells) + 0.5
 
     def snapshot():
-        A = _loss(sn_mesh)
-        M = assemble_ordinate_blocks(sn_mesh, n)[g].as_matrix()
+        A = _loss(problem)
+        M = assemble_ordinate_blocks(problem, n)[g].as_matrix()
         apply_row = np.asarray(
-            A.apply(_bulk_impulse_state(sn_mesh, n, g, x)).interior.values
+            A.apply(_bulk_impulse_state(problem, n, g, x)).interior.values
         )[n, g].ravel()
         sweep_row = np.asarray(
-            A.solve(_bulk_source(sn_mesh, n, g, q)).interior.values
+            A.solve(_bulk_source(problem, n, g, q)).interior.values
         )[n, g].ravel()
         return M, apply_row, sweep_row
 
@@ -350,7 +350,7 @@ def test_teeth_shared_kernel_sign_flip_moves_all_three_modes(monkeypatch):
         mutated_M @ x, mutated_apply, rtol=_RTOL, atol=1e-14,
         err_msg="G1 broke under the shared mutation — twin path",
     )
-    order = ordinate_walk_order(sn_mesh, n)
+    order = ordinate_walk_order(problem, n)
     permuted = mutated_M[np.ix_(order, order)]
     np.testing.assert_allclose(
         solve_triangular(permuted, q[order], lower=True),
@@ -407,26 +407,26 @@ def test_g1_ld_assembled_matvec_equals_apply(geometry):
     coefficients (extracted through LD's OWN residual kernel) and the
     assembled matvec reproduces the production apply on the
     moment-valued bulk row."""
-    sn_mesh = _ld_mesh(geometry)
-    A = _loss(sn_mesh)
-    cm = 2 ** len(sn_mesh.spatial_shape)
-    n_cells = int(np.prod(sn_mesh.spatial_shape))
+    problem = _ld_mesh(geometry)
+    A = _loss(problem)
+    cm = 2 ** len(problem.spatial_shape)
+    n_cells = int(np.prod(problem.spatial_shape))
     rng = np.random.default_rng(20260706)
     ng = 2
-    N = sn_mesh.quad.n_ordinates
+    N = problem.quad.n_ordinates
     for n in range(0, N, 3):                          # a representative stride
-        blocks = assemble_ordinate_blocks(sn_mesh, n)
+        blocks = assemble_ordinate_blocks(problem, n)
         for g in range(ng):
             x = rng.random(n_cells * cm) + 0.5
             # A MOMENT-VALUED iterate (the production spelling — the
             # spatial_moments factor selects the scheme's moment axis so
             # the bilinear closure's trailing 2^d axis is carried).
             state = FullField(
-                interior=AngularFlux.zeros(sn_mesh.angular_trial_space),
-                boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+                interior=AngularFlux.zeros(problem.angular_trial_space),
+                boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
             )
             state.interior.values[n, g] = x.reshape(
-                sn_mesh.spatial_shape + (cm,)
+                problem.spatial_shape + (cm,)
             )
             out = A.apply(state)
             np.testing.assert_allclose(
@@ -447,18 +447,18 @@ def test_g2_ld_block_triangular_and_lapack_solve_equals_sweep(geometry):
     reproduces the production sweep on a flat source (the #284
     discharge's LD arm — the sweep inverts the assembled object
     exactly, verified through a structurally-independent solver)."""
-    sn_mesh = _ld_mesh(geometry)
-    A = _loss(sn_mesh)
-    d = len(sn_mesh.spatial_shape)
+    problem = _ld_mesh(geometry)
+    A = _loss(problem)
+    d = len(problem.spatial_shape)
     cm = 2 ** d
-    n_cells = int(np.prod(sn_mesh.spatial_shape))
+    n_cells = int(np.prod(problem.spatial_shape))
     rng = np.random.default_rng(20260707)
     from orpheus.numerics.moment_layout import AVERAGE_MOMENT
     from scipy.linalg import lu_factor, lu_solve
 
-    for n in (0, sn_mesh.quad.n_ordinates - 1):
-        blocks = assemble_ordinate_blocks(sn_mesh, n)
-        order = ordinate_walk_order(sn_mesh, n)
+    for n in (0, problem.quad.n_ordinates - 1):
+        blocks = assemble_ordinate_blocks(problem, n)
+        order = ordinate_walk_order(problem, n)
         dof_order = _dof_order(order, cm)
         upper = _block_upper_mask(n_cells, cm, order)
         for g in range(2):
@@ -476,16 +476,16 @@ def test_g2_ld_block_triangular_and_lapack_solve_equals_sweep(geometry):
             # rows = 0 — the raw per-moment matvec convention).
             q = rng.random(n_cells) + 0.5
             src_values = np.zeros(
-                (sn_mesh.quad.n_ordinates, 2) + sn_mesh.spatial_shape + (cm,)
+                (problem.quad.n_ordinates, 2) + problem.spatial_shape + (cm,)
             )
             src_values[n, g, ..., AVERAGE_MOMENT] = q.reshape(
-                sn_mesh.spatial_shape
+                problem.spatial_shape
             )
             rhs = FullField(
                 interior=AngularSourceSink(
-                    values=src_values, space=sn_mesh.angular_trial_space,
+                    values=src_values, space=problem.angular_trial_space,
                 ),
-                boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+                boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
             )
             psi = A.solve(rhs)
             psi_row = np.asarray(psi.interior.values)[n, g].reshape(-1)
@@ -515,9 +515,9 @@ def test_curvilinear_refuses_the_cartesian_walk():
         coord=CoordSystem.SPHERICAL,
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    sn_mesh = SNProblem(mesh1d, quad, {0: get_mixture("A", "2g")})
+    problem = SNProblem(mesh1d, quad, {0: get_mixture("A", "2g")})
     with pytest.raises(AttributeError, match="Cartesian-only"):
-        assemble_ordinate_blocks(sn_mesh, 0)
+        assemble_ordinate_blocks(problem, 0)
 
 
 # ── #282 route (a): the AUGMENTED walk-order triangularity certificate ──
@@ -533,7 +533,7 @@ def test_curvilinear_refuses_the_cartesian_walk():
 # relaxes, the RED characterization).
 
 
-def _probe_augmented_matrix_one_group(sn_mesh: SNProblem, g: int) -> np.ndarray:
+def _probe_augmented_matrix_one_group(problem: SNProblem, g: int) -> np.ndarray:
     r"""The one-group AUGMENTED matrix of the production matvec by column
     probes — the ψ½ seed DOFs stacked BEFORE the ordinate DOFs.
 
@@ -550,11 +550,11 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNProblem, g: int) -> np.ndarray:
     constructible witness for this arm is a Gauss-Lobatto SPHERE rule —
     #415.
     """
-    A = _loss(sn_mesh)
-    N = sn_mesh.quad.n_ordinates
-    nx = int(np.prod(sn_mesh.spatial_shape))
-    levels = sn_mesh.radial_characteristic_levels
-    carrying = sn_mesh.radial_characteristic_field_space is not None
+    A = _loss(problem)
+    N = problem.quad.n_ordinates
+    nx = int(np.prod(problem.spatial_shape))
+    levels = problem.radial_characteristic_levels
+    carrying = problem.radial_characteristic_field_space is not None
 
     def _seed_leg_view(rows, level):
         # The emitted seed leg (a source composite) in march order, one group.
@@ -576,8 +576,8 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNProblem, g: int) -> np.ndarray:
         # Scheme-aware bulk (LD carries the trailing 2^d moment axis; DD's
         # spatial_moments=1 is the byte-identical default).
         return FullField(
-            interior=AngularFlux.zeros(sn_mesh.angular_trial_space),
-            boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+            interior=AngularFlux.zeros(problem.angular_trial_space),
+            boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
         )
 
     def _apply(st, seed_leaf):
@@ -590,14 +590,14 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNProblem, g: int) -> np.ndarray:
 
         from tests.sn._test_helpers import joint_m_grid
 
-        grid, _space = joint_m_grid(sn_mesh, A)
+        grid, _space = joint_m_grid(problem, A)
         out = grid.apply(CoupledField(systems=(st, seed_leaf)))
         return _read(out.systems[0], out.systems[1])
 
     def _zero_seed():
         return (
             None if not carrying
-            else RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)
+            else RadialCharacteristicField.flux_zeros(problem.radial_characteristic_field_space)
         )
 
     n_seed_per_level = 2 * nx + 2
@@ -628,21 +628,21 @@ def _probe_augmented_matrix_one_group(sn_mesh: SNProblem, g: int) -> np.ndarray:
     return np.array(columns).T
 
 
-def _augmented_sweep_order(sn_mesh: SNProblem) -> np.ndarray:
+def _augmented_sweep_order(problem: SNProblem) -> np.ndarray:
     """The augmented walk order: seed DOFs first (their march order, as
     stacked by the probe), then the ordinate-bulk DOFs in increasing μ
     (cells marching WITH each ordinate's direction — inward for μ<0)."""
-    mu = np.asarray(sn_mesh.quad.mu_x)
-    nx = int(np.prod(sn_mesh.spatial_shape))
+    mu = np.asarray(problem.quad.mu_x)
+    nx = int(np.prod(problem.spatial_shape))
     # The spatial-moment tail rides innermost in the probe's C-order ravel
     # (2^d for LD, 1 for DD — the DD order is byte-identical to the
     # pre-moment spelling); within a cell the moments stay contiguous, so
     # the walk order is block-wise with 2^d-wide cell blocks.
-    tail = sn_mesh.scheme.spatial_basis_per_axis ** sn_mesh.ndim
-    composite_space = sn_mesh.radial_characteristic_field_space
+    tail = problem.scheme.spatial_basis_per_axis ** problem.ndim
+    composite_space = problem.radial_characteristic_field_space
     n_seed = (
         0 if composite_space is None
-        else composite_space.shape[0] // sn_mesh.ng
+        else composite_space.shape[0] // problem.ng
     )
     order: list[int] = list(range(n_seed))   # seed DOFs already march-ordered
     for n in np.argsort(mu, kind="stable"):
@@ -695,11 +695,11 @@ def test_282_augmented_walk_order_is_triangular(coord):
         if coord is CoordSystem.SPHERICAL
         else Quadrature.folded_product(n_mu=4, n_phi=8)
     )
-    sn_mesh = SNProblem(
+    problem = SNProblem(
         mesh1d, quad, {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
-    M = _probe_augmented_matrix_one_group(sn_mesh, g=0)
-    order = _augmented_sweep_order(sn_mesh)
+    M = _probe_augmented_matrix_one_group(problem, g=0)
+    order = _augmented_sweep_order(problem)
     permuted = M[np.ix_(order, order)]
     # np.testing (fires under -O — the g_adjoint discipline), not bare assert.
     np.testing.assert_array_equal(
@@ -731,7 +731,7 @@ def test_282_teeth_coupling_direction_swap_reds():
         bc_left=BC("reflective"), bc_right=BC("vacuum"),
         coord=CoordSystem.SPHERICAL,
     )
-    sn_mesh = SNProblem(
+    problem = SNProblem(
         mesh1d, Quadrature.gauss_legendre(n_ordinates=4),
         {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
     )
@@ -755,8 +755,8 @@ def test_282_teeth_coupling_direction_swap_reds():
         mp.setattr(
             MorelMontryAngularSweep, "precompute_psi_state", _mutant,
         )
-        M = _probe_augmented_matrix_one_group(sn_mesh, g=0)
-    order = _augmented_sweep_order(sn_mesh)
+        M = _probe_augmented_matrix_one_group(problem, g=0)
+    order = _augmented_sweep_order(problem)
     above = np.abs(np.triu(M[np.ix_(order, order)], k=1)).max()
     if above <= 1e-12 * np.abs(M).max():
         _pytest.fail(

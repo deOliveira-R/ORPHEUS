@@ -168,10 +168,10 @@ def test_driver_consumes_the_records_own_splitting(build_mesh, inner_schedule):
     checked field by field. The boundary gain is unchanged (it reads the
     trace) and stays the record's object.
     """
-    sn_mesh = build_mesh()
-    splitting = splitting_for(sn_mesh, inner_schedule)
+    problem = build_mesh()
+    splitting = splitting_for(problem, inner_schedule)
     _si, driver_implicit, driver_gains, windowed = _within_group_si(
-        splitting, sn_mesh, max_iter=2, tol=1e-10,
+        splitting, problem, max_iter=2, tol=1e-10,
     )
 
     if driver_implicit is not splitting.implicit:
@@ -218,8 +218,8 @@ def test_krylov_driver_consumes_the_records_own_splitting(build_mesh):
     specifically of the SI schedule path.  If this row ever REDs, the defect
     has spread.
     """
-    sn_mesh = build_mesh()
-    splitting = splitting_for(sn_mesh, "jacobi")
+    problem = build_mesh()
+    splitting = splitting_for(problem, "jacobi")
     state = random_state(splitting.system, seed=_SEED)
     krylov = _within_group_krylov(
         splitting.implicit, *splitting.explicit,
@@ -251,8 +251,8 @@ def test_a_slab_hides_r7_the_documented_trap():
     teeth — if the 1-D fallback is ever removed, this REDs and the reader is
     told exactly which invariant moved.
     """
-    sn_mesh = slab_seedless()
-    splitting = splitting_for(sn_mesh, "gauss_seidel")
+    problem = slab_seedless()
+    splitting = splitting_for(problem, "gauss_seidel")
     if splitting.schedule.is_sequenced or (
         splitting.implicit is not splitting.system.factors.streaming_collision
     ) or splitting.explicit[-1] is not splitting.system.factors.boundary:
@@ -291,8 +291,8 @@ def test_reconstruction_identity_A_equals_M_minus_N(build_mesh, exact):
     single flat operator sum and lands at exactly 0 ULP; the carrying arm's
     block grid re-associates and lands at ≤ 8 ULP (it fails at 4).
     """
-    sn_mesh = build_mesh()
-    splitting = splitting_for(sn_mesh, "jacobi")
+    problem = build_mesh()
+    splitting = splitting_for(problem, "jacobi")
     state = random_state(splitting.system, seed=_SEED)
     loss_image = splitting.system.loss.apply(state).to_flat()
     split = split_image(splitting, state)
@@ -322,8 +322,8 @@ def test_mutation_dropping_the_gains_reddens_the_splitting_law(build_mesh):
     1.00e-01 seedless, 1.83e-02 carrying — 15+ orders above the 0-ULP /
     8-nulp contracts the law is gated at.
     """
-    sn_mesh = build_mesh()
-    splitting = splitting_for(sn_mesh, "jacobi")
+    problem = build_mesh()
+    splitting = splitting_for(problem, "jacobi")
     state = random_state(splitting.system, seed=_SEED)
     defect = reconstruction_residual(splitting, state, gains=())
     if defect < 1e-3:
@@ -347,8 +347,8 @@ def test_mutation_sign_flipped_gain_reddens_the_splitting_law(build_mesh):
     catcher for a convention drift rather than a dropped term.  MEASURED:
     3.32e-02 seedless, 3.66e-02 carrying.
     """
-    sn_mesh = build_mesh()
-    splitting = splitting_for(sn_mesh, "jacobi")
+    problem = build_mesh()
+    splitting = splitting_for(problem, "jacobi")
     state = random_state(splitting.system, seed=_SEED)
     flipped = (-splitting.explicit[0], *splitting.explicit[1:])
     defect = reconstruction_residual(splitting, state, gains=flipped)
@@ -417,11 +417,11 @@ def test_the_sigma_r_fold_is_a_splitting_only_with_its_anisotropic_remainder():
     ``|Bψ|∞ = 0.0``) — the legs then isolate the projection mechanism and
     nothing else.
     """
-    sn_mesh = isotropic_slab(c=0.9)
-    splitting = splitting_for(sn_mesh, "jacobi", scattering_order=0)
+    problem = isotropic_slab(c=0.9)
+    splitting = splitting_for(problem, "jacobi", scattering_order=0)
     factors = splitting.system.factors
     scattering, boundary = factors.scattering, factors.boundary
-    sigma_s0 = sigma_s0_times_identity(sn_mesh, scattering)
+    sigma_s0 = sigma_s0_times_identity(problem, scattering)
     folded_implicit = factors.streaming_collision - sigma_s0
     honest_gains = (scattering, boundary, -sigma_s0)
 
@@ -478,10 +478,10 @@ def test_the_two_sigma_s0_operators_are_indistinguishable_on_a_flat_flux():
     phantom coverage edge: it would inflate ERR-070's catcher count with a
     test that stays green under the exact mutation it appears to cover.
     """
-    sn_mesh = isotropic_slab(c=0.9)
-    record = record_for(sn_mesh, scattering_order=0)
+    problem = isotropic_slab(c=0.9)
+    record = record_for(problem, scattering_order=0)
     scattering = record.factors.scattering
-    sigma_s0 = sigma_s0_times_identity(sn_mesh, scattering)
+    sigma_s0 = sigma_s0_times_identity(problem, scattering)
 
     flat = system_a(random_state(record, seed=4242, angularly_flat=True))
     anisotropic = system_a(random_state(record, seed=4242))

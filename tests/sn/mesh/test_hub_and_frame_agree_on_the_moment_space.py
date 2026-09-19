@@ -52,15 +52,15 @@ _ORDERS = [0, 1, 2]
 def test_P5_the_hub_and_the_frame_derive_one_space_by_equality_and_each_owner_by_identity(
     geometry: str, L: int,
 ) -> None:
-    sn_mesh = _GEOMETRIES[geometry]()
-    hub = sn_mesh.moment_space(L)
-    frame = HarmonicFrame.for_space(sn_mesh.angular_bulk_space, L)
-    derived = frame.moment_space_on(sn_mesh.angular_bulk_space)
+    problem = _GEOMETRIES[geometry]()
+    hub = problem.moment_space(L)
+    frame = HarmonicFrame.for_space(problem.angular_bulk_space, L)
+    derived = frame.moment_space_on(problem.angular_bulk_space)
     assert hub == derived and derived == hub, "two owners, ONE space (structural equality)"
     assert hash(hub) == hash(derived)
     # is-identity WITHIN each owner
-    assert sn_mesh.moment_space(L) is hub
-    assert frame.flux_analysis_on(sn_mesh.angular_bulk_space).codomain == hub
+    assert problem.moment_space(L) is hub
+    assert frame.flux_analysis_on(problem.angular_bulk_space).codomain == hub
     # the head both owners hold is the frame's Parseval-dressed one
     assert isinstance(hub, TensorProductSpace)
     assert hub.factors[0] == frame.basis_space
@@ -72,15 +72,15 @@ def test_P5_the_hub_and_the_frame_derive_one_space_by_equality_and_each_owner_by
 def test_P7_the_three_product_mechanisms_are_one_space_by_identity_not_by_name(
     geometry: str, L: int,
 ) -> None:
-    sn_mesh = _GEOMETRIES[geometry]()
-    hub = sn_mesh.moment_space(L)
-    frame = sn_mesh.quad.angular_frame(L)
+    problem = _GEOMETRIES[geometry]()
+    hub = problem.moment_space(L)
+    frame = problem.quad.angular_frame(L)
     head = frame.basis_space
-    bulk = sn_mesh.bulk_space
+    bulk = problem.bulk_space
     assert head.axes is not None and bulk.axes is not None
     star = head * bulk
     of_axes = FunctionSpace.of_axes(*head.axes, *bulk.axes)
-    derived = HarmonicFrame.from_galerkin(frame).moment_space_on(sn_mesh.angular_bulk_space)
+    derived = HarmonicFrame.from_galerkin(frame).moment_space_on(problem.angular_bulk_space)
     assert hub == star == of_axes == derived
     assert len({hub, star, of_axes, derived}) == 1
     # the names DIFFER — identity is structural, never nominal
@@ -99,9 +99,9 @@ def test_P7_the_three_product_mechanisms_are_one_space_by_identity_not_by_name(
 @pytest.mark.parametrize("geometry", list(_GEOMETRIES), ids=list(_GEOMETRIES))
 @pytest.mark.parametrize("L", _ORDERS)
 def test_P10_the_moment_space_is_axis_built_and_never_densified(geometry: str, L: int) -> None:
-    sn_mesh = _GEOMETRIES[geometry]()
-    space = sn_mesh.moment_space(L)
-    frame = sn_mesh.quad.angular_frame(L)
+    problem = _GEOMETRIES[geometry]()
+    space = problem.moment_space(L)
+    frame = problem.quad.angular_frame(L)
     assert space.axes is not None, "the moment space is axis-built"
     assert space.inner_product_weights is None
     if frame.discrete_gram_structure is GramStructure.DENSE:

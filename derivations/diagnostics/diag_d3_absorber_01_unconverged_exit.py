@@ -183,7 +183,7 @@ def test_d3_absorber_exact_uniform_field_is_the_discrete_solution() -> None:
     sn = sol.mesh
     solver = SNSolver(sn, inner_solver="source_iteration", max_inner=1, inner_tol=1e-13)  # the order is the hub's (0)
     system = build_within_group_system(
-        sn, solver.sn_mesh.mat_xs,
+        sn, solver.problem.mat_xs,
     )
     loss = _bare_loss_arm(system)
     qc = _build_fixed_source_rhs(q, sn)

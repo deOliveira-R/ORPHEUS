@@ -10,7 +10,7 @@ enforced by construction, closing coding-elegance Smell #16 (two doors to one
 operator's representation).
 
 NEGATIVE PRE-CONDITION (why these are tripwires, not tautologies): at the
-pre-S6.5 HEAD the doors each called ``default_for(sn_mesh)`` INDEPENDENTLY —
+pre-S6.5 HEAD the doors each called ``default_for(problem)`` INDEPENDENTLY —
 ``apply`` via the ``loss_representation`` cached_property, ``solve`` via
 ``transport_sweep`` → ``default_for`` (a FRESH frozen-dataclass instance per
 sweep call), and the G-S resolvent via a THIRD ``default_for`` per solve.  The
@@ -120,7 +120,7 @@ def test_scheduled_solve_runs_the_operators_instance(monkeypatch):
     S6.5 inventory; migrated from the dissolved ``_GaussSeidelResolvent``
     at #226 step 2 — retirement-means-test-migration).
 
-    Pre-S6.5 the G-S path passed ``interior=default_for(sn_mesh)
+    Pre-S6.5 the G-S path passed ``interior=default_for(problem)
     ._sweep_interior`` — a fresh instance per scheduled solve.  Post-#226
     the scheduled walk routes through the representation's OWN ``sweep``
     door (which injects its own kernel); the spy captures the ``self`` of

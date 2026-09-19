@@ -111,9 +111,9 @@ def _slab_sn_mesh(nx: int, *, bc: str, ng_key: str = "2g") -> SNProblem:
     return SNProblem(mesh, quad, {0: get_mixture("A", ng_key)})
 
 
-def _seeded_inflow(sn_mesh: SNProblem, rng: np.random.Generator) -> AngularBoundaryFlux:
+def _seeded_inflow(problem: SNProblem, rng: np.random.Generator) -> AngularBoundaryFlux:
     """A boundary flux with a random non-zero inflow trace on every face."""
-    bf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    bf = AngularBoundaryFlux.zeros(problem.angular_trace)
     for face in bf.layout.faces:
         fv = bf.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
@@ -137,21 +137,21 @@ def test_cumprod_1d_equals_full_field_spine(bc):
     the BC-inflow seed face, the group axis.
     """
     nx = _NX_EQUIV
-    sn_mesh = _slab_sn_mesh(nx, bc=bc)
-    ng = sn_mesh.ng
+    problem = _slab_sn_mesh(nx, bc=bc)
+    ng = problem.ng
     rng = np.random.default_rng(20260610)
 
     # Heterogeneous Σ_t (ng, nx) + non-uniform source — the non-flat drivers.
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx))
     iso = rng.uniform(0.2, 1.5, size=(ng, nx))
-    Q = AngularSourceSink.from_isotropic(iso, sn_mesh)
+    Q = AngularSourceSink.from_isotropic(iso, problem)
     Q_arr = Q.values                     # (N, ng, nx) — both strategies, rank-1
 
     # Separate seeded inflow per strategy (each sweep mutates its own trace).
-    bf_cumprod = _seeded_inflow(sn_mesh, rng)
-    bf_spine = AngularBoundaryFlux(values=bf_cumprod.values.copy(), space=sn_mesh.angular_trace)
+    bf_cumprod = _seeded_inflow(problem, rng)
+    bf_spine = AngularBoundaryFlux(values=bf_cumprod.values.copy(), space=problem.angular_trace)
 
-    scan, spine = CumprodScan.pose(sn_mesh), FullFieldWavefront.pose(sn_mesh)
+    scan, spine = CumprodScan.pose(problem), FullFieldWavefront.pose(problem)
     ang_c, scal_c = scan.sweep(Q_arr, scan.bind_sigma(sig_t), bf_cumprod)
     ang_s, scal_s = spine.sweep(Q_arr, spine.bind_sigma(sig_t), bf_spine)
 
@@ -227,24 +227,24 @@ def test_cumprod_faster_than_full_field_spine_d1():
     became the d=1 default and 1-D got slow").
     """
     nx = 4096                                   # long chain — cumprod shines
-    sn_mesh = _slab_sn_mesh(nx, bc="vacuum")
-    ng = sn_mesh.ng
+    problem = _slab_sn_mesh(nx, bc="vacuum")
+    ng = problem.ng
     rng = np.random.default_rng(99)
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx))
     iso = rng.uniform(0.2, 1.5, size=(ng, nx))
-    Q = AngularSourceSink.from_isotropic(iso, sn_mesh)
+    Q = AngularSourceSink.from_isotropic(iso, problem)
     Q_arr = Q.values
 
-    cumprod = CumprodScan.pose(sn_mesh)
-    spine = FullFieldWavefront.pose(sn_mesh)
+    cumprod = CumprodScan.pose(problem)
+    spine = FullFieldWavefront.pose(problem)
 
     def _time(strategy, repeats=5):
-        bf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+        bf = AngularBoundaryFlux.zeros(problem.angular_trace)
         stratum = strategy.bind_sigma(sig_t)    # σ bound ONCE (C3b-2) — the tables built here
         strategy.sweep(Q_arr, stratum, bf)      # warm up
         best = float("inf")
         for _ in range(repeats):
-            bf = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+            bf = AngularBoundaryFlux.zeros(problem.angular_trace)
             t0 = time.perf_counter()
             strategy.sweep(Q_arr, stratum, bf)
             best = min(best, time.perf_counter() - t0)

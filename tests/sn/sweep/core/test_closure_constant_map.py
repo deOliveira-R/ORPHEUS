@@ -113,12 +113,12 @@ def test_sphere_closure_map_matches_inline():
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(8)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
     op = spherical_streaming(mesh, quad)
-    closure = sn_mesh.angular_closure
+    closure = problem.angular_closure
 
     for n in range(quad.N):
-        for cell in range(sn_mesh.nx):
+        for cell in range(problem.nx):
             _assert_closure_map_matches_inline(
                 closure, op, cell, n, n,
                 where=f"sphere ordinate {n} cell {cell}",
@@ -142,9 +142,9 @@ def test_multilevel_cylinder_closure_map_matches_inline():
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.folded_product(n_mu=2, n_phi=4)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
     op = cylindrical_streaming(mesh, quad)
-    closure = sn_mesh.angular_closure
+    closure = problem.angular_closure
 
     level_indices = quad.level_indices
     if len(level_indices) < 2:
@@ -158,7 +158,7 @@ def test_multilevel_cylinder_closure_map_matches_inline():
         block = np.asarray(level_indices[level_p])
         for within in range(int(block.size)):
             global_n = int(block[within])
-            for cell in range(sn_mesh.nx):
+            for cell in range(problem.nx):
                 _assert_closure_map_matches_inline(
                     closure, op, cell, global_n, within,
                     mu_level_idx=level_p,
@@ -191,9 +191,9 @@ def test_slab_closure_map_is_neutral():
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(4)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
     op = slab_streaming(mesh, quad)
-    closure = sn_mesh.angular_closure
+    closure = problem.angular_closure
 
     for n in range(quad.N):
         _assert_closure_map_matches_inline(

@@ -1286,8 +1286,8 @@ class _OctantWalk:
             AngularSourceSink, AngularBoundarySourceSink,
         )
 
-        sn_mesh = self.mesh
-        ndim = sn_mesh.ndim
+        problem = self.mesh
+        ndim = problem.ndim
         ng = sigma.shape[0]
         spatial = sigma.shape[1:]
         probe = psi.interior.values
@@ -1302,14 +1302,14 @@ class _OctantWalk:
         operands = _ApplyOperands(
             probe=probe,
             sig_t=sigma,
-            str_axes=tuple(sn_mesh.streaming(a) for a in range(ndim)),
+            str_axes=tuple(problem.streaming(a) for a in range(ndim)),
             Q_zero=np.zeros((1, ng, *spatial, *moment_tail)),
         )
 
         # (L+C)·ψ̄ accumulator; ``L.apply`` reaches bare-streaming Lψ̄ by running
         # this SAME frame at σ = 0 (#257 S8b), never by subtracting Σ_t·ψ̄.
-        LpC = np.zeros((sn_mesh.quad.N, ng, *spatial, *moment_tail))
-        trace = sn_mesh.angular_trace
+        LpC = np.zeros((problem.quad.N, ng, *spatial, *moment_tail))
+        trace = problem.angular_trace
         boundary = psi.boundary
         streamed = {
             face: np.zeros_like(boundary.face_view(face))
@@ -1337,7 +1337,7 @@ class _OctantWalk:
         def shed(face: str, oct_idx: "np.ndarray", capture_a: "np.ndarray") -> None:
             streamed[face][oct_idx] = capture_a
 
-        (jacobi_group,) = SweepSchedule.jacobi(sn_mesh.ndim, sn_mesh.quad.octants).groups
+        (jacobi_group,) = SweepSchedule.jacobi(problem.ndim, problem.quad.octants).groups
         self._interior_walk(
             jacobi_group.sweeps,
             inflow_of=boundary.face_view,
@@ -1347,7 +1347,7 @@ class _OctantWalk:
         )
 
         # Boundary-block residual (O.4b — the active trace).
-        out_boundary = AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)
+        out_boundary = AngularBoundarySourceSink.zeros(problem.angular_trace)
         for face in trace.face_names:
             given = boundary.face_view(face)
             out_idx = trace.outflow_indices_for_face(face)
@@ -1360,7 +1360,7 @@ class _OctantWalk:
                 out_boundary.face_view(face)[in_idx] = given[in_idx]
 
         return FullField(
-            interior=AngularSourceSink(values=LpC, space=sn_mesh.angular_trial_space),
+            interior=AngularSourceSink(values=LpC, space=problem.angular_trial_space),
             boundary=out_boundary,
         )
 
@@ -1408,8 +1408,8 @@ class _OctantWalk:
             AngularSourceSink, AngularBoundarySourceSink,
         )
 
-        sn_mesh = self.mesh
-        ndim = sn_mesh.ndim
+        problem = self.mesh
+        ndim = problem.ndim
         ng = sigma.shape[0]
         spatial = sigma.shape[1:]
         scheme = self.spatial_closure
@@ -1445,12 +1445,12 @@ class _OctantWalk:
         operands = _ApplyOperands(
             probe=res_bar,
             sig_t=sigma,
-            str_axes=tuple(sn_mesh.streaming(a) for a in range(ndim)),
+            str_axes=tuple(problem.streaming(a) for a in range(ndim)),
             Q_zero=np.zeros((1, ng, *spatial, *moment_tail)),
         )
 
-        psi_cot = np.zeros((sn_mesh.quad.N, ng, *spatial, *moment_tail))
-        trace = sn_mesh.angular_trace
+        psi_cot = np.zeros((problem.quad.N, ng, *spatial, *moment_tail))
+        trace = problem.angular_trace
         b_bar = phi.boundary
 
         # ── reverse the boundary writeback (see the docstring's algebra) ──
@@ -1495,7 +1495,7 @@ class _OctantWalk:
             # exactly one walked deposit.
             trace_cot[face][oct_idx] += capture_a
 
-        (jacobi_group,) = SweepSchedule.jacobi(sn_mesh.ndim, sn_mesh.quad.octants).groups
+        (jacobi_group,) = SweepSchedule.jacobi(problem.ndim, problem.quad.octants).groups
         self._interior_walk(
             _reverse_octant_traversal(jacobi_group.sweeps),
             inflow_of=lambda face: streamed_bar[face],
@@ -1504,13 +1504,13 @@ class _OctantWalk:
             interior=run_interior,
         )
 
-        out_boundary = AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)
+        out_boundary = AngularBoundarySourceSink.zeros(problem.angular_trace)
         for face in trace.face_names:
             out_boundary.face_view(face)[...] = trace_cot[face]
 
         return FullField(
             interior=AngularSourceSink(
-                values=psi_cot, space=sn_mesh.angular_trial_space,
+                values=psi_cot, space=problem.angular_trial_space,
             ),
             boundary=out_boundary,
         )
@@ -3082,8 +3082,8 @@ class _OneDimScanWalk:
         the :meth:`_degenerate_positions` set (volumetric balance, no
         face march).
         """
-        sn_mesh = self.mesh
-        mu_x = sn_mesh.quad.mu_x
+        problem = self.mesh
+        mu_x = problem.quad.mu_x
         level_indices = self.angular_closure.level_indices
         legs: list[_WalkLeg] = []
         for direction_sign in (-1, +1):
@@ -3097,7 +3097,7 @@ class _OneDimScanWalk:
                 if not np.any(within_mask):
                     continue
                 ordinates = level_idx_arr[within_mask]
-                cells = tuple(sn_mesh.dag_walk_cell_indices(
+                cells = tuple(problem.dag_walk_cell_indices(
                     direction_sign=direction_sign, mu_level_idx=p,
                 ))
                 if not cells:
@@ -3343,12 +3343,12 @@ class _OneDimScanWalk:
         from orpheus.transport.source_sinks import AngularBoundarySourceSink
         from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 
-        sn_mesh = self.mesh
+        problem = self.mesh
         psi_view = psi.interior.values
-        quad = sn_mesh.quad
+        quad = problem.quad
         N = quad.N
         ng = psi_view.shape[1]
-        nx = sn_mesh.nx
+        nx = problem.nx
         # The chart is an ENUM on the mesh.  Until 2026-08-26 this frame
         # re-derived a string from it through a defaulted ``getattr`` and
         # re-validated that string's domain at runtime -- a domain NO
@@ -3356,8 +3356,8 @@ class _OneDimScanWalk:
         # ``== "cartesian"`` / ``!= "cartesian"``, never sphere-vs-cylinder.
         # A three-valued string used as a boolean, with a guard for values
         # nothing branches on.
-        is_cartesian = sn_mesh.is_cartesian
-        if is_cartesian and not sn_mesh.is_1d:
+        is_cartesian = problem.is_cartesian
+        if is_cartesian and not problem.is_1d:
             raise NotImplementedError(
                 "_OneDimScanWalk._apply_walk: multi-D Cartesian is not "
                 "handled by the 1-D scan walk; multi-D Cartesian routes "
@@ -3370,7 +3370,7 @@ class _OneDimScanWalk:
         angular_closure = self.angular_closure
 
         mu_x = quad.mu_x
-        A = sn_mesh.areas
+        A = problem.areas
 
         psi_g_first = psi_view.swapaxes(0, 1)
         # The unified moment matvec (#240 D5b-S3): a multi-moment closure (LD)
@@ -3380,14 +3380,14 @@ class _OneDimScanWalk:
         # (per_axis == 1) → ``()`` tail, every buffer byte-identical.  The width
         # is read OFF the iterate's space (the single source of truth).
         per_axis = self.spatial_closure.spatial_basis_per_axis
-        moment_tail = face_moment_tail(cell_moment_count(per_axis, sn_mesh.ndim))
+        moment_tail = face_moment_tail(cell_moment_count(per_axis, problem.ndim))
         out_g_first = np.zeros((ng, N, nx, *moment_tail))
 
-        V = sn_mesh.volumes
+        V = problem.volumes
         sigma_gx = sigma
 
         boundary = psi.boundary
-        trace = sn_mesh.angular_trace
+        trace = problem.angular_trace
         has_inner_face = "xmin" in boundary.layout.faces
         face_outer = boundary.face_view("xmax")
         face_inner = boundary.face_view("xmin") if has_inner_face else None
@@ -3409,12 +3409,12 @@ class _OneDimScanWalk:
         # only (its ``.cells(p, -1)`` read — the M-M recurrence seed
         # lives on the marched cells).
         seed_field = None
-        if sn_mesh.radial_characteristic_field_space is not None:
+        if problem.radial_characteristic_field_space is not None:
             from orpheus.transport.radial_characteristic_field import (
                 RadialCharacteristicField,
             )
 
-            seed_field = RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)
+            seed_field = RadialCharacteristicField.flux_zeros(problem.radial_characteristic_field_space)
         psi_state = angular_closure.precompute_psi_state(
             psi_view,
             radial_characteristic=(
@@ -3620,7 +3620,7 @@ class _OneDimScanWalk:
         # The outflow / inflow ordinate sets are the disjoint sign(Ω·n)
         # partitions read from the unified AngularTraceSpace selector (single source
         # of truth) — A.4 retired the inline ``mu_x > ±eps`` masks.
-        m_boundary = AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)
+        m_boundary = AngularBoundarySourceSink.zeros(problem.angular_trace)
         outer_outflow = trace.outflow_indices_for_face("xmax")
         if outer_outflow.size:
             m_boundary.face_view("xmax")[outer_outflow, :] = (
@@ -3698,15 +3698,15 @@ class _OneDimScanWalk:
         from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
         from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 
-        sn_mesh = self.mesh
-        quad = sn_mesh.quad
+        problem = self.mesh
+        quad = problem.quad
         N = quad.N
         ng = phi.interior.values.shape[1]
-        nx = sn_mesh.nx
+        nx = problem.nx
         # See _apply_walk's note: the twin of that prelude, and already
         # DRIFTED -- this copy never carried the domain re-validation.
-        is_cartesian = sn_mesh.is_cartesian
-        if is_cartesian and not sn_mesh.is_1d:
+        is_cartesian = problem.is_cartesian
+        if is_cartesian and not problem.is_1d:
             # Structural 1-D-only guard (NOT a deferral since #310 C4): the
             # multi-D scan-family reverse is the row-march
             # (ScanMarch._loss_action_transpose_interior via the shared
@@ -3739,10 +3739,10 @@ class _OneDimScanWalk:
         # (curvilinear only; the mesh-stashed derivation makes the
         # unconditional read a cache hit).
         mirror = self._ensure_pole_mirror()
-        A = sn_mesh.areas
-        V = sn_mesh.volumes
+        A = problem.areas
+        V = problem.volumes
         sgx = sigma                                  # (ng, nx)
-        trace = sn_mesh.angular_trace
+        trace = problem.angular_trace
         has_inner_face = "xmin" in phi.boundary.layout.faces
 
         # #282 route (a) → B.2d → step 6: this is the ray-decoupled (A,A)ᵀ
@@ -3761,7 +3761,7 @@ class _OneDimScanWalk:
         # FACE cochain is scalar (2^{d-1} = 1) for every closure.  DD/Step
         # (per_axis == 1) → ``()`` tail, every buffer byte-identical.
         per_axis = scheme.spatial_basis_per_axis
-        moment_tail = face_moment_tail(cell_moment_count(per_axis, sn_mesh.ndim))
+        moment_tail = face_moment_tail(cell_moment_count(per_axis, problem.ndim))
         is_moment_valued = scheme.is_multi_moment
         frame_signs_by_dir = {
             ds: frame_signs_for(scheme, (ds,)) for ds in (+1, -1)
@@ -3996,14 +3996,14 @@ class _OneDimScanWalk:
             psi_bar += psi_ang_bar
 
         # ── assemble the typed composite ──
-        m_boundary = AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)
+        m_boundary = AngularBoundarySourceSink.zeros(problem.angular_trace)
         m_boundary.face_view("xmax")[...] = fo_bar
         if has_inner_face:
             m_boundary.face_view("xmin")[...] = fi_bar
         return FullField(
             interior=AngularSourceSink(
                 values=psi_bar.swapaxes(0, 1),
-                space=sn_mesh.angular_trial_space,
+                space=problem.angular_trial_space,
             ),
             boundary=m_boundary,
         )
@@ -4999,7 +4999,7 @@ class _OneDimScanWalk:
 def _sweep_scheduled(
     Q: np.ndarray,
     sig_t: np.ndarray,
-    sn_mesh: "SNProblem",
+    problem: "SNProblem",
     boundary_flux: "AngularBoundaryFlux",
     *,
     spatial_closure: "DiscretizationSchemeBase",
@@ -5080,15 +5080,15 @@ def _sweep_scheduled(
     # the historical ``ng, nx, ny`` unpack was a 2-D hardcode).
     ng = sig_t.shape[0]
     spatial = sig_t.shape[1:]
-    N = sn_mesh.quad.N
-    weights = sn_mesh.quad.weights
+    N = problem.quad.N
+    weights = problem.quad.weights
     # The output buffers carry the trailing 2^d spatial-moment axis at a
     # multi-moment closure (the φ̂ iterate accumulated by ``_CellSolve``; #240
     # D5b-S3) — both the angular field (FFW oracle / non-windowed) and the
     # harmonic-moment tensor (windowed production).  DD/Step (per_axis == 1) →
     # ``()`` tail, every buffer byte-identical (the negative control).
     moment_tail = face_moment_tail(
-        cell_moment_count(spatial_closure.spatial_basis_per_axis, sn_mesh.ndim)
+        cell_moment_count(spatial_closure.spatial_basis_per_axis, problem.ndim)
     )
     emit: "_SweepEmitAngular | _SweepEmitMoment"
     if moment_frame is None:
@@ -5112,9 +5112,9 @@ def _sweep_scheduled(
 
     operands = _SolveOperands(
         Q=Q, sig_t=sig_t,
-        str_axes=tuple(sn_mesh.streaming(a) for a in range(sn_mesh.ndim)),
+        str_axes=tuple(problem.streaming(a) for a in range(problem.ndim)),
     )
-    walk = _OctantWalk(sn_mesh, spatial_closure, angular_closure)
+    walk = _OctantWalk(problem, spatial_closure, angular_closure)
     for group in schedule.groups:
         walk.sweep_group(
             group,
@@ -5144,7 +5144,7 @@ def _sweep_scheduled(
 def _sweep_jacobi(
     Q: np.ndarray,
     sig_t: np.ndarray,
-    sn_mesh: "SNProblem",
+    problem: "SNProblem",
     boundary_flux: "AngularBoundaryFlux",
     *,
     spatial_closure: "DiscretizationSchemeBase",
@@ -5183,10 +5183,10 @@ def _sweep_jacobi(
     § bit-identity-vs-principled).
     """
     return _sweep_scheduled(
-        Q, sig_t, sn_mesh, boundary_flux,
+        Q, sig_t, problem, boundary_flux,
         spatial_closure=spatial_closure,
         angular_closure=angular_closure,
-        schedule=SweepSchedule.jacobi(sn_mesh.ndim, sn_mesh.quad.octants),
+        schedule=SweepSchedule.jacobi(problem.ndim, problem.quad.octants),
         reflect=None,
         moment_frame=moment_frame,
         interior=interior,

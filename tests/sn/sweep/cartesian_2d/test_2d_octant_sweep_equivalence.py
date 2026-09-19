@@ -294,17 +294,17 @@ def _build_sn_mesh(
 
 
 def _build_sig_t(
-    sn_mesh: SNProblem, materials: dict, ng: int,
+    problem: SNProblem, materials: dict, ng: int,
 ) -> np.ndarray:
     """Build the per-cell per-group ``sig_t`` array from a materials dict.
 
     Issue #196 PR-INDEX-4: principled ``(ng, nx, ny)`` layout to match
     ``_sweep_jacobi``'s direct contract.
     """
-    nx, ny = sn_mesh.spatial_shape
+    nx, ny = problem.spatial_shape
     sig_t = np.zeros((ng, nx, ny))
     for mid, mix in materials.items():
-        cells = sn_mesh.mat_map == mid
+        cells = problem.mat_map == mid
         # ``Mixture.SigT`` is ``(ng,)``.  Broadcast across spatial axes.
         # sig_t[:, cells] expects shape (ng, n_cells); SigT[:, None]
         # broadcasts across the cells dimension.
@@ -312,13 +312,13 @@ def _build_sig_t(
     return sig_t
 
 
-def _empty_boundary_flux(sn_mesh: SNProblem) -> "AngularBoundaryFlux":
+def _empty_boundary_flux(problem: SNProblem) -> "AngularBoundaryFlux":
     """Fresh zero :class:`AngularBoundaryFlux`; the sweep populates buffers on first call.
 
     Issue #197 PR-TYPED-2 — typed replacement for the legacy
     ``psi_bc: dict`` fixture pattern.
     """
-    return AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    return AngularBoundaryFlux.zeros(problem.angular_trace)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -349,8 +349,8 @@ def combine_source(inputs: "OctantEquivalenceInputs") -> np.ndarray:
     (or ``iso_broadcast / sum_w`` when ``aniso`` is ``None``), returned
     C-contiguous so the sweep's per-octant slicing is view-clean.
     """
-    sum_w = float(inputs.sn_mesh.quad.weights.sum())
-    N = inputs.sn_mesh.quad.N
+    sum_w = float(inputs.problem.quad.weights.sum())
+    N = inputs.problem.quad.N
     ng, nx, ny = inputs.Q.shape
     iso_broadcast = np.broadcast_to(inputs.Q[None, :, :, :], (N, ng, nx, ny))
     if inputs.aniso_source is not None:
@@ -384,10 +384,10 @@ def run_sweeps(
     face views from there).
     """
     Q_combined = combine_source(inputs)
-    window = MovingFrontierWindow.pose(inputs.sn_mesh)
+    window = MovingFrontierWindow.pose(inputs.problem)
     angular_flux = scalar_flux = None
     for _ in range(n_sweeps):
-        reflect_outflow_into_inflow(inputs.boundary_flux, inputs.sn_mesh)
+        reflect_outflow_into_inflow(inputs.boundary_flux, inputs.problem)
         angular_flux, scalar_flux = window.sweep(
             Q_combined, window.bind_sigma(inputs.sig_t), inputs.boundary_flux,
         )
@@ -454,7 +454,7 @@ class OctantEquivalenceInputs:
     (the public typed contract lives at the ``(L+C)`` operator surface).
     """
 
-    sn_mesh: SNProblem
+    problem: SNProblem
     Q: np.ndarray                          # (ng, nx, ny) — isotropic source
     sig_t: np.ndarray                      # (ng, nx, ny)
     boundary_flux: "AngularBoundaryFlux"         # mutable — sweep mutates BC buffers
@@ -472,19 +472,19 @@ def _case_1_smoke() -> OctantEquivalenceInputs:
     contract fails on this trivial baseline.  This is the lowest-risk
     case; if it fails, everything downstream fails.
     """
-    sn_mesh = _build_sn_mesh(
+    problem = _build_sn_mesh(
         nx=3, ny=3,
         bc_xmin="vacuum", bc_xmax="vacuum",
         bc_ymin="vacuum", bc_ymax="vacuum",
         quadrature="LS4", n_materials=1,
     )
     materials = {0: get_mixture("A", "1g")}
-    sig_t = _build_sig_t(sn_mesh, materials, ng=1)
+    sig_t = _build_sig_t(problem, materials, ng=1)
     # PR-INDEX-4: principled (ng, nx, ny).
-    Q = np.ones((1, *sn_mesh.spatial_shape))
+    Q = np.ones((1, *problem.spatial_shape))
     return OctantEquivalenceInputs(
-        sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=AngularBoundaryFlux.zeros(sn_mesh.angular_trace), aniso_source=None,
+        problem=problem, Q=Q, sig_t=sig_t,
+        boundary_flux=AngularBoundaryFlux.zeros(problem.angular_trace), aniso_source=None,
     )
 
 
@@ -511,18 +511,18 @@ def _case_2_reflective() -> OctantEquivalenceInputs:
     in-sweep to Jacobi inter-sweep; the converged fixed point is the
     same, anchored by case 7.)
     """
-    sn_mesh = _build_sn_mesh(
+    problem = _build_sn_mesh(
         nx=3, ny=3,
         bc_xmin="reflective", bc_xmax="reflective",
         bc_ymin="reflective", bc_ymax="reflective",
         quadrature="LS4", n_materials=1,
     )
     materials = {0: get_mixture("A", "1g")}
-    sig_t = _build_sig_t(sn_mesh, materials, ng=1)
-    Q = np.ones((1, *sn_mesh.spatial_shape))
+    sig_t = _build_sig_t(problem, materials, ng=1)
+    Q = np.ones((1, *problem.spatial_shape))
     return OctantEquivalenceInputs(
-        sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=_empty_boundary_flux(sn_mesh), aniso_source=None,
+        problem=problem, Q=Q, sig_t=sig_t,
+        boundary_flux=_empty_boundary_flux(problem), aniso_source=None,
     )
 
 
@@ -568,22 +568,22 @@ def _case_3_mixed_bc_het() -> OctantEquivalenceInputs:
     sweep: there is no in-sweep BC any more.  The row now pins the
     bare contract; the active modes above are what it gates.)
     """
-    sn_mesh = _build_sn_mesh(
+    problem = _build_sn_mesh(
         nx=3, ny=3,
         bc_xmin="reflective", bc_xmax="vacuum",
         bc_ymin="reflective", bc_ymax="vacuum",
         quadrature="LS4", n_materials=2, ng=2,
     )
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    sig_t = _build_sig_t(sn_mesh, materials, ng=2)
+    sig_t = _build_sig_t(problem, materials, ng=2)
     # Spatially uniform Q to keep the assertion focused on the BC /
     # heterogeneity / multi-group axes.  Uniform-Q + heterogeneous Σ_t
     # is the canonical fingerprint that surfaces redistribution bugs
     # on a flat-source baseline.  PR-INDEX-4 (ng, nx, ny).
-    Q = np.ones((2, *sn_mesh.spatial_shape))
+    Q = np.ones((2, *problem.spatial_shape))
     return OctantEquivalenceInputs(
-        sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=_empty_boundary_flux(sn_mesh), aniso_source=None,
+        problem=problem, Q=Q, sig_t=sig_t,
+        boundary_flux=_empty_boundary_flux(problem), aniso_source=None,
     )
 
 
@@ -600,14 +600,14 @@ def _case_4_heterogeneous() -> OctantEquivalenceInputs:
     gradient) ensures the redistribution term is ACTIVE — uniform Q +
     uniform Σ_t would null it.
     """
-    sn_mesh = _build_sn_mesh(
+    problem = _build_sn_mesh(
         nx=3, ny=3,
         bc_xmin="vacuum", bc_xmax="vacuum",
         bc_ymin="vacuum", bc_ymax="vacuum",
         quadrature="LS6", n_materials=2, ng=2,
     )
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    sig_t = _build_sig_t(sn_mesh, materials, ng=2)
+    sig_t = _build_sig_t(problem, materials, ng=2)
     rng = np.random.default_rng(seed=4)
     # Smoothly varying Q across both axes; group-asymmetric magnitudes
     # to catch any ng-axis swap.  PR-INDEX-4: build in legacy
@@ -615,17 +615,17 @@ def _case_4_heterogeneous() -> OctantEquivalenceInputs:
     # numerical values are identical to pre-PR-INDEX-4 snapshots after
     # a single layout flip — bit-identity preserved by view-only
     # transpose.
-    x = np.linspace(0.0, 1.0, sn_mesh.nx)[:, None, None]
-    y = np.linspace(0.0, 1.0, sn_mesh.spatial_shape[1])[None, :, None]
+    x = np.linspace(0.0, 1.0, problem.nx)[:, None, None]
+    y = np.linspace(0.0, 1.0, problem.spatial_shape[1])[None, :, None]
     Q_legacy = (
         np.array([1.0, 0.5])[None, None, :]
         + 0.5 * x + 0.3 * y
-        + 0.1 * rng.standard_normal((*sn_mesh.spatial_shape, 2))
+        + 0.1 * rng.standard_normal((*problem.spatial_shape, 2))
     )
     Q = np.transpose(Q_legacy, (2, 0, 1)).copy()  # (ng, nx, ny)
     return OctantEquivalenceInputs(
-        sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=AngularBoundaryFlux.zeros(sn_mesh.angular_trace), aniso_source=None,
+        problem=problem, Q=Q, sig_t=sig_t,
+        boundary_flux=AngularBoundaryFlux.zeros(problem.angular_trace), aniso_source=None,
     )
 
 
@@ -652,37 +652,37 @@ def _case_5_q_aniso() -> OctantEquivalenceInputs:
     seeded from the previous sweep's persisted outflow via the external
     ``reflect_outflow_into_inflow``, not a stale in-sweep buffer.
     """
-    sn_mesh = _build_sn_mesh(
+    problem = _build_sn_mesh(
         nx=3, ny=3,
         bc_xmin="reflective", bc_xmax="vacuum",
         bc_ymin="reflective", bc_ymax="vacuum",
         quadrature="LS4", n_materials=2, ng=2,
     )
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
-    sig_t = _build_sig_t(sn_mesh, materials, ng=2)
+    sig_t = _build_sig_t(problem, materials, ng=2)
     rng = np.random.default_rng(seed=5)
     # PR-INDEX-4: build legacy then flip to principled (ng, nx, ny) /
     # (N, ng, nx, ny) for the numerical-value parity with pre-PR-4
     # snapshots.
-    x = np.linspace(0.0, 1.0, sn_mesh.nx)[:, None, None]
-    y = np.linspace(0.0, 1.0, sn_mesh.spatial_shape[1])[None, :, None]
+    x = np.linspace(0.0, 1.0, problem.nx)[:, None, None]
+    y = np.linspace(0.0, 1.0, problem.spatial_shape[1])[None, :, None]
     Q_legacy = (
         np.array([1.0, 0.5])[None, None, :]
         + 0.5 * x + 0.3 * y
     )
     Q = np.transpose(Q_legacy, (2, 0, 1)).copy()  # (ng, nx, ny)
     # Q_aniso legacy shape (N, nx, ny, ng) → principled (N, ng, nx, ny).
-    N = sn_mesh.quad.N
-    mu_x = sn_mesh.quad.mu_x[:, None, None, None]
-    mu_y = sn_mesh.quad.mu_y[:, None, None, None]
+    N = problem.quad.N
+    mu_x = problem.quad.mu_x[:, None, None, None]
+    mu_y = problem.quad.mu_y[:, None, None, None]
     Q_aniso_legacy = (
         0.2 * mu_x * Q_legacy[None, ...] + 0.1 * mu_y * Q_legacy[None, ...]
-        + 0.05 * rng.standard_normal((N, *sn_mesh.spatial_shape, 2))
+        + 0.05 * rng.standard_normal((N, *problem.spatial_shape, 2))
     )
     Q_aniso = np.transpose(Q_aniso_legacy, (0, 3, 1, 2)).copy()  # (N, ng, nx, ny)
     return OctantEquivalenceInputs(
-        sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=_empty_boundary_flux(sn_mesh), aniso_source=Q_aniso,
+        problem=problem, Q=Q, sig_t=sig_t,
+        boundary_flux=_empty_boundary_flux(problem), aniso_source=Q_aniso,
     )
 
 
@@ -706,18 +706,18 @@ def _case_6_pure_z() -> OctantEquivalenceInputs:
     quadrature deliberately differs from the rest — the deviation is
     necessary to exercise the degenerate path.
     """
-    sn_mesh = _build_sn_mesh(
+    problem = _build_sn_mesh(
         nx=3, ny=3,
         bc_xmin="vacuum", bc_xmax="vacuum",
         bc_ymin="vacuum", bc_ymax="vacuum",
         quadrature="Lebedev5", n_materials=1,
     )
     materials = {0: get_mixture("A", "1g")}
-    sig_t = _build_sig_t(sn_mesh, materials, ng=1)
-    Q = np.ones((1, *sn_mesh.spatial_shape))  # PR-INDEX-4 (ng, nx, ny)
+    sig_t = _build_sig_t(problem, materials, ng=1)
+    Q = np.ones((1, *problem.spatial_shape))  # PR-INDEX-4 (ng, nx, ny)
     return OctantEquivalenceInputs(
-        sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=AngularBoundaryFlux.zeros(sn_mesh.angular_trace), aniso_source=None,
+        problem=problem, Q=Q, sig_t=sig_t,
+        boundary_flux=AngularBoundaryFlux.zeros(problem.angular_trace), aniso_source=None,
     )
 
 
@@ -731,7 +731,7 @@ class _ClosedFormAnchorInputs:
     Issue #196 PR-INDEX-5: principled ``(ng, nx, ny)`` storage.
     """
 
-    sn_mesh: SNProblem
+    problem: SNProblem
     Q: np.ndarray              # (ng, nx, ny)
     materials: dict
     expected_phi: np.ndarray   # (ng, nx, ny) — the analytical Q/Σ_t
@@ -793,7 +793,7 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     "C" mixture (strong absorber, no fission) where the per-group
     equation decouples and φ_g = Q_g / Σ_t,g exactly.
     """
-    sn_mesh = _build_sn_mesh(
+    problem = _build_sn_mesh(
         nx=3, ny=3,
         bc_xmin="reflective", bc_xmax="reflective",
         bc_ymin="reflective", bc_ymax="reflective",
@@ -815,7 +815,7 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     Q_per_group = np.array([1.0, 0.5])
     # Issue #196 PR-INDEX-5: principled (ng, nx, ny).
     Q = np.broadcast_to(
-        Q_per_group[:, None, None], (2, *sn_mesh.spatial_shape),
+        Q_per_group[:, None, None], (2, *problem.spatial_shape),
     ).copy()
     # Build the (Σ_t,g - Σ_s,g→g)·δ_{gg'} - Σ_s,g'→g (off-diag) matrix.
     # ``mix.sig_s[0]`` is the P0 scattering matrix with ``[g_src, g_dst]``
@@ -828,10 +828,10 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     phi_per_group = np.linalg.solve(A, Q_per_group)
     # Issue #196 PR-INDEX-5: principled (ng, nx, ny).
     expected_phi = np.broadcast_to(
-        phi_per_group[:, None, None], (2, *sn_mesh.spatial_shape),
+        phi_per_group[:, None, None], (2, *problem.spatial_shape),
     ).copy()
     return _ClosedFormAnchorInputs(
-        sn_mesh=sn_mesh, Q=Q, materials=materials,
+        problem=problem, Q=Q, materials=materials,
         expected_phi=expected_phi,
     )
 
@@ -1039,12 +1039,12 @@ def test_2d_octant_sweep_closed_form_anchor() -> None:
     # (already projected via ``/sum_w``).  The test's ``inputs.Q`` is
     # iso scalar magnitude; project to per-ord by dividing by ``sum_w``
     # before broadcasting across the N ordinates.
-    sum_w = float(np.sum(inputs.sn_mesh.quad.weights))
+    sum_w = float(np.sum(inputs.problem.quad.weights))
     result = solve_sn_fixed_source(
-        inputs.materials, inputs.sn_mesh.mesh, inputs.sn_mesh.quad,
+        inputs.materials, inputs.problem.mesh, inputs.problem.quad,
         external_source=np.broadcast_to(
             (inputs.Q / sum_w)[None, ...],
-            (inputs.sn_mesh.quad.N, *inputs.Q.shape),
+            (inputs.problem.quad.N, *inputs.Q.shape),
         ).copy(),
         scattering_order=0,
         boundary_condition="reflective",

@@ -46,8 +46,8 @@ def _trace_space(quadrature: Quadrature):
         bc_xmin=_REFLECTIVE, bc_xmax=_REFLECTIVE,
         bc_ymin=_REFLECTIVE, bc_ymax=_REFLECTIVE,
     )
-    sn_mesh = SNProblem(mesh, quadrature, {0: get_mixture("B", "2g")})
-    space = sn_mesh.full_field_space.trace_space
+    problem = SNProblem(mesh, quadrature, {0: get_mixture("B", "2g")})
+    space = problem.full_field_space.trace_space
     assert space is not None, "a 2-D box always has a boundary-trace space"
     return space
 

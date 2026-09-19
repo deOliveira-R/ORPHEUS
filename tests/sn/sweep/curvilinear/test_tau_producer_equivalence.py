@@ -401,8 +401,8 @@ def test_identity_closure_tau_is_neutral_one():
         coord=CoordSystem.CARTESIAN,
     )
     quad = Quadrature.gauss_legendre(8)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
-    reduced = sn_mesh.reduced
+    problem = SNProblem(mesh, quad, placeholder_materials())
+    reduced = problem.reduced
     assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
     closure = IdentityAngularClosure(
         reduced.angular, reduced.redistribution_pairing,

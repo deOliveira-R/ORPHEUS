@@ -96,7 +96,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
         geom, region_meshes=(RegionMesh(n_cells=n_cells),),
     )
     quad = Quadrature.folded_product(n_mu=n_mu, n_phi=n_phi)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+    problem = SNProblem(mesh, quad, placeholder_materials())
     nx = n_cells
     ng = 1
     sig_t = np.full((ng, nx), 2.0)  # (ng, nx) — rank-d
@@ -105,7 +105,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     # PR-TYPED-6c Step 7: route through ``_transport_operator_matvec_unified``
     # — the legacy ``transport_operator_matvec_cylindrical`` retired.
     psi_view = np.full((quad.N, ng, nx), psi_flat)
-    m_cell = legacy_proxy_matvec(psi_view, sn_mesh, sig_t)
+    m_cell = legacy_proxy_matvec(psi_view, problem, sig_t)
     # D-J (2026-05-30): equation slots derived from quad direction signs
     # (replaces ``EquationMap`` slot map — curvilinear set is all
     # ``(n, ix, 0)`` except inward ordinates at outermost cell).

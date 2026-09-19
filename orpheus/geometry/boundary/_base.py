@@ -118,7 +118,7 @@ def law_permutes_ordinates(law: "BoundaryTraceLaw") -> bool:
 
        No shipped mesh can carry an albedo law yet
        (``SNProblem.BOUNDARY_OPERATOR_REGISTRY`` omits it, and all four callers
-       read ``sn_mesh.bc[face].law``), so this is a **latent** correction: it
+       read ``problem.bc[face].law``), so this is a **latent** correction: it
        fires the day issue **#189** registers the law. It is made now because
        B3.4b is what makes the four spellings wrong, and leaving a known-false
        predicate behind a registry gate is how a landmine gets planted.

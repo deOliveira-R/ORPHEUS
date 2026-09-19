@@ -254,16 +254,16 @@ def isotropic_slab(*, c: float = 0.9, sig_t: float = 1.0, n: int = 40) -> SNProb
 
 # ── the posed record ─────────────────────────────────────────────────────
 
-def record_for(sn_mesh: SNProblem, *, scattering_order: int | None = None) -> "WithinGroupSystem":
+def record_for(problem: SNProblem, *, scattering_order: int | None = None) -> "WithinGroupSystem":
     """The posed within-group record — the ONE construction site.
 
     The retained order is the HUB's datum (R-cc9, 2026-09-12): ``None`` poses
-    the record on ``sn_mesh`` at its own order; an explicit order poses it
-    on the derived Problem ``sn_mesh.with_scattering_order(order)`` — a
+    the record on ``problem`` at its own order; an explicit order poses it
+    on the derived Problem ``problem.with_scattering_order(order)`` — a
     different hub (same generating data, another order), so a row that
-    compares the record's spaces by identity against ``sn_mesh``'s must
+    compares the record's spaces by identity against ``problem``'s must
     build its hub at that order instead."""
-    hub = sn_mesh if scattering_order is None else sn_mesh.with_scattering_order(scattering_order)
+    hub = problem if scattering_order is None else problem.with_scattering_order(scattering_order)
     return build_within_group_system(hub, hub.mat_xs)
 
 
@@ -315,18 +315,18 @@ def system_a(state: CoupledField) -> FullField:
 # ── the splitting law ────────────────────────────────────────────────────
 
 def splitting_for(
-    sn_mesh: SNProblem, schedule: str = "jacobi", *,
+    problem: SNProblem, schedule: str = "jacobi", *,
     scattering_order: int | None = None,
 ) -> "Splitting":
-    """The Strategy VALUE for ``sn_mesh`` under ``schedule`` — the record
+    """The Strategy VALUE for ``problem`` under ``schedule`` — the record
     from :func:`record_for`, labelled by the ONE labelling site
     (:meth:`~orpheus.sn.splitting.Splitting.from_schedule`; the string is
     resolved by :func:`~orpheus.sn.splitting.resolve_schedule`, which falls
     back to Jacobi on 1-D / curvilinear meshes exactly as the entries do)."""
     from orpheus.sn.splitting import Splitting, resolve_schedule
 
-    record = record_for(sn_mesh, scattering_order=scattering_order)
-    return Splitting.from_schedule(record, resolve_schedule(sn_mesh, schedule))
+    record = record_for(problem, scattering_order=scattering_order)
+    return Splitting.from_schedule(record, resolve_schedule(problem, schedule))
 
 
 def split_image(
@@ -379,7 +379,7 @@ def reconstruction_residual(
 
 
 def sigma_s0_times_identity(
-    sn_mesh: SNProblem, scattering: "ScatteringOperator",
+    problem: SNProblem, scattering: "ScatteringOperator",
 ) -> "MultiplicationOperator":
     r"""The σ_r fold's WRONG operator: :math:`\Sigma_{s0}^{g\to g}\,\mathbb{1}`.
 
@@ -389,10 +389,10 @@ def sigma_s0_times_identity(
     which is the whole of #215 (46–56 % silent flux error) in one sentence.
     """
     per_material = scattering.foldable_sigma()          # {mid: (ng,)}
-    mat_ids = np.asarray(sn_mesh.mat_map).reshape(sn_mesh.spatial_shape)
-    field = np.zeros((sn_mesh.ng, *sn_mesh.spatial_shape))
+    mat_ids = np.asarray(problem.mat_map).reshape(problem.spatial_shape)
+    field = np.zeros((problem.ng, *problem.spatial_shape))
     for mid, sigma in per_material.items():
         mask = mat_ids == mid
-        for group in range(sn_mesh.ng):
+        for group in range(problem.ng):
             field[group][mask] = sigma[group]
-    return MultiplicationOperator.from_mesh(field, sn_mesh)
+    return MultiplicationOperator.from_mesh(field, problem)

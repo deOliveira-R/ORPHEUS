@@ -68,7 +68,7 @@ asymmetry (diffusion has no quadrature to inject); the promotion
 signatures do not unify and should not.
 
 Because :class:`SNProblem` *is a* :class:`MaterialMesh`, an SN phase space
-promotes directly — ``DiffusionMesh.from_material_mesh(sn_mesh)``
+promotes directly — ``DiffusionMesh.from_material_mesh(problem)``
 builds the diffusion phase space over the SAME axes / materials /
 mat_map, realizing the diffusion reading of the same physical BC tags.
 That is exactly the DSA construction path (#2): :math:`A_{\rm diff}`

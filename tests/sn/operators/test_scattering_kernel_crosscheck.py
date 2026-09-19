@@ -119,18 +119,18 @@ def solver_p1_het():
     mat[2:, :] = 1
     mesh = _uniform_2d(nx, ny, 0.4, mat)
     quad = Quadrature.lebedev(order=17)
-    sn_mesh = SNProblem(mesh, quad, {0: _mix(p0_a, p1_a), 1: _mix(p0_b, p1_b)}, scattering_order=1)
-    return SNSolver(sn_mesh)
+    problem = SNProblem(mesh, quad, {0: _mix(p0_a, p1_a), 1: _mix(p0_b, p1_b)}, scattering_order=1)
+    return SNSolver(problem)
 
 
 def _aniso_psi(solver, seed=20260620):
     """A non-isotropic angular flux (so ℓ≥1 moments are non-zero)."""
     N = solver.quad.N
     ng = solver.ng
-    nx, ny = solver.sn_mesh.spatial_shape
+    nx, ny = solver.problem.spatial_shape
     rng = np.random.default_rng(seed)
     psi_values = rng.uniform(0.05, 1.0, size=(N, ng, nx, ny))
-    return AngularFlux(values=psi_values, space=solver.sn_mesh.angular_bulk_space)
+    return AngularFlux(values=psi_values, space=solver.problem.angular_bulk_space)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -164,8 +164,8 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         Replaces ``test_kernel_apply_equals_existing_R_Lambda_M_chain``,
         whose second side (``_aniso_source_from_moment_values``) is retired.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        sn_mesh = solver_p1_het.sn_mesh
+        op = solver_p1_het.problem.system.factors.scattering
+        problem = solver_p1_het.problem
         psi = _aniso_psi(solver_p1_het)
         moments = op.flux_analysis.apply(psi)          # M·ψ, TYPED
 
@@ -195,7 +195,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         already projected; re-projecting would double-project). Fed the
         corresponding operands the two must coincide.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         kernel = require_scattering_kernel_property(op)
         moments = op.flux_analysis.apply(psi)
@@ -219,7 +219,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         and `[M]` they agree bit-for-bit — which is what makes the row above
         an :math:`\ell\ge1` statement.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         moments = op.flux_analysis.apply(psi)
         scalar_space = op.on_moment_domain().isotropic_energy.domain
@@ -240,13 +240,13 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         lives OUTSIDE it (lesson L18). A shape mismatch signals the kernel
         composed the wrong factor order.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         kernel = require_scattering_kernel_property(op)
         out = np.asarray(kernel.apply(psi.values))
         N = solver_p1_het.quad.N
         ng = solver_p1_het.ng
-        nx, ny = solver_p1_het.sn_mesh.spatial_shape
+        nx, ny = solver_p1_het.problem.spatial_shape
         require(
             out.shape == (N, ng, nx, ny),
             f"S.kernel.apply output must be per-ordinate (N, ng, nx, ny) = "
@@ -264,7 +264,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         EMISSION itself is non-zero on both ends (a zero morphism satisfies
         every equality row above with both sides structurally zero).
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         moments = op.flux_analysis.apply(psi)
         require(
@@ -321,7 +321,7 @@ class TestScatteringKernelIsAnisoSubcomponent:
         and the full per-ordinate source differ substantially. ``require``
         (Mode-8 ``-O``-safe) asserts they do NOT coincide.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
         kernel = require_scattering_kernel_property(op)
 

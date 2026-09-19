@@ -77,8 +77,8 @@ class TestScatteringConvergence:
         mix = get_mixture("A", "2g")
         mesh = _homogeneous_slab_mesh(20, 2.0, mat_id=0)
         quad = Quadrature.gauss_legendre(8)
-        sn_mesh = SNProblem(mesh, quad, {0: mix})
-        solver = SNSolver(sn_mesh, max_inner=500, inner_tol=1e-10)
+        problem = SNProblem(mesh, quad, {0: mix})
+        solver = SNSolver(problem, max_inner=500, inner_tol=1e-10)
 
         # One outer iteration: flux must remain bounded
         phi = solver.initial_flux_distribution()
@@ -106,13 +106,13 @@ class TestSNProblem:
         mesh = Mesh1D(edges=np.array([0.0, 0.1, 0.3, 0.6]),
                       mat_ids=np.array([0, 1, 2]))
         quad = Quadrature.gauss_legendre(4)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
+        problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
 
         for n in range(quad.N):
-            for i in range(sn_mesh.nx):
+            for i in range(problem.nx):
                 expected = abs(quad.mu_x[n]) / mesh.widths[i]
                 np.testing.assert_allclose(
-                    sn_mesh.streaming(0)[n, i], expected, rtol=1e-14,
+                    problem.streaming(0)[n, i], expected, rtol=1e-14,
                 )
 
     def test_stencil_exactly_equals_axis_cosines_build(self):
@@ -129,10 +129,10 @@ class TestSNProblem:
             mat_map=np.zeros((3, 2), dtype=int),
         )
         quad = Quadrature.lebedev(order=17)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
         for a, widths in enumerate((mesh.dx, mesh.dy)):
             np.testing.assert_array_equal(
-                sn_mesh.streaming(a),
+                problem.streaming(a),
                 np.abs(quad.axis_cosines(a))[:, None] / widths[None, :],
             )
 
@@ -144,11 +144,11 @@ class TestSNProblem:
             edges_y=np.linspace(0, 1, 3),
             mat_map=np.zeros((2, 2), dtype=int),
         )
-        sn_mesh = SNProblem(
+        problem = SNProblem(
             mesh, Quadrature.lebedev(order=5), placeholder_materials(),
         )
         with pytest.raises(IndexError, match="out of range for ndim=2"):
-            sn_mesh.streaming(2)
+            problem.streaming(2)
 
     def test_stencil_dd_denom_equivalence(self):
         """Precomputed stencil must reproduce the original DD denominator.
@@ -165,27 +165,27 @@ class TestSNProblem:
             mat_map=np.zeros((3, 2), dtype=int),
         )
         quad = Quadrature.lebedev(order=17)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
         sig_t = 0.5  # scalar for simplicity
         for n in range(quad.N):
-            for i in range(sn_mesh.nx):
-                for j in range(sn_mesh.spatial_shape[1]):
+            for i in range(problem.nx):
+                for j in range(problem.spatial_shape[1]):
                     old = sig_t + 2*abs(quad.mu_x[n])/mesh.dx[i] + 2*abs(quad.mu_y[n])/mesh.dy[j]
-                    new = sig_t + 2*sn_mesh.streaming(0)[n, i] + 2*sn_mesh.streaming(1)[n, j]
+                    new = sig_t + 2*problem.streaming(0)[n, i] + 2*problem.streaming(1)[n, j]
                     np.testing.assert_allclose(new, old, rtol=1e-14)
 
     def test_mesh1d_shapes(self):
         """SNProblem from Mesh1D must have rank-1 (N,) shaped mat_map and volumes."""
         mesh = Mesh1D(edges=np.linspace(0, 1, 6), mat_ids=np.array([0,1,2,1,0]))
         quad = Quadrature.gauss_legendre(4)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
+        problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
 
-        assert sn_mesh.nx == 5
-        assert sn_mesh.spatial_shape == (5,)
-        assert sn_mesh.mat_map.shape == sn_mesh.spatial_shape
-        assert sn_mesh.volumes.shape == sn_mesh.spatial_shape
-        assert sn_mesh.is_1d is True
+        assert problem.nx == 5
+        assert problem.spatial_shape == (5,)
+        assert problem.mat_map.shape == problem.spatial_shape
+        assert problem.volumes.shape == problem.spatial_shape
+        assert problem.is_1d is True
 
     def test_mesh2d_shapes(self):
         """SNProblem from Mesh2D preserves shapes."""
@@ -195,13 +195,13 @@ class TestSNProblem:
             mat_map=np.zeros((3, 2), dtype=int),
         )
         quad = Quadrature.lebedev(order=17)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        assert sn_mesh.nx == 3
-        assert sn_mesh.spatial_shape[1] == 2
-        assert sn_mesh.mat_map.shape == (3, 2)
-        assert sn_mesh.volumes.shape == (3, 2)
-        assert sn_mesh.is_1d is False
+        assert problem.nx == 3
+        assert problem.spatial_shape[1] == 2
+        assert problem.mat_map.shape == (3, 2)
+        assert problem.volumes.shape == (3, 2)
+        assert problem.is_1d is False
 
     def test_cylindrical_requires_level_quadrature(self):
         """Cylindrical coords require a quadrature with level structure."""
@@ -220,10 +220,10 @@ class TestSNProblem:
         mesh = Mesh1D(edges=np.array([0.0, 0.5, 1.0]), mat_ids=np.array([0, 1]),
                       coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(4)
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1)))
+        problem = SNProblem(mesh, quad, placeholder_materials(mat_ids=(0, 1)))
 
-        assert sn_mesh.coord is CoordSystem.SPHERICAL
-        reduced = sn_mesh.reduced
+        assert problem.coord is CoordSystem.SPHERICAL
+        reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         assert reduced.face_areas is not None
         assert reduced.angular.alpha_per_level[0] is not None

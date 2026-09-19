@@ -131,13 +131,13 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
     layout's flat dimension may differ from the legacy B1'' packed
     layout but the math (matrix is invertible) is the same.
     """
-    sn_mesh = builder(nx=5)
+    problem = builder(nx=5)
     ng = 1
-    sigma_t = np.full((ng, sn_mesh.nx), 0.4)
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
+    sigma_t = np.full((ng, problem.nx), 0.4)
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sigma_t, problem)
 
-    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     n_flat = template.to_flat().size
 
     def matvec_flat(flat: np.ndarray) -> np.ndarray:
@@ -218,18 +218,18 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     """
     from dataclasses import replace
 
-    sn_mesh = builder(nx=5)
+    problem = builder(nx=5)
     ng = 1
     sigma_t_val = 0.4
-    sigma_t = np.full((ng, sn_mesh.nx), sigma_t_val)
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
+    sigma_t = np.full((ng, problem.nx), sigma_t_val)
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sigma_t, problem)
 
     # Build flat-ψ TimedFullField: bulk = 1 everywhere AND boundary
     # face_view = 1 at every face slot (the "ψ = const at every B1''
     # slot" condition the docstring describes).  The face-flat buffer
     # is filled by assigning to every face_view in turn.
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     bulk_values = np.ones_like(state.interior.values)
     new_bulk = replace(state.interior, values=bulk_values)
     new_boundary = state.boundary
@@ -241,7 +241,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # rides L's EXPLICIT flux leg, so the pole march reproduces the flat
     # field and (L+C)·const collapses to σ_t·const; a zero leg would break
     # the collapse.  No legs on non-carrying meshes.
-    seed_leg = radial_characteristic_edge_seed(bulk_values, sn_mesh)
+    seed_leg = radial_characteristic_edge_seed(bulk_values, problem)
     if seed_leg is None:
         out = L.apply(state) + C.apply(state)
     else:
@@ -253,7 +253,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
         # σ-independent), so the flat-field collapse rides L + A_AB + C.
         out = (
             L.apply(state)
-            + RadialCharacteristicSeeding(sn_mesh).apply(seed_leg)
+            + RadialCharacteristicSeeding(problem).apply(seed_leg)
             + C.apply(state)
         )
 
@@ -270,7 +270,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # "WDD residual = 0".  On each face the OUTFLOW ordinate slots carry the
     # self-consistency defect ``streamed − ψ.outflow`` (= 0 for flat ψ) and the
     # INFLOW ordinate slots carry the identity ``ψ.inflow`` (= 1 here).
-    trace = sn_mesh.angular_trace
+    trace = problem.angular_trace
     for face in out.boundary.layout.faces:
         fv = out.boundary.face_view(face)
         outflow = trace.outflow_indices_for_face(face)
@@ -324,13 +324,13 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
     operator algebra) sees the typed contract; the bridge collapses
     at the producer side, never at the consumer side.
     """
-    sn_mesh = builder(nx=10)
+    problem = builder(nx=10)
     ng = 1
-    sigma_t = np.full((ng, sn_mesh.nx), 0.4)
-    L = StreamingOperator.pose(sn_mesh)
-    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
+    sigma_t = np.full((ng, problem.nx), 0.4)
+    L = StreamingOperator.pose(problem)
+    C = MultiplicationOperator.from_mesh(sigma_t, problem)
 
-    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+    template = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     n_flat = template.to_flat().size
 
     def matvec(flat: np.ndarray) -> np.ndarray:

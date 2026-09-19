@@ -230,9 +230,9 @@ class TestAlphaRedistribution:
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.CYLINDRICAL,
         )
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        reduced = sn_mesh.reduced
+        reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         for p, alpha in enumerate(reduced.angular.alpha_per_level):
             assert np.all(alpha >= -1e-14), (
@@ -253,9 +253,9 @@ class TestAlphaRedistribution:
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.CYLINDRICAL,
         )
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        reduced = sn_mesh.reduced
+        reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         for p, alpha in enumerate(reduced.angular.alpha_per_level):
             np.testing.assert_allclose(alpha[0], 0.0,
@@ -274,9 +274,9 @@ class TestAlphaRedistribution:
             edges=np.array([0.0, 1.0]), mat_ids=np.array([0]),
             coord=CoordSystem.SPHERICAL,
         )
-        sn_mesh = SNProblem(mesh, quad, placeholder_materials())
+        problem = SNProblem(mesh, quad, placeholder_materials())
 
-        reduced = sn_mesh.reduced
+        reduced = problem.reduced
         assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
         assert np.all(reduced.angular.alpha_per_level[0] >= -1e-14), (
             f"Negative spherical α: min = {reduced.angular.alpha_per_level[0].min():.2e}"

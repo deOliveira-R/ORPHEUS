@@ -39,8 +39,8 @@ def _mat_xs(nx: int = 4, ng: int = 2) -> tuple[MaterialXSField, SNProblem]:
         bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(n_ordinates=4)
-    sn_mesh = SNProblem(mesh, quad, placeholder_materials(ng=ng))
-    return MaterialXSField.from_mesh(sn_mesh), sn_mesh
+    problem = SNProblem(mesh, quad, placeholder_materials(ng=ng))
+    return MaterialXSField.from_mesh(problem), problem
 
 
 #: (typed accessor name, raw ndarray accessor name) for the three macroscopic
@@ -71,10 +71,10 @@ class TestTypedCrossSectionAccessors:
 
     @pytest.mark.parametrize("typed, _raw", ACCESSORS)
     def test_shape_and_mesh_binding(self, typed, _raw) -> None:
-        mat_xs, sn_mesh = _mat_xs()
+        mat_xs, problem = _mat_xs()
         field = getattr(mat_xs, typed)
-        assert field.values.shape == (sn_mesh.ng, *sn_mesh.spatial_shape)
-        assert field.space is sn_mesh.bulk_space
+        assert field.values.shape == (problem.ng, *problem.spatial_shape)
+        assert field.space is problem.bulk_space
 
     def test_raw_views_untouched(self) -> None:
         """The raw ndarray accessors still return a bare ``np.ndarray`` — the

@@ -82,9 +82,9 @@ _ORDERS = (0, 1)
 _SEEDS = (0, 1, 2, 3, 4)
 
 
-def _capture_production_factor_tuples(sn_mesh, L: int) -> "list[tuple[FunctionSpace, ...]]":
+def _capture_production_factor_tuples(problem, L: int) -> "list[tuple[FunctionSpace, ...]]":
     """Every factor tuple PRODUCTION hands to ``TensorProductSpace.from_factors``
-    while minting the moment family's space on ``sn_mesh`` at order ``L``.
+    while minting the moment family's space on ``problem`` at order ``L``.
 
     Read off production rather than re-derived here (``coding-elegance``
     Pattern 2): the hub's mint (``head * mesh.bulk_space``, the cell group
@@ -104,15 +104,15 @@ def _capture_production_factor_tuples(sn_mesh, L: int) -> "list[tuple[FunctionSp
     TensorProductSpace.from_factors = classmethod(recording)   # type: ignore[method-assign]
     try:
         HarmonicMomentFlux.zeros_for_mesh_and_L(
-            sn_mesh, L, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
+            problem, L, spatial_moments=problem.scheme.spatial_basis_per_axis,
         )
-        frame = sn_mesh.quad.angular_frame(L)
+        frame = problem.quad.angular_frame(L)
         # ⚠ `moment_space_on` is HarmonicFrame's mint; a GalerkinFrame (what a
         # 1-D rule returns) does not carry it.  Guarded so the row reports the
         # mints it REACHED rather than dying on a frame-family difference.
         mint = getattr(frame, "moment_space_on", None)
         if mint is not None:
-            mint(sn_mesh.angular_trial_space)
+            mint(problem.angular_trial_space)
     finally:
         TensorProductSpace.from_factors = classmethod(original)  # type: ignore[method-assign]
     return captured
@@ -171,8 +171,8 @@ def test_g2_1_dense_and_factored_metric_arms_agree_to_the_measured_band(geometry
     (geometry × L) rows are bit-equal over 200 seeds, so a one-seed
     ``array_equal`` row would be green today and red on any fixture edit.
     """
-    sn_mesh = _GEOMETRIES[geometry]()
-    tuples = _capture_production_factor_tuples(sn_mesh, L)
+    problem = _GEOMETRIES[geometry]()
+    tuples = _capture_production_factor_tuples(problem, L)
     if not tuples:
         pytest.fail(
             f"[{geometry} L={L}] production minted NO tensor product — the "
@@ -230,13 +230,13 @@ def test_g2_2_the_moment_product_carries_no_dense_slot_and_threads_its_axes():
 
     findings: list[str] = []
     for geometry, factory in _GEOMETRIES.items():
-        sn_mesh = factory()
-        bulk_axes = sn_mesh.bulk_space.axes
+        problem = factory()
+        bulk_axes = problem.bulk_space.axes
         assert bulk_axes is not None, "the carrier's bulk space is of_axes-built"
         for L in _ORDERS:
-            frame = sn_mesh.quad.angular_frame(L)
+            frame = problem.quad.angular_frame(L)
             head = frame.basis_space
-            product = head * sn_mesh.bulk_space
+            product = head * problem.bulk_space
             findings.append(
                 f"{geometry} L={L}: head.axes={head.axes is not None} "
                 f"product.axes={product.axes is not None} "
@@ -265,9 +265,9 @@ def test_g2_2_the_moment_product_carries_no_dense_slot_and_threads_its_axes():
             # the value leg: the product pairing factorises over the head and the bulk
             rng = np.random.default_rng(L + 7)
             x = rng.standard_normal(head.shape)
-            y = rng.standard_normal(sn_mesh.bulk_space.shape)
+            y = rng.standard_normal(problem.bulk_space.shape)
             xy = np.multiply.outer(x, y)
-            want = float(head.inner_product(x, x)) * float(sn_mesh.bulk_space.inner_product(y, y))
+            want = float(head.inner_product(x, x)) * float(problem.bulk_space.inner_product(y, y))
             np.testing.assert_allclose(product.inner_product(xy, xy), want, rtol=1e-12)
 
 

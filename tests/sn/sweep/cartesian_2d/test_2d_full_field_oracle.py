@@ -85,16 +85,16 @@ def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     ``_OctantWalk`` frame × the full-cochain kernel — retirement = test
     migration)."""
     rng = np.random.default_rng(abs(hash((nx, ny, lvl, ng, bc))) % (2**32))
-    sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
-    N = sn_mesh.quad.N
+    problem = _build_mesh(nx, ny, lvl, ng, bc)
+    N = problem.quad.N
     sig_t = _random_sig_t(rng, ng, nx, ny)
     Q = rng.uniform(0.0, 2.0, size=(N, ng, nx, ny))
 
-    bf_win = AngularBoundaryFlux.zeros(sn_mesh.angular_trace)
+    bf_win = AngularBoundaryFlux.zeros(problem.angular_trace)
     _seed_random_inflow(rng, bf_win)
-    bf_full = AngularBoundaryFlux(values=bf_win.values.copy(), space=sn_mesh.angular_trace)
+    bf_full = AngularBoundaryFlux(values=bf_win.values.copy(), space=problem.angular_trace)
 
-    win, full = MovingFrontierWindow.pose(sn_mesh), FullFieldWavefront.pose(sn_mesh)
+    win, full = MovingFrontierWindow.pose(problem), FullFieldWavefront.pose(problem)
     ang_w, scal_w = win.sweep(Q, win.bind_sigma(sig_t), bf_win)
     ang_f, scal_f = full.sweep(Q, full.bind_sigma(sig_t), bf_full)
 
@@ -124,16 +124,16 @@ def test_matvec_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     x↔y swap).  Doubles as the gate-memo §5 relocation-identity pin for every
     S6.4 sub-step that touches the octant frame."""
     rng = np.random.default_rng((abs(hash((nx, ny, lvl, ng, bc))) % (2**32)) ^ 9)
-    sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
-    N = sn_mesh.quad.N
+    problem = _build_mesh(nx, ny, lvl, ng, bc)
+    N = problem.quad.N
     sig_t = _random_sig_t(rng, ng, nx, ny)
 
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn_mesh.full_field_space)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     state.interior.values[...] = rng.uniform(-1.0, 1.0, size=state.interior.values.shape)
     _seed_random_inflow(rng, state.boundary)
 
-    out_win = MovingFrontierWindow.pose(sn_mesh).loss_action(sig_t, state)
-    out_full = FullFieldWavefront.pose(sn_mesh).loss_action(sig_t, state)
+    out_win = MovingFrontierWindow.pose(problem).loss_action(sig_t, state)
+    out_full = FullFieldWavefront.pose(problem).loss_action(sig_t, state)
 
     np.testing.assert_array_equal(
         out_win.interior.values, out_full.interior.values, err_msg="bulk residual",

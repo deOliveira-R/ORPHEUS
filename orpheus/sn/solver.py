@@ -475,7 +475,7 @@ class ConvergenceCertificateError(RuntimeError):
 _CERTIFICATE_SAFETY = 10.0
 
 
-def _residual_is_expressible(sn_mesh: "SNProblem") -> bool:
+def _residual_is_expressible(problem: "SNProblem") -> bool:
     r"""Can this mesh's iterate be turned into a typed equation residual?
 
     ``False`` for a **moment-tailed (LD) scheme**: the residual mint
@@ -493,7 +493,7 @@ def _residual_is_expressible(sn_mesh: "SNProblem") -> bool:
     would have been a second copy of the same `> 1` test, one rename away
     from disagreeing about which schemes are exempt.
     """
-    return sn_mesh.scheme.spatial_basis_per_axis == 1
+    return problem.scheme.spatial_basis_per_axis == 1
 
 
 def _angular_moment_values(
@@ -541,7 +541,7 @@ def _angular_moment_values(
 
 
 def _balance_projection(
-    field: "FullField | TimedFullField | CoupledField", *, sn_mesh: "SNProblem",
+    field: "FullField | TimedFullField | CoupledField", *, problem: "SNProblem",
 ) -> np.ndarray:
     r"""Project a per-ordinate field onto the per-group BALANCE functional.
 
@@ -573,7 +573,7 @@ def _balance_projection(
     :class:`~orpheus.numerics.coupled_system.CoupledField` whose System A
     member is the composite this projects.
     """
-    return sn_mesh.integrate_per_group(_angular_moment_values(field))
+    return problem.integrate_per_group(_angular_moment_values(field))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -589,7 +589,7 @@ def _balance_evidence(
     residual: "FullField | TimedFullField | CoupledField",
     source: "FullField | TimedFullField | CoupledField",
     *,
-    sn_mesh: "SNProblem",
+    problem: "SNProblem",
     record: IterationRecord,
 ) -> Evidence:
     r"""The returned state's RELATIVE per-group balance defect, as evidence.
@@ -628,20 +628,20 @@ def _balance_evidence(
             _CERTIFICATE_SAFETY * tol,
             "the within-group exit certificate (‖Aψ − q‖/‖q‖ asserted at the exit)",
         )
-    if not _residual_is_expressible(sn_mesh):
+    if not _residual_is_expressible(problem):
         return NotYet(
             310,
             "the residual mint does not admit a moment-tailed (LD) interior",
         )
-    source_rate = _balance_projection(source, sn_mesh=sn_mesh)
+    source_rate = _balance_projection(source, problem=problem)
     denominator = float(np.linalg.norm(np.asarray(source_rate)))
     if denominator == 0.0:
         return NotApplicable("the source integrates to zero per group — the ratio is undefined")
-    defect_rate = _balance_projection(residual, sn_mesh=sn_mesh)
+    defect_rate = _balance_projection(residual, problem=problem)
     return Measured(float(np.linalg.norm(np.asarray(defect_rate))) / denominator)
 
 
-def _gauge_evidence(correction: float | None, *, sn_mesh: "SNProblem") -> Evidence:
+def _gauge_evidence(correction: float | None, *, problem: "SNProblem") -> Evidence:
     r"""The kernel-gauge displacement :math:`\lVert\Pi\psi\rVert/\lVert\psi\rVert`
     as evidence: :class:`Measured` when the trace was projected, else the REASON
     nothing was — no kernel freedom on this configuration, or a closure the
@@ -649,7 +649,7 @@ def _gauge_evidence(correction: float | None, *, sn_mesh: "SNProblem") -> Eviden
     behaviour).  ``correction`` is :func:`_exit_gauge_trace`'s second return."""
     if correction is not None:
         return Measured(float(correction))
-    verdict = gauge_freedom(sn_mesh)
+    verdict = gauge_freedom(problem)
     if verdict.undetermined:
         return NotApplicable(f"the closure is unclassifiable, so the trace was NOT gauged: {verdict.because}")
     return NotApplicable(f"no kernel freedom: {verdict.because}")
@@ -669,7 +669,7 @@ def _rayleigh_gap_evidence(outcome: "EigenOutcome | SourceOutcome") -> Evidence:
 def _exit_certificate(
     outcome: "EigenOutcome | SourceOutcome",
     *,
-    sn_mesh: "SNProblem",
+    problem: "SNProblem",
     record: IterationRecord,
     gauge_correction: float | None,
     admissibility: Evidence,
@@ -687,12 +687,12 @@ def _exit_certificate(
             # k map — the SAME rhs the residual 𝒜(μ)ψ = Aψ − μMψ subtracts
             mu = float(outcome.posing.spectral_map.inverse(outcome.lam))
             rhs = outcome.posing.pencil.rhs.apply(outcome.state) * mu
-            balance = _balance_evidence(outcome.residual(), rhs, sn_mesh=sn_mesh, record=record)
+            balance = _balance_evidence(outcome.residual(), rhs, problem=problem, record=record)
         else:
-            balance = _balance_evidence(outcome.residual(), outcome.posing.source, sn_mesh=sn_mesh, record=record)
+            balance = _balance_evidence(outcome.residual(), outcome.posing.source, problem=problem, record=record)
     return ExitCertificate(
         balance=balance,
-        gauge=_gauge_evidence(gauge_correction, sn_mesh=sn_mesh),
+        gauge=_gauge_evidence(gauge_correction, problem=problem),
         rayleigh_gap=_rayleigh_gap_evidence(outcome),
         admissibility=admissibility,
     )
@@ -721,7 +721,7 @@ class _StateProductionRate:
                 f"the production-rate functional needs a per-ordinate System A "
                 f"interior; got {type(interior).__name__}."
             )
-        phi = self.solver.sn_mesh.cell_average_moment(
+        phi = self.solver.problem.cell_average_moment(
             np.asarray(interior.integrate_angular().values),
         )
         return float(self.solver.compute_production_rate(phi))
@@ -760,7 +760,7 @@ _TraceCarrier = TypeVar("_TraceCarrier", "FullField", "TimedFullField")
 def _exit_gauge_trace(
     psi: _TraceCarrier,
     *,
-    sn_mesh: "SNProblem",
+    problem: "SNProblem",
 ) -> "tuple[_TraceCarrier, float | None]":
     r"""Return the CANONICAL member of the returned trace's solution manifold.
 
@@ -811,7 +811,7 @@ def _exit_gauge_trace(
     ``.boundary``), and every exit already unpacks it with
     :func:`_system_a_member` before reading the trace.
     """
-    gauge = sn_mesh.loss_kernel_gauge
+    gauge = problem.loss_kernel_gauge
     if not gauge.blocks:
         return psi, None
 
@@ -830,7 +830,7 @@ def _certify_within_group_exit(
     psi: "TimedFullField | CoupledField",
     q_ext: "FullField | CoupledField",
     *,
-    sn_mesh: "SNProblem",
+    problem: "SNProblem",
     record: IterationRecord,
     where: str,
 ) -> None:
@@ -867,7 +867,7 @@ def _certify_within_group_exit(
       with the LD residual carve (step-5 close-out note; on #310's
       deferred-out list).
     """
-    if not _residual_is_expressible(sn_mesh):
+    if not _residual_is_expressible(problem):
         return  # moment-tailed scheme — the residual mint's un-built widening
     if not record.converged:
         return  # no convergence claim — nothing to certify
@@ -977,7 +977,7 @@ def _within_group_krylov(
 
 def _maybe_window(
     sweep: "SweepOperator", scattering_op: "ScatteringOperator",
-    sn_mesh: "SNProblem",
+    problem: "SNProblem",
 ) -> "tuple[WindowedSweep | SweepOperator, bool]":
     r"""Phase 5a — compose the 2-D Cartesian angular-windowing product over
     ``sweep`` (the inverse operator ``A.inverse()``), else passthrough.
@@ -1002,17 +1002,17 @@ def _maybe_window(
     have silently moment-windowed a 3-D solve (the in-sweep moment
     emission is a 2-D kernel; ``FullFieldWavefront`` refuses moment mode).
     """
-    if sn_mesh.is_cartesian and sn_mesh.ndim == 2:
+    if problem.is_cartesian and problem.ndim == 2:
         from .operators.windowing import BulkAnalysisOperator
 
         return (
-            BulkAnalysisOperator(scattering_op.flux_analysis, sn_mesh.full_field_space) @ sweep,
+            BulkAnalysisOperator(scattering_op.flux_analysis, problem.full_field_space) @ sweep,
             True,
         )
     return sweep, False
 
 
-def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
+def _windowed_cold_start(scattering_op, problem, *, history_depth):
     r"""Zero windowed (moment-bulk) SI cold-start iterate.
 
     The moment representation the windowed resolvent emits and the
@@ -1027,16 +1027,16 @@ def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
 
     return TimedFullField(
         interior=HarmonicMomentFlux.zeros_for_mesh_and_L(
-            sn_mesh, scattering_op.legendre_order,
-            spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
+            problem, scattering_op.legendre_order,
+            spatial_moments=problem.scheme.spatial_basis_per_axis,
         ),
-        boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+        boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
         _history=(),
         history_depth=history_depth,
     )
 
 
-def _unwindowed_cold_start(sn_mesh, *, history_depth):
+def _unwindowed_cold_start(problem, *, history_depth):
     r"""Zero un-windowed (full-angular) SI cold-start iterate.
 
     The full-angular ``AngularFlux`` iterate the 1-D / curvilinear SI driver
@@ -1052,15 +1052,15 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
     from orpheus.transport.timed_full_field import TimedFullField
 
     return TimedFullField(
-        interior=AngularFlux.zeros(sn_mesh.angular_trial_space),
-        boundary=AngularBoundaryFlux.zeros(sn_mesh.angular_trace),
+        interior=AngularFlux.zeros(problem.angular_trial_space),
+        boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
         _history=(),
         history_depth=history_depth,
     )
 
 
 def _radial_characteristic_source_from_per_ordinate(
-    per_ordinate_values: "np.ndarray", sn_mesh,
+    per_ordinate_values: "np.ndarray", problem,
     *, boundary_trace: "AngularBoundarySourceSink | None" = None,
 ) -> "RadialCharacteristicField | None":
     r"""Fold a PER-ORDINATE source to its q½ composite —
@@ -1088,12 +1088,12 @@ def _radial_characteristic_source_from_per_ordinate(
     corner is populated separately from the converged state).
     """
     return RadialCharacteristicField.source_from_angular(
-        per_ordinate_values, sn_mesh, boundary_trace=boundary_trace,
+        per_ordinate_values, problem, boundary_trace=boundary_trace,
     )
 
 
 def _radial_characteristic_fission_seed(
-    fission_source: "np.ndarray", sn_mesh,
+    fission_source: "np.ndarray", problem,
 ) -> "RadialCharacteristicField | None":
     r"""The ψ½ FISSION ray seed — the direct ℓ=0 moments-fold of the fission
     emission (``A_BA_fission = Fold ∘ F.isotropic_energy``, factored).
@@ -1117,22 +1117,22 @@ def _radial_characteristic_fission_seed(
     curvilinear (R12a) so ``fission_source`` is ``(ng, nx)``; the fold takes the
     unit-ℓ ``[None]`` axis (``RadialCharacteristicReconstruction.apply`` guards it).
     """
-    if sn_mesh.radial_characteristic_field_space is None:
+    if problem.radial_characteristic_field_space is None:
         return None
     from orpheus.sn.operators.radial_characteristic import (
         RadialCharacteristicReconstruction,
     )
     return RadialCharacteristicReconstruction(
-        sn_mesh.radial_characteristic_field_space,
-        coord=sn_mesh.coord,
-        quadrature=sn_mesh.quad,
+        problem.radial_characteristic_field_space,
+        coord=problem.coord,
+        quadrature=problem.quad,
     ).apply(
         np.asarray(fission_source)[None],
     )
 
 
 def _coupled_flux_state(
-    psi_a: "TimedFullField", sn_mesh: "SNProblem",
+    psi_a: "TimedFullField", problem: "SNProblem",
 ) -> "CoupledField":
     r"""Pair a System-A FLUX iterate with a zero System-B flux composite.
 
@@ -1142,13 +1142,13 @@ def _coupled_flux_state(
     :meth:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField.flux_zeros`.
     """
     return CoupledField(
-        systems=(psi_a, RadialCharacteristicField.flux_zeros(sn_mesh.radial_characteristic_field_space)),
+        systems=(psi_a, RadialCharacteristicField.flux_zeros(problem.radial_characteristic_field_space)),
     )
 
 
 def _coupled_source_state(
     q_a: "FullField", q_half: "RadialCharacteristicField | None",
-    sn_mesh: "SNProblem", *, context: str,
+    problem: "SNProblem", *, context: str,
 ) -> "CoupledField":
     r"""Pair a System-A SOURCE composite with its q½ System-B member.
 
@@ -1202,7 +1202,7 @@ class InnerSolve(NamedTuple):
 
 
 def _eigenvalue_driver_source(
-    fission_source: np.ndarray, sn_mesh: SNProblem, *, context: str,
+    fission_source: np.ndarray, problem: SNProblem, *, context: str,
 ) -> "TimedFullField | CoupledField":
     r"""The eigenvalue solve's ``q_ext`` for ONE within-group solve: the
     fission source :math:`F\phi/k` lifted to the per-ordinate composite,
@@ -1242,24 +1242,24 @@ def _eigenvalue_driver_source(
     from orpheus.transport.timed_full_field import TimedFullField
 
     q_composite = TimedFullField(
-        interior=AngularSourceSink.from_isotropic(fission_source, sn_mesh),
-        boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+        interior=AngularSourceSink.from_isotropic(fission_source, problem),
+        boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
         _history=(),
         history_depth=2,
     )
-    if sn_mesh.radial_characteristic_field_space is None:
+    if problem.radial_characteristic_field_space is None:
         return q_composite
     return _coupled_source_state(
         q_composite,
-        _radial_characteristic_fission_seed(fission_source, sn_mesh),
-        sn_mesh,
+        _radial_characteristic_fission_seed(fission_source, problem),
+        problem,
         context=context,
     )
 
 
 def _within_group_si(
     splitting: "Splitting",
-    sn_mesh: "SNProblem", *, max_iter: int, tol: float,
+    problem: "SNProblem", *, max_iter: int, tol: float,
     corrector: "LinearOperator | None" = None,
     extra_gains: "tuple[LinearOperator, ...]" = (),
 ) -> "tuple[SourceIteration[Any], SupportsInverse[Any, Any], tuple[LinearOperator, ...], bool]":
@@ -1351,7 +1351,7 @@ def _within_group_si(
     # product fuses onto.
     step, windowed = _maybe_window(
         cast("SweepOperator", splitting.implicit.inverse()),
-        splitting.system.factors.scattering, sn_mesh,
+        splitting.system.factors.scattering, problem,
     )
     all_gains = (*splitting.explicit, *extra_gains)
     gains = (
@@ -1399,9 +1399,9 @@ class SNSolver:
 
     Parameters
     ----------
-    sn_mesh : SNProblem — augmented geometry (wraps Mesh1D or Mesh2D with
+    problem : SNProblem — augmented geometry (wraps Mesh1D or Mesh2D with
         precomputed streaming stencil + materials dict + ``ng``).
-        Issue #197 PR-TYPED-0: ``sn_mesh.materials`` IS the single
+        Issue #197 PR-TYPED-0: ``problem.materials`` IS the single
         source of truth for cross sections and group count; the
         legacy ``materials`` / ``n_groups`` SNSolver constructor
         parameters were retired (aggressive retirement per
@@ -1418,7 +1418,7 @@ class SNSolver:
 
     def __init__(
         self,
-        sn_mesh: SNProblem,
+        problem: SNProblem,
         inner_solver: str = "source_iteration",
         keff_tol: float = 1e-7,
         flux_tol: float = 1e-6,
@@ -1435,8 +1435,8 @@ class SNSolver:
                 f"StreamingCollisionOperator (L + C) with the sweep as "
                 f"preconditioner.)"
             )
-        self.sn_mesh = sn_mesh
-        self.quad = sn_mesh.quad
+        self.problem = problem
+        self.quad = problem.quad
         self.inner_solver = inner_solver
         # SI BOUNDARY splitting for the eigenvalue inner (#218 — the eigenvalue
         # SI now CAN reach the boundary-Gauss-Seidel accelerator the
@@ -1452,11 +1452,11 @@ class SNSolver:
         # this solver mints is labelled by (step 2 of the consumers
         # campaign); nothing downstream reads the string again.
         self.inner_schedule = inner_schedule
-        self.schedule = resolve_schedule(sn_mesh, inner_schedule)
+        self.schedule = resolve_schedule(problem, inner_schedule)
         # The retained Legendre order is the HUB's datum (R-cc9, 2026-09-12):
         # clamped once at the hub's construction and read here — never a
         # second spelling on the solver (O-2 retired the kwarg).
-        self.scattering_order = sn_mesh.scattering_order
+        self.scattering_order = problem.scattering_order
         self.keff_tol = keff_tol
         self.flux_tol = flux_tol
         # Resolved ONCE, here, so `self.max_inner` is always a live int: every
@@ -1467,16 +1467,16 @@ class SNSolver:
         self.inner_tol = inner_tol
 
         # ``materials`` + ``ng`` are the single source of truth on the mesh
-        # (``sn_mesh.ng`` raises ``InconsistentMaterialsError`` if materials
+        # (``problem.ng`` raises ``InconsistentMaterialsError`` if materials
         # disagree — not a constructor parameter).
-        materials = sn_mesh.materials
-        self.ng = sn_mesh.ng
+        materials = problem.materials
+        self.ng = problem.ng
 
-        # The canonical XS state is ONE attribute — ``self.sn_mesh.mat_xs``, a
+        # The canonical XS state is ONE attribute — ``self.problem.mat_xs``, a
         # :class:`MaterialXSField` wrapping both the per-material
         # :class:`Mixture` data and the per-cell typed views.  Every operator
         # (L, C, S, F) reads cross sections through this single source of
-        # truth via ``self.sn_mesh.mat_xs.*`` accessors (``total_cross_section`` /
+        # truth via ``self.problem.mat_xs.*`` accessors (``total_cross_section`` /
         # ``absorption_cross_section`` / …).
 
         # __debug__ cell-flattening invariant pinning (formerly at
@@ -1513,12 +1513,12 @@ class SNSolver:
         self.inner_records: list[IterationRecord] = []
 
         # Volume array for keff computation
-        self.volume = sn_mesh.volumes
+        self.volume = problem.volumes
 
-        # The scattering / (n,2n) leaves are the Problem's (``sn_mesh.system.factors``,
+        # The scattering / (n,2n) leaves are the Problem's (``problem.system.factors``,
         # step 2 C3b) — the solver mints no operator copy and injects nothing.
         #
-        # The loss composite ``L + C`` is the PROBLEM's (``sn_mesh.system.factors
+        # The loss composite ``L + C`` is the PROBLEM's (``problem.system.factors
         # .streaming_collision``, step 2 C3b): built ONCE per hub through the
         # ONE LC spelling :func:`build_streaming_collision`, and it is the object
         # every Strategy value inverts.  The solver holds no copy — the pre-C3b
@@ -1527,7 +1527,7 @@ class SNSolver:
         # misnamed) is honoured by the stronger move: the hub's record is the
         # only copy, and σ_t cannot be rebound under it (σ is a Problem datum).
         # The scattering / (n,2n) leaves live on the Problem's posed record
-        # (``sn_mesh.system.factors``) since step 2 C3b — the solver holds no
+        # (``problem.system.factors``) since step 2 C3b — the solver holds no
         # operator copy (the seam that let a test inject a foreign S retired).
         # The fission ENERGY binding on the scalar bulk space (CS4c
         # step 4 — the binding-arity table's F row made true): the
@@ -1546,14 +1546,14 @@ class SNSolver:
         # and a Problem that cannot be posed refuses HERE — the moment-mass
         # guard on an LD curvilinear space fires before any Strategy machinery
         # (the scan-closure guard below), which is the deeper cause.
-        self.sn_mesh.system
+        self.problem.system
 
     def initial_flux_distribution(self) -> np.ndarray:
         """Initial scalar flux guess: ones(ng, nx, ny).
 
         Issue #196 PR-INDEX-5: principled layout.
         """
-        return np.ones((self.ng, *self.sn_mesh.spatial_shape))
+        return np.ones((self.ng, *self.problem.spatial_shape))
 
     def compute_fission_source(
         self, flux_distribution: np.ndarray, keff: float,
@@ -1574,7 +1574,7 @@ class SNSolver:
         # The bare-ndarray leg returns bare (the union carries the
         # composite arm's type; asarray is the zero-cost narrowing).
         return np.asarray(
-            self.sn_mesh.fission.isotropic_energy.apply(flux_distribution),
+            self.problem.fission.isotropic_energy.apply(flux_distribution),
         ) / keff
 
     def solve_fixed_source(
@@ -1624,14 +1624,14 @@ class SNSolver:
         # :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.integrate_per_group`
         # owns the volume integral and the flat-view reshape it needs.
         per_cell_per_group = np.einsum(
-            "g...,g...->g...", self.sn_mesh.mat_xs.fission_production, flux_distribution,
+            "g...,g...->g...", self.problem.mat_xs.fission_production, flux_distribution,
         )
-        rate = self.sn_mesh.integrate_per_group(per_cell_per_group)
+        rate = self.problem.integrate_per_group(per_cell_per_group)
 
         # (n,2n) contribution — Issue #197 PR-TYPED-1: the per-material
         # dispatch loop (and the yield) lives ONLY inside
         # :meth:`TransferMaterialField.add_to_group_rate` (§14.1).
-        self.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
+        self.problem.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
             rate, flux_distribution, self.volume,
         )
 
@@ -1653,9 +1653,9 @@ class SNSolver:
         ``(ng, nx, ny)``.
         """
         per_cell_per_group = np.einsum(
-            "g...,g...->g...", self.sn_mesh.mat_xs.absorption_cross_section, flux_distribution,
+            "g...,g...->g...", self.problem.mat_xs.absorption_cross_section, flux_distribution,
         )
-        return self.sn_mesh.integrate_per_group(per_cell_per_group)
+        return self.problem.integrate_per_group(per_cell_per_group)
 
     def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
         r"""Total volume-integrated neutron production rate (scalar).
@@ -1682,10 +1682,10 @@ class SNSolver:
         :math:`1/k`; the (n,2n) gain sits on the net-removal side there.
         """
         fission = IntegratedReactionRate(
-            self.sn_mesh.mat_xs.fission_production_field
+            self.problem.mat_xs.fission_production_field
         ).evaluate(flux_distribution)
         n2n_rate = np.zeros(self.ng)
-        self.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
+        self.problem.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
             n2n_rate, flux_distribution, self.volume,
         )
         return float(fission + n2n_rate.sum())
@@ -1735,13 +1735,13 @@ class SNSolver:
         spectral diagnostics (not on the keff path).
         """
         production = IntegratedReactionRate(
-            self.sn_mesh.mat_xs.fission_production_field
+            self.problem.mat_xs.fission_production_field
         ).evaluate(flux_distribution)
         absorption = IntegratedReactionRate(
-            self.sn_mesh.mat_xs.absorption_cross_section_field
+            self.problem.mat_xs.absorption_cross_section_field
         ).evaluate(flux_distribution)
         emission_n2n = np.zeros(self.ng)
-        self.sn_mesh.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
+        self.problem.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
             emission_n2n, flux_distribution, self.volume,
         )
         leakage = self._boundary_leakage_rate(production)
@@ -1815,7 +1815,7 @@ class SNSolver:
         # predicate is "R != 1", and it becomes reachable the moment #189
         # admits partial reflectors.
         leaking_faces = [
-            name for name, op in self.sn_mesh.bc.items()
+            name for name, op in self.problem.bc.items()
             if op.law.response_kernel.is_zero
         ]
         if not leaking_faces:
@@ -1855,7 +1855,7 @@ class SNSolver:
                 )
             rate += float(np.sum(net_current * face_area))
         reference = IntegratedReactionRate(
-            self.sn_mesh.mat_xs.fission_production_field
+            self.problem.mat_xs.fission_production_field
         ).evaluate(phi_of_trace)
         if reference <= 0.0:
             raise RuntimeError(
@@ -1890,7 +1890,7 @@ class SNSolver:
         layer's ``volumes / Δ_axis`` — the object-level pin in
         ``tests/sn/eigenvalue/test_keff_estimator_gate.py``.
         """
-        mesh = self.sn_mesh
+        mesh = self.problem
         # One parse of the face name yields BOTH halves of its outward normal.
         # Until **B3.4c** this read the axis off a hand-written ``{"x": 0, ...}``
         # literal and the endpoint off a ``face == "xmin"`` compare — two
@@ -2009,10 +2009,10 @@ class SNSolver:
         # (default boundary-G-S on 2-D Cartesian; the coupled arm and 1-D
         # fall to Jacobi structurally).  Phase-5a angular-windowing folds
         # in via :func:`_maybe_window` inside the SI builder. ──────────
-        system = self.sn_mesh.system  # the Problem's posed record, built ONCE per hub (R-cc6 (iii))
+        system = self.problem.system  # the Problem's posed record, built ONCE per hub (R-cc6 (iii))
         splitting = Splitting.from_schedule(system, self.schedule)
         si, _base, _gains, windowed = _within_group_si(
-            splitting, self.sn_mesh,
+            splitting, self.problem,
             max_iter=self.max_inner, tol=self.inner_tol,
         )
         # B.2d DP-seedless: the coupled pair appears exactly where System B
@@ -2038,12 +2038,12 @@ class SNSolver:
             # paired NATIVE with a zero ψ_B on a carrying mesh (B.2d).
             if windowed:
                 initial_guess = _windowed_cold_start(
-                    self.sn_mesh.system.factors.scattering, self.sn_mesh, history_depth=2,
+                    self.problem.system.factors.scattering, self.problem, history_depth=2,
                 )
             else:
-                cold = _unwindowed_cold_start(self.sn_mesh, history_depth=2)
+                cold = _unwindowed_cold_start(self.problem, history_depth=2)
                 initial_guess = (
-                    _coupled_flux_state(cold, self.sn_mesh) if coupled else cold
+                    _coupled_flux_state(cold, self.problem) if coupled else cold
                 )
 
         # The driver's rhs — the ONE construction site the finalize shares
@@ -2051,7 +2051,7 @@ class SNSolver:
         # the composite, paired with its ψ½ fold on a carrying mesh (#282
         # route (a) — System B's member, never a composite block, B.2d).
         q_driver = _eigenvalue_driver_source(
-            fission_source, self.sn_mesh,
+            fission_source, self.problem,
             context="SNSolver._solve_source_iteration",
         )
         psi_typed, record = si.solve(
@@ -2063,7 +2063,7 @@ class SNSolver:
         if not windowed:
             _certify_within_group_exit(
                 system, psi_typed, q_driver,
-                sn_mesh=self.sn_mesh, record=record,
+                problem=self.problem, record=record,
                 where="SNSolver._solve_source_iteration",
             )
         # Keep this outer step's inner record whole.  It used to be reduced to
@@ -2167,13 +2167,13 @@ class SNSolver:
         # ``_within_group_krylov``; shared with the SI and fixed-source
         # paths; the cached scattering operator injects through the cache
         # seam). ──────────────────────────────────────────────────────
-        system = self.sn_mesh.system  # the Problem's posed record, built ONCE per hub (R-cc6 (iii))
+        system = self.problem.system  # the Problem's posed record, built ONCE per hub (R-cc6 (iii))
         # GMRES iterates on the Jacobi labelling whatever ``self.schedule``
         # says: the boundary-G-S fold is an SI rate device (the Krylov
         # operator is the whole ``A``; only the preconditioner is a
         # choice) — the value records that labelling.
         splitting = Splitting.from_schedule(
-            system, resolve_schedule(self.sn_mesh, "jacobi"),
+            system, resolve_schedule(self.problem, "jacobi"),
         )
         coupled = system.is_coupled
 
@@ -2191,10 +2191,10 @@ class SNSolver:
             # (bit-identical); the flux template fixes the Krylov return
             # type — paired NATIVE with a zero ψ_B on a carrying mesh (B.2d).
             cold = TimedFullField.zeros(
-                interior=AngularFlux, boundary=AngularBoundaryFlux, space=self.sn_mesh.full_field_space,
+                interior=AngularFlux, boundary=AngularBoundaryFlux, space=self.problem.full_field_space,
             )
             initial_guess = (
-                _coupled_flux_state(cold, self.sn_mesh) if coupled else cold
+                _coupled_flux_state(cold, self.problem) if coupled else cold
             )
 
         # ERR-053 (#282 route (a)): ``restart`` MUST cover the FULL ravel —
@@ -2211,7 +2211,7 @@ class SNSolver:
         )
 
         q_driver = _eigenvalue_driver_source(
-            fission_source, self.sn_mesh,
+            fission_source, self.problem,
             context="SNSolver._solve_krylov",
         )
         psi_typed, record = krylov.solve(
@@ -2224,7 +2224,7 @@ class SNSolver:
         # (the ERR-053 truncation family's independent catcher).
         _certify_within_group_exit(
             system, psi_typed, q_driver,
-            sn_mesh=self.sn_mesh, record=record,
+            problem=self.problem, record=record,
             where="SNSolver._solve_krylov",
         )
         # Keep this outer step's inner record whole (see the SI arm above).
@@ -2357,13 +2357,13 @@ def solve_sn(
     # phase-space-as-such object. C5.5 (#225): the declaration may be a
     # legacy mesh or an axis tuple (the only 3-D entry); unset faces
     # resolve to the SNProblem reflective default (eigenvalue convention).
-    sn_mesh = _as_sn_mesh(
+    problem = _as_sn_mesh(
         mesh, quadrature, materials, mat_map=mat_map,
         scattering_order=scattering_order,
     )
 
     solver = SNSolver(
-        sn_mesh,
+        problem,
         inner_solver=inner_solver,
         keff_tol=keff_tol, flux_tol=flux_tol,
         max_inner=max_inner, inner_tol=inner_tol,
@@ -2437,7 +2437,7 @@ def solve_sn(
         cast("SupportsSeededApply[Any]", inner.splitting.implicit.inverse()),
         inner.driven_gains,
         _eigenvalue_driver_source(
-            solver.compute_fission_source(scalar_flux, keff), sn_mesh,
+            solver.compute_fission_source(scalar_flux, keff), problem,
             context="solve_sn finalize",
         ),
         inner.iterate,
@@ -2510,7 +2510,7 @@ def solve_sn(
     # certificate are built AFTER it, so every number describes the object the
     # caller receives.
     final_psi_a, gauge_correction = _exit_gauge_trace(
-        final_psi_a, sn_mesh=sn_mesh,
+        final_psi_a, problem=problem,
     )
     # The ANSWER (consumers campaign step 3): the hub's k-eigen question, the
     # returned state WHOLE (System A polished one step against the converged
@@ -2528,7 +2528,7 @@ def solve_sn(
     # section is applied once here so ``gauge.functional(state) == target`` is
     # a LAW of the answer (``[M]`` |n − t| = 1.1e-16), not an approximation.
     answer = EigenOutcome(
-        posing=sn_mesh.eigen_posing,
+        posing=problem.eigen_posing,
         state=gauge.apply(_returned_state(final_psi_a, final_ray)),
         lam=float(keff_history[-1]),
         trajectory=tuple(float(k) for k in keff_history),
@@ -2539,7 +2539,7 @@ def solve_sn(
     # the posing is the coupled pencil (#354's gap was the un-assembled coupled
     # rhs; ``production`` on the coupled space IS it).
     certificate = _exit_certificate(
-        answer, sn_mesh=sn_mesh, record=outcome.record,
+        answer, problem=problem, record=outcome.record,
         gauge_correction=gauge_correction,
         admissibility=NotApplicable("an eigen question has no admissibility to certify"),
     )
@@ -2547,9 +2547,9 @@ def solve_sn(
         outcome.record, where="solve_sn",
         balance_defect=certificate.balance,
     )
-    warn_if_gauge_freedom(sn_mesh, certificate.gauge, where="solve_sn")
+    warn_if_gauge_freedom(problem, certificate.gauge, where="solve_sn")
     return _package_solution(
-        Solution, sn_mesh,
+        Solution, problem,
         outcome=answer, strategy=inner.splitting,
         certificate=certificate, record=outcome.record,
     )
@@ -2565,7 +2565,7 @@ SolutionT = TypeVar("SolutionT", bound=SolutionBase)
 
 def _package_solution(
     cls: "type[SolutionT]",
-    sn_mesh: SNProblem,
+    problem: SNProblem,
     *,
     outcome: "EigenOutcome | SourceOutcome",
     strategy: "Splitting",
@@ -2591,7 +2591,7 @@ def _package_solution(
     site, and nothing an entry can forget.
     """
     return cls(
-        mesh=sn_mesh,
+        mesh=problem,
         outcome=outcome,
         strategy=strategy,
         certificate=certificate,
@@ -2604,7 +2604,7 @@ def _package_solution(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _adjoint_posing_parts(sn_mesh: SNProblem):
+def _adjoint_posing_parts(problem: SNProblem):
     r"""Shared build for the adjoint entries: the daggerable parts.
 
     Returns ``(implicit_operator, gain, production, template, splitting)`` — the invertible
@@ -2628,13 +2628,13 @@ def _adjoint_posing_parts(sn_mesh: SNProblem):
     ``explicit[0]``, derived from the record's factors — step 2 of the
     consumers campaign; the builder no longer assembles it).
     """
-    system = sn_mesh.system  # the Problem's posed record (R-cc6 (iii))
+    system = problem.system  # the Problem's posed record (R-cc6 (iii))
     # The adjoint poses on the JACOBI labelling — the whole boundary a
     # lagged gain, so ``gain.H`` daggers B_a entire (no octant fold to
     # transpose).  The value is minted from the record's factors, never
     # re-derived behind it (step 2 of the consumers campaign).
     splitting = Splitting.from_schedule(
-        system, resolve_schedule(sn_mesh, "jacobi"),
+        system, resolve_schedule(problem, "jacobi"),
     )
     gain = splitting.explicit[0]
     for extra in splitting.explicit[1:]:
@@ -2649,7 +2649,7 @@ def _adjoint_posing_parts(sn_mesh: SNProblem):
     # a bare full-field pair with the composite ``factors.fission``, and the
     # production site posed ``EigenPosing(OperatorPencil(M.H − N.H, F.H))``
     # per arm — two adjoint posings for one Problem.
-    if sn_mesh.radial_characteristic_field_space is None:
+    if problem.radial_characteristic_field_space is None:
         def lift(operator: "LinearOperator") -> CoupledOperator:
             return CoupledOperator(
                 [[operator]], domain=system.space, codomain=system.space,
@@ -2724,11 +2724,11 @@ def solve_sn_adjoint(
         (the importance map — also readable as
         :attr:`~orpheus.sn.solution.AdjointSolution.importance`).
     """
-    sn_mesh = _as_sn_mesh(
+    problem = _as_sn_mesh(
         mesh, quadrature, materials, mat_map=mat_map,
         scattering_order=scattering_order,
     )
-    implicit_operator, gain, _production, template, splitting = _adjoint_posing_parts(sn_mesh)
+    implicit_operator, gain, _production, template, splitting = _adjoint_posing_parts(problem)
 
     from orpheus.numerics.iteration import KEigenvalue
     # The daggered QUESTION is the hub's — ``eigen_posing.H()``, nullary, the
@@ -2736,7 +2736,7 @@ def solve_sn_adjoint(
     # (#467); the Strategy pair ``(implicit.H, gain.H)`` is the daggered
     # Jacobi splitting, lifted to the 1×1 grid on a seedless mesh.
     ke = KEigenvalue(
-        sn_mesh.eigen_posing.H(),
+        problem.eigen_posing.H(),
         implicit_operator.H, gain.H,
         max_outer=max_outer, keff_tol=keff_tol, flux_tol=flux_tol,
         max_inner=max_inner, inner_tol=inner_tol,
@@ -2783,7 +2783,7 @@ def solve_sn_adjoint(
     # exactly the identity. ⚠ Do NOT read a green adjoint test as evidence the
     # gauge works — that is `inert`, not `verified`; the acceptance gate lives
     # on the forward entries.
-    system_a, gauge_correction = _exit_gauge_trace(system_a, sn_mesh=sn_mesh)
+    system_a, gauge_correction = _exit_gauge_trace(system_a, problem=problem)
     # The ANSWER: the hub's daggered question — NULLARY, k† = k — recorded on
     # the coupled carrier (the seedless arm's state lifted to the one-system
     # coupled field), λ = k_adj, and the fission-only production-rate gauge
@@ -2794,14 +2794,14 @@ def solve_sn_adjoint(
     # one and the certificate's ``rayleigh_gap`` is exactly zero.
     gauge = ScaleGauge(ke.compute_production_rate, 1.0)
     answer = EigenOutcome(
-        posing=sn_mesh.eigen_posing.H(),
+        posing=problem.eigen_posing.H(),
         state=gauge.apply(_returned_state(system_a, adjoint_ray)),
         lam=float(k_adj),
         trajectory=tuple(float(k) for k in keff_history),
         gauge=gauge,
     )
     certificate = _exit_certificate(
-        answer, sn_mesh=sn_mesh, record=outcome.record,
+        answer, problem=problem, record=outcome.record,
         gauge_correction=gauge_correction,
         admissibility=NotApplicable("an eigen question has no admissibility to certify"),
         # #340 N6b / #353: this entry carries NO balance defect — N5 never
@@ -2813,9 +2813,9 @@ def solve_sn_adjoint(
         outcome.record, where="solve_sn_adjoint",
         balance_defect=certificate.balance,
     )
-    warn_if_gauge_freedom(sn_mesh, certificate.gauge, where="solve_sn_adjoint")
+    warn_if_gauge_freedom(problem, certificate.gauge, where="solve_sn_adjoint")
     return _package_solution(
-        AdjointSolution, sn_mesh,
+        AdjointSolution, problem,
         outcome=answer, strategy=splitting,
         certificate=certificate, record=outcome.record,
     )
@@ -2893,11 +2893,11 @@ def solve_sn_adjoint_fixed_source(
     # Resolve BEFORE anything reads it, so the truncation warning below can
     # name the budget that actually bound (`None` in a message is useless).
     max_inner = resolve_iteration_budget(max_inner, inner_tol)
-    sn_mesh = _as_sn_mesh(
+    problem = _as_sn_mesh(
         mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
         scheme=scheme, scattering_order=scattering_order,
     )
-    if sn_mesh.radial_characteristic_field_space is not None:
+    if problem.radial_characteristic_field_space is not None:
         raise NotImplementedError(
             "solve_sn_adjoint_fixed_source: the daggered COUPLED "
             "fixed-source arm (carrying meshes — System B present) has no "
@@ -2905,7 +2905,7 @@ def solve_sn_adjoint_fixed_source(
             "(#276 A4 scope note); the eigenvalue entry solve_sn_adjoint "
             "covers carrying meshes."
         )
-    implicit_operator, gain, _F, template, splitting = _adjoint_posing_parts(sn_mesh)
+    implicit_operator, gain, _F, template, splitting = _adjoint_posing_parts(problem)
 
     from orpheus.numerics.iteration import SourceIteration, seeded_inverse
     from orpheus.transport.source_sinks import (
@@ -2915,7 +2915,7 @@ def solve_sn_adjoint_fixed_source(
 
     if isinstance(detector_response, FullField):
         q_star = detector_response
-        if q_star.interior.space != q_star.interior.space_on(sn_mesh):
+        if q_star.interior.space != q_star.interior.space_on(problem):
             raise ValueError(
                 "solve_sn_adjoint_fixed_source: a composite "
                 "detector_response must agree with this entry's mesh in "
@@ -2925,7 +2925,7 @@ def solve_sn_adjoint_fixed_source(
             )
     else:
         sigma_d = np.asarray(detector_response, dtype=float)
-        expected = (sn_mesh.ng, *sn_mesh.spatial_shape)
+        expected = (problem.ng, *problem.spatial_shape)
         if sigma_d.shape != expected:
             raise ValueError(
                 f"solve_sn_adjoint_fixed_source: detector_response shape "
@@ -2934,16 +2934,16 @@ def solve_sn_adjoint_fixed_source(
         # The angle-flat dual lift (docstring above), moment-lifted
         # through the ONE external-source policy (Q̂ = 0).
         per_ord = np.broadcast_to(
-            sigma_d[None], (sn_mesh.quad.N, *sigma_d.shape),
+            sigma_d[None], (problem.quad.N, *sigma_d.shape),
         )
         bulk, _ = _lift_external_source_to_moments(
-            np.ascontiguousarray(per_ord), sn_mesh,
+            np.ascontiguousarray(per_ord), problem,
         )
         q_star = FullField(
             interior=AngularSourceSink(
-                values=bulk, space=sn_mesh.angular_trial_space,
+                values=bulk, space=problem.angular_trial_space,
             ),
-            boundary=AngularBoundarySourceSink.zeros(sn_mesh.angular_trace),
+            boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
         )
 
     si = SourceIteration(
@@ -2963,18 +2963,18 @@ def solve_sn_adjoint_fixed_source(
     # #344 — see the note at `solve_sn_adjoint`: structurally inert here too
     # (1-D-only transpose solve ⟹ at most one reflective axis pair), wired so
     # the seam cannot rot.
-    psi_star, gauge_correction = _exit_gauge_trace(psi_star, sn_mesh=sn_mesh)
+    psi_star, gauge_correction = _exit_gauge_trace(psi_star, problem=problem)
     # The ANSWER: the daggered affine question A†ψ* = q* over the hub's daggered
     # loss (UNARY — the detector is the datum), the returned state lifted to the
     # coupled carrier, and the hub's kernel gauge; the certificate reads the
     # outcome's own residual A†ψ* − q*.
     answer = SourceOutcome(
-        posing=SourcePosing(sn_mesh.pencil.H.lhs, _as_coupled(q_star)),
+        posing=SourcePosing(problem.pencil.H.lhs, _as_coupled(q_star)),
         state=_returned_state(psi_star, adjoint_ray),
-        gauge=sn_mesh.loss_kernel_gauge,
+        gauge=problem.loss_kernel_gauge,
     )
     certificate = _exit_certificate(
-        answer, sn_mesh=sn_mesh, record=record,
+        answer, problem=problem, record=record,
         gauge_correction=gauge_correction,
         admissibility=NotApplicable("the pure-transport adjoint question has no admissibility to certify"),
     )
@@ -2983,11 +2983,11 @@ def solve_sn_adjoint_fixed_source(
         balance_defect=certificate.balance,
     )
     warn_if_gauge_freedom(
-        sn_mesh, certificate.gauge,
+        problem, certificate.gauge,
         where="solve_sn_adjoint_fixed_source",
     )
     return _package_solution(
-        AdjointSolution, sn_mesh,
+        AdjointSolution, problem,
         outcome=answer, strategy=splitting,
         certificate=certificate, record=record,
     )
@@ -2995,7 +2995,7 @@ def solve_sn_adjoint_fixed_source(
 
 def _build_fixed_source_rhs(
     external_source: "np.ndarray | TimedFullField | CoupledField",
-    sn_mesh: SNProblem,
+    problem: SNProblem,
 ) -> "TimedFullField | CoupledField":
     r"""Normalize the external source into the driver RHS.
 
@@ -3033,10 +3033,10 @@ def _build_fixed_source_rhs(
     * :class:`TimedFullField` — the full COMPOSITE source (bulk + a possibly
       non-vacuum prescribed-inflow boundary, e.g. from
       :meth:`AngularBoundarySourceSink.prescribed_inflow`). Its leaf values are
-      re-homed onto ``sn_mesh``: the trace/grid layout is deterministic from
+      re-homed onto ``problem``: the trace/grid layout is deterministic from
       ``(mesh, quadrature, materials)``, so this is an exact values-copy onto
       the solve's own mesh instance — required because the within-group
-      operators are built on ``sn_mesh`` and :class:`TimedFullField` algebra
+      operators are built on ``problem`` and :class:`TimedFullField` algebra
       enforces mesh identity.  Its bulk may be flat OR moment-resolved.
     * :class:`~orpheus.numerics.coupled_system.CoupledField` — the coupled
       pair with an EXPLICIT q½ member (B.2d): System A re-homes as above;
@@ -3048,9 +3048,9 @@ def _build_fixed_source_rhs(
         AngularBoundarySourceSink,
     )
 
-    N = sn_mesh.quad.N
-    ng = sn_mesh.ng
-    expected = (N, ng, *sn_mesh.spatial_shape)
+    N = problem.quad.N
+    ng = problem.ng
+    expected = (N, ng, *problem.spatial_shape)
 
     explicit_seed: "RadialCharacteristicField | None" = None
     source_a: "np.ndarray | FullField" = (
@@ -3063,21 +3063,21 @@ def _build_fixed_source_rhs(
         explicit_seed = _system_b_member(external_source)
     if isinstance(source_a, FullField):
         bulk_values = np.asarray(source_a.interior.values)
-        trace_size = int(sn_mesh.angular_trace.layout.total_size)
+        trace_size = int(problem.angular_trace.layout.total_size)
         boundary_values = source_a.boundary.values
         if boundary_values.size != trace_size:
             raise ValueError(
                 f"_build_fixed_source_rhs: composite boundary source has "
-                f"{boundary_values.size} values, but sn_mesh.angular_trace expects "
+                f"{boundary_values.size} values, but problem.angular_trace expects "
                 f"{trace_size} (layout mismatch — the composite must be built "
                 f"on the same mesh / quadrature / materials)."
             )
-        boundary = AngularBoundarySourceSink(values=boundary_values.copy(), space=sn_mesh.angular_trace)
+        boundary = AngularBoundarySourceSink(values=boundary_values.copy(), space=problem.angular_trace)
         # A composite carries its own q_∂. If the MESH also declares a
         # prescribed inflow, there are two answers to one question — refuse
         # rather than pick, since silently adding double-counts and silently
         # overriding makes the declaration a no-op.
-        declared = AngularBoundarySourceSink.from_mesh_laws(sn_mesh)
+        declared = AngularBoundarySourceSink.from_mesh_laws(problem)
         if declared.linf > 0.0 and boundary.linf > 0.0:
             raise ValueError(
                 "_build_fixed_source_rhs: the boundary source q_∂ is specified "
@@ -3108,7 +3108,7 @@ def _build_fixed_source_rhs(
         # declared inflow was realized into an affine operator that nothing
         # consumed, so the declaration was silently inert. Every other law is
         # q = 0, so this is a zero trace allocation for all of them.
-        boundary = AngularBoundarySourceSink.from_mesh_laws(sn_mesh)
+        boundary = AngularBoundarySourceSink.from_mesh_laws(problem)
 
     # Issue #196 PR-INDEX-5 + #247: the bulk source is a typed union of TWO
     # principled ndarray ranks — flat ``(N, ng, *spatial)`` (the original path)
@@ -3120,7 +3120,7 @@ def _build_fixed_source_rhs(
     # length ≠ per_axis**ndim, and (for DD/Step where there is no moment axis) a
     # moment-resolved input outright (only flat is valid at per_axis == 1).
     n_cell_moments = cell_moment_count(
-        sn_mesh.scheme.spatial_basis_per_axis, sn_mesh.ndim
+        problem.scheme.spatial_basis_per_axis, problem.ndim
     )
     moment_expected = (*expected, n_cell_moments)
     is_flat = bulk_values.shape == expected
@@ -3154,14 +3154,14 @@ def _build_fixed_source_rhs(
     # (average), rest zero.  A MOMENT-RESOLVED external source already carries
     # the slope rows Q̂ (the caller projected them — #247): thread them through
     # unchanged.  DD/Step (per_axis == 1) → no lift, byte-identical.
-    bulk_values, _ = _lift_external_source_to_moments(bulk_values, sn_mesh)
+    bulk_values, _ = _lift_external_source_to_moments(bulk_values, problem)
     q_a = TimedFullField(
         interior=AngularSourceSink(
-            values=bulk_values, space=sn_mesh.angular_trial_space,
+            values=bulk_values, space=problem.angular_trial_space,
         ),
         boundary=boundary,
     )
-    if sn_mesh.radial_characteristic_field_space is None:
+    if problem.radial_characteristic_field_space is None:
         return q_a
     # #282 route (a) → B.2d: the q½ member on carrying meshes — System B's
     # OWN composite, paired with q_A.  A coupled input's explicit member is
@@ -3170,7 +3170,7 @@ def _build_fixed_source_rhs(
     # populates it.  Carrying meshes are 1-D curvilinear DD (never
     # moment-resolved), so the flat bulk is the only live shape here.
     if explicit_seed is not None:
-        seed_src = RadialCharacteristicField.source_zeros(sn_mesh.radial_characteristic_field_space)
+        seed_src = RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space)
         seed_src.interior.values[...] = explicit_seed.interior.values
         seed_src.boundary.values[...] = explicit_seed.boundary.values
     else:
@@ -3180,15 +3180,15 @@ def _build_fixed_source_rhs(
         # the step-7 regression fix; zero for vacuum/reflective rhs, so
         # those paths stay byte-identical).
         seed_src = _radial_characteristic_source_from_per_ordinate(
-            bulk_values, sn_mesh, boundary_trace=boundary,
+            bulk_values, problem, boundary_trace=boundary,
         )
     return _coupled_source_state(
-        q_a, seed_src, sn_mesh, context="_build_fixed_source_rhs",
+        q_a, seed_src, problem, context="_build_fixed_source_rhs",
     )
 
 
 def _lift_external_source_to_moments(
-    bulk_values: "np.ndarray", sn_mesh: SNProblem,
+    bulk_values: "np.ndarray", problem: SNProblem,
 ) -> "tuple[np.ndarray, int]":
     r"""Lift / thread an external source onto the ``2^d`` cell-moment vector,
     returning ``(lifted, per_axis)``.
@@ -3216,12 +3216,12 @@ def _lift_external_source_to_moments(
       slope-sign reframe (``sweep_graph._CellSolve`` /
       ``octant_moment_frame_signs``) re-signs the external slopes global→sweep
       EXACTLY as it does the scattering slopes — no new cell branch."""
-    per_axis = sn_mesh.scheme.spatial_basis_per_axis
-    n_cell_moments = cell_moment_count(per_axis, sn_mesh.ndim)
+    per_axis = problem.scheme.spatial_basis_per_axis
+    n_cell_moments = cell_moment_count(per_axis, problem.ndim)
     tail = face_moment_tail(n_cell_moments)
     if tail == ():
         return bulk_values, per_axis
-    flat_ndim = 2 + len(sn_mesh.spatial_shape)  # (N, ng, *spatial)
+    flat_ndim = 2 + len(problem.spatial_shape)  # (N, ng, *spatial)
     if not is_moment_valued_by_flat_rank(bulk_values, flat_ndim):
         # Flat input → lift onto slot 0, slopes zero (the honest default).
         lifted = np.zeros((*bulk_values.shape, *tail), dtype=bulk_values.dtype)
@@ -3420,7 +3420,7 @@ def solve_sn_fixed_source(
     # the only 3-D entry; C5.5 #225) into the SN phase space;
     # boundary_condition fills faces only when the declaration carries
     # no explicit BC.
-    sn_mesh = _as_sn_mesh(
+    problem = _as_sn_mesh(
         mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
         scheme=scheme, scattering_order=scattering_order,
     )
@@ -3443,10 +3443,10 @@ def solve_sn_fixed_source(
     if acceleration == "dsa":
         from orpheus.sn.acceleration import DSACorrection
 
-        corrector = DSACorrection.from_sn_mesh(sn_mesh)
+        corrector = DSACorrection.from_sn_mesh(problem)
 
     solver = SNSolver(
-        sn_mesh,
+        problem,
         inner_solver=inner_solver,
         max_inner=max_inner, inner_tol=inner_tol,
     )
@@ -3455,7 +3455,7 @@ def solve_sn_fixed_source(
     # TimedFullField) into the single composite RHS ``q = q_bulk ⊕ q_∂`` the
     # inner paths consume (Cardinal Rule 2 — one construction point; shape
     # validation lives inside the helper).
-    q_ext_composite = _build_fixed_source_rhs(external_source, sn_mesh)
+    q_ext_composite = _build_fixed_source_rhs(external_source, problem)
     # The QUESTION this entry answers — the PURE-TRANSPORT affine problem
     # Aψ = q, the pencil's member at σ = 0 (``at(0.0)`` IS ``system.loss``, by
     # identity).  On a fissile hub that is the ENTRY's modelling choice
@@ -3463,11 +3463,11 @@ def solve_sn_fixed_source(
     # Strategy-side point in Λ posed HERE (RULED F11, 2026-09-14) while the
     # hub's own ``source_posing(q)`` names the physical multiplying member at
     # σ = 1 (``solve_sn_multiplying_source``).  The Solution records it.
-    posing = SourcePosing(sn_mesh.pencil.at(0.0), _as_coupled(q_ext_composite))
+    posing = SourcePosing(problem.pencil.at(0.0), _as_coupled(q_ext_composite))
     admissibility = NotApplicable("the pure-transport question is always admitted: A is invertible")
     if inner_solver == "source_iteration":
         solution = _solve_fixed_source_si(
-            solver, sn_mesh, q_ext_composite,
+            solver, problem, q_ext_composite,
             t_start, max_inner, inner_tol,
             posing=posing, admissibility=admissibility,
             inner_schedule=inner_schedule,
@@ -3479,7 +3479,7 @@ def solve_sn_fixed_source(
         # built from the converged scalar flux.  Wrapping that in an outer
         # source iteration converges scattering self-consistently.
         solution = _solve_fixed_source_krylov(
-            solver, sn_mesh, q_ext_composite,
+            solver, problem, q_ext_composite,
             t_start, max_inner, inner_tol,
             posing=posing, admissibility=admissibility,
             corrector=corrector,
@@ -3514,7 +3514,7 @@ def solve_sn_fixed_source(
         balance_defect=solution.certificate.balance,
     )
     warn_if_gauge_freedom(
-        sn_mesh, solution.certificate.gauge,
+        problem, solution.certificate.gauge,
         where="solve_sn_fixed_source",
     )
     return solution
@@ -3570,14 +3570,14 @@ def solve_sn_multiplying_source(
     """
     t_start = time.perf_counter()
     max_inner = resolve_iteration_budget(max_inner, inner_tol)
-    sn_mesh = _as_sn_mesh(
+    problem = _as_sn_mesh(
         mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
         scheme=scheme, scattering_order=scattering_order,
     )
     # the admissibility k-solve runs on the SAME Problem (hub) the source
     # problem is posed on — the entry's own drive, not a raw-data rebuild
     k = float(power_iteration(
-        SNSolver(sn_mesh, inner_solver="source_iteration", keff_tol=keff_tol),
+        SNSolver(problem, inner_solver="source_iteration", keff_tol=keff_tol),
         max_iter=500, budget_name="max_outer",
     ).keff)
     if not _admits_multiplying_source(k):
@@ -3587,17 +3587,17 @@ def solve_sn_multiplying_source(
             f"{k:.9f} ≥ 1 — no positive steady solution exists."
         )
     solver = SNSolver(
-        sn_mesh, inner_solver="source_iteration",
+        problem, inner_solver="source_iteration",
         max_inner=max_inner, inner_tol=inner_tol,
     )
-    q_ext_composite = _build_fixed_source_rhs(external_source, sn_mesh)
+    q_ext_composite = _build_fixed_source_rhs(external_source, problem)
     # The Problem's question — the pencil's member at the PHYSICAL σ = 1 posed
     # with the source — recorded on the Solution (step 3); its ends are checked
     # at construction.
-    posing = sn_mesh.source_posing(q_ext_composite)
-    system = sn_mesh.system
+    posing = problem.source_posing(q_ext_composite)
+    system = problem.system
     solution = _solve_fixed_source_si(
-        solver, sn_mesh, q_ext_composite,
+        solver, problem, q_ext_composite,
         t_start, max_inner, inner_tol,
         posing=posing,
         # the admissibility CERTIFICATE: the hub's own k-solve at keff_tol
@@ -3620,7 +3620,7 @@ def solve_sn_multiplying_source(
         balance_defect=solution.certificate.balance,
     )
     warn_if_gauge_freedom(
-        sn_mesh, solution.certificate.gauge,
+        problem, solution.certificate.gauge,
         where="solve_sn_multiplying_source",
     )
     return solution
@@ -3628,7 +3628,7 @@ def solve_sn_multiplying_source(
 
 def _solve_fixed_source_si(
     solver: SNSolver,
-    sn_mesh: SNProblem,
+    problem: SNProblem,
     q_ext_composite: "TimedFullField | CoupledField",
     t_start: float,
     max_inner: int,
@@ -3711,12 +3711,12 @@ def _solve_fixed_source_si(
     # builder folds in the Phase-5a angular-windowing.  ``base_implicit``
     # (un-wrapped) + ``gains`` are kept for the final full-angular
     # reconstruction below. ────────────────────────────────────────────
-    system = sn_mesh.system  # the Problem's posed record (R-cc6 (iii))
+    system = problem.system  # the Problem's posed record (R-cc6 (iii))
     splitting = Splitting.from_schedule(
-        system, resolve_schedule(sn_mesh, inner_schedule),
+        system, resolve_schedule(problem, inner_schedule),
     )
     si, base_implicit, gains, windowed = _within_group_si(
-        splitting, sn_mesh, max_iter=max_inner, tol=inner_tol, extra_gains=extra_gains,
+        splitting, problem, max_iter=max_inner, tol=inner_tol, extra_gains=extra_gains,
         corrector=corrector,
     )
     coupled = system.is_coupled
@@ -3736,14 +3736,14 @@ def _solve_fixed_source_si(
         )
     if windowed:
         initial_guess = _windowed_cold_start(
-            solver.sn_mesh.system.factors.scattering, sn_mesh,
+            solver.problem.system.factors.scattering, problem,
             history_depth=q_a_ext.history_depth,
         )
     else:
         cold = _unwindowed_cold_start(
-            sn_mesh, history_depth=q_a_ext.history_depth,
+            problem, history_depth=q_a_ext.history_depth,
         )
-        initial_guess = _coupled_flux_state(cold, sn_mesh) if coupled else cold
+        initial_guess = _coupled_flux_state(cold, problem) if coupled else cold
     # ``q_ext_composite`` is already driver-ready (the coupled pair on a
     # carrying mesh — built once by :func:`_build_fixed_source_rhs`).
     psi_typed, record = si.solve(
@@ -3762,7 +3762,7 @@ def _solve_fixed_source_si(
             q_certified = q_certified + gain.apply(psi_typed)
         _certify_within_group_exit(
             system, psi_typed, q_certified,
-            sn_mesh=sn_mesh, record=record,
+            problem=problem, record=record,
             where="solve_sn_fixed_source[source_iteration]",
         )
     # System A's converged member feeds the Solution contract; System B's
@@ -3832,7 +3832,7 @@ def _solve_fixed_source_si(
     # un-windowed path `angular_out` IS `psi_typed`'s System A member, which
     # `_system_b_member` is about to read.
     angular_out, gauge_correction = _exit_gauge_trace(
-        angular_out, sn_mesh=sn_mesh,
+        angular_out, problem=problem,
     )
     # The ANSWER: the question the ENTRY posed (pure transport at σ = 0, or the
     # hub's multiplying member at σ = 1), the returned state WHOLE (the arm's
@@ -3841,21 +3841,21 @@ def _solve_fixed_source_si(
     answer = SourceOutcome(
         posing=posing,
         state=_returned_state(angular_out, _system_b_member(psi_typed)),
-        gauge=sn_mesh.loss_kernel_gauge,
+        gauge=problem.loss_kernel_gauge,
     )
     certificate = _exit_certificate(
-        answer, sn_mesh=sn_mesh, record=record,
+        answer, problem=problem, record=record,
         gauge_correction=gauge_correction, admissibility=admissibility,
     )
     return _package_solution(
-        Solution, sn_mesh,
+        Solution, problem,
         outcome=answer, strategy=splitting,
         certificate=certificate, record=record,
     )
 
 def _solve_fixed_source_krylov(
     solver: SNSolver,
-    sn_mesh: SNProblem,
+    problem: SNProblem,
     q_ext_composite: "TimedFullField | CoupledField",
     t_start: float,
     max_inner: int,
@@ -3915,7 +3915,7 @@ def _solve_fixed_source_krylov(
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
     ng = solver.ng
-    N = sn_mesh.quad.N
+    N = problem.quad.N
 
     # ``q_ext_composite`` is the normalised composite RHS ``q = q_bulk ⊕ q_∂``
     # built once by :func:`_build_fixed_source_rhs` (Cardinal Rule 2). B.5.2:
@@ -3939,7 +3939,7 @@ def _solve_fixed_source_krylov(
             f"timed composite; got {type(q_a_ext).__name__}."
         )
     krylov_cold_start = _unwindowed_cold_start(
-        sn_mesh, history_depth=q_a_ext.history_depth,
+        problem, history_depth=q_a_ext.history_depth,
     )
 
     # ── Build the within-group system + Krylov driver (single source of
@@ -3953,15 +3953,15 @@ def _solve_fixed_source_krylov(
     # closure).  A bulk-sized restart re-truncates GMRES on the trace+seed
     # DOFs.  Size it from the state the driver ravels (the multi-moment φ̂
     # axis + the trace + the ψ½ state all track automatically).
-    system = sn_mesh.system  # the Problem's posed record (R-cc6 (iii))
+    system = problem.system  # the Problem's posed record (R-cc6 (iii))
     splitting = Splitting.from_schedule(
-        system, resolve_schedule(sn_mesh, "jacobi"),
+        system, resolve_schedule(problem, "jacobi"),
     )
     coupled = system.is_coupled
     if coupled:
         # The coupled pair is born native (B.2d): the flux template pairs
         # with a zero ψ_B; ``q_ext_composite`` is already the coupled rhs.
-        krylov_cold_start = _coupled_flux_state(krylov_cold_start, sn_mesh)
+        krylov_cold_start = _coupled_flux_state(krylov_cold_start, problem)
     krylov = _within_group_krylov(
         splitting.implicit, *splitting.explicit,
         n_dof=int(krylov_cold_start.to_flat().size),
@@ -3977,7 +3977,7 @@ def _solve_fixed_source_krylov(
     # equation (the ERR-053 truncation family's independent catcher).
     _certify_within_group_exit(
         system, psi_typed, q_ext_composite,
-        sn_mesh=sn_mesh, record=record,
+        problem=problem, record=record,
         where="solve_sn_fixed_source[krylov]",
     )
     # The same triple, one line later, answering the OTHER question (#340
@@ -3990,18 +3990,18 @@ def _solve_fixed_source_krylov(
     # ⛔ Rebuild, never in-place: `[M]` this arm's bulk and trace are two VIEWS
     # into one flat buffer that `psi_typed` also references and
     # `_system_b_member` still reads.
-    psi_full, gauge_correction = _exit_gauge_trace(psi_full, sn_mesh=sn_mesh)
+    psi_full, gauge_correction = _exit_gauge_trace(psi_full, problem=problem)
     answer = SourceOutcome(
         posing=posing,
         state=_returned_state(psi_full, _system_b_member(psi_typed)),
-        gauge=sn_mesh.loss_kernel_gauge,
+        gauge=problem.loss_kernel_gauge,
     )
     certificate = _exit_certificate(
-        answer, sn_mesh=sn_mesh, record=record,
+        answer, problem=problem, record=record,
         gauge_correction=gauge_correction, admissibility=admissibility,
     )
     return _package_solution(
-        Solution, sn_mesh,
+        Solution, problem,
         outcome=answer, strategy=splitting,
         certificate=certificate, record=record,
     )

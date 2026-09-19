@@ -102,12 +102,12 @@ def _angular_F(solver):
     from orpheus.transport.operators.fission import FissionOperator
 
     return FissionOperator.from_solver_data(
-        mat_xs=solver.sn_mesh.mat_xs, space=solver.sn_mesh.full_field_space,
+        mat_xs=solver.problem.mat_xs, space=solver.problem.full_field_space,
     )
 
 
 def _shape(solver):
-    return solver.ng, *solver.sn_mesh.spatial_shape
+    return solver.ng, *solver.problem.spatial_shape
 
 
 def _asymmetric_field(ng, nx, ny, seed):
@@ -133,14 +133,14 @@ class TestAdjointFissionCorrectness:
         broadcast, or a χ/νΣf role error disagrees with it.
         """
         solver = _solver(groups)
-        op = solver.sn_mesh.fission.isotropic_energy  # the ENERGY binding (CS4c step 4)
+        op = solver.problem.fission.isotropic_energy  # the ENERGY binding (CS4c step 4)
         ng, nx, ny = _shape(solver)
         psi_star = _asymmetric_field(ng, nx, ny, seed)
 
         out = op.apply_transpose(psi_star)  # bare-ndarray arm → (ng, nx, ny)
         expected = hand_derived_fission_emission(
-            solver.sn_mesh.mat_xs.fission_production,  # νΣf as the reconstruction column
-            solver.sn_mesh.mat_xs.emission_spectrum,  # χ as the contracted row
+            solver.problem.mat_xs.fission_production,  # νΣf as the reconstruction column
+            solver.problem.mat_xs.emission_spectrum,  # χ as the contracted row
             psi_star,
         )
         np.testing.assert_allclose(
@@ -165,7 +165,7 @@ class TestForwardAdjointReciprocity:
         transpose of F breaks this identity.
         """
         solver = _solver(groups)
-        op = solver.sn_mesh.fission.isotropic_energy  # the ENERGY binding (CS4c step 4)
+        op = solver.problem.fission.isotropic_energy  # the ENERGY binding (CS4c step 4)
         ng, nx, ny = _shape(solver)
         phi = _asymmetric_field(ng, nx, ny, 11)
         psi_star = _asymmetric_field(ng, nx, ny, 12)
@@ -197,11 +197,11 @@ class TestRoleSwapDiscriminator:
         swap.
         """
         solver = _solver(groups)
-        op = solver.sn_mesh.fission.isotropic_energy  # the ENERGY binding (CS4c step 4)
+        op = solver.problem.fission.isotropic_energy  # the ENERGY binding (CS4c step 4)
         ng, nx, ny = _shape(solver)
         psi_star = _asymmetric_field(ng, nx, ny, 13)
-        chi = solver.sn_mesh.mat_xs.emission_spectrum
-        nu_sf = solver.sn_mesh.mat_xs.fission_production
+        chi = solver.problem.mat_xs.emission_spectrum
+        nu_sf = solver.problem.mat_xs.fission_production
 
         correct = hand_derived_fission_emission(nu_sf, chi, psi_star)   # F† = |νΣf⟩⟨χ|
         role_swapped = hand_derived_fission_emission(chi, nu_sf, psi_star)  # the forward F
@@ -221,7 +221,7 @@ class TestRoleSwapDiscriminator:
 
 class TestAdjointFissionCapabilityAndRouting:
     def test_fission_advertises_apply_transpose(self):
-        op = _solver("4g").sn_mesh.fission.isotropic_energy
+        op = _solver("4g").problem.fission.isotropic_energy
         require(
             op.is_adjointable,
             "the fission energy binding must advertise the adjoint axis "
@@ -247,7 +247,7 @@ class TestAdjointFissionCapabilityAndRouting:
         monkeypatch.setattr(TensorProductOperator, "apply_transpose", counting)
 
         solver = _solver("4g")
-        op = solver.sn_mesh.fission.isotropic_energy
+        op = solver.problem.fission.isotropic_energy
         ng, nx, ny = _shape(solver)
         op.apply_transpose(_asymmetric_field(ng, nx, ny, 14))
 
@@ -268,7 +268,7 @@ class TestAdjointFissionCapabilityAndRouting:
 
 def _composite(solver, seed):
     """Random angular FullField (bulk AND trace random, ANGLE-VARYING bulk)."""
-    sn = solver.sn_mesh
+    sn = solver.problem
     rng = np.random.default_rng(seed)
     bulk = AngularFlux(values=rng.uniform(0.05, 1.0, size=(sn.quad.N, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space)
     trace = AngularBoundaryFlux(
@@ -331,15 +331,15 @@ class TestCompositeTransposeArm:
         solver = _solver(groups)
         op = _angular_F(solver)
         chi = _composite(solver, 33)
-        w = np.asarray(solver.sn_mesh.quad.weights, dtype=float)
+        w = np.asarray(solver.problem.quad.weights, dtype=float)
 
         out = op.apply_transpose(chi)
         iso_star = np.asarray(chi.interior.values).sum(axis=0) / float(w.sum())
         expected_bulk = np.multiply.outer(
             w,
             hand_derived_fission_emission(
-                solver.sn_mesh.mat_xs.fission_production,
-                solver.sn_mesh.mat_xs.emission_spectrum,
+                solver.problem.mat_xs.fission_production,
+                solver.problem.mat_xs.emission_spectrum,
                 iso_star,
             ),
         )
@@ -368,7 +368,7 @@ class TestCompositeTransposeArm:
         op = _angular_F(solver)
         psi = _composite(solver, 34)
         chi = _composite(solver, 35)
-        w = np.asarray(solver.sn_mesh.quad.weights, dtype=float)
+        w = np.asarray(solver.problem.quad.weights, dtype=float)
         W = float(w.sum())
 
         true_bulk = np.asarray(op.apply_transpose(chi).interior.values)

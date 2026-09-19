@@ -82,9 +82,9 @@ _P0_B = np.array([[0.55, 0.03], [0.12, 0.40]]); _P1_B = np.array([[0.06, 0.02], 
 def solver_p1_het():
     nx, ny = 4, 3
     mat = np.zeros((nx, ny), dtype=int); mat[:2, :] = 0; mat[2:, :] = 1
-    sn_mesh = SNProblem(_uniform_2d(nx, ny, 0.4, mat), Quadrature.lebedev(order=17),
+    problem = SNProblem(_uniform_2d(nx, ny, 0.4, mat), Quadrature.lebedev(order=17),
                      {0: _mix(_P0_A, _P1_A), 1: _mix(_P0_B, _P1_B)}, scattering_order=1)
-    return SNSolver(sn_mesh)
+    return SNSolver(problem)
 
 
 def _ld_solver_het(order: int, nx: int = 4, ny: int = 3) -> SNSolver:
@@ -93,22 +93,22 @@ def _ld_solver_het(order: int, nx: int = 4, ny: int = 3) -> SNSolver:
     from orpheus.transport.spatial import LinearDiscontinuous
 
     mat = np.zeros((nx, ny), dtype=int); mat[nx // 2:, :] = 1
-    sn_mesh = SNProblem(
+    problem = SNProblem(
         _uniform_2d(nx, ny, 0.1, mat), Quadrature.product(n_mu=4, n_phi=4),
         {0: _mix(_P0_A, _P1_A), 1: _mix(_P0_B, _P1_B)},
         scheme=LinearDiscontinuous(),
      scattering_order=order)
-    return SNSolver(sn_mesh)
+    return SNSolver(problem)
 
 
 def _ld_flux(solver: SNSolver, seed: int = 123) -> AngularFlux:
     """Random LD :class:`AngularFlux` — trailing ``2^d = 4`` φ̂-moment axis."""
     N = solver.quad.N
-    nx, ny = solver.sn_mesh.spatial_shape
+    nx, ny = solver.problem.spatial_shape
     vals = np.random.default_rng(seed).uniform(
         0.05, 1.0, size=(N, solver.ng, nx, ny, 4),
     )
-    return AngularFlux(values=vals, space=solver.sn_mesh.angular_trial_space)
+    return AngularFlux(values=vals, space=solver.problem.angular_trial_space)
 
 
 def _moment_field(op, nx, ny, seed):
@@ -123,7 +123,7 @@ def _moment_field(op, nx, ny, seed):
 class TestLambdaTranspose:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
         lam = LegendreMomentTransfer.on_basis(
-            TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1),
+            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1),
         )
         require(lam.is_adjointable,
                 "Λ must advertise the adjoint axis (campaign #276).")
@@ -132,10 +132,10 @@ class TestLambdaTranspose:
 
     def test_moment_space_transpose_identity(self, solver_p1_het):
         r"""``⟨Λ m, c⟩ = ⟨m, Λᵀ c⟩`` (full moment-tensor contraction, per L27)."""
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
+        op = solver_p1_het.problem.system.factors.scattering
+        nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
         lam = LegendreMomentTransfer.on_basis(
-            TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 1); c = _moment_field(op, nx, ny, 2)
         lhs = float((lam.apply(m) * c).sum())            # ⟨Λ m, c⟩
@@ -155,17 +155,17 @@ class TestLambdaTranspose:
         per-(material, ℓ, cell) ``sig @ vec`` Python loop (no einsum). A wrong group
         axis in the production transpose verb disagrees with it.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
+        op = solver_p1_het.problem.system.factors.scattering
+        nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
         lam = LegendreMomentTransfer.on_basis(
-            TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         c = _moment_field(op, nx, ny, 3)
         got = lam.apply_transpose(c)
 
         ref = np.zeros_like(c)
-        for mid, idx in solver_p1_het.sn_mesh.mat_xs.cells_by_material.items():
-            sig = solver_p1_het.sn_mesh.mat_xs.sig_s_legendre(mid)  # list over ℓ of (ng, ng) [g_from, g_to]
+        for mid, idx in solver_p1_het.problem.mat_xs.cells_by_material.items():
+            sig = solver_p1_het.problem.mat_xs.sig_s_legendre(mid)  # list over ℓ of (ng, ng) [g_from, g_to]
             for l in range(2):
                 n_m = 2 * l + 1
                 # Forward applies sigᵀ ⇒ transpose applies sig (un-transposed).
@@ -181,10 +181,10 @@ class TestLambdaTranspose:
 
     def test_group_flip_is_nontrivial(self, solver_p1_het):
         r"""Discriminator: with asymmetric Σ_s, Λᵀ ≠ Λ (the transpose has teeth)."""
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
+        op = solver_p1_het.problem.system.factors.scattering
+        nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
         lam = LegendreMomentTransfer.on_basis(
-            TransferMaterialField.scattering(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 4)
         require(
@@ -201,7 +201,7 @@ class TestLambdaTranspose:
 
 class TestKernelTranspose:
     def test_kernel_advertises_apply_transpose(self, solver_p1_het):
-        kernel = solver_p1_het.sn_mesh.system.factors.scattering.kernel
+        kernel = solver_p1_het.problem.system.factors.scattering.kernel
         require(
             kernel.is_adjointable,
             "kernel (R∘Λ∘M) must propagate adjointability once Λ has it "
@@ -215,9 +215,9 @@ class TestKernelTranspose:
         ``OperatorProduct.apply_transpose`` with the Phase-D M/R face transposes.
         Full per-ordinate/per-group contraction (NOT weight-summed — L27).
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
-        N = solver_p1_het.sn_mesh.quad.N
+        op = solver_p1_het.problem.system.factors.scattering
+        nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
+        N = solver_p1_het.problem.quad.N
         kernel = op.kernel
         rng = np.random.default_rng(5)
         psi = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))
@@ -240,7 +240,7 @@ class TestKernelTranspose:
 class TestN2NMomentTransfer:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
         n2n = LegendreMomentTransfer.on_basis(
-            TransferMaterialField.n2n(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+            TransferMaterialField.n2n(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         require(n2n.is_adjointable, "N2N must advertise the adjoint axis.")
         require(not n2n.is_invertible, "N2N must NOT be invertible.")
@@ -256,10 +256,10 @@ class TestN2NMomentTransfer:
         P0 truncation; it stopped being the data layer's at step 1 and
         stopped being a truncation at step 2.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
+        op = solver_p1_het.problem.system.factors.scattering
+        nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
         n2n = LegendreMomentTransfer.on_basis(
-            TransferMaterialField.n2n(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+            TransferMaterialField.n2n(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 6)
         out = n2n.apply(m)
@@ -272,10 +272,10 @@ class TestN2NMomentTransfer:
         )
 
     def test_moment_space_transpose_identity(self, solver_p1_het):
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
+        op = solver_p1_het.problem.system.factors.scattering
+        nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
         n2n = LegendreMomentTransfer.on_basis(
-            TransferMaterialField.n2n(solver_p1_het.sn_mesh.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
+            TransferMaterialField.n2n(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 7); c = _moment_field(op, nx, ny, 8)
         lhs = float((n2n.apply(m) * c).sum())
@@ -311,10 +311,10 @@ class TestFullScatterKernel:
         extraction; its lift ≡ conjugation gate lives in
         ``test_n2n_operator.py``.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
+        op = solver_p1_het.problem.system.factors.scattering
+        nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
         W = op.total_weight
-        psi = AngularFlux(values=np.random.default_rng(10).uniform(0.05, 1.0, size=(solver_p1_het.sn_mesh.quad.N, solver_p1_het.ng, nx, ny)), space=solver_p1_het.sn_mesh.angular_bulk_space)
+        psi = AngularFlux(values=np.random.default_rng(10).uniform(0.05, 1.0, size=(solver_p1_het.problem.quad.N, solver_p1_het.ng, nx, ny)), space=solver_p1_het.problem.angular_bulk_space)
         candidate = self._full_kernel(op).apply(psi.values) / W
         # CS4c step 5: the gain is composite-bound; the bulk action rides a
         # zero-trace composite (the trace the lift itself emits back).
@@ -333,9 +333,9 @@ class TestFullScatterKernel:
         Scalar AND LD (trailing :math:`2^d` spectator, #240 D5b-S3): the transpose
         must thread the spatial-moment axis the same way the forward does (#276 P2).
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
-        N = solver_p1_het.sn_mesh.quad.N
+        op = solver_p1_het.problem.system.factors.scattering
+        nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
+        N = solver_p1_het.problem.quad.N
         fk = self._full_kernel(op)
         rng = np.random.default_rng(11)
         psi = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny, *trailing))
@@ -352,7 +352,7 @@ class TestFullScatterKernel:
     def test_S_advertises_apply_transpose(self, solver_p1_het):
         r"""``ScatteringOperator`` is adjointable (the #118 flip) but still NOT
         invertible (rank-deficient :math:`\ell=0` block)."""
-        op = solver_p1_het.sn_mesh.system.factors.scattering
+        op = solver_p1_het.problem.system.factors.scattering
         require(op.is_adjointable,
                 "S must advertise the adjoint axis (#276 A2b / #118).")
         require(not op.is_invertible,
@@ -363,9 +363,9 @@ class TestFullScatterKernel:
         ``.apply``-not-``.apply_transpose`` typo):
         ``S.apply_transpose(χ) == (1/W)·full_transfer_kernel.apply_transpose(χ)``.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
-        N = solver_p1_het.sn_mesh.quad.N
+        op = solver_p1_het.problem.system.factors.scattering
+        nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
+        N = solver_p1_het.problem.quad.N
         W = op.total_weight
         chi = np.random.default_rng(13).uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))
         np.testing.assert_allclose(
@@ -389,13 +389,13 @@ class TestFullScatterKernel:
         (:meth:`test_reproduces_forward_scattering_source`); a group-flip / dropped
         n2n / missing ``1/W`` in Sᵀ breaks it O(1).  ``-O``-safe.
         """
-        op = solver_p1_het.sn_mesh.system.factors.scattering
-        nx, ny = solver_p1_het.sn_mesh.mat_xs.spatial_shape
-        N = solver_p1_het.sn_mesh.quad.N
+        op = solver_p1_het.problem.system.factors.scattering
+        nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
+        N = solver_p1_het.problem.quad.N
         rng = np.random.default_rng(12)
-        psi = AngularFlux(values=rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny)), space=solver_p1_het.sn_mesh.angular_bulk_space)
+        psi = AngularFlux(values=rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny)), space=solver_p1_het.problem.angular_bulk_space)
         chi = rng.uniform(0.05, 1.0, size=(N, solver_p1_het.ng, nx, ny))
-        sn_mesh = solver_p1_het.sn_mesh
+        problem = solver_p1_het.problem
         lhs = float((bulk_apply(op, psi).values * chi).sum())      # ⟨S ψ, χ⟩
         rhs = float((psi.values * transpose_values(op, chi)).sum())  # ⟨ψ, Sᵀ χ⟩
         np.testing.assert_allclose(
@@ -437,7 +437,7 @@ class TestFullScatterKernelLDTrailingAxis:
         :meth:`TestFullScatterKernel.test_reproduces_forward_scattering_source`
         (principled-equiv: same math, reduction order differs ⟹ ~1e-15)."""
         solver = _ld_solver_het(order)
-        op = solver.sn_mesh.system.factors.scattering
+        op = solver.problem.system.factors.scattering
         psi = _ld_flux(solver)
         W = op.total_weight
 
@@ -502,7 +502,7 @@ class TestFullScatterKernelLDTrailingAxis:
             return out
 
         solver = _ld_solver_het(order=0)  # rectangular nx=4, ny=3
-        op = solver.sn_mesh.system.factors.scattering
+        op = solver.problem.system.factors.scattering
         psi = _ld_flux(solver)
         W = op.total_weight
 

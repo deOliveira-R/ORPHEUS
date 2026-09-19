@@ -181,7 +181,7 @@ class LossTerm:
         return self.sign < 0
 
 
-def resolve_schedule(sn_mesh: "SNProblem", inner_schedule: str) -> "SweepSchedule":
+def resolve_schedule(problem: "SNProblem", inner_schedule: str) -> "SweepSchedule":
     r"""The ONE site where the entry-level ``inner_schedule`` string becomes
     the schedule object a :class:`Splitting` is labelled by.
 
@@ -212,13 +212,13 @@ def resolve_schedule(sn_mesh: "SNProblem", inner_schedule: str) -> "SweepSchedul
         )
     if (
         inner_schedule == "gauss_seidel"
-        and sn_mesh.is_cartesian
-        and not sn_mesh.is_1d
+        and problem.is_cartesian
+        and not problem.is_1d
     ):
         return SweepSchedule.gauss_seidel(
-            sn_mesh.ndim, sn_mesh.quad.octants, reflective_faces(sn_mesh),
+            problem.ndim, problem.quad.octants, reflective_faces(problem),
         )
-    return SweepSchedule.jacobi(sn_mesh.ndim, sn_mesh.quad.octants)
+    return SweepSchedule.jacobi(problem.ndim, problem.quad.octants)
 
 
 @dataclass(frozen=True)

@@ -71,19 +71,19 @@ from orpheus.transport.timed_full_field import TimedFullField
 def _build(case, nc):
     mesh = case.build_mesh(nc)
     Q = case.external_source(mesh)
-    sn_mesh = _as_sn_mesh(mesh, case.quadrature, case.materials, "vacuum", mat_map=None, scattering_order=0)
-    solver = SNSolver(sn_mesh, inner_solver="source_iteration", max_inner=2000, inner_tol=1e-13)
-    q_ext = _build_fixed_source_rhs(Q, sn_mesh)
-    return mesh, sn_mesh, solver, q_ext
+    problem = _as_sn_mesh(mesh, case.quadrature, case.materials, "vacuum", mat_map=None, scattering_order=0)
+    solver = SNSolver(problem, inner_solver="source_iteration", max_inner=2000, inner_tol=1e-13)
+    q_ext = _build_fixed_source_rhs(Q, problem)
+    return mesh, problem, solver, q_ext
 
 
-def _psi_ref(case, sn_mesh, mesh):
+def _psi_ref(case, problem, mesh):
     A = case.phi_exact(mesh.centers)
-    sum_w = float(sn_mesh.quad.weights.sum())
-    N, ng, nx = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx
+    sum_w = float(problem.quad.weights.sum())
+    N, ng, nx = problem.quad.N, problem.ng, problem.nx
     vals = np.zeros((N, ng, nx))
     vals[:, 0, :] = (A / sum_w)[None, :]
-    return AngularFlux.from_mesh(vals, sn_mesh)
+    return AngularFlux.from_mesh(vals, problem)
 
 
 def _decompose(case, nc):
@@ -92,22 +92,22 @@ def _decompose(case, nc):
     Returns per-(ordinate, cell) arrays of streaming / redist / collision in
     matvec units (/V), plus the reconstruction m_full for cross-validation.
     """
-    mesh, sn_mesh, solver, q_ext = _build(case, nc)
-    psi_ref = _psi_ref(case, sn_mesh, mesh)
-    rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
+    mesh, problem, solver, q_ext = _build(case, nc)
+    psi_ref = _psi_ref(case, problem, mesh)
+    rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=problem)
     psi_tff = TimedFullField(bulk=psi_ref.copy() if hasattr(psi_ref, "copy") else psi_ref,
                              boundary=rhs.boundary)
 
-    quad = sn_mesh.quad
-    N, ng, nx = quad.N, sn_mesh.ng, sn_mesh.nx
+    quad = problem.quad
+    N, ng, nx = quad.N, problem.ng, problem.nx
     mu_x = quad.mu_x
     sum_w = float(quad.weights.sum())
     eps = 1e-15
 
-    pole_closure = sn_mesh.pole_angular_closure
+    pole_closure = problem.pole_angular_closure
     level_indices = pole_closure.level_indices
-    A_face = sn_mesh.areas                      # (nx+1,) face areas
-    V = sn_mesh.volumes                         # (nx,)
+    A_face = problem.areas                      # (nx+1,) face areas
+    V = problem.volumes                         # (nx,)
     sigma_t_gx = solver  # placeholder; pull from operator below
     # Pull σ_t the operator uses (within-group LC).
     # B.2d: the triple retired into build_within_group_system; this fused
@@ -116,14 +116,14 @@ def _decompose(case, nc):
     # zero, and B_a pads the ray slot present-zero like the retired composite.
     from orpheus.sn.coupled_system import build_streaming_collision
     from orpheus.sn.operators.boundary import SNBoundaryOperator
-    LC = build_streaming_collision(solver.sn_mesh, solver.sn_mesh.mat_xs)
-    S = solver.sn_mesh.system.factors.scattering
-    B = SNBoundaryOperator(solver.sn_mesh)
+    LC = build_streaming_collision(solver.problem, solver.problem.mat_xs)
+    S = solver.problem.system.factors.scattering
+    B = SNBoundaryOperator(solver.problem)
     # The StreamingOperator carries sigma_t; reach it via M_spatial.
     L_op = LC  # OperatorSum (L+C); we need the StreamingOperator leaf's sigma_t
     sig_t_op = None
     for leaf in getattr(LC, "operators", [LC]):
-        if hasattr(leaf, "sigma_t") and getattr(leaf, "sn_mesh", None) is sn_mesh:
+        if hasattr(leaf, "sigma_t") and getattr(leaf, "problem", None) is problem:
             sig_t_op = leaf.sigma_t
             break
     if sig_t_op is None:
@@ -138,7 +138,7 @@ def _decompose(case, nc):
     has_inner = "xmin" in boundary.layout.faces
     face_inner = boundary.face_view("xmin") if has_inner else None
 
-    if sn_mesh.curvature != "cartesian":
+    if problem.curvature != "cartesian":
         pole_face_seed = psi_view[:, :, 0].copy()
     else:
         pole_face_seed = face_inner
@@ -166,7 +166,7 @@ def _decompose(case, nc):
             global_dir = level_idx_arr[within_mask]
             abs_mu = np.abs(mu_x[global_dir])
             within_positions = np.where(within_mask)[0]
-            cell_indices = list(sn_mesh.dag_walk_cell_indices(
+            cell_indices = list(problem.dag_walk_cell_indices(
                 direction_sign=direction_sign, mu_level_idx=p,
             ))
             if not cell_indices:
@@ -217,7 +217,7 @@ def _decompose(case, nc):
     recon_err = np.nanmax(np.abs(m_full_recon[mask] - m_actual[mask]))
 
     return dict(
-        mesh=mesh, sn_mesh=sn_mesh, case=case,
+        mesh=mesh, problem=problem, case=case,
         stream=stream_term, redist=redist_term, coll=coll_term,
         m_full=m_full_recon, m_actual=m_actual,
         recon_err=recon_err, psi_ang_numer=psi_ang_in_arr,
