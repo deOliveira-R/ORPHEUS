@@ -392,6 +392,14 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   > the new argument exists to refute, sitting at the end of its own citation. Found by
   > the agent doing the repair, not by any build: `-W` was clean throughout, and the
   > section contains neither "reference" nor "claim" for a grep to catch.
+- **A rename that changes a name's LENGTH owes the `.rst` corpus a section-underline
+  scan.** A heading that carries the renamed word (`SNMesh` → `SNProblem`, +3 code
+  points) is now longer than its underline, and `sphinx -W` treats that as an error —
+  a red the mechanical pass ships and the build finds an hour later. (`[M]` 2026-09-18,
+  #412: two underlines short after pass 1, caught by the archivist's scan before the
+  build.) One pass over `docs/**/*.rst` comparing each heading's code-point length to
+  its underline's; run it after ANY length-changing rename, together with the
+  three-search audit above.
 - **Retiring a MESSAGE STRING: grep the SHORTEST distinctive fragment, never the full
   sentence.** An exception/log message is an API the moment a test pins it, and tests pin
   **substrings**. A grep for your own longer wording is strictly LESS sensitive than the
