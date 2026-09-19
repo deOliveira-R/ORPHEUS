@@ -928,7 +928,7 @@ What moved, concretely
 * **The representation takes the pair.**
   :func:`~orpheus.sn.loss_representation.default_for` and every
   strategy's base now carry ``mesh`` plus the two closures, and the
-  selection predicate is ``supports(mesh, spatial_closure)`` — selection
+  selection predicate is ``supports(problem, spatial_closure)`` — selection
   consumes the **handed** closure, never ``mesh.scheme``.  The
   representations gained their own ``pose`` classmethod for the test-side
   construction that used to pass a bare mesh.
@@ -2092,7 +2092,7 @@ to the Cartesian path.
    entry whose ``supports`` admits the Problem **and the handed spatial
    closure**, keyed on ``is_1d`` **and** ``is_cartesian`` — neither
    alone is a sufficient discriminator.  Since P4.9b the predicate's
-   signature is ``supports(mesh, spatial_closure)``: selection consumes
+   signature is ``supports(problem, spatial_closure)``: selection consumes
    the closure the operator was posed with, never ``mesh.scheme``
    (:ref:`sn-p49b-operator-poses-with-closures`).  ⚠ That first parameter
    is an :class:`~orpheus.sn.problem.SNProblem`; #412 renamed the class and

@@ -1925,7 +1925,7 @@ was handed**:
    The same argument moves the representation's own construction: the
    base carries ``(mesh, spatial_closure, angular_closure)``,
    :func:`~orpheus.sn.loss_representation.default_for` takes all three,
-   and a ``pose(mesh)`` classmethod mirrors the operator's for the
+   and a ``pose(problem)`` classmethod mirrors the operator's for the
    test-side construction that used to pass a bare mesh.
 
 The compatibility signal is the *genuine* criterion — the coordinate
@@ -1950,7 +1950,7 @@ reactor physics.
 **One predicate, three consumers (single source of truth):**
 
 #. **Frontend** —
-   ``[R for R in LOSS_REPRESENTATIONS if R.supports(mesh, closure).ok]``
+   ``[R for R in LOSS_REPRESENTATIONS if R.supports(problem, closure).ok]``
    lists the applicable methods. A cylinder (non-Cartesian) → only
    ``CumprodScan`` and ``ScanMarch``; the dropdown shows exactly those.
 

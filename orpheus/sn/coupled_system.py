@@ -251,7 +251,7 @@ def build_coupled_system(
     Parameters
     ----------
     problem : SNProblem
-        The augmented geometry — supplies both member spaces, the
+        The SN Problem — supplies both member spaces, the
         quadrature, and the R12a presence predicate
         (``radial_characteristic_field_space is not None``).
     mat_xs : MaterialXSField
@@ -611,7 +611,7 @@ def build_within_group_system(
     Parameters
     ----------
     problem : SNProblem
-        The augmented geometry — supplies both member spaces, the
+        The SN Problem — supplies both member spaces, the
         quadrature, and the R12a presence predicate.
     mat_xs : MaterialXSField
         The mesh-materialized macroscopic cross sections: σ_t feeds ``C``
