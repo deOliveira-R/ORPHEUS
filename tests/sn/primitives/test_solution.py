@@ -176,7 +176,7 @@ def _source(problem: SNProblem, state: CoupledField | None = None) -> SourceOutc
 
 def _solution(problem: SNProblem, outcome, *, cls: type[Any] = Solution, record: IterationRecord | None = None) -> Any:
     return cls(
-        mesh=problem, outcome=outcome, strategy=_strategy(problem),
+        problem=problem, outcome=outcome, strategy=_strategy(problem),
         certificate=_certificate(), record=_record() if record is None else record,
     )
 
@@ -190,7 +190,7 @@ class TestSolutionConstruction:
         assert sol.angular_flux is _member(state)
         assert sol.boundary_flux is _member(state).boundary
         assert sol.radial_characteristic is None
-        assert sol.mesh is m
+        assert sol.problem is m
         assert not hasattr(sol, "keff"), "a source Solution has NO keff — the kind is the outcome's type"
         assert isinstance(sol.outcome, SourceOutcome)
 
@@ -254,7 +254,7 @@ class TestSolutionKind:
         import dataclasses, typing
         for f in dataclasses.fields(SolutionBase):
             assert "None" not in str(f.type) and typing.get_origin(f.type) is not typing.Union, f.name
-        assert [f.name for f in dataclasses.fields(SolutionBase)] == ["mesh", "outcome", "strategy", "certificate", "record"]
+        assert [f.name for f in dataclasses.fields(SolutionBase)] == ["problem", "outcome", "strategy", "certificate", "record"]
 
     def test_an_eigen_outcome_refuses_a_source_question_at_the_sn_tier(self) -> None:
         m = _slab_mesh()
@@ -444,7 +444,7 @@ class TestSolutionRoleAxis:
     def test_base_not_instantiable(self) -> None:
         m = _slab_mesh()
         with pytest.raises(TypeError, match="not instantiable"):
-            SolutionBase(mesh=m, outcome=_source(m), strategy=_strategy(m), certificate=_certificate(), record=_record())
+            SolutionBase(problem=m, outcome=_source(m), strategy=_strategy(m), certificate=_certificate(), record=_record())
 
     def test_adjoint_construction_shares_the_carrier(self) -> None:
         m = _slab_mesh()
@@ -452,7 +452,7 @@ class TestSolutionRoleAxis:
         adj = _solution(m, _source(m, state), cls=AdjointSolution)
         assert adj.angular_flux is _member(state)
         assert adj.boundary_flux is _member(state).boundary
-        assert adj.mesh is m
+        assert adj.problem is m
         assert isinstance(adj.outcome, SourceOutcome) and not hasattr(adj, "keff")
 
     def test_adjoint_state_on_domain_enforced(self) -> None:

@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.iteration import SupportsSeededApply
 from orpheus.sn.solver import (
     SNSolver,
-    _as_sn_mesh,
+    _as_problem,
     _build_fixed_source_rhs,
     _unwindowed_cold_start,
 )
@@ -108,7 +108,7 @@ def scatterer(ng: int = 2, c: float = 0.5, sig_t=(0.8, 1.6)):
 
 def build(cells, bcs, mixture, quad=LS4, scheme=None):
     """``(problem, within_group_system, cold-start template)``."""
-    problem = _as_sn_mesh(axes(cells, bcs), quad, {0: mixture}, scheme=scheme)
+    problem = _as_problem(axes(cells, bcs), quad, {0: mixture}, scheme=scheme)
     solver = SNSolver(problem, inner_solver="source_iteration")
     system = build_within_group_system(
         problem, solver.problem.mat_xs,

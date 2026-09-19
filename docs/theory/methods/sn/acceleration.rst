@@ -841,7 +841,7 @@ quadrature exactness (moment-0 of the :math:`\mu`-arm vanishes and
 moment-1 recovers :math:`d_1` exactly).
 
 The arm is **gated on** the PROBLEM's retained order,
-:attr:`sn_mesh.scattering_order
+:attr:`problem.scattering_order
 <orpheus.sn.problem.SNProblem.scattering_order>` ``>= 1`` — the
 *same* consistency-with-the-iterated-operator rule that gates the
 :math:`\sigma_{s1}` data row: consistency is with the discrete system

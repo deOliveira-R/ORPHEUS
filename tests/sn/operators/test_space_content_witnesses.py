@@ -162,7 +162,7 @@ class TestO8SolutionRayMember:
         foreign_state = CoupledField(systems=(psi, member))  # type: ignore[arg-type]
         with pytest.raises(ValueError, match="state-on-domain"):
             Solution(
-                mesh=sn,
+                problem=sn,
                 outcome=SourceOutcome(
                     SourcePosing(sn.pencil.at(0.0), sn.system.space.zeros()),
                     foreign_state, sn.loss_kernel_gauge,

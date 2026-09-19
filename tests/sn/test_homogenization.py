@@ -102,7 +102,7 @@ def test_rate_preservation_vector_channels(solution, materials):
     coarse = _coarse_two_region()
     mm = solution.homogenize(coarse)
     phi = solution.scalar_flux.values            # (ng, n_fine)
-    V = np.asarray(solution.mesh.volumes)        # (n_fine,)
+    V = np.asarray(solution.problem.volumes)        # (n_fine,)
     regions = _fine_region_indices(coarse.edges)
 
     for channel in ("SigT", "SigC", "SigL", "SigF", "SigP"):
@@ -128,7 +128,7 @@ def test_rate_preservation_scattering_and_n2n(solution, materials):
     coarse = _coarse_two_region()
     mm = solution.homogenize(coarse)
     phi = solution.scalar_flux.values
-    V = np.asarray(solution.mesh.volumes)
+    V = np.asarray(solution.problem.volumes)
     regions = _fine_region_indices(coarse.edges)
     n_leg = len(materials[0].SigS)
 
@@ -263,7 +263,7 @@ def test_homogenization_is_flux_weighted_not_volume_weighted(materials):
     mm = sol.homogenize(coarse)
 
     phi = sol.scalar_flux.values                 # (ng, n_fine)
-    V = np.asarray(sol.mesh.volumes)
+    V = np.asarray(sol.problem.volumes)
     sigt_fine = np.array([materials[m].SigT for m in fine.mat_ids])  # (n_fine, ng)
 
     discriminated = False
@@ -295,7 +295,7 @@ def test_chi_is_production_weighted(solution, materials):
     coarse = _coarse_two_region()
     mm = solution.homogenize(coarse)
     phi = solution.scalar_flux.values
-    V = np.asarray(solution.mesh.volumes)
+    V = np.asarray(solution.problem.volumes)
     for R, sel in enumerate(_fine_region_indices(coarse.edges)):
         production = np.array([
             float((materials[_MAT_IDS[i]].SigP * phi[:, i]).sum() * V[i])
@@ -410,14 +410,14 @@ def tilted_pair():
 
 def _flat_pair(sol, adj):
     """(phi, phi_star, rho, V, mat_ids) in the (n_fine, ng) 'ij' order."""
-    ng = sol.mesh.ng
+    ng = sol.problem.ng
     phi = np.asarray(sol.scalar_flux.values, float).reshape(ng, -1).T
     phis = np.asarray(adj.scalar_flux.values, float).reshape(ng, -1).T
-    w = np.asarray(sol.mesh.quad.weights, float)
+    w = np.asarray(sol.problem.quad.weights, float)
     psi = np.asarray(sol.angular_flux.interior.values, float)
     psis = np.asarray(adj.angular_flux.interior.values, float)
     rho = np.einsum("n,n...->...", w, psis * psi).reshape(ng, -1).T
-    V = np.asarray(sol.mesh.volumes).ravel()
+    V = np.asarray(sol.problem.volumes).ravel()
     return phi, phis, rho, V
 
 
@@ -668,7 +668,7 @@ def test_homogenize_2d_rate_preservation(materials):
 
     phi = sol.scalar_flux.values                  # (ng, nx, ny)
     ng, nx, ny = phi.shape
-    V = np.asarray(sol.mesh.volumes).ravel()      # (n_fine,) "ij"
+    V = np.asarray(sol.problem.volumes).ravel()      # (n_fine,) "ij"
     phi_flat = phi.reshape(ng, -1)                # (ng, n_fine) "ij"
     mat_flat = fine.mat_map.ravel()
     fx, fy = np.meshgrid(np.arange(nx), np.arange(ny), indexing="ij")

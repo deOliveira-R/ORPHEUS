@@ -22,7 +22,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry.mesh import BC, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import (
-    SupercriticalSourceProblem, _as_sn_mesh, solve_sn, solve_sn_fixed_source, solve_sn_multiplying_source,
+    SupercriticalSourceProblem, _as_problem, solve_sn, solve_sn_fixed_source, solve_sn_multiplying_source,
 )
 
 pytestmark = pytest.mark.l1
@@ -194,7 +194,7 @@ def test_a_gauge_singular_multiplying_solve_is_AUDIBLE_like_its_sibling() -> Non
     from orpheus.numerics.outcome import Measured
     from orpheus.sn.operators.loss_kernel_gauge import GaugeFreedomWarning, gauge_freedom
     mats, mesh, quad, source = _gauge_singular_box()
-    hub = _as_sn_mesh(mesh, quad, mats, None)
+    hub = _as_problem(mesh, quad, mats, None)
     _require(gauge_freedom(hub).present, "non-vacuity: the hub must be gauge-singular")
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")

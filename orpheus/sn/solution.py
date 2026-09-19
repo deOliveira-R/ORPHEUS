@@ -16,7 +16,7 @@ places — a twin path waiting for drift (``coding-elegance`` anti-pattern
 Under PR-TYPED-5, **one carrier** (:class:`SolutionBase`, through both
 role leaves) covers both problem kinds.  Since step 3 of the consumers
 campaign (2026-09-17) the carrier is the pair (Problem, posing) plus the
-Strategy that produced it and the records — ``mesh``, a kind-typed
+Strategy that produced it and the records — ``problem``, a kind-typed
 ``outcome`` (the question, the returned STATE, the answer and the gauge that
 picked the representative), ``strategy``, ``certificate`` and ``record`` —
 and the KIND is the outcome's TYPE.  ⛔ Until step 3 the kind was read off
@@ -91,7 +91,7 @@ campaign 1 step 6), which is the space the recorded question is posed on.
 A cross-Problem pairing is refused; the flux members need no guard of their
 own because they are READ off that one state (until step 3 each stored
 field carried its own space-content check, and System B's presence was
-re-derived by a hand-written biconditional against the mesh — the state's
+re-derived by a hand-written biconditional against the hub — the state's
 ARITY answers it now, by construction).
 """
 
@@ -154,7 +154,8 @@ class SolutionBase(Generic[O]):
     **A Solution is the pair (Problem, posing) plus the Strategy that produced
     it and the records** (R-cc2; step 3 of the consumers campaign, 2026-09-17):
 
-    * :attr:`mesh` — the Problem (the hub; ``SNProblem`` at #412), the base
+    * :attr:`problem` — the Problem (the hub, ``SNProblem``; until #412 the
+      field was ``mesh`` and the type ``SNMesh``), the base
       point every other member is relative to;
     * :attr:`outcome` — the kind-typed answer, FUSED with the question it
       answered, the returned STATE and the gauge that picked the
@@ -183,11 +184,11 @@ class SolutionBase(Generic[O]):
 
     **The flux members are DERIVED, not stored** (RULED F3/F3b): the outcome's
     ``state`` is the returned iterate WHOLE — the one-system coupled state on a
-    seedless mesh, the two-system one on a carrying (ray-bearing) mesh — and
+    seedless Problem, the two-system one on a carrying (ray-bearing) one — and
     :attr:`angular_flux`, :attr:`boundary_flux`, :attr:`radial_characteristic`
     and :attr:`scalar_flux` are readers of it, under their historical names.
     So the presence of the ray member is the state's ARITY (no biconditional
-    against the mesh to enforce), the scalar flux is :math:`\int\psi\,d\Omega`
+    against the Problem to enforce), the scalar flux is :math:`\int\psi\,d\Omega`
     of the cell-average moment (no marginal-axes guard to keep it honest), and
     the one invariant left to check at construction is the STATE-ON-DOMAIN law:
     the state lives on the Problem's coupled space, which is the space the
@@ -200,7 +201,7 @@ class SolutionBase(Generic[O]):
     cases; the artefacts were re-baselined with that ratio recorded, U2e).
     """
 
-    mesh: "SNProblem"
+    problem: "SNProblem"
     outcome: O
     strategy: "Splitting"
     certificate: ExitCertificate
@@ -222,11 +223,11 @@ class SolutionBase(Generic[O]):
         # cross-hub one is refused here.  ``CoupledField.space`` is derived
         # from the members (step 3 U1).
         state_space = self.outcome.state.space
-        if state_space != self.mesh.system.space:
+        if state_space != self.problem.system.space:
             raise ValueError(
                 f"{type(self).__name__}: the returned state lives on "
                 f"{state_space!r}, not on this Problem's coupled space "
-                f"{self.mesh.system.space!r} — a Solution's state is an element "
+                f"{self.problem.system.space!r} — a Solution's state is an element "
                 "of its own Problem's space (the state-on-domain law)."
             )
         posed_on = _posed_domain(self.outcome)
@@ -257,7 +258,7 @@ class SolutionBase(Generic[O]):
 
     @property
     def radial_characteristic(self) -> "RadialCharacteristicField | None":
-        r"""System B's converged ψ½ state on a carrying (R12a) mesh — the state's
+        r"""System B's converged ψ½ state on a carrying (R12a) Problem — the state's
         second member; ``None`` exactly when the state has one system.  Presence
         is the state's ARITY: no wiring guard is needed to keep it honest."""
         if self.state.n_systems == 1:
@@ -290,8 +291,8 @@ class SolutionBase(Generic[O]):
         from orpheus.transport.fields.angular_flux import AngularFlux
 
         cell_average = AngularFlux(
-            values=self.mesh.cell_average_moment(np.asarray(self.angular_flux.interior.values)),
-            space=self.mesh.angular_bulk_space,
+            values=self.problem.cell_average_moment(np.asarray(self.angular_flux.interior.values)),
+            space=self.problem.angular_bulk_space,
         )
         return cell_average.integrate_angular()
 
@@ -334,7 +335,7 @@ class SolutionBase(Generic[O]):
                 "λ) and a source answer (a coset) are different questions; "
                 "same-kind comparison only."
             )
-        if not self.mesh.same_phase_space(other.mesh):
+        if not self.problem.same_phase_space(other.problem):
             raise ValueError(
                 f"{type(self).__name__}.compare: the solutions realize "
                 "different discrete phase spaces — comparison is defined "
@@ -520,7 +521,7 @@ class Solution(SolutionBase[O]):
             effective material per coarse cell.
         adjoint : AdjointSolution, optional
             The importance solution :math:`\psi^*` from
-            :func:`~orpheus.sn.solver.solve_sn_adjoint` on the SAME mesh
+            :func:`~orpheus.sn.solver.solve_sn_adjoint` on the SAME Problem
             object (identity-checked).  ``None`` (default) keeps the forward
             flux-weighted (Galerkin-degenerate) collapse, bit-identical to
             the pre-P6 behaviour.
@@ -547,7 +548,7 @@ class Solution(SolutionBase[O]):
         from orpheus.transport.mesh.material_mesh import MaterialMesh
         from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
-        fine = self.mesh
+        fine = self.problem
         trial = coarse.indicator_basis()       # coarse cell-indicator trial basis (n-D)
         if trial.ndim != fine.ndim:
             raise ValueError(
@@ -622,7 +623,7 @@ class Solution(SolutionBase[O]):
                     f"(the importance is the test weight, never a forward flux); "
                     f"got {type(adjoint).__name__}."
                 )
-            if not fine.same_phase_space(adjoint.mesh):
+            if not fine.same_phase_space(adjoint.problem):
                 raise ValueError(
                     "Solution.homogenize: adjoint solves a different discrete "
                     "phase space — the importance must come from an adjoint "
@@ -730,7 +731,7 @@ class Solution(SolutionBase[O]):
             If a material carries no energy grid (``eg is None`` — a synthetic
             mixture); condensation needs the fine library grid.
         """
-        fine = self.mesh
+        fine = self.problem
         ng = fine.ng
         # (ng, *spatial) → (n_fine_cells, ng) in the "ij"/C flat-cell order the
         # volume measure and ``mat_map.ravel()`` share (same convention as homogenize).
@@ -750,7 +751,7 @@ class Solution(SolutionBase[O]):
                     f"(the importance is the test weight, never a forward "
                     f"flux); got {type(adjoint).__name__}."
                 )
-            if not fine.same_phase_space(adjoint.mesh):
+            if not fine.same_phase_space(adjoint.problem):
                 raise ValueError(
                     "Solution.condense: adjoint solves a different discrete "
                     "phase space — the importance must come from an adjoint "

@@ -259,7 +259,7 @@ mesh) is shared with :ref:`theory-collision-probability` and
    on the mesh is looked up in :attr:`SNProblem.BOUNDARY_OPERATOR_REGISTRY` and converted
    to a validated kind string (``"vacuum"`` or ``"reflective"``)
    stored in the face-name-keyed :attr:`SNProblem.bc` dict
-   (``sn_mesh.bc["xmin"]``, ``sn_mesh.bc["xmax"]``, ... — the dict
+   (``problem.bc["xmin"]``, ``problem.bc["xmax"]``, ... — the dict
    keys are the mesh's true boundary faces; see
    :ref:`bc-face-name-carve`).
    The sweep reads these resolved strings directly --- it never
@@ -345,14 +345,14 @@ dataclass with three **required** fields and no defaults:
 
    @dataclass
    class StreamingOperator(LinearOperator["FullField"]):
-       sn_mesh: "SNProblem"                                # the geometric substrate
+       problem: "SNProblem"                                # the geometric substrate
        spatial_closure: "DiscretizationSchemeBase"      # required, no default
        angular_closure: "AngularClosureBase"            # required, no default
 
 The absence of a default is the design's first claim, and it is a claim
 about *authorship*, not about ergonomics — **the discretization is an
 active choice**, so an operator that guessed one would be answering a
-question nobody asked.  ``StreamingOperator(sn_mesh)`` is a
+question nobody asked.  ``StreamingOperator(problem)`` is a
 ``TypeError`` (`[M]` *"missing 2 required positional arguments:
 'spatial_closure' and 'angular_closure'"*), which is the loud,
 collection-time failure that the illegal-states-unrepresentable pattern
@@ -372,8 +372,8 @@ whole body is one line:
 .. code-block:: python
 
    @classmethod
-   def pose(cls, sn_mesh):
-       return cls(sn_mesh, sn_mesh.scheme, sn_mesh.angular_closure)
+   def pose(cls, problem):
+       return cls(problem, problem.scheme, problem.angular_closure)
 
 ``pose`` is the migration lever, not the destination.  Every transport
 method's streaming operator needs a domain, a codomain, a way to
@@ -387,7 +387,7 @@ Until then the mesh field is a **declared transitional weld**: the
 representation and the walk still read geometry, boundary conditions and
 connection coefficients off it, and the operator's ``domain`` /
 ``codomain`` are still derived from
-``sn_mesh.full_field_space``.
+``problem.full_field_space``.
 
 .. note:: **Why the mesh field was kept rather than replaced by the
    literal four-argument shape now.**
@@ -1104,10 +1104,10 @@ construction and read by everyone (ruling R-cc9):
 
 .. code-block:: python
 
-   sn_mesh = SNProblem.from_axes(axes, quad, materials, scattering_order=3)
-   sn_mesh.scattering_order          # the CLAMPED value
+   problem = SNProblem.from_axes(axes, quad, materials, scattering_order=3)
+   problem.scattering_order          # the CLAMPED value
 
-:class:`~orpheus.sn.solver.SNSolver` reads ``sn_mesh.scattering_order``
+:class:`~orpheus.sn.solver.SNSolver` reads ``problem.scattering_order``
 and no longer takes the argument;
 :meth:`DSACorrection.from_sn_mesh
 <orpheus.sn.acceleration.dsa.DSACorrection.from_sn_mesh>` and
@@ -1185,7 +1185,7 @@ branchlessly.  (This replaced the pre-carve procedural branch on the
 :doc:`/theory/methods/sn/loss_representation`.)  Boundary conditions are **not** passed as
 a parameter to the sweep --- it reads the resolved BC kind strings
 directly from the face-name-keyed :attr:`SNProblem.bc` dict
-(``sn_mesh.bc["xmin"]``, ``sn_mesh.bc["xmax"]``, ...; see
+(``problem.bc["xmin"]``, ``problem.bc["xmax"]``, ...; see
 :ref:`bc-face-name-carve`).
 
 For 1D meshes (``ny=1``):
@@ -1415,11 +1415,11 @@ per-:math:`\mu`-level traversal, and the pure-azimuthal degenerate
 handling.  The sweep at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) consumes this
 generator::
 
-    for visit in sn_mesh.dag_walk(ordinate_idx=n):
+    for visit in problem.dag_walk(ordinate_idx=n):
         upstream = UpstreamState(spatial_upstream=psi_face)
         # ΔA/w from its two factors (P4.7 — the packet no longer
         # carries the fusion; the closure owns it, the cache interns it).
-        # quad here is sn_mesh.quad — a HUB read; see the note below on
+        # quad here is problem.quad — a HUB read; see the note below on
         # why the walk's quadrature reads deliberately stay hub-handed.
         dA_w = float(reduced.delta_A[visit.cell_idx] / quad.weights[n])
         result = scheme.update(
@@ -2007,19 +2007,19 @@ primitive (Wave B Issue #6 / Wave D Round 1):
 
 .. code-block:: python
 
-   def transport_sweep(Q, sig_t, sn_mesh, psi_bc, Q_aniso=None):
-       reduced = sn_mesh.reduced
+   def transport_sweep(Q, sig_t, problem, psi_bc, Q_aniso=None):
+       reduced = problem.reduced
        if reduced is not None and reduced.requires_upstream_angular_state:
-           return _curvilinear_sweep(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
-       return _cartesian_sweep(Q, sig_t, sn_mesh, psi_bc, Q_aniso)
+           return _curvilinear_sweep(Q, sig_t, problem, psi_bc, Q_aniso)
+       return _cartesian_sweep(Q, sig_t, problem, psi_bc, Q_aniso)
 
 The pre-Wave-D dispatch did string-equality on
-``sn_mesh.curvature == "spherical"`` / ``"cylindrical"`` /
+``problem.curvature == "spherical"`` / ``"cylindrical"`` /
 ``None``.  Wave D replaced it with a geometry-layer boolean,
 ``ReducedStreamingOperator.requires_upstream_angular_state`` —
 ``False`` for slab + 2-D Cartesian (no angular redistribution
 between successive half-angles), ``True`` for spherical +
-cylindrical.  Two-D Cartesian set ``sn_mesh.reduced is None``
+cylindrical.  Two-D Cartesian set ``problem.reduced is None``
 (no curvilinear math needed), and the dispatch fell through
 to the Cartesian path.
 
@@ -2080,7 +2080,7 @@ geometry the walk traverses:
 .. code-block:: python
 
    scheme = self.spatial_closure     # the walk's own field, handed at posing
-   closure = self.angular_closure    # likewise — never sn_mesh.angular_closure
+   closure = self.angular_closure    # likewise — never problem.angular_closure
    # P4b: the constants' one durable home is the closure's read-only cache
    # (the geometry table sheds its copies).
    c_in_n = closure.c_in_per_ordinate[n]
@@ -2110,7 +2110,7 @@ is the **active-choice site**, and it keeps the generator so that every
 consumer of one save state (the S\ :sub:`N` sweep and DSA alike) is
 handed the same object.  It reaches the walk through the posed operator,
 which is why the block above reads ``self.spatial_closure`` rather than
-``sn_mesh.scheme``.  The hub realizes the strategy on its ``scheme``
+``problem.scheme``.  The hub realizes the strategy on its ``scheme``
 attribute in its
 constructor (introduced in this round as a constructor argument with
 default

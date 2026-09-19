@@ -443,7 +443,7 @@ class TestBoundaryResidual2DDrivesToZero:
         )
 
         psi = res.angular_flux  # TimedFullField (bulk + boundary)
-        mesh = res.mesh
+        mesh = res.problem
         trace = mesh.angular_trace
         # R·G·ψ.outflow via the canonical operator (inflow slots carry it).
         B = SNBoundaryOperator(mesh)

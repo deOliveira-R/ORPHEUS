@@ -72,7 +72,7 @@ from orpheus.geometry.mesh import BC, CoordSystem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import (
     _adjoint_posing_parts,
-    _as_sn_mesh,
+    _as_problem,
     solve_sn,
     solve_sn_adjoint,
 )
@@ -440,7 +440,7 @@ def _sphere_dense_reference():
     from orpheus.numerics.coupled_system import CoupledField
 
     mats, mesh = _het_sphere()
-    sn = _as_sn_mesh(mesh, _quad(), mats)
+    sn = _as_problem(mesh, _quad(), mats)
     parts: tuple[Any, Any, Any, Any, Any] = _adjoint_posing_parts(sn)
     implicit_operator, gain, F_posed, template, _splitting = parts
     if not isinstance(template, CoupledField):
@@ -511,7 +511,7 @@ class TestP14SphereAdjointVector:
             "its transpose cannot referee the adjoint.",
         )
 
-        sn = _as_sn_mesh(mesh, _quad(), mats)
+        sn = _as_problem(mesh, _quad(), mats)
         k_adj, psi_star = _sphere_daggered_run(sn)
 
         # Materiality: φ* ≢ φ (normalized) — heterogeneous + vacuum makes
@@ -556,7 +556,7 @@ class TestP14SphereAdjointVector:
         mats, mesh = _het_sphere()
         k_fwd = _k(_solve_fwd(mats, mesh))
 
-        sn_mut = _as_sn_mesh(mesh, _quad(), mats)
+        sn_mut = _as_problem(mesh, _quad(), mats)
         ii = sn_mut.radial_characteristic_interior_space
         bb = sn_mut.radial_characteristic_boundary_space
         cspace = sn_mut.radial_characteristic_field_space
@@ -625,7 +625,7 @@ class TestP14SphereAdjointVector:
             FissionOperator, "apply_transpose",
             lambda self, chi: self.apply(chi),
         )
-        sn_mut = _as_sn_mesh(mesh, _quad(), mats)
+        sn_mut = _as_problem(mesh, _quad(), mats)
         k_mut, psi_mut = _sphere_daggered_run(sn_mut)
         rel_mut = _defining_law_relative_residual(
             psi_mut, k_mut, A_dense, F_dense, g_diag,

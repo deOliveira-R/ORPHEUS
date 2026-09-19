@@ -69,7 +69,7 @@ from orpheus.geometry import BC, Mesh1D
 from orpheus.geometry.coord import CoordSystem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
-from orpheus.sn.solver import SNSolver, _adjoint_posing_parts, _as_sn_mesh
+from orpheus.sn.solver import SNSolver, _adjoint_posing_parts, _as_problem
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
@@ -93,7 +93,7 @@ def _slab_hub() -> SNProblem:
         mat_ids=np.array([0, 0, 0, 0, 1, 1, 1, 1]),
         bc_left=BC("reflective"), bc_right=BC("vacuum"),
     )
-    return _as_sn_mesh(
+    return _as_problem(
         mesh, Quadrature.gauss_legendre(n_ordinates=8), materials,
         scattering_order=0,
     )
@@ -107,7 +107,7 @@ def _sphere_hub() -> SNProblem:
         mat_ids=np.array([0, 0, 0, 0, 1, 1, 1, 1]),
         coord=CoordSystem.SPHERICAL,
     )
-    return _as_sn_mesh(
+    return _as_problem(
         mesh, Quadrature.gauss_legendre(n_ordinates=8), materials,
         scattering_order=0,
     )

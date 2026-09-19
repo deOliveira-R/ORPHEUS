@@ -192,8 +192,8 @@ class TestSolveSnAdjoint:
         )
         require(
             adj.angular_flux.interior.space
-            == adj.angular_flux.interior.space_on(adj.mesh)
-            and adj.scalar_flux.space == adj.scalar_flux.space_on(adj.mesh),
+            == adj.angular_flux.interior.space_on(adj.problem)
+            and adj.scalar_flux.space == adj.scalar_flux.space_on(adj.problem),
             "Solution space-content contract broken on the adjoint entry.",
         )
         require(
@@ -313,7 +313,7 @@ class TestSolveSnAdjointFixedSource:
         )
 
         # The pairings, on the SAME independent G.
-        sn = adj.mesh
+        sn = adj.problem
         require(isinstance(sn, SNProblem), "entry must return its SNProblem.")
         q_composite = TimedFullField(
             interior=AngularSourceSink(values=q_per_ord, space=sn.angular_bulk_space),

@@ -678,13 +678,13 @@ and call ``loss_action(self.sigma, psi)`` directly:
    class StreamingCollisionOperator(OperatorSum):
        def apply(self, psi):                         # (L+C)ψ = M(σ)ψ
            FullField.require_member(
-               psi, mesh=self.sn_mesh,
+               psi, mesh=self.problem,
                context="StreamingCollisionOperator.apply",
            )
            return self.loss_representation.loss_action(self.sigma, psi)
 
        def apply_transpose(self, phi):               # (L+C)ᵀφ = M(σ)ᵀφ
-           FullField.require_member(phi, mesh=self.sn_mesh, context=...)
+           FullField.require_member(phi, mesh=self.problem, context=...)
            return self.loss_representation.loss_action_transpose(self.sigma, phi)
 
 This is ``coding-elegance`` Pattern 2 (single source of truth): **one**
@@ -2416,7 +2416,7 @@ One instance (S6.5)
 The operator holds **one** representation instance —
 :attr:`StreamingOperator.loss_representation
 <orpheus.sn.operators.streaming.StreamingOperator.loss_representation>` (a
-``cached_property`` = ``default_for(sn_mesh, spatial_closure,
+``cached_property`` = ``default_for(problem, spatial_closure,
 angular_closure)``, the operator's own three fields since P4.9b) —
 consumed by:
 

@@ -44,7 +44,7 @@ from orpheus.homogeneous.solver import HomogeneousProblem
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.gauge import KernelGauge, ScaleGauge
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.solver import _as_sn_mesh
+from orpheus.sn.solver import _as_problem
 from orpheus.transport.full_field import FullField
 
 pytestmark = pytest.mark.foundation
@@ -91,7 +91,7 @@ def _gauge_singular_hub():
         mat_map=np.zeros((3, 4), dtype=int),
         bc_xmin=_R, bc_xmax=_R, bc_ymin=_R, bc_ymax=_R,
     )
-    return _as_sn_mesh(mesh, _QUAD, {0: _absorber()})
+    return _as_problem(mesh, _QUAD, {0: _absorber()})
 
 
 def _random_state(hub, rng):

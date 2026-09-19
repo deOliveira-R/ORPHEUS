@@ -1056,7 +1056,7 @@ compare against the matvec's observable output.  Phase D
 strengthens this to a **capture-and-compare** check that pins the
 exact value the matvec passes into the BC trace law:
 
-#. Patch ``sn_mesh.bc["xmax"].apply`` (the outer radial face —
+#. Patch ``problem.bc["xmax"].apply`` (the outer radial face —
    a sphere's ``"outer"`` endpoint renders as ``"xmax"`` since
    C4 / #220, see :ref:`bc-face-name-carve`) to capture every input
    array passed to it during one matvec call.
@@ -1231,7 +1231,7 @@ The full Phase D footprint (per the closeout memo at
 * :file:`tests/sn/test_streaming_operator.py` (post-D-K successor
   to the retired ``test_snstreamingoperator.py``) — 3 tests updated
   (one test docstring rewritten to pin the Phase D fix; two
-  bit-identity tests threaded with ``sn_mesh.pole_angular_closure``;
+  bit-identity tests threaded with ``problem.pole_angular_closure``;
   one linearity tolerance relaxed ``rtol=1e-13 → 1e-12``).
 
 The agent-memory trail for Phase D session reproducibility:

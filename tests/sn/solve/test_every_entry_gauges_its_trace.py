@@ -79,7 +79,7 @@ from orpheus.sn.operators.loss_kernel_gauge import (
     GaugeFreedomWarning,
 )
 from orpheus.sn.solver import (
-    _as_sn_mesh,
+    _as_problem,
     solve_sn,
     solve_sn_fixed_source,
 )
@@ -281,7 +281,7 @@ def test_the_spurious_TANGENTIAL_current_along_a_mirror_is_gone():
             boundary_condition=None, inner_solver="source_iteration",
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
-    problem = _as_sn_mesh(_reflective_axes(_EXCITED_CELLS), _QUAD,
+    problem = _as_problem(_reflective_axes(_EXCITED_CELLS), _QUAD,
                           {0: _absorber()})
     currents = _currents(solution, problem)
 
@@ -353,7 +353,7 @@ def test_every_MIRROR_EVEN_functional_is_blind_to_the_gauge():
     structurally unable to fail (`plan-authoring` §6c).
     """
     axes = _reflective_axes(_EXCITED_CELLS)
-    problem = _as_sn_mesh(axes, _QUAD, {0: _absorber()})
+    problem = _as_problem(axes, _QUAD, {0: _absorber()})
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", GaugeFreedomWarning)
         solution = solve_sn_fixed_source(
@@ -418,7 +418,7 @@ def test_an_EVEN_mesh_is_excited_too_once_the_source_stops_being_symmetric():
     cells = _UNEXCITED_CELLS
     assert cells[0] % 2 == 0, "this row needs an EVEN first axis to mean anything"
     axes = _reflective_axes(cells)
-    problem = _as_sn_mesh(axes, _QUAD, {0: _absorber()})
+    problem = _as_problem(axes, _QUAD, {0: _absorber()})
 
     # The operator does not care about the source, and never did.
     assert problem.loss_kernel_gauge.dimension > 0, (

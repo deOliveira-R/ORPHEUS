@@ -50,7 +50,7 @@ from orpheus.geometry import (
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
-from orpheus.sn.solver import SNSolver, _as_sn_mesh
+from orpheus.sn.solver import SNSolver, _as_problem
 from orpheus.transport.mesh.axis import AxisMesh
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from dataclasses import replace
@@ -79,7 +79,7 @@ def _mesh(regions, bc, coord):
 
 def _solve(materials, mesh, scattering_order=0):
     """Converged eigenpair via the production driver, solver retained."""
-    problem = _as_sn_mesh(mesh, Quadrature.gauss_legendre(8), materials, scattering_order=scattering_order)
+    problem = _as_problem(mesh, Quadrature.gauss_legendre(8), materials, scattering_order=scattering_order)
     solver = SNSolver(
         problem,
         keff_tol=1e-9, flux_tol=1e-8, max_inner=2000, inner_tol=1e-11,

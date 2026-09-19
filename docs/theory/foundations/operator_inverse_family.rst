@@ -82,7 +82,7 @@ the inverse *once*, and the iteration primitive
 
 Concretely :func:`_within_group_si <orpheus.sn.solver._within_group_si>`
 does ``step, windowed = _maybe_window(base_resolvent.inverse(), S,
-sn_mesh)`` and hands ``step`` to the ``SourceIteration`` constructor as
+problem)`` and hands ``step`` to the ``SourceIteration`` constructor as
 its **first argument** ``A_inv``. This closes the #226 steps-1–3 arc: the
 duck-typed "resolvent" — the object whose ``apply`` and ``solve`` inverted
 *different* operators — is **fully dissolved**. Nothing in the driver is a

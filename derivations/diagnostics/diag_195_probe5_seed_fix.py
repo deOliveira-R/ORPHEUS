@@ -41,7 +41,7 @@ from orpheus.derivations.continuous.mms.sn import (
     build_spherical_mms_case, build_cylindrical_mms_case,
 )
 from orpheus.sn.solver import (
-    SNSolver, _build_fixed_source_rhs, _as_sn_mesh,
+    SNSolver, _build_fixed_source_rhs, _as_problem,
 )
 from orpheus.transport.spatial.cell_balance import cell_balance_for_streaming
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -61,7 +61,7 @@ def _operator_residual_with_seed(case, nc, seed_mode):
     """
     mesh = case.build_mesh(nc)
     Q = case.external_source(mesh)
-    problem = _as_sn_mesh(mesh, case.quadrature, case.materials, "vacuum", mat_map=None, scattering_order=0)
+    problem = _as_problem(mesh, case.quadrature, case.materials, "vacuum", mat_map=None, scattering_order=0)
     solver = SNSolver(problem, inner_solver="source_iteration", max_inner=2000, inner_tol=1e-13)
     q_ext = _build_fixed_source_rhs(Q, problem)
     # B.2d: the triple retired into build_within_group_system; this fused

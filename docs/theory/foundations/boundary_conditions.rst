@@ -2230,8 +2230,8 @@ reads
 .. code-block:: python
 
    return {
-       face: self.sn_mesh.bc[face]
-       for face in self.sn_mesh.angular_trace.layout.faces
+       face: self.problem.bc[face]
+       for face in self.problem.angular_trace.layout.faces
    }
 
 — every face in the trace layout, with **no** ``block_role`` filter.
@@ -3244,7 +3244,7 @@ Two structural reasons forbid the old fold:
 
 #. **The adjoint metric lives on the trace.** :math:`B` lives on the
    boundary trace (:attr:`domain <orpheus.sn.operators.boundary.SNBoundaryOperator.domain>`
-   ``= sn_mesh.angular_trace``), and the cosine-weighted
+   ``= problem.angular_trace``), and the cosine-weighted
    :math:`|\Omega\cdot\hat n|\,w` adjoint metric (Wave O step O.2 — the
    codomain inner product of :math:`L`'s boundary-trace block) lives on
    that **trace** domain, not the bulk. Folding :math:`B` into the
@@ -3510,7 +3510,7 @@ rolling ``_MovingFrontier`` front (the ``WavefrontFlux`` type that named
 it through #205 Phase 5 is retired; see :ref:`wavefront-flux-cochain`).
 
 The dispatch is still guarded by a **single predicate** so the two
-geometry paths cannot drift: ``sn_mesh.reduced is not None`` is the
+geometry paths cannot drift: ``problem.reduced is not None`` is the
 **same** predicate the representation dispatch
 (:func:`~orpheus.sn.loss_representation.default_for`, via each
 representation's ``supports``) reads to select the 1-D scan
@@ -3592,7 +3592,7 @@ Cartesian eigenvalue problem solves through **both** inner solvers:
 The two inners are identical except for that driver. Both build the
 same composite right-hand side
 (:meth:`AngularSourceSink.from_isotropic <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
-bulk + ``AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)``
+bulk + ``AngularBoundarySourceSink.zeros(problem.angular_trace)``
 boundary inside a
 :class:`~orpheus.transport.timed_full_field.TimedFullField`), the same
 loss decomposition (the resolvent :math:`L + C` from
@@ -5289,7 +5289,7 @@ what it passes through *both* faces of the realization:
   architecture (:ref:`bc-overview-three-layers`) is descriptor →
   realizer → operator, and until B2.0 this step *dropped the
   descriptor*: the shim kept a copy of ``law.key`` — a **string** — and
-  nothing else. So ``sn_mesh.bc[face]`` could answer *"what were you
+  nothing else. So ``problem.bc[face]`` could answer *"what were you
   declared as?"* but not *"what does your law DO?"*, and the five
   production sites needing the latter — ``sweep_schedule``'s reflective
   set, the two ruled-corner gates on the radial-characteristic boundary,
@@ -5315,7 +5315,7 @@ what it passes through *both* faces of the realization:
   ``{"vacuum", "reflective"}``) are retired;
 * a ``kind`` string tag, now a **read-through** of the law's registry
   key rather than a stored copy — load-bearing for the
-  ``sn_mesh.bc["xmin"] == "vacuum"`` string-equality surface that
+  ``problem.bc["xmin"] == "vacuum"`` string-equality surface that
   several SN tests rely on, until phase B2.2 retires it;
 * :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
@@ -5392,20 +5392,20 @@ both changes matter to anyone reading old call sites:
 .. code-block:: python
 
    # Wave-8 era — the sweep called it, on the WHOLE face slot:
-   psi_in = sn_mesh.bc["xmin"].apply(psi_out_full)      # (N, ng)
+   psi_in = problem.bc["xmin"].apply(psi_out_full)      # (N, ng)
 
    # Today — the sweep is BARE. The sole consumer is B's per-face
    # composition, and the law's domain is Γ₊:
    gamma_out = trace.outflow_restriction("xmin")        # γ₊
    gamma_in  = trace.inflow_restriction("xmin")         # γ₋
-   image = sn_mesh.bc["xmin"].apply(gamma_out.apply(face_in))   # (|Γ₊|,…) → (|Γ₋|,…)
+   image = problem.bc["xmin"].apply(gamma_out.apply(face_in))   # (|Γ₊|,…) → (|Γ₋|,…)
    out_boundary.face_view("xmin")[...] = gamma_in.apply_transpose(image)
 
 Wave O step O.4a.2 / O.4b removed ``bc.apply`` from the sweep entirely
 for every geometry — the reflective coupling is delivered by the
 sibling :math:`-B` (:ref:`bc-extraction`) — and campaign phase B3.2
 narrowed the law's domain to :math:`\Gamma_+`
-(:ref:`bc-domain-narrowing`). The public ``sn_mesh.bc[face].apply``
+(:ref:`bc-domain-narrowing`). The public ``problem.bc[face].apply``
 surface survives, so a caller can still reach a realized law directly;
 it must now hand it a :math:`\Gamma_+`-shaped argument.
 
@@ -5423,7 +5423,7 @@ it must now hand it a :math:`\Gamma_+`-shaped argument.
    unreachable through
    :meth:`_reflect_trace <orpheus.sn.operators.boundary.SNBoundaryOperator>`
    — which always feeds a guarded ``γ₊.apply(...)`` — but **reachable
-   through** ``sn_mesh.bc[face].apply``.
+   through** ``problem.bc[face].apply``.
 
    The B3.4a arms split on exactly this axis, which is why the two
    properties must be named separately. White **refuses** the
@@ -6775,13 +6775,13 @@ The Phase D test
 :func:`tests.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
 (parametrised over ``vacuum`` and ``reflective``):
 
-#. Monkey-patches ``sn_mesh.bc["xmax"].apply`` (the outer radial
+#. Monkey-patches ``problem.bc["xmax"].apply`` (the outer radial
    face — a sphere's ``"outer"`` endpoint renders as ``"xmax"``)
    with a recorder wrapper that appends every input array passed to
    it during one matvec call.
 #. Independently reconstructs the WDD-propagated outflow trace via
    a reference implementation
-   (``_outflow_at_boundary_for_sphere(sn_mesh, sig_t, psi_input)``).
+   (``_outflow_at_boundary_for_sphere(problem, sig_t, psi_input)``).
 #. **Locates Call #2** by matching shape ``(N, ng)`` AND content
    (the captured input that bit-matches the independent reference
    IS the Phase C call).
@@ -7255,8 +7255,8 @@ not a ``None`` that a consumer might forget to guard:
      - ``bc_xmin = None``, ``bc_xmax = <op>``
      - ``bc = {"xmax": <op>}``
    * - Asking for the pole
-     - ``sn_mesh.bc_xmin`` → ``None``
-     - ``sn_mesh.bc["xmin"]`` → :class:`KeyError`
+     - ``problem.bc_xmin`` → ``None``
+     - ``problem.bc["xmin"]`` → :class:`KeyError`
    * - Failure mode of a buggy consumer
      - silent ``None.apply`` → ``AttributeError`` deep
        in a sweep, or a guard that *should* exist but
@@ -7496,9 +7496,9 @@ The :class:`_BoundBoundaryOperator` shim survives because a resolved BC
 must carry **both faces of its realization** — what it does
 (:attr:`inner`) and what it means (:attr:`law`, since phase B2.0). Its
 ``kind``-string tag is the older, weaker reason: load-bearing for the
-BC-resolution diagnostic and several ``sn_mesh.bc["xmin"] ==
+BC-resolution diagnostic and several ``problem.bc["xmin"] ==
 "vacuum"``-style test sites (the dict-keyed spelling since C4 / #220;
-this was ``sn_mesh.bc_left == "vacuum"`` pre-C4), and now a read-through
+this was ``problem.bc_left == "vacuum"`` pre-C4), and now a read-through
 of ``law`` rather than a stored copy — phase B2.2 retires it, and the
 shim survives that retirement on the descriptor alone. The dual-mode
 bound-quadrature
@@ -7746,7 +7746,7 @@ rank-generic :attr:`spatial_shape <orpheus.sn.problem.SNProblem.spatial_shape>`:
 Finally, a new :attr:`SNProblem.volume_measure <orpheus.sn.problem.SNProblem.volume_measure>` property gives the
 SN-side ``keff`` rate consumers (the production / absorption rates in
 :mod:`~orpheus.sn.solver`) a native source: they read it instead of
-reaching through ``sn_mesh.mesh.volume_measure``. While the
+reaching through ``problem.mesh.volume_measure``. While the
 :math:`d \le 2` adapter is present it delegates to the dataclass
 measure (bit-identical, including the ``precomputed_volumes`` hatch);
 the axis-native arm lands with C5.5.
@@ -7823,7 +7823,7 @@ C5.4 is the **highest-risk edit of the campaign** — a textbook
 ``vv-principles`` **Mode 9** case (a splitting / optimization verified
 only in a regime where the wrong gate is *accidentally* satisfied). Two
 gates inside the SN source-iteration driver keyed on
-``sn_mesh.reduced is None``:
+``problem.reduced is None``:
 
 * the **moment-windowing** gate (:meth:`_maybe_window
   <orpheus.sn.solver>`), which decides whether the SI iterate is held
@@ -7929,7 +7929,7 @@ None``) on the d-generic
 * **Entry surface.** :func:`~orpheus.sn.solver.solve_sn` and
   :func:`~orpheus.sn.solver.solve_sn_fixed_source` accept the **axes
   tuple** — the *only* 3-D entry — through one inbound seam
-  (``_as_sn_mesh``). A new ``mat_map`` keyword is the axes-entry
+  (``_as_problem``). A new ``mat_map`` keyword is the axes-entry
   material channel (it raises if combined with a legacy mesh, which
   carries its own material map). Default-BC semantics are handled per
   surface (``_apply_default_bcs`` accepts both declaration styles —

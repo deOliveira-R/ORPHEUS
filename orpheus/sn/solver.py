@@ -150,7 +150,7 @@ def _apply_default_bcs(
     return tuple(ax.with_uniform_bc(bc) for ax in axes)
 
 
-def _as_sn_mesh(
+def _as_problem(
     geometry: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
     quadrature: "Quadrature",
     materials: "dict[int, Mixture]",
@@ -2357,7 +2357,7 @@ def solve_sn(
     # phase-space-as-such object. C5.5 (#225): the declaration may be a
     # legacy mesh or an axis tuple (the only 3-D entry); unset faces
     # resolve to the SNProblem reflective default (eigenvalue convention).
-    problem = _as_sn_mesh(
+    problem = _as_problem(
         mesh, quadrature, materials, mat_map=mat_map,
         scattering_order=scattering_order,
     )
@@ -2591,7 +2591,7 @@ def _package_solution(
     site, and nothing an entry can forget.
     """
     return cls(
-        mesh=problem,
+        problem=problem,
         outcome=outcome,
         strategy=strategy,
         certificate=certificate,
@@ -2724,7 +2724,7 @@ def solve_sn_adjoint(
         (the importance map — also readable as
         :attr:`~orpheus.sn.solution.AdjointSolution.importance`).
     """
-    problem = _as_sn_mesh(
+    problem = _as_problem(
         mesh, quadrature, materials, mat_map=mat_map,
         scattering_order=scattering_order,
     )
@@ -2893,7 +2893,7 @@ def solve_sn_adjoint_fixed_source(
     # Resolve BEFORE anything reads it, so the truncation warning below can
     # name the budget that actually bound (`None` in a message is useless).
     max_inner = resolve_iteration_budget(max_inner, inner_tol)
-    problem = _as_sn_mesh(
+    problem = _as_problem(
         mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
         scheme=scheme, scattering_order=scattering_order,
     )
@@ -3420,7 +3420,7 @@ def solve_sn_fixed_source(
     # the only 3-D entry; C5.5 #225) into the SN phase space;
     # boundary_condition fills faces only when the declaration carries
     # no explicit BC.
-    problem = _as_sn_mesh(
+    problem = _as_problem(
         mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
         scheme=scheme, scattering_order=scattering_order,
     )
@@ -3570,7 +3570,7 @@ def solve_sn_multiplying_source(
     """
     t_start = time.perf_counter()
     max_inner = resolve_iteration_budget(max_inner, inner_tol)
-    problem = _as_sn_mesh(
+    problem = _as_problem(
         mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
         scheme=scheme, scattering_order=scattering_order,
     )

@@ -3601,18 +3601,18 @@ single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
    per-ordinate-density **bulk** source only, with a **vacuum**
    boundary. This is the original form, and it is *exactly* the
    composite with an all-zero boundary leaf
-   (``AngularBoundarySourceSink.zeros(sn_mesh.angular_trace)`` — the
+   (``AngularBoundarySourceSink.zeros(problem.angular_trace)`` — the
    allocator went space-keyed at CS4b S5; it read
-   ``zeros_on(sn_mesh)`` before). Every one of the 37
+   ``zeros_on(problem)`` before). Every one of the 37
    pre-existing callers passes this form and keeps working bit-for-bit
    unchanged (the vacuum path is verified bit-identical).
 #. **A full** :class:`~orpheus.transport.timed_full_field.TimedFullField`
    **composite** ``q = q_bulk ⊕ q_∂`` — the route for a **non-vacuum
    prescribed inflow**. Its leaf values are re-homed onto the solve's
-   own ``sn_mesh``: the trace / grid layout is deterministic from
+   own ``problem``: the trace / grid layout is deterministic from
    ``(mesh, quadrature, materials)``, so this is an exact values-copy
    onto the solve's mesh instance. The within-group operators are built
-   on ``sn_mesh`` and their matvec entries admit an operand only when
+   on ``problem`` and their matvec entries admit an operand only when
    its interior space agrees in CONTENT with the one that mesh mints
    (campaign 1 CS4b S3 re-keyed this from mesh-OBJECT identity, so a
    twin carrier built from equal inputs would now be admitted); the
@@ -3668,7 +3668,7 @@ one construction point: ``solve_sn_fixed_source`` calls it once, and
   :class:`~orpheus.transport.source_sinks.AngularSourceSink` with a
   vacuum ``AngularBoundarySourceSink``;
 * for a composite, re-homes the leaf values onto the solve's
-  ``sn_mesh`` (with a layout-size guard on the boundary trace), and
+  ``problem`` (with a layout-size guard on the boundary trace), and
   raises a descriptive ``ValueError`` if the composite was built on an
   incompatible mesh / quadrature / materials.
 

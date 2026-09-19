@@ -29,19 +29,19 @@ landed:
        :class:`~orpheus.transport.operators.fission.FissionOperator` on
        the full field.
        :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source` applies
-       its derived energy face ``sn_mesh.fission.isotropic_energy``,
+       its derived energy face ``problem.fission.isotropic_energy``,
        bit-identically to the retired mint
        (:ref:`sn-one-fission-per-problem`)
    * - ``SNSolver.scattering_op``
      - the Problem's posed record (unit C3b)
-     - ``sn_mesh.system.factors.scattering`` — the
+     - ``problem.system.factors.scattering`` — the
        :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
        carrying the P0 in-scatter + the P\ :sub:`ℓ` Galerkin
        reconstruction (Wave D Issue 13), minted ONCE per Problem at the
        hub's retained Legendre order
    * - ``SNSolver.n2n_op``
      - the Problem's posed record (unit C3b)
-     - ``sn_mesh.system.factors.n2n`` — the
+     - ``problem.system.factors.n2n`` — the
        :class:`~orpheus.transport.operators.n2n.N2NOperator`.  It was a
        **passenger inside** ``scattering_op`` until CS4c step 3
        (2026-08-30), when the channel became first-class because its
@@ -98,7 +98,7 @@ made it one object with two faces.
    a live solve.  Since the consumers campaign's step 1 (ruling R-cc9;
    GitHub #459) the order is clamped ONCE on
    :class:`~orpheus.sn.problem.SNProblem` at construction, and
-   ``SNSolver.__init__`` reads :attr:`sn_mesh.scattering_order
+   ``SNSolver.__init__`` reads :attr:`problem.scattering_order
    <orpheus.sn.problem.SNProblem.scattering_order>`.  The
    attribute ``SNSolver.scattering_order`` still exists and still means
    the same thing — it is now a **read**, not a second spelling.  The
@@ -109,7 +109,7 @@ made it one object with two faces.
    :ref:`sn-hub-retained-order`.
 
 The loss composite :math:`L+C` is the **Problem's**, and there is exactly
-one of it: ``sn_mesh.system.factors.streaming_collision``, built through
+one of it: ``problem.system.factors.streaming_collision``, built through
 the one spelling
 :func:`~orpheus.sn.coupled_system.build_streaming_collision` inside the
 one builder call, and it *is* the object every Strategy value inverts.
@@ -315,7 +315,7 @@ framing organises the solver's outer API surface:
 
 * :meth:`SNSolver.compute_fission_source` returns
   :math:`F\,\phi/k` — a thin delegator to
-  ``sn_mesh.fission.isotropic_energy.apply`` (the hub's one :math:`F`,
+  ``problem.fission.isotropic_energy.apply`` (the hub's one :math:`F`,
   read at its scalar face) with the :math:`1/k` outer-loop scaling
   applied at the solver level.
 * :meth:`SNSolver.solve_fixed_source` solves
@@ -1463,7 +1463,7 @@ that one object:
      - why that face
    * - forward k-outer
        (:meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`)
-     - ``sn_mesh.fission.isotropic_energy``
+     - ``problem.fission.isotropic_energy``
      - the outer iterates a **scalar** flux, so it wants the rank-1
        energy dyad on :math:`(n_g, *\text{spatial})` arrays.  The face is
        a declared field of
@@ -1472,7 +1472,7 @@ that one object:
        *theorem* of the composite, not a second binding
        (:ref:`sn-fission-binding-adjoint`)
    * - adjoint, seedless
-     - ``system.factors.fission`` — *is* ``sn_mesh.fission``
+     - ``system.factors.fission`` — *is* ``problem.fission``
      - the entry daggers it as ``F.H``; the composite is what carries
        the two metrics the Hilbert adjoint needs
    * - adjoint, carrying
@@ -1703,7 +1703,7 @@ What is deferred, and why
        the posing.
 
        ✅ **FULLY DISCHARGED 2026-09-17** (step 3 U2, GitHub #467).  Both
-       adjoint entries now drive ``sn_mesh.eigen_posing.H()`` — ONE
+       adjoint entries now drive ``problem.eigen_posing.H()`` — ONE
        daggered posing per Problem, nullary because
        :math:`k^{\dagger} = k` needs no datum — with the seedless
        Strategy pair lifted into the :math:`1\times1` coupled grid so
@@ -2216,7 +2216,7 @@ spaces.
 .. important:: **Landed 2026-09-14 (C3b-2, fork 1 option (ii)).**  This
    subsection was headed *"What is still deferred"* and said that the
    :math:`\sigma`-bound stratum *"is still memoised on the hub
-   (*\ ``sn_mesh._coll_cache``\ *), read back by a* ``getattr`` *with no*
+   (*\ ``problem._coll_cache``\ *), read back by a* ``getattr`` *with no*
    :math:`\sigma` *validation … it re-homes onto the
    StreamingCollisionOperator instance when the hub gains its posed
    record"*.  The hub gained its posed record in C3b's **first** commit
@@ -2303,7 +2303,7 @@ addition:
    the type says so.
 #. **The solver's cache block is retired.**  ``SNSolver.geom_cache`` and
    ``SNSolver.coll_cache`` are **deleted**, together with the
-   ``sn_mesh._coll_cache = …`` stash in ``SNSolver.__init__``.
+   ``problem._coll_cache = …`` stash in ``SNSolver.__init__``.
 
 **Who holds the geometry table now.**  The operator does, through the
 stratum:
@@ -2435,7 +2435,7 @@ are deleted, together with ``build_coupled_system``'s long-dead
 
 The solver's two matching slots went with them.  ``SNSolver.scattering_op``
 and ``SNSolver.n2n_op`` are **deleted**, and every read migrated to
-``sn_mesh.system.factors.scattering`` / ``.n2n``.  Two censuses, because
+``problem.system.factors.scattering`` / ``.n2n``.  Two censuses, because
 the predicate matters: ``[M]`` **199** reads across **31** files under the
 carve's own predicate (AST ``Attribute`` nodes whose *receiver* is
 ``SNSolver``-derived), and ``[M]`` **216** across **33** for every
@@ -2698,7 +2698,7 @@ is one line, and it is the hub's:
 
 .. code-block:: python
 
-   posing = sn_mesh.source_posing(q)        # SourcePosing(pencil.at(1), q)
+   posing = problem.source_posing(q)        # SourcePosing(pencil.at(1), q)
 
 **Admissibility is spectral, and the DRIVER certifies it.**  The problem
 is well posed iff the medium is subcritical,

@@ -1455,7 +1455,7 @@ lives in scattered docstrings.
    2026-08-09 reading additionally listed ``scattering_order``, which
    the consumers campaign's step 1 retired from this signature — the
    order is now the hub's datum, :ref:`sn-hub-retained-order`),
-   :meth:`SNSolver.__init__` takes ``(sn_mesh, inner_solver, keff_tol,
+   :meth:`SNSolver.__init__` takes ``(problem, inner_solver, keff_tol,
    flux_tol, max_inner, inner_tol, inner_schedule)`` and the solver
    carries no ``sig_*`` / ``chi`` attribute at all; the per-cell cross
    sections live on
@@ -2127,12 +2127,12 @@ The dataclasses on first landing are:
    @dataclass(frozen=True, slots=True)
    class AngularFlux:
        values: np.ndarray   # (N, ng, nx, ny) — principled
-       sn_mesh: "SNProblem"    # by-reference
+       problem: "SNProblem"    # by-reference
 
    @dataclass(frozen=True, slots=True)
    class ScalarFlux:
        values: np.ndarray   # (ng, nx, ny) — principled
-       sn_mesh: "SNProblem"
+       problem: "SNProblem"
 
 The dataclasses land on the principled foundation laid by
 PR-INDEX-5; the principled-layout :ref:`sn-field-vocabulary`

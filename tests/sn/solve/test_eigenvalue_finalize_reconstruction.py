@@ -666,7 +666,7 @@ class TestTheLGe1TermIsLive:
         reconstruction drops a term" and "the reconstruction drops a term
         that happens to be zero here".
         """
-        problem = _solve(arm_id, _L_ANISO).mesh
+        problem = _solve(arm_id, _L_ANISO).problem
         solver = SNSolver(problem)  # the hub retained _L_ANISO at the solve
         assert not solver.problem.system.factors.scattering.is_isotropic, (
             f"{arm_id}: the scattering binding reads ISOTROPIC at "
@@ -689,7 +689,7 @@ class TestTheLGe1TermIsLive:
         row is what makes ``slab_vac_n2n`` worth its 1.1 s, and its failure
         means the manufactured stack stopped reaching the binding.
         """
-        problem = _solve("slab_vac_n2n", _L_ANISO).mesh
+        problem = _solve("slab_vac_n2n", _L_ANISO).problem
         solver = SNSolver(problem)
         assert not solver.problem.system.factors.n2n.is_isotropic, (
             "the manufactured two-moment Sig2 stack reads ISOTROPIC at the "
@@ -698,7 +698,7 @@ class TestTheLGe1TermIsLive:
         )
         # the library arms are the negative leg: they MUST read isotropic,
         # which is the measurement that justifies this arm's existence.
-        lib_mesh = _solve("slab_vac", _L_ANISO).mesh
+        lib_mesh = _solve("slab_vac", _L_ANISO).problem
         lib_solver = SNSolver(lib_mesh)
         assert lib_solver.problem.system.factors.n2n.is_isotropic, (
             "an xs_library arm now carries an anisotropic (n,2n) binding — "
@@ -950,7 +950,7 @@ class TestTheReturnedTrace:
         sol = _solve(arm_id, order)
         returned = sol.boundary_flux
         reflected = copy.deepcopy(returned)
-        reflect_outflow_into_inflow(reflected, sol.mesh)
+        reflect_outflow_into_inflow(reflected, sol.problem)
         got = _trace_values(returned)
         want = _trace_values(reflected)
         scale = float(np.max(np.abs(got)))
@@ -968,7 +968,7 @@ class TestTheReturnedTrace:
         # morphism.  (Until CS4c step 6 item 6.5 this datum came from the
         # retired boundary-only ``reflect_into_inflow`` source, whose outflow
         # rows were zero by construction; the exclusion is by INDEX now.)
-        _trace = sol.mesh.angular_trace
+        _trace = sol.problem.angular_trace
         b_magnitude = max(
             float(np.max(np.abs(
                 reflected.face_view(face)[_trace.inflow_indices_for_face(face)]
@@ -1366,7 +1366,7 @@ class TestAgainstAnIndependentRoute:
         mis-posed oracle.
         """
         eig = _solve("slab_vac", order)
-        keff, problem = eig.outcome.keff, eig.mesh
+        keff, problem = eig.outcome.keff, eig.problem
         assert keff is not None
         phi_conv = np.asarray(eig.scalar_flux.values, dtype=np.float64)
 

@@ -432,7 +432,7 @@ which joined at CS4c step 3 — see the note below),
 :class:`~orpheus.transport.operators.fission.FissionOperator` (``F``), and
 :math:`B` (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`) —
 carry the **same** composite ``full_field_space`` (threaded through
-``from_solver_data`` / ``sn_mesh.full_field_space``), so the
+``from_solver_data`` / ``problem.full_field_space``), so the
 within-group :class:`~orpheus.numerics.operator.OperatorSum` guard
 *validates* the loss composition (``domain = None`` survives only on
 the bare / test constructor).
@@ -443,7 +443,7 @@ the bare / test constructor).
    (2026-08-30).**  The sentence above is about the operators the
    *composite* posings compose, and it remains exactly true of them:
    :class:`~orpheus.transport.operators.fission.FissionOperator` carries
-   ``sn_mesh.full_field_space`` on both ends, so the daggered pencil's
+   ``problem.full_field_space`` on both ends, so the daggered pencil's
    ends validate natively — and :math:`N_{2n}`
    (:class:`~orpheus.transport.operators.n2n.N2NOperator`) joined the
    list at step 3 on the same space.  What changed is that the

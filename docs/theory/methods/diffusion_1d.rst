@@ -586,7 +586,7 @@ correctness-safe *by construction*, changing only the iteration rate).
 The construction path is direct: an
 :class:`~orpheus.sn.problem.SNProblem` promotes straight to a
 :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
-(``DiffusionMesh.from_material_mesh(sn_mesh)`` — an SNProblem *is a*
+(``DiffusionMesh.from_material_mesh(problem)`` — an SNProblem *is a*
 MaterialMesh), so :math:`A_{\rm diff}` assembles over the **same** axes,
 materials, and BC declarations as the SN sweep it accelerates. The
 SN\ :math:`\to`\ diffusion boundary restriction is the :math:`\ell = 0`

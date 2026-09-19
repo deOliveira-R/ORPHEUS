@@ -106,7 +106,20 @@ if TYPE_CHECKING:
 # ═══════════════════════════════════════════════════════════════════════
 
 class SNProblem(MaterialMesh):
-    """Augmented geometry for the discrete ordinates method.
+    """The SN Problem — the data hub every discrete-ordinates consumer reads.
+
+    A :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` augmented with
+    the method's machinery: the quadrature, the boundary laws, the angular
+    closure, the discretization scheme (the stage-2 generator that induces the
+    spaces), σ as a datum, the posed operators (:attr:`system`, :attr:`fission`),
+    the pencil (:attr:`pencil`) and the posings (:attr:`eigen_posing`,
+    :meth:`source_posing`), the loss-kernel gauge and the identity keys.  A
+    Solution is the pair (Problem, posing) plus the Strategy that produced it.
+    ⛔ Until #412 (2026-09-18) this class was ``SNMesh`` in
+    ``orpheus/sn/mesh/augmented_mesh.py`` — "augmented mesh" is the cross-method
+    name for a mesh that carries a method's discretization machinery, and the
+    consumers campaign (2026-09) made this one the owner of everything a solve
+    consumes; it is the Problem, not a mesh.
 
     Axis-primary (C5.1, #225): the canonical spatial representation is
     :attr:`axes` — a tuple of :class:`~orpheus.transport.mesh.axis.Axis1D` — from

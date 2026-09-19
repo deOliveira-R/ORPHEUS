@@ -75,7 +75,7 @@ the descriptor-tree algebra
 sole descriptor→operator type transformer. See
 :ref:`bc-trace-law-descriptor-model` for the design rationale.
 
-The resolved BCs at ``sn_mesh.bc["xmin"]`` etc. expose the uniform
+The resolved BCs at ``problem.bc["xmin"]`` etc. expose the uniform
 1-arg contract through the
 :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
 shim — internal to the package, not in
@@ -86,10 +86,10 @@ originating **law** itself, so a resolved BC can be asked what its law
 *does* (``bc[face].law.geometry_map``,
 ``bc[face].law.response_kernel``) and not merely what it was declared
 as. Its ``kind`` tag now reads that law's registry key, so the
-``sn_mesh.bc["xmin"] == "vacuum"`` diagnostic
+``problem.bc["xmin"] == "vacuum"`` diagnostic
 comparison continues to evaluate True iff the underlying law is
 :class:`VacuumInflow`. (C4 / #220 re-keyed this surface from the
-per-attribute ``sn_mesh.bc_left`` to the face-name-keyed
+per-attribute ``problem.bc_left`` to the face-name-keyed
 :attr:`SNProblem.bc` dict — see :ref:`bc-face-name-carve`.)
 See :ref:`bc-tensor-decompositions` below
 for the operator-algebra view and
@@ -625,7 +625,7 @@ dimension by construction (C4 / #220; see
 :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
 shim pairs the result back with the law it was realized from; its
 ``kind`` tag reads that law's registry key, serving the
-``sn_mesh.bc["xmin"] == "vacuum"`` string-equality surface.
+``problem.bc["xmin"] == "vacuum"`` string-equality surface.
 
 .. note::
 

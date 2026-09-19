@@ -269,7 +269,7 @@ class TestRecordTheBuildRoute:
         alone, and these two counts are a MUST-STAY-GREEN pin across it.
         """
         from orpheus.sn import solve_sn_fixed_source
-        from orpheus.sn.solver import _as_sn_mesh
+        from orpheus.sn.solver import _as_problem
 
         materials, mesh, quadrature, order = _fissile_slab()
         spy = _BuildSpy(monkeypatch)
@@ -289,7 +289,7 @@ class TestRecordTheBuildRoute:
         )
 
         spy.reset()
-        problem = _as_sn_mesh(mesh, quadrature, materials, scattering_order=order)
+        problem = _as_problem(mesh, quadrature, materials, scattering_order=order)
         source = np.ones(problem.angular_trial_space.shape)
         solve_sn_fixed_source(
             materials, mesh, quadrature, source, scattering_order=order,

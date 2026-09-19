@@ -648,8 +648,8 @@ The legacy ``_sweep_jacobi`` had this shape:
 
    # legacy — the L7 trap
    for n in range(N):
-       psi_x = sn_mesh.bc_xmin.apply(psi_x, quad)[n]   # per-ordinate apply
-       psi_y = sn_mesh.bc_ymin.apply(psi_y, quad)[n]   # per-ordinate apply
+       psi_x = problem.bc_xmin.apply(psi_x, quad)[n]   # per-ordinate apply
+       psi_y = problem.bc_ymin.apply(psi_y, quad)[n]   # per-ordinate apply
        # ... walk cells, sweep, etc. ...
 
 Each ``bc.apply`` call sees the FULL ``(N, ny, ng)`` face buffer (so
@@ -679,10 +679,10 @@ axis** — :math:`O(\text{octants}) = 4` calls, not :math:`O(N)`:
        ...
        # Apply BC once for this octant on each axis
        if sx_eff >= 0:
-           full_face_x = sn_mesh.bc_xmin.apply(psi_x[:, 0, :, :], quad)
+           full_face_x = problem.bc_xmin.apply(psi_x[:, 0, :, :], quad)
            psi_x[oct_idx, 0, :, :] = full_face_x[oct_idx]
        else:
-           full_face_x = sn_mesh.bc_xmax.apply(psi_x[:, nx, :, :], quad)
+           full_face_x = problem.bc_xmax.apply(psi_x[:, nx, :, :], quad)
            psi_x[oct_idx, nx, :, :] = full_face_x[oct_idx]
        # ... analogously on y ...
        sweep_graph.walk_windowed(level_op=_CellSolve(...), ...)  # all N_oct batched
@@ -695,7 +695,7 @@ is structurally correct.
 
 .. note::
 
-   The ``sn_mesh.bc_xmin.apply(..., quad)`` spellings in the two
+   The ``problem.bc_xmin.apply(..., quad)`` spellings in the two
    code blocks above are **historical** (the Wave-2 era 2-arg
    ``apply`` on a per-attribute BC surface). Both spellings are
    retired: the 2-arg ``apply`` by Issue #186 (the law is now a pure
@@ -703,7 +703,7 @@ is structurally correct.
    :ref:`bc-trace-law-descriptor-model`), and the per-attribute
    ``bc_<face>`` surface by C4 / #220 in favour of the
    face-name-keyed :attr:`SNProblem.bc` dict
-   (``sn_mesh.bc["xmin"].apply(psi)`` — see
+   (``problem.bc["xmin"].apply(psi)`` — see
    :ref:`bc-face-name-carve`). The blocks are preserved verbatim
    because they document the *L7-trap structure* the Wave-2 carve
    closed, which is independent of the storage spelling.
@@ -2892,8 +2892,8 @@ instead of :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.
      Morel–Montry Carlson coupled-pole closure seeds from the previous
      iterate's per-ordinate :math:`\psi` at :math:`\mu = -1`, which the
      moment tensor cannot reconstruct. The Krylov path stays
-     full-angular too. Gated on the genuine ``sn_mesh.is_cartesian and
-     sn_mesh.ndim == 2`` (C5.4 / #225 — the earlier ``reduced is None``
+     full-angular too. Gated on the genuine ``problem.is_cartesian and
+     problem.ndim == 2`` (C5.4 / #225 — the earlier ``reduced is None``
      proxy was also true at 3-D Cartesian).
    - **Interior-bulk only.** The reflective :math:`B` coupling reads the
      full per-ordinate boundary *trace*; windowing reduces only the
@@ -3169,8 +3169,8 @@ solve that does not seed from the previous iterate's per-ordinate
        subspace is built from full-angular matvecs. There is no moment
        sub-iterate to hold.
 
-The gate is the genuine predicate ``sn_mesh.is_cartesian and
-sn_mesh.ndim == 2`` (the C5.4 / #225 sharpening of the earlier
+The gate is the genuine predicate ``problem.is_cartesian and
+problem.ndim == 2`` (the C5.4 / #225 sharpening of the earlier
 ``reduced is None`` proxy, which was *also* true at 3-D Cartesian and
 would have silently moment-windowed a 3-D solve — vv Mode 9): the
 curvilinear meshes carry a non-``None`` ``reduced`` moment-reduction
@@ -3367,8 +3367,8 @@ Implementation map
   factor is a coisometry) — and accepts the driver's ``initial_guess``
   kwarg accepted-and-ignored (:meth:`WindowedSweep.apply
   <orpheus.sn.operators.windowing.WindowedSweep.apply>`; the multi-D walk
-  has no bulk-seed consumer). Gated on ``sn_mesh.is_cartesian and
-  sn_mesh.ndim == 2``.
+  has no bulk-seed consumer). Gated on ``problem.is_cartesian and
+  problem.ndim == 2``.
 * The **eigenvalue** inner
   (:meth:`SNSolver._solve_source_iteration <orpheus.sn.solver.SNSolver._solve_source_iteration>`)
   is reconstruction-free: it returns the scalar flux read off the
@@ -3465,7 +3465,7 @@ applies directly (:ref:`windowing-retyped` below, and
      (``feedback_aggressive_retirement`` — the "verification oracle"
      exception to retirement).
    - **2-D Cartesian only; the rest is untouched.** Gated on the genuine
-     ``sn_mesh.is_cartesian and sn_mesh.ndim == 2`` (the C5.4 / #225
+     ``problem.is_cartesian and problem.ndim == 2`` (the C5.4 / #225
      sharpening of 5a's ``reduced is None`` proxy — the proxy was also
      true at 3-D Cartesian); the 1-D scan representation
      (:class:`~orpheus.sn.loss_representation.CumprodScan`) *raises*
@@ -3804,7 +3804,7 @@ Honest scope — what 5c does and does NOT do
      Morel–Montry Carlson coupled-pole seed reads the per-ordinate
      iterate at :math:`\mu = -1` (lesson L21), which the moment tensor
      cannot carry. Both are gated out by the genuine
-     ``sn_mesh.is_cartesian and sn_mesh.ndim == 2`` (C5.4 / #225 — 3-D
+     ``problem.is_cartesian and problem.ndim == 2`` (C5.4 / #225 — 3-D
      Cartesian is excluded too); the 1-D scan
      (:class:`~orpheus.sn.loss_representation.CumprodScan`) *raises* if a
      moment frame reaches it, so the unwindowable regime is

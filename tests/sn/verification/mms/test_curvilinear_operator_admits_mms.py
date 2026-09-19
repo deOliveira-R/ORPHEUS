@@ -51,7 +51,7 @@ from orpheus.derivations.continuous.mms.sn import (
 )
 from orpheus.sn.solver import (
     SNSolver,
-    _as_sn_mesh,
+    _as_problem,
     _build_fixed_source_rhs,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -64,7 +64,7 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     """RMS volume-weighted per-ordinate residual of ψ_ref under (L+C−S−B)."""
     mesh = case.build_mesh(nc)
     Q = case.external_source(mesh)
-    problem = _as_sn_mesh(
+    problem = _as_problem(
         mesh, case.quadrature, case.materials, "vacuum", mat_map=None,
      scattering_order=0)
     solver = SNSolver(

@@ -40,7 +40,7 @@ reads cross sections through this single source; its accessors
    :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField` per
    Problem, shared by every consumer of that Problem — and
    ``SNSolver.mat_xs`` was **deleted**; the solver reads
-   ``self.sn_mesh.mat_xs``.  The move is what makes
+   ``self.problem.mat_xs``.  The move is what makes
    :math:`\sigma_t` a Problem *datum* rather than solver state: see
    :ref:`sn-sigma-is-a-problem-datum`.  (``DiffusionSolver.mat_xs``
    survives as a solver-side *read* of the same hub property — a

@@ -880,17 +880,17 @@ c_in / c_out are angular-closure constants — Step B1 (one site folded)
    Step B1 (this dispatch) folds the ONE free seam — the
    :class:`~orpheus.sn.sweep.cache.StreamingCoefficientCache` populator
    (:meth:`~orpheus.sn.sweep.cache.StreamingCoefficientCache.from_mesh_and_quad`),
-   which held ``sn_mesh`` and so read
+   which held ``problem`` and so read
    :attr:`~orpheus.sn.angular.closure.AngularClosureBase.c_out_per_ordinate`
    /
    :attr:`~orpheus.sn.angular.closure.AngularClosureBase.c_in_per_ordinate`
    with zero plumbing.  (Since P4.9b the populator was **handed** its
-   closure — ``from_mesh_and_quad(sn_mesh, angular_closure)`` — so the
+   closure — ``from_mesh_and_quad(problem, angular_closure)`` — so the
    mesh supplied geometry and the caller the method; see
    :ref:`sn-p49b-operator-poses-with-closures`.  Since P4b, 2026-08-29,
    the populator takes NO closure at all: the table shed the closure
-   block, so every field derives from ``sn_mesh`` alone —
-   ``from_mesh_and_quad(sn_mesh)`` — and the walk / σ-build read the
+   block, so every field derives from ``problem`` alone —
+   ``from_mesh_and_quad(problem)`` — and the walk / σ-build read the
    constants through their handed closure.)  The accessor pair is
    PUBLIC and polymorphic on the base
    :class:`~orpheus.sn.angular.closure.AngularClosureBase`:
@@ -963,7 +963,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    only the SOURCE of :math:`c` moved.
 
    Step B2 also completes the matvec's typed-consumer binding (Issue
-   #226): the unified SN matvec reads ``sn_mesh.pole_angular_closure``
+   #226): the unified SN matvec reads ``problem.pole_angular_closure``
    typed against the
    :class:`~orpheus.sn.angular.closure.AngularClosureBase`
    ABC and drives the angular path through
@@ -1698,7 +1698,7 @@ reference.  Migrate-then-delete preserved the floor:
 
    The legacy ``__call__``-argument ``tau_mm`` on the unbound
    :class:`~orpheus.sn.angular.closure.MorelMontryAngularSweep`
-   path (``MorelMontryAngularSweep(sn_mesh=None)``, where :math:`\tau` was
+   path (``MorelMontryAngularSweep(problem=None)``, where :math:`\tau` was
    passed as a runtime argument because the closure is not mesh-bound) was
    a **separate surface** that **survived Step C** unchanged — it was the
    closure's own runtime parameter, not the geometry-side field the carve
@@ -4148,7 +4148,7 @@ Half-angle grid exposure
    exposing the M-M recurrence's half-angle grid
    :math:`\phi_{m\pm 1/2,i,g}` for one level.  (Originally an instance
    method on ``MorelMontryAngularSweep``, served by the unbound
-   ``sn_mesh=None`` legacy mode; the C5 retirement of that mode,
+   ``problem=None`` legacy mode; the C5 retirement of that mode,
    2026-07-03, moved it to module level — the surface takes all data
    via arguments and the seed strategy as a keyword, so it never
    needed an instance.)  It is the intermediate exposure that lets the
@@ -4927,7 +4927,7 @@ cell centres. The boundary-edge sequence is:
 
    # ── Phase 1: outward sweep (μ > 0), i = 0 → nx-1 ─────────────
    # Carlson seed at pole: ψ_face_in = ψ_cell[0].
-   for visit in sn_mesh.dag_walk(direction_sign=+1):
+   for visit in problem.dag_walk(direction_sign=+1):
        i = visit.cell_idx
        psi_cell = fi[:, outgoing_mask, i, 0]
        psi_face_out = 2.0 * psi_cell - psi_face_in          # WDD
@@ -4944,7 +4944,7 @@ cell centres. The boundary-edge sequence is:
 
    # ── Phase 2: inward sweep (μ < 0), i = nx-1 → 0 ──────────────
    psi_face_in = inflow_full[incoming_mask, :].T            # BC-set
-   for visit in sn_mesh.dag_walk(direction_sign=-1):
+   for visit in problem.dag_walk(direction_sign=-1):
        i = visit.cell_idx
        psi_cell = fi[:, incoming_mask, i, 0]
        psi_face_out = 2.0 * psi_cell - psi_face_in          # WDD
@@ -5064,7 +5064,7 @@ and the 2-D matvec
 :meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operators.streaming.StreamingOperator>`):
 the intra-octant ``bc.apply`` is gone there too, and the
 octant-incoming edge is seeded from the given inflow trace. The
-``sn_mesh.reduced is not None`` predicate that guards the dispatch now
+``problem.reduced is not None`` predicate that guards the dispatch now
 selects the **fold shape** (1-D parallel-prefix scan vs 2-D wavefront
 DAG), **not** a bare-vs-bc-in-sweep distinction — both folds are bare,
 so the sweep body and the helper-guard sites cannot drift. The 2-D

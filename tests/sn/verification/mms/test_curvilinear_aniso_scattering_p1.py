@@ -96,7 +96,7 @@ from orpheus.derivations.continuous.mms.sn import (
     build_spherical_mms_case,
 )
 from orpheus.geometry import CoordSystem
-from orpheus.sn.solver import SNSolver, _as_sn_mesh
+from orpheus.sn.solver import SNSolver, _as_problem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from tests.sn._test_helpers import curvilinear_homogeneous_mesh
 # The ONE spelling of the zero-trace composite operand (CS4c step 5). It lives
@@ -116,13 +116,13 @@ _SIGMA_S1 = 0.025
 def _scattering_op(coord: CoordSystem, quad, scattering_order: int):
     """Build the curvilinear ``ScatteringOperator`` at the requested order.
 
-    Routes through the SAME ``_as_sn_mesh`` + ``SNSolver`` path
+    Routes through the SAME ``_as_problem`` + ``SNSolver`` path
     ``solve_sn_fixed_source`` uses, so ``solver.scattering_op`` IS the
     ``S`` of the production ``(L+C), S, B`` within-group triple.
     """
     mat = get_mixture("A", "1g")
     mesh = curvilinear_homogeneous_mesh(8, 2.0, mat_id=0, coord=coord)
-    problem = _as_sn_mesh(mesh, quad, {0: mat}, "vacuum", mat_map=None, scattering_order=scattering_order)
+    problem = _as_problem(mesh, quad, {0: mat}, "vacuum", mat_map=None, scattering_order=scattering_order)
     solver = SNSolver(
         problem,
         inner_solver="source_iteration",

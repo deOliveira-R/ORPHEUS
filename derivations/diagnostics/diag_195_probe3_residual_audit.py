@@ -35,7 +35,7 @@ from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.solver import (
     SNSolver,
     _build_fixed_source_rhs,
-    _as_sn_mesh,
+    _as_problem,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -45,7 +45,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 def _build_solver_and_mesh(case, nc, inner_solver="source_iteration"):
     mesh = case.build_mesh(nc)
     Q = case.external_source(mesh)
-    problem = _as_sn_mesh(
+    problem = _as_problem(
         mesh, case.quadrature, case.materials,
         "vacuum", mat_map=None, scattering_order=0)
     solver = SNSolver(

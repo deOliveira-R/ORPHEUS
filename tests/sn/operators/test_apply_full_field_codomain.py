@@ -97,13 +97,13 @@ def _quadrature_for(coord: str):
 
 def _solver_for(coord: str, ng_key: str) -> tuple[SNSolver, object]:
     """Build an :class:`SNSolver` on a homogeneous fissile medium + its case."""
-    from orpheus.sn.solver import _as_sn_mesh
+    from orpheus.sn.solver import _as_problem
 
     case = _get_continuous_case(ng_key)
     mat_id = next(iter(case.problem.materials.keys()))
     mesh = _homogeneous_mesh(coord, mat_id)
     quad = _quadrature_for(coord)
-    problem = _as_sn_mesh(mesh, quad, case.problem.materials)
+    problem = _as_problem(mesh, quad, case.problem.materials)
     solver = SNSolver(problem)
     return solver, case
 

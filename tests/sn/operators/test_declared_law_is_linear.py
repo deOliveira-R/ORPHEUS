@@ -184,7 +184,7 @@ def _slab(xmin=_PRESCRIBED, xmax=None) -> SNProblem:
     ONE construction site for every mesh in this module, so a row can vary the
     declaration and nothing else. The declaration rides the **geometry**, not a
     poked-at mesh: that is the channel landed at ``985497b5`` and the only route
-    that survives ``_as_sn_mesh``'s rebuild inside a public solver.
+    that survives ``_as_problem``'s rebuild inside a public solver.
 
     Heterogeneous 2G with ``c ≈ 0.90–0.96`` so ``S`` is genuinely live in the
     full-matvec rows (``placeholder_materials`` has ``SigS ≡ 0``, which would

@@ -98,8 +98,8 @@ def _region_spectrum(solution, mat_id: int = 0) -> np.ndarray:
     (NOT via the frame), so it is a clean oracle input.
     """
     phi = np.asarray(solution.scalar_flux.values, dtype=float)  # (ng, n_fine)
-    V = np.asarray(solution.mesh.volumes, dtype=float)          # (n_fine,)
-    mat = np.asarray(solution.mesh.mat_map, dtype=int).ravel()
+    V = np.asarray(solution.problem.volumes, dtype=float)          # (n_fine,)
+    mat = np.asarray(solution.problem.mat_map, dtype=int).ravel()
     sel = mat == mat_id
     return (phi[:, sel] * V[sel]).sum(axis=1)                   # (ng,)
 
@@ -443,8 +443,8 @@ def _adjoint_region_spectrum(adj, mat_id: int = 0) -> np.ndarray:
     """The importance spectrum φ*_g — the SAME V-weighted reduction as the
     forward representative (the pair-of-representatives convention)."""
     phis = np.asarray(adj.scalar_flux.values, dtype=float)
-    V = np.asarray(adj.mesh.volumes, dtype=float)
-    mat = np.asarray(adj.mesh.mat_map, dtype=int).ravel()
+    V = np.asarray(adj.problem.volumes, dtype=float)
+    mat = np.asarray(adj.problem.mat_map, dtype=int).ravel()
     sel = mat == mat_id
     return (phis[:, sel] * V[sel]).sum(axis=1)
 

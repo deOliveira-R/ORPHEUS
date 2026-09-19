@@ -252,9 +252,9 @@ class TestEveryEntryDerivesItsBudget:
 def _sn_mesh_for_budget_probe():
     """Smallest well-formed mesh — the budget rows care about resolution
     arithmetic, not about physics."""
-    from orpheus.sn.solver import _as_sn_mesh
+    from orpheus.sn.solver import _as_problem
 
-    return _as_sn_mesh(
+    return _as_problem(
         (AxisMesh(edges=np.linspace(0.0, 1.0, 3), bc_low=_REFL, bc_high=_REFL),),
         Quadrature.level_symmetric(sn_order=2),
         {0: _absorber_2g()},
@@ -1203,7 +1203,7 @@ class TestExitBalanceDefect:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", ConvergenceWarning)
             sol = _starved_inner_converged_outer()
-        problem = sol.mesh
+        problem = sol.problem
         field = sol.angular_flux
 
         produced = _balance_projection(field, problem=problem)
@@ -1322,7 +1322,7 @@ class TestExitBalanceDefect:
                 max_outer=3, max_inner=4, inner_tol=1e-12,
                 keff_tol=1e-10, flux_tol=1e-9,
             )
-        assert sol.mesh.radial_characteristic_field_space is not None, (
+        assert sol.problem.radial_characteristic_field_space is not None, (
             "fixture drift: this row needs a CARRYING mesh, or it is "
             "silently re-testing the Cartesian path"
         )

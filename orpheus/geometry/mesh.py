@@ -58,7 +58,7 @@ def _check_boundary_declaration(mesh: object, attrs: "tuple[str, ...]") -> None:
     will, so before this arm the only way to install one was to mutate a
     constructed method-mesh's already-resolved ``bc`` dict — and every public
     solver entry point then DISCARDED it, because they rebuild the method mesh
-    from the raw geometry (``solve_sn_fixed_source`` → ``_as_sn_mesh``).
+    from the raw geometry (``solve_sn_fixed_source`` → ``_as_problem``).
     Declaring on the GEOMETRY is what makes such a law survive that rebuild:
     the shared
     :func:`~orpheus.transport.method.resolve_boundary_conditions` body reads

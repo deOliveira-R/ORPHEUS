@@ -17,7 +17,7 @@ and the second is the one that makes the fix worth having:
 2. ⭐ **Every public solver entry point rebuilds the method mesh, so anything
    installed on a constructed one is DISCARDED.**
    :func:`~orpheus.sn.solver.solve_sn_fixed_source` takes a raw geometry and
-   calls ``_as_sn_mesh(...)``, which constructs a fresh
+   calls ``_as_problem(...)``, which constructs a fresh
    :class:`~orpheus.sn.problem.SNProblem`. Before the channel, the only
    way to install a non-tag-expressible law was to mutate a constructed mesh's
    already-resolved ``bc`` dict — and that mesh was not the one the solver used.
@@ -82,10 +82,10 @@ class TestTheDeclarationSurvivesTheRebuild:
         r"""`[M]` ``|φ_declared − φ_vacuum|_inf = 1.877290`` on this fixture.
 
         The row that fails if the declaration is dropped anywhere along
-        geometry → mesh → ``_as_sn_mesh`` → ``resolve_boundary_conditions`` →
+        geometry → mesh → ``_as_problem`` → ``resolve_boundary_conditions`` →
         ``_law_from_tag`` → realizer → ``from_mesh_laws`` → RHS. Before the
         channel it was dropped at the first step (``StructuredGeometry`` refused
-        the law outright) and would have been dropped again at ``_as_sn_mesh``.
+        the law outright) and would have been dropped again at ``_as_problem``.
 
         Both inner solvers, because they consume the composite RHS through
         different bodies — and because Krylov was unreachable with a declared

@@ -84,7 +84,7 @@ diffusion's, or a page whose fixtures carry
    **Implemented by** the one production spelling of the composition.
    The assembled System-A diagonal block is
    ``A_AA = LC - S - N2N - B_a`` over
-   ``LC = build_streaming_collision(sn_mesh, mat_xs)`` — i.e. :math:`A =
+   ``LC = build_streaming_collision(problem, mat_xs)`` — i.e. :math:`A =
    L+C-S-N_{2n}-B` written as operator arithmetic, with :math:`B` a
    first-class
    sibling rather than something folded into :math:`L`. The same function
@@ -342,7 +342,7 @@ Key Facts
      which is the *only* thing distinguishing this equation from
      :eq:`operator-fixed-source` ("they differ only in what sits on the
      right"). The body is literally
-     ``self.sn_mesh.fission.isotropic_energy.apply(φ) / keff``: the
+     ``self.problem.fission.isotropic_energy.apply(φ) / keff``: the
      :math:`1/k` division stays at the solver level precisely because
      :math:`F` is a **linear** operator and the eigenvalue scaling is not part
      of it.
@@ -7607,7 +7607,7 @@ state:
      - :math:`\sum(F^\dagger\psi^*)` — **fission only**
    * - the three source entries
      - the hub's :class:`~orpheus.numerics.gauge.KernelGauge` —
-       ``sn_mesh.loss_kernel_gauge``
+       ``problem.loss_kernel_gauge``
      - nothing; it is a projector, and its group element comes from the
        trace
 

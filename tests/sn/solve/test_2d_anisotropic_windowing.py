@@ -198,7 +198,7 @@ def test_2d_windowed_si_full_angular_flux_self_consistent():
     sol = _solve(scattering_order=1)
     psi = np.asarray(sol.angular_flux.interior.values, dtype=np.float64)  # (N,ng,nx,ny)
     phi = np.asarray(sol.scalar_flux.values, dtype=np.float64)         # (ng,nx,ny)
-    weights = sol.mesh.quad.weights
+    weights = sol.problem.quad.weights
 
     assert psi.shape[0] == weights.shape[0], (
         f"angular flux N={psi.shape[0]} disagrees with quadrature "

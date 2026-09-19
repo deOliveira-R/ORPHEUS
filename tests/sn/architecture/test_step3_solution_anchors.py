@@ -88,7 +88,7 @@ from orpheus.sn.solution import AdjointSolution, Solution, SolutionBase
 from orpheus.sn.solver import (
     SNSolver,
     _adjoint_posing_parts,
-    _as_sn_mesh,
+    _as_problem,
     _build_fixed_source_rhs,
     _balance_projection,
     solve_sn,
@@ -284,7 +284,7 @@ class _PlantedOutcome:
 
 @dataclasses.dataclass(frozen=True)
 class _PlantedSolution:
-    mesh: object
+    problem: object
     outcome: _PlantedOutcome
     certificate: _PlantedCertificate
 
@@ -302,7 +302,7 @@ class TestFilterTheScannersFindAPlantedMember:
     def _planted() -> _PlantedSolution:
         section = _PlantedSection(functional=float, target=1.0)
         return _PlantedSolution(
-            mesh=object(),
+            problem=object(),
             outcome=_PlantedOutcome(state=np.ones(3), picked_by=section),
             certificate=_PlantedCertificate(bound=0.907457573, by="k-solve"),
         )
@@ -426,7 +426,7 @@ class TestRecordTheFourProductionRateFunctionals:
     ) -> None:
         """RECORD — the blindness itself, stated as a measurement."""
         materials, mesh, quadrature = _slab()
-        problem = _as_sn_mesh(mesh, quadrature, materials)
+        problem = _as_problem(mesh, quadrature, materials)
         solver = SNSolver(problem)
         phi = np.asarray(
             solve_sn(materials, mesh, quadrature).scalar_flux.values,
@@ -455,7 +455,7 @@ class TestRecordTheFourProductionRateFunctionals:
 
         mesh = _finalize_slab(BC.vacuum)
         quadrature = Quadrature.gauss_legendre(n_ordinates=_QUAD_N)
-        problem = _as_sn_mesh(mesh, quadrature, _LIBRARY_N2N)
+        problem = _as_problem(mesh, quadrature, _LIBRARY_N2N)
         solver = SNSolver(problem)
         phi = np.asarray(
             solve_sn(_LIBRARY_N2N, mesh, quadrature).scalar_flux.values,
@@ -511,7 +511,7 @@ class TestRecordNothingRecordsWhichGaugeApplied:
         """RECORD — the conventions are distinguishable by the FLUX and by
         nothing the answer carries."""
         materials, mesh, quadrature = _slab()
-        problem = _as_sn_mesh(mesh, quadrature, materials)
+        problem = _as_problem(mesh, quadrature, materials)
         kwargs = dict(
             inner_solver="source_iteration", keff_tol=1e-10, flux_tol=1e-9,
         )
@@ -579,7 +579,7 @@ class TestRecordThePureTransportPosingIsTheLOSS:
         materials, mesh, quadrature = (
             _slab() if fixture == "slab" else _carrying_sphere()
         )
-        problem = _as_sn_mesh(mesh, quadrature, materials)
+        problem = _as_problem(mesh, quadrature, materials)
         _require(
             problem.pencil.at(0.0) is problem.pencil.lhs,
             "pencil.at(0.0) stopped returning lhs itself — F11's identity "
@@ -602,7 +602,7 @@ class TestRecordThePureTransportPosingIsTheLOSS:
         materials, mesh, quadrature = (
             _slab() if fixture == "slab" else _carrying_sphere()
         )
-        problem = _as_sn_mesh(mesh, quadrature, materials)
+        problem = _as_problem(mesh, quadrature, materials)
         ng, nx = 2, len(mesh.mat_ids)
         source = _build_fixed_source_rhs(
             _uniform_source(quadrature, ng, nx), problem,

@@ -22,7 +22,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
-from orpheus.sn.solver import _as_sn_mesh
+from orpheus.sn.solver import _as_problem
 from orpheus.transport.mesh.axis import AxisMesh
 
 _R = BC("reflective")
@@ -139,11 +139,11 @@ def test_it_counts_at_three_dimensions_too():
         return AxisMesh(edges=_EDGES, bc_low=low, bc_high=high)
 
     all_reflective = (_axis(_R, _R),) * 3
-    problem = _as_sn_mesh(all_reflective, quadrature, materials)
+    problem = _as_problem(all_reflective, quadrature, materials)
     assert problem.ndim == 3
     assert problem.reflective_axis_pairs == 3
 
     one_vacuum_pair = (_axis(_V, _V),) + all_reflective[1:]
-    assert _as_sn_mesh(
+    assert _as_problem(
         one_vacuum_pair, quadrature, materials,
     ).reflective_axis_pairs == 2

@@ -1750,7 +1750,7 @@ either.
 
    ⭐ **Which INSTANCE each reaches is a separate question, and since
    2026-09-13 it has one answer inside** S\ :sub:`N`.  The SN k-outer and
-   the fission ray fold both read ``sn_mesh.fission.isotropic_energy`` —
+   the fission ray fold both read ``problem.fission.isotropic_energy`` —
    the derived face of the hub's single composite :math:`F` — so the
    scalar tier and the angular tier of the SN fission channel are two
    views of one object rather than two mints of one datum
@@ -1859,7 +1859,7 @@ on a *different* space, so the :math:`F^{\dagger}` below was the dagger
 of an operator the forward solve had never held
 (:ref:`sn-one-fission-per-problem`).
 Its ONLY argument is the hub: the retained Legendre order
-comes off :attr:`sn_mesh.scattering_order
+comes off :attr:`problem.scattering_order
 <orpheus.sn.problem.SNProblem.scattering_order>`, so the
 adjoint is posed at exactly the order the forward problem retains.  It
 does not enumerate those gain members: it mints a
@@ -2000,9 +2000,9 @@ is the HUB's, on both arms**, and the adjoint entry reads:
 
 .. code-block:: python
 
-   implicit, gain, _production, template, splitting = _adjoint_posing_parts(sn_mesh)
+   implicit, gain, _production, template, splitting = _adjoint_posing_parts(problem)
    ke = KEigenvalue(
-       sn_mesh.eigen_posing.H(),          # NULLARY — k† = k needs no datum
+       problem.eigen_posing.H(),          # NULLARY — k† = k needs no datum
        implicit.H, gain.H, ...,
    )
 
@@ -2013,7 +2013,7 @@ builds a pencil at all: it returns the daggerable **Strategy** parts
 now agree on the carrier — the seedless pair is **lifted into the
 1 × 1 coupled grid**, so both arms iterate on ``system.space``.
 
-⛔ **Until U2 this entry could NOT read** ``sn_mesh.eigen_posing.H()``,
+⛔ **Until U2 this entry could NOT read** ``problem.eigen_posing.H()``,
 **and the reason is worth keeping because it looks like it should have
 been able to.**  The hub has owned a daggered eigen-question since step 2
 — :meth:`EigenPosing.H <orpheus.numerics.posing.EigenPosing.H>` is

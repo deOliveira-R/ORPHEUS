@@ -452,7 +452,7 @@ class TestSplitRayResidualMint:
             max_inner=6000, inner_tol=tol,
         )
         # Rebuild the record + the coupled states on the SOLVE's OWN mesh.
-        sn_sol = sol.mesh
+        sn_sol = sol.problem
         solver = SNSolver(sn_sol)
         system = build_within_group_system(
             sn_sol, solver.problem.mat_xs,

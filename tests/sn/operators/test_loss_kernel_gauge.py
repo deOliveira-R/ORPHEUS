@@ -107,7 +107,7 @@ from orpheus.sn.operators.loss_kernel_gauge import (
     gauge_freedom,
     predicted_kernel_dimension,
 )
-from orpheus.sn.solver import SNSolver, _as_sn_mesh, _unwindowed_cold_start
+from orpheus.sn.solver import SNSolver, _as_problem, _unwindowed_cold_start
 from orpheus.transport.mesh.axis import AxisMesh
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 
@@ -145,7 +145,7 @@ def _mesh(cells, bcs, *, ng=2, quad=None, c=0.0, stretch=1.0,
         AxisMesh(edges=_graded(e, n, stretch), bc_low=lo, bc_high=hi)
         for e, n, (lo, hi) in zip(extents, cells, bcs)
     )
-    return _as_sn_mesh(
+    return _as_problem(
         axes, quad or Quadrature.level_symmetric(sn_order=4),
         {0: _mixture(ng, c, fissile)}, scheme=scheme,
     )

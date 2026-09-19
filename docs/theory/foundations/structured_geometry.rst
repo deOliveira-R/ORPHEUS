@@ -929,7 +929,7 @@ unaffected because the two paths computed the same data.
    :func:`~orpheus.sn.mesh.reduced_operator.spherical_streaming` /
    :func:`~orpheus.sn.mesh.reduced_operator.cylindrical_streaming`
    itself, so the surviving hash-equality legs compare a fresh factory
-   call against ``sn_mesh.reduced`` — *the value that same factory
+   call against ``problem.reduced`` — *the value that same factory
    produced*, routed through the mesh constructor.
 
    ⛔ This paragraph used to add *"and the two ``SNProblem.face_areas`` /
@@ -937,7 +937,7 @@ unaffected because the two paths computed the same data.
    object"*.  Those accessors **retired at P4.1c** (2026-08-27) — `[M]`
    11 readers, **0** of them in ``orpheus/``, and every one of the
    tests that read them existed to verify the shims themselves.  The
-   legs now read ``sn_mesh.reduced.*`` directly.  The gate therefore pins the
+   legs now read ``problem.reduced.*`` directly.  The gate therefore pins the
    **wiring** (the constructor really does route to the geometry-layer
    primitive, for every geometry and every quadrature order in its
    parametrization), not the **math**: no structurally-independent
@@ -1016,7 +1016,7 @@ ladder calls :func:`slab_streaming` / :func:`spherical_streaming` /
 no longer exist.  ``self.reduced`` is the new canonical accessor
 every downstream consumer should bind to::
 
-    sn_mesh.reduced.streaming_terms(cell_idx, dir_idx, mu_level_idx)
+    problem.reduced.streaming_terms(cell_idx, dir_idx, mu_level_idx)
 
 returns the per-(cell, direction) packet a sweep cell update needs —
 no more reaching into ``SNProblem`` for a half-dozen separate arrays.
@@ -1031,7 +1031,7 @@ field on ``self.reduced``.  The other six (``alpha_half``,
 first four have no ``self.reduced`` field left to route to either, the
 α-dome having moved to the angular factor and ``redist_dAw`` having
 retired as a fused product.  Consumers bind to
-``streaming_terms(...)`` or to ``sn_mesh.reduced.*`` directly, and the
+``streaming_terms(...)`` or to ``problem.reduced.*`` directly, and the
 two ``tau_mm`` names have no ``self.reduced`` field left to route to at
 all — τ is closure-owned now, not a factory output (see the
 :ref:`τ-ownership note <tau-ownership-note>` above).
@@ -1042,7 +1042,7 @@ streaming stencils used by the DD-denominator precomputation in the
 Cartesian sweep (these are SN-specific and not represented in
 :class:`ReducedStreamingOperator`).  Slab geometry additionally gets
 a slab :class:`ReducedStreamingOperator` for completeness so
-``sn_mesh.reduced`` is always populated.
+``problem.reduced`` is always populated.
 
 .. _who-needs-a-connection-coefficient:
 

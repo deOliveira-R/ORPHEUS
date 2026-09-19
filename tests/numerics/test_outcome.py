@@ -42,7 +42,7 @@ from orpheus.numerics.outcome import (
 )
 from orpheus.numerics.posing import ALPHA_MAP, EigenPosing, SourcePosing
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.solver import _as_sn_mesh, _build_fixed_source_rhs
+from orpheus.sn.solver import _as_problem, _build_fixed_source_rhs
 
 pytestmark = pytest.mark.foundation
 
@@ -174,12 +174,12 @@ class TestLawTheEvidenceSum:
 def _slab(length: float = 4.0):
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     mesh = Mesh1D(edges=np.linspace(0.0, length, 9), mat_ids=np.array([0] * 4 + [1] * 4, dtype=int), bc_left=BC("reflective"), bc_right=BC("vacuum"))
-    return _as_sn_mesh(mesh, Quadrature.gauss_legendre(8), materials)
+    return _as_problem(mesh, Quadrature.gauss_legendre(8), materials)
 
 
 def _carrying_sphere():
     mesh = Mesh1D(edges=np.linspace(0.0, 3.0, 7), mat_ids=np.zeros(6, dtype=int), coord=CoordSystem.SPHERICAL, bc_right=BC("vacuum"))
-    return _as_sn_mesh(mesh, Quadrature.gauss_legendre(8), {0: get_mixture("A", "2g")})
+    return _as_problem(mesh, Quadrature.gauss_legendre(8), {0: get_mixture("A", "2g")})
 
 
 class TestLawTheCoupledStateKnowsItsSpace:
