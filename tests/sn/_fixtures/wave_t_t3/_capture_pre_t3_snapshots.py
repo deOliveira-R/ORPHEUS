@@ -224,7 +224,7 @@ def _capture_legendre_moments(
 
     quad = solver.quad
     moments_values = quad.angular_frame(L).analysis.apply(psi.values)
-    moments = HarmonicMomentFlux.from_mesh_and_L(
+    moments = HarmonicMomentFlux.from_problem_and_L(
         moments_values, solver.problem, L,
     )
     Lam = LegendreMomentTransfer.on_basis(

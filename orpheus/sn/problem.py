@@ -1,4 +1,4 @@
-r"""Augmented geometry for S\ :sub:`N` discrete ordinates transport.
+r"""The S\ :sub:`N` Problem — the data hub every discrete-ordinates consumer reads (until #412: "augmented geometry").
 
 :class:`SNProblem` is axis-primary (C5.1, #225): its canonical spatial
 representation is a tuple of :class:`~orpheus.transport.mesh.axis.Axis1D`, and it
@@ -561,7 +561,7 @@ class SNProblem(MaterialMesh):
         """True if the mesh carries no curvature (Cartesian slab / 2-D / 3-D).
 
         The genuine coordinate-system criterion, read off the
-        :class:`~orpheus.geometry.coord.CoordSystem` this mesh was posed with.
+        :class:`~orpheus.geometry.coord.CoordSystem` this Problem was posed with.
         This is ORTHOGONAL to :attr:`is_1d`: a slab is Cartesian AND 1-D; a
         2-D Cartesian mesh is Cartesian AND not 1-D; a cylinder is 1-D AND
         not Cartesian.  Sweep-strategy selection
@@ -894,7 +894,7 @@ class SNProblem(MaterialMesh):
         r"""The unified boundary :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`.
 
         One concrete trace space for the whole boundary :math:`\Gamma`,
-        built (A.2/A.3) from this mesh's quadrature +
+        built (A.2/A.3) from this Problem's quadrature +
         :attr:`boundary_face_layout` (geometry-blind since C5.3, #225).
         It is the single source of truth for the signed projection
         :math:`\Omega\cdot\hat n_f` per face; the inflow / outflow
@@ -1436,9 +1436,9 @@ class SNProblem(MaterialMesh):
         ``SpatialMomentSpace`` class was appended here instead).
 
         **Why the hub, and why a keyed cache.** Every moment field on this
-        carrier (:meth:`HarmonicMomentFlux.from_mesh_and_L
-        <orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.from_mesh_and_L>`
-        / ``zeros_for_mesh_and_L``), every admission guard's reference
+        carrier (:meth:`HarmonicMomentFlux.from_problem_and_L
+        <orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.from_problem_and_L>`
+        / ``zeros_for_problem_and_L``), every admission guard's reference
         (``space_on``) and the sweep's iterate wrap read THIS method, so
         they hold the same object — identity is ``is``, not a content
         comparison — and nothing is re-minted per call. `[M]` until 6.2b

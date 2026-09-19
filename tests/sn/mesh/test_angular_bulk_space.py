@@ -441,7 +441,7 @@ class TestG15ConePredicates:
         axes-less head answered ``None`` (unanswerable). The trace family is
         still name-built and still answers ``None``."""
         sn = _slab()
-        moment_space = HarmonicMomentFlux.zeros_for_mesh_and_L(sn, 1).space
+        moment_space = HarmonicMomentFlux.zeros_for_problem_and_L(sn, 1).space
         assert moment_space.has_coordinate_cone is False
         assert sn.angular_trace.has_coordinate_cone is None
 

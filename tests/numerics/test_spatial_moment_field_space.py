@@ -143,7 +143,7 @@ def test_scalar_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_2
 @pytest.mark.foundation
 @pytest.mark.parametrize("scheme_name", ["dd", "ld"])
 def test_harmonic_moment_flux_default_byte_identical(scheme_name, dd_2d, ld_2d):
-    r"""``HarmonicMomentFlux.zeros_for_mesh_and_L`` default == pre-S3 shape.
+    r"""``HarmonicMomentFlux.zeros_for_problem_and_L`` default == pre-S3 shape.
 
     The windowed iterate carrier. Default ``spatial_moments=1`` →
     ``(L+1, 2L+1, ng, *spatial)`` with NO trailing spatial-moment axis, AND
@@ -154,7 +154,7 @@ def test_harmonic_moment_flux_default_byte_identical(scheme_name, dd_2d, ld_2d):
     """
     mesh = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
     L = 1
-    field = HarmonicMomentFlux.zeros_for_mesh_and_L(mesh, L)
+    field = HarmonicMomentFlux.zeros_for_problem_and_L(mesh, L)
     expected = (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape)
     np.testing.assert_equal(field.space.shape, expected)
     np.testing.assert_equal(field.values.shape, expected)
@@ -249,7 +249,7 @@ def test_harmonic_moment_flux_widened_2d_shape(ld_2d):
     """
     mesh = ld_2d
     L = 1
-    field = HarmonicMomentFlux.zeros_for_mesh_and_L(mesh, L, spatial_moments=2)
+    field = HarmonicMomentFlux.zeros_for_problem_and_L(mesh, L, spatial_moments=2)
     expected = (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape, 2 ** mesh.ndim)
     np.testing.assert_equal(field.space.shape, expected)
     np.testing.assert_equal(field.values.shape, expected)

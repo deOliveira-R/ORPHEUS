@@ -326,7 +326,7 @@ class TestD12ReflectiveStability:
         healthy = _uniform_solve(c, sth, bc, acceleration="dsa")
         n_healthy = _inners(healthy)
 
-        original = DSALowOrderSystem.from_sn_mesh.__func__
+        original = DSALowOrderSystem.from_problem.__func__
 
         def lumped_from_sn_mesh(cls, problem):
             system = original(cls, problem)
@@ -382,7 +382,7 @@ class TestD12ReflectiveStability:
             )
 
         monkeypatch.setattr(
-            DSALowOrderSystem, "from_sn_mesh",
+            DSALowOrderSystem, "from_problem",
             classmethod(lumped_from_sn_mesh),
         )
         mutated = _uniform_solve_raw(c, sth, bc, acceleration="dsa")
@@ -695,16 +695,16 @@ class TestP1DSAArm:
         the exact landing breaks (this is the pre-R5 state, in
         miniature: the ladder's degradation mechanism isolated on the
         S2 exactness anchor)."""
-        original = DSACorrection.from_sn_mesh.__func__
+        original = DSACorrection.from_problem.__func__
 
         def p0_forced(cls, problem):
             # the mutation: the P0 arm regardless of the sweep's order — the
             # corrector is built on the P0 Problem derived from the same data
-            # (since S1c the order is the hub's datum, read by from_sn_mesh)
+            # (since S1c the order is the hub's datum, read by from_problem)
             return original(cls, problem.with_scattering_order(0))
 
         monkeypatch.setattr(
-            DSACorrection, "from_sn_mesh", classmethod(p0_forced)
+            DSACorrection, "from_problem", classmethod(p0_forced)
         )
         sol = _p1_solve(0.5, n_ord=2, acceleration="dsa", max_inner=50)
         if not _inners(sol) > 2:

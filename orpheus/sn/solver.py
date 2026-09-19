@@ -476,7 +476,7 @@ _CERTIFICATE_SAFETY = 10.0
 
 
 def _residual_is_expressible(problem: "SNProblem") -> bool:
-    r"""Can this mesh's iterate be turned into a typed equation residual?
+    r"""Can this Problem's iterate be turned into a typed equation residual?
 
     ``False`` for a **moment-tailed (LD) scheme**: the residual mint
     (:class:`~orpheus.transport.residuals.AngularResidual` ``from_balance``)
@@ -1026,7 +1026,7 @@ def _windowed_cold_start(scattering_op, problem, *, history_depth):
     from orpheus.transport.timed_full_field import TimedFullField
 
     return TimedFullField(
-        interior=HarmonicMomentFlux.zeros_for_mesh_and_L(
+        interior=HarmonicMomentFlux.zeros_for_problem_and_L(
             problem, scattering_op.legendre_order,
             spatial_moments=problem.scheme.spatial_basis_per_axis,
         ),
@@ -1328,7 +1328,7 @@ def _within_group_si(
         # the driver's — M⁻¹ = the joint sweep, N = the coupled gain grid.
         # A corrector never reaches here: consistent DSA's admission is
         # 1-D CARTESIAN (curvilinear = carrying is #282-blocked), enforced
-        # at DSALowOrderSystem.from_sn_mesh before this builder runs.
+        # at DSALowOrderSystem.from_problem before this builder runs.
         if corrector is not None:
             raise NotImplementedError(
                 "_within_group_si: a synthetic-acceleration corrector on "
@@ -1399,7 +1399,7 @@ class SNSolver:
 
     Parameters
     ----------
-    problem : SNProblem — augmented geometry (wraps Mesh1D or Mesh2D with
+    problem : SNProblem — the SN Problem (the data hub over a Mesh1D or Mesh2D with
         precomputed streaming stencil + materials dict + ``ng``).
         Issue #197 PR-TYPED-0: ``problem.materials`` IS the single
         source of truth for cross sections and group count; the
@@ -2352,7 +2352,7 @@ def solve_sn(
     """
     t_start = time.perf_counter()
 
-    # Build augmented geometry (precomputes streaming stencil).
+    # Pose the Problem (precomputes the streaming stencil).
     # Issue #197 PR-TYPED-0: materials now lives on SNProblem — the
     # phase-space-as-such object. C5.5 (#225): the declaration may be a
     # legacy mesh or an axis tuple (the only 3-D entry); unset faces
@@ -3077,7 +3077,7 @@ def _build_fixed_source_rhs(
         # prescribed inflow, there are two answers to one question — refuse
         # rather than pick, since silently adding double-counts and silently
         # overriding makes the declaration a no-op.
-        declared = AngularBoundarySourceSink.from_mesh_laws(problem)
+        declared = AngularBoundarySourceSink.from_problem_laws(problem)
         if declared.linf > 0.0 and boundary.linf > 0.0:
             raise ValueError(
                 "_build_fixed_source_rhs: the boundary source q_∂ is specified "
@@ -3108,7 +3108,7 @@ def _build_fixed_source_rhs(
         # declared inflow was realized into an affine operator that nothing
         # consumed, so the declaration was silently inert. Every other law is
         # q = 0, so this is a zero trace allocation for all of them.
-        boundary = AngularBoundarySourceSink.from_mesh_laws(problem)
+        boundary = AngularBoundarySourceSink.from_problem_laws(problem)
 
     # Issue #196 PR-INDEX-5 + #247: the bulk source is a typed union of TWO
     # principled ndarray ranks — flat ``(N, ng, *spatial)`` (the original path)
@@ -3443,7 +3443,7 @@ def solve_sn_fixed_source(
     if acceleration == "dsa":
         from orpheus.sn.acceleration import DSACorrection
 
-        corrector = DSACorrection.from_sn_mesh(problem)
+        corrector = DSACorrection.from_problem(problem)
 
     solver = SNSolver(
         problem,

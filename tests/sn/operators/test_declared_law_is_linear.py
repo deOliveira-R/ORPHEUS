@@ -633,8 +633,8 @@ def test_declaring_prescribed_moves_q_and_leaves_the_operator_untouched() -> Non
     )
 
     # Half 2 — …and the SOURCES do not. Without this the row is vacuous.
-    assert AngularBoundarySourceSink.from_mesh_laws(prescribed).linf == _VALUE, (
+    assert AngularBoundarySourceSink.from_problem_laws(prescribed).linf == _VALUE, (
         "the declared inflow did not reach q_∂, so half 1 above is comparing "
         "two vacuum problems and proves nothing"
     )
-    assert AngularBoundarySourceSink.from_mesh_laws(vacuum).linf == 0.0
+    assert AngularBoundarySourceSink.from_problem_laws(vacuum).linf == 0.0

@@ -110,7 +110,7 @@ def _make_flux(leaf: str, m: SNProblem, rng: np.random.Generator) -> Field:
         # head's to say (flat (L+1,) on a 1-D rule, rectangular (L+1, 2L+1) on
         # a sphere rule), so it is READ off the frame rather than spelled.
         shape = _moment_shape(m, _MOMENT_L)
-        return HarmonicMomentFlux.from_mesh_and_L(
+        return HarmonicMomentFlux.from_problem_and_L(
             rng.standard_normal(shape), m, _MOMENT_L,
         )
     if leaf == "boundary":
@@ -126,7 +126,7 @@ def _zeros_like_flux(leaf: str, m: SNProblem) -> Field:
     if leaf == "scalar":
         return ScalarFlux(values=np.zeros((m.ng, *m.spatial_shape)), space=m.bulk_space)
     if leaf == "moment":
-        return HarmonicMomentFlux.from_mesh_and_L(
+        return HarmonicMomentFlux.from_problem_and_L(
             np.zeros(_moment_shape(m, _MOMENT_L)), m, _MOMENT_L
         )
     if leaf == "boundary":

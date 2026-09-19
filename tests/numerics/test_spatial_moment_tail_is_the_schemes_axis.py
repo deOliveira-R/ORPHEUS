@@ -181,7 +181,7 @@ def test_width_one_appends_nothing_and_the_policy_lives_in_the_layout_module() -
 def test_a_widened_moment_field_self_derives_its_scalar_flux_and_truncates_on_the_hubs_space(label: str) -> None:
     sn = _LD[label]()
     L = 1
-    field = HarmonicMomentFlux.zeros_for_mesh_and_L(sn, L, spatial_moments=2)
+    field = HarmonicMomentFlux.zeros_for_problem_and_L(sn, L, spatial_moments=2)
     assert field.space is sn.moment_space(L, spatial_moments=2)
     scalar = field.scalar_flux()
     assert scalar.space == BulkField.compose_spatial_moments(sn.bulk_space, sn, 2)

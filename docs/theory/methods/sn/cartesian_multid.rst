@@ -2149,7 +2149,7 @@ factor does.
 The
 field-space factories of the day (``AngularField.from_mesh``,
 ``ScalarField.from_mesh``, and
-:meth:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.from_mesh_and_L`
+:meth:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.from_problem_and_L`
 — the two mesh-keyed leaf factories retired at CS4b S5, the keyed moment
 factory did not)
 gained an OPTIONAL ``spatial_moments`` parameter (default ``1``) that
@@ -2409,8 +2409,8 @@ at each call site was exactly the promised
    DD reads ``(4, 2, 4)`` from both properties (``is``-identical); LD
    reads ``(4, 2, 4)`` from the bulk mint and ``(4, 2, 4, 2)`` from the
    trial mint.  The keyed moment-family factories
-   (:meth:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.zeros_for_mesh_and_L`
-   and its ``from_mesh_and_L`` sibling) still take ``spatial_moments=``
+   (:meth:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.zeros_for_problem_and_L`
+   and its ``from_problem_and_L`` sibling) still take ``spatial_moments=``
    and are re-homed at S6.  See
    :ref:`theory-sn-typed-fields` for the allocator surface in full.
 

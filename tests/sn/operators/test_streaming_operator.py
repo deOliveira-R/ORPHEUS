@@ -749,7 +749,7 @@ class TestT4bPreT4RegressionSnapshot:
             out = out + RadialCharacteristicSeeding(problem).apply(sd)
         return out.interior.values.copy(), out.boundary.values.copy()
 
-    def _assert_arm(self, snapshots, *, tag: str, mesh: SNProblem, seed: int) -> None:
+    def _assert_arm(self, snapshots, *, tag: str, problem: SNProblem, seed: int) -> None:
         """Re-run the slab matvec arm: BULK principled-equivalent, BOUNDARY strict.
 
         The BULK residual rides the ÷V ``residual_kernel_batch`` kernel, which
@@ -770,7 +770,7 @@ class TestT4bPreT4RegressionSnapshot:
         ``vv-principles`` — strict where the implementation is genuinely
         unchanged.
         """
-        bulk, boundary = self._capture_arm(mesh, seed=seed)
+        bulk, boundary = self._capture_arm(problem, seed=seed)
         assert_regression(
             bulk, snapshots[f"{tag}_apply_bulk"],
             conv_tol=0.0, kind="direct", reduction_depth=self._PURE_L_NULP,
@@ -784,7 +784,7 @@ class TestT4bPreT4RegressionSnapshot:
         """L4-1 — slab 1G vacuum, P0 fixture (#240 uniform-kernel matvec)."""
         self._assert_arm(
             snapshots, tag="slab_1g_vacuum",
-            mesh=_slab_for_snapshot_arm(
+            problem=_slab_for_snapshot_arm(
                 ng=1, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
             ),
             seed=20260531 + 1,
@@ -794,7 +794,7 @@ class TestT4bPreT4RegressionSnapshot:
         """L4-1 — slab 2G vacuum, P1 asymmetric SigS (ERR-002 detector)."""
         self._assert_arm(
             snapshots, tag="slab_2g_vacuum",
-            mesh=_slab_for_snapshot_arm(
+            problem=_slab_for_snapshot_arm(
                 ng=2, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
             ),
             seed=20260531 + 2,
@@ -808,7 +808,7 @@ class TestT4bPreT4RegressionSnapshot:
         """
         self._assert_arm(
             snapshots, tag="slab_2g_reflective",
-            mesh=_slab_for_snapshot_arm(
+            problem=_slab_for_snapshot_arm(
                 ng=2, bc_left=BC("reflective"), bc_right=BC("vacuum"),
             ),
             seed=20260531 + 3,

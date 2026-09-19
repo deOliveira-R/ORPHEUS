@@ -1894,19 +1894,17 @@ was handed**:
        def supports(cls, mesh, spatial_closure):
            return Compatibility(mesh.is_cartesian, "requires Cartesian geometry")
 
-.. note:: **The first parameter is the Problem — the slot is still
-   spelled** ``mesh``\ **.**
+.. note:: **The first parameter is the Problem, and it is spelled** ``problem``\ **.**
 
    #412 (2026-09-18) renamed the hub class ``SNMesh`` →
    :class:`~orpheus.sn.problem.SNProblem` and the ``sn_mesh`` spelling →
-   ``problem``; it did **not** rename this family's parameter, so
-   ``supports(mesh, spatial_closure)``, ``default_for(mesh, ...)`` and
-   ``_LossRepresentation.mesh`` all take and hold an ``SNProblem``.
-   ``[M]`` 2026-09-18, by AST over ``orpheus/``: **24** ``mesh``-spelled
-   ``SNProblem`` parameters and fields across six modules, **15** of them
-   in :mod:`orpheus.sn.loss_representation`.  Every signature and
-   attribute spelling quoted on this page is therefore the live one, and
-   is *not* a stale reading of the rename.
+   ``problem`` in three code passes; the docs pass then found, by
+   ANNOTATION rather than by spelling, that this family's parameter and
+   field were still called ``mesh`` (``[M]`` 15 of the 27 + 3 such slots in
+   ``orpheus/``), and a fifth pass in the same unit renamed them:
+   ``supports(problem, spatial_closure)``, ``default_for(problem, ...)`` and
+   ``_LossRepresentation.problem`` take and hold an ``SNProblem``.  Every
+   signature and attribute spelling quoted on this page is the live one.
 
 .. note:: **The closure is an ARGUMENT, not a mesh read (P4.9b,
    2026-08-28).**

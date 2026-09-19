@@ -30,7 +30,7 @@ There are TWO distinct objects for the inflow :math:`q`, related as
   trace; the impls :class:`NoSource` / :class:`ConstantInflowSource`
   derive their output from construction-time data only). It is the
   *recipe* a declared affine boundary law carries; the mesh-BC bridge
-  :meth:`from_mesh_laws` is what turns it into the snapshot below.
+  :meth:`from_problem_laws` is what turns it into the snapshot below.
 * :class:`AngularBoundarySourceSink` (THIS class, the L2 transport **field**):
   the *eager, whole-boundary, mesh-bound, role-typed snapshot* — the
   materialised :math:`q` as a stored
@@ -211,7 +211,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
     @classmethod
     def prescribed_inflow(
         cls,
-        mesh: "SNProblem",
+        problem: "SNProblem",
         face_values: "Mapping[str, NDArray]",
     ) -> "AngularBoundarySourceSink":
         r"""Build a prescribed-inflow source :math:`q` from per-face values.
@@ -276,14 +276,14 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
             or if a per-face array shape does not match the ``(N, ng)``
             layout slot.
         """
-        trace = mesh.angular_trace
+        trace = problem.angular_trace
         if trace is None:
             raise ValueError(
                 f"{cls.__name__}.prescribed_inflow: mesh has no AngularTraceSpace "
                 f"(mesh.angular_trace is None — trace-less 2-D cylindrical). A "
                 f"boundary source cannot be built without a trace."
             )
-        bss = cls.zeros(cls._face_space_of(mesh))
+        bss = cls.zeros(cls._face_space_of(problem))
         known = set(trace.layout.faces.keys())
         for face, values in face_values.items():
             if face not in known:
@@ -323,7 +323,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
     @classmethod
     def from_specs(
         cls,
-        mesh: "SNProblem",
+        problem: "SNProblem",
         face_specs: "Mapping[str, InflowSourceSpec]",
     ) -> "AngularBoundarySourceSink":
         r"""Materialise lazy :class:`InflowSourceSpec` **recipes** onto the trace.
@@ -378,7 +378,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
             layout; or if a spec returns an array of the wrong shape (the
             :class:`InflowSourceSpec` contract's one invariant).
         """
-        trace = mesh.angular_trace
+        trace = problem.angular_trace
         if trace is None:
             raise ValueError(
                 f"{cls.__name__}.from_specs: mesh has no AngularTraceSpace "
@@ -386,7 +386,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
                 f"boundary source cannot be built without a trace."
             )
         known = set(trace.layout.faces.keys())
-        template = cls.zeros(cls._face_space_of(mesh))
+        template = cls.zeros(cls._face_space_of(problem))
         face_values: "dict[str, NDArray]" = {}
         for face, spec in face_specs.items():
             if face not in known:
@@ -420,10 +420,10 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
             full = np.zeros(slot_shape, dtype=float)
             full[inflow] = values
             face_values[face] = full
-        return cls.prescribed_inflow(mesh, face_values)
+        return cls.prescribed_inflow(problem, face_values)
 
     @classmethod
-    def from_mesh_laws(cls, mesh: "SNProblem") -> "AngularBoundarySourceSink":
+    def from_problem_laws(cls, problem: "SNProblem") -> "AngularBoundarySourceSink":
         r"""⭐ The DECLARED boundary conditions' :math:`q` — the user's path.
 
         Reads each face's realized law (``mesh.bc[face].law``) and materialises
@@ -449,7 +449,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         ) — so a manufactured-solution driver with a non-vacuum inflow declares
         a ``PrescribedInflow`` and comes through here.
 
-        The chain is ``from_mesh_laws → from_specs → prescribed_inflow``, each
+        The chain is ``from_problem_laws → from_specs → prescribed_inflow``, each
         step delegating down, so the packing rule is stated exactly once.
 
         .. note::
@@ -475,16 +475,16 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         """
         from orpheus.geometry.boundary import PrescribedInflow
 
-        trace = mesh.angular_trace
+        trace = problem.angular_trace
         if trace is None:
             raise ValueError(
-                f"{cls.__name__}.from_mesh_laws: mesh has no AngularTraceSpace "
+                f"{cls.__name__}.from_problem_laws: mesh has no AngularTraceSpace "
                 f"(mesh.angular_trace is None — trace-less 2-D cylindrical). A "
                 f"boundary source cannot be built without a trace."
             )
         specs = {}
         for face in trace.layout.faces:
-            law = getattr(mesh.bc[face], "law", None)
+            law = getattr(problem.bc[face], "law", None)
             if isinstance(law, PrescribedInflow):
                 specs[face] = law.source
-        return cls.from_specs(mesh, specs)
+        return cls.from_specs(problem, specs)

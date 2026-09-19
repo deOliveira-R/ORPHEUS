@@ -83,7 +83,7 @@ class TestTheDeclarationSurvivesTheRebuild:
 
         The row that fails if the declaration is dropped anywhere along
         geometry → mesh → ``_as_problem`` → ``resolve_boundary_conditions`` →
-        ``_law_from_tag`` → realizer → ``from_mesh_laws`` → RHS. Before the
+        ``_law_from_tag`` → realizer → ``from_problem_laws`` → RHS. Before the
         channel it was dropped at the first step (``StructuredGeometry`` refused
         the law outright) and would have been dropped again at ``_as_problem``.
 

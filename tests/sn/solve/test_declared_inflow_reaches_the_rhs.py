@@ -23,7 +23,7 @@ verifies the CHANNEL and is silent about every step a user actually takes. These
 gates start from the **declaration** and assert it arrives.
 
 ⚠ **The keystone is** :meth:`TestTheDeclarationIsNotInert.test_a_declared_inflow_changes_the_rhs`.
-Every other row here would pass against a ``from_mesh_laws`` that read the laws
+Every other row here would pass against a ``from_problem_laws`` that read the laws
 correctly while nothing called it — which was exactly the pre-P2′ state, one
 level down. That row is the one that fails if the wiring is removed.
 """
@@ -90,7 +90,7 @@ class TestOnlyPrescribedInflowContributes:
         the source's VALUE.
         """
         sn = _declare(_slab(), "xmin", law)
-        assert AngularBoundarySourceSink.from_mesh_laws(sn).linf == 0.0
+        assert AngularBoundarySourceSink.from_problem_laws(sn).linf == 0.0
 
     def test_a_declared_inflow_lands_on_that_faces_inflow_rows_only(self) -> None:
         r""":math:`q \in \Gamma_-(f)` for the declaring face, zero elsewhere."""
@@ -98,7 +98,7 @@ class TestOnlyPrescribedInflowContributes:
             _slab(), "xmin",
             PrescribedInflow(source=ConstantInflowSource(value=_VALUE)),
         )
-        q = AngularBoundarySourceSink.from_mesh_laws(sn)
+        q = AngularBoundarySourceSink.from_problem_laws(sn)
         inflow = sn.angular_trace.inflow_indices_for_face("xmin")
         view = np.asarray(q.face_view("xmin"))
 
@@ -113,7 +113,7 @@ class TestOnlyPrescribedInflowContributes:
         sn = _slab()
         _declare(sn, "xmin", PrescribedInflow(ConstantInflowSource(value=1.0)))
         _declare(sn, "xmax", PrescribedInflow(ConstantInflowSource(value=3.0)))
-        q = AngularBoundarySourceSink.from_mesh_laws(sn)
+        q = AngularBoundarySourceSink.from_problem_laws(sn)
         for face, value in (("xmin", 1.0), ("xmax", 3.0)):
             rows = sn.angular_trace.inflow_indices_for_face(face)
             np.testing.assert_array_equal(
@@ -456,7 +456,7 @@ def test_the_two_user_paths_reach_the_same_fixed_point() -> None:
     The two routes a user can take to the same physics:
 
     * declare ``PrescribedInflow(ConstantInflowSource(2.5))`` on the mesh and
-      let :meth:`from_mesh_laws` assemble ``q_∂`` (the law tier);
+      let :meth:`from_problem_laws` assemble ``q_∂`` (the law tier);
     * install vacuum and hand :meth:`prescribed_inflow` the same values
       directly (the channel tier — what the §4.6 MMS does).
 

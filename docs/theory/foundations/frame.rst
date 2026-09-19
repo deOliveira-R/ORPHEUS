@@ -4071,7 +4071,7 @@ consumers re-minting it from the integer :math:`L`:
    <orpheus.sn.problem.SNProblem.moment_space>` is a cache keyed
    on ``(L, spatial_moments)`` holding **one object per key**, and the
    moment family is now entirely a set of CONSUMERS of it — the factories
-   (``from_mesh_and_L``, ``zeros_for_mesh_and_L``), the ``space_on``
+   (``from_problem_and_L``, ``zeros_for_problem_and_L``), the ``space_on``
    admission reference, and the sweep's iterate wrap all hold the SAME
    instance (``is``, not merely ``==``). The head is still read off the
    frame at ``quad.angular_frame(L).basis.space``, so the row's third
@@ -4568,7 +4568,7 @@ relation that cannot see what they disagree about — is the reusable part.
 builds the analysis face's codomain from the frame's **dressed**
 ``basis_space`` — correctly, because that is where a covariant moment
 vector lands (:ref:`frame-parseval-metric`) — while
-``HarmonicMomentFlux.zeros_for_mesh_and_L`` builds the field's head from
+``HarmonicMomentFlux.zeros_for_problem_and_L`` builds the field's head from
 the basis's **continuum** space. `[M]` 2026-09-02, on a two-group slab
 carrier at :math:`L = 0, 1, 2`: ``face.codomain == field.space`` is
 ``True`` at every order and the two heads' metrics differ at every order
@@ -5016,7 +5016,7 @@ first family's layout as if it were the contract. On a
 slice* — a well-shaped array of the wrong thing. `[M]` the sites:
 ``scalar_flux``, ``isotropic_part``, ``anisotropic_part``, ``l_block``,
 the fission :math:`\ell = 0` dyad, ``ng`` (which located the group axis
-at a hard-coded index 2), ``zeros_for_mesh_and_L``, and — the one no
+at a hard-coded index 2), ``zeros_for_problem_and_L``, and — the one no
 census had listed — the material field's per-degree group contraction,
 which spelled the :math:`m` axis into its ``einsum`` spec
 (``"mfc...,fg->mgc..."``) and its slicing. That last one would have
@@ -5048,7 +5048,7 @@ the head:
 
 `[M]` 2026-09-02, built through the production carrier: a
 ``gauss_legendre(8)`` phase space gives
-``HarmonicMomentFlux.zeros_for_mesh_and_L(sn, 2).values.shape ==
+``HarmonicMomentFlux.zeros_for_problem_and_L(sn, 2).values.shape ==
 (3, 1, 4)`` with head ``legendre_space(S^2/O2_x)``, while
 ``level_symmetric(8)`` and ``folded_product(4,8)`` give ``(3, 5, 1, 4)``
 with head ``spherical_harmonic_space``. The :math:`\Lambda` specs are

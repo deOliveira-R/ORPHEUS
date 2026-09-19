@@ -180,7 +180,7 @@ def _has_ruled_corner_action(law: "BoundaryTraceLaw") -> bool:
     )
 
 
-def _zero_bulk_source(mesh: "SNProblem"):
+def _zero_bulk_source(problem: "SNProblem"):
     r"""The zero-bulk ``A_ss`` carrier ``B_a`` emits on the System-A composite.
 
     Sized from the MESH (not ``zeros_like`` the input) so the carrier is correct
@@ -201,7 +201,7 @@ def _zero_bulk_source(mesh: "SNProblem"):
     """
     from orpheus.transport.source_sinks import AngularSourceSink
 
-    return AngularSourceSink.zeros(mesh.angular_trial_space)
+    return AngularSourceSink.zeros(problem.angular_trial_space)
 
 
 class SNBoundaryOperator(LinearOperator):
@@ -325,7 +325,7 @@ class SNBoundaryOperator(LinearOperator):
     Parameters
     ----------
     problem : SNProblem
-        The augmented geometry — carries the per-face boundary laws
+        The SN Problem — carries the per-face boundary laws
         (the face-name-keyed ``bc`` dict) and the unified trace space (same instance the
         composite carrier is bound to; the mesh-identity invariant of
         :class:`~orpheus.sn.operators.streaming.StreamingOperator` applies here too).
@@ -865,7 +865,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
     Parameters
     ----------
     problem : SNProblem
-        The augmented geometry (seed-carrying — 1-D curvilinear). Carries the
+        The SN Problem (seed-carrying — 1-D curvilinear). Carries the
         outer-face law ``problem.bc["xmax"]`` and the ray space
         (the split ψ½ spaces; the mesh-identity invariant of
         :class:`SNBoundaryOperator` applies here too).

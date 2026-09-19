@@ -109,7 +109,7 @@ def _pure_streamer_2d_mesh(nx: int = 4, ny: int = 4) -> SNProblem:
 
 
 def _zero_state_with_unit_face(
-    mesh: SNProblem, face: str,
+    problem: SNProblem, face: str,
 ) -> "object":
     r"""Build a ``TimedFullField`` whose only nonzero is a unit at ``face``.
 
@@ -118,7 +118,7 @@ def _zero_state_with_unit_face(
     structural positive test: this unit should propagate downstream
     via the streaming operator's BC apply.
     """
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=mesh.full_field_space)
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     state.boundary.face_view(face)[...] = 1.0
     return state
 

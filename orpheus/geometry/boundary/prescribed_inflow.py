@@ -37,7 +37,7 @@ The realizer dispatch maps an instance to the **zero morphism**
 :math:`\gamma_-\psi = L\,\gamma_+\psi + q`, the realizer tier realizes
 :math:`L`, and here :math:`L = 0`. The :attr:`source` reaches a solve
 through the boundary-source channel instead
-(:meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_mesh_laws`;
+(:meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_problem_laws`;
 see :ref:`bc-affine-source-channel`).
 
 Until **P3** (2026-08-05) the dispatch produced an

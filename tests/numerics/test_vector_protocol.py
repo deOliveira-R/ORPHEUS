@@ -70,7 +70,7 @@ def test_field_leaves_are_vectors() -> None:
     m = _slab_mesh()
     assert isinstance(AngularFlux.zeros(m.angular_bulk_space), Vector)
     assert isinstance(ScalarFlux.zeros(m.bulk_space), Vector)
-    assert isinstance(HarmonicMomentFlux.zeros_for_mesh_and_L(m, 1), Vector)
+    assert isinstance(HarmonicMomentFlux.zeros_for_problem_and_L(m, 1), Vector)
     assert isinstance(AngularBoundaryFlux.zeros(m.angular_trace), Vector)
 
 

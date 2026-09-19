@@ -1105,7 +1105,7 @@ class SNBoundaryRealizer:
             # affine, ``γ₋ψ = L γ₊ψ + q``, and this tier realizes ``L``
             # alone; the source ``q`` travels the boundary-source channel
             # (:ref:`bc-affine-source-channel`), assembled from the declared
-            # law by ``AngularBoundarySourceSink.from_mesh_laws``. So
+            # law by ``AngularBoundarySourceSink.from_problem_laws``. So
             # prescribed inflow returns the SAME expression vacuum does,
             # which is the honest statement of the algebra: the two laws
             # differ only in a term that is not an operator.

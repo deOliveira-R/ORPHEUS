@@ -9,7 +9,7 @@ which stays — the two together are the two-route claim:
   **channel tier**, and it deliberately bypasses the law tier
   (``docs/theory/verification/sn.rst`` says so).
 * **this module** declares ``PrescribedInflow(source=<manufactured spec>)`` on
-  the GEOMETRY and passes a **bulk-only** source. ``from_mesh_laws`` assembles
+  the GEOMETRY and passes a **bulk-only** source. ``from_problem_laws`` assembles
   ``q_∂`` from the declaration. That is the **law tier** — every step a user
   actually takes.
 
@@ -171,7 +171,7 @@ def _declared_solve(case, n_cells: int, inner: str = "source_iteration"):
     )
 
     # A BULK-ONLY source: `_build_fixed_source_rhs`'s array arm calls
-    # `from_mesh_laws`, so q_∂ comes from the DECLARATION, not from the caller.
+    # `from_problem_laws`, so q_∂ comes from the DECLARATION, not from the caller.
     solution = solve_sn_fixed_source(
         case.materials, mesh, case.quadrature, case.external_source(mesh),
         inner_solver=inner, max_inner=1000, inner_tol=1e-13,
@@ -360,7 +360,7 @@ def test_it_converges_to_the_manufactured_value_not_merely_at_a_rate() -> None:
 
 
 def test_the_declared_and_supplied_channels_are_one_float_program() -> None:
-    r"""⭐ ``from_mesh_laws(declared)`` is BIT-identical to ``case.prescribed_inflow``.
+    r"""⭐ ``from_problem_laws(declared)`` is BIT-identical to ``case.prescribed_inflow``.
 
     The law tier and the channel tier must not merely agree — they must be the
     same computation, since the declaration's only job is to reach the same
@@ -380,7 +380,7 @@ def test_the_declared_and_supplied_channels_are_one_float_program() -> None:
     )
     sn = SNProblem(mesh, case.quadrature, case.materials)
 
-    declared = AngularBoundarySourceSink.from_mesh_laws(sn)
+    declared = AngularBoundarySourceSink.from_problem_laws(sn)
     supplied = case.prescribed_inflow(SNProblem(mesh0, case.quadrature, case.materials))
 
     for face, _ in _faces(case):
@@ -431,7 +431,7 @@ def test_the_spec_is_asked_exactly_ONCE_and_for_gamma_minus_ITSELF() -> None:
 
     mesh = replace(mesh0, bc_left=PrescribedInflow(source=spec))
     sn = SNProblem(mesh, case.quadrature, case.materials)
-    q = AngularBoundarySourceSink.from_mesh_laws(sn)
+    q = AngularBoundarySourceSink.from_problem_laws(sn)
 
     gamma_minus = sn.angular_trace.inflow_space("xmin")
     _require(

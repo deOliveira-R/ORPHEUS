@@ -138,7 +138,7 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
 
     @classmethod
     def from_isotropic(
-        cls, iso_values: NDArray, mesh: "SNProblem",
+        cls, iso_values: NDArray, problem: "SNProblem",
     ) -> "AngularSourceSink":
         r"""Project an iso scalar source :math:`Q(\vec r, g)` to per-ordinate.
 
@@ -176,7 +176,7 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
             has already divided by sum_w; the retired ``as_per_ordinate``
             verb's surviving spelling, CS4b S4).
         """
-        expected = (mesh.ng, *mesh.spatial_shape)
+        expected = (problem.ng, *problem.spatial_shape)
         if iso_values.shape != expected:
             raise ValueError(
                 f"AngularSourceSink.from_isotropic expects iso shape "
@@ -189,7 +189,7 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
         # GL8, principled-over-bit-identical). The name
         # survives as the ergonomic producer entry (ruled 2026-08-24:
         # re-key now; its retirement question is re-posed at S7).
-        space = cls._space_for_mesh(mesh)
+        space = cls._space_for_problem(problem)
         return cls(values=space.section("angular").apply(iso_values), space=space)
 
     # ── Selectors ────────────────────────────────────────────────────

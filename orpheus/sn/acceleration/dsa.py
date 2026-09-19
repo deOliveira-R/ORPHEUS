@@ -137,7 +137,7 @@ __all__ = ["DSALowOrderSystem", "DSACorrection"]
 
 # The arm-1 admission set is no longer a tag frozenset (``_SUPPORTED_BC =
 # {"vacuum", "reflective"}``, retired in campaign phase B2): it is read off
-# the law's affine factors in :meth:`DSALowOrderSystem.from_sn_mesh`, which
+# the law's affine factors in :meth:`DSALowOrderSystem.from_problem`, which
 # names WHICH property each proven row rests on — a zero response for the
 # Marshak (38) row, an ordinate-permuting geometry for the (39) row. Albedo /
 # white walls still need the Marshak-albedo generalization of (38); that is a
@@ -152,7 +152,7 @@ class DSALowOrderSystem:
     :math:`A_g` (``(K+1, K+1)``, Larsen (27) interior rows + one-sided
     Marshak/reflecting boundary rows) and the residual-source map
     :math:`G_g` (``(K+1, 2K)``) taking the per-cell increment moments
-    ``[d0; d1]`` to the row sources. Built by :meth:`from_sn_mesh`; the
+    ``[d0; d1]`` to the row sources. Built by :meth:`from_problem`; the
     correction solve is :meth:`solve_correction`.
 
     Frozen and immutable — the system is a function of the mesh's
@@ -177,7 +177,7 @@ class DSALowOrderSystem:
     # ── Construction ─────────────────────────────────────────────────
 
     @classmethod
-    def from_sn_mesh(
+    def from_problem(
         cls, problem: "SNProblem",
     ) -> "DSALowOrderSystem":
         r"""Build the per-group systems from the SN phase space.
@@ -607,18 +607,18 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):
         return self._full_field_space
 
     @classmethod
-    def from_sn_mesh(
+    def from_problem(
         cls, problem: "SNProblem",
     ) -> "DSACorrection":
         r"""Build the correction operator for an admitted SN phase space
         (admission — geometry, scheme, walls — and the
         ``scattering_order`` consistency rule live on
-        :meth:`DSALowOrderSystem.from_sn_mesh`; the same order decides
+        :meth:`DSALowOrderSystem.from_problem`; the same order decides
         whether the ℓ=1 arm of the correction is live — consistency is
         with the iterated operator, in the restriction exactly as in
         the data row)."""
         return cls(
-            DSALowOrderSystem.from_sn_mesh(
+            DSALowOrderSystem.from_problem(
                 problem,
             ),
             problem.quad,

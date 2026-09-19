@@ -4,7 +4,7 @@ r"""CS4c step 6 item 6.2b — the hub owns the harmonic-moment space.
 <orpheus.sn.problem.SNProblem.moment_space>` is the ONE producer of
 the moment space on a carrier: a keyed cache over ``(L, spatial_moments)``
 whose every read returns the SAME object. The moment field family
-(``from_mesh_and_L`` / ``zeros_for_mesh_and_L`` / ``space_on``), the boundary
+(``from_problem_and_L`` / ``zeros_for_problem_and_L`` / ``space_on``), the boundary
 leaf's carrier guard and the sweep's iterate wrap all READ it, so identity
 is ``is`` — not a content comparison — and nothing is re-minted per call.
 
@@ -71,7 +71,7 @@ def test_g2_4a_one_object_per_key_read_by_the_factory_and_the_guard(geometry, L)
     if first is not second:
         pytest.fail(f"[{geometry} L={L}] the hub minted twice for one key")
 
-    field = HarmonicMomentFlux.zeros_for_mesh_and_L(
+    field = HarmonicMomentFlux.zeros_for_problem_and_L(
         problem, L, spatial_moments=width,
     )
     if field.space is not first:
@@ -99,7 +99,7 @@ def test_g2_4b_a_carrier_that_owns_no_moment_space_is_refused_by_name():
         ndim = 1
 
     with pytest.raises(TypeError, match="owns no moment space"):
-        HarmonicMomentFlux.zeros_for_mesh_and_L(_NoHub(), 0)  # type: ignore[arg-type]
+        HarmonicMomentFlux.zeros_for_problem_and_L(_NoHub(), 0)  # type: ignore[arg-type]
 
 
 def _windowed_driver(max_inner: int):

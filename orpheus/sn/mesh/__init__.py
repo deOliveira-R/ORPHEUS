@@ -11,6 +11,8 @@ Problem consumes.
   name for a mesh carrying a method's machinery (the diffusion family still
   spells its hub :mod:`~orpheus.diffusion.augmented_mesh`), and the SN hub had
   outgrown it: it is the Problem, not a mesh.
+* :mod:`~orpheus.sn.mesh.reduced_operator` — the reduced streaming operators
+  (the per-chart streaming factories the Problem's stencil is built from).
 * :mod:`~orpheus.sn.mesh.method_space` — :class:`SNMethodSpace`, the realizer's
   argument (mesh + quadrature + trace + face); the precursor to the not-yet-minted
   ``TransportMethod`` Protocol (#219, defer-until-2).

@@ -189,7 +189,7 @@ class TestMint:
         face = _frame(m).flux_analysis_on(m.angular_bulk_space)
         assert (
             face.codomain
-            == HarmonicMomentFlux.zeros_for_mesh_and_L(m, _L).space
+            == HarmonicMomentFlux.zeros_for_problem_and_L(m, _L).space
         )
         assert face.frame is HarmonicFrame.for_space(m.angular_bulk_space, _L)
 
@@ -208,14 +208,14 @@ class TestMint:
         slab = _slab_mesh()
         face = _frame(slab).flux_analysis_on(slab.angular_bulk_space)
         assert face.codomain.shape == (3, slab.ng, *slab.spatial_shape)
-        assert HarmonicMomentFlux.zeros_for_mesh_and_L(slab, _L).space.shape == (
+        assert HarmonicMomentFlux.zeros_for_problem_and_L(slab, _L).space.shape == (
             3, slab.ng, *slab.spatial_shape
         )
 
         sphere = _2d_mesh()
         sphere_face = _frame(sphere).flux_analysis_on(sphere.angular_bulk_space)
         assert sphere_face.codomain.shape == (3, 5, sphere.ng, *sphere.spatial_shape)
-        assert HarmonicMomentFlux.zeros_for_mesh_and_L(sphere, _L).space.shape == (
+        assert HarmonicMomentFlux.zeros_for_problem_and_L(sphere, _L).space.shape == (
             3, 5, sphere.ng, *sphere.spatial_shape
         )
 
@@ -298,7 +298,7 @@ class TestFluxAnalysisFace:
     def test_wrong_carrier_raises(self) -> None:
         m = _slab_mesh()
         face = _frame(m).flux_analysis_on(m.angular_bulk_space)
-        moment = HarmonicMomentFlux.from_mesh_and_L(_moment_values(m, 4), m, _L)
+        moment = HarmonicMomentFlux.from_problem_and_L(_moment_values(m, 4), m, _L)
         with pytest.raises(TypeError, match="unsupported carrier"):
             face.apply(moment)  # type: ignore[arg-type]
 
@@ -391,7 +391,7 @@ class TestSourceReconstructionFace:
         m = _slab_mesh(nx=4)
         other = _slab_mesh(nx=5)
         face = _frame(m).source_reconstruction_on(m.angular_bulk_space)
-        q = HarmonicMomentSourceSink.from_mesh_and_L(
+        q = HarmonicMomentSourceSink.from_problem_and_L(
             _moment_values(other, 12), other, _L,
         )
         with pytest.raises(TypeError, match="bound to moment domain"):

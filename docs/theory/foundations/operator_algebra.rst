@@ -4522,7 +4522,7 @@ a layering constraint, not a preference:
   :class:`~orpheus.numerics.field.Field`, in **numerics**.
 * But the part that makes them **castable** — the concrete leaf CLASSES
   themselves, plus the moment family's keyed
-  :meth:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.from_mesh_and_L`
+  :meth:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.from_problem_and_L`
   factory, which is what builds the typed carrier from a raw array —
   lives in the transport
   :class:`~orpheus.transport.fields._bases.BulkField` hierarchy,

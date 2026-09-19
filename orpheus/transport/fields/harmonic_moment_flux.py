@@ -53,7 +53,7 @@ D-E Field-inheritance migration:
   is kept as a top-level attribute for ergonomic access — equivalent
   to the head factor's own ``L`` (``self.space.factors[0].L``) but avoiding
   the traversal at hot-path read sites.
-* Introduces :meth:`from_mesh_and_L` for ergonomic 3-arg construction
+* Introduces :meth:`from_problem_and_L` for ergonomic 3-arg construction
   (the kw_only constructor requires explicit ``space``; the classmethod
   derives the space from ``mesh`` and ``L``).
 
@@ -136,7 +136,7 @@ class HarmonicMomentFlux(MomentField):
         \mathrm{CellGroupSpace}` — the head READ off the mesh's quadrature
         frame (:math:`\mathrm{SphericalHarmonicSpace}(L)` on a
         full-sphere rule). Construction via
-        :meth:`from_mesh_and_L` is the canonical path; direct kw-only
+        :meth:`from_problem_and_L` is the canonical path; direct kw-only
         construction is for callers that already hold a constructed
         space.
     mesh : SNProblem

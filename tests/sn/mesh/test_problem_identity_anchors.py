@@ -447,9 +447,9 @@ class TestTheInternedGeometryCacheUnderContentIdentity:
         cache_cls = loss_representation.StreamingCoefficientCache
         original = cache_cls.from_mesh_and_quad
 
-        def _spy(mesh: SNProblem):  # noqa: ANN202
-            builds.append(id(mesh))
-            return original(mesh)
+        def _spy(problem: SNProblem):  # noqa: ANN202
+            builds.append(id(problem))
+            return original(problem)
 
         # ``vv`` #29 / L77e: rebind the BOUND classmethod on the class object, so
         # the wrapper is what every caller resolves. A monkeypatch-only battery

@@ -770,7 +770,7 @@ class RadialCharacteristicSeeding(
     Parameters
     ----------
     problem : SNProblem
-        The augmented geometry — seed-carrying (1-D curvilinear, R12a). Supplies
+        The SN Problem — seed-carrying (1-D curvilinear, R12a). Supplies
         the ray carrier (the domain), the M-M closure ``angular_closure``
         (the single-sourced kernel), the cell volumes ``volumes``, and the
         quadrature ``quad``. A seedless mesh (a Cartesian chart, or a
@@ -798,7 +798,7 @@ class RadialCharacteristicSeeding(
                 "inject. A_AB exists only on a seed-carrying mesh — the GL "
                 "sphere, the σ_y-folded cylinder (Q5.6)."
             )
-        #: The augmented geometry (ray carrier + the M-M closure + volumes).
+        #: The SN Problem (ray carrier + the M-M closure + volumes).
         self.problem = problem
         # P4.9b: the operator BINDS the hub's closure at construction (the
         # pose pattern — one posing-time hub read); apply/apply_transpose

@@ -90,12 +90,12 @@ def _bound_end_of(operator: SNBoundaryOperator) -> FullFieldSpace:
 def _moment_composite(problem, L: int, *, seed: int = 4) -> TimedFullField:
     """A ``FullField`` whose INTERIOR is a ``HarmonicMomentFlux`` at order ``L``.
 
-    Built through the production factory (``zeros_for_mesh_and_L``) so the
+    Built through the production factory (``zeros_for_problem_and_L``) so the
     interior's space is production's own mint, then filled with a fixed-seed
     random state in BOTH blocks — a zero trace would null ``B`` entirely and
     make the row measure a smaller operator than it names.
     """
-    interior = HarmonicMomentFlux.zeros_for_mesh_and_L(
+    interior = HarmonicMomentFlux.zeros_for_problem_and_L(
         problem, L, spatial_moments=problem.scheme.spatial_basis_per_axis,
     )
     interior.values[...] = np.random.default_rng(seed).standard_normal(interior.values.shape)

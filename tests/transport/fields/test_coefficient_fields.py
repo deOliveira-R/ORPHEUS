@@ -75,8 +75,8 @@ def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
     return SNProblem(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _sigma(mesh: SNProblem, fill: float) -> CrossSectionField:
-    return CrossSectionField(values=np.full((mesh.ng, *mesh.spatial_shape), fill), space=mesh.bulk_space)
+def _sigma(problem: SNProblem, fill: float) -> CrossSectionField:
+    return CrossSectionField(values=np.full((problem.ng, *problem.spatial_shape), fill), space=problem.bulk_space)
 
 
 # ═══════════════════════════════════════════════════════════════════════

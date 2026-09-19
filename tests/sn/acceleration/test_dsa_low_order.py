@@ -98,7 +98,7 @@ class TestProductionTie:
         exercise the (23c) transport-corrected D, not the bare-P0
         coincidence."""
         problem = _slab(*bc)
-        system = DSALowOrderSystem.from_sn_mesh(problem.with_scattering_order(1))
+        system = DSALowOrderSystem.from_problem(problem.with_scattering_order(1))
         h, sigma_t, sigma_s0, sigma_s1, mu, w = _reference_inputs(problem)
         for g in range(sigma_t.shape[0]):
             a_ref, g_ref = dsa_reference.build_consistent_dd_system(
@@ -117,7 +117,7 @@ class TestProductionTie:
         """f0 = A⁻¹(G d) and the (28a) cell average, against a direct
         dense solve of the reference system."""
         problem = _slab()
-        system = DSALowOrderSystem.from_sn_mesh(problem.with_scattering_order(1))
+        system = DSALowOrderSystem.from_problem(problem.with_scattering_order(1))
         h, sigma_t, sigma_s0, sigma_s1, mu, w = _reference_inputs(problem)
         rng = np.random.default_rng(7)
         d0 = rng.standard_normal((sigma_t.shape[0], h.shape[0]))
@@ -172,7 +172,7 @@ class TestAdmissionTeeth:
             },
         )
         with pytest.raises(NotImplementedError, match="Marshak-albedo"):
-            DSALowOrderSystem.from_sn_mesh(stub)  # type: ignore[arg-type]
+            DSALowOrderSystem.from_problem(stub)  # type: ignore[arg-type]
 
     def test_non_dd_scheme_refused(self):
         from orpheus.transport.spatial.linear_discontinuous import (
@@ -192,7 +192,7 @@ class TestAdmissionTeeth:
             scheme=LinearDiscontinuous(),
         )
         with pytest.raises(NotImplementedError, match="diamond"):
-            DSALowOrderSystem.from_sn_mesh(problem)
+            DSALowOrderSystem.from_problem(problem)
 
     def test_quadrature_convention_guard_fires(self):
         problem = _slab()
@@ -263,7 +263,7 @@ class TestRestrictionProlongation:
         moment-0 reproduces the input scalar values (Σ w · (x/Σw) = x
         up to one product-sum; pinned at 1-ULP-scale rtol)."""
         problem, psi = psi
-        corr = DSACorrection.from_sn_mesh(problem)
+        corr = DSACorrection.from_problem(problem)
         phi = psi.integrate_angular().values
         sum_w = float(np.asarray(problem.quad.weights).sum())
         injected = AngularFlux(values=np.broadcast_to(phi[None] / sum_w, psi.values.shape).copy(), space=problem.angular_bulk_space)
@@ -309,7 +309,7 @@ class TestApplyAdmission:
         )
 
         problem = _slab()
-        corrector = DSACorrection.from_sn_mesh(problem)
+        corrector = DSACorrection.from_problem(problem)
         L = 1
         # the angular head is READ off the frame (#429): the slab's is FLAT.
         shape = (
@@ -318,7 +318,7 @@ class TestApplyAdmission:
             *problem.spatial_shape,
         )
         windowed = FullField(
-            interior=HarmonicMomentFlux.from_mesh_and_L(
+            interior=HarmonicMomentFlux.from_problem_and_L(
                 np.ones(shape), problem, L
             ),
             boundary=AngularBoundaryFlux.zeros(problem.angular_trace),
@@ -343,7 +343,7 @@ class TestApplyAdmission:
 
         for bcs in [("vacuum", "vacuum"), ("reflective", "vacuum")]:
             problem = _slab(*bcs)
-            corrector = DSACorrection.from_sn_mesh(problem)
+            corrector = DSACorrection.from_problem(problem)
             out = corrector.apply(self._increment(problem))
             if type(out.interior) is not AngularFlux:
                 pytest.fail(

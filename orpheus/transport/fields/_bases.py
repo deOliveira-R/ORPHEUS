@@ -25,10 +25,10 @@ provides the *locus + family* axes as ABCs; the *role* leaves
 
     Field (numerics, L1 — values + space + dunder algebra)
      ├─ BulkField (ABC)           codim-0 (cell centres): ng + the spatial-moment tail reads
-     │   ├─ AngularField (ABC)    + N + the carrier's cached space via _space_for_mesh (space_on)
+     │   ├─ AngularField (ABC)    + N + the carrier's cached space via _space_for_problem (space_on)
      │   │   ├─ AngularFlux           role leaf  (flux)
      │   │   └─ AngularSourceSink     role leaf  (source; renamed from PerOrdinateSource in B.2)
-     │   ├─ ScalarField (ABC)     + the carrier's cached space via _space_for_mesh (space_on)
+     │   ├─ ScalarField (ABC)     + the carrier's cached space via _space_for_problem (space_on)
      │   │   ├─ ScalarFlux            role leaf  (flux)
      │   │   └─ ScalarSourceSink       role leaf  (source; renamed from IsotropicSource in B.2)
      │   └─ MomentField (ABC)     + L + the carrier's cached space via SNProblem.moment_space(L, width) (space_on)
@@ -308,7 +308,7 @@ class BulkField(RolePair, Field):
     r"""Bulk-locus storage base — a :class:`Field` on the grid's cell centres.
 
     Carries the machinery shared by every bulk transport field: the
-    per-family carrier-cached space mint (:meth:`_space_for_mesh`, read by
+    per-family carrier-cached space mint (:meth:`_space_for_problem`, read by
     the factories AND the operator admission guards' :meth:`space_on`
     reference), the optional within-cell spatial-moment factor, and the
     ``ng`` read-through. A bulk field is an ELEMENT of its space (CS4b S4
@@ -519,7 +519,7 @@ class BulkField(RolePair, Field):
         return 1  # unreachable in practice: a tail rides an axis-built space
 
     @classmethod
-    def _space_for_mesh(
+    def _space_for_problem(
         cls, mesh: "MaterialMesh", *, spatial_moments: int = 1,
     ) -> FunctionSpace:
         r"""The family's space mint for ``mesh`` — the per-family hook.
@@ -546,7 +546,7 @@ class BulkField(RolePair, Field):
         can compare content without knowing which role family it holds
         (angular, scalar, moment, face — each answers with its own mint).
         """
-        return type(self)._space_for_mesh(
+        return type(self)._space_for_problem(
             mesh, spatial_moments=self.spatial_moments_per_axis,
         )
 
@@ -591,10 +591,10 @@ class AngularField(BulkField):
     """
 
     @classmethod
-    def _space_for_mesh(  # type: ignore[override] — the family narrows its
+    def _space_for_problem(  # type: ignore[override] — the family narrows its
         # carrier (SNProblem), the same #267 covariant-override doctrine as the
         # ``mesh`` field above; every caller passes this family's carrier.
-        cls, mesh: "SNProblem", *, spatial_moments: int = 1,
+        cls, problem: "SNProblem", *, spatial_moments: int = 1,
     ) -> FunctionSpace:
         r"""The leaf's :class:`FunctionSpace` for ``mesh``.
 
@@ -614,7 +614,7 @@ class AngularField(BulkField):
         :meth:`BulkField.compose_spatial_moments`).
         """
         return cls.compose_spatial_moments(
-            mesh.angular_bulk_space, mesh, spatial_moments,
+            problem.angular_bulk_space, problem, spatial_moments,
         )
 
     def _integrate_angular_values(self) -> "NDArray":
@@ -675,7 +675,7 @@ class ScalarField(BulkField):
     """
 
     @classmethod
-    def _space_for_mesh(
+    def _space_for_problem(
         cls, mesh: "MaterialMesh", *, spatial_moments: int = 1,
     ) -> FunctionSpace:
         r"""The leaf's :class:`FunctionSpace` for ``mesh``.
@@ -730,7 +730,7 @@ class MomentField(BulkField):
     hook's successor), the
     ``L``-match :meth:`_check_partner`, and the
     :class:`~orpheus.numerics.space.TensorProductSpace`-building
-    :meth:`from_mesh_and_L` / :meth:`zeros_for_mesh_and_L` factories
+    :meth:`from_problem_and_L` / :meth:`zeros_for_problem_and_L` factories
     (keyed, S6 re-home pending; the positional ``from_ndarray`` alias
     retired with the S5 sugar tier).
 
@@ -838,8 +838,8 @@ class MomentField(BulkField):
     # ── Construction factories ───────────────────────────────────────
 
     @classmethod
-    def from_mesh_and_L(
-        cls, values: NDArray, mesh: "SNProblem", L: int, *, spatial_moments: int = 1,
+    def from_problem_and_L(
+        cls, values: NDArray, problem: "SNProblem", L: int, *, spatial_moments: int = 1,
     ):
         r"""Construct from raw values + mesh + L on the carrier's own
         moment space.
@@ -867,7 +867,7 @@ class MomentField(BulkField):
         return cls(
             values=values,
             space=cls._space_for_mesh_and_L(
-                mesh, L, spatial_moments=spatial_moments,
+                problem, L, spatial_moments=spatial_moments,
             ),
             L=L,
             spatial_moments=spatial_moments,
@@ -882,7 +882,7 @@ class MomentField(BulkField):
 
         The carrier's :meth:`~orpheus.sn.problem.SNProblem.moment_space`
         is a keyed cache: every read of one ``(carrier, L, width)`` returns
-        the SAME object, so the factory (:meth:`from_mesh_and_L`), the
+        the SAME object, so the factory (:meth:`from_problem_and_L`), the
         admission-guard reference (:meth:`space_on`) and the sweep's
         iterate wrap share one instance — ``is``, not merely ``==`` — and
         nothing is re-minted per call (`[M]` until 6.2b this method
@@ -911,12 +911,12 @@ class MomentField(BulkField):
         )
 
     @classmethod
-    def zeros_for_mesh_and_L(
-        cls, mesh: "SNProblem", L: int, *, spatial_moments: int = 1,
+    def zeros_for_problem_and_L(
+        cls, problem: "SNProblem", L: int, *, spatial_moments: int = 1,
     ):
         r"""Construct a zero moment field at order ``L`` sized to ``mesh`` (B.5.A).
 
-        Mirrors :meth:`from_mesh_and_L` with a zero buffer. The extra
+        Mirrors :meth:`from_problem_and_L` with a zero buffer. The extra
         ``L`` makes the signature keyed rather than uniform — a moment
         field is never a
         :class:`~orpheus.transport.timed_full_field.TimedFullField`
@@ -925,10 +925,10 @@ class MomentField(BulkField):
 
         ``spatial_moments`` (default ``1``, byte-identical #240 D5b-S3-A0)
         sizes the optional within-cell spatial-moment axis to match
-        :meth:`from_mesh_and_L`.
+        :meth:`from_problem_and_L`.
         """
         space = cls._space_for_mesh_and_L(
-            mesh, L, spatial_moments=spatial_moments,
+            problem, L, spatial_moments=spatial_moments,
         )
         return cls(
             values=np.zeros(space.shape),

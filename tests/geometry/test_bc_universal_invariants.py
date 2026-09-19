@@ -481,7 +481,7 @@ class TestPrescribedInflowRealizesTheZeroMap:
     :math:`L = 0`. So the realized operator is the zero map
     :math:`\Gamma_+ \to \Gamma_-` — literally the object vacuum realizes to —
     and :math:`q` travels the boundary-source channel instead
-    (:meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_mesh_laws`,
+    (:meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_problem_laws`,
     gated in ``tests/sn/solve/test_declared_inflow_reaches_the_rhs.py`` and
     ``tests/transport/test_boundary_source_from_specs.py``).
 

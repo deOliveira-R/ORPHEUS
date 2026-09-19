@@ -224,7 +224,7 @@ class Field(ABC):
         (``L``, ``spatial_moments``, ...) pass through ``**fields``. Since
         CS4b S5 this IS the allocator call sites spell, on the carrier's
         cached space mints (the mesh-keyed sugar tier retired; the moment
-        family's keyed ``zeros_for_mesh_and_L`` still delegates here until
+        family's keyed ``zeros_for_problem_and_L`` still delegates here until
         its S6 re-home) — the zero-construction lives in exactly one place
         (``coding-elegance`` Pattern 2).
         """

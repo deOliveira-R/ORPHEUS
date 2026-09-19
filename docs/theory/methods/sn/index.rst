@@ -1156,10 +1156,10 @@ construction and read by everyone (ruling R-cc9):
 
 :class:`~orpheus.sn.solver.SNSolver` reads ``problem.scattering_order``
 and no longer takes the argument;
-:meth:`DSACorrection.from_sn_mesh
-<orpheus.sn.acceleration.dsa.DSACorrection.from_sn_mesh>` and
-:meth:`DSALowOrderSystem.from_sn_mesh
-<orpheus.sn.acceleration.dsa.DSALowOrderSystem.from_sn_mesh>` read it
+:meth:`DSACorrection.from_problem
+<orpheus.sn.acceleration.dsa.DSACorrection.from_problem>` and
+:meth:`DSALowOrderSystem.from_problem
+<orpheus.sn.acceleration.dsa.DSALowOrderSystem.from_problem>` read it
 off the hub they are already handed;
 :func:`~orpheus.sn.coupled_system.build_within_group_system` reads it
 when it constructs :math:`S` and :math:`N_{2n}` — which, since

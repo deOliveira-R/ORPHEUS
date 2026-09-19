@@ -103,7 +103,7 @@ def _capture_production_factor_tuples(problem, L: int) -> "list[tuple[FunctionSp
 
     TensorProductSpace.from_factors = classmethod(recording)   # type: ignore[method-assign]
     try:
-        HarmonicMomentFlux.zeros_for_mesh_and_L(
+        HarmonicMomentFlux.zeros_for_problem_and_L(
             problem, L, spatial_moments=problem.scheme.spatial_basis_per_axis,
         )
         frame = problem.quad.angular_frame(L)

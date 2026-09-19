@@ -247,7 +247,7 @@ class RadialCharacteristicField(
 
     @classmethod
     def source_from_angular(
-        cls, angular_source_values: "NDArray", mesh: "SNProblem",
+        cls, angular_source_values: "NDArray", problem: "SNProblem",
         *, boundary_trace: "AngularBoundarySourceSink | None" = None,
     ) -> "RadialCharacteristicField | None":
         r"""Fold a per-ordinate volumetric source into its q½ composite.
@@ -345,7 +345,7 @@ class RadialCharacteristicField(
             fold_moments_to_radial_characteristic,
         )
 
-        if mesh.radial_characteristic_field_space is None:
+        if problem.radial_characteristic_field_space is None:
             return None
         vals = np.asarray(angular_source_values)
         if vals.ndim != 3:
@@ -355,11 +355,11 @@ class RadialCharacteristicField(
                 f"shape {vals.shape} (carrying meshes are 1-D curvilinear, "
                 f"R12a)."
             )
-        mu = mesh.quad.mu_x
-        weights = mesh.quad.weights
-        level_indices = mesh.angular_closure.level_indices
-        arc_family = mesh.coord is CoordSystem.CYLINDRICAL
-        seed = cls.source_zeros(mesh.radial_characteristic_field_space)
+        mu = problem.quad.mu_x
+        weights = problem.quad.weights
+        level_indices = problem.angular_closure.level_indices
+        arc_family = problem.coord is CoordSystem.CYLINDRICAL
+        seed = cls.source_zeros(problem.radial_characteristic_field_space)
         for p in seed.interior.space.levels:
             ords = np.asarray(level_indices[p])
             mu_p = mu[ords]
@@ -377,7 +377,7 @@ class RadialCharacteristicField(
                 # making the analysis weight-free:
                 # c_k = (2 − δ_{k0})/M · Σ_n T_k(x_n) q_n.  For a level-
                 # constant source c_0 = q and the fold returns q exactly.
-                mu_z0 = float(mesh.quad.mu_z[ords[0]])
+                mu_z0 = float(problem.quad.mu_z[ords[0]])
                 sin_theta = float(np.sqrt(1.0 - mu_z0 * mu_z0))
                 x_p = mu_p / sin_theta
                 cheb = np.polynomial.chebyshev.chebvander(

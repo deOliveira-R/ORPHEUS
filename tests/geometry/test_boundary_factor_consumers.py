@@ -343,10 +343,10 @@ class TestSpecMutationsPropagate:
     def test_dsa_admission_moves_when_a_proven_row_loses_its_property(
         self, monkeypatch, target, attr, value, label,
     ) -> None:
-        DSALowOrderSystem.from_sn_mesh(_slab("vacuum", "reflective"))
+        DSALowOrderSystem.from_problem(_slab("vacuum", "reflective"))
         monkeypatch.setattr(target, attr, property(lambda self: value))
         with pytest.raises(NotImplementedError, match="no proven low-order row"):
-            DSALowOrderSystem.from_sn_mesh(_slab("vacuum", "reflective"))
+            DSALowOrderSystem.from_problem(_slab("vacuum", "reflective"))
 
     def test_dsa_boundary_ROW_selection_moves_too_not_just_admission(
         self, monkeypatch,
@@ -360,13 +360,13 @@ class TestSpecMutationsPropagate:
         :math:`R = 0` must take the Marshak (38) row instead of the (39) row,
         which changes the assembled edge operator.
         """
-        base = DSALowOrderSystem.from_sn_mesh(
+        base = DSALowOrderSystem.from_problem(
             _slab("vacuum", "reflective")).a_low.copy()
         monkeypatch.setattr(
             ReflectiveBoundary, "response_kernel",
             property(lambda self: ScalarResponse(0.0)),
         )
-        mutated = DSALowOrderSystem.from_sn_mesh(
+        mutated = DSALowOrderSystem.from_problem(
             _slab("vacuum", "reflective")).a_low
         delta = float(np.abs(base - mutated).max())
         if delta == 0.0:

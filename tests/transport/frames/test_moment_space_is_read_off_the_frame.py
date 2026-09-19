@@ -236,7 +236,7 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
     N = N2NOperator.from_solver_data(mat_xs=mat, space=composite, scattering_order=L)
     assert _inner_factor_domain_name(N.full_transfer_kernel) == _MUTANT_NAME
 
-    field = HarmonicMomentFlux.zeros_for_mesh_and_L(sn, L)
+    field = HarmonicMomentFlux.zeros_for_problem_and_L(sn, L)
     assert isinstance(field.space, TensorProductSpace)
     assert field.space.factors[0].name == _MUTANT_NAME
     # truncation stays in the head's OWN family, one order down — the head

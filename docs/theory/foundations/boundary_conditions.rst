@@ -1988,7 +1988,7 @@ rung delegating to the next so the packing rule is stated exactly once:
    * - rung
      - takes the source in the form …
      - delegates to
-   * - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_mesh_laws`
+   * - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_problem_laws`
      - **the form the problem holds** — a boundary condition someone
        declared. Reads every face's ``mesh.bc[face].law`` and
        materialises the
@@ -2030,9 +2030,9 @@ produced, and is therefore exercising a path no user travels — see
 source is.
 
 ``[M]`` the ladder is not decorative:
-``from_mesh_laws(mesh)`` and ``from_specs(mesh, {face: spec})`` return
+``from_problem_laws(mesh)`` and ``from_specs(mesh, {face: spec})`` return
 **bit-identical** arrays for a declared ``ConstantInflowSource(2.5)``
-(``np.array_equal`` on the flat values), and ``from_mesh_laws`` returns
+(``np.array_equal`` on the flat values), and ``from_problem_laws`` returns
 exactly the zero trace field
 ``AngularBoundarySourceSink.zeros(mesh.angular_trace)`` —
 ``q.linf == 0.0`` — for ``vacuum``,
@@ -2073,7 +2073,7 @@ convergence
    :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink
 
 .. implements:: bc-single-delivery
-   :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.from_mesh_laws
+   :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.from_problem_laws
 
 .. implements:: bc-single-delivery
    :by: orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.from_specs
@@ -2301,7 +2301,7 @@ no-inflow control (``V``):
      - ``2.5``
    * - ``D0`` — declared, source channel disabled (the pre-P2′
        behaviour, reached at the time by monkeypatching
-       ``from_mesh_laws`` back to the then-current mesh-keyed
+       ``from_problem_laws`` back to the then-current mesh-keyed
        ``zeros_on``; today's spelling of the same probe is
        ``zeros(mesh.angular_trace)``)
      - ``2.5``
@@ -2393,7 +2393,7 @@ There are two user-visible ways to put flux into :math:`\Gamma_-`:
 
 1. **Declare the law** — install
    :class:`~orpheus.geometry.boundary.PrescribedInflow` on a face and
-   let :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_mesh_laws`
+   let :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.from_problem_laws`
    find it. This is the user path.
 2. **Supply** :math:`q_\partial` **directly** — build the source with
    :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`

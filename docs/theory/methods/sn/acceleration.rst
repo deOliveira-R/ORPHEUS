@@ -861,9 +861,9 @@ where it would matter.
    its caller's **raw**, unclamped request — one of three disagreeing
    spellings of one datum.  Since the consumers campaign's step 1
    (ruling R-cc9; GitHub #459)
-   :meth:`~orpheus.sn.acceleration.dsa.DSALowOrderSystem.from_sn_mesh`
+   :meth:`~orpheus.sn.acceleration.dsa.DSALowOrderSystem.from_problem`
    and
-   :meth:`~orpheus.sn.acceleration.dsa.DSACorrection.from_sn_mesh` take
+   :meth:`~orpheus.sn.acceleration.dsa.DSACorrection.from_problem` take
    the hub alone and read the **clamped** order off it, so the low-order
    operator cannot be built consistent with an order the sweep does not
    actually retain.  See :ref:`sn-hub-retained-order`.
@@ -1374,7 +1374,7 @@ Honest scope, deferrals, and rulings
 Arm 1 is **1-D slab, Cartesian, DD, within-group fixed source, P0 +
 P1, f-form**.  The build refuses everything outside it *loudly* (a
 :class:`NotImplementedError` at
-:meth:`~orpheus.sn.acceleration.dsa.DSALowOrderSystem.from_sn_mesh`),
+:meth:`~orpheus.sn.acceleration.dsa.DSALowOrderSystem.from_problem`),
 because a silent approximation of the low-order operator is exactly the
 partial-consistency divergence the negative control demonstrates.  What
 is deferred, and why:

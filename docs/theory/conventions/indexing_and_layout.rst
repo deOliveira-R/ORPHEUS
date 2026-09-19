@@ -1434,7 +1434,7 @@ lives in scattered docstrings.
    A moment field's space is ``<angular head> ⊗ cells``, and since the
    ERR-080 repair a **1-D** rule binds a FLAT head — `[M]` a
    ``gauss_legendre(8)`` phase space gives
-   ``HarmonicMomentFlux.zeros_for_mesh_and_L(sn, 2).values.shape ==
+   ``HarmonicMomentFlux.zeros_for_problem_and_L(sn, 2).values.shape ==
    (3, 1, 4)``, i.e. ``(L+1, ng, *spatial)``, while
    ``level_symmetric(8)`` and ``folded_product(4,8)`` give
    ``(3, 5, 1, 4)``. Read every ``(L+1, 2L+1, …)`` shape on this page as

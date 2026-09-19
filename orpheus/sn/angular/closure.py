@@ -1396,7 +1396,7 @@ def morel_montry_tau_per_level(
 #
 # The Morel--Montry weighted half-angle recurrence is pure algebra — all
 # data (``ψ_level``, ``τ_level``, an optional seed) via arguments, no mesh
-# state.  The mesh-bound strategy composes it (``_psi_half_grid_for_level``
+# state.  The Problem-bound strategy composes it (``_psi_half_grid_for_level``
 # reads τ from ``self`` and delegates); algebraic-identity tests call
 # :func:`compute_psi_half_per_level` with hand-built coefficient arrays — no
 # closure instance (and hence no mesh) required.
@@ -1492,7 +1492,7 @@ def compute_psi_half_per_level(
     hand-built :math:`\tau` (no closure instance, no mesh).
     Production code uses
     :meth:`MorelMontryAngularSweep.precompute_psi_state`, which reads
-    :math:`\tau` from the mesh-bound strategy state and runs the SAME
+    :math:`\tau` from the Problem-bound strategy state and runs the SAME
     :func:`_psi_half_grid_single_level` kernel (Pattern 2 — single
     source of truth for the algebra).
 

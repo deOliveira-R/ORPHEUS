@@ -106,20 +106,24 @@ them.  Trust ``git``, not this column.
        on the bare module name.  The cross-method tier the two conform to
        is still called the **method-mesh layer**
        (:doc:`/api/transport`) — only half of it is still a mesh.
-       **(4) The residue, stated so it is not read as staleness.**  The
-       rename moved the ``SNMesh`` class name and the ``sn_mesh``
-       spelling; it did **not** rename every slot that happens to hold a
-       Problem.  ``[M]`` 2026-09-18, by AST over ``orpheus/``: **24**
-       ``mesh``-spelled ``SNProblem`` parameters and fields survive across
-       six modules — **15** of them in
-       :mod:`orpheus.sn.loss_representation` (``supports(mesh,
-       spatial_closure)``, ``default_for(mesh, …)``,
-       ``_LossRepresentation.mesh``), the other nine on the transport
-       field bases (3), the two angular source-sinks (4), the
-       radial-characteristic field (1) and the SN boundary operator (1) —
-       and the two DSA factories keep the name ``from_sn_mesh``.  Every
-       signature and attribute this book quotes with ``mesh`` in it is
-       therefore the **live** spelling, not a stale reading
+       **(4) The residue, found by TYPE and closed in the same unit.**  The
+       three code passes moved the class name and the ``sn_mesh``
+       spelling; the docs pass then censused by ANNOTATION what they had
+       censused by SPELLING and found the slots that held a Problem
+       under another name — ``[M]`` 2026-09-18, by AST over ``orpheus/``:
+       **27** ``mesh``-spelled ``SNProblem`` parameters and **3** fields
+       (15 + 3 in :mod:`orpheus.sn.loss_representation` — ``supports``,
+       ``default_for``, ``_LossRepresentation.mesh`` — the rest on the
+       transport field bases, the angular source-sinks, the
+       radial-characteristic field and the SN boundary operator), plus
+       five factory verbs spelled with ``mesh`` that take the Problem
+       (``from_sn_mesh``, ``from_mesh_laws``, ``from_mesh_and_L``,
+       ``zeros_for_mesh_and_L``, ``_space_for_mesh``).  A fifth,
+       scope-aware pass renamed every one (``problem``; ``from_problem``,
+       ``from_problem_laws``, ``from_problem_and_L``,
+       ``zeros_for_problem_and_L``, ``_space_for_problem``) — the
+       2026-09-13 lesson that a rename is censused by the receiver's TYPE,
+       never by how a local is spelled, applied to the rename itself
        (:ref:`loss-rep-selection`).
        **(5) The prose pass.**  The mechanical half re-spelled
        identifiers, import paths and the ``sn_mesh`` parameter across

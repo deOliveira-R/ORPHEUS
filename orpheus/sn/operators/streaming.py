@@ -1018,7 +1018,7 @@ class StreamingCollisionOperator(
         else:
             # In moment mode the sweep returns the (L+1, 2L+1, ...) moment
             # tensor, so its own leading axis fixes L (no basis-specific read).
-            bulk = HarmonicMomentFlux.from_mesh_and_L(
+            bulk = HarmonicMomentFlux.from_problem_and_L(
                 bulk_values, problem, bulk_values.shape[0] - 1,
                 spatial_moments=per_axis,
             )

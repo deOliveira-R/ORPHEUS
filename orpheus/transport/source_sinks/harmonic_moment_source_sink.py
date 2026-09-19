@@ -42,8 +42,8 @@ All construction (the ``L`` / ``spatial_moments`` fields, the
 harmonic family — the ``<angular head>(L) ⊗ CellGroup``
 :class:`~orpheus.numerics.space.TensorProductSpace` whose head is READ off
 the mesh's quadrature frame (#429 tracker 2.5), the
-:meth:`~orpheus.transport.fields._bases.MomentField.from_mesh_and_L` /
-:meth:`~orpheus.transport.fields._bases.MomentField.zeros_for_mesh_and_L`
+:meth:`~orpheus.transport.fields._bases.MomentField.from_problem_and_L` /
+:meth:`~orpheus.transport.fields._bases.MomentField.zeros_for_problem_and_L`
 factories, the ``L``-match ``_check_partner``) is inherited from
 :class:`~orpheus.transport.fields._bases.MomentField` — the shared
 moment-space machinery lifted there when this second moment leaf arrived
@@ -118,7 +118,7 @@ class HarmonicMomentSourceSink(MomentField, flux=HarmonicMomentFlux):
         (``SphericalHarmonicSpace(L)`` on a full-sphere rule; READ off
         ``mesh.quad.angular_frame(L)`` since #429 tracker 2.5, never minted
         from ``L``). Construction via
-        :meth:`~orpheus.transport.fields._bases.MomentField.from_mesh_and_L`
+        :meth:`~orpheus.transport.fields._bases.MomentField.from_problem_and_L`
         is the canonical path.
     mesh : SNProblem
         The SN phase-space carrier.

@@ -94,7 +94,7 @@ def _field(sn: SNProblem, spatial_moments: int, seed: int) -> HarmonicMomentFlux
     values = np.random.default_rng(seed).standard_normal(
         (*_head(sn).shape, _NG, _NX, *tail)
     )
-    return HarmonicMomentFlux.from_mesh_and_L(
+    return HarmonicMomentFlux.from_problem_and_L(
         values, sn, _L, spatial_moments=spatial_moments,
     )
 
@@ -125,7 +125,7 @@ class TestTruncate:
                 f"truncate(sm={sm}) shape {g.values.shape} != "
                 f"{expected_shape}"
             )
-        factory_space = HarmonicMomentFlux.from_mesh_and_L(
+        factory_space = HarmonicMomentFlux.from_problem_and_L(
             np.zeros(expected_shape), sn, L_new, spatial_moments=sm,
         ).space
         if g.space != factory_space:

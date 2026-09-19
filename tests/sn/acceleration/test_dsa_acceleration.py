@@ -153,7 +153,7 @@ class TestD6CorrectionVanishes:
             Quadrature.gauss_legendre(n_ordinates=4),
             {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")},
         )
-        corrector = DSACorrection.from_sn_mesh(problem)
+        corrector = DSACorrection.from_problem(problem)
         psi = TimedFullField(
             interior=AngularFlux.zeros(problem.angular_bulk_space),
             boundary=AngularBoundaryFlux.zeros(problem.angular_trace),

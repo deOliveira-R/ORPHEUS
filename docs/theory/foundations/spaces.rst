@@ -2864,7 +2864,7 @@ gets *group 0's spatial slice* — well-shaped, silently wrong. The full
 list of sites that read the rectangular layout as if it were the
 contract: ``scalar_flux``, ``isotropic_part``, ``anisotropic_part``,
 ``l_block``, the fission :math:`\ell = 0` dyad, ``ng`` (which located
-the group axis at a hard-coded index 2), ``zeros_for_mesh_and_L``, and
+the group axis at a hard-coded index 2), ``zeros_for_problem_and_L``, and
 the material field's per-degree group contraction, whose ``einsum``
 spelled the :math:`m` axis into its subscripts and would have contracted
 the GROUP axis as if it were :math:`m`. All of them read the head now;

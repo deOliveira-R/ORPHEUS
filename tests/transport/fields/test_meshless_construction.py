@@ -236,5 +236,5 @@ class TestG51SugarTierRetired:
             pytest.fail("MaterialXSField.from_mesh (assembly tier) missing")
         if not callable(getattr(MultiplicationOperator, "from_mesh", None)):
             pytest.fail("MultiplicationOperator.from_mesh (operator tier) missing")
-        if not callable(getattr(HarmonicMomentFlux, "from_mesh_and_L", None)):
+        if not callable(getattr(HarmonicMomentFlux, "from_problem_and_L", None)):
             pytest.fail("the moment family's keyed factory missing (S6 scope)")
